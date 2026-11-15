@@ -376,7 +376,7 @@ public sealed class IncomeImportSection(
         }
         catch (PhaseConflictException e)
         {
-            return Result.Failure<IReadOnlyDictionary<string, SectionCounts>>(new Failure(IncomeCodes.PhaseConflict, e.Message, null));
+            return Result.Failure<IReadOnlyDictionary<string, SectionCounts>>(new ConflictFailure(e.Message) { Code = IncomeCodes.PhaseConflict });
         }
 
         return Result.Success(counts);

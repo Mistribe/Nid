@@ -101,7 +101,7 @@ public sealed class ReopenIncomeSourceHandler(ISourceStore sources, IItemRegistr
             return Result.Failure<ItemId>(failure!);
         loaded.TryGetValue(out var source);
         if (source.Item.ArchivedAt is null)
-            return Result.Failure<ItemId>(new Failure(IncomeCodes.SourceOpen, "This source has not ended.", null));
+            return Result.Failure<ItemId>(new ConflictFailure("This source has not ended.") { Code = IncomeCodes.SourceOpen });
         await using var transaction = await unitOfWork.BeginAsync(ct);
         var reopened = await items.UnarchiveAsync(command.ItemId, ct);
         if (reopened.TryGetFailure(out failure))

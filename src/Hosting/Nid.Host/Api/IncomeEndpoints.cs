@@ -120,7 +120,7 @@ public static class IncomeEndpoints
                 IInvoker invoker, CancellationToken ct) =>
             {
                 if (!OverviewPeriods.TryParse(period ?? "year", out var p))
-                    return Result.Failure<IncomeOverview>(new Failure(IncomeCodes.InvalidPeriod, "A period is year, 12m or 3y.", null)).ToHttp(o => o);
+                    return Result.Failure<IncomeOverview>(new BadRequestFailure("A period is year, 12m or 3y.") { Code = IncomeCodes.InvalidPeriod }).ToHttp(o => o);
                 if (kind is not null && kind != GetIncomeOverviewHandler.RentKind && !IncomeWire.TryKind(kind, out _))
                     return Result.Failure<IncomeOverview>(new Failure(IncomeCodes.UnknownKind, $"'{kind}' is not an income kind.", null)).ToHttp(o => o);
                 var query = new GetIncomeOverviewQuery(ParseScope(scope), p, person, kind, source is { } s ? new ItemId(s) : null, ended ?? false, year);
