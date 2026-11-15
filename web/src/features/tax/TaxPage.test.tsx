@@ -103,7 +103,7 @@ describe('TaxPage', () => {
   it('suggests the salaries for the largest cut without surcharge', async () => {
     const withCut = estimate();
     withCut.result.withholding.cut = {
-      rate: '4.2', declarants: [{ name: 'Alice', salaries: '37518.00', monthly: '141.49' }],
+      rate: '4.2', declarants: [{ name: 'Alice', salaries: '37518.00', monthly: '141.49', pensions: '0.00' }],
       rentalMonthly: '0.00', annual: '3005.70', less: '214.69', balance: '-2758.70',
     };
     server.use(http.get('*/api/v1/tax', () => HttpResponse.json(withCut)));

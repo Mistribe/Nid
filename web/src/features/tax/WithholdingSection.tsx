@@ -18,6 +18,7 @@ export function WithholdingSection({ estimate }: { estimate: TaxEstimate }) {
       const per = estimate.result.declarants[i]?.perDeducted ?? '0';
       return [
         [t('tax.withholding.salaries', { name: d.name }), eur(d.salaries)],
+        ...(ZERO.test(d.pensions) ? [] : [[t('tax.withholding.pensions', { name: d.name }), eur(d.pensions)] as [string, string]]),
         ...(ZERO.test(per) ? [] : [[t('tax.withholding.per', { name: d.name }), eur(per)] as [string, string]]),
       ];
     }),
@@ -33,7 +34,10 @@ export function WithholdingSection({ estimate }: { estimate: TaxEstimate }) {
   ];
   const cut = w.cut;
   const safeCut: [string, string][] = cut ? [
-    ...cut.declarants.map((d): [string, string] => [t('tax.withholding.cut.salaries', { name: d.name }), eur(d.salaries)]),
+    ...cut.declarants.flatMap((d): [string, string][] => [
+      [t('tax.withholding.cut.salaries', { name: d.name }), eur(d.salaries)],
+      ...(ZERO.test(d.pensions) ? [] : [[t('tax.withholding.cut.pensions', { name: d.name }), eur(d.pensions)] as [string, string]]),
+    ]),
     [t('tax.withholding.cut.rate'), percentText(t, cut.rate)],
     ...cut.declarants.map((d): [string, string] => [t('tax.withholding.cut.monthly', { name: d.name }), eur(d.monthly)]),
     ...(ZERO.test(w.rentalDeclared) ? [] : [[t('tax.withholding.cut.rental_monthly'), eur(cut.rentalMonthly)] as [string, string]]),

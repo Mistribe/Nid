@@ -31229,6 +31229,8 @@ export interface components {
             name: string;
             salaries: string;
             monthly: string;
+            /** @default 0.00 */
+            pensions: string;
         };
         DeclarationView: {
             /** Format: int32 */
@@ -36091,6 +36093,10 @@ export interface components {
             /** Format: uuid */
             person?: null | string;
             per?: null | components["schemas"]["TaxDeclarantPerView"];
+            /** @default 0.00 */
+            pensions: string;
+            /** @default 0.00 */
+            pensionAllowance: string;
         };
         TaxDeclarantView: {
             name: string;
@@ -36111,6 +36117,8 @@ export interface components {
             perEnvelopes?: null | string[];
             /** @default 0.00 */
             exemptIncome: string;
+            /** @default 0.00 */
+            pensions: string;
         };
         TaxEstimateView: {
             /** Format: int32 */
@@ -36177,6 +36185,15 @@ export interface components {
             capitalScale: boolean;
             /** @default 0.00 */
             deductibleCsg: string;
+            /** @default 0.00 */
+            alimonyPaid: string;
+            /** @default 0.00 */
+            alimonyAdultChildren: string;
+            /**
+             * Format: int32
+             * @default 0
+             */
+            alimonyAdultChildrenCount: number;
         };
         TaxMilestoneView: {
             code: string;
@@ -36241,6 +36258,13 @@ export interface components {
             /** @default false */
             capitalScale: boolean;
             deductibleCsg?: null | string;
+            alimonyPaid?: null | string;
+            alimonyAdultChildren?: null | string;
+            /**
+             * Format: int32
+             * @default 0
+             */
+            alimonyAdultChildrenCount: number;
         };
         TaxProfileView: {
             statuses: {
@@ -36283,6 +36307,15 @@ export interface components {
             capitalScale: boolean;
             /** @default 0.00 */
             deductibleCsg: string;
+            /** @default 0.00 */
+            alimonyPaid: string;
+            /** @default 0.00 */
+            alimonyAdultChildren: string;
+            /**
+             * Format: int32
+             * @default 0
+             */
+            alimonyAdultChildrenCount: number;
         };
         TaxPropertyView: {
             /** Format: uuid */
@@ -36339,6 +36372,8 @@ export interface components {
             highIncomeContribution: string;
             /** @default false */
             highIncomeSmoothed: boolean;
+            /** @default 0.00 */
+            alimonyDeducted: string;
         };
         TaxReviewView: {
             totalTax?: null | components["schemas"]["DashboardMoneyView"];

@@ -64,6 +64,39 @@ public class TaxReferenceScenariosTests
         },
     };
 
+    private static TaxDeclarant Pensioner(string name, decimal pensions) => new(name, 0m, EmploymentStatus.NonExecutive, 0m, 0m, Pensions: pensions);
+
+    /// <summary>
+    /// Issue #236: pensions and alimony, worked by hand on the brochure pratique IR 2026 (allowance 454 € to 4 439 €, an adult child's
+    /// alimony within 6 855 €), with the boxes to give the simulator in each comment.
+    /// </summary>
+    public static TheoryData<string, TaxInputs, Expected> PensionScenarios => new()
+    {
+        // Married retirees; 1AS 30 000, 1BS 25 000: the allowance capped at 4 439 for the household. Taux foyer 2 889 / 55 000.
+        {
+            "retired_couple_allowance_capped",
+            Household([Pensioner("A", 30_000m), Pensioner("B", 25_000m)]),
+            new Expected(2m, 50_561m, 50_561m, 3_010m, 121m, 2_889m, 5.3m)
+        },
+        // Single retiree; 1AS 40 000, 6GI 8 000 to an adult child: 6 855 deducted. Within the decote.
+        {
+            "single_retiree_alimony_to_adult_child",
+            Household([Pensioner("A", 40_000m)]) with { AlimonyAdultChildren = 8_000m, AlimonyAdultChildrenCount = 1 },
+            new Expected(1m, 29_145m, 29_145m, 1_930m, 24m, 1_906m, 4.8m)
+        },
+        // Single; 1AJ 20 000, 1AO 6 000 of alimony received: each its own 10 % allowance.
+        {
+            "single_salary_and_alimony_received",
+            Household([Salaried("A", 20_000m) with { Pensions = 6_000m }]),
+            new Expected(1m, 23_400m, 23_400m, 1_298m, 310m, 988m, 3.8m)
+        },
+    };
+
+    [Theory]
+    [MemberData(nameof(PensionScenarios))]
+    public void Pensions_and_alimony_match_the_brochures_rules(string scenario, TaxInputs inputs, Expected expected)
+        => The_estimate_matches_the_official_simulator(scenario, inputs, expected);
+
     [Theory]
     [MemberData(nameof(Scenarios))]
     public void The_estimate_matches_the_official_simulator(string scenario, TaxInputs inputs, Expected expected)

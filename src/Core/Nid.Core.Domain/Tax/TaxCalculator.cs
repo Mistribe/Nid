@@ -12,12 +12,14 @@ public enum RentalRegime { Micro, Real }
 /// counted as it is beside the estimate from <c>SalaryGross</c>. Spec §4.2: <c>PerCeiling</c> is the avis d'imposition's PER
 /// ceiling, already total; null, the ceiling is estimated on <c>PreviousYearIncome</c> (last year's taxable income). <c>PerExpiring</c>:
 /// the part of the ceiling lost on 31 December. <c>ExemptIncome</c>: the exempt income the reference income counts (overtime, the
-/// value-sharing bonus), outside the tax itself.
+/// value-sharing bonus), outside the tax itself. <c>Pensions</c>: the net taxable pensions and alimony received (box 1AS, 1AO), under
+/// the pensions' own 10 % allowance.
 /// </summary>
 public sealed record TaxDeclarant(
     string Name, decimal SalaryGross, EmploymentStatus Status, decimal OtherTaxable, decimal PerContributions,
     decimal? ContributionRate = null, decimal? ActualExpenses = null, decimal PerUnusedCeiling = 0m, decimal SalaryTaxable = 0m,
-    decimal? PerCeiling = null, decimal PreviousYearIncome = 0m, decimal PerExpiring = 0m, decimal ExemptIncome = 0m, Guid? Person = null)
+    decimal? PerCeiling = null, decimal PreviousYearIncome = 0m, decimal PerExpiring = 0m, decimal ExemptIncome = 0m, Guid? Person = null,
+    decimal Pensions = 0m)
 {
     public decimal EffectiveContributionRate => ContributionRate ?? TaxRules.ContributionRate(Status);
 }
@@ -33,6 +35,8 @@ public sealed record TaxDeclarant(
 /// the progressive scale (box 2OP) instead of the flat tax. <c>DeductibleCsg</c>: box 6DE, the CSG deductible on last year's capital
 /// income taxed at the scale. <c>ReferenceIncomesBefore</c>: the reference incomes of the two years before (N−1, N−2) from their
 /// notices, which the high-income contribution's smoothing reads; null when one is not known.
+/// <c>AlimonyPaid</c>: the alimony deducted whole (an ex-spouse, a minor child living elsewhere, box 6GP); <c>AlimonyAdultChildren</c>
+/// what is paid to <c>AlimonyAdultChildrenCount</c> adult children outside the household (6GI, 6GJ), deducted within the cap of each.
 /// </summary>
 public sealed record TaxInputs(
     int Year, IReadOnlyList<TaxDeclarant> Declarants, int Dependents, int ChildrenUnder6,
@@ -40,7 +44,8 @@ public sealed record TaxInputs(
     decimal CapitalIncome, decimal NonTaxableIncome, decimal PinelReduction,
     decimal ChildcareOutsideHome, decimal HomeEmployment, decimal Donations, decimal DonationsAid, decimal RentalDeficitCarried = 0m,
     bool PerPooling = false, decimal DonationsAidLate = 0m, decimal RentalEnergyWorks = 0m,
-    decimal CapitalDividends = 0m, bool CapitalScale = false, decimal DeductibleCsg = 0m, (decimal N1, decimal N2)? ReferenceIncomesBefore = null);
+    decimal CapitalDividends = 0m, bool CapitalScale = false, decimal DeductibleCsg = 0m, (decimal N1, decimal N2)? ReferenceIncomesBefore = null,
+    decimal AlimonyPaid = 0m, decimal AlimonyAdultChildren = 0m, int AlimonyAdultChildrenCount = 0);
 
 /// <summary>Where a declarant's salary comes from: none, the entered net taxable income, the gross estimated, or both.</summary>
 public enum SalaryMethod { None, Entered, Estimated, Mixed }
@@ -61,11 +66,12 @@ public sealed record PerDeclarant(
 
 /// <summary>
 /// <c>PerDeducted</c> is <c>Per.Deducted</c>, deducted from this declarant's income. <c>ExemptNet</c>: the exempt income after the
-/// allowance, which the next year's PER ceiling counts with <c>Taxable</c>.
+/// allowance, which the next year's PER ceiling counts with <c>Taxable</c>. <c>Taxable</c> holds the pensions after <c>PensionAllowance</c>.
 /// </summary>
 public sealed record DeclarantResult(
     string Name, decimal NetSalary, decimal NetTaxableIncome, decimal Allowance, decimal Taxable, decimal PerDeducted,
-    SalaryMethod Method = SalaryMethod.None, PerDeclarant? Per = null, decimal ExemptNet = 0m, Guid? Person = null);
+    SalaryMethod Method = SalaryMethod.None, PerDeclarant? Per = null, decimal ExemptNet = 0m, Guid? Person = null,
+    decimal Pensions = 0m, decimal PensionAllowance = 0m);
 
 /// <summary>
 /// Spec §4.3, the household's PER: <c>Remaining</c> the free ceiling left, <c>TaxSaved</c> the income tax without any PER deduction
@@ -86,6 +92,7 @@ public sealed record PerHousehold(bool Pooled, decimal Remaining, decimal TaxSav
 /// minus this one (negative: the other costs less), null without capital income. <c>DividendAllowance</c>: the 40 % on the dividends,
 /// under the scale only. <c>DeductibleCsgNextYear</c>: the CSG the year's capital income under the scale makes deductible next year (6DE).
 /// <c>HighIncomeContribution</c>: the CEHR on the reference income, in <c>TotalTax</c>; <c>HighIncomeSmoothed</c> when its quotient applied.
+/// <c>AlimonyDeducted</c>: the alimony paid taken off the global income, the adult children's within their cap.
 /// </summary>
 public sealed record TaxResult(
     int Year, int RulesYear, decimal Parts, IReadOnlyList<DeclarantResult> Declarants,
@@ -96,7 +103,7 @@ public sealed record TaxResult(
     decimal MarginalRate, decimal? AverageRate, decimal NetBeforeTax, decimal NetAfterTax, decimal NetAfterTaxMonthly,
     IReadOnlyList<string> Warnings, Withholding Withholding, PerHousehold? Per = null, decimal ReferenceIncome = 0m, decimal? RentalRegimeGap = null,
     decimal RentalDeficitCarriedForward = 0m, bool CapitalScale = false, decimal? CapitalOptionGap = null, decimal DividendAllowance = 0m,
-    decimal DeductibleCsgNextYear = 0m, decimal HighIncomeContribution = 0m, bool HighIncomeSmoothed = false);
+    decimal DeductibleCsgNextYear = 0m, decimal HighIncomeContribution = 0m, bool HighIncomeSmoothed = false, decimal AlimonyDeducted = 0m);
 
 /// <summary>
 /// Spec §4bis: the withholding rate the year's income gives, and what « Actualiser suite à une hausse ou une baisse de vos revenus »
@@ -107,8 +114,11 @@ public sealed record Withholding(
     decimal Rate, decimal TaxBase, decimal Income, IReadOnlyList<DeclarantWithholding> Declarants,
     decimal RentalDeclared, decimal RentalMonthly, decimal Annual, decimal LeftOut, decimal Balance, WithholdingCut? Cut = null);
 
-/// <summary>A declarant's salaries to declare (net taxable, before the 10 % allowance) and the monthly amount withheld at the household rate.</summary>
-public sealed record DeclarantWithholding(string Name, decimal Salaries, decimal Monthly, Guid? Person = null);
+/// <summary>
+/// A declarant's salaries and pensions to declare (net taxable, before the 10 % allowances) and the monthly amount withheld on both
+/// at the household rate.
+/// </summary>
+public sealed record DeclarantWithholding(string Name, decimal Salaries, decimal Monthly, Guid? Person = null, decimal Pensions = 0m);
 
 /// <summary>
 /// Spec §4bis, the « baisse sans risque »: the salaries to enter (<c>Declarants[i].Salaries</c>) for the rate <c>Rate</c>, and the
@@ -158,10 +168,16 @@ public static class TaxCalculator
             return null;
 
         var salaries = w.Declarants.Select(d => d.Salaries).ToList();
+        var pensions = w.Declarants.Select(d => d.Pensions).ToList();
         decimal[] Entered(decimal f) => [.. salaries.Select(s => Math.Ceiling(f * s))];
-        decimal RateOf(decimal[] entered) => Compute(inputs with
+        // The pensions are cut by the same factor as the salaries.
+        decimal[] Pensions(decimal f) => [.. pensions.Select(p => Math.Ceiling(f * p))];
+        decimal RateOf(decimal f) => Compute(inputs with
         {
-            Declarants = [.. inputs.Declarants.Select((d, i) => d with { SalaryGross = 0m, SalaryTaxable = entered[i], OtherTaxable = 0m, ContributionRate = null })],
+            Declarants = [.. inputs.Declarants.Select((d, i) => d with
+            {
+                SalaryGross = 0m, SalaryTaxable = Entered(f)[i], OtherTaxable = 0m, ContributionRate = null, Pensions = Pensions(f)[i],
+            })],
         }, withTaxSaved: false).Withholding.Rate;
 
         // The rate is rounded, so no closed form: the smallest factor whose rate reaches minRate (the factor 1 does).
@@ -169,16 +185,16 @@ public static class TaxCalculator
         for (var i = 0; i < 40; i++)
         {
             var mid = (low + high) / 2;
-            if (RateOf(Entered(mid)) >= minRate) high = mid; else low = mid;
+            if (RateOf(mid) >= minRate) high = mid; else low = mid;
         }
-        var final = Entered(high);
-        var rate = RateOf(final);
+        var (final, finalPensions) = (Entered(high), Pensions(high));
+        var rate = RateOf(high);
         // A rounding step may jump over minRate and land within 5 % of the real rate.
         if (rate > 0.95m * w.Rate)
             return null;
         var annual = Euros(rate / 100 * w.Income);
         return new WithholdingCut(
-            rate, w.Declarants.Select((d, i) => new DeclarantWithholding(d.Name, final[i], Euros(rate / 100 * d.Salaries / 12), d.Person)).ToList(),
+            rate, w.Declarants.Select((d, i) => new DeclarantWithholding(d.Name, final[i], Euros(rate / 100 * (d.Salaries + d.Pensions) / 12), d.Person, finalPensions[i])).ToList(),
             Euros((rate / 100 + TaxRules.For(inputs.Year).RentalSocialRate) * w.RentalDeclared / 12), annual, w.Annual - annual, result.IncomeTax - annual);
     }
 
@@ -197,7 +213,8 @@ public static class TaxCalculator
         // Spec §4.3: the PER deduction is a household step, pooling needs both declarants.
         var pooled = inputs.PerPooling && inputs.Declarants.Count == 2;
         var (pers, perRemaining) = PerDeductions(inputs, pooled);
-        var declarants = inputs.Declarants.Select((d, i) => Declarant(d, rules) with { PerDeducted = pers[i].Deducted, Per = pers[i] }).ToList();
+        var pensionAllowances = rules.PensionAllowances([.. inputs.Declarants.Select(d => d.Pensions)]);
+        var declarants = inputs.Declarants.Select((d, i) => Declarant(d, rules, pensionAllowances[i]) with { PerDeducted = pers[i].Deducted, Per = pers[i] }).ToList();
         warnings.AddRange(pers.Where(p => p.Excess > 0m).Select(_ => TaxWarnings.PerOverCeiling));
         warnings.AddRange(pers.Where(p => p.Source == PerCeilingSource.Estimated && p.Contributions > 0m).Select(_ => TaxWarnings.PerCeilingEstimated));
 
@@ -234,7 +251,9 @@ public static class TaxCalculator
         var dividendAllowance = inputs.CapitalScale ? Euros(TaxRules.DividendAllowanceRate * Math.Min(Math.Max(0m, inputs.CapitalDividends), capital)) : 0m;
         var capitalInGlobal = inputs.CapitalScale ? capital - dividendAllowance : 0m;
         var global = Math.Max(0m, declarants.Sum(d => d.Taxable) + rentalTaxable - deficit + capitalInGlobal - Math.Max(0m, inputs.DeductibleCsg));
-        var taxable = Math.Floor(Math.Max(0m, global - declarants.Sum(d => d.PerDeducted)));
+        var alimony = Euros(Math.Max(0m, inputs.AlimonyPaid)
+            + Math.Min(Math.Max(0m, inputs.AlimonyAdultChildren), rules.AlimonyAdultChildCap * Math.Max(0, inputs.AlimonyAdultChildrenCount)));
+        var taxable = Math.Floor(Math.Max(0m, global - declarants.Sum(d => d.PerDeducted) - alimony));
 
         var baseParts = inputs.Declarants.Count;
         var parts = baseParts + ChildParts(inputs.Dependents);
@@ -271,7 +290,7 @@ public static class TaxCalculator
         var (cehr, smoothed) = HighIncome(reference, baseParts == 2, inputs.ReferenceIncomesBefore);
         var total = incomeTax + flat + levies + cehr;
 
-        var netBefore = declarants.Sum(d => d.NetSalary) + inputs.Declarants.Sum(d => d.OtherTaxable)
+        var netBefore = declarants.Sum(d => d.NetSalary) + inputs.Declarants.Sum(d => d.OtherTaxable + Math.Max(0m, d.Pensions))
             + inputs.RentalGross + inputs.CapitalIncome + inputs.NonTaxableIncome;
         var netAfter = netBefore - total;
 
@@ -301,7 +320,7 @@ public static class TaxCalculator
             perHousehold, reference, regimeGap,
             // shortcut: the 10-year limit is not followed; the rules start in 2025, so no deficit Nid computes expires before 2035.
             Euros(Math.Max(0m, inputs.RentalDeficitCarried) - carriedUsed + loss - deficit),
-            inputs.CapitalScale, optionGap, dividendAllowance, inputs.CapitalScale ? Euros(TaxRules.DeductibleCsgRate * capital) : 0m, cehr, smoothed);
+            inputs.CapitalScale, optionGap, dividendAllowance, inputs.CapitalScale ? Euros(TaxRules.DeductibleCsgRate * capital) : 0m, cehr, smoothed, alimony);
     }
 
     /// <summary>
@@ -387,12 +406,12 @@ public static class TaxCalculator
         var within = declarants.Sum(d => d.Taxable) + Math.Max(0m, rentalTaxable);
         var share = capitalInGlobal > 0m && within + capitalInGlobal > 0m ? within / (within + capitalInGlobal) : 1m;
         var taxBase = Math.Round(baseTax * share, 0, MidpointRounding.AwayFromZero);
-        var income = declarants.Sum(d => d.NetTaxableIncome) + Euros(rentalTaxable);
+        var income = declarants.Sum(d => d.NetTaxableIncome + d.Pensions) + Euros(rentalTaxable);
         var rate = income == 0m ? 0m : Math.Round(taxBase / income * 100, 1, MidpointRounding.AwayFromZero);
         var annual = Euros(rate / 100 * income);
         return new Withholding(
             rate, taxBase, income,
-            declarants.Select(d => new DeclarantWithholding(d.Name, d.NetTaxableIncome, Euros(rate / 100 * d.NetTaxableIncome / 12), d.Person)).ToList(),
+            declarants.Select(d => new DeclarantWithholding(d.Name, d.NetTaxableIncome, Euros(rate / 100 * (d.NetTaxableIncome + d.Pensions) / 12), d.Person, d.Pensions)).ToList(),
             Euros(rentalTaxable), Euros((rate / 100 + rules.RentalSocialRate) * rentalTaxable / 12), annual, Euros(leftOut), incomeTax - annual);
     }
 
@@ -405,7 +424,7 @@ public static class TaxCalculator
 
     /// <summary>Income #408: what the household rate withholds each month on the declarant's salaries beyond the real rate (negative: short).</summary>
     public static decimal MonthlyGap(TaxResult r, DeclarantWithholding d)
-        => r.Withholding.Income == 0m ? 0m : Euros(d.Monthly - Math.Max(0m, r.IncomeTax) * d.Salaries / r.Withholding.Income / 12);
+        => r.Withholding.Income == 0m ? 0m : Euros(d.Monthly - Math.Max(0m, r.IncomeTax) * (d.Salaries + d.Pensions) / r.Withholding.Income / 12);
 
     /// <summary>
     /// The scale on the net taxable income over <paramref name="parts"/>, the children's half-shares capped by the family quotient
@@ -458,8 +477,10 @@ public static class TaxCalculator
         return exempt - (Allowance(d, rules, income + exempt) - Allowance(d, rules, income));
     }
 
-    private static DeclarantResult Declarant(TaxDeclarant d, TaxRules rules)
+    /// <summary><paramref name="pensionAllowance"/>: the declarant's share of the household's pension allowance.</summary>
+    private static DeclarantResult Declarant(TaxDeclarant d, TaxRules rules, decimal pensionAllowance)
     {
+        var pensions = Math.Max(0m, d.Pensions);
         var net = NetSalary(d);
         var income = Income(d);
         var method = (d.SalaryTaxable > 0m, d.SalaryGross > 0m) switch
@@ -470,9 +491,10 @@ public static class TaxCalculator
             _ => SalaryMethod.None,
         };
         var allowance = Allowance(d, rules, income);
-        var taxable = income - allowance;
+        var taxable = income - allowance + pensions - pensionAllowance;
         // The PER deduction comes after, from the household step (PerDeductions).
-        return new DeclarantResult(d.Name, Euros(net), Euros(income), Euros(allowance), Euros(taxable), 0m, method, ExemptNet: Euros(ExemptNet(d, rules)), Person: d.Person);
+        return new DeclarantResult(d.Name, Euros(net), Euros(income), Euros(allowance), Euros(taxable), 0m, method, ExemptNet: Euros(ExemptNet(d, rules)), Person: d.Person,
+            Pensions: Euros(pensions), PensionAllowance: Euros(pensionAllowance));
     }
 
     private static decimal Euros(decimal amount) => Math.Round(amount, 2, MidpointRounding.AwayFromZero);

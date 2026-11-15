@@ -124,9 +124,9 @@ public sealed class SimulateTaxHandler(IHouseholdCalendar calendar) : IRequestHa
         var inputs = query.Inputs;
         if (TaxEstimates.CheckYear(inputs.Year, await calendar.TodayAsync(ct)) is { } failure)
             return Result.Failure<TaxResultView>(failure);
-        if (inputs.Declarants.Count is < 1 or > 2 || inputs.Declarants.Any(d => d.ContributionRate is { } r && !TaxEstimates.RateOk(r) || d.SalaryTaxable < 0m || d.PerCeiling < 0m || d.PreviousYearIncome < 0m || d.PerExpiring < 0m) || inputs.Dependents is < 0 or > 20 || inputs.ChildrenUnder6 < 0 || inputs.ChildrenUnder6 > inputs.Dependents)
+        if (inputs.Declarants.Count is < 1 or > 2 || inputs.Declarants.Any(d => d.ContributionRate is { } r && !TaxEstimates.RateOk(r) || d.SalaryTaxable < 0m || d.PerCeiling < 0m || d.PreviousYearIncome < 0m || d.PerExpiring < 0m) || inputs.Dependents is < 0 or > 20 || inputs.ChildrenUnder6 < 0 || inputs.ChildrenUnder6 > inputs.Dependents || inputs.AlimonyAdultChildrenCount is < 0 or > 20)
             return Result.Failure<TaxResultView>(new Failure(TaxCodes.InvalidInputs,
-                "One or two declarants, their entered net taxable income, PER ceiling, previous-year income and expiring ceiling not negative; dependents between 0 and 20, the children under 6 among them.", null));
+                "One or two declarants, their entered net taxable income, PER ceiling, previous-year income and expiring ceiling not negative; dependents between 0 and 20, the children under 6 among them; adult children receiving alimony between 0 and 20.", null));
         return Result.Success(TaxResultView.Of(TaxCalculator.Compute(inputs)));
     }
 }
@@ -329,7 +329,8 @@ public sealed class TaxEstimates(
             Declarants = inputs.Declarants.Select(d => d with { PerContributions = 0m }).ToList(),
         });
         return Result.Success<IReadOnlyDictionary<Guid, decimal>>(
-            Adults(people).Zip(result.Declarants, (adult, d) => (Id: adult.Id.Value, Income: d.Taxable + d.ExemptNet)).ToDictionary(x => x.Id, x => x.Income));
+            // A pension is no professional income: the ceiling leaves it out.
+            Adults(people).Zip(result.Declarants, (adult, d) => (Id: adult.Id.Value, Income: d.Taxable - d.Pensions + d.PensionAllowance + d.ExemptNet)).ToDictionary(x => x.Id, x => x.Income));
     }
 
     /// <summary>The adults who declare, in a stable order: the household's first two.</summary>
@@ -358,7 +359,7 @@ public sealed class TaxEstimates(
                 Sum(TaxLineCodes.SalaryTaxable), PerCeiling: profile.PerCeilings?.TryGetValue(adult.Id.Value, out var ceiling) == true ? ceiling : null,
                 PreviousYearIncome: previousYearIncome?.GetValueOrDefault(adult.Id.Value) ?? 0m,
                 PerExpiring: profile.PerCeilingsExpiring?.GetValueOrDefault(adult.Id.Value) ?? 0m,
-                ExemptIncome: profile.ExemptIncomes?.GetValueOrDefault(adult.Id.Value) ?? 0m, Person: adult.Id.Value);
+                ExemptIncome: profile.ExemptIncomes?.GetValueOrDefault(adult.Id.Value) ?? 0m, Person: adult.Id.Value, Pensions: Sum(TaxLineCodes.Pension));
             // The profile's rate against the payslips': the notice sits on the first salary holding both figures (the adult is no item).
             if (rate is { } declared && ObservedRate(lines, adult.Id) is { } observed && Math.Abs(declared - observed) > 0.03m
                 && own.FirstOrDefault(l => l.Code == TaxLineCodes.SalaryRateGross) is { } source)
@@ -369,7 +370,7 @@ public sealed class TaxEstimates(
         if (declarants.Count == 0)
             declarants.Add(new TaxDeclarant("", 0m, EmploymentStatus.NonExecutive, 0m, 0m));
 
-        string[] personal = [TaxLineCodes.SalaryTaxable, TaxLineCodes.SalaryGross, TaxLineCodes.SalaryNet, TaxLineCodes.SalaryOneOff, TaxLineCodes.OtherTaxable, TaxLineCodes.PerContribution];
+        string[] personal = [TaxLineCodes.SalaryTaxable, TaxLineCodes.SalaryGross, TaxLineCodes.SalaryNet, TaxLineCodes.SalaryOneOff, TaxLineCodes.OtherTaxable, TaxLineCodes.PerContribution, TaxLineCodes.Pension];
         foreach (var line in lines.Where(l => !Informative.Contains(l.Code)))
         {
             if (personal.Contains(line.Code) && !adults.Any(a => a.Id == line.Person) && line.Amount != 0)
@@ -433,7 +434,8 @@ public sealed class TaxEstimates(
             All(TaxLineCodes.CapitalIncome), All(TaxLineCodes.NonTaxable), pinel,
             statements.Count + projected.Count > 0 ? statements.Sum(l => l.Amount) + projected.Sum(l => l.Amount) : profile.ChildcareOutsideHome, profile.HomeEmployment, profile.Donations, profile.DonationsAid, profile.RentalDeficitCarried, profile.PerPooling,
             profile.DonationsAidLate, profile.RentalEnergyWorks,
-            All(TaxLineCodes.CapitalDividends), profile.CapitalScale, profile.DeductibleCsg, referenceBefore);
+            All(TaxLineCodes.CapitalDividends), profile.CapitalScale, profile.DeductibleCsg, referenceBefore,
+            profile.AlimonyPaid, profile.AlimonyAdultChildren, profile.AlimonyAdultChildrenCount);
         return (inputs, notices, columns);
     }
 
@@ -459,7 +461,8 @@ public sealed class TaxEstimates(
                  && p.Pinel.All(c => c.InitialYears is 6 or 9 && c.TotalYears is 6 or 9 or 12 && c.TotalYears >= c.InitialYears
                                      && c.StartYear is null or (>= 2014 and <= 2040))
                  && p.Pinel.Select(c => c.Property).Distinct().Count() == p.Pinel.Count
-                 && new[] { p.ChildcareOutsideHome, p.HomeEmployment, p.Donations, p.DonationsAid, p.RentalDeficitCarried, p.DonationsAidLate, p.RentalEnergyWorks, p.DeductibleCsg }.All(a => a is >= 0 and <= 10_000_000m)
+                 && new[] { p.ChildcareOutsideHome, p.HomeEmployment, p.Donations, p.DonationsAid, p.RentalDeficitCarried, p.DonationsAidLate, p.RentalEnergyWorks, p.DeductibleCsg, p.AlimonyPaid, p.AlimonyAdultChildren }.All(a => a is >= 0 and <= 10_000_000m)
+                 && p.AlimonyAdultChildrenCount is >= 0 and <= 20 && (p.AlimonyAdultChildren == 0m || p.AlimonyAdultChildrenCount > 0)
                  && (p.ContributionRates?.Values.All(RateOk) ?? true) && (p.ActualExpenses?.Values.All(a => a is >= 0 and <= 10_000_000m) ?? true)
                  && (p.PerUnusedCeilings?.Values.All(a => a is >= 0 and <= 10_000_000m) ?? true)
                  && (p.ExemptIncomes?.Values.All(a => a is >= 0 and <= 10_000_000m) ?? true)
@@ -467,7 +470,7 @@ public sealed class TaxEstimates(
                  && (p.PerCeilings?.Values.All(a => a is >= 0 and <= 10_000_000m) ?? true)
                  && (p.PerCeilingsExpiring?.All(e => e.Value is >= 0 and <= 10_000_000m && p.PerCeilings?.TryGetValue(e.Key, out var ceiling) == true && e.Value <= ceiling) ?? true);
         return ok ? null : new Failure(TaxCodes.InvalidProfile,
-            "Statuses are non_executive, executive or public; a contribution rate is between 0 and 60 %; the regime micro or real; a Pinel commitment starts at 6 or 9 years and lasts 6, 9 or 12, once per property; amounts are not negative; the part of a PER ceiling lost on 31 December comes with that ceiling and does not exceed it; a department is a code from 01 to 95, 2A, 2B or 971 to 976.", null);
+            "Statuses are non_executive, executive or public; a contribution rate is between 0 and 60 %; the regime micro or real; a Pinel commitment starts at 6 or 9 years and lasts 6, 9 or 12, once per property; amounts are not negative; alimony paid to adult children comes with their number, 1 to 20; the part of a PER ceiling lost on 31 December comes with that ceiling and does not exceed it; a department is a code from 01 to 95, 2A, 2B or 971 to 976.", null);
     }
 
     /// <summary>A payslip's employee contributions: between 0 and 60 % of the gross, as a fraction.</summary>

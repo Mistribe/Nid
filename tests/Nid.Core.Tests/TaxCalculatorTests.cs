@@ -10,6 +10,59 @@ public class TaxCalculatorTests
 
     private static TaxDeclarant Other(decimal taxable) => new("A", 0m, EmploymentStatus.NonExecutive, taxable, 0m);
 
+    private static TaxDeclarant Pensioner(string name, decimal pensions) => new(name, 0m, EmploymentStatus.NonExecutive, 0m, 0m, Pensions: pensions);
+
+    [Fact]
+    public void A_small_pension_takes_the_pensioners_minimum_allowance()
+    {
+        var result = TaxCalculator.Compute(Inputs([Pensioner("A", 3_000m)]));
+
+        // 10 % is 300, under the 454 € minimum.
+        Assert.Equal(454m, result.Declarants[0].PensionAllowance);
+        Assert.Equal(2_546m, result.Declarants[0].Taxable);
+        // The minimum never exceeds the pension.
+        Assert.Equal(200m, TaxCalculator.Compute(Inputs([Pensioner("A", 200m)])).Declarants[0].PensionAllowance);
+    }
+
+    [Fact]
+    public void The_pension_allowance_is_capped_for_the_household_and_shared_in_proportion()
+    {
+        var result = TaxCalculator.Compute(Inputs([Pensioner("A", 30_000m), Pensioner("B", 25_000m)]));
+
+        // 3 000 + 2 500 over the 4 439 € household cap: 4 439 × 30 / 55 and × 25 / 55.
+        Assert.Equal(2_421.27m, result.Declarants[0].PensionAllowance);
+        Assert.Equal(2_017.73m, result.Declarants[1].PensionAllowance);
+        Assert.Equal(50_561m, result.NetTaxableIncome);
+    }
+
+    [Fact]
+    public void Salary_and_pension_keep_their_own_allowance()
+    {
+        var result = TaxCalculator.Compute(Inputs([new("A", 0m, EmploymentStatus.NonExecutive, 0m, 0m, SalaryTaxable: 20_000m, Pensions: 6_000m)]));
+
+        Assert.Equal(2_000m, result.Declarants[0].Allowance);
+        Assert.Equal(600m, result.Declarants[0].PensionAllowance);
+        Assert.Equal(23_400m, result.Declarants[0].Taxable);
+        // The pensions are withheld at the household rate beside the salaries.
+        Assert.Equal(26_000m, result.Withholding.Income);
+        Assert.Equal(6_000m, result.Withholding.Declarants[0].Pensions);
+    }
+
+    [Fact]
+    public void Alimony_paid_comes_off_the_global_income_the_adult_childrens_within_their_cap()
+    {
+        // 50 000 − the 10 % allowance: 45 000 of global income.
+        var inputs = Inputs([Other(50_000m)]);
+
+        Assert.Equal(42_000m, TaxCalculator.Compute(inputs with { AlimonyPaid = 3_000m }).NetTaxableIncome);
+        // Two adult children, 15 000 paid: 2 × 6 855 deducted.
+        var capped = TaxCalculator.Compute(inputs with { AlimonyAdultChildren = 15_000m, AlimonyAdultChildrenCount = 2 });
+        Assert.Equal(13_710m, capped.AlimonyDeducted);
+        Assert.Equal(31_290m, capped.NetTaxableIncome);
+        // The reference income does not add it back.
+        Assert.Equal(31_290m, capped.ReferenceIncome);
+    }
+
     [Fact]
     public void An_entered_net_taxable_income_is_counted_as_it_is()
     {

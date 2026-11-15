@@ -146,7 +146,8 @@ public static class TaxEndpoints
         IReadOnlyDictionary<Guid, string>? PerUnusedCeilings = null, string? RentalDeficitCarried = null,
         IReadOnlyDictionary<Guid, string>? PerCeilings = null, IReadOnlyDictionary<Guid, string>? PerCeilingsExpiring = null, bool PerPooling = false,
         IReadOnlyDictionary<Guid, string>? ExemptIncomes = null, string? DonationsAidLate = null, string? RentalEnergyWorks = null,
-        string? Department = null, bool CapitalScale = false, string? DeductibleCsg = null)
+        string? Department = null, bool CapitalScale = false, string? DeductibleCsg = null,
+        string? AlimonyPaid = null, string? AlimonyAdultChildren = null, int AlimonyAdultChildrenCount = 0)
     {
         internal TaxProfile? Read(FieldReader reader)
         {
@@ -164,10 +165,13 @@ public static class TaxEndpoints
             var aidLate = Amount(reader, DonationsAidLate, "donationsAidLate");
             var energy = Amount(reader, RentalEnergyWorks, "rentalEnergyWorks");
             var csg = Amount(reader, DeductibleCsg, "deductibleCsg");
+            var alimony = Amount(reader, AlimonyPaid, "alimonyPaid");
+            var alimonyChildren = Amount(reader, AlimonyAdultChildren, "alimonyAdultChildren");
             return reader.Ok
                 ? new TaxProfile(Statuses ?? new Dictionary<Guid, string>(), Dependents, ChildrenUnder6, RentalRegime, Pinel ?? [], childcare, home, donations, aid,
                     rates, expenses, unused, carried, ceilings, expiring, PerPooling, exempt, aidLate, energy,
-                    string.IsNullOrWhiteSpace(Department) ? null : Department.Trim().ToUpperInvariant(), CapitalScale, csg)
+                    string.IsNullOrWhiteSpace(Department) ? null : Department.Trim().ToUpperInvariant(), CapitalScale, csg,
+                    alimony, alimonyChildren, AlimonyAdultChildrenCount)
                 : null;
         }
     }
@@ -293,7 +297,7 @@ public static class TaxEndpoints
                 d.PerCeiling is null ? null : Amount(reader, d.PerCeiling, $"declarants[{i}].perCeiling"),
                 Amount(reader, d.PreviousYearIncome, $"declarants[{i}].previousYearIncome"),
                 Amount(reader, d.PerExpiring, $"declarants[{i}].perExpiring"),
-                Amount(reader, d.ExemptIncome, $"declarants[{i}].exemptIncome")));
+                Amount(reader, d.ExemptIncome, $"declarants[{i}].exemptIncome"), Pensions: Amount(reader, d.Pensions, $"declarants[{i}].pensions")));
         }
         RentalRegime? regime = null;
         if (body.RentalRegime is not null)
@@ -310,7 +314,9 @@ public static class TaxEndpoints
             Amount(reader, body.HomeEmployment, "homeEmployment"), Amount(reader, body.Donations, "donations"), Amount(reader, body.DonationsAid, "donationsAid"),
             Amount(reader, body.RentalDeficitCarried, "rentalDeficitCarried"), body.PerPooling,
             Amount(reader, body.DonationsAidLate, "donationsAidLate"), Amount(reader, body.RentalEnergyWorks, "rentalEnergyWorks"),
-            Amount(reader, body.CapitalDividends, "capitalDividends"), body.CapitalScale, Amount(reader, body.DeductibleCsg, "deductibleCsg"));
+            Amount(reader, body.CapitalDividends, "capitalDividends"), body.CapitalScale, Amount(reader, body.DeductibleCsg, "deductibleCsg"),
+            AlimonyPaid: Amount(reader, body.AlimonyPaid, "alimonyPaid"), AlimonyAdultChildren: Amount(reader, body.AlimonyAdultChildren, "alimonyAdultChildren"),
+            AlimonyAdultChildrenCount: body.AlimonyAdultChildrenCount);
         return reader.Ok ? inputs : null;
     }
 

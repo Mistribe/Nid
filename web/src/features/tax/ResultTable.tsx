@@ -37,6 +37,8 @@ export function ResultTable({ columns, label, declarants = true }: {
       ...(declarants ? first.declarants : []).flatMap((d, i) => [
         money(t('tax.row.salary_net', { name: d.name }), (r) => r.declarants[i]?.netTaxableIncome ?? '0'),
         money(t('tax.row.allowance', { name: d.name }), (r) => r.declarants[i]?.allowance ?? '0', false, tip('allowance')),
+        money(t('tax.row.pensions', { name: d.name }), (r) => r.declarants[i]?.pensions ?? '0', false, tip('pensions')),
+        money(t('tax.row.pension_allowance', { name: d.name }), (r) => r.declarants[i]?.pensionAllowance ?? '0', false, tip('pension_allowance')),
         money(t('tax.row.per', { name: d.name }), (r) => r.declarants[i]?.perDeducted ?? '0', false, tip('per_deduction')),
       ]),
       money(t('tax.row.deficit_carried'), (r) => r.rentalDeficitCarriedUsed, false, tip('deficit_carried')),
@@ -44,6 +46,7 @@ export function ResultTable({ columns, label, declarants = true }: {
       money(t('tax.row.deficit'), (r) => r.rentalDeficit, false, tip('rental_deficit')),
       money(t('tax.row.deficit_forward'), (r) => r.rentalDeficitCarriedForward, false, tip('deficit_forward')),
       money(t('tax.row.dividend_allowance'), (r) => r.dividendAllowance, false, tip('dividend_allowance')),
+      money(t('tax.row.alimony'), (r) => r.alimonyDeducted, false, tip('alimony')),
       money(t('tax.row.net_taxable'), (r) => r.netTaxableIncome, true, tip('net_taxable')),
       money(t('tax.row.reference_income'), (r) => r.referenceIncome, false, tip('reference_income')),
     ] },
@@ -165,6 +168,8 @@ export function DeclarantTable({ result, detail = [], adults = [], children }: {
   const rows: { title: string; amount: (d: TaxResult['declarants'][number]) => string; strong?: boolean; origin?: boolean; tip?: string }[] = [
     { title: t('tax.declarant.salary_net'), amount: (d) => d.netTaxableIncome, origin: true },
     { title: t('tax.declarant.allowance'), amount: (d) => d.allowance, tip: tipText(t, 'allowance') },
+    { title: t('tax.declarant.pensions'), amount: (d) => d.pensions, tip: tipText(t, 'pensions') },
+    { title: t('tax.declarant.pension_allowance'), amount: (d) => d.pensionAllowance, tip: tipText(t, 'pension_allowance') },
     { title: t('tax.declarant.per'), amount: (d) => d.perDeducted, tip: tipText(t, 'per_deduction') },
     { title: t('tax.declarant.taxable'), amount: (d) => d.taxable, strong: true },
   ];
