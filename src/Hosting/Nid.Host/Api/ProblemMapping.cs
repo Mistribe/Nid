@@ -70,10 +70,8 @@ public static class ProblemMapping
             IncomeCodes.SourceEnded,
             ChildcareCodes.StatementValidated, // a week of a validated month names its field (monday)
             GoalsCodes.ShareExceeded, // a goal's funding line names its field (funding[i].shareBp)
-            DocumentsCodes.AlreadyLinked, DocumentsCodes.SourceRefTaken,
-            NotificationCodes.PreferencesConflict,
-            BankingCodes.Disabled, BankingCodes.NotConfigured, BankingCodes.EnvelopeTaken, BankingCodes.SyncRunning,
-            BankingCodes.TransactionLinked);
+            DocumentsCodes.AlreadyLinked,
+            NotificationCodes.PreferencesConflict);
         Map(options, StatusCodes.Status409Conflict, [.. ImportCodes.Conflicts]);
 
         Map(options, StatusCodes.Status413PayloadTooLarge, DocumentsCodes.TooLarge, BankingCodes.FileTooLarge);

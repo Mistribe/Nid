@@ -162,7 +162,7 @@ public sealed class UploadDocumentHandler(
             return null;
         return (await access.ReadAsync(found.Id, person, ct)).TryGetValue(out _)
             ? Result.Success(new UploadedDocument(found.Id, true))
-            : Result.Failure<UploadedDocument>(new Failure(DocumentsCodes.SourceRefTaken, "Another document already has this source reference.", null));
+            : Result.Failure<UploadedDocument>(new ConflictFailure("Another document already has this source reference.") { Code = DocumentsCodes.SourceRefTaken });
     }
 }
 

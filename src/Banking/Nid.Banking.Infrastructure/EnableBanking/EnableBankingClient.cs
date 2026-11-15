@@ -153,7 +153,7 @@ public sealed class EnableBankingClient(SafeHttpClient http, BankingOptions opti
         where T : notnull
     {
         if (string.IsNullOrWhiteSpace(options.PrivateKey))
-            return Fail<T>(BankingCodes.NotConfigured, "No Enable Banking private key is configured.");
+            return Result.Failure<T>(new ConflictFailure("No Enable Banking private key is configured.") { Code = BankingCodes.NotConfigured });
         string jwt;
         try
         {
