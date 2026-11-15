@@ -193,7 +193,7 @@ public sealed class ItemRegistry(CoreDbContext db, IClock clock) : IItemRegistry
         }
         catch (DbUpdateConcurrencyException)
         {
-            return Result.Failure(new Failure(ItemCodes.Changed, "The item changed since it was read.", null));
+            return Result.Failure(new ConflictFailure("The item changed since it was read.") { Code = ItemCodes.Changed });
         }
     }
 }

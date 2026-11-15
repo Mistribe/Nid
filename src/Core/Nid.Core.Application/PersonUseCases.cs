@@ -77,9 +77,9 @@ public sealed class DeleteDependentHandler(IPersonRegistry persons, IEnumerable<
             uses.AddRange((await part.UsesAsync(child.Id, ct)).Where(u => u.Count > 0).Select(u => u.Key));
         // The kinds only, never an item's name or a count: the refusal reveals nothing of another adult's private items.
         if (uses.Count > 0)
-            return Result.Failure<PersonId>(new Failure(PersonCodes.PersonInUse,
+            return Result.Failure<PersonId>(new ConflictFailure(
                 $"{child.DisplayName} is still named elsewhere: {string.Join(", ", uses)}.",
-                new Dictionary<string, object?> { ["uses"] = uses }));
+                new Dictionary<string, object?> { ["uses"] = uses }) { Code = PersonCodes.PersonInUse });
 
         var deleted = await persons.DeleteDependentAsync(child.Id, ct);
         if (deleted.TryGetFailure(out var failure))

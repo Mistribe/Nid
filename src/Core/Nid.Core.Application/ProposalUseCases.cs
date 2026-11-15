@@ -264,9 +264,9 @@ public sealed class ApproveProposalHandler(
             return Result.Failure<ProposalView>(loaded.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
         var (proposal, me) = found;
         if (proposal.Status != ProposalStatus.Pending)
-            return Fail(ProposalCodes.Decided, "This proposal was already decided or replaced.");
+            return Result.Failure<ProposalView>(new ConflictFailure("This proposal was already decided or replaced.") { Code = ProposalCodes.Decided });
         if (proposal.Version != command.Version)
-            return Fail(ProposalCodes.Conflict, "This proposal changed meanwhile: reload it.");
+            return Result.Failure<ProposalView>(new ConflictFailure("This proposal changed meanwhile: reload it.") { Code = ProposalCodes.Conflict });
         if (handlers.Find(proposal.Kind) is not { } handler || handler.PayloadVersion != proposal.PayloadVersion)
             return Fail(ProposalCodes.VersionUnsupported, "This proposal's payload is no longer read: reject it.");
 
