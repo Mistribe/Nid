@@ -20,7 +20,7 @@ public sealed record EndingInput(
 /// share a week with it; <c>Cmg</c>: read from the Pajemploi summary; <c>Declared</c>: decision 30, the fields entered by hand;
 /// <c>Contributions</c>: #30, the contributions left to the household on the Pajemploi summary; <c>Exemption</c>: the contributions
 /// Pajemploi waived on the extra hours, from its summary, estimated while null; <c>TermsOn</c>: the terms in force on a day,
-/// for the upkeep and meals of a month a revision takes effect in (<c>Terms</c> on every day while null).
+/// for a month a revision takes effect in (<c>Terms</c> on every day while null): #227, each day's pay at its own rate.
 /// </summary>
 public sealed record MonthInput(
     YearMonth Month, ContractTerms Terms, WeekPlan Plan, IReadOnlyList<CareGap> Gaps,
@@ -45,32 +45,63 @@ public static class ChildcareMonth
         var partial = templateDaysInContract < templateDays;
         var potentialHours = input.Days.Sum(d => input.Plan.HoursOn(d.Date));
         var outsideHours = potentialHours - inContract.Sum(d => input.Plan.HoursOn(d.Date));
-        var basePay = partial ? fullPay - Mensualisation.Round(fullPay * outsideHours / potentialHours) : fullPay;
+        // #227: a revision taking effect mid-month splits the mensualised pay by the template hours on each side of its date,
+        // as a month the contract enters or leaves; every figure drawn from the rate follows its own day's.
+        var termsOn = input.TermsOn ?? (_ => input.Terms);
+        var runs = Runs(inContract, input.Terms, termsOn);
+        var last = runs[^1].Terms;
+        var runPay = runs.Select(r => Mensualisation.BasePay(r.Terms.NetHourlyRate, annualHours)).ToList();
+        var basePays = runs.Count > 1
+            ? runs.Select((r, i) => Mensualisation.Round(runPay[i] * r.Days.Sum(d => input.Plan.HoursOn(d.Date)) / potentialHours)).ToList()
+            : [partial ? fullPay - Mensualisation.Round(fullPay * outsideHours / potentialHours) : fullPay];
+        var basePay = basePays.Sum();
 
-        var (deduction, deductedDays, childSick) = AbsenceDeduction.Compute(fullPay, inContract, input.Plan, input.ChildSickUsedBefore, input.Terms.UnpaidAbsences, potentialHours);
-        var (computedComplementary, computedOvertime) = ExtraHours.Compute(input.Month, [.. input.Days, .. input.NeighbourDays], input.Plan, input.Terms);
+        var deductions = new List<decimal>();
+        var (deductedDays, childSick) = (0, 0);
+        var complementaryRuns = new List<decimal>();
+        var overtimeRuns = new List<decimal>();
+        for (var i = 0; i < runs.Count; i++)
+        {
+            // The sick-child quota runs over the month in day order, so each run starts where the one before left it.
+            var (d, n, c) = AbsenceDeduction.Compute(runPay[i], runs[i].Days, input.Plan, input.ChildSickUsedBefore + childSick, runs[i].Terms.UnpaidAbsences, potentialHours);
+            deductions.Add(d);
+            (deductedDays, childSick) = (deductedDays + n, childSick + c);
+            // A week straddling the date keeps its 45 h over the whole week; each day's extra hours go to its own run.
+            var (from, until) = (runs[i].From, i + 1 < runs.Count ? runs[i + 1].From : LocalDate.MaxIsoValue);
+            var (comp, over) = ExtraHours.Compute(input.Month, [.. input.Days, .. input.NeighbourDays], input.Plan, runs[i].Terms, day => day >= from && day < until);
+            complementaryRuns.Add(comp);
+            overtimeRuns.Add(over);
+        }
+        var deduction = deductions.Sum();
+        var (computedComplementary, computedOvertime) = (complementaryRuns.Sum(), overtimeRuns.Sum());
+        // Hours entered by hand are not split by day: whatever they add to the computed ones is paid at the month's last rate.
+        if (input.Declared?.ComplementaryHours is { } declaredComplementary)
+            complementaryRuns[^1] = declaredComplementary - complementaryRuns.SkipLast(1).Sum();
+        if (input.Declared?.OvertimeHours is { } declaredOvertime)
+            overtimeRuns[^1] = declaredOvertime - overtimeRuns.SkipLast(1).Sum();
         var complementary = input.Declared?.ComplementaryHours ?? ExtraHours.Whole(computedComplementary);
         var overtime = input.Declared?.OvertimeHours ?? ExtraHours.Whole(computedOvertime);
-        var extraPay = ExtraHours.Pay(input.Declared?.ComplementaryHours ?? computedComplementary, input.Declared?.OvertimeHours ?? computedOvertime,
-            input.Terms.NetHourlyRate, input.Terms.OvertimeRate) + ExtraHours.HolidayPremium(inContract, input.Terms.NetHourlyRate);
-        var (computedUpkeep, computedMeals) = Upkeep.Month(input.Days, input.TermsOn ?? (_ => input.Terms));
+        var extraPay = runs.Select((r, i) => ExtraHours.Pay(complementaryRuns[i], overtimeRuns[i], r.Terms.NetHourlyRate, r.Terms.OvertimeRate)
+            + ExtraHours.HolidayPremium(r.Days, r.Terms.NetHourlyRate)).Sum();
+        var (computedUpkeep, computedMeals) = Upkeep.Month(input.Days, termsOn);
         var upkeep = input.Declared?.Upkeep ?? computedUpkeep;
         var meals = input.Declared?.Meals ?? computedMeals;
 
         var leaveDays = input.Declared?.PaidLeaveDays ?? input.June?.AccruedDays;
         // The contract's average week over its template weeks (38,389 h for 23 × 39 h + 22 × 37,75 h).
         var weeklyHours = annualHours / input.Plan.ProgrammedWeeks;
-        var leavePay = input.June is { } j ? PaidLeave.JuneIndemnity(j.ReferenceNetPay, input.Terms.NetHourlyRate, weeklyHours, leaveDays!.Value) : 0m;
+        // Leave is paid at the rate in force at the month's end.
+        var leavePay = input.June is { } j ? PaidLeave.JuneIndemnity(j.ReferenceNetPay, last.NetHourlyRate, weeklyHours, leaveDays!.Value) : 0m;
 
         // The last month settles the incomplete year (art. 124) and the leave not yet paid, as the higher of the tenth and maintained pay (art. 125).
         var (regularisation, balanceDays, leaveIndemnity) = (0m, 0, 0m);
         if (input.Ending is { } end)
         {
-            var due = end.DueBefore + Mensualisation.Round(input.Terms.NetHourlyRate * EndOfContract.HoursDue(inContract, input.Plan, input.ChildSickUsedBefore, input.Terms.UnpaidAbsences));
+            var due = end.DueBefore + DuePay(inContract, input.Plan, input.ChildSickUsedBefore, termsOn, input.Terms);
             regularisation = due - end.PaidBefore - (basePay - deduction);
             balanceDays = PaidLeave.Accrued([.. end.LeaveDaysBefore, .. inContract], input.Plan, input.Terms.UnpaidAbsences, input.Gaps);
             if (balanceDays > 0)
-                leaveIndemnity = PaidLeave.JuneIndemnity(end.LeavePayBefore + basePay - deduction + extraPay + regularisation, input.Terms.NetHourlyRate, weeklyHours, balanceDays);
+                leaveIndemnity = PaidLeave.JuneIndemnity(end.LeavePayBefore + basePay - deduction + extraPay + regularisation, last.NetHourlyRate, weeklyHours, balanceDays);
         }
 
         var computedPay = basePay - deduction + extraPay + leavePay + regularisation;
@@ -88,8 +119,12 @@ public static class ChildcareMonth
                 : (int)Math.Ceiling((decimal)mensualisedDays * (templateDays - deductedDays) / templateDays));
         // #26: the hours the pay at the normal rate stands for, mensualised less deducted, extra hours apart: the hour
         // the extra minutes round up to is not taken back out of them (142.5 h and 40 min extra declare 142 h + 1 h).
+        // Pajemploi takes one rate per declaration: two rates in a month declare the hours each part stands for, summed.
         var normalHours = input.Declared?.NormalHours
-            ?? Math.Max(0, Mensualisation.NormalHours(basePay - deduction + leavePay + regularisation, input.Terms.NetHourlyRate));
+            ?? Math.Max(0, runs.Count == 1
+                ? Mensualisation.NormalHours(basePay - deduction + leavePay + regularisation, input.Terms.NetHourlyRate)
+                : Mensualisation.WholeHoursDown(runs.Select((r, i) => (basePays[i] - deductions[i]) / r.Terms.NetHourlyRate).Sum()
+                    + (leavePay + regularisation) / last.NetHourlyRate));
         // Art. 121: the indemnity's base is every salary of the contract, this month's and the leave indemnity included.
         var rupture = input.Ending is { } ending && EndOfContract.IndemnityDue(ending.Reason, input.Terms.Start, ending.Notified)
             ? EndOfContract.RuptureIndemnity(ending.NetPayBefore + netPay + leaveIndemnity,
@@ -100,13 +135,44 @@ public static class ChildcareMonth
         var declaration = new PajemploiDeclaration(normalHours, activityDays, declaredLeaveDays,
             complementary, overtime, netPay, upkeep, meals, input.Mileage, leaveIndemnity, rupture);
         // The declared net is before the exemption: Pajemploi adds it to what it pays the carer, so the household pays it too.
-        var exemption = input.Exemption ?? ExtraHours.ExemptionEstimate(complementary, overtime, input.Terms.NetHourlyRate, input.Terms.OvertimeRate);
+        // shortcut: a month with two rates estimates the exemption at the last one; the summary's figure replaces it once entered.
+        var exemption = input.Exemption ?? ExtraHours.ExemptionEstimate(complementary, overtime, last.NetHourlyRate, last.OvertimeRate);
         // #30: the CMG covers the contributions only up to an hourly ceiling; past it the household pays the rest, read from the summary.
         var paid = input.Contributions + exemption;
         // The breach indemnity is not a salary (art. 121): in the cost, not in the childcare tax base.
         return new MonthFigures(declaration, basePay, deduction, extraPay, leavePay, input.Cmg,
             netPay + leaveIndemnity + rupture + upkeep + meals + input.Mileage + paid - input.Cmg, netPay + leaveIndemnity + upkeep + paid - input.Cmg, childSick,
             input.Contributions, exemption, regularisation);
+    }
+
+    /// <summary>
+    /// The pay a month's hours due at their rate come to (<see cref="EndOfContract.HoursDue"/>), each run of days at the terms in force on it
+    /// (#227), the sick-child quota taken in day order.
+    /// </summary>
+    public static decimal DuePay(IReadOnlyList<StatementDay> inContract, WeekPlan plan, int childSickUsedBefore, Func<LocalDate, ContractTerms> termsOn, ContractTerms terms)
+    {
+        var (due, sick) = (0m, childSickUsedBefore);
+        foreach (var run in Runs(inContract, terms, termsOn))
+        {
+            due += Mensualisation.Round(run.Terms.NetHourlyRate * EndOfContract.HoursDue(run.Days, plan, sick, run.Terms.UnpaidAbsences));
+            sick += AbsenceDeduction.Deducted(run.Days, plan, sick, run.Terms.UnpaidAbsences).ChildSickDeducted;
+        }
+        return due;
+    }
+
+    private sealed record Run(ContractTerms Terms, LocalDate From, List<StatementDay> Days);
+
+    /// <summary>The days cut where the terms in force change, in day order, never none; the first run reaches back before the month.</summary>
+    private static List<Run> Runs(IEnumerable<StatementDay> days, ContractTerms terms, Func<LocalDate, ContractTerms> termsOn)
+    {
+        var runs = new List<Run>();
+        foreach (var day in days.OrderBy(d => d.Date))
+        {
+            var on = termsOn(day.Date);
+            if (runs.Count == 0 || runs[^1].Terms != on) runs.Add(new Run(on, runs.Count == 0 ? LocalDate.MinIsoValue : day.Date, []));
+            runs[^1].Days.Add(day);
+        }
+        return runs.Count == 0 ? [new Run(terms, LocalDate.MinIsoValue, [])] : runs;
     }
 
     /// <summary>

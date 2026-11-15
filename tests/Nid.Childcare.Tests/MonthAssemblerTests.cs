@@ -50,11 +50,40 @@ public class MonthAssemblerTests
         Assert.Equal(without.Declaration.ComplementaryHours, with.Declaration.ComplementaryHours);
     }
 
-    private static MonthTerms Revised(LocalDate from, YearMonth month)
+    private static MonthTerms Revised(LocalDate from, YearMonth month, decimal rate = 4.30m)
         => MonthTerms.For([
             new Terms(Item, D(2025, 9, 1), from.PlusDays(-1), 4.30m, null, 0.10m, 4.50m, 3.20m, [new WeekType("Semaine type", ProgrammedWeeks, Schedule)]),
-            new Terms(Item, from, null, 4.30m, null, 0.10m, 5.00m, 4.00m, [new WeekType("Semaine type", ProgrammedWeeks, Schedule)], 1.00m),
+            new Terms(Item, from, null, rate, null, 0.10m, 5.00m, 4.00m, [new WeekType("Semaine type", ProgrammedWeeks, Schedule)], 1.00m),
         ], [], [], month);
+
+    /// <summary>#227: a new hourly rate from Thursday 2026-07-16 splits the mensualised pay by the template hours on each side of the date.</summary>
+    [Fact]
+    public void A_revision_taking_effect_mid_month_splits_the_base_pay_at_its_date()
+    {
+        var terms = Revised(D(2026, 7, 16), new YearMonth(2026, 7), 4.50m);
+        // The 16th goes home two hours late and Monday the 13th is an unpaid absence: each at its own day's rate.
+        var days = MonthAssembler.Prepared(terms).Select(d => d.Date.Day switch
+        {
+            13 => d with { Present = false, Arrival = null, Departure = null, Absence = AbsenceReason.ChildSick },
+            16 => d with { Departure = d.Departure!.Value.PlusHours(2) },
+            _ => d,
+        }).ToList();
+        var plan = terms.Plan;
+        var potential = days.Sum(d => plan.HoursOn(d.Date));
+        var before = days.Where(d => d.Date.Day < 16).Sum(d => plan.HoursOn(d.Date));
+        var annual = Mensualisation.AnnualHours(plan.Types);
+        var (oldPay, newPay) = (Mensualisation.BasePay(4.30m, annual), Mensualisation.BasePay(4.50m, annual));
+
+        var figures = MonthAssembler.Evaluate(terms, days, [], [], null, 0m, 0m).Figures!;
+
+        var (oldBase, newBase) = (Mensualisation.Round(oldPay * before / potential), Mensualisation.Round(newPay * (potential - before) / potential));
+        var deduction = Mensualisation.Round(oldPay * plan.HoursOn(D(2026, 7, 13)) / potential);
+        Assert.Equal(oldBase + newBase, figures.BasePay);
+        Assert.Equal(deduction, figures.Deduction);
+        Assert.Equal(ExtraHours.Pay(2m, 0m, 4.50m, 0.10m), figures.ExtraPay);
+        Assert.Equal((int)Math.Floor((oldBase - deduction) / 4.30m + newBase / 4.50m), figures.Declaration.NormalHours);
+        Assert.NotEqual(Mensualisation.BasePay(4.30m, annual), figures.BasePay);
+    }
 
     /// <summary>A revision taking effect on Friday 2026-07-31 prices that day's upkeep, lunch and snack, the days before keep the old prices.</summary>
     [Fact]

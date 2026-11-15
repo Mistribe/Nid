@@ -27,7 +27,7 @@ public static class Mensualisation
     /// #225: the payroll tools declare the normal hours cut to the whole hour (142.5 h as 142, 263.51 h as 263). Rounded to the
     /// minute first, so a pay rounded to the cent (139.9995 h) does not lose an hour.
     /// </summary>
-    private static int WholeHoursDown(decimal hours) => (int)Math.Floor(Math.Round(hours * 60m) / 60m);
+    public static int WholeHoursDown(decimal hours) => (int)Math.Floor(Math.Round(hours * 60m) / 60m);
 
     /// <summary>The Pajemploi activity days of a month: the year's days over twelve.</summary>
     public static int ActivityDays(IReadOnlyList<WeekType> types)
