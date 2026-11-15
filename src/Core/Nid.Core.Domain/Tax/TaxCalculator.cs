@@ -111,6 +111,8 @@ public sealed record WithholdingCut(
 public static class TaxWarnings
 {
     public const string RulesCarriedForward = "rules_carried_forward";
+    /// <summary>The year's scale is the finance bill's, not yet the law's.</summary>
+    public const string RulesProvisional = "rules_provisional";
     public const string MicroOverCeiling = "micro_over_ceiling";
     public const string PinelRequiresReal = "pinel_requires_real";
     public const string HighIncomeContribution = "high_income_contribution";
@@ -180,6 +182,8 @@ public static class TaxCalculator
         var warnings = new List<string>();
         if (rules.CarriedForward)
             warnings.Add(TaxWarnings.RulesCarriedForward);
+        else if (rules.Provisional)
+            warnings.Add(TaxWarnings.RulesProvisional);
 
         // Spec §4.3: the PER deduction is a household step, pooling needs both declarants.
         var pooled = inputs.PerPooling && inputs.Declarants.Count == 2;

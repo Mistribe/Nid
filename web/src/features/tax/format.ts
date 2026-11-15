@@ -3,7 +3,7 @@ import type tax from '@/locales/fr.tax.json';
 import '@/locales/tax';
 
 export const REGIMES = ['auto', 'micro', 'real'] as const;
-const WARNINGS = ['rules_carried_forward', 'micro_over_ceiling', 'pinel_requires_real', 'high_income_contribution'] as const;
+const WARNINGS = ['rules_carried_forward', 'rules_provisional', 'micro_over_ceiling', 'pinel_requires_real', 'high_income_contribution'] as const;
 /** A server amount that is zero (`0.00`, `-0`). */
 export const ZERO = /^-?0(\.0+)?$/;
 const NOTICES = ['missing_gross', 'unsupported_income', 'withdrawal_not_estimated', 'other_currency', 'not_a_declarant', 'rental_charges_removed', 'rental_fee_not_counted', 'rental_to_check', 'contribution_rate_differs', 'per_without_contributions', 'childcare_from_statements', 'childcare_projected', 'childcare_estimated'] as const;

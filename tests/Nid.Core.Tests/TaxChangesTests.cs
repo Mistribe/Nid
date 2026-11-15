@@ -3,7 +3,7 @@ using Nid.Core.Domain.Tax;
 
 namespace Nid.Core.Tests;
 
-/// <summary>Issue #410: this year's estimate against last year's, line by line, worked by hand (2026 carries the 2025 scale).</summary>
+/// <summary>Issue #410: this year's estimate against last year's, line by line, worked by hand (2025 against the 2026 scale).</summary>
 public class TaxChangesTests
 {
     private static readonly Guid A = Guid.NewGuid(), B = Guid.NewGuid();
@@ -22,11 +22,12 @@ public class TaxChangesTests
     [Fact]
     public void A_raise_goes_through_this_years_scale()
     {
-        // 36 000 → 45 000 after the allowance: 3 903.99 → 6 603.99 on the scale, so +2 700; the tax follows to the euro.
+        // 36 000 → 45 000 after the allowance: 3 759.16 → 6 459.16 on the 2026 scale, so +2 700; 2025's 3 904 on its own scale,
+        // the −145 left is the scale's revaluation.
         var r = TaxChanges.Of(Estimate(2026, 50_000m), Estimate(2025, 40_000m), [], [A])!;
 
         Assert.Equal(new TaxChangeLine("salaries", A, 36_000m, 45_000m, 2_700m, false), Assert.Single(r.Lines));
-        Assert.Equal((3_904m, false, 6_604m, 0m), (r.TaxBefore, r.TaxBeforeFromNotice, r.TaxNow, r.Remainder));
+        Assert.Equal((3_904m, false, 6_459m, -145m), (r.TaxBefore, r.TaxBeforeFromNotice, r.TaxNow, r.Remainder));
     }
 
     [Fact]
@@ -34,21 +35,21 @@ public class TaxChangesTests
     {
         var r = TaxChanges.Of(Estimate(2026, 50_000m), Estimate(2025, 40_000m), [Notice(30_000m, 2_500m, A)], [A])!;
 
-        // 2 103.99 on 30 000: +4 500; the rest of the 4 104 of change is what the line does not explain.
-        Assert.Equal(new TaxChangeLine("salaries", A, 30_000m, 45_000m, 4_500m, true), Assert.Single(r.Lines));
-        Assert.Equal((2_500m, true, -396m), (r.TaxBefore, r.TaxBeforeFromNotice, r.Remainder));
+        // 1 997.16 on 30 000: +4 462; the rest of the 3 959 of change is what the line does not explain.
+        Assert.Equal(new TaxChangeLine("salaries", A, 30_000m, 45_000m, 4_462m, true), Assert.Single(r.Lines));
+        Assert.Equal((2_500m, true, -503m), (r.TaxBefore, r.TaxBeforeFromNotice, r.Remainder));
     }
 
     [Fact]
     public void A_child_and_a_credit_lower_the_tax_sorted_by_effect()
     {
-        // Half a share, capped by the family quotient at 1 807; the childcare credit 50 % of 2 000.
+        // Half a share, capped by the family quotient at 1 845; the childcare credit 50 % of 2 000; the scale's −145 left.
         var r = TaxChanges.Of(Estimate(2026, 50_000m, dependents: 1, childcare: 2_000m), Estimate(2025, 50_000m), [], [A])!;
 
         Assert.Equal(
-            [new TaxChangeLine("shares", null, 1m, 1.5m, -1_807m, false), new TaxChangeLine("childcare", null, 0m, 1_000m, -1_000m, false)],
+            [new TaxChangeLine("shares", null, 1m, 1.5m, -1_845m, false), new TaxChangeLine("childcare", null, 0m, 1_000m, -1_000m, false)],
             r.Lines);
-        Assert.Equal(0m, r.Remainder);
+        Assert.Equal(-145m, r.Remainder);
     }
 
     [Fact]

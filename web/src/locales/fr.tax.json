@@ -179,6 +179,7 @@
     },
     "warning": {
       "rules_carried_forward": "Le barème de cette année n’est pas encore connu : celui des revenus {{year}} est repris.",
+      "rules_provisional": "Le barème des revenus {{year}} est celui du projet de loi de finances : il peut encore changer.",
       "micro_over_ceiling": "Les loyers dépassent 15 000 € : le régime réel s’applique.",
       "pinel_requires_real": "Un logement en Pinel exclut le micro-foncier : le régime réel s’applique.",
       "high_income_contribution": "La contribution exceptionnelle sur les hauts revenus n’est pas calculée.",

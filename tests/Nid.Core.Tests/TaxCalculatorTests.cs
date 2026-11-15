@@ -381,7 +381,8 @@ public class TaxCalculatorTests
     [Theory]
     [InlineData(2025, 4_637, 37_094)] // the 2024 PASS, 46 368 (brochure IR 2026)
     [InlineData(2026, 4_710, 37_680)] // the 2025 PASS, 47 100 (impots.gouv.fr, épargne retraite)
-    [InlineData(2027, 4_710, 37_680)] // carried forward
+    [InlineData(2027, 4_806, 38_448)] // the 2026 PASS, 48 060
+    [InlineData(2028, 4_806, 38_448)] // carried forward
     public void The_estimated_ceiling_reads_the_previous_years_pass(int year, int floor, int cap)
     {
         Assert.Equal(floor, TaxCalculator.Compute(Inputs([Other(30_000m)], year: year)).Declarants[0].Per!.Ceiling);
@@ -544,7 +545,7 @@ public class TaxCalculatorTests
 
         Assert.Equal(128m, result.CapitalFlatTax);
         Assert.Equal(186m, result.SocialLevies);
-        Assert.Contains(TaxWarnings.RulesCarriedForward, result.Warnings);
+        Assert.Contains(TaxWarnings.RulesProvisional, result.Warnings);
     }
 
     [Fact]
