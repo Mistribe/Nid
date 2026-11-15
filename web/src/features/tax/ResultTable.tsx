@@ -43,6 +43,7 @@ export function ResultTable({ columns, label, declarants = true }: {
       { title: t('tax.row.rental'), cell: (r) => t('tax.row.rental_value', { amount: eur(r.rentalTaxable), regime: regimeText(t, r.rentalRegime) }), amount: (r) => r.rentalTaxable, tip: tip('rental') },
       money(t('tax.row.deficit'), (r) => r.rentalDeficit, false, tip('rental_deficit')),
       money(t('tax.row.deficit_forward'), (r) => r.rentalDeficitCarriedForward, false, tip('deficit_forward')),
+      money(t('tax.row.dividend_allowance'), (r) => r.dividendAllowance, false, tip('dividend_allowance')),
       money(t('tax.row.net_taxable'), (r) => r.netTaxableIncome, true, tip('net_taxable')),
       money(t('tax.row.reference_income'), (r) => r.referenceIncome, false, tip('reference_income')),
     ] },
@@ -60,6 +61,7 @@ export function ResultTable({ columns, label, declarants = true }: {
     { title: t('tax.group.other'), rows: [
       money(t('tax.row.flat_tax'), (r) => r.capitalFlatTax, false, tip('flat_tax')),
       money(t('tax.row.social_levies'), (r) => r.socialLevies, false, tip('social_levies')),
+      money(t('tax.row.high_income'), (r) => r.highIncomeContribution, false, tip('high_income')),
       money(t('tax.row.total_tax'), (r) => r.totalTax, true),
     ] },
     { title: t('tax.group.left'), rows: [

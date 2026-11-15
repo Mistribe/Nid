@@ -35945,6 +35945,12 @@ export interface components {
             donationsAidLate: string;
             /** @default 0.00 */
             rentalEnergyWorks: string;
+            /** @default 0.00 */
+            capitalDividends: string;
+            /** @default false */
+            capitalScale: boolean;
+            /** @default 0.00 */
+            deductibleCsg: string;
         };
         TaxMilestoneView: {
             code: string;
@@ -36006,6 +36012,9 @@ export interface components {
             donationsAidLate?: null | string;
             rentalEnergyWorks?: null | string;
             department?: null | string;
+            /** @default false */
+            capitalScale: boolean;
+            deductibleCsg?: null | string;
         };
         TaxProfileView: {
             statuses: {
@@ -36044,6 +36053,10 @@ export interface components {
             donationsAidLate: string;
             rentalEnergyWorks: string;
             department?: null | string;
+            /** @default false */
+            capitalScale: boolean;
+            /** @default 0.00 */
+            deductibleCsg: string;
         };
         TaxPropertyView: {
             /** Format: uuid */
@@ -36089,6 +36102,17 @@ export interface components {
             rentalRegimeGap?: null | string;
             /** @default 0.00 */
             rentalDeficitCarriedForward: string;
+            /** @default false */
+            capitalScale: boolean;
+            capitalOptionGap?: null | string;
+            /** @default 0.00 */
+            dividendAllowance: string;
+            /** @default 0.00 */
+            deductibleCsgNextYear: string;
+            /** @default 0.00 */
+            highIncomeContribution: string;
+            /** @default false */
+            highIncomeSmoothed: boolean;
         };
         TaxReviewView: {
             totalTax?: null | components["schemas"]["DashboardMoneyView"];
