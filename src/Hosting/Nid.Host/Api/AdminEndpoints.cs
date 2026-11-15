@@ -81,8 +81,8 @@ public static class AdminEndpoints
         // Issue 215 (local-accounts.md §6): the admin role, when Nid decides it; the last admin keeps it.
         api.MapPut("/users/{id:guid}/admin", async (Guid id, AdminRoleBody body, IInvoker invoker, AuthSettings settings, CancellationToken ct)
                 => settings.AdminSource == AdminSource.IdentityProvider
-                    ? ResultHttp.Problem(new UnambitiousFx.Functional.Failures.Failure(PersonCodes.AdminSourceIdentityProvider,
-                        "The admin role comes from the identity provider's group: change it there.", null))
+                    ? ResultHttp.Problem(new UnambitiousFx.Functional.Failures.ConflictFailure(
+                        "The admin role comes from the identity provider's group: change it there.") { Code = PersonCodes.AdminSourceIdentityProvider })
                     : (await invoker.InvokeAsync(new SetAdminCommand(new PersonId(id), body.Admin), ct)).ToHttp(view => view.Adult))
             .Returns<AdultView>()
             .ProducesProblem(StatusCodes.Status409Conflict);

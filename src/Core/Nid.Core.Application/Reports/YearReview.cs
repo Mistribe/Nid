@@ -238,8 +238,8 @@ public sealed class GetYearReviewHandler(
             new[] { firstDue, firstCharge }.Min());
 
         if (year > today.Year || year < years[0])
-            return Result.Failure<YearReviewView>(new Failure(ReportCodes.InvalidYear,
-                $"A year is between {years[0]} and {today.Year}.", null));
+            return Result.Failure<YearReviewView>(new BadRequestFailure(
+                $"A year is between {years[0]} and {today.Year}.") { Code = ReportCodes.InvalidYear });
 
         var reference = await household.ReferenceCurrencyAsync(ct);
         var foreign = points!.SelectMany(p => period.Select(d => p[dates.IndexOf(d)]))

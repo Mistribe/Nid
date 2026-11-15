@@ -285,7 +285,7 @@ public sealed class PersonRegistry(CoreDbContext db, IClock clock) : IPersonRegi
         if (row.IsAdmin == admin)
             return Result.Success(new AdminChange(await InfoAsync(row, ct), false));
         if (!admin && !await db.Persons.AnyAsync(p => p.Kind == "adult" && p.IsAdmin && p.Id != row.Id, ct))
-            return Result.Failure<AdminChange>(new Failure(PersonCodes.LastAdmin, "The household must keep at least one admin.", null));
+            return Result.Failure<AdminChange>(new ConflictFailure("The household must keep at least one admin.") { Code = PersonCodes.LastAdmin });
         row.IsAdmin = admin;
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);

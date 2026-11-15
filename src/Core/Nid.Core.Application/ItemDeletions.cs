@@ -50,7 +50,7 @@ public sealed class ItemDeletions(
         await using var transaction = await unitOfWork.BeginAsync(ct);
         foreach (var part in parts)
             if ((await part.BlockersAsync(item, ct)).Count > 0)
-                return Result.Failure(new Failure(ItemCodes.InUse, "Something still refers to this item.", null));
+                return Result.Failure(new ConflictFailure("Something still refers to this item.") { Code = ItemCodes.InUse });
 
         foreach (var part in parts.OrderBy(p => p.RunsLast))
             await part.RemoveAsync(item, ct);

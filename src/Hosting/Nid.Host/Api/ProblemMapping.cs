@@ -49,7 +49,6 @@ public static class ProblemMapping
             LocalAccountCodes.PasswordTooCommon, LocalSignIn.CurrentPasswordWrong, LocalSignIn.InvalidCode,
             FxCodes.InvalidRate, FxCodes.InvalidRange, SeriesCodes.InvalidKey, ExportCodes.BadCursor,
             InvestmentsCodes.InvalidIncomeCategory, InvestmentsCodes.TransferLeg, BreakdownCodes.Not100, BreakdownCodes.NotMarket,
-            ReportCodes.InvalidYear,
             DocumentsCodes.InvalidField, DocumentsCodes.InvalidRole, DocumentsCodes.UnknownTargetKind);
         Map(options, StatusCodes.Status400BadRequest, [.. ImportCodes.BadRequests]);
 
@@ -62,7 +61,7 @@ public static class ProblemMapping
 
         Map(options, StatusCodes.Status409Conflict,
             TokenCodes.LimitReached,
-            LocalAccountCodes.LoginTaken, LocalAccountCodes.TotpAlreadyEnabled, PersonCodes.LastAdmin, PersonCodes.AdminSourceIdentityProvider,
+            LocalAccountCodes.LoginTaken, LocalAccountCodes.TotpAlreadyEnabled,
             FxCodes.SyncRunning, CatalogCodes.SyncRunning, PriceCodes.SyncRunning, PriceCodes.Disabled, PriceCodes.NotRejected,
             IrlCodes.SyncRunning, IrlCodes.Disabled, InflationCodes.SyncRunning, InflationCodes.Disabled,
             ExportCodes.RevisionChanged,
@@ -71,8 +70,6 @@ public static class ProblemMapping
             IncomeCodes.SourceEnded,
             ChildcareCodes.StatementValidated, // a week of a validated month names its field (monday)
             GoalsCodes.ShareExceeded, // a goal's funding line names its field (funding[i].shareBp)
-            TaxAssessmentCodes.Conflict, ProposalCodes.Conflict, ProposalCodes.Decided,
-            ItemCodes.InUse, ItemCodes.Changed, PersonCodes.PersonInUse,
             DocumentsCodes.AlreadyLinked, DocumentsCodes.SourceRefTaken,
             NotificationCodes.PreferencesConflict,
             BankingCodes.Disabled, BankingCodes.NotConfigured, BankingCodes.EnvelopeTaken, BankingCodes.SyncRunning,
