@@ -14,7 +14,14 @@
     "col_owners": "Détenteurs",
     "col_to_prepare": "À préparer",
     "to_prepare": "{{count}} mois",
-    "to_prepare_mobile": "{{count}} mois à préparer"
+    "to_prepare_mobile": "{{count}} mois à préparer",
+    "tab_overview": "Vue d’ensemble",
+    "tab_list": "Liste",
+    "hero_label": "Salaire mensualisé · {{name}}",
+    "open": "Ouvrir la fiche",
+    "to_prepare_title": "Mois à préparer · {{name}}",
+    "to_prepare_none": "Aucun",
+    "to_prepare_row": "Relevé à préparer"
   },
   "childcare_form": {
     "title": "Nouvelle garde",

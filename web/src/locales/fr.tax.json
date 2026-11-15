@@ -10,6 +10,8 @@
     "department_format": "Un numéro de département : 01 à 95, 2A, 2B ou 971 à 976.",
     "rate_format": "Un pourcentage, par exemple 23 ou 23,5.",
     "detail_table": "Calcul de l’impôt étape par étape",
+    "detail_title": "Calcul détaillé",
+    "figures_title": "Chiffres de l’année",
     "notes": "À savoir",
     "childcare_summary": "Récapitulatif {{year}} à recopier",
     "evolution": {
