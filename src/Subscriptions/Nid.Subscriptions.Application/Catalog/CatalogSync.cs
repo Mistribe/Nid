@@ -27,7 +27,7 @@ public sealed class CatalogSync(
     {
         var run = await runs.TryStartAsync(options.Commit, ct);
         if (run is null)
-            return Result.Failure<CatalogSyncRun>(new Failure(CatalogCodes.SyncRunning, "A catalog sync is already running.", null));
+            return Result.Failure<CatalogSyncRun>(new ConflictFailure("A catalog sync is already running.") { Code = CatalogCodes.SyncRunning });
 
         Failure? failure;
         CatalogReport? report = null;

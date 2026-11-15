@@ -83,7 +83,7 @@ public sealed class BeginMyTotpHandler(ILocalAccountStore accounts, IActorAccess
             return Result.Failure<PersonId>(new NotFoundFailure("account", "me"));
         return await accounts.BeginTotpAsync(me, command.ProtectedSecret, clock.GetCurrentInstant(), ct)
             ? Result.Success(me)
-            : Result.Failure<PersonId>(new Failure(LocalAccountCodes.TotpAlreadyEnabled, "Two-step verification is already on.", null));
+            : Result.Failure<PersonId>(new ConflictFailure("Two-step verification is already on.") { Code = LocalAccountCodes.TotpAlreadyEnabled });
     }
 }
 

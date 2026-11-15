@@ -22,10 +22,10 @@ public sealed class CpiCollector(
     public async Task<Result<CpiRunView>> CollectAsync(CancellationToken ct)
     {
         if (!(await settings.ReadAsync(ct)).InflationEnabled)
-            return Result.Failure<CpiRunView>(new Failure(InflationCodes.Disabled, "CPI collection is turned off for this household.", null));
+            return Result.Failure<CpiRunView>(new ConflictFailure("CPI collection is turned off for this household.") { Code = InflationCodes.Disabled });
         var run = await runs.TryStartAsync(ct);
         if (run is null)
-            return Result.Failure<CpiRunView>(new Failure(InflationCodes.SyncRunning, "A CPI collection is already running.", null));
+            return Result.Failure<CpiRunView>(new ConflictFailure("A CPI collection is already running.") { Code = InflationCodes.SyncRunning });
 
         int added = 0, replaced = 0, rejected = 0;
         string? message = null;

@@ -129,7 +129,7 @@ public sealed class LocalAccountStore(CoreDbContext db, IClock clock) : ILocalAc
             if (string.IsNullOrEmpty(login))
                 return Result.Failure<CompletedLink>(new Failure(LocalAccountCodes.LoginInvalid, "An identifier is required.", null));
             if (await db.LocalCredentials.AnyAsync(c => c.Login == login, ct))
-                return Result.Failure<CompletedLink>(new Failure(LocalAccountCodes.LoginTaken, "Another adult already signs in with this identifier.", null));
+                return Result.Failure<CompletedLink>(new ConflictFailure("Another adult already signs in with this identifier.") { Code = LocalAccountCodes.LoginTaken });
             db.LocalCredentials.Add(new LocalCredentialRow
             {
                 PersonId = person.Id, Login = login, PasswordHash = passwordHash, PasswordChangedAt = now, CreatedAt = now,

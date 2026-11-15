@@ -42,7 +42,7 @@ public sealed class RequestCatalogSyncHandler(ICatalogRunLog runs, ICatalogJobTr
     public async ValueTask<Result<CatalogSyncRequested>> HandleAsync(RequestCatalogSyncCommand command, CancellationToken ct = default)
     {
         if (await runs.IsRunningAsync(ct))
-            return Result.Failure<CatalogSyncRequested>(new Failure(CatalogCodes.SyncRunning, "A catalog sync is already running.", null));
+            return Result.Failure<CatalogSyncRequested>(new ConflictFailure("A catalog sync is already running.") { Code = CatalogCodes.SyncRunning });
 
         var triggered = await trigger.TriggerSyncAsync(ct);
         return triggered.TryGetFailure(out var failure)

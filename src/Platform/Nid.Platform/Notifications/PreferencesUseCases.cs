@@ -99,8 +99,8 @@ public sealed class SaveNotificationPreferencesHandler(
         var next = new NotificationPreferences(
             command.EmailEnabled, command.Action, command.Info, command.Frequency, (IsoDayOfWeek)command.Weekday, leads, command.Version);
         if (await store.SavePreferencesAsync(me, next, ct) is not { } saved)
-            return Result.Failure<PreferencesView>(new Failure(NotificationCodes.PreferencesConflict,
-                "Your preferences changed since you read them; read them again.", null));
+            return Result.Failure<PreferencesView>(new ConflictFailure(
+                "Your preferences changed since you read them; read them again.") { Code = NotificationCodes.PreferencesConflict });
 
         return Result.Success(await PreferencesViews.BuildAsync(saved, catalog, email, persons, webhooks, me, ct));
     }

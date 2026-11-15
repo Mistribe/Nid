@@ -32,6 +32,6 @@ public sealed class AcceptHoldingPriceHandler(
 
         return await prices.AcceptAsync(isin, command.OnDate, actor.Current!.PersonId!.Value, clock.GetCurrentInstant(), ct)
             ? Result.Success(true)
-            : Result.Failure<bool>(new Failure(PriceCodes.NotRejected, "This holding has no rejected price on that day.", null));
+            : Result.Failure<bool>(new ConflictFailure("This holding has no rejected price on that day.") { Code = PriceCodes.NotRejected });
     }
 }
