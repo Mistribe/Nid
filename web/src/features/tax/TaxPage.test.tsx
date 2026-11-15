@@ -855,7 +855,7 @@ describe('TaxPage, page grammar', () => {
   beforeAll(async () => { await import('./TaxPage'); }, 30_000);
 
   const follows = (a: Element, b: Element) => expect(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  const figures = () => screen.getByText('Impôt total', { selector: 'dt' }).closest('dl')!;
+  const figures = () => screen.getByRole('region', { name: 'Impôt total' });
   const notices = (...items: ReturnType<typeof jointAssessment>[]) => http.get('*/api/v1/tax/assessments', () => HttpResponse.json({ items }));
   const tax = () => http.get('*/api/v1/tax', () => HttpResponse.json(estimate()));
 

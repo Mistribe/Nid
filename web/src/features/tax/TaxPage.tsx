@@ -11,6 +11,8 @@ import { SelectField } from '@/components/form/SelectField';
 import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
 import { FilterField, FilterRow } from '@/components/page/FilterRow';
 import { PageHeader } from '@/components/page/PageHeader';
+import { Hero } from '@/components/page/Hero';
+import { SectionCard } from '@/components/page/SectionCard';
 import { StatLine } from '@/components/page/StatLine';
 import { InfoTip } from '@/components/InfoTip';
 import { ProblemMessage } from '@/components/ProblemMessage';
@@ -101,10 +103,12 @@ export function TaxPage() {
         <DetailTabs value={tab} onChange={setTab} tabs={[
           { id: 'detail', label: t('tax.tab.detail'), content: (
             <>
-              <MoreFigures result={estimate.result} />
-              <Split result={estimate.result} />
               <Notes estimate={estimate} />
-              <Detail estimate={estimate} onProfile={() => setTab('profile')} />
+              <SectionCard title={t('tax.figures_title')} className="space-y-4">
+                <MoreFigures result={estimate.result} />
+                <Split result={estimate.result} />
+              </SectionCard>
+              <SectionCard title={t('tax.detail_title')} className="space-y-4"><Detail estimate={estimate} onProfile={() => setTab('profile')} /></SectionCard>
             </>
           ) },
           { id: 'withholding', label: t('tax.tab.withholding'), content: <WithholdingSection estimate={estimate} /> },
@@ -146,32 +150,29 @@ function Notices({ notices, persons, gaps, adults }: {
 /** The previous year's scale in use: said under the total, where the scale is named every year, rather than among the notes. */
 const CARRIED = 'rules_carried_forward';
 
-/** The three figures that answer « combien, combien il reste, que faire en septembre ». */
+/** The three figures that answer « combien, combien il reste, que faire en septembre »: the total as the hero, the two others beside it. */
 function Figures({ estimate, onAdjust }: { estimate: TaxEstimate; onAdjust: () => void }) {
   const { t } = useTranslation();
   const r = estimate.result;
   const balance = r.withholding.balance;
   const refund = balance.startsWith('-');
   return (
-    <StatLine items={[
-      { label: t('tax.figure.total_tax'), value: (
+    <Hero label={t('tax.figure.total_tax')} figure={eur(r.totalTax)}
+      note={(
         <>
-          {eur(r.totalTax)}
           {/* Both lines show every year, so changing the year does not move the screen. */}
           <Sub className="min-h-5">{r.averageRate ? t('tax.figure.average_rate', { rate: percentText(t, r.averageRate) }) : null}</Sub>
           <Sub>{t(r.warnings.includes(CARRIED) ? 'tax.figure.carried' : 'tax.figure.scale', { year: r.rulesYear })}</Sub>
         </>
-      ) },
-      { label: t('tax.figure.left_monthly'), value: <>{eur(r.netAfterTaxMonthly)}<Sub>{t('tax.figure.per_year', { amount: eur(r.netAfterTax) })}</Sub></> },
-      { label: t('tax.figure.balance', { year: estimate.year + 1 }), value: (
-        <>
-          {ZERO.test(balance) ? t('tax.figure.no_balance') : (
+      )}
+      aside={(
+        <StatLine items={[
+          { label: t('tax.figure.left_monthly'), value: eur(r.netAfterTaxMonthly), hint: t('tax.figure.per_year', { amount: eur(r.netAfterTax) }) },
+          { label: t('tax.figure.balance', { year: estimate.year + 1 }), value: ZERO.test(balance) ? t('tax.figure.no_balance') : (
             <>{eur(refund ? balance.slice(1) : balance)} <span className="text-base font-medium">{t(refund ? 'tax.figure.refund' : 'tax.figure.to_pay')}</span></>
-          )}
-          <Sub><Button variant="link" className="h-auto p-0" onClick={onAdjust}>{t('tax.figure.adjust')}</Button></Sub>
-        </>
-      ) },
-    ]} />
+          ), hint: <Button variant="link" className="h-auto p-0" onClick={onAdjust}>{t('tax.figure.adjust')}</Button> },
+        ]} />
+      )} />
   );
 }
 

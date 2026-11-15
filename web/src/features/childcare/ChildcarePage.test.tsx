@@ -1,11 +1,11 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import type { ChildcareList } from './api';
-import { list, summary } from './testData';
+import { detail, eur, list, summary } from './testData';
 import { expectOnePrimary } from '@/test/headerActions';
 
 function serve(body: ChildcareList, seen: string[] = []) {
@@ -23,12 +23,28 @@ async function rows(): Promise<HTMLElement[]> {
 describe('ChildcarePage', () => {
   beforeAll(async () => { await import('./ChildcarePage'); }, 30_000);
 
-  it('opens the current arrangement at once', async () => {
+  it('opens on the overview of the current arrangement', async () => {
     const seen: string[] = [];
-    serve(list([summary({ id: 'a', name: 'Ancienne garde', closed: true, end: '2025-06-30' }), summary()]), seen);
-    const { router } = await renderApp('/childcare');
-    await waitFor(() => expect(router.state.location.pathname).toBe(`/childcare/${summary().id}`));
+    serve(list([summary({ id: 'a', name: 'Ancienne garde', closed: true, end: '2025-06-30' }), summary({ toPrepare: ['2025-09'] })]), seen);
+    server.use(http.get('*/api/v1/childcare/:id', () => HttpResponse.json(detail({ cmgEstimate: eur('300.00') }))));
+    const { container } = await renderApp('/childcare');
+    const hero = await screen.findByRole('region', { name: 'Salaire mensualisé · Garde de Léa' });
+    expect(hero).toHaveTextContent('626,37');
+    expect(await within(hero).findByText('3 jours')).toBeInTheDocument();
+    expect(within(hero).getByText('300,00 €')).toBeInTheDocument();
+    expect(within(hero).getByRole('link', { name: 'Ouvrir la fiche' })).toHaveAttribute('href', `/childcare/${summary().id}`);
+    const months = screen.getByRole('region', { name: 'Mois à préparer · Garde de Léa' });
+    expect(within(months).getByRole('link', { name: /septembre 2025/ })).toHaveAttribute('href', `/childcare/${summary().id}/statements/2025-09`);
+    expect(screen.queryByText('Ancienne garde')).not.toBeInTheDocument();
     expect(seen[0]).toContain('closed=true');
+    expectOnePrimary(container);
+    await expectNoAxeViolations(container);
+  });
+
+  it('lists every arrangement under « Liste »', async () => {
+    serve(list([summary({ id: 'a', name: 'Ancienne garde', closed: true, end: '2025-06-30' }), summary()]));
+    await renderApp('/childcare?tab=list');
+    expect(await rows()).toHaveLength(2);
   });
 
   it('without a current one, lists the closed arrangements', async () => {
