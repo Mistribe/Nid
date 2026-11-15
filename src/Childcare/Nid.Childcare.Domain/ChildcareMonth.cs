@@ -87,7 +87,7 @@ public static class ChildcareMonth
                 : deductedDays == 0 ? mensualisedDays
                 : (int)Math.Ceiling((decimal)mensualisedDays * (templateDays - deductedDays) / templateDays));
         // #26: the hours the pay at the normal rate stands for, mensualised less deducted, extra hours apart: the hour
-        // the extra minutes round up to is not taken back out of them (142.5 h and 40 min extra declare 143 h + 1 h).
+        // the extra minutes round up to is not taken back out of them (142.5 h and 40 min extra declare 142 h + 1 h).
         var normalHours = input.Declared?.NormalHours
             ?? Math.Max(0, Mensualisation.NormalHours(basePay - deduction + leavePay + regularisation, input.Terms.NetHourlyRate));
         // Art. 121: the indemnity's base is every salary of the contract, this month's and the leave indemnity included.

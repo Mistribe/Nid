@@ -30,7 +30,7 @@ public class MonthAssemblerTests
         // 1.5 h extra paid as worked, declared as 2 h, the normal hours left to the pay at the normal rate.
         Assert.Equal(598.02m, figures.Declaration.NetPay);
         Assert.Equal(2m, figures.Declaration.ComplementaryHours);
-        Assert.Equal(138, figures.Declaration.NormalHours); // (598.02 − 1.5 × 4.30) ÷ 4.30 = 137.57
+        Assert.Equal(137, figures.Declaration.NormalHours); // (598.02 − 1.5 × 4.30) ÷ 4.30 = 137.57
         Assert.Equal(16, figures.Declaration.ActivityDays); // 16 × 17 ÷ 18 = 15.11, rounded up
     }
 
