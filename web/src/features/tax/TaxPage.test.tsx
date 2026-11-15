@@ -916,7 +916,7 @@ describe('TaxPage, page grammar', () => {
 
     await screen.findByRole('tab', { name: 'Avis' });
     expect(screen.getAllByRole('tab').map((tab) => tab.textContent))
-      .toEqual(['Calcul', 'Prélèvement', 'Avis', 'Évolution', 'Simuler', 'Profil fiscal', 'Déclaration 2044']);
+      .toEqual(['Calcul', 'Prélèvement', 'Avis', 'Évolution', 'Simuler', 'Profil fiscal', 'Déclaration 2042', 'Déclaration 2044']);
     await user.click(screen.getByRole('tab', { name: 'Profil fiscal' }));
     expect(await screen.findByRole('form', { name: 'Profil fiscal' })).toBeInTheDocument();
   });
@@ -969,5 +969,49 @@ describe('TaxPage, page grammar', () => {
 
     await screen.findByText('Net fiscal');
     expect(figures().parentElement).not.toHaveClass('print:hidden');
+  });
+});
+
+describe('TaxPage, Déclaration 2042 tab', () => {
+  beforeAll(async () => { await import('./TaxPage'); }, 30_000);
+
+  it('asks last year and lists the server’s boxes, their declarant, their tip and what to enter by hand', async () => {
+    const asked: string[] = [];
+    const filled: TaxEstimate = {
+      ...estimate(), year: 2025,
+      declaration: {
+        boxes: [
+          { code: '1AJ', person: ADULT, amount: '42000.00' },
+          { code: '2DC', person: null, amount: '300.00' },
+          { code: '7GA', person: null, amount: '2500.00' },
+        ],
+        toEnter: [{ code: 'unsupported_income', item: 'p', name: 'Pension', amount: '1200.00' }],
+      },
+    };
+    server.use(http.get('*/api/v1/tax', ({ request }) => { asked.push(new URL(request.url).searchParams.get('year')!); return HttpResponse.json(filled); }));
+    const { container, user } = await renderApp('/tax?tab=2042');
+
+    expect(await screen.findByText('1AJ')).toBeInTheDocument();
+    const list = screen.getByLabelText('Déclaration 2042', { selector: 'dl' });
+    expect(within(list).getByText('Salaires')).toBeInTheDocument();
+    expect(within(list).getByText('Alice')).toBeInTheDocument();
+    expect(within(list).getByText('42 000,00 €')).toBeInTheDocument();
+    expect(within(list).getByText('Dividendes')).toBeInTheDocument();
+    expect(within(list).getAllByText('Foyer')).toHaveLength(2);
+    expect(within(list).getByText('Frais de garde du premier enfant de moins de 6 ans')).toBeInTheDocument();
+    await user.hover(within(list).getByRole('button', { name: 'À propos : Salaires' }));
+    expect((await screen.findAllByText(/cumul « net imposable »/)).length).toBeGreaterThan(0);
+    const toEnter = screen.getByRole('region', { name: 'À saisir vous-même' });
+    expect(within(toEnter).getByText(/Pension/)).toBeInTheDocument();
+    expect(asked).toContain('2025');
+    await expectNoAxeViolations(container);
+  });
+
+  it('says there is nothing to fill when the server lists no box', async () => {
+    server.use(http.get('*/api/v1/tax', () => HttpResponse.json({ ...estimate(), declaration: { boxes: [], toEnter: [] } })));
+    await renderApp('/tax?tab=2042');
+
+    expect(await screen.findByText('Aucune case à remplir')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Exporter en CSV' })).not.toBeInTheDocument();
   });
 });

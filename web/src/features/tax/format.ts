@@ -65,3 +65,17 @@ export function lineNote(t: TFunction, code: string): string | null {
   const known = NOTED_LINES.find((l) => l === code);
   return known ? t(`tax.d2044.note.${known}`) : null;
 }
+
+const BOXES = ['1AJ', '1BJ', '1AK', '1BK', '1AP', '1BP', '2DC', '2TR', '2CK', '4BA', '4BB', '4BC', '4BD', '4BE', '6NS', '6NT', '7GA', '7GB', '7GC', '7DB', '7UD', '7UQ', '7UF'] as const;
+
+/** A 2042 box's label; a box the server added later reads as its code. */
+export function boxText(t: TFunction, code: string): string {
+  const known = BOXES.find((b) => b === code);
+  return known ? t(`tax.d2042.box.${known}`) : code;
+}
+
+/** What a 2042 box holds, in plain words; none for a box the server added later. */
+export function boxTip(t: TFunction, code: string): string | undefined {
+  const known = BOXES.find((b) => b === code);
+  return known ? t(`tax.d2042.box_tip.${known}`) : undefined;
+}

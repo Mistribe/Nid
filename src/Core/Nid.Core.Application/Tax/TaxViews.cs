@@ -10,15 +10,25 @@ namespace Nid.Core.Application.Tax;
 /// Tax assessments spec §5-§6: <c>CarriedFrom</c> what the previous year's notices lay over the profile (null: nothing), <c>Gaps</c> the
 /// year's own notice against the estimate (null: no notice for these adults). <c>RentalDeficitEstimated</c>: the rental deficit last
 /// year's estimate leaves for this one, a suggestion for the profile's field when no notice of last year prints one (null: none).
+/// Issue #233: <c>Declaration</c> the 2042 boxes the estimate fills.
 /// </summary>
 public sealed record TaxEstimateView(
     int Year, TaxProfileView Profile, int? ProfileFrom, TaxInputsView Inputs, TaxResultView Result, IReadOnlyList<TaxNoticeView> Notices,
     IReadOnlyList<TaxAdultView> Adults, int Dependents, IReadOnlyList<TaxPropertyView> RentalProperties,
     IReadOnlyList<TaxSalaryDetailView> SalaryDetail, IReadOnlyDictionary<Guid, string> ObservedRates,
-    TaxCarryView? CarriedFrom = null, TaxGapsView? Gaps = null, string? RentalDeficitEstimated = null) : IExposesItems
+    TaxCarryView? CarriedFrom = null, TaxGapsView? Gaps = null, string? RentalDeficitEstimated = null, TaxDeclarationView? Declaration = null) : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems() => Notices.Select(n => n.Item).Concat(RentalProperties.Select(p => p.Id)).Concat(SalaryDetail.Select(d => d.Item));
 }
+
+/// <summary>
+/// Issue #233: the 2042 boxes to fill (<c>Code</c> as the form prints it, <c>Person</c> the declarant, null for the household's; whole
+/// euros) and <c>ToEnter</c>, the notices of what the estimate leaves out (unsupported income, withdrawals, another currency, a
+/// person who does not declare), for the household to enter itself.
+/// </summary>
+public sealed record TaxDeclarationView(IReadOnlyList<Tax2042BoxView> Boxes, IReadOnlyList<TaxNoticeView> ToEnter);
+
+public sealed record Tax2042BoxView(string Code, Guid? Person, string Amount);
 
 /// <summary>
 /// Tax-per spec §3.5: a payment of a person's salary, with the figure the estimate retained: <c>Category</c> <c>entered</c> (the net

@@ -165,6 +165,34 @@ public class TaxEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresF
     }
 
     [Fact]
+    public async Task The_2042_boxes_give_each_declarants_salary_and_PER_and_the_dividends_apart()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var salary = await app.NewIncomeSourceAsync("Salaire A", app.AdultA);
+        await AddPaymentAsync(app, app.AdultA, salary, "Salaire", "2025-03-01", "30000", null, "32000");
+        await PerAsync(app, app.AdultA, "PER", "2025-02-01", "2025-02-01");
+        var account = JsonDocument.Parse(await (await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/investments/envelopes", new
+        {
+            displayName = "Compte-titres", kind = "brokerage", currency = "EUR", visibility = "shared", openedOn = "2020-01-01",
+            owners = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } },
+        })).EnsureSuccessStatusCode().Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.GetProperty("id").GetString();
+        foreach (var (category, amount) in new[] { ("dividend", "300.00"), ("interest", "100.00") })
+            (await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/investments/envelopes/{account}/flows",
+                new { occurredOn = "2025-05-02", kind = "income", category, amount = new { amount, currency = "EUR" } })).EnsureSuccessStatusCode();
+
+        var estimate = await EstimateAsync(app, app.AdultA, 2025, "household");
+        var boxes = estimate.GetProperty("declaration").GetProperty("boxes").EnumerateArray()
+            .ToDictionary(b => b.GetProperty("code").GetString()!, b => (b.GetProperty("person").ValueKind == JsonValueKind.Null ? (Guid?)null : b.GetProperty("person").GetGuid(), b.GetProperty("amount").GetString()));
+
+        var first = IndexOf(estimate, app.AdultA) == 0 ? 'A' : 'B';
+        Assert.Equal((app.AdultA.Value, "32000.00"), boxes[$"1{first}J"]);
+        Assert.Equal((app.AdultA.Value, "1000.00"), boxes[first == 'A' ? "6NS" : "6NT"]);
+        Assert.Equal((null, "300.00"), boxes["2DC"]);
+        Assert.Equal((null, "100.00"), boxes["2TR"]);
+        Assert.Equal((null, "51.00"), boxes["2CK"]);
+    }
+
+    [Fact]
     public async Task Every_PER_payment_of_the_year_is_deducted_the_opening_of_a_PER_opened_that_year_included()
     {
         await using var app = await NidApp.StartAsync(fixture);

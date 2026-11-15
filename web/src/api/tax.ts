@@ -5,6 +5,8 @@ export type TaxProfile = components['schemas']['TaxProfileView'];
 export type TaxInputs = components['schemas']['TaxInputsView'];
 export type TaxResult = components['schemas']['TaxResultView'];
 export type PinelCommitment = components['schemas']['PinelCommitment'];
+/** Issue #233: the 2042 boxes the estimate fills, and what the household enters itself. */
+export type TaxDeclaration = components['schemas']['TaxDeclarationView'];
 
 export const TAX = '/api/v1/tax' as const;
 /** The estimate starts with the 2025 incomes: the server refuses an earlier year, which shows its notices only. */

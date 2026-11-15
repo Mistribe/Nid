@@ -141,9 +141,10 @@ public sealed class TaxEstimates(
         if (read.TryGetFailure(out var failure)) return Result.Failure<TaxEstimateView>(failure!);
         read.TryGetValue(out var r);
         var (lines, stored, people, previous) = (r!.Lines, r.Stored, r.People, r.PreviousYearIncome);
-        var (inputs, notices, _) = Assemble(year, lines, r.Effective, people, previous, r.ReferenceBefore);
+        var (inputs, notices, columns) = Assemble(year, lines, r.Effective, people, previous, r.ReferenceBefore);
         var adults = Adults(people);
         var result = TaxCalculator.Compute(inputs);
+        var declaration = Declaration(year, lines, inputs, result, columns, notices);
         // The deficit last year's estimate leaves, offered only where no notice of last year prints its own and a property is rented.
         string? deficitEstimated = null;
         if (year - 1 >= TaxRules.FirstYear && r.Carry?.RentalDeficitCarried is null && lines.Any(l => l.Code == TaxLineCodes.RentalProperty))
@@ -168,7 +169,28 @@ public sealed class TaxEstimates(
                 .Select(l => new TaxSalaryDetailView(l.Person!.Value.Value, l.Item, l.Name, l.On!.Value, l.Note, l.Category!, Amount(l.Amount))).ToList(),
             adults.Select(a => (a.Id.Value, Rate: ObservedRate(lines, a.Id))).Where(x => x.Rate is not null)
                 .ToDictionary(x => x.Value, x => Percent(x.Rate!.Value)),
-            r.Carry is { } carry ? TaxCarryView.Of(carry) : null, GapsOf(r.YearNotices, result, adults.Select(a => a.Id.Value).ToList()), deficitEstimated));
+            r.Carry is { } carry ? TaxCarryView.Of(carry) : null, GapsOf(r.YearNotices, result, adults.Select(a => a.Id.Value).ToList()), deficitEstimated,
+            declaration));
+    }
+
+    /// <summary>The notices of what the estimate leaves out, so of the boxes the household fills itself.</summary>
+    private static readonly HashSet<string> NotFilled = ["unsupported_income", "withdrawal_not_estimated", TaxLineCodes.OtherCurrency, "not_a_declarant"];
+
+    /// <summary>
+    /// Issue #233: the 2042 boxes from the estimate's inputs and result, the 2044's totals for the rental ones; the childcare costs by the
+    /// box their statements name (the profile's amount, without statements, in 7GA).
+    /// </summary>
+    private static TaxDeclarationView Declaration(
+        int year, IReadOnlyList<TaxLine> lines, TaxInputs inputs, TaxResult result, IReadOnlyList<Rental2044Column> columns, IReadOnlyList<TaxNoticeView> notices)
+    {
+        var childcare = lines.Where(l => l.Code is TaxLineCodes.ChildcareOutsideHome or TaxLineCodes.ChildcareProjected && l.Category is not null)
+            .Select(l => (l.Category!, l.Amount)).ToList();
+        if (!lines.Any(l => l.Code is TaxLineCodes.ChildcareOutsideHome or TaxLineCodes.ChildcareProjected))
+            childcare.Add(("7GA", inputs.ChildcareOutsideHome));
+        var rental = Rental2044.Totals(columns, TaxRules.For(year).DeficitCap(inputs.RentalEnergyWorks, inputs.RentalCharges));
+        return new TaxDeclarationView(
+            Tax2042.Boxes(inputs, result, rental, childcare).Select(b => new Tax2042BoxView(b.Code, b.Person, Amount(b.Amount))).ToList(),
+            notices.Where(n => NotFilled.Contains(n.Code)).ToList());
     }
 
     /// <summary>Tax assessments spec §6: the gaps of the year's notice whose declarants are the estimate's adults, if there is one.</summary>
