@@ -78,7 +78,7 @@ Then pick one of the two setups:
   against common passwords, locked after repeated failures), with optional two-step verification by an authenticator app.
 
   ```bash
-  cd deploy/standalone
+  git clone --depth 1 https://github.com/Mistribe/Nid.git && cd Nid/deploy/standalone
   cp .env.example .env                       # NID_URL, NID_CSRF_KEY (openssl rand -hex 32), NID_DB_PASSWORD
   docker compose --profile postgres up -d
   docker compose logs nid | grep setup       # the one-time address that creates the first administrator
