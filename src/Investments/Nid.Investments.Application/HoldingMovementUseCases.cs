@@ -264,7 +264,7 @@ public sealed class GetHoldingPerformanceHandler(IEnvelopeStore envelopes, IItem
     public async ValueTask<Result<PeriodView>> HandleAsync(GetHoldingPerformanceQuery query, CancellationToken ct = default)
     {
         if (query.From > query.To)
-            return Result.Failure<PeriodView>(new Failure(InvestmentsCodes.InvalidPeriod, "The period's start is after its end.", null));
+            return Result.Failure<PeriodView>(new BadRequestFailure("The period's start is after its end.") { Code = InvestmentsCodes.InvalidPeriod });
         var loaded = (await MovementFacts.LoadAsync(envelopes, items, holdings, flows, query.ItemId, write: false, query.Holding, ct));
         if (!loaded.TryGetValue(out var facts))
             return Result.Failure<PeriodView>(loaded.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());

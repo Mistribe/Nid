@@ -161,7 +161,7 @@ public sealed class ReopenEnvelopeHandler(IEnvelopeStore envelopes, IItemRegistr
             return Result.Failure<ItemId>(failure!);
         loaded.TryGetValue(out var envelope);
         if (envelope.Item.ArchivedAt is null)
-            return Result.Failure<ItemId>(new Failure(InvestmentsCodes.EnvelopeOpen, "This envelope is not closed.", null));
+            return Result.Failure<ItemId>(new ConflictFailure("This envelope is not closed.") { Code = InvestmentsCodes.EnvelopeOpen });
         await using var transaction = await unitOfWork.BeginAsync(ct);
         var reopened = await items.UnarchiveAsync(command.ItemId, ct);
         if (reopened.TryGetFailure(out failure))

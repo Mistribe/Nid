@@ -135,7 +135,7 @@ internal static class HoldingRules
             d.Lines.Select(l => new SnapshotLine(l.HoldingId, l.Units, l.UnitPrice, l.Value.Amount, l.CostBasisPerUnit)).ToList()));
     }
 
-    public static Failure Conflict() => new(InvestmentsCodes.HoldingConflict, "This holding was changed since you read it: reload it.", null);
+    public static Failure Conflict() => new ConflictFailure("This holding was changed since you read it: reload it.") { Code = InvestmentsCodes.HoldingConflict };
 
     private static Result<T> Invalid<T>(string code, string field, string message) where T : notnull
         => Result.Failure<T>(new Failure(code, message, new Dictionary<string, object?> { ["field"] = field }));
@@ -255,7 +255,7 @@ public sealed class DeleteHoldingHandler(IEnvelopeStore envelopes, IItemRegistry
         if (stored.Version != command.Version)
             return Result.Failure<bool>(HoldingRules.Conflict());
         if (await holdings.InUseAsync(command.Holding, ct))
-            return Result.Failure<bool>(new Failure(InvestmentsCodes.HoldingInUse, "This holding is in a snapshot or has movements or cost reports: close it instead.", null));
+            return Result.Failure<bool>(new ConflictFailure("This holding is in a snapshot or has movements or cost reports: close it instead.") { Code = InvestmentsCodes.HoldingInUse });
 
         await holdings.DeleteAsync(command.Holding, ct);
         await transaction.CommitAsync(ct);
