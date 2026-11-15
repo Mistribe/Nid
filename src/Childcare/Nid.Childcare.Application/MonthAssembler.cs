@@ -17,7 +17,7 @@ public sealed record MonthTerms(
         return new(revisions, gaps, overrides, month, chosen, ContractOf(revisions, chosen));
     }
 
-    /// <summary>The contract under the revision in force on this day: a revision taking effect mid-month prices that day's upkeep and meals.</summary>
+    /// <summary>The contract under the revision in force on this day: a revision taking effect mid-month prices that day's pay, upkeep and meals.</summary>
     public ContractTerms On(LocalDate day)
     {
         var revision = Revisions.LastOrDefault(r => r.From <= day) ?? Revisions[0];
@@ -133,7 +133,7 @@ public static class MonthAssembler
                 throw new ArgumentException($"{month.Month:uuuu-MM} is needed with its days.", nameof(validated));
             var sickBefore = StatementContext.ChildSickUsedBefore(start, month.Month, validated.Select(v => (v.Month, v.Figures!.ChildSickDeducted)).ToList());
             var inContract = month.Days.Where(d => StatementPreparation.InContract(d.Date, monthTerms.Contract)).ToList();
-            due += Mensualisation.Round(monthTerms.Contract.NetHourlyRate * EndOfContract.HoursDue(inContract, monthTerms.Plan, sickBefore, monthTerms.Contract.UnpaidAbsences));
+            due += ChildcareMonth.DuePay(inContract, monthTerms.Plan, sickBefore, monthTerms.On, monthTerms.Contract);
             paid += f.BasePay - f.Deduction;
             net += f.Declaration.NetPay;
             if (month.Month.CompareTo(leaveFrom.ToYearMonth()) >= 0)
