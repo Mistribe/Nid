@@ -66,9 +66,9 @@ public sealed class RequestCpiSyncHandler(ICpiRunLog runs, IHouseholdSettings se
     public async ValueTask<Result<CpiSyncRequested>> HandleAsync(RequestCpiSyncCommand command, CancellationToken ct = default)
     {
         if (await runs.IsRunningAsync(ct))
-            return Result.Failure<CpiSyncRequested>(new Failure(InflationCodes.SyncRunning, "A CPI collection is already running.", null));
+            return Result.Failure<CpiSyncRequested>(new ConflictFailure("A CPI collection is already running.") { Code = InflationCodes.SyncRunning });
         if (!(await settings.ReadAsync(ct)).InflationEnabled)
-            return Result.Failure<CpiSyncRequested>(new Failure(InflationCodes.Disabled, "CPI collection is turned off for this household.", null));
+            return Result.Failure<CpiSyncRequested>(new ConflictFailure("CPI collection is turned off for this household.") { Code = InflationCodes.Disabled });
 
         var triggered = await trigger.TriggerAsync(ct);
         return triggered.TryGetFailure(out var failure)

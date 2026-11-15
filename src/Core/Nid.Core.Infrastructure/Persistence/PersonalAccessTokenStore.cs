@@ -37,7 +37,7 @@ public sealed class PersonalAccessTokenStore(CoreDbContext db, IClock clock) : I
         if (calendar is not null)
             await Active(person, now).Where(t => t.CalendarScope != null).ExecuteUpdateAsync(s => s.SetProperty(t => t.RevokedAt, now), ct);
         if (await Active(person, now).CountAsync(ct) >= TokenLimits.MaxActive)
-            return Result.Failure<NewToken>(new Failure(TokenCodes.LimitReached, "A person holds at most 10 active tokens.", null));
+            return Result.Failure<NewToken>(new ConflictFailure("A person holds at most 10 active tokens.") { Code = TokenCodes.LimitReached });
 
         var (token, prefix, hash) = calendar is null ? TokenFormat.Generate() : TokenFormat.GenerateCalendar();
         var row = new PersonalAccessTokenRow

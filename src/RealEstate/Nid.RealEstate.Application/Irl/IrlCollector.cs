@@ -22,10 +22,10 @@ public sealed class IrlCollector(
     public async Task<Result<IrlRunView>> CollectAsync(CancellationToken ct)
     {
         if (!(await settings.ReadAsync(ct)).IrlEnabled)
-            return Result.Failure<IrlRunView>(new Failure(IrlCodes.Disabled, "IRL collection is turned off for this household.", null));
+            return Result.Failure<IrlRunView>(new ConflictFailure("IRL collection is turned off for this household.") { Code = IrlCodes.Disabled });
         var run = await runs.TryStartAsync(ct);
         if (run is null)
-            return Result.Failure<IrlRunView>(new Failure(IrlCodes.SyncRunning, "An IRL collection is already running.", null));
+            return Result.Failure<IrlRunView>(new ConflictFailure("An IRL collection is already running.") { Code = IrlCodes.SyncRunning });
 
         int added = 0, replaced = 0, rejected = 0;
         string? message = null;

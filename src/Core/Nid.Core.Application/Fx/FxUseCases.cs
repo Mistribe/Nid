@@ -46,7 +46,7 @@ public sealed class RequestFxSyncHandler(IFxRunLog runs, IFxJobTrigger trigger) 
     public async ValueTask<Result<FxSyncRequested>> HandleAsync(RequestFxSyncCommand command, CancellationToken ct = default)
     {
         if (await runs.IsRunningAsync(ct))
-            return Result.Failure<FxSyncRequested>(new Failure(FxCodes.SyncRunning, "A rate collection is already running.", null));
+            return Result.Failure<FxSyncRequested>(new ConflictFailure("A rate collection is already running.") { Code = FxCodes.SyncRunning });
 
         var triggered = await trigger.TriggerBackfillAsync(ct);
         return triggered.TryGetFailure(out var failure)
@@ -74,7 +74,7 @@ public sealed class SetManualFxRateHandler(IFxRateStore rates, IClock clock) : I
     }
 
     private static Result<FxRateView> Invalid(string message)
-        => Result.Failure<FxRateView>(new Failure(FxCodes.InvalidRate, message, null));
+        => Result.Failure<FxRateView>(new BadRequestFailure(message) { Code = FxCodes.InvalidRate });
 }
 
 [RequestHandler<GetFxRatesQuery, IReadOnlyList<FxRateView>>]
@@ -92,7 +92,7 @@ public sealed class GetFxRatesHandler(IFxRateStore rates) : IRequestHandler<GetF
     }
 
     private static Result<IReadOnlyList<FxRateView>> Invalid(string message)
-        => Result.Failure<IReadOnlyList<FxRateView>>(new Failure(FxCodes.InvalidRange, message, null));
+        => Result.Failure<IReadOnlyList<FxRateView>>(new BadRequestFailure(message) { Code = FxCodes.InvalidRange });
 }
 
 [RequestHandler<GetFxSyncRunsQuery, FxSyncRunPage>]

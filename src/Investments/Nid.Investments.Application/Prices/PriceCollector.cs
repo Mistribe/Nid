@@ -38,10 +38,10 @@ public sealed class PriceCollector(
     public async Task<Result<PriceRun>> CollectAsync(CancellationToken ct)
     {
         if (!(await settings.ReadAsync(ct)).PricesEnabled)
-            return Result.Failure<PriceRun>(new Failure(PriceCodes.Disabled, "Price collection is turned off for this household.", null));
+            return Result.Failure<PriceRun>(new ConflictFailure("Price collection is turned off for this household.") { Code = PriceCodes.Disabled });
         var run = await runs.TryStartAsync(ct);
         if (run is null)
-            return Result.Failure<PriceRun>(new Failure(PriceCodes.SyncRunning, "A price collection is already running.", null));
+            return Result.Failure<PriceRun>(new ConflictFailure("A price collection is already running.") { Code = PriceCodes.SyncRunning });
 
         var progress = new Progress();
         Failure? failure = null;

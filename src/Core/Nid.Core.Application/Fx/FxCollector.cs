@@ -86,7 +86,7 @@ public sealed class FxCollector(IFxSourceClient sources, IFxRateStore rates, IFx
     {
         var run = await runs.TryStartAsync(kind, ct);
         if (run is null)
-            return Result.Failure<FxSyncRun>(new Failure(FxCodes.SyncRunning, "A rate collection is already running.", null));
+            return Result.Failure<FxSyncRun>(new ConflictFailure("A rate collection is already running.") { Code = FxCodes.SyncRunning });
 
         var progress = new Progress();
         Failure? failure;
