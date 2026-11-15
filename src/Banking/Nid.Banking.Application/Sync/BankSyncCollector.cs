@@ -45,7 +45,7 @@ public sealed class BankSyncCollector(
     {
         var run = await runs.TryStartAsync(trigger, ct);
         if (run is null)
-            return Result.Failure<BankSyncRunView>(new Failure(BankingCodes.SyncRunning, "A bank sync is already running.", null));
+            return Result.Failure<BankSyncRunView>(new ConflictFailure("A bank sync is already running.") { Code = BankingCodes.SyncRunning });
 
         var progress = new Progress();
         string? stopped = null;

@@ -163,7 +163,7 @@ public sealed class AccountStore(BankingDbContext db) : IAccountStore
             catch (DbUpdateException e) when (e.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: EnvelopeIndex })
             {
                 db.Entry(row).State = EntityState.Detached;
-                return Result.Failure(new Failure(BankingCodes.EnvelopeTaken, "Another bank account is associated with this envelope.", null));
+                return Result.Failure(new ConflictFailure("Another bank account is associated with this envelope.") { Code = BankingCodes.EnvelopeTaken });
             }
         }
     }
