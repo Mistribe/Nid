@@ -124,9 +124,9 @@ public sealed class SimulateTaxHandler(IHouseholdCalendar calendar) : IRequestHa
         var inputs = query.Inputs;
         if (TaxEstimates.CheckYear(inputs.Year, await calendar.TodayAsync(ct)) is { } failure)
             return Result.Failure<TaxResultView>(failure);
-        if (inputs.Declarants.Count is < 1 or > 2 || inputs.Declarants.Any(d => d.ContributionRate is { } r && !TaxEstimates.RateOk(r) || d.SalaryTaxable < 0m || d.PerCeiling < 0m || d.PreviousYearIncome < 0m || d.PerExpiring < 0m) || inputs.Dependents is < 0 or > 20 || inputs.ChildrenUnder6 < 0 || inputs.ChildrenUnder6 > inputs.Dependents || inputs.AlimonyAdultChildrenCount is < 0 or > 20)
+        if (inputs.Declarants.Count is < 1 or > 2 || inputs.Declarants.Any(d => d.ContributionRate is { } r && !TaxEstimates.RateOk(r) || d.SalaryTaxable < 0m || d.PerCeiling < 0m || d.PreviousYearIncome < 0m || d.PerExpiring < 0m) || inputs.Dependents is < 0 or > 20 || inputs.ChildrenUnder6 < 0 || inputs.ChildrenUnder6 > inputs.Dependents || inputs.AlimonyAdultChildrenCount is < 0 or > 20 || inputs.AlternateCustody < 0 || inputs.AlternateCustody > inputs.Dependents)
             return Result.Failure<TaxResultView>(new Failure(TaxCodes.InvalidInputs,
-                "One or two declarants, their entered net taxable income, PER ceiling, previous-year income and expiring ceiling not negative; dependents between 0 and 20, the children under 6 among them; adult children receiving alimony between 0 and 20.", null));
+                "One or two declarants, their entered net taxable income, PER ceiling, previous-year income and expiring ceiling not negative; dependents between 0 and 20, the children under 6 among them; adult children receiving alimony between 0 and 20; the children in alternate custody among the dependents.", null));
         return Result.Success(TaxResultView.Of(TaxCalculator.Compute(inputs)));
     }
 }
@@ -381,7 +381,8 @@ public sealed class TaxEstimates(
                 Sum(TaxLineCodes.SalaryTaxable), PerCeiling: profile.PerCeilings?.TryGetValue(adult.Id.Value, out var ceiling) == true ? ceiling : null,
                 PreviousYearIncome: previousYearIncome?.GetValueOrDefault(adult.Id.Value) ?? 0m,
                 PerExpiring: profile.PerCeilingsExpiring?.GetValueOrDefault(adult.Id.Value) ?? 0m,
-                ExemptIncome: profile.ExemptIncomes?.GetValueOrDefault(adult.Id.Value) ?? 0m, Person: adult.Id.Value, Pensions: Sum(TaxLineCodes.Pension));
+                ExemptIncome: profile.ExemptIncomes?.GetValueOrDefault(adult.Id.Value) ?? 0m, Person: adult.Id.Value, Pensions: Sum(TaxLineCodes.Pension),
+                Disabled: profile.DisabledAdults?.Contains(adult.Id.Value) == true);
             // The profile's rate against the payslips': the notice sits on the first salary holding both figures (the adult is no item).
             if (rate is { } declared && ObservedRate(lines, adult.Id) is { } observed && Math.Abs(declared - observed) > 0.03m
                 && own.FirstOrDefault(l => l.Code == TaxLineCodes.SalaryRateGross) is { } source)
@@ -459,7 +460,9 @@ public sealed class TaxEstimates(
             profile.DonationsAidLate, profile.RentalEnergyWorks,
             All(TaxLineCodes.CapitalDividends), profile.CapitalScale, profile.DeductibleCsg, referenceBefore,
             profile.AlimonyPaid, profile.AlimonyAdultChildren, profile.AlimonyAdultChildrenCount,
-            All(TaxLineCodes.RealisedGain), profile.CapitalLossesCarried);
+            All(TaxLineCodes.RealisedGain), profile.CapitalLossesCarried,
+            // Box T: a single declarant is taken to live alone with the children unless the profile says otherwise.
+            AlternateCustody: Math.Min(profile.AlternateCustody, dependents), SingleParent: adults.Count == 1 && !profile.Cohabiting);
         return (inputs, notices, columns);
     }
 
@@ -487,6 +490,7 @@ public sealed class TaxEstimates(
                  && p.Pinel.Select(c => c.Property).Distinct().Count() == p.Pinel.Count
                  && new[] { p.ChildcareOutsideHome, p.HomeEmployment, p.Donations, p.DonationsAid, p.RentalDeficitCarried, p.DonationsAidLate, p.RentalEnergyWorks, p.DeductibleCsg, p.AlimonyPaid, p.AlimonyAdultChildren, p.CapitalLossesCarried }.All(a => a is >= 0 and <= 10_000_000m)
                  && p.AlimonyAdultChildrenCount is >= 0 and <= 20 && (p.AlimonyAdultChildren == 0m || p.AlimonyAdultChildrenCount > 0)
+                 && p.AlternateCustody is >= 0 and <= 20 && (p.Dependents is null || p.AlternateCustody <= p.Dependents)
                  && (p.ContributionRates?.Values.All(RateOk) ?? true) && (p.ActualExpenses?.Values.All(a => a is >= 0 and <= 10_000_000m) ?? true)
                  && (p.PerUnusedCeilings?.Values.All(a => a is >= 0 and <= 10_000_000m) ?? true)
                  && (p.ExemptIncomes?.Values.All(a => a is >= 0 and <= 10_000_000m) ?? true)
@@ -494,7 +498,7 @@ public sealed class TaxEstimates(
                  && (p.PerCeilings?.Values.All(a => a is >= 0 and <= 10_000_000m) ?? true)
                  && (p.PerCeilingsExpiring?.All(e => e.Value is >= 0 and <= 10_000_000m && p.PerCeilings?.TryGetValue(e.Key, out var ceiling) == true && e.Value <= ceiling) ?? true);
         return ok ? null : new Failure(TaxCodes.InvalidProfile,
-            "Statuses are non_executive, executive or public; a contribution rate is between 0 and 60 %; the regime micro or real; a Pinel commitment starts at 6 or 9 years and lasts 6, 9 or 12, once per property; amounts are not negative; alimony paid to adult children comes with their number, 1 to 20; the part of a PER ceiling lost on 31 December comes with that ceiling and does not exceed it; a department is a code from 01 to 95, 2A, 2B or 971 to 976.", null);
+            "Statuses are non_executive, executive or public; a contribution rate is between 0 and 60 %; the regime micro or real; a Pinel commitment starts at 6 or 9 years and lasts 6, 9 or 12, once per property; amounts are not negative; alimony paid to adult children comes with their number, 1 to 20; the children in alternate custody are 0 to 20, among the dependents; the part of a PER ceiling lost on 31 December comes with that ceiling and does not exceed it; a department is a code from 01 to 95, 2A, 2B or 971 to 976.", null);
     }
 
     /// <summary>A payslip's employee contributions: between 0 and 60 % of the gross, as a fraction.</summary>

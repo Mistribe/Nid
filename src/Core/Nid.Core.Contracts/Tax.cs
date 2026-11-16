@@ -172,7 +172,8 @@ public sealed record TaxProfile(
     IReadOnlyDictionary<Guid, decimal>? PerCeilings = null, IReadOnlyDictionary<Guid, decimal>? PerCeilingsExpiring = null, bool PerPooling = false,
     IReadOnlyDictionary<Guid, decimal>? ExemptIncomes = null, decimal DonationsAidLate = 0m, decimal RentalEnergyWorks = 0m, string? Department = null,
     bool CapitalScale = false, decimal DeductibleCsg = 0m,
-    decimal AlimonyPaid = 0m, decimal AlimonyAdultChildren = 0m, int AlimonyAdultChildrenCount = 0, decimal CapitalLossesCarried = 0m)
+    decimal AlimonyPaid = 0m, decimal AlimonyAdultChildren = 0m, int AlimonyAdultChildrenCount = 0, decimal CapitalLossesCarried = 0m,
+    int AlternateCustody = 0, bool Cohabiting = false, IReadOnlyList<Guid>? DisabledAdults = null)
 {
     public static readonly TaxProfile Empty = new(new Dictionary<Guid, string>(), null, 0, null, [], 0m, 0m, 0m, 0m);
 }

@@ -63,6 +63,39 @@ public class TaxCalculatorTests
         Assert.Equal(31_290m, capped.ReferenceIncome);
     }
 
+    [Theory]
+    // dependents, of them in alternate custody, box T, disabled declarant → shares, cap
+    [InlineData(1, 0, true, false, 2.0, 4_262)]   // box T with the first child: 4 262 for both half-shares
+    [InlineData(1, 0, false, false, 1.5, 1_807)]  // living with another adult: no box T
+    [InlineData(2, 2, true, false, 1.75, 3_035)]  // alternate custody only: two quarters, box T a quarter, 2 131 for the first pair
+    [InlineData(3, 2, false, false, 2.25, 1_807 + 904 + 1_808)] // the child at home ranks first; the third child's half share in quarters
+    [InlineData(0, 0, true, true, 1.5, 3_608)]    // box P, no child: no box T
+    public void Shares_and_their_cap_follow_the_household(int dependents, int alternate, bool single, bool disabled, double parts, int cap)
+    {
+        var inputs = Inputs([new("A", 0m, EmploymentStatus.NonExecutive, 0m, 0m, Disabled: disabled)], dependents)
+            with { AlternateCustody = alternate, SingleParent = single };
+
+        Assert.Equal(((decimal)parts, (decimal)cap), TaxCalculator.Shares(TaxRules.For(2025), inputs));
+    }
+
+    [Fact]
+    public void A_couple_never_takes_box_t_and_each_disabled_declarant_adds_half_a_share()
+    {
+        var inputs = Inputs([new("A", 0m, EmploymentStatus.NonExecutive, 0m, 0m, Disabled: true), new("B", 0m, EmploymentStatus.NonExecutive, 0m, 0m, Disabled: true)], dependents: 1)
+            with { SingleParent = true };
+
+        Assert.Equal((3.5m, 2 * 3_608m + 1_807m), TaxCalculator.Shares(TaxRules.For(2025), inputs));
+    }
+
+    [Fact]
+    public void A_child_in_alternate_custody_raises_the_home_employment_cap_by_half()
+    {
+        var inputs = Inputs([Other(80_000m)], dependents: 2) with { AlternateCustody = 1, HomeEmployment = 20_000m };
+
+        // 12 000 + 1 500 + 750 = 14 250, half of it as a credit.
+        Assert.Equal(7_125m, TaxCalculator.Compute(inputs).HomeEmploymentCredit);
+    }
+
     [Fact]
     public void An_entered_net_taxable_income_is_counted_as_it_is()
     {

@@ -36126,6 +36126,8 @@ export interface components {
             exemptIncome: string;
             /** @default 0.00 */
             pensions: string;
+            /** @default false */
+            disabled: boolean;
         };
         TaxDeclarationView: {
             boxes: components["schemas"]["Tax2042BoxView"][];
@@ -36210,6 +36212,13 @@ export interface components {
             realisedGains: string;
             /** @default 0.00 */
             capitalLossesCarried: string;
+            /**
+             * Format: int32
+             * @default 0
+             */
+            alternateCustody: number;
+            /** @default false */
+            singleParent: boolean;
         };
         TaxMilestoneView: {
             code: string;
@@ -36282,6 +36291,14 @@ export interface components {
              */
             alimonyAdultChildrenCount: number;
             capitalLossesCarried?: null | string;
+            /**
+             * Format: int32
+             * @default 0
+             */
+            alternateCustody: number;
+            /** @default false */
+            cohabiting: boolean;
+            disabledAdults?: null | string[];
         };
         TaxProfileView: {
             statuses: {
@@ -36335,6 +36352,14 @@ export interface components {
             alimonyAdultChildrenCount: number;
             /** @default 0.00 */
             capitalLossesCarried: string;
+            /**
+             * Format: int32
+             * @default 0
+             */
+            alternateCustody: number;
+            /** @default false */
+            cohabiting: boolean;
+            disabledAdults?: null | string[];
         };
         TaxPropertyView: {
             /** Format: uuid */

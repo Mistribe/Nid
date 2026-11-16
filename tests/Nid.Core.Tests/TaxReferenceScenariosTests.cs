@@ -92,6 +92,49 @@ public class TaxReferenceScenariosTests
         },
     };
 
+    /// <summary>
+    /// Issue #236: box T, alternate custody and a disabled declarant, worked by hand on the caps service-public.gouv.fr gives for the
+    /// revenus 2025 (1 807 € a half share, 904 € a quarter, 4 262 € box T with the first child, 3 608 € box P), the boxes in each comment.
+    /// </summary>
+    public static TheoryData<string, TaxInputs, Expected> ShareScenarios => new()
+    {
+        // Single, living alone, a child born 2015 at home; 1AJ 40 000, box T. 2 shares, within the cap; decote.
+        {
+            "single_parent_box_t",
+            Household([Salaried("A", 40_000m)], dependents: 1) with { SingleParent = true },
+            new Expected(2m, 36_000m, 36_000m, 1_408m, 260m, 1_148m, 2.9m)
+        },
+        // Single, living alone, a child born 2015 at home; 1AJ 100 000, box T: the 2 shares save more than 4 262.
+        {
+            "single_parent_box_t_capped",
+            Household([Salaried("A", 100_000m)], dependents: 1) with { SingleParent = true },
+            new Expected(2m, 90_000m, 90_000m, 16_439m, 0m, 16_439m, 16.4m)
+        },
+        // Married, two children born 2014 and 2017 in alternate custody (box H 2); 1AJ 50 000, 1BJ 40 000: capped at 2 × 904.
+        {
+            "couple_alternate_custody_capped",
+            Household([Salaried("A", 50_000m), Salaried("B", 40_000m)], dependents: 2) with { AlternateCustody = 2 },
+            new Expected(2.5m, 81_000m, 81_000m, 8_700m, 0m, 8_700m, null)
+        },
+        // Single, living alone, two children in alternate custody (box H 2), box T; 1AJ 30 000: 1.75 shares; decote.
+        {
+            "single_parent_alternate_custody",
+            Household([Salaried("A", 30_000m)], dependents: 2) with { AlternateCustody = 2, SingleParent = true },
+            new Expected(1.75m, 27_000m, 27_000m, 737m, 564m, 173m, 0.6m)
+        },
+        // Single, a disability card (box P), no child; 1AS 40 000: 1.5 shares save 1 858, over 1 807 yet within 3 608.
+        {
+            "single_disabled_pensioner",
+            Household([Pensioner("A", 40_000m) with { Disabled = true }]),
+            new Expected(1.5m, 36_000m, 36_000m, 2_046m, 0m, 2_046m, 5.1m)
+        },
+    };
+
+    [Theory]
+    [MemberData(nameof(ShareScenarios))]
+    public void Shares_match_the_published_caps(string scenario, TaxInputs inputs, Expected expected)
+        => The_estimate_matches_the_official_simulator(scenario, inputs, expected);
+
     [Theory]
     [MemberData(nameof(PensionScenarios))]
     public void Pensions_and_alimony_match_the_brochures_rules(string scenario, TaxInputs inputs, Expected expected)
