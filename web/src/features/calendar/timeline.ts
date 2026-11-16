@@ -8,14 +8,18 @@ export const offset = (from: string, to: string, date: string) => (dayOf(date) -
 /** The axis's slices: two marks in one slice would overlap, so they share a mark that opens as a list. */
 export const SLICES = 20;
 
-/** A row's events by slice of the axis, in the server's order, each group placed at its slice's middle. */
+/** A row's events by slice of the axis, in the server's order: a lone event on its date, a group at its slice's middle, both kept off the band's ends. */
 export function clusters<T>(items: readonly T[], from: string, to: string, dateOf: (item: T) => string): { at: number; items: T[] }[] {
   const bySlice = new Map<number, T[]>();
   for (const item of items) {
     const slice = Math.min(SLICES - 1, Math.max(0, Math.floor(offset(from, to, dateOf(item)) * SLICES)));
     bySlice.set(slice, [...(bySlice.get(slice) ?? []), item]);
   }
-  return [...bySlice].map(([slice, list]) => ({ at: (slice + 0.5) / SLICES, items: list }));
+  const edge = 0.5 / SLICES;
+  return [...bySlice].map(([slice, list]) => ({
+    at: list.length === 1 ? Math.min(1 - edge, Math.max(edge, offset(from, to, dateOf(list[0]!)))) : (slice + 0.5) / SLICES,
+    items: list,
+  }));
 }
 
 /** Each 1st of January after `from` and up to `to`, where it sits. */

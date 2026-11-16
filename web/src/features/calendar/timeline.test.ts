@@ -13,11 +13,12 @@ describe('the calendar timeline', () => {
     expect(years('2026-01-01', '2026-12-31')).toEqual([]);
   });
 
-  it('groups the dates of one slice, keeps their order and places the group at the slice middle', () => {
+  it('groups the dates of one slice, keeps their order, places a group at the slice middle and a lone date on itself', () => {
     const dates = ['2026-01-02', '2026-01-03', '2030-06-01', '2035-12-31'];
     const groups = clusters(dates, '2026-01-01', '2036-01-01', (d) => d);
     expect(groups.map((g) => g.items)).toEqual([['2026-01-02', '2026-01-03'], ['2030-06-01'], ['2035-12-31']]);
     expect(groups[0]!.at).toBe(0.5 / SLICES);
+    expect(groups[1]!.at).toBe(offset('2026-01-01', '2036-01-01', '2030-06-01'));
     expect(groups[2]!.at).toBe((SLICES - 0.5) / SLICES); // the last day stays on the axis
   });
 });
