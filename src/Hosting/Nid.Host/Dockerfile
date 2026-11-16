@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.28@sha256:bb22d9815c728170f72750f4e5b0d672e06176142e1d602c7e66c050100b7e5b
+# syntax=docker/dockerfile:1.29@sha256:572cebbc2b15e6f84c077742952674889cb63cd5e9b80abdffcbe587b6f19183
 # nid: the backend and the web app in one image (single-image design §2). Build context: the repository root (docker build -f src/Hosting/Nid.Host/Dockerfile .).
 FROM mcr.microsoft.com/dotnet/sdk:10.0-noble@sha256:fe0fd4e93bd2fbb47c883b7a6369e5c8d3db8bf01cdc5981f6ee35fbdf3ff4fb AS build
 ARG TARGETARCH
@@ -26,7 +26,7 @@ RUN mkdir -p /volumes/var/lib/nid/keys /volumes/var/lib/nid/assets /volumes/var/
  && chown -R 1654:1654 /volumes/var/lib/nid && chmod 0700 /volumes/var/lib/nid/keys /volumes/var/lib/nid/logs && chmod 0750 /volumes/var/lib/nid/documents
 
 # The web app: its build and the security headers file the host answers the SPA with (frontend/architecture.md §9: one source).
-FROM node:26-alpine@sha256:8996bb5821d62a8fd9bb27c1cb07462f3fdce6e47d640c6a881ead0b064ce216 AS web
+FROM node:26-alpine@sha256:6bd9ab43c0ec0190ca7b2d193906cb8b7edf6e7f4afa43ddeccd6452710bffb5 AS web
 WORKDIR /web
 # Node 25+ no longer ships corepack: install it, it then runs the pnpm of package.json's packageManager. npm ci from a lockfile
 # pins its tarball by hash (corepack/package-lock.json, kept current by Renovate).
