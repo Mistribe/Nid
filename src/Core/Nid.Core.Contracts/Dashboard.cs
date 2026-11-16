@@ -166,6 +166,10 @@ public static class UpcomingKinds
     public const string SubscriptionRenewal = "subscription_renewal";
     public const string SubscriptionExpiry = "subscription_expiry";
     public const string SubscriptionCancelDeadline = "subscription_cancel_deadline";
+
+    // Issue #244: the first paid charge after a free period, and the first charge of a dearer phase.
+    public const string SubscriptionTrialEnd = "subscription_trial_end";
+    public const string SubscriptionPriceIncrease = "subscription_price_increase";
     public const string IncomePhaseEnd = "income_phase_end";
     public const string IncomeGapSoon = "income_gap_soon";
 

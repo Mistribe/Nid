@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router';
 import type { TFunction } from 'i18next';
-import { CalendarClock, CalendarX, FileText, Flag, Hourglass, KeyRound, Landmark, Milestone, Percent, PiggyBank, RefreshCw, Receipt, Scale, TimerOff, Wallet, type LucideIcon } from 'lucide-react';
+import { CalendarClock, CalendarX, FileText, Flag, Gift, Hourglass, KeyRound, Landmark, Milestone, Percent, PiggyBank, RefreshCw, Receipt, Scale, TimerOff, TrendingUp, Wallet, type LucideIcon } from 'lucide-react';
 import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatLocalDate } from '@/components/LocalDate';
@@ -24,6 +24,8 @@ function EventText({ e }: { e: DashboardEvent }) {
     case 'subscription_renewal': return <>{t('dashboard.upcoming.subscription_renewal')}</>;
     case 'subscription_expiry': return <>{t('dashboard.upcoming.subscription_expiry')}</>;
     case 'subscription_cancel_deadline': return <>{t('dashboard.upcoming.subscription_cancel_deadline')}</>;
+    case 'subscription_trial_end': return <>{t('dashboard.upcoming.subscription_trial_end')}</>;
+    case 'subscription_price_increase': return <>{t('dashboard.upcoming.subscription_price_increase')}</>;
     case 'income_phase_end': return <>{t('dashboard.upcoming.income_phase_end', { label: e.label ?? '' })}</>;
     case 'loan_phase_end': return <>{t('dashboard.upcoming.loan_phase_end', { n: e.label ?? '' })}</>;
     case 'loan_end': return <>{t('dashboard.upcoming.loan_end')}</>;
@@ -46,7 +48,8 @@ function EventText({ e }: { e: DashboardEvent }) {
 }
 
 const ICON: Record<string, LucideIcon> = {
-  subscription_renewal: RefreshCw, subscription_expiry: CalendarX, subscription_cancel_deadline: CalendarClock, income_phase_end: Wallet, loan_phase_end: Landmark,
+  subscription_renewal: RefreshCw, subscription_expiry: CalendarX, subscription_cancel_deadline: CalendarClock,
+  subscription_trial_end: Gift, subscription_price_increase: TrendingUp, income_phase_end: Wallet, loan_phase_end: Landmark,
   loan_end: Flag, valuation_due: Scale, property_cost_due: Receipt, tenancy_end: KeyRound, holding_maturity: Hourglass,
   per_deadline: PiggyBank, per_ceiling_expiring: TimerOff, tax_milestone: Milestone,
   tax_filing_deadline: FileText, tax_new_rate: Percent, tax_balance_due: Landmark, property_tax_due: Receipt,

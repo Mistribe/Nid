@@ -76,6 +76,43 @@ public class SubscriptionsSourceTests(PostgresFixture fixture) : IClassFixture<P
         Assert.Empty(await SignalsAsync(app, app.AdultA, 60));
     }
 
+    private static async Task<ItemId> TrialAsync(NidApp app, PersonId owner, Visibility visibility)
+    {
+        var id = await app.NewSubscriptionAsync("Essai", owner, visibility);
+        foreach (var (startsOn, endsOn, amount) in new[] { ("2025-10-20", (string?)"2025-11-20", "0.00"), ("2025-11-20", null, "10.00") })
+            (await app.RawAsync(owner, HttpMethod.Post, $"/api/v1/subscriptions/{id.Value}/phases", new
+            {
+                startsOn, endsOn,
+                price = new { amount, currency = "EUR" },
+                every = new { count = 1, unit = "month" },
+                payer = new { type = "household" },
+            })).EnsureSuccessStatusCode();
+        return id;
+    }
+
+    [Fact]
+    public async Task Trial_end_signal_is_dated_on_the_first_paid_charge()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await TrialAsync(app, app.AdultA, Visibility.Shared);
+
+        var signal = Assert.Single(await SignalsAsync(app, app.AdultA, 60));
+
+        Assert.Equal("subscription_trial_end", signal.Kind);
+        Assert.Equal(new LocalDate(2025, 11, 20), signal.DueOn);
+        Assert.Equal($"subscription_trial_end:{id.Value:D}:2025-11-20", signal.Key);
+        Assert.Empty(signal.Params);
+    }
+
+    [Fact]
+    public async Task Private_trial_of_the_other_adult_yields_nothing()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await TrialAsync(app, app.AdultB, Visibility.Private);
+
+        Assert.Empty(await SignalsAsync(app, app.AdultA, 60));
+    }
+
     [Fact]
     public async Task No_amount_in_params()
     {
@@ -101,6 +138,8 @@ public class SubscriptionsSourceTests(PostgresFixture fixture) : IClassFixture<P
             new NotificationKind("subscription_renewal", "due_date", NotificationLevel.Action, "subscriptions", 7),
             new NotificationKind("subscription_expiry", "due_date", NotificationLevel.Action, "subscriptions", 14),
             new NotificationKind("subscription_cancel_deadline", "due_date", NotificationLevel.Action, "subscriptions", 30),
+            new NotificationKind("subscription_trial_end", "due_date", NotificationLevel.Action, "subscriptions", 7),
+            new NotificationKind("subscription_price_increase", "due_date", NotificationLevel.Action, "subscriptions", 7),
             new NotificationKind("subscriptions.ends_without_renewal", "finding", NotificationLevel.Info, "subscriptions", null),
         ], source.Kinds);
     }
