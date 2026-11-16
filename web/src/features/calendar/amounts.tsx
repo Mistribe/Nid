@@ -8,6 +8,7 @@ import { formatMoney, Money } from '@/components/Money';
 import { ModuleTile } from '@/components/ModuleTile';
 import { placeOf, tileOf } from '@/components/nav';
 import { cn } from '@/lib/utils';
+import '@/locales/calendar';
 
 export type CalendarAmounts = components['schemas']['CalendarAmountsView'];
 export type CalendarCharge = components['schemas']['CalendarChargeView'];
