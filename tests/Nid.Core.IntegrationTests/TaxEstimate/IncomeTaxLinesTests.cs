@@ -67,6 +67,24 @@ public class IncomeTaxLinesTests(PostgresFixture fixture) : IClassFixture<Postgr
     }
 
     [Fact]
+    public async Task A_pension_and_alimony_received_go_to_the_pension_line()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var pension = await app.NewIncomeSourceAsync("Retraite A", app.AdultA, kind: "pension");
+        await PhaseAsync(app, app.AdultA, pension, "Avec imposable", "2025-01-31", "1900", null, "2000");
+        await PhaseAsync(app, app.AdultA, pension, "Net seul", "2025-02-28", "1900", null, null);
+        var alimony = await app.NewIncomeSourceAsync("Pension alimentaire", app.AdultA, kind: "alimony");
+        await PhaseAsync(app, app.AdultA, alimony, "Mensuelle", "2025-01-31", "300", null, null);
+
+        var lines = await LinesAsync(app, app.AdultA, VisibilityScope.Me);
+
+        // The net taxable where entered, else the net paid.
+        Assert.Equal(2000m + 1900m + 300m, Sum(lines, TaxLineCodes.Pension));
+        Assert.All(lines.Where(l => l.Code == TaxLineCodes.Pension), l => Assert.Equal(app.AdultA, l.Person));
+        Assert.DoesNotContain(lines, l => l.Code == TaxLineCodes.Unsupported);
+    }
+
+    [Fact]
     public async Task Salary_detail_of_the_other_adults_private_source_stays_out()
     {
         await using var app = await NidApp.StartAsync(fixture);

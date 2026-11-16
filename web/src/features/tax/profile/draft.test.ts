@@ -9,6 +9,7 @@ describe('profile draft', () => {
       contributionRates: {}, actualExpenses: {}, perUnusedCeilings: {}, perCeilings: {}, perCeilingsExpiring: {}, perPooling: false,
       exemptIncomes: {}, rentalDeficitCarried: '0.00', childcareOutsideHome: '6000.00', homeEmployment: '0.00', donations: '0.00',
       donationsAid: '0.00', donationsAidLate: '0.00', rentalEnergyWorks: '0.00', capitalScale: false, deductibleCsg: '0.00',
+      alimonyPaid: '0.00', alimonyAdultChildren: '0.00', alimonyAdultChildrenCount: 0,
     });
   });
 
@@ -46,6 +47,15 @@ describe('profile draft', () => {
     expect(draftErrors({ ...initial, rates: { [ADULT]: '2x' } })).toEqual({ [`rates.${ADULT}`]: 'rate' });
     expect(draftErrors({ ...initial, under6: '' })).toEqual({ under6: 'count' });
     expect(draftErrors({ ...initial, amounts: { ...initial.amounts, donations: '1,23456' } })).toEqual({ 'amounts.donations': 'amount' });
+  });
+
+  it('sends the alimony paid with the number of adult children it goes to', () => {
+    const initial = initialDraft(estimate());
+    const draft = { ...initial, alimonyChildren: '2', amounts: { ...initial.amounts, alimonyAdultChildren: '9000', alimonyPaid: '1200,50' } };
+
+    expect(profileBody(draft)).toMatchObject({ alimonyPaid: '1200.50', alimonyAdultChildren: '9000', alimonyAdultChildrenCount: 2 });
+    expect(countChanges(draft, initial)).toBe(3);
+    expect(draftErrors({ ...initial, alimonyChildren: '' })).toEqual({ alimonyChildren: 'count' });
   });
 
   it('checks the department as the server does and sends it trimmed', () => {

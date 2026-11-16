@@ -18,7 +18,7 @@ public sealed record TaxRules(
     decimal FlatTaxRate, decimal CapitalSocialRate, decimal RentalSocialRate,
     decimal ChildcareCapPerChild, decimal ChildcareRate, decimal HomeEmploymentBase, decimal HomeEmploymentPerChild, decimal HomeEmploymentMax,
     decimal HomeEmploymentRate, decimal DonationAidCap, decimal? DonationAidEarlyCap, decimal DonationAidRate, decimal DonationRate, decimal DonationIncomeShare, decimal NicheCap,
-    bool Provisional = false)
+    decimal PensionAllowanceMin, decimal PensionAllowanceMax, decimal AlimonyAdultChildCap, bool Provisional = false)
 {
     public bool CarriedForward => RevenueYear > RulesYear;
 
@@ -34,22 +34,26 @@ public sealed record TaxRules(
     private sealed record Scale(
         IReadOnlyList<TaxBracket> Brackets, decimal AllowanceMin, decimal AllowanceMax, decimal FamilyCap,
         decimal DecoteSingleThreshold, decimal DecoteSingleBase, decimal DecoteCoupleThreshold, decimal DecoteCoupleBase,
-        decimal ChildcareCap, decimal HomeEmploymentBase, decimal HomeEmploymentPerChild, decimal HomeEmploymentMax, bool Provisional = false);
+        decimal ChildcareCap, decimal HomeEmploymentBase, decimal HomeEmploymentPerChild, decimal HomeEmploymentMax,
+        decimal PensionAllowanceMin, decimal PensionAllowanceMax, decimal AlimonyAdultChildCap, bool Provisional = false);
 
     private static readonly Dictionary<int, Scale> Scales = new()
     {
-        // Revenus 2025: loi n° 2026-103 du 19 février 2026 (barème revalorisé de 0,9 %).
+        // Revenus 2025: loi n° 2026-103 du 19 février 2026 (barème revalorisé de 0,9 %); the pensions' allowance and an adult
+        // child's alimony cap as the brochure pratique IR 2026 prints them.
         [2025] = new([new(0m, 0m), new(11_600m, 0.11m), new(29_579m, 0.30m), new(84_577m, 0.41m), new(181_917m, 0.45m)],
             AllowanceMin: 509m, AllowanceMax: 14_555m, FamilyCap: 1_807m,
             DecoteSingleThreshold: 1_982m, DecoteSingleBase: 897m, DecoteCoupleThreshold: 3_277m, DecoteCoupleBase: 1_483m,
-            ChildcareCap: 3_500m, HomeEmploymentBase: 12_000m, HomeEmploymentPerChild: 1_500m, HomeEmploymentMax: 15_000m),
+            ChildcareCap: 3_500m, HomeEmploymentBase: 12_000m, HomeEmploymentPerChild: 1_500m, HomeEmploymentMax: 15_000m,
+            PensionAllowanceMin: 454m, PensionAllowanceMax: 4_439m, AlimonyAdultChildCap: 6_855m),
         // Revenus 2026: projet de loi de finances pour 2027 n° 3210 du 1er octobre 2026, art. 2 (barème revalorisé de 2,1 %).
         // Provisional until the law. The 10 % allowance follows the first bracket (CGI art. 83 3°), the décote thresholds are
-        // its bases over 45,25 %.
+        // its bases over 45,25 %. The pensions' allowance and the adult child's alimony cap follow it too (CGI art. 158 5 a, 196 B).
         [2026] = new([new(0m, 0m), new(11_844m, 0.11m), new(30_200m, 0.30m), new(86_353m, 0.41m), new(185_737m, 0.45m)],
             AllowanceMin: 520m, AllowanceMax: 14_861m, FamilyCap: 1_845m,
             DecoteSingleThreshold: 2_022m, DecoteSingleBase: 915m, DecoteCoupleThreshold: 3_344m, DecoteCoupleBase: 1_513m,
-            ChildcareCap: 3_500m, HomeEmploymentBase: 12_000m, HomeEmploymentPerChild: 1_500m, HomeEmploymentMax: 15_000m, Provisional: true),
+            ChildcareCap: 3_500m, HomeEmploymentBase: 12_000m, HomeEmploymentPerChild: 1_500m, HomeEmploymentMax: 15_000m,
+            PensionAllowanceMin: 464m, PensionAllowanceMax: 4_532m, AlimonyAdultChildCap: 6_999m, Provisional: true),
     };
 
     /// <summary>
@@ -75,12 +79,26 @@ public sealed record TaxRules(
             HomeEmploymentBase: s.HomeEmploymentBase, HomeEmploymentPerChild: s.HomeEmploymentPerChild, HomeEmploymentMax: s.HomeEmploymentMax,
             HomeEmploymentRate: 0.50m, DonationAidCap: 2_000m,
             DonationAidEarlyCap: revenueYear == 2025 ? 1_000m : null, DonationAidRate: 0.75m, DonationRate: 0.66m, DonationIncomeShare: 0.20m, NicheCap: 10_000m,
+            PensionAllowanceMin: s.PensionAllowanceMin, PensionAllowanceMax: s.PensionAllowanceMax, AlimonyAdultChildCap: s.AlimonyAdultChildCap,
             Provisional: s.Provisional);
     }
 
     /// <summary>The 10 % deduction on salaries: at least the minimum, at most the maximum, never more than the salaries themselves.</summary>
     public decimal SalaryAllowance(decimal income)
         => Math.Min(income, Math.Min(SalaryAllowanceMax, Math.Max(SalaryAllowanceMin, SalaryAllowanceRate * income)));
+
+    /// <summary>
+    /// The 10 % deduction on pensions (CGI art. 158-5 a): at least the minimum for each pensioner, never more than the pensions, and
+    /// at most the maximum for the whole household, shared in proportion to each one's.
+    /// </summary>
+    public IReadOnlyList<decimal> PensionAllowances(IReadOnlyList<decimal> pensions)
+    {
+        var own = pensions.Select(p => Math.Min(Math.Max(0m, p), Math.Max(PensionAllowanceMin, PensionAllowanceRate * p))).ToList();
+        var total = own.Sum();
+        return total > PensionAllowanceMax ? [.. own.Select(a => PensionAllowanceMax * a / total)] : own;
+    }
+
+    public const decimal PensionAllowanceRate = 0.10m;
 
     /// <summary>
     /// The deficit the global income takes (BOI-RFPI-BASE-30-20): 10 700 €, raised by the energy renovation works among the charges

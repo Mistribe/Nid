@@ -36986,7 +36986,8 @@
         "required": [
           "name",
           "salaries",
-          "monthly"
+          "monthly",
+          "pensions"
         ],
         "type": "object",
         "properties": {
@@ -36998,6 +36999,10 @@
           },
           "monthly": {
             "type": "string"
+          },
+          "pensions": {
+            "type": "string",
+            "default": "0.00"
           }
         }
       },
@@ -58506,7 +58511,9 @@
           "netTaxableIncome",
           "allowance",
           "taxable",
-          "perDeducted"
+          "perDeducted",
+          "pensions",
+          "pensionAllowance"
         ],
         "type": "object",
         "properties": {
@@ -58550,6 +58557,14 @@
                 "$ref": "#/components/schemas/TaxDeclarantPerView"
               }
             ]
+          },
+          "pensions": {
+            "type": "string",
+            "default": "0.00"
+          },
+          "pensionAllowance": {
+            "type": "string",
+            "default": "0.00"
           }
         }
       },
@@ -58564,7 +58579,8 @@
           "salaryTaxable",
           "previousYearIncome",
           "perExpiring",
-          "exemptIncome"
+          "exemptIncome",
+          "pensions"
         ],
         "type": "object",
         "properties": {
@@ -58626,6 +58642,10 @@
             }
           },
           "exemptIncome": {
+            "type": "string",
+            "default": "0.00"
+          },
+          "pensions": {
             "type": "string",
             "default": "0.00"
           }
@@ -58834,7 +58854,10 @@
           "rentalEnergyWorks",
           "capitalDividends",
           "capitalScale",
-          "deductibleCsg"
+          "deductibleCsg",
+          "alimonyPaid",
+          "alimonyAdultChildren",
+          "alimonyAdultChildrenCount"
         ],
         "type": "object",
         "properties": {
@@ -58918,6 +58941,19 @@
           "deductibleCsg": {
             "type": "string",
             "default": "0.00"
+          },
+          "alimonyPaid": {
+            "type": "string",
+            "default": "0.00"
+          },
+          "alimonyAdultChildren": {
+            "type": "string",
+            "default": "0.00"
+          },
+          "alimonyAdultChildrenCount": {
+            "type": "integer",
+            "format": "int32",
+            "default": 0
           }
         }
       },
@@ -59001,6 +59037,7 @@
       "TaxProfileBody": {
         "required": [
           "childrenUnder6",
+          "alimonyAdultChildrenCount",
           "capitalScale",
           "perPooling"
         ],
@@ -59156,12 +59193,30 @@
               "null",
               "string"
             ]
+          },
+          "alimonyPaid": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "alimonyAdultChildren": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "alimonyAdultChildrenCount": {
+            "type": "integer",
+            "format": "int32",
+            "default": 0
           }
         }
       },
       "TaxProfileView": {
         "required": [
           "statuses",
+          "alimonyPaid",
           "childrenUnder6",
           "deductibleCsg",
           "pinel",
@@ -59179,7 +59234,9 @@
           "exemptIncomes",
           "donationsAidLate",
           "rentalEnergyWorks",
-          "capitalScale"
+          "capitalScale",
+          "alimonyAdultChildren",
+          "alimonyAdultChildrenCount"
         ],
         "type": "object",
         "properties": {
@@ -59285,6 +59342,19 @@
           "deductibleCsg": {
             "type": "string",
             "default": "0.00"
+          },
+          "alimonyPaid": {
+            "type": "string",
+            "default": "0.00"
+          },
+          "alimonyAdultChildren": {
+            "type": "string",
+            "default": "0.00"
+          },
+          "alimonyAdultChildrenCount": {
+            "type": "integer",
+            "format": "int32",
+            "default": 0
           }
         }
       },
@@ -59344,7 +59414,8 @@
           "dividendAllowance",
           "deductibleCsgNextYear",
           "highIncomeContribution",
-          "highIncomeSmoothed"
+          "highIncomeSmoothed",
+          "alimonyDeducted"
         ],
         "type": "object",
         "properties": {
@@ -59492,6 +59563,10 @@
           "highIncomeSmoothed": {
             "type": "boolean",
             "default": false
+          },
+          "alimonyDeducted": {
+            "type": "string",
+            "default": "0.00"
           }
         }
       },

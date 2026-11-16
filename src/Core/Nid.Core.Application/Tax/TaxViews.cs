@@ -91,7 +91,8 @@ public sealed record TaxProfileView(
     IReadOnlyDictionary<Guid, string> PerUnusedCeilings, string RentalDeficitCarried,
     IReadOnlyDictionary<Guid, string> PerCeilings, IReadOnlyDictionary<Guid, string> PerCeilingsExpiring, bool PerPooling,
     IReadOnlyDictionary<Guid, string> ExemptIncomes, string DonationsAidLate, string RentalEnergyWorks, string? Department,
-    bool CapitalScale = false, string DeductibleCsg = "0.00")
+    bool CapitalScale = false, string DeductibleCsg = "0.00",
+    string AlimonyPaid = "0.00", string AlimonyAdultChildren = "0.00", int AlimonyAdultChildrenCount = 0)
 {
     public static TaxProfileView Of(TaxProfile p) => new(
         p.Statuses, p.Dependents, p.ChildrenUnder6, p.RentalRegime, p.Pinel,
@@ -102,7 +103,8 @@ public sealed record TaxProfileView(
         (p.PerCeilings ?? new Dictionary<Guid, decimal>()).ToDictionary(x => x.Key, x => Amount(x.Value)),
         (p.PerCeilingsExpiring ?? new Dictionary<Guid, decimal>()).ToDictionary(x => x.Key, x => Amount(x.Value)), p.PerPooling,
         (p.ExemptIncomes ?? new Dictionary<Guid, decimal>()).ToDictionary(x => x.Key, x => Amount(x.Value)),
-        Amount(p.DonationsAidLate), Amount(p.RentalEnergyWorks), p.Department, p.CapitalScale, Amount(p.DeductibleCsg));
+        Amount(p.DonationsAidLate), Amount(p.RentalEnergyWorks), p.Department, p.CapitalScale, Amount(p.DeductibleCsg),
+        Amount(p.AlimonyPaid), Amount(p.AlimonyAdultChildren), p.AlimonyAdultChildrenCount);
 }
 
 /// <summary>
@@ -110,13 +112,13 @@ public sealed record TaxProfileView(
 /// the net taxable income entered, counted as it is beside the estimate from <c>SalaryGross</c>. Tax-per spec §4: <c>PerCeiling</c> the
 /// notice's ceiling, null for an estimated one; <c>PreviousYearIncome</c> last year's taxable income (the estimate's basis);
 /// <c>PerExpiring</c> the part of the ceiling lost on 31 December; <c>PerEnvelopes</c> the names of the PERs the contributions come from.
-/// <c>ExemptIncome</c>: the exempt income the reference income counts.
+/// <c>ExemptIncome</c>: the exempt income the reference income counts. <c>Pensions</c>: the pensions and alimony received, net taxable.
 /// </summary>
 public sealed record TaxDeclarantView(
     string Name, string SalaryGross, string Status, string OtherTaxable, string PerContributions, string PerUnusedCeiling,
     string? ContributionRate = null, string? ActualExpenses = null, string SalaryTaxable = "0.00",
     string? PerCeiling = null, string PreviousYearIncome = "0.00", string PerExpiring = "0.00", IReadOnlyList<string>? PerEnvelopes = null,
-    string ExemptIncome = "0.00");
+    string ExemptIncome = "0.00", string Pensions = "0.00");
 
 /// <summary>
 /// What the calculation read, as the simulation sends it back once edited (<c>DonationsAidLate</c>: box 7UQ). #234: <c>CapitalDividends</c>
@@ -128,22 +130,28 @@ public sealed record TaxInputsView(
     string CapitalIncome, string NonTaxableIncome, string PinelReduction,
     string ChildcareOutsideHome, string HomeEmployment, string Donations, string DonationsAid, string RentalDeficitCarried, bool PerPooling = false,
     string DonationsAidLate = "0.00", string RentalEnergyWorks = "0.00", string CapitalDividends = "0.00", bool CapitalScale = false,
-    string DeductibleCsg = "0.00")
+    string DeductibleCsg = "0.00", string AlimonyPaid = "0.00", string AlimonyAdultChildren = "0.00", int AlimonyAdultChildrenCount = 0)
 {
     /// <summary><paramref name="perEnvelopes"/>: the PERs' names by declarant, in the order of the declarants.</summary>
     public static TaxInputsView Of(TaxInputs i, IReadOnlyList<IReadOnlyList<string>>? perEnvelopes = null) => new(
         i.Year, i.Declarants.Select((d, n) => new TaxDeclarantView(d.Name, Amount(d.SalaryGross), Wire(d.Status), Amount(d.OtherTaxable), Amount(d.PerContributions), Amount(d.PerUnusedCeiling),
             d.ContributionRate is { } r ? Percent(r) : null, d.ActualExpenses is { } e ? Amount(e) : null, Amount(d.SalaryTaxable),
             d.PerCeiling is { } c ? Amount(c) : null, Amount(d.PreviousYearIncome), Amount(d.PerExpiring),
-            perEnvelopes is not null && n < perEnvelopes.Count ? perEnvelopes[n] : [], Amount(d.ExemptIncome))).ToList(),
+            perEnvelopes is not null && n < perEnvelopes.Count ? perEnvelopes[n] : [], Amount(d.ExemptIncome), Amount(d.Pensions))).ToList(),
         i.Dependents, i.ChildrenUnder6, Amount(i.RentalGross), Amount(i.RentalInterest), Amount(i.RentalCharges),
         i.RentalRegime is { } r ? Wire(r) : null, Amount(i.CapitalIncome), Amount(i.NonTaxableIncome), Amount(i.PinelReduction),
         Amount(i.ChildcareOutsideHome), Amount(i.HomeEmployment), Amount(i.Donations), Amount(i.DonationsAid), Amount(i.RentalDeficitCarried), i.PerPooling,
-        Amount(i.DonationsAidLate), Amount(i.RentalEnergyWorks), Amount(i.CapitalDividends), i.CapitalScale, Amount(i.DeductibleCsg));
+        Amount(i.DonationsAidLate), Amount(i.RentalEnergyWorks), Amount(i.CapitalDividends), i.CapitalScale, Amount(i.DeductibleCsg),
+        Amount(i.AlimonyPaid), Amount(i.AlimonyAdultChildren), i.AlimonyAdultChildrenCount);
 }
 
-/// <summary><c>Method</c>: how the salary was counted, <c>entered</c> (net taxable income), <c>estimated</c> (from the gross), <c>mixed</c>; null without salary.</summary>
-public sealed record TaxDeclarantResultView(string Name, string NetSalary, string NetTaxableIncome, string Allowance, string Taxable, string PerDeducted, string? Method = null, Guid? Person = null, TaxDeclarantPerView? Per = null);
+/// <summary>
+/// <c>Method</c>: how the salary was counted, <c>entered</c> (net taxable income), <c>estimated</c> (from the gross), <c>mixed</c>; null
+/// without salary. <c>Pensions</c> and <c>PensionAllowance</c>: the pensions and alimony received, and their 10 % allowance.
+/// </summary>
+public sealed record TaxDeclarantResultView(
+    string Name, string NetSalary, string NetTaxableIncome, string Allowance, string Taxable, string PerDeducted, string? Method = null, Guid? Person = null,
+    TaxDeclarantPerView? Per = null, string Pensions = "0.00", string PensionAllowance = "0.00");
 
 /// <summary>
 /// Tax-per spec §4.2: a declarant's PER, in euros. <c>Source</c> <c>notice</c> (the avis d'imposition's ceiling) or <c>estimated</c> (on
@@ -170,6 +178,7 @@ public sealed record TaxPerView(bool Pooled, string Remaining, string TaxSaved, 
 /// <c>RentalDeficitCarriedForward</c>: the rental deficit left for the next years. #234: <c>CapitalScale</c> the capital option computed
 /// (2OP), <c>CapitalOptionGap</c> the total under the other one minus this one (null without capital income), <c>DividendAllowance</c>
 /// the 40 %, <c>DeductibleCsgNextYear</c> next year's 6DE, <c>HighIncomeContribution</c> the CEHR (in <c>TotalTax</c>), smoothed or not.
+/// <c>AlimonyDeducted</c>: the alimony paid off the global income.
 /// </summary>
 public sealed record TaxResultView(
     int Year, int RulesYear, string Parts, IReadOnlyList<TaxDeclarantResultView> Declarants,
@@ -180,13 +189,13 @@ public sealed record TaxResultView(
     string MarginalRate, string? AverageRate, string NetBeforeTax, string NetAfterTax, string NetAfterTaxMonthly,
     IReadOnlyList<string> Warnings, WithholdingView Withholding, TaxPerView? Per = null, string ReferenceIncome = "0.00", string? RentalRegimeGap = null,
     string RentalDeficitCarriedForward = "0.00", bool CapitalScale = false, string? CapitalOptionGap = null, string DividendAllowance = "0.00",
-    string DeductibleCsgNextYear = "0.00", string HighIncomeContribution = "0.00", bool HighIncomeSmoothed = false)
+    string DeductibleCsgNextYear = "0.00", string HighIncomeContribution = "0.00", bool HighIncomeSmoothed = false, string AlimonyDeducted = "0.00")
 {
     /// <summary><paramref name="persons"/>: the adults' ids in the order of the declarants (the estimate's); a simulation passes none.</summary>
     public static TaxResultView Of(TaxResult r, IReadOnlyList<Guid>? persons = null) => new(
         r.Year, r.RulesYear, r.Parts.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture),
         r.Declarants.Select((d, i) => new TaxDeclarantResultView(d.Name, Amount(d.NetSalary), Amount(d.NetTaxableIncome), Amount(d.Allowance), Amount(d.Taxable), Amount(d.PerDeducted), WireMethod(d.Method), persons is not null && i < persons.Count ? persons[i] : null,
-            d.Per is { } per ? TaxDeclarantPerView.Of(per) : null)).ToList(),
+            d.Per is { } per ? TaxDeclarantPerView.Of(per) : null, Amount(d.Pensions), Amount(d.PensionAllowance))).ToList(),
         Wire(r.RentalRegime), Amount(r.RentalTaxable), Amount(r.RentalDeficitCarriedUsed), Amount(r.RentalDeficit), Amount(r.NetTaxableIncome),
         Amount(r.GrossTax), r.FamilyCapApplied, Amount(r.Decote), Amount(r.PinelReduction), Amount(r.DonationReduction),
         Amount(r.ChildcareCredit), Amount(r.HomeEmploymentCredit), Amount(r.NicheCapExcess),
@@ -195,7 +204,7 @@ public sealed record TaxResultView(
         r.Warnings, WithholdingView.Of(r.Withholding), r.Per is { } household ? TaxPerView.Of(household) : null, Amount(r.ReferenceIncome),
         r.RentalRegimeGap is { } gap ? Amount(gap) : null, Amount(r.RentalDeficitCarriedForward),
         r.CapitalScale, r.CapitalOptionGap is { } option ? Amount(option) : null, Amount(r.DividendAllowance), Amount(r.DeductibleCsgNextYear),
-        Amount(r.HighIncomeContribution), r.HighIncomeSmoothed);
+        Amount(r.HighIncomeContribution), r.HighIncomeSmoothed, Amount(r.AlimonyDeducted));
 
     private static string? WireMethod(SalaryMethod method) => method switch
     {
@@ -208,7 +217,8 @@ public sealed record TaxResultView(
     private static string Rate(decimal rate) => (rate * 100).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
 }
 
-public sealed record DeclarantWithholdingView(string Name, string Salaries, string Monthly);
+/// <summary><c>Pensions</c>: the pensions to declare beside the salaries, both withheld at the rate.</summary>
+public sealed record DeclarantWithholdingView(string Name, string Salaries, string Monthly, string Pensions = "0.00");
 
 /// <summary>Spec §4bis. <c>Rate</c> in percent, to the tenth (<c>"4.5"</c>).</summary>
 public sealed record WithholdingView(
@@ -223,7 +233,7 @@ public sealed record WithholdingView(
     private static string TenthRate(decimal rate) => rate.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture);
 
     private static List<DeclarantWithholdingView> DeclarantViews(IReadOnlyList<DeclarantWithholding> declarants)
-        => declarants.Select(d => new DeclarantWithholdingView(d.Name, Amount(d.Salaries), Amount(d.Monthly))).ToList();
+        => declarants.Select(d => new DeclarantWithholdingView(d.Name, Amount(d.Salaries), Amount(d.Monthly), Amount(d.Pensions))).ToList();
 }
 
 /// <summary>Spec §4bis, the « baisse sans risque ». <c>Declarants[i].Salaries</c>: the salaries to enter.</summary>

@@ -32,7 +32,9 @@ public static class TaxLineCodes
     public const string SalaryRateTaxable = "salary_rate_taxable";
     public const string OtherTaxable = "other_taxable";
     public const string NonTaxable = "non_taxable";
-    /// <summary>An income the estimate does not compute (pension, self-employment, alimony): shown, never counted.</summary>
+    /// <summary>A pension or alimony received, net taxable (the net paid where the phase has no taxable amount), under the pensions' allowance.</summary>
+    public const string Pension = "pension";
+    /// <summary>An income the estimate does not compute (self-employment, other): shown, never counted.</summary>
     public const string Unsupported = "unsupported";
     /// <summary>Rental 2044 spec §3: a property's amount on a line of the form; <c>Item</c> is the property, a loan's interest included.</summary>
     public const string Rental211 = "rental_211";
@@ -161,7 +163,8 @@ public sealed record TaxProfile(
     IReadOnlyDictionary<Guid, decimal>? PerUnusedCeilings = null, decimal RentalDeficitCarried = 0m,
     IReadOnlyDictionary<Guid, decimal>? PerCeilings = null, IReadOnlyDictionary<Guid, decimal>? PerCeilingsExpiring = null, bool PerPooling = false,
     IReadOnlyDictionary<Guid, decimal>? ExemptIncomes = null, decimal DonationsAidLate = 0m, decimal RentalEnergyWorks = 0m, string? Department = null,
-    bool CapitalScale = false, decimal DeductibleCsg = 0m)
+    bool CapitalScale = false, decimal DeductibleCsg = 0m,
+    decimal AlimonyPaid = 0m, decimal AlimonyAdultChildren = 0m, int AlimonyAdultChildrenCount = 0)
 {
     public static readonly TaxProfile Empty = new(new Dictionary<Guid, string>(), null, 0, null, [], 0m, 0m, 0m, 0m);
 }
