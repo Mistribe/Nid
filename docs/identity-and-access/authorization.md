@@ -28,13 +28,15 @@ Ordre d'exécution des comportements (par `IOrderedPipelineBehavior.Order`, vale
 | Étape | Rôle |
 |---|---|
 | 1. Trace et journal | Identifiant de requête, OpenTelemetry |
-| 2. Acteur | Session, jeton ou tâche → `Actor` |
+| 2. Acteur | Session, jeton ou tâche → `Actor` ; sans acteur, `401` |
 | 2 bis. Admin | Une requête `IAdminOnly` d'un acteur non admin est refusée : `403 platform.admin_required` |
-| 3. Portée | Voir §3 |
+| 3. Portée | Voir §3 ; un jeton est d'abord refusé sur une requête `IBrowserOnly` (`403 platform.browser_only`) |
 | 4. Accès | Contrôle sur l'élément visé (§4 et §5) |
 | 5. Idempotence | `Idempotency-Key` |
 | 6. Validation, transaction, handler | |
 | 7. Garde de sortie | Voir §7 |
+
+Les étapes 2, 2 bis et 3 sont les contrôles de `UnambitiousFx.Synapse.Authorization` (`NidAuthorization.AddNidAuthorization`) : `ActorPrincipal` leur présente l'`Actor` (la hiérarchie des portées de `Actor.Has`, le rôle `admin` pour `is_admin`), `DenialFailure` garde les codes et les phrases de Nid. Les comportements propres à Nid (audit, `BrowserOnlyBehavior`, accès à l'élément, masquage des documents, garde de sortie) se placent dans les intervalles de `AuthorizationBehaviorOrder` (`PipelineOrder`).
 
 **Vérifié** (`../spikes.md` §3) : l'ordre suit `Order`, quel que soit l'ordre d'enregistrement, et un comportement peut court-circuiter. Les comportements communs sont déclarés par le host (`[assembly: SynapseGlobalBehavior]` et son propre `RegisterGroup` enregistré) : `[PipelineBehavior]` ne se propage que vers les assemblies référencées, pas vers les modules qui référencent `Platform`.
 

@@ -34,11 +34,10 @@ using UnambitiousFx.Synapse.Abstractions;
 
 // Shared behaviors are declared here, in the composition root: [PipelineBehavior] only reaches
 // handlers in assemblies the declaring assembly references, and modules reference Platform, not the reverse.
+// The actor, admin role and scope checks are Synapse's (AddNidAuthorization); these sit between them by Order.
 [assembly: SynapseGlobalBehavior(typeof(TraceBehavior<,>))]
-[assembly: SynapseGlobalBehavior(typeof(ActorBehavior<,>))]
 [assembly: SynapseGlobalBehavior(typeof(Nid.Platform.Audit.AuditBehavior<,>))]
-[assembly: SynapseGlobalBehavior(typeof(AdminBehavior<,>))]
-[assembly: SynapseGlobalBehavior(typeof(ScopeBehavior<,>))]
+[assembly: SynapseGlobalBehavior(typeof(BrowserOnlyBehavior<,>))]
 [assembly: SynapseGlobalBehavior(typeof(ItemAccessBehavior<,>))]
 [assembly: SynapseGlobalBehavior(typeof(DocumentMaskBehavior<,>))]
 [assembly: SynapseGlobalBehavior(typeof(OutputGuardBehavior<,>))]
