@@ -2,6 +2,7 @@ import type { LinkProps } from '@tanstack/react-router';
 import { AlertTriangle, Archive } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { AccessBadge } from '@/components/AccessBadge';
+import { InfoTip } from '@/components/InfoTip';
 import { formatLocalDate } from '@/components/LocalDate';
 import { formatMoney } from '@/components/Money';
 import { OwnerChips } from '@/components/OwnerChips';
@@ -29,7 +30,10 @@ export function SourcesTable({ rows }: { rows: Row[] }) {
     ? <span role="note" className="inline-flex items-center gap-1 text-sm"><AlertTriangle aria-hidden="true" className="size-3.5 text-status-warning" />{t('income.overview.gap_on', { date: formatLocalDate(r.gapOn, 'short') })}</span>
     : null;
   return (
-    <SortableTable<Row> caption={t('income.list')} rows={rows} rowKey={(r) => r.id} rowLink={link}
+    // A person's salaries share the leading part's id: the gathered row needs a key of its own.
+    <SortableTable<Row> caption={t('income.list')} rows={rows} rowKey={(r) => (grouped(r) ? `salaries:${r.id}` : r.id)} rowLink={link}
+      subRows={(r) => r.parts ?? undefined} expandLabel={() => t('income.overview.expand_salaries')}
+      rowClassName={(r) => (grouped(r) ? 'bg-muted/50' : undefined)}
       initialSort={{ id: 'per_month', desc: true }}
       columns={[
         { id: 'name', header: t('lists.col.name'), sort: (r) => r.name, cell: (r) => <Name row={r} /> },
@@ -52,8 +56,18 @@ export function SourcesTable({ rows }: { rows: Row[] }) {
   );
 }
 
+const grouped = (r: Row) => (r.parts?.length ?? 0) > 1;
+
 function Name({ row }: { row: Row }) {
   const { t } = useTranslation();
+  if (grouped(row))
+    return (
+      <span className="inline-flex flex-wrap items-center gap-2">
+        <span className="font-medium">{t('income.overview.salaries')}</span>
+        <span className="text-sm text-muted-foreground">{t('income.overview.salaries_count', { count: row.parts!.length })}</span>
+        <InfoTip label={t('income.overview.salaries')}>{t('income.overview.salaries_hint')}</InfoTip>
+      </span>
+    );
   return (
     <span className="inline-flex flex-wrap items-center gap-2">
       <span className="font-medium">{row.name}</span>

@@ -27,7 +27,7 @@ public sealed record IncomeOverview(
     IReadOnlyList<string> Kinds, IReadOnlyList<string> MissingRates) : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems()
-        => Sources.Select(s => s.Id)
+        => Sources.SelectMany(s => s.Parts is { } parts ? parts.Select(p => p.Id).Prepend(s.Id) : [s.Id])
             .Concat(Split.Where(s => s.Item is not null).Select(s => s.Item!.Value))
             .Concat(NowSplit.Where(s => s.Item is not null).Select(s => s.Item!.Value))
             .Concat(Months.SelectMany(m => m.BySource.Select(p => p.Item)))
@@ -55,9 +55,14 @@ public sealed record IncomeOverviewMonth(int Year, int Month, bool Upcoming, Inc
     IncomeAmountView? Total, IncomeAmountView? PreviousYear, IReadOnlyList<IncomeOverviewPart> BySource);
 
 /// <param name="Module"><c>income</c> for a source, <c>realestate</c> for a rented property.</param>
+/// <param name="Parts">
+/// The salaries of the same owners gathered in this row, when more than one is shown: the row's figures add them up, ended ones
+/// included, so a change of job keeps its change over a year. <paramref name="Id"/> and <paramref name="Name"/> are its leading part's.
+/// </param>
 public sealed record IncomeOverviewRow(
     ItemId Id, string Module, string Name, string Kind, string Visibility, IReadOnlyList<ItemOwnerView> Owners,
-    IncomeAmountView? PerMonth, decimal? Change1y, LocalDate? NextOn, IncomeAmountView? NextAmount, LocalDate? GapOn, bool Ended);
+    IncomeAmountView? PerMonth, decimal? Change1y, LocalDate? NextOn, IncomeAmountView? NextAmount, LocalDate? GapOn, bool Ended,
+    IReadOnlyList<IncomeOverviewRow>? Parts = null);
 
 public static class OverviewPeriods
 {
@@ -82,6 +87,8 @@ public sealed class GetIncomeOverviewHandler(
     : IRequestHandler<GetIncomeOverviewQuery, IncomeOverview>
 {
     public const string RentKind = "rent";
+
+    private const string SalaryKind = "salary";
 
     private static readonly StringComparer French = StringComparer.Create(new CultureInfo("fr-FR"), true);
 
@@ -120,12 +127,36 @@ public sealed class GetIncomeOverviewHandler(
                 .Select(m => new IncomeOverviewMonth(m.Year, m.Month, m.Upcoming, Amount(m.Recurring), Amount(m.OneOff), Amount(m.Total),
                     Amount(m.PreviousYear), m.BySource.Select(b => new IncomeOverviewPart(b.Item, b.Name, Amount(b.Amount)!)).ToList()))
                 .ToList(),
-            entries.Where(e => query.IncludeEnded || !e.Ended)
-                .Select(e => new IncomeOverviewRow(e.Input.Item, e.Module, e.Input.Name, e.Input.Kind, e.Visibility, e.Owners,
-                    Amount(e.Input.MonthlyAt[today]), OverviewMath.ChangePct(e.Input.MonthlyAt[today], e.Input.MonthlyAt[today.PlusYears(-1)]),
-                    e.NextOn, Amount(e.NextAmount), e.GapOn, e.Ended))
+            // One row per person for the salaries (exactly the same owners and shares), one per source or property otherwise.
+            entries.GroupBy(e => e.Module == "income" && e.Input.Kind == SalaryKind
+                    ? "salary:" + string.Join(',', e.Owners.OrderBy(o => o.PersonId).Select(o => $"{o.PersonId}:{o.ShareBp}"))
+                    : e.Input.Item.Value.ToString())
+                .Select(g => Row(g.ToList(), query.IncludeEnded, today, Amount)).OfType<IncomeOverviewRow>()
                 // A stable order: the name alone ties on a duplicate (as the sources' list).
                 .OrderBy(row => row.Name, French).ThenBy(row => row.Id.Value).ToList(),
             kinds, missing));
+    
+    }
+
+    /// <summary>The row of <paramref name="group"/> (one entry, or a person's salaries); null when none of them is shown.</summary>
+    private static IncomeOverviewRow? Row(List<IncomeOverviewEntries.Entry> group, bool includeEnded, LocalDate today, Func<decimal?, IncomeAmountView?> amount)
+    {
+        IncomeOverviewRow Single(IncomeOverviewEntries.Entry e) => new(e.Input.Item, e.Module, e.Input.Name, e.Input.Kind, e.Visibility, e.Owners,
+            amount(e.Input.MonthlyAt[today]), OverviewMath.ChangePct(e.Input.MonthlyAt[today], e.Input.MonthlyAt[today.PlusYears(-1)]),
+            e.NextOn, amount(e.NextAmount), e.GapOn, e.Ended);
+        var shown = group.Where(e => includeEnded || !e.Ended).OrderBy(e => e.Input.Name, French).ThenBy(e => e.Input.Item.Value).ToList();
+        if (shown.Count == 0) return null;
+        if (group.Count == 1) return Single(shown[0]);
+
+        // A missing rate on any part leaves the sum unknown, as a month's total.
+        decimal? Sum(IEnumerable<decimal?> values) => values.Aggregate((decimal?)0m, (sum, v) => sum + v);
+        decimal? MonthlyAt(LocalDate on) => Sum(group.Select(e => e.Input.MonthlyAt[on]));
+        var lead = shown.OrderBy(e => e.Ended).ThenByDescending(e => e.Input.MonthlyAt[today] ?? 0m).First();
+        var nextOn = group.Min(e => e.NextOn);
+        return new IncomeOverviewRow(lead.Input.Item, lead.Module, lead.Input.Name, lead.Input.Kind, lead.Visibility, lead.Owners,
+            amount(MonthlyAt(today)), OverviewMath.ChangePct(MonthlyAt(today), MonthlyAt(today.PlusYears(-1))),
+            nextOn, nextOn is null ? null : amount(Sum(group.Where(e => e.NextOn == nextOn).Select(e => e.NextAmount))),
+            group.Where(e => !e.Ended).Min(e => e.GapOn), shown.All(e => e.Ended),
+            shown.Count > 1 ? shown.Select(Single).ToList() : null);
     }
 }
