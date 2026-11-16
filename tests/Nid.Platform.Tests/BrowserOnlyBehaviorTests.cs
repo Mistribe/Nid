@@ -6,14 +6,14 @@ using UnambitiousFx.Synapse.Abstractions;
 namespace Nid.Platform.Tests;
 
 /// <summary>Spec #23: a command a token never runs for real, only as a proposal's dry run.</summary>
-public class ScopeBehaviorTests
+public class BrowserOnlyBehaviorTests
 {
     private sealed record DeleteCommand : ICommand<int>, IConfirmedInBrowser;
 
     private static async Task<(bool Ran, string? Code)> RunAsync(Actor actor)
     {
         var ran = false;
-        var behavior = new ScopeBehavior<DeleteCommand, int>(new ActorAccessor { Current = actor });
+        var behavior = new BrowserOnlyBehavior<DeleteCommand, int>(new ActorAccessor { Current = actor });
         var result = await behavior.HandleAsync(new DeleteCommand(), (_, _) =>
         {
             ran = true;

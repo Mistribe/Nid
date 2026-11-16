@@ -434,6 +434,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IImportSection, Nid.Banking.Application.Import.BankImportSection>();
 
         services.AddLogging();
+        services.AddNidAuthorization();
         services.AddSynapse(cfg =>
         {
             cfg.AddRegisterGroup(new RegisterGroup());                    // this assembly: carries the global behaviors

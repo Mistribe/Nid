@@ -47,7 +47,7 @@ public sealed class IntegrationTestAuthenticationHandler(
         }
 
         // No usable header: still authenticate — with no person claim — so RequireAuthorization() passes and
-        // the pipeline's own ActorBehavior (which requires accessor.Current) is what refuses the request,
+        // the pipeline's actor check (Synapse's, through ActorPrincipal over accessor.Current) is what refuses the request,
         // exactly as it would for any other request with no identified actor.
         var claimless = new ClaimsPrincipal(new ClaimsIdentity(IntegrationTestGate.Environment));
         return AuthenticateResult.Success(new AuthenticationTicket(claimless, IntegrationTestGate.Environment));

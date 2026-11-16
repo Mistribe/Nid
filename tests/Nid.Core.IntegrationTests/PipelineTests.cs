@@ -9,6 +9,7 @@ using Nid.Platform.Contracts;
 using Nid.TestSupport;
 using UnambitiousFx.Functional.Failures;
 using UnambitiousFx.Synapse.Abstractions;
+using UnambitiousFx.Synapse.Authorization;
 
 namespace Nid.Core.IntegrationTests;
 
@@ -22,6 +23,14 @@ public class PipelineTests(PostgresFixture postgres)
         return services.BuildServiceProvider(validateScopes: true);
     }
 
+    /// <summary>Synapse's checks (actor, role, scope, request policy, resource) with Nid's behaviors in their gaps.</summary>
+    private static readonly Type[] FullChain =
+    [
+        typeof(TraceBehavior<,>), typeof(ActorAuthorizationBehavior<,>), typeof(AuditBehavior<,>), typeof(RoleAuthorizationBehavior<,>),
+        typeof(BrowserOnlyBehavior<,>), typeof(ScopeAuthorizationBehavior<,>), typeof(RequestPolicyAuthorizationBehavior<,>),
+        typeof(ResourceAuthorizationBehavior<,>), typeof(ItemAccessBehavior<,>), typeof(DocumentMaskBehavior<,>), typeof(OutputGuardBehavior<,>),
+    ];
+
     /// <summary>
     /// A behavior registered in the wrong place is skipped without any error, so every request of the
     /// module must be checked to traverse the whole chain, in order.
@@ -32,15 +41,9 @@ public class PipelineTests(PostgresFixture postgres)
         await using var provider = await ProviderAsync();
         await using var scope = provider.CreateAsyncScope();
 
-        Assert.Equal(
-            [typeof(TraceBehavior<,>), typeof(ActorBehavior<,>), typeof(AuditBehavior<,>), typeof(AdminBehavior<,>), typeof(ScopeBehavior<,>), typeof(ItemAccessBehavior<,>), typeof(DocumentMaskBehavior<,>), typeof(OutputGuardBehavior<,>)],
-            ChainOf<ProvisionAdultCommand, PersonInfo>(scope));
-        Assert.Equal(
-            [typeof(TraceBehavior<,>), typeof(ActorBehavior<,>), typeof(AuditBehavior<,>), typeof(AdminBehavior<,>), typeof(ScopeBehavior<,>), typeof(ItemAccessBehavior<,>), typeof(DocumentMaskBehavior<,>), typeof(OutputGuardBehavior<,>)],
-            ChainOf<CreateDependentCommand, PersonInfo>(scope));
-        Assert.Equal(
-            [typeof(TraceBehavior<,>), typeof(ActorBehavior<,>), typeof(AuditBehavior<,>), typeof(AdminBehavior<,>), typeof(ScopeBehavior<,>), typeof(ItemAccessBehavior<,>), typeof(DocumentMaskBehavior<,>), typeof(OutputGuardBehavior<,>)],
-            ChainOf<ListPersonsQuery, IReadOnlyList<PersonInfo>>(scope));
+        Assert.Equal(FullChain, ChainOf<ProvisionAdultCommand, PersonInfo>(scope));
+        Assert.Equal(FullChain, ChainOf<CreateDependentCommand, PersonInfo>(scope));
+        Assert.Equal(FullChain, ChainOf<ListPersonsQuery, IReadOnlyList<PersonInfo>>(scope));
     }
 
     private static async Task<UnambitiousFx.Functional.Failures.Failure?> RunAsync(IServiceScope scope, Actor actor, object request)
@@ -92,7 +95,8 @@ public class PipelineTests(PostgresFixture postgres)
     private static Type[] ChainOf<TRequest, TResponse>(IServiceScope scope)
         where TRequest : IRequest<TResponse>
         where TResponse : notnull
-        => scope.ServiceProvider.GetServices<IRequestPipelineBehavior<TRequest, TResponse>>()
+        => scope.ServiceProvider.GetServices<IRequestPipelineBehavior<TRequest, TResponse>>().Cast<object>()
+            .Concat(scope.ServiceProvider.GetServices<IResultPipelineBehavior<TRequest, UnambitiousFx.Functional.Result<TResponse>>>())
             .OfType<IOrderedPipelineBehavior>()
             .OrderBy(b => b.Order)
             .Select(b => b.GetType().GetGenericTypeDefinition())
