@@ -752,7 +752,9 @@
       "missing_rate": "taux manquant ({{currencies}})", "upcoming": "à venir",
       "projected_one": "{{months}} : projeté", "projected_other": "{{months}} : projetés",
       "sources": "Sources de revenu", "col_per_month": "Par mois, lissé sur l’année", "col_owners": "Propriétaires", "col_1y": "Sur 1 an", "col_next": "Prochain versement", "col_end": "Fin de période",
-      "next_line": "{{date}} · {{amount}}", "gap_on": "{{date}} sans suite"
+      "next_line": "{{date}} · {{amount}}", "gap_on": "{{date}} sans suite",
+      "salaries": "Salaires", "salaries_count": "{{count}} sources", "expand_salaries": "Déplier les salaires",
+      "salaries_hint": "Les salaires d’une même personne, y compris ceux terminés, s’additionnent : un changement d’emploi garde son évolution sur 1 an."
     },
     "title": "Revenus",
     "tab_overview": "Vue d’ensemble",

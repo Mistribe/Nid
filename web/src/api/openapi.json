@@ -42556,6 +42556,15 @@
           },
           "ended": {
             "type": "boolean"
+          },
+          "parts": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/IncomeOverviewRow"
+            }
           }
         }
       },

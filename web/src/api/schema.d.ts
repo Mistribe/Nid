@@ -32525,6 +32525,7 @@ export interface components {
             /** Format: date */
             gapOn?: null | string;
             ended: boolean;
+            parts?: null | components["schemas"]["IncomeOverviewRow"][];
         };
         IncomeOverviewShare: {
             /** Format: uuid */
