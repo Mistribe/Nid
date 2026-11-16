@@ -19,6 +19,7 @@ import { ProjectionCustomize } from './ProjectionCustomize';
 import { SettingsFrame } from './SettingsFrame';
 import { PROJECTION, PROJECTION_ASSUMPTIONS, PROJECTION_PROFILES, percent, type Assumptions } from './api';
 import { useAssumptionsPatch } from './useAssumptionsPatch';
+import '@/locales/settings';
 
 /** The places the savings go, as a household names them (#155); another stored class shows by its name. */
 const SAVINGS_PLACES = ['cash', 'capital_guaranteed', 'equity', 'mixed'] as const;

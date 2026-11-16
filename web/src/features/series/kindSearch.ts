@@ -1,8 +1,8 @@
-import fr from '@/locales/fr.json';
+import settings from '@/locales/fr.settings.json';
 import series from '@/locales/fr.series.json';
 
 const fold = (s: string) => s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
-const classes = Object.values(fr.settings.projection.class);
+const classes = Object.values(settings.settings.projection.class);
 // Each kind code with the French words that name it: its label, and for a projected rate the asset classes.
 const LABELS = Object.entries(series.series.kind).map(([kind, label]) =>
   [kind, [label.replace('{{name}}', ''), ...(kind === 'projection_rate' ? classes : [])].map(fold)] as const);

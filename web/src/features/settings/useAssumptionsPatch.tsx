@@ -8,6 +8,7 @@ import { SERIES_POINTS } from '@/api/series';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { fieldErrorsOf, messageFor } from '@/components/form/fieldErrors';
 import { PROJECTION, PROJECTION_ASSUMPTIONS, PROJECTION_PROFILES, type AssumptionsPatch } from './api';
+import '@/locales/settings';
 
 /**
  * One settings card's save: a PATCH of its own fields, a toast once saved, and its refusals kept to the card. `problem` shows a
