@@ -206,11 +206,16 @@ public class NotifierTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
     public async Task Publish_never_fails_the_caller()
     {
         var logs = new LogCapture();
+        var down = false; // up while the host starts: its pipeline validation resolves the store
         await using var app = await StartAsync(services =>
         {
             services.AddSingleton<ILoggerProvider>(logs);
-            services.AddScoped<INotificationStore>(_ => throw new InvalidOperationException("The store is down."));
+            services.AddScoped<INotificationStore>(sp => down
+                ? throw new InvalidOperationException("The store is down.")
+                : ActivatorUtilities.CreateInstance<Nid.Platform.Infrastructure.Notifications.NotificationStore>(sp));
         });
+        _ = app.Services; // starts the host
+        down = true;
 
         await NotifierOf(app).PublishAsync(NoticeOf("access_violation", new Recipients.AllAdults(), "access_violation:4"), TestContext.Current.CancellationToken);
         await NotifierOf(app).ResolveAsync("access_violation:4", TestContext.Current.CancellationToken);
