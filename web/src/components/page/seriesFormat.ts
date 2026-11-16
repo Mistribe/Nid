@@ -2,6 +2,7 @@ import type { TFunction } from 'i18next';
 import { formatCurrency } from '@/components/Money';
 import series from '@/locales/fr.series.json';
 import '@/locales/series';
+import '@/locales/settings';
 
 const KINDS = Object.keys(series.series.kind);
 

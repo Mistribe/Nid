@@ -13,6 +13,7 @@ import { yyyyMmLabel as month } from '@/lib/format';
 import { Answer, type Scope } from '../Answer';
 import type { RetirementView } from '../api';
 import '@/locales/retirement';
+import '@/locales/settings';
 
 const IndependenceChart = lazy(() => import('../IndependenceChart'));
 
