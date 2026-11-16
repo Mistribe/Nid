@@ -30189,11 +30189,13 @@ export interface components {
         CalendarFeedBody: {
             scope?: null | string;
             amounts: boolean;
+            modules?: null | string[];
         };
         CalendarFeedView: {
             token: components["schemas"]["TokenView"];
             scope: string;
             amounts: boolean;
+            modules: string[];
         };
         CancellationView: {
             status: string;

@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Nid.Core.Contracts;
 using Nid.Core.Domain;
 using Nid.Core.Infrastructure.Persistence;
@@ -153,5 +155,43 @@ public class PersonalAccessTokenStoreTests(PostgresFixture postgres)
 
         Assert.Equal((created.Token.Id, adult), (credential!.Id, credential.Person));
         Assert.Null(await Store(connection).FindByPrefixAsync("zzzzzzzz", TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task A_calendar_feed_keeps_its_modules_and_null_lists_every_one()
+    {
+        var (connection, adult) = await SeedAsync();
+        var ct = TestContext.Current.CancellationToken;
+        var created = (await Store(connection).CreateCalendarAsync(adult, new CalendarFeedOptions(VisibilityScope.Me, false, [CalendarModules.Tax]), ct)).Ok();
+        Assert.True(TokenFormat.TryReadCalendarPrefix(created.Secret, out var prefix));
+        Assert.Equal([CalendarModules.Tax], (await Store(connection).FindCalendarByPrefixAsync(prefix, ct))!.Options.Modules);
+
+        var all = (await Store(connection).SetCalendarOptionsAsync(adult, new CalendarFeedOptions(VisibilityScope.Me, false), ct)).Ok();
+        Assert.Null(all.Calendar!.Modules);
+        Assert.Null((await Store(connection).FindCalendarByPrefixAsync(prefix, ct))!.Options.Modules);
+    }
+
+    [Fact]
+    public async Task A_feed_created_before_the_modules_lists_every_module()
+    {
+        var connection = await postgres.NewEmptyConnectionStringAsync();
+        var ct = TestContext.Current.CancellationToken;
+        await using var db = PostgresFixture.NewCoreContext(connection);
+        var migrator = db.GetService<IMigrator>();
+        await migrator.MigrateAsync("20261114131654_LocalAccountsTotp215", ct);
+        var (_, prefix, hash) = TokenFormat.GenerateCalendar();
+        // ExecuteSqlRawAsync formats the text: a literal '{}' is written '{{}}', {0} and {1} are parameters.
+        await db.Database.ExecuteSqlRawAsync("""
+            insert into core.person (id, kind, display_name, session_epoch, preferences, created_at) values
+              ('01920000-0000-7000-8000-000000000001', 'adult', 'Alice', 0, '{{}}', '2026-01-01T00:00:00Z');
+            insert into core.personal_access_token (id, person_id, name, prefix, token_hash, scopes, created_at, expires_at, calendar_scope, calendar_amounts) values
+              ('01920000-0000-7000-8000-000000000002', '01920000-0000-7000-8000-000000000001', 'Calendrier', {0}, {1},
+               '{{calendar}}', '2026-01-01T00:00:00Z', '2027-01-01T00:00:00Z', 'household', false);
+            """, [prefix, hash], ct);
+
+        await migrator.MigrateAsync(cancellationToken: ct);
+
+        var feed = await Store(connection).FindCalendarByPrefixAsync(prefix, ct);
+        Assert.Equal(new CalendarFeedOptions(VisibilityScope.Household, false), feed!.Options);
     }
 }

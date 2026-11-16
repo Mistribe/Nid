@@ -19,7 +19,7 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("core")
-                .HasAnnotation("ProductVersion", "10.0.14")
+                .HasAnnotation("ProductVersion", "10.0.15")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -765,6 +765,10 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
                     b.Property<bool?>("CalendarAmounts")
                         .HasColumnType("boolean")
                         .HasColumnName("calendar_amounts");
+
+                    b.PrimitiveCollection<string[]>("CalendarModules")
+                        .HasColumnType("text[]")
+                        .HasColumnName("calendar_modules");
 
                     b.Property<string>("CalendarScope")
                         .HasColumnType("text")

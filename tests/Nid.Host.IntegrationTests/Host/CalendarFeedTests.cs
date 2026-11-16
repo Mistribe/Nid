@@ -14,7 +14,7 @@ public class CalendarFeedTests(PostgresFixture fixture) : IClassFixture<Postgres
     private const string Calendar = "/api/v1/core/me/calendar";
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
-    private sealed record Feed(TokenApi.Token Token, string Scope, bool Amounts);
+    private sealed record Feed(TokenApi.Token Token, string Scope, bool Amounts, List<string> Modules);
     private sealed record Created(Feed Feed, string Url);
     private sealed record Mine(Feed? Feed);
 
@@ -41,6 +41,28 @@ public class CalendarFeedTests(PostgresFixture fixture) : IClassFixture<Postgres
         Assert.Contains("Alice private gym", feed);
         Assert.DoesNotContain("Bob private club", feed);
         Assert.Contains("Shared streaming · 12\\,50 €", feed); // a TEXT value escapes its comma
+    }
+
+    [Fact]
+    public async Task A_feed_restricted_to_the_tax_lists_only_the_tax_dates_at_the_same_url()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await NewPricedAsync(app, "Shared streaming", app.AdultA, Visibility.Shared);
+        var created = await CreateAsync(app, app.AdultA, "household");
+        Assert.Equal(CalendarModules.All, created.Feed.Modules); // none chosen: every module
+        Assert.Contains("Shared streaming", await FeedAsync(app, created.Url));
+
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Put, Calendar, new { scope = "household", amounts = false, modules = new[] { "tax" } });
+        response.EnsureSuccessStatusCode();
+        Assert.Equal(["tax"], (await response.Content.ReadFromJsonAsync<Feed>(Json, TestContext.Current.CancellationToken))!.Modules);
+        var feed = await FeedAsync(app, created.Url);
+        Assert.Contains("SUMMARY:Impôt : le nouveau taux de prélèvement s’applique", feed); // a date of every year
+        Assert.DoesNotContain("Shared streaming", feed);
+
+        // Checking every module again stores none, so a module added later shows up too.
+        var all = await app.RawAsync(app.AdultA, HttpMethod.Put, Calendar, new { scope = "household", amounts = false, modules = CalendarModules.All });
+        Assert.Equal(CalendarModules.All, (await all.Content.ReadFromJsonAsync<Feed>(Json, TestContext.Current.CancellationToken))!.Modules);
+        Assert.Contains("Shared streaming", await FeedAsync(app, created.Url));
     }
 
     [Fact]
@@ -120,11 +142,17 @@ public class CalendarFeedTests(PostgresFixture fixture) : IClassFixture<Postgres
     }
 
     [Fact]
-    public async Task A_scope_other_than_household_or_me_is_refused()
+    public async Task A_scope_other_than_household_or_me_or_an_unknown_module_is_refused()
     {
         await using var app = await NidApp.StartAsync(fixture);
         var response = await app.RawAsync(app.AdultA, HttpMethod.Post, Calendar, new { scope = "everyone", amounts = false });
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+        foreach (var modules in new[] { Array.Empty<string>(), ["tax", "banking"] })
+        {
+            var refused = await app.RawAsync(app.AdultA, HttpMethod.Post, Calendar, new { scope = "me", amounts = false, modules });
+            Assert.Equal(HttpStatusCode.UnprocessableEntity, refused.StatusCode);
+            Assert.Contains(TokenCodes.CalendarModulesInvalid, await refused.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        }
         Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultA, HttpMethod.Put, Calendar, new { scope = "me", amounts = true })).StatusCode);
     }
 
