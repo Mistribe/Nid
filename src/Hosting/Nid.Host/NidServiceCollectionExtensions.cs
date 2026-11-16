@@ -450,6 +450,7 @@ public static class NidServiceCollectionExtensions
             cfg.AddRegisterGroup(new Nid.RealEstate.Application.RegisterGroup());
             cfg.AddRegisterGroup(new Nid.Banking.Application.RegisterGroup());
             cfg.AddTransactions<UnitOfWorkTransactions>();                 // an ITransactional command runs in the request's unit of work
+            cfg.ValidateOnStart();                                         // a handler or behavior that cannot resolve fails the start, not the first request
         });
         return services;
     }
