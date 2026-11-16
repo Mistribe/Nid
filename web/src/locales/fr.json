@@ -345,6 +345,8 @@
       "subscription_renewal": "Renouvellement",
       "subscription_expiry": "Expire",
       "subscription_cancel_deadline": "Dernier jour pour résilier",
+      "subscription_trial_end": "Fin de l'essai gratuit",
+      "subscription_price_increase": "Hausse de prix",
       "income_phase_end": "Fin de « {{label}} »",
       "loan_phase_end": "Fin de la phase {{n}} : le taux ou la mensualité change",
       "loan_end": "Dernière échéance",

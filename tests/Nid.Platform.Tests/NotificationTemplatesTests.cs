@@ -13,7 +13,7 @@ public class NotificationTemplatesTests
     private static readonly (string Kind, string Module)[] Kinds =
     [
         ("subscription_renewal", "subscriptions"), ("subscription_expiry", "subscriptions"),
-        ("subscription_cancel_deadline", "subscriptions"),
+        ("subscription_cancel_deadline", "subscriptions"), ("subscription_trial_end", "subscriptions"), ("subscription_price_increase", "subscriptions"),
         ("subscriptions.ends_without_renewal", "subscriptions"),
         ("tenancy_end", "properties"), ("property_cost_due", "properties"), ("rent_arrears", "properties"),
         ("revision_due", "properties"), ("revision_lost", "properties"), ("irl_missing", "properties"),

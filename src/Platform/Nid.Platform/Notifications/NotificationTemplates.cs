@@ -20,6 +20,8 @@ public static class NotificationTemplates
         ["subscription_renewal"] = "Un abonnement se renouvelle",
         ["subscription_cancel_deadline"] = "Dernier jour pour résilier un contrat",
         ["subscription_expiry"] = "Un abonnement prend fin",
+        ["subscription_trial_end"] = "Une période gratuite se termine",
+        ["subscription_price_increase"] = "Le prix d'un abonnement augmente",
         ["subscriptions.ends_without_renewal"] = "Un abonnement s'arrête sans renouvellement",
         ["tenancy_end"] = "Un bail arrive à échéance",
         ["property_cost_due"] = "Une charge prévue arrive",
