@@ -25,7 +25,8 @@ public static class PipelineOrder
     /// <summary>After the admin role, before the scope: a token is told the request is browser-only, whatever its scopes.</summary>
     public const uint BrowserOnly = AuthorizationBehaviorOrder.Scope - 500;
 
-    public const uint ItemAccess = AuthorizationBehaviorOrder.Resource + 500;
+    /// <summary>Right after Synapse's resource check (the item a request targets): the owners a creation names.</summary>
+    public const uint ItemCreation = AuthorizationBehaviorOrder.Resource + 500;
 
     /// <summary>Nulls the document ids the actor cannot read (#108), on the response the output guard let through.</summary>
     public const uint DocumentMask = AuthorizationBehaviorOrder.Resource + 8_500;
@@ -78,42 +79,23 @@ public sealed class BrowserOnlyBehavior<TRequest, TResponse>(IActorAccessor acce
 }
 
 /// <summary>
-/// Stage 4 of <c>authorization.md</c> §2: checks the actor against the item a request targets
-/// (<see cref="IItemScoped"/>) and, for a request that creates one (<see cref="ICreatesItem"/>), against the
-/// owners it names — the one access rule of §5 that cannot be expressed as a check on an existing item.
+/// Stage 4 of <c>authorization.md</c> §2, for a request that creates an item (<see cref="ICreatesItem"/>): there is no item yet to
+/// check the actor against, so the owners it names are checked instead — §5 lets an adult create for themselves or for a dependent,
+/// never in the other adult's name alone. The check on an existing item is Synapse's resource check (<see cref="ItemAccessPolicy"/>).
 /// </summary>
-public sealed class ItemAccessBehavior<TRequest, TResponse>(
+public sealed class ItemCreationBehavior<TRequest, TResponse>(
     IActorAccessor accessor, IAccessPolicy policy, IAccessDenials denials)
     : IRequestPipelineBehavior<TRequest, TResponse>, IOrderedPipelineBehavior
     where TRequest : IRequest<TResponse>
     where TResponse : notnull
 {
-    public uint Order => PipelineOrder.ItemAccess;
+    public uint Order => PipelineOrder.ItemCreation;
 
     public async ValueTask<Result<TResponse>> HandleAsync(
         TRequest request, RequestHandlerDelegate<TRequest, TResponse> next, CancellationToken cancellationToken = default)
     {
-        var actor = accessor.Current!;
-        if (actor.PersonId is not { } person)
-            return await next(request, cancellationToken); // system actors are not bound to a person
-
-        var target = request switch
-        {
-            IItemScoped scoped => (scoped.ItemId, scoped.Access),
-            IOptionalItemScoped { ItemId: { } item } optional => (item, optional.Access),
-            _ => ((ItemId, AccessKind)?)null,
-        };
-        if (target is var (itemId, access))
-        {
-            var check = await policy.CheckAsync(person, itemId, access, cancellationToken);
-            if (check.TryGetFailure(out var failure))
-            {
-                await denials.RecordAsync(person, itemId, access.ToString().ToLowerInvariant(), cancellationToken);
-                return Result.Failure<TResponse>(failure!);
-            }
-        }
-
-        if (request is ICreatesItem creating)
+        // System actors are not bound to a person.
+        if (request is ICreatesItem creating && accessor.Current!.PersonId is { } person)
         {
             var check = await policy.CheckCreationAsync(person, creating.Owners, cancellationToken);
             if (check.TryGetFailure(out var failure))

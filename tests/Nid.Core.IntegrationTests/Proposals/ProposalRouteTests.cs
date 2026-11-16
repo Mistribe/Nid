@@ -256,7 +256,7 @@ public class ProposalRouteTests(PostgresFixture fixture) : IClassFixture<Postgre
         Assert.Empty((await JsonOf(await app.RawAsync(app.AdultA, HttpMethod.Get, Proposals))).GetProperty("items").EnumerateArray());
     }
 
-    /// <summary>Spec 4D1 D9: a proposal read refused by its target's rights is recorded as ItemAccessBehavior records one; still 404.</summary>
+    /// <summary>Spec 4D1 D9: a proposal read refused by its target's rights is recorded as the item access check records one; still 404.</summary>
     [Fact]
     public async Task A_proposal_read_refused_by_its_target_is_recorded_as_access_denied()
     {
