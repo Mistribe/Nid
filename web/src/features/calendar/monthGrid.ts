@@ -37,3 +37,15 @@ export function monthGrid(month: string): Cell[] {
   for (let d = 1; cells.length % 7 !== 0; d++) cells.push({ date: iso(ny, nm, d), inMonth: false });
   return cells;
 }
+
+/** A calendar date (or a `yyyy-mm` month) as French text, read in UTC so the day never shifts. */
+export const formatDate = (iso: string, options: Intl.DateTimeFormatOptions) =>
+  new Intl.DateTimeFormat('fr-FR', { timeZone: 'UTC', ...options })
+    .format(Date.UTC(Number(iso.slice(0, 4)), Number(iso.slice(5, 7)) - 1, Number(iso.slice(8, 10) || '1')));
+
+/** The items grouped by day, in their given order. */
+export function byDay<T>(items: readonly T[], dateOf: (item: T) => string): Map<string, T[]> {
+  const days = new Map<string, T[]>();
+  for (const item of items) days.set(dateOf(item), [...(days.get(dateOf(item)) ?? []), item]);
+  return days;
+}

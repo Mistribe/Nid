@@ -53,6 +53,9 @@ public static class TokenCodes
     public const string ExpiryInvalid = "core.token_expiry_invalid";
     public const string CalendarScopeInvalid = "core.calendar_scope_invalid";
     public const string CalendarModulesInvalid = "core.calendar_modules_invalid";
+
+    /// <summary>Issue #239: the calendar page's dates (before the current month, reversed or too far apart).</summary>
+    public const string CalendarRangeInvalid = "core.calendar_range_invalid";
 }
 
 /// <summary>

@@ -6,14 +6,12 @@ import { ProviderIcon } from '@/components/ProviderIcon';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
+import { byDay as groupByDay, formatDate } from '@/features/calendar/monthGrid';
 
 /** The calendar's and the timeline's pieces (issue #65). */
 export type Line = Charges['charges'][number];
 
-/** A calendar date as French text, read in UTC so the day never shifts. */
-export const formatDate = (iso: string, options: Intl.DateTimeFormatOptions) =>
-  new Intl.DateTimeFormat('fr-FR', { timeZone: 'UTC', ...options })
-    .format(Date.UTC(Number(iso.slice(0, 4)), Number(iso.slice(5, 7)) - 1, Number(iso.slice(8, 10) || '1')));
+export { formatDate };
 
 /** A charge, linked to its subscription: the converted amount when the server has one, its own price otherwise. */
 export function ChargeLink({ c, compact = false }: { c: Line; compact?: boolean }) {
@@ -47,11 +45,7 @@ export function DayMore({ lines, label, more, moreLabel, className }: {
 }
 
 /** The charges grouped by day, in the server's order. */
-export function byDay(lines: Line[]): Map<string, Line[]> {
-  const days = new Map<string, Line[]>();
-  for (const c of lines) days.set(c.date, [...(days.get(c.date) ?? []), c]);
-  return days;
-}
+export const byDay = (lines: Line[]) => groupByDay(lines, (c) => c.date);
 
 /** Charges day by day: each day's heading, its charges under it. */
 export function DayList({ lines, label, className }: { lines: Line[]; label: string; className?: string }) {

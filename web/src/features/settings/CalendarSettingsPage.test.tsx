@@ -51,7 +51,7 @@ describe('the calendar settings page', () => {
     const { posts } = serve(null);
     const { user, container } = await renderApp('/settings/calendar');
 
-    expect(await screen.findByRole('link', { name: 'Calendrier' })).toHaveAttribute('aria-current', 'page');
+    expect(within(await screen.findByRole('navigation', { name: 'Réglages' })).getByRole('link', { name: 'Calendrier' })).toHaveAttribute('aria-current', 'page');
     expect(await screen.findByRole('checkbox', { name: 'Afficher les montants' })).not.toBeChecked();
     await user.click(screen.getByRole('radio', { name: 'Moi : les éléments partagés et les miens' }));
     await user.click(screen.getByRole('button', { name: 'Créer l’adresse' }));

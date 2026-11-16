@@ -19,7 +19,7 @@ import { toPlot } from '@/lib/plot';
 import { todayIso } from '@/lib/today';
 import { cn } from '@/lib/utils';
 import { byDay, DayList, DayMore, formatDate, type Line } from './charges';
-import { daysIn } from './monthGrid';
+import { daysIn } from '@/features/calendar/monthGrid';
 import { atEnd, atStart, dayOffset, extend, initialRange, lanes as lanesOf, months, type Range } from './timeline';
 import { useDragScroll } from './useDragScroll';
 

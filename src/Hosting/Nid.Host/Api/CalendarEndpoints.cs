@@ -6,6 +6,7 @@ using Nid.Host.Auth;
 using Nid.Platform.Contracts;
 using NodaTime;
 using UnambitiousFx.Synapse.Abstractions;
+using static Nid.Host.Api.SubscriptionEndpoints;
 
 namespace Nid.Host.Api;
 
@@ -48,6 +49,13 @@ public static class CalendarEndpoints
             .AllowAnonymous()
             .Produces<string>(StatusCodes.Status200OK, "text/calendar")
             .Produces(StatusCodes.Status404NotFound);
+
+        // Issue #239: the calendar page, « À venir » over [from, to] across the modules (comma-joined, absent: every one).
+        routes.MapGet(FeedPath, async (string? scope, string from, string to, string? modules, IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new GetCalendarQuery(ParseScope(scope), RequireDate(from), RequireDate(to),
+                    modules is null ? null : ParseLabels(modules)), ct)).ToHttp(v => v))
+            .RequireAuthorization().AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>()
+            .Returns<CalendarView>();
 
         var api = routes.MapGroup("/api/v1/core/me/calendar").RequireAuthorization()
             .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>();

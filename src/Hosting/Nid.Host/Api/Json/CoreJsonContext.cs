@@ -33,6 +33,7 @@ namespace Nid.Host.Api.Json;
 [JsonSerializable(typeof(CalendarFeedView))]
 [JsonSerializable(typeof(CalendarEndpoints.CalendarFeedBody))]
 [JsonSerializable(typeof(CalendarEndpoints.CreatedCalendarFeedResponse))]
+[JsonSerializable(typeof(CalendarView))] // #239
 [JsonSerializable(typeof(DashboardView))]
 [JsonSerializable(typeof(NetWorthHistoryView))]
 [JsonSerializable(typeof(MonthChangesView))]
