@@ -14,7 +14,7 @@ public sealed record CostReportDraft(
     decimal? RetrocessionPct, decimal? NetAnnualized5yPct, string? SourceLabel);
 
 /// <summary>Creates the holding's report of that year, or replaces it.</summary>
-public sealed record SaveCostReportCommand(ItemId ItemId, Guid Holding, int Year, CostReportDraft Report) : ICommand<CostReportView>, IItemScoped
+public sealed record SaveCostReportCommand(ItemId ItemId, Guid Holding, int Year, CostReportDraft Report) : ICommand<CostReportView>, IItemScoped, ITransactional
 {
     public AccessKind Access => AccessKind.Write;
 }
@@ -62,12 +62,11 @@ internal static class CostReportRules
 
 [RequestHandler<SaveCostReportCommand, CostReportView>]
 public sealed class SaveCostReportHandler(
-    IEnvelopeStore envelopes, IItemRegistry items, IHoldingStore holdings, IFlows flows, IHouseholdCalendar calendar, IUnitOfWork unitOfWork)
+    IEnvelopeStore envelopes, IItemRegistry items, IHoldingStore holdings, IFlows flows, IHouseholdCalendar calendar)
     : IRequestHandler<SaveCostReportCommand, CostReportView>
 {
     public async ValueTask<Result<CostReportView>> HandleAsync(SaveCostReportCommand command, CancellationToken ct = default)
     {
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         var loaded = await MovementFacts.LoadAsync(envelopes, items, holdings, flows, command.ItemId, write: true, command.Holding, ct);
         if (!loaded.TryGetValue(out var facts))
             return Result.Failure<CostReportView>(loaded.TryGetFailure(out var refused) ? refused! : throw new InvalidOperationException());
@@ -77,7 +76,6 @@ public sealed class SaveCostReportHandler(
 
         await holdings.SaveCostReportAsync(command.ItemId, report, ct);
         var implicitCost = HoldingMath.ImplicitCost(report, await holdings.SnapshotsAsync(command.ItemId, ct), facts!.Currency);
-        await transaction.CommitAsync(ct);
         return Result.Success(CostReportView.Of(command.ItemId, report, implicitCost));
     }
 }

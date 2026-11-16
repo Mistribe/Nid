@@ -31,6 +31,9 @@ public class PipelineTests(PostgresFixture postgres)
         typeof(ResourceAuthorizationBehavior<,>), typeof(ItemCreationBehavior<,>), typeof(DocumentMaskBehavior<,>), typeof(OutputGuardBehavior<,>),
     ];
 
+    /// <summary>A command marked <c>ITransactional</c> also runs in Synapse's transaction, innermost: the handler alone.</summary>
+    private static readonly Type[] TransactionalChain = [.. FullChain, typeof(UnambitiousFx.Synapse.Pipelines.TransactionBehavior<,>)];
+
     /// <summary>
     /// A behavior registered in the wrong place is skipped without any error, so every request of the
     /// module must be checked to traverse the whole chain, in order.
@@ -42,7 +45,7 @@ public class PipelineTests(PostgresFixture postgres)
         await using var scope = provider.CreateAsyncScope();
 
         Assert.Equal(FullChain, ChainOf<ProvisionAdultCommand, PersonInfo>(scope));
-        Assert.Equal(FullChain, ChainOf<CreateDependentCommand, PersonInfo>(scope));
+        Assert.Equal(TransactionalChain, ChainOf<CreateDependentCommand, PersonInfo>(scope));
         Assert.Equal(FullChain, ChainOf<ListPersonsQuery, IReadOnlyList<PersonInfo>>(scope));
     }
 

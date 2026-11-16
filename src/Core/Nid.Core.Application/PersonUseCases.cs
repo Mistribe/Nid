@@ -11,13 +11,13 @@ namespace Nid.Core.Application;
 public sealed record ProvisionAdultCommand(string OidcSubject, string DisplayName, string? Email, bool? IsAdmin = false) : ICommand<PersonInfo>;
 
 /// <summary>#156: <paramref name="BirthDate"/> is optional, checked as <see cref="SetRetirementCommand"/>'s.</summary>
-public sealed record CreateDependentCommand(string DisplayName, LocalDate? BirthDate = null) : ICommand<PersonInfo>;
+public sealed record CreateDependentCommand(string DisplayName, LocalDate? BirthDate = null) : ICommand<PersonInfo>, ITransactional;
 
 /// <summary>#156: any adult renames a child, as they add one; an adult's name comes from the identity provider.</summary>
 public sealed record RenameDependentCommand(PersonId Person, string DisplayName) : ICommand<PersonInfo>;
 
 /// <summary>#156: any adult removes a child that nothing names any more (<see cref="IPersonUsePart"/>).</summary>
-public sealed record DeleteDependentCommand(PersonId Person) : ICommand<PersonId>;
+public sealed record DeleteDependentCommand(PersonId Person) : ICommand<PersonId>, ITransactional;
 
 /// <summary>A null birth date clears it. Any adult sets any person's, a dependent's included: the household plans together.</summary>
 public sealed record SetRetirementCommand(PersonId Person, LocalDate? BirthDate, int RetirementAge, int RetirementMonths = 0) : ICommand<PersonInfo>;
@@ -32,7 +32,7 @@ public sealed class ProvisionAdultHandler(IPersonRegistry persons) : IRequestHan
 }
 
 [RequestHandler<CreateDependentCommand, PersonInfo>]
-public sealed class CreateDependentHandler(IPersonRegistry persons, IHouseholdCalendar calendar, IUnitOfWork unitOfWork)
+public sealed class CreateDependentHandler(IPersonRegistry persons, IHouseholdCalendar calendar)
     : IRequestHandler<CreateDependentCommand, PersonInfo>
 {
     public async ValueTask<Result<PersonInfo>> HandleAsync(CreateDependentCommand command, CancellationToken ct = default)
@@ -42,14 +42,10 @@ public sealed class CreateDependentHandler(IPersonRegistry persons, IHouseholdCa
         if (await SetRetirementHandler.BirthDateRefusalAsync(birth, calendar, ct) is { } refused)
             return Result.Failure<PersonInfo>(refused);
 
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         var created = await persons.CreateDependentAsync(command.DisplayName, ct);
         if (!created.TryGetValue(out var child))
             return created;
-        var dated = await persons.SetRetirementAsync(child.Id, birth, child.RetirementAge, child.RetirementMonths, ct);
-        if (dated.IsSuccess)
-            await transaction.CommitAsync(ct);
-        return dated;
+        return await persons.SetRetirementAsync(child.Id, birth, child.RetirementAge, child.RetirementMonths, ct);
     }
 }
 
@@ -61,7 +57,7 @@ public sealed class RenameDependentHandler(IPersonRegistry persons) : IRequestHa
 }
 
 [RequestHandler<DeleteDependentCommand, PersonId>]
-public sealed class DeleteDependentHandler(IPersonRegistry persons, IEnumerable<IPersonUsePart> parts, IUnitOfWork unitOfWork)
+public sealed class DeleteDependentHandler(IPersonRegistry persons, IEnumerable<IPersonUsePart> parts)
     : IRequestHandler<DeleteDependentCommand, PersonId>
 {
     public async ValueTask<Result<PersonId>> HandleAsync(DeleteDependentCommand command, CancellationToken ct = default)
@@ -69,7 +65,6 @@ public sealed class DeleteDependentHandler(IPersonRegistry persons, IEnumerable<
         if (await persons.FindAsync(command.Person, ct) is not { Kind: PersonKind.Dependent } child)
             return Result.Failure<PersonId>(new NotFoundFailure("person", command.Person.ToString()));
 
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         // ponytail: count then delete, no lock — a contract or link naming the child committed in between dangles (other modules have no FK
         // to core.person). Acceptable for a household; lock the person row here and FOR SHARE in those writers if it ever bites.
         var uses = new List<string>();
@@ -84,7 +79,6 @@ public sealed class DeleteDependentHandler(IPersonRegistry persons, IEnumerable<
         var deleted = await persons.DeleteDependentAsync(child.Id, ct);
         if (deleted.TryGetFailure(out var failure))
             return Result.Failure<PersonId>(failure!);
-        await transaction.CommitAsync(ct);
         return Result.Success(child.Id);
     }
 }

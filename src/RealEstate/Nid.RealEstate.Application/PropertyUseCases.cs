@@ -20,7 +20,7 @@ public sealed record GetPropertyQuery(ItemId ItemId) : IQuery<PropertyDetail>, I
 /// <summary>Spec 3C1 §4: open to every adult (<c>ICreatesItem</c>); owners, visibility and currency never change afterwards.</summary>
 public sealed record CreatePropertyCommand(
     string Name, Currency Currency, Visibility Visibility, IReadOnlyList<OwnerShare> Owners, PropertyDetails Details,
-    ShareLevel ShareLevel = ShareLevel.View) : ICommand<ItemId>, ICreatesItem;
+    ShareLevel ShareLevel = ShareLevel.View) : ICommand<ItemId>, ICreatesItem, ITransactional;
 
 /// <summary>A PATCH: a null field is left as it is; <c>Clear*</c> empties an optional one.</summary>
 public sealed record PropertyChange(
@@ -45,7 +45,7 @@ public sealed record PropertyChange(
 /// <paramref name="ShareLevel"/> and <paramref name="Owners"/> null keep the property's.
 /// </summary>
 public sealed record EditPropertyCommand(ItemId ItemId, string? Name, PropertyChange Change, uint Version,
-    Visibility? Visibility = null, ShareLevel? ShareLevel = null, IReadOnlyList<OwnerShare>? Owners = null) : ICommand<ItemId>, IItemScoped
+    Visibility? Visibility = null, ShareLevel? ShareLevel = null, IReadOnlyList<OwnerShare>? Owners = null) : ICommand<ItemId>, IItemScoped, ITransactional
 {
     public AccessKind Access => AccessKind.Write;
 }
@@ -105,7 +105,7 @@ public sealed class GetPropertyHandler(
 }
 
 [RequestHandler<CreatePropertyCommand, ItemId>]
-public sealed class CreatePropertyHandler(IItemRegistry items, IPropertyStore properties, IHouseholdCalendar calendar, IUnitOfWork unitOfWork)
+public sealed class CreatePropertyHandler(IItemRegistry items, IPropertyStore properties, IHouseholdCalendar calendar)
     : IRequestHandler<CreatePropertyCommand, ItemId>
 {
     public async ValueTask<Result<ItemId>> HandleAsync(CreatePropertyCommand command, CancellationToken ct = default)
@@ -113,21 +113,19 @@ public sealed class CreatePropertyHandler(IItemRegistry items, IPropertyStore pr
         if ((PropertyRules.Name(command.Name) ?? PropertyRules.Details(command.Details, await calendar.TodayAsync(ct))) is { } refused)
             return Result.Failure<ItemId>(refused);
 
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         var created = await items.CreateAsync(
             new NewItem("realestate", "property", command.Name, command.Visibility, command.Currency.Code, command.Owners, command.ShareLevel), ct);
         if (created.TryGetFailure(out var failure))
-            return Result.Failure<ItemId>(FieldErrors.At(failure!, "owners")); // disposed without commit: nothing is left
+            return Result.Failure<ItemId>(FieldErrors.At(failure!, "owners")); // a failure rolls the transaction back: nothing is left
         created.TryGetValue(out var id);
         await properties.CreateAsync(id, command.Details, ct);
-        await transaction.CommitAsync(ct);
         return Result.Success(id);
     }
 }
 
 [RequestHandler<EditPropertyCommand, ItemId>]
 public sealed class EditPropertyHandler(
-    IItemRegistry items, IPropertyStore properties, IHouseholdCalendar calendar, IUnitOfWork unitOfWork, IItemRules rules, IActorAccessor actor,
+    IItemRegistry items, IPropertyStore properties, IHouseholdCalendar calendar, IItemRules rules, IActorAccessor actor,
     IPersonRegistry persons)
     : IRequestHandler<EditPropertyCommand, ItemId>
 {
@@ -137,7 +135,6 @@ public sealed class EditPropertyHandler(
             return Result.Failure<ItemId>(badName);
         var today = await calendar.TodayAsync(ct);
 
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         var loaded = await PropertyCheck.LockAsync(properties, items, command.ItemId, ct);
         if (loaded.TryGetFailure(out var failure))
             return Result.Failure<ItemId>(failure!);
@@ -165,7 +162,6 @@ public sealed class EditPropertyHandler(
             return Result.Failure<ItemId>(failure!);
 
         await properties.UpdateAsync(command.ItemId, details, ct);
-        await transaction.CommitAsync(ct);
         return Result.Success(command.ItemId);
     }
 }

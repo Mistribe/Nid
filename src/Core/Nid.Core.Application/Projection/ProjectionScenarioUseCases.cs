@@ -13,7 +13,7 @@ public sealed record SimulateProjectionScenarioQuery(VisibilityScope Scope, Proj
 /// <summary>Spec §6 and §7: a projection scenario saved as a registry item, beside the purchases; the document is checked as §4.5 says.</summary>
 public sealed record CreateProjectionScenarioCommand(
     string Name, Visibility Visibility, IReadOnlyList<OwnerShare> Owners, VisibilityScope Scope, ProjectionScenario Document)
-    : ICommand<ItemId>, ICreatesItem;
+    : ICommand<ItemId>, ICreatesItem, ITransactional;
 
 /// <summary>Spec §6: name, visibility, scope and document replaced whole; the owners are kept, and so are the events the writer cannot see.</summary>
 public sealed record ReplaceProjectionScenarioCommand(ItemId ItemId, string Name, Visibility Visibility, VisibilityScope Scope, ProjectionScenario Document)
@@ -95,7 +95,7 @@ public sealed class GetProjectionScenarioHandler(
 
 [RequestHandler<CreateProjectionScenarioCommand, ItemId>]
 public sealed class CreateProjectionScenarioHandler(
-    IItemRegistry items, IScenarioStore store, ProjectionScenarioReader reader, IUnitOfWork unitOfWork, IHouseholdCalendar calendar)
+    IItemRegistry items, IScenarioStore store, ProjectionScenarioReader reader, IHouseholdCalendar calendar)
     : IRequestHandler<CreateProjectionScenarioCommand, ItemId>
 {
     public async ValueTask<Result<ItemId>> HandleAsync(CreateProjectionScenarioCommand command, CancellationToken ct = default)
@@ -105,13 +105,11 @@ public sealed class CreateProjectionScenarioHandler(
             return Result.Failure<ItemId>(refused);
 
         // The Core item and the document row: one transaction, or an orphan item when the second write fails.
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         var created = await items.CreateAsync(new NewItem("core", "scenario", command.Name, command.Visibility, null, command.Owners), ct);
         if (created.TryGetFailure(out var failure))
             return Result.Failure<ItemId>(FieldErrors.At(failure!, "owners"));
         created.TryGetValue(out var id);
         await store.SaveAsync(new StoredScenario(id, ScenarioKinds.Projection, command.Scope, null, command.Document), ct);
-        await transaction.CommitAsync(ct);
         return Result.Success(id);
     }
 }

@@ -15,17 +15,17 @@ namespace Nid.Investments.Application;
 /// its refusal is always "not found", whether it is forbidden (readable, not writable) or hidden (not
 /// readable): never a 403 that would disclose it.
 /// </summary>
-public sealed record TransferCommand(ItemId ItemId, ItemId To, LocalDate OccurredOn, Money Amount, string? Note) : ICommand<Guid>, IItemScoped
+public sealed record TransferCommand(ItemId ItemId, ItemId To, LocalDate OccurredOn, Money Amount, string? Note) : ICommand<Guid>, IItemScoped, ITransactional
 {
     public AccessKind Access => AccessKind.Write;
 }
 
-public sealed record CloseEnvelopeCommand(ItemId ItemId, LocalDate ClosedOn, Money? FinalWithdrawal) : ICommand<ItemId>, IItemScoped
+public sealed record CloseEnvelopeCommand(ItemId ItemId, LocalDate ClosedOn, Money? FinalWithdrawal) : ICommand<ItemId>, IItemScoped, ITransactional
 {
     public AccessKind Access => AccessKind.Write;
 }
 
-public sealed record ReopenEnvelopeCommand(ItemId ItemId) : ICommand<ItemId>, IItemScoped
+public sealed record ReopenEnvelopeCommand(ItemId ItemId) : ICommand<ItemId>, IItemScoped, ITransactional
 {
     public AccessKind Access => AccessKind.Write;
 }
@@ -37,7 +37,7 @@ public sealed record GetPeriodPerformanceQuery(ItemId ItemId, LocalDate From, Lo
 
 [RequestHandler<TransferCommand, Guid>]
 public sealed class TransferHandler(
-    IEnvelopeStore envelopes, IItemRegistry items, IFlows flows, IAccessPolicy policy, IActorAccessor actor, IUnitOfWork unitOfWork,
+    IEnvelopeStore envelopes, IItemRegistry items, IFlows flows, IAccessPolicy policy, IActorAccessor actor,
     EnvelopePerformance performance)
     : IRequestHandler<TransferCommand, Guid>
 {
@@ -80,14 +80,12 @@ public sealed class TransferHandler(
 
         var transfer = Guid.CreateVersion7();
         var reference = $"transfer:{transfer}";
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         var withdrawal = await flows.RecordAsync(new NewFlow(command.ItemId, command.OccurredOn, FlowKind.Withdrawal, command.Amount, FlowCategories.Transfer, reference, command.Note), ct);
         if (withdrawal.TryGetFailure(out failure))
             return Result.Failure<Guid>(failure!);
         var contribution = await flows.RecordAsync(deposit with { ExternalRef = reference }, ct);
         if (contribution.TryGetFailure(out failure))
             return Result.Failure<Guid>(failure!);
-        await transaction.CommitAsync(ct);
         return Result.Success(transfer);
     }
 
@@ -96,7 +94,7 @@ public sealed class TransferHandler(
 
 [RequestHandler<CloseEnvelopeCommand, ItemId>]
 public sealed class CloseEnvelopeHandler(
-    IEnvelopeStore envelopes, IItemRegistry items, IValuations valuations, IFlows flows, IUnitOfWork unitOfWork, IClock clock)
+    IEnvelopeStore envelopes, IItemRegistry items, IValuations valuations, IFlows flows, IClock clock)
     : IRequestHandler<CloseEnvelopeCommand, ItemId>
 {
     public async ValueTask<Result<ItemId>> HandleAsync(CloseEnvelopeCommand command, CancellationToken ct = default)
@@ -130,7 +128,6 @@ public sealed class CloseEnvelopeHandler(
         if (!zero.TryGetValue(out var nothing))
             return Result.Failure<ItemId>(zero.TryGetFailure(out failure) ? failure! : throw new InvalidOperationException());
 
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         if (command.FinalWithdrawal is { } withdrawal)
         {
             var recorded = await flows.RecordAsync(new NewFlow(command.ItemId, command.ClosedOn, FlowKind.Withdrawal, withdrawal, null, null, "clôture"), ct);
@@ -145,13 +142,12 @@ public sealed class CloseEnvelopeHandler(
         if (archived.TryGetFailure(out failure))
             return Result.Failure<ItemId>(failure!);
         await envelopes.SetClosedOnAsync(command.ItemId, command.ClosedOn, ct);
-        await transaction.CommitAsync(ct);
         return Result.Success(command.ItemId);
     }
 }
 
 [RequestHandler<ReopenEnvelopeCommand, ItemId>]
-public sealed class ReopenEnvelopeHandler(IEnvelopeStore envelopes, IItemRegistry items, IUnitOfWork unitOfWork)
+public sealed class ReopenEnvelopeHandler(IEnvelopeStore envelopes, IItemRegistry items)
     : IRequestHandler<ReopenEnvelopeCommand, ItemId>
 {
     public async ValueTask<Result<ItemId>> HandleAsync(ReopenEnvelopeCommand command, CancellationToken ct = default)
@@ -162,12 +158,10 @@ public sealed class ReopenEnvelopeHandler(IEnvelopeStore envelopes, IItemRegistr
         loaded.TryGetValue(out var envelope);
         if (envelope.Item.ArchivedAt is null)
             return Result.Failure<ItemId>(new ConflictFailure("This envelope is not closed.") { Code = InvestmentsCodes.EnvelopeOpen });
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         var reopened = await items.UnarchiveAsync(command.ItemId, ct);
         if (reopened.TryGetFailure(out failure))
             return Result.Failure<ItemId>(failure!);
         await envelopes.SetClosedOnAsync(command.ItemId, null, ct);
-        await transaction.CommitAsync(ct);
         return Result.Success(command.ItemId);
     }
 }

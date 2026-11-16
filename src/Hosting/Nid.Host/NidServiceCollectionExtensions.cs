@@ -448,6 +448,7 @@ public static class NidServiceCollectionExtensions
             cfg.AddRegisterGroup(new Nid.Documents.Application.RegisterGroup());
             cfg.AddRegisterGroup(new Nid.RealEstate.Application.RegisterGroup());
             cfg.AddRegisterGroup(new Nid.Banking.Application.RegisterGroup());
+            cfg.AddTransactions<UnitOfWorkTransactions>();                 // an ITransactional command runs in the request's unit of work
         });
         return services;
     }
