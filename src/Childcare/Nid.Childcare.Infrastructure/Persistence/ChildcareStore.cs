@@ -145,6 +145,13 @@ public sealed class ChildcareStore(ChildcareDbContext db, IClock clock) : IChild
         => (await db.Statements.AsNoTracking().Where(st => st.ItemId == id.Value).OrderBy(st => st.Month).ToListAsync(ct))
             .Select(r => ToStatement(r, [])).ToList();
 
+    public async Task<IReadOnlyList<Statement>> StatementsOfAsync(IReadOnlyCollection<ItemId> ids, CancellationToken ct)
+    {
+        var keys = ids.Select(i => i.Value).ToList();
+        return (await db.Statements.AsNoTracking().Where(st => keys.Contains(st.ItemId)).OrderBy(st => st.Month).ToListAsync(ct))
+            .Select(r => ToStatement(r, [])).ToList();
+    }
+
     public async Task<Statement?> FindStatementAsync(ItemId id, YearMonth month, CancellationToken ct)
     {
         var first = month.OnDayOfMonth(1);

@@ -67,6 +67,9 @@ public interface IChildcareStore
     /// <summary>Every stored month of the arrangement, with its figures, without its days.</summary>
     Task<IReadOnlyList<Statement>> StatementsOfAsync(ItemId id, CancellationToken ct);
 
+    /// <summary>The stored months of several arrangements in one read, as <see cref="StatementsOfAsync(ItemId, CancellationToken)"/>.</summary>
+    Task<IReadOnlyList<Statement>> StatementsOfAsync(IReadOnlyCollection<ItemId> ids, CancellationToken ct);
+
     Task<Statement?> FindStatementAsync(ItemId id, YearMonth month, CancellationToken ct);
 
     /// <summary>

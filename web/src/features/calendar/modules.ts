@@ -4,6 +4,10 @@
  */
 export const CALENDAR_MODULES = ['subscriptions', 'loans', 'properties', 'investments', 'income', 'tax'] as const;
 
-export type CalendarModule = (typeof CALENDAR_MODULES)[number];
+/** Issue #241: with the amounts on, childcare too: it has expected debits, no event (`CalendarModules.WithAmounts`). */
+export const AMOUNT_MODULES = [...CALENDAR_MODULES, 'childcare'] as const;
 
-export const moduleLabelKey = (module: CalendarModule) => `nav.${module}` as const;
+export type CalendarModule = (typeof CALENDAR_MODULES)[number];
+export type AmountModule = (typeof AMOUNT_MODULES)[number];
+
+export const moduleLabelKey = (module: AmountModule) => `nav.${module}` as const;

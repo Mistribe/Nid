@@ -467,6 +467,13 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "amounts",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
           }
         ],
         "responses": {
@@ -33184,6 +33191,132 @@
           }
         }
       },
+      "CalendarAmountsView": {
+        "required": [
+          "currency",
+          "out",
+          "in",
+          "balance",
+          "days",
+          "charges"
+        ],
+        "type": "object",
+        "properties": {
+          "currency": {
+            "type": "string"
+          },
+          "out": {
+            "$ref": "#/components/schemas/DashboardFigure"
+          },
+          "in": {
+            "$ref": "#/components/schemas/DashboardFigure"
+          },
+          "balance": {
+            "$ref": "#/components/schemas/DashboardFigure"
+          },
+          "days": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CalendarDayView"
+            }
+          },
+          "charges": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CalendarChargeView"
+            }
+          }
+        }
+      },
+      "CalendarChargeView": {
+        "required": [
+          "on",
+          "module",
+          "id",
+          "name",
+          "kind",
+          "amount",
+          "credit"
+        ],
+        "type": "object",
+        "properties": {
+          "on": {
+            "type": "string",
+            "format": "date"
+          },
+          "module": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "amount": {
+            "$ref": "#/components/schemas/DashboardMoneyView"
+          },
+          "converted": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "missingCurrency": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "credit": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CalendarDayView": {
+        "required": [
+          "on",
+          "heavy"
+        ],
+        "type": "object",
+        "properties": {
+          "on": {
+            "type": "string",
+            "format": "date"
+          },
+          "out": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardFigure"
+              }
+            ]
+          },
+          "in": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardFigure"
+              }
+            ]
+          },
+          "heavy": {
+            "type": "boolean"
+          }
+        }
+      },
       "CalendarFeedBody": {
         "required": [
           "amounts"
@@ -33257,6 +33390,16 @@
             "items": {
               "$ref": "#/components/schemas/DashboardEventView"
             }
+          },
+          "amounts": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/CalendarAmountsView"
+              }
+            ]
           }
         }
       },

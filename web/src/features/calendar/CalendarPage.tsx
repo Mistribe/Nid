@@ -8,6 +8,8 @@ import type { CalendarSearch } from '@/app/router';
 import { Segmented } from '@/components/form/Segmented';
 import { PageHeader } from '@/components/page/PageHeader';
 import { Loading } from '@/components/page/skeletons';
+import { StatLine } from '@/components/page/StatLine';
+import { SwitchField } from '@/components/page/SwitchField';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -15,8 +17,10 @@ import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { RootSearch } from '@/lib/search';
 import { todayIso } from '@/lib/today';
+import type { DashboardEvent } from '@/api/dashboard';
+import { ChargeLink, DayTotals, FigureText, type CalendarCharge } from './amounts';
 import { EventLink } from './EventLink';
-import { CALENDAR_MODULES, moduleLabelKey, type CalendarModule } from './modules';
+import { AMOUNT_MODULES, CALENDAR_MODULES, moduleLabelKey, type AmountModule, type CalendarModule } from './modules';
 import { MonthGrid } from './MonthGrid';
 import { daysIn, formatDate, shiftMonth } from './monthGrid';
 import '@/locales/calendar';
@@ -28,20 +32,28 @@ const TimelineView = lazy(() => import('./TimelineView').then((m) => ({ default:
 
 /**
  * Issue #239: every module's dated events over a month, from the current one on, filtered by module on the server. Issue #240: or
- * their milestones over years, on a timeline (`?view=timeline`).
+ * their milestones over years, on a timeline (`?view=timeline`). Issue #241: the month's expected money in and out (`?amounts=1`),
+ * with childcare among the modules then.
  */
 export function CalendarPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const search: RootSearch & CalendarSearch = useSearch({ strict: false });
   const scope = search.scope === 'me' ? 'me' : 'household';
-  const modules: readonly CalendarModule[] = search.modules?.split(',').filter((m): m is CalendarModule => CALENDAR_MODULES.includes(m as CalendarModule)) ?? CALENDAR_MODULES;
+  const amounts = search.amounts === 1 && search.view !== 'timeline';
+  const shown: readonly AmountModule[] = amounts ? AMOUNT_MODULES : CALENDAR_MODULES;
+  // The address keeps childcare's choice while the amounts are off, so it comes back as it was.
+  const checked: readonly AmountModule[] = search.modules?.split(',').filter((m): m is AmountModule => AMOUNT_MODULES.includes(m as AmountModule)) ?? AMOUNT_MODULES;
+  const listed = shown.filter((m) => checked.includes(m));
+  const modules = listed.length > 0 ? listed : shown;
+  // None asked is every module: the server's default, so the request stays as it was without amounts.
+  const chosen = modules.length === shown.length ? undefined : modules.join(',');
   const modulesId = useId();
 
-  const toggle = (module: CalendarModule, on: boolean) => {
-    const next = CALENDAR_MODULES.filter((m) => (m === module ? on : modules.includes(m)));
+  const toggle = (module: AmountModule, on: boolean) => {
+    const next = AMOUNT_MODULES.filter((m) => (m === module ? on : m === 'childcare' && !amounts ? checked.includes(m) : modules.includes(m)));
     void navigate({ to: '.', replace: true, resetScroll: false,
-      search: (prev) => ({ ...prev, modules: next.length === CALENDAR_MODULES.length ? undefined : next.join(',') }) });
+      search: (prev) => ({ ...prev, modules: next.length === AMOUNT_MODULES.length ? undefined : next.join(',') }) });
   };
 
   return (
@@ -50,7 +62,7 @@ export function CalendarPage() {
       <div className="space-y-2">
         <p id={modulesId} className="text-sm font-medium">{t('calendar_page.modules')}</p>
         <div role="group" aria-labelledby={modulesId} className="flex flex-wrap gap-x-4 gap-y-2">
-          {CALENDAR_MODULES.map((m) => {
+          {shown.map((m) => {
             const on = modules.includes(m);
             return (
               <div key={m} className="flex items-center gap-2">
@@ -69,15 +81,19 @@ export function CalendarPage() {
         search: (prev) => ({ ...prev, view: v === 'timeline' ? 'timeline' : undefined }) })} />
       {search.view === 'timeline'
         ? <Suspense fallback={<Loading label={t('calendar_page.loading')}><Skeleton className="h-72 w-full" /></Loading>}>
-          <TimelineView scope={scope} modules={modules} chosen={search.modules} horizon={search.horizon ?? 5} />
+          <TimelineView scope={scope} modules={modules as readonly CalendarModule[]} chosen={chosen} horizon={search.horizon ?? 5} />
         </Suspense>
-        : <MonthView scope={scope} chosen={search.modules} month={search.month} />}
+        : <MonthView scope={scope} chosen={chosen} month={search.month} amounts={amounts} />}
     </div>
   );
 }
 
-/** A month of events: previous and next month, a grid (desktop) or a list of days (phone). */
-function MonthView({ scope, chosen, month: asked }: { scope: 'household' | 'me'; chosen: string | undefined; month: string | undefined }) {
+type Entry = { on: string; event: DashboardEvent } | { on: string; charge: CalendarCharge };
+
+/** A month of events: previous and next month, a grid (desktop) or a list of days (phone); with its amounts, the money too. */
+function MonthView({ scope, chosen, month: asked, amounts }: {
+  scope: 'household' | 'me'; chosen: string | undefined; month: string | undefined; amounts: boolean;
+}) {
   const { t } = useTranslation();
   const { $api } = useApi();
   const navigate = useNavigate();
@@ -88,8 +104,15 @@ function MonthView({ scope, chosen, month: asked }: { scope: 'household' | 'me';
   const from = `${month}-01`;
   const to = `${month}-${daysIn(Number(month.slice(0, 4)), Number(month.slice(5, 7)))}`;
   const answer = $api.useQuery('get', CALENDAR_EVENTS, {
-    params: { query: { scope, from, to, ...(chosen ? { modules: chosen } : {}) } },
+    params: { query: { scope, from, to, ...(chosen ? { modules: chosen } : {}), ...(amounts ? { amounts: true } : {}) } },
   });
+  const money = amounts ? answer.data?.amounts : undefined;
+  // Events and charges under one budget a cell, by day (a stable sort keeps the server's order within one).
+  const entries: Entry[] = [
+    ...(answer.data?.events ?? []).map((event) => ({ on: event.on, event })),
+    ...(money?.charges ?? []).map((charge) => ({ on: charge.on, charge })),
+  ].sort((a, b) => a.on.localeCompare(b.on));
+  const days = new Map((money?.days ?? []).map((d) => [d.on, d]));
 
   const go = (by: number) => {
     const next = shiftMonth(month, by);
@@ -106,14 +129,26 @@ function MonthView({ scope, chosen, month: asked }: { scope: 'household' | 'me';
         <Button type="button" variant="ghost" size="icon" aria-label={t('calendar_page.next')} onClick={() => go(1)}>
           <ChevronRightIcon aria-hidden="true" />
         </Button>
+        <div className="ml-auto">
+          <SwitchField label={t('calendar_page.amounts')} checked={amounts} onCheckedChange={(on) => void navigate({ to: '.', replace: true,
+            resetScroll: false, search: (prev) => ({ ...prev, amounts: on ? 1 : undefined }) })} />
+        </div>
       </div>
       {answer.error ? <ProblemMessage problem={present(toProblem(answer.error))} />
         : !answer.data ? <Loading label={t('calendar_page.loading')}><Skeleton className="h-96 w-full" /></Loading>
         : (
           <>
-            {answer.data.events.length === 0 ? <p className="text-sm text-muted-foreground">{t('calendar_page.empty')}</p> : null}
-            <MonthGrid month={month} today={today} items={answer.data.events} dateOf={(e) => e.on}
-              render={(e, compact) => <EventLink e={e} compact={compact} />}
+            {money ? (
+              <StatLine items={[
+                { label: t('calendar_page.out'), value: <FigureText figure={money.out} /> },
+                { label: t('calendar_page.in'), value: <FigureText figure={money.in} /> },
+                { label: t('calendar_page.balance'), value: <FigureText figure={money.balance} />, tip: t('calendar_page.balance_tip') },
+              ]} />
+            ) : null}
+            {entries.length === 0 ? <p className="text-sm text-muted-foreground">{t('calendar_page.empty')}</p> : null}
+            <MonthGrid month={month} today={today} items={entries} dateOf={(e) => e.on}
+              render={(e, compact) => ('event' in e ? <EventLink e={e.event} compact={compact} /> : <ChargeLink c={e.charge} compact={compact} />)}
+              aside={money ? (date) => { const day = days.get(date); return day ? <DayTotals day={day} /> : null; } : undefined}
               labels={{
                 grid: t('calendar_page.grid'), byDay: t('calendar_page.by_day'),
                 more: (count) => t('calendar_page.more', { count }), moreLabel: (count) => t('calendar_page.more_label', { count }),

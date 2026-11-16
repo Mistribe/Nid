@@ -13,19 +13,21 @@ public sealed class ChildcareCharges(IVisibleItems visible, IItemRegistry items,
 {
     private static readonly IReadOnlyList<string> Hints = ["PAJEMPLOI", "URSSAF"];
 
-    public async Task<Result<IReadOnlyList<ExpectedCharge>>> ChargesAsync(PersonId reader, LocalDate from, LocalDate to, CancellationToken ct)
+    public async Task<Result<IReadOnlyList<ExpectedCharge>>> ChargesAsync(PersonId reader, VisibilityScope scope, LocalDate from, LocalDate to, CancellationToken ct)
     {
         var currency = await household.ReferenceCurrencyAsync(ct);
         var zone = await calendar.ZoneAsync(ct);
         // Closed ones too: the last month is debited after the end.
-        var found = await store.FindManyAsync((await visible.ForAsync(reader, VisibilityScope.Me, includeArchived: true, ct)).ToList(), ct);
-        var registered = await items.FindManyAsync(found.Select(a => a.ItemId).ToList(), ct);
+        var found = await store.FindManyAsync((await visible.ForAsync(reader, scope, includeArchived: true, ct)).ToList(), ct);
+        var ids = found.Select(a => a.ItemId).ToList();
+        var registered = await items.FindManyAsync(ids, ct);
+        var statements = (await store.StatementsOfAsync(ids, ct)).ToLookup(s => s.ItemId); // batched reads spec §3
         var charges = new List<ExpectedCharge>();
         foreach (var arrangement in found)
         {
             if (!registered.TryGetValue(arrangement.ItemId, out var item))
                 continue;
-            foreach (var statement in await store.StatementsOfAsync(arrangement.ItemId, ct))
+            foreach (var statement in statements[arrangement.ItemId])
             {
                 if (statement is not { Validated: true, Figures: { } figures, ValidatedAt: { } at })
                     continue;

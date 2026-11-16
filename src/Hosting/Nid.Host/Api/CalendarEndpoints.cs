@@ -54,9 +54,10 @@ public static class CalendarEndpoints
             .Produces(StatusCodes.Status404NotFound);
 
         // Issue #239: the calendar page, « À venir » over [from, to] across the modules (comma-joined, absent: every one).
-        routes.MapGet(FeedPath, async (string? scope, string from, string to, string? modules, IInvoker invoker, CancellationToken ct)
+        // Issue #241: `amounts=true` adds the money expected in and out, by day and in all.
+        routes.MapGet(FeedPath, async (string? scope, string from, string to, string? modules, bool? amounts, IInvoker invoker, CancellationToken ct)
                 => (await invoker.InvokeAsync(new GetCalendarQuery(ParseScope(scope), RequireDate(from), RequireDate(to),
-                    modules is null ? null : ParseLabels(modules)), ct)).ToHttp(v => v))
+                    modules is null ? null : ParseLabels(modules), amounts == true), ct)).ToHttp(v => v))
             .RequireAuthorization().AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>()
             .Returns<CalendarView>();
 
