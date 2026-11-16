@@ -209,6 +209,7 @@ public static class RequestCatalogue
         new(typeof(CreateCalendarFeedCommand), false, (_, _) => new CreateCalendarFeedCommand("me", false)),
         new(typeof(UpdateCalendarFeedCommand), false, (_, _) => new UpdateCalendarFeedCommand("me", true)),
         new(typeof(GetCalendarFeedQuery), false, (_, _) => new GetCalendarFeedQuery(new CalendarFeedOptions(VisibilityScope.Me, true))),
+        new(typeof(GetCalendarQuery), false, (_, _) => new GetCalendarQuery(VisibilityScope.Me, new LocalDate(2025, 10, 1), new LocalDate(2025, 11, 30), null)),
         new(typeof(RevokeTokensCommand), false, (data, _) => new RevokeTokensCommand(data.App.AdultB)),
         // Issue 215: local accounts; their answers carry no item.
         new(typeof(CreatePasswordLinkCommand), false, (data, _) => new CreatePasswordLinkCommand(data.App.AdultB, NodaTime.Duration.FromHours(1))),

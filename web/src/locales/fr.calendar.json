@@ -30,5 +30,18 @@
     "open": "Ouvrir dans le calendrier",
     "done": "Terminé",
     "limit_reached": "Vous avez déjà 10 jetons actifs : révoquez-en un dans Sécurité pour créer l’abonnement."
+  },
+  "calendar_page": {
+    "title": "Calendrier",
+    "modules": "Modules affichés",
+    "previous": "Mois précédent",
+    "next": "Mois suivant",
+    "loading": "Chargement du calendrier",
+    "empty": "Aucune échéance ce mois-ci pour ces modules.",
+    "grid": "Calendrier du mois",
+    "by_day": "Échéances jour par jour",
+    "more": "+{{count}}",
+    "more_label_one": "+{{count}} autre échéance",
+    "more_label_other": "+{{count}} autres échéances"
   }
 }

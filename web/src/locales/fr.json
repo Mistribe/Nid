@@ -57,6 +57,7 @@
   "nav": {
     "sidebar": "Navigation principale",
     "dashboard": "Accueil",
+    "calendar": "Calendrier",
     "tabs": "Onglets",
     "home": "Revenir à l'accueil",
     "subscriptions": "Abonnements",
@@ -342,6 +343,7 @@
       "empty": "Rien dans les 60 prochains jours.",
       "today": "Aujourd’hui",
       "tomorrow": "Demain",
+      "see_calendar": "Voir le calendrier",
       "subscription_renewal": "Renouvellement",
       "subscription_expiry": "Expire",
       "subscription_cancel_deadline": "Dernier jour pour résilier",

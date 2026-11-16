@@ -17,7 +17,7 @@ import { cn } from '@/lib/utils';
 import { CHARGES } from '@/api/subscriptions';
 import { byDay, ChargeLink, DayList, DayMore, formatDate as format } from './charges';
 import { todayIso } from '@/lib/today';
-import { monthGrid, shiftMonth } from './monthGrid';
+import { monthGrid, shiftMonth } from '@/features/calendar/monthGrid';
 import { Loading, StatLineSkeleton } from '@/components/page/skeletons';
 
 // Loaded with this lazy chunk, not with the initial bundle.

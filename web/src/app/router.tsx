@@ -12,6 +12,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { pageOf, type RootSearch } from '@/lib/search';
 import { DashboardPage } from '@/features/dashboard/DashboardPage';
+import { CALENDAR_MODULES } from '@/features/calendar/modules';
 import type { Panel } from '@/features/dashboard/KeyFigures';
 import type { LoanContractView } from '@/api/loans';
 import { compareSearch } from '@/features/scenarios/compare/compareSearch';
@@ -35,6 +36,8 @@ export type RoutineSearch = { on?: string };
 export type BanksSearch = { connected?: string; error?: string };
 /** The home page: the curve's span, a figure panel, the projection's horizon (`10y` stays out of the URL) and its reading (`0`: current value). */
 export type DashboardSearch = { curve?: '3y' | 'all'; curveReal?: 1; panel?: Panel; projection?: ProjectionHorizon; real?: 0; ranges?: 1 };
+/** The calendar page (#239): its month (`yyyy-mm`, absent for the current one) and its modules (comma-joined, absent for every one). */
+export type CalendarSearch = { month?: string; modules?: string };
 /** The annual review (#12): the year, absent for the current one (so it stays out of the URL). */
 export type YearReviewSearch = { year?: number };
 export type ProjectionHorizon = '5y' | '20y' | '30y' | `retire:${string}`;
@@ -162,6 +165,23 @@ const dashboardRoute = createRoute({
       ...(search.ranges === 1 || search.ranges === '1' ? { ranges: 1 as const } : {}),
     }),
   component: DashboardPage,
+});
+
+const calendarRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/calendar',
+  beforeLoad: requireModule('core'),
+  validateSearch: (search: Record<string, unknown>): CalendarSearch => {
+    const asked = typeof search.modules === 'string' ? search.modules.split(',') : [];
+    const modules = CALENDAR_MODULES.filter((m) => asked.includes(m));
+    return {
+      // A malformed month would be a 400: it is overwritten, as the subscriptions calendar's.
+      month: typeof search.month === 'string' && /^\d{4}-(0[1-9]|1[0-2])$/.test(search.month) ? search.month : undefined,
+      // Unknown modules dropped; none known, or all of them, is every module.
+      modules: modules.length > 0 && modules.length < CALENDAR_MODULES.length ? modules.join(',') : undefined,
+    };
+  },
+  component: lazyRouteComponent(() => import('@/features/calendar/CalendarPage'), 'CalendarPage'),
 });
 
 const yearReviewRoute = createRoute({
@@ -688,7 +708,7 @@ const adminNotificationsRoute = createRoute({ getParentRoute: () => rootRoute, v
 const adminSecurityRoute = createRoute({ getParentRoute: () => rootRoute, validateSearch: securitySearch, path: '/admin/security', beforeLoad: requireAdmin, component: lazyRouteComponent(() => import('@/features/admin/SecurityJournalPage'), 'SecurityJournalPage') });
 
 export const routeTree = rootRoute.addChildren([
-  indexRoute, dashboardRoute, yearReviewRoute, subscriptionsRoute, subscriptionNewRoute, subscriptionDetailRoute, investmentsRoute, investmentNewRoute, investmentDetailRoute, holdingDetailRoute,
+  indexRoute, dashboardRoute, calendarRoute, yearReviewRoute, subscriptionsRoute, subscriptionNewRoute, subscriptionDetailRoute, investmentsRoute, investmentNewRoute, investmentDetailRoute, holdingDetailRoute,
   goalsRoute, goalNewRoute, goalDetailRoute, childcareRoute, childcareNewRoute, childcareDetailRoute, childcareEndRoute, childcareSettlementRoute, childcareStatementRoute, documentsRoute, documentDetailRoute, seriesRoute, incomeRoute, incomeNewRoute, incomeDetailRoute, taxRoute, taxAssessmentNewRoute, taxAssessmentEditRoute, retirementRoute, scenariosRoute, scenarioNewRoute, projectionScenarioRoute, saleScenarioRoute, scenarioCompareRoute, scenarioDetailRoute, propertiesRoute, propertyNewRoute, propertyDetailRoute, loansRoute, loanNewRoute, loanDetailRoute, loanContractRoute, propertyReceiptRoute, propertyArrearsLetterRoute, notificationsRoute, routineRoute, proposalsRoute, proposalDetailRoute,
   importRoute.addChildren([importHomeRoute, importSessionRoute]), exportRoute, settingsRoute, appearanceRoute, notificationSettingsRoute, projectionSettingsRoute, personsSettingsRoute, calendarSettingsRoute, banksSettingsRoute,
   securityRoute, operationsRoute, moreRoute, changelogRoute, forbiddenRoute, adminRoute, adminUsersRoute, adminHouseholdRoute, adminFxRoute, adminPricesRoute, adminIrlRoute, adminInflationRoute, adminBankingRoute, adminCatalogRoute, adminJobsRoute, adminJobRoute, adminJobRunRoute,

@@ -65,10 +65,10 @@ public static class Extensions
             {
                 tracing.AddSource(builder.Environment.ApplicationName)
                     .AddAspNetCoreInstrumentation(tracing =>
-                        // Exclude health check requests from tracing, and the calendar feed: its secret is in url.path (issue #80).
+                        // Exclude health check requests from tracing, and the calendar feed: its secret is in url.path (issue #80); the page itself (#239) is traced.
                         tracing.Filter = context =>
                             !context.Request.Path.StartsWithSegments(HealthEndpointPath)
-                            && !context.Request.Path.StartsWithSegments(CalendarFeedPath)
+                            && !(context.Request.Path.StartsWithSegments(CalendarFeedPath, out var secret) && secret.HasValue)
                     )
                     // Uncomment the following line to enable gRPC instrumentation (requires the OpenTelemetry.Instrumentation.GrpcNetClient package)
                     //.AddGrpcClientInstrumentation()
