@@ -17,7 +17,7 @@ public class EnvelopeStoreTests(PostgresFixture fixture) : IClassFixture<Postgre
         await using var app = await NidApp.StartAsync(fixture);
         await using var scope = app.Services.CreateAsyncScope();
         // No Synapse handler runs here (none exists yet, Task 4 adds it), so nothing sets the ambient actor the
-        // audit interceptor requires (1F3a U4) the way ActorBehavior would in the real pipeline.
+        // audit interceptor requires (1F3a U4) the way the actor check would in the real pipeline.
         scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
         var store = scope.ServiceProvider.GetRequiredService<IEnvelopeStore>();
         var item = ItemId.New();

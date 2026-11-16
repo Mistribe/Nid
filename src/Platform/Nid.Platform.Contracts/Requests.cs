@@ -1,11 +1,18 @@
 using Nid.Core.Contracts;
+using SynapseRequiresRole = UnambitiousFx.Synapse.Authorization.IRequiresRole;
+using SynapseRequiresScope = UnambitiousFx.Synapse.Authorization.IRequiresScope;
 
 namespace Nid.Platform.Contracts;
 
-/// <summary>A request that declares its scope instead of the default (<c>read</c> for queries, <c>write:direct</c> for commands; the proposal submission asks <c>write</c>).</summary>
-public interface IRequiresScope
+/// <summary>
+/// A request that declares its scope instead of the default (<c>read</c> for queries, <c>write:direct</c> for commands; the
+/// proposal submission asks <c>write</c>). Synapse's scope check reads it through <see cref="SynapseRequiresScope"/>.
+/// </summary>
+public interface IRequiresScope : SynapseRequiresScope
 {
     string RequiredScope { get; }
+
+    string SynapseRequiresScope.Scope => RequiredScope;
 }
 
 /// <summary>Writes that bypass validation by a person, such as an import (<c>authorization.md</c> §3).</summary>
@@ -43,10 +50,19 @@ public interface ICreatesItem
 }
 
 /// <summary>
-/// Reserved to administrators (authorization.md §4, stage 2 bis of the pipeline). Touches no item: the admin
-/// area shows no label, no amount and no item count.
+/// Reserved to administrators (authorization.md §4, stage 2 bis of the pipeline): Synapse's role check asks for
+/// <see cref="Roles.Admin"/>. Touches no item: the admin area shows no label, no amount and no item count.
 /// </summary>
-public interface IAdminOnly;
+public interface IAdminOnly : SynapseRequiresRole
+{
+    string SynapseRequiresRole.Role => Roles.Admin;
+}
+
+/// <summary>The roles an actor holds; the one there is is <see cref="Actor.IsAdmin"/>.</summary>
+public static class Roles
+{
+    public const string Admin = "admin";
+}
 
 public static class AdminCodes
 {
@@ -56,7 +72,7 @@ public static class AdminCodes
 
 /// <summary>
 /// Only a browser session may run it (spec 4A §4.2): managing tokens, « Déconnecter partout », the import. A token is
-/// refused at the scope stage with <see cref="BrowserOnlyCodes.Required"/>, whatever its scopes.
+/// refused just before the scope check with <see cref="BrowserOnlyCodes.Required"/>, whatever its scopes.
 /// </summary>
 public interface IBrowserOnly;
 

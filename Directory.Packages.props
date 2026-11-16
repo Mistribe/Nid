@@ -20,6 +20,7 @@
     <PackageVersion Include="AWSSDK.S3" Version="4.1.0" />
     <PackageVersion Include="UnambitiousFx.Synapse" Version="3.3.0" />
     <PackageVersion Include="UnambitiousFx.Synapse.Abstractions" Version="3.3.0" />
+    <PackageVersion Include="UnambitiousFx.Synapse.Authorization" Version="3.3.0" />
     <PackageVersion Include="UnambitiousFx.Synapse.Generator" Version="3.3.0" />
     <PackageVersion Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="10.0.15" />
     <PackageVersion Include="Microsoft.AspNetCore.DataProtection.Abstractions" Version="10.0.15" />
