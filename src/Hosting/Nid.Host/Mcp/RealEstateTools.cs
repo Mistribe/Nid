@@ -1,3 +1,5 @@
+using Nid.Platform.Contracts;
+using UnambitiousFx.Functional.Failures;
 using System.ComponentModel;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
@@ -73,7 +75,7 @@ public sealed class RealEstateTools
         var reader = new FieldReader();
         var query = new RealEstateEndpoints.LoanSimulationBody(on, amount, effect, penalty).ToQuery(new ItemId(id), reader);
         return query is null
-            ? McpCalls.Error(string.Join("; ", reader.Errors.Select(e => $"{e.Path}: {e.Message}")))
+            ? McpCalls.Refuse(services, FieldErrors.Shape(reader.Errors))
             : await McpCalls.RunAsync(services, () => query, ct);
     }
 
@@ -90,7 +92,7 @@ public sealed class RealEstateTools
         var reader = new FieldReader();
         var query = new RealEstateEndpoints.LoanRenegotiationBody(on, annualRate, payments, bankFees, guaranteeFees, penalty).ToQuery(new ItemId(id), reader);
         return query is null
-            ? McpCalls.Error(string.Join("; ", reader.Errors.Select(e => $"{e.Path}: {e.Message}")))
+            ? McpCalls.Refuse(services, FieldErrors.Shape(reader.Errors))
             : await McpCalls.RunAsync(services, () => query, ct);
     }
 
@@ -104,7 +106,7 @@ public sealed class RealEstateTools
         var reader = new FieldReader();
         var query = new RealEstateEndpoints.LoanInsuranceComparisonBody(on, quotes).ToQuery(new ItemId(id), reader);
         return query is null
-            ? McpCalls.Error(string.Join("; ", reader.Errors.Select(e => $"{e.Path}: {e.Message}")))
+            ? McpCalls.Refuse(services, FieldErrors.Shape(reader.Errors))
             : await McpCalls.RunAsync(services, () => query, ct);
     }
 
@@ -121,7 +123,7 @@ public sealed class RealEstateTools
         var reader = new FieldReader();
         var query = new RealEstateEndpoints.LoansSimulationBody(scope, on, amount, split, loanId, effect, penalties).ToQuery(reader);
         return query is null
-            ? McpCalls.Error(string.Join("; ", reader.Errors.Select(e => $"{e.Path}: {e.Message}")))
+            ? McpCalls.Refuse(services, FieldErrors.Shape(reader.Errors))
             : await McpCalls.RunAsync(services, () => query, ct);
     }
 }

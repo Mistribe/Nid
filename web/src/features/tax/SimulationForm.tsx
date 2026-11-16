@@ -18,7 +18,7 @@ import { RATE } from './profile/draft';
 import { ResultTable } from './ResultTable';
 import '@/locales/tax';
 
-const AMOUNTS = ['rentalGross', 'rentalInterest', 'rentalCharges', 'capitalIncome', 'nonTaxableIncome', 'pinelReduction',
+const AMOUNTS = ['rentalGross', 'rentalInterest', 'rentalCharges', 'capitalIncome', 'capitalDividends', 'deductibleCsg', 'nonTaxableIncome', 'pinelReduction',
   'childcareOutsideHome', 'homeEmployment', 'donations', 'donationsAid', 'rentalDeficitCarried'] as const;
 const DECLARANT_AMOUNTS = ['salaryGross', 'salaryTaxable', 'otherTaxable', 'perContributions', 'perUnusedCeiling', 'previousYearIncome', 'perExpiring', 'exemptIncome'] as const;
 const COUNT = /^\d{1,2}$/;
@@ -108,6 +108,9 @@ export function SimulationForm({ estimate }: { estimate: TaxEstimate }) {
               {(c) => <Checkbox {...c} checked={inputs.perPooling} onCheckedChange={(v) => change({ ...inputs, perPooling: v === true })} />}
             </Field>
           ) : null}
+          <Field inline label={t('tax.input.capitalScale')}>
+            {(c) => <Checkbox {...c} checked={inputs.capitalScale} onCheckedChange={(v) => change({ ...inputs, capitalScale: v === true })} />}
+          </Field>
           <div className="space-y-1">
             <span className="block text-sm">{t('tax.profile.regime')}</span>
             <Segmented aria-label={t('tax.profile.regime')} value={inputs.rentalRegime ?? 'auto'}

@@ -72,6 +72,8 @@ public static class CalendarIcs
         UpcomingKinds.SubscriptionRenewal => "Renouvellement",
         UpcomingKinds.SubscriptionExpiry => "Expire",
         UpcomingKinds.SubscriptionCancelDeadline => "Dernier jour pour résilier",
+        UpcomingKinds.SubscriptionTrialEnd => "Fin de l'essai gratuit",
+        UpcomingKinds.SubscriptionPriceIncrease => "Hausse de prix",
         UpcomingKinds.IncomePhaseEnd => $"Fin de « {e.Label} »",
         UpcomingKinds.LoanPhaseEnd => $"Fin de la phase {e.Label} : taux ou différé qui change",
         UpcomingKinds.LoanEnd => "Dernière échéance",

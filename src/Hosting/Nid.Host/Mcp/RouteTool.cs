@@ -55,7 +55,7 @@ public sealed class RouteTool(RouteAction action) : McpServerTool
         if (action.Targeted)
         {
             if (!arguments.TryGetValue("id", out var id) || id.ValueKind != JsonValueKind.String || !Guid.TryParse(id.GetString(), out var item))
-                return McpCalls.Error("Refused: request.invalid. payload.id: A UUID is required.");
+                return McpCalls.Invalid(services, "payload.id", "A UUID is required.");
             target = item;
         }
         return await McpCalls.ProposeAsync(services, action.Kind, target, McpCalls.Element(payload), sourceLabel, apply, null, cancellationToken);

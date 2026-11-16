@@ -68,7 +68,11 @@ public sealed class SubscriptionsUpcoming(SubscriptionSet set) : IUpcomingEvents
         foreach (var (input, timeline, name, _, _) in await set.LoadAsync(reader, scope, today, horizon, ct))
         {
             var id = input.Subscription.Id;
-            foreach (var first in ChargeCycles.FirstLongCycleCharges(input, timeline, today, until))
+            var changes = ChargeCycles.PriceChanges(input, timeline, today, until).ToList();
+            foreach (var (charge, kind) in changes)
+                events.Add(new UpcomingEvent(charge.Date, kind, id, "subscriptions", name, null, charge.Price));
+            // A charge ending a trial or a launch price says so, not that the subscription renews.
+            foreach (var first in ChargeCycles.FirstLongCycleCharges(input, timeline, today, until).Where(c => !changes.Any(x => ReferenceEquals(x.Charge, c))))
                 events.Add(new UpcomingEvent(first.Date, UpcomingKinds.SubscriptionRenewal, id, "subscriptions", name, null, first.Price));
             if (ContractCancellation.Outlook(input, timeline, today) is { Status: CancellationStatus.Deadline, LastDayToCancel: { } last } && last >= today && last <= until)
                 events.Add(new UpcomingEvent(last, UpcomingKinds.SubscriptionCancelDeadline, id, "subscriptions", name, null, null));

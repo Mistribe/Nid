@@ -56,7 +56,7 @@ public sealed record DocumentRoleChange(Guid Id, DocumentTarget Target, string R
 /// #305: a filing round, all of it or nothing: each line runs <see cref="EditDocumentCommand"/> or <see cref="SetLinkRoleCommand"/>, with
 /// their rights and rules, so one proposal covers dozens of documents and one approval applies them.
 /// </summary>
-public sealed record FileDocumentsCommand(IReadOnlyList<DocumentEdit> Edits, IReadOnlyList<DocumentRoleChange> Roles) : ICommand<FiledDocuments>
+public sealed record FileDocumentsCommand(IReadOnlyList<DocumentEdit> Edits, IReadOnlyList<DocumentRoleChange> Roles) : ICommand<FiledDocuments>, ITransactional
 {
     public const int MaxLines = 200;
 }
@@ -162,7 +162,7 @@ public sealed class UploadDocumentHandler(
             return null;
         return (await access.ReadAsync(found.Id, person, ct)).TryGetValue(out _)
             ? Result.Success(new UploadedDocument(found.Id, true))
-            : Result.Failure<UploadedDocument>(new Failure(DocumentsCodes.SourceRefTaken, "Another document already has this source reference.", null));
+            : Result.Failure<UploadedDocument>(new ConflictFailure("Another document already has this source reference.") { Code = DocumentsCodes.SourceRefTaken });
     }
 }
 
@@ -184,7 +184,7 @@ public sealed class EditDocumentHandler(IDocumentStore store, DocumentAccess acc
 }
 
 [RequestHandler<FileDocumentsCommand, FiledDocuments>]
-public sealed class FileDocumentsHandler(IInvoker invoker, IDocumentStore store, IUnitOfWork unitOfWork) : IRequestHandler<FileDocumentsCommand, FiledDocuments>
+public sealed class FileDocumentsHandler(IInvoker invoker, IDocumentStore store) : IRequestHandler<FileDocumentsCommand, FiledDocuments>
 {
     public async ValueTask<Result<FiledDocuments>> HandleAsync(FileDocumentsCommand command, CancellationToken ct = default)
     {
@@ -192,8 +192,7 @@ public sealed class FileDocumentsHandler(IInvoker invoker, IDocumentStore store,
         if (lines is 0 or > FileDocumentsCommand.MaxLines)
             return Result.Failure<FiledDocuments>(new Failure(DocumentsCodes.InvalidField, $"A filing round has 1 to {FileDocumentsCommand.MaxLines} lines.", null));
 
-        // Every early return skips the commit and so rolls back the lines already written.
-        await using var transaction = await unitOfWork.BeginAsync(ct);
+        // Every early return is a failure, which rolls back the lines already written.
         foreach (var (edit, i) in command.Edits.Select((e, i) => (e, i)))
         {
             // Unreadable answers as missing: the edit's own access check refuses before anything read here is used.
@@ -209,7 +208,6 @@ public sealed class FileDocumentsHandler(IInvoker invoker, IDocumentStore store,
             if (set.TryGetFailure(out var refused))
                 return Result.Failure<FiledDocuments>(Located(refused!, $"roles[{i}]"));
         }
-        await transaction.CommitAsync(ct);
         return Result.Success(new FiledDocuments(command.Edits.Count, command.Roles.Count));
     }
 

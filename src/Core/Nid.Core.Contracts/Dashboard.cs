@@ -166,6 +166,10 @@ public static class UpcomingKinds
     public const string SubscriptionRenewal = "subscription_renewal";
     public const string SubscriptionExpiry = "subscription_expiry";
     public const string SubscriptionCancelDeadline = "subscription_cancel_deadline";
+
+    // Issue #244: the first paid charge after a free period, and the first charge of a dearer phase.
+    public const string SubscriptionTrialEnd = "subscription_trial_end";
+    public const string SubscriptionPriceIncrease = "subscription_price_increase";
     public const string IncomePhaseEnd = "income_phase_end";
     public const string IncomeGapSoon = "income_gap_soon";
 
@@ -191,6 +195,64 @@ public static class UpcomingKinds
     public const string TaxNewRate = "tax_new_rate";
     public const string TaxBalanceDue = "tax_balance_due";
     public const string PropertyTaxDue = "property_tax_due";
+
+    /// <summary>
+    /// Issue #240: whether each kind comes back every period (<see cref="UpcomingCadence.Recurring"/>) or marks a date that happens once
+    /// (<see cref="UpcomingCadence.Milestone"/>); the calendar's timeline lists the milestones only. Every kind declares one.
+    /// </summary>
+    public static readonly IReadOnlyDictionary<string, string> Cadence = new Dictionary<string, string>
+    {
+        [SubscriptionRenewal] = UpcomingCadence.Recurring,
+        [SubscriptionExpiry] = UpcomingCadence.Milestone,
+        [SubscriptionCancelDeadline] = UpcomingCadence.Milestone,
+        [SubscriptionTrialEnd] = UpcomingCadence.Milestone,
+        [SubscriptionPriceIncrease] = UpcomingCadence.Milestone,
+        [IncomePhaseEnd] = UpcomingCadence.Milestone,
+        [IncomeGapSoon] = UpcomingCadence.Milestone,
+        [LoanPhaseEnd] = UpcomingCadence.Milestone,
+        [LoanEnd] = UpcomingCadence.Milestone,
+        [ValuationDue] = UpcomingCadence.Recurring,
+        [PropertyCostDue] = UpcomingCadence.Recurring,
+        [TenancyEnd] = UpcomingCadence.Milestone,
+        [HoldingMaturity] = UpcomingCadence.Milestone,
+        [TaxMilestone] = UpcomingCadence.Milestone,
+        [PerDeadline] = UpcomingCadence.Recurring,
+        [PerCeilingExpiring] = UpcomingCadence.Recurring,
+        [TaxFilingDeadline] = UpcomingCadence.Recurring,
+        [TaxNewRate] = UpcomingCadence.Recurring,
+        [TaxBalanceDue] = UpcomingCadence.Recurring,
+        [PropertyTaxDue] = UpcomingCadence.Recurring,
+    };
+
+    public static bool IsMilestone(string kind) => Cadence.TryGetValue(kind, out var cadence) && cadence == UpcomingCadence.Milestone;
+}
+
+/// <summary>Issue #240: an event kind's cadence (<see cref="UpcomingKinds.Cadence"/>).</summary>
+public static class UpcomingCadence
+{
+    public const string Recurring = "recurring";
+    public const string Milestone = "milestone";
+}
+
+/// <summary>Issue #243: the modules « À venir » lists events of (<see cref="UpcomingEvent.Module"/>), in display order.</summary>
+public static class CalendarModules
+{
+    public const string Subscriptions = "subscriptions";
+    public const string Loans = "loans";
+    public const string Properties = "properties";
+    public const string Investments = "investments";
+    public const string Income = "income";
+
+    /// <summary>The tax calendar and the PER deadline, about no item.</summary>
+    public const string Tax = "tax";
+
+    public static readonly IReadOnlyList<string> All = [Subscriptions, Loans, Properties, Investments, Income, Tax];
+
+    /// <summary>Issue #241: childcare has no event, only expected debits: a module of the calendar page's amounts, never of the feed.</summary>
+    public const string Childcare = "childcare";
+
+    /// <summary>The calendar page's modules with its amounts on (#241).</summary>
+    public static readonly IReadOnlyList<string> WithAmounts = [.. All, Childcare];
 }
 
 /// <summary>A module's events dated in [<c>today</c>, <c>until</c>], over the items the reader sees in the scope.</summary>

@@ -117,7 +117,7 @@ public class McpDocumentProposalTests(PostgresFixture fixture) : IClassFixture<P
         var missing = await CallAsync(propose, "propose_statement", Statement(envelope, Guid.NewGuid()));
         var applied = await CallAsync(direct, "propose_statement", new { envelopeId = envelope, asOf = "2025-09-30", documentId = theirs, apply = true });
 
-        Assert.Equal((true, "Not found."), hidden);
+        Assert.Equal((true, "NOT_FOUND: The requested item was not found."), hidden);
         Assert.Equal(hidden, missing);
         Assert.Equal(hidden, applied);
         Assert.Empty(await ProposalsAsync(app, app.AdultA));
@@ -241,7 +241,7 @@ public class McpDocumentProposalTests(PostgresFixture fixture) : IClassFixture<P
         var same = await CallAsync(client, "propose_payslip",
             new { incomeSourceId = source, paidOn = "2025-09-28", net = new { amount = "2290.00", currency = "EUR" }, documentId = document });
 
-        Assert.StartsWith("Refused", refused.Text);
+        Assert.Matches("^[a-z_]+\\.[a-z_]+: ", refused.Text);
         Assert.Contains("conforme", same.Text);
         Assert.Empty(await LinksAsync(app, app.AdultA, document));
         Assert.Empty(await ProposalsAsync(app, app.AdultA));

@@ -57,7 +57,7 @@ public sealed record GetSaleScenarioQuery(ItemId ItemId) : IQuery<SaleScenarioVi
 
 public sealed record CreateSaleScenarioCommand(
     string Name, Visibility Visibility, IReadOnlyList<OwnerShare> Owners, VisibilityScope Scope, SaleScenario Document)
-    : ICommand<ItemId>, ICreatesItem;
+    : ICommand<ItemId>, ICreatesItem, ITransactional;
 
 /// <summary>Name, visibility, scope and document replaced whole; the owners are kept.</summary>
 public sealed record ReplaceSaleScenarioCommand(ItemId ItemId, string Name, Visibility Visibility, VisibilityScope Scope, SaleScenario Document)
@@ -195,7 +195,7 @@ public sealed class GetSaleScenarioHandler(IItemRegistry items, IScenarioStore s
 }
 
 [RequestHandler<CreateSaleScenarioCommand, ItemId>]
-public sealed class CreateSaleScenarioHandler(IItemRegistry items, IScenarioStore store, SaleScenarioReader reader, IUnitOfWork unitOfWork)
+public sealed class CreateSaleScenarioHandler(IItemRegistry items, IScenarioStore store, SaleScenarioReader reader)
     : IRequestHandler<CreateSaleScenarioCommand, ItemId>
 {
     public async ValueTask<Result<ItemId>> HandleAsync(CreateSaleScenarioCommand command, CancellationToken ct = default)
@@ -204,13 +204,11 @@ public sealed class CreateSaleScenarioHandler(IItemRegistry items, IScenarioStor
             return Result.Failure<ItemId>(refused);
 
         // The Core item and the document row: one transaction, or an orphan item when the second write fails.
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         var created = await items.CreateAsync(new NewItem("core", "scenario", command.Name, command.Visibility, null, command.Owners), ct);
         if (created.TryGetFailure(out var failure))
             return Result.Failure<ItemId>(FieldErrors.At(failure!, "owners"));
         created.TryGetValue(out var id);
         await store.SaveAsync(new StoredScenario(id, ScenarioKinds.PropertySale, command.Scope, null, Sale: command.Document), ct);
-        await transaction.CommitAsync(ct);
         return Result.Success(id);
     }
 }

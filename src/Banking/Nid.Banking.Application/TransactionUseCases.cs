@@ -318,7 +318,7 @@ public sealed class IgnoreTransactionHandler(BankingAccess access, BankLines lin
         if (!found.TryGetValue(out var line))
             return BankingAccess.Failed<BankTransactionView, BankTransaction>(found);
         if (line!.LinkState != TransactionLinkState.Unlinked)
-            return BankingAccess.Fail<BankTransactionView>(BankingCodes.TransactionLinked, "This line is already linked or ignored.");
+            return Result.Failure<BankTransactionView>(new ConflictFailure("This line is already linked or ignored.") { Code = BankingCodes.TransactionLinked });
 
         await links.ClearAsync(line.Id, TransactionLinkState.Ignored, ct);
         return Result.Success(await lines.ViewAsync(line.Id, ct));

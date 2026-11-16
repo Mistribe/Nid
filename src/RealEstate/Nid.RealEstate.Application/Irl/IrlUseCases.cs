@@ -45,9 +45,9 @@ public sealed class RequestIrlSyncHandler(IIrlRunLog runs, IHouseholdSettings se
     public async ValueTask<Result<IrlSyncRequested>> HandleAsync(RequestIrlSyncCommand command, CancellationToken ct = default)
     {
         if (await runs.IsRunningAsync(ct))
-            return Result.Failure<IrlSyncRequested>(new Failure(IrlCodes.SyncRunning, "An IRL collection is already running.", null));
+            return Result.Failure<IrlSyncRequested>(new ConflictFailure("An IRL collection is already running.") { Code = IrlCodes.SyncRunning });
         if (!(await settings.ReadAsync(ct)).IrlEnabled)
-            return Result.Failure<IrlSyncRequested>(new Failure(IrlCodes.Disabled, "IRL collection is turned off for this household.", null));
+            return Result.Failure<IrlSyncRequested>(new ConflictFailure("IRL collection is turned off for this household.") { Code = IrlCodes.Disabled });
 
         var triggered = await trigger.TriggerAsync(ct);
         return triggered.TryGetFailure(out var failure)

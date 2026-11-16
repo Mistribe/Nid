@@ -314,6 +314,34 @@ public class TaxEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresF
         Assert.Equal(HttpStatusCode.UnprocessableEntity, negative.StatusCode);
     }
 
+    [Fact]
+    public async Task A_brokerage_accounts_dividends_get_the_allowance_under_the_scale_option()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var account = JsonDocument.Parse(await (await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/investments/envelopes", new
+        {
+            displayName = "CTO", kind = "brokerage", currency = "EUR", visibility = "shared", openedOn = "2020-01-01",
+            owners = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } },
+        })).EnsureSuccessStatusCode().Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.GetProperty("id").GetString()!;
+        foreach (var (amount, category) in new[] { ("3000.00", "dividend"), ("1000.00", "interest") })
+            (await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/investments/envelopes/{account}/flows",
+                new { occurredOn = "2025-05-10", kind = "income", category, amount = new { amount, currency = "EUR" } })).EnsureSuccessStatusCode();
+
+        var flat = await EstimateAsync(app, app.AdultA, 2025);
+        Assert.Equal(("4000.00", "3000.00"), (flat.GetProperty("inputs").GetProperty("capitalIncome").GetString(), flat.GetProperty("inputs").GetProperty("capitalDividends").GetString()));
+        Assert.Equal(("512.00", "0.00", false), (flat.GetProperty("result").GetProperty("capitalFlatTax").GetString(),
+            flat.GetProperty("result").GetProperty("dividendAllowance").GetString(), flat.GetProperty("result").GetProperty("capitalScale").GetBoolean()));
+
+        var saved = await PutProfileAsync(app, app.AdultA, 2025, new { pinel = Array.Empty<object>(), capitalScale = true, deductibleCsg = "100.00" });
+        Assert.Equal((true, "100.00"), (saved.GetProperty("profile").GetProperty("capitalScale").GetBoolean(), saved.GetProperty("profile").GetProperty("deductibleCsg").GetString()));
+        var scale = saved.GetProperty("result");
+        // 40 % of the 3 000 of dividends; the 6.8 % of next year's 6DE on the whole 4 000.
+        Assert.Equal(("0.00", "1200.00", "272.00", true), (scale.GetProperty("capitalFlatTax").GetString(), scale.GetProperty("dividendAllowance").GetString(),
+            scale.GetProperty("deductibleCsgNextYear").GetString(), scale.GetProperty("capitalScale").GetBoolean()));
+        // No salary: the 2 800 left after the allowance and the 6DE stay in the 0 % bracket, so the scale saves the whole flat tax.
+        Assert.Equal(("-512.00", "512.00"), (flat.GetProperty("result").GetProperty("capitalOptionGap").GetString(), scale.GetProperty("capitalOptionGap").GetString()));
+    }
+
     private static async Task ContributeAsync(NidApp app, PersonId owner, string envelope, string on, string amount)
         => (await app.RawAsync(owner, HttpMethod.Post, $"/api/v1/investments/envelopes/{envelope}/flows",
             new { occurredOn = on, kind = "contribution", amount = new { amount, currency = "EUR" } })).EnsureSuccessStatusCode();

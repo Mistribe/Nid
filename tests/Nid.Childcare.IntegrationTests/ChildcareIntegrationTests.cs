@@ -211,7 +211,7 @@ public class ChildcareIntegrationTests(PostgresFixture fixture) : IClassFixture<
         if (writable)
             return await scope.ServiceProvider.GetRequiredService<ExpectedChargeReader>().WritableAsync(reader, from, to, CancellationToken.None);
         var source = scope.ServiceProvider.GetServices<IExpectedCharges>().Single(s => s.GetType().Name == "ChildcareCharges");
-        Assert.True((await source.ChargesAsync(reader, from, to, CancellationToken.None)).TryGetValue(out var charges));
+        Assert.True((await source.ChargesAsync(reader, VisibilityScope.Me, from, to, CancellationToken.None)).TryGetValue(out var charges));
         return charges!;
     }
 
@@ -251,7 +251,7 @@ public class ChildcareIntegrationTests(PostgresFixture fixture) : IClassFixture<
     }
 
     [Fact]
-    public void A_childcare_charge_opens_the_arrangement() => Assert.Equal("childcare", BankingNotificationSource.ModuleOf(ChargeKind.Childcare));
+    public void A_childcare_charge_opens_the_arrangement() => Assert.Equal("childcare", ChargeKinds.ModuleOf(ChargeKind.Childcare));
 
     [Fact]
     public async Task A_Pajemploi_line_links_to_the_statement()

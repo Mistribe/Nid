@@ -26,17 +26,17 @@ public sealed class BankingAccess(
     {
         var household = await settings.ReadAsync(ct);
         if (!household.BankingEnabled)
-            return Fail<string>(BankingCodes.Disabled, "Bank sync is turned off for this household.");
+            return Result.Failure<string>(new ConflictFailure("Bank sync is turned off for this household.") { Code = BankingCodes.Disabled });
         return Configured(household, options)
             ? Result.Success(household.EnableBankingAppId!)
-            : Fail<string>(BankingCodes.NotConfigured, "Bank sync has no Enable Banking application id or private key.");
+            : Result.Failure<string>(new ConflictFailure("Bank sync has no Enable Banking application id or private key.") { Code = BankingCodes.NotConfigured });
     }
 
     /// <summary>Banking on, whatever Enable Banking's configuration: what file imports and the accounts they make need (ruling R-d).</summary>
     public async Task<Result> EnabledAsync(CancellationToken ct)
         => (await settings.ReadAsync(ct)).BankingEnabled
             ? Result.Success()
-            : Result.Failure(new Failure(BankingCodes.Disabled, "Bank sync is turned off for this household.", null));
+            : Result.Failure(new ConflictFailure("Bank sync is turned off for this household.") { Code = BankingCodes.Disabled });
 
     /// <summary>One of the actor's connections, past its first callback: a pending one is nobody's to act on yet.</summary>
     public async Task<Result<BankConnection>> MyConnectionAsync(Guid id, CancellationToken ct)

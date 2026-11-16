@@ -1,7 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Nid.Banking.Contracts;
 using Nid.Childcare.Contracts;
-using Nid.Core.Application;
 using Nid.Core.Contracts;
 using Nid.Documents.Contracts;
 using Nid.Goals.Contracts;
@@ -9,8 +8,6 @@ using Nid.Host.Auth;
 using Nid.Income.Contracts;
 using Nid.Investments.Contracts;
 using Nid.Platform.Contracts;
-using Nid.RealEstate.Contracts;
-using Nid.Subscriptions.Contracts;
 using UnambitiousFx.Functional.AspNetCore;
 using UnambitiousFx.Functional.AspNetCore.Mappers;
 using UnambitiousFx.Functional.Failures;
@@ -47,7 +44,7 @@ public static class ProblemMapping
         Map(options, StatusCodes.Status400BadRequest,
             LocalAccountCodes.LoginInvalid, LocalAccountCodes.PasswordTooShort, LocalAccountCodes.PasswordTooLong,
             LocalAccountCodes.PasswordTooCommon, LocalSignIn.CurrentPasswordWrong, LocalSignIn.InvalidCode,
-            FxCodes.InvalidRate, FxCodes.InvalidRange, SeriesCodes.InvalidKey, ExportCodes.BadCursor,
+            SeriesCodes.InvalidKey, // names its field (s)
             InvestmentsCodes.InvalidIncomeCategory, InvestmentsCodes.TransferLeg, BreakdownCodes.Not100, BreakdownCodes.NotMarket,
             DocumentsCodes.InvalidField, DocumentsCodes.InvalidRole, DocumentsCodes.UnknownTargetKind);
         Map(options, StatusCodes.Status400BadRequest, [.. ImportCodes.BadRequests]);
@@ -60,20 +57,12 @@ public static class ProblemMapping
             BankingCodes.ConnectionNotFound, BankingCodes.AccountNotFound);
 
         Map(options, StatusCodes.Status409Conflict,
-            TokenCodes.LimitReached,
-            LocalAccountCodes.LoginTaken, LocalAccountCodes.TotpAlreadyEnabled,
-            FxCodes.SyncRunning, CatalogCodes.SyncRunning, PriceCodes.SyncRunning, PriceCodes.Disabled, PriceCodes.NotRejected,
-            IrlCodes.SyncRunning, IrlCodes.Disabled, InflationCodes.SyncRunning, InflationCodes.Disabled,
-            ExportCodes.RevisionChanged,
             CoreFactCodes.FactRetired, CoreFactCodes.OpeningExists, CoreFactCodes.ExternalRefTaken, CoreFactCodes.FactConflict,
             InvestmentsCodes.HoldingClosed, InvestmentsCodes.SnapshotExists,
             IncomeCodes.SourceEnded,
             ChildcareCodes.StatementValidated, // a week of a validated month names its field (monday)
             GoalsCodes.ShareExceeded, // a goal's funding line names its field (funding[i].shareBp)
-            DocumentsCodes.AlreadyLinked, DocumentsCodes.SourceRefTaken,
-            NotificationCodes.PreferencesConflict,
-            BankingCodes.Disabled, BankingCodes.NotConfigured, BankingCodes.EnvelopeTaken, BankingCodes.SyncRunning,
-            BankingCodes.TransactionLinked);
+            DocumentsCodes.AlreadyLinked);
         Map(options, StatusCodes.Status409Conflict, [.. ImportCodes.Conflicts]);
 
         Map(options, StatusCodes.Status413PayloadTooLarge, DocumentsCodes.TooLarge, BankingCodes.FileTooLarge);

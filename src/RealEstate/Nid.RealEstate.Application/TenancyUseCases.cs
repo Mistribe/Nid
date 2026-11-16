@@ -9,7 +9,7 @@ using UnambitiousFx.Synapse.Abstractions;
 
 namespace Nid.RealEstate.Application;
 
-public sealed record AddPropertyTenancyCommand(ItemId ItemId, Tenancy Tenancy) : ICommand<Guid>, IItemScoped
+public sealed record AddPropertyTenancyCommand(ItemId ItemId, Tenancy Tenancy) : ICommand<Guid>, IItemScoped, ITransactional
 {
     public AccessKind Access => AccessKind.Write;
 }
@@ -17,12 +17,12 @@ public sealed record AddPropertyTenancyCommand(ItemId ItemId, Tenancy Tenancy) :
 /// <summary>A correction in place — ending a tenancy is one, with an end (spec 3C2 §3); <paramref name="Version"/> is the tenancy's as read.</summary>
 public sealed record EditPropertyTenancyCommand(
     ItemId ItemId, Guid TenancyId, Tenancy Values, uint Version, bool? Indexed = null, int? IrlReferenceQuarter = null, bool ClearRentsTrackedFrom = false)
-    : ICommand<Guid>, IItemScoped
+    : ICommand<Guid>, IItemScoped, ITransactional
 {
     public AccessKind Access => AccessKind.Write;
 }
 
-public sealed record DeletePropertyTenancyCommand(ItemId ItemId, Guid TenancyId, uint Version) : ICommand<bool>, IItemScoped
+public sealed record DeletePropertyTenancyCommand(ItemId ItemId, Guid TenancyId, uint Version) : ICommand<bool>, IItemScoped, ITransactional
 {
     public AccessKind Access => AccessKind.Write;
 }
@@ -89,12 +89,11 @@ internal static class TenancyCheck
 
 /// <summary>Spec 3C2 §2: the property's row is locked before the overlap is checked, so two concurrent writes cannot both pass.</summary>
 [RequestHandler<AddPropertyTenancyCommand, Guid>]
-public sealed class AddPropertyTenancyHandler(IItemRegistry items, IPropertyStore properties, IUnitOfWork unitOfWork)
+public sealed class AddPropertyTenancyHandler(IItemRegistry items, IPropertyStore properties)
     : IRequestHandler<AddPropertyTenancyCommand, Guid>
 {
     public async ValueTask<Result<Guid>> HandleAsync(AddPropertyTenancyCommand command, CancellationToken ct = default)
     {
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         var loaded = await PropertyCheck.LockAsync(properties, items, command.ItemId, ct);
         if (loaded.TryGetFailure(out var failure))
             return Result.Failure<Guid>(failure!);
@@ -105,18 +104,16 @@ public sealed class AddPropertyTenancyHandler(IItemRegistry items, IPropertyStor
 
         var id = Guid.CreateVersion7();
         await properties.AddTenancyAsync(command.ItemId, id, tenancy, ct);
-        await transaction.CommitAsync(ct);
         return Result.Success(id);
     }
 }
 
 [RequestHandler<EditPropertyTenancyCommand, Guid>]
-public sealed class EditPropertyTenancyHandler(IItemRegistry items, IPropertyStore properties, IUnitOfWork unitOfWork)
+public sealed class EditPropertyTenancyHandler(IItemRegistry items, IPropertyStore properties)
     : IRequestHandler<EditPropertyTenancyCommand, Guid>
 {
     public async ValueTask<Result<Guid>> HandleAsync(EditPropertyTenancyCommand command, CancellationToken ct = default)
     {
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         var loaded = await PropertyCheck.LockAsync(properties, items, command.ItemId, ct);
         if (loaded.TryGetFailure(out var failure))
             return Result.Failure<Guid>(failure!);
@@ -143,18 +140,16 @@ public sealed class EditPropertyTenancyHandler(IItemRegistry items, IPropertySto
         if (values.RentsTrackedFrom != stored.RentsTrackedFrom)
             foreach (var link in TenancyCheck.Chain(found.Property, command.TenancyId).Where(t => t.Id != command.TenancyId))
                 await properties.UpdateTenancyAsync(command.ItemId, link.Id, link.Tenancy with { RentsTrackedFrom = values.RentsTrackedFrom }, ct);
-        await transaction.CommitAsync(ct);
         return Result.Success(command.TenancyId);
     }
 }
 
 [RequestHandler<DeletePropertyTenancyCommand, bool>]
-public sealed class DeletePropertyTenancyHandler(IItemRegistry items, IPropertyStore properties, IUnitOfWork unitOfWork)
+public sealed class DeletePropertyTenancyHandler(IItemRegistry items, IPropertyStore properties)
     : IRequestHandler<DeletePropertyTenancyCommand, bool>
 {
     public async ValueTask<Result<bool>> HandleAsync(DeletePropertyTenancyCommand command, CancellationToken ct = default)
     {
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         var loaded = await PropertyCheck.LockAsync(properties, items, command.ItemId, ct);
         if (loaded.TryGetFailure(out var failure))
             return Result.Failure<bool>(failure!);
@@ -164,7 +159,6 @@ public sealed class DeletePropertyTenancyHandler(IItemRegistry items, IPropertyS
             return Result.Failure<bool>(unwritable);
 
         await properties.DeleteTenancyAsync(command.ItemId, command.TenancyId, ct);
-        await transaction.CommitAsync(ct);
         return Result.Success(true);
     }
 }

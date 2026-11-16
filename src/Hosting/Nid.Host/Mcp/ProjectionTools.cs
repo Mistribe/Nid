@@ -45,17 +45,17 @@ public sealed class ProjectionTools
         }
         catch (BadHttpRequestException unreadable)
         {
-            return McpCalls.Error(unreadable.Message);
+            return McpCalls.Refuse(services, new Failure(FieldErrors.ShapeCode, unreadable.Message, null));
         }
 
         var read = ProjectionDocumentView.Read(new ProjectionDocumentView(1, horizon ?? ProjectionHorizon.Default.ToWire(), assumptions, events ?? [], retirements ?? []));
         if (read.TryGetFailure(out var invalid))
-            return McpCalls.Error(Fields(invalid!));
+            return McpCalls.Refuse(services, invalid!);
         read.TryGetValue(out var document);
 
         var result = await services.GetRequiredService<IInvoker>().InvokeAsync(new SimulateProjectionScenarioQuery(visibility, document!), ct);
         if (result.TryGetFailure(out var failure))
-            return failure is NotFoundFailure or UnauthorizedFailure ? McpCalls.Error(McpCalls.NotFound) : McpCalls.Error(Fields(failure!));
+            return McpCalls.Refuse(services, failure!);
         result.TryGetValue(out var view);
         return McpCalls.Answer(services, Trim(view!));
     }
@@ -87,11 +87,6 @@ public sealed class ProjectionTools
     }
 
     /// <summary>The refused fields, each named (<c>events[0].amount: …</c>); a refusal without fields, its code and message.</summary>
-    private static string Fields(Failure failure)
-        => FieldErrors.Of(failure) is { Count: > 0 } fields
-            ? "Refused: " + string.Join("; ", fields.Select(f => $"{f.Path}: {f.Message}"))
-            : $"Refused: {failure.Code}. {failure.Message}";
-
     private static ProjectionComparisonView Trim(ProjectionComparisonView view)
         => view with
         {

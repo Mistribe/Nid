@@ -13,21 +13,17 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import board from '@/locales/fr.subscriptions-board.json';
-import { cn } from '@/lib/utils';
 import { CHARGES } from '@/api/subscriptions';
-import { byDay, ChargeLink, DayList, DayMore, formatDate as format } from './charges';
+import { ChargeLink, formatDate as format } from './charges';
 import { todayIso } from '@/lib/today';
-import { monthGrid, shiftMonth } from './monthGrid';
+import { shiftMonth } from '@/features/calendar/monthGrid';
+import { MonthGrid } from '@/features/calendar/MonthGrid';
 import { Loading, StatLineSkeleton } from '@/components/page/skeletons';
 
 // Loaded with this lazy chunk, not with the initial bundle.
 i18n.addResourceBundle('fr', 'subscriptions-board', board, true, true);
 
 const TimelineView = lazy(() => import('./TimelineView').then((m) => ({ default: m.TimelineView })));
-
-// 2024-01-01 was a Monday.
-const WEEKDAYS = Array.from({ length: 7 }, (_, i) => format(`2024-01-0${i + 1}`, { weekday: 'short' }));
-const SHOWN = 3;
 
 /** The calendar tab: the month calendar, or the timeline (issue #65) under `?view=timeline`. */
 export function CalendarTab({ scope }: { scope: 'household' | 'me' }) {
@@ -78,7 +74,6 @@ function MonthCalendar({ scope }: { scope: 'household' | 'me' }) {
   const d = answer.data;
   if (!d) return <div className="space-y-4">{header}<Loading label={t('calendar.loading')}><StatLineSkeleton items={3} /><Skeleton className="h-96 w-full" /></Loading></div>;
 
-  const days = byDay(d.charges);
   const horizon = d.findings.some((f) => f.code === 'subscriptions.horizon_reached');
   const beyond = horizon && d.charges.length === 0; // with charges, the forecast stops within the month
 
@@ -93,28 +88,9 @@ function MonthCalendar({ scope }: { scope: 'household' | 'me' }) {
         : horizon ? <p className="text-sm text-muted-foreground">{t('calendar.truncated')}</p>
         : d.charges.length === 0 ? <p className="text-sm text-muted-foreground">{t('calendar.empty')}</p> : null}
 
-      <div role="group" aria-label={t('calendar.grid')} className="hidden overflow-hidden rounded-lg border md:grid md:grid-cols-7">
-        {WEEKDAYS.map((w) => <div key={w} aria-hidden="true" className="px-2 py-1 text-xs text-muted-foreground">{w}</div>)}
-        {monthGrid(month).map((cell) => {
-          const lines = days.get(cell.date) ?? [];
-          const shown = lines.length > SHOWN ? lines.slice(0, SHOWN - 1) : lines;
-          const label = format(cell.date, { weekday: 'long', day: 'numeric', month: 'long' });
-          return (
-            <div key={cell.date} role="group" aria-label={label} aria-current={cell.date === today ? 'date' : undefined}
-              className={cn('min-h-24 space-y-1 border-t border-l p-1 [&:nth-child(7n+1)]:border-l-0', !cell.inMonth && 'bg-muted/40 text-muted-foreground')}>
-              <div aria-hidden="true" className={cn('inline-flex size-6 items-center justify-center rounded-full text-xs',
-                cell.date === today && 'bg-primary font-semibold text-primary-foreground')}>{Number(cell.date.slice(8))}</div>
-              {shown.map((c, i) => <ChargeLink key={`${c.itemId}/${i}`} c={c} compact />)}
-              {lines.length > SHOWN ? (
-                <DayMore lines={lines} label={label} more={t('calendar.more', { count: lines.length - shown.length })}
-                  moreLabel={t('calendar.more_label', { count: lines.length - shown.length })} />
-              ) : null}
-            </div>
-          );
-        })}
-      </div>
-
-      {days.size > 0 ? <DayList lines={d.charges} label={t('calendar.by_day')} className="space-y-4 md:hidden" /> : null}
+      <MonthGrid month={month} today={today} items={d.charges} dateOf={(c) => c.date} render={(c, compact) => <ChargeLink c={c} compact={compact} />}
+        labels={{ grid: t('calendar.grid'), byDay: t('calendar.by_day'),
+          more: (count) => t('calendar.more', { count }), moreLabel: (count) => t('calendar.more_label', { count }) }} />
     </div>
   );
 }

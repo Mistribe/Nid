@@ -52,10 +52,17 @@ public static class TokenCodes
     public const string PresetUnknown = "core.token_preset_unknown";
     public const string ExpiryInvalid = "core.token_expiry_invalid";
     public const string CalendarScopeInvalid = "core.calendar_scope_invalid";
+    public const string CalendarModulesInvalid = "core.calendar_modules_invalid";
+
+    /// <summary>Issue #239: the calendar page's dates (before the current month, reversed or too far apart).</summary>
+    public const string CalendarRangeInvalid = "core.calendar_range_invalid";
 }
 
-/// <summary>Issue #80: what a calendar feed lists: the events of the items its person reads in <c>Scope</c>, amounts only when <c>Amounts</c>.</summary>
-public sealed record CalendarFeedOptions(VisibilityScope Scope, bool Amounts);
+/// <summary>
+/// Issue #80: what a calendar feed lists: the events of the items its person reads in <c>Scope</c>, amounts only when <c>Amounts</c>.
+/// Issue #243: of the <see cref="CalendarModules"/> in <c>Modules</c>; null is every module, one added later included.
+/// </summary>
+public sealed record CalendarFeedOptions(VisibilityScope Scope, bool Amounts, IReadOnlyList<string>? Modules = null);
 
 public static class CalendarFeedLimits
 {

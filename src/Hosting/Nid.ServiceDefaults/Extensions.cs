@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
@@ -19,6 +20,17 @@ public static class Extensions
 
     /// <summary>Issue #80: the calendar feed route (Nid.Host CalendarEndpoints.FeedPath); its last segment is a secret.</summary>
     public const string CalendarFeedPath = "/api/v1/calendar";
+
+    /// <summary>Issue #240: the calendar page's timeline, the one path under <see cref="CalendarFeedPath"/> that is no feed secret.</summary>
+    public const string CalendarTimelinePath = CalendarFeedPath + "/timeline";
+
+    /// <summary>
+    /// Health checks are not traced, nor the calendar feed: its secret is in url.path (issue #80). The page (#239) and its timeline (#240)
+    /// are; any other path under the feed's, even a mistyped one, may hold a secret.
+    /// </summary>
+    public static bool IsTraced(PathString path)
+        => !path.StartsWithSegments(HealthEndpointPath)
+           && !(path.StartsWithSegments(CalendarFeedPath, out var rest) && rest.HasValue && !path.Equals(CalendarTimelinePath, StringComparison.OrdinalIgnoreCase));
 
     public static TBuilder AddServiceDefaults<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
     {
@@ -65,10 +77,7 @@ public static class Extensions
             {
                 tracing.AddSource(builder.Environment.ApplicationName)
                     .AddAspNetCoreInstrumentation(tracing =>
-                        // Exclude health check requests from tracing, and the calendar feed: its secret is in url.path (issue #80).
-                        tracing.Filter = context =>
-                            !context.Request.Path.StartsWithSegments(HealthEndpointPath)
-                            && !context.Request.Path.StartsWithSegments(CalendarFeedPath)
+                        tracing.Filter = context => IsTraced(context.Request.Path)
                     )
                     // Uncomment the following line to enable gRPC instrumentation (requires the OpenTelemetry.Instrumentation.GrpcNetClient package)
                     //.AddGrpcClientInstrumentation()

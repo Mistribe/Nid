@@ -2,6 +2,7 @@
   <ItemGroup>
     <PackageReference Include="NodaTime" />
     <PackageReference Include="UnambitiousFx.Synapse.Abstractions" />
+    <PackageReference Include="UnambitiousFx.Synapse.Authorization" />
     <ProjectReference Include="..\..\Core\Nid.Core.Contracts\Nid.Core.Contracts.csproj" />
   </ItemGroup>
 </Project>

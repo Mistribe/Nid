@@ -17,7 +17,7 @@ public class ExpectedChargesTests(PostgresFixture fixture) : IClassFixture<Postg
         await using var scope = app.Services.CreateAsyncScope();
         scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.Browser(app.AdultA);
         var result = await scope.ServiceProvider.GetServices<IExpectedCharges>().Single(c => c.GetType().Name == "RealEstateExpectedCharges")
-            .ChargesAsync(app.AdultA, from, to, default);
+            .ChargesAsync(app.AdultA, VisibilityScope.Me, from, to, default);
         return result.TryGetValue(out var charges) ? charges : throw new InvalidOperationException();
     }
 

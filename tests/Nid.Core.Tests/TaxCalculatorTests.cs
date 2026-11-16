@@ -381,7 +381,8 @@ public class TaxCalculatorTests
     [Theory]
     [InlineData(2025, 4_637, 37_094)] // the 2024 PASS, 46 368 (brochure IR 2026)
     [InlineData(2026, 4_710, 37_680)] // the 2025 PASS, 47 100 (impots.gouv.fr, épargne retraite)
-    [InlineData(2027, 4_710, 37_680)] // carried forward
+    [InlineData(2027, 4_806, 38_448)] // the 2026 PASS, 48 060
+    [InlineData(2028, 4_806, 38_448)] // carried forward
     public void The_estimated_ceiling_reads_the_previous_years_pass(int year, int floor, int cap)
     {
         Assert.Equal(floor, TaxCalculator.Compute(Inputs([Other(30_000m)], year: year)).Declarants[0].Per!.Ceiling);
@@ -544,7 +545,7 @@ public class TaxCalculatorTests
 
         Assert.Equal(128m, result.CapitalFlatTax);
         Assert.Equal(186m, result.SocialLevies);
-        Assert.Contains(TaxWarnings.RulesCarriedForward, result.Warnings);
+        Assert.Contains(TaxWarnings.RulesProvisional, result.Warnings);
     }
 
     [Fact]
@@ -776,5 +777,90 @@ public class TaxCalculatorTests
         var result = TaxCalculator.Compute(Inputs([Other((decimal)salaries)]) with { HomeEmployment = 12_000m });
         if (result.Withholding.Cut is not null)
             SafeCut(result);
+    }
+
+    private static TaxInputs WithCapital(decimal salary, decimal capital, decimal dividends, bool scale)
+        => Inputs([new("A", 0m, EmploymentStatus.NonExecutive, 0m, 0m, SalaryTaxable: salary)]) with
+        {
+            CapitalIncome = capital, CapitalDividends = dividends, CapitalScale = scale,
+        };
+
+    [Fact]
+    public void Under_the_flat_tax_capital_income_pays_12_8_percent_and_stays_out_of_the_scale()
+    {
+        // 40 000 entered, 36 000 after the allowance: 1 977.69 + 6 421 × 30 % on the scale.
+        var result = TaxCalculator.Compute(WithCapital(40_000m, 5_000m, 4_000m, scale: false));
+
+        Assert.Equal((36_000m, 3_904m, 640m, 860m), (result.NetTaxableIncome, result.IncomeTax, result.CapitalFlatTax, result.SocialLevies));
+        Assert.Equal((0m, 0m, false), (result.DividendAllowance, result.DeductibleCsgNextYear, result.CapitalScale));
+        Assert.Equal(41_000m, result.ReferenceIncome);
+        // The scale: 39 400 taxable, 4 924 of tax against 3 904 + 640.
+        Assert.Equal(380m, result.CapitalOptionGap);
+    }
+
+    [Fact]
+    public void Under_the_scale_the_dividends_lose_40_percent_and_the_csg_becomes_deductible()
+    {
+        var result = TaxCalculator.Compute(WithCapital(40_000m, 5_000m, 4_000m, scale: true));
+
+        // 36 000 + 1 000 of interest + 4 000 × 60 %.
+        Assert.Equal((39_400m, 4_924m, 0m, 860m), (result.NetTaxableIncome, result.IncomeTax, result.CapitalFlatTax, result.SocialLevies));
+        Assert.Equal((1_600m, 340m, true), (result.DividendAllowance, result.DeductibleCsgNextYear, result.CapitalScale));
+        // The reference income adds the allowance back: the same as under the flat tax.
+        Assert.Equal(41_000m, result.ReferenceIncome);
+        Assert.Equal(-380m, result.CapitalOptionGap);
+        // The capital income is outside the withholding: 4 923.99 × 36 000 / 39 400 over the 40 000 of salaries.
+        Assert.Equal(11.2m, result.Withholding.Rate);
+    }
+
+    [Fact]
+    public void A_low_income_household_saves_the_flat_tax_under_the_scale()
+    {
+        // 10 800 + 3 000 × 60 % = 12 600: 110 of tax, wiped by the decote.
+        var result = TaxCalculator.Compute(WithCapital(12_000m, 3_000m, 3_000m, scale: false));
+
+        Assert.Equal(384m, result.CapitalFlatTax);
+        Assert.Equal(-384m, result.CapitalOptionGap);
+        Assert.Null(TaxCalculator.Compute(Inputs([Other(30_000m)])).CapitalOptionGap);
+    }
+
+    [Fact]
+    public void The_deductible_csg_comes_off_the_global_income()
+    {
+        var result = TaxCalculator.Compute(Inputs([Other(30_000m)]) with { DeductibleCsg = 500m });
+
+        // 30 000 − the 10 % allowance − 500.
+        Assert.Equal(26_500m, result.NetTaxableIncome);
+        Assert.Equal(26_500m, result.ReferenceIncome);
+    }
+
+    [Theory]
+    // Single: 3 % from 250 000; couple: 3 % from 500 000, 4 % beyond 1 000 000 (BOI-IR-CHR § 1 examples).
+    [InlineData(250_000, false, 0)]
+    [InlineData(300_000, false, 1_500)]
+    [InlineData(1_500_000, false, 47_500)]
+    [InlineData(700_000, true, 6_000)]
+    [InlineData(1_500_000, true, 35_000)]
+    public void The_high_income_contribution_follows_the_reference_income(int reference, bool couple, int expected)
+        => Assert.Equal(((decimal)expected, false), TaxCalculator.HighIncome(reference, couple, null));
+
+    [Fact]
+    public void A_first_year_over_the_threshold_is_smoothed_by_the_quotient()
+    {
+        // BOI-IR-CHR § 220: a couple at 3 500 000 after 340 000 and 270 000: base 1 902 500, twice 51 100 instead of 115 000.
+        Assert.Equal((102_200m, true), TaxCalculator.HighIncome(3_500_000m, true, (340_000m, 270_000m)));
+        Assert.Equal((115_000m, false), TaxCalculator.HighIncome(3_500_000m, true, null));
+        // An earlier year over the threshold shuts the quotient.
+        Assert.Equal((115_000m, false), TaxCalculator.HighIncome(3_500_000m, true, (600_000m, 270_000m)));
+    }
+
+    [Fact]
+    public void The_high_income_contribution_is_part_of_the_total()
+    {
+        // 314 555 − the 14 555 allowance cap: a reference income of 300 000.
+        var result = TaxCalculator.Compute(Inputs([Other(314_555m)]));
+
+        Assert.Equal(1_500m, result.HighIncomeContribution);
+        Assert.Equal(result.IncomeTax + result.SocialLevies + result.CapitalFlatTax + 1_500m, result.TotalTax);
     }
 }

@@ -46,9 +46,9 @@ public sealed class RequestPriceSyncHandler(IPriceRunLog runs, IHouseholdSetting
     public async ValueTask<Result<PriceSyncRequested>> HandleAsync(RequestPriceSyncCommand command, CancellationToken ct = default)
     {
         if (await runs.IsRunningAsync(ct))
-            return Result.Failure<PriceSyncRequested>(new Failure(PriceCodes.SyncRunning, "A price collection is already running.", null));
+            return Result.Failure<PriceSyncRequested>(new ConflictFailure("A price collection is already running.") { Code = PriceCodes.SyncRunning });
         if (!(await settings.ReadAsync(ct)).PricesEnabled)
-            return Result.Failure<PriceSyncRequested>(new Failure(PriceCodes.Disabled, "Price collection is turned off for this household.", null));
+            return Result.Failure<PriceSyncRequested>(new ConflictFailure("Price collection is turned off for this household.") { Code = PriceCodes.Disabled });
 
         var triggered = await trigger.TriggerAsync(ct);
         return triggered.TryGetFailure(out var failure)

@@ -169,6 +169,56 @@ public class UpcomingTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
         Assert.Equal("99.00", only.GetProperty("amount").GetProperty("amount").GetString());
     }
 
+    private static async Task PhaseAsync(NidApp app, ItemId id, string startsOn, string? endsOn, string price, string unit, PersonId? owner = null)
+        => (await app.RawAsync(owner ?? app.AdultA, HttpMethod.Post, $"/api/v1/subscriptions/{id.Value}/phases", new
+        {
+            startsOn, endsOn,
+            price = new { amount = price, currency = "EUR" },
+            every = new { count = 1, unit },
+            payer = new { type = "household" },
+        })).EnsureSuccessStatusCode();
+
+    [Fact]
+    public async Task A_free_month_then_a_monthly_price_ends_a_trial()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await SubscriptionAsync(app, "Essai", "2025-10-20", 1, "month", "0.00", endsOn: "2025-11-20");
+        await PhaseAsync(app, id, "2025-11-20", null, "10.00", "month");
+
+        var only = Assert.Single(Upcoming(await DashboardAsync(app, app.AdultA)));
+
+        Assert.Equal("subscription_trial_end", only.GetProperty("kind").GetString());
+        Assert.Equal("2025-11-20", only.GetProperty("on").GetString());
+        Assert.Equal("10.00", only.GetProperty("amount").GetProperty("amount").GetString());
+    }
+
+    [Fact]
+    public async Task A_trial_before_a_yearly_phase_ends_the_trial_and_does_not_renew()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await SubscriptionAsync(app, "Essai annuel", "2025-10-20", 1, "month", "0.00", endsOn: "2025-11-20");
+        await PhaseAsync(app, id, "2025-11-20", null, "99.00", "year");
+
+        var only = Assert.Single(Upcoming(await DashboardAsync(app, app.AdultA)));
+
+        Assert.Equal("subscription_trial_end", only.GetProperty("kind").GetString());
+        Assert.Equal("2025-11-20", only.GetProperty("on").GetString());
+    }
+
+    [Fact]
+    public async Task A_launch_price_ending_is_a_price_increase()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await SubscriptionAsync(app, "Lancement", "2025-05-20", 1, "month", "5.00", endsOn: "2025-11-20");
+        await PhaseAsync(app, id, "2025-11-20", null, "12.00", "month");
+
+        var only = Assert.Single(Upcoming(await DashboardAsync(app, app.AdultA)));
+
+        Assert.Equal("subscription_price_increase", only.GetProperty("kind").GetString());
+        Assert.Equal("2025-11-20", only.GetProperty("on").GetString());
+        Assert.Equal("12.00", only.GetProperty("amount").GetProperty("amount").GetString());
+    }
+
     [Fact]
     public async Task Only_cycles_longer_than_a_month_renew()
     {

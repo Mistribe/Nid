@@ -1,4 +1,4 @@
-import { ArrowLeftRight, Baby, Bell, Building, Building2, Calculator, CalendarCheck, ChartCandlestick, FileText, FlaskConical, Download, House, HousePlus, Inbox, KeyRound, Landmark, LayoutGrid, Library, Mail, PiggyBank, Repeat, Server, ShieldCheck, Settings, Sunset, Target, Timer, TrendingUp, Upload, Users, Wallet } from 'lucide-react';
+import { ArrowLeftRight, Baby, Bell, Building, Building2, Calculator, CalendarCheck, CalendarDays, ChartCandlestick, FileText, FlaskConical, Download, House, HousePlus, Inbox, KeyRound, Landmark, LayoutGrid, Library, Mail, PiggyBank, Repeat, Server, ShieldCheck, Settings, Sunset, Target, Timer, TrendingUp, Upload, Users, Wallet } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { components } from '@/api/schema';
 import type { Tile } from '@/components/ModuleTile';
@@ -11,6 +11,7 @@ export const TAB_ORDER: NavItem['to'][] = ['/dashboard', '/investments', '/subsc
 /** screens.md §1: one list for the sidebar, the bottom tabs and the « Plus » page. */
 export const NAV = [
   { group: 'follow', module: 'core', admin: false, mobile: 'tab', to: '/dashboard', icon: House, tile: 'primary', label: 'nav.dashboard' },
+  { group: 'follow', module: 'core', admin: false, mobile: 'more', to: '/calendar', icon: CalendarDays, tile: 'primary', label: 'nav.calendar' },
   { group: 'follow', module: ['investments', 'realestate'], admin: false, mobile: 'tab', to: '/routine', icon: CalendarCheck, tile: 'primary', label: 'nav.routine' },
   { group: 'follow', module: 'core', admin: false, mobile: 'more', to: '/proposals', icon: Inbox, tile: 'primary', label: 'nav.proposals' },
   { group: 'follow', module: 'documents', admin: false, mobile: 'more', to: '/documents', icon: FileText, tile: 'neutral', label: 'nav.documents' },

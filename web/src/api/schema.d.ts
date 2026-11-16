@@ -514,6 +514,194 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/calendar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query: {
+                    scope?: string;
+                    from: string;
+                    to: string;
+                    modules?: string;
+                    amounts?: boolean;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CalendarView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/calendar/timeline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query: {
+                    scope?: string;
+                    horizon: number;
+                    modules?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CalendarView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/core/persons": {
         parameters: {
             query?: never;
@@ -30186,14 +30374,52 @@ export interface components {
             /** Format: double */
             pct?: null | number;
         };
+        CalendarAmountsView: {
+            currency: string;
+            out: components["schemas"]["DashboardFigure"];
+            in: components["schemas"]["DashboardFigure"];
+            balance: components["schemas"]["DashboardFigure"];
+            days: components["schemas"]["CalendarDayView"][];
+            charges: components["schemas"]["CalendarChargeView"][];
+        };
+        CalendarChargeView: {
+            /** Format: date */
+            on: string;
+            module: string;
+            /** Format: uuid */
+            id: string;
+            name: string;
+            kind: string;
+            amount: components["schemas"]["DashboardMoneyView"];
+            converted?: null | components["schemas"]["DashboardMoneyView"];
+            missingCurrency?: null | string;
+            credit: boolean;
+        };
+        CalendarDayView: {
+            /** Format: date */
+            on: string;
+            out?: null | components["schemas"]["DashboardFigure"];
+            in?: null | components["schemas"]["DashboardFigure"];
+            heavy: boolean;
+        };
         CalendarFeedBody: {
             scope?: null | string;
             amounts: boolean;
+            modules?: null | string[];
         };
         CalendarFeedView: {
             token: components["schemas"]["TokenView"];
             scope: string;
             amounts: boolean;
+            modules: string[];
+        };
+        CalendarView: {
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            to: string;
+            events: components["schemas"]["DashboardEventView"][];
+            amounts?: null | components["schemas"]["CalendarAmountsView"];
         };
         CancellationView: {
             status: string;
@@ -35946,6 +36172,12 @@ export interface components {
             donationsAidLate: string;
             /** @default 0.00 */
             rentalEnergyWorks: string;
+            /** @default 0.00 */
+            capitalDividends: string;
+            /** @default false */
+            capitalScale: boolean;
+            /** @default 0.00 */
+            deductibleCsg: string;
         };
         TaxMilestoneView: {
             code: string;
@@ -36007,6 +36239,9 @@ export interface components {
             donationsAidLate?: null | string;
             rentalEnergyWorks?: null | string;
             department?: null | string;
+            /** @default false */
+            capitalScale: boolean;
+            deductibleCsg?: null | string;
         };
         TaxProfileView: {
             statuses: {
@@ -36045,6 +36280,10 @@ export interface components {
             donationsAidLate: string;
             rentalEnergyWorks: string;
             department?: null | string;
+            /** @default false */
+            capitalScale: boolean;
+            /** @default 0.00 */
+            deductibleCsg: string;
         };
         TaxPropertyView: {
             /** Format: uuid */
@@ -36090,6 +36329,17 @@ export interface components {
             rentalRegimeGap?: null | string;
             /** @default 0.00 */
             rentalDeficitCarriedForward: string;
+            /** @default false */
+            capitalScale: boolean;
+            capitalOptionGap?: null | string;
+            /** @default 0.00 */
+            dividendAllowance: string;
+            /** @default 0.00 */
+            deductibleCsgNextYear: string;
+            /** @default 0.00 */
+            highIncomeContribution: string;
+            /** @default false */
+            highIncomeSmoothed: boolean;
         };
         TaxReviewView: {
             totalTax?: null | components["schemas"]["DashboardMoneyView"];

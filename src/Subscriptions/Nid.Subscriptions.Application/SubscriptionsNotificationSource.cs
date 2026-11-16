@@ -21,6 +21,8 @@ public sealed class SubscriptionsNotificationSource(SubscriptionsUpcoming upcomi
         new(UpcomingKinds.SubscriptionRenewal, "due_date", NotificationLevel.Action, "subscriptions", 7),
         new(UpcomingKinds.SubscriptionExpiry, "due_date", NotificationLevel.Action, "subscriptions", 14),
         new(UpcomingKinds.SubscriptionCancelDeadline, "due_date", NotificationLevel.Action, "subscriptions", 30),
+        new(UpcomingKinds.SubscriptionTrialEnd, "due_date", NotificationLevel.Action, "subscriptions", 7),
+        new(UpcomingKinds.SubscriptionPriceIncrease, "due_date", NotificationLevel.Action, "subscriptions", 7),
         new(OverviewCodes.EndsWithoutRenewal, "finding", NotificationLevel.Info, "subscriptions", null),
     ];
 
@@ -31,7 +33,8 @@ public sealed class SubscriptionsNotificationSource(SubscriptionsUpcoming upcomi
         var events = await upcoming.UpcomingAsync(reader, VisibilityScope.Me, today, horizon, ct);
         if (!events.TryGetValue(out var list))
             return Result.Failure<IReadOnlyList<Signal>>(events.TryGetFailure(out var failure) ? failure! : new Failure("subscriptions.unknown", "The upcoming events could not be read.", null));
-        foreach (var e in list!.Where(e => e.Kind is UpcomingKinds.SubscriptionRenewal or UpcomingKinds.SubscriptionExpiry or UpcomingKinds.SubscriptionCancelDeadline))
+        foreach (var e in list!.Where(e => e.Kind is UpcomingKinds.SubscriptionRenewal or UpcomingKinds.SubscriptionExpiry or UpcomingKinds.SubscriptionCancelDeadline
+                     or UpcomingKinds.SubscriptionTrialEnd or UpcomingKinds.SubscriptionPriceIncrease))
             signals.Add(new Signal(SignalKeys.Dated(e.Kind, e.Item, e.On), e.Kind, [e.Item], e.On, NoParams));
 
         foreach (var watch in (await overview.ReadAsync(reader, VisibilityScope.Me, today, ct)).Watch

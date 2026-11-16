@@ -10,7 +10,7 @@ public sealed class ExpectedChargeReader(IEnumerable<IExpectedCharges> sources, 
     {
         var charges = new List<ExpectedCharge>();
         foreach (var source in sources)
-            if ((await source.ChargesAsync(person, from, to, ct)).TryGetValue(out var found))
+            if ((await source.ChargesAsync(person, VisibilityScope.Me, from, to, ct)).TryGetValue(out var found))
                 charges.AddRange(found);
         return charges;
     }

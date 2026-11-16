@@ -1,5 +1,5 @@
 // The timeline's months (issue #65), as `yyyy-mm` strings: they sort as text, so min / max are string comparisons.
-import { daysIn, shiftMonth } from './monthGrid';
+import { daysIn, shiftMonth } from '@/features/calendar/monthGrid';
 
 /** The band ends this many months after the current one. */
 export const AHEAD = 12;

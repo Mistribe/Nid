@@ -434,6 +434,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IImportSection, Nid.Banking.Application.Import.BankImportSection>();
 
         services.AddLogging();
+        services.AddNidAuthorization();
         services.AddSynapse(cfg =>
         {
             cfg.AddRegisterGroup(new RegisterGroup());                    // this assembly: carries the global behaviors
@@ -447,6 +448,7 @@ public static class NidServiceCollectionExtensions
             cfg.AddRegisterGroup(new Nid.Documents.Application.RegisterGroup());
             cfg.AddRegisterGroup(new Nid.RealEstate.Application.RegisterGroup());
             cfg.AddRegisterGroup(new Nid.Banking.Application.RegisterGroup());
+            cfg.AddTransactions<UnitOfWorkTransactions>();                 // an ITransactional command runs in the request's unit of work
         });
         return services;
     }

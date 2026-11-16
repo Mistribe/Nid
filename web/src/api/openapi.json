@@ -432,6 +432,228 @@
         }
       }
     },
+    "/api/v1/calendar": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "scope",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "modules",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "amounts",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/calendar/timeline": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "scope",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "horizon",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "modules",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/core/persons": {
       "get": {
         "tags": [
@@ -32969,6 +33191,132 @@
           }
         }
       },
+      "CalendarAmountsView": {
+        "required": [
+          "currency",
+          "out",
+          "in",
+          "balance",
+          "days",
+          "charges"
+        ],
+        "type": "object",
+        "properties": {
+          "currency": {
+            "type": "string"
+          },
+          "out": {
+            "$ref": "#/components/schemas/DashboardFigure"
+          },
+          "in": {
+            "$ref": "#/components/schemas/DashboardFigure"
+          },
+          "balance": {
+            "$ref": "#/components/schemas/DashboardFigure"
+          },
+          "days": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CalendarDayView"
+            }
+          },
+          "charges": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CalendarChargeView"
+            }
+          }
+        }
+      },
+      "CalendarChargeView": {
+        "required": [
+          "on",
+          "module",
+          "id",
+          "name",
+          "kind",
+          "amount",
+          "credit"
+        ],
+        "type": "object",
+        "properties": {
+          "on": {
+            "type": "string",
+            "format": "date"
+          },
+          "module": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "amount": {
+            "$ref": "#/components/schemas/DashboardMoneyView"
+          },
+          "converted": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "missingCurrency": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "credit": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CalendarDayView": {
+        "required": [
+          "on",
+          "heavy"
+        ],
+        "type": "object",
+        "properties": {
+          "on": {
+            "type": "string",
+            "format": "date"
+          },
+          "out": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardFigure"
+              }
+            ]
+          },
+          "in": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardFigure"
+              }
+            ]
+          },
+          "heavy": {
+            "type": "boolean"
+          }
+        }
+      },
       "CalendarFeedBody": {
         "required": [
           "amounts"
@@ -32983,6 +33331,15 @@
           },
           "amounts": {
             "type": "boolean"
+          },
+          "modules": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
           }
         }
       },
@@ -32990,7 +33347,8 @@
         "required": [
           "token",
           "scope",
-          "amounts"
+          "amounts",
+          "modules"
         ],
         "type": "object",
         "properties": {
@@ -33002,6 +33360,46 @@
           },
           "amounts": {
             "type": "boolean"
+          },
+          "modules": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "CalendarView": {
+        "required": [
+          "from",
+          "to",
+          "events"
+        ],
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DashboardEventView"
+            }
+          },
+          "amounts": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/CalendarAmountsView"
+              }
+            ]
           }
         }
       },
@@ -58380,7 +58778,10 @@
           "donationsAid",
           "rentalDeficitCarried",
           "donationsAidLate",
-          "rentalEnergyWorks"
+          "rentalEnergyWorks",
+          "capitalDividends",
+          "capitalScale",
+          "deductibleCsg"
         ],
         "type": "object",
         "properties": {
@@ -58450,6 +58851,18 @@
             "default": "0.00"
           },
           "rentalEnergyWorks": {
+            "type": "string",
+            "default": "0.00"
+          },
+          "capitalDividends": {
+            "type": "string",
+            "default": "0.00"
+          },
+          "capitalScale": {
+            "type": "boolean",
+            "default": false
+          },
+          "deductibleCsg": {
             "type": "string",
             "default": "0.00"
           }
@@ -58535,6 +58948,7 @@
       "TaxProfileBody": {
         "required": [
           "childrenUnder6",
+          "capitalScale",
           "perPooling"
         ],
         "type": "object",
@@ -58679,6 +59093,16 @@
               "null",
               "string"
             ]
+          },
+          "capitalScale": {
+            "type": "boolean",
+            "default": false
+          },
+          "deductibleCsg": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -58686,6 +59110,7 @@
         "required": [
           "statuses",
           "childrenUnder6",
+          "deductibleCsg",
           "pinel",
           "childcareOutsideHome",
           "homeEmployment",
@@ -58700,7 +59125,8 @@
           "perPooling",
           "exemptIncomes",
           "donationsAidLate",
-          "rentalEnergyWorks"
+          "rentalEnergyWorks",
+          "capitalScale"
         ],
         "type": "object",
         "properties": {
@@ -58798,6 +59224,14 @@
               "null",
               "string"
             ]
+          },
+          "capitalScale": {
+            "type": "boolean",
+            "default": false
+          },
+          "deductibleCsg": {
+            "type": "string",
+            "default": "0.00"
           }
         }
       },
@@ -58852,7 +59286,12 @@
           "netAfterTaxMonthly",
           "warnings",
           "withholding",
-          "rentalDeficitCarriedForward"
+          "rentalDeficitCarriedForward",
+          "capitalScale",
+          "dividendAllowance",
+          "deductibleCsgNextYear",
+          "highIncomeContribution",
+          "highIncomeSmoothed"
         ],
         "type": "object",
         "properties": {
@@ -58974,6 +59413,32 @@
           "rentalDeficitCarriedForward": {
             "type": "string",
             "default": "0.00"
+          },
+          "capitalScale": {
+            "type": "boolean",
+            "default": false
+          },
+          "capitalOptionGap": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "dividendAllowance": {
+            "type": "string",
+            "default": "0.00"
+          },
+          "deductibleCsgNextYear": {
+            "type": "string",
+            "default": "0.00"
+          },
+          "highIncomeContribution": {
+            "type": "string",
+            "default": "0.00"
+          },
+          "highIncomeSmoothed": {
+            "type": "boolean",
+            "default": false
           }
         }
       },

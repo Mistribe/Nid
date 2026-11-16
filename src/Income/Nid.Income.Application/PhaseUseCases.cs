@@ -11,18 +11,18 @@ using Duration = Nid.Core.Contracts.Duration;
 
 namespace Nid.Income.Application;
 
-public sealed record AddIncomePhaseCommand(ItemId ItemId, PhaseDraft Phase) : ICommand<Guid>, IItemScoped
+public sealed record AddIncomePhaseCommand(ItemId ItemId, PhaseDraft Phase) : ICommand<Guid>, IItemScoped, ITransactional
 {
     public AccessKind Access => AccessKind.Write;
 }
 
 /// <summary>A correction of a phase in place; <paramref name="Version"/> is the one the client read (spec §4).</summary>
-public sealed record EditIncomePhaseCommand(ItemId ItemId, Guid Phase, PhaseDraft Values, uint Version) : ICommand<Guid>, IItemScoped
+public sealed record EditIncomePhaseCommand(ItemId ItemId, Guid Phase, PhaseDraft Values, uint Version) : ICommand<Guid>, IItemScoped, ITransactional
 {
     public AccessKind Access => AccessKind.Write;
 }
 
-public sealed record DeleteIncomePhaseCommand(ItemId ItemId, Guid Phase, uint Version) : ICommand<bool>, IItemScoped
+public sealed record DeleteIncomePhaseCommand(ItemId ItemId, Guid Phase, uint Version) : ICommand<bool>, IItemScoped, ITransactional
 {
     public AccessKind Access => AccessKind.Write;
 }
@@ -30,7 +30,7 @@ public sealed record DeleteIncomePhaseCommand(ItemId ItemId, Guid Phase, uint Ve
 /// <summary>A change of phase (a raise): the phase of that label running on <paramref name="EffectiveOn"/> ends there, the next starts there.</summary>
 public sealed record ChangeIncomePhaseCommand(
     ItemId ItemId, string Label, LocalDate EffectiveOn, Money NetAmount, Duration? Every, Money? GrossAmount, string? Note, Money? TaxableAmount = null)
-    : ICommand<Guid>, IItemScoped
+    : ICommand<Guid>, IItemScoped, ITransactional
 {
     public AccessKind Access => AccessKind.Write;
 }
@@ -69,7 +69,7 @@ internal static class OpenSource
 }
 
 [RequestHandler<AddIncomePhaseCommand, Guid>]
-public sealed class AddIncomePhaseHandler(IItemRegistry items, ISourceStore sources, IPhaseStore phases, IUnitOfWork unitOfWork)
+public sealed class AddIncomePhaseHandler(IItemRegistry items, ISourceStore sources, IPhaseStore phases)
     : IRequestHandler<AddIncomePhaseCommand, Guid>
 {
     public async ValueTask<Result<Guid>> HandleAsync(AddIncomePhaseCommand command, CancellationToken ct = default)
@@ -82,16 +82,14 @@ public sealed class AddIncomePhaseHandler(IItemRegistry items, ISourceStore sour
         if (OpenSource.Check(d, source.Currency, source.Phases).TryGetFailure(out failure))
             return Result.Failure<Guid>(failure!);
 
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         var added = await phases.AddAsync(new IncomePhase(Guid.CreateVersion7(), command.ItemId, d.Label.Trim(), d.StartsOn, d.EndsOn,
             d.NetAmount, d.Every, d.GrossAmount, d.MaxCycles, d.Note, TaxableAmount: d.TaxableAmount), null, ct);
-        await transaction.CommitAsync(ct);
         return Result.Success(added.Id);
     }
 }
 
 [RequestHandler<EditIncomePhaseCommand, Guid>]
-public sealed class EditIncomePhaseHandler(IItemRegistry items, ISourceStore sources, IPhaseStore phases, IUnitOfWork unitOfWork)
+public sealed class EditIncomePhaseHandler(IItemRegistry items, ISourceStore sources, IPhaseStore phases)
     : IRequestHandler<EditIncomePhaseCommand, Guid>
 {
     public async ValueTask<Result<Guid>> HandleAsync(EditIncomePhaseCommand command, CancellationToken ct = default)
@@ -106,7 +104,6 @@ public sealed class EditIncomePhaseHandler(IItemRegistry items, ISourceStore sou
         if (OpenSource.Check(d, source.Currency, source.Phases.Where(p => p.Id != command.Phase)).TryGetFailure(out failure))
             return Result.Failure<Guid>(failure!);
 
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         try
         {
             // The client's version, not the one just read: a change made since the client read it is a conflict.
@@ -115,16 +112,15 @@ public sealed class EditIncomePhaseHandler(IItemRegistry items, ISourceStore sou
         }
         catch (PhaseConflictException)
         {
-            return Result.Failure<Guid>(OpenSource.Conflict()); // disposed without commit
+            return Result.Failure<Guid>(OpenSource.Conflict()); // a failure rolls the transaction back
         }
-        await transaction.CommitAsync(ct);
         return Result.Success(command.Phase);
     }
 }
 
 [RequestHandler<DeleteIncomePhaseCommand, bool>]
 public sealed class DeleteIncomePhaseHandler(
-    IItemRegistry items, ISourceStore sources, IPhaseStore phases, IDocumentLinks documents, IUnitOfWork unitOfWork)
+    IItemRegistry items, ISourceStore sources, IPhaseStore phases, IDocumentLinks documents)
     : IRequestHandler<DeleteIncomePhaseCommand, bool>
 {
     public async ValueTask<Result<bool>> HandleAsync(DeleteIncomePhaseCommand command, CancellationToken ct = default)
@@ -136,7 +132,6 @@ public sealed class DeleteIncomePhaseHandler(
         if (!source.Phases.Any(p => p.Id == command.Phase))
             return Result.Failure<bool>(OpenSource.Missing(command.Phase));
 
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         try
         {
             await phases.DeleteAsync(command.ItemId, command.Phase, command.Version, ct);
@@ -146,13 +141,12 @@ public sealed class DeleteIncomePhaseHandler(
             return Result.Failure<bool>(OpenSource.Conflict());
         }
         await documents.UnlinkTargetAsync(new DocumentTarget(IncomeDocumentTargets.PhaseKind, command.Phase), ct);
-        await transaction.CommitAsync(ct);
         return Result.Success(true);
     }
 }
 
 [RequestHandler<ChangeIncomePhaseCommand, Guid>]
-public sealed class ChangeIncomePhaseHandler(IItemRegistry items, ISourceStore sources, IPhaseStore phases, IUnitOfWork unitOfWork)
+public sealed class ChangeIncomePhaseHandler(IItemRegistry items, ISourceStore sources, IPhaseStore phases)
     : IRequestHandler<ChangeIncomePhaseCommand, Guid>
 {
     public async ValueTask<Result<Guid>> HandleAsync(ChangeIncomePhaseCommand command, CancellationToken ct = default)
@@ -185,7 +179,6 @@ public sealed class ChangeIncomePhaseHandler(IItemRegistry items, ISourceStore s
             || PhaseRules.NoOverlap(next.Label, next.StartsOn, next.EndsOn, next.Every, next.MaxCycles, source.Phases.Where(p => p.Id != current.Id)).TryGetFailure(out failure))
             return Result.Failure<Guid>(failure!);
 
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         try
         {
             await phases.UpdateAsync(current with { EndsOn = command.EffectiveOn }, ct); // its version as read
@@ -195,7 +188,6 @@ public sealed class ChangeIncomePhaseHandler(IItemRegistry items, ISourceStore s
             return Result.Failure<Guid>(OpenSource.Conflict());
         }
         await phases.AddAsync(next, null, ct);
-        await transaction.CommitAsync(ct);
         return Result.Success(next.Id);
     }
 

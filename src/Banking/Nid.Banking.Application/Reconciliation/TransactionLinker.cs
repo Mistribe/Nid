@@ -47,7 +47,7 @@ public sealed class TransactionLinker(
             return BankingAccess.Fail<BankTransaction>(BankingCodes.LinkTarget, "This item is not of that module.");
         return line.LinkState == TransactionLinkState.Unlinked
             ? Result.Success(line)
-            : BankingAccess.Fail<BankTransaction>(BankingCodes.TransactionLinked, "This line is already linked or ignored.");
+            : Result.Failure<BankTransaction>(new ConflictFailure("This line is already linked or ignored.") { Code = BankingCodes.TransactionLinked });
     }
 
     /// <summary>

@@ -141,7 +141,7 @@ public sealed class TaxEstimates(
         if (read.TryGetFailure(out var failure)) return Result.Failure<TaxEstimateView>(failure!);
         read.TryGetValue(out var r);
         var (lines, stored, people, previous) = (r!.Lines, r.Stored, r.People, r.PreviousYearIncome);
-        var (inputs, notices, _) = Assemble(year, lines, r.Effective, people, previous);
+        var (inputs, notices, _) = Assemble(year, lines, r.Effective, people, previous, r.ReferenceBefore);
         var adults = Adults(people);
         var result = TaxCalculator.Compute(inputs);
         // The deficit last year's estimate leaves, offered only where no notice of last year prints its own and a property is rented.
@@ -194,7 +194,7 @@ public sealed class TaxEstimates(
         var read = await ReadAsync(year, scope, today, ct);
         if (read.TryGetFailure(out var failure)) return Result.Failure<TaxInputs>(failure!);
         read.TryGetValue(out var r);
-        return Result.Success(Assemble(year, r!.Lines, r.Effective, r.People, r.PreviousYearIncome).Inputs);
+        return Result.Success(Assemble(year, r!.Lines, r.Effective, r.People, r.PreviousYearIncome, r.ReferenceBefore).Inputs);
     }
 
     /// <summary>
@@ -215,7 +215,7 @@ public sealed class TaxEstimates(
         var read = await ReadAsync(year, scope, today, ct);
         if (read.TryGetFailure(out var failure)) return Result.Failure<TaxComputation>(failure!);
         read.TryGetValue(out var r);
-        var (inputs, _, _) = Assemble(year, r!.Lines, r.Effective, r.People, r.PreviousYearIncome);
+        var (inputs, _, _) = Assemble(year, r!.Lines, r.Effective, r.People, r.PreviousYearIncome, r.ReferenceBefore);
         return Result.Success(computed[key] = new TaxComputation(TaxCalculator.Compute(inputs), r.Lines.Count > 0 || r.Stored?.Year == year));
     }
 
@@ -262,7 +262,7 @@ public sealed class TaxEstimates(
     /// </summary>
     private sealed record Read(
         IReadOnlyList<TaxLine> Lines, StoredTaxProfile? Stored, IReadOnlyList<PersonInfo> People, IReadOnlyDictionary<Guid, decimal> PreviousYearIncome,
-        TaxProfile Effective, TaxCarryOver? Carry, IReadOnlyList<StoredTaxAssessment> YearNotices);
+        TaxProfile Effective, TaxCarryOver? Carry, IReadOnlyList<StoredTaxAssessment> YearNotices, (decimal N1, decimal N2)? ReferenceBefore);
 
     /// <summary>
     /// Every module's lines for the year, the year's profile (with the notices of the year before laid over it) and the household, then
@@ -284,8 +284,14 @@ public sealed class TaxEstimates(
         var people = await persons.ListAsync(ct);
         var adults = Adults(people);
         // Tax assessments spec §5: the notices the reader declares, in the scope as the notices' list gives them (Foyer: both adults declare, or the only active adult).
-        var notices = (await assessments.ListForAsync(reader, null, ct)).Where(n => n.Assessment.Year == year - 1 || n.Assessment.Year == year)
+        var read = (await assessments.ListForAsync(reader, null, ct)).Where(n => n.Assessment.Year >= year - 2 && n.Assessment.Year <= year)
             .Where(n => scope != VisibilityScope.Household || TaxAssessmentAccess.InHousehold(n.Assessment, people)).ToList();
+        var notices = read.Where(n => n.Assessment.Year >= year - 1).ToList();
+        // #234: the reference incomes of the two years before, for the high-income contribution's smoothing; two separate notices of a
+        // year add up. Without a figure for both years, none.
+        decimal? Reference(int y) => read.Where(n => n.Assessment.Year == y).Select(n => n.Assessment.ReferenceIncome).Where(v => v is not null)
+            .Aggregate((decimal?)null, (sum, v) => (sum ?? 0m) + v);
+        (decimal, decimal)? referenceBefore = Reference(year - 1) is { } n1 && Reference(year - 2) is { } n2 ? (n1, n2) : null;
         var carry = TaxCarryOver.From(year, notices.Where(n => n.Assessment.Year == year - 1).Select(n => n.Assessment), adults.Select(a => a.Id.Value).ToList());
         var effective = carry?.Apply(stored?.Profile ?? TaxProfile.Empty) ?? stored?.Profile ?? TaxProfile.Empty;
         IReadOnlyDictionary<Guid, decimal> previous = new Dictionary<Guid, decimal>();
@@ -298,7 +304,7 @@ public sealed class TaxEstimates(
             income.TryGetValue(out var value);
             previous = value!;
         }
-        return Result.Success(new Read(lines, stored, people, previous, effective, carry, notices.Where(n => n.Assessment.Year == year).ToList()));
+        return Result.Success(new Read(lines, stored, people, previous, effective, carry, notices.Where(n => n.Assessment.Year == year).ToList(), referenceBefore));
     }
 
     /// <summary>
@@ -333,7 +339,7 @@ public sealed class TaxEstimates(
     /// <summary>Rental 2044 spec §4: the estimate's rental figures are the form's columns, also returned for the form.</summary>
     public static (TaxInputs Inputs, IReadOnlyList<TaxNoticeView> Notices, IReadOnlyList<Rental2044Column> Columns) Assemble(
         int year, IReadOnlyList<TaxLine> lines, TaxProfile profile, IReadOnlyList<PersonInfo> people,
-        IReadOnlyDictionary<Guid, decimal>? previousYearIncome = null)
+        IReadOnlyDictionary<Guid, decimal>? previousYearIncome = null, (decimal N1, decimal N2)? referenceBefore = null)
     {
         var notices = new List<TaxNoticeView>();
         void Notice(string code, TaxLine line) => notices.Add(new TaxNoticeView(code, line.Item, line.Name, Amount(line.Amount)));
@@ -426,7 +432,8 @@ public sealed class TaxEstimates(
             TryRegime(profile.RentalRegime, out var regime) ? regime : null,
             All(TaxLineCodes.CapitalIncome), All(TaxLineCodes.NonTaxable), pinel,
             statements.Count + projected.Count > 0 ? statements.Sum(l => l.Amount) + projected.Sum(l => l.Amount) : profile.ChildcareOutsideHome, profile.HomeEmployment, profile.Donations, profile.DonationsAid, profile.RentalDeficitCarried, profile.PerPooling,
-            profile.DonationsAidLate, profile.RentalEnergyWorks);
+            profile.DonationsAidLate, profile.RentalEnergyWorks,
+            All(TaxLineCodes.CapitalDividends), profile.CapitalScale, profile.DeductibleCsg, referenceBefore);
         return (inputs, notices, columns);
     }
 
@@ -452,7 +459,7 @@ public sealed class TaxEstimates(
                  && p.Pinel.All(c => c.InitialYears is 6 or 9 && c.TotalYears is 6 or 9 or 12 && c.TotalYears >= c.InitialYears
                                      && c.StartYear is null or (>= 2014 and <= 2040))
                  && p.Pinel.Select(c => c.Property).Distinct().Count() == p.Pinel.Count
-                 && new[] { p.ChildcareOutsideHome, p.HomeEmployment, p.Donations, p.DonationsAid, p.RentalDeficitCarried, p.DonationsAidLate, p.RentalEnergyWorks }.All(a => a is >= 0 and <= 10_000_000m)
+                 && new[] { p.ChildcareOutsideHome, p.HomeEmployment, p.Donations, p.DonationsAid, p.RentalDeficitCarried, p.DonationsAidLate, p.RentalEnergyWorks, p.DeductibleCsg }.All(a => a is >= 0 and <= 10_000_000m)
                  && (p.ContributionRates?.Values.All(RateOk) ?? true) && (p.ActualExpenses?.Values.All(a => a is >= 0 and <= 10_000_000m) ?? true)
                  && (p.PerUnusedCeilings?.Values.All(a => a is >= 0 and <= 10_000_000m) ?? true)
                  && (p.ExemptIncomes?.Values.All(a => a is >= 0 and <= 10_000_000m) ?? true)

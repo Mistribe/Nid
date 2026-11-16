@@ -92,7 +92,7 @@ public class McpTaxAssessmentToolTests(PostgresFixture fixture) : IClassFixture<
         var (error, text) = await CallAsync(propose, "propose_add_tax_year", new { body = Notice(app, 2026) });
 
         Assert.True(error);
-        Assert.Contains("payload.body.year:", text);
+        Assert.Contains("- payload.body.year (", text);
         Assert.Equal(0, (await PendingAsync(app, app.AdultA)).GetArrayLength());
     }
 
@@ -195,7 +195,7 @@ public class McpTaxAssessmentToolTests(PostgresFixture fixture) : IClassFixture<
         } });
         var delete = await CallAsync(propose, "propose_delete_tax_year", new { id });
 
-        Assert.All(new[] { correct, delete }, r => { Assert.True(r.Error); Assert.Contains("Not found", r.Text); });
+        Assert.All(new[] { correct, delete }, r => { Assert.True(r.Error); Assert.StartsWith("NOT_FOUND: ", r.Text); });
         Assert.Equal(0, (await PendingAsync(app, app.AdultA)).GetArrayLength());
     }
 }

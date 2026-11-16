@@ -55,6 +55,8 @@ describe('dashboard lists', () => {
     expect(items[2]).toHaveTextContent('Dernier jour pour résilier');
     expect(items[3]).toHaveTextContent('Fin de « CDD »');
     expect(within(items[3] as HTMLElement).getByRole('link', { name: /Employeur/ })).toHaveAttribute('href', '/income/00000000-0000-7000-8000-0000000000b1');
+    // Issue #239: the month by month view of the same events.
+    expect(within(await section('À venir')).getByRole('link', { name: 'Voir le calendrier' })).toHaveAttribute('href', '/calendar');
     await expectNoAxeViolations(container);
   });
 

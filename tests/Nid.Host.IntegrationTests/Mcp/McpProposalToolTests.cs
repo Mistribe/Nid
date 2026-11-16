@@ -79,7 +79,9 @@ public class McpProposalToolTests(PostgresFixture fixture) : IClassFixture<Postg
             JsonDocument.Parse(await app.GetRawAsync(app.AdultA, $"{Proposals}?status=rejected")).RootElement.ToString(),
             (await ReadAsync(client, "list_proposals", new { status = "rejected" })).ToString());
 
-        Assert.Equal((true, "Refused: request.invalid."), await CallAsync(client, "list_proposals", new { status = "maybe" }));
+        var (refused, text) = await CallAsync(client, "list_proposals", new { status = "maybe" });
+        Assert.True(refused);
+        Assert.StartsWith("request.invalid: ", text);
     }
 
     [Fact]
@@ -124,9 +126,9 @@ public class McpProposalToolTests(PostgresFixture fixture) : IClassFixture<Postg
         Assert.False(created, property);
         var untargeted = JsonDocument.Parse(property).RootElement.GetProperty("proposal").GetProperty("id").GetGuid();
 
-        Assert.Equal((true, "Not found."), await CallAsync(mine, "get_proposal", new { id = targeted }));
-        Assert.Equal((true, "Not found."), await CallAsync(theirs, "get_proposal", new { id = untargeted }));
-        Assert.Equal((true, "Not found."), await CallAsync(mine, "get_proposal", new { id = Guid.NewGuid() }));
+        Assert.Equal((true, "NOT_FOUND: The requested item was not found."), await CallAsync(mine, "get_proposal", new { id = targeted }));
+        Assert.Equal((true, "NOT_FOUND: The requested item was not found."), await CallAsync(theirs, "get_proposal", new { id = untargeted }));
+        Assert.Equal((true, "NOT_FOUND: The requested item was not found."), await CallAsync(mine, "get_proposal", new { id = Guid.NewGuid() }));
         Assert.Equal([targeted], await IdsAsync(theirs, new { }));
 
         Assert.Equal(untargeted, (await ReadAsync(mine, "get_proposal", new { id = untargeted })).GetProperty("proposal").GetProperty("id").GetGuid());
@@ -150,18 +152,18 @@ public class McpProposalToolTests(PostgresFixture fixture) : IClassFixture<Postg
         static object Args(JsonElement p) => new { id = p.GetProperty("id").GetGuid(), version = p.GetProperty("version").GetUInt32() };
 
         var duplicate = await ProposedAsync("2025-09-30");
-        Assert.StartsWith("Refused: deleting a proposal needs the 'write' scope", (await CallAsync(reader, "delete_proposal", Args(duplicate))).Text);
-        Assert.StartsWith("Refused: core.proposal_not_submitter.", (await CallAsync(theirs, "delete_proposal", Args(duplicate))).Text);
-        Assert.StartsWith("Refused: core.proposal_conflict.", (await CallAsync(mine, "delete_proposal", new { id = duplicate.GetProperty("id").GetGuid(), version = 1u })).Text);
+        Assert.StartsWith("platform.scope_required: Deleting a proposal needs the 'write' scope", (await CallAsync(reader, "delete_proposal", Args(duplicate))).Text);
+        Assert.StartsWith("core.proposal_not_submitter: ", (await CallAsync(theirs, "delete_proposal", Args(duplicate))).Text);
+        Assert.StartsWith("core.proposal_conflict: ", (await CallAsync(mine, "delete_proposal", new { id = duplicate.GetProperty("id").GetGuid(), version = 1u })).Text);
 
         Assert.Equal((false, "Deleted."), await CallAsync(mine, "delete_proposal", Args(duplicate)));
-        Assert.Equal((true, "Not found."), await CallAsync(mine, "get_proposal", new { id = duplicate.GetProperty("id").GetGuid() }));
+        Assert.Equal((true, "NOT_FOUND: The requested item was not found."), await CallAsync(mine, "get_proposal", new { id = duplicate.GetProperty("id").GetGuid() }));
 
         var browser = await ValuationAsync(app, envelope, "2025-08-31");
-        Assert.StartsWith("Refused: core.proposal_not_submitter.", (await CallAsync(mine, "delete_proposal", Args(browser))).Text);
+        Assert.StartsWith("core.proposal_not_submitter: ", (await CallAsync(mine, "delete_proposal", Args(browser))).Text);
 
         var decided = await RejectAsync(app, await ProposedAsync("2025-07-31"), "Non");
-        Assert.StartsWith("Refused: core.proposal_decided.", (await CallAsync(mine, "delete_proposal", Args(decided))).Text);
+        Assert.StartsWith("core.proposal_decided: ", (await CallAsync(mine, "delete_proposal", Args(decided))).Text);
     }
 
     // The document unlinked, the other adult no longer reads it: both tools hide it, as the web does.

@@ -22,7 +22,7 @@ public sealed record ReplaceBankScheduleCommand(ItemId ItemId, string Text, uint
 }
 
 /// <summary>Spec 3F2 §3: the table removed; the calculation is the reference again.</summary>
-public sealed record DeleteBankScheduleCommand(ItemId ItemId, uint Version) : ICommand<bool>, IItemScoped
+public sealed record DeleteBankScheduleCommand(ItemId ItemId, uint Version) : ICommand<bool>, IItemScoped, ITransactional
 {
     public AccessKind Access => AccessKind.Write;
 }
@@ -170,12 +170,11 @@ public sealed class ReplaceBankRowsHandler(IItemRegistry items, ILoanStore loans
 }
 
 [RequestHandler<DeleteBankScheduleCommand, bool>]
-public sealed class DeleteBankScheduleHandler(IItemRegistry items, ILoanStore loans, IUnitOfWork unitOfWork)
+public sealed class DeleteBankScheduleHandler(IItemRegistry items, ILoanStore loans)
     : IRequestHandler<DeleteBankScheduleCommand, bool>
 {
     public async ValueTask<Result<bool>> HandleAsync(DeleteBankScheduleCommand command, CancellationToken ct = default)
     {
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         var loaded = await LoanCheck.LockAsync(loans, items, command.ItemId, ct);
         if (loaded.TryGetFailure(out var failure))
             return Result.Failure<bool>(failure!);
@@ -184,7 +183,6 @@ public sealed class DeleteBankScheduleHandler(IItemRegistry items, ILoanStore lo
             return Result.Failure<bool>(LoanCheck.Conflict(LoanCodes.LoanConflict, "loan"));
 
         await loans.ReplaceBankScheduleAsync(command.ItemId, [], ct); // the calculation is the reference again
-        await transaction.CommitAsync(ct);
         return Result.Success(true);
     }
 }

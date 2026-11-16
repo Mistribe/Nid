@@ -1,3 +1,4 @@
+using UnambitiousFx.Functional.Failures;
 using System.ComponentModel;
 using System.Drawing;
 using System.Text.Json;
@@ -22,6 +23,9 @@ namespace Nid.Host.Mcp;
 [McpServerToolType]
 public sealed class DocumentTools
 {
+    /// <summary>`request_document_upload` on a Nid with no <c>Auth:PublicUrl</c>: there is no address to send the file to.</summary>
+    public const string NoPublicUrl = "documents.no_public_url";
+
     public const int DefaultLimit = 50;
 
     /// <summary>#181: the pages of a PDF `read_document` renders; past them, a line says how many were left out.</summary>
@@ -44,7 +48,7 @@ public sealed class DocumentTools
         CancellationToken ct = default)
     {
         if (limit < 1)
-            return McpCalls.Error("Refused: limit is at least 1.");
+            return McpCalls.Invalid(services, "limit", "At least 1.");
         var http = services.GetRequiredService<IOptions<Microsoft.AspNetCore.Http.Json.JsonOptions>>().Value.SerializerOptions;
         return await McpCalls.RunAsync(services, () =>
             (targetKind is null) != (targetId is null) && !(targetKind == TargetKinds.CoreHousehold && targetId is null)
@@ -69,7 +73,7 @@ public sealed class DocumentTools
         var invoker = services.GetRequiredService<IInvoker>();
         var read = await invoker.InvokeAsync(new GetDocumentQuery(id), ct);
         if (!read.TryGetValue(out var detail))
-            return McpCalls.ReadRefusal(read.TryGetFailure(out var refused) ? refused! : throw new InvalidOperationException());
+            return McpCalls.Refuse(services, read.TryGetFailure(out var refused) ? refused! : throw new InvalidOperationException());
 
         // Review Focus 5: decided from the stored size, before the file is opened.
         var cap = services.GetRequiredService<DocumentsOptions>().McpMaxBytes;
@@ -88,7 +92,7 @@ public sealed class DocumentTools
         // The same access check as GET /documents/{id}/content: never the storage directly.
         var opened = await invoker.InvokeAsync(new GetDocumentContentQuery(id), ct);
         if (!opened.TryGetValue(out var file))
-            return McpCalls.ReadRefusal(opened.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
+            return McpCalls.Refuse(services, opened.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
         await using var content = file!.Content;
         // At most the stored size: a file that grew in the storage is still never sent past the cap.
         var bytes = new byte[detail.Document.SizeBytes];
@@ -101,7 +105,7 @@ public sealed class DocumentTools
         catch (EndOfStreamException)
         {
             // A stored file shorter or longer than its recorded size: as one missing, never part of a file.
-            return McpCalls.Error($"Refused: {DocumentsCodes.ContentMissing}.");
+            return McpCalls.Refuse(services, new Failure(DocumentsCodes.ContentMissing, "The document's file is missing.", null));
         }
         if (file.MediaType == "application/pdf")
             foreach (var page in PdfPages(bytes))
@@ -128,21 +132,21 @@ public sealed class DocumentTools
         CancellationToken ct = default)
     {
         if (services.GetRequiredService<IActorAccessor>().Current?.Has(ScopeNames.Write) != true)
-            return McpCalls.Error($"Refused: uploading needs the '{ScopeNames.Write}' scope.");
+            return McpCalls.MissingScope(services, $"Uploading needs the '{ScopeNames.Write}' scope.");
         var cap = services.GetRequiredService<DocumentsOptions>().McpMaxBytes;
         // Decoded into at most the cap: a larger file does not fit and is refused before anything is stored.
         var buffer = new byte[Math.Min(cap, (long)contentBase64.Length * 3 / 4 + 3)];
         if (!Convert.TryFromBase64String(contentBase64, buffer, out var length))
-            return McpCalls.Error(contentBase64.Length / 4 * 3 > cap
-                ? $"Refused: {DocumentsCodes.TooLarge}. A document sent here is at most {cap} bytes."
-                : "Refused: contentBase64 is not valid base64.");
+            return contentBase64.Length / 4 * 3 > cap
+                ? McpCalls.Refuse(services, new Failure(DocumentsCodes.TooLarge, $"A document sent here is at most {cap} bytes.", null))
+                : McpCalls.Invalid(services, "contentBase64", "Not valid base64.");
         if (!LocalDatePattern.Iso.Parse(date).TryGetValue(default, out var documentDate))
-            return McpCalls.Error("Refused: date is not a yyyy-mm-dd date.");
+            return McpCalls.Invalid(services, "date", "A date is yyyy-mm-dd.");
 
         var uploaded = await services.GetRequiredService<IInvoker>().InvokeAsync(new UploadDocumentCommand(buffer.AsMemory(0, length), filename, title,
             documentDate, note, new DocumentTarget(targetKind, targetId ?? TargetKinds.Household), role, sourceRef, FromAssistant: true), ct);
         if (!uploaded.TryGetValue(out var document))
-            return McpCalls.Refusal(uploaded.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
+            return McpCalls.Refuse(services, uploaded.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
         return McpCalls.Answer(services, new JsonObject { ["id"] = document!.Id, ["existing"] = document.Existing }, limited: false);
     }
 
@@ -164,18 +168,18 @@ public sealed class DocumentTools
         CancellationToken ct = default)
     {
         if (services.GetRequiredService<IActorAccessor>().Current?.Has(ScopeNames.Write) != true)
-            return McpCalls.Error($"Refused: uploading needs the '{ScopeNames.Write}' scope.");
+            return McpCalls.MissingScope(services, $"Uploading needs the '{ScopeNames.Write}' scope.");
         if (!LocalDatePattern.Iso.Parse(date).TryGetValue(default, out var documentDate))
-            return McpCalls.Error("Refused: date is not a yyyy-mm-dd date.");
+            return McpCalls.Invalid(services, "date", "A date is yyyy-mm-dd.");
         // The configured address, never the request's Host header: a forged one must not send the file elsewhere.
         var publicUrl = services.GetRequiredService<IOptions<NidAuthOptions>>().Value.PublicUrl.TrimEnd('/');
         if (publicUrl.Length == 0)
-            return McpCalls.Error("Refused: this Nid has no public address (Auth:PublicUrl).");
+            return McpCalls.Refuse(services, new Failure(NoPublicUrl, "This Nid has no public address (Auth:PublicUrl).", null));
 
         var granted = await services.GetRequiredService<IInvoker>().InvokeAsync(new RequestDocumentUploadCommand(filename, title, documentDate, note,
             new DocumentTarget(targetKind, targetId ?? TargetKinds.Household), role, sourceRef), ct);
         if (!granted.TryGetValue(out var grant))
-            return McpCalls.Refusal(granted.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
+            return McpCalls.Refuse(services, granted.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
         return McpCalls.Answer(services, new JsonObject
         {
             ["url"] = $"{publicUrl}{DocumentEndpoints.UploadsPath}/{grant!.Token}",
