@@ -24,36 +24,36 @@ public sealed record TermsInput(
 
 public sealed record CreateChildcareCommand(
     string Name, PersonId Child, CarerInput Carer, TermsInput Terms, IReadOnlyList<CareGap> Gaps, Visibility Visibility, IReadOnlyList<OwnerShare> Owners,
-    ShareLevel ShareLevel = ShareLevel.View) : ICommand<ItemId>, ICreatesItem;
+    ShareLevel ShareLevel = ShareLevel.View) : ICommand<ItemId>, ICreatesItem, ITransactional;
 
 /// <summary>
 /// Corrects the arrangement and one revision in place — the one starting on <paramref name="Revision"/>, the last when <c>null</c>, a past one included;
 /// the revision keeps its start. <paramref name="Version"/>: the one read.
 /// </summary>
-public sealed record EditChildcareCommand(ItemId ItemId, string Name, CarerInput Carer, TermsInput Terms, uint Version, LocalDate? Revision = null) : ICommand<ItemId>, IItemScoped
+public sealed record EditChildcareCommand(ItemId ItemId, string Name, CarerInput Carer, TermsInput Terms, uint Version, LocalDate? Revision = null) : ICommand<ItemId>, IItemScoped, ITransactional
 {
     public AccessKind Access => AccessKind.Write;
 }
 
 /// <summary>Spec §1.8: a new revision from <c>Terms.From</c>, after the current one's start; the current one ends the day before.</summary>
-public sealed record ReviseChildcareCommand(ItemId ItemId, TermsInput Terms) : ICommand<ItemId>, IItemScoped
+public sealed record ReviseChildcareCommand(ItemId ItemId, TermsInput Terms) : ICommand<ItemId>, IItemScoped, ITransactional
 {
     public AccessKind Access => AccessKind.Write;
 }
 
 /// <summary>#192: corrects the absence reasons deducted under the revision starting on <paramref name="From"/>, a past one included; validated months keep their figures.</summary>
-public sealed record SetUnpaidAbsencesCommand(ItemId ItemId, LocalDate From, IReadOnlyList<AbsenceReason> Reasons) : ICommand<ItemId>, IItemScoped
+public sealed record SetUnpaidAbsencesCommand(ItemId ItemId, LocalDate From, IReadOnlyList<AbsenceReason> Reasons) : ICommand<ItemId>, IItemScoped, ITransactional
 {
     public AccessKind Access => AccessKind.Write;
 }
 
 /// <summary>The week of <paramref name="Monday"/> follows the week type of this rank; the rank the rotation gives removes the exception.</summary>
-public sealed record SetWeekOverrideCommand(ItemId ItemId, LocalDate Monday, int WeekType) : ICommand<ItemId>, IItemScoped
+public sealed record SetWeekOverrideCommand(ItemId ItemId, LocalDate Monday, int WeekType) : ICommand<ItemId>, IItemScoped, ITransactional
 {
     public AccessKind Access => AccessKind.Write;
 }
 
-public sealed record ReplaceGapsCommand(ItemId ItemId, IReadOnlyList<CareGap> Gaps) : ICommand<ItemId>, IItemScoped
+public sealed record ReplaceGapsCommand(ItemId ItemId, IReadOnlyList<CareGap> Gaps) : ICommand<ItemId>, IItemScoped, ITransactional
 {
     public AccessKind Access => AccessKind.Write;
 }
@@ -62,7 +62,7 @@ public sealed record ReplaceGapsCommand(ItemId ItemId, IReadOnlyList<CareGap> Ga
 /// Ends the current revision on <paramref name="On"/> and archives the item. <paramref name="End"/>: why and when it was notified, for
 /// the last month's settlement; <paramref name="GrossHourlyRate"/>: the gross rate the breach indemnity needs, kept on the current terms.
 /// </summary>
-public sealed record CloseChildcareCommand(ItemId ItemId, LocalDate On, ContractEnd? End = null, decimal? GrossHourlyRate = null) : ICommand<ItemId>, IItemScoped
+public sealed record CloseChildcareCommand(ItemId ItemId, LocalDate On, ContractEnd? End = null, decimal? GrossHourlyRate = null) : ICommand<ItemId>, IItemScoped, ITransactional
 {
     public AccessKind Access => AccessKind.Write;
 }
@@ -88,13 +88,13 @@ public sealed class ContractEndHandler(IItemRegistry items, IChildcareStore stor
     }
 }
 
-public sealed record ReopenChildcareCommand(ItemId ItemId) : ICommand<ItemId>, IItemScoped
+public sealed record ReopenChildcareCommand(ItemId ItemId) : ICommand<ItemId>, IItemScoped, ITransactional
 {
     public AccessKind Access => AccessKind.Write;
 }
 
 [RequestHandler<CreateChildcareCommand, ItemId>]
-public sealed class CreateChildcareHandler(IItemRegistry items, IChildcareStore store, IPersonRegistry persons, IUnitOfWork unitOfWork)
+public sealed class CreateChildcareHandler(IItemRegistry items, IChildcareStore store, IPersonRegistry persons)
     : IRequestHandler<CreateChildcareCommand, ItemId>
 {
     public async ValueTask<Result<ItemId>> HandleAsync(CreateChildcareCommand command, CancellationToken ct = default)
@@ -107,20 +107,18 @@ public sealed class CreateChildcareHandler(IItemRegistry items, IChildcareStore 
         if (ChildcareCheck.Fail(errors).TryGetFailure(out var failure))
             return Result.Failure<ItemId>(failure!);
 
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         var created = await items.CreateAsync(new NewItem(ChildcareModule.Key, ChildcareKinds.Childminder, command.Name.Trim(), command.Visibility, null, command.Owners, command.ShareLevel), ct);
         if (!created.TryGetValue(out var id))
-            return created; // disposed without commit: nothing is left
+            return created; // a failure rolls the transaction back: nothing is left
         await store.CreateAsync(new Arrangement(id, command.Child, command.Carer.Name.Trim(), command.Carer.Pajemploi, command.Carer.Approval, 0),
             command.Terms.For(id), ct);
         await store.ReplaceGapsAsync(id, command.Gaps, ct);
-        await transaction.CommitAsync(ct);
         return Result.Success(id);
     }
 }
 
 [RequestHandler<EditChildcareCommand, ItemId>]
-public sealed class EditChildcareHandler(IItemRegistry items, IChildcareStore store, IUnitOfWork unitOfWork) : IRequestHandler<EditChildcareCommand, ItemId>
+public sealed class EditChildcareHandler(IItemRegistry items, IChildcareStore store) : IRequestHandler<EditChildcareCommand, ItemId>
 {
     public async ValueTask<Result<ItemId>> HandleAsync(EditChildcareCommand command, CancellationToken ct = default)
     {
@@ -152,7 +150,6 @@ public sealed class EditChildcareHandler(IItemRegistry items, IChildcareStore st
         if (ChildcareCheck.Fail(errors).TryGetFailure(out failure))
             return Result.Failure<ItemId>(failure!);
 
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         if (command.Name.Trim() != item.DisplayName)
         {
             var renamed = await items.ReplaceAsync(command.ItemId, command.Name.Trim(), item.Visibility,
@@ -167,13 +164,12 @@ public sealed class EditChildcareHandler(IItemRegistry items, IChildcareStore st
         if (updated.TryGetFailure(out failure))
             return Result.Failure<ItemId>(failure!);
         await store.ReplaceTermsAsync(terms.For(command.ItemId), ct);
-        await transaction.CommitAsync(ct);
         return Result.Success(command.ItemId);
     }
 }
 
 [RequestHandler<ReviseChildcareCommand, ItemId>]
-public sealed class ReviseChildcareHandler(IItemRegistry items, IChildcareStore store, IUnitOfWork unitOfWork) : IRequestHandler<ReviseChildcareCommand, ItemId>
+public sealed class ReviseChildcareHandler(IItemRegistry items, IChildcareStore store) : IRequestHandler<ReviseChildcareCommand, ItemId>
 {
     public async ValueTask<Result<ItemId>> HandleAsync(ReviseChildcareCommand command, CancellationToken ct = default)
     {
@@ -197,15 +193,13 @@ public sealed class ReviseChildcareHandler(IItemRegistry items, IChildcareStore 
         if (ChildcareCheck.Fail(errors).TryGetFailure(out failure))
             return Result.Failure<ItemId>(failure!);
 
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         await store.AddTermsAsync(kept.For(command.ItemId), ct);
-        await transaction.CommitAsync(ct);
         return Result.Success(command.ItemId);
     }
 }
 
 [RequestHandler<SetUnpaidAbsencesCommand, ItemId>]
-public sealed class SetUnpaidAbsencesHandler(IItemRegistry items, IChildcareStore store, IUnitOfWork unitOfWork) : IRequestHandler<SetUnpaidAbsencesCommand, ItemId>
+public sealed class SetUnpaidAbsencesHandler(IItemRegistry items, IChildcareStore store) : IRequestHandler<SetUnpaidAbsencesCommand, ItemId>
 {
     public async ValueTask<Result<ItemId>> HandleAsync(SetUnpaidAbsencesCommand command, CancellationToken ct = default)
     {
@@ -219,15 +213,13 @@ public sealed class SetUnpaidAbsencesHandler(IItemRegistry items, IChildcareStor
         if (revisions.All(r => r.From != command.From))
             return Result.Failure<ItemId>(new NotFoundFailure("childcare.revision", $"{command.From:uuuu-MM-dd}"));
 
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         await store.SetUnpaidAbsencesAsync(command.ItemId, command.From, command.Reasons, ct);
-        await transaction.CommitAsync(ct);
         return Result.Success(command.ItemId);
     }
 }
 
 [RequestHandler<ReplaceGapsCommand, ItemId>]
-public sealed class ReplaceGapsHandler(IItemRegistry items, IChildcareStore store, IUnitOfWork unitOfWork) : IRequestHandler<ReplaceGapsCommand, ItemId>
+public sealed class ReplaceGapsHandler(IItemRegistry items, IChildcareStore store) : IRequestHandler<ReplaceGapsCommand, ItemId>
 {
     public async ValueTask<Result<ItemId>> HandleAsync(ReplaceGapsCommand command, CancellationToken ct = default)
     {
@@ -240,15 +232,13 @@ public sealed class ReplaceGapsHandler(IItemRegistry items, IChildcareStore stor
             || ChildcareCheck.Fail(ChildcareCheck.Gaps(revisions[0].From, revisions[^1].ProgrammedWeeks, command.Gaps, revisions[^1].From)).TryGetFailure(out failure))
             return Result.Failure<ItemId>(failure!);
 
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         await store.ReplaceGapsAsync(command.ItemId, command.Gaps, ct);
-        await transaction.CommitAsync(ct);
         return Result.Success(command.ItemId);
     }
 }
 
 [RequestHandler<SetWeekOverrideCommand, ItemId>]
-public sealed class SetWeekOverrideHandler(IItemRegistry items, IChildcareStore store, IUnitOfWork unitOfWork) : IRequestHandler<SetWeekOverrideCommand, ItemId>
+public sealed class SetWeekOverrideHandler(IItemRegistry items, IChildcareStore store) : IRequestHandler<SetWeekOverrideCommand, ItemId>
 {
     public async ValueTask<Result<ItemId>> HandleAsync(SetWeekOverrideCommand command, CancellationToken ct = default)
     {
@@ -273,15 +263,13 @@ public sealed class SetWeekOverrideHandler(IItemRegistry items, IChildcareStore 
         // The revision in force that week: the last one starting by its Sunday, else the first (as the check reads it).
         var inForce = revisions.LastOrDefault(r => r.From <= command.Monday.PlusDays(6)) ?? revisions[0];
         var rotation = TermsPlan.Of(inForce, revisions[0].From, []).RotationOf(command.Monday);
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         await store.SetOverrideAsync(command.ItemId, command.Monday, command.WeekType == rotation ? null : command.WeekType, ct);
-        await transaction.CommitAsync(ct);
         return Result.Success(command.ItemId);
     }
 }
 
 [RequestHandler<CloseChildcareCommand, ItemId>]
-public sealed class CloseChildcareHandler(IItemRegistry items, IChildcareStore store, IUnitOfWork unitOfWork, IClock clock)
+public sealed class CloseChildcareHandler(IItemRegistry items, IChildcareStore store, IClock clock)
     : IRequestHandler<CloseChildcareCommand, ItemId>
 {
     public async ValueTask<Result<ItemId>> HandleAsync(CloseChildcareCommand command, CancellationToken ct = default)
@@ -303,7 +291,6 @@ public sealed class CloseChildcareHandler(IItemRegistry items, IChildcareStore s
         if ((await store.StatementsOfAsync(command.ItemId, ct)).Any(st => st.Validated && st.Month.OnDayOfMonth(st.Month.Calendar.GetDaysInMonth(st.Month.Year, st.Month.Month)) > command.On))
             return Result.Failure<ItemId>(FieldErrors.Shape([new("on", ChildcareCodes.EndBeforeValidated, "A validated month ends after this day: reopen it first.")]));
 
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         await store.SetEndAsync(command.ItemId, command.On, ct, command.End);
         if (command.GrossHourlyRate is { } gross && revisions[^1].GrossHourlyRate is null)
             await store.ReplaceTermsAsync(revisions[^1] with { GrossHourlyRate = gross }, ct);
@@ -313,13 +300,12 @@ public sealed class CloseChildcareHandler(IItemRegistry items, IChildcareStore s
         var archived = await items.ArchiveAsync(command.ItemId, clock.GetCurrentInstant(), ct);
         if (archived.TryGetFailure(out failure))
             return Result.Failure<ItemId>(failure!);
-        await transaction.CommitAsync(ct);
         return Result.Success(command.ItemId);
     }
 }
 
 [RequestHandler<ReopenChildcareCommand, ItemId>]
-public sealed class ReopenChildcareHandler(IItemRegistry items, IChildcareStore store, IUnitOfWork unitOfWork) : IRequestHandler<ReopenChildcareCommand, ItemId>
+public sealed class ReopenChildcareHandler(IItemRegistry items, IChildcareStore store) : IRequestHandler<ReopenChildcareCommand, ItemId>
 {
     public async ValueTask<Result<ItemId>> HandleAsync(ReopenChildcareCommand command, CancellationToken ct = default)
     {
@@ -330,12 +316,10 @@ public sealed class ReopenChildcareHandler(IItemRegistry items, IChildcareStore 
         if (found.Item.ArchivedAt is null)
             return Result.Failure<ItemId>(new ConflictFailure("This arrangement is not closed.") { Code = ChildcareCodes.Open });
 
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         await store.SetEndAsync(command.ItemId, null, ct);
         var reopened = await items.UnarchiveAsync(command.ItemId, ct);
         if (reopened.TryGetFailure(out failure))
             return Result.Failure<ItemId>(failure!);
-        await transaction.CommitAsync(ct);
         return Result.Success(command.ItemId);
     }
 }

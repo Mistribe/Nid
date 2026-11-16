@@ -9,12 +9,12 @@ using UnambitiousFx.Synapse.Abstractions;
 
 namespace Nid.Income.Application;
 
-public sealed record CloseIncomeSourceCommand(ItemId ItemId, LocalDate EndedOn) : ICommand<ItemId>, IItemScoped
+public sealed record CloseIncomeSourceCommand(ItemId ItemId, LocalDate EndedOn) : ICommand<ItemId>, IItemScoped, ITransactional
 {
     public AccessKind Access => AccessKind.Write;
 }
 
-public sealed record ReopenIncomeSourceCommand(ItemId ItemId) : ICommand<ItemId>, IItemScoped
+public sealed record ReopenIncomeSourceCommand(ItemId ItemId) : ICommand<ItemId>, IItemScoped, ITransactional
 {
     public AccessKind Access => AccessKind.Write;
 }
@@ -25,7 +25,7 @@ public sealed record ReopenIncomeSourceCommand(ItemId ItemId) : ICommand<ItemId>
 /// </summary>
 [RequestHandler<CloseIncomeSourceCommand, ItemId>]
 public sealed class CloseIncomeSourceHandler(
-    ISourceStore sources, IItemRegistry items, IPhaseStore phases, IHouseholdCalendar calendar, IUnitOfWork unitOfWork, IClock clock)
+    ISourceStore sources, IItemRegistry items, IPhaseStore phases, IHouseholdCalendar calendar, IClock clock)
     : IRequestHandler<CloseIncomeSourceCommand, ItemId>
 {
     public async ValueTask<Result<ItemId>> HandleAsync(CloseIncomeSourceCommand command, CancellationToken ct = default)
@@ -43,7 +43,6 @@ public sealed class CloseIncomeSourceHandler(
         if (Ending.Blocks(all, command.EndedOn))
             return Fail(IncomeCodes.InvalidSource, Ending.Blocked);
 
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         try
         {
             foreach (var cut in Ending.Cuts(all, command.EndedOn))
@@ -51,13 +50,12 @@ public sealed class CloseIncomeSourceHandler(
         }
         catch (PhaseConflictException)
         {
-            return Result.Failure<ItemId>(OpenSource.Conflict()); // disposed without commit
+            return Result.Failure<ItemId>(OpenSource.Conflict()); // a failure rolls the transaction back
         }
         var archived = await items.ArchiveAsync(command.ItemId, clock.GetCurrentInstant(), ct);
         if (archived.TryGetFailure(out failure))
             return Result.Failure<ItemId>(failure!);
         await sources.SetEndedOnAsync(command.ItemId, command.EndedOn, ct);
-        await transaction.CommitAsync(ct);
         return Result.Success(command.ItemId);
     }
 
@@ -91,7 +89,7 @@ internal static class Ending
 
 /// <summary>The phases stay as the ending left them (spec §4); adding a phase afterwards is the person's choice.</summary>
 [RequestHandler<ReopenIncomeSourceCommand, ItemId>]
-public sealed class ReopenIncomeSourceHandler(ISourceStore sources, IItemRegistry items, IUnitOfWork unitOfWork)
+public sealed class ReopenIncomeSourceHandler(ISourceStore sources, IItemRegistry items)
     : IRequestHandler<ReopenIncomeSourceCommand, ItemId>
 {
     public async ValueTask<Result<ItemId>> HandleAsync(ReopenIncomeSourceCommand command, CancellationToken ct = default)
@@ -102,12 +100,10 @@ public sealed class ReopenIncomeSourceHandler(ISourceStore sources, IItemRegistr
         loaded.TryGetValue(out var source);
         if (source.Item.ArchivedAt is null)
             return Result.Failure<ItemId>(new ConflictFailure("This source has not ended.") { Code = IncomeCodes.SourceOpen });
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         var reopened = await items.UnarchiveAsync(command.ItemId, ct);
         if (reopened.TryGetFailure(out failure))
             return Result.Failure<ItemId>(failure!);
         await sources.SetEndedOnAsync(command.ItemId, null, ct);
-        await transaction.CommitAsync(ct);
         return Result.Success(command.ItemId);
     }
 }

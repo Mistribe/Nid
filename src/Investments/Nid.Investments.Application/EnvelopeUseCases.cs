@@ -17,12 +17,12 @@ public sealed record CreateEnvelopeCommand(
     string? Institution, string? AccountHint, LocalDate? OpenedOn, string? ValuationCadence, int? StaleAfterDays, string? Note,
     OpeningDraft? Opening, FirstValuationDraft? FirstValuation, decimal? PremiumsBefore2017 = null, ShareLevel ShareLevel = ShareLevel.View,
     string? Regulated = null)
-    : ICommand<ItemId>, ICreatesItem;
+    : ICommand<ItemId>, ICreatesItem, ITransactional;
 
 /// <summary>#25: <paramref name="Visibility"/>, <paramref name="ShareLevel"/> and <paramref name="Owners"/> null keep the envelope's.</summary>
 public sealed record EditEnvelopeCommand(ItemId ItemId, string? DisplayName, string? Kind, EnvelopeChange Change, string? ValuationCadence, string? Regulated = null,
     Visibility? Visibility = null, ShareLevel? ShareLevel = null, IReadOnlyList<OwnerShare>? Owners = null)
-    : ICommand<ItemId>, IItemScoped
+    : ICommand<ItemId>, IItemScoped, ITransactional
 {
     public AccessKind Access => AccessKind.Write;
 }
@@ -48,7 +48,7 @@ public sealed record EnvelopeDeletionQuery(ItemId ItemId) : IQuery<ItemDeletionP
 
 [RequestHandler<CreateEnvelopeCommand, ItemId>]
 public sealed class CreateEnvelopeHandler(
-    IItemRegistry items, IEnvelopeStore envelopes, IValuations valuations, IFlows flows, IUnitOfWork unitOfWork)
+    IItemRegistry items, IEnvelopeStore envelopes, IValuations valuations, IFlows flows)
     : IRequestHandler<CreateEnvelopeCommand, ItemId>
 {
     public async ValueTask<Result<ItemId>> HandleAsync(CreateEnvelopeCommand command, CancellationToken ct = default)
@@ -66,7 +66,6 @@ public sealed class CreateEnvelopeHandler(
             return Result.Failure<ItemId>(failure!);
         cadence.TryGetValue(out var c);
 
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         var created = await items.CreateAsync(new NewItem("investments", "envelope", command.DisplayName, command.Visibility,
             command.Currency.Code, command.Owners, command.ShareLevel), ct);
         if (!created.TryGetValue(out var id))
@@ -78,7 +77,7 @@ public sealed class CreateEnvelopeHandler(
         {
             var recorded = await flows.RecordAsync(new NewFlow(id, opening.OccurredOn, FlowKind.Opening, opening.Amount, null, null, null), ct);
             if (recorded.TryGetFailure(out failure))
-                return Result.Failure<ItemId>(failure!); // disposed without commit: nothing is left
+                return Result.Failure<ItemId>(failure!); // a failure rolls the transaction back: nothing is left
         }
 
         if (command.FirstValuation is { } first)
@@ -88,14 +87,13 @@ public sealed class CreateEnvelopeHandler(
                 return Result.Failure<ItemId>(failure!);
         }
 
-        await transaction.CommitAsync(ct);
         return Result.Success(id);
     }
 }
 
 [RequestHandler<EditEnvelopeCommand, ItemId>]
 public sealed class EditEnvelopeHandler(
-    IItemRegistry items, IEnvelopeStore envelopes, IUnitOfWork unitOfWork, IItemRules rules, IActorAccessor actor, IPersonRegistry persons)
+    IItemRegistry items, IEnvelopeStore envelopes, IItemRules rules, IActorAccessor actor, IPersonRegistry persons)
     : IRequestHandler<EditEnvelopeCommand, ItemId>
 {
     public async ValueTask<Result<ItemId>> HandleAsync(EditEnvelopeCommand command, CancellationToken ct = default)
@@ -153,13 +151,11 @@ public sealed class EditEnvelopeHandler(
         if (await OwnershipEdit.RefusalAsync(rules, persons, actor.Current!.PersonId!.Value, item, target, "envelope", ct) is { } refused)
             return Result.Failure<ItemId>(refused);
 
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         var replaced = await OwnershipEdit.ReplaceAsync(items, item, command.DisplayName ?? item.DisplayName, target, ct);
         if (replaced.TryGetFailure(out failure))
             return Result.Failure<ItemId>(failure!);
 
         await envelopes.UpdateAsync(command.ItemId, change, ct);
-        await transaction.CommitAsync(ct);
         return Result.Success(command.ItemId);
     }
 }

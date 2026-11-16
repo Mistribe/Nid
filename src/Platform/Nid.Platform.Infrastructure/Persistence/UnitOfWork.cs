@@ -2,6 +2,7 @@ using System.Data;
 using System.Data.Common;
 using Microsoft.EntityFrameworkCore;
 using Nid.Platform.Contracts;
+using UnambitiousFx.Synapse.Abstractions;
 
 namespace Nid.Platform.Infrastructure.Persistence;
 
@@ -16,6 +17,15 @@ public sealed class DbContextParticipant<TContext>(TContext context) : ITransact
 {
     public Task EnlistAsync(DbTransaction? transaction, CancellationToken ct)
         => context.Database.UseTransactionAsync(transaction, ct);
+}
+
+/// <summary>
+/// The transaction manager of Synapse's transaction behavior: the request's own <see cref="IUnitOfWork"/>, so a command marked
+/// <see cref="ITransactional"/> joins what its caller already opened (a dry run, an approval) under a savepoint.
+/// </summary>
+public sealed class UnitOfWorkTransactions(IUnitOfWork unitOfWork) : ITransactionManager
+{
+    public ValueTask<ITransactionScope> BeginAsync(CancellationToken cancellationToken = default) => unitOfWork.BeginAsync(cancellationToken);
 }
 
 public sealed class UnitOfWork(SharedConnection shared, IEnumerable<ITransactionParticipant> participants) : IUnitOfWork
@@ -33,7 +43,7 @@ public sealed class UnitOfWork(SharedConnection shared, IEnumerable<ITransaction
         afterCommit.Add(action);
     }
 
-    public async Task<ITransactionScope> BeginAsync(CancellationToken ct)
+    public async ValueTask<ITransactionScope> BeginAsync(CancellationToken ct = default)
     {
         if (open is not null)
             return await JoinAsync(open, ct);
@@ -90,7 +100,7 @@ public sealed class UnitOfWork(SharedConnection shared, IEnumerable<ITransaction
         private bool released;
         private bool disposed;
 
-        public async Task CommitAsync(CancellationToken ct)
+        public async ValueTask CommitAsync(CancellationToken ct = default)
         {
             await transaction.ReleaseAsync(name, ct);
             released = true;
@@ -132,7 +142,7 @@ public sealed class UnitOfWork(SharedConnection shared, IEnumerable<ITransaction
         private bool committed;
         private bool commitAttempted;
 
-        public async Task CommitAsync(CancellationToken ct)
+        public async ValueTask CommitAsync(CancellationToken ct = default)
         {
             // Set before awaiting: a serialization failure, a deferred constraint, or a dropped connection can
             // all make this throw, but Npgsql still marks the transaction completed the moment a commit is

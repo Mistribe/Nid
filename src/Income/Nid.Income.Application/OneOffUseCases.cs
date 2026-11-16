@@ -9,18 +9,18 @@ using UnambitiousFx.Synapse.Abstractions;
 
 namespace Nid.Income.Application;
 
-public sealed record RecordIncomeOneOffCommand(ItemId ItemId, LocalDate OccurredOn, Money Amount, string? Note, Money? TaxableAmount = null) : ICommand<Guid>, IItemScoped
+public sealed record RecordIncomeOneOffCommand(ItemId ItemId, LocalDate OccurredOn, Money Amount, string? Note, Money? TaxableAmount = null) : ICommand<Guid>, IItemScoped, ITransactional
 {
     public AccessKind Access => AccessKind.Write;
 }
 
 /// <summary>A correction: the old one-off is retired and the new one supersedes it, so its id changes (the Core's rule).</summary>
-public sealed record CorrectIncomeOneOffCommand(ItemId ItemId, Guid Flow, LocalDate OccurredOn, Money Amount, string? Note, Money? TaxableAmount = null) : ICommand<Guid>, IItemScoped
+public sealed record CorrectIncomeOneOffCommand(ItemId ItemId, Guid Flow, LocalDate OccurredOn, Money Amount, string? Note, Money? TaxableAmount = null) : ICommand<Guid>, IItemScoped, ITransactional
 {
     public AccessKind Access => AccessKind.Write;
 }
 
-public sealed record DeleteIncomeOneOffCommand(ItemId ItemId, Guid Flow) : ICommand<bool>, IItemScoped
+public sealed record DeleteIncomeOneOffCommand(ItemId ItemId, Guid Flow) : ICommand<bool>, IItemScoped, ITransactional
 {
     public AccessKind Access => AccessKind.Write;
 }
@@ -84,7 +84,7 @@ internal static class OneOffCheck
 
 [RequestHandler<RecordIncomeOneOffCommand, Guid>]
 public sealed class RecordIncomeOneOffHandler(
-    ISourceStore sources, IItemRegistry items, IFlows flows, IOneOffTaxableStore taxables, IUnitOfWork unitOfWork)
+    ISourceStore sources, IItemRegistry items, IFlows flows, IOneOffTaxableStore taxables)
     : IRequestHandler<RecordIncomeOneOffCommand, Guid>
 {
     public async ValueTask<Result<Guid>> HandleAsync(RecordIncomeOneOffCommand command, CancellationToken ct = default)
@@ -93,20 +93,17 @@ public sealed class RecordIncomeOneOffHandler(
             return Result.Failure<Guid>(failure!);
         if (OneOffCheck.Taxable(command.Amount, command.TaxableAmount).TryGetFailure(out failure))
             return Result.Failure<Guid>(failure!);
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         var recorded = await flows.RecordAsync(OneOffCheck.Flow(command.ItemId, command.OccurredOn, command.Amount, command.Note), ct);
         if (!recorded.TryGetValue(out var saved))
             return Result.Failure<Guid>(recorded.TryGetFailure(out failure) ? failure! : throw new InvalidOperationException());
         await taxables.SetAsync(saved!.Id, command.ItemId, command.TaxableAmount?.Amount, ct);
-        await transaction.CommitAsync(ct);
         return Result.Success(saved.Id);
     }
 }
 
 [RequestHandler<CorrectIncomeOneOffCommand, Guid>]
 public sealed class CorrectIncomeOneOffHandler(
-    ISourceStore sources, IItemRegistry items, IFlows flows, IOneOffTaxableStore taxables, IDocumentLinks documents,
-    IUnitOfWork unitOfWork)
+    ISourceStore sources, IItemRegistry items, IFlows flows, IOneOffTaxableStore taxables, IDocumentLinks documents)
     : IRequestHandler<CorrectIncomeOneOffCommand, Guid>
 {
     public async ValueTask<Result<Guid>> HandleAsync(CorrectIncomeOneOffCommand command, CancellationToken ct = default)
@@ -117,7 +114,6 @@ public sealed class CorrectIncomeOneOffHandler(
         if (OneOffCheck.Taxable(command.Amount, command.TaxableAmount).TryGetFailure(out failure))
             return Result.Failure<Guid>(failure!);
         // The correction, its taxable amount and its documents' links move together, or none does.
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         var corrected = await flows.SupersedeAsync(command.ItemId, command.Flow,
             OneOffCheck.Flow(command.ItemId, command.OccurredOn, command.Amount, command.Note), ct);
         if (!corrected.TryGetValue(out var saved))
@@ -126,15 +122,13 @@ public sealed class CorrectIncomeOneOffHandler(
         await taxables.SetAsync(command.Flow, command.ItemId, null, ct);
         await taxables.SetAsync(saved!.Id, command.ItemId, command.TaxableAmount?.Amount, ct);
         await documents.MoveTargetAsync(OneOffCheck.Target(command.Flow), OneOffCheck.Target(saved.Id), ct);
-        await transaction.CommitAsync(ct);
         return Result.Success(saved.Id);
     }
 }
 
 [RequestHandler<DeleteIncomeOneOffCommand, bool>]
 public sealed class DeleteIncomeOneOffHandler(
-    ISourceStore sources, IItemRegistry items, IFlows flows, IOneOffTaxableStore taxables, IDocumentLinks documents,
-    IUnitOfWork unitOfWork)
+    ISourceStore sources, IItemRegistry items, IFlows flows, IOneOffTaxableStore taxables, IDocumentLinks documents)
     : IRequestHandler<DeleteIncomeOneOffCommand, bool>
 {
     public async ValueTask<Result<bool>> HandleAsync(DeleteIncomeOneOffCommand command, CancellationToken ct = default)
@@ -142,12 +136,10 @@ public sealed class DeleteIncomeOneOffHandler(
         if ((await OneOffCheck.WithinAsync(sources, items, command.ItemId, null, ct)).TryGetFailure(out var failure)
             || (await OneOffCheck.ExistsAsync(flows, command.ItemId, command.Flow, ct)).TryGetFailure(out failure))
             return Result.Failure<bool>(failure!);
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         if ((await flows.VoidAsync(command.ItemId, command.Flow, ct)).TryGetFailure(out failure))
             return Result.Failure<bool>(failure!);
         await taxables.SetAsync(command.Flow, command.ItemId, null, ct);
         await documents.UnlinkTargetAsync(OneOffCheck.Target(command.Flow), ct);
-        await transaction.CommitAsync(ct);
         return Result.Success(true);
     }
 }
