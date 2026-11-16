@@ -11,7 +11,7 @@ const DEPARTMENT = /^(0[1-9]|1\d|2[1-9AB]|[3-8]\d|9[0-5]|97[1-6])$/i;
 /** A percent as typed (`23,5`): empty keeps the status's rate. */
 export const RATE = /^\d{1,2}([.,]\d{1,2})?$/;
 
-const AMOUNT_KEYS = ['childcareOutsideHome', 'homeEmployment', 'donations', 'donationsAid', 'donationsAidLate', 'rentalDeficitCarried', 'rentalEnergyWorks', 'deductibleCsg', 'alimonyPaid', 'alimonyAdultChildren'] as const;
+const AMOUNT_KEYS = ['childcareOutsideHome', 'homeEmployment', 'donations', 'donationsAid', 'donationsAidLate', 'rentalDeficitCarried', 'rentalEnergyWorks', 'deductibleCsg', 'alimonyPaid', 'alimonyAdultChildren', 'capitalLossesCarried'] as const;
 /** The per-adult maps, keyed by adult id: an empty text keeps the default. */
 const PER_ADULT = { rates: RATE, expenses: AMOUNT, unused: AMOUNT, ceilings: AMOUNT, expiring: AMOUNT, exempt: AMOUNT } as const;
 type PerAdult = keyof typeof PER_ADULT;
@@ -64,7 +64,7 @@ export function profileBody(d: ProfileDraft): ProfileBody {
     rentalRegime: d.regime === 'auto' ? null : d.regime, department: d.department.trim() || null, pinel: d.pinel, contributionRates: filled(d.rates),
     actualExpenses: filled(d.expenses), perUnusedCeilings: filled(d.unused), perCeilings: filled(d.ceilings),
     perCeilingsExpiring: filled(d.expiring), perPooling: d.pooling, exemptIncomes: filled(d.exempt),
-    capitalScale: d.capitalScale, deductibleCsg: toWireAmount(d.amounts.deductibleCsg),
+    capitalScale: d.capitalScale, deductibleCsg: toWireAmount(d.amounts.deductibleCsg), capitalLossesCarried: toWireAmount(d.amounts.capitalLossesCarried),
     rentalDeficitCarried: toWireAmount(d.amounts.rentalDeficitCarried),
     childcareOutsideHome: toWireAmount(d.amounts.childcareOutsideHome), homeEmployment: toWireAmount(d.amounts.homeEmployment),
     donations: toWireAmount(d.amounts.donations), donationsAid: toWireAmount(d.amounts.donationsAid),

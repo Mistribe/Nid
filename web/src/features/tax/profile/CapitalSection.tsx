@@ -7,7 +7,7 @@ import '@/locales/tax';
 
 const OPTIONS = ['flat', 'scale'] as const;
 
-/** #234: the capital income's option, flat tax or progressive scale (box 2OP), and last year's deductible CSG (6DE). */
+/** #234: the capital income's option, flat tax or progressive scale (box 2OP), last year's deductible CSG (6DE), the earlier securities' losses. */
 export function CapitalSection({ draft }: SectionProps) {
   const { t } = useTranslation();
   const hintId = useId();
@@ -22,6 +22,7 @@ export function CapitalSection({ draft }: SectionProps) {
           <span id={hintId} className="block text-sm text-muted-foreground">{t(`tax.profile.capital_option_hint.${option}`)}</span>
         </div>
         <AmountField draft={draft} name="deductibleCsg" hint={t('tax.profile.deductible_csg_hint')} badge="6DE" />
+        <AmountField draft={draft} name="capitalLossesCarried" hint={t('tax.profile.capital_losses_hint')} />
       </div>
     </Section>
   );

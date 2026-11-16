@@ -76,6 +76,23 @@ describe('TaxPage', () => {
     expect(screen.getByRole('radio', { name: 'Barème progressif', checked: true })).toBeInTheDocument();
   });
 
+  it('tells the taxable savings interest and the realised gains it counted, and what it could not', async () => {
+    const loaded = estimate();
+    loaded.notices = [
+      { code: 'savings_interest', item: 's', name: 'Compte à terme', amount: '300.00' },
+      { code: 'realised_gain_unknown', item: 'c', name: 'CTO', amount: '1000.00' },
+    ];
+    loaded.result = result({ realisedGainsTaxable: '200.00', capitalLossesCarriedForward: '150.00' });
+    server.use(http.get('*/api/v1/tax', () => HttpResponse.json(loaded)));
+    await renderApp('/tax');
+
+    const table = await screen.findByRole('table', { name: 'Calcul de l’impôt étape par étape' });
+    expect(within(table).getByRole('row', { name: /Plus-values de cession de titres/ })).toHaveTextContent('200,00 €');
+    expect(within(table).getByRole('row', { name: /Moins-values à reporter/ })).toHaveTextContent('150,00 €');
+    expect(screen.getByText(/Compte à terme : 300,00 € d’intérêts imposables/)).toBeInTheDocument();
+    expect(screen.getByText(/CTO : 1 000,00 € de ventes sans nombre de parts/)).toBeInTheDocument();
+  });
+
   it('asks nothing about the regime when the server has no comparison', async () => {
     server.use(http.get('*/api/v1/tax', () => HttpResponse.json(estimate())));
     await renderApp('/tax');

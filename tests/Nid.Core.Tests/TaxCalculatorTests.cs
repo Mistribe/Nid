@@ -916,4 +916,31 @@ public class TaxCalculatorTests
         Assert.Equal(1_500m, result.HighIncomeContribution);
         Assert.Equal(result.IncomeTax + result.SocialLevies + result.CapitalFlatTax + 1_500m, result.TotalTax);
     }
+
+    [Fact]
+    public void Realised_gains_are_taxed_with_the_capital_income_after_the_earlier_losses()
+    {
+        var result = TaxCalculator.Compute(Inputs([Other(30_000m)]) with { RealisedGains = 2_000m, CapitalLossesCarried = 500m });
+
+        // 1 500 left at 12.8 % and 17.2 %, in the reference income.
+        Assert.Equal((1_500m, 0m, 192m, 258m), (result.RealisedGainsTaxable, result.CapitalLossesCarriedForward, result.CapitalFlatTax, result.SocialLevies));
+        Assert.Equal(27_000m + 1_500m, result.ReferenceIncome);
+    }
+
+    [Fact]
+    public void A_net_loss_is_carried_forward_with_the_earlier_ones_and_taxes_nothing()
+    {
+        var result = TaxCalculator.Compute(Inputs([Other(30_000m)]) with { RealisedGains = -800m, CapitalLossesCarried = 300m, CapitalIncome = 1_000m });
+
+        Assert.Equal((0m, 1_100m, 128m), (result.RealisedGainsTaxable, result.CapitalLossesCarriedForward, result.CapitalFlatTax));
+    }
+
+    [Fact]
+    public void Under_the_scale_the_gains_join_the_global_income_without_the_dividends_allowance()
+    {
+        var result = TaxCalculator.Compute(Inputs([Other(30_000m)]) with { RealisedGains = 1_000m, CapitalDividends = 1_000m, CapitalIncome = 1_000m, CapitalScale = true });
+
+        // 27 000 + 1 000 of gains + 1 000 of dividends × 60 %; the CSG of both deductible next year.
+        Assert.Equal((28_600m, 400m, 136m), (result.NetTaxableIncome, result.DividendAllowance, result.DeductibleCsgNextYear));
+    }
 }

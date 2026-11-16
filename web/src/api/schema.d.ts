@@ -36206,6 +36206,10 @@ export interface components {
              * @default 0
              */
             alimonyAdultChildrenCount: number;
+            /** @default 0.00 */
+            realisedGains: string;
+            /** @default 0.00 */
+            capitalLossesCarried: string;
         };
         TaxMilestoneView: {
             code: string;
@@ -36277,6 +36281,7 @@ export interface components {
              * @default 0
              */
             alimonyAdultChildrenCount: number;
+            capitalLossesCarried?: null | string;
         };
         TaxProfileView: {
             statuses: {
@@ -36328,6 +36333,8 @@ export interface components {
              * @default 0
              */
             alimonyAdultChildrenCount: number;
+            /** @default 0.00 */
+            capitalLossesCarried: string;
         };
         TaxPropertyView: {
             /** Format: uuid */
@@ -36386,6 +36393,10 @@ export interface components {
             highIncomeSmoothed: boolean;
             /** @default 0.00 */
             alimonyDeducted: string;
+            /** @default 0.00 */
+            realisedGainsTaxable: string;
+            /** @default 0.00 */
+            capitalLossesCarriedForward: string;
         };
         TaxReviewView: {
             totalTax?: null | components["schemas"]["DashboardMoneyView"];

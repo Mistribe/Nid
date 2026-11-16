@@ -82,7 +82,8 @@ public sealed record TaxPropertyView(ItemId Id, string Name, int AcquiredIn);
 /// <c>PerCeilings</c> and <c>PerCeilingsExpiring</c>: the notice's PER ceiling and the part lost on 31 December, by adult; an adult
 /// absent from <c>PerCeilings</c> has an estimated ceiling. <c>ExemptIncomes</c>: the exempt income the reference income counts, by adult.
 /// <c>DonationsAidLate</c>: box 7UQ; <c>RentalEnergyWorks</c>: the energy renovation works among the rental charges.
-/// #234: <c>CapitalScale</c> the option for the progressive scale (2OP); <c>DeductibleCsg</c> box 6DE.
+/// #234: <c>CapitalScale</c> the option for the progressive scale (2OP); <c>DeductibleCsg</c> box 6DE; <c>CapitalLossesCarried</c>
+/// the securities' losses of the ten years before not yet used.
 /// </summary>
 public sealed record TaxProfileView(
     IReadOnlyDictionary<Guid, string> Statuses, int? Dependents, int ChildrenUnder6, string? RentalRegime, IReadOnlyList<PinelCommitment> Pinel,
@@ -92,7 +93,7 @@ public sealed record TaxProfileView(
     IReadOnlyDictionary<Guid, string> PerCeilings, IReadOnlyDictionary<Guid, string> PerCeilingsExpiring, bool PerPooling,
     IReadOnlyDictionary<Guid, string> ExemptIncomes, string DonationsAidLate, string RentalEnergyWorks, string? Department,
     bool CapitalScale = false, string DeductibleCsg = "0.00",
-    string AlimonyPaid = "0.00", string AlimonyAdultChildren = "0.00", int AlimonyAdultChildrenCount = 0)
+    string AlimonyPaid = "0.00", string AlimonyAdultChildren = "0.00", int AlimonyAdultChildrenCount = 0, string CapitalLossesCarried = "0.00")
 {
     public static TaxProfileView Of(TaxProfile p) => new(
         p.Statuses, p.Dependents, p.ChildrenUnder6, p.RentalRegime, p.Pinel,
@@ -104,7 +105,7 @@ public sealed record TaxProfileView(
         (p.PerCeilingsExpiring ?? new Dictionary<Guid, decimal>()).ToDictionary(x => x.Key, x => Amount(x.Value)), p.PerPooling,
         (p.ExemptIncomes ?? new Dictionary<Guid, decimal>()).ToDictionary(x => x.Key, x => Amount(x.Value)),
         Amount(p.DonationsAidLate), Amount(p.RentalEnergyWorks), p.Department, p.CapitalScale, Amount(p.DeductibleCsg),
-        Amount(p.AlimonyPaid), Amount(p.AlimonyAdultChildren), p.AlimonyAdultChildrenCount);
+        Amount(p.AlimonyPaid), Amount(p.AlimonyAdultChildren), p.AlimonyAdultChildrenCount, Amount(p.CapitalLossesCarried));
 }
 
 /// <summary>
@@ -122,7 +123,8 @@ public sealed record TaxDeclarantView(
 
 /// <summary>
 /// What the calculation read, as the simulation sends it back once edited (<c>DonationsAidLate</c>: box 7UQ). #234: <c>CapitalDividends</c>
-/// the eligible dividends within <c>CapitalIncome</c>, <c>CapitalScale</c> the 2OP option, <c>DeductibleCsg</c> box 6DE.
+/// the eligible dividends within <c>CapitalIncome</c>, <c>CapitalScale</c> the 2OP option, <c>DeductibleCsg</c> box 6DE,
+/// <c>RealisedGains</c> the year's net gain on securities sold (negative: loss), <c>CapitalLossesCarried</c> the earlier losses.
 /// </summary>
 public sealed record TaxInputsView(
     int Year, IReadOnlyList<TaxDeclarantView> Declarants, int Dependents, int ChildrenUnder6,
@@ -130,7 +132,8 @@ public sealed record TaxInputsView(
     string CapitalIncome, string NonTaxableIncome, string PinelReduction,
     string ChildcareOutsideHome, string HomeEmployment, string Donations, string DonationsAid, string RentalDeficitCarried, bool PerPooling = false,
     string DonationsAidLate = "0.00", string RentalEnergyWorks = "0.00", string CapitalDividends = "0.00", bool CapitalScale = false,
-    string DeductibleCsg = "0.00", string AlimonyPaid = "0.00", string AlimonyAdultChildren = "0.00", int AlimonyAdultChildrenCount = 0)
+    string DeductibleCsg = "0.00", string AlimonyPaid = "0.00", string AlimonyAdultChildren = "0.00", int AlimonyAdultChildrenCount = 0,
+    string RealisedGains = "0.00", string CapitalLossesCarried = "0.00")
 {
     /// <summary><paramref name="perEnvelopes"/>: the PERs' names by declarant, in the order of the declarants.</summary>
     public static TaxInputsView Of(TaxInputs i, IReadOnlyList<IReadOnlyList<string>>? perEnvelopes = null) => new(
@@ -142,7 +145,7 @@ public sealed record TaxInputsView(
         i.RentalRegime is { } r ? Wire(r) : null, Amount(i.CapitalIncome), Amount(i.NonTaxableIncome), Amount(i.PinelReduction),
         Amount(i.ChildcareOutsideHome), Amount(i.HomeEmployment), Amount(i.Donations), Amount(i.DonationsAid), Amount(i.RentalDeficitCarried), i.PerPooling,
         Amount(i.DonationsAidLate), Amount(i.RentalEnergyWorks), Amount(i.CapitalDividends), i.CapitalScale, Amount(i.DeductibleCsg),
-        Amount(i.AlimonyPaid), Amount(i.AlimonyAdultChildren), i.AlimonyAdultChildrenCount);
+        Amount(i.AlimonyPaid), Amount(i.AlimonyAdultChildren), i.AlimonyAdultChildrenCount, Amount(i.RealisedGains), Amount(i.CapitalLossesCarried));
 }
 
 /// <summary>
@@ -179,6 +182,7 @@ public sealed record TaxPerView(bool Pooled, string Remaining, string TaxSaved, 
 /// (2OP), <c>CapitalOptionGap</c> the total under the other one minus this one (null without capital income), <c>DividendAllowance</c>
 /// the 40 %, <c>DeductibleCsgNextYear</c> next year's 6DE, <c>HighIncomeContribution</c> the CEHR (in <c>TotalTax</c>), smoothed or not.
 /// <c>AlimonyDeducted</c>: the alimony paid off the global income.
+/// <c>RealisedGainsTaxable</c> the 3VG after the earlier losses, <c>CapitalLossesCarriedForward</c> the losses left for the next years.
 /// </summary>
 public sealed record TaxResultView(
     int Year, int RulesYear, string Parts, IReadOnlyList<TaxDeclarantResultView> Declarants,
@@ -189,7 +193,8 @@ public sealed record TaxResultView(
     string MarginalRate, string? AverageRate, string NetBeforeTax, string NetAfterTax, string NetAfterTaxMonthly,
     IReadOnlyList<string> Warnings, WithholdingView Withholding, TaxPerView? Per = null, string ReferenceIncome = "0.00", string? RentalRegimeGap = null,
     string RentalDeficitCarriedForward = "0.00", bool CapitalScale = false, string? CapitalOptionGap = null, string DividendAllowance = "0.00",
-    string DeductibleCsgNextYear = "0.00", string HighIncomeContribution = "0.00", bool HighIncomeSmoothed = false, string AlimonyDeducted = "0.00")
+    string DeductibleCsgNextYear = "0.00", string HighIncomeContribution = "0.00", bool HighIncomeSmoothed = false, string AlimonyDeducted = "0.00",
+    string RealisedGainsTaxable = "0.00", string CapitalLossesCarriedForward = "0.00")
 {
     /// <summary><paramref name="persons"/>: the adults' ids in the order of the declarants (the estimate's); a simulation passes none.</summary>
     public static TaxResultView Of(TaxResult r, IReadOnlyList<Guid>? persons = null) => new(
@@ -204,7 +209,7 @@ public sealed record TaxResultView(
         r.Warnings, WithholdingView.Of(r.Withholding), r.Per is { } household ? TaxPerView.Of(household) : null, Amount(r.ReferenceIncome),
         r.RentalRegimeGap is { } gap ? Amount(gap) : null, Amount(r.RentalDeficitCarriedForward),
         r.CapitalScale, r.CapitalOptionGap is { } option ? Amount(option) : null, Amount(r.DividendAllowance), Amount(r.DeductibleCsgNextYear),
-        Amount(r.HighIncomeContribution), r.HighIncomeSmoothed, Amount(r.AlimonyDeducted));
+        Amount(r.HighIncomeContribution), r.HighIncomeSmoothed, Amount(r.AlimonyDeducted), Amount(r.RealisedGainsTaxable), Amount(r.CapitalLossesCarriedForward));
 
     private static string? WireMethod(SalaryMethod method) => method switch
     {

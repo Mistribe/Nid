@@ -58857,7 +58857,9 @@
           "deductibleCsg",
           "alimonyPaid",
           "alimonyAdultChildren",
-          "alimonyAdultChildrenCount"
+          "alimonyAdultChildrenCount",
+          "realisedGains",
+          "capitalLossesCarried"
         ],
         "type": "object",
         "properties": {
@@ -58954,6 +58956,14 @@
             "type": "integer",
             "format": "int32",
             "default": 0
+          },
+          "realisedGains": {
+            "type": "string",
+            "default": "0.00"
+          },
+          "capitalLossesCarried": {
+            "type": "string",
+            "default": "0.00"
           }
         }
       },
@@ -59210,6 +59220,12 @@
             "type": "integer",
             "format": "int32",
             "default": 0
+          },
+          "capitalLossesCarried": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -59236,7 +59252,8 @@
           "rentalEnergyWorks",
           "capitalScale",
           "alimonyAdultChildren",
-          "alimonyAdultChildrenCount"
+          "alimonyAdultChildrenCount",
+          "capitalLossesCarried"
         ],
         "type": "object",
         "properties": {
@@ -59355,6 +59372,10 @@
             "type": "integer",
             "format": "int32",
             "default": 0
+          },
+          "capitalLossesCarried": {
+            "type": "string",
+            "default": "0.00"
           }
         }
       },
@@ -59415,7 +59436,9 @@
           "deductibleCsgNextYear",
           "highIncomeContribution",
           "highIncomeSmoothed",
-          "alimonyDeducted"
+          "alimonyDeducted",
+          "realisedGainsTaxable",
+          "capitalLossesCarriedForward"
         ],
         "type": "object",
         "properties": {
@@ -59565,6 +59588,14 @@
             "default": false
           },
           "alimonyDeducted": {
+            "type": "string",
+            "default": "0.00"
+          },
+          "realisedGainsTaxable": {
+            "type": "string",
+            "default": "0.00"
+          },
+          "capitalLossesCarriedForward": {
             "type": "string",
             "default": "0.00"
           }

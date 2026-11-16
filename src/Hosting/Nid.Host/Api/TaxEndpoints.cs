@@ -147,7 +147,7 @@ public static class TaxEndpoints
         IReadOnlyDictionary<Guid, string>? PerCeilings = null, IReadOnlyDictionary<Guid, string>? PerCeilingsExpiring = null, bool PerPooling = false,
         IReadOnlyDictionary<Guid, string>? ExemptIncomes = null, string? DonationsAidLate = null, string? RentalEnergyWorks = null,
         string? Department = null, bool CapitalScale = false, string? DeductibleCsg = null,
-        string? AlimonyPaid = null, string? AlimonyAdultChildren = null, int AlimonyAdultChildrenCount = 0)
+        string? AlimonyPaid = null, string? AlimonyAdultChildren = null, int AlimonyAdultChildrenCount = 0, string? CapitalLossesCarried = null)
     {
         internal TaxProfile? Read(FieldReader reader)
         {
@@ -167,11 +167,12 @@ public static class TaxEndpoints
             var csg = Amount(reader, DeductibleCsg, "deductibleCsg");
             var alimony = Amount(reader, AlimonyPaid, "alimonyPaid");
             var alimonyChildren = Amount(reader, AlimonyAdultChildren, "alimonyAdultChildren");
+            var losses = Amount(reader, CapitalLossesCarried, "capitalLossesCarried");
             return reader.Ok
                 ? new TaxProfile(Statuses ?? new Dictionary<Guid, string>(), Dependents, ChildrenUnder6, RentalRegime, Pinel ?? [], childcare, home, donations, aid,
                     rates, expenses, unused, carried, ceilings, expiring, PerPooling, exempt, aidLate, energy,
                     string.IsNullOrWhiteSpace(Department) ? null : Department.Trim().ToUpperInvariant(), CapitalScale, csg,
-                    alimony, alimonyChildren, AlimonyAdultChildrenCount)
+                    alimony, alimonyChildren, AlimonyAdultChildrenCount, losses)
                 : null;
         }
     }
@@ -316,7 +317,9 @@ public static class TaxEndpoints
             Amount(reader, body.DonationsAidLate, "donationsAidLate"), Amount(reader, body.RentalEnergyWorks, "rentalEnergyWorks"),
             Amount(reader, body.CapitalDividends, "capitalDividends"), body.CapitalScale, Amount(reader, body.DeductibleCsg, "deductibleCsg"),
             AlimonyPaid: Amount(reader, body.AlimonyPaid, "alimonyPaid"), AlimonyAdultChildren: Amount(reader, body.AlimonyAdultChildren, "alimonyAdultChildren"),
-            AlimonyAdultChildrenCount: body.AlimonyAdultChildrenCount);
+            AlimonyAdultChildrenCount: body.AlimonyAdultChildrenCount,
+            RealisedGains: body.RealisedGains is null ? 0m : SignedAmount(reader, body.RealisedGains, "realisedGains"),
+            CapitalLossesCarried: Amount(reader, body.CapitalLossesCarried, "capitalLossesCarried"));
         return reader.Ok ? inputs : null;
     }
 
@@ -336,6 +339,15 @@ public static class TaxEndpoints
         var amount = reader.Decimal(value, path);
         if (amount is >= 0 and < 10_000_000m) return amount.Value;
         if (amount is not null) reader.Add(path, "request.amount", "An amount is not negative and below 10 000 000.");
+        return 0m;
+    }
+
+    /// <summary>A gain or a loss (#234): a decimal string within ten million either way.</summary>
+    private static decimal SignedAmount(FieldReader reader, string value, string path)
+    {
+        var amount = reader.Decimal(value, path);
+        if (amount is > -10_000_000m and < 10_000_000m) return amount.Value;
+        if (amount is not null) reader.Add(path, "request.amount", "A gain or a loss is below 10 000 000 either way.");
         return 0m;
     }
 }
