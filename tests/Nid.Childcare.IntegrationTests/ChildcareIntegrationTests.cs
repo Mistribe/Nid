@@ -245,6 +245,16 @@ public class ChildcareIntegrationTests(PostgresFixture fixture) : IClassFixture<
     }
 
     [Fact]
+    public async Task Month_entered_long_after_is_expected_back_then()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var arrangement = await CreateAsync(app, from: "2025-08-01");
+        await ValidateAsync(app, arrangement, "2025-08"); // validated on 2025-10-15: debited by the end of September
+        await ValidateAsync(app, arrangement, "2025-09");
+        Assert.Equal(["statement:2025-09"], (await ChargesAsync(app, app.AdultA)).Select(c => c.Key));
+    }
+
+    [Fact]
     public async Task Reopened_month_expects_nothing()
     {
         await using var app = await NidApp.StartAsync(fixture);

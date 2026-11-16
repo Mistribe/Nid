@@ -6,7 +6,9 @@ namespace Nid.Childcare.Application;
 
 /// <summary>
 /// Childcare decision 22: each validated statement is a Pajemploi debit of the month's cost, expected two days after its
-/// validation (Pajemploi+ debits about two days after the declaration). A month not validated expects nothing.
+/// validation (Pajemploi+ debits about two days after the declaration), and no later than the end of the month that follows
+/// it: a past month entered long after was debited back then, not in the month it was typed in. A month not validated
+/// expects nothing.
 /// </summary>
 public sealed class ChildcareCharges(IVisibleItems visible, IItemRegistry items, IChildcareStore store, IHouseholdSettings household, IHouseholdCalendar calendar)
     : IExpectedCharges
@@ -31,7 +33,8 @@ public sealed class ChildcareCharges(IVisibleItems visible, IItemRegistry items,
             {
                 if (statement is not { Validated: true, Figures: { } figures, ValidatedAt: { } at })
                     continue;
-                var due = at.InZone(zone).Date.PlusDays(2);
+                var paidBy = statement.Month.PlusMonths(1).ToDateInterval().End;
+                var due = LocalDate.Min(at.InZone(zone).Date.PlusDays(2), paidBy);
                 if (due >= from && due <= to && Money.Create(Math.Round(figures.Cost, 2, MidpointRounding.AwayFromZero), currency).TryGetValue(out var amount))
                     charges.Add(new ExpectedCharge("childcare", arrangement.ItemId, item.DisplayName, ChargeKind.Childcare,
                         $"statement:{StatementAssembly.Format(statement.Month)}", due, amount, false, 5, Hints));
