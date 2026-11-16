@@ -17,6 +17,7 @@ import { EventText, eventDetail, eventLink } from './events';
 import { moduleLabelKey, type CalendarModule } from './modules';
 import { formatDate } from './monthGrid';
 import { clusters, years } from './timeline';
+import '@/locales/calendar';
 
 export const CALENDAR_TIMELINE = '/api/v1/calendar/timeline' as const;
 export const HORIZONS = [1, 3, 5, 10] as const;
