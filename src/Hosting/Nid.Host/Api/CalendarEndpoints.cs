@@ -15,7 +15,8 @@ public static class CalendarEndpoints
     /// <summary>The feed's route: no session and no header, the secret is the URL's last segment. Never traced (url.path holds it).</summary>
     public const string FeedPath = Microsoft.Extensions.Hosting.Extensions.CalendarFeedPath;
 
-    public sealed record CalendarFeedBody(string? Scope, bool Amounts);
+    /// <summary>No <c>Modules</c> is every module (#243).</summary>
+    public sealed record CalendarFeedBody(string? Scope, bool Amounts, IReadOnlyList<string>? Modules = null);
 
     /// <summary>The only answer carrying the feed's URL (its secret): shown once, as a token's.</summary>
     public sealed record CreatedCalendarFeedResponse(CalendarFeedView Feed, string Url);
@@ -57,13 +58,13 @@ public static class CalendarEndpoints
 
         // Creates the feed, or regenerates it: the old URL answers 404 from now on.
         api.MapPost("", async (CalendarFeedBody body, HttpRequest request, IOptions<NidAuthOptions> auth, IInvoker invoker, CancellationToken ct)
-                => (await invoker.InvokeAsync(new CreateCalendarFeedCommand(body.Scope, body.Amounts), ct))
+                => (await invoker.InvokeAsync(new CreateCalendarFeedCommand(body.Scope, body.Amounts, body.Modules), ct))
                     .ToHttp(created => new CreatedCalendarFeedResponse(created.Feed, $"{PublicUrl(auth, request)}{FeedPath}/{created.Secret}.ics"),
                         StatusCodes.Status201Created))
             .Returns<CreatedCalendarFeedResponse>(StatusCodes.Status201Created);
 
         api.MapPut("", async (CalendarFeedBody body, IInvoker invoker, CancellationToken ct)
-                => (await invoker.InvokeAsync(new UpdateCalendarFeedCommand(body.Scope, body.Amounts), ct)).ToHttp(v => v))
+                => (await invoker.InvokeAsync(new UpdateCalendarFeedCommand(body.Scope, body.Amounts, body.Modules), ct)).ToHttp(v => v))
             .Returns<CalendarFeedView>();
 
         return routes;

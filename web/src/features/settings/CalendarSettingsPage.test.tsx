@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw/http';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
@@ -10,13 +10,14 @@ type Body = Record<string, unknown>;
 const CALENDAR = '*/api/v1/core/me/calendar';
 const ID = '0192f0a0-0000-7000-8000-0000000000c1';
 const URL = 'https://nid.example/api/v1/calendar/nid_cal_abcdefgh_secret.ics';
+const ALL = ['subscriptions', 'loans', 'properties', 'investments', 'income', 'tax'];
 
 const feed = (over: Body = {}) => ({
   token: {
     id: ID, name: 'Calendrier', preset: 'calendar', prefix: 'abcdefgh', createdAt: '2026-11-01T08:00:00Z', expiresAt: '2027-11-01T08:00:00Z',
     lastUsedAt: null, revokedAt: null, status: 'active',
   },
-  scope: 'household', amounts: false, ...over,
+  scope: 'household', amounts: false, modules: ALL, ...over,
 });
 
 function serve(initial: Body | null) {
@@ -55,7 +56,7 @@ describe('the calendar settings page', () => {
     await user.click(screen.getByRole('radio', { name: 'Moi : les éléments partagés et les miens' }));
     await user.click(screen.getByRole('button', { name: 'Créer l’adresse' }));
 
-    await waitFor(() => expect(posts).toEqual([{ scope: 'me', amounts: false }]));
+    await waitFor(() => expect(posts).toEqual([{ scope: 'me', amounts: false, modules: ALL }]));
     expect(await screen.findByText(URL)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Ouvrir dans le calendrier' })).toHaveAttribute('href', 'webcal://nid.example/api/v1/calendar/nid_cal_abcdefgh_secret.ics');
     await expectNoAxeViolations(container);
@@ -74,8 +75,25 @@ describe('the calendar settings page', () => {
     await user.click(screen.getByRole('checkbox', { name: 'Afficher les montants' }));
     await user.click(save);
 
-    await waitFor(() => expect(puts).toEqual([{ scope: 'household', amounts: true }]));
+    await waitFor(() => expect(puts).toEqual([{ scope: 'household', amounts: true, modules: ALL }]));
     expect(posts).toHaveLength(0);
+  });
+
+  it('lists every module by default and saves the ones kept, never none', async () => {
+    const { puts } = serve(feed());
+    const { user } = await renderApp('/settings/calendar');
+
+    const modules = await screen.findByRole('group', { name: 'Échéances à inclure' });
+    for (const name of ['Abonnements', 'Crédits', 'Biens', 'Placements', 'Revenus', 'Impôts'])
+      expect(within(modules).getByRole('checkbox', { name })).toBeChecked();
+    for (const name of ['Abonnements', 'Crédits', 'Biens', 'Placements', 'Revenus', 'Impôts'])
+      await user.click(within(modules).getByRole('checkbox', { name }));
+    expect(screen.getByText('Cochez au moins un module.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Enregistrer' })).toBeDisabled();
+
+    await user.click(within(modules).getByRole('checkbox', { name: 'Impôts' }));
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+    await waitFor(() => expect(puts).toEqual([{ scope: 'household', amounts: false, modules: ['tax'] }]));
   });
 
   it('regenerates and revokes after a confirmation', async () => {
@@ -84,7 +102,7 @@ describe('the calendar settings page', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Régénérer l’adresse' }));
     await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
-    await waitFor(() => expect(posts).toEqual([{ scope: 'household', amounts: true }]));
+    await waitFor(() => expect(posts).toEqual([{ scope: 'household', amounts: true, modules: ALL }]));
     expect(await screen.findByText(URL)).toBeInTheDocument();
 
     await user.click(await screen.findByRole('button', { name: 'Supprimer l’abonnement' }));

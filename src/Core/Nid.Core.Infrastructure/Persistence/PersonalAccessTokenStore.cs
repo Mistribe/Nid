@@ -45,6 +45,7 @@ public sealed class PersonalAccessTokenStore(CoreDbContext db, IClock clock) : I
             Id = Guid.CreateVersion7(), PersonId = person.Value, Name = name, Prefix = prefix, TokenHash = hash,
             Scopes = TokenPresets.Stored(preset), CreatedAt = now, ExpiresAt = now.Plus(NodaTime.Duration.FromDays(days)),
             CalendarScope = calendar is null ? null : ScopeText(calendar.Scope), CalendarAmounts = calendar?.Amounts,
+            CalendarModules = calendar?.Modules?.ToArray(),
         };
         db.PersonalAccessTokens.Add(row);
         await db.SaveChangesAsync(ct);
@@ -59,6 +60,7 @@ public sealed class PersonalAccessTokenStore(CoreDbContext db, IClock clock) : I
             return Result.Failure<PersonalAccessToken>(new NotFoundFailure("calendar", person.Value.ToString()));
         row.CalendarScope = ScopeText(options.Scope);
         row.CalendarAmounts = options.Amounts;
+        row.CalendarModules = options.Modules?.ToArray();
         await db.SaveChangesAsync(ct);
         return Result.Success(ToToken(row));
     }
@@ -75,7 +77,9 @@ public sealed class PersonalAccessTokenStore(CoreDbContext db, IClock clock) : I
     private static string ScopeText(VisibilityScope scope) => scope == VisibilityScope.Me ? "me" : "household";
 
     private static CalendarFeedOptions? OptionsOf(PersonalAccessTokenRow r)
-        => r.CalendarScope is { } scope ? new CalendarFeedOptions(scope == "me" ? VisibilityScope.Me : VisibilityScope.Household, r.CalendarAmounts == true) : null;
+        => r.CalendarScope is { } scope
+            ? new CalendarFeedOptions(scope == "me" ? VisibilityScope.Me : VisibilityScope.Household, r.CalendarAmounts == true, r.CalendarModules)
+            : null;
 
     public async Task<IReadOnlyList<PersonalAccessToken>> ListAsync(PersonId person, CancellationToken ct)
         => (await db.PersonalAccessTokens.AsNoTracking().Where(t => t.PersonId == person.Value)

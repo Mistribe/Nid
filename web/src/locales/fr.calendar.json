@@ -6,6 +6,8 @@
     "loading": "Chargement de l’abonnement",
     "scope_label": "Éléments affichés",
     "scope": { "household": "Foyer : les éléments partagés", "me": "Moi : les éléments partagés et les miens" },
+    "modules_label": "Échéances à inclure",
+    "modules_none": "Cochez au moins un module.",
     "amounts": "Afficher les montants",
     "amounts_hint": "Un calendrier abonné est souvent copié chez un service tiers (iCloud, Google) : sans montants, il ne montre que les dates et les noms.",
     "create": "Créer l’adresse",

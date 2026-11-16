@@ -32983,6 +32983,15 @@
           },
           "amounts": {
             "type": "boolean"
+          },
+          "modules": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
           }
         }
       },
@@ -32990,7 +32999,8 @@
         "required": [
           "token",
           "scope",
-          "amounts"
+          "amounts",
+          "modules"
         ],
         "type": "object",
         "properties": {
@@ -33002,6 +33012,12 @@
           },
           "amounts": {
             "type": "boolean"
+          },
+          "modules": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         }
       },

@@ -187,6 +187,8 @@ public sealed class PersonalAccessTokenRow
     public string? CalendarScope { get; set; }
     /// <summary>Issue #80: whether a calendar feed shows the amounts; null on every other token.</summary>
     public bool? CalendarAmounts { get; set; }
+    /// <summary>Issue #243: the modules a calendar feed lists; null is every module (and every other token).</summary>
+    public string[]? CalendarModules { get; set; }
 }
 
 /// <summary>Issue 215, local-accounts.md §13.1: an adult's local account. <c>Login</c> is stored normalised (trimmed, NFKC, lower case).</summary>

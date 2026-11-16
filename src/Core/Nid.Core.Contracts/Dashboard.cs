@@ -197,6 +197,21 @@ public static class UpcomingKinds
     public const string PropertyTaxDue = "property_tax_due";
 }
 
+/// <summary>Issue #243: the modules « À venir » lists events of (<see cref="UpcomingEvent.Module"/>), in display order.</summary>
+public static class CalendarModules
+{
+    public const string Subscriptions = "subscriptions";
+    public const string Loans = "loans";
+    public const string Properties = "properties";
+    public const string Investments = "investments";
+    public const string Income = "income";
+
+    /// <summary>The tax calendar and the PER deadline, about no item.</summary>
+    public const string Tax = "tax";
+
+    public static readonly IReadOnlyList<string> All = [Subscriptions, Loans, Properties, Investments, Income, Tax];
+}
+
 /// <summary>A module's events dated in [<c>today</c>, <c>until</c>], over the items the reader sees in the scope.</summary>
 public interface IUpcomingEvents
 {
