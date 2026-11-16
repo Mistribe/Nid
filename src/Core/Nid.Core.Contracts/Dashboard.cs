@@ -247,6 +247,12 @@ public static class CalendarModules
     public const string Tax = "tax";
 
     public static readonly IReadOnlyList<string> All = [Subscriptions, Loans, Properties, Investments, Income, Tax];
+
+    /// <summary>Issue #241: childcare has no event, only expected debits: a module of the calendar page's amounts, never of the feed.</summary>
+    public const string Childcare = "childcare";
+
+    /// <summary>The calendar page's modules with its amounts on (#241).</summary>
+    public static readonly IReadOnlyList<string> WithAmounts = [.. All, Childcare];
 }
 
 /// <summary>A module's events dated in [<c>today</c>, <c>until</c>], over the items the reader sees in the scope.</summary>

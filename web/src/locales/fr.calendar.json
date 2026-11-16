@@ -53,6 +53,23 @@
     "timeline_empty": "Aucune échéance ponctuelle sur cet horizon pour ces modules.",
     "today": "Aujourd’hui",
     "several_one": "{{count}} échéance, du {{from}} au {{to}}",
-    "several_other": "{{count}} échéances, du {{from}} au {{to}}"
+    "several_other": "{{count}} échéances, du {{from}} au {{to}}",
+    "amounts": "Montants",
+    "amounts_hint": "Ce qui doit sortir du compte et y entrer chaque jour : prélèvements, échéances de prêt, charges, loyers.",
+    "out": "Sorties prévues",
+    "in": "Entrées prévues",
+    "balance": "Solde du mois",
+    "balance_tip": "Les entrées prévues moins les sorties prévues de ce mois-ci, converties dans la devise du foyer. Les dépenses courantes et les salaires n’y sont pas.",
+    "day_out": "Sorties",
+    "day_in": "Entrées",
+    "heavy": "Jour chargé",
+    "unknown": "Inconnu",
+    "charge": {
+      "subscription": "Prélèvement",
+      "loan_instalment": "Échéance de prêt",
+      "property_cost": "Charge du bien",
+      "rent": "Loyer",
+      "childcare": "Pajemploi"
+    }
   }
 }

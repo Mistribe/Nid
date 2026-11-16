@@ -20,11 +20,12 @@ export type MonthGridLabels = {
 
 /**
  * Issue #239: a month of dated items, generic over the item: a grid of weeks (desktop) or a list of days (phone), today marked,
- * three items a cell at most, the rest behind « +n ». `render` draws an item, `compact` in a cell.
+ * three items a cell at most, the rest behind « +n ». `render` draws an item, `compact` in a cell. Issue #241: `aside` draws what a
+ * day sums up (its totals) beside its number, and beside its heading on a phone.
  */
-export function MonthGrid<T>({ month, today, items, dateOf, render, labels }: {
+export function MonthGrid<T>({ month, today, items, dateOf, render, labels, aside }: {
   month: string; today: string; items: readonly T[]; dateOf: (item: T) => string;
-  render: (item: T, compact: boolean) => ReactNode; labels: MonthGridLabels;
+  render: (item: T, compact: boolean) => ReactNode; labels: MonthGridLabels; aside?: (date: string) => ReactNode;
 }) {
   const days = byDay(items, dateOf);
   const all = (list: T[]) => list.map((item, i) => <Fragment key={i}>{render(item, false)}</Fragment>);
@@ -40,8 +41,11 @@ export function MonthGrid<T>({ month, today, items, dateOf, render, labels }: {
           return (
             <div key={cell.date} role="group" aria-label={label} aria-current={cell.date === today ? 'date' : undefined}
               className={cn('min-h-24 min-w-0 space-y-1 border-t border-l p-1 [&:nth-child(7n+1)]:border-l-0', !cell.inMonth && 'bg-muted/40 text-muted-foreground')}>
-              <div aria-hidden="true" className={cn('inline-flex size-6 items-center justify-center rounded-full text-xs',
-                cell.date === today && 'bg-primary font-semibold text-primary-foreground')}>{Number(cell.date.slice(8))}</div>
+              <div className="flex items-start justify-between gap-1">
+                <div aria-hidden="true" className={cn('inline-flex size-6 shrink-0 items-center justify-center rounded-full text-xs',
+                  cell.date === today && 'bg-primary font-semibold text-primary-foreground')}>{Number(cell.date.slice(8))}</div>
+                {aside?.(cell.date)}
+              </div>
               {shown.map((item, i) => <Fragment key={i}>{render(item, true)}</Fragment>)}
               {hidden > 0 ? (
                 <Popover>
@@ -63,9 +67,12 @@ export function MonthGrid<T>({ month, today, items, dateOf, render, labels }: {
         <ul aria-label={labels.byDay} className="space-y-4 md:hidden">
           {[...days].map(([date, list]) => (
             <li key={date} className="space-y-1">
-              <h3 className={cn('text-sm font-semibold first-letter:uppercase', date === today && 'text-primary')}>
-                {formatDate(date, { weekday: 'long', day: 'numeric', month: 'long' })}
-              </h3>
+              <div className="flex items-start justify-between gap-2">
+                <h3 className={cn('text-sm font-semibold first-letter:uppercase', date === today && 'text-primary')}>
+                  {formatDate(date, { weekday: 'long', day: 'numeric', month: 'long' })}
+                </h3>
+                {aside?.(date)}
+              </div>
               {all(list)}
             </li>
           ))}

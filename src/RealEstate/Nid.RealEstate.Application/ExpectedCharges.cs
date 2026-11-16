@@ -8,16 +8,16 @@ using UnambitiousFx.Functional;
 namespace Nid.RealEstate.Application;
 
 /// <summary>
-/// 5C spec §6.1, over the reader's visible loans and properties: a loan's instalment with its insurance, a planned cost's
+/// 5C spec §6.1, over the loans and properties the reader sees in the scope: a loan's instalment with its insurance, a planned cost's
 /// occurrences, and the rent of each month a tenancy covers (a credit, one per property and month).
 /// </summary>
 public sealed class RealEstateExpectedCharges(IVisibleItems visible, IItemRegistry items, IPropertyStore properties, ILoanStore loans) : IExpectedCharges
 {
     private static string Day(LocalDate on) => on.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
-    public async Task<Result<IReadOnlyList<ExpectedCharge>>> ChargesAsync(PersonId reader, LocalDate from, LocalDate to, CancellationToken ct)
+    public async Task<Result<IReadOnlyList<ExpectedCharge>>> ChargesAsync(PersonId reader, VisibilityScope scope, LocalDate from, LocalDate to, CancellationToken ct)
     {
-        var ids = await visible.ForAsync(reader, VisibilityScope.Me, ct);
+        var ids = await visible.ForAsync(reader, scope, ct);
         var owing = await loans.FindManyAsync(ids, ct);
         var found = await properties.FindManyAsync(ids, ct);
         var accesses = await items.FindManyAsync([.. owing.Select(l => l.ItemId), .. found.Select(p => p.ItemId)], ct); // batched reads spec §3

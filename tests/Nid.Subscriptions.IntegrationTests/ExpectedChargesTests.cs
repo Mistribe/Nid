@@ -9,12 +9,12 @@ namespace Nid.Subscriptions.IntegrationTests;
 /// <summary>5C spec §6.1: the phase charges Banking expects to see on a statement.</summary>
 public class ExpectedChargesTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
-    private static async Task<IReadOnlyList<ExpectedCharge>> ChargesAsync(NidApp app, PersonId reader, LocalDate from, LocalDate to)
+    private static async Task<IReadOnlyList<ExpectedCharge>> ChargesAsync(NidApp app, PersonId reader, LocalDate from, LocalDate to, VisibilityScope seen = VisibilityScope.Me)
     {
         await using var scope = app.Services.CreateAsyncScope();
         scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.Browser(reader);
         var result = await scope.ServiceProvider.GetServices<IExpectedCharges>().Single(c => c.GetType().Name == "SubscriptionExpectedCharges")
-            .ChargesAsync(reader, from, to, default);
+            .ChargesAsync(reader, seen, from, to, default);
         return result.TryGetValue(out var charges) ? charges : throw new InvalidOperationException();
     }
 
@@ -53,5 +53,7 @@ public class ExpectedChargesTests(PostgresFixture fixture) : IClassFixture<Postg
 
         Assert.Empty(await ChargesAsync(app, app.AdultB, from, to));
         Assert.Equal(2, (await ChargesAsync(app, app.AdultA, from, to)).Count);
+        // #241: the household scope shows the shared items only, the reader's private ones left out.
+        Assert.Empty(await ChargesAsync(app, app.AdultA, from, to, VisibilityScope.Household));
     }
 }

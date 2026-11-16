@@ -67,16 +67,18 @@ public static class CalendarFeeds
 
     /// <summary>
     /// The chosen modules in display order, null for every one (none chosen, or all of them); an empty list or an unknown module is
-    /// refused on <c>modules</c>. The feed (#243) and the calendar page (#239) check them alike.
+    /// refused on <c>modules</c>. The feed (#243) and the calendar page (#239) check them alike. Issue #241: the page with its amounts
+    /// checks them against <paramref name="known"/>, <see cref="CalendarModules.WithAmounts"/>.
     /// </summary>
-    public static Failure? Modules(IReadOnlyList<string>? modules, out IReadOnlyList<string>? chosen)
+    public static Failure? Modules(IReadOnlyList<string>? modules, out IReadOnlyList<string>? chosen, IReadOnlyList<string>? known = null)
     {
+        known ??= CalendarModules.All;
         chosen = null;
-        if (modules is not null && (modules.Count == 0 || modules.Any(m => !CalendarModules.All.Contains(m))))
+        if (modules is not null && (modules.Count == 0 || modules.Any(m => !known.Contains(m))))
             return FieldErrors.At(new Failure(TokenCodes.CalendarModulesInvalid,
-                $"A calendar lists one or more modules among: {string.Join(", ", CalendarModules.All)}.", null), "modules");
-        var listed = modules is null ? null : CalendarModules.All.Where(modules.Contains).ToList();
-        chosen = listed?.Count == CalendarModules.All.Count ? null : listed;
+                $"A calendar lists one or more modules among: {string.Join(", ", known)}.", null), "modules");
+        var listed = modules is null ? null : known.Where(modules.Contains).ToList();
+        chosen = listed?.Count == known.Count ? null : listed;
         return null;
     }
 
@@ -150,17 +152,74 @@ public sealed class GetCalendarFeedHandler(DashboardReader dashboard, IActorAcce
 
 /// <summary>
 /// Issue #239: the calendar page's events dated in [<c>From</c>, <c>To</c>] (« À venir » as the feed lists it, in the server's order),
-/// of <c>Modules</c> (null: every module).
+/// of <c>Modules</c> (null: every module). Issue #241: <c>Amounts</c> adds the money expected in and out over the window, and accepts
+/// <see cref="CalendarModules.Childcare"/> among the modules.
 /// </summary>
-public sealed record GetCalendarQuery(VisibilityScope Scope, LocalDate From, LocalDate To, IReadOnlyList<string>? Modules) : IQuery<CalendarView>;
+public sealed record GetCalendarQuery(VisibilityScope Scope, LocalDate From, LocalDate To, IReadOnlyList<string>? Modules, bool Amounts = false)
+    : IQuery<CalendarView>;
 
-public sealed record CalendarView(LocalDate From, LocalDate To, IReadOnlyList<DashboardEventView> Events) : IExposesItems
+/// <summary>Issue #241: <c>Amounts</c> only when asked.</summary>
+public sealed record CalendarView(LocalDate From, LocalDate To, IReadOnlyList<DashboardEventView> Events, CalendarAmountsView? Amounts = null) : IExposesItems
 {
-    public IEnumerable<ItemId> ExposedItems() => Events.Select(e => e.Id).OfType<ItemId>();
+    public IEnumerable<ItemId> ExposedItems()
+        => Events.Select(e => e.Id).OfType<ItemId>().Concat(Amounts?.Charges.Select(c => c.Id) ?? []);
+}
+
+/// <summary>
+/// Issue #241: a debit (a credit: <c>Credit</c>, a rent) expected on an item, in its own currency and in the household's (<c>Converted</c>,
+/// null with <c>MissingCurrency</c> when a rate is missing). <c>Kind</c> is one of <see cref="ChargeKinds.Wire"/>.
+/// </summary>
+public sealed record CalendarChargeView(
+    LocalDate On, string Module, ItemId Id, string Name, string Kind, DashboardMoneyView Amount, DashboardMoneyView? Converted,
+    string? MissingCurrency, bool Credit);
+
+/// <summary>Issue #241: a day with a charge; <c>Out</c> or <c>In</c> null when nothing goes that way. <c>Heavy</c>: one of the window's three largest days out.</summary>
+public sealed record CalendarDayView(LocalDate On, DashboardFigure? Out, DashboardFigure? In, bool Heavy);
+
+/// <summary>Issue #241: the window's expected money, by day and in all, in the household currency; <c>Balance</c> is in minus out.</summary>
+public sealed record CalendarAmountsView(
+    string Currency, DashboardFigure Out, DashboardFigure In, DashboardFigure Balance, IReadOnlyList<CalendarDayView> Days,
+    IReadOnlyList<CalendarChargeView> Charges);
+
+public static class CalendarAmounts
+{
+    /// <summary>The days that stand out: the largest days out, never one whose total is unknown.</summary>
+    public const int HeavyDays = 3;
+
+    private static readonly StringComparer French = StringComparer.Create(System.Globalization.CultureInfo.GetCultureInfo("fr-FR"), true);
+
+    /// <summary>Each figure at <paramref name="today"/>'s rate, as the dashboard's; a total with nothing in it is 0, not unknown.</summary>
+    public static CalendarAmountsView Compose(IReadOnlyList<ExpectedCharge> charges, Currency reference, RateTable rates, LocalDate today)
+    {
+        DashboardMath.Sum Sum(IEnumerable<ExpectedCharge> some, bool signed = false)
+            => DashboardMath.Sum.Of(some.GroupBy(c => c.Amount.Currency)
+                .ToDictionary(g => g.Key, g => g.Sum(c => signed && !c.Credit ? -c.Amount.Amount : c.Amount.Amount)), reference, rates, today);
+        DashboardFigure Figure(DashboardMath.Sum sum)
+            => sum.PerCurrency.Count == 0 ? new DashboardFigure([], DashboardMath.Money(0m, reference), null) : sum.View(reference);
+
+        var days = charges.GroupBy(c => c.DueOn).OrderBy(g => g.Key)
+            .Select(g => (On: g.Key, Out: g.Any(c => !c.Credit) ? Sum(g.Where(c => !c.Credit)) : null, In: g.Any(c => c.Credit) ? Sum(g.Where(c => c.Credit)) : null))
+            .ToList();
+        var heavy = days.Where(d => d.Out?.Total is not null).OrderByDescending(d => d.Out!.Total).ThenBy(d => d.On)
+            .Take(HeavyDays).Select(d => d.On).ToHashSet();
+        return new CalendarAmountsView(
+            reference.Code, Figure(Sum(charges.Where(c => !c.Credit))), Figure(Sum(charges.Where(c => c.Credit))), Figure(Sum(charges, signed: true)),
+            days.Select(d => new CalendarDayView(d.On, d.Out?.View(reference), d.In?.View(reference), heavy.Contains(d.On))).ToList(),
+            charges.OrderBy(c => c.DueOn).ThenBy(c => c.ItemName, French).ThenBy(c => c.Kind)
+                .Select(c =>
+                {
+                    var (converted, missing) = DashboardMath.Convert(c.Amount, reference, rates, today);
+                    return new CalendarChargeView(c.DueOn, ChargeKinds.ModuleOf(c.Kind), c.Item, c.ItemName, ChargeKinds.Wire(c.Kind),
+                        DashboardMath.Money(c.Amount.Amount, c.Amount.Currency), converted is { } v ? DashboardMath.Money(v, reference) : null, missing, c.Credit);
+                })
+                .ToList());
+    }
 }
 
 [RequestHandler<GetCalendarQuery, CalendarView>]
-public sealed class GetCalendarHandler(DashboardReader dashboard, IActorAccessor accessor, IHouseholdCalendar calendar)
+public sealed class GetCalendarHandler(
+    DashboardReader dashboard, IActorAccessor accessor, IHouseholdCalendar calendar, IEnumerable<IExpectedCharges> expected,
+    IHouseholdSettings household, IFxRates fx)
     : IRequestHandler<GetCalendarQuery, CalendarView>
 {
     /// <summary>Two months at most: a month shown, and its neighbour's days on the grid, stay cheap to compute.</summary>
@@ -169,7 +228,8 @@ public sealed class GetCalendarHandler(DashboardReader dashboard, IActorAccessor
     public async ValueTask<Result<CalendarView>> HandleAsync(GetCalendarQuery query, CancellationToken ct = default)
     {
         var reader = accessor.Current!.PersonId!.Value;
-        if (CalendarFeeds.Modules(query.Modules, out var chosen) is { } refused)
+        // Childcare has amounts only: asked without them, it is an unknown module.
+        if (CalendarFeeds.Modules(query.Modules, out var chosen, query.Amounts ? CalendarModules.WithAmounts : CalendarModules.All) is { } refused)
             return Result.Failure<CalendarView>(refused);
         // The readers are not built for past dates: the calendar starts at the current month.
         var today = await calendar.TodayAsync(ct);
@@ -178,8 +238,25 @@ public sealed class GetCalendarHandler(DashboardReader dashboard, IActorAccessor
         if (query.To < query.From || Period.DaysBetween(query.From, query.To) > MaxDays)
             return Refused("to", $"The calendar covers at most {MaxDays} days from its first day.");
         // Read from the first day asked, not from today: the current month's days already past show too.
-        return (await dashboard.UpcomingAsync(reader, query.Scope, query.From, query.To, chosen, ct))
-            .Map(events => new CalendarView(query.From, query.To, events));
+        var events = await dashboard.UpcomingAsync(reader, query.Scope, query.From, query.To, chosen, ct);
+        if (!events.TryGetValue(out var listed) || !query.Amounts)
+            return events.Map(e => new CalendarView(query.From, query.To, e));
+
+        // Issue #241: the month's plan, its days already past included.
+        var charges = new List<ExpectedCharge>();
+        foreach (var source in expected)
+        {
+            var found = await source.ChargesAsync(reader, query.Scope, query.From, query.To, ct);
+            if (found.TryGetFailure(out var failure))
+                return Result.Failure<CalendarView>(failure!);
+            found.TryGetValue(out var some);
+            charges.AddRange(some!.Where(c => chosen is null || chosen.Contains(ChargeKinds.ModuleOf(c.Kind))));
+        }
+        var reference = await household.ReferenceCurrencyAsync(ct);
+        var foreign = charges.Select(c => c.Amount.Currency).Where(c => c != reference).Distinct().ToList();
+        // The reference's own quote is needed too: rates are per USD (RateTable converts through it).
+        var rates = foreign.Count == 0 ? RateTable.Empty(today, 0) : await fx.LoadAsync([.. foreign, reference], today, today, ct);
+        return Result.Success(new CalendarView(query.From, query.To, listed!, CalendarAmounts.Compose(charges, reference, rates, today)));
     }
 
     private static Result<CalendarView> Refused(string field, string message)

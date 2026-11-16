@@ -528,6 +528,7 @@ export interface paths {
                     from: string;
                     to: string;
                     modules?: string;
+                    amounts?: boolean;
                 };
                 header?: never;
                 path?: never;
@@ -30373,6 +30374,34 @@ export interface components {
             /** Format: double */
             pct?: null | number;
         };
+        CalendarAmountsView: {
+            currency: string;
+            out: components["schemas"]["DashboardFigure"];
+            in: components["schemas"]["DashboardFigure"];
+            balance: components["schemas"]["DashboardFigure"];
+            days: components["schemas"]["CalendarDayView"][];
+            charges: components["schemas"]["CalendarChargeView"][];
+        };
+        CalendarChargeView: {
+            /** Format: date */
+            on: string;
+            module: string;
+            /** Format: uuid */
+            id: string;
+            name: string;
+            kind: string;
+            amount: components["schemas"]["DashboardMoneyView"];
+            converted?: null | components["schemas"]["DashboardMoneyView"];
+            missingCurrency?: null | string;
+            credit: boolean;
+        };
+        CalendarDayView: {
+            /** Format: date */
+            on: string;
+            out?: null | components["schemas"]["DashboardFigure"];
+            in?: null | components["schemas"]["DashboardFigure"];
+            heavy: boolean;
+        };
         CalendarFeedBody: {
             scope?: null | string;
             amounts: boolean;
@@ -30390,6 +30419,7 @@ export interface components {
             /** Format: date */
             to: string;
             events: components["schemas"]["DashboardEventView"][];
+            amounts?: null | components["schemas"]["CalendarAmountsView"];
         };
         CancellationView: {
             status: string;
