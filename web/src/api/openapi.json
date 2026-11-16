@@ -57663,6 +57663,28 @@
           }
         }
       },
+      "Tax2042BoxView": {
+        "required": [
+          "code",
+          "amount"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "person": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "amount": {
+            "type": "string"
+          }
+        }
+      },
       "TaxAdultView": {
         "required": [
           "id",
@@ -58609,6 +58631,27 @@
           }
         }
       },
+      "TaxDeclarationView": {
+        "required": [
+          "boxes",
+          "toEnter"
+        ],
+        "type": "object",
+        "properties": {
+          "boxes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Tax2042BoxView"
+            }
+          },
+          "toEnter": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaxNoticeView"
+            }
+          }
+        }
+      },
       "TaxEstimateView": {
         "required": [
           "year",
@@ -58702,6 +58745,16 @@
             "type": [
               "null",
               "string"
+            ]
+          },
+          "declaration": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TaxDeclarationView"
+              }
             ]
           }
         }

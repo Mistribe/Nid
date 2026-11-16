@@ -476,6 +476,11 @@ public class ChildcareIntegrationTests(PostgresFixture fixture) : IClassFixture<
         var notice = tax.GetProperty("notices").EnumerateArray().Single(n => n.GetProperty("code").GetString() == "childcare_from_statements");
         Assert.Equal(summary.GetProperty("retained").GetProperty("amount").GetString(), notice.GetProperty("amount").GetString());
         Assert.Equal(summary.GetProperty("id").GetGuid(), notice.GetProperty("item").GetGuid());
+        // #233: the 2042 list puts the costs in the year summary's box, the months still to validate included.
+        var box = tax.GetProperty("declaration").GetProperty("boxes").EnumerateArray().Single(b => b.GetProperty("code").GetString()!.StartsWith("7G"));
+        var inputs = decimal.Parse(tax.GetProperty("inputs").GetProperty("childcareOutsideHome").GetString()!, System.Globalization.CultureInfo.InvariantCulture);
+        Assert.Equal("7GA", box.GetProperty("code").GetString());
+        Assert.Equal(Math.Round(inputs, 0, MidpointRounding.AwayFromZero).ToString("0.00", System.Globalization.CultureInfo.InvariantCulture), box.GetProperty("amount").GetString());
         var declaration = september.GetProperty("figures").GetProperty("declaration");
         Assert.Equal(declaration.GetProperty("netPay").GetString(), summary.GetProperty("netPay").GetProperty("amount").GetString());
         Assert.Equal(declaration.GetProperty("upkeep").GetString(), summary.GetProperty("upkeep").GetProperty("amount").GetString());

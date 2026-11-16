@@ -35943,6 +35943,12 @@ export interface components {
             databaseSizeBytes?: null | number;
             auth: components["schemas"]["SystemAuthView"];
         };
+        Tax2042BoxView: {
+            code: string;
+            /** Format: uuid */
+            person?: null | string;
+            amount: string;
+        };
         TaxAdultView: {
             /** Format: uuid */
             id: string;
@@ -36113,6 +36119,10 @@ export interface components {
             /** @default 0.00 */
             exemptIncome: string;
         };
+        TaxDeclarationView: {
+            boxes: components["schemas"]["Tax2042BoxView"][];
+            toEnter: components["schemas"]["TaxNoticeView"][];
+        };
         TaxEstimateView: {
             /** Format: int32 */
             year: number;
@@ -36133,6 +36143,7 @@ export interface components {
             carriedFrom?: null | components["schemas"]["TaxCarryView"];
             gaps?: null | components["schemas"]["TaxGapsView"];
             rentalDeficitEstimated?: null | string;
+            declaration?: null | components["schemas"]["TaxDeclarationView"];
         };
         TaxGapLineView: {
             code: string;

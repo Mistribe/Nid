@@ -35,11 +35,14 @@ import { DeclarantTable, eur, ResultTable, Term } from './ResultTable';
 import { EvolutionSection } from './EvolutionSection';
 import { SaleTotalSection } from './SaleTotalSection';
 import { SimulationForm } from './SimulationForm';
+import { Declaration2042Section } from './Declaration2042Section';
 import { Rental2044Section } from './Rental2044Section';
 import { WithholdingSection } from './WithholdingSection';
 import '@/locales/tax';
 
-const TABS = ['detail', 'withholding', 'assessment', 'evolution', 'simulation', 'profile', '2044'] as const;
+const TABS = ['detail', 'withholding', 'assessment', 'evolution', 'simulation', 'profile', '2042', '2044'] as const;
+/** The declarations, filed for the year just ended. */
+const DECLARATIONS: readonly string[] = ['2042', '2044'];
 
 /** Past this many years the selector is a list, not a row of buttons. */
 const MAX_SEGMENTS = 6;
@@ -57,8 +60,8 @@ export function TaxPage() {
   const thisYear = todayIso().slice(0, 4);
   const lastYear = String(Number(thisYear) - 1);
   const [rawTab, setTab] = useDetailTab(TABS);
-  // The 2044 is filed for the year just ended; the estimate opens on the current one. The default stays out of the URL.
-  const defaultYear = rawTab === '2044' ? lastYear : thisYear;
+  // The 2042 and the 2044 are filed for the year just ended; the estimate opens on the current one. The default stays out of the URL.
+  const defaultYear = DECLARATIONS.includes(rawTab) ? lastYear : thisYear;
   const list = useTaxAssessments(scope);
   const assessments = list.data?.items ?? [];
   const years = [...new Set([lastYear, thisYear, ...assessments.map((a) => String(a.year))])].sort().map((y) => ({ value: y, label: y }));
@@ -94,7 +97,7 @@ export function TaxPage() {
           </FilterField>
         </FilterRow>
       </div>
-      {estimate ? <div className={tab === '2044' ? 'print:hidden' : undefined}><Figures estimate={estimate} onAdjust={() => setTab('withholding')} /></div> : null}
+      {estimate ? <div className={DECLARATIONS.includes(tab) ? 'print:hidden' : undefined}><Figures estimate={estimate} onAdjust={() => setTab('withholding')} /></div> : null}
       {past && awaiting ? <div aria-busy="true" aria-label={t('tax.loading')} className="h-40 shimmer rounded-md border bg-muted" /> : null}
       {past && !awaiting ? noticeViews : null}
       {!past && answer.error ? <ProblemMessage problem={present(toProblem(answer.error))} /> : null}
@@ -123,6 +126,12 @@ export function TaxPage() {
           ) },
           { id: 'profile', label: t('tax.tab.profile'), content: draft ? <ProfileForm key={draft.key} estimate={estimate} draft={draft} /> : null,
             action: draft ? <ProfileSubmit draft={draft} /> : undefined },
+          { id: '2042', label: t('tax.tab.2042'), content: (
+            <>
+              <h2 className="hidden text-xl font-semibold print:block">{t('tax.d2042.print_title', { year })}</h2>
+              <Declaration2042Section estimate={estimate} />
+            </>
+          ) },
           { id: '2044', label: t('tax.tab.2044'), content: (
             <>
               {/* The tab list does not print: the printed 2044 keeps its title. */}
