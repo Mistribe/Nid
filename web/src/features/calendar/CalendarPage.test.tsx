@@ -18,6 +18,16 @@ function serve(events: DashboardEvent[] = []) {
 }
 const grid = () => screen.findByRole('group', { name: 'Calendrier du mois' });
 
+function serveTimeline(events: DashboardEvent[] = []) {
+  const seen: URLSearchParams[] = [];
+  server.use(http.get('*/api/v1/calendar/timeline', ({ request }) => {
+    const query = new URL(request.url).searchParams;
+    seen.push(query);
+    return HttpResponse.json({ from: '2026-11-15', to: `${2026 + Number(query.get('horizon'))}-11-15`, events });
+  }));
+  return seen;
+}
+
 describe('Calendrier', () => {
   beforeAll(async () => { await import('./CalendarPage'); }, 30_000);
   beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date(2026, 10, 15, 12)); });
@@ -67,5 +77,46 @@ describe('Calendrier', () => {
 
     expect(await screen.findByRole('checkbox', { name: 'Impôts' })).toBeDisabled();
     expect(screen.getByRole('checkbox', { name: 'Abonnements' })).not.toBeChecked();
+  });
+
+  it('switches to the timeline: the milestones over the horizon, one row per module, each mark linked to its item', async () => {
+    serve();
+    const seen = serveTimeline([
+      event({ on: '2028-03-01', kind: 'tax_milestone', module: 'investments', id: '00000000-0000-7000-8000-0000000000d1', name: 'PEA Alice', label: 'pea_5y', amount: null }),
+      event({ on: '2031-04-15', kind: 'loan_end', module: 'loans', id: '00000000-0000-7000-8000-0000000000d2', name: 'Prêt maison', label: null, amount: null }),
+      event({ on: '2031-05-01', kind: 'tenancy_end', module: 'loans', id: '00000000-0000-7000-8000-0000000000d2', name: 'Prêt maison', label: 'T2', amount: null }),
+    ]);
+    const { user, router, container } = await renderApp('/calendar?modules=loans,investments');
+
+    await user.click(await screen.findByRole('radio', { name: 'Frise' }));
+    await waitFor(() => expect(router.state.location.search).toEqual({ modules: 'loans,investments', view: 'timeline' }));
+    await waitFor(() => expect(seen.at(-1)?.toString()).toBe('scope=household&horizon=5&modules=loans%2Cinvestments'));
+    expect(screen.queryByRole('button', { name: 'Mois suivant' })).not.toBeInTheDocument();
+
+    const band = await screen.findByRole('region', { name: 'Frise des échéances du 15 novembre 2026 au 15 novembre 2031' });
+    // The checked modules only, in the filters' order.
+    expect(within(band).getAllByRole('list').map((l) => l.getAttribute('aria-labelledby') && document.getElementById(l.getAttribute('aria-labelledby')!)?.textContent))
+      .toEqual(['Crédits', 'Placements']);
+    const pea = within(within(band).getByRole('list', { name: 'Placements' })).getByRole('link');
+    expect(pea).toHaveTextContent('5 ans du PEA : la fiscalité des retraits change · PEA Alice · 1 mars 2028');
+    expect(pea).toHaveAttribute('href', '/investments/00000000-0000-7000-8000-0000000000d1');
+    // Two weeks apart on five years: one mark, opening both.
+    await user.click(within(band).getByRole('button', { name: '2 échéances, du 15 avril 2031 au 1 mai 2031' }));
+    expect(await screen.findByRole('dialog', { name: '2 échéances, du 15 avril 2031 au 1 mai 2031' })).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    await expectNoAxeViolations(container);
+
+    await user.click(screen.getByRole('radio', { name: '10 ans' }));
+    await waitFor(() => expect(router.state.location.search).toEqual({ modules: 'loans,investments', view: 'timeline', horizon: 10 }));
+    await waitFor(() => expect(seen.at(-1)?.get('horizon')).toBe('10'));
+  });
+
+  it('reads the timeline view and its horizon from the address', async () => {
+    const seen = serveTimeline();
+    await renderApp('/calendar?view=timeline&horizon=1');
+
+    expect(await screen.findByRole('radio', { name: '1 an' })).toBeChecked();
+    await waitFor(() => expect(seen.at(-1)?.get('horizon')).toBe('1'));
+    expect(await screen.findByText('Aucune échéance ponctuelle sur cet horizon pour ces modules.')).toBeInTheDocument();
   });
 });

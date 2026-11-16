@@ -1,13 +1,11 @@
-import { Link, useNavigate, useSearch } from '@tanstack/react-router';
+import { useNavigate, useSearch } from '@tanstack/react-router';
 import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
-import { useId } from 'react';
+import { lazy, Suspense, useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
-import type { DashboardEvent } from '@/api/dashboard';
 import { present, toProblem } from '@/api/errors';
 import type { CalendarSearch } from '@/app/router';
-import { ModuleTile } from '@/components/ModuleTile';
-import { placeOf, tileOf } from '@/components/nav';
+import { Segmented } from '@/components/form/Segmented';
 import { PageHeader } from '@/components/page/PageHeader';
 import { Loading } from '@/components/page/skeletons';
 import { ProblemMessage } from '@/components/ProblemMessage';
@@ -17,8 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { RootSearch } from '@/lib/search';
 import { todayIso } from '@/lib/today';
-import { cn } from '@/lib/utils';
-import { EventText, eventDetail, eventIcon, eventLink } from './events';
+import { EventLink } from './EventLink';
 import { CALENDAR_MODULES, moduleLabelKey, type CalendarModule } from './modules';
 import { MonthGrid } from './MonthGrid';
 import { daysIn, formatDate, shiftMonth } from './monthGrid';
@@ -26,33 +23,25 @@ import '@/locales/calendar';
 
 export const CALENDAR_EVENTS = '/api/v1/calendar' as const;
 
-/** Issue #239: every module's dated events over a month, from the current one on, filtered by module on the server. */
+// Its own chunk: the month view does not load it (#240).
+const TimelineView = lazy(() => import('./TimelineView').then((m) => ({ default: m.TimelineView })));
+
+/**
+ * Issue #239: every module's dated events over a month, from the current one on, filtered by module on the server. Issue #240: or
+ * their milestones over years, on a timeline (`?view=timeline`).
+ */
 export function CalendarPage() {
   const { t } = useTranslation();
-  const { $api } = useApi();
   const navigate = useNavigate();
   const search: RootSearch & CalendarSearch = useSearch({ strict: false });
   const scope = search.scope === 'me' ? 'me' : 'household';
-  const today = todayIso();
-  const current = today.slice(0, 7);
-  // The server reads no month before the current one.
-  const month = search.month && search.month > current ? search.month : current;
   const modules: readonly CalendarModule[] = search.modules?.split(',').filter((m): m is CalendarModule => CALENDAR_MODULES.includes(m as CalendarModule)) ?? CALENDAR_MODULES;
-  const from = `${month}-01`;
-  const to = `${month}-${daysIn(Number(month.slice(0, 4)), Number(month.slice(5, 7)))}`;
-  const answer = $api.useQuery('get', CALENDAR_EVENTS, {
-    params: { query: { scope, from, to, ...(search.modules ? { modules: search.modules } : {}) } },
-  });
   const modulesId = useId();
 
-  const go = (by: number) => {
-    const next = shiftMonth(month, by);
-    void navigate({ to: '.', replace: true, resetScroll: false, search: (prev: CalendarSearch) => ({ ...prev, month: next === current ? undefined : next }) });
-  };
   const toggle = (module: CalendarModule, on: boolean) => {
     const next = CALENDAR_MODULES.filter((m) => (m === module ? on : modules.includes(m)));
     void navigate({ to: '.', replace: true, resetScroll: false,
-      search: (prev: CalendarSearch) => ({ ...prev, modules: next.length === CALENDAR_MODULES.length ? undefined : next.join(',') }) });
+      search: (prev) => ({ ...prev, modules: next.length === CALENDAR_MODULES.length ? undefined : next.join(',') }) });
   };
 
   return (
@@ -74,6 +63,41 @@ export function CalendarPage() {
           })}
         </div>
       </div>
+      <Segmented aria-label={t('calendar_page.view')} value={search.view ?? 'month'} options={[
+        { value: 'month', label: t('calendar_page.view_month') }, { value: 'timeline', label: t('calendar_page.view_timeline') },
+      ]} onValueChange={(v) => void navigate({ to: '.', replace: true, resetScroll: false,
+        search: (prev) => ({ ...prev, view: v === 'timeline' ? 'timeline' : undefined }) })} />
+      {search.view === 'timeline'
+        ? <Suspense fallback={<Loading label={t('calendar_page.loading')}><Skeleton className="h-72 w-full" /></Loading>}>
+          <TimelineView scope={scope} modules={modules} chosen={search.modules} horizon={search.horizon ?? 5} />
+        </Suspense>
+        : <MonthView scope={scope} chosen={search.modules} month={search.month} />}
+    </div>
+  );
+}
+
+/** A month of events: previous and next month, a grid (desktop) or a list of days (phone). */
+function MonthView({ scope, chosen, month: asked }: { scope: 'household' | 'me'; chosen: string | undefined; month: string | undefined }) {
+  const { t } = useTranslation();
+  const { $api } = useApi();
+  const navigate = useNavigate();
+  const today = todayIso();
+  const current = today.slice(0, 7);
+  // The server reads no month before the current one.
+  const month = asked && asked > current ? asked : current;
+  const from = `${month}-01`;
+  const to = `${month}-${daysIn(Number(month.slice(0, 4)), Number(month.slice(5, 7)))}`;
+  const answer = $api.useQuery('get', CALENDAR_EVENTS, {
+    params: { query: { scope, from, to, ...(chosen ? { modules: chosen } : {}) } },
+  });
+
+  const go = (by: number) => {
+    const next = shiftMonth(month, by);
+    void navigate({ to: '.', replace: true, resetScroll: false, search: (prev) => ({ ...prev, month: next === current ? undefined : next }) });
+  };
+
+  return (
+    <>
       <div className="flex items-center gap-2">
         <Button type="button" variant="ghost" size="icon" aria-label={t('calendar_page.previous')} disabled={month === current} onClick={() => go(-1)}>
           <ChevronLeftIcon aria-hidden="true" />
@@ -96,23 +120,6 @@ export function CalendarPage() {
               }} />
           </>
         )}
-    </div>
-  );
-}
-
-/** An event, with « À venir »'s icon and words, linked to its item (or to the tax page). */
-function EventLink({ e, compact }: { e: DashboardEvent; compact: boolean }) {
-  const { t } = useTranslation();
-  const place = placeOf(e.module);
-  const detail = eventDetail(t, e);
-  return (
-    <Link {...eventLink(e)} title={compact ? detail : undefined}
-      className={cn('flex min-w-0 items-center gap-2 rounded-sm px-1 hover:bg-accent', compact ? 'text-xs' : 'py-1 text-sm')}>
-      <ModuleTile icon={eventIcon(e)} tile={place ? tileOf(place).tile : 'neutral'} />
-      <span className="min-w-0 flex-1 truncate">
-        <span className="font-medium"><EventText e={e} /></span>
-        <span className="text-muted-foreground"> · {detail}</span>
-      </span>
-    </Link>
+    </>
   );
 }

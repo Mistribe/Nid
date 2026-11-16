@@ -185,3 +185,30 @@ public sealed class GetCalendarHandler(DashboardReader dashboard, IActorAccessor
     private static Result<CalendarView> Refused(string field, string message)
         => Result.Failure<CalendarView>(FieldErrors.At(new Failure(TokenCodes.CalendarRangeInvalid, message, null), field));
 }
+
+/// <summary>
+/// Issue #240: the calendar's timeline, the milestones (<see cref="UpcomingKinds.IsMilestone"/>) of <c>Modules</c> (null: every module)
+/// from today over <c>HorizonYears</c> (one of <see cref="GetCalendarTimelineHandler.Horizons"/>).
+/// </summary>
+public sealed record GetCalendarTimelineQuery(VisibilityScope Scope, int HorizonYears, IReadOnlyList<string>? Modules) : IQuery<CalendarView>;
+
+[RequestHandler<GetCalendarTimelineQuery, CalendarView>]
+public sealed class GetCalendarTimelineHandler(DashboardReader dashboard, IActorAccessor accessor, IHouseholdCalendar calendar)
+    : IRequestHandler<GetCalendarTimelineQuery, CalendarView>
+{
+    public static readonly IReadOnlyList<int> Horizons = [1, 3, 5, 10];
+
+    public async ValueTask<Result<CalendarView>> HandleAsync(GetCalendarTimelineQuery query, CancellationToken ct = default)
+    {
+        var reader = accessor.Current!.PersonId!.Value;
+        if (CalendarFeeds.Modules(query.Modules, out var chosen) is { } refused)
+            return Result.Failure<CalendarView>(refused);
+        if (!Horizons.Contains(query.HorizonYears))
+            return Result.Failure<CalendarView>(FieldErrors.At(new Failure(TokenCodes.CalendarRangeInvalid,
+                $"The timeline looks {string.Join(", ", Horizons)} years ahead.", null), "horizon"));
+        var today = await calendar.TodayAsync(ct);
+        var until = today.PlusYears(query.HorizonYears);
+        return (await dashboard.UpcomingAsync(reader, query.Scope, today, until, chosen, ct, milestonesOnly: true))
+            .Map(events => new CalendarView(today, until, events));
+    }
+}
