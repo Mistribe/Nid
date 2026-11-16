@@ -53,6 +53,28 @@ public class PaidLeaveTests
     }
 
     /// <summary>
+    /// The carer's own sickness (L3141-5 7°, L3141-5-1): eight sick weeks of the 37 leave 29 weeks, 18,13 days, plus 8 × 2 ÷ 4
+    /// = 4 for the sickness, 22,13, so 23; an unpaid absence of the same weeks gives 19. Sick all year, 37 weeks earn 18,5, so 19.
+    /// </summary>
+    [Fact]
+    public void Carer_sickness_earns_two_days_per_four_weeks()
+    {
+        var days = Days(D(2026, 9, 1), D(2027, 5, 31), [new(D(2027, 2, 15), 2)]);
+        var sickWeeks = days.Where(d => d.Date >= D(2026, 11, 2) && d.Date < D(2026, 12, 28) && d.Planned).Select(d => d.Date).ToArray();
+        Assert.Equal(23, PaidLeave.Accrued(Absent(days, AbsenceReason.CarerSick, sickWeeks), Plan));
+        Assert.Equal(19, PaidLeave.Accrued(Absent(days, AbsenceReason.CarerAbsent, sickWeeks), Plan));
+        Assert.Equal(19, PaidLeave.Accrued(Absent(days, AbsenceReason.CarerSick, [.. days.Where(d => d.Planned).Select(d => d.Date)]), Plan));
+    }
+
+    /// <summary>A whole reference period of sickness: 52 ¼ weeks would give 26,13, held at 24 (L3141-5-1).</summary>
+    [Fact]
+    public void Carer_sickness_is_capped_at_24()
+    {
+        var days = Days(D(2026, 6, 1), D(2027, 5, 31), []);
+        Assert.Equal(24, PaidLeave.Accrued(Absent(days, AbsenceReason.CarerSick, [.. days.Where(d => d.Planned).Select(d => d.Date)]), Plan));
+    }
+
+    /// <summary>
     /// Paid leave taken in the two weeks without care replaces no planned day: still 37 weeks, 24 days. Read as work, it would
     /// make 39 weeks, 25 days. A day worked there still counts.
     /// </summary>

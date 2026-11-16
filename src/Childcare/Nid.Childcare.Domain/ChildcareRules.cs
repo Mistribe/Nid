@@ -25,6 +25,9 @@ public sealed record ChildcareRules(LocalDate From, decimal MinimumGuaranteed)
     public const int ChildSickQuotaDays = 5;
     public const decimal LeaveDaysPerFourWeeks = 2.5m;
     public const int LeaveDaysCap = 30;
+    /// <summary>The carer's own non-work sickness: 2 days per 4 weeks, 24 at most per reference period (C. trav. L3141-5-1).</summary>
+    public const decimal SickLeaveDaysPerFourWeeks = 2m;
+    public const int SickLeaveDaysCap = 24;
     /// <summary>Beyond this, the contract is a full year, which Nid does not model.</summary>
     public const int MaxProgrammedWeeks = 46;
 
