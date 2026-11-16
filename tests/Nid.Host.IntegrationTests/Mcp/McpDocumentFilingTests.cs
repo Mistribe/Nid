@@ -129,7 +129,7 @@ public class McpDocumentFilingTests(PostgresFixture fixture) : IClassFixture<Pos
 
         await RefusedAsync(new { edits = new object[] { new { id = document, documentDate = "2024-01-31" }, new { id = document, documentDate = "31/01/2024" } } }, "payload.body.edits[1].documentDate");
         await RefusedAsync(new { edits = new object[] { new { id = document, documentDate = "2999-01-31" } } }, "payload.body.edits[0].documentDate");
-        await RefusedAsync(new { edits = new object[] { new { id = document, title = "A" }, new { id = unreadable, title = "B" } } }, "Not found.");
+        await RefusedAsync(new { edits = new object[] { new { id = document, title = "A" }, new { id = unreadable, title = "B" } } }, "NOT_FOUND: The requested item was not found.");
         await RefusedAsync(new { roles = new object[] { new { id = document, targetKind = TargetKinds.CoreItem, targetId = item.Value, role = "nope" } } }, "payload.body.roles[0].role");
         await RefusedAsync(new { }, "documents.invalid_field");
 

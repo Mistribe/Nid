@@ -166,7 +166,7 @@ public class McpDocumentToolTests(PostgresFixture fixture) : IClassFixture<Postg
         var result = await CallAsync(client, "read_document", new { id });
 
         Assert.True(result.IsError);
-        Assert.Equal($"Refused: {DocumentsCodes.ContentMissing}.", McpHarness.TextOf(result));
+        Assert.Equal($"{DocumentsCodes.ContentMissing}: The document's file is missing.", McpHarness.TextOf(result));
     }
 
     // Final review, finding 4: never part of a file, whichever way its size is wrong.
@@ -182,7 +182,7 @@ public class McpDocumentToolTests(PostgresFixture fixture) : IClassFixture<Postg
         var result = await CallAsync(client, "read_document", new { id });
 
         Assert.True(result.IsError);
-        Assert.Equal($"Refused: {DocumentsCodes.ContentMissing}.", McpHarness.TextOf(result));
+        Assert.Equal($"{DocumentsCodes.ContentMissing}: The document's file is missing.", McpHarness.TextOf(result));
     }
 
     // Review Focus 1.
@@ -199,7 +199,7 @@ public class McpDocumentToolTests(PostgresFixture fixture) : IClassFixture<Postg
         foreach (var result in new[] { hidden, missing })
         {
             Assert.True(result.IsError);
-            Assert.Equal("Not found.", McpHarness.TextOf(result));
+            Assert.Equal("NOT_FOUND: The requested item was not found.", McpHarness.TextOf(result));
             Assert.IsType<TextContentBlock>(Assert.Single(result.Content));
         }
         Assert.Equal(2, (await AuditApi.EventsAsync(app, SecurityEventNames.McpToolCalled)).Count);

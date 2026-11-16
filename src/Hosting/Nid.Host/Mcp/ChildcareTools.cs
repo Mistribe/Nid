@@ -37,7 +37,7 @@ public sealed class ChildcareTools
         [Description("The month, yyyy-MM.")] string month, CancellationToken ct = default)
         => Month.Parse(month) is { Success: true } parsed
             ? McpCalls.RunAsync(services, () => new GetStatementQuery(new ItemId(id), parsed.Value), ct)
-            : Task.FromResult(McpCalls.Error("month: a month is yyyy-MM."));
+            : Task.FromResult(McpCalls.Invalid(services, "month", "A month is yyyy-MM."));
 
     [McpServerTool(Name = "get_childcare_year", ReadOnly = true)]
     [Description("An arrangement's year for the tax return, from its validated months (the figures the tax estimate uses): net pay, CMG, upkeep, "

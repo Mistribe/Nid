@@ -209,7 +209,7 @@ public class McpToolTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
         }
     }
 
-    private const string McpCallsNotFound = "Not found.";
+    private const string McpCallsNotFound = "NOT_FOUND: The requested item was not found.";
 
     // Review Focus 3.
     [Theory]
@@ -240,8 +240,8 @@ public class McpToolTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
                 new Dictionary<string, object?> { ["id"] = loan, ["on"] = "15/01/2026", ["amount"] = "1 000,50" }, cancellationToken: TestContext.Current.CancellationToken);
 
             Assert.True(result.IsError);
-            Assert.Contains("on:", McpHarness.TextOf(result));
-            Assert.Contains("amount:", McpHarness.TextOf(result));
+            Assert.Contains("on (", McpHarness.TextOf(result));
+            Assert.Contains("amount (", McpHarness.TextOf(result));
         }
     }
 
@@ -257,7 +257,7 @@ public class McpToolTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
             }, cancellationToken: TestContext.Current.CancellationToken);
 
             Assert.True(result.IsError);
-            foreach (var field in new[] { "on:", "amount:", "loanId:", "effect:" })
+            foreach (var field in new[] { "on (", "amount (", "loanId (", "effect (" })
                 Assert.Contains(field, McpHarness.TextOf(result));
         }
     }

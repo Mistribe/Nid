@@ -148,14 +148,14 @@ public class McpServerTests(PostgresFixture fixture) : IClassFixture<PostgresFix
     [Fact]
     public async Task A_result_above_the_limit_is_refused_whole()
     {
-        await using var app = await NidApp.StartAsync(fixture, settings: new Dictionary<string, string> { ["Mcp:MaxResultBytes"] = "10" });
+        await using var app = await NidApp.StartAsync(fixture, settings: new Dictionary<string, string> { ["Mcp:MaxAnswerLength"] = "10" });
         var read = await TokenApi.CreateAsync(app, app.AdultA, TokenPresets.Read);
         await using var client = await McpHarness.ClientAsync(app, read.Secret);
 
         var result = await client.CallToolAsync("list_persons", new Dictionary<string, object?>(), cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(result.IsError);
-        Assert.Equal("Result too large: narrow the request.", McpHarness.TextOf(result));
+        Assert.StartsWith("ANSWER_TOO_LARGE: The answer is ", McpHarness.TextOf(result));
     }
 
     [Fact]
