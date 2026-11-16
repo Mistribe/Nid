@@ -306,6 +306,7 @@
       "parent_rtt": "RTT employeur",
       "child_sick": "Enfant malade",
       "carer_absent": "Absence de l'assistante",
+      "carer_sick": "Maladie de l'assistante",
       "holiday": "Jour férié",
       "paid_leave": "Congés payés",
       "carer_training": "Formation de l'assistante",

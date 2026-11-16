@@ -18,18 +18,24 @@ public static class PaidLeave
     /// Occitanie fiche 1.5 of 5 November 2024: the month method does not apply to a contract of 46 weeks or fewer, « 2,75
     /// jours doit être arrondi à 3 »). A week counts for its template days worked or assimilated over its template days, so
     /// weeks without care, the days outside the contract and the unpaid absences earn nothing. Neither does an absence in a
-    /// week without care (<paramref name="gaps"/>): leave taken there replaces no planned day.
+    /// week without care (<paramref name="gaps"/>): leave taken there replaces no planned day. The carer's own sickness is
+    /// assimilated since the law of 22 April 2024 (L3141-5 7°) at its own rate: 2 days per 4 weeks, capped at 24 for the
+    /// sickness alone (L3141-5-1, « à ce titre »; Cass. soc. 21 January 2026, 24-22.228), counted the same way by template day.
     /// </summary>
     public static int Accrued(IEnumerable<StatementDay> days, WeekPlan plan, IReadOnlyList<AbsenceReason>? unpaid = null, IReadOnlyList<CareGap>? gaps = null)
     {
         var reasons = unpaid ?? AbsenceCodes.DefaultUnpaid;
-        var weeks = days.GroupBy(d => WeekPlan.MondayOf(d.Date)).Sum(w =>
+        var (weeks, sickWeeks) = (0m, 0m);
+        foreach (var w in days.GroupBy(d => WeekPlan.MondayOf(d.Date)))
         {
             var template = plan.Types[plan.TypeOf(w.Key)].Schedule.Count;
-            return template == 0 ? 0m : Math.Min(1m, (decimal)w.Count(d => Counts(d, reasons, gaps ?? [])) / template);
-        });
+            if (template == 0) continue;
+            weeks += Math.Min(1m, (decimal)w.Count(d => Counts(d, reasons, gaps ?? [])) / template);
+            sickWeeks += Math.Min(1m, (decimal)w.Count(d => d.Planned && !d.Present && d.Absence == AbsenceReason.CarerSick && !StatementPreparation.InGap(d.Date, gaps ?? [])) / template);
+        }
+        var sick = Math.Min(ChildcareRules.SickLeaveDaysCap, sickWeeks * ChildcareRules.SickLeaveDaysPerFourWeeks / 4m);
         // Thirds and sevenths of a week are not exact in decimal: a whole result must not round up to the next day.
-        return Math.Min(ChildcareRules.LeaveDaysCap, (int)Math.Ceiling(Math.Round(weeks * ChildcareRules.LeaveDaysPerFourWeeks / 4m, 6)));
+        return Math.Min(ChildcareRules.LeaveDaysCap, (int)Math.Ceiling(Math.Round(weeks * ChildcareRules.LeaveDaysPerFourWeeks / 4m + sick, 6)));
     }
 
     /// <summary>
@@ -40,8 +46,8 @@ public static class PaidLeave
 
     /// <summary>
     /// A day worked, an assimilated absence, or one the employer pays (the family's convenience: the carer stays available);
-    /// an unpaid absence (the child's sickness, the carer's) is not effective work.
-    /// shortcut: the carer's own sickness earns nothing, not the 2 days a month of L3141-5 7°; upgrade when absences tell sickness apart.
+    /// an unpaid absence (the child's sickness, the carer's) is not effective work. The carer's sickness, always unpaid, earns
+    /// at its own rate in <see cref="Accrued"/>.
     /// </summary>
     private static bool Counts(StatementDay day, IReadOnlyList<AbsenceReason> unpaid, IReadOnlyList<CareGap> gaps)
         => day.Present || day.Planned && day.Absence is { } r && !StatementPreparation.InGap(day.Date, gaps)

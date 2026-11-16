@@ -193,6 +193,20 @@ public class ChildcareIntegrationTests(PostgresFixture fixture) : IClassFixture<
         Assert.Equal(september.GetProperty("figures").GetProperty("cost").GetProperty("amount").GetString(), source.GetProperty("amortized").GetProperty("amount").GetString());
     }
 
+    /// <summary>The carer's own sickness is stored as its own reason (the check constraint lists it).</summary>
+    [Fact]
+    public async Task Carer_sickness_is_stored()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var url = $"{await CreateAsync(app)}/statements/2025-10";
+        var days = (await GetAsync(app, url)).GetProperty("days").EnumerateArray().Select(d => d.GetProperty("date").GetString() == "2025-10-06"
+            ? new { date = d.GetProperty("date").GetString(), present = false, arrival = (string?)null, departure = (string?)null, lunch = false, absence = (string?)"carer_sick" }
+            : new { date = d.GetProperty("date").GetString(), present = d.GetProperty("present").GetBoolean(), arrival = d.GetProperty("arrival").GetString(),
+                departure = d.GetProperty("departure").GetString(), lunch = d.GetProperty("lunch").GetBoolean(), absence = d.GetProperty("absence").GetString() }).ToList();
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Put, url, new { days, mileage = "0", cmg = (string?)null, version = 0 })).StatusCode);
+        Assert.Equal("carer_sick", (await GetAsync(app, url)).GetProperty("days").EnumerateArray().Single(d => d.GetProperty("date").GetString() == "2025-10-06").GetProperty("absence").GetString());
+    }
+
     [Fact]
     public async Task Closed_arrangement_commits_nothing()
     {

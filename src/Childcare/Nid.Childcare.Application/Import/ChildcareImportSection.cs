@@ -572,7 +572,7 @@ public sealed class ChildcareImportSection(
             }
             var unpaid = t.UnpaidAbsences?.Select(AbsenceCodes.TryParse).ToList();
             if (unpaid?.Any(u => u is null) == true)
-                Error(ImportCodes.InvalidValue, "An absence is family, parent_rtt, child_sick, carer_absent, carer_training, family_agreed, holiday or paid_leave.", at + ".unpaid_absences");
+                Error(ImportCodes.InvalidValue, "An absence is family, parent_rtt, child_sick, carer_absent, carer_sick, carer_training, family_agreed, holiday or paid_leave.", at + ".unpaid_absences");
             var (lunchProvider, snackProvider) = (Provider(t.LunchProvider, "lunch_provider"), Provider(t.SnackProvider, "snack_provider"));
             if (from is { } f)
             {
@@ -636,7 +636,7 @@ public sealed class ChildcareImportSection(
             AbsenceReason? absence = null;
             if (d.Absence is not null && (absence = AbsenceCodes.TryParse(d.Absence)) is null)
             {
-                issues.Add(ImportIssue.Error(ImportCodes.InvalidValue, "An absence is family, parent_rtt, child_sick, carer_absent, carer_training, family_agreed, holiday or paid_leave.", at + ".absence"));
+                issues.Add(ImportIssue.Error(ImportCodes.InvalidValue, "An absence is family, parent_rtt, child_sick, carer_absent, carer_sick, carer_training, family_agreed, holiday or paid_leave.", at + ".absence"));
                 ok = false;
             }
             if (date is { } on)
