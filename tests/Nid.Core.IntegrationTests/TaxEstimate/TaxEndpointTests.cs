@@ -370,6 +370,37 @@ public class TaxEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresF
         Assert.Equal(("-512.00", "512.00"), (flat.GetProperty("result").GetProperty("capitalOptionGap").GetString(), scale.GetProperty("capitalOptionGap").GetString()));
     }
 
+    [Fact]
+    public async Task Alternate_custody_and_a_disabled_adult_set_in_the_profile_change_the_shares()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var adult = app.AdultA.Value;
+
+        // Two adults, two children of whom one in alternate custody, A disabled: 2 + 0.5 + 0.5 + 0.25.
+        var saved = await PutProfileAsync(app, app.AdultA, 2025, new
+        {
+            pinel = Array.Empty<object>(), dependents = 2, alternateCustody = 1, disabledAdults = new[] { adult, adult }, cohabiting = true,
+        });
+        var profile = saved.GetProperty("profile");
+        Assert.Equal((1, true, 1), (profile.GetProperty("alternateCustody").GetInt32(), profile.GetProperty("cohabiting").GetBoolean(), profile.GetProperty("disabledAdults").GetArrayLength()));
+        Assert.Equal("3.25", saved.GetProperty("result").GetProperty("parts").GetString());
+
+        var tooMany = await app.RawAsync(app.AdultA, HttpMethod.Put, "/api/v1/tax/profile/2025", new { pinel = Array.Empty<object>(), dependents = 1, alternateCustody = 2 });
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, tooMany.StatusCode);
+    }
+
+    [Fact]
+    public async Task A_simulated_single_parent_gets_box_t()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var simulated = await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/tax/simulate", new
+        {
+            year = 2025, dependents = 1, singleParent = true,
+            declarants = new[] { new { name = "A", salaryGross = "0", status = "non_executive", otherTaxable = "40000", perContributions = "0" } },
+        });
+        Assert.Equal("2.0", JsonDocument.Parse(await simulated.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.GetProperty("parts").GetString());
+    }
+
     private static async Task ContributeAsync(NidApp app, PersonId owner, string envelope, string on, string amount)
         => (await app.RawAsync(owner, HttpMethod.Post, $"/api/v1/investments/envelopes/{envelope}/flows",
             new { occurredOn = on, kind = "contribution", amount = new { amount, currency = "EUR" } })).EnsureSuccessStatusCode();

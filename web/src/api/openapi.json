@@ -58580,7 +58580,8 @@
           "previousYearIncome",
           "perExpiring",
           "exemptIncome",
-          "pensions"
+          "pensions",
+          "disabled"
         ],
         "type": "object",
         "properties": {
@@ -58648,6 +58649,10 @@
           "pensions": {
             "type": "string",
             "default": "0.00"
+          },
+          "disabled": {
+            "type": "boolean",
+            "default": false
           }
         }
       },
@@ -58859,7 +58864,9 @@
           "alimonyAdultChildren",
           "alimonyAdultChildrenCount",
           "realisedGains",
-          "capitalLossesCarried"
+          "capitalLossesCarried",
+          "alternateCustody",
+          "singleParent"
         ],
         "type": "object",
         "properties": {
@@ -58964,6 +58971,15 @@
           "capitalLossesCarried": {
             "type": "string",
             "default": "0.00"
+          },
+          "alternateCustody": {
+            "type": "integer",
+            "format": "int32",
+            "default": 0
+          },
+          "singleParent": {
+            "type": "boolean",
+            "default": false
           }
         }
       },
@@ -59047,6 +59063,8 @@
       "TaxProfileBody": {
         "required": [
           "childrenUnder6",
+          "cohabiting",
+          "alternateCustody",
           "alimonyAdultChildrenCount",
           "capitalScale",
           "perPooling"
@@ -59226,6 +59244,25 @@
               "null",
               "string"
             ]
+          },
+          "alternateCustody": {
+            "type": "integer",
+            "format": "int32",
+            "default": 0
+          },
+          "cohabiting": {
+            "type": "boolean",
+            "default": false
+          },
+          "disabledAdults": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
         }
       },
@@ -59253,7 +59290,9 @@
           "capitalScale",
           "alimonyAdultChildren",
           "alimonyAdultChildrenCount",
-          "capitalLossesCarried"
+          "capitalLossesCarried",
+          "alternateCustody",
+          "cohabiting"
         ],
         "type": "object",
         "properties": {
@@ -59376,6 +59415,25 @@
           "capitalLossesCarried": {
             "type": "string",
             "default": "0.00"
+          },
+          "alternateCustody": {
+            "type": "integer",
+            "format": "int32",
+            "default": 0
+          },
+          "cohabiting": {
+            "type": "boolean",
+            "default": false
+          },
+          "disabledAdults": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
         }
       },

@@ -19,10 +19,11 @@ type PerAdult = keyof typeof PER_ADULT;
 /** The profile as typed: every amount, rate and count is the text in its field. */
 export type ProfileDraft = {
   statuses: Record<string, string>; dependents: string; under6: string; regime: string; department: string; alimonyChildren: string;
+  alternate: string; cohabiting: boolean; disabled: string[];
   amounts: Record<(typeof AMOUNT_KEYS)[number], string>; pinel: PinelCommitment[]; pooling: boolean; capitalScale: boolean;
 } & Record<PerAdult, Record<string, string>>;
 
-export type DraftField = 'dependents' | 'under6' | 'department' | 'alimonyChildren' | `amounts.${string}` | `${PerAdult}.${string}`;
+export type DraftField = 'dependents' | 'under6' | 'department' | 'alimonyChildren' | 'alternate' | `amounts.${string}` | `${PerAdult}.${string}`;
 export type DraftErrors = Partial<Record<DraftField, 'amount' | 'rate' | 'count' | 'department'>>;
 export type ProfileBody = components['schemas']['TaxProfileBody'];
 
@@ -46,6 +47,7 @@ export function initialDraft(estimate: TaxEstimate): ProfileDraft {
     statuses: Object.fromEntries(estimate.adults.map((a) => [a.id, p.statuses[a.id] ?? 'non_executive'])),
     dependents: p.dependents === null || p.dependents === undefined ? '' : String(p.dependents),
     under6: String(p.childrenUnder6), regime: p.rentalRegime ?? 'auto', department: p.department ?? '', alimonyChildren: String(p.alimonyAdultChildrenCount),
+    alternate: String(p.alternateCustody), cohabiting: p.cohabiting, disabled: p.disabledAdults ?? [],
     amounts: fields({ ...Object.fromEntries(AMOUNT_KEYS.map((k) => [k, p[k]])), rentalDeficitCarried: suggestedDeficit(estimate) ?? p.rentalDeficitCarried }) as ProfileDraft['amounts'],
     pinel: p.pinel, pooling: p.perPooling, capitalScale: p.capitalScale,
     rates: fields(p.contributionRates), expenses: fields(p.actualExpenses), unused: fields(p.perUnusedCeilings), ceilings: fields(p.perCeilings),
@@ -71,6 +73,7 @@ export function profileBody(d: ProfileDraft): ProfileBody {
     donationsAidLate: toWireAmount(d.amounts.donationsAidLate), rentalEnergyWorks: toWireAmount(d.amounts.rentalEnergyWorks),
     alimonyPaid: toWireAmount(d.amounts.alimonyPaid), alimonyAdultChildren: toWireAmount(d.amounts.alimonyAdultChildren),
     alimonyAdultChildrenCount: Number(d.alimonyChildren),
+    alternateCustody: Number(d.alternate), cohabiting: d.cohabiting, disabledAdults: d.disabled,
   };
 }
 
@@ -80,6 +83,7 @@ export function draftErrors(d: ProfileDraft): DraftErrors {
   if (d.dependents !== '' && !COUNT.test(d.dependents)) errors.dependents = 'count';
   if (!COUNT.test(d.under6)) errors.under6 = 'count';
   if (!COUNT.test(d.alimonyChildren)) errors.alimonyChildren = 'count';
+  if (!COUNT.test(d.alternate)) errors.alternate = 'count';
   if (d.department.trim() !== '' && !DEPARTMENT.test(d.department.trim())) errors.department = 'department';
   for (const k of AMOUNT_KEYS) if (!AMOUNT.test(d.amounts[k].trim())) errors[`amounts.${k}`] = 'amount';
   for (const map of Object.keys(PER_ADULT) as PerAdult[]) {
@@ -101,6 +105,8 @@ export function countChanges(d: ProfileDraft, initial: ProfileDraft): number {
     + Number(text(d.dependents) !== text(initial.dependents)) + Number(text(d.under6) !== text(initial.under6))
     + Number(d.regime !== initial.regime) + Number(d.pooling !== initial.pooling) + Number(text(d.department) !== text(initial.department))
     + Number(text(d.alimonyChildren) !== text(initial.alimonyChildren))
+    + Number(text(d.alternate) !== text(initial.alternate)) + Number(d.cohabiting !== initial.cohabiting)
+    + [...new Set([...d.disabled, ...initial.disabled])].filter((a) => d.disabled.includes(a) !== initial.disabled.includes(a)).length
     + diff(d.amounts, initial.amounts)
     + (Object.keys(PER_ADULT) as PerAdult[]).reduce((n, map) => n + diff(d[map], initial[map]), 0)
     + [...properties].filter((p) => pinelKey(d.pinel.find((c) => c.property === p)) !== pinelKey(initial.pinel.find((c) => c.property === p))).length;
