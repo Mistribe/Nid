@@ -195,6 +195,43 @@ public static class UpcomingKinds
     public const string TaxNewRate = "tax_new_rate";
     public const string TaxBalanceDue = "tax_balance_due";
     public const string PropertyTaxDue = "property_tax_due";
+
+    /// <summary>
+    /// Issue #240: whether each kind comes back every period (<see cref="UpcomingCadence.Recurring"/>) or marks a date that happens once
+    /// (<see cref="UpcomingCadence.Milestone"/>); the calendar's timeline lists the milestones only. Every kind declares one.
+    /// </summary>
+    public static readonly IReadOnlyDictionary<string, string> Cadence = new Dictionary<string, string>
+    {
+        [SubscriptionRenewal] = UpcomingCadence.Recurring,
+        [SubscriptionExpiry] = UpcomingCadence.Milestone,
+        [SubscriptionCancelDeadline] = UpcomingCadence.Milestone,
+        [SubscriptionTrialEnd] = UpcomingCadence.Milestone,
+        [SubscriptionPriceIncrease] = UpcomingCadence.Milestone,
+        [IncomePhaseEnd] = UpcomingCadence.Milestone,
+        [IncomeGapSoon] = UpcomingCadence.Milestone,
+        [LoanPhaseEnd] = UpcomingCadence.Milestone,
+        [LoanEnd] = UpcomingCadence.Milestone,
+        [ValuationDue] = UpcomingCadence.Recurring,
+        [PropertyCostDue] = UpcomingCadence.Recurring,
+        [TenancyEnd] = UpcomingCadence.Milestone,
+        [HoldingMaturity] = UpcomingCadence.Milestone,
+        [TaxMilestone] = UpcomingCadence.Milestone,
+        [PerDeadline] = UpcomingCadence.Recurring,
+        [PerCeilingExpiring] = UpcomingCadence.Recurring,
+        [TaxFilingDeadline] = UpcomingCadence.Recurring,
+        [TaxNewRate] = UpcomingCadence.Recurring,
+        [TaxBalanceDue] = UpcomingCadence.Recurring,
+        [PropertyTaxDue] = UpcomingCadence.Recurring,
+    };
+
+    public static bool IsMilestone(string kind) => Cadence.TryGetValue(kind, out var cadence) && cadence == UpcomingCadence.Milestone;
+}
+
+/// <summary>Issue #240: an event kind's cadence (<see cref="UpcomingKinds.Cadence"/>).</summary>
+public static class UpcomingCadence
+{
+    public const string Recurring = "recurring";
+    public const string Milestone = "milestone";
 }
 
 /// <summary>Issue #243: the modules « À venir » lists events of (<see cref="UpcomingEvent.Module"/>), in display order.</summary>

@@ -16,6 +16,9 @@ public static class CalendarEndpoints
     /// <summary>The feed's route: no session and no header, the secret is the URL's last segment. Never traced (url.path holds it).</summary>
     public const string FeedPath = Microsoft.Extensions.Hosting.Extensions.CalendarFeedPath;
 
+    /// <summary>The calendar page's timeline (#240): the one path under the feed's that traces keep.</summary>
+    public const string TimelinePath = Microsoft.Extensions.Hosting.Extensions.CalendarTimelinePath;
+
     /// <summary>No <c>Modules</c> is every module (#243).</summary>
     public sealed record CalendarFeedBody(string? Scope, bool Amounts, IReadOnlyList<string>? Modules = null);
 
@@ -53,6 +56,13 @@ public static class CalendarEndpoints
         // Issue #239: the calendar page, « À venir » over [from, to] across the modules (comma-joined, absent: every one).
         routes.MapGet(FeedPath, async (string? scope, string from, string to, string? modules, IInvoker invoker, CancellationToken ct)
                 => (await invoker.InvokeAsync(new GetCalendarQuery(ParseScope(scope), RequireDate(from), RequireDate(to),
+                    modules is null ? null : ParseLabels(modules)), ct)).ToHttp(v => v))
+            .RequireAuthorization().AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>()
+            .Returns<CalendarView>();
+
+        // Issue #240: the timeline, the milestones from today over `horizon` years (1, 3, 5 or 10).
+        routes.MapGet(TimelinePath, async (string? scope, int horizon, string? modules, IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new GetCalendarTimelineQuery(ParseScope(scope), horizon,
                     modules is null ? null : ParseLabels(modules)), ct)).ToHttp(v => v))
             .RequireAuthorization().AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>()
             .Returns<CalendarView>();

@@ -64,17 +64,19 @@ public sealed class DashboardReader(
     /// Issue #80: « À venir » alone over [<paramref name="today"/>, <paramref name="until"/>], for the calendar feed: the modules' events
     /// (not the income gap, which is « À faire »), the PER deadline and the tax calendar, by date then name, each amount in its own currency.
     /// Issue #243: only the events of <paramref name="modules"/> (<see cref="CalendarModules"/>), every module when null.
+    /// Issue #240: <paramref name="milestonesOnly"/> keeps the kinds that happen once (<see cref="UpcomingKinds.IsMilestone"/>).
     /// </summary>
     public async Task<Result<IReadOnlyList<DashboardEventView>>> UpcomingAsync(PersonId reader, VisibilityScope scope, LocalDate today, LocalDate until,
-        IReadOnlyCollection<string>? modules, CancellationToken ct)
+        IReadOnlyCollection<string>? modules, CancellationToken ct, bool milestonesOnly = false)
     {
         bool Lists(string module) => modules is null || modules.Contains(module);
         var dated = await Contributions.CollectAsync(upcoming, u => u.UpcomingAsync(reader, scope, today, until, ct));
         if (dated.TryGetFailure(out var failure)) return Result.Failure<IReadOnlyList<DashboardEventView>>(failure!);
         dated.TryGetValue(out var d);
         IReadOnlyList<DashboardEventView> p = [], taxDates = [];
-        // The PER deadline computes the year's tax and the calendar reads the notices: neither when the tax is not listed.
-        if (Lists(CalendarModules.Tax))
+        // The PER deadline computes the year's tax and the calendar reads the notices: neither when the tax is not listed, nor for
+        // milestones, since both only date recurring kinds.
+        if (Lists(CalendarModules.Tax) && !milestonesOnly)
         {
             var per = await perDeadline.EventsAsync(reader, scope, today, until, ct);
             if (per.TryGetFailure(out failure)) return Result.Failure<IReadOnlyList<DashboardEventView>>(failure!);
@@ -83,7 +85,7 @@ public sealed class DashboardReader(
             taxDates = await taxCalendar.EventsAsync(reader, scope, today, until, ct);
         }
         return Result.Success<IReadOnlyList<DashboardEventView>>(d!.SelectMany(x => x)
-            .Where(e => e.Kind != UpcomingKinds.IncomeGapSoon && Lists(e.Module))
+            .Where(e => e.Kind != UpcomingKinds.IncomeGapSoon && Lists(e.Module) && (!milestonesOnly || UpcomingKinds.IsMilestone(e.Kind)))
             .Select(e => new DashboardEventView(e.On, e.Kind, e.Item, e.Module, e.Name, e.Label,
                 e.Amount is { } a ? DashboardMath.Money(a.Amount, a.Currency) : null))
             .Concat(p).Concat(taxDates)

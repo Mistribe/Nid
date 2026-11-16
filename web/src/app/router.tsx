@@ -36,8 +36,11 @@ export type RoutineSearch = { on?: string };
 export type BanksSearch = { connected?: string; error?: string };
 /** The home page: the curve's span, a figure panel, the projection's horizon (`10y` stays out of the URL) and its reading (`0`: current value). */
 export type DashboardSearch = { curve?: '3y' | 'all'; curveReal?: 1; panel?: Panel; projection?: ProjectionHorizon; real?: 0; ranges?: 1 };
-/** The calendar page (#239): its month (`yyyy-mm`, absent for the current one) and its modules (comma-joined, absent for every one). */
-export type CalendarSearch = { month?: string; modules?: string };
+/**
+ * The calendar page (#239): its month (`yyyy-mm`, absent for the current one) and its modules (comma-joined, absent for every one);
+ * its view (#240, absent for the month) and the timeline's horizon in years (absent for 5).
+ */
+export type CalendarSearch = { month?: string; modules?: string; view?: 'timeline'; horizon?: 1 | 3 | 10 };
 /** The annual review (#12): the year, absent for the current one (so it stays out of the URL). */
 export type YearReviewSearch = { year?: number };
 export type ProjectionHorizon = '5y' | '20y' | '30y' | `retire:${string}`;
@@ -179,6 +182,8 @@ const calendarRoute = createRoute({
       month: typeof search.month === 'string' && /^\d{4}-(0[1-9]|1[0-2])$/.test(search.month) ? search.month : undefined,
       // Unknown modules dropped; none known, or all of them, is every module.
       modules: modules.length > 0 && modules.length < CALENDAR_MODULES.length ? modules.join(',') : undefined,
+      view: search.view === 'timeline' ? 'timeline' : undefined,
+      horizon: ([1, 3, 10] as const).find((h) => h === Number(search.horizon)),
     };
   },
   component: lazyRouteComponent(() => import('@/features/calendar/CalendarPage'), 'CalendarPage'),

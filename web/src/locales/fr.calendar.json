@@ -42,6 +42,17 @@
     "by_day": "Échéances jour par jour",
     "more": "+{{count}}",
     "more_label_one": "+{{count}} autre échéance",
-    "more_label_other": "+{{count}} autres échéances"
+    "more_label_other": "+{{count}} autres échéances",
+    "view": "Affichage",
+    "view_month": "Mois",
+    "view_timeline": "Frise",
+    "horizon": "Horizon",
+    "years_one": "{{count}} an",
+    "years_other": "{{count}} ans",
+    "timeline": "Frise des échéances du {{from}} au {{to}}",
+    "timeline_empty": "Aucune échéance ponctuelle sur cet horizon pour ces modules.",
+    "today": "Aujourd’hui",
+    "several_one": "{{count}} échéance, du {{from}} au {{to}}",
+    "several_other": "{{count}} échéances, du {{from}} au {{to}}"
   }
 }

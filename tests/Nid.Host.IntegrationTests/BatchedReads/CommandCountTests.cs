@@ -37,6 +37,7 @@ public class CommandCountTests(PostgresFixture fixture) : IClassFixture<Postgres
     [InlineData("/api/v1/investments/envelopes?scope=me&archived=true")]
     [InlineData("/api/v1/goals?scope=me&closed=true")]
     [InlineData("/api/v1/calendar?scope=me&from=2025-10-01&to=2025-11-30")] // #239: the round's tax (20 October) and every module
+    [InlineData("/api/v1/calendar/timeline?scope=me&horizon=10")] // #240: the loans' ends, the tenancies' and the envelopes' tax dates
     [InlineData("/api/v1/realestate/routine?on=2025-10-15")] // 3E2: the round's tax (due 20 October) and tenancy are both proposed
     public async Task A_route_issues_as_many_commands_for_2N_items_as_for_N(string route)
     {
