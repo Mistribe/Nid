@@ -1,6 +1,8 @@
 using Nid.Core.Contracts;
 using SynapseRequiresRole = UnambitiousFx.Synapse.Authorization.IRequiresRole;
 using SynapseRequiresScope = UnambitiousFx.Synapse.Authorization.IRequiresScope;
+using SynapseResourceScoped = UnambitiousFx.Synapse.Authorization.IResourceScoped;
+using SynapseOptionallyResourceScoped = UnambitiousFx.Synapse.Authorization.IOptionallyResourceScoped;
 
 namespace Nid.Platform.Contracts;
 
@@ -21,20 +23,34 @@ public interface IDirectWrite : IRequiresScope
     string IRequiresScope.RequiredScope => ScopeNames.WriteDirect;
 }
 
-/// <summary>A request aimed at one item: the access behavior checks the actor against it.</summary>
-public interface IItemScoped
+/// <summary>A request aimed at one item: Synapse's resource check asks the item access policy about it.</summary>
+public interface IItemScoped : SynapseResourceScoped
 {
     ItemId ItemId { get; }
 
-    AccessKind Access { get; }
+    new AccessKind Access { get; }
+
+    string SynapseResourceScoped.ResourceId => ItemId.Value.ToString();
+
+    string SynapseResourceScoped.Access => Access.ToWire();
 }
 
 /// <summary>As <see cref="IItemScoped"/> when <see cref="ItemId"/> is set; a proposal to create an item has none to check.</summary>
-public interface IOptionalItemScoped
+public interface IOptionalItemScoped : SynapseOptionallyResourceScoped
 {
     ItemId? ItemId { get; }
 
-    AccessKind Access { get; }
+    new AccessKind Access { get; }
+
+    string? SynapseOptionallyResourceScoped.OptionalResourceId => ItemId?.Value.ToString();
+
+    string SynapseResourceScoped.Access => Access.ToWire();
+}
+
+public static class AccessKindWire
+{
+    /// <summary>The access a denial is recorded with (<c>read</c>, <c>write</c>, <c>own</c>; spec U12).</summary>
+    public static string ToWire(this AccessKind access) => access.ToString().ToLowerInvariant();
 }
 
 /// <summary>

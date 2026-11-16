@@ -199,7 +199,7 @@ public sealed class AddPurchaseHandler(ISubscriptionStore store, IAccessPolicy p
 {
     public async ValueTask<Result<PurchaseId>> HandleAsync(AddPurchaseCommand command, CancellationToken ct = default)
     {
-        // The route's item is the only one ItemAccessBehavior saw; the grants may name any other (1E2b1 design §3.2).
+        // The route's item is the only one the item access check saw; the grants may name any other (1E2b1 design §3.2).
         if (await GrantTargets.RefusedAsync(policy, actor.Current!, command.Purchase, command.ItemId, "", ct) is { } refused)
             return Result.Failure<PurchaseId>(refused);
 
@@ -232,7 +232,7 @@ public sealed class DeletePurchaseHandler(ISubscriptionStore store, IAccessPolic
 
 /// <summary>
 /// A purchase's grants are the only place in this module where one write touches a second item: the route
-/// names one subscription, the grants may name any other. <c>ItemAccessBehavior</c> checks the route and
+/// names one subscription, the grants may name any other. the item access check (<c>ItemAccessPolicy</c>) checks the route and
 /// nothing else, so the items the payload names — and the ones a delete would cascade into — are checked
 /// here, at the handler boundary, before the store is asked to write anything. The check is the same
 /// <see cref="IAccessPolicy"/> the pipeline uses, so <c>authorization.md</c> §5's <c>Writers</c> stays the
@@ -249,7 +249,7 @@ internal static class ItemWriteGuard
         CancellationToken ct)
     {
         // A system actor is not bound to a person and so has no rights to check, exactly as
-        // ItemAccessBehavior treats it; it never reaches here from an HTTP request.
+        // the item access check treats it; it never reaches here from an HTTP request.
         if (actor.PersonId is not { } person)
             return Result.Success();
 

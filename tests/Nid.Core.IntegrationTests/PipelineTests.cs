@@ -28,7 +28,7 @@ public class PipelineTests(PostgresFixture postgres)
     [
         typeof(TraceBehavior<,>), typeof(ActorAuthorizationBehavior<,>), typeof(AuditBehavior<,>), typeof(RoleAuthorizationBehavior<,>),
         typeof(BrowserOnlyBehavior<,>), typeof(ScopeAuthorizationBehavior<,>), typeof(RequestPolicyAuthorizationBehavior<,>),
-        typeof(ResourceAuthorizationBehavior<,>), typeof(ItemAccessBehavior<,>), typeof(DocumentMaskBehavior<,>), typeof(OutputGuardBehavior<,>),
+        typeof(ResourceAuthorizationBehavior<,>), typeof(ItemCreationBehavior<,>), typeof(DocumentMaskBehavior<,>), typeof(OutputGuardBehavior<,>),
     ];
 
     /// <summary>
