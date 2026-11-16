@@ -56,6 +56,14 @@ public static class TaxLineCodes
     public const string CapitalIncome = "capital_income";
     /// <summary>#234: a brokerage account's dividends, eligible to the 40 % allowance under the scale; counted in the capital income too.</summary>
     public const string CapitalDividends = "capital_dividends";
+    /// <summary>#234: a savings account that is no regulated livret: its taxable interest of the year, counted with the capital income.</summary>
+    public const string SavingsInterest = "savings_interest";
+    /// <summary>#234: a taxable savings account whose interest cannot be told from its deposits (a bank balance, no payment recorded): amount 0.</summary>
+    public const string SavingsInterestUnknown = "savings_interest_unknown";
+    /// <summary>#234: a brokerage account's net gain (negative: loss) on the securities sold in the year (3VG / 3VH).</summary>
+    public const string RealisedGain = "realised_gain";
+    /// <summary>#234: a brokerage account's sales of the year without units or cost per unit: their amount, the gain left out.</summary>
+    public const string RealisedGainUnknown = "realised_gain_unknown";
     /// <summary>Childcare spec decision 21: a validated childminder statement's tax base (net pay + upkeep + contributions left to the household + exemption on the extra hours − CMG), without a person.</summary>
     public const string ChildcareOutsideHome = "childcare_outside_home";
     /// <summary>#14: a month of the current year left to validate, at the mean tax base of the validated months, without a person.</summary>
@@ -164,7 +172,7 @@ public sealed record TaxProfile(
     IReadOnlyDictionary<Guid, decimal>? PerCeilings = null, IReadOnlyDictionary<Guid, decimal>? PerCeilingsExpiring = null, bool PerPooling = false,
     IReadOnlyDictionary<Guid, decimal>? ExemptIncomes = null, decimal DonationsAidLate = 0m, decimal RentalEnergyWorks = 0m, string? Department = null,
     bool CapitalScale = false, decimal DeductibleCsg = 0m,
-    decimal AlimonyPaid = 0m, decimal AlimonyAdultChildren = 0m, int AlimonyAdultChildrenCount = 0)
+    decimal AlimonyPaid = 0m, decimal AlimonyAdultChildren = 0m, int AlimonyAdultChildrenCount = 0, decimal CapitalLossesCarried = 0m)
 {
     public static readonly TaxProfile Empty = new(new Dictionary<Guid, string>(), null, 0, null, [], 0m, 0m, 0m, 0m);
 }

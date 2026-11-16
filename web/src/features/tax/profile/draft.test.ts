@@ -9,7 +9,7 @@ describe('profile draft', () => {
       contributionRates: {}, actualExpenses: {}, perUnusedCeilings: {}, perCeilings: {}, perCeilingsExpiring: {}, perPooling: false,
       exemptIncomes: {}, rentalDeficitCarried: '0.00', childcareOutsideHome: '6000.00', homeEmployment: '0.00', donations: '0.00',
       donationsAid: '0.00', donationsAidLate: '0.00', rentalEnergyWorks: '0.00', capitalScale: false, deductibleCsg: '0.00',
-      alimonyPaid: '0.00', alimonyAdultChildren: '0.00', alimonyAdultChildrenCount: 0,
+      alimonyPaid: '0.00', alimonyAdultChildren: '0.00', alimonyAdultChildrenCount: 0, capitalLossesCarried: '0.00',
     });
   });
 

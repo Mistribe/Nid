@@ -47,6 +47,8 @@ export function ResultTable({ columns, label, declarants = true }: {
       money(t('tax.row.deficit_forward'), (r) => r.rentalDeficitCarriedForward, false, tip('deficit_forward')),
       money(t('tax.row.dividend_allowance'), (r) => r.dividendAllowance, false, tip('dividend_allowance')),
       money(t('tax.row.alimony'), (r) => r.alimonyDeducted, false, tip('alimony')),
+      money(t('tax.row.realised_gains'), (r) => r.realisedGainsTaxable, false, tip('realised_gains')),
+      money(t('tax.row.losses_forward'), (r) => r.capitalLossesCarriedForward, false, tip('losses_forward')),
       money(t('tax.row.net_taxable'), (r) => r.netTaxableIncome, true, tip('net_taxable')),
       money(t('tax.row.reference_income'), (r) => r.referenceIncome, false, tip('reference_income')),
     ] },

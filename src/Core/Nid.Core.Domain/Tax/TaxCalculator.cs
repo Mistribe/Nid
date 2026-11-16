@@ -37,6 +37,8 @@ public sealed record TaxDeclarant(
 /// notices, which the high-income contribution's smoothing reads; null when one is not known.
 /// <c>AlimonyPaid</c>: the alimony deducted whole (an ex-spouse, a minor child living elsewhere, box 6GP); <c>AlimonyAdultChildren</c>
 /// what is paid to <c>AlimonyAdultChildrenCount</c> adult children outside the household (6GI, 6GJ), deducted within the cap of each.
+/// <c>RealisedGains</c>: the net gain (or loss, negative) on the securities sold in the year (3VG / 3VH); <c>CapitalLossesCarried</c>
+/// the net losses of the ten years before not yet used, which only offset those gains.
 /// </summary>
 public sealed record TaxInputs(
     int Year, IReadOnlyList<TaxDeclarant> Declarants, int Dependents, int ChildrenUnder6,
@@ -45,7 +47,8 @@ public sealed record TaxInputs(
     decimal ChildcareOutsideHome, decimal HomeEmployment, decimal Donations, decimal DonationsAid, decimal RentalDeficitCarried = 0m,
     bool PerPooling = false, decimal DonationsAidLate = 0m, decimal RentalEnergyWorks = 0m,
     decimal CapitalDividends = 0m, bool CapitalScale = false, decimal DeductibleCsg = 0m, (decimal N1, decimal N2)? ReferenceIncomesBefore = null,
-    decimal AlimonyPaid = 0m, decimal AlimonyAdultChildren = 0m, int AlimonyAdultChildrenCount = 0);
+    decimal AlimonyPaid = 0m, decimal AlimonyAdultChildren = 0m, int AlimonyAdultChildrenCount = 0,
+    decimal RealisedGains = 0m, decimal CapitalLossesCarried = 0m);
 
 /// <summary>Where a declarant's salary comes from: none, the entered net taxable income, the gross estimated, or both.</summary>
 public enum SalaryMethod { None, Entered, Estimated, Mixed }
@@ -93,6 +96,8 @@ public sealed record PerHousehold(bool Pooled, decimal Remaining, decimal TaxSav
 /// under the scale only. <c>DeductibleCsgNextYear</c>: the CSG the year's capital income under the scale makes deductible next year (6DE).
 /// <c>HighIncomeContribution</c>: the CEHR on the reference income, in <c>TotalTax</c>; <c>HighIncomeSmoothed</c> when its quotient applied.
 /// <c>AlimonyDeducted</c>: the alimony paid taken off the global income, the adult children's within their cap.
+/// <c>RealisedGainsTaxable</c>: the year's net gain after the earlier losses, taxed with the capital income; <c>CapitalLossesCarriedForward</c>
+/// the losses left for the next years.
 /// </summary>
 public sealed record TaxResult(
     int Year, int RulesYear, decimal Parts, IReadOnlyList<DeclarantResult> Declarants,
@@ -103,7 +108,8 @@ public sealed record TaxResult(
     decimal MarginalRate, decimal? AverageRate, decimal NetBeforeTax, decimal NetAfterTax, decimal NetAfterTaxMonthly,
     IReadOnlyList<string> Warnings, Withholding Withholding, PerHousehold? Per = null, decimal ReferenceIncome = 0m, decimal? RentalRegimeGap = null,
     decimal RentalDeficitCarriedForward = 0m, bool CapitalScale = false, decimal? CapitalOptionGap = null, decimal DividendAllowance = 0m,
-    decimal DeductibleCsgNextYear = 0m, decimal HighIncomeContribution = 0m, bool HighIncomeSmoothed = false, decimal AlimonyDeducted = 0m);
+    decimal DeductibleCsgNextYear = 0m, decimal HighIncomeContribution = 0m, bool HighIncomeSmoothed = false, decimal AlimonyDeducted = 0m,
+    decimal RealisedGainsTaxable = 0m, decimal CapitalLossesCarriedForward = 0m);
 
 /// <summary>
 /// Spec §4bis: the withholding rate the year's income gives, and what « Actualiser suite à une hausse ou une baisse de vos revenus »
@@ -247,8 +253,15 @@ public static class TaxCalculator
         rentalTaxable -= carriedUsed;
 
         // #234: under the scale (2OP) the capital income joins the global income, the eligible dividends after 40 %.
-        var capital = Math.Max(0m, inputs.CapitalIncome);
-        var dividendAllowance = inputs.CapitalScale ? Euros(TaxRules.DividendAllowanceRate * Math.Min(Math.Max(0m, inputs.CapitalDividends), capital)) : 0m;
+        // The year's gains net of its losses, then of the earlier losses (art. 150-0 D 11 CGI); a net loss is carried forward.
+        var carriedLosses = Math.Max(0m, inputs.CapitalLossesCarried);
+        var lossesUsed = Math.Min(carriedLosses, Math.Max(0m, inputs.RealisedGains));
+        var gainsTaxable = Math.Max(0m, inputs.RealisedGains) - lossesUsed;
+        // shortcut: the 10-year limit is not followed, as for the rental deficit; nothing Nid computes expires before 2035.
+        var lossesForward = carriedLosses - lossesUsed + Math.Max(0m, -inputs.RealisedGains);
+        var income = Math.Max(0m, inputs.CapitalIncome);
+        var capital = income + gainsTaxable;
+        var dividendAllowance = inputs.CapitalScale ? Euros(TaxRules.DividendAllowanceRate * Math.Min(Math.Max(0m, inputs.CapitalDividends), income)) : 0m;
         var capitalInGlobal = inputs.CapitalScale ? capital - dividendAllowance : 0m;
         var global = Math.Max(0m, declarants.Sum(d => d.Taxable) + rentalTaxable - deficit + capitalInGlobal - Math.Max(0m, inputs.DeductibleCsg));
         var alimony = Euros(Math.Max(0m, inputs.AlimonyPaid)
@@ -320,7 +333,8 @@ public static class TaxCalculator
             perHousehold, reference, regimeGap,
             // shortcut: the 10-year limit is not followed; the rules start in 2025, so no deficit Nid computes expires before 2035.
             Euros(Math.Max(0m, inputs.RentalDeficitCarried) - carriedUsed + loss - deficit),
-            inputs.CapitalScale, optionGap, dividendAllowance, inputs.CapitalScale ? Euros(TaxRules.DeductibleCsgRate * capital) : 0m, cehr, smoothed, alimony);
+            inputs.CapitalScale, optionGap, dividendAllowance, inputs.CapitalScale ? Euros(TaxRules.DeductibleCsgRate * capital) : 0m, cehr, smoothed, alimony,
+            Euros(gainsTaxable), Euros(lossesForward));
     }
 
     /// <summary>

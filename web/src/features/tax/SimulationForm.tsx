@@ -18,7 +18,7 @@ import { RATE } from './profile/draft';
 import { ResultTable } from './ResultTable';
 import '@/locales/tax';
 
-const AMOUNTS = ['rentalGross', 'rentalInterest', 'rentalCharges', 'capitalIncome', 'capitalDividends', 'deductibleCsg', 'nonTaxableIncome', 'pinelReduction',
+const AMOUNTS = ['rentalGross', 'rentalInterest', 'rentalCharges', 'capitalIncome', 'capitalDividends', 'deductibleCsg', 'capitalLossesCarried', 'nonTaxableIncome', 'pinelReduction',
   'childcareOutsideHome', 'homeEmployment', 'donations', 'donationsAid', 'rentalDeficitCarried'] as const;
 const DECLARANT_AMOUNTS = ['salaryGross', 'salaryTaxable', 'otherTaxable', 'perContributions', 'perUnusedCeiling', 'previousYearIncome', 'perExpiring', 'exemptIncome'] as const;
 const COUNT = /^\d{1,2}$/;

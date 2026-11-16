@@ -403,7 +403,8 @@ public sealed class TaxEstimates(
                 Notice("unsupported_income", line);
             else if (line.Code == TaxLineCodes.Withdrawal)
                 Notice("withdrawal_not_estimated", line);
-            else if (line.Code is TaxLineCodes.OtherCurrency or TaxLineCodes.RentalChargesRemoved or TaxLineCodes.RentalFeeNotCounted)
+            else if (line.Code is TaxLineCodes.OtherCurrency or TaxLineCodes.RentalChargesRemoved or TaxLineCodes.RentalFeeNotCounted
+                     or TaxLineCodes.SavingsInterest or TaxLineCodes.SavingsInterestUnknown or TaxLineCodes.RealisedGain or TaxLineCodes.RealisedGainUnknown)
                 Notice(line.Code, line);
         }
 
@@ -453,11 +454,12 @@ public sealed class TaxEstimates(
             year, declarants, dependents, Math.Min(profile.ChildrenUnder6, dependents),
             columns.Sum(c => c.L215), columns.Sum(c => c.L250), columns.Sum(c => c.L240),
             TryRegime(profile.RentalRegime, out var regime) ? regime : null,
-            All(TaxLineCodes.CapitalIncome), All(TaxLineCodes.NonTaxable), pinel,
+            All(TaxLineCodes.CapitalIncome) + All(TaxLineCodes.SavingsInterest), All(TaxLineCodes.NonTaxable), pinel,
             statements.Count + projected.Count > 0 ? statements.Sum(l => l.Amount) + projected.Sum(l => l.Amount) : profile.ChildcareOutsideHome, profile.HomeEmployment, profile.Donations, profile.DonationsAid, profile.RentalDeficitCarried, profile.PerPooling,
             profile.DonationsAidLate, profile.RentalEnergyWorks,
             All(TaxLineCodes.CapitalDividends), profile.CapitalScale, profile.DeductibleCsg, referenceBefore,
-            profile.AlimonyPaid, profile.AlimonyAdultChildren, profile.AlimonyAdultChildrenCount);
+            profile.AlimonyPaid, profile.AlimonyAdultChildren, profile.AlimonyAdultChildrenCount,
+            All(TaxLineCodes.RealisedGain), profile.CapitalLossesCarried);
         return (inputs, notices, columns);
     }
 
@@ -483,7 +485,7 @@ public sealed class TaxEstimates(
                  && p.Pinel.All(c => c.InitialYears is 6 or 9 && c.TotalYears is 6 or 9 or 12 && c.TotalYears >= c.InitialYears
                                      && c.StartYear is null or (>= 2014 and <= 2040))
                  && p.Pinel.Select(c => c.Property).Distinct().Count() == p.Pinel.Count
-                 && new[] { p.ChildcareOutsideHome, p.HomeEmployment, p.Donations, p.DonationsAid, p.RentalDeficitCarried, p.DonationsAidLate, p.RentalEnergyWorks, p.DeductibleCsg, p.AlimonyPaid, p.AlimonyAdultChildren }.All(a => a is >= 0 and <= 10_000_000m)
+                 && new[] { p.ChildcareOutsideHome, p.HomeEmployment, p.Donations, p.DonationsAid, p.RentalDeficitCarried, p.DonationsAidLate, p.RentalEnergyWorks, p.DeductibleCsg, p.AlimonyPaid, p.AlimonyAdultChildren, p.CapitalLossesCarried }.All(a => a is >= 0 and <= 10_000_000m)
                  && p.AlimonyAdultChildrenCount is >= 0 and <= 20 && (p.AlimonyAdultChildren == 0m || p.AlimonyAdultChildrenCount > 0)
                  && (p.ContributionRates?.Values.All(RateOk) ?? true) && (p.ActualExpenses?.Values.All(a => a is >= 0 and <= 10_000_000m) ?? true)
                  && (p.PerUnusedCeilings?.Values.All(a => a is >= 0 and <= 10_000_000m) ?? true)
