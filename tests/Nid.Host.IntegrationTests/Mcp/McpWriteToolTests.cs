@@ -140,7 +140,7 @@ public class McpWriteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
     [Fact]
     public async Task A_write_answer_is_never_refused_as_too_large()
     {
-        await using var app = await NidApp.StartAsync(fixture, settings: new Dictionary<string, string> { ["Mcp:MaxResultBytes"] = "10" });
+        await using var app = await NidApp.StartAsync(fixture, settings: new Dictionary<string, string> { ["Mcp:MaxAnswerLength"] = "10" });
         var envelope = await McpSeed.EnvelopeAsync(app, app.AdultA);
         await using var propose = await ClientAsync(app, TokenPresets.Propose);
 
@@ -166,8 +166,8 @@ public class McpWriteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
         });
 
         Assert.True(error);
-        Assert.StartsWith("Refused: request.invalid.", text);
-        Assert.Contains("payload.movements[1].amount:", text);
+        Assert.StartsWith("request.invalid: ", text);
+        Assert.Contains("- payload.movements[1].amount (", text);
         Assert.Equal(0, await ProposalCountAsync(app));
     }
 
@@ -185,7 +185,7 @@ public class McpWriteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
             Assert.Contains("'write' scope", text);
         }
         await using var propose = await ClientAsync(app, TokenPresets.Propose);
-        Assert.Equal((true, "Not found."), await CallAsync(propose, "propose_statement", body));
+        Assert.Equal((true, "NOT_FOUND: The requested item was not found."), await CallAsync(propose, "propose_statement", body));
     }
 
     /// <summary>Task 2's review (a): what a direct write records is attributed to the token that wrote it.</summary>
@@ -225,7 +225,7 @@ public class McpWriteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
         });
 
         Assert.True(error);
-        Assert.Contains("payload.movements[1].amount:", text); // the Core's own field
+        Assert.Contains("- payload.movements[1].amount (", text); // the Core's own field
         var detail = await ProposalKindHelpers.EnvelopeAsync(app, envelope);
         Assert.DoesNotContain(detail.GetProperty("flows").EnumerateArray(), f => f.GetProperty("occurredOn").GetString() == "2025-09-05");
         Assert.DoesNotContain(detail.GetProperty("valuations").EnumerateArray(), v => v.GetProperty("amount").GetProperty("amount").GetString() == "23500.0000");
@@ -414,13 +414,13 @@ public class McpWriteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
 
         var (error, text) = await CallAsync(propose, "propose_amortization", new { loanId = loan, rows = french });
         Assert.True(error);
-        Assert.StartsWith("Refused: request.invalid.", text);
-        Assert.Contains("payload.rows[1].payment:", text);
+        Assert.StartsWith("request.invalid: ", text);
+        Assert.Contains("- payload.rows[1].payment (", text);
 
         (error, text) = await CallAsync(propose, "propose_amortization", new { loanId = loan, rows = BankRows().Where((_, k) => k != 1).ToArray() });
         Assert.True(error);
-        Assert.StartsWith("Refused: realestate.bank_schedule_invalid.", text);
-        Assert.Contains("payload.rows[1].dueDate:", text);
+        Assert.StartsWith("realestate.bank_schedule_invalid: ", text);
+        Assert.Contains("- payload.rows[1].dueDate (", text);
         Assert.Equal(0, await ProposalCountAsync(app));
     }
 

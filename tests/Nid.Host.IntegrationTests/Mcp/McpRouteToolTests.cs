@@ -192,7 +192,7 @@ public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
 
         var (error, text) = await CallAsync(client, "get_projection", new { scenarioId = Guid.NewGuid() });
         Assert.True(error);
-        Assert.Equal("Not found.", text);
+        Assert.Equal("NOT_FOUND: The requested item was not found.", text);
     }
 
     /// <summary>Net worth projection §7: simulating answers as the simulate route does, trimmed; an invalid event is a tool error naming its field.</summary>
@@ -508,7 +508,7 @@ public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
 
         var (error, text) = await CallAsync(propose, "propose_save_holding_cost_report", new { id = envelope.Value, holdingId = holding, year = "2024", body });
         Assert.True(error);
-        Assert.Contains("payload.year: An integer is required.", text);
+        Assert.Matches(@"- payload\.year \([^)]*\): An integer is required\.", text);
 
         var proposed = await AnswerAsync(propose, "propose_save_holding_cost_report", new { id = envelope.Value, holdingId = holding, year = 2024, body });
         Assert.Equal(HttpStatusCode.OK, (await ApproveAsync(app, app.AdultA, proposed.GetProperty("proposal").GetProperty("id").GetGuid())).StatusCode);
@@ -577,8 +577,8 @@ public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
         var (error, text) = await CallAsync(propose, "propose_create_property", new { body });
 
         Assert.True(error);
-        Assert.StartsWith("Refused: ", text);
-        Assert.Contains("payload.body.purchasePrice:", text);
+        Assert.Matches("^[a-z_]+\\.[a-z_]+: ", text);
+        Assert.Contains("- payload.body.purchasePrice (", text);
         Assert.Equal(0, (await PendingAsync(app, app.AdultA)).GetArrayLength());
         Assert.Equal(0, await PropertyCountAsync(app));
     }
@@ -611,7 +611,7 @@ public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
 
         var (error, text) = await CallAsync(direct, "propose_record_goal_progress", new { id = goal.Value, on = "15/10/2025", body = new { amount = "100" }, apply = true });
         Assert.True(error);
-        Assert.Contains("payload.on: An ISO date (yyyy-mm-dd) is required.", text);
+        Assert.Matches(@"- payload\.on \([^)]*\): An ISO date \(yyyy-mm-dd\) is required\.", text);
 
         var applied = await AnswerAsync(direct, "propose_record_goal_progress", new { id = goal.Value, on = "2025-10-15", body = new { amount = "100" }, apply = true });
         Assert.Equal("applied", applied.GetProperty("outcome").GetString());
@@ -639,7 +639,7 @@ public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
         var detail = JsonDocument.Parse(await app.GetRawAsync(app.AdultA, $"/api/v1/income/sources/{source}")).RootElement;
         Assert.Contains("1500", detail.GetRawText());
 
-        Assert.Equal((true, "Not found."), await CallAsync(propose, "propose_add_valuation", new
+        Assert.Equal((true, "NOT_FOUND: The requested item was not found."), await CallAsync(propose, "propose_add_valuation", new
         {
             id = hidden.Value, body = new { asOf = "2025-09-30", amount = new { amount = "1.00", currency = "EUR" } },
         }));

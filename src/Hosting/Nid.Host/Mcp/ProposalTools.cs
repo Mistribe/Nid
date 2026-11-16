@@ -38,10 +38,10 @@ public sealed class ProposalTools
         [Description("The proposal's version.")] uint version, CancellationToken ct = default)
     {
         if (services.GetRequiredService<IActorAccessor>().Current?.Has(ScopeNames.Write) != true)
-            return McpCalls.Error($"Refused: deleting a proposal needs the '{ScopeNames.Write}' scope.");
+            return McpCalls.MissingScope(services, $"Deleting a proposal needs the '{ScopeNames.Write}' scope.");
         var deleted = await services.GetRequiredService<IInvoker>().InvokeAsync(new DeleteProposalCommand(id, version), ct);
         return deleted.TryGetFailure(out var failure)
-            ? McpCalls.Refusal(failure!)
+            ? McpCalls.Refuse(services, failure!)
             : new CallToolResult { Content = [new TextContentBlock { Text = "Deleted." }] };
     }
 }
