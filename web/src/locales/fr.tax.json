@@ -20,14 +20,14 @@
     "notes": "À savoir",
     "childcare_summary": "Récapitulatif {{year}} à recopier",
     "evolution": {
-      "title": "Évolution de l’impôt d’une année à l’autre",
-      "intro": "L’impôt sur le revenu de chaque année : celui de l’avis reçu quand il y en a un, sinon l’estimation.",
+      "question": "Comment mon impôt a changé ?",
+      "title": "Impôt année par année",
+      "intro": "Impôt sur le revenu et prélèvement forfaitaire, celui de l’avis quand il y en a un.",
+      "tax": "Impôt",
       "empty": "Aucune année à comparer pour l’instant.",
       "year": "Revenus",
-      "bar": "Barre proportionnelle à l’impôt",
       "rate": "Taux moyen",
       "source": "Source",
-      "flat_tax": "+ {{amount}} de prélèvement forfaitaire",
       "from": { "assessment": "Avis", "estimate": "Estimation" }
     },
     "changes": {

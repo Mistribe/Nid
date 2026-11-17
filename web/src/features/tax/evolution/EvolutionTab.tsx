@@ -1,81 +1,132 @@
-import { useQueries } from '@tanstack/react-query';
+import type { TFunction } from 'i18next';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Bar, BarChart, Cell, LabelList, XAxis, YAxis } from 'recharts';
 import { useApi } from '@/api/ApiProvider';
+import { FIRST_ESTIMATE_YEAR, TAX_HISTORY, type TaxEstimate, type TaxYear } from '@/api/tax';
+import { SectionCard } from '@/components/page/SectionCard';
 import { SeriesLink } from '@/components/page/SeriesLink';
 import { Loading, SectionCardSkeleton, TableSkeleton } from '@/components/page/skeletons';
+import { TableToggle } from '@/components/page/TableToggle';
+import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, type ChartConfig } from '@/components/ui/chart';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toPlot } from '@/lib/plot';
-import { FIRST_ESTIMATE_YEAR, TAX, type TaxEstimate } from '@/api/tax';
 import { ChangesSection } from '../ChangesSection';
-import type { TaxAssessment } from '../assessments/api';
-import { percentText, ZERO } from '../format';
-import { eur } from '../ResultTable';
+import { percentText } from '../format';
+import { eur, resultText } from '../ResultTable';
 import '@/locales/tax';
 
-type Row = { year: string; source: 'assessment' | 'estimate'; netTaxable?: string; tax: string; flatTax?: string; rate?: string | null };
+const FILL = 'var(--chart-1)';
+const ESTIMATE_FILL = 'color-mix(in oklab, var(--chart-1) 40%, transparent)';
+
+const sourceText = (t: TFunction, source: TaxYear['source']) => (source === 'assessment' ? t('tax.evolution.from.assessment') : t('tax.evolution.from.estimate'));
+
+type Bar = { year: string; plot: number; source: TaxYear['source']; rateText: string; taxText: string; sourceText: string };
 
 /**
- * The income tax year by year: a year's notice when there is one, else the server's estimate (from 2025). The notice's
- * « impôt net » holds the flat tax on capital income; the estimate's income tax does not, so its flat tax is shown beside it
- * rather than added here. The bars are sized with `toPlot`; every figure read is the server's.
+ * « Comment mon impôt a changé ? »: the server's yearly history (a notice's tax where there is one, else the estimate's), one bar per
+ * year it lists. `history` is the estimate's own; without it the tab asks for the series. Bars are sized with `toPlot`, every figure is the server's.
  */
-export function EvolutionTab({ years, assessments, scope, current, adults }: {
-  years: string[]; assessments: TaxAssessment[]; scope: 'me' | 'household'; current: string; adults: TaxEstimate['adults'];
+export function EvolutionTab({ year, scope, history, adults = [] }: {
+  year: string; scope: 'me' | 'household'; history?: TaxYear[] | null; adults?: TaxEstimate['adults'];
 }) {
   const { t } = useTranslation();
   const { $api } = useApi();
-  const notice = (year: string) => assessments.find((a) => String(a.year) === year && a.netTax);
-  const estimated = years.filter((y) => !notice(y) && Number(y) >= FIRST_ESTIMATE_YEAR);
-  // The same queries as the page's own estimate: the selected year comes from the cache.
-  const answers = useQueries({ queries: estimated.map((y) => $api.queryOptions('get', TAX, { params: { query: { year: Number(y), scope } } })) });
-  const rows: Row[] = years.flatMap((year): Row[] => {
-    const a = notice(year);
-    if (a?.netTax) return [{ year, source: 'assessment', netTaxable: a.taxableIncome?.amount, tax: a.netTax.amount, rate: a.effectiveAverageRate }];
-    const r = answers[estimated.indexOf(year)]?.data?.result;
-    if (!r) return [];
-    return [{ year, source: 'estimate', netTaxable: r.netTaxableIncome, tax: r.incomeTax, flatTax: ZERO.test(r.capitalFlatTax) ? undefined : r.capitalFlatTax, rate: r.averageRate }];
-  });
-  const loading = answers.some((q) => q.isPending);
-  const sizes = rows.map((r) => Math.max(0, toPlot(r.tax)));
-  const largest = Math.max(1, ...sizes);
+  const [asTable, setAsTable] = useState(false);
+  const fetched = $api.useQuery('get', TAX_HISTORY, { params: { query: { scope } } }, { enabled: !history });
+  const rows = history ?? fetched.data?.years ?? [];
 
-  if (!rows.length) return loading ? <Loading label={t('tax.loading')}><SectionCardSkeleton><TableSkeleton columns={6} rows={3} /></SectionCardSkeleton></Loading> : <p className="text-sm text-muted-foreground">{t('tax.evolution.empty')}</p>;
+  if (!rows.length) {
+    return fetched.isPending && !history
+      ? <Loading label={t('tax.loading')}><SectionCardSkeleton><TableSkeleton columns={5} rows={3} /></SectionCardSkeleton></Loading>
+      : <p className="text-sm text-muted-foreground">{t('tax.evolution.empty')}</p>;
+  }
   return (
-    <>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-muted-foreground">{t('tax.evolution.intro')}</p>
-        {assessments.some((a) => a.netTax) ? <SeriesLink keys={['tax:yearly']} /> : null}
-      </div>
-      <Table aria-label={t('tax.evolution.title')} aria-busy={loading || undefined}>
-        <TableHeader>
-          <TableRow>
-            <TableHead>{t('tax.evolution.year')}</TableHead>
-            <TableHead className="text-right">{t('tax.figure.net_taxable')}</TableHead>
-            <TableHead className="text-right">{t('tax.figure.income_tax')}</TableHead>
-            <TableHead className="w-2/5"><span className="sr-only">{t('tax.evolution.bar')}</span></TableHead>
-            <TableHead className="text-right">{t('tax.evolution.rate')}</TableHead>
-            <TableHead>{t('tax.evolution.source')}</TableHead>
+    <div className="animate-enter space-y-4">
+      <h2 className="text-title">{t('tax.evolution.question')}</h2>
+      <SectionCard title={t('tax.evolution.title')} note={t('tax.evolution.intro')} className="space-y-3" actions={(
+        <>
+          {rows.some((r) => r.source === 'assessment') ? <SeriesLink keys={['tax:yearly']} /> : null}
+          <TableToggle asTable={asTable} onToggle={() => setAsTable((v) => !v)} />
+        </>
+      )}>
+        {asTable ? <HistoryTable rows={rows} current={year} /> : <HistoryChart rows={rows} current={year} />}
+      </SectionCard>
+      {Number(year) >= FIRST_ESTIMATE_YEAR ? <ChangesSection year={year} scope={scope} adults={adults} /> : null}
+    </div>
+  );
+}
+
+function HistoryChart({ rows, current }: { rows: TaxYear[]; current: string }) {
+  const { t } = useTranslation();
+  const bars: Bar[] = rows.map((r) => ({
+    year: String(r.year), plot: toPlot(r.tax), source: r.source, rateText: r.averageRate ? percentText(t, r.averageRate) : '',
+    taxText: resultText(t, r.tax), sourceText: sourceText(t, r.source),
+  }));
+  const sources = (['assessment', 'estimate'] as const).filter((s) => rows.some((r) => r.source === s));
+  const legendFill = { assessment: FILL, estimate: ESTIMATE_FILL };
+  const config = {
+    assessment: { label: t('tax.evolution.from.assessment'), color: FILL }, estimate: { label: t('tax.evolution.from.estimate'), color: ESTIMATE_FILL },
+  } satisfies ChartConfig;
+  return (
+    <figure aria-label={t('tax.evolution.title')}>
+      <ChartContainer config={config} className="aspect-auto w-full" style={{ height: 240 }}>
+        <BarChart data={bars} title={t('tax.evolution.title')} accessibilityLayer margin={{ top: 20, right: 8, left: 8 }}>
+          <XAxis dataKey="year" minTickGap={24} tickLine={false} axisLine={false} />
+          <YAxis hide />
+          <ChartTooltip cursor={false} content={<HistoryTooltip />} />
+          <ChartLegend content={() => (
+            <ChartLegendContent payload={sources.map((s) => ({ value: s, dataKey: s, color: legendFill[s] }))} />
+          )} />
+          <Bar dataKey="plot" maxBarSize={48} radius={4} animationDuration={800}>
+            {bars.map((b) => (
+              <Cell key={b.year} fill={FILL} fillOpacity={b.source === 'estimate' ? 0.4 : undefined}
+                stroke={b.year === current ? 'var(--foreground)' : undefined} strokeWidth={b.year === current ? 2 : undefined} />
+            ))}
+            <LabelList dataKey="rateText" position="top" className="fill-foreground text-xs" />
+          </Bar>
+        </BarChart>
+      </ChartContainer>
+    </figure>
+  );
+}
+
+function HistoryTable({ rows, current }: { rows: TaxYear[]; current: string }) {
+  const { t } = useTranslation();
+  return (
+    <Table aria-label={t('tax.evolution.title')}>
+      <TableHeader>
+        <TableRow>
+          <TableHead>{t('tax.evolution.year')}</TableHead>
+          <TableHead className="text-right">{t('tax.figure.net_taxable')}</TableHead>
+          <TableHead className="text-right">{t('tax.evolution.tax')}</TableHead>
+          <TableHead className="text-right">{t('tax.evolution.rate')}</TableHead>
+          <TableHead>{t('tax.evolution.source')}</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {rows.map((r) => (
+          <TableRow key={r.year} aria-current={String(r.year) === current ? 'true' : undefined} className={String(r.year) === current ? 'font-medium' : undefined}>
+            <TableCell>{r.year}</TableCell>
+            <TableCell className="text-right tabular-nums">{r.netTaxable ? eur(r.netTaxable) : '—'}</TableCell>
+            <TableCell className="text-right tabular-nums">{resultText(t, r.tax)}</TableCell>
+            <TableCell className="text-right tabular-nums">{r.averageRate ? percentText(t, r.averageRate) : '—'}</TableCell>
+            <TableCell className="text-muted-foreground">{sourceText(t, r.source)}</TableCell>
           </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((r, i) => (
-            <TableRow key={r.year} aria-current={r.year === current ? 'true' : undefined} className={r.year === current ? 'font-medium' : undefined}>
-              <TableCell>{r.year}</TableCell>
-              <TableCell className="text-right tabular-nums">{r.netTaxable ? eur(r.netTaxable) : '—'}</TableCell>
-              <TableCell className="text-right tabular-nums">
-                {eur(r.tax)}
-                {r.flatTax ? <div className="text-xs font-normal text-muted-foreground">{t('tax.evolution.flat_tax', { amount: eur(r.flatTax) })}</div> : null}
-              </TableCell>
-              <TableCell aria-hidden="true">
-                <div className={`h-2.5 rounded-full ${r.source === 'assessment' ? 'bg-chart-1' : 'bg-chart-1/50'}`} style={{ width: `${(sizes[i]! / largest) * 100}%` }} />
-              </TableCell>
-              <TableCell className="text-right tabular-nums">{r.rate ? percentText(t, r.rate) : '—'}</TableCell>
-              <TableCell className="text-muted-foreground">{t(`tax.evolution.from.${r.source}`)}</TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-      <ChangesSection year={current} scope={scope} adults={adults} />
-    </>
+        ))}
+      </TableBody>
+    </Table>
+  );
+}
+
+function HistoryTooltip({ active, payload }: { active?: boolean; payload?: ReadonlyArray<{ payload?: Bar }> }) {
+  const row = payload?.[0]?.payload;
+  if (!active || !row) return null;
+  return (
+    <div className="grid gap-1 rounded-xl border bg-background px-3 py-2 text-xs shadow-md">
+      <div className="font-medium">{row.year}</div>
+      <div className="tabular-nums">{row.taxText}</div>
+      <div className="text-muted-foreground">{row.sourceText}</div>
+    </div>
   );
 }

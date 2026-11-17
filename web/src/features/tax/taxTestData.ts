@@ -43,12 +43,13 @@ export const estimate = (): TaxEstimate => ({
   result: result(),
   notices: [{ code: 'missing_gross', item: 'b', name: 'Prime', amount: '1000.00' }],
   adults: [{ id: ADULT, displayName: 'Alice' }],
-  salaryDetail: [], observedRates: {},
+  salaryDetail: [], observedRates: {}, history: history(),
 });
 
 export const previous = (over: Partial<TaxPrevious> = {}): TaxPrevious => ({ year: 2025, source: 'assessment', tax: '7000.00', change: '360.00', changePct: '5.1', ...over });
 
 export const history = (): TaxYear[] => [
-  { year: 2025, source: 'assessment', tax: '7000.00', netTaxable: '60000.00', averageRate: '10.1' },
-  { year: 2026, source: 'estimate', tax: '7360.00', netTaxable: '64407.00', averageRate: '10.7' },
+  { year: 2024, source: 'assessment', tax: '3100.00', netTaxable: '60000.00', averageRate: '4.8' },
+  { year: 2025, source: 'estimate', tax: '2900.00', netTaxable: '61000.00', averageRate: '4.5' },
+  { year: 2026, source: 'estimate', tax: '247.00', netTaxable: '64407.00', averageRate: '0.38' },
 ];
