@@ -1,7 +1,7 @@
 import type { TFunction } from 'i18next';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Bar, BarChart, Cell, LabelList, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, Cell, LabelList, ReferenceLine, XAxis, YAxis } from 'recharts';
 import { useApi } from '@/api/ApiProvider';
 import { FIRST_ESTIMATE_YEAR, TAX_HISTORY, type TaxYear } from '@/api/tax';
 import { SectionCard } from '@/components/page/SectionCard';
@@ -21,7 +21,7 @@ const ESTIMATE_FILL = 'color-mix(in oklab, var(--chart-1) 40%, transparent)';
 
 const sourceText = (t: TFunction, source: TaxYear['source']) => (source === 'assessment' ? t('tax.evolution.from.assessment') : t('tax.evolution.from.estimate'));
 
-type Bar = { year: string; plot: number; source: TaxYear['source']; rateText: string; taxText: string; sourceText: string };
+type BarRow = { year: string; plot: number; source: TaxYear['source']; rateText: string; taxText: string; sourceText: string };
 
 /**
  * « Comment mon impôt a changé ? »: the server's yearly history (a notice's tax where there is one, else the estimate's), one bar per
@@ -59,7 +59,7 @@ export function EvolutionTab({ year, scope, history }: {
 
 function HistoryChart({ rows, current }: { rows: TaxYear[]; current: string }) {
   const { t } = useTranslation();
-  const bars: Bar[] = rows.map((r) => ({
+  const bars: BarRow[] = rows.map((r) => ({
     year: String(r.year), plot: toPlot(r.tax), source: r.source, rateText: r.averageRate ? percentText(t, r.averageRate) : '',
     taxText: resultText(t, r.tax), sourceText: sourceText(t, r.source),
   }));
@@ -74,16 +74,22 @@ function HistoryChart({ rows, current }: { rows: TaxYear[]; current: string }) {
         <BarChart data={bars} title={t('tax.evolution.title')} accessibilityLayer margin={{ top: 20, right: 8, left: 8 }}>
           <XAxis dataKey="year" minTickGap={24} tickLine={false} axisLine={false} />
           <YAxis hide />
+          <ReferenceLine y={0} stroke="var(--border)" />
           <ChartTooltip cursor={false} content={<HistoryTooltip />} />
           <ChartLegend content={() => (
             <ChartLegendContent payload={sources.map((s) => ({ value: s, dataKey: s, color: legendFill[s] }))} />
           )} />
-          <Bar dataKey="plot" maxBarSize={48} radius={4} animationDuration={800}>
+          <Bar dataKey="plot" maxBarSize={24} animationDuration={800}>
             {bars.map((b) => (
-              <Cell key={b.year} fill={FILL} fillOpacity={b.source === 'estimate' ? 0.4 : undefined}
+              <Cell key={b.year} fill={FILL} radius={(b.plot < 0 ? [0, 0, 4, 4] : [4, 4, 0, 0]) as unknown as number} fillOpacity={b.source === 'estimate' ? 0.4 : undefined}
                 stroke={b.year === current ? 'var(--foreground)' : undefined} strokeWidth={b.year === current ? 2 : undefined} />
             ))}
-            <LabelList dataKey="rateText" position="top" className="fill-foreground text-xs" />
+            {/* The rate sits at the bar's end: above a positive bar, below a negative one. */}
+            <LabelList dataKey="rateText" content={({ x, y, width, height, index }) => {
+              const b = bars[Number(index)]!;
+              const [top, bottom] = [Math.min(Number(y), Number(y) + Number(height)), Math.max(Number(y), Number(y) + Number(height))];
+              return <text x={Number(x) + Number(width) / 2} y={b.plot < 0 ? bottom + 14 : top - 6} textAnchor="middle" className="fill-foreground text-xs">{b.rateText}</text>;
+            }} />
           </Bar>
         </BarChart>
       </ChartContainer>
@@ -119,7 +125,7 @@ function HistoryTable({ rows, current }: { rows: TaxYear[]; current: string }) {
   );
 }
 
-function HistoryTooltip({ active, payload }: { active?: boolean; payload?: ReadonlyArray<{ payload?: Bar }> }) {
+function HistoryTooltip({ active, payload }: { active?: boolean; payload?: ReadonlyArray<{ payload?: BarRow }> }) {
   const row = payload?.[0]?.payload;
   if (!active || !row) return null;
   return (

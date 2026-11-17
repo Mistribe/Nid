@@ -5,6 +5,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import type { TaxYear } from '@/api/tax';
+import { soloAssessment } from '../assessments/testData';
 import { ADULT, estimate, history } from '../taxTestData';
 
 const load = (rows: TaxYear[] = history()) => {
@@ -28,15 +29,51 @@ describe('EvolutionTab', () => {
     await renderApp('/tax?tab=evolution');
 
     const region = await card();
-    await waitFor(() => expect(region.querySelectorAll('.recharts-bar-rectangle')).toHaveLength(3));
-    expect(texts(region, '.recharts-xAxis-tick-labels .recharts-cartesian-axis-tick-value')).toEqual(['2024', '2025', '2026']);
     await waitFor(() => expect(region.querySelectorAll('.recharts-bar-rectangle path')).toHaveLength(3));
+    await waitFor(() => expect(texts(region, '.recharts-label-list text').filter(Boolean)).toHaveLength(3));
+    expect(texts(region, '.recharts-xAxis-tick-labels .recharts-cartesian-axis-tick-value')).toEqual(['2024', '2025', '2026']);
     const paths = [...region.querySelectorAll('.recharts-bar-rectangle path')];
     expect(paths.map((p) => p.getAttribute('fill-opacity'))).toEqual([null, '0.4', '0.4']);
     expect(paths[2]!.getAttribute('stroke')).toBe('var(--foreground)');
     expect(texts(region, '.recharts-label-list text').filter(Boolean).map((x) => x?.replace(/\s/g, ' '))).toEqual(['4,8 %', '4,5 %', '0,38 %']);
     expect(within(region).getByText('Avis')).toBeInTheDocument();
     expect(within(region).getByText('Estimation')).toBeInTheDocument();
+  });
+
+  it('draws a negative year under zero, its rate below the bar', async () => {
+    load(history().map((r) => (r.year === 2026 ? { ...r, tax: '-150.00' } : r)));
+    await renderApp('/tax?tab=evolution');
+
+    const region = await card();
+    await waitFor(() => expect(region.querySelectorAll('.recharts-bar-rectangle path')).toHaveLength(3));
+    await waitFor(() => expect(texts(region, '.recharts-label-list text').filter(Boolean)).toHaveLength(3));
+    const [up, , down] = [...region.querySelectorAll('.recharts-bar-rectangle path')].map((p) => p.getBoundingClientRect());
+    expect(region.querySelector('.recharts-reference-line')).not.toBeNull();
+    const labels = [...region.querySelectorAll('.recharts-label-list text')].map((n) => Number(n.getAttribute('y')));
+    expect(labels[2]).toBeGreaterThan(labels[0]!);
+    expect(up).toBeDefined();
+    expect(down).toBeDefined();
+  });
+
+  it.each([['me', '&scope=me'], ['household', '']])('asks for the %s series of a past year, then draws it', async (scope, query) => {
+    const asked: (string | null)[] = [];
+    let release = () => {};
+    const gate = new Promise<void>((r) => { release = r; });
+    server.use(
+      http.get('*/api/v1/tax/assessments', () => HttpResponse.json({ items: [{ ...soloAssessment({ year: 2024 }), netTax: undefined }] })),
+      http.get('*/api/v1/tax/history', async ({ request }) => {
+        asked.push(new URL(request.url).searchParams.get('scope'));
+        await gate;
+        return HttpResponse.json({ years: history().slice(0, 1) });
+      }),
+    );
+    const { container } = await renderApp(`/tax?tab=evolution&year=2024${query}`);
+
+    await waitFor(() => expect(asked).toEqual([scope]));
+    expect(container.querySelector('[data-slot="skeleton"]')).not.toBeNull();
+    release();
+    const region = await card();
+    await waitFor(() => expect(region.querySelectorAll('.recharts-bar-rectangle path')).toHaveLength(1));
   });
 
   it('reads no other year’s estimate', async () => {
