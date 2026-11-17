@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { TaxInputs, TaxResult } from '@/api/tax';
 import { estimate, result } from '../taxTestData';
-import { applyScenario, draftErrors, groupsWithErrors, scenarios, toBody, toDraft } from './simulationDraft';
+import { applyScenario, draftErrors, fieldOf, groupsWithErrors, scenarios, toBody, toDraft } from './simulationDraft';
 
 type Declarant = TaxInputs['declarants'][number];
 const first = (inputs: TaxInputs) => inputs.declarants[0] as Declarant;
@@ -60,6 +60,13 @@ describe('simulationDraft', () => {
     d.counts.dependents = '1';
     d.inputs.donations = '1 000,5';
     expect(draftErrors(d)).toEqual({});
+  });
+
+  it('fieldOf names the field of an error key and ignores unknown ones', () => {
+    expect(fieldOf('salaryGross.1')).toBe('salaryGross');
+    expect(fieldOf('dependents')).toBe('dependents');
+    expect(fieldOf('toString')).toBeUndefined();
+    expect(groupsWithErrors({ nope: 'amount' })).toEqual(new Set());
   });
 
   it('groupsWithErrors maps each error to its group', () => {

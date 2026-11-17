@@ -677,6 +677,7 @@
       "submit": "Calculer",
       "reset": "Revenir à l’estimation",
       "done": "Simulation calculée.",
+      "announce": "Simulation : impôt total {{tax}}, {{left}} de reste par mois.",
       "result": "Estimation et simulation",
       "column": "Simulation",
       "result_title": "Avant / après",

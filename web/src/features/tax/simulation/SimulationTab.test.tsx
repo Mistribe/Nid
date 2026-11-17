@@ -184,10 +184,15 @@ describe('SimulationTab', () => {
       expect(within(region).queryByText(/^\+/)).toBeNull();
     });
 
-    it('announces the result politely', async () => {
+    it('announces the result in an always-mounted live region', async () => {
       serve(); answer = raised;
-      const { region } = await simulate();
-      expect(within(region.closest('[role="status"]')!).getByText('Impôt total')).toBeInTheDocument();
+      const { user } = await renderApp('/tax?tab=simulation');
+      const status = await screen.findByRole('status');
+      expect(status).toBeEmptyDOMElement();
+      await user.click(screen.getByRole('button', { name: 'Calculer' }));
+      await screen.findByRole('region', { name: 'Avant / après' });
+      expect(screen.getByRole('status')).toBe(status);
+      expect(status).toHaveTextContent('Simulation : impôt total 1 500,00 €, 5 600,00 € de reste par mois.');
     });
 
     it('takes the result away when the year changes', async () => {

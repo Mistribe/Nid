@@ -55,6 +55,7 @@ export function SimulationForm({ estimate, scope, onResult }: {
   const [more, setMore] = useState<GroupId[]>([]);
   const [scenario, setScenario] = useState<ScenarioId | null>(null);
   const regimeHint = useId();
+  const regimeKey = REGIMES.find((r) => r === draft.inputs.rentalRegime) ?? 'auto';
   const simulate = $api.useMutation('post', TAX_SIMULATE);
   const errors = draftErrors(draft);
   const folded = groupsWithErrors(errors);
@@ -170,7 +171,7 @@ export function SimulationForm({ estimate, scope, onResult }: {
             <Segmented aria-label={t('tax.profile.regime')} aria-describedby={regimeHint} value={draft.inputs.rentalRegime ?? 'auto'}
               onValueChange={(v) => setInput({ rentalRegime: v === 'auto' ? null : v })}
               options={REGIMES.map((r) => ({ value: r, label: regimeText(t, r) }))} />
-            <span id={regimeHint} className="block text-sm text-muted-foreground">{t(`tax.profile.regime_hint.${(draft.inputs.rentalRegime ?? 'auto') as (typeof REGIMES)[number]}`)}</span>
+            <span id={regimeHint} className="block text-sm text-muted-foreground">{t(`tax.profile.regime_hint.${regimeKey}`)}</span>
           </div>
         ) : null}
         {rarer(decl).length + rarer(house).length ? rare(group, (

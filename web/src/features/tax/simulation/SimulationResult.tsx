@@ -29,7 +29,7 @@ export function SimulationResult({ before, after, year }: { before: TaxResult; a
   const wasText = ZERO.test(wasBalance) ? t('tax.simulation.before_none')
     : t(wasBalance.startsWith('-') ? 'tax.simulation.before_refund' : 'tax.simulation.before_to_pay', { amount: eur(unsigned(wasBalance)) });
   return (
-    <div ref={root} role="status" className="scroll-mt-4">
+    <div ref={root} className="scroll-mt-4">
       <SectionCard title={t('tax.simulation.result_title')} className="space-y-3">
         <StatLine items={[
           { label: t('tax.simulation.total_tax'), value: eur(after.totalTax),
