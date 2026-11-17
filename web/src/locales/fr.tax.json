@@ -279,7 +279,7 @@
       "social_levies": "La CSG et les autres contributions sociales sur les revenus du patrimoine : loyers, intérêts, dividendes. Vos salaires les ont déjà payées sur la fiche de paie.",
       "marginal_rate": "Le taux de la tranche la plus haute que votre revenu atteint : chaque euro gagné en plus est imposé à ce taux. Ce n’est pas le taux appliqué à tout votre revenu.",
       "withholding_rate": "La part de vos revenus retenue chaque mois pour l’impôt par votre employeur ou votre caisse de retraite. Nid montre celui que vos revenus de l’année donnent ; celui appliqué aujourd’hui est sur votre avis.",
-      "balance": "L’impôt dû moins ce qui a déjà été prélevé à la source dans l’année. Il se règle à la fin de l’été suivant : à payer s’il est positif, remboursé s’il est négatif."
+      "balance": "L’impôt dû moins ce qui a déjà été prélevé à la source dans l’année. Il se règle à la fin de l’été suivant : ce qui reste à payer, ou ce qui vous est remboursé."
     },
     "status": { "non_executive": "Salarié non-cadre", "executive": "Salarié cadre", "public": "Fonction publique" },
     "engagement": {

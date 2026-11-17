@@ -46,6 +46,18 @@ function More({ children }: { children: string }) {
 }
 
 /**
+ * The chart's two bars: `value` only sizes them, `text` is the server's figure. A refund draws a hairline (0.01), never a negative bar:
+ * the label says it in words, and a zero-width bar would lose its label.
+ */
+export function withheldBars(t: TFunction, estimate: TaxEstimate) {
+  const w = estimate.result.withholding;
+  return [
+    { key: 'annual', label: t('tax.withholding.annual'), value: toPlot(w.annual), text: eur(w.annual), fill: 'var(--chart-1)' },
+    { key: 'due', label: t('tax.withholding.due'), value: Math.max(0.01, toPlot(estimate.result.incomeTax)), text: resultText(t, estimate.result.incomeTax), fill: 'var(--chart-2)' },
+  ];
+}
+
+/**
  * Tax estimate spec §4bis: « Est-ce que je suis assez (ou trop) prélevé ? » answered with the rate and monthly amounts, the year's
  * withholding against the tax due, then what to type on impots.gouv.fr and the safe cut. Every figure is the server's; `toPlot` only sizes bars.
  */
@@ -66,11 +78,7 @@ export function WithholdingTab({ estimate }: { estimate: TaxEstimate }) {
     }),
     ...(ZERO.test(w.rentalDeclared) ? [] : [[t('tax.withholding.rental'), eur(w.rentalDeclared)] as [string, string]]),
   ];
-  const bars = [
-    { key: 'annual', label: t('tax.withholding.annual'), value: toPlot(w.annual), text: eur(w.annual), fill: 'var(--chart-1)' },
-    { key: 'due', label: t('tax.withholding.due'), // a refund draws a hairline, never a negative bar: the label says it (a zero-width bar loses its label)
-    value: Math.max(0.01, toPlot(estimate.result.incomeTax)), text: resultText(t, estimate.result.incomeTax), fill: 'var(--chart-2)' },
-  ];
+  const bars = withheldBars(t, estimate);
   const config = { annual: { label: bars[0]!.label, color: 'var(--chart-1)' }, due: { label: bars[1]!.label, color: 'var(--chart-2)' } } satisfies ChartConfig;
 
   return (

@@ -4,7 +4,9 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
+import i18n from 'i18next';
 import { estimate } from '../taxTestData';
+import { withheldBars } from './WithholdingTab';
 
 const open = async (loaded = estimate()) => {
   server.use(http.get('*/api/v1/tax', () => HttpResponse.json(loaded)));
@@ -56,7 +58,9 @@ describe('WithholdingTab', () => {
     const card = screen.getByRole('region', { name: 'Ce que le taux devrait donner' });
     await waitFor(() => expect(card.textContent?.replace(/\s/g, ' ')).toContain('300,00 € en votre faveur'));
     expect(card.textContent).not.toContain('-300');
-    for (const r of card.querySelectorAll('.recharts-bar-rectangle path')) expect(Number(r.getAttribute('x'))).toBeGreaterThanOrEqual(0);
+    const due = withheldBars(i18n.t.bind(i18n), loaded)[1]!;
+    expect(due.value).toBe(0.01);
+    expect(due.text.replace(/\s/g, ' ')).toBe('300,00 € en votre faveur');
   });
 
   it('a zero balance reads nothing to settle', async () => {
