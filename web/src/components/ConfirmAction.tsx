@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState, type RefObject } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { Button } from '@/components/ui/button';
 
 const ConfirmDialog = lazy(() => import('./ConfirmDialog'));
@@ -8,12 +8,15 @@ const ConfirmDialog = lazy(() => import('./ConfirmDialog'));
  * With no trigger of its own, the dialog hands the focus back to `returnFocus` (the `⋯`) when it closes, confirmed or not; a
  * success that lands elsewhere moves it on from there.
  */
-export function ConfirmFromMenu({ label, confirmation, pending, returnFocus, onConfirm, onClose }: {
+export function ConfirmFromMenu({ label, confirmation, pending, returnFocus, onConfirm, onClose, children }: {
   label: string; confirmation: string; pending?: boolean; returnFocus: RefObject<HTMLElement | null>; onConfirm: () => void; onClose: () => void;
+  children?: ReactNode;
 }) {
   return (
     <Suspense fallback={null}>
-      <ConfirmDialog label={label} confirmation={confirmation} pending={pending} returnFocus={returnFocus} onClose={onClose} onConfirm={() => { onClose(); onConfirm(); }} />
+      <ConfirmDialog label={label} confirmation={confirmation} pending={pending} returnFocus={returnFocus} onClose={onClose} onConfirm={() => { onClose(); onConfirm(); }}>
+        {children}
+      </ConfirmDialog>
     </Suspense>
   );
 }

@@ -47,6 +47,9 @@ export async function createLink(admin: Page, name: string, item: 'Créer son li
   await admin.goto('/admin/users');
   await admin.getByRole('button', { name: `Actions de ${name}` }).click();
   await admin.getByRole('menuitem', { name: item }).click();
+  // #294: a reset link is confirmed first (tokens kept, the default).
+  if (item === 'Créer un lien de mot de passe')
+    await admin.getByRole('alertdialog', { name: item }).getByRole('button', { name: 'Confirmer' }).click();
   const dialog = admin.getByRole('dialog', { name: 'Lien à usage unique' });
   const url = await dialog.getByRole('textbox', { name: 'Lien à usage unique' }).inputValue();
   expect(url).toMatch(/\/password#nid_link_/);

@@ -174,6 +174,33 @@ describe('Administration › Utilisateurs, comptes locaux (issue 215)', () => {
     expect(screen.getByText(/Chaque adulte se connecte avec son identifiant/)).toBeInTheDocument();
   });
 
+  // #294: a reset link is confirmed first; revoking the tokens is a choice, off by default.
+  it.each([
+    { revoke: false, sent: { revokeTokens: false } },
+    { revoke: true, sent: { revokeTokens: true } },
+  ])('confirms a reset link, revoking the tokens: $revoke', async ({ revoke, sent: expected }) => {
+    serve([alice, dave]);
+    const sent: unknown[] = [];
+    server.use(http.post('*/api/v1/admin/users/:id/password-link', async ({ request }) => {
+      sent.push(await request.json());
+      return HttpResponse.json({ url: 'https://nid.example.test/password#nid_link_abc', purpose: 'reset', expiresAt: '2026-11-16T18:00:00+00:00' }, { status: 201 });
+    }));
+    const { user } = await renderApp('/admin/users', { capabilities: adminCapabilities, session: local });
+
+    await user.click(await screen.findByRole('button', { name: 'Actions de Dave' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Créer un lien de mot de passe' }));
+    const confirm = await screen.findByRole('alertdialog', { name: 'Créer un lien de mot de passe' });
+    const toggle = within(confirm).getByRole('switch', { name: "Révoquer aussi ses jetons d'accès" });
+    expect(toggle).not.toBeChecked();
+    expect(sent).toEqual([]);
+    if (revoke) await user.click(toggle);
+    await user.click(within(confirm).getByRole('button', { name: 'Confirmer' }));
+
+    await screen.findByRole('dialog', { name: 'Lien à usage unique' });
+    expect(sent).toEqual([expected]);
+    if (revoke) await waitFor(() => expect(toasts()).toHaveTextContent("Ses jetons d'accès sont révoqués."));
+  });
+
   it('shows a locked account and unlocks it', async () => {
     serve([alice, dave]);
     let unlocked = false;
