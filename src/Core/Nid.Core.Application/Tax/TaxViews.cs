@@ -178,6 +178,9 @@ public sealed record TaxPerView(bool Pooled, string Remaining, string TaxSaved, 
     public static TaxPerView Of(PerHousehold p) => new(p.Pooled, Amount(p.Remaining), Amount(p.TaxSaved), Amount(p.RoomInBracket));
 }
 
+/// <summary>One step of the walk from the income to the tax (<c>TaxStep</c>).</summary>
+public sealed record TaxStepView(string Code, string Group, string Amount, string From, string To);
+
 /// <summary>
 /// Spec §4, each step's figure as a decimal string; rates in percent (<c>"30"</c>, <c>"4.27"</c>). <c>ReferenceIncome</c>: the
 /// revenu fiscal de référence. <c>RentalRegimeGap</c>: the total tax under the other rental regime minus this one, null when there is no choice.
@@ -198,7 +201,8 @@ public sealed record TaxResultView(
     IReadOnlyList<string> Warnings, WithholdingView Withholding, TaxPerView? Per = null, string ReferenceIncome = "0.00", string? RentalRegimeGap = null,
     string RentalDeficitCarriedForward = "0.00", bool CapitalScale = false, string? CapitalOptionGap = null, string DividendAllowance = "0.00",
     string DeductibleCsgNextYear = "0.00", string HighIncomeContribution = "0.00", bool HighIncomeSmoothed = false, string AlimonyDeducted = "0.00",
-    string RealisedGainsTaxable = "0.00", string CapitalLossesCarriedForward = "0.00", string AgeDisabilityAllowance = "0.00")
+    string RealisedGainsTaxable = "0.00", string CapitalLossesCarriedForward = "0.00", string AgeDisabilityAllowance = "0.00",
+    IReadOnlyList<TaxStepView>? Steps = null)
 {
     /// <summary><paramref name="persons"/>: the adults' ids in the order of the declarants (the estimate's); a simulation passes none.</summary>
     public static TaxResultView Of(TaxResult r, IReadOnlyList<Guid>? persons = null) => new(
@@ -213,7 +217,8 @@ public sealed record TaxResultView(
         r.Warnings, WithholdingView.Of(r.Withholding), r.Per is { } household ? TaxPerView.Of(household) : null, Amount(r.ReferenceIncome),
         r.RentalRegimeGap is { } gap ? Amount(gap) : null, Amount(r.RentalDeficitCarriedForward),
         r.CapitalScale, r.CapitalOptionGap is { } option ? Amount(option) : null, Amount(r.DividendAllowance), Amount(r.DeductibleCsgNextYear),
-        Amount(r.HighIncomeContribution), r.HighIncomeSmoothed, Amount(r.AlimonyDeducted), Amount(r.RealisedGainsTaxable), Amount(r.CapitalLossesCarriedForward), Amount(r.AgeDisabilityAllowance));
+        Amount(r.HighIncomeContribution), r.HighIncomeSmoothed, Amount(r.AlimonyDeducted), Amount(r.RealisedGainsTaxable), Amount(r.CapitalLossesCarriedForward), Amount(r.AgeDisabilityAllowance),
+        (r.Steps ?? []).Select(s => new TaxStepView(s.Code, s.Group, Amount(s.Amount), Amount(s.From), Amount(s.To))).ToList());
 
     private static string? WireMethod(SalaryMethod method) => method switch
     {

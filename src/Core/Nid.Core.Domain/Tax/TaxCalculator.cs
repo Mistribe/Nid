@@ -104,7 +104,7 @@ public sealed record PerHousehold(bool Pooled, decimal Remaining, decimal TaxSav
 /// <c>AlimonyDeducted</c>: the alimony paid taken off the global income, the adult children's within their cap.
 /// <c>RealisedGainsTaxable</c>: the year's net gain after the earlier losses, taxed with the capital income; <c>CapitalLossesCarriedForward</c>
 /// the losses left for the next years. <c>AgeDisabilityAllowance</c>: CGI art. 157 bis, taken off the net global income for each
-/// declarant aged 65 or over, or disabled, when that income is low.
+/// declarant aged 65 or over, or disabled, when that income is low. <c>Steps</c>: the walk from the income to the tax (<see cref="TaxSteps"/>).
 /// </summary>
 public sealed record TaxResult(
     int Year, int RulesYear, decimal Parts, IReadOnlyList<DeclarantResult> Declarants,
@@ -116,7 +116,8 @@ public sealed record TaxResult(
     IReadOnlyList<string> Warnings, Withholding Withholding, PerHousehold? Per = null, decimal ReferenceIncome = 0m, decimal? RentalRegimeGap = null,
     decimal RentalDeficitCarriedForward = 0m, bool CapitalScale = false, decimal? CapitalOptionGap = null, decimal DividendAllowance = 0m,
     decimal DeductibleCsgNextYear = 0m, decimal HighIncomeContribution = 0m, bool HighIncomeSmoothed = false, decimal AlimonyDeducted = 0m,
-    decimal RealisedGainsTaxable = 0m, decimal CapitalLossesCarriedForward = 0m, decimal AgeDisabilityAllowance = 0m);
+    decimal RealisedGainsTaxable = 0m, decimal CapitalLossesCarriedForward = 0m, decimal AgeDisabilityAllowance = 0m,
+    IReadOnlyList<TaxStep>? Steps = null);
 
 /// <summary>
 /// Spec §4bis: the withholding rate the year's income gives, and what « Actualiser suite à une hausse ou une baisse de vos revenus »
@@ -345,7 +346,32 @@ public static class TaxCalculator
             // shortcut: the 10-year limit is not followed; the rules start in 2025, so no deficit Nid computes expires before 2035.
             Euros(Math.Max(0m, inputs.RentalDeficitCarried) - carriedUsed + loss - deficit),
             inputs.CapitalScale, optionGap, dividendAllowance, inputs.CapitalScale ? Euros(TaxRules.DeductibleCsgRate * capital) : 0m, cehr, smoothed, alimony,
-            Euros(gainsTaxable), Euros(lossesForward), ageDisability);
+            Euros(gainsTaxable), Euros(lossesForward), ageDisability,
+            TaxSteps.Build(
+            [
+                ("salaries", TaxStepGroups.Income, declarants.Sum(d => d.NetTaxableIncome) - inputs.Declarants.Sum(d => d.OtherTaxable)),
+                ("salary_allowance", TaxStepGroups.Income, -declarants.Sum(d => d.Allowance)),
+                ("pensions", TaxStepGroups.Income, declarants.Sum(d => d.Pensions)),
+                ("pension_allowance", TaxStepGroups.Income, -declarants.Sum(d => d.PensionAllowance)),
+                ("other_taxable", TaxStepGroups.Income, inputs.Declarants.Sum(d => d.OtherTaxable)),
+                ("rental", TaxStepGroups.Income, rentalTaxable),
+                ("rental_deficit", TaxStepGroups.Income, -deficit),
+                ("capital_scale", TaxStepGroups.Income, capitalInGlobal),
+                ("deductible_csg", TaxStepGroups.Income, -Math.Max(0m, inputs.DeductibleCsg)),
+                ("per", TaxStepGroups.Income, -declarants.Sum(d => d.PerDeducted)),
+                ("alimony", TaxStepGroups.Income, -alimony),
+                ("age_disability", TaxStepGroups.Income, -ageDisability),
+                ("gross_tax", TaxStepGroups.Tax, grossTax),
+                ("decote", TaxStepGroups.Tax, -decote),
+                ("pinel", TaxStepGroups.Tax, -pinel),
+                ("donations", TaxStepGroups.Tax, -donation),
+                ("childcare", TaxStepGroups.Tax, -childcare),
+                ("home_employment", TaxStepGroups.Tax, -home),
+                ("niche_cap", TaxStepGroups.Tax, excess),
+                ("flat_tax", TaxStepGroups.Tax, flat),
+                ("social_levies", TaxStepGroups.Tax, levies),
+                ("high_income", TaxStepGroups.Tax, cehr),
+            ], taxable, incomeTax, total));
     }
 
     /// <summary>
