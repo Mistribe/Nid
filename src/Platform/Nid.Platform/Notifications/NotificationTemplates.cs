@@ -48,6 +48,12 @@ public static class NotificationTemplates
         ["property_tax_due"] = "La taxe foncière est à payer",
         ["access_violation"] = "Une réponse a été bloquée par la garde d'accès",
         ["token_expiring"] = "Un jeton d'accès expire bientôt",
+        [AccountNotices.LoginLocked] = "Votre compte a été verrouillé",
+        [AccountNotices.PasswordLinkIssued] = "Un lien de réinitialisation a été créé pour vous",
+        [AccountNotices.PasswordReset] = "Votre mot de passe a été réinitialisé",
+        [AccountNotices.PasswordChanged] = "Votre mot de passe a changé",
+        [AccountNotices.TotpReset] = "Votre validation en deux étapes a été désactivée",
+        [AccountNotices.RecoveryCodesLow] = "Il vous reste 2 codes de secours",
         ["proposal_pending"] = "Une proposition attend votre décision",
         ["backup_failed"] = "La sauvegarde a échoué",
         ["job_failed"] = "Une tâche planifiée a échoué",
@@ -95,7 +101,7 @@ public static class NotificationTemplates
     }
 
     /// <summary>The notices published by code (security, pending actions, health): they carry no name and no amount.</summary>
-    private static readonly HashSet<string> Notices = ["access_violation", "token_expiring", "proposal_pending", "backup_failed", "job_failed", "sync_failed", "banking.consent_expiring", "banking.consent_expired", "banking.sync_failing"];
+    private static readonly HashSet<string> Notices = [.. AccountNotices.Kinds.Select(k => k.Kind), "access_violation", "token_expiring", "proposal_pending", "backup_failed", "job_failed", "sync_failed", "banking.consent_expiring", "banking.consent_expired", "banking.sync_failing"];
 
     private static string NoticeBody(NotificationRecord n) => n.Kind switch
     {
@@ -108,6 +114,12 @@ public static class NotificationTemplates
         "banking.consent_expiring" => n.DueOn is { } on ? $"{Bank(n)} — expire le {Day(on)}" : Bank(n),
         "banking.consent_expired" => n.DueOn is { } on ? $"{Bank(n)} — expiré le {Day(on)}" : Bank(n),
         "banking.sync_failing" => Bank(n),
+        AccountNotices.LoginLocked => "Après plusieurs essais de mot de passe incorrects. Si ce n'était pas vous, prévenez un administrateur.",
+        AccountNotices.PasswordLinkIssued => "Un administrateur peut ainsi choisir un nouveau mot de passe pour votre compte. Si vous ne l'avez pas demandé, parlez-en avec lui.",
+        AccountNotices.PasswordReset => "Vos autres sessions sont fermées. Si ce n'était pas vous, prévenez un administrateur.",
+        AccountNotices.PasswordChanged => "Vos autres sessions sont fermées. Si ce n'était pas vous, prévenez un administrateur.",
+        AccountNotices.TotpReset => "Un administrateur l'a désactivée depuis le serveur. Réactivez-la depuis la page Sécurité.",
+        AccountNotices.RecoveryCodesLow => "Créez-en de nouveaux depuis la page Sécurité avant d'en manquer.",
         _ => "",
     };
 
@@ -133,6 +145,7 @@ public static class NotificationTemplates
     {
         "access_violation" => n.Params.GetValueOrDefault("admin") == "1" ? "/admin/security" : "/",
         "token_expiring" => "/security",
+        _ when AccountNotices.Kinds.Any(k => k.Kind == n.Kind) => "/security",
         "banking.consent_expiring" or "banking.consent_expired" or "banking.sync_failing" => "/settings/banks",
         "proposal_pending" => $"/proposals/{n.Key[(n.Key.LastIndexOf(':') + 1)..]}",
         "backup_failed" => "/admin/system",

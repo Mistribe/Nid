@@ -182,11 +182,19 @@ public class NotificationTemplatesTests
             (Published("backup_failed", "backup_failed:never"), "La sauvegarde a échoué", "/admin/system"),
             (Published("job_failed", "job_failed:fx-sync", new() { ["job"] = "fx-sync" }), "Une tâche planifiée a échoué", "/admin/jobs/fx-sync"),
             (Published("sync_failed", "sync_failed:prices:never", new() { ["source"] = "prices" }), "Une synchronisation a échoué", "/admin/prices"),
+            // #291: the holder of a local account, sent to their Security page.
+            (Published("login_locked", "login_locked:abc:1"), "Votre compte a été verrouillé", "/security"),
+            (Published("password_link_issued", "password_link_issued:abc:1"), "Un lien de réinitialisation a été créé pour vous", "/security"),
+            (Published("password_reset", "password_reset:abc:1"), "Votre mot de passe a été réinitialisé", "/security"),
+            (Published("password_changed", "password_changed:abc:1", new() { ["field"] = "password" }), "Votre mot de passe a changé", "/security"),
+            (Published("totp_reset", "totp_reset:abc:1"), "Votre validation en deux étapes a été désactivée", "/security"),
+            (Published("recovery_codes_low", "recovery_codes_low:abc"), "Il vous reste 2 codes de secours", "/security"),
         };
         foreach (var (record, title, link) in cases)
         {
             var rendered = NotificationTemplates.Render(record, KindOf(record.Kind, "platform"), names);
             Assert.Equal((title, link), (rendered.Title, rendered.Link));
+            if (link == "/security" && record.Kind != "token_expiring") Assert.NotEmpty(rendered.Body);
             Assert.DoesNotContain("Maison", rendered.Body);
             Assert.DoesNotMatch(@"\d+\s?(€|EUR)", rendered.Body);
         }

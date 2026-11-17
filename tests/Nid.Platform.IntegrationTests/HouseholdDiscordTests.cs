@@ -215,6 +215,18 @@ public class HouseholdDiscordTests(PostgresFixture fixture) : IClassFixture<Post
         Assert.Empty(await HouseholdAsync(h));
     }
 
+    /// <summary>#291: what a local account's holder is told is theirs alone, critical as it is.</summary>
+    [Fact]
+    public async Task A_notice_to_an_account_holder_never_reaches_the_household()
+    {
+        await using var h = await StartAsync();
+
+        await h.App.Services.GetRequiredService<INotifier>().PublishAsync(new Notice("login_locked", new Recipients.People([h.App.AdultA]),
+            "login_locked:a:1", [], new Dictionary<string, string>()), TestContext.Current.CancellationToken);
+
+        Assert.Empty(await HouseholdAsync(h));
+    }
+
     [Fact]
     public async Task Household_rechecks_every_adult_at_send()
     {
