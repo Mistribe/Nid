@@ -12,6 +12,7 @@ public sealed record TaxBracketPosition(
         var b = rules.Brackets;
         var quotient = Math.Floor(taxable / parts);
         var bands = b.Select((x, i) => (x.From, i + 1 < b.Count ? (decimal?)b[i + 1].From : null, x.Rate)).ToList();
+        // The first band starts at 0 and is never "next": there is nothing to cross to reach it.
         decimal? next = b.Where(x => x.From > 0m && x.From >= quotient).Select(x => (decimal?)x.From).FirstOrDefault();
         var end = Math.Ceiling(Math.Max(b[^1].From * 1.25m, quotient * 1.1m) / 1_000m) * 1_000m;
         return new(bands, quotient, next, next - quotient, end);

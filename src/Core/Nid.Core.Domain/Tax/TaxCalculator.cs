@@ -332,7 +332,7 @@ public static class TaxCalculator
         {
             var paidLeft = inputs with { Declarants = [.. inputs.Declarants.Select((d, i) => d with
             {
-                PerContributions = d.PerContributions + (pooled ? (i == 0 ? perRemaining : 0m) : pers[i].Remaining)
+                PerContributions = Math.Max(0m, d.PerContributions) + (pooled ? (i == 0 ? perRemaining : 0m) : pers[i].Remaining)
             })] };
             remainingTaxSaved = Math.Max(0m, incomeTax - Compute(paidLeft, withTaxSaved: false).IncomeTax);
         }

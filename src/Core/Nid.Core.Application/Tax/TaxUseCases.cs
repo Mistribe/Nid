@@ -169,6 +169,8 @@ public sealed class TaxEstimates(
         var (inputs, notices, columns) = Assemble(year, lines, r.Effective, people, previous, r.ReferenceBefore);
         var adults = Adults(people);
         var result = TaxCalculator.Compute(inputs);
+        // The history below asks for this very year: hand it the figure instead of reading every module again.
+        computed[(actor.Current!.PersonId!.Value, year, scope, today)] = new TaxComputation(result, lines.Count > 0 || stored?.Year == year);
         var declaration = Declaration(year, lines, inputs, result, columns, notices);
         // The deficit last year's estimate leaves, offered only where no notice of last year prints its own and a property is rented.
         string? deficitEstimated = null;
@@ -235,7 +237,12 @@ public sealed class TaxEstimates(
             else if (year >= TaxRules.FirstYear)
             {
                 var computed = await ComputeWithDataAsync(year, scope, today, ct);
-                if (computed.TryGetFailure(out var failure)) return Result.Failure<IReadOnlyList<TaxYearView>>(failure!);
+                if (computed.TryGetFailure(out var failure))
+                {
+                    // A failing earlier year is no point on the curve; the year shown still fails the request.
+                    if (year != upTo) continue;
+                    return Result.Failure<IReadOnlyList<TaxYearView>>(failure!);
+                }
                 computed.TryGetValue(out var data);
                 // The year shown (upTo) always stands; an earlier year with nothing to estimate from is no point on the curve.
                 if (!data!.HasData && year != upTo) continue;

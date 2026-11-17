@@ -89,7 +89,7 @@ public class TaxStepsTests
     }
 
     [Fact]
-    public void Every_line_is_a_step_with_the_calculators_own_figure()
+    public void Rare_lines_are_steps_with_the_calculators_own_figure()
     {
         var retired = new TaxDeclarant("A", 0m, EmploymentStatus.NonExecutive, 8_000m, 0m, Pensions: 18_000m, Over65: true);
         var r = TaxCalculator.Compute(Inputs([retired]) with

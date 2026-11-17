@@ -694,6 +694,18 @@ public class TaxEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresF
         Assert.True(expected < 0m);
         Assert.Equal(expected, DecimalOf(differences, "totalTax"));
         Assert.Equal(DecimalOf(simulated, "netAfterTaxMonthly") - DecimalOf(estimate.GetProperty("result"), "netAfterTaxMonthly"), DecimalOf(differences, "netAfterTaxMonthly"));
+        Assert.Equal(DecimalOf(simulated.GetProperty("withholding"), "balance") - DecimalOf(estimate.GetProperty("result").GetProperty("withholding"), "balance"), DecimalOf(differences, "balance"));
+    }
+
+    [Fact]
+    public async Task Simulate_with_an_invalid_scope_answers_400()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var (_, body) = await SalariedAsync(app);
+
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/tax/simulate?scope=nobody", body);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
     [Fact]

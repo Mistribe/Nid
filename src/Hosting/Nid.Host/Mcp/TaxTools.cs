@@ -13,7 +13,8 @@ public sealed class TaxTools
     /// <summary>Issue #284: the same view as <c>GET /api/v1/tax</c>.</summary>
     [McpServerTool(Name = "get_tax", ReadOnly = true)]
     [Description("The tax page of a revenue year: the estimate and its detail, the tax profile the household declared (profile; profileFrom: " +
-                 "the earlier year whose profile stands in), the withholding figures and the suggested cut (result.withholding), and what the estimate left out (notices, gaps). " + McpSetup.Untrusted)]
+                 "the earlier year whose profile stands in), the withholding figures and the suggested cut (result.withholding), and what the estimate left out (notices, gaps), the steps from income to tax (result.steps), the place on the scale (result.bracket), " +
+                 "the yearly history (history) and the change against last year (previous). " + McpSetup.Untrusted)]
     public static Task<CallToolResult> GetTax(IServiceProvider services,
         [Description("The revenue year (default: this year).")] int? year = null,
         [Description("'household' (default) or 'me'.")] string? scope = null, CancellationToken ct = default)

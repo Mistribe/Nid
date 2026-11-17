@@ -30,9 +30,9 @@ public static class TaxSteps
         var steps = new List<TaxStep>();
         var list = raw.Where(r => r.Amount != 0m).ToList();
 
-        Walk(list.Where(r => r.Group == TaxStepGroups.Income), TaxStepGroups.Income, netTaxable, "net_taxable", 0m);
+        Walk(list.Where(r => r.Group == TaxStepGroups.Income).Select(r => (r.Code, r.Amount)), TaxStepGroups.Income, netTaxable, "net_taxable", 0m);
 
-        var tax = list.Where(r => r.Group == TaxStepGroups.Tax).ToList();
+        var tax = list.Where(r => r.Group == TaxStepGroups.Tax).Select(r => (r.Code, r.Amount)).ToList();
         var split = tax.FindIndex(r => r.Code is TaxStepCodes.FlatTax or TaxStepCodes.SocialLevies or TaxStepCodes.HighIncome);
         var (before, after) = split < 0 ? (tax, []) : (tax[..split], tax[split..]);
         var sum = Walk(before, TaxStepGroups.Tax, incomeTax, "income_tax", 0m);
@@ -40,10 +40,10 @@ public static class TaxSteps
         return steps;
 
         // Returns the running sum after the group's total.
-        decimal Walk(IEnumerable<(string Code, string Group, decimal Amount)> items, string group, decimal target, string totalCode, decimal start, bool rounding = true)
+        decimal Walk(IEnumerable<(string Code, decimal Amount)> items, string group, decimal target, string totalCode, decimal start, bool rounding = true)
         {
             var running = start;
-            foreach (var (code, _, amount) in items)
+            foreach (var (code, amount) in items)
             {
                 steps.Add(new TaxStep(code, group, amount, running, running + amount));
                 running += amount;

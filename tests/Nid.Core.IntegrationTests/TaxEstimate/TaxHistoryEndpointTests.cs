@@ -152,5 +152,9 @@ public class TaxHistoryEndpointTests(PostgresFixture fixture) : IClassFixture<Po
 
         foreach (var scope in new[] { "me", "household" })
             Assert.DoesNotContain((await HistoryAsync(app, scope)).GetProperty("years").EnumerateArray(), y => y.GetProperty("source").GetString() == "assessment");
+
+        // Positive control: a notice AdultA declares does appear.
+        await NoticeAsync(app, 2024, "700.00", joint: false);
+        Assert.Equal("assessment", Row(await HistoryAsync(app, "me"), 2024).GetProperty("source").GetString());
     }
 }
