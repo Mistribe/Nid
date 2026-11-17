@@ -1,34 +1,33 @@
+import { useNavigate, useSearch } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import type { TaxEstimate } from '@/api/tax';
+import type { TaxSearch } from '@/app/router';
 import { Segmented } from '@/components/form/Segmented';
-import { Declaration2042Section } from '../Declaration2042Section';
-import { Rental2044Section } from '../Rental2044Section';
+import { InfoTip } from '@/components/InfoTip';
+import { Declaration2042Section } from './Declaration2042';
+import { Rental2044Section } from './Rental2044';
 import '@/locales/tax';
 
-type Form = '2042' | '2044';
-
-/** The forms filed for the year just ended: the 2042's figures to copy, or the 2044's rental statement. */
-export function DeclarationsTab({ estimate, year, scope, form, onForm }: {
-  estimate: TaxEstimate; year: string; scope: 'me' | 'household'; form: Form; onForm: (form: Form) => void;
-}) {
+/** The forms filed for the year just ended: the 2042's figures to copy, or the 2044's rental statement (offered with a rental property). */
+export function DeclarationsTab({ estimate, year, scope }: { estimate: TaxEstimate; year: string; scope: 'me' | 'household' }) {
   const { t } = useTranslation();
+  const search: TaxSearch = useSearch({ strict: false });
+  const navigate = useNavigate();
+  const rental = estimate.rentalProperties.length > 0;
+  const form = rental && search.form === 2044 ? '2044' : '2042';
+  const onForm = (next: string) => {
+    void navigate({ to: '.', replace: true, resetScroll: false, search: ((prev: Record<string, unknown>) => ({ ...prev, form: next === '2044' ? 2044 : undefined })) as never });
+  };
   return (
     <>
-      <div className="print:hidden">
-        <Segmented aria-label={t('tax.declarations.form')} value={form} onValueChange={(v) => onForm(v as Form)} options={[{ value: '2042', label: '2042' }, { value: '2044', label: '2044' }]} />
+      <div className="flex flex-wrap items-center gap-3 print:hidden">
+        <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+          {t('tax.declarations.question')}<InfoTip label={t('tax.declarations.question')}>{t(`tax.d${form}.tip`)}</InfoTip>
+        </p>
+        {rental ? <Segmented aria-label={t('tax.declarations.form')} value={form} onValueChange={onForm} options={[{ value: '2042', label: '2042' }, { value: '2044', label: '2044' }]} /> : null}
       </div>
-      {form === '2042' ? (
-        <>
-          <h2 className="hidden text-xl font-semibold print:block">{t('tax.d2042.print_title', { year })}</h2>
-          <Declaration2042Section estimate={estimate} />
-        </>
-      ) : (
-        <>
-          {/* The tab list does not print: the printed 2044 keeps its title. */}
-          <h2 className="hidden text-xl font-semibold print:block">{t('tax.d2044.print_title', { year })}</h2>
-          <Rental2044Section year={Number(year)} scope={scope} />
-        </>
-      )}
+      <h2 className="hidden text-xl font-semibold print:block">{t(`tax.d${form}.print_title`, { year })}</h2>
+      {form === '2044' ? <Rental2044Section year={Number(year)} scope={scope} /> : <Declaration2042Section estimate={estimate} />}
     </>
   );
 }

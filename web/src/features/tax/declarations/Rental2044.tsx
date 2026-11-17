@@ -14,9 +14,9 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { downloadBlob } from '@/lib/download';
 import { TAX_2044, type Rental2044 } from '@/api/tax';
-import { deficitLines, lineNote, lineText, noticeAmount, noticeText, tipText } from './format';
-import { rental2044Csv } from './rental2044Csv';
-import { eur, Term } from './ResultTable';
+import { deficitLines, lineNote, lineText, noticeAmount, noticeText, tipText } from '../format';
+import { rental2044Csv } from '../rental2044Csv';
+import { eur, Term } from '../ResultTable';
 import '@/locales/tax';
 
 /**
@@ -34,7 +34,6 @@ export function Rental2044Section({ year, scope }: { year: number; scope: 'me' |
   if (real && view.properties.length === 0) return <EmptyState module="/tax" title={t('tax.d2044.empty_title')} body={t('tax.d2044.empty_body')} />;
   return (
     <>
-      <p className="flex items-center gap-1.5 text-sm text-muted-foreground print:hidden">{t('tax.d2044.intro')}<InfoTip label={t('tax.d2044.intro')}>{t('tax.d2044.tip')}</InfoTip></p>
       <div className="flex flex-wrap items-center gap-2 print:hidden">
         <Button type="button" variant="outline" onClick={() => downloadBlob(new Blob([rental2044Csv(view, t)], { type: 'text/csv' }), `declaration-2044-${view.year}.csv`)}>
           {t('tax.d2044.csv')}

@@ -82,10 +82,6 @@ export function TaxPage() {
   const notices = assessments.filter((a) => String(a.year) === year);
   // The Avis tab exists only for a year with notices: a URL asking for it elsewhere shows the overview.
   const tab = rawTab === 'assessment' && !notices.length ? 'overview' : rawTab;
-  const form = search.form === 2044 ? '2044' : '2042';
-  const setForm = (next: '2042' | '2044') => {
-    void navigate({ to: '.', replace: true, resetScroll: false, search: ((prev: Record<string, unknown>) => ({ ...prev, form: next === '2044' ? 2044 : undefined })) as never });
-  };
   // The previous year's estimate kept while the overview's own loads would show last year's hero under this year's filter.
   const stale = !past && answer.isPlaceholderData && tab === 'overview';
   const pending = (past && awaiting) || (!past && !estimate && !answer.error) || stale;
@@ -95,7 +91,9 @@ export function TaxPage() {
 
   return (
     <div className="space-y-6" aria-busy={answer.isPlaceholderData || undefined}>
-      <PageHeader title={t('tax.title')} actions={<Button asChild className="print:hidden"><Link to="/tax/assessments/new">{t('tax.add_assessment')}</Link></Button>} />
+      <div className={tab === 'declarations' ? 'print:hidden' : undefined}>
+        <PageHeader title={t('tax.title')} actions={<Button asChild className="print:hidden"><Link to="/tax/assessments/new">{t('tax.add_assessment')}</Link></Button>} />
+      </div>
       <div className="print:hidden">
         <FilterRow label={t('common.filters')}>
           <FilterField label={t('tax.year')}>
@@ -126,7 +124,7 @@ export function TaxPage() {
           { id: 'simulation', label: t('tax.tab.simulation'), content: <SimulationTab key={`${year}-${scope}`} estimate={estimate} scope={scope} /> },
           { id: 'profile', label: t('tax.tab.profile'), content: draft ? <ProfileForm key={draft.key} estimate={estimate} draft={draft} /> : null,
             action: draft ? <ProfileSubmit draft={draft} /> : undefined },
-          { id: 'declarations', label: t('tax.tab.declarations'), content: <DeclarationsTab estimate={estimate} year={year} scope={scope} form={form} onForm={setForm} /> },
+          { id: 'declarations', label: t('tax.tab.declarations'), content: <DeclarationsTab estimate={estimate} year={year} scope={scope} /> },
         ]} />
       ) : null}
     </div>

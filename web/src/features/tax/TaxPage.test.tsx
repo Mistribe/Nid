@@ -11,6 +11,9 @@ import type { Rental2044, TaxEstimate } from '@/api/tax';
 import { jointAssessment, soloAssessment } from './assessments/testData';
 import { ADULT, estimate, result } from './taxTestData';
 
+/** An estimate whose household rents a property out: the Déclarations tab then offers the 2044. */
+const rentalEstimate = (): TaxEstimate => ({ ...estimate(), rentalProperties: [{ id: 'p1', name: 'Studio', acquiredIn: 2020 }] });
+
 describe('TaxPage', () => {
   beforeAll(async () => { await import('./TaxPage'); }, 30_000);
 
@@ -37,7 +40,7 @@ describe('TaxPage', () => {
 
   it('the 2044 loads with a card skeleton', async () => {
     server.use(
-      http.get('*/api/v1/tax', () => HttpResponse.json(estimate())),
+      http.get('*/api/v1/tax', () => HttpResponse.json(rentalEstimate())),
       http.get('*/api/v1/tax/2044', () => new Promise(() => {})),
     );
     await renderApp('/tax?tab=declarations&form=2044');
@@ -458,7 +461,7 @@ describe('TaxPage, Déclaration 2044 tab', () => {
       notices: [{ code: 'rental_charges_removed', item: 'a', name: 'Studio', amount: '600.00' }],
     });
     server.use(
-      http.get('*/api/v1/tax', ({ request }) => { asked.push(`tax ${new URL(request.url).searchParams.get('year')}`); return HttpResponse.json(estimate()); }),
+      http.get('*/api/v1/tax', ({ request }) => { asked.push(`tax ${new URL(request.url).searchParams.get('year')}`); return HttpResponse.json(rentalEstimate()); }),
       http.get('*/api/v1/tax/2044', ({ request }) => { asked.push(`2044 ${new URL(request.url).searchParams.get('year')}`); return HttpResponse.json(loaded); }),
     );
     const { container } = await renderApp('/tax?tab=2044');
@@ -486,7 +489,7 @@ describe('TaxPage, Déclaration 2044 tab', () => {
     server.use(
       http.get('*/api/v1/tax', async ({ request }) => {
         if (new URL(request.url).searchParams.get('year') !== String(new Date().getFullYear())) await lastYear;
-        return HttpResponse.json(estimate());
+        return HttpResponse.json(rentalEstimate());
       }),
       http.get('*/api/v1/tax/2044', () => HttpResponse.json(view2044())),
     );
@@ -507,7 +510,7 @@ describe('TaxPage, Déclaration 2044 tab', () => {
       toCheck: [{ property: 'a', name: 'Studio', occurredOn: '2025-04-02', category: 'works', note: null, amount: '3000.00' }],
     });
     server.use(
-      http.get('*/api/v1/tax', () => HttpResponse.json(estimate())),
+      http.get('*/api/v1/tax', () => HttpResponse.json(rentalEstimate())),
       http.get('*/api/v1/tax/2044', () => HttpResponse.json(micro)),
     );
     await renderApp('/tax?tab=2044');
@@ -524,7 +527,7 @@ describe('TaxPage, Déclaration 2044 tab', () => {
   it('numbers the deficit lines 435 and 438 when the interest exceeds the rents, 440 and 441 otherwise', async () => {
     const totals = { ...view2044().totals, result: '-500.00', globalDeficit: '500.00', carriedDeficit: '100.00' };
     const answer = (interestDeficit: string) => server.use(
-      http.get('*/api/v1/tax', () => HttpResponse.json(estimate())),
+      http.get('*/api/v1/tax', () => HttpResponse.json(rentalEstimate())),
       http.get('*/api/v1/tax/2044', () => HttpResponse.json(view2044({ totals: { ...totals, interestDeficit } }))),
     );
     answer('300.00');
@@ -542,7 +545,7 @@ describe('TaxPage, Déclaration 2044 tab', () => {
 
   it('a deficit is named by its label, the figure carries no colour', async () => {
     server.use(
-      http.get('*/api/v1/tax', () => HttpResponse.json(estimate())),
+      http.get('*/api/v1/tax', () => HttpResponse.json(rentalEstimate())),
       http.get('*/api/v1/tax/2044', () => HttpResponse.json(view2044({ totals: { ...view2044().totals, result: '-500.00', globalDeficit: '500.00' } }))),
     );
     await renderApp('/tax?tab=2044');
@@ -555,7 +558,7 @@ describe('TaxPage, Déclaration 2044 tab', () => {
   it('falls back to last year when ?year= is not one of the offered years', async () => {
     const asked: string[] = [];
     server.use(
-      http.get('*/api/v1/tax', ({ request }) => { asked.push(`tax ${new URL(request.url).searchParams.get('year')}`); return HttpResponse.json(estimate()); }),
+      http.get('*/api/v1/tax', ({ request }) => { asked.push(`tax ${new URL(request.url).searchParams.get('year')}`); return HttpResponse.json(rentalEstimate()); }),
       http.get('*/api/v1/tax/2044', ({ request }) => { asked.push(`2044 ${new URL(request.url).searchParams.get('year')}`); return HttpResponse.json(view2044()); }),
     );
     await renderApp('/tax?tab=2044&year=2024');
@@ -567,7 +570,7 @@ describe('TaxPage, Déclaration 2044 tab', () => {
 
   it('says so when the year has no rental income', async () => {
     server.use(
-      http.get('*/api/v1/tax', () => HttpResponse.json(estimate())),
+      http.get('*/api/v1/tax', () => HttpResponse.json(rentalEstimate())),
       http.get('*/api/v1/tax/2044', () => HttpResponse.json(view2044({ properties: [] }))),
     );
     await renderApp('/tax?tab=2044');
@@ -659,7 +662,7 @@ describe('TaxPage, page grammar', () => {
   const follows = (a: Element, b: Element) => expect(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   const figures = () => screen.getByRole('region', { name: /^Impôt total/ });
   const notices = (...items: ReturnType<typeof jointAssessment>[]) => http.get('*/api/v1/tax/assessments', () => HttpResponse.json({ items }));
-  const tax = () => http.get('*/api/v1/tax', () => HttpResponse.json(estimate()));
+  const tax = () => http.get('*/api/v1/tax', () => HttpResponse.json(rentalEstimate()));
 
   it('the header holds « Ajouter un avis » alone', async () => {
     server.use(tax());
@@ -810,7 +813,7 @@ describe('TaxPage, page grammar', () => {
       http.get('*/api/v1/tax', async ({ request }) => {
         const year = Number(new URL(request.url).searchParams.get('year'));
         if (year === 2026) await gate;
-        return HttpResponse.json({ ...estimate(), year, result: { ...result(), year } });
+        return HttpResponse.json({ ...rentalEstimate(), year, result: { ...result(), year } });
       }),
       http.get('*/api/v1/tax/2044', () => HttpResponse.json(view2044())),
     );

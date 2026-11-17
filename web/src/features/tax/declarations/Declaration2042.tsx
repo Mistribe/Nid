@@ -1,14 +1,13 @@
 import { useTranslation } from 'react-i18next';
 import type { TaxEstimate } from '@/api/tax';
 import { EmptyState } from '@/components/EmptyState';
-import { InfoTip } from '@/components/InfoTip';
 import { Section } from '@/components/page/Section';
 import { Button } from '@/components/ui/button';
 import { downloadBlob } from '@/lib/download';
 import { todayIso } from '@/lib/today';
-import { declaration2042Csv } from './declaration2042Csv';
-import { boxText, boxTip, noticeAmount, noticeText } from './format';
-import { eur, Term } from './ResultTable';
+import { declaration2042Csv } from '../declaration2042Csv';
+import { boxText, boxTip, noticeAmount, noticeText } from '../format';
+import { eur, Term } from '../ResultTable';
 import '@/locales/tax';
 
 /**
@@ -23,7 +22,6 @@ export function Declaration2042Section({ estimate }: { estimate: TaxEstimate }) 
   const provisional = estimate.year >= Number(todayIso().slice(0, 4));
   return (
     <>
-      <p className="flex items-center gap-1.5 text-sm text-muted-foreground print:hidden">{t('tax.d2042.intro')}<InfoTip label={t('tax.d2042.intro')}>{t('tax.d2042.tip')}</InfoTip></p>
       {declaration.boxes.length ? (
         <div className="flex flex-wrap items-center gap-2 print:hidden">
           <Button type="button" variant="outline"
