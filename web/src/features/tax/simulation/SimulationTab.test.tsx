@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw/http';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { renderApp } from '@/test/renderApp';
@@ -102,6 +102,16 @@ describe('SimulationTab', () => {
     expect(screen.getByRole('radio', { name: 'réel', checked: true })).toBeInTheDocument();
   });
 
+  it('explains the rental regime choice', async () => {
+    serve();
+    const { user } = await renderApp('/tax?tab=simulation');
+    await user.click(await screen.findByRole('button', { name: 'Location' }));
+    const choice = screen.getByRole('radiogroup', { name: 'Régime des revenus fonciers' });
+    expect(choice).toHaveAccessibleDescription(/Micro-foncier si les loyers/);
+    await user.click(screen.getByRole('radio', { name: 'réel' }));
+    expect(choice).toHaveAccessibleDescription(/Loyers moins intérêts/);
+  });
+
   it('shows one column and no pooling for one declarant', async () => {
     serve();
     await renderApp('/tax?tab=simulation');
@@ -172,6 +182,39 @@ describe('SimulationTab', () => {
       const { region } = await simulate();
       expect(region).toHaveTextContent('avant 247,00 €');
       expect(within(region).queryByText(/^\+/)).toBeNull();
+    });
+
+    it('announces the result politely', async () => {
+      serve(); answer = raised;
+      const { region } = await simulate();
+      expect(within(region.closest('[role="status"]')!).getByText('Impôt total')).toBeInTheDocument();
+    });
+
+    it('takes the result away when the year changes', async () => {
+      serve(); answer = raised;
+      const { user } = await simulate();
+      await user.click(screen.getByRole('radio', { name: '2025' }));
+      await waitFor(() => expect(screen.queryByRole('region', { name: 'Avant / après' })).toBeNull());
+    });
+
+    it('takes the result away when the scope changes', async () => {
+      serve(); answer = raised;
+      const { user } = await simulate();
+      await user.click(screen.getByRole('radio', { name: 'Moi' }));
+      await waitFor(() => expect(screen.queryByRole('region', { name: 'Avant / après' })).toBeNull());
+    });
+
+    it('shows a failed simulation as a problem, keeps the draft and no result', async () => {
+      serve();
+      server.use(http.post('*/api/v1/tax/simulate', () => HttpResponse.json({ status: 500, code: 'ERROR' }, { status: 500 })));
+      const { user } = await renderApp('/tax?tab=simulation');
+      const gross = await screen.findByRole('textbox', { name: 'Salaire brut annuel Alice' });
+      await user.clear(gross);
+      await user.type(gross, '61000');
+      await user.click(screen.getByRole('button', { name: 'Calculer' }));
+      expect(await screen.findByRole('alert')).toBeInTheDocument();
+      expect(screen.getByRole('textbox', { name: 'Salaire brut annuel Alice' })).toHaveValue('61000');
+      expect(screen.queryByRole('region', { name: 'Avant / après' })).toBeNull();
     });
 
     it('takes the result away once a field changes', async () => {

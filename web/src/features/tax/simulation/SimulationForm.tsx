@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { useId, useState, type FormEvent, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
@@ -18,7 +18,7 @@ import { STATUSES, TAX_SIMULATE, type TaxEstimate, type TaxInputs, type TaxResul
 import { REGIMES, regimeText, tipText } from '../format';
 import { DeclarantGrid, type GridRow } from '../profile/DeclarantGrid';
 import {
-  applyScenario, draftErrors, FIELDS, groupsWithErrors, scenarios, toBody, toDraft,
+  applyScenario, draftErrors, fieldOf, FIELDS, groupsWithErrors, scenarios, toBody, toDraft,
   type FieldKey, type GroupId, type ScenarioId, type SimulationDraft,
 } from './simulationDraft';
 import '@/locales/tax';
@@ -35,10 +35,6 @@ const DECLARANT_ORDER: Record<GroupId, FieldKey[]> = {
   activity: ['salaryGross', 'otherTaxable', 'salaryTaxable', 'contributionRate', 'actualExpenses', 'exemptIncome'],
   per: ['perContributions', 'perCeiling', 'perUnusedCeiling', 'perExpiring', 'previousYearIncome'],
   household: [], rental: [], capital: [], expenses: [],
-};
-const fieldOf = (key: string): FieldKey | undefined => {
-  const name = key.split('.')[0] ?? '';
-  return Object.hasOwn(FIELDS, name) ? (name as FieldKey) : undefined;
 };
 const DEFAULT_OPEN: GroupId[] = ['activity'];
 const COUNTS = ['dependents', 'childrenUnder6'] as const;
@@ -58,6 +54,7 @@ export function SimulationForm({ estimate, scope, onResult }: {
   const [open, setOpen] = useState<GroupId[]>(DEFAULT_OPEN);
   const [more, setMore] = useState<GroupId[]>([]);
   const [scenario, setScenario] = useState<ScenarioId | null>(null);
+  const regimeHint = useId();
   const simulate = $api.useMutation('post', TAX_SIMULATE);
   const errors = draftErrors(draft);
   const folded = groupsWithErrors(errors);
@@ -170,9 +167,10 @@ export function SimulationForm({ estimate, scope, onResult }: {
         {group === 'rental' ? (
           <div className="space-y-1">
             <span className="block text-sm">{t('tax.profile.regime')}</span>
-            <Segmented aria-label={t('tax.profile.regime')} value={draft.inputs.rentalRegime ?? 'auto'}
+            <Segmented aria-label={t('tax.profile.regime')} aria-describedby={regimeHint} value={draft.inputs.rentalRegime ?? 'auto'}
               onValueChange={(v) => setInput({ rentalRegime: v === 'auto' ? null : v })}
               options={REGIMES.map((r) => ({ value: r, label: regimeText(t, r) }))} />
+            <span id={regimeHint} className="block text-sm text-muted-foreground">{t(`tax.profile.regime_hint.${(draft.inputs.rentalRegime ?? 'auto') as (typeof REGIMES)[number]}`)}</span>
           </div>
         ) : null}
         {rarer(decl).length + rarer(house).length ? rare(group, (

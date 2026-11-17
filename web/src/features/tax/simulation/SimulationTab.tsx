@@ -15,7 +15,7 @@ export function SimulationTab({ estimate, scope }: { estimate: TaxEstimate; scop
     <>
       <p className="text-sm text-muted-foreground">{t('tax.simulation.question')}</p>
       {result ? <SimulationResult before={estimate.result} after={result} year={estimate.year} /> : null}
-      <SimulationForm key={estimate.year} estimate={estimate} scope={scope} onResult={setResult} />
+      <SimulationForm estimate={estimate} scope={scope} onResult={setResult} />
       <SectionCard title={t('tax.tab.sale')}><SaleTotalSection scope={scope} /></SectionCard>
     </>
   );

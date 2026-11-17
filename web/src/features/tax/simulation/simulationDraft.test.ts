@@ -24,6 +24,22 @@ describe('simulationDraft', () => {
     expect(d.counts).toEqual({ dependents: '2', childrenUnder6: '2' });
   });
 
+  it('toBody(toDraft(inputs)) gives back the inputs, number for number', () => {
+    const e = estimate();
+    first(e.inputs).contributionRate = '7.5';
+    first(e.inputs).actualExpenses = null;
+    first(e.inputs).perCeiling = null;
+    first(e.inputs).salaryGross = '64704.14';
+    e.inputs.rentalGross = '7200.50';
+    const norm = (v: unknown): unknown => (typeof v === 'string' && /^-?\d+(\.\d+)?$/.test(v) ? Number(v)
+      : Array.isArray(v) ? v.map(norm) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, norm(x)])) : v);
+    const body = toBody(toDraft(e.inputs));
+    expect(norm(body)).toEqual(norm(e.inputs));
+    expect(first(body).actualExpenses).toBeNull();
+    expect(body.dependents).toBe(2);
+    expect(body.childrenUnder6).toBe(2);
+  });
+
   it('toBody sends the wire format', () => {
     const d = withDeclarant({ salaryGross: '60 000,50', actualExpenses: '' });
     d.counts.dependents = '3';
@@ -63,6 +79,17 @@ describe('simulationDraft', () => {
     expect(first(applyScenario('per', e).draft.inputs).perContributions).toBe('4500');
     (e.result.declarants[0] as TaxResult['declarants'][number]).per = { ...per, remaining: '0.00' };
     expect(first(applyScenario('per', e).draft.inputs).perContributions).toBe('0');
+  });
+
+  it('the PER scenario leaves a declarant who already paid in their ceiling unchanged', () => {
+    const per = { ceiling: '4500.00', source: 'x', expiring: '0.00', contributions: '0.00', deducted: '0.00', excess: '0.00', remaining: '3000.00', minimum: '0.00', minimumEstimated: false };
+    const e = estimate();
+    const alice = e.result.declarants[0] as TaxResult['declarants'][number];
+    e.inputs.declarants.push({ ...first(e.inputs), name: 'Bob' });
+    first(e.inputs).perContributions = '5200.00';
+    e.result = result({ declarants: [{ ...alice, per: { ...per, contributions: '5200.00' } }, { ...alice, name: 'Bob', per }] });
+    const { inputs } = applyScenario('per', e).draft;
+    expect(inputs.declarants.map((d) => d.perContributions)).toEqual(['5200', '4500']);
   });
 
   it('the real scenario is offered only for rents under the micro-foncier', () => {

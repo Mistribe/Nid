@@ -68,8 +68,14 @@ export function draftErrors(d: SimulationDraft): DraftErrors {
   return errors;
 }
 
+/** The field an error key names (`salaryGross.0` -> `salaryGross`), or undefined for a key that is none. */
+export const fieldOf = (key: string): FieldKey | undefined => {
+  const name = key.split('.')[0] ?? '';
+  return Object.hasOwn(FIELDS, name) ? (name as FieldKey) : undefined;
+};
+
 export const groupsWithErrors = (e: DraftErrors): Set<GroupId> =>
-  new Set(Object.keys(e).map((key) => FIELDS[key.split('.')[0] as FieldKey].group));
+  new Set(Object.keys(e).flatMap((key) => { const f = fieldOf(key); return f ? [FIELDS[f].group] : []; }));
 
 /** The body of `POST /tax/simulate`: text only, never a number computed here. */
 export function toBody(d: SimulationDraft): TaxInputs {
@@ -87,7 +93,12 @@ export function toBody(d: SimulationDraft): TaxInputs {
 export const SCENARIOS = ['per', 'salaries', 'real', 'child'] as const;
 export type ScenarioId = (typeof SCENARIOS)[number];
 
-const perRoom = (estimate: TaxEstimate) => estimate.result.declarants.map((d) => (d.per && !ZERO.test(d.per.remaining) ? d.per : null));
+// Under pooling `remaining` is the household's room repeated on each declarant: one who already paid in at least their ceiling keeps their amount.
+const perRoom = (estimate: TaxEstimate) => estimate.result.declarants.map((d) => {
+  const per = d.per;
+  const full = per && !ZERO.test(per.contributions) && Number(per.contributions) >= Number(per.ceiling);
+  return per && !ZERO.test(per.remaining) && !full ? per : null;
+});
 
 export function scenarios(estimate: TaxEstimate): ScenarioId[] {
   const real = estimate.result.rentalRegime === 'micro' && !ZERO.test(estimate.inputs.rentalGross);
