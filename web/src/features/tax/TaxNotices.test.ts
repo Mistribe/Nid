@@ -56,10 +56,16 @@ describe('noticeGroups', () => {
     expect(groups([notice('per_without_contributions', 'e')])[0]!.items[0]!.amount).toBeUndefined();
   });
 
-  it('an unknown code reads as itself, last', () => {
+  it('an unknown code reads as a generic heading, last, never as the raw code', () => {
     const g = groups([notice('brand_new', 'x'), notice('missing_gross', 'b')]);
-    expect(g.map((x) => x.heading)).toEqual([t('tax.notices.kind.missing_gross'), 'brand_new']);
+    expect(g.map((x) => x.heading)).toEqual([t('tax.notices.kind.missing_gross'), t('tax.notices.kind.other')]);
+    expect(g[1]!.items.map((i) => i.name)).toEqual(['n-x']);
   });
+});
+
+it('an unknown warning never shows its code', () => {
+  const g = groups([], ['brand_new_warning']);
+  expect(g.map((x) => x.heading)).toEqual([t('tax.notices.kind.other')]);
 });
 
 describe('foldGroups', () => {

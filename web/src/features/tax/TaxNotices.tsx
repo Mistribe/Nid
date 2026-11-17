@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { Link, type LinkProps } from '@tanstack/react-router';
 import type { TFunction } from 'i18next';
@@ -68,22 +69,23 @@ export function noticeGroups(t: TFunction, { notices, warnings = [], year, rules
 }): NoticeGroup[] {
   const told = new Set(warnings);
   const warned = [...WARNINGS.filter((w) => told.has(w)), ...[...told].filter((w) => !WARNINGS.some((k) => k === w))];
-  const groups: NoticeGroup[] = warned.map((w) => ({
+  const unknownWarnings = warned.filter((w) => !WARNINGS.some((k) => k === w));
+  const groups: NoticeGroup[] = warned.filter((w) => !unknownWarnings.includes(w)).map((w) => ({
     kind: w, items: [], heading: warningText(t, w, rulesYear ?? year),
     tile: PER_TILE.includes(w) ? '/retirement' : PROPERTY_TILE.includes(w) ? '/properties' : '/tax',
   }));
-  const item = (n: TaxNotice, link?: (id: string) => LinkProps): NoticeItem => ({
-    key: `${n.code}-${n.item}`, name: n.name, link: link?.(n.item),
+  const item = (n: TaxNotice, link: ((id: string) => LinkProps) | undefined, i: number): NoticeItem => ({
+    key: `${i}-${n.code}-${n.item}`, name: n.name, link: link?.(n.item),
     amount: NO_AMOUNT.includes(n.code) ? undefined : noticeAmount(t, n.code, n.amount, eur),
   });
   for (const k of KINDS) {
     const mine = notices.filter((n) => k.codes.includes(n.code));
     if (!mine.length) continue;
     groups.push({ kind: k.kind, tile: k.tile, heading: t(`tax.notices.kind.${k.kind}`),
-      items: k.kind === 'childcare' ? childcareItems(t, mine, year) : mine.map((n) => item(n, k.link)) });
+      items: k.kind === 'childcare' ? childcareItems(t, mine, year) : mine.map((n, i) => item(n, k.link, i)) });
   }
   const unknown = notices.filter((n) => !KINDS.some((k) => k.codes.includes(n.code)));
-  for (const [code, mine] of groupBy(unknown, (n) => n.code)) groups.push({ kind: code, tile: '/tax', heading: code, items: mine.map((n) => item(n)) });
+  if (unknown.length || unknownWarnings.length) groups.push({ kind: 'other', tile: '/tax', heading: t('tax.notices.kind.other'), items: unknown.map((n, i) => item(n, undefined, i)) });
   return groups;
 }
 
@@ -119,7 +121,7 @@ function Groups({ groups }: { groups: NoticeGroup[] }) {
               </div>
             )}
             {g.items.length ? (
-              <ul className="mt-1.5 space-y-1 pl-[34px] text-sm">
+              <ul className={`${g.continued ? '' : 'mt-1.5 '}space-y-1 pl-[34px] text-sm`}>
                 {g.items.map((i) => (
                   <li key={i.key} className="flex flex-wrap items-baseline gap-x-2">
                     <span className="min-w-0 mr-auto">
@@ -148,18 +150,18 @@ export function TaxNotices({ notices, warnings, year, rulesYear, title }: {
   notices: TaxNotice[]; warnings?: readonly string[]; year: number; rulesYear?: number; title?: string;
 }) {
   const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
   const folded = foldGroups(noticeGroups(t, { notices, warnings, year, rulesYear }), FOLD);
   if (!folded.shown.length) return null;
   return (
     <SectionCard title={title ?? t('tax.notes')} icon={<AlertTriangle aria-hidden className="size-4 text-status-warning" />}>
-      <Collapsible className="space-y-3">
+      <Collapsible open={open} onOpenChange={setOpen} className="space-y-3">
         <Groups groups={folded.shown} />
         {folded.hidden.length ? (
           <>
-            <CollapsibleContent><Groups groups={folded.hidden} /></CollapsibleContent>
-            <CollapsibleTrigger className="group text-sm underline underline-offset-2">
-              <span className="group-data-[state=open]:hidden">{t('tax.notices.more', { count: folded.hiddenCount })}</span>
-              <span className="hidden group-data-[state=open]:inline">{t('tax.notices.less')}</span>
+            <CollapsibleContent className={folded.hidden[0]?.continued ? '-mt-2' : undefined}><Groups groups={folded.hidden} /></CollapsibleContent>
+            <CollapsibleTrigger className="text-sm underline underline-offset-2">
+              {open ? t('tax.notices.less') : t('tax.notices.more', { count: folded.hiddenCount })}
             </CollapsibleTrigger>
           </>
         ) : null}

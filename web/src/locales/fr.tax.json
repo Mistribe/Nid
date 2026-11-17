@@ -259,7 +259,8 @@
         "childcare": "Frais de garde : le montant du profil est remplacé par celui des relevés, ou estimé d’après le contrat en attendant un relevé validé.",
         "rental_charges_removed": "Charges locatives retirées des loyers enregistrés avec leurs charges.",
         "rental_fee_not_counted": "Pénalité de remboursement anticipé ou frais de prêt non comptés en ligne 250.",
-        "rental_to_check": "Dépenses à vérifier (construction ou agrandissement, autres), non comptées : voir Déclaration 2044."
+        "rental_to_check": "Dépenses à vérifier (construction ou agrandissement, autres), non comptées : voir Déclaration 2044.",
+        "other": "Autre point à noter"
       }
     },
     "notice": {
