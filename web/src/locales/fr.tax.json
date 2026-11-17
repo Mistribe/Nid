@@ -389,6 +389,7 @@
         "empty_title": "Aucune case à remplir",
         "empty_body": "Nid n’a trouvé aucun revenu ni dépense à déclarer pour cette année.",
         "household": "Foyer",
+        "unknown_box": "Case {{code}}",
         "filled": "Cases remplies par Nid",
         "section": { "1": "Salaires", "2": "Revenus de capitaux", "4": "Revenus fonciers", "6": "Charges", "7": "Réductions et crédits", "other": "Autres cases" },
         "to_enter": "À saisir vous-même",

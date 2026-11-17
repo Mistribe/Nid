@@ -24,7 +24,7 @@ import '@/locales/tax';
  * Rental 2044 spec §6: what to copy into the form 2044, property by property, then the household's totals and the
  * expenses to classify. Every figure is the server's string; the CSV copies them as received.
  */
-export function Rental2044Section({ year, scope }: { year: number; scope: 'me' | 'household' }) {
+export function Rental2044Form({ year, scope }: { year: number; scope: 'me' | 'household' }) {
   const { t } = useTranslation();
   const { $api } = useApi();
   const answer = $api.useQuery('get', TAX_2044, { params: { query: { year, scope } } });

@@ -82,6 +82,7 @@ describe('DeclarationsTab', () => {
     const boxes = [
       { code: '1AJ', person: ADULT, amount: '42000.00' }, { code: '2DC', person: null, amount: '300.00' },
       { code: '6NS', person: ADULT, amount: '1000.00' }, { code: '7GA', person: null, amount: '2500.00' },
+      { code: '4BA', person: ADULT, amount: '800.00' },
     ];
     const serve2042 = (extra: { code: string; person: string | null; amount: string }[] = [], asked: string[] = []) => server.use(
       http.get('*/api/v1/core/persons', () => HttpResponse.json([{ id: ADULT, kind: 'adult', displayName: 'Alice', email: null }])),
@@ -101,15 +102,19 @@ describe('DeclarationsTab', () => {
 
       const card = await filledCard();
       expect((await card.findByText('1AJ')).closest('dl')).toBe(card.getByLabelText('Salaires', { selector: 'dl' }));
-      const labels = card.getAllByText(/^(Salaires|Revenus de capitaux|Charges|Réductions et crédits)$/, { selector: 'h3' }).map((h) => h.textContent);
-      expect(labels).toEqual(['Salaires', 'Revenus de capitaux', 'Charges', 'Réductions et crédits']);
+      const labels = card.getAllByText(/^(Salaires|Revenus de capitaux|Revenus fonciers|Charges|Réductions et crédits)$/, { selector: 'h3' }).map((h) => h.textContent);
+      expect(labels).toEqual(['Salaires', 'Revenus de capitaux', 'Revenus fonciers', 'Charges', 'Réductions et crédits']);
       const salaries = within(card.getByLabelText('Salaires', { selector: 'dl' }));
       expect(salaries.getByText('1AJ')).toBeInTheDocument();
-      expect(salaries.getByText('Alice')).toBeInTheDocument();
+      expect(salaries.getAllByText('Alice').length).toBeGreaterThan(0);
+      expect(salaries.getAllByText('Alice').some((n) => n.classList.contains('print:inline'))).toBe(true);
       expect(salaries.getByText('42 000,00 €')).toBeInTheDocument();
       const capital = within(card.getByLabelText('Revenus de capitaux', { selector: 'dl' }));
       expect(capital.getByText('2DC')).toBeInTheDocument();
       expect(capital.getByText('Foyer')).toBeInTheDocument();
+      const credits = within(card.getByLabelText('Réductions et crédits', { selector: 'dl' }));
+      expect(credits.getByText('Frais de garde du premier enfant de moins de 6 ans')).toBeInTheDocument();
+      expect(credits.getByText('Foyer')).toBeInTheDocument();
       await user.hover(salaries.getByRole('button', { name: 'À propos : Salaires' }));
       expect((await screen.findAllByText(/cumul « net imposable »/)).length).toBeGreaterThan(0);
       expect(asked).toContain('2025');
@@ -122,10 +127,21 @@ describe('DeclarationsTab', () => {
 
       const card = await filledCard();
       await card.findAllByText('8TK');
+      expect(card.getByText('Case 8TK')).toBeInTheDocument();
       const dls = card.getAllByLabelText(/./, { selector: 'dl' });
       const last = dls[dls.length - 1]!;
       expect(last).toHaveAttribute('aria-label', 'Autres cases');
-      expect(within(last).getAllByText('8TK').length).toBeGreaterThan(0);
+      expect(within(last).getAllByText('8TK')).toHaveLength(1);
+    });
+
+    it('names the declarant when the persons list does not answer', async () => {
+      serve2042();
+      server.use(http.get('*/api/v1/core/persons', () => HttpResponse.json({ title: 'x' }, { status: 500 })));
+      await renderApp('/tax?tab=declarations');
+
+      const salaries = within((await filledCard()).getByLabelText('Salaires', { selector: 'dl' }));
+      expect(await salaries.findByText('1AJ')).toBeInTheDocument();
+      expect(salaries.getByText('Alice')).toBeInTheDocument();
     });
 
     it('exports the CSV and prints from the card’s actions', async () => {

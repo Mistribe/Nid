@@ -46,6 +46,19 @@ describe('BoxList', () => {
     await waitFor(() => expect(error).toHaveBeenCalledWith('Copie impossible : recopiez le montant à la main.'));
   });
 
+  it('says so when the clipboard throws at once', async () => {
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText: () => { throw new Error('denied'); } }, configurable: true });
+    const error = vi.spyOn(toast, 'error').mockReturnValue(1);
+    render(<BoxList label="2042" rows={rows} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Copier la case 1AJ' }));
+    expect(error).toHaveBeenCalledWith('Copie impossible : recopiez le montant à la main.');
+  });
+
+  it('renders two rows with the same code', () => {
+    render(<BoxList label="2042" rows={[...rows, ...rows]} />);
+    expect(screen.getAllByRole('button', { name: 'Copier la case 1AJ' })).toHaveLength(2);
+  });
+
   it('keeps the copy buttons off paper', () => {
     render(<BoxList label="2042" rows={rows} />);
     expect(screen.getByRole('button', { name: 'Copier la case 1AJ' })).toHaveClass('print:hidden');

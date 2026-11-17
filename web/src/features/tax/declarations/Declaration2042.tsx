@@ -1,4 +1,6 @@
 import { useTranslation } from 'react-i18next';
+import { useApi } from '@/api/ApiProvider';
+import { PERSONS } from '@/api/persons';
 import type { TaxEstimate } from '@/api/tax';
 import { EmptyState } from '@/components/EmptyState';
 import { OwnerChips } from '@/components/OwnerChips';
@@ -12,15 +14,17 @@ import { boxText, boxTip, noticeAmount, noticeText } from '../format';
 import { eur } from '../ResultTable';
 import '@/locales/tax';
 
+/** A box goes to the section of its first character on the form; the rest to « other ». */
+const BOX_SECTIONS = ['1', '2', '4', '6', '7', 'other'] as const;
+
 /**
  * Issue #233: the 2042 boxes the estimate fills, with their declarant, then what Nid leaves for the household to enter. Every figure
  * is the server's string; the CSV copies them as received.
  */
-/** A box goes to the section of its first character on the form; the rest to « other ». */
-const BOX_SECTIONS = ['1', '2', '4', '6', '7', 'other'] as const;
-
 export function Declaration2042({ estimate }: { estimate: TaxEstimate }) {
   const { t } = useTranslation();
+  const { $api } = useApi();
+  const people = $api.useQuery('get', PERSONS).data;
   const declaration = estimate.declaration ?? { boxes: [], toEnter: [] };
   const names = new Map(estimate.adults.map((a) => [a.id, a.displayName]));
   const personName = (person?: string | null) => (person && names.get(person)) || t('tax.d2042.household');
@@ -41,7 +45,12 @@ export function Declaration2042({ estimate }: { estimate: TaxEstimate }) {
         {declaration.boxes.length ? BOX_SECTIONS.map((section) => {
           const rows = declaration.boxes.filter((b) => sectionOf(b.code) === section).map((b) => ({
             code: b.code, title: boxText(t, b.code), tip: boxTip(t, b.code), amount: b.amount,
-            owner: b.person ? <OwnerChips owners={[{ personId: b.person, shareBp: 10000 }]} shares={false} /> : <span className="text-sm text-muted-foreground">{t('tax.d2042.household')}</span>,
+            owner: b.person && people?.some((p) => p.id === b.person) ? (
+              <>
+                <OwnerChips owners={[{ personId: b.person, shareBp: 10000 }]} shares={false} />
+                <span aria-hidden className="hidden text-sm print:inline">{personName(b.person)}</span>
+              </>
+            ) : <span className="text-sm text-muted-foreground">{personName(b.person)}</span>,
           }));
           const title = t(`tax.d2042.section.${section}`);
           return rows.length ? (
