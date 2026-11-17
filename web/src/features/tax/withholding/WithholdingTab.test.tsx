@@ -2,6 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw/http';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
+import { reduceMotion } from '@/test/motion';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import i18n from 'i18next';
@@ -24,6 +25,7 @@ const cutOf = () => {
 };
 
 describe('WithholdingTab', () => {
+  reduceMotion();
   beforeAll(async () => { await import('../TaxPage'); }, 30_000);
 
   it('opens on its question and a line of figures', async () => {
