@@ -390,6 +390,38 @@ public class TaxEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresF
     }
 
     [Fact]
+    public async Task A_disabled_dependent_and_a_birth_date_reach_the_estimate()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        // 65 on 31 December 2025, the last day of the year that counts.
+        (await app.RawAsync(app.AdultA, HttpMethod.Put, $"/api/v1/core/persons/{app.AdultA.Value}/retirement",
+            new { birthDate = "1960-12-31", retirementAge = 64, retirementMonths = 0 })).EnsureSuccessStatusCode();
+
+        // Two adults, two children of whom one disabled: 2 + 0.5 + 0.5 + 0.5.
+        var saved = await PutProfileAsync(app, app.AdultA, 2025, new { pinel = Array.Empty<object>(), dependents = 2, disabledDependents = 1 });
+        Assert.Equal(1, saved.GetProperty("profile").GetProperty("disabledDependents").GetInt32());
+        Assert.Equal((1, "3.5"), (saved.GetProperty("inputs").GetProperty("disabledDependents").GetInt32(), saved.GetProperty("result").GetProperty("parts").GetString()));
+        var declarants = saved.GetProperty("inputs").GetProperty("declarants");
+        Assert.Equal((true, false), (declarants[IndexOf(saved, app.AdultA)].GetProperty("over65").GetBoolean(), declarants[IndexOf(saved, app.AdultB)].GetProperty("over65").GetBoolean()));
+
+        var tooMany = await app.RawAsync(app.AdultA, HttpMethod.Put, "/api/v1/tax/profile/2025", new { pinel = Array.Empty<object>(), dependents = 1, disabledDependents = 2 });
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, tooMany.StatusCode);
+    }
+
+    [Fact]
+    public async Task A_simulated_declarant_over_65_gets_the_allowance()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var simulated = await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/tax/simulate", new
+        {
+            year = 2025,
+            declarants = new[] { new { name = "A", salaryGross = "0", status = "non_executive", otherTaxable = "0", perContributions = "0", pensions = "30000", over65 = true } },
+        });
+        var result = JsonDocument.Parse(await simulated.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement;
+        Assert.Equal(("1411.00", "25589.00"), (result.GetProperty("ageDisabilityAllowance").GetString(), result.GetProperty("netTaxableIncome").GetString()));
+    }
+
+    [Fact]
     public async Task A_simulated_single_parent_gets_box_t()
     {
         await using var app = await NidApp.StartAsync(fixture);

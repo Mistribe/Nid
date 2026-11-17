@@ -130,6 +130,33 @@ public class TaxReferenceScenariosTests
         },
     };
 
+    /// <summary>
+    /// Issue #288: a disabled dependent (box G) and the allowance of CGI art. 157 bis, worked by hand on the revenus 2025 figures
+    /// (3 608 € a disabled person's half share with its complementary reduction; 2 822 € up to 17 670 €, 1 411 € up to 28 430 €,
+    /// BOI-IR-BASE-40), the boxes in each comment.
+    /// </summary>
+    public static TheoryData<string, TaxInputs, Expected> DisabilityScenarios => new()
+    {
+        // Married, a child born 2016 at home with a disability card (boxes F 1, G 1); 1AJ 45 000, 1BJ 40 000. 3 shares save
+        // 4 571, over the 3 614 of two plain half shares yet within 1 807 + 3 608.
+        {
+            "couple_disabled_child",
+            Household([Salaried("A", 45_000m), Salaried("B", 40_000m)], dependents: 1) with { DisabledDependents = 1 },
+            new Expected(3m, 76_500m, 76_500m, 4_587m, 0m, 4_587m, null)
+        },
+        // Single, born 1955; 1AS 30 000: 27 000 of net global income, 1 411 off it; decote.
+        {
+            "single_pensioner_over_65",
+            Household([Pensioner("A", 30_000m) with { Over65 = true }]),
+            new Expected(1m, 25_589m, 25_589m, 1_539m, 201m, 1_338m, null)
+        },
+    };
+
+    [Theory]
+    [MemberData(nameof(DisabilityScenarios))]
+    public void Disability_and_age_match_the_published_figures(string scenario, TaxInputs inputs, Expected expected)
+        => The_estimate_matches_the_official_simulator(scenario, inputs, expected);
+
     [Theory]
     [MemberData(nameof(ShareScenarios))]
     public void Shares_match_the_published_caps(string scenario, TaxInputs inputs, Expected expected)

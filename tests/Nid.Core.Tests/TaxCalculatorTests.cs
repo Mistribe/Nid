@@ -78,6 +78,43 @@ public class TaxCalculatorTests
         Assert.Equal(((decimal)parts, (decimal)cap), TaxCalculator.Shares(TaxRules.For(2025), inputs));
     }
 
+    [Theory]
+    // dependents, of them in alternate custody, disabled dependents → shares, cap (a couple)
+    [InlineData(1, 0, 1, 3.0, 1_807 + 3_608)]           // box G: half a share more, capped with its complementary reduction
+    [InlineData(2, 2, 1, 2.75, 904 * 2 + 3_608 / 2)]     // box I: a quarter share, half the cap
+    [InlineData(2, 1, 1, 3.25, 1_807 + 904 + 3_608)]     // the disabled child is taken at home first
+    [InlineData(1, 0, 3, 3.0, 1_807 + 3_608)]           // never more disabled children than dependents
+    public void A_disabled_dependent_adds_a_share_and_its_cap(int dependents, int alternate, int disabled, double parts, int cap)
+    {
+        var inputs = Inputs([Other(0m), Other(0m)], dependents) with { AlternateCustody = alternate, DisabledDependents = disabled };
+
+        Assert.Equal(((decimal)parts, (decimal)cap), TaxCalculator.Shares(TaxRules.For(2025), inputs));
+    }
+
+    [Theory]
+    // net global income, qualifying declarants → allowance (revenus 2025: 2 822 up to 17 670, 1 411 up to 28 430)
+    [InlineData(17_670, 1, 2_822)]
+    [InlineData(17_671, 1, 1_411)]
+    [InlineData(28_430, 2, 2_822)]
+    [InlineData(28_431, 2, 0)]
+    [InlineData(2_000, 2, 2_000)]  // never more than the income
+    [InlineData(10_000, 0, 0)]
+    public void The_age_or_disability_allowance_follows_the_income_brackets(int income, int qualifying, int allowance)
+        => Assert.Equal((decimal)allowance, TaxRules.For(2025).AgeDisabilityAllowance(income, qualifying));
+
+    [Fact]
+    public void The_age_or_disability_allowance_counts_each_declarant_over_65_or_disabled_once()
+    {
+        // 1AS 15 000 and 1BS 12 000: 27 000 − 2 700 of the pensions' 10 % = 24 300, in the upper bracket.
+        var both = Inputs([Pensioner("A", 15_000m) with { Over65 = true, Disabled = true }, Pensioner("B", 12_000m) with { Disabled = true }]);
+        var none = Inputs([Pensioner("A", 15_000m), Pensioner("B", 12_000m)]);
+
+        var result = TaxCalculator.Compute(both);
+        Assert.Equal(2_822m, result.AgeDisabilityAllowance);
+        Assert.Equal(24_300m - 2_822m, result.NetTaxableIncome);
+        Assert.Equal(0m, TaxCalculator.Compute(none).AgeDisabilityAllowance);
+    }
+
     [Fact]
     public void A_couple_never_takes_box_t_and_each_disabled_declarant_adds_half_a_share()
     {

@@ -14,12 +14,14 @@ public enum RentalRegime { Micro, Real }
 /// the part of the ceiling lost on 31 December. <c>ExemptIncome</c>: the exempt income the reference income counts (overtime, the
 /// value-sharing bonus), outside the tax itself. <c>Pensions</c>: the net taxable pensions and alimony received (box 1AS, 1AO), under
 /// the pensions' own 10 % allowance. <c>Disabled</c>: the declarant holds a disability card (box P or F), half a share more.
+/// <c>Over65</c>: the declarant is 65 or older on 31 December of the revenue year; with <c>Disabled</c>, it opens the allowance of
+/// CGI art. 157 bis.
 /// </summary>
 public sealed record TaxDeclarant(
     string Name, decimal SalaryGross, EmploymentStatus Status, decimal OtherTaxable, decimal PerContributions,
     decimal? ContributionRate = null, decimal? ActualExpenses = null, decimal PerUnusedCeiling = 0m, decimal SalaryTaxable = 0m,
     decimal? PerCeiling = null, decimal PreviousYearIncome = 0m, decimal PerExpiring = 0m, decimal ExemptIncome = 0m, Guid? Person = null,
-    decimal Pensions = 0m, bool Disabled = false)
+    decimal Pensions = 0m, bool Disabled = false, bool Over65 = false)
 {
     public decimal EffectiveContributionRate => ContributionRate ?? TaxRules.ContributionRate(Status);
 }
@@ -41,7 +43,8 @@ public sealed record TaxDeclarant(
 /// the net losses of the ten years before not yet used, which only offset those gains.
 /// <c>AlternateCustody</c>: how many of the <c>Dependents</c> live in alternate custody (box H), counted as quarter shares.
 /// <c>SingleParent</c>: a single declarant living alone with the dependents (box T), half a share more (a quarter with only
-/// alternate custody).
+/// alternate custody). <c>DisabledDependents</c>: how many of the <c>Dependents</c> hold a disability card (box G, or I in
+/// alternate custody), half a share more each (a quarter in alternate custody).
 /// </summary>
 public sealed record TaxInputs(
     int Year, IReadOnlyList<TaxDeclarant> Declarants, int Dependents, int ChildrenUnder6,
@@ -51,7 +54,7 @@ public sealed record TaxInputs(
     bool PerPooling = false, decimal DonationsAidLate = 0m, decimal RentalEnergyWorks = 0m,
     decimal CapitalDividends = 0m, bool CapitalScale = false, decimal DeductibleCsg = 0m, (decimal N1, decimal N2)? ReferenceIncomesBefore = null,
     decimal AlimonyPaid = 0m, decimal AlimonyAdultChildren = 0m, int AlimonyAdultChildrenCount = 0,
-    decimal RealisedGains = 0m, decimal CapitalLossesCarried = 0m, int AlternateCustody = 0, bool SingleParent = false);
+    decimal RealisedGains = 0m, decimal CapitalLossesCarried = 0m, int AlternateCustody = 0, bool SingleParent = false, int DisabledDependents = 0);
 
 /// <summary>Where a declarant's salary comes from: none, the entered net taxable income, the gross estimated, or both.</summary>
 public enum SalaryMethod { None, Entered, Estimated, Mixed }
@@ -100,7 +103,8 @@ public sealed record PerHousehold(bool Pooled, decimal Remaining, decimal TaxSav
 /// <c>HighIncomeContribution</c>: the CEHR on the reference income, in <c>TotalTax</c>; <c>HighIncomeSmoothed</c> when its quotient applied.
 /// <c>AlimonyDeducted</c>: the alimony paid taken off the global income, the adult children's within their cap.
 /// <c>RealisedGainsTaxable</c>: the year's net gain after the earlier losses, taxed with the capital income; <c>CapitalLossesCarriedForward</c>
-/// the losses left for the next years.
+/// the losses left for the next years. <c>AgeDisabilityAllowance</c>: CGI art. 157 bis, taken off the net global income for each
+/// declarant aged 65 or over, or disabled, when that income is low.
 /// </summary>
 public sealed record TaxResult(
     int Year, int RulesYear, decimal Parts, IReadOnlyList<DeclarantResult> Declarants,
@@ -112,7 +116,7 @@ public sealed record TaxResult(
     IReadOnlyList<string> Warnings, Withholding Withholding, PerHousehold? Per = null, decimal ReferenceIncome = 0m, decimal? RentalRegimeGap = null,
     decimal RentalDeficitCarriedForward = 0m, bool CapitalScale = false, decimal? CapitalOptionGap = null, decimal DividendAllowance = 0m,
     decimal DeductibleCsgNextYear = 0m, decimal HighIncomeContribution = 0m, bool HighIncomeSmoothed = false, decimal AlimonyDeducted = 0m,
-    decimal RealisedGainsTaxable = 0m, decimal CapitalLossesCarriedForward = 0m);
+    decimal RealisedGainsTaxable = 0m, decimal CapitalLossesCarriedForward = 0m, decimal AgeDisabilityAllowance = 0m);
 
 /// <summary>
 /// Spec §4bis: the withholding rate the year's income gives, and what « Actualiser suite à une hausse ou une baisse de vos revenus »
@@ -269,7 +273,9 @@ public static class TaxCalculator
         var global = Math.Max(0m, declarants.Sum(d => d.Taxable) + rentalTaxable - deficit + capitalInGlobal - Math.Max(0m, inputs.DeductibleCsg));
         var alimony = Euros(Math.Max(0m, inputs.AlimonyPaid)
             + Math.Min(Math.Max(0m, inputs.AlimonyAdultChildren), rules.AlimonyAdultChildCap * Math.Max(0, inputs.AlimonyAdultChildrenCount)));
-        var taxable = Math.Floor(Math.Max(0m, global - declarants.Sum(d => d.PerDeducted) - alimony));
+        var netGlobal = Math.Max(0m, global - declarants.Sum(d => d.PerDeducted) - alimony);
+        var ageDisability = rules.AgeDisabilityAllowance(netGlobal, inputs.Declarants.Count(d => d.Over65 || d.Disabled));
+        var taxable = Math.Floor(Math.Max(0m, netGlobal - ageDisability));
 
         var baseParts = inputs.Declarants.Count;
         var (parts, familyCap) = Shares(rules, inputs);
@@ -339,7 +345,7 @@ public static class TaxCalculator
             // shortcut: the 10-year limit is not followed; the rules start in 2025, so no deficit Nid computes expires before 2035.
             Euros(Math.Max(0m, inputs.RentalDeficitCarried) - carriedUsed + loss - deficit),
             inputs.CapitalScale, optionGap, dividendAllowance, inputs.CapitalScale ? Euros(TaxRules.DeductibleCsgRate * capital) : 0m, cehr, smoothed, alimony,
-            Euros(gainsTaxable), Euros(lossesForward));
+            Euros(gainsTaxable), Euros(lossesForward), ageDisability);
     }
 
     /// <summary>
@@ -463,7 +469,8 @@ public static class TaxCalculator
     /// CGI art. 194–195 and 197 I 2: the household's shares and the cap on what the shares beyond the declarants' save. Children are
     /// ranked those at home first: half a share each for the first two, a whole one from the third, half that in alternate custody
     /// (a quarter cap each). Box T adds half a share with the first child's (a quarter with alternate custody only), capped together
-    /// at their own amount. A disabled declarant's half share is capped with its complementary reduction (art. 197 I 2 al. 4).
+    /// at their own amount. A disabled declarant's or dependent's half share is capped with its complementary reduction (art. 197 I 2
+    /// al. 4), a disabled child in alternate custody a quarter share with half of it.
     /// </summary>
     public static (decimal Parts, decimal Cap) Shares(TaxRules rules, TaxInputs inputs)
     {
@@ -473,13 +480,18 @@ public static class TaxCalculator
         var homeParts = ChildParts(home);
         var alternateParts = (ChildParts(children) - homeParts) / 2;
         var disabled = inputs.Declarants.Count(d => d.Disabled);
+        // ponytail: the disabled children are taken at home first; a disabled child in alternate custody beside one at home is
+        // counted at home (a quarter share too many). Two counts (boxes G and I) if a household needs it.
+        var disabledChildren = Math.Clamp(inputs.DisabledDependents, 0, children);
+        var disabledHome = Math.Min(disabledChildren, home);
+        var disabledAlternate = disabledChildren - disabledHome;
         var single = inputs.SingleParent && inputs.Declarants.Count == 1 && children > 0;
         var singleParts = !single ? 0m : home > 0 ? 0.5m : 0.25m;
         var cap = rules.FamilyCapPerHalfShare * homeParts * 2 + rules.FamilyCapPerQuarterShare * alternateParts * 4
-                  + rules.DisabilityHalfShareCap * disabled
+                  + rules.DisabilityHalfShareCap * (disabled + disabledHome + disabledAlternate / 2m)
                   // Box T and the first child's share, capped together instead of each on its own.
                   + (!single ? 0m : home > 0 ? rules.SingleParentCap - rules.FamilyCapPerHalfShare : rules.SingleParentCap / 2 - rules.FamilyCapPerQuarterShare);
-        return (inputs.Declarants.Count + 0.5m * disabled + homeParts + alternateParts + singleParts, cap);
+        return (inputs.Declarants.Count + 0.5m * (disabled + disabledHome) + 0.25m * disabledAlternate + homeParts + alternateParts + singleParts, cap);
     }
 
     /// <summary>2 shares for a couple; half a share for each of the first two children, a whole one from the third.</summary>
