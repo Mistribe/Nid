@@ -372,7 +372,7 @@ Mêmes règles que les commandes existantes (`administration-and-audit.md` §3) 
 | `reset-totp --person` | Désactive le TOTP, efface les codes de secours, ferme les sessions |
 | `unlock --person` | Lève le verrouillage |
 
-`list-persons` ajoute les colonnes « connexion » (`mot de passe`, `oidc`) et « verrouillé ». Le lien est écrit sur la sortie standard seulement, jamais dans le journal ni dans l'audit.
+`list-persons` ajoute les colonnes « connexion » (`mot de passe`, `oidc`) et « verrouillé » (« jusqu'à … UTC ») ; livré en #293. Le lien est écrit sur la sortie standard seulement, jamais dans le journal ni dans l'audit.
 
 ## 16. Événements de sécurité
 

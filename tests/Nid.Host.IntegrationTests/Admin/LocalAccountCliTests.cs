@@ -94,6 +94,37 @@ public class LocalAccountCliTests(PostgresFixture fixture) : IClassFixture<Postg
         Assert.Single(await AuditApi.EventsAsync(app, SecurityEventNames.CredentialLinkIssued));
     }
 
+    /// <summary>#293, local-accounts.md §15: how each adult signs in and until when they are locked, never the identifier.</summary>
+    [Fact]
+    public async Task List_persons_shows_the_sign_in_methods_and_the_lock_but_never_the_identifier()
+    {
+        await using var app = await NidApp.StartAsync(fixture, settings: Local);
+        var until = SystemClock.Instance.GetCurrentInstant().Plus(NodaTime.Duration.FromMinutes(30));
+        await using (var db = PostgresFixture.NewCoreContext(app.ConnectionString))
+        {
+            db.LocalCredentials.Add(new LocalCredentialRow
+            {
+                PersonId = app.AdultB.Value, Login = "login-kept-quiet", PasswordHash = "x", LockLevel = 1, FailedCount = 5, LockedUntil = until,
+                PasswordChangedAt = SystemClock.Instance.GetCurrentInstant(), CreatedAt = SystemClock.Instance.GetCurrentInstant(),
+            });
+            await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        var run = await CliAsync(app, "list-persons");
+
+        Assert.Equal(0, run.Exit);
+        var lines = run.Out.Split('\n');
+        Assert.Contains("connexion", lines[0]);
+        Assert.Contains("verrouillé", lines[0]);
+        var bob = Assert.Single(lines, l => l.StartsWith(app.AdultB.Value.ToString(), StringComparison.Ordinal));
+        var alice = Assert.Single(lines, l => l.StartsWith(app.AdultA.Value.ToString(), StringComparison.Ordinal));
+        Assert.Contains("mot de passe", bob);
+        Assert.Contains($"jusqu'à {until.ToString("uuuu-MM-dd HH:mm", System.Globalization.CultureInfo.InvariantCulture)} UTC", bob);
+        Assert.DoesNotContain("mot de passe", alice);
+        Assert.DoesNotContain("jusqu'à", alice);
+        Assert.DoesNotContain("login-kept-quiet", run.Out);
+    }
+
     [Fact]
     public async Task Unlock_of_an_adult_without_a_local_account_says_so()
     {

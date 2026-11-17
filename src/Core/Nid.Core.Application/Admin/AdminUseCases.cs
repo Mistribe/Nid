@@ -20,7 +20,7 @@ public sealed record AdultView(
         => new(person.Id.Value, person.DisplayName, person.Email, person.IsPending ? "pending" : "active", person.IsAdmin,
             MethodsOf(person), local?.LockedUntil, local?.LinkExpiresAt, local?.TotpEnabled ?? false);
 
-    private static IReadOnlyList<string> MethodsOf(PersonInfo person)
+    internal static IReadOnlyList<string> MethodsOf(PersonInfo person)
     {
         var methods = new List<string>(2);
         if (person.HasLocalAccount) methods.Add("password");
@@ -151,12 +151,17 @@ public sealed class UpdateHouseholdSettingsHandler(IHouseholdSettings settings)
             .Map(HouseholdSettingsView.From);
 }
 
-/// <summary>A person as `nid admin list-persons` shows it (1F4 design §3): whether a subject is bound, never its value.</summary>
-public sealed record PersonView(Guid Id, string Kind, string DisplayName, string? Email, string Status, bool IsAdmin, bool HasSubject)
+/// <summary>
+/// A person as `nid admin list-persons` shows it (1F4 design §3): whether a subject is bound, never its value. #293: how the
+/// adult signs in (<c>password</c>, <c>oidc</c>) and until when their local account is locked, never the identifier.
+/// </summary>
+public sealed record PersonView(
+    Guid Id, string Kind, string DisplayName, string? Email, string Status, bool IsAdmin, bool HasSubject,
+    IReadOnlyList<string> Methods, Instant? LockedUntil = null)
 {
-    public static PersonView From(PersonInfo person) => new(
+    public static PersonView From(PersonInfo person, LocalAccountState? local = null) => new(
         person.Id.Value, person.Kind == PersonKind.Adult ? "adult" : "dependent", person.DisplayName, person.Email,
-        person.IsPending ? "pending" : "active", person.IsAdmin, person.HasSubject);
+        person.IsPending ? "pending" : "active", person.IsAdmin, person.HasSubject, AdultView.MethodsOf(person), local?.LockedUntil);
 }
 
 public sealed record ListAllPersonsQuery : IQuery<IReadOnlyList<PersonView>>, IAdminOnly;
@@ -170,10 +175,15 @@ public sealed record RebindSubjectCommand(PersonId Person, string Subject) : ICo
 }
 
 [RequestHandler<ListAllPersonsQuery, IReadOnlyList<PersonView>>]
-public sealed class ListAllPersonsHandler(IPersonRegistry persons) : IRequestHandler<ListAllPersonsQuery, IReadOnlyList<PersonView>>
+public sealed class ListAllPersonsHandler(IPersonRegistry persons, ILocalAccountStore accounts, IClock clock)
+    : IRequestHandler<ListAllPersonsQuery, IReadOnlyList<PersonView>>
 {
     public async ValueTask<Result<IReadOnlyList<PersonView>>> HandleAsync(ListAllPersonsQuery query, CancellationToken ct = default)
-        => Result.Success<IReadOnlyList<PersonView>>((await persons.ListAsync(ct)).Select(PersonView.From).ToList());
+    {
+        var states = (await accounts.StatesAsync(clock.GetCurrentInstant(), ct)).ToDictionary(s => s.Person);
+        return Result.Success<IReadOnlyList<PersonView>>((await persons.ListAsync(ct))
+            .Select(p => PersonView.From(p, states.GetValueOrDefault(p.Id))).ToList());
+    }
 }
 
 [RequestHandler<RebindSubjectCommand, RebindOutcome>]
