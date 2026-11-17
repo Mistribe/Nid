@@ -1,5 +1,6 @@
 import type { TFunction } from 'i18next';
 import { ZERO } from './format';
+import '@/locales/tax';
 
 /** An amount without its leading minus: the sign is said in words (« Remboursé »), never shown. */
 export const unsigned = (amount: string) => (amount.startsWith('-') ? amount.slice(1) : amount);

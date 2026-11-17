@@ -113,6 +113,7 @@ public class NotificationTemplatesTests
         Assert.Equal("En ligne avant le 21 mai 2026, la date la plus tôt : département non renseigné",
             Tax("tax_filing_deadline", new() { ["note"] = "department_unknown" }).Body);
         Assert.Equal(("À partir du 21 mai 2026", "/tax"), (Tax("tax_balance_due", []).Body, Tax("tax_new_rate", []).Link));
+        Assert.Equal("/tax?tab=withholding", Tax("tax_balance_due", []).Link);
     }
 
     [Fact]
