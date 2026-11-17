@@ -6,7 +6,7 @@ import { ProviderIcon } from '@/components/ProviderIcon';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
-import { byDay as groupByDay, formatDate } from '@/features/calendar/monthGrid';
+import { byDay as groupByDay, formatDate } from '@/features/calendar/calendarDates';
 
 /** The calendar's and the timeline's pieces (issue #65). */
 export type Line = Charges['charges'][number];

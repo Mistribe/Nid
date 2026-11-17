@@ -22,7 +22,7 @@ import { ChargeLink, DayTotals, FigureText, type CalendarCharge } from './amount
 import { EventLink } from './EventLink';
 import { AMOUNT_MODULES, CALENDAR_MODULES, moduleLabelKey, type AmountModule, type CalendarModule } from './modules';
 import { MonthGrid } from './MonthGrid';
-import { daysIn, formatDate, shiftMonth } from './monthGrid';
+import { daysIn, formatDate, shiftMonth } from './calendarDates';
 import '@/locales/calendar';
 
 export const CALENDAR_EVENTS = '/api/v1/calendar' as const;

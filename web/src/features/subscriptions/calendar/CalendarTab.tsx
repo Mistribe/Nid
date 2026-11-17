@@ -16,7 +16,7 @@ import board from '@/locales/fr.subscriptions-board.json';
 import { CHARGES } from '@/api/subscriptions';
 import { ChargeLink, formatDate as format } from './charges';
 import { todayIso } from '@/lib/today';
-import { shiftMonth } from '@/features/calendar/monthGrid';
+import { shiftMonth } from '@/features/calendar/calendarDates';
 import { MonthGrid } from '@/features/calendar/MonthGrid';
 import { Loading, StatLineSkeleton } from '@/components/page/skeletons';
 
