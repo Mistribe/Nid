@@ -106,7 +106,7 @@ public sealed record TaxProfileView(
     IReadOnlyDictionary<Guid, string> ExemptIncomes, string DonationsAidLate, string RentalEnergyWorks, string? Department,
     bool CapitalScale = false, string DeductibleCsg = "0.00",
     string AlimonyPaid = "0.00", string AlimonyAdultChildren = "0.00", int AlimonyAdultChildrenCount = 0, string CapitalLossesCarried = "0.00",
-    int AlternateCustody = 0, bool Cohabiting = false, IReadOnlyList<Guid>? DisabledAdults = null, int DisabledDependents = 0)
+    int AlternateCustody = 0, bool Cohabiting = false, IReadOnlyList<Guid>? DisabledAdults = null, int DisabledDependents = 0, int AlternateUnder6 = 0)
 {
     public static TaxProfileView Of(TaxProfile p) => new(
         p.Statuses, p.Dependents, p.ChildrenUnder6, p.RentalRegime, p.Pinel,
@@ -119,7 +119,7 @@ public sealed record TaxProfileView(
         (p.ExemptIncomes ?? new Dictionary<Guid, decimal>()).ToDictionary(x => x.Key, x => Amount(x.Value)),
         Amount(p.DonationsAidLate), Amount(p.RentalEnergyWorks), p.Department, p.CapitalScale, Amount(p.DeductibleCsg),
         Amount(p.AlimonyPaid), Amount(p.AlimonyAdultChildren), p.AlimonyAdultChildrenCount, Amount(p.CapitalLossesCarried),
-        p.AlternateCustody, p.Cohabiting, p.DisabledAdults ?? [], p.DisabledDependents);
+        p.AlternateCustody, p.Cohabiting, p.DisabledAdults ?? [], p.DisabledDependents, p.AlternateUnder6);
 }
 
 /// <summary>
@@ -147,7 +147,7 @@ public sealed record TaxInputsView(
     string ChildcareOutsideHome, string HomeEmployment, string Donations, string DonationsAid, string RentalDeficitCarried, bool PerPooling = false,
     string DonationsAidLate = "0.00", string RentalEnergyWorks = "0.00", string CapitalDividends = "0.00", bool CapitalScale = false,
     string DeductibleCsg = "0.00", string AlimonyPaid = "0.00", string AlimonyAdultChildren = "0.00", int AlimonyAdultChildrenCount = 0,
-    string RealisedGains = "0.00", string CapitalLossesCarried = "0.00", int AlternateCustody = 0, bool SingleParent = false, int DisabledDependents = 0)
+    string RealisedGains = "0.00", string CapitalLossesCarried = "0.00", int AlternateCustody = 0, bool SingleParent = false, int DisabledDependents = 0, int AlternateUnder6 = 0)
 {
     /// <summary><paramref name="perEnvelopes"/>: the PERs' names by declarant, in the order of the declarants.</summary>
     public static TaxInputsView Of(TaxInputs i, IReadOnlyList<IReadOnlyList<string>>? perEnvelopes = null) => new(
@@ -160,7 +160,7 @@ public sealed record TaxInputsView(
         Amount(i.ChildcareOutsideHome), Amount(i.HomeEmployment), Amount(i.Donations), Amount(i.DonationsAid), Amount(i.RentalDeficitCarried), i.PerPooling,
         Amount(i.DonationsAidLate), Amount(i.RentalEnergyWorks), Amount(i.CapitalDividends), i.CapitalScale, Amount(i.DeductibleCsg),
         Amount(i.AlimonyPaid), Amount(i.AlimonyAdultChildren), i.AlimonyAdultChildrenCount, Amount(i.RealisedGains), Amount(i.CapitalLossesCarried),
-        i.AlternateCustody, i.SingleParent, i.DisabledDependents);
+        i.AlternateCustody, i.SingleParent, i.DisabledDependents, i.AlternateUnder6);
 }
 
 /// <summary>

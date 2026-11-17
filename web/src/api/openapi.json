@@ -59142,7 +59142,8 @@
           "capitalLossesCarried",
           "alternateCustody",
           "singleParent",
-          "disabledDependents"
+          "disabledDependents",
+          "alternateUnder6"
         ],
         "type": "object",
         "properties": {
@@ -59258,6 +59259,11 @@
             "default": false
           },
           "disabledDependents": {
+            "type": "integer",
+            "format": "int32",
+            "default": 0
+          },
+          "alternateUnder6": {
             "type": "integer",
             "format": "int32",
             "default": 0
@@ -59384,7 +59390,8 @@
           "alternateCustody",
           "alimonyAdultChildrenCount",
           "capitalScale",
-          "perPooling"
+          "perPooling",
+          "alternateUnder6"
         ],
         "type": "object",
         "properties": {
@@ -59585,6 +59592,11 @@
             "type": "integer",
             "format": "int32",
             "default": 0
+          },
+          "alternateUnder6": {
+            "type": "integer",
+            "format": "int32",
+            "default": 0
           }
         }
       },
@@ -59615,7 +59627,8 @@
           "capitalLossesCarried",
           "alternateCustody",
           "cohabiting",
-          "disabledDependents"
+          "disabledDependents",
+          "alternateUnder6"
         ],
         "type": "object",
         "properties": {
@@ -59759,6 +59772,11 @@
             }
           },
           "disabledDependents": {
+            "type": "integer",
+            "format": "int32",
+            "default": 0
+          },
+          "alternateUnder6": {
             "type": "integer",
             "format": "int32",
             "default": 0
