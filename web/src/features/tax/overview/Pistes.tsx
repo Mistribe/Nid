@@ -9,8 +9,7 @@ import type { TaxEstimate } from '@/api/tax';
 import { todayIso } from '@/lib/today';
 import { unsigned } from '../balance';
 import { percentText, regimeText, ZERO } from '../format';
-import { eur } from '../ResultTable';
-import { wholeEur } from '../ResultTable';
+import { eur, wholeEur } from '../ResultTable';
 import '@/locales/tax';
 
 export type Piste = {

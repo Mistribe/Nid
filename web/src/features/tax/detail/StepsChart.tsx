@@ -7,7 +7,8 @@ import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, type Cha
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { directionOf } from '@/lib/amount';
 import { toPlot } from '@/lib/plot';
-import { eurUnsigned, resultText } from '../ResultTable';
+import { tipText } from '../format';
+import { eurUnsigned, resultText, Term } from '../ResultTable';
 import '@/locales/tax';
 
 /** The steps that are a running total, drawn from zero. */
@@ -22,7 +23,17 @@ const kindOf = (s: TaxStep): Kind => (isTotal(s.code) ? 'total' : directionOf(s.
 const FILL: Record<Kind, string> = { add: 'var(--chart-2)', remove: 'var(--status-good)', total: 'var(--chart-1)' };
 const amountText = (t: TFunction, s: TaxStep, kind: Kind) => (kind === 'total' ? resultText(t, s.to) : eurUnsigned(s.amount));
 
-type Bar = { key: string; label: string; range: [number, number]; kind: string; text: string; totalText: string; fill: string };
+type StepBar = { key: string; label: string; range: [number, number]; kind: string; text: string; totalText: string; fill: string };
+
+const axis = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', notation: 'compact' });
+
+/** The glossary tip of a step that has one; the others (CSG, rounding…) read as plain labels. */
+const STEP_TIPS: Record<string, Parameters<typeof tipText>[1]> = {
+  salary_allowance: 'allowance', pensions: 'pensions', pension_allowance: 'pension_allowance', rental: 'rental', rental_deficit: 'rental_deficit',
+  per: 'per_deduction', alimony: 'alimony', age_disability: 'age_disability', net_taxable: 'net_taxable', gross_tax: 'gross_tax', decote: 'decote',
+  pinel: 'pinel', donations: 'donations', childcare: 'childcare', home_employment: 'home_employment', niche_cap: 'niche_cap', flat_tax: 'flat_tax',
+  social_levies: 'social_levies', high_income: 'high_income',
+};
 
 // Sizes a mark only: the figure itself is never shown from this number.
 const tiny = (s: TaxStep) => Math.abs(toPlot(s.amount)) < 1;
@@ -30,11 +41,11 @@ const tiny = (s: TaxStep) => Math.abs(toPlot(s.amount)) < 1;
 /** One group's steps as floating bars, in the server's order; a step under one euro (the rounding) is left out here and kept in the table. */
 export function StepsChart({ steps, title, legend = false }: { steps: TaxStep[]; title: string; legend?: boolean }) {
   const { t } = useTranslation();
-  const bars: Bar[] = steps.filter((s) => isTotal(s.code) || !tiny(s)).map((s) => {
+  const bars: StepBar[] = steps.filter((s) => isTotal(s.code) || !tiny(s)).map((s) => {
     const kind = kindOf(s);
     const [a, b] = [toPlot(s.from), toPlot(s.to)];
     return {
-      key: s.code, label: stepLabel(t, s.code), range: [Math.min(a, b), Math.max(a, b)], kind: t(`tax.steps.${kind}`),
+      key: s.code, label: stepLabel(t, s.code), range: [Math.min(a, b), Math.max(a, b, Math.min(a, b) + 0.01)], kind: t(`tax.steps.${kind}`),
       text: amountText(t, s, kind), totalText: kind === 'total' ? resultText(t, s.to) : '', fill: FILL[kind],
     };
   });
@@ -42,7 +53,6 @@ export function StepsChart({ steps, title, legend = false }: { steps: TaxStep[];
     add: { label: t('tax.steps.add'), color: FILL.add }, remove: { label: t('tax.steps.remove'), color: FILL.remove },
     total: { label: t('tax.steps.total'), color: FILL.total },
   } satisfies ChartConfig;
-  const axis = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', notation: 'compact' });
   return (
     <figure aria-label={title} className="space-y-1">
       <figcaption className="text-sm font-medium">{title}</figcaption>
@@ -87,7 +97,7 @@ export function StepsTable({ steps }: { steps: TaxStep[] }) {
                 const kind = kindOf(s);
                 return (
                   <TableRow key={s.code}>
-                    <TableHead scope="row" className={kind === 'total' ? 'font-semibold text-foreground' : 'font-normal text-foreground'}>{stepLabel(t, s.code)}</TableHead>
+                    <TableHead scope="row" className={kind === 'total' ? 'font-semibold text-foreground' : 'font-normal text-foreground'}><Term title={stepLabel(t, s.code)} tip={STEP_TIPS[s.code] ? tipText(t, STEP_TIPS[s.code]!) : undefined} /></TableHead>
                     <TableCell>{t(`tax.steps.${kind}`)}</TableCell>
                     <TableCell className="text-right tabular-nums">{amountText(t, s, kind)}</TableCell>
                   </TableRow>
@@ -101,7 +111,7 @@ export function StepsTable({ steps }: { steps: TaxStep[] }) {
   );
 }
 
-function StepTooltip({ active, payload }: { active?: boolean; payload?: ReadonlyArray<{ payload?: Bar }> }) {
+function StepTooltip({ active, payload }: { active?: boolean; payload?: ReadonlyArray<{ payload?: StepBar }> }) {
   const row = payload?.[0]?.payload;
   if (!active || !row) return null;
   return (

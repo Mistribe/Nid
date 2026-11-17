@@ -249,6 +249,10 @@
       "csg": "Au barème, {{amount}} de CSG se déduiront de vos revenus l’an prochain (case 6DE)."
     },
     "tip": {
+      "due": "L’impôt sur le revenu de l’année, une fois les réductions et crédits retirés. C’est ce que le prélèvement à la source doit couvrir sur l’année.",
+      "rental_instalment": "Un prélèvement mensuel sur vos revenus fonciers, calculé par le fisc à part de votre taux. Il compte aussi les prélèvements sociaux.",
+      "left_out": "Des réductions et crédits d’impôt que le taux ne retire pas : ils vous sont rendus l’année suivante, pas dans le prélèvement.",
+      "expected_rate": "Le taux à saisir pour être moins prélevé sans risque de majoration, calculé sur les salaires proposés plus bas.",
       "left_monthly": "Ce qui reste de vos revenus nets chaque mois, une fois l’impôt total retiré.",
       "allowance": "Le fisc retire d’office 10 % de vos salaires pour couvrir vos frais de travail (trajets, repas). Si vos vrais frais sont plus élevés, vous pouvez les déclarer à la place : ce sont les « frais réels ».",
       "pensions": "Retraites et pensions alimentaires reçues, au montant net imposable quand il est saisi sur la période, sinon au net versé.",
@@ -508,7 +512,7 @@
         "pensions": "{{name}} : pensions à saisir",
         "rate": "Taux attendu",
         "monthly": "{{name}} : prélevé chaque mois",
-        "rental_monthly": "Acompte mensuel sur les revenus fonciers",
+        "rental_monthly": "Acompte foncier, par mois",
         "less": "Prélevé en moins sur l’année",
         "balance": "Solde restant à la déclaration",
         "help": "La baisse reste sous la tolérance de 10 % (art. 1729 G du CGI) : au-delà, l’écart est majoré. Le reste des réductions et crédits revient par l’avance de janvier (60 % de ceux de l’an dernier) et le solde de l’été."

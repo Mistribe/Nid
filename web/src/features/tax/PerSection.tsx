@@ -33,7 +33,6 @@ export function PerRows({ result, names }: { result: TaxResult; names: string[] 
     { label: ceilingLabel(t, source), cell: (per) => eur(per.ceiling), tip: tipText(t, 'per_ceiling'),
       note: (per) => (source === undefined ? t(per.source === 'notice' ? 'tax.per.source_notice' : 'tax.per.source_estimated') : undefined) },
     { label: t('tax.per.contributions'), cell: (per) => eur(per.contributions), note: (_, i) => (names[i] ? t('tax.per.flows', { names: names[i] }) : undefined) },
-    { label: t('tax.per.deducted'), cell: (per) => eur(per.deducted), tip: tipText(t, 'per_deduction') },
     ...(shown.every((per) => ZERO.test(per.excess)) ? [] : [{ label: t('tax.per.excess'), cell: (per: NonNullable<Declarant['per']>) => eur(per.excess) }]),
     // While a declarant has a ceiling expiring: the year's own ceiling goes first, then the expiring part.
     ...(shown.every((per) => ZERO.test(per.expiring)) ? [] : [{ label: t('tax.per.minimum'), cell: (per: NonNullable<Declarant['per']>) => eur(per.minimum),

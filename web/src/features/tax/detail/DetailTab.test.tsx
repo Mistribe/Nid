@@ -91,13 +91,15 @@ describe('DetailTab', () => {
 
   it('shows the PER ceiling and deduction once, the progress keeps them as its value text', async () => {
     const e = estimate();
-    e.result = result({ declarants: [{ ...result().declarants[0]!, person: ADULT, per: { ceiling: '5000.00', source: 'notice', expiring: '0.00', contributions: '3000.00', deducted: '3000.00', excess: '0.00', remaining: '2000.00', minimum: '0.00', minimumEstimated: false } }] });
+    e.result = result({ declarants: [{ ...result().declarants[0]!, person: ADULT, perDeducted: '3000.00', per: { ceiling: '5000.00', source: 'notice', expiring: '0.00', contributions: '3000.00', deducted: '3000.00', excess: '0.00', remaining: '2000.00', minimum: '0.00', minimumEstimated: false } }] });
     load(e);
     await renderApp('/tax?tab=detail');
 
     const card = await screen.findByRole('region', { name: 'Salaires et PER' });
     expect(within(card).getByRole('progressbar', { name: 'PER de Alice' }).getAttribute('aria-valuetext')?.replace(/\s/g, ' ')).toBe('3 000,00 € déduits sur un plafond de 5 000,00 €');
     expect(within(card).queryByText(/déduits sur un plafond/)).not.toBeInTheDocument();
+    expect(within(card).getAllByRole('row', { name: /^Versements PER déduits/ })).toHaveLength(1);
+    expect(within(card).queryByRole('row', { name: /^Déduit/ })).not.toBeInTheDocument();
     expect(within(card).getByText(/2 000,00\s€ à verser avant le 31 décembre/)).toBeInTheDocument();
   });
 

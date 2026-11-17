@@ -13,7 +13,7 @@ const declarantPer = (over: Partial<NonNullable<TaxResult['declarants'][number][
   ceiling: '5843.13', source: 'notice', expiring: '0.00', contributions: '3000.00', deducted: '3000.00', excess: '0.00', remaining: '2843.13', minimum: '0.00', minimumEstimated: false, ...over,
 });
 const withPer = (over: Partial<TaxResult> = {}, per = declarantPer()) => result({
-  declarants: [{ ...result().declarants[0]!, person: ADULT, per }],
+  declarants: [{ ...result().declarants[0]!, person: ADULT, perDeducted: per.deducted, per }],
   per: { pooled: false, remaining: '2843.13', taxSaved: '900.00', roomInBracket: '10421.00', remainingTaxSaved: '900.00' },
   ...over,
 });
@@ -28,7 +28,8 @@ describe('PerRows and PerProgress', () => {
     show(withPer());
     expect(screen.getByRole('columnheader', { name: 'Alice' })).toBeInTheDocument();
     expect(cell(/Plafond \(avis\)/)).toHaveTextContent('5 843,13 €');
-    expect(cell(/^Déduit/)).toHaveTextContent('3 000,00 €');
+    expect(cell(/^Versements PER déduits/)).toHaveTextContent('3 000,00 €');
+    expect(screen.queryByRole('row', { name: /^Déduit/ })).not.toBeInTheDocument();
     expect(screen.getByText('PER · Barème 2025')).toBeInTheDocument();
   });
 
@@ -42,6 +43,23 @@ describe('PerRows and PerProgress', () => {
   it('a ceiling of zero draws an empty progress', () => {
     show(withPer({}, declarantPer({ ceiling: '0.00', deducted: '0.00', contributions: '0.00', remaining: '0.00' })));
     expect(screen.getByRole('progressbar', { name: 'PER de Alice' })).toHaveAttribute('aria-valuenow', '0');
+  });
+
+  it('a deduction above the ceiling fills the progress at 100', () => {
+    show(withPer({}, declarantPer({ ceiling: '1000.00', deducted: '3000.00' })));
+    expect(screen.getByRole('progressbar', { name: 'PER de Alice' })).toHaveAttribute('aria-valuenow', '100');
+  });
+
+  it('no declarant with PER draws no progress at all', () => {
+    const r = withPer();
+    r.declarants = [{ ...r.declarants[0]!, per: null }];
+    show(r);
+    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+  });
+
+  it('a notice ceiling has no link to the profile', () => {
+    show(withPer({ warnings: ['per_ceiling_estimated'] }));
+    expect(screen.queryByRole('button', { name: 'Saisir celui de l’avis' })).not.toBeInTheDocument();
   });
 
   it('over the ceiling says it is reached', () => {
@@ -104,7 +122,7 @@ describe('PerRows and PerProgress', () => {
     const r = withPer();
     r.declarants = [r.declarants[0]!, { ...r.declarants[0]!, person: 'b', name: 'Bob', per: null }];
     show(r, ['', '']);
-    expect(cell(/^Versements/)).toHaveTextContent('—');
+    expect(cell(/^Versements(?! PER)/)).toHaveTextContent('—');
   });
 });
 

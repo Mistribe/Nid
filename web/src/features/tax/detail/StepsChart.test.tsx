@@ -23,6 +23,13 @@ describe('StepsChart', () => {
     await waitFor(() => expect(texts()).toEqual(['247,00 €', '247,00 €']));
   });
 
+  it('a total at zero still shows its label', async () => {
+    const zero = group('tax').map((s) => (s.code === 'income_tax' ? { ...s, from: '0.00', to: '0.00' } : s));
+    const { container } = render(<StepsChart steps={zero} title="Votre impôt" />);
+    const texts = () => [...container.querySelectorAll('.recharts-label-list text')].map((n) => n.textContent?.replace(/\s/g, ' ')).filter(Boolean);
+    await waitFor(() => expect(texts()).toContain('0,00 €'));
+  });
+
   it('skips a bar under one euro, keeps the others', () => {
     const { container } = render(<StepsChart steps={group('tax')} title="Votre impôt" />);
     expect(ticks(container)).not.toContain('Arrondi');
@@ -49,6 +56,7 @@ describe('StepsTable', () => {
     expect(screen.getByRole('row', { name: /Abattement de 10 %/ }).textContent).toMatch(/Retire.*7\s158,00\s€/);
     expect(screen.getByRole('row', { name: /^Revenu imposable/ }).textContent).toMatch(/Total.*64\s407,00\s€/);
     expect(screen.getByRole('row', { name: /Arrondi/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'À propos : Décote' })).toBeInTheDocument();
     expect(screen.queryByText(/^-|−\d/)).toBeNull();
   });
 

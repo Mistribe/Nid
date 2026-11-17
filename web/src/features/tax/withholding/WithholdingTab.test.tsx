@@ -39,7 +39,7 @@ describe('WithholdingTab', () => {
     const card = screen.getByRole('region', { name: 'Ce que le taux devrait donner' });
     await waitFor(() => expect(card.querySelectorAll('.recharts-bar-rectangle')).toHaveLength(2));
     const labels = () => [...card.querySelectorAll('.recharts-label-list text')].map((n) => n.textContent?.replace(/\s/g, ' '));
-    await waitFor(() => expect(labels()).toEqual(['3 220,39 €', '247,00 €']));
+    await waitFor(() => expect(labels()).toEqual(['Prélevé sur l’année : 3 220,39 €', 'Impôt dû : 247,00 €']));
     expect(within(card).getByText(/Remboursé.*: 2 973,39 €/)).toBeInTheDocument();
     expect(screen.queryByText(/-2 973,39/)).toBeNull();
   });
@@ -61,6 +61,27 @@ describe('WithholdingTab', () => {
     const due = withheldBars(i18n.t.bind(i18n), loaded)[1]!;
     expect(due.value).toBe(0.01);
     expect(due.text.replace(/\s/g, ' ')).toBe('300,00 € en votre faveur');
+  });
+
+  it('zero bars stay hairlines: the floor applies to both and the axis spans at least one', async () => {
+    const loaded = estimate();
+    loaded.result.withholding.annual = '0.00';
+    loaded.result.incomeTax = '0.00';
+    const [annual, due] = withheldBars(i18n.t.bind(i18n), loaded);
+    expect([annual!.value, due!.value]).toEqual([0.01, 0.01]);
+    expect(annual!.text.replace(/\s/g, ' ')).toBe('0,00 €');
+    await open(loaded);
+    const card = screen.getByRole('region', { name: 'Ce que le taux devrait donner' });
+    await waitFor(() => expect(card.querySelectorAll('.recharts-label-list text')).toHaveLength(2));
+    const widths = [...card.querySelectorAll('.recharts-bar-rectangle path')].map((n) => Number(n.getAttribute('width')));
+    expect(Math.max(...widths)).toBeLessThan(10);
+  });
+
+  it('puts the captions above the bars: no category axis, a figure that names the chart', async () => {
+    await open();
+    const card = screen.getByRole('region', { name: 'Ce que le taux devrait donner' });
+    expect(within(card).getByRole('figure', { name: 'Prélevé sur l’année et impôt dû' })).toBeInTheDocument();
+    expect(card.querySelector('.recharts-yAxis')).toBeNull();
   });
 
   it('a zero balance reads nothing to settle', async () => {

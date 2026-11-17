@@ -30,7 +30,7 @@ export function DetailTab({ estimate, onTab }: { estimate: TaxEstimate; onTab: (
           <p className="text-sm text-muted-foreground">
             {t('tax.detail.disclaimer_short', { year: r.rulesYear })}{' '}
             <CollapsibleTrigger asChild><Button variant="link" className="h-auto p-0 text-sm">{t('tax.detail.more')}</Button></CollapsibleTrigger>
-            {hasPistes ? <> <Button variant="link" className="h-auto p-0 text-sm" onClick={() => onTab('overview')}>{t('tax.detail.see_pistes')}</Button></> : null}
+            {hasPistes ? <><span aria-hidden className="mx-2 text-muted-foreground">·</span><Button variant="link" className="h-auto p-0 text-sm" onClick={() => onTab('overview')}>{t('tax.detail.see_pistes')}</Button></> : null}
           </p>
           <CollapsibleContent><p className="pt-1 text-sm text-muted-foreground">{t('tax.disclaimer', { year: r.rulesYear })}</p></CollapsibleContent>
         </Collapsible>

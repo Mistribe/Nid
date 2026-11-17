@@ -26,7 +26,7 @@ export function BracketScale({ bracket, marginalRate }: { bracket: TaxBracket; m
                 key={b.from}
                 data-current={current ? 'true' : undefined}
                 style={{ flexGrow: toPlot(b.to ?? displayEnd) - toPlot(b.from), flexBasis: 0 }}
-                className={`flex min-w-0 items-center justify-center rounded text-xs ${current ? 'bg-chart-1 font-medium text-background' : 'bg-chart-1/25 text-foreground'}`}
+                className={`flex min-w-0 items-center justify-center overflow-hidden whitespace-nowrap rounded text-xs ${current ? 'bg-chart-1 font-medium text-background' : 'bg-chart-1/25 text-foreground'}`}
               >
                 {percentText(t, b.rate)}
               </div>
@@ -40,7 +40,7 @@ export function BracketScale({ bracket, marginalRate }: { bracket: TaxBracket; m
       <p className="text-sm">
         {t('tax.bracket.sentence', { rate: percentText(t, marginalRate) })}{' '}
         {next && toNext != null ? t('tax.bracket.next', { amount: wholeEur(toNext), rate: percentText(t, next.rate) }) : t('tax.bracket.top')}
-        <InfoTip label={t('tax.bracket.title')}>{tipText(t, 'marginal_rate')}</InfoTip>
+        <span className="ml-1.5"><InfoTip label={t('tax.bracket.title')}>{tipText(t, 'marginal_rate')}</InfoTip></span>
       </p>
     </div>
   );
