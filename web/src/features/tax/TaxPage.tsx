@@ -12,7 +12,6 @@ import { PageHeader } from '@/components/page/PageHeader';
 import { DetailTabsSkeleton, HeroSkeleton, Loading, SectionCardSkeleton, StatLineSkeleton, TableSkeleton } from '@/components/page/skeletons';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
-import { PERSONS } from '@/api/persons';
 import { todayIso } from '@/lib/today';
 import { FIRST_ESTIMATE_YEAR, TAX } from '@/api/tax';
 import { useTaxAssessments } from './assessments/api';
@@ -80,7 +79,6 @@ export function TaxPage() {
   // menu does not vanish under the pointer.
   const answer = $api.useQuery('get', TAX, { params: { query: { year: Number(year), scope } } }, { enabled: !past, placeholderData: keepPreviousData });
   const estimate = past ? undefined : answer.data;
-  const people = $api.useQuery('get', PERSONS).data ?? [];
   const notices = assessments.filter((a) => String(a.year) === year);
   // The Avis tab exists only for a year with notices: a URL asking for it elsewhere shows the overview.
   const tab = rawTab === 'assessment' && !notices.length ? 'overview' : rawTab;
@@ -91,7 +89,7 @@ export function TaxPage() {
   // The previous year's estimate kept while the overview's own loads would show last year's hero under this year's filter.
   const stale = !past && answer.isPlaceholderData && tab === 'overview';
   const pending = (past && awaiting) || (!past && !estimate && !answer.error) || stale;
-  const assessmentTab = <AssessmentTab notices={notices} persons={people} gaps={estimate?.gaps} adults={estimate?.adults ?? []} />;
+  const assessmentTab = <AssessmentTab notices={notices} gaps={estimate?.gaps} />;
   // Held here, not in the tab: Radix unmounts a hidden tab, and the draft outlives a tab switch.
   const draft = useProfileDraft(estimate, scope);
 

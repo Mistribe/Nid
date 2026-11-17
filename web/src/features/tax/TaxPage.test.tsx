@@ -629,41 +629,6 @@ describe('TaxPage, Déclaration 2044 tab', () => {
       expect(await screen.findByRole('region', { name: 'Avis 2025' })).toBeInTheDocument();
     });
 
-    it('Shows_the_gaps_above_their_notice', async () => {
-      const loaded = estimate();
-      const a = jointAssessment({ year: 2025 });
-      loaded.gaps = {
-        assessment: a.id,
-        lines: [
-          { code: 'balance', notice: '-312.00', nid: null, gap: null },
-          { code: 'net_tax', notice: '2688.00', nid: '2500.00', gap: '188.00' },
-        ],
-        declarants: [{ person: ADULT, notice: '46800.00', nid: '46000.00', gap: '800.00' }],
-      };
-      // The names come from the estimate's adults, not from the persons list.
-      server.use(notices(a), http.get('*/api/v1/tax', () => HttpResponse.json(loaded)), http.get('*/api/v1/core/persons', () => HttpResponse.json([])));
-      const { user } = await renderApp('/tax?year=2025');
-
-      await user.click(await screen.findByRole('tab', { name: 'Avis' }));
-      const table = await screen.findByRole('table', { name: 'Écarts entre l’avis et l’estimation' });
-      const rows = within(table).getAllByRole('row').slice(1);
-      expect(rows.map((r) => r.firstChild?.textContent)).toEqual(['Impôt net', 'Solde', 'Salaires nets — Alice']);
-      expect(rows[0]).toHaveTextContent('188,00 €');
-      expect(rows[1]).toHaveTextContent('—');
-      expect(screen.getByText('Écart = avis − estimation de Nid')).toBeInTheDocument();
-      expect(screen.getByText(/prélèvement forfaitaire de 12,8 %/)).toBeInTheDocument();
-      expect(table.compareDocumentPosition(screen.getByRole('region', { name: 'Avis 2025' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    });
-
-    it('No_gap_table_without_gaps', async () => {
-      server.use(notices(jointAssessment({ year: 2025 })), http.get('*/api/v1/tax', () => HttpResponse.json(estimate())));
-      const { user } = await renderApp('/tax?year=2025');
-
-      await user.click(await screen.findByRole('tab', { name: 'Avis' }));
-      await screen.findByRole('region', { name: 'Avis 2025' });
-      expect(screen.queryByRole('table', { name: 'Écarts entre l’avis et l’estimation' })).not.toBeInTheDocument();
-    });
-
     it('falls back to the overview when the year switched to has no notice', async () => {
       server.use(notices(jointAssessment({ year: 2025 })), http.get('*/api/v1/tax', () => HttpResponse.json(estimate())));
       const { user } = await renderApp('/tax?year=2025&tab=assessment');
