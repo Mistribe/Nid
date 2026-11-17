@@ -126,6 +126,17 @@ describe('SaleTaxSection', () => {
     expect(s.queryByText('Abattement utilisé', { selector: 'dt' })).not.toBeInTheDocument();
   });
 
+  it('shows the section’s skeleton while the sale loads', async () => {
+    server.use(
+      http.get('*/api/v1/realestate/properties/:id', () => HttpResponse.json(propertyDetail())),
+      http.get('*/api/v1/tax/sale', () => new Promise(() => {})),
+    );
+    const { container } = await renderApp(`/properties/${PROPERTY}`);
+
+    expect(await screen.findByRole('status', { name: 'Calcul de l’impôt' })).toBeInTheDocument();
+    expect(container.querySelector('[data-slot="skeleton"]')).not.toBeNull();
+  });
+
   it('shows a server error inside the titled section', async () => {
     server.use(
       http.get('*/api/v1/realestate/properties/:id', () => HttpResponse.json(propertyDetail())),

@@ -2,6 +2,7 @@ import { useQueries } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { SeriesLink } from '@/components/page/SeriesLink';
+import { Loading, SectionCardSkeleton, TableSkeleton } from '@/components/page/skeletons';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toPlot } from '@/lib/plot';
 import { FIRST_ESTIMATE_YEAR, TAX, type TaxEstimate } from '@/api/tax';
@@ -38,7 +39,7 @@ export function EvolutionTab({ years, assessments, scope, current, adults }: {
   const sizes = rows.map((r) => Math.max(0, toPlot(r.tax)));
   const largest = Math.max(1, ...sizes);
 
-  if (!rows.length) return loading ? <div aria-busy="true" aria-label={t('tax.loading')} className="h-40 shimmer rounded-md border bg-muted" /> : <p className="text-sm text-muted-foreground">{t('tax.evolution.empty')}</p>;
+  if (!rows.length) return loading ? <Loading label={t('tax.loading')}><SectionCardSkeleton><TableSkeleton columns={6} rows={3} /></SectionCardSkeleton></Loading> : <p className="text-sm text-muted-foreground">{t('tax.evolution.empty')}</p>;
   return (
     <>
       <div className="flex flex-wrap items-center justify-between gap-2">

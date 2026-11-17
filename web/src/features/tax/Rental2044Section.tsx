@@ -9,6 +9,7 @@ import { InfoTip } from '@/components/InfoTip';
 import { formatLocalDate } from '@/components/LocalDate';
 import { Section } from '@/components/page/Section';
 import { StatLine } from '@/components/page/StatLine';
+import { Loading, SectionCardSkeleton, TableSkeleton } from '@/components/page/skeletons';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { downloadBlob } from '@/lib/download';
@@ -28,7 +29,7 @@ export function Rental2044Section({ year, scope }: { year: number; scope: 'me' |
   const answer = $api.useQuery('get', TAX_2044, { params: { query: { year, scope } } });
   const view = answer.data;
   if (answer.error) return <ProblemMessage problem={present(toProblem(answer.error))} />;
-  if (!view) return <div aria-busy="true" aria-label={t('tax.loading')} className="h-40 shimmer rounded-md border bg-muted" />;
+  if (!view) return <Loading label={t('tax.loading')}><SectionCardSkeleton><TableSkeleton columns={3} /></SectionCardSkeleton></Loading>;
   const real = view.regime !== 'micro';
   if (real && view.properties.length === 0) return <EmptyState module="/tax" title={t('tax.d2044.empty_title')} body={t('tax.d2044.empty_body')} />;
   return (

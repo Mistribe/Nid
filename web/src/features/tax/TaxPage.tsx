@@ -9,6 +9,7 @@ import { SelectField } from '@/components/form/SelectField';
 import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
 import { FilterField, FilterRow } from '@/components/page/FilterRow';
 import { PageHeader } from '@/components/page/PageHeader';
+import { DetailTabsSkeleton, HeroSkeleton, Loading, SectionCardSkeleton, StatLineSkeleton, TableSkeleton } from '@/components/page/skeletons';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { PERSONS } from '@/api/persons';
@@ -26,6 +27,18 @@ import { useProfileDraft } from './profile/useProfileDraft';
 import { SimulationTab } from './simulation/SimulationTab';
 import { WithholdingTab } from './withholding/WithholdingTab';
 import '@/locales/tax';
+
+/** The page's cold load: the tab strip, then the skeleton of the tab asked for. */
+function TabsLoading({ label, overview }: { label: string; overview: boolean }) {
+  return (
+    <Loading label={label}>
+      <DetailTabsSkeleton tabs={8} />
+      {overview
+        ? <><HeroSkeleton /><StatLineSkeleton items={6} /><SectionCardSkeleton /></>
+        : <SectionCardSkeleton><TableSkeleton columns={2} /></SectionCardSkeleton>}
+    </Loading>
+  );
+}
 
 export const TABS = ['overview', 'detail', 'withholding', 'assessment', 'evolution', 'simulation', 'profile', 'declarations'] as const;
 export type TaxTab = (typeof TABS)[number];
@@ -75,6 +88,7 @@ export function TaxPage() {
   const setForm = (next: '2042' | '2044') => {
     void navigate({ to: '.', replace: true, resetScroll: false, search: ((prev: Record<string, unknown>) => ({ ...prev, form: next === '2044' ? 2044 : undefined })) as never });
   };
+  const pending = (past && awaiting) || (!past && !estimate && !answer.error);
   const assessmentTab = <AssessmentTab notices={notices} persons={people} gaps={estimate?.gaps} adults={estimate?.adults ?? []} />;
   // Held here, not in the tab: Radix unmounts a hidden tab, and the draft outlives a tab switch.
   const draft = useProfileDraft(estimate, scope);
@@ -91,7 +105,7 @@ export function TaxPage() {
           </FilterField>
         </FilterRow>
       </div>
-      {past && awaiting ? <div aria-busy="true" aria-label={t('tax.loading')} className="h-40 shimmer rounded-md border bg-muted" /> : null}
+      {pending ? <TabsLoading label={t('tax.loading')} overview={tab === 'overview'} /> : null}
       {past && !awaiting && notices.length ? (
         // A year before the estimates: its notices, then the years side by side. The overview is Avis here, so it stays out of the URL.
         <DetailTabs value={rawTab === 'evolution' ? 'evolution' : 'assessment'} onChange={(next) => setTab(next === 'assessment' ? 'overview' : next)} tabs={[
@@ -101,7 +115,6 @@ export function TaxPage() {
         ]} />
       ) : null}
       {!past && answer.error ? <ProblemMessage problem={present(toProblem(answer.error))} /> : null}
-      {!past && !estimate && !answer.error ? <div aria-busy="true" aria-label={t('tax.loading')} className="h-40 shimmer rounded-md border bg-muted" /> : null}
       {estimate ? (
         <DetailTabs value={tab} onChange={setTab} tabs={[
           { id: 'overview', label: t('tax.tab.overview'), content: <OverviewTab estimate={estimate} onTab={setTab} /> },

@@ -14,6 +14,38 @@ import { ADULT, estimate, result } from './taxTestData';
 describe('TaxPage', () => {
   beforeAll(async () => { await import('./TaxPage'); }, 30_000);
 
+  it('a cold load shows the overview’s skeleton, not a grey block', async () => {
+    server.use(http.get('*/api/v1/tax', () => new Promise(() => {})));
+    const { container } = await renderApp('/tax');
+
+    const status = await screen.findByRole('status', { name: 'Calcul de l’impôt' });
+    expect(container.querySelector('[data-slot="skeleton"]')).not.toBeNull();
+    expect(status.querySelector('[class*="rounded-[22px]"]')).not.toBeNull();
+  });
+
+  it('the Évolution tab loads with a card skeleton', async () => {
+    server.use(
+      http.get('*/api/v1/tax/assessments', () => HttpResponse.json({ items: [{ ...soloAssessment({ year: 2024 }), netTax: undefined }] })),
+      http.get('*/api/v1/tax', () => new Promise(() => {})),
+    );
+    const { container } = await renderApp('/tax?tab=evolution&year=2024');
+
+    await screen.findByRole('tab', { name: 'Évolution' });
+    expect(screen.getByRole('status', { name: 'Calcul de l’impôt' })).toBeInTheDocument();
+    expect(container.querySelector('[data-slot="skeleton"]')).not.toBeNull();
+  });
+
+  it('the 2044 loads with a card skeleton', async () => {
+    server.use(
+      http.get('*/api/v1/tax', () => HttpResponse.json(estimate())),
+      http.get('*/api/v1/tax/2044', () => new Promise(() => {})),
+    );
+    await renderApp('/tax?tab=declarations&form=2044');
+
+    await screen.findByRole('radiogroup', { name: /formulaire/i });
+    expect(screen.getByRole('status', { name: 'Calcul de l’impôt' })).toBeInTheDocument();
+  });
+
   it('shows the steps and the declarants’ incomes', async () => {
     server.use(http.get('*/api/v1/tax', () => HttpResponse.json(estimate())));
     const { container, user } = await renderApp('/tax?tab=detail');
