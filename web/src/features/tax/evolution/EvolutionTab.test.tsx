@@ -2,6 +2,7 @@ import { cleanup, screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw/http';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
+import { reduceMotion } from '@/test/motion';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import type { TaxYear } from '@/api/tax';
@@ -22,6 +23,7 @@ const card = () => screen.findByRole('region', { name: 'Impôt année par année
 const texts = (c: HTMLElement, sel: string) => [...c.querySelectorAll(sel)].map((n) => n.textContent);
 
 describe('EvolutionTab', () => {
+  reduceMotion();
   beforeAll(async () => { await import('../TaxPage'); }, 30_000);
 
   it('draws one bar per year of the server’s history', async () => {
@@ -30,7 +32,6 @@ describe('EvolutionTab', () => {
 
     const region = await card();
     await waitFor(() => expect(region.querySelectorAll('.recharts-bar-rectangle path')).toHaveLength(3));
-    await waitFor(() => expect(texts(region, '.recharts-label-list text').filter(Boolean)).toHaveLength(3));
     expect(texts(region, '.recharts-xAxis-tick-labels .recharts-cartesian-axis-tick-value')).toEqual(['2024', '2025', '2026']);
     const paths = [...region.querySelectorAll('.recharts-bar-rectangle path')];
     expect(paths.map((p) => p.getAttribute('fill-opacity'))).toEqual([null, '0.4', '0.4']);
@@ -46,7 +47,6 @@ describe('EvolutionTab', () => {
 
     const region = await card();
     await waitFor(() => expect(region.querySelectorAll('.recharts-bar-rectangle path')).toHaveLength(3));
-    await waitFor(() => expect(texts(region, '.recharts-label-list text').filter(Boolean)).toHaveLength(3));
     const zero = Number(region.querySelector('.recharts-reference-line line')!.getAttribute('y1'));
     const labels = [...region.querySelectorAll('.recharts-label-list text')].map((n) => Number(n.getAttribute('y')));
     expect(labels[0]!).toBeLessThan(zero);

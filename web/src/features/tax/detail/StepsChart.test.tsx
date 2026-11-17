@@ -1,6 +1,7 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type { TaxStep } from '@/api/tax';
+import { reduceMotion } from '@/test/motion';
 import { result } from '../taxTestData';
 import { StepsChart, StepsTable } from './StepsChart';
 
@@ -9,6 +10,7 @@ const group = (g: string) => steps.filter((s) => s.group === g);
 const ticks = (c: HTMLElement) => [...c.querySelectorAll('.recharts-yAxis-tick-labels .recharts-cartesian-axis-tick-value')].map((n) => n.textContent);
 
 describe('StepsChart', () => {
+  reduceMotion();
   it('draws one floating bar per step, coloured by what it does', async () => {
     const { container } = render(<StepsChart steps={group('income')} title="Votre revenu imposable" />);
     await waitFor(() => expect(container.querySelectorAll('.recharts-bar-rectangle path')).toHaveLength(3));

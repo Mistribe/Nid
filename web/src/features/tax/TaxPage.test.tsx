@@ -173,7 +173,7 @@ describe('TaxPage', () => {
     expect(within(nav).getAllByRole('link').map((l) => l.getAttribute('href'))).toEqual(['#foyer', '#activite', '#retraite', '#depenses', '#placements', '#exoneres']);
     expect(within(nav).getByRole('link', { name: /Dépenses de l’année/ })).toHaveTextContent('à revoir');
     expect(within(nav).getByRole('link', { name: /Foyer/ })).not.toHaveTextContent('à revoir');
-    expect(screen.getByText(/Repris du profil de 2025/)).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Profil repris d’une autre année' })).toHaveTextContent(/Repris du profil de 2025/);
   });
 
   it('sends nothing and focuses the first invalid field on save', async () => {

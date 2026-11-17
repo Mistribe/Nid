@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { present, toProblem } from '@/api/errors';
 import { ProblemMessage } from '@/components/ProblemMessage';
+import { SectionCard } from '@/components/page/SectionCard';
 import { AlertTriangle } from 'lucide-react';
 import type { TaxEstimate } from '@/api/tax';
 import { ActivitySection } from './ActivitySection';
@@ -31,10 +32,9 @@ export function ProfileForm({ estimate, draft }: { estimate: TaxEstimate; draft:
   return (
     <div className="space-y-4">
       {estimate.profileFrom ? (
-        <div className="flex gap-3 rounded-xl border border-status-warning/60 bg-status-warning/10 p-4 text-sm">
-          <AlertTriangle aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-status-warning" />
-          <p>{t('tax.profile.from', { year: estimate.profileFrom })}</p>
-        </div>
+        <SectionCard title={t('tax.profile.from_title')} icon={<AlertTriangle aria-hidden className="size-4 text-status-warning" />}>
+          <p className="text-sm">{t('tax.profile.from', { year: estimate.profileFrom })}</p>
+        </SectionCard>
       ) : <p className="text-sm text-muted-foreground">{t('tax.profile.help')}</p>}
       {draft.problem ? <ProblemMessage problem={present(toProblem(draft.problem))} /> : null}
       <div className="flex flex-wrap items-start gap-10">
