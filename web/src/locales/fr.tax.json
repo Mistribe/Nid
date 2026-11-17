@@ -72,8 +72,28 @@
       "no_balance": "Aucun solde",
       "adjust": "Ajuster le taux de prélèvement"
     },
+    "hero": {
+      "label": "Impôt total {{year}} · estimation",
+      "change_of": "Impôt sur le revenu",
+      "since_assessment": "par rapport à l’avis {{year}}",
+      "since_estimate": "par rapport à l’estimation {{year}}"
+    },
+    "balance": {
+      "none": "Rien à régler",
+      "refund": "Remboursé en été {{year}}",
+      "to_pay": "À payer en septembre {{year}}"
+    },
+    "overview": {
+      "left_monthly": "Reste par mois",
+      "net_taxable": "Revenu imposable",
+      "marginal_rate": "Votre tranche d’imposition",
+      "withholding_rate": "Taux de prélèvement",
+      "parts": "Parts du foyer",
+      "adjust": "Ajuster le prélèvement"
+    },
     "split": {
-      "title": "Où vont les {{amount}} de revenus nets avant impôt",
+      "title": "Où vont vos revenus",
+      "note": "sur {{amount}} de revenus nets avant impôt",
       "left": "Reste"
     },
     "declarant": {
@@ -165,6 +185,7 @@
       "change": "Changer de régime dans le Profil fiscal"
     },
     "tip": {
+      "left_monthly": "Ce qui reste de vos revenus nets chaque mois, une fois l’impôt total retiré.",
       "allowance": "Le fisc retire d’office 10 % de vos salaires pour couvrir vos frais de travail (trajets, repas). Si vos vrais frais sont plus élevés, vous pouvez les déclarer à la place : ce sont les « frais réels ».",
       "pensions": "Retraites et pensions alimentaires reçues, au montant net imposable quand il est saisi sur la période, sinon au net versé.",
       "pension_allowance": "Le fisc retire 10 % des pensions, au moins 454 € par retraité et au plus 4 439 € pour tout le foyer, partagés entre les déclarants.",

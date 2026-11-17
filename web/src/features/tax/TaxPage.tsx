@@ -218,7 +218,7 @@ function Split({ result: r }: { result: TaxEstimate['result'] }) {
   if (parts.length < 2) return null;
   return (
     <figure className="space-y-2">
-      <figcaption className="text-sm text-muted-foreground">{t('tax.split.title', { amount: eur(r.netBeforeTax) })}</figcaption>
+      <figcaption className="text-sm text-muted-foreground">{t('tax.split.note', { amount: eur(r.netBeforeTax) })}</figcaption>
       <div role="img" aria-label={parts.map((p) => p.text).join(', ')} className="flex h-3.5 gap-0.5 overflow-hidden rounded-full">
         {parts.map((p) => <div key={p.label} className={p.colour} style={{ flexGrow: p.size }} />)}
       </div>

@@ -1,4 +1,4 @@
-import type { TaxEstimate, TaxResult } from '@/api/tax';
+import type { TaxEstimate, TaxPrevious, TaxResult, TaxYear } from '@/api/tax';
 
 export const ADULT = '0192f0aa-0000-7000-8000-0000000000a1';
 
@@ -30,3 +30,10 @@ export const estimate = (): TaxEstimate => ({
   adults: [{ id: ADULT, displayName: 'Alice' }],
   salaryDetail: [], observedRates: {},
 });
+
+export const previous = (over: Partial<TaxPrevious> = {}): TaxPrevious => ({ year: 2025, source: 'assessment', tax: '7000.00', change: '360.00', changePct: '5.1', ...over });
+
+export const history = (): TaxYear[] => [
+  { year: 2025, source: 'assessment', tax: '7000.00', netTaxable: '60000.00', averageRate: '10.1' },
+  { year: 2026, source: 'estimate', tax: '7360.00', netTaxable: '64407.00', averageRate: '10.7' },
+];

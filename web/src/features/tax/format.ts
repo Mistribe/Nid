@@ -46,6 +46,11 @@ export function percentText(t: TFunction, value: string): string {
   return t('tax.percent', { value: new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 }).format(value as `${number}`) });
 }
 
+/** A signed percent from the server (`"5.1"` → `+5,1 %`, zero unsigned). */
+export function signedPercentText(t: TFunction, value: string): string {
+  return t('tax.percent', { value: new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1, signDisplay: 'exceptZero' }).format(value as `${number}`) });
+}
+
 const LINES = ['211', '215', '221', '222', '223', '224', '227', '229', '230', '240', '250', '263', '420', '435', '438', '440', '441', '4BA', '4BE'] as const;
 /** The form's deficit lines for the 4BC and 4BB cases: 435 and 438 when the interest exceeds the gross rents, 440 and 441 otherwise. */
 export function deficitLines(interestDeficit: string): readonly [string, string] {
