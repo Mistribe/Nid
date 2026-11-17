@@ -664,4 +664,71 @@ public class TaxEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresF
 
         Assert.DoesNotContain(estimate.GetProperty("notices").EnumerateArray(), n => n.GetProperty("code").GetString() == "per_without_contributions");
     }
+
+    private static async Task<(JsonElement Estimate, Dictionary<string, JsonElement> Body)> SalariedAsync(NidApp app)
+    {
+        var source = await app.NewIncomeSourceAsync("Salaire A", app.AdultA);
+        await AddPhaseAsync(app, app.AdultA, source, "90000", "120000");
+        var estimate = await EstimateAsync(app, app.AdultA, 2025, "household");
+        return (estimate, JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(estimate.GetProperty("inputs").GetRawText())!);
+    }
+
+    private static async Task<JsonElement> SimulateAsync(NidApp app, object body, string query)
+        => JsonDocument.Parse(await (await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/tax/simulate" + query, body)).EnsureSuccessStatusCode()
+            .Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement;
+
+    [Fact]
+    public async Task Simulate_with_scope_gives_differences()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var (estimate, body) = await SalariedAsync(app);
+        var declarant = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(body["declarants"][0].GetRawText())!;
+        declarant["perContributions"] = JsonSerializer.SerializeToElement("3000.00");
+        declarant["perCeiling"] = JsonSerializer.SerializeToElement("20000.00");
+        body["declarants"] = JsonSerializer.SerializeToElement(new[] { declarant }.Concat(body["declarants"].EnumerateArray().Skip(1).Select(d => JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(d.GetRawText())!)));
+
+        var simulated = await SimulateAsync(app, body, "?scope=household");
+
+        var differences = simulated.GetProperty("differences");
+        var expected = DecimalOf(simulated, "totalTax") - DecimalOf(estimate.GetProperty("result"), "totalTax");
+        Assert.True(expected < 0m);
+        Assert.Equal(expected, DecimalOf(differences, "totalTax"));
+        Assert.Equal(DecimalOf(simulated, "netAfterTaxMonthly") - DecimalOf(estimate.GetProperty("result"), "netAfterTaxMonthly"), DecimalOf(differences, "netAfterTaxMonthly"));
+        Assert.Equal(DecimalOf(simulated.GetProperty("withholding"), "balance") - DecimalOf(estimate.GetProperty("result").GetProperty("withholding"), "balance"), DecimalOf(differences, "balance"));
+    }
+
+    [Fact]
+    public async Task Simulate_with_an_invalid_scope_answers_400()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var (_, body) = await SalariedAsync(app);
+
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/tax/simulate?scope=nobody", body);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Simulate_unchanged_inputs_give_zero_differences()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var (_, body) = await SalariedAsync(app);
+
+        var differences = (await SimulateAsync(app, body, "?scope=household")).GetProperty("differences");
+
+        Assert.Equal(0m, DecimalOf(differences, "totalTax"));
+        Assert.Equal(0m, DecimalOf(differences, "netAfterTaxMonthly"));
+        Assert.Equal(0m, DecimalOf(differences, "balance"));
+    }
+
+    [Fact]
+    public async Task Simulate_without_scope_has_no_differences()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var (_, body) = await SalariedAsync(app);
+
+        var simulated = await SimulateAsync(app, body, "");
+
+        Assert.True(!simulated.TryGetProperty("differences", out var d) || d.ValueKind == JsonValueKind.Null);
+    }
 }

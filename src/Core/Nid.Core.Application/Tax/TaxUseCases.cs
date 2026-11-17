@@ -22,7 +22,7 @@ public sealed record SaveTaxProfileCommand(int Year, TaxProfile Profile, Visibil
 public sealed record GetRental2044Query(int? Year, VisibilityScope Scope) : IQuery<Rental2044View>;
 
 /// <summary>Tax estimate spec §8: the calculation of given inputs; nothing is read nor stored.</summary>
-public sealed record SimulateTaxQuery(TaxInputs Inputs) : IQuery<TaxResultView>;
+public sealed record SimulateTaxQuery(TaxInputs Inputs, VisibilityScope? Scope = null) : IQuery<TaxResultView>;
 
 /// <summary>Sale tax spec §6: with <c>ItemId</c>, that item's page among everything the reader sees; without, the scope's total.</summary>
 public sealed record GetSaleTaxQuery(VisibilityScope Scope, ItemId? ItemId) : IQuery<SaleTaxView>, IOptionalItemScoped
@@ -32,6 +32,9 @@ public sealed record GetSaleTaxQuery(VisibilityScope Scope, ItemId? ItemId) : IQ
 
 /// <summary>Issue #410: what changed since last year in the year's estimate, line by line (this year by default).</summary>
 public sealed record GetTaxChangesQuery(int? Year, VisibilityScope Scope) : IQuery<TaxChangesView>;
+
+/// <summary>Issue #307: the household's tax year by year, up to this year.</summary>
+public sealed record GetTaxHistoryQuery(VisibilityScope Scope) : IQuery<TaxHistoryView>;
 
 public static class TaxCodes
 {
@@ -81,6 +84,16 @@ public sealed class GetTaxChangesHandler(TaxEstimates estimates, ITaxAssessmentS
     }
 }
 
+[RequestHandler<GetTaxHistoryQuery, TaxHistoryView>]
+public sealed class GetTaxHistoryHandler(TaxEstimates estimates, IHouseholdCalendar calendar) : IRequestHandler<GetTaxHistoryQuery, TaxHistoryView>
+{
+    public async ValueTask<Result<TaxHistoryView>> HandleAsync(GetTaxHistoryQuery query, CancellationToken ct = default)
+    {
+        var today = await calendar.TodayAsync(ct);
+        return (await estimates.HistoryAsync(today.Year, query.Scope, today, ct)).Map(years => new TaxHistoryView(years));
+    }
+}
+
 [RequestHandler<GetRental2044Query, Rental2044View>]
 public sealed class GetRental2044Handler(TaxEstimates estimates, IHouseholdCalendar calendar) : IRequestHandler<GetRental2044Query, Rental2044View>
 {
@@ -117,17 +130,29 @@ public sealed class SaveTaxProfileHandler(TaxEstimates estimates, ITaxProfileSto
 }
 
 [RequestHandler<SimulateTaxQuery, TaxResultView>]
-public sealed class SimulateTaxHandler(IHouseholdCalendar calendar) : IRequestHandler<SimulateTaxQuery, TaxResultView>
+public sealed class SimulateTaxHandler(IHouseholdCalendar calendar, TaxEstimates estimates) : IRequestHandler<SimulateTaxQuery, TaxResultView>
 {
     public async ValueTask<Result<TaxResultView>> HandleAsync(SimulateTaxQuery query, CancellationToken ct = default)
     {
         var inputs = query.Inputs;
-        if (TaxEstimates.CheckYear(inputs.Year, await calendar.TodayAsync(ct)) is { } failure)
+        var today = await calendar.TodayAsync(ct);
+        if (TaxEstimates.CheckYear(inputs.Year, today) is { } failure)
             return Result.Failure<TaxResultView>(failure);
         if (inputs.Declarants.Count is < 1 or > 2 || inputs.Declarants.Any(d => d.ContributionRate is { } r && !TaxEstimates.RateOk(r) || d.SalaryTaxable < 0m || d.PerCeiling < 0m || d.PreviousYearIncome < 0m || d.PerExpiring < 0m) || inputs.Dependents is < 0 or > 20 || inputs.ChildrenUnder6 < 0 || inputs.ChildrenUnder6 > inputs.Dependents || inputs.AlimonyAdultChildrenCount is < 0 or > 20 || inputs.AlternateCustody < 0 || inputs.AlternateCustody > inputs.Dependents || inputs.DisabledDependents < 0 || inputs.DisabledDependents > inputs.Dependents)
             return Result.Failure<TaxResultView>(new Failure(TaxCodes.InvalidInputs,
                 "One or two declarants, their entered net taxable income, PER ceiling, previous-year income and expiring ceiling not negative; dependents between 0 and 20, the children under 6 among them; adult children receiving alimony between 0 and 20; the children in alternate custody and the disabled ones among the dependents.", null));
-        return Result.Success(TaxResultView.Of(TaxCalculator.Compute(inputs)));
+        var simulated = TaxCalculator.Compute(inputs);
+        var view = TaxResultView.Of(simulated);
+        if (query.Scope is not { } scope) return Result.Success(view);
+        var estimate = await estimates.ComputeAsync(inputs.Year, scope, today, ct);
+        if (estimate.TryGetFailure(out var estimateFailure)) return Result.Failure<TaxResultView>(estimateFailure!);
+        estimate.TryGetValue(out var before);
+        return Result.Success(view with
+        {
+            Differences = new TaxDifferencesView(
+                TaxEstimates.Amount(simulated.TotalTax - before!.TotalTax), TaxEstimates.Amount(simulated.NetAfterTaxMonthly - before.NetAfterTaxMonthly),
+                TaxEstimates.Amount(simulated.Withholding.Balance - before.Withholding.Balance)),
+        });
     }
 }
 
@@ -144,6 +169,8 @@ public sealed class TaxEstimates(
         var (inputs, notices, columns) = Assemble(year, lines, r.Effective, people, previous, r.ReferenceBefore);
         var adults = Adults(people);
         var result = TaxCalculator.Compute(inputs);
+        // The history below asks for this very year: hand it the figure instead of reading every module again.
+        computed[(actor.Current!.PersonId!.Value, year, scope, today)] = new TaxComputation(result, lines.Count > 0 || stored?.Year == year);
         var declaration = Declaration(year, lines, inputs, result, columns, notices);
         // The deficit last year's estimate leaves, offered only where no notice of last year prints its own and a property is rented.
         string? deficitEstimated = null;
@@ -158,6 +185,18 @@ public sealed class TaxEstimates(
         IReadOnlyList<IReadOnlyList<string>> perEnvelopes = adults
             .Select(a => (IReadOnlyList<string>)lines.Where(l => l.Code == TaxLineCodes.PerContribution && l.Person == a.Id)
                 .Select(l => l.Name).Distinct().Order(StringComparer.Ordinal).ToList()).ToList();
+        var historyRead = await HistoryAsync(year, scope, today, ct);
+        if (historyRead.TryGetFailure(out failure)) return Result.Failure<TaxEstimateView>(failure!);
+        historyRead.TryGetValue(out var history);
+        var thisYear = result.IncomeTax + result.CapitalFlatTax;
+        var lastYear = history!.FirstOrDefault(y => y.Year == year - 1);
+        TaxPreviousView? previousYear = null;
+        if (lastYear is not null)
+        {
+            var was = decimal.Parse(lastYear.Tax, CultureInfo.InvariantCulture);
+            previousYear = new TaxPreviousView(lastYear.Year, lastYear.Source, lastYear.Tax, Amount(Math.Round(thisYear, 2, MidpointRounding.AwayFromZero) - was),
+                was == 0m ? null : Math.Round((Math.Round(thisYear, 2, MidpointRounding.AwayFromZero) - was) / Math.Abs(was) * 100m, 1, MidpointRounding.AwayFromZero).ToString("0.0", CultureInfo.InvariantCulture));
+        }
         return Result.Success(new TaxEstimateView(
             year, TaxProfileView.Of(stored?.Profile ?? TaxProfile.Empty), stored is { } s && s.Year != year ? s.Year : null,
             TaxInputsView.Of(inputs, perEnvelopes), TaxResultView.Of(result, adults.Select(a => a.Id.Value).ToList()), notices,
@@ -170,7 +209,48 @@ public sealed class TaxEstimates(
             adults.Select(a => (a.Id.Value, Rate: ObservedRate(lines, a.Id))).Where(x => x.Rate is not null)
                 .ToDictionary(x => x.Value, x => Percent(x.Rate!.Value)),
             r.Carry is { } carry ? TaxCarryView.Of(carry) : null, GapsOf(r.YearNotices, result, adults.Select(a => a.Id.Value).ToList()), deficitEstimated,
-            declaration));
+            declaration, previousYear, history));
+    }
+
+    /// <summary>
+    /// Issue #307: each year from the earliest notice (or the first year of the rules) to <paramref name="upTo"/>: the notice's net tax when
+    /// the reader has one (as <see cref="GetTaxChangesHandler"/> reads them), else the year's estimate, else the year is left out.
+    /// </summary>
+    public async Task<Result<IReadOnlyList<TaxYearView>>> HistoryAsync(int upTo, VisibilityScope scope, NodaTime.LocalDate today, CancellationToken ct)
+    {
+        var people = await persons.ListAsync(ct);
+        var notices = (await assessments.ListForAsync(actor.Current!.PersonId!.Value, null, ct))
+            .Where(n => n.Assessment.NetTax is not null && n.Assessment.Year <= upTo && (scope != VisibilityScope.Household || TaxAssessmentAccess.InHousehold(n.Assessment, people)))
+            .Select(n => n.Assessment).ToList();
+        var years = new List<TaxYearView>();
+        for (var year = Math.Min(TaxRules.FirstYear, notices.Select(n => n.Year).DefaultIfEmpty(upTo).Min()); year <= upTo; year++)
+        {
+            var own = notices.Where(n => n.Year == year).ToList();
+            if (own.Count > 0)
+            {
+                // Two separate notices of a year add up (as the reference incomes do); the rate is only meaningful for one.
+                var single = own.Count == 1 ? own[0] : null;
+                years.Add(new TaxYearView(year, "assessment", Amount(own.Sum(n => n.NetTax!.Value)),
+                    own.All(n => n.TaxableIncome is not null) ? Amount(own.Sum(n => n.TaxableIncome!.Value)) : null,
+                    single?.AverageRate is { } rate ? Percent(rate / 100m) : null));
+            }
+            else if (year >= TaxRules.FirstYear)
+            {
+                var computed = await ComputeWithDataAsync(year, scope, today, ct);
+                if (computed.TryGetFailure(out var failure))
+                {
+                    // A failing earlier year is no point on the curve; the year shown still fails the request.
+                    if (year != upTo) continue;
+                    return Result.Failure<IReadOnlyList<TaxYearView>>(failure!);
+                }
+                computed.TryGetValue(out var data);
+                // The year shown (upTo) always stands; an earlier year with nothing to estimate from is no point on the curve.
+                if (!data!.HasData && year != upTo) continue;
+                var r = data.Result;
+                years.Add(new TaxYearView(year, "estimate", Amount(r!.IncomeTax + r.CapitalFlatTax), Amount(r.NetTaxableIncome), r.AverageRate is { } a ? Percent(a) : null));
+            }
+        }
+        return Result.Success<IReadOnlyList<TaxYearView>>(years);
     }
 
     /// <summary>The notices of what the estimate leaves out, so of the boxes the household fills itself.</summary>

@@ -16,10 +16,22 @@ public sealed record TaxEstimateView(
     int Year, TaxProfileView Profile, int? ProfileFrom, TaxInputsView Inputs, TaxResultView Result, IReadOnlyList<TaxNoticeView> Notices,
     IReadOnlyList<TaxAdultView> Adults, int Dependents, IReadOnlyList<TaxPropertyView> RentalProperties,
     IReadOnlyList<TaxSalaryDetailView> SalaryDetail, IReadOnlyDictionary<Guid, string> ObservedRates,
-    TaxCarryView? CarriedFrom = null, TaxGapsView? Gaps = null, string? RentalDeficitEstimated = null, TaxDeclarationView? Declaration = null) : IExposesItems
+    TaxCarryView? CarriedFrom = null, TaxGapsView? Gaps = null, string? RentalDeficitEstimated = null, TaxDeclarationView? Declaration = null,
+    TaxPreviousView? Previous = null, IReadOnlyList<TaxYearView>? History = null) : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems() => Notices.Select(n => n.Item).Concat(RentalProperties.Select(p => p.Id)).Concat(SalaryDetail.Select(d => d.Item));
 }
+
+/// <summary>
+/// Issue #307: a year's tax for the history curve: <c>Source</c> <c>assessment</c> (the notice's net tax, flat tax included) or <c>estimate</c>
+/// (income tax plus flat tax); <c>AverageRate</c> a percent.
+/// </summary>
+public sealed record TaxYearView(int Year, string Source, string Tax, string? NetTaxable, string? AverageRate);
+
+/// <summary>Issue #307: the year before, <c>Change</c> this year's tax minus <c>Tax</c> (signed), <c>ChangePct</c> to one decimal (null when <c>Tax</c> is 0).</summary>
+public sealed record TaxPreviousView(int Year, string Source, string Tax, string Change, string? ChangePct);
+
+public sealed record TaxHistoryView(IReadOnlyList<TaxYearView> Years);
 
 /// <summary>
 /// Issue #233: the 2042 boxes to fill (<c>Code</c> as the form prints it, <c>Person</c> the declarant, null for the household's; whole
@@ -173,9 +185,26 @@ public sealed record TaxDeclarantPerView(
 }
 
 /// <summary>Tax-per spec §4.3: the household's PER. <c>TaxSaved</c> the tax the deductions save; <c>RoomInBracket</c> the income left in the marginal bracket.</summary>
-public sealed record TaxPerView(bool Pooled, string Remaining, string TaxSaved, string RoomInBracket)
+public sealed record TaxPerView(bool Pooled, string Remaining, string TaxSaved, string RoomInBracket, string RemainingTaxSaved = "0.00")
 {
-    public static TaxPerView Of(PerHousehold p) => new(p.Pooled, Amount(p.Remaining), Amount(p.TaxSaved), Amount(p.RoomInBracket));
+    public static TaxPerView Of(PerHousehold p) => new(p.Pooled, Amount(p.Remaining), Amount(p.TaxSaved), Amount(p.RoomInBracket), Amount(p.RemainingTaxSaved));
+}
+
+/// <summary>One step of the walk from the income to the tax (<c>TaxStep</c>).</summary>
+public sealed record TaxStepView(string Code, string Group, string Amount, string From, string To);
+
+/// <summary>A band of the scale: <c>To</c> null for the top one; <c>Rate</c> a percent.</summary>
+public sealed record TaxBandView(string From, string? To, string Rate);
+
+/// <summary>A simulation minus the estimate of the same year, signed: what the change brings.</summary>
+public sealed record TaxDifferencesView(string TotalTax, string NetAfterTaxMonthly, string Balance);
+
+/// <summary>The household's place on the scale (<see cref="TaxBracketPosition"/>); the page compares a band's <c>Rate</c> with the marginal rate.</summary>
+public sealed record TaxBracketView(IReadOnlyList<TaxBandView> Bands, string Quotient, string? NextFrom, string? ToNext, string DisplayEnd)
+{
+    public static TaxBracketView Of(TaxBracketPosition p) => new(
+        p.Bands.Select(b => new TaxBandView(Amount(b.From), b.To is { } to ? Amount(to) : null, TaxResultView.Rate(b.Rate))).ToList(),
+        Amount(p.Quotient), p.NextFrom is { } n ? Amount(n) : null, p.ToNext is { } t ? Amount(t) : null, Amount(p.DisplayEnd));
 }
 
 /// <summary>
@@ -198,7 +227,8 @@ public sealed record TaxResultView(
     IReadOnlyList<string> Warnings, WithholdingView Withholding, TaxPerView? Per = null, string ReferenceIncome = "0.00", string? RentalRegimeGap = null,
     string RentalDeficitCarriedForward = "0.00", bool CapitalScale = false, string? CapitalOptionGap = null, string DividendAllowance = "0.00",
     string DeductibleCsgNextYear = "0.00", string HighIncomeContribution = "0.00", bool HighIncomeSmoothed = false, string AlimonyDeducted = "0.00",
-    string RealisedGainsTaxable = "0.00", string CapitalLossesCarriedForward = "0.00", string AgeDisabilityAllowance = "0.00")
+    string RealisedGainsTaxable = "0.00", string CapitalLossesCarriedForward = "0.00", string AgeDisabilityAllowance = "0.00",
+    IReadOnlyList<TaxStepView>? Steps = null, TaxBracketView? Bracket = null, TaxDifferencesView? Differences = null)
 {
     /// <summary><paramref name="persons"/>: the adults' ids in the order of the declarants (the estimate's); a simulation passes none.</summary>
     public static TaxResultView Of(TaxResult r, IReadOnlyList<Guid>? persons = null) => new(
@@ -213,7 +243,9 @@ public sealed record TaxResultView(
         r.Warnings, WithholdingView.Of(r.Withholding), r.Per is { } household ? TaxPerView.Of(household) : null, Amount(r.ReferenceIncome),
         r.RentalRegimeGap is { } gap ? Amount(gap) : null, Amount(r.RentalDeficitCarriedForward),
         r.CapitalScale, r.CapitalOptionGap is { } option ? Amount(option) : null, Amount(r.DividendAllowance), Amount(r.DeductibleCsgNextYear),
-        Amount(r.HighIncomeContribution), r.HighIncomeSmoothed, Amount(r.AlimonyDeducted), Amount(r.RealisedGainsTaxable), Amount(r.CapitalLossesCarriedForward), Amount(r.AgeDisabilityAllowance));
+        Amount(r.HighIncomeContribution), r.HighIncomeSmoothed, Amount(r.AlimonyDeducted), Amount(r.RealisedGainsTaxable), Amount(r.CapitalLossesCarriedForward), Amount(r.AgeDisabilityAllowance),
+        (r.Steps ?? []).Select(s => new TaxStepView(s.Code, s.Group, Amount(s.Amount), Amount(s.From), Amount(s.To))).ToList(),
+        r.Bracket is { } b ? TaxBracketView.Of(b) : null);
 
     private static string? WireMethod(SalaryMethod method) => method switch
     {
@@ -223,7 +255,7 @@ public sealed record TaxResultView(
         _ => null,
     };
 
-    private static string Rate(decimal rate) => (rate * 100).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+    internal static string Rate(decimal rate) => (rate * 100).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
 }
 
 /// <summary><c>Pensions</c>: the pensions to declare beside the salaries, both withheld at the rate.</summary>

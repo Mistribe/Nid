@@ -22806,6 +22806,97 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/tax/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    scope?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TaxHistoryView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tax/2044": {
         parameters: {
             query?: never;
@@ -23098,7 +23189,9 @@ export interface paths {
         put?: never;
         post: {
             parameters: {
-                query?: never;
+                query?: {
+                    scope?: string;
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -36057,6 +36150,18 @@ export interface components {
             childcareExpenses?: null | components["schemas"]["DashboardMoneyView"];
             effectiveAverageRate?: null | string;
         };
+        TaxBandView: {
+            from: string;
+            to?: null | string;
+            rate: string;
+        };
+        TaxBracketView: {
+            bands: components["schemas"]["TaxBandView"][];
+            quotient: string;
+            nextFrom?: null | string;
+            toNext?: null | string;
+            displayEnd: string;
+        };
         TaxCarryView: {
             /** Format: int32 */
             year: number;
@@ -36153,6 +36258,11 @@ export interface components {
             boxes: components["schemas"]["Tax2042BoxView"][];
             toEnter: components["schemas"]["TaxNoticeView"][];
         };
+        TaxDifferencesView: {
+            totalTax: string;
+            netAfterTaxMonthly: string;
+            balance: string;
+        };
         TaxEstimateView: {
             /** Format: int32 */
             year: number;
@@ -36174,6 +36284,8 @@ export interface components {
             gaps?: null | components["schemas"]["TaxGapsView"];
             rentalDeficitEstimated?: null | string;
             declaration?: null | components["schemas"]["TaxDeclarationView"];
+            previous?: null | components["schemas"]["TaxPreviousView"];
+            history?: null | components["schemas"]["TaxYearView"][];
         };
         TaxGapLineView: {
             code: string;
@@ -36186,6 +36298,9 @@ export interface components {
             assessment: string;
             lines: components["schemas"]["TaxGapLineView"][];
             declarants: components["schemas"]["TaxDeclarantGapView"][];
+        };
+        TaxHistoryView: {
+            years: components["schemas"]["TaxYearView"][];
         };
         TaxInputsView: {
             /** Format: int32 */
@@ -36266,6 +36381,16 @@ export interface components {
             remaining: string;
             taxSaved: string;
             roomInBracket: string;
+            /** @default 0.00 */
+            remainingTaxSaved: string;
+        };
+        TaxPreviousView: {
+            /** Format: int32 */
+            year: number;
+            source: string;
+            tax: string;
+            change: string;
+            changePct?: null | string;
         };
         TaxProfileBody: {
             statuses?: null | {
@@ -36459,6 +36584,9 @@ export interface components {
             capitalLossesCarriedForward: string;
             /** @default 0.00 */
             ageDisabilityAllowance: string;
+            steps?: null | components["schemas"]["TaxStepView"][];
+            bracket?: null | components["schemas"]["TaxBracketView"];
+            differences?: null | components["schemas"]["TaxDifferencesView"];
         };
         TaxReviewView: {
             totalTax?: null | components["schemas"]["DashboardMoneyView"];
@@ -36478,6 +36606,21 @@ export interface components {
             note?: null | string;
             category: string;
             amount: string;
+        };
+        TaxStepView: {
+            code: string;
+            group: string;
+            amount: string;
+            from: string;
+            to: string;
+        };
+        TaxYearView: {
+            /** Format: int32 */
+            year: number;
+            source: string;
+            tax: string;
+            netTaxable?: null | string;
+            averageRate?: null | string;
         };
         TenancyRevisionView: {
             state: string;

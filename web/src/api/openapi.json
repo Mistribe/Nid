@@ -24308,6 +24308,94 @@
         }
       }
     },
+    "/api/v1/tax/history": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "scope",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaxHistoryView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/tax/2044": {
       "get": {
         "tags": [
@@ -24611,6 +24699,15 @@
       "post": {
         "tags": [
           "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "scope",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
         ],
         "requestBody": {
           "content": {
@@ -58383,6 +58480,61 @@
           }
         }
       },
+      "TaxBandView": {
+        "required": [
+          "from",
+          "rate"
+        ],
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string"
+          },
+          "to": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "rate": {
+            "type": "string"
+          }
+        }
+      },
+      "TaxBracketView": {
+        "required": [
+          "bands",
+          "quotient",
+          "displayEnd"
+        ],
+        "type": "object",
+        "properties": {
+          "bands": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaxBandView"
+            }
+          },
+          "quotient": {
+            "type": "string"
+          },
+          "nextFrom": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "toNext": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "displayEnd": {
+            "type": "string"
+          }
+        }
+      },
       "TaxCarryView": {
         "required": [
           "year",
@@ -58742,6 +58894,25 @@
           }
         }
       },
+      "TaxDifferencesView": {
+        "required": [
+          "totalTax",
+          "netAfterTaxMonthly",
+          "balance"
+        ],
+        "type": "object",
+        "properties": {
+          "totalTax": {
+            "type": "string"
+          },
+          "netAfterTaxMonthly": {
+            "type": "string"
+          },
+          "balance": {
+            "type": "string"
+          }
+        }
+      },
       "TaxEstimateView": {
         "required": [
           "year",
@@ -58846,6 +59017,25 @@
                 "$ref": "#/components/schemas/TaxDeclarationView"
               }
             ]
+          },
+          "previous": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TaxPreviousView"
+              }
+            ]
+          },
+          "history": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/TaxYearView"
+            }
           }
         }
       },
@@ -58898,6 +59088,20 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/TaxDeclarantGapView"
+            }
+          }
+        }
+      },
+      "TaxHistoryView": {
+        "required": [
+          "years"
+        ],
+        "type": "object",
+        "properties": {
+          "years": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaxYearView"
             }
           }
         }
@@ -59113,7 +59317,8 @@
           "pooled",
           "remaining",
           "taxSaved",
-          "roomInBracket"
+          "roomInBracket",
+          "remainingTaxSaved"
         ],
         "type": "object",
         "properties": {
@@ -59128,6 +59333,40 @@
           },
           "roomInBracket": {
             "type": "string"
+          },
+          "remainingTaxSaved": {
+            "type": "string",
+            "default": "0.00"
+          }
+        }
+      },
+      "TaxPreviousView": {
+        "required": [
+          "year",
+          "source",
+          "tax",
+          "change"
+        ],
+        "type": "object",
+        "properties": {
+          "year": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "source": {
+            "type": "string"
+          },
+          "tax": {
+            "type": "string"
+          },
+          "change": {
+            "type": "string"
+          },
+          "changePct": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -59744,6 +59983,35 @@
           "ageDisabilityAllowance": {
             "type": "string",
             "default": "0.00"
+          },
+          "steps": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/TaxStepView"
+            }
+          },
+          "bracket": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TaxBracketView"
+              }
+            ]
+          },
+          "differences": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TaxDifferencesView"
+              }
+            ]
           }
         }
       },
@@ -59839,6 +60107,65 @@
           },
           "amount": {
             "type": "string"
+          }
+        }
+      },
+      "TaxStepView": {
+        "required": [
+          "code",
+          "group",
+          "amount",
+          "from",
+          "to"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "group": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "string"
+          },
+          "from": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          }
+        }
+      },
+      "TaxYearView": {
+        "required": [
+          "year",
+          "source",
+          "tax"
+        ],
+        "type": "object",
+        "properties": {
+          "year": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "source": {
+            "type": "string"
+          },
+          "tax": {
+            "type": "string"
+          },
+          "netTaxable": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "averageRate": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },

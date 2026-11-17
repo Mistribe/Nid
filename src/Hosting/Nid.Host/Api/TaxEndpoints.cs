@@ -26,6 +26,11 @@ public static class TaxEndpoints
             => (await invoker.InvokeAsync(new GetTaxChangesQuery(year, ParseScope(scope)), ct)).ToHttp(view => view))
             .Returns<TaxChangesView>();
 
+        // Issue #307.
+        api.MapGet("/history", async (string? scope, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new GetTaxHistoryQuery(ParseScope(scope)), ct)).ToHttp(view => view))
+            .Returns<TaxHistoryView>();
+
         // Rental 2044 spec §5.
         api.MapGet("/2044", async (int? year, string? scope, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new GetRental2044Query(year, ParseScope(scope)), ct)).ToHttp(view => view))
@@ -46,13 +51,13 @@ public static class TaxEndpoints
             })
             .Returns<TaxEstimateView>();
 
-        api.MapPost("/simulate", async (TaxInputsView body, IInvoker invoker, CancellationToken ct) =>
+        api.MapPost("/simulate", async (TaxInputsView body, string? scope, IInvoker invoker, CancellationToken ct) =>
             {
                 var reader = new FieldReader();
                 var inputs = Read(body, reader);
                 return inputs is null
                     ? reader.Problem()
-                    : (await invoker.InvokeAsync(new SimulateTaxQuery(inputs), ct)).ToHttp(view => view);
+                    : (await invoker.InvokeAsync(new SimulateTaxQuery(inputs, scope is null ? null : ParseScope(scope)), ct)).ToHttp(view => view);
             })
             .Returns<TaxResultView>();
 

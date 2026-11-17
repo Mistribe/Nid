@@ -14,7 +14,7 @@ const declarantPer = (over: Partial<NonNullable<TaxResult['declarants'][number][
 });
 const withPer = (over: Partial<TaxResult> = {}, per = declarantPer()) => result({
   declarants: [{ ...result().declarants[0]!, person: ADULT, per }],
-  per: { pooled: false, remaining: '2843.13', taxSaved: '900.00', roomInBracket: '10421.00' },
+  per: { pooled: false, remaining: '2843.13', taxSaved: '900.00', roomInBracket: '10421.00', remainingTaxSaved: '900.00' },
   ...over,
 });
 const block = (r: TaxResult, names: string[], onProfile: () => void) => (
@@ -82,7 +82,7 @@ describe('PerRows and PerSummary', () => {
   });
 
   it('shows the household line when pooled', () => {
-    show(withPer({ per: { pooled: true, remaining: '5000.00', taxSaved: '900.00', roomInBracket: '10421.00' } }));
+    show(withPer({ per: { pooled: true, remaining: '5000.00', taxSaved: '900.00', roomInBracket: '10421.00', remainingTaxSaved: '900.00' } }));
     expect(screen.getByText('5 000,00 € à verser avant le 31 décembre')).toBeInTheDocument();
   });
 

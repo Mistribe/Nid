@@ -1013,4 +1013,52 @@ public class TaxCalculatorTests
         // 27 000 + 1 000 of gains + 1 000 of dividends × 60 %; the CSG of both deductible next year.
         Assert.Equal((28_600m, 400m, 136m), (result.NetTaxableIncome, result.DividendAllowance, result.DeductibleCsgNextYear));
     }
+
+    [Fact]
+    public void Remaining_tax_saved_is_the_recomputed_gain()
+    {
+        var a = Other(60_000m) with { PerContributions = 1_000m, PerCeiling = 5_000m };
+        var b = Other(40_000m) with { Name = "B", PerContributions = 500m, PerCeiling = 3_000m };
+
+        var now = TaxCalculator.Compute(Inputs([a, b]));
+        var paid = TaxCalculator.Compute(Inputs([a with { PerContributions = 5_000m }, b with { PerContributions = 3_000m }]));
+
+        Assert.Equal(6_500m, now.Per!.Remaining);
+        Assert.True(now.IncomeTax > paid.IncomeTax);
+        Assert.Equal(now.IncomeTax - paid.IncomeTax, now.Per.RemainingTaxSaved);
+    }
+
+    [Fact]
+    public void Remaining_tax_saved_counts_pooled_room_once()
+    {
+        var a = Other(60_000m) with { PerCeiling = 5_000m };
+        var b = Other(40_000m) with { Name = "B", PerCeiling = 4_000m };
+
+        var now = TaxCalculator.Compute(Inputs([a, b]) with { PerPooling = true });
+        // The household's 9 000 free ceiling, all paid by the first declarant (4 000 of it goes against B's room).
+        var paid = TaxCalculator.Compute(Inputs([a with { PerContributions = 9_000m }, b]) with { PerPooling = true });
+
+        Assert.Equal(9_000m, now.Per!.Remaining);
+        Assert.Equal(now.IncomeTax - paid.IncomeTax, now.Per.RemainingTaxSaved);
+        Assert.True(now.Per.RemainingTaxSaved > 0m);
+    }
+
+    [Fact]
+    public void Remaining_tax_saved_is_zero_without_room()
+    {
+        var result = TaxCalculator.Compute(Inputs([Other(60_000m) with { PerContributions = 5_000m, PerCeiling = 5_000m }]));
+
+        Assert.Equal(0m, result.Per!.Remaining);
+        Assert.Equal(0m, result.Per.RemainingTaxSaved);
+    }
+
+    [Fact]
+    public void Remaining_tax_saved_is_zero_in_the_zero_bracket()
+    {
+        var result = TaxCalculator.Compute(Inputs([Other(10_000m) with { PerCeiling = 4_000m }]));
+
+        Assert.Equal(4_000m, result.Per!.Remaining);
+        Assert.Equal(0m, result.IncomeTax);
+        Assert.Equal(0m, result.Per.RemainingTaxSaved);
+    }
 }

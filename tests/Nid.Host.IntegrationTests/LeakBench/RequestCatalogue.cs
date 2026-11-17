@@ -455,6 +455,7 @@ public static class RequestCatalogue
         new(typeof(GetRetirementQuery), false, (_, _) => new GetRetirementQuery(VisibilityScope.Me)),
         new(typeof(GetRetirementQuery), false, (_, _) => new GetRetirementQuery(VisibilityScope.Household)),
         new(typeof(GetTaxEstimateQuery), false, (_, _) => new GetTaxEstimateQuery(2025, VisibilityScope.Me)),
+        new(typeof(GetTaxHistoryQuery), false, (_, _) => new GetTaxHistoryQuery(VisibilityScope.Me)),
         new(typeof(GetTaxChangesQuery), false, (_, _) => new GetTaxChangesQuery(2026, VisibilityScope.Me)),
         new(typeof(GetRental2044Query), false, (_, _) => new GetRental2044Query(2025, VisibilityScope.Me)),
         new(typeof(GetSaleTaxQuery), true, (_, item) => new GetSaleTaxQuery(VisibilityScope.Me, item)),
