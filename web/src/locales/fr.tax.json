@@ -236,6 +236,32 @@
       "per_over_ceiling": "Des versements PER dépassent le plafond : voir le Profil fiscal pour saisir celui de votre avis.",
       "per_ceiling_estimated": "Un plafond PER est estimé : saisissez celui de votre avis pour un chiffre exact."
     },
+    "notices": {
+      "more": "Afficher les {{count}} autres",
+      "less": "Afficher moins",
+      "childcare": {
+        "from_statements": "{{amount}} d’après les relevés validés",
+        "projected": "reste de l’année : {{amount}} ({{validated}} mois validés, {{estimated}} estimés)",
+        "estimated": "{{amount}} estimés d’après le contrat pour {{estimated}} mois"
+      },
+      "kind": {
+        "missing_gross": "Pas de brut renseigné : le net versé sert d’estimation.",
+        "contribution_rate_differs": "Le taux de cotisations saisi s’écarte du taux constaté sur les bulletins.",
+        "unsupported_income": "Ces types de revenu ne sont pas calculés.",
+        "not_a_declarant": "La part d’un enfant n’est pas comptée.",
+        "other_currency": "Revenus hors euro : non comptés.",
+        "savings_interest": "Comptes d’épargne non réglementés : intérêts imposables cette année. Si c’est un livret A, un LDDS, un LEP ou un livret jeune, indiquez-le sur le compte.",
+        "savings_interest_unknown": "Les intérêts de ces comptes d’épargne non réglementés ne se distinguent pas des versements (solde de la banque ou aucun versement enregistré) : ils ne sont pas comptés.",
+        "realised_gain": "Plus-value nette sur les titres vendus cette année (case 3VG, ou 3VH si négative).",
+        "realised_gain_unknown": "Ventes sans nombre de parts ou sans prix de revient : leur plus-value n’est pas comptée.",
+        "withdrawal_not_estimated": "L’impôt sur ces retraits n’est pas estimé.",
+        "per_without_contributions": "Aucun versement PER enregistré cette année.",
+        "childcare": "Frais de garde : le montant du profil est remplacé par celui des relevés, ou estimé d’après le contrat en attendant un relevé validé.",
+        "rental_charges_removed": "Charges locatives retirées des loyers enregistrés avec leurs charges.",
+        "rental_fee_not_counted": "Pénalité de remboursement anticipé ou frais de prêt non comptés en ligne 250.",
+        "rental_to_check": "Dépenses à vérifier (construction ou agrandissement, autres), non comptées : voir Déclaration 2044."
+      }
+    },
     "notice": {
       "missing_gross": "{{name}} : pas de brut renseigné, le net versé ({{amount}}) sert d’estimation.",
       "unsupported_income": "{{name}} : ce type de revenu ({{amount}}) n’est pas calculé.",

@@ -3,6 +3,7 @@ import type { components } from '@/api/schema';
 export type TaxEstimate = components['schemas']['TaxEstimateView'];
 export type TaxProfile = components['schemas']['TaxProfileView'];
 export type TaxInputs = components['schemas']['TaxInputsView'];
+export type TaxNotice = components['schemas']['TaxNoticeView'];
 export type TaxResult = components['schemas']['TaxResultView'];
 export type PinelCommitment = components['schemas']['PinelCommitment'];
 /** Issue #233: the 2042 boxes the estimate fills, and what the household enters itself. */
