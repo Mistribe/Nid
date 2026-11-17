@@ -15,6 +15,8 @@ public sealed class ChildcareAuditMap : IAuditMap
         [typeof(GapRow)] = new(e => AuditItems.Of(e, nameof(GapRow.ItemId))),
         [typeof(StatementRow)] = new(e => AuditItems.Of(e, nameof(StatementRow.ItemId))),
         [typeof(StatementDayRow)] = new(e => AuditItems.Of(e, nameof(StatementDayRow.ItemId))),
+        [typeof(NannyRow)] = new(e => AuditItems.Of(e, nameof(NannyRow.ItemId))),
+        [typeof(NannyMonthRow)] = new(e => AuditItems.Of(e, nameof(NannyMonthRow.ItemId))),
     };
 
     public IReadOnlySet<Type> Excluded { get; } = new HashSet<Type> { typeof(AuditEntryRow) };

@@ -261,3 +261,29 @@ public sealed record FiguresRecord
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public decimal? RuptureIndemnity { get; set; }
 }
+
+/// <summary>#94: a nanny at home of <c>nid.data</c> with its months, the amounts as paid.</summary>
+public sealed record NannyRecord
+{
+    public required string Id { get; init; }
+    public required string Name { get; init; }
+    public string Visibility { get; set; } = "shared";
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ShareLevel { get; set; }
+
+    public required IReadOnlyList<ShareRecord> Ownership { get; init; }
+    public bool Closed { get; set; }
+    public IReadOnlyList<NannyMonthRecord> Months { get; set; } = [];
+}
+
+/// <summary>A month <c>YYYY-MM</c>: the amount paid (net salary and employer contributions), the CMG received, the hours if entered.</summary>
+public sealed record NannyMonthRecord
+{
+    public required string Month { get; init; }
+    public required decimal Paid { get; init; }
+    public decimal Cmg { get; set; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public decimal? Hours { get; set; }
+}

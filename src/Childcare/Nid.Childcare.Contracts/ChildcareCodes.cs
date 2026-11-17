@@ -44,4 +44,6 @@ public static class ChildcareCodes
     public const string Closed = "childcare.closed";
     public const string Open = "childcare.open";
     public const string Conflict = "childcare.conflict";
+    public const string NannyMonthInFuture = "childcare.nanny_month_in_future";
+    public const string CmgAbovePaid = "childcare.cmg_above_paid";
 }
