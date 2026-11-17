@@ -71,7 +71,7 @@ function HistoryChart({ rows, current }: { rows: TaxYear[]; current: string }) {
   return (
     <figure aria-label={t('tax.evolution.title')}>
       <ChartContainer config={config} className="aspect-auto w-full" style={{ height: 240 }}>
-        <BarChart data={bars} title={t('tax.evolution.title')} accessibilityLayer margin={{ top: 20, right: 8, left: 8 }}>
+        <BarChart data={bars} title={t('tax.evolution.title')} accessibilityLayer margin={{ top: 20, right: 8, bottom: 16, left: 8 }}>
           <XAxis dataKey="year" minTickGap={24} tickLine={false} axisLine={false} />
           <YAxis hide />
           <ReferenceLine y={0} stroke="var(--border)" />
@@ -80,6 +80,7 @@ function HistoryChart({ rows, current }: { rows: TaxYear[]; current: string }) {
             <ChartLegendContent payload={sources.map((s) => ({ value: s, dataKey: s, color: legendFill[s] }))} />
           )} />
           <Bar dataKey="plot" maxBarSize={24} animationDuration={800}>
+            {/* Cell's typing has no array radius; Recharts' Rectangle accepts one. */}
             {bars.map((b) => (
               <Cell key={b.year} fill={FILL} radius={(b.plot < 0 ? [0, 0, 4, 4] : [4, 4, 0, 0]) as unknown as number} fillOpacity={b.source === 'estimate' ? 0.4 : undefined}
                 stroke={b.year === current ? 'var(--foreground)' : undefined} strokeWidth={b.year === current ? 2 : undefined} />

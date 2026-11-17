@@ -47,18 +47,17 @@ describe('EvolutionTab', () => {
     const region = await card();
     await waitFor(() => expect(region.querySelectorAll('.recharts-bar-rectangle path')).toHaveLength(3));
     await waitFor(() => expect(texts(region, '.recharts-label-list text').filter(Boolean)).toHaveLength(3));
-    const [up, , down] = [...region.querySelectorAll('.recharts-bar-rectangle path')].map((p) => p.getBoundingClientRect());
-    expect(region.querySelector('.recharts-reference-line')).not.toBeNull();
+    const zero = Number(region.querySelector('.recharts-reference-line line')!.getAttribute('y1'));
     const labels = [...region.querySelectorAll('.recharts-label-list text')].map((n) => Number(n.getAttribute('y')));
-    expect(labels[2]).toBeGreaterThan(labels[0]!);
-    expect(up).toBeDefined();
-    expect(down).toBeDefined();
+    expect(labels[0]!).toBeLessThan(zero);
+    expect(labels[2]!).toBeGreaterThan(zero);
   });
 
   it.each([['me', '&scope=me'], ['household', '']])('asks for the %s series of a past year, then draws it', async (scope, query) => {
     const asked: (string | null)[] = [];
     let release = () => {};
     const gate = new Promise<void>((r) => { release = r; });
+    // The year list comes from the assessments: 2024 is offered only when a notice lists it. A past year never calls the estimate.
     server.use(
       http.get('*/api/v1/tax/assessments', () => HttpResponse.json({ items: [{ ...soloAssessment({ year: 2024 }), netTax: undefined }] })),
       http.get('*/api/v1/tax/history', async ({ request }) => {
@@ -80,7 +79,7 @@ describe('EvolutionTab', () => {
     const { years, historyCalls } = load();
     await renderApp('/tax?tab=evolution');
 
-    await waitFor(() => expect(document.querySelectorAll('.recharts-bar-rectangle')).toHaveLength(3));
+    await waitFor(() => expect(document.querySelectorAll('.recharts-bar-rectangle path')).toHaveLength(3));
     expect(new Set(years)).toEqual(new Set(['2026']));
     expect(historyCalls).toEqual([]);
   });
