@@ -208,6 +208,16 @@ describe('EvolutionTab', () => {
       await expectNoAxeViolations(container);
     });
 
+    it('hides the two year columns on a phone, keeping the line and its effect', async () => {
+      changed();
+      await renderApp('/tax?tab=evolution');
+
+      const table = await screen.findByRole('table', { name: 'Ce qui a changé depuis 2025' });
+      const heads = within(table).getAllByRole('columnheader');
+      expect(heads.map((h) => h.classList.contains('hidden') && h.classList.contains('sm:table-cell'))).toEqual([false, true, true, false]);
+      expect(within(table).getAllByRole('row')[1]!.children[1]).toHaveClass('hidden', 'sm:table-cell');
+    });
+
     it('names each line by its person id, whatever the order of the persons', async () => {
       changed();
       server.use(

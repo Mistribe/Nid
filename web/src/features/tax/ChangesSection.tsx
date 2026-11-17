@@ -103,8 +103,8 @@ export function ChangesSection({ year, scope }: { year: string; scope: 'me' | 'h
           <TableHeader>
             <TableRow>
               <TableHead>{t('tax.changes.line_head')}</TableHead>
-              <TableHead className="text-right">{since}</TableHead>
-              <TableHead className="text-right">{year}</TableHead>
+              <TableHead className="hidden text-right sm:table-cell">{since}</TableHead>
+              <TableHead className="hidden text-right sm:table-cell">{year}</TableHead>
               <TableHead className="text-right">{t('tax.changes.effect')}</TableHead>
             </TableRow>
           </TableHeader>
@@ -112,11 +112,11 @@ export function ChangesSection({ year, scope }: { year: string; scope: 'me' | 'h
             {changes.lines.map((l) => (
               <TableRow key={`${l.code}-${l.person ?? ''}`}>
                 <TableCell className="whitespace-normal">{label(l.code, l.person)}</TableCell>
-                <TableCell className="text-right tabular-nums">
+                <TableCell className="hidden text-right tabular-nums sm:table-cell">
                   {value(l.code, l.before)}
                   {l.fromNotice ? <div className="text-xs text-muted-foreground">{t('tax.changes.from_notice')}</div> : null}
                 </TableCell>
-                <TableCell className="text-right tabular-nums">{value(l.code, l.now)}</TableCell>
+                <TableCell className="hidden text-right tabular-nums sm:table-cell">{value(l.code, l.now)}</TableCell>
                 <TableCell className="text-right tabular-nums font-medium">{signed(l.effect)}</TableCell>
               </TableRow>
             ))}
@@ -131,11 +131,11 @@ export function ChangesSection({ year, scope }: { year: string; scope: 'me' | 'h
               ) : null}
               <TableRow>
                 <TableCell>{t('tax.changes.tax')}</TableCell>
-                <TableCell className="text-right tabular-nums">
+                <TableCell className="hidden text-right tabular-nums sm:table-cell">
                   {eur(changes.taxBefore)}
                   {changes.taxBeforeFromNotice ? <div className="text-xs font-normal text-muted-foreground">{t('tax.changes.from_notice')}</div> : null}
                 </TableCell>
-                <TableCell className="text-right tabular-nums">{eur(changes.taxNow)}</TableCell>
+                <TableCell className="hidden text-right tabular-nums sm:table-cell">{eur(changes.taxNow)}</TableCell>
                 <TableCell />
               </TableRow>
             </TableFooter>
