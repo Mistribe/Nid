@@ -81,13 +81,13 @@ describe('simulationDraft', () => {
     expect(first(applyScenario('per', e).draft.inputs).perContributions).toBe('0');
   });
 
-  it('the PER scenario leaves a declarant who already paid in their ceiling unchanged', () => {
+  it('the PER scenario leaves a declarant who is in excess unchanged', () => {
     const per = { ceiling: '4500.00', source: 'x', expiring: '0.00', contributions: '0.00', deducted: '0.00', excess: '0.00', remaining: '3000.00', minimum: '0.00', minimumEstimated: false };
     const e = estimate();
     const alice = e.result.declarants[0] as TaxResult['declarants'][number];
     e.inputs.declarants.push({ ...first(e.inputs), name: 'Bob' });
     first(e.inputs).perContributions = '5200.00';
-    e.result = result({ declarants: [{ ...alice, per: { ...per, contributions: '5200.00' } }, { ...alice, name: 'Bob', per }] });
+    e.result = result({ declarants: [{ ...alice, per: { ...per, contributions: '5200.00', excess: '700.00' } }, { ...alice, name: 'Bob', per }] });
     const { inputs } = applyScenario('per', e).draft;
     expect(inputs.declarants.map((d) => d.perContributions)).toEqual(['5200', '4500']);
   });

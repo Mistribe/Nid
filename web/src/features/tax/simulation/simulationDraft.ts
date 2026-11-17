@@ -93,11 +93,10 @@ export function toBody(d: SimulationDraft): TaxInputs {
 export const SCENARIOS = ['per', 'salaries', 'real', 'child'] as const;
 export type ScenarioId = (typeof SCENARIOS)[number];
 
-// Under pooling `remaining` is the household's room repeated on each declarant: one who already paid in at least their ceiling keeps their amount.
+// Under pooling `remaining` is the household's room repeated on each declarant: one the server reports in excess keeps their amount.
 const perRoom = (estimate: TaxEstimate) => estimate.result.declarants.map((d) => {
   const per = d.per;
-  const full = per && !ZERO.test(per.contributions) && Number(per.contributions) >= Number(per.ceiling);
-  return per && !ZERO.test(per.remaining) && !full ? per : null;
+  return per && !ZERO.test(per.remaining) && ZERO.test(per.excess) ? per : null;
 });
 
 export function scenarios(estimate: TaxEstimate): ScenarioId[] {
