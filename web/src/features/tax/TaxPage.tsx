@@ -123,7 +123,7 @@ export function TaxPage() {
           ...(notices.length ? [{ id: 'assessment' as const, label: t('tax.tab.assessment'), content: assessmentTab }] : []),
           { id: 'evolution', label: t('tax.tab.evolution'),
             content: <EvolutionTab year={year} scope={scope} history={estimate.history} /> },
-          { id: 'simulation', label: t('tax.tab.simulation'), content: <SimulationTab estimate={estimate} scope={scope} /> },
+          { id: 'simulation', label: t('tax.tab.simulation'), content: <SimulationTab key={`${year}-${scope}`} estimate={estimate} scope={scope} /> },
           { id: 'profile', label: t('tax.tab.profile'), content: draft ? <ProfileForm key={draft.key} estimate={estimate} draft={draft} /> : null,
             action: draft ? <ProfileSubmit draft={draft} /> : undefined },
           { id: 'declarations', label: t('tax.tab.declarations'), content: <DeclarationsTab estimate={estimate} year={year} scope={scope} form={form} onForm={setForm} /> },

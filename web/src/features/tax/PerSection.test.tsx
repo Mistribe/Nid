@@ -169,12 +169,14 @@ describe('TaxPage, PER', () => {
     );
     const { user } = await renderApp('/tax?tab=simulation');
 
-    await user.type(await screen.findByLabelText('Plafond épargne retraite (avis)'), '5000');
-    await user.clear(screen.getByLabelText('Revenus professionnels nets de l’année précédente'));
-    await user.type(screen.getByLabelText('Revenus professionnels nets de l’année précédente'), '40000');
+    await user.click(await screen.findByRole('button', { name: 'Épargne retraite (PER)' }));
+    await user.click(within(screen.getByRole('group', { name: 'Épargne retraite (PER)' })).getByRole('button', { name: 'Plus de champs' }));
+    await user.type(screen.getByRole('textbox', { name: 'Plafond épargne retraite (avis) Alice' }), '5000');
+    await user.clear(screen.getByRole('textbox', { name: 'Revenus professionnels nets de l’année précédente Alice' }));
+    await user.type(screen.getByRole('textbox', { name: 'Revenus professionnels nets de l’année précédente Alice' }), '40000');
     await user.click(screen.getByRole('button', { name: 'Calculer' }));
-    await screen.findByRole('table', { name: 'Estimation et simulation' });
-    expect(sent[0]).toMatchObject({ declarants: [{ perCeiling: '5000', previousYearIncome: '40000', perExpiring: '0.00' }], perPooling: false });
+    await screen.findByRole('region', { name: 'Avant / après' });
+    expect(sent[0]).toMatchObject({ declarants: [{ perCeiling: '5000', previousYearIncome: '40000', perExpiring: '0' }], perPooling: false });
   });
 
   it('keeps a PER warning the block cannot show in À savoir, with the generic text', async () => {

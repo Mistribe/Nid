@@ -5,8 +5,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 
-/** `wrap`: the header and cells may break onto several lines, for a long text column in a wide table. */
-type Column<R> = { id: string; header: string; cell: (r: R) => ReactNode; sort?: (r: R) => string | number; align?: 'end'; wrap?: boolean };
+/** `wrap`: the header and cells may break onto several lines, for a long text column in a wide table. `className`: added to the header and the cells, e.g. to hide the column on a narrow screen. */
+type Column<R> = { id: string; header: string; cell: (r: R) => ReactNode; sort?: (r: R) => string | number; align?: 'end'; wrap?: boolean; className?: string };
 
 /** A checkbox before each top-level row and « select all » in the header; the page owns the selected keys. */
 export type Selection<R> = {
@@ -92,7 +92,7 @@ export function SortableTable<R>({ caption, rows, rowKey, columns, rowLink, mobi
               </TableHead>
             ) : null}
             {columns.map((c) => (
-              <TableHead key={c.id} className={cn(c.align === 'end' && 'text-right', c.wrap && 'whitespace-normal')}
+              <TableHead key={c.id} className={cn(c.align === 'end' && 'text-right', c.wrap && 'whitespace-normal', c.className)}
                 aria-sort={c.sort ? (sort?.id === c.id ? (sort.desc ? 'descending' : 'ascending') : 'none') : undefined}>
                 {c.sort ? (
                   <button type="button" onClick={() => toggle(c.id)}
@@ -113,7 +113,7 @@ export function SortableTable<R>({ caption, rows, rowKey, columns, rowLink, mobi
               onClick={expandable ? onRowClick(rowKey(r)) : undefined}>
               {selection ? <TableCell className="w-8">{box(r, depth)}</TableCell> : null}
               {columns.map((c, i) => (
-                <TableCell key={c.id} className={cn(c.align === 'end' && 'text-right tabular-nums', c.wrap && 'whitespace-normal', i === 0 && depth > 0 && 'pl-8')}>
+                <TableCell key={c.id} className={cn(c.align === 'end' && 'text-right tabular-nums', c.wrap && 'whitespace-normal', i === 0 && depth > 0 && 'pl-8', c.className)}>
                   {i === 0 && expandable && chevron(r, unfolded)}
                   {rowLink && !expandable && i === 0
                     ? <Link {...rowLink(r)} className="after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:ring-[3px] focus-visible:after:ring-ring/50">{c.cell(r)}</Link>

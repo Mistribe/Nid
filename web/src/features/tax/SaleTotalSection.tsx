@@ -8,7 +8,7 @@ import { ModalDialog } from '@/components/ModalDialog';
 import { SortableTable } from '@/components/page/SortableTable';
 import { amountKey } from '@/components/page/sortKey';
 import { StatLine } from '@/components/page/StatLine';
-import { Loading, TableSkeleton } from '@/components/page/skeletons';
+import { Loading, StatLineSkeleton, TableSkeleton } from '@/components/page/skeletons';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { ItemLink } from '@/components/ItemLink';
@@ -18,6 +18,9 @@ import { eur } from './ResultTable';
 import { saleFindingText, saleFlagsText, saleNoteText, saleStatusText } from './saleFormat';
 import '@/locales/tax';
 
+// Below `xl:` only name, status, net and detail stay in the table (the `mobile` rows below `md:` show the same four).
+const WIDE = 'hidden xl:table-cell print:table-cell';
+
 /** « Si tout était vendu »: the household's (or one person's) sale tax, item by item, the server's figures only. */
 export function SaleTotalSection({ scope }: { scope: 'me' | 'household' }) {
   const { t } = useTranslation();
@@ -26,7 +29,7 @@ export function SaleTotalSection({ scope }: { scope: 'me' | 'household' }) {
   const answer = $api.useQuery('get', TAX_SALE, { params: { query: { scope } } });
   const view = answer.data;
   if (answer.error) return <ProblemMessage problem={present(toProblem(answer.error))} />;
-  if (!view) return <Loading label={t('tax.loading')}><TableSkeleton columns={9} rows={3} /></Loading>;
+  if (!view) return <Loading label={t('tax.loading')}><StatLineSkeleton items={5} /><TableSkeleton columns={4} /></Loading>;
   if (!view.items.length) return <EmptyState module="/tax" title={t('tax.sale.all.empty_title')} body={t('tax.sale.all.empty_body')} level={3} />;
   const { totals } = view;
   const money = (amount?: string | null) => (amount ? eur(amount) : '—');
@@ -47,11 +50,11 @@ export function SaleTotalSection({ scope }: { scope: 'me' | 'household' }) {
         columns={[
           { id: 'name', header: t('tax.sale.all.name'), wrap: true, sort: (r) => r.name, cell: (r) => <ItemLink module={r.module} id={r.item}>{r.name}</ItemLink> },
           { id: 'status', header: t('tax.sale.all.status'), wrap: true, cell: (r) => statusText(t, r) },
-          { id: 'value', header: t('tax.sale.all.value'), align: 'end', sort: (r) => amountKey(r.value), cell: (r) => money(r.value) },
-          { id: 'gain', header: t('tax.sale.gain'), align: 'end', sort: (r) => amountKey(r.gain), cell: (r) => money(r.gain) },
-          { id: 'income', header: t('tax.sale.income_tax'), align: 'end', sort: (r) => amountKey(r.incomeTax), cell: (r) => money(r.incomeTax) },
-          { id: 'social', header: t('tax.sale.social_tax'), align: 'end', wrap: true, sort: (r) => amountKey(r.socialTax), cell: (r) => money(r.socialTax) },
-          { id: 'surtax', header: t('tax.sale.surtax'), align: 'end', sort: (r) => amountKey(r.surtax), cell: (r) => money(r.surtax) },
+          { id: 'value', className: WIDE, header: t('tax.sale.all.value'), align: 'end', sort: (r) => amountKey(r.value), cell: (r) => money(r.value) },
+          { id: 'gain', className: WIDE, header: t('tax.sale.gain'), align: 'end', sort: (r) => amountKey(r.gain), cell: (r) => money(r.gain) },
+          { id: 'income', className: WIDE, header: t('tax.sale.income_tax'), align: 'end', sort: (r) => amountKey(r.incomeTax), cell: (r) => money(r.incomeTax) },
+          { id: 'social', className: WIDE, header: t('tax.sale.social_tax'), align: 'end', wrap: true, sort: (r) => amountKey(r.socialTax), cell: (r) => money(r.socialTax) },
+          { id: 'surtax', className: WIDE, header: t('tax.sale.surtax'), align: 'end', sort: (r) => amountKey(r.surtax), cell: (r) => money(r.surtax) },
           { id: 'net', header: t('tax.sale.net'), align: 'end', sort: (r) => amountKey(r.net), cell: (r) => money(r.net) },
           { id: 'detail', header: t('tax.sale.all.detail_col'), cell: (r) => <DetailButton item={r} onOpen={setOpen} /> },
         ]}

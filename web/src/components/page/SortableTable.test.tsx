@@ -113,4 +113,13 @@ describe('SortableTable', () => {
     await user.click(all);
     expect(screen.getByRole('status')).toBeEmptyDOMElement();
   });
+
+  it('gives a column’s className to its header and its cells', () => {
+    render(<SortableTable caption="Lignes" rows={[{ id: 'a', name: 'A', amount: '1.00' }]} rowKey={(r) => r.id} mobile={(r) => r.name}
+      columns={[columns[0]!, { ...columns[1]!, className: 'hidden xl:table-cell' }]} />);
+    const table = screen.getByRole('table');
+    const cell = within(table).getAllByRole('cell');
+    for (const el of [within(table).getByRole('columnheader', { name: 'Montant' }), cell[1]!]) expect(el).toHaveClass('hidden', 'xl:table-cell');
+    for (const el of [within(table).getByRole('columnheader', { name: 'Nom' }), cell[0]!]) expect(el).not.toHaveClass('hidden');
+  });
 });
