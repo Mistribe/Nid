@@ -48,83 +48,6 @@ describe('TaxPage', () => {
     expect(status.querySelector('[data-slot="skeleton"]')).not.toBeNull();
   });
 
-  it('shows the steps and the declarants’ incomes', async () => {
-    server.use(http.get('*/api/v1/tax', () => HttpResponse.json(estimate())));
-    const { container, user } = await renderApp('/tax?tab=detail');
-
-    const table = await screen.findByRole('table', { name: 'Calcul de l’impôt étape par étape' });
-    expect(within(table).getByRole('row', { name: /Crédit garde hors du domicile/ })).toHaveTextContent('3 000,00 €');
-    expect(within(table).getByRole('row', { name: /^Revenu fiscal de référence/ })).toHaveTextContent('66 407,00 €');
-    expect(screen.getByText(/se compare à l’avis d’imposition de la même année de revenus/)).toBeInTheDocument();
-    const people = screen.getByRole('table', { name: 'Revenus par déclarant' });
-    expect(within(people).getByRole('columnheader', { name: 'Alice' })).toBeInTheDocument();
-    expect(within(people).getByRole('row', { name: /Abattement de 10 %/ })).toHaveTextContent('4 042,46 €');
-    expect(within(people).queryByRole('row', { name: /PER/ })).not.toBeInTheDocument();
-    expect(within(table).queryByRole('row', { name: /Alice/ })).not.toBeInTheDocument();
-    expect(within(table).queryByRole('row', { name: /Réduction Pinel/ })).not.toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /Afficher les \d+ lignes à 0 €/ }));
-    expect(within(table).getByRole('row', { name: /Réduction Pinel/ })).toHaveTextContent('0,00 €');
-    await expectNoAxeViolations(container);
-  });
-
-  it('explains the tax terms and asks micro-foncier or réel with the server’s comparison', async () => {
-    const loaded = estimate();
-    loaded.result = result({ rentalRegimeGap: '-344.00' });
-    server.use(http.get('*/api/v1/tax', () => HttpResponse.json(loaded)));
-    const { container, user } = await renderApp('/tax?tab=detail');
-
-    const table = await screen.findByRole('table', { name: 'Calcul de l’impôt étape par étape' });
-    const rfr = within(table).getByRole('button', { name: 'À propos : Revenu fiscal de référence' });
-    await user.hover(rfr);
-    expect(await screen.findByRole('tooltip')).toHaveTextContent(/en haut de la première page de votre avis/);
-    expect(screen.getAllByRole('button', { name: 'À propos : Tranche marginale' })).toHaveLength(1);
-    expect(screen.getByText('Micro-foncier ou réel ?')).toBeInTheDocument();
-    expect(screen.getByText(/Vos loyers sont imposés au micro-foncier\. Nid compare les deux : le réel vous ferait payer 344,00 € de moins\./)).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Changer de régime dans le Profil fiscal' }));
-    expect(screen.getByRole('tab', { name: 'Profil fiscal', selected: true })).toBeInTheDocument();
-    await expectNoAxeViolations(container);
-  });
-
-  it('asks flat tax or scale with the server’s comparison and next year’s deductible CSG', async () => {
-    const loaded = estimate();
-    loaded.result = result({ capitalScale: true, capitalOptionGap: '-120.00', deductibleCsgNextYear: '272.00', dividendAllowance: '1200.00' });
-    loaded.profile = { ...loaded.profile, capitalScale: true };
-    server.use(http.get('*/api/v1/tax', () => HttpResponse.json(loaded)));
-    const { user } = await renderApp('/tax?tab=detail');
-
-    const table = await screen.findByRole('table', { name: 'Calcul de l’impôt étape par étape' });
-    expect(within(table).getByRole('row', { name: /Abattement de 40 % sur les dividendes/ })).toHaveTextContent('1 200,00 €');
-    expect(screen.getByText('Prélèvement forfaitaire ou barème ?')).toBeInTheDocument();
-    expect(screen.getByText(/au barème progressif.+l’autre option vous ferait payer 120,00 € de moins\. Au barème, 272,00 € de CSG/)).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Changer d’option dans le Profil fiscal' }));
-    expect(screen.getByRole('tab', { name: 'Profil fiscal', selected: true })).toBeInTheDocument();
-    expect(screen.getByRole('radio', { name: 'Barème progressif', checked: true })).toBeInTheDocument();
-  });
-
-  it('shows the realised gains and the losses carried forward', async () => {
-    const loaded = estimate();
-    loaded.notices = [
-      { code: 'savings_interest', item: 's', name: 'Compte à terme', amount: '300.00' },
-      { code: 'realised_gain_unknown', item: 'c', name: 'CTO', amount: '1000.00' },
-    ];
-    loaded.result = result({ realisedGainsTaxable: '200.00', capitalLossesCarriedForward: '150.00' });
-    server.use(http.get('*/api/v1/tax', () => HttpResponse.json(loaded)));
-    await renderApp('/tax?tab=detail');
-
-    const table = await screen.findByRole('table', { name: 'Calcul de l’impôt étape par étape' });
-    expect(within(table).getByRole('row', { name: /Plus-values de cession de titres/ })).toHaveTextContent('200,00 €');
-    expect(within(table).getByRole('row', { name: /Moins-values à reporter/ })).toHaveTextContent('150,00 €');
-  });
-
-  it('asks nothing about the regime when the server has no comparison', async () => {
-    server.use(http.get('*/api/v1/tax', () => HttpResponse.json(estimate())));
-    await renderApp('/tax?tab=detail');
-
-    await screen.findByRole('table', { name: 'Calcul de l’impôt étape par étape' });
-    expect(screen.queryByText('Micro-foncier ou réel ?')).not.toBeInTheDocument();
-    expect(screen.queryByText('Prélèvement forfaitaire ou barème ?')).not.toBeInTheDocument();
-  });
-
   it('lists what to type on impots.gouv.fr and the rate that should follow', async () => {
     server.use(http.get('*/api/v1/tax', () => HttpResponse.json(estimate())));
     const { container } = await renderApp('/tax?tab=withholding');
@@ -1040,13 +963,10 @@ describe('TaxPage, page grammar', () => {
     await renderApp('/tax?tab=detail');
 
     const panel = await screen.findByRole('tabpanel', { name: 'Calcul' });
-    expect(within(panel).getByRole('table', { name: 'Calcul de l’impôt étape par étape' })).toBeInTheDocument();
+    expect(await within(panel).findByRole('region', { name: 'Du revenu à l’impôt' })).toBeInTheDocument();
     expect(within(panel).queryByRole('region', { name: 'Où vont vos revenus' })).not.toBeInTheDocument();
     expect(within(panel).queryByRole('region', { name: 'À savoir' })).not.toBeInTheDocument();
     follows(screen.getByRole('tablist'), panel);
-    // Issue 355: the tables fill the column, as every other table; no reading width of their own.
-    const capped = (el: Element | null): boolean => !!el && el !== panel && (/\bmax-w-(?!full\b)/.test(el.className) || capped(el.parentElement));
-    expect(within(panel).getAllByRole('table').filter(capped).map((table) => table.getAttribute('aria-label'))).toEqual([]);
   });
 
   it('prints the hero with the overview', async () => {

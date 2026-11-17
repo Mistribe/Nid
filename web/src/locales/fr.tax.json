@@ -9,8 +9,14 @@
     "count_format": "Un nombre entier.",
     "department_format": "Un numéro de département : 01 à 95, 2A, 2B ou 971 à 976.",
     "rate_format": "Un pourcentage, par exemple 23 ou 23,5.",
-    "detail_table": "Calcul de l’impôt étape par étape",
-    "detail_title": "Calcul détaillé",
+    "detail": {
+      "question": "Comment Nid arrive à {{amount}} d’impôt ?",
+      "disclaimer_short": "Estimation indicative, barème des revenus {{year}}.",
+      "more": "En savoir plus",
+      "see_pistes": "Voir les pistes",
+      "salaries_per": "Salaires et PER",
+      "show_detail": "Voir le détail"
+    },
     "notes": "À savoir",
     "childcare_summary": "Récapitulatif {{year}} à recopier",
     "evolution": {

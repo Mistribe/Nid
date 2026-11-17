@@ -1,7 +1,8 @@
 import { useTranslation } from 'react-i18next';
 import type { TaxBracket } from '@/api/tax';
 import { toPlot } from '@/lib/plot';
-import { percentText } from '../format';
+import { InfoTip } from '@/components/InfoTip';
+import { percentText, tipText } from '../format';
 import { wholeEur } from '../ResultTable';
 import '@/locales/tax';
 
@@ -39,6 +40,7 @@ export function BracketScale({ bracket, marginalRate }: { bracket: TaxBracket; m
       <p className="text-sm">
         {t('tax.bracket.sentence', { rate: percentText(t, marginalRate) })}{' '}
         {next && toNext != null ? t('tax.bracket.next', { amount: wholeEur(toNext), rate: percentText(t, next.rate) }) : t('tax.bracket.top')}
+        <InfoTip label={t('tax.row.marginal_rate')}>{tipText(t, 'marginal_rate')}</InfoTip>
       </p>
     </div>
   );

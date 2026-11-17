@@ -1,67 +1,81 @@
+import { ChevronDown } from 'lucide-react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { TaxEstimate, TaxResult } from '@/api/tax';
-import { InfoTip } from '@/components/InfoTip';
+import type { TaxEstimate } from '@/api/tax';
 import { SectionCard } from '@/components/page/SectionCard';
+import { TableToggle } from '@/components/page/TableToggle';
 import { Button } from '@/components/ui/button';
-import { regimeText, tipText, ZERO } from '../format';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { todayIso } from '@/lib/today';
+import { pistesOf } from '../overview/Pistes';
 import { PerProgress, PerRows } from '../PerSection';
-import { DeclarantTable, eur, ResultTable } from '../ResultTable';
+import { DeclarantTable, GROUP_TOTAL, RESULT_GROUPS, ResultTable, resultText } from '../ResultTable';
 import type { TaxTab } from '../TaxPage';
+import { BracketScale } from './BracketScale';
+import { StepsChart, StepsTable } from './StepsChart';
 import '@/locales/tax';
 
-/** The calculation step by step, with the regime and the capital option as questions. */
+/** The calculation: its question and the steps from income to tax, the bracket, the salaries and the PER, then each group's table folded. */
 export function DetailTab({ estimate, onTab }: { estimate: TaxEstimate; onTab: (tab: TaxTab) => void }) {
   const { t } = useTranslation();
-  const onProfile = () => onTab('profile');
+  const [asTable, setAsTable] = useState(false);
+  const r = estimate.result;
+  const steps = r.steps ?? [];
+  const hasPistes = pistesOf(t, estimate, Number(todayIso().slice(0, 4))).length > 0;
   return (
-    <SectionCard title={t('tax.detail_title')} className="space-y-4">
-      <p className="text-sm text-muted-foreground">{t('tax.disclaimer', { year: estimate.result.rulesYear })}</p>
-      <DeclarantTable result={estimate.result} detail={estimate.salaryDetail} adults={estimate.adults}>
-        <PerRows result={estimate.result} names={estimate.result.declarants.map((_, i) => (estimate.inputs.declarants[i]?.perEnvelopes ?? []).join(', '))} />
-      </DeclarantTable>
-      <PerProgress result={estimate.result} onProfile={onProfile} />
-      <ResultTable label={t('tax.detail_table')} declarants={false} columns={[{ title: t('tax.estimate'), result: estimate.result }]} />
-      <RegimeChoice result={estimate.result} onProfile={onProfile} />
-      <CapitalChoice result={estimate.result} onProfile={onProfile} />
+    <div className="animate-enter space-y-4">
+      <div className="space-y-1">
+        <h2 className="text-title">{t('tax.detail.question', { amount: resultText(t, r.totalTax) })}</h2>
+        <Collapsible>
+          <p className="text-sm text-muted-foreground">
+            {t('tax.detail.disclaimer_short', { year: r.rulesYear })}{' '}
+            <CollapsibleTrigger asChild><Button variant="link" className="h-auto p-0 text-sm">{t('tax.detail.more')}</Button></CollapsibleTrigger>
+            {hasPistes ? <> <Button variant="link" className="h-auto p-0 text-sm" onClick={() => onTab('overview')}>{t('tax.detail.see_pistes')}</Button></> : null}
+          </p>
+          <CollapsibleContent><p className="pt-1 text-sm text-muted-foreground">{t('tax.disclaimer', { year: r.rulesYear })}</p></CollapsibleContent>
+        </Collapsible>
+      </div>
+      {steps.length ? (
+        <SectionCard title={t('tax.steps.title')} actions={<TableToggle asTable={asTable} onToggle={() => setAsTable((v) => !v)} />} className="space-y-4">
+          {asTable ? <StepsTable steps={steps} /> : (
+            <>
+              <StepsChart title={t('tax.steps.income')} steps={steps.filter((s) => s.group === 'income')} />
+              <StepsChart title={t('tax.steps.tax')} steps={steps.filter((s) => s.group === 'tax')} legend />
+            </>
+          )}
+        </SectionCard>
+      ) : null}
+      {r.bracket ? (
+        <SectionCard title={t('tax.bracket.title')}><BracketScale bracket={r.bracket} marginalRate={r.marginalRate} /></SectionCard>
+      ) : null}
+      <SectionCard title={t('tax.detail.salaries_per')} className="space-y-4">
+        <DeclarantTable result={r} detail={estimate.salaryDetail} adults={estimate.adults}>
+          <PerRows result={r} names={r.declarants.map((_, i) => (estimate.inputs.declarants[i]?.perEnvelopes ?? []).join(', '))} />
+        </DeclarantTable>
+        <PerProgress result={r} onProfile={() => onTab('profile')} />
+      </SectionCard>
+      {RESULT_GROUPS.map((g) => <GroupCard key={g} group={g} estimate={estimate} />)}
       <p className="text-sm text-muted-foreground">{t('tax.out_of_scope')}</p>
-    </SectionCard>
-  );
-}
-
-/** #234: the capital income's option as a question, with what the other one would cost (the server's gap) and next year's 6DE. */
-function CapitalChoice({ result: r, onProfile }: { result: TaxResult; onProfile: () => void }) {
-  const { t } = useTranslation();
-  const gap = r.capitalOptionGap;
-  if (!gap) return null;
-  const comparison = ZERO.test(gap) ? t('tax.capital_choice.same')
-    : gap.startsWith('-') ? t('tax.capital_choice.less', { amount: eur(gap.slice(1)) }) : t('tax.capital_choice.more', { amount: eur(gap) });
-  return (
-    <div className="max-w-3xl space-y-1 text-sm">
-      <p className="flex items-center gap-1.5 font-medium">{t('tax.capital_choice.question')}<InfoTip label={t('tax.capital_choice.question')}>{tipText(t, 'capital_option')}</InfoTip></p>
-      <p>
-        {t(r.capitalScale ? 'tax.capital_choice.current_scale' : 'tax.capital_choice.current_flat')} {comparison}{' '}
-        {r.capitalScale && !ZERO.test(r.deductibleCsgNextYear) ? <>{t('tax.capital_choice.csg', { amount: eur(r.deductibleCsgNextYear) })}{' '}</> : null}
-        <Button variant="link" className="h-auto p-0 text-sm" onClick={onProfile}>{t('tax.capital_choice.change')}</Button>
-      </p>
     </div>
   );
 }
 
-/** Issue #160: the rental regime as a question, with what the other one would cost: the server's gap (negative, it costs less). */
-function RegimeChoice({ result: r, onProfile }: { result: TaxResult; onProfile: () => void }) {
+function GroupCard({ group: g, estimate }: { group: (typeof RESULT_GROUPS)[number]; estimate: TaxEstimate }) {
   const { t } = useTranslation();
-  const gap = r.rentalRegimeGap;
-  if (!gap) return null;
-  const other = regimeText(t, r.rentalRegime === 'micro' ? 'real' : 'micro');
-  const comparison = ZERO.test(gap) ? t('tax.regime_choice.same', { other })
-    : gap.startsWith('-') ? t('tax.regime_choice.less', { other, amount: eur(gap.slice(1)) }) : t('tax.regime_choice.more', { other, amount: eur(gap) });
+  const result = estimate.result;
   return (
-    <div className="max-w-3xl space-y-1 text-sm">
-      <p className="flex items-center gap-1.5 font-medium">{t('tax.regime_choice.question')}<InfoTip label={t('tax.regime_choice.question')}>{tipText(t, 'regime')}</InfoTip></p>
-      <p>
-        {t('tax.regime_choice.current', { regime: regimeText(t, r.rentalRegime) })} {comparison}{' '}
-        <Button variant="link" className="h-auto p-0 text-sm" onClick={onProfile}>{t('tax.regime_choice.change')}</Button>
-      </p>
-    </div>
+    <Collapsible>
+      <SectionCard title={t(`tax.group.${g}`)} note={resultText(t, GROUP_TOTAL[g](result))} actions={
+        <CollapsibleTrigger asChild>
+          <Button variant="ghost" size="sm" className="group">
+            {t('tax.detail.show_detail')}<ChevronDown aria-hidden className="transition-transform group-data-[state=open]:rotate-180" />
+          </Button>
+        </CollapsibleTrigger>
+      }>
+        <CollapsibleContent>
+          <ResultTable groups={[g]} declarants={false} label={t(`tax.group.${g}`)} columns={[{ title: t('tax.estimate'), result }]} />
+        </CollapsibleContent>
+      </SectionCard>
+    </Collapsible>
   );
 }

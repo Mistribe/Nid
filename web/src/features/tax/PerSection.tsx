@@ -86,7 +86,6 @@ export function PerProgress({ result, onProfile }: { result: TaxResult; onProfil
           <div key={d.person ?? i} className="space-y-1.5">
             <p className="font-medium">{d.name}</p>
             <Progress value={ZERO.test(per.ceiling) || ceiling <= 0 ? 0 : Math.min(100, (toPlot(per.deducted) / ceiling) * 100)} aria-label={t('tax.per.progress_label', { name: d.name })} getValueLabel={() => label} />
-            <p className="text-muted-foreground">{label}</p>
             {ZERO.test(per.remaining) ? null : <p>{t('tax.per.to_pay', { amount: eur(per.remaining) })}</p>}
             {ZERO.test(per.expiring) || ZERO.test(per.minimum) ? null : <p className="text-status-warning-text">{t('tax.per.lost_otherwise', { amount: eur(per.expiring) })}</p>}
             {over.includes(d) ? <p>{t('tax.per.capped')}</p> : null}
