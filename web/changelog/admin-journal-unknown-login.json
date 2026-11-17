@@ -1,0 +1,4 @@
+{
+  "en": "The admin security journal shows failed sign-ins with an identifier nobody uses, and can filter on the local account events.",
+  "fr": "Le journal de sécurité de l'administration montre les échecs de connexion avec un identifiant inconnu, et se filtre sur les événements des comptes locaux."
+}

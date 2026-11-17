@@ -75,8 +75,8 @@ public static class SecurityEventNames
     {
         LoginRefused, AccessViolation, PersonPreregistered, PersonPreregistrationCancelled,
         AdminGranted, AdminRevoked, SessionRevoked, HouseholdSettingsChanged, AdminCommand, SubjectRebound, TokenAuthFailed,
-        // Issue 215: what an admin needs to act on; an adult's own failed sign-ins stay theirs (login_failed is not here).
-        LoginLocked, PasswordReset, CredentialLinkIssued, CredentialLinkRevoked, AccountEnrolled, AccountUnlocked, SetupCompleted, TotpReset,
+        // Issue 215: what an admin needs to act on. login_failed only without a person (unknown_login, #292): the reader drops an adult's own.
+        LoginFailed, LoginLocked, PasswordReset, CredentialLinkIssued, CredentialLinkRevoked, AccountEnrolled, AccountUnlocked, SetupCompleted, TotpReset,
     };
 }
 

@@ -20,6 +20,8 @@ import '@/locales/admin';
 const JOURNAL_EVENTS = [
   'login_refused', 'access_violation', 'person_preregistered', 'person_preregistration_cancelled',
   'admin_granted', 'admin_revoked', 'session_revoked', 'household_settings_changed', 'admin_command', 'subject_rebound',
+  'token_auth_failed', 'login_failed', 'login_locked', 'password_reset', 'credential_link_issued', 'credential_link_revoked',
+  'account_enrolled', 'account_unlocked', 'setup_completed', 'totp_reset',
 ] as const;
 
 type JournalEntry = components['schemas']['SecurityEventView'];
