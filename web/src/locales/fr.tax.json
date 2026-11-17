@@ -79,6 +79,13 @@
       "high_income": "Contribution hauts revenus",
       "total_tax": "Impôt total"
     },
+    "bracket": {
+      "title": "Votre tranche d’imposition",
+      "you": "Vous · {{amount}} par part",
+      "sentence": "Vous êtes dans la tranche à {{rate}}.",
+      "next": "Encore {{amount}} par part avant la tranche à {{rate}}.",
+      "top": "C’est la tranche la plus haute."
+    },
     "steps": {
       "title": "Du revenu à l’impôt",
       "income": "Votre revenu imposable",
