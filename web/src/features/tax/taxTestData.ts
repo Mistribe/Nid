@@ -14,6 +14,21 @@ export const result = (over: Partial<TaxResult> = {}): TaxResult => ({
     rate: '4.5', taxBase: '3247.00', income: '40424.63', declarants: [{ name: 'Alice', salaries: '40424.63', monthly: '151.59', pensions: '0.00' }],
     rentalDeclared: '0.00', rentalMonthly: '0.00', annual: '3220.39', leftOut: '3000.00', balance: '-2973.39',
   },
+  steps: [
+    { code: 'salaries', group: 'income', amount: '71565.00', from: '0', to: '71565.00' },
+    { code: 'salary_allowance', group: 'income', amount: '-7158.00', from: '71565.00', to: '64407.00' },
+    { code: 'net_taxable', group: 'income', amount: '64407.00', from: '0', to: '64407.00' },
+    { code: 'gross_tax', group: 'tax', amount: '3256.77', from: '0', to: '3256.77' },
+    { code: 'decote', group: 'tax', amount: '-9.31', from: '3256.77', to: '3247.46' },
+    { code: 'childcare', group: 'tax', amount: '-3000.00', from: '3247.46', to: '247.46' },
+    { code: 'rounding', group: 'tax', amount: '-0.46', from: '247.46', to: '247.00' },
+    { code: 'income_tax', group: 'tax', amount: '247.00', from: '0', to: '247.00' },
+    { code: 'total_tax', group: 'tax', amount: '247.00', from: '0', to: '247.00' },
+  ],
+  bracket: {
+    bands: [{ from: '0', to: '11497', rate: '0' }, { from: '11497', to: '29315', rate: '11' }, { from: '29315', to: '83823', rate: '30' }, { from: '83823', to: '180294', rate: '41' }, { from: '180294', to: null, rate: '45' }],
+    quotient: '21469.00', nextFrom: '29315.00', toNext: '7846.00', displayEnd: '226000.00',
+  },
   ...over,
 });
 
