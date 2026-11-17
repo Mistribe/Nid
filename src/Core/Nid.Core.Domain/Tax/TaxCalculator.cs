@@ -104,7 +104,7 @@ public sealed record PerHousehold(bool Pooled, decimal Remaining, decimal TaxSav
 /// <c>AlimonyDeducted</c>: the alimony paid taken off the global income, the adult children's within their cap.
 /// <c>RealisedGainsTaxable</c>: the year's net gain after the earlier losses, taxed with the capital income; <c>CapitalLossesCarriedForward</c>
 /// the losses left for the next years. <c>AgeDisabilityAllowance</c>: CGI art. 157 bis, taken off the net global income for each
-/// declarant aged 65 or over, or disabled, when that income is low. <c>Steps</c>: the walk from the income to the tax (<see cref="TaxSteps"/>).
+/// declarant aged 65 or over, or disabled, when that income is low. <c>Steps</c>: the walk from the income to the tax (<see cref="TaxSteps"/>). <c>Bracket</c>: the household's place on the scale.
 /// </summary>
 public sealed record TaxResult(
     int Year, int RulesYear, decimal Parts, IReadOnlyList<DeclarantResult> Declarants,
@@ -117,7 +117,7 @@ public sealed record TaxResult(
     decimal RentalDeficitCarriedForward = 0m, bool CapitalScale = false, decimal? CapitalOptionGap = null, decimal DividendAllowance = 0m,
     decimal DeductibleCsgNextYear = 0m, decimal HighIncomeContribution = 0m, bool HighIncomeSmoothed = false, decimal AlimonyDeducted = 0m,
     decimal RealisedGainsTaxable = 0m, decimal CapitalLossesCarriedForward = 0m, decimal AgeDisabilityAllowance = 0m,
-    IReadOnlyList<TaxStep>? Steps = null);
+    IReadOnlyList<TaxStep>? Steps = null, TaxBracketPosition? Bracket = null);
 
 /// <summary>
 /// Spec §4bis: the withholding rate the year's income gives, and what « Actualiser suite à une hausse ou une baisse de vos revenus »
@@ -371,7 +371,8 @@ public static class TaxCalculator
                 (TaxStepCodes.FlatTax, TaxStepGroups.Tax, flat),
                 (TaxStepCodes.SocialLevies, TaxStepGroups.Tax, levies),
                 (TaxStepCodes.HighIncome, TaxStepGroups.Tax, cehr),
-            ], taxable, incomeTax, total));
+            ], taxable, incomeTax, total),
+            TaxBracketPosition.Of(rules, taxable, parts));
     }
 
     /// <summary>

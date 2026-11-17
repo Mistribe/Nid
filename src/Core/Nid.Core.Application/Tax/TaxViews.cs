@@ -181,6 +181,17 @@ public sealed record TaxPerView(bool Pooled, string Remaining, string TaxSaved, 
 /// <summary>One step of the walk from the income to the tax (<c>TaxStep</c>).</summary>
 public sealed record TaxStepView(string Code, string Group, string Amount, string From, string To);
 
+/// <summary>A band of the scale: <c>To</c> null for the top one; <c>Rate</c> a percent.</summary>
+public sealed record TaxBandView(string From, string? To, string Rate);
+
+/// <summary>The household's place on the scale (<see cref="TaxBracketPosition"/>); the page compares a band's <c>Rate</c> with the marginal rate.</summary>
+public sealed record TaxBracketView(IReadOnlyList<TaxBandView> Bands, string Quotient, string? NextFrom, string? ToNext, string DisplayEnd)
+{
+    public static TaxBracketView Of(TaxBracketPosition p) => new(
+        p.Bands.Select(b => new TaxBandView(Amount(b.From), b.To is { } to ? Amount(to) : null, TaxResultView.Rate(b.Rate))).ToList(),
+        Amount(p.Quotient), p.NextFrom is { } n ? Amount(n) : null, p.ToNext is { } t ? Amount(t) : null, Amount(p.DisplayEnd));
+}
+
 /// <summary>
 /// Spec §4, each step's figure as a decimal string; rates in percent (<c>"30"</c>, <c>"4.27"</c>). <c>ReferenceIncome</c>: the
 /// revenu fiscal de référence. <c>RentalRegimeGap</c>: the total tax under the other rental regime minus this one, null when there is no choice.
@@ -202,7 +213,7 @@ public sealed record TaxResultView(
     string RentalDeficitCarriedForward = "0.00", bool CapitalScale = false, string? CapitalOptionGap = null, string DividendAllowance = "0.00",
     string DeductibleCsgNextYear = "0.00", string HighIncomeContribution = "0.00", bool HighIncomeSmoothed = false, string AlimonyDeducted = "0.00",
     string RealisedGainsTaxable = "0.00", string CapitalLossesCarriedForward = "0.00", string AgeDisabilityAllowance = "0.00",
-    IReadOnlyList<TaxStepView>? Steps = null)
+    IReadOnlyList<TaxStepView>? Steps = null, TaxBracketView? Bracket = null)
 {
     /// <summary><paramref name="persons"/>: the adults' ids in the order of the declarants (the estimate's); a simulation passes none.</summary>
     public static TaxResultView Of(TaxResult r, IReadOnlyList<Guid>? persons = null) => new(
@@ -218,7 +229,8 @@ public sealed record TaxResultView(
         r.RentalRegimeGap is { } gap ? Amount(gap) : null, Amount(r.RentalDeficitCarriedForward),
         r.CapitalScale, r.CapitalOptionGap is { } option ? Amount(option) : null, Amount(r.DividendAllowance), Amount(r.DeductibleCsgNextYear),
         Amount(r.HighIncomeContribution), r.HighIncomeSmoothed, Amount(r.AlimonyDeducted), Amount(r.RealisedGainsTaxable), Amount(r.CapitalLossesCarriedForward), Amount(r.AgeDisabilityAllowance),
-        (r.Steps ?? []).Select(s => new TaxStepView(s.Code, s.Group, Amount(s.Amount), Amount(s.From), Amount(s.To))).ToList());
+        (r.Steps ?? []).Select(s => new TaxStepView(s.Code, s.Group, Amount(s.Amount), Amount(s.From), Amount(s.To))).ToList(),
+        r.Bracket is { } b ? TaxBracketView.Of(b) : null);
 
     private static string? WireMethod(SalaryMethod method) => method switch
     {
@@ -228,7 +240,7 @@ public sealed record TaxResultView(
         _ => null,
     };
 
-    private static string Rate(decimal rate) => (rate * 100).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+    internal static string Rate(decimal rate) => (rate * 100).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
 }
 
 /// <summary><c>Pensions</c>: the pensions to declare beside the salaries, both withheld at the rate.</summary>
