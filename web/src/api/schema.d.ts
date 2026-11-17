@@ -37272,6 +37272,11 @@ export interface components {
              * @default 0
              */
             disabledDependents: number;
+            /**
+             * Format: int32
+             * @default 0
+             */
+            alternateUnder6: number;
         };
         TaxMilestoneView: {
             code: string;
@@ -37367,6 +37372,11 @@ export interface components {
              * @default 0
              */
             disabledDependents: number;
+            /**
+             * Format: int32
+             * @default 0
+             */
+            alternateUnder6: number;
         };
         TaxProfileView: {
             statuses: {
@@ -37433,6 +37443,11 @@ export interface components {
              * @default 0
              */
             disabledDependents: number;
+            /**
+             * Format: int32
+             * @default 0
+             */
+            alternateUnder6: number;
         };
         TaxPropertyView: {
             /** Format: uuid */

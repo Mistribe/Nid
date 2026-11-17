@@ -163,6 +163,7 @@ public sealed record PinelCommitment(Guid Property, int InitialYears, int TotalY
 /// exempt income the reference income counts (overtime, the value-sharing bonus). <c>DonationsAid</c> is box 7UD, <c>DonationsAidLate</c>
 /// 7UQ (the aid donations of 2025 made from 14 October); <c>RentalEnergyWorks</c> the energy renovation works among the rental charges.
 /// Issue #409: <c>Department</c>, the household's department code (<see cref="TaxCalendar.IsDepartment"/>), dates the filing deadline.
+/// Issue #320: <c>AlternateUnder6</c>, how many of the <c>ChildrenUnder6</c> live in alternate custody (half the childcare cap each).
 /// </summary>
 public sealed record TaxProfile(
     IReadOnlyDictionary<Guid, string> Statuses, int? Dependents, int ChildrenUnder6, string? RentalRegime,
@@ -173,7 +174,7 @@ public sealed record TaxProfile(
     IReadOnlyDictionary<Guid, decimal>? ExemptIncomes = null, decimal DonationsAidLate = 0m, decimal RentalEnergyWorks = 0m, string? Department = null,
     bool CapitalScale = false, decimal DeductibleCsg = 0m,
     decimal AlimonyPaid = 0m, decimal AlimonyAdultChildren = 0m, int AlimonyAdultChildrenCount = 0, decimal CapitalLossesCarried = 0m,
-    int AlternateCustody = 0, bool Cohabiting = false, IReadOnlyList<Guid>? DisabledAdults = null, int DisabledDependents = 0)
+    int AlternateCustody = 0, bool Cohabiting = false, IReadOnlyList<Guid>? DisabledAdults = null, int DisabledDependents = 0, int AlternateUnder6 = 0)
 {
     public static readonly TaxProfile Empty = new(new Dictionary<Guid, string>(), null, 0, null, [], 0m, 0m, 0m, 0m);
 }

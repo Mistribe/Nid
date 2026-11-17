@@ -138,7 +138,7 @@ public sealed class SimulateTaxHandler(IHouseholdCalendar calendar, TaxEstimates
         var today = await calendar.TodayAsync(ct);
         if (TaxEstimates.CheckYear(inputs.Year, today) is { } failure)
             return Result.Failure<TaxResultView>(failure);
-        if (inputs.Declarants.Count is < 1 or > 2 || inputs.Declarants.Any(d => d.ContributionRate is { } r && !TaxEstimates.RateOk(r) || d.SalaryTaxable < 0m || d.PerCeiling < 0m || d.PreviousYearIncome < 0m || d.PerExpiring < 0m) || inputs.Dependents is < 0 or > 20 || inputs.ChildrenUnder6 < 0 || inputs.ChildrenUnder6 > inputs.Dependents || inputs.AlimonyAdultChildrenCount is < 0 or > 20 || inputs.AlternateCustody < 0 || inputs.AlternateCustody > inputs.Dependents || inputs.DisabledDependents < 0 || inputs.DisabledDependents > inputs.Dependents)
+        if (inputs.Declarants.Count is < 1 or > 2 || inputs.Declarants.Any(d => d.ContributionRate is { } r && !TaxEstimates.RateOk(r) || d.SalaryTaxable < 0m || d.PerCeiling < 0m || d.PreviousYearIncome < 0m || d.PerExpiring < 0m) || inputs.Dependents is < 0 or > 20 || inputs.ChildrenUnder6 < 0 || inputs.ChildrenUnder6 > inputs.Dependents || inputs.AlimonyAdultChildrenCount is < 0 or > 20 || inputs.AlternateCustody < 0 || inputs.AlternateCustody > inputs.Dependents || inputs.DisabledDependents < 0 || inputs.DisabledDependents > inputs.Dependents || inputs.AlternateUnder6 < 0 || inputs.AlternateUnder6 > Math.Min(inputs.ChildrenUnder6, inputs.AlternateCustody))
             return Result.Failure<TaxResultView>(new Failure(TaxCodes.InvalidInputs,
                 "One or two declarants, their entered net taxable income, PER ceiling, previous-year income and expiring ceiling not negative; dependents between 0 and 20, the children under 6 among them; adult children receiving alimony between 0 and 20; the children in alternate custody and the disabled ones among the dependents.", null));
         var simulated = TaxCalculator.Compute(inputs);
@@ -545,7 +545,8 @@ public sealed class TaxEstimates(
             All(TaxLineCodes.RealisedGain), profile.CapitalLossesCarried,
             // Box T: a single declarant is taken to live alone with the children unless the profile says otherwise.
             AlternateCustody: Math.Min(profile.AlternateCustody, dependents), SingleParent: adults.Count == 1 && !profile.Cohabiting,
-            DisabledDependents: Math.Min(profile.DisabledDependents, dependents));
+            DisabledDependents: Math.Min(profile.DisabledDependents, dependents),
+            AlternateUnder6: Math.Min(profile.AlternateUnder6, Math.Min(Math.Min(profile.ChildrenUnder6, profile.AlternateCustody), dependents)));
         return (inputs, notices, columns);
     }
 
@@ -575,6 +576,7 @@ public sealed class TaxEstimates(
                  && p.AlimonyAdultChildrenCount is >= 0 and <= 20 && (p.AlimonyAdultChildren == 0m || p.AlimonyAdultChildrenCount > 0)
                  && p.AlternateCustody is >= 0 and <= 20 && (p.Dependents is null || p.AlternateCustody <= p.Dependents)
                  && p.DisabledDependents is >= 0 and <= 20 && (p.Dependents is null || p.DisabledDependents <= p.Dependents)
+                 && p.AlternateUnder6 >= 0 && p.AlternateUnder6 <= p.ChildrenUnder6 && p.AlternateUnder6 <= p.AlternateCustody
                  && (p.ContributionRates?.Values.All(RateOk) ?? true) && (p.ActualExpenses?.Values.All(a => a is >= 0 and <= 10_000_000m) ?? true)
                  && (p.PerUnusedCeilings?.Values.All(a => a is >= 0 and <= 10_000_000m) ?? true)
                  && (p.ExemptIncomes?.Values.All(a => a is >= 0 and <= 10_000_000m) ?? true)

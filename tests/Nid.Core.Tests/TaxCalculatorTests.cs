@@ -67,10 +67,11 @@ public class TaxCalculatorTests
     // dependents, of them in alternate custody, box T, disabled declarant → shares, cap
     [InlineData(1, 0, true, false, 2.0, 4_262)]   // box T with the first child: 4 262 for both half-shares
     [InlineData(1, 0, false, false, 1.5, 1_807)]  // living with another adult: no box T
-    [InlineData(2, 2, true, false, 1.75, 3_035)]  // alternate custody only: two quarters, box T a quarter, 2 131 for the first pair
-    [InlineData(3, 2, false, false, 2.25, 1_807 + 904 + 1_808)] // the child at home ranks first; the third child's half share in quarters
+    [InlineData(2, 2, true, false, 2.0, 4_262)]   // alternate custody only: two quarters, box T half a share, 2 131 for each of the pair
+    [InlineData(1, 1, true, false, 1.5, 2_131)]   // one child in alternate custody: box T a quarter, half of 4 262
+    [InlineData(3, 2, false, false, 2.25, 1_807 + 903.5 + 1_807)] // the child at home ranks first; the third child's half share in quarters
     [InlineData(0, 0, true, true, 1.5, 3_608)]    // box P, no child: no box T
-    public void Shares_and_their_cap_follow_the_household(int dependents, int alternate, bool single, bool disabled, double parts, int cap)
+    public void Shares_and_their_cap_follow_the_household(int dependents, int alternate, bool single, bool disabled, double parts, double cap)
     {
         var inputs = Inputs([new("A", 0m, EmploymentStatus.NonExecutive, 0m, 0m, Disabled: disabled)], dependents)
             with { AlternateCustody = alternate, SingleParent = single };
@@ -81,10 +82,10 @@ public class TaxCalculatorTests
     [Theory]
     // dependents, of them in alternate custody, disabled dependents → shares, cap (a couple)
     [InlineData(1, 0, 1, 3.0, 1_807 + 3_608)]           // box G: half a share more, capped with its complementary reduction
-    [InlineData(2, 2, 1, 2.75, 904 * 2 + 3_608 / 2)]     // box I: a quarter share, half the cap
-    [InlineData(2, 1, 1, 3.25, 1_807 + 904 + 3_608)]     // the disabled child is taken at home first
+    [InlineData(2, 2, 1, 2.75, 903.5 * 2 + 3_608 / 2)]   // box I: a quarter share, half the cap
+    [InlineData(2, 1, 1, 3.25, 1_807 + 903.5 + 3_608)]   // the disabled child is taken at home first
     [InlineData(1, 0, 3, 3.0, 1_807 + 3_608)]           // never more disabled children than dependents
-    public void A_disabled_dependent_adds_a_share_and_its_cap(int dependents, int alternate, int disabled, double parts, int cap)
+    public void A_disabled_dependent_adds_a_share_and_its_cap(int dependents, int alternate, int disabled, double parts, double cap)
     {
         var inputs = Inputs([Other(0m), Other(0m)], dependents) with { AlternateCustody = alternate, DisabledDependents = disabled };
 
@@ -131,6 +132,19 @@ public class TaxCalculatorTests
 
         // 12 000 + 1 500 + 750 = 14 250, half of it as a credit.
         Assert.Equal(7_125m, TaxCalculator.Compute(inputs).HomeEmploymentCredit);
+    }
+
+    [Theory]
+    [InlineData(0, 3_500)]
+    [InlineData(1, 2_625)]
+    [InlineData(2, 1_750)]
+    public void A_child_under_6_in_alternate_custody_halves_its_childcare_cap(int alternateUnder6, int credit)
+    {
+        var inputs = Inputs([Other(80_000m)], dependents: 2)
+            with { ChildrenUnder6 = 2, AlternateCustody = 2, AlternateUnder6 = alternateUnder6, ChildcareOutsideHome = 8_000m };
+
+        // 3 500 each, 1 750 in alternate custody, half of it as a credit.
+        Assert.Equal(credit, TaxCalculator.Compute(inputs).ChildcareCredit);
     }
 
     [Fact]
