@@ -91,6 +91,35 @@
       "parts": "Parts du foyer",
       "adjust": "Ajuster le prélèvement"
     },
+    "pistes": {
+      "title": "Pistes",
+      "saving": "{{amount}} d’impôt en moins",
+      "nothing": "Rien à changer",
+      "per": {
+        "title": "Verser {{amount}} sur le PER avant le 31 décembre",
+        "minimum": "{{name}} : au moins {{amount}} pour ne pas perdre {{expiring}}"
+      },
+      "regime": {
+        "switch": "Passer au {{other}}",
+        "stay": "Rester au {{regime}}",
+        "detail": "Vos loyers sont imposés au {{regime}}.",
+        "compared": "Nid a comparé avec le {{other}}."
+      },
+      "capital": {
+        "switch_scale": "Opter pour le barème (case 2OP)",
+        "switch_flat": "Revenir au prélèvement forfaitaire",
+        "stay_flat": "Rester au prélèvement forfaitaire",
+        "stay_scale": "Rester au barème"
+      },
+      "cut": {
+        "title": "Être prélevé de {{amount}} de moins cette année",
+        "detail": "Taux de {{rate}}, sans majoration"
+      },
+      "ceiling": {
+        "title": "Saisir le plafond PER de votre avis",
+        "detail": "Plafond estimé pour {{names}}"
+      }
+    },
     "split": {
       "title": "Où vont vos revenus",
       "note": "sur {{amount}} de revenus nets avant impôt",
