@@ -63,10 +63,10 @@ export function Hero({ label, figure, change, note, aside, curve }: {
   return (
     <section aria-labelledby={labelId} className="material rounded-[22px] border p-5 shadow-card">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between lg:gap-8">
-        <div className="min-w-0 shrink-0"><HeroBody label={label} labelId={labelId} figure={figure} change={change} note={note} curve={curve}
+        <div className={`min-w-0 ${curve ? '' : 'shrink-0'}`}><HeroBody label={label} labelId={labelId} figure={figure} change={change} note={note} curve={curve}
           className={curve ? '' : 'w-full justify-between'} /></div>
         {/* With a curve the figures take the width the curve leaves; without, they stay in a 2xl box. */}
-        {aside ? <div className={`min-w-0 lg:flex-1 ${curve ? '' : 'lg:max-w-2xl'}`}>{aside}</div> : null}
+        {aside ? <div className={`min-w-0 lg:flex-1 ${curve ? 'lg:min-w-[33rem]' : 'lg:max-w-2xl'}`}>{aside}</div> : null}
       </div>
     </section>
   );

@@ -62,11 +62,14 @@ describe('Hero', () => {
     const aside = () => screen.getByText('Chiffres').parentElement!;
     expect(body()).not.toHaveClass('w-full', 'justify-between');
     expect(aside()).toHaveClass('lg:flex-1');
+    expect(aside()).toHaveClass('lg:min-w-[33rem]');
     expect(aside()).not.toHaveClass('lg:max-w-2xl');
+    expect(body().parentElement).not.toHaveClass('shrink-0');
 
     rerender(<Hero label="Impôt" figure="1 €" aside={<p>Chiffres</p>} />);
     expect(body()).toHaveClass('w-full', 'justify-between');
     expect(aside()).toHaveClass('lg:flex-1', 'lg:max-w-2xl');
+    expect(body().parentElement).toHaveClass('shrink-0');
   });
 
   it('HeroChange takes the tax tone', () => {
