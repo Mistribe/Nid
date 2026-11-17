@@ -2,15 +2,15 @@ import { useTranslation } from 'react-i18next';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Section } from '@/components/page/Section';
 import type { TaxEstimate } from '@/api/tax';
-import { percentText, ZERO } from './format';
-import { eur } from './ResultTable';
+import { percentText, ZERO } from '../format';
+import { eur } from '../ResultTable';
 import '@/locales/tax';
 
 /**
  * Tax estimate spec §4bis: what to type in « Actualiser suite à une hausse ou une baisse de vos revenus » on impots.gouv.fr, and the
  * rate and monthly amounts that should follow. Every figure is the server's.
  */
-export function WithholdingSection({ estimate }: { estimate: TaxEstimate }) {
+export function WithholdingTab({ estimate }: { estimate: TaxEstimate }) {
   const { t } = useTranslation();
   const w = estimate.result.withholding;
   const declared: [string, string][] = [

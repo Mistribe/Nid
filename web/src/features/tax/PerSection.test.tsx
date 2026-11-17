@@ -133,10 +133,9 @@ describe('TaxPage, PER', () => {
     loaded.inputs.declarants[0]!.perEnvelopes = ['PER Avenir'];
     loaded.notices = [{ code: 'per_without_contributions', item: 'e1', name: 'PER Avenir', amount: '0.00' }];
     server.use(http.get('*/api/v1/tax', () => HttpResponse.json(loaded)));
-    await renderApp('/tax');
+    await renderApp('/tax?tab=detail');
 
-    expect(await screen.findByText('PER Avenir : aucun versement enregistré cette année.')).toBeInTheDocument();
-    expect(screen.getByText('flux de PER Avenir')).toBeInTheDocument();
+    expect(await screen.findByText('flux de PER Avenir')).toBeInTheDocument();
     expect(screen.getAllByText(/100,00 € versés ne sont pas déduits/)).toHaveLength(1);
     expect(screen.queryByText('per_over_ceiling')).not.toBeInTheDocument();
   });
@@ -178,7 +177,7 @@ describe('TaxPage, PER', () => {
     expect(sent[0]).toMatchObject({ declarants: [{ perCeiling: '5000', previousYearIncome: '40000', perExpiring: '0.00' }], perPooling: false });
   });
 
-  it('keeps a PER warning the block cannot show in the top notes, with the generic text', async () => {
+  it('keeps a PER warning the block cannot show in À savoir, with the generic text', async () => {
     const loaded = estimate();
     loaded.result = withPer({ warnings: ['per_over_ceiling'] }, declarantPer({ excess: '0.00' }));
     server.use(http.get('*/api/v1/tax', () => HttpResponse.json(loaded)));
@@ -187,28 +186,28 @@ describe('TaxPage, PER', () => {
     expect(await screen.findByText('Des versements PER dépassent le plafond : voir le Profil fiscal pour saisir celui de votre avis.')).toBeInTheDocument();
   });
 
-  it('keeps a PER warning whose declarant has no PER figures in the top notes', async () => {
+  it('says an estimated ceiling as a piste, not in À savoir', async () => {
     const loaded = estimate();
     loaded.result = result({ warnings: ['per_ceiling_estimated'] });
     server.use(http.get('*/api/v1/tax', () => HttpResponse.json(loaded)));
     await renderApp('/tax');
 
-    expect(await screen.findByText('Un plafond PER est estimé : saisissez celui de votre avis pour un chiffre exact.')).toBeInTheDocument();
+    const pistes = await screen.findByRole('region', { name: 'Pistes' });
+    expect(within(pistes).getByText('Saisir le plafond PER de votre avis')).toBeInTheDocument();
+    expect(screen.queryByText(/Un plafond PER est estimé/)).not.toBeInTheDocument();
   });
 
-  it('the block tells each warning once, with no second copy in the notes', async () => {
+  it('the block tells each warning once', async () => {
     const loaded = estimate();
     const [alice, bob] = [declarantPer({ excess: '100.00' }), declarantPer({ excess: '200.00', source: 'estimated' })];
     loaded.result = withPer({ warnings: ['per_over_ceiling', 'per_over_ceiling', 'per_ceiling_estimated', 'per_ceiling_estimated'] }, alice);
     loaded.result.declarants = [{ ...loaded.result.declarants[0]!, per: alice }, { ...loaded.result.declarants[0]!, name: 'Bob', person: 'b', per: bob }];
     server.use(http.get('*/api/v1/tax', () => HttpResponse.json(loaded)));
     const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    await renderApp('/tax');
+    await renderApp('/tax?tab=detail');
 
     expect(await screen.findAllByText(/versés ne sont pas déduits/)).toHaveLength(2);
     expect(screen.getAllByText(/Plafond de Bob estimé/)).toHaveLength(1);
-    const notes = screen.getByRole('region', { name: 'À savoir' });
-    expect(within(notes).queryByText(/versés ne sont pas déduits|Plafond de Bob estimé|plafond PER/i)).not.toBeInTheDocument();
     expect(errors.mock.calls.flat().join(' ')).not.toContain('same key');
     errors.mockRestore();
   });

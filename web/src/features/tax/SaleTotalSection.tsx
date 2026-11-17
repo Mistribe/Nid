@@ -8,6 +8,7 @@ import { ModalDialog } from '@/components/ModalDialog';
 import { SortableTable } from '@/components/page/SortableTable';
 import { amountKey } from '@/components/page/sortKey';
 import { StatLine } from '@/components/page/StatLine';
+import { Loading, TableSkeleton } from '@/components/page/skeletons';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { ItemLink } from '@/components/ItemLink';
@@ -25,7 +26,7 @@ export function SaleTotalSection({ scope }: { scope: 'me' | 'household' }) {
   const answer = $api.useQuery('get', TAX_SALE, { params: { query: { scope } } });
   const view = answer.data;
   if (answer.error) return <ProblemMessage problem={present(toProblem(answer.error))} />;
-  if (!view) return <div role="status" aria-busy="true" aria-label={t('tax.loading')} className="h-40 shimmer rounded-md border bg-muted" />;
+  if (!view) return <Loading label={t('tax.loading')}><TableSkeleton columns={9} rows={3} /></Loading>;
   if (!view.items.length) return <EmptyState module="/tax" title={t('tax.sale.all.empty_title')} body={t('tax.sale.all.empty_body')} level={3} />;
   const { totals } = view;
   const money = (amount?: string | null) => (amount ? eur(amount) : '—');

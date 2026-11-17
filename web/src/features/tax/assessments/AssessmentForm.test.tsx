@@ -297,7 +297,7 @@ describe('AssessmentForm', () => {
       http.get('*/api/v1/tax', ({ request }) => { years.push(new URL(request.url).searchParams.get('year')); return HttpResponse.json(estimate()); }),
     );
     const { user, router } = await renderApp('/tax');
-    await screen.findByText('Net fiscal');
+    await screen.findByRole('tab', { name: 'Calcul' });
     await user.click(screen.getByRole('link', { name: 'Ajouter un avis' }));
 
     await pick(user, 'Année des revenus', '2022');

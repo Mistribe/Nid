@@ -279,7 +279,7 @@ public static class NotificationTemplates
     private static string? LinkOf(NotificationRecord n, NotificationKind kind)
     {
         if (n.ItemIds.Count == 0)
-            return n.Kind switch { "fx_rate_missing" or "month_changes" or "net_worth_milestone" or "savings_pace" => "/dashboard", "idle_cash" => "/investments", "routine_due" => "/routine", "shortfall_ahead" => "/settings/banks", "tax_filing_deadline" or "tax_new_rate" or "tax_balance_due" => "/tax", _ => "/" };
+            return n.Kind switch { "fx_rate_missing" or "month_changes" or "net_worth_milestone" or "savings_pace" => "/dashboard", "idle_cash" => "/investments", "routine_due" => "/routine", "shortfall_ahead" => "/settings/banks", "tax_filing_deadline" or "tax_new_rate" => "/tax", "tax_balance_due" => "/tax?tab=withholding", _ => "/" };
         var id = n.ItemIds[0].Value.ToString("D");
         // The banking findings name the page of their item in "module", the item being any module's.
         return (kind.Module == "banking" ? n.Params.GetValueOrDefault("module") : kind.Module) switch

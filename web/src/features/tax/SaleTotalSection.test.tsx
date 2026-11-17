@@ -73,14 +73,13 @@ describe('SaleTotalSection', () => {
     expect(row).toHaveTextContent('Imposable · approximatif · valeur estimée · valeur à mettre à jour');
   });
 
-  it('sits under the simulation in « Simuler », the year picker and the notes above unchanged', async () => {
+  it('sits under the simulation in « Simuler », the year picker above unchanged', async () => {
     serve(view());
     await renderApp('/tax?tab=simulation');
     await screen.findByText('340 000,00 €');
     expect(screen.getByRole('heading', { name: 'Simulation' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Si tout était vendu' })).toBeInTheDocument();
     expect(screen.getByRole('radiogroup', { name: 'Année des revenus' })).toBeInTheDocument();
-    expect(screen.getByText('Estimation selon le barème 2025')).toBeInTheDocument();
   });
 
   it('shows an empty state without item', async () => {

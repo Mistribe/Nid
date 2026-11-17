@@ -2,13 +2,14 @@ import { useQueries } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { SeriesLink } from '@/components/page/SeriesLink';
+import { Loading, SectionCardSkeleton, TableSkeleton } from '@/components/page/skeletons';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toPlot } from '@/lib/plot';
 import { FIRST_ESTIMATE_YEAR, TAX, type TaxEstimate } from '@/api/tax';
-import { ChangesSection } from './ChangesSection';
-import type { TaxAssessment } from './assessments/api';
-import { percentText, ZERO } from './format';
-import { eur } from './ResultTable';
+import { ChangesSection } from '../ChangesSection';
+import type { TaxAssessment } from '../assessments/api';
+import { percentText, ZERO } from '../format';
+import { eur } from '../ResultTable';
 import '@/locales/tax';
 
 type Row = { year: string; source: 'assessment' | 'estimate'; netTaxable?: string; tax: string; flatTax?: string; rate?: string | null };
@@ -18,7 +19,7 @@ type Row = { year: string; source: 'assessment' | 'estimate'; netTaxable?: strin
  * « impôt net » holds the flat tax on capital income; the estimate's income tax does not, so its flat tax is shown beside it
  * rather than added here. The bars are sized with `toPlot`; every figure read is the server's.
  */
-export function EvolutionSection({ years, assessments, scope, current, adults }: {
+export function EvolutionTab({ years, assessments, scope, current, adults }: {
   years: string[]; assessments: TaxAssessment[]; scope: 'me' | 'household'; current: string; adults: TaxEstimate['adults'];
 }) {
   const { t } = useTranslation();
@@ -38,7 +39,7 @@ export function EvolutionSection({ years, assessments, scope, current, adults }:
   const sizes = rows.map((r) => Math.max(0, toPlot(r.tax)));
   const largest = Math.max(1, ...sizes);
 
-  if (!rows.length) return loading ? <div aria-busy="true" aria-label={t('tax.loading')} className="h-40 shimmer rounded-md border bg-muted" /> : <p className="text-sm text-muted-foreground">{t('tax.evolution.empty')}</p>;
+  if (!rows.length) return loading ? <Loading label={t('tax.loading')}><SectionCardSkeleton><TableSkeleton columns={6} rows={3} /></SectionCardSkeleton></Loading> : <p className="text-sm text-muted-foreground">{t('tax.evolution.empty')}</p>;
   return (
     <>
       <div className="flex flex-wrap items-center justify-between gap-2">

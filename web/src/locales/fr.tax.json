@@ -11,7 +11,6 @@
     "rate_format": "Un pourcentage, par exemple 23 ou 23,5.",
     "detail_table": "Calcul de l’impôt étape par étape",
     "detail_title": "Calcul détaillé",
-    "figures_title": "Chiffres de l’année",
     "notes": "À savoir",
     "childcare_summary": "Récapitulatif {{year}} à recopier",
     "evolution": {
@@ -51,29 +50,73 @@
     "disclaimer": "Estimation indicative pour une déclaration commune, selon le barème des revenus {{year}}. Ce n’est pas un conseil fiscal : seule l’administration calcule l’impôt dû.",
     "out_of_scope": "Non calculés : retraites, revenus d’indépendant, pensions alimentaires, location meublée, plus-values, retraits d’épargne (PEA, assurance-vie, PER), option pour le barème sur les revenus du capital, contribution sur les hauts revenus, parent isolé, garde alternée, invalidité.",
     "add_assessment": "Ajouter un avis",
-    "tab": { "assessment": "Avis", "2042": "Déclaration 2042", "2044": "Déclaration 2044", "detail": "Calcul", "withholding": "Prélèvement", "profile": "Profil fiscal", "simulation": "Simuler", "sale": "Si tout était vendu", "evolution": "Évolution" },
+    "tab": { "overview": "Vue d’ensemble", "declarations": "Déclarations", "assessment": "Avis", "2042": "Déclaration 2042", "detail": "Calcul", "withholding": "Prélèvement", "profile": "Profil fiscal", "simulation": "Simuler", "sale": "Si tout était vendu", "evolution": "Évolution" },
     "figure": {
       "net_taxable": "Net fiscal",
       "income_tax": "Impôt sur le revenu",
-      "total_tax": "Impôt total",
       "net_after": "Net après impôt",
       "monthly": "Par mois",
-      "marginal_rate": "Tranche marginale",
-      "withholding_rate": "Taux de prélèvement",
-      "parts": "Parts",
-      "left_monthly": "Reste après impôt, par mois",
-      "per_year": "{{amount}} sur l’année",
       "average_rate": "Taux moyen {{rate}}",
       "carried": "Estimation selon le barème {{year}}",
-      "scale": "Barème {{year}}",
-      "balance": "Solde à la déclaration {{year}}",
-      "to_pay": "à payer",
-      "refund": "remboursés",
-      "no_balance": "Aucun solde",
-      "adjust": "Ajuster le taux de prélèvement"
+      "scale": "Barème {{year}}"
+    },
+    "hero": {
+      "label": "Impôt total {{year}} · estimation",
+      "change_of": "Impôt sur le revenu",
+      "since_assessment": "par rapport à l’avis {{year}}",
+      "since_estimate": "par rapport à l’estimation {{year}}"
+    },
+    "balance": {
+      "none": "Rien à régler",
+      "refund": "Remboursé en été {{year}}",
+      "to_pay": "À payer en septembre {{year}}"
+    },
+    "declarations": { "form": "Formulaire" },
+    "overview": {
+      "question": "Combien d’impôt cette année, et que puis-je faire ?",
+      "empty_title": "Aucun revenu pour {{year}}",
+      "empty_body": "Sans revenu, Nid n’a pas d’impôt à estimer. Ajoutez un revenu ou complétez le profil fiscal.",
+      "empty_income": "Ajouter un revenu",
+      "empty_profile": "Compléter le profil fiscal",
+      "left_monthly": "Reste par mois",
+      "net_taxable": "Revenu imposable",
+      "marginal_rate": "Votre tranche d’imposition",
+      "withholding_rate": "Taux de prélèvement",
+      "parts": "Parts du foyer",
+      "adjust": "Ajuster le prélèvement"
+    },
+    "pistes": {
+      "title": "Pistes",
+      "saving": "{{amount}} d’impôt en moins",
+      "nothing": "Rien à changer",
+      "per": {
+        "title": "Verser {{amount}} sur le PER avant le 31 décembre",
+        "minimum": "{{name}} : au moins {{amount}} pour ne pas perdre {{expiring}}"
+      },
+      "regime": {
+        "switch": "Passer au {{other}}",
+        "stay": "Rester au {{regime}}",
+        "detail": "Vos loyers sont imposés au {{regime}}.",
+        "compared": "Nid a comparé avec le {{other}}."
+      },
+      "capital": {
+        "switch_scale": "Opter pour le barème (case 2OP)",
+        "switch_flat": "Revenir au prélèvement forfaitaire",
+        "stay_flat": "Rester au prélèvement forfaitaire",
+        "stay_scale": "Rester au barème"
+      },
+      "cut": {
+        "title": "Être prélevé de {{amount}} de moins cette année",
+        "detail": "Taux de {{rate}}, sans majoration"
+      },
+      "ceiling": {
+        "title": "Saisir le plafond PER de votre avis",
+        "detail": "Plafond estimé pour {{names}}"
+      }
     },
     "split": {
-      "title": "Où vont les {{amount}} de revenus nets avant impôt",
+      "title": "Où vont vos revenus",
+      "note": "sur {{amount}} de revenus nets avant impôt",
       "left": "Reste"
     },
     "declarant": {
@@ -165,6 +208,7 @@
       "change": "Changer de régime dans le Profil fiscal"
     },
     "tip": {
+      "left_monthly": "Ce qui reste de vos revenus nets chaque mois, une fois l’impôt total retiré.",
       "allowance": "Le fisc retire d’office 10 % de vos salaires pour couvrir vos frais de travail (trajets, repas). Si vos vrais frais sont plus élevés, vous pouvez les déclarer à la place : ce sont les « frais réels ».",
       "pensions": "Retraites et pensions alimentaires reçues, au montant net imposable quand il est saisi sur la période, sinon au net versé.",
       "pension_allowance": "Le fisc retire 10 % des pensions, au moins 454 € par retraité et au plus 4 439 € pour tout le foyer, partagés entre les déclarants.",
@@ -214,6 +258,33 @@
       "pinel_requires_real": "Un logement en Pinel exclut le micro-foncier : le régime réel s’applique.",
       "per_over_ceiling": "Des versements PER dépassent le plafond : voir le Profil fiscal pour saisir celui de votre avis.",
       "per_ceiling_estimated": "Un plafond PER est estimé : saisissez celui de votre avis pour un chiffre exact."
+    },
+    "notices": {
+      "more": "Afficher les {{count}} autres",
+      "less": "Afficher moins",
+      "childcare": {
+        "from_statements": "{{amount}} d’après les relevés validés",
+        "projected": "reste de l’année : {{amount}} ({{validated}} mois validés, {{estimated}} estimés)",
+        "estimated": "{{amount}} estimés d’après le contrat pour {{estimated}} mois"
+      },
+      "kind": {
+        "missing_gross": "Pas de brut renseigné : le net versé sert d’estimation.",
+        "contribution_rate_differs": "Le taux de cotisations saisi s’écarte du taux constaté sur les bulletins.",
+        "unsupported_income": "Ces types de revenu ne sont pas calculés.",
+        "not_a_declarant": "La part d’un enfant n’est pas comptée.",
+        "other_currency": "Revenus hors euro : non comptés.",
+        "savings_interest": "Comptes d’épargne non réglementés : intérêts imposables cette année. Si c’est un livret A, un LDDS, un LEP ou un livret jeune, indiquez-le sur le compte.",
+        "savings_interest_unknown": "Les intérêts de ces comptes d’épargne non réglementés ne se distinguent pas des versements (solde de la banque ou aucun versement enregistré) : ils ne sont pas comptés.",
+        "realised_gain": "Plus-value nette sur les titres vendus cette année (case 3VG, ou 3VH si négative).",
+        "realised_gain_unknown": "Ventes sans nombre de parts ou sans prix de revient : leur plus-value n’est pas comptée.",
+        "withdrawal_not_estimated": "L’impôt sur ces retraits n’est pas estimé.",
+        "per_without_contributions": "Aucun versement PER enregistré cette année.",
+        "childcare": "Frais de garde : le montant du profil est remplacé par celui des relevés, ou estimé d’après le contrat en attendant un relevé validé.",
+        "rental_charges_removed": "Charges locatives retirées des loyers enregistrés avec leurs charges.",
+        "rental_fee_not_counted": "Pénalité de remboursement anticipé ou frais de prêt non comptés en ligne 250.",
+        "rental_to_check": "Dépenses à vérifier (construction ou agrandissement, autres), non comptées : voir Déclaration 2044.",
+        "other": "Autre point à noter"
+      }
     },
     "notice": {
       "missing_gross": "{{name}} : pas de brut renseigné, le net versé ({{amount}}) sert d’estimation.",

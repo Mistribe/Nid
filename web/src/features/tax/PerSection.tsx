@@ -9,7 +9,7 @@ import { eur, Term } from './ResultTable';
 import '@/locales/tax';
 
 /** Whole euros: the room in the bracket is floored by the server. */
-const wholeEur = (amount: string) => formatCurrency(amount, 'EUR', { maximumFractionDigits: 0 });
+export const wholeEur = (amount: string) => formatCurrency(amount, 'EUR', { maximumFractionDigits: 0 });
 
 type Declarant = TaxResult['declarants'][number];
 const overCeiling = (result: TaxResult) => (result.warnings.includes('per_over_ceiling') ? result.declarants.filter((d) => d.per && !ZERO.test(d.per.excess)) : []);
@@ -17,14 +17,6 @@ const estimatedCeiling = (result: TaxResult) => (result.warnings.includes('per_c
   ? result.declarants.filter((d) => d.per?.source === 'estimated' && !ZERO.test(d.per.contributions)) : []);
 const overText = (t: TFunction, d: Declarant) => t('tax.per.over_ceiling', { name: d.name, excess: eur(d.per!.excess), ceiling: eur(d.per!.ceiling) });
 const estimatedText = (t: TFunction, d: Declarant, year: number) => t('tax.per.ceiling_estimated_warning', { name: d.name, year: year - 1 });
-
-/** The PER warning codes the PER block itself tells, as it can only tell what the declarants' own figures show. */
-export function perWarningsInBlock(result: TaxResult): Set<string> {
-  const codes = new Set<string>();
-  if (overCeiling(result).length) codes.add('per_over_ceiling');
-  if (estimatedCeiling(result).length) codes.add('per_ceiling_estimated');
-  return codes;
-}
 
 /** The ceiling's source when every declarant shown shares it, else none: each cell then tells its own. */
 const sharedSource = (per: NonNullable<Declarant['per']>[]) => (per.every((p) => p.source === per[0]!.source) ? per[0]!.source : undefined);

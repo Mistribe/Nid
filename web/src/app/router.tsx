@@ -29,7 +29,7 @@ const PANELS: readonly Panel[] = ['net_worth', 'income', 'commitments', 'margin'
 export type RouterContext = { capabilities: Capabilities };
 
 /** The tax page's tab and the year of its figures (absent: the tab's own default). */
-export type TaxSearch = RootSearch & DetailSearch & { year?: string };
+export type TaxSearch = RootSearch & DetailSearch & { year?: string; form?: 2044 };
 /** A childcare arrangement's tab and the year of its summary (#411; absent: the year just ended). */
 export type ChildcareSearch = DetailSearch & { year?: string };
 export type RoutineSearch = { on?: string };
@@ -394,10 +394,20 @@ const taxRoute = createRoute({
   path: '/tax',
   beforeLoad: requireModule('income'),
   // The router parses `year=2025` to a number: both spellings are read, anything but 4 digits is dropped.
-  validateSearch: (search: Record<string, unknown>): TaxSearch => ({
-    ...detailSearch(search),
-    ...(/^\d{4}$/.test(String(search.year)) ? { year: String(search.year) } : {}),
-  }),
+  validateSearch: (search: Record<string, unknown>): TaxSearch => {
+    // The 2042 and the 2044 were tabs: their old links land on Déclarations, with the form.
+    const tab = detailSearch(search).tab?.replace(/^"|"$/g, '');
+    const alias = tab === '2042' || tab === '2044' ? 'declarations' : tab;
+    // The form is the Declarations tab's own: it leaves the URL with the tab.
+    // A number, so the URL reads `form=2044`; an alias names its own form, `form` is for the tab itself. 2042 is the default.
+    const aliased = tab === '2042' || tab === '2044';
+    const form = alias === 'declarations' && (aliased ? tab === '2044' : String(search.form) === '2044') ? (2044 as const) : undefined;
+    return {
+      ...(alias ? { tab: alias } : {}),
+      form, // explicit even when dropped: the router keeps the raw keys a validator leaves out
+      ...(/^\d{4}$/.test(String(search.year)) ? { year: String(search.year) } : {}),
+    };
+  },
   component: lazyRouteComponent(() => import('@/features/tax/TaxPage'), 'TaxPage'),
 });
 

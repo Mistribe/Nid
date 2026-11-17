@@ -3,7 +3,7 @@ import type tax from '@/locales/fr.tax.json';
 import '@/locales/tax';
 
 export const REGIMES = ['auto', 'micro', 'real'] as const;
-const WARNINGS = ['rules_carried_forward', 'rules_provisional', 'micro_over_ceiling', 'pinel_requires_real'] as const;
+export const WARNINGS = ['rules_carried_forward', 'rules_provisional', 'micro_over_ceiling', 'pinel_requires_real', 'per_over_ceiling', 'per_ceiling_estimated'] as const;
 /** A server amount that is zero (`0.00`, `-0`). */
 export const ZERO = /^-?0(\.0+)?$/;
 const NOTICES = ['missing_gross', 'unsupported_income', 'withdrawal_not_estimated', 'other_currency', 'not_a_declarant', 'rental_charges_removed', 'rental_fee_not_counted', 'rental_to_check', 'contribution_rate_differs', 'per_without_contributions', 'childcare_from_statements', 'childcare_projected', 'childcare_estimated', 'savings_interest', 'savings_interest_unknown', 'realised_gain', 'realised_gain_unknown'] as const;
@@ -16,9 +16,6 @@ export function regimeText(t: TFunction, regime: string): string {
 
 /** What a tax term means, in plain words (design-system §6.2): the InfoTip beside it on every tax screen. */
 export const tipText = (t: TFunction, key: keyof typeof tax.tax.tip) => t(`tax.tip.${key}`);
-
-/** The PER warnings are told by the PER block, from the declarants' own figures. */
-export const PER_WARNINGS: readonly string[] = ['per_over_ceiling', 'per_ceiling_estimated'];
 
 export function warningText(t: TFunction, code: string, year: number): string {
   const known = WARNINGS.find((w) => w === code);
@@ -44,6 +41,11 @@ export const ORIGINS = ['entered', 'gross', 'net'] as const;
 /** A percent string from the server (`"4.5"`), formatted as is (`4,5 %`): Intl reads the decimal string, nothing computes. */
 export function percentText(t: TFunction, value: string): string {
   return t('tax.percent', { value: new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 }).format(value as `${number}`) });
+}
+
+/** A signed percent from the server (`"5.1"` → `+5,1 %`, zero unsigned). */
+export function signedPercentText(t: TFunction, value: string): string {
+  return t('tax.percent', { value: new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1, signDisplay: 'exceptZero' }).format(value as `${number}`) });
 }
 
 const LINES = ['211', '215', '221', '222', '223', '224', '227', '229', '230', '240', '250', '263', '420', '435', '438', '440', '441', '4BA', '4BE'] as const;
