@@ -24,6 +24,86 @@ public static class ChildcareEndpoints
             => (await invoker.InvokeAsync(new GetChildcareQuery(new ItemId(id)), ct)).ToHttp(detail => detail))
             .Returns<ChildcareDetail>();
 
+        // #94: a nanny at home, its months typed as paid.
+        var nannies = api.MapGroup("/nannies");
+        nannies.MapGet("", async (string? scope, bool? closed, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new ListNanniesQuery(ParseScope(scope), closed ?? false), ct)).ToHttp(list => list))
+            .Returns<NannyList>();
+
+        nannies.MapGet("/{id:guid}", async (Guid id, int? year, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                if (year is < 2000 or > 2200) reader.Add("year", "request.invalid", "A year is 2000 to 2200.");
+                return !reader.Ok ? reader.Problem() : (await invoker.InvokeAsync(new GetNannyQuery(new ItemId(id), year), ct)).ToHttp(detail => detail);
+            })
+            .Returns<NannyDetail>();
+
+        nannies.MapPost("", async (CreateNannyBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var visibility = reader.Visibility(body.Visibility, "visibility");
+                var level = reader.ShareLevel(body.ShareLevel, "shareLevel");
+                return !reader.Ok
+                    ? reader.Problem()
+                    : (await invoker.InvokeAsync(new CreateNannyCommand(body.Name ?? "", visibility!.Value,
+                        (body.Owners ?? []).Select(o => new OwnerShare(new PersonId(o.PersonId), o.ShareBp)).ToList(), level!.Value), ct))
+                    .ToHttp(id => new IdResponse(id.Value), StatusCodes.Status201Created);
+            })
+            .Returns<IdResponse>(StatusCodes.Status201Created);
+
+        nannies.MapPut("/{id:guid}", async (Guid id, NannyNameBody body, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new RenameNannyCommand(new ItemId(id), body.Name ?? ""), ct)).ToHttp(x => new IdResponse(x.Value)))
+            .Returns<IdResponse>();
+
+        nannies.MapPut("/{id:guid}/months/{month}", async (Guid id, string month, NannyMonthBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var m = ChildcareBodies.Month(reader, month);
+                var paid = reader.Decimal(body.Paid, "paid");
+                var cmg = body.Cmg is null ? 0m : reader.Decimal(body.Cmg, "cmg");
+                var hours = body.Hours is null ? null : reader.Decimal(body.Hours, "hours");
+                return !reader.Ok
+                    ? reader.Problem()
+                    : (await invoker.InvokeAsync(new PutNannyMonthCommand(new ItemId(id), m!.Value, paid!.Value, cmg!.Value, hours), ct)).ToHttp(x => new IdResponse(x.Value));
+            })
+            .Returns<IdResponse>();
+
+        nannies.MapDelete("/{id:guid}/months/{month}", async (Guid id, string month, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                if (ChildcareBodies.Month(reader, month) is not { } m)
+                    return reader.Problem();
+                // A 204 carries no body: ToHttp would write one.
+                var result = await invoker.InvokeAsync(new DeleteNannyMonthCommand(new ItemId(id), m), ct);
+                return result.TryGetValue(out _) ? Results.NoContent() : result.ToHttp(v => v);
+            })
+            .ReturnsNoContent();
+
+        nannies.MapPost("/{id:guid}/close", async (Guid id, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new CloseNannyCommand(new ItemId(id)), ct)).ToHttp(x => new IdResponse(x.Value)))
+            .Returns<IdResponse>();
+
+        nannies.MapPost("/{id:guid}/reopen", async (Guid id, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new ReopenNannyCommand(new ItemId(id)), ct)).ToHttp(x => new IdResponse(x.Value)))
+            .Returns<IdResponse>();
+
+        nannies.MapGet("/{id:guid}/deletion", async (Guid id, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new NannyDeletionQuery(new ItemId(id)), ct)).ToHttp(preview => preview))
+            .Returns<ItemDeletionPreview>();
+
+        nannies.MapDelete("/{id:guid}", async (Guid id, uint? version, IInvoker invoker, CancellationToken ct) =>
+            {
+                if (version is null)
+                {
+                    var reader = new FieldReader();
+                    reader.Add("version", "request.required", "The version read with the preview is required.");
+                    return reader.Problem();
+                }
+                var result = await invoker.InvokeAsync(new DeleteNannyCommand(new ItemId(id), version.Value), ct);
+                return result.TryGetValue(out _) ? Results.NoContent() : result.ToHttp(x => x);
+            })
+            .ReturnsNoContent();
+
         api.MapPost("", async (CreateChildcareBody body, IInvoker invoker, CancellationToken ct) =>
             {
                 var reader = new FieldReader();
@@ -194,6 +274,14 @@ public static class ChildcareEndpoints
 
         return routes;
     }
+
+    /// <summary>#94: a nanny at home by its name, with its owners and visibility.</summary>
+    public sealed record CreateNannyBody(string? Name, string? Visibility, IReadOnlyList<OwnerBody>? Owners, string? ShareLevel = null);
+
+    public sealed record NannyNameBody(string? Name);
+
+    /// <summary>A month as paid: <c>paid</c> the net salary and employer contributions, <c>cmg</c> the CMG received (0 when absent), <c>hours</c> optional.</summary>
+    public sealed record NannyMonthBody(string? Paid, string? Cmg, string? Hours);
 
     /// <summary>A day as entered; times <c>HH:mm</c> on a present day, <c>absence</c> snake_case (<c>child_sick</c>) on an absent planned one.</summary>
     public sealed record StatementDayBody(string? Date, bool? Present, string? Arrival, string? Departure, bool? Lunch, string? Absence, bool? Snack = null);

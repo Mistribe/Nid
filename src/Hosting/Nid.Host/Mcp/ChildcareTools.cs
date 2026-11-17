@@ -45,4 +45,18 @@ public sealed class ChildcareTools
     public static Task<CallToolResult> GetChildcareYear(IServiceProvider services, [Description("The arrangement's id.")] Guid id,
         [Description("The year; the year just ended when omitted.")] int? year = null, CancellationToken ct = default)
         => McpCalls.RunAsync(services, () => new GetChildcareYearQuery(new ItemId(id), year), ct);
+
+    [McpServerTool(Name = "list_nannies", ReadOnly = true)]
+    [Description("The nannies at home (garde à domicile), each with the current year's net cost (paid − CMG) and months recorded. " + McpSetup.Untrusted)]
+    public static Task<CallToolResult> ListNannies(IServiceProvider services,
+        [Description("'household' (default) or 'me'.")] string? scope = null, [Description("Include closed ones.")] bool closed = false,
+        CancellationToken ct = default)
+        => McpCalls.RunAsync(services, () => new ListNanniesQuery(SubscriptionEndpoints.ParseScope(scope), closed), ct);
+
+    [McpServerTool(Name = "get_nanny", ReadOnly = true)]
+    [Description("A nanny at home's months of a year, newest first (paid, CMG, net cost, hours), the year's totals, and for the current year how the rest "
+        + "of the year is counted for the home-employment credit (the months left at the mean net cost). " + McpSetup.Untrusted)]
+    public static Task<CallToolResult> GetNanny(IServiceProvider services, [Description("The nanny's id.")] Guid id,
+        [Description("The year; the current year when omitted.")] int? year = null, CancellationToken ct = default)
+        => McpCalls.RunAsync(services, () => new GetNannyQuery(new ItemId(id), year), ct);
 }

@@ -24,6 +24,10 @@ public sealed class ChildcareDbContext(DbContextOptions<ChildcareDbContext> opti
 
     public DbSet<StatementDayRow> StatementDays => Set<StatementDayRow>();
 
+    public DbSet<NannyRow> Nannies => Set<NannyRow>();
+
+    public DbSet<NannyMonthRow> NannyMonths => Set<NannyMonthRow>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schema);
@@ -130,6 +134,30 @@ public sealed class ChildcareDbContext(DbContextOptions<ChildcareDbContext> opti
             });
             e.HasKey(x => new { x.ItemId, x.Date });
             e.HasOne<StatementRow>().WithMany().HasForeignKey(x => new { x.ItemId, x.Month }).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<NannyRow>(e =>
+        {
+            e.ToTable("nanny", t => t.HasCheckConstraint("ck_nanny_import",
+                "(import_ref is null) = (import_hash is null) and (import_ref is null) = (imported_by is null)"));
+            e.HasKey(x => x.ItemId);
+            e.Property(x => x.ItemId).ValueGeneratedNever();
+            e.Property(x => x.ImportHash).HasColumnType("char(64)");
+            e.HasIndex(x => new { x.ImportedBy, x.ImportRef }).IsUnique().HasFilter("import_ref is not null");
+        });
+
+        modelBuilder.Entity<NannyMonthRow>(e =>
+        {
+            e.ToTable("nanny_month", t =>
+            {
+                t.HasCheckConstraint("ck_nanny_month_month", "extract(day from month) = 1");
+                t.HasCheckConstraint("ck_nanny_month_amounts", "paid > 0 and cmg >= 0 and cmg <= paid and (hours is null or hours > 0)");
+            });
+            e.HasKey(x => new { x.ItemId, x.Month });
+            e.Property(x => x.Paid).HasColumnType("numeric(19,4)");
+            e.Property(x => x.Cmg).HasColumnType("numeric(19,4)");
+            e.Property(x => x.Hours).HasColumnType("numeric(9,2)");
+            e.HasOne<NannyRow>().WithMany().HasForeignKey(x => x.ItemId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.MapAuditLog(ownedHere: false);

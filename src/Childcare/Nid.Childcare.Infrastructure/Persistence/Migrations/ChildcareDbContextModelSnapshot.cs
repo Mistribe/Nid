@@ -19,7 +19,7 @@ namespace Nid.Childcare.Infrastructure.Persistence.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("childcare")
-                .HasAnnotation("ProductVersion", "10.0.14")
+                .HasAnnotation("ProductVersion", "10.0.15")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -110,6 +110,71 @@ namespace Nid.Childcare.Infrastructure.Persistence.Migrations
                     b.ToTable("gap", "childcare", t =>
                         {
                             t.HasCheckConstraint("ck_gap_weeks", "weeks >= 1");
+                        });
+                });
+
+            modelBuilder.Entity("Nid.Childcare.Infrastructure.Persistence.NannyMonthRow", b =>
+                {
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("item_id");
+
+                    b.Property<LocalDate>("Month")
+                        .HasColumnType("date")
+                        .HasColumnName("month");
+
+                    b.Property<decimal>("Cmg")
+                        .HasColumnType("numeric(19,4)")
+                        .HasColumnName("cmg");
+
+                    b.Property<decimal?>("Hours")
+                        .HasColumnType("numeric(9,2)")
+                        .HasColumnName("hours");
+
+                    b.Property<decimal>("Paid")
+                        .HasColumnType("numeric(19,4)")
+                        .HasColumnName("paid");
+
+                    b.HasKey("ItemId", "Month")
+                        .HasName("pk_nanny_month");
+
+                    b.ToTable("nanny_month", "childcare", t =>
+                        {
+                            t.HasCheckConstraint("ck_nanny_month_amounts", "paid > 0 and cmg >= 0 and cmg <= paid and (hours is null or hours > 0)");
+
+                            t.HasCheckConstraint("ck_nanny_month_month", "extract(day from month) = 1");
+                        });
+                });
+
+            modelBuilder.Entity("Nid.Childcare.Infrastructure.Persistence.NannyRow", b =>
+                {
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("item_id");
+
+                    b.Property<string>("ImportHash")
+                        .HasColumnType("char(64)")
+                        .HasColumnName("import_hash");
+
+                    b.Property<string>("ImportRef")
+                        .HasColumnType("text")
+                        .HasColumnName("import_ref");
+
+                    b.Property<Guid?>("ImportedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("imported_by");
+
+                    b.HasKey("ItemId")
+                        .HasName("pk_nanny");
+
+                    b.HasIndex("ImportedBy", "ImportRef")
+                        .IsUnique()
+                        .HasDatabaseName("ix_nanny_imported_by_import_ref")
+                        .HasFilter("import_ref is not null");
+
+                    b.ToTable("nanny", "childcare", t =>
+                        {
+                            t.HasCheckConstraint("ck_nanny_import", "(import_ref is null) = (import_hash is null) and (import_ref is null) = (imported_by is null)");
                         });
                 });
 
@@ -611,6 +676,16 @@ namespace Nid.Childcare.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_gap_arrangement_item_id");
+                });
+
+            modelBuilder.Entity("Nid.Childcare.Infrastructure.Persistence.NannyMonthRow", b =>
+                {
+                    b.HasOne("Nid.Childcare.Infrastructure.Persistence.NannyRow", null)
+                        .WithMany()
+                        .HasForeignKey("ItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_nanny_month_nanny_item_id");
                 });
 
             modelBuilder.Entity("Nid.Childcare.Infrastructure.Persistence.StatementDayRow", b =>

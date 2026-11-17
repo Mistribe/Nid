@@ -272,6 +272,25 @@ public static class RouteActions
             + "left over) replaces the days, and declared gives the declaration fields entered by hand (normalHours, activityDays, paidLeaveDays, complementaryHours, overtimeHours, netPay, upkeep, meals). Validating it stays the person's gesture in the web app. "
             + Ids + Versioned + Amounts),
 
+        // #94: a nanny at home, its months typed as paid (no payroll computation).
+        new("create_nanny", "POST", "/api/v1/childcare/nannies/", typeof(CreateNannyBody),
+            "Record a nanny at home (garde à domicile) by its name, to track each month's pay for the home-employment tax credit. " + Owners),
+        new("rename_nanny", "PUT", "/api/v1/childcare/nannies/{id:guid}", typeof(NannyNameBody),
+            "Rename a nanny at home. " + Ids),
+        new("record_nanny_month", "PUT", "/api/v1/childcare/nannies/{id:guid}/months/{month}", typeof(NannyMonthBody),
+            "Record or correct a month of a nanny at home (month yyyy-MM, begun): paid is the net salary plus the employer contributions, cmg the CMG received "
+            + "(0 when none, at most paid), hours the hours worked if known; it replaces that month's entry. " + Ids + Amounts),
+        new("delete_nanny_month", "DELETE", "/api/v1/childcare/nannies/{id:guid}/months/{month}", null,
+            "Remove a month of a nanny at home. " + Ids, Destructive: true),
+        new("close_nanny", "POST", "/api/v1/childcare/nannies/{id:guid}/close", null,
+            "Close a nanny at home who no longer works for the household: the rest of the year is no longer counted. " + Ids, Destructive: true),
+        new("reopen_nanny", "POST", "/api/v1/childcare/nannies/{id:guid}/reopen", null,
+            "Reopen a closed nanny at home. " + Ids),
+        new("delete_nanny", "DELETE", "/api/v1/childcare/nannies/{id:guid}", null,
+            "Propose deleting a nanny at home created by mistake, with its months (to end one who left, use close_nanny). The household confirms it "
+            + "by typing its name. version is the one the deletion preview returned. " + Ids, Destructive: true, Query: ["version"],
+            Current: "/api/v1/childcare/nannies/{id:guid}/deletion"),
+
         // Savings goals.
         new("create_goal", "POST", "/api/v1/goals/", typeof(CreateGoalBody),
             "Create a savings goal: kind 'savings' with a targetAmount, or 'emergency_fund' with months (1 to 24, 6 by default) and "

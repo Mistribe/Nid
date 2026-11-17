@@ -59,6 +59,7 @@ Un **seul format** sert à trois usages :
 | `valuations`, `flows` | tableaux | Core (§5.6) |
 | `goals` | tableau | Module Objectifs (`superpowers/specs/2026-10-23-savings-goals-design.md` D16 et §2) : l'objectif, ses liens vers les enveloppes du fichier et ses relevés |
 | `childcare_arrangements`, `childcare_statements` | tableaux | Module Garde (`superpowers/specs/2026-10-30-childcare-design.md` décisions 24 à 26) : la garde d'assistante maternelle et ses relevés validés (§5.9) |
+| `childcare_nannies` | tableau | Module Garde (#94) : la garde à domicile et ses mois saisis tels que payés (§5.9) |
 | `bank_accounts`, `bank_transactions`, `bank_links`, `bank_rules` | tableaux | Module Banque (`superpowers/specs/2026-10-29-bank-sync-design.md` D24) : les comptes bancaires, leurs opérations, ce que chaque opération paie et les règles de libellé de la personne (§5.7) |
 
 Section **réservée**, pas encore définie : `documents`. Un fichier qui la contient est refusé. Une section d'un module désactivé est refusée elle aussi.
@@ -335,6 +336,17 @@ Remplacer une garde déjà importée (import qui remplace) est refusé si l'un d
 fichier (`childcare.end_before_validated`, comme une fin de garde dans l'interface) ou changerait de chiffres sous les
 conditions du fichier sans y figurer (`childcare.figures_differ` sur `terms`) : il faut le rouvrir, ou l'ajouter au fichier.
 
+**`childcare_nannies`** (#94)
+
+Une garde à domicile et ses mois, saisis tels que payés (aucun calcul de paie). Ordre 106, après les gardes d'assistante maternelle.
+
+| Champ | Type | Remarques |
+|---|---|---|
+| `id`, `name`, `visibility`, `share_level`, `ownership`, `closed` | | Comme pour les autres éléments (§4) |
+| `months` | tableau | `{ month, paid, cmg, hours? }` : `month` en `YYYY-MM`, commencé (`childcare.nanny_month_in_future`), une fois par garde ; `paid` (salaire net et cotisations employeur) au-dessus de 0 ; `cmg` reçu, de 0 à `paid` (`childcare.cmg_above_paid`) ; `hours` facultatif |
+
+**Règles** : comme `goals` (§8) — inchangée, en conflit, ou remplacée avec tous ses mois quand l'import remplace.
+
 ## 6. Résolution des personnes
 
 - Chaque `adult` du fichier doit être **associé à un compte existant** lors de l'import (par `email`, ou par une correspondance fournie à l'import). Un import ne crée jamais d'adulte : un adulte naît à sa première connexion (`core-data-model.md` §4.4). Un `adult` non résolu est une erreur.
@@ -446,7 +458,7 @@ Le staging est vidé à `commit`, à l'annulation et à l'expiration.
 ### 11.4 Validation et écriture
 
 - **`validate`** : chaque module valide l'ensemble de sa section sur le staging (références entre lots, chevauchements, invariants du Core, droits de la personne, idempotence par `import_ref`, taux de change), et Platform assemble un rapport unique. Rien n'est écrit dans les données du foyer.
-- **`commit`** : le serveur **rejoue la validation complète** (l'état a pu changer depuis `validate`), puis appelle les modules dans l'ordre `persons` → `providers` → les sections qui créent des éléments (`subscriptions`, `envelopes`, `properties`, `loans`, `income_sources`) → les sections qui en dépendent (`billing_phases`, `purchases`, `valuations`, `flows`, `property_recurring_costs`, `tenancies`, `loan_phases`, `loan_insurances`, `loan_fees`, `loan_events`, `loan_bank_schedule`, `subscription_insurances`, `income_phases`, `income_one_off_taxable`) → les supports d'enveloppe (`holdings`, `holding_snapshots`, `holding_movements`, après `flows` qu'un mouvement peut nommer) → leurs répartitions (`security_breakdowns`, après `holdings` dont elles nomment les ISIN) → les objectifs (`goals`, après les enveloppes qu'ils lient) → les gardes et leurs relevés validés (`childcare_arrangements`, `childcare_statements`) → les comptes bancaires, leurs opérations, leurs liens et leurs règles (`bank_accounts`, `bank_transactions`, `bank_links`, `bank_rules`), dans **une transaction unique**. Le staging de la session est vidé dans la même transaction. Une erreur annule tout.
+- **`commit`** : le serveur **rejoue la validation complète** (l'état a pu changer depuis `validate`), puis appelle les modules dans l'ordre `persons` → `providers` → les sections qui créent des éléments (`subscriptions`, `envelopes`, `properties`, `loans`, `income_sources`) → les sections qui en dépendent (`billing_phases`, `purchases`, `valuations`, `flows`, `property_recurring_costs`, `tenancies`, `loan_phases`, `loan_insurances`, `loan_fees`, `loan_events`, `loan_bank_schedule`, `subscription_insurances`, `income_phases`, `income_one_off_taxable`) → les supports d'enveloppe (`holdings`, `holding_snapshots`, `holding_movements`, après `flows` qu'un mouvement peut nommer) → leurs répartitions (`security_breakdowns`, après `holdings` dont elles nomment les ISIN) → les objectifs (`goals`, après les enveloppes qu'ils lient) → les gardes et leurs relevés validés (`childcare_arrangements`, `childcare_statements`), les gardes à domicile (`childcare_nannies`) → les comptes bancaires, leurs opérations, leurs liens et leurs règles (`bank_accounts`, `bank_transactions`, `bank_links`, `bank_rules`), dans **une transaction unique**. Le staging de la session est vidé dans la même transaction. Une erreur annule tout.
 - Les `DbContext` des modules partagent la connexion et la transaction de l'import (`Database.UseTransactionAsync`). **Vérifié** (`spikes.md` §6) : le retour arrière efface l'écriture de tous les modules, et l'outbox reste invisible aux autres sessions jusqu'au commit.
 
 ### 11.5 Bornes

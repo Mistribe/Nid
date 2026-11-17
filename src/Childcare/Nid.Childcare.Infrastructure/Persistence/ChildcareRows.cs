@@ -125,3 +125,22 @@ public sealed class StatementDayRow
     public bool Snack { get; set; }
     public string? Absence { get; set; }
 }
+
+/// <summary>#94: a nanny at home; the item is the registry's, this row holds its import mark.</summary>
+public sealed class NannyRow
+{
+    public Guid ItemId { get; set; }
+    public string? ImportRef { get; set; }
+    public string? ImportHash { get; set; }
+    public Guid? ImportedBy { get; set; }
+}
+
+public sealed class NannyMonthRow
+{
+    public Guid ItemId { get; set; }
+    /// <summary>The month's first day.</summary>
+    public LocalDate Month { get; set; }
+    public decimal Paid { get; set; }
+    public decimal Cmg { get; set; }
+    public decimal? Hours { get; set; }
+}

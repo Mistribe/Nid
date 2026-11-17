@@ -303,6 +303,7 @@ public static class NidServiceCollectionExtensions
         }).AddInterceptors(sp.GetRequiredService<AuditInterceptor>()));
         services.AddScoped<ITransactionParticipant, DbContextParticipant<ChildcareDbContext>>();
         services.AddScoped<Nid.Childcare.Application.IChildcareStore, ChildcareStore>();
+        services.AddScoped<Nid.Childcare.Application.INannyStore, NannyStore>();
         services.AddScoped<IItemDeletionPart, ChildcareDeletionPart>();
         services.AddScoped<IPersonUsePart, Nid.Childcare.Infrastructure.Persistence.ChildcarePersonUsePart>();
         services.AddScoped<Nid.Childcare.Application.ChildcareReader>();
@@ -312,6 +313,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ICommitmentsContribution, Nid.Childcare.Application.ChildcareCommitments>();
         services.AddScoped<IExpectedCharges, Nid.Childcare.Application.ChildcareCharges>();
         services.AddScoped<IImportSection, Nid.Childcare.Application.Import.ChildcareImportSection>();
+        services.AddScoped<IImportSection, Nid.Childcare.Application.Import.NannyImportSection>();
         services.AddScoped<Nid.Platform.Contracts.INotificationSource, Nid.Childcare.Application.ChildcareNotificationSource>();
 
         services.AddDbContext<DocumentsDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
