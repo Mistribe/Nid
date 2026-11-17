@@ -11,7 +11,6 @@
     "rate_format": "Un pourcentage, par exemple 23 ou 23,5.",
     "detail_table": "Calcul de l’impôt étape par étape",
     "detail_title": "Calcul détaillé",
-    "figures_title": "Chiffres de l’année",
     "notes": "À savoir",
     "childcare_summary": "Récapitulatif {{year}} à recopier",
     "evolution": {
@@ -51,7 +50,7 @@
     "disclaimer": "Estimation indicative pour une déclaration commune, selon le barème des revenus {{year}}. Ce n’est pas un conseil fiscal : seule l’administration calcule l’impôt dû.",
     "out_of_scope": "Non calculés : retraites, revenus d’indépendant, pensions alimentaires, location meublée, plus-values, retraits d’épargne (PEA, assurance-vie, PER), option pour le barème sur les revenus du capital, contribution sur les hauts revenus, parent isolé, garde alternée, invalidité.",
     "add_assessment": "Ajouter un avis",
-    "tab": { "assessment": "Avis", "2042": "Déclaration 2042", "2044": "Déclaration 2044", "detail": "Calcul", "withholding": "Prélèvement", "profile": "Profil fiscal", "simulation": "Simuler", "sale": "Si tout était vendu", "evolution": "Évolution" },
+    "tab": { "overview": "Vue d’ensemble", "declarations": "Déclarations", "assessment": "Avis", "2042": "Déclaration 2042", "detail": "Calcul", "withholding": "Prélèvement", "profile": "Profil fiscal", "simulation": "Simuler", "sale": "Si tout était vendu", "evolution": "Évolution" },
     "figure": {
       "net_taxable": "Net fiscal",
       "income_tax": "Impôt sur le revenu",
@@ -61,16 +60,10 @@
       "marginal_rate": "Tranche marginale",
       "withholding_rate": "Taux de prélèvement",
       "parts": "Parts",
-      "left_monthly": "Reste après impôt, par mois",
       "per_year": "{{amount}} sur l’année",
       "average_rate": "Taux moyen {{rate}}",
       "carried": "Estimation selon le barème {{year}}",
-      "scale": "Barème {{year}}",
-      "balance": "Solde à la déclaration {{year}}",
-      "to_pay": "à payer",
-      "refund": "remboursés",
-      "no_balance": "Aucun solde",
-      "adjust": "Ajuster le taux de prélèvement"
+      "scale": "Barème {{year}}"
     },
     "hero": {
       "label": "Impôt total {{year}} · estimation",
@@ -83,7 +76,13 @@
       "refund": "Remboursé en été {{year}}",
       "to_pay": "À payer en septembre {{year}}"
     },
+    "declarations": { "form": "Formulaire" },
     "overview": {
+      "question": "Combien d’impôt cette année, et que puis-je faire ?",
+      "empty_title": "Aucun revenu pour {{year}}",
+      "empty_body": "Sans revenu, Nid n’a pas d’impôt à estimer. Ajoutez un revenu ou complétez le profil fiscal.",
+      "empty_income": "Ajouter un revenu",
+      "empty_profile": "Compléter le profil fiscal",
       "left_monthly": "Reste par mois",
       "net_taxable": "Revenu imposable",
       "marginal_rate": "Votre tranche d’imposition",

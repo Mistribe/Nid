@@ -7,13 +7,14 @@ import { toPlot } from '@/lib/plot';
 import { balanceWords, unsigned } from '../balance';
 import { partsText, percentText, signedPercentText, tipText } from '../format';
 import { eur } from '../ResultTable';
+import type { TaxTab } from '../TaxPage';
 import '@/locales/tax';
 
 /** The previous year's scale in use: said in the note, where the scale is named every year. */
 const CARRIED = 'rules_carried_forward';
 
 /** The overview's lead: the year's total tax and its change, the curve of the years, and the six figures that explain it. */
-export function TaxHero({ estimate, onTab }: { estimate: TaxEstimate; onTab: (tab: 'withholding') => void }) {
+export function TaxHero({ estimate, onTab }: { estimate: TaxEstimate; onTab: (tab: TaxTab) => void }) {
   const { t } = useTranslation();
   const r = estimate.result;
   const { previous, history } = estimate;

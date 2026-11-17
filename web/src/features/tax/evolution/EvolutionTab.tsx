@@ -5,10 +5,10 @@ import { SeriesLink } from '@/components/page/SeriesLink';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toPlot } from '@/lib/plot';
 import { FIRST_ESTIMATE_YEAR, TAX, type TaxEstimate } from '@/api/tax';
-import { ChangesSection } from './ChangesSection';
-import type { TaxAssessment } from './assessments/api';
-import { percentText, ZERO } from './format';
-import { eur } from './ResultTable';
+import { ChangesSection } from '../ChangesSection';
+import type { TaxAssessment } from '../assessments/api';
+import { percentText, ZERO } from '../format';
+import { eur } from '../ResultTable';
 import '@/locales/tax';
 
 type Row = { year: string; source: 'assessment' | 'estimate'; netTaxable?: string; tax: string; flatTax?: string; rate?: string | null };
@@ -18,7 +18,7 @@ type Row = { year: string; source: 'assessment' | 'estimate'; netTaxable?: strin
  * « impôt net » holds the flat tax on capital income; the estimate's income tax does not, so its flat tax is shown beside it
  * rather than added here. The bars are sized with `toPlot`; every figure read is the server's.
  */
-export function EvolutionSection({ years, assessments, scope, current, adults }: {
+export function EvolutionTab({ years, assessments, scope, current, adults }: {
   years: string[]; assessments: TaxAssessment[]; scope: 'me' | 'household'; current: string; adults: TaxEstimate['adults'];
 }) {
   const { t } = useTranslation();

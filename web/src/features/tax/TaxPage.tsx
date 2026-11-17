@@ -1,7 +1,5 @@
 import { keepPreviousData } from '@tanstack/react-query';
 import { Link, useNavigate, useSearch } from '@tanstack/react-router';
-import { Fragment, type ReactNode } from 'react';
-import { AlertTriangle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
@@ -11,44 +9,32 @@ import { SelectField } from '@/components/form/SelectField';
 import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
 import { FilterField, FilterRow } from '@/components/page/FilterRow';
 import { PageHeader } from '@/components/page/PageHeader';
-import { Hero } from '@/components/page/Hero';
-import { SectionCard } from '@/components/page/SectionCard';
-import { StatLine } from '@/components/page/StatLine';
-import { InfoTip } from '@/components/InfoTip';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
-import { toPlot } from '@/lib/plot';
-import { Section } from '@/components/page/Section';
 import { PERSONS } from '@/api/persons';
 import { todayIso } from '@/lib/today';
-import { FIRST_ESTIMATE_YEAR, TAX, type TaxEstimate, type TaxResult } from '@/api/tax';
-import { useTaxAssessments, type TaxAssessment } from './assessments/api';
-import { GapTable } from './assessments/GapTable';
-import { AssessmentView } from './assessments/AssessmentView';
-import { noticeAmount, noticeText, partsText, percentText, PER_WARNINGS, regimeText, tipText, warningText, ZERO } from './format';
-import { PerRows, PerSummary, perWarningsInBlock } from './PerSection';
+import { FIRST_ESTIMATE_YEAR, TAX } from '@/api/tax';
+import { useTaxAssessments } from './assessments/api';
+import { AssessmentTab } from './assessment/AssessmentTab';
+import { DeclarationsTab } from './declarations/DeclarationsTab';
+import { DetailTab } from './detail/DetailTab';
+import { EvolutionTab } from './evolution/EvolutionTab';
+import { OverviewTab } from './overview/OverviewTab';
 import { ProfileForm } from './profile/ProfileForm';
 import { ProfileSubmit } from './profile/ProfileSubmit';
 import { useProfileDraft } from './profile/useProfileDraft';
-import { DeclarantTable, eur, ResultTable, Term } from './ResultTable';
-import { EvolutionSection } from './EvolutionSection';
-import { SaleTotalSection } from './SaleTotalSection';
-import { SimulationForm } from './SimulationForm';
-import { Declaration2042Section } from './Declaration2042Section';
-import { Rental2044Section } from './Rental2044Section';
-import { WithholdingSection } from './WithholdingSection';
+import { SimulationTab } from './simulation/SimulationTab';
+import { WithholdingTab } from './withholding/WithholdingTab';
 import '@/locales/tax';
 
-const TABS = ['detail', 'withholding', 'assessment', 'evolution', 'simulation', 'profile', '2042', '2044'] as const;
-/** The declarations, filed for the year just ended. */
-const DECLARATIONS: readonly string[] = ['2042', '2044'];
+export const TABS = ['overview', 'detail', 'withholding', 'assessment', 'evolution', 'simulation', 'profile', 'declarations'] as const;
+export type TaxTab = (typeof TABS)[number];
 
 /** Past this many years the selector is a list, not a row of buttons. */
 const MAX_SEGMENTS = 6;
 
 /**
- * Tax estimate spec §9: the year's figures inline, then the calculation step by step, the household's profile, and a
+ * Tax estimate spec §9: the overview first, then the calculation step by step, the household's profile, and a
  * simulation of edited inputs. Every figure is the server's; the page only formats them.
  */
 export function TaxPage() {
@@ -59,9 +45,13 @@ export function TaxPage() {
   const scope = search.scope === 'me' ? 'me' : 'household';
   const thisYear = todayIso().slice(0, 4);
   const lastYear = String(Number(thisYear) - 1);
-  const [rawTab, setTab] = useDetailTab(TABS);
-  // The 2042 and the 2044 are filed for the year just ended; the estimate opens on the current one. The default stays out of the URL.
-  const defaultYear = DECLARATIONS.includes(rawTab) ? lastYear : thisYear;
+  const [rawTab] = useDetailTab(TABS);
+  // As `useDetailTab`'s setter, and the 2044 choice leaves with the Declarations tab.
+  const setTab = (next: TaxTab) => {
+    void navigate({ to: '.', replace: true, resetScroll: false, search: ((prev: TaxSearch) => ({ ...prev, tab: next === 'overview' ? undefined : next, page: undefined, form: next === 'declarations' ? prev.form : undefined })) as never });
+  };
+  // The declarations are filed for the year just ended; the estimate opens on the current one. The default stays out of the URL.
+  const defaultYear = rawTab === 'declarations' ? lastYear : thisYear;
   const list = useTaxAssessments(scope);
   const assessments = list.data?.items ?? [];
   const years = [...new Set([lastYear, thisYear, ...assessments.map((a) => String(a.year))])].sort().map((y) => ({ value: y, label: y }));
@@ -79,9 +69,13 @@ export function TaxPage() {
   const estimate = past ? undefined : answer.data;
   const people = $api.useQuery('get', PERSONS).data ?? [];
   const notices = assessments.filter((a) => String(a.year) === year);
-  // The Avis tab exists only for a year with notices: a URL asking for it elsewhere shows Calcul.
-  const tab = rawTab === 'assessment' && !notices.length ? 'detail' : rawTab;
-  const noticeViews = <Notices notices={notices} persons={people} gaps={estimate?.gaps} adults={estimate?.adults ?? []} />;
+  // The Avis tab exists only for a year with notices: a URL asking for it elsewhere shows the overview.
+  const tab = rawTab === 'assessment' && !notices.length ? 'overview' : rawTab;
+  const form = search.form === '2044' ? '2044' : '2042';
+  const setForm = (next: '2042' | '2044') => {
+    void navigate({ to: '.', replace: true, resetScroll: false, search: ((prev: Record<string, unknown>) => ({ ...prev, form: next === '2044' ? '2044' : undefined })) as never });
+  };
+  const assessmentTab = <AssessmentTab notices={notices} persons={people} gaps={estimate?.gaps} adults={estimate?.adults ?? []} />;
   // Held here, not in the tab: Radix unmounts a hidden tab, and the draft outlives a tab switch.
   const draft = useProfileDraft(estimate, scope);
 
@@ -97,227 +91,31 @@ export function TaxPage() {
           </FilterField>
         </FilterRow>
       </div>
-      {estimate ? <div className={DECLARATIONS.includes(tab) ? 'print:hidden' : undefined}><Figures estimate={estimate} onAdjust={() => setTab('withholding')} /></div> : null}
       {past && awaiting ? <div aria-busy="true" aria-label={t('tax.loading')} className="h-40 shimmer rounded-md border bg-muted" /> : null}
-      {past && !awaiting ? noticeViews : null}
+      {past && !awaiting && notices.length ? (
+        // A year before the estimates: its notices, then the years side by side. The overview is Avis here, so it stays out of the URL.
+        <DetailTabs value={rawTab === 'evolution' ? 'evolution' : 'assessment'} onChange={(next) => setTab(next === 'assessment' ? 'overview' : next)} tabs={[
+          { id: 'assessment', label: t('tax.tab.assessment'), content: assessmentTab },
+          { id: 'evolution', label: t('tax.tab.evolution'),
+            content: <EvolutionTab years={years.map((y) => y.value)} assessments={assessments} scope={scope} current={year} adults={people} /> },
+        ]} />
+      ) : null}
       {!past && answer.error ? <ProblemMessage problem={present(toProblem(answer.error))} /> : null}
       {!past && !estimate && !answer.error ? <div aria-busy="true" aria-label={t('tax.loading')} className="h-40 shimmer rounded-md border bg-muted" /> : null}
       {estimate ? (
         <DetailTabs value={tab} onChange={setTab} tabs={[
-          { id: 'detail', label: t('tax.tab.detail'), content: (
-            <>
-              <Notes estimate={estimate} />
-              <SectionCard title={t('tax.figures_title')} className="space-y-4">
-                <MoreFigures result={estimate.result} />
-                <Split result={estimate.result} />
-              </SectionCard>
-              <SectionCard title={t('tax.detail_title')} className="space-y-4"><Detail estimate={estimate} onProfile={() => setTab('profile')} /></SectionCard>
-            </>
-          ) },
-          { id: 'withholding', label: t('tax.tab.withholding'), content: <WithholdingSection estimate={estimate} /> },
-          ...(notices.length ? [{ id: 'assessment' as const, label: t('tax.tab.assessment'), content: noticeViews }] : []),
+          { id: 'overview', label: t('tax.tab.overview'), content: <OverviewTab estimate={estimate} onTab={setTab} /> },
+          { id: 'detail', label: t('tax.tab.detail'), content: <DetailTab estimate={estimate} onTab={setTab} /> },
+          { id: 'withholding', label: t('tax.tab.withholding'), content: <WithholdingTab estimate={estimate} /> },
+          ...(notices.length ? [{ id: 'assessment' as const, label: t('tax.tab.assessment'), content: assessmentTab }] : []),
           { id: 'evolution', label: t('tax.tab.evolution'),
-            content: <EvolutionSection years={years.map((y) => y.value)} assessments={assessments} scope={scope} current={year} adults={estimate.adults} /> },
-          { id: 'simulation', label: t('tax.tab.simulation'), content: (
-            <>
-              <SimulationForm key={estimate.year} estimate={estimate} />
-              <Section title={t('tax.tab.sale')}><SaleTotalSection scope={scope} /></Section>
-            </>
-          ) },
+            content: <EvolutionTab years={years.map((y) => y.value)} assessments={assessments} scope={scope} current={year} adults={estimate.adults} /> },
+          { id: 'simulation', label: t('tax.tab.simulation'), content: <SimulationTab estimate={estimate} scope={scope} /> },
           { id: 'profile', label: t('tax.tab.profile'), content: draft ? <ProfileForm key={draft.key} estimate={estimate} draft={draft} /> : null,
             action: draft ? <ProfileSubmit draft={draft} /> : undefined },
-          { id: '2042', label: t('tax.tab.2042'), content: (
-            <>
-              <h2 className="hidden text-xl font-semibold print:block">{t('tax.d2042.print_title', { year })}</h2>
-              <Declaration2042Section estimate={estimate} />
-            </>
-          ) },
-          { id: '2044', label: t('tax.tab.2044'), content: (
-            <>
-              {/* The tab list does not print: the printed 2044 keeps its title. */}
-              <h2 className="hidden text-xl font-semibold print:block">{t('tax.d2044.print_title', { year })}</h2>
-              <Rental2044Section year={Number(year)} scope={scope} />
-            </>
-          ) },
+          { id: 'declarations', label: t('tax.tab.declarations'), content: <DeclarationsTab estimate={estimate} year={year} scope={scope} form={form} onForm={setForm} /> },
         ]} />
       ) : null}
-    </div>
-  );
-}
-
-function Notices({ notices, persons, gaps, adults }: {
-  notices: TaxAssessment[]; persons: React.ComponentProps<typeof AssessmentView>['persons']; gaps: TaxEstimate['gaps']; adults: TaxEstimate['adults'];
-}) {
-  return <>{notices.map((a) => (
-    <Fragment key={a.id}>
-      {gaps && gaps.assessment === a.id ? <GapTable gaps={gaps} adults={adults} /> : null}
-      <AssessmentView assessment={a} persons={persons} />
-    </Fragment>
-  ))}</>;
-}
-
-/** The previous year's scale in use: said under the total, where the scale is named every year, rather than among the notes. */
-const CARRIED = 'rules_carried_forward';
-
-/** The three figures that answer « combien, combien il reste, que faire en septembre »: the total as the hero, the two others beside it. */
-function Figures({ estimate, onAdjust }: { estimate: TaxEstimate; onAdjust: () => void }) {
-  const { t } = useTranslation();
-  const r = estimate.result;
-  const balance = r.withholding.balance;
-  const refund = balance.startsWith('-');
-  return (
-    <Hero label={t('tax.figure.total_tax')} figure={eur(r.totalTax)}
-      note={(
-        <>
-          {/* Both lines show every year, so changing the year does not move the screen. */}
-          <Sub className="min-h-5">{r.averageRate ? t('tax.figure.average_rate', { rate: percentText(t, r.averageRate) }) : null}</Sub>
-          <Sub>{t(r.warnings.includes(CARRIED) ? 'tax.figure.carried' : 'tax.figure.scale', { year: r.rulesYear })}</Sub>
-        </>
-      )}
-      aside={(
-        <StatLine items={[
-          { label: t('tax.figure.left_monthly'), value: eur(r.netAfterTaxMonthly), hint: t('tax.figure.per_year', { amount: eur(r.netAfterTax) }) },
-          { label: t('tax.figure.balance', { year: estimate.year + 1 }), value: ZERO.test(balance) ? t('tax.figure.no_balance') : (
-            <>{eur(refund ? balance.slice(1) : balance)} <span className="text-base font-medium">{t(refund ? 'tax.figure.refund' : 'tax.figure.to_pay')}</span></>
-          ), hint: <Button variant="link" className="h-auto p-0" onClick={onAdjust}>{t('tax.figure.adjust')}</Button> },
-        ]} />
-      )} />
-  );
-}
-
-function Sub({ className, children }: { className?: string; children: ReactNode }) {
-  return <span className={cn('block text-sm font-normal text-muted-foreground', className)}>{children}</span>;
-}
-
-/** The rest of the year's figures, at the top of « Calcul ». */
-function MoreFigures({ result: r }: { result: TaxEstimate['result'] }) {
-  const { t } = useTranslation();
-  return (
-    <dl className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
-      {([
-        [t('tax.figure.net_taxable'), eur(r.netTaxableIncome), 'net_taxable'],
-        [t('tax.figure.marginal_rate'), percentText(t, r.marginalRate), 'marginal_rate'],
-        [t('tax.figure.withholding_rate'), percentText(t, r.withholding.rate), 'withholding_rate'],
-        [t('tax.figure.parts'), partsText(r.parts), 'parts'],
-      ] as const).map(([label, value, tip]) => (
-        <div key={label} className="flex items-center gap-1.5"><dt className="text-muted-foreground"><Term title={label} tip={tipText(t, tip)} /></dt><dd className="font-medium tabular-nums">{value}</dd></div>
-      ))}
-    </dl>
-  );
-}
-
-/** Where the net income goes: the bar is sized by plotting numbers (`toPlot`), every figure read is the server's string. */
-function Split({ result: r }: { result: TaxEstimate['result'] }) {
-  const { t } = useTranslation();
-  const parts = [
-    { label: t('tax.split.left'), amount: r.netAfterTax, colour: 'bg-muted-foreground/30' },
-    { label: t('tax.row.income_tax'), amount: r.incomeTax, colour: 'bg-chart-1' },
-    { label: t('tax.row.social_levies'), amount: r.socialLevies, colour: 'bg-chart-2' },
-    { label: t('tax.row.flat_tax'), amount: r.capitalFlatTax, colour: 'bg-chart-3' },
-  ].map((p) => ({ ...p, size: Math.max(0, toPlot(p.amount)), text: `${p.label} ${eur(p.amount)}` })).filter((p) => p.size > 0);
-  if (parts.length < 2) return null;
-  return (
-    <figure className="space-y-2">
-      <figcaption className="text-sm text-muted-foreground">{t('tax.split.note', { amount: eur(r.netBeforeTax) })}</figcaption>
-      <div role="img" aria-label={parts.map((p) => p.text).join(', ')} className="flex h-3.5 gap-0.5 overflow-hidden rounded-full">
-        {parts.map((p) => <div key={p.label} className={p.colour} style={{ flexGrow: p.size }} />)}
-      </div>
-      <ul aria-hidden="true" className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
-        {parts.map((p) => <li key={p.label} className="flex items-center gap-1.5"><span className={`size-2.5 rounded-sm ${p.colour}`} />{p.text}</li>)}
-      </ul>
-    </figure>
-  );
-}
-
-/** The server's warnings and notices, in « Calcul » beside the PER block, which tells the PER warnings it can. */
-function Notes({ estimate }: { estimate: TaxEstimate }) {
-  const { t } = useTranslation();
-  // #411: an arrangement's childcare costs link to its year summary, the figures to copy into the return.
-  const notes: { text: string; childcare?: string }[] = [
-    ...estimate.result.warnings.filter((w) => w !== CARRIED && !PER_WARNINGS.includes(w)).map((w) => ({ text: warningText(t, w, estimate.result.rulesYear) })),
-    // The server names a PER warning once per declarant it concerns: one generic sentence for those the PER block cannot tell.
-    ...[...new Set(estimate.result.warnings)].filter((w) => PER_WARNINGS.includes(w) && !perWarningsInBlock(estimate.result).has(w))
-      .map((w) => ({ text: t(w === 'per_over_ceiling' ? 'tax.warning.per_over_ceiling' : 'tax.warning.per_ceiling_estimated') })),
-    ...estimate.notices.map((n) => ({
-      text: noticeText(t, n.code, n.name, noticeAmount(t, n.code, n.amount, eur), n.monthsValidated, n.monthsEstimated), childcare: n.code === 'childcare_from_statements' ? n.item : undefined,
-    })),
-  ];
-  if (!notes.length) return null;
-  return (
-    <div className="flex gap-3 rounded-md border border-status-warning/60 bg-status-warning/10 p-4">
-      <AlertTriangle aria-hidden="true" className="mt-1 size-4 shrink-0 text-status-warning" />
-      <Section title={t('tax.notes')}>
-        <ul className="list-disc space-y-1 pl-5 text-sm">
-          {notes.map((n, i) => (
-            <li key={`${i}-${n.text}`}>
-              {n.text}
-              {n.childcare ? (
-                <>
-                  {' '}
-                  <Link to="/childcare/$id" params={{ id: n.childcare }} search={{ tab: 'summary', year: String(estimate.year) }} className="underline underline-offset-2">
-                    {t('tax.childcare_summary', { year: estimate.year })}
-                  </Link>
-                </>
-              ) : null}
-            </li>
-          ))}
-        </ul>
-      </Section>
-    </div>
-  );
-}
-
-function Detail({ estimate, onProfile }: { estimate: TaxEstimate; onProfile: () => void }) {
-  const { t } = useTranslation();
-  return (
-    <>
-      <p className="text-sm text-muted-foreground">{t('tax.disclaimer', { year: estimate.result.rulesYear })}</p>
-      <DeclarantTable result={estimate.result} detail={estimate.salaryDetail} adults={estimate.adults}>
-        <PerRows result={estimate.result} names={estimate.result.declarants.map((_, i) => (estimate.inputs.declarants[i]?.perEnvelopes ?? []).join(', '))} />
-      </DeclarantTable>
-      <PerSummary result={estimate.result} year={estimate.year} onProfile={onProfile} />
-      <ResultTable label={t('tax.detail_table')} declarants={false} columns={[{ title: t('tax.estimate'), result: estimate.result }]} />
-      <RegimeChoice result={estimate.result} onProfile={onProfile} />
-      <CapitalChoice result={estimate.result} onProfile={onProfile} />
-      <p className="text-sm text-muted-foreground">{t('tax.out_of_scope')}</p>
-    </>
-  );
-}
-
-/** #234: the capital income's option as a question, with what the other one would cost (the server's gap) and next year's 6DE. */
-function CapitalChoice({ result: r, onProfile }: { result: TaxResult; onProfile: () => void }) {
-  const { t } = useTranslation();
-  const gap = r.capitalOptionGap;
-  if (!gap) return null;
-  const comparison = ZERO.test(gap) ? t('tax.capital_choice.same')
-    : gap.startsWith('-') ? t('tax.capital_choice.less', { amount: eur(gap.slice(1)) }) : t('tax.capital_choice.more', { amount: eur(gap) });
-  return (
-    <div className="max-w-3xl space-y-1 text-sm">
-      <p className="flex items-center gap-1.5 font-medium">{t('tax.capital_choice.question')}<InfoTip label={t('tax.capital_choice.question')}>{tipText(t, 'capital_option')}</InfoTip></p>
-      <p>
-        {t(r.capitalScale ? 'tax.capital_choice.current_scale' : 'tax.capital_choice.current_flat')} {comparison}{' '}
-        {r.capitalScale && !ZERO.test(r.deductibleCsgNextYear) ? <>{t('tax.capital_choice.csg', { amount: eur(r.deductibleCsgNextYear) })}{' '}</> : null}
-        <Button variant="link" className="h-auto p-0 text-sm" onClick={onProfile}>{t('tax.capital_choice.change')}</Button>
-      </p>
-    </div>
-  );
-}
-
-/** Issue #160: the rental regime as a question, with what the other one would cost: the server's gap (negative, it costs less). */
-function RegimeChoice({ result: r, onProfile }: { result: TaxResult; onProfile: () => void }) {
-  const { t } = useTranslation();
-  const gap = r.rentalRegimeGap;
-  if (!gap) return null;
-  const other = regimeText(t, r.rentalRegime === 'micro' ? 'real' : 'micro');
-  const comparison = ZERO.test(gap) ? t('tax.regime_choice.same', { other })
-    : gap.startsWith('-') ? t('tax.regime_choice.less', { other, amount: eur(gap.slice(1)) }) : t('tax.regime_choice.more', { other, amount: eur(gap) });
-  return (
-    <div className="max-w-3xl space-y-1 text-sm">
-      <p className="flex items-center gap-1.5 font-medium">{t('tax.regime_choice.question')}<InfoTip label={t('tax.regime_choice.question')}>{tipText(t, 'regime')}</InfoTip></p>
-      <p>
-        {t('tax.regime_choice.current', { regime: regimeText(t, r.rentalRegime) })} {comparison}{' '}
-        <Button variant="link" className="h-auto p-0 text-sm" onClick={onProfile}>{t('tax.regime_choice.change')}</Button>
-      </p>
     </div>
   );
 }
