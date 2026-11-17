@@ -368,9 +368,9 @@ public static class TaxCalculator
                 ("childcare", TaxStepGroups.Tax, -childcare),
                 ("home_employment", TaxStepGroups.Tax, -home),
                 ("niche_cap", TaxStepGroups.Tax, excess),
-                ("flat_tax", TaxStepGroups.Tax, flat),
-                ("social_levies", TaxStepGroups.Tax, levies),
-                ("high_income", TaxStepGroups.Tax, cehr),
+                (TaxStepCodes.FlatTax, TaxStepGroups.Tax, flat),
+                (TaxStepCodes.SocialLevies, TaxStepGroups.Tax, levies),
+                (TaxStepCodes.HighIncome, TaxStepGroups.Tax, cehr),
             ], taxable, incomeTax, total));
     }
 

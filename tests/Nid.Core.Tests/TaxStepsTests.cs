@@ -87,4 +87,29 @@ public class TaxStepsTests
         Assert.True(codes.Count > 8);
         Assert.Equal(indexes.Order(), indexes);
     }
+
+    [Fact]
+    public void Every_line_is_a_step_with_the_calculators_own_figure()
+    {
+        var retired = new TaxDeclarant("A", 0m, EmploymentStatus.NonExecutive, 8_000m, 0m, Pensions: 18_000m, Over65: true);
+        var r = TaxCalculator.Compute(Inputs([retired]) with
+        {
+            AlimonyPaid = 1_000m, Donations = 300m, PinelReduction = 200m, CapitalIncome = 3_000m,
+        });
+        var steps = r.Steps!.ToDictionary(s => (s.Group, s.Code));
+        decimal Of(string group, string code) => steps[(group, code)].Amount;
+
+        Assert.Equal(18_000m, Of("income", "pensions"));
+        Assert.Equal(-r.Declarants[0].PensionAllowance, Of("income", "pension_allowance"));
+        Assert.Equal(8_000m, Of("income", "other_taxable"));
+        Assert.Equal(-r.AlimonyDeducted, Of("income", "alimony"));
+        Assert.True(r.AgeDisabilityAllowance > 0m);
+        Assert.Equal(-r.AgeDisabilityAllowance, Of("income", "age_disability"));
+        Assert.DoesNotContain(r.Steps!, s => s.Group == "income" && s.Code == "rounding");
+        Assert.Equal(-r.DonationReduction, Of("tax", "donations"));
+        Assert.Equal(-r.PinelReduction, Of("tax", "pinel"));
+        Assert.Equal(r.CapitalFlatTax, Of("tax", "flat_tax"));
+        Assert.Equal(r.SocialLevies, Of("tax", "social_levies"));
+        Assert.Equal(r.TotalTax, r.Steps!.Last(s => s.Group == "tax" && s.Code != "total_tax").To);
+    }
 }
