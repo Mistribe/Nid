@@ -14,7 +14,7 @@ test('alice reads her tax overview, follows a piste, opens Calcul, simulates, ex
   const headers = { 'X-Nid-Csrf': session.csrf };
   const salary = await page.request.post('/api/v1/income/sources', {
     headers, data: {
-      displayName: `Salaire ${stamp}`, kind: 'salary', currency: 'EUR', visibility: 'private', owners: [{ personId: session.person.id, shareBp: 10000 }],
+      displayName: `Salaire ${stamp}`, kind: 'salary', currency: 'EUR', visibility: 'shared', owners: [{ personId: session.person.id, shareBp: 10000 }],
       phases: [{ label: 'Salaire de base', startsOn: `${lastYear}-01-01`, netAmount: { amount: '3000', currency: 'EUR' }, every: { count: 1, unit: 'month' } }],
     },
   });
@@ -32,7 +32,7 @@ test('alice reads her tax overview, follows a piste, opens Calcul, simulates, ex
   await page.getByRole('button', { name: 'Créer le bien' }).click();
   await expect(page.getByRole('heading', { name: home, level: 1 })).toBeVisible();
   const propertyUrl = page.url();
-  const propertyId = propertyUrl.split('/').pop();
+  const propertyId = new URL(propertyUrl).pathname.split('/').pop();
   for (const occurredOn of [`${lastYear}-03-15`, `${lastYear}-09-15`, `${thisYear}-01-01`]) {
     const flow = await page.request.post(`/api/v1/realestate/properties/${propertyId}/flows`, { headers, data: { occurredOn, kind: 'income', category: 'rent', amount: '900' } });
     expect(flow.status()).toBe(201);
@@ -48,7 +48,11 @@ test('alice reads her tax overview, follows a piste, opens Calcul, simulates, ex
   await expect(page.getByRole('region', { name: 'Où vont vos revenus' })).toBeVisible();
   await expect(page).toHaveURL(/\/tax$/);
 
-  await page.getByRole('region', { name: 'Pistes' }).getByRole('link').first().click();
+  // The shared salary above (open-ended, from last year) is in the household's estimate, so the PER piste (room left, tax saved) shows.
+  const pistes = page.getByRole('region', { name: 'Pistes' });
+  await expect(pistes, 'the PER piste (this year, room left and tax saved) should show').toBeVisible();
+  await expect(pistes.getByRole('link', { name: /sur le PER avant le 31 décembre/ }).first()).toBeVisible();
+  await pistes.getByRole('link').first().click();
   await expect(page).toHaveURL(/[?&]tab=(detail|profile|withholding)/);
   await expect(overviewTab).toHaveAttribute('aria-selected', 'false');
 
@@ -64,9 +68,9 @@ test('alice reads her tax overview, follows a piste, opens Calcul, simulates, ex
   await page.getByRole('tab', { name: 'Simuler' }).click();
   await page.getByRole('button', { name: 'Calculer' }).click();
   await expect(toasts(page)).toContainText('Simulation calculée.');
-  await expect(page.getByRole('region', { name: 'Avant / après' }).locator('[data-stat-line]')).toContainText('€');
+  await expect(page.getByRole('region', { name: 'Avant / après' }).locator('[data-stat-line]').first()).toContainText('€');
 
-  // Déclarations: the 2042's CSV.
+  // Déclarations: the 2042's CSV (the tab's default year is the year just ended, from the date alone, so 1 January needs nothing more).
   await page.getByRole('tab', { name: 'Déclarations' }).click();
   await expect(page.getByRole('radio', { name: '2042' })).toBeChecked();
   const download = page.waitForEvent('download');
