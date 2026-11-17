@@ -10,13 +10,15 @@ export function BracketScale({ bracket, marginalRate }: { bracket: TaxBracket; m
   const { t } = useTranslation();
   const { bands, quotient, nextFrom, toNext, displayEnd } = bracket;
   const end = toPlot(displayEnd);
-  const left = Math.min(100, Math.round((toPlot(quotient) / end) * 10000) / 100);
+  const left = end > 0 ? Math.min(100, Math.round((toPlot(quotient) / end) * 10000) / 100) : 0;
+  const align = left < 15 ? 'translate-x-0' : left > 85 ? '-translate-x-full' : '-translate-x-1/2';
   const next = nextFrom == null ? undefined : bands.find((b) => b.from === nextFrom || toPlot(b.from) === toPlot(nextFrom));
   return (
     <div className="space-y-2">
       <div className="relative pt-6">
         <div aria-hidden className="flex h-8 gap-0.5">
           {bands.map((b) => {
+            // Both rates are the server's percent strings (same formatter), so a string match is exact.
             const current = b.rate === marginalRate;
             return (
               <div
@@ -30,8 +32,8 @@ export function BracketScale({ bracket, marginalRate }: { bracket: TaxBracket; m
             );
           })}
         </div>
-        <div className="absolute top-0 -translate-x-1/2 whitespace-nowrap text-xs font-medium" style={{ left: `${left}%` }}>
-          <span>{t('tax.bracket.you', { amount: wholeEur(quotient) })}</span>
+        <div className="absolute top-0" style={{ left: `${left}%` }}>
+          <span className={`block whitespace-nowrap text-xs font-medium ${align}`}>{t('tax.bracket.you', { amount: wholeEur(quotient) })}</span>
         </div>
       </div>
       <p className="text-sm">

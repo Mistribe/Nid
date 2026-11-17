@@ -8,9 +8,8 @@ const bracket = result().bracket!;
 describe('BracketScale', () => {
   it('says the band and the room before the next', () => {
     render(<BracketScale bracket={bracket} marginalRate="11" />);
-    expect(screen.getByText(/Vous êtes dans la tranche/).closest('p')).toHaveTextContent(
-      'Vous êtes dans la tranche à 11 %. Encore 7 846 € par part avant la tranche à 30 %.'.replace(/ /g, ' '),
-    );
+    const text = screen.getByText(/Vous êtes dans la tranche/).closest('p')?.textContent?.replace(/[\u00a0\u202f]/g, ' ');
+    expect(text).toBe('Vous êtes dans la tranche à 11 %. Encore 7 846 € par part avant la tranche à 30 %.');
     expect(screen.getByText('Vous · 21 469 € par part')).toBeInTheDocument();
   });
 
@@ -31,5 +30,11 @@ describe('BracketScale', () => {
     render(<BracketScale bracket={{ ...bracket, quotient: '0.00' }} marginalRate="0" />);
     expect(screen.getByText(/Vous êtes dans la tranche/)).toHaveTextContent('tranche à 0 %');
     expect(screen.getByText(/^Vous · /).closest('[style]')).toHaveStyle({ left: '0%' });
+    expect(screen.getByText(/^Vous · /)).toHaveClass('translate-x-0');
+  });
+
+  it('keeps the marker label inside the scale at the far end', () => {
+    render(<BracketScale bracket={{ ...bracket, quotient: bracket.displayEnd, nextFrom: null, toNext: null }} marginalRate="45" />);
+    expect(screen.getByText(/^Vous · /)).toHaveClass('-translate-x-full');
   });
 });
