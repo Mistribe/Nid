@@ -48001,6 +48001,16 @@
               "format": "int32"
             }
           },
+          "signals": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": {
+              "type": "number",
+              "format": "double"
+            }
+          },
           "version": {
             "type": "integer",
             "format": "int32"
@@ -49067,6 +49077,7 @@
           "frequency",
           "weekday",
           "leadDays",
+          "signals",
           "version"
         ],
         "type": "object",
@@ -49097,6 +49108,12 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/LeadDayView"
+            }
+          },
+          "signals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SignalView"
             }
           },
           "version": {
@@ -55893,6 +55910,49 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "SignalView": {
+        "required": [
+          "kind",
+          "title",
+          "enabled",
+          "threshold",
+          "defaultThreshold",
+          "min",
+          "max",
+          "unit"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "threshold": {
+            "type": "number",
+            "format": "double"
+          },
+          "defaultThreshold": {
+            "type": "number",
+            "format": "double"
+          },
+          "min": {
+            "type": "number",
+            "format": "double"
+          },
+          "max": {
+            "type": "number",
+            "format": "double"
+          },
+          "unit": {
+            "type": "string"
           }
         }
       },

@@ -218,4 +218,26 @@ public class NotificationTemplatesTests
 
         Assert.Equal(body, NotificationTemplates.Render(record, KindOf("backup_failed", "platform"), new Dictionary<ItemId, string>()).Body);
     }
+
+    [Fact]
+    public void The_centre_shows_a_signals_figures_the_french_way()
+    {
+        var record = Record("net_worth_milestone", key: "net_worth_milestone:300000") with
+        {
+            ItemIds = [],
+            Params = new Dictionary<string, string> { ["net_worth_amount"] = "302140.40", ["step_amount"] = "300000" },
+        };
+        var kind = KindOf("net_worth_milestone", "core");
+
+        var centre = NotificationTemplates.Render(record, kind, new Dictionary<ItemId, string>(), withFigures: true);
+        var plain = NotificationTemplates.Render(record, kind, new Dictionary<ItemId, string>());
+
+        Assert.Equal("Votre patrimoine a franchi un palier", centre.Title);
+        Assert.Equal("Patrimoine : 302 140 € · Palier : 300 000 €", centre.Body.Replace('\u202f', ' ').Replace('\u00a0', ' '));
+        Assert.Equal("/dashboard", centre.Link);
+        Assert.Equal("", plain.Body);
+
+        var swiss = record with { Params = new Dictionary<string, string>(record.Params) { ["currency"] = "CHF" } };
+        Assert.EndsWith("300 000 CHF", NotificationTemplates.Render(swiss, kind, new Dictionary<ItemId, string>(), withFigures: true).Body.Replace('\u202f', ' ').Replace('\u00a0', ' '));
+    }
 }

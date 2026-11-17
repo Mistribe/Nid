@@ -33728,6 +33728,9 @@ export interface components {
             leadDays?: null | {
                 [key: string]: number;
             };
+            signals?: null | {
+                [key: string]: number;
+            };
             /** Format: int32 */
             version: number;
         };
@@ -33991,6 +33994,7 @@ export interface components {
             /** Format: int32 */
             weekday: number;
             leadDays: components["schemas"]["LeadDayView"][];
+            signals: components["schemas"]["SignalView"][];
             /** Format: int32 */
             version: number;
             discord?: null | components["schemas"]["WebhookView"];
@@ -35578,6 +35582,20 @@ export interface components {
         };
         SharingBody: {
             shareLevel?: null | string;
+        };
+        SignalView: {
+            kind: string;
+            title: string;
+            enabled: boolean;
+            /** Format: double */
+            threshold: number;
+            /** Format: double */
+            defaultThreshold: number;
+            /** Format: double */
+            min: number;
+            /** Format: double */
+            max: number;
+            unit: string;
         };
         SimulateBody: {
             scope?: null | string;

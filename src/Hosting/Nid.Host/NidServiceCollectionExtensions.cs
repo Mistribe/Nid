@@ -408,6 +408,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<Nid.Platform.Admin.IJobRunStore, Nid.Platform.Infrastructure.Admin.JobRunStore>();
         // Scoped: the sources depend on scoped stores, a singleton catalog would capture them.
         services.AddScoped<Nid.Platform.Notifications.NotificationCatalog>();
+        services.AddScoped<ISignalSettings, Nid.Platform.Notifications.SignalSettings>();
         services.AddScoped<Nid.Platform.Contracts.INotificationSource, Nid.Platform.Notifications.SystemHealthNotificationSource>();
         services.TryAddSingleton<INotificationRefresh, NoNotificationRefresh>();
         services.TryAddSingleton<IEmailAvailability, NoEmailAvailability>();

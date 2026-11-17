@@ -113,6 +113,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             e.HasKey(x => x.PersonId);
             e.Property(x => x.PersonId).ValueGeneratedNever();
             e.Property(x => x.LeadDays).HasColumnType("jsonb");
+            e.Property(x => x.Signals).HasColumnType("jsonb").HasDefaultValueSql("'{}'::jsonb");
             e.Property(x => x.Version).IsConcurrencyToken();
         });
 

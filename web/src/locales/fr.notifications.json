@@ -117,6 +117,16 @@
     "weekday_5": "vendredi",
     "weekday_6": "samedi",
     "weekday_7": "dimanche",
+    "signals": "Signaux",
+    "signals_intro": "Des alertes tirées de vos chiffres, que vous seul recevez. Elles sont éteintes tant que vous ne les allumez pas.",
+    "threshold": "Seuil",
+    "threshold_hint": "Par défaut : {{value}}, de {{min}} à {{max}}",
+    "signal": {
+      "net_worth_milestone": {
+        "threshold": "Palier (€)",
+        "tip": "Prévient quand votre patrimoine passe un multiple du palier (100 000 €, 150 000 €…) depuis la fin du mois dernier. Le montant n’apparaît que dans Nid, jamais dans un email ou sur Discord."
+      }
+    },
     "lead_days": "Délais",
     "default_days": "Par défaut : {{n}} jours",
     "reset": "Rétablir",
@@ -129,7 +139,8 @@
       "notifications_invalid_lead_days": "Entre 0 et 365 jours.",
       "notifications_unknown_kind": "Cette échéance n’existe pas.",
       "notifications_invalid_weekday": "Choisissez un jour de la semaine.",
-      "notifications_email_unavailable": "L’envoi d’emails n’est pas disponible."
+      "notifications_email_unavailable": "L’envoi d’emails n’est pas disponible.",
+      "notifications_invalid_threshold": "Hors des limites indiquées."
     }
   }
 }

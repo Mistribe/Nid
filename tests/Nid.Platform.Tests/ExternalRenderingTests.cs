@@ -190,4 +190,23 @@ public class ExternalRenderingTests
 
         Assert.Equal("Nid : 1 notification", digest.Subject);
     }
+
+    [Fact]
+    public void A_signals_figures_never_leave_the_application()
+    {
+        var row = Record("net_worth_milestone", NotificationLevel.Info, items: [],
+            parameters: new Dictionary<string, string> { ["net_worth_amount"] = "302140", ["step_amount"] = "300000" });
+        var kind = KindOf("net_worth_milestone", "core", NotificationLevel.Info);
+
+        var one = renderer.One(row, kind, Names("Maison"));
+        var digest = renderer.Digest([(row, kind)], Names("Maison"));
+
+        Assert.Contains("Votre patrimoine a franchi un palier", one.Text);
+        Assert.Contains("https://nid.example/dashboard", one.Text);
+        foreach (var text in new[] { one.Text, one.Html, digest.Text, digest.Html })
+        {
+            Assert.DoesNotContain("€", text);
+            Assert.DoesNotContain("300", text);
+        }
+    }
 }

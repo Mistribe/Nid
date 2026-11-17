@@ -104,7 +104,7 @@ public static class NotificationEndpoints
 
                 var command = new SaveNotificationPreferencesCommand(
                     body.EmailEnabled, action!.Value, info!.Value, frequency!.Value, body.Weekday,
-                    body.LeadDays ?? new Dictionary<string, int>(), body.Version);
+                    body.LeadDays ?? new Dictionary<string, int>(), body.Signals ?? new Dictionary<string, decimal>(), body.Version);
                 return (await invoker.InvokeAsync(command, ct)).ToHttp(p => p);
             })
             .Returns<PreferencesView>();
@@ -136,5 +136,6 @@ public static class NotificationEndpoints
     public sealed record SnoozeBody(string? Until, string? Preset);
 
     public sealed record NotificationPreferencesBody(
-        bool EmailEnabled, string? Action, string? Info, string? Frequency, int Weekday, Dictionary<string, int>? LeadDays, int Version);
+        bool EmailEnabled, string? Action, string? Info, string? Frequency, int Weekday, Dictionary<string, int>? LeadDays,
+        Dictionary<string, decimal>? Signals, int Version);
 }

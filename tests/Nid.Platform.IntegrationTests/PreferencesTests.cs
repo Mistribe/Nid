@@ -21,8 +21,8 @@ public class PreferencesTests(PostgresFixture fixture) : IClassFixture<PostgresF
 
     private static object Body(
         bool emailEnabled = false, string action = "immediate", string info = "digest", string frequency = "weekly", int weekday = 1,
-        Dictionary<string, int>? leadDays = null, int version = 0)
-        => new { emailEnabled, action, info, frequency, weekday, leadDays = leadDays ?? [], version };
+        Dictionary<string, int>? leadDays = null, int version = 0, Dictionary<string, decimal>? signals = null)
+        => new { emailEnabled, action, info, frequency, weekday, leadDays = leadDays ?? [], signals = signals ?? [], version };
 
     private static async Task<JsonElement> JsonOf(HttpResponseMessage response) => await response.Content.ReadFromJsonAsync<JsonElement>();
 
@@ -63,6 +63,38 @@ public class PreferencesTests(PostgresFixture fixture) : IClassFixture<PostgresF
         Assert.Equal((90, 90), (lead.GetProperty("days").GetInt32(), lead.GetProperty("defaultDays").GetInt32()));
         Assert.Equal("Un bail arrive à échéance", lead.GetProperty("title").GetString());
         Assert.DoesNotContain(leads, l => l.GetProperty("kind").GetString() == "rent_arrears");
+    }
+
+    [Fact]
+    public async Task Signals_are_off_by_default_and_round_trip()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+
+        var before = await app.GetAsync<JsonElement>(app.AdultA, Route);
+        var off = before.GetProperty("signals").EnumerateArray().Single(s => s.GetProperty("kind").GetString() == "net_worth_milestone");
+        Assert.False(off.GetProperty("enabled").GetBoolean());
+        Assert.Equal((50_000m, 50_000m, 1_000m, 10_000_000m, "eur"), (off.GetProperty("threshold").GetDecimal(), off.GetProperty("defaultThreshold").GetDecimal(),
+            off.GetProperty("min").GetDecimal(), off.GetProperty("max").GetDecimal(), off.GetProperty("unit").GetString()));
+
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Put, Route, Body(signals: new() { ["net_worth_milestone"] = 100_000m }));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var on = (await app.GetAsync<JsonElement>(app.AdultA, Route)).GetProperty("signals").EnumerateArray()
+            .Single(s => s.GetProperty("kind").GetString() == "net_worth_milestone");
+        Assert.Equal((true, 100_000m), (on.GetProperty("enabled").GetBoolean(), on.GetProperty("threshold").GetDecimal()));
+        Assert.Contains((await app.GetAsync<JsonElement>(app.AdultB, Route)).GetProperty("signals").EnumerateArray(),
+            s => s.GetProperty("kind").GetString() == "net_worth_milestone" && !s.GetProperty("enabled").GetBoolean()); // per person
+    }
+
+    [Theory]
+    [InlineData("net_worth_milestone", 999, "notifications.invalid_threshold")]
+    [InlineData("net_worth_milestone", 10_000_001, "notifications.invalid_threshold")]
+    [InlineData("tenancy_end", 10, "notifications.unknown_kind")] // not an opt-in kind
+    public async Task A_signal_outside_its_kind_or_bounds_is_refused(string kind, int threshold, string code)
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+
+        await AssertFieldAsync(app, Body(signals: new() { [kind] = threshold }), $"signals.{kind}", code);
     }
 
     [Fact]

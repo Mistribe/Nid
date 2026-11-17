@@ -130,6 +130,9 @@ public sealed class NotificationPreferencesRow
     /// <summary>A JSON object of kind to days, only the values that differ from the kind's default.</summary>
     public string LeadDays { get; set; } = "{}";
 
+    /// <summary>Issue #81: a JSON object of opt-in kind to threshold, the kinds the person turned on.</summary>
+    public string Signals { get; set; } = "{}";
+
     /// <summary>Optimistic concurrency: the saved version, 1 for the first save.</summary>
     public int Version { get; set; }
 }
