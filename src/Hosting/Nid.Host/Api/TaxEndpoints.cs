@@ -51,13 +51,13 @@ public static class TaxEndpoints
             })
             .Returns<TaxEstimateView>();
 
-        api.MapPost("/simulate", async (TaxInputsView body, IInvoker invoker, CancellationToken ct) =>
+        api.MapPost("/simulate", async (TaxInputsView body, string? scope, IInvoker invoker, CancellationToken ct) =>
             {
                 var reader = new FieldReader();
                 var inputs = Read(body, reader);
                 return inputs is null
                     ? reader.Problem()
-                    : (await invoker.InvokeAsync(new SimulateTaxQuery(inputs), ct)).ToHttp(view => view);
+                    : (await invoker.InvokeAsync(new SimulateTaxQuery(inputs, scope is null ? null : ParseScope(scope)), ct)).ToHttp(view => view);
             })
             .Returns<TaxResultView>();
 

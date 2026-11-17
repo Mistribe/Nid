@@ -22,7 +22,7 @@ public sealed record SaveTaxProfileCommand(int Year, TaxProfile Profile, Visibil
 public sealed record GetRental2044Query(int? Year, VisibilityScope Scope) : IQuery<Rental2044View>;
 
 /// <summary>Tax estimate spec §8: the calculation of given inputs; nothing is read nor stored.</summary>
-public sealed record SimulateTaxQuery(TaxInputs Inputs) : IQuery<TaxResultView>;
+public sealed record SimulateTaxQuery(TaxInputs Inputs, VisibilityScope? Scope = null) : IQuery<TaxResultView>;
 
 /// <summary>Sale tax spec §6: with <c>ItemId</c>, that item's page among everything the reader sees; without, the scope's total.</summary>
 public sealed record GetSaleTaxQuery(VisibilityScope Scope, ItemId? ItemId) : IQuery<SaleTaxView>, IOptionalItemScoped
@@ -130,17 +130,29 @@ public sealed class SaveTaxProfileHandler(TaxEstimates estimates, ITaxProfileSto
 }
 
 [RequestHandler<SimulateTaxQuery, TaxResultView>]
-public sealed class SimulateTaxHandler(IHouseholdCalendar calendar) : IRequestHandler<SimulateTaxQuery, TaxResultView>
+public sealed class SimulateTaxHandler(IHouseholdCalendar calendar, TaxEstimates estimates) : IRequestHandler<SimulateTaxQuery, TaxResultView>
 {
     public async ValueTask<Result<TaxResultView>> HandleAsync(SimulateTaxQuery query, CancellationToken ct = default)
     {
         var inputs = query.Inputs;
-        if (TaxEstimates.CheckYear(inputs.Year, await calendar.TodayAsync(ct)) is { } failure)
+        var today = await calendar.TodayAsync(ct);
+        if (TaxEstimates.CheckYear(inputs.Year, today) is { } failure)
             return Result.Failure<TaxResultView>(failure);
         if (inputs.Declarants.Count is < 1 or > 2 || inputs.Declarants.Any(d => d.ContributionRate is { } r && !TaxEstimates.RateOk(r) || d.SalaryTaxable < 0m || d.PerCeiling < 0m || d.PreviousYearIncome < 0m || d.PerExpiring < 0m) || inputs.Dependents is < 0 or > 20 || inputs.ChildrenUnder6 < 0 || inputs.ChildrenUnder6 > inputs.Dependents || inputs.AlimonyAdultChildrenCount is < 0 or > 20 || inputs.AlternateCustody < 0 || inputs.AlternateCustody > inputs.Dependents || inputs.DisabledDependents < 0 || inputs.DisabledDependents > inputs.Dependents)
             return Result.Failure<TaxResultView>(new Failure(TaxCodes.InvalidInputs,
                 "One or two declarants, their entered net taxable income, PER ceiling, previous-year income and expiring ceiling not negative; dependents between 0 and 20, the children under 6 among them; adult children receiving alimony between 0 and 20; the children in alternate custody and the disabled ones among the dependents.", null));
-        return Result.Success(TaxResultView.Of(TaxCalculator.Compute(inputs)));
+        var simulated = TaxCalculator.Compute(inputs);
+        var view = TaxResultView.Of(simulated);
+        if (query.Scope is not { } scope) return Result.Success(view);
+        var estimate = await estimates.ComputeAsync(inputs.Year, scope, today, ct);
+        if (estimate.TryGetFailure(out var estimateFailure)) return Result.Failure<TaxResultView>(estimateFailure!);
+        estimate.TryGetValue(out var before);
+        return Result.Success(view with
+        {
+            Differences = new TaxDifferencesView(
+                TaxEstimates.Amount(simulated.TotalTax - before!.TotalTax), TaxEstimates.Amount(simulated.NetAfterTaxMonthly - before.NetAfterTaxMonthly),
+                TaxEstimates.Amount(simulated.Withholding.Balance - before.Withholding.Balance)),
+        });
     }
 }
 

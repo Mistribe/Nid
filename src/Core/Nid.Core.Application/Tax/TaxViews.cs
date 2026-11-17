@@ -196,6 +196,9 @@ public sealed record TaxStepView(string Code, string Group, string Amount, strin
 /// <summary>A band of the scale: <c>To</c> null for the top one; <c>Rate</c> a percent.</summary>
 public sealed record TaxBandView(string From, string? To, string Rate);
 
+/// <summary>A simulation minus the estimate of the same year, signed: what the change brings.</summary>
+public sealed record TaxDifferencesView(string TotalTax, string NetAfterTaxMonthly, string Balance);
+
 /// <summary>The household's place on the scale (<see cref="TaxBracketPosition"/>); the page compares a band's <c>Rate</c> with the marginal rate.</summary>
 public sealed record TaxBracketView(IReadOnlyList<TaxBandView> Bands, string Quotient, string? NextFrom, string? ToNext, string DisplayEnd)
 {
@@ -225,7 +228,7 @@ public sealed record TaxResultView(
     string RentalDeficitCarriedForward = "0.00", bool CapitalScale = false, string? CapitalOptionGap = null, string DividendAllowance = "0.00",
     string DeductibleCsgNextYear = "0.00", string HighIncomeContribution = "0.00", bool HighIncomeSmoothed = false, string AlimonyDeducted = "0.00",
     string RealisedGainsTaxable = "0.00", string CapitalLossesCarriedForward = "0.00", string AgeDisabilityAllowance = "0.00",
-    IReadOnlyList<TaxStepView>? Steps = null, TaxBracketView? Bracket = null)
+    IReadOnlyList<TaxStepView>? Steps = null, TaxBracketView? Bracket = null, TaxDifferencesView? Differences = null)
 {
     /// <summary><paramref name="persons"/>: the adults' ids in the order of the declarants (the estimate's); a simulation passes none.</summary>
     public static TaxResultView Of(TaxResult r, IReadOnlyList<Guid>? persons = null) => new(
