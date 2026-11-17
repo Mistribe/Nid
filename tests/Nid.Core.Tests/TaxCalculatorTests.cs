@@ -992,8 +992,8 @@ public class TaxCalculatorTests
     {
         var result = TaxCalculator.Compute(Inputs([Other(30_000m)]) with { RealisedGains = 2_000m, CapitalLossesCarried = 500m });
 
-        // 1 500 left at 12.8 % and 17.2 %, in the reference income.
-        Assert.Equal((1_500m, 0m, 192m, 258m), (result.RealisedGainsTaxable, result.CapitalLossesCarriedForward, result.CapitalFlatTax, result.SocialLevies));
+        // 1 500 left at 12.8 % and, as patrimony income, at the 18.6 % that already reaches 2025 gains; in the reference income.
+        Assert.Equal((1_500m, 0m, 192m, 279m), (result.RealisedGainsTaxable, result.CapitalLossesCarriedForward, result.CapitalFlatTax, result.SocialLevies));
         Assert.Equal(27_000m + 1_500m, result.ReferenceIncome);
     }
 
@@ -1060,5 +1060,18 @@ public class TaxCalculatorTests
         Assert.Equal(4_000m, result.Per!.Remaining);
         Assert.Equal(0m, result.IncomeTax);
         Assert.Equal(0m, result.Per.RemainingTaxSaved);
+    }
+
+    [Theory]
+    // The official simulator (impôt 2026 sur les revenus 2025, modèle complet), 1AJ 40 000, 2DC 4 000, 2TR 1 000, 3VG 2 000, with and
+    // without 2OP; the levies with 2BH 5 000, the dividends' and interest's being withheld at 17.2 %: 372 on the gains.
+    [InlineData(false, 36_000, 3_904, 896)]
+    [InlineData(true, 41_400, 5_524, 0)]
+    public void A_capital_income_scenario_matches_the_official_simulator(bool scale, int taxable, int incomeTax, int flat)
+    {
+        var result = TaxCalculator.Compute(WithCapital(40_000m, 5_000m, 4_000m, scale) with { RealisedGains = 2_000m });
+
+        Assert.Equal(((decimal)taxable, (decimal)incomeTax, (decimal)flat, 43_000m), (result.NetTaxableIncome, result.IncomeTax, result.CapitalFlatTax, result.ReferenceIncome));
+        Assert.Equal(860m + 372m, result.SocialLevies);
     }
 }
