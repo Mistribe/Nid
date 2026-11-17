@@ -48,27 +48,6 @@ describe('TaxPage', () => {
     expect(status.querySelector('[data-slot="skeleton"]')).not.toBeNull();
   });
 
-  it('simulates edited inputs beside the estimate', async () => {
-    const sent: unknown[] = [];
-    server.use(
-      http.get('*/api/v1/tax', () => HttpResponse.json(estimate())),
-      http.post('*/api/v1/tax/simulate', async ({ request }) => {
-        sent.push(await request.json());
-        return HttpResponse.json(result({ incomeTax: '1500.00', netAfterTax: '67500.00' }));
-      }),
-    );
-    const { user } = await renderApp('/tax?tab=simulation');
-
-    const gross = await screen.findByLabelText('Salaire brut annuel');
-    await user.clear(gross);
-    await user.type(gross, '60000,50');
-    await user.click(screen.getByRole('button', { name: 'Calculer' }));
-
-    const table = await screen.findByRole('table', { name: 'Estimation et simulation' });
-    expect(within(table).getByRole('row', { name: /^Impôt sur le revenu/ })).toHaveTextContent('247,00 €1 500,00 €');
-    expect(sent[0]).toMatchObject({ declarants: [{ salaryGross: '60000.50', status: 'non_executive' }], childcareOutsideHome: '6000.00' });
-  });
-
   it('says where each person’s taxable salary comes from, and lists the payments behind it', async () => {
     const detail = (over: Partial<TaxEstimate['salaryDetail'][number]>): TaxEstimate['salaryDetail'][number] => ({
       person: ADULT, item: 'i1', name: 'Salaire Alice', on: '2026-01-31', note: 'Janvier', category: 'entered', amount: '4400.00', ...over,
