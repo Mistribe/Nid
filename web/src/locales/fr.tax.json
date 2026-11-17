@@ -128,7 +128,14 @@
       "refund": "Remboursé en été {{year}}",
       "to_pay": "À payer en septembre {{year}}"
     },
-    "declarations": { "form": "Formulaire" },
+    "declarations": {
+      "form": "Formulaire",
+      "copy_box": "Copier la case {{code}}",
+      "copy_line": "Copier la ligne {{code}} ({{list}})",
+      "copied_box": "Case {{code}} copiée : {{value}}",
+      "copied_line": "Ligne {{code}} copiée : {{value}}",
+      "copy_failed": "Copie impossible : recopiez le montant à la main."
+    },
     "overview": {
       "question": "Combien d’impôt cette année, et que puis-je faire ?",
       "empty_title": "Aucun revenu pour {{year}}",
