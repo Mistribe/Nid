@@ -32,6 +32,8 @@ export type RouterContext = { capabilities: Capabilities };
 export type TaxSearch = RootSearch & DetailSearch & { year?: string; form?: 2044 };
 /** A childcare arrangement's tab and the year of its summary (#411; absent: the year just ended). */
 export type ChildcareSearch = DetailSearch & { year?: string };
+/** #94: a nanny at home's year (absent: the current one). */
+export type NannySearch = { year?: string };
 export type RoutineSearch = { on?: string };
 export type BanksSearch = { connected?: string; error?: string };
 /** The home page: the curve's span, a figure panel, the projection's horizon (`10y` stays out of the URL) and its reading (`0`: current value). */
@@ -305,6 +307,21 @@ const childcareDetailRoute = createRoute({
   }),
   beforeLoad: requireModule('childcare'),
   component: lazyRouteComponent(() => import('@/features/childcare/ChildcareDetailPage'), 'ChildcareDetailPage'),
+});
+
+const nannyNewRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/childcare/nannies/new',
+  beforeLoad: requireModule('childcare'),
+  component: lazyRouteComponent(() => import('@/features/childcare/NewNanny'), 'NewNanny'),
+});
+
+const nannyDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/childcare/nannies/$id',
+  validateSearch: (search: Record<string, unknown>): NannySearch => (/^\d{4}$/.test(String(search.year)) ? { year: String(search.year) } : {}),
+  beforeLoad: requireModule('childcare'),
+  component: lazyRouteComponent(() => import('@/features/childcare/NannyDetailPage'), 'NannyDetailPage'),
 });
 
 const childcareEndRoute = createRoute({
@@ -725,7 +742,7 @@ const adminSecurityRoute = createRoute({ getParentRoute: () => rootRoute, valida
 
 export const routeTree = rootRoute.addChildren([
   indexRoute, dashboardRoute, calendarRoute, yearReviewRoute, subscriptionsRoute, subscriptionNewRoute, subscriptionDetailRoute, investmentsRoute, investmentNewRoute, investmentDetailRoute, holdingDetailRoute,
-  goalsRoute, goalNewRoute, goalDetailRoute, childcareRoute, childcareNewRoute, childcareDetailRoute, childcareEndRoute, childcareSettlementRoute, childcareStatementRoute, documentsRoute, documentDetailRoute, seriesRoute, incomeRoute, incomeNewRoute, incomeDetailRoute, taxRoute, taxAssessmentNewRoute, taxAssessmentEditRoute, retirementRoute, scenariosRoute, scenarioNewRoute, projectionScenarioRoute, saleScenarioRoute, scenarioCompareRoute, scenarioDetailRoute, propertiesRoute, propertyNewRoute, propertyDetailRoute, loansRoute, loanNewRoute, loanDetailRoute, loanContractRoute, propertyReceiptRoute, propertyArrearsLetterRoute, notificationsRoute, routineRoute, proposalsRoute, proposalDetailRoute,
+  goalsRoute, goalNewRoute, goalDetailRoute, childcareRoute, childcareNewRoute, childcareDetailRoute, childcareEndRoute, childcareSettlementRoute, childcareStatementRoute, nannyNewRoute, nannyDetailRoute, documentsRoute, documentDetailRoute, seriesRoute, incomeRoute, incomeNewRoute, incomeDetailRoute, taxRoute, taxAssessmentNewRoute, taxAssessmentEditRoute, retirementRoute, scenariosRoute, scenarioNewRoute, projectionScenarioRoute, saleScenarioRoute, scenarioCompareRoute, scenarioDetailRoute, propertiesRoute, propertyNewRoute, propertyDetailRoute, loansRoute, loanNewRoute, loanDetailRoute, loanContractRoute, propertyReceiptRoute, propertyArrearsLetterRoute, notificationsRoute, routineRoute, proposalsRoute, proposalDetailRoute,
   importRoute.addChildren([importHomeRoute, importSessionRoute]), exportRoute, settingsRoute, appearanceRoute, notificationSettingsRoute, projectionSettingsRoute, personsSettingsRoute, calendarSettingsRoute, banksSettingsRoute,
   securityRoute, operationsRoute, moreRoute, changelogRoute, forbiddenRoute, adminRoute, adminUsersRoute, adminHouseholdRoute, adminFxRoute, adminPricesRoute, adminIrlRoute, adminInflationRoute, adminBankingRoute, adminCatalogRoute, adminJobsRoute, adminJobRoute, adminJobRunRoute,
   adminSystemRoute, adminNotificationsRoute, adminSecurityRoute,

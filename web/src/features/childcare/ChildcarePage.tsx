@@ -17,6 +17,7 @@ import { amountKey } from '@/components/page/sortKey';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { buttonVariants } from '@/components/ui/button';
 import { type ChildcareSummary, useChildcare, useChildcareList } from './api';
+import { type NannySummary, useNannies } from './nannyApi';
 import { monthTitle } from './statementText';
 import '@/locales/childcare';
 import '@/locales/forms';
@@ -30,9 +31,12 @@ export function ChildcarePage() {
   const { t } = useTranslation();
   const { scope }: RootSearch = useSearch({ strict: false });
   const answer = useChildcareList(scope === 'me' ? 'me' : 'household', true);
+  const nannies = useNannies(scope === 'me' ? 'me' : 'household', true);
   // The empty state's action repeats the header's primary: `outline`, one primary per view (design-system.md §6.1).
   const add = (variant?: 'outline') => <Link to="/childcare/new" className={buttonVariants({ variant })}>{t('childcare_list.add')}</Link>;
   const items = answer.data?.items ?? [];
+  const nannyRows = nannies.data?.items ?? [];
+  const addNanny = <Link to="/childcare/nannies/new" className={buttonVariants({ variant: 'outline' })}>{t('childcare_nanny.add')}</Link>;
   const current = items.filter((c) => !c.closed);
   // Without an open arrangement there is nothing to overview: the list opens first.
   const tabs = [
@@ -42,11 +46,13 @@ export function ChildcarePage() {
   const [tab, setTab] = useDetailTab(tabs.map((x) => x.id));
   return (
     <div className="space-y-4">
-      <PageHeader title={t('childcare_list.title')} actions={add()} />
+      <PageHeader title={t('childcare_list.title')} actions={<>{addNanny}{add()}</>} />
       {answer.error ? <ProblemMessage problem={present(toProblem(answer.error))} />
-        : !answer.data ? <OverviewSkeleton label={t('childcare_list.loading')} hero stats={3} />
-        : items.length === 0 ? <EmptyState module="/childcare" title={t('childcare_list.empty_title')} body={t('childcare_list.empty_body')} action={add('outline')} />
+        : !answer.data || nannies.isPending ? <OverviewSkeleton label={t('childcare_list.loading')} hero stats={3} />
+        : items.length === 0 && nannyRows.length === 0 ? <EmptyState module="/childcare" title={t('childcare_list.empty_title')} body={t('childcare_list.empty_body')} action={add('outline')} />
+        : items.length === 0 ? null
         : <DetailTabs value={tab} onChange={setTab} tabs={tabs} />}
+      {nannies.error ? <ProblemMessage problem={present(toProblem(nannies.error))} /> : nannyRows.length ? <Nannies rows={nannyRows} /> : null}
     </div>
   );
 }
@@ -119,5 +125,25 @@ function List({ rows }: { rows: ChildcareSummary[] }) {
           {c.toPrepare.length > 0 ? <p className="text-sm">{t('childcare_list.to_prepare_mobile', { count: c.toPrepare.length })}</p> : null}
         </div>
       )} />
+  );
+}
+
+/** #94: the nannies at home, each with the current year's net cost and months recorded, the server's figures. */
+function Nannies({ rows }: { rows: NannySummary[] }) {
+  const { t } = useTranslation();
+  const name = (n: NannySummary) => <Link to="/childcare/nannies/$id" params={{ id: n.id }} className="font-medium hover:underline">{n.name}</Link>;
+  return (
+    <SectionCard title={t('childcare_nanny.section')}>
+      <SortableTable<NannySummary> caption={t('childcare_nanny.section')} rows={rows} rowKey={(n) => n.id}
+        columns={[
+          { id: 'name', header: t('lists.col.name'), sort: (n) => n.name, cell: (n) => <>{name(n)}{n.closed ? <span className="text-muted-foreground"> · {t('childcare_nanny.closed_badge')}</span> : null}</> },
+          { id: 'net', header: t('childcare_nanny.net_cost_year'), align: 'end', sort: (n) => amountKey(n.netCost.amount), cell: (n) => <Money value={n.netCost} tabular /> },
+          { id: 'months', header: t('childcare_nanny.months_recorded'), align: 'end', sort: (n) => n.months, cell: (n) => t('childcare_nanny.months', { count: n.months }) },
+          { id: 'owner', header: t('childcare_list.col_owners'), cell: (n) => <OwnerChips owners={n.owners} /> },
+        ]}
+        mobile={(n) => (
+          <div className="flex flex-wrap items-center justify-between gap-2">{name(n)}<Money value={n.netCost} tabular /></div>
+        )} />
+    </SectionCard>
   );
 }
