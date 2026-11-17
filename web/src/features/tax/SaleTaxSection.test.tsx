@@ -137,6 +137,16 @@ describe('SaleTaxSection', () => {
     expect(container.querySelector('[data-slot="skeleton"]')).not.toBeNull();
   });
 
+  it('shows a section skeleton while the sale tax loads', async () => {
+    server.use(
+      http.get('*/api/v1/realestate/properties/:id', () => HttpResponse.json(propertyDetail())),
+      http.get('*/api/v1/tax/sale', () => new Promise(() => {})),
+    );
+    await renderApp(`/properties/${PROPERTY}`);
+    const status = await screen.findByRole('status', { name: 'Calcul de l’impôt' });
+    expect(status.querySelector('.shimmer:not([data-slot="skeleton"])')).toBeNull();
+  });
+
   it('shows a server error inside the titled section', async () => {
     server.use(
       http.get('*/api/v1/realestate/properties/:id', () => HttpResponse.json(propertyDetail())),

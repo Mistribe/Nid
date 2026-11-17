@@ -73,13 +73,32 @@ describe('SaleTotalSection', () => {
     expect(row).toHaveTextContent('Imposable · approximatif · valeur estimée · valeur à mettre à jour');
   });
 
-  it('sits under the simulation in « Simuler », the year picker above unchanged', async () => {
+  it('sits in its own card after the simulation', async () => {
+    serve(view());
+    await renderApp('/tax?tab=simulation');
+    const card = await screen.findByRole('region', { name: 'Si tout était vendu' });
+    expect(within(card).getByText('340 000,00 €')).toBeInTheDocument();
+    const form = screen.getByRole('form', { name: 'Simulation' });
+    expect(form.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('keeps name, status, net and detail below a wide screen', async () => {
     serve(view());
     await renderApp('/tax?tab=simulation');
     await screen.findByText('340 000,00 €');
-    expect(screen.getByRole('heading', { name: 'Simulation' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Si tout était vendu' })).toBeInTheDocument();
-    expect(screen.getByRole('radiogroup', { name: 'Année des revenus' })).toBeInTheDocument();
+    for (const name of ['Plus-value', 'Surtaxe']) expect(screen.getByRole('columnheader', { name })).toHaveClass('hidden');
+    for (const name of ['Net', 'Nom']) expect(screen.getByRole('columnheader', { name })).not.toHaveClass('hidden');
+  });
+
+  it('shows skeletons while the sale tax loads', async () => {
+    server.use(
+      http.get('*/api/v1/tax', () => HttpResponse.json(estimate())),
+      http.get('*/api/v1/tax/sale', () => new Promise(() => {})),
+    );
+    const { container } = await renderApp('/tax?tab=simulation');
+    const card = await screen.findByRole('region', { name: 'Si tout était vendu' });
+    expect(await within(card).findByRole('status', { name: 'Calcul de l’impôt' })).toBeInTheDocument();
+    expect(container.querySelector('.shimmer:not([data-slot="skeleton"])')).toBeNull();
   });
 
   it('shows an empty state without item', async () => {
