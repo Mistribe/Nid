@@ -74,7 +74,7 @@ public class SecurityEventTests(PostgresFixture fixture) : IClassFixture<Postgre
             services.AddScoped<ISecurityEvents>(sp => new FlakyOnceSecurityEvents(new SecurityEventWriter(
                 sp.GetRequiredService<Npgsql.NpgsqlDataSource>(), sp.GetRequiredService<IActorAccessor>(),
                 sp.GetRequiredService<Nid.Platform.Audit.AuditRequest>(), NodaTime.SystemClock.Instance,
-                sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<SecurityEventWriter>>()), gate));
+                sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<SecurityEventWriter>>(), sp.GetRequiredService<INotifier>()), gate));
         });
         var hidden = await app.NewSubscriptionAsync("hidden", app.AdultA, Visibility.Private);
 
@@ -209,7 +209,8 @@ public class SecurityEventTests(PostgresFixture fixture) : IClassFixture<Postgre
             services.AddScoped<ISecurityEvents>(sp => new SecurityEventWriter(
                 new Npgsql.NpgsqlDataSourceBuilder("Host=127.0.0.1;Port=1;Timeout=1").Build(),
                 sp.GetRequiredService<IActorAccessor>(), sp.GetRequiredService<Nid.Platform.Audit.AuditRequest>(),
-                NodaTime.SystemClock.Instance, sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<SecurityEventWriter>>())));
+                NodaTime.SystemClock.Instance, sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<SecurityEventWriter>>(),
+                sp.GetRequiredService<INotifier>())));
         var hidden = await app.NewSubscriptionAsync("hidden", app.AdultA, Visibility.Private);
 
         var response = await app.RawAsync(app.AdultB, HttpMethod.Get, $"/api/v1/subscriptions/{hidden.Value}");
