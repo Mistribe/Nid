@@ -59,7 +59,7 @@
     "out_of_scope": "Non calculés : retraites, revenus d’indépendant, pensions alimentaires, location meublée, plus-values, retraits d’épargne (PEA, assurance-vie, PER), option pour le barème sur les revenus du capital, contribution sur les hauts revenus, parent isolé, garde alternée, invalidité.",
     "add_assessment": "Ajouter un avis",
     "assessment_tab": { "question": "Ce que l’administration a calculé, et l’écart avec Nid" },
-    "tab": { "overview": "Vue d’ensemble", "declarations": "Déclarations", "assessment": "Avis", "2042": "Déclaration 2042", "detail": "Calcul", "withholding": "Prélèvement", "profile": "Profil fiscal", "simulation": "Simuler", "sale": "Si tout était vendu", "evolution": "Évolution" },
+    "tab": { "overview": "Vue d’ensemble", "declarations": "Déclarations", "assessment": "Avis", "detail": "Calcul", "withholding": "Prélèvement", "profile": "Profil fiscal", "simulation": "Simuler", "sale": "Si tout était vendu", "evolution": "Évolution" },
     "step": {
       "salaries": "Salaires",
       "salary_allowance": "Abattement de 10 %",
@@ -128,7 +128,15 @@
       "refund": "Remboursé en été {{year}}",
       "to_pay": "À payer en septembre {{year}}"
     },
-    "declarations": { "form": "Formulaire" },
+    "declarations": {
+      "question": "Que recopier sur impots.gouv.fr ?",
+      "form": "Formulaire",
+      "copy_box": "Copier la case {{code}}",
+      "copy_line": "Copier la ligne {{code}} ({{list}})",
+      "copied_box": "Case {{code}} copiée : {{value}}",
+      "copied_line": "Ligne {{code}} copiée : {{value}}",
+      "copy_failed": "Copie impossible : recopiez le montant à la main."
+    },
     "overview": {
       "question": "Combien d’impôt cette année, et que puis-je faire ?",
       "empty_title": "Aucun revenu pour {{year}}",
@@ -374,7 +382,6 @@
     },
     "d2042": {
         "print_title": "Déclaration 2042 — revenus {{year}}",
-        "intro": "Les cases de la déclaration de revenus que Nid remplit",
         "tip": "La 2042 est la déclaration de revenus principale. Chaque montant va dans la case indiquée, au nom du déclarant concerné, arrondi à l’euro. Nid les calcule à partir des mêmes données que l’estimation.",
         "csv": "Exporter en CSV",
         "print": "Imprimer",
@@ -382,6 +389,9 @@
         "empty_title": "Aucune case à remplir",
         "empty_body": "Nid n’a trouvé aucun revenu ni dépense à déclarer pour cette année.",
         "household": "Foyer",
+        "unknown_box": "Case {{code}}",
+        "filled": "Cases remplies par Nid",
+        "section": { "1": "Salaires", "2": "Revenus de capitaux", "4": "Revenus fonciers", "6": "Charges", "7": "Réductions et crédits", "other": "Autres cases" },
         "to_enter": "À saisir vous-même",
         "to_enter_help": "Nid ne calcule pas ces montants : reportez-les vous-même dans la bonne case de la déclaration.",
         "csv_header": {
@@ -448,13 +458,11 @@
       "provisional": "Provisoire : l’année n’est pas terminée.",
       "empty_title": "Aucun revenu foncier cette année-là",
       "empty_body": "Aucun loyer, charge déductible ni intérêt d’emprunt n’est enregistré pour un bien locatif cette année.",
-      "intro": "Ce qu’il faut recopier sur la déclaration 2044",
       "tip": "La 2044 est le formulaire où l’on détaille, bien par bien, les loyers, les charges et les intérêts d’emprunt au régime réel. Son résultat se reporte sur la déclaration principale, cases 4BA à 4BD.",
       "micro_tip": "Au micro-foncier, vous déclarez seulement le total de vos loyers bruts, case 4BE de la déclaration principale : le fisc en retire 30 % d’office pour vos charges.",
       "micro_note": "Pas de 2044 à remplir au micro-foncier",
       "household": "Foyer",
       "totals": "Totaux du foyer",
-      "notes": "À savoir pour la 2044",
       "to_check": "À vérifier",
       "to_check_help": "Ces dépenses ne sont pas comptées. Les travaux de construction ou d’agrandissement ne se déduisent jamais des loyers ; une autre dépense se déduit si vous la classez dans une catégorie déductible (travaux d’entretien ou d’amélioration, assurance…).",
       "csv_header": { "property": "Bien", "line": "Ligne", "label": "Libellé", "amount": "Montant" },

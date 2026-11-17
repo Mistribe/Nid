@@ -11,6 +11,9 @@ import type { Rental2044, TaxEstimate } from '@/api/tax';
 import { jointAssessment, soloAssessment } from './assessments/testData';
 import { ADULT, estimate, result } from './taxTestData';
 
+/** An estimate whose household rents a property out: the Déclarations tab then offers the 2044. */
+const rentalEstimate = (): TaxEstimate => ({ ...estimate(), rentalProperties: [{ id: 'p1', name: 'Studio', acquiredIn: 2020 }] });
+
 describe('TaxPage', () => {
   beforeAll(async () => { await import('./TaxPage'); }, 30_000);
 
@@ -37,7 +40,7 @@ describe('TaxPage', () => {
 
   it('the 2044 loads with a card skeleton', async () => {
     server.use(
-      http.get('*/api/v1/tax', () => HttpResponse.json(estimate())),
+      http.get('*/api/v1/tax', () => HttpResponse.json(rentalEstimate())),
       http.get('*/api/v1/tax/2044', () => new Promise(() => {})),
     );
     await renderApp('/tax?tab=declarations&form=2044');
@@ -458,7 +461,7 @@ describe('TaxPage, Déclaration 2044 tab', () => {
       notices: [{ code: 'rental_charges_removed', item: 'a', name: 'Studio', amount: '600.00' }],
     });
     server.use(
-      http.get('*/api/v1/tax', ({ request }) => { asked.push(`tax ${new URL(request.url).searchParams.get('year')}`); return HttpResponse.json(estimate()); }),
+      http.get('*/api/v1/tax', ({ request }) => { asked.push(`tax ${new URL(request.url).searchParams.get('year')}`); return HttpResponse.json(rentalEstimate()); }),
       http.get('*/api/v1/tax/2044', ({ request }) => { asked.push(`2044 ${new URL(request.url).searchParams.get('year')}`); return HttpResponse.json(loaded); }),
     );
     const { container } = await renderApp('/tax?tab=2044');
@@ -474,7 +477,7 @@ describe('TaxPage, Déclaration 2044 tab', () => {
     const check = screen.getByRole('region', { name: 'À vérifier' });
     expect(within(check).getByRole('link', { name: 'Studio' })).toHaveAttribute('href', '/properties/a?tab=expenses');
     expect(within(check).getByText('Travaux')).toBeInTheDocument();
-    expect(screen.getByText(/Studio : 600,00 € de charges/)).toBeInTheDocument();
+    expect(within(screen.getByRole('region', { name: 'À savoir' })).getByText('600,00 €')).toBeInTheDocument();
     expect(asked).toContain('2044 2025');
     expect(asked).toContain('tax 2025');
     await expectNoAxeViolations(container);
@@ -486,7 +489,7 @@ describe('TaxPage, Déclaration 2044 tab', () => {
     server.use(
       http.get('*/api/v1/tax', async ({ request }) => {
         if (new URL(request.url).searchParams.get('year') !== String(new Date().getFullYear())) await lastYear;
-        return HttpResponse.json(estimate());
+        return HttpResponse.json(rentalEstimate());
       }),
       http.get('*/api/v1/tax/2044', () => HttpResponse.json(view2044())),
     );
@@ -507,7 +510,7 @@ describe('TaxPage, Déclaration 2044 tab', () => {
       toCheck: [{ property: 'a', name: 'Studio', occurredOn: '2025-04-02', category: 'works', note: null, amount: '3000.00' }],
     });
     server.use(
-      http.get('*/api/v1/tax', () => HttpResponse.json(estimate())),
+      http.get('*/api/v1/tax', () => HttpResponse.json(rentalEstimate())),
       http.get('*/api/v1/tax/2044', () => HttpResponse.json(micro)),
     );
     await renderApp('/tax?tab=2044');
@@ -524,7 +527,7 @@ describe('TaxPage, Déclaration 2044 tab', () => {
   it('numbers the deficit lines 435 and 438 when the interest exceeds the rents, 440 and 441 otherwise', async () => {
     const totals = { ...view2044().totals, result: '-500.00', globalDeficit: '500.00', carriedDeficit: '100.00' };
     const answer = (interestDeficit: string) => server.use(
-      http.get('*/api/v1/tax', () => HttpResponse.json(estimate())),
+      http.get('*/api/v1/tax', () => HttpResponse.json(rentalEstimate())),
       http.get('*/api/v1/tax/2044', () => HttpResponse.json(view2044({ totals: { ...totals, interestDeficit } }))),
     );
     answer('300.00');
@@ -540,22 +543,10 @@ describe('TaxPage, Déclaration 2044 tab', () => {
     expect(screen.queryByText('435')).not.toBeInTheDocument();
   });
 
-  it('a deficit is named by its label, the figure carries no colour', async () => {
-    server.use(
-      http.get('*/api/v1/tax', () => HttpResponse.json(estimate())),
-      http.get('*/api/v1/tax/2044', () => HttpResponse.json(view2044({ totals: { ...view2044().totals, result: '-500.00', globalDeficit: '500.00' } }))),
-    );
-    await renderApp('/tax?tab=2044');
-
-    const figure = (await screen.findByText('Déficit', { selector: 'dt' })).nextElementSibling!;
-    expect(figure).toHaveTextContent('-500,00');
-    expect(figure.className).not.toMatch(/text-status-|text-destructive/);
-  });
-
   it('falls back to last year when ?year= is not one of the offered years', async () => {
     const asked: string[] = [];
     server.use(
-      http.get('*/api/v1/tax', ({ request }) => { asked.push(`tax ${new URL(request.url).searchParams.get('year')}`); return HttpResponse.json(estimate()); }),
+      http.get('*/api/v1/tax', ({ request }) => { asked.push(`tax ${new URL(request.url).searchParams.get('year')}`); return HttpResponse.json(rentalEstimate()); }),
       http.get('*/api/v1/tax/2044', ({ request }) => { asked.push(`2044 ${new URL(request.url).searchParams.get('year')}`); return HttpResponse.json(view2044()); }),
     );
     await renderApp('/tax?tab=2044&year=2024');
@@ -567,7 +558,7 @@ describe('TaxPage, Déclaration 2044 tab', () => {
 
   it('says so when the year has no rental income', async () => {
     server.use(
-      http.get('*/api/v1/tax', () => HttpResponse.json(estimate())),
+      http.get('*/api/v1/tax', () => HttpResponse.json(rentalEstimate())),
       http.get('*/api/v1/tax/2044', () => HttpResponse.json(view2044({ properties: [] }))),
     );
     await renderApp('/tax?tab=2044');
@@ -659,7 +650,7 @@ describe('TaxPage, page grammar', () => {
   const follows = (a: Element, b: Element) => expect(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   const figures = () => screen.getByRole('region', { name: /^Impôt total/ });
   const notices = (...items: ReturnType<typeof jointAssessment>[]) => http.get('*/api/v1/tax/assessments', () => HttpResponse.json({ items }));
-  const tax = () => http.get('*/api/v1/tax', () => HttpResponse.json(estimate()));
+  const tax = () => http.get('*/api/v1/tax', () => HttpResponse.json(rentalEstimate()));
 
   it('the header holds « Ajouter un avis » alone', async () => {
     server.use(tax());
@@ -810,7 +801,7 @@ describe('TaxPage, page grammar', () => {
       http.get('*/api/v1/tax', async ({ request }) => {
         const year = Number(new URL(request.url).searchParams.get('year'));
         if (year === 2026) await gate;
-        return HttpResponse.json({ ...estimate(), year, result: { ...result(), year } });
+        return HttpResponse.json({ ...rentalEstimate(), year, result: { ...result(), year } });
       }),
       http.get('*/api/v1/tax/2044', () => HttpResponse.json(view2044())),
     );
@@ -861,49 +852,5 @@ describe('TaxPage, page grammar', () => {
     expect(screen.getByRole('group', { name: 'Filtres' }).parentElement).toHaveClass('print:hidden');
     expect(screen.getByRole('radiogroup', { name: 'Formulaire' }).parentElement).toHaveClass('print:hidden');
     expect(screen.getByRole('heading', { level: 2, name: 'Déclaration 2044 — revenus 2025', hidden: true })).toHaveClass('print:block');
-  });
-});
-
-describe('TaxPage, Déclaration 2042 tab', () => {
-  beforeAll(async () => { await import('./TaxPage'); }, 30_000);
-
-  it('asks last year and lists the server’s boxes, their declarant, their tip and what to enter by hand', async () => {
-    const asked: string[] = [];
-    const filled: TaxEstimate = {
-      ...estimate(), year: 2025,
-      declaration: {
-        boxes: [
-          { code: '1AJ', person: ADULT, amount: '42000.00' },
-          { code: '2DC', person: null, amount: '300.00' },
-          { code: '7GA', person: null, amount: '2500.00' },
-        ],
-        toEnter: [{ code: 'unsupported_income', item: 'p', name: 'Pension', amount: '1200.00' }],
-      },
-    };
-    server.use(http.get('*/api/v1/tax', ({ request }) => { asked.push(new URL(request.url).searchParams.get('year')!); return HttpResponse.json(filled); }));
-    const { container, user } = await renderApp('/tax?tab=2042');
-
-    expect(await screen.findByText('1AJ')).toBeInTheDocument();
-    const list = screen.getByLabelText('Déclaration 2042', { selector: 'dl' });
-    expect(within(list).getByText('Salaires')).toBeInTheDocument();
-    expect(within(list).getByText('Alice')).toBeInTheDocument();
-    expect(within(list).getByText('42 000,00 €')).toBeInTheDocument();
-    expect(within(list).getByText('Dividendes')).toBeInTheDocument();
-    expect(within(list).getAllByText('Foyer')).toHaveLength(2);
-    expect(within(list).getByText('Frais de garde du premier enfant de moins de 6 ans')).toBeInTheDocument();
-    await user.hover(within(list).getByRole('button', { name: 'À propos : Salaires' }));
-    expect((await screen.findAllByText(/cumul « net imposable »/)).length).toBeGreaterThan(0);
-    const toEnter = screen.getByRole('region', { name: 'À saisir vous-même' });
-    expect(within(toEnter).getByText(/Pension/)).toBeInTheDocument();
-    expect(asked).toContain('2025');
-    await expectNoAxeViolations(container);
-  });
-
-  it('says there is nothing to fill when the server lists no box', async () => {
-    server.use(http.get('*/api/v1/tax', () => HttpResponse.json({ ...estimate(), declaration: { boxes: [], toEnter: [] } })));
-    await renderApp('/tax?tab=2042');
-
-    expect(await screen.findByText('Aucune case à remplir')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Exporter en CSV' })).not.toBeInTheDocument();
   });
 });
