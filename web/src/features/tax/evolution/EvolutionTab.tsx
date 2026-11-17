@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Bar, BarChart, Cell, LabelList, XAxis, YAxis } from 'recharts';
 import { useApi } from '@/api/ApiProvider';
-import { FIRST_ESTIMATE_YEAR, TAX_HISTORY, type TaxEstimate, type TaxYear } from '@/api/tax';
+import { FIRST_ESTIMATE_YEAR, TAX_HISTORY, type TaxYear } from '@/api/tax';
 import { SectionCard } from '@/components/page/SectionCard';
 import { SeriesLink } from '@/components/page/SeriesLink';
 import { Loading, SectionCardSkeleton, TableSkeleton } from '@/components/page/skeletons';
@@ -27,8 +27,8 @@ type Bar = { year: string; plot: number; source: TaxYear['source']; rateText: st
  * « Comment mon impôt a changé ? »: the server's yearly history (a notice's tax where there is one, else the estimate's), one bar per
  * year it lists. `history` is the estimate's own; without it the tab asks for the series. Bars are sized with `toPlot`, every figure is the server's.
  */
-export function EvolutionTab({ year, scope, history, adults = [] }: {
-  year: string; scope: 'me' | 'household'; history?: TaxYear[] | null; adults?: TaxEstimate['adults'];
+export function EvolutionTab({ year, scope, history }: {
+  year: string; scope: 'me' | 'household'; history?: TaxYear[] | null;
 }) {
   const { t } = useTranslation();
   const { $api } = useApi();
@@ -52,7 +52,7 @@ export function EvolutionTab({ year, scope, history, adults = [] }: {
       )}>
         {asTable ? <HistoryTable rows={rows} current={year} /> : <HistoryChart rows={rows} current={year} />}
       </SectionCard>
-      {Number(year) >= FIRST_ESTIMATE_YEAR ? <ChangesSection year={year} scope={scope} adults={adults} /> : null}
+      {Number(year) >= FIRST_ESTIMATE_YEAR ? <ChangesSection year={year} scope={scope} /> : null}
     </div>
   );
 }

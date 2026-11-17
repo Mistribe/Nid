@@ -5,7 +5,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import type { TaxYear } from '@/api/tax';
-import { estimate, history } from '../taxTestData';
+import { ADULT, estimate, history } from '../taxTestData';
 
 const load = (rows: TaxYear[] = history()) => {
   const years: (string | null)[] = [];
@@ -95,5 +95,55 @@ describe('EvolutionTab', () => {
     const { container } = await renderApp('/tax?tab=evolution');
     await waitFor(() => expect(container.querySelectorAll('.recharts-bar-rectangle')).toHaveLength(3));
     await expectNoAxeViolations(container);
+  });
+
+  describe('what changed since last year', () => {
+    const changed = (adults = true) => {
+      const loaded = estimate();
+      if (!adults) loaded.adults = [];
+      server.use(
+        http.get('*/api/v1/tax', () => HttpResponse.json(loaded)),
+        http.get('*/api/v1/core/persons', () => HttpResponse.json([{ id: ADULT, displayName: 'Alice', kind: 'adult' }])),
+        http.get('*/api/v1/tax/changes', () => HttpResponse.json({
+          year: 2026, taxBefore: '2500.00', taxBeforeFromNotice: true, taxNow: '6604.00', remainder: '-396.00',
+          lines: [
+            { code: 'salaries', person: ADULT, before: '30000.00', now: '45000.00', effect: '4500.00', fromNotice: true },
+            { code: 'shares', person: null, before: '1.00', now: '1.50', effect: '-1807.00', fromNotice: false },
+          ],
+        })),
+      );
+    };
+    const region = () => screen.findByRole('region', { name: 'Ce qui a changé depuis 2025' });
+
+    it('draws each change around zero, a rise and a cut in their status', async () => {
+      changed();
+      await renderApp('/tax?tab=evolution');
+
+      const r = await region();
+      await waitFor(() => expect(r.querySelectorAll('.recharts-bar-rectangle path')).toHaveLength(2));
+      expect([...r.querySelectorAll('.recharts-bar-rectangle path')].map((p) => p.getAttribute('fill'))).toEqual(['var(--status-critical)', 'var(--status-good)']);
+      expect(texts(r, '.recharts-yAxis-tick-labels .recharts-cartesian-axis-tick-value')).toEqual(['Salaires nets — Alice', 'Parts']);
+    });
+
+    it('keeps the table under the chart', async () => {
+      changed();
+      const { container } = await renderApp('/tax?tab=evolution');
+
+      const rows = within(await screen.findByRole('table', { name: 'Ce qui a changé depuis 2025' })).getAllByRole('row');
+      expect(rows[1]).toHaveTextContent(/^Salaires nets — Alice30 000,00 €avis45 000,00 €\+4 500,00 €$/);
+      expect(rows[2]).toHaveTextContent(/^Parts11,5-1 807,00 €$/);
+      expect(rows[3]).toHaveTextContent(/barème, plafonds, arrondis-396,00 €$/);
+      expect(rows[4]).toHaveTextContent(/2 500,00 €avis6 604,00 €$/);
+      expect(screen.getByText(/^Indicatif/)).toBeInTheDocument();
+      await expectNoAxeViolations(container);
+    });
+
+    it('names a person from the household’s persons', async () => {
+      changed(false);
+      await renderApp('/tax?tab=evolution');
+
+      const table = await screen.findByRole('table', { name: 'Ce qui a changé depuis 2025' });
+      expect(within(table).getAllByRole('row')[1]).toHaveTextContent(/^Salaires nets — Alice/);
+    });
   });
 });

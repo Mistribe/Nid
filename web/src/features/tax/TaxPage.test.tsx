@@ -621,31 +621,6 @@ describe('TaxPage, Déclaration 2044 tab', () => {
       expect(years).toEqual([]);
     });
 
-    it('says what changed since last year, line by line, sorted by the server', async () => {
-      let asked: string | null = null;
-      server.use(http.get('*/api/v1/tax', () => HttpResponse.json(estimate())), http.get('*/api/v1/tax/changes', ({ request }) => {
-        asked = new URL(request.url).searchParams.get('year');
-        return HttpResponse.json({
-          year: 2026, taxBefore: '2500.00', taxBeforeFromNotice: true, taxNow: '6604.00', remainder: '-396.00',
-          lines: [
-            { code: 'salaries', person: ADULT, before: '30000.00', now: '45000.00', effect: '4500.00', fromNotice: true },
-            { code: 'shares', person: null, before: '1.00', now: '1.50', effect: '-1807.00', fromNotice: false },
-          ],
-        });
-      }));
-      const { container } = await renderApp('/tax?tab=evolution');
-
-      const table = await screen.findByRole('table', { name: 'Ce qui a changé depuis 2025' });
-      const rows = within(table).getAllByRole('row');
-      expect(rows[1]).toHaveTextContent(/^Salaires nets — Alice30 000,00 €avis45 000,00 €\+4 500,00 €$/);
-      expect(rows[2]).toHaveTextContent(/^Parts11,5-1 807,00 €$/);
-      expect(rows[3]).toHaveTextContent(/barème, plafonds, arrondis-396,00 €$/);
-      expect(rows[4]).toHaveTextContent(/2 500,00 €avis6 604,00 €$/);
-      expect(screen.getByText(/^Indicatif/)).toBeInTheDocument();
-      expect(asked).toBe('2026');
-      await expectNoAxeViolations(container);
-    });
-
     it('has an Avis tab beside the estimate of a year that has a notice', async () => {
       server.use(notices(jointAssessment({ year: 2025 })), http.get('*/api/v1/tax', () => HttpResponse.json(estimate())));
       const { user } = await renderApp('/tax?year=2025');

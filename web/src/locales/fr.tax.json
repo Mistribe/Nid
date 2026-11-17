@@ -34,6 +34,8 @@
       "title": "Ce qui a changé depuis {{year}}",
       "intro": "Indicatif : l’effet de chaque ligne est estimé seul, sur le barème et les parts de {{year}} ; l’administration seule calcule l’impôt dû.",
       "none": "Aucune ligne du calcul n’a changé.",
+      "rise": "hausse",
+      "cut": "baisse",
       "line_head": "Ligne du calcul",
       "effect": "Effet sur l’impôt",
       "from_notice": "avis",

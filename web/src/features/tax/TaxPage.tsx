@@ -113,7 +113,7 @@ export function TaxPage() {
         <DetailTabs value={rawTab === 'evolution' ? 'evolution' : 'assessment'} onChange={(next) => setTab(next === 'assessment' ? 'overview' : next)} tabs={[
           { id: 'assessment', label: t('tax.tab.assessment'), content: assessmentTab },
           { id: 'evolution', label: t('tax.tab.evolution'),
-            content: <EvolutionTab year={year} scope={scope} adults={people} /> },
+            content: <EvolutionTab year={year} scope={scope} /> },
         ]} />
       ) : null}
       {!past && answer.error ? <ProblemMessage problem={present(toProblem(answer.error))} /> : null}
@@ -124,7 +124,7 @@ export function TaxPage() {
           { id: 'withholding', label: t('tax.tab.withholding'), content: <WithholdingTab estimate={estimate} /> },
           ...(notices.length ? [{ id: 'assessment' as const, label: t('tax.tab.assessment'), content: assessmentTab }] : []),
           { id: 'evolution', label: t('tax.tab.evolution'),
-            content: <EvolutionTab year={year} scope={scope} history={estimate.history} adults={estimate.adults} /> },
+            content: <EvolutionTab year={year} scope={scope} history={estimate.history} /> },
           { id: 'simulation', label: t('tax.tab.simulation'), content: <SimulationTab estimate={estimate} scope={scope} /> },
           { id: 'profile', label: t('tax.tab.profile'), content: draft ? <ProfileForm key={draft.key} estimate={estimate} draft={draft} /> : null,
             action: draft ? <ProfileSubmit draft={draft} /> : undefined },

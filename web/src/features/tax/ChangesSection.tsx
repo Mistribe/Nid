@@ -1,8 +1,14 @@
+import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
+import { Bar, BarChart, Cell, ReferenceLine, XAxis, YAxis } from 'recharts';
 import { useApi } from '@/api/ApiProvider';
-import { Section } from '@/components/page/Section';
+import { PERSONS } from '@/api/persons';
+import { SectionCard } from '@/components/page/SectionCard';
+import { ChartContainer, ChartTooltip, type ChartConfig } from '@/components/ui/chart';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { TAX_CHANGES, type TaxEstimate } from '@/api/tax';
+import { TAX_CHANGES } from '@/api/tax';
+import { directionOf } from '@/lib/amount';
+import { toPlot } from '@/lib/plot';
 import { partsText, tipText, ZERO } from './format';
 import { eur, Term } from './ResultTable';
 import '@/locales/tax';
@@ -17,28 +23,67 @@ const TIPS: Partial<Record<(typeof LINES)[number], Parameters<typeof tipText>[1]
 /** The effect of a line on the tax, signed: a rise reads « +1 200,00 € ». */
 const signed = (amount: string) => (amount.startsWith('-') || ZERO.test(amount) ? eur(amount) : `+${eur(amount)}`);
 
+type Persons = { id: string; displayName: string }[];
+type Point = { label: string; plot: number; effect: string };
+const AXIS = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', notation: 'compact' });
+const FILLS = { up: 'var(--status-critical)', down: 'var(--status-good)', flat: 'var(--muted-foreground)' };
+
+/** A line's name as text (chart axis, tooltip); a person is told apart by id, two adults may share a display name. */
+function lineTitle(t: TFunction, code: string, person: string | null | undefined, persons: Persons): string {
+  if (code === 'salaries') return t('tax.changes.line.salaries', { name: persons.find((p) => p.id === person)?.displayName ?? '' });
+  const known = LINES.find((l) => l === code);
+  return known ? t(`tax.changes.line.${known}`) : code;
+}
+
+function ChangesTooltip({ active, payload }: { active?: boolean; payload?: ReadonlyArray<{ payload?: Point }> }) {
+  const { t } = useTranslation();
+  const row = payload?.[0]?.payload;
+  if (!active || !row) return null;
+  const dir = directionOf(row.effect);
+  return (
+    <div className="grid gap-1 rounded-xl border bg-background px-3 py-2 text-xs shadow-md">
+      <div className="font-medium">{row.label}</div>
+      <div className="tabular-nums">{signed(row.effect)}{dir === 'flat' ? '' : ` (${t(dir === 'up' ? 'tax.changes.rise' : 'tax.changes.cut')})`}</div>
+    </div>
+  );
+}
+
 /**
  * Issue #410: « Ce qui a changé depuis {année} », each line of the calculation that moved, last year's figure (the notice's when
  * it prints it) against this year's estimate and its effect on the tax, sorted by the server. Every figure is the server's.
  */
-export function ChangesSection({ year, scope, adults }: { year: string; scope: 'me' | 'household'; adults: TaxEstimate['adults'] }) {
+export function ChangesSection({ year, scope }: { year: string; scope: 'me' | 'household' }) {
   const { t } = useTranslation();
   const { $api } = useApi();
+  const persons = $api.useQuery('get', PERSONS).data ?? [];
   const changes = $api.useQuery('get', TAX_CHANGES, { params: { query: { year: Number(year), scope } } }).data;
   if (!changes?.taxBefore && !changes?.lines.length) return null;
   const since = String(Number(year) - 1);
   const label = (code: string, person?: string | null) => {
-    if (code === 'salaries') return t('tax.changes.line.salaries', { name: adults.find((a) => a.id === person)?.displayName ?? '' });
+    if (code === 'salaries') return lineTitle(t, code, person, persons);
     const known = LINES.find((l) => l === code);
     if (!known) return code;
     const tip = TIPS[known];
     return <Term title={t(`tax.changes.line.${known}`)} tip={tip ? tipText(t, tip) : undefined} />;
   };
+  const points: Point[] = changes.lines.map((l) => ({ label: lineTitle(t, l.code, l.person, persons), plot: toPlot(l.effect), effect: l.effect }));
   const value = (code: string, amount: string) => (code === 'shares' ? partsText(amount) : eur(amount));
   return (
-    <Section title={t('tax.changes.title', { year: since })}>
-      <p className="text-sm text-muted-foreground">{t('tax.changes.intro', { year })}</p>
-      {changes.lines.length ? (
+    <SectionCard title={t('tax.changes.title', { year: since })} note={t('tax.changes.intro', { year })} className="space-y-3">
+      {changes.lines.length ? <>
+        <figure aria-label={t('tax.changes.title', { year: since })}>
+          <ChartContainer config={{} satisfies ChartConfig} className="aspect-auto w-full" style={{ height: changes.lines.length * 32 + 40 }}>
+            <BarChart data={points} layout="vertical" title={t('tax.changes.title', { year: since })} accessibilityLayer margin={{ left: 8, right: 8 }}>
+              <XAxis type="number" domain={['auto', 'auto']} minTickGap={24} tickLine={false} axisLine={false} tickFormatter={(n: number) => AXIS.format(n)} />
+              <YAxis type="category" dataKey="label" width={170} tickLine={false} axisLine={false} />
+              <ReferenceLine x={0} stroke="var(--border)" />
+              <ChartTooltip cursor={false} content={<ChangesTooltip />} />
+              <Bar dataKey="plot" maxBarSize={48} radius={4} animationDuration={800}>
+                {points.map((p, i) => <Cell key={i} fill={FILLS[directionOf(p.effect)]} />)}
+              </Bar>
+            </BarChart>
+          </ChartContainer>
+        </figure>
         <Table aria-label={t('tax.changes.title', { year: since })}>
           <TableHeader>
             <TableRow>
@@ -81,7 +126,7 @@ export function ChangesSection({ year, scope, adults }: { year: string; scope: '
             </TableFooter>
           ) : null}
         </Table>
-      ) : <p className="text-sm text-muted-foreground">{t('tax.changes.none')}</p>}
-    </Section>
+      </> : <p className="text-sm text-muted-foreground">{t('tax.changes.none')}</p>}
+    </SectionCard>
   );
 }
