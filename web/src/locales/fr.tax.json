@@ -246,22 +246,7 @@
     "regime": { "auto": "Automatique", "micro": "micro-foncier", "real": "réel" },
     "capital_option": { "flat": "Prélèvement forfaitaire", "scale": "Barème progressif" },
     "capital_choice": {
-      "question": "Prélèvement forfaitaire ou barème ?",
-      "current_flat": "Vos intérêts et dividendes sont imposés au prélèvement forfaitaire de 12,8 %.",
-      "current_scale": "Vos intérêts et dividendes sont imposés au barème progressif, comme vos salaires (case 2OP).",
-      "less": "Nid compare les deux : l’autre option vous ferait payer {{amount}} de moins.",
-      "more": "Nid compare les deux : l’autre option vous ferait payer {{amount}} de plus.",
-      "same": "Nid compare les deux : l’autre option donnerait le même impôt.",
-      "csg": "Au barème, {{amount}} de CSG se déduiront de vos revenus l’an prochain (case 6DE).",
-      "change": "Changer d’option dans le Profil fiscal"
-    },
-    "regime_choice": {
-      "question": "Micro-foncier ou réel ?",
-      "current": "Vos loyers sont imposés au {{regime}}.",
-      "less": "Nid compare les deux : le {{other}} vous ferait payer {{amount}} de moins.",
-      "more": "Nid compare les deux : le {{other}} vous ferait payer {{amount}} de plus.",
-      "same": "Nid compare les deux : le {{other}} donnerait le même impôt.",
-      "change": "Changer de régime dans le Profil fiscal"
+      "csg": "Au barème, {{amount}} de CSG se déduiront de vos revenus l’an prochain (case 6DE)."
     },
     "tip": {
       "left_monthly": "Ce qui reste de vos revenus nets chaque mois, une fois l’impôt total retiré.",
@@ -271,7 +256,6 @@
       "alimony": "Ce que vous versez à un ex-conjoint ou à un enfant qui ne vit pas avec vous se retire de vos revenus ; pour un enfant majeur, jusqu’à 6 855 € par enfant.",
       "per_deduction": "Ce que vous versez sur un plan d’épargne retraite (PER) se retire de vos revenus imposables, dans la limite d’un plafond. Plus votre tranche est haute, plus l’économie d’impôt est grande.",
       "per_ceiling": "Le maximum de versements PER que vous pouvez retirer de vos revenus cette année. Il est sur votre avis d’imposition, rubrique « Plafond épargne retraite » ; sans lui, Nid l’estime sur vos revenus de l’an dernier.",
-      "regime": "Au micro-foncier, le fisc retire d’office 30 % de vos loyers pour vos charges ; il n’est possible que sous 15 000 € de loyers par an et sans logement Pinel. Au réel, vous retirez vos vraies charges et intérêts d’emprunt : c’est plus intéressant quand ils dépassent 30 % des loyers, et ce choix vous engage pour trois ans.",
       "rental": "Ce que vos loyers ajoutent à vos revenus imposables, une fois retirées les charges : 30 % d’office au micro-foncier, les vraies charges au réel.",
       "rental_deficit": "Au réel, quand vos charges dépassent vos loyers, la perte (hors intérêts d’emprunt) se retire de vos autres revenus, jusqu’à 10 700 € par an. Le reste se reporte sur les dix années suivantes.",
       "deficit_carried": "Les pertes foncières des années passées pas encore utilisées : elles réduisent vos revenus fonciers de cette année, jamais vos salaires. Le reste à reporter est sur votre avis, rubrique « Déficits fonciers antérieurs non encore imputés ».",
@@ -287,7 +271,6 @@
       "home_employment": "La moitié des sommes versées pour un emploi à domicile (ménage, garde d’enfant), dans un plafond. Elle vous est remboursée même sans impôt à payer.",
       "niche_cap": "Les réductions et crédits d’impôt réunis ne peuvent pas dépasser 10 000 € par an : ce qui dépasse est rajouté à l’impôt.",
       "flat_tax": "Les intérêts et dividendes (hors livrets réglementés) sont imposés à 12,8 %, à part du barème, en plus des prélèvements sociaux.",
-      "capital_option": "Par défaut, vos intérêts et dividendes paient 12,8 % d’impôt (le « prélèvement forfaitaire »). Vous pouvez cocher la case 2OP pour les ajouter plutôt à vos autres revenus, au barème : vos dividendes perdent alors 40 % avant l’impôt et une part de la CSG se déduit l’année suivante. C’est souvent plus intéressant dans les tranches à 0 % ou 11 %. Le choix vaut pour tous les placements du foyer, pour l’année.",
       "dividend_allowance": "Au barème seulement, les dividendes d’actions ne sont imposés que sur 60 % de leur montant.",
       "age_disability": "Si vous avez 65 ans ou plus au 31 décembre, ou une carte d’invalidité, et des revenus modestes, une somme fixe est retirée de votre revenu imposable pour chacun des déclarants concernés. Elle est divisée par deux quand vos revenus dépassent un premier seuil et disparaît au-delà d’un second. L’âge vient de la date de naissance de la personne.",
       "realised_gains": "Le gain sur les actions et fonds vendus dans l’année sur un compte-titres, moins les pertes de l’année et celles des dix années d’avant. Il est imposé comme vos intérêts et dividendes.",

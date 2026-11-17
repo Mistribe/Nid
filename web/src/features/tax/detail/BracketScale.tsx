@@ -40,7 +40,7 @@ export function BracketScale({ bracket, marginalRate }: { bracket: TaxBracket; m
       <p className="text-sm">
         {t('tax.bracket.sentence', { rate: percentText(t, marginalRate) })}{' '}
         {next && toNext != null ? t('tax.bracket.next', { amount: wholeEur(toNext), rate: percentText(t, next.rate) }) : t('tax.bracket.top')}
-        <InfoTip label={t('tax.row.marginal_rate')}>{tipText(t, 'marginal_rate')}</InfoTip>
+        <InfoTip label={t('tax.bracket.title')}>{tipText(t, 'marginal_rate')}</InfoTip>
       </p>
     </div>
   );

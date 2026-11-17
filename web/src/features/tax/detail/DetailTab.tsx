@@ -67,7 +67,7 @@ function GroupCard({ group: g, estimate }: { group: (typeof RESULT_GROUPS)[numbe
     <Collapsible>
       <SectionCard title={t(`tax.group.${g}`)} note={resultText(t, GROUP_TOTAL[g](result))} actions={
         <CollapsibleTrigger asChild>
-          <Button variant="ghost" size="sm" className="group">
+          <Button variant="ghost" size="sm" className="group" aria-label={`${t('tax.detail.show_detail')} : ${t(`tax.group.${g}`)}`}>
             {t('tax.detail.show_detail')}<ChevronDown aria-hidden className="transition-transform group-data-[state=open]:rotate-180" />
           </Button>
         </CollapsibleTrigger>

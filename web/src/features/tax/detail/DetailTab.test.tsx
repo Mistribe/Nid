@@ -60,13 +60,13 @@ describe('DetailTab', () => {
     expect(nbsp(group('Ce qu’il reste'))).toContain('68 753,00 €');
 
     const left = group('Ce qu’il reste');
-    const open = within(left).getByRole('button', { name: 'Voir le détail' });
+    const open = within(left).getByRole('button', { name: /^Voir le détail/ });
     await user.click(open);
     expect(open).toHaveAttribute('aria-expanded', 'true');
     expect(within(within(left).getByRole('table', { name: 'Ce qu’il reste' })).getByText(/Remboursé/)).toBeInTheDocument();
 
     const scale = group('Barème, réductions et crédits');
-    await user.click(within(scale).getByRole('button', { name: 'Voir le détail' }));
+    await user.click(within(scale).getByRole('button', { name: /^Voir le détail/ }));
     expect(within(scale).queryByRole('row', { name: /Réduction Pinel/ })).not.toBeInTheDocument();
     await user.click(within(scale).getByRole('button', { name: /Afficher les \d+ lignes à 0 €/ }));
     expect(within(scale).getByRole('row', { name: /Réduction Pinel/ })).toHaveTextContent('0,00 €');
@@ -80,9 +80,11 @@ describe('DetailTab', () => {
     const people = within(card).getByRole('table', { name: 'Revenus par déclarant' });
     expect(within(people).getByRole('columnheader', { name: 'Alice' })).toBeInTheDocument();
     expect(within(people).getByRole('row', { name: /Abattement de 10 %/ })).toHaveTextContent('4 042,46 €');
-    await user.click(within(group('Revenus imposables')).getByRole('button', { name: 'Voir le détail' }));
+    expect(within(people).queryByRole('row', { name: /PER/ })).not.toBeInTheDocument();
+    await user.click(within(group('Revenus imposables')).getByRole('button', { name: /^Voir le détail/ }));
+    expect(within(group('Revenus imposables')).getByRole('row', { name: /^Revenu fiscal de référence/ })).toHaveTextContent('66 407,00 €');
     expect(within(group('Revenus imposables')).getByText(/se compare à l’avis d’imposition de la même année de revenus/)).toBeInTheDocument();
-    await user.click(within(group('Barème, réductions et crédits')).getByRole('button', { name: 'Voir le détail' }));
+    await user.click(within(group('Barème, réductions et crédits')).getByRole('button', { name: /^Voir le détail/ }));
     const table = within(group('Barème, réductions et crédits')).getByRole('table');
     expect(within(table).getByRole('row', { name: /Crédit garde hors du domicile/ })).toHaveTextContent('3 000,00 €');
   });
@@ -105,11 +107,11 @@ describe('DetailTab', () => {
     const { user } = await renderApp('/tax?tab=detail');
 
     await screen.findByRole('region', { name: 'Salaires et PER' });
-    await user.click(within(group('Revenus imposables')).getByRole('button', { name: 'Voir le détail' }));
+    await user.click(within(group('Revenus imposables')).getByRole('button', { name: /^Voir le détail/ }));
     const rfr = within(group('Revenus imposables')).getByRole('button', { name: 'À propos : Revenu fiscal de référence' });
     await user.hover(rfr);
     expect(await screen.findByRole('tooltip')).toHaveTextContent(/en haut de la première page de votre avis/);
-    expect(screen.getAllByRole('button', { name: 'À propos : Tranche marginale' })).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: 'À propos : Votre tranche d’imposition' })).toHaveLength(1);
     expect(within(group('Revenus imposables')).getByRole('row', { name: /Abattement de 40 % sur les dividendes/ })).toHaveTextContent('1 200,00 €');
     expect(within(group('Revenus imposables')).getByRole('row', { name: /Plus-values de cession de titres/ })).toHaveTextContent('200,00 €');
     expect(within(group('Revenus imposables')).getByRole('row', { name: /Moins-values à reporter/ })).toHaveTextContent('150,00 €');
@@ -144,5 +146,16 @@ describe('DetailTab', () => {
     expect(within(panel).queryByRole('columnheader', { name: 'Infos' })).not.toBeInTheDocument();
     expect(panel.querySelectorAll('section')).toHaveLength(0);
     await expectNoAxeViolations(container);
+  });
+
+  it('lets the tables fill the column, with no reading width of their own', async () => {
+    load();
+    const { user } = await renderApp('/tax?tab=detail');
+
+    const panel = await screen.findByRole('tabpanel', { name: 'Calcul' });
+    await screen.findByRole('region', { name: 'Salaires et PER' });
+    for (const open of within(panel).getAllByRole('button', { name: /^Voir le détail/ })) await user.click(open);
+    const capped = (el: Element | null): boolean => !!el && el !== panel && (/\bmax-w-(?!full\b)/.test(el.className) || capped(el.parentElement));
+    expect(within(panel).getAllByRole('table').filter(capped).map((table) => table.getAttribute('aria-label'))).toEqual([]);
   });
 });
