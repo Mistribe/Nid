@@ -56,7 +56,7 @@ La zone admin couvre l'administration courante. La CLI reste le **recours de sec
 | Commande | Usage |
 |---|---|
 | `rebind-subject --person <nom ou id> --sub <nouveau>` | Rattacher un adulte à un nouvel `sub` OIDC (`authentication.md` §5) |
-| `list-persons` | Lister les personnes (identifiant, type, état, admin) |
+| `list-persons` | Lister les personnes (identifiant, type, état, admin, `sub` rattaché, connexion, verrouillage) |
 | `revoke-sessions --person` | Incrémenter `session_epoch` |
 | `revoke-tokens --person` | Révoquer tous les jetons d'accès personnels (livré en 4A) |
 | `create-worker --name --job-types` | Créer un identifiant de worker ; affiche le secret une fois |

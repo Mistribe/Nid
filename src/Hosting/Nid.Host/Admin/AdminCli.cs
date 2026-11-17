@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Nid.Core.Application.Admin;
 using Nid.Core.Contracts;
@@ -120,7 +121,7 @@ public static class AdminCli
                 return 1;
             }
             created.TryGetValue(out var adult);
-            var person = new PersonView(adult!.Id, "adult", adult.DisplayName, adult.Email, adult.Status, adult.IsAdmin, false);
+            var person = new PersonView(adult!.Id, "adult", adult.DisplayName, adult.Email, adult.Status, adult.IsAdmin, false, adult.Methods);
             return await PrintLinkAsync(person, revokeTokens: false, $"{Describe(person)} est créé, administrateur.");
         }
 
@@ -402,8 +403,10 @@ public static class AdminCli
                 p.Id.ToString(), p.Kind == "adult" ? "adulte" : "enfant", p.DisplayName, p.Email ?? "—",
                 p.Kind == "dependent" ? "—" : p.Status == "pending" ? "pré-enregistré" : "actif",
                 p.IsAdmin ? "oui" : "non", p.Kind == "dependent" ? "—" : p.HasSubject ? "oui" : "non",
-            }).Prepend(["identifiant", "type", "nom", "email", "état", "admin", "sub"]).ToList();
-            var widths = Enumerable.Range(0, 7).Select(c => rows.Max(r => r[c].Length)).ToArray();
+                p.Methods.Count == 0 ? "—" : string.Join(", ", p.Methods.Select(m => m == "password" ? "mot de passe" : m)),
+                p.LockedUntil is { } until ? $"jusqu'à {until.ToString("uuuu-MM-dd HH:mm", CultureInfo.InvariantCulture)} UTC" : "—",
+            }).Prepend(["identifiant", "type", "nom", "email", "état", "admin", "sub", "connexion", "verrouillé"]).ToList();
+            var widths = Enumerable.Range(0, rows[0].Length).Select(c => rows.Max(r => r[c].Length)).ToArray();
             return string.Concat(rows.Select(r => string.Join("  ", r.Select((cell, c) => cell.PadRight(widths[c]))).TrimEnd() + "\n"));
         }
     }
