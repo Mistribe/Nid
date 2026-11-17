@@ -49,6 +49,16 @@ describe('WithholdingTab', () => {
     expect(screen.getByText(/À payer.*: 120,00 €/)).toBeInTheDocument();
   });
 
+  it('a refund draws an empty due bar and says it in words', async () => {
+    const loaded = estimate();
+    loaded.result.incomeTax = '-300.00';
+    await open(loaded);
+    const card = screen.getByRole('region', { name: 'Ce que le taux devrait donner' });
+    await waitFor(() => expect(card.textContent?.replace(/\s/g, ' ')).toContain('300,00 € en votre faveur'));
+    expect(card.textContent).not.toContain('-300');
+    for (const r of card.querySelectorAll('.recharts-bar-rectangle path')) expect(Number(r.getAttribute('x'))).toBeGreaterThanOrEqual(0);
+  });
+
   it('a zero balance reads nothing to settle', async () => {
     const loaded = estimate();
     loaded.result.withholding.balance = '0.00';

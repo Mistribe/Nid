@@ -24,8 +24,8 @@ const gapText = (t: TFunction, balance: string, year: number) => (ZERO.test(bala
 function Rows({ rows, label }: { rows: [string, string][]; label?: string }) {
   return (
     <dl aria-label={label} className="grid grid-cols-[1fr_auto] gap-x-4 text-sm">
-      {rows.map(([title, value]) => (
-        <div key={title} className="col-span-2 grid grid-cols-subgrid items-baseline border-b py-1 last:border-b-0">
+      {rows.map(([title, value], i) => (
+        <div key={`${i}-${title}`} className="col-span-2 grid grid-cols-subgrid items-baseline border-b py-1 last:border-b-0">
           <dt className="text-muted-foreground">{title}</dt>
           <dd className="text-right font-medium tabular-nums">{value}</dd>
         </div>
@@ -68,7 +68,8 @@ export function WithholdingTab({ estimate }: { estimate: TaxEstimate }) {
   ];
   const bars = [
     { key: 'annual', label: t('tax.withholding.annual'), value: toPlot(w.annual), text: eur(w.annual), fill: 'var(--chart-1)' },
-    { key: 'due', label: t('tax.withholding.due'), value: toPlot(estimate.result.incomeTax), text: resultText(t, estimate.result.incomeTax), fill: 'var(--chart-2)' },
+    { key: 'due', label: t('tax.withholding.due'), // a refund draws a hairline, never a negative bar: the label says it (a zero-width bar loses its label)
+    value: Math.max(0.01, toPlot(estimate.result.incomeTax)), text: resultText(t, estimate.result.incomeTax), fill: 'var(--chart-2)' },
   ];
   const config = { annual: { label: bars[0]!.label, color: 'var(--chart-1)' }, due: { label: bars[1]!.label, color: 'var(--chart-2)' } } satisfies ChartConfig;
 
@@ -83,6 +84,7 @@ export function WithholdingTab({ estimate }: { estimate: TaxEstimate }) {
       <SectionCard title={t('tax.withholding.expected')} actions={<TableToggle asTable={asTable} onToggle={() => setAsTable((v) => !v)} />} className="space-y-3">
         {asTable ? (
           <Table aria-label={t('tax.withholding.chart')}>
+            <caption className="sr-only">{t('tax.withholding.chart')}</caption>
             <TableBody>
               {bars.map((b) => (
                 <TableRow key={b.key}><TableHead scope="row" className="font-normal text-foreground">{b.label}</TableHead><TableCell className="text-right tabular-nums">{b.text}</TableCell></TableRow>
@@ -91,7 +93,7 @@ export function WithholdingTab({ estimate }: { estimate: TaxEstimate }) {
           </Table>
         ) : (
           <ChartContainer config={config} className="aspect-auto w-full" style={{ height: 120 }}>
-            <BarChart data={bars} layout="vertical" title={t('tax.withholding.chart')} accessibilityLayer margin={{ right: 90 }}>
+            <BarChart data={bars} layout="vertical" title={t('tax.withholding.chart')} accessibilityLayer margin={{ right: 150 }}>
               <XAxis type="number" hide domain={[0, 'auto']} />
               <YAxis type="category" dataKey="label" width={150} tickLine={false} axisLine={false} />
               <Bar dataKey="value" maxBarSize={28} radius={4} animationDuration={800}>
