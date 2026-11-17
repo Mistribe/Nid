@@ -16,10 +16,22 @@ public sealed record TaxEstimateView(
     int Year, TaxProfileView Profile, int? ProfileFrom, TaxInputsView Inputs, TaxResultView Result, IReadOnlyList<TaxNoticeView> Notices,
     IReadOnlyList<TaxAdultView> Adults, int Dependents, IReadOnlyList<TaxPropertyView> RentalProperties,
     IReadOnlyList<TaxSalaryDetailView> SalaryDetail, IReadOnlyDictionary<Guid, string> ObservedRates,
-    TaxCarryView? CarriedFrom = null, TaxGapsView? Gaps = null, string? RentalDeficitEstimated = null, TaxDeclarationView? Declaration = null) : IExposesItems
+    TaxCarryView? CarriedFrom = null, TaxGapsView? Gaps = null, string? RentalDeficitEstimated = null, TaxDeclarationView? Declaration = null,
+    TaxPreviousView? Previous = null, IReadOnlyList<TaxYearView>? History = null) : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems() => Notices.Select(n => n.Item).Concat(RentalProperties.Select(p => p.Id)).Concat(SalaryDetail.Select(d => d.Item));
 }
+
+/// <summary>
+/// Issue #307: a year's tax for the history curve: <c>Source</c> <c>assessment</c> (the notice's net tax, flat tax included) or <c>estimate</c>
+/// (income tax plus flat tax); <c>AverageRate</c> a percent.
+/// </summary>
+public sealed record TaxYearView(int Year, string Source, string Tax, string? NetTaxable, string? AverageRate);
+
+/// <summary>Issue #307: the year before, <c>Change</c> this year's tax minus <c>Tax</c> (signed), <c>ChangePct</c> to one decimal (null when <c>Tax</c> is 0).</summary>
+public sealed record TaxPreviousView(int Year, string Source, string Tax, string Change, string? ChangePct);
+
+public sealed record TaxHistoryView(IReadOnlyList<TaxYearView> Years);
 
 /// <summary>
 /// Issue #233: the 2042 boxes to fill (<c>Code</c> as the form prints it, <c>Person</c> the declarant, null for the household's; whole

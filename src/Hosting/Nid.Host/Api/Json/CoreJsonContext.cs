@@ -63,6 +63,7 @@ namespace Nid.Host.Api.Json;
 [JsonSerializable(typeof(SaleTaxView))]
 [JsonSerializable(typeof(TaxEstimateView))]
 [JsonSerializable(typeof(TaxChangesView))]
+[JsonSerializable(typeof(TaxHistoryView))]
 [JsonSerializable(typeof(TaxInputsView))]
 [JsonSerializable(typeof(TaxResultView))]
 [JsonSerializable(typeof(Preferences))]

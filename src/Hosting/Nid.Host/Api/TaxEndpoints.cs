@@ -26,6 +26,11 @@ public static class TaxEndpoints
             => (await invoker.InvokeAsync(new GetTaxChangesQuery(year, ParseScope(scope)), ct)).ToHttp(view => view))
             .Returns<TaxChangesView>();
 
+        // Issue #307.
+        api.MapGet("/history", async (string? scope, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new GetTaxHistoryQuery(ParseScope(scope)), ct)).ToHttp(view => view))
+            .Returns<TaxHistoryView>();
+
         // Rental 2044 spec §5.
         api.MapGet("/2044", async (int? year, string? scope, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new GetRental2044Query(year, ParseScope(scope)), ct)).ToHttp(view => view))
