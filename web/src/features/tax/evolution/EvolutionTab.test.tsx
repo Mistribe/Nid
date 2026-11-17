@@ -218,6 +218,18 @@ describe('EvolutionTab', () => {
       expect(within(table).getAllByRole('row')[1]!.children[1]).toHaveClass('hidden', 'sm:table-cell');
     });
 
+    it('keeps the remainder’s effect in the last column, the year columns hidden on a phone', async () => {
+      changed();
+      await renderApp('/tax?tab=evolution');
+
+      const table = await screen.findByRole('table', { name: 'Ce qui a changé depuis 2025' });
+      const cells = [...within(table).getAllByRole('row')[3]!.children];
+      expect(cells).toHaveLength(4);
+      expect(cells[0]).toHaveTextContent('Autres effets');
+      expect([cells[1], cells[2]].every((c) => c!.classList.contains('hidden') && c!.classList.contains('sm:table-cell'))).toBe(true);
+      expect(cells[3]).toHaveTextContent('-396,00 €');
+    });
+
     it('names each line by its person id, whatever the order of the persons', async () => {
       changed();
       server.use(

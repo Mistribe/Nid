@@ -87,7 +87,8 @@ export function ChangesSection({ year, scope }: { year: string; scope: 'me' | 'h
                 {points.map((p, i) => <Cell key={i} /* Cell's typing omits radius, which Recharts' Rectangle accepts */ fill={FILLS[directionOf(p.effect)]} radius={(p.plot < 0 ? [4, 0, 0, 4] : [0, 4, 4, 0]) as unknown as number} />)}
                 {/* Two lines above each bar, from the chart's left margin: the name, then the server's signed effect with its word (as on the withholding tab). The amount has its own line so a long name never cuts it; the word keeps colour from being alone. */}
                 <LabelList dataKey="label" content={({ y, index }) => {
-                  const p = points[Number(index)]!;
+                  const p = points[Number(index)];
+                  if (!p) return null;
                   return (
                     <text x={8} textAnchor="start" className="fill-foreground text-xs">
                       <tspan x={8} y={Number(y) - 20}>{p.label}</tspan>
@@ -125,7 +126,9 @@ export function ChangesSection({ year, scope }: { year: string; scope: 'me' | 'h
             <TableFooter>
               {changes.remainder && !ZERO.test(changes.remainder) ? (
                 <TableRow>
-                  <TableCell colSpan={3}>{t('tax.changes.remainder')}</TableCell>
+                  <TableCell>{t('tax.changes.remainder')}</TableCell>
+                  <TableCell className="hidden sm:table-cell" />
+                  <TableCell className="hidden sm:table-cell" />
                   <TableCell className="text-right tabular-nums">{signed(changes.remainder)}</TableCell>
                 </TableRow>
               ) : null}
