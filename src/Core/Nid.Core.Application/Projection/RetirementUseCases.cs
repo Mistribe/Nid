@@ -21,8 +21,12 @@ public sealed record PensionSourceView(ItemId Source, string Name, string? Month
 public sealed record DepartureView(
     Guid Person, string Name, string? BirthDate, int Years, int Months, string? Departure, string? Pension, IReadOnlyList<PensionSourceView> Sources);
 
-/// <summary>Retirement spec §3: the figures at the retirement month <c>Month</c> (<c>yyyy-MM</c>), in today's money rounded to the cent.</summary>
-public sealed record RetirementFiguresView(string Month, string IncomeNow, string IncomeAtRetirement, string Gap, string CapitalNeeded, string CapitalAtRetirement);
+/// <summary>
+/// Retirement spec §3: the figures at the retirement month <c>Month</c> (<c>yyyy-MM</c>), in today's money rounded to the cent.
+/// <c>Need</c> is null without a living cost (the gap is then what the income loses).
+/// </summary>
+public sealed record RetirementFiguresView(
+    string Month, string IncomeNow, string IncomeAtRetirement, string? Need, string Gap, string CapitalNeeded, string CapitalAtRetirement);
 
 /// <summary>Retirement spec §3: a month's capital, what it covers and the expenses to cover, in today's money.</summary>
 public sealed record IndependencePointView(LocalDate On, string Capital, string Covered, string Expenses);
@@ -74,7 +78,7 @@ public sealed class GetRetirementHandler(ProjectionFactsReader facts, IPersonReg
         var inGrid = switches.Where(s => query.Scope == VisibilityScope.Me ? s.Key == actor.Current!.PersonId : true)
             .Select(s => s.Value).Where(OnGrid).ToList();
         int? kR = inGrid.Count == 0 ? null : inGrid.Max();
-        var figures = RetirementFigures.Of(inputs.Income, inflation, result.Independence, kR, inputs.Assumptions.WithdrawalRate);
+        var figures = RetirementFigures.Of(inputs.Income, inflation, result.Independence, kR, inputs.Assumptions.WithdrawalRate, inputs.Assumptions.MonthlyLivingCost);
 
         var warnings = view.Warnings.ToList();
         if (inputs.Assumptions.MonthlyLivingCost == 0m) warnings.Add(new ProjectionWarningView("living_cost_missing", null));
@@ -82,7 +86,8 @@ public sealed class GetRetirementHandler(ProjectionFactsReader facts, IPersonReg
             view.Currency, view.HorizonOn, departures,
             figures is null ? null : new RetirementFiguresView(
                 inputs.Today.ToYearMonth().PlusMonths(figures.Month).ToString("yyyy-MM", null),
-                PropertyPurchaseView.Amount(figures.IncomeNow), PropertyPurchaseView.Amount(figures.IncomeAtRetirement), PropertyPurchaseView.Amount(figures.Gap), PropertyPurchaseView.Amount(figures.CapitalNeeded), PropertyPurchaseView.Amount(figures.CapitalAtRetirement)),
+                PropertyPurchaseView.Amount(figures.IncomeNow), PropertyPurchaseView.Amount(figures.IncomeAtRetirement),
+                figures.Need is { } need ? PropertyPurchaseView.Amount(need) : null, PropertyPurchaseView.Amount(figures.Gap), PropertyPurchaseView.Amount(figures.CapitalNeeded), PropertyPurchaseView.Amount(figures.CapitalAtRetirement)),
             view.FinancialIndependence,
             result.Independence.Select(p => new IndependencePointView(p.On, PropertyPurchaseView.Amount(p.CapitalReal), PropertyPurchaseView.Amount(p.CoveredReal), PropertyPurchaseView.Amount(p.ExpensesReal))).ToList(),
             view.Assumptions, warnings));

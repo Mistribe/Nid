@@ -35142,6 +35142,7 @@ export interface components {
             month: string;
             incomeNow: string;
             incomeAtRetirement: string;
+            need?: null | string;
             gap: string;
             capitalNeeded: string;
             capitalAtRetirement: string;

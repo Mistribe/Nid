@@ -125,7 +125,7 @@
         "custom": "Personnalisé",
         "custom_hint": "Vous avez réglé les rendements vous-même sous « Personnaliser ». Choisir un profil les remplace.",
         "living_title": "De combien aurez-vous besoin par mois une fois à la retraite ?",
-        "living_hint": "Vos dépenses courantes, en euros d’aujourd’hui, sans les abonnements, crédits et impôts que Nid suit déjà. Nid s’en sert pour dire à partir de quand votre épargne pourrait vous faire vivre.",
+        "living_hint": "Vos dépenses courantes, en euros d’aujourd’hui, sans les abonnements, crédits et impôts que Nid suit déjà. Nid s’en sert pour calculer ce qui vous manquera à la retraite et à partir de quand votre épargne pourrait vous faire vivre.",
         "income_title": "Vos revenus suivent-ils les prix ?",
         "income": {
           "same": "Comme les prix",
