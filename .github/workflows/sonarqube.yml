@@ -1,0 +1,62 @@
+name: sonarqube
+
+# Code quality on SonarQube Cloud (project mistribe_nid): one analysis of the whole repository. SonarScanner for .NET wraps the
+# build of the solution for C#, and also analyses the other files of the tree (TypeScript, CSS, YAML…) from the repository root.
+# A pull request gets its own analysis, decorated on the pull request; a push to main updates the main branch's.
+#
+# Not part of `ci-ok` (ci.yml), so not a required check: SonarQube Cloud's quality gate reports on the pull request by itself.
+#
+# The token (secret SONAR_TOKEN) never reaches a fork: `pull_request` only, never `pull_request_target`, and the job is skipped
+# for a pull request opened from a fork, which gets no secret.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  analysis:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # blame and new code: the analysis reads the whole history
+          persist-credentials: false
+      # The scanner's engine runs on Java.
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          java-version: 21
+          distribution: zulu
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          global-json-file: global.json
+      # The analysers SonarQube Cloud downloads at each run.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+      # dotnet-sonarscanner, pinned in .config/dotnet-tools.json (Renovate updates it).
+      - run: dotnet tool restore
+      # Excluded: what is generated (EF migrations, the OpenAPI document and the types made from it).
+      - name: Build and analyse
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          dotnet tool run dotnet-sonarscanner begin \
+            /k:"mistribe_nid" /o:"mistribe" \
+            /d:sonar.host.url="https://sonarcloud.io" \
+            /d:sonar.token="$SONAR_TOKEN" \
+            /d:sonar.exclusions="**/Migrations/**,web/src/api/openapi.json,web/src/api/schema.d.ts"
+          dotnet build Nid.slnx --configuration Release
+          dotnet tool run dotnet-sonarscanner end /d:sonar.token="$SONAR_TOKEN"
