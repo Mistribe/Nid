@@ -113,6 +113,9 @@ public interface IBalanceStore
 
     /// <summary>The account's balances in the month of <paramref name="monthEnd"/>, by date.</summary>
     Task<IReadOnlyList<BankBalance>> InMonthAsync(Guid account, LocalDate monthEnd, CancellationToken ct);
+
+    /// <summary>Issue #81: the account's balances from the last one on or before <paramref name="from"/> onwards, by date.</summary>
+    Task<IReadOnlyList<BankBalance>> SinceAsync(Guid account, LocalDate from, CancellationToken ct);
 }
 
 /// <summary>

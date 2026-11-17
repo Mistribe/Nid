@@ -1,8 +1,11 @@
 using System.Globalization;
+using Microsoft.Extensions.Logging;
 using Nid.Banking.Application.Reconciliation;
 using Nid.Banking.Contracts;
 using Nid.Banking.Domain;
 using Nid.Core.Contracts;
+using Nid.Goals.Contracts;
+using Nid.Investments.Contracts;
 using Nid.Platform.Contracts;
 using NodaTime;
 using NodaTime.Text;
@@ -14,11 +17,13 @@ namespace Nid.Banking.Application;
 /// Bank sync spec §5: a consent that ends soon or has ended, and a connection whose nights keep failing, as signals for the connection's
 /// creator only. None carries an item id or an amount; the bank's name is the only parameter. Nothing when banking is off.
 /// 5C spec §6.3, §6.6: a line that paid another amount than its charge, and a charge the bank never took, as findings for the readers of the item
-/// (amounts as decimal strings, never a label). Issue #81: the shortfall ahead on a checking account, opt-in, whose figures only the centre shows.
+/// (amounts as decimal strings, never a label). Issue #81: the shortfall ahead on a checking account and idle cash on the checking accounts,
+/// opt-in, whose figures only the centre shows.
 /// </summary>
 public sealed class BankingNotificationSource(
     IConnectionStore connections, IHouseholdSettings settings, IHouseholdCalendar calendar, ILinkStore links, ExpectedChargeReader charges,
-    IAccessPolicy policy, IAccountStore accounts, BankingAccess access, IBalanceStore balances, IExpectedIncome income, ISignalSettings signalSettings) : INotificationSource
+    IAccessPolicy policy, IAccountStore accounts, BankingAccess access, IBalanceStore balances, IExpectedIncome income, ISignalSettings signalSettings,
+    IEmergencyBuffer buffers, ISavingsRoom savings, ILogger<BankingNotificationSource> logger) : INotificationSource
 {
     public const string ConsentExpiring = "banking.consent_expiring";
     public const string ConsentExpired = "banking.consent_expired";
@@ -27,6 +32,7 @@ public sealed class BankingNotificationSource(
     public const string ChargeMissing = "banking.charge_missing";
     /// <summary>Not prefixed: the settings screen keys its copy by kind (<c>notification_settings.signal.&lt;kind&gt;</c>).</summary>
     public const string ShortfallAhead = "shortfall_ahead";
+    public const string IdleCash = "idle_cash";
 
     /// <summary>How far back a charge still counts as not taken.</summary>
     private const int MissingDays = 62;
@@ -42,6 +48,8 @@ public sealed class BankingNotificationSource(
         new(ChargeMissing, "finding", NotificationLevel.Action, "banking", null),
         // Issue #81: the margin, in the account's currency.
         new(ShortfallAhead, "finding", NotificationLevel.Action, "banking", null, new SignalThreshold(0m, 0m, 1_000_000m, "eur")),
+        // The buffer in months of commitments, when no emergency fund says it.
+        new(IdleCash, "finding", NotificationLevel.Info, "banking", null, new SignalThreshold(3m, 1m, 24m, "months")),
     ];
 
     public async Task<Result<IReadOnlyList<Signal>>> SignalsAsync(PersonId reader, LocalDate today, LocalDate horizon, CancellationToken ct)
@@ -76,8 +84,11 @@ public sealed class BankingNotificationSource(
 
         await AddAmountDiffersAsync(signals, reader, today, ct);
         await AddChargeMissingAsync(signals, reader, today, zone, ct);
-        if ((await signalSettings.ForAsync(reader, ct)).TryGetValue(ShortfallAhead, out var margin))
+        var turnedOn = await signalSettings.ForAsync(reader, ct);
+        if (turnedOn.TryGetValue(ShortfallAhead, out var margin))
             await AddShortfallAsync(signals, reader, today, margin, ct);
+        if (turnedOn.TryGetValue(IdleCash, out var months) && await IdleCashAsync(reader, today, months, ct) is { } idle)
+            signals.Add(idle);
         return Result.Success<IReadOnlyList<Signal>>(signals);
     }
 
@@ -164,11 +175,9 @@ public sealed class BankingNotificationSource(
     /// </summary>
     private async Task AddShortfallAsync(List<Signal> signals, PersonId reader, LocalDate today, decimal margin, CancellationToken ct)
     {
-        var active = (await connections.ActiveAsync(ct)).Select(c => c.Id).ToHashSet();
         var checking = new Dictionary<Guid, (BankAccount Account, BankBalance? Latest)>();
-        foreach (var (account, _) in await access.ReadableAsync([.. (await accounts.AllAsync(ct)).Where(a => a.Kind == BankAccountKind.Checking && !a.Ignored)], ct))
-            if ((await accounts.SourcesAsync(account.Id, ct)).Any(s => active.Contains(s.Connection)))
-                checking[account.Id] = (account, await balances.LatestAsync(account.Id, ct));
+        foreach (var account in await SyncedCheckingAsync(ct))
+            checking[account.Id] = (account, await balances.LatestAsync(account.Id, ct));
         if (!checking.Values.Any(c => Shortfalls.Fresh(c.Latest, today)))
             return;
 
@@ -212,6 +221,55 @@ public sealed class BankingNotificationSource(
             signals.Add(new Signal(SignalKeys.Dated(ShortfallAhead, new ItemId(account.Id), s.On), ShortfallAhead,
                 account.Envelope is { } envelope ? [envelope] : [], s.On, figures));
         }
+    }
+
+    /// <summary>Issue #81: the checking accounts the actor (the notified reader) reads, not ignored, with a source on an active connection.</summary>
+    private async Task<List<BankAccount>> SyncedCheckingAsync(CancellationToken ct)
+    {
+        var active = (await connections.ActiveAsync(ct)).Select(c => c.Id).ToHashSet();
+        var synced = new List<BankAccount>();
+        foreach (var (account, _) in await access.ReadableAsync([.. (await accounts.AllAsync(ct)).Where(a => a.Kind == BankAccountKind.Checking && !a.Ignored)], ct))
+            if ((await accounts.SourcesAsync(account.Id, ct)).Any(s => active.Contains(s.Connection)))
+                synced.Add(account);
+        return synced;
+    }
+
+    /// <summary>
+    /// Issue #81: the synced checking accounts' total stayed above the buffer every day of the last 28, while a livret the reader reads has
+    /// room or an open goal is behind; once a month. No item: it is about the accounts as a whole. A failed goals read is logged, none raised.
+    /// </summary>
+    private async Task<Signal?> IdleCashAsync(PersonId reader, LocalDate today, decimal months, CancellationToken ct)
+    {
+        var reference = await settings.ReferenceCurrencyAsync(ct);
+        // ponytail: an account in another currency than the reference is left out (a lower total, never a false signal); convert it if households hold several.
+        var held = new List<IReadOnlyList<BankBalance>>();
+        foreach (var account in (await SyncedCheckingAsync(ct)).Where(a => a.Currency == reference))
+            held.Add(await balances.SinceAsync(account.Id, today.PlusDays(1 - Domain.IdleCash.Days), ct));
+        if (Domain.IdleCash.LowestTotal(today, held) is not { } lowest)
+            return null;
+
+        var read = await buffers.ReadAsync(reader, (int)Math.Round(months, MidpointRounding.AwayFromZero), ct);
+        if (!read.TryGetValue(out var buffer))
+        {
+            logger.LogWarning("The emergency buffer of {Person} could not be read: {Code}", reader.Value, read.TryGetFailure(out var f) ? f!.Code : "goals.unknown");
+            return null;
+        }
+        if (buffer!.Amount is not { } amount)
+            return null;
+        var room = await savings.RoomAsync(reader, today, ct);
+        if (Domain.IdleCash.Find(lowest, amount, room, buffer.GoalBehind) is not var (above, reason))
+            return null;
+
+        var figures = new Dictionary<string, string>
+        {
+            ["above_amount"] = decimal.Round(above, 2).ToString(CultureInfo.InvariantCulture),
+            ["buffer_amount"] = amount.ToString(CultureInfo.InvariantCulture),
+            ["currency"] = reference.Code,
+            ["reason"] = reason,
+        };
+        if (room > 0m)
+            figures["room_amount"] = decimal.Round(room, 2).ToString(CultureInfo.InvariantCulture);
+        return new Signal(SignalKeys.Household(IdleCash, $"{today:yyyy-MM}"), IdleCash, [], null, figures);
     }
 
     /// <summary>The screen of the link's target, <c>null</c> when it is unknown (the notice then opens the home page): a loan's key is its due date, a property's carries a prefix.</summary>

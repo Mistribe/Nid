@@ -218,6 +218,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IEnvelopePerformance>(sp => sp.GetRequiredService<Nid.Investments.Application.EnvelopePerformance>());
         services.AddScoped<INetWorthContribution, Nid.Investments.Application.EnvelopesNetWorth>();
         services.AddScoped<Nid.Investments.Contracts.IEnvelopeFunding, Nid.Investments.Application.EnvelopeFunding>();
+        services.AddScoped<Nid.Investments.Contracts.ISavingsRoom, Nid.Investments.Application.SavingsRoom>();
         services.AddScoped<ITaxContribution, Nid.Investments.Application.EnvelopesTax>();
         services.AddScoped<ITaxContribution, Nid.Investments.Application.CapitalTaxContribution>();
         services.AddScoped<ISaleContribution, Nid.Investments.Application.EnvelopesSale>();
@@ -264,6 +265,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IGoalStore, GoalStore>();
         services.AddScoped<IItemDeletionPart, GoalsDeletionPart>();
         services.AddScoped<GoalReader>();
+        services.AddScoped<Nid.Goals.Contracts.IEmergencyBuffer, GoalsEmergencyBuffer>();
         services.AddScoped<IGoalsReview, GoalsReview>();
         services.AddScoped<ISeriesContribution, GoalSeries>();
 
