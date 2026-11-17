@@ -159,7 +159,9 @@ describe('EvolutionTab', () => {
       const r = await region();
       await waitFor(() => expect(r.querySelectorAll('.recharts-bar-rectangle path')).toHaveLength(2));
       expect([...r.querySelectorAll('.recharts-bar-rectangle path')].map((p) => p.getAttribute('fill'))).toEqual(['var(--status-critical)', 'var(--status-good)']);
-      expect(texts(r, '.recharts-yAxis-tick-labels .recharts-cartesian-axis-tick-value')).toEqual(['Salaires nets — Alice', 'Parts']);
+      expect(texts(r, '.recharts-label-list text').map((x) => x?.replace(/\s/g, ' '))).toEqual([
+        'Salaires nets — Alice : +4 500,00 € (hausse)', 'Parts : -1 807,00 € (baisse)',
+      ]);
     });
 
     it('keeps the table under the chart', async () => {
@@ -173,6 +175,26 @@ describe('EvolutionTab', () => {
       expect(rows[4]).toHaveTextContent(/2 500,00 €avis6 604,00 €$/);
       expect(screen.getByText(/^Indicatif/)).toBeInTheDocument();
       await expectNoAxeViolations(container);
+    });
+
+    it('tells two adults with the same display name apart by id', async () => {
+      changed();
+      server.use(
+        http.get('*/api/v1/core/persons', () => HttpResponse.json([{ id: ADULT, displayName: 'Alice', kind: 'adult' }, { id: 'b', displayName: 'Alice', kind: 'adult' }])),
+        http.get('*/api/v1/tax/changes', () => HttpResponse.json({
+          year: 2026, taxBefore: '1.00', taxNow: '2.00', remainder: '0.00',
+          lines: [
+            { code: 'salaries', person: ADULT, before: '1.00', now: '2.00', effect: '10.00', fromNotice: false },
+            { code: 'salaries', person: 'b', before: '1.00', now: '2.00', effect: '20.00', fromNotice: false },
+          ],
+        })),
+      );
+      await renderApp('/tax?tab=evolution');
+
+      const table = await screen.findByRole('table', { name: 'Ce qui a changé depuis 2025' });
+      const rows = within(table).getAllByRole('row');
+      expect(rows[1]).toHaveTextContent(/^Salaires nets — Alice.*\+10,00 €$/);
+      expect(rows[2]).toHaveTextContent(/^Salaires nets — Alice.*\+20,00 €$/);
     });
 
     it('names a person from the household’s persons', async () => {

@@ -1,6 +1,6 @@
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
-import { Bar, BarChart, Cell, ReferenceLine, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, Cell, LabelList, ReferenceLine, XAxis, YAxis } from 'recharts';
 import { useApi } from '@/api/ApiProvider';
 import { PERSONS } from '@/api/persons';
 import { SectionCard } from '@/components/page/SectionCard';
@@ -72,14 +72,21 @@ export function ChangesSection({ year, scope }: { year: string; scope: 'me' | 'h
     <SectionCard title={t('tax.changes.title', { year: since })} note={t('tax.changes.intro', { year })} className="space-y-3">
       {changes.lines.length ? <>
         <figure aria-label={t('tax.changes.title', { year: since })}>
-          <ChartContainer config={{} satisfies ChartConfig} className="aspect-auto w-full" style={{ height: changes.lines.length * 32 + 40 }}>
+          <ChartContainer config={{} satisfies ChartConfig} className="aspect-auto w-full" style={{ height: changes.lines.length * 48 + 40 }}>
             <BarChart data={points} layout="vertical" title={t('tax.changes.title', { year: since })} accessibilityLayer margin={{ left: 8, right: 8 }}>
               <XAxis type="number" domain={['auto', 'auto']} minTickGap={24} tickLine={false} axisLine={false} tickFormatter={(n: number) => AXIS.format(n)} />
-              <YAxis type="category" dataKey="label" width={170} tickLine={false} axisLine={false} />
+              <YAxis type="category" dataKey="label" hide />
               <ReferenceLine x={0} stroke="var(--border)" />
               <ChartTooltip cursor={false} content={<ChangesTooltip />} />
-              <Bar dataKey="plot" maxBarSize={48} radius={4} animationDuration={800}>
-                {points.map((p, i) => <Cell key={i} fill={FILLS[directionOf(p.effect)]} />)}
+              <Bar dataKey="plot" maxBarSize={24} animationDuration={800}>
+                {points.map((p, i) => <Cell key={i} fill={FILLS[directionOf(p.effect)]} radius={(p.plot < 0 ? [4, 0, 0, 4] : [0, 4, 4, 0]) as unknown as number} />)}
+                {/* The name and the server's signed effect sit above the bar (as on the withholding tab): no legend, and the word keeps colour from being alone. */}
+                <LabelList dataKey="label" content={({ x, y, width, index }) => {
+                  const p = points[Number(index)]!;
+                  const dir = directionOf(p.effect);
+                  const word = dir === 'flat' ? '' : ` (${t(dir === 'up' ? 'tax.changes.rise' : 'tax.changes.cut')})`;
+                  return <text x={Math.min(Number(x), Number(x) + Number(width))} y={Number(y) - 6} className="fill-foreground text-xs">{`${p.label} : ${signed(p.effect)}${word}`}</text>;
+                }} />
               </Bar>
             </BarChart>
           </ChartContainer>
