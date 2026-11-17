@@ -1,9 +1,11 @@
 import { screen, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw/http';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import type { Rental2044, TaxEstimate } from '@/api/tax';
 import { renderApp } from '@/test/renderApp';
+import { expectNoAxeViolations } from '@/test/axe';
 import { server } from '@/test/server';
+import { toasts } from '@/test/toasts';
 import { ADULT, estimate } from '../taxTestData';
 
 const filled = (): TaxEstimate => ({
@@ -74,5 +76,94 @@ describe('DeclarationsTab', () => {
     expect(hidden(screen.getByRole('heading', { level: 1, name: 'Impôts' }))).not.toBeNull();
     expect(hidden(screen.getByRole('radiogroup', { name: 'Formulaire' }))).not.toBeNull();
     expect(hidden(screen.getByText('Que recopier sur impots.gouv.fr ?'))).not.toBeNull();
+  });
+
+  describe('the 2042 in cards', () => {
+    const boxes = [
+      { code: '1AJ', person: ADULT, amount: '42000.00' }, { code: '2DC', person: null, amount: '300.00' },
+      { code: '6NS', person: ADULT, amount: '1000.00' }, { code: '7GA', person: null, amount: '2500.00' },
+    ];
+    const serve2042 = (extra: { code: string; person: string | null; amount: string }[] = [], asked: string[] = []) => server.use(
+      http.get('*/api/v1/core/persons', () => HttpResponse.json([{ id: ADULT, kind: 'adult', displayName: 'Alice', email: null }])),
+      http.get('*/api/v1/tax', ({ request }) => {
+        asked.push(new URL(request.url).searchParams.get('year')!);
+        return HttpResponse.json({
+          ...filled(), declaration: { boxes: [...boxes, ...extra], toEnter: [{ code: 'unsupported_income', item: 'p', name: 'Pension', amount: '1200.00' }] },
+        });
+      }),
+    );
+    const filledCard = async () => within(await screen.findByRole('region', { name: 'Cases remplies par Nid' }));
+
+    it('lists each box with its code, label, declarant and amount, grouped by section of the form', async () => {
+      const asked: string[] = [];
+      serve2042([], asked);
+      const { container, user } = await renderApp('/tax?tab=declarations');
+
+      const card = await filledCard();
+      expect((await card.findByText('1AJ')).closest('dl')).toBe(card.getByLabelText('Salaires', { selector: 'dl' }));
+      const labels = card.getAllByText(/^(Salaires|Revenus de capitaux|Charges|Réductions et crédits)$/, { selector: 'h3' }).map((h) => h.textContent);
+      expect(labels).toEqual(['Salaires', 'Revenus de capitaux', 'Charges', 'Réductions et crédits']);
+      const salaries = within(card.getByLabelText('Salaires', { selector: 'dl' }));
+      expect(salaries.getByText('1AJ')).toBeInTheDocument();
+      expect(salaries.getByText('Alice')).toBeInTheDocument();
+      expect(salaries.getByText('42 000,00 €')).toBeInTheDocument();
+      const capital = within(card.getByLabelText('Revenus de capitaux', { selector: 'dl' }));
+      expect(capital.getByText('2DC')).toBeInTheDocument();
+      expect(capital.getByText('Foyer')).toBeInTheDocument();
+      await user.hover(salaries.getByRole('button', { name: 'À propos : Salaires' }));
+      expect((await screen.findAllByText(/cumul « net imposable »/)).length).toBeGreaterThan(0);
+      expect(asked).toContain('2025');
+      await expectNoAxeViolations(container);
+    });
+
+    it('puts an unknown box in « Autres cases », last', async () => {
+      serve2042([{ code: '8TK', person: null, amount: '10.00' }]);
+      await renderApp('/tax?tab=declarations');
+
+      const card = await filledCard();
+      await card.findAllByText('8TK');
+      const dls = card.getAllByLabelText(/./, { selector: 'dl' });
+      const last = dls[dls.length - 1]!;
+      expect(last).toHaveAttribute('aria-label', 'Autres cases');
+      expect(within(last).getAllByText('8TK').length).toBeGreaterThan(0);
+    });
+
+    it('exports the CSV and prints from the card’s actions', async () => {
+      serve2042();
+      const print = vi.spyOn(window, 'print').mockImplementation(() => undefined);
+      const { user } = await renderApp('/tax?tab=declarations');
+
+      const card = await filledCard();
+      expect(await card.findByRole('button', { name: 'Exporter en CSV' })).toHaveClass('print:hidden');
+      await user.click(card.getByRole('button', { name: 'Imprimer' }));
+      expect(print).toHaveBeenCalled();
+    });
+
+    it('copies a box’s amount and confirms with a toast', async () => {
+      serve2042();
+      const { user } = await renderApp('/tax?tab=declarations');
+      const writeText = vi.fn().mockResolvedValue(undefined);
+      Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+
+      await user.click(await screen.findByRole('button', { name: 'Copier la case 1AJ' }));
+      expect(writeText).toHaveBeenCalledWith('42000');
+      expect(await within(toasts()).findByText('Case 1AJ copiée : 42000')).toBeInTheDocument();
+    });
+
+    it('lists what to enter by hand in its own card', async () => {
+      serve2042();
+      await renderApp('/tax?tab=declarations');
+
+      const toEnter = await screen.findByRole('region', { name: 'À saisir vous-même' });
+      expect(within(toEnter).getByText(/Pension/)).toBeInTheDocument();
+    });
+
+    it('says there is nothing to fill when the server lists no box', async () => {
+      server.use(http.get('*/api/v1/tax', () => HttpResponse.json({ ...filled(), declaration: { boxes: [], toEnter: [] } })));
+      await renderApp('/tax?tab=declarations');
+
+      expect(await screen.findByText('Aucune case à remplir')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Exporter en CSV' })).not.toBeInTheDocument();
+    });
   });
 });

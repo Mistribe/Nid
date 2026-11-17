@@ -4,7 +4,7 @@ import type { TaxEstimate } from '@/api/tax';
 import type { TaxSearch } from '@/app/router';
 import { Segmented } from '@/components/form/Segmented';
 import { InfoTip } from '@/components/InfoTip';
-import { Declaration2042Section } from './Declaration2042';
+import { Declaration2042 } from './Declaration2042';
 import { Rental2044Section } from './Rental2044';
 import '@/locales/tax';
 
@@ -27,7 +27,7 @@ export function DeclarationsTab({ estimate, year, scope }: { estimate: TaxEstima
         {rental ? <Segmented aria-label={t('tax.declarations.form')} value={form} onValueChange={onForm} options={[{ value: '2042', label: '2042' }, { value: '2044', label: '2044' }]} /> : null}
       </div>
       <h2 className="hidden text-xl font-semibold print:block">{t(`tax.d${form}.print_title`, { year })}</h2>
-      {form === '2044' ? <Rental2044Section year={Number(year)} scope={scope} /> : <Declaration2042Section estimate={estimate} />}
+      {form === '2044' ? <Rental2044Section year={Number(year)} scope={scope} /> : <Declaration2042 estimate={estimate} />}
     </>
   );
 }
