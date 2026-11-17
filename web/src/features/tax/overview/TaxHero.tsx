@@ -36,7 +36,7 @@ export function TaxHero({ estimate, onTab }: { estimate: TaxEstimate; onTab: (ta
       curve={<HeroCurve values={(history ?? []).map((y) => toPlot(y.tax))} />}
       aside={(
         <StatLine className="md:grid-cols-3" items={[
-          { label: t('tax.overview.left_monthly'), value: eur(r.netAfterTaxMonthly), hint: t('tax.figure.per_year', { amount: eur(r.netAfterTax) }), tip: tipText(t, 'left_monthly') },
+          { label: t('tax.overview.left_monthly'), value: eur(r.netAfterTaxMonthly), tip: tipText(t, 'left_monthly') },
           { label: balanceWords(t, balance, estimate.year), value: eur(unsigned(balance)), tip: tipText(t, 'balance'),
             hint: <Button variant="link" className="h-auto p-0" onClick={() => onTab('withholding')}>{t('tax.overview.adjust')}</Button> },
           { label: t('tax.overview.net_taxable'), value: eur(r.netTaxableIncome), tip: tipText(t, 'net_taxable') },

@@ -404,7 +404,7 @@ const taxRoute = createRoute({
     const form = alias === 'declarations' && (aliased ? tab === '2044' : String(search.form) === '2044') ? (2044 as const) : undefined;
     return {
       ...(alias ? { tab: alias } : {}),
-      ...(form ? { form } : {}),
+      form, // explicit even when dropped: the router keeps the raw keys a validator leaves out
       ...(/^\d{4}$/.test(String(search.year)) ? { year: String(search.year) } : {}),
     };
   },

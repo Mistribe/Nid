@@ -54,13 +54,8 @@
     "figure": {
       "net_taxable": "Net fiscal",
       "income_tax": "Impôt sur le revenu",
-      "total_tax": "Impôt total",
       "net_after": "Net après impôt",
       "monthly": "Par mois",
-      "marginal_rate": "Tranche marginale",
-      "withholding_rate": "Taux de prélèvement",
-      "parts": "Parts",
-      "per_year": "{{amount}} sur l’année",
       "average_rate": "Taux moyen {{rate}}",
       "carried": "Estimation selon le barème {{year}}",
       "scale": "Barème {{year}}"

@@ -17,9 +17,6 @@ export function regimeText(t: TFunction, regime: string): string {
 /** What a tax term means, in plain words (design-system §6.2): the InfoTip beside it on every tax screen. */
 export const tipText = (t: TFunction, key: keyof typeof tax.tax.tip) => t(`tax.tip.${key}`);
 
-/** The PER warnings are told by the PER block, from the declarants' own figures. */
-export const PER_WARNINGS: readonly string[] = ['per_over_ceiling', 'per_ceiling_estimated'];
-
 export function warningText(t: TFunction, code: string, year: number): string {
   const known = WARNINGS.find((w) => w === code);
   return known ? t(`tax.warning.${known}`, { year }) : code;

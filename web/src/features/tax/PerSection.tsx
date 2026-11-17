@@ -18,14 +18,6 @@ const estimatedCeiling = (result: TaxResult) => (result.warnings.includes('per_c
 const overText = (t: TFunction, d: Declarant) => t('tax.per.over_ceiling', { name: d.name, excess: eur(d.per!.excess), ceiling: eur(d.per!.ceiling) });
 const estimatedText = (t: TFunction, d: Declarant, year: number) => t('tax.per.ceiling_estimated_warning', { name: d.name, year: year - 1 });
 
-/** The PER warning codes the PER block itself tells, as it can only tell what the declarants' own figures show. */
-export function perWarningsInBlock(result: TaxResult): Set<string> {
-  const codes = new Set<string>();
-  if (overCeiling(result).length) codes.add('per_over_ceiling');
-  if (estimatedCeiling(result).length) codes.add('per_ceiling_estimated');
-  return codes;
-}
-
 /** The ceiling's source when every declarant shown shares it, else none: each cell then tells its own. */
 const sharedSource = (per: NonNullable<Declarant['per']>[]) => (per.every((p) => p.source === per[0]!.source) ? per[0]!.source : undefined);
 const ceilingLabel = (t: TFunction, source: string | undefined) => (source === undefined ? t('tax.per.ceiling') : t(source === 'notice' ? 'tax.per.ceiling_notice' : 'tax.per.ceiling_estimated'));

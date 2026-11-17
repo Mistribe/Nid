@@ -88,7 +88,9 @@ export function TaxPage() {
   const setForm = (next: '2042' | '2044') => {
     void navigate({ to: '.', replace: true, resetScroll: false, search: ((prev: Record<string, unknown>) => ({ ...prev, form: next === '2044' ? 2044 : undefined })) as never });
   };
-  const pending = (past && awaiting) || (!past && !estimate && !answer.error);
+  // The previous year's estimate kept while the overview's own loads would show last year's hero under this year's filter.
+  const stale = !past && answer.isPlaceholderData && tab === 'overview';
+  const pending = (past && awaiting) || (!past && !estimate && !answer.error) || stale;
   const assessmentTab = <AssessmentTab notices={notices} persons={people} gaps={estimate?.gaps} adults={estimate?.adults ?? []} />;
   // Held here, not in the tab: Radix unmounts a hidden tab, and the draft outlives a tab switch.
   const draft = useProfileDraft(estimate, scope);
@@ -105,7 +107,7 @@ export function TaxPage() {
           </FilterField>
         </FilterRow>
       </div>
-      {pending ? <TabsLoading label={t('tax.loading')} overview={tab === 'overview'} /> : null}
+      {pending ? <TabsLoading label={t('tax.loading')} overview={rawTab === 'overview' && !past} /> : null}
       {past && !awaiting && notices.length ? (
         // A year before the estimates: its notices, then the years side by side. The overview is Avis here, so it stays out of the URL.
         <DetailTabs value={rawTab === 'evolution' ? 'evolution' : 'assessment'} onChange={(next) => setTab(next === 'assessment' ? 'overview' : next)} tabs={[
@@ -115,7 +117,7 @@ export function TaxPage() {
         ]} />
       ) : null}
       {!past && answer.error ? <ProblemMessage problem={present(toProblem(answer.error))} /> : null}
-      {estimate ? (
+      {estimate && !stale ? (
         <DetailTabs value={tab} onChange={setTab} tabs={[
           { id: 'overview', label: t('tax.tab.overview'), content: <OverviewTab estimate={estimate} onTab={setTab} /> },
           { id: 'detail', label: t('tax.tab.detail'), content: <DetailTab estimate={estimate} onTab={setTab} /> },

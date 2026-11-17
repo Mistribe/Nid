@@ -43,7 +43,9 @@ describe('TaxPage', () => {
     await renderApp('/tax?tab=declarations&form=2044');
 
     await screen.findByRole('radiogroup', { name: /formulaire/i });
-    expect(screen.getByRole('status', { name: 'Calcul de l’impôt' })).toBeInTheDocument();
+    const status = screen.getByRole('status', { name: 'Calcul de l’impôt' });
+    expect(status).toBeInTheDocument();
+    expect(status.querySelector('[data-slot="skeleton"]')).not.toBeNull();
   });
 
   it('shows the steps and the declarants’ incomes', async () => {
@@ -964,7 +966,9 @@ describe('TaxPage, page grammar', () => {
     server.use(tax(), http.get('*/api/v1/tax/2044', () => HttpResponse.json(view2044())));
     const { user, router } = await renderApp('/tax?tab=2042&form=2044');
 
-    await user.click(await screen.findByRole('radio', { name: '2044' }));
+    await screen.findByRole('radio', { name: '2044' });
+    expect(screen.getByRole('radio', { name: '2042', checked: true })).toBeInTheDocument();
+    await user.click(screen.getByRole('radio', { name: '2044' }));
     await waitFor(() => expect(router.state.location.href).toContain('form=2044'));
     expect(router.state.location.href).not.toContain('%22');
     await user.click(screen.getByRole('radio', { name: '2042' }));
@@ -991,6 +995,35 @@ describe('TaxPage, page grammar', () => {
     await user.click(screen.getByRole('tab', { name: 'Avis' }));
     expect(await screen.findByRole('tab', { name: 'Avis', selected: true })).toBeInTheDocument();
     expect((router.state.location.search as { tab?: string }).tab).toBeUndefined();
+  });
+
+  it('a cold load of a past year shows no hero skeleton', async () => {
+    server.use(notices(jointAssessment({ year: 2023 })), http.get('*/api/v1/tax', () => new Promise(() => {})));
+    const { container } = await renderApp('/tax?year=2023&tab=assessment');
+
+    await screen.findByRole('tab', { name: 'Avis', selected: true });
+    expect(container.querySelector('[class*="rounded-[22px]"]')).toBeNull();
+  });
+
+  it('opening the overview from last year’s tab shows its skeleton, not last year’s hero', async () => {
+    let release = () => {};
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    server.use(
+      http.get('*/api/v1/tax', async ({ request }) => {
+        const year = Number(new URL(request.url).searchParams.get('year'));
+        if (year === 2026) await gate;
+        return HttpResponse.json({ ...estimate(), year, result: { ...result(), year } });
+      }),
+      http.get('*/api/v1/tax/2044', () => HttpResponse.json(view2044())),
+    );
+    const { user } = await renderApp('/tax?tab=declarations');
+
+    await screen.findByRole('radiogroup', { name: 'Formulaire' });
+    await user.click(screen.getByRole('tab', { name: 'Vue d’ensemble' }));
+    expect(await screen.findByRole('status', { name: 'Calcul de l’impôt' })).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: /^Impôt total 2025/ })).not.toBeInTheDocument();
+    release();
+    expect(await screen.findByRole('region', { name: 'Impôt total 2026 · estimation' })).toBeInTheDocument();
   });
 
   it('the hero stays on this year after visiting Déclarations', async () => {

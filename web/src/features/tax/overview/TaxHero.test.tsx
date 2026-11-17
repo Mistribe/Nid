@@ -49,6 +49,9 @@ describe('TaxHero', () => {
     expect(region.querySelector('[data-stat-line]')).toHaveClass('md:grid-cols-3');
     expect(within(region).getAllByRole('button', { name: /^À propos : / })).toHaveLength(6);
     expect(region).not.toHaveTextContent('-2 973');
+    // The year's net shows once, in « Où vont vos revenus »: not again as a hint here.
+    expect(region).not.toHaveTextContent('sur l’année');
+    expect(region).not.toHaveTextContent('68 753');
   });
 
   it('the adjust link opens Prélèvement', async () => {
