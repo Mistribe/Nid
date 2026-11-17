@@ -68,12 +68,14 @@ public static class NotificationTemplates
         ["banking.charge_missing"] = "Charge attendue non prélevée",
         ["net_worth_milestone"] = "Votre patrimoine a franchi un palier",
         ["savings_pace"] = "Votre rythme d'épargne a ralenti",
+        ["shortfall_ahead"] = "Un compte courant risque de manquer d'argent",
     };
 
     /// <summary>Issue #81: the figures a signal carries (params ending in <c>_amount</c>), named, in this order.</summary>
     private static readonly (string Param, string Name)[] Figures = [
         ("net_worth_amount", "Patrimoine"), ("step_amount", "Palier"),
         ("recent_amount", "Épargne par mois sur 3 mois"), ("average_amount", "sur 12 mois"),
+        ("balance_amount", "Solde"), ("charges_amount", "Charges à venir"),
     ];
 
     /// <summary>The investments tab a kind opens; a kind not listed opens the envelope's first tab.</summary>
@@ -81,6 +83,7 @@ public static class NotificationTemplates
     {
         ["holding_maturity"] = "holdings",
         ["uc_share_below_floor"] = "holdings",
+        ["shortfall_ahead"] = "operations",
     };
 
     /// <summary>The properties tab a kind opens; a kind not listed opens the property's first tab.</summary>
@@ -119,6 +122,9 @@ public static class NotificationTemplates
         foreach (var (param, name) in Figures)
             if (p.TryGetValue(param, out var value) && decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out var amount))
                 shown.Add($"{name} : {Math.Round(amount, 0, MidpointRounding.AwayFromZero).ToString("N0", French)}\u00a0{currency}");
+        // The shortfall's tipping charges, in the centre only: a name may hold an amount (« Loyer 1 200 € »).
+        if (p.TryGetValue("charges", out var charges) && charges.Length > 0)
+            shown.Add($"Ce jour-là : {charges}");
         return string.Join(" · ", shown);
     }
 
@@ -198,6 +204,7 @@ public static class NotificationTemplates
             ? $"En ligne avant le {Day(on)}, la date la plus tôt : département non renseigné" : $"En ligne avant le {Day(on)}",
         "tax_new_rate" when n.DueOn is { } on => $"À partir du {Day(on)}",
         "tax_balance_due" when n.DueOn is { } on => $"À partir du {Day(on)}",
+        "shortfall_ahead" when n.DueOn is { } on => n.Params.TryGetValue("account", out var account) ? $"Le {Day(on)} — {account}" : $"Le {Day(on)}",
         _ => "",
     };
 
@@ -263,7 +270,7 @@ public static class NotificationTemplates
     private static string? LinkOf(NotificationRecord n, NotificationKind kind)
     {
         if (n.ItemIds.Count == 0)
-            return n.Kind switch { "fx_rate_missing" or "month_changes" or "net_worth_milestone" or "savings_pace" => "/dashboard", "routine_due" => "/routine", "tax_filing_deadline" or "tax_new_rate" or "tax_balance_due" => "/tax", _ => "/" };
+            return n.Kind switch { "fx_rate_missing" or "month_changes" or "net_worth_milestone" or "savings_pace" => "/dashboard", "routine_due" => "/routine", "shortfall_ahead" => "/settings/banks", "tax_filing_deadline" or "tax_new_rate" or "tax_balance_due" => "/tax", _ => "/" };
         var id = n.ItemIds[0].Value.ToString("D");
         // The banking findings name the page of their item in "module", the item being any module's.
         return (kind.Module == "banking" ? n.Params.GetValueOrDefault("module") : kind.Module) switch

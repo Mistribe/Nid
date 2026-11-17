@@ -14,17 +14,19 @@ namespace Nid.Banking.Application;
 /// Bank sync spec §5: a consent that ends soon or has ended, and a connection whose nights keep failing, as signals for the connection's
 /// creator only. None carries an item id or an amount; the bank's name is the only parameter. Nothing when banking is off.
 /// 5C spec §6.3, §6.6: a line that paid another amount than its charge, and a charge the bank never took, as findings for the readers of the item
-/// (amounts as decimal strings, never a label).
+/// (amounts as decimal strings, never a label). Issue #81: the shortfall ahead on a checking account, opt-in, whose figures only the centre shows.
 /// </summary>
 public sealed class BankingNotificationSource(
     IConnectionStore connections, IHouseholdSettings settings, IHouseholdCalendar calendar, ILinkStore links, ExpectedChargeReader charges,
-    IAccessPolicy policy, IAccountStore accounts, BankingAccess access) : INotificationSource
+    IAccessPolicy policy, IAccountStore accounts, BankingAccess access, IBalanceStore balances, IExpectedIncome income, ISignalSettings signalSettings) : INotificationSource
 {
     public const string ConsentExpiring = "banking.consent_expiring";
     public const string ConsentExpired = "banking.consent_expired";
     public const string SyncFailing = "banking.sync_failing";
     public const string AmountDiffers = "banking.amount_differs";
     public const string ChargeMissing = "banking.charge_missing";
+    /// <summary>Not prefixed: the settings screen keys its copy by kind (<c>notification_settings.signal.&lt;kind&gt;</c>).</summary>
+    public const string ShortfallAhead = "shortfall_ahead";
 
     /// <summary>How far back a charge still counts as not taken.</summary>
     private const int MissingDays = 62;
@@ -38,6 +40,8 @@ public sealed class BankingNotificationSource(
         new(SyncFailing, "finding", NotificationLevel.Action, "banking", null),
         new(AmountDiffers, "finding", NotificationLevel.Action, "banking", null),
         new(ChargeMissing, "finding", NotificationLevel.Action, "banking", null),
+        // Issue #81: the margin, in the account's currency.
+        new(ShortfallAhead, "finding", NotificationLevel.Action, "banking", null, new SignalThreshold(0m, 0m, 1_000_000m, "eur")),
     ];
 
     public async Task<Result<IReadOnlyList<Signal>>> SignalsAsync(PersonId reader, LocalDate today, LocalDate horizon, CancellationToken ct)
@@ -72,6 +76,8 @@ public sealed class BankingNotificationSource(
 
         await AddAmountDiffersAsync(signals, reader, today, ct);
         await AddChargeMissingAsync(signals, reader, today, zone, ct);
+        if ((await signalSettings.ForAsync(reader, ct)).TryGetValue(ShortfallAhead, out var margin))
+            await AddShortfallAsync(signals, reader, today, margin, ct);
         return Result.Success<IReadOnlyList<Signal>>(signals);
     }
 
@@ -148,6 +154,63 @@ public sealed class BankingNotificationSource(
                     ["currency"] = charge.Amount.Currency.Code,
                     ["module"] = ChargeKinds.ModuleOf(charge.Kind),
                 }));
+        }
+    }
+
+    /// <summary>
+    /// Issue #81: the synced checking accounts the reader reads, each balance less the debits due before the next income. A charge counts on
+    /// the account its item's last debit line was on, and when none was ever matched, on the reader's only synced checking account. A charge
+    /// already linked to a line is in the balance; a credit (a rent) is not counted on: it may come late.
+    /// </summary>
+    private async Task AddShortfallAsync(List<Signal> signals, PersonId reader, LocalDate today, decimal margin, CancellationToken ct)
+    {
+        var active = (await connections.ActiveAsync(ct)).Select(c => c.Id).ToHashSet();
+        var checking = new Dictionary<Guid, (BankAccount Account, BankBalance? Latest)>();
+        foreach (var (account, _) in await access.ReadableAsync([.. (await accounts.AllAsync(ct)).Where(a => a.Kind == BankAccountKind.Checking && !a.Ignored)], ct))
+            if ((await accounts.SourcesAsync(account.Id, ct)).Any(s => active.Contains(s.Connection)))
+                checking[account.Id] = (account, await balances.LatestAsync(account.Id, ct));
+        if (!checking.Values.Any(c => Shortfalls.Fresh(c.Latest, today)))
+            return;
+
+        var end = Shortfalls.End(today, await income.NextAsync(reader, today, ct));
+        var due = (await charges.ReadableAsync(reader, today, end.PlusDays(-1), ct)).Where(c => !c.Credit).ToList();
+        if (due.Count == 0)
+            return;
+        // Every account's lines, read or not: a charge paid from the other adult's account counts on none of the reader's.
+        var all = await links.ForItemsAsync([.. due.Select(c => c.Item).Distinct()], ct);
+        var paidFrom = all.Where(x => x.Line.Amount < 0).GroupBy(x => x.Link.TargetItem!.Value)
+            .ToDictionary(g => g.Key, g => g.MaxBy(x => x.Line.BookedOn).Line.Account);
+        var taken = all.Select(x => $"{x.Link.TargetItem!.Value.Value:N}:{x.Link.TargetKey}").ToHashSet();
+        var convert = await charges.ConverterAsync(due, today, today, ct);
+
+        var dues = new List<Shortfalls.Due>();
+        foreach (var charge in due.Where(c => !taken.Contains($"{c.Item.Value:N}:{c.Key}")))
+        {
+            Guid? on = paidFrom.TryGetValue(charge.Item, out var paid) ? paid : null;
+            var account = on is { } id ? (checking.TryGetValue(id, out var c) ? c.Account : null) : checking.Count == 1 ? checking.Values.Single().Account : null;
+            // ponytail: a charge without a rate to its account's currency is left out; most households hold one currency.
+            if (account is not null && convert(charge, today, account.Currency.Code) is { } amount)
+                dues.Add(new Shortfalls.Due(charge.DueOn, amount, charge.ItemName, on));
+        }
+
+        foreach (var s in Shortfalls.Find(today, end, margin, checking.ToDictionary(c => c.Key, c => c.Value.Latest), dues))
+        {
+            var account = checking[s.Account].Account;
+            var figures = new Dictionary<string, string>
+            {
+                ["balance_amount"] = s.Balance.ToString(CultureInfo.InvariantCulture),
+                ["charges_amount"] = s.Charges.ToString(CultureInfo.InvariantCulture),
+                ["currency"] = account.Currency.Code,
+                ["short_on"] = s.On.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                ["charges"] = string.Join(", ", s.Names),
+                // Names the account, which may have no item to be named by (two checking accounts must be told apart).
+                ["account"] = account.Name,
+            };
+            // The account's page is its envelope's « Opérations » tab; an account without one is seen in the banks' settings.
+            if (account.Envelope is not null)
+                figures["module"] = "investments";
+            signals.Add(new Signal(SignalKeys.Dated(ShortfallAhead, new ItemId(account.Id), s.On), ShortfallAhead,
+                account.Envelope is { } envelope ? [envelope] : [], s.On, figures));
         }
     }
 
