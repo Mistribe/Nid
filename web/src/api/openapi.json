@@ -58581,7 +58581,8 @@
           "perExpiring",
           "exemptIncome",
           "pensions",
-          "disabled"
+          "disabled",
+          "over65"
         ],
         "type": "object",
         "properties": {
@@ -58651,6 +58652,10 @@
             "default": "0.00"
           },
           "disabled": {
+            "type": "boolean",
+            "default": false
+          },
+          "over65": {
             "type": "boolean",
             "default": false
           }
@@ -58866,7 +58871,8 @@
           "realisedGains",
           "capitalLossesCarried",
           "alternateCustody",
-          "singleParent"
+          "singleParent",
+          "disabledDependents"
         ],
         "type": "object",
         "properties": {
@@ -58980,6 +58986,11 @@
           "singleParent": {
             "type": "boolean",
             "default": false
+          },
+          "disabledDependents": {
+            "type": "integer",
+            "format": "int32",
+            "default": 0
           }
         }
       },
@@ -59063,6 +59074,7 @@
       "TaxProfileBody": {
         "required": [
           "childrenUnder6",
+          "disabledDependents",
           "cohabiting",
           "alternateCustody",
           "alimonyAdultChildrenCount",
@@ -59263,6 +59275,11 @@
               "type": "string",
               "format": "uuid"
             }
+          },
+          "disabledDependents": {
+            "type": "integer",
+            "format": "int32",
+            "default": 0
           }
         }
       },
@@ -59292,7 +59309,8 @@
           "alimonyAdultChildrenCount",
           "capitalLossesCarried",
           "alternateCustody",
-          "cohabiting"
+          "cohabiting",
+          "disabledDependents"
         ],
         "type": "object",
         "properties": {
@@ -59434,6 +59452,11 @@
               "type": "string",
               "format": "uuid"
             }
+          },
+          "disabledDependents": {
+            "type": "integer",
+            "format": "int32",
+            "default": 0
           }
         }
       },
@@ -59496,7 +59519,8 @@
           "highIncomeSmoothed",
           "alimonyDeducted",
           "realisedGainsTaxable",
-          "capitalLossesCarriedForward"
+          "capitalLossesCarriedForward",
+          "ageDisabilityAllowance"
         ],
         "type": "object",
         "properties": {
@@ -59654,6 +59678,10 @@
             "default": "0.00"
           },
           "capitalLossesCarriedForward": {
+            "type": "string",
+            "default": "0.00"
+          },
+          "ageDisabilityAllowance": {
             "type": "string",
             "default": "0.00"
           }

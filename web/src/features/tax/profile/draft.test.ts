@@ -10,7 +10,7 @@ describe('profile draft', () => {
       exemptIncomes: {}, rentalDeficitCarried: '0.00', childcareOutsideHome: '6000.00', homeEmployment: '0.00', donations: '0.00',
       donationsAid: '0.00', donationsAidLate: '0.00', rentalEnergyWorks: '0.00', capitalScale: false, deductibleCsg: '0.00',
       alimonyPaid: '0.00', alimonyAdultChildren: '0.00', alimonyAdultChildrenCount: 0, capitalLossesCarried: '0.00',
-      alternateCustody: 0, cohabiting: false, disabledAdults: [],
+      alternateCustody: 0, cohabiting: false, disabledAdults: [], disabledDependents: 0,
     });
   });
 
@@ -66,6 +66,15 @@ describe('profile draft', () => {
     expect(profileBody(draft)).toMatchObject({ alternateCustody: 1, cohabiting: true, disabledAdults: [ADULT] });
     expect(countChanges(draft, initial)).toBe(3);
     expect(draftErrors({ ...initial, alternate: 'x' })).toEqual({ alternate: 'count' });
+  });
+
+  it('sends the disabled children as a count, a change of its own', () => {
+    const initial = initialDraft(estimate());
+    const draft = { ...initial, disabledChildren: '1' };
+
+    expect(profileBody(draft)).toMatchObject({ disabledDependents: 1 });
+    expect(countChanges(draft, initial)).toBe(1);
+    expect(draftErrors({ ...initial, disabledChildren: '-1' })).toEqual({ disabledChildren: 'count' });
   });
 
   it('checks the department as the server does and sends it trimmed', () => {
