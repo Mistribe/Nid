@@ -240,4 +240,29 @@ public class NotificationTemplatesTests
         var swiss = record with { Params = new Dictionary<string, string>(record.Params) { ["currency"] = "CHF" } };
         Assert.EndsWith("300 000 CHF", NotificationTemplates.Render(swiss, kind, new Dictionary<ItemId, string>(), withFigures: true).Body.Replace('\u202f', ' ').Replace('\u00a0', ' '));
     }
+
+    [Fact]
+    public void A_shortfall_opens_its_accounts_operations_and_names_its_charges_in_the_centre_only()
+    {
+        var figures = new Dictionary<string, string>
+        {
+            ["balance_amount"] = "800.00", ["charges_amount"] = "1150.50", ["currency"] = "EUR", ["short_on"] = "2027-03-05",
+            ["charges"] = "Loyer, Netflix", ["module"] = "investments",
+        };
+        var record = Record("shortfall_ahead", new LocalDate(2027, 3, 5)) with { Params = figures };
+        var kind = KindOf("shortfall_ahead", "banking");
+        var names = new Dictionary<ItemId, string> { [Item] = "Compte joint" };
+
+        var centre = NotificationTemplates.Render(record, kind, names, withFigures: true);
+        var plain = NotificationTemplates.Render(record, kind, names);
+
+        Assert.Equal("Compte joint — le 5 mars 2027 — Solde : 800 € · Charges à venir : 1 151 € · Ce jour-là : Loyer, Netflix",
+            centre.Body.Replace('\u202f', ' ').Replace('\u00a0', ' '));
+        Assert.Equal("Compte joint — le 5 mars 2027", plain.Body);
+        Assert.Equal($"/investments/{Item.Value:D}?tab=operations", centre.Link);
+
+        // Without an envelope the account has no item to be named by: its own name follows the date.
+        var unassociated = record with { ItemIds = [], Params = new Dictionary<string, string>(figures.Where(p => p.Key != "module")) { ["account"] = "Compte courant" } };
+        Assert.Equal(("Le 5 mars 2027 — Compte courant", "/settings/banks"), (NotificationTemplates.Render(unassociated, kind, names) is var r ? (r.Body, r.Link) : default));
+    }
 }

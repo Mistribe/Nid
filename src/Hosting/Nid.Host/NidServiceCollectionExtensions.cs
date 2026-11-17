@@ -251,6 +251,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<Nid.Income.Application.IncomeSourcesUpcoming>();
         services.AddScoped<IUpcomingEvents>(sp => sp.GetRequiredService<Nid.Income.Application.IncomeSourcesUpcoming>());
         services.AddScoped<Nid.Platform.Contracts.INotificationSource, Nid.Income.Application.IncomeNotificationSource>();
+        services.AddScoped<IExpectedIncome, Nid.Income.Application.IncomeSourcesNext>();
         services.AddScoped<ITaxContribution, Nid.Income.Application.IncomeSourcesTax>();
         services.AddScoped<IProposalHandler, Nid.Income.Application.PayslipProposal>();
 

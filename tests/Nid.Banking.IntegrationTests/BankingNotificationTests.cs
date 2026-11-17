@@ -331,4 +331,42 @@ public class BankingNotificationTests(PostgresFixture fixture) : IClassFixture<P
         Assert.Equal($"banking.charge_missing:{property.Value:N}:rent:2026-05", signal.Key);
         Assert.Equal("properties", signal.Params["module"]);
     }
+
+    [Fact]
+    public async Task A_shortfall_ahead_is_raised_once_turned_on_and_a_synced_balance_is_known()
+    {
+        await using var app = await BankingApi.StartAsync(fixture);
+        var account = await AccountAsync(app);
+        var netflix = await app.NewSubscriptionAsync("Netflix", app.AdultA, Visibility.Shared);
+        (await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/subscriptions/{netflix.Value}/phases", new
+        {
+            startsOn = "2025-01-05",
+            price = new { amount = "12.99", currency = "EUR" },
+            every = new { count = 1, unit = "month" },
+            payer = new { type = "household" },
+        })).EnsureSuccessStatusCode();
+        Assert.Empty(Findings(await SignalsAsync(app, app.AdultA), "shortfall_ahead")); // off by default
+
+        var (_, failure) = await app.InvokeAsync(app.AdultA, new Nid.Platform.Notifications.SaveNotificationPreferencesCommand(
+            false, Nid.Platform.Notifications.ActionMode.Immediate, Nid.Platform.Notifications.InfoMode.Digest, Nid.Platform.Notifications.DigestFrequency.Weekly, 1,
+            new Dictionary<string, int>(), new Dictionary<string, decimal> { ["shortfall_ahead"] = 0m }, 0), TestContext.Current.CancellationToken);
+        Assert.Null(failure);
+        Assert.Empty(Findings(await SignalsAsync(app, app.AdultA), "shortfall_ahead")); // no balance yet
+
+        await using (var scope = app.Services.CreateAsyncScope())
+        {
+            scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
+            await scope.ServiceProvider.GetRequiredService<IBalanceStore>().UpsertAsync(
+                new BankBalance(account, NidApp.GoldenCaseToday.PlusDays(-1), 10m, "CLBD", Now), TestContext.Current.CancellationToken);
+        }
+
+        // No income: the 31 days from today hold the 5 November charge, the only checking account's though never matched.
+        var signal = Assert.Single(Findings(await SignalsAsync(app, app.AdultA), "shortfall_ahead"));
+        Assert.Equal($"shortfall_ahead:{account:D}:2025-11-05", signal.Key);
+        Assert.Empty(signal.ItemIds);
+        Assert.Equal(new LocalDate(2025, 11, 5), signal.DueOn);
+        Assert.Equal((10m, 12.99m, "EUR", "2025-11-05", "Netflix"), (decimal.Parse(signal.Params["balance_amount"], CultureInfo.InvariantCulture),
+            decimal.Parse(signal.Params["charges_amount"], CultureInfo.InvariantCulture), signal.Params["currency"], signal.Params["short_on"], signal.Params["charges"]));
+        Assert.Empty(Findings(await SignalsAsync(app, app.AdultB), "shortfall_ahead")); // A's own account
+    }
 }

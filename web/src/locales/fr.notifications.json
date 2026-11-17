@@ -129,6 +129,10 @@
       "savings_pace": {
         "threshold": "Baisse (%)",
         "tip": "Compare ce que vous avez versé sur vos placements, retraits déduits, par mois sur les 3 derniers mois et sur les 12 derniers. Prévient une fois par mois quand la baisse dépasse le seuil. Les montants n’apparaissent que dans Nid."
+      },
+      "shortfall_ahead": {
+        "threshold": "Marge (€)",
+        "tip": "Part du dernier solde synchronisé de chaque compte courant (7 jours au plus) et retire les prélèvements attendus d’ici votre prochain revenu, ou sur 31 jours sans revenu prévu. Prévient quand le solde passerait sous la marge, avec le jour concerné. Les montants n’apparaissent que dans Nid."
       }
     },
     "lead_days": "Délais",
