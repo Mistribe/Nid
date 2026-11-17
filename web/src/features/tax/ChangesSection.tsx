@@ -24,7 +24,7 @@ const TIPS: Partial<Record<(typeof LINES)[number], Parameters<typeof tipText>[1]
 const signed = (amount: string) => (amount.startsWith('-') || ZERO.test(amount) ? eur(amount) : `+${eur(amount)}`);
 
 type Persons = { id: string; displayName: string }[];
-type Point = { label: string; plot: number; effect: string };
+type Point = { label: string; plot: number; effect: string; text: string };
 const AXIS = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', notation: 'compact' });
 const FILLS = { up: 'var(--status-critical)', down: 'var(--status-good)', flat: 'var(--muted-foreground)' };
 
@@ -66,7 +66,12 @@ export function ChangesSection({ year, scope }: { year: string; scope: 'me' | 'h
     const tip = TIPS[known];
     return <Term title={t(`tax.changes.line.${known}`)} tip={tip ? tipText(t, tip) : undefined} />;
   };
-  const points: Point[] = changes.lines.map((l) => ({ label: lineTitle(t, l.code, l.person, persons), plot: toPlot(l.effect), effect: l.effect }));
+  const points: Point[] = changes.lines.map((l) => {
+    const label = lineTitle(t, l.code, l.person, persons);
+    const dir = directionOf(l.effect);
+    const word = dir === 'flat' ? '' : ` (${t(dir === 'up' ? 'tax.changes.rise' : 'tax.changes.cut')})`;
+    return { label, plot: toPlot(l.effect), effect: l.effect, text: `${label} : ${signed(l.effect)}${word}` };
+  });
   const value = (code: string, amount: string) => (code === 'shares' ? partsText(amount) : eur(amount));
   return (
     <SectionCard title={t('tax.changes.title', { year: since })} note={t('tax.changes.intro', { year })} className="space-y-3">
@@ -79,14 +84,11 @@ export function ChangesSection({ year, scope }: { year: string; scope: 'me' | 'h
               <ReferenceLine x={0} stroke="var(--border)" />
               <ChartTooltip cursor={false} content={<ChangesTooltip />} />
               <Bar dataKey="plot" maxBarSize={24} animationDuration={800}>
-                {points.map((p, i) => <Cell key={i} fill={FILLS[directionOf(p.effect)]} radius={(p.plot < 0 ? [4, 0, 0, 4] : [0, 4, 4, 0]) as unknown as number} />)}
-                {/* The name and the server's signed effect sit above the bar (as on the withholding tab): no legend, and the word keeps colour from being alone. */}
-                <LabelList dataKey="label" content={({ x, y, width, index }) => {
-                  const p = points[Number(index)]!;
-                  const dir = directionOf(p.effect);
-                  const word = dir === 'flat' ? '' : ` (${t(dir === 'up' ? 'tax.changes.rise' : 'tax.changes.cut')})`;
-                  return <text x={Math.min(Number(x), Number(x) + Number(width))} y={Number(y) - 6} className="fill-foreground text-xs">{`${p.label} : ${signed(p.effect)}${word}`}</text>;
-                }} />
+                {points.map((p, i) => <Cell key={i} /* Cell's typing omits radius, which Recharts' Rectangle accepts */ fill={FILLS[directionOf(p.effect)]} radius={(p.plot < 0 ? [4, 0, 0, 4] : [0, 4, 4, 0]) as unknown as number} />)}
+                {/* Labels start at the chart's left margin so a long one never runs past the right edge. The name and the server's signed effect sit above the bar (as on the withholding tab): no legend, and the word keeps colour from being alone. */}
+                <LabelList dataKey="text" content={({ y, value }) => (
+                  <text x={8} textAnchor="start" y={Number(y) - 6} className="fill-foreground text-xs">{String(value)}</text>
+                )} />
               </Bar>
             </BarChart>
           </ChartContainer>

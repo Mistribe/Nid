@@ -176,10 +176,10 @@ describe('EvolutionTab', () => {
       await expectNoAxeViolations(container);
     });
 
-    it('tells two adults with the same display name apart by id', async () => {
+    it('names each line by its person id, whatever the order of the persons', async () => {
       changed();
       server.use(
-        http.get('*/api/v1/core/persons', () => HttpResponse.json([{ id: ADULT, displayName: 'Alice', kind: 'adult' }, { id: 'b', displayName: 'Alice', kind: 'adult' }])),
+        http.get('*/api/v1/core/persons', () => HttpResponse.json([{ id: 'b', displayName: 'Bob', kind: 'adult' }, { id: ADULT, displayName: 'Alice', kind: 'adult' }])),
         http.get('*/api/v1/tax/changes', () => HttpResponse.json({
           year: 2026, taxBefore: '1.00', taxNow: '2.00', remainder: '0.00',
           lines: [
@@ -190,10 +190,9 @@ describe('EvolutionTab', () => {
       );
       await renderApp('/tax?tab=evolution');
 
-      const table = await screen.findByRole('table', { name: 'Ce qui a changé depuis 2025' });
-      const rows = within(table).getAllByRole('row');
+      const rows = within(await screen.findByRole('table', { name: 'Ce qui a changé depuis 2025' })).getAllByRole('row');
       expect(rows[1]).toHaveTextContent(/^Salaires nets — Alice.*\+10,00 €$/);
-      expect(rows[2]).toHaveTextContent(/^Salaires nets — Alice.*\+20,00 €$/);
+      expect(rows[2]).toHaveTextContent(/^Salaires nets — Bob.*\+20,00 €$/);
     });
 
     it('names a person from the household’s persons', async () => {
