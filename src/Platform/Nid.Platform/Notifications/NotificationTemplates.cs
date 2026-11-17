@@ -67,10 +67,14 @@ public static class NotificationTemplates
         ["banking.amount_differs"] = "Montant différent du prévu",
         ["banking.charge_missing"] = "Charge attendue non prélevée",
         ["net_worth_milestone"] = "Votre patrimoine a franchi un palier",
+        ["savings_pace"] = "Votre rythme d'épargne a ralenti",
     };
 
     /// <summary>Issue #81: the figures a signal carries (params ending in <c>_amount</c>), named, in this order.</summary>
-    private static readonly (string Param, string Name)[] Figures = [("net_worth_amount", "Patrimoine"), ("step_amount", "Palier")];
+    private static readonly (string Param, string Name)[] Figures = [
+        ("net_worth_amount", "Patrimoine"), ("step_amount", "Palier"),
+        ("recent_amount", "Épargne par mois sur 3 mois"), ("average_amount", "sur 12 mois"),
+    ];
 
     /// <summary>The investments tab a kind opens; a kind not listed opens the envelope's first tab.</summary>
     private static readonly Dictionary<string, string> InvestmentTabs = new()
@@ -259,7 +263,7 @@ public static class NotificationTemplates
     private static string? LinkOf(NotificationRecord n, NotificationKind kind)
     {
         if (n.ItemIds.Count == 0)
-            return n.Kind switch { "fx_rate_missing" or "month_changes" or "net_worth_milestone" => "/dashboard", "routine_due" => "/routine", "tax_filing_deadline" or "tax_new_rate" or "tax_balance_due" => "/tax", _ => "/" };
+            return n.Kind switch { "fx_rate_missing" or "month_changes" or "net_worth_milestone" or "savings_pace" => "/dashboard", "routine_due" => "/routine", "tax_filing_deadline" or "tax_new_rate" or "tax_balance_due" => "/tax", _ => "/" };
         var id = n.ItemIds[0].Value.ToString("D");
         // The banking findings name the page of their item in "module", the item being any module's.
         return (kind.Module == "banking" ? n.Params.GetValueOrDefault("module") : kind.Module) switch

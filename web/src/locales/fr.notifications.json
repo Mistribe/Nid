@@ -125,6 +125,10 @@
       "net_worth_milestone": {
         "threshold": "Palier (€)",
         "tip": "Prévient quand votre patrimoine passe un multiple du palier (100 000 €, 150 000 €…) depuis la fin du mois dernier. Le montant n’apparaît que dans Nid, jamais dans un email ou sur Discord."
+      },
+      "savings_pace": {
+        "threshold": "Baisse (%)",
+        "tip": "Compare ce que vous avez versé sur vos placements, retraits déduits, par mois sur les 3 derniers mois et sur les 12 derniers. Prévient une fois par mois quand la baisse dépasse le seuil. Les montants n’apparaissent que dans Nid."
       }
     },
     "lead_days": "Délais",
