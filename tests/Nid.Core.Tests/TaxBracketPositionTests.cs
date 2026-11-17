@@ -1,3 +1,4 @@
+using Nid.Core.Application.Tax;
 using Nid.Core.Domain.Tax;
 
 namespace Nid.Core.Tests;
@@ -31,8 +32,35 @@ public class TaxBracketPositionTests
 
         Assert.Null(p.NextFrom);
         Assert.Null(p.ToNext);
-        Assert.True(p.DisplayEnd > p.Quotient);
-        Assert.Equal(0m, p.DisplayEnd % 1_000m);
+        Assert.Equal(233_000m, p.DisplayEnd); // last From 185 737 x 1.25 wins, rounded up
+        Assert.Equal(330_000m, TaxBracketPosition.Of(Rules, 300_000m, 1m).DisplayEnd); // quotient x 1.1 wins
+    }
+
+    [Fact]
+    public void Quotient_on_a_band_start_is_still_below_it()
+    {
+        var from = Rules.Brackets[2].From;
+        var p = TaxBracketPosition.Of(Rules, from * 2m, 2m);
+
+        Assert.Equal(from, p.NextFrom);
+        Assert.Equal(0m, p.ToNext);
+        Assert.Equal(Rules.Brackets[1].Rate, TaxCalculator.MarginalRate(Rules, p.Quotient));
+    }
+
+    [Fact]
+    public void Bands_carry_the_rules_rates() =>
+        Assert.Equal(Rules.Brackets.Select(b => b.Rate), TaxBracketPosition.Of(Rules, 50_000m, 1m).Bands.Select(b => b.Rate));
+
+    [Fact]
+    public void View_maps_bands_and_amounts()
+    {
+        var v = TaxBracketView.Of(TaxBracketPosition.Of(Rules, 73_900m, 2.5m));
+
+        Assert.Equal(new TaxBandView("11844.00", "30200.00", "11"), v.Bands[1]);
+        Assert.Equal("30", v.Bands[2].Rate);
+        Assert.Null(v.Bands[^1].To);
+        Assert.Equal("29560.00", v.Quotient);
+        Assert.Equal("640.00", v.ToNext);
     }
 
     [Fact]
