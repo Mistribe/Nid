@@ -63,6 +63,24 @@ describe('OverviewTab', () => {
     expect(notes).toHaveTextContent('Aucun versement PER enregistré cette année.');
   });
 
+  it('À savoir tells a missing gross salary', async () => {
+    serve({ notices: [{ code: 'missing_gross', item: 'i1', name: 'Prime', amount: '1000.00' }] });
+    await renderApp('/tax');
+
+    const notes = await screen.findByRole('region', { name: 'À savoir' });
+    expect(within(notes).getByRole('link', { name: /Prime/ })).toHaveAttribute('href', '/income/i1');
+    expect(notes).toHaveTextContent('Pas de brut renseigné : le net versé sert d’estimation.');
+  });
+
+  it('À savoir tells the sales it could not count', async () => {
+    serve({ notices: [{ code: 'realised_gain_unknown', item: 'c', name: 'CTO', amount: '1000.00' }] });
+    await renderApp('/tax');
+
+    const notes = await screen.findByRole('region', { name: 'À savoir' });
+    expect(within(notes).getByRole('link', { name: /CTO/ })).toHaveAttribute('href', '/investments/c');
+    expect(notes).toHaveTextContent('Ventes sans nombre de parts ou sans prix de revient : leur plus-value n’est pas comptée.');
+  });
+
   it('À savoir folds past five rows', async () => {
     serve({ notices: savings(7) });
     const { user } = await renderApp('/tax');
@@ -95,11 +113,13 @@ describe('OverviewTab', () => {
 
   it('a piste keeps the scope and the year', async () => {
     serve({ result: result({ per: PER }) });
-    const { user, router } = await renderApp('/tax?scope=me');
+    const { user, router } = await renderApp('/tax?scope=me&year=2025');
 
     const pistes = await screen.findByRole('region', { name: 'Pistes' });
-    await user.click(within(pistes).getByRole('link', { name: /sur le PER/ }));
-    await waitFor(() => expect(router.state.location.search).toMatchObject({ scope: 'me', tab: 'detail' }));
+    const link = within(pistes).getByRole('link', { name: /sur le PER/ });
+    expect(link.getAttribute('href')).toMatch(/year=.*2025/);
+    await user.click(link);
+    await waitFor(() => expect(router.state.location.search).toMatchObject({ scope: 'me', tab: 'detail', year: '2025' }));
   });
 
   it('no Pistes card with nothing to suggest', async () => {

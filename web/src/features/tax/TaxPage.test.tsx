@@ -921,9 +921,22 @@ describe('TaxPage, page grammar', () => {
 
     expect(await screen.findByRole('tab', { name: 'Déclarations', selected: true })).toBeInTheDocument();
     expect(screen.getByRole('radio', { name: form, checked: true })).toBeInTheDocument();
+    expect(router.state.location.href).not.toContain('%22');
+    if (form === '2044') expect(router.state.location.href).toContain('form=2044');
     await user.click(screen.getByRole('tab', { name: 'Calcul' }));
     expect(router.state.location.href).toContain('tab=detail');
     expect(router.state.location.href).not.toContain('%22');
+  });
+
+  it('the 2044 is chosen with a plain number in the URL, and an alias names its own form', async () => {
+    server.use(tax(), http.get('*/api/v1/tax/2044', () => HttpResponse.json(view2044())));
+    const { user, router } = await renderApp('/tax?tab=2042&form=2044');
+
+    await user.click(await screen.findByRole('radio', { name: '2044' }));
+    await waitFor(() => expect(router.state.location.href).toContain('form=2044'));
+    expect(router.state.location.href).not.toContain('%22');
+    await user.click(screen.getByRole('radio', { name: '2042' }));
+    await waitFor(() => expect(router.state.location.href).not.toContain('form='));
   });
 
   it('an old 2044 link to a past year lands on Avis', async () => {
@@ -969,6 +982,14 @@ describe('TaxPage, page grammar', () => {
     // Issue 355: the tables fill the column, as every other table; no reading width of their own.
     const capped = (el: Element | null): boolean => !!el && el !== panel && (/\bmax-w-(?!full\b)/.test(el.className) || capped(el.parentElement));
     expect(within(panel).getAllByRole('table').filter(capped).map((table) => table.getAttribute('aria-label'))).toEqual([]);
+  });
+
+  it('prints the hero with the overview', async () => {
+    server.use(tax());
+    await renderApp('/tax');
+
+    expect(await screen.findByRole('region', { name: /^Impôt total/ })).toBeInTheDocument();
+    expect(figures().parentElement).not.toHaveClass('print:hidden');
   });
 
   it('printing a declaration prints the form only', async () => {

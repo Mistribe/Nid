@@ -71,9 +71,9 @@ export function TaxPage() {
   const notices = assessments.filter((a) => String(a.year) === year);
   // The Avis tab exists only for a year with notices: a URL asking for it elsewhere shows the overview.
   const tab = rawTab === 'assessment' && !notices.length ? 'overview' : rawTab;
-  const form = search.form === '2044' ? '2044' : '2042';
+  const form = search.form === 2044 ? '2044' : '2042';
   const setForm = (next: '2042' | '2044') => {
-    void navigate({ to: '.', replace: true, resetScroll: false, search: ((prev: Record<string, unknown>) => ({ ...prev, form: next === '2044' ? '2044' : undefined })) as never });
+    void navigate({ to: '.', replace: true, resetScroll: false, search: ((prev: Record<string, unknown>) => ({ ...prev, form: next === '2044' ? 2044 : undefined })) as never });
   };
   const assessmentTab = <AssessmentTab notices={notices} persons={people} gaps={estimate?.gaps} adults={estimate?.adults ?? []} />;
   // Held here, not in the tab: Radix unmounts a hidden tab, and the draft outlives a tab switch.
