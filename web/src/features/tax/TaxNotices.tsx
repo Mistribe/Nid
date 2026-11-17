@@ -44,6 +44,7 @@ const KINDS: readonly Kind[] = [
   { kind: 'withdrawal_not_estimated', codes: ['withdrawal_not_estimated'], tile: '/investments', link: envelope },
   { kind: 'per_without_contributions', codes: ['per_without_contributions'], tile: '/investments', link: envelope },
   { kind: 'childcare', codes: CHILDCARE, tile: '/childcare' },
+  { kind: 'home_employment', codes: ['home_employment_from_months'], tile: '/childcare' },
   { kind: 'rental_charges_removed', codes: ['rental_charges_removed'], tile: '/properties', link: (id) => ({ to: '/properties/$id', params: { id } }) },
   { kind: 'rental_fee_not_counted', codes: ['rental_fee_not_counted'], tile: '/loans', link: (id) => ({ to: '/loans/$id', params: { id } }) },
   { kind: 'rental_to_check', codes: ['rental_to_check'], tile: '/properties', link: (id) => ({ to: '/properties/$id', params: { id }, search: { tab: 'expenses' } }) },
@@ -60,6 +61,15 @@ function childcareItems(t: TFunction, notices: TaxNotice[], year: number): Notic
       return t('tax.notices.childcare.estimated', { amount, estimated: n.monthsEstimated });
     }).join(' · '),
     link: { to: '/childcare/$id', params: { id }, search: { tab: 'summary', year: String(year) } },
+  }));
+}
+
+/** #94: a nanny's tracked months, and for the current year how the rest of it is counted. */
+function homeItems(t: TFunction, notices: TaxNotice[]): NoticeItem[] {
+  return notices.map((n) => ({
+    key: n.item, name: n.name,
+    detail: t(n.monthsEstimated ? 'tax.notices.home_employment.projected' : 'tax.notices.home_employment.recorded',
+      { amount: eur(n.amount), validated: n.monthsValidated, estimated: n.monthsEstimated }),
   }));
 }
 
@@ -82,7 +92,7 @@ export function noticeGroups(t: TFunction, { notices, warnings = [], year, rules
     const mine = notices.filter((n) => k.codes.includes(n.code));
     if (!mine.length) continue;
     groups.push({ kind: k.kind, tile: k.tile, heading: t(`tax.notices.kind.${k.kind}`),
-      items: k.kind === 'childcare' ? childcareItems(t, mine, year) : mine.map((n, i) => item(n, k.link, i)) });
+      items: k.kind === 'childcare' ? childcareItems(t, mine, year) : k.kind === 'home_employment' ? homeItems(t, mine) : mine.map((n, i) => item(n, k.link, i)) });
   }
   const unknown = notices.filter((n) => !KINDS.some((k) => k.codes.includes(n.code)));
   if (unknown.length || unknownWarnings.length) groups.push({ kind: 'other', tile: '/tax', heading: t('tax.notices.kind.other'), items: unknown.map((n, i) => item(n, undefined, i)) });

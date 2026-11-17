@@ -514,6 +514,11 @@ public sealed class TaxEstimates(
             notices.Add(new TaxNoticeView(validated > 0 ? "childcare_projected" : "childcare_estimated", arrangement.Key.Item, arrangement.Key.Name,
                 Amount(arrangement.Sum(l => l.Amount)), validated, arrangement.Count()));
         }
+        // #94: a nanny's tracked months, and the rest of the current year at their mean, replace the profile's home employment.
+        var home = lines.Where(l => l.Code is TaxLineCodes.HomeEmploymentTracked or TaxLineCodes.HomeEmploymentProjected).ToList();
+        foreach (var nanny in home.GroupBy(l => (l.Item, l.Name)))
+            notices.Add(new TaxNoticeView("home_employment_from_months", nanny.Key.Item, nanny.Key.Name, Amount(nanny.Sum(l => l.Amount)),
+                nanny.Count(l => l.Code == TaxLineCodes.HomeEmploymentTracked), nanny.Count(l => l.Code == TaxLineCodes.HomeEmploymentProjected)));
         var rentals = lines.Where(l => l.Code == TaxLineCodes.RentalProperty).ToList();
         var pinel = 0m;
         foreach (var commitment in profile.Pinel)
@@ -538,7 +543,7 @@ public sealed class TaxEstimates(
             columns.Sum(c => c.L215), columns.Sum(c => c.L250), columns.Sum(c => c.L240),
             TryRegime(profile.RentalRegime, out var regime) ? regime : null,
             All(TaxLineCodes.CapitalIncome) + All(TaxLineCodes.SavingsInterest), All(TaxLineCodes.NonTaxable), pinel,
-            statements.Count + projected.Count > 0 ? statements.Sum(l => l.Amount) + projected.Sum(l => l.Amount) : profile.ChildcareOutsideHome, profile.HomeEmployment, profile.Donations, profile.DonationsAid, profile.RentalDeficitCarried, profile.PerPooling,
+            statements.Count + projected.Count > 0 ? statements.Sum(l => l.Amount) + projected.Sum(l => l.Amount) : profile.ChildcareOutsideHome, home.Count > 0 ? home.Sum(l => l.Amount) : profile.HomeEmployment, profile.Donations, profile.DonationsAid, profile.RentalDeficitCarried, profile.PerPooling,
             profile.DonationsAidLate, profile.RentalEnergyWorks,
             All(TaxLineCodes.CapitalDividends), profile.CapitalScale, profile.DeductibleCsg, referenceBefore,
             profile.AlimonyPaid, profile.AlimonyAdultChildren, profile.AlimonyAdultChildrenCount,

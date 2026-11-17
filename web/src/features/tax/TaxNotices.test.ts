@@ -51,6 +51,15 @@ describe('noticeGroups', () => {
     expect(c1.link?.search).toEqual({ tab: 'summary', year: '2026' });
   });
 
+  it("says how a nanny's tracked months and the rest of the year are counted", () => {
+    const g = groups([notice('home_employment_from_months', 'n1', '3500.00', { monthsValidated: 2, monthsEstimated: 3 })]);
+    expect(g[0]!.kind).toBe('home_employment');
+    const detail = g[0]!.items[0]!.detail!.replace(/\s/g, ' ');
+    expect(detail).toContain('3 500,00 €');
+    expect(detail).toContain('2 mois enregistrés');
+    expect(detail).toContain('3 mois restants');
+  });
+
   it('a contribution rate reads as a percent, a notice without amount shows none', () => {
     expect(groups([notice('contribution_rate_differs', 'i', '22.85')])[0]!.items[0]!.amount).toBe('22,85 %');
     expect(groups([notice('per_without_contributions', 'e')])[0]!.items[0]!.amount).toBeUndefined();

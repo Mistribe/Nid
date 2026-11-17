@@ -114,3 +114,39 @@ public class NannyApiTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
         Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultA, HttpMethod.Get, url)).StatusCode);
     }
 }
+
+/// <summary>#94: the tax estimate counts a nanny's tracked months for the home-employment credit, the rest of 2025 at their mean.</summary>
+public class NannyTaxTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
+{
+    private static async Task ProfileAsync(NidApp app)
+        => Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Put, "/api/v1/tax/profile/2025?scope=household", new
+        {
+            dependents = 1, homeEmployment = "9999", pinel = Array.Empty<object>(),
+        })).StatusCode);
+
+    private static string Home(JsonElement tax) => tax.GetProperty("inputs").GetProperty("homeEmployment").GetString()!;
+
+    [Fact]
+    public async Task Tracked_months_replace_the_profile_amount_and_the_rest_of_the_year_counts_at_their_mean()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await ProfileAsync(app);
+        Assert.Equal("9999.00", Home(await GetAsync(app, "/api/v1/tax?year=2025&scope=household")));
+
+        var created = await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/childcare/nannies", new
+        {
+            name = "Garde à domicile", visibility = "shared", owners = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } },
+        });
+        var url = $"/api/v1/childcare/nannies/{(await JsonAsync(created)).GetProperty("id").GetGuid()}";
+        foreach (var (month, paid) in new[] { ("2025-08", "1000"), ("2025-09", "1200") })
+            Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Put, $"{url}/months/{month}", new { paid, cmg = "400" })).StatusCode);
+
+        var tax = await GetAsync(app, "/api/v1/tax?year=2025&scope=household");
+        // Today is 2025-10-15: 600 + 800, then October to December at 700.
+        Assert.Equal("3500.00", Home(tax));
+        var notice = tax.GetProperty("notices").EnumerateArray().Single(n => n.GetProperty("code").GetString() == "home_employment_from_months");
+        Assert.Equal(2, notice.GetProperty("monthsValidated").GetInt32());
+        Assert.Equal(3, notice.GetProperty("monthsEstimated").GetInt32());
+        Assert.Equal("3500.00", notice.GetProperty("amount").GetString());
+    }
+}

@@ -322,6 +322,10 @@
         "projected": "reste de l’année : {{amount}} ({{validated}} mois validés, {{estimated}} estimés)",
         "estimated": "{{amount}} estimés d’après le contrat pour {{estimated}} mois"
       },
+      "home_employment": {
+        "recorded": "{{amount}} d’après {{validated}} mois enregistrés",
+        "projected": "{{amount}} : {{validated}} mois enregistrés, puis {{estimated}} mois restants comptés à leur moyenne"
+      },
       "kind": {
         "missing_gross": "Pas de brut renseigné : le net versé sert d’estimation.",
         "contribution_rate_differs": "Le taux de cotisations saisi s’écarte du taux constaté sur les bulletins.",
@@ -335,6 +339,7 @@
         "withdrawal_not_estimated": "L’impôt sur ces retraits n’est pas estimé.",
         "per_without_contributions": "Aucun versement PER enregistré cette année.",
         "childcare": "Frais de garde : le montant du profil est remplacé par celui des relevés, ou estimé d’après le contrat en attendant un relevé validé.",
+        "home_employment": "Emploi à domicile : le montant du profil est remplacé par le coût net (salaire et cotisations, moins la CMG) des mois enregistrés de la garde à domicile ; pour l’année en cours, le reste de l’année est compté à leur moyenne.",
         "rental_charges_removed": "Charges locatives retirées des loyers enregistrés avec leurs charges.",
         "rental_fee_not_counted": "Pénalité de remboursement anticipé ou frais de prêt non comptés en ligne 250.",
         "rental_to_check": "Dépenses à vérifier (construction ou agrandissement, autres), non comptées : voir Déclaration 2044.",
@@ -358,7 +363,8 @@
       "savings_interest": "{{name}} : {{amount}} d’intérêts imposables cette année (compte d’épargne non réglementé). Si c’est un livret A, un LDDS, un LEP ou un livret jeune, indiquez-le sur le compte.",
       "savings_interest_unknown": "{{name}} : les intérêts de ce compte d’épargne non réglementé ne se distinguent pas des versements (solde de la banque ou aucun versement enregistré) ; ils ne sont pas comptés.",
       "realised_gain": "{{name}} : {{amount}} de plus-value nette sur les titres vendus cette année (case 3VG, ou 3VH si négative).",
-      "realised_gain_unknown": "{{name}} : {{amount}} de ventes sans nombre de parts ou sans prix de revient ; leur plus-value n’est pas comptée."
+      "realised_gain_unknown": "{{name}} : {{amount}} de ventes sans nombre de parts ou sans prix de revient ; leur plus-value n’est pas comptée.",
+      "home_employment_from_months": "Emploi à domicile de « {{name}} » : {{amount}} d’après {{validated}} mois enregistrés et {{estimated}} mois restants comptés à leur moyenne, à la place du montant du profil."
     },
     "per": {
       "title": "PER",
