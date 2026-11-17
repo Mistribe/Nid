@@ -238,6 +238,7 @@ public partial class LocalAccountsTests(PostgresFixture postgres) : IClassFixtur
     [InlineData("aaaaaaaaaaaaaaa", "auth.password_too_common")]
     [InlineData("qwertyuiop123", "auth.password_too_common")]
     [InlineData("i am bobby tables, really", "auth.password_too_common")]
+    [InlineData("SpectrumOnline", "auth.password_too_common")] // #295: from the public leaked-password list, in any case
     public async Task A_password_too_short_or_too_common_is_refused(string password, string code)
     {
         await using var host = await HostAsync();
