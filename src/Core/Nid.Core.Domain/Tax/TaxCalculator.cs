@@ -44,7 +44,8 @@ public sealed record TaxDeclarant(
 /// <c>AlternateCustody</c>: how many of the <c>Dependents</c> live in alternate custody (box H), counted as quarter shares.
 /// <c>SingleParent</c>: a single declarant living alone with the dependents (box T), half a share more (a quarter with only
 /// alternate custody). <c>DisabledDependents</c>: how many of the <c>Dependents</c> hold a disability card (box G, or I in
-/// alternate custody), half a share more each (a quarter in alternate custody).
+/// alternate custody), half a share more each (a quarter in alternate custody). <c>AlternateUnder6</c>: how many of the
+/// <c>ChildrenUnder6</c> live in alternate custody, each with half the childcare cap.
 /// </summary>
 public sealed record TaxInputs(
     int Year, IReadOnlyList<TaxDeclarant> Declarants, int Dependents, int ChildrenUnder6,
@@ -54,7 +55,7 @@ public sealed record TaxInputs(
     bool PerPooling = false, decimal DonationsAidLate = 0m, decimal RentalEnergyWorks = 0m,
     decimal CapitalDividends = 0m, bool CapitalScale = false, decimal DeductibleCsg = 0m, (decimal N1, decimal N2)? ReferenceIncomesBefore = null,
     decimal AlimonyPaid = 0m, decimal AlimonyAdultChildren = 0m, int AlimonyAdultChildrenCount = 0,
-    decimal RealisedGains = 0m, decimal CapitalLossesCarried = 0m, int AlternateCustody = 0, bool SingleParent = false, int DisabledDependents = 0);
+    decimal RealisedGains = 0m, decimal CapitalLossesCarried = 0m, int AlternateCustody = 0, bool SingleParent = false, int DisabledDependents = 0, int AlternateUnder6 = 0);
 
 /// <summary>Where a declarant's salary comes from: none, the entered net taxable income, the gross estimated, or both.</summary>
 public enum SalaryMethod { None, Entered, Estimated, Mixed }
@@ -299,7 +300,10 @@ public static class TaxCalculator
         var otherDonations = Math.Min(inputs.Donations + aidGiven - aid, rules.DonationIncomeShare * taxable);
         var donation = Math.Min(rules.DonationAidRate * aid + rules.DonationRate * otherDonations, tax);
         tax -= donation;
-        var childcare = rules.ChildcareRate * Math.Min(inputs.ChildcareOutsideHome, rules.ChildcareCapPerChild * inputs.ChildrenUnder6);
+        // A child under 6 in alternate custody has half the cap (CGI art. 200 quater B, boxes 7GE to 7GG).
+        var under6 = Math.Max(0, inputs.ChildrenUnder6);
+        var childcareCap = rules.ChildcareCapPerChild * (under6 - Math.Clamp(inputs.AlternateUnder6, 0, under6) / 2m);
+        var childcare = rules.ChildcareRate * Math.Min(inputs.ChildcareOutsideHome, childcareCap);
         // A child in alternate custody raises the cap by half as much.
         var alternate = Math.Clamp(inputs.AlternateCustody, 0, Math.Max(0, inputs.Dependents));
         var homeCap = Math.Min(rules.HomeEmploymentBase + rules.HomeEmploymentPerChild * (inputs.Dependents - alternate / 2m), rules.HomeEmploymentMax);
@@ -505,8 +509,8 @@ public static class TaxCalculator
     /// <summary>
     /// CGI art. 194–195 and 197 I 2: the household's shares and the cap on what the shares beyond the declarants' save. Children are
     /// ranked those at home first: half a share each for the first two, a whole one from the third, half that in alternate custody
-    /// (a quarter cap each). Box T adds half a share with the first child's (a quarter with alternate custody only), capped together
-    /// at their own amount. A disabled declarant's or dependent's half share is capped with its complementary reduction (art. 197 I 2
+    /// (a quarter cap each). Box T adds half a share with the first child's (with alternate custody only, a quarter for one child, half
+    /// a share from two), capped together at their own amount. A disabled declarant's or dependent's half share is capped with its complementary reduction (art. 197 I 2
     /// al. 4), a disabled child in alternate custody a quarter share with half of it.
     /// </summary>
     public static (decimal Parts, decimal Cap) Shares(TaxRules rules, TaxInputs inputs)
@@ -523,11 +527,14 @@ public static class TaxCalculator
         var disabledHome = Math.Min(disabledChildren, home);
         var disabledAlternate = disabledChildren - disabledHome;
         var single = inputs.SingleParent && inputs.Declarants.Count == 1 && children > 0;
-        var singleParts = !single ? 0m : home > 0 ? 0.5m : 0.25m;
+        // Box T with alternate custody only (art. 194 II): a quarter share for one child, half a share from two.
+        var singleParts = !single ? 0m : home > 0 || alternate >= 2 ? 0.5m : 0.25m;
         var cap = rules.FamilyCapPerHalfShare * homeParts * 2 + rules.FamilyCapPerQuarterShare * alternateParts * 4
                   + rules.DisabilityHalfShareCap * (disabled + disabledHome + disabledAlternate / 2m)
                   // Box T and the first child's share, capped together instead of each on its own.
-                  + (!single ? 0m : home > 0 ? rules.SingleParentCap - rules.FamilyCapPerHalfShare : rules.SingleParentCap / 2 - rules.FamilyCapPerQuarterShare);
+                  // With alternate custody only, half the cap for each of the first two children (art. 197 I 2 al. 2).
+                  + (!single ? 0m : home > 0 ? rules.SingleParentCap - rules.FamilyCapPerHalfShare
+                      : Math.Min(alternate, 2) * (rules.SingleParentCap / 2 - rules.FamilyCapPerQuarterShare));
         return (inputs.Declarants.Count + 0.5m * (disabled + disabledHome) + 0.25m * disabledAlternate + homeParts + alternateParts + singleParts, cap);
     }
 

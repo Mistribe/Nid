@@ -3,11 +3,13 @@ import { Field } from '@/components/form/Field';
 import { Section } from '@/components/page/Section';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
+import { InfoTip } from '@/components/InfoTip';
+import { tipText } from '../format';
 import { errorText, type SectionProps } from './fields';
 import '@/locales/tax';
 
 /**
- * The household: the dependents the declaration counts (alternate custody and disability among them), box T for a single adult, a disability
+ * The household: the dependents the declaration counts (alternate custody, under 6 or not, and disability among them), box T for a single adult, a disability
  * card per adult, and the department that dates the filing deadline (#409).
  */
 export function HouseholdSection({ estimate, draft }: SectionProps) {
@@ -25,7 +27,11 @@ export function HouseholdSection({ estimate, draft }: SectionProps) {
         <Field label={t('tax.profile.alternate')} hint={t('tax.profile.alternate_hint')} badge="H" error={errorText(t, draft.errors, 'alternate')}>
           {(c) => <Input inputMode="numeric" {...c} value={d.alternate} onChange={(e) => draft.set({ alternate: e.target.value })} />}
         </Field>
-        <Field label={t('tax.profile.disabled_dependents')} hint={t('tax.profile.disabled_dependents_hint')} badge="G" error={errorText(t, draft.errors, 'disabledChildren')}>
+        <Field label={t('tax.profile.alternate_under6')} hint={t('tax.profile.alternate_under6_hint')} error={errorText(t, draft.errors, 'alternateUnder6')}>
+          {(c) => <Input inputMode="numeric" {...c} value={d.alternateUnder6} onChange={(e) => draft.set({ alternateUnder6: e.target.value })} />}
+        </Field>
+        <Field label={t('tax.profile.disabled_dependents')} hint={t('tax.profile.disabled_dependents_hint')} badge="G / R"
+          tip={<InfoTip label={t('tax.profile.disabled_dependents')}>{tipText(t, 'disability_card')}</InfoTip>} error={errorText(t, draft.errors, 'disabledChildren')}>
           {(c) => <Input inputMode="numeric" {...c} value={d.disabledChildren} onChange={(e) => draft.set({ disabledChildren: e.target.value })} />}
         </Field>
         <Field label={t('tax.profile.department')} hint={t('tax.profile.department_hint')} error={errorText(t, draft.errors, 'department')}>

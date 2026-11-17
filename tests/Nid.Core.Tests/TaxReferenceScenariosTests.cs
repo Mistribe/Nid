@@ -68,7 +68,8 @@ public class TaxReferenceScenariosTests
 
     /// <summary>
     /// Issue #236: pensions and alimony, worked by hand on the brochure pratique IR 2026 (allowance 454 € to 4 439 €, an adult child's
-    /// alimony within 6 855 €), with the boxes to give the simulator in each comment.
+    /// alimony within 6 855 €), then run through the simplified simulator on 17 November 2026 (#320), the boxes in each comment. The
+    /// declarants were born in 1970 (no art. 157 bis allowance).
     /// </summary>
     public static TheoryData<string, TaxInputs, Expected> PensionScenarios => new()
     {
@@ -84,7 +85,9 @@ public class TaxReferenceScenariosTests
             Household([Pensioner("A", 40_000m)]) with { AlimonyAdultChildren = 8_000m, AlimonyAdultChildrenCount = 1 },
             new Expected(1m, 29_145m, 29_145m, 1_930m, 24m, 1_906m, 4.8m)
         },
-        // Single; 1AJ 20 000, 1AO 6 000 of alimony received: each its own 10 % allowance.
+        // Single; 1AJ 20 000, 1AO 6 000 of alimony received: each its own 10 % allowance. Known gap: the simulator prints a taux
+        // foyer of 3.9 %, taking the alimony net of its allowance into the rate's base (988 / 25 400); Nid holds the alimony with the
+        // pensions, whose gross is the base (988 / 26 000 = 3.8 %). The tax itself matches.
         {
             "single_salary_and_alimony_received",
             Household([Salaried("A", 20_000m) with { Pensions = 6_000m }]),
@@ -93,8 +96,10 @@ public class TaxReferenceScenariosTests
     };
 
     /// <summary>
-    /// Issue #236: box T, alternate custody and a disabled declarant, worked by hand on the caps service-public.gouv.fr gives for the
-    /// revenus 2025 (1 807 € a half share, 904 € a quarter, 4 262 € box T with the first child, 3 608 € box P), the boxes in each comment.
+    /// Issue #236: box T, alternate custody and a disabled declarant on the caps of the revenus 2025 (1 807 € a half share, half of it a
+    /// quarter, 4 262 € box T with the first child, 3 608 € box P), run through the simplified simulator on 17 November 2026 (#320),
+    /// the boxes in each comment. That run fixed two hand-worked figures: a quarter share's cap is 903.50 €, not the 904 € service-public
+    /// rounds it to, and box T with alternate custody only is half a share from two children (art. 194 II), a quarter for one.
     /// </summary>
     public static TheoryData<string, TaxInputs, Expected> ShareScenarios => new()
     {
@@ -110,17 +115,35 @@ public class TaxReferenceScenariosTests
             Household([Salaried("A", 100_000m)], dependents: 1) with { SingleParent = true },
             new Expected(2m, 90_000m, 90_000m, 16_439m, 0m, 16_439m, 16.4m)
         },
-        // Married, two children born 2014 and 2017 in alternate custody (box H 2); 1AJ 50 000, 1BJ 40 000: capped at 2 × 904.
+        // Married, two children born 2014 and 2017 in alternate custody (box H 2); 1AJ 50 000, 1BJ 40 000: capped at 2 × 903.50.
         {
             "couple_alternate_custody_capped",
             Household([Salaried("A", 50_000m), Salaried("B", 40_000m)], dependents: 2) with { AlternateCustody = 2 },
-            new Expected(2.5m, 81_000m, 81_000m, 8_700m, 0m, 8_700m, null)
+            new Expected(2.5m, 81_000m, 81_000m, 8_701m, 0m, 8_701m, 9.7m)
         },
-        // Single, living alone, two children in alternate custody (box H 2), box T; 1AJ 30 000: 1.75 shares; decote.
+        // Single, living alone, two children in alternate custody (box H 2), box T; 1AJ 30 000: 2 shares; the decote takes it all.
         {
             "single_parent_alternate_custody",
             Household([Salaried("A", 30_000m)], dependents: 2) with { AlternateCustody = 2, SingleParent = true },
-            new Expected(1.75m, 27_000m, 27_000m, 737m, 564m, 173m, 0.6m)
+            new Expected(2m, 27_000m, 27_000m, 418m, 418m, 0m, 0m)
+        },
+        // Single, living alone, a child born 2014 in alternate custody (box H 1), box T; 1AJ 30 000: 1.5 shares; decote.
+        {
+            "single_parent_one_child_alternate_custody",
+            Household([Salaried("A", 30_000m)], dependents: 1) with { AlternateCustody = 1, SingleParent = true },
+            new Expected(1.5m, 27_000m, 27_000m, 1_056m, 419m, 637m, null)
+        },
+        // The same with 1AJ 100 000: the 0.5 share saves more than 4 262 / 2.
+        {
+            "single_parent_one_child_alternate_custody_capped",
+            Household([Salaried("A", 100_000m)], dependents: 1) with { AlternateCustody = 1, SingleParent = true },
+            new Expected(1.5m, 90_000m, 90_000m, 18_570m, 0m, 18_570m, null)
+        },
+        // Two children in alternate custody (box H 2), box T; 1AJ 100 000: 2 shares capped at 4 262, as a child at home.
+        {
+            "single_parent_alternate_custody_capped",
+            Household([Salaried("A", 100_000m)], dependents: 2) with { AlternateCustody = 2, SingleParent = true },
+            new Expected(2m, 90_000m, 90_000m, 16_439m, 0m, 16_439m, null)
         },
         // Single, a disability card (box P), no child; 1AS 40 000: 1.5 shares save 1 858, over 1 807 yet within 3 608.
         {
@@ -133,22 +156,31 @@ public class TaxReferenceScenariosTests
     /// <summary>
     /// Issue #288: a disabled dependent (box G) and the allowance of CGI art. 157 bis, worked by hand on the revenus 2025 figures
     /// (3 608 € a disabled person's half share with its complementary reduction; 2 822 € up to 17 670 €, 1 411 € up to 28 430 €,
-    /// BOI-IR-BASE-40), the boxes in each comment.
+    /// BOI-IR-BASE-40), then run through the simplified simulator on 17 November 2026 (#320), which matched, the boxes in each comment.
     /// </summary>
     public static TheoryData<string, TaxInputs, Expected> DisabilityScenarios => new()
     {
         // Married, a child born 2016 at home with a disability card (boxes F 1, G 1); 1AJ 45 000, 1BJ 40 000. 3 shares save
-        // 4 571, over the 3 614 of two plain half shares yet within 1 807 + 3 608.
+        // 4 571, over the 3 614 of two plain half shares yet within 1 807 + 3 608. The simulator prints 5 544 of « droits simples »
+        // and 957 of complementary reduction. A disabled adult living with the couple (box R 1, born 1990) gives the same figures.
         {
             "couple_disabled_child",
             Household([Salaried("A", 45_000m), Salaried("B", 40_000m)], dependents: 1) with { DisabledDependents = 1 },
-            new Expected(3m, 76_500m, 76_500m, 4_587m, 0m, 4_587m, null)
+            new Expected(3m, 76_500m, 76_500m, 4_587m, 0m, 4_587m, 5.4m)
         },
-        // Single, born 1955; 1AS 30 000: 27 000 of net global income, 1 411 off it; decote.
+        // Single, born 1955; 1AS 30 000: 27 000 of net global income, 1 411 off it (« abattements spéciaux »); decote.
         {
             "single_pensioner_over_65",
             Household([Pensioner("A", 30_000m) with { Over65 = true }]),
-            new Expected(1m, 25_589m, 25_589m, 1_539m, 201m, 1_338m, null)
+            new Expected(1m, 25_589m, 25_589m, 1_539m, 201m, 1_338m, 4.5m)
+        },
+        // Married, a child born 2022 in alternate custody (box H 1); 1AJ 42 000, 1BJ 31 000, 7GE 4 000: the childcare cap halved
+        // to 1 750, 875 of credit.
+        {
+            "couple_alternate_custody_childcare",
+            Household([Salaried("A", 42_000m), Salaried("B", 31_000m)], dependents: 1, under6: 1)
+                with { AlternateCustody = 1, AlternateUnder6 = 1, ChildcareOutsideHome = 4_000m },
+            new Expected(2.25m, 65_700m, 65_700m, 5_014m, 0m, 4_139m, 6.9m)
         },
     };
 
@@ -187,6 +219,9 @@ public class TaxReferenceScenariosTests
 
         var home = TaxCalculator.Compute(Scenario("couple_home_employment_refund"));
         Assert.Equal((750m, 4_000m), (Euro(home.DonationReduction), Euro(home.HomeEmploymentCredit)));
+
+        var alternate = TaxCalculator.Compute(DisabilityScenarios.Select(s => s.Data).Single(d => d.Item1 == "couple_alternate_custody_childcare").Item2);
+        Assert.Equal(875m, Euro(alternate.ChildcareCredit));
     }
 
     [Fact]

@@ -153,7 +153,7 @@ public static class TaxEndpoints
         IReadOnlyDictionary<Guid, string>? ExemptIncomes = null, string? DonationsAidLate = null, string? RentalEnergyWorks = null,
         string? Department = null, bool CapitalScale = false, string? DeductibleCsg = null,
         string? AlimonyPaid = null, string? AlimonyAdultChildren = null, int AlimonyAdultChildrenCount = 0, string? CapitalLossesCarried = null,
-        int AlternateCustody = 0, bool Cohabiting = false, IReadOnlyList<Guid>? DisabledAdults = null, int DisabledDependents = 0)
+        int AlternateCustody = 0, bool Cohabiting = false, IReadOnlyList<Guid>? DisabledAdults = null, int DisabledDependents = 0, int AlternateUnder6 = 0)
     {
         internal TaxProfile? Read(FieldReader reader)
         {
@@ -178,7 +178,7 @@ public static class TaxEndpoints
                 ? new TaxProfile(Statuses ?? new Dictionary<Guid, string>(), Dependents, ChildrenUnder6, RentalRegime, Pinel ?? [], childcare, home, donations, aid,
                     rates, expenses, unused, carried, ceilings, expiring, PerPooling, exempt, aidLate, energy,
                     string.IsNullOrWhiteSpace(Department) ? null : Department.Trim().ToUpperInvariant(), CapitalScale, csg,
-                    alimony, alimonyChildren, AlimonyAdultChildrenCount, losses, AlternateCustody, Cohabiting, DisabledAdults?.Distinct().ToList() ?? [], DisabledDependents)
+                    alimony, alimonyChildren, AlimonyAdultChildrenCount, losses, AlternateCustody, Cohabiting, DisabledAdults?.Distinct().ToList() ?? [], DisabledDependents, AlternateUnder6)
                 : null;
         }
     }
@@ -326,7 +326,7 @@ public static class TaxEndpoints
             AlimonyAdultChildrenCount: body.AlimonyAdultChildrenCount,
             RealisedGains: body.RealisedGains is null ? 0m : SignedAmount(reader, body.RealisedGains, "realisedGains"),
             CapitalLossesCarried: Amount(reader, body.CapitalLossesCarried, "capitalLossesCarried"),
-            AlternateCustody: body.AlternateCustody, SingleParent: body.SingleParent, DisabledDependents: body.DisabledDependents);
+            AlternateCustody: body.AlternateCustody, SingleParent: body.SingleParent, DisabledDependents: body.DisabledDependents, AlternateUnder6: body.AlternateUnder6);
         return reader.Ok ? inputs : null;
     }
 
