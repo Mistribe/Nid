@@ -180,8 +180,8 @@ public sealed class TaxEstimates(
         if (lastYear is not null)
         {
             var was = decimal.Parse(lastYear.Tax, CultureInfo.InvariantCulture);
-            previousYear = new TaxPreviousView(lastYear.Year, lastYear.Source, lastYear.Tax, Amount(thisYear - was),
-                was == 0m ? null : Math.Round((thisYear - was) / was * 100m, 1, MidpointRounding.AwayFromZero).ToString("0.0", CultureInfo.InvariantCulture));
+            previousYear = new TaxPreviousView(lastYear.Year, lastYear.Source, lastYear.Tax, Amount(Math.Round(thisYear, 2, MidpointRounding.AwayFromZero) - was),
+                was == 0m ? null : Math.Round((Math.Round(thisYear, 2, MidpointRounding.AwayFromZero) - was) / Math.Abs(was) * 100m, 1, MidpointRounding.AwayFromZero).ToString("0.0", CultureInfo.InvariantCulture));
         }
         return Result.Success(new TaxEstimateView(
             year, TaxProfileView.Of(stored?.Profile ?? TaxProfile.Empty), stored is { } s && s.Year != year ? s.Year : null,
@@ -222,9 +222,12 @@ public sealed class TaxEstimates(
             }
             else if (year >= TaxRules.FirstYear)
             {
-                var computed = await ComputeAsync(year, scope, today, ct);
+                var computed = await ComputeWithDataAsync(year, scope, today, ct);
                 if (computed.TryGetFailure(out var failure)) return Result.Failure<IReadOnlyList<TaxYearView>>(failure!);
-                computed.TryGetValue(out var r);
+                computed.TryGetValue(out var data);
+                // The year shown (upTo) always stands; an earlier year with nothing to estimate from is no point on the curve.
+                if (!data!.HasData && year != upTo) continue;
+                var r = data.Result;
                 years.Add(new TaxYearView(year, "estimate", Amount(r!.IncomeTax + r.CapitalFlatTax), Amount(r.NetTaxableIncome), r.AverageRate is { } a ? Percent(a) : null));
             }
         }

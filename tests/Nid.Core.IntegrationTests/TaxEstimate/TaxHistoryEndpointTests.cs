@@ -60,6 +60,8 @@ public class TaxHistoryEndpointTests(PostgresFixture fixture) : IClassFixture<Po
     public async Task History_estimates_years_without_notice()
     {
         await using var app = await StartAsync(fixture);
+        foreach (var year in new[] { 2025, 2026 })
+            Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Put, $"/api/v1/tax/profile/{year}?scope=me", new { dependents = 1, pinel = Array.Empty<object>() })).StatusCode);
 
         var history = await HistoryAsync(app);
 
@@ -76,6 +78,7 @@ public class TaxHistoryEndpointTests(PostgresFixture fixture) : IClassFixture<Po
     {
         await using var app = await StartAsync(fixture);
         await NoticeAsync(app, 2023, "900.00");
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Put, "/api/v1/tax/profile/2025?scope=me", new { dependents = 1, pinel = Array.Empty<object>() })).StatusCode);
 
         var history = await HistoryAsync(app);
 
@@ -112,12 +115,42 @@ public class TaxHistoryEndpointTests(PostgresFixture fixture) : IClassFixture<Po
     }
 
     [Fact]
+    public async Task History_skips_an_earlier_year_without_data_but_keeps_the_year_shown()
+    {
+        await using var app = await StartAsync(fixture);
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Put, "/api/v1/tax/profile/2026?scope=me", new { dependents = 1, pinel = Array.Empty<object>() })).StatusCode);
+
+        var estimate = await GetAsync(app, "/api/v1/tax?year=2026&scope=household");
+
+        Assert.Equal([2026], estimate.GetProperty("history").EnumerateArray().Select(y => y.GetProperty("year").GetInt32()));
+        Assert.Equal(JsonValueKind.Null, estimate.GetProperty("previous").ValueKind);
+
+        await using var empty = await StartAsync(fixture);
+        Assert.Equal([2026], (await HistoryAsync(empty)).GetProperty("years").EnumerateArray().Select(y => y.GetProperty("year").GetInt32()));
+    }
+
+    [Fact]
     public async Task History_respects_the_scope()
     {
         await using var app = await StartAsync(fixture);
         await NoticeAsync(app, 2025, "1200.00", joint: false);
 
         Assert.Equal("assessment", Row(await HistoryAsync(app, "me"), 2025).GetProperty("source").GetString());
-        Assert.Equal("estimate", Row(await HistoryAsync(app, "household"), 2025).GetProperty("source").GetString());
+        // In Foyer a notice only one adult declares is not the household's: its year has no data left.
+        Assert.DoesNotContain((await HistoryAsync(app, "household")).GetProperty("years").EnumerateArray(), y => y.GetProperty("year").GetInt32() == 2025);
+    }
+
+    [Fact]
+    public async Task History_leaves_out_a_notice_the_reader_does_not_declare()
+    {
+        await using var app = await StartAsync(fixture);
+        var response = await app.RawAsync(app.AdultB, HttpMethod.Post, "/api/v1/tax/assessments", new
+        {
+            year = 2025, declarants = new object[] { new { personId = app.AdultB.Value, rank = 1 } }, netTax = new { amount = "800.00", currency = "EUR" },
+        });
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+
+        foreach (var scope in new[] { "me", "household" })
+            Assert.DoesNotContain((await HistoryAsync(app, scope)).GetProperty("years").EnumerateArray(), y => y.GetProperty("source").GetString() == "assessment");
     }
 }
