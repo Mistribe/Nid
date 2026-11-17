@@ -64,11 +64,21 @@ public class AuditSchemaTests(PostgresFixture fixture) : IClassFixture<PostgresF
         await using var platform = PostgresFixture.NewPlatformContext(connection);
         await using var estate = PostgresFixture.NewRealEstateContext(connection);
         await using var income = PostgresFixture.NewIncomeContext(connection);
+        await using var investments = PostgresFixture.NewInvestmentsContext(connection);
+        await using var goals = PostgresFixture.NewGoalsContext(connection);
+        await using var documents = PostgresFixture.NewDocumentsContext(connection);
+        await using var banking = PostgresFixture.NewBankingContext(connection);
+        await using var childcare = PostgresFixture.NewChildcareContext(connection);
 
         Assert.False(estate.Database.HasPendingModelChanges());
         Assert.False(income.Database.HasPendingModelChanges());
         Assert.False(core.Database.HasPendingModelChanges());
         Assert.False(subs.Database.HasPendingModelChanges());
         Assert.False(platform.Database.HasPendingModelChanges());
+        Assert.False(investments.Database.HasPendingModelChanges());
+        Assert.False(goals.Database.HasPendingModelChanges());
+        Assert.False(documents.Database.HasPendingModelChanges());
+        Assert.False(banking.Database.HasPendingModelChanges());
+        Assert.False(childcare.Database.HasPendingModelChanges());
     }
 }
