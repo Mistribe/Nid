@@ -59,7 +59,7 @@
     "out_of_scope": "Non calculés : retraites, revenus d’indépendant, pensions alimentaires, location meublée, plus-values, retraits d’épargne (PEA, assurance-vie, PER), option pour le barème sur les revenus du capital, contribution sur les hauts revenus, parent isolé, garde alternée, invalidité.",
     "add_assessment": "Ajouter un avis",
     "assessment_tab": { "question": "Ce que l’administration a calculé, et l’écart avec Nid" },
-    "tab": { "overview": "Vue d’ensemble", "declarations": "Déclarations", "assessment": "Avis", "2042": "Déclaration 2042", "detail": "Calcul", "withholding": "Prélèvement", "profile": "Profil fiscal", "simulation": "Simuler", "sale": "Si tout était vendu", "evolution": "Évolution" },
+    "tab": { "overview": "Vue d’ensemble", "declarations": "Déclarations", "assessment": "Avis", "detail": "Calcul", "withholding": "Prélèvement", "profile": "Profil fiscal", "simulation": "Simuler", "sale": "Si tout était vendu", "evolution": "Évolution" },
     "step": {
       "salaries": "Salaires",
       "salary_allowance": "Abattement de 10 %",
