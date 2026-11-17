@@ -8,13 +8,14 @@ import { Folded } from '@/components/form/Folded';
 import { Segmented } from '@/components/form/Segmented';
 import { SelectField } from '@/components/form/SelectField';
 import { SectionCard } from '@/components/page/SectionCard';
+import { InfoTip } from '@/components/InfoTip';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Toggle } from '@/components/ui/toggle';
 import { STATUSES, TAX_SIMULATE, type TaxEstimate, type TaxInputs, type TaxResult } from '@/api/tax';
-import { REGIMES, regimeText } from '../format';
+import { REGIMES, regimeText, tipText } from '../format';
 import { DeclarantGrid, type GridRow } from '../profile/DeclarantGrid';
 import {
   applyScenario, draftErrors, FIELDS, groupsWithErrors, scenarios, toBody, toDraft,
@@ -34,6 +35,10 @@ const DECLARANT_ORDER: Record<GroupId, FieldKey[]> = {
   activity: ['salaryGross', 'otherTaxable', 'salaryTaxable', 'contributionRate', 'actualExpenses', 'exemptIncome'],
   per: ['perContributions', 'perCeiling', 'perUnusedCeiling', 'perExpiring', 'previousYearIncome'],
   household: [], rental: [], capital: [], expenses: [],
+};
+const fieldOf = (key: string): FieldKey | undefined => {
+  const name = key.split('.')[0] ?? '';
+  return Object.hasOwn(FIELDS, name) ? (name as FieldKey) : undefined;
 };
 const DEFAULT_OPEN: GroupId[] = ['activity'];
 const COUNTS = ['dependents', 'childrenUnder6'] as const;
@@ -56,7 +61,7 @@ export function SimulationForm({ estimate, scope, onResult }: {
   const simulate = $api.useMutation('post', TAX_SIMULATE);
   const errors = draftErrors(draft);
   const folded = groupsWithErrors(errors);
-  const foldedRare = new Set(Object.keys(errors).filter((k) => FIELDS[k.split('.')[0] as FieldKey].rare).map((k) => FIELDS[k.split('.')[0] as FieldKey].group));
+  const foldedRare = new Set(Object.keys(errors).flatMap((k) => { const f = fieldOf(k); return f && FIELDS[f].rare ? [FIELDS[f].group] : []; }));
   const message = (key: string) => (errors[key] ? t(FORMATS[errors[key]]) : undefined);
 
   const change = (next: SimulationDraft) => { setDraft(next); setScenario(null); simulate.reset(); onResult(null); };
@@ -82,10 +87,38 @@ export function SimulationForm({ estimate, scope, onResult }: {
     );
   };
 
+  // A plain explanation for the terms a household may not know: the profile's own texts where they exist.
+  const help = (k: FieldKey | 'status' | 'perPooling' | 'capitalScale' | 'donations' | 'childcareOutsideHome' | 'homeEmployment'): string | undefined => {
+    switch (k) {
+      case 'status': return t('tax.profile.status_hint');
+      case 'exemptIncome': return t('tax.profile.exempt_hint');
+      case 'perUnusedCeiling': return t('tax.profile.per_unused_hint');
+      case 'rentalDeficitCarried': return t('tax.profile.deficit_carried_hint');
+      case 'pinelReduction': return tipText(t, 'pinel');
+      case 'deductibleCsg': return t('tax.profile.deductible_csg_hint');
+      case 'capitalLossesCarried': return t('tax.profile.capital_losses_hint');
+      case 'capitalScale': return t('tax.profile.capital_option_hint.scale');
+      case 'donationsAid': return t('tax.profile.aid_hint');
+      case 'donations': return tipText(t, 'donations');
+      case 'childcareOutsideHome': return t('tax.profile.childcare_hint');
+      case 'homeEmployment': return t('tax.profile.home_hint');
+      case 'salaryTaxable': return t('tax.simulation.tip.salaryTaxable');
+      case 'otherTaxable': return t('tax.simulation.tip.otherTaxable');
+      case 'perContributions': return t('tax.simulation.tip.perContributions');
+      case 'perExpiring': return t('tax.simulation.tip.perExpiring');
+      case 'previousYearIncome': return t('tax.simulation.tip.previousYearIncome');
+      case 'perPooling': return t('tax.simulation.tip.perPooling');
+      case 'rentalInterest': return t('tax.simulation.tip.rentalInterest');
+      case 'capitalDividends': return t('tax.simulation.tip.capitalDividends');
+      case 'nonTaxableIncome': return t('tax.simulation.tip.nonTaxableIncome');
+      default: return undefined;
+    }
+  };
+  const tip = (k: Parameters<typeof help>[0], label: string) => { const text = help(k); return text ? <InfoTip label={label}>{text}</InfoTip> : undefined; };
   const adults = draft.inputs.declarants.map((d, i) => ({ id: String(i), displayName: d.name || t('tax.simulation.declarant') }));
   const input = (k: FieldKey, i: number) => draft.inputs.declarants[i]![k as 'salaryGross'] ?? '';
   const declarantRow = (k: FieldKey): GridRow => ({
-    key: k, label: t(`tax.input.${k as 'salaryGross'}`),
+    key: k, label: t(`tax.input.${k as 'salaryGross'}`), tip: tip(k, t(`tax.input.${k as 'salaryGross'}`)),
     hint: k === 'contributionRate' || k === 'actualExpenses' || k === 'perCeiling' ? t(`tax.input.${k}_hint`) : undefined,
     error: (id) => message(`${k}.${id}`),
     cell: (a, c) => <Input inputMode="decimal" {...c} value={input(k, Number(a.id))} onChange={(e) => setDeclarant(Number(a.id), { [k]: e.target.value })} />,
@@ -95,7 +128,7 @@ export function SimulationForm({ estimate, scope, onResult }: {
       {(c) => <Input inputMode="numeric" {...c} value={draft.counts[k]} onChange={(e) => change({ ...draft, counts: { ...draft.counts, [k]: e.target.value } })} />}
     </Field>
   ) : (
-    <Field key={k} label={t(`tax.input.${k as 'rentalGross'}`)} error={message(k)}>
+    <Field key={k} label={t(`tax.input.${k as 'rentalGross'}`)} tip={tip(k, t(`tax.input.${k as 'rentalGross'}`))} error={message(k)}>
       {(c) => <Input inputMode="decimal" {...c} value={draft.inputs[k as 'rentalGross']} onChange={(e) => setInput({ [k]: e.target.value })} />}
     </Field>
   ));
@@ -103,7 +136,7 @@ export function SimulationForm({ estimate, scope, onResult }: {
     <DeclarantGrid label={t(LABELS[group])} adults={adults} rows={[...extra, ...keys.map(declarantRow)]} />
   );
   const statusRow: GridRow = {
-    key: 'status', label: t('tax.input.status'),
+    key: 'status', label: t('tax.input.status'), tip: tip('status', t('tax.input.status')),
     cell: (a, c) => <SelectField {...c} value={draft.inputs.declarants[Number(a.id)]!.status} onValueChange={(v) => setDeclarant(Number(a.id), { status: v })}
       options={STATUSES.map((s) => ({ value: s, label: t(`tax.status.${s}`) }))} />,
   };
@@ -125,12 +158,12 @@ export function SimulationForm({ estimate, scope, onResult }: {
         {decl.length ? grid(group, common(decl), group === 'activity' ? [statusRow] : []) : null}
         {house.length ? <div className={cols}>{common(house).map(householdField)}</div> : null}
         {group === 'per' && adults.length > 1 ? (
-          <Field inline label={t('tax.input.perPooling')}>
+          <Field inline label={t('tax.input.perPooling')} tip={tip('perPooling', t('tax.input.perPooling'))}>
             {(c) => <Checkbox {...c} checked={draft.inputs.perPooling} onCheckedChange={(v) => setInput({ perPooling: v === true })} />}
           </Field>
         ) : null}
         {group === 'capital' ? (
-          <Field inline label={t('tax.input.capitalScale')}>
+          <Field inline label={t('tax.input.capitalScale')} tip={tip('capitalScale', t('tax.input.capitalScale'))}>
             {(c) => <Checkbox {...c} checked={draft.inputs.capitalScale} onCheckedChange={(v) => setInput({ capitalScale: v === true })} />}
           </Field>
         ) : null}

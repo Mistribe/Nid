@@ -662,6 +662,17 @@
       "scenarios_hint": "Un scénario repart de l’estimation et change une seule chose : ce que vous aviez saisi est remplacé.",
       "scenario": { "per": "Verser sur le PER", "salaries": "Mes salaires changent", "real": "Passer au réel", "child": "Un enfant de moins de 6 ans de plus" },
       "more": "Plus de champs",
+      "tip": {
+        "salaryTaxable": "Le net imposable de vos fiches de paie sur l’année (la case « net imposable »). Vide ou à zéro : Nid le déduit du brut.",
+        "otherTaxable": "Les revenus imposables qui ne sont pas des salaires, comme les allocations chômage versées dans l’année.",
+        "perContributions": "Ce que vous versez sur votre plan d’épargne retraite cette année. Ces versements se retirent de vos revenus imposables, dans la limite de votre plafond.",
+        "perExpiring": "La part du plafond des années passées qui disparaît au 31 décembre si vous ne la versez pas : elle sert en premier.",
+        "previousYearIncome": "Vos revenus d’activité nets de l’année d’avant. Nid s’en sert pour estimer votre plafond PER quand il n’a pas celui de votre avis.",
+        "perPooling": "Un couple peut utiliser le plafond de l’un pour les versements de l’autre : c’est la case 6QR de la déclaration.",
+        "rentalInterest": "Les intérêts de l’emprunt du logement loué et son assurance : ils se retirent de vos loyers, seulement au régime réel.",
+        "capitalDividends": "La part de ce montant qui vient d’actions. Au barème, elle est imposée sur 60 % seulement.",
+        "nonTaxableIncome": "Des revenus que vous touchez sans impôt (certaines aides, par exemple). Ils ne changent pas l’impôt, seulement les droits liés au revenu fiscal de référence."
+      },
       "declarant": "Déclarant",
       "submit": "Calculer",
       "reset": "Revenir à l’estimation",

@@ -181,4 +181,15 @@ describe('SimulationTab', () => {
       expect(screen.queryByRole('region', { name: 'Avant / après' })).toBeNull();
     });
   });
+
+  it('explains the tax terms beside their fields', async () => {
+    serve();
+    const { user } = await renderApp('/tax?tab=simulation');
+    expect(await screen.findByRole('button', { name: 'À propos : Statut' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'À propos : Autres revenus imposables (chômage)' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Épargne retraite (PER)' }));
+    expect(screen.getByRole('button', { name: 'À propos : Versements PER' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Placements' }));
+    expect(screen.getByRole('button', { name: 'À propos : Imposer les placements au barème (case 2OP)' })).toBeInTheDocument();
+  });
 });
