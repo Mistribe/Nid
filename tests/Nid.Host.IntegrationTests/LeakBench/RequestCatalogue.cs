@@ -590,6 +590,17 @@ public static class RequestCatalogue
         new(typeof(ListStatementsQuery), true, (_, item) => new ListStatementsQuery(item)),
         new(typeof(GetStatementQuery), true, (_, item) => new GetStatementQuery(item, new YearMonth(2025, 9))),
         new(typeof(GetChildcareYearQuery), true, (_, item) => new GetChildcareYearQuery(item, 2025)),
+        // #94: a nanny at home.
+        new(typeof(ListNanniesQuery), false, (_, _) => new ListNanniesQuery(VisibilityScope.Me, true)),
+        new(typeof(GetNannyQuery), true, (_, item) => new GetNannyQuery(item, 2025)),
+        new(typeof(CreateNannyCommand), false, (d, _) => new CreateNannyCommand("bench", Visibility.Shared, [new OwnerShare(d.App.AdultA, 10_000)])),
+        new(typeof(RenameNannyCommand), true, (_, item) => new RenameNannyCommand(item, "bench")),
+        new(typeof(PutNannyMonthCommand), true, (_, item) => new PutNannyMonthCommand(item, new YearMonth(2025, 1), 1000m, 400m, null)),
+        new(typeof(DeleteNannyMonthCommand), true, (_, item) => new DeleteNannyMonthCommand(item, new YearMonth(2025, 1))),
+        new(typeof(CloseNannyCommand), true, (_, item) => new CloseNannyCommand(item)),
+        new(typeof(ReopenNannyCommand), true, (_, item) => new ReopenNannyCommand(item)),
+        new(typeof(NannyDeletionQuery), true, (_, item) => new NannyDeletionQuery(item)),
+        new(typeof(DeleteNannyCommand), true, (_, item) => new DeleteNannyCommand(item, 1)),
         new(typeof(ContractEndQuery), true, (_, item) => new ContractEndQuery(item, new ContractEnd(EndReason.Withdrawal, new LocalDate(2026, 1, 5)))),
         new(typeof(GetSettlementQuery), true, (_, item) => new GetSettlementQuery(item)),
         // No days: an allowed writer meets the 422 on days, never an access refusal; version 1 is never stored.

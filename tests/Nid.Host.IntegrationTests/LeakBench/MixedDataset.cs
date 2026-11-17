@@ -57,11 +57,11 @@ public sealed class MixedDataset
         IReadOnlyDictionary<string, ItemId> incomeSources, IReadOnlyDictionary<string, ItemId> loans,
         IReadOnlyDictionary<string, ItemId> properties, IReadOnlyDictionary<string, ItemId> scenarios,
         IReadOnlyDictionary<string, ItemId> projectionScenarios, IReadOnlyDictionary<string, ItemId> saleScenarios,
-        IReadOnlyDictionary<string, ItemId> goals, IReadOnlyDictionary<string, ItemId> childcare,
+        IReadOnlyDictionary<string, ItemId> goals, IReadOnlyDictionary<string, ItemId> childcare, IReadOnlyDictionary<string, ItemId> nannies,
         IReadOnlyDictionary<string, IReadOnlyList<Guid>> proposals, IReadOnlyDictionary<ItemId, Guid> documents, IReadOnlyDictionary<ItemId, Guid> unlinkDocuments)
     {
-        (App, Items, Envelopes, IncomeSources, Loans, Properties, Scenarios, ProjectionScenarios, SaleScenarios, Goals, Childcare, Proposals, Documents, UnlinkDocuments) =
-            (app, items, envelopes, incomeSources, loans, properties, scenarios, projectionScenarios, saleScenarios, goals, childcare, proposals, documents, unlinkDocuments);
+        (App, Items, Envelopes, IncomeSources, Loans, Properties, Scenarios, ProjectionScenarios, SaleScenarios, Goals, Childcare, Nannies, Proposals, Documents, UnlinkDocuments) =
+            (app, items, envelopes, incomeSources, loans, properties, scenarios, projectionScenarios, saleScenarios, goals, childcare, nannies, proposals, documents, unlinkDocuments);
         names = items.ToDictionary(kv => kv.Value, kv => kv.Key);
         foreach (var (name, envelope) in envelopes)
             names[envelope] = name + " (envelope)";
@@ -81,6 +81,8 @@ public sealed class MixedDataset
             names[goal] = name + " (goal)";
         foreach (var (name, arrangement) in childcare)
             names[arrangement] = name + " (childcare)";
+        foreach (var (name, nanny) in nannies)
+            names[nanny] = name + " (nanny)";
     }
 
     public NidApp App { get; }
@@ -126,6 +128,9 @@ public sealed class MixedDataset
 
     /// <summary>The childminder twin of each row: same §2 name, label, owners and visibility, for the dependent D. The childcare requests run against these.</summary>
     public IReadOnlyDictionary<string, ItemId> Childcare { get; }
+
+    /// <summary>#94: the nanny-at-home twin of each row, named after its label. The nanny requests run against these.</summary>
+    public IReadOnlyDictionary<string, ItemId> Nannies { get; }
 
     /// <summary>
     /// 4D1 D9: one pending proposal of each kind (valuation, statement, payslip, invoice, amortisation table) on each private row's twins, keyed
@@ -177,7 +182,9 @@ public sealed class MixedDataset
             : requestType.Assembly == typeof(Nid.Investments.Application.ListEnvelopesQuery).Assembly ? Envelopes
             : requestType.Assembly == typeof(Nid.Income.Application.ListIncomeSourcesQuery).Assembly ? IncomeSources
             : requestType.Assembly == typeof(Nid.Goals.Application.CreateGoalCommand).Assembly ? Goals
-            : requestType.Assembly == typeof(Nid.Childcare.Application.CreateChildcareCommand).Assembly ? Childcare
+            // Every nanny request carries « Nann » in its name (GetNannyQuery, PutNannyMonthCommand…).
+            : requestType.Assembly == typeof(Nid.Childcare.Application.CreateChildcareCommand).Assembly
+                ? (requestType.Name.Contains("Nann", StringComparison.Ordinal) ? Nannies : Childcare)
             : requestType.Assembly == typeof(Nid.RealEstate.Application.ListLoansQuery).Assembly
                 // Every property request carries « Propert » in its name (ListPropertiesQuery, RecordPropertyValuationCommand…).
                 ? (requestType.Name.Contains("Propert", StringComparison.Ordinal) ? Properties : Loans)
@@ -201,6 +208,7 @@ public sealed class MixedDataset
         var saleScenarios = new Dictionary<string, ItemId>();
         var goals = new Dictionary<string, ItemId>();
         var childcare = new Dictionary<string, ItemId>();
+        var nannies = new Dictionary<string, ItemId>();
         var documents = new Dictionary<ItemId, Guid>();
         var unlinkDocuments = new Dictionary<ItemId, Guid>();
         foreach (var row in Rows)
@@ -225,6 +233,9 @@ public sealed class MixedDataset
                 row.Label, app.Dependent, new Nid.Childcare.Application.CarerInput(row.Label, null, null), RequestCatalogue.BenchChildcareTerms(new LocalDate(2025, 9, 1)),
                 [], row.Visibility, owners.Select(o => new OwnerShare(o.Person, o.ShareBp)).ToList()));
             childcare[row.Name] = (ItemId?)arrangement ?? throw new InvalidOperationException($"Seeding {row.Name}'s childcare failed: {arrangementRefused!.Code}");
+            var (nanny, nannyRefused) = await app.InvokeAsync(creator, new Nid.Childcare.Application.CreateNannyCommand(
+                row.Label, row.Visibility, owners.Select(o => new OwnerShare(o.Person, o.ShareBp)).ToList()));
+            nannies[row.Name] = (ItemId?)nanny ?? throw new InvalidOperationException($"Seeding {row.Name}'s nanny failed: {nannyRefused!.Code}");
             var (scenario, scenarioRefused) = await app.InvokeAsync(creator, new Nid.Core.Application.Scenarios.CreateScenarioCommand(
                 row.Label, row.Visibility, owners.Select(o => new OwnerShare(o.Person, o.ShareBp)).ToList(), VisibilityScope.Me,
                 RequestCatalogue.BenchScenario([])));
@@ -245,7 +256,7 @@ public sealed class MixedDataset
                 {
                     Guid[] twins = [items[row.Name].Value, envelopes[row.Name].Value, incomeSources[row.Name].Value, loans[row.Name].Value,
                         properties[row.Name].Value, goals[row.Name].Value, scenarios[row.Name].Value, projectionScenarios[row.Name].Value, saleScenarios[row.Name].Value,
-                        childcare[row.Name].Value];
+                        childcare[row.Name].Value, nannies[row.Name].Value];
                     await core.Items.Where(i => twins.Contains(i.Id)).ExecuteUpdateAsync(s => s.SetProperty(i => i.ShareLevel, "edit"));
                 }
 
@@ -455,7 +466,7 @@ public sealed class MixedDataset
             await scope.ServiceProvider.GetRequiredService<IRuleStore>().UpsertAsync(bankAccount, PrivateLabelA + " LIGNE", "subscriptions", items["J-AB"], app.AdultA, default);
         }
 
-        return new MixedDataset(app, items, envelopes, incomeSources, loans, properties, scenarios, projectionScenarios, saleScenarios, goals, childcare, proposals, documents, unlinkDocuments)
+        return new MixedDataset(app, items, envelopes, incomeSources, loans, properties, scenarios, projectionScenarios, saleScenarios, goals, childcare, nannies, proposals, documents, unlinkDocuments)
         {
             NoticeB = (notice, noticeDocument),
             JointLine = jointLine,
@@ -533,7 +544,7 @@ public sealed class MixedDataset
             .SelectMany(r => new[]
             {
                 Items[r.Name], Envelopes[r.Name], IncomeSources[r.Name], Loans[r.Name], Properties[r.Name], Scenarios[r.Name], ProjectionScenarios[r.Name],
-                SaleScenarios[r.Name], Goals[r.Name], Childcare[r.Name],
+                SaleScenarios[r.Name], Goals[r.Name], Childcare[r.Name], Nannies[r.Name],
             })
             .ToHashSet();
 
