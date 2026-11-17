@@ -173,9 +173,9 @@ public sealed record TaxDeclarantPerView(
 }
 
 /// <summary>Tax-per spec §4.3: the household's PER. <c>TaxSaved</c> the tax the deductions save; <c>RoomInBracket</c> the income left in the marginal bracket.</summary>
-public sealed record TaxPerView(bool Pooled, string Remaining, string TaxSaved, string RoomInBracket)
+public sealed record TaxPerView(bool Pooled, string Remaining, string TaxSaved, string RoomInBracket, string RemainingTaxSaved = "0.00")
 {
-    public static TaxPerView Of(PerHousehold p) => new(p.Pooled, Amount(p.Remaining), Amount(p.TaxSaved), Amount(p.RoomInBracket));
+    public static TaxPerView Of(PerHousehold p) => new(p.Pooled, Amount(p.Remaining), Amount(p.TaxSaved), Amount(p.RoomInBracket), Amount(p.RemainingTaxSaved));
 }
 
 /// <summary>One step of the walk from the income to the tax (<c>TaxStep</c>).</summary>

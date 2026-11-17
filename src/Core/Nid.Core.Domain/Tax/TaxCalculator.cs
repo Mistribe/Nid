@@ -86,7 +86,7 @@ public sealed record DeclarantResult(
 /// Spec §4.3, the household's PER: <c>Remaining</c> the free ceiling left, <c>TaxSaved</c> the income tax without any PER deduction
 /// minus the actual one, <c>RoomInBracket</c> what can still be deducted at the marginal rate (0 in the 0 % bracket).
 /// </summary>
-public sealed record PerHousehold(bool Pooled, decimal Remaining, decimal TaxSaved, decimal RoomInBracket);
+public sealed record PerHousehold(bool Pooled, decimal Remaining, decimal TaxSaved, decimal RoomInBracket, decimal RemainingTaxSaved = 0m);
 
 /// <summary>
 /// Spec §4, each step's figure. <c>IncomeTax</c> is negative for a refund; <c>AverageRate</c> null without taxable income.
@@ -326,7 +326,17 @@ public static class TaxCalculator
             var withoutPer = inputs with { Declarants = [.. inputs.Declarants.Select(d => d with { PerContributions = 0m })] };
             taxSaved = Math.Max(0m, Compute(withoutPer, withTaxSaved: false).IncomeTax - incomeTax);
         }
-        var perHousehold = new PerHousehold(pooled, perRemaining, taxSaved, RoomInBracket(rules, taxable, parts));
+        // The tax the free ceiling would save if paid in full; pooled, the household's free ceiling counts once, on the first declarant.
+        var remainingTaxSaved = 0m;
+        if (withTaxSaved && perRemaining > 0m)
+        {
+            var paidLeft = inputs with { Declarants = [.. inputs.Declarants.Select((d, i) => d with
+            {
+                PerContributions = d.PerContributions + (pooled ? (i == 0 ? perRemaining : 0m) : pers[i].Remaining)
+            })] };
+            remainingTaxSaved = Math.Max(0m, incomeTax - Compute(paidLeft, withTaxSaved: false).IncomeTax);
+        }
+        var perHousehold = new PerHousehold(pooled, perRemaining, taxSaved, RoomInBracket(rules, taxable, parts), remainingTaxSaved);
         // The same year under the other regime, when the household may choose: the outer run only, the inner ones need none.
         decimal? regimeGap = withTaxSaved && inputs.RentalGross > 0m && inputs.RentalGross <= rules.MicroRentalCeiling && !pinelOwner
             ? Compute(inputs with { RentalRegime = regime == RentalRegime.Micro ? RentalRegime.Real : RentalRegime.Micro }, withTaxSaved: false).TotalTax - total
