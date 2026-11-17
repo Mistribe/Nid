@@ -777,18 +777,43 @@ describe('TaxPage, page grammar', () => {
     expect(screen.getByRole('region', { name: 'Avis 2023' })).toBeInTheDocument();
   });
 
-  it('a past year offers Avis then Évolution, Avis first and out of the URL', async () => {
-    server.use(notices(jointAssessment({ year: 2023 })));
+  const history = (asked: string[] = []) => http.get('*/api/v1/tax/history', ({ request }) => {
+    asked.push(new URL(request.url).search);
+    return HttpResponse.json({ years: [{ year: 2023, source: 'assessment', tax: '2100.00', netTaxable: null, averageRate: null }] });
+  });
+
+  it('a past year offers Avis then Évolution', async () => {
+    server.use(notices(jointAssessment({ year: 2023 })), history());
     const { user, router } = await renderApp('/tax?year=2023');
 
     expect(await screen.findByRole('tab', { name: 'Avis', selected: true })).toBeInTheDocument();
     expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Avis', 'Évolution']);
+    expect(screen.getByRole('region', { name: 'Avis 2023' })).toBeInTheDocument();
     expect(within(screen.getByRole('group', { name: 'Filtres' })).getByRole('radio', { name: '2023', checked: true })).toBeInTheDocument();
     await user.click(screen.getByRole('tab', { name: 'Évolution' }));
     expect(await screen.findByRole('tab', { name: 'Évolution', selected: true })).toBeInTheDocument();
     await user.click(screen.getByRole('tab', { name: 'Avis' }));
     expect(await screen.findByRole('tab', { name: 'Avis', selected: true })).toBeInTheDocument();
     expect((router.state.location.search as { tab?: string }).tab).toBeUndefined();
+  });
+
+  it('a past year’s Évolution reads the history only', async () => {
+    const asked: string[] = [];
+    server.use(notices(jointAssessment({ year: 2023 })), history(asked));
+    await renderApp('/tax?year=2023&tab=evolution');
+
+    const chart = await screen.findByRole('region', { name: 'Impôt année par année' });
+    expect(chart).toBeInTheDocument();
+    expect(asked).toEqual(['?scope=household']);
+  });
+
+  it('« Moi » asks the history of « Moi »', async () => {
+    const asked: string[] = [];
+    server.use(notices(soloAssessment({ year: 2023 })), history(asked));
+    await renderApp('/tax?year=2023&tab=evolution&scope=me');
+
+    await screen.findByRole('region', { name: 'Impôt année par année' });
+    expect(asked).toEqual(['?scope=me']);
   });
 
   it('a cold load of a past year shows no hero skeleton', async () => {
