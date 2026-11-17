@@ -59384,14 +59384,14 @@
       },
       "TaxProfileBody": {
         "required": [
+          "alternateUnder6",
           "childrenUnder6",
           "disabledDependents",
           "cohabiting",
           "alternateCustody",
           "alimonyAdultChildrenCount",
           "capitalScale",
-          "perPooling",
-          "alternateUnder6"
+          "perPooling"
         ],
         "type": "object",
         "properties": {
