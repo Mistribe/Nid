@@ -1,20 +1,22 @@
 import { screen, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw/http';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import type { TaxEstimate } from '@/api/tax';
-import { estimate, result } from '../taxTestData';
+import { estimate, result as baseResult } from '../taxTestData';
 
 type Posted = { body: Record<string, unknown>; url: URL };
+let answer = () => baseResult();
 const serve = (loaded: TaxEstimate = estimate()) => {
+  answer = () => baseResult();
   const posts: Posted[] = [];
   server.use(
     http.get('*/api/v1/tax', () => HttpResponse.json(loaded)),
     http.get('*/api/v1/tax/sale', () => HttpResponse.json({ currency: 'EUR', rulesYear: 2026, carriedForward: false, total: true, items: [], totals: { value: '0.00', incomeTax: '0.00', socialTax: '0.00', surtax: '0.00', net: '0.00' }, notes: [] })),
     http.post('*/api/v1/tax/simulate', async ({ request }) => {
       posts.push({ body: (await request.json()) as Record<string, unknown>, url: new URL(request.url) });
-      return HttpResponse.json(result());
+      return HttpResponse.json(answer());
     }),
   );
   return posts;
@@ -36,7 +38,7 @@ describe('SimulationTab', () => {
     await user.clear(gross);
     await user.type(gross, '60 000,50');
     await user.click(screen.getByRole('button', { name: 'Calculer' }));
-    await screen.findByRole('table', { name: 'Estimation et simulation' });
+    await screen.findByRole('region', { name: 'Avant / après' });
     expect(posts[0]!.body).toMatchObject({ declarants: [{ salaryGross: '60000.50', status: 'non_executive' }], childcareOutsideHome: '6000' });
   });
 
@@ -122,7 +124,61 @@ describe('SimulationTab', () => {
     const posts = serve();
     const { user } = await renderApp('/tax?tab=simulation&scope=me');
     await user.click(await screen.findByRole('button', { name: 'Calculer' }));
-    await screen.findByRole('table', { name: 'Estimation et simulation' });
+    await screen.findByRole('region', { name: 'Avant / après' });
     expect(posts[0]!.url.searchParams.get('scope')).toBe('me');
+  });
+
+  describe('the result', () => {
+    const raised = () => baseResult({
+      incomeTax: '1500.00', totalTax: '1500.00', netAfterTaxMonthly: '5600.00',
+      withholding: { ...baseResult().withholding, balance: '1200.00' },
+      differences: { totalTax: '1253.00', netAfterTaxMonthly: '-129.42', balance: '4173.39' },
+    });
+    const simulate = async () => {
+      const { user } = await renderApp('/tax?tab=simulation');
+      await user.click(await screen.findByRole('button', { name: 'Calculer' }));
+      return { user, region: await screen.findByRole('region', { name: 'Avant / après' }) };
+    };
+    const item = (region: HTMLElement, label: string) => within(region).getByText(label).closest('div')!;
+
+    it('shows the before and after above the form, with the server’s differences', async () => {
+      serve(); answer = raised;
+      const scroll = vi.spyOn(Element.prototype, 'scrollIntoView');
+      const { region } = await simulate();
+      expect(region.compareDocumentPosition(screen.getByRole('form', { name: 'Simulation' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      const tax = item(region, 'Impôt total');
+      expect(tax).toHaveTextContent('1 500,00 €');
+      expect(tax).toHaveTextContent('avant 247,00 €');
+      const rise = within(tax).getByText('+1 253,00 €');
+      expect(rise.previousElementSibling).toHaveClass('text-status-critical');
+      const left = item(region, 'Reste par mois');
+      expect(left).toHaveTextContent('-129,42 €');
+      expect(within(left).getByText('-129,42 €').previousElementSibling).toHaveClass('text-status-critical');
+      expect(region).toHaveTextContent('avant 2 973,39 € remboursés');
+      expect(scroll).toHaveBeenCalled();
+    });
+
+    it('folds the two-column table', async () => {
+      serve(); answer = raised;
+      const { user, region } = await simulate();
+      expect(screen.queryByRole('table', { name: 'Estimation et simulation' })).toBeNull();
+      await user.click(within(region).getByRole('button', { name: 'Voir le détail du calcul' }));
+      const row = within(await screen.findByRole('table', { name: 'Estimation et simulation' })).getByRole('row', { name: /^Impôt sur le revenu/ });
+      expect(row).toHaveTextContent('247,00 €1 500,00 €');
+    });
+
+    it('shows the before and after without arrows when the server gives none', async () => {
+      serve(); answer = () => ({ ...raised(), differences: null });
+      const { region } = await simulate();
+      expect(region).toHaveTextContent('avant 247,00 €');
+      expect(within(region).queryByText(/^\+/)).toBeNull();
+    });
+
+    it('takes the result away once a field changes', async () => {
+      serve(); answer = raised;
+      const { user } = await simulate();
+      await user.type(screen.getByRole('textbox', { name: 'Salaire brut annuel Alice' }), '1');
+      expect(screen.queryByRole('region', { name: 'Avant / après' })).toBeNull();
+    });
   });
 });

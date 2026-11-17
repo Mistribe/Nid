@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TaxEstimate, TaxResult } from '@/api/tax';
 import { Section } from '@/components/page/Section';
-import { ResultTable } from '../ResultTable';
 import { SaleTotalSection } from '../SaleTotalSection';
 import { SimulationForm } from './SimulationForm';
+import { SimulationResult } from './SimulationResult';
 import '@/locales/tax';
 
 /** Edited inputs against the estimate, then everything sold. */
@@ -14,11 +14,8 @@ export function SimulationTab({ estimate, scope }: { estimate: TaxEstimate; scop
   return (
     <>
       <p className="text-sm text-muted-foreground">{t('tax.simulation.question')}</p>
+      {result ? <SimulationResult before={estimate.result} after={result} year={estimate.year} /> : null}
       <SimulationForm key={estimate.year} estimate={estimate} scope={scope} onResult={setResult} />
-      {result ? (
-        <ResultTable label={t('tax.simulation.result')}
-          columns={[{ title: t('tax.estimate'), result: estimate.result }, { title: t('tax.simulation.column'), result }]} />
-      ) : null}
       <Section title={t('tax.tab.sale')}><SaleTotalSection scope={scope} /></Section>
     </>
   );

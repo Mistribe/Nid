@@ -667,7 +667,15 @@
       "reset": "Revenir à l’estimation",
       "done": "Simulation calculée.",
       "result": "Estimation et simulation",
-      "column": "Simulation"
+      "column": "Simulation",
+      "result_title": "Avant / après",
+      "total_tax": "Impôt total",
+      "left_monthly": "Reste par mois",
+      "before": "avant {{value}}",
+      "before_refund": "avant {{amount}} remboursés",
+      "before_to_pay": "avant {{amount}} à payer",
+      "before_none": "avant : rien à régler",
+      "detail": "Voir le détail du calcul"
     },
     "sale": {
       "title": "Impôt si vente aujourd’hui",

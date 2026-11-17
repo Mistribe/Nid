@@ -175,7 +175,7 @@ describe('TaxPage, PER', () => {
     await user.clear(screen.getByRole('textbox', { name: 'Revenus professionnels nets de l’année précédente Alice' }));
     await user.type(screen.getByRole('textbox', { name: 'Revenus professionnels nets de l’année précédente Alice' }), '40000');
     await user.click(screen.getByRole('button', { name: 'Calculer' }));
-    await screen.findByRole('table', { name: 'Estimation et simulation' });
+    await screen.findByRole('region', { name: 'Avant / après' });
     expect(sent[0]).toMatchObject({ declarants: [{ perCeiling: '5000', previousYearIncome: '40000', perExpiring: '0' }], perPooling: false });
   });
 
