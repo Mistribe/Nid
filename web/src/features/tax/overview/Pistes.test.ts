@@ -20,12 +20,25 @@ describe('pistesOf', () => {
 
   it('offers the PER left this year with the tax it saves', () => {
     const p = of({ per: bank })[0]!;
-    expect([p.key, p.title, p.saving]).toEqual(['per', 'Verser 2 400,00 € sur le PER avant le 31 décembre', '720.00']);
+    expect([p.key, p.title, p.saving]).toEqual(['per', 'Verser 2 400 € sur le PER avant le 31 décembre', '720.00']);
   });
 
   it("names each declarant's minimum not to lose the expiring ceiling", () => {
     expect(of({ per: bank, declarants: alice({ minimum: '500.00', expiring: '800.00' }) })[0]!.detail)
-      .toBe('Alice : au moins 500,00 € pour ne pas perdre 800,00 €');
+      .toBe('Alice : au moins 500 € pour ne pas perdre 800 €');
+  });
+
+  it('offers no PER when it pays nothing and loses nothing, or when nothing is left', () => {
+    expect(of({ per: { ...bank, remainingTaxSaved: '0.00' } })).toEqual([]);
+    expect(of({ per: { ...bank, remaining: '0.00' } })).toEqual([]);
+    const kept = of({ per: { ...bank, remainingTaxSaved: '0.00' }, declarants: alice({ minimum: '500.00', expiring: '800.00' }) })[0]!;
+    expect([kept.key, kept.saving]).toEqual(['per', undefined]);
+  });
+
+  it('names only the declarants who have a minimum', () => {
+    const d = result().declarants[0]!;
+    const two = [{ ...d, per: per({ minimum: '500.00', expiring: '800.00' }) }, { ...d, name: 'Bob', per: per() }];
+    expect(of({ per: bank, declarants: two })[0]!.detail).toBe('Alice : au moins 500 € pour ne pas perdre 800 €');
   });
 
   it('offers neither the PER nor the cut for a past year', () => {
@@ -45,6 +58,7 @@ describe('pistesOf', () => {
   it("the capital option, and next year's CSG under the scale", () => {
     const a = of({ capitalOptionGap: '-120.00' })[0]!;
     expect([a.title, a.saving]).toEqual(['Opter pour le barème (case 2OP)', '120.00']);
+    for (const gap of ['0.00', '-0.00']) expect([of({ capitalOptionGap: gap })[0]!.title, of({ capitalOptionGap: gap })[0]!.same]).toEqual(['Rester au prélèvement forfaitaire', true]);
     const b = of({ capitalScale: true, capitalOptionGap: '80.00', deductibleCsgNextYear: '272.00' })[0]!;
     expect(b.same).toBe(true);
     expect(b.detail).toContain('272,00 €');
@@ -53,7 +67,7 @@ describe('pistesOf', () => {
   it('the safe cut this year opens Prélèvement', () => {
     const p = of({ withholding: { ...result().withholding, cut: { rate: '3.2', less: '600.00', declarants: [], rentalMonthly: '0.00', annual: '0.00', balance: '0.00' } } })[0]!;
     expect(p.key).toBe('cut');
-    expect(p.title).toContain('600,00 €');
+    expect(p.title).toContain('600 €');
   });
 
   it("an estimated ceiling asks for the notice's", () => {

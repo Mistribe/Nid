@@ -10,6 +10,7 @@ import { todayIso } from '@/lib/today';
 import { unsigned } from '../balance';
 import { percentText, regimeText, ZERO } from '../format';
 import { eur } from '../ResultTable';
+import { wholeEur } from '../PerSection';
 import '@/locales/tax';
 
 export type Piste = {
@@ -22,10 +23,11 @@ const tab = (name: string, hash?: string): LinkProps => ({ to: '/tax', search: (
 export function pistesOf(t: TFunction, { year, result: r }: TaxEstimate, thisYear: number): Piste[] {
   const out: Piste[] = [];
   const current = year === thisYear;
-  if (current && r.per && !ZERO.test(r.per.remaining)) {
-    const detail = r.declarants.filter((d) => d.per && !ZERO.test(d.per.minimum))
-      .map((d) => t('tax.pistes.per.minimum', { name: d.name, amount: eur(d.per!.minimum), expiring: eur(d.per!.expiring) })).join(' · ');
-    out.push({ key: 'per', tile: '/retirement', title: t('tax.pistes.per.title', { amount: eur(r.per.remaining) }), detail: detail || undefined,
+  const minimums = r.declarants.filter((d) => d.per && !ZERO.test(d.per.minimum));
+  // Worth a row only when it pays or a ceiling is about to be lost.
+  if (current && r.per && !ZERO.test(r.per.remaining) && (!ZERO.test(r.per.remainingTaxSaved) || minimums.length)) {
+    const detail = minimums.map((d) => t('tax.pistes.per.minimum', { name: d.name, amount: wholeEur(d.per!.minimum), expiring: wholeEur(d.per!.expiring) })).join(' · ');
+    out.push({ key: 'per', tile: '/retirement', title: t('tax.pistes.per.title', { amount: wholeEur(r.per.remaining) }), detail: detail || undefined,
       saving: ZERO.test(r.per.remainingTaxSaved) ? undefined : r.per.remainingTaxSaved, link: tab('detail') });
   }
   const gap = r.rentalRegimeGap;
@@ -49,7 +51,7 @@ export function pistesOf(t: TFunction, { year, result: r }: TaxEstimate, thisYea
   }
   const cut = r.withholding.cut;
   if (current && cut) {
-    out.push({ key: 'cut', tile: '/income', link: tab('withholding'), title: t('tax.pistes.cut.title', { amount: eur(cut.less) }),
+    out.push({ key: 'cut', tile: '/income', link: tab('withholding'), title: t('tax.pistes.cut.title', { amount: wholeEur(cut.less) }),
       detail: t('tax.pistes.cut.detail', { rate: percentText(t, cut.rate) }) });
   }
   if (r.warnings.includes('per_ceiling_estimated')) {
@@ -69,7 +71,7 @@ export function Pistes({ estimate }: { estimate: TaxEstimate }) {
         {pistes.map((p) => (
           <GroupedRow key={p.key} tile={tileOf(p.tile)} link={p.link} title={p.title} detail={p.detail}
             trailing={p.saving ? (
-              <span className="inline-flex items-center gap-1 text-status-good-text"><CircleCheck aria-hidden className="size-4" />{t('tax.pistes.saving', { amount: eur(p.saving) })}</span>
+              <span className="inline-flex items-center gap-1 text-status-good-text"><CircleCheck aria-hidden className="size-4" />{t('tax.pistes.saving', { amount: wholeEur(p.saving) })}</span>
             ) : p.same ? <span className="text-muted-foreground">{t('tax.pistes.nothing')}</span> : undefined} />
         ))}
       </GroupedList>

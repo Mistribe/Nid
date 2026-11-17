@@ -9,7 +9,7 @@ import { eur, Term } from './ResultTable';
 import '@/locales/tax';
 
 /** Whole euros: the room in the bracket is floored by the server. */
-const wholeEur = (amount: string) => formatCurrency(amount, 'EUR', { maximumFractionDigits: 0 });
+export const wholeEur = (amount: string) => formatCurrency(amount, 'EUR', { maximumFractionDigits: 0 });
 
 type Declarant = TaxResult['declarants'][number];
 const overCeiling = (result: TaxResult) => (result.warnings.includes('per_over_ceiling') ? result.declarants.filter((d) => d.per && !ZERO.test(d.per.excess)) : []);
