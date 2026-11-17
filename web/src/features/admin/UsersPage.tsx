@@ -21,6 +21,8 @@ import { elision } from '@/lib/elision';
 import { AdminFrame } from './AdminFrame';
 import { Loading, TableSkeleton } from '@/components/page/skeletons';
 import { ConfirmFromMenu } from '@/components/ConfirmAction';
+import { InfoTip } from '@/components/InfoTip';
+import { SwitchField } from '@/components/page/SwitchField';
 import '@/locales/admin';
 
 type Adult = components['schemas']['AdultView'];
@@ -44,6 +46,9 @@ export function UsersPage() {
   // Issue 215: who decides the admin role (local-accounts.md §6); the admin area already reads the system status.
   const nidDecidesAdmin = $api.useQuery('get', '/api/v1/admin/system').data?.auth.adminSource === 'nid';
   const [roleAsk, setRoleAsk] = useState<Adult | null>(null);
+  // #294: a reset link is confirmed first, with « révoquer aussi ses jetons » (local-accounts.md §8.1), off by default.
+  const [resetAsk, setResetAsk] = useState<Adult | null>(null);
+  const [alsoTokens, setAlsoTokens] = useState(false);
   // Each row's ⋯, where the focus goes back when the confirmation closes.
   const menus = useRef<Record<string, HTMLButtonElement | null>>({});
   const adults = $api.useQuery('get', USERS);
@@ -73,6 +78,13 @@ export function UsersPage() {
     },
   });
 
+  const issueLink = (adult: Adult, revokeTokens: boolean) => createLink.mutate({ params: { path: { id: adult.id } }, body: { revokeTokens } }, {
+    onSuccess: (created) => {
+      setLink({ adult, url: created.url, purpose: created.purpose, expiresAt: created.expiresAt });
+      if (revokeTokens) toast.success(t('admin.users.tokens_revoked'));
+    },
+  });
+
   const title = t('admin.users.title');
   const loadError = adults.error ?? household.error;
   if (loadError) return <AdminFrame title={title}><ProblemMessage problem={present(toProblem(loadError))} /></AdminFrame>;
@@ -86,9 +98,7 @@ export function UsersPage() {
     const localItems = local ? [
       {
         label: t(hasPassword ? 'admin.users.reset_link' : 'admin.users.enroll_link'),
-        onSelect: () => createLink.mutate({ params: { path: { id: adult.id } }, body: { revokeTokens: false } }, {
-          onSuccess: (created) => setLink({ adult, url: created.url, purpose: created.purpose, expiresAt: created.expiresAt }),
-        }),
+        onSelect: () => { if (hasPassword) { setAlsoTokens(false); setResetAsk(adult); } else issueLink(adult, false); },
       },
       ...(adult.lockedUntil ? [{ label: t('admin.users.unlock'), onSelect: () => unlock.mutate({ params: { path: { id: adult.id } } }) }] : []),
     ] : [];
@@ -164,6 +174,14 @@ export function UsersPage() {
             // Without the role, the admin area is no longer theirs: the app reloads its capabilities.
             onSuccess: () => { if (roleAsk.isAdmin && roleAsk.id === session.person.id) reload(); },
           })} />
+      ) : null}
+      {resetAsk ? (
+        <ConfirmFromMenu label={t('admin.users.reset_link')} confirmation={t('admin.users.reset_confirm', { name: resetAsk.displayName })}
+          pending={createLink.isPending} returnFocus={{ current: menus.current[resetAsk.id] ?? null }}
+          onClose={() => setResetAsk(null)} onConfirm={() => issueLink(resetAsk, alsoTokens)}>
+          <SwitchField label={t('admin.users.revoke_tokens')} checked={alsoTokens} onCheckedChange={setAlsoTokens}
+            tip={<InfoTip label={t('admin.users.revoke_tokens')}>{t('admin.users.revoke_tokens_tip')}</InfoTip>} />
+        </ConfirmFromMenu>
       ) : null}
       {link ? <PasswordLinkDialog {...link} onClose={() => setLink(null)} /> : null}
       <p className="max-w-prose text-sm text-muted-foreground">{t(local ? 'admin.users.managed_hint_local' : 'admin.users.managed_hint')}{nidDecidesAdmin ? <> {t('admin.users.role_hint_nid')}</> : null}</p>
