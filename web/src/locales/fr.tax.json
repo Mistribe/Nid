@@ -462,7 +462,6 @@
       "micro_note": "Pas de 2044 à remplir au micro-foncier",
       "household": "Foyer",
       "totals": "Totaux du foyer",
-      "notes": "À savoir pour la 2044",
       "to_check": "À vérifier",
       "to_check_help": "Ces dépenses ne sont pas comptées. Les travaux de construction ou d’agrandissement ne se déduisent jamais des loyers ; une autre dépense se déduit si vous la classez dans une catégorie déductible (travaux d’entretien ou d’amélioration, assurance…).",
       "csv_header": { "property": "Bien", "line": "Ligne", "label": "Libellé", "amount": "Montant" },

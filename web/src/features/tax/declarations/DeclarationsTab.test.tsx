@@ -166,4 +166,67 @@ describe('DeclarationsTab', () => {
       expect(screen.queryByRole('button', { name: 'Exporter en CSV' })).not.toBeInTheDocument();
     });
   });
+  describe('the 2044 in cards', () => {
+    const url = '/tax?tab=declarations&form=2044';
+    const serve2044 = (over: Partial<Rental2044> = {}, totals: Partial<Rental2044['totals']> = {}) => server.use(
+      http.get('*/api/v1/tax', () => HttpResponse.json(rental())),
+      http.get('*/api/v1/tax/2044', () => HttpResponse.json({ ...view2044(), ...over, totals: { ...view2044().totals, ...totals } })),
+    );
+    const notice = { code: 'rental_charges_removed', item: 'a', name: 'Studio', amount: '600.00' };
+
+    it('words a deficit without a sign', async () => {
+      serve2044({}, { result: '-500.00', globalDeficit: '500.00' });
+      await renderApp(url);
+
+      const figure = (await screen.findByText('Déficit', { selector: 'dt' })).nextElementSibling!;
+      expect(figure).toHaveTextContent('500,00 €');
+      expect(figure.textContent).not.toMatch(/-/);
+      expect(figure.className).not.toMatch(/text-status-|text-destructive/);
+    });
+
+    it('shares the page’s notices card', async () => {
+      serve2044({ notices: [notice] });
+      const { container } = await renderApp(url);
+
+      const region = await screen.findByRole('region', { name: 'À savoir' });
+      expect(within(region).getByText('600,00 €')).toBeInTheDocument();
+      expect(within(region).getByRole('link', { name: 'Studio' })).toHaveAttribute('href', '/properties/a');
+      expect(container.querySelector('.border-status-warning\\/60')).toBeNull();
+      expect(region.closest('.print\\:hidden')).not.toBeNull();
+    });
+
+    it('copies a property’s line and the household’s totals', async () => {
+      serve2044({}, { result: '-500.00', globalDeficit: '500.00' });
+      const { user } = await renderApp(url);
+      const writeText = vi.fn().mockResolvedValue(undefined);
+      Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+
+      await user.click(await screen.findByRole('button', { name: 'Copier la ligne 211 (Studio)' }));
+      expect(writeText).toHaveBeenLastCalledWith('6000');
+      await user.click(screen.getByRole('button', { name: 'Copier la ligne 420 (Totaux du foyer)' }));
+      expect(writeText).toHaveBeenLastCalledWith('-500');
+    });
+
+    it('shows skeletons while the 2044 loads', async () => {
+      server.use(
+        http.get('*/api/v1/tax', () => HttpResponse.json(rental())),
+        http.get('*/api/v1/tax/2044', () => new Promise(() => {})),
+      );
+      const { container } = await renderApp(url);
+
+      await screen.findByRole('radiogroup', { name: 'Formulaire' });
+      expect(screen.getByRole('status', { name: 'Calcul de l’impôt' })).toBeInTheDocument();
+      expect(container.querySelector('.shimmer:not([data-slot="skeleton"])')).toBeNull();
+    });
+
+    it('prints the 2044’s cards, not its notices', async () => {
+      serve2044({ notices: [notice] });
+      await renderApp(url);
+
+      const studio = await screen.findByRole('region', { name: 'Studio' });
+      expect(studio.closest('.print\\:hidden')).toBeNull();
+      expect(screen.getByRole('heading', { level: 2, name: 'Déclaration 2044 — revenus 2025', hidden: true })).toHaveClass('print:block');
+      expect((await screen.findByRole('region', { name: 'À savoir' })).closest('.print\\:hidden')).not.toBeNull();
+    });
+  });
 });
