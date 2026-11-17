@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Globalization;
 using Microsoft.Extensions.Logging;
 using Nid.Core.Application.Tax;
 using Nid.Core.Contracts;
@@ -11,16 +12,19 @@ namespace Nid.Core.Application.Dashboard;
 
 /// <summary>
 /// Notifications design §2.3: what the dashboard says about the household as a whole, as signals: a currency without a rate, and
-/// the month's routine when a value is to update. Neither is about one item, so neither carries an item id or an amount.
+/// the month's routine when a value is to update. Neither is about one item, so neither carries an item id or an amount. Issue #81:
+/// the net worth milestone, opt-in, whose figures only the centre shows.
 /// </summary>
 public sealed class CoreNotificationSource(
     DashboardReader dashboard, MonthChangesReader changes, MonthChangeWords monthWords, IPersonalAccessTokens tokens,
-    IHouseholdCalendar calendar, IClock clock, TaxCalendarEvents taxCalendar, ILogger<CoreNotificationSource> logger) : INotificationSource
+    IHouseholdCalendar calendar, IClock clock, TaxCalendarEvents taxCalendar, ISignalSettings settings,
+    IEnumerable<INetWorthContribution> netWorth, IHouseholdSettings household, IFxRates fx, ILogger<CoreNotificationSource> logger) : INotificationSource
 {
     public const string FxRateMissing = "fx_rate_missing";
     public const string RoutineDue = "routine_due";
     public const string TokenExpiring = "token_expiring";
     public const string MonthChanges = "month_changes";
+    public const string NetWorthMilestone = "net_worth_milestone";
 
     private static readonly IReadOnlyDictionary<string, string> NoParams = new Dictionary<string, string>();
     private static readonly HashSet<string> TaxKinds = [UpcomingKinds.TaxFilingDeadline, UpcomingKinds.TaxNewRate, UpcomingKinds.TaxBalanceDue];
@@ -37,6 +41,8 @@ public sealed class CoreNotificationSource(
         new(UpcomingKinds.TaxFilingDeadline, "due_date", NotificationLevel.Action, "core", 14),
         new(UpcomingKinds.TaxNewRate, "due_date", NotificationLevel.Info, "core", 7),
         new(UpcomingKinds.TaxBalanceDue, "due_date", NotificationLevel.Info, "core", 7),
+        // Issue #81: the step, in the household currency.
+        new(NetWorthMilestone, "finding", NotificationLevel.Info, "core", null, new SignalThreshold(50_000m, 1_000m, 10_000_000m, "eur")),
     ];
 
     public async Task<Result<IReadOnlyList<Signal>>> SignalsAsync(PersonId reader, LocalDate today, LocalDate horizon, CancellationToken ct)
@@ -56,6 +62,10 @@ public sealed class CoreNotificationSource(
         if (await MonthWordsAsync(reader, today, ct) is { Count: > 0 } words)
             signals.Add(new Signal(SignalKeys.Household(MonthChanges, $"{today:yyyy-MM}"), MonthChanges, [], null, words));
 
+        if ((await settings.ForAsync(reader, ct)).TryGetValue(NetWorthMilestone, out var step)
+            && await MilestoneAsync(reader, view, today, step, ct) is { } milestone)
+            signals.Add(milestone);
+
         // The expiry day is the household's, like today and the horizon: the same day in the key and the title.
         var now = clock.GetCurrentInstant();
         var zone = await calendar.ZoneAsync(ct);
@@ -73,6 +83,39 @@ public sealed class CoreNotificationSource(
             signals.Add(new Signal(SignalKeys.Household(e.Kind, $"{e.On:yyyy-MM-dd}"), e.Kind, [], e.On,
                 e.Label is { } note ? new Dictionary<string, string> { ["note"] = note } : NoParams));
         return Result.Success<IReadOnlyList<Signal>>(signals);
+    }
+
+    /// <summary>
+    /// Issue #81: today's net worth against the previous month-end's, on the curve's figures; the key is the step crossed, so the
+    /// signal holds for the month after the crossing and resolves once that month-end is above it. A failed read is logged, none raised.
+    /// </summary>
+    private async Task<Signal?> MilestoneAsync(PersonId reader, DashboardView view, LocalDate today, decimal step, CancellationToken ct)
+    {
+        decimal? now = view.Envelopes > 0 && view.NetWorth.Total is { } total ? decimal.Parse(total.Amount, CultureInfo.InvariantCulture) : null;
+        var monthEnd = new LocalDate(today.Year, today.Month, 1).PlusDays(-1);
+        var read = await Contributions.CollectAsync(netWorth, c => c.NetWorthHistoryAsync(reader, VisibilityScope.Me, [monthEnd], ct));
+        if (!read.TryGetValue(out var parts))
+        {
+            logger.LogWarning("The net worth history of {Person} could not be read: {Code}", reader.Value, read.TryGetFailure(out var f) ? f!.Code : "core.unknown");
+            return null;
+        }
+        var points = parts!.SelectMany(p => p).ToList();
+        var reference = await household.ReferenceCurrencyAsync(ct);
+        var foreign = points.SelectMany(p => p.Values.Keys).Where(c => c != reference).Distinct().ToList();
+        // The reference's own quote too: rates are per USD.
+        var rates = foreign.Count == 0 ? RateTable.Empty(today, 0) : await fx.LoadAsync(foreign.Append(reference).ToList(), monthEnd, today, ct);
+        var sum = DashboardMath.Sum.Of(DashboardMath.Merge(points.Select(p => p.Values)), reference, rates, monthEnd);
+        decimal? before = points.Sum(p => p.Envelopes) > 0 && sum.Missing is null ? sum.Total : null;
+
+        if (Dashboard.NetWorthMilestone.Crossed(before, now, step) is not { } crossed)
+            return null;
+        var figures = new Dictionary<string, string>
+        {
+            ["net_worth_amount"] = now!.Value.ToString(CultureInfo.InvariantCulture),
+            ["step_amount"] = crossed.ToString(CultureInfo.InvariantCulture),
+            ["currency"] = reference.Code,
+        };
+        return new Signal(SignalKeys.Household(NetWorthMilestone, crossed.ToString("0", CultureInfo.InvariantCulture)), NetWorthMilestone, [], null, figures);
     }
 
     /// <summary>
@@ -127,4 +170,20 @@ public sealed class MonthChangeWords
         => kept.TryGetValue(reader, out var k) && k.Month == month ? k.Words : null;
 
     public void Keep(PersonId reader, YearMonth month, IReadOnlyDictionary<string, string> words) => kept[reader] = (month, words);
+}
+
+/// <summary>Issue #81: the net worth milestone, a multiple of the step reached since the previous month-end.</summary>
+public static class NetWorthMilestone
+{
+    /// <summary>
+    /// The highest multiple of <paramref name="step"/> that <paramref name="now"/> reached and <paramref name="before"/> was below;
+    /// null when there is none, or either figure is missing.
+    /// </summary>
+    public static decimal? Crossed(decimal? before, decimal? now, decimal step)
+    {
+        if (before is not { } b || now is not { } n || step <= 0m)
+            return null;
+        var reached = Math.Floor(n / step) * step;
+        return reached >= step && b < reached ? reached : null;
+    }
 }

@@ -6,7 +6,10 @@ using NodaTime.Text;
 
 namespace Nid.Platform.Notifications;
 
-/// <summary>A notification as the centre shows it. Never carries an amount: the screen it links to has the figures.</summary>
+/// <summary>
+/// A notification as it is worded. No amount, except the figures a signal was raised on when the centre asks for them (issue #81):
+/// outside the application the screen it links to has the figures.
+/// </summary>
 public sealed record RenderedNotification(string Title, string Body, string? Link);
 
 /// <summary>The French copy of every kind (notifications design §4). The title names the kind, the body names the item and the date.</summary>
@@ -63,7 +66,11 @@ public static class NotificationTemplates
         ["banking.sync_failing"] = "La synchronisation d'une banque échoue",
         ["banking.amount_differs"] = "Montant différent du prévu",
         ["banking.charge_missing"] = "Charge attendue non prélevée",
+        ["net_worth_milestone"] = "Votre patrimoine a franchi un palier",
     };
+
+    /// <summary>Issue #81: the figures a signal carries (params ending in <c>_amount</c>), named, in this order.</summary>
+    private static readonly (string Param, string Name)[] Figures = [("net_worth_amount", "Patrimoine"), ("step_amount", "Palier")];
 
     /// <summary>The investments tab a kind opens; a kind not listed opens the envelope's first tab.</summary>
     private static readonly Dictionary<string, string> InvestmentTabs = new()
@@ -88,7 +95,30 @@ public static class NotificationTemplates
     /// <summary>The title of a kind, as the preferences screen lists it; the kind itself when it has none.</summary>
     public static string TitleOf(string kind) => Titles.GetValueOrDefault(kind, kind);
 
-    public static RenderedNotification Render(NotificationRecord n, NotificationKind kind, IReadOnlyDictionary<ItemId, string> names)
+    /// <summary><paramref name="withFigures"/>: the centre's wording, the body ending with the signal's figures (« Patrimoine : 302 140 € »).</summary>
+    public static RenderedNotification Render(NotificationRecord n, NotificationKind kind, IReadOnlyDictionary<ItemId, string> names, bool withFigures = false)
+    {
+        var text = Words(n, kind, names);
+        if (!withFigures || FiguresOf(n.Params) is not { Length: > 0 } figures)
+            return text;
+        return text with { Body = text.Body.Length > 0 ? $"{text.Body} — {figures}" : figures };
+    }
+
+    /// <summary>
+    /// « Patrimoine : 302 140 € · Palier : 300 000 € », whole units of the signal's <c>currency</c> (euros when it has none); a figure
+    /// that does not parse is left out.
+    /// </summary>
+    private static string FiguresOf(IReadOnlyDictionary<string, string> p)
+    {
+        var currency = p.GetValueOrDefault("currency", "EUR") is "EUR" ? "€" : p["currency"];
+        var shown = new List<string>();
+        foreach (var (param, name) in Figures)
+            if (p.TryGetValue(param, out var value) && decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out var amount))
+                shown.Add($"{name} : {Math.Round(amount, 0, MidpointRounding.AwayFromZero).ToString("N0", French)}\u00a0{currency}");
+        return string.Join(" · ", shown);
+    }
+
+    private static RenderedNotification Words(NotificationRecord n, NotificationKind kind, IReadOnlyDictionary<ItemId, string> names)
     {
         var title = Titles.GetValueOrDefault(n.Kind, kind.Kind);
         if (Notices.Contains(n.Kind))
@@ -229,7 +259,7 @@ public static class NotificationTemplates
     private static string? LinkOf(NotificationRecord n, NotificationKind kind)
     {
         if (n.ItemIds.Count == 0)
-            return n.Kind switch { "fx_rate_missing" or "month_changes" => "/dashboard", "routine_due" => "/routine", "tax_filing_deadline" or "tax_new_rate" or "tax_balance_due" => "/tax", _ => "/" };
+            return n.Kind switch { "fx_rate_missing" or "month_changes" or "net_worth_milestone" => "/dashboard", "routine_due" => "/routine", "tax_filing_deadline" or "tax_new_rate" or "tax_balance_due" => "/tax", _ => "/" };
         var id = n.ItemIds[0].Value.ToString("D");
         // The banking findings name the page of their item in "module", the item being any module's.
         return (kind.Module == "banking" ? n.Params.GetValueOrDefault("module") : kind.Module) switch

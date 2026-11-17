@@ -37,4 +37,15 @@ public class NotificationPreferencesTests
             (d.EmailEnabled, d.Action, d.Info, d.Frequency, d.Weekday, d.Version));
         Assert.Empty(d.LeadDays);
     }
+
+    [Fact]
+    public void An_opt_in_kind_counts_only_once_turned_on()
+    {
+        var milestone = new NotificationKind("net_worth_milestone", "finding", NotificationLevel.Info, "core", null, new SignalThreshold(50_000m, 1_000m, 10_000_000m, "eur"));
+        var on = NotificationPreferences.Defaults with { Signals = new Dictionary<string, decimal> { ["net_worth_milestone"] = 50_000m } };
+
+        Assert.False(NotificationPreferences.Defaults.Wants(milestone));
+        Assert.True(on.Wants(milestone));
+        Assert.True(NotificationPreferences.Defaults.Wants(Undated));
+    }
 }

@@ -7,7 +7,10 @@ using UnambitiousFx.Synapse.Abstractions;
 
 namespace Nid.Platform.Notifications;
 
-/// <summary>One row of the centre. No amount: <see cref="Body"/> names the item and the date (notifications design §4).</summary>
+/// <summary>
+/// One row of the centre: <see cref="Body"/> names the item and the date (notifications design §4), then the figures the signal was
+/// raised on (issue #81), shown in the application only.
+/// </summary>
 public sealed record NotificationView(
     Guid Id, string Kind, string Level, string Title, string Body, string? Link, IReadOnlyList<Guid> ItemIds, LocalDate? DueOn,
     DateTimeOffset ArrivedAt, bool Read, string State, LocalDate? SnoozedUntil, bool Critical);
@@ -91,7 +94,7 @@ public sealed class ListNotificationsHandler(
 
     private static NotificationView ToView(NotificationRecord row, NotificationKind kind, IReadOnlyDictionary<ItemId, string> names)
     {
-        var text = NotificationTemplates.Render(row, kind, names);
+        var text = NotificationTemplates.Render(row, kind, names, withFigures: true);
         return new NotificationView(
             row.Id, row.Kind, row.Level.ToString().ToLowerInvariant(), text.Title, text.Body, text.Link, row.ItemIds.Select(i => i.Value).ToList(),
             row.DueOn, (row.OpenedAt ?? row.CreatedAt).ToDateTimeOffset(), row.ReadAt is not null, row.State, row.SnoozedUntil, row.Level == NotificationLevel.Critical);

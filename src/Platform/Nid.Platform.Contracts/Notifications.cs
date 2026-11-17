@@ -14,13 +14,27 @@ public enum NotificationLevel
 
 /// <summary>
 /// A kind of notification a module declares (notifications design §2.2). <paramref name="LeadDays"/> is how long before a
-/// signal's due date it starts to show; none means it shows as soon as it is seen.
+/// signal's due date it starts to show; none means it shows as soon as it is seen. <paramref name="Threshold"/> (issue #81): the
+/// kind is opt-in, off until the person turns it on with a threshold in their preferences.
 /// </summary>
-public sealed record NotificationKind(string Kind, string Family, NotificationLevel Level, string Module, int? LeadDays);
+public sealed record NotificationKind(string Kind, string Family, NotificationLevel Level, string Module, int? LeadDays, SignalThreshold? Threshold = null)
+{
+    public bool OptIn => Threshold is not null;
+}
+
+/// <summary>Issue #81: an opt-in kind's threshold, its default and bounds, in <paramref name="Unit"/> (<c>eur</c>, <c>pct</c>, <c>months</c>).</summary>
+public sealed record SignalThreshold(decimal Default, decimal Min, decimal Max, string Unit);
+
+/// <summary>Issue #81: the opt-in kinds a reader turned on, with their thresholds; a kind absent is off. A source reads it first.</summary>
+public interface ISignalSettings
+{
+    Task<IReadOnlyDictionary<string, decimal>> ForAsync(PersonId reader, CancellationToken ct);
+}
 
 /// <summary>
 /// One thing a module says deserves attention, for one reader (notifications design §2.2). <paramref name="Key"/> identifies
-/// the occurrence, see <see cref="SignalKeys"/>.
+/// the occurrence, see <see cref="SignalKeys"/>. Issue #81: amounts go in <paramref name="Params"/> under keys ending in
+/// <c>_amount</c> (invariant decimals, in the reference currency); only the centre shows them.
 /// </summary>
 public sealed record Signal(string Key, string Kind, IReadOnlyList<ItemId> ItemIds, LocalDate? DueOn, IReadOnlyDictionary<string, string> Params);
 
@@ -53,6 +67,7 @@ public static class NotificationCodes
     public const string InvalidSnooze = "notifications.invalid_snooze";
     public const string UnknownKind = "notifications.unknown_kind";
     public const string InvalidLeadDays = "notifications.invalid_lead_days";
+    public const string InvalidThreshold = "notifications.invalid_threshold";
     public const string InvalidWeekday = "notifications.invalid_weekday";
     public const string EmailUnavailable = "notifications.email_unavailable";
     public const string PreferencesConflict = "notifications.preferences_conflict";

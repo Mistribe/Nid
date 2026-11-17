@@ -216,6 +216,27 @@ public class CoreSourceTests(PostgresFixture fixture) : IClassFixture<PostgresFi
             new NotificationKind("tax_filing_deadline", "due_date", NotificationLevel.Action, "core", 14),
             new NotificationKind("tax_new_rate", "due_date", NotificationLevel.Info, "core", 7),
             new NotificationKind("tax_balance_due", "due_date", NotificationLevel.Info, "core", 7),
+            new NotificationKind("net_worth_milestone", "finding", NotificationLevel.Info, "core", null, new SignalThreshold(50_000m, 1_000m, 10_000_000m, "eur")),
         ], source.Kinds);
+    }
+
+    [Fact]
+    public async Task A_step_crossed_since_the_month_end_is_a_milestone_once_turned_on()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var livret = await app.NewEnvelopeAsync("Livret", app.AdultA, Visibility.Shared);
+        await ValueAsync(app, app.AdultA, livret, "2025-09-01", "40000.00");
+        await ValueAsync(app, app.AdultA, livret, "2025-10-01", "62000.00");
+        Assert.DoesNotContain(await SignalsAsync(app, app.AdultA), s => s.Kind == "net_worth_milestone"); // off by default
+
+        var (_, failure) = await app.InvokeAsync(app.AdultA, new Nid.Platform.Notifications.SaveNotificationPreferencesCommand(
+            false, Nid.Platform.Notifications.ActionMode.Immediate, Nid.Platform.Notifications.InfoMode.Digest, Nid.Platform.Notifications.DigestFrequency.Weekly, 1,
+            new Dictionary<string, int>(), new Dictionary<string, decimal> { ["net_worth_milestone"] = 50_000m }, 0), TestContext.Current.CancellationToken);
+        Assert.Null(failure);
+
+        var signal = Assert.Single(await SignalsAsync(app, app.AdultA), s => s.Kind == "net_worth_milestone");
+        Assert.Equal("net_worth_milestone:50000", signal.Key);
+        Assert.Empty(signal.ItemIds);
+        Assert.Equal(("62000.00", "50000"), (signal.Params["net_worth_amount"], signal.Params["step_amount"]));
     }
 }

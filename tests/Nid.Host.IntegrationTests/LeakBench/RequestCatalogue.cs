@@ -344,7 +344,7 @@ public static class RequestCatalogue
         new(typeof(RemoveHouseholdWebhookCommand), false, (_, _) => new RemoveHouseholdWebhookCommand()),
         new(typeof(GetNotificationPreferencesQuery), false, (_, _) => new GetNotificationPreferencesQuery()),
         new(typeof(SaveNotificationPreferencesCommand), false, (_, _) => new SaveNotificationPreferencesCommand(
-            false, ActionMode.Immediate, InfoMode.Digest, DigestFrequency.Weekly, 1, new Dictionary<string, int>(), 0)),
+            false, ActionMode.Immediate, InfoMode.Digest, DigestFrequency.Weekly, 1, new Dictionary<string, int>(), new Dictionary<string, decimal>(), 0)),
 
         // The export is the reader's own view of what they can read; its views expose every exported item to the
         // output guard (1D2 design §6), and ExportPrivacyTests checks the content.
