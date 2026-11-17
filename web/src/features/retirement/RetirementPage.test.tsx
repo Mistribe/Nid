@@ -47,6 +47,7 @@ describe('the retirement page', () => {
     const figures = within(hero).getByText('Revenu à la retraite').closest('dl')!;
     expect(within(figures).getByText(/300\s000,00\s€/)).toBeInTheDocument();
     expect(within(figures).getByText('juin 2040')).toBeInTheDocument();
+    expect(within(figures).getByText('Revenu aujourd\'hui')).toBeInTheDocument();
     expect(screen.getByText(/Chiffres indicatifs/)).toBeInTheDocument();
     expect(screen.queryByRole('table', { name: 'Départs à la retraite' })).not.toBeInTheDocument();
 
@@ -64,6 +65,17 @@ describe('the retirement page', () => {
     expect(within(rows[1]!).getByText('février 2033')).toBeInTheDocument();
     expect(within(rows[1]!).getByRole('link', { name: 'Pension de retraite' })).toHaveAttribute('href', `/income/${SOURCE}`);
     expect(within(rows[2]!).getByText('64 ans')).toBeInTheDocument();
+  });
+
+  it('shows the need at retirement in place of today\'s income when the living cost is set', async () => {
+    serve(view({ figures: { month: '2033-02', incomeNow: '4000.00', incomeAtRetirement: '3000.00', need: '3200.00', gap: '200.00', capitalNeeded: '60000.00', capitalAtRetirement: '250000.00' } }));
+    await renderApp('/retirement');
+
+    const hero = await screen.findByRole('region', { name: 'Écart mensuel' });
+    const figures = within(hero).getByText('Revenu à la retraite').closest('dl')!;
+    expect(within(figures).getByText('Besoin à la retraite')).toBeInTheDocument();
+    expect(within(figures).getByText(/3\s200,00\s€/)).toBeInTheDocument();
+    expect(within(figures).queryByText('Revenu aujourd\'hui')).not.toBeInTheDocument();
   });
 
   it('lists the adults without a figure when nobody has a birth date', async () => {
