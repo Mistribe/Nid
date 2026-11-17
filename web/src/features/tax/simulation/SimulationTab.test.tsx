@@ -187,7 +187,8 @@ describe('SimulationTab', () => {
     it('announces the result in an always-mounted live region', async () => {
       serve(); answer = raised;
       const { user } = await renderApp('/tax?tab=simulation');
-      const status = await screen.findByRole('status');
+      await screen.findByRole('form', { name: 'Simulation' });
+      const status = screen.getByRole('status');
       expect(status).toBeEmptyDOMElement();
       await user.click(screen.getByRole('button', { name: 'Calculer' }));
       await screen.findByRole('region', { name: 'Avant / après' });
