@@ -4,7 +4,7 @@ import { InfoTip } from '@/components/InfoTip';
 import { SectionCard } from '@/components/page/SectionCard';
 import { Button } from '@/components/ui/button';
 import { regimeText, tipText, ZERO } from '../format';
-import { PerRows, PerSummary } from '../PerSection';
+import { PerProgress, PerRows } from '../PerSection';
 import { DeclarantTable, eur, ResultTable } from '../ResultTable';
 import type { TaxTab } from '../TaxPage';
 import '@/locales/tax';
@@ -19,7 +19,7 @@ export function DetailTab({ estimate, onTab }: { estimate: TaxEstimate; onTab: (
       <DeclarantTable result={estimate.result} detail={estimate.salaryDetail} adults={estimate.adults}>
         <PerRows result={estimate.result} names={estimate.result.declarants.map((_, i) => (estimate.inputs.declarants[i]?.perEnvelopes ?? []).join(', '))} />
       </DeclarantTable>
-      <PerSummary result={estimate.result} year={estimate.year} onProfile={onProfile} />
+      <PerProgress result={estimate.result} onProfile={onProfile} />
       <ResultTable label={t('tax.detail_table')} declarants={false} columns={[{ title: t('tax.estimate'), result: estimate.result }]} />
       <RegimeChoice result={estimate.result} onProfile={onProfile} />
       <CapitalChoice result={estimate.result} onProfile={onProfile} />

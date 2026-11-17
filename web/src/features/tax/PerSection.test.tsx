@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import type { TaxResult } from '@/api/tax';
-import { PerRows, PerSummary } from './PerSection';
+import { PerProgress, PerRows } from './PerSection';
 import { DeclarantTable } from './ResultTable';
 import { ADULT, estimate, result } from './taxTestData';
 
@@ -18,37 +18,67 @@ const withPer = (over: Partial<TaxResult> = {}, per = declarantPer()) => result(
   ...over,
 });
 const block = (r: TaxResult, names: string[], onProfile: () => void) => (
-  <><DeclarantTable result={r}><PerRows result={r} names={names} /></DeclarantTable><PerSummary result={r} year={2026} onProfile={onProfile} /></>
+  <><DeclarantTable result={r}><PerRows result={r} names={names} /></DeclarantTable><PerProgress result={r} onProfile={onProfile} /></>
 );
 const show = (r: TaxResult, names = ['']) => render(block(r, names, () => undefined));
 const cell = (row: RegExp) => screen.getByRole('row', { name: row });
 
-describe('PerRows and PerSummary', () => {
+describe('PerRows and PerProgress', () => {
   it('shows the ceiling, the deduction and what is left to pay', () => {
     show(withPer());
     expect(screen.getByRole('columnheader', { name: 'Alice' })).toBeInTheDocument();
     expect(cell(/Plafond \(avis\)/)).toHaveTextContent('5 843,13 €');
     expect(cell(/^Déduit/)).toHaveTextContent('3 000,00 €');
-    expect(cell(/Reste à verser avant le 31 décembre/)).toHaveTextContent('2 843,13 €');
     expect(screen.getByText('PER · Barème 2025')).toBeInTheDocument();
+  });
+
+  it('shows the deduction against the ceiling', () => {
+    show(withPer());
+    expect(screen.getByRole('progressbar', { name: 'PER de Alice' }).getAttribute('aria-valuetext')?.replace(/\s/g, ' ')).toBe('3 000,00 € déduits sur un plafond de 5 843,13 €');
+    expect(screen.getByText('2 843,13 € à verser avant le 31 décembre')).toBeInTheDocument();
+    expect(screen.queryByRole('row', { name: /Reste à verser/ })).not.toBeInTheDocument();
+  });
+
+  it('a ceiling of zero draws an empty progress', () => {
+    show(withPer({}, declarantPer({ ceiling: '0.00', deducted: '0.00', contributions: '0.00', remaining: '0.00' })));
+    expect(screen.getByRole('progressbar', { name: 'PER de Alice' })).toHaveAttribute('aria-valuenow', '0');
+  });
+
+  it('over the ceiling says it is reached', () => {
+    show(withPer({ warnings: ['per_over_ceiling'] }, declarantPer({ excess: '500.00' })));
+    expect(screen.getByText('Plafond atteint : le surplus n’est pas déduit.')).toBeInTheDocument();
+  });
+
+  it('an estimated ceiling links to the profile', async () => {
+    const onProfile = vi.fn();
+    render(block(withPer({ warnings: ['per_ceiling_estimated'] }, declarantPer({ source: 'estimated' })), [''], onProfile));
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Saisir celui de l’avis' }));
+    expect(onProfile).toHaveBeenCalledTimes(1);
+    expect(screen.getByText('Plafond estimé.')).toBeInTheDocument();
+  });
+
+  it('no progress for a declarant without PER', () => {
+    const r = withPer();
+    r.declarants = [r.declarants[0]!, { ...r.declarants[0]!, person: 'b', name: 'Bob', per: null }];
+    show(r, ['', '']);
+    expect(screen.getAllByRole('progressbar')).toHaveLength(1);
   });
 
   it('says what expires on December 31st and the minimum that keeps it', () => {
     show(withPer({}, declarantPer({ expiring: '1200.00', minimum: '1700.00' })));
-    expect(screen.getByText('dont 1 200,00 € perdus au 31 décembre')).toBeInTheDocument();
-    expect(cell(/Minimum à verser avant le 31 décembre/)).toHaveTextContent('1 700,00 €pour ne pas perdre 1 200,00 €');
-    expect(cell(/Reste à verser avant le 31 décembre/)).toHaveTextContent('2 843,13 €');
+    expect(screen.getByText('dont 1 200,00 € perdus sinon')).toBeInTheDocument();
+    expect(cell(/Minimum à verser avant le 31 décembre/)).toHaveTextContent(/^Minimum à verser avant le 31 décembre1 700,00 €$/);
   });
 
   it('drops the loss once the minimum is paid', () => {
     show(withPer({}, declarantPer({ expiring: '1200.00' })));
-    expect(screen.queryByText(/perdus au 31 décembre/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/perdus sinon/)).not.toBeInTheDocument();
     expect(cell(/Minimum à verser/)).toHaveTextContent(/^Minimum à verser avant le 31 décembre0,00 €$/);
   });
 
   it('tells when the year’s own ceiling in the minimum is estimated', () => {
     show(withPer({}, declarantPer({ expiring: '1200.00', minimum: '1700.00', minimumEstimated: true })));
-    expect(cell(/Minimum à verser/)).toHaveTextContent('pour ne pas perdre 1 200,00 € · plafond de l’année estimé');
+    expect(cell(/Minimum à verser/)).toHaveTextContent('plafond de l’année estimé');
   });
 
   it('shows no minimum when nothing expires', () => {
@@ -56,57 +86,9 @@ describe('PerRows and PerSummary', () => {
     expect(screen.queryByRole('row', { name: /Minimum à verser/ })).not.toBeInTheDocument();
   });
 
-  it('warns when contributions go beyond the ceiling, with a way to the profile', async () => {
-    const onProfile = vi.fn();
-    render(block(withPer({ warnings: ['per_over_ceiling'] }, declarantPer({ source: 'estimated', contributions: '8000.00', deducted: '5843.13', excess: '2156.87', remaining: '0.00' })), [''], onProfile));
-    expect(screen.getByText('Alice : 2 156,87 € versés ne sont pas déduits, le plafond de 5 843,13 € est atteint.')).toBeInTheDocument();
-    await userEvent.setup().click(screen.getByRole('button', { name: 'Saisissez le plafond de votre avis dans Profil fiscal.' }));
-    expect(onProfile).toHaveBeenCalled();
-  });
-
-  it('offers the way to the profile only when the ceiling is estimated', () => {
-    show(withPer({ warnings: ['per_over_ceiling'] }, declarantPer({ source: 'notice', excess: '100.00' })));
-    expect(screen.getByText(/Alice : 100,00 € versés ne sont pas déduits, le plafond de 5 843,13 € est atteint\.$/)).toBeInTheDocument();
-    expect(screen.queryByText('Saisissez le plafond de votre avis dans Profil fiscal.')).not.toBeInTheDocument();
-  });
-
-  it('offers the way to the profile when the ceiling is estimated and exceeded', () => {
-    show(withPer({ warnings: ['per_over_ceiling'] }, declarantPer({ source: 'estimated', excess: '100.00' })));
-    expect(screen.getByRole('button', { name: 'Saisissez le plafond de votre avis dans Profil fiscal.' })).toBeInTheDocument();
-  });
-
-  it('says when the ceiling is estimated', () => {
-    show(withPer({ warnings: ['per_ceiling_estimated'] }, declarantPer({ source: 'estimated' })));
-    expect(screen.getByText('Plafond de Alice estimé sur les revenus 2025 : saisissez celui de votre avis pour un chiffre exact.')).toBeInTheDocument();
-    expect(screen.getByRole('row', { name: /Plafond \(estimé\)/ })).toBeInTheDocument();
-  });
-
-  it('shows the household line when pooled', () => {
-    show(withPer({ per: { pooled: true, remaining: '5000.00', taxSaved: '900.00', roomInBracket: '10421.00', remainingTaxSaved: '900.00' } }));
-    expect(screen.getByText('5 000,00 € à verser avant le 31 décembre')).toBeInTheDocument();
-  });
-
-  it('shows no household line when not pooled', () => {
-    show(withPer());
-    expect(screen.queryByText('Foyer (plafonds mutualisés)')).not.toBeInTheDocument();
-  });
-
   it('names the envelopes the contributions come from', () => {
     show(withPer(), ['PER Avenir']);
     expect(screen.getByText('flux de PER Avenir')).toBeInTheDocument();
-  });
-
-  it('shows the tax saved and the room in the bracket', () => {
-    show(withPer());
-    expect(screen.getByText('Économie d’impôt')).toBeInTheDocument();
-    expect(screen.getByText('900,00 €')).toBeInTheDocument();
-    expect(screen.getByText('encore 10 421 € déductibles à 11 %')).toBeInTheDocument();
-  });
-
-  it('adds no row nor summary without PER figures', () => {
-    show(result());
-    expect(screen.queryByText(/PER/)).not.toBeInTheDocument();
-    expect(screen.queryByText('Économie d’impôt')).not.toBeInTheDocument();
   });
 
   it('tells each ceiling’s source in its cell when the declarants’ differ', () => {
@@ -136,7 +118,7 @@ describe('TaxPage, PER', () => {
     await renderApp('/tax?tab=detail');
 
     expect(await screen.findByText('flux de PER Avenir')).toBeInTheDocument();
-    expect(screen.getAllByText(/100,00 € versés ne sont pas déduits/)).toHaveLength(1);
+    expect(screen.getAllByText('Plafond atteint : le surplus n’est pas déduit.')).toHaveLength(1);
     expect(screen.queryByText('per_over_ceiling')).not.toBeInTheDocument();
   });
 
@@ -206,8 +188,8 @@ describe('TaxPage, PER', () => {
     const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     await renderApp('/tax?tab=detail');
 
-    expect(await screen.findAllByText(/versés ne sont pas déduits/)).toHaveLength(2);
-    expect(screen.getAllByText(/Plafond de Bob estimé/)).toHaveLength(1);
+    expect(await screen.findAllByText('Plafond atteint : le surplus n’est pas déduit.')).toHaveLength(2);
+    expect(screen.getAllByRole('button', { name: 'Saisir celui de l’avis' })).toHaveLength(1);
     expect(errors.mock.calls.flat().join(' ')).not.toContain('same key');
     errors.mockRestore();
   });
