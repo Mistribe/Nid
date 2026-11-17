@@ -39,7 +39,12 @@ export function EvolutionTab({ year, scope, history }: {
   if (!rows.length) {
     return fetched.isPending && !history
       ? <Loading label={t('tax.loading')}><SectionCardSkeleton><TableSkeleton columns={5} rows={3} /></SectionCardSkeleton></Loading>
-      : <p className="text-sm text-muted-foreground">{t('tax.evolution.empty')}</p>;
+      : (
+        <div className="animate-enter space-y-4">
+          <h2 className="text-title">{t('tax.evolution.question')}</h2>
+          <SectionCard title={t('tax.evolution.title')}><p className="text-sm text-muted-foreground">{t('tax.evolution.empty')}</p></SectionCard>
+        </div>
+      );
   }
   return (
     <div className="animate-enter space-y-4">
@@ -73,7 +78,8 @@ function HistoryChart({ rows, current }: { rows: TaxYear[]; current: string }) {
       <ChartContainer config={config} className="aspect-auto w-full" style={{ height: 240 }}>
         <BarChart data={bars} title={t('tax.evolution.title')} accessibilityLayer margin={{ top: 20, right: 8, bottom: 16, left: 8 }}>
           <XAxis dataKey="year" minTickGap={24} tickLine={false} axisLine={false} />
-          <YAxis hide />
+          {/* Room under a negative bar for its label, so it never meets the year ticks. */}
+          <YAxis hide padding={{ bottom: 20 }} />
           <ReferenceLine y={0} stroke="var(--border)" />
           <ChartTooltip cursor={false} content={<HistoryTooltip />} />
           <ChartLegend content={() => (

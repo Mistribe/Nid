@@ -48,6 +48,26 @@ describe('AssessmentTab', () => {
     expect(within(gaps).getByText(/prélèvement forfaitaire de 12,8 %/)).toBeInTheDocument();
   });
 
+  it('Names_each_declarant_by_id_whatever_the_order_of_the_persons', async () => {
+    const a = jointAssessment({ year: 2025 });
+    const loaded = estimate();
+    loaded.adults = [];
+    loaded.gaps = { ...GAPS(a.id), declarants: [
+      { person: ADULT, notice: '1.00', nid: '1.00', gap: '0.00' }, { person: 'b', notice: '2.00', nid: '2.00', gap: '0.00' },
+    ] };
+    const person = (id: string, displayName: string) => ({ id, kind: 'adult', displayName, email: null, retirementAge: 64, retirementMonths: 0, signedIn: false });
+    server.use(
+      http.get('*/api/v1/tax/assessments', () => HttpResponse.json({ items: [a] })),
+      http.get('*/api/v1/tax', () => HttpResponse.json(loaded)),
+      http.get('*/api/v1/core/persons', () => HttpResponse.json([person('b', 'Bob'), person(ADULT, 'Alice')])),
+    );
+    await renderApp('/tax?tab=assessment&year=2025');
+
+    const gaps = await screen.findByRole('region', { name: 'Écarts avec l’estimation' });
+    const rows = within(gaps).getAllByRole('row').slice(1);
+    expect(rows.slice(-2).map((r) => r.firstChild?.textContent)).toEqual(['Salaires nets — Alice', 'Salaires nets — Bob']);
+  });
+
   it('No_gap_card_without_gaps', async () => {
     await open(false);
     await screen.findByRole('region', { name: 'Avis 2025' });

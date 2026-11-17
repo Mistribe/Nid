@@ -158,9 +158,41 @@ describe('EvolutionTab', () => {
       const r = await region();
       await waitFor(() => expect(r.querySelectorAll('.recharts-bar-rectangle path')).toHaveLength(2));
       expect([...r.querySelectorAll('.recharts-bar-rectangle path')].map((p) => p.getAttribute('fill'))).toEqual(['var(--status-critical)', 'var(--status-good)']);
-      expect(texts(r, '.recharts-label-list text').map((x) => x?.replace(/\s/g, ' '))).toEqual([
-        'Salaires nets — Alice : +4 500,00 € (hausse)', 'Parts : -1 807,00 € (baisse)',
-      ]);
+      await waitFor(() => expect(texts(r, '.recharts-label-list text').map((x) => x?.replace(/\s/g, ' '))).toEqual([
+        'Salaires nets — Alice+4 500,00 € (hausse)', 'Parts-1 807,00 € (baisse)',
+      ]));
+      // The name and the amount are two lines: a long name never cuts the amount.
+      const [name, amount] = [...r.querySelectorAll('.recharts-label-list text')][0]!.querySelectorAll('tspan');
+      expect(Number(amount!.getAttribute('y'))).toBeGreaterThan(Number(name!.getAttribute('y')));
+    });
+
+    it.each([['positive', ['10.00', '20.00']], ['negative', ['-10.00', '-20.00']]])('keeps zero on the axis when every effect is %s', async (_, effects) => {
+      changed();
+      server.use(http.get('*/api/v1/tax/changes', () => HttpResponse.json({
+        year: 2026, taxBefore: '1.00', taxNow: '2.00', remainder: '0.00',
+        lines: effects.map((effect, i) => ({ code: 'salaries', person: ADULT, before: `${i}.00`, now: `${i + 1}.00`, effect, fromNotice: false })),
+      })));
+      await renderApp('/tax?tab=evolution');
+
+      const r = await region();
+      await waitFor(() => expect(r.querySelectorAll('.recharts-bar-rectangle path')).toHaveLength(2));
+      const zero = Number(r.querySelector('.recharts-reference-line line')!.getAttribute('x1'));
+      // The bars grow from the zero line once their animation ends.
+      await waitFor(() => {
+        for (const bar of r.querySelectorAll('.recharts-bar-rectangle path')) {
+          const xs = [...bar.getAttribute('d')!.matchAll(/[ML] ?(-?[\d.]+)/g)].map((m) => Number(m[1]));
+          expect(effects[0]!.startsWith('-') ? Math.max(...xs) : Math.min(...xs)).toBeCloseTo(zero, 0);
+        }
+      });
+    });
+
+    it('asks for the changes of the selected year', async () => {
+      const asked: (string | null)[] = [];
+      changed();
+      server.use(http.get('*/api/v1/tax/changes', ({ request }) => { asked.push(new URL(request.url).searchParams.get('year')); return HttpResponse.json({ year: 2026, lines: [] }); }));
+      await renderApp('/tax?tab=evolution');
+      await card();
+      await waitFor(() => expect(asked).toContain('2026'));
     });
 
     it('keeps the table under the chart', async () => {

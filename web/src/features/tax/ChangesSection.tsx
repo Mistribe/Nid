@@ -24,7 +24,7 @@ const TIPS: Partial<Record<(typeof LINES)[number], Parameters<typeof tipText>[1]
 const signed = (amount: string) => (amount.startsWith('-') || ZERO.test(amount) ? eur(amount) : `+${eur(amount)}`);
 
 type Persons = { id: string; displayName: string }[];
-type Point = { label: string; plot: number; effect: string; text: string };
+type Point = { label: string; plot: number; effect: string; amount: string };
 const AXIS = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', notation: 'compact' });
 const FILLS = { up: 'var(--status-critical)', down: 'var(--status-good)', flat: 'var(--muted-foreground)' };
 
@@ -70,25 +70,31 @@ export function ChangesSection({ year, scope }: { year: string; scope: 'me' | 'h
     const label = lineTitle(t, l.code, l.person, persons);
     const dir = directionOf(l.effect);
     const word = dir === 'flat' ? '' : ` (${t(dir === 'up' ? 'tax.changes.rise' : 'tax.changes.cut')})`;
-    return { label, plot: toPlot(l.effect), effect: l.effect, text: `${label} : ${signed(l.effect)}${word}` };
+    return { label, plot: toPlot(l.effect), effect: l.effect, amount: `${signed(l.effect)}${word}` };
   });
   const value = (code: string, amount: string) => (code === 'shares' ? partsText(amount) : eur(amount));
   return (
     <SectionCard title={t('tax.changes.title', { year: since })} note={t('tax.changes.intro', { year })} className="space-y-3">
       {changes.lines.length ? <>
         <figure aria-label={t('tax.changes.title', { year: since })}>
-          <ChartContainer config={{} satisfies ChartConfig} className="aspect-auto w-full" style={{ height: changes.lines.length * 48 + 40 }}>
-            <BarChart data={points} layout="vertical" title={t('tax.changes.title', { year: since })} accessibilityLayer margin={{ left: 8, right: 8 }}>
+          <ChartContainer config={{} satisfies ChartConfig} className="aspect-auto w-full" style={{ height: changes.lines.length * 64 + 48 }}>
+            <BarChart data={points} layout="vertical" title={t('tax.changes.title', { year: since })} accessibilityLayer margin={{ top: 28, left: 8, right: 8 }}>
               <XAxis type="number" domain={['auto', 'auto']} minTickGap={24} tickLine={false} axisLine={false} tickFormatter={(n: number) => AXIS.format(n)} />
               <YAxis type="category" dataKey="label" hide />
-              <ReferenceLine x={0} stroke="var(--border)" />
+              <ReferenceLine x={0} stroke="var(--border)" ifOverflow="extendDomain" />
               <ChartTooltip cursor={false} content={<ChangesTooltip />} />
               <Bar dataKey="plot" maxBarSize={24} animationDuration={800}>
                 {points.map((p, i) => <Cell key={i} /* Cell's typing omits radius, which Recharts' Rectangle accepts */ fill={FILLS[directionOf(p.effect)]} radius={(p.plot < 0 ? [4, 0, 0, 4] : [0, 4, 4, 0]) as unknown as number} />)}
-                {/* Labels start at the chart's left margin so a long one never runs past the right edge. The name and the server's signed effect sit above the bar (as on the withholding tab): no legend, and the word keeps colour from being alone. */}
-                <LabelList dataKey="text" content={({ y, value }) => (
-                  <text x={8} textAnchor="start" y={Number(y) - 6} className="fill-foreground text-xs">{String(value)}</text>
-                )} />
+                {/* Two lines above each bar, from the chart's left margin: the name, then the server's signed effect with its word (as on the withholding tab). The amount has its own line so a long name never cuts it; the word keeps colour from being alone. */}
+                <LabelList dataKey="label" content={({ y, index }) => {
+                  const p = points[Number(index)]!;
+                  return (
+                    <text x={8} textAnchor="start" className="fill-foreground text-xs">
+                      <tspan x={8} y={Number(y) - 20}>{p.label}</tspan>
+                      <tspan x={8} y={Number(y) - 6} className="font-medium tabular-nums">{p.amount}</tspan>
+                    </text>
+                  );
+                }} />
               </Bar>
             </BarChart>
           </ChartContainer>
@@ -105,7 +111,7 @@ export function ChangesSection({ year, scope }: { year: string; scope: 'me' | 'h
           <TableBody>
             {changes.lines.map((l) => (
               <TableRow key={`${l.code}-${l.person ?? ''}`}>
-                <TableCell>{label(l.code, l.person)}</TableCell>
+                <TableCell className="whitespace-normal">{label(l.code, l.person)}</TableCell>
                 <TableCell className="text-right tabular-nums">
                   {value(l.code, l.before)}
                   {l.fromNotice ? <div className="text-xs text-muted-foreground">{t('tax.changes.from_notice')}</div> : null}
