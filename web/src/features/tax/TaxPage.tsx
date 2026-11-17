@@ -12,7 +12,6 @@ import { PageHeader } from '@/components/page/PageHeader';
 import { DetailTabsSkeleton, HeroSkeleton, Loading, SectionCardSkeleton, StatLineSkeleton, TableSkeleton } from '@/components/page/skeletons';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
-import { PERSONS } from '@/api/persons';
 import { todayIso } from '@/lib/today';
 import { FIRST_ESTIMATE_YEAR, TAX } from '@/api/tax';
 import { useTaxAssessments } from './assessments/api';
@@ -80,7 +79,6 @@ export function TaxPage() {
   // menu does not vanish under the pointer.
   const answer = $api.useQuery('get', TAX, { params: { query: { year: Number(year), scope } } }, { enabled: !past, placeholderData: keepPreviousData });
   const estimate = past ? undefined : answer.data;
-  const people = $api.useQuery('get', PERSONS).data ?? [];
   const notices = assessments.filter((a) => String(a.year) === year);
   // The Avis tab exists only for a year with notices: a URL asking for it elsewhere shows the overview.
   const tab = rawTab === 'assessment' && !notices.length ? 'overview' : rawTab;
@@ -91,7 +89,7 @@ export function TaxPage() {
   // The previous year's estimate kept while the overview's own loads would show last year's hero under this year's filter.
   const stale = !past && answer.isPlaceholderData && tab === 'overview';
   const pending = (past && awaiting) || (!past && !estimate && !answer.error) || stale;
-  const assessmentTab = <AssessmentTab notices={notices} persons={people} gaps={estimate?.gaps} adults={estimate?.adults ?? []} />;
+  const assessmentTab = <AssessmentTab notices={notices} gaps={estimate?.gaps} />;
   // Held here, not in the tab: Radix unmounts a hidden tab, and the draft outlives a tab switch.
   const draft = useProfileDraft(estimate, scope);
 
@@ -113,7 +111,7 @@ export function TaxPage() {
         <DetailTabs value={rawTab === 'evolution' ? 'evolution' : 'assessment'} onChange={(next) => setTab(next === 'assessment' ? 'overview' : next)} tabs={[
           { id: 'assessment', label: t('tax.tab.assessment'), content: assessmentTab },
           { id: 'evolution', label: t('tax.tab.evolution'),
-            content: <EvolutionTab years={years.map((y) => y.value)} assessments={assessments} scope={scope} current={year} adults={people} /> },
+            content: <EvolutionTab year={year} scope={scope} /> },
         ]} />
       ) : null}
       {!past && answer.error ? <ProblemMessage problem={present(toProblem(answer.error))} /> : null}
@@ -124,7 +122,7 @@ export function TaxPage() {
           { id: 'withholding', label: t('tax.tab.withholding'), content: <WithholdingTab estimate={estimate} /> },
           ...(notices.length ? [{ id: 'assessment' as const, label: t('tax.tab.assessment'), content: assessmentTab }] : []),
           { id: 'evolution', label: t('tax.tab.evolution'),
-            content: <EvolutionTab years={years.map((y) => y.value)} assessments={assessments} scope={scope} current={year} adults={estimate.adults} /> },
+            content: <EvolutionTab year={year} scope={scope} history={estimate.history} /> },
           { id: 'simulation', label: t('tax.tab.simulation'), content: <SimulationTab estimate={estimate} scope={scope} /> },
           { id: 'profile', label: t('tax.tab.profile'), content: draft ? <ProfileForm key={draft.key} estimate={estimate} draft={draft} /> : null,
             action: draft ? <ProfileSubmit draft={draft} /> : undefined },

@@ -20,20 +20,22 @@
     "notes": "À savoir",
     "childcare_summary": "Récapitulatif {{year}} à recopier",
     "evolution": {
-      "title": "Évolution de l’impôt d’une année à l’autre",
-      "intro": "L’impôt sur le revenu de chaque année : celui de l’avis reçu quand il y en a un, sinon l’estimation.",
+      "question": "Comment mon impôt a changé ?",
+      "title": "Impôt année par année",
+      "intro": "Impôt sur le revenu et prélèvement forfaitaire, celui de l’avis quand il y en a un.",
+      "tax": "Impôt",
       "empty": "Aucune année à comparer pour l’instant.",
       "year": "Revenus",
-      "bar": "Barre proportionnelle à l’impôt",
       "rate": "Taux moyen",
       "source": "Source",
-      "flat_tax": "+ {{amount}} de prélèvement forfaitaire",
       "from": { "assessment": "Avis", "estimate": "Estimation" }
     },
     "changes": {
       "title": "Ce qui a changé depuis {{year}}",
       "intro": "Indicatif : l’effet de chaque ligne est estimé seul, sur le barème et les parts de {{year}} ; l’administration seule calcule l’impôt dû.",
       "none": "Aucune ligne du calcul n’a changé.",
+      "rise": "hausse",
+      "cut": "baisse",
       "line_head": "Ligne du calcul",
       "effect": "Effet sur l’impôt",
       "from_notice": "avis",
@@ -56,6 +58,7 @@
     "disclaimer": "Estimation indicative pour une déclaration commune, selon le barème des revenus {{year}}. Ce n’est pas un conseil fiscal : seule l’administration calcule l’impôt dû.",
     "out_of_scope": "Non calculés : retraites, revenus d’indépendant, pensions alimentaires, location meublée, plus-values, retraits d’épargne (PEA, assurance-vie, PER), option pour le barème sur les revenus du capital, contribution sur les hauts revenus, parent isolé, garde alternée, invalidité.",
     "add_assessment": "Ajouter un avis",
+    "assessment_tab": { "question": "Ce que l’administration a calculé, et l’écart avec Nid" },
     "tab": { "overview": "Vue d’ensemble", "declarations": "Déclarations", "assessment": "Avis", "2042": "Déclaration 2042", "detail": "Calcul", "withholding": "Prélèvement", "profile": "Profil fiscal", "simulation": "Simuler", "sale": "Si tout était vendu", "evolution": "Évolution" },
     "step": {
       "salaries": "Salaires",
@@ -746,7 +749,7 @@
       }
     },
     "gaps": {
-      "table": "Écarts entre l’avis et l’estimation",
+      "title": "Écarts avec l’estimation",
       "line": "Ligne", "notice": "Avis", "nid": "Nid", "gap": "Écart",
       "note": "Écart = avis − estimation de Nid",
       "withholding_note": "Le solde et la retenue à la source peuvent différer de l’avis quand l’acompte du prélèvement forfaitaire de 12,8 % n’a pas été prélevé à la source, ou quand les revenus fonciers ont leurs propres acomptes.",

@@ -37,6 +37,14 @@ async function show(assessment: TaxAssessment) {
 const figure = (label: string) => screen.getByText(label, { selector: 'dt' }).nextElementSibling;
 
 describe('AssessmentView', () => {
+  it('Puts_the_source_and_the_menu_in_the_card_header', async () => {
+    const region = await show(jointAssessment());
+    const header = region.querySelector('[data-slot="card-header"]')!;
+    expect(within(header as HTMLElement).getByRole('link', { name: /^Source/ })).toBeInTheDocument();
+    expect(within(header as HTMLElement).getByRole('button', { name: 'Actions de l’avis 2025' })).toBeInTheDocument();
+    expect(header).toHaveTextContent('établi en 2026');
+  });
+
   it('Shows_the_figures_of_a_joint_notice', async () => {
     await show(jointAssessment());
     expect(screen.getByText('établi en 2026')).toBeInTheDocument();

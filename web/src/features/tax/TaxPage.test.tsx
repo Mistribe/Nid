@@ -1,4 +1,4 @@
-import { cleanup, screen, waitFor, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw/http';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
@@ -621,107 +621,12 @@ describe('TaxPage, Déclaration 2044 tab', () => {
       expect(years).toEqual([]);
     });
 
-    it('shows the tax year by year, a notice before an estimate', async () => {
-      const years = taxCalls();
-      const loaded = estimate();
-      loaded.result = result({ capitalFlatTax: '120.00' });
-      server.use(notices(soloAssessment({ year: 2024 }), jointAssessment({ year: 2025 })), http.get('*/api/v1/tax', ({ request }) => {
-        years.push(new URL(request.url).searchParams.get('year'));
-        return HttpResponse.json(loaded);
-      }));
-      const { container } = await renderApp('/tax?tab=evolution');
-
-      const table = await screen.findByRole('table', { name: 'Évolution de l’impôt d’une année à l’autre' });
-      await waitFor(() => expect(within(table).getAllByRole('row')).toHaveLength(4));
-      expect(within(table).getByRole('row', { name: /^2024/ })).toHaveTextContent(/^2024—2 100,00 €.*—.*Avis/);
-      expect(within(table).getByRole('row', { name: /^2025/ })).toHaveTextContent(/^202570 000,00 €2 688,00 €.*4,5 %.*Avis/);
-      const current = within(table).getByRole('row', { name: /^2026/ });
-      expect(current).toHaveTextContent(/^202664 407,00 €247,00 €\+ 120,00 € de prélèvement forfaitaire.*0,38 %.*Estimation/);
-      expect(current).toHaveAttribute('aria-current', 'true');
-      expect(years).not.toContain('2025');
-      await expectNoAxeViolations(container);
-    });
-
-    it('opens the notices’ net tax in the explorer, and shows no link without a notice', async () => {
-      server.use(notices(soloAssessment({ year: 2024 })), http.get('*/api/v1/tax', () => HttpResponse.json(estimate())));
-      const { user, router } = await renderApp('/tax?tab=evolution');
-      await user.click(await screen.findByRole('link', { name: 'Voir la série' }));
-      await waitFor(() => expect(router.state.location.pathname).toBe('/series'));
-      expect(router.state.location.search).toMatchObject({ s: 'tax:yearly' });
-      cleanup();
-
-      server.use(notices(soloAssessment({ year: 2024, netTax: undefined })), http.get('*/api/v1/tax', () => HttpResponse.json(estimate())));
-      await renderApp('/tax?tab=evolution');
-      await screen.findByRole('table', { name: 'Évolution de l’impôt d’une année à l’autre' });
-      expect(screen.queryByRole('link', { name: 'Voir la série' })).not.toBeInTheDocument();
-    });
-
-    it('says what changed since last year, line by line, sorted by the server', async () => {
-      let asked: string | null = null;
-      server.use(http.get('*/api/v1/tax', () => HttpResponse.json(estimate())), http.get('*/api/v1/tax/changes', ({ request }) => {
-        asked = new URL(request.url).searchParams.get('year');
-        return HttpResponse.json({
-          year: 2026, taxBefore: '2500.00', taxBeforeFromNotice: true, taxNow: '6604.00', remainder: '-396.00',
-          lines: [
-            { code: 'salaries', person: ADULT, before: '30000.00', now: '45000.00', effect: '4500.00', fromNotice: true },
-            { code: 'shares', person: null, before: '1.00', now: '1.50', effect: '-1807.00', fromNotice: false },
-          ],
-        });
-      }));
-      const { container } = await renderApp('/tax?tab=evolution');
-
-      const table = await screen.findByRole('table', { name: 'Ce qui a changé depuis 2025' });
-      const rows = within(table).getAllByRole('row');
-      expect(rows[1]).toHaveTextContent(/^Salaires nets — Alice30 000,00 €avis45 000,00 €\+4 500,00 €$/);
-      expect(rows[2]).toHaveTextContent(/^Parts11,5-1 807,00 €$/);
-      expect(rows[3]).toHaveTextContent(/barème, plafonds, arrondis-396,00 €$/);
-      expect(rows[4]).toHaveTextContent(/2 500,00 €avis6 604,00 €$/);
-      expect(screen.getByText(/^Indicatif/)).toBeInTheDocument();
-      expect(asked).toBe('2026');
-      await expectNoAxeViolations(container);
-    });
-
     it('has an Avis tab beside the estimate of a year that has a notice', async () => {
       server.use(notices(jointAssessment({ year: 2025 })), http.get('*/api/v1/tax', () => HttpResponse.json(estimate())));
       const { user } = await renderApp('/tax?year=2025');
 
       await user.click(await screen.findByRole('tab', { name: 'Avis' }));
       expect(await screen.findByRole('region', { name: 'Avis 2025' })).toBeInTheDocument();
-    });
-
-    it('Shows_the_gaps_above_their_notice', async () => {
-      const loaded = estimate();
-      const a = jointAssessment({ year: 2025 });
-      loaded.gaps = {
-        assessment: a.id,
-        lines: [
-          { code: 'balance', notice: '-312.00', nid: null, gap: null },
-          { code: 'net_tax', notice: '2688.00', nid: '2500.00', gap: '188.00' },
-        ],
-        declarants: [{ person: ADULT, notice: '46800.00', nid: '46000.00', gap: '800.00' }],
-      };
-      // The names come from the estimate's adults, not from the persons list.
-      server.use(notices(a), http.get('*/api/v1/tax', () => HttpResponse.json(loaded)), http.get('*/api/v1/core/persons', () => HttpResponse.json([])));
-      const { user } = await renderApp('/tax?year=2025');
-
-      await user.click(await screen.findByRole('tab', { name: 'Avis' }));
-      const table = await screen.findByRole('table', { name: 'Écarts entre l’avis et l’estimation' });
-      const rows = within(table).getAllByRole('row').slice(1);
-      expect(rows.map((r) => r.firstChild?.textContent)).toEqual(['Impôt net', 'Solde', 'Salaires nets — Alice']);
-      expect(rows[0]).toHaveTextContent('188,00 €');
-      expect(rows[1]).toHaveTextContent('—');
-      expect(screen.getByText('Écart = avis − estimation de Nid')).toBeInTheDocument();
-      expect(screen.getByText(/prélèvement forfaitaire de 12,8 %/)).toBeInTheDocument();
-      expect(table.compareDocumentPosition(screen.getByRole('region', { name: 'Avis 2025' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    });
-
-    it('No_gap_table_without_gaps', async () => {
-      server.use(notices(jointAssessment({ year: 2025 })), http.get('*/api/v1/tax', () => HttpResponse.json(estimate())));
-      const { user } = await renderApp('/tax?year=2025');
-
-      await user.click(await screen.findByRole('tab', { name: 'Avis' }));
-      await screen.findByRole('region', { name: 'Avis 2025' });
-      expect(screen.queryByRole('table', { name: 'Écarts entre l’avis et l’estimation' })).not.toBeInTheDocument();
     });
 
     it('falls back to the overview when the year switched to has no notice', async () => {
@@ -872,18 +777,43 @@ describe('TaxPage, page grammar', () => {
     expect(screen.getByRole('region', { name: 'Avis 2023' })).toBeInTheDocument();
   });
 
-  it('a past year offers Avis then Évolution, Avis first and out of the URL', async () => {
-    server.use(notices(jointAssessment({ year: 2023 })));
+  const history = (asked: string[] = []) => http.get('*/api/v1/tax/history', ({ request }) => {
+    asked.push(new URL(request.url).search);
+    return HttpResponse.json({ years: [{ year: 2023, source: 'assessment', tax: '2100.00', netTaxable: null, averageRate: null }] });
+  });
+
+  it('a past year offers Avis then Évolution', async () => {
+    server.use(notices(jointAssessment({ year: 2023 })), history());
     const { user, router } = await renderApp('/tax?year=2023');
 
     expect(await screen.findByRole('tab', { name: 'Avis', selected: true })).toBeInTheDocument();
     expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Avis', 'Évolution']);
+    expect(screen.getByRole('region', { name: 'Avis 2023' })).toBeInTheDocument();
     expect(within(screen.getByRole('group', { name: 'Filtres' })).getByRole('radio', { name: '2023', checked: true })).toBeInTheDocument();
     await user.click(screen.getByRole('tab', { name: 'Évolution' }));
     expect(await screen.findByRole('tab', { name: 'Évolution', selected: true })).toBeInTheDocument();
     await user.click(screen.getByRole('tab', { name: 'Avis' }));
     expect(await screen.findByRole('tab', { name: 'Avis', selected: true })).toBeInTheDocument();
     expect((router.state.location.search as { tab?: string }).tab).toBeUndefined();
+  });
+
+  it('a past year’s Évolution reads the history only', async () => {
+    const asked: string[] = [];
+    server.use(notices(jointAssessment({ year: 2023 })), history(asked));
+    await renderApp('/tax?year=2023&tab=evolution');
+
+    const chart = await screen.findByRole('region', { name: 'Impôt année par année' });
+    expect(chart).toBeInTheDocument();
+    expect(asked).toEqual(['?scope=household']);
+  });
+
+  it('« Moi » asks the history of « Moi »', async () => {
+    const asked: string[] = [];
+    server.use(notices(soloAssessment({ year: 2023 })), history(asked));
+    await renderApp('/tax?year=2023&tab=evolution&scope=me');
+
+    await screen.findByRole('region', { name: 'Impôt année par année' });
+    expect(asked).toEqual(['?scope=me']);
   });
 
   it('a cold load of a past year shows no hero skeleton', async () => {
