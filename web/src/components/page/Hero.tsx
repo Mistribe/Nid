@@ -7,11 +7,11 @@ import { SparkPath } from './SparkPath';
  * The hero's inside (visual identity spec): the label, the figure large, its change, a note, and the curve on the right from
  * `sm` up. Spans only, so the dashboard's net-worth tile, a button, holds it too.
  */
-export function HeroBody({ label, labelId, figure, change, note, curve }: {
-  label: string; labelId?: string; figure: ReactNode; change?: ReactNode; note?: ReactNode; curve?: ReactNode;
+export function HeroBody({ label, labelId, figure, change, note, curve, className = 'w-full justify-between' }: {
+  label: string; labelId?: string; figure: ReactNode; change?: ReactNode; note?: ReactNode; curve?: ReactNode; className?: string;
 }) {
   return (
-    <span className="flex w-full items-end justify-between gap-6">
+    <span className={`flex items-end gap-6 ${className}`}>
       <span className="flex min-w-0 flex-col items-start gap-2">
         <span id={labelId} className="text-label text-muted-foreground">{label}</span>
         <span className="text-hero tabular-nums">{figure}</span>
@@ -63,8 +63,10 @@ export function Hero({ label, figure, change, note, aside, curve }: {
   return (
     <section aria-labelledby={labelId} className="material rounded-[22px] border p-5 shadow-card">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between lg:gap-8">
-        <div className="min-w-0 shrink-0"><HeroBody label={label} labelId={labelId} figure={figure} change={change} note={note} curve={curve} /></div>
-        {aside ? <div className="min-w-0 lg:max-w-2xl lg:flex-1">{aside}</div> : null}
+        <div className="min-w-0 shrink-0"><HeroBody label={label} labelId={labelId} figure={figure} change={change} note={note} curve={curve}
+          className={curve ? '' : 'w-full justify-between'} /></div>
+        {/* With a curve the figures take the width the curve leaves; without, they stay in a 2xl box. */}
+        {aside ? <div className={`min-w-0 lg:flex-1 ${curve ? '' : 'lg:max-w-2xl'}`}>{aside}</div> : null}
       </div>
     </section>
   );

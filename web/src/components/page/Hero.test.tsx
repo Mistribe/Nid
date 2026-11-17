@@ -56,6 +56,19 @@ describe('Hero', () => {
     expect(svg!.parentElement).toHaveClass('sm:block');
   });
 
+  it('with a curve, the figure is not stretched and the aside takes the rest; without, the aside stays boxed', () => {
+    const { rerender } = render(<Hero label="Impôt" figure="1 €" curve={<HeroCurve values={[1, 2]} />} aside={<p>Chiffres</p>} />);
+    const body = () => screen.getByText('1 €').parentElement!.parentElement!;
+    const aside = () => screen.getByText('Chiffres').parentElement!;
+    expect(body()).not.toHaveClass('w-full', 'justify-between');
+    expect(aside()).toHaveClass('lg:flex-1');
+    expect(aside()).not.toHaveClass('lg:max-w-2xl');
+
+    rerender(<Hero label="Impôt" figure="1 €" aside={<p>Chiffres</p>} />);
+    expect(body()).toHaveClass('w-full', 'justify-between');
+    expect(aside()).toHaveClass('lg:flex-1', 'lg:max-w-2xl');
+  });
+
   it('HeroChange takes the tax tone', () => {
     const { container } = render(<HeroChange amount={eur('360.00')} rising="bad" />);
     expect(container.querySelector('svg')).toHaveClass('text-status-critical');

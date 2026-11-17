@@ -68,12 +68,17 @@ export function Pistes({ estimate }: { estimate: TaxEstimate }) {
   return (
     <SectionCard title={t('tax.pistes.title')}>
       <GroupedList>
-        {pistes.map((p) => (
-          <GroupedRow key={p.key} tile={tileOf(p.tile)} link={p.link} title={p.title} detail={p.detail}
-            trailing={p.saving ? (
-              <span className="inline-flex items-center gap-1 text-status-good-text"><CircleCheck aria-hidden className="size-4" />{t('tax.pistes.saving', { amount: wholeEur(p.saving) })}</span>
-            ) : p.same ? <span className="text-muted-foreground">{t('tax.pistes.nothing')}</span> : undefined} />
-        ))}
+        {pistes.map((p) => {
+          // The saving is said once: under the title below `sm` (the trailing would crowd the title), trailing from `sm` up.
+          const saving = p.saving ? (
+            <span className="inline-flex items-center gap-1 text-status-good-text"><CircleCheck aria-hidden className="size-4" />{t('tax.pistes.saving', { amount: wholeEur(p.saving) })}</span>
+          ) : p.same ? <span className="text-muted-foreground">{t('tax.pistes.nothing')}</span> : undefined;
+          return (
+            <GroupedRow key={p.key} tile={tileOf(p.tile)} link={p.link} title={p.title}
+              detail={p.detail || saving ? <>{p.detail}{saving ? <span className="mt-0.5 block font-medium sm:hidden">{saving}</span> : null}</> : undefined}
+              trailing={saving ? <span className="hidden sm:inline">{saving}</span> : undefined} />
+          );
+        })}
       </GroupedList>
     </SectionCard>
   );
