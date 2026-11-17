@@ -48,4 +48,16 @@ describe('Hero', () => {
     const { container } = render(<HeroBody label="Valeur" figure="1 €" curve={<HeroCurve values={[1, 2, 3]} />} />);
     expect(container.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
   });
+
+  it('draws the curve beside the figure in the hero', () => {
+    render(<Hero label="Impôt" figure="1 €" curve={<HeroCurve values={[1, 2]} />} />);
+    const svg = screen.getByRole('region', { name: 'Impôt' }).querySelector('svg');
+    expect(svg).not.toBeNull();
+    expect(svg!.parentElement).toHaveClass('sm:block');
+  });
+
+  it('HeroChange takes the tax tone', () => {
+    const { container } = render(<HeroChange amount={eur('360.00')} rising="bad" />);
+    expect(container.querySelector('svg')).toHaveClass('text-status-critical');
+  });
 });
