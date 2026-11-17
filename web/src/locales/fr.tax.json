@@ -109,7 +109,7 @@
       "amount": "Montant"
     },
     "figure": {
-      "net_taxable": "Net fiscal",
+      "net_taxable": "Revenu imposable",
       "income_tax": "Impôt sur le revenu",
       "net_after": "Net après impôt",
       "monthly": "Par mois",
@@ -248,7 +248,7 @@
       "net_before": "Revenus nets avant impôt",
       "net_after": "Net après impôt",
       "net_after_monthly": "Net après impôt, par mois",
-      "marginal_rate": "Tranche marginale",
+      "marginal_rate": "Votre tranche d’imposition",
       "withholding_rate": "Taux de prélèvement à la source",
       "withholding_balance": "Solde à la déclaration",
       "balance_value": "{{amount}} · {{words}}",
@@ -532,6 +532,7 @@
       "title": "Profil fiscal",
       "field": "Champ",
       "help": "Ce que Nid ne sait pas de lui-même. Le profil vaut pour le foyer et pour cette année ; les années suivantes le reprennent.",
+      "from_title": "Profil repris d’une autre année",
       "from": "Repris du profil de {{year}} : vérifiez les rubriques « à revoir », puis enregistrez-le pour cette année.",
       "household": "Foyer",
       "activity": "Revenus d’activité",

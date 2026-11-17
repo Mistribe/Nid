@@ -5,7 +5,7 @@ import { signIn } from './session';
 
 test('alice reads her tax overview, follows a piste, opens Calcul, simulates, exports her 2042 and reaches the 2044 from her property', async ({ page }) => {
   const stamp = Date.now();
-  const thisYear = new Date().getFullYear();
+  const thisYear = new Date().getUTCFullYear();
   const lastYear = thisYear - 1;
   await signIn(page, 'alice', '/tax');
 
@@ -51,9 +51,9 @@ test('alice reads her tax overview, follows a piste, opens Calcul, simulates, ex
   // The shared salary above (open-ended, from last year) is in the household's estimate, so the PER piste (room left, tax saved) shows.
   const pistes = page.getByRole('region', { name: 'Pistes' });
   await expect(pistes, 'the PER piste (this year, room left and tax saved) should show').toBeVisible();
-  await expect(pistes.getByRole('link', { name: /sur le PER avant le 31 décembre/ }).first()).toBeVisible();
+  await expect(pistes.getByRole('link', { name: /sur le PER avant le 31 décembre/ })).toBeVisible();
   await pistes.getByRole('link').first().click();
-  await expect(page).toHaveURL(/[?&]tab=(detail|profile|withholding)/);
+  await expect(page).toHaveURL(/tab=detail/);
   await expect(overviewTab).toHaveAttribute('aria-selected', 'false');
 
   // Calcul: the steps from income to tax, as a table on demand.
