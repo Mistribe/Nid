@@ -1,15 +1,11 @@
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
-import { formatCurrency } from '@/components/Money';
 import { Button } from '@/components/ui/button';
 import { TableCell, TableHead, TableRow } from '@/components/ui/table';
 import type { TaxResult } from '@/api/tax';
 import { percentText, tipText, ZERO } from './format';
-import { eur, Term } from './ResultTable';
+import { eur, Term, wholeEur } from './ResultTable';
 import '@/locales/tax';
-
-/** Whole euros: the room in the bracket is floored by the server. */
-export const wholeEur = (amount: string) => formatCurrency(amount, 'EUR', { maximumFractionDigits: 0 });
 
 type Declarant = TaxResult['declarants'][number];
 const overCeiling = (result: TaxResult) => (result.warnings.includes('per_over_ceiling') ? result.declarants.filter((d) => d.per && !ZERO.test(d.per.excess)) : []);

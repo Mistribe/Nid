@@ -121,7 +121,7 @@
     },
     "declarant": {
       "title": "Revenus par déclarant",
-      "info": "Infos",
+      "line": "Ligne",
       "salaries": "Salaires",
       "salary_net": "Salaires nets imposables",
       "allowance": "Abattement de 10 %",
@@ -185,7 +185,9 @@
       "net_after_monthly": "Net après impôt, par mois",
       "marginal_rate": "Tranche marginale",
       "withholding_rate": "Taux de prélèvement à la source",
-      "withholding_balance": "Solde après le prélèvement (négatif : remboursé)"
+      "withholding_balance": "Solde à la déclaration",
+      "balance_value": "{{amount}} · {{words}}",
+      "in_your_favour": "{{amount}} en votre faveur"
     },
     "regime": { "auto": "Automatique", "micro": "micro-foncier", "real": "réel" },
     "capital_option": { "flat": "Prélèvement forfaitaire", "scale": "Barème progressif" },
