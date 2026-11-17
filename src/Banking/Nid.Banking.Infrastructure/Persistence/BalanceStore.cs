@@ -23,6 +23,16 @@ public sealed class BalanceStore(BankingDbContext db) : IBalanceStore
             ? new BankBalance(b.AccountId, b.AsOf, b.Amount, b.BalanceType, b.FetchedAt)
             : null;
 
+    public async Task<IReadOnlyList<BankBalance>> SinceAsync(Guid account, LocalDate from, CancellationToken ct)
+    {
+        var start = await db.Balances.AsNoTracking().Where(b => b.AccountId == account && b.AsOf <= from).MaxAsync(b => (LocalDate?)b.AsOf, ct) ?? from;
+        return (await db.Balances.AsNoTracking()
+                .Where(b => b.AccountId == account && b.AsOf >= start)
+                .OrderBy(b => b.AsOf)
+                .ToListAsync(ct))
+            .Select(b => new BankBalance(b.AccountId, b.AsOf, b.Amount, b.BalanceType, b.FetchedAt)).ToList();
+    }
+
     public async Task<IReadOnlyList<BankBalance>> InMonthAsync(Guid account, LocalDate monthEnd, CancellationToken ct)
     {
         var first = new LocalDate(monthEnd.Year, monthEnd.Month, 1);

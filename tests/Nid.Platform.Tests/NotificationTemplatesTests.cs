@@ -265,4 +265,29 @@ public class NotificationTemplatesTests
         var unassociated = record with { ItemIds = [], Params = new Dictionary<string, string>(figures.Where(p => p.Key != "module")) { ["account"] = "Compte courant" } };
         Assert.Equal(("Le 5 mars 2027 — Compte courant", "/settings/banks"), (NotificationTemplates.Render(unassociated, kind, names) is var r ? (r.Body, r.Link) : default));
     }
+
+    [Fact]
+    public void Idle_cash_says_what_held_and_opens_the_investments()
+    {
+        var record = Record("idle_cash", key: "idle_cash:2027-03") with
+        {
+            ItemIds = [],
+            Params = new Dictionary<string, string>
+            {
+                ["above_amount"] = "4200.40", ["buffer_amount"] = "6000.00", ["room_amount"] = "2000", ["currency"] = "EUR", ["reason"] = "room_goal_behind",
+            },
+        };
+        var kind = KindOf("idle_cash", "banking");
+
+        var centre = NotificationTemplates.Render(record, kind, new Dictionary<ItemId, string>(), withFigures: true);
+        var plain = NotificationTemplates.Render(record, kind, new Dictionary<ItemId, string>());
+
+        Assert.Equal("Vos comptes courants dépassent l'épargne de précaution", centre.Title);
+        Assert.Equal("Au-dessus de l'épargne de précaution depuis 4 semaines, un livret a de la place et un objectif est en retard", plain.Body);
+        Assert.EndsWith("Au-dessus de l'épargne de précaution : 4 200 € · Épargne de précaution : 6 000 € · Place sur les livrets : 2 000 €",
+            centre.Body.Replace('\u202f', ' ').Replace('\u00a0', ' '));
+        Assert.Equal("/investments", centre.Link);
+        Assert.EndsWith(", un objectif est en retard",
+            NotificationTemplates.Render(record with { Params = new Dictionary<string, string> { ["reason"] = "goal_behind" } }, kind, new Dictionary<ItemId, string>()).Body);
+    }
 }

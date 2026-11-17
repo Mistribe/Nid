@@ -295,6 +295,33 @@ public class GoalReadTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
         Assert.Equal(("subscriptions", 2, 75m), (source.GetProperty("source").GetString(), source.GetProperty("count").GetInt32(), Amount(source, "monthly")));
     }
 
+    private static async Task<EmergencyBuffer> BufferAsync(NidApp app, PersonId reader, int months)
+    {
+        await using var scope = app.Services.CreateAsyncScope();
+        scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.Notifier(reader);
+        var read = await scope.ServiceProvider.GetRequiredService<IEmergencyBuffer>().ReadAsync(reader, months, TestContext.Current.CancellationToken);
+        Assert.True(read.TryGetValue(out var buffer));
+        return buffer!;
+    }
+
+    /// <summary>Issue #81: the buffer idle cash reads, the emergency fund's target over the months asked, and whether a goal is behind.</summary>
+    [Fact]
+    public async Task Emergency_buffer_is_the_emergency_fund_s_target_else_the_months_asked()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        Assert.Equal(new EmergencyBuffer(null, false), await BufferAsync(app, app.AdultA, 3)); // no commitments
+
+        await app.NewMonthlyAsync(app.AdultA, 50m);
+        Assert.Equal(new EmergencyBuffer(150m, false), await BufferAsync(app, app.AdultA, 3));
+
+        await GoalAsync(app, app.AdultA, "Précaution", GoalKinds.EmergencyFund, targetAmount: null, months: 6);
+        await GoalAsync(app, app.AdultB, "Voyage de B", targetDate: Today.PlusYears(1), visibility: Visibility.Private); // behind, B's own
+        Assert.Equal(new EmergencyBuffer(300m, false), await BufferAsync(app, app.AdultA, 3));
+
+        await GoalAsync(app, app.AdultA, "Voyage", targetDate: Today.PlusYears(1)); // nothing saved yet: behind
+        Assert.Equal(new EmergencyBuffer(300m, true), await BufferAsync(app, app.AdultA, 3));
+    }
+
     /// <summary>Issue #412: the target shown before an emergency fund is saved is the one the saved goal reads.</summary>
     [Fact]
     public async Task Emergency_target_before_saving_is_the_saved_goal_s()

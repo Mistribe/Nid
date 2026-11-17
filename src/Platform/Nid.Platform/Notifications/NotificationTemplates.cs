@@ -69,6 +69,7 @@ public static class NotificationTemplates
         ["net_worth_milestone"] = "Votre patrimoine a franchi un palier",
         ["savings_pace"] = "Votre rythme d'épargne a ralenti",
         ["shortfall_ahead"] = "Un compte courant risque de manquer d'argent",
+        ["idle_cash"] = "Vos comptes courants dépassent l'épargne de précaution",
     };
 
     /// <summary>Issue #81: the figures a signal carries (params ending in <c>_amount</c>), named, in this order.</summary>
@@ -76,6 +77,7 @@ public static class NotificationTemplates
         ("net_worth_amount", "Patrimoine"), ("step_amount", "Palier"),
         ("recent_amount", "Épargne par mois sur 3 mois"), ("average_amount", "sur 12 mois"),
         ("balance_amount", "Solde"), ("charges_amount", "Charges à venir"),
+        ("above_amount", "Au-dessus de l'épargne de précaution"), ("buffer_amount", "Épargne de précaution"), ("room_amount", "Place sur les livrets"),
     ];
 
     /// <summary>The investments tab a kind opens; a kind not listed opens the envelope's first tab.</summary>
@@ -205,6 +207,13 @@ public static class NotificationTemplates
         "tax_new_rate" when n.DueOn is { } on => $"À partir du {Day(on)}",
         "tax_balance_due" when n.DueOn is { } on => $"À partir du {Day(on)}",
         "shortfall_ahead" when n.DueOn is { } on => n.Params.TryGetValue("account", out var account) ? $"Le {Day(on)} — {account}" : $"Le {Day(on)}",
+        "idle_cash" => "Au-dessus de l'épargne de précaution depuis 4 semaines" + n.Params.GetValueOrDefault("reason") switch
+        {
+            "room" => ", un livret a de la place",
+            "goal_behind" => ", un objectif est en retard",
+            "room_goal_behind" => ", un livret a de la place et un objectif est en retard",
+            _ => "",
+        },
         _ => "",
     };
 
@@ -270,7 +279,7 @@ public static class NotificationTemplates
     private static string? LinkOf(NotificationRecord n, NotificationKind kind)
     {
         if (n.ItemIds.Count == 0)
-            return n.Kind switch { "fx_rate_missing" or "month_changes" or "net_worth_milestone" or "savings_pace" => "/dashboard", "routine_due" => "/routine", "shortfall_ahead" => "/settings/banks", "tax_filing_deadline" or "tax_new_rate" or "tax_balance_due" => "/tax", _ => "/" };
+            return n.Kind switch { "fx_rate_missing" or "month_changes" or "net_worth_milestone" or "savings_pace" => "/dashboard", "idle_cash" => "/investments", "routine_due" => "/routine", "shortfall_ahead" => "/settings/banks", "tax_filing_deadline" or "tax_new_rate" or "tax_balance_due" => "/tax", _ => "/" };
         var id = n.ItemIds[0].Value.ToString("D");
         // The banking findings name the page of their item in "module", the item being any module's.
         return (kind.Module == "banking" ? n.Params.GetValueOrDefault("module") : kind.Module) switch
