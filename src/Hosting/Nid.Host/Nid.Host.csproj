@@ -6,6 +6,8 @@
     <OpenApiGenerateDocumentsOptions>--file-name openapi</OpenApiGenerateDocumentsOptions>
     <!-- Endpoint delegates generated at build time, not compiled when a host starts: every integration test starts one. -->
     <EnableRequestDelegateGenerator>true</EnableRequestDelegateGenerator>
+    <!-- One household, a few CPUs: the workstation GC keeps far less memory than the server GC (DOTNET_gcServer=1 restores it). -->
+    <ServerGarbageCollection>false</ServerGarbageCollection>
   </PropertyGroup>
   <ItemGroup>
     <!-- Demo mode (issue 203) loads the demo household from these files; the image build copies them in (Dockerfile). -->
