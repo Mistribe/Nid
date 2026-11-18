@@ -190,6 +190,11 @@ if (!generatingOpenApi && demo.Enabled)
 }
 
 app.MapDefaultEndpoints();
+app.Use((context, next) =>
+{
+    context.Response.Headers[PlatformEndpoints.VersionHeader] = PlatformEndpoints.Version;
+    return next(context);
+});
 app.MapNidHealth();
 app.UseForwardedHeaders();
 if (demo.Enabled) app.UseMiddleware<DemoGuardMiddleware>();

@@ -37,4 +37,18 @@ public class CapabilitiesTests(PostgresFixture fixture) : IClassFixture<Postgres
 
         Assert.Matches(@"^\d+\.\d+\.\d+", version.GetProperty("version").GetString());
     }
+
+    [Fact]
+    public async Task Every_response_carries_the_api_version_even_a_refusal()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+
+        var version = (await app.GetAsync<JsonElement>(app.AdultB, "/api/v1/platform/version")).GetProperty("version").GetString();
+        using var ok = await app.RawAsync(app.AdultB, HttpMethod.Get, "/api/v1/platform/capabilities");
+        using var refused = await app.RawAnonymousAsync(HttpMethod.Get, "/api/v1/platform/capabilities");
+
+        Assert.Equal(version, Assert.Single(ok.Headers.GetValues("X-Nid-Version")));
+        Assert.Equal(System.Net.HttpStatusCode.Unauthorized, refused.StatusCode);
+        Assert.Equal(version, Assert.Single(refused.Headers.GetValues("X-Nid-Version")));
+    }
 }

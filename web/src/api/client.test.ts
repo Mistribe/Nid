@@ -1,7 +1,7 @@
 import { http, HttpResponse } from 'msw/http';
 import { describe, expect, it, vi } from 'vitest';
 import { server } from '@/test/server';
-import { createApi, CSRF_HEADER } from './client';
+import { createApi, CSRF_HEADER, VERSION_HEADER } from './client';
 
 describe('createApi', () => {
   it('sends the CSRF token on unsafe methods only', async () => {
@@ -22,6 +22,35 @@ describe('createApi', () => {
     await api.fetchClient.GET('/api/v1/platform/capabilities');
 
     expect(seen).toEqual({ patch: 'token-1', get: null });
+  });
+
+  it('reports once that the server runs another version than this build', async () => {
+    vi.stubEnv('VITE_NID_VERSION', '1.2.0');
+    let served = '1.2.0';
+    server.use(http.get('*/api/v1/platform/capabilities', () => HttpResponse.json({ modules: [] }, { headers: { [VERSION_HEADER]: served } })));
+    const onNewVersion = vi.fn();
+    const api = createApi({ getCsrf: () => null, onUnauthenticated: vi.fn(), onNewVersion });
+
+    await api.fetchClient.GET('/api/v1/platform/capabilities');
+    expect(onNewVersion).not.toHaveBeenCalled();
+    served = '1.3.0';
+    await api.fetchClient.GET('/api/v1/platform/capabilities');
+    await api.fetchClient.GET('/api/v1/platform/capabilities');
+
+    expect(onNewVersion).toHaveBeenCalledOnce();
+    vi.unstubAllEnvs();
+  });
+
+  it('never reports a new version in development, where the build has none', async () => {
+    vi.stubEnv('VITE_NID_VERSION', undefined);
+    server.use(http.get('*/api/v1/platform/capabilities', () => HttpResponse.json({ modules: [] }, { headers: { [VERSION_HEADER]: '1.3.0' } })));
+    const onNewVersion = vi.fn();
+    const api = createApi({ getCsrf: () => null, onUnauthenticated: vi.fn(), onNewVersion });
+
+    await api.fetchClient.GET('/api/v1/platform/capabilities');
+
+    expect(onNewVersion).not.toHaveBeenCalled();
+    vi.unstubAllEnvs();
   });
 
   it('reports a 401 so the session can be cleared', async () => {

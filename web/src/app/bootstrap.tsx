@@ -5,6 +5,7 @@ import { createApi, type Api } from '@/api/client';
 import { isProblem, present, toProblem } from '@/api/errors';
 import { PRIVATE_ITEMS } from '@/components/ScopeSwitch';
 import { App } from './App';
+import { announceNewVersion } from './newBuild';
 import { LoginRefusedPage } from './LoginRefusedPage';
 import { LoginUnavailablePage } from './LoginUnavailablePage';
 import { Providers, type AppLocation, type Capabilities } from './Providers';
@@ -87,6 +88,7 @@ export async function bootstrap({ root, location }: { root: HTMLElement; locatio
       queryClient.clear();
       location.assign(loginUrl(location));
     },
+    onNewVersion: () => void announceNewVersion(location),
   });
   const appLocation: AppLocation = {
     get pathname() { return location.pathname; },
