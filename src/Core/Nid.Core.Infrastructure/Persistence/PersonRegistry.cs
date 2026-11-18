@@ -155,6 +155,9 @@ public sealed class PersonRegistry(CoreDbContext db, IClock clock) : IPersonRegi
 
     public async Task<Result<PersonInfo>> SetRetirementAsync(PersonId id, LocalDate? birthDate, int retirementAge, int retirementMonths, CancellationToken ct)
     {
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        await LockRowAsync(id, ct);
+
         var row = await db.Persons.SingleOrDefaultAsync(p => p.Id == id.Value, ct);
         if (row is null)
             return Result.Failure<PersonInfo>(new NotFoundFailure("person", id.ToString()));
@@ -163,6 +166,7 @@ public sealed class PersonRegistry(CoreDbContext db, IClock clock) : IPersonRegi
         row.RetirementAge = retirementAge;
         row.RetirementMonths = retirementMonths;
         await db.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
         return Result.Success(await InfoAsync(row, ct));
     }
 
@@ -195,7 +199,7 @@ public sealed class PersonRegistry(CoreDbContext db, IClock clock) : IPersonRegi
     {
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
         // Two tabs, or two sign-ins, changing preferences at once: each applies its change to what the other saved.
-        await db.Database.ExecuteSqlAsync($"select 1 from core.person where id = {id.Value} for update", ct);
+        await LockRowAsync(id, ct);
 
         var row = await db.Persons.SingleOrDefaultAsync(p => p.Id == id.Value, ct);
         if (row is null)
@@ -215,6 +219,13 @@ public sealed class PersonRegistry(CoreDbContext db, IClock clock) : IPersonRegi
         await transaction.CommitAsync(ct);
         return Result.Success(preferences);
     }
+
+    /// <summary>
+    /// Holds the person's row until the transaction ends: a write reads it after any other write in flight, so the row's
+    /// version (xmin) it saves against is current, never a 500 for a guide marked seen in another tab meanwhile.
+    /// </summary>
+    private Task<int> LockRowAsync(PersonId id, CancellationToken ct)
+        => db.Database.ExecuteSqlAsync($"select 1 from core.person where id = {id.Value} for update", ct);
 
     private static Preferences ReadPreferences(JsonObject node) => Preferences.FromStored(
         node["theme"]?.GetValueKind() == JsonValueKind.String ? node["theme"]!.GetValue<string>() : null,
