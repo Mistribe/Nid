@@ -1,7 +1,6 @@
 import { keepPreviousData } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { Printer } from 'lucide-react';
-import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
@@ -9,7 +8,6 @@ import { YEAR_REVIEW, type NetWorthReview, type YearReview } from '@/api/reports
 import type { YearReviewSearch } from '@/app/router';
 import { Direction } from '@/components/Direction';
 import { ErrorPage } from '@/components/ErrorPage';
-import { SelectField } from '@/components/form/SelectField';
 import { formatLocalDate } from '@/components/LocalDate';
 import { Money } from '@/components/Money';
 import { PageHeader } from '@/components/page/PageHeader';
@@ -17,6 +15,7 @@ import { Section } from '@/components/page/Section';
 import { PageSkeleton } from '@/components/page/skeletons';
 import { StatLine } from '@/components/page/StatLine';
 import { PageTrail } from '@/components/page/trail';
+import { YearStepper } from '@/components/page/YearStepper';
 import { Button } from '@/components/ui/button';
 import type { RootSearch } from '@/lib/search';
 import { GoalsReview } from './GoalsReview';
@@ -36,7 +35,6 @@ export function YearReviewPage() {
   const { t } = useTranslation();
   const { $api } = useApi();
   const navigate = useNavigate();
-  const labelId = useId();
   const search: RootSearch & YearReviewSearch = useSearch({ strict: false });
   const scope = search.scope === 'me' ? 'me' : 'household';
   // Another year keeps the page on the one shown until it arrives, so the header does not jump.
@@ -55,10 +53,8 @@ export function YearReviewPage() {
   });
   const actions = (
     <>
-      <span id={labelId} className="sr-only">{t('reports.year')}</span>
-      <div className="w-28 print:hidden">
-        <SelectField id={`${labelId}-control`} aria-labelledby={labelId} value={String(d.year)} onValueChange={setYear}
-          options={d.years.map((y) => ({ value: String(y), label: String(y) }))} />
+      <div className="print:hidden">
+        <YearStepper label={t('reports.year')} value={String(d.year)} years={d.years.map((y) => ({ value: String(y) }))} onChange={setYear} />
       </div>
       <Button type="button" variant="outline" className="print:hidden" onClick={() => window.print()}>
         <Printer aria-hidden="true" />{t('reports.print')}
