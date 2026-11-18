@@ -9,10 +9,10 @@ const END = 'aria-disabled:cursor-default aria-disabled:opacity-50 aria-disabled
 
 /**
  * A year as ‹ 2026 ⌄ ›: the arrows go to the nearest offered year below or above, the year opens a grid of every year with
- * what the page has for it. It stays the same size whatever the number of years. Years are 4-digit strings, compared as such.
+ * what the page has for it, when it says (`hint`). It stays the same size whatever the number of years. Years are 4-digit strings, compared as such.
  */
 export function YearStepper({ label, value, years, onChange }: {
-  label: string; value: string; years: readonly { value: string; hint: string }[]; onChange: (year: string) => void;
+  label: string; value: string; years: readonly { value: string; hint?: string }[]; onChange: (year: string) => void;
 }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -38,7 +38,7 @@ export function YearStepper({ label, value, years, onChange }: {
             return (
               <Button key={y.value} type="button" variant={selected ? 'default' : 'ghost'} aria-pressed={selected}
                 className="h-auto w-20 flex-col gap-0 px-1 py-1.5 whitespace-normal tabular-nums" onClick={() => choose(y.value)}>
-                {y.value}{' '}<span className={`text-xs leading-tight font-normal ${selected ? '' : 'text-muted-foreground'}`}>{y.hint}</span>
+                {y.value}{y.hint ? <>{' '}<span className={`text-xs leading-tight font-normal ${selected ? '' : 'text-muted-foreground'}`}>{y.hint}</span></> : null}
               </Button>
             );
           })}
