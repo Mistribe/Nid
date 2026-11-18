@@ -4,6 +4,11 @@ name: backend
 # why the filter lives there and not in a `paths:` here); `gh workflow run backend.yml` runs it alone.
 on:
   workflow_call:
+    inputs:
+      # sonarqube.yml: each test project writes its code coverage, uploaded as a `coverage-*` artifact.
+      coverage:
+        type: boolean
+        default: false
   workflow_dispatch:
 
 permissions:
@@ -26,12 +31,22 @@ jobs:
       - run: dotnet build Nid.slnx --configuration Release
       - run: git diff --exit-code -- web/src/api/openapi.json
       - name: Unit tests
+        env:
+          COVERAGE: ${{ inputs.coverage }}
         run: |
           status=0
           for project in tests/*.Tests; do
-            dotnet test --project "$project" --configuration Release --no-build || status=1
+            coverage=()
+            [ "$COVERAGE" = true ] && coverage=(--coverage --coverage-output-format xml --coverage-output "$(basename "$project").coverage.xml")
+            dotnet test --project "$project" --configuration Release --no-build "${coverage[@]}" || status=1
           done
           exit $status
+      - if: ${{ !cancelled() && inputs.coverage }} # a failed test still reports the coverage of the others
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage-unit
+          path: TestResults/*.coverage.xml
+          retention-days: 1
       # The integration projects of the tree: a new one joins the matrix below without editing this file.
       - id: projects
         run: |
@@ -58,9 +73,19 @@ jobs:
           global-json-file: global.json
       # A run takes under 10 minutes; a test still running after 10 is stuck. The hang dump then stops the run, so the job fails
       # with the test's name instead of being cancelled by the timeout above with no log at all.
-      - run: dotnet test --project "tests/$PROJECT" --configuration Release --hangdump --hangdump-timeout 10m --hangdump-type Mini
+      - run: |
+          coverage=()
+          [ "$COVERAGE" = true ] && coverage=(--coverage --coverage-output-format xml --coverage-output "$PROJECT.coverage.xml")
+          dotnet test --project "tests/$PROJECT" --configuration Release --hangdump --hangdump-timeout 10m --hangdump-type Mini "${coverage[@]}"
         env:
           PROJECT: ${{ matrix.project }}
+          COVERAGE: ${{ inputs.coverage }}
+      - if: ${{ !cancelled() && inputs.coverage }} # a failed test still reports the coverage of the others
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage-${{ matrix.project }}
+          path: TestResults/*.coverage.xml
+          retention-days: 1
       - name: Hung tests
         if: failure()
         run: cat TestResults/*_hang.log 2>/dev/null || true

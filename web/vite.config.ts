@@ -37,5 +37,7 @@ export default defineConfig({
     testTimeout: 20_000,
     hookTimeout: 20_000,
     include: ['src/**/*.test.{ts,tsx}', 'eslint-rules/**/*.test.js', 'scripts/**/*.test.js'],
+    // `vitest run --coverage` (sonarqube.yml): lcov for SonarQube Cloud.
+    coverage: { reporter: ['lcov'], reportOnFailure: true },
   },
 });
