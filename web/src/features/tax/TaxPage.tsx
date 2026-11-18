@@ -4,11 +4,9 @@ import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import type { TaxSearch } from '@/app/router';
-import { Segmented } from '@/components/form/Segmented';
-import { SelectField } from '@/components/form/SelectField';
 import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
-import { FilterField, FilterRow } from '@/components/page/FilterRow';
 import { PageHeader } from '@/components/page/PageHeader';
+import { YearStepper } from '@/components/page/YearStepper';
 import { DetailTabsSkeleton, HeroSkeleton, Loading, SectionCardSkeleton, StatLineSkeleton, TableSkeleton } from '@/components/page/skeletons';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
@@ -42,9 +40,6 @@ function TabsLoading({ label, overview }: { label: string; overview: boolean }) 
 export const TABS = ['overview', 'detail', 'withholding', 'assessment', 'evolution', 'simulation', 'profile', 'declarations'] as const;
 export type TaxTab = (typeof TABS)[number];
 
-/** Past this many years the selector is a list, not a row of buttons. */
-const MAX_SEGMENTS = 6;
-
 /**
  * Tax estimate spec §9: the overview first, then the calculation step by step, the household's profile, and a
  * simulation of edited inputs. Every figure is the server's; the page only formats them.
@@ -66,7 +61,13 @@ export function TaxPage() {
   const defaultYear = rawTab === 'declarations' ? lastYear : thisYear;
   const list = useTaxAssessments(scope);
   const assessments = list.data?.items ?? [];
-  const years = [...new Set([lastYear, thisYear, ...assessments.map((a) => String(a.year))])].sort().map((y) => ({ value: y, label: y }));
+  // Each year says what the household has for it: its notice, Nid's estimate, or both.
+  const yearHint = (y: string) => {
+    const notice = assessments.some((a) => String(a.year) === y);
+    if (Number(y) < FIRST_ESTIMATE_YEAR) return t('tax.year_hint.notice');
+    return notice ? t('tax.year_hint.both') : t('tax.year_hint.estimate');
+  };
+  const years = [...new Set([lastYear, thisYear, ...assessments.map((a) => String(a.year))])].sort().map((y) => ({ value: y, hint: yearHint(y) }));
   // A year the page does not offer (the server refuses it) falls back to the tab's default.
   // Until the notices are known, a past year in the URL is kept (and not estimated: the server would refuse it).
   const awaiting = list.isPending && Number(search.year) < FIRST_ESTIMATE_YEAR;
@@ -92,16 +93,10 @@ export function TaxPage() {
   return (
     <div className="space-y-6" aria-busy={answer.isPlaceholderData || undefined}>
       <div className={tab === 'declarations' ? 'print:hidden' : undefined}>
-        <PageHeader title={t('tax.title')} actions={<Button asChild className="print:hidden"><Link to="/tax/assessments/new">{t('tax.add_assessment')}</Link></Button>} />
-      </div>
-      <div className="print:hidden">
-        <FilterRow label={t('common.filters')}>
-          <FilterField label={t('tax.year')}>
-            {(labelId, controlId) => years.length > MAX_SEGMENTS
-              ? <div className="w-28"><SelectField id={controlId} aria-labelledby={labelId} value={year} onValueChange={setYear} options={years} /></div>
-              : <Segmented aria-labelledby={labelId} value={year} onValueChange={setYear} options={years} />}
-          </FilterField>
-        </FilterRow>
+        <PageHeader title={t('tax.title')} actions={<>
+          <div className="print:hidden"><YearStepper label={t('tax.year')} value={year} years={years} onChange={setYear} /></div>
+          <Button asChild className="print:hidden"><Link to="/tax/assessments/new">{t('tax.add_assessment')}</Link></Button>
+        </>} />
       </div>
       {pending ? <TabsLoading label={t('tax.loading')} overview={rawTab === 'overview' && !past} /> : null}
       {past && !awaiting && notices.length ? (

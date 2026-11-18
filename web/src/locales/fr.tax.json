@@ -2,6 +2,7 @@
   "tax": {
     "title": "Impôts",
     "year": "Année des revenus",
+    "year_hint": { "notice": "Avis", "estimate": "Estimation", "both": "Avis + estimation" },
     "loading": "Calcul de l’impôt",
     "estimate": "Estimation",
     "percent": "{{value}} %",

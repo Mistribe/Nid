@@ -18,7 +18,7 @@ export function YearStepper({ label, value, years, onChange }: {
   const next = years.find((y) => y.value > value)?.value;
   const choose = (year: string) => { setOpen(false); onChange(year); };
   return (
-    <div role="group" aria-label={label} className="inline-flex items-center rounded-md border border-input">
+    <div role="group" aria-label={label} data-header-control className="inline-flex items-center rounded-md border border-input">
       <Button type="button" variant="ghost" size="icon" aria-label={t('year_stepper.previous')} disabled={!previous} onClick={() => onChange(previous!)}>
         <ChevronLeftIcon aria-hidden="true" />
       </Button>
