@@ -64,8 +64,8 @@ export function TaxPage() {
   // Each year says what the household has for it: its notice, Nid's estimate, or both.
   const yearHint = (y: string) => {
     const notice = assessments.some((a) => String(a.year) === y);
-    if (Number(y) < FIRST_ESTIMATE_YEAR) return t('tax.year_hint.notice');
-    return notice ? t('tax.year_hint.both') : t('tax.year_hint.estimate');
+    if (Number(y) >= FIRST_ESTIMATE_YEAR) return notice ? t('tax.year_hint.both') : t('tax.year_hint.estimate');
+    return notice ? t('tax.year_hint.notice') : '';
   };
   const years = [...new Set([lastYear, thisYear, ...assessments.map((a) => String(a.year))])].sort().map((y) => ({ value: y, hint: yearHint(y) }));
   // A year the page does not offer (the server refuses it) falls back to the tab's default.

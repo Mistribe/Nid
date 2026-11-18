@@ -4,6 +4,9 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
+/** An arrow at either end stays focusable (`aria-disabled`, not `disabled`): pressing it to the end keeps the keyboard focus on it. */
+const END = 'aria-disabled:cursor-default aria-disabled:opacity-50 aria-disabled:hover:bg-transparent';
+
 /**
  * A year as ‹ 2026 ⌄ ›: the arrows go to the nearest offered year below or above, the year opens a grid of every year with
  * what the page has for it. It stays the same size whatever the number of years. Years are 4-digit strings, compared as such.
@@ -18,8 +21,9 @@ export function YearStepper({ label, value, years, onChange }: {
   const next = years.find((y) => y.value > value)?.value;
   const choose = (year: string) => { setOpen(false); onChange(year); };
   return (
-    <div role="group" aria-label={label} data-header-control className="inline-flex items-center rounded-md border border-input">
-      <Button type="button" variant="ghost" size="icon" aria-label={t('year_stepper.previous')} disabled={!previous} onClick={() => onChange(previous!)}>
+    <div role="group" aria-label={label} data-header-control className="inline-flex items-center rounded-full border border-input">
+      <Button type="button" variant="ghost" size="icon" aria-label={t('year_stepper.previous')} aria-disabled={!previous || undefined} className={END}
+        onClick={() => { if (previous) onChange(previous); }}>
         <ChevronLeftIcon aria-hidden="true" />
       </Button>
       <Popover open={open} onOpenChange={setOpen}>
@@ -28,19 +32,20 @@ export function YearStepper({ label, value, years, onChange }: {
             {value}<ChevronDownIcon aria-hidden="true" className="text-muted-foreground" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent align="end" aria-label={label} className="grid w-auto grid-cols-4 gap-1 p-2">
+        <PopoverContent align="end" collisionPadding={16} aria-label={label} className="grid w-auto grid-cols-4 gap-1 p-2">
           {years.map((y) => {
             const selected = y.value === value;
             return (
               <Button key={y.value} type="button" variant={selected ? 'default' : 'ghost'} aria-pressed={selected}
-                className="h-auto flex-col gap-0 px-3 py-1.5 tabular-nums" onClick={() => choose(y.value)}>
-                {y.value}<span className={`text-xs font-normal ${selected ? '' : 'text-muted-foreground'}`}>{y.hint}</span>
+                className="h-auto w-20 flex-col gap-0 px-1 py-1.5 whitespace-normal tabular-nums" onClick={() => choose(y.value)}>
+                {y.value}{' '}<span className={`text-xs leading-tight font-normal ${selected ? '' : 'text-muted-foreground'}`}>{y.hint}</span>
               </Button>
             );
           })}
         </PopoverContent>
       </Popover>
-      <Button type="button" variant="ghost" size="icon" aria-label={t('year_stepper.next')} disabled={!next} onClick={() => onChange(next!)}>
+      <Button type="button" variant="ghost" size="icon" aria-label={t('year_stepper.next')} aria-disabled={!next || undefined} className={END}
+        onClick={() => { if (next) onChange(next); }}>
         <ChevronRightIcon aria-hidden="true" />
       </Button>
     </div>

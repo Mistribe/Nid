@@ -578,19 +578,19 @@ describe('TaxPage, Déclaration 2044 tab', () => {
       const { user } = await renderApp('/tax');
 
       await screen.findByRole('tab', { name: 'Calcul' });
-      await waitFor(() => expect(screen.getByRole('button', { name: 'Année précédente' })).toBeEnabled());
       await user.click(screen.getByRole('button', { name: '2026, changer d’année' }));
       const grid = await screen.findByRole('dialog', { name: 'Année des revenus' });
-      expect(within(grid).getAllByRole('button').map((b) => b.textContent)).toEqual(['2018Avis', '2023Avis', '2025Estimation', '2026Estimation']);
+      await waitFor(() => expect(within(grid).getAllByRole('button').map((b) => b.textContent)).toEqual(['2018 Avis', '2023 Avis', '2025 Estimation', '2026 Estimation']));
     });
 
     it('marks a year with both a notice and an estimate', async () => {
       server.use(notices(jointAssessment({ year: 2025 })), http.get('*/api/v1/tax', () => HttpResponse.json(estimate())));
       const { user } = await renderApp('/tax');
 
-      await waitFor(() => expect(screen.getByRole('button', { name: 'Année précédente' })).toBeEnabled());
+      await screen.findByRole('tab', { name: 'Calcul' });
       await user.click(screen.getByRole('button', { name: '2026, changer d’année' }));
-      expect(within(await screen.findByRole('dialog')).getByRole('button', { name: /^2025/ })).toHaveTextContent('2025Avis + estimation');
+      const grid = await screen.findByRole('dialog');
+      await waitFor(() => expect(within(grid).getByRole('button', { name: /^2025/ })).toHaveTextContent('2025 Avis + estimation'));
     });
 
     it('puts the year in the header, not in a filter row', async () => {
@@ -703,10 +703,11 @@ describe('TaxPage, page grammar', () => {
     server.use(tax(), notices(...[2019, 2020, 2021, 2022, 2023].map((year) => soloAssessment({ id: `0192f0aa-0000-7000-8000-00000000${year}`, year }))));
     const { user } = await renderApp('/tax');
 
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Année précédente' })).toBeEnabled());
+    await screen.findByRole('tab', { name: 'Calcul' });
     expect(screen.queryByRole('combobox', { name: 'Année des revenus' })).toBeNull();
     await user.click(screen.getByRole('button', { name: '2026, changer d’année' }));
-    expect(within(await screen.findByRole('dialog')).getAllByRole('button')).toHaveLength(7);
+    const grid = await screen.findByRole('dialog');
+    await waitFor(() => expect(within(grid).getAllByRole('button')).toHaveLength(7));
   });
 
   it('the tabs, in order', async () => {
