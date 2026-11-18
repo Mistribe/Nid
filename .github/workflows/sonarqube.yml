@@ -5,10 +5,13 @@ name: sonarqube
 # A pull request gets its own analysis, decorated on the pull request; a push to main updates the main branch's.
 #
 # The code coverage comes from every test: backend.yml runs the unit and integration tests with `coverage` (one artifact per
-# project), `web` runs vitest with it; `analysis` downloads them all before the scanner's `end`. The tests run here a second time
+# project), `web` runs vitest with it; `sonarqube` downloads them all before the scanner's `end`. The tests run here a second time
 # on a pull request (ci.yml runs them too): ci.yml never runs them on a push to main, and holds no secret.
 #
-# Not part of `ci-ok` (ci.yml), so not a required check: SonarQube Cloud's quality gate reports on the pull request by itself.
+# Required by the `main` ruleset next to `ci-ok`, which cannot wait for it (another workflow). On a pull request, the job `sonarqube`
+# waits for the quality gate and fails when the new code fails it: a false positive is marked in SonarQube Cloud, then the job
+# re-run. Not the check SonarQube Cloud's app posts: a pull request without the secret would never get it and stay blocked,
+# while a skipped job counts as a pass. A push to main does not wait: its gate covers older code nobody is merging.
 #
 # The token (secret SONAR_TOKEN) never reaches a fork: `pull_request` only, never `pull_request_target`, and every job is skipped
 # for a pull request opened from a fork, which gets no secret.
@@ -62,7 +65,7 @@ jobs:
           retention-days: 1
 
   # Runs even when a test failed: the analysis then counts the coverage the other tests reported.
-  analysis:
+  sonarqube:
     needs: [backend, web]
     if: >-
       !cancelled()
@@ -103,11 +106,13 @@ jobs:
       - name: Build and analyse
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          GATE_WAIT: ${{ github.event_name == 'pull_request' }}
         run: |
           dotnet tool run dotnet-sonarscanner begin \
             /k:"mistribe_nid" /o:"mistribe" \
             /d:sonar.host.url="https://sonarcloud.io" \
             /d:sonar.token="$SONAR_TOKEN" \
+            /d:sonar.qualitygate.wait="$GATE_WAIT" \
             /d:sonar.exclusions="**/Migrations/**,web/src/api/openapi.json,web/src/api/schema.d.ts,tests/vectors/**" \
             /d:sonar.issue.ignore.multicriteria="parsers,shell" \
             /d:sonar.issue.ignore.multicriteria.parsers.ruleKey="csharpsquid:S2178" \
