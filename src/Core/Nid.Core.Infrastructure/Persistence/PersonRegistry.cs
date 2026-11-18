@@ -155,7 +155,8 @@ public sealed class PersonRegistry(CoreDbContext db, IClock clock) : IPersonRegi
 
     public async Task<Result<PersonInfo>> SetRetirementAsync(PersonId id, LocalDate? birthDate, int retirementAge, int retirementMonths, CancellationToken ct)
     {
-        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        // Its own transaction, or the caller's (a child added with a birth date, a proposal approved): the lock lasts until it ends.
+        await using var transaction = db.Database.CurrentTransaction is null ? await db.Database.BeginTransactionAsync(ct) : null;
         await LockRowAsync(id, ct);
 
         var row = await db.Persons.SingleOrDefaultAsync(p => p.Id == id.Value, ct);
@@ -166,7 +167,8 @@ public sealed class PersonRegistry(CoreDbContext db, IClock clock) : IPersonRegi
         row.RetirementAge = retirementAge;
         row.RetirementMonths = retirementMonths;
         await db.SaveChangesAsync(ct);
-        await transaction.CommitAsync(ct);
+        if (transaction is not null)
+            await transaction.CommitAsync(ct);
         return Result.Success(await InfoAsync(row, ct));
     }
 
