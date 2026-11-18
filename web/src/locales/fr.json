@@ -497,6 +497,7 @@
   },
   "startup": { "title": "Nid ne peut pas s'ouvrir pour l'instant", "retry": "Réessayer" },
   "page": { "more_actions": "Autres actions", "loading": "Chargement de la page" },
+  "year_stepper": { "previous": "Année précédente", "next": "Année suivante", "choose": "{{year}}, changer d’année" },
   "pager": { "pages": "Pages", "previous": "Précédent", "next": "Suivant", "page_of": "Page {{page}} sur {{pages}}" },
   "scope": { "label": "Portée", "household": "Foyer", "me": "Moi" },
   "common": { "confirm": "Confirmer",
