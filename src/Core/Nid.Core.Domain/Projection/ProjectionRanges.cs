@@ -36,7 +36,13 @@ public static class ProjectionRanges
             for (var y = 0; y < shocks[run].Length; y++) shocks[run][y] = Normal(random);
         }
 
-        var results = new HouseholdProjectionResult[runs];
+        // Only each point's two figures are kept per run, not the runs' whole projections (about 100 MB at 40 years).
+        var count = inputs.Months + 1;
+        var nominal = new decimal[count][];
+        var real = new decimal[count][];
+        for (var i = 0; i < count; i++) (nominal[i], real[i]) = (new decimal[runs], new decimal[runs]);
+        var dates = new LocalDate[count];
+        var lasted = 0;
         Parallel.For(0, runs, run =>
         {
             var classRates = rates.MonthlyClassRate.ToDictionary(c => c.Key, c =>
@@ -49,17 +55,24 @@ public static class ProjectionRanges
                 for (var k = 1; k < shocked.Length; k++) shocked[k] = (1m + c.Value[k]) * monthly[yearOf[k]] - 1m;
                 return (IReadOnlyList<decimal>)shocked;
             });
-            results[run] = HouseholdProjection.Project(inputs with { Expenses0 = null, Rates = rates with { MonthlyClassRate = classRates } });
+            var result = HouseholdProjection.Project(inputs with { Expenses0 = null, Rates = rates with { MonthlyClassRate = classRates } });
+            for (var i = 0; i < count; i++)
+            {
+                var point = result.Points[i];
+                (nominal[i][run], real[i][run]) = (point.Nominal, point.Real);
+                if (run == 0) dates[i] = point.On;
+            }
+            if (result.SavingsExhaustedIn is null) Interlocked.Increment(ref lasted);
         });
 
-        var points = results[0].Points.Select((p, i) => (p.On, i)).AsParallel().AsOrdered().Select(x =>
+        var points = Enumerable.Range(0, count).AsParallel().AsOrdered().Select(i =>
         {
-            var (on, i) = x;
-            var nominal = results.Select(r => r.Points[i].Nominal).Order().ToArray();
-            var real = results.Select(r => r.Points[i].Real).Order().ToArray();
-            return new RangePoint(on, Rank(nominal, 0.1), Rank(nominal, 0.5), Rank(nominal, 0.9), Rank(real, 0.1), Rank(real, 0.5), Rank(real, 0.9));
+            Array.Sort(nominal[i]);
+            Array.Sort(real[i]);
+            return new RangePoint(dates[i], Rank(nominal[i], 0.1), Rank(nominal[i], 0.5), Rank(nominal[i], 0.9),
+                Rank(real[i], 0.1), Rank(real[i], 0.5), Rank(real[i], 0.9));
         }).ToList();
-        return new ProjectionRangesResult(runs, points, (decimal)results.Count(r => r.SavingsExhaustedIn is null) / runs);
+        return new ProjectionRangesResult(runs, points, (decimal)lasted / runs);
     }
 
     /// <summary>The nearest-rank percentile of sorted values: the ⌈p × n⌉-th.</summary>
