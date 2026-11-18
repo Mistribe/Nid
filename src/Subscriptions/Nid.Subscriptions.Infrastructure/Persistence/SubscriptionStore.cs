@@ -289,6 +289,7 @@ public sealed class SubscriptionStore(SubscriptionsDbContext db) : ISubscription
         var keys = ids.Select(i => i.Value).ToHashSet();
         var subscriptions = await db.Subscriptions.AsNoTracking()
             .Include(s => s.Users).Include(s => s.Phases)
+            .AsSplitQuery() // two collections in one join would repeat each subscription users × phases times
             .Where(s => keys.Contains(s.ItemId))
             .ToListAsync(ct);
         var purchaseIds = await db.Grants.AsNoTracking()
