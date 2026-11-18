@@ -231,7 +231,7 @@ app.MapFxEndpoints();
 app.MapCatalogEndpoints();
 app.MapAdminEndpoints();
 app.MapNidMcp();
-app.Run();
+await app.RunAsync();
 return 0;
 
 public partial class Program;
