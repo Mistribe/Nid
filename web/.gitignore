@@ -7,3 +7,6 @@ playwright-report/
 
 # Written by scripts/changelog.mjs in the images job of ci.yml.
 public/changelog.json
+
+# Written by `vitest run --coverage` (sonarqube.yml).
+coverage/
