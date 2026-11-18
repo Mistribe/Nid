@@ -2,7 +2,7 @@ import { Fragment, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
-import { byDay, formatDate, monthGrid } from './monthGrid';
+import { byDay, formatDate, monthGrid } from './calendarDates';
 
 // 2024-01-01 was a Monday.
 const WEEKDAYS = Array.from({ length: 7 }, (_, i) => formatDate(`2024-01-0${i + 1}`, { weekday: 'short' }));

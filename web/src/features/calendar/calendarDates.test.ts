@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { monthGrid, shiftMonth } from './monthGrid';
+import { monthGrid, shiftMonth } from './calendarDates';
 
 describe('monthGrid', () => {
   it('November_2026_starts_in_the_seventh_column', () => {

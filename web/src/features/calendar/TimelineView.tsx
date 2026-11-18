@@ -15,7 +15,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { EventLink, EventTile } from './EventLink';
 import { EventText, eventDetail, eventLink } from './events';
 import { moduleLabelKey, type CalendarModule } from './modules';
-import { formatDate } from './monthGrid';
+import { formatDate } from './calendarDates';
 import { clusters, years } from './timeline';
 import '@/locales/calendar';
 
