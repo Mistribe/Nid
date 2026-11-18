@@ -141,8 +141,10 @@ public sealed class GetIncomeOverviewHandler(
     /// <summary>The row of <paramref name="group"/> (one entry, or a person's salaries); null when none of them is shown.</summary>
     private static IncomeOverviewRow? Row(List<IncomeOverviewEntries.Entry> group, bool includeEnded, LocalDate today, Func<decimal?, IncomeAmountView?> amount)
     {
+        // A source compares with itself, and only when Nid has it on both dates: a new or an ended job reads « — », not ±100 %.
+        decimal? Own(IncomeOverviewEntries.Entry e) => e.Input.MonthlyAt[today] is 0m ? null : OverviewMath.ChangePct(e.Input.MonthlyAt[today], e.Input.MonthlyAt[today.PlusYears(-1)]);
         IncomeOverviewRow Single(IncomeOverviewEntries.Entry e) => new(e.Input.Item, e.Module, e.Input.Name, e.Input.Kind, e.Visibility, e.Owners,
-            amount(e.Input.MonthlyAt[today]), OverviewMath.ChangePct(e.Input.MonthlyAt[today], e.Input.MonthlyAt[today.PlusYears(-1)]),
+            amount(e.Input.MonthlyAt[today]), Own(e),
             e.NextOn, amount(e.NextAmount), e.GapOn, e.Ended);
         var shown = group.Where(e => includeEnded || !e.Ended).OrderBy(e => e.Input.Name, French).ThenBy(e => e.Input.Item.Value).ToList();
         if (shown.Count == 0) return null;

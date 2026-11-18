@@ -158,6 +158,8 @@ public class OverviewEndpointTests(PostgresFixture fixture) : IClassFixture<Post
         Assert.Equal(JsonValueKind.Null, rows.Single(r => r.GetProperty("id").GetGuid() == other).GetProperty("parts").ValueKind);
         var withEnded = Rows(await OverviewAsync(app, "?ended=true")).Single(r => r.GetProperty("id").GetGuid() == after);
         Assert.Equal(3, withEnded.GetProperty("parts").GetArrayLength());
+        // Each part against itself: none of them was in Nid on both dates, so none has a change.
+        Assert.All(withEnded.GetProperty("parts").EnumerateArray(), p => Assert.Equal(JsonValueKind.Null, p.GetProperty("change1y").ValueKind));
     }
 
     [Fact]
