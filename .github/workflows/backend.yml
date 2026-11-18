@@ -5,7 +5,7 @@ name: backend
 on:
   workflow_call:
     inputs:
-      # sonarqube.yml: each test project writes its code coverage, uploaded as a `coverage-*` artifact.
+      # ci.yml's `sonarqube`: each test project writes its code coverage, uploaded as a `coverage-*` artifact.
       coverage:
         type: boolean
         default: false

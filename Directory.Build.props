@@ -12,7 +12,7 @@
   <ItemGroup Condition="$(MSBuildProjectName.EndsWith('.IntegrationTests'))">
     <PackageReference Include="Microsoft.Testing.Extensions.HangDump" />
   </ItemGroup>
-  <!-- Code coverage, which sonarqube.yml asks of every test project; idle otherwise. -->
+  <!-- Code coverage, which ci.yml asks of every test project for its SonarQube analysis; idle otherwise. -->
   <ItemGroup Condition="$(MSBuildProjectName.EndsWith('Tests'))">
     <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
   </ItemGroup>

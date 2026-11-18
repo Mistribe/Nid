@@ -4,6 +4,11 @@ name: web
 # why the filter lives there and not in a `paths:` here); `gh workflow run web.yml` runs it alone.
 on:
   workflow_call:
+    inputs:
+      # ci.yml's `sonarqube`: vitest writes its coverage (lcov), uploaded as the `coverage-web` artifact.
+      coverage:
+        type: boolean
+        default: false
   workflow_dispatch:
 
 permissions:
@@ -33,3 +38,14 @@ jobs:
         env:
           # Typed linting outgrows Node's default heap of about 2 GB.
           NODE_OPTIONS: --max-old-space-size=4096
+          COVERAGE: ${{ inputs.coverage }}
+      # vitest writes the paths from web/; the scanner reads them from the repository root. Also after a failed test: the
+      # analysis counts the coverage the others reported.
+      - if: ${{ !cancelled() && inputs.coverage && hashFiles('web/coverage/lcov.info') != '' }}
+        run: sed -i 's|^SF:|SF:web/|' web/coverage/lcov.info
+      - if: ${{ !cancelled() && inputs.coverage && hashFiles('web/coverage/lcov.info') != '' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage-web
+          path: web/coverage/lcov.info
+          retention-days: 1
