@@ -9,7 +9,7 @@ namespace Nid.Childcare.Application;
 /// Childcare decision 21: one childcare tax line per validated statement of the revenue year, its tax base, without a person; #14: one per
 /// month left of the current year, estimated. #233: <c>Category</c> is the 2042 box the line goes in (7GA, 7GB, 7GC; null past the third child).
 /// </summary>
-public sealed class ChildcareTax(IVisibleItems visible, IItemRegistry items, IChildcareStore store, StatementAssembly assembly, IPersonRegistry persons) : ITaxContribution
+public sealed class ChildcareTax(IVisibleItems visible, IItemRegistry items, IChildcareStore store, StatementAssembly assembly, IPersonRegistry persons, INannyStore nannies) : ITaxContribution
 {
     public async Task<Result<IReadOnlyList<TaxLine>>> TaxLinesAsync(PersonId reader, VisibilityScope scope, int year, LocalDate today, CancellationToken ct)
     {
@@ -36,7 +36,21 @@ public sealed class ChildcareTax(IVisibleItems visible, IItemRegistry items, ICh
         var people = (await persons.ListAsync(ct)).ToDictionary(p => p.Id);
         var children = lines.Select(l => l.Child).Distinct()
             .Select(c => (c, people.GetValueOrDefault(c)?.BirthDate, people.GetValueOrDefault(c)?.DisplayName ?? "")).ToList();
-        return Result.Success<IReadOnlyList<TaxLine>>(lines.Select(l => l.Line with { Category = ChildcareYear.Box(l.Child, children) }).ToList());
+        var result = lines.Select(l => l.Line with { Category = ChildcareYear.Box(l.Child, children) }).ToList();
+        result.AddRange(await NannyLinesAsync(ids, year, today, ct));
+        return Result.Success<IReadOnlyList<TaxLine>>(result);
+    }
+
+    /// <summary>#94: each nanny's recorded months of the year at their net cost, then the rest of the current year at their mean.</summary>
+    private async Task<IEnumerable<TaxLine>> NannyLinesAsync(IReadOnlyCollection<ItemId> ids, int year, LocalDate today, CancellationToken ct)
+    {
+        var found = await nannies.FindManyAsync(ids, ct);
+        var heads = await items.FindManyAsync(found, ct);
+        var months = (await nannies.MonthsOfAsync(found, ct)).ToLookup(m => m.ItemId);
+        return heads.Values.SelectMany(item => NannyYear.Of(months[item.Id], year)
+            .Select(m => new TaxLine(TaxLineCodes.HomeEmploymentTracked, item.Id, item.DisplayName, null, m.NetCost))
+            .Concat(NannyYear.Projected(months[item.Id], year, today, item.ArchivedAt is not null)
+                .Select(m => new TaxLine(TaxLineCodes.HomeEmploymentProjected, item.Id, item.DisplayName, null, m.Amount))));
     }
 
     /// <summary>No validated month in the current year: the latest month begun so far computed from the contract, as the dashboard does.</summary>
