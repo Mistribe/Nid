@@ -96,8 +96,10 @@ jobs:
           merge-multiple: true
       # dotnet-sonarscanner, pinned in .config/dotnet-tools.json (Renovate updates it).
       - run: dotnet tool restore
-      # Excluded: what is generated (EF migrations, the OpenAPI document and the types made from it). Out of the coverage: the
-      # scripts of deploy/ and the Playwright journeys, which no unit test runs.
+      # Excluded: what is generated (EF migrations, the OpenAPI document and the types made from it) and the captured pages and
+      # generators of tests/vectors. Out of the coverage: the scripts of deploy/ and the Playwright journeys, which no unit test
+      # runs. Rules ignored where they are wrong by design: the import parsers' `&` evaluates every check so that one answer
+      # lists every error (S2178); `[` rather than `[[` in the shell scripts is style only (S7688).
       - name: Build and analyse
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -106,7 +108,12 @@ jobs:
             /k:"mistribe_nid" /o:"mistribe" \
             /d:sonar.host.url="https://sonarcloud.io" \
             /d:sonar.token="$SONAR_TOKEN" \
-            /d:sonar.exclusions="**/Migrations/**,web/src/api/openapi.json,web/src/api/schema.d.ts" \
+            /d:sonar.exclusions="**/Migrations/**,web/src/api/openapi.json,web/src/api/schema.d.ts,tests/vectors/**" \
+            /d:sonar.issue.ignore.multicriteria="parsers,shell" \
+            /d:sonar.issue.ignore.multicriteria.parsers.ruleKey="csharpsquid:S2178" \
+            /d:sonar.issue.ignore.multicriteria.parsers.resourceKey="src/**/Import/**" \
+            /d:sonar.issue.ignore.multicriteria.shell.ruleKey="shell:S7688" \
+            /d:sonar.issue.ignore.multicriteria.shell.resourceKey="**/*.sh" \
             /d:sonar.coverage.exclusions="deploy/**,web/e2e/**" \
             /d:sonar.cs.vscoveragexml.reportsPaths="coverage/*.coverage.xml" \
             /d:sonar.javascript.lcov.reportPaths="coverage/lcov.info"
