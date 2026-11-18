@@ -1,6 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw/http';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { pickYear } from '@/test/controls';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import type { TaxEstimate } from '@/api/tax';
@@ -199,7 +200,7 @@ describe('SimulationTab', () => {
     it('takes the result away when the year changes', async () => {
       serve(); answer = raised;
       const { user } = await simulate();
-      await user.click(screen.getByRole('radio', { name: '2025' }));
+      await pickYear(user, '2025');
       await waitFor(() => expect(screen.queryByRole('region', { name: 'Avant / après' })).toBeNull());
     });
 
