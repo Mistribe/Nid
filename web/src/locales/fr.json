@@ -1,5 +1,5 @@
 {
-  "app": { "name": "Nid", "version": "Version {{version}}", "api_version": "API : {{version}}", "api_version_unknown": "indisponible", "toasts": "Messages",
+  "app": { "name": "Nid", "version": "Version {{version}}", "api_version": "API : {{version}}", "api_version_unknown": "indisponible", "new_version": "Une nouvelle version de Nid est disponible.", "reload": "Recharger", "toasts": "Messages",
     "changelog": { "title": "Nouveautés", "loading": "Chargement des nouveautés", "error": "Les nouveautés n'ont pas pu être chargées.", "empty": "Aucune nouveauté à afficher.",
       "web": "Version de l'application", "api": "Version de l'API", "current": "Version actuelle", "patches": "Correctifs de la version {{minor}}",
       "older_one": "Version précédente ({{count}} groupe)", "older_other": "Versions précédentes ({{count}} groupes)", "see_all": "Voir les nouveautés" }

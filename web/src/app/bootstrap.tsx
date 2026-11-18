@@ -9,6 +9,7 @@ import { LoginRefusedPage } from './LoginRefusedPage';
 import { LoginUnavailablePage } from './LoginUnavailablePage';
 import { Providers, type AppLocation, type Capabilities } from './Providers';
 import { DemoPage } from './DemoPage';
+import i18n from './i18n';
 import { DEMO_PATH, loadSession, LOGIN_PATH, loginUrl, LOGIN_REFUSED_PATH, LOGIN_UNAVAILABLE_PATH, PASSWORD_PATH, SETUP_PATH, SIGNED_OUT_PATH, type Session } from './session';
 import { SignedOutPage } from './SignedOutPage';
 import { StartupFailure } from './StartupFailure';
@@ -87,6 +88,12 @@ export async function bootstrap({ root, location }: { root: HTMLElement; locatio
       queryClient.clear();
       location.assign(loginUrl(location));
     },
+    // The tab still runs the build it loaded before the server was updated: offer the reload, never force it (a form may be open).
+    onNewVersion: () => void import('sonner').then(({ toast }) => toast.info(i18n.t('app.new_version'), {
+      id: 'new-version',
+      duration: Infinity,
+      action: { label: i18n.t('app.reload'), onClick: () => location.reload() },
+    })),
   });
   const appLocation: AppLocation = {
     get pathname() { return location.pathname; },
