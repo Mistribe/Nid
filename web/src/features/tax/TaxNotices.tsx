@@ -65,11 +65,12 @@ function childcareItems(t: TFunction, notices: TaxNotice[], year: number): Notic
 }
 
 /** #94: a nanny's tracked months, and for the current year how the rest of it is counted. */
-function homeItems(t: TFunction, notices: TaxNotice[]): NoticeItem[] {
+function homeItems(t: TFunction, notices: TaxNotice[], year: number): NoticeItem[] {
   return notices.map((n) => ({
     key: n.item, name: n.name,
     detail: t(n.monthsEstimated ? 'tax.notices.home_employment.projected' : 'tax.notices.home_employment.recorded',
       { amount: eur(n.amount), validated: n.monthsValidated, estimated: n.monthsEstimated }),
+    link: { to: '/childcare/nannies/$id', params: { id: n.item }, search: { year: String(year) } },
   }));
 }
 
@@ -92,7 +93,7 @@ export function noticeGroups(t: TFunction, { notices, warnings = [], year, rules
     const mine = notices.filter((n) => k.codes.includes(n.code));
     if (!mine.length) continue;
     groups.push({ kind: k.kind, tile: k.tile, heading: t(`tax.notices.kind.${k.kind}`),
-      items: k.kind === 'childcare' ? childcareItems(t, mine, year) : k.kind === 'home_employment' ? homeItems(t, mine) : mine.map((n, i) => item(n, k.link, i)) });
+      items: k.kind === 'childcare' ? childcareItems(t, mine, year) : k.kind === 'home_employment' ? homeItems(t, mine, year) : mine.map((n, i) => item(n, k.link, i)) });
   }
   const unknown = notices.filter((n) => !KINDS.some((k) => k.codes.includes(n.code)));
   if (unknown.length || unknownWarnings.length) groups.push({ kind: 'other', tile: '/tax', heading: t('tax.notices.kind.other'), items: unknown.map((n, i) => item(n, undefined, i)) });

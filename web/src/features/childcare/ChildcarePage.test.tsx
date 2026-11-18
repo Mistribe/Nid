@@ -67,4 +67,17 @@ describe('ChildcarePage', () => {
     expect(screen.getAllByRole('link', { name: 'Nouvelle garde' }).length).toBeGreaterThan(0);
     expectOnePrimary(container);
   });
+
+  it('lists the nannies at home with their net cost this year, without a childminder', async () => {
+    serve(list([]));
+    server.use(http.get('*/api/v1/childcare/nannies', () => HttpResponse.json({ items: [
+      { id: 'n1', name: 'Garde à domicile', owners: [], visibility: 'shared', closed: false, writable: true, netCost: eur('1300.00'), months: 2 },
+    ] })));
+    const { container } = await renderApp('/childcare');
+    const table = await screen.findByRole('table', { name: 'Garde à domicile' });
+    expect(within(table).getAllByRole('row')[1]).toHaveTextContent('1 300,00 €');
+    expect(within(table).getByRole('link', { name: 'Garde à domicile' })).toHaveAttribute('href', '/childcare/nannies/n1');
+    expect(screen.queryByText('Aucune garde')).not.toBeInTheDocument();
+    expectOnePrimary(container);
+  });
 });
