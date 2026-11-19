@@ -11,7 +11,7 @@ import { DetailTabsSkeleton, HeroSkeleton, Loading, SectionCardSkeleton, StatLin
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { todayIso } from '@/lib/today';
-import { FIRST_ESTIMATE_YEAR, TAX } from '@/api/tax';
+import { FIRST_ESTIMATE_YEAR, TAX, TAX_HISTORY } from '@/api/tax';
 import { useTaxAssessments } from './assessments/api';
 import { AssessmentTab } from './assessment/AssessmentTab';
 import { DeclarationsTab } from './declarations/DeclarationsTab';
@@ -81,8 +81,10 @@ export function TaxPage() {
   // menu does not vanish under the pointer.
   const answer = $api.useQuery('get', TAX, { params: { query: { year: Number(year), scope } } }, { enabled: !past, placeholderData: keepPreviousData });
   const estimate = past ? undefined : answer.data;
-  // The years the estimate's history holds data for join the notices' and this year's (kept while another year loads).
-  const years = [...new Set([...known, year, ...(answer.data?.history ?? []).filter((h) => h.source === 'estimate').map((h) => String(h.year))])]
+  // The years the whole history holds data for join the notices' and this year's: the estimate's own stops at the year it shows.
+  // The Évolution tab reads the same query, so it is asked once.
+  const history = $api.useQuery('get', TAX_HISTORY, { params: { query: { scope } } });
+  const years = [...new Set([...known, year, ...(history.data?.years ?? []).filter((h) => h.source === 'estimate').map((h) => String(h.year))])]
     .sort().map((y) => ({ value: y, hint: yearHint(y) }));
   const notices = assessments.filter((a) => String(a.year) === year);
   // The Avis tab exists only for a year with notices: a URL asking for it elsewhere shows the overview.

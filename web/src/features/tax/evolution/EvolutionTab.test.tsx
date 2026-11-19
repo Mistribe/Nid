@@ -81,7 +81,8 @@ describe('EvolutionTab', () => {
 
     await waitFor(() => expect(document.querySelectorAll('.recharts-bar-rectangle path')).toHaveLength(3));
     expect(new Set(years)).toEqual(new Set(['2026']));
-    expect(historyCalls).toEqual([]);
+    // Once, for the page's year list; the tab itself draws the estimate's own history.
+    expect(historyCalls).toHaveLength(1);
   });
 
   it('shows the same years as a table, the selected one current', async () => {
