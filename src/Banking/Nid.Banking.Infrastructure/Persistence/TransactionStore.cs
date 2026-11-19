@@ -139,6 +139,20 @@ public sealed class TransactionStore(BankingDbContext db, IClock clock) : ITrans
     public Task<int> PurgeBookedBeforeAsync(LocalDate before, CancellationToken ct)
         => db.Transactions.Where(t => t.BookedOn < before && (t.LinkState == "unlinked" || t.LinkState == "ignored")).ExecuteDeleteAsync(ct);
 
+    public async Task<IReadOnlyList<SpendingSum>> SpendingAsync(IReadOnlyList<Guid> accounts, LocalDate from, LocalDate to, CancellationToken ct)
+        => (await db.Transactions.AsNoTracking()
+            .Where(t => accounts.Contains(t.AccountId) && t.BookedOn >= from && t.BookedOn <= to && t.LinkState != "ignored")
+            .GroupBy(t => new { t.CategoryId, t.Currency, t.BookedOn.Year, t.BookedOn.Month })
+            .Select(g => new { g.Key, Debits = g.Sum(t => t.Amount < 0 ? t.Amount : 0m), Credits = g.Sum(t => t.Amount > 0 ? t.Amount : 0m) })
+            .ToListAsync(ct))
+            .Select(g => new SpendingSum(g.Key.CategoryId, Currency.TryCreate(g.Key.Currency, out var currency) ? currency
+                    : throw new InvalidOperationException($"Bank lines in '{g.Key.Currency}' have no valid currency."),
+                new YearMonth(g.Key.Year, g.Key.Month), g.Debits, g.Credits))
+            .ToList();
+
+    public Task<LocalDate?> EarliestBookedOnAsync(IReadOnlyList<Guid> accounts, CancellationToken ct)
+        => db.Transactions.Where(t => accounts.Contains(t.AccountId)).MinAsync(t => (LocalDate?)t.BookedOn, ct);
+
     private static string? CleanBankCode(string? code)
         => code?.Trim() is { Length: > 0 } t ? (t.Length > 140 ? t[..140] : t) : null;
 

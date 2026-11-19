@@ -633,6 +633,9 @@ public static class RequestCatalogue
         // 5C, D19: every readable account's lines; the joint line's link to A's private subscription never reaches B.
         new(typeof(ListBankLinesQuery), false, (_, _) => new ListBankLinesQuery("all", null, null, 1)),
         new(typeof(ListBankLinesQuery), false, (_, _) => new ListBankLinesQuery("all", null, null, 1, Uncategorised: true)),
+        // #85: spending by category, figures only; A's private account never counts for B, in either scope.
+        new(typeof(Nid.Banking.Application.Spending.GetSpendingQuery), false, (_, _) => new Nid.Banking.Application.Spending.GetSpendingQuery(VisibilityScope.Household, null, null, null)),
+        new(typeof(Nid.Banking.Application.Spending.GetSpendingQuery), false, (_, _) => new Nid.Banking.Application.Spending.GetSpendingQuery(VisibilityScope.Mine, null, null, null)),
         new(typeof(LinkCandidatesQuery), false, (d, _) => new LinkCandidatesQuery(d.JointLine)),
         new(typeof(ListExpectedChargesQuery), false, (_, _) => new ListExpectedChargesQuery(new LocalDate(2025, 1, 1), new LocalDate(2025, 3, 31))),
         new(typeof(LinkTransactionCommand), false, (d, item) => new LinkTransactionCommand(d.JointLine, "subscriptions", item.Value, null)),

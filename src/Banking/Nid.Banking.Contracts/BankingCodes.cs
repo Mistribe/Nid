@@ -91,4 +91,7 @@ public static class BankingCodes
 
     /// <summary>A rule's amount bounds are not negative, and the minimum is not above the maximum.</summary>
     public const string RuleAmounts = "banking.rule_amounts";
+
+    /// <summary>#85: a spending period names both its months, the first not after the last, 24 months at most.</summary>
+    public const string SpendingPeriod = "banking.spending_period";
 }

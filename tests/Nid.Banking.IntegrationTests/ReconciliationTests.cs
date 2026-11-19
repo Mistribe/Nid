@@ -627,5 +627,10 @@ public class ReconciliationTests(PostgresFixture fixture) : IClassFixture<Postgr
 
         public Task<IReadOnlyList<BankTransaction>> UncategorisedLinkedAsync(Guid? after, int take, CancellationToken ct) => inner.UncategorisedLinkedAsync(after, take, ct);
         public Task<int> PurgeBookedBeforeAsync(LocalDate before, CancellationToken ct) => inner.PurgeBookedBeforeAsync(before, ct);
+
+        public Task<IReadOnlyList<SpendingSum>> SpendingAsync(IReadOnlyList<Guid> accounts, LocalDate from, LocalDate to, CancellationToken ct)
+            => inner.SpendingAsync(accounts, from, to, ct);
+
+        public Task<LocalDate?> EarliestBookedOnAsync(IReadOnlyList<Guid> accounts, CancellationToken ct) => inner.EarliestBookedOnAsync(accounts, ct);
     }
 }

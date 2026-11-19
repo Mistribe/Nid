@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Options;
 using Nid.Banking.Application;
 using Nid.Banking.Application.Files;
+using Nid.Banking.Application.Spending;
 using Nid.Banking.Application.Sync;
 using Nid.Banking.Contracts;
 using Nid.Banking.Domain.Files;
@@ -103,6 +104,12 @@ public static class BankingEndpoints
                 => (await invoker.InvokeAsync(new ListBankLinesQuery(state, OptionalDate(from), OptionalDate(to), page ?? 1, uncategorised ?? false), ct))
                     .ToHttp(transactions => transactions))
             .Returns<BankTransactionPage>();
+
+        // #85: what the scope's accounts spent by category over a month (default: the current one) or a period of whole months.
+        api.MapGet("/spending", async (string? scope, string? month, string? from, string? to, IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new GetSpendingQuery(ParseScope(scope), OptionalMonth(month), OptionalMonth(from), OptionalMonth(to)), ct))
+                    .ToHttp(spending => spending))
+            .Returns<SpendingView>();
 
         api.MapGet("/transactions/{id:guid}/candidates", async (Guid id, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new LinkCandidatesQuery(id), ct)).ToHttp(charges => charges))
