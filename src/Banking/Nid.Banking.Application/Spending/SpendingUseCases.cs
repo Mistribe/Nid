@@ -48,7 +48,7 @@ public sealed record SpendingLines(IReadOnlyList<BankTransactionView> Items, str
 
 [RequestHandler<ListSpendingLinesQuery, SpendingLines>]
 public sealed class ListSpendingLinesHandler(
-    IInvoker invoker, SpendingAccounts scopes, ITransactionStore lines, ICategoryStore categories, BankLines views)
+    GetSpendingHandler spending, ITransactionStore lines, ICategoryStore categories, BankLines views)
     : IRequestHandler<ListSpendingLinesQuery, SpendingLines>
 {
     public async ValueTask<Result<SpendingLines>> HandleAsync(ListSpendingLinesQuery query, CancellationToken ct = default)
@@ -56,27 +56,19 @@ public sealed class ListSpendingLinesHandler(
         if (query.Uncategorised == (query.CategoryId is not null))
             return BankingAccess.Fail<SpendingLines>(BankingCodes.SpendingTarget, "Send a categoryId, or uncategorised=true.");
         // The total is the figure itself, so the two never differ: same rows, same conversion, same flag.
-        var figures = await invoker.InvokeAsync(new GetSpendingQuery(query.Scope, query.Month, query.From, query.To), ct);
-        if (!figures.TryGetValue(out var view))
-            return BankingAccess.Failed<SpendingLines, SpendingView>(figures);
-        var from = YearMonthPattern.Iso.Parse(view.From).Value;
-        var to = YearMonthPattern.Iso.Parse(view.To).Value;
+        var figures = await spending.SpentAsync(new GetSpendingQuery(query.Scope, query.Month, query.From, query.To), ct);
+        if (!figures.TryGetValue(out var sums))
+            return BankingAccess.Failed<SpendingLines, GetSpendingHandler.Spent>(figures);
 
-        string total;
-        List<Guid> ids = [];
-        if (query.CategoryId is { } id)
-        {
-            // An expense category and its children; any other kind is no spending, so it lists nothing.
-            ids = [.. (await categories.AllAsync(ct)).Where(c => c.Kind == CategoryKind.Expense && (c.Id == id || c.Parent == id)).Select(c => c.Id)];
-            total = view.Categories.SelectMany(c => c.Children.Prepend(c)).FirstOrDefault(c => c.Id == id)?.Amount ?? "0.00";
-        }
-        else
-            total = view.Uncategorised.Amount;
+        // An expense category and its children; any other kind is no spending, so it lists nothing.
+        List<Guid> ids = query.CategoryId is { } id
+            ? [.. (await categories.AllAsync(ct)).Where(c => c.Kind == CategoryKind.Expense && (c.Id == id || c.Parent == id)).Select(c => c.Id)]
+            : [];
+        var total = (query.Uncategorised ? [Guid.Empty] : ids).Sum(key => sums.ByCategory.GetValueOrDefault(key).Range);
 
-        var accounts = await scopes.ForAsync(query.Scope, ct);
-        var (page, count) = await lines.SpendingLinesAsync(accounts, ids, query.Uncategorised, from.ToDateInterval().Start, to.ToDateInterval().End,
+        var (page, count) = await lines.SpendingLinesAsync(sums.Accounts, ids, query.Uncategorised, sums.From.ToDateInterval().Start, sums.To.ToDateInterval().End,
             (Math.Clamp(query.Page, 1, BankLines.MaxPage) - 1) * BankLines.PageSize, BankLines.PageSize, ct);
-        return Result.Success(new SpendingLines(await views.ViewsAsync(page, ct), total, count, view.Incomplete));
+        return Result.Success(new SpendingLines(await views.ViewsAsync(page, ct), GetSpendingHandler.Money(total), count, sums.Incomplete));
     }
 }
 
@@ -90,11 +82,16 @@ public sealed class GetSpendingHandler(
     private const int MinHistoryMonths = 3;
     private static readonly StringComparer ByName = StringComparer.Create(CultureInfo.GetCultureInfo("fr-FR"), true);
 
-    public async ValueTask<Result<SpendingView>> HandleAsync(GetSpendingQuery query, CancellationToken ct = default)
+    /// <summary>The range's and the preceding 12 months' spending per category (Guid.Empty: none), before any view filter.</summary>
+    public sealed record Spent(
+        YearMonth From, YearMonth To, IReadOnlyList<Guid> Accounts, Currency Reference, Dictionary<Guid, (decimal Range, decimal Before)> ByCategory,
+        bool Incomplete, bool AverageMissing);
+
+    public async ValueTask<Result<Spent>> SpentAsync(GetSpendingQuery query, CancellationToken ct)
     {
         var enabled = await access.EnabledAsync(ct);
         if (!enabled.IsSuccess)
-            return BankingAccess.Failed<SpendingView>(enabled);
+            return BankingAccess.Failed<Spent>(enabled);
         var today = await calendar.TodayAsync(ct);
         YearMonth from, to;
         if (query is { From: null, To: null })
@@ -102,7 +99,7 @@ public sealed class GetSpendingHandler(
         else if (query is { Month: null, From: { } f, To: { } t } && Index(f) <= Index(t) && Index(t) - Index(f) < MaxMonths)
             (from, to) = (f, t);
         else
-            return Result.Failure<SpendingView>(new Failure(BankingCodes.SpendingPeriod,
+            return Result.Failure<Spent>(new Failure(BankingCodes.SpendingPeriod,
                 $"A period names a first and a last month (yyyy-mm), the first not after the last, {MaxMonths} months at most; or send one month.", null));
 
         var accounts = await scopes.ForAsync(query.Scope, ct);
@@ -140,6 +137,17 @@ public sealed class GetSpendingHandler(
             spent[key] = inRange ? (range + converted, before) : (range, before + converted);
         }
 
+        return Result.Success(new Spent(from, to, accounts, reference, spent, incomplete, averageMissing));
+    }
+
+    public async ValueTask<Result<SpendingView>> HandleAsync(GetSpendingQuery query, CancellationToken ct = default)
+    {
+        var figures = await SpentAsync(query, ct);
+        if (!figures.TryGetValue(out var sums))
+            return BankingAccess.Failed<SpendingView, Spent>(figures);
+        var (from, to, accounts, reference, spent, incomplete, averageMissing) = (sums.From, sums.To, sums.Accounts, sums.Reference, sums.ByCategory, sums.Incomplete, sums.AverageMissing);
+        var byId = (await categories.AllAsync(ct)).ToDictionary(c => c.Id);
+
         // Decision 6: months of the window from the accounts' first line on.
         var earliest = await lines.EarliestBookedOnAsync(accounts, ct);
         var averaged = !averageMissing && earliest is { } e && Math.Clamp(Index(from) - Index(e.ToYearMonth()), 0, AverageMonths) >= MinHistoryMonths;
@@ -172,5 +180,5 @@ public sealed class GetSpendingHandler(
 
     private static decimal Round(decimal amount) => Math.Round(amount, 2, MidpointRounding.AwayFromZero);
 
-    private static string Money(decimal amount) => Round(amount).ToString("0.00", CultureInfo.InvariantCulture);
+    internal static string Money(decimal amount) => Round(amount).ToString("0.00", CultureInfo.InvariantCulture);
 }

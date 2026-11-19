@@ -295,4 +295,20 @@ public class SpendingTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
         Assert.Equal(2, lines.GetProperty("count").GetInt32());
         Assert.Equal(("20.00", true), (lines.GetProperty("total").GetString(), lines.GetProperty("incomplete").GetBoolean()));
     }
+
+    [Fact]
+    public async Task A_child_under_a_parent_that_nets_to_zero_keeps_its_lines_total()
+    {
+        await using var app = await BankingApi.StartAsync(fixture);
+        await BankingApi.ConnectAsync(app, app.AdultA, "code-a", BankingApi.Account("uid-1", "hash-1", null, "Compte"));
+        var account = (await AccountsAsync(app, app.AdultA))["Compte"];
+        await LineAsync(app, account, new(2025, 10, 3), -30m, "food.groceries");
+        await LineAsync(app, account, new(2025, 10, 4), 30m, "food");
+
+        // « Alimentation » nets to nothing, so the view hides it and its child; the child's lines still total its 30.
+        Assert.Empty((await SpendingAsync(app, app.AdultA, "?scope=me")).GetProperty("categories").EnumerateArray());
+        var lines = await LinesAsync(app, app.AdultA, $"?scope=me&categoryId={Seed("food.groceries")}");
+        Assert.Equal(("30.00", 1), (lines.GetProperty("total").GetString(), lines.GetProperty("count").GetInt32()));
+        Assert.Equal("0.00", (await LinesAsync(app, app.AdultA, $"?scope=me&categoryId={Seed("food")}")).GetProperty("total").GetString());
+    }
 }
