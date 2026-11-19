@@ -156,6 +156,37 @@ public class CategoryRuleReconciliationTests(PostgresFixture fixture) : IClassFi
     }
 
     [Fact]
+    public async Task Unlinking_applies_only_the_rules_of_authors_who_write_the_account()
+    {
+        var (app, account) = await StartAsync(fixture);
+        await using var _ = app;
+        var line = await AddAsync(app, account, "a", -12.99m);
+        var box = await app.NewSubscriptionAsync("Netflix", app.AdultA, Visibility.Shared);
+        await OkAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{BankingApi.Root}/transactions/{line}/link",
+            new { module = "subscriptions", itemId = box.Value }));
+        var bobs = await RuleAsync(app, "NETFLIX", "home.telecom", app.AdultB);
+
+        await OkAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{BankingApi.Root}/transactions/{line}/unlink", new { }));
+
+        Assert.Equal((null, null, null, null), await CategoryAsync(app, line));
+        Assert.Null((await FindRuleAsync(app, bobs.Id))!.LastUsedAt);
+    }
+
+    [Fact]
+    public async Task A_rule_never_categorises_an_ignored_line()
+    {
+        var (app, account) = await StartAsync(fixture);
+        await using var _ = app;
+        var line = await AddAsync(app, account, "a", -12.99m);
+        await OkAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{BankingApi.Root}/transactions/{line}/ignore", new { }));
+        await RuleAsync(app, "NETFLIX", "home.telecom", app.AdultA);
+
+        await OkAsync(await app.RawAsync(app.AdultA, HttpMethod.Delete, $"{BankingApi.Root}/transactions/{line}/category"));
+
+        Assert.Equal((null, null, null, null), await CategoryAsync(app, line));
+    }
+
+    [Fact]
     public async Task Leaving_it_to_Nid_applies_the_rule_at_once()
     {
         var (app, account) = await StartAsync(fixture);

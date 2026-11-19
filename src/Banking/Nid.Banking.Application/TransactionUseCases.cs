@@ -34,7 +34,7 @@ public sealed record ListExpectedChargesQuery(LocalDate From, LocalDate To) : IQ
 public sealed record LinkTransactionCommand(Guid TransactionId, string Module, Guid ItemId, string? Key) : ICommand<BankTransactionView>;
 
 /// <summary>A linked, internal or ignored line back to unlinked: write on its account, and on its link's target or read of its counterpart.</summary>
-public sealed record UnlinkTransactionCommand(Guid TransactionId) : ICommand<BankTransactionView>;
+public sealed record UnlinkTransactionCommand(Guid TransactionId) : ICommand<BankTransactionView>, ITransactional;
 
 /// <summary>An unlinked line no charge is expected for.</summary>
 public sealed record IgnoreTransactionCommand(Guid TransactionId) : ICommand<BankTransactionView>;

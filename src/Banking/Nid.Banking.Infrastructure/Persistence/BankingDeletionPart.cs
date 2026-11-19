@@ -30,6 +30,7 @@ public sealed class BankingDeletionPart(BankingDbContext db) : IItemDeletionPart
         // them again: link rules, charges, then category rules.
         var linked = db.Transactions.Where(t => db.Links.Any(l => l.TransactionId == t.Id && l.TargetItemId == id));
         await CategoryStore.ClearSourceAsync(linked, [CategorySource.Link], ct);
+        // ponytail: the first pass after deleting a long-linked item reads from its oldest line once (the pass spans its lines' dates).
         await linked.ExecuteUpdateAsync(s => s
             .SetProperty(t => t.LinkState, LinkStore.Wire(TransactionLinkState.Unlinked)).SetProperty(t => t.ReconciledAt, (Instant?)null), ct);
         db.Links.RemoveRange(await db.Links.Where(l => l.TargetItemId == id).ToListAsync(ct));

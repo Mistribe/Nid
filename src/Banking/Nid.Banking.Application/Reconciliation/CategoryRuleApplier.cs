@@ -25,7 +25,8 @@ public sealed class CategoryRuleApplier(
     public async Task<int> ApplyAsync(IReadOnlyList<BankTransaction> lines, Func<CategoryRule, Guid, Task<bool>> mayApply, CancellationToken ct)
     {
         // Precedence in SetForLinesAsync guards hand, assistant and link too; skipping them here keeps a rule from being touched for nothing.
-        var open = lines.Where(l => l.CategorySource is null or CategorySource.Rule or CategorySource.Hint).ToList();
+        // An ignored line is set aside by a person: « Ignorer » clears a rule's category, no rule brings one back.
+        var open = lines.Where(l => l.LinkState != TransactionLinkState.Ignored && l.CategorySource is (null or CategorySource.Rule or CategorySource.Hint)).ToList();
         if (open.Count == 0)
             return 0;
         var all = await rules.AllAsync(ct);
