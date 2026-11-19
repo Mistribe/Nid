@@ -129,6 +129,25 @@ public static class BankingEndpoints
             })
             .ReturnsNoContent();
 
+        api.MapGet("/categories", async (IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new ListBankCategoriesQuery(), ct)).ToHttp(categories => categories))
+            .Returns<IReadOnlyList<BankCategoryView>>();
+
+        api.MapPost("/categories", async (CategoryBody body, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new CreateBankCategoryCommand(body.ParentId, body.Name ?? "", body.Kind), ct))
+                .ToHttp(category => category, StatusCodes.Status201Created))
+            .Returns<BankCategoryView>(StatusCodes.Status201Created);
+
+        api.MapPatch("/categories/{id:guid}", async (Guid id, CategoryPatchBody body, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new UpdateBankCategoryCommand(
+                    id, body.Name, body.ParentId, body.MoveParent ?? false, body.Archived, body.ResetName ?? false), ct))
+                .ToHttp(category => category))
+            .Returns<BankCategoryView>();
+
+        api.MapPost("/categories/{id:guid}/merge", async (Guid id, CategoryMergeBody body, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new MergeBankCategoryCommand(id, body.Into ?? Guid.Empty), ct)).ToHttp(category => category))
+            .Returns<BankCategoryView>();
+
         // Read now, in the request: the bank sees the person's own browser (Psu-Ip-Address, Psu-User-Agent), as UseForwardedHeaders resolved it.
         api.MapPost("/sync", async (SyncBody body, HttpContext http, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new SyncMineCommand(body.ConnectionId, new PsuHeaders(
@@ -239,6 +258,17 @@ public static class BankingEndpoints
     /// <summary>A charge of <c>itemId</c> (a subscription, a loan, a property); <c>key</c> names one, else the nearest is taken.</summary>
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
     public sealed record LinkBody(string? Module, Guid? ItemId, string? Key);
+
+    /// <summary>A new category; <c>kind</c> (<c>expense</c>, <c>income</c>, <c>transfer</c>) is required without a <c>parentId</c>.</summary>
+    [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+    public sealed record CategoryBody(Guid? ParentId, string? Name, string? Kind);
+
+    /// <summary>A field left out stays; <c>moveParent</c> says <c>parentId</c> (null: top-level) is meant; <c>resetName</c> restores a starter name.</summary>
+    [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+    public sealed record CategoryPatchBody(string? Name, Guid? ParentId, bool? MoveParent, bool? Archived, bool? ResetName);
+
+    [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+    public sealed record CategoryMergeBody(Guid? Into);
 
     /// <summary>Without <c>connectionId</c>, every connection of the person.</summary>
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
