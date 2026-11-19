@@ -12,17 +12,18 @@ public static class CategoryHints
     {
         if (bankCode is not { Length: > 0 })
             return null;
+        // Cash withdrawals and bank fees are debits: a credit with the same code (a fee refund) says nothing.
         if (bankCode is "ATM")
-            return "internal.cash";
+            return amount < 0 ? "internal.cash" : null;
         if (OfxFees.Contains(bankCode))
-            return "bank";
+            return amount < 0 ? "bank" : null;
         var parts = bankCode.Split('/');
         if (parts.Any(p => p.Length == 0 || !p.All(c => c is (>= 'A' and <= 'Z') or (>= '0' and <= '9') or '_')))
             return null;
         return parts switch
         {
-            ["PMNT", "CCRD", "CWDL", ..] => "internal.cash",
-            ["ACMT", "MDOP", "CHRG", ..] or ["PMNT", _, "CHRG", ..] => "bank",
+            ["PMNT", "CCRD", "CWDL", ..] when amount < 0 => "internal.cash",
+            ["ACMT", "MDOP", "CHRG", ..] or ["PMNT", _, "CHRG", ..] when amount < 0 => "bank",
             ["PMNT", "RCDT", "SALA", ..] when amount > 0 => "income.salary",
             _ => null,
         };

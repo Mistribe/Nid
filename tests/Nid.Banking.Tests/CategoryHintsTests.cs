@@ -24,6 +24,12 @@ public class CategoryHintsTests
     [InlineData("DEBIT", -20)]
     [InlineData("Retrait DAB", -20)]
     [InlineData("PMNT/CCRD/CWDL extra", -20)]
+    [InlineData("PMNT/CCRD/CWDL", 20)]
+    [InlineData("ATM", 20)]
+    [InlineData("ACMT/MDOP/CHRG", 2)]
+    [InlineData("PMNT/ICDT/CHRG", 2)]
+    [InlineData("FEE", 2)]
+    [InlineData("SRVCHG", 2)]
     [InlineData("", -20)]
     [InlineData(null, -20)]
     public void Anything_else_gives_nothing(string? code, int amount) => Assert.Null(CategoryHints.KeyFor(code, amount));

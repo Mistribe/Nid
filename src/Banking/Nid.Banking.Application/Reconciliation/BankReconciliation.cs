@@ -193,6 +193,7 @@ public sealed class BankReconciliation(
             await categoryRules.ApplyAsync(looked, (rule, account) => Task.FromResult(writersOf[account].Contains(rule.CreatedBy)), ct);
         });
 
+        // `lines` is a snapshot, stale after the rule and link steps: the SQL precedence in SetForLinesAsync guards the write.
         // After the rules: a hint only fills a line still without a category (precedence in SQL keeps the rest).
         await TryAsync([.. looked.Select(l => l.Id)], async () =>
         {

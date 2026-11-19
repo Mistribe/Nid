@@ -54,12 +54,12 @@ public class ReconciliationTests(PostgresFixture fixture) : IClassFixture<Postgr
         return await AccountAsync(app, app.AdultA, "Joint");
     }
 
-    private static async Task<Guid> AddAsync(NidApp app, Guid account, string reference, LocalDate on, decimal amount, string label = "PRLV SEPA NETFLIX 123")
+    private static async Task<Guid> AddAsync(NidApp app, Guid account, string reference, LocalDate on, decimal amount, string label = "PRLV SEPA NETFLIX 123", string? bankCode = null)
     {
         await using var scope = app.Services.CreateAsyncScope();
         scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
         var store = scope.ServiceProvider.GetRequiredService<ITransactionStore>();
-        await store.AddAsync(account, [new NewBankTransaction(reference, on, null, amount, Currency.Eur, label, null, null, "api")], default);
+        await store.AddAsync(account, [new NewBankTransaction(reference, on, null, amount, Currency.Eur, label, null, null, "api", bankCode)], default);
         return (await store.ListAsync([account], null, null, 0, 1000, default)).Single(t => t.ProviderRef == reference).Id;
     }
 
@@ -120,6 +120,21 @@ public class ReconciliationTests(PostgresFixture fixture) : IClassFixture<Postgr
     {
         await using var db = Db(app);
         return await db.Transactions.CountAsync(t => t.ReconciledAt == null);
+    }
+
+    [Fact]
+    public async Task A_line_linked_in_the_pass_keeps_its_link_category_over_a_hint()
+    {
+        await using var app = await StartAsync(fixture);
+        var courant = await CourantAsync(app, BankingApi.Account("uid-2", "hash-2", null, "Livret A", "SVGS"));
+        var livret = await AccountAsync(app, app.AdultA, "Livret A");
+        var debit = await AddAsync(app, courant, "a", D(10, 5), -500m, "VIR VERS LIVRET", "FEE");
+        await AddAsync(app, livret, "b", D(10, 6), 500m, "VIR DE COURANT");
+
+        await PassAsync(app);
+
+        var line = await LineAsync(app, debit);
+        Assert.Equal((CategorySeed.Find("internal.transfer")!.Id, CategorySource.Link), (line.Category, line.CategorySource));
     }
 
     [Fact]

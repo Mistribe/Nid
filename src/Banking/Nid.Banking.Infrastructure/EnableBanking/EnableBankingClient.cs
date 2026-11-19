@@ -159,11 +159,11 @@ public sealed class EnableBankingClient(SafeHttpClient http, BankingOptions opti
             debit ? -Math.Abs(amount) : Math.Abs(amount), t.TransactionAmount.Currency, label, counterparty, remittance, BankCodeOf(t.BankTransactionCode));
     }
 
-    /// <summary><c>code/sub_code</c> when the bank gives codes, else its free description (never matched by hints).</summary>
+    /// <summary><c>code/sub_code</c> when the bank gives codes; its free description is no code (null).</summary>
     private static string? BankCodeOf(BankCodeDto? c)
         => c is null ? null
             : string.Join('/', new[] { c.Code, c.SubCode }.Where(p => !string.IsNullOrWhiteSpace(p)).Select(p => p!.Trim())) is { Length: > 0 } codes ? codes
-            : c.Description;
+            : null;
 
     private async Task<Result<T>> CallAsync<T>(
         HttpMethod method, string path, byte[]? body, string appId, IReadOnlyDictionary<string, string>? extra, CancellationToken ct, bool expectBody = true)
