@@ -207,8 +207,11 @@ public interface ITransactionStore
     /// <summary>Retention (D3): deletes the unlinked and ignored lines booked before <paramref name="before"/>; returns how many.</summary>
     Task<int> PurgeBookedBeforeAsync(LocalDate before, CancellationToken ct);
 
-    /// <summary>#85: the accounts' lines booked within [<paramref name="from"/>, <paramref name="to"/>], ignored and internal ones (transfers, card settlements) left out, summed by category, currency and month.</summary>
-    Task<IReadOnlyList<SpendingSum>> SpendingAsync(IReadOnlyList<Guid> accounts, LocalDate from, LocalDate to, CancellationToken ct);
+    /// <summary>
+    /// #85: the accounts' lines booked within [<paramref name="from"/>, <paramref name="to"/>], ignored and internal ones (transfers, card
+    /// settlements) left out, and linked ones too without <paramref name="withLinked"/>, summed by category, currency and month.
+    /// </summary>
+    Task<IReadOnlyList<SpendingSum>> SpendingAsync(IReadOnlyList<Guid> accounts, LocalDate from, LocalDate to, CancellationToken ct, bool withLinked = true);
 
     /// <summary>
     /// One page of the lines <see cref="SpendingAsync"/> sums (same filter), newest first, and how many there are: those filed in one of
