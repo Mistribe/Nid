@@ -1,0 +1,4 @@
+{
+  "en": "When the bank sends an operation code, Nid suggests a category (cash withdrawals, bank fees, salary). The assistant can also propose categories for your bank lines; you approve them in « À valider ».",
+  "fr": "Quand la banque envoie le code de l'opération, Nid propose une catégorie (retraits d'espèces, frais bancaires, salaire). L'assistant peut aussi proposer des catégories pour vos opérations ; vous les validez dans « À valider »."
+}
