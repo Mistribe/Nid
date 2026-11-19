@@ -23,7 +23,7 @@ import { PROPERTIES } from '@/api/properties';
 import { SettingsFrame } from '../SettingsFrame';
 import { AccountDialog } from './AccountDialog';
 import { ConnectBankDialog } from './ConnectBankDialog';
-import { ACCOUNTS, bankErrorText, CONNECTION, CONNECTIONS, RENEW, RULE, RULES, SYNC, useBankAccounts, useBankingStatus, type BankAccount, type BankRule, type Connection } from '@/api/banking';
+import { accountLabel, ACCOUNTS, bankErrorText, maskedIban, CONNECTION, CONNECTIONS, RENEW, RULE, RULES, SYNC, useBankAccounts, useBankingStatus, type BankAccount, type BankRule, type Connection } from '@/api/banking';
 import '@/locales/banks';
 
 // Loaded when opened: most visits import no statement.
@@ -213,28 +213,30 @@ function AccountTable({ caption, accounts, all, envelopes, onEdit }: {
   caption: string; accounts: BankAccount[]; all: BankAccount[]; envelopes: EnvelopeSummary[]; onEdit: (account: BankAccount) => void;
 }) {
   const { t } = useTranslation();
+  // A parent the person no longer reads is still a checking account.
+  const parentLabel = (id: string) => { const p = all.find((x) => x.id === id); return p ? accountLabel(t, p) : t('banks.kind.checking'); };
   const envelopeOf = (a: BankAccount) =>
     a.ignored ? t('banks.ignored')
-      : a.cardOfAccountId ? t('banks.card_of', { name: all.find((p) => p.id === a.cardOfAccountId)?.name ?? '' })
+      : a.cardOfAccountId ? t('banks.card_of', { name: parentLabel(a.cardOfAccountId) })
       : envelopes.find((e) => e.id === a.envelopeId)?.displayName ?? '—';
 
   const name = (a: BankAccount) => (
     <span className="whitespace-normal">
-      <span className="block">{a.name}</span>
-      {a.ibanMasked ? <span className="block text-sm text-muted-foreground">{a.ibanMasked}</span> : null}
+      <span className="block">{accountLabel(t, a)}</span>
+      {a.ibanMasked && a.name.trim() ? <span className="block text-sm text-muted-foreground">{maskedIban(a.ibanMasked)}</span> : null}
     </span>
   );
   const kind = (a: BankAccount) => t(`banks.kind.${a.kind}`, { defaultValue: a.kind });
   const balance = (a: BankAccount) => (a.lastBalance && a.lastBalanceOn
     ? t('banks.balance_on', { amount: formatCurrency(a.lastBalance, a.currency), date: formatLocalDate(a.lastBalanceOn) }) : '—');
   const edit = (a: BankAccount) => (a.canWrite ? (
-    <Button type="button" variant="outline" size="sm" aria-label={t('banks.edit_of', { name: a.name })} onClick={() => onEdit(a)}>{t('banks.edit')}</Button>
+    <Button type="button" variant="outline" size="sm" aria-label={t('banks.edit_of', { name: accountLabel(t, a) })} onClick={() => onEdit(a)}>{t('banks.edit')}</Button>
   ) : null);
 
   return (
     <SortableTable<BankAccount> caption={caption} rows={accounts} rowKey={(a) => a.id}
       columns={[
-        { id: 'name', header: t('banks.account'), sort: (a) => a.name, cell: name },
+        { id: 'name', header: t('banks.account'), sort: (a) => accountLabel(t, a), cell: name },
         { id: 'kind', header: t('banks.kind_label'), cell: kind },
         { id: 'target', header: t('banks.envelope'), cell: envelopeOf },
         { id: 'balance', header: t('banks.balance'), cell: balance },

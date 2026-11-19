@@ -11,7 +11,7 @@ import { SwitchField } from '@/components/page/SwitchField';
 import { Button } from '@/components/ui/button';
 import type { EnvelopeSummary } from '@/api/investments';
 import { fieldErrorsOf } from '@/components/form/fieldErrors';
-import { ACCOUNT, ACCOUNTS, ASSOCIABLE, bankErrorText, CONNECTIONS, type BankAccount } from '@/api/banking';
+import { ACCOUNT, accountLabel, ACCOUNTS, ASSOCIABLE, bankErrorText, CONNECTIONS, type BankAccount } from '@/api/banking';
 import '@/locales/banks';
 
 /** Refusals about the envelope that come as a conflict or a plain 422, not on a field: shown on it all the same. */
@@ -33,6 +33,7 @@ export function AccountDialog({ account, envelopes, parents, onClose, onDone }: 
   const [cardOf, setCardOf] = useState(account.cardOfAccountId ?? '');
   const [ignored, setIgnored] = useState(account.ignored);
   const [auto, setAuto] = useState(account.autoApplyBalance);
+  const name = accountLabel(t, account);
 
   const fields = fieldErrorsOf(save.error);
   const errorOf = (path: string) => { const f = fields.find((x) => x.path === path); return f ? bankErrorText(t, f.code, f.message) : undefined; };
@@ -53,12 +54,12 @@ export function AccountDialog({ account, envelopes, parents, onClose, onDone }: 
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['get', CONNECTIONS] });
       void queryClient.invalidateQueries({ queryKey: ['get', ACCOUNTS] });
-      done(t('banks.account_dialog.saved', { name: account.name }));
+      done(t('banks.account_dialog.saved', { name }));
     },
   });
 
   return (
-    <FormDialog title={t('banks.edit_of', { name: account.name })} onClose={onClose} onDone={onDone}>
+    <FormDialog title={t('banks.edit_of', { name })} onClose={onClose} onDone={onDone}>
       {({ titleId, done }) => (
         <form aria-labelledby={titleId} noValidate className="space-y-4" onSubmit={(event) => {
           event.preventDefault();
@@ -71,7 +72,7 @@ export function AccountDialog({ account, envelopes, parents, onClose, onDone }: 
               {(c) => (
                 <SelectField {...c} value={cardOf} onValueChange={setCardOf} options={[
                   { value: '', label: t('banks.account_dialog.no_card') },
-                  ...parents.filter((p) => p.id !== account.id).map((p) => ({ value: p.id, label: p.name })),
+                  ...parents.filter((p) => p.id !== account.id).map((p) => ({ value: p.id, label: accountLabel(t, p) })),
                 ]} />
               )}
             </Field>
