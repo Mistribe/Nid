@@ -217,11 +217,12 @@ public static class BankingEndpoints
 
     public sealed record ConnectBody(string? AspspName);
 
-    /// <summary>A field left out is left as it is; a key nobody reads is refused rather than silently dropped (400).</summary>
-    [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
     /// <summary>The new envelope's name and kind (<c>checking</c>, <c>savings</c> or <c>other</c>); <c>joint</c>: every adult owns it.</summary>
+    [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
     public sealed record BankAccountEnvelopeBody(string DisplayName, string Kind, bool? Joint = null);
 
+    /// <summary>A field left out is left as it is; a key nobody reads is refused rather than silently dropped (400).</summary>
+    [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
     public sealed record BankAccountBody(
         Guid? EnvelopeId, bool? ClearEnvelope, Guid? CardOfAccountId, bool? ClearCard, bool? AutoApplyBalance, bool? Ignored, string? Name = null,
         bool? ClearName = null);

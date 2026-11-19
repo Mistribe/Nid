@@ -33831,7 +33831,8 @@
               "boolean"
             ]
           }
-        }
+        },
+        "additionalProperties": false
       },
       "BankAccountEnvelopeBody": {
         "required": [
