@@ -45,6 +45,37 @@ public sealed class CategoryRuleStore(BankingDbContext db, IClock clock) : ICate
     public async Task TouchAsync(IReadOnlyCollection<Guid> ids, Instant at, CancellationToken ct)
         => await db.CategoryRules.Where(r => ids.Contains(r.Id)).ExecuteUpdateAsync(s => s.SetProperty(r => r.LastUsedAt, at), ct);
 
+    public async Task<IReadOnlyDictionary<Guid, int>> LinesAsync(IReadOnlyCollection<Guid> accounts, CancellationToken ct)
+        => await db.Transactions.Where(t => t.CategoryRuleId != null && accounts.Contains(t.AccountId))
+            .GroupBy(t => t.CategoryRuleId!.Value).Select(g => new { g.Key, Count = g.Count() })
+            .ToDictionaryAsync(g => g.Key, g => g.Count, ct);
+
+    public async Task<IReadOnlyList<BankTransaction>> CandidatesAsync(CategoryRule rule, IReadOnlyCollection<Guid> accounts, CancellationToken ct)
+    {
+        var label = LikePattern.Contains(rule.Pattern);
+        var counterparty = Loose(rule.Pattern);
+        return (await db.Transactions.AsNoTracking()
+            .Where(t => accounts.Contains(t.AccountId) && t.LinkState != "ignored"
+                && (t.CategorySource == null || t.CategorySource == "rule" || t.CategorySource == "hint")
+                && (t.CategoryId == null || t.CategoryId != rule.Category)
+                && (EF.Functions.Like(t.NormalizedLabel, label, @"\")
+                    || (t.Counterparty != null && EF.Functions.ILike(t.Counterparty, counterparty, @"\"))))
+            .OrderByDescending(t => t.BookedOn).ThenByDescending(t => t.Id)
+            .ToListAsync(ct)).Select(TransactionStore.ToModel).ToList();
+    }
+
+    /// <summary>
+    /// The pattern against a raw counterparty: a letter that may carry an accent there and a space that may be several (or a card number
+    /// Normalize drops) match loosely; <see cref="Nid.Banking.Domain.CategoryRules.Matches"/> then decides.
+    /// </summary>
+    private static string Loose(string pattern) => $"%{string.Concat(pattern.Select(c => c switch
+    {
+        ' ' => "%",
+        'A' or 'C' or 'E' or 'I' or 'N' or 'O' or 'U' or 'Y' => "_",
+        '%' or '_' or '\\' => $@"\{c}",
+        _ => c.ToString(),
+    }))}%";
+
     private static void Fill(CategoryRuleRow row, CategoryRule rule)
     {
         row.Pattern = rule.Pattern;

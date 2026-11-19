@@ -642,6 +642,13 @@ public static class RequestCatalogue
         new(typeof(CreateBankCategoryCommand), false, (_, _) => new CreateBankCategoryCommand(null, $"bench-{Guid.NewGuid():N}", "expense")),
         new(typeof(UpdateBankCategoryCommand), false, (_, _) => new UpdateBankCategoryCommand(Guid.NewGuid(), "bench", null, false, null, false)),
         new(typeof(MergeBankCategoryCommand), false, (_, _) => new MergeBankCategoryCommand(Guid.NewGuid(), Guid.NewGuid())),
+        // The household's category rules (decision 7): a rule restricted to an account the actor cannot read never reaches them.
+        new(typeof(ListCategoryRulesQuery), false, (_, _) => new ListCategoryRulesQuery()),
+        new(typeof(CreateCategoryRuleCommand), false, (_, _) => new CreateCategoryRuleCommand("BENCH", null, null, null, null, Guid.NewGuid())),
+        new(typeof(UpdateCategoryRuleCommand), false, (_, _) => new UpdateCategoryRuleCommand(Guid.NewGuid(), "BENCH", null, null, null, null, Guid.NewGuid())),
+        new(typeof(DeleteCategoryRuleCommand), false, (_, _) => new DeleteCategoryRuleCommand(Guid.NewGuid())),
+        new(typeof(PreviewCategoryRuleQuery), false, (_, _) => new PreviewCategoryRuleQuery(Guid.NewGuid(), 1)),
+        new(typeof(ApplyCategoryRuleCommand), false, (_, _) => new ApplyCategoryRuleCommand(Guid.NewGuid())),
         new(typeof(ListBankRulesQuery), false, (_, _) => new ListBankRulesQuery()),
         new(typeof(DeleteBankRuleCommand), false, (_, _) => new DeleteBankRuleCommand(Guid.NewGuid())),
         // A preview: the actor's own new account from a file, rolled back; dropped on the row's item, refused unless they write an envelope.

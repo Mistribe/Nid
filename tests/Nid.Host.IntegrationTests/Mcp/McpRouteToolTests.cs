@@ -40,6 +40,8 @@ public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
         // #83: the household's category list is edited in Réglages › Banques, and a line's category chosen in the browser; the
         // assistant gets its own batch proposal for line categories.
         "/api/v1/banking/categories", "/api/v1/banking/transactions/{id:guid}/category",
+        // #83: category rules are set, previewed and applied in Réglages › Banques.
+        "/api/v1/banking/category-rules",
         // An insurance is set by propose_set_insurance (spec 2026-10-30 §10); removing it is a click in the web app.
         "DELETE /api/v1/subscriptions/{id:guid}/insurance",
         // Childcare spec decision 27: validating, reopening or restarting a statement stays the person's gesture in the browser.

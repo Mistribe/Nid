@@ -118,6 +118,10 @@ public sealed class BankLines(
     public async Task<BankTransactionView> ViewAsync(Guid id, CancellationToken ct)
         => (await ViewsAsync([(await transactions.FindAsync(id, ct))!], await ReadableAsync(ct), ct))[0];
 
+    /// <summary>Lines of accounts the actor reads, as they see them.</summary>
+    public async Task<IReadOnlyList<BankTransactionView>> ViewsAsync(IReadOnlyList<BankTransaction> lines, CancellationToken ct)
+        => await ViewsAsync(lines, await ReadableAsync(ct), ct);
+
     private async Task<Dictionary<Guid, BankAccount>> ReadableAsync(CancellationToken ct)
         => (await access.ReadableAsync(await accounts.AllAsync(ct), ct)).ToDictionary(r => r.Account.Id, r => r.Account);
 

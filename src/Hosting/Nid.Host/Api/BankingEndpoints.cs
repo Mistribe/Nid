@@ -157,6 +157,38 @@ public static class BankingEndpoints
             => (await invoker.InvokeAsync(new MergeBankCategoryCommand(id, body.Into ?? Guid.Empty), ct)).ToHttp(category => category))
             .Returns<BankCategoryView>();
 
+        // Transaction categories spec §Rules: the household's rules (decision 7), and « Appliquer aux opérations passées » after its preview.
+        api.MapGet("/category-rules", async (IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new ListCategoryRulesQuery(), ct)).ToHttp(rules => rules))
+            .Returns<IReadOnlyList<CategoryRuleView>>();
+
+        api.MapPost("/category-rules", async (CategoryRuleBody body, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new CreateCategoryRuleCommand(
+                    body.Pattern ?? "", body.AccountId, body.Direction, body.MinAmount, body.MaxAmount, body.CategoryId ?? Guid.Empty), ct))
+                .ToHttp(rule => rule, StatusCodes.Status201Created))
+            .Returns<CategoryRuleView>(StatusCodes.Status201Created);
+
+        api.MapPatch("/category-rules/{id:guid}", async (Guid id, CategoryRuleBody body, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new UpdateCategoryRuleCommand(
+                    id, body.Pattern ?? "", body.AccountId, body.Direction, body.MinAmount, body.MaxAmount, body.CategoryId ?? Guid.Empty), ct))
+                .ToHttp(rule => rule))
+            .Returns<CategoryRuleView>();
+
+        api.MapDelete("/category-rules/{id:guid}", async (Guid id, IInvoker invoker, CancellationToken ct) =>
+            {
+                var result = await invoker.InvokeAsync(new DeleteCategoryRuleCommand(id), ct);
+                return result.TryGetValue(out _) ? Results.NoContent() : result.ToHttp(v => v);
+            })
+            .ReturnsNoContent();
+
+        api.MapGet("/category-rules/{id:guid}/preview", async (Guid id, int? page, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new PreviewCategoryRuleQuery(id, page ?? 1), ct)).ToHttp(preview => preview))
+            .Returns<CategoryRulePreview>();
+
+        api.MapPost("/category-rules/{id:guid}/apply", async (Guid id, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new ApplyCategoryRuleCommand(id), ct)).ToHttp(changed => new CategoryRuleApplied(changed)))
+            .Returns<CategoryRuleApplied>();
+
         // Read now, in the request: the bank sees the person's own browser (Psu-Ip-Address, Psu-User-Agent), as UseForwardedHeaders resolved it.
         api.MapPost("/sync", async (SyncBody body, HttpContext http, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new SyncMineCommand(body.ConnectionId, new PsuHeaders(
@@ -286,6 +318,16 @@ public static class BankingEndpoints
 
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
     public sealed record CategoryMergeBody(Guid? Into);
+
+    /// <summary>
+    /// A rule as a whole (a field left out is cleared): <c>direction</c> is <c>debit</c>, <c>credit</c> or null; <c>minAmount</c> and
+    /// <c>maxAmount</c> are absolute amounts, inclusive.
+    /// </summary>
+    [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+    public sealed record CategoryRuleBody(string? Pattern, Guid? AccountId, string? Direction, string? MinAmount, string? MaxAmount, Guid? CategoryId);
+
+    /// <summary>How many lines took the rule's category.</summary>
+    public sealed record CategoryRuleApplied(int Changed);
 
     /// <summary>Without <c>connectionId</c>, every connection of the person.</summary>
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
