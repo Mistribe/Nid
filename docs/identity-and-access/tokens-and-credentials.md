@@ -77,15 +77,36 @@ Une application de calendrier ne sait pas envoyer d'en-tête : le secret est dan
 
 ## 2. Configuration d'un client MCP
 
-Le client MCP envoie le jeton en en-tête `Authorization: Bearer …` vers `{PUBLIC_URL}/mcp`. Aucun flux OAuth ni enregistrement de client n'est nécessaire.
+Le client MCP envoie le jeton en en-tête `Authorization: Bearer …` vers `{PUBLIC_URL}/mcp` (Streamable HTTP). Aucun flux OAuth ni enregistrement de client n'est nécessaire. La page Sécurité (« Brancher un assistant IA », #309) donne ces configurations, prêtes à copier, avec le vrai jeton juste après sa création. Là où le client sait lire l'environnement, le jeton vient de la variable `NID_TOKEN`, jamais d'un fichier ; **ne jamais committer un jeton**.
 
-Avec Claude Code :
+Syntaxe vérifiée le 2026-11-19 dans la documentation de chaque éditeur.
+
+**Claude Desktop**, deux chemins :
+
+- *Connecteur personnalisé* (Personnaliser › Connecteurs › Ajouter › Connecteur personnalisé) : URL `{PUBLIC_URL}/mcp`, authentification « Sans connexion », en-tête de requête `authorization` = `Bearer <jeton>` (bêta ; valeur non réaffichée, retirer et rajouter pour la changer). L'appel part des serveurs d'Anthropic : Nid doit être joignable depuis Internet en https sur le port 443. Sur un abonnement Team ou Enterprise, un connecteur d'organisation partage son en-tête avec tous les membres : un jeton personnel s'ajoute depuis un compte personnel.
+- *Configuration manuelle* (`claude_desktop_config.json`) : un pont local `mcp-remote`, **version fixée**, qui tourne sur l'ordinateur et joint donc un Nid du réseau local ; Node.js requis, jeton en clair dans le fichier :
+
+```json
+{
+  "mcpServers": {
+    "nid": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote@0.16.5", "{PUBLIC_URL}/mcp", "--header", "Authorization:${NID_AUTH}"],
+      "env": { "NID_AUTH": "Bearer <jeton>" }
+    }
+  }
+}
+```
+
+L'en-tête passe par `env` : une espace dans un argument casse sous Windows.
+
+**Claude Code** :
 
 ```bash
 claude mcp add --transport http nid {PUBLIC_URL}/mcp --header "Authorization: Bearer <jeton>"
 ```
 
-Claude Code range cette configuration dans la portée `local` par défaut (propre à l’utilisateur et au projet, hors du dépôt). Pour partager la configuration d’un projet, le fichier `.mcp.json` lit le jeton dans l’environnement ; **ne jamais committer un jeton** :
+Claude Code range cette configuration dans la portée `local` par défaut (propre à l’utilisateur et au projet, hors du dépôt). Pour partager la configuration d’un projet, le fichier `.mcp.json` lit le jeton dans l’environnement :
 
 ```json
 {
@@ -98,6 +119,34 @@ Claude Code range cette configuration dans la portée `local` par défaut (propr
   }
 }
 ```
+
+**Cursor** (`~/.cursor/mcp.json` ou `.cursor/mcp.json`) :
+
+```json
+{ "mcpServers": { "nid": { "url": "{PUBLIC_URL}/mcp", "headers": { "Authorization": "Bearer ${env:NID_TOKEN}" } } } }
+```
+
+**VS Code / GitHub Copilot**, format portable (`.mcp.json` à la racine de l'espace de travail, ou `~/.copilot/mcp-config.json`) ; le format `.vscode/mcp.json` (objet `servers`) reste lu par VS Code mais ne passe pas les variables d'entrée aux sessions Copilot :
+
+```json
+{ "mcpServers": { "nid": { "type": "http", "url": "{PUBLIC_URL}/mcp", "headers": { "Authorization": "Bearer ${NID_TOKEN}" } } } }
+```
+
+**Gemini CLI** (la forme documentée prend le jeton tel quel : `settings.json` le garde en clair ; pas de `_` dans le nom du serveur) :
+
+```bash
+gemini mcp add --transport http --header "Authorization: Bearer <jeton>" nid {PUBLIC_URL}/mcp
+```
+
+**Codex CLI** (`~/.codex/config.toml`) :
+
+```toml
+[mcp_servers.nid]
+url = "{PUBLIC_URL}/mcp"
+bearer_token_env_var = "NID_TOKEN"
+```
+
+ChatGPT n'est pas couvert tant que ses connecteurs ne confirment pas un en-tête statique (§5 : pas d'OAuth sur `/mcp` en v1).
 
 ## 3. Identifiants des workers
 

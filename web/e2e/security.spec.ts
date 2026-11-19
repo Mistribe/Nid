@@ -54,8 +54,8 @@ test('an adult plugs an MCP client in with a token', async ({ page, playwright }
   await signIn(page, 'alice', '/security?tab=tokens');
   await revokeTokens(page, 'MCP '); // this test never revokes its token: earlier runs' would fill the 10 allowed
   await page.reload();
-  await page.getByRole('button', { name: 'Brancher un assistant' }).click();
-  await expect(page.getByRole('region', { name: 'Brancher un assistant' })).toContainText('/mcp');
+  await page.getByRole('button', { name: 'Brancher un assistant IA' }).click();
+  await expect(page.getByRole('region', { name: 'Brancher un assistant IA' })).toContainText('/mcp');
 
   await page.getByRole('button', { name: 'Créer un jeton' }).click();
   const dialog = page.getByRole('dialog', { name: 'Créer un jeton' });

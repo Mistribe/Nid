@@ -5,6 +5,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { toasts } from '@/test/toasts';
+import { pick } from '@/test/controls';
 
 const token = (over: Record<string, unknown> = {}) => ({
   id: 't1', name: 'Claude sur mon laptop', preset: 'propose', prefix: 'abcd1234', createdAt: '2026-10-01T08:00:00+00:00',
@@ -69,6 +70,12 @@ describe('Mes jetons', () => {
     expect(within(created).getByText(SECRET)).toBeInTheDocument();
     expect(sent).toEqual({ name: 'Claude sur mon laptop', preset: 'propose', expiresInDays: 90 });
     await expectNoAxeViolations(container);
+
+    // #309: the assistant help, with the real secret in its snippets.
+    await user.click(within(created).getByRole('button', { name: 'Brancher un assistant IA' }));
+    await pick(user, 'Mon assistant', 'Claude Code');
+    expect(within(created).getByRole('region', { name: 'Brancher un assistant IA' })).toHaveTextContent(`--header "Authorization: Bearer ${SECRET}"`);
+    expect(within(created).queryByText(/Quel jeton créer/)).toBeNull();
 
     await user.click(within(created).getByRole('button', { name: 'J’ai copié le jeton' }));
     await waitFor(() => expect(screen.queryByText(SECRET)).toBeNull());
