@@ -42,6 +42,13 @@ export function useBankAccounts(envelopeId?: string): BankAccount[] | undefined 
   return accounts.data;
 }
 
+/** The IBAN's last four characters as people read them: « •••• 1234 ». */
+export const maskedIban = (last4: string) => `•••• ${last4}`;
+
+/** A bank account as people read it: its name, else its masked IBAN, else its kind (a bank may send no name at all). */
+export const accountLabel = (t: TFunction, account: Pick<BankAccount, 'name' | 'ibanMasked' | 'kind'>) =>
+  account.name.trim() || (account.ibanMasked ? maskedIban(account.ibanMasked) : t(`banks.kind.${account.kind}`, { defaultValue: account.kind }));
+
 /** An envelope's bank lines, the statement import and the lines left to link (`features/operations`). */
 export type BankTransaction = components['schemas']['BankTransactionView'];
 export type BankTransactionPage = components['schemas']['BankTransactionPage'];

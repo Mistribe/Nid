@@ -31,9 +31,11 @@ test('alice turns bank sync on, names the application, finds Réglages › Banqu
 
   await page.goto('/settings/banks');
   await expect(page.getByRole('link', { name: 'Banques', exact: true })).toHaveAttribute('aria-current', 'page');
-  // The dev stack has no private key, so bank sync is on but not configured; a stack with one shows alice's empty list.
+  // The dev stack has no private key, so bank sync is on but not configured: alice, an administrator, is told the key is the
+  // missing part and where to fix it; a stack with one shows her empty list.
   const { configured } = (await (await page.request.get('/api/v1/banking/status')).json()) as { configured: boolean };
-  await expect(configured ? page.getByRole('heading', { name: 'Aucune banque reliée' }) : page.getByText(/pas encore configurée/)).toBeVisible();
+  await expect(configured ? page.getByRole('heading', { name: 'Aucune banque reliée' }) : page.getByText(/n'a pas chargé la clé privée/)).toBeVisible();
+  if (!configured) await expect(page.getByRole('link', { name: 'Voir Administration › Banque' })).toHaveAttribute('href', '/admin/banking');
 
   await page.goto('/admin/banking');
   await page.getByRole('switch', { name: 'Synchronisation bancaire' }).click();

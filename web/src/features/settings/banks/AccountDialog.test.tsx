@@ -6,7 +6,7 @@ import { pick } from '@/test/controls';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { summary } from '../../investments/testData';
-import { CARD, CHECKING, connection, JOINT, serveBanks } from './testData';
+import { account, CARD, CHECKING, connection, JOINT, serveBanks } from './testData';
 
 const envelopes = [
   summary({ id: JOINT, displayName: 'Compte joint', kind: 'checking' }),
@@ -60,6 +60,32 @@ describe('the account dialog', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
 
     await waitFor(() => expect(sent).toEqual([{ id: CARD, body: { cardOfAccountId: CHECKING } }]));
+  });
+
+  it('names an account the bank sent no name for by its masked IBAN, else by its kind, everywhere', async () => {
+    const SECOND = '00000000-0000-7000-8000-0000000000b4';
+    const card = account({ id: CARD, name: 'Visa Premier', ibanMasked: null, kind: 'card', cardOfAccountId: CHECKING });
+    serveBanks([connection({ accounts: [account({ name: '' }), account({ id: SECOND, name: ' ', ibanMasked: null }), card] })], envelopes);
+    const sent = patches();
+    const { user } = await renderApp('/settings/banks');
+
+    const table = await screen.findByRole('table', { name: 'Comptes de BNP Paribas' });
+    const rows = within(table).getAllByRole('row').slice(1);
+    expect(rows[0]).toHaveTextContent('•••• 1234');
+    expect(rows[2]).toHaveTextContent('Carte de •••• 1234');
+    expect(within(table).getByRole('button', { name: 'Régler •••• 1234' })).toBeInTheDocument();
+    expect(within(table).getByRole('button', { name: 'Régler Compte courant' })).toBeInTheDocument();
+
+    await user.click(within(table).getByRole('button', { name: 'Régler Visa Premier' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Régler Visa Premier' });
+    await user.click(within(dialog).getByRole('combobox', { name: 'Carte rattachée à' }));
+    const options = within(await screen.findByRole('listbox')).getAllByRole('option').map((o) => o.textContent);
+    expect(options).toEqual(['Aucun', '•••• 1234', 'Compte courant']);
+    await user.keyboard('{Escape}');
+    await pick(user, 'Carte rattachée à', 'Compte courant');
+    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
+
+    await waitFor(() => expect(sent).toEqual([{ id: CARD, body: { cardOfAccountId: SECOND } }]));
   });
 
   it('stops following an account', async () => {
