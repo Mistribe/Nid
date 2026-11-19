@@ -87,7 +87,11 @@ public sealed record ItemHistoryQuery(ItemId ItemId, long? Before, int? Limit) :
     public AccessKind Access => AccessKind.Read;
 }
 
-public sealed record MySecurityEventsQuery(long? Before, int? Limit) : IQuery<SecurityEventPage>;
+/// <summary>
+/// #308: <c>kind</c> is <c>access</c> (sign-ins, refusals, tokens: everything but the assistant's reads), <c>assistant</c>
+/// (its reads only) or anything else for all of them.
+/// </summary>
+public sealed record MySecurityEventsQuery(long? Before, int? Limit, string? Kind = null) : IQuery<SecurityEventPage>;
 
 public static partial class SecurityEventViews
 {
@@ -157,6 +161,13 @@ public sealed class MySecurityEventsHandler(IAuditLog log, IActorAccessor access
             return Result.Failure<SecurityEventPage>(new UnauthorizedFailure("Only a person has security events.", null));
 
         var limit = AuditPaging.Limit(query.Limit);
-        return Result.Success(SecurityEventViews.Page(await log.SecurityEventsAsync(me, null, false, query.Before, limit, ct), limit));
+        string[] assistant = [SecurityEventNames.McpToolCalled];
+        var (events, except) = query.Kind switch
+        {
+            "access" => (null, assistant),
+            "assistant" => (assistant, null),
+            _ => ((string[]?)null, (string[]?)null),
+        };
+        return Result.Success(SecurityEventViews.Page(await log.SecurityEventsAsync(me, events, except, false, query.Before, limit, ct), limit));
     }
 }

@@ -9,8 +9,9 @@ import { server } from '@/test/server';
 describe('Brancher un assistant', () => {
   it('gives the MCP address, the Claude Code command and the read-only advice', async () => {
     server.use(http.get('*/api/v1/platform/audit/me/security', () => HttpResponse.json({ entries: [], next: null })));
-    const { container } = await renderApp('/security');
+    const { user, container } = await renderApp('/security?tab=tokens');
 
+    await user.click(await screen.findByRole('button', { name: 'Brancher un assistant' }));
     const section = await screen.findByRole('region', { name: 'Brancher un assistant' });
     const origin = window.location.origin;
     expect(section).toHaveTextContent(`${origin}/mcp`);
@@ -21,8 +22,9 @@ describe('Brancher un assistant', () => {
 
   it('gives the Claude Desktop config once picked', async () => {
     server.use(http.get('*/api/v1/platform/audit/me/security', () => HttpResponse.json({ entries: [], next: null })));
-    const { user } = await renderApp('/security');
+    const { user } = await renderApp('/security?tab=tokens');
 
+    await user.click(await screen.findByRole('button', { name: 'Brancher un assistant' }));
     const section = await screen.findByRole('region', { name: 'Brancher un assistant' });
     await pick(user, 'Mon assistant', 'Claude Desktop');
     expect(section).toHaveTextContent('claude_desktop_config.json');
@@ -36,9 +38,9 @@ describe('Brancher un assistant', () => {
       entries: [{ seq: 1, at: '2026-10-16T08:00:00+00:00', event: 'mcp_tool_called', actor: { kind: 'person', personId: 'a', via: 'mcp', tokenId: 't' }, subjectPersonId: 'a', details: { tool: 'list_persons' } }],
       next: null,
     })));
-    await renderApp('/security');
+    await renderApp('/security?tab=activity&show=assistant');
 
     const row = await screen.findByRole('row', { name: /Lecture par l’assistant/ });
-    expect(row).toHaveTextContent('Assistant (MCP)');
+    expect(row).toHaveTextContent('Outil list_persons · Assistant (MCP)');
   });
 });

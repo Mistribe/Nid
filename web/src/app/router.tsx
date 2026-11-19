@@ -102,6 +102,11 @@ const pageSearch = (search: Record<string, unknown>): { page?: number } => {
 /** A tabbed list: the tab and the page. */
 const listSearch = (search: Record<string, unknown>): DetailSearch & { page?: number } => ({ ...detailSearch(search), ...pageSearch(search) });
 
+/** Sécurité (#308): the tab, and which events the Activité tab shows (`access`, the default, stays out of the URL). */
+const securityPageSearch = (search: Record<string, unknown>): DetailSearch & { show?: 'assistant' | 'all' } => ({
+  ...detailSearch(search), ...(search.show === 'assistant' || search.show === 'all' ? { show: search.show } : {}),
+});
+
 /** Administration › Journal de sécurité: the event filtered on, and the page. */
 const securitySearch = (search: Record<string, unknown>): { event?: string; page?: number } => ({
   ...(typeof search.event === 'string' && search.event !== '' ? { event: search.event } : {}), ...pageSearch(search),
@@ -693,7 +698,7 @@ const banksSettingsRoute = createRoute({
 const notificationSettingsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/settings/notifications', component: lazyRouteComponent(() => import('@/features/settings/NotificationSettingsPage'), 'NotificationSettingsPage') });
 const calendarSettingsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/settings/calendar', component: lazyRouteComponent(() => import('@/features/settings/CalendarSettingsPage'), 'CalendarSettingsPage') });
 
-const securityRoute = createRoute({ getParentRoute: () => rootRoute, path: '/security', component: lazyRouteComponent(() => import('@/features/security/SecurityPage'), 'SecurityPage') });
+const securityRoute = createRoute({ getParentRoute: () => rootRoute, path: '/security', validateSearch: securityPageSearch, component: lazyRouteComponent(() => import('@/features/security/SecurityPage'), 'SecurityPage') });
 const changelogRoute = createRoute({ getParentRoute: () => rootRoute, path: '/changelog', component: lazyRouteComponent(() => import('./ChangelogPage'), 'ChangelogPage') });
 const moreRoute = createRoute({ getParentRoute: () => rootRoute, path: '/more', component: lazyRouteComponent(() => import('./MorePage'), 'MorePage') });
 

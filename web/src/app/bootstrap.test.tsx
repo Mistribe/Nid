@@ -131,9 +131,10 @@ describe('bootstrap', () => {
     server.use(
       http.get('*/api/v1/platform/audit/me/security', () => HttpResponse.json({ entries: [], next: null })),
       http.post('*/api/v1/core/me/revoke-sessions', () => { revoked = true; return new HttpResponse(null, { status: 204 }); }),
-      // The page is still mounted while the browser leaves: the shell's token banner reads again, and the session is over.
-      http.get('*/api/v1/core/me/tokens', () => {
-        if (!revoked) return HttpResponse.json([]);
+      // The page is still mounted while the browser leaves: a read still in flight (the token banner's) answers once the
+      // session is over.
+      http.get('*/api/v1/core/me/tokens', async () => {
+        await vi.waitFor(() => { if (!revoked) throw new Error('sessions still open'); }, { timeout: 5000 });
         lateAnswers++;
         return new HttpResponse(null, { status: 401 });
       }),

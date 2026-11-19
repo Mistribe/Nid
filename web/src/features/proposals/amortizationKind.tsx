@@ -79,7 +79,7 @@ export const amortization: KindUi = {
     if (problem.code !== 'realestate.bank_schedule_invalid' && !rowError) return undefined;
     // The first refused row, numbered from 1 as the bank prints it.
     const k = /^payload\.rows\[(\d+)\]/.exec(rowError?.path ?? '')?.[1];
-    return k === undefined ? t('proposal.amortization.refused') : t('proposal.amortization.refused', { context: 'row', n: Number(k) + 1 });
+    return k === undefined ? t('proposal.amortization.refused') : t('proposal.amortization.refused_row', { n: Number(k) + 1 });
   },
   Fields: AmortizationFields,
   link: (p) => ({ to: '/loans/$id', params: { id: p.targetItemId ?? '' } }),

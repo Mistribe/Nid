@@ -109,6 +109,30 @@ public class AuditReadTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         Assert.Equal(("logout", app.AdultB.Value), (entry.GetProperty("event").GetString(), entry.GetProperty("subjectPersonId").GetGuid()));
     }
 
+    /// <summary>#308: the assistant's reads apart from the sign-ins and refusals, filtered in the query, before the limit.</summary>
+    [Fact]
+    public async Task My_events_split_the_assistants_reads_from_the_rest()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await using (var scope = app.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            db.AuditLog.AddRange(new[] { "login", "mcp_tool_called", "mcp_tool_called", "access_denied" }.Select(action => new AuditEntryRow
+            {
+                Id = Guid.CreateVersion7(), At = SystemClock.Instance.GetCurrentInstant(), Category = "security", Action = action,
+                ActorKind = "person", PersonId = app.AdultB.Value, SubjectPersonId = app.AdultB.Value, Via = "ui",
+            }));
+            await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        async Task<List<string?>> Events(string query) => Json(await app.GetRawAsync(app.AdultB, $"/api/v1/platform/audit/me/security{query}"))
+            .GetProperty("entries").EnumerateArray().Select(e => e.GetProperty("event").GetString()).ToList();
+
+        Assert.Equal(["access_denied", "login"], await Events("?kind=access&limit=2"));
+        Assert.Equal(["mcp_tool_called", "mcp_tool_called"], await Events("?kind=assistant"));
+        Assert.Equal(4, (await Events("")).Count);
+    }
+
     [Fact]
     public async Task The_journal_is_the_admins_and_leaves_out_other_adults_own_sessions()
     {

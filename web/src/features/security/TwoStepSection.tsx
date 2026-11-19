@@ -6,10 +6,12 @@ import { Field } from '@/components/form/Field';
 import { PasswordInput } from '@/components/form/PasswordInput';
 import { InfoTip } from '@/components/InfoTip';
 import { ModalDialog } from '@/components/ModalDialog';
-import { Section } from '@/components/page/Section';
+import { RowMenu } from '@/components/page/RowMenu';
+import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import '@/locales/security';
+import { SettingRow } from './SettingRow';
 import { TotpQrCode } from './TotpQrCode';
 
 type Dialog = { kind: 'setup'; secret: string; uri: string } | { kind: 'codes'; codes: string[]; first: boolean } | { kind: 'regenerate' } | { kind: 'disable' };
@@ -47,16 +49,19 @@ export function TwoStepSection() {
   };
 
   return (
-    <Section title={t('security.totp.title')} actions={totpEnabled ? (
-      <>
-        <Button variant="outline" onClick={() => setDialog({ kind: 'regenerate' })}>{t('security.totp.regenerate')}</Button>
-        <Button variant="outline" onClick={() => setDialog({ kind: 'disable' })}>{t('security.totp.disable')}</Button>
-      </>
-    ) : <Button variant="outline" onClick={start} disabled={begin.isPending}>{t('security.totp.enable')}</Button>}>
-      <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-        {t(totpEnabled ? 'security.totp.on' : 'security.totp.off')}
+    <SettingRow id="two-step" title={t('security.totp.title')}
+      badge={<>
+        <Badge variant="outline" className={totpEnabled ? undefined : 'text-status-warning-text'}>{t(totpEnabled ? 'security.totp.badge_on' : 'security.totp.badge_off')}</Badge>
         <InfoTip label={t('security.totp.title')}>{t('security.totp.about')}</InfoTip>
-      </p>
+      </>}
+      actions={totpEnabled ? (
+        <>
+          <Button variant="outline" onClick={() => setDialog({ kind: 'regenerate' })}>{t('security.totp.regenerate')}</Button>
+          <RowMenu label={t('security.totp.menu')}
+            items={[{ label: t('security.totp.disable'), destructive: true, onSelect: () => setDialog({ kind: 'disable' }) }]} />
+        </>
+      ) : <Button onClick={start} disabled={begin.isPending}>{t('security.totp.enable')}</Button>}>
+      <p className="text-sm text-muted-foreground">{t(totpEnabled ? 'security.totp.on' : 'security.totp.off')}</p>
       {totpEnabled ? (
         <p className={recoveryCodesLeft <= 2 ? 'text-sm text-status-warning-text' : 'text-sm text-muted-foreground'}>
           {t(recoveryCodesLeft <= 2 ? 'security.totp.codes_low' : 'security.totp.codes_left', { count: recoveryCodesLeft })}
@@ -84,7 +89,7 @@ export function TwoStepSection() {
         <DisableDialog error={error} onClose={close} onFail={fail}
           onDone={() => { close(); setStatus(t('security.totp.disabled')); void credential.refetch(); }} />
       ) : null}
-    </Section>
+    </SettingRow>
   );
 }
 

@@ -35,6 +35,8 @@ export function ConfirmAction(props: {
   disabled?: boolean;
   /** Disables the trigger and the Confirm button while the mutation this action starts is in flight. */
   pending?: boolean;
+  /** A choice that goes with the confirmation, under its sentence. */
+  children?: ReactNode;
 }) {
   const [asking, setAsking] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -51,7 +53,9 @@ export function ConfirmAction(props: {
       {asking ? (
         <Suspense fallback={null}>
           <ConfirmDialog label={props.label} title={props.title} confirmation={props.confirmation} pending={props.pending} onClose={() => setAsking(false)}
-            onConfirm={() => { setAsking(false); props.onConfirm(); }} />
+            onConfirm={() => { setAsking(false); props.onConfirm(); }}>
+            {props.children}
+          </ConfirmDialog>
         </Suspense>
       ) : null}
     </>

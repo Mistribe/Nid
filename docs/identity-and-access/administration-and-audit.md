@@ -119,11 +119,11 @@ Le journal d'audit (table `platform.audit_log`, `../architecture.md` §6) reçoi
 
 ## 5. Page « Sécurité »
 
-Dans l'interface, pour chaque adulte :
+Dans l'interface, pour chaque adulte, en trois onglets (Connexion, Jetons, Activité ; disposition : `../frontend/screens.md`) :
 
 - **Mes jetons** : créer (nom, préréglage, expiration), révoquer. Livré en 4A.
 - **Mes sessions** : « déconnecter partout » (livré en 1F3a, sur soi-même ; révoque aussi les jetons sur demande depuis 4A).
-- **Mes derniers événements de sécurité** (livré en 1F3a).
+- **Mes derniers événements de sécurité** (livré en 1F3a) : `GET /api/v1/platform/audit/me/security`, par le curseur `before` ; `kind=access` (tout sauf les lectures de l'assistant, le défaut de la page), `kind=assistant` (`mcp_tool_called` seuls), sans `kind` tous, filtré dans la requête SQL (#308).
 - Un rappel : la déconnexion de Nid ne ferme pas la session de Pocket ID (`authentication.md` §6). En `local`, ce rappel disparaît.
 - **Mot de passe** (comptes locaux) : changer son mot de passe ou son identifiant, le mot de passe actuel demandé ; les autres sessions se ferment (`local-accounts.md` §8).
 - **Validation en deux étapes** (comptes locaux) : activer le TOTP, voir combien de codes de secours restent, les régénérer, désactiver (`local-accounts.md` §10).

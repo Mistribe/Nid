@@ -31,8 +31,8 @@ public static class PlatformEndpoints
                 => (await invoker.InvokeAsync(new ItemHistoryQuery(new ItemId(id), before, limit), ct)).ToHttp(p => p))
             .Returns<ItemHistoryPage>();
 
-        api.MapGet("/audit/me/security", async (long? before, int? limit, IInvoker invoker, CancellationToken ct)
-                => (await invoker.InvokeAsync(new MySecurityEventsQuery(before, limit), ct)).ToHttp(p => p))
+        api.MapGet("/audit/me/security", async (long? before, int? limit, string? kind, IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new MySecurityEventsQuery(before, limit, kind), ct)).ToHttp(p => p))
             .Returns<SecurityEventPage>();
 
         return routes;

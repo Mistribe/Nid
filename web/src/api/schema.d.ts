@@ -27126,6 +27126,7 @@ export interface paths {
                 query?: {
                     before?: number;
                     limit?: number;
+                    kind?: string;
                 };
                 header?: never;
                 path?: never;

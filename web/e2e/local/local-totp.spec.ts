@@ -5,6 +5,7 @@ import { BOB, BOB_RESET, newPage, passwordField, signInWithPassword, totpCode } 
 test('two-step verification asks for the app code, or a recovery code once', async ({ page, browser }) => {
   await signInWithPassword(page, BOB.login, BOB_RESET, '/security');
   await expect(page.getByRole('heading', { name: 'Mot de passe' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Changer' })).toBeVisible(); // #308: the form waits in a dialog
   const section = page.getByRole('region', { name: 'Validation en deux étapes' });
   await section.getByRole('button', { name: 'Activer' }).click();
 
