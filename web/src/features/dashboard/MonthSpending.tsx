@@ -5,12 +5,15 @@ import type { DashboardView } from '@/api/dashboard';
 
 type Money = NonNullable<DashboardView['margin']>;
 
-/** #85 decision 10: the margin, the everyday spending it pays for and what is really left; loaded lazily with its InfoTip. */
-export function MonthSpending({ margin, everyday, left }: { margin: Money; everyday: Money; left: Money }) {
+/**
+ * #85 decision 10: the margin, the everyday spending it pays for and what is really left; loaded lazily with its InfoTip.
+ * Without `margin` (the margin panel, whose headline already gives it) only the last two.
+ */
+export function MonthSpending({ margin, everyday, left }: { margin: Money | null; everyday: Money; left: Money }) {
   const { t } = useTranslation();
   return (
     <StatLine items={[
-      { label: t('dashboard.key.margin'), value: formatMoney(margin), hint: t('dashboard.key.margin_hint') },
+      ...(margin ? [{ label: t('dashboard.key.margin'), value: formatMoney(margin), hint: t('dashboard.key.margin_hint') }] : []),
       { label: t('dashboard.month.everyday'), value: formatMoney(everyday), tip: t('dashboard.month.everyday_tip') },
       {
         label: t('dashboard.month.left'),

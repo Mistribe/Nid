@@ -36,7 +36,8 @@ type Mark = {
 
 /**
  * Spec §4.1: where the month's income comes from and where it goes. A Sankey on a wide screen, two bars on a phone (and in
- * the narrow margin panel: `compact`); a negative margin cannot balance a flow, so it keeps the bars everywhere.
+ * the narrow margin panel: `compact`); a negative margin, or everyday spending beyond it, cannot balance a flow, so it keeps
+ * the bars everywhere.
  */
 export function HouseholdMonth({ d, scope, compact = false }: { d: DashboardView; scope: 'me' | 'household'; compact?: boolean }) {
   const { t } = useTranslation();
@@ -82,7 +83,9 @@ export function HouseholdMonth({ d, scope, compact = false }: { d: DashboardView
   ];
   // The flow is the income: without it the marks have no whole to be a share of.
   const known = total != null && d.margin != null && to.length > 0;
-  const flows = known && toPlot(d.margin!.amount) >= 0 && toPlot(total.amount) > 0;
+  // An overspend leaves the slices wider than the margin they split: the server's sign says so (no arithmetic here).
+  const overspent = d.spendingSlices.length > 0 && !!d.left?.amount.startsWith('-');
+  const flows = known && !overspent && toPlot(d.margin!.amount) >= 0 && toPlot(total.amount) > 0;
   const missing = d.income.missingCurrency ?? d.commitments.missingCurrency;
   // Income unknown, else margin unknown (a commitment misses a rate): a drawing without its « Reste » would look complete.
   const reason = total == null
@@ -106,7 +109,7 @@ export function HouseholdMonth({ d, scope, compact = false }: { d: DashboardView
         )
         : bars}
       {known && d.everydaySpending && d.left
-        ? <Suspense fallback={null}><MonthSpending margin={d.margin!} everyday={d.everydaySpending} left={d.left} /></Suspense>
+        ? <Suspense fallback={null}><MonthSpending margin={compact ? null : d.margin!} everyday={d.everydaySpending} left={d.left} /></Suspense>
         : null}
     </SectionCard>
   );

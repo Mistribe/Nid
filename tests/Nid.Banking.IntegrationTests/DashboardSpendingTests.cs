@@ -66,6 +66,9 @@ public class DashboardSpendingTests(PostgresFixture fixture) : IClassFixture<Pos
         var household = await EverydayAsync(app, app.AdultA, VisibilityScope.Household);
         Assert.Equal(125m, Assert.Single(household.Total).Value);
         Assert.Equal(new Dictionary<string, decimal> { ["Alimentation"] = 100m, ["Non classées"] = 25m }, Slices(household));
+        // « Non classées » is told by its missing category, never by its name.
+        Assert.Equal([(true, "Alimentation"), (false, "Non classées")],
+            household.ByCategory.Select(s => (s.Category is not null, s.Name)).OrderBy(s => s.Name, StringComparer.Ordinal));
 
         // « Moi » adds the reader's own account, never the other adult's.
         var mine = await EverydayAsync(app, app.AdultA, VisibilityScope.Mine);

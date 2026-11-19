@@ -270,9 +270,9 @@ describe('DashboardPage', () => {
   const spending = (left: string) => dashboard({
     margin: eur('1000.00'), everydaySpending: eur('800.00'), left: eur(left),
     spendingSlices: [
-      { name: 'Alimentation', amount: eur('300.00'), others: false }, { name: 'Transports', amount: eur('150.00'), others: false },
-      { name: 'Loisirs', amount: eur('120.00'), others: false }, { name: 'Santé', amount: eur('80.00'), others: false },
-      { name: 'Non classées', amount: eur('70.00'), others: false }, { name: 'Autres', amount: eur('80.00'), others: true },
+      { name: 'Alimentation', amount: eur('300.00'), others: false, uncategorised: false }, { name: 'Transports', amount: eur('150.00'), others: false, uncategorised: false },
+      { name: 'Loisirs', amount: eur('120.00'), others: false, uncategorised: false }, { name: 'Santé', amount: eur('80.00'), others: false, uncategorised: false },
+      { name: 'Non classées', amount: eur('70.00'), others: false, uncategorised: true }, { name: 'Autres', amount: eur('80.00'), others: true, uncategorised: false },
     ],
   });
   const text = (el: Element) => el.textContent?.replace(/[\u00a0\u202f]/g, ' ');
@@ -299,6 +299,9 @@ describe('DashboardPage', () => {
     await renderApp('/dashboard');
 
     const month = await screen.findByRole('region', { name: 'Où part le revenu du mois' });
+    // The slices outgrow the margin they split: no flow can balance them, the bars say it.
+    expect(month.querySelector('[data-sankey-columns]')).toBeNull();
+    expect(month.querySelectorAll('[data-segment]')).not.toHaveLength(0);
     expect(month.querySelector('[data-segment="rest"]')).toBeNull();
     expect(month.querySelector('[data-band="rest"]')).toBeNull();
     await within(month).findByText(/Dépassement de/);

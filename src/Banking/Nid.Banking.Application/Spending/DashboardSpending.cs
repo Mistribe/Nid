@@ -39,6 +39,6 @@ public sealed class DashboardSpending(
             slice[sum.Currency] = slice.GetValueOrDefault(sum.Currency) + amount;
         }
         return Result.Success(new SpendingPart(total,
-            [.. slices.Select(s => new SpendingSlice(s.Key == Guid.Empty ? Uncategorised : byId[s.Key].Name, s.Value))]));
+            [.. slices.Select(s => s.Key == Guid.Empty ? new SpendingSlice(null, Uncategorised, s.Value) : new SpendingSlice(s.Key, byId[s.Key].Name, s.Value))]));
     }
 }

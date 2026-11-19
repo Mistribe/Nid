@@ -40527,7 +40527,8 @@
         "required": [
           "name",
           "amount",
-          "others"
+          "others",
+          "uncategorised"
         ],
         "type": "object",
         "properties": {
@@ -40538,6 +40539,9 @@
             "$ref": "#/components/schemas/DashboardMoneyView"
           },
           "others": {
+            "type": "boolean"
+          },
+          "uncategorised": {
             "type": "boolean"
           }
         }

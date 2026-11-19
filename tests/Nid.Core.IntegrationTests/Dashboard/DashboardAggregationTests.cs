@@ -115,7 +115,7 @@ public class DashboardAggregationTests(PostgresFixture fixture) : IClassFixture<
     }
 
     [Fact]
-    public async Task With_bank_sync_off_the_month_has_no_everyday_spending_and_the_margin_is_unchanged()
+    public async Task Without_a_bank_account_the_month_has_no_everyday_spending_and_the_margin_is_unchanged()
     {
         await using var app = await StartAsync(
             commitments: [new CommitmentsPart(CommitmentSources.Subscriptions, 1, Sums((Currency.Eur, 1000m)), Sums((Currency.Eur, 1000m)))],
@@ -138,7 +138,7 @@ public class DashboardAggregationTests(PostgresFixture fixture) : IClassFixture<
             income: new IncomePart(1, Sums((Currency.Eur, 2000m))),
             rates: UsdToEur(0.9m),
             spending: new SpendingPart(Sums((Currency.Eur, 1110m), (Currency.Usd, 100m)),
-                [new SpendingSlice("Alimentation", Sums((Currency.Eur, 1110m))), new SpendingSlice("Transport", Sums((Currency.Usd, 100m)))]));
+                [new SpendingSlice(Guid.NewGuid(), "Alimentation", Sums((Currency.Eur, 1110m))), new SpendingSlice(Guid.NewGuid(), "Transport", Sums((Currency.Usd, 100m)))]));
 
         var view = await ReadAsync(app);
 

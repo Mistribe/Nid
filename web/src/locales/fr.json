@@ -217,7 +217,7 @@
       "from": "D’où il vient",
       "to": "Où il part",
       "everyday": "Dépenses courantes",
-      "everyday_tip": "Les opérations de vos comptes de ce mois, hors abonnements, crédits, garde et impôts déjà comptés dans les engagements, et hors virements entre vos comptes.",
+      "everyday_tip": "Les dépenses de vos comptes ce mois-ci, remboursements déduits. Les impôts et les opérations rapprochées d'un abonnement, d'un crédit, d'une charge de bien ou de la garde n'y sont pas : ils sont déjà dans les engagements. Une opération pas encore rapprochée y compte encore. Les virements entre vos comptes n'y sont pas.",
       "left": "Reste réel",
       "overspent": "Dépassement de {{amount}}"
     },

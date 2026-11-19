@@ -49,9 +49,10 @@ public sealed record AllocationView(
 
 /// <summary>
 /// #85 decision 10: a top-level category's everyday spending this month, in the household currency. <c>Others</c> marks the slice
-/// that gathers the rest (named « Autres »), so a category of that name is never taken for it.
+/// that gathers the rest (named « Autres »), <c>Uncategorised</c> the lines without a category (« Non classées »), so a category of
+/// either name is never taken for them.
 /// </summary>
-public sealed record DashboardSpendingSliceView(string Name, DashboardMoneyView Amount, bool Others);
+public sealed record DashboardSpendingSliceView(string Name, DashboardMoneyView Amount, bool Others, bool Uncategorised);
 
 public sealed record DashboardView(
     string Currency,
@@ -121,17 +122,18 @@ public static class DashboardMath
         List<DashboardSpendingSliceView> slices = [];
         if (everyday.Total is { } spent)
         {
-            var ranked = spending.SelectMany(p => p.ByCategory).GroupBy(s => s.Name)
-                .Select(g => (Name: g.Key, Amount: Of(g.Select(s => s.Amount)).Total ?? 0m))
+            // By category, never by name: two categories of one name stay apart.
+            var ranked = spending.SelectMany(p => p.ByCategory).GroupBy(s => s.Category)
+                .Select(g => (g.First().Name, Uncategorised: g.Key is null, Amount: Of(g.Select(s => s.Amount)).Total ?? 0m))
                 .Where(s => s.Amount > 0m)
                 .OrderByDescending(s => s.Amount).ThenBy(s => s.Name, French)
                 .Take(SpendingSlices).ToList();
-            slices = [.. ranked.Select(s => new DashboardSpendingSliceView(s.Name, Money(s.Amount, reference), false))];
+            slices = [.. ranked.Select(s => new DashboardSpendingSliceView(s.Name, Money(s.Amount, reference), false, s.Uncategorised))];
             // « Autres » is the rest of the total, so the slices add up to it; a net refund among the rest can leave nothing to show,
             // and one larger than the top five's spending leaves them above the total.
             var rest = spent - ranked.Sum(s => s.Amount);
             if (Math.Round(rest, 2, MidpointRounding.AwayFromZero) > 0m)
-                slices.Add(new DashboardSpendingSliceView(OtherSpending, Money(rest, reference), true));
+                slices.Add(new DashboardSpendingSliceView(OtherSpending, Money(rest, reference), true, false));
         }
 
         // 3E1 spec §3: each source counting at least one item, its amortized month converted as the total.

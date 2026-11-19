@@ -34216,6 +34216,7 @@ export interface components {
             name: string;
             amount: components["schemas"]["DashboardMoneyView"];
             others: boolean;
+            uncategorised: boolean;
         };
         DashboardTodoView: {
             kind: string;
