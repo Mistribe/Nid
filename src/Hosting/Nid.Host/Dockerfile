@@ -42,14 +42,15 @@ ENV VITE_NID_VERSION=$VERSION
 RUN pnpm build && node scripts/security-headers.mjs > /security-headers.json
 
 # #309: Claude Desktop's extension. Its bridge (mcp-remote) is vendored here from the lockfile, never fetched when it runs;
-# the MCPB CLI checks the manifest template, then leaves with the other build-time packages. Pure JavaScript: the same
+# the MCPB CLI checks the manifest template (valid as it is: the host only changes its values), then leaves with the other
+# build-time packages. Pure JavaScript: the same
 # files run on the adult's computer, whatever this image's architecture.
 FROM node:26-alpine@sha256:6bd9ab43c0ec0190ca7b2d193906cb8b7edf6e7f4afa43ddeccd6452710bffb5 AS mcpb
 WORKDIR /mcpb
 COPY src/Hosting/Nid.Host/mcpb/package.json src/Hosting/Nid.Host/mcpb/package-lock.json ./
 RUN npm ci --ignore-scripts
 COPY src/Hosting/Nid.Host/mcpb/ ./
-RUN npm run validate && npm prune --omit=dev --ignore-scripts && rm -rf node_modules/.bin validate.mjs package-lock.json
+RUN npm run validate && npm prune --omit=dev --ignore-scripts && rm -rf node_modules/.bin package-lock.json
 
 # -extra: ICU and time zone data. Globalization is not invariant (Directory.Build.props), so .NET needs ICU;
 # glibc, libstdc++ and libgcc_s, all SkiaSharp needs, are in every chiseled variant.

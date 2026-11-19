@@ -7,8 +7,8 @@ using Nid.Host.Auth;
 namespace Nid.Host.Mcp;
 
 /// <summary>
-/// #309: Nid's Claude Desktop extension. The image builds <c>mcpb/</c> (the manifest template, the bridge and its vendored
-/// <c>mcp-remote</c>); this zips it with the manifest filled in for this instance: its version, its <c>/mcp</c> as the
+/// #309: Nid's Claude Desktop extension. The image builds <c>mcpb/</c> (the manifest template and the vendored
+/// <c>mcp-remote</c> bridge); this zips it with the manifest filled in for this instance: its version, its <c>/mcp</c> as the
 /// default address, the instance as the privacy policy. No token is ever in the file: Claude Desktop asks for it.
 /// </summary>
 public static class McpBundle
@@ -68,10 +68,9 @@ public static class McpBundle
         return buffer.ToArray();
     }
 
-    /// <summary>The bridge, its package and its dependencies; never the template, the build's check, nor npm's links.</summary>
+    /// <summary>The package and its dependencies; never the template, nor npm's own files.</summary>
     private static bool Shipped(string name) =>
-        name is "package.json" || name.StartsWith("server/", StringComparison.Ordinal)
-        || (name.StartsWith("node_modules/", StringComparison.Ordinal) && !name.StartsWith("node_modules/.", StringComparison.Ordinal));
+        name is "package.json" || (name.StartsWith("node_modules/", StringComparison.Ordinal) && !name.StartsWith("node_modules/.", StringComparison.Ordinal));
 }
 
 [System.Text.Json.Serialization.JsonSerializable(typeof(JsonObject))]

@@ -7,11 +7,11 @@
   "author": { "name": "Nid" },
   "server": {
     "type": "node",
-    "entry_point": "server/index.js",
+    "entry_point": "node_modules/mcp-remote/dist/proxy.js",
     "mcp_config": {
       "command": "node",
-      "args": ["${__dirname}/server/index.js"],
-      "env": { "NID_URL": "${user_config.url}", "NID_TOKEN": "${user_config.token}" }
+      "args": ["${__dirname}/node_modules/mcp-remote/dist/proxy.js", "${user_config.url}", "--header", "Authorization:${NID_AUTH}", "--transport", "http-only"],
+      "env": { "NID_AUTH": "Bearer ${user_config.token}" }
     }
   },
   "user_config": {

@@ -11,14 +11,13 @@ public class McpBundleTests(PostgresFixture fixture) : IClassFixture<PostgresFix
 {
     private static readonly string Sources = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "Hosting", "Nid.Host", "mcpb");
 
-    /// <summary>The real template, package and bridge, with a stand-in for the dependencies the image vendors.</summary>
+    /// <summary>The real template and package, with a stand-in for the bridge the image vendors.</summary>
     private static string BundleRoot()
     {
         var root = Path.Combine(Path.GetTempPath(), "nid-mcpb-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(Path.Combine(root, "server"));
         Directory.CreateDirectory(Path.Combine(root, "node_modules", "mcp-remote", "dist"));
         Directory.CreateDirectory(Path.Combine(root, "node_modules", ".bin"));
-        foreach (var file in new[] { "manifest.json", "package.json", "validate.mjs", Path.Combine("server", "index.js") })
+        foreach (var file in new[] { "manifest.json", "package.json", "package-lock.json" })
             File.Copy(Path.Combine(Sources, file), Path.Combine(root, file));
         File.WriteAllText(Path.Combine(root, "node_modules", "mcp-remote", "dist", "proxy.js"), "// stand-in");
         File.WriteAllText(Path.Combine(root, "node_modules", ".bin", "mcp-remote"), "link");
@@ -36,7 +35,7 @@ public class McpBundleTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         Assert.Equal("application/zip", response.Content.Headers.ContentType?.MediaType);
         using var zip = new ZipArchive(await response.Content.ReadAsStreamAsync(TestContext.Current.CancellationToken));
         Assert.Equal(
-            ["manifest.json", "node_modules/mcp-remote/dist/proxy.js", "package.json", "server/index.js"],
+            ["manifest.json", "node_modules/mcp-remote/dist/proxy.js", "package.json"],
             zip.Entries.Select(e => e.FullName).Order(StringComparer.Ordinal));
 
         using var manifest = await JsonDocument.ParseAsync(zip.GetEntry("manifest.json")!.Open(), cancellationToken: TestContext.Current.CancellationToken);
@@ -47,9 +46,10 @@ public class McpBundleTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         var token = root.GetProperty("user_config").GetProperty("token");
         Assert.True(token.GetProperty("sensitive").GetBoolean());
         Assert.False(token.TryGetProperty("default", out _));
-        // The token reaches the bridge through its environment, never its arguments.
+        // The token reaches the bridge through its environment, never its arguments: mcp-remote expands ${NID_AUTH} itself.
         var config = root.GetProperty("server").GetProperty("mcp_config");
-        Assert.Equal("${user_config.token}", config.GetProperty("env").GetProperty("NID_TOKEN").GetString());
+        Assert.Equal("Bearer ${user_config.token}", config.GetProperty("env").GetProperty("NID_AUTH").GetString());
+        Assert.Contains("Authorization:${NID_AUTH}", config.GetProperty("args").GetRawText(), StringComparison.Ordinal);
         Assert.DoesNotContain("user_config.token", config.GetProperty("args").GetRawText(), StringComparison.Ordinal);
         Assert.DoesNotContain("nid_pat_", root.GetRawText(), StringComparison.Ordinal);
     }
