@@ -34143,7 +34143,8 @@
           "synced",
           "canWrite",
           "bankName",
-          "renamed"
+          "renamed",
+          "reads"
         ],
         "type": "object",
         "properties": {
@@ -34235,6 +34236,9 @@
               "null",
               "string"
             ]
+          },
+          "reads": {
+            "$ref": "#/components/schemas/BankReadsView"
           }
         }
       },
@@ -34305,6 +34309,16 @@
           "bankLinked": {
             "type": "boolean",
             "default": false
+          },
+          "reads": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/BankReadsView"
+              }
+            ]
           }
         }
       },
@@ -34332,6 +34346,50 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "BankReadsView": {
+        "required": [
+          "unattended",
+          "attended",
+          "limit",
+          "limitedAttended",
+          "warn"
+        ],
+        "type": "object",
+        "properties": {
+          "unattended": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "attended": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "limit": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "freesAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "limitedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "limitedAttended": {
+            "type": "boolean"
+          },
+          "warn": {
+            "type": "boolean"
           }
         }
       },
@@ -34529,6 +34587,7 @@
         "required": [
           "id",
           "startedAt",
+          "rateLimited",
           "trigger",
           "outcome",
           "connections",
@@ -34593,6 +34652,11 @@
             ]
           },
           "transactions": {
+            "type": "integer",
+            "format": "int32",
+            "default": 0
+          },
+          "rateLimited": {
             "type": "integer",
             "format": "int32",
             "default": 0
@@ -36399,7 +36463,8 @@
           "id",
           "aspspName",
           "status",
-          "accounts"
+          "accounts",
+          "reads"
         ],
         "type": "object",
         "properties": {
@@ -36438,6 +36503,9 @@
             "items": {
               "$ref": "#/components/schemas/BankAccountView"
             }
+          },
+          "reads": {
+            "$ref": "#/components/schemas/BankReadsView"
           }
         }
       },

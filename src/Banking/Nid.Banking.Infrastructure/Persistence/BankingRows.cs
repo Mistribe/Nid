@@ -148,6 +148,16 @@ public sealed class RecurringGroupRow
     public Instant ProposedAt { get; set; }
 }
 
+/// <summary>#365: a read of an account at its bank, fetched data (not a decision): never audited, purged after a week.</summary>
+public sealed class AccountReadRow
+{
+    public Guid Id { get; set; }
+    public Guid AccountId { get; set; }
+    public Instant ReadAt { get; set; }
+    public bool Attended { get; set; }
+    public bool RateLimited { get; set; }
+}
+
 public sealed class SyncRunRow
 {
     public Guid Id { get; set; }
@@ -158,6 +168,7 @@ public sealed class SyncRunRow
     public int Connections { get; set; }
     public int Accounts { get; set; }
     public int Balances { get; set; }
+    public int RateLimited { get; set; }
     public int Proposals { get; set; }
     public int Written { get; set; }
     public int Skipped { get; set; }

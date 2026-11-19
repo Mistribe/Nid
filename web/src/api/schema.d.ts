@@ -31631,6 +31631,7 @@ export interface components {
             cardDebit?: null | string;
             holder?: null | string;
             product?: null | string;
+            reads: components["schemas"]["BankReadsView"];
         };
         BankingConnectionTestView: {
             outcome: string;
@@ -31647,12 +31648,27 @@ export interface components {
             nextRunAt?: null | string;
             /** @default false */
             bankLinked: boolean;
+            reads?: null | components["schemas"]["BankReadsView"];
         };
         BankingStatusView: {
             enabled: boolean;
             configured: boolean;
             appIdSaved?: null | boolean;
             keyStatus?: null | string;
+        };
+        BankReadsView: {
+            /** Format: int32 */
+            unattended: number;
+            /** Format: int32 */
+            attended: number;
+            /** Format: int32 */
+            limit: number;
+            /** Format: date-time */
+            freesAt?: null | string;
+            /** Format: date-time */
+            limitedAt?: null | string;
+            limitedAttended: boolean;
+            warn: boolean;
         };
         BankRowView: {
             /** Format: date */
@@ -31734,6 +31750,11 @@ export interface components {
              * @default 0
              */
             transactions: number;
+            /**
+             * Format: int32
+             * @default 0
+             */
+            rateLimited: number;
         };
         BankTransactionPage: {
             items: components["schemas"]["BankTransactionView"][];
@@ -32170,6 +32191,7 @@ export interface components {
             lastSyncedAt?: null | string;
             lastErrorCode?: null | string;
             accounts: components["schemas"]["BankAccountView"][];
+            reads: components["schemas"]["BankReadsView"];
         };
         ContractEndView: {
             reason: string;

@@ -34,6 +34,12 @@ public sealed record BankAccount(
 /// <summary>A connection that sees an account, under the account's uid in that connection's session.</summary>
 public sealed record BankAccountSource(Guid Account, Guid Connection, string ProviderUid, string IdentificationHash);
 
+/// <summary>
+/// #365: one read of an account at its bank by the sync (its balances and lines, one pass), <paramref name="Attended"/> when the person's
+/// browser was forwarded (a click on « Synchroniser »), <paramref name="RateLimited"/> when the bank refused it for its read limit.
+/// </summary>
+public sealed record BankRead(Guid Account, Instant At, bool Attended, bool RateLimited);
+
 /// <summary>The balance kept for an account and a day (spec §2.4), of the type chosen by spec §4.2.</summary>
 public sealed record BankBalance(Guid Account, LocalDate AsOf, decimal Amount, string BalanceType, Instant FetchedAt);
 

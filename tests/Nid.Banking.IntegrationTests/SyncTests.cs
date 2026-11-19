@@ -290,10 +290,44 @@ public class SyncTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 
         var run = await NightAsync(app, clock, D(8, 13));
 
-        Assert.Equal((1, 1, 1, null), (run.Accounts, run.Balances, run.Skipped, run.FailureCode));
+        // #365: the refusal is its own outcome in the journal, not a plain skip.
+        Assert.Equal((1, 1, 0, 1, null), (run.Accounts, run.Balances, run.Skipped, run.RateLimited, run.FailureCode));
         await using var db = Db(app);
         var connection = await db.Connections.SingleAsync(c => c.Id == id, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(("active", null, 0), (connection.Status, connection.LastErrorCode, connection.ConsecutiveFailures));
+        // It is kept with its time, shown on the account and on its connection, and to the administrator as counts.
+        var accounts = (await BankingApi.AccountsAsync(app, app.AdultA)).EnumerateArray().ToDictionary(a => a.GetProperty("name").GetString()!, a => a.GetProperty("reads"));
+        Assert.Equal((0, At(D(8, 13)).ToDateTimeOffset(), false),
+            (accounts["Courant A"].GetProperty("unattended").GetInt32(), accounts["Courant A"].GetProperty("limitedAt").GetDateTimeOffset(),
+                accounts["Courant A"].GetProperty("limitedAttended").GetBoolean()));
+        Assert.Equal((1, 4), (accounts["Livret A"].GetProperty("unattended").GetInt32(), accounts["Livret A"].GetProperty("limit").GetInt32()));
+        var reads = JsonDocument.Parse(await app.GetRawAsync(app.AdultA, $"{BankingApi.Root}/connections")).RootElement[0].GetProperty("reads");
+        Assert.Equal((1, At(D(8, 14)).ToDateTimeOffset(), At(D(8, 13)).ToDateTimeOffset(), true),
+            (reads.GetProperty("unattended").GetInt32(), reads.GetProperty("freesAt").GetDateTimeOffset(), reads.GetProperty("limitedAt").GetDateTimeOffset(),
+                reads.GetProperty("warn").GetBoolean()));
+        var admin = JsonDocument.Parse(await app.GetRawAsync(app.AdultA, "/api/v1/admin/banking/diagnostics")).RootElement;
+        Assert.Equal((1, 1), (admin.GetProperty("reads").GetProperty("unattended").GetInt32(), admin.GetProperty("lastRun").GetProperty("rateLimited").GetInt32()));
+    }
+
+    [Fact]
+    public async Task A_read_with_the_person_there_is_counted_apart_and_a_week_old_one_is_purged()
+    {
+        var (app, clock) = await StartAsync(fixture);
+        await using var _app = app;
+        var id = await BankingApi.ConnectAsync(app, app.AdultA, "code-a", BankingApi.Account("uid-1", "hash-1", null, "Courant A"));
+        Serve(app, "session-code-a", "uid-1", D(8, 12), 10m);
+        await NightAsync(app, clock, D(8, 12));
+        clock.Now = At(D(8, 12)).Plus(NodaTime.Duration.FromHours(2));
+        var browser = new Dictionary<string, string> { ["User-Agent"] = "Navigateur/1.0", ["X-Forwarded-For"] = "203.0.113.7" };
+        Assert.Equal(HttpStatusCode.Accepted, (await app.RawAsync(app.AdultA, HttpMethod.Post, $"{BankingApi.Root}/sync", new { connectionId = id }, browser)).StatusCode);
+
+        var reads = (await BankingApi.AccountsAsync(app, app.AdultA)).EnumerateArray().Single().GetProperty("reads");
+        Assert.Equal((1, 1), (reads.GetProperty("unattended").GetInt32(), reads.GetProperty("attended").GetInt32()));
+
+        // A week on, the night purges what it no longer shows.
+        await NightAsync(app, clock, D(8, 20));
+        await using var db = Db(app);
+        Assert.Equal(1, await db.AccountReads.CountAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -796,10 +830,13 @@ public class SyncTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 
         var run = await NightAsync(app, clock, D(8, 12));
 
-        Assert.Equal((1, 1, 0, null), (run.Balances, run.Skipped, run.Transactions, run.FailureCode));
+        Assert.Equal((1, 0, 1, 0, null), (run.Balances, run.Skipped, run.RateLimited, run.Transactions, run.FailureCode));
         await using var db = Db(app);
         var connection = await db.Connections.SingleAsync(c => c.Id == id, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(("active", null, 0), (connection.Status, connection.LastErrorCode, connection.ConsecutiveFailures));
+        // #365: the balances were read (one read), then the bank refused the lines (one refusal).
+        Assert.Equal([(false, false), (false, true)], (await db.AccountReads.OrderBy(r => r.RateLimited).ToListAsync(TestContext.Current.CancellationToken))
+            .Select(r => (r.Attended, r.RateLimited)));
     }
 
     [Fact]

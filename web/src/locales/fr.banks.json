@@ -39,6 +39,17 @@
     "ignored": "Non suivi",
     "card_of": "Carte de {{name}}",
     "balance_on": "{{amount}} au {{date}}",
+    "reads": {
+      "unattended": "{{count}} / {{limit}} lectures sans vous sur 24 h",
+      "frees": "la plus ancienne ne compte plus à {{time}}",
+      "attended_one": "{{count}} lecture avec vous",
+      "attended_other": "{{count}} lectures avec vous",
+      "tip_label": "Lectures de la banque",
+      "tip": "Estimation de Nid, pas le quota de la banque. La DSP2 permet à une banque de refuser plus de 4 lectures par jour faites sans vous (la synchronisation de nuit) ; les lectures que vous lancez vous-même ne sont pas limitées par la DSP2, mais la banque peut les compter. Chaque banque compte à sa façon.",
+      "limited": "limite de la banque le {{date}}",
+      "warn_limited": "La banque a refusé une lecture le {{date}} ; prochaine tentative cette nuit. Vous pouvez quand même synchroniser.",
+      "warn_count": "Nid compte déjà {{limit}} lectures sans vous sur 24 h : la banque peut refuser la suivante (estimation de Nid). Vous pouvez quand même synchroniser."
+    },
     "balance_date": "au {{date}}",
     "edit": "Régler",
     "edit_of": "Régler {{name}}",

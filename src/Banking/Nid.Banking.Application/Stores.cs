@@ -125,9 +125,21 @@ public interface IBalanceStore
 /// One sync, <c>banking.sync_run</c> (spec §2.8): counts and codes only, never a bank, an account, an amount or a person.
 /// <paramref name="Trigger"/> is <c>schedule</c> or <c>manual</c>; <paramref name="Outcome"/> <c>running</c>, <c>succeeded</c> or <c>failed</c>.
 /// </summary>
+/// <param name="RateLimited">#365: the accounts a bank refused for its read limit, apart from <paramref name="Skipped"/>.</param>
 public sealed record BankSyncRunView(
     Guid Id, DateTimeOffset StartedAt, DateTimeOffset? FinishedAt, string Trigger, string Outcome, int Connections, int Accounts, int Balances,
-    int Proposals, int Written, int Skipped, string? FailureCode, int Transactions = 0);
+    int Proposals, int Written, int Skipped, string? FailureCode, int Transactions = 0, int RateLimited = 0);
+
+/// <summary>#365: the reads the sync made of each account, kept <see cref="Nid.Banking.Domain.BankReads.Kept"/>.</summary>
+public interface IAccountReadLog
+{
+    Task RecordAsync(BankRead read, CancellationToken ct);
+
+    /// <summary>The reads of <paramref name="accounts"/> since <paramref name="since"/>, every account when null.</summary>
+    Task<IReadOnlyList<BankRead>> SinceAsync(IReadOnlyCollection<Guid>? accounts, Instant since, CancellationToken ct);
+
+    Task PurgeBeforeAsync(Instant before, CancellationToken ct);
+}
 
 public sealed record BankSyncRunPage(IReadOnlyList<BankSyncRunView> Items, int Total, int Page)
 {

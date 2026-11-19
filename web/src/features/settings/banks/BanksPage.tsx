@@ -8,6 +8,7 @@ import { present, toProblem } from '@/api/errors';
 import { useSession } from '@/app/Providers';
 import type { BanksSearch } from '@/app/router';
 import { EmptyState } from '@/components/EmptyState';
+import { InfoTip } from '@/components/InfoTip';
 import { formatLocalDate } from '@/components/LocalDate';
 import { formatCurrency } from '@/components/Money';
 import { OwnerChips } from '@/components/OwnerChips';
@@ -17,7 +18,7 @@ import { Section } from '@/components/page/Section';
 import { SortableTable } from '@/components/page/SortableTable';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { formatInstant, formatInstantDay } from '@/lib/format';
+import { formatInstant, formatInstantDay, formatInstantTime } from '@/lib/format';
 import { ENVELOPES, invalidateInvestments, type EnvelopeSummary } from '@/api/investments';
 import { LOANS } from '@/api/loans';
 import { PROPERTIES } from '@/api/properties';
@@ -194,6 +195,7 @@ function ConnectionSection({ connection, all, envelopes, onEdit }: {
         <span className="font-medium text-foreground">{t(`banks.status.${connection.status}`, { defaultValue: connection.status })}</span>
         {connection.validUntil ? <span>{t('banks.expires', { date: day.format(new Date(connection.validUntil)) })}</span> : null}
         <span>{connection.lastSyncedAt ? t('banks.last_sync', { date: formatInstant(connection.lastSyncedAt) }) : t('banks.never_synced')}</span>
+        <Reads reads={connection.reads} />
         <RowActions menuId={`bank-${connection.id}`} menuLabel={t('banks.actions_of', { bank })}
           items={[
             { label: t('banks.sync'), onSelect: () => sync.mutate({ body: { connectionId: connection.id } }) },
@@ -204,10 +206,35 @@ function ConnectionSection({ connection, all, envelopes, onEdit }: {
           present={(_, error) => present(toProblem(error))} invalidate={refresh} />
       </div>
       {failed ? <ProblemMessage problem={present(toProblem(failed))} /> : null}
+      <ReadsWarning reads={connection.reads} />
       {connection.accounts.length > 0 ? (
         <AccountTable caption={t('banks.accounts', { bank })} accounts={connection.accounts} all={all} envelopes={envelopes} onEdit={onEdit} />
       ) : null}
     </Section>
+  );
+}
+
+/** #365: Nid's own count of the unattended reads of the connection's busiest account, never the bank's quota. */
+function Reads({ reads }: { reads: Connection['reads'] }) {
+  const { t } = useTranslation();
+  return (
+    <span className="inline-flex items-center gap-1">
+      {t('banks.reads.unattended', { count: reads.unattended, limit: reads.limit })}
+      {reads.freesAt ? ` · ${t('banks.reads.frees', { time: formatInstantTime(reads.freesAt) })}` : null}
+      {reads.attended > 0 ? ` · ${t('banks.reads.attended', { count: reads.attended })}` : null}
+      <InfoTip label={t('banks.reads.tip_label')}>{t('banks.reads.tip')}</InfoTip>
+    </span>
+  );
+}
+
+/** Before « Synchroniser » (#365): a refusal in the last 24 hours, or Nid's count at the limit; the person may still try. */
+function ReadsWarning({ reads }: { reads: Connection['reads'] }) {
+  const { t } = useTranslation();
+  if (!reads.warn) return null;
+  return (
+    <p role="status" className="rounded-md bg-status-warning/10 px-3 py-2 text-sm text-status-warning-text">
+      {reads.limitedAt ? t('banks.reads.warn_limited', { date: formatInstant(reads.limitedAt) }) : t('banks.reads.warn_count', { limit: reads.limit })}
+    </p>
   );
 }
 
@@ -229,7 +256,8 @@ function AccountTable({ caption, accounts, all, envelopes, onEdit }: {
   };
 
   // #353: what tells two cards of one bank apart, under the name: the masked number, the holder, the product.
-  const details = (a: BankAccount) => [a.ibanMasked && a.name.trim() ? maskedIban(a.ibanMasked) : null, a.holder, a.product !== a.name.trim() ? a.product : null]
+  const details = (a: BankAccount) => [a.ibanMasked && a.name.trim() ? maskedIban(a.ibanMasked) : null, a.holder, a.product !== a.name.trim() ? a.product : null,
+    a.reads.limitedAt ? t('banks.reads.limited', { date: formatInstant(a.reads.limitedAt) }) : null]
     .filter(Boolean).join(' · ');
   const name = (a: BankAccount) => (
     <span className="whitespace-normal">

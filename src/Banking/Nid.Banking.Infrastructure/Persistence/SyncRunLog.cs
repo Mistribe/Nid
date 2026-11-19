@@ -53,6 +53,7 @@ public sealed class SyncRunLog(BankingDbContext db, IClock clock) : IBankSyncRun
             .SetProperty(r => r.Written, run.Written)
             .SetProperty(r => r.Skipped, run.Skipped)
             .SetProperty(r => r.Transactions, run.Transactions)
+            .SetProperty(r => r.RateLimited, run.RateLimited)
             .SetProperty(r => r.FailureCode, run.FailureCode), ct);
     }
 
@@ -73,5 +74,5 @@ public sealed class SyncRunLog(BankingDbContext db, IClock clock) : IBankSyncRun
 
     private static BankSyncRunView ToView(SyncRunRow r)
         => new(r.Id, r.StartedAt.ToDateTimeOffset(), r.FinishedAt?.ToDateTimeOffset(), r.Trigger, r.Outcome, r.Connections, r.Accounts, r.Balances,
-            r.Proposals, r.Written, r.Skipped, r.FailureCode, r.Transactions);
+            r.Proposals, r.Written, r.Skipped, r.FailureCode, r.Transactions, r.RateLimited);
 }
