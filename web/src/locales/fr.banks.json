@@ -50,6 +50,7 @@
       "warn_limited": "La banque a refusé une lecture le {{date}} ; prochaine tentative cette nuit. Vous pouvez quand même synchroniser.",
       "warn_count": "Nid compte déjà {{limit}} lectures sans vous sur 24 h : la banque peut refuser la suivante (estimation de Nid). Vous pouvez quand même synchroniser."
     },
+    "balance_date": "au {{date}}",
     "edit": "Régler",
     "edit_of": "Régler {{name}}",
     "error": {

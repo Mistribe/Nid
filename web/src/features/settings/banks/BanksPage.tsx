@@ -268,6 +268,13 @@ function AccountTable({ caption, accounts, all, envelopes, onEdit }: {
   const kind = (a: BankAccount) => accountKind(t, a);
   const balance = (a: BankAccount) => (a.lastBalance && a.lastBalanceOn
     ? t('banks.balance_on', { amount: formatCurrency(a.lastBalance, a.currency), date: formatLocalDate(a.lastBalanceOn) }) : '—');
+  // #364: in the table, the date goes under the amount, so the column stays narrow.
+  const balanceCell = (a: BankAccount) => (a.lastBalance && a.lastBalanceOn ? (
+    <span className="tabular-nums">
+      <span className="block">{formatCurrency(a.lastBalance, a.currency)}</span>
+      <span className="block text-sm text-muted-foreground">{t('banks.balance_date', { date: formatLocalDate(a.lastBalanceOn) })}</span>
+    </span>
+  ) : '—');
   const edit = (a: BankAccount) => (a.canWrite ? (
     <Button type="button" variant="outline" size="sm" aria-label={t('banks.edit_of', { name: accountLabel(t, a) })} onClick={() => onEdit(a)}>{t('banks.edit')}</Button>
   ) : null);
@@ -275,12 +282,13 @@ function AccountTable({ caption, accounts, all, envelopes, onEdit }: {
   return (
     <SortableTable<BankAccount> caption={caption} rows={accounts} rowKey={(a) => a.id}
       columns={[
-        { id: 'name', header: t('banks.account'), sort: (a) => accountLabel(t, a), cell: name },
-        { id: 'kind', header: t('banks.kind_label'), cell: kind },
-        { id: 'target', header: t('banks.envelope'), cell: envelopeOf },
-        { id: 'owner', header: t('banks.owners'), cell: owners },
-        { id: 'balance', header: t('banks.balance'), cell: balance },
-        { id: 'actions', header: t('banks.actions'), cell: edit },
+        // #364: every text column wraps, so the table fits the page and « Régler » is never cut.
+        { id: 'name', header: t('banks.account'), sort: (a) => accountLabel(t, a), cell: name, wrap: true },
+        { id: 'kind', header: t('banks.kind_label'), cell: kind, wrap: true },
+        { id: 'target', header: t('banks.envelope'), cell: envelopeOf, wrap: true },
+        { id: 'owner', header: t('banks.owners'), cell: owners, wrap: true },
+        { id: 'balance', header: t('banks.balance'), cell: balanceCell, wrap: true },
+        { id: 'actions', header: t('banks.actions'), align: 'end', cell: edit },
       ]}
       mobile={(a) => (
         <div className="space-y-1">
