@@ -19,6 +19,7 @@ public sealed class BankingAuditMap : IAuditMap
         [typeof(RuleRow)] = AuditRule.NoItem,
         // A category is the household's, no item's; a line's category is not audited (TransactionRow), categorised_by is its record.
         [typeof(CategoryRow)] = AuditRule.NoItem,
+        [typeof(CategoryRuleRow)] = AuditRule.NoItem,
     };
 
     public IReadOnlySet<Type> Excluded { get; } = new HashSet<Type> { typeof(AuditEntryRow), typeof(BalanceRow), typeof(TransactionRow), typeof(RecurringGroupRow), typeof(SyncRunRow) };

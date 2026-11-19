@@ -293,7 +293,8 @@ public sealed class LinkTransactionHandler(BankingAccess access, BankLines lines
 }
 
 [RequestHandler<UnlinkTransactionCommand, BankTransactionView>]
-public sealed class UnlinkTransactionHandler(BankingAccess access, BankLines lines, ILinkStore links, IAccessPolicy policy, IItemRegistry items)
+public sealed class UnlinkTransactionHandler(
+    BankingAccess access, BankLines lines, ILinkStore links, IAccessPolicy policy, IItemRegistry items, CategoryRuleApplier categoryRules)
     : IRequestHandler<UnlinkTransactionCommand, BankTransactionView>
 {
     public async ValueTask<Result<BankTransactionView>> HandleAsync(UnlinkTransactionCommand command, CancellationToken ct = default)
@@ -319,6 +320,8 @@ public sealed class UnlinkTransactionHandler(BankingAccess access, BankLines lin
         }
 
         await links.ClearAsync(line.Id, TransactionLinkState.Unlinked, ct);
+        // Its link's category gone, a rule takes over now, not at the next sync.
+        await categoryRules.ApplyAsync(line.Id, ct);
         return Result.Success(await lines.ViewAsync(line.Id, ct));
     }
 }
@@ -373,7 +376,8 @@ public sealed class SetTransactionCategoryHandler(BankingAccess access, BankLine
 
 [RequestHandler<ResetTransactionCategoryCommand, BankTransactionView>]
 public sealed class ResetTransactionCategoryHandler(
-    BankingAccess access, BankLines lines, ILinkStore links, ICategoryStore categories, LinkCategoryReader reader, IClock clock)
+    BankingAccess access, BankLines lines, ILinkStore links, ICategoryStore categories, LinkCategoryReader reader, CategoryRuleApplier categoryRules,
+    IClock clock)
     : IRequestHandler<ResetTransactionCategoryCommand, BankTransactionView>
 {
     public async ValueTask<Result<BankTransactionView>> HandleAsync(ResetTransactionCategoryCommand command, CancellationToken ct = default)
@@ -391,6 +395,7 @@ public sealed class ResetTransactionCategoryHandler(
             && await reader.KeyAsync(link, null, line.Amount > 0, ct) is { } key
             && await categories.ResolveKeyAsync(key, ct) is { } category)
             await categories.SetForLinesAsync([line.Id], category, CategorySource.Link, link.DecidedBy, link.DecidedAt, byPerson: false, ct);
+        await categoryRules.ApplyAsync(line.Id, ct);
         return Result.Success(await lines.ViewAsync(line.Id, ct));
     }
 }

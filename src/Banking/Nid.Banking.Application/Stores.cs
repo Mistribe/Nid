@@ -261,7 +261,7 @@ public interface ICategoryStore
     Task<Result<BankCategory>> UpdateAsync(Guid id, string? name, Guid? parent, bool moveParent, bool? archived, CancellationToken ct);
 
     /// <summary>
-    /// In one transaction: moves the lines of <paramref name="from"/> to <paramref name="into"/> (their source unchanged), merges each child
+    /// In one transaction: moves the lines and the rules of <paramref name="from"/> to <paramref name="into"/> (their source unchanged), merges each child
     /// into the target's child of the same name (whatever the case) or moves it under the target, then archives <paramref name="from"/> as merged.
     /// A merged category is neither merged again, merged into, moved nor unarchived (<see cref="BankingCodes.CategoryArchived"/>).
     /// </summary>
@@ -270,11 +270,34 @@ public interface ICategoryStore
     /// <summary>
     /// Sets the category of the lines whose current source <paramref name="source"/> may replace (<c>CategoryPrecedence</c>); a null
     /// <paramref name="source"/> clears category and source (« Laisser Nid décider »), a hand or assistant one only when
-    /// <paramref name="byPerson"/>. How many lines changed.
+    /// <paramref name="byPerson"/>. <paramref name="ruleId"/> is the rule behind a <see cref="CategorySource.Rule"/> write, cleared by any
+    /// other. How many lines changed.
     /// </summary>
     Task<int> SetForLinesAsync(
-        IReadOnlyCollection<Guid> lines, Guid? category, CategorySource? source, string by, Instant at, bool byPerson, CancellationToken ct);
+        IReadOnlyCollection<Guid> lines, Guid? category, CategorySource? source, string by, Instant at, bool byPerson, CancellationToken ct,
+        Guid? ruleId = null);
 
     /// <summary>Clears the category of the lines whose current source is one of <paramref name="sources"/>; how many changed.</summary>
     Task<int> ClearSourceAsync(IReadOnlyCollection<Guid> lines, IReadOnlyCollection<CategorySource> sources, CancellationToken ct);
+}
+
+/// <summary>The household's category rules (spec §Rules); who sees and applies one is the caller's to check.</summary>
+public interface ICategoryRuleStore
+{
+    /// <summary>Every rule, oldest first.</summary>
+    Task<IReadOnlyList<CategoryRule>> AllAsync(CancellationToken ct);
+
+    Task<CategoryRule?> FindAsync(Guid id, CancellationToken ct);
+
+    /// <summary>Saves <paramref name="draft"/> as given, under a new id and the current instant; its pattern is normalised already.</summary>
+    Task<CategoryRule> CreateAsync(CategoryRule draft, CancellationToken ct);
+
+    /// <summary>Its pattern, account, direction, bounds and category; null when no such rule.</summary>
+    Task<CategoryRule?> UpdateAsync(CategoryRule rule, CancellationToken ct);
+
+    /// <summary>Whether it existed; the lines it categorised keep their category, without the rule.</summary>
+    Task<bool> DeleteAsync(Guid id, CancellationToken ct);
+
+    /// <summary>Records that the rules categorised lines at <paramref name="at"/>.</summary>
+    Task TouchAsync(IReadOnlyCollection<Guid> ids, Instant at, CancellationToken ct);
 }

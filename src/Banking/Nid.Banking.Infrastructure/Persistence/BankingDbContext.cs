@@ -22,6 +22,8 @@ public sealed class BankingDbContext(DbContextOptions<BankingDbContext> options)
 
     public DbSet<CategoryRow> Categories => Set<CategoryRow>();
 
+    public DbSet<CategoryRuleRow> CategoryRules => Set<CategoryRuleRow>();
+
     public DbSet<RuleRow> Rules => Set<RuleRow>();
 
     public DbSet<RecurringGroupRow> RecurringGroups => Set<RecurringGroupRow>();
@@ -104,6 +106,7 @@ public sealed class BankingDbContext(DbContextOptions<BankingDbContext> options)
             e.HasIndex(x => new { x.AccountId, x.CategoryId, x.BookedOn });
             e.HasOne<AccountRow>().WithMany().HasForeignKey(x => x.AccountId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne<CategoryRow>().WithMany().HasForeignKey(x => x.CategoryId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<CategoryRuleRow>().WithMany().HasForeignKey(x => x.CategoryRuleId).OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<CategoryRow>(e =>
@@ -119,6 +122,25 @@ public sealed class BankingDbContext(DbContextOptions<BankingDbContext> options)
             e.HasIndex(x => x.Key).IsUnique();
             e.HasOne<CategoryRow>().WithMany().HasForeignKey(x => x.ParentId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne<CategoryRow>().WithMany().HasForeignKey(x => x.MergedIntoId).OnDelete(DeleteBehavior.Restrict);
+            MapXmin(e.Property(x => x.Version));
+        });
+
+        modelBuilder.Entity<CategoryRuleRow>(e =>
+        {
+            e.ToTable("category_rule", t =>
+            {
+                t.HasCheckConstraint("ck_category_rule_pattern", "char_length(pattern) between 2 and 60");
+                t.HasCheckConstraint("ck_category_rule_direction", "direction is null or direction in ('debit','credit')");
+                t.HasCheckConstraint("ck_category_rule_amounts",
+                    "(min_amount is null or min_amount >= 0) and (max_amount is null or max_amount >= 0) and (min_amount is null or max_amount is null or min_amount <= max_amount)");
+            });
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.MinAmount).HasColumnType("numeric(19,4)");
+            e.Property(x => x.MaxAmount).HasColumnType("numeric(19,4)");
+            // The author lives in core: no foreign key across contexts.
+            e.HasOne<AccountRow>().WithMany().HasForeignKey(x => x.AccountId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<CategoryRow>().WithMany().HasForeignKey(x => x.CategoryId).OnDelete(DeleteBehavior.Restrict);
             MapXmin(e.Property(x => x.Version));
         });
 
