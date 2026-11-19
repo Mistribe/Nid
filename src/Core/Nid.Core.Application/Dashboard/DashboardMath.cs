@@ -47,8 +47,11 @@ public sealed record AllocationView(
     DashboardMoneyView Assets, DashboardMoneyView Debts, DashboardMoneyView Approximate,
     IReadOnlyList<AllocationLineView> Classes, IReadOnlyList<AllocationLineView> Liquidity, IReadOnlyDictionary<string, decimal> Target);
 
-/// <summary>#85 decision 10: a top-level category's everyday spending this month, in the household currency; « Autres » gathers the rest.</summary>
-public sealed record DashboardSpendingSliceView(string Name, DashboardMoneyView Amount);
+/// <summary>
+/// #85 decision 10: a top-level category's everyday spending this month, in the household currency. <c>Others</c> marks the slice
+/// that gathers the rest (named « Autres »), so a category of that name is never taken for it.
+/// </summary>
+public sealed record DashboardSpendingSliceView(string Name, DashboardMoneyView Amount, bool Others);
 
 public sealed record DashboardView(
     string Currency,
@@ -62,7 +65,8 @@ public sealed record DashboardView(
     // Issue #104: null without assets above 0, or when a rate is missing (then PeopleMissingCurrency names it, the split's).
     AllocationView? Allocation,
     // #85 decision 10: null without a bank account or with bank sync off, or when a rate is missing; Left (margin − everyday spending)
-    // also without a margin. The slices: the five largest top-level categories, then « Autres »; none without the figure.
+    // also without a margin. The slices: the five largest top-level categories, then « Autres »; none without the figure. Refunds
+    // net within a category, so everyday spending can be below zero and the positive slices can add up to more than it.
     DashboardMoneyView? EverydaySpending, DashboardMoneyView? Left, IReadOnlyList<DashboardSpendingSliceView> SpendingSlices)
     : IExposesItems
 {
@@ -122,11 +126,12 @@ public static class DashboardMath
                 .Where(s => s.Amount > 0m)
                 .OrderByDescending(s => s.Amount).ThenBy(s => s.Name, French)
                 .Take(SpendingSlices).ToList();
-            slices = [.. ranked.Select(s => new DashboardSpendingSliceView(s.Name, Money(s.Amount, reference)))];
-            // « Autres » is the rest of the total, so the slices add up to it; a net refund among the rest can leave nothing to show.
+            slices = [.. ranked.Select(s => new DashboardSpendingSliceView(s.Name, Money(s.Amount, reference), false))];
+            // « Autres » is the rest of the total, so the slices add up to it; a net refund among the rest can leave nothing to show,
+            // and one larger than the top five's spending leaves them above the total.
             var rest = spent - ranked.Sum(s => s.Amount);
             if (Math.Round(rest, 2, MidpointRounding.AwayFromZero) > 0m)
-                slices.Add(new DashboardSpendingSliceView(OtherSpending, Money(rest, reference)));
+                slices.Add(new DashboardSpendingSliceView(OtherSpending, Money(rest, reference), true));
         }
 
         // 3E1 spec §3: each source counting at least one item, its amortized month converted as the total.

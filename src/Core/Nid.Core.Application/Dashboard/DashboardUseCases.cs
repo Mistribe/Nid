@@ -29,7 +29,8 @@ public sealed class DashboardReader(
     IEnumerable<IIncomeContribution> income, IEnumerable<ISpendingContribution> spending, IEnumerable<IUpcomingEvents> upcoming, PerDeadline perDeadline,
     IHouseholdSettings household, IFxRates fx, IPersonRegistry persons, TaxCalendarEvents taxCalendar)
 {
-    public async Task<Result<DashboardView>> ReadAsync(PersonId reader, VisibilityScope scope, LocalDate today, CancellationToken ct)
+    /// <summary><paramref name="withSpending"/> false leaves the everyday spending out (null), as the notifications never use it.</summary>
+    public async Task<Result<DashboardView>> ReadAsync(PersonId reader, VisibilityScope scope, LocalDate today, CancellationToken ct, bool withSpending = true)
     {
         var worth = await Contributions.CollectAsync(netWorth, c => c.NetWorthAsync(reader, scope, today, ct));
         if (worth.TryGetFailure(out var failure)) return Result.Failure<DashboardView>(failure!);
@@ -37,7 +38,7 @@ public sealed class DashboardReader(
         if (committed.TryGetFailure(out failure)) return Result.Failure<DashboardView>(failure!);
         var earned = await Contributions.CollectAsync(income, c => c.IncomeAsync(reader, scope, today, ct));
         if (earned.TryGetFailure(out failure)) return Result.Failure<DashboardView>(failure!);
-        var spent = await Contributions.CollectAsync(spending, s => s.EverydayAsync(reader, scope, today, ct));
+        var spent = await Contributions.CollectAsync(withSpending ? spending : [], s => s.EverydayAsync(reader, scope, today, ct));
         if (spent.TryGetFailure(out failure)) return Result.Failure<DashboardView>(failure!);
         var until = today.PlusDays(DashboardMath.UpcomingDays);
         var dated = await Contributions.CollectAsync(upcoming, u => u.UpcomingAsync(reader, scope, today, until, ct));

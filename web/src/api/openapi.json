@@ -40526,7 +40526,8 @@
       "DashboardSpendingSliceView": {
         "required": [
           "name",
-          "amount"
+          "amount",
+          "others"
         ],
         "type": "object",
         "properties": {
@@ -40535,6 +40536,9 @@
           },
           "amount": {
             "$ref": "#/components/schemas/DashboardMoneyView"
+          },
+          "others": {
+            "type": "boolean"
           }
         }
       },

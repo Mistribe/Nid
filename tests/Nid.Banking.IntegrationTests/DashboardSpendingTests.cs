@@ -14,10 +14,10 @@ public class DashboardSpendingTests(PostgresFixture fixture) : IClassFixture<Pos
     private static readonly LocalDate Today = new(2025, 10, 15);
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    private static async Task<SpendingPart> EverydayAsync(NidApp app, PersonId person, VisibilityScope scope)
+    private static async Task<SpendingPart> EverydayAsync(NidApp app, PersonId person, VisibilityScope scope, Actor? actor = null)
     {
         await using var services = app.Services.CreateAsyncScope();
-        services.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.Browser(person);
+        services.ServiceProvider.GetRequiredService<IActorAccessor>().Current = actor ?? Actor.Browser(person);
         var read = await services.ServiceProvider.GetRequiredService<ISpendingContribution>().EverydayAsync(person, scope, Today, Ct);
         Assert.True(read.TryGetValue(out var part));
         return part!;
@@ -56,6 +56,7 @@ public class DashboardSpendingTests(PostgresFixture fixture) : IClassFixture<Pos
         await LinkAsync(app, await SpendingTests.LineAsync(app, joint, new(2025, 10, 5), -12.99m, "leisure.subscriptions"));
         // So is the tax: its payment is never linked, its category leaves it out.
         await SpendingTests.LineAsync(app, joint, new(2025, 10, 6), -300m, "taxes");
+        await TaxChildLineAsync(app, joint, -40m);
         await SpendingTests.LineAsync(app, joint, new(2025, 10, 7), -25m);
         await SpendingTests.LineAsync(app, joint, new(2025, 10, 8), 15m); // an uncategorised credit never counts
         await SpendingTests.LineAsync(app, joint, new(2025, 9, 20), -45m, "food.groceries"); // last month
@@ -71,6 +72,21 @@ public class DashboardSpendingTests(PostgresFixture fixture) : IClassFixture<Pos
         Assert.Equal(135m, Assert.Single(mine.Total).Value);
         Assert.Equal(10m, Slices(mine)["Transport"]);
         Assert.Equal(1125m, Assert.Single((await EverydayAsync(app, app.AdultB, VisibilityScope.Mine)).Total).Value);
+
+        // Read for Bob as Alice, or by the system: the accounts would be the actor's, so nothing.
+        Assert.Same(SpendingPart.None, await EverydayAsync(app, app.AdultB, VisibilityScope.Mine, Actor.Browser(app.AdultA)));
+        Assert.Same(SpendingPart.None, await EverydayAsync(app, app.AdultA, VisibilityScope.Household, Actor.System));
+    }
+
+    /// <summary>A line filed in a household's own child of « Impôts & taxes ».</summary>
+    private static async Task TaxChildLineAsync(NidApp app, Guid account, decimal amount)
+    {
+        var line = await SpendingTests.LineAsync(app, account, new(2025, 10, 9), amount);
+        await using var scope = app.Services.CreateAsyncScope();
+        scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
+        var categories = scope.ServiceProvider.GetRequiredService<ICategoryStore>();
+        Assert.True((await categories.CreateAsync(Nid.Banking.Domain.CategorySeed.Find("taxes")!.Id, "Taxe locale", CategoryKind.Expense, Ct)).TryGetValue(out var child));
+        Assert.Equal(1, await categories.SetForLinesAsync([line], child!.Id, CategorySource.Hand, "person:test", Instant.FromUtc(2025, 10, 15, 12, 0), true, Ct));
     }
 
     [Fact]

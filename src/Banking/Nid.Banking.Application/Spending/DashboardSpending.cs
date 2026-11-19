@@ -1,4 +1,5 @@
 using Nid.Core.Contracts;
+using Nid.Platform.Contracts;
 using NodaTime;
 using UnambitiousFx.Functional;
 
@@ -9,7 +10,8 @@ namespace Nid.Banking.Application.Spending;
 /// an item, and the « Impôts & taxes » category with its children (the margin counts the tax, and a tax payment cannot be linked).
 /// </summary>
 public sealed class DashboardSpending(
-    BankingAccess access, SpendingAccounts scopes, ITransactionStore lines, ICategoryStore categories, IHouseholdSettings household)
+    BankingAccess access, SpendingAccounts scopes, ITransactionStore lines, ICategoryStore categories, IHouseholdSettings household,
+    IActorAccessor actor)
     : ISpendingContribution
 {
     public const string Uncategorised = "Non classées";
@@ -17,8 +19,9 @@ public sealed class DashboardSpending(
 
     public async Task<Result<SpendingPart>> EverydayAsync(PersonId reader, VisibilityScope scope, LocalDate today, CancellationToken ct)
     {
-        // The accounts are the actor's: the reader, whether the dashboard's handler or the notifier reads it.
-        if (!(await access.EnabledAsync(ct)).IsSuccess || await scopes.ForAsync(scope, ct) is not { Count: > 0 } accounts)
+        // The accounts are the actor's: read for anyone else (or for no one, the system), nothing rather than the actor's lines.
+        if (actor.Current?.PersonId != reader || !(await access.EnabledAsync(ct)).IsSuccess
+            || await scopes.ForAsync(scope, ct) is not { Count: > 0 } accounts)
             return Result.Success(SpendingPart.None);
         var byId = (await categories.AllAsync(ct)).ToDictionary(c => c.Id);
         // Seeded at zero: an account that spent nothing yet reads 0, not « nothing to read ».

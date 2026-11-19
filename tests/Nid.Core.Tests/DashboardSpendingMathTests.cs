@@ -21,7 +21,7 @@ public class DashboardSpendingMathTests
     private static SpendingPart Part(params (string Name, decimal Amount)[] slices)
         => new(Eur(slices.Sum(s => s.Amount)), [.. slices.Select(s => new SpendingSlice(s.Name, Eur(s.Amount)))]);
 
-    private static (string, string)[] Slices(DashboardView view) => [.. view.SpendingSlices.Select(s => (s.Name, s.Amount.Amount))];
+    private static (string, string)[] Slices(DashboardView view) => [.. view.SpendingSlices.Select(s => (s.Others ? "*" + s.Name : s.Name, s.Amount.Amount))];
 
     [Fact]
     public void What_is_left_is_the_margin_less_everyday_spending_and_goes_below_zero()
@@ -68,7 +68,24 @@ public class DashboardSpendingMathTests
 
         Assert.Equal("425.00", view.EverydaySpending!.Amount);
         // Ties in French order; « Autres » = 425 − 390.
-        Assert.Equal([("Alimentation", "150.00"), ("Transport", "100.00"), ("Logement", "60.00"), ("Loisirs", "40.00"), ("Santé", "40.00"), ("Autres", "35.00")],
+        Assert.Equal([("Alimentation", "150.00"), ("Transport", "100.00"), ("Logement", "60.00"), ("Loisirs", "40.00"), ("Santé", "40.00"), ("*Autres", "35.00")],
             Slices(view));
+    }
+
+    [Fact]
+    public void A_category_named_like_the_rest_is_never_the_rest()
+    {
+        var view = Compose([Part(("Autres", 90m), ("A", 80m), ("B", 70m), ("C", 60m), ("D", 50m), ("E", 40m))]);
+
+        Assert.Equal([("Autres", "90.00"), ("A", "80.00"), ("B", "70.00"), ("C", "60.00"), ("D", "50.00"), ("*Autres", "40.00")], Slices(view));
+    }
+
+    [Fact]
+    public void Refunds_larger_than_the_spending_leave_it_below_zero_and_the_slices_above_it()
+    {
+        var view = Compose([Part(("Alimentation", 100m), ("Assurances", -150m))]);
+
+        Assert.Equal(("-50.00", "1050.00"), (view.EverydaySpending!.Amount, view.Left!.Amount));
+        Assert.Equal([("Alimentation", "100.00")], Slices(view)); // no band for the refund, no « Autres »
     }
 }
