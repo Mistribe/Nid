@@ -69,7 +69,7 @@ public class HoldingPerformanceTests
     [Fact]
     public void The_holdings_sum_to_the_unchanged_envelope_figures()
     {
-        var envelope = EnvelopeMath.At(Valuations, Flows, Currency.Eur, ValuationCadence.Yearly, null, End2025);
+        var envelope = EnvelopeMath.At(EnvelopeKind.Pea, Valuations, Flows, Currency.Eur, ValuationCadence.Yearly, null, End2025);
         var period = EnvelopeMath.Period(Valuations, Flows, Currency.Eur, new LocalDate(2025, 1, 1), End2025);
 
         Assert.Equal((Eur(686.70m), 6.9m, 3.4m), (envelope.Gain!.Value, envelope.GainPct, envelope.AnnualReturnPct));
@@ -237,7 +237,7 @@ public class HoldingPerformanceTests
 
             foreach (var h in holdings)
                 Assert.Equal(Perf(h, a, c), Perf(h, a, b) + Perf(h, b, c));
-            Assert.Equal(EnvelopeMath.At(valuations, flows, Currency.Eur, ValuationCadence.Monthly, null, c).Gain!.Value.Amount,
+            Assert.Equal(EnvelopeMath.At(EnvelopeKind.Pea, valuations, flows, Currency.Eur, ValuationCadence.Monthly, null, c).Gain!.Value.Amount,
                 holdings.Sum(h => HoldingMath.At(h, snapshots, movements, Currency.Eur, c)!.Gain.Amount));
             Assert.Equal(EnvelopeMath.Period(valuations, flows, Currency.Eur, a, c).Performance!.Value.Amount, holdings.Sum(h => Perf(h, a, c)));
         }

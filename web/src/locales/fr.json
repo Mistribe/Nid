@@ -568,6 +568,7 @@
     "empty_body": "Ajoutez un livret, un PEA ou une assurance-vie pour suivre sa valeur et ce qu’elle rapporte.",
     "no_value": "Aucune valeur pour l’instant",
     "dash": "—",
+    "no_gain": "Pas de plus-value : ce compte n’est pas un placement",
     "pct": "{{value}} %",
     "pct_undefined": "Pourcentage non calculable : aucun versement enregistré",
     "pct_per_year": "{{value}} % par an",

@@ -41,7 +41,7 @@ public sealed class EnvelopesSale(
             var f = facts.GetValueOrDefault(envelope.ItemId);
             var figures = f is null || envelope.ClosedOn is not null
                 ? null
-                : EnvelopeMath.At(f.Values, f.Flows, f.Currency, f.Envelope.Cadence, f.Envelope.StaleAfterDays, today);
+                : EnvelopeMath.At(f.Envelope.Kind, f.Values, f.Flows, f.Currency, f.Envelope.Cadence, f.Envelope.StaleAfterDays, today);
             var picked = figures?.Value is null ? null : ((Money Value, LocalDate AsOf, bool Estimated, IReadOnlyList<EstimatedLine>? Lines)?)
                 TodayValue.Pick(figures, estimates.GetValueOrDefault(envelope.ItemId));
             var flows = (f?.Flows ?? [])

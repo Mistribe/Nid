@@ -218,7 +218,7 @@ internal static class InvestmentsHoldingsMath
 
         foreach (var f in facts.OrderBy(f => f.Item.DisplayName, French).ThenBy(f => f.Item.Id.Value))
         {
-            var figures = EnvelopeMath.At(f.Values, f.Flows, f.Currency, f.Envelope.Cadence, f.Envelope.StaleAfterDays, today);
+            var figures = EnvelopeMath.At(f.Envelope.Kind, f.Values, f.Flows, f.Currency, f.Envelope.Cadence, f.Envelope.StaleAfterDays, today);
             // D16: an envelope without a value is not in the overview's value, so not here either.
             if (figures.Value is null) continue;
             var (value, asOf, isEstimated, estimatedLines) = TodayValue.Pick(figures, estimates?.GetValueOrDefault(f.Item.Id));

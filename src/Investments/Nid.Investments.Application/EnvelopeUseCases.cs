@@ -173,7 +173,7 @@ public sealed class GetEnvelopeHandler(
             return Result.Failure<EnvelopeDetail>(failure!);
         facts.TryGetValue(out var f);
         var today = await calendar.TodayAsync(ct);
-        var figures = Nid.Investments.Domain.EnvelopeMath.At(f!.Values, f.Flows, f.Currency, f.Envelope.Cadence, f.Envelope.StaleAfterDays, today);
+        var figures = Nid.Investments.Domain.EnvelopeMath.At(f!.Envelope.Kind, f.Values, f.Flows, f.Currency, f.Envelope.Cadence, f.Envelope.StaleAfterDays, today);
         // Minor 2: a closed envelope reports no staleness — EnvelopeMath stays pure; "closed" is known here.
         if (f.Item.ArchivedAt is not null)
             figures = figures with { StaleDays = null };
@@ -233,7 +233,7 @@ public sealed class ListEnvelopesHandler(
                 (await performance.FactsAsync(envelope.ItemId, ct)).TryGetValue(out f);
             if (f is null || (!query.IncludeClosed && f.Item.ArchivedAt is not null))
                 continue;
-            var figures = Nid.Investments.Domain.EnvelopeMath.At(f!.Values, f.Flows, f.Currency, f.Envelope.Cadence, f.Envelope.StaleAfterDays, today);
+            var figures = Nid.Investments.Domain.EnvelopeMath.At(f!.Envelope.Kind, f.Values, f.Flows, f.Currency, f.Envelope.Cadence, f.Envelope.StaleAfterDays, today);
             // Minor 2: a closed envelope reports no staleness — EnvelopeMath stays pure; "closed" is known here.
             if (f.Item.ArchivedAt is not null)
                 figures = figures with { StaleDays = null };

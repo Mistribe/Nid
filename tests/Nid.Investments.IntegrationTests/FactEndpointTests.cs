@@ -53,7 +53,8 @@ public class FactEndpointTests(PostgresFixture fixture, SharedNidApp shared) : I
 
         Assert.Equal(HttpStatusCode.Conflict, (await app.RawAsync(app.AdultA, HttpMethod.Delete, $"{url}/flows/{flow}")).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Delete, $"{url}/flows/{replacement}")).StatusCode);
-        Assert.Equal("1000.0000", (await DetailAsync(app, id)).GetProperty("figures").GetProperty("gain").GetProperty("amount").GetString());
+        // #374: a livret with nothing paid in recorded has no gain.
+        Assert.Equal(JsonValueKind.Null, (await DetailAsync(app, id)).GetProperty("figures").GetProperty("gain").ValueKind);
     }
 
     [Fact]

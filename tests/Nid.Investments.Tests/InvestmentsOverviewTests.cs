@@ -98,7 +98,7 @@ public class InvestmentsOverviewTests
 
         var o = Build([life]);
 
-        var own = EnvelopeMath.At(life.Values, life.Flows, Currency.Eur, ValuationCadence.Monthly, null, Today).AnnualReturnPct;
+        var own = EnvelopeMath.At(life.Envelope.Kind, life.Values, life.Flows, Currency.Eur, ValuationCadence.Monthly, null, Today).AnnualReturnPct;
         Assert.NotNull(own);
         Assert.Equal(own, o.AnnualReturnPct);
     }
@@ -235,6 +235,9 @@ public class InvestmentsOverviewTests
         Assert.Equal(["checking", "pea", "savings"], o.ByKind.Select(k => k.Kind).Order());
         var row = o.Envelopes.Single(e => e.Kind == "checking");
         Assert.Null(row.RatePct);
+        // #374: its balance is no gain, and no money paid in is missing.
+        Assert.Equal((null, null, false), (row.Figures.Gain, row.GainConverted, row.Figures.MissingOpening));
+        Assert.DoesNotContain(o.Watch, w => w.Code == "missing_opening");
     }
 
     [Fact]

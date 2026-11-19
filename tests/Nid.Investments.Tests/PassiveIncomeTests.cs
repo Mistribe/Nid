@@ -84,8 +84,8 @@ public class PassiveIncomeTests
         Assert.Equal(("envelope", classified.Item.Id, "CTO", "brokerage"), (row.Source, row.Id, row.Name, row.Kind));
         Assert.Equal([120m, 0m, 0m, 0m, 0m], Kinds(row.ByKind));
         Assert.Equal(
-            EnvelopeMath.At(plain.Values, plain.Flows, plain.Currency, ValuationCadence.Monthly, null, Today),
-            EnvelopeMath.At(classified.Values, classified.Flows, classified.Currency, ValuationCadence.Monthly, null, Today));
+            EnvelopeMath.At(plain.Envelope.Kind, plain.Values, plain.Flows, plain.Currency, ValuationCadence.Monthly, null, Today),
+            EnvelopeMath.At(classified.Envelope.Kind, classified.Values, classified.Flows, classified.Currency, ValuationCadence.Monthly, null, Today));
         Assert.Empty(Build([plain]).Rows);
     }
 
