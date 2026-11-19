@@ -9,6 +9,7 @@ import { SelectField } from '@/components/form/SelectField';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { SwitchField } from '@/components/page/SwitchField';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import type { EnvelopeSummary } from '@/api/investments';
 import { fieldErrorsOf } from '@/components/form/fieldErrors';
 import { ACCOUNT, accountLabel, ACCOUNTS, ASSOCIABLE, bankErrorText, CONNECTIONS, type BankAccount } from '@/api/banking';
@@ -33,18 +34,24 @@ export function AccountDialog({ account, envelopes, parents, onClose, onDone }: 
   const [cardOf, setCardOf] = useState(account.cardOfAccountId ?? '');
   const [ignored, setIgnored] = useState(account.ignored);
   const [auto, setAuto] = useState(account.autoApplyBalance);
+  // The household's own name; empty: the bank's, shown as the placeholder.
+  const [rename, setRename] = useState(account.renamed ? account.name : '');
   const name = accountLabel(t, account);
+  const bankLabel = accountLabel(t, { ...account, name: account.bankName });
 
   const fields = fieldErrorsOf(save.error);
   const errorOf = (path: string) => { const f = fields.find((x) => x.path === path); return f ? bankErrorText(t, f.code, f.message) : undefined; };
   const code = save.error ? toProblem(save.error).code : null;
   const envelopeError = code && ON_ENVELOPE.includes(code) ? bankErrorText(t, code, '') : errorOf('envelopeId');
   const cardError = errorOf('cardOfAccountId');
-  const unplaced = save.error && !envelopeError && !cardError;
+  const nameError = errorOf('name');
+  const unplaced = save.error && !envelopeError && !cardError && !nameError;
+  const typed = rename.trim();
 
   const submit = (done: (message: string) => void) => save.mutate({
     params: { path: { id: account.id } },
     body: {
+      ...(typed !== (account.renamed ? account.name : '') ? (typed ? { name: typed } : { clearName: true }) : {}),
       ...(!card && envelopeId !== (account.envelopeId ?? '') ? (envelopeId ? { envelopeId } : { clearEnvelope: true }) : {}),
       ...(card && cardOf !== (account.cardOfAccountId ?? '') ? (cardOf ? { cardOfAccountId: cardOf } : { clearCard: true }) : {}),
       ...(ignored !== account.ignored ? { ignored } : {}),
@@ -54,7 +61,7 @@ export function AccountDialog({ account, envelopes, parents, onClose, onDone }: 
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['get', CONNECTIONS] });
       void queryClient.invalidateQueries({ queryKey: ['get', ACCOUNTS] });
-      done(t('banks.account_dialog.saved', { name }));
+      done(t('banks.account_dialog.saved', { name: typed || bankLabel }));
     },
   });
 
@@ -67,6 +74,13 @@ export function AccountDialog({ account, envelopes, parents, onClose, onDone }: 
           submit(done);
         }}>
           {unplaced ? <ProblemMessage problem={present(toProblem(save.error))} /> : null}
+          <Field label={t('banks.account_dialog.name')} hint={t('banks.account_dialog.name_hint')} error={nameError}>
+            {(c) => <Input {...c} value={rename} maxLength={100} placeholder={bankLabel}
+              onChange={(event) => setRename(event.target.value)} />}
+          </Field>
+          {rename ? (
+            <Button type="button" variant="link" className="h-auto p-0" onClick={() => setRename('')}>{t('banks.account_dialog.reset_name')}</Button>
+          ) : null}
           {card ? (
             <Field label={t('banks.account_dialog.card_of')} error={cardError}>
               {(c) => (

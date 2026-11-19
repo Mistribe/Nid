@@ -91,6 +91,8 @@ public class EnableBankingClientTests
             [
                 new SessionAccount("3e0b5f58-52f1-4a1c-9b0e-0a8c8d9d1f01", "aGFzaC1jb21wdGUtY291cmFudA", "FR7630006000011234567890189", "Compte courant", "CACC", "EUR"),
                 new SessionAccount("5a9d6d0e-71c4-4bb5-8d49-9c1b3b6f2a02", "aGFzaC1saXZyZXQ", "FR1420041010050500013M02606", "M DUPONT JEAN", "SVGS", "EUR"),
+                // A code in details is passed over for the product; the masked card number gives its last four digits.
+                new SessionAccount("7c2e8a14-0d3b-4f6e-9a57-2b8f1c3d4e03", "aGFzaC1jYXJ0ZS12aXNh", null, "Carte Visa", "CARD", "EUR", CardDebit.Immediate, "4321"),
             ],
             session.Accounts);
         Assert.Equal("the-code", JsonDocument.Parse(handler.Requests.Single().Body).RootElement.GetProperty("code").GetString());

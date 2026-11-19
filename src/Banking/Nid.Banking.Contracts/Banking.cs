@@ -7,19 +7,27 @@ public enum ConnectionStatus { Pending, Active, Expired, Revoked, Error }
 
 public enum BankAccountKind { Checking, Savings, Card, Other }
 
+/// <summary>How a card's spending leaves its checking account, when the bank says so.</summary>
+public enum CardDebit { Immediate, Deferred }
+
 /// <summary>A consent at a bank (spec §2.2), its creator's only (D7). <paramref name="Source"/> is <c>enable_banking</c>.</summary>
 public sealed record BankConnection(
     Guid Id, PersonId Person, string Source, string AspspName, string AspspCountry, ConnectionStatus Status, Instant? ValidUntil,
     Instant? LastSyncedAt, string? LastErrorCode, int ConsecutiveFailures, Instant CreatedAt);
 
 /// <summary>An account seen at the bank (spec §2.3), once per installation however many connections see it (D21).</summary>
-/// <param name="IbanMasked">The IBAN's last four characters, never more.</param>
+/// <param name="IbanMasked">The IBAN's last four characters (a card's number's, when it has no IBAN), never more.</param>
 /// <param name="CreatedBy">The creator of the connection that first saw it: unassociated, it stays theirs once that connection is gone.</param>
 /// <param name="LastValuedOn">The last date the sync valued the envelope for (spec §4.1); with <paramref name="BalanceConflictOn"/>, the sync's own columns.</param>
 /// <param name="AssociatedBy">Who associated it with <paramref name="Envelope"/>: the sync writes as them when the reading connection's creator cannot (R3).</param>
+/// <param name="Name">The name every screen and tool shows: <paramref name="HouseholdName"/> when the household set one, else <paramref name="BankName"/>.</param>
+/// <param name="HouseholdName">The household's own name for it, which no session read touches; null: the bank's.</param>
+/// <param name="BankName">The name the bank's last session gave (empty when it gave none); null on a record built without it, where it is <paramref name="Name"/>.</param>
+/// <param name="Debit">A card's immediate or deferred debit, when the bank says which.</param>
 public sealed record BankAccount(
     Guid Id, string? IbanMasked, string Name, BankAccountKind Kind, Currency Currency, ItemId? Envelope, Guid? CardOf, bool AutoApplyBalance,
-    bool Ignored, LocalDate? BalanceConflictOn, LocalDate? AssociatedOn, PersonId CreatedBy, LocalDate? LastValuedOn = null, PersonId? AssociatedBy = null);
+    bool Ignored, LocalDate? BalanceConflictOn, LocalDate? AssociatedOn, PersonId CreatedBy, LocalDate? LastValuedOn = null, PersonId? AssociatedBy = null,
+    string? HouseholdName = null, string? BankName = null, CardDebit? Debit = null);
 
 /// <summary>A connection that sees an account, under the account's uid in that connection's session.</summary>
 public sealed record BankAccountSource(Guid Account, Guid Connection, string ProviderUid, string IdentificationHash);
@@ -29,9 +37,12 @@ public sealed record BankBalance(Guid Account, LocalDate AsOf, decimal Amount, s
 
 /// <summary>
 /// An account as a bank session lists it: <paramref name="Uid"/> holds for that session only, <paramref name="IdentificationHash"/> across
-/// sessions; <paramref name="CashAccountType"/> is the ISO 20022 code (<c>CACC</c>, <c>SVGS</c>, <c>CARD</c>…).
+/// sessions; <paramref name="CashAccountType"/> is the ISO 20022 code (<c>CACC</c>, <c>SVGS</c>, <c>CARD</c>…). <paramref name="Name"/> is the bank's
+/// most readable field (empty when none reads as a name), <paramref name="NumberLast4"/> a card number's last four digits when it has no IBAN.
 /// </summary>
-public sealed record SessionAccount(string Uid, string IdentificationHash, string? Iban, string Name, string CashAccountType, string Currency);
+public sealed record SessionAccount(
+    string Uid, string IdentificationHash, string? Iban, string Name, string CashAccountType, string Currency, CardDebit? Debit = null,
+    string? NumberLast4 = null);
 
 /// <summary>Where a bank transaction stands against the household's own records; <c>Unlinked</c> in 5B, the others are 5C's.</summary>
 public enum TransactionLinkState { Unlinked, Linked, Ignored, Internal }

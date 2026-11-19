@@ -33718,6 +33718,18 @@
               "null",
               "boolean"
             ]
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "clearName": {
+            "type": [
+              "null",
+              "boolean"
+            ]
           }
         },
         "additionalProperties": false
@@ -33731,7 +33743,9 @@
           "autoApplyBalance",
           "ignored",
           "synced",
-          "canWrite"
+          "canWrite",
+          "bankName",
+          "renamed"
         ],
         "type": "object",
         "properties": {
@@ -33799,6 +33813,18 @@
           },
           "canWrite": {
             "type": "boolean"
+          },
+          "bankName": {
+            "type": "string"
+          },
+          "renamed": {
+            "type": "boolean"
+          },
+          "cardDebit": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },

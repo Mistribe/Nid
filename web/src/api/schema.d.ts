@@ -31227,6 +31227,8 @@ export interface components {
             clearCard?: null | boolean;
             autoApplyBalance?: null | boolean;
             ignored?: null | boolean;
+            name?: null | string;
+            clearName?: null | boolean;
         };
         BankAccountView: {
             /** Format: uuid */
@@ -31248,6 +31250,9 @@ export interface components {
             lastBalanceOn?: null | string;
             synced: boolean;
             canWrite: boolean;
+            bankName: string;
+            renamed: boolean;
+            cardDebit?: null | string;
         };
         BankingStatusView: {
             enabled: boolean;

@@ -34,8 +34,18 @@ public sealed class AccountRow
     public byte[]? IbanHash { get; set; }
 
     public string? IbanMasked { get; set; }
+
+    /// <summary>The bank's name for it, refreshed on every session read.</summary>
     public string Name { get; set; } = "";
+
+    /// <summary>The household's own name for it: no session read touches it.</summary>
+    public string? HouseholdName { get; set; }
+
     public string Kind { get; set; } = "";
+
+    /// <summary>A card's <c>immediate</c> or <c>deferred</c> debit, when the bank says which.</summary>
+    public string? CardDebit { get; set; }
+
     public string Currency { get; set; } = "";
     public Guid? EnvelopeItemId { get; set; }
     public Guid? CardOfAccountId { get; set; }
