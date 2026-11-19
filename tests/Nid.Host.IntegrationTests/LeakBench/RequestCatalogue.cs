@@ -635,6 +635,8 @@ public static class RequestCatalogue
         new(typeof(LinkTransactionCommand), false, (d, item) => new LinkTransactionCommand(d.JointLine, "subscriptions", item.Value, null)),
         new(typeof(UnlinkTransactionCommand), false, (d, _) => new UnlinkTransactionCommand(d.JointLine)),
         new(typeof(IgnoreTransactionCommand), false, (d, _) => new IgnoreTransactionCommand(d.JointLine)),
+        new(typeof(SetTransactionCategoryCommand), false, (d, _) => new SetTransactionCategoryCommand(d.JointLine, null)),
+        new(typeof(ResetTransactionCategoryCommand), false, (d, _) => new ResetTransactionCategoryCommand(d.JointLine)),
         new(typeof(ListBankRulesQuery), false, (_, _) => new ListBankRulesQuery()),
         new(typeof(DeleteBankRuleCommand), false, (_, _) => new DeleteBankRuleCommand(Guid.NewGuid())),
         // A preview: the actor's own new account from a file, rolled back; dropped on the row's item, refused unless they write an envelope.

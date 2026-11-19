@@ -39,6 +39,12 @@ public sealed record UnlinkTransactionCommand(Guid TransactionId) : ICommand<Ban
 /// <summary>An unlinked line no charge is expected for.</summary>
 public sealed record IgnoreTransactionCommand(Guid TransactionId) : ICommand<BankTransactionView>;
 
+/// <summary>A person's category for a line of an account they write; null is « Sans catégorie », kept over any link or rule alike.</summary>
+public sealed record SetTransactionCategoryCommand(Guid TransactionId, Guid? CategoryId) : ICommand<BankTransactionView>;
+
+/// <summary>« Laisser Nid décider »: the line's category cleared, then its link's again when it is linked.</summary>
+public sealed record ResetTransactionCategoryCommand(Guid TransactionId) : ICommand<BankTransactionView>;
+
 /// <summary>The actor's own rules.</summary>
 public sealed record ListBankRulesQuery : IQuery<IReadOnlyList<BankRuleView>>;
 
@@ -49,11 +55,15 @@ public sealed record BankTransactionPage(IReadOnlyList<BankTransactionView> Item
 /// <summary>
 /// <paramref name="Amount"/> is signed (a debit is negative); <paramref name="CardName"/> names the card of a <paramref name="FromCard"/> line,
 /// <paramref name="AccountName"/> the line's own account. <paramref name="Link"/> is null when the line is not linked, or its target is
-/// hidden from the reader (D19): <paramref name="LinkState"/> still says <c>linked</c> or <c>internal</c>.
+/// hidden from the reader (D19): <paramref name="LinkState"/> still says <c>linked</c> or <c>internal</c>. <paramref name="Category"/> shows to
+/// every reader of the line, link masked or not; <paramref name="CategorySource"/> is <c>hand</c>, <c>link</c>…, null when nothing chose it.
 /// </summary>
 public sealed record BankTransactionView(
     Guid Id, LocalDate BookedOn, LocalDate? ValueOn, string Amount, string Currency, string Label, string? Counterparty, bool FromCard,
-    string? CardName, string FetchedVia, string LinkState, LinkView? Link, string AccountName);
+    string? CardName, string FetchedVia, string LinkState, LinkView? Link, string AccountName, CategoryView? Category, string? CategorySource);
+
+/// <summary>A line's category; <paramref name="Kind"/> is <c>expense</c>, <c>income</c> or <c>transfer</c>.</summary>
+public sealed record CategoryView(Guid Id, string Name, Guid? ParentId, string? ParentName, string Kind);
 
 /// <summary>A line's link: to a charge of an item (<paramref name="Module"/>, <paramref name="ItemId"/>), or to the counterpart account of an internal one.</summary>
 public sealed record LinkView(string Outcome, string? Module, Guid? ItemId, string? ItemName, string? Key, string? CounterpartName,
@@ -72,7 +82,8 @@ public sealed record BankRuleView(Guid Id, string LabelStem, string? AccountName
 
 /// <summary>The lines the actor reads, as views masked by D19, and the line a request names.</summary>
 public sealed class BankLines(
-    BankingAccess access, IAccountStore accounts, ITransactionStore transactions, ILinkStore links, IItemRegistry items, IAccessPolicy policy)
+    BankingAccess access, IAccountStore accounts, ITransactionStore transactions, ILinkStore links, IItemRegistry items, IAccessPolicy policy,
+    ICategoryStore categories)
 {
     public const int PageSize = 50;
 
@@ -121,6 +132,12 @@ public sealed class BankLines(
         var found = await links.ForTransactionsAsync([.. lines.Select(l => l.Id)], ct);
         var targets = found.Values.Select(l => l.TargetItem).OfType<ItemId>().Distinct().ToList();
         var names = await items.FindManyAsync([.. await policy.CheckManyAsync(access.Person, targets, AccessKind.Read, ct)], ct);
+        var named = (await categories.AllAsync(ct)).ToDictionary(c => c.Id);
+
+        // Decision 6: the category shows whatever D19 masks; it names a category, never the link's target.
+        CategoryView? Category(Guid? id) => id is { } key && named.TryGetValue(key, out var c)
+            ? new CategoryView(c.Id, c.Name, c.Parent, c.Parent is { } parent && named.TryGetValue(parent, out var p) ? p.Name : null, Wire(c.Kind))
+            : null;
 
         LinkView? View(BankLink link) => link switch
         {
@@ -139,7 +156,8 @@ public sealed class BankLines(
             return new BankTransactionView(
                 t.Id, t.BookedOn, t.ValueOn, TransactionLinker.Amount(t.Amount), t.Currency.Code, t.Label, t.Counterparty, account.CardOf is not null,
                 account.CardOf is not null ? account.Name : null, t.FetchedVia,
-                t.LinkState == TransactionLinkState.Internal && view is null ? "linked" : Wire(t.LinkState), view, account.Name);
+                t.LinkState == TransactionLinkState.Internal && view is null ? "linked" : Wire(t.LinkState), view, account.Name,
+                Category(t.Category), t.CategorySource is { } source ? Wire(source) : null);
         })];
     }
 
@@ -321,6 +339,58 @@ public sealed class IgnoreTransactionHandler(BankingAccess access, BankLines lin
             return Result.Failure<BankTransactionView>(new ConflictFailure("This line is already linked or ignored.") { Code = BankingCodes.TransactionLinked });
 
         await links.ClearAsync(line.Id, TransactionLinkState.Ignored, ct);
+        return Result.Success(await lines.ViewAsync(line.Id, ct));
+    }
+}
+
+[RequestHandler<SetTransactionCategoryCommand, BankTransactionView>]
+public sealed class SetTransactionCategoryHandler(BankingAccess access, BankLines lines, ICategoryStore categories, IClock clock)
+    : IRequestHandler<SetTransactionCategoryCommand, BankTransactionView>
+{
+    public async ValueTask<Result<BankTransactionView>> HandleAsync(SetTransactionCategoryCommand command, CancellationToken ct = default)
+    {
+        var enabled = await access.EnabledAsync(ct);
+        if (!enabled.IsSuccess)
+            return BankingAccess.Failed<BankTransactionView>(enabled);
+        var found = await lines.FindAsync(command.TransactionId, AccessKind.Write, ct);
+        if (!found.TryGetValue(out var line))
+            return BankingAccess.Failed<BankTransactionView, BankTransaction>(found);
+        if (command.CategoryId is { } id)
+        {
+            if (await categories.FindAsync(id, ct) is not { } category)
+                return Result.Failure<BankTransactionView>(new NotFoundFailure("bank category", id.ToString()));
+            // A merged category is archived too: its lines went to its target.
+            if (category.ArchivedAt is not null)
+                return Result.Failure<BankTransactionView>(FieldErrors.At(
+                    new Failure(BankingCodes.CategoryArchived, "A line takes only a category in use.", null), "categoryId"));
+        }
+
+        await categories.SetForLinesAsync([line!.Id], command.CategoryId, CategorySource.Hand, $"person:{access.Person.Value:D}",
+            clock.GetCurrentInstant(), byPerson: true, ct);
+        return Result.Success(await lines.ViewAsync(line.Id, ct));
+    }
+}
+
+[RequestHandler<ResetTransactionCategoryCommand, BankTransactionView>]
+public sealed class ResetTransactionCategoryHandler(
+    BankingAccess access, BankLines lines, ILinkStore links, ICategoryStore categories, LinkCategoryReader reader, IClock clock)
+    : IRequestHandler<ResetTransactionCategoryCommand, BankTransactionView>
+{
+    public async ValueTask<Result<BankTransactionView>> HandleAsync(ResetTransactionCategoryCommand command, CancellationToken ct = default)
+    {
+        var enabled = await access.EnabledAsync(ct);
+        if (!enabled.IsSuccess)
+            return BankingAccess.Failed<BankTransactionView>(enabled);
+        var found = await lines.FindAsync(command.TransactionId, AccessKind.Write, ct);
+        if (!found.TryGetValue(out var line))
+            return BankingAccess.Failed<BankTransactionView, BankTransaction>(found);
+
+        await categories.SetForLinesAsync([line!.Id], null, null, $"person:{access.Person.Value:D}", clock.GetCurrentInstant(), byPerson: true, ct);
+        // The link does not keep its charge's kind: the item's kind stands in, as for the backfill.
+        if ((await links.ForTransactionsAsync([line.Id], ct)).GetValueOrDefault(line.Id) is { } link
+            && await reader.KeyAsync(link, null, line.Amount > 0, ct) is { } key
+            && await categories.ResolveKeyAsync(key, ct) is { } category)
+            await categories.SetForLinesAsync([line.Id], category, CategorySource.Link, link.DecidedBy, link.DecidedAt, byPerson: false, ct);
         return Result.Success(await lines.ViewAsync(line.Id, ct));
     }
 }

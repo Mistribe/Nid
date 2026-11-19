@@ -118,6 +118,14 @@ public static class BankingEndpoints
             => (await invoker.InvokeAsync(new IgnoreTransactionCommand(id), ct)).ToHttp(line => line))
             .Returns<BankTransactionView>();
 
+        api.MapPut("/transactions/{id:guid}/category", async (Guid id, LineCategoryBody body, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new SetTransactionCategoryCommand(id, body.CategoryId), ct)).ToHttp(line => line))
+            .Returns<BankTransactionView>();
+
+        api.MapDelete("/transactions/{id:guid}/category", async (Guid id, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new ResetTransactionCategoryCommand(id), ct)).ToHttp(line => line))
+            .Returns<BankTransactionView>();
+
         api.MapGet("/rules", async (IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new ListBankRulesQuery(), ct)).ToHttp(rules => rules))
             .Returns<IReadOnlyList<BankRuleView>>();
@@ -258,6 +266,10 @@ public static class BankingEndpoints
     /// <summary>A charge of <c>itemId</c> (a subscription, a loan, a property); <c>key</c> names one, else the nearest is taken.</summary>
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
     public sealed record LinkBody(string? Module, Guid? ItemId, string? Key);
+
+    /// <summary>A line's category chosen by hand; a null <c>categoryId</c> is « Sans catégorie ».</summary>
+    [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+    public sealed record LineCategoryBody(Guid? CategoryId);
 
     /// <summary>A new category; <c>kind</c> (<c>expense</c>, <c>income</c>, <c>transfer</c>) is required without a <c>parentId</c>.</summary>
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
