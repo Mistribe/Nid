@@ -151,7 +151,7 @@ public class EnableBankingClientTests
 
         Assert.Equal(
         [
-            new ProviderTransaction("ref-1", new LocalDate(2026, 10, 27), new LocalDate(2026, 10, 28), -13.49m, "EUR", "PRLV SEPA NETFLIX OCT 2026", "NETFLIX INTERNATIONAL", "PRLV SEPA NETFLIX OCT 2026", "PMNT/MDOP"),
+            new ProviderTransaction("ref-1", new LocalDate(2026, 10, 27), new LocalDate(2026, 10, 28), -13.49m, "EUR", "PRLV SEPA NETFLIX OCT 2026", "NETFLIX INTERNATIONAL", "PRLV SEPA NETFLIX OCT 2026", "RDDT/ESDD"),
             new ProviderTransaction("ref-2", new LocalDate(2026, 10, 26), null, 1500.00m, "EUR", "ACME SAS", "ACME SAS", null, null),
             // No booking date: the value date stands in; no remittance nor party: the code's description as the label, never as a bank code.
             new ProviderTransaction("ref-3", new LocalDate(2026, 10, 20), new LocalDate(2026, 10, 20), -2.50m, "EUR", "Frais", null, null, null),

@@ -169,6 +169,12 @@ public class McpBankingToolTests(PostgresFixture fixture) : IClassFixture<Postgr
 
         await using var read = await ClientAsync(s.App, TokenPresets.Read);
         Assert.True((await CallAsync(read, "propose_bank_categories", new { lines = new[] { new { transactionId = s.Open, categoryId = groceries } } })).Error);
+
+        // A line in a pending proposal is listed again, and the read tool says so.
+        Assert.Contains(s.Open, JsonDocument.Parse(await ReadAsync(read, "list_uncategorised_bank_transactions", new { })).RootElement
+            .GetProperty("items").EnumerateArray().Select(l => l.GetProperty("id").GetGuid()));
+        Assert.Contains("already in a pending proposal may be listed again", (await read.ListToolsAsync(cancellationToken: TestContext.Current.CancellationToken))
+            .Single(t => t.Name == "list_uncategorised_bank_transactions").Description);
     }
 
     [Fact]

@@ -631,6 +631,23 @@ public class SyncTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
     }
 
     [Fact]
+    public async Task A_synced_cash_withdrawal_takes_the_bank_code_hint()
+    {
+        var (app, clock) = await StartAsync(fixture);
+        await using var _app = app;
+        await BankingApi.ConnectAsync(app, app.AdultA, "code-a", BankingApi.Account("uid-1", "hash-1", null, "Courant A"));
+        Serve(app, "session-code-a", "uid-1", D(8, 12), 10m);
+        // Enable Banking's code is the ISO family and sub-family, without the domain.
+        app.Banks.Transactions[("session-code-a", "uid-1")] = [Line("r1", D(8, 10), -20m, "RETRAIT DAB") with { BankCode = "CCRD/CWDL" }];
+
+        await NightAsync(app, clock, D(8, 12));
+
+        await using var db = Db(app);
+        var line = await db.Transactions.SingleAsync(cancellationToken: TestContext.Current.CancellationToken);
+        Assert.Equal((Nid.Banking.Domain.CategorySeed.Find("internal.cash")!.Id, "hint"), (line.CategoryId, line.CategorySource));
+    }
+
+    [Fact]
     public async Task A_second_read_adds_nothing()
     {
         var (app, clock) = await StartAsync(fixture);

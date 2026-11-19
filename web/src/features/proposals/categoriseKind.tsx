@@ -59,4 +59,9 @@ export const categorise: KindUi = {
   ...notEditable((t) => t('proposal.categorise.as_proposed')),
   targetless: true,
   link: () => undefined,
+  // appliedRefs holds the lines categorised; the payload's others were skipped. Counts of lines, not amounts.
+  outcome: (t, p) => {
+    const total = ((p.editedPayload ?? p.payload) as CategorisePayload).lines.length;
+    return `${t('proposal.categorise.applied', { count: p.appliedRefs.length })}, ${t('proposal.categorise.unchanged', { count: total - p.appliedRefs.length })}`;
+  },
 };

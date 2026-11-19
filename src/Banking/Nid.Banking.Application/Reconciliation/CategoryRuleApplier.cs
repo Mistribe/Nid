@@ -18,7 +18,26 @@ public sealed class CategoryRuleApplier(
         if (await transactions.FindAsync(line, ct) is not { } found || await accounts.FindAsync(found.Account, ct) is not { } account)
             return 0;
         var writers = await access.ReadersAsync(account, ct, AccessKind.Write);
-        return await ApplyAsync([found], (rule, _) => Task.FromResult(writers.Contains(rule.CreatedBy)), ct);
+        var applied = await ApplyAsync([found], (rule, _) => Task.FromResult(writers.Contains(rule.CreatedBy)), ct);
+        await HintAsync([found], ct);
+        return applied;
+    }
+
+    /// <summary>
+    /// After the rules: each line still without a category takes the seed its bank code points at (<see cref="CategoryHints"/>),
+    /// unless that category is archived. <paramref name="lines"/> may be stale: precedence in SetForLinesAsync keeps a rule's.
+    /// </summary>
+    public async Task HintAsync(IReadOnlyList<BankTransaction> lines, CancellationToken ct)
+    {
+        var keyed = lines.Where(l => l.LinkState != TransactionLinkState.Ignored && l.CategorySource is null)
+            .Select(l => (l.Id, Key: CategoryHints.KeyFor(l.BankCode, l.Amount))).Where(x => x.Key is not null).ToList();
+        if (keyed.Count == 0)
+            return;
+        var archived = (await categories.AllAsync(ct)).Where(c => c.ArchivedAt is not null).Select(c => c.Id).ToHashSet();
+        var now = clock.GetCurrentInstant();
+        foreach (var group in keyed.GroupBy(x => x.Key!))
+            if (await categories.ResolveKeyAsync(group.Key, ct) is { } category && !archived.Contains(category))
+                await categories.SetForLinesAsync([.. group.Select(x => x.Id)], category, CategorySource.Hint, "job", now, byPerson: false, ct);
     }
 
     /// <summary>How many lines took a rule's category; the rules that set one are touched.</summary>

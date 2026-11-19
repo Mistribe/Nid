@@ -15,12 +15,12 @@ public sealed record ReconciliationCounts(int Internal, int Linked, int Proposed
 /// <summary>
 /// 5C spec §6.3: the lines no pass has looked at yet, after a sync or a statement import. Transfers and card settlements first, over the
 /// whole batch; then, line by line, its writers' rules, else its single candidate charge, proposed to a writer of the account who writes it (D22);
-/// then the category rules of the authors who write each line's account (transaction categories spec §Rules). The
+/// then the category rules of the authors who write each line's account (transaction categories spec §Rules), then the bank-code hints. The
 /// counts and codes of a failure are logged, never a label or an amount; a failed line stays for the next pass.
 /// </summary>
 public sealed class BankReconciliation(
     BankingAccess access, ITransactionStore transactions, IAccountStore accountStore, ILinkStore links, IRuleStore rules,
-    ExpectedChargeReader charges, TransactionLinker linker, CategoryRuleApplier categoryRules, ICategoryStore categories, IAccessPolicy policy, IProposalSubmitter proposals,
+    ExpectedChargeReader charges, TransactionLinker linker, CategoryRuleApplier categoryRules, IAccessPolicy policy, IProposalSubmitter proposals,
     IActorAccessor actor, IUnitOfWork unitOfWork, IClock clock, ILogger<BankReconciliation> log)
 {
     /// <summary>The widest tolerance of a charge (a rent's): the charges read around the batch.</summary>
@@ -194,14 +194,7 @@ public sealed class BankReconciliation(
         });
 
         // `lines` is a snapshot, stale after the rule and link steps: the SQL precedence in SetForLinesAsync guards the write.
-        // After the rules: a hint only fills a line still without a category (precedence in SQL keeps the rest).
-        await TryAsync([.. looked.Select(l => l.Id)], async () =>
-        {
-            foreach (var group in looked.Where(l => l.LinkState != TransactionLinkState.Ignored && l.CategorySource is null)
-                         .Select(l => (l.Id, Key: CategoryHints.KeyFor(l.BankCode, l.Amount))).Where(x => x.Key is not null).GroupBy(x => x.Key!))
-                if (await categories.ResolveKeyAsync(group.Key, ct) is { } category)
-                    await categories.SetForLinesAsync([.. group.Select(x => x.Id)], category, CategorySource.Hint, "job", now, byPerson: false, ct);
-        });
+        await TryAsync([.. looked.Select(l => l.Id)], () => categoryRules.HintAsync(looked, ct));
 
         await transactions.MarkReconciledAsync([.. lines.Select(l => l.Id).Where(id => !failed.Contains(id))], now, ct);
         return new ReconciliationCounts(internals, linked, proposed);

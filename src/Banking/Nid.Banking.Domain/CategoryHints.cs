@@ -2,7 +2,8 @@ namespace Nid.Banking.Domain;
 
 /// <summary>
 /// The seed category a bank's structured transaction code points at (spec §Hints). Only unambiguous codes: an ISO 20022 code
-/// (<c>Domn/Fmly/SubFmly</c>, upper-case, segment-wise) or an OFX <c>TRNTYPE</c> token. Free text never matches.
+/// (<c>Domn/Fmly/SubFmly</c>, or Enable Banking's <c>Fmly/SubFmly</c> without the domain; upper-case, segment-wise) or an OFX
+/// <c>TRNTYPE</c> token. Free text and proprietary codes (<c>12/32</c>) never match.
 /// </summary>
 public static class CategoryHints
 {
@@ -22,9 +23,9 @@ public static class CategoryHints
             return null;
         return parts switch
         {
-            ["PMNT", "CCRD", "CWDL", ..] when amount < 0 => "internal.cash",
-            ["ACMT", "MDOP", "CHRG", ..] or ["PMNT", _, "CHRG", ..] when amount < 0 => "bank",
-            ["PMNT", "RCDT", "SALA", ..] when amount > 0 => "income.salary",
+            ["PMNT", "CCRD", "CWDL", ..] or ["CCRD", "CWDL"] when amount < 0 => "internal.cash",
+            ["ACMT", "MDOP", "CHRG", ..] or ["PMNT", _, "CHRG", ..] or [_, "CHRG"] when amount < 0 => "bank",
+            ["PMNT", "RCDT", "SALA", ..] or ["RCDT", "SALA"] when amount > 0 => "income.salary",
             _ => null,
         };
     }

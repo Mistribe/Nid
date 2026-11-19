@@ -208,6 +208,7 @@ public sealed partial class WriteTools
 
     [McpServerTool(Name = "propose_bank_categories", ReadOnly = false, Destructive = false, Idempotent = true)]
     [Description("Give a category to bank lines (list_uncategorised_bank_transactions): 1 to 100 lines, each with the id of a category in use. "
+        + "Use only the line and category ids the tools gave, and invent nothing: leave out a line no category fits. "
         + "Nothing changes until an adult approves it in « À valider »; a line a person already categorised keeps its category.")]
     public static Task<CallToolResult> ProposeBankCategories(IServiceProvider services,
         [Description("The lines and their categories: { transactionId, categoryId }, 100 at most, each line once.")] BankCategoryLine[] lines,

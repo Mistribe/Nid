@@ -36,7 +36,7 @@ public sealed class BankingTools
     [McpServerTool(Name = "list_uncategorised_bank_transactions", ReadOnly = true)]
     [Description("The booked bank lines of the accounts the person reads that have no category yet (ignored lines left out), newest first, 50 per page, "
         + "with the categories in use (id, name, parent, kind: expense, income or transfer). Pick a category for each line and send them to "
-        + "propose_bank_categories. " + McpSetup.Untrusted)]
+        + "propose_bank_categories. A line already in a pending proposal may be listed again (a second approval skips it). " + McpSetup.Untrusted)]
     public static async Task<CallToolResult> ListUncategorisedBankTransactions(IServiceProvider services,
         [Description("Page, from 1.")] int page = 1, CancellationToken ct = default)
     {

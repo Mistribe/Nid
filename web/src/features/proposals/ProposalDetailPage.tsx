@@ -123,7 +123,7 @@ function Proposal({ id }: { id: string }) {
 
   return (
     <div className="flex flex-col gap-6">
-      {p.status !== 'pending' ? <>{head(null)}{body}<Decided p={p} target={p.status === 'approved' ? link ?? null : null} /></>
+      {p.status !== 'pending' ? <>{head(null)}{body}<Decided p={p} target={p.status === 'approved' ? link ?? null : null} outcome={p.status === 'approved' ? kind?.outcome?.(t, p) : undefined} /></>
         : !canDecide ? <>{head(null)}{body}<p>{t('proposal.read_only')}</p></>
         // A new version (« Recharger ») starts the decision again; a delete keeps its dialog open across one (a refused approval).
         : <Decide key={p.kind in DELETABLE ? p.id : `${p.id}:${p.version}`} p={p} preview={preview} next={next} kind={kind && !unsupported ? kind : null} asProposed={route} head={head} body={body} />}
@@ -132,7 +132,7 @@ function Proposal({ id }: { id: string }) {
   );
 }
 
-function Decided({ p, target }: { p: ProposalView; target: LinkTarget | null }) {
+function Decided({ p, target, outcome }: { p: ProposalView; target: LinkTarget | null; outcome?: string }) {
   const { t } = useTranslation();
   const { $api } = useApi();
   const people = $api.useQuery('get', PERSONS).data;
@@ -142,6 +142,7 @@ function Decided({ p, target }: { p: ProposalView; target: LinkTarget | null }) 
       <p>{t(`proposals.decided.${p.status === 'rejected' ? 'rejected' : 'approved'}`, { date: formatInstantDay(p.decidedAt ?? p.createdAt) })}</p>
       {by ? <p>{t('proposal.decided_by', { name: by })}</p> : null}
       {p.decisionNote ? <p>{t('proposal.decision_note', { note: p.decisionNote })}</p> : null}
+      {outcome ? <p>{outcome}</p> : null}
       {target ? <Link to={target.to} params={target.params} className="underline">{t('proposal.open_target')}</Link> : null}
     </div>
   );

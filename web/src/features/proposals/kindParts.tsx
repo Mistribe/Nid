@@ -39,6 +39,8 @@ export type KindUi = {
   link: (p: ProposalView) => LinkTarget | undefined;
   /** The kind names no item, now or once approved: no « Élément » line. */
   targetless?: true;
+  /** What an approved proposal changed, told under its decision. */
+  outcome?: (t: TFunction, p: ProposalView) => string;
   /** True when approving would record nothing: the approval is then disabled. */
   nothing?: (values: FieldValues, original: unknown) => boolean;
 };

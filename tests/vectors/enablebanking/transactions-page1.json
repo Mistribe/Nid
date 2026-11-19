@@ -9,7 +9,7 @@
       "value_date": "2026-10-28",
       "creditor": { "name": "NETFLIX INTERNATIONAL" },
       "remittance_information": ["PRLV SEPA NETFLIX", "OCT 2026"],
-      "bank_transaction_code": { "code": "PMNT", "sub_code": "MDOP", "description": "Prelevement" }
+      "bank_transaction_code": { "code": "RDDT", "sub_code": "ESDD", "description": "Prelevement" }
     },
     {
       "entry_reference": "ref-2",

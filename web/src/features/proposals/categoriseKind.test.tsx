@@ -47,6 +47,13 @@ describe('Des catégories d’opérations bancaires', () => {
     await waitFor(() => expect(sent.approve).toEqual({ version: 1 }));
   });
 
+  it('tells, once approved, how many lines were applied and how many were left unchanged', async () => {
+    const p = categorise({ status: 'approved', decidedAt: '2026-10-17T08:00:00+00:00', decidedByPersonId: 'a', appliedRefs: ['l1', 'l3'] });
+    serve([p], { preview: categorisePreview });
+    await renderApp(`/proposals/${p.id}`);
+    expect(await screen.findByText('2 appliquées, 1 non modifiée')).toBeInTheDocument();
+  });
+
   it('is listed by its count of lines', async () => {
     serve([categorise()]);
     await renderApp('/proposals');

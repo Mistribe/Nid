@@ -97,7 +97,11 @@
       "amount": "Montant",
       "current": "Catégorie actuelle",
       "proposed": "Catégorie proposée",
-      "skipped": "Ne sera pas modifiée : choisie à la main, ou compte que vous ne pouvez pas modifier.",
+      "skipped": "Ne sera pas modifiée : catégorie choisie par une personne, compte que vous ne pouvez pas modifier, ou catégorie proposée archivée.",
+      "applied_one": "{{count}} appliquée",
+      "applied_other": "{{count}} appliquées",
+      "unchanged_one": "{{count}} non modifiée",
+      "unchanged_other": "{{count}} non modifiées",
       "as_proposed": "Les catégories s’appliquent telles que proposées : approuvez, ou rejetez puis catégorisez les opérations à la main."
     },
     "approve": "Approuver",
