@@ -199,7 +199,7 @@
       "source_about": {
         "link": "Reliée : la catégorie vient de ce que la ligne paie.",
         "rule": "Règle : une règle du foyer l'a classée.",
-        "hand": "Choisie à la main par un adulte du foyer.",
+        "hand": "À la main : choisie par un adulte du foyer.",
         "assistant": "Assistant : proposée par l'assistant et validée.",
         "hint": "Suggestion de la banque : déduite du code de l'opération."
       }
