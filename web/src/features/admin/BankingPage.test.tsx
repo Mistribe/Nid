@@ -13,7 +13,7 @@ import { formatInstant, formatInstantDate, formatInstantTime } from '@/lib/forma
 const settings = { maxAdults: 2, referenceCurrency: 'EUR', adultCount: 2, pricesEnabled: false, irlEnabled: false };
 const run = {
   id: '01926b9e-0000-7000-8000-0000000000f3', startedAt: '2026-10-29T03:30:00+00:00', finishedAt: '2026-10-29T03:31:00+00:00',
-  trigger: 'schedule', outcome: 'succeeded', connections: 2, accounts: 5, balances: 9, proposals: 3, written: 4, skipped: 1, failureCode: null,
+  trigger: 'schedule', outcome: 'succeeded', connections: 2, accounts: 5, balances: 9, proposals: 3, written: 4, skipped: 1, failureCode: null, rateLimited: 2,
 };
 const failed = { ...run, id: '01926b9e-0000-7000-8000-0000000000f4', trigger: 'manual', outcome: 'failed', failureCode: 'enablebanking.EXPIRED_SESSION' };
 const redirectUrl = 'https://nid.example/api/v1/banking/callback';
@@ -52,7 +52,7 @@ describe('Administration › Banque', () => {
 
     const row = await screen.findByRole('row', { name: /Réussie/ });
     expect(row).toHaveTextContent(formatInstant(run.startedAt));
-    expect(within(row).getAllByRole('cell').map((c) => c.textContent).slice(1)).toEqual(['Nuit', 'Réussie', '2', '5', '9', '3', '4', '1', '']);
+    expect(within(row).getAllByRole('cell').map((c) => c.textContent).slice(1)).toEqual(['Nuit', 'Réussie', '2', '5', '9', '3', '4', '1', '2', '']);
     const error = screen.getByRole('row', { name: /Échouée/ });
     expect(error).toHaveTextContent('Le consentement d’une banque a expiré');
     // The code sits in an InfoTip, not in the sentence.
@@ -229,5 +229,15 @@ describe('Administration › Banque', () => {
     await waitFor(() => expect(sent).toEqual([{ bankRetentionMonths: 24 }]));
     await pick(user, 'Conserver les opérations', 'Sans limite');
     await waitFor(() => expect(sent).toEqual([{ bankRetentionMonths: 24 }, { clearBankRetention: true }]));
+  });
+
+  it('shows Nid’s estimate of the unattended reads and the bank’s latest refusal, as counts (#365)', async () => {
+    const limitedAt = '2026-10-29T13:02:00+00:00';
+    serve(on, [run], 1, [], { ...ready, reads: { unattended: 3, attended: 1, limit: 4, freesAt: null, limitedAt, limitedAttended: false, warn: true } });
+    await renderApp('/admin/banking', { capabilities: adminCapabilities });
+
+    await screen.findByRole('row', { name: /Réussie/ });
+    expect(figures()).toHaveTextContent(`Lectures sans la personne (24 h)3 / 4estimation de Nid · dernière limite de la banque : ${formatInstant(limitedAt)}`);
+    expect(screen.getByRole('columnheader', { name: 'Limites de la banque' })).toBeInTheDocument();
   });
 });

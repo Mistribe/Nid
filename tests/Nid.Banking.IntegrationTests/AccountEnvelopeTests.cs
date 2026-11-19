@@ -69,6 +69,50 @@ public class AccountEnvelopeTests(PostgresFixture fixture) : IClassFixture<Postg
         Assert.All((await BankingApi.AccountsAsync(app, app.AdultA)).EnumerateArray(), a => Assert.Equal(JsonValueKind.Null, a.GetProperty("envelopeId").ValueKind));
     }
 
+    [Fact]
+    public async Task A_dependent_s_account_is_set_by_either_adult()
+    {
+        await using var app = await BankingApi.StartAsync(fixture);
+        await BankingApi.ConnectAsync(app, app.AdultA, "code-a",
+            BankingApi.Account("uid-1", "hash-1", null, "Compte de Léa"), BankingApi.Account("uid-2", "hash-2", null, "Carte de Léa", "CARD"),
+            BankingApi.Account("uid-3", "hash-3", null, "Courant A"));
+        var accounts = await AccountsAsync(app);
+        // Unassociated, it is its connector's alone: B does not see it.
+        await BankingApi.AssertRefusedAsync(await CreateAsync(app, app.AdultB, accounts["Compte de Léa"], new { displayName = "Léa", kind = "checking" }),
+            HttpStatusCode.NotFound, BankingCodes.AccountNotFound);
+        // A non-dependent is no child to give it to.
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await CreateAsync(app, app.AdultA, accounts["Compte de Léa"],
+            new { displayName = "Léa", kind = "checking", dependentId = app.AdultB.Value })).StatusCode);
+
+        var response = await CreateAsync(app, app.AdultA, accounts["Compte de Léa"], new { displayName = "Compte de Léa", kind = "checking", dependentId = app.Dependent.Value });
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var created = (await BankingApi.JsonAsync(response)).GetProperty("id").GetGuid();
+        var envelope = (await EnvelopesAsync(app)).Single(e => e.GetProperty("id").GetGuid() == created);
+        Assert.Equal("shared", envelope.GetProperty("visibility").GetString());
+        Assert.Equal([(app.Dependent.Value, 10_000)], Owners(envelope));
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{BankingApi.Root}/accounts/{accounts["Carte de Léa"]}",
+            new { cardOfAccountId = accounts["Compte de Léa"] })).StatusCode);
+
+        // B, who connected nothing, sets every setting of it and of its card, and moves it to another envelope of the child's.
+        var seen = (await BankingApi.AccountsAsync(app, app.AdultB)).EnumerateArray().ToDictionary(a => a.GetProperty("name").GetString()!);
+        Assert.Equal((true, true), (seen["Compte de Léa"].GetProperty("canWrite").GetBoolean(), seen["Carte de Léa"].GetProperty("canWrite").GetBoolean()));
+        Assert.False(seen.ContainsKey("Courant A"));
+        var other = await app.NewEnvelopeAsync("Livret de Léa", Nid.Core.Contracts.Visibility.Shared, (app.Dependent, 10_000));
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultB, HttpMethod.Patch, $"{BankingApi.Root}/accounts/{accounts["Compte de Léa"]}",
+            new { name = "Léa", autoApplyBalance = true, envelopeId = other.Value })).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultB, HttpMethod.Patch, $"{BankingApi.Root}/accounts/{accounts["Carte de Léa"]}",
+            new { ignored = true, cardOfAccountId = accounts["Compte de Léa"] })).StatusCode);
+        var after = (await BankingApi.AccountsAsync(app, app.AdultA)).EnumerateArray().ToDictionary(a => a.GetProperty("id").GetGuid());
+        Assert.Equal((other.Value, true), (after[accounts["Compte de Léa"]].GetProperty("envelopeId").GetGuid(), after[accounts["Compte de Léa"]].GetProperty("autoApplyBalance").GetBoolean()));
+        Assert.True(after[accounts["Carte de Léa"]].GetProperty("ignored").GetBoolean());
+
+        // An account on the adults' joint envelope stays its connector's to move: B writes it, but does not own it.
+        var mine = await app.NewEnvelopeAsync("Commun", Nid.Core.Contracts.Visibility.Shared, (app.AdultA, 5_000), (app.AdultB, 5_000));
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{BankingApi.Root}/accounts/{accounts["Courant A"]}", new { envelopeId = mine.Value })).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await app.RawAsync(app.AdultB, HttpMethod.Patch, $"{BankingApi.Root}/accounts/{accounts["Courant A"]}",
+            new { envelopeId = other.Value })).StatusCode);
+    }
+
     private static List<(Guid, int)> Owners(JsonElement envelope)
         => envelope.GetProperty("owners").EnumerateArray().Select(o => (o.GetProperty("personId").GetGuid(), o.GetProperty("shareBp").GetInt32())).ToList();
 }

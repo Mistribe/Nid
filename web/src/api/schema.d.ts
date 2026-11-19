@@ -11488,6 +11488,97 @@ export interface paths {
         };
         trace?: never;
     };
+    "/api/v1/banking/accounts/{id}/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BankAccountOverview"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/banking/accounts/{id}/envelope": {
         parameters: {
             query?: never;
@@ -32547,11 +32638,22 @@ export interface components {
             ignored?: null | boolean;
             name?: null | string;
             clearName?: null | boolean;
+            /** Format: int32 */
+            minPayments?: null | number;
+            clearMinPayments?: null | boolean;
+            countWithdrawals?: null | boolean;
         };
         BankAccountEnvelopeBody: {
             displayName: string;
             kind: string;
             joint?: null | boolean;
+            /** Format: uuid */
+            dependentId?: null | string;
+        };
+        BankAccountOverview: {
+            recent: components["schemas"]["BankTransactionView"][];
+            /** Format: uuid */
+            suggestedCardOf?: null | string;
         };
         BankAccountView: {
             /** Format: uuid */
@@ -32576,6 +32678,13 @@ export interface components {
             bankName: string;
             renamed: boolean;
             cardDebit?: null | string;
+            holder?: null | string;
+            product?: null | string;
+            reads: components["schemas"]["BankReadsView"];
+            /** Format: int32 */
+            minPayments?: null | number;
+            /** @default false */
+            countWithdrawals: boolean;
         };
         BankCategoryView: {
             /** Format: uuid */
@@ -32605,12 +32714,27 @@ export interface components {
             nextRunAt?: null | string;
             /** @default false */
             bankLinked: boolean;
+            reads?: null | components["schemas"]["BankReadsView"];
         };
         BankingStatusView: {
             enabled: boolean;
             configured: boolean;
             appIdSaved?: null | boolean;
             keyStatus?: null | string;
+        };
+        BankReadsView: {
+            /** Format: int32 */
+            unattended: number;
+            /** Format: int32 */
+            attended: number;
+            /** Format: int32 */
+            limit: number;
+            /** Format: date-time */
+            freesAt?: null | string;
+            /** Format: date-time */
+            limitedAt?: null | string;
+            limitedAttended: boolean;
+            warn: boolean;
         };
         BankRowView: {
             /** Format: date */
@@ -32692,6 +32816,11 @@ export interface components {
              * @default 0
              */
             transactions: number;
+            /**
+             * Format: int32
+             * @default 0
+             */
+            rateLimited: number;
         };
         BankTransactionPage: {
             items: components["schemas"]["BankTransactionView"][];
@@ -33200,6 +33329,7 @@ export interface components {
             lastSyncedAt?: null | string;
             lastErrorCode?: null | string;
             accounts: components["schemas"]["BankAccountView"][];
+            reads: components["schemas"]["BankReadsView"];
         };
         ContractEndView: {
             reason: string;
@@ -34069,6 +34199,9 @@ export interface components {
             estimated: boolean;
             /** Format: date */
             estimatedOn?: null | string;
+            /** Format: double */
+            ratePct?: null | number;
+            ceiling?: null | components["schemas"]["CeilingView"];
         };
         EnvelopePeriodRow: {
             /** Format: uuid */
@@ -35299,6 +35432,8 @@ export interface components {
             findings: components["schemas"]["OverviewFindingView"][];
             /** Format: int32 */
             estimatedCount: number;
+            available?: null | components["schemas"]["AmountView"];
+            invested?: null | components["schemas"]["AmountView"];
         };
         InvestmentsPerformance: {
             currency: string;

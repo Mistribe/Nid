@@ -63,6 +63,105 @@ describe('the account dialog', () => {
     await waitFor(() => expect(sent).toEqual([{ id: CARD, body: { cardOfAccountId: CHECKING } }]));
   });
 
+  it('shows what identifies a card and preselects the account its operations suggest, saved only on « Enregistrer »', async () => {
+    const card = account({
+      id: CARD, name: 'Visa Premier', ibanMasked: '4321', kind: 'card', cardDebit: 'deferred', holder: 'MME ALICE MARTIN', product: 'Visa Classic',
+      lastBalance: '-52.50', lastBalanceOn: '2026-10-08',
+    });
+    serveBanks([connection({ accounts: [account(), card] })], envelopes);
+    server.use(http.get('*/api/v1/banking/accounts/:id/overview', () => HttpResponse.json({
+      recent: [
+        { id: 'l1', bookedOn: '2026-10-07', valueOn: null, amount: '-12.00', currency: 'EUR', label: 'CB BOULANGERIE', counterparty: null, fromCard: false,
+          cardName: null, fetchedVia: 'api', linkState: 'unlinked', link: null, accountName: 'Visa Premier' },
+      ],
+      suggestedCardOf: CHECKING,
+    })));
+    const sent = patches();
+    const { user, container } = await renderApp('/settings/banks');
+
+    expect((await screen.findAllByText('•••• 4321 · MME ALICE MARTIN · Visa Classic')).length).toBeGreaterThan(0);
+    await user.click((await screen.findAllByRole('button', { name: 'Régler Visa Premier' }))[0]!);
+    const dialog = await screen.findByRole('dialog', { name: 'Régler Visa Premier' });
+    const identity = within(dialog).getByRole('region', { name: 'Ce que la banque en dit' });
+    for (const text of ['•••• 4321', 'MME ALICE MARTIN', 'Visa Classic', 'Carte, débit différé']) expect(within(identity).getByText(text)).toBeInTheDocument();
+    expect(await within(dialog).findByText('CB BOULANGERIE')).toBeInTheDocument();
+    expect(await within(dialog).findByText("Suggéré d'après ses opérations : vérifiez avant d'enregistrer.")).toBeInTheDocument();
+    expect(within(dialog).getByRole('combobox', { name: 'Carte rattachée à' })).toHaveTextContent('Compte courant');
+    await expectNoAxeViolations(container);
+    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
+
+    await waitFor(() => expect(sent).toEqual([{ id: CARD, body: { cardOfAccountId: CHECKING } }]));
+  });
+
+  it('shows only the type of an account the bank says little of, and no suggestion', async () => {
+    serveBanks([connection({ accounts: [account(), account({ id: CARD, name: 'Carte', ibanMasked: null, kind: 'card', lastBalance: null, lastBalanceOn: null })] })], envelopes);
+    const { user } = await renderApp('/settings/banks');
+
+    await user.click((await screen.findAllByRole('button', { name: 'Régler Carte' }))[0]!);
+    const dialog = await screen.findByRole('dialog', { name: 'Régler Carte' });
+    const identity = within(dialog).getByRole('region', { name: 'Ce que la banque en dit' });
+    expect(within(identity).getAllByRole('term').map((term) => term.textContent)).toEqual(['Type']);
+    expect(await within(dialog).findByText("Aucune opération lue pour l'instant.")).toBeInTheDocument();
+    expect(within(dialog).getByRole('combobox', { name: 'Carte rattachée à' })).toHaveTextContent('Aucun');
+  });
+
+  it('names each checking account a card may go with by its envelope and owners, those on an envelope first (#366)', async () => {
+    const SECOND = '00000000-0000-7000-8000-0000000000b4';
+    const [alice, bob] = householdPersons;
+    const joint = summary({ id: JOINT, displayName: 'Compte joint', kind: 'checking', owners: [{ personId: alice!.id, shareBp: 5000 }, { personId: bob!.id, shareBp: 5000 }] });
+    const card = account({ id: CARD, name: 'Visa Premier', ibanMasked: null, kind: 'card' });
+    serveBanks([connection({ accounts: [account({ name: '' }), account({ id: SECOND, name: '', ibanMasked: '5678', envelopeId: JOINT }), card] })], [joint]);
+    server.use(http.get('*/api/v1/core/persons', () => HttpResponse.json(householdPersons)));
+    const sent = patches();
+    const { user } = await renderApp('/settings/banks');
+
+    await user.click((await screen.findAllByRole('button', { name: 'Régler Visa Premier' }))[0]!);
+    const dialog = await screen.findByRole('dialog', { name: 'Régler Visa Premier' });
+    await user.click(within(dialog).getByRole('combobox', { name: 'Carte rattachée à' }));
+    expect(within(await screen.findByRole('listbox')).getAllByRole('option').map((o) => o.textContent))
+      .toEqual(['Aucun', 'Compte joint · Alice Dev et Bob Dev · •••• 5678', '•••• 1234']);
+    await user.click(screen.getByRole('option', { name: 'Compte joint · Alice Dev et Bob Dev · •••• 5678' }));
+    // The closed select reads as the option.
+    expect(within(dialog).getByRole('combobox', { name: 'Carte rattachée à' })).toHaveTextContent('Compte joint · Alice Dev et Bob Dev · •••• 5678');
+    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
+
+    await waitFor(() => expect(sent).toEqual([{ id: CARD, body: { cardOfAccountId: SECOND } }]));
+  });
+
+  it('sets a card’s minimum usage, the withdrawals counted or not, and turns it off again (#362)', async () => {
+    const card = account({ id: CARD, name: 'Visa Premier', ibanMasked: null, kind: 'card' });
+    serveBanks([connection({ accounts: [account(), card] })], envelopes);
+    const sent = patches();
+    const { user, container } = await renderApp('/settings/banks');
+
+    await user.click((await screen.findAllByRole('button', { name: 'Régler Visa Premier' }))[0]!);
+    const dialog = await screen.findByRole('dialog', { name: 'Régler Visa Premier' });
+    const usage = within(dialog).getByRole('radiogroup', { name: /Utilisation minimale/ });
+    expect(within(usage).getByRole('radio', { name: 'Aucune' })).toBeChecked();
+    expect(within(dialog).queryByRole('switch', { name: 'Les retraits d’espèces comptent comme des paiements' })).toBeNull();
+    await user.click(within(usage).getByRole('radio', { name: 'Plusieurs' }));
+    await user.clear(within(dialog).getByRole('textbox', { name: 'Paiements par mois' }));
+    await user.type(within(dialog).getByRole('textbox', { name: 'Paiements par mois' }), '3');
+    await user.click(within(dialog).getByRole('switch', { name: 'Les retraits d’espèces comptent comme des paiements' }));
+    await expectNoAxeViolations(container);
+    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
+    await waitFor(() => expect(sent).toEqual([{ id: CARD, body: { minPayments: 3, countWithdrawals: true } }]));
+  });
+
+  it('turns a card’s minimum usage off by clearing it, nothing else (#362)', async () => {
+    const card = account({ id: CARD, name: 'Visa Premier', ibanMasked: null, kind: 'card', minPayments: 1 });
+    serveBanks([connection({ accounts: [account(), card] })], envelopes);
+    const sent = patches();
+    const { user } = await renderApp('/settings/banks');
+
+    await user.click((await screen.findAllByRole('button', { name: 'Régler Visa Premier' }))[0]!);
+    const dialog = await screen.findByRole('dialog', { name: 'Régler Visa Premier' });
+    expect(within(dialog).getByRole('radio', { name: '1 paiement par mois' })).toBeChecked();
+    await user.click(within(dialog).getByRole('radio', { name: 'Aucune' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
+    await waitFor(() => expect(sent).toEqual([{ id: CARD, body: { clearMinPayments: true } }]));
+  });
+
   it('names an account the bank sent no name for by its masked IBAN, else by its kind, everywhere', async () => {
     const SECOND = '00000000-0000-7000-8000-0000000000b4';
     const card = account({ id: CARD, name: 'Visa Premier', ibanMasked: null, kind: 'card', cardOfAccountId: CHECKING });
@@ -207,6 +306,38 @@ describe('the account dialog', () => {
 
     await waitFor(() => expect(sent).toEqual([{ id: CHECKING, body: { displayName: 'BNP Paribas Compte courant', kind: 'checking', joint: true } }]));
     expect(await screen.findByText('Enveloppe BNP Paribas Compte courant créée et reliée.')).toBeInTheDocument();
+  });
+
+  it('creates a child’s envelope, theirs alone, for an account both adults manage', async () => {
+    serveBanks([connection()], envelopes);
+    server.use(http.get('*/api/v1/core/persons', () => HttpResponse.json(householdPersons)));
+    const sent: unknown[] = [];
+    server.use(http.post('*/api/v1/banking/accounts/:id/envelope', async ({ request }) => {
+      sent.push(await request.json());
+      return HttpResponse.json({ id: 'new' }, { status: 201 });
+    }));
+    const { user } = await renderApp('/settings/banks');
+
+    await user.click((await screen.findAllByRole('button', { name: 'Régler Compte courant' }))[0]!);
+    const dialog = await screen.findByRole('dialog', { name: 'Régler Compte courant' });
+    await pick(user, 'Enveloppe', 'Créer une enveloppe');
+    const step = within(dialog).getByRole('form', { name: 'Créer une enveloppe' });
+    await user.click(within(step).getByRole('radio', { name: 'Compte de Léo' }));
+    expect(step).toHaveTextContent('L\'enveloppe est à Léo et partagée');
+    await user.click(within(step).getByRole('button', { name: 'Créer et relier' }));
+
+    await waitFor(() => expect(sent).toEqual([{ displayName: 'BNP Paribas Compte courant', kind: 'checking', dependentId: householdPersons[2]!.id }]));
+  });
+
+  it('shows whose account each associated one is, a card its account’s', async () => {
+    const child = summary({ id: JOINT, displayName: 'Compte de Léo', kind: 'checking', owners: [{ personId: householdPersons[2]!.id, shareBp: 10000 }] });
+    serveBanks([connection({ accounts: [account({ envelopeId: JOINT }), account({ id: CARD, name: 'Visa Premier', ibanMasked: null, kind: 'card', cardOfAccountId: CHECKING })] })], [child]);
+    server.use(http.get('*/api/v1/core/persons', () => HttpResponse.json(householdPersons)));
+    await renderApp('/settings/banks');
+
+    const table = (await screen.findAllByRole('table'))[0]!;
+    // The account's chip and its card's.
+    await waitFor(() => expect(within(table).getAllByText('Léo')).toHaveLength(2));
   });
 
   it('goes back from the creation step, and shows a refused link there', async () => {

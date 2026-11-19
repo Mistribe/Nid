@@ -62,7 +62,7 @@ public sealed partial class ScenarioStore(CoreDbContext db) : IScenarioStore
         if (row is null)
             db.Scenarios.Add(row = new ScenarioRow { ItemId = scenario.Item.Value });
         row.Kind = scenario.Kind;
-        row.Scope = scenario.Scope == VisibilityScope.Me ? "me" : "household";
+        row.Scope = scenario.Scope is VisibilityScope.Me or VisibilityScope.Mine ? "me" : "household";
         row.Data = scenario.Kind switch
         {
             ScenarioKinds.Projection => JsonSerializer.Serialize(scenario.Projection!, ScenarioJson.Default.ProjectionScenario),
@@ -74,7 +74,7 @@ public sealed partial class ScenarioStore(CoreDbContext db) : IScenarioStore
 
     private static StoredScenario ToStored(ScenarioRow row)
     {
-        var scope = row.Scope == "me" ? VisibilityScope.Me : VisibilityScope.Household;
+        var scope = row.Scope == "me" ? VisibilityScope.Mine : VisibilityScope.Household;
         var id = new ItemId(row.ItemId);
         return row.Kind switch
         {

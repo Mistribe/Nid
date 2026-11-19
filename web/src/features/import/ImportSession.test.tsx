@@ -305,9 +305,9 @@ describe('Import › report, confirmation and commit', () => {
 
     expect(await screen.findByRole('heading', { name: 'Import terminé' })).toBeInTheDocument();
     if (linked) {
-      expect(screen.getByRole('link', { name: 'Voir les placements' })).toHaveAttribute('href', '/investments');
+      expect(screen.getByRole('link', { name: 'Voir les comptes et placements' })).toHaveAttribute('href', '/investments');
     } else {
-      expect(screen.queryByRole('link', { name: 'Voir les placements' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: 'Voir les comptes et placements' })).not.toBeInTheDocument();
     }
     expect(screen.getByRole('link', { name: 'Voir les abonnements' })).toHaveAttribute('href', '/subscriptions');
     await expectNoAxeViolations(container);

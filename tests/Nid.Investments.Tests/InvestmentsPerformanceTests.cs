@@ -27,10 +27,10 @@ public class InvestmentsPerformanceTests
         .Value(D(2024, 12, 31), 21_000m).Value(D(2025, 12, 31), 25_000m).Value(D(2026, 1, 31), 25_600m).Value(D(2026, 2, 28), 25_100m)
         .Value(D(2026, 9, 30), 27_000m).Build();
 
-    /// <summary>The savings account sends 1 000 to the PEA on 1 March; +150 and +600 by the end of September.</summary>
-    private static (EnvelopePerformance.Facts Savings, EnvelopePerformance.Facts Pea) Transfer(bool savingsStartsLate = false)
+    /// <summary>Another investment sends 1 000 to the PEA on 1 March; +150 and +600 by the end of September.</summary>
+    private static (EnvelopePerformance.Facts Savings, EnvelopePerformance.Facts Pea) Transfer(bool savingsStartsLate = false, EnvelopeKind kind = EnvelopeKind.Other)
     {
-        var savings = new EnvelopeFacts("Livret A", EnvelopeKind.Savings)
+        var savings = new EnvelopeFacts(kind == EnvelopeKind.Savings ? "Livret A" : "Autre épargne", kind)
             .Flow(D(2024, 12, 31), FlowKind.Opening, 10_000m).Flow(D(2026, 3, 1), FlowKind.Withdrawal, 1_000m, "transfer");
         savings = savingsStartsLate ? savings.Value(D(2026, 2, 1), 10_300m) : savings.Value(D(2024, 12, 31), 10_000m).Value(D(2025, 12, 31), 10_300m);
         var pea = new EnvelopeFacts("PEA", EnvelopeKind.Pea)
@@ -88,7 +88,7 @@ public class InvestmentsPerformanceTests
         Assert.Equal(2_000m + 150m + 600m, N(p.Performance));
         AssertTheEquality(p);
         Assert.Equal(EnvelopeMath.RoundPercent(2_750m / 40_300m * 100m), p.PerformancePct);
-        Assert.Equal(["Assurance-vie", "PEA", "Livret A"], p.Envelopes.Select(e => e.Name));
+        Assert.Equal(["Assurance-vie", "PEA", "Autre épargne"], p.Envelopes.Select(e => e.Name));
         Assert.Equal("2000.00", p.Envelopes[0].Performance);
         Assert.All(p.Envelopes, e => Assert.False(e.StaleStart));
     }
@@ -103,7 +103,7 @@ public class InvestmentsPerformanceTests
         // Opened before the start, the savings account starts at its 10 000 paid in: no contribution of the period, flagged.
         Assert.Equal((15_000m, 0m, 0m), (N(p.StartValue), N(p.Contributions), N(p.Transfers)));
         Assert.Equal(450m + 600m, N(p.Performance));
-        Assert.Equal([("PEA", false), ("Livret A", true)], p.Envelopes.Select(e => (e.Name, e.NoStartValue)));
+        Assert.Equal([("PEA", false), ("Autre épargne", true)], p.Envelopes.Select(e => (e.Name, e.NoStartValue)));
         AssertTheEquality(p);
     }
 
@@ -131,7 +131,7 @@ public class InvestmentsPerformanceTests
     public void A_transfer_with_an_envelope_never_valued_is_shown_apart()
     {
         var (_, pea) = Transfer();
-        var unvalued = new EnvelopeFacts("Livret A", EnvelopeKind.Savings)
+        var unvalued = new EnvelopeFacts("Autre épargne", EnvelopeKind.Other)
             .Flow(D(2024, 12, 31), FlowKind.Opening, 10_000m).Flow(D(2026, 3, 1), FlowKind.Withdrawal, 1_000m, "transfer").Build();
 
         var p = Build(unvalued, pea);
@@ -190,7 +190,7 @@ public class InvestmentsPerformanceTests
     [Fact]
     public void The_reference_is_the_savings_accounts_and_absent_without_one()
     {
-        var (savings, pea) = Transfer();
+        var (savings, pea) = Transfer(kind: EnvelopeKind.Savings);
 
         var with = Build(Life(), savings, pea);
         var without = Build(Life(), pea);
@@ -204,7 +204,7 @@ public class InvestmentsPerformanceTests
     [Fact]
     public void A_closed_envelope_counts_only_while_it_was_open()
     {
-        var closed = new EnvelopeFacts("Ancien", EnvelopeKind.Savings) { ClosedOn = D(2025, 11, 30) }
+        var closed = new EnvelopeFacts("Ancien", EnvelopeKind.Other) { ClosedOn = D(2025, 11, 30) }
             .Flow(D(2024, 12, 31), FlowKind.Opening, 2_000m).Value(D(2024, 12, 31), 2_000m).Value(D(2025, 11, 30), 0m).Build();
 
         var p = Build(Life(), closed);
@@ -323,5 +323,24 @@ public class InvestmentsPerformanceTests
 
         Assert.InRange(p.PeriodReturnPct!.Value, 6.5m, 6.9m);
         Assert.Equal(p.PeriodReturnPct, Assert.Single(p.Envelopes).PeriodReturnPct);
+    }
+
+    [Fact]
+    public void A_livret_is_left_out_and_what_it_sends_to_an_investment_is_paid_in()
+    {
+        // #356: the livret is the reference, not a counted envelope; its 1 000 to the PEA is a contribution of the period.
+        var livret = new EnvelopeFacts("Livret A", EnvelopeKind.Savings)
+            .Flow(D(2024, 12, 31), FlowKind.Opening, 10_000m).Flow(D(2026, 3, 1), FlowKind.Withdrawal, 1_000m, "transfer", "transfer:1")
+            .Value(D(2024, 12, 31), 10_000m).Value(D(2025, 12, 31), 10_300m).Value(D(2026, 9, 30), 9_450m).Build();
+        var pea = new EnvelopeFacts("PEA", EnvelopeKind.Pea)
+            .Flow(D(2025, 12, 31), FlowKind.Opening, 5_000m).Flow(D(2026, 3, 1), FlowKind.Contribution, 1_000m, "transfer", "transfer:1")
+            .Value(D(2025, 12, 31), 5_000m).Value(D(2026, 9, 30), 6_600m).Build();
+
+        var p = Build(livret, pea);
+
+        Assert.Equal(["PEA"], p.Envelopes.Select(e => e.Name));
+        Assert.Equal((1_000m, 0m, 600m), (N(p.Contributions), N(p.Transfers), N(p.Performance)));
+        Assert.NotNull(p.Reference);
+        AssertTheEquality(p);
     }
 }

@@ -6,11 +6,11 @@ import { signIn } from './session';
 const BACKGROUND = `getComputedStyle(document.body).backgroundColor`;
 
 test('alice reviews her year and prints it on A4, light even on a dark screen', async ({ browser }) => {
-  const name = `Livret bilan ${Date.now()}`;
+  const name = `Compte-titres bilan ${Date.now()}`;
   const alice = await browser.newPage();
   await signIn(alice, 'alice', '/investments/new');
   await alice.getByLabel('Nom').fill(name);
-  await pick(alice, 'Type', 'Livret');
+  await pick(alice, 'Type', 'Compte-titres');
   await alice.getByRole('button', { name: 'Continuer' }).click();
   await alice.getByRole('radio', { name: /Partagé/ }).check();
   await alice.getByRole('button', { name: 'Continuer' }).click();

@@ -1,4 +1,6 @@
+using Nid.Banking.Application.Reconciliation;
 using Nid.Banking.Contracts;
+using Nid.Banking.Domain;
 using Nid.Core.Contracts;
 using Nid.Investments.Contracts;
 using Nid.Platform.Contracts;
@@ -17,11 +19,59 @@ public sealed record ListBankAccountsQuery(ItemId? Envelope) : IQuery<IReadOnlyL
 /// <paramref name="CardOfAccountId"/> attaches a card to a checking account its author may write; <paramref name="ClearCard"/> detaches it.
 /// Moving it (to an envelope or an account) is its owner's alone (<see cref="BankingAccess.OwnsAsync(BankAccount, CancellationToken)"/>);
 /// a card takes no envelope. <paramref name="Name"/> is the household's own name for it, which whoever writes it sets;
-/// <paramref name="ClearName"/> goes back to the bank's.
+/// <paramref name="ClearName"/> goes back to the bank's. #362: a card's <paramref name="MinPayments"/> a month (1 to 31) and whether
+/// <paramref name="CountWithdrawals"/>; <paramref name="ClearMinPayments"/> turns the rule off; whoever writes the card sets them.
 /// </summary>
 public sealed record UpdateBankAccountCommand(
     Guid Id, Guid? EnvelopeId, bool ClearEnvelope, Guid? CardOfAccountId, bool ClearCard, bool? AutoApplyBalance, bool? Ignored, string? Name = null,
-    bool ClearName = false) : ICommand<Guid>, ITransactional;
+    bool ClearName = false, int? MinPayments = null, bool ClearMinPayments = false, bool? CountWithdrawals = null) : ICommand<Guid>, ITransactional;
+
+/// <summary>
+/// #353: what « Régler » shows to recognise an account: its latest lines, and for a card not yet attached, the checking account it most
+/// likely belongs to (<see cref="CardParents"/>), among those the actor may attach it to.
+/// </summary>
+public sealed record BankAccountOverviewQuery(Guid Id) : IQuery<BankAccountOverview>;
+
+/// <param name="Recent">The <see cref="BankAccountOverviewHandler.Recent"/> latest lines, newest first.</param>
+public sealed record BankAccountOverview(IReadOnlyList<BankTransactionView> Recent, Guid? SuggestedCardOf);
+
+[RequestHandler<BankAccountOverviewQuery, BankAccountOverview>]
+public sealed class BankAccountOverviewHandler(
+    BankingAccess access, IAccountStore accounts, ITransactionStore transactions, BankLines lines, IHouseholdCalendar calendar)
+    : IRequestHandler<BankAccountOverviewQuery, BankAccountOverview>
+{
+    public const int Recent = 3;
+
+    /// <summary>How far back the lines that suggest a card's account are read.</summary>
+    public const int SuggestionDays = 92;
+
+    public async ValueTask<Result<BankAccountOverview>> HandleAsync(BankAccountOverviewQuery query, CancellationToken ct = default)
+    {
+        var enabled = await access.EnabledAsync(ct);
+        if (!enabled.IsSuccess)
+            return BankingAccess.Failed<BankAccountOverview>(enabled);
+        var found = await access.AccountAsync(query.Id, AccessKind.Read, ct);
+        if (!found.TryGetValue(out var account))
+            return BankingAccess.Failed<BankAccountOverview, BankAccount>(found);
+
+        var recent = (await lines.PageAsync([account!.Id], "all", null, null, 1, ct)).Items.Take(Recent).ToList();
+        return Result.Success(new BankAccountOverview(recent, account.Kind == BankAccountKind.Card && account.CardOf is null ? await SuggestAsync(account, ct) : null));
+    }
+
+    private async Task<Guid?> SuggestAsync(BankAccount card, CancellationToken ct)
+    {
+        var since = (await calendar.TodayAsync(ct)).PlusDays(-SuggestionDays);
+        async Task<IReadOnlyList<Line>> LinesOf(Guid id)
+            => [.. (await transactions.ListAsync([id], since, null, 0, int.MaxValue, ct)).Select(TransactionLinker.LineOf)];
+        var connections = (await accounts.SourcesAsync(card.Id, ct)).Select(s => s.Connection).ToHashSet();
+        var candidates = new List<(Guid, bool, IReadOnlyList<Line>)>();
+        // Attaching takes writing the account: only those are offered.
+        foreach (var (checking, canWrite) in await access.ReadableAsync(await accounts.AllAsync(ct), ct))
+            if (checking.Kind == BankAccountKind.Checking && canWrite)
+                candidates.Add((checking.Id, (await accounts.SourcesAsync(checking.Id, ct)).Any(s => connections.Contains(s.Connection)), await LinesOf(checking.Id)));
+        return CardParents.Suggest(await LinesOf(card.Id), candidates);
+    }
+}
 
 [RequestHandler<ListBankAccountsQuery, IReadOnlyList<BankAccountView>>]
 public sealed class ListBankAccountsHandler(BankingAccess access, IAccountStore accounts, BankAccountReader reader)
@@ -67,6 +117,16 @@ public sealed class UpdateBankAccountHandler(
             // The bank's own name is no renaming: the account keeps following it.
             changed = changed with { HouseholdName = name == bankName ? null : name, Name = name };
         }
+        if ((command.MinPayments is not null || command.ClearMinPayments || command.CountWithdrawals is not null) && account.Kind != BankAccountKind.Card)
+            return Result.Failure<Guid>(FieldErrors.At(new Failure(BankingCodes.CardRule, "Only a card has a minimum usage.", null), "minPayments"));
+        if (command.MinPayments is { } payments and (< 1 or > CardUsage.MaxPayments))
+            return Result.Failure<Guid>(FieldErrors.At(
+                new Failure(BankingCodes.CardRule, $"A card's minimum usage is 1 to {CardUsage.MaxPayments} payments a month.", null), "minPayments"));
+        changed = changed with
+        {
+            MinPayments = command.ClearMinPayments ? null : command.MinPayments ?? account.MinPayments,
+            CountWithdrawals = command.CountWithdrawals ?? account.CountWithdrawals,
+        };
         if (command.ClearEnvelope)
             changed = changed with { Envelope = null, AssociatedOn = null, AssociatedBy = null };
         else if (command.EnvelopeId is { } id && new ItemId(id) is var envelope && envelope != account.Envelope)

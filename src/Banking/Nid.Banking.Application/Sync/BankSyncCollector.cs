@@ -32,7 +32,7 @@ public sealed class BankSyncCollector(
 
     private sealed class Progress
     {
-        public int Connections, Accounts, Balances, Proposals, Written, Skipped, Transactions;
+        public int Connections, Accounts, Balances, Proposals, Written, Skipped, Transactions, RateLimited;
         public string? FailureCode;
 
         /// <summary>The accounts read in this run: a later connection that sees one leaves it.</summary>
@@ -65,11 +65,14 @@ public sealed class BankSyncCollector(
             FinishedAt = clock.GetCurrentInstant().ToDateTimeOffset(), Outcome = failure is null ? "succeeded" : "failed",
             Connections = progress.Connections, Accounts = progress.Accounts, Balances = progress.Balances, Proposals = progress.Proposals,
             Written = progress.Written, Skipped = progress.Skipped, FailureCode = failure, Transactions = progress.Transactions,
+            RateLimited = progress.RateLimited,
         };
         await runs.FinishAsync(finished, CancellationToken.None); // a cancelled run is still closed
         if (stopped is not null)
             ct.ThrowIfCancellationRequested();
         await runs.PurgeBeforeAsync(clock.GetCurrentInstant() - Duration.FromDays(RetentionDays), CancellationToken.None);
+        await using (var scope = scopes.CreateAsyncScope())
+            await scope.ServiceProvider.GetRequiredService<IAccountReadLog>().PurgeBeforeAsync(clock.GetCurrentInstant() - BankReads.Kept, CancellationToken.None);
         return Result.Success(finished);
     }
 
@@ -98,6 +101,9 @@ public sealed class BankSyncCollector(
         var accounts = services.GetRequiredService<IAccountStore>();
         var balances = services.GetRequiredService<IBalanceStore>();
         var client = services.GetRequiredService<IEnableBankingClient>();
+        var reads = services.GetRequiredService<IAccountReadLog>();
+        // #365: with the person's browser forwarded, the read is attended (PSD2 limits only the unattended ones).
+        var attended = psu is not null;
         var today = await services.GetRequiredService<IHouseholdCalendar>().TodayAsync(ct);
 
         // The key ring lost: only a renewal brings the session back.
@@ -120,6 +126,8 @@ public sealed class BankSyncCollector(
             if (!fetched.TryGetValue(out var list))
             {
                 var code = fetched.TryGetFailure(out var failure) ? failure!.Code : BankingCodes.ProviderError;
+                if (EnableBankingErrors.Classify(code) == ProviderErrorKind.RateLimited)
+                    await reads.RecordAsync(new BankRead(account.Id, clock.GetCurrentInstant(), attended, RateLimited: true), ct);
                 switch (await OnFailureAsync(connections, connection, code, progress, ct))
                 {
                     case FailureStep.Stop:
@@ -134,6 +142,7 @@ public sealed class BankSyncCollector(
 
             progress.Read.Add(account.Id);
             progress.Accounts++;
+            await reads.RecordAsync(new BankRead(account.Id, clock.GetCurrentInstant(), attended, RateLimited: false), ct);
             if (account.Currency == Currency.None)
             {
                 // #355: the bank stated no currency; its balances, when all in one, do. Several, or none: nothing can be stored as money.
@@ -178,6 +187,8 @@ public sealed class BankSyncCollector(
             else
             {
                 var code = lines.TryGetFailure(out var failure) ? failure!.Code : BankingCodes.ProviderError;
+                if (EnableBankingErrors.Classify(code) == ProviderErrorKind.RateLimited)
+                    await reads.RecordAsync(new BankRead(account.Id, clock.GetCurrentInstant(), attended, RateLimited: true), ct);
                 switch (await OnFailureAsync(connections, connection, code, progress, ct))
                 {
                     case FailureStep.Stop:
@@ -220,7 +231,8 @@ public sealed class BankSyncCollector(
                 await connections.SetStatusAsync(connection.Id, ConnectionStatus.Revoked, null, ct);
                 return FailureStep.Stop;
             case ProviderErrorKind.RateLimited:
-                progress.Skipped++;
+                // #365: its own outcome in the journal, not a plain skip.
+                progress.RateLimited++;
                 return FailureStep.Skip;
             default:
                 return FailureStep.Error;

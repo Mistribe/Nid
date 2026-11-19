@@ -18,12 +18,14 @@ namespace Nid.Banking.Application;
 /// creator only. None carries an item id or an amount; the bank's name is the only parameter. Nothing when banking is off.
 /// 5C spec §6.3, §6.6: a line that paid another amount than its charge, and a charge the bank never took, as findings for the readers of the item
 /// (amounts as decimal strings, never a label). Issue #81: the shortfall ahead on a checking account and idle cash on the checking accounts,
-/// opt-in, whose figures only the centre shows.
+/// opt-in, whose figures only the centre shows. Issue #362: a card under its minimum usage a few days before the month ends, opt-in,
+/// for whoever sets the card.
 /// </summary>
 public sealed class BankingNotificationSource(
     IConnectionStore connections, IHouseholdSettings settings, IHouseholdCalendar calendar, ILinkStore links, ExpectedChargeReader charges,
     IAccessPolicy policy, IAccountStore accounts, BankingAccess access, IBalanceStore balances, IExpectedIncome income, ISignalSettings signalSettings,
-    IEmergencyBuffer buffers, ISavingsRoom savings, ILogger<BankingNotificationSource> logger) : INotificationSource
+    IEmergencyBuffer buffers, ISavingsRoom savings, ITransactionStore transactions, IAccountReadLog reads, IClock clock,
+    ILogger<BankingNotificationSource> logger) : INotificationSource
 {
     public const string ConsentExpiring = "banking.consent_expiring";
     public const string ConsentExpired = "banking.consent_expired";
@@ -33,6 +35,7 @@ public sealed class BankingNotificationSource(
     /// <summary>Not prefixed: the settings screen keys its copy by kind (<c>notification_settings.signal.&lt;kind&gt;</c>).</summary>
     public const string ShortfallAhead = "shortfall_ahead";
     public const string IdleCash = "idle_cash";
+    public const string CardUnused = "card_unused";
 
     /// <summary>How far back a charge still counts as not taken.</summary>
     private const int MissingDays = 62;
@@ -50,6 +53,8 @@ public sealed class BankingNotificationSource(
         new(ShortfallAhead, "finding", NotificationLevel.Action, "banking", null, new SignalThreshold(0m, 0m, 1_000_000m, "eur")),
         // The buffer in months of commitments, when no emergency fund says it.
         new(IdleCash, "finding", NotificationLevel.Info, "banking", null, new SignalThreshold(3m, 1m, 24m, "months")),
+        // Issue #362: how many days before the month's end.
+        new(CardUnused, "finding", NotificationLevel.Action, "banking", null, new SignalThreshold(5m, 1m, 20m, "days")),
     ];
 
     public async Task<Result<IReadOnlyList<Signal>>> SignalsAsync(PersonId reader, LocalDate today, LocalDate horizon, CancellationToken ct)
@@ -89,7 +94,43 @@ public sealed class BankingNotificationSource(
             await AddShortfallAsync(signals, reader, today, margin, ct);
         if (turnedOn.TryGetValue(IdleCash, out var months) && await IdleCashAsync(reader, today, months, ct) is { } idle)
             signals.Add(idle);
+        if (turnedOn.TryGetValue(CardUnused, out var days))
+            await AddCardUnusedAsync(signals, reader, today, (int)days, ct);
         return Result.Success<IReadOnlyList<Signal>>(signals);
+    }
+
+    /// <summary>
+    /// Issue #362: each card the reader sets whose minimum usage is not reached in the month's last <paramref name="days"/> days, once
+    /// per card and month (the key). Never on stale data: a card no live connection reads, not read for <see cref="CardUsage.Fresh"/>, or
+    /// with no line of its own at all (a bank that posts card payments on the checking account), says nothing; its connection's
+    /// alerts say why. The card is named by its display name and masked number only.
+    /// </summary>
+    private async Task AddCardUnusedAsync(List<Signal> signals, PersonId reader, LocalDate today, int days, CancellationToken ct)
+    {
+        if (!CardUsage.Due(today, days))
+            return;
+        var monthStart = today.With(DateAdjusters.StartOfMonth);
+        var active = (await connections.ActiveAsync(ct)).Select(c => c.Id).ToHashSet();
+        var freshSince = clock.GetCurrentInstant() - CardUsage.Fresh;
+        foreach (var (card, canWrite) in await access.ReadableAsync(await accounts.AllAsync(ct), ct))
+        {
+            if (!canWrite || card.Kind != BankAccountKind.Card || card.MinPayments is not { } min || card.Ignored)
+                continue;
+            if (!(await accounts.SourcesAsync(card.Id, ct)).Any(s => active.Contains(s.Connection))
+                || !(await reads.SinceAsync([card.Id], freshSince, ct)).Any(r => !r.RateLimited)
+                || await transactions.LatestBookedOnAsync(card.Id, null, ct) is null)
+                continue;
+            var lines = await transactions.ListAsync([card.Id], monthStart, today, 0, int.MaxValue, ct);
+            var count = CardUsage.Payments(lines.Select(l => (l.BookedOn, l.Amount, l.NormalizedLabel)), monthStart, today, card.CountWithdrawals);
+            if (count >= min)
+                continue;
+            signals.Add(new Signal($"{CardUnused}:{card.Id:D}:{today:yyyy-MM}", CardUnused, [], today.With(DateAdjusters.EndOfMonth),
+                new Dictionary<string, string>
+                {
+                    ["card"] = card.Name, ["number"] = card.IbanMasked ?? "",
+                    ["count"] = count.ToString(CultureInfo.InvariantCulture), ["min"] = min.ToString(CultureInfo.InvariantCulture),
+                }));
+        }
     }
 
     /// <summary>

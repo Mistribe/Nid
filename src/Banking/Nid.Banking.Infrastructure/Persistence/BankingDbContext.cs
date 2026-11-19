@@ -29,6 +29,7 @@ public sealed class BankingDbContext(DbContextOptions<BankingDbContext> options)
     public DbSet<RecurringGroupRow> RecurringGroups => Set<RecurringGroupRow>();
 
     public DbSet<SyncRunRow> SyncRuns => Set<SyncRunRow>();
+    public DbSet<AccountReadRow> AccountReads => Set<AccountReadRow>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -59,6 +60,9 @@ public sealed class BankingDbContext(DbContextOptions<BankingDbContext> options)
                 t.HasCheckConstraint("ck_account_iban_masked", "iban_masked is null or char_length(iban_masked) <= 4");
                 t.HasCheckConstraint("ck_account_household_name", "household_name is null or char_length(household_name) between 1 and 100");
                 t.HasCheckConstraint("ck_account_card_debit", "card_debit is null or card_debit in ('immediate','deferred')");
+                t.HasCheckConstraint("ck_account_holder", "holder is null or char_length(holder) between 1 and 200");
+                t.HasCheckConstraint("ck_account_product", "product is null or char_length(product) between 1 and 200");
+                t.HasCheckConstraint("ck_account_card_min_payments", "card_min_payments is null or (kind = 'card' and card_min_payments between 1 and 31)");
             });
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
@@ -186,9 +190,20 @@ public sealed class BankingDbContext(DbContextOptions<BankingDbContext> options)
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.Transactions).HasDefaultValue(0);
+            e.Property(x => x.RateLimited).HasDefaultValue(0);
             // At most one running row, as investments.price_run: a second start fails on this index.
             e.HasIndex(x => x.Outcome).IsUnique().HasFilter("outcome = 'running'");
             e.HasIndex(x => x.StartedAt);
+        });
+
+        modelBuilder.Entity<AccountReadRow>(e =>
+        {
+            e.ToTable("account_read");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.HasIndex(x => new { x.AccountId, x.ReadAt });
+            e.HasIndex(x => x.ReadAt);
+            e.HasOne<AccountRow>().WithMany().HasForeignKey(x => x.AccountId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.MapAuditLog(ownedHere: false);

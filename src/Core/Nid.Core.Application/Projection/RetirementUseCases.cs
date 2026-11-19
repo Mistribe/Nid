@@ -75,7 +75,7 @@ public sealed class GetRetirementHandler(ProjectionFactsReader facts, IPersonReg
         }).ToList();
 
         // Retirement spec §3: the last adult to leave inside the grid, or the reader's own.
-        var inGrid = switches.Where(s => query.Scope == VisibilityScope.Me ? s.Key == actor.Current!.PersonId : true)
+        var inGrid = switches.Where(s => query.Scope is VisibilityScope.Me or VisibilityScope.Mine ? s.Key == actor.Current!.PersonId : true)
             .Select(s => s.Value).Where(OnGrid).ToList();
         int? kR = inGrid.Count == 0 ? null : inGrid.Max();
         var figures = RetirementFigures.Of(inputs.Income, inflation, result.Independence, kR, inputs.Assumptions.WithdrawalRate, inputs.Assumptions.MonthlyLivingCost);

@@ -58,7 +58,7 @@ internal static class ProjectionScenarios
         read.TryGetValue(out var reading);
         var canWrite = (await policy.CheckAsync(actor, item.Id, AccessKind.Write, ct)).IsSuccess;
         return Result.Success(new ProjectionScenarioView(
-            item.Id, item.DisplayName, ScenarioResults.Wire(item.Visibility), stored.Scope == VisibilityScope.Me ? "me" : "household", canWrite,
+            item.Id, item.DisplayName, ScenarioResults.Wire(item.Visibility), stored.Scope is VisibilityScope.Me or VisibilityScope.Mine ? "me" : "household", canWrite,
             ProjectionComparisonView.From(reading!, ranges)));
     }
 

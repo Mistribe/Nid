@@ -26,10 +26,10 @@ public class InvestmentsOverviewTests
         .Flow(D(2024, 12, 31), FlowKind.Opening, 20_000m).Flow(D(2025, 6, 15), FlowKind.Contribution, 2_000m)
         .Value(D(2024, 12, 31), 21_000m).Value(D(2025, 12, 31), 25_000m).Value(D(2026, 9, 30), 27_000m).Build();
 
-    /// <summary>A savings account that sent 1 000 to the PEA on 1 March: both legs are transfers.</summary>
+    /// <summary>Another investment that sent 1 000 to the PEA on 1 March: both legs are transfers.</summary>
     private static (EnvelopePerformance.Facts Savings, EnvelopePerformance.Facts Pea) Transfer()
     {
-        var savings = new EnvelopeFacts("Livret A", EnvelopeKind.Savings)
+        var savings = new EnvelopeFacts("Autre épargne", EnvelopeKind.Other)
             .Flow(D(2024, 12, 31), FlowKind.Opening, 10_000m).Flow(D(2026, 3, 1), FlowKind.Withdrawal, 1_000m, "transfer")
             .Value(D(2024, 12, 31), 10_000m).Value(D(2025, 12, 31), 10_300m).Value(D(2026, 9, 30), 9_450m).Build();
         var pea = new EnvelopeFacts("PEA", EnvelopeKind.Pea)
@@ -45,7 +45,7 @@ public class InvestmentsOverviewTests
     private static EnvelopePerformance.Facts NoValue() => new EnvelopeFacts("PER", EnvelopeKind.Per).Build();
 
     /// <summary>Closed on 31 March 2026 after its last value of 0.</summary>
-    private static EnvelopePerformance.Facts Closed() => new EnvelopeFacts("Ancien", EnvelopeKind.Savings) { ClosedOn = D(2026, 3, 31) }
+    private static EnvelopePerformance.Facts Closed() => new EnvelopeFacts("Ancien", EnvelopeKind.Other) { ClosedOn = D(2026, 3, 31) }
         .Flow(D(2024, 12, 31), FlowKind.Opening, 2_000m).Flow(D(2026, 3, 31), FlowKind.Withdrawal, 2_050m)
         .Value(D(2024, 12, 31), 2_000m).Value(D(2026, 3, 31), 0m).Build();
 
@@ -110,14 +110,14 @@ public class InvestmentsOverviewTests
 
         var o = Build([Life(), savings, pea, NoValue()]);
 
-        Assert.Equal(["life_insurance", "savings", "pea"], o.ByKind.Select(k => k.Kind));
+        Assert.Equal(["life_insurance", "other", "pea"], o.ByKind.Select(k => k.Kind));
         Assert.Equal(N(o.Value), o.ByKind.Sum(k => N(k.Value)));
         // D7: Bob, created first, owns half of the life insurance; Alice the rest.
         Assert.Equal([Bob.Value, Alice.Value], o.ByPerson.Select(p => p.PersonId));
         Assert.Equal((13_500m, 2_500m), (N(o.ByPerson[0].Value), N(o.ByPerson[0].Gain)));
         Assert.Equal(N(o.Value), o.ByPerson.Sum(p => N(p.Value)));
         // Largest value first, the envelope without a value last.
-        Assert.Equal(["Assurance-vie", "Livret A", "PEA", "PER"], o.Envelopes.Select(e => e.Name));
+        Assert.Equal(["Assurance-vie", "Autre épargne", "PEA", "PER"], o.Envelopes.Select(e => e.Name));
         Assert.Null(o.Envelopes[^1].ValueConverted);
     }
 
@@ -133,8 +133,8 @@ public class InvestmentsOverviewTests
         var february = o.Points.Single(p => p.On == D(2026, 2, 28));
         Assert.Equal(25_000m + 2_000m, N(february.Value));
         Assert.Equal(22_000m + 2_000m, N(february.NetContributions));
-        Assert.Equal(["life_insurance", "savings"], february.ByKind.Select(k => k.Kind));
-        Assert.DoesNotContain(o.Points.Single(p => p.On == D(2026, 3, 31)).ByKind, k => k.Kind == "savings");
+        Assert.Equal(["life_insurance", "other"], february.ByKind.Select(k => k.Kind));
+        Assert.DoesNotContain(o.Points.Single(p => p.On == D(2026, 3, 31)).ByKind, k => k.Kind == "other");
     }
 
     [Fact]
@@ -193,7 +193,7 @@ public class InvestmentsOverviewTests
     [Fact]
     public void The_watch_list_names_each_envelopes_state_then_the_holdings_by_date()
     {
-        var missing = new EnvelopeFacts("Sans ouverture", EnvelopeKind.Savings).Value(D(2026, 10, 1), 500m).Build();
+        var missing = new EnvelopeFacts("Sans ouverture", EnvelopeKind.Other).Value(D(2026, 10, 1), 500m).Build();
         var maturity = new EnvelopeWatchView("holding_maturity", ItemId.New(), Guid.NewGuid(), D(2026, 12, 5));
 
         var o = Build([Stale(), NoValue(), missing], holdings: [maturity]);
@@ -212,5 +212,38 @@ public class InvestmentsOverviewTests
         Assert.Null(o.GainPct);
         Assert.Empty(o.Envelopes);
         Assert.All(o.Points, p => Assert.Null(p.Value));
+    }
+
+    [Fact]
+    public void A_checking_account_and_a_livret_count_in_the_value_apart_from_the_investments_figures()
+    {
+        // #356: the livret sends 1 000 to the PEA (one transfer, two legs); the checking account has no flow, only balances.
+        var livret = new EnvelopeFacts("Livret A", EnvelopeKind.Savings)
+            .Flow(D(2024, 12, 31), FlowKind.Opening, 10_000m).Flow(D(2026, 3, 1), FlowKind.Withdrawal, 1_000m, "transfer", "transfer:1")
+            .Value(D(2024, 12, 31), 10_000m).Value(D(2026, 9, 30), 9_200m).Build();
+        var checking = new EnvelopeFacts("Courant", EnvelopeKind.Checking).Value(D(2026, 9, 30), 2_500m).Build();
+        var pea = new EnvelopeFacts("PEA", EnvelopeKind.Pea)
+            .Flow(D(2025, 12, 31), FlowKind.Opening, 5_000m).Flow(D(2026, 3, 1), FlowKind.Contribution, 1_000m, "transfer", "transfer:1")
+            .Value(D(2025, 12, 31), 5_000m).Value(D(2026, 9, 30), 6_600m).Build();
+
+        var o = Build([livret, checking, pea]);
+
+        Assert.Equal((18_300m, 11_700m, 6_600m), (N(o.Value), N(o.Available), N(o.Invested)));
+        // The 1 000 from the livret is paid into the investments; the checking account's 2 500 is no gain.
+        Assert.Equal((6_000m, 6_000m, 600m), (N(o.PaidIn), N(o.NetContributions), N(o.Gain)));
+        Assert.Equal(6_000m, N(o.Points[^1].NetContributions));
+        Assert.Equal(["checking", "pea", "savings"], o.ByKind.Select(k => k.Kind).Order());
+        var row = o.Envelopes.Single(e => e.Kind == "checking");
+        Assert.Null(row.RatePct);
+    }
+
+    [Fact]
+    public void Without_an_investment_the_investment_figures_are_empty()
+    {
+        var o = Build([new EnvelopeFacts("Courant", EnvelopeKind.Checking).Value(D(2026, 9, 30), 2_500m).Build()]);
+
+        Assert.Equal((2_500m, 2_500m), (N(o.Value), N(o.Available)));
+        Assert.Null(o.Gain);
+        Assert.Null(o.AnnualReturnPct);
     }
 }

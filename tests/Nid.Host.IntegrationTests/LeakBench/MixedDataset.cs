@@ -578,8 +578,10 @@ public sealed class MixedDataset
     /// </summary>
     /// <paramref name="of"/> is <see cref="Items"/>, <see cref="Envelopes"/> or <see cref="IncomeSources"/>: which of a row's twins to list.
     public IReadOnlySet<ItemId> ExpectedVisible(PersonId actor, VisibilityScope scope, IReadOnlyDictionary<string, ItemId>? of = null)
-        => Rows.Where(r => r.Visibility == Visibility.Shared
-                           || (scope == VisibilityScope.Me && r.Owners.Contains(NameOf(actor))))
+        => Rows.Where(r => (r.Visibility == Visibility.Shared
+                            || (scope is VisibilityScope.Me or VisibilityScope.Mine && r.Owners.Contains(NameOf(actor))))
+                           // #360: « Moi » leaves out what only the dependent owns.
+                           && !(scope == VisibilityScope.Mine && r.Owners.All(o => o == "D")))
             .Select(r => (of ?? Items)[r.Name])
             .ToHashSet();
 

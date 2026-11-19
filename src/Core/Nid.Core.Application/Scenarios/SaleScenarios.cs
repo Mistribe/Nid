@@ -166,7 +166,7 @@ public sealed class SaleScenarioReader(
         read.TryGetValue(out var result);
         var canWrite = (await policy.CheckAsync(Reader, item.Id, AccessKind.Write, ct)).IsSuccess;
         return Result.Success(new SaleScenarioView(
-            item.Id, item.DisplayName, ScenarioResults.Wire(item.Visibility), stored.Scope == VisibilityScope.Me ? "me" : "household",
+            item.Id, item.DisplayName, ScenarioResults.Wire(item.Visibility), stored.Scope is VisibilityScope.Me or VisibilityScope.Mine ? "me" : "household",
             SaleScenarioDocView.From(stored.Sale!, !result!.Warnings.Any(w => w.Code == "property_hidden")), result, canWrite));
     }
 }

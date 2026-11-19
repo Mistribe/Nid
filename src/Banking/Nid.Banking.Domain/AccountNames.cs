@@ -14,6 +14,10 @@ public static class AccountNames
     public static string Pick(params string?[] fields)
         => fields.Select(f => f?.Trim()).FirstOrDefault(f => !string.IsNullOrEmpty(f) && !IsCode(f)) ?? "";
 
+    /// <summary>#353: a field shown as it is (a holder, a product), trimmed to 200 characters; null when empty or a code.</summary>
+    public static string? Word(string? field)
+        => Pick(field) is { Length: > 0 } word ? word[..Math.Min(word.Length, 200)] : null;
+
     /// <summary>A code rather than a name: one word with an underscore (<c>immediat_debit</c>), or an ISO 20022 code.</summary>
     public static bool IsCode(string value)
         => (value.Contains('_') && !value.Any(char.IsWhiteSpace)) || Codes.Contains(value.Trim(), StringComparer.OrdinalIgnoreCase);

@@ -1,4 +1,6 @@
 using Nid.Banking.Contracts;
+using Nid.Banking.Domain;
+using NodaTime;
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
 using UnambitiousFx.Functional;
@@ -17,13 +19,15 @@ public sealed record GetBankingDiagnosticsQuery(string RedirectUrl, DateTimeOffs
 public sealed record TestBankingConnectionCommand(string RedirectUrl) : ICommand<BankingConnectionTestView>, IAdminOnly;
 
 [RequestHandler<GetBankingDiagnosticsQuery, BankingDiagnosticsView>]
-public sealed class GetBankingDiagnosticsHandler(IHouseholdSettings settings, BankingKey key, IBankSyncRunLog runs, IConnectionStore connections)
+public sealed class GetBankingDiagnosticsHandler(
+    IHouseholdSettings settings, BankingKey key, IBankSyncRunLog runs, IConnectionStore connections, BankAccountReader reader, IClock clock)
     : IRequestHandler<GetBankingDiagnosticsQuery, BankingDiagnosticsView>
 {
     public async ValueTask<Result<BankingDiagnosticsView>> HandleAsync(GetBankingDiagnosticsQuery query, CancellationToken ct = default)
         => Result.Success(new BankingDiagnosticsView(
             key.Status, !string.IsNullOrWhiteSpace((await settings.ReadAsync(ct)).EnableBankingAppId), query.RedirectUrl,
-            (await runs.RecentAsync(1, ct)).FirstOrDefault(), query.NextRunAt, (await connections.ActiveAsync(ct)).Count > 0));
+            (await runs.RecentAsync(1, ct)).FirstOrDefault(), query.NextRunAt, (await connections.ActiveAsync(ct)).Count > 0,
+            BankReadsView.From(BankReads.Worst((await reader.CountsAsync(null, ct)).Values), clock.GetCurrentInstant())));
 }
 
 [RequestHandler<TestBankingConnectionCommand, BankingConnectionTestView>]

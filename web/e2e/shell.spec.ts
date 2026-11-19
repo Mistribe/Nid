@@ -7,7 +7,7 @@ for (const width of [320, 375, 414]) {
     const alice = await browser.newPage({ viewport: { width, height: 740 } });
     await signIn(alice, 'alice', '/dashboard');
     const tabs = alice.getByRole('navigation', { name: 'Onglets' });
-    for (const name of ['Accueil', 'Placements', 'Abonnements', 'Routine', 'Plus'])
+    for (const name of ['Accueil', 'Comptes', 'Abonnements', 'Routine', 'Plus'])
       await expect(tabs.getByRole('link', { name })).toBeInViewport({ ratio: 1 });
     expect(await alice.evaluate('document.documentElement.scrollWidth <= window.innerWidth')).toBe(true);
     // Issue 374: the person menu sits in the top bar on a phone too, on the bar's one row.

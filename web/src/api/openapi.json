@@ -12185,6 +12185,96 @@
         }
       }
     },
+    "/api/v1/banking/accounts/{id}/overview": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BankAccountOverview"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/banking/accounts/{id}/envelope": {
       "post": {
         "tags": [
@@ -35090,6 +35180,25 @@
               "null",
               "boolean"
             ]
+          },
+          "minPayments": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "clearMinPayments": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "countWithdrawals": {
+            "type": [
+              "null",
+              "boolean"
+            ]
           }
         },
         "additionalProperties": false
@@ -35112,9 +35221,37 @@
               "null",
               "boolean"
             ]
+          },
+          "dependentId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
           }
         },
         "additionalProperties": false
+      },
+      "BankAccountOverview": {
+        "required": [
+          "recent"
+        ],
+        "type": "object",
+        "properties": {
+          "recent": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BankTransactionView"
+            }
+          },
+          "suggestedCardOf": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          }
+        }
       },
       "BankAccountView": {
         "required": [
@@ -35127,7 +35264,9 @@
           "synced",
           "canWrite",
           "bankName",
-          "renamed"
+          "renamed",
+          "countWithdrawals",
+          "reads"
         ],
         "type": "object",
         "properties": {
@@ -35207,6 +35346,32 @@
               "null",
               "string"
             ]
+          },
+          "holder": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "product": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "reads": {
+            "$ref": "#/components/schemas/BankReadsView"
+          },
+          "minPayments": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "countWithdrawals": {
+            "type": "boolean",
+            "default": false
           }
         }
       },
@@ -35327,6 +35492,16 @@
           "bankLinked": {
             "type": "boolean",
             "default": false
+          },
+          "reads": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/BankReadsView"
+              }
+            ]
           }
         }
       },
@@ -35354,6 +35529,50 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "BankReadsView": {
+        "required": [
+          "unattended",
+          "attended",
+          "limit",
+          "limitedAttended",
+          "warn"
+        ],
+        "type": "object",
+        "properties": {
+          "unattended": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "attended": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "limit": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "freesAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "limitedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "limitedAttended": {
+            "type": "boolean"
+          },
+          "warn": {
+            "type": "boolean"
           }
         }
       },
@@ -35551,6 +35770,7 @@
         "required": [
           "id",
           "startedAt",
+          "rateLimited",
           "trigger",
           "outcome",
           "connections",
@@ -35615,6 +35835,11 @@
             ]
           },
           "transactions": {
+            "type": "integer",
+            "format": "int32",
+            "default": 0
+          },
+          "rateLimited": {
             "type": "integer",
             "format": "int32",
             "default": 0
@@ -37711,7 +37936,8 @@
           "id",
           "aspspName",
           "status",
-          "accounts"
+          "accounts",
+          "reads"
         ],
         "type": "object",
         "properties": {
@@ -37750,6 +37976,9 @@
             "items": {
               "$ref": "#/components/schemas/BankAccountView"
             }
+          },
+          "reads": {
+            "$ref": "#/components/schemas/BankReadsView"
           }
         }
       },
@@ -41671,6 +41900,23 @@
               "string"
             ],
             "format": "date"
+          },
+          "ratePct": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "ceiling": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/CeilingView"
+              }
+            ]
           }
         }
       },
@@ -47053,6 +47299,26 @@
           "estimatedCount": {
             "type": "integer",
             "format": "int32"
+          },
+          "available": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AmountView"
+              }
+            ]
+          },
+          "invested": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AmountView"
+              }
+            ]
           }
         }
       },

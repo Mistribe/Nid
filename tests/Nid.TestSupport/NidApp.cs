@@ -360,11 +360,11 @@ public sealed class NidApp : IAsyncDisposable
     }
 
     /// <summary>Creates the Core item and the envelope through the real API (2B1a).</summary>
-    public async Task<ItemId> NewEnvelopeAsync(string name, PersonId owner, Visibility visibility, string currency = "EUR")
+    public async Task<ItemId> NewEnvelopeAsync(string name, PersonId owner, Visibility visibility, string currency = "EUR", string kind = "savings")
     {
         var response = await RawAsync(owner, HttpMethod.Post, "/api/v1/investments/envelopes", new
         {
-            displayName = name, kind = "savings", currency,
+            displayName = name, kind, currency,
             visibility = visibility == Visibility.Private ? "private" : "shared",
             owners = new[] { new { personId = owner.Value, shareBp = 10_000 } },
         });

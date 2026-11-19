@@ -61,7 +61,8 @@
     "tabs": "Onglets",
     "home": "Revenir à l'accueil",
     "subscriptions": "Abonnements",
-    "investments": "Placements",
+    "investments": "Comptes et placements",
+    "investments_tab": "Comptes",
     "goals": "Objectifs",
     "childcare": "Garde",
     "income": "Revenus",
@@ -237,7 +238,7 @@
     "estimated_total": "estimé",
     "without_value_one": "{{count}} élément sans valeur",
     "without_value_other": "{{count}} éléments sans valeur",
-    "see_investments": "Voir les placements",
+    "see_investments": "Voir les comptes et placements",
     "see_properties": "Voir les biens",
     "commitments_none": "Aucun engagement",
     "commitments_none_this_month": "Aucun coût ce mois-ci",
@@ -556,7 +557,7 @@
     "year_other": "{{count}} ans"
   },
   "investments": {
-    "title": "Placements",
+    "title": "Comptes et placements",
     "list": "Liste des enveloppes",
     "loading": "Chargement des enveloppes",
     "before_tax": "Gains avant fiscalité.",

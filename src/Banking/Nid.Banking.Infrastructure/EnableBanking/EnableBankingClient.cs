@@ -127,12 +127,14 @@ public sealed class EnableBankingClient(SafeHttpClient http, BankingOptions opti
         dto.Accounts.Where(a => a.Uid is not null)
             .Select(a => new SessionAccount(
                 a.Uid!, a.IdentificationHash, a.AccountId?.Iban, AccountNames.Pick(a.Details, a.Product, a.Name), a.CashAccountType, a.Currency,
-                a.CashAccountType == "CARD" ? AccountNames.Debit(a.Details, a.Product) : null, CardLast4(a.AccountId?.Other)))
+                a.CashAccountType == "CARD" ? AccountNames.Debit(a.Details, a.Product) : null,
+                CardLast4([a.AccountId?.Other, .. a.AllAccountIds ?? []]), AccountNames.Word(a.Name), AccountNames.Word(a.Product)))
             .ToList());
 
-    /// <summary>A masked card number's last four digits (<c>XXXXXXXXXXXX1234</c>), never more.</summary>
-    private static string? CardLast4(OtherIdDto? other)
-        => other is { SchemeName: "CPAN", Identification: { Length: >= 4 } number } && number[^4..].All(char.IsAsciiDigit) ? number[^4..] : null;
+    /// <summary>The last four digits of the first card number among the ids; the rest of it, masked or not, is never kept.</summary>
+    private static string? CardLast4(IEnumerable<OtherIdDto?> ids)
+        => ids.Select(other => other is { SchemeName: "CPAN", Identification: { Length: >= 4 } number } && number[^4..].All(char.IsAsciiDigit) ? number[^4..] : null)
+            .FirstOrDefault(last4 => last4 is not null);
 
     private static IReadOnlyList<ProviderBalance> ToBalances(BalancesDto dto) => (dto.Balances ?? [])
         .Select(b => new ProviderBalance(

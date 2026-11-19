@@ -32,9 +32,9 @@ internal sealed class EnvelopeFacts(string name, EnvelopeKind kind, string curre
         return this;
     }
 
-    public EnvelopeFacts Flow(LocalDate on, FlowKind kind, decimal amount, string? category = null)
+    public EnvelopeFacts Flow(LocalDate on, FlowKind kind, decimal amount, string? category = null, string? reference = null)
     {
-        flows.Add(new Flow(Guid.NewGuid(), id, on, kind, M(amount, money), category, null, null));
+        flows.Add(new Flow(Guid.NewGuid(), id, on, kind, M(amount, money), category, reference, null));
         return this;
     }
 

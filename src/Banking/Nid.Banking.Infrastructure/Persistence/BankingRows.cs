@@ -46,6 +46,16 @@ public sealed class AccountRow
     /// <summary>A card's <c>immediate</c> or <c>deferred</c> debit, when the bank says which.</summary>
     public string? CardDebit { get; set; }
 
+    /// <summary>#353: the holder's name and the bank's product name, as its latest session gave them; null when it gave none.</summary>
+    public string? Holder { get; set; }
+
+    public string? Product { get; set; }
+
+    /// <summary>#362: a card's minimum payments a month, the household's rule; null: none.</summary>
+    public int? CardMinPayments { get; set; }
+
+    public bool CardCountWithdrawals { get; set; }
+
     public string Currency { get; set; } = "";
     public Guid? EnvelopeItemId { get; set; }
     public Guid? CardOfAccountId { get; set; }
@@ -198,6 +208,16 @@ public sealed class RecurringGroupRow
     public Instant ProposedAt { get; set; }
 }
 
+/// <summary>#365: a read of an account at its bank, fetched data (not a decision): never audited, purged after a week.</summary>
+public sealed class AccountReadRow
+{
+    public Guid Id { get; set; }
+    public Guid AccountId { get; set; }
+    public Instant ReadAt { get; set; }
+    public bool Attended { get; set; }
+    public bool RateLimited { get; set; }
+}
+
 public sealed class SyncRunRow
 {
     public Guid Id { get; set; }
@@ -208,6 +228,7 @@ public sealed class SyncRunRow
     public int Connections { get; set; }
     public int Accounts { get; set; }
     public int Balances { get; set; }
+    public int RateLimited { get; set; }
     public int Proposals { get; set; }
     public int Written { get; set; }
     public int Skipped { get; set; }

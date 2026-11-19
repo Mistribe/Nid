@@ -123,8 +123,8 @@ describe('Calendrier', () => {
     const band = await screen.findByRole('region', { name: 'Frise des échéances du 15 novembre 2026 au 15 novembre 2031' });
     // The checked modules only, in the filters' order.
     expect(within(band).getAllByRole('list').map((l) => l.getAttribute('aria-labelledby') && document.getElementById(l.getAttribute('aria-labelledby')!)?.textContent))
-      .toEqual(['Crédits', 'Placements']);
-    const pea = within(within(band).getByRole('list', { name: 'Placements' })).getByRole('link');
+      .toEqual(['Crédits', 'Comptes et placements']);
+    const pea = within(within(band).getByRole('list', { name: 'Comptes et placements' })).getByRole('link');
     expect(pea).toHaveTextContent('5 ans du PEA : la fiscalité des retraits change · PEA Alice · 1 mars 2028');
     expect(pea).toHaveAttribute('href', '/investments/00000000-0000-7000-8000-0000000000d1');
     // Two weeks apart on five years: one mark, opening both.
