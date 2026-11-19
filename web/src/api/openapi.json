@@ -40359,6 +40359,23 @@
               "string"
             ],
             "format": "date"
+          },
+          "ratePct": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "ceiling": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/CeilingView"
+              }
+            ]
           }
         }
       },
@@ -45741,6 +45758,26 @@
           "estimatedCount": {
             "type": "integer",
             "format": "int32"
+          },
+          "available": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AmountView"
+              }
+            ]
+          },
+          "invested": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AmountView"
+              }
+            ]
           }
         }
       },

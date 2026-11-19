@@ -102,7 +102,8 @@ public sealed class GetInvestmentsHoldingsHandler(
             EnvelopePerformance.Facts? f;
             if (block is not null) block.TryGetValue(envelope.ItemId, out f);
             else (await performance.FactsAsync(envelope.ItemId, ct)).TryGetValue(out f);
-            if (f is not null && f.Item.ArchivedAt is null) facts.Add(f);
+            // #356: a checking account or a livret holds no supports and pays no fees: its money is « Disponible ».
+            if (f is not null && f.Item.ArchivedAt is null && !EnvelopeAllocation.IsAvailable(f.Envelope.Kind)) facts.Add(f);
         }
 
         // The holdings, snapshots and movements of every envelope in three queries; the cost reports by envelope, only for those detailed.

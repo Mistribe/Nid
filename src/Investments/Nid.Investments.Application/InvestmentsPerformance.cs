@@ -101,7 +101,8 @@ internal static class InvestmentsPerformanceMath
 
         var counted = new List<Counted>();
         // An envelope closed by the start has nothing in the period; one without a value by the end, nothing to count.
-        foreach (var f in facts.Where(f => f.Envelope.ClosedOn is not { } closed || closed > from))
+        // #356: a checking account or a livret is available money, not an investment; its rate stays the reference below.
+        foreach (var f in facts.Where(f => !EnvelopeAllocation.IsAvailable(f.Envelope.Kind) && (f.Envelope.ClosedOn is not { } closed || closed > from)))
         {
             var period = EnvelopeMath.Period(f.Values, f.Flows, f.Currency, from, to);
             if (period.EndValue is not { } end) continue;
@@ -118,10 +119,12 @@ internal static class InvestmentsPerformanceMath
 
         var startValue = Household(c => AtStart(c.Start, c.Facts.Currency));
         var endValue = Household(c => At(c.End, c.Facts.Currency));
-        var contributions = Household(c => At(Window(c, f => f.Kind is FlowKind.Opening or FlowKind.Contribution && !IsTransfer(f)), c.Facts.Currency));
-        var withdrawals = Household(c => At(Window(c, f => f.Kind == FlowKind.Withdrawal && !IsTransfer(f)), c.Facts.Currency));
-        var transfers = Household(c => At(Window(c, f => f.Kind is FlowKind.Opening or FlowKind.Contribution && IsTransfer(f))
-            - Window(c, f => f.Kind == FlowKind.Withdrawal && IsTransfer(f)), c.Facts.Currency));
+        // #356: money moved from a livret or a checking account is paid in, as far as the investments go.
+        var transfer = InvestmentsOverviewMath.InvestedTransfer(facts);
+        var contributions = Household(c => At(Window(c, f => f.Kind is FlowKind.Opening or FlowKind.Contribution && !transfer(f)), c.Facts.Currency));
+        var withdrawals = Household(c => At(Window(c, f => f.Kind == FlowKind.Withdrawal && !transfer(f)), c.Facts.Currency));
+        var transfers = Household(c => At(Window(c, f => f.Kind is FlowKind.Opening or FlowKind.Contribution && transfer(f))
+            - Window(c, f => f.Kind == FlowKind.Withdrawal && transfer(f)), c.Facts.Currency));
         // D13 in converted terms: the start and the end are not at the same rate.
         var performance = endValue - startValue - contributions + withdrawals - transfers;
         var engaged = startValue + contributions;

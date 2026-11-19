@@ -108,7 +108,7 @@
     "done_title": "Import terminé",
     "download": "Télécharger le rapport",
     "see_subscriptions": "Voir les abonnements",
-    "see_investments": "Voir les placements",
+    "see_investments": "Voir les comptes et placements",
     "codes": {
       "realestate_bank_schedule_invalid": "Ce tableau de la banque ne correspond pas au crédit.",
       "realestate_bank_schedule_missing": "Ce crédit prend le tableau de la banque comme référence, mais n’en a aucune ligne : ajoutez-les dans « loan_bank_schedule » ou mettez « computed ».",

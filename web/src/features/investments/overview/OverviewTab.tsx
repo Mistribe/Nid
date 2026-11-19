@@ -24,7 +24,7 @@ import { seeAllClass } from '@/components/page/seeAll';
 import { Table, TableBody, TableCell, TableHead, TableRow } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { PERSONS } from '@/api/persons';
-import { OVERVIEW, type EnvelopeOverviewRow, type InvestmentsOverview, type Watch } from '@/api/investments';
+import { AVAILABLE_KINDS, OVERVIEW, type EnvelopeOverviewRow, type InvestmentsOverview, type Watch } from '@/api/investments';
 import { AnnualReturn, Gain, pct } from '../Figures';
 import { Direction } from '@/components/Direction';
 import { kindText } from '../format';
@@ -64,7 +64,8 @@ export function AnalysisTab({ scope, span }: { scope: Scope; span: Span }) {
             <Kinds d={d} />
             <Persons d={d} />
           </div>
-          <Envelopes d={d} />
+          <Envelopes d={d} group="available" />
+          <Envelopes d={d} group="invested" />
         </>
       )}
     </Overview>
@@ -156,6 +157,10 @@ function Figures({ d }: { d: InvestmentsOverview }) {
   const percent = (value: number) => t('investments.pct', { value: pct(value) });
   return (
     <StatLine items={[
+      ...(d.available ? [
+        { label: t('investments_overview.available'), value: <>{figure(d.available)}<Sub>{t('investments_overview.available_note')}</Sub></> },
+        { label: t('investments_overview.invested'), value: <>{figure(d.invested)}<Sub>{t('investments_overview.invested_note')}</Sub></> },
+      ] : []),
       { label: t('investments_overview.net'), value: <>{figure(d.netContributions)}<Sub>{t('investments_overview.net_note')}</Sub></> },
       { label: t('investments_overview.gain'), value: (
         <>
@@ -287,9 +292,15 @@ function Amount({ value, converted }: { value: MoneyValue; converted?: MoneyValu
   );
 }
 
-function Envelopes({ d }: { d: InvestmentsOverview }) {
+/**
+ * #356: the open envelopes in two tables. « Disponible » (checking accounts, livrets): the balance, a livret's rate and ceiling, no gain;
+ * « Investi »: the gain and the annual return. Each with its own total, as the server gives it.
+ */
+function Envelopes({ d, group }: { d: InvestmentsOverview; group: 'available' | 'invested' }) {
   const { t } = useTranslation();
   const figure = useFigure(d);
+  const available = group === 'available';
+  const rows = d.envelopes.filter((r) => AVAILABLE_KINDS.includes(r.kind) === available);
   const dash = <span aria-hidden="true">{t('investments.dash')}</span>;
   const name = (r: EnvelopeOverviewRow) => (
     <span className="inline-flex items-start gap-2">
@@ -315,39 +326,56 @@ function Envelopes({ d }: { d: InvestmentsOverview }) {
       </span>
     );
   };
+  const rate = (r: EnvelopeOverviewRow) => (r.ratePct === null || r.ratePct === undefined ? dash : (
+    <span>
+      {t('investments.pct', { value: pct(r.ratePct) })}
+      {r.ceiling ? (
+        <span className="block text-xs text-muted-foreground">
+          {r.ceiling.reached ? t('investments_overview.ceiling_reached') : t('investments_overview.ceiling_room', { amount: formatMoney(r.ceiling.room) })}
+        </span>
+      ) : null}
+    </span>
+  ));
+  const value = (r: EnvelopeOverviewRow) => (r.figures.value ? <Amount value={r.figures.value} converted={r.valueConverted} /> : <span className="text-muted-foreground">{t('investments.no_value')}</span>);
+  if (rows.length === 0) return null;
+  const total = available ? d.available : d.invested;
   return (
-    <SectionCard title={t('investments_overview.envelopes_title')} actions={
+    <SectionCard title={t(available ? 'investments_overview.available' : 'investments_overview.invested')} actions={available ? null : (
       <Link to="/investments" search={(prev: RootSearch & InvestmentsSearch) => ({ ...prev, tab: 'list' })} className={seeAllClass}>
         {t('investments_overview.see_list')}
       </Link>
-    }>
-      <p className="text-sm text-muted-foreground">{t('investments.before_tax')}</p>
-      <SortableTable<EnvelopeOverviewRow> caption={t('investments_overview.envelopes_list')} rows={d.envelopes} rowKey={(r) => r.id}
+    )}>
+      <p className="text-sm text-muted-foreground">{available ? t('investments_overview.available_hint') : t('investments.before_tax')}</p>
+      <SortableTable<EnvelopeOverviewRow> caption={t(available ? 'investments_overview.available_list' : 'investments_overview.invested_list')} rows={rows} rowKey={(r) => r.id}
         rowLink={(r) => ({ to: '/investments/$id', params: { id: r.id } })}
         columns={[
           { id: 'name', header: t('investments_overview.col_envelope'), sort: (r) => r.name, cell: name },
           { id: 'owner', header: t('investments_overview.col_owners'), cell: (r) => <OwnerChips owners={r.owners} /> },
-          { id: 'value', header: t('lists.col.value'), align: 'end', sort: (r) => amountKey(r.valueConverted?.amount ?? null),
-            cell: (r) => (r.figures.value ? <Amount value={r.figures.value} converted={r.valueConverted} /> : <span className="text-muted-foreground">{t('investments.no_value')}</span>) },
-          { id: 'gain', header: t('investments_overview.col_gain'), align: 'end', sort: (r) => amountKey(r.gainConverted?.amount ?? null),
-            cell: (r) => (r.figures.value ? <Gain figures={r.figures} /> : dash) },
-          { id: 'annual', header: t('investments_overview.col_annual'), align: 'end', sort: (r) => r.figures.annualReturnPct ?? Number.NEGATIVE_INFINITY,
-            cell: (r) => (r.figures.annualReturnPct === null || r.figures.annualReturnPct === undefined ? dash : <AnnualReturn value={r.figures.annualReturnPct} />) },
+          { id: 'value', header: t('lists.col.value'), align: 'end', sort: (r) => amountKey(r.valueConverted?.amount ?? null), cell: value },
+          ...(available ? [
+            { id: 'rate', header: t('investments_overview.col_rate'), align: 'end' as const, sort: (r: EnvelopeOverviewRow) => r.ratePct ?? Number.NEGATIVE_INFINITY, cell: rate },
+          ] : [
+            { id: 'gain', header: t('investments_overview.col_gain'), align: 'end' as const, sort: (r: EnvelopeOverviewRow) => amountKey(r.gainConverted?.amount ?? null),
+              cell: (r: EnvelopeOverviewRow) => (r.figures.value ? <Gain figures={r.figures} /> : dash) },
+            { id: 'annual', header: t('investments_overview.col_annual'), align: 'end' as const, sort: (r: EnvelopeOverviewRow) => r.figures.annualReturnPct ?? Number.NEGATIVE_INFINITY,
+              cell: (r: EnvelopeOverviewRow) => (r.figures.annualReturnPct === null || r.figures.annualReturnPct === undefined ? dash : <AnnualReturn value={r.figures.annualReturnPct} />) },
+          ]),
           { id: 'updated', header: t('investments_overview.col_updated'), sort: (r) => r.figures.asOf ?? '', cell: updated },
         ]}
         mobile={(r) => (
           <div className="space-y-1">
             <div className="flex items-center justify-between gap-2">{name(r)}<OwnerChips owners={r.owners} /></div>
             <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-              {r.figures.value ? <Amount value={r.figures.value} converted={r.valueConverted} /> : <span className="text-muted-foreground">{t('investments.no_value')}</span>}
-              {r.figures.value ? <Gain figures={r.figures} /> : null}
+              {value(r)}
+              {!available && r.figures.value ? <Gain figures={r.figures} /> : null}
+              {available && r.ratePct !== null && r.ratePct !== undefined ? rate(r) : null}
             </div>
             {r.estimated && r.estimatedOn ? <Estimated on={r.estimatedOn} /> : null}
           </div>
         )} />
       <p className="flex flex-wrap justify-between gap-2 border-t pt-2 text-sm font-medium">
-        <span>{t('investments_overview.total_row', { count: d.openCount })}</span>
-        <span className="tabular-nums">{figure(d.value)}{d.estimatedCount > 0 ? <span className="font-normal text-muted-foreground"> {t('investments_overview.estimated')}</span> : null}{d.gain ? ` · ${signed(d.gain)}` : null}</span>
+        <span>{t('investments_overview.total_row', { count: rows.length })}</span>
+        <span className="tabular-nums">{figure(total)}{!available && d.estimatedCount > 0 ? <span className="font-normal text-muted-foreground"> {t('investments_overview.estimated')}</span> : null}{!available && d.gain ? ` · ${signed(d.gain)}` : null}</span>
       </p>
     </SectionCard>
   );

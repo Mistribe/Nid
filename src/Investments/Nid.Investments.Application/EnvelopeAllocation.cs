@@ -52,6 +52,12 @@ internal static class EnvelopeAllocation
         _ => AllocationLiquidity.Days,
     };
 
+    /// <summary>
+    /// Issue #356: a checking account or a livret is money available today, not an investment: « Comptes et placements » shows it under
+    /// « Disponible », and the investment figures (paid in, gain, returns, performance, exposure, fees) leave it out.
+    /// </summary>
+    internal static bool IsAvailable(EnvelopeKind kind) => Liquidity(kind) == AllocationLiquidity.Available;
+
     private static (string Class, bool Approximate) ClassOf(EnvelopeKind kind) => kind switch
     {
         EnvelopeKind.Checking or EnvelopeKind.Savings => (AllocationClasses.Cash, false),

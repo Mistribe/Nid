@@ -52,9 +52,9 @@ export const overviewRow = (over: Partial<EnvelopeOverviewRow> = {}): EnvelopeOv
   figures: figures(), valueConverted: eur('25000.00'), gainConverted: eur('3000.00'), estimated: false, estimatedOn: null, ...over,
 });
 
-/** A PEA and a savings account, the savings account's value old, with a year of points. */
+/** A PEA and a savings account (« Disponible », #356), the savings account's value old, with a year of points. */
 export const household = (): InvestmentsOverview => overview({
-  openCount: 2, value: eur('35000.00'), oldestAsOf: '2025-08-31', staleCount: 1, netContributions: eur('31800.00'), paidIn: eur('32000.00'),
+  openCount: 2, value: eur('35000.00'), available: eur('10000.00'), invested: eur('25000.00'), oldestAsOf: '2025-08-31', staleCount: 1, netContributions: eur('31800.00'), paidIn: eur('32000.00'),
   gain: eur('3200.00'), gainPct: 10, annualReturnPct: 6.2, sinceJanuary: eur('1840.00'), sinceJanuaryPct: 5.6,
   byKind: [{ kind: 'pea', value: eur('25000.00'), sharePct: 71.4 }, { kind: 'savings', value: eur('10000.00'), sharePct: 28.6 }],
   byPerson: [{ personId: ALICE, value: eur('35000.00'), gain: eur('3200.00'), sharePct: 100 }],
@@ -63,7 +63,8 @@ export const household = (): InvestmentsOverview => overview({
     overviewRow({ id: LIVRET, name: 'Livret A', kind: 'savings', institution: null,
       figures: figures({ value: eur('10000.0000'), asOf: '2025-08-31', netContributions: eur('9800.0000'), gain: eur('200.0000'), gainPct: 2,
         annualReturnPct: 2.1, staleDays: 45 }),
-      valueConverted: eur('10000.00'), gainConverted: eur('200.00') }),
+      valueConverted: eur('10000.00'), gainConverted: eur('200.00'), ratePct: 1.7,
+      ceiling: { ceiling: eur('22950.0000'), room: eur('12950.0000'), reached: false, since: '2013-10-01', source: 'Service-public.fr' } }),
   ],
   points: [
     { on: '2025-08-31', value: eur('33000.00'), netContributions: eur('31000.00'), byKind: [{ kind: 'pea', value: eur('23000.00') }, { kind: 'savings', value: eur('10000.00') }], paidIn: true },
