@@ -35,7 +35,7 @@ export type ChildcareSearch = DetailSearch & { year?: string };
 /** #94: a nanny at home's year (absent: the current one). */
 export type NannySearch = { year?: string };
 export type RoutineSearch = { on?: string };
-export type BanksSearch = { connected?: string; error?: string; tab?: 'categories' };
+export type BanksSearch = { connected?: string; error?: string; tab?: 'categories'; account?: string };
 /** The home page: the curve's span, a figure panel, the projection's horizon (`10y` stays out of the URL) and its reading (`0`: current value). */
 export type DashboardSearch = { curve?: '3y' | 'all'; curveReal?: 1; panel?: Panel; projection?: ProjectionHorizon; real?: 0; ranges?: 1 };
 /**
@@ -132,7 +132,8 @@ export type ArrearsLetterSearch = { days?: number };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** 4C2: the proposals' tab; pending is the default and is dropped from the URL. */
-export type ProposalsSearch = { status?: 'approved' | 'rejected' };
+/** #373: `target` narrows the list to one item's proposals (an envelope's notice links here). */
+export type ProposalsSearch = { status?: 'approved' | 'rejected'; target?: string };
 
 export function homePath(capabilities: Capabilities): '/dashboard' | '/subscriptions' | '/import' | '/settings/appearance' {
   if (capabilities.modules.includes('core')) return '/dashboard';
@@ -693,6 +694,8 @@ const banksSettingsRoute = createRoute({
     ...(typeof search.connected === 'string' ? { connected: search.connected } : {}),
     ...(typeof search.error === 'string' ? { error: search.error } : {}),
     ...(search.tab === 'categories' ? { tab: 'categories' as const } : {}),
+    // #373: an envelope's page opens its account's « Régler » here.
+    ...(typeof search.account === 'string' ? { account: search.account } : {}),
   }),
   component: lazyRouteComponent(() => import('@/features/settings/banks/BanksPage'), 'BanksPage'),
 });
@@ -706,8 +709,10 @@ const moreRoute = createRoute({ getParentRoute: () => rootRoute, path: '/more', 
 const proposalsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/proposals',
-  validateSearch: (search: Record<string, unknown>): ProposalsSearch =>
-    search.status === 'approved' || search.status === 'rejected' ? { status: search.status } : {},
+  validateSearch: (search: Record<string, unknown>): ProposalsSearch => ({
+    ...(search.status === 'approved' || search.status === 'rejected' ? { status: search.status } : {}),
+    ...(typeof search.target === 'string' ? { target: search.target } : {}),
+  }),
   component: lazyRouteComponent(() => import('@/features/proposals/ProposalsPage'), 'ProposalsPage'),
 });
 

@@ -153,6 +153,15 @@ function Connections({ configured }: { configured: boolean }) {
   }, [arrival, connections.data]);
 
   const listed = connections.data?.flatMap((c) => c.accounts) ?? [];
+  // #373: from an envelope's page, its account's « Régler » opens, once.
+  const asked = useRef(false);
+  useEffect(() => {
+    if (asked.current || !arrival.account || !readable) return;
+    asked.current = true;
+    const account = readable.find((a) => a.id === arrival.account && a.canWrite);
+    if (account) setEditing(account);
+    void navigate({ to: '/settings/banks', search: {}, replace: true });
+  }, [arrival, readable, navigate]);
   // Accounts no connection of the person's lists: their connection was deleted, or a renewal left them out (spec §8).
   const unsynced = connections.data || !configured ? (readable ?? []).filter((a) => !a.synced && !listed.some((l) => l.id === a.id)) : [];
   const all = [...listed, ...unsynced];

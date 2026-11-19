@@ -190,6 +190,28 @@ public class ProposalRouteTests(PostgresFixture fixture) : IClassFixture<Postgre
         Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultB, HttpMethod.Post, Proposals, Echo(hidden.Value))).StatusCode);
     }
 
+    // #373: an envelope's page reads only the proposals on it.
+    [Fact]
+    public async Task The_list_narrowed_to_a_target_holds_its_proposals_alone_and_nothing_on_an_item_the_reader_cannot_see()
+    {
+        await using var app = await StartAsync(fixture);
+        var netflix = await app.NewSubscriptionAsync("Netflix", app.AdultA, Visibility.Shared);
+        var spotify = await app.NewSubscriptionAsync("Spotify", app.AdultA, Visibility.Shared);
+        var hidden = await app.NewSubscriptionAsync("Privé", app.AdultA, Visibility.Private);
+        var mine = (await JsonOf(await app.RawAsync(app.AdultA, HttpMethod.Post, Proposals, Echo(netflix.Value)))).GetProperty("id").GetGuid();
+        await app.RawAsync(app.AdultA, HttpMethod.Post, Proposals, Echo(spotify.Value));
+        await app.RawAsync(app.AdultA, HttpMethod.Post, Proposals, Echo(hidden.Value));
+
+        async Task<List<Guid>> Ids(PersonId who, ItemId target) => (await JsonOf(await app.RawAsync(who, HttpMethod.Get,
+            $"{Proposals}?status=pending&targetItemId={target.Value}"))).GetProperty("items").EnumerateArray().Select(p => p.GetProperty("id").GetGuid()).ToList();
+
+        Assert.Equal([mine], await Ids(app.AdultA, netflix));
+        Assert.Equal([mine], await Ids(app.AdultB, netflix));
+        Assert.Single(await Ids(app.AdultA, hidden));
+        Assert.Empty(await Ids(app.AdultB, hidden));
+        Assert.Equal(3, (await JsonOf(await app.RawAsync(app.AdultA, HttpMethod.Get, Proposals))).GetProperty("items").GetArrayLength());
+    }
+
     // Review Focus 2.
     [Fact]
     public async Task A_target_made_private_hides_the_proposal_from_the_other_adult()

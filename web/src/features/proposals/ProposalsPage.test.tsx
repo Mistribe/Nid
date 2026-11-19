@@ -42,6 +42,21 @@ describe('À valider', () => {
     await expectNoAxeViolations(container);
   });
 
+  it('narrows the list to one item when an envelope page links here (#373)', async () => {
+    let asked: string | null = null;
+    server.use(http.get('*/api/v1/core/proposals', ({ request }) => {
+      asked = new URL(request.url).searchParams.get('targetItemId');
+      return HttpResponse.json({ items: asked ? [proposal()] : [proposal(), proposal({ targetName: 'Assurance-vie' })] });
+    }));
+    const { user } = await renderApp('/proposals?target=e1');
+
+    expect(await screen.findByText(/Propositions pour PEA/)).toBeInTheDocument();
+    expect(await rows()).toHaveLength(1);
+    expect(asked).toBe('e1');
+    await user.click(screen.getByRole('link', { name: 'Tout afficher' }));
+    await waitFor(async () => expect(await rows()).toHaveLength(2));
+  });
+
   it('lists the newest proposal first and sorts by the date received', async () => {
     serve({ pending: [
       proposal({ sourceLabel: 'Relevé ancien', createdAt: '2026-10-01T08:00:00+00:00' }),

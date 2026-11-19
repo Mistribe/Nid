@@ -8,7 +8,7 @@ import { server } from '@/test/server';
 import { toasts } from '@/test/toasts';
 import { formatInstant, formatInstantDay, formatInstantTime } from '@/lib/format';
 import { summary } from '../../investments/testData';
-import { account, CARD, CONNECTION, connection, noReads, rule, serveBanks } from './testData';
+import { account, CARD, CHECKING, CONNECTION, connection, noReads, rule, serveBanks } from './testData';
 
 describe('Réglages › Banques', () => {
   beforeAll(async () => { await import('./BanksPage'); }, 30_000);
@@ -170,6 +170,14 @@ describe('Réglages › Banques', () => {
 
     expect(await screen.findByRole('dialog', { name: 'Régler Compte courant' })).toBeInTheDocument();
     expect(screen.getByText('Banque reliée.')).toBeInTheDocument();
+    await waitFor(() => expect(router.state.location.search).toEqual({}));
+  });
+
+  it('opens the account an envelope page asks for (#373)', async () => {
+    serveBanks([connection()]);
+    const { router } = await renderApp(`/settings/banks?account=${CHECKING}`);
+
+    expect(await screen.findByRole('dialog', { name: 'Régler Compte courant' })).toBeInTheDocument();
     await waitFor(() => expect(router.state.location.search).toEqual({}));
   });
 

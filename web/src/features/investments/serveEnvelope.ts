@@ -17,7 +17,7 @@ export function serve(current: EnvelopeDetail, calls: Call[]) {
     http.post('*/api/v1/investments/envelopes/:id/valuations', async ({ request }) => {
       const body = await request.json() as { asOf: string; amount: { amount: string; currency: string }; note?: string | null };
       calls.push({ method: 'POST', path: 'valuations', body });
-      state = { ...state, valuations: [...state.valuations.filter((v) => v.asOf !== body.asOf), { id: 'new-value', asOf: body.asOf, amount: body.amount, note: body.note ?? null }] };
+      state = { ...state, valuations: [...state.valuations.filter((v) => v.asOf !== body.asOf), { id: 'new-value', asOf: body.asOf, amount: body.amount, note: body.note ?? null, fromBank: false }] };
       return HttpResponse.json({ id: 'new-value' }, { status: 201 });
     }),
     http.post('*/api/v1/investments/envelopes/:id/flows', async ({ request }) => {

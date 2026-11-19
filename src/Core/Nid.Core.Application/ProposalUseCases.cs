@@ -59,7 +59,8 @@ public sealed record SubmitProposalCommand(string Kind, ItemId? ItemId, JsonElem
     public string RequiredScope => ScopeNames.Write;
 }
 
-public sealed record ListProposalsQuery(string? Status) : IQuery<ProposalList>;
+/// <summary>Issue #373: <paramref name="Target"/> narrows the list to the proposals on that item, when the actor can read it.</summary>
+public sealed record ListProposalsQuery(string? Status, ItemId? Target = null) : IQuery<ProposalList>;
 
 public sealed record GetProposalQuery(Guid Id) : IQuery<ProposalDetail>;
 
@@ -220,7 +221,9 @@ public sealed class ListProposalsHandler(IProposalStore store, IVisibleItems vis
         if (!Enum.TryParse<ProposalStatus>(query.Status ?? "pending", ignoreCase: true, out var status) || !Enum.IsDefined(status))
             return Result.Failure<ProposalList>(FieldErrors.At(new Failure("request.invalid", "pending, approved, rejected or superseded.", null), "status"));
         var targets = await visible.ForAsync(me, VisibilityScope.Me, includeArchived: true, ct);
-        var stored = await store.ListAsync(targets, me, status, ct);
+        var stored = query.Target is { } target
+            ? await store.ListAsync(targets.Contains(target) ? new HashSet<ItemId> { target } : new HashSet<ItemId>(), null, status, ct)
+            : await store.ListAsync(targets, me, status, ct);
         var names = await ProposalAccess.NamesAsync(items, stored.Select(p => p.Target), ct);
         return Result.Success(new ProposalList(stored.Select(p => ProposalView.From(p, names(p.Target))).ToList()));
     }

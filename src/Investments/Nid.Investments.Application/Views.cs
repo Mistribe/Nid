@@ -33,7 +33,8 @@ public sealed record EnvelopeList(IReadOnlyList<EnvelopeSummary> Items) : IExpos
     public IEnumerable<ItemId> ExposedItems() => Items.Select(i => i.Id);
 }
 
-public sealed record ValuationView(Guid Id, LocalDate AsOf, AmountView Amount, string? Note, Guid? DocumentId = null);
+/// <summary><paramref name="FromBank"/>: written by bank sync (#373: the envelope's bank line says its last balance was applied).</summary>
+public sealed record ValuationView(Guid Id, LocalDate AsOf, AmountView Amount, string? Note, Guid? DocumentId = null, bool FromBank = false);
 
 public sealed record FlowView(Guid Id, LocalDate OccurredOn, string Kind, AmountView Amount, string? Category, string? ExternalRef, string? Note, Guid? DocumentId = null);
 

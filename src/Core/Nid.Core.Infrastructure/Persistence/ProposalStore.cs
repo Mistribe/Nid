@@ -80,12 +80,13 @@ public sealed partial class ProposalStore(CoreDbContext db, IClock clock, IEnume
     public async Task<StoredProposal?> FindAsync(Guid id, CancellationToken ct)
         => await db.Proposals.AsNoTracking().SingleOrDefaultAsync(r => r.Id == id, ct) is { } row ? ToStored(row) : null;
 
-    public async Task<IReadOnlyList<StoredProposal>> ListAsync(IReadOnlySet<ItemId> targets, PersonId person, ProposalStatus status, CancellationToken ct)
+    public async Task<IReadOnlyList<StoredProposal>> ListAsync(IReadOnlySet<ItemId> targets, PersonId? person, ProposalStatus status, CancellationToken ct)
     {
         var ids = targets.Select(t => (Guid?)t.Value).ToArray();
         var wire = Wire(status);
+        var untargeted = person?.Value;
         return (await db.Proposals.AsNoTracking()
-                .Where(r => (ids.Contains(r.TargetItemId) || (r.TargetItemId == null && r.ForPersonId == person.Value)) && r.Status == wire)
+                .Where(r => (ids.Contains(r.TargetItemId) || (untargeted != null && r.TargetItemId == null && r.ForPersonId == untargeted)) && r.Status == wire)
             .OrderByDescending(r => r.CreatedAt).ThenByDescending(r => r.Id).ToListAsync(ct)).Select(ToStored).ToList();
     }
 

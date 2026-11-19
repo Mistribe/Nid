@@ -1,5 +1,7 @@
 {
   "proposal": {
+    "narrowed": "Propositions pour {{name}}",
+    "show_all": "Tout afficher",
     "route": { "fields": "Champs proposés", "no_fields": "Aucun champ.", "new": "Nouvel élément", "replaces_insurance": "Remplace toute l’assurance : ce qui n’est pas listé est retiré.", "tax_year": "Avis d’imposition {{year}}", "removes_notice": "Cet avis sera supprimé avec tous ses chiffres ; son PDF reste dans Documents.", "yes": "Oui", "no": "Non" },
     "next": "Proposition suivante",
     "target": "Élément",

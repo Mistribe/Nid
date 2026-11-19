@@ -1,4 +1,4 @@
-import { useParams } from '@tanstack/react-router';
+import { Link, useParams } from '@tanstack/react-router';
 import { AlertTriangle, Plus } from 'lucide-react';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -44,6 +44,8 @@ import '@/locales/investments';
 import { ItemDocuments } from '@/features/documents/ItemDocuments';
 import '@/locales/documents';
 import { accountLabel, ASSOCIABLE, dayMonth, useBankAccounts, useBankingStatus } from '@/api/banking';
+import { usePendingOn } from '@/api/proposals';
+import { isBankValuation, isValuation, PendingNotice } from './PendingNotice';
 import '@/locales/banks';
 import '@/locales/deletion';
 import { PageSkeleton } from '@/components/page/skeletons';
@@ -80,6 +82,8 @@ export function EnvelopeDetailPage() {
   // The bank account whose balances become this envelope's values, when bank sync is on.
   const bank = useBankAccounts(id)?.[0];
   const bankingOn = useBankingStatus().data?.enabled === true;
+  // #373: what awaits approval on this envelope, filtered by the server.
+  const pending = usePendingOn(id) ?? [];
   const [tab, setTab] = useDetailTab(TABS);
   // No `PageHeader` yet: the bar's trail leads back to the list (no inline link of its own).
   const crumbs = [{ label: t('nav.investments'), to: '/investments' as const }];
@@ -173,7 +177,14 @@ export function EnvelopeDetailPage() {
   const values = newestFirst(detail.valuations, (v) => v.asOf);
   const flows = newestFirst(detail.flows, (f) => f.occurredOn);
   const sinceShown = directionOf(figures.contributionsSince.amount) !== 'flat' || directionOf(figures.withdrawalsSince.amount) !== 'flat';
+  // #373: no value yet but one awaits approval: the figure says so rather than « none ».
   const absent = <span className="text-base font-normal text-muted-foreground">{t('investments.no_value')}</span>;
+  const noValue = pending.some(isValuation)
+    ? <span className="text-base font-normal text-muted-foreground">{t('envelope.value_pending')}</span> : absent;
+  // #373: what became of the bank's last balance: proposed and waiting, written as a value, or not (yet).
+  const bankState = !bank?.lastBalanceOn ? null
+    : pending.some(isBankValuation) ? 'pending'
+    : detail.valuations.some((v) => v.fromBank && v.asOf >= bank.lastBalanceOn!) ? 'written' : 'not_written';
   const extra = (label: string, amount: typeof figures.fees) =>
     amount && directionOf(amount.amount) !== 'flat' ? [{ label, value: <Money value={amount} tabular /> }] : [];
   // The missing-opening button offers to add « Versements antérieurs »; hidden once one already exists (finding 9),
@@ -215,7 +226,7 @@ export function EnvelopeDetailPage() {
         <section aria-label={t('envelope.figures')} data-guide="investments.figures" className="space-y-2">
           <StatLine items={[
             { label: figures.asOf ? t('envelope.value_at', { date: formatLocalDate(figures.asOf, 'short') }) : t('envelope.value'),
-              value: figures.value ? <Money value={figures.value} tabular /> : absent,
+              value: figures.value ? <Money value={figures.value} tabular /> : noValue,
               hint: figures.value && figures.staleDays != null ? <StaleBadge days={figures.staleDays} /> : null },
             // #374: an account that is no investment (a value, no gain) shows its balance, not what was paid in nor a gain.
             ...(figures.value && !figures.gain ? [] : [
@@ -270,6 +281,10 @@ export function EnvelopeDetailPage() {
           {bank ? (
             <p className="text-sm text-muted-foreground">
               {bank.lastBalanceOn ? t('banks.envelope_note.last', { name: accountLabel(t, bank), date: dayMonth(bank.lastBalanceOn) }) : t('banks.envelope_note.linked', { name: accountLabel(t, bank) })}
+              {bankState ? <>{' · '}{t(`banks.envelope_note.${bankState}`)}</> : null}
+              {!bank.autoApplyBalance && bank.canWrite ? (
+                <>{' · '}<Link to="/settings/banks" search={{ account: bank.id }} className="underline">{t('banks.envelope_note.auto')}</Link></>
+              ) : null}
             </p>
           ) : null}
           {bank?.balanceConflictOn ? (
@@ -286,6 +301,7 @@ export function EnvelopeDetailPage() {
           ) : null}
         </section>
       </PageHeader>
+      <PendingNotice envelope={id} pending={pending} canApprove={writable} />
       {detail.canWrite ? null : <p>{t('envelope.read_only')}</p>}
       {detail.closed ? (
         <ClosedBanner envelope={detail} bannerRef={bannerRef}

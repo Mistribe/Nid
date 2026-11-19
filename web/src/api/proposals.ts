@@ -20,6 +20,12 @@ export function usePending(): ProposalView[] | undefined {
   return $api.useQuery('get', PROPOSALS, { params: { query: { status: 'pending' } } }).data?.items;
 }
 
+/** #373: the pending proposals on one item, filtered by the server. */
+export function usePendingOn(targetItemId: string): ProposalView[] | undefined {
+  const { $api } = useApi();
+  return $api.useQuery('get', PROPOSALS, { params: { query: { status: 'pending', targetItemId } } }).data?.items;
+}
+
 export function usePendingCount(): number | undefined {
   return usePending()?.length;
 }

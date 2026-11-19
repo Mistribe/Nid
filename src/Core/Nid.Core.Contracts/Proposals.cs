@@ -75,8 +75,11 @@ public interface IProposalStore
 
     Task<StoredProposal?> FindAsync(Guid id, CancellationToken ct);
 
-    /// <summary>The proposals on <paramref name="targets"/>, and those without a target <paramref name="person"/> submitted, in <paramref name="status"/>, newest first.</summary>
-    Task<IReadOnlyList<StoredProposal>> ListAsync(IReadOnlySet<ItemId> targets, PersonId person, ProposalStatus status, CancellationToken ct);
+    /// <summary>
+    /// The proposals on <paramref name="targets"/>, and those without a target <paramref name="person"/> submitted (none when null), in
+    /// <paramref name="status"/>, newest first.
+    /// </summary>
+    Task<IReadOnlyList<StoredProposal>> ListAsync(IReadOnlySet<ItemId> targets, PersonId? person, ProposalStatus status, CancellationToken ct);
 
     /// <summary>`pending` → approved or rejected; <see cref="ProposalCodes.Conflict"/> on a stale version, <see cref="ProposalCodes.Decided"/> when not pending.</summary>
     Task<Result<StoredProposal>> DecideAsync(Guid id, uint version, ProposalStatus to, PersonId by, JsonElement? editedPayload,

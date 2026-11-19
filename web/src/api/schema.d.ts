@@ -2338,6 +2338,7 @@ export interface paths {
             parameters: {
                 query?: {
                     status?: string;
+                    targetItemId?: string;
                 };
                 header?: never;
                 path?: never;
@@ -39329,6 +39330,8 @@ export interface components {
             note?: null | string;
             /** Format: uuid */
             documentId?: null | string;
+            /** @default false */
+            fromBank: boolean;
         };
         VersionBody: {
             /** Format: uint32 */

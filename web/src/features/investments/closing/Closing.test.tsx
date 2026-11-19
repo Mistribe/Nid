@@ -24,7 +24,7 @@ function serve(initial = detail(), bodies: unknown[] = [], answer: Answer = () =
       const refused = answer(body);
       if (refused) return refused;
       current.closed = true;
-      current.valuations = [...current.valuations, { id: 'zero', asOf: body.closedOn, amount: eur('0.0000'), note: null }];
+      current.valuations = [...current.valuations, { id: 'zero', asOf: body.closedOn, amount: eur('0.0000'), note: null, fromBank: false }];
       if (body.finalWithdrawal) {
         current.flows = [...current.flows, {
           id: 'final', occurredOn: body.closedOn, kind: 'withdrawal', amount: eur(`${body.finalWithdrawal.amount}.0000`), category: null, externalRef: null, note: null,

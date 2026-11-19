@@ -26,8 +26,8 @@ export const detail = (over: Partial<EnvelopeDetail> = {}): EnvelopeDetail => ({
   institution: 'Banque', accountHint: '4521', openedOn: null, valuationCadence: 'monthly', staleAfterDays: null, note: null,
   figures: figures(),
   valuations: [
-    { id: 'v1', asOf: '2024-12-31', amount: eur('21000.0000'), note: null },
-    { id: 'v2', asOf: '2025-09-30', amount: eur('25000.0000'), note: null },
+    { id: 'v1', asOf: '2024-12-31', amount: eur('21000.0000'), note: null, fromBank: false },
+    { id: 'v2', asOf: '2025-09-30', amount: eur('25000.0000'), note: null, fromBank: false },
   ],
   flows: [
     { id: 'f1', occurredOn: '2024-12-31', kind: 'opening', amount: eur('20000.0000'), category: null, externalRef: null, note: null },
