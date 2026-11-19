@@ -196,7 +196,7 @@ public sealed class CategoryStore(BankingDbContext db, IClock clock) : ICategory
 
     // lower() on both sides, in Postgres: the same folding for the stored name and the new one.
     private Task<bool> SiblingNamedAsync(Guid? parent, string name, Guid? except, CancellationToken ct)
-        => db.Categories.AnyAsync(c => c.ParentId == parent && c.Id != except && c.Name.ToLower() == name.ToLower(), ct);
+        => db.Categories.AnyAsync(c => c.ParentId == parent && c.MergedIntoId == null && c.Id != except && c.Name.ToLower() == name.ToLower(), ct);
 
     private const string InvalidName = "A category's name is 1 to 60 characters, and not only whitespace.";
 

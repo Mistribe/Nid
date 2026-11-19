@@ -47,11 +47,11 @@ export default function OperationsTab({ envelope, writable }: { envelope: Envelo
   );
   // The category, then where it comes from in a muted word explained by its « i ».
   const category = (l: BankTransaction) => {
-    if (!l.category) return '—';
+    if (!l.category && l.categorySource !== 'hand') return '—';
     const source = l.categorySource ? t(`banks.categories.source.${l.categorySource}`, { defaultValue: l.categorySource }) : null;
     return (
       <span className="inline-flex flex-wrap items-center gap-1.5">
-        {l.category.name}
+        {l.category?.name ?? t('banks.categories.uncategorised')}
         {source ? (
           <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
             {source}
@@ -98,7 +98,7 @@ export default function OperationsTab({ envelope, writable }: { envelope: Envelo
             <div className="space-y-1">
               <div className="flex items-start justify-between gap-2">{label(l)}{amount(l)}</div>
               <div className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
-                <span><LocalDate value={l.bookedOn} style="short" />{l.category ? <> · {category(l)}</> : null} · {lineState(t, l)}</span>
+                <span><LocalDate value={l.bookedOn} style="short" />{l.category || l.categorySource === 'hand' ? <> · {category(l)}</> : null} · {lineState(t, l)}</span>
                 {writable ? actions(l) : null}
               </div>
             </div>

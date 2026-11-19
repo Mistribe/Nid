@@ -77,6 +77,18 @@ public class CategoryStoreTests(PostgresFixture fixture) : IClassFixture<Postgre
     }
 
     [Fact]
+    public async Task A_merged_category_frees_its_name_among_its_siblings()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await using var scope = Scope(app);
+        var store = scope.ServiceProvider.GetRequiredService<ICategoryStore>();
+
+        Value(await store.MergeAsync(Seed("food.delivery"), Seed("food.restaurants"), Ct));
+
+        Assert.Equal("Livraison", Value(await store.CreateAsync(Seed("food"), "Livraison", CategoryKind.Expense, Ct)).Name);
+    }
+
+    [Fact]
     public async Task Create_under_a_child_is_refused()
     {
         await using var app = await NidApp.StartAsync(fixture);

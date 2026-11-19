@@ -81,6 +81,16 @@ describe('Réglages › Banques › Catégories', () => {
     await expectNoAxeViolations(container);
   });
 
+  it('says so under a kind without any category', async () => {
+    serve();
+    server.use(http.get('*/api/v1/banking/categories', () => HttpResponse.json(seed().filter((c) => c.kind !== 'income'))));
+    await open();
+
+    const income = screen.getByRole('region', { name: 'Revenus' });
+    expect(income).toHaveTextContent('Aucune catégorie.');
+    expect(within(income).queryByRole('table')).toBeNull();
+  });
+
   it('renames a category', async () => {
     const writes = serve();
     const { user } = await open();

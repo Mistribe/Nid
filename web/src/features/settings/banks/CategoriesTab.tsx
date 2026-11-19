@@ -140,7 +140,7 @@ export default function CategoriesTab() {
             {KINDS.map((kind) => (
               <Section key={kind} title={kindLabel(t, kind)} headingRef={{ expense, income, transfer }[kind]}
                 tip={kind === 'transfer' ? <InfoTip label={kindLabel(t, kind)}>{t('banks.category_list.transfer_about')}</InfoTip> : undefined}>
-                {table(kindLabel(t, kind), rowsOf(kind))}
+                {rowsOf(kind).length > 0 ? table(kindLabel(t, kind), rowsOf(kind)) : <p className="text-sm text-muted-foreground">{t('banks.category_list.empty')}</p>}
               </Section>
             ))}
             {archived.length > 0 ? (

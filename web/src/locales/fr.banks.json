@@ -154,6 +154,7 @@
     "tabs": { "accounts": "Comptes", "categories": "Catégories" },
     "category_list": {
       "loading": "Chargement des catégories",
+      "empty": "Aucune catégorie.",
       "kind": { "expense": "Dépenses", "income": "Revenus", "transfer": "Mouvements internes" },
       "transfer_about": "Virements entre vos comptes, règlements de carte, épargne et retraits d'espèces : ils ne comptent jamais comme une dépense.",
       "archived": "Archivées",
@@ -194,11 +195,11 @@
       "auto": "Laisser Nid décider",
       "submit": "Enregistrer",
       "current_gone": "Sa catégorie actuelle, {{name}}, est archivée : choisissez-en une autre.",
-      "source": { "link": "Reliée", "rule": "Règle", "hand": "Vous", "assistant": "Assistant", "hint": "Suggestion de la banque" },
+      "source": { "link": "Reliée", "rule": "Règle", "hand": "À la main", "assistant": "Assistant", "hint": "Suggestion de la banque" },
       "source_about": {
         "link": "Reliée : la catégorie vient de ce que la ligne paie.",
         "rule": "Règle : une règle du foyer l'a classée.",
-        "hand": "Vous : choisie à la main.",
+        "hand": "Choisie à la main par un adulte du foyer.",
         "assistant": "Assistant : proposée par l'assistant et validée.",
         "hint": "Suggestion de la banque : déduite du code de l'opération."
       }

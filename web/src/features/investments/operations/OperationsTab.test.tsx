@@ -115,15 +115,17 @@ describe('« Opérations »', () => {
     serve([[
       line({ id: 'a', category: { id: 'groceries', name: 'Courses', parentId: 'food', parentName: 'Alimentation', kind: 'expense' }, categorySource: 'hand' }),
       line({ id: 'b' }),
+      line({ id: 'c', category: null, categorySource: 'hand' }),
     ]]);
     const { container } = await renderApp(`/investments/${PEA}?tab=operations`);
 
     const table = await screen.findByRole('table', { name: 'Opérations' });
     expect(within(table).getByRole('columnheader', { name: /Catégorie/ })).toBeInTheDocument();
     const rows = within(table).getAllByRole('row').slice(1);
-    expect(rows[0]).toHaveTextContent('CoursesVous');
-    expect(within(rows[0]!).getByRole('button', { name: 'À propos : Vous' })).toBeInTheDocument();
+    expect(rows[0]).toHaveTextContent('CoursesÀ la main');
+    expect(within(rows[0]!).getByRole('button', { name: 'À propos : À la main' })).toBeInTheDocument();
     expect(rows[1]).toHaveTextContent('—');
+    expect(rows[2]).toHaveTextContent('Sans catégorieÀ la main');
     expect(screen.getByRole('list', { name: 'Opérations' })).toHaveTextContent('Courses');
     await expectNoAxeViolations(container);
   });

@@ -62,24 +62,26 @@ describe('« Catégoriser… »', () => {
     await waitFor(() => expect(writes).toEqual([['PUT', 't1', { categoryId: 'groceries' }]]));
   });
 
-  it('opens on the line’s category, sent back as is', async () => {
-    const writes = serve({ category: courses, categorySource: 'rule' });
-    const user = await open();
+  it('opens on the line’s category', async () => {
+    serve({ category: courses, categorySource: 'rule' });
+    await open();
 
     expect(await screen.findByRole('combobox', { name: 'Catégorie' })).toHaveTextContent('Alimentation › Courses');
-    await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
-
-    await waitFor(() => expect(writes).toEqual([['PUT', 't1', { categoryId: 'groceries' }]]));
   });
 
-  it('opens on « Sans catégorie » when a person left the line without one', async () => {
-    const writes = serve({ category: null, categorySource: 'hand' });
+  it('does not offer to save a link’s or a rule’s category as it is, nor a hand « Sans catégorie »', async () => {
+    serve({ category: courses, categorySource: 'rule' });
     const user = await open();
+    expect(screen.getByRole('button', { name: 'Enregistrer' })).toBeDisabled();
+    await pick(user, 'Catégorie', 'Alimentation');
+    expect(screen.getByRole('button', { name: 'Enregistrer' })).toBeEnabled();
+  });
 
+  it('keeps « Enregistrer » off on a line already left without category by hand', async () => {
+    serve({ category: null, categorySource: 'hand' });
+    await open();
     expect(await screen.findByRole('combobox', { name: 'Catégorie' })).toHaveTextContent('Sans catégorie');
-    await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
-
-    await waitFor(() => expect(writes).toEqual([['PUT', 't1', { categoryId: null }]]));
+    expect(screen.getByRole('button', { name: 'Enregistrer' })).toBeDisabled();
   });
 
   it('says so when the line’s category is archived, and asks for another', async () => {
