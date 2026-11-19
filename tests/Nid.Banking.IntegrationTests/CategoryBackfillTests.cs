@@ -40,7 +40,7 @@ public class CategoryBackfillTests(PostgresFixture fixture) : IClassFixture<Post
         await categories.SetForLinesAsync([lines[2]], Seed("misc"), CategorySource.Hand, "person:x", At, true, Ct);
 
         var backfill = scope.ServiceProvider.GetRequiredService<CategoryBackfill>();
-        Assert.Equal(2, await backfill.RunAsync(Ct));
+        Assert.Equal(2, await backfill.RunAsync(Ct, page: 1));
 
         async Task<(Guid?, CategorySource?)> Of(Guid id) => (await transactions.FindAsync(id, Ct)) is { } l ? (l.Category, l.CategorySource) : default;
         Assert.Equal((Seed("children.childcare"), CategorySource.Link), await Of(lines[0]));

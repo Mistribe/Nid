@@ -9,24 +9,22 @@ namespace Nid.Banking.Application.Reconciliation;
 /// </summary>
 public sealed class CategoryBackfill(ITransactionStore transactions, ILinkStore links, ICategoryStore categories, LinkCategoryReader reader, IClock clock)
 {
-    private const int Page = 500;
-
-    /// <summary>How many lines took a category.</summary>
-    public async Task<int> RunAsync(CancellationToken ct)
+    /// <summary>How many lines took a category, reading <paramref name="page"/> lines at a time.</summary>
+    public async Task<int> RunAsync(CancellationToken ct, int page = 500)
     {
         var done = 0;
         Guid? after = null;
         var resolved = new Dictionary<string, Guid?>();
         while (true)
         {
-            var page = await transactions.UncategorisedLinkedAsync(after, Page, ct);
-            if (page.Count == 0)
+            var lines = await transactions.UncategorisedLinkedAsync(after, page, ct);
+            if (lines.Count == 0)
                 return done;
 
-            after = page[^1].Id;
-            var byLine = await links.ForTransactionsAsync(page.Select(t => t.Id).ToList(), ct);
+            after = lines[^1].Id;
+            var byLine = await links.ForTransactionsAsync(lines.Select(t => t.Id).ToList(), ct);
             var perCategory = new Dictionary<Guid, List<Guid>>();
-            foreach (var line in page)
+            foreach (var line in lines)
             {
                 if (!byLine.TryGetValue(line.Id, out var link) || await reader.KeyAsync(link, null, line.Amount > 0, ct) is not { } key)
                     continue;

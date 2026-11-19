@@ -187,9 +187,6 @@ public static class JobsSetup
             // Durable, no trigger of its own: fired at startup until a sync succeeded, and on demand (design §4).
             q.AddJob<CatalogSyncJob>(job => job.WithIdentity(CatalogJobs.SyncKey).StoreDurably());
 
-            // Durable, no trigger of its own: fired at startup, categorises the lines linked before categories existed.
-            q.AddJob<CategoryBackfillJob>(job => job.WithIdentity(CategoryBackfillJobs.BackfillKey).StoreDurably());
-
             // A shutdown cancels a running collection, then waits for it: the collector closes the run as
             // interrupted instead of leaving it "running" for an hour.
             q.AddJobListener<JobRunListener>();
@@ -220,8 +217,6 @@ public static class JobsSetup
         services.AddHostedService<NotificationRefreshWorker>();
         services.AddHostedService<FxStartupBackfill>();
         services.AddHostedService<CatalogStartupSync>();
-        services.AddHostedService(sp => new CategoryBackfillStartup(
-            sp.GetRequiredKeyedService<ISchedulerFactory>(schedulerName), sp.GetRequiredService<ILogger<CategoryBackfillStartup>>()));
         services.AddHostedService<CpiStartupCollect>();
         return services;
     }
