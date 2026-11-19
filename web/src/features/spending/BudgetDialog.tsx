@@ -46,7 +46,11 @@ function PickedBudget({ budgeted, titleId, done }: { budgeted: string[]; titleId
   const [category, setCategory] = useState('');
   if (categories.error) return <ProblemMessage problem={presentBankError(t, categories.error)} />;
   if (!categories.data) return <Loading label={t('spending.budget.loading')}><Skeleton className="h-24 w-full" /></Loading>;
-  const options = activeCategoryOptions(categories.data.filter((c) => c.kind === 'expense')).filter((o) => !budgeted.includes(o.value));
+  // One budget per branch: a category is taken when it, its parent or one of its children holds an active category's budget.
+  const parentOf = new Map(categories.data.map((c) => [c.id, c.parentId]));
+  const held = budgeted.filter((id) => categories.data.some((c) => c.id === id && !c.archived && !c.mergedIntoId));
+  const free = (id: string) => !held.some((b) => b === id || b === parentOf.get(id) || parentOf.get(b) === id);
+  const options = activeCategoryOptions(categories.data.filter((c) => c.kind === 'expense')).filter((o) => free(o.value));
   const picker = (
     <Field label={t('spending.budget.category')}>
       {(c) => <ComboboxField {...c} value={category} onValueChange={setCategory} options={options} placeholder={t('spending.budget.pick')}
