@@ -610,6 +610,7 @@ public class ReconciliationTests(PostgresFixture fixture) : IClassFixture<Postgr
 
         public Task MarkReconciledAsync(IReadOnlyCollection<Guid> ids, Instant at, CancellationToken ct) => inner.MarkReconciledAsync(ids, at, ct);
 
+        public Task<IReadOnlyList<BankTransaction>> UncategorisedLinkedAsync(Guid? after, int take, CancellationToken ct) => inner.UncategorisedLinkedAsync(after, take, ct);
         public Task<int> PurgeBookedBeforeAsync(LocalDate before, CancellationToken ct) => inner.PurgeBookedBeforeAsync(before, ct);
     }
 }
