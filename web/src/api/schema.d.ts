@@ -31442,17 +31442,6 @@ export interface components {
             keyStatus: string;
             appIdSaved: boolean;
             redirectUrl: string;
-        };
-        BankingConnectionTestView: {
-            outcome: string;
-            code?: null | string;
-            active?: null | boolean;
-            redirectUrlAllowed?: null | boolean;
-        };
-        BankingDiagnosticsView: {
-            keyStatus: string;
-            appIdSaved: boolean;
-            redirectUrl: string;
             lastRun?: null | components["schemas"]["BankSyncRunView"];
             /** Format: date-time */
             nextRunAt?: null | string;

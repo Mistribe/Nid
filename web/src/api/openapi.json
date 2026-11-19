@@ -34019,54 +34019,6 @@
         "required": [
           "keyStatus",
           "appIdSaved",
-          "redirectUrl"
-        ],
-        "type": "object",
-        "properties": {
-          "keyStatus": {
-            "type": "string"
-          },
-          "appIdSaved": {
-            "type": "boolean"
-          },
-          "redirectUrl": {
-            "type": "string"
-          }
-        }
-      },
-      "BankingConnectionTestView": {
-        "required": [
-          "outcome"
-        ],
-        "type": "object",
-        "properties": {
-          "outcome": {
-            "type": "string"
-          },
-          "code": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "active": {
-            "type": [
-              "null",
-              "boolean"
-            ]
-          },
-          "redirectUrlAllowed": {
-            "type": [
-              "null",
-              "boolean"
-            ]
-          }
-        }
-      },
-      "BankingDiagnosticsView": {
-        "required": [
-          "keyStatus",
-          "appIdSaved",
           "redirectUrl",
           "bankLinked"
         ],
