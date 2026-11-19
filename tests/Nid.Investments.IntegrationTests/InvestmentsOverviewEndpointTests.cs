@@ -24,7 +24,7 @@ public class InvestmentsOverviewEndpointTests(PostgresFixture fixture) : IClassF
     /// <summary>investments-data-model.md §12.1: 20 000 opened, 2 000 paid in, worth 25 000 on 30 September.</summary>
     private static async Task<ItemId> PeaAsync(NidApp app, string name, PersonId owner, Visibility visibility)
     {
-        var id = await app.NewEnvelopeAsync(name, owner, visibility);
+        var id = await app.NewEnvelopeAsync(name, owner, visibility, kind: "other");
         var url = $"/api/v1/investments/envelopes/{id.Value}";
         await app.RawAsync(owner, HttpMethod.Post, $"{url}/flows", new { occurredOn = "2024-12-31", kind = "opening", amount = Eur("20000.00") });
         await app.RawAsync(owner, HttpMethod.Post, $"{url}/flows", new { occurredOn = "2025-06-15", kind = "contribution", amount = Eur("2000.00") });
@@ -38,7 +38,7 @@ public class InvestmentsOverviewEndpointTests(PostgresFixture fixture) : IClassF
     {
         await using var app = await NidApp.StartAsync(fixture);
         var pea = await PeaAsync(app, "PEA", app.AdultA, Visibility.Shared);
-        var empty = await app.NewEnvelopeAsync("Livret vide", app.AdultA, Visibility.Shared);
+        var empty = await app.NewEnvelopeAsync("Livret vide", app.AdultA, Visibility.Shared, kind: "other");
 
         var response = await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Overview}?scope=household");
 
@@ -52,7 +52,7 @@ public class InvestmentsOverviewEndpointTests(PostgresFixture fixture) : IClassF
         // 25 000 − 21 000 at the start of the year, less the 2 000 paid in June.
         Assert.Equal("2000.00", S(body.GetProperty("sinceJanuary"), "amount"));
         Assert.Equal([pea.Value, empty.Value], body.GetProperty("envelopes").EnumerateArray().Select(e => e.GetProperty("id").GetGuid()));
-        Assert.Equal(("savings", "100"), (S(body.GetProperty("byKind")[0], "kind"), body.GetProperty("byKind")[0].GetProperty("sharePct").GetDecimal().ToString("0")));
+        Assert.Equal(("other", "100"), (S(body.GetProperty("byKind")[0], "kind"), body.GetProperty("byKind")[0].GetProperty("sharePct").GetDecimal().ToString("0")));
         Assert.Equal(app.AdultA.Value, Assert.Single(body.GetProperty("byPerson").EnumerateArray()).GetProperty("personId").GetGuid());
 
         // 12 month ends, then today; the last point is the value.
@@ -198,7 +198,7 @@ public class InvestmentsPerformanceEndpointTests(PostgresFixture fixture) : ICla
     /// <summary>investments-data-model.md §12.1: 21 000 on 31 December, 2 000 paid in June, 25 000 on 30 September.</summary>
     private static async Task<ItemId> PeaAsync(NidApp app, string name, PersonId owner, Visibility visibility)
     {
-        var id = await app.NewEnvelopeAsync(name, owner, visibility);
+        var id = await app.NewEnvelopeAsync(name, owner, visibility, kind: "other");
         var url = $"/api/v1/investments/envelopes/{id.Value}";
         await app.RawAsync(owner, HttpMethod.Post, $"{url}/flows", new { occurredOn = "2024-12-31", kind = "opening", amount = Eur("20000.00") });
         await app.RawAsync(owner, HttpMethod.Post, $"{url}/flows", new { occurredOn = "2025-06-15", kind = "contribution", amount = Eur("2000.00") });
@@ -212,7 +212,7 @@ public class InvestmentsPerformanceEndpointTests(PostgresFixture fixture) : ICla
     {
         await using var app = await NidApp.StartAsync(fixture);
         var pea = await PeaAsync(app, "PEA", app.AdultA, Visibility.Shared);
-        var late = await app.NewEnvelopeAsync("Récent", app.AdultA, Visibility.Shared);
+        var late = await app.NewEnvelopeAsync("Récent", app.AdultA, Visibility.Shared, kind: "other");
         await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/investments/envelopes/{late.Value}/valuations", new { asOf = "2025-03-01", amount = Eur("100.00") });
 
         var response = await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Performance}?scope=household&from=2024-12-31&to=2025-10-15");
@@ -287,7 +287,7 @@ public class InvestmentsHoldingsEndpointTests(PostgresFixture fixture) : IClassF
     /// <summary>An envelope worth 25 000 on 30 September whose snapshot of that day details 24 000 in two holdings.</summary>
     private static async Task<ItemId> DetailedAsync(NidApp app, string name, PersonId owner, Visibility visibility)
     {
-        var id = await app.NewEnvelopeAsync(name, owner, visibility);
+        var id = await app.NewEnvelopeAsync(name, owner, visibility, kind: "other");
         var url = $"/api/v1/investments/envelopes/{id.Value}";
         await app.RawAsync(owner, HttpMethod.Post, $"{url}/flows", new { occurredOn = "2024-12-31", kind = "opening", amount = Eur("20000.00") });
         await app.RawAsync(owner, HttpMethod.Post, $"{url}/valuations", new { asOf = "2025-09-30", amount = Eur("25000.00") });
@@ -309,7 +309,7 @@ public class InvestmentsHoldingsEndpointTests(PostgresFixture fixture) : IClassF
     {
         await using var app = await NidApp.StartAsync(fixture);
         var detailed = await DetailedAsync(app, "Assurance-vie", app.AdultA, Visibility.Shared);
-        var savings = await app.NewEnvelopeAsync("Livret", app.AdultA, Visibility.Shared);
+        var savings = await app.NewEnvelopeAsync("Livret", app.AdultA, Visibility.Shared, kind: "other");
         await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/investments/envelopes/{savings.Value}/valuations", new { asOf = "2025-09-30", amount = Eur("500.00") });
 
         var response = await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Holdings}?scope=household");
@@ -336,7 +336,7 @@ public class InvestmentsHoldingsEndpointTests(PostgresFixture fixture) : IClassF
 
         // The reference's fees equal the holding's (0.3 % of contract and 0.2 % of ETF): no gap whatever the horizon.
         var saved = await app.RawAsync(app.AdultA, HttpMethod.Put, "/api/v1/investments/fee-references",
-            new { assumedReturnPct = 5m, envelopes = new Dictionary<string, decimal> { ["savings"] = 0.3m } });
+            new { assumedReturnPct = 5m, envelopes = new Dictionary<string, decimal> { ["other"] = 0.3m } });
         Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
         Assert.Equal(0.2m, (await JsonAsync(saved)).GetProperty("holdings").GetProperty("etf").GetDecimal()); // left out: its default
         var body = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, Holdings));
@@ -347,7 +347,7 @@ public class InvestmentsHoldingsEndpointTests(PostgresFixture fixture) : IClassF
         var total = Assert.Single(projection.GetProperty("envelopes").EnumerateArray()).GetProperty("total");
         Assert.Equal((5m, "9000.00", 0.5m, "0.00", "0.00"), (projection.GetProperty("assumedReturnPct").GetDecimal(), S(total.GetProperty("value"), "amount"),
             total.GetProperty("referencePct").GetDecimal(), S(total.GetProperty("gap20"), "amount"), S(projection.GetProperty("aboveReference20"), "amount")));
-        Assert.Equal(0.3m, body.GetProperty("references").GetProperty("envelopes").GetProperty("savings").GetDecimal());
+        Assert.Equal(0.3m, body.GetProperty("references").GetProperty("envelopes").GetProperty("other").GetDecimal());
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, (await app.RawAsync(app.AdultA, HttpMethod.Put, "/api/v1/investments/fee-references",
             new { assumedReturnPct = 30m })).StatusCode);
@@ -365,7 +365,7 @@ public class InvestmentsHoldingsEndpointTests(PostgresFixture fixture) : IClassF
         await using var app = await NidApp.StartAsync(fixture);
         await EnvelopeAsync(app);
         await EnvelopeAsync(app);
-        var savings = await app.NewEnvelopeAsync("Livret", app.AdultA, Visibility.Shared);
+        var savings = await app.NewEnvelopeAsync("Livret", app.AdultA, Visibility.Shared, kind: "other");
         await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/investments/envelopes/{savings.Value}/valuations", new { asOf = "2025-09-30", amount = Eur("500.00") });
         await PriceAsync(app, EtfIsin, 110m, Day);
 
@@ -387,7 +387,7 @@ public class InvestmentsHoldingsEndpointTests(PostgresFixture fixture) : IClassF
 
     private static async Task<ItemId> EtfAsync(NidApp app, string name, PersonId owner, Visibility visibility, string isin, string value)
     {
-        var id = await app.NewEnvelopeAsync(name, owner, visibility);
+        var id = await app.NewEnvelopeAsync(name, owner, visibility, kind: "other");
         var url = $"/api/v1/investments/envelopes/{id.Value}";
         await app.RawAsync(owner, HttpMethod.Post, $"{url}/valuations", new { asOf = "2025-09-30", amount = Eur(value) });
         var etf = (await JsonAsync(await app.RawAsync(owner, HttpMethod.Post, $"{url}/holdings", new { name = "ETF", kind = "etf", isin })))

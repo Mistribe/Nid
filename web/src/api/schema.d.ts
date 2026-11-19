@@ -33039,6 +33039,9 @@ export interface components {
             estimated: boolean;
             /** Format: date */
             estimatedOn?: null | string;
+            /** Format: double */
+            ratePct?: null | number;
+            ceiling?: null | components["schemas"]["CeilingView"];
         };
         EnvelopePeriodRow: {
             /** Format: uuid */
@@ -34269,6 +34272,8 @@ export interface components {
             findings: components["schemas"]["OverviewFindingView"][];
             /** Format: int32 */
             estimatedCount: number;
+            available?: null | components["schemas"]["AmountView"];
+            invested?: null | components["schemas"]["AmountView"];
         };
         InvestmentsPerformance: {
             currency: string;

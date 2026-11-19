@@ -84,9 +84,9 @@ describe('the calendar settings page', () => {
     const { user } = await renderApp('/settings/calendar');
 
     const modules = await screen.findByRole('group', { name: 'Échéances à inclure' });
-    for (const name of ['Abonnements', 'Crédits', 'Biens', 'Placements', 'Revenus', 'Impôts'])
+    for (const name of ['Abonnements', 'Crédits', 'Biens', 'Comptes et placements', 'Revenus', 'Impôts'])
       expect(within(modules).getByRole('checkbox', { name })).toBeChecked();
-    for (const name of ['Abonnements', 'Crédits', 'Biens', 'Placements', 'Revenus', 'Impôts'])
+    for (const name of ['Abonnements', 'Crédits', 'Biens', 'Comptes et placements', 'Revenus', 'Impôts'])
       await user.click(within(modules).getByRole('checkbox', { name }));
     expect(screen.getByText('Cochez au moins un module.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Enregistrer' })).toBeDisabled();
