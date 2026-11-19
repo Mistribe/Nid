@@ -1,8 +1,9 @@
 import { keepPreviousData } from '@tanstack/react-query';
 import { Link, useNavigate, useSearch } from '@tanstack/react-router';
 import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
 import { useBankAccounts, useBankingStatus } from '@/api/banking';
 import { present, toProblem } from '@/api/errors';
@@ -13,18 +14,22 @@ import { InfoTip } from '@/components/InfoTip';
 import { monthText } from '@/components/LocalDate';
 import { formatCurrency } from '@/components/Money';
 import { PageHeader } from '@/components/page/PageHeader';
+import { RowMenu } from '@/components/page/RowMenu';
 import { SectionCard } from '@/components/page/SectionCard';
 import { Loading, TableSkeleton } from '@/components/page/skeletons';
 import { SortableTable } from '@/components/page/SortableTable';
 import { StatLine } from '@/components/page/StatLine';
 import { ProblemMessage } from '@/components/ProblemMessage';
+import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { shiftMonth } from '@/features/calendar/calendarDates';
 import { toPlot } from '@/lib/plot';
 import type { RootSearch } from '@/lib/search';
 import { todayIso } from '@/lib/today';
-import { SPENDING, type Spending, type SpendingQuery } from './api';
+import { cn } from '@/lib/utils';
+import { SPENDING, type Spending, type SpendingBudget, type SpendingQuery } from './api';
+import { BudgetDialog, type BudgetTarget } from './BudgetDialog';
 import { CategoryLinesDialog, Incomplete } from './CategoryLinesDialog';
 import '@/locales/spending';
 
@@ -34,7 +39,17 @@ const ZERO = /^-?0(\.0+)?$/;
 // Its own chunk: Recharts loads with the 12-month view only.
 const MonthsChart = lazy(() => import('./MonthsChart').then((m) => ({ default: m.MonthsChart })));
 
-type Row = { id: string; name: string; amount: string; average?: string | null; children: Row[]; uncategorised?: true };
+type Row = { id: string; name: string; amount: string; average?: string | null; budget?: SpendingBudget | null; children: Row[]; uncategorised?: true };
+
+// Status colours are the fixed ones (dataviz.md); the badge always says it too.
+const PACE: Record<string, string> = {
+  on_track: 'bg-status-good/15 text-status-good-text',
+  ahead: 'bg-status-warning/15 text-status-warning-text',
+  over: 'bg-status-critical/15 text-foreground',
+};
+
+/** A row's budget menu: the visible one (table or phone list), to take the focus back after its dialog. */
+const menuId = (id: string, mobile = false) => `budget-${id}${mobile ? '-mobile' : ''}`;
 
 /** An arrow at the end stays focusable (`aria-disabled`), as the year stepper's. */
 const END = 'aria-disabled:cursor-default aria-disabled:opacity-50 aria-disabled:hover:bg-transparent';
@@ -56,6 +71,14 @@ export function SpendingPage() {
   const accounts = useBankAccounts();
   const spending = $api.useQuery('get', SPENDING, { params: { query } }, { enabled: (accounts?.length ?? 0) > 0, placeholderData: keepPreviousData });
   const [open, setOpen] = useState<{ categoryId?: string; name: string } | null>(null);
+  const [budget, setBudget] = useState<BudgetTarget | null>(null);
+  const [focus, setFocus] = useState<string | null>(null);
+  useEffect(() => {
+    if (focus === null) return;
+    [menuId(focus), menuId(focus, true)].map((id) => document.getElementById(id)).find((el) => el && el.checkVisibility?.() !== false)?.focus();
+    setFocus(null);
+  }, [focus]);
+  const closeBudget = () => { setFocus(budget?.id ?? null); setBudget(null); };
 
   const set = (patch: SpendingSearch) =>
     void navigate({ from: '/spending', to: '/spending', replace: true, resetScroll: false, search: (prev: RootSearch & SpendingSearch) => ({ ...prev, ...patch }) });
@@ -90,7 +113,7 @@ export function SpendingPage() {
       );
     if (spending.error) return <ProblemMessage problem={present(toProblem(spending.error))} />;
     if (!spending.data) return <Loading label={t('spending.loading')}><TableSkeleton columns={4} /></Loading>;
-    return <Figures data={spending.data} period={period(spending.data)} year={year} household={query.scope === 'household'} onOpen={setOpen} />;
+    return <Figures data={spending.data} period={period(spending.data)} year={year} household={query.scope === 'household'} onOpen={setOpen} onBudget={setBudget} />;
   };
   const period = (data: Spending) => (year ? t('spending.range', { from: monthText(data.from), to: monthText(data.to) }) : monthText(data.to));
 
@@ -101,12 +124,14 @@ export function SpendingPage() {
       {open && spending.data ? (
         <CategoryLinesDialog target={open} query={query} currency={spending.data.currency} period={period(spending.data)} onClose={() => setOpen(null)} />
       ) : null}
+      {budget ? <BudgetDialog target={budget} onClose={closeBudget} onDone={(message) => { toast.success(message); closeBudget(); }} /> : null}
     </div>
   );
 }
 
-function Figures({ data, period, year, household, onOpen }: {
+function Figures({ data, period, year, household, onOpen, onBudget }: {
   data: Spending; period: string; year: boolean; household: boolean; onOpen: (target: { categoryId?: string; name: string }) => void;
+  onBudget: (target: BudgetTarget) => void;
 }) {
   const { t } = useTranslation();
   const money = (amount: string) => formatCurrency(amount, data.currency);
@@ -130,6 +155,43 @@ function Figures({ data, period, year, household, onOpen }: {
     </span>
   );
   const average = (r: Row) => (r.average ? money(r.average) : '—');
+  // The budget is the household's, for one month: Foyer's month view only.
+  const budgets = household && !year;
+  const planned = (r: Row) => {
+    const b = r.budget;
+    if (!b) return '—';
+    const mark = b.source === 'committed' ? 'committed' : b.period === 'year' ? 'yearly' : null;
+    return (
+      <span className="inline-flex flex-wrap items-center justify-end gap-x-1">
+        <span className="tabular-nums">{money(b.planned)}</span>
+        {mark ? (
+          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+            {t(`spending.budget.${mark}`)}<InfoTip label={t('spending.budget.of', { name: r.name })}>{t(`spending.budget.${mark}_tip`)}</InfoTip>
+          </span>
+        ) : null}
+      </span>
+    );
+  };
+  // The server's sign, read off its text: « Dépassé de » the amount without its minus.
+  const left = (r: Row) => (!r.budget ? '—' : r.budget.left.startsWith('-') ? t('spending.budget.over_by', { amount: money(r.budget.left.slice(1)) }) : money(r.budget.left));
+  const pace = (r: Row) => {
+    const state = r.budget?.state;
+    if (!state) return '—';
+    return (
+      <span className="inline-flex items-center gap-1">
+        <Badge variant="outline" className={cn('border-transparent', PACE[state])}>{t(`spending.budget.state.${state as 'on_track'}`)}</Badge>
+        {state === 'ahead' ? (
+          <InfoTip label={t('spending.budget.state.ahead')}>
+            {r.budget?.expectedSoFar ? t('spending.budget.pace_tip_expected', { amount: money(r.budget.expectedSoFar) }) : t('spending.budget.pace_tip')}
+          </InfoTip>
+        ) : null}
+      </span>
+    );
+  };
+  const menu = (r: Row, mobile = false) => (r.uncategorised ? null : (
+    <RowMenu id={menuId(r.id, mobile)} label={t('spending.budget.actions', { name: r.name })}
+      items={[{ label: t('spending.budget.edit'), onSelect: () => onBudget({ id: r.id, name: r.name, budget: r.budget }) }]} />
+  ));
 
   return (
     <>
@@ -167,15 +229,39 @@ function Figures({ data, period, year, household, onOpen }: {
               { id: 'amount', header: t('spending.col_amount'), align: 'end', cell: (r) => money(r.amount) },
               // A period's amounts cover its months, the usual month one: side by side they would mislead.
               ...(year ? [] : [{ id: 'average', header: t('spending.col_average'), align: 'end' as const, cell: average }]),
-              { id: 'share', header: t('spending.col_share'), className: 'w-1/4', cell: bar },
+              ...(budgets ? [
+                { id: 'budget', header: t('spending.col_budget'), align: 'end' as const, cell: planned },
+                { id: 'left', header: t('spending.col_left'), align: 'end' as const, cell: left },
+                { id: 'pace', header: t('spending.col_pace'), cell: pace },
+              ] : []),
+              { id: 'share', header: t('spending.col_share'), className: budgets ? 'w-1/6' : 'w-1/4', cell: bar },
+              ...(budgets ? [{ id: 'actions', header: t('spending.col_actions'), align: 'end' as const, cell: (r: Row) => menu(r) }] : []),
             ]}
             mobile={(r) => (
               <div className="space-y-1">
                 <div className="flex items-start justify-between gap-2">{name(r)}<span className="tabular-nums">{money(r.amount)}</span></div>
                 {bar(r)}
                 {year ? null : <div className="text-sm text-muted-foreground">{t('spending.average_line', { amount: average(r) })}</div>}
+                {budgets && !r.uncategorised ? (
+                  <div className="flex items-center justify-between gap-2 text-sm">
+                    <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <span className="text-muted-foreground">{t('spending.col_budget')} {planned(r)}</span>
+                      {r.budget ? <span className="text-muted-foreground">{t('spending.col_left')} {left(r)}</span> : null}
+                      {r.budget?.state ? pace(r) : null}
+                    </span>
+                    {menu(r, true)}
+                  </div>
+                ) : null}
               </div>
             )} />
+        ) : null}
+        {/* Moi: the budget is the household's, never shown against one person's accounts. */}
+        {!household && !year ? (
+          <p className="pt-3 text-sm text-muted-foreground">
+            {t('spending.budget.household_only')}{' '}
+            <Link from="/spending" to="/spending" search={(prev: RootSearch & SpendingSearch) => ({ ...prev, scope: undefined })}
+              className="font-medium text-foreground underline underline-offset-4">{t('spending.budget.household_only_action')}</Link>
+          </p>
         ) : null}
       </SectionCard>
     </>
