@@ -24,10 +24,11 @@ test('alice turns bank sync on, names the application, finds Réglages › Banqu
   await expect(toggle).not.toBeChecked();
   await toggle.click();
   await expect(toggle).toBeChecked();
-  await page.getByLabel('Identifiant de l’application Enable Banking').fill('e2e-application');
+  // `exact`: the field's InfoTip is named « À propos de … » after it.
+  await page.getByLabel('Identifiant de l’application Enable Banking', { exact: true }).fill('e2e-application');
   await page.getByRole('button', { name: 'Enregistrer l’identifiant' }).click();
   await expect(toasts(page)).toContainText('Enregistré');
-  await expect(page.getByText('Adresse de retour à déclarer : https://nid.localtest.me/api/v1/banking/callback')).toBeVisible();
+  await expect(page.getByLabel('Adresse de retour', { exact: true })).toHaveValue('https://nid.localtest.me/api/v1/banking/callback');
 
   await page.goto('/settings/banks');
   await expect(page.getByRole('link', { name: 'Banques', exact: true })).toHaveAttribute('aria-current', 'page');
