@@ -7,6 +7,7 @@ using Nid.Banking.Application;
 using Nid.Banking.Application.Reconciliation;
 using Nid.Banking.Application.Sync;
 using Nid.Banking.Contracts;
+using Nid.Banking.Domain;
 using Nid.Banking.Infrastructure.Persistence;
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
@@ -155,7 +156,9 @@ public class ReconciliationTests(PostgresFixture fixture) : IClassFixture<Postgr
 
         var link = (await LinkOfAsync(app, settlement))!;
         Assert.Equal((LinkOutcome.CardSettlement, card), (link.Outcome, link.CounterpartAccount));
-        Assert.Equal(TransactionLinkState.Internal, (await LineAsync(app, settlement)).LinkState);
+        var settled = await LineAsync(app, settlement);
+        Assert.Equal((TransactionLinkState.Internal, CategorySeed.Find("internal.card")!.Id, CategorySource.Link),
+            (settled.LinkState, settled.Category, settled.CategorySource));
         Assert.Equal(TransactionLinkState.Unlinked, (await LineAsync(app, bread)).LinkState);
     }
 
