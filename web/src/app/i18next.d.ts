@@ -24,6 +24,7 @@ import type series from '@/locales/fr.series.json';
 import type settings from '@/locales/fr.settings.json';
 import type retirement from '@/locales/fr.retirement.json';
 import type security from '@/locales/fr.security.json';
+import type spending from '@/locales/fr.spending.json';
 import type subscriptions from '@/locales/fr.subscriptions.json';
 import type board from '@/locales/fr.subscriptions-board.json';
 import type tax from '@/locales/fr.tax.json';
@@ -31,7 +32,7 @@ import type taxAssessments from '@/locales/fr.tax-assessments.json';
 
 // The module bundles join `translation` when their pages load (src/locales/<module>.ts), under the same keys.
 type Lazy = typeof admin & typeof banks & typeof calendar & typeof childcare & typeof deletion & typeof documents & typeof exportStrings & typeof importStrings & typeof forms & typeof goals & typeof guides & typeof scenarios & typeof notifications & typeof palette & typeof income & typeof investments
-  & typeof loans & typeof properties & typeof proposals & typeof reports & typeof routine & typeof security & typeof series & typeof settings & typeof retirement & typeof subscriptions & typeof tax & typeof taxAssessments;
+  & typeof loans & typeof properties & typeof proposals & typeof reports & typeof routine & typeof security & typeof series & typeof settings & typeof retirement & typeof spending & typeof subscriptions & typeof tax & typeof taxAssessments;
 
 declare module 'i18next' {
   interface CustomTypeOptions {

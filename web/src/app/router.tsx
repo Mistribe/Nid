@@ -71,6 +71,9 @@ export type InvestmentsSearch = { closed?: 1; tab?: string; curve?: '3y' | 'all'
  * The income page's own filters: ended sources shown on demand (2C2a design §4), the overview period (`year` is the
  * default and stays out of the URL), person, kind and isolated source; the tab (issue #20); anything invalid is dropped.
  */
+/** #85 « Dépenses »: the month (`yyyy-mm`, absent for the current one) and the 12 months up to it (`12m`, absent for the month alone). */
+export type SpendingSearch = { month?: string; period?: '12m' };
+
 export type IncomeSearch = { ended?: 1; period?: '12m' | '3y'; person?: string; kind?: string; source?: string; tab?: string };
 
 /**
@@ -409,6 +412,17 @@ const incomeRoute = createRoute({
     ...detailSearch(search),
   }),
   component: lazyRouteComponent(() => import('@/features/income/IncomeSourcesPage'), 'IncomeSourcesPage'),
+});
+
+const spendingRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/spending',
+  beforeLoad: requireModule('banking'),
+  validateSearch: (search: Record<string, unknown>): SpendingSearch => ({
+    ...(typeof search.month === 'string' && /^\d{4}-(0[1-9]|1[0-2])$/.test(search.month) ? { month: search.month } : {}),
+    ...(search.period === '12m' ? { period: '12m' as const } : {}),
+  }),
+  component: lazyRouteComponent(() => import('@/features/spending/SpendingPage'), 'SpendingPage'),
 });
 
 // Tax estimate spec §9: one page, its tabs in `?tab=`.
@@ -753,7 +767,7 @@ const adminSecurityRoute = createRoute({ getParentRoute: () => rootRoute, valida
 
 export const routeTree = rootRoute.addChildren([
   indexRoute, dashboardRoute, calendarRoute, yearReviewRoute, subscriptionsRoute, subscriptionNewRoute, subscriptionDetailRoute, investmentsRoute, investmentNewRoute, investmentDetailRoute, holdingDetailRoute,
-  goalsRoute, goalNewRoute, goalDetailRoute, childcareRoute, childcareNewRoute, childcareDetailRoute, childcareEndRoute, childcareSettlementRoute, childcareStatementRoute, nannyNewRoute, nannyDetailRoute, documentsRoute, documentDetailRoute, seriesRoute, incomeRoute, incomeNewRoute, incomeDetailRoute, taxRoute, taxAssessmentNewRoute, taxAssessmentEditRoute, retirementRoute, scenariosRoute, scenarioNewRoute, projectionScenarioRoute, saleScenarioRoute, scenarioCompareRoute, scenarioDetailRoute, propertiesRoute, propertyNewRoute, propertyDetailRoute, loansRoute, loanNewRoute, loanDetailRoute, loanContractRoute, propertyReceiptRoute, propertyArrearsLetterRoute, notificationsRoute, routineRoute, proposalsRoute, proposalDetailRoute,
+  goalsRoute, goalNewRoute, goalDetailRoute, childcareRoute, childcareNewRoute, childcareDetailRoute, childcareEndRoute, childcareSettlementRoute, childcareStatementRoute, nannyNewRoute, nannyDetailRoute, documentsRoute, documentDetailRoute, seriesRoute, incomeRoute, incomeNewRoute, incomeDetailRoute, spendingRoute, taxRoute, taxAssessmentNewRoute, taxAssessmentEditRoute, retirementRoute, scenariosRoute, scenarioNewRoute, projectionScenarioRoute, saleScenarioRoute, scenarioCompareRoute, scenarioDetailRoute, propertiesRoute, propertyNewRoute, propertyDetailRoute, loansRoute, loanNewRoute, loanDetailRoute, loanContractRoute, propertyReceiptRoute, propertyArrearsLetterRoute, notificationsRoute, routineRoute, proposalsRoute, proposalDetailRoute,
   importRoute.addChildren([importHomeRoute, importSessionRoute]), exportRoute, settingsRoute, appearanceRoute, notificationSettingsRoute, projectionSettingsRoute, personsSettingsRoute, calendarSettingsRoute, banksSettingsRoute,
   securityRoute, operationsRoute, moreRoute, changelogRoute, forbiddenRoute, adminRoute, adminUsersRoute, adminHouseholdRoute, adminFxRoute, adminPricesRoute, adminIrlRoute, adminInflationRoute, adminBankingRoute, adminCatalogRoute, adminJobsRoute, adminJobRoute, adminJobRunRoute,
   adminSystemRoute, adminNotificationsRoute, adminSecurityRoute,
