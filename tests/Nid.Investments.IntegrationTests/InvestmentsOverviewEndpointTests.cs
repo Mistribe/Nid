@@ -34,6 +34,25 @@ public class InvestmentsOverviewEndpointTests(PostgresFixture fixture) : IClassF
     }
 
     [Fact]
+    public async Task A_child_s_envelope_is_in_the_household_and_in_neither_adult_s_moi()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var child = await app.NewEnvelopeAsync("Compte de Léa", Visibility.Shared, (app.Dependent, 10_000));
+        var mine = await PeaAsync(app, "PEA", app.AdultA, Visibility.Shared);
+
+        async Task<List<Guid>> IdsAsync(PersonId person, string scope)
+            => (await JsonAsync(await app.RawAsync(person, HttpMethod.Get, $"{Overview}?scope={scope}"))).GetProperty("envelopes").EnumerateArray()
+                .Select(e => e.GetProperty("id").GetGuid()).ToList();
+
+        // #360: both adults read it, neither holds it.
+        Assert.Contains(child.Value, await IdsAsync(app.AdultA, "household"));
+        Assert.Equal([mine.Value], await IdsAsync(app.AdultA, "me"));
+        Assert.DoesNotContain(child.Value, await IdsAsync(app.AdultB, "me"));
+        // What both manage still reaches them: the envelope's page.
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultB, HttpMethod.Get, $"/api/v1/investments/envelopes/{child.Value}")).StatusCode);
+    }
+
+    [Fact]
     public async Task The_overview_adds_up_the_open_envelopes_at_the_hosts_today()
     {
         await using var app = await NidApp.StartAsync(fixture);

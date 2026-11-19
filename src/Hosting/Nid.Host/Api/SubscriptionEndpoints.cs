@@ -138,7 +138,8 @@ public static class SubscriptionEndpoints
     internal static VisibilityScope ParseScope(string? scope) => scope switch
     {
         null => VisibilityScope.Household,
-        _ when string.Equals(scope, "me", StringComparison.OrdinalIgnoreCase) => VisibilityScope.Me,
+        // #360: the « Moi » the person picks leaves a child's items out.
+        _ when string.Equals(scope, "me", StringComparison.OrdinalIgnoreCase) => VisibilityScope.Mine,
         _ when string.Equals(scope, "household", StringComparison.OrdinalIgnoreCase) => VisibilityScope.Household,
         _ => throw new BadHttpRequestException($"'{scope}' is not a scope: send 'household' or 'me'."),
     };

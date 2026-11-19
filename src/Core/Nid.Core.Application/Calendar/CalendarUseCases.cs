@@ -59,7 +59,7 @@ public static class CalendarFeeds
         return scope switch
         {
             Household => Result.Success(new CalendarFeedOptions(VisibilityScope.Household, amounts, chosen)),
-            Me => Result.Success(new CalendarFeedOptions(VisibilityScope.Me, amounts, chosen)),
+            Me => Result.Success(new CalendarFeedOptions(VisibilityScope.Mine, amounts, chosen)),
             _ => Result.Failure<CalendarFeedOptions>(FieldErrors.At(
                 new Failure(TokenCodes.CalendarScopeInvalid, "A calendar feed's scope is household or me.", null), "scope")),
         };
@@ -84,7 +84,7 @@ public static class CalendarFeeds
 
     public static CalendarFeedView? View(PersonalAccessToken token, Instant now)
         => token.Calendar is { } options
-            ? new CalendarFeedView(TokenView.From(token, now), options.Scope == VisibilityScope.Me ? Me : Household, options.Amounts,
+            ? new CalendarFeedView(TokenView.From(token, now), options.Scope is VisibilityScope.Me or VisibilityScope.Mine ? Me : Household, options.Amounts,
                 options.Modules ?? CalendarModules.All)
             : null;
 }

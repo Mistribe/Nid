@@ -93,7 +93,7 @@ internal static class ScenarioResults
         read.TryGetValue(out var reading);
         var canWrite = (await policy.CheckAsync(reader, item.Id, AccessKind.Write, ct)).IsSuccess;
         return Result.Success(new ScenarioView(
-            item.Id, item.DisplayName, Wire(item.Visibility), stored.Scope == VisibilityScope.Me ? "me" : "household",
+            item.Id, item.DisplayName, Wire(item.Visibility), stored.Scope is VisibilityScope.Me or VisibilityScope.Mine ? "me" : "household",
             PropertyPurchaseView.From(reading!.Document), Of(reading), canWrite));
     }
 

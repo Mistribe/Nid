@@ -162,4 +162,24 @@ public class VisibleItemsTests(PostgresFixture fixture)
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         Assert.False(await OwnsAsync(a));
     }
+
+    [Fact]
+    public async Task Mine_leaves_out_the_items_only_dependents_own_which_Me_keeps()
+    {
+        await using var db = await fixture.NewDatabaseAsync();
+        var (a, _, shared, privateA, privateB, joint) = await SeedAsync(db);
+        Guid child = Guid.CreateVersion7(), childItem = Guid.CreateVersion7(), withChild = Guid.CreateVersion7();
+        db.Persons.Add(Person(child, "dependent", null));
+        db.Items.AddRange(Item(childItem, "shared", (child, 10_000)), Item(withChild, "shared", (a, 5_000), (child, 5_000)));
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var items = new VisibleItems(db);
+
+        var mine = await items.ForAsync(new PersonId(a), VisibilityScope.Mine, TestContext.Current.CancellationToken);
+        var me = await items.ForAsync(new PersonId(a), VisibilityScope.Me, TestContext.Current.CancellationToken);
+
+        // #360: a child's account is neither adult's « Moi »; one an adult holds with the child still is.
+        Assert.Equal(new HashSet<ItemId> { new(shared), new(privateA), new(joint), new(withChild) }, mine);
+        Assert.Equal(new HashSet<ItemId> { new(shared), new(privateA), new(joint), new(withChild), new(childItem) }, me);
+        Assert.DoesNotContain(new ItemId(privateB), mine);
+    }
 }

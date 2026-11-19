@@ -74,11 +74,11 @@ public sealed class PersonalAccessTokenStore(CoreDbContext db, IClock clock) : I
     private IQueryable<PersonalAccessTokenRow> Active(PersonId person, Instant now)
         => db.PersonalAccessTokens.Where(t => t.PersonId == person.Value && t.RevokedAt == null && t.ExpiresAt > now);
 
-    private static string ScopeText(VisibilityScope scope) => scope == VisibilityScope.Me ? "me" : "household";
+    private static string ScopeText(VisibilityScope scope) => scope is VisibilityScope.Me or VisibilityScope.Mine ? "me" : "household";
 
     private static CalendarFeedOptions? OptionsOf(PersonalAccessTokenRow r)
         => r.CalendarScope is { } scope
-            ? new CalendarFeedOptions(scope == "me" ? VisibilityScope.Me : VisibilityScope.Household, r.CalendarAmounts == true, r.CalendarModules)
+            ? new CalendarFeedOptions(scope == "me" ? VisibilityScope.Mine : VisibilityScope.Household, r.CalendarAmounts == true, r.CalendarModules)
             : null;
 
     public async Task<IReadOnlyList<PersonalAccessToken>> ListAsync(PersonId person, CancellationToken ct)
