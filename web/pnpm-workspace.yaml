@@ -1,2 +1,5 @@
 allowBuilds:
   msw: false
+overrides:
+  # GHSA-g3hv-75wg-m249: eslint and typescript-estree still ask ^10.
+  minimatch@10: ^11.0.1
