@@ -19,17 +19,22 @@ public static class McpBundle
 
     public static IEndpointRouteBuilder MapMcpBundle(this IEndpointRouteBuilder routes)
     {
-        routes.MapGet(Path, (HttpRequest request, IConfiguration configuration, IWebHostEnvironment environment) =>
+        // Resolved once, at startup, from the host's own settings: no part of a request ever reaches a path.
+        var configuration = routes.ServiceProvider.GetRequiredService<IConfiguration>();
+        var root = System.IO.Path.GetFullPath(configuration[RootKey]
+            ?? System.IO.Path.Combine(routes.ServiceProvider.GetRequiredService<IWebHostEnvironment>().ContentRootPath, "mcpb"));
+        var publicUrl = configuration["Auth:PublicUrl"];
+
+        routes.MapGet(Path, (HttpRequest request) =>
             {
                 // An adult signed in to the browser; a token is for the assistant, not for fetching its own setup.
                 if (SessionClaims.ReadPersonId(request.HttpContext.User) is null)
                     return Results.Problem(statusCode: StatusCodes.Status401Unauthorized, title: "A signed-in adult downloads the extension.");
-                var root = configuration[RootKey] ?? System.IO.Path.Combine(environment.ContentRootPath, "mcpb");
                 // A development checkout without `npm ci` in mcpb/: nothing to hand out.
                 if (!File.Exists(System.IO.Path.Combine(root, "manifest.json")) || !Directory.Exists(System.IO.Path.Combine(root, "node_modules")))
                     return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "The Claude Desktop extension is not built on this server.");
 
-                var origin = (configuration["Auth:PublicUrl"] is { Length: > 0 } url ? url : $"{request.Scheme}://{request.Host}").TrimEnd('/');
+                var origin = (publicUrl is { Length: > 0 } ? publicUrl : $"{request.Scheme}://{request.Host}").TrimEnd('/');
                 // ponytail: zipped on each download (a few MB, a click from the Sécurité page now and then); cache it if that changes.
                 return Results.File(Build(root, origin, PlatformEndpoints.Version), ContentType, "nid.mcpb");
             })
