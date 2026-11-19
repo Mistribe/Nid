@@ -46,6 +46,14 @@ export function useBankAccounts(envelopeId?: string): BankAccount[] | undefined 
 /** The IBAN's last four characters as people read them: « •••• 1234 ». */
 export const maskedIban = (last4: string) => `•••• ${last4}`;
 
+/** A card's kind with its debit when the bank says which (« Carte à débit immédiat »), any other account's kind. */
+export const accountKind = (t: TFunction, a: Pick<BankAccount, 'kind' | 'cardDebit'>) => (a.kind === 'card' && a.cardDebit === 'immediate' ? t('banks.kind_card_immediate')
+  : a.kind === 'card' && a.cardDebit === 'deferred' ? t('banks.kind_card_deferred')
+  : t(`banks.kind.${a.kind}`, { defaultValue: a.kind }));
+
+/** #353: what « Régler » shows to recognise an account, and the checking account a card likely belongs to. */
+export const ACCOUNT_OVERVIEW = '/api/v1/banking/accounts/{id}/overview' as const;
+
 /** A bank account as people read it: its name, else its masked IBAN, else its kind (a bank may send no name at all). */
 export const accountLabel = (t: TFunction, account: Pick<BankAccount, 'name' | 'ibanMasked' | 'kind'>) =>
   account.name.trim() || (account.ibanMasked ? maskedIban(account.ibanMasked) : t(`banks.kind.${account.kind}`, { defaultValue: account.kind }));
