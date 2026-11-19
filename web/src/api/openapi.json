@@ -40523,6 +40523,29 @@
           }
         }
       },
+      "DashboardSpendingSliceView": {
+        "required": [
+          "name",
+          "amount",
+          "others",
+          "uncategorised"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "amount": {
+            "$ref": "#/components/schemas/DashboardMoneyView"
+          },
+          "others": {
+            "type": "boolean"
+          },
+          "uncategorised": {
+            "type": "boolean"
+          }
+        }
+      },
       "DashboardTodoView": {
         "required": [
           "kind",
@@ -40579,7 +40602,8 @@
           "upcoming",
           "todo",
           "envelopesWithoutStart",
-          "commitmentSources"
+          "commitmentSources",
+          "spendingSlices"
         ],
         "type": "object",
         "properties": {
@@ -40718,6 +40742,32 @@
                 "$ref": "#/components/schemas/AllocationView"
               }
             ]
+          },
+          "everydaySpending": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "left": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardMoneyView"
+              }
+            ]
+          },
+          "spendingSlices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DashboardSpendingSliceView"
+            }
           }
         }
       },

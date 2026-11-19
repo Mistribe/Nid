@@ -153,12 +153,7 @@ public sealed class GetSpendingHandler(
         var averageMissing = false;
         foreach (var sum in sums)
         {
-            // Decision 3: an expense category nets its refunds, a line with no category counts its debits only, income and transfer never.
-            // Categories are never deleted (a merge moves the lines), so an unknown id is not expected; it would not count.
-            decimal? amount = sum.Category is not { } id ? -sum.Debits
-                : byId.TryGetValue(id, out var category) && category.Kind == CategoryKind.Expense ? -(sum.Debits + sum.Credits)
-                : null;
-            if (amount is not { } a || a == 0m)
+            if (Spending(sum, byId) is not { } a || a == 0m)
                 continue;
             var inRange = Index(sum.Month) >= Index(from);
             // Decision 5: a past month at its month-end rate; the current one, whose end is after today, at today's.
@@ -274,6 +269,16 @@ public sealed class GetSpendingHandler(
         return new SpendingBudgetView(Money(plan.Planned), plan.Committed is { } c ? Money(c) : null, plan.Source, plan.Period,
             Money(plan.Planned - spent), expected is { } e ? Money(e) : null, state);
     }
+
+    /// <summary>
+    /// Decision 3: what <paramref name="sum"/> spent, positive for money out; null when it is no spending. An expense category nets its
+    /// refunds, a line with no category counts its debits only, income and transfer never. Categories are never deleted (a merge moves
+    /// the lines), so an unknown id is not expected; it would not count.
+    /// </summary>
+    internal static decimal? Spending(SpendingSum sum, IReadOnlyDictionary<Guid, BankCategory> byId)
+        => sum.Category is not { } id ? -sum.Debits
+            : byId.TryGetValue(id, out var category) && category.Kind == CategoryKind.Expense ? -(sum.Debits + sum.Credits)
+            : null;
 
     private static int Index(YearMonth month) => month.Year * 12 + month.Month;
 

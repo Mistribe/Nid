@@ -139,9 +139,10 @@ public sealed class TransactionStore(BankingDbContext db, IClock clock) : ITrans
     public Task<int> PurgeBookedBeforeAsync(LocalDate before, CancellationToken ct)
         => db.Transactions.Where(t => t.BookedOn < before && (t.LinkState == "unlinked" || t.LinkState == "ignored")).ExecuteDeleteAsync(ct);
 
-    public async Task<IReadOnlyList<SpendingSum>> SpendingAsync(IReadOnlyList<Guid> accounts, LocalDate from, LocalDate to, CancellationToken ct)
+    public async Task<IReadOnlyList<SpendingSum>> SpendingAsync(IReadOnlyList<Guid> accounts, LocalDate from, LocalDate to, CancellationToken ct, bool withLinked = true)
         => (await db.Transactions.AsNoTracking()
-            .Where(t => accounts.Contains(t.AccountId) && t.BookedOn >= from && t.BookedOn <= to && t.LinkState != "ignored" && t.LinkState != "internal")
+            .Where(t => accounts.Contains(t.AccountId) && t.BookedOn >= from && t.BookedOn <= to && t.LinkState != "ignored" && t.LinkState != "internal"
+                && (withLinked || t.LinkState != "linked"))
             .GroupBy(t => new { t.CategoryId, t.Currency, t.BookedOn.Year, t.BookedOn.Month })
             .Select(g => new { g.Key, Debits = g.Sum(t => t.Amount < 0 ? t.Amount : 0m), Credits = g.Sum(t => t.Amount > 0 ? t.Amount : 0m) })
             .ToListAsync(ct))

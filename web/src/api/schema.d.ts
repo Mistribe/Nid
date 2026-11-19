@@ -34212,6 +34212,12 @@ export interface components {
             /** Format: double */
             pct: number;
         };
+        DashboardSpendingSliceView: {
+            name: string;
+            amount: components["schemas"]["DashboardMoneyView"];
+            others: boolean;
+            uncategorised: boolean;
+        };
         DashboardTodoView: {
             kind: string;
             /** Format: uuid */
@@ -34260,6 +34266,9 @@ export interface components {
             envelopesWithoutStart: number;
             commitmentSources: components["schemas"]["DashboardCommitmentSourceView"][];
             allocation?: null | components["schemas"]["AllocationView"];
+            everydaySpending?: null | components["schemas"]["DashboardMoneyView"];
+            left?: null | components["schemas"]["DashboardMoneyView"];
+            spendingSlices: components["schemas"]["DashboardSpendingSliceView"][];
         };
         DeclarantWithholdingView: {
             name: string;

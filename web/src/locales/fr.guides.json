@@ -25,7 +25,7 @@
       },
       "tour": {
         "tiles": { "title": "Les quatre chiffres clés", "body": "Patrimoine net et son évolution depuis le 1er janvier, revenus, engagements et reste à vivre du mois. Cliquez sur un chiffre pour le détail." },
-        "month": { "title": "Où part le revenu du mois", "body": "Ce schéma relie chaque revenu du mois à ce qu’il finance : abonnements, crédits, charges des biens et ce qu’il reste. Chaque montant est écrit à côté ; sur téléphone, deux barres disent d’où il vient et où il part." },
+        "month": { "title": "Où part le revenu du mois", "body": "Ce schéma relie chaque revenu du mois à ce qu’il finance : abonnements, crédits, charges des biens et ce qu’il reste. Chaque montant est écrit à côté ; sur téléphone, deux barres disent d’où il vient et où il part. Avec un compte bancaire relié, le reste se répartit entre vos catégories de dépenses du mois, puis le « Reste réel », ce qui reste vraiment après elles." },
         "curve": { "title": "Évolution du patrimoine", "body": "La courbe compare la valeur de votre patrimoine à ce que vous y avez versé. Choisissez la période : 12 mois, 3 ans ou tout." },
         "upcoming": { "title": "À venir", "body": "Renouvellements, fins de phase d’un crédit, estimations à refaire : tout ce qui change dans les 60 prochains jours." },
         "scope": { "title": "Portée", "body": "Ce sélecteur change la portée de tous les chiffres de la page. « Foyer » ne compte que le partagé, « Moi » y ajoute vos éléments privés." }
