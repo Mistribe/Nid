@@ -24,7 +24,7 @@ describe('Réglages › Banques', () => {
     const rows = within(within(bnp).getByRole('table', { name: 'Comptes de BNP Paribas' })).getAllByRole('row').slice(1);
     expect(within(bnp).getByRole('list', { name: 'Comptes de BNP Paribas' })).toHaveTextContent('Visa Premier');
     expect(rows[0]).toHaveTextContent('Compte courant');
-    expect(rows[0]).toHaveTextContent('FR76 •••• 1234');
+    expect(rows[0]).toHaveTextContent('•••• 1234');
     expect(rows[0]).toHaveTextContent('1 520,30 €');
     expect(rows[1]).toHaveTextContent('Visa Premier');
     expect(rows[1]).toHaveTextContent('Carte');

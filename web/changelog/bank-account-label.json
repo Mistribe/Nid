@@ -1,0 +1,4 @@
+{
+  "en": "A bank account the bank sends no name for now shows its masked IBAN, or its kind, instead of a blank line, including when attaching a card.",
+  "fr": "Un compte bancaire que la banque envoie sans nom affiche son IBAN masqué, ou son type, au lieu d'une ligne vide, y compris pour rattacher une carte."
+}
