@@ -19,7 +19,7 @@ namespace Nid.Banking.Infrastructure.Persistence.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("banking")
-                .HasAnnotation("ProductVersion", "10.0.4")
+                .HasAnnotation("ProductVersion", "10.0.15")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -46,6 +46,10 @@ namespace Nid.Banking.Infrastructure.Persistence.Migrations
                         .HasColumnType("date")
                         .HasColumnName("balance_conflict_on");
 
+                    b.Property<string>("CardDebit")
+                        .HasColumnType("text")
+                        .HasColumnName("card_debit");
+
                     b.Property<Guid?>("CardOfAccountId")
                         .HasColumnType("uuid")
                         .HasColumnName("card_of_account_id");
@@ -62,6 +66,10 @@ namespace Nid.Banking.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("EnvelopeItemId")
                         .HasColumnType("uuid")
                         .HasColumnName("envelope_item_id");
+
+                    b.Property<string>("HouseholdName")
+                        .HasColumnType("text")
+                        .HasColumnName("household_name");
 
                     b.Property<byte[]>("IbanHash")
                         .HasColumnType("bytea")
@@ -111,6 +119,10 @@ namespace Nid.Banking.Infrastructure.Persistence.Migrations
 
                     b.ToTable("account", "banking", t =>
                         {
+                            t.HasCheckConstraint("ck_account_card_debit", "card_debit is null or card_debit in ('immediate','deferred')");
+
+                            t.HasCheckConstraint("ck_account_household_name", "household_name is null or char_length(household_name) between 1 and 100");
+
                             t.HasCheckConstraint("ck_account_iban_masked", "iban_masked is null or char_length(iban_masked) <= 4");
 
                             t.HasCheckConstraint("ck_account_kind", "kind in ('checking','savings','card','other')");

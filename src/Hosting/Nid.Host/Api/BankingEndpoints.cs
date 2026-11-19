@@ -73,7 +73,8 @@ public static class BankingEndpoints
 
         api.MapPatch("/accounts/{id:guid}", async (Guid id, BankAccountBody body, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new UpdateBankAccountCommand(
-                    id, body.EnvelopeId, body.ClearEnvelope ?? false, body.CardOfAccountId, body.ClearCard ?? false, body.AutoApplyBalance, body.Ignored), ct))
+                    id, body.EnvelopeId, body.ClearEnvelope ?? false, body.CardOfAccountId, body.ClearCard ?? false, body.AutoApplyBalance, body.Ignored,
+                    body.Name, body.ClearName ?? false), ct))
                 .ToHttp(x => new IdResponse(x)))
             .Returns<IdResponse>();
 
@@ -211,7 +212,9 @@ public static class BankingEndpoints
 
     /// <summary>A field left out is left as it is; a key nobody reads is refused rather than silently dropped (400).</summary>
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
-    public sealed record BankAccountBody(Guid? EnvelopeId, bool? ClearEnvelope, Guid? CardOfAccountId, bool? ClearCard, bool? AutoApplyBalance, bool? Ignored);
+    public sealed record BankAccountBody(
+        Guid? EnvelopeId, bool? ClearEnvelope, Guid? CardOfAccountId, bool? ClearCard, bool? AutoApplyBalance, bool? Ignored, string? Name = null,
+        bool? ClearName = null);
 
     /// <summary>A charge of <c>itemId</c> (a subscription, a loan, a property); <c>key</c> names one, else the nearest is taken.</summary>
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]

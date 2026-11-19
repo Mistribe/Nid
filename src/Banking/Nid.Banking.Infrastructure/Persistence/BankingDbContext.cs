@@ -53,6 +53,8 @@ public sealed class BankingDbContext(DbContextOptions<BankingDbContext> options)
             {
                 t.HasCheckConstraint("ck_account_kind", "kind in ('checking','savings','card','other')");
                 t.HasCheckConstraint("ck_account_iban_masked", "iban_masked is null or char_length(iban_masked) <= 4");
+                t.HasCheckConstraint("ck_account_household_name", "household_name is null or char_length(household_name) between 1 and 100");
+                t.HasCheckConstraint("ck_account_card_debit", "card_debit is null or card_debit in ('immediate','deferred')");
             });
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();

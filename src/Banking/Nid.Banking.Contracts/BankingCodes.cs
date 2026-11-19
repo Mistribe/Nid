@@ -17,6 +17,9 @@ public static class BankingCodes
     /// <summary>An account associated with an envelope in another currency: its balance would be written as the wrong money.</summary>
     public const string CurrencyMismatch = "banking.currency_mismatch";
 
+    /// <summary>A bank account's own name is 1 to 100 characters, and not only whitespace.</summary>
+    public const string InvalidName = "banking.invalid_name";
+
     /// <summary>Only a card is attached to an account, and only to a checking one (D10).</summary>
     public const string CardParent = "banking.card_parent";
 

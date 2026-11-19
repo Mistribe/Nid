@@ -30,6 +30,18 @@
       "currency": "EUR",
       "identification_hash": "aGFzaC1jYXJ0ZQ",
       "identification_hashes": ["aGFzaC1jYXJ0ZQ"]
+    },
+    {
+      "account_id": { "other": { "identification": "XXXXXXXXXXXX4321", "scheme_name": "CPAN" } },
+      "name": "M DUPONT JEAN",
+      "details": "immediat_debit",
+      "product": "Carte Visa",
+      "usage": "PRIV",
+      "cash_account_type": "CARD",
+      "currency": "EUR",
+      "uid": "7c2e8a14-0d3b-4f6e-9a57-2b8f1c3d4e03",
+      "identification_hash": "aGFzaC1jYXJ0ZS12aXNh",
+      "identification_hashes": ["aGFzaC1jYXJ0ZS12aXNh"]
     }
   ],
   "aspsp": { "name": "Banque Exemple", "country": "FR" },

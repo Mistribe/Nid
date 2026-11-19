@@ -88,6 +88,57 @@ describe('the account dialog', () => {
     await waitFor(() => expect(sent).toEqual([{ id: CARD, body: { cardOfAccountId: SECOND } }]));
   });
 
+  it('gives the account the household’s own name, the bank’s as its placeholder', async () => {
+    serveBanks([connection()], envelopes);
+    const sent = patches();
+    const { user, container } = await renderApp('/settings/banks');
+
+    await user.click((await screen.findAllByRole('button', { name: 'Régler Compte courant' }))[0]!);
+    const dialog = await screen.findByRole('dialog', { name: 'Régler Compte courant' });
+    const name = within(dialog).getByRole('textbox', { name: 'Nom' });
+    expect(name).toHaveValue('');
+    expect(name).toHaveAttribute('placeholder', 'Compte courant');
+    expect(within(dialog).queryByRole('button', { name: 'Rétablir le nom de la banque' })).toBeNull();
+    await user.type(name, '  Compte joint ');
+    await expectNoAxeViolations(container);
+    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
+
+    await waitFor(() => expect(sent).toEqual([{ id: CHECKING, body: { name: 'Compte joint' } }]));
+    expect(await screen.findByText('Compte joint enregistré.')).toBeInTheDocument();
+  });
+
+  it('goes back to the bank’s name', async () => {
+    serveBanks([connection({ accounts: [account({ name: 'Compte joint', bankName: 'Compte de dépôt', renamed: true })] })], envelopes);
+    const sent = patches();
+    const { user } = await renderApp('/settings/banks');
+
+    await user.click((await screen.findAllByRole('button', { name: 'Régler Compte joint' }))[0]!);
+    const dialog = await screen.findByRole('dialog', { name: 'Régler Compte joint' });
+    expect(within(dialog).getByRole('textbox', { name: 'Nom' })).toHaveValue('Compte joint');
+    await user.click(within(dialog).getByRole('button', { name: 'Rétablir le nom de la banque' }));
+    expect(within(dialog).getByRole('textbox', { name: 'Nom' })).toHaveValue('');
+    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
+
+    await waitFor(() => expect(sent).toEqual([{ id: CHECKING, body: { clearName: true } }]));
+    expect(await screen.findByText('Compte de dépôt enregistré.')).toBeInTheDocument();
+  });
+
+  it('shows a refused name on its field', async () => {
+    serveBanks([connection()], envelopes);
+    server.use(http.patch('*/api/v1/banking/accounts/:id', () => HttpResponse.json({
+      status: 422, detail: 'Invalid.', errors: [{ detail: 'Too long.', pointer: '#/name', code: 'banking.invalid_name' }],
+    }, { status: 422 })));
+    const { user } = await renderApp('/settings/banks');
+
+    await user.click((await screen.findAllByRole('button', { name: 'Régler Compte courant' }))[0]!);
+    const dialog = await screen.findByRole('dialog', { name: 'Régler Compte courant' });
+    await user.type(within(dialog).getByRole('textbox', { name: 'Nom' }), 'Courant');
+    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
+
+    await waitFor(() => expect(within(dialog).getByRole('textbox', { name: 'Nom' }))
+      .toHaveAccessibleDescription(/Un nom compte de 1 à 100 caractères\./));
+  });
+
   it('stops following an account', async () => {
     serveBanks([connection()], envelopes);
     const sent = patches();
