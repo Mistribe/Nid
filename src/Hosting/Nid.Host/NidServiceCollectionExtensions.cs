@@ -185,6 +185,7 @@ public static class NidServiceCollectionExtensions
         }).AddInterceptors(sp.GetRequiredService<AuditInterceptor>()));
         services.AddScoped<ITransactionParticipant, DbContextParticipant<SubscriptionsDbContext>>();
         services.AddScoped<ISubscriptionStore, SubscriptionStore>();
+        services.AddScoped<Nid.Subscriptions.Contracts.ISubscriptionLabels, Nid.Subscriptions.Infrastructure.Persistence.SubscriptionLabels>();
         services.AddScoped<IItemDeletionPart, SubscriptionsDeletionPart>();
         services.AddScoped<IPersonUsePart, Nid.Subscriptions.Infrastructure.Persistence.SubscriptionsPersonUsePart>();
         services.AddScoped<ICommitmentsContribution, Nid.Subscriptions.Application.SubscriptionsCommitments>();
@@ -286,6 +287,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IBankSyncRunLog, SyncRunLog>();
         services.AddScoped<BankingAccess>();
         services.AddScoped<Nid.Banking.Application.Reconciliation.ExpectedChargeReader>();
+        services.AddScoped<Nid.Banking.Application.Reconciliation.LinkCategoryReader>();
         services.AddScoped<Nid.Banking.Application.Reconciliation.TransactionLinker>();
         services.AddScoped<Nid.Banking.Application.Reconciliation.BankReconciliation>();
         services.AddScoped<Nid.Banking.Application.Reconciliation.RecurringDebits>();

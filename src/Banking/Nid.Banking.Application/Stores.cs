@@ -199,10 +199,16 @@ public interface ILinkStore
 
     Task<IReadOnlyList<(BankLink Link, BankTransaction Line)>> OutcomeSinceAsync(LinkOutcome outcome, LocalDate since, CancellationToken ct);
 
-    /// <summary>Upserts the link and sets the line's <c>link_state</c> (linked or internal) in one transaction.</summary>
-    Task SetAsync(BankLink link, TransactionLinkState state, CancellationToken ct);
+    /// <summary>
+    /// Upserts the link and sets the line's <c>link_state</c> (linked or internal) in one transaction; with a <paramref name="categoryKey"/>,
+    /// the line takes that category as a <c>link</c> one, unless a person's choice holds it (<c>CategoryPrecedence</c>).
+    /// </summary>
+    Task SetAsync(BankLink link, TransactionLinkState state, CancellationToken ct, string? categoryKey = null);
 
-    /// <summary>Deletes the link, if any, and sets the line's state (unlinked or ignored).</summary>
+    /// <summary>
+    /// Deletes the link, if any, and sets the line's state (unlinked or ignored); clears a <c>link</c> category, and when ignored a
+    /// <c>rule</c> or <c>hint</c> one too.
+    /// </summary>
     Task ClearAsync(Guid transaction, TransactionLinkState state, CancellationToken ct);
 
     /// <summary>Whether a link already has the property flow as its target (<c>target_key</c> <c>flow:{id:N}</c>).</summary>

@@ -180,10 +180,14 @@ public sealed class CategoryStore(BankingDbContext db, IClock clock) : ICategory
                 .SetProperty(t => t.CategorisedBy, by), ct);
     }
 
-    public async Task<int> ClearSourceAsync(IReadOnlyCollection<Guid> lines, IReadOnlyCollection<CategorySource> sources, CancellationToken ct)
+    public Task<int> ClearSourceAsync(IReadOnlyCollection<Guid> lines, IReadOnlyCollection<CategorySource> sources, CancellationToken ct)
+        => ClearSourceAsync(db.Transactions.Where(t => lines.Contains(t.Id)), sources, ct);
+
+    /// <summary>Clears the category of the <paramref name="lines"/> whose source is one of <paramref name="sources"/>, in one statement.</summary>
+    internal static Task<int> ClearSourceAsync(IQueryable<TransactionRow> lines, IReadOnlyCollection<CategorySource> sources, CancellationToken ct)
     {
         var wires = sources.Select(Wire).ToList();
-        return await db.Transactions.Where(t => lines.Contains(t.Id) && t.CategorySource != null && wires.Contains(t.CategorySource))
+        return lines.Where(t => t.CategorySource != null && wires.Contains(t.CategorySource))
             .ExecuteUpdateAsync(s => s
                 .SetProperty(t => t.CategoryId, (Guid?)null).SetProperty(t => t.CategorySource, (string?)null)
                 .SetProperty(t => t.CategoryRuleId, (Guid?)null).SetProperty(t => t.CategorisedAt, (Instant?)null)

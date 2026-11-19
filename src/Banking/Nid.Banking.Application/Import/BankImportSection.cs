@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Nid.Banking.Application.Reconciliation;
 using Nid.Banking.Contracts;
 using Nid.Banking.Domain;
 using Nid.Banking.Domain.Files;
@@ -23,7 +24,8 @@ namespace Nid.Banking.Application.Import;
 /// </summary>
 public sealed class BankImportSection(
     BankingAccess access, IAccountStore accounts, IConnectionStore connections, ITransactionStore transactions, IEnvelopeStore envelopes,
-    IAccessPolicy policy, IHouseholdCalendar calendar, ILinkStore links, IRuleStore rules) : IImportSection
+    IAccessPolicy policy, IHouseholdCalendar calendar, ILinkStore links, IRuleStore rules,
+    LinkCategoryReader categories) : IImportSection
 {
     public const string AccountsSection = "bank_accounts";
     public const string TransactionsSection = "bank_transactions";
@@ -240,7 +242,8 @@ public sealed class BankImportSection(
             var link = new BankLink(
                 line!.Id, target?.Item1, target?.Item2, key, plan.Counterpart?.Id, plan.Outcome, plan.Expected,
                 $"person:{context.Actor.Value:D}", InstantPattern.ExtendedIso.Parse(plan.Record.DecidedAt).Value);
-            await links.SetAsync(link, plan.Counterpart is null ? TransactionLinkState.Linked : TransactionLinkState.Internal, ct);
+            await links.SetAsync(link, plan.Counterpart is null ? TransactionLinkState.Linked : TransactionLinkState.Internal, ct,
+                await categories.KeyAsync(link, null, line.Amount > 0, ct));
         }
         var (rulesCreated, rulesKnown) = await RuleCountsAsync(context, ct);
         foreach (var rule in rulePlans)

@@ -16,7 +16,8 @@ namespace Nid.Banking.Application.Reconciliation;
 /// to the new subscription and keeps a rule for the stem. Not editable: a wrong guess is rejected and the subscription made by hand.
 /// </summary>
 public sealed class SubscriptionProposal(
-    IServiceProvider services, BankingAccess access, ITransactionStore transactions, ILinkStore links, IRuleStore rules, IClock clock)
+    IServiceProvider services, BankingAccess access, ITransactionStore transactions, ILinkStore links, IRuleStore rules, IClock clock,
+    LinkCategoryReader categories)
     : IProposalHandler
 {
     public const string KindName = "banking.create_subscription";
@@ -91,10 +92,15 @@ public sealed class SubscriptionProposal(
         var subscription = new ItemId(ids![0]); // the route answers the created item's id
         var by = access.Person;
         var now = clock.GetCurrentInstant();
+        string? category = null; // the same for every line: read once
         foreach (var id in p!.Lines)
             if (await transactions.FindAsync(id, ct) is { LinkState: TransactionLinkState.Unlinked } line && line.Account == p.Account)
-                await links.SetAsync(new BankLink(line.Id, "subscriptions", subscription, TransactionLinker.Day(line.BookedOn), null,
-                    LinkOutcome.AsExpected, null, $"person:{by.Value:D}", now), TransactionLinkState.Linked, ct);
+            {
+                var link = new BankLink(line.Id, "subscriptions", subscription, TransactionLinker.Day(line.BookedOn), null,
+                    LinkOutcome.AsExpected, null, $"person:{by.Value:D}", now);
+                category ??= await categories.KeyAsync(link, null, false, ct);
+                await links.SetAsync(link, TransactionLinkState.Linked, ct, category);
+            }
         await rules.UpsertAsync(p.Account, p.Stem, "subscriptions", subscription, by, ct);
         return applied;
     }

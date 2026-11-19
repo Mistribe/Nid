@@ -565,7 +565,8 @@ public class ReconciliationTests(PostgresFixture fixture) : IClassFixture<Postgr
         public Task<IReadOnlyList<(BankLink Link, BankTransaction Line)>> ForItemsAsync(IReadOnlyCollection<ItemId> items, CancellationToken ct)
             => inner.ForItemsAsync(items, ct);
 
-        public Task SetAsync(BankLink link, TransactionLinkState state, CancellationToken ct) => inner.SetAsync(link, state, ct);
+        public Task SetAsync(BankLink link, TransactionLinkState state, CancellationToken ct, string? categoryKey = null)
+            => inner.SetAsync(link, state, ct, categoryKey);
 
         public Task ClearAsync(Guid transaction, TransactionLinkState state, CancellationToken ct) => inner.ClearAsync(transaction, state, ct);
 
