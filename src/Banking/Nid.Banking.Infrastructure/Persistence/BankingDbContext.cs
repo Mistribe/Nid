@@ -20,6 +20,8 @@ public sealed class BankingDbContext(DbContextOptions<BankingDbContext> options)
 
     public DbSet<LinkRow> Links => Set<LinkRow>();
 
+    public DbSet<CategoryRow> Categories => Set<CategoryRow>();
+
     public DbSet<RuleRow> Rules => Set<RuleRow>();
 
     public DbSet<RecurringGroupRow> RecurringGroups => Set<RecurringGroupRow>();
@@ -90,6 +92,7 @@ public sealed class BankingDbContext(DbContextOptions<BankingDbContext> options)
             {
                 t.HasCheckConstraint("ck_transaction_link_state", "link_state in ('unlinked','linked','ignored','internal')");
                 t.HasCheckConstraint("ck_transaction_fetched_via", "fetched_via in ('api','file')");
+                t.HasCheckConstraint("ck_transaction_category_source", "category_source is null or category_source in ('link','rule','hand','assistant','hint')");
             });
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
@@ -98,7 +101,25 @@ public sealed class BankingDbContext(DbContextOptions<BankingDbContext> options)
             e.HasIndex(x => new { x.AccountId, x.ProviderRef }).IsUnique();
             e.HasIndex(x => new { x.AccountId, x.Fingerprint }).IsUnique();
             e.HasIndex(x => new { x.AccountId, x.BookedOn });
+            e.HasIndex(x => new { x.AccountId, x.CategoryId, x.BookedOn });
             e.HasOne<AccountRow>().WithMany().HasForeignKey(x => x.AccountId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<CategoryRow>().WithMany().HasForeignKey(x => x.CategoryId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<CategoryRow>(e =>
+        {
+            e.ToTable("category", t =>
+            {
+                t.HasCheckConstraint("ck_category_kind", "kind in ('expense','income','transfer')");
+                t.HasCheckConstraint("ck_category_name", "char_length(name) between 1 and 60");
+            });
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            // Sibling names are unique whatever the case, checked by the store: a null parent defeats a unique index.
+            e.HasIndex(x => x.Key).IsUnique();
+            e.HasOne<CategoryRow>().WithMany().HasForeignKey(x => x.ParentId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<CategoryRow>().WithMany().HasForeignKey(x => x.MergedIntoId).OnDelete(DeleteBehavior.Restrict);
+            MapXmin(e.Property(x => x.Version));
         });
 
         modelBuilder.Entity<LinkRow>(e =>

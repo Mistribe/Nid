@@ -282,6 +282,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ITransactionStore, TransactionStore>();
         services.AddScoped<ILinkStore, LinkStore>();
         services.AddScoped<IRuleStore, RuleStore>();
+        services.AddScoped<ICategoryStore, CategoryStore>();
         services.AddScoped<IBankSyncRunLog, SyncRunLog>();
         services.AddScoped<BankingAccess>();
         services.AddScoped<Nid.Banking.Application.Reconciliation.ExpectedChargeReader>();

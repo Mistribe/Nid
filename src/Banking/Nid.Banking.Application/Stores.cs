@@ -226,3 +226,41 @@ public interface IRuleStore
     /// <summary>Remembers that the group was proposed; false when it already was.</summary>
     Task<bool> TryRememberGroupAsync(Guid account, string stem, Instant at, CancellationToken ct);
 }
+
+/// <summary>The household's categories of bank lines, and the category of each line (spec §Category). A category is never deleted.</summary>
+public interface ICategoryStore
+{
+    /// <summary>Every category, archived and merged ones included: top-level ones first, then by name.</summary>
+    Task<IReadOnlyList<BankCategory>> AllAsync(CancellationToken ct);
+
+    Task<BankCategory?> FindAsync(Guid id, CancellationToken ct);
+
+    /// <summary>The category of a seed key, following its merges to the end; null when no category has the key.</summary>
+    Task<Guid?> ResolveKeyAsync(string key, CancellationToken ct);
+
+    /// <summary>A new category; under a parent it takes the parent's kind, <paramref name="kind"/> is then ignored.</summary>
+    Task<Result<BankCategory>> CreateAsync(Guid? parent, string name, CategoryKind kind, CancellationToken ct);
+
+    /// <summary>
+    /// Renames when <paramref name="name"/> is given, moves under <paramref name="parent"/> (null: top-level) when <paramref name="moveParent"/>,
+    /// archives or unarchives when <paramref name="archived"/> is given. Archiving a parent archives its children; unarchiving a child
+    /// unarchives its parent.
+    /// </summary>
+    Task<Result<BankCategory>> UpdateAsync(Guid id, string? name, Guid? parent, bool moveParent, bool? archived, CancellationToken ct);
+
+    /// <summary>
+    /// In one transaction: moves the lines of <paramref name="from"/> to <paramref name="into"/> (their source unchanged), merges each child
+    /// into the target's child of the same name (whatever the case) or moves it under the target, then archives <paramref name="from"/> as merged.
+    /// </summary>
+    Task<Result<BankCategory>> MergeAsync(Guid from, Guid into, CancellationToken ct);
+
+    /// <summary>
+    /// Sets the category of the lines whose current source <paramref name="source"/> may replace (<c>CategoryPrecedence</c>); a null
+    /// <paramref name="source"/> clears category and source (« Laisser Nid décider »). How many lines changed.
+    /// </summary>
+    Task<int> SetForLinesAsync(
+        IReadOnlyCollection<Guid> lines, Guid? category, CategorySource? source, string by, Instant at, bool byPerson, CancellationToken ct);
+
+    /// <summary>Clears the category of the lines whose current source is one of <paramref name="sources"/>; how many changed.</summary>
+    Task<int> ClearSourceAsync(IReadOnlyCollection<Guid> lines, IReadOnlyCollection<CategorySource> sources, CancellationToken ct);
+}

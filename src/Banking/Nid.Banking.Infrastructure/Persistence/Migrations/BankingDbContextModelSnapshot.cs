@@ -190,6 +190,65 @@ namespace Nid.Banking.Infrastructure.Persistence.Migrations
                     b.ToTable("balance", "banking");
                 });
 
+            modelBuilder.Entity("Nid.Banking.Infrastructure.Persistence.CategoryRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Instant?>("ArchivedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("archived_at");
+
+                    b.Property<string>("Key")
+                        .HasColumnType("text")
+                        .HasColumnName("key");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("kind");
+
+                    b.Property<Guid?>("MergedIntoId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("merged_into_id");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("name");
+
+                    b.Property<Guid?>("ParentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("parent_id");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("pk_category");
+
+                    b.HasIndex("Key")
+                        .IsUnique()
+                        .HasDatabaseName("ix_category_key");
+
+                    b.HasIndex("MergedIntoId")
+                        .HasDatabaseName("ix_category_merged_into_id");
+
+                    b.HasIndex("ParentId")
+                        .HasDatabaseName("ix_category_parent_id");
+
+                    b.ToTable("category", "banking", t =>
+                        {
+                            t.HasCheckConstraint("ck_category_kind", "kind in ('expense','income','transfer')");
+
+                            t.HasCheckConstraint("ck_category_name", "char_length(name) between 1 and 60");
+                        });
+                });
+
             modelBuilder.Entity("Nid.Banking.Infrastructure.Persistence.ConnectionRow", b =>
                 {
                     b.Property<Guid>("Id")
@@ -507,6 +566,26 @@ namespace Nid.Banking.Infrastructure.Persistence.Migrations
                         .HasColumnType("date")
                         .HasColumnName("booked_on");
 
+                    b.Property<Instant?>("CategorisedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("categorised_at");
+
+                    b.Property<string>("CategorisedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("categorised_by");
+
+                    b.Property<Guid?>("CategoryId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("category_id");
+
+                    b.Property<Guid?>("CategoryRuleId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("category_rule_id");
+
+                    b.Property<string>("CategorySource")
+                        .HasColumnType("text")
+                        .HasColumnName("category_source");
+
                     b.Property<string>("Counterparty")
                         .HasColumnType("text")
                         .HasColumnName("counterparty");
@@ -565,6 +644,9 @@ namespace Nid.Banking.Infrastructure.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("pk_transaction");
 
+                    b.HasIndex("CategoryId")
+                        .HasDatabaseName("ix_transaction_category_id");
+
                     b.HasIndex("AccountId", "BookedOn")
                         .HasDatabaseName("ix_transaction_account_id_booked_on");
 
@@ -576,8 +658,13 @@ namespace Nid.Banking.Infrastructure.Persistence.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_transaction_account_id_provider_ref");
 
+                    b.HasIndex("AccountId", "CategoryId", "BookedOn")
+                        .HasDatabaseName("ix_transaction_account_id_category_id_booked_on");
+
                     b.ToTable("transaction", "banking", t =>
                         {
+                            t.HasCheckConstraint("ck_transaction_category_source", "category_source is null or category_source in ('link','rule','hand','assistant','hint')");
+
                             t.HasCheckConstraint("ck_transaction_fetched_via", "fetched_via in ('api','file')");
 
                             t.HasCheckConstraint("ck_transaction_link_state", "link_state in ('unlinked','linked','ignored','internal')");
@@ -724,6 +811,21 @@ namespace Nid.Banking.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_balance_account_account_id");
                 });
 
+            modelBuilder.Entity("Nid.Banking.Infrastructure.Persistence.CategoryRow", b =>
+                {
+                    b.HasOne("Nid.Banking.Infrastructure.Persistence.CategoryRow", null)
+                        .WithMany()
+                        .HasForeignKey("MergedIntoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_category_category_merged_into_id");
+
+                    b.HasOne("Nid.Banking.Infrastructure.Persistence.CategoryRow", null)
+                        .WithMany()
+                        .HasForeignKey("ParentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_category_category_parent_id");
+                });
+
             modelBuilder.Entity("Nid.Banking.Infrastructure.Persistence.LinkRow", b =>
                 {
                     b.HasOne("Nid.Banking.Infrastructure.Persistence.TransactionRow", null)
@@ -762,6 +864,12 @@ namespace Nid.Banking.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_transaction_account_account_id");
+
+                    b.HasOne("Nid.Banking.Infrastructure.Persistence.CategoryRow", null)
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_transaction_category_category_id");
                 });
 #pragma warning restore 612, 618
         }

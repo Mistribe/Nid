@@ -103,6 +103,35 @@ public sealed class TransactionRow
 
     /// <summary>When the reconciliation job looked at the line; null until then.</summary>
     public Instant? ReconciledAt { get; set; }
+
+    public Guid? CategoryId { get; set; }
+
+    /// <summary><c>link</c>, <c>rule</c>, <c>hand</c>, <c>assistant</c> or <c>hint</c>; <c>hand</c> with no category is « Sans catégorie ».</summary>
+    public string? CategorySource { get; set; }
+
+    /// <summary>The rule that set the category (PR 2); no foreign key until the rule table exists.</summary>
+    public Guid? CategoryRuleId { get; set; }
+
+    public Instant? CategorisedAt { get; set; }
+
+    /// <summary><c>person:{id}</c>, <c>rule:{id}</c> or <c>job</c>, like <see cref="LinkRow.DecidedBy"/>.</summary>
+    public string? CategorisedBy { get; set; }
+}
+
+/// <summary>A category of bank lines, two levels deep; never deleted (lines and the audit refer to it).</summary>
+public sealed class CategoryRow
+{
+    public Guid Id { get; set; }
+    public Guid? ParentId { get; set; }
+
+    /// <summary>A seeded category's stable key (<c>food.groceries</c>); null for the household's own.</summary>
+    public string? Key { get; set; }
+
+    public string Name { get; set; } = "";
+    public string Kind { get; set; } = "";
+    public Instant? ArchivedAt { get; set; }
+    public Guid? MergedIntoId { get; set; }
+    public uint Version { get; set; }
 }
 
 public sealed class LinkRow

@@ -141,5 +141,6 @@ public sealed class TransactionStore(BankingDbContext db, IClock clock) : ITrans
             "linked" => TransactionLinkState.Linked, "ignored" => TransactionLinkState.Ignored, "internal" => TransactionLinkState.Internal,
             _ => TransactionLinkState.Unlinked,
         },
-        r.FetchedVia, r.CreatedAt);
+        r.FetchedVia, r.CreatedAt, r.CategoryId,
+        r.CategorySource is { } source ? Enum.Parse<CategorySource>(source, ignoreCase: true) : null);
 }

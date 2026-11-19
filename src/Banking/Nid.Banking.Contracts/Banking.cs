@@ -54,10 +54,11 @@ public sealed record NewBankTransaction(
     string Label, string? Counterparty, string? Remittance, string FetchedVia);
 
 /// <summary>A stored booked transaction, signed (debit negative); <paramref name="NormalizedLabel"/> is what rules and fingerprints read.</summary>
+/// <param name="Category">The line's category; null with a <paramref name="CategorySource"/> of hand is « Sans catégorie » chosen by a person.</param>
 public sealed record BankTransaction(
     Guid Id, Guid Account, string ProviderRef, string Fingerprint, LocalDate BookedOn, LocalDate? ValueOn,
     decimal Amount, Currency Currency, string Label, string? Counterparty, string? Remittance, string NormalizedLabel,
-    TransactionLinkState LinkState, string FetchedVia, Instant CreatedAt);
+    TransactionLinkState LinkState, string FetchedVia, Instant CreatedAt, Guid? Category = null, CategorySource? CategorySource = null);
 
 public sealed record TransactionWrite(int Added, int Known);
 
@@ -69,6 +70,10 @@ public enum CategoryKind { Expense, Income, Transfer }
 
 /// <summary>What set a line's category; see <c>CategoryPrecedence</c> in the Domain.</summary>
 public enum CategorySource { Link, Rule, Hand, Assistant, Hint }
+
+/// <summary>A category of bank lines; <paramref name="Key"/> is a seeded one's stable key, null for the household's own.</summary>
+/// <param name="MergedInto">Set on a merged (and archived) category: where its lines went.</param>
+public sealed record BankCategory(Guid Id, Guid? Parent, string? Key, string Name, CategoryKind Kind, Instant? ArchivedAt, Guid? MergedInto);
 
 /// <summary>A line's link (spec §2.6): to a charge of an item, or, for an internal transfer or a card settlement, to the counterpart account.</summary>
 /// <param name="TargetKey">The charge's key, or <c>flow:{id:N}</c> for a property flow already recorded.</param>
