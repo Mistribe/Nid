@@ -105,6 +105,29 @@ describe('the account dialog', () => {
     expect(within(dialog).getByRole('combobox', { name: 'Carte rattachée à' })).toHaveTextContent('Aucun');
   });
 
+  it('names each checking account a card may go with by its envelope and owners, those on an envelope first (#366)', async () => {
+    const SECOND = '00000000-0000-7000-8000-0000000000b4';
+    const [alice, bob] = householdPersons;
+    const joint = summary({ id: JOINT, displayName: 'Compte joint', kind: 'checking', owners: [{ personId: alice!.id, shareBp: 5000 }, { personId: bob!.id, shareBp: 5000 }] });
+    const card = account({ id: CARD, name: 'Visa Premier', ibanMasked: null, kind: 'card' });
+    serveBanks([connection({ accounts: [account({ name: '' }), account({ id: SECOND, name: '', ibanMasked: '5678', envelopeId: JOINT }), card] })], [joint]);
+    server.use(http.get('*/api/v1/core/persons', () => HttpResponse.json(householdPersons)));
+    const sent = patches();
+    const { user } = await renderApp('/settings/banks');
+
+    await user.click((await screen.findAllByRole('button', { name: 'Régler Visa Premier' }))[0]!);
+    const dialog = await screen.findByRole('dialog', { name: 'Régler Visa Premier' });
+    await user.click(within(dialog).getByRole('combobox', { name: 'Carte rattachée à' }));
+    expect(within(await screen.findByRole('listbox')).getAllByRole('option').map((o) => o.textContent))
+      .toEqual(['Aucun', 'Compte joint · Alice Dev et Bob Dev · •••• 5678', '•••• 1234']);
+    await user.click(screen.getByRole('option', { name: 'Compte joint · Alice Dev et Bob Dev · •••• 5678' }));
+    // The closed select reads as the option.
+    expect(within(dialog).getByRole('combobox', { name: 'Carte rattachée à' })).toHaveTextContent('Compte joint · Alice Dev et Bob Dev · •••• 5678');
+    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
+
+    await waitFor(() => expect(sent).toEqual([{ id: CARD, body: { cardOfAccountId: SECOND } }]));
+  });
+
   it('names an account the bank sent no name for by its masked IBAN, else by its kind, everywhere', async () => {
     const SECOND = '00000000-0000-7000-8000-0000000000b4';
     const card = account({ id: CARD, name: 'Visa Premier', ibanMasked: null, kind: 'card', cardOfAccountId: CHECKING });
