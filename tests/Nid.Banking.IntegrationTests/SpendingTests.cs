@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
@@ -170,6 +171,8 @@ public class SpendingTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
         // A period converts each month at its own rate.
         var period = await SpendingAsync(app, app.AdultA, "?scope=me&from=2025-09&to=2025-10");
         Assert.Equal("130.00", period.GetProperty("total").GetString());
+        Assert.Equal([("2025-09", "90.00"), ("2025-10", "40.00")], Months(period));
+        AssertMonthsAddUp(period);
         Assert.False(period.GetProperty("incomplete").GetBoolean());
     }
 
@@ -203,12 +206,23 @@ public class SpendingTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
         var period = await SpendingAsync(app, app.AdultA, "?scope=me&from=2025-08&to=2025-10");
         Assert.Equal(("274.00", "2025-08", "2025-10"),
             (period.GetProperty("total").GetString(), period.GetProperty("from").GetString(), period.GetProperty("to").GetString()));
+        // Each month of the range, a month with nothing included, under the total's rules: they add up to it.
+        Assert.Equal([("2025-08", "84.00"), ("2025-09", "180.00"), ("2025-10", "10.00")], Months(period));
+        AssertMonthsAddUp(period);
+        Assert.Equal([("2025-09", "180.00")], Months(september));
         Assert.Equal("2023-11", (await SpendingAsync(app, app.AdultA, "?from=2023-11&to=2025-10")).GetProperty("from").GetString());
         foreach (var query in new[] { "?from=2023-10&to=2025-10", "?from=2025-10&to=2025-09", "?from=2025-01", "?month=2025-10&from=2025-01&to=2025-02" })
             await BankingApi.AssertRefusedAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Spending}{query}"),
                 HttpStatusCode.UnprocessableEntity, BankingCodes.SpendingPeriod);
         Assert.Equal(HttpStatusCode.BadRequest, (await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Spending}?month=2025-13")).StatusCode);
     }
+
+    private static (string, string)[] Months(JsonElement view)
+        => [.. view.GetProperty("months").EnumerateArray().Select(m => (m.GetProperty("month").GetString()!, m.GetProperty("total").GetString()!))];
+
+    private static void AssertMonthsAddUp(JsonElement view)
+        => Assert.Equal(decimal.Parse(view.GetProperty("total").GetString()!, CultureInfo.InvariantCulture),
+            view.GetProperty("months").EnumerateArray().Sum(m => decimal.Parse(m.GetProperty("total").GetString()!, CultureInfo.InvariantCulture)));
 
     private static async Task<JsonElement> LinesAsync(NidApp app, PersonId person, string query)
     {

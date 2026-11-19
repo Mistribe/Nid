@@ -19,10 +19,14 @@ public sealed record GetSpendingQuery(VisibilityScope Scope, YearMonth? Month, Y
 /// Amounts in <paramref name="Currency"/> (the household's reference), positive for money spent. <paramref name="Incomplete"/>: a line in
 /// the range had no rate and is left out. <paramref name="Average"/>: the monthly average of the 12 months before <paramref name="From"/>,
 /// null when the accounts' history covers fewer than 3 of them or a line of them has no rate (every average then). <paramref name="From"/> and <paramref name="To"/> are <c>yyyy-MM</c>.
+/// <paramref name="Months"/>: every month of the range, oldest first, with what it spent under the same rules as <paramref name="Total"/>.
 /// </summary>
 public sealed record SpendingView(
     string Currency, string Total, bool Incomplete, string? Average, IReadOnlyList<SpendingCategoryView> Categories,
-    SpendingUncategorisedView Uncategorised, string From, string To);
+    SpendingUncategorisedView Uncategorised, string From, string To, IReadOnlyList<SpendingMonthView> Months);
+
+/// <summary>One month of a <see cref="SpendingView"/>: <paramref name="Month"/> is <c>yyyy-MM</c>.</summary>
+public sealed record SpendingMonthView(string Month, string Total);
 
 /// <summary>
 /// A top-level expense category, its <paramref name="Amount"/> including its children's and the lines filed on it directly (those have no
@@ -82,10 +86,12 @@ public sealed class GetSpendingHandler(
     private const int MinHistoryMonths = 3;
     private static readonly StringComparer ByName = StringComparer.Create(CultureInfo.GetCultureInfo("fr-FR"), true);
 
-    /// <summary>The range's and the preceding 12 months' spending per category (Guid.Empty: none), before any view filter.</summary>
+    /// <summary>
+    /// The range's and the preceding 12 months' spending per category (Guid.Empty: none), before any view filter; the range's per month.
+    /// </summary>
     public sealed record Spent(
         YearMonth From, YearMonth To, IReadOnlyList<Guid> Accounts, Currency Reference, Dictionary<Guid, (decimal Range, decimal Before)> ByCategory,
-        bool Incomplete, bool AverageMissing);
+        Dictionary<YearMonth, decimal> ByMonth, bool Incomplete, bool AverageMissing);
 
     public async ValueTask<Result<Spent>> SpentAsync(GetSpendingQuery query, CancellationToken ct)
     {
@@ -113,6 +119,7 @@ public sealed class GetSpendingHandler(
 
         // Per category (Guid.Empty: none), what the range spent and what the 12 months before it spent.
         var spent = new Dictionary<Guid, (decimal Range, decimal Before)>();
+        var byMonth = new Dictionary<YearMonth, decimal>();
         bool incomplete = false, averageMissing = false;
         foreach (var sum in sums)
         {
@@ -135,9 +142,11 @@ public sealed class GetSpendingHandler(
             var key = sum.Category ?? Guid.Empty;
             var (range, before) = spent.GetValueOrDefault(key);
             spent[key] = inRange ? (range + converted, before) : (range, before + converted);
+            if (inRange)
+                byMonth[sum.Month] = byMonth.GetValueOrDefault(sum.Month) + converted;
         }
 
-        return Result.Success(new Spent(from, to, accounts, reference, spent, incomplete, averageMissing));
+        return Result.Success(new Spent(from, to, accounts, reference, spent, byMonth, incomplete, averageMissing));
     }
 
     public async ValueTask<Result<SpendingView>> HandleAsync(GetSpendingQuery query, CancellationToken ct = default)
@@ -146,6 +155,8 @@ public sealed class GetSpendingHandler(
         if (!figures.TryGetValue(out var sums))
             return BankingAccess.Failed<SpendingView, Spent>(figures);
         var (from, to, accounts, reference, spent, incomplete, averageMissing) = (sums.From, sums.To, sums.Accounts, sums.Reference, sums.ByCategory, sums.Incomplete, sums.AverageMissing);
+        var months = Enumerable.Range(0, Index(to) - Index(from) + 1).Select(i => from.PlusMonths(i))
+            .Select(m => new SpendingMonthView(YearMonthPattern.Iso.Format(m), Money(sums.ByMonth.GetValueOrDefault(m)))).ToList();
         var byId = (await categories.AllAsync(ct)).ToDictionary(c => c.Id);
 
         // Decision 6: months of the window from the accounts' first line on.
@@ -173,7 +184,7 @@ public sealed class GetSpendingHandler(
             reference.Code, Money(spent.Values.Sum(s => s.Range)), incomplete, Average(spent.Values.Sum(s => s.Before)),
             [.. tops.OrderByDescending(t => t.Range).ThenBy(t => t.View.Name, ByName).Select(t => t.View)],
             new SpendingUncategorisedView(Money(none.Range), Average(none.Before)),
-            YearMonthPattern.Iso.Format(from), YearMonthPattern.Iso.Format(to)));
+            YearMonthPattern.Iso.Format(from), YearMonthPattern.Iso.Format(to), months));
     }
 
     private static int Index(YearMonth month) => month.Year * 12 + month.Month;

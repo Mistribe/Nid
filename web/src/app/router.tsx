@@ -71,10 +71,10 @@ export type InvestmentsSearch = { closed?: 1; tab?: string; curve?: '3y' | 'all'
  * The income page's own filters: ended sources shown on demand (2C2a design §4), the overview period (`year` is the
  * default and stays out of the URL), person, kind and isolated source; the tab (issue #20); anything invalid is dropped.
  */
+export type IncomeSearch = { ended?: 1; period?: '12m' | '3y'; person?: string; kind?: string; source?: string; tab?: string };
+
 /** #85 « Dépenses »: the month (`yyyy-mm`, absent for the current one) and the 12 months up to it (`12m`, absent for the month alone). */
 export type SpendingSearch = { month?: string; period?: '12m' };
-
-export type IncomeSearch = { ended?: 1; period?: '12m' | '3y'; person?: string; kind?: string; source?: string; tab?: string };
 
 /**
  * The income detail's own choices: the history period (2C2b design §5, `last12` by default), the one-offs listed (issue

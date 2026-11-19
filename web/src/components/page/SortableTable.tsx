@@ -14,13 +14,13 @@ export type Selection<R> = {
 };
 
 /** A table from `md:` up and on paper, a list of `mobile(r)` rows below. Sorting is a view on the rows the server returned. */
-export function SortableTable<R>({ caption, rows, rowKey, columns, rowLink, mobile, initialSort, subRows, expandLabel, rowClassName, selection }: {
+export function SortableTable<R>({ caption, rows, rowKey, columns, rowLink, mobile, initialSort, subRows, expandLabel, expandSingle, rowClassName, selection }: {
   caption: string; rows: R[]; rowKey: (r: R) => string; columns: Column<R>[]; rowLink?: (r: R) => LinkProps;
   mobile: (r: R) => ReactNode; initialSort?: { id: string; desc: boolean }; rowClassName?: (r: R) => string | undefined; selection?: Selection<R>;
 } & (
-  | { subRows?: undefined; expandLabel?: undefined }
-  /** Children of a row; a row with more than one gets a chevron and unfolds them, indented, under the same sort. */
-  | { subRows: (r: R) => R[] | undefined; expandLabel: (r: R) => string }
+  | { subRows?: undefined; expandLabel?: undefined; expandSingle?: undefined }
+  /** Children of a row; a row with more than one (`expandSingle`: with one) gets a chevron and unfolds them, indented, under the same sort. */
+  | { subRows: (r: R) => R[] | undefined; expandLabel: (r: R) => string; expandSingle?: boolean }
 )) {
   const [sort, setSort] = useState(initialSort ?? null);
   const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
@@ -38,10 +38,10 @@ export function SortableTable<R>({ caption, rows, rowKey, columns, rowLink, mobi
   }, [columns, sort]);
   const lines = useMemo(() => sortRows(rows).flatMap((r) => {
     const kids = subRows?.(r);
-    const expandable = !!kids && kids.length > 1;
+    const expandable = !!kids && kids.length > (expandSingle ? 0 : 1);
     const unfolded = expandable && open.has(rowKey(r));
     return [{ row: r, depth: 0, expandable, unfolded }, ...(unfolded ? sortRows(kids).map((k) => ({ row: k, depth: 1, expandable: false, unfolded: false })) : [])];
-  }), [sortRows, rows, subRows, open, rowKey]);
+  }), [sortRows, rows, subRows, expandSingle, open, rowKey]);
 
   const flip = (key: string) => setOpen((o) => { const n = new Set(o); if (!n.delete(key)) n.add(key); return n; });
   // A click on another control of the row, or bubbling from a portal (menu, dialog), must not toggle it.

@@ -38513,6 +38513,10 @@ export interface components {
             count: number;
             incomplete: boolean;
         };
+        SpendingMonthView: {
+            month: string;
+            total: string;
+        };
         SpendingUncategorisedView: {
             amount: string;
             average?: null | string;
@@ -38526,6 +38530,7 @@ export interface components {
             uncategorised: components["schemas"]["SpendingUncategorisedView"];
             from: string;
             to: string;
+            months: components["schemas"]["SpendingMonthView"][];
         };
         SpentView: {
             /** Format: date */

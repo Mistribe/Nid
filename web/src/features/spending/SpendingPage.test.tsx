@@ -4,7 +4,8 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
-import { month, spendingServer } from './testData';
+import { reduceMotion } from '@/test/motion';
+import { month, spendingServer, year } from './testData';
 
 describe('« Dépenses »', () => {
   beforeAll(async () => { await import('./SpendingPage'); }, 30_000);
@@ -28,8 +29,33 @@ describe('« Dépenses »', () => {
 
     await user.click(within(rows[0]!).getByRole('button', { name: 'Afficher les sous-catégories de Courses' }));
     expect(within(table).getByText('Supermarché')).toBeInTheDocument();
+    // A single subcategory unfolds too.
+    await user.click(within(table).getByRole('button', { name: 'Afficher les sous-catégories de Loisirs' }));
+    expect(within(table).getByText('Cinéma')).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Mois par mois' })).toBeNull();
     expect(screen.queryByRole('note')).toBeNull();
     await expectNoAxeViolations(container);
+  });
+
+  describe('the 12 months', () => {
+    reduceMotion();
+
+    it('draws each month the server sums, its table showing the server’s figures, and no usual month beside a period’s amounts', async () => {
+      spendingServer(year);
+      const { user, container } = await renderApp('/spending?period=12m');
+
+      const chart = await screen.findByRole('region', { name: 'Mois par mois' });
+      expect(screen.getByText('Mois habituel', { selector: 'dt' }).closest('div')).toHaveTextContent('par mois, sur les 12 mois avant la période');
+      const categories = screen.getByRole('table', { name: 'Par catégorie' });
+      expect(within(categories).queryByRole('columnheader', { name: 'Mois habituel' })).toBeNull();
+      await expectNoAxeViolations(container);
+
+      await user.click(within(chart).getByRole('button', { name: 'Afficher en tableau' }));
+      const rows = within(within(chart).getByRole('table', { name: 'Mois par mois' })).getAllByRole('row').slice(1);
+      expect(rows).toHaveLength(12);
+      expect(rows[0]).toHaveTextContent(/décembre 2025\s*1\s500,00\s€/);
+      expect(rows[11]).toHaveTextContent(/novembre 2026\s*1\s172,73\s€/);
+    });
   });
 
   it('reads the scope from the address', async () => {

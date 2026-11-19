@@ -1,7 +1,7 @@
 import { keepPreviousData } from '@tanstack/react-query';
 import { Link, useNavigate, useSearch } from '@tanstack/react-router';
 import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { useBankAccounts, useBankingStatus } from '@/api/banking';
@@ -19,6 +19,7 @@ import { SortableTable } from '@/components/page/SortableTable';
 import { StatLine } from '@/components/page/StatLine';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button, buttonVariants } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { shiftMonth } from '@/features/calendar/calendarDates';
 import { toPlot } from '@/lib/plot';
 import type { RootSearch } from '@/lib/search';
@@ -29,6 +30,9 @@ import '@/locales/spending';
 
 /** A server amount that is nought, read as text. */
 const ZERO = /^-?0(\.0+)?$/;
+
+// Its own chunk: Recharts loads with the 12-month view only.
+const MonthsChart = lazy(() => import('./MonthsChart').then((m) => ({ default: m.MonthsChart })));
 
 type Row = { id: string; name: string; amount: string; average?: string | null; children: Row[]; uncategorised?: true };
 
@@ -86,7 +90,7 @@ export function SpendingPage() {
       );
     if (spending.error) return <ProblemMessage problem={present(toProblem(spending.error))} />;
     if (!spending.data) return <Loading label={t('spending.loading')}><TableSkeleton columns={4} /></Loading>;
-    return <Figures data={spending.data} period={period(spending.data)} onOpen={setOpen} />;
+    return <Figures data={spending.data} period={period(spending.data)} year={year} onOpen={setOpen} />;
   };
   const period = (data: Spending) => (year ? t('spending.range', { from: monthText(data.from), to: monthText(data.to) }) : monthText(data.to));
 
@@ -101,7 +105,9 @@ export function SpendingPage() {
   );
 }
 
-function Figures({ data, period, onOpen }: { data: Spending; period: string; onOpen: (target: { categoryId?: string; name: string }) => void }) {
+function Figures({ data, period, year, onOpen }: {
+  data: Spending; period: string; year: boolean; onOpen: (target: { categoryId?: string; name: string }) => void;
+}) {
   const { t } = useTranslation();
   const money = (amount: string) => formatCurrency(amount, data.currency);
   const uncategorised: Row = { id: 'uncategorised', name: t('spending.uncategorised'), ...data.uncategorised, children: [], uncategorised: true };
@@ -129,10 +135,15 @@ function Figures({ data, period, onOpen }: { data: Spending; period: string; onO
     <>
       <StatLine items={[
         { label: t('spending.total'), value: money(data.total), hint: period },
-        { label: t('spending.average'), value: data.average ? money(data.average) : '—', hint: data.average ? t('spending.average_hint') : t('spending.average_none'), tip: t('spending.average_tip') },
+        { label: t('spending.average'), value: data.average ? money(data.average) : '—', hint: data.average ? t(year ? 'spending.average_hint_period' : 'spending.average_hint') : t('spending.average_none'), tip: t('spending.average_tip') },
         { label: t('spending.uncategorised'), value: money(data.uncategorised.amount), tip: t('spending.uncategorised_tip') },
       ]} />
       {data.incomplete ? <Incomplete /> : null}
+      {year ? (
+        <Suspense fallback={<Loading label={t('spending.loading')}><Skeleton className="h-48 w-full" /></Loading>}>
+          <MonthsChart months={data.months} currency={data.currency} />
+        </Suspense>
+      ) : null}
       <SectionCard title={t('spending.by_category')} note={period}>
         {data.categories.length === 0 ? (
           <EmptyState module="/spending" level={3} title={t('spending.no_category_title')} body={t('spending.no_category_body')}
@@ -140,18 +151,19 @@ function Figures({ data, period, onOpen }: { data: Spending; period: string; onO
         ) : null}
         {rows.length > 0 ? (
           <SortableTable<Row> caption={t('spending.by_category')} rows={rows} rowKey={(r) => r.id}
-            subRows={(r) => r.children} expandLabel={(r) => t('spending.expand', { name: r.name })}
+            subRows={(r) => r.children} expandSingle expandLabel={(r) => t('spending.expand', { name: r.name })}
             columns={[
               { id: 'name', header: t('spending.col_category'), wrap: true, cell: name },
               { id: 'amount', header: t('spending.col_amount'), align: 'end', cell: (r) => money(r.amount) },
-              { id: 'average', header: t('spending.col_average'), align: 'end', cell: average },
+              // A period's amounts cover its months, the usual month one: side by side they would mislead.
+              ...(year ? [] : [{ id: 'average', header: t('spending.col_average'), align: 'end' as const, cell: average }]),
               { id: 'share', header: t('spending.col_share'), className: 'w-1/4', cell: bar },
             ]}
             mobile={(r) => (
               <div className="space-y-1">
                 <div className="flex items-start justify-between gap-2">{name(r)}<span className="tabular-nums">{money(r.amount)}</span></div>
                 {bar(r)}
-                <div className="text-sm text-muted-foreground">{t('spending.average_line', { amount: average(r) })}</div>
+                {year ? null : <div className="text-sm text-muted-foreground">{t('spending.average_line', { amount: average(r) })}</div>}
               </div>
             )} />
         ) : null}
