@@ -91,3 +91,34 @@ public static class CardSettlement
         return inWindow.Count > 0 && Math.Round(inWindow.Sum(l => l.Amount), 2) == Math.Round(debit.Amount, 2);
     }
 }
+
+/// <summary>
+/// #353: the checking account a card most likely belongs to, as a suggestion. The bank never says (Enable Banking has no such field):
+/// the only checking account of the card's own connection, else the one whose lines echo the card's — the same debit within
+/// <see cref="InternalTransfers.Days"/> days (immediate debit) or a debit paying the card's lines of the month or two before (deferred).
+/// </summary>
+public static class CardParents
+{
+    /// <param name="sameConnection">Whether a candidate is seen by a connection that sees the card: those are tried first.</param>
+    public static Guid? Suggest(IReadOnlyList<Line> card, IReadOnlyList<(Guid Account, bool SameConnection, IReadOnlyList<Line> Lines)> candidates)
+    {
+        var pool = candidates.Any(c => c.SameConnection) ? candidates.Where(c => c.SameConnection).ToList() : candidates.ToList();
+        if (pool.Count == 1)
+            return pool[0].Account;
+        var scores = pool.Select(c => (c.Account, Score: Score(card, c.Lines))).Where(s => s.Score > 0).OrderByDescending(s => s.Score).ToList();
+        // A tie is no suggestion.
+        return scores is [var best, ..] && (scores.Count == 1 || scores[1].Score < best.Score) ? best.Account : null;
+    }
+
+    private static int Score(IReadOnlyList<Line> card, IReadOnlyList<Line> checking)
+    {
+        var debits = checking.Where(l => l.Amount < 0).ToList();
+        var mirrored = card.Count(c => c.Amount < 0
+            && debits.Any(d => Math.Round(d.Amount, 2) == Math.Round(c.Amount, 2) && Math.Abs(Period.DaysBetween(c.BookedOn, d.BookedOn)) <= InternalTransfers.Days));
+        // ponytail: a deferred card's cycle is taken as calendar months, the usual French one; another cycle scores by its mirrored lines only.
+        var settled = debits.Count(d => card.Count > 0 && new[] { d.BookedOn.With(DateAdjusters.StartOfMonth), d.BookedOn.PlusMonths(-1).With(DateAdjusters.StartOfMonth) }
+            .Any(since => CardSettlement.Settles(d, card, since)));
+        // Either pattern, not both: a debit that echoes a single card line also « pays » it.
+        return Math.Max(mirrored, settled);
+    }
+}

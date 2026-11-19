@@ -35,4 +35,13 @@ public class AccountNamesTests
     [InlineData(null, null, null)]
     public void Reads_a_cards_debit(string? details, string? product, CardDebit? expected)
         => Assert.Equal(expected, AccountNames.Debit(details, product));
+
+    [Fact]
+    public void A_holder_or_a_product_is_kept_as_words_never_as_a_code()
+    {
+        Assert.Equal("Carte Visa Premier", AccountNames.Word("  Carte Visa Premier "));
+        Assert.Null(AccountNames.Word("immediat_debit"));
+        Assert.Null(AccountNames.Word(" "));
+        Assert.Equal(200, AccountNames.Word(new string('a', 300))!.Length);
+    }
 }

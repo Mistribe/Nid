@@ -47,6 +47,7 @@ public sealed class AccountStore(BankingDbContext db) : IAccountStore
             if (seen.Name.Length > 0 || AccountNames.IsCode(row.Name))
                 row.Name = seen.Name;
             row.CardDebit = seen.Debit is { } debit ? Wire(debit) : row.CardDebit;
+            (row.Holder, row.Product) = (seen.Holder ?? row.Holder, seen.Product ?? row.Product);
 
             if (await db.Sources.FindAsync([row.Id, connection], ct) is { } source)
             {
@@ -197,5 +198,5 @@ public sealed class AccountStore(BankingDbContext db) : IAccountStore
             Currency.TryCreate(r.Currency, out var currency) ? currency : throw new InvalidOperationException($"Bank account {r.Id} has no valid currency."),
             r.EnvelopeItemId is { } envelope ? new ItemId(envelope) : null, r.CardOfAccountId, r.AutoApplyBalance, r.Ignored, r.BalanceConflictOn,
             r.AssociatedOn, new PersonId(r.CreatedByPersonId), r.LastValuedOn, r.AssociatedByPersonId is { } by ? new PersonId(by) : null,
-            r.HouseholdName, r.Name, r.CardDebit is { } debit ? Enum.Parse<CardDebit>(debit, ignoreCase: true) : null);
+            r.HouseholdName, r.Name, r.CardDebit is { } debit ? Enum.Parse<CardDebit>(debit, ignoreCase: true) : null, r.Holder, r.Product);
 }

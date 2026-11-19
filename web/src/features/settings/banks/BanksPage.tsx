@@ -23,7 +23,7 @@ import { PROPERTIES } from '@/api/properties';
 import { SettingsFrame } from '../SettingsFrame';
 import { AccountDialog } from './AccountDialog';
 import { ConnectBankDialog } from './ConnectBankDialog';
-import { accountLabel, ACCOUNTS, bankErrorText, maskedIban, CONNECTION, CONNECTIONS, RENEW, RULE, RULES, SYNC, useBankAccounts, useBankingStatus, type BankAccount, type BankRule, type Connection } from '@/api/banking';
+import { accountKind, accountLabel, ACCOUNTS, bankErrorText, maskedIban, CONNECTION, CONNECTIONS, RENEW, RULE, RULES, SYNC, useBankAccounts, useBankingStatus, type BankAccount, type BankRule, type Connection } from '@/api/banking';
 import '@/locales/banks';
 
 // Loaded when opened: most visits import no statement.
@@ -222,15 +222,16 @@ function AccountTable({ caption, accounts, all, envelopes, onEdit }: {
       : a.cardOfAccountId ? t('banks.card_of', { name: parentLabel(a.cardOfAccountId) })
       : envelopes.find((e) => e.id === a.envelopeId)?.displayName ?? '—';
 
+  // #353: what tells two cards of one bank apart, under the name: the masked number, the holder, the product.
+  const details = (a: BankAccount) => [a.ibanMasked && a.name.trim() ? maskedIban(a.ibanMasked) : null, a.holder, a.product !== a.name.trim() ? a.product : null]
+    .filter(Boolean).join(' · ');
   const name = (a: BankAccount) => (
     <span className="whitespace-normal">
       <span className="block">{accountLabel(t, a)}</span>
-      {a.ibanMasked && a.name.trim() ? <span className="block text-sm text-muted-foreground">{maskedIban(a.ibanMasked)}</span> : null}
+      {details(a) ? <span className="block text-sm text-muted-foreground">{details(a)}</span> : null}
     </span>
   );
-  const kind = (a: BankAccount) => (a.kind === 'card' && a.cardDebit === 'immediate' ? t('banks.kind_card_immediate')
-    : a.kind === 'card' && a.cardDebit === 'deferred' ? t('banks.kind_card_deferred')
-    : t(`banks.kind.${a.kind}`, { defaultValue: a.kind }));
+  const kind = (a: BankAccount) => accountKind(t, a);
   const balance = (a: BankAccount) => (a.lastBalance && a.lastBalanceOn
     ? t('banks.balance_on', { amount: formatCurrency(a.lastBalance, a.currency), date: formatLocalDate(a.lastBalanceOn) }) : '—');
   const edit = (a: BankAccount) => (a.canWrite ? (

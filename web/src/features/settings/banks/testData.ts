@@ -10,7 +10,7 @@ export const JOINT = '00000000-0000-7000-8000-0000000000e1';
 export const account = (over: Partial<BankAccount> = {}): BankAccount => ({
   id: CHECKING, name: 'Compte courant', ibanMasked: '1234', kind: 'checking', currency: 'EUR', envelopeId: null,
   cardOfAccountId: null, autoApplyBalance: false, ignored: false, balanceConflictOn: null, lastBalance: '1520.30', lastBalanceOn: '2026-09-30',
-  synced: true, canWrite: true, bankName: over.name ?? 'Compte courant', renamed: false, cardDebit: null, ...over,
+  synced: true, canWrite: true, bankName: over.name ?? 'Compte courant', renamed: false, cardDebit: null, holder: null, product: null, ...over,
 });
 
 export const rule = (over: Partial<BankRule> = {}): BankRule => ({
@@ -33,5 +33,6 @@ export function serveBanks(connections: Connection[], envelopes: unknown[] = [],
     http.get('*/api/v1/banking/accounts', () => HttpResponse.json(accounts)),
     http.get('*/api/v1/banking/aspsps', () => HttpResponse.json([{ name: 'BNP Paribas', logo: null }, { name: 'Crédit Agricole', logo: null }])),
     http.get('*/api/v1/investments/envelopes', () => HttpResponse.json({ items: envelopes })),
+    http.get('*/api/v1/banking/accounts/:id/overview', () => HttpResponse.json({ recent: [], suggestedCardOf: null })),
   );
 }

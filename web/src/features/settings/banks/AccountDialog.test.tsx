@@ -63,6 +63,48 @@ describe('the account dialog', () => {
     await waitFor(() => expect(sent).toEqual([{ id: CARD, body: { cardOfAccountId: CHECKING } }]));
   });
 
+  it('shows what identifies a card and preselects the account its operations suggest, saved only on « Enregistrer »', async () => {
+    const card = account({
+      id: CARD, name: 'Visa Premier', ibanMasked: '4321', kind: 'card', cardDebit: 'deferred', holder: 'MME ALICE MARTIN', product: 'Visa Classic',
+      lastBalance: '-52.50', lastBalanceOn: '2026-10-08',
+    });
+    serveBanks([connection({ accounts: [account(), card] })], envelopes);
+    server.use(http.get('*/api/v1/banking/accounts/:id/overview', () => HttpResponse.json({
+      recent: [
+        { id: 'l1', bookedOn: '2026-10-07', valueOn: null, amount: '-12.00', currency: 'EUR', label: 'CB BOULANGERIE', counterparty: null, fromCard: false,
+          cardName: null, fetchedVia: 'api', linkState: 'unlinked', link: null, accountName: 'Visa Premier' },
+      ],
+      suggestedCardOf: CHECKING,
+    })));
+    const sent = patches();
+    const { user, container } = await renderApp('/settings/banks');
+
+    expect((await screen.findAllByText('•••• 4321 · MME ALICE MARTIN · Visa Classic')).length).toBeGreaterThan(0);
+    await user.click((await screen.findAllByRole('button', { name: 'Régler Visa Premier' }))[0]!);
+    const dialog = await screen.findByRole('dialog', { name: 'Régler Visa Premier' });
+    const identity = within(dialog).getByRole('region', { name: 'Ce que la banque en dit' });
+    for (const text of ['•••• 4321', 'MME ALICE MARTIN', 'Visa Classic', 'Carte, débit différé']) expect(within(identity).getByText(text)).toBeInTheDocument();
+    expect(await within(dialog).findByText('CB BOULANGERIE')).toBeInTheDocument();
+    expect(await within(dialog).findByText("Suggéré d'après ses opérations : vérifiez avant d'enregistrer.")).toBeInTheDocument();
+    expect(within(dialog).getByRole('combobox', { name: 'Carte rattachée à' })).toHaveTextContent('Compte courant');
+    await expectNoAxeViolations(container);
+    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
+
+    await waitFor(() => expect(sent).toEqual([{ id: CARD, body: { cardOfAccountId: CHECKING } }]));
+  });
+
+  it('shows only the type of an account the bank says little of, and no suggestion', async () => {
+    serveBanks([connection({ accounts: [account(), account({ id: CARD, name: 'Carte', ibanMasked: null, kind: 'card', lastBalance: null, lastBalanceOn: null })] })], envelopes);
+    const { user } = await renderApp('/settings/banks');
+
+    await user.click((await screen.findAllByRole('button', { name: 'Régler Carte' }))[0]!);
+    const dialog = await screen.findByRole('dialog', { name: 'Régler Carte' });
+    const identity = within(dialog).getByRole('region', { name: 'Ce que la banque en dit' });
+    expect(within(identity).getAllByRole('term').map((term) => term.textContent)).toEqual(['Type']);
+    expect(await within(dialog).findByText("Aucune opération lue pour l'instant.")).toBeInTheDocument();
+    expect(within(dialog).getByRole('combobox', { name: 'Carte rattachée à' })).toHaveTextContent('Aucun');
+  });
+
   it('names an account the bank sent no name for by its masked IBAN, else by its kind, everywhere', async () => {
     const SECOND = '00000000-0000-7000-8000-0000000000b4';
     const card = account({ id: CARD, name: 'Visa Premier', ibanMasked: null, kind: 'card', cardOfAccountId: CHECKING });

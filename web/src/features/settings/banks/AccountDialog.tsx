@@ -15,7 +15,10 @@ import { Input } from '@/components/ui/input';
 import type { EnvelopeSummary } from '@/api/investments';
 import { PERSONS } from '@/api/persons';
 import { fieldErrorsOf } from '@/components/form/fieldErrors';
-import { ACCOUNT, accountLabel, ACCOUNTS, ASSOCIABLE, bankErrorText, CONNECTIONS, type BankAccount } from '@/api/banking';
+import { formatLocalDate } from '@/components/LocalDate';
+import { formatCurrency } from '@/components/Money';
+import { StatLine } from '@/components/page/StatLine';
+import { ACCOUNT, ACCOUNT_OVERVIEW, accountKind, accountLabel, ACCOUNTS, ASSOCIABLE, bankErrorText, CONNECTIONS, maskedIban, type BankAccount, type BankTransaction } from '@/api/banking';
 import { CreateEnvelopeStep } from './CreateEnvelopeStep';
 import '@/locales/banks';
 
@@ -62,8 +65,12 @@ export function AccountDialog({ account, envelopes, taken = [], bank, parents, o
   const queryClient = useQueryClient();
   const save = $api.useMutation('patch', ACCOUNT);
   const card = account.kind === 'card';
+  const overview = $api.useQuery('get', ACCOUNT_OVERVIEW, { params: { path: { id: account.id } } });
   const [envelopeId, setEnvelopeId] = useState(account.envelopeId ?? '');
-  const [cardOf, setCardOf] = useState(account.cardOfAccountId ?? '');
+  // Null until the person picks: the attached account, else the server's suggestion (#353), saved only with « Enregistrer ».
+  const [picked, setPicked] = useState<string | null>(null);
+  const suggested = overview.data?.suggestedCardOf ?? null;
+  const cardOf = picked ?? account.cardOfAccountId ?? suggested ?? '';
   const [ignored, setIgnored] = useState(account.ignored);
   const [auto, setAuto] = useState(account.autoApplyBalance);
   const [creating, setCreating] = useState(false);
@@ -116,6 +123,8 @@ export function AccountDialog({ account, envelopes, taken = [], bank, parents, o
           submit(done);
         }}>
           {unplaced ? <ProblemMessage problem={present(toProblem(save.error))} /> : null}
+          <Identity account={account} />
+          <Recent lines={overview.data?.recent} />
           <Field label={t('banks.account_dialog.name')} hint={t('banks.account_dialog.name_hint')} error={nameError}>
             {(c) => <Input {...c} value={rename} maxLength={100} placeholder={bankLabel}
               onChange={(event) => setRename(event.target.value)} />}
@@ -124,9 +133,10 @@ export function AccountDialog({ account, envelopes, taken = [], bank, parents, o
             <Button type="button" variant="link" className="h-auto p-0" onClick={() => setRename('')}>{t('banks.account_dialog.reset_name')}</Button>
           ) : null}
           {card ? (
-            <Field label={t('banks.account_dialog.card_of')} error={cardError}>
+            <Field label={t('banks.account_dialog.card_of')} error={cardError}
+              hint={!account.cardOfAccountId && suggested && cardOf === suggested ? t('banks.account_dialog.suggested') : undefined}>
               {(c) => (
-                <SelectField {...c} value={cardOf} onValueChange={setCardOf} options={[
+                <SelectField {...c} value={cardOf} onValueChange={setPicked} options={[
                   { value: '', label: t('banks.account_dialog.no_card') },
                   ...parents.filter((p) => p.id !== account.id).map((p) => ({ value: p.id, label: accountLabel(t, p) })),
                 ]} />
@@ -149,5 +159,45 @@ export function AccountDialog({ account, envelopes, taken = [], bank, parents, o
         </form>
       ))}
     </FormDialog>
+  );
+}
+
+/** #353: what the bank says of the account, so two cards of one connection are told apart: number, holder, product, debit, last balance. */
+function Identity({ account }: { account: BankAccount }) {
+  const { t } = useTranslation();
+  const items = [
+    account.ibanMasked ? { label: t('banks.account_dialog.number'), value: maskedIban(account.ibanMasked) } : null,
+    account.holder ? { label: t('banks.account_dialog.holder'), value: account.holder } : null,
+    account.product ? { label: t('banks.account_dialog.product'), value: account.product } : null,
+    { label: t('banks.account_dialog.type'), value: accountKind(t, account) },
+    account.lastBalance && account.lastBalanceOn
+      ? { label: t('banks.account_dialog.last_balance'), value: formatCurrency(account.lastBalance, account.currency), hint: formatLocalDate(account.lastBalanceOn) }
+      : null,
+  ].filter((item) => item !== null);
+  return (
+    <section aria-label={t('banks.account_dialog.identity')}>
+      <StatLine items={items} />
+    </section>
+  );
+}
+
+/** Its latest lines, as the server gives them: « the card that paid the bakery yesterday » is found faster than by a number. */
+function Recent({ lines }: { lines?: BankTransaction[] }) {
+  const { t } = useTranslation();
+  if (!lines) return null;
+  return (
+    <section aria-label={t('banks.account_dialog.recent')} className="space-y-1">
+      <h3 className="text-sm font-medium">{t('banks.account_dialog.recent')}</h3>
+      {lines.length === 0 ? <p className="text-sm text-muted-foreground">{t('banks.account_dialog.no_recent')}</p> : (
+        <ul className="space-y-0.5 text-sm">
+          {lines.map((l) => (
+            <li key={l.id} className="flex justify-between gap-3">
+              <span className="min-w-0 truncate"><span className="text-muted-foreground">{formatLocalDate(l.bookedOn)}</span> {l.label}</span>
+              <span className="tabular-nums">{formatCurrency(l.amount, l.currency)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }

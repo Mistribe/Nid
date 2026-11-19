@@ -39,12 +39,13 @@ public sealed record ConnectionView(
 /// A bank account as its reader sees it: <paramref name="LastBalance"/> a decimal string in <paramref name="Currency"/>,
 /// <paramref name="Synced"/> while a connection still reads it, <paramref name="CanWrite"/> by the rules of <see cref="BankingAccess"/>.
 /// <paramref name="Name"/> is the household's name when <paramref name="Renamed"/>, else <paramref name="BankName"/> (empty when the bank gave
-/// none); <paramref name="CardDebit"/> is a card's <c>immediate</c> or <c>deferred</c> debit, when the bank says which.
+/// none); <paramref name="CardDebit"/> is a card's <c>immediate</c> or <c>deferred</c> debit, when the bank says which; <paramref name="Holder"/>
+/// and <paramref name="Product"/> the holder's name and the bank's product name, when it gave them (#353).
 /// </summary>
 public sealed record BankAccountView(
     Guid Id, string Name, string? IbanMasked, string Kind, string Currency, Guid? EnvelopeId, Guid? CardOfAccountId, bool AutoApplyBalance,
     bool Ignored, LocalDate? BalanceConflictOn, string? LastBalance, LocalDate? LastBalanceOn, bool Synced, bool CanWrite, string BankName,
-    bool Renamed, string? CardDebit);
+    bool Renamed, string? CardDebit, string? Holder, string? Product);
 
 /// <summary>The account views of what <see cref="BankingAccess.ReadableAsync"/> lets the actor read, by name.</summary>
 public sealed class BankAccountReader(BankingAccess access, IAccountStore accounts, IBalanceStore balances, IConnectionStore connections)
@@ -62,7 +63,7 @@ public sealed class BankAccountReader(BankingAccess access, IAccountStore accoun
                 account.Id, account.Name, account.IbanMasked, account.Kind.ToString().ToLowerInvariant(), account.Currency.Code, account.Envelope?.Value,
                 account.CardOf, account.AutoApplyBalance, account.Ignored, account.BalanceConflictOn,
                 latest?.Amount.ToString("0.00", CultureInfo.InvariantCulture), latest?.AsOf, synced, canWrite, account.BankName ?? account.Name,
-                account.HouseholdName is not null, account.Debit?.ToString().ToLowerInvariant()));
+                account.HouseholdName is not null, account.Debit?.ToString().ToLowerInvariant(), account.Holder, account.Product));
         }
 
         return views.OrderBy(v => v.Name, StringComparer.Ordinal).ToList();
