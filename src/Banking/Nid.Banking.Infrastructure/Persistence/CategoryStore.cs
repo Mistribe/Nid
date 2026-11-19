@@ -79,7 +79,8 @@ public sealed class CategoryStore(BankingDbContext db, IClock clock) : ICategory
                 return Fail(BankingCodes.CategoryKind, "A category moves only under a parent of its kind.");
             if (parentRow.ArchivedAt is not null && parentId != row.ParentId)
                 return Fail(BankingCodes.CategoryArchived, "A category moved under an archived one.");
-            if (parentId != row.ParentId && await db.CategoryBudgets.CountAsync(b => b.CategoryId == id || b.CategoryId == parentId, ct) == 2)
+            // The parent is in use here; an archived category's budget is inert and never blocks.
+            if (parentId != row.ParentId && row.ArchivedAt is null && await db.CategoryBudgets.CountAsync(b => b.CategoryId == id || b.CategoryId == parentId, ct) == 2)
                 return Fail(BankingCodes.BudgetBranch, "A budgeted category moves under no budgeted one: one budget per branch.");
         }
 
@@ -133,7 +134,9 @@ public sealed class CategoryStore(BankingDbContext db, IClock clock) : ICategory
             foreach (var budget in budgets.Where(b => tree[b.CategoryId].MergedIntoId is not null))
                 budget.CategoryId = tree[budget.CategoryId].MergedIntoId!.Value;
             var budgeted = budgets.Select(b => b.CategoryId).ToList();
-            if (budgeted.Count != budgeted.Distinct().Count() || budgeted.Any(c => tree[c].ParentId is { } up && budgeted.Contains(up)))
+            // One per category always (the unique index); one per branch among categories in use, an archived one's budget being inert.
+            if (budgeted.Count != budgeted.Distinct().Count()
+                || budgeted.Any(c => tree[c].ArchivedAt is null && tree[c].ParentId is { } up && tree[up].ArchivedAt is null && budgeted.Contains(up)))
             {
                 db.ChangeTracker.Clear();
                 return Fail(BankingCodes.BudgetConflict, "Both have a budget, or the merge puts two on one branch: remove one first.");

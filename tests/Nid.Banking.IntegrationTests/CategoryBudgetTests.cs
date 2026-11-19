@@ -134,4 +134,15 @@ public class CategoryBudgetTests(PostgresFixture fixture) : IClassFixture<Postgr
         await OkAsync(app.RawAsync(app.AdultA, HttpMethod.Patch, category, new { archived = false }));
         Assert.Equal("300.00", Assert.Single(await ListAsync(app)).GetProperty("amount").GetString());
     }
+
+    [Fact]
+    public async Task An_archived_childs_budget_never_blocks_its_parent()
+    {
+        await using var app = await BankingApi.StartAsync(fixture);
+        await OkAsync(SetAsync(app, "food.groceries", "300"));
+        await OkAsync(app.RawAsync(app.AdultA, HttpMethod.Patch, $"{BankingApi.Root}/categories/{Seed("food.groceries")}", new { archived = true }));
+
+        await OkAsync(SetAsync(app, "food", "600"));
+        Assert.Equal(Seed("food"), Assert.Single(await ListAsync(app)).GetProperty("categoryId").GetGuid());
+    }
 }
