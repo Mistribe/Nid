@@ -246,6 +246,46 @@ namespace Nid.Banking.Infrastructure.Persistence.Migrations
                     b.ToTable("balance", "banking");
                 });
 
+            modelBuilder.Entity("Nid.Banking.Infrastructure.Persistence.CategoryBudgetRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<decimal?>("Amount")
+                        .HasColumnType("numeric(19,4)")
+                        .HasColumnName("amount");
+
+                    b.Property<Guid>("CategoryId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("category_id");
+
+                    b.Property<string>("Period")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("period");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("pk_category_budget");
+
+                    b.HasIndex("CategoryId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_category_budget_category_id");
+
+                    b.ToTable("category_budget", "banking", t =>
+                        {
+                            t.HasCheckConstraint("ck_category_budget_amount", "amount is null or amount >= 0");
+
+                            t.HasCheckConstraint("ck_category_budget_period", "period in ('month','year')");
+                        });
+                });
+
             modelBuilder.Entity("Nid.Banking.Infrastructure.Persistence.CategoryRow", b =>
                 {
                     b.Property<Guid>("Id")
@@ -957,6 +997,16 @@ namespace Nid.Banking.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_balance_account_account_id");
+                });
+
+            modelBuilder.Entity("Nid.Banking.Infrastructure.Persistence.CategoryBudgetRow", b =>
+                {
+                    b.HasOne("Nid.Banking.Infrastructure.Persistence.CategoryRow", null)
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_category_budget_category_category_id");
                 });
 
             modelBuilder.Entity("Nid.Banking.Infrastructure.Persistence.CategoryRow", b =>

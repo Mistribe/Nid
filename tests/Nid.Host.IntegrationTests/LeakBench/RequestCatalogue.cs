@@ -659,6 +659,10 @@ public static class RequestCatalogue
         new(typeof(DeleteCategoryRuleCommand), false, (_, _) => new DeleteCategoryRuleCommand(Guid.NewGuid())),
         new(typeof(PreviewCategoryRuleQuery), false, (d, _) => new PreviewCategoryRuleQuery(d.PrivateRule.Rule, 1)),
         new(typeof(ApplyCategoryRuleCommand), false, (_, _) => new ApplyCategoryRuleCommand(Guid.NewGuid())),
+        // #85: the household's budgets, on its categories: no item, no person's data.
+        new(typeof(Nid.Banking.Application.Spending.ListBudgetsQuery), false, (_, _) => new Nid.Banking.Application.Spending.ListBudgetsQuery()),
+        new(typeof(Nid.Banking.Application.Spending.SetBudgetCommand), false, (_, _) => new Nid.Banking.Application.Spending.SetBudgetCommand(Guid.NewGuid(), "100", "month")),
+        new(typeof(Nid.Banking.Application.Spending.DeleteBudgetCommand), false, (_, _) => new Nid.Banking.Application.Spending.DeleteBudgetCommand(Guid.NewGuid())),
         new(typeof(ListBankRulesQuery), false, (_, _) => new ListBankRulesQuery()),
         new(typeof(DeleteBankRuleCommand), false, (_, _) => new DeleteBankRuleCommand(Guid.NewGuid())),
         // A preview: the actor's own new account from a file, rolled back; dropped on the row's item, refused unless they write an envelope.

@@ -119,6 +119,22 @@ public static class BankingEndpoints
                     .ToHttp(spending => spending))
             .Returns<SpendingLines>();
 
+        // #85: the household's budgets, one per expense category (or branch), compared with the « Foyer » figures.
+        api.MapGet("/budgets", async (IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new ListBudgetsQuery(), ct)).ToHttp(budgets => budgets))
+            .Returns<IReadOnlyList<CategoryBudgetView>>();
+
+        api.MapPut("/budgets/{categoryId:guid}", async (Guid categoryId, BudgetBody body, IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new SetBudgetCommand(categoryId, body.Amount, body.Period ?? ""), ct)).ToHttp(budget => budget))
+            .Returns<CategoryBudgetView>();
+
+        api.MapDelete("/budgets/{categoryId:guid}", async (Guid categoryId, IInvoker invoker, CancellationToken ct) =>
+            {
+                var result = await invoker.InvokeAsync(new DeleteBudgetCommand(categoryId), ct);
+                return result.TryGetValue(out _) ? Results.NoContent() : result.ToHttp(v => v);
+            })
+            .ReturnsNoContent();
+
         api.MapGet("/transactions/{id:guid}/candidates", async (Guid id, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new LinkCandidatesQuery(id), ct)).ToHttp(charges => charges))
             .Returns<IReadOnlyList<ExpectedChargeView>>();
@@ -345,6 +361,10 @@ public static class BankingEndpoints
     /// </summary>
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
     public sealed record CategoryRuleBody(string? Pattern, Guid? AccountId, string? Direction, string? MinAmount, string? MaxAmount, Guid? CategoryId);
+
+    /// <summary>A category's budget as a whole: <c>amount</c> an invariant decimal of zero or more, null to follow what is committed; <c>period</c> <c>month</c> or <c>year</c>.</summary>
+    [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+    public sealed record BudgetBody(string? Amount, string? Period);
 
     /// <summary>How many lines took the rule's category.</summary>
     public sealed record CategoryRuleApplied(int Changed);

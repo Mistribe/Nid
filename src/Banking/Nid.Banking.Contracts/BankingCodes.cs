@@ -97,4 +97,13 @@ public static class BankingCodes
 
     /// <summary>#85: the lines of a spending figure name a category, or « Non classées », not both nor neither.</summary>
     public const string SpendingTarget = "banking.spending_target";
+
+    /// <summary>#85: a budget's amount is a number of zero or more, under 10^15.</summary>
+    public const string BudgetAmount = "banking.budget_amount";
+
+    /// <summary>#85: a budget on a category and one on its parent or a child: one per branch.</summary>
+    public const string BudgetBranch = "banking.budget_branch";
+
+    /// <summary>#85: a merge that would leave two budgets on one category or on one branch.</summary>
+    public const string BudgetConflict = "banking.budget_conflict";
 }

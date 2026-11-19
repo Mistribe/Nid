@@ -285,6 +285,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IRuleStore, RuleStore>();
         services.AddScoped<ICategoryStore, CategoryStore>();
         services.AddScoped<ICategoryRuleStore, CategoryRuleStore>();
+        services.AddScoped<ICategoryBudgetStore, CategoryBudgetStore>();
         services.AddScoped<IBankSyncRunLog, SyncRunLog>();
         services.AddScoped<IAccountReadLog, AccountReadLog>();
         services.AddScoped<BankingAccess>();
