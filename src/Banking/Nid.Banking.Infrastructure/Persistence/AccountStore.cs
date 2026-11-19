@@ -139,8 +139,21 @@ public sealed class AccountStore(BankingDbContext db) : IAccountStore
             .Select(s => new BankAccountSource(s.AccountId, s.ConnectionId, s.ProviderUid, s.IdentificationHash)).ToList();
 
     public async Task ResolveCurrencyAsync(Guid account, Currency currency, CancellationToken ct)
-        => await db.Accounts.Where(a => a.Id == account && a.Currency == Currency.None.Code)
-            .ExecuteUpdateAsync(s => s.SetProperty(a => a.Currency, currency.Code), ct);
+    {
+        // A tracked update: the write audit keeps the currency's change.
+        if (await db.Accounts.SingleOrDefaultAsync(a => a.Id == account && a.Currency == Currency.None.Code, ct) is not { } row)
+            return;
+        row.Currency = currency.Code;
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // A person saved the account meanwhile: the next read learns it again.
+            db.Entry(row).State = EntityState.Detached;
+        }
+    }
 
     public async Task<Result> UpdateAsync(BankAccount account, CancellationToken ct)
     {
