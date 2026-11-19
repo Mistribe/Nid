@@ -645,9 +645,9 @@ public static class RequestCatalogue
         // The household's category rules (decision 7): a rule restricted to an account the actor cannot read never reaches them.
         new(typeof(ListCategoryRulesQuery), false, (_, _) => new ListCategoryRulesQuery()),
         new(typeof(CreateCategoryRuleCommand), false, (_, _) => new CreateCategoryRuleCommand("BENCH", null, null, null, null, Guid.NewGuid())),
-        new(typeof(UpdateCategoryRuleCommand), false, (_, _) => new UpdateCategoryRuleCommand(Guid.NewGuid(), "BENCH", null, null, null, null, Guid.NewGuid())),
+        new(typeof(UpdateCategoryRuleCommand), false, (d, _) => new UpdateCategoryRuleCommand(d.PrivateRule.Rule, MixedDataset.PrivateLabelA, d.PrivateRule.Account, null, null, null, Nid.Banking.Domain.CategorySeed.Find("food.groceries")!.Id)),
         new(typeof(DeleteCategoryRuleCommand), false, (_, _) => new DeleteCategoryRuleCommand(Guid.NewGuid())),
-        new(typeof(PreviewCategoryRuleQuery), false, (_, _) => new PreviewCategoryRuleQuery(Guid.NewGuid(), 1)),
+        new(typeof(PreviewCategoryRuleQuery), false, (d, _) => new PreviewCategoryRuleQuery(d.PrivateRule.Rule, 1)),
         new(typeof(ApplyCategoryRuleCommand), false, (_, _) => new ApplyCategoryRuleCommand(Guid.NewGuid())),
         new(typeof(ListBankRulesQuery), false, (_, _) => new ListBankRulesQuery()),
         new(typeof(DeleteBankRuleCommand), false, (_, _) => new DeleteBankRuleCommand(Guid.NewGuid())),

@@ -111,6 +111,18 @@ public class CategoryRuleRouteTests(PostgresFixture fixture) : IClassFixture<Pos
     }
 
     [Fact]
+    public async Task A_rule_tells_when_its_category_is_archived()
+    {
+        await using var s = await StartAsync(fixture);
+        var app = s.App;
+        var rule = await RuleAsync(app, app.AdultA, "CARREFOUR");
+        Assert.False((await ListAsync(app, app.AdultA)).Single().GetProperty("categoryArchived").GetBoolean());
+        await OkAsync(await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{BankingApi.Root}/categories/{Seed("food.groceries")}", new { archived = true }));
+        var listed = (await ListAsync(app, app.AdultA)).Single();
+        Assert.Equal((rule, true), (listed.GetProperty("id").GetGuid(), listed.GetProperty("categoryArchived").GetBoolean()));
+    }
+
+    [Fact]
     public async Task Preview_lists_only_lines_the_actor_writes_and_apply_changes_exactly_them()
     {
         await using var s = await StartAsync(fixture);

@@ -32949,6 +32949,7 @@ export interface components {
             lines: number;
             /** Format: date-time */
             lastUsedAt?: null | string;
+            categoryArchived: boolean;
         };
         CategoryView: {
             /** Format: uuid */

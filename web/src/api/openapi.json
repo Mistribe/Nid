@@ -36628,7 +36628,8 @@
           "categoryId",
           "categoryName",
           "canEdit",
-          "lines"
+          "lines",
+          "categoryArchived"
         ],
         "type": "object",
         "properties": {
@@ -36690,6 +36691,9 @@
               "string"
             ],
             "format": "date-time"
+          },
+          "categoryArchived": {
+            "type": "boolean"
           }
         }
       },

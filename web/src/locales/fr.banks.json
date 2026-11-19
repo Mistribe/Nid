@@ -62,7 +62,7 @@
       "banking_category_depth": "Les catégories ont deux niveaux : une sous-catégorie n'en contient pas d'autre, et une catégorie qui en contient ne se fusionne qu'avec une catégorie principale.",
       "banking_category_kind": "Une catégorie ne se range ou ne se fusionne qu'avec une catégorie du même type.",
       "banking_category_archived": "Cette catégorie est archivée : choisissez-en une en usage.",
-      "banking_rule_pattern": "Un motif compte de 2 à 60 caractères, dont au moins une lettre.",
+      "banking_rule_pattern": "Un motif compte de 2 à 60 caractères, dont au moins une lettre, sans compter les préfixes de banque (CB, VIR, PRLV…).",
       "banking_rule_amounts": "Les montants sont positifs, et le minimum ne dépasse pas le maximum."
     },
     "connect_dialog": {
@@ -161,7 +161,7 @@
       "empty": "Aucune règle pour l'instant. Après avoir catégorisé une opération à la main, Nid propose d'en créer une.",
       "create": "Nouvelle règle",
       "pattern": "Motif",
-      "pattern_hint": "Un mot ou un morceau du libellé, par exemple CARREFOUR.",
+      "pattern_hint": "Un mot ou un morceau du libellé, par exemple CARREFOUR. Les préfixes de banque (CB, VIR, PRLV…) ne comptent pas.",
       "pattern_about": "Nid cherche ce motif dans le libellé de l'opération et dans le nom de l'émetteur, sans tenir compte des majuscules ni des accents.",
       "account": "Compte",
       "all_accounts": "Tous les comptes",
@@ -190,6 +190,9 @@
       "actions_of": "Actions sur la règle {{pattern}}",
       "delete_confirm": "La règle « {{pattern}} » sera supprimée. Les opérations qu'elle a déjà classées gardent leur catégorie.",
       "account_forbidden": "Seule la personne qui a créé la règle peut changer son compte.",
+      "edit_forbidden": "Vous ne pouvez pas modifier cette règle.",
+      "archived": "(archivée)",
+      "archived_about": "Cette règle ne s'applique plus : sa catégorie est archivée.",
       "done_create": "Règle créée.",
       "done_edit": "Règle enregistrée.",
       "deleted": "Règle supprimée.",

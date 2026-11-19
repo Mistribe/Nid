@@ -17,7 +17,7 @@ const categories = [
 
 const rule = (over: Partial<CategoryRule>): CategoryRule => ({
   id: 'r1', pattern: 'CARREFOUR', accountId: null, accountName: null, direction: null, minAmount: null, maxAmount: null,
-  categoryId: 'groceries', categoryName: 'Courses', canEdit: true, lines: 12, lastUsedAt: '2026-10-02T04:30:00+00:00', ...over,
+  categoryId: 'groceries', categoryName: 'Courses', canEdit: true, lines: 12, lastUsedAt: '2026-10-02T04:30:00+00:00', categoryArchived: false, ...over,
 });
 const rules = () => [
   rule({}),
@@ -49,9 +49,9 @@ function serve() {
       return HttpResponse.json(rule({ id: 'r3' }), { status: 201 });
     }),
     http.patch('*/api/v1/banking/category-rules/:id', async ({ request, params }) => {
-      const body = await request.json() as { accountId: string | null };
+      const body = await request.json() as { accountId: string | null; pattern: string };
       writes.push(['PATCH', params.id, body]);
-      return body.accountId
+      return body.accountId || body.pattern === 'FORBID'
         ? HttpResponse.json({ status: 403, detail: 'Only its author changes the account of this rule.' }, { status: 403 })
         : HttpResponse.json(rule({}));
     }),
@@ -131,7 +131,7 @@ describe('Réglages › Banques › Catégories › Règles de catégorie', () =
     await user.click(within(dialog).getByRole('button', { name: 'Créer la règle' }));
 
     await waitFor(() => expect(field).toHaveAttribute('aria-invalid', 'true'));
-    expect(field).toHaveAccessibleDescription(/Un motif compte de 2 à 60 caractères, dont au moins une lettre\./);
+    expect(field).toHaveAccessibleDescription(/Un motif compte de 2 à 60 caractères, dont au moins une lettre, sans compter les préfixes de banque \(CB, VIR, PRLV…\)\./);
   });
 
   it('shows a refused bound under the field the server names', async () => {
@@ -170,6 +170,30 @@ describe('Réglages › Banques › Catégories › Règles de catégorie', () =
     await pick(user, 'Compte', 'Compte courant');
     await user.click(within(again).getByRole('button', { name: 'Enregistrer' }));
     expect(await within(again).findByText('Seule la personne qui a créé la règle peut changer son compte.')).toBeInTheDocument();
+  });
+
+  it('says « Vous ne pouvez pas modifier cette règle. » for a refusal that is not about the account', async () => {
+    serve();
+    const { user } = await open();
+
+    await menu(user, 'CARREFOUR', 'Modifier');
+    const dialog = await screen.findByRole('dialog', { name: 'Modifier la règle « CARREFOUR »' });
+    const field = within(dialog).getByRole('textbox', { name: 'Motif' });
+    await user.clear(field);
+    await user.type(field, 'FORBID');
+    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
+    expect(await within(dialog).findByText('Vous ne pouvez pas modifier cette règle.')).toBeInTheDocument();
+  });
+
+  it('marks a rule whose category is archived, and says why it no longer applies', async () => {
+    serve();
+    server.use(http.get('*/api/v1/banking/category-rules', () => HttpResponse.json([rule({ categoryArchived: true })])));
+    const { user } = await open();
+
+    const row = within(screen.getByRole('table', { name: 'Règles de catégorie' })).getAllByRole('row')[1]!;
+    expect(row).toHaveTextContent('Courses (archivée)');
+    await user.hover(within(row).getByRole('button', { name: 'À propos : Courses' }));
+    expect((await screen.findAllByText('Cette règle ne s\'applique plus : sa catégorie est archivée.')).length).toBeGreaterThan(0);
   });
 
   it('previews the past lines, then applies the rule to them', async () => {

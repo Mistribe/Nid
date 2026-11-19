@@ -46,7 +46,7 @@ public sealed record CategoryRulePreview(int Total, IReadOnlyList<BankTransactio
 /// </summary>
 public sealed record CategoryRuleView(
     Guid Id, string Pattern, Guid? AccountId, string? AccountName, string? Direction, string? MinAmount, string? MaxAmount, Guid CategoryId,
-    string CategoryName, bool CanEdit, int Lines, DateTimeOffset? LastUsedAt);
+    string CategoryName, bool CanEdit, int Lines, DateTimeOffset? LastUsedAt, bool CategoryArchived);
 
 /// <summary>Spec §Rules, decision 7: who sees and edits a rule, what a rule says, and the lines it would change for the actor.</summary>
 public sealed class CategoryRuleScope(BankingAccess access, IAccountStore accounts, ICategoryRuleStore rules, ICategoryStore categories)
@@ -128,14 +128,14 @@ public sealed class CategoryRuleScope(BankingAccess access, IAccountStore accoun
 
     public async Task<IReadOnlyList<CategoryRuleView>> ViewsAsync(IReadOnlyList<CategoryRule> list, Readable readable, CancellationToken ct)
     {
-        var names = (await categories.AllAsync(ct)).ToDictionary(c => c.Id, c => c.Name);
+        var all = (await categories.AllAsync(ct)).ToDictionary(c => c.Id);
         // Decision 7: what a rule did on lines the actor cannot read is not theirs to see, neither the count nor the date.
         var usage = await rules.UsageAsync([.. readable.Keys], ct);
         return [.. list.Select(r => new CategoryRuleView(
             r.Id, r.Pattern, r.Account, r.Account is { } a && readable.TryGetValue(a, out var account) ? account.Account.Name : null,
             r.Direction is { } d ? BankLines.Wire(d) : null, r.MinAmount is { } min ? TransactionLinker.Amount(min) : null,
-            r.MaxAmount is { } max ? TransactionLinker.Amount(max) : null, r.Category, names.GetValueOrDefault(r.Category, ""), Edits(r, readable),
-            usage.GetValueOrDefault(r.Id).Lines, usage.GetValueOrDefault(r.Id).LastUsed?.ToDateTimeOffset()))];
+            r.MaxAmount is { } max ? TransactionLinker.Amount(max) : null, r.Category, all.TryGetValue(r.Category, out var category) ? category.Name : "", Edits(r, readable),
+            usage.GetValueOrDefault(r.Id).Lines, usage.GetValueOrDefault(r.Id).LastUsed?.ToDateTimeOffset(), category?.ArchivedAt is not null))];
     }
 }
 

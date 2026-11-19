@@ -7,6 +7,7 @@ using Nid.Banking.Application.Sync;
 using Nid.Banking.Contracts;
 using Nid.Banking.Infrastructure.Persistence;
 using Nid.Core.Contracts;
+using Nid.Core.Infrastructure.Persistence;
 using Nid.Platform.Contracts;
 using Nid.TestSupport;
 using NodaTime;
@@ -138,6 +139,19 @@ public class TransactionReadTests(PostgresFixture fixture) : IClassFixture<Postg
         var theirs = await ReadAsync(app, app.AdultB, shared);
         Assert.Equal(["SECRET"], Labels(theirs));
         Assert.True(theirs.GetProperty("items")[0].GetProperty("sharedAccount").GetBoolean());
+
+        // An adult who has not signed in yet reads nothing: the account is no longer every adult's.
+        await using (var core = PostgresFixture.NewCoreContext(app.ConnectionString))
+        {
+            // Room for a third adult: the test household has two.
+            await core.HouseholdSettings.ExecuteUpdateAsync(x => x.SetProperty(h => h.MaxAdults, 3), TestContext.Current.CancellationToken);
+        }
+        await using (var scope = app.Services.CreateAsyncScope())
+        {
+            scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
+            Assert.True((await scope.ServiceProvider.GetRequiredService<IPersonRegistry>().PreRegisterAdultAsync("Camille", "camille@example.test", TestContext.Current.CancellationToken)).IsSuccess);
+        }
+        Assert.False((await ReadAsync(app, app.AdultB, shared)).GetProperty("items")[0].GetProperty("sharedAccount").GetBoolean());
     }
 
     [Fact]

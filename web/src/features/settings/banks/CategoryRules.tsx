@@ -78,6 +78,9 @@ export function CategoryRules() {
   }, [focus]);
 
   const account = (r: CategoryRule) => (r.accountId ? r.accountName ?? '—' : t('banks.category_rules.all_accounts'));
+  const category = (r: CategoryRule) => r.categoryArchived
+    ? <span>{r.categoryName} <span className="text-muted-foreground">{t('banks.category_rules.archived')}</span> <InfoTip label={r.categoryName}>{t('banks.category_rules.archived_about')}</InfoTip></span>
+    : r.categoryName;
   const lastUsed = (r: CategoryRule) => (r.lastUsedAt ? formatInstantDay(r.lastUsedAt) : t('banks.category_rules.never'));
   const pattern = (r: CategoryRule) => {
     const more = conditions(t, r);
@@ -108,7 +111,7 @@ export function CategoryRules() {
           columns={[
             { id: 'pattern', header: t('banks.category_rules.pattern'), sort: (r) => r.pattern, cell: pattern },
             { id: 'account', header: t('banks.category_rules.account'), sort: account, cell: account },
-            { id: 'category', header: t('banks.category_rules.category'), sort: (r) => r.categoryName, cell: (r) => r.categoryName },
+            { id: 'category', header: t('banks.category_rules.category'), sort: (r) => r.categoryName, cell: category },
             { id: 'lines', header: t('banks.category_rules.lines'), align: 'end', sort: (r) => r.lines, cell: (r) => <span className="tabular-nums">{r.lines}</span> },
             { id: 'used', header: t('banks.category_rules.last_used'), sort: (r) => r.lastUsedAt ?? '', cell: lastUsed },
             { id: 'actions', header: t('banks.actions'), align: 'end', cell: (r) => actions(r, `rule-${r.id}`) },
@@ -116,7 +119,7 @@ export function CategoryRules() {
           mobile={(r) => (
             <div className="space-y-1">
               <div className="flex items-start justify-between gap-2">{pattern(r)}{actions(r, `rule-${r.id}-mobile`)}</div>
-              <p className="text-sm text-muted-foreground">{r.categoryName} · {account(r)} · {t('banks.category_rules.lines_count', { count: r.lines })} · {lastUsed(r)}</p>
+              <p className="text-sm text-muted-foreground">{category(r)} · {account(r)} · {t('banks.category_rules.lines_count', { count: r.lines })} · {lastUsed(r)}</p>
             </div>
           )} />
       ) : null}
@@ -152,7 +155,10 @@ function RuleDialog({ rule, onClose, onDone }: { rule?: CategoryRule; onClose: (
   const errors = { pattern: fieldError('pattern'), category: fieldError('categoryId'), min: fieldError('minAmount'), max: fieldError('maxAmount'), account: fieldError('accountId') };
   const problem = toProblem(write.error);
   const shown = write.error && !fields.length
-    ? problem.status === 403 ? { ...present(problem), detail: t('banks.category_rules.account_forbidden') } : presentBankError(t, write.error)
+    // The server's 403 carries no code: only a changed account is the author-only refusal.
+    ? problem.status === 403
+      ? { ...present(problem), detail: t(account !== (rule?.accountId ?? '') ? 'banks.category_rules.account_forbidden' : 'banks.category_rules.edit_forbidden') }
+      : presentBankError(t, write.error)
     : null;
 
   const options = activeCategoryOptions(categories.data);
