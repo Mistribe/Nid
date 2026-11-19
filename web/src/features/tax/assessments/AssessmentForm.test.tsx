@@ -37,7 +37,7 @@ function serve(people: Person[], over: { post?: () => Response; put?: () => Resp
       return HttpResponse.json({ deductionAmount: eur('4145.00'), netSalaries: eur('37302.00') });
     }),
     http.get('*/api/v1/tax/assessments/:id', () => HttpResponse.json(jointAssessment({ version: over.version?.() ?? 1 }))),
-    http.get('*/api/v1/documents/:id', () => HttpResponse.json({ status: 404, code: 'not_found', title: 'Gone.' }, { status: 404 })),
+    http.get('*/api/v1/documents/:id', () => HttpResponse.json({ status: 404, code: 'not_found', detail: 'Gone.' }, { status: 404 })),
     http.get('*/api/v1/tax/assessments', () => HttpResponse.json({ items: [] })),
     http.get('*/api/v1/tax', () => HttpResponse.json({}, { status: 404 })),
   );
@@ -69,7 +69,7 @@ describe('AssessmentForm', () => {
     await waitFor(() => expectTrailBack('Impôts', '/tax'));
     cleanup();
 
-    server.use(http.get('*/api/v1/tax/assessments/:id', () => HttpResponse.json({ status: 404, code: null, title: 'Not found' }, { status: 404 })));
+    server.use(http.get('*/api/v1/tax/assessments/:id', () => HttpResponse.json({ status: 404, code: null, detail: 'Not found' }, { status: 404 })));
     await renderApp(`/tax/assessments/${NOTICE}/edit`);
     expect(await screen.findByText('Cet élément est introuvable.')).toBeInTheDocument();
     await waitFor(() => expectTrailBack('Impôts', '/tax'));
@@ -258,7 +258,7 @@ describe('AssessmentForm', () => {
 
   it('A_refused_declarant_goes_back_to_the_household_step', async () => {
     serve(household, {
-      post: () => HttpResponse.json({ status: 422, code: 'request.invalid', title: 'Invalid', errors: [{ path: 'declarants[1].personId', code: 'request.invalid', message: 'Pas un adulte du foyer.' }] }, { status: 422 }),
+      post: () => HttpResponse.json({ status: 422, code: 'request.invalid', detail: 'Invalid', errors: [{ detail: 'Pas un adulte du foyer.', pointer: '#/declarants/1/personId', code: 'request.invalid' }] }, { status: 422 }),
     });
     const { user } = await renderApp('/tax/assessments/new');
 
@@ -277,7 +277,7 @@ describe('AssessmentForm', () => {
     ['tax.declarant_required', 'declarants', 'Vous devez être l’un des déclarants.'],
     ['tax.invalid_assessment', 'netTax', 'Valeur refusée par le contrôle de l’avis.'],
   ])('Tells_the_refusal_%s_in_French', async (code, path, french) => {
-    serve(household, { post: () => HttpResponse.json({ status: 422, code: 'request.invalid', title: 'Invalid', errors: [{ path, code, message: 'An English sentence.' }] }, { status: 422 }) });
+    serve(household, { post: () => HttpResponse.json({ status: 422, code: 'request.invalid', detail: 'Invalid', errors: [{ path, code, message: 'An English sentence.' }] }, { status: 422 }) });
     const { user } = await renderApp('/tax/assessments/new');
 
     await pick(user, 'Année des revenus', '2025');
@@ -297,7 +297,7 @@ describe('AssessmentForm', () => {
       http.get('*/api/v1/tax', ({ request }) => { years.push(new URL(request.url).searchParams.get('year')); return HttpResponse.json(estimate()); }),
     );
     const { user, router } = await renderApp('/tax');
-    await screen.findByText('Net fiscal');
+    await screen.findByRole('tab', { name: 'Calcul' });
     await user.click(screen.getByRole('link', { name: 'Ajouter un avis' }));
 
     await pick(user, 'Année des revenus', '2022');
@@ -355,7 +355,7 @@ describe('AssessmentForm', () => {
   });
 
   it('A_conflict_keeps_the_values_and_says_why', async () => {
-    serve([adult(ALICE, 'Alice'), adult(BOB, 'Bob')], { put: () => HttpResponse.json({ status: 409, code: 'tax.assessments.conflict', title: 'Changed.' }, { status: 409 }) });
+    serve([adult(ALICE, 'Alice'), adult(BOB, 'Bob')], { put: () => HttpResponse.json({ status: 409, code: 'tax.assessments.conflict', detail: 'Changed.' }, { status: 409 }) });
     const { user, router } = await renderApp(`/tax/assessments/${NOTICE}/edit`);
 
     await screen.findByRole('combobox', { name: 'Année des revenus' });

@@ -17,6 +17,18 @@ public static class AbsenceDeduction
         decimal monthlyPay, IReadOnlyList<StatementDay> days, WeekPlan plan, int childSickUsedBefore, IReadOnlyList<AbsenceReason>? unpaid = null,
         decimal? potentialHours = null, int? leaveLeft = null)
     {
+        var (hours, deductedDays, childSick, leaveTaken) = Deducted(days, plan, childSickUsedBefore, unpaid, leaveLeft);
+        if (hours == 0m) return (0m, 0, 0, leaveTaken);
+
+        var potential = potentialHours ?? days.Sum(d => plan.HoursOn(d.Date));
+        return (Mensualisation.Round(monthlyPay * hours / potential), deductedDays, childSick, leaveTaken);
+    }
+
+    /// <summary>The planned hours not worked that the pay does not cover, the absent days among them, the sick-child days they take from the quota
+    /// and a full year's leave days paid within the monthly pay.</summary>
+    public static (decimal Hours, int DeductedDays, int ChildSickDeducted, int PaidLeaveTaken) Deducted(
+        IReadOnlyList<StatementDay> days, WeekPlan plan, int childSickUsedBefore, IReadOnlyList<AbsenceReason>? unpaid = null, int? leaveLeft = null)
+    {
         var sickLeft = Math.Max(0, ChildcareRules.ChildSickQuotaDays - childSickUsedBefore);
         var reasons = unpaid ?? AbsenceCodes.DefaultUnpaid;
         // The sick-child quota only limits a reason the contract does not pay.
@@ -26,11 +38,8 @@ public static class AbsenceDeduction
         var deducted = days.Where(d => d.Absence is { } r && r != AbsenceReason.ChildSick && !(leaveLeft is not null && r == AbsenceReason.PaidLeave)
                 && (reasons.Contains(r) || AbsenceCodes.AlwaysUnpaid.Contains(r)) && MissingShare(d, plan) > 0m)
             .Concat(sick).Concat(leave.Skip(paidLeave)).ToList();
-        if (deducted.Count == 0) return (0m, 0, 0, paidLeave);
-
-        var potential = potentialHours ?? days.Sum(d => plan.HoursOn(d.Date));
         // A shortened day counts for its hours not worked; a sick-child one still takes a whole day of the quota.
-        return (Mensualisation.Round(monthlyPay * deducted.Sum(d => MissingShare(d, plan)) / potential), deducted.Count(d => !d.Present), sick.Count, paidLeave);
+        return (deducted.Sum(d => MissingShare(d, plan)), deducted.Count(d => !d.Present), sick.Count, paidLeave);
     }
 
     /// <summary>The planned hours not worked: all of them for an absent day, the missing ones of a shortened day, never below zero.</summary>

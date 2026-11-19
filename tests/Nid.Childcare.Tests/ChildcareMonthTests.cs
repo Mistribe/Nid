@@ -24,10 +24,10 @@ public class ChildcareMonthWeekTypeTests
     }
 
     [Fact]
-    public void The_household_month_declares_144_normal_hours()
+    public void The_household_month_declares_143_normal_hours()
     {
         var figures = Month(new YearMonth(2026, 11), Household(D(2026, 9, 1)), HouseholdTerms);
-        Assert.Equal(144, figures.Declaration.NormalHours);
+        Assert.Equal(143, figures.Declaration.NormalHours); // 143.96, cut to the hour
         Assert.Equal(698.20m, figures.BasePay);
     }
 }
@@ -45,7 +45,7 @@ public class ChildcareMonthTests
     public void November_all_present()
     {
         var figures = ChildcareMonth.Compute(Input(new YearMonth(2026, 11)));
-        Assert.Equal(new PajemploiDeclaration(146, 16, null, 0m, 0m, 626.37m, 70.38m, 54.40m, 0m), figures.Declaration);
+        Assert.Equal(new PajemploiDeclaration(145, 16, null, 0m, 0m, 626.37m, 70.38m, 54.40m, 0m), figures.Declaration);
         Assert.Equal(451.15m, figures.Cost);
         Assert.Equal(396.75m, figures.TaxBase);
     }
@@ -68,7 +68,7 @@ public class ChildcareMonthTests
         var figures = ChildcareMonth.Compute(Input(new YearMonth(2026, 11), days => [.. days.Select(d => d.Date.Day == 3 ? d with { Departure = d.Departure!.Value.PlusMinutes(30) } : d)]));
         Assert.Equal(628.52m, figures.Declaration.NetPay); // 626.37 + 0.5 × 4.30
         Assert.Equal(1m, figures.Declaration.ComplementaryHours);
-        Assert.Equal(146, figures.Declaration.NormalHours); // 626.37 ÷ 4.30 = 145.67
+        Assert.Equal(145, figures.Declaration.NormalHours); // 626.37 ÷ 4.30 = 145.67
     }
 
     /// <summary>The exemption Pajemploi adds to the carer's pay for the declared extra hours: estimated, then the summary's figure.</summary>
@@ -94,7 +94,7 @@ public class ChildcareMonthTests
         var figures = ChildcareMonth.Compute(Input(new YearMonth(2026, 11),
             days => AbsenceDeductionTests.Absent(days, (2, AbsenceReason.CarerAbsent), (3, AbsenceReason.CarerAbsent))));
         Assert.Equal(552.68m, figures.Declaration.NetPay);
-        Assert.Equal(129, figures.Declaration.NormalHours); // 552.68 / 4.30
+        Assert.Equal(128, figures.Declaration.NormalHours); // 552.68 / 4.30 = 128.53
         Assert.Equal(15, figures.Declaration.ActivityDays); // 16 × 15 ÷ 17 = 14.12, rounded up
         Assert.Equal(62.10m, figures.Declaration.Upkeep);
         Assert.Equal(48.00m, figures.Declaration.Meals);
@@ -103,7 +103,7 @@ public class ChildcareMonthTests
     [Fact]
     public void June_adds_paid_leave()
     {
-        var figures = ChildcareMonth.Compute(Input(new YearMonth(2027, 6), june: new PaidLeaveInput(12, 7516.44m)));
+        var figures = ChildcareMonth.Compute(Input(new YearMonth(2027, 6), june: new PaidLeaveInput(30, 7516.44m)));
         Assert.Equal(30, figures.Declaration.PaidLeaveDays);
         Assert.Equal(817.00m, figures.PaidLeavePay);
         Assert.Equal(figures.BasePay + 817.00m, figures.Declaration.NetPay);
@@ -215,7 +215,7 @@ public class ChildcareMonthValidationTests
         var terms = Terms with { End = D(2026, 11, 15) };
         var figures = ChildcareMonth.Compute(Input(new YearMonth(2026, 11), Gaps, d => d, terms: terms));
         Assert.Equal(294.76m, figures.BasePay);
-        Assert.Equal(69, figures.Declaration.NormalHours); // 294.76 / 4.30
+        Assert.Equal(68, figures.Declaration.NormalHours); // 294.76 / 4.30 = 68.55
     }
 
     [Fact]
@@ -225,7 +225,7 @@ public class ChildcareMonthValidationTests
         var figures = ChildcareMonth.Compute(Input(new YearMonth(2026, 11), Gaps,
             d => d.Date.Day == 17 ? d with { Present = false, Arrival = null, Departure = null, Absence = AbsenceReason.CarerAbsent } : d, terms: terms));
         Assert.True(figures.Deduction > 0m);
-        Assert.Equal((int)Math.Round((figures.BasePay - figures.Deduction) / 4.30m, MidpointRounding.AwayFromZero), figures.Declaration.NormalHours);
+        Assert.Equal((int)Math.Floor((figures.BasePay - figures.Deduction) / 4.30m), figures.Declaration.NormalHours);
         Assert.True(figures.Declaration.NormalHours < 77);
     }
 

@@ -1,3 +1,4 @@
+using Nid.Childcare.Contracts;
 using Nid.Childcare.Domain;
 using NodaTime;
 using static Nid.Childcare.Tests.Fixture;
@@ -8,15 +9,20 @@ public class StatementContextTests
 {
     private static YearMonth M(int y, int m) => new(y, m);
 
-    /// <summary>November 16 to 30 is 15 days of 4 weeks: 6.54 months, not 7.</summary>
+    /// <summary>The validated months' pay and template days.</summary>
+    private static (YearMonth, decimal, IReadOnlyList<StatementDay>) Validated(YearMonth month, decimal pay, ContractTerms terms)
+        => (month, pay, StatementPreparation.Prepare(month, Plan, [], terms));
+
+    /// <summary>From Monday 16 November 2026: 28 weeks and the Monday 31 May, 17,66 days, so 18.</summary>
     [Fact]
-    public void A_month_entered_midway_earns_its_share_of_leave()
+    public void A_month_entered_midway_earns_its_weeks_of_leave()
     {
-        var months = Enumerable.Range(0, 7).Select(i => (new YearMonth(2026, 11).PlusMonths(i), 100m)).ToList();
-        var (input, missing) = StatementContext.June(new YearMonth(2027, 6), D(2026, 11, 16), null, months);
+        var terms = Terms with { Start = D(2026, 11, 16) };
+        var months = Enumerable.Range(0, 7).Select(i => Validated(M(2026, 11).PlusMonths(i), 100m, terms)).ToList();
+        var (input, missing) = StatementContext.June(M(2027, 6), terms, Plan, [], months);
 
         Assert.Empty(missing);
-        Assert.Equal(17, PaidLeave.Accrued(input!.MonthsWithCare));
+        Assert.Equal(new PaidLeaveInput(18, 700m), input);
     }
 
     [Fact]
@@ -62,17 +68,18 @@ public class StatementContextTests
         Assert.Equal(0, StatementContext.ChildSickUsed(D(2024, 9, 1), D(2026, 9, 10), validated));
     }
 
-    private static IReadOnlyList<(YearMonth, decimal)> SeptToMay(params YearMonth[] except)
-        => [.. Enumerable.Range(0, 9).Select(i => M(2026, 9).PlusMonths(i)).Where(m => !except.Contains(m)).Select(m => (m, BasePay))];
+    private static IReadOnlyList<(YearMonth, decimal, IReadOnlyList<StatementDay>)> SeptToMay(params YearMonth[] except)
+        => [.. Enumerable.Range(0, 9).Select(i => M(2026, 9).PlusMonths(i)).Where(m => !except.Contains(m)).Select(m => Validated(m, BasePay, Terms))];
 
     [Fact]
     public void June_reference_period()
     {
-        var (input, missing) = StatementContext.June(M(2027, 6), D(2026, 9, 1), null, SeptToMay());
-        Assert.Equal(new PaidLeaveInput(9, 5637.33m), input);
+        // From Tuesday 1 September 2026: ¾ of a week, 38 weeks and the Monday 31 May, 24,38 days, so 25.
+        var (input, missing) = StatementContext.June(M(2027, 6), Terms, Plan, [], SeptToMay());
+        Assert.Equal(new PaidLeaveInput(25, 5637.33m), input);
         Assert.Empty(missing);
 
-        (input, missing) = StatementContext.June(M(2027, 6), D(2026, 9, 1), null, SeptToMay(M(2026, 12)));
+        (input, missing) = StatementContext.June(M(2027, 6), Terms, Plan, [], SeptToMay(M(2026, 12)));
         Assert.Null(input);
         Assert.Equal([M(2026, 12)], missing);
     }
@@ -80,30 +87,36 @@ public class StatementContextTests
     [Fact]
     public void June_before_the_rules_table()
     {
-        // Months before the rules' first one (November 2024) cannot have a statement: they count as with care, without pay.
-        IReadOnlyList<(YearMonth, decimal)> validated = [.. Enumerable.Range(0, 7).Select(i => (M(2024, 11).PlusMonths(i), BasePay))];
-        var (input, missing) = StatementContext.June(M(2025, 6), D(2024, 9, 2), null, validated);
+        // Months before the rules' first one (November 2024) cannot have a statement: their days follow the template, without pay.
+        // From Monday 2 September 2024 to Saturday 31 May 2025: 39 weeks, 24,38 days, so 25.
+        var terms = Terms with { Start = D(2024, 9, 2) };
+        IReadOnlyList<(YearMonth, decimal, IReadOnlyList<StatementDay>)> validated = [.. Enumerable.Range(0, 7).Select(i => Validated(M(2024, 11).PlusMonths(i), BasePay, terms))];
+        var (input, missing) = StatementContext.June(M(2025, 6), terms, Plan, [], validated);
         Assert.Empty(missing);
-        Assert.Equal(new PaidLeaveInput(9, 4384.59m), input);
+        Assert.Equal(new PaidLeaveInput(25, 4384.59m), input);
     }
 
     [Fact]
     public void June_maintained_pay_wins()
     {
         var june = M(2027, 6);
-        var (input, _) = StatementContext.June(june, D(2026, 9, 1), null, SeptToMay());
+        var (input, _) = StatementContext.June(june, Terms, Plan, [], SeptToMay());
         var days = StatementPreparation.Prepare(june, Plan, [], Terms);
         var figures = ChildcareMonth.Compute(new MonthInput(june, Terms, Plan, [], days, [], 0, 0m, 0m, input));
-        Assert.Equal(23, figures.Declaration.PaidLeaveDays);
-        // 23 ÷ 6 × 38 h × 4,30 € beats the tenth of 5 637,33.
-        Assert.Equal(626.37m, figures.PaidLeavePay);
+        Assert.Equal(25, figures.Declaration.PaidLeaveDays);
+        // 25 ÷ 6 × 38 h × 4,30 € beats the tenth of 5 637,33.
+        Assert.Equal(680.83m, figures.PaidLeavePay);
     }
 
     [Fact]
     public void Leave_counter()
     {
-        Assert.Equal(8, StatementContext.LeaveDaysAccrued(D(2026, 9, 1), null, D(2026, 11, 15)));
-        Assert.Equal(3, StatementContext.LeaveDaysAccrued(D(2026, 9, 1), null, D(2027, 6, 2)));
+        // ¾ of a week and 10 weeks to Sunday 15 November: 6,72 days, so 7.
+        Assert.Equal(7, StatementContext.LeaveDaysAccrued(D(2026, 9, 1), null, D(2026, 11, 15), Plan, []));
+        // A new period from 1 June: the Tuesday is ¼ of a week, so 1.
+        Assert.Equal(1, StatementContext.LeaveDaysAccrued(D(2026, 9, 1), null, D(2027, 6, 2), Plan, []));
+        // A week without care earns nothing.
+        Assert.Equal(6, StatementContext.LeaveDaysAccrued(D(2026, 9, 1), null, D(2026, 11, 15), Plan, [new(D(2026, 10, 19), 2)]));
     }
 
     [Fact]

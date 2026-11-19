@@ -26,6 +26,11 @@ public static class TaxEndpoints
             => (await invoker.InvokeAsync(new GetTaxChangesQuery(year, ParseScope(scope)), ct)).ToHttp(view => view))
             .Returns<TaxChangesView>();
 
+        // Issue #307.
+        api.MapGet("/history", async (string? scope, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new GetTaxHistoryQuery(ParseScope(scope)), ct)).ToHttp(view => view))
+            .Returns<TaxHistoryView>();
+
         // Rental 2044 spec §5.
         api.MapGet("/2044", async (int? year, string? scope, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new GetRental2044Query(year, ParseScope(scope)), ct)).ToHttp(view => view))
@@ -46,13 +51,13 @@ public static class TaxEndpoints
             })
             .Returns<TaxEstimateView>();
 
-        api.MapPost("/simulate", async (TaxInputsView body, IInvoker invoker, CancellationToken ct) =>
+        api.MapPost("/simulate", async (TaxInputsView body, string? scope, IInvoker invoker, CancellationToken ct) =>
             {
                 var reader = new FieldReader();
                 var inputs = Read(body, reader);
                 return inputs is null
                     ? reader.Problem()
-                    : (await invoker.InvokeAsync(new SimulateTaxQuery(inputs), ct)).ToHttp(view => view);
+                    : (await invoker.InvokeAsync(new SimulateTaxQuery(inputs, scope is null ? null : ParseScope(scope)), ct)).ToHttp(view => view);
             })
             .Returns<TaxResultView>();
 
@@ -146,7 +151,9 @@ public static class TaxEndpoints
         IReadOnlyDictionary<Guid, string>? PerUnusedCeilings = null, string? RentalDeficitCarried = null,
         IReadOnlyDictionary<Guid, string>? PerCeilings = null, IReadOnlyDictionary<Guid, string>? PerCeilingsExpiring = null, bool PerPooling = false,
         IReadOnlyDictionary<Guid, string>? ExemptIncomes = null, string? DonationsAidLate = null, string? RentalEnergyWorks = null,
-        string? Department = null)
+        string? Department = null, bool CapitalScale = false, string? DeductibleCsg = null,
+        string? AlimonyPaid = null, string? AlimonyAdultChildren = null, int AlimonyAdultChildrenCount = 0, string? CapitalLossesCarried = null,
+        int AlternateCustody = 0, bool Cohabiting = false, IReadOnlyList<Guid>? DisabledAdults = null, int DisabledDependents = 0, int AlternateUnder6 = 0)
     {
         internal TaxProfile? Read(FieldReader reader)
         {
@@ -163,10 +170,15 @@ public static class TaxEndpoints
             var aid = Amount(reader, DonationsAid, "donationsAid");
             var aidLate = Amount(reader, DonationsAidLate, "donationsAidLate");
             var energy = Amount(reader, RentalEnergyWorks, "rentalEnergyWorks");
+            var csg = Amount(reader, DeductibleCsg, "deductibleCsg");
+            var alimony = Amount(reader, AlimonyPaid, "alimonyPaid");
+            var alimonyChildren = Amount(reader, AlimonyAdultChildren, "alimonyAdultChildren");
+            var losses = Amount(reader, CapitalLossesCarried, "capitalLossesCarried");
             return reader.Ok
                 ? new TaxProfile(Statuses ?? new Dictionary<Guid, string>(), Dependents, ChildrenUnder6, RentalRegime, Pinel ?? [], childcare, home, donations, aid,
                     rates, expenses, unused, carried, ceilings, expiring, PerPooling, exempt, aidLate, energy,
-                    string.IsNullOrWhiteSpace(Department) ? null : Department.Trim().ToUpperInvariant())
+                    string.IsNullOrWhiteSpace(Department) ? null : Department.Trim().ToUpperInvariant(), CapitalScale, csg,
+                    alimony, alimonyChildren, AlimonyAdultChildrenCount, losses, AlternateCustody, Cohabiting, DisabledAdults?.Distinct().ToList() ?? [], DisabledDependents, AlternateUnder6)
                 : null;
         }
     }
@@ -292,7 +304,7 @@ public static class TaxEndpoints
                 d.PerCeiling is null ? null : Amount(reader, d.PerCeiling, $"declarants[{i}].perCeiling"),
                 Amount(reader, d.PreviousYearIncome, $"declarants[{i}].previousYearIncome"),
                 Amount(reader, d.PerExpiring, $"declarants[{i}].perExpiring"),
-                Amount(reader, d.ExemptIncome, $"declarants[{i}].exemptIncome")));
+                Amount(reader, d.ExemptIncome, $"declarants[{i}].exemptIncome"), Pensions: Amount(reader, d.Pensions, $"declarants[{i}].pensions"), Disabled: d.Disabled, Over65: d.Over65));
         }
         RentalRegime? regime = null;
         if (body.RentalRegime is not null)
@@ -308,7 +320,13 @@ public static class TaxEndpoints
             Amount(reader, body.PinelReduction, "pinelReduction"), Amount(reader, body.ChildcareOutsideHome, "childcareOutsideHome"),
             Amount(reader, body.HomeEmployment, "homeEmployment"), Amount(reader, body.Donations, "donations"), Amount(reader, body.DonationsAid, "donationsAid"),
             Amount(reader, body.RentalDeficitCarried, "rentalDeficitCarried"), body.PerPooling,
-            Amount(reader, body.DonationsAidLate, "donationsAidLate"), Amount(reader, body.RentalEnergyWorks, "rentalEnergyWorks"));
+            Amount(reader, body.DonationsAidLate, "donationsAidLate"), Amount(reader, body.RentalEnergyWorks, "rentalEnergyWorks"),
+            Amount(reader, body.CapitalDividends, "capitalDividends"), body.CapitalScale, Amount(reader, body.DeductibleCsg, "deductibleCsg"),
+            AlimonyPaid: Amount(reader, body.AlimonyPaid, "alimonyPaid"), AlimonyAdultChildren: Amount(reader, body.AlimonyAdultChildren, "alimonyAdultChildren"),
+            AlimonyAdultChildrenCount: body.AlimonyAdultChildrenCount,
+            RealisedGains: body.RealisedGains is null ? 0m : SignedAmount(reader, body.RealisedGains, "realisedGains"),
+            CapitalLossesCarried: Amount(reader, body.CapitalLossesCarried, "capitalLossesCarried"),
+            AlternateCustody: body.AlternateCustody, SingleParent: body.SingleParent, DisabledDependents: body.DisabledDependents, AlternateUnder6: body.AlternateUnder6);
         return reader.Ok ? inputs : null;
     }
 
@@ -328,6 +346,15 @@ public static class TaxEndpoints
         var amount = reader.Decimal(value, path);
         if (amount is >= 0 and < 10_000_000m) return amount.Value;
         if (amount is not null) reader.Add(path, "request.amount", "An amount is not negative and below 10 000 000.");
+        return 0m;
+    }
+
+    /// <summary>A gain or a loss (#234): a decimal string within ten million either way.</summary>
+    private static decimal SignedAmount(FieldReader reader, string value, string path)
+    {
+        var amount = reader.Decimal(value, path);
+        if (amount is > -10_000_000m and < 10_000_000m) return amount.Value;
+        if (amount is not null) reader.Add(path, "request.amount", "A gain or a loss is below 10 000 000 either way.");
         return 0m;
     }
 }

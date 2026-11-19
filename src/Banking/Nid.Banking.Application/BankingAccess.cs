@@ -10,11 +10,11 @@ namespace Nid.Banking.Application;
 /// The switch and the access rules of bank sync (D7, D22), in one place for every banking handler: a connection is its creator's
 /// only; an account on an envelope is read by the envelope's readers and written by its writers; a card attached to an account follows
 /// that account; any other account belongs to the person whose connection first saw it and to the creators of the connections that
-/// see it now.
+/// see it now. An account on a dependent's envelope is that child's, which every adult who writes the envelope manages (#354).
 /// </summary>
 public sealed class BankingAccess(
     IHouseholdSettings settings, BankingOptions options, IAccessPolicy policy, IConnectionStore connections, IAccountStore accounts,
-    IActorAccessor actor, IPersonRegistry persons)
+    IActorAccessor actor, IPersonRegistry persons, IItemRegistry items)
 {
     public PersonId Person => actor.Current!.PersonId!.Value;
 
@@ -26,17 +26,17 @@ public sealed class BankingAccess(
     {
         var household = await settings.ReadAsync(ct);
         if (!household.BankingEnabled)
-            return Fail<string>(BankingCodes.Disabled, "Bank sync is turned off for this household.");
+            return Result.Failure<string>(new ConflictFailure("Bank sync is turned off for this household.") { Code = BankingCodes.Disabled });
         return Configured(household, options)
             ? Result.Success(household.EnableBankingAppId!)
-            : Fail<string>(BankingCodes.NotConfigured, "Bank sync has no Enable Banking application id or private key.");
+            : Result.Failure<string>(new ConflictFailure("Bank sync has no Enable Banking application id or private key.") { Code = BankingCodes.NotConfigured });
     }
 
     /// <summary>Banking on, whatever Enable Banking's configuration: what file imports and the accounts they make need (ruling R-d).</summary>
     public async Task<Result> EnabledAsync(CancellationToken ct)
         => (await settings.ReadAsync(ct)).BankingEnabled
             ? Result.Success()
-            : Result.Failure(new Failure(BankingCodes.Disabled, "Bank sync is turned off for this household.", null));
+            : Result.Failure(new ConflictFailure("Bank sync is turned off for this household.") { Code = BankingCodes.Disabled });
 
     /// <summary>One of the actor's connections, past its first callback: a pending one is nobody's to act on yet.</summary>
     public async Task<Result<BankConnection>> MyConnectionAsync(Guid id, CancellationToken ct)
@@ -84,6 +84,15 @@ public sealed class BankingAccess(
         return true;
     }
 
+    /// <summary>Every adult, a pending one (not signed in yet) included: he reads nothing, so he keeps an account from being « shared ».</summary>
+    public async Task<int> AdultCountAsync(CancellationToken ct) => (await persons.ListAsync(ct)).Count(p => p.Kind == PersonKind.Adult);
+
+    /// <summary>
+    /// Whether every adult (<paramref name="adults"/>, from <see cref="AdultCountAsync"/>) reads the account: a rule made from one
+    /// of its lines then needs no account of its own.
+    /// </summary>
+    public async Task<bool> SharedAsync(BankAccount account, int adults, CancellationToken ct) => (await ReadersAsync(account, ct)).Count == adults;
+
     private async Task<IEnumerable<PersonId>> AdultsAsync(CancellationToken ct)
         => (await persons.ListAsync(ct)).Where(p => p.Kind == PersonKind.Adult && !p.IsPending).Select(p => p.Id);
 
@@ -124,7 +133,20 @@ public sealed class BankingAccess(
         => await OwnsAsync(Person, account, (await connections.MineAsync(Person, ct)).Select(c => c.Id).ToHashSet(), ct);
 
     private async Task<bool> OwnsAsync(PersonId person, BankAccount account, IReadOnlySet<Guid> mine, CancellationToken ct)
-        => account.CreatedBy == person || (await accounts.SourcesAsync(account.Id, ct)).Any(s => mine.Contains(s.Connection));
+        => account.CreatedBy == person || (await accounts.SourcesAsync(account.Id, ct)).Any(s => mine.Contains(s.Connection))
+            || await ManagesAsync(person, account, ct);
+
+    /// <summary>
+    /// #354: an account on an envelope only dependents own (a card: its account's) is the child's, not its connector's: whoever writes that
+    /// envelope moves it as its owner would. One connection is enough for both adults.
+    /// </summary>
+    private async Task<bool> ManagesAsync(PersonId person, BankAccount account, CancellationToken ct)
+    {
+        var ruling = account.CardOf is { } parent && await accounts.FindAsync(parent, ct) is { } found ? found : account;
+        return ruling.Envelope is { } envelope
+            && await items.FindAsync(envelope, ct) is { Owners: [_, ..] owners } && owners.All(o => o.Kind == PersonKind.Dependent)
+            && (await policy.CheckAsync(person, envelope, AccessKind.Write, ct)).IsSuccess;
+    }
 
     internal static Result<T> Fail<T>(string code, string message) where T : notnull => Result.Failure<T>(new Failure(code, message, null));
 

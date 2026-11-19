@@ -99,8 +99,8 @@ describe('revision dialog', () => {
 
   it('shows the server’s refusal of the date on the field', async () => {
     serve(due, () => HttpResponse.json({
-      status: 422, code: 'realestate.revision_effective_on', title: 'x',
-      errors: [{ path: 'effectiveOn', code: 'realestate.revision_effective_on', message: 'x' }],
+      status: 422, code: 'realestate.revision_effective_on', detail: 'x',
+      errors: [{ detail: 'x', pointer: '#/effectiveOn', code: 'realestate.revision_effective_on' }],
     }, { status: 422 }));
     const { user } = await renderApp(PAGE);
 

@@ -6,7 +6,10 @@ using NodaTime.Text;
 
 namespace Nid.Platform.Notifications;
 
-/// <summary>A notification as the centre shows it. Never carries an amount: the screen it links to has the figures.</summary>
+/// <summary>
+/// A notification as it is worded. No amount, except the figures a signal was raised on when the centre asks for them (issue #81):
+/// outside the application the screen it links to has the figures.
+/// </summary>
 public sealed record RenderedNotification(string Title, string Body, string? Link);
 
 /// <summary>The French copy of every kind (notifications design §4). The title names the kind, the body names the item and the date.</summary>
@@ -20,6 +23,8 @@ public static class NotificationTemplates
         ["subscription_renewal"] = "Un abonnement se renouvelle",
         ["subscription_cancel_deadline"] = "Dernier jour pour résilier un contrat",
         ["subscription_expiry"] = "Un abonnement prend fin",
+        ["subscription_trial_end"] = "Une période gratuite se termine",
+        ["subscription_price_increase"] = "Le prix d'un abonnement augmente",
         ["subscriptions.ends_without_renewal"] = "Un abonnement s'arrête sans renouvellement",
         ["tenancy_end"] = "Un bail arrive à échéance",
         ["property_cost_due"] = "Une charge prévue arrive",
@@ -36,6 +41,7 @@ public static class NotificationTemplates
         ["income_phase_end"] = "Une phase de revenu se termine",
         ["income_gap_soon"] = "Un trou de revenus approche",
         ["childcare_statement_due"] = "Un relevé de garde est à valider",
+        ["childcare_below_minimum"] = "Un contrat de garde est sous un minimum légal",
         ["fx_rate_missing"] = "Un taux de change manque",
         ["routine_due"] = "La routine du mois est à faire",
         ["month_changes"] = "Ce qui a changé depuis le mois dernier",
@@ -45,6 +51,12 @@ public static class NotificationTemplates
         ["property_tax_due"] = "La taxe foncière est à payer",
         ["access_violation"] = "Une réponse a été bloquée par la garde d'accès",
         ["token_expiring"] = "Un jeton d'accès expire bientôt",
+        [AccountNotices.LoginLocked] = "Votre compte a été verrouillé",
+        [AccountNotices.PasswordLinkIssued] = "Un lien de réinitialisation a été créé pour vous",
+        [AccountNotices.PasswordReset] = "Votre mot de passe a été réinitialisé",
+        [AccountNotices.PasswordChanged] = "Votre mot de passe a changé",
+        [AccountNotices.TotpReset] = "Votre validation en deux étapes a été désactivée",
+        [AccountNotices.RecoveryCodesLow] = "Il vous reste 2 codes de secours",
         ["proposal_pending"] = "Une proposition attend votre décision",
         ["backup_failed"] = "La sauvegarde a échoué",
         ["job_failed"] = "Une tâche planifiée a échoué",
@@ -54,13 +66,27 @@ public static class NotificationTemplates
         ["banking.sync_failing"] = "La synchronisation d'une banque échoue",
         ["banking.amount_differs"] = "Montant différent du prévu",
         ["banking.charge_missing"] = "Charge attendue non prélevée",
+        ["net_worth_milestone"] = "Votre patrimoine a franchi un palier",
+        ["savings_pace"] = "Votre rythme d'épargne a ralenti",
+        ["shortfall_ahead"] = "Un compte courant risque de manquer d'argent",
+        ["idle_cash"] = "Vos comptes courants dépassent l'épargne de précaution",
+        ["card_unused"] = "Une carte n'a pas assez servi ce mois-ci",
     };
+
+    /// <summary>Issue #81: the figures a signal carries (params ending in <c>_amount</c>), named, in this order.</summary>
+    private static readonly (string Param, string Name)[] Figures = [
+        ("net_worth_amount", "Patrimoine"), ("step_amount", "Palier"),
+        ("recent_amount", "Épargne par mois sur 3 mois"), ("average_amount", "sur 12 mois"),
+        ("balance_amount", "Solde"), ("charges_amount", "Charges à venir"),
+        ("above_amount", "Au-dessus de l'épargne de précaution"), ("buffer_amount", "Épargne de précaution"), ("room_amount", "Place sur les livrets"),
+    ];
 
     /// <summary>The investments tab a kind opens; a kind not listed opens the envelope's first tab.</summary>
     private static readonly Dictionary<string, string> InvestmentTabs = new()
     {
         ["holding_maturity"] = "holdings",
         ["uc_share_below_floor"] = "holdings",
+        ["shortfall_ahead"] = "operations",
     };
 
     /// <summary>The properties tab a kind opens; a kind not listed opens the property's first tab.</summary>
@@ -79,7 +105,33 @@ public static class NotificationTemplates
     /// <summary>The title of a kind, as the preferences screen lists it; the kind itself when it has none.</summary>
     public static string TitleOf(string kind) => Titles.GetValueOrDefault(kind, kind);
 
-    public static RenderedNotification Render(NotificationRecord n, NotificationKind kind, IReadOnlyDictionary<ItemId, string> names)
+    /// <summary><paramref name="withFigures"/>: the centre's wording, the body ending with the signal's figures (« Patrimoine : 302 140 € »).</summary>
+    public static RenderedNotification Render(NotificationRecord n, NotificationKind kind, IReadOnlyDictionary<ItemId, string> names, bool withFigures = false)
+    {
+        var text = Words(n, kind, names);
+        if (!withFigures || FiguresOf(n.Params) is not { Length: > 0 } figures)
+            return text;
+        return text with { Body = text.Body.Length > 0 ? $"{text.Body} — {figures}" : figures };
+    }
+
+    /// <summary>
+    /// « Patrimoine : 302 140 € · Palier : 300 000 € », whole units of the signal's <c>currency</c> (euros when it has none); a figure
+    /// that does not parse is left out.
+    /// </summary>
+    private static string FiguresOf(IReadOnlyDictionary<string, string> p)
+    {
+        var currency = p.GetValueOrDefault("currency", "EUR") is "EUR" ? "€" : p["currency"];
+        var shown = new List<string>();
+        foreach (var (param, name) in Figures)
+            if (p.TryGetValue(param, out var value) && decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out var amount))
+                shown.Add($"{name} : {Math.Round(amount, 0, MidpointRounding.AwayFromZero).ToString("N0", French)}\u00a0{currency}");
+        // The shortfall's tipping charges, in the centre only: a name may hold an amount (« Loyer 1 200 € »).
+        if (p.TryGetValue("charges", out var charges) && charges.Length > 0)
+            shown.Add($"Ce jour-là : {charges}");
+        return string.Join(" · ", shown);
+    }
+
+    private static RenderedNotification Words(NotificationRecord n, NotificationKind kind, IReadOnlyDictionary<ItemId, string> names)
     {
         var title = Titles.GetValueOrDefault(n.Kind, kind.Kind);
         if (Notices.Contains(n.Kind))
@@ -92,7 +144,7 @@ public static class NotificationTemplates
     }
 
     /// <summary>The notices published by code (security, pending actions, health): they carry no name and no amount.</summary>
-    private static readonly HashSet<string> Notices = ["access_violation", "token_expiring", "proposal_pending", "backup_failed", "job_failed", "sync_failed", "banking.consent_expiring", "banking.consent_expired", "banking.sync_failing"];
+    private static readonly HashSet<string> Notices = [.. AccountNotices.Kinds.Select(k => k.Kind), "access_violation", "token_expiring", "proposal_pending", "backup_failed", "job_failed", "sync_failed", "banking.consent_expiring", "banking.consent_expired", "banking.sync_failing"];
 
     private static string NoticeBody(NotificationRecord n) => n.Kind switch
     {
@@ -105,6 +157,12 @@ public static class NotificationTemplates
         "banking.consent_expiring" => n.DueOn is { } on ? $"{Bank(n)} — expire le {Day(on)}" : Bank(n),
         "banking.consent_expired" => n.DueOn is { } on ? $"{Bank(n)} — expiré le {Day(on)}" : Bank(n),
         "banking.sync_failing" => Bank(n),
+        AccountNotices.LoginLocked => "Après plusieurs essais de mot de passe incorrects. Si ce n'était pas vous, prévenez un administrateur.",
+        AccountNotices.PasswordLinkIssued => "Un administrateur peut ainsi choisir un nouveau mot de passe pour votre compte. Si vous ne l'avez pas demandé, parlez-en avec lui.",
+        AccountNotices.PasswordReset => "Vos autres sessions sont fermées. Si ce n'était pas vous, prévenez un administrateur.",
+        AccountNotices.PasswordChanged => "Vos autres sessions sont fermées. Si ce n'était pas vous, prévenez un administrateur.",
+        AccountNotices.TotpReset => "Un administrateur l'a désactivée depuis le serveur. Réactivez-la depuis la page Sécurité.",
+        AccountNotices.RecoveryCodesLow => "Créez-en de nouveaux depuis la page Sécurité avant d'en manquer.",
         _ => "",
     };
 
@@ -130,6 +188,7 @@ public static class NotificationTemplates
     {
         "access_violation" => n.Params.GetValueOrDefault("admin") == "1" ? "/admin/security" : "/",
         "token_expiring" => "/security",
+        _ when AccountNotices.Kinds.Any(k => k.Kind == n.Kind) => "/security",
         "banking.consent_expiring" or "banking.consent_expired" or "banking.sync_failing" => "/settings/banks",
         "proposal_pending" => $"/proposals/{n.Key[(n.Key.LastIndexOf(':') + 1)..]}",
         "backup_failed" => "/admin/system",
@@ -148,6 +207,15 @@ public static class NotificationTemplates
             ? $"En ligne avant le {Day(on)}, la date la plus tôt : département non renseigné" : $"En ligne avant le {Day(on)}",
         "tax_new_rate" when n.DueOn is { } on => $"À partir du {Day(on)}",
         "tax_balance_due" when n.DueOn is { } on => $"À partir du {Day(on)}",
+        "shortfall_ahead" when n.DueOn is { } on => n.Params.TryGetValue("account", out var account) ? $"Le {Day(on)} — {account}" : $"Le {Day(on)}",
+        "card_unused" when n.DueOn is { } on => CardUnused(n.Params, on),
+        "idle_cash" => "Au-dessus de l'épargne de précaution depuis 4 semaines" + n.Params.GetValueOrDefault("reason") switch
+        {
+            "room" => ", un livret a de la place",
+            "goal_behind" => ", un objectif est en retard",
+            "room_goal_behind" => ", un livret a de la place et un objectif est en retard",
+            _ => "",
+        },
         _ => "",
     };
 
@@ -189,6 +257,7 @@ public static class NotificationTemplates
     {
         "rent_arrears" when KeyDate(n.Key, "yyyy-MM") is { } month => $" — depuis {month.ToString("MMMM yyyy", French)}",
         "childcare_statement_due" when KeyDate(n.Key, "yyyy-MM") is { } month => $" — relevé de {month.ToString("MMMM yyyy", French)}",
+        "childcare_below_minimum" when (n.DueOn ?? KeyDate(n.Key, "yyyy-MM-dd")) is { } on => $" — minimum en vigueur depuis le {Day(on)}",
         "valuation_stale" when (n.DueOn ?? KeyDate(n.Key, "yyyy-MM-dd")) is { } on => $" — estimée le {Day(on)}",
         "stale_value" when (n.DueOn ?? KeyDate(n.Key, "yyyy-MM-dd")) is { } on => $" — valeur du {Day(on)}",
         "uc_share_below_floor" when (n.DueOn ?? KeyDate(n.Key, "yyyy-MM-dd")) is { } on => $" — relevé du {Day(on)}",
@@ -199,6 +268,16 @@ public static class NotificationTemplates
     };
 
     /// <summary>« 1er décembre 2027 », « 31 mars 2027 ».</summary>
+    /// <summary>#362: « Carte Visa •••• 1234 : aucun paiement ce mois-ci, 1 attendu. Utilisez-la avant le 30 novembre. » The masked number only.</summary>
+    private static string CardUnused(IReadOnlyDictionary<string, string> p, LocalDate by)
+    {
+        var name = string.Join(" ", new[] { p.GetValueOrDefault("card")?.Trim(), p.GetValueOrDefault("number") is { Length: > 0 } last4 ? $"•••• {last4}" : null }
+            .Where(s => !string.IsNullOrEmpty(s)));
+        var count = p.GetValueOrDefault("count") is "0" or null ? "aucun paiement" : $"{p["count"]} paiement{(p["count"] == "1" ? "" : "s")}";
+        var min = p.GetValueOrDefault("min") ?? "1";
+        return $"{(name.Length > 0 ? name : "Une carte")} : {count} ce mois-ci, {min} attendu{(min == "1" ? "" : "s")}. Utilisez-la avant le {Day(by)}.";
+    }
+
     internal static string Day(LocalDate date)
         => (date.Day == 1 ? "1er" : date.Day.ToString(French)) + " " + date.ToString("MMMM yyyy", French);
 
@@ -212,7 +291,7 @@ public static class NotificationTemplates
     private static string? LinkOf(NotificationRecord n, NotificationKind kind)
     {
         if (n.ItemIds.Count == 0)
-            return n.Kind switch { "fx_rate_missing" or "month_changes" => "/dashboard", "routine_due" => "/routine", "tax_filing_deadline" or "tax_new_rate" or "tax_balance_due" => "/tax", _ => "/" };
+            return n.Kind switch { "fx_rate_missing" or "month_changes" or "net_worth_milestone" or "savings_pace" => "/dashboard", "idle_cash" => "/investments", "routine_due" => "/routine", "shortfall_ahead" or "card_unused" => "/settings/banks", "tax_filing_deadline" or "tax_new_rate" => "/tax", "tax_balance_due" => "/tax?tab=withholding", _ => "/" };
         var id = n.ItemIds[0].Value.ToString("D");
         // The banking findings name the page of their item in "module", the item being any module's.
         return (kind.Module == "banking" ? n.Params.GetValueOrDefault("module") : kind.Module) switch

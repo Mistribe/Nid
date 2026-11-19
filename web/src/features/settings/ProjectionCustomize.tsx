@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { toFieldAmount } from '@/lib/amount';
 import { ASSET_CLASSES, PROJECTION_PROFILES, YEARLY_CLASSES, percent, projectionYears, wire, type Assumptions } from './api';
 import { useAssumptionsPatch } from './useAssumptionsPatch';
+import '@/locales/settings';
 
 type Table = Record<string, string>;
 

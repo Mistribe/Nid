@@ -38,14 +38,14 @@ function serve(initial: LoanDetail = loanDetail({ fees: [FILE] })) {
       const body = (await request.json()) as Body;
       sent.push({ method: 'PUT', url: request.url, body });
       const old = current.fees.find((f) => f.id === params.feeId);
-      if (!old) return HttpResponse.json({ status: 404, code: null, title: 'Not found' }, { status: 404 });
-      if (old.version !== body.version) return HttpResponse.json({ status: 409, code: 'realestate.fee_conflict', title: 'Changed.' }, { status: 409 });
+      if (!old) return HttpResponse.json({ status: 404, code: null, detail: 'Not found' }, { status: 404 });
+      if (old.version !== body.version) return HttpResponse.json({ status: 409, code: 'realestate.fee_conflict', detail: 'Changed.' }, { status: 409 });
       current = { ...current, fees: byDate(current.fees.map((f) => (f.id === old.id ? view(old.id, body, old.version + 1) : f))) };
       return HttpResponse.json({ id: old.id });
     }),
     http.delete('*/api/v1/realestate/loans/:id/fees/:feeId', ({ request, params }) => {
       sent.push({ method: 'DELETE', url: request.url });
-      if (!current.fees.some((f) => f.id === params.feeId)) return HttpResponse.json({ status: 404, code: null, title: 'Not found' }, { status: 404 });
+      if (!current.fees.some((f) => f.id === params.feeId)) return HttpResponse.json({ status: 404, code: null, detail: 'Not found' }, { status: 404 });
       current = { ...current, fees: current.fees.filter((f) => f.id !== params.feeId) };
       return new HttpResponse(null, { status: 204 });
     }),

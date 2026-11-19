@@ -6,9 +6,9 @@ import { pick } from '@/test/controls';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { toasts } from '@/test/toasts';
-import { formatInstant, formatInstantDay } from '@/lib/format';
+import { formatInstant, formatInstantDay, formatInstantTime } from '@/lib/format';
 import { summary } from '../../investments/testData';
-import { account, CONNECTION, connection, rule, serveBanks } from './testData';
+import { account, CARD, CONNECTION, connection, noReads, rule, serveBanks } from './testData';
 
 describe('Réglages › Banques', () => {
   beforeAll(async () => { await import('./BanksPage'); }, 30_000);
@@ -24,13 +24,64 @@ describe('Réglages › Banques', () => {
     const rows = within(within(bnp).getByRole('table', { name: 'Comptes de BNP Paribas' })).getAllByRole('row').slice(1);
     expect(within(bnp).getByRole('list', { name: 'Comptes de BNP Paribas' })).toHaveTextContent('Visa Premier');
     expect(rows[0]).toHaveTextContent('Compte courant');
-    expect(rows[0]).toHaveTextContent('FR76 •••• 1234');
+    expect(rows[0]).toHaveTextContent('•••• 1234');
     expect(rows[0]).toHaveTextContent('1 520,30 €');
     expect(rows[1]).toHaveTextContent('Visa Premier');
     expect(rows[1]).toHaveTextContent('Carte');
     expect(screen.getByRole('region', { name: 'Crédit Agricole' })).toHaveTextContent('Expirée');
     expect(within(screen.getByRole('navigation', { name: 'Réglages' })).getByRole('link', { name: 'Banques' })).toHaveAttribute('aria-current', 'page');
     await expectNoAxeViolations(container);
+  });
+
+  it('counts the reads without the person as Nid’s estimate, and warns before « Synchroniser » after a refusal (#365)', async () => {
+    const limitedAt = '2026-10-28T13:02:00+00:00';
+    const freesAt = '2026-10-29T04:30:00+00:00';
+    const refused = { ...noReads, limitedAt, warn: true };
+    serveBanks([connection({
+      reads: { ...noReads, unattended: 2, attended: 1, freesAt, limitedAt, warn: true },
+      accounts: [account({ reads: refused }), account({ id: CARD, name: 'Visa Premier', ibanMasked: null, kind: 'card' })],
+    }), connection({ id: 'c2', aspspName: 'Crédit Agricole', accounts: [] })]);
+    const { user } = await renderApp('/settings/banks');
+
+    const bnp = await screen.findByRole('region', { name: 'BNP Paribas' });
+    expect(bnp).toHaveTextContent(`2 / 4 lectures sans vous sur 24 h · la plus ancienne ne compte plus à ${formatInstantTime(freesAt)} · 1 lecture avec vous`);
+    await user.hover(within(bnp).getByRole('button', { name: 'À propos : Lectures de la banque' }));
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Estimation de Nid, pas le quota de la banque.');
+    expect(within(bnp).getByRole('status')).toHaveTextContent(`La banque a refusé une lecture le ${formatInstant(limitedAt)} ; prochaine tentative cette nuit. Vous pouvez quand même synchroniser.`);
+    const [, first] = within(within(bnp).getByRole('table', { name: 'Comptes de BNP Paribas' })).getAllByRole('row');
+    expect(first).toHaveTextContent(`limite de la banque le ${formatInstant(limitedAt)}`);
+    // Nothing refused, nothing read: no warning.
+    expect(within(screen.getByRole('region', { name: 'Crédit Agricole' })).queryByRole('status')).toBeNull();
+    // The warning never blocks: « Synchroniser » stays in the menu.
+    await user.click(within(bnp).getByRole('button', { name: 'Actions sur BNP Paribas' }));
+    expect(await screen.findByRole('menuitem', { name: 'Synchroniser' })).toBeEnabled();
+  });
+
+  it('lets long cells wrap, the date under the balance, and « Régler » at the end, so the table never scrolls sideways (#364)', async () => {
+    serveBanks([connection()]);
+    await renderApp('/settings/banks');
+
+    const table = within(await screen.findByRole('region', { name: 'BNP Paribas' })).getByRole('table', { name: 'Comptes de BNP Paribas' });
+    const [, first] = within(table).getAllByRole('row');
+    const cells = within(first!).getAllByRole('cell');
+    // Compte, Type, Enveloppe, À qui, Dernier solde wrap; Actions sits at the end.
+    for (const cell of cells.slice(0, 5)) expect(cell).toHaveClass('whitespace-normal');
+    expect(cells[5]).toHaveClass('text-right');
+    expect(cells[4]).toHaveTextContent('1 520,30 €au 30 septembre 2026');
+    expect(within(cells[4]!).getByText('au 30 septembre 2026')).toHaveClass('block');
+  });
+
+  it('says whether a card is debited at once or later, when the bank says so', async () => {
+    serveBanks([connection({ accounts: [
+      account({ id: 'c1', name: 'Carte Visa', kind: 'card', ibanMasked: '4321', cardDebit: 'immediate' }),
+      account({ id: 'c2', name: 'Carte Premier', kind: 'card', ibanMasked: null, cardDebit: 'deferred' }),
+      account({ id: 'c3', name: 'Carte de Léa', kind: 'card', ibanMasked: null }),
+    ] })]);
+    await renderApp('/settings/banks');
+
+    const rows = within(await screen.findByRole('table', { name: 'Comptes de BNP Paribas' })).getAllByRole('row').slice(1);
+    expect(rows.map((r) => within(r).getAllByRole('cell')[1]!.textContent)).toEqual(['Carte, débit immédiat', 'Carte, débit différé', 'Carte']);
+    expect(rows[0]).toHaveTextContent('•••• 4321');
   });
 
   it('labels a revoked connection and one in error', async () => {
@@ -63,6 +114,22 @@ describe('Réglages › Banques', () => {
 
     expect(await screen.findByText(/pas encore configurée/)).toBeInTheDocument();
     expect(within(screen.getByRole('navigation', { name: 'Réglages' })).getByRole('link', { name: 'Banques' })).toBeInTheDocument();
+  });
+
+  it('tells the administrator which part is missing and links to Administration › Banque', async () => {
+    server.use(http.get('*/api/v1/banking/status', () => HttpResponse.json({ enabled: true, configured: false, appIdSaved: true, keyStatus: 'directory' })));
+    await renderApp('/settings/banks');
+
+    expect(await screen.findByText(/Nid n'a pas chargé la clé privée/)).toBeInTheDocument();
+    expect(screen.queryByText(/pas encore configurée/)).toBeNull();
+    expect(screen.getByRole('link', { name: 'Voir Administration › Banque' })).toHaveAttribute('href', '/admin/banking');
+  });
+
+  it('names both parts when neither the id nor the key is there', async () => {
+    server.use(http.get('*/api/v1/banking/status', () => HttpResponse.json({ enabled: true, configured: false, appIdSaved: false, keyStatus: 'missing' })));
+    await renderApp('/settings/banks');
+
+    expect(await screen.findByText(/il manque l'identifiant de l'application Enable Banking et sa clé privée/)).toBeInTheDocument();
   });
 
   it('without Enable Banking, still lists the imported accounts and offers « Importer un relevé », not « Relier une banque »', async () => {
@@ -120,7 +187,7 @@ describe('Réglages › Banques', () => {
       sent.push(await request.json());
       return sent.length === 1
         ? HttpResponse.json({ requested: true }, { status: 202 })
-        : HttpResponse.json({ status: 409, code: 'banking.sync_running', title: 'Running.' }, { status: 409 });
+        : HttpResponse.json({ status: 409, code: 'banking.sync_running', detail: 'Running.' }, { status: 409 });
     }));
     const { user } = await renderApp('/settings/banks');
 
@@ -193,6 +260,24 @@ describe('Réglages › Banques', () => {
     await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
 
     await waitFor(() => expect(deleted).toBe(CONNECTION));
+  });
+
+  it('opens on « Comptes », and « Catégories » is a tab of its own in the address', async () => {
+    serveBanks([connection()]);
+    server.use(http.get('*/api/v1/banking/categories', () => HttpResponse.json([
+      { id: 'food', parentId: null, key: 'food', name: 'Alimentation', kind: 'expense', archived: false, mergedIntoId: null, defaultName: 'Alimentation' },
+    ])));
+    const { user, router } = await renderApp('/settings/banks');
+
+    expect(await screen.findByRole('tab', { name: 'Comptes', selected: true })).toBeInTheDocument();
+    expect(await screen.findByRole('region', { name: 'BNP Paribas' })).toBeInTheDocument();
+    await user.click(screen.getByRole('tab', { name: 'Catégories' }));
+
+    expect(await screen.findByRole('region', { name: 'Dépenses' })).toHaveTextContent('Alimentation');
+    expect(screen.queryByRole('region', { name: 'BNP Paribas' })).toBeNull();
+    await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'categories' }));
+    await user.click(screen.getByRole('tab', { name: 'Comptes' }));
+    await waitFor(() => expect(router.state.location.search).toEqual({}));
   });
 
   it('lists and deletes a rule', async () => {

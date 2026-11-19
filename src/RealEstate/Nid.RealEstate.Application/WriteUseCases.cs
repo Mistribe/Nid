@@ -14,23 +14,23 @@ namespace Nid.RealEstate.Application;
 /// </summary>
 public sealed record CreateLoanCommand(
     string Name, Currency Currency, Visibility Visibility, IReadOnlyList<OwnerShare> Owners, string? Lender, string? Note,
-    LoanContract Contract, ItemId? PropertyId = null, ShareLevel ShareLevel = ShareLevel.View) : ICommand<ItemId>, ICreatesItem;
+    LoanContract Contract, ItemId? PropertyId = null, ShareLevel ShareLevel = ShareLevel.View) : ICommand<ItemId>, ICreatesItem, ITransactional;
 
 /// <summary>Spec 3A2 §4: name, lender, note, linked property and (3F2) the schedule's reference, only what is sent; borrowers, visibility and currency are set at creation.</summary>
-public sealed record EditLoanCommand(ItemId ItemId, string? Name, LoanDetailsChange Change) : ICommand<ItemId>, IItemScoped
+public sealed record EditLoanCommand(ItemId ItemId, string? Name, LoanDetailsChange Change) : ICommand<ItemId>, IItemScoped, ITransactional
 {
     public AccessKind Access => AccessKind.Write;
 }
 
 /// <summary>Spec 3A2 §1: the terms, phases and insurances replaced whole; <paramref name="Version"/> is the contract's as read.</summary>
-public sealed record ReplaceLoanContractCommand(ItemId ItemId, LoanContract Contract, uint Version) : ICommand<ItemId>, IItemScoped
+public sealed record ReplaceLoanContractCommand(ItemId ItemId, LoanContract Contract, uint Version) : ICommand<ItemId>, IItemScoped, ITransactional
 {
     public AccessKind Access => AccessKind.Write;
 }
 
 [RequestHandler<CreateLoanCommand, ItemId>]
 public sealed class CreateLoanHandler(
-    IItemRegistry items, ILoanStore loans, IPropertyStore properties, IAccessPolicy policy, IActorAccessor actor, IUnitOfWork unitOfWork)
+    IItemRegistry items, ILoanStore loans, IPropertyStore properties, IAccessPolicy policy, IActorAccessor actor)
     : IRequestHandler<CreateLoanCommand, ItemId>
 {
     public async ValueTask<Result<ItemId>> HandleAsync(CreateLoanCommand command, CancellationToken ct = default)
@@ -43,21 +43,19 @@ public sealed class CreateLoanHandler(
         if (await PropertyCheck.LinkableAsync(properties, policy, actor.Current!.PersonId!.Value, command.PropertyId, ct) is { } unlinkable)
             return Result.Failure<ItemId>(unlinkable);
 
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         var created = await items.CreateAsync(
             new NewItem("realestate", "loan", command.Name, command.Visibility, command.Currency.Code, command.Owners, command.ShareLevel), ct);
         if (created.TryGetFailure(out failure))
-            return Result.Failure<ItemId>(FieldErrors.At(failure!, "borrowers")); // disposed without commit: nothing is left
+            return Result.Failure<ItemId>(FieldErrors.At(failure!, "borrowers")); // a failure rolls the transaction back: nothing is left
         created.TryGetValue(out var id);
         await loans.CreateAsync(id, command.Lender, command.Note, command.PropertyId, command.Contract, ct);
-        await transaction.CommitAsync(ct);
         return Result.Success(id);
     }
 }
 
 [RequestHandler<EditLoanCommand, ItemId>]
 public sealed class EditLoanHandler(
-    IItemRegistry items, ILoanStore loans, IPropertyStore properties, IAccessPolicy policy, IActorAccessor actor, IUnitOfWork unitOfWork)
+    IItemRegistry items, ILoanStore loans, IPropertyStore properties, IAccessPolicy policy, IActorAccessor actor)
     : IRequestHandler<EditLoanCommand, ItemId>
 {
     public async ValueTask<Result<ItemId>> HandleAsync(EditLoanCommand command, CancellationToken ct = default)
@@ -66,7 +64,6 @@ public sealed class EditLoanHandler(
         if (((command.Name is null ? null : LoanRules.Name(command.Name)) ?? LoanRules.Details(change.Lender, change.Note)) is { } refused)
             return Result.Failure<ItemId>(refused);
 
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         var loaded = await LoanCheck.LockAsync(loans, items, command.ItemId, ct);
         if (loaded.TryGetFailure(out var failure))
             return Result.Failure<ItemId>(failure!);
@@ -93,13 +90,12 @@ public sealed class EditLoanHandler(
         }
 
         await loans.UpdateDetailsAsync(command.ItemId, change, ct);
-        await transaction.CommitAsync(ct);
         return Result.Success(command.ItemId);
     }
 }
 
 [RequestHandler<ReplaceLoanContractCommand, ItemId>]
-public sealed class ReplaceLoanContractHandler(IItemRegistry items, ILoanStore loans, IUnitOfWork unitOfWork)
+public sealed class ReplaceLoanContractHandler(IItemRegistry items, ILoanStore loans)
     : IRequestHandler<ReplaceLoanContractCommand, ItemId>
 {
     public async ValueTask<Result<ItemId>> HandleAsync(ReplaceLoanContractCommand command, CancellationToken ct = default)
@@ -107,7 +103,6 @@ public sealed class ReplaceLoanContractHandler(IItemRegistry items, ILoanStore l
         if (LoanRules.Contract(command.Contract) is { } refused)
             return Result.Failure<ItemId>(refused);
 
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         var loaded = await LoanCheck.LockAsync(loans, items, command.ItemId, ct);
         if (loaded.TryGetFailure(out var failure))
             return Result.Failure<ItemId>(failure!);
@@ -140,7 +135,6 @@ public sealed class ReplaceLoanContractHandler(IItemRegistry items, ILoanStore l
                 : sent.Insurances.Select(i => i with { Import = Take(insuranceMarks, s => s.Insurance == i.Insurance && s.Note == i.Note)?.Import }).ToList(),
         };
         await loans.ReplaceContractAsync(command.ItemId, contract, ct);
-        await transaction.CommitAsync(ct);
         return Result.Success(command.ItemId);
     }
 

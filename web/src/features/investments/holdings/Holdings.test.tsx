@@ -354,7 +354,7 @@ describe('a holding’s page', () => {
     server.use(http.get('*/api/v1/investments/envelopes/:id', async () => { await delay('infinite'); return HttpResponse.json({}); }));
     await renderApp(`/investments/${PEA}/holdings/${FUND}`);
     expect(await screen.findByLabelText('Chargement des supports')).toBeInTheDocument();
-    await waitFor(() => expectTrailBack('Placements', '/investments'));
+    await waitFor(() => expectTrailBack('Comptes et placements', '/investments'));
     cleanup();
 
     // The envelope is read, the holding is not in it.
@@ -362,7 +362,7 @@ describe('a holding’s page', () => {
     await renderApp(`/investments/${PEA}/holdings/${FUND}`);
     expect(await screen.findByText('Cet élément est introuvable.')).toBeInTheDocument();
     await waitFor(() => expectTrailBack('PEA', `/investments/${PEA}`));
-    expectTrailBack('Placements', '/investments');
+    expectTrailBack('Comptes et placements', '/investments');
   });
 
   const report = (over: Partial<CostReport> = {}): CostReport => ({
@@ -572,7 +572,7 @@ describe('a holding’s breakdown', () => {
   it('shows the server’s 100 % refusal under the regions', async () => {
     open(view());
     server.use(http.put(BREAKDOWN, () => HttpResponse.json(
-      { status: 400, code: 'investments.breakdown_not_100', errors: [{ path: 'regions', code: 'investments.breakdown_not_100', message: 'x' }] }, { status: 400 })));
+      { status: 400, code: 'investments.breakdown_not_100', errors: [{ detail: 'x', pointer: '#/regions', code: 'investments.breakdown_not_100' }] }, { status: 400 })));
     const { user } = await renderApp(`/investments/${PEA}/holdings/${FUND}`);
 
     await user.click(await screen.findByRole('button', { name: 'Renseigner' }));

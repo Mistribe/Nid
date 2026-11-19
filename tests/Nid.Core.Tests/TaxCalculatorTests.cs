@@ -10,6 +10,143 @@ public class TaxCalculatorTests
 
     private static TaxDeclarant Other(decimal taxable) => new("A", 0m, EmploymentStatus.NonExecutive, taxable, 0m);
 
+    private static TaxDeclarant Pensioner(string name, decimal pensions) => new(name, 0m, EmploymentStatus.NonExecutive, 0m, 0m, Pensions: pensions);
+
+    [Fact]
+    public void A_small_pension_takes_the_pensioners_minimum_allowance()
+    {
+        var result = TaxCalculator.Compute(Inputs([Pensioner("A", 3_000m)]));
+
+        // 10 % is 300, under the 454 € minimum.
+        Assert.Equal(454m, result.Declarants[0].PensionAllowance);
+        Assert.Equal(2_546m, result.Declarants[0].Taxable);
+        // The minimum never exceeds the pension.
+        Assert.Equal(200m, TaxCalculator.Compute(Inputs([Pensioner("A", 200m)])).Declarants[0].PensionAllowance);
+    }
+
+    [Fact]
+    public void The_pension_allowance_is_capped_for_the_household_and_shared_in_proportion()
+    {
+        var result = TaxCalculator.Compute(Inputs([Pensioner("A", 30_000m), Pensioner("B", 25_000m)]));
+
+        // 3 000 + 2 500 over the 4 439 € household cap: 4 439 × 30 / 55 and × 25 / 55.
+        Assert.Equal(2_421.27m, result.Declarants[0].PensionAllowance);
+        Assert.Equal(2_017.73m, result.Declarants[1].PensionAllowance);
+        Assert.Equal(50_561m, result.NetTaxableIncome);
+    }
+
+    [Fact]
+    public void Salary_and_pension_keep_their_own_allowance()
+    {
+        var result = TaxCalculator.Compute(Inputs([new("A", 0m, EmploymentStatus.NonExecutive, 0m, 0m, SalaryTaxable: 20_000m, Pensions: 6_000m)]));
+
+        Assert.Equal(2_000m, result.Declarants[0].Allowance);
+        Assert.Equal(600m, result.Declarants[0].PensionAllowance);
+        Assert.Equal(23_400m, result.Declarants[0].Taxable);
+        // The pensions are withheld at the household rate beside the salaries.
+        Assert.Equal(26_000m, result.Withholding.Income);
+        Assert.Equal(6_000m, result.Withholding.Declarants[0].Pensions);
+    }
+
+    [Fact]
+    public void Alimony_paid_comes_off_the_global_income_the_adult_childrens_within_their_cap()
+    {
+        // 50 000 − the 10 % allowance: 45 000 of global income.
+        var inputs = Inputs([Other(50_000m)]);
+
+        Assert.Equal(42_000m, TaxCalculator.Compute(inputs with { AlimonyPaid = 3_000m }).NetTaxableIncome);
+        // Two adult children, 15 000 paid: 2 × 6 855 deducted.
+        var capped = TaxCalculator.Compute(inputs with { AlimonyAdultChildren = 15_000m, AlimonyAdultChildrenCount = 2 });
+        Assert.Equal(13_710m, capped.AlimonyDeducted);
+        Assert.Equal(31_290m, capped.NetTaxableIncome);
+        // The reference income does not add it back.
+        Assert.Equal(31_290m, capped.ReferenceIncome);
+    }
+
+    [Theory]
+    // dependents, of them in alternate custody, box T, disabled declarant → shares, cap
+    [InlineData(1, 0, true, false, 2.0, 4_262)]   // box T with the first child: 4 262 for both half-shares
+    [InlineData(1, 0, false, false, 1.5, 1_807)]  // living with another adult: no box T
+    [InlineData(2, 2, true, false, 2.0, 4_262)]   // alternate custody only: two quarters, box T half a share, 2 131 for each of the pair
+    [InlineData(1, 1, true, false, 1.5, 2_131)]   // one child in alternate custody: box T a quarter, half of 4 262
+    [InlineData(3, 2, false, false, 2.25, 1_807 + 903.5 + 1_807)] // the child at home ranks first; the third child's half share in quarters
+    [InlineData(0, 0, true, true, 1.5, 3_608)]    // box P, no child: no box T
+    public void Shares_and_their_cap_follow_the_household(int dependents, int alternate, bool single, bool disabled, double parts, double cap)
+    {
+        var inputs = Inputs([new("A", 0m, EmploymentStatus.NonExecutive, 0m, 0m, Disabled: disabled)], dependents)
+            with { AlternateCustody = alternate, SingleParent = single };
+
+        Assert.Equal(((decimal)parts, (decimal)cap), TaxCalculator.Shares(TaxRules.For(2025), inputs));
+    }
+
+    [Theory]
+    // dependents, of them in alternate custody, disabled dependents → shares, cap (a couple)
+    [InlineData(1, 0, 1, 3.0, 1_807 + 3_608)]           // box G: half a share more, capped with its complementary reduction
+    [InlineData(2, 2, 1, 2.75, 903.5 * 2 + 3_608 / 2)]   // box I: a quarter share, half the cap
+    [InlineData(2, 1, 1, 3.25, 1_807 + 903.5 + 3_608)]   // the disabled child is taken at home first
+    [InlineData(1, 0, 3, 3.0, 1_807 + 3_608)]           // never more disabled children than dependents
+    public void A_disabled_dependent_adds_a_share_and_its_cap(int dependents, int alternate, int disabled, double parts, double cap)
+    {
+        var inputs = Inputs([Other(0m), Other(0m)], dependents) with { AlternateCustody = alternate, DisabledDependents = disabled };
+
+        Assert.Equal(((decimal)parts, (decimal)cap), TaxCalculator.Shares(TaxRules.For(2025), inputs));
+    }
+
+    [Theory]
+    // net global income, qualifying declarants → allowance (revenus 2025: 2 822 up to 17 670, 1 411 up to 28 430)
+    [InlineData(17_670, 1, 2_822)]
+    [InlineData(17_671, 1, 1_411)]
+    [InlineData(28_430, 2, 2_822)]
+    [InlineData(28_431, 2, 0)]
+    [InlineData(2_000, 2, 2_000)]  // never more than the income
+    [InlineData(10_000, 0, 0)]
+    public void The_age_or_disability_allowance_follows_the_income_brackets(int income, int qualifying, int allowance)
+        => Assert.Equal((decimal)allowance, TaxRules.For(2025).AgeDisabilityAllowance(income, qualifying));
+
+    [Fact]
+    public void The_age_or_disability_allowance_counts_each_declarant_over_65_or_disabled_once()
+    {
+        // 1AS 15 000 and 1BS 12 000: 27 000 − 2 700 of the pensions' 10 % = 24 300, in the upper bracket.
+        var both = Inputs([Pensioner("A", 15_000m) with { Over65 = true, Disabled = true }, Pensioner("B", 12_000m) with { Disabled = true }]);
+        var none = Inputs([Pensioner("A", 15_000m), Pensioner("B", 12_000m)]);
+
+        var result = TaxCalculator.Compute(both);
+        Assert.Equal(2_822m, result.AgeDisabilityAllowance);
+        Assert.Equal(24_300m - 2_822m, result.NetTaxableIncome);
+        Assert.Equal(0m, TaxCalculator.Compute(none).AgeDisabilityAllowance);
+    }
+
+    [Fact]
+    public void A_couple_never_takes_box_t_and_each_disabled_declarant_adds_half_a_share()
+    {
+        var inputs = Inputs([new("A", 0m, EmploymentStatus.NonExecutive, 0m, 0m, Disabled: true), new("B", 0m, EmploymentStatus.NonExecutive, 0m, 0m, Disabled: true)], dependents: 1)
+            with { SingleParent = true };
+
+        Assert.Equal((3.5m, 2 * 3_608m + 1_807m), TaxCalculator.Shares(TaxRules.For(2025), inputs));
+    }
+
+    [Fact]
+    public void A_child_in_alternate_custody_raises_the_home_employment_cap_by_half()
+    {
+        var inputs = Inputs([Other(80_000m)], dependents: 2) with { AlternateCustody = 1, HomeEmployment = 20_000m };
+
+        // 12 000 + 1 500 + 750 = 14 250, half of it as a credit.
+        Assert.Equal(7_125m, TaxCalculator.Compute(inputs).HomeEmploymentCredit);
+    }
+
+    [Theory]
+    [InlineData(0, 3_500)]
+    [InlineData(1, 2_625)]
+    [InlineData(2, 1_750)]
+    public void A_child_under_6_in_alternate_custody_halves_its_childcare_cap(int alternateUnder6, int credit)
+    {
+        var inputs = Inputs([Other(80_000m)], dependents: 2)
+            with { ChildrenUnder6 = 2, AlternateCustody = 2, AlternateUnder6 = alternateUnder6, ChildcareOutsideHome = 8_000m };
+
+        // 3 500 each, 1 750 in alternate custody, half of it as a credit.
+        Assert.Equal(credit, TaxCalculator.Compute(inputs).ChildcareCredit);
+    }
+
     [Fact]
     public void An_entered_net_taxable_income_is_counted_as_it_is()
     {
@@ -211,6 +348,38 @@ public class TaxCalculatorTests
     }
 
     [Theory]
+    [InlineData(null, 10_000, 0, 0, 0, 0)] // micro, nothing carried
+    [InlineData(null, 10_000, 0, 0, 9_000, 2_000)] // micro: 7 000 absorbed of the 9 000 carried
+    [InlineData(RentalRegime.Real, 12_000, 14_000, 3_000, 0, 2_000)] // the interest beyond the rents
+    [InlineData(RentalRegime.Real, 5_000, 0, 20_000, 0, 4_300)] // beyond the 10 700 the global income takes
+    [InlineData(RentalRegime.Real, 5_000, 0, 20_000, 1_000, 5_300)] // and the earlier deficit the year's loss leaves whole
+    [InlineData(RentalRegime.Real, 10_000, 2_000, 5_000, 4_000, 1_000)] // a profit of 3 000 absorbs 3 000 of the 4 000
+    public void The_rental_deficit_left_is_carried_forward(RentalRegime? regime, int gross, int interest, int charges, int carried, int forward)
+    {
+        var result = TaxCalculator.Compute(Inputs([Other(30_000m), Other(0m)]) with
+        {
+            RentalGross = gross, RentalInterest = interest, RentalCharges = charges, RentalRegime = regime, RentalDeficitCarried = carried,
+        });
+
+        Assert.Equal(forward, result.RentalDeficitCarriedForward);
+    }
+
+    [Fact]
+    public void The_carried_forward_deficit_is_the_2044_carried_lines()
+    {
+        // 2044 lines 441 and the interest's: what the form carries is what the estimate carries, with nothing carried before.
+        var columns = Rental2044.Columns([new(Guid.NewGuid(), "A", 5_000m, 3_000m, 20m, 1_000m, 9_000m, 1_200m, 980m, 8_000m)]);
+        var totals = Rental2044.Totals(columns, 10_700m);
+        var result = TaxCalculator.Compute(Inputs([Other(30_000m)]) with
+        {
+            RentalGross = totals.Receipts, RentalCharges = totals.Charges, RentalInterest = totals.Interest, RentalRegime = RentalRegime.Real,
+        });
+
+        Assert.Equal(totals.CarriedDeficit, result.RentalDeficitCarriedForward);
+        Assert.Equal(totals.GlobalDeficit, result.RentalDeficit);
+    }
+
+    [Theory]
     [InlineData(2025, 9_500, 20_200)] // BOI-RFPI-BASE-30-20, first example: 10 700 + 9 500
     [InlineData(2025, 19_600, 21_400)] // second example: 21 400 at most
     [InlineData(2025, 0, 10_700)]
@@ -349,7 +518,8 @@ public class TaxCalculatorTests
     [Theory]
     [InlineData(2025, 4_637, 37_094)] // the 2024 PASS, 46 368 (brochure IR 2026)
     [InlineData(2026, 4_710, 37_680)] // the 2025 PASS, 47 100 (impots.gouv.fr, épargne retraite)
-    [InlineData(2027, 4_710, 37_680)] // carried forward
+    [InlineData(2027, 4_806, 38_448)] // the 2026 PASS, 48 060
+    [InlineData(2028, 4_806, 38_448)] // carried forward
     public void The_estimated_ceiling_reads_the_previous_years_pass(int year, int floor, int cap)
     {
         Assert.Equal(floor, TaxCalculator.Compute(Inputs([Other(30_000m)], year: year)).Declarants[0].Per!.Ceiling);
@@ -512,7 +682,7 @@ public class TaxCalculatorTests
 
         Assert.Equal(128m, result.CapitalFlatTax);
         Assert.Equal(186m, result.SocialLevies);
-        Assert.Contains(TaxWarnings.RulesCarriedForward, result.Warnings);
+        Assert.Contains(TaxWarnings.RulesProvisional, result.Warnings);
     }
 
     [Fact]
@@ -744,5 +914,178 @@ public class TaxCalculatorTests
         var result = TaxCalculator.Compute(Inputs([Other((decimal)salaries)]) with { HomeEmployment = 12_000m });
         if (result.Withholding.Cut is not null)
             SafeCut(result);
+    }
+
+    private static TaxInputs WithCapital(decimal salary, decimal capital, decimal dividends, bool scale)
+        => Inputs([new("A", 0m, EmploymentStatus.NonExecutive, 0m, 0m, SalaryTaxable: salary)]) with
+        {
+            CapitalIncome = capital, CapitalDividends = dividends, CapitalScale = scale,
+        };
+
+    [Fact]
+    public void Under_the_flat_tax_capital_income_pays_12_8_percent_and_stays_out_of_the_scale()
+    {
+        // 40 000 entered, 36 000 after the allowance: 1 977.69 + 6 421 × 30 % on the scale.
+        var result = TaxCalculator.Compute(WithCapital(40_000m, 5_000m, 4_000m, scale: false));
+
+        Assert.Equal((36_000m, 3_904m, 640m, 860m), (result.NetTaxableIncome, result.IncomeTax, result.CapitalFlatTax, result.SocialLevies));
+        Assert.Equal((0m, 0m, false), (result.DividendAllowance, result.DeductibleCsgNextYear, result.CapitalScale));
+        Assert.Equal(41_000m, result.ReferenceIncome);
+        // The scale: 39 400 taxable, 4 924 of tax against 3 904 + 640.
+        Assert.Equal(380m, result.CapitalOptionGap);
+    }
+
+    [Fact]
+    public void Under_the_scale_the_dividends_lose_40_percent_and_the_csg_becomes_deductible()
+    {
+        var result = TaxCalculator.Compute(WithCapital(40_000m, 5_000m, 4_000m, scale: true));
+
+        // 36 000 + 1 000 of interest + 4 000 × 60 %.
+        Assert.Equal((39_400m, 4_924m, 0m, 860m), (result.NetTaxableIncome, result.IncomeTax, result.CapitalFlatTax, result.SocialLevies));
+        Assert.Equal((1_600m, 340m, true), (result.DividendAllowance, result.DeductibleCsgNextYear, result.CapitalScale));
+        // The reference income adds the allowance back: the same as under the flat tax.
+        Assert.Equal(41_000m, result.ReferenceIncome);
+        Assert.Equal(-380m, result.CapitalOptionGap);
+        // The capital income is outside the withholding: 4 923.99 × 36 000 / 39 400 over the 40 000 of salaries.
+        Assert.Equal(11.2m, result.Withholding.Rate);
+    }
+
+    [Fact]
+    public void A_low_income_household_saves_the_flat_tax_under_the_scale()
+    {
+        // 10 800 + 3 000 × 60 % = 12 600: 110 of tax, wiped by the decote.
+        var result = TaxCalculator.Compute(WithCapital(12_000m, 3_000m, 3_000m, scale: false));
+
+        Assert.Equal(384m, result.CapitalFlatTax);
+        Assert.Equal(-384m, result.CapitalOptionGap);
+        Assert.Null(TaxCalculator.Compute(Inputs([Other(30_000m)])).CapitalOptionGap);
+    }
+
+    [Fact]
+    public void The_deductible_csg_comes_off_the_global_income()
+    {
+        var result = TaxCalculator.Compute(Inputs([Other(30_000m)]) with { DeductibleCsg = 500m });
+
+        // 30 000 − the 10 % allowance − 500.
+        Assert.Equal(26_500m, result.NetTaxableIncome);
+        Assert.Equal(26_500m, result.ReferenceIncome);
+    }
+
+    [Theory]
+    // Single: 3 % from 250 000; couple: 3 % from 500 000, 4 % beyond 1 000 000 (BOI-IR-CHR § 1 examples).
+    [InlineData(250_000, false, 0)]
+    [InlineData(300_000, false, 1_500)]
+    [InlineData(1_500_000, false, 47_500)]
+    [InlineData(700_000, true, 6_000)]
+    [InlineData(1_500_000, true, 35_000)]
+    public void The_high_income_contribution_follows_the_reference_income(int reference, bool couple, int expected)
+        => Assert.Equal(((decimal)expected, false), TaxCalculator.HighIncome(reference, couple, null));
+
+    [Fact]
+    public void A_first_year_over_the_threshold_is_smoothed_by_the_quotient()
+    {
+        // BOI-IR-CHR § 220: a couple at 3 500 000 after 340 000 and 270 000: base 1 902 500, twice 51 100 instead of 115 000.
+        Assert.Equal((102_200m, true), TaxCalculator.HighIncome(3_500_000m, true, (340_000m, 270_000m)));
+        Assert.Equal((115_000m, false), TaxCalculator.HighIncome(3_500_000m, true, null));
+        // An earlier year over the threshold shuts the quotient.
+        Assert.Equal((115_000m, false), TaxCalculator.HighIncome(3_500_000m, true, (600_000m, 270_000m)));
+    }
+
+    [Fact]
+    public void The_high_income_contribution_is_part_of_the_total()
+    {
+        // 314 555 − the 14 555 allowance cap: a reference income of 300 000.
+        var result = TaxCalculator.Compute(Inputs([Other(314_555m)]));
+
+        Assert.Equal(1_500m, result.HighIncomeContribution);
+        Assert.Equal(result.IncomeTax + result.SocialLevies + result.CapitalFlatTax + 1_500m, result.TotalTax);
+    }
+
+    [Fact]
+    public void Realised_gains_are_taxed_with_the_capital_income_after_the_earlier_losses()
+    {
+        var result = TaxCalculator.Compute(Inputs([Other(30_000m)]) with { RealisedGains = 2_000m, CapitalLossesCarried = 500m });
+
+        // 1 500 left at 12.8 % and, as patrimony income, at the 18.6 % that already reaches 2025 gains; in the reference income.
+        Assert.Equal((1_500m, 0m, 192m, 279m), (result.RealisedGainsTaxable, result.CapitalLossesCarriedForward, result.CapitalFlatTax, result.SocialLevies));
+        Assert.Equal(27_000m + 1_500m, result.ReferenceIncome);
+    }
+
+    [Fact]
+    public void A_net_loss_is_carried_forward_with_the_earlier_ones_and_taxes_nothing()
+    {
+        var result = TaxCalculator.Compute(Inputs([Other(30_000m)]) with { RealisedGains = -800m, CapitalLossesCarried = 300m, CapitalIncome = 1_000m });
+
+        Assert.Equal((0m, 1_100m, 128m), (result.RealisedGainsTaxable, result.CapitalLossesCarriedForward, result.CapitalFlatTax));
+    }
+
+    [Fact]
+    public void Under_the_scale_the_gains_join_the_global_income_without_the_dividends_allowance()
+    {
+        var result = TaxCalculator.Compute(Inputs([Other(30_000m)]) with { RealisedGains = 1_000m, CapitalDividends = 1_000m, CapitalIncome = 1_000m, CapitalScale = true });
+
+        // 27 000 + 1 000 of gains + 1 000 of dividends × 60 %; the CSG of both deductible next year.
+        Assert.Equal((28_600m, 400m, 136m), (result.NetTaxableIncome, result.DividendAllowance, result.DeductibleCsgNextYear));
+    }
+
+    [Fact]
+    public void Remaining_tax_saved_is_the_recomputed_gain()
+    {
+        var a = Other(60_000m) with { PerContributions = 1_000m, PerCeiling = 5_000m };
+        var b = Other(40_000m) with { Name = "B", PerContributions = 500m, PerCeiling = 3_000m };
+
+        var now = TaxCalculator.Compute(Inputs([a, b]));
+        var paid = TaxCalculator.Compute(Inputs([a with { PerContributions = 5_000m }, b with { PerContributions = 3_000m }]));
+
+        Assert.Equal(6_500m, now.Per!.Remaining);
+        Assert.True(now.IncomeTax > paid.IncomeTax);
+        Assert.Equal(now.IncomeTax - paid.IncomeTax, now.Per.RemainingTaxSaved);
+    }
+
+    [Fact]
+    public void Remaining_tax_saved_counts_pooled_room_once()
+    {
+        var a = Other(60_000m) with { PerCeiling = 5_000m };
+        var b = Other(40_000m) with { Name = "B", PerCeiling = 4_000m };
+
+        var now = TaxCalculator.Compute(Inputs([a, b]) with { PerPooling = true });
+        // The household's 9 000 free ceiling, all paid by the first declarant (4 000 of it goes against B's room).
+        var paid = TaxCalculator.Compute(Inputs([a with { PerContributions = 9_000m }, b]) with { PerPooling = true });
+
+        Assert.Equal(9_000m, now.Per!.Remaining);
+        Assert.Equal(now.IncomeTax - paid.IncomeTax, now.Per.RemainingTaxSaved);
+        Assert.True(now.Per.RemainingTaxSaved > 0m);
+    }
+
+    [Fact]
+    public void Remaining_tax_saved_is_zero_without_room()
+    {
+        var result = TaxCalculator.Compute(Inputs([Other(60_000m) with { PerContributions = 5_000m, PerCeiling = 5_000m }]));
+
+        Assert.Equal(0m, result.Per!.Remaining);
+        Assert.Equal(0m, result.Per.RemainingTaxSaved);
+    }
+
+    [Fact]
+    public void Remaining_tax_saved_is_zero_in_the_zero_bracket()
+    {
+        var result = TaxCalculator.Compute(Inputs([Other(10_000m) with { PerCeiling = 4_000m }]));
+
+        Assert.Equal(4_000m, result.Per!.Remaining);
+        Assert.Equal(0m, result.IncomeTax);
+        Assert.Equal(0m, result.Per.RemainingTaxSaved);
+    }
+
+    [Theory]
+    // The official simulator (impôt 2026 sur les revenus 2025, modèle complet), 1AJ 40 000, 2DC 4 000, 2TR 1 000, 3VG 2 000, with and
+    // without 2OP; the levies with 2BH 5 000, the dividends' and interest's being withheld at 17.2 %: 372 on the gains.
+    [InlineData(false, 36_000, 3_904, 896)]
+    [InlineData(true, 41_400, 5_524, 0)]
+    public void A_capital_income_scenario_matches_the_official_simulator(bool scale, int taxable, int incomeTax, int flat)
+    {
+        var result = TaxCalculator.Compute(WithCapital(40_000m, 5_000m, 4_000m, scale) with { RealisedGains = 2_000m });
+
+        Assert.Equal(((decimal)taxable, (decimal)incomeTax, (decimal)flat, 43_000m), (result.NetTaxableIncome, result.IncomeTax, result.CapitalFlatTax, result.ReferenceIncome));
+        Assert.Equal(860m + 372m, result.SocialLevies);
     }
 }

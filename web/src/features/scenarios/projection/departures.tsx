@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { toWireAmount } from '@/lib/amount';
 import type { ProjectionDocument } from './api';
 import '@/locales/scenarios';
+import '@/locales/settings';
 
 /** A departure as typed, per adult (spec §2 « Scénarios »): an empty field keeps the household's. */
 export type DepartureDraft = { years: string; months: string; pension: string };

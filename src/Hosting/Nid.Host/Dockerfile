@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.28@sha256:bb22d9815c728170f72750f4e5b0d672e06176142e1d602c7e66c050100b7e5b
+# syntax=docker/dockerfile:1.29@sha256:572cebbc2b15e6f84c077742952674889cb63cd5e9b80abdffcbe587b6f19183
 # nid: the backend and the web app in one image (single-image design §2). Build context: the repository root (docker build -f src/Hosting/Nid.Host/Dockerfile .).
 FROM mcr.microsoft.com/dotnet/sdk:10.0-noble@sha256:fe0fd4e93bd2fbb47c883b7a6369e5c8d3db8bf01cdc5981f6ee35fbdf3ff4fb AS build
 ARG TARGETARCH
@@ -26,7 +26,7 @@ RUN mkdir -p /volumes/var/lib/nid/keys /volumes/var/lib/nid/assets /volumes/var/
  && chown -R 1654:1654 /volumes/var/lib/nid && chmod 0700 /volumes/var/lib/nid/keys /volumes/var/lib/nid/logs && chmod 0750 /volumes/var/lib/nid/documents
 
 # The web app: its build and the security headers file the host answers the SPA with (frontend/architecture.md §9: one source).
-FROM node:26-alpine@sha256:8996bb5821d62a8fd9bb27c1cb07462f3fdce6e47d640c6a881ead0b064ce216 AS web
+FROM node:26-alpine@sha256:6bd9ab43c0ec0190ca7b2d193906cb8b7edf6e7f4afa43ddeccd6452710bffb5 AS web
 WORKDIR /web
 # Node 25+ no longer ships corepack: install it, it then runs the pnpm of package.json's packageManager. npm ci from a lockfile
 # pins its tarball by hash (corepack/package-lock.json, kept current by Renovate).
@@ -41,6 +41,17 @@ ENV VITE_NID_VERSION=$VERSION
 # Node 24 strips the types of src/security-headers.ts.
 RUN pnpm build && node scripts/security-headers.mjs > /security-headers.json
 
+# #309: Claude Desktop's extension. Its bridge (mcp-remote) is vendored here from the lockfile, never fetched when it runs;
+# the MCPB CLI checks the manifest template (valid as it is: the host only changes its values), then leaves with the other
+# build-time packages. Pure JavaScript: the same
+# files run on the adult's computer, whatever this image's architecture.
+FROM node:26-alpine@sha256:6bd9ab43c0ec0190ca7b2d193906cb8b7edf6e7f4afa43ddeccd6452710bffb5 AS mcpb
+WORKDIR /mcpb
+COPY src/Hosting/Nid.Host/mcpb/package.json src/Hosting/Nid.Host/mcpb/package-lock.json ./
+RUN npm ci --ignore-scripts
+COPY src/Hosting/Nid.Host/mcpb/ ./
+RUN npm run validate && npm prune --omit=dev --ignore-scripts && rm -rf node_modules/.bin package-lock.json
+
 # -extra: ICU and time zone data. Globalization is not invariant (Directory.Build.props), so .NET needs ICU;
 # glibc, libstdc++ and libgcc_s, all SkiaSharp needs, are in every chiseled variant.
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled-extra@sha256:cae5b962bfb786606def03d250c6a645cc98839095c89e806e4bd8978a68115b
@@ -49,6 +60,8 @@ COPY --from=build /app ./
 # The SPA the host serves (Web:Root) and its headers (Web:SecurityHeaders), both under the content root.
 COPY --from=web /web/dist ./wwwroot
 COPY --from=web /security-headers.json ./security-headers.json
+# Zipped by the host for each download (GET /api/v1/mcp/nid.mcpb, McpBundle.cs).
+COPY --from=mcpb /mcpb ./mcpb
 COPY --from=build /volumes/ /
 ENV PATH="/app:${PATH}" \
     ASPNETCORE_HTTP_PORTS=8080 \

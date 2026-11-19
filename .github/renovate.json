@@ -9,8 +9,16 @@
   "packageRules": [
     { "matchManagers": ["nuget"], "groupName": "NuGet", "addLabels": ["backend"] },
     { "matchManagers": ["npm"], "groupName": "web", "addLabels": ["web"] },
+    {
+      "description": "Claude Desktop's extension (#309): its bridge, vendored into the image, and the version the manual setup of the Sécurité page pins (web/src/features/security/mcpSnippets.ts), bumped together.",
+      "matchFileNames": ["src/Hosting/Nid.Host/mcpb/**", "web/src/features/security/mcpSnippets.ts"], "groupName": "MCP extension", "addLabels": ["mcp", "infra"]
+    },
     { "matchManagers": ["github-actions"], "groupName": "GitHub Actions", "addLabels": ["infra"] },
     { "matchManagers": ["dockerfile", "docker-compose"], "groupName": "images", "addLabels": ["infra"] },
+    {
+      "description": "Nid's own images are published on every merge to main: a pinned digest would freeze the standalone compose on an old release, one that may lack what its README describes (issue 215). They follow `latest` unpinned.",
+      "matchPackageNames": ["ghcr.io/mistribe/nid", "ghcr.io/mistribe/nid-backup"], "enabled": false
+    },
     {
       "description": "openapi-typescript and typescript-eslint use the TypeScript JS API, which TypeScript 7 no longer has; the type check already runs TypeScript 7 as typescript-native. Lift once both support it.",
       "matchPackageNames": ["typescript"], "allowedVersions": "<7"
@@ -18,6 +26,15 @@
     {
       "description": "A Postgres major cannot read the previous major's data: it needs pg_upgrade or a dump and restore of the household's database, and the image's volume path changes with 18. Done by hand, with that migration.",
       "matchPackageNames": ["postgres"], "matchUpdateTypes": ["major"], "enabled": false
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "The mcp-remote version the manual Claude Desktop setup names (#309).",
+      "managerFilePatterns": ["/^web/src/features/security/mcpSnippets\\.ts$/"],
+      "matchStrings": ["'mcp-remote@(?<currentValue>\\d+\\.\\d+\\.\\d+)'"],
+      "depNameTemplate": "mcp-remote", "datasourceTemplate": "npm"
     }
   ],
   "lockFileMaintenance": { "enabled": true, "addLabels": ["web"] },

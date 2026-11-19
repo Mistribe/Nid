@@ -82,16 +82,17 @@ public sealed class RouteReplay(EndpointDataSource endpoints, IHttpContextAccess
     private static Failure Refusal(int status, JsonElement problem, RouteAction action)
     {
         var code = problem is { ValueKind: JsonValueKind.Object } p && p.TryGetProperty("code", out var c) ? c.GetString() : null;
-        var title = problem is { ValueKind: JsonValueKind.Object } t && t.TryGetProperty("title", out var m) ? m.GetString() ?? "" : "";
+        // #250: the sentence is in `detail` (RFC 9457); `title` only names the status.
+        var title = problem is { ValueKind: JsonValueKind.Object } t && t.TryGetProperty("detail", out var m) ? m.GetString() ?? "" : "";
         if (status == StatusCodes.Status404NotFound)
             return new NotFoundFailure(action.Kind, "");
         code ??= status == StatusCodes.Status400BadRequest ? "request.malformed" : "request.invalid";
         if (problem is { ValueKind: JsonValueKind.Object } withErrors && withErrors.TryGetProperty("errors", out var errors)
             && errors.ValueKind == JsonValueKind.Array)
             return FieldErrors.Many(code, title, [.. errors.EnumerateArray().Select(e => new FieldError(
-                PathOf(action, e.TryGetProperty("path", out var path) ? path.GetString() ?? "" : ""),
+                PathOf(action, FieldErrors.PathOf(e.TryGetProperty("pointer", out var pointer) ? pointer.GetString() : null)),
                 e.TryGetProperty("code", out var fieldCode) ? fieldCode.GetString() ?? code : code,
-                e.TryGetProperty("message", out var message) ? message.GetString() ?? "" : ""))]);
+                e.TryGetProperty("detail", out var detail) ? detail.GetString() ?? "" : ""))]);
         return new Failure(code, title.Length > 0 ? title : $"Refused ({status}).", null);
     }
 

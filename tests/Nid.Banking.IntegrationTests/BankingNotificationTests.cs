@@ -331,4 +331,148 @@ public class BankingNotificationTests(PostgresFixture fixture) : IClassFixture<P
         Assert.Equal($"banking.charge_missing:{property.Value:N}:rent:2026-05", signal.Key);
         Assert.Equal("properties", signal.Params["module"]);
     }
+
+    [Fact]
+    public async Task A_card_under_its_minimum_usage_is_signalled_before_the_month_ends_to_whoever_sets_it()
+    {
+        await using var app = await BankingApi.StartAsync(fixture);
+        await BankingApi.ConnectAsync(app, app.AdultA, "code-a", BankingApi.Account("uid-1", "hash-1", null, "Carte Visa", "CARD", numberLast4: "4321"));
+        var card = Assert.Single((await BankingApi.AccountsAsync(app, app.AdultA)).EnumerateArray()).GetProperty("id").GetGuid();
+        var lateOctober = new LocalDate(2025, 10, 28);
+        async Task<IEnumerable<Signal>> UnusedAsync(PersonId reader, LocalDate today) => Findings(await SignalsAsync(app, reader, today), "card_unused");
+        async Task AddAsync(params NewBankTransaction[] lines)
+        {
+            await using var scope = app.Services.CreateAsyncScope();
+            scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
+            await scope.ServiceProvider.GetRequiredService<ITransactionStore>().AddAsync(card, lines, default);
+        }
+        NewBankTransaction Line(string reference, LocalDate on, decimal amount, string label) => new(reference, on, null, amount, Currency.Eur, label, null, null, "api");
+
+        // A rule, the signal on, and the card's own lines already read in September.
+        Assert.Equal(System.Net.HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{BankingApi.Root}/accounts/{card}", new { minPayments = 1 })).StatusCode);
+        var (_, failure) = await app.InvokeAsync(app.AdultA, new Nid.Platform.Notifications.SaveNotificationPreferencesCommand(
+            false, Nid.Platform.Notifications.ActionMode.Immediate, Nid.Platform.Notifications.InfoMode.Digest, Nid.Platform.Notifications.DigestFrequency.Weekly, 1,
+            new Dictionary<string, int>(), new Dictionary<string, decimal> { ["card_unused"] = 5m }, 0), TestContext.Current.CancellationToken);
+        Assert.Null(failure);
+        await AddAsync(Line("s1", new LocalDate(2025, 9, 12), -30m, "CB BOULANGERIE"));
+
+        // No read lately: Nid does not conclude « unused » on stale data.
+        Assert.Empty(await UnusedAsync(app.AdultA, lateOctober));
+        await using (var scope = app.Services.CreateAsyncScope())
+        {
+            scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
+            await scope.ServiceProvider.GetRequiredService<IAccountReadLog>().RecordAsync(
+                new BankRead(card, SystemClock.Instance.GetCurrentInstant(), false, false), TestContext.Current.CancellationToken);
+        }
+
+        // A refund and a cash withdrawal are no payment; too early in the month, nothing yet.
+        await AddAsync(Line("r1", new LocalDate(2025, 10, 3), 5m, "AVOIR CB"), Line("w1", new LocalDate(2025, 10, 4), -20m, "RETRAIT DAB 03/10"));
+        Assert.Empty(await UnusedAsync(app.AdultA, new LocalDate(2025, 10, 20)));
+        var signal = Assert.Single(await UnusedAsync(app.AdultA, lateOctober));
+        Assert.Equal(($"card_unused:{card:D}:2025-10", new LocalDate(2025, 10, 31)), (signal.Key, signal.DueOn));
+        Assert.Equal(("Carte Visa", "4321", "0", "1"), (signal.Params["card"], signal.Params["number"], signal.Params["count"], signal.Params["min"]));
+        Assert.Empty(signal.ItemIds);
+        // B does not set A's card.
+        Assert.Empty(await UnusedAsync(app.AdultB, lateOctober));
+
+        // Withdrawals counted, or a payment booked: nothing more.
+        Assert.Equal(System.Net.HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{BankingApi.Root}/accounts/{card}", new { countWithdrawals = true })).StatusCode);
+        Assert.Empty(await UnusedAsync(app.AdultA, lateOctober));
+        Assert.Equal(System.Net.HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{BankingApi.Root}/accounts/{card}", new { countWithdrawals = false })).StatusCode);
+        await AddAsync(Line("p1", new LocalDate(2025, 10, 27), -12m, "CB PHARMACIE"));
+        Assert.Empty(await UnusedAsync(app.AdultA, lateOctober));
+    }
+
+    [Fact]
+    public async Task Only_a_card_takes_a_minimum_usage_of_1_to_31_payments()
+    {
+        await using var app = await BankingApi.StartAsync(fixture);
+        var checking = await AccountAsync(app);
+        await BankingApi.AssertRefusedAsync(await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{BankingApi.Root}/accounts/{checking}", new { minPayments = 1 }),
+            System.Net.HttpStatusCode.UnprocessableEntity, BankingCodes.CardRule);
+    }
+
+    [Fact]
+    public async Task A_shortfall_ahead_is_raised_once_turned_on_and_a_synced_balance_is_known()
+    {
+        await using var app = await BankingApi.StartAsync(fixture);
+        var account = await AccountAsync(app);
+        var netflix = await app.NewSubscriptionAsync("Netflix", app.AdultA, Visibility.Shared);
+        (await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/subscriptions/{netflix.Value}/phases", new
+        {
+            startsOn = "2025-01-05",
+            price = new { amount = "12.99", currency = "EUR" },
+            every = new { count = 1, unit = "month" },
+            payer = new { type = "household" },
+        })).EnsureSuccessStatusCode();
+        Assert.Empty(Findings(await SignalsAsync(app, app.AdultA), "shortfall_ahead")); // off by default
+
+        var (_, failure) = await app.InvokeAsync(app.AdultA, new Nid.Platform.Notifications.SaveNotificationPreferencesCommand(
+            false, Nid.Platform.Notifications.ActionMode.Immediate, Nid.Platform.Notifications.InfoMode.Digest, Nid.Platform.Notifications.DigestFrequency.Weekly, 1,
+            new Dictionary<string, int>(), new Dictionary<string, decimal> { ["shortfall_ahead"] = 0m }, 0), TestContext.Current.CancellationToken);
+        Assert.Null(failure);
+        Assert.Empty(Findings(await SignalsAsync(app, app.AdultA), "shortfall_ahead")); // no balance yet
+
+        await using (var scope = app.Services.CreateAsyncScope())
+        {
+            scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
+            await scope.ServiceProvider.GetRequiredService<IBalanceStore>().UpsertAsync(
+                new BankBalance(account, NidApp.GoldenCaseToday.PlusDays(-1), 10m, "CLBD", Now), TestContext.Current.CancellationToken);
+        }
+
+        // No income: the 31 days from today hold the 5 November charge, the only checking account's though never matched.
+        var signal = Assert.Single(Findings(await SignalsAsync(app, app.AdultA), "shortfall_ahead"));
+        Assert.Equal($"shortfall_ahead:{account:D}:2025-11-05", signal.Key);
+        Assert.Empty(signal.ItemIds);
+        Assert.Equal(new LocalDate(2025, 11, 5), signal.DueOn);
+        Assert.Equal((10m, 12.99m, "EUR", "2025-11-05", "Netflix"), (decimal.Parse(signal.Params["balance_amount"], CultureInfo.InvariantCulture),
+            decimal.Parse(signal.Params["charges_amount"], CultureInfo.InvariantCulture), signal.Params["currency"], signal.Params["short_on"], signal.Params["charges"]));
+        Assert.Empty(Findings(await SignalsAsync(app, app.AdultB), "shortfall_ahead")); // A's own account
+    }
+
+    [Fact]
+    public async Task Idle_cash_is_raised_once_a_month_once_turned_on_and_an_open_goal_is_behind()
+    {
+        await using var app = await BankingApi.StartAsync(fixture);
+        var account = await AccountAsync(app);
+        var netflix = await app.NewSubscriptionAsync("Netflix", app.AdultA, Visibility.Shared);
+        (await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/subscriptions/{netflix.Value}/phases", new
+        {
+            startsOn = "2025-01-05",
+            price = new { amount = "12.99", currency = "EUR" },
+            every = new { count = 1, unit = "month" },
+            payer = new { type = "household" },
+        })).EnsureSuccessStatusCode();
+        await using (var scope = app.Services.CreateAsyncScope())
+        {
+            scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
+            // Before the 28 days, held by every one of them.
+            await scope.ServiceProvider.GetRequiredService<IBalanceStore>().UpsertAsync(
+                new BankBalance(account, NidApp.GoldenCaseToday.PlusDays(-40), 1_000m, "CLBD", Now), TestContext.Current.CancellationToken);
+        }
+        Assert.Empty(Findings(await SignalsAsync(app, app.AdultA), "idle_cash")); // off by default
+
+        var (_, failure) = await app.InvokeAsync(app.AdultA, new Nid.Platform.Notifications.SaveNotificationPreferencesCommand(
+            false, Nid.Platform.Notifications.ActionMode.Immediate, Nid.Platform.Notifications.InfoMode.Digest, Nid.Platform.Notifications.DigestFrequency.Weekly, 1,
+            new Dictionary<string, int>(), new Dictionary<string, decimal> { ["idle_cash"] = 3m }, 0), TestContext.Current.CancellationToken);
+        Assert.Null(failure);
+        Assert.Empty(Findings(await SignalsAsync(app, app.AdultA), "idle_cash")); // above the buffer, but no livret with room and no goal behind
+
+        // No progress towards a dated target: behind.
+        (await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/goals", new
+        {
+            name = "Voyage", kind = "savings", targetAmount = "10000", targetDate = "2026-10-15", visibility = "shared",
+            owners = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } }, funding = Array.Empty<object>(),
+        })).EnsureSuccessStatusCode();
+
+        var signal = Assert.Single(Findings(await SignalsAsync(app, app.AdultA), "idle_cash"));
+        Assert.Equal("idle_cash:2025-10", signal.Key);
+        Assert.Empty(signal.ItemIds);
+        Assert.Null(signal.DueOn);
+        // The buffer is 3 months of the 12,99 subscription, amortized as the emergency fund's target (39,14).
+        Assert.Equal((960.86m, 39.14m, "EUR", "goal_behind"), (decimal.Parse(signal.Params["above_amount"], CultureInfo.InvariantCulture),
+            decimal.Parse(signal.Params["buffer_amount"], CultureInfo.InvariantCulture), signal.Params["currency"], signal.Params["reason"]));
+        Assert.False(signal.Params.ContainsKey("room_amount"));
+        Assert.Empty(Findings(await SignalsAsync(app, app.AdultB), "idle_cash")); // A's own account
+    }
 }

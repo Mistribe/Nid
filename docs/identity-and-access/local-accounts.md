@@ -83,7 +83,7 @@ Le mode démo (`Nid:Demo:Enabled`, #204) ignore `Auth:Mode` : il ne mappe ni les
 - **Longueur** : 12 caractères au moins (`Auth:Local:MinPasswordLength`, qui ne peut que monter, jusqu'à 64), **256 au plus** (borne le travail du serveur). Les caractères sont comptés après normalisation Unicode (points de code, pas octets).
 - **Tous les caractères** acceptés, espaces et emoji compris. Normalisation **NFKC** avant hachage, pour qu'un même mot de passe tapé sur deux claviers donne le même hash. Pas de `trim`.
 - **Aucune règle de composition** (majuscule, chiffre, symbole), aucune expiration périodique, aucun indice, aucune question secrète.
-- **Liste de refus locale** : le mot de passe est refusé (`auth.password_too_common`) s'il figure dans une liste de mots de passe courants **embarquée dans l'image** (ceux de 12 caractères et plus d'une liste publique de fuites, sous licence compatible, quelques milliers d'entrées), ou s'il contient l'identifiant, l'email, le nom affiché de l'adulte ou `nid`, sans tenir compte de la casse.
+- **Liste de refus locale** : le mot de passe est refusé (`auth.password_too_common`) s'il figure dans une liste de mots de passe courants **embarquée dans l'image** (`src/Hosting/Nid.Host/Auth/common-passwords.txt` : les quelque 46 000 entrées de 12 caractères et plus de la liste publique de fuites `xato-net-10-million-passwords-1000000` de SecLists, sous licence MIT (`common-passwords.LICENSE`), plus quelques formes choisies à la main ; livré en #295), s'il ne fait que répéter peu de caractères ou suivre une rangée du clavier ou l'alphabet, s'il contient l'identifiant, la partie locale de l'email ou un mot de 4 lettres ou plus du nom affiché, ou s'il n'est que `nid` suivi de chiffres et de symboles, sans tenir compte de la casse. Livré en PR 2 (#218) : la règle « contient `nid` » refusait des phrases ordinaires, elle est devenue « `nid` suivi de chiffres ou de symboles ».
 - **Formulaire ami des gestionnaires de mots de passe** : champ identifiant `autocomplete="username"`, mot de passe `autocomplete="current-password"` à la connexion et `new-password` au choix, collage permis, bouton « afficher », une seule saisie du nouveau mot de passe quand il est affiché (deux sinon), aucune limite de saisie côté navigateur en deçà de 256.
 - Les messages d'erreur disent la règle en mots simples (« au moins 12 caractères », « trop courant, choisissez-en un autre ») ; aucune jauge de force.
 
@@ -126,7 +126,7 @@ Avec la source `nid` :
 
 - La zone admin, section Utilisateurs, **promeut ou rétrograde** un adulte actif ou en attente (`PUT /api/v1/admin/users/{id}/admin`) ; la CLI aussi (`grant-admin`, `revoke-admin`, §15).
 - **Il reste toujours au moins un admin** : retirer le rôle au dernier admin est refusé (`core.last_admin`, `409`), contrôlé sous le verrou du provisionnement pour que deux retraits simultanés ne passent pas ensemble. Se rétrograder soi-même est permis s'il reste un autre admin.
-- Une connexion OIDC (en `both`) ne touche plus à `is_admin` : le groupe d'accès reste exigé, le groupe admin est ignoré.
+- Une connexion OIDC (en `both`) ne touche plus à `is_admin` : le groupe d'accès reste exigé, le groupe admin est ignoré. Un adulte créé par une connexion OIDC arrive sans le rôle ; si le premier adulte d'une instance en `both` arrive par OIDC (la mise en place se ferme dès qu'un adulte existe), `nid admin grant-admin` lui donne le rôle. Livré en PR 4 : `PUT /api/v1/admin/users/{id}/admin`, `grant-admin`, `revoke-admin`, le menu de chaque ligne de la zone admin.
 - Chaque changement est journalisé `admin_granted` / `admin_revoked` avec `source: nid` (ou `source: admin-cli`) et l'admin qui l'a fait (`by`).
 - Un rôle retiré prend effet à la requête suivante de la personne (`ActorFilter` relit `person`, `authorization.md` §1) : aucune attente de reconnexion.
 
@@ -366,13 +366,13 @@ Mêmes règles que les commandes existantes (`administration-and-audit.md` §3) 
 
 | Commande | Usage |
 |---|---|
-| `create-admin --name <nom> [--email <email>] [--login <identifiant>]` | Crée un adulte admin (dans la limite de `max_adults`) et affiche un lien `enroll` ; refusée avec `Auth:AdminSource=identity_provider` |
+| `create-admin --name <nom> [--email <email>]` | Crée un adulte admin (dans la limite de `max_adults`) et affiche un lien `enroll`, où il choisit son identifiant ; refusée avec `Auth:AdminSource=identity_provider` |
 | `reset-password --person <nom ou id> [--revoke-tokens]` | Affiche un lien `reset` (ou `enroll` si l'adulte n'a pas de compte local), lève le verrouillage |
 | `grant-admin --person`, `revoke-admin --person` | Rôle admin, source `nid` seulement ; `revoke-admin` refuse le dernier admin |
 | `reset-totp --person` | Désactive le TOTP, efface les codes de secours, ferme les sessions |
 | `unlock --person` | Lève le verrouillage |
 
-`list-persons` ajoute les colonnes « connexion » (`mot de passe`, `oidc`) et « verrouillé ». Le lien est écrit sur la sortie standard seulement, jamais dans le journal ni dans l'audit.
+`list-persons` ajoute les colonnes « connexion » (`mot de passe`, `oidc`) et « verrouillé » (« jusqu'à … UTC ») ; livré en #293. Le lien est écrit sur la sortie standard seulement, jamais dans le journal ni dans l'audit.
 
 ## 16. Événements de sécurité
 
@@ -395,7 +395,7 @@ Ajoutés à `administration-and-audit.md` §4.1. Données : identifiants seuleme
 | `setup_completed` | Mise en place terminée par la page | — | Oui |
 | `admin_granted`, `admin_revoked` | Existant ; ajoute `source: nid` ou `admin-cli` et `by` | `source`, `by` | Oui (inchangé) |
 
-Les événements d'une personne restent visibles d'elle seule (page Sécurité) ; le journal de la zone admin ne montre pas les connexions ni les échecs d'un autre adulte, seulement ce dont un admin a besoin pour agir (verrouillages, liens, réinitialisations). Notifications au titulaire : `login_locked`, `password_reset`, `password_changed`, `credential_link_issued` (purpose `reset`), `totp_reset`, codes de secours à 2 restants.
+Les événements d'une personne restent visibles d'elle seule (page Sécurité) ; le journal de la zone admin ne montre pas les connexions ni les échecs d'un autre adulte, seulement ce dont un admin a besoin pour agir (verrouillages, liens, réinitialisations). Notifications au titulaire : `login_locked`, `password_reset`, `password_changed`, `credential_link_issued` (purpose `reset`), `totp_reset`, codes de secours à 2 restants. Livré en #291 : `SecurityEventWriter` publie, une fois l'événement écrit, un avis de la famille sécurité au seul titulaire (`AccountNotices`, jamais sur le Discord du foyer) : `login_locked`, `password_link_issued`, `password_reset`, `password_changed` et `totp_reset` en critique (envoyés tout de suite, clos à la lecture), `recovery_codes_low` en action, résolu par de nouveaux codes, la désactivation ou `reset-totp`. Chacun mène à la page Sécurité et ne porte ni lien, ni identifiant, ni secret.
 
 ## 17. Configuration
 
@@ -447,9 +447,9 @@ Une pile `local` (Nid et PostgreSQL seuls, sans Pocket ID) dans `e2e.yml`, à c�
 
 1. **Modes et transport** (`backend`, `infra`) : `Auth:Mode` et sa déduction, `Auth:AdminSource`, validation au démarrage, `Auth:AllowInsecureHttp` et ses garde-fous, `methods` et `setupRequired` dans `/auth/session`, `authMode` dans `/admin/system`. Aucun changement pour une installation OIDC.
 2. **Comptes et connexion par mot de passe** (`backend`) : tables `local_credential` et `credential_link`, hachage, règles et liste de refus, `POST /auth/login/password`, CSRF de connexion, verrouillage et limite par adresse, événements, liens (`/auth/link/*`, `password-link`, `unlock`), mise en place par jeton, CLI `create-admin`, `reset-password`, `unlock`, invariant « adulte actif ».
-3. **Pages de connexion** (`web`) : `/login`, `/setup`, `/password`, page Sécurité « Mot de passe », zone admin (lien, déverrouillage, pré-enregistrement sans email), parcours Playwright de la pile `local`.
+3. **Pages de connexion** (`web`) : `/login`, `/setup`, `/password`, page Sécurité « Mot de passe » (`GET /me/credential`, `PUT /me/password`), zone admin (lien, déverrouillage, pré-enregistrement sans email). Les parcours Playwright de la pile `local` passent à la PR 6, qui crée la pile sans Pocket ID.
 4. **Rôle admin dans Nid** (`backend`, `web`) : `PUT /admin/users/{id}/admin`, dernier admin, `grant-admin` / `revoke-admin`, `both` qui ignore le groupe admin.
-5. **TOTP et codes de secours** (`backend`, `web`) : table `recovery_code`, routes `me/totp`, étape du code à la connexion, `reset-totp`, notifications.
-6. **Installation sans Pocket ID** (`infra`, docs) : `deploy/standalone/` en `local` sans Pocket ID, `README.md` et `deploy/README.md` qui en font le chemin par défaut et présentent Pocket ID comme option ; puis l'essai d'installation neuve en suivant le guide.
+5. **TOTP et codes de secours** (`backend`, `web`) : table `recovery_code`, routes `me/totp`, étape du code à la connexion, `reset-totp`. Le QR code est dessiné dans le navigateur par `qrcode-generator` (MIT), chargé avec le dialogue d’activation seulement. Les notifications au titulaire (dont « 2 codes de secours restants ») ont suivi avec les autres notifications du §16 (#291) ; la page Sécurité dit aussi combien il en reste.
+6. **Installation sans Pocket ID** (`infra`, docs) : `deploy/standalone/` en `local` sans Pocket ID, `README.md` et `deploy/README.md` qui en font le chemin par défaut et présentent Pocket ID comme option ; une pile `local` dans `e2e.yml` avec les parcours Playwright du §18.2 ; puis l'essai d'installation neuve en suivant le guide. Livrée : le job `local-journeys` d'`e2e.yml` lance `deploy/standalone/smoke-local.sh` (installation neuve, adresse de mise en place lue dans le journal, parcours de `web/e2e/local/` avec `web/playwright.local.config.ts`, puis `nid admin` dans l'image), sur `http://localhost` sans proxy. La vérification de `security.spec.ts` en `oidc` (sections absentes) est couverte par les tests de la page Sécurité.
 
 Chaque PR met à jour la documentation de ce dossier pour ce qu'elle livre (« livré en … »), comme les étapes précédentes.

@@ -26,7 +26,6 @@ function serve(body: ChildcareDetail, writes: { path: string; body: unknown }[] 
     http.post('*/api/v1/childcare/:id/revisions', record),
     http.post('*/api/v1/childcare/:id/close', record),
     http.put('*/api/v1/childcare/:id/gaps', record),
-    http.put('*/api/v1/childcare/:id/revisions/:from', record),
     http.put('*/api/v1/childcare/:id/week-overrides/:monday', record),
   );
 }
@@ -41,7 +40,7 @@ describe('ChildcareDetailPage', () => {
     await waitFor(() => expectTrailBack('Garde', '/childcare'));
     cleanup();
 
-    server.use(http.get('*/api/v1/childcare/:id', () => HttpResponse.json({ status: 404, code: null, title: 'Not found' }, { status: 404 })));
+    server.use(http.get('*/api/v1/childcare/:id', () => HttpResponse.json({ status: 404, code: null, detail: 'Not found' }, { status: 404 })));
     await renderApp(url);
     expect(await screen.findByRole('heading', { level: 1, name: 'Page introuvable' })).toBeInTheDocument();
     await waitFor(() => expectTrailBack('Garde', '/childcare'));
@@ -245,21 +244,28 @@ describe('ChildcareDetailPage', () => {
     expect(rows[2]).not.toHaveTextContent('En cours');
   });
 
-  it('corrects a past revision\'s unpaid absences from its row (#192)', async () => {
+  it('corrects a past revision in full from its row, its start kept', async () => {
     const writes: { path: string; body: unknown }[] = [];
-    serve(detail({ terms: [terms({ to: '2025-12-31' }), terms({ from: '2026-01-01' })] }), writes);
+    serve(detail({ terms: [terms({ to: '2025-12-31', netHourlyRate: '4.00' }), terms({ from: '2026-01-01' })] }), writes);
     const { user } = await renderApp(url);
     await user.click(await screen.findByRole('tab', { name: 'Révisions' }));
     const table = screen.getByRole('table', { name: 'Révisions' });
     expect(within(table).getAllByRole('row')[2]).toHaveTextContent("Enfant malade, Absence de l'assistante");
     await user.click(within(table).getByRole('button', { name: 'Actions sur la période du 1 sept. 2025' }));
-    await user.click(await screen.findByRole('menuitem', { name: 'Modifier les absences non payées' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Absences non payées' });
-    expect(dialog).toHaveTextContent('Période du 1 sept. 2025 au 31 déc. 2025.');
+    await user.click(await screen.findByRole('menuitem', { name: 'Modifier' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Modifier la garde' });
+    expect(dialog).toHaveTextContent('Période commençant le 1 sept. 2025.');
+    const net = within(dialog).getByLabelText('Taux horaire net (€)');
+    expect(net).toHaveValue('4,00');
+    await user.clear(net);
+    await user.type(net, '4,50');
     await user.click(within(dialog).getByRole('checkbox', { name: 'RTT employeur' }));
     await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
     await waitFor(() => expect(writes).toHaveLength(1));
-    expect(writes[0]).toEqual({ path: `/api/v1/childcare/${ARRANGEMENT_ID}/revisions/2025-09-01`, body: { unpaidAbsences: ['child_sick', 'carer_absent', 'parent_rtt'] } });
+    const body = writes[0]!.body as { revision: string; terms: { from: string; netHourlyRate: string; unpaidAbsences: string[] } };
+    expect(writes[0]!.path).toBe(`/api/v1/childcare/${ARRANGEMENT_ID}`);
+    expect([body.revision, body.terms.from, body.terms.netHourlyRate, body.terms.unpaidAbsences])
+      .toEqual(['2025-09-01', '2025-09-01', '4.50', ['child_sick', 'carer_absent', 'parent_rtt']]);
   });
 
   it('a closed arrangement offers no correction of its revisions', async () => {
@@ -303,7 +309,7 @@ describe('ChildcareDetailPage', () => {
   });
 
   it('a conflict on edit says the arrangement changed', async () => {
-    serve(detail(), [], () => HttpResponse.json({ type: 'about:blank', title: 'Conflict', status: 409, code: 'childcare.conflict' }, { status: 409 }));
+    serve(detail(), [], () => HttpResponse.json({ type: 'about:blank', detail: 'Conflict', status: 409, code: 'childcare.conflict' }, { status: 409 }));
     const { user } = await renderApp(url);
     await user.click(await screen.findByRole('button', { name: 'Modifier' }));
     const dialog = await screen.findByRole('dialog');
@@ -311,23 +317,27 @@ describe('ChildcareDetailPage', () => {
     expect(await within(dialog).findByRole('alert')).toHaveTextContent('Cette garde a changé entre-temps');
   });
 
-  it('ending the arrangement asks for its last day', async () => {
-    const writes: { path: string; body: unknown }[] = [];
-    serve(detail(), writes);
+  it('ending the arrangement opens its own page, and an ended one leads to its settlement', async () => {
+    serve(detail());
     const { user } = await renderApp(url);
     await screen.findByRole('button', { name: 'Modifier' });
     await openMore(user);
     await user.click(await screen.findByRole('menuitem', { name: 'Terminer la garde' }));
-    const dialog = await screen.findByRole('dialog');
-    await user.type(within(dialog).getByLabelText('Dernier jour'), '31/10/2025');
-    await user.click(within(dialog).getByRole('button', { name: 'Terminer' }));
-    await waitFor(() => expect(writes).toEqual([{ path: `/api/v1/childcare/${ARRANGEMENT_ID}/close`, body: { on: '2025-10-31' } }]));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Mettre fin au contrat' })).toBeInTheDocument();
+    cleanup();
+
+    serve(detail({ end: { reason: 'withdrawal', notified: '2025-10-01', seniorityMonths: 1, noticeEnd: '2025-10-08', indemnityDue: false, grossRateKnown: false } },
+      { closed: true, end: '2025-10-08' }));
+    await renderApp(url);
+    const ended = await screen.findByRole('region', { name: 'Fin du contrat' });
+    expect(ended).toHaveTextContent('Je retire mon enfant, lettre du 1 octobre 2025.');
+    expect(within(ended).getByRole('link', { name: 'Solde de tout compte' })).toHaveAttribute('href', `/childcare/${ARRANGEMENT_ID}/settlement`);
   });
 
   it('a revision refused on its date or its weeks says why', async () => {
-    serve(detail(), [], () => HttpResponse.json({ type: 'about:blank', title: 'Unprocessable', status: 422, code: 'request.invalid', errors: [
-      { path: 'terms.from', code: 'childcare.revision_not_after', message: 'A revision starts after the current terms\' start.' },
-      { path: 'gaps', code: 'childcare.gaps_too_many', message: 'Too many.' },
+    serve(detail(), [], () => HttpResponse.json({ type: 'about:blank', detail: 'Unprocessable', status: 422, code: 'request.invalid', errors: [
+      { detail: 'A revision starts after the current terms\' start.', pointer: '#/terms/from', code: 'childcare.revision_not_after' },
+      { detail: 'Too many.', pointer: '#/gaps', code: 'childcare.gaps_too_many' },
     ] }, { status: 422 }));
     const { user } = await renderApp(url);
     await user.click(await screen.findByRole('button', { name: 'Réviser' }));
@@ -336,20 +346,6 @@ describe('ChildcareDetailPage', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Enregistrer la révision' }));
     expect(await within(dialog).findByText('La révision commence après le début des conditions en cours.')).toBeInTheDocument();
     expect(within(dialog).getByText(/Plus de semaines sans accueil sur une année de contrat/)).toBeInTheDocument();
-  });
-
-  it('ending before the current terms says why', async () => {
-    serve(detail(), [], () => HttpResponse.json({ type: 'about:blank', title: 'Unprocessable', status: 422, code: 'request.invalid', errors: [
-      { path: 'on', code: 'childcare.end_before_terms', message: 'The end comes on or after the current terms\' start.' },
-    ] }, { status: 422 }));
-    const { user } = await renderApp(url);
-    await screen.findByRole('button', { name: 'Modifier' });
-    await openMore(user);
-    await user.click(await screen.findByRole('menuitem', { name: 'Terminer la garde' }));
-    const dialog = await screen.findByRole('dialog');
-    await user.type(within(dialog).getByLabelText('Dernier jour'), '31/08/2025');
-    await user.click(within(dialog).getByRole('button', { name: 'Terminer' }));
-    expect(await within(dialog).findByText('Le dernier jour vient au plus tôt au début des conditions en cours.')).toBeInTheDocument();
   });
 
   it('keeps two buttons in the header and the ending in the ⋯ menu', async () => {
@@ -361,6 +357,22 @@ describe('ChildcareDetailPage', () => {
     await openMore(user);
     await screen.findByRole('menuitem', { name: 'Terminer la garde' });
     expect(screen.getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['Terminer la garde', 'Partage…', 'Supprimer…']);
+  });
+
+  it('warns when the terms fall below a legal minimum and offers a revision', async () => {
+    serve(detail({ belowMinimums: [{ code: 'childcare.below_minimum_upkeep', since: '2026-06-01', minimum: '3.92', value: '3.80' }] }));
+    const { user } = await renderApp(url);
+    const warning = await screen.findByRole('status', { name: 'Le contrat est sous un minimum légal' });
+    expect(warning).toHaveTextContent("L'indemnité d'entretien (3,80 € pour 9 h) est sous le minimum légal de 3,92 €, à compter du 1 juin 2026.");
+    await user.click(within(warning).getByRole('button', { name: 'Réviser' }));
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('terms meeting the minimums show no warning', async () => {
+    serve(detail({ belowMinimums: [] }));
+    await renderApp(url);
+    expect(await screen.findByRole('region', { name: 'Chiffres clés' })).toBeInTheDocument();
+    expect(screen.queryByRole('status', { name: 'Le contrat est sous un minimum légal' })).not.toBeInTheDocument();
   });
 
   it('a reader without write sees no actions', async () => {

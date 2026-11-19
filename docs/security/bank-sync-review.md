@@ -16,10 +16,10 @@ Ce que 5A ajoute à la surface de Nid :
 | Élément | Détail |
 |---|---|
 | Hôte sortant | `api.enablebanking.com`, par `SafeHttpClient` (liste autorisée par défaut), depuis `nid` seul (D13) |
-| Secret | Clé privée RSA de l'application Enable Banking : secret Docker `enable_banking_private_key` (cible `EnableBanking__PrivateKey`), hors du compose de référence : l'hébergeur qui active la banque le déclare dans `deploy/compose.override.yaml` (`deploy/README.md` §12) ; sans lui, Nid démarre et dit la banque « non configurée » |
+| Secret | Clé privée RSA de l'application Enable Banking : secret Docker `enable_banking_private_key` (cible `EnableBanking__PrivateKey`), hors du compose de référence : l'hébergeur qui active la banque le déclare dans `deploy/compose.override.yaml` (`deploy/README.md` §12) ; sans lui, Nid démarre et dit la banque « non configurée » ; un dossier à sa place ou un fichier illisible n'empêche pas le démarrage : Nid l'écrit au journal et Administration › Banque le montre (#343) |
 | Données stockées | Schéma `banking` : connexions (`session_id` chiffré par Data Protection, but `Nid.Banking.Session` ; seul le SHA-256 du `state`), comptes (IBAN masqué et haché, libellé, type, devise, enveloppe), soldes quotidiens, journal des synchronisations |
 | Écritures dans les chiffres | Valorisations d'enveloppe : proposition `investments.record_valuation` par défaut, écriture directe `source = bank_api`, `created_via = job` si le compte l'a demandé (D5) |
-| Routes | `/api/v1/banking` (établissements, connexions, rappel, comptes, synchroniser), `/api/v1/admin/banking/runs`, réglages dans `/api/v1/admin/household` |
+| Routes | `/api/v1/banking` (établissements, connexions, rappel, comptes, synchroniser), `/api/v1/admin/banking/runs`, `/api/v1/admin/banking/diagnostics` (état de la clé, jamais la clé) et `/api/v1/admin/banking/test` (un `GET /application` en lecture seule), réglages dans `/api/v1/admin/household` |
 | Tâche | `bank-sync-nightly`, Quartz, 04:30 ; bouton « Synchroniser » exécuté dans la requête |
 | Interrupteur | `banking_enabled = false` par défaut : toute route bancaire (sauf les réglages d'administration) répond `banking.disabled` (409), et `banking.not_configured` (409) sans identifiant d'application ou sans clé |
 

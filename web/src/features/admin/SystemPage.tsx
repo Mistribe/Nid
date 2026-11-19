@@ -20,7 +20,7 @@ export function SystemPage() {
   if (system.error) return <AdminFrame title={title}><ProblemMessage problem={present(toProblem(system.error))} /></AdminFrame>;
   if (!system.data) return <AdminFrame title={title}><Loading label={t('admin.loading')}><StatLineSkeleton items={5} /></Loading></AdminFrame>;
   const status = system.data;
-  const health = (value: string) => t(value === 'healthy' ? 'admin.system.healthy' : 'admin.system.unhealthy');
+  const health = (value: string) => t(value === 'healthy' ? 'admin.system.healthy' : value === 'not_used' ? 'admin.system.not_used' : 'admin.system.unhealthy');
 
   return (
     <AdminFrame title={title}>
@@ -28,6 +28,7 @@ export function SystemPage() {
         { label: t('admin.system.version'), value: <span className="font-mono">{status.version}</span> },
         { label: t('admin.system.started'), value: formatInstant(status.startedAt) },
         { label: t('admin.system.database'), value: health(status.health.database) },
+        { label: t('admin.system.sign_in'), value: t(`admin.system.mode_${status.auth.mode}`, { defaultValue: status.auth.mode }) },
         { label: t('admin.system.identity_provider'), value: health(status.health.identityProvider) },
         { label: t('admin.system.size'), value: status.databaseSizeBytes == null ? t('admin.system.unknown') : t('admin.system.megabytes', { size: formatMegabytes(status.databaseSizeBytes) }) },
       ]} />

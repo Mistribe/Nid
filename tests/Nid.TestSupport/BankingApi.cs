@@ -32,8 +32,10 @@ public static class BankingApi
     public static async Task SettingsAsync(NidApp app, object body)
         => (await app.RawAsync(app.AdultA, HttpMethod.Patch, "/api/v1/admin/household", body)).EnsureSuccessStatusCode();
 
-    public static SessionAccount Account(string uid, string hash, string? iban, string name, string type = "CACC", string currency = "EUR")
-        => new(uid, hash, iban, name, type, currency);
+    public static SessionAccount Account(
+        string uid, string hash, string? iban, string name, string type = "CACC", string currency = "EUR", CardDebit? debit = null, string? numberLast4 = null,
+        string? holder = null, string? product = null)
+        => new(uid, hash, iban, name, type, currency, debit, numberLast4, holder, product);
 
     public static async Task<JsonElement> JsonAsync(HttpResponseMessage response)
         => JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement;

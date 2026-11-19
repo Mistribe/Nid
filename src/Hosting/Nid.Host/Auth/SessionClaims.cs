@@ -11,13 +11,23 @@ public static class SessionClaims
     public const string Subject = "nid:sub";
     public const string Epoch = "nid:session_epoch";
 
-    public static ClaimsPrincipal Create(PersonInfo person, string subject, string scheme)
-        => new(new ClaimsIdentity(
-        [
-            new Claim(PersonId, person.Id.Value.ToString()),
-            new Claim(Subject, subject),
-            new Claim(Epoch, person.SessionEpoch.ToString(System.Globalization.CultureInfo.InvariantCulture)),
-        ], scheme));
+    /// <summary>Issue 215: how the session was opened (<c>pwd</c> for a local password); absent for OIDC and demo sessions.</summary>
+    public const string Amr = "nid:amr";
+
+    /// <summary>The <c>nid:sub</c> of a session opened with a local account, which has no OIDC subject.</summary>
+    public const string LocalSubject = "local";
+
+    public static ClaimsPrincipal Create(PersonInfo person, string subject, string scheme, string? amr = null)
+    {
+        var claims = new List<Claim>
+        {
+            new(PersonId, person.Id.Value.ToString()),
+            new(Subject, subject),
+            new(Epoch, person.SessionEpoch.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+        };
+        if (amr is not null) claims.Add(new Claim(Amr, amr));
+        return new ClaimsPrincipal(new ClaimsIdentity(claims, scheme));
+    }
 
     public static PersonId? ReadPersonId(ClaimsPrincipal user)
         => Guid.TryParse(user.FindFirstValue(PersonId), out var id) ? new PersonId(id) : null;

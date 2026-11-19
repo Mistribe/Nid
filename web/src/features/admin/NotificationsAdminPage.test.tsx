@@ -78,7 +78,7 @@ describe('Administration › Notifications', () => {
 
   it('asks to wait when a test comes too soon after the last one', async () => {
     serve(configured);
-    server.use(http.post('*/api/v1/admin/notifications/test', () => HttpResponse.json({ status: 429, code: 'notifications.test_throttled', title: 'Wait a few seconds before another test.' }, { status: 429 })));
+    server.use(http.post('*/api/v1/admin/notifications/test', () => HttpResponse.json({ status: 429, code: 'notifications.test_throttled', detail: 'Wait a few seconds before another test.' }, { status: 429 })));
     await renderApp('/admin/notifications', { capabilities: adminCapabilities });
 
     await userEvent.click(await screen.findByRole('button', { name: "M'envoyer un email de test" }));
@@ -170,7 +170,7 @@ describe('Administration › Notifications', () => {
   });
   it('asks to wait when a household Discord test comes too soon after the last one', async () => {
     serve({ ...configured, discord: { hint: 'wxyz', status: 'ok' } });
-    server.use(http.post('*/api/v1/admin/notifications/test', () => HttpResponse.json({ status: 429, code: 'notifications.test_throttled', title: 'Wait a few seconds before another test.' }, { status: 429 })));
+    server.use(http.post('*/api/v1/admin/notifications/test', () => HttpResponse.json({ status: 429, code: 'notifications.test_throttled', detail: 'Wait a few seconds before another test.' }, { status: 429 })));
     await renderApp('/admin/notifications', { capabilities: adminCapabilities });
 
     await userEvent.click(await screen.findByRole('button', { name: 'Envoyer un test' }));

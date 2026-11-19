@@ -29,7 +29,7 @@ public class InvoiceProposalTests(PostgresFixture fixture) : IClassFixture<Postg
     {
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
         var error = (await JsonOf(response)).GetProperty("errors")[0];
-        Assert.Equal((path, code), (error.GetProperty("path").GetString(), error.GetProperty("code").GetString()));
+        Assert.Equal((path, code), (error.FieldPath(), error.GetProperty("code").GetString()));
     }
 
     [Fact]

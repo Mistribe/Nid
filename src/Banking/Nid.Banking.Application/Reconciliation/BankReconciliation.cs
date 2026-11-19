@@ -14,20 +14,21 @@ public sealed record ReconciliationCounts(int Internal, int Linked, int Proposed
 
 /// <summary>
 /// 5C spec §6.3: the lines no pass has looked at yet, after a sync or a statement import. Transfers and card settlements first, over the
-/// whole batch; then, line by line, its writers' rules, else its single candidate charge, proposed to a writer of the account who writes it (D22). The
+/// whole batch; then, line by line, its writers' rules, else its single candidate charge, proposed to a writer of the account who writes it (D22);
+/// then the category rules of the authors who write each line's account (transaction categories spec §Rules). The
 /// counts and codes of a failure are logged, never a label or an amount; a failed line stays for the next pass.
 /// </summary>
 public sealed class BankReconciliation(
     BankingAccess access, ITransactionStore transactions, IAccountStore accountStore, ILinkStore links, IRuleStore rules,
-    ExpectedChargeReader charges, TransactionLinker linker, IAccessPolicy policy, IProposalSubmitter proposals, IActorAccessor actor,
-    IUnitOfWork unitOfWork, IClock clock, ILogger<BankReconciliation> log)
+    ExpectedChargeReader charges, TransactionLinker linker, CategoryRuleApplier categoryRules, IAccessPolicy policy, IProposalSubmitter proposals,
+    IActorAccessor actor, IUnitOfWork unitOfWork, IClock clock, ILogger<BankReconciliation> log)
 {
     /// <summary>The widest tolerance of a charge (a rent's): the charges read around the batch.</summary>
     private const int ChargeMarginDays = 10;
 
     private static readonly ReconciliationCounts None = new(0, 0, 0);
 
-    /// <summary>Steps 1–4 of §6.3 on the unreconciled lines (all accounts when null), then marks them reconciled.</summary>
+    /// <summary>Steps 1–4 of §6.3 and the category rules on the unreconciled lines (all accounts when null), then marks them reconciled.</summary>
     public async Task<ReconciliationCounts> RunAsync(IReadOnlyCollection<Guid>? accounts, LocalDate today, CancellationToken ct)
     {
         try
@@ -70,7 +71,8 @@ public sealed class BankReconciliation(
         }
 
         Task InternalAsync(Guid line, Guid counterpart, LinkOutcome outcome)
-            => links.SetAsync(new BankLink(line, null, null, null, counterpart, outcome, null, "job", now), TransactionLinkState.Internal, ct);
+            => links.SetAsync(new BankLink(line, null, null, null, counterpart, outcome, null, "job", now), TransactionLinkState.Internal, ct,
+                LinkCategory.KeyFor(outcome, null, null, null, false, []));
 
         // Step 1: a counterpart reconciled in an earlier pass still pairs; a pair of two older lines is not this pass's. A card line is never
         // one side of a transfer, and two accounts pair only when an adult reads both: one who sees the pair and can undo it.
@@ -125,8 +127,12 @@ public sealed class BankReconciliation(
         // Steps 3 and 4, per account: its writers (who links a line writes its account), their rules that still apply, their writable
         // charges (the first writer's wins) of the items whose readers all read the account (§0 n°1: a proposal shows the line to them).
         var writersOf = new Dictionary<Guid, IReadOnlyList<PersonId>>();
-        foreach (var account in lines.Where(l => open.Contains(l.Id)).Select(l => l.Account).Distinct())
-            writersOf[account] = accounts.TryGetValue(account, out var found) ? await access.ReadersAsync(found, ct, AccessKind.Write) : [];
+        async Task WritersAsync(IEnumerable<Guid> of)
+        {
+            foreach (var account in of.Distinct().Where(a => !writersOf.ContainsKey(a)).ToList())
+                writersOf[account] = accounts.TryGetValue(account, out var found) ? await access.ReadersAsync(found, ct, AccessKind.Write) : [];
+        }
+        await WritersAsync(lines.Where(l => open.Contains(l.Id)).Select(l => l.Account));
         var writable = new Dictionary<PersonId, IReadOnlyList<ExpectedCharge>>();
         foreach (var person in writersOf.Values.SelectMany(r => r).Distinct())
             writable[person] = await charges.WritableAsync(person, min.PlusDays(-ChargeMarginDays), max.PlusDays(ChargeMarginDays), ct);
@@ -178,6 +184,14 @@ public sealed class BankReconciliation(
                 if (await ProposeAsync(line, charge, depositor, ct))
                     proposed++;
             });
+
+        // Every line, linked ones too (a link may give no category); a rule applies where its author writes the account (decision 3).
+        var looked = lines.Where(l => !failed.Contains(l.Id)).ToList();
+        await TryAsync([.. looked.Select(l => l.Id)], async () =>
+        {
+            await WritersAsync(looked.Select(l => l.Account));
+            await categoryRules.ApplyAsync(looked, (rule, account) => Task.FromResult(writersOf[account].Contains(rule.CreatedBy)), ct);
+        });
 
         await transactions.MarkReconciledAsync([.. lines.Select(l => l.Id).Where(id => !failed.Contains(id))], now, ct);
         return new ReconciliationCounts(internals, linked, proposed);

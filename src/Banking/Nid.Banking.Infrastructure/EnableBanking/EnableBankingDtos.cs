@@ -18,11 +18,15 @@ internal sealed record CodeDto(string Code);
 
 internal sealed record SessionDto(string SessionId, List<SessionAccountDto> Accounts, AccessDto Access);
 
+/// <summary><c>details</c> is the account's description, <c>product</c> the bank's product name, <c>name</c> the holders' name.</summary>
 internal sealed record SessionAccountDto(
     string IdentificationHash, string CashAccountType, string Currency, string? Uid = null, AccountIdDto? AccountId = null, string? Name = null,
-    string? Details = null);
+    string? Details = null, string? Product = null, List<OtherIdDto>? AllAccountIds = null);
 
-internal sealed record AccountIdDto(string? Iban = null);
+internal sealed record AccountIdDto(string? Iban = null, OtherIdDto? Other = null);
+
+/// <summary>A non-IBAN identification; <c>CPAN</c> is a card's number, masked by the bank.</summary>
+internal sealed record OtherIdDto(string? Identification = null, string? SchemeName = null);
 
 internal sealed record BalancesDto(List<BalanceDto>? Balances = null);
 
@@ -43,6 +47,9 @@ internal sealed record AmountDto(string Currency, string Amount);
 
 internal sealed record ErrorDto(string? Error = null);
 
+/// <summary><c>GET /application</c>: only what the connection test shows; the name, countries and services are not read.</summary>
+internal sealed record ApplicationDto(bool Active, List<string>? RedirectUrls = null);
+
 // A missing or null required field is a JsonException (a provider error), never a null slipping through: optional ones have defaults.
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     RespectNullableAnnotations = true, RespectRequiredConstructorParameters = true)]
@@ -54,4 +61,5 @@ internal sealed record ErrorDto(string? Error = null);
 [JsonSerializable(typeof(BalancesDto))]
 [JsonSerializable(typeof(TransactionsDto))]
 [JsonSerializable(typeof(ErrorDto))]
+[JsonSerializable(typeof(ApplicationDto))]
 internal sealed partial class EbJson : JsonSerializerContext;

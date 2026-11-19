@@ -19,7 +19,7 @@ public sealed record SnapshotLineDraft(Guid HoldingId, decimal? Units, decimal? 
 
 public sealed record SnapshotDraft(LocalDate AsOf, string? SourceLabel, bool Complete, IReadOnlyList<SnapshotLineDraft> Lines, bool RecordValuation);
 
-public sealed record AddHoldingCommand(ItemId ItemId, HoldingDraft Holding) : ICommand<Guid>, IItemScoped
+public sealed record AddHoldingCommand(ItemId ItemId, HoldingDraft Holding) : ICommand<Guid>, IItemScoped, ITransactional
 {
     public AccessKind Access => AccessKind.Write;
 }
@@ -28,29 +28,29 @@ public sealed record AddHoldingCommand(ItemId ItemId, HoldingDraft Holding) : IC
 /// Several holdings of one envelope as one write (a statement's new lines): what <see cref="AddHoldingCommand"/> checks, each
 /// against the holdings before it; a refusal names its holding by index (<see cref="Batch.Index"/>).
 /// </summary>
-public sealed record AddHoldingsCommand(ItemId ItemId, IReadOnlyList<HoldingDraft> Holdings) : ICommand<IReadOnlyList<Guid>>, IItemScoped
+public sealed record AddHoldingsCommand(ItemId ItemId, IReadOnlyList<HoldingDraft> Holdings) : ICommand<IReadOnlyList<Guid>>, IItemScoped, ITransactional
 {
     public AccessKind Access => AccessKind.Write;
 }
 
 /// <summary>A replacement in place; <paramref name="Version"/> is the holding's as the client read it.</summary>
-public sealed record EditHoldingCommand(ItemId ItemId, Guid Holding, HoldingDraft Values, uint Version) : ICommand<Guid>, IItemScoped
+public sealed record EditHoldingCommand(ItemId ItemId, Guid Holding, HoldingDraft Values, uint Version) : ICommand<Guid>, IItemScoped, ITransactional
 {
     public AccessKind Access => AccessKind.Write;
 }
 
-public sealed record DeleteHoldingCommand(ItemId ItemId, Guid Holding, uint Version) : ICommand<bool>, IItemScoped
+public sealed record DeleteHoldingCommand(ItemId ItemId, Guid Holding, uint Version) : ICommand<bool>, IItemScoped, ITransactional
 {
     public AccessKind Access => AccessKind.Write;
 }
 
 /// <summary>Records a snapshot: <paramref name="SnapshotId"/> replaces that one (PUT), null replaces the one of its date or creates it (POST).</summary>
-public sealed record RecordHoldingsSnapshotCommand(ItemId ItemId, Guid? SnapshotId, SnapshotDraft Snapshot) : ICommand<SnapshotRecorded>, IItemScoped
+public sealed record RecordHoldingsSnapshotCommand(ItemId ItemId, Guid? SnapshotId, SnapshotDraft Snapshot) : ICommand<SnapshotRecorded>, IItemScoped, ITransactional
 {
     public AccessKind Access => AccessKind.Write;
 }
 
-public sealed record DeleteHoldingsSnapshotCommand(ItemId ItemId, Guid Snapshot) : ICommand<bool>, IItemScoped
+public sealed record DeleteHoldingsSnapshotCommand(ItemId ItemId, Guid Snapshot) : ICommand<bool>, IItemScoped, ITransactional
 {
     public AccessKind Access => AccessKind.Write;
 }
@@ -135,7 +135,7 @@ internal static class HoldingRules
             d.Lines.Select(l => new SnapshotLine(l.HoldingId, l.Units, l.UnitPrice, l.Value.Amount, l.CostBasisPerUnit)).ToList()));
     }
 
-    public static Failure Conflict() => new(InvestmentsCodes.HoldingConflict, "This holding was changed since you read it: reload it.", null);
+    public static Failure Conflict() => new ConflictFailure("This holding was changed since you read it: reload it.") { Code = InvestmentsCodes.HoldingConflict };
 
     private static Result<T> Invalid<T>(string code, string field, string message) where T : notnull
         => Result.Failure<T>(new Failure(code, message, new Dictionary<string, object?> { ["field"] = field }));
@@ -170,12 +170,11 @@ internal static class HoldingCheck
 }
 
 [RequestHandler<AddHoldingsCommand, IReadOnlyList<Guid>>]
-public sealed class AddHoldingsHandler(IEnvelopeStore envelopes, IItemRegistry items, IHoldingStore holdings, IUnitOfWork unitOfWork)
+public sealed class AddHoldingsHandler(IEnvelopeStore envelopes, IItemRegistry items, IHoldingStore holdings)
     : IRequestHandler<AddHoldingsCommand, IReadOnlyList<Guid>>
 {
     public async ValueTask<Result<IReadOnlyList<Guid>>> HandleAsync(AddHoldingsCommand command, CancellationToken ct = default)
     {
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         if ((await HoldingCheck.OpenAsync(envelopes, items, command.ItemId, ct)).TryGetFailure(out var failure))
             return Result.Failure<IReadOnlyList<Guid>>(failure!);
         // Each against the envelope's holdings and the ones added before it, as added one by one (an ISIN held once).
@@ -191,18 +190,16 @@ public sealed class AddHoldingsHandler(IEnvelopeStore envelopes, IItemRegistry i
         }
 
         await holdings.AddManyAsync(added, ct);
-        await transaction.CommitAsync(ct);
         return Result.Success<IReadOnlyList<Guid>>(added.Select(h => h.Id).ToList());
     }
 }
 
 [RequestHandler<AddHoldingCommand, Guid>]
-public sealed class AddHoldingHandler(IEnvelopeStore envelopes, IItemRegistry items, IHoldingStore holdings, IUnitOfWork unitOfWork)
+public sealed class AddHoldingHandler(IEnvelopeStore envelopes, IItemRegistry items, IHoldingStore holdings)
     : IRequestHandler<AddHoldingCommand, Guid>
 {
     public async ValueTask<Result<Guid>> HandleAsync(AddHoldingCommand command, CancellationToken ct = default)
     {
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         if ((await HoldingCheck.OpenAsync(envelopes, items, command.ItemId, ct)).TryGetFailure(out var failure))
             return Result.Failure<Guid>(failure!);
         var checkedHolding = HoldingRules.Check(Guid.CreateVersion7(), command.ItemId, command.Holding, await holdings.HoldingsAsync(command.ItemId, ct));
@@ -210,18 +207,16 @@ public sealed class AddHoldingHandler(IEnvelopeStore envelopes, IItemRegistry it
             return Result.Failure<Guid>(checkedHolding.TryGetFailure(out failure) ? failure! : throw new InvalidOperationException());
 
         await holdings.AddAsync(holding, ct);
-        await transaction.CommitAsync(ct);
         return Result.Success(holding.Id);
     }
 }
 
 [RequestHandler<EditHoldingCommand, Guid>]
-public sealed class EditHoldingHandler(IEnvelopeStore envelopes, IItemRegistry items, IHoldingStore holdings, IUnitOfWork unitOfWork)
+public sealed class EditHoldingHandler(IEnvelopeStore envelopes, IItemRegistry items, IHoldingStore holdings)
     : IRequestHandler<EditHoldingCommand, Guid>
 {
     public async ValueTask<Result<Guid>> HandleAsync(EditHoldingCommand command, CancellationToken ct = default)
     {
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         if ((await HoldingCheck.OpenAsync(envelopes, items, command.ItemId, ct)).TryGetFailure(out var failure))
             return Result.Failure<Guid>(failure!);
         var all = await holdings.HoldingsAsync(command.ItemId, ct);
@@ -235,18 +230,16 @@ public sealed class EditHoldingHandler(IEnvelopeStore envelopes, IItemRegistry i
             return Result.Failure<Guid>(checkedHolding.TryGetFailure(out failure) ? failure! : throw new InvalidOperationException());
 
         await holdings.ReplaceAsync(holding, ct);
-        await transaction.CommitAsync(ct);
         return Result.Success(command.Holding);
     }
 }
 
 [RequestHandler<DeleteHoldingCommand, bool>]
-public sealed class DeleteHoldingHandler(IEnvelopeStore envelopes, IItemRegistry items, IHoldingStore holdings, IUnitOfWork unitOfWork)
+public sealed class DeleteHoldingHandler(IEnvelopeStore envelopes, IItemRegistry items, IHoldingStore holdings)
     : IRequestHandler<DeleteHoldingCommand, bool>
 {
     public async ValueTask<Result<bool>> HandleAsync(DeleteHoldingCommand command, CancellationToken ct = default)
     {
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         if ((await HoldingCheck.OpenAsync(envelopes, items, command.ItemId, ct)).TryGetFailure(out var failure))
             return Result.Failure<bool>(failure!);
         var stored = (await holdings.HoldingsAsync(command.ItemId, ct)).FirstOrDefault(h => h.Holding.Id == command.Holding);
@@ -255,22 +248,20 @@ public sealed class DeleteHoldingHandler(IEnvelopeStore envelopes, IItemRegistry
         if (stored.Version != command.Version)
             return Result.Failure<bool>(HoldingRules.Conflict());
         if (await holdings.InUseAsync(command.Holding, ct))
-            return Result.Failure<bool>(new Failure(InvestmentsCodes.HoldingInUse, "This holding is in a snapshot or has movements or cost reports: close it instead.", null));
+            return Result.Failure<bool>(new ConflictFailure("This holding is in a snapshot or has movements or cost reports: close it instead.") { Code = InvestmentsCodes.HoldingInUse });
 
         await holdings.DeleteAsync(command.Holding, ct);
-        await transaction.CommitAsync(ct);
         return Result.Success(true);
     }
 }
 
 [RequestHandler<RecordHoldingsSnapshotCommand, SnapshotRecorded>]
 public sealed class RecordHoldingsSnapshotHandler(
-    IEnvelopeStore envelopes, IItemRegistry items, IHoldingStore holdings, IValuations valuations, IHouseholdCalendar calendar, IUnitOfWork unitOfWork)
+    IEnvelopeStore envelopes, IItemRegistry items, IHoldingStore holdings, IValuations valuations, IHouseholdCalendar calendar)
     : IRequestHandler<RecordHoldingsSnapshotCommand, SnapshotRecorded>
 {
     public async ValueTask<Result<SnapshotRecorded>> HandleAsync(RecordHoldingsSnapshotCommand command, CancellationToken ct = default)
     {
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         var open = await HoldingCheck.OpenAsync(envelopes, items, command.ItemId, ct);
         if (!open.TryGetValue(out var envelope))
             return Result.Failure<SnapshotRecorded>(open.TryGetFailure(out var refused) ? refused! : throw new InvalidOperationException());
@@ -308,25 +299,22 @@ public sealed class RecordHoldingsSnapshotHandler(
         }
 
         var warnings = HoldingMath.Warnings(snapshot, await HoldingCheck.ValuationOnAsync(valuations, command.ItemId, snapshot.AsOf, ct));
-        await transaction.CommitAsync(ct);
         return Result.Success(new SnapshotRecorded(id, warnings.Select(HoldingWarningView.Of).ToList(), valuationId));
     }
 }
 
 [RequestHandler<DeleteHoldingsSnapshotCommand, bool>]
-public sealed class DeleteHoldingsSnapshotHandler(IEnvelopeStore envelopes, IItemRegistry items, IHoldingStore holdings, IUnitOfWork unitOfWork)
+public sealed class DeleteHoldingsSnapshotHandler(IEnvelopeStore envelopes, IItemRegistry items, IHoldingStore holdings)
     : IRequestHandler<DeleteHoldingsSnapshotCommand, bool>
 {
     public async ValueTask<Result<bool>> HandleAsync(DeleteHoldingsSnapshotCommand command, CancellationToken ct = default)
     {
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         if ((await HoldingCheck.OpenAsync(envelopes, items, command.ItemId, ct)).TryGetFailure(out var failure))
             return Result.Failure<bool>(failure!);
         if ((await holdings.SnapshotsAsync(command.ItemId, ct)).All(s => s.Id != command.Snapshot))
             return Result.Failure<bool>(new NotFoundFailure("holding snapshot", command.Snapshot.ToString()));
 
         await holdings.DeleteSnapshotAsync(command.Snapshot, ct);
-        await transaction.CommitAsync(ct);
         return Result.Success(true);
     }
 }

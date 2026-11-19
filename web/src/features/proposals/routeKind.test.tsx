@@ -203,7 +203,7 @@ describe('Une proposition d’action du web', () => {
       http.get('*/api/v1/core/proposals/:id', () => HttpResponse.json({ proposal: current, preview: {}, canDecide: true })),
       http.post('*/api/v1/core/proposals/:id/approve', () => {
         current = { ...current, version: current.version + 1 };
-        return HttpResponse.json({ status: 409, code: 'core.proposal_conflict', title: 'x' }, { status: 409 });
+        return HttpResponse.json({ status: 409, code: 'core.proposal_conflict', detail: 'x' }, { status: 409 });
       }),
     );
     const { user } = await renderApp(`/proposals/${current.id}`);

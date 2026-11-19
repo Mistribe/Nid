@@ -12,5 +12,6 @@ public static class PlatformNotificationKinds
         new("access_violation", NotificationFamilies.Security, NotificationLevel.Critical, "platform", null),
         new("proposal_pending", NotificationFamilies.Action, NotificationLevel.Action, "core", null),
         new("job_failed", NotificationFamilies.Health, NotificationLevel.Action, "platform", null),
+        .. AccountNotices.Kinds,
     ];
 }

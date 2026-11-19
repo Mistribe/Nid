@@ -2,6 +2,7 @@ using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
 using NodaTime;
 using UnambitiousFx.Functional;
+using UnambitiousFx.Functional.Failures;
 using UnambitiousFx.Synapse.Abstractions;
 
 namespace Nid.Childcare.Application;
@@ -39,6 +40,50 @@ public sealed class GetStatementHandler(StatementAssembly assembly, IActorAccess
             return Result.Failure<ChildcareStatementView>(failure!);
         context.TryGetValue(out var found);
         return Result.Success(await assembly.ViewAsync(actor.Current!.PersonId!.Value, found!, ct));
+    }
+}
+
+/// <summary>The final settlement of an ended contract; not found while the contract has not been ended with its reason.</summary>
+public sealed record GetSettlementQuery(ItemId ItemId) : IQuery<ChildcareSettlementView>, IItemScoped
+{
+    public AccessKind Access => AccessKind.Read;
+}
+
+[RequestHandler<GetSettlementQuery, ChildcareSettlementView>]
+public sealed class GetSettlementHandler(StatementAssembly assembly, IPersonRegistry persons, IHouseholdSettings household)
+    : IRequestHandler<GetSettlementQuery, ChildcareSettlementView>
+{
+    public async ValueTask<Result<ChildcareSettlementView>> HandleAsync(GetSettlementQuery query, CancellationToken ct = default)
+    {
+        var loaded = await assembly.ArrangementAsync(query.ItemId, ct);
+        if (loaded.TryGetFailure(out var failure))
+            return Result.Failure<ChildcareSettlementView>(failure!);
+        loaded.TryGetValue(out var found);
+        if (found.Arrangement.End is not { } end || found.Revisions[^1].To is not { } last)
+            return Result.Failure<ChildcareSettlementView>(new NotFoundFailure("childcare.settlement", query.ItemId.Value.ToString()));
+        var context = await assembly.ContextAsync(query.ItemId, last.ToYearMonth(), ct);
+        if (context.TryGetFailure(out failure))
+            return Result.Failure<ChildcareSettlementView>(failure!);
+        context.TryGetValue(out var month);
+        var stored = month!.StoredMonth;
+        var evaluation = stored is { Validated: true, Figures: { } frozen } ? new MonthEvaluation(frozen, [], []) : await assembly.EvaluateAsync(month,
+            (await assembly.DaysAsync(month, ct)).Days, [], stored?.Mileage ?? 0m, stored?.Cmg, stored?.Declared, stored?.Contributions ?? 0m, stored?.Exemption, ct);
+
+        var currency = await household.ReferenceCurrencyAsync(ct);
+        ChildcareMoneyView Money(decimal amount) => ChildcareMoneyView.Of(amount, currency);
+        SettlementLinesView? lines = null;
+        if (evaluation.Figures is { } f)
+        {
+            var d = f.Declaration;
+            lines = new SettlementLinesView(Money(d.NetPay - f.Regularisation), Money(f.Regularisation), d.LeaveIndemnity == 0m ? null : d.PaidLeaveDays,
+                Money(d.LeaveIndemnity), Money(d.RuptureIndemnity), Money(d.Upkeep), Money(d.Meals), Money(d.Mileage),
+                Money(d.NetPay + d.LeaveIndemnity + d.RuptureIndemnity + d.Upkeep + d.Meals + d.Mileage));
+        }
+        var child = (await persons.ListAsync(ct)).FirstOrDefault(p => p.Id == found.Arrangement.Child)?.DisplayName ?? "";
+        return Result.Success(new ChildcareSettlementView(
+            query.ItemId.Value, found.Item.DisplayName, child, found.Arrangement.CarerName, found.Revisions[0].From, last, ContractEndView.Of(end, found.Revisions),
+            StatementAssembly.Format(month.Month), stored is { Validated: true }, lines,
+            evaluation.Problems.Select(p => new FieldProblemView(p.Field, p.Code)).ToList(), evaluation.Missing.Select(StatementAssembly.Format).ToList()));
     }
 }
 

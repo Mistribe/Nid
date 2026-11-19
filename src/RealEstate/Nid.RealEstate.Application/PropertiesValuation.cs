@@ -135,7 +135,7 @@ internal static class PropertiesValuationMath
         var d = p.Property.Details;
         var costPrice = d.PurchasePrice + d.NotaryFees + d.AgencyFees + d.OtherAcquisitionCosts;
         var steps = new List<CostStepView> { new(d.PurchaseDate, Amount(costPrice)) };
-        foreach (var day in p.Flows.Where(f => f.Kind == FlowKind.Expense && f.Category == PropertyCategories.Works && f.OccurredOn <= today)
+        foreach (var day in p.Flows.Where(f => f.Kind == FlowKind.Expense && PropertyCategories.IsWorks(f.Category) && f.OccurredOn <= today)
                      .GroupBy(f => f.OccurredOn).OrderBy(g => g.Key))
         {
             costPrice += day.Sum(f => f.Amount.Amount);

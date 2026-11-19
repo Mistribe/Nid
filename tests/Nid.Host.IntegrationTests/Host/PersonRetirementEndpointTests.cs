@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Nid.TestSupport;
+using Npgsql;
 
 namespace Nid.Host.IntegrationTests.Host;
 
@@ -23,6 +24,39 @@ public class PersonRetirementEndpointTests(PostgresFixture fixture, SharedNidApp
         var person = await PersonAsync(app, app.AdultB.Value);
         Assert.Equal("1984-05-20", person.GetProperty("birthDate").GetString());
         Assert.Equal(62, person.GetProperty("retirementAge").GetInt32());
+    }
+
+    [Fact]
+    public async Task A_change_to_the_person_saved_meanwhile_does_not_fail_the_retirement()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var ct = TestContext.Current.CancellationToken;
+        // Another request (a guide marked seen, a theme) writes the same person row and holds it while the retirement is saved.
+        await using var other = new NpgsqlConnection(app.ConnectionString);
+        await other.OpenAsync(ct);
+        await using var transaction = await other.BeginTransactionAsync(ct);
+        await using (var touch = new NpgsqlCommand("update core.person set preferences = preferences where id = @id", other, transaction))
+        {
+            touch.Parameters.AddWithValue("id", app.AdultB.Value);
+            await touch.ExecuteNonQueryAsync(ct);
+        }
+
+        var saving = app.RawAsync(app.AdultA, HttpMethod.Put, Url(app.AdultB.Value), new { birthDate = "1984-05-20", retirementAge = 62 });
+        // The save reaches the row and waits on the other write's lock before that write commits.
+        await using (var waiting = new NpgsqlConnection(app.ConnectionString))
+        {
+            await waiting.OpenAsync(ct);
+            await using var blocked = new NpgsqlCommand("select count(*) from pg_locks where not granted", waiting);
+            for (var tries = 0; (long)(await blocked.ExecuteScalarAsync(ct))! == 0; tries++)
+            {
+                Assert.True(tries < 200, "the retirement save never waited on the person row");
+                await Task.Delay(50, ct);
+            }
+        }
+        await transaction.CommitAsync(ct);
+
+        Assert.Equal(HttpStatusCode.OK, (await saving).StatusCode);
+        Assert.Equal(62, (await PersonAsync(app, app.AdultB.Value)).GetProperty("retirementAge").GetInt32());
     }
 
     [Fact]
@@ -90,7 +124,7 @@ public class PersonRetirementEndpointTests(PostgresFixture fixture, SharedNidApp
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
         var problem = await response.Content.ReadFromJsonAsync<JsonElement>(TestContext.Current.CancellationToken);
-        Assert.Equal(["retirementAge", "retirementMonths"], problem.GetProperty("errors").EnumerateArray().Select(e => e.GetProperty("path").GetString()).ToArray());
+        Assert.Equal(["retirementAge", "retirementMonths"], problem.GetProperty("errors").EnumerateArray().Select(e => e.FieldPath()).ToArray());
     }
 
     [Fact]
@@ -122,6 +156,6 @@ public class PersonRetirementEndpointTests(PostgresFixture fixture, SharedNidApp
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
         var problem = await response.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal(code, problem.GetProperty("code").GetString());
-        Assert.Equal(field, problem.GetProperty("errors")[0].GetProperty("path").GetString());
+        Assert.Equal(field, problem.GetProperty("errors")[0].FieldPath());
     }
 }

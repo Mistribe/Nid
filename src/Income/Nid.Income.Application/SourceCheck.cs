@@ -21,7 +21,7 @@ internal static class SourceCheck
     /// <summary>Spec §4: an ended source refuses every write but its reopening.</summary>
     public static Result RequireOpen(ItemAccess item)
         => item.ArchivedAt is null ? Result.Success()
-            : Result.Failure(new Failure(IncomeCodes.SourceEnded, "This source has ended: reopen it first.", null));
+            : Result.Failure(new ConflictFailure("This source has ended: reopen it first.") { Code = IncomeCodes.SourceEnded });
 
     /// <summary>A source's item always has a currency (it is created with one); its absence is a broken invariant.</summary>
     public static Currency CurrencyOf(ItemAccess item)

@@ -32,7 +32,9 @@ public static class TaxLineCodes
     public const string SalaryRateTaxable = "salary_rate_taxable";
     public const string OtherTaxable = "other_taxable";
     public const string NonTaxable = "non_taxable";
-    /// <summary>An income the estimate does not compute (pension, self-employment, alimony): shown, never counted.</summary>
+    /// <summary>A pension or alimony received, net taxable (the net paid where the phase has no taxable amount), under the pensions' allowance.</summary>
+    public const string Pension = "pension";
+    /// <summary>An income the estimate does not compute (self-employment, other): shown, never counted.</summary>
     public const string Unsupported = "unsupported";
     /// <summary>Rental 2044 spec §3: a property's amount on a line of the form; <c>Item</c> is the property, a loan's interest included.</summary>
     public const string Rental211 = "rental_211";
@@ -52,10 +54,24 @@ public static class TaxLineCodes
     /// <summary>A rental property: its cost price, purchase date and surface (the 20 € per property, Pinel's base).</summary>
     public const string RentalProperty = "rental_property";
     public const string CapitalIncome = "capital_income";
+    /// <summary>#234: a brokerage account's dividends, eligible to the 40 % allowance under the scale; counted in the capital income too.</summary>
+    public const string CapitalDividends = "capital_dividends";
+    /// <summary>#234: a savings account that is no regulated livret: its taxable interest of the year, counted with the capital income.</summary>
+    public const string SavingsInterest = "savings_interest";
+    /// <summary>#234: a taxable savings account whose interest cannot be told from its deposits (a bank balance, no payment recorded): amount 0.</summary>
+    public const string SavingsInterestUnknown = "savings_interest_unknown";
+    /// <summary>#234: a brokerage account's net gain (negative: loss) on the securities sold in the year (3VG / 3VH).</summary>
+    public const string RealisedGain = "realised_gain";
+    /// <summary>#234: a brokerage account's sales of the year without units or cost per unit: their amount, the gain left out.</summary>
+    public const string RealisedGainUnknown = "realised_gain_unknown";
     /// <summary>Childcare spec decision 21: a validated childminder statement's tax base (net pay + upkeep + contributions left to the household + exemption on the extra hours − CMG), without a person.</summary>
     public const string ChildcareOutsideHome = "childcare_outside_home";
     /// <summary>#14: a month of the current year left to validate, at the mean tax base of the validated months, without a person.</summary>
     public const string ChildcareProjected = "childcare_projected";
+    /// <summary>#94: a recorded month of a nanny at home, its net cost (paid − CMG), without a person: the home-employment credit's base.</summary>
+    public const string HomeEmploymentTracked = "home_employment_tracked";
+    /// <summary>#94: a month left of the current year after a nanny's latest recorded one, at the mean net cost of the recorded months.</summary>
+    public const string HomeEmploymentProjected = "home_employment_projected";
     public const string PerContribution = "per_contribution";
     /// <summary>Tax-per spec §4.5: a PER open in the year with a value and neither a payment nor an opening in it (amount 0, one line per owner).</summary>
     public const string PerNoContribution = "per_no_contribution";
@@ -151,6 +167,7 @@ public sealed record PinelCommitment(Guid Property, int InitialYears, int TotalY
 /// exempt income the reference income counts (overtime, the value-sharing bonus). <c>DonationsAid</c> is box 7UD, <c>DonationsAidLate</c>
 /// 7UQ (the aid donations of 2025 made from 14 October); <c>RentalEnergyWorks</c> the energy renovation works among the rental charges.
 /// Issue #409: <c>Department</c>, the household's department code (<see cref="TaxCalendar.IsDepartment"/>), dates the filing deadline.
+/// Issue #320: <c>AlternateUnder6</c>, how many of the <c>ChildrenUnder6</c> live in alternate custody (half the childcare cap each).
 /// </summary>
 public sealed record TaxProfile(
     IReadOnlyDictionary<Guid, string> Statuses, int? Dependents, int ChildrenUnder6, string? RentalRegime,
@@ -158,7 +175,10 @@ public sealed record TaxProfile(
     IReadOnlyDictionary<Guid, decimal>? ContributionRates = null, IReadOnlyDictionary<Guid, decimal>? ActualExpenses = null,
     IReadOnlyDictionary<Guid, decimal>? PerUnusedCeilings = null, decimal RentalDeficitCarried = 0m,
     IReadOnlyDictionary<Guid, decimal>? PerCeilings = null, IReadOnlyDictionary<Guid, decimal>? PerCeilingsExpiring = null, bool PerPooling = false,
-    IReadOnlyDictionary<Guid, decimal>? ExemptIncomes = null, decimal DonationsAidLate = 0m, decimal RentalEnergyWorks = 0m, string? Department = null)
+    IReadOnlyDictionary<Guid, decimal>? ExemptIncomes = null, decimal DonationsAidLate = 0m, decimal RentalEnergyWorks = 0m, string? Department = null,
+    bool CapitalScale = false, decimal DeductibleCsg = 0m,
+    decimal AlimonyPaid = 0m, decimal AlimonyAdultChildren = 0m, int AlimonyAdultChildrenCount = 0, decimal CapitalLossesCarried = 0m,
+    int AlternateCustody = 0, bool Cohabiting = false, IReadOnlyList<Guid>? DisabledAdults = null, int DisabledDependents = 0, int AlternateUnder6 = 0)
 {
     public static readonly TaxProfile Empty = new(new Dictionary<Guid, string>(), null, 0, null, [], 0m, 0m, 0m, 0m);
 }

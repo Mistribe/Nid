@@ -19,10 +19,44 @@ namespace Nid.Banking.Infrastructure.Persistence.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("banking")
-                .HasAnnotation("ProductVersion", "10.0.4")
+                .HasAnnotation("ProductVersion", "10.0.15")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+
+            modelBuilder.Entity("Nid.Banking.Infrastructure.Persistence.AccountReadRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("account_id");
+
+                    b.Property<bool>("Attended")
+                        .HasColumnType("boolean")
+                        .HasColumnName("attended");
+
+                    b.Property<bool>("RateLimited")
+                        .HasColumnType("boolean")
+                        .HasColumnName("rate_limited");
+
+                    b.Property<Instant>("ReadAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("read_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_account_read");
+
+                    b.HasIndex("ReadAt")
+                        .HasDatabaseName("ix_account_read_read_at");
+
+                    b.HasIndex("AccountId", "ReadAt")
+                        .HasDatabaseName("ix_account_read_account_id_read_at");
+
+                    b.ToTable("account_read", "banking");
+                });
 
             modelBuilder.Entity("Nid.Banking.Infrastructure.Persistence.AccountRow", b =>
                 {
@@ -46,6 +80,18 @@ namespace Nid.Banking.Infrastructure.Persistence.Migrations
                         .HasColumnType("date")
                         .HasColumnName("balance_conflict_on");
 
+                    b.Property<bool>("CardCountWithdrawals")
+                        .HasColumnType("boolean")
+                        .HasColumnName("card_count_withdrawals");
+
+                    b.Property<string>("CardDebit")
+                        .HasColumnType("text")
+                        .HasColumnName("card_debit");
+
+                    b.Property<int?>("CardMinPayments")
+                        .HasColumnType("integer")
+                        .HasColumnName("card_min_payments");
+
                     b.Property<Guid?>("CardOfAccountId")
                         .HasColumnType("uuid")
                         .HasColumnName("card_of_account_id");
@@ -62,6 +108,14 @@ namespace Nid.Banking.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("EnvelopeItemId")
                         .HasColumnType("uuid")
                         .HasColumnName("envelope_item_id");
+
+                    b.Property<string>("Holder")
+                        .HasColumnType("text")
+                        .HasColumnName("holder");
+
+                    b.Property<string>("HouseholdName")
+                        .HasColumnType("text")
+                        .HasColumnName("household_name");
 
                     b.Property<byte[]>("IbanHash")
                         .HasColumnType("bytea")
@@ -89,6 +143,10 @@ namespace Nid.Banking.Infrastructure.Persistence.Migrations
                         .HasColumnType("text")
                         .HasColumnName("name");
 
+                    b.Property<string>("Product")
+                        .HasColumnType("text")
+                        .HasColumnName("product");
+
                     b.Property<uint>("Version")
                         .IsConcurrencyToken()
                         .ValueGeneratedOnAddOrUpdate()
@@ -111,9 +169,19 @@ namespace Nid.Banking.Infrastructure.Persistence.Migrations
 
                     b.ToTable("account", "banking", t =>
                         {
+                            t.HasCheckConstraint("ck_account_card_debit", "card_debit is null or card_debit in ('immediate','deferred')");
+
+                            t.HasCheckConstraint("ck_account_card_min_payments", "card_min_payments is null or (kind = 'card' and card_min_payments between 1 and 31)");
+
+                            t.HasCheckConstraint("ck_account_holder", "holder is null or char_length(holder) between 1 and 200");
+
+                            t.HasCheckConstraint("ck_account_household_name", "household_name is null or char_length(household_name) between 1 and 100");
+
                             t.HasCheckConstraint("ck_account_iban_masked", "iban_masked is null or char_length(iban_masked) <= 4");
 
                             t.HasCheckConstraint("ck_account_kind", "kind in ('checking','savings','card','other')");
+
+                            t.HasCheckConstraint("ck_account_product", "product is null or char_length(product) between 1 and 200");
                         });
                 });
 
@@ -176,6 +244,133 @@ namespace Nid.Banking.Infrastructure.Persistence.Migrations
                         .HasName("pk_balance");
 
                     b.ToTable("balance", "banking");
+                });
+
+            modelBuilder.Entity("Nid.Banking.Infrastructure.Persistence.CategoryRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Instant?>("ArchivedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("archived_at");
+
+                    b.Property<string>("Key")
+                        .HasColumnType("text")
+                        .HasColumnName("key");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("kind");
+
+                    b.Property<Guid?>("MergedIntoId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("merged_into_id");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("name");
+
+                    b.Property<Guid?>("ParentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("parent_id");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("pk_category");
+
+                    b.HasIndex("Key")
+                        .IsUnique()
+                        .HasDatabaseName("ix_category_key");
+
+                    b.HasIndex("MergedIntoId")
+                        .HasDatabaseName("ix_category_merged_into_id");
+
+                    b.HasIndex("ParentId")
+                        .HasDatabaseName("ix_category_parent_id");
+
+                    b.ToTable("category", "banking", t =>
+                        {
+                            t.HasCheckConstraint("ck_category_kind", "kind in ('expense','income','transfer')");
+
+                            t.HasCheckConstraint("ck_category_name", "char_length(name) between 1 and 60");
+                        });
+                });
+
+            modelBuilder.Entity("Nid.Banking.Infrastructure.Persistence.CategoryRuleRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid?>("AccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("account_id");
+
+                    b.Property<Guid>("CategoryId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("category_id");
+
+                    b.Property<Instant>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("CreatedByPersonId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by_person_id");
+
+                    b.Property<string>("Direction")
+                        .HasColumnType("text")
+                        .HasColumnName("direction");
+
+                    b.Property<Instant?>("LastUsedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_used_at");
+
+                    b.Property<decimal?>("MaxAmount")
+                        .HasColumnType("numeric(19,4)")
+                        .HasColumnName("max_amount");
+
+                    b.Property<decimal?>("MinAmount")
+                        .HasColumnType("numeric(19,4)")
+                        .HasColumnName("min_amount");
+
+                    b.Property<string>("Pattern")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("pattern");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("pk_category_rule");
+
+                    b.HasIndex("AccountId")
+                        .HasDatabaseName("ix_category_rule_account_id");
+
+                    b.HasIndex("CategoryId")
+                        .HasDatabaseName("ix_category_rule_category_id");
+
+                    b.ToTable("category_rule", "banking", t =>
+                        {
+                            t.HasCheckConstraint("ck_category_rule_amounts", "(min_amount is null or min_amount >= 0) and (max_amount is null or max_amount >= 0) and (min_amount is null or max_amount is null or min_amount <= max_amount)");
+
+                            t.HasCheckConstraint("ck_category_rule_direction", "direction is null or direction in ('debit','credit')");
+
+                            t.HasCheckConstraint("ck_category_rule_pattern", "char_length(pattern) between 2 and 60");
+                        });
                 });
 
             modelBuilder.Entity("Nid.Banking.Infrastructure.Persistence.ConnectionRow", b =>
@@ -435,6 +630,12 @@ namespace Nid.Banking.Infrastructure.Persistence.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("proposals");
 
+                    b.Property<int>("RateLimited")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("rate_limited");
+
                     b.Property<int>("Skipped")
                         .HasColumnType("integer")
                         .HasColumnName("skipped");
@@ -495,6 +696,26 @@ namespace Nid.Banking.Infrastructure.Persistence.Migrations
                         .HasColumnType("date")
                         .HasColumnName("booked_on");
 
+                    b.Property<Instant?>("CategorisedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("categorised_at");
+
+                    b.Property<string>("CategorisedBy")
+                        .HasColumnType("text")
+                        .HasColumnName("categorised_by");
+
+                    b.Property<Guid?>("CategoryId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("category_id");
+
+                    b.Property<Guid?>("CategoryRuleId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("category_rule_id");
+
+                    b.Property<string>("CategorySource")
+                        .HasColumnType("text")
+                        .HasColumnName("category_source");
+
                     b.Property<string>("Counterparty")
                         .HasColumnType("text")
                         .HasColumnName("counterparty");
@@ -553,6 +774,12 @@ namespace Nid.Banking.Infrastructure.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("pk_transaction");
 
+                    b.HasIndex("CategoryId")
+                        .HasDatabaseName("ix_transaction_category_id");
+
+                    b.HasIndex("CategoryRuleId")
+                        .HasDatabaseName("ix_transaction_category_rule_id");
+
                     b.HasIndex("AccountId", "BookedOn")
                         .HasDatabaseName("ix_transaction_account_id_booked_on");
 
@@ -564,8 +791,13 @@ namespace Nid.Banking.Infrastructure.Persistence.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_transaction_account_id_provider_ref");
 
+                    b.HasIndex("AccountId", "CategoryId", "BookedOn")
+                        .HasDatabaseName("ix_transaction_account_id_category_id_booked_on");
+
                     b.ToTable("transaction", "banking", t =>
                         {
+                            t.HasCheckConstraint("ck_transaction_category_source", "category_source is null or category_source in ('link','rule','hand','assistant','hint')");
+
                             t.HasCheckConstraint("ck_transaction_fetched_via", "fetched_via in ('api','file')");
 
                             t.HasCheckConstraint("ck_transaction_link_state", "link_state in ('unlinked','linked','ignored','internal')");
@@ -677,6 +909,16 @@ namespace Nid.Banking.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Nid.Banking.Infrastructure.Persistence.AccountReadRow", b =>
+                {
+                    b.HasOne("Nid.Banking.Infrastructure.Persistence.AccountRow", null)
+                        .WithMany()
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_account_read_account_account_id");
+                });
+
             modelBuilder.Entity("Nid.Banking.Infrastructure.Persistence.AccountRow", b =>
                 {
                     b.HasOne("Nid.Banking.Infrastructure.Persistence.AccountRow", null)
@@ -710,6 +952,37 @@ namespace Nid.Banking.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_balance_account_account_id");
+                });
+
+            modelBuilder.Entity("Nid.Banking.Infrastructure.Persistence.CategoryRow", b =>
+                {
+                    b.HasOne("Nid.Banking.Infrastructure.Persistence.CategoryRow", null)
+                        .WithMany()
+                        .HasForeignKey("MergedIntoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_category_category_merged_into_id");
+
+                    b.HasOne("Nid.Banking.Infrastructure.Persistence.CategoryRow", null)
+                        .WithMany()
+                        .HasForeignKey("ParentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_category_category_parent_id");
+                });
+
+            modelBuilder.Entity("Nid.Banking.Infrastructure.Persistence.CategoryRuleRow", b =>
+                {
+                    b.HasOne("Nid.Banking.Infrastructure.Persistence.AccountRow", null)
+                        .WithMany()
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .HasConstraintName("fk_category_rule_account_account_id");
+
+                    b.HasOne("Nid.Banking.Infrastructure.Persistence.CategoryRow", null)
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_category_rule_category_category_id");
                 });
 
             modelBuilder.Entity("Nid.Banking.Infrastructure.Persistence.LinkRow", b =>
@@ -750,6 +1023,18 @@ namespace Nid.Banking.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_transaction_account_account_id");
+
+                    b.HasOne("Nid.Banking.Infrastructure.Persistence.CategoryRow", null)
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_transaction_category_category_id");
+
+                    b.HasOne("Nid.Banking.Infrastructure.Persistence.CategoryRuleRow", null)
+                        .WithMany()
+                        .HasForeignKey("CategoryRuleId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_transaction_category_rule_category_rule_id");
                 });
 #pragma warning restore 612, 618
         }

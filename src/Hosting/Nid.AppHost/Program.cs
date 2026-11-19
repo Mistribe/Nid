@@ -84,4 +84,4 @@ var caddy = builder.AddContainer("caddy", "caddy", "2")
     .WaitFor(api).WaitFor(pocketId);
 if (web is not null) caddy.WaitFor(web);
 
-builder.Build().Run();
+await builder.Build().RunAsync();

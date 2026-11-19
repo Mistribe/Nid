@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Nid.Core.Application.Admin;
 using Nid.Core.Contracts;
@@ -46,13 +47,21 @@ public static class AdminCli
             }
             provider.GetRequiredService<IActorAccessor>().Current = Actor.Cli;
             run = new Session(parsed, console, provider.GetRequiredService<IInvoker>(), provider.GetRequiredService<ISecurityEvents>(),
-                provider.GetRequiredService<Nid.Platform.Audit.AuditRequest>(), ct);
+                provider.GetRequiredService<Nid.Platform.Audit.AuditRequest>(), ct,
+                provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<Nid.Host.Auth.NidAuthOptions>>().Value,
+                provider.GetRequiredService<Nid.Host.Auth.AuthSettings>());
             return parsed.Command switch
             {
                 "list-persons" => await run.ListAsync(),
                 "revoke-sessions" => await run.RevokeSessionsAsync(),
                 "revoke-tokens" => await run.RevokeTokensAsync(),
                 "rebind-subject" => await run.RebindAsync(),
+                "create-admin" => await run.CreateAdminAsync(),
+                "reset-password" => await run.ResetPasswordAsync(),
+                "unlock" => await run.UnlockAsync(),
+                "reset-totp" => await run.ResetTotpAsync(),
+                "grant-admin" => await run.SetAdminAsync(true),
+                "revoke-admin" => await run.SetAdminAsync(false),
                 _ => 2,
             };
         }
@@ -81,10 +90,144 @@ public static class AdminCli
     }
 
     private sealed class Session(
-        ParsedArgs args, CliConsole console, IInvoker invoker, ISecurityEvents events, Nid.Platform.Audit.AuditRequest audit, CancellationToken ct)
+        ParsedArgs args, CliConsole console, IInvoker invoker, ISecurityEvents events, Nid.Platform.Audit.AuditRequest audit, CancellationToken ct,
+        Nid.Host.Auth.NidAuthOptions auth, Nid.Host.Auth.AuthSettings settings)
     {
         private string Command => args.Command!;
         private bool recorded;
+
+        /// <summary>Issue 215: `create-admin` creates a pending adult who is admin, then prints their enrolment link.</summary>
+        public async Task<int> CreateAdminAsync()
+        {
+            if (!await LocalAccountsOnAsync()) return 1;
+            if (settings.AdminSource == Nid.Host.Auth.AdminSource.IdentityProvider)
+            {
+                await console.Error.WriteLineAsync("Le rôle admin vient du fournisseur d'identité (Auth__AdminSource=identity_provider) : ajoutez la personne au groupe admin.");
+                await RecordAsync("refused", "admin_cli.admin_source_identity_provider", null);
+                return 1;
+            }
+            args.Options.TryGetValue("email", out var email);
+            var created = await SendAsync(new CreateAdminAdultCommand(args.Options["name"], email));
+            if (created.TryGetFailure(out var failure))
+            {
+                await console.Error.WriteLineAsync(failure!.Code switch
+                {
+                    PersonCodes.AdultCap => "Le foyer a déjà son nombre maximal d'adultes (Administration › Foyer).",
+                    PersonCodes.EmailTaken => "Un autre adulte a déjà cet email.",
+                    PersonCodes.NameRequired => "Un nom est obligatoire.",
+                    _ => $"Refusé ({failure.Code}).",
+                });
+                await RecordAsync("refused", failure.Code, null);
+                return 1;
+            }
+            created.TryGetValue(out var adult);
+            var person = new PersonView(adult!.Id, "adult", adult.DisplayName, adult.Email, adult.Status, adult.IsAdmin, false, adult.Methods);
+            return await PrintLinkAsync(person, revokeTokens: false, $"{Describe(person)} est créé, administrateur.");
+        }
+
+        /// <summary>Issue 215: `reset-password` prints a reset link (an enrolment link for an adult without a local account).</summary>
+        public async Task<int> ResetPasswordAsync()
+        {
+            if (!await LocalAccountsOnAsync()) return 1;
+            if (await ResolveAsync() is not { } person) return 1;
+            if (person.Kind != "adult")
+            {
+                await console.Error.WriteLineAsync("Seul un adulte se connecte.");
+                await RecordAsync("refused", PersonCodes.NotAnAdult, person);
+                return 1;
+            }
+            return await PrintLinkAsync(person, args.RevokeTokens, null);
+        }
+
+        /// <summary>Issue 215: `unlock` clears the lock of a local account.</summary>
+        public async Task<int> UnlockAsync()
+        {
+            if (!await LocalAccountsOnAsync()) return 1;
+            if (await ResolveAsync() is not { } person) return 1;
+            var result = await SendAsync(new UnlockAccountCommand(new PersonId(person.Id)));
+            if (result.TryGetFailure(out var failure))
+            {
+                await console.Error.WriteLineAsync(failure is NotFoundFailure ? $"{Describe(person)} n'a pas de compte local." : $"Refusé ({failure!.Code}).");
+                await RecordAsync("refused", failure!.Code, person);
+                return 1;
+            }
+            await console.Out.WriteLineAsync($"Le compte de {Describe(person)} est déverrouillé.");
+            await RecordAsync("ok", null, person);
+            return 0;
+        }
+
+        /// <summary>Issue 215: `reset-totp` turns an adult's second factor off, erases its recovery codes and closes their sessions.</summary>
+        public async Task<int> ResetTotpAsync()
+        {
+            if (!await LocalAccountsOnAsync()) return 1;
+            if (await ResolveAsync() is not { } person) return 1;
+            var result = await SendAsync(new ResetTotpCommand(new PersonId(person.Id)));
+            if (result.TryGetFailure(out var failure))
+            {
+                await console.Error.WriteLineAsync(failure is NotFoundFailure ? $"{Describe(person)} n'a pas de compte local." : $"Refusé ({failure!.Code}).");
+                await RecordAsync("refused", failure!.Code, person);
+                return 1;
+            }
+            await console.Out.WriteLineAsync(
+                $"La validation en deux étapes de {Describe(person)} est désactivée et ses sessions sont fermées : la connexion demande désormais le mot de passe seul.");
+            await RecordAsync("ok", null, person);
+            return 0;
+        }
+
+        private async Task<int> PrintLinkAsync(PersonView person, bool revokeTokens, string? before)
+        {
+            var lifetime = auth.Local.Bounded().LinkLifetimeHours;
+            var result = await SendAsync(new CreatePasswordLinkCommand(new PersonId(person.Id), NodaTime.Duration.FromHours(lifetime), revokeTokens));
+            if (result.TryGetFailure(out var failure))
+                return await RefuseAsync(failure!, person, null);
+            result.TryGetValue(out var link);
+            if (before is not null) await console.Out.WriteLineAsync(before);
+            var what = link!.Purpose == CredentialLinkPurposes.Enroll ? "choisir son identifiant et son mot de passe" : "choisir un nouveau mot de passe";
+            // Standard output only: the link is a secret, never written to the audit or the log.
+            await console.Out.WriteLineAsync($"Lien à usage unique pour {what}, valable {lifetime} h :");
+            await console.Out.WriteLineAsync(Nid.Host.Auth.LocalAuthEndpoints.LinkUrl(auth.PublicUrl, link.Token));
+            if (revokeTokens) await console.Out.WriteLineAsync("Ses jetons d'accès sont révoqués.");
+            await RecordAsync("ok", null, person);
+            return 0;
+        }
+
+        /// <summary>Issue 215: `grant-admin` / `revoke-admin`, when Nid decides the role; the last admin keeps it.</summary>
+        public async Task<int> SetAdminAsync(bool admin)
+        {
+            if (settings.AdminSource == Nid.Host.Auth.AdminSource.IdentityProvider)
+            {
+                await console.Error.WriteLineAsync("Le rôle admin vient du fournisseur d'identité (Auth__AdminSource=identity_provider) : changez les groupes de la personne.");
+                await RecordAsync("refused", PersonCodes.AdminSourceIdentityProvider, null);
+                return 1;
+            }
+            if (await ResolveAsync() is not { } person) return 1;
+            var result = await SendAsync(new SetAdminCommand(new PersonId(person.Id), admin, "admin-cli"));
+            if (result.TryGetFailure(out var failure))
+            {
+                await console.Error.WriteLineAsync(failure!.Code switch
+                {
+                    PersonCodes.LastAdmin => "C'est le dernier administrateur : donnez d'abord le rôle à un autre adulte.",
+                    _ when failure is NotFoundFailure => "Seul un adulte peut être administrateur.",
+                    _ => $"Refusé ({failure.Code}).",
+                });
+                await RecordAsync("refused", failure.Code, person);
+                return 1;
+            }
+            result.TryGetValue(out var view);
+            await console.Out.WriteLineAsync(!view!.Changed
+                ? $"{Describe(person)} {(admin ? "est déjà" : "n'est pas")} administrateur : rien à faire."
+                : $"{Describe(person)} {(admin ? "est maintenant" : "n'est plus")} administrateur.");
+            await RecordAsync(view.Changed ? "ok" : "unchanged", null, person);
+            return 0;
+        }
+
+        private async Task<bool> LocalAccountsOnAsync()
+        {
+            if (settings.Local) return true;
+            await console.Error.WriteLineAsync("Les comptes locaux ne sont pas activés : réglez Auth__Mode=local ou both.");
+            await RecordAsync("refused", "admin_cli.local_accounts_off", null);
+            return false;
+        }
 
         /// <summary>
         /// Every request of the run shares one scope: the audit's request name is reset before each, or every row would
@@ -260,8 +403,10 @@ public static class AdminCli
                 p.Id.ToString(), p.Kind == "adult" ? "adulte" : "enfant", p.DisplayName, p.Email ?? "—",
                 p.Kind == "dependent" ? "—" : p.Status == "pending" ? "pré-enregistré" : "actif",
                 p.IsAdmin ? "oui" : "non", p.Kind == "dependent" ? "—" : p.HasSubject ? "oui" : "non",
-            }).Prepend(["identifiant", "type", "nom", "email", "état", "admin", "sub"]).ToList();
-            var widths = Enumerable.Range(0, 7).Select(c => rows.Max(r => r[c].Length)).ToArray();
+                p.Methods.Count == 0 ? "—" : string.Join(", ", p.Methods.Select(m => m == "password" ? "mot de passe" : m)),
+                p.LockedUntil is { } until ? $"jusqu'à {until.ToString("uuuu-MM-dd HH:mm", CultureInfo.InvariantCulture)} UTC" : "—",
+            }).Prepend(["identifiant", "type", "nom", "email", "état", "admin", "sub", "connexion", "verrouillé"]).ToList();
+            var widths = Enumerable.Range(0, rows[0].Length).Select(c => rows.Max(r => r[c].Length)).ToArray();
             return string.Concat(rows.Select(r => string.Join("  ", r.Select((cell, c) => cell.PadRight(widths[c]))).TrimEnd() + "\n"));
         }
     }

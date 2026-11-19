@@ -70,6 +70,23 @@ public class ChildcareNotificationTests(PostgresFixture fixture) : IClassFixture
     }
 
     [Fact]
+    public async Task Revaluation_the_terms_miss_signals_once_from_its_day()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await CreateAsync(app);
+        Signal? Below(IReadOnlyList<Signal> signals) => signals.SingleOrDefault(s => s.Kind == "childcare_below_minimum");
+        // 3,80 € for 9 h meets 90 % of the MG of 4,22 €, not the 3,83 € from 1 January 2026 nor the 3,92 € from 1 June 2026.
+        Assert.Null(Below(await SignalsAsync(app, new LocalDate(2025, 12, 31))));
+        var january = Below(await SignalsAsync(app, new LocalDate(2026, 1, 2)))!;
+        Assert.Equal([new ItemId(id)], january.ItemIds);
+        Assert.Equal(new LocalDate(2026, 1, 1), january.DueOn);
+        Assert.Equal(january.Key, Below(await SignalsAsync(app, new LocalDate(2026, 5, 31)))!.Key);
+        var june = Below(await SignalsAsync(app, new LocalDate(2026, 6, 2)))!;
+        Assert.Equal(new LocalDate(2026, 6, 1), june.DueOn);
+        Assert.NotEqual(january.Key, june.Key);
+    }
+
+    [Fact]
     public async Task Last_day_signals_the_current_month()
     {
         await using var app = await NidApp.StartAsync(fixture);

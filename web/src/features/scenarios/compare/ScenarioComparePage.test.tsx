@@ -179,7 +179,7 @@ describe('ScenarioComparePage', () => {
   });
 
   it('a 404 shows the not-found message and keeps the pickers', async () => {
-    serve([], () => HttpResponse.json({ status: 404, code: 'NOT_FOUND', title: 'Not found.' }, { status: 404 }));
+    serve([], () => HttpResponse.json({ status: 404, code: 'NOT_FOUND', detail: 'Not found.' }, { status: 404 }));
     await renderApp(`/scenarios/compare?ids=${HALF}`);
 
     expect(await screen.findByText('Un des scénarios n’existe plus ou n’est pas visible dans cette portée.')).toBeInTheDocument();
@@ -188,7 +188,7 @@ describe('ScenarioComparePage', () => {
 
   it('a refused horizon shows the refusal and keeps the horizon picker', async () => {
     serve([], () => HttpResponse.json(
-      { status: 422, code: 'projection.invalid_horizon', title: 'This person has no birth date.' }, { status: 422 }));
+      { status: 422, code: 'projection.invalid_horizon', detail: 'This person has no birth date.' }, { status: 422 }));
     await renderApp(`/scenarios/compare?ids=${HALF}&horizon=retire:${ALICE}`);
 
     expect(await screen.findByText('This person has no birth date.')).toBeInTheDocument();

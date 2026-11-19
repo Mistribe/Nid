@@ -149,7 +149,7 @@ describe('Administration › Inflation', () => {
       sent.push({ url: new URL(request.url).pathname, body: await request.json() });
       return sent.length === 1
         ? HttpResponse.json({ month: '2026-10', value: '103.40', publishedOn: null, fetchedOn: '2026-11-06', source: 'manual' })
-        : HttpResponse.json({ status: 422, code: 'core.cpi_from_insee', title: 'x', errors: [] }, { status: 422 }); // the server sends no field for this one: it is the banner
+        : HttpResponse.json({ status: 422, code: 'core.cpi_from_insee', detail: 'x', errors: [] }, { status: 422 }); // the server sends no field for this one: it is the banner
     }));
     const { user } = await renderApp('/admin/inflation', { capabilities: adminCapabilities });
 
@@ -170,7 +170,7 @@ describe('Administration › Inflation', () => {
   it('shows a month not over yet on the month field', async () => {
     serve();
     server.use(http.put('*/api/v1/core/inflation/:year/:month', () => HttpResponse.json(
-      { status: 422, code: 'core.invalid_cpi_value', title: 'x', errors: [{ path: 'month', code: 'core.invalid_cpi_value', message: 'Octobre 2026 is not over yet.' }] }, { status: 422 })));
+      { status: 422, code: 'core.invalid_cpi_value', detail: 'x', errors: [{ detail: 'Octobre 2026 is not over yet.', pointer: '#/month', code: 'core.invalid_cpi_value' }] }, { status: 422 })));
     const { user } = await renderApp('/admin/inflation', { capabilities: adminCapabilities });
 
     const form = within(await screen.findByRole('form', { name: 'Saisir un mois' }));

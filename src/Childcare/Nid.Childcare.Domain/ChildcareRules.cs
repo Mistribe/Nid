@@ -23,8 +23,13 @@ public sealed record ChildcareRules(LocalDate From, decimal MinimumGuaranteed)
     public const decimal OvertimeThresholdHours = 45m;
     /// <summary>Sick-child days the employer may deduct per contract year, with a certificate (art. 105).</summary>
     public const int ChildSickQuotaDays = 5;
-    public const decimal LeaveDaysPerMonth = 2.5m;
+    public const decimal LeaveDaysPerFourWeeks = 2.5m;
     public const int LeaveDaysCap = 30;
+    /// <summary>The carer's own non-work sickness: 2 days per 4 weeks, 24 at most per reference period (C. trav. L3141-5-1).</summary>
+    public const decimal SickLeaveDaysPerFourWeeks = 2m;
+    public const int SickLeaveDaysCap = 24;
+    /// <summary>A full year accrues its leave by the month (IDCC 3239 socle commun art. 48.1.1): 2,5 days a month with care.</summary>
+    public const decimal LeaveDaysPerMonth = 2.5m;
     /// <summary>An incomplete year's most programmed weeks (IDCC 3239 art. 97.1: 46 weeks or fewer over twelve months).</summary>
     public const int MaxProgrammedWeeks = 46;
     /// <summary>A full year's weeks (art. 97: 52 weeks, the carer's 5 weeks of paid leave included).</summary>

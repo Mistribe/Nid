@@ -65,7 +65,7 @@ public class DependentEndpointTests(PostgresFixture fixture) : IClassFixture<Pos
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
         var problem = await ProblemAsync(response);
         Assert.Equal("core.invalid_birth_date", problem.GetProperty("code").GetString());
-        Assert.Equal("birthDate", problem.GetProperty("errors")[0].GetProperty("path").GetString());
+        Assert.Equal("birthDate", problem.GetProperty("errors")[0].FieldPath());
         Assert.Equal(before, (await app.GetAsync<JsonElement>(app.AdultA, Persons)).GetArrayLength());
     }
 
@@ -90,7 +90,7 @@ public class DependentEndpointTests(PostgresFixture fixture) : IClassFixture<Pos
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
         var problem = await ProblemAsync(response);
         Assert.Equal("core.name_required", problem.GetProperty("code").GetString());
-        Assert.Equal("displayName", problem.GetProperty("errors")[0].GetProperty("path").GetString());
+        Assert.Equal("displayName", problem.GetProperty("errors")[0].FieldPath());
     }
 
     [Fact]

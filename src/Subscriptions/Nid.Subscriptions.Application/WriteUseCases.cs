@@ -26,12 +26,12 @@ public sealed record CreateSubscriptionCommand(
     string? Note,
     IReadOnlyList<BillingPhase>? Phases = null,
     IReadOnlyList<PurchaseDraft>? Purchases = null,
-    ShareLevel ShareLevel = ShareLevel.View) : ICommand<ItemId>, ICreatesItem;
+    ShareLevel ShareLevel = ShareLevel.View) : ICommand<ItemId>, ICreatesItem, ITransactional;
 
 public sealed record EditSubscriptionCommand(
     ItemId ItemId, bool? AutoRenew, LocalDate? CancelledAt, bool ClearCancelledAt, string? Note,
     string? ProviderKey = null, bool ClearProviderKey = false, ContractTermsChange? Terms = null, string? DisplayName = null)
-    : ICommand<ItemId>, IItemScoped
+    : ICommand<ItemId>, IItemScoped, ITransactional
 {
     public AccessKind Access => AccessKind.Write;
 }
@@ -70,7 +70,7 @@ public static class SubscriptionName
 
 [RequestHandler<CreateSubscriptionCommand, ItemId>]
 public sealed class CreateSubscriptionHandler(
-    IItemRegistry items, ISubscriptionStore store, IUnitOfWork unitOfWork, ProviderAccess providers, IAccessPolicy policy,
+    IItemRegistry items, ISubscriptionStore store, ProviderAccess providers, IAccessPolicy policy,
     IActorAccessor actor)
     : IRequestHandler<CreateSubscriptionCommand, ItemId>
 {
@@ -94,8 +94,7 @@ public sealed class CreateSubscriptionHandler(
                 return Result.Failure<ItemId>(refused);
 
         // The Core item and the subscription rows are two contexts: one transaction, or an orphan item when a later
-        // write fails. Returning without committing rolls everything back.
-        await using var transaction = await unitOfWork.BeginAsync(ct);
+        // write fails. A failure rolls everything back.
 
         var created = await items.CreateAsync(
             new NewItem("subscriptions", "subscription", command.DisplayName, command.Visibility, null, command.Owners, command.ShareLevel), ct);
@@ -124,7 +123,6 @@ public sealed class CreateSubscriptionHandler(
             if ((await store.AddPurchaseAsync(purchases[i], new RowOrigin(Note: drafts[i].Note), ct)).TryGetFailure(out var notBought))
                 return Result.Failure<ItemId>(notBought!);
 
-        await transaction.CommitAsync(ct);
         return Result.Success(id);
     }
 
@@ -144,7 +142,7 @@ public sealed class CreateSubscriptionHandler(
 
 [RequestHandler<EditSubscriptionCommand, ItemId>]
 public sealed class EditSubscriptionHandler(
-    IItemRegistry items, ISubscriptionStore store, IUnitOfWork unitOfWork, ProviderAccess providers, IActorAccessor actor)
+    IItemRegistry items, ISubscriptionStore store, ProviderAccess providers, IActorAccessor actor)
     : IRequestHandler<EditSubscriptionCommand, ItemId>
 {
     public async ValueTask<Result<ItemId>> HandleAsync(EditSubscriptionCommand command, CancellationToken ct = default)
@@ -161,7 +159,6 @@ public sealed class EditSubscriptionHandler(
         }
 
         // The Core item and the subscription row are two contexts: one transaction, both or neither.
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         if (command.DisplayName is { } renamed && await items.FindAsync(command.ItemId, ct) is { } item
             && (await OwnershipEdit.ReplaceAsync(items, item, renamed, OwnershipEdit.Of(item, null, null, null), ct)).TryGetFailure(out var notRenamed))
             return Result.Failure<ItemId>(notRenamed!);
@@ -171,7 +168,6 @@ public sealed class EditSubscriptionHandler(
             command.Terms), ct);
         if (result.TryGetFailure(out var failure))
             return Result.Failure<ItemId>(failure!);
-        await transaction.CommitAsync(ct);
         return Result.Success(command.ItemId);
     }
 }
@@ -199,7 +195,7 @@ public sealed class AddPurchaseHandler(ISubscriptionStore store, IAccessPolicy p
 {
     public async ValueTask<Result<PurchaseId>> HandleAsync(AddPurchaseCommand command, CancellationToken ct = default)
     {
-        // The route's item is the only one ItemAccessBehavior saw; the grants may name any other (1E2b1 design §3.2).
+        // The route's item is the only one the item access check saw; the grants may name any other (1E2b1 design §3.2).
         if (await GrantTargets.RefusedAsync(policy, actor.Current!, command.Purchase, command.ItemId, "", ct) is { } refused)
             return Result.Failure<PurchaseId>(refused);
 
@@ -232,7 +228,7 @@ public sealed class DeletePurchaseHandler(ISubscriptionStore store, IAccessPolic
 
 /// <summary>
 /// A purchase's grants are the only place in this module where one write touches a second item: the route
-/// names one subscription, the grants may name any other. <c>ItemAccessBehavior</c> checks the route and
+/// names one subscription, the grants may name any other. the item access check (<c>ItemAccessPolicy</c>) checks the route and
 /// nothing else, so the items the payload names — and the ones a delete would cascade into — are checked
 /// here, at the handler boundary, before the store is asked to write anything. The check is the same
 /// <see cref="IAccessPolicy"/> the pipeline uses, so <c>authorization.md</c> §5's <c>Writers</c> stays the
@@ -249,7 +245,7 @@ internal static class ItemWriteGuard
         CancellationToken ct)
     {
         // A system actor is not bound to a person and so has no rights to check, exactly as
-        // ItemAccessBehavior treats it; it never reaches here from an HTTP request.
+        // the item access check treats it; it never reaches here from an HTTP request.
         if (actor.PersonId is not { } person)
             return Result.Success();
 
@@ -266,7 +262,7 @@ internal static class ItemWriteGuard
 
 public sealed record ChangePriceCommand(
     ItemId ItemId, LocalDate StartsOn, Money Price, Core.Contracts.Duration? Every, Core.Contracts.Duration? Covers, int? MaxCycles, Payer? Payer)
-    : ICommand<BillingPhaseId>, IItemScoped
+    : ICommand<BillingPhaseId>, IItemScoped, ITransactional
 {
     public AccessKind Access => AccessKind.Write;
 }
@@ -276,7 +272,7 @@ public sealed record ChangePriceCommand(
 /// in one transaction; what the change leaves out is taken from the phase it replaces.
 /// </summary>
 [RequestHandler<ChangePriceCommand, BillingPhaseId>]
-public sealed class ChangePriceHandler(ISubscriptionStore store, IUnitOfWork unitOfWork) : IRequestHandler<ChangePriceCommand, BillingPhaseId>
+public sealed class ChangePriceHandler(ISubscriptionStore store) : IRequestHandler<ChangePriceCommand, BillingPhaseId>
 {
     /// <summary>
     /// The phase open on <paramref name="on"/> with the cycles it charged before then (null without a limit); none when no phase
@@ -324,14 +320,12 @@ public sealed class ChangePriceHandler(ISubscriptionStore store, IUnitOfWork uni
             // The change's own fields: an overlap or anything about the phase as a whole is its start date.
             return Result.Failure<BillingPhaseId>(FieldErrors.At(refused!, PhasePaths.Field(refused!.Code) ?? "startsOn"));
 
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         var closed = await store.ClosePhaseAsync(command.ItemId, open.Id, command.StartsOn, spent, ct);
         if (closed.TryGetFailure(out var notClosed))
             return Result.Failure<BillingPhaseId>(notClosed!);
         var added = await store.AddPhaseAsync(command.ItemId, next, RowOrigin.None, ct);
         if (added.TryGetFailure(out var notAdded))
             return Result.Failure<BillingPhaseId>(notAdded!);
-        await transaction.CommitAsync(ct);
         return Result.Success(next.Id);
 
         static Result<BillingPhaseId> Refuse(string code, string message)

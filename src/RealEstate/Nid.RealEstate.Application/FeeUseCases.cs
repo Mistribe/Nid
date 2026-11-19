@@ -11,18 +11,18 @@ namespace Nid.RealEstate.Application;
 /// <summary>A fee as a body sends it (spec 3A2 §4): no id and no version yet.</summary>
 public sealed record FeeDraft(FeeKind Kind, decimal Amount, LocalDate OnDate, string? Note);
 
-public sealed record AddLoanFeeCommand(ItemId ItemId, FeeDraft Fee) : ICommand<Guid>, IItemScoped
+public sealed record AddLoanFeeCommand(ItemId ItemId, FeeDraft Fee) : ICommand<Guid>, IItemScoped, ITransactional
 {
     public AccessKind Access => AccessKind.Write;
 }
 
 /// <summary>A correction in place; <paramref name="Version"/> is the fee's as the client read it.</summary>
-public sealed record EditLoanFeeCommand(ItemId ItemId, Guid Fee, FeeDraft Values, uint Version) : ICommand<Guid>, IItemScoped
+public sealed record EditLoanFeeCommand(ItemId ItemId, Guid Fee, FeeDraft Values, uint Version) : ICommand<Guid>, IItemScoped, ITransactional
 {
     public AccessKind Access => AccessKind.Write;
 }
 
-public sealed record DeleteLoanFeeCommand(ItemId ItemId, Guid Fee, uint Version) : ICommand<bool>, IItemScoped
+public sealed record DeleteLoanFeeCommand(ItemId ItemId, Guid Fee, uint Version) : ICommand<bool>, IItemScoped, ITransactional
 {
     public AccessKind Access => AccessKind.Write;
 }
@@ -52,34 +52,31 @@ internal static class FeeCheck
 
 /// <summary>Spec §4: a fee is not a row of the schedule, so a fee write does not rebuild it.</summary>
 [RequestHandler<AddLoanFeeCommand, Guid>]
-public sealed class AddLoanFeeHandler(IItemRegistry items, ILoanStore loans, IUnitOfWork unitOfWork) : IRequestHandler<AddLoanFeeCommand, Guid>
+public sealed class AddLoanFeeHandler(IItemRegistry items, ILoanStore loans) : IRequestHandler<AddLoanFeeCommand, Guid>
 {
     public async ValueTask<Result<Guid>> HandleAsync(AddLoanFeeCommand command, CancellationToken ct = default)
     {
         if (FeeCheck.Rules(command.Fee) is { } refused)
             return Result.Failure<Guid>(refused);
 
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         var loaded = await LoanCheck.LockAsync(loans, items, command.ItemId, ct);
         if (loaded.TryGetFailure(out var failure))
             return Result.Failure<Guid>(failure!);
 
         var id = Guid.CreateVersion7();
         await loans.AddFeeAsync(command.ItemId, id, FeeCheck.Fee(command.Fee), command.Fee.Note, ct);
-        await transaction.CommitAsync(ct);
         return Result.Success(id);
     }
 }
 
 [RequestHandler<EditLoanFeeCommand, Guid>]
-public sealed class EditLoanFeeHandler(IItemRegistry items, ILoanStore loans, IUnitOfWork unitOfWork) : IRequestHandler<EditLoanFeeCommand, Guid>
+public sealed class EditLoanFeeHandler(IItemRegistry items, ILoanStore loans) : IRequestHandler<EditLoanFeeCommand, Guid>
 {
     public async ValueTask<Result<Guid>> HandleAsync(EditLoanFeeCommand command, CancellationToken ct = default)
     {
         if (FeeCheck.Rules(command.Values) is { } refused)
             return Result.Failure<Guid>(refused);
 
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         var loaded = await LoanCheck.LockAsync(loans, items, command.ItemId, ct);
         if (loaded.TryGetFailure(out var failure))
             return Result.Failure<Guid>(failure!);
@@ -88,17 +85,15 @@ public sealed class EditLoanFeeHandler(IItemRegistry items, ILoanStore loans, IU
             return Result.Failure<Guid>(unwritable);
 
         await loans.UpdateFeeAsync(command.ItemId, command.Fee, FeeCheck.Fee(command.Values), command.Values.Note, ct);
-        await transaction.CommitAsync(ct);
         return Result.Success(command.Fee);
     }
 }
 
 [RequestHandler<DeleteLoanFeeCommand, bool>]
-public sealed class DeleteLoanFeeHandler(IItemRegistry items, ILoanStore loans, IUnitOfWork unitOfWork) : IRequestHandler<DeleteLoanFeeCommand, bool>
+public sealed class DeleteLoanFeeHandler(IItemRegistry items, ILoanStore loans) : IRequestHandler<DeleteLoanFeeCommand, bool>
 {
     public async ValueTask<Result<bool>> HandleAsync(DeleteLoanFeeCommand command, CancellationToken ct = default)
     {
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         var loaded = await LoanCheck.LockAsync(loans, items, command.ItemId, ct);
         if (loaded.TryGetFailure(out var failure))
             return Result.Failure<bool>(failure!);
@@ -107,7 +102,6 @@ public sealed class DeleteLoanFeeHandler(IItemRegistry items, ILoanStore loans, 
             return Result.Failure<bool>(unwritable);
 
         await loans.DeleteFeeAsync(command.ItemId, command.Fee, ct);
-        await transaction.CommitAsync(ct);
         return Result.Success(true);
     }
 }

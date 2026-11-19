@@ -22,7 +22,7 @@ public sealed record GetScenarioQuery(ItemId ItemId) : IQuery<ScenarioView>, IIt
 
 public sealed record CreateScenarioCommand(
     string Name, Visibility Visibility, IReadOnlyList<OwnerShare> Owners, VisibilityScope Scope, PropertyPurchase Document)
-    : ICommand<ItemId>, ICreatesItem;
+    : ICommand<ItemId>, ICreatesItem, ITransactional;
 
 /// <summary>Spec §6: name, visibility, scope and document replaced whole; the owners are kept.</summary>
 public sealed record ReplaceScenarioCommand(ItemId ItemId, string Name, Visibility Visibility, VisibilityScope Scope, PropertyPurchase Document)
@@ -93,7 +93,7 @@ internal static class ScenarioResults
         read.TryGetValue(out var reading);
         var canWrite = (await policy.CheckAsync(reader, item.Id, AccessKind.Write, ct)).IsSuccess;
         return Result.Success(new ScenarioView(
-            item.Id, item.DisplayName, Wire(item.Visibility), stored.Scope == VisibilityScope.Me ? "me" : "household",
+            item.Id, item.DisplayName, Wire(item.Visibility), stored.Scope is VisibilityScope.Me or VisibilityScope.Mine ? "me" : "household",
             PropertyPurchaseView.From(reading!.Document), Of(reading), canWrite));
     }
 
@@ -189,7 +189,7 @@ public sealed class GetScenarioHandler(
 }
 
 [RequestHandler<CreateScenarioCommand, ItemId>]
-public sealed class CreateScenarioHandler(IItemRegistry items, IScenarioStore store, ScenarioFactsReader facts, IUnitOfWork unitOfWork)
+public sealed class CreateScenarioHandler(IItemRegistry items, IScenarioStore store, ScenarioFactsReader facts)
     : IRequestHandler<CreateScenarioCommand, ItemId>
 {
     public async ValueTask<Result<ItemId>> HandleAsync(CreateScenarioCommand command, CancellationToken ct = default)
@@ -198,13 +198,11 @@ public sealed class CreateScenarioHandler(IItemRegistry items, IScenarioStore st
             return Result.Failure<ItemId>(refused);
 
         // The Core item and the document row: one transaction, or an orphan item when the second write fails.
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         var created = await items.CreateAsync(new NewItem("core", "scenario", command.Name, command.Visibility, null, command.Owners), ct);
         if (created.TryGetFailure(out var failure))
             return Result.Failure<ItemId>(FieldErrors.At(failure!, "owners"));
         created.TryGetValue(out var id);
         await store.SaveAsync(new StoredScenario(id, ScenarioKinds.PropertyPurchase, command.Scope, command.Document), ct);
-        await transaction.CommitAsync(ct);
         return Result.Success(id);
     }
 }

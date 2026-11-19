@@ -17,6 +17,9 @@ public static class BankingCodes
     /// <summary>An account associated with an envelope in another currency: its balance would be written as the wrong money.</summary>
     public const string CurrencyMismatch = "banking.currency_mismatch";
 
+    /// <summary>A bank account's own name is 1 to 100 characters, and not only whitespace.</summary>
+    public const string InvalidName = "banking.invalid_name";
+
     /// <summary>Only a card is attached to an account, and only to a checking one (D10).</summary>
     public const string CardParent = "banking.card_parent";
 
@@ -31,6 +34,15 @@ public static class BankingCodes
 
     /// <summary>A transactions read hit the page cap: the run is journaled failed, the connection stays active.</summary>
     public const string TransactionsTruncated = "banking.transactions_truncated";
+
+    /// <summary>
+    /// #355: an account the bank sent in <c>XXX</c> (no currency) whose balances did not name a single one: skipped, journaled with this
+    /// code; it takes no envelope until a read learns its currency.
+    /// </summary>
+    public const string CurrencyUnknown = "banking.currency_unknown";
+
+    /// <summary>#362: a minimum usage on an account that is not a card, or outside 1 to 31 payments a month.</summary>
+    public const string CardRule = "banking.card_rule";
 
     /// <summary>A statement file that is neither OFX nor CAMT.053.</summary>
     public const string FileFormat = "banking.file_format";
@@ -58,4 +70,22 @@ public static class BankingCodes
 
     /// <summary>A bank proposal approved with an edited payload: reject it instead.</summary>
     public const string ProposalNotEditable = "banking.proposal_not_editable";
+
+    /// <summary>A category's name is 1 to 60 characters, and unique among its siblings whatever the case (archived ones included).</summary>
+    public const string CategoryName = "banking.category_name";
+
+    /// <summary>Categories are two levels deep: a child has no children, and a category with children stays top-level.</summary>
+    public const string CategoryDepth = "banking.category_depth";
+
+    /// <summary>A move or a merge between categories of different kinds (expense, income, transfer).</summary>
+    public const string CategoryKind = "banking.category_kind";
+
+    /// <summary>A new or moved child under an archived parent, or a merge into an archived category.</summary>
+    public const string CategoryArchived = "banking.category_archived";
+
+    /// <summary>A rule's pattern is 2 to 60 characters once normalised.</summary>
+    public const string RulePattern = "banking.rule_pattern";
+
+    /// <summary>A rule's amount bounds are not negative, and the minimum is not above the maximum.</summary>
+    public const string RuleAmounts = "banking.rule_amounts";
 }

@@ -69,7 +69,7 @@
 
 Une application de calendrier ne sait pas envoyer d'en-tête : le secret est dans l'URL. Réglages › Calendrier crée, régénère ou supprime **un flux par personne**.
 
-- Une ligne de `personal_access_token` au preset `calendar` (portées `{calendar}`), avec ses options `calendar_scope` (`household`, `me`) et `calendar_amounts` (`ck_personal_access_token_calendar` : ces colonnes, et elles seules, sur un flux). Elle compte dans les 10 jetons actifs, figure dans « Mes jetons » avec sa dernière utilisation, se révoque de là comme les autres, et « Déconnecter partout » la révoque aussi. Validité : 365 jours depuis la création ou la dernière régénération ; la notification `token_expiring` la couvre.
+- Une ligne de `personal_access_token` au preset `calendar` (portées `{calendar}`), avec ses options `calendar_scope` (`household`, `me`) et `calendar_amounts` (`ck_personal_access_token_calendar` : ces colonnes, et elles seules, sur un flux). `calendar_modules` (#243, `text[]`) restreint le flux à certains modules de « À venir » (`CalendarModules`) ; nul, il les liste tous, y compris un module ajouté plus tard : c'est la valeur des flux antérieurs et celle qu'enregistre une sélection de tous les modules. Elle compte dans les 10 jetons actifs, figure dans « Mes jetons » avec sa dernière utilisation, se révoque de là comme les autres, et « Déconnecter partout » la révoque aussi. Validité : 365 jours depuis la création ou la dernière régénération ; la notification `token_expiring` la couvre.
 - Secret `nid_cal_<préfixe>_<secret>`, même format et même hachage que `nid_pat_` : l'authentification par `Bearer` ne lit que `nid_pat_` et `FindByPrefixAsync` ignore les flux, si bien que ce secret n'ouvre ni `/api` ni `/mcp`. Il n'est affiché qu'une fois, dans l'adresse rendue à la création ; régénérer révoque l'ancien dans la même transaction.
 - `GET /api/v1/calendar/<secret>.ics`, sans session : un secret inconnu, falsifié, révoqué ou expiré, ou une personne qui n'est plus un adulte actif, répond `404`. Sinon la lecture se fait comme cette personne, avec la seule portée `read`, par le même pipeline que toute lecture (garde de sortie comprise) : « À venir » sur 12 mois (modules, échéance du PER, calendrier fiscal) dans la portée du flux. Le Foyer ne montre que les éléments partagés, Moi y ajoute les siens : jamais les éléments privés de l'autre adulte.
 - iCalendar (RFC 5545) : un événement d'un jour par échéance, `UID` stable (type, élément, date, haché), le libellé de « À venir », un lien vers l'élément. **Pas de montant** sauf option : un calendrier abonné est souvent copié chez un tiers.
@@ -77,15 +77,37 @@ Une application de calendrier ne sait pas envoyer d'en-tête : le secret est dan
 
 ## 2. Configuration d'un client MCP
 
-Le client MCP envoie le jeton en en-tête `Authorization: Bearer …` vers `{PUBLIC_URL}/mcp`. Aucun flux OAuth ni enregistrement de client n'est nécessaire.
+Le client MCP envoie le jeton en en-tête `Authorization: Bearer …` vers `{PUBLIC_URL}/mcp` (Streamable HTTP). Aucun flux OAuth ni enregistrement de client n'est nécessaire. La page Sécurité (« Brancher un assistant IA », #309) donne ces configurations, prêtes à copier, avec le vrai jeton juste après sa création. Là où le client sait lire l'environnement, le jeton vient de la variable `NID_TOKEN`, jamais d'un fichier ; **ne jamais committer un jeton**.
 
-Avec Claude Code :
+Syntaxe vérifiée le 2026-11-19 dans la documentation de chaque éditeur.
+
+**Claude Desktop**, deux chemins :
+
+- *Connecteur personnalisé* (Personnaliser › Connecteurs › Ajouter › Connecteur personnalisé) : URL `{PUBLIC_URL}/mcp`, authentification « Sans connexion », en-tête de requête `authorization` = `Bearer <jeton>` (bêta ; valeur non réaffichée, retirer et rajouter pour la changer). L'appel part des serveurs d'Anthropic : Nid doit être joignable depuis Internet en https sur le port 443. Sur un abonnement Team ou Enterprise, un connecteur d'organisation partage son en-tête avec tous les membres : un jeton personnel s'ajoute depuis un compte personnel.
+- *Extension Nid* (`.mcpb`, #309) : « Télécharger l'extension » sur la page Sécurité (`GET /api/v1/mcp/nid.mcpb`, adulte connecté au navigateur seulement, `401` sinon, jeton compris). Un zip au format MCPB 0.3 : un `manifest.json` rempli pour l'instance (sa version, `{PUBLIC_URL}/mcp` comme adresse par défaut, l'instance comme politique de confidentialité), et `mcp-remote` vendu dans `node_modules`, qui sert de pont, construit dans l'image depuis un fichier de verrouillage (`src/Hosting/Nid.Host/mcpb/`, Renovate « MCP extension »), jamais téléchargé à l'exécution ; la construction de l'image vérifie le manifeste avec `mcpb validate`. Le champ `token` est `sensitive` (trousseau du système) ; Claude Desktop le met dans la variable `NID_AUTH` (`env`), que `mcp-remote` développe lui-même dans son en-tête (`Authorization:${NID_AUTH}`) : jamais dans `args` ; aucun jeton dans le fichier. L'extension tourne sur l'ordinateur, avec le Node.js de Claude Desktop : elle joint un Nid du réseau local. Sans `npm ci` dans ce dossier, un poste de développement répond `404`.
+- *Configuration manuelle* (`claude_desktop_config.json`, repliée sous l'extension) : un pont local `mcp-remote`, **version fixée**, qui tourne sur l'ordinateur et joint donc un Nid du réseau local ; Node.js requis, jeton en clair dans le fichier :
+
+```json
+{
+  "mcpServers": {
+    "nid": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote@0.16.5", "{PUBLIC_URL}/mcp", "--header", "Authorization:${NID_AUTH}"],
+      "env": { "NID_AUTH": "Bearer <jeton>" }
+    }
+  }
+}
+```
+
+L'en-tête passe par `env` : une espace dans un argument casse sous Windows.
+
+**Claude Code** :
 
 ```bash
 claude mcp add --transport http nid {PUBLIC_URL}/mcp --header "Authorization: Bearer <jeton>"
 ```
 
-Claude Code range cette configuration dans la portée `local` par défaut (propre à l’utilisateur et au projet, hors du dépôt). Pour partager la configuration d’un projet, le fichier `.mcp.json` lit le jeton dans l’environnement ; **ne jamais committer un jeton** :
+Claude Code range cette configuration dans la portée `local` par défaut (propre à l’utilisateur et au projet, hors du dépôt). Pour partager la configuration d’un projet, le fichier `.mcp.json` lit le jeton dans l’environnement :
 
 ```json
 {
@@ -98,6 +120,34 @@ Claude Code range cette configuration dans la portée `local` par défaut (propr
   }
 }
 ```
+
+**Cursor** (`~/.cursor/mcp.json` ou `.cursor/mcp.json`) :
+
+```json
+{ "mcpServers": { "nid": { "url": "{PUBLIC_URL}/mcp", "headers": { "Authorization": "Bearer ${env:NID_TOKEN}" } } } }
+```
+
+**VS Code / GitHub Copilot**, format portable (`.mcp.json` à la racine de l'espace de travail, ou `~/.copilot/mcp-config.json`) ; le format `.vscode/mcp.json` (objet `servers`) reste lu par VS Code mais ne passe pas les variables d'entrée aux sessions Copilot :
+
+```json
+{ "mcpServers": { "nid": { "type": "http", "url": "{PUBLIC_URL}/mcp", "headers": { "Authorization": "Bearer ${NID_TOKEN}" } } } }
+```
+
+**Gemini CLI** (la forme documentée prend le jeton tel quel : `settings.json` le garde en clair ; pas de `_` dans le nom du serveur) :
+
+```bash
+gemini mcp add --transport http --header "Authorization: Bearer <jeton>" nid {PUBLIC_URL}/mcp
+```
+
+**Codex CLI** (`~/.codex/config.toml`) :
+
+```toml
+[mcp_servers.nid]
+url = "{PUBLIC_URL}/mcp"
+bearer_token_env_var = "NID_TOKEN"
+```
+
+ChatGPT n'est pas couvert tant que ses connecteurs ne confirment pas un en-tête statique (§5 : pas d'OAuth sur `/mcp` en v1).
 
 ## 3. Identifiants des workers
 

@@ -8,7 +8,8 @@ public class AdminSystemTests(PostgresFixture fixture) : IClassFixture<PostgresF
 {
     public sealed record Job(string Key, string? Cron, DateTimeOffset? NextRunAt);
     public sealed record Health(string Database, string IdentityProvider);
-    public sealed record SystemStatus(string Version, DateTimeOffset StartedAt, Health Health, long? DatabaseSizeBytes);
+    public sealed record Auth(string Mode, string AdminSource, bool InsecureHttp);
+    public sealed record SystemStatus(string Version, DateTimeOffset StartedAt, Health Health, long? DatabaseSizeBytes, Auth Auth);
 
     [Fact]
     public async Task The_system_status_reports_the_version_the_health_and_the_database_size()
@@ -20,6 +21,8 @@ public class AdminSystemTests(PostgresFixture fixture) : IClassFixture<PostgresF
         Assert.False(string.IsNullOrWhiteSpace(status.Version));
         Assert.Equal(new Health("healthy", "healthy"), status.Health);
         Assert.True(status.DatabaseSizeBytes > 0);
+        // Issue 215: an installation with an identity provider and no Auth:Mode stays as it was.
+        Assert.Equal(new Auth("oidc", "identity_provider", false), status.Auth);
     }
 
     [Fact]

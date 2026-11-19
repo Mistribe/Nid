@@ -6,14 +6,17 @@ namespace Nid.Childcare.Infrastructure.Persistence;
 
 /// <summary>
 /// #23: Childcare's share of an item delete: the arrangement with its terms, week types, weekdays, exceptions, gaps and statements. A
-/// validated month blocks (it feeds the expected Pajemploi debits and the tax credit): reopening the months frees it.
+/// validated month blocks (it feeds the expected Pajemploi debits and the tax credit): reopening the months frees it. #94: a nanny with its months.
 /// </summary>
 public sealed class ChildcareDeletionPart(ChildcareDbContext db) : IItemDeletionPart
 {
     private static bool IsArrangement(ItemAccess item) => item is { Module: ChildcareModule.Key, Kind: ChildcareKinds.Childminder };
 
+    private static bool IsNanny(ItemAccess item) => item is { Module: ChildcareModule.Key, Kind: ChildcareKinds.Nanny };
+
     public async Task<IReadOnlyList<DeletionCount>> CountAsync(ItemAccess item, CancellationToken ct)
-        => !IsArrangement(item) ? []
+        => IsNanny(item) ? [new("nanny_months", await db.NannyMonths.CountAsync(m => m.ItemId == item.Id.Value, ct))]
+        : !IsArrangement(item) ? []
         :
         [
             new("statements", await db.Statements.CountAsync(s => s.ItemId == item.Id.Value, ct)),
@@ -31,13 +34,20 @@ public sealed class ChildcareDeletionPart(ChildcareDbContext db) : IItemDeletion
     }
 
     public async Task<bool> ImportedAsync(ItemAccess item, CancellationToken ct)
-        => IsArrangement(item) && await db.Arrangements.AnyAsync(a => a.ItemId == item.Id.Value && a.ImportRef != null, ct);
+        => (IsArrangement(item) && await db.Arrangements.AnyAsync(a => a.ItemId == item.Id.Value && a.ImportRef != null, ct))
+           || (IsNanny(item) && await db.Nannies.AnyAsync(n => n.ItemId == item.Id.Value && n.ImportRef != null, ct));
 
     public async Task RemoveAsync(ItemAccess item, CancellationToken ct)
     {
+        var id = item.Id.Value;
+        if (IsNanny(item))
+        {
+            db.NannyMonths.RemoveRange(await db.NannyMonths.Where(m => m.ItemId == id).ToListAsync(ct));
+            db.Nannies.RemoveRange(await db.Nannies.Where(n => n.ItemId == id).ToListAsync(ct));
+            await db.SaveChangesAsync(ct);
+        }
         if (!IsArrangement(item))
             return;
-        var id = item.Id.Value;
         // Tracked removes, children first: the audit sees every row the cascade would have taken silently.
         db.StatementDays.RemoveRange(await db.StatementDays.Where(d => d.ItemId == id).ToListAsync(ct));
         db.Statements.RemoveRange(await db.Statements.Where(s => s.ItemId == id).ToListAsync(ct));

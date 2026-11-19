@@ -53,14 +53,19 @@ public partial class AuditCompletenessTests(PostgresFixture fixture) : IClassFix
     /// </summary>
     private static readonly Dictionary<string, int> AllowedBulkStatements = new()
     {
+        ["src/Banking/Nid.Banking.Infrastructure/Persistence/AccountReadLog.cs"] = 1, // account_read: excluded (fetched data), the week's purge
         ["src/Banking/Nid.Banking.Infrastructure/Persistence/AccountStore.cs"] = 1,  // last_valued_on, balance_conflict_on: the sync's bookkeeping, not a decision (as last_used_at)
         ["src/Banking/Nid.Banking.Infrastructure/Persistence/ConnectionStore.cs"] = 1, // a person's file-import advisory lock: no row written
+        ["src/Banking/Nid.Banking.Infrastructure/Persistence/CategoryStore.cs"] = 4, // transaction: excluded (a line's category, its categorised_by is its record)
+        ["src/Banking/Nid.Banking.Infrastructure/Persistence/CategoryRuleStore.cs"] = 1, // last_used_at (not audited, as the link rules')
+        ["src/Banking/Nid.Banking.Infrastructure/Persistence/BankingDeletionPart.cs"] = 1, // transaction: excluded (its lines unlinked, left to the next pass)
         ["src/Banking/Nid.Banking.Infrastructure/Persistence/RuleStore.cs"] = 2,     // last_used_at (not audited); recurring_group: excluded (the job's memory)
         ["src/Banking/Nid.Banking.Infrastructure/Persistence/SyncRunLog.cs"] = 3,    // sync_run: excluded
         ["src/Banking/Nid.Banking.Infrastructure/Persistence/TransactionStore.cs"] = 3, // transaction: excluded; the account's advisory lock; reconciled_at (the job's mark, données brutes de la banque, ni décision ni réglage)
         ["src/Core/Nid.Core.Infrastructure/Persistence/FxRateStore.cs"] = 1,       // fx_rate: excluded (U8)
         ["src/Core/Nid.Core.Infrastructure/Persistence/FxRunLog.cs"] = 3,          // fx_sync_run: excluded
         ["src/Core/Nid.Core.Infrastructure/Persistence/HouseholdSettings.cs"] = 2, // advisory locks: provisioning, projection assumptions (#155)
+        ["src/Core/Nid.Core.Infrastructure/Persistence/LocalAccountStore.cs"] = 15, // issue 215: local_credential, credential_link, recovery_code: excluded (secrets); the provisioning lock (3) and the person's row lock for a link
         ["src/Core/Nid.Core.Infrastructure/Persistence/PersonalAccessTokenStore.cs"] = 4, // lock; revoked_at (token_revoked, and a calendar feed regenerated: token_created) and last_used_at (not audited)
         ["src/Core/Nid.Core.Infrastructure/Persistence/ProposalStore.cs"] = 3, // the target's (or, without one, the submitter's) row lock; warnings append (not a decision, not in the write log)
         ["src/Core/Nid.Core.Infrastructure/Persistence/PersonRegistry.cs"] = 3,    // advisory lock; the person's row lock for preferences (writes nothing); session_epoch (session_revoked)

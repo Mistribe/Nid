@@ -28,11 +28,55 @@ public static class SecurityEventNames
     /// <summary>5B: a bank statement file written to an account (bank sync spec §10); counts only, never a label, an amount or an IBAN.</summary>
     public const string BankStatementImported = "bank_statement_imported";
 
+    /// <summary>
+    /// Issue 215, local-accounts.md §16: a wrong password or code, a locked account, an unknown identifier (never its text);
+    /// at most one a minute per account or address, with <c>count</c>. Data <c>reason</c>, <c>count</c>, <c>address</c>.
+    /// </summary>
+    public const string LoginFailed = "login_failed";
+
+    /// <summary>Issue 215: a local account locked after repeated failures (<c>level</c>, <c>until</c>).</summary>
+    public const string LoginLocked = "login_locked";
+
+    /// <summary>Issue 215: the adult changed their password, or their identifier (<c>field</c>).</summary>
+    public const string PasswordChanged = "password_changed";
+
+    /// <summary>Issue 215: a reset link was used; the adult's sessions are closed (<c>link_id</c>).</summary>
+    public const string PasswordReset = "password_reset";
+
+    /// <summary>Issue 215: an admin or the CLI created or revoked a one-time password link (<c>purpose</c>, <c>link_id</c>, <c>by</c>).</summary>
+    public const string CredentialLinkIssued = "credential_link_issued";
+
+    public const string CredentialLinkRevoked = "credential_link_revoked";
+
+    /// <summary>Issue 215: an enrolment link was used: the adult is active (<c>link_id</c>).</summary>
+    public const string AccountEnrolled = "account_enrolled";
+
+    /// <summary>Issue 215: an admin or the CLI unlocked a local account (<c>by</c>).</summary>
+    public const string AccountUnlocked = "account_unlocked";
+
+    /// <summary>Issue 215: the first administrator was created on the setup page.</summary>
+    public const string SetupCompleted = "setup_completed";
+
+    /// <summary>Issue 215, local-accounts.md §10: the adult turned their second factor on or off.</summary>
+    public const string TotpEnabled = "totp_enabled";
+
+    public const string TotpDisabled = "totp_disabled";
+
+    /// <summary>Issue 215: `nid admin reset-totp` turned an adult's second factor off and closed their sessions.</summary>
+    public const string TotpReset = "totp_reset";
+
+    /// <summary>Issue 215: a sign-in used a recovery code (<c>left</c>).</summary>
+    public const string RecoveryCodeUsed = "recovery_code_used";
+
+    public const string RecoveryCodesRegenerated = "recovery_codes_regenerated";
+
     /// <summary>What the admin area's security journal shows (spec §5.1): nothing about another adult's own sessions.</summary>
     public static IReadOnlySet<string> AdminJournal { get; } = new HashSet<string>
     {
         LoginRefused, AccessViolation, PersonPreregistered, PersonPreregistrationCancelled,
         AdminGranted, AdminRevoked, SessionRevoked, HouseholdSettingsChanged, AdminCommand, SubjectRebound, TokenAuthFailed,
+        // Issue 215: what an admin needs to act on. login_failed only without a person (unknown_login, #292): the reader drops an adult's own.
+        LoginFailed, LoginLocked, PasswordReset, CredentialLinkIssued, CredentialLinkRevoked, AccountEnrolled, AccountUnlocked, SetupCompleted, TotpReset,
     };
 }
 

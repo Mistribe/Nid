@@ -8,26 +8,32 @@ import { present, toProblem } from '@/api/errors';
 import { useSession } from '@/app/Providers';
 import type { BanksSearch } from '@/app/router';
 import { EmptyState } from '@/components/EmptyState';
+import { InfoTip } from '@/components/InfoTip';
 import { formatLocalDate } from '@/components/LocalDate';
 import { formatCurrency } from '@/components/Money';
+import { OwnerChips } from '@/components/OwnerChips';
 import { ProblemMessage } from '@/components/ProblemMessage';
+import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
 import { RowActions } from '@/components/page/RowActions';
 import { Section } from '@/components/page/Section';
 import { SortableTable } from '@/components/page/SortableTable';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { formatInstant, formatInstantDay } from '@/lib/format';
+import { formatInstant, formatInstantDay, formatInstantTime } from '@/lib/format';
 import { ENVELOPES, invalidateInvestments, type EnvelopeSummary } from '@/api/investments';
 import { LOANS } from '@/api/loans';
 import { PROPERTIES } from '@/api/properties';
 import { SettingsFrame } from '../SettingsFrame';
 import { AccountDialog } from './AccountDialog';
 import { ConnectBankDialog } from './ConnectBankDialog';
-import { ACCOUNTS, bankErrorText, CONNECTION, CONNECTIONS, RENEW, RULE, RULES, SYNC, useBankAccounts, useBankingStatus, type BankAccount, type BankRule, type Connection } from '@/api/banking';
+import { accountKind, accountLabel, ACCOUNTS, bankErrorText, maskedIban, CONNECTION, CONNECTIONS, RENEW, RULE, RULES, SYNC, useBankAccounts, useBankingStatus, type BankAccount, type BankRule, type Connection } from '@/api/banking';
 import '@/locales/banks';
 
 // Loaded when opened: most visits import no statement.
 const ImportStatementDialog = lazy(() => import('../../investments/operations/ImportStatementDialog'));
+const CategoriesTab = lazy(() => import('./CategoriesTab'));
+
+const TABS = ['accounts', 'categories'] as const;
 
 const PROPOSALS = '/api/v1/core/proposals' as const;
 const day = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'short' });
@@ -65,8 +71,21 @@ export function BanksPage() {
       {status.error ? <ProblemMessage problem={present(toProblem(status.error))} />
         : !status.data ? <Skeleton aria-busy="true" className="h-32"><span className="sr-only">{t('banks.loading')}</span></Skeleton>
         : !status.data.enabled ? <p>{t('banks.disabled')}</p>
-        : <div className="space-y-8"><Connections configured={status.data.configured} /><Rules /></div>}
+        : <BanksTabs configured={status.data.configured} />}
     </SettingsFrame>
+  );
+}
+
+/** « Comptes » (connections, accounts, rules) first, then « Catégories » (`?tab=categories`). */
+function BanksTabs({ configured }: { configured: boolean }) {
+  const { t } = useTranslation();
+  const [tab, setTab] = useDetailTab(TABS);
+  const loading = <Skeleton aria-busy="true" className="h-32"><span className="sr-only">{t('banks.category_list.loading')}</span></Skeleton>;
+  return (
+    <DetailTabs value={tab} onChange={setTab} tabs={[
+      { id: 'accounts', label: t('banks.tabs.accounts'), content: <div className="space-y-8"><Connections configured={configured} /><Rules /></div> },
+      { id: 'categories', label: t('banks.tabs.categories'), content: <Suspense fallback={loading}><CategoriesTab /></Suspense> },
+    ]} />
   );
 }
 
@@ -144,7 +163,7 @@ function Connections({ configured }: { configured: boolean }) {
   return (
     <div className="space-y-6">
       {arrival.error ? <p role="alert" className="text-sm text-destructive">{bankErrorText(t, arrival.error, t('banks.error.generic'))}</p> : null}
-      {configured ? null : <p>{t('banks.not_configured')}</p>}
+      {configured ? null : <NotConfigured />}
       {connections.error ? <ProblemMessage problem={present(toProblem(connections.error))} /> : null}
       {configured && !connections.data && !connections.error ? <Skeleton aria-busy="true" className="h-32"><span className="sr-only">{t('banks.loading')}</span></Skeleton> : null}
       {connections.data?.length === 0 ? <EmptyState module="/settings/appearance" title={t('banks.empty_title')} body={t('banks.empty_body')} action={connect} /> : null}
@@ -165,6 +184,8 @@ function Connections({ configured }: { configured: boolean }) {
       {connecting ? <ConnectBankDialog onClose={() => setConnecting(false)} /> : null}
       {editing ? (
         <AccountDialog account={editing} envelopes={envelopes.data?.items ?? []}
+          taken={all.flatMap((a) => (a.envelopeId && a.id !== editing.id ? [a.envelopeId] : []))}
+          bank={connections.data?.find((c) => c.accounts.some((a) => a.id === editing.id))?.aspspName}
           parents={all.filter((a) => a.kind === 'checking' && a.canWrite)} onClose={() => setEditing(null)} onDone={announce} />
       ) : null}
     </div>
@@ -191,6 +212,7 @@ function ConnectionSection({ connection, all, envelopes, onEdit }: {
         <span className="font-medium text-foreground">{t(`banks.status.${connection.status}`, { defaultValue: connection.status })}</span>
         {connection.validUntil ? <span>{t('banks.expires', { date: day.format(new Date(connection.validUntil)) })}</span> : null}
         <span>{connection.lastSyncedAt ? t('banks.last_sync', { date: formatInstant(connection.lastSyncedAt) }) : t('banks.never_synced')}</span>
+        <Reads reads={connection.reads} />
         <RowActions menuId={`bank-${connection.id}`} menuLabel={t('banks.actions_of', { bank })}
           items={[
             { label: t('banks.sync'), onSelect: () => sync.mutate({ body: { connectionId: connection.id } }) },
@@ -201,10 +223,35 @@ function ConnectionSection({ connection, all, envelopes, onEdit }: {
           present={(_, error) => present(toProblem(error))} invalidate={refresh} />
       </div>
       {failed ? <ProblemMessage problem={present(toProblem(failed))} /> : null}
+      <ReadsWarning reads={connection.reads} />
       {connection.accounts.length > 0 ? (
         <AccountTable caption={t('banks.accounts', { bank })} accounts={connection.accounts} all={all} envelopes={envelopes} onEdit={onEdit} />
       ) : null}
     </Section>
+  );
+}
+
+/** #365: Nid's own count of the unattended reads of the connection's busiest account, never the bank's quota. */
+function Reads({ reads }: { reads: Connection['reads'] }) {
+  const { t } = useTranslation();
+  return (
+    <span className="inline-flex items-center gap-1">
+      {t('banks.reads.unattended', { count: reads.unattended, limit: reads.limit })}
+      {reads.freesAt ? ` · ${t('banks.reads.frees', { time: formatInstantTime(reads.freesAt) })}` : null}
+      {reads.attended > 0 ? ` · ${t('banks.reads.attended', { count: reads.attended })}` : null}
+      <InfoTip label={t('banks.reads.tip_label')}>{t('banks.reads.tip')}</InfoTip>
+    </span>
+  );
+}
+
+/** Before « Synchroniser » (#365): a refusal in the last 24 hours, or Nid's count at the limit; the person may still try. */
+function ReadsWarning({ reads }: { reads: Connection['reads'] }) {
+  const { t } = useTranslation();
+  if (!reads.warn) return null;
+  return (
+    <p role="status" className="rounded-md bg-status-warning/10 px-3 py-2 text-sm text-status-warning-text">
+      {reads.limitedAt ? t('banks.reads.warn_limited', { date: formatInstant(reads.limitedAt) }) : t('banks.reads.warn_count', { limit: reads.limit })}
+    </p>
   );
 }
 
@@ -213,37 +260,58 @@ function AccountTable({ caption, accounts, all, envelopes, onEdit }: {
   caption: string; accounts: BankAccount[]; all: BankAccount[]; envelopes: EnvelopeSummary[]; onEdit: (account: BankAccount) => void;
 }) {
   const { t } = useTranslation();
+  // A parent the person no longer reads is still a checking account.
+  const parentLabel = (id: string) => { const p = all.find((x) => x.id === id); return p ? accountLabel(t, p) : t('banks.kind.checking'); };
   const envelopeOf = (a: BankAccount) =>
     a.ignored ? t('banks.ignored')
-      : a.cardOfAccountId ? t('banks.card_of', { name: all.find((p) => p.id === a.cardOfAccountId)?.name ?? '' })
+      : a.cardOfAccountId ? t('banks.card_of', { name: parentLabel(a.cardOfAccountId) })
       : envelopes.find((e) => e.id === a.envelopeId)?.displayName ?? '—';
+  // #354: whose account it is reads from its envelope (a card's: its account's), so a child's account shows as the child's.
+  const owners = (a: BankAccount) => {
+    const envelopeId = a.cardOfAccountId ? all.find((x) => x.id === a.cardOfAccountId)?.envelopeId : a.envelopeId;
+    return <OwnerChips owners={envelopes.find((e) => e.id === envelopeId)?.owners ?? []} shares={false} />;
+  };
 
+  // #353: what tells two cards of one bank apart, under the name: the masked number, the holder, the product.
+  const details = (a: BankAccount) => [a.ibanMasked && a.name.trim() ? maskedIban(a.ibanMasked) : null, a.holder, a.product !== a.name.trim() ? a.product : null,
+    a.reads.limitedAt ? t('banks.reads.limited', { date: formatInstant(a.reads.limitedAt) }) : null]
+    .filter(Boolean).join(' · ');
   const name = (a: BankAccount) => (
     <span className="whitespace-normal">
-      <span className="block">{a.name}</span>
-      {a.ibanMasked ? <span className="block text-sm text-muted-foreground">{a.ibanMasked}</span> : null}
+      <span className="block">{accountLabel(t, a)}</span>
+      {details(a) ? <span className="block text-sm text-muted-foreground">{details(a)}</span> : null}
     </span>
   );
-  const kind = (a: BankAccount) => t(`banks.kind.${a.kind}`, { defaultValue: a.kind });
+  const kind = (a: BankAccount) => accountKind(t, a);
   const balance = (a: BankAccount) => (a.lastBalance && a.lastBalanceOn
     ? t('banks.balance_on', { amount: formatCurrency(a.lastBalance, a.currency), date: formatLocalDate(a.lastBalanceOn) }) : '—');
+  // #364: in the table, the date goes under the amount, so the column stays narrow.
+  const balanceCell = (a: BankAccount) => (a.lastBalance && a.lastBalanceOn ? (
+    <span className="tabular-nums">
+      <span className="block">{formatCurrency(a.lastBalance, a.currency)}</span>
+      <span className="block text-sm text-muted-foreground">{t('banks.balance_date', { date: formatLocalDate(a.lastBalanceOn) })}</span>
+    </span>
+  ) : '—');
   const edit = (a: BankAccount) => (a.canWrite ? (
-    <Button type="button" variant="outline" size="sm" aria-label={t('banks.edit_of', { name: a.name })} onClick={() => onEdit(a)}>{t('banks.edit')}</Button>
+    <Button type="button" variant="outline" size="sm" aria-label={t('banks.edit_of', { name: accountLabel(t, a) })} onClick={() => onEdit(a)}>{t('banks.edit')}</Button>
   ) : null);
 
   return (
     <SortableTable<BankAccount> caption={caption} rows={accounts} rowKey={(a) => a.id}
       columns={[
-        { id: 'name', header: t('banks.account'), sort: (a) => a.name, cell: name },
-        { id: 'kind', header: t('banks.kind_label'), cell: kind },
-        { id: 'target', header: t('banks.envelope'), cell: envelopeOf },
-        { id: 'balance', header: t('banks.balance'), cell: balance },
-        { id: 'actions', header: t('banks.actions'), cell: edit },
+        // #364: every text column wraps, so the table fits the page and « Régler » is never cut.
+        { id: 'name', header: t('banks.account'), sort: (a) => accountLabel(t, a), cell: name, wrap: true },
+        { id: 'kind', header: t('banks.kind_label'), cell: kind, wrap: true },
+        { id: 'target', header: t('banks.envelope'), cell: envelopeOf, wrap: true },
+        { id: 'owner', header: t('banks.owners'), cell: owners, wrap: true },
+        { id: 'balance', header: t('banks.balance'), cell: balanceCell, wrap: true },
+        { id: 'actions', header: t('banks.actions'), align: 'end', cell: edit },
       ]}
       mobile={(a) => (
         <div className="space-y-1">
           <div className="flex items-start justify-between gap-2">{name(a)}{edit(a)}</div>
           <div className="flex flex-wrap justify-between gap-x-3 text-sm text-muted-foreground"><span>{kind(a)} · {envelopeOf(a)}</span><span className="tabular-nums">{balance(a)}</span></div>
+          {owners(a)}
         </div>
       )} />
   );
@@ -309,5 +377,20 @@ function RuleActions({ rule, menuId }: { rule: BankRule; menuId: string }) {
       confirmation={t('banks.rules.delete_confirm', { stem: rule.labelStem })} remove={remove}
       onConfirm={() => remove.mutate({ params: { path: { id: rule.id } } })}
       present={(_, error) => present(toProblem(error))} invalidate={invalidateRules} />
+  );
+}
+
+/** Issue #343: the administrator, whom the server tells what is missing, gets which part and the way to their page; the others the plain sentence. */
+function NotConfigured() {
+  const { t } = useTranslation();
+  const status = useBankingStatus().data;
+  if (status?.appIdSaved == null) return <p>{t('banks.not_configured')}</p>;
+  const sentence = status.appIdSaved ? t('banks.not_configured_key')
+    : status.keyStatus === 'loaded' ? t('banks.not_configured_app_id') : t('banks.not_configured_both');
+  return (
+    <p>
+      {sentence}{' '}
+      <Link to="/admin/banking" className="underline underline-offset-4">{t('banks.open_admin_banking')}</Link>
+    </p>
   );
 }

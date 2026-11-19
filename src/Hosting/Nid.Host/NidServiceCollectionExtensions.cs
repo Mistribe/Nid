@@ -98,6 +98,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ITransactionParticipant, DbContextParticipant<CoreDbContext>>();
         services.AddScoped<IPersonRegistry, PersonRegistry>();
         services.AddScoped<IPersonalAccessTokens, PersonalAccessTokenStore>();
+        services.AddScoped<ILocalAccountStore, LocalAccountStore>();
         services.AddScoped<IProposalStore, ProposalStore>();
         services.AddScoped<Nid.Core.Application.ProposalHandlers>();
         services.AddScoped<IProposalSubmitter, Nid.Core.Application.ProposalSubmitter>();
@@ -184,6 +185,7 @@ public static class NidServiceCollectionExtensions
         }).AddInterceptors(sp.GetRequiredService<AuditInterceptor>()));
         services.AddScoped<ITransactionParticipant, DbContextParticipant<SubscriptionsDbContext>>();
         services.AddScoped<ISubscriptionStore, SubscriptionStore>();
+        services.AddScoped<Nid.Subscriptions.Contracts.ISubscriptionLabels, Nid.Subscriptions.Infrastructure.Persistence.SubscriptionLabels>();
         services.AddScoped<IItemDeletionPart, SubscriptionsDeletionPart>();
         services.AddScoped<IPersonUsePart, Nid.Subscriptions.Infrastructure.Persistence.SubscriptionsPersonUsePart>();
         services.AddScoped<ICommitmentsContribution, Nid.Subscriptions.Application.SubscriptionsCommitments>();
@@ -217,7 +219,9 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IEnvelopePerformance>(sp => sp.GetRequiredService<Nid.Investments.Application.EnvelopePerformance>());
         services.AddScoped<INetWorthContribution, Nid.Investments.Application.EnvelopesNetWorth>();
         services.AddScoped<Nid.Investments.Contracts.IEnvelopeFunding, Nid.Investments.Application.EnvelopeFunding>();
+        services.AddScoped<Nid.Investments.Contracts.ISavingsRoom, Nid.Investments.Application.SavingsRoom>();
         services.AddScoped<ITaxContribution, Nid.Investments.Application.EnvelopesTax>();
+        services.AddScoped<ITaxContribution, Nid.Investments.Application.CapitalTaxContribution>();
         services.AddScoped<ISaleContribution, Nid.Investments.Application.EnvelopesSale>();
         services.AddScoped<Nid.Investments.Application.InvestmentsUpcoming>();
         services.AddScoped<IUpcomingEvents>(sp => sp.GetRequiredService<Nid.Investments.Application.InvestmentsUpcoming>());
@@ -249,6 +253,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<Nid.Income.Application.IncomeSourcesUpcoming>();
         services.AddScoped<IUpcomingEvents>(sp => sp.GetRequiredService<Nid.Income.Application.IncomeSourcesUpcoming>());
         services.AddScoped<Nid.Platform.Contracts.INotificationSource, Nid.Income.Application.IncomeNotificationSource>();
+        services.AddScoped<IExpectedIncome, Nid.Income.Application.IncomeSourcesNext>();
         services.AddScoped<ITaxContribution, Nid.Income.Application.IncomeSourcesTax>();
         services.AddScoped<IProposalHandler, Nid.Income.Application.PayslipProposal>();
 
@@ -261,6 +266,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IGoalStore, GoalStore>();
         services.AddScoped<IItemDeletionPart, GoalsDeletionPart>();
         services.AddScoped<GoalReader>();
+        services.AddScoped<Nid.Goals.Contracts.IEmergencyBuffer, GoalsEmergencyBuffer>();
         services.AddScoped<IGoalsReview, GoalsReview>();
         services.AddScoped<ISeriesContribution, GoalSeries>();
 
@@ -277,13 +283,20 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ITransactionStore, TransactionStore>();
         services.AddScoped<ILinkStore, LinkStore>();
         services.AddScoped<IRuleStore, RuleStore>();
+        services.AddScoped<ICategoryStore, CategoryStore>();
+        services.AddScoped<ICategoryRuleStore, CategoryRuleStore>();
         services.AddScoped<IBankSyncRunLog, SyncRunLog>();
+        services.AddScoped<IAccountReadLog, AccountReadLog>();
         services.AddScoped<BankingAccess>();
         services.AddScoped<Nid.Banking.Application.Reconciliation.ExpectedChargeReader>();
+        services.AddScoped<Nid.Banking.Application.Reconciliation.LinkCategoryReader>();
         services.AddScoped<Nid.Banking.Application.Reconciliation.TransactionLinker>();
+        services.AddScoped<Nid.Banking.Application.Reconciliation.CategoryBackfill>();
+        services.AddScoped<Nid.Banking.Application.Reconciliation.CategoryRuleApplier>();
         services.AddScoped<Nid.Banking.Application.Reconciliation.BankReconciliation>();
         services.AddScoped<Nid.Banking.Application.Reconciliation.RecurringDebits>();
         services.AddScoped<Nid.Banking.Application.BankLines>();
+        services.AddScoped<Nid.Banking.Application.CategoryRuleScope>();
         services.AddScoped<IProposalHandler, Nid.Banking.Application.Reconciliation.LinkProposal>();
         services.AddScoped<IProposalHandler, Nid.Banking.Application.Reconciliation.SubscriptionProposal>();
         services.AddScoped<Nid.Platform.Contracts.INotificationSource, BankingNotificationSource>();
@@ -298,6 +311,7 @@ public static class NidServiceCollectionExtensions
         }).AddInterceptors(sp.GetRequiredService<AuditInterceptor>()));
         services.AddScoped<ITransactionParticipant, DbContextParticipant<ChildcareDbContext>>();
         services.AddScoped<Nid.Childcare.Application.IChildcareStore, ChildcareStore>();
+        services.AddScoped<Nid.Childcare.Application.INannyStore, NannyStore>();
         services.AddScoped<IItemDeletionPart, ChildcareDeletionPart>();
         services.AddScoped<IPersonUsePart, Nid.Childcare.Infrastructure.Persistence.ChildcarePersonUsePart>();
         services.AddScoped<Nid.Childcare.Application.ChildcareReader>();
@@ -307,6 +321,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ICommitmentsContribution, Nid.Childcare.Application.ChildcareCommitments>();
         services.AddScoped<IExpectedCharges, Nid.Childcare.Application.ChildcareCharges>();
         services.AddScoped<IImportSection, Nid.Childcare.Application.Import.ChildcareImportSection>();
+        services.AddScoped<IImportSection, Nid.Childcare.Application.Import.NannyImportSection>();
         services.AddScoped<Nid.Platform.Contracts.INotificationSource, Nid.Childcare.Application.ChildcareNotificationSource>();
 
         services.AddDbContext<DocumentsDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
@@ -406,6 +421,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<Nid.Platform.Admin.IJobRunStore, Nid.Platform.Infrastructure.Admin.JobRunStore>();
         // Scoped: the sources depend on scoped stores, a singleton catalog would capture them.
         services.AddScoped<Nid.Platform.Notifications.NotificationCatalog>();
+        services.AddScoped<ISignalSettings, Nid.Platform.Notifications.SignalSettings>();
         services.AddScoped<Nid.Platform.Contracts.INotificationSource, Nid.Platform.Notifications.SystemHealthNotificationSource>();
         services.TryAddSingleton<INotificationRefresh, NoNotificationRefresh>();
         services.TryAddSingleton<IEmailAvailability, NoEmailAvailability>();
@@ -433,6 +449,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IImportSection, Nid.Banking.Application.Import.BankImportSection>();
 
         services.AddLogging();
+        services.AddNidAuthorization();
         services.AddSynapse(cfg =>
         {
             cfg.AddRegisterGroup(new RegisterGroup());                    // this assembly: carries the global behaviors
@@ -446,6 +463,8 @@ public static class NidServiceCollectionExtensions
             cfg.AddRegisterGroup(new Nid.Documents.Application.RegisterGroup());
             cfg.AddRegisterGroup(new Nid.RealEstate.Application.RegisterGroup());
             cfg.AddRegisterGroup(new Nid.Banking.Application.RegisterGroup());
+            cfg.AddTransactions<UnitOfWorkTransactions>();                 // an ITransactional command runs in the request's unit of work
+            cfg.ValidateOnStart();                                         // a handler or behavior that cannot resolve fails the start, not the first request
         });
         return services;
     }

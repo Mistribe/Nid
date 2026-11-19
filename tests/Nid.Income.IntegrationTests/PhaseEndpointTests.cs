@@ -180,7 +180,7 @@ public class PhaseEndpointTests(PostgresFixture fixture) : IClassFixture<Postgre
         var refused = await app.RawAsync(app.AdultA, HttpMethod.Put, $"{Sources}/{id}/phases/{pid}", Phase(amount: "2500"));
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, refused.StatusCode);
-        Assert.Contains((await JsonAsync(refused)).GetProperty("errors").EnumerateArray(), e => e.GetProperty("path").GetString() == "version");
+        Assert.Contains((await JsonAsync(refused)).GetProperty("errors").EnumerateArray(), e => e.FieldPath() == "version");
         Assert.Equal(2300m, Assert.Single(await StoredAsync(app, id)).Net);
     }
 

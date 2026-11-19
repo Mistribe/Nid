@@ -1,6 +1,8 @@
 import { useTranslation } from 'react-i18next';
 import { Section } from '@/components/page/Section';
-import { AmountField, type SectionProps } from './fields';
+import { Field } from '@/components/form/Field';
+import { Input } from '@/components/ui/input';
+import { AmountField, errorText, type SectionProps } from './fields';
 import '@/locales/tax';
 
 /** The 2025 aid donations have two boxes: 7UD until 13 October, 7UQ from 14 October (loi de finances pour 2026, art. 28). */
@@ -18,6 +20,11 @@ export function ExpensesSection({ estimate, draft }: SectionProps) {
         <AmountField draft={draft} name="donations" badge="7UF" />
         <AmountField draft={draft} name="donationsAid" hint={t(split ? 'tax.profile.aid_hint_early' : 'tax.profile.aid_hint')} badge="7UD" />
         {split && <AmountField draft={draft} name="donationsAidLate" hint={t('tax.profile.aid_hint_late')} badge="7UQ" />}
+        <AmountField draft={draft} name="alimonyPaid" hint={t('tax.profile.alimony_hint')} badge="6GP" />
+        <AmountField draft={draft} name="alimonyAdultChildren" hint={t('tax.profile.alimony_children_hint')} badge="6GI" />
+        <Field label={t('tax.profile.alimony_children')} error={errorText(t, draft.errors, 'alimonyChildren')}>
+          {(c) => <Input inputMode="numeric" {...c} value={draft.value.alimonyChildren} onChange={(e) => draft.set({ alimonyChildren: e.target.value })} />}
+        </Field>
       </div>
     </Section>
   );

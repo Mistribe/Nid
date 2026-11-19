@@ -29,7 +29,8 @@ internal static class GoalCheck
 
     /// <summary>D12: a closed goal refuses every write but its reopening.</summary>
     public static Result RequireOpen(ItemAccess item)
-        => item.ArchivedAt is null ? Result.Success() : Fail(GoalsCodes.GoalClosed, "This goal is closed: reopen it first.", null);
+        => item.ArchivedAt is null ? Result.Success()
+            : Result.Failure(new ConflictFailure("This goal is closed: reopen it first.") { Code = GoalsCodes.GoalClosed });
 
     /// <summary>Spec §2: an emergency fund covers 6 months when not told otherwise.</summary>
     public static int? Months(string? kind, int? months) => kind == GoalKinds.EmergencyFund ? months ?? DefaultMonths : months;

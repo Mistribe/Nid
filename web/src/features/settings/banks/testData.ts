@@ -7,10 +7,13 @@ export const CHECKING = '00000000-0000-7000-8000-0000000000b2';
 export const CARD = '00000000-0000-7000-8000-0000000000b3';
 export const JOINT = '00000000-0000-7000-8000-0000000000e1';
 
+/** #365: no read counted yet. */
+export const noReads: BankAccount['reads'] = { unattended: 0, attended: 0, limit: 4, freesAt: null, limitedAt: null, limitedAttended: false, warn: false };
+
 export const account = (over: Partial<BankAccount> = {}): BankAccount => ({
-  id: CHECKING, name: 'Compte courant', ibanMasked: 'FR76 •••• 1234', kind: 'checking', currency: 'EUR', envelopeId: null,
+  id: CHECKING, name: 'Compte courant', ibanMasked: '1234', kind: 'checking', currency: 'EUR', envelopeId: null,
   cardOfAccountId: null, autoApplyBalance: false, ignored: false, balanceConflictOn: null, lastBalance: '1520.30', lastBalanceOn: '2026-09-30',
-  synced: true, canWrite: true, ...over,
+  synced: true, canWrite: true, bankName: over.name ?? 'Compte courant', renamed: false, cardDebit: null, holder: null, product: null, reads: noReads, minPayments: null, countWithdrawals: false, ...over,
 });
 
 export const rule = (over: Partial<BankRule> = {}): BankRule => ({
@@ -21,7 +24,7 @@ export const rule = (over: Partial<BankRule> = {}): BankRule => ({
 
 export const connection = (over: Partial<Connection> = {}): Connection => ({
   id: CONNECTION, aspspName: 'BNP Paribas', status: 'active', validUntil: '2027-04-27T10:00:00+00:00', lastSyncedAt: '2026-10-28T04:30:00+00:00',
-  lastErrorCode: null, accounts: [account(), account({ id: CARD, name: 'Visa Premier', ibanMasked: null, kind: 'card', lastBalance: null, lastBalanceOn: null })],
+  lastErrorCode: null, reads: noReads, accounts: [account(), account({ id: CARD, name: 'Visa Premier', ibanMasked: null, kind: 'card', lastBalance: null, lastBalanceOn: null })],
   ...over,
 });
 
@@ -33,5 +36,6 @@ export function serveBanks(connections: Connection[], envelopes: unknown[] = [],
     http.get('*/api/v1/banking/accounts', () => HttpResponse.json(accounts)),
     http.get('*/api/v1/banking/aspsps', () => HttpResponse.json([{ name: 'BNP Paribas', logo: null }, { name: 'Crédit Agricole', logo: null }])),
     http.get('*/api/v1/investments/envelopes', () => HttpResponse.json({ items: envelopes })),
+    http.get('*/api/v1/banking/accounts/:id/overview', () => HttpResponse.json({ recent: [], suggestedCardOf: null })),
   );
 }

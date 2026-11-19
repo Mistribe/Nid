@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState, type RefObject } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { Button } from '@/components/ui/button';
 
 const ConfirmDialog = lazy(() => import('./ConfirmDialog'));
@@ -8,12 +8,15 @@ const ConfirmDialog = lazy(() => import('./ConfirmDialog'));
  * With no trigger of its own, the dialog hands the focus back to `returnFocus` (the `⋯`) when it closes, confirmed or not; a
  * success that lands elsewhere moves it on from there.
  */
-export function ConfirmFromMenu({ label, confirmation, pending, returnFocus, onConfirm, onClose }: {
+export function ConfirmFromMenu({ label, confirmation, pending, returnFocus, onConfirm, onClose, children }: {
   label: string; confirmation: string; pending?: boolean; returnFocus: RefObject<HTMLElement | null>; onConfirm: () => void; onClose: () => void;
+  children?: ReactNode;
 }) {
   return (
     <Suspense fallback={null}>
-      <ConfirmDialog label={label} confirmation={confirmation} pending={pending} returnFocus={returnFocus} onClose={onClose} onConfirm={() => { onClose(); onConfirm(); }} />
+      <ConfirmDialog label={label} confirmation={confirmation} pending={pending} returnFocus={returnFocus} onClose={onClose} onConfirm={() => { onClose(); onConfirm(); }}>
+        {children}
+      </ConfirmDialog>
     </Suspense>
   );
 }
@@ -32,6 +35,8 @@ export function ConfirmAction(props: {
   disabled?: boolean;
   /** Disables the trigger and the Confirm button while the mutation this action starts is in flight. */
   pending?: boolean;
+  /** A choice that goes with the confirmation, under its sentence. */
+  children?: ReactNode;
 }) {
   const [asking, setAsking] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -48,7 +53,9 @@ export function ConfirmAction(props: {
       {asking ? (
         <Suspense fallback={null}>
           <ConfirmDialog label={props.label} title={props.title} confirmation={props.confirmation} pending={props.pending} onClose={() => setAsking(false)}
-            onConfirm={() => { setAsking(false); props.onConfirm(); }} />
+            onConfirm={() => { setAsking(false); props.onConfirm(); }}>
+            {props.children}
+          </ConfirmDialog>
         </Suspense>
       ) : null}
     </>

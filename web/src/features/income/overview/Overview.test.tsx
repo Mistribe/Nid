@@ -133,6 +133,22 @@ describe('Income overview', () => {
     expect(row.compareDocumentPosition(figures.closest('dl')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
+  it('gathers a person’s salaries in one row that unfolds into its sources', async () => {
+    const other = '0192f0aa-0000-7000-8000-0000000000b2';
+    serve(overview({ sources: [sourceRow({ perMonth: { amount: '3000.00', currency: 'EUR' }, change1y: 50, parts: [
+      sourceRow({ name: 'Nouvel emploi' }), sourceRow({ id: other, name: 'Mi-temps', perMonth: { amount: '550.00', currency: 'EUR' } }),
+    ] })] }));
+    const { user } = await renderApp('/income?tab=sources');
+
+    const table = await screen.findByRole('table', { name: 'Liste des revenus' });
+    expect(within(table).getByText('Salaires')).toBeInTheDocument();
+    expect(within(table).getByText(/\+50/)).toBeInTheDocument();
+    expect(within(table).queryByText('Mi-temps')).toBeNull();
+    await user.click(within(table).getByRole('button', { name: 'Déplier les salaires' }));
+    expect(within(table).getByRole('link', { name: /Mi-temps/ })).toHaveAttribute('href', `/income/${other}`);
+    expect(within(table).getByRole('link', { name: /Nouvel emploi/ })).toHaveAttribute('href', `/income/${SALARY}`);
+  });
+
   it('isolates a source from the split bar and clears it on a second click', async () => {
     const seen = serve();
     const { user, router } = await renderApp('/income?tab=sources');

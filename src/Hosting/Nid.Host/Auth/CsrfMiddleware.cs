@@ -8,7 +8,7 @@ namespace Nid.Host.Auth;
 /// Unsafe methods need a custom header carrying the session's CSRF token, and a same-origin
 /// <c>Origin</c> / <c>Sec-Fetch-Site</c> when the browser sends them. No CORS is configured (single origin).
 /// </summary>
-public sealed class CsrfMiddleware(RequestDelegate next, IOptions<NidAuthOptions> options)
+public sealed class CsrfMiddleware(RequestDelegate next, IOptions<NidAuthOptions> options, AuthSettings settings)
 {
     public const string HeaderName = "X-Nid-Csrf";
 
@@ -16,6 +16,18 @@ public sealed class CsrfMiddleware(RequestDelegate next, IOptions<NidAuthOptions
 
     public async Task InvokeAsync(HttpContext context)
     {
+        // Issue 215: before a session exists, the pre-session cookie and its token stand in for the session's (LoginCsrf).
+        if (!SafeMethods.Contains(context.Request.Method) && LoginCsrf.Protects(context.Request.Path))
+        {
+            if (!LoginCsrf.IsValid(context.Request, settings, options.Value.PublicUrl, options.Value.CsrfKey))
+            {
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                return;
+            }
+            await next(context);
+            return;
+        }
+
         // 4A: a bearer request carries no ambient credential: a cross-site page cannot forge one (spec §3), and the
         // cookie never authenticates it (the "nid" policy scheme), so a bad token answers 401, not this 403.
         // 4B: only on the API; /auth/logout always keeps its check (a bearer header must not spare a cookie POST).

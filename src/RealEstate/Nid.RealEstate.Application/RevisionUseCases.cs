@@ -21,13 +21,13 @@ public sealed record GetTenancyRevisionQuery(ItemId ItemId, Guid Tenancy) : IQue
 /// Rental spec §3.3: the old tenancy ends on <paramref name="EffectiveOn"/>, a new one at the revised rent starts there; its id.
 /// <paramref name="NewRent"/> makes it a free revision: no IRL or anniversary, any current last link but in energy class F or G.
 /// </summary>
-public sealed record AcceptRentRevisionCommand(ItemId ItemId, Guid Tenancy, LocalDate EffectiveOn, decimal? NewRent = null) : ICommand<Guid>, IItemScoped
+public sealed record AcceptRentRevisionCommand(ItemId ItemId, Guid Tenancy, LocalDate EffectiveOn, decimal? NewRent = null) : ICommand<Guid>, IItemScoped, ITransactional
 {
     public AccessKind Access => AccessKind.Write;
 }
 
 /// <summary>Rental spec §3.3: removes the chain's last link and gives its predecessor back its end.</summary>
-public sealed record UndoRentRevisionCommand(ItemId ItemId, Guid Tenancy) : ICommand<bool>, IItemScoped
+public sealed record UndoRentRevisionCommand(ItemId ItemId, Guid Tenancy) : ICommand<bool>, IItemScoped, ITransactional
 {
     public AccessKind Access => AccessKind.Write;
 }
@@ -151,12 +151,11 @@ public sealed class GetTenancyRevisionHandler(IPropertyStore properties, IItemRe
 /// </summary>
 [RequestHandler<AcceptRentRevisionCommand, Guid>]
 public sealed class AcceptRentRevisionHandler(
-    IItemRegistry items, IPropertyStore properties, IIrlStore irl, IHouseholdCalendar calendar, IUnitOfWork unitOfWork)
+    IItemRegistry items, IPropertyStore properties, IIrlStore irl, IHouseholdCalendar calendar)
     : IRequestHandler<AcceptRentRevisionCommand, Guid>
 {
     public async ValueTask<Result<Guid>> HandleAsync(AcceptRentRevisionCommand command, CancellationToken ct = default)
     {
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         var loaded = await PropertyCheck.LockAsync(properties, items, command.ItemId, ct);
         if (loaded.TryGetFailure(out var failure))
             return Result.Failure<Guid>(failure!);
@@ -196,18 +195,16 @@ public sealed class AcceptRentRevisionHandler(
         var id = Guid.CreateVersion7();
         await properties.UpdateTenancyAsync(command.ItemId, current.Id, old with { EndsOn = command.EffectiveOn.PlusDays(-1) }, ct);
         await properties.AddTenancyAsync(command.ItemId, id, old with { StartsOn = command.EffectiveOn, RentMonthly = newRent }, ct, revisedFrom: current.Id);
-        await transaction.CommitAsync(ct);
         return Result.Success(id);
     }
 }
 
 [RequestHandler<UndoRentRevisionCommand, bool>]
-public sealed class UndoRentRevisionHandler(IItemRegistry items, IPropertyStore properties, IFlows flows, IUnitOfWork unitOfWork)
+public sealed class UndoRentRevisionHandler(IItemRegistry items, IPropertyStore properties, IFlows flows)
     : IRequestHandler<UndoRentRevisionCommand, bool>
 {
     public async ValueTask<Result<bool>> HandleAsync(UndoRentRevisionCommand command, CancellationToken ct = default)
     {
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         var loaded = await PropertyCheck.LockAsync(properties, items, command.ItemId, ct);
         if (loaded.TryGetFailure(out var failure))
             return Result.Failure<bool>(failure!);
@@ -231,7 +228,6 @@ public sealed class UndoRentRevisionHandler(IItemRegistry items, IPropertyStore 
         var previous = tenancies.First(t => t.Id == previousId).Tenancy;
         await properties.DeleteTenancyAsync(command.ItemId, link.Id, ct);
         await properties.UpdateTenancyAsync(command.ItemId, previousId, previous with { EndsOn = link.Tenancy.EndsOn }, ct);
-        await transaction.CommitAsync(ct);
         return Result.Success(true);
     }
 }

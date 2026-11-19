@@ -21,7 +21,7 @@ public sealed record SwitchLegDraft(Guid HoldingId, Money Amount, decimal? Units
 /// </summary>
 public sealed record SwitchDraft(LocalDate OccurredOn, bool Maturity, IReadOnlyList<SwitchLegDraft> From, IReadOnlyList<SwitchLegDraft> To, string? Label);
 
-public sealed record AddHoldingMovementCommand(ItemId ItemId, Guid Holding, MovementDraft Movement) : ICommand<MovementRecorded>, IItemScoped
+public sealed record AddHoldingMovementCommand(ItemId ItemId, Guid Holding, MovementDraft Movement) : ICommand<MovementRecorded>, IItemScoped, ITransactional
 {
     public AccessKind Access => AccessKind.Write;
 }
@@ -33,13 +33,13 @@ public sealed record HoldingMovementLine(Guid Holding, MovementDraft Movement);
 /// Several movements of one envelope's holdings as one write (a statement's): what <see cref="AddHoldingMovementCommand"/> checks,
 /// with the envelope read once; a refusal names its movement by index (<see cref="Batch.Index"/>).
 /// </summary>
-public sealed record AddHoldingMovementsCommand(ItemId ItemId, IReadOnlyList<HoldingMovementLine> Movements) : ICommand<IReadOnlyList<Guid>>, IItemScoped
+public sealed record AddHoldingMovementsCommand(ItemId ItemId, IReadOnlyList<HoldingMovementLine> Movements) : ICommand<IReadOnlyList<Guid>>, IItemScoped, ITransactional
 {
     public AccessKind Access => AccessKind.Write;
 }
 
 /// <summary>Every leg of a switch in one write, sharing a generated <c>switch_ref</c>.</summary>
-public sealed record RecordSwitchCommand(ItemId ItemId, SwitchDraft Switch) : ICommand<SwitchRecorded>, IItemScoped
+public sealed record RecordSwitchCommand(ItemId ItemId, SwitchDraft Switch) : ICommand<SwitchRecorded>, IItemScoped, ITransactional
 {
     public AccessKind Access => AccessKind.Write;
 }
@@ -128,12 +128,11 @@ internal sealed record MovementFacts(Currency Currency, IReadOnlyList<StoredHold
 
 [RequestHandler<AddHoldingMovementCommand, MovementRecorded>]
 public sealed class AddHoldingMovementHandler(
-    IEnvelopeStore envelopes, IItemRegistry items, IHoldingStore holdings, IFlows flows, IHouseholdCalendar calendar, IUnitOfWork unitOfWork)
+    IEnvelopeStore envelopes, IItemRegistry items, IHoldingStore holdings, IFlows flows, IHouseholdCalendar calendar)
     : IRequestHandler<AddHoldingMovementCommand, MovementRecorded>
 {
     public async ValueTask<Result<MovementRecorded>> HandleAsync(AddHoldingMovementCommand command, CancellationToken ct = default)
     {
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         var loaded = await MovementFacts.LoadAsync(envelopes, items, holdings, flows, command.ItemId, write: true, command.Holding, ct);
         if (!loaded.TryGetValue(out var facts))
             return Result.Failure<MovementRecorded>(loaded.TryGetFailure(out var refused) ? refused! : throw new InvalidOperationException());
@@ -147,19 +146,17 @@ public sealed class AddHoldingMovementHandler(
             return Result.Failure<MovementRecorded>(checkedMovement.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
 
         await holdings.AddMovementsAsync([movement], ct);
-        await transaction.CommitAsync(ct);
         return Result.Success(new MovementRecorded(movement.Id, facts.WarningsAfter([movement])));
     }
 }
 
 [RequestHandler<AddHoldingMovementsCommand, IReadOnlyList<Guid>>]
 public sealed class AddHoldingMovementsHandler(
-    IEnvelopeStore envelopes, IItemRegistry items, IHoldingStore holdings, IFlows flows, IHouseholdCalendar calendar, IUnitOfWork unitOfWork)
+    IEnvelopeStore envelopes, IItemRegistry items, IHoldingStore holdings, IFlows flows, IHouseholdCalendar calendar)
     : IRequestHandler<AddHoldingMovementsCommand, IReadOnlyList<Guid>>
 {
     public async ValueTask<Result<IReadOnlyList<Guid>>> HandleAsync(AddHoldingMovementsCommand command, CancellationToken ct = default)
     {
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         var loaded = await MovementFacts.LoadAsync(envelopes, items, holdings, flows, command.ItemId, write: true, null, ct);
         if (!loaded.TryGetValue(out var facts))
             return Result.Failure<IReadOnlyList<Guid>>(loaded.TryGetFailure(out var refused) ? refused! : throw new InvalidOperationException());
@@ -183,19 +180,17 @@ public sealed class AddHoldingMovementsHandler(
         }
 
         await holdings.AddMovementsAsync(written, ct);
-        await transaction.CommitAsync(ct);
         return Result.Success<IReadOnlyList<Guid>>(written.Select(m => m.Id).ToList());
     }
 }
 
 [RequestHandler<RecordSwitchCommand, SwitchRecorded>]
 public sealed class RecordSwitchHandler(
-    IEnvelopeStore envelopes, IItemRegistry items, IHoldingStore holdings, IFlows flows, IHouseholdCalendar calendar, IUnitOfWork unitOfWork)
+    IEnvelopeStore envelopes, IItemRegistry items, IHoldingStore holdings, IFlows flows, IHouseholdCalendar calendar)
     : IRequestHandler<RecordSwitchCommand, SwitchRecorded>
 {
     public async ValueTask<Result<SwitchRecorded>> HandleAsync(RecordSwitchCommand command, CancellationToken ct = default)
     {
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         var loaded = await MovementFacts.LoadAsync(envelopes, items, holdings, flows, command.ItemId, write: true, null, ct);
         if (!loaded.TryGetValue(out var facts))
             return Result.Failure<SwitchRecorded>(loaded.TryGetFailure(out var refused) ? refused! : throw new InvalidOperationException());
@@ -221,7 +216,6 @@ public sealed class RecordSwitchHandler(
         }
 
         await holdings.AddMovementsAsync(written, ct);
-        await transaction.CommitAsync(ct);
         return Result.Success(new SwitchRecorded(reference, written.Take(s.From.Count).Select(m => m.Id).ToList(),
             written.Skip(s.From.Count).Select(m => m.Id).ToList(), facts!.WarningsAfter(written)));
     }
@@ -264,7 +258,7 @@ public sealed class GetHoldingPerformanceHandler(IEnvelopeStore envelopes, IItem
     public async ValueTask<Result<PeriodView>> HandleAsync(GetHoldingPerformanceQuery query, CancellationToken ct = default)
     {
         if (query.From > query.To)
-            return Result.Failure<PeriodView>(new Failure(InvestmentsCodes.InvalidPeriod, "The period's start is after its end.", null));
+            return Result.Failure<PeriodView>(new BadRequestFailure("The period's start is after its end.") { Code = InvestmentsCodes.InvalidPeriod });
         var loaded = (await MovementFacts.LoadAsync(envelopes, items, holdings, flows, query.ItemId, write: false, query.Holding, ct));
         if (!loaded.TryGetValue(out var facts))
             return Result.Failure<PeriodView>(loaded.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());

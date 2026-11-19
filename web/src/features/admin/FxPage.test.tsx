@@ -62,7 +62,7 @@ describe('Administration › Taux de change', () => {
         calls += 1;
         return calls === 1
           ? HttpResponse.json({ requested: true }, { status: 202 })
-          : HttpResponse.json({ status: 409, code: 'core.fx_sync_running', title: 'A rate collection is already running.' }, { status: 409 });
+          : HttpResponse.json({ status: 409, code: 'core.fx_sync_running', detail: 'A rate collection is already running.' }, { status: 409 });
       }),
     );
     const { user } = await renderApp('/admin/fx', { capabilities: adminCapabilities });

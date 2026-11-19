@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useApi } from '@/api/ApiProvider';
 import type { Api } from '@/api/client';
 import { ProblemError, toProblem, type Problem } from '@/api/errors';
-import { bankErrorText, STATEMENTS, TRANSACTIONS, type BankTransactionPage, type StatementImport } from '@/api/banking';
+import { bankErrorText, CATEGORY_RULES, STATEMENTS, TRANSACTION_CATEGORY, TRANSACTIONS, type BankTransactionPage, type StatementImport } from '@/api/banking';
 import '@/locales/banks';
 
 /** The lines of an envelope's bank account and its cards, newest first, 50 a page; `from`/`to` (ISO, or absent) bound the period. */
@@ -45,7 +45,7 @@ const LINK = '/api/v1/banking/transactions/{id}/link' as const;
 const UNLINK = '/api/v1/banking/transactions/{id}/unlink' as const;
 const IGNORE = '/api/v1/banking/transactions/{id}/ignore' as const;
 
-/** « Relier », « Délier » and « Ignorer » on a line; each refreshes every line list, the candidates and the proposals. */
+/** « Relier », « Délier », « Ignorer » and « Catégoriser » (a hand choice, or back to Nid's, and the rule it may offer) on a line; each refreshes every line list, the candidates and the proposals. */
 export function useLineActions() {
   const { $api } = useApi();
   const queryClient = useQueryClient();
@@ -53,5 +53,7 @@ export function useLineActions() {
   const onSuccess = () => { void queryClient.invalidateQueries({
     predicate: (q) => typeof q.queryKey[1] === 'string' && (q.queryKey[1].startsWith('/api/v1/banking/') || q.queryKey[1].startsWith('/api/v1/core/proposals')),
   }); };
-  return { link: $api.useMutation('post', LINK, { onSuccess }), unlink: $api.useMutation('post', UNLINK, { onSuccess }), ignore: $api.useMutation('post', IGNORE, { onSuccess }) };
+  return { link: $api.useMutation('post', LINK, { onSuccess }), unlink: $api.useMutation('post', UNLINK, { onSuccess }), ignore: $api.useMutation('post', IGNORE, { onSuccess }),
+    categorise: $api.useMutation('put', TRANSACTION_CATEGORY, { onSuccess }), resetCategory: $api.useMutation('delete', TRANSACTION_CATEGORY, { onSuccess }),
+    createRule: $api.useMutation('post', CATEGORY_RULES, { onSuccess }) };
 }

@@ -137,6 +137,32 @@ public class OverviewEndpointTests(PostgresFixture fixture) : IClassFixture<Post
     }
 
     [Fact]
+    public async Task A_persons_salaries_are_one_row_whose_change_spans_a_change_of_job()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var before = await SalaryAsync(app, app.AdultA, "Ancien emploi", startsOn: "2024-01-01", amount: "2000");
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/income/sources/{before}/close",
+            new { endedOn = "2025-03-31" })).StatusCode);
+        var after = await SalaryAsync(app, app.AdultA, "Nouvel emploi", startsOn: "2025-04-01", amount: "2500");
+        var side = await SalaryAsync(app, app.AdultA, "Mi-temps", startsOn: "2025-01-01", amount: "500");
+        var other = await SalaryAsync(app, app.AdultB, "Salaire B");
+
+        var rows = Rows(await OverviewAsync(app));
+
+        Assert.Equal(2, rows.Count);
+        var mine = rows.Single(r => r.GetProperty("id").GetGuid() == after);
+        // 3000 today against 2000 a year ago: the ended job counts in the row's figures, not in its parts.
+        Assert.Equal(("3000.00", 50m), (Amount(mine.GetProperty("perMonth")), mine.GetProperty("change1y").GetDecimal()));
+        Assert.Equal("3000.00", Amount(mine.GetProperty("nextAmount")));
+        Assert.Equal([side, after], mine.GetProperty("parts").EnumerateArray().Select(p => p.GetProperty("id").GetGuid()));
+        Assert.Equal(JsonValueKind.Null, rows.Single(r => r.GetProperty("id").GetGuid() == other).GetProperty("parts").ValueKind);
+        var withEnded = Rows(await OverviewAsync(app, "?ended=true")).Single(r => r.GetProperty("id").GetGuid() == after);
+        Assert.Equal(3, withEnded.GetProperty("parts").GetArrayLength());
+        // Each part against itself: none of them was in Nid on both dates, so none has a change.
+        Assert.All(withEnded.GetProperty("parts").EnumerateArray(), p => Assert.Equal(JsonValueKind.Null, p.GetProperty("change1y").ValueKind));
+    }
+
+    [Fact]
     public async Task An_ended_lease_stays_in_last_years_months_but_not_in_the_rows()
     {
         await using var app = await NidApp.StartAsync(fixture);

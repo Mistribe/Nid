@@ -1,6 +1,9 @@
 using System.Net;
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Contracts;
+using Nid.Investments.Contracts;
+using Nid.Platform.Contracts;
 using Nid.TestSupport;
 using static Nid.Investments.IntegrationTests.RoutineTests;
 
@@ -74,7 +77,7 @@ public class RegulatedLivretTests(PostgresFixture fixture) : IClassFixture<Postg
         Assert.Equal(HttpStatusCode.UnprocessableEntity, both.StatusCode);
         var refusal = await both.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Contains("investments.invalid_envelope", refusal);
-        Assert.Contains("\"regulated\"", refusal);
+        Assert.Contains("\"#/regulated\"", refusal);
         Assert.Equal("lep", (await DetailAsync(app, livret)).GetProperty("regulated").GetString());
         (await app.RawAsync(app.AdultA, HttpMethod.Patch, $"/api/v1/investments/envelopes/{livret.Value}", new { kind = "checking" })).EnsureSuccessStatusCode();
         Assert.Equal(JsonValueKind.Null, (await DetailAsync(app, livret)).GetProperty("regulated").ValueKind);
@@ -99,7 +102,7 @@ public class RegulatedLivretTests(PostgresFixture fixture) : IClassFixture<Postg
         Assert.Equal(HttpStatusCode.UnprocessableEntity, refused.StatusCode);
         var body = await refused.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Contains("investments.above_ceiling", body);
-        Assert.Contains("lines[0].contribution", body);
+        Assert.Contains("#/lines/0/contribution", body);
 
         Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/investments/routine", new
         {
@@ -121,7 +124,7 @@ public class RegulatedLivretTests(PostgresFixture fixture) : IClassFixture<Postg
             var body = await r.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
             Assert.Equal(HttpStatusCode.UnprocessableEntity, r.StatusCode);
             Assert.Contains("investments.above_ceiling", body);
-            Assert.Contains($"\"{field}\"", body);
+            Assert.Contains($"\"#/{field}\"", body);
         }
 
         await RefusedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, flows, Flow("contribution", "150.00")), "amount");
@@ -164,5 +167,32 @@ public class RegulatedLivretTests(PostgresFixture fixture) : IClassFixture<Postg
         var watch = JsonDocument.Parse(await app.GetRawAsync(app.AdultA, "/api/v1/investments/overview")).RootElement.GetProperty("watch")
             .EnumerateArray().Where(w => w.GetProperty("code").GetString() == "tax_milestone").Select(w => w.GetProperty("envelopeId").GetGuid());
         Assert.Equal(new[] { soon.Value, watched.Value }.Order(), watch.Order());
+    }
+
+    /// <summary>Issue #81: the room idle cash reads, over the open livrets the reader reads.</summary>
+    [Fact]
+    public async Task The_savings_room_sums_the_open_livrets_the_reader_reads()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var livret = await CreateAsync(app, "Livret A", "savings", "livret_a");
+        await ValueAsync(app, livret, "2025-01-02", "20000.00");
+        await ValueAsync(app, await CreateAsync(app, "Compte", "savings"), "2025-01-02", "50000.00"); // not a livret
+        var response = await app.RawAsync(app.AdultB, HttpMethod.Post, "/api/v1/investments/envelopes", new
+        {
+            displayName = "LEP", kind = "savings", currency = "EUR", visibility = "private", regulated = "lep",
+            owners = new[] { new { personId = app.AdultB.Value, shareBp = 10_000 } },
+        });
+        var lep = new ItemId(JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.GetProperty("id").GetGuid());
+        await ValueAsync(app, lep, "2025-01-02", "4000.00", app.AdultB);
+
+        async Task<decimal> RoomAsync(PersonId reader)
+        {
+            await using var scope = app.Services.CreateAsyncScope();
+            scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.Notifier(reader);
+            return await scope.ServiceProvider.GetRequiredService<ISavingsRoom>().RoomAsync(reader, NidApp.GoldenCaseToday, TestContext.Current.CancellationToken);
+        }
+
+        Assert.Equal(2_950m, await RoomAsync(app.AdultA));
+        Assert.Equal(8_950m, await RoomAsync(app.AdultB)); // B's own LEP too
     }
 }

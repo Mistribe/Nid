@@ -95,7 +95,7 @@ export function Shell() {
   const tab = (item: NavItem) => (
     <Link key={item.to} to={item.to} className={TAB} activeProps={{ 'aria-current': 'page', className: TAB_ACTIVE }}>
       <item.icon aria-hidden="true" className="size-5 shrink-0" />
-      <span className="max-w-full truncate">{t(item.label)}</span>
+      <span className="max-w-full truncate">{t('tabLabel' in item ? item.tabLabel : item.label)}</span>
       {/* On a tab the count sits on the icon's corner, out of the label's way. */}
       <span className="absolute top-0.5 left-1/2 ml-1.5">{badge(item)}</span>
     </Link>

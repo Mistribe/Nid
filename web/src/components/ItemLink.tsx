@@ -5,7 +5,7 @@ import type { ReactNode } from 'react';
 /** The detail route of a dashboard item, by its module. */
 export function itemRoute(module: string, id: string): LinkProps {
   const to = module === 'subscriptions' ? '/subscriptions/$id' : module === 'income' ? '/income/$id'
-    : module === 'properties' ? '/properties/$id' : module === 'loans' ? '/loans/$id' : '/investments/$id';
+    : module === 'properties' ? '/properties/$id' : module === 'loans' ? '/loans/$id' : module === 'childcare' ? '/childcare/$id' : '/investments/$id';
   return { to, params: { id } };
 }
 

@@ -52,7 +52,7 @@ export function placeFieldError<T extends FieldValues>(
   const known = fieldErrorsOf(error);
   const field = known.length === 0 ? fallback[problem.code ?? ''] : undefined;
   if (field) {
-    setError(field, { type: 'server', message: messageFor(t, { path: field, code: problem.code ?? '', message: problem.title ?? '' }) });
+    setError(field, { type: 'server', message: messageFor(t, { path: field, code: problem.code ?? '', message: problem.detail ?? '' }) });
     errors.clear();
   } else {
     errors.onError(error);

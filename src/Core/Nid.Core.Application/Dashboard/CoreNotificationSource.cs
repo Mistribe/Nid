@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Globalization;
 using Microsoft.Extensions.Logging;
 using Nid.Core.Application.Tax;
 using Nid.Core.Contracts;
@@ -11,16 +12,20 @@ namespace Nid.Core.Application.Dashboard;
 
 /// <summary>
 /// Notifications design §2.3: what the dashboard says about the household as a whole, as signals: a currency without a rate, and
-/// the month's routine when a value is to update. Neither is about one item, so neither carries an item id or an amount.
+/// the month's routine when a value is to update. Neither is about one item, so neither carries an item id or an amount. Issue #81:
+/// the net worth milestone and the savings pace, opt-in, whose figures only the centre shows.
 /// </summary>
 public sealed class CoreNotificationSource(
     DashboardReader dashboard, MonthChangesReader changes, MonthChangeWords monthWords, IPersonalAccessTokens tokens,
-    IHouseholdCalendar calendar, IClock clock, TaxCalendarEvents taxCalendar, ILogger<CoreNotificationSource> logger) : INotificationSource
+    IHouseholdCalendar calendar, IClock clock, TaxCalendarEvents taxCalendar, ISignalSettings settings,
+    IEnumerable<INetWorthContribution> netWorth, IHouseholdSettings household, IFxRates fx, ILogger<CoreNotificationSource> logger) : INotificationSource
 {
     public const string FxRateMissing = "fx_rate_missing";
     public const string RoutineDue = "routine_due";
     public const string TokenExpiring = "token_expiring";
     public const string MonthChanges = "month_changes";
+    public const string NetWorthMilestone = "net_worth_milestone";
+    public const string SavingsPace = "savings_pace";
 
     private static readonly IReadOnlyDictionary<string, string> NoParams = new Dictionary<string, string>();
     private static readonly HashSet<string> TaxKinds = [UpcomingKinds.TaxFilingDeadline, UpcomingKinds.TaxNewRate, UpcomingKinds.TaxBalanceDue];
@@ -37,6 +42,10 @@ public sealed class CoreNotificationSource(
         new(UpcomingKinds.TaxFilingDeadline, "due_date", NotificationLevel.Action, "core", 14),
         new(UpcomingKinds.TaxNewRate, "due_date", NotificationLevel.Info, "core", 7),
         new(UpcomingKinds.TaxBalanceDue, "due_date", NotificationLevel.Info, "core", 7),
+        // Issue #81: the step, in the household currency.
+        new(NetWorthMilestone, "finding", NotificationLevel.Info, "core", null, new SignalThreshold(50_000m, 1_000m, 10_000_000m, "eur")),
+        // Issue #81: the drop, in points of percent.
+        new(SavingsPace, "finding", NotificationLevel.Info, "core", null, new SignalThreshold(30m, 5m, 95m, "pct")),
     ];
 
     public async Task<Result<IReadOnlyList<Signal>>> SignalsAsync(PersonId reader, LocalDate today, LocalDate horizon, CancellationToken ct)
@@ -56,6 +65,12 @@ public sealed class CoreNotificationSource(
         if (await MonthWordsAsync(reader, today, ct) is { Count: > 0 } words)
             signals.Add(new Signal(SignalKeys.Household(MonthChanges, $"{today:yyyy-MM}"), MonthChanges, [], null, words));
 
+        var turnedOn = await settings.ForAsync(reader, ct);
+        if (turnedOn.TryGetValue(NetWorthMilestone, out var step) && await MilestoneAsync(reader, view, today, step, ct) is { } milestone)
+            signals.Add(milestone);
+        if (turnedOn.TryGetValue(SavingsPace, out var drop) && await PaceAsync(reader, today, drop, ct) is { } pace)
+            signals.Add(pace);
+
         // The expiry day is the household's, like today and the horizon: the same day in the key and the title.
         var now = clock.GetCurrentInstant();
         var zone = await calendar.ZoneAsync(ct);
@@ -73,6 +88,77 @@ public sealed class CoreNotificationSource(
             signals.Add(new Signal(SignalKeys.Household(e.Kind, $"{e.On:yyyy-MM-dd}"), e.Kind, [], e.On,
                 e.Label is { } note ? new Dictionary<string, string> { ["note"] = note } : NoParams));
         return Result.Success<IReadOnlyList<Signal>>(signals);
+    }
+
+    /// <summary>
+    /// Issue #81: today's net worth against the previous month-end's, on the curve's figures; the key is the step crossed, so the
+    /// signal holds for the month after the crossing and resolves once that month-end is above it. A failed read is logged, none raised.
+    /// </summary>
+    private async Task<Signal?> MilestoneAsync(PersonId reader, DashboardView view, LocalDate today, decimal step, CancellationToken ct)
+    {
+        decimal? now = view.Envelopes > 0 && view.NetWorth.Total is { } total ? decimal.Parse(total.Amount, CultureInfo.InvariantCulture) : null;
+        var monthEnd = new LocalDate(today.Year, today.Month, 1).PlusDays(-1);
+        var read = await Contributions.CollectAsync(netWorth, c => c.NetWorthHistoryAsync(reader, VisibilityScope.Mine, [monthEnd], ct));
+        if (!read.TryGetValue(out var parts))
+        {
+            logger.LogWarning("The net worth history of {Person} could not be read: {Code}", reader.Value, read.TryGetFailure(out var f) ? f!.Code : "core.unknown");
+            return null;
+        }
+        var points = parts!.SelectMany(p => p).ToList();
+        var (sum, reference) = await ConvertedAsync(points.Select(p => p.Values), monthEnd, today, ct);
+        decimal? before = points.Sum(p => p.Envelopes) > 0 ? sum : null;
+
+        if (Dashboard.NetWorthMilestone.Crossed(before, now, step) is not { } crossed)
+            return null;
+        var figures = new Dictionary<string, string>
+        {
+            ["net_worth_amount"] = now!.Value.ToString(CultureInfo.InvariantCulture),
+            ["step_amount"] = crossed.ToString(CultureInfo.InvariantCulture),
+            ["currency"] = reference.Code,
+        };
+        return new Signal(SignalKeys.Household(NetWorthMilestone, crossed.ToString("0", CultureInfo.InvariantCulture)), NetWorthMilestone, [], null, figures);
+    }
+
+    /// <summary>
+    /// Issue #81: the last 3 months' net contributions against the last 12 months', as monthly averages, on the projection's
+    /// « Automatique » figure; once a month. A failed read is logged, none raised.
+    /// </summary>
+    private async Task<Signal?> PaceAsync(PersonId reader, LocalDate today, decimal drop, CancellationToken ct)
+    {
+        async Task<decimal?> SavedAsync(LocalDate from)
+        {
+            var read = await Contributions.CollectAsync(netWorth, c => c.NetContributionsAsync(reader, VisibilityScope.Mine, from, today, ct));
+            if (read.TryGetValue(out var parts))
+                return (await ConvertedAsync(parts!, today, today, ct)).Total;
+            logger.LogWarning("The net contributions of {Person} could not be read: {Code}", reader.Value, read.TryGetFailure(out var f) ? f!.Code : "core.unknown");
+            return null;
+        }
+
+        // Both ends included, as the projection reads its year.
+        var year = await SavedAsync(today.PlusYears(-1).PlusDays(1));
+        var recent = await SavedAsync(today.PlusMonths(-3).PlusDays(1));
+        if (Dashboard.SavingsPace.Dropped(recent, year, drop) is not var (recentMonthly, averageMonthly))
+            return null;
+        var figures = new Dictionary<string, string>
+        {
+            ["recent_amount"] = decimal.Round(recentMonthly, 2).ToString(CultureInfo.InvariantCulture),
+            ["average_amount"] = decimal.Round(averageMonthly, 2).ToString(CultureInfo.InvariantCulture),
+            ["currency"] = (await household.ReferenceCurrencyAsync(ct)).Code,
+        };
+        return new Signal(SignalKeys.Household(SavingsPace, $"{today:yyyy-MM}"), SavingsPace, [], null, figures);
+    }
+
+    /// <summary>Amounts per currency summed in the reference currency at <paramref name="on"/>'s rate; null when a rate is missing.</summary>
+    private async Task<(decimal? Total, Currency Reference)> ConvertedAsync(
+        IEnumerable<IReadOnlyDictionary<Currency, decimal>> parts, LocalDate on, LocalDate today, CancellationToken ct)
+    {
+        var list = parts.ToList();
+        var reference = await household.ReferenceCurrencyAsync(ct);
+        var foreign = list.SelectMany(p => p.Keys).Where(c => c != reference).Distinct().ToList();
+        // The reference's own quote too: rates are per USD.
+        var rates = foreign.Count == 0 ? RateTable.Empty(today, 0) : await fx.LoadAsync(foreign.Append(reference).ToList(), on, today, ct);
+        var sum = DashboardMath.Sum.Of(DashboardMath.Merge(list), reference, rates, on);
+        return (sum.Missing is null ? sum.Total : null, reference);
     }
 
     /// <summary>
@@ -127,4 +213,36 @@ public sealed class MonthChangeWords
         => kept.TryGetValue(reader, out var k) && k.Month == month ? k.Words : null;
 
     public void Keep(PersonId reader, YearMonth month, IReadOnlyDictionary<string, string> words) => kept[reader] = (month, words);
+}
+
+/// <summary>Issue #81: the net worth milestone, a multiple of the step reached since the previous month-end.</summary>
+public static class NetWorthMilestone
+{
+    /// <summary>
+    /// The highest multiple of <paramref name="step"/> that <paramref name="now"/> reached and <paramref name="before"/> was below;
+    /// null when there is none, or either figure is missing.
+    /// </summary>
+    public static decimal? Crossed(decimal? before, decimal? now, decimal step)
+    {
+        if (before is not { } b || now is not { } n || step <= 0m)
+            return null;
+        var reached = Math.Floor(n / step) * step;
+        return reached >= step && b < reached ? reached : null;
+    }
+}
+
+/// <summary>Issue #81: the savings pace, the last 3 months' monthly average against the last 12 months'.</summary>
+public static class SavingsPace
+{
+    /// <summary>
+    /// The two monthly averages when the 12 months' is above zero and the 3 months' is below it by more than <paramref name="drop"/>
+    /// points of percent; null otherwise, or when either total is missing.
+    /// </summary>
+    public static (decimal Recent, decimal Average)? Dropped(decimal? recent, decimal? year, decimal drop)
+    {
+        if (recent is not { } r || year is not { } y || y <= 0m)
+            return null;
+        var (recentMonthly, average) = (r / 3, y / 12);
+        return recentMonthly < average * (1 - drop / 100) ? (recentMonthly, average) : null;
+    }
 }

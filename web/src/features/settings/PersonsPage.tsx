@@ -23,6 +23,7 @@ import { todayIso } from '@/lib/today';
 import { RetirementDialog } from './RetirementDialog';
 import { SettingsFrame } from './SettingsFrame';
 import '@/locales/notifications';
+import '@/locales/settings';
 
 type Person = components['schemas']['PersonDto'];
 

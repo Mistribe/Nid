@@ -70,13 +70,13 @@ public sealed class ExportPageHandler(ExportBuilder builder) : IRequestHandler<E
         if (query.Cursor is { } cursor)
         {
             if (!ExportCursor.TryDecode(cursor, out var revision, out offset))
-                return Result.Failure<ExportPageView>(new Failure(ExportCodes.BadCursor, "This cursor cannot be read.", null));
+                return Result.Failure<ExportPageView>(new BadRequestFailure("This cursor cannot be read.") { Code = ExportCodes.BadCursor });
             // Revision first: a stale cursor may point past a section that has since shrunk, and must still say "start again".
             if (revision != model.Revision)
-                return Result.Failure<ExportPageView>(new Failure(ExportCodes.RevisionChanged,
-                    "The data changed during the export: start it again.", null));
+                return Result.Failure<ExportPageView>(new ConflictFailure(
+                    "The data changed during the export: start it again.") { Code = ExportCodes.RevisionChanged });
             if (offset > section.Entities.Count)
-                return Result.Failure<ExportPageView>(new Failure(ExportCodes.BadCursor, "This cursor cannot be read.", null));
+                return Result.Failure<ExportPageView>(new BadRequestFailure("This cursor cannot be read.") { Code = ExportCodes.BadCursor });
         }
 
         var limit = Math.Clamp(query.Limit ?? ExportBuilder.MaxPage, 1, ExportBuilder.MaxPage);

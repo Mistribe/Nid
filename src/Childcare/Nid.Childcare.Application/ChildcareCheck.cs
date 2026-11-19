@@ -25,7 +25,7 @@ public static class ChildcareCheck
 
     /// <summary>A closed arrangement refuses every write but its reopening.</summary>
     public static Result RequireOpen(ItemAccess item)
-        => item.ArchivedAt is null ? Result.Success() : Result.Failure(new Failure(ChildcareCodes.Closed, "This arrangement is closed: reopen it first.", null));
+        => item.ArchivedAt is null ? Result.Success() : Result.Failure(new ConflictFailure("This arrangement is closed: reopen it first.") { Code = ChildcareCodes.Closed });
 
     public static async Task<List<FieldError>> ChildAsync(IPersonRegistry persons, PersonId child, CancellationToken ct)
         => (await persons.FindAsync(child, ct))?.Kind == PersonKind.Dependent
@@ -86,6 +86,7 @@ public static class ChildcareCheck
         ChildcareCodes.GapWeeksOutOfRange => "1 to 52 weeks.",
         ChildcareCodes.GapOverlap => "These weeks are already without care.",
         ChildcareCodes.GapsTooMany => "More weeks without care in a contract year than 52 less the programmed weeks.",
+        ChildcareCodes.GrossRateRequired => "The breach indemnity is 1/80 of the gross salaries: the terms need the gross hourly rate.",
         _ => code,
     };
 }

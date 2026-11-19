@@ -116,7 +116,7 @@ describe('GoalsPage', () => {
 
   it('says why a reopen is refused', async () => {
     serve(list([summary({ closed: true })]));
-    server.use(http.post('*/api/v1/goals/:id/reopen', () => HttpResponse.json({ status: 409, code: 'goals.share_exceeded', title: 'Over.' }, { status: 409 })));
+    server.use(http.post('*/api/v1/goals/:id/reopen', () => HttpResponse.json({ status: 409, code: 'goals.share_exceeded', detail: 'Over.' }, { status: 409 })));
     const { user } = await renderApp('/goals?tab=closed');
     await rows();
     await user.click(screen.getAllByRole('button', { name: 'Actions pour Voyage' })[0]!);

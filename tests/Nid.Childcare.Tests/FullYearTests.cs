@@ -19,13 +19,13 @@ public class FullYearTests
         return new MonthInput(month, FullTerms, FullPlan, [], days, neighbours, 0, 0m, 0m, june, LeaveLeft: leaveLeft);
     }
 
-    /// <summary>IDCC 3239 art. 97: hourly rate × weekly hours × 52 ÷ 12 = 4,30 × 38 × 52 ÷ 12; Pajemploi: 164,67 h and 4 days × 52 ÷ 12, rounded up.</summary>
+    /// <summary>IDCC 3239 art. 97: hourly rate × weekly hours × 52 ÷ 12 = 4,30 × 38 × 52 ÷ 12; Pajemploi: 164,67 h cut to 164 and 4 days × 52 ÷ 12, rounded up.</summary>
     [Fact]
     public void The_monthly_pay_spreads_52_weeks()
     {
         var figures = ChildcareMonth.Compute(Input(new YearMonth(2026, 11), 30));
         Assert.Equal(708.07m, figures.BasePay);
-        Assert.Equal(new PajemploiDeclaration(165, 18, null, 0m, 0m, 708.07m, figures.Declaration.Upkeep, figures.Declaration.Meals, 0m), figures.Declaration);
+        Assert.Equal(new PajemploiDeclaration(164, 18, null, 0m, 0m, 708.07m, figures.Declaration.Upkeep, figures.Declaration.Meals, 0m), figures.Declaration);
     }
 
     /// <summary>Leave days within those accrued are paid in the monthly pay: nothing deducted, the month's days and hours declared whole.</summary>
@@ -35,7 +35,7 @@ public class FullYearTests
         var figures = ChildcareMonth.Compute(Input(new YearMonth(2026, 11), 5, null, 2, 3));
         Assert.Equal(0m, figures.Deduction);
         Assert.Equal(708.07m, figures.Declaration.NetPay);
-        Assert.Equal((165, 18), (figures.Declaration.NormalHours, figures.Declaration.ActivityDays));
+        Assert.Equal((164, 18), (figures.Declaration.NormalHours, figures.Declaration.ActivityDays));
         Assert.Equal(2, figures.PaidLeaveTaken);
         Assert.Null(figures.Declaration.PaidLeaveDays);
     }
@@ -66,12 +66,12 @@ public class FullYearTests
     [Fact]
     public void June_adds_the_tenth_excess_only()
     {
-        // 12 months: 30 days; maintained 30 × 38 × 4,30 ÷ 6 = 817,00; tenth of 8 400 = 840,00.
-        var figures = ChildcareMonth.Compute(Input(new YearMonth(2027, 6), 30, new PaidLeaveInput(12, 8400m)));
+        // 30 days accrued; maintained 30 × 38 × 4,30 ÷ 6 = 817,00; tenth of 8 400 = 840,00.
+        var figures = ChildcareMonth.Compute(Input(new YearMonth(2027, 6), 30, new PaidLeaveInput(30, 8400m)));
         Assert.Equal(23.00m, figures.PaidLeavePay);
         Assert.Equal(731.07m, figures.Declaration.NetPay);
         Assert.Null(figures.Declaration.PaidLeaveDays);
-        Assert.Equal(0m, ChildcareMonth.Compute(Input(new YearMonth(2027, 6), 30, new PaidLeaveInput(12, 8000m))).PaidLeavePay);
+        Assert.Equal(0m, ChildcareMonth.Compute(Input(new YearMonth(2027, 6), 30, new PaidLeaveInput(30, 8000m))).PaidLeavePay);
     }
 
     [Fact]

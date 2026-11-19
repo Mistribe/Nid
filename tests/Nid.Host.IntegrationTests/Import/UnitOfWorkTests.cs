@@ -172,7 +172,7 @@ public class UnitOfWorkTests(PostgresFixture fixture) : IClassFixture<PostgresFi
                 await core.Database.ExecuteSqlRawAsync("insert into nest_probe (id) values (1)", cancellationToken: TestContext.Current.CancellationToken);
                 await core.Database.ExecuteSqlRawAsync("release savepoint uow_1", cancellationToken: TestContext.Current.CancellationToken); // the rollback to it now fails
                 await inner.DisposeAsync();
-                await Assert.ThrowsAsync<InvalidOperationException>(() => outer.CommitAsync(TestContext.Current.CancellationToken));
+                await Assert.ThrowsAsync<InvalidOperationException>(() => outer.CommitAsync(TestContext.Current.CancellationToken).AsTask());
             }
 
             await using var next = await unitOfWork.BeginAsync(TestContext.Current.CancellationToken);
@@ -226,7 +226,7 @@ public class UnitOfWorkTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         await core.Database.ExecuteSqlRawAsync("insert into commit_fail_probe (id) values (1)", cancellationToken: TestContext.Current.CancellationToken);
         await core.Database.ExecuteSqlRawAsync("insert into commit_fail_probe (id) values (1)", cancellationToken: TestContext.Current.CancellationToken);
 
-        var failure = await Record.ExceptionAsync(() => transaction.CommitAsync(TestContext.Current.CancellationToken));
+        var failure = await Record.ExceptionAsync(() => transaction.CommitAsync(TestContext.Current.CancellationToken).AsTask());
         Assert.IsType<PostgresException>(failure);
 
         // Disposing after the failed commit must not replace that failure with a rollback failure of its
@@ -248,7 +248,7 @@ public class UnitOfWorkTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         var unitOfWork = scope.ServiceProvider.GetRequiredService<Nid.Platform.Contracts.IUnitOfWork>();
         var core = scope.ServiceProvider.GetRequiredService<CoreDbContext>();
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => unitOfWork.BeginAsync(TestContext.Current.CancellationToken));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => unitOfWork.BeginAsync(TestContext.Current.CancellationToken).AsTask());
 
         Assert.Null(core.Database.CurrentTransaction);
         await using var again = await unitOfWork.BeginAsync(TestContext.Current.CancellationToken);

@@ -24,6 +24,86 @@ public static class ChildcareEndpoints
             => (await invoker.InvokeAsync(new GetChildcareQuery(new ItemId(id)), ct)).ToHttp(detail => detail))
             .Returns<ChildcareDetail>();
 
+        // #94: a nanny at home, its months typed as paid.
+        var nannies = api.MapGroup("/nannies");
+        nannies.MapGet("", async (string? scope, bool? closed, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new ListNanniesQuery(ParseScope(scope), closed ?? false), ct)).ToHttp(list => list))
+            .Returns<NannyList>();
+
+        nannies.MapGet("/{id:guid}", async (Guid id, int? year, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                if (year is < 2000 or > 2200) reader.Add("year", "request.invalid", "A year is 2000 to 2200.");
+                return !reader.Ok ? reader.Problem() : (await invoker.InvokeAsync(new GetNannyQuery(new ItemId(id), year), ct)).ToHttp(detail => detail);
+            })
+            .Returns<NannyDetail>();
+
+        nannies.MapPost("", async (CreateNannyBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var visibility = reader.Visibility(body.Visibility, "visibility");
+                var level = reader.ShareLevel(body.ShareLevel, "shareLevel");
+                return !reader.Ok
+                    ? reader.Problem()
+                    : (await invoker.InvokeAsync(new CreateNannyCommand(body.Name ?? "", visibility!.Value,
+                        (body.Owners ?? []).Select(o => new OwnerShare(new PersonId(o.PersonId), o.ShareBp)).ToList(), level!.Value), ct))
+                    .ToHttp(id => new IdResponse(id.Value), StatusCodes.Status201Created);
+            })
+            .Returns<IdResponse>(StatusCodes.Status201Created);
+
+        nannies.MapPut("/{id:guid}", async (Guid id, NannyNameBody body, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new RenameNannyCommand(new ItemId(id), body.Name ?? ""), ct)).ToHttp(x => new IdResponse(x.Value)))
+            .Returns<IdResponse>();
+
+        nannies.MapPut("/{id:guid}/months/{month}", async (Guid id, string month, NannyMonthBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var m = ChildcareBodies.Month(reader, month);
+                var paid = reader.Decimal(body.Paid, "paid");
+                var cmg = body.Cmg is null ? 0m : reader.Decimal(body.Cmg, "cmg");
+                var hours = body.Hours is null ? null : reader.Decimal(body.Hours, "hours");
+                return !reader.Ok
+                    ? reader.Problem()
+                    : (await invoker.InvokeAsync(new PutNannyMonthCommand(new ItemId(id), m!.Value, paid!.Value, cmg!.Value, hours), ct)).ToHttp(x => new IdResponse(x.Value));
+            })
+            .Returns<IdResponse>();
+
+        nannies.MapDelete("/{id:guid}/months/{month}", async (Guid id, string month, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                if (ChildcareBodies.Month(reader, month) is not { } m)
+                    return reader.Problem();
+                // A 204 carries no body: ToHttp would write one.
+                var result = await invoker.InvokeAsync(new DeleteNannyMonthCommand(new ItemId(id), m), ct);
+                return result.TryGetValue(out _) ? Results.NoContent() : result.ToHttp(v => v);
+            })
+            .ReturnsNoContent();
+
+        nannies.MapPost("/{id:guid}/close", async (Guid id, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new CloseNannyCommand(new ItemId(id)), ct)).ToHttp(x => new IdResponse(x.Value)))
+            .Returns<IdResponse>();
+
+        nannies.MapPost("/{id:guid}/reopen", async (Guid id, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new ReopenNannyCommand(new ItemId(id)), ct)).ToHttp(x => new IdResponse(x.Value)))
+            .Returns<IdResponse>();
+
+        nannies.MapGet("/{id:guid}/deletion", async (Guid id, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new NannyDeletionQuery(new ItemId(id)), ct)).ToHttp(preview => preview))
+            .Returns<ItemDeletionPreview>();
+
+        nannies.MapDelete("/{id:guid}", async (Guid id, uint? version, IInvoker invoker, CancellationToken ct) =>
+            {
+                if (version is null)
+                {
+                    var reader = new FieldReader();
+                    reader.Add("version", "request.required", "The version read with the preview is required.");
+                    return reader.Problem();
+                }
+                var result = await invoker.InvokeAsync(new DeleteNannyCommand(new ItemId(id), version.Value), ct);
+                return result.TryGetValue(out _) ? Results.NoContent() : result.ToHttp(x => x);
+            })
+            .ReturnsNoContent();
+
         api.MapPost("", async (CreateChildcareBody body, IInvoker invoker, CancellationToken ct) =>
             {
                 var reader = new FieldReader();
@@ -89,11 +169,26 @@ public static class ChildcareEndpoints
             {
                 var reader = new FieldReader();
                 var on = reader.Date(body.On, "on");
+                var end = body.Reason is null && body.Notified is null ? null : ChildcareBodies.End(reader, body.Reason, body.Notified);
+                var gross = body.GrossHourlyRate is null ? null : reader.Decimal(body.GrossHourlyRate, "grossHourlyRate");
                 return !reader.Ok
                     ? reader.Problem()
-                    : (await invoker.InvokeAsync(new CloseChildcareCommand(new ItemId(id), on!.Value), ct)).ToHttp(x => new IdResponse(x.Value));
+                    : (await invoker.InvokeAsync(new CloseChildcareCommand(new ItemId(id), on!.Value, end, gross), ct)).ToHttp(x => new IdResponse(x.Value));
             })
             .Returns<IdResponse>();
+
+        // What ending the contract this way means, before it is ended: seniority, notice, breach indemnity.
+        api.MapGet("/{id:guid}/end", async (Guid id, string? reason, string? notified, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var end = ChildcareBodies.End(reader, reason, notified);
+                return !reader.Ok ? reader.Problem() : (await invoker.InvokeAsync(new ContractEndQuery(new ItemId(id), end!), ct)).ToHttp(view => view);
+            })
+            .Returns<ContractEndView>();
+
+        api.MapGet("/{id:guid}/settlement", async (Guid id, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new GetSettlementQuery(new ItemId(id)), ct)).ToHttp(view => view))
+            .Returns<ChildcareSettlementView>();
 
         api.MapPost("/{id:guid}/reopen", async (Guid id, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new ReopenChildcareCommand(new ItemId(id)), ct)).ToHttp(x => new IdResponse(x.Value)))
@@ -180,6 +275,14 @@ public static class ChildcareEndpoints
         return routes;
     }
 
+    /// <summary>#94: a nanny at home by its name, with its owners and visibility.</summary>
+    public sealed record CreateNannyBody(string? Name, string? Visibility, IReadOnlyList<OwnerBody>? Owners, string? ShareLevel = null);
+
+    public sealed record NannyNameBody(string? Name);
+
+    /// <summary>A month as paid: <c>paid</c> the net salary and employer contributions, <c>cmg</c> the CMG received (0 when absent), <c>hours</c> optional.</summary>
+    public sealed record NannyMonthBody(string? Paid, string? Cmg, string? Hours);
+
     /// <summary>A day as entered; times <c>HH:mm</c> on a present day, <c>absence</c> snake_case (<c>child_sick</c>) on an absent planned one.</summary>
     public sealed record StatementDayBody(string? Date, bool? Present, string? Arrival, string? Departure, bool? Lunch, string? Absence, bool? Snack = null);
 
@@ -208,7 +311,7 @@ public static class ChildcareEndpoints
                 var departure = present ? reader.Time(day!.Departure, $"days[{i}].departure") : null;
                 AbsenceReason? absence = null;
                 if (day?.Absence is { } name && (absence = AbsenceCodes.TryParse(name)) is null)
-                    reader.Add($"days[{i}].absence", "request.invalid", "An absence is family, parent_rtt, child_sick, carer_absent, carer_training, family_agreed, holiday or paid_leave.");
+                    reader.Add($"days[{i}].absence", "request.invalid", "An absence is family, parent_rtt, child_sick, carer_absent, carer_sick, carer_training, family_agreed, holiday or paid_leave.");
                 if (date is { } d) days.Add(new DayInput(d, present, arrival, departure, day?.Lunch ?? false, absence, day?.Snack ?? false));
             }
             var mileage = reader.Decimal(Mileage, "mileage") ?? 0m;
@@ -224,7 +327,7 @@ public static class ChildcareEndpoints
             {
                 AbsenceReason? reason = null;
                 if (s.Absence is { } name && (reason = AbsenceCodes.TryParse(name)) is null)
-                    reader.Add("summary.absence", "request.invalid", "An absence is family, parent_rtt, child_sick, carer_absent, carer_training, family_agreed, holiday or paid_leave.");
+                    reader.Add("summary.absence", "request.invalid", "An absence is family, parent_rtt, child_sick, carer_absent, carer_sick, carer_training, family_agreed, holiday or paid_leave.");
                 if (s.CareDays is null) reader.Add("summary.careDays", "request.required", "The care days are required.");
                 var hours = reader.Decimal(s.Hours, "summary.hours");
                 if (hours is null) reader.Add("summary.hours", "request.required", "The hours are required.");
@@ -278,15 +381,18 @@ public static class ChildcareEndpoints
         }
     }
 
-    /// <summary>Corrects the arrangement and its current terms (whose start stays), with the <c>version</c> read.</summary>
-    public sealed record EditChildcareBody(string? Name, CarerBody? Carer, TermsBody? Terms, uint? Version)
+    /// <summary>Corrects the arrangement and one revision's terms (whose start stays), with the <c>version</c> read.</summary>
+    public sealed record EditChildcareBody(
+        string? Name, CarerBody? Carer, TermsBody? Terms, uint? Version,
+        [property: Description("Start (YYYY-MM-DD) of the revision to correct, a past one included; the last revision when omitted.")] string? Revision = null)
     {
         internal EditChildcareCommand? ToCommand(ItemId id, FieldReader reader)
         {
             var carer = ChildcareBodies.Carer(reader, Carer);
             var terms = ChildcareBodies.Terms(reader, Terms);
+            var revision = Revision is null ? null : reader.Date(Revision, "revision");
             if (Version is null) reader.Add("version", "request.required", "The version read with the arrangement is required.");
-            return reader.Ok ? new EditChildcareCommand(id, Name ?? "", carer!, terms!, Version!.Value) : null;
+            return reader.Ok ? new EditChildcareCommand(id, Name ?? "", carer!, terms!, Version!.Value, revision) : null;
         }
     }
 
@@ -296,10 +402,19 @@ public static class ChildcareEndpoints
 
     public sealed record GapsBody(IReadOnlyList<CareGapBody>? Gaps);
 
-    public sealed record CloseChildcareBody(string? On);
+    /// <summary><c>Reason</c> and <c>Notified</c> go together; <c>GrossHourlyRate</c> a decimal string, for the breach indemnity.</summary>
+    public sealed record CloseChildcareBody(string? On, string? Reason = null, string? Notified = null, string? GrossHourlyRate = null);
 
     private static class ChildcareBodies
     {
+        public static ContractEnd? End(FieldReader reader, string? reason, string? notified)
+        {
+            var parsed = EndReasonCodes.TryParse(reason);
+            if (parsed is null) reader.Add("reason", "request.invalid", "withdrawal, misconduct, approval, child_death, resignation or trial.");
+            var day = reader.Date(notified, "notified");
+            return parsed is { } r && day is { } d ? new ContractEnd(r, d) : null;
+        }
+
         private static readonly NodaTime.Text.YearMonthPattern MonthPattern = NodaTime.Text.YearMonthPattern.CreateWithInvariantCulture("uuuu-MM");
 
         public static YearMonth? Month(FieldReader reader, string value)
@@ -369,7 +484,7 @@ public static class ChildcareEndpoints
         {
             var reasons = body?.Select(AbsenceCodes.TryParse).ToList();
             if (reasons?.Any(u => u is null) == true)
-                reader.Add(path, "request.invalid", "An absence is family, parent_rtt, child_sick, carer_absent, carer_training, family_agreed, holiday or paid_leave.");
+                reader.Add(path, "request.invalid", "An absence is family, parent_rtt, child_sick, carer_absent, carer_sick, carer_training, family_agreed, holiday or paid_leave.");
             return reasons?.OfType<AbsenceReason>().Distinct().ToList();
         }
 

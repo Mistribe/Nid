@@ -24,11 +24,11 @@ public class RetirementEndpointTests(PostgresFixture fixture) : IClassFixture<Po
         => (await app.RawAsync(app.AdultA, HttpMethod.Put, $"/api/v1/core/persons/{person.Value}/retirement", new { birthDate, retirementAge = 64, retirementMonths = 0 }))
             .EnsureSuccessStatusCode();
 
-    private static async Task FlatAsync(NidApp app)
+    private static async Task FlatAsync(NidApp app, string livingCost = "1000")
         => (await app.RawAsync(app.AdultA, HttpMethod.Put, "/api/v1/core/projection-assumptions", new
         {
             classRates = AllocationClasses.All.ToDictionary(c => c, _ => "0"), inflation = "0", monthlySavings = "0", savingsClass = "cash",
-            freedPaymentsToSavings = false, withdrawalRate = "4", monthlyLivingCost = "1000",
+            freedPaymentsToSavings = false, withdrawalRate = "4", monthlyLivingCost = livingCost,
         })).EnsureSuccessStatusCode();
 
     private static async Task SourceAsync(NidApp app, PersonId owner, string name, string kind, string startsOn, string amount, string visibility)
@@ -44,7 +44,7 @@ public class RetirementEndpointTests(PostgresFixture fixture) : IClassFixture<Po
     private async Task<NidApp> HouseholdAsync()
     {
         var app = await NidApp.StartAsync(fixture);
-        await FlatAsync(app);
+        await FlatAsync(app, "4000"); // the need is the living cost plus the 235.50 of commitments the household already has
         await DepartureAsync(app, app.AdultA, "1963-10-10"); // leaves in 2027-10, switch month 25
         await DepartureAsync(app, app.AdultB, "1966-06-10"); // leaves in 2030-06, switch month 57
         await SourceAsync(app, app.AdultA, "Salaire A", "salary", "2020-01-01", "3000", "shared");
@@ -74,7 +74,8 @@ public class RetirementEndpointTests(PostgresFixture fixture) : IClassFixture<Po
 
         var figures = view.GetProperty("figures");
         Assert.Equal("2030-07", figures.GetProperty("month").GetString()); // B leaves last: the switch month is 57
-        Assert.Equal((5000m, 1500m, 3500m, 1_050_000m), (Dec(figures, "incomeNow"), Dec(figures, "incomeAtRetirement"), Dec(figures, "gap"), Dec(figures, "capitalNeeded")));
+        Assert.Equal((5000m, 1500m, 4235.50m, 2735.50m, 820_650m),
+            (Dec(figures, "incomeNow"), Dec(figures, "incomeAtRetirement"), Dec(figures, "need"), Dec(figures, "gap"), Dec(figures, "capitalNeeded")));
         Assert.Equal(481, view.GetProperty("independence").GetArrayLength());
 
         // The private pension is hidden in the reader's own scope too.
@@ -92,12 +93,12 @@ public class RetirementEndpointTests(PostgresFixture fixture) : IClassFixture<Po
 
         var mine = (await RetirementAsync(app, app.AdultA, "?scope=me")).GetProperty("figures"); // A leaves first: the switch month is 25
         Assert.Equal("2027-11", mine.GetProperty("month").GetString());
-        Assert.Equal((5000m, 3500m, 1500m), (Dec(mine, "incomeNow"), Dec(mine, "incomeAtRetirement"), Dec(mine, "gap")));
+        Assert.Equal((5000m, 3500m, 735.50m), (Dec(mine, "incomeNow"), Dec(mine, "incomeAtRetirement"), Dec(mine, "gap")));
 
         // B sees their own private pension on top of A's shared one.
         var view = await RetirementAsync(app, app.AdultB, "?scope=me");
         var theirs = view.GetProperty("figures");
-        Assert.Equal(("2030-07", 2300m, 2700m), (theirs.GetProperty("month").GetString(), Dec(theirs, "incomeAtRetirement"), Dec(theirs, "gap")));
+        Assert.Equal(("2030-07", 2300m, 1935.50m), (theirs.GetProperty("month").GetString(), Dec(theirs, "incomeAtRetirement"), Dec(theirs, "gap")));
         Assert.Equal("800.00", view.GetProperty("departures").EnumerateArray().Single(d => d.GetProperty("person").GetGuid() == app.AdultB.Value).GetProperty("pension").GetString());
     }
 
@@ -111,7 +112,8 @@ public class RetirementEndpointTests(PostgresFixture fixture) : IClassFixture<Po
         var view = await RetirementAsync(app, app.AdultA);
 
         Assert.Equal(JsonValueKind.Null, view.GetProperty("financialIndependence").ValueKind);
-        Assert.Equal(3000m, Dec(view.GetProperty("figures"), "gap"));
+        Assert.Equal(3000m, Dec(view.GetProperty("figures"), "gap")); // what the income loses
+        Assert.Equal(JsonValueKind.Null, view.GetProperty("figures").GetProperty("need").ValueKind);
         Assert.Contains(view.GetProperty("warnings").EnumerateArray(), w => w.GetProperty("code").GetString() == "living_cost_missing");
         Assert.Equal(481, view.GetProperty("independence").GetArrayLength());
     }

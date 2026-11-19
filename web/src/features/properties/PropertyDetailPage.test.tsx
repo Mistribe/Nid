@@ -38,7 +38,7 @@ describe('PropertyDetailPage', () => {
     await waitFor(() => expectTrailBack('Biens', '/properties'));
     cleanup();
 
-    server.use(http.get('*/api/v1/realestate/properties/:id', () => HttpResponse.json({ status: 404, code: null, title: 'Not found' }, { status: 404 })));
+    server.use(http.get('*/api/v1/realestate/properties/:id', () => HttpResponse.json({ status: 404, code: null, detail: 'Not found' }, { status: 404 })));
     await renderApp(`/properties/${PROPERTY}`);
     expect(await screen.findByRole('heading', { level: 1, name: 'Page introuvable' })).toBeInTheDocument();
     await waitFor(() => expectTrailBack('Biens', '/properties'));
@@ -197,6 +197,7 @@ describe('PropertyDetailPage', () => {
     await heading();
     expect(screen.getAllByRole('tab').map((x) => x.textContent))
       .toEqual(['Vue d’ensemble', 'Location', 'Rentabilité', 'Dépenses', 'Estimations', 'Documents', 'Réglages']);
+    expect(screen.getByRole('link', { name: 'Déclaration 2044' })).toHaveAttribute('href', '/tax?tab=declarations&form=2044');
   });
 
   it('a reader sees no write action, nor the settings tab, and is told the page is read-only', async () => {
@@ -294,7 +295,7 @@ describe('PropertyDetailPage', () => {
   });
 
   it('says an unknown or unreadable property is not found', async () => {
-    server.use(http.get('*/api/v1/realestate/properties/:id', () => HttpResponse.json({ status: 404, code: null, title: 'Not found' }, { status: 404 })));
+    server.use(http.get('*/api/v1/realestate/properties/:id', () => HttpResponse.json({ status: 404, code: null, detail: 'Not found' }, { status: 404 })));
     await renderApp(`/properties/${PROPERTY}`);
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Page introuvable' })).toBeInTheDocument();

@@ -23,7 +23,7 @@ import { Section } from '@/components/page/Section';
 import { SeriesLink } from '@/components/page/SeriesLink';
 import { todayIso } from '@/lib/today';
 import { SourceLink } from '../documents/SourceLink';
-import { ENVELOPE, HOLDINGS, PERFORMANCE, type Flow, type Valuation } from '@/api/investments';
+import { AVAILABLE_KINDS, ENVELOPE, HOLDINGS, PERFORMANCE, type Flow, type Valuation } from '@/api/investments';
 import { ValueChart } from './chart/ValueChart';
 import { PeriodPerformance } from './period/PeriodPerformance';
 import { presetRange } from './period/periods';
@@ -43,7 +43,7 @@ import { SaleTaxSection } from '@/features/tax/SaleTaxSection';
 import '@/locales/investments';
 import { ItemDocuments } from '@/features/documents/ItemDocuments';
 import '@/locales/documents';
-import { ASSOCIABLE, dayMonth, useBankAccounts, useBankingStatus } from '@/api/banking';
+import { accountLabel, ASSOCIABLE, dayMonth, useBankAccounts, useBankingStatus } from '@/api/banking';
 import '@/locales/banks';
 import '@/locales/deletion';
 import { PageSkeleton } from '@/components/page/skeletons';
@@ -183,7 +183,9 @@ export function EnvelopeDetailPage() {
   const writable = detail.canWrite && !detail.closed;
   const columns = (writable ? 1 : 0) + 3;
   const operations = bankingOn && ASSOCIABLE.includes(detail.kind);
-  const shown = (tab === 'settings' && !writable) || (tab === 'operations' && !operations) ? 'overview' : tab;
+  // #356: a checking account or a livret holds no supports, pays no fees.
+  const supports = !AVAILABLE_KINDS.includes(detail.kind);
+  const shown = (tab === 'settings' && !writable) || (tab === 'operations' && !operations) || (tab === 'holdings' && !supports) ? 'overview' : tab;
   const milestone = MILESTONES.find((m) => m === detail.milestone?.code);
   // « Impôt si vente aujourd'hui » lives in the overview tab: open it, then bring the section into view once rendered.
   const showSaleTax = () => {
@@ -264,7 +266,7 @@ export function EnvelopeDetailPage() {
           ) : null}
           {bank ? (
             <p className="text-sm text-muted-foreground">
-              {bank.lastBalanceOn ? t('banks.envelope_note.last', { name: bank.name, date: dayMonth(bank.lastBalanceOn) }) : t('banks.envelope_note.linked', { name: bank.name })}
+              {bank.lastBalanceOn ? t('banks.envelope_note.last', { name: accountLabel(t, bank), date: dayMonth(bank.lastBalanceOn) }) : t('banks.envelope_note.linked', { name: accountLabel(t, bank) })}
             </p>
           ) : null}
           {bank?.balanceConflictOn ? (
@@ -402,14 +404,14 @@ export function EnvelopeDetailPage() {
             </Section>
           ),
         },
-        {
-          id: 'holdings', label: t('holdings.tab_label'), guide: 'investments.holdings',
+        ...(supports ? [{
+          id: 'holdings' as const, label: t('holdings.tab_label'), guide: 'investments.holdings',
           content: (
             <Suspense fallback={<div role="status" aria-busy="true" aria-label={t('holdings.loading')} className="h-40 shimmer rounded-md border bg-muted" />}>
               <HoldingsTab envelope={detail} writable={writable} />
             </Suspense>
           ),
-        },
+        }] : []),
         ...(operations ? [{
           id: 'operations' as const, label: t('banks.operations.title'),
           content: (

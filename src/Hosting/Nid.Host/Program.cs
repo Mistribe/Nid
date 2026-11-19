@@ -34,12 +34,11 @@ using UnambitiousFx.Synapse.Abstractions;
 
 // Shared behaviors are declared here, in the composition root: [PipelineBehavior] only reaches
 // handlers in assemblies the declaring assembly references, and modules reference Platform, not the reverse.
+// The actor, admin role, scope and item checks are Synapse's (AddNidAuthorization); these sit between them by Order.
 [assembly: SynapseGlobalBehavior(typeof(TraceBehavior<,>))]
-[assembly: SynapseGlobalBehavior(typeof(ActorBehavior<,>))]
 [assembly: SynapseGlobalBehavior(typeof(Nid.Platform.Audit.AuditBehavior<,>))]
-[assembly: SynapseGlobalBehavior(typeof(AdminBehavior<,>))]
-[assembly: SynapseGlobalBehavior(typeof(ScopeBehavior<,>))]
-[assembly: SynapseGlobalBehavior(typeof(ItemAccessBehavior<,>))]
+[assembly: SynapseGlobalBehavior(typeof(BrowserOnlyBehavior<,>))]
+[assembly: SynapseGlobalBehavior(typeof(ItemCreationBehavior<,>))]
 [assembly: SynapseGlobalBehavior(typeof(DocumentMaskBehavior<,>))]
 [assembly: SynapseGlobalBehavior(typeof(OutputGuardBehavior<,>))]
 
@@ -78,6 +77,8 @@ var bankingOptions = demo.Enabled
     ? new Nid.Banking.Contracts.BankingOptions()
     : builder.Configuration.GetSection("EnableBanking").Get<Nid.Banking.Contracts.BankingOptions>() ?? new Nid.Banking.Contracts.BankingOptions();
 builder.Services.AddSingleton(bankingOptions);
+var bankingKey = Nid.Banking.Contracts.BankingKey.Inspect(builder.Configuration.SecretsPath(), bankingOptions.PrivateKey);
+builder.Services.AddSingleton(bankingKey);
 var irlOptions = builder.Configuration.GetSection("Irl").Get<IrlOptions>() ?? new IrlOptions();
 builder.Services.AddSingleton(irlOptions);
 var inflationOptions = builder.Configuration.GetSection("Inflation").Get<InflationOptions>() ?? new InflationOptions();
@@ -122,10 +123,15 @@ builder.Services.AddNidEmail(smtpOptions, builder.Configuration["Auth:PublicUrl"
 builder.Services.AddNid(connectionString);
 builder.Services.AddNidOpenApi();
 if (!generatingOpenApi && !adminMode && builder.Configuration.GetValue("Jobs:Enabled", true))
+{
     builder.Services.AddNidJobs(connectionString, fxOptions, priceOptions, irlOptions, inflationOptions, bankingOptions, builder.Configuration.GetValue("Jobs:SchedulerName", "nid")!);
+    // Startup work, not a job: it must not show on the admin Jobs screen.
+    builder.Services.AddHostedService<Nid.Host.Jobs.CategoryBackfillStartup>();
+}
 
 builder.Services.AddNidAuthentication(builder.Configuration, demo.Enabled);
 builder.Services.AddTokenRateLimiter();
+builder.Services.AddLocalAccounts();
 builder.Services.AddNidMcp();
 builder.Services.AddNidDataProtection(builder.Configuration);
 builder.Services.AddNidHealth();
@@ -177,6 +183,17 @@ if (!generatingOpenApi && !builder.Configuration.GetValue<bool>("Health:SkipMigr
     await scope.ServiceProvider.GetRequiredService<BankingDbContext>().Database.MigrateAsync();
     await scope.ServiceProvider.GetRequiredService<PlatformDbContext>().Database.MigrateAsync();
 }
+// Issue #343: a key Docker turned into a folder, or one Nid may not read, would otherwise leave bank sync « not configured » without a word.
+if (!generatingOpenApi && bankingKey.Status is Nid.Banking.Contracts.BankingKeyStatus.Directory or Nid.Banking.Contracts.BankingKeyStatus.Unreadable)
+    app.Logger.LogWarning("The Enable Banking private key at {Path} is {Status}: bank sync stays not configured. See deploy/README.md §12.",
+        Path.Combine(builder.Configuration.SecretsPath(), Nid.Banking.Contracts.BankingKey.FileName),
+        bankingKey.Status == Nid.Banking.Contracts.BankingKeyStatus.Directory ? "a directory, not a file" : "not readable by Nid's user");
+// Issue 215: plain HTTP is the hoster's explicit choice, said again at every start (local-accounts spec §12).
+if (!generatingOpenApi && app.Services.GetRequiredService<AuthSettings>().AllowInsecureHttp)
+    app.Logger.LogWarning("Plain HTTP is allowed (Auth__AllowInsecureHttp): passwords and the session cookie can travel unencrypted. Put Nid behind an HTTPS reverse proxy unless this network is trusted.");
+// Issue 215: a fresh instance with local accounts waits for its first administrator; the log gives the setup address.
+if (!generatingOpenApi && !demo.Enabled && app.Services.GetRequiredService<AuthSettings>().Local)
+    await SetupToken.AnnounceAsync(app.Services, app.Logger, CancellationToken.None);
 if (!generatingOpenApi && demo.Enabled)
 {
     app.Logger.LogWarning("Demo mode is on (Nid__Demo__Enabled): anyone can sign in as the demo household, without a password.");
@@ -184,6 +201,11 @@ if (!generatingOpenApi && demo.Enabled)
 }
 
 app.MapDefaultEndpoints();
+app.Use((context, next) =>
+{
+    context.Response.Headers[PlatformEndpoints.VersionHeader] = PlatformEndpoints.Version;
+    return next(context);
+});
 app.MapNidHealth();
 app.UseForwardedHeaders();
 if (demo.Enabled) app.UseMiddleware<DemoGuardMiddleware>();
@@ -196,6 +218,8 @@ app.UseMiddleware<CsrfMiddleware>();
 app.UseAuthorization();
 app.MapAuth(demo.Enabled);
 if (demo.Enabled) app.MapDemo();
+// Issue 215: the password sign-in, the setup and the password links, with local accounts only.
+if (!demo.Enabled && app.Services.GetRequiredService<AuthSettings>().Local) app.MapLocalAuth();
 app.MapPersonEndpoints();
 app.MapProposalEndpoints();
 app.MapSubscriptionEndpoints();
@@ -223,7 +247,8 @@ app.MapFxEndpoints();
 app.MapCatalogEndpoints();
 app.MapAdminEndpoints();
 app.MapNidMcp();
-app.Run();
+app.MapMcpBundle();
+await app.RunAsync();
 return 0;
 
 public partial class Program;

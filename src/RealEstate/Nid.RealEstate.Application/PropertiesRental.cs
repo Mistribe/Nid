@@ -189,7 +189,7 @@ internal static class PropertiesRentalMath
                 loans += Math.Round(converted, 2, MidpointRounding.AwayFromZero);
             else loans = null; // the property's own fx_missing warning names the loan
         }
-        return (rent, expenses.Sum(f => f.Amount.Amount), expenses.Where(f => f.Category != PropertyCategories.Works).Sum(f => f.Amount.Amount), loans);
+        return (rent, expenses.Sum(f => f.Amount.Amount), expenses.Where(f => !PropertyCategories.IsWorks(f.Category)).Sum(f => f.Amount.Amount), loans);
     }
 
     private static decimal? Cash((decimal Rent, decimal Charges, decimal ChargesButWorks, decimal? Loans) m) => m.Rent - m.Charges - m.Loans;

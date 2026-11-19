@@ -3,7 +3,7 @@ import { fieldErrorsOf, messageFor, stepOf } from '@/components/form/fieldErrors
 
 describe('fieldErrorsOf', () => {
   it('reads the errors of a 422', () =>
-    expect(fieldErrorsOf({ status: 422, code: 'request.invalid', errors: [{ path: 'phase.price.amount', code: 'request.amount', message: 'm' }] }))
+    expect(fieldErrorsOf({ status: 422, code: 'request.invalid', errors: [{ detail: 'm', pointer: '#/phase/price/amount', code: 'request.amount' }] }))
       .toEqual([{ path: 'phase.price.amount', code: 'request.amount', message: 'm' }]));
 
   it('has none for anything else', () => {

@@ -61,6 +61,18 @@ describe('Administration › vue d’ensemble', () => {
   it('says the system is healthy', async () => {
     server.use(http.get('*/api/v1/admin/system', () => HttpResponse.json({
       version: '1.0.0', startedAt: '2026-09-24T06:00:00+00:00', health: { database: 'healthy', identityProvider: 'healthy' }, databaseSizeBytes: 1000,
+      auth: { mode: 'oidc', adminSource: 'identity_provider', insecureHttp: false },
+    })));
+    await renderApp('/admin', { capabilities: adminCapabilities });
+
+    await screen.findByText('disponible');
+    expect(item('Système')).toHaveTextContent('disponible');
+  });
+
+  it('says the system is healthy with local accounts, which have no identity provider to reach (issue 215)', async () => {
+    server.use(http.get('*/api/v1/admin/system', () => HttpResponse.json({
+      version: '1.0.0', startedAt: '2026-09-24T06:00:00+00:00', health: { database: 'healthy', identityProvider: 'not_used' }, databaseSizeBytes: 1000,
+      auth: { mode: 'local', adminSource: 'nid', insecureHttp: false },
     })));
     await renderApp('/admin', { capabilities: adminCapabilities });
 

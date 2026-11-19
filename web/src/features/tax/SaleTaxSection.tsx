@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import { Section } from '@/components/page/Section';
+import { Loading, SectionSkeleton } from '@/components/page/skeletons';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { TAX_SALE } from '@/api/tax';
 import { SaleItem } from './SaleItem';
@@ -18,7 +19,7 @@ export function SaleTaxSection({ item, canWrite, id }: { item: string; canWrite:
   }
   const view = answer.data;
   const first = view?.items[0];
-  if (!view) return <div role="status" aria-busy="true" aria-label={t('tax.loading')} className="h-24 shimmer rounded-md border bg-muted" />;
+  if (!view) return <Loading label={t('tax.loading')}><SectionSkeleton /></Loading>;
   if (!first) return null;
   return (
     <Section id={id} title={t('tax.sale.title')}>

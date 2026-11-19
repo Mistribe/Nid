@@ -32,6 +32,9 @@ export type HoldingBreakdownBody = components['schemas']['BreakdownBody'];
 export type HoldingsExposure = components['schemas']['HoldingsExposureView'];
 export type FeeReferences = components['schemas']['FeeReferences'];
 
+/** #356: checking accounts and livrets are money available today, shown apart from the investments (server: `EnvelopeAllocation.IsAvailable`). */
+export const AVAILABLE_KINDS: readonly string[] = ['checking', 'savings'];
+
 export const ENVELOPES = '/api/v1/investments/envelopes' as const;
 export const OVERVIEW = '/api/v1/investments/overview' as const;
 export const HOUSEHOLD_PERFORMANCE = '/api/v1/investments/overview/performance' as const;

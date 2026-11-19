@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
 using Nid.Platform.Audit;
 using Nid.Platform.Contracts;
+using Nid.Platform.Notifications;
 using NodaTime;
 using Npgsql;
 using NpgsqlTypes;
@@ -12,7 +13,7 @@ namespace Nid.Platform.Infrastructure.Audit;
 
 /// <summary><see cref="ISecurityEvents"/> on a connection of its own from the pool (spec U10, U11).</summary>
 public sealed partial class SecurityEventWriter(
-    NpgsqlDataSource dataSource, IActorAccessor actors, AuditRequest request, IClock clock, ILogger<SecurityEventWriter> logger)
+    NpgsqlDataSource dataSource, IActorAccessor actors, AuditRequest request, IClock clock, ILogger<SecurityEventWriter> logger, INotifier notifier)
     : ISecurityEvents
 {
     [JsonSerializable(typeof(IReadOnlyDictionary<string, string>))]
@@ -29,6 +30,7 @@ public sealed partial class SecurityEventWriter(
     public async Task<bool> RecordAsync(SecurityEvent securityEvent, Actor actor, CancellationToken ct)
     {
         using var bound = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var id = securityEvent.Id ?? Guid.CreateVersion7();
         try
         {
             await using var command = dataSource.CreateCommand("""
@@ -36,7 +38,7 @@ public sealed partial class SecurityEventWriter(
                   (id, at, category, action, actor_kind, person_id, via, scopes, request_id, request, item_ids, subject_person_id, data, token_id)
                 values ($1, $2, 'security', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
                 """);
-            command.Parameters.Add(new NpgsqlParameter { Value = securityEvent.Id ?? Guid.CreateVersion7() });
+            command.Parameters.Add(new NpgsqlParameter { Value = id });
             command.Parameters.Add(new NpgsqlParameter { Value = clock.GetCurrentInstant() });
             command.Parameters.Add(new NpgsqlParameter { Value = securityEvent.Name });
             command.Parameters.Add(new NpgsqlParameter { Value = actor.Kind == ActorKind.Person ? "person" : "system" });
@@ -50,13 +52,19 @@ public sealed partial class SecurityEventWriter(
             command.Parameters.Add(new NpgsqlParameter { Value = JsonSerializer.Serialize(securityEvent.Data, EventDataJson.Default.IReadOnlyDictionaryStringString), NpgsqlDbType = NpgsqlDbType.Jsonb });
             command.Parameters.Add(new NpgsqlParameter { Value = (object?)actor.TokenId ?? DBNull.Value, NpgsqlDbType = NpgsqlDbType.Uuid });
             await command.ExecuteNonQueryAsync(bound.Token);
-            return true;
         }
         catch (Exception e)
         {
             LogNotRecorded(securityEvent.Name, e);
             return false;
         }
+
+        // #291: the holder of a local account hears of what happened to it; the notifier never throws.
+        if (AccountNotices.For(securityEvent, id) is { } notice)
+            await notifier.PublishAsync(notice, ct);
+        if (AccountNotices.Resolves(securityEvent) is { } key)
+            await notifier.ResolveAsync(key, ct);
+        return true;
     }
 
     [LoggerMessage(Level = LogLevel.Error, Message = "Security event {Event} could not be recorded")]

@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { present, toProblem } from '@/api/errors';
 import { DateField } from '@/components/form/DateField';
 import { LocalDate } from '@/components/LocalDate';
+import { InfoTip } from '@/components/InfoTip';
 import { formatCurrency } from '@/components/Money';
 import { FilterField, FilterRow } from '@/components/page/FilterRow';
 import { Section } from '@/components/page/Section';
@@ -44,6 +45,22 @@ export default function OperationsTab({ envelope, writable }: { envelope: Envelo
       ) : null}
     </span>
   );
+  // The category, then where it comes from in a muted word explained by its « i ».
+  const category = (l: BankTransaction) => {
+    if (!l.category && l.categorySource !== 'hand') return '—';
+    const source = l.categorySource ? t(`banks.categories.source.${l.categorySource}`, { defaultValue: l.categorySource }) : null;
+    return (
+      <span className="inline-flex flex-wrap items-center gap-1.5">
+        {l.category?.name ?? t('banks.categories.uncategorised')}
+        {source ? (
+          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+            {source}
+            <InfoTip label={source}>{t(`banks.categories.source_about.${l.categorySource}`, { defaultValue: source })}</InfoTip>
+          </span>
+        ) : null}
+      </span>
+    );
+  };
   const actions = (l: BankTransaction) => <LineActions line={l} onDone={toast.success} />;
   const amount = (l: BankTransaction) => <span className="tabular-nums">{formatCurrency(l.amount, l.currency)}</span>;
 
@@ -72,6 +89,7 @@ export default function OperationsTab({ envelope, writable }: { envelope: Envelo
           columns={[
             { id: 'date', header: t('banks.operations.date'), sort: (l) => l.bookedOn, cell: (l) => <LocalDate value={l.bookedOn} style="short" /> },
             { id: 'label', header: t('banks.operations.label'), cell: label },
+            { id: 'category', header: t('banks.categories.column'), sort: (l) => l.category?.name ?? '', cell: category },
             { id: 'amount', header: t('banks.operations.amount'), align: 'end', sort: (l) => amountKey(l.amount), cell: amount },
             { id: 'state', header: t('banks.operations.state'), sort: (l) => lineState(t, l), cell: (l) => lineState(t, l) },
             ...(writable ? [{ id: 'actions', header: t('banks.operations.actions_col'), align: 'end' as const, cell: actions }] : []),
@@ -80,7 +98,7 @@ export default function OperationsTab({ envelope, writable }: { envelope: Envelo
             <div className="space-y-1">
               <div className="flex items-start justify-between gap-2">{label(l)}{amount(l)}</div>
               <div className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
-                <span><LocalDate value={l.bookedOn} style="short" /> · {lineState(t, l)}</span>
+                <span><LocalDate value={l.bookedOn} style="short" />{l.category || l.categorySource === 'hand' ? <> · {category(l)}</> : null} · {lineState(t, l)}</span>
                 {writable ? actions(l) : null}
               </div>
             </div>

@@ -16,6 +16,7 @@ import { RETIREMENT } from '@/api/retirement';
 import { fieldErrorsOf, messageFor } from '@/components/form/fieldErrors';
 import { todayIso } from '@/lib/today';
 import { PERSON_RETIREMENT, PROJECTION } from './api';
+import '@/locales/settings';
 
 /** A whole number as the server checks it: anything else goes as -1, which it refuses on that field. */
 const ageOf = (text: string) => (/^\d+$/.test(text.trim()) ? Number(text) : -1);

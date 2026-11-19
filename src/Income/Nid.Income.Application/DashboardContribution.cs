@@ -124,3 +124,14 @@ public sealed class IncomeSourcesUpcoming(IVisibleItems visible, IItemRegistry i
         return Result.Success<IReadOnlyList<UpcomingEvent>>(events);
     }
 }
+
+/// <summary>Issue #81: the next payment of the reader's active income sources, rents aside (the shortfall ahead's window).</summary>
+public sealed class IncomeSourcesNext(IVisibleItems visible, ISourceStore sources, IPhaseStore phases) : IExpectedIncome
+{
+    public async Task<LocalDate?> NextAsync(PersonId reader, LocalDate today, CancellationToken ct)
+    {
+        var found = await sources.FindManyAsync((await visible.ForAsync(reader, VisibilityScope.Me, ct)).ToList(), ct);
+        var all = await phases.ForSourcesAsync(found.Select(s => s.ItemId).ToList(), ct);
+        return IncomeMath.Next(all, today).FirstOrDefault()?.On;
+    }
+}

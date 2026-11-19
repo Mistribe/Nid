@@ -16,7 +16,7 @@ type Body = components['schemas']['PropertyFlowBody'];
 /** An amount as the server writes it back: two decimals. */
 const written = (wire: string) => { const [whole, decimals = ''] = wire.split('.'); return `${whole}.${decimals.padEnd(2, '0')}`; };
 const invalidCategory = () => HttpResponse.json(
-  { status: 422, code: 'realestate.invalid_category', title: 'x', errors: [{ path: 'category', code: 'realestate.invalid_category', message: 'x' }] },
+  { status: 422, code: 'realestate.invalid_category', detail: 'x', errors: [{ detail: 'x', pointer: '#/category', code: 'realestate.invalid_category' }] },
   { status: 422 });
 
 /**
@@ -33,8 +33,8 @@ function serve(initial: PropertyDetail = propertyDetail()) {
   const byDate = (flows: PropertyFlow[]) => [...flows].sort((a, b) => a.occurredOn.localeCompare(b.occurredOn));
   const outside = (b: Body) => (b.kind !== 'expense' && b.kind !== 'income') || !categoriesOf(b.kind).some((c) => c === b.category);
   const gone = (id: string) => (retired.has(id)
-    ? HttpResponse.json({ status: 409, code: 'core.fact_retired', title: 'Already corrected or voided.' }, { status: 409 })
-    : HttpResponse.json({ status: 404, code: 'core.fact_not_found', title: 'Not found' }, { status: 404 }));
+    ? HttpResponse.json({ status: 409, code: 'core.fact_retired', detail: 'Already corrected or voided.' }, { status: 409 })
+    : HttpResponse.json({ status: 404, code: 'core.fact_not_found', detail: 'Not found' }, { status: 404 }));
   server.use(
     http.get('*/api/v1/realestate/properties/:id', () => HttpResponse.json(current)),
     http.post('*/api/v1/realestate/properties/:id/flows', async ({ request }) => {
@@ -148,7 +148,7 @@ describe('flows', () => {
     await waitFor(() => expect(form.getByRole('combobox', { name: 'Type' })).toHaveFocus());
     expect(form.getByRole('combobox', { name: 'Type' })).toHaveTextContent('Dépense');
     expect(form.getByLabelText('Date')).toHaveValue(fr(todayIso()));
-    expect(await choices(user, 'Catégorie')).toEqual(['Travaux', 'Taxe foncière', 'Charges de copropriété', 'Assurance', 'Énergie', 'Entretien', 'Frais de gestion', 'Autre']);
+    expect(await choices(user, 'Catégorie')).toEqual(['Travaux', 'Construction, agrandissement', 'Taxe foncière', 'Charges de copropriété', 'Assurance', 'Énergie', 'Entretien', 'Frais de gestion', 'Autre']);
     expect(category()).toHaveTextContent('Travaux');
     await pick(user, 'Catégorie', 'Énergie');
     await pick(user, 'Type', 'Revenu');

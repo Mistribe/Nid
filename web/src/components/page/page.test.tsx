@@ -1,6 +1,7 @@
 import { createMemoryHistory, createRootRoute, createRoute, createRouter, RouterProvider } from '@tanstack/react-router';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { AlertTriangle } from 'lucide-react';
 import { http, HttpResponse } from 'msw/http';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { detailSearch } from '@/app/router';
@@ -237,6 +238,12 @@ describe('page grammar', () => {
   it('a SectionCard nested in a Section titles at level 3', () => {
     render(<SectionCard title="Alice" level={3}>contenu</SectionCard>);
     expect(screen.getByRole('heading', { level: 3, name: 'Alice' })).toHaveClass('text-title');
+  });
+
+  it('a SectionCard puts its icon in the title, named by the title only', () => {
+    render(<SectionCard title="À savoir" icon={<AlertTriangle aria-hidden="true" data-testid="i" />}>contenu</SectionCard>);
+    const heading = screen.getByRole('heading', { level: 2, name: 'À savoir' });
+    expect(heading).toContainElement(screen.getByTestId('i'));
   });
 
   it('StatLine figures carry no colour of their own', () => {

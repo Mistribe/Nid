@@ -14,6 +14,9 @@ const view = (over: Partial<Body> = {}) => ({
     { kind: 'rent.revision', title: 'Révision du loyer', days: 30, defaultDays: 30 },
     { kind: 'loan.end', title: 'Fin de prêt', days: 45, defaultDays: 60 },
   ],
+  signals: [
+    { kind: 'net_worth_milestone', title: 'Votre patrimoine a franchi un palier', enabled: false, threshold: 50000, defaultThreshold: 50000, min: 1000, max: 10000000, unit: 'eur' },
+  ],
   ...over,
 });
 
@@ -24,7 +27,7 @@ function serve(initial: Body = view()) {
     http.put('*/api/v1/platform/notifications/preferences', async ({ request }) => {
       const body = (await request.json()) as Body;
       sent.push(body);
-      return HttpResponse.json({ ...initial, ...body, leadDays: initial.leadDays, version: (body.version as number) + 1 });
+      return HttpResponse.json({ ...initial, ...body, leadDays: initial.leadDays, signals: initial.signals, version: (body.version as number) + 1 });
     }),
   );
   return sent;
@@ -65,7 +68,7 @@ describe('the notification settings page', () => {
 
     await waitFor(() => expect(sent).toEqual([{
       emailEnabled: true, action: 'immediate', info: 'digest', frequency: 'weekly', weekday: 4,
-      leadDays: { 'rent.revision': 30, 'loan.end': 90 }, version: 3,
+      leadDays: { 'rent.revision': 30, 'loan.end': 90 }, signals: {}, version: 3,
     }]));
     expect(await screen.findByText('Réglages enregistrés.')).toBeInTheDocument();
   });
@@ -114,7 +117,7 @@ describe('the notification settings page', () => {
   it('shows the server refusal of a lead time under its field', async () => {
     serve();
     server.use(http.put('*/api/v1/platform/notifications/preferences', () => HttpResponse.json(
-      { status: 422, code: 'validation', errors: [{ path: 'leadDays.loan.end', code: 'notifications.invalid_lead_days', message: 'invalid' }] }, { status: 422 })));
+      { status: 422, code: 'validation', errors: [{ detail: 'invalid', pointer: '#/leadDays/loan/end', code: 'notifications.invalid_lead_days' }] }, { status: 422 })));
     const { user } = await renderApp('/settings/notifications');
 
     await user.click(await screen.findByRole('button', { name: /Délais/ }));
@@ -125,6 +128,51 @@ describe('the notification settings page', () => {
 
     expect(await screen.findByText('Entre 0 et 365 jours.')).toBeInTheDocument();
     expect(lead).toHaveAccessibleDescription(/Entre 0 et 365 jours\./);
+  });
+
+  it('turns a signal on with its threshold, its default as hint', async () => {
+    const sent = serve();
+    const { user } = await renderApp('/settings/notifications');
+
+    expect(await screen.findByRole('heading', { level: 2, name: 'Signaux' })).toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: 'Palier (€)' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('switch', { name: 'Votre patrimoine a franchi un palier' }));
+    const step = await screen.findByRole('textbox', { name: 'Palier (€)' });
+    expect(step).toHaveAccessibleDescription(/^Par défaut : 50\s000\s€, de 1\s000\s€ à 10\s000\s000\s€$/);
+    await user.clear(step);
+    await user.type(step, '100 000');
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+    await waitFor(() => expect(sent[0]!.signals).toEqual({ net_worth_milestone: 100000 }));
+  });
+
+  it('turns a signal off by leaving it out, and restores its default threshold', async () => {
+    const sent = serve(view({ signals: [{ ...view().signals[0]!, enabled: true, threshold: 80000 }] }));
+    const { user } = await renderApp('/settings/notifications');
+
+    const step = await screen.findByRole('textbox', { name: 'Palier (€)' });
+    expect(step).toHaveValue('80000');
+    await user.click(screen.getByRole('button', { name: 'Rétablir : Palier (€)' }));
+    expect(step).toHaveValue('50000');
+    await user.click(screen.getByRole('switch', { name: 'Votre patrimoine a franchi un palier' }));
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+    await waitFor(() => expect(sent[0]!.signals).toEqual({}));
+  });
+
+  it('shows the server refusal of a threshold under its field', async () => {
+    serve(view({ signals: [{ ...view().signals[0]!, enabled: true }] }));
+    server.use(http.put('*/api/v1/platform/notifications/preferences', () => HttpResponse.json(
+      { status: 422, code: 'validation', errors: [{ detail: 'invalid', pointer: '#/signals/net_worth_milestone', code: 'notifications.invalid_threshold' }] }, { status: 422 })));
+    const { user } = await renderApp('/settings/notifications');
+
+    const step = await screen.findByRole('textbox', { name: 'Palier (€)' });
+    await user.clear(step);
+    await user.type(step, '10');
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+    expect(await screen.findByText('Hors des limites indiquées.')).toBeInTheDocument();
+    expect(step).toHaveAccessibleDescription(/Hors des limites indiquées\./);
   });
 
   it('offers « Recharger » when the settings changed elsewhere', async () => {
@@ -174,7 +222,7 @@ describe('the notification settings page', () => {
   });
   it('asks to wait when a test comes too soon after the last one', async () => {
     serve();
-    server.use(http.post('*/api/v1/platform/notifications/test', () => HttpResponse.json({ status: 429, code: 'notifications.test_throttled', title: 'Wait a few seconds before another test.' }, { status: 429 })));
+    server.use(http.post('*/api/v1/platform/notifications/test', () => HttpResponse.json({ status: 429, code: 'notifications.test_throttled', detail: 'Wait a few seconds before another test.' }, { status: 429 })));
     const { user } = await renderApp('/settings/notifications');
 
     await user.click(await screen.findByRole('button', { name: 'Envoyer un test' }));

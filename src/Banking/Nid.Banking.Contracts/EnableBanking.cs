@@ -51,4 +51,10 @@ public interface IEnableBankingClient
         string appId, string sessionId, string accountUid, LocalDate? dateFrom, PsuHeaders? psu, CancellationToken ct);
 
     Task<Result> DeleteSessionAsync(string appId, string sessionId, CancellationToken ct);
+
+    /// <summary>Issue #343: the application the id and the key sign for (<c>GET /application</c>), the one call that reads no bank.</summary>
+    Task<Result<EnableBankingApplication>> ApplicationAsync(string appId, CancellationToken ct);
 }
+
+/// <summary>What Enable Banking says of the application: whether it is active, and the redirect URLs it accepts.</summary>
+public sealed record EnableBankingApplication(bool Active, IReadOnlyList<string> RedirectUrls);

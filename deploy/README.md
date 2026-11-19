@@ -4,9 +4,20 @@ Ce dossier contient le **compose de référence** de Nid : la seule forme livré
 quatre services : `postgres`, `pocket-id` (le fournisseur d'identité), `nid` (l'application : l'API et l'interface, servies
 sur la même origine et le même port) et `backup` (la sauvegarde chiffrée, §6).
 
-**Plus simple : [`standalone/`](standalone/compose.yaml).** Un seul fichier et un `.env`, sans script. `nid`
-tourne toujours ; Postgres et Pocket ID sont des profils (`--profile postgres`, `--profile pocket-id`) qu'on laisse de côté
-quand on les a déjà ailleurs. Pas de sauvegarde ni de `restore.sh` : le reste de ce document décrit la forme de référence.
+**Plus simple : [`standalone/`](standalone/compose.yaml).** Un seul fichier et un `.env`, sans script, et sans fournisseur
+d'identité : chaque adulte se connecte avec un identifiant et un mot de passe gardés par Nid (§4.1), avec la validation en
+deux étapes en option. `nid` tourne toujours ; Postgres est un profil (`--profile postgres`) qu'on laisse de côté quand on
+l'a déjà ailleurs, Pocket ID aussi (`--profile pocket-id`), seulement pour se connecter par passkey.
+
+```bash
+git clone --depth 1 https://github.com/Mistribe/Nid.git && cd Nid/deploy/standalone
+cp .env.example .env                    # NID_URL, NID_CSRF_KEY (openssl rand -hex 32), NID_DB_PASSWORD
+docker compose --profile postgres up -d
+docker compose logs nid | grep setup    # l'adresse à usage unique qui crée le premier administrateur
+```
+
+Pour essayer sur votre propre ordinateur, `NID_URL=http://localhost:8080` suffit, sans proxy. Pas de sauvegarde ni de
+`restore.sh` dans le standalone : le reste de ce document décrit la forme de référence.
 
 Les images sont publiques sur `ghcr.io/mistribe/nid` et `ghcr.io/mistribe/nid-backup`, pour amd64 et arm64, sans compte :
 `latest`, `X.Y.Z` ou `X.Y` (le dernier correctif). Chacune porte une attestation de provenance signée :
@@ -172,6 +183,28 @@ réponses portent un secret (le jeton CSRF, un jeton d'accès à sa création), 
 parcours Playwright) ; ce script est jetable, ne le lancez pas sur une installation réelle.
 
 ## 4. Qui entre dans Nid, et qui l'administre
+
+`Auth__Mode` choisit comment les adultes se connectent : `local` (identifiant et mot de passe gardés par Nid), `oidc`
+(Pocket ID) ou `both` (les deux). Sans réglage, c'est `oidc` quand `Auth__Authority` est renseigné (le compose de
+référence), `local` sinon (le standalone) : une installation existante ne change pas. Le détail et les raisons :
+[`../docs/identity-and-access/local-accounts.md`](../docs/identity-and-access/local-accounts.md).
+
+### 4.1 Comptes locaux
+
+- **Le premier administrateur** : au premier démarrage d'une base vide, Nid écrit dans son journal une adresse à usage
+  unique (`docker compose logs nid | grep setup`) qui crée son compte. Sans accès au journal :
+  `nid admin create-admin --name <prénom>` affiche un lien où il choisit son identifiant et son mot de passe.
+- **Les autres adultes** : l'administrateur les ajoute dans Administration › Utilisateurs (l'email est facultatif), puis
+  crée leur lien d'accès depuis le menu de leur ligne et le leur transmet. Le lien vaut 72 heures, une seule fois.
+- **Un mot de passe oublié** : un lien de mot de passe, depuis le même menu, ou `nid admin reset-password --person …` (§8).
+  Il ferme les sessions de l'adulte. Après 5 échecs, le compte se verrouille quelques minutes ; « Déverrouiller » le rouvre.
+- **Le rôle admin** se donne et se retire depuis le menu de chaque ligne ; il reste toujours au moins un administrateur.
+- **La validation en deux étapes** se règle par chaque adulte sur sa page Sécurité (application d'authentification, et
+  10 codes de secours). Téléphone et codes perdus : `nid admin reset-totp --person …` (§8).
+- **Sans TLS**, Nid refuse un mot de passe, sauf sur `localhost`. Sur un réseau domestique de confiance, sans proxy,
+  `NID_ALLOW_INSECURE_HTTP=true` l'accepte en clair : la zone admin l'affiche en bandeau.
+
+### 4.2 Pocket ID
 
 **Pocket ID décide**, par les groupes de la personne, appliqués à chaque connexion :
 
@@ -402,6 +435,20 @@ docker compose -f deploy/compose.yaml exec nid nid admin rebind-subject --person
 - La CLI n'applique jamais les migrations : si la base n'est pas à jour, elle le dit ; démarrez d'abord `nid`.
 - `nid admin --help` liste les commandes.
 
+Avec les comptes locaux (§4.1 ; avec le standalone, `docker compose exec nid nid admin …` depuis son dossier) :
+
+```bash
+docker compose exec nid nid admin create-admin --name Alice          # un administrateur et son lien d'accès
+docker compose exec nid nid admin reset-password --person Alice      # un lien pour choisir un nouveau mot de passe
+docker compose exec nid nid admin unlock --person Alice              # lève le verrouillage après trop d'échecs
+docker compose exec nid nid admin grant-admin --person Bob           # donne le rôle admin (revoke-admin le retire)
+docker compose exec nid nid admin reset-totp --person Bob            # désactive la validation en deux étapes
+```
+
+- Le lien s'affiche sur la sortie de la commande seulement, jamais dans le journal ni dans l'audit. Transmettez-le à
+  l'adulte : il est valable 72 heures, une seule fois. `reset-password --revoke-tokens` révoque aussi ses jetons d'accès.
+- `revoke-admin` refuse de retirer le rôle au dernier administrateur.
+
 ## 9. Frontière de confiance
 
 La confidentialité des éléments privés vaut **entre les deux adultes, pas contre l'hébergeur**. Qui a accès à la base,
@@ -481,6 +528,9 @@ Pour l'activer :
 1. Dans le portail d'Enable Banking, créez une application **de production en mode restreint** (gratuit, réservé à l'usage
    personnel : seuls les comptes reliés dans le portail sont lisibles) :
    - adresse de retour (« redirect URL ») : `https://nid.<domaine>/api/v1/banking/callback`, exactement ;
+   - « Privacy URL » et « Terms URL » : le portail les exige mais ne les vérifie pas en mode restreint. Donnez
+     `https://github.com/Mistribe/Nid/blob/main/PRIVACY.md` et `https://github.com/Mistribe/Nid/blob/main/LICENSE`,
+     plutôt que l'adresse de votre instance ;
    - générez la paire de clés de l'application et **gardez la clé privée** (fichier `.pem`) hors du portail ;
    - reliez les comptes de chaque adulte que Nid doit lire, comme le portail le demande ;
    - notez l'**identifiant de l'application**.
@@ -502,7 +552,10 @@ Pour l'activer :
    "$PWD/deploy/compose.override.yaml"` (chemin absolu). Une sauvegarde prise avant la clé ne la contient pas : restaurez-la
    sans ce fichier, puis refaites l'étape 2.
 4. Dans Nid, Administration › Banque : collez l'identifiant de l'application, puis activez la synchronisation. La page
-   rappelle l'adresse de retour à déclarer.
+   rappelle l'adresse de retour à déclarer, dit si Nid a chargé la clé (absente, dossier à sa place, illisible, pas une
+   clé RSA privée en PEM) et « Tester la connexion » la soumet à Enable Banking avec l'identifiant. Si
+   `deploy/secrets/enable_banking_private_key` est un **dossier**, Docker l'a créé faute de fichier à l'étape 2 :
+   supprimez-le, copiez la clé à sa place, puis recréez `nid` (`docker compose logs nid` le signale aussi au démarrage).
 5. Chaque adulte relie **ses** banques dans Réglages › Banques (« Relier une banque » ; l'authentification se fait chez la
    banque, dans le navigateur), puis associe chaque compte à une enveloppe courante, d'épargne ou autre de même devise.
 

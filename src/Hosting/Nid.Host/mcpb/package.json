@@ -1,0 +1,15 @@
+{
+  "name": "nid-mcpb",
+  "private": true,
+  "type": "module",
+  "description": "Nid's Claude Desktop extension (#309): mcp-remote, the bridge from Claude Desktop's stdio to Nid's /mcp, vendored into the image with npm ci so its tarballs are pinned by hash. Claude Desktop puts the token in NID_AUTH; mcp-remote expands ${NID_AUTH} in its header itself, so the token never reaches the command line. The host zips this folder with the manifest filled in for the instance (GET /api/v1/mcp/nid.mcpb).",
+  "dependencies": {
+    "mcp-remote": "0.16.5"
+  },
+  "devDependencies": {
+    "@anthropic-ai/mcpb": "2.1.2"
+  },
+  "scripts": {
+    "validate": "mcpb validate manifest.json"
+  }
+}

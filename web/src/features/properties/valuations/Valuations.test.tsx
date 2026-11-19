@@ -44,8 +44,8 @@ function serve(initial: PropertyDetail = propertyDetail()) {
     http.delete('*/api/v1/realestate/properties/:id/valuations/:valuationId', ({ request, params }) => {
       sent.push({ method: 'DELETE', url: request.url });
       const id = String(params.valuationId);
-      if (voided.has(id)) return HttpResponse.json({ status: 409, code: 'core.fact_retired', title: 'Already voided.' }, { status: 409 });
-      if (!current.valuations.some((v) => v.id === id)) return HttpResponse.json({ status: 404, code: 'core.fact_not_found', title: 'Not found' }, { status: 404 });
+      if (voided.has(id)) return HttpResponse.json({ status: 409, code: 'core.fact_retired', detail: 'Already voided.' }, { status: 409 });
+      if (!current.valuations.some((v) => v.id === id)) return HttpResponse.json({ status: 404, code: 'core.fact_not_found', detail: 'Not found' }, { status: 404 });
       voided.add(id);
       current = { ...current, valuations: current.valuations.filter((v) => v.id !== id) };
       return HttpResponse.json({ id });

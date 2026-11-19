@@ -134,7 +134,7 @@ describe('changing the amount', () => {
     await within(form).findByLabelText('Date d’effet');
     await user.clear(within(form).getByLabelText('Montant net'));
     await user.type(within(form).getByLabelText('Montant net'), '2500');
-    server.use(http.get('*/api/v1/income/sources/:id/expected', () => HttpResponse.json({ status: 404, code: null, title: 'Not found' }, { status: 404 })));
+    server.use(http.get('*/api/v1/income/sources/:id/expected', () => HttpResponse.json({ status: 404, code: null, detail: 'Not found' }, { status: 404 })));
     void queryClient.invalidateQueries({ queryKey: ['get', '/api/v1/income/sources/{id}/expected'] });
 
     // The refetch has failed (the query keeps its data and turns to « error »), and the form is still there as typed.
@@ -145,7 +145,7 @@ describe('changing the amount', () => {
   it('shows a refusal at the effective date under the select', async () => {
     serve();
     server.use(http.post('*/api/v1/income/sources/:id/phase-changes', () => HttpResponse.json(
-      { status: 422, code: 'income.invalid_phase', title: 'x', errors: [{ path: 'effectiveOn', code: 'income.invalid_phase', message: 'x' }] }, { status: 422 })));
+      { status: 422, code: 'income.invalid_phase', detail: 'x', errors: [{ detail: 'x', pointer: '#/effectiveOn', code: 'income.invalid_phase' }] }, { status: 422 })));
     const { user } = await renderApp(`/income/${SALARY}`);
 
     const form = await openChange(user);
@@ -159,7 +159,7 @@ describe('changing the amount', () => {
   it('says above the form when no phase of that label runs any more', async () => {
     serve();
     server.use(http.post('*/api/v1/income/sources/:id/phase-changes', () => HttpResponse.json(
-      { status: 422, code: 'income.no_running_phase', title: 'x', errors: [{ path: 'label', code: 'income.no_running_phase', message: 'x' }] }, { status: 422 })));
+      { status: 422, code: 'income.no_running_phase', detail: 'x', errors: [{ detail: 'x', pointer: '#/label', code: 'income.no_running_phase' }] }, { status: 422 })));
     const { user } = await renderApp(`/income/${SALARY}`);
 
     const form = await openChange(user);

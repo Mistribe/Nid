@@ -209,7 +209,22 @@ public static class RequestCatalogue
         new(typeof(CreateCalendarFeedCommand), false, (_, _) => new CreateCalendarFeedCommand("me", false)),
         new(typeof(UpdateCalendarFeedCommand), false, (_, _) => new UpdateCalendarFeedCommand("me", true)),
         new(typeof(GetCalendarFeedQuery), false, (_, _) => new GetCalendarFeedQuery(new CalendarFeedOptions(VisibilityScope.Me, true))),
+        new(typeof(GetCalendarQuery), false, (_, _) => new GetCalendarQuery(VisibilityScope.Me, new LocalDate(2025, 10, 1), new LocalDate(2025, 11, 30), null)),
+        new(typeof(GetCalendarTimelineQuery), false, (_, _) => new GetCalendarTimelineQuery(VisibilityScope.Me, 10, null)),
         new(typeof(RevokeTokensCommand), false, (data, _) => new RevokeTokensCommand(data.App.AdultB)),
+        // Issue 215: local accounts; their answers carry no item.
+        new(typeof(CreatePasswordLinkCommand), false, (data, _) => new CreatePasswordLinkCommand(data.App.AdultB, NodaTime.Duration.FromHours(1))),
+        new(typeof(RevokePasswordLinkCommand), false, (data, _) => new RevokePasswordLinkCommand(data.App.AdultB)),
+        new(typeof(UnlockAccountCommand), false, (data, _) => new UnlockAccountCommand(data.App.AdultB)),
+        new(typeof(CreateAdminAdultCommand), false, (_, _) => new CreateAdminAdultCommand("bench-admin", null)),
+        new(typeof(SetAdminCommand), false, (data, _) => new SetAdminCommand(data.App.AdultA, true)),
+        new(typeof(GetMyCredentialQuery), false, (_, _) => new GetMyCredentialQuery()),
+        new(typeof(SetMyPasswordCommand), false, (_, _) => new SetMyPasswordCommand("bench-hash")),
+        new(typeof(BeginMyTotpCommand), false, (_, _) => new BeginMyTotpCommand("bench-secret")),
+        new(typeof(ConfirmMyTotpCommand), false, (_, _) => new ConfirmMyTotpCommand(1, ["bench-hash"], NodaTime.Instant.FromUnixTimeSeconds(0))),
+        new(typeof(DisableMyTotpCommand), false, (_, _) => new DisableMyTotpCommand()),
+        new(typeof(RegenerateMyRecoveryCodesCommand), false, (_, _) => new RegenerateMyRecoveryCodesCommand(["bench-hash"])),
+        new(typeof(ResetTotpCommand), false, (data, _) => new ResetTotpCommand(data.App.AdultB)),
         new(typeof(SubmitProposalCommand), true, (_, item) => new SubmitProposalCommand("nope", item, System.Text.Json.JsonDocument.Parse("{}").RootElement, null)),
         new(typeof(ApplyDirectCommand), true, (_, item) => new ApplyDirectCommand("nope", item, System.Text.Json.JsonDocument.Parse("{}").RootElement)),
         new(typeof(ListProposalsQuery), false, (_, _) => new ListProposalsQuery(null)),
@@ -329,7 +344,7 @@ public static class RequestCatalogue
         new(typeof(RemoveHouseholdWebhookCommand), false, (_, _) => new RemoveHouseholdWebhookCommand()),
         new(typeof(GetNotificationPreferencesQuery), false, (_, _) => new GetNotificationPreferencesQuery()),
         new(typeof(SaveNotificationPreferencesCommand), false, (_, _) => new SaveNotificationPreferencesCommand(
-            false, ActionMode.Immediate, InfoMode.Digest, DigestFrequency.Weekly, 1, new Dictionary<string, int>(), 0)),
+            false, ActionMode.Immediate, InfoMode.Digest, DigestFrequency.Weekly, 1, new Dictionary<string, int>(), new Dictionary<string, decimal>(), 0)),
 
         // The export is the reader's own view of what they can read; its views expose every exported item to the
         // output guard (1D2 design §6), and ExportPrivacyTests checks the content.
@@ -440,6 +455,7 @@ public static class RequestCatalogue
         new(typeof(GetRetirementQuery), false, (_, _) => new GetRetirementQuery(VisibilityScope.Me)),
         new(typeof(GetRetirementQuery), false, (_, _) => new GetRetirementQuery(VisibilityScope.Household)),
         new(typeof(GetTaxEstimateQuery), false, (_, _) => new GetTaxEstimateQuery(2025, VisibilityScope.Me)),
+        new(typeof(GetTaxHistoryQuery), false, (_, _) => new GetTaxHistoryQuery(VisibilityScope.Me)),
         new(typeof(GetTaxChangesQuery), false, (_, _) => new GetTaxChangesQuery(2026, VisibilityScope.Me)),
         new(typeof(GetRental2044Query), false, (_, _) => new GetRental2044Query(2025, VisibilityScope.Me)),
         new(typeof(GetSaleTaxQuery), true, (_, item) => new GetSaleTaxQuery(VisibilityScope.Me, item)),
@@ -574,6 +590,19 @@ public static class RequestCatalogue
         new(typeof(ListStatementsQuery), true, (_, item) => new ListStatementsQuery(item)),
         new(typeof(GetStatementQuery), true, (_, item) => new GetStatementQuery(item, new YearMonth(2025, 9))),
         new(typeof(GetChildcareYearQuery), true, (_, item) => new GetChildcareYearQuery(item, 2025)),
+        // #94: a nanny at home.
+        new(typeof(ListNanniesQuery), false, (_, _) => new ListNanniesQuery(VisibilityScope.Me, true)),
+        new(typeof(GetNannyQuery), true, (_, item) => new GetNannyQuery(item, 2025)),
+        new(typeof(CreateNannyCommand), false, (d, _) => new CreateNannyCommand("bench", Visibility.Shared, [new OwnerShare(d.App.AdultA, 10_000)])),
+        new(typeof(RenameNannyCommand), true, (_, item) => new RenameNannyCommand(item, "bench")),
+        new(typeof(PutNannyMonthCommand), true, (_, item) => new PutNannyMonthCommand(item, new YearMonth(2025, 1), 1000m, 400m, null)),
+        new(typeof(DeleteNannyMonthCommand), true, (_, item) => new DeleteNannyMonthCommand(item, new YearMonth(2025, 1))),
+        new(typeof(CloseNannyCommand), true, (_, item) => new CloseNannyCommand(item)),
+        new(typeof(ReopenNannyCommand), true, (_, item) => new ReopenNannyCommand(item)),
+        new(typeof(NannyDeletionQuery), true, (_, item) => new NannyDeletionQuery(item)),
+        new(typeof(DeleteNannyCommand), true, (_, item) => new DeleteNannyCommand(item, 1)),
+        new(typeof(ContractEndQuery), true, (_, item) => new ContractEndQuery(item, new ContractEnd(EndReason.Withdrawal, new LocalDate(2026, 1, 5)))),
+        new(typeof(GetSettlementQuery), true, (_, item) => new GetSettlementQuery(item)),
         // No days: an allowed writer meets the 422 on days, never an access refusal; version 1 is never stored.
         new(typeof(SaveStatementCommand), true, (_, item) => new SaveStatementCommand(item, new YearMonth(2025, 9), [], 0m, null, 1)),
         new(typeof(ValidateStatementCommand), true, (_, item) => new ValidateStatementCommand(item, new YearMonth(2025, 9), 1)),
@@ -590,9 +619,15 @@ public static class RequestCatalogue
         // Every account the actor reads: A's, on A's private envelope twin, must never reach B (MixedDataset seeds it).
         new(typeof(ListBankAccountsQuery), false, (_, _) => new ListBankAccountsQuery(null)),
         new(typeof(UpdateBankAccountCommand), false, (_, item) => new UpdateBankAccountCommand(Guid.NewGuid(), item.Value, false, null, false, null, null)),
+        // #353: an account's latest lines and a card's likely account, for its readers only (« not found » otherwise).
+        new(typeof(BankAccountOverviewQuery), false, (_, _) => new BankAccountOverviewQuery(Guid.NewGuid())),
+        new(typeof(Nid.Host.Composition.CreateBankAccountEnvelopeCommand), false,
+            (_, _) => new Nid.Host.Composition.CreateBankAccountEnvelopeCommand(Guid.NewGuid(), "bench", "checking", false)),
         new(typeof(Nid.Banking.Application.Sync.SyncAllCommand), false, (_, _) => new Nid.Banking.Application.Sync.SyncAllCommand()),
         new(typeof(Nid.Banking.Application.Sync.SyncMineCommand), false, (_, _) => new Nid.Banking.Application.Sync.SyncMineCommand(Guid.NewGuid(), new PsuHeaders(null, null))),
         new(typeof(Nid.Banking.Application.Sync.GetBankSyncRunsQuery), false, (_, _) => new Nid.Banking.Application.Sync.GetBankSyncRunsQuery(null)),
+        new(typeof(GetBankingDiagnosticsQuery), false, (_, _) => new GetBankingDiagnosticsQuery("https://test.localhost/api/v1/banking/callback")),
+        new(typeof(TestBankingConnectionCommand), false, (_, _) => new TestBankingConnectionCommand("https://test.localhost/api/v1/banking/callback")),
         // An envelope's bank lines (and its card's): read by whoever reads the envelope, A's two on her private envelope never reach B.
         new(typeof(ListBankTransactionsQuery), true, (_, item) => new ListBankTransactionsQuery(item, null, null, 1, "all")),
         // 5C, D19: every readable account's lines; the joint line's link to A's private subscription never reaches B.
@@ -602,6 +637,20 @@ public static class RequestCatalogue
         new(typeof(LinkTransactionCommand), false, (d, item) => new LinkTransactionCommand(d.JointLine, "subscriptions", item.Value, null)),
         new(typeof(UnlinkTransactionCommand), false, (d, _) => new UnlinkTransactionCommand(d.JointLine)),
         new(typeof(IgnoreTransactionCommand), false, (d, _) => new IgnoreTransactionCommand(d.JointLine)),
+        new(typeof(SetTransactionCategoryCommand), false, (d, _) => new SetTransactionCategoryCommand(d.JointLine, null)),
+        new(typeof(ResetTransactionCategoryCommand), false, (d, _) => new ResetTransactionCategoryCommand(d.JointLine)),
+        // The household's categories: no item, no person's data.
+        new(typeof(ListBankCategoriesQuery), false, (_, _) => new ListBankCategoriesQuery()),
+        new(typeof(CreateBankCategoryCommand), false, (_, _) => new CreateBankCategoryCommand(null, $"bench-{Guid.NewGuid():N}", "expense")),
+        new(typeof(UpdateBankCategoryCommand), false, (_, _) => new UpdateBankCategoryCommand(Guid.NewGuid(), "bench", null, false, null, false)),
+        new(typeof(MergeBankCategoryCommand), false, (_, _) => new MergeBankCategoryCommand(Guid.NewGuid(), Guid.NewGuid())),
+        // The household's category rules (decision 7): a rule restricted to an account the actor cannot read never reaches them.
+        new(typeof(ListCategoryRulesQuery), false, (_, _) => new ListCategoryRulesQuery()),
+        new(typeof(CreateCategoryRuleCommand), false, (_, _) => new CreateCategoryRuleCommand("BENCH", null, null, null, null, Guid.NewGuid())),
+        new(typeof(UpdateCategoryRuleCommand), false, (d, _) => new UpdateCategoryRuleCommand(d.PrivateRule.Rule, MixedDataset.PrivateLabelA, d.PrivateRule.Account, null, null, null, Nid.Banking.Domain.CategorySeed.Find("food.groceries")!.Id)),
+        new(typeof(DeleteCategoryRuleCommand), false, (_, _) => new DeleteCategoryRuleCommand(Guid.NewGuid())),
+        new(typeof(PreviewCategoryRuleQuery), false, (d, _) => new PreviewCategoryRuleQuery(d.PrivateRule.Rule, 1)),
+        new(typeof(ApplyCategoryRuleCommand), false, (_, _) => new ApplyCategoryRuleCommand(Guid.NewGuid())),
         new(typeof(ListBankRulesQuery), false, (_, _) => new ListBankRulesQuery()),
         new(typeof(DeleteBankRuleCommand), false, (_, _) => new DeleteBankRuleCommand(Guid.NewGuid())),
         // A preview: the actor's own new account from a file, rolled back; dropped on the row's item, refused unless they write an envelope.
@@ -885,6 +934,17 @@ public static class RequestCatalogue
 
         public IDependencyInjectionBuilder RegisterRequestPipelineBehavior<TBehavior, TRequest, TResponse>()
             where TBehavior : class, IRequestPipelineBehavior<TRequest, TResponse>
+            where TRequest : IRequest<TResponse>
+            where TResponse : notnull
+            => this;
+
+        public IDependencyInjectionBuilder RegisterResultPipelineBehavior<TBehavior, TRequest>()
+            where TBehavior : class, IResultPipelineBehavior<TRequest, UnambitiousFx.Functional.Result>
+            where TRequest : IRequest
+            => this;
+
+        public IDependencyInjectionBuilder RegisterResultPipelineBehavior<TBehavior, TRequest, TResponse>()
+            where TBehavior : class, IResultPipelineBehavior<TRequest, UnambitiousFx.Functional.Result<TResponse>>
             where TRequest : IRequest<TResponse>
             where TResponse : notnull
             => this;

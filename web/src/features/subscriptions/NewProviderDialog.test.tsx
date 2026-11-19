@@ -133,7 +133,7 @@ describe('Abonnements › nouveau fournisseur', () => {
   });
 
   it('shows a refusal from the server inside the dialog and keeps the fields', async () => {
-    serve(() => HttpResponse.json({ status: 422, title: "'internet' is not a label.", code: 'subscriptions.invalid_provider' },
+    serve(() => HttpResponse.json({ status: 422, detail: "'internet' is not a label.", code: 'subscriptions.invalid_provider' },
       { status: 422, headers: { 'Content-Type': 'application/problem+json' } }));
     const { user, dialog } = await openDialog();
 

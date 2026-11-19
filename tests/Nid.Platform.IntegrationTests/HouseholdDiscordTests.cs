@@ -215,6 +215,18 @@ public class HouseholdDiscordTests(PostgresFixture fixture) : IClassFixture<Post
         Assert.Empty(await HouseholdAsync(h));
     }
 
+    /// <summary>#291: what a local account's holder is told is theirs alone, critical as it is.</summary>
+    [Fact]
+    public async Task A_notice_to_an_account_holder_never_reaches_the_household()
+    {
+        await using var h = await StartAsync();
+
+        await h.App.Services.GetRequiredService<INotifier>().PublishAsync(new Notice("login_locked", new Recipients.People([h.App.AdultA]),
+            "login_locked:a:1", [], new Dictionary<string, string>()), TestContext.Current.CancellationToken);
+
+        Assert.Empty(await HouseholdAsync(h));
+    }
+
     [Fact]
     public async Task Household_rechecks_every_adult_at_send()
     {
@@ -266,7 +278,7 @@ public class HouseholdDiscordTests(PostgresFixture fixture) : IClassFixture<Post
         var none = await bare.App.RawAsync(bare.App.AdultA, HttpMethod.Post, AdminRoute + "/test", new { channel = "discord_household" });
         Assert.Equal(HttpStatusCode.UnprocessableEntity, none.StatusCode);
         var error = Assert.Single((await none.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: TestContext.Current.CancellationToken)).GetProperty("errors").EnumerateArray());
-        Assert.Equal(("channel", "notifications.discord_unavailable"), (error.GetProperty("path").GetString(), error.GetProperty("code").GetString()));
+        Assert.Equal(("channel", "notifications.discord_unavailable"), (error.FieldPath(), error.GetProperty("code").GetString()));
 
         var personal = await h.App.RawAsync(h.App.AdultA, HttpMethod.Post, AdminRoute + "/test", new { channel = "discord_person" });
         Assert.Equal(HttpStatusCode.UnprocessableEntity, personal.StatusCode);

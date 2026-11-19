@@ -24,9 +24,15 @@ public sealed class AuditLogReader(PlatformDbContext db) : IAuditLog
     }
 
     public async Task<IReadOnlyList<AuditRecord>> SecurityEventsAsync(
-        PersonId? subject, IReadOnlyCollection<string>? events, bool withoutSelfRevocations, long? before, int limit, CancellationToken ct)
+        PersonId? subject, IReadOnlyCollection<string>? events, IReadOnlyCollection<string>? except, bool withoutSelfRevocations,
+        long? before, int limit, CancellationToken ct)
     {
         var query = SecurityQuery(subject, events, withoutSelfRevocations);
+        if (except is not null)
+        {
+            var names = except.ToArray();
+            query = query.Where(r => !names.Contains(r.Action));
+        }
         if (before is { } cursor)
             query = query.Where(r => r.Seq < cursor);
 
@@ -36,7 +42,9 @@ public sealed class AuditLogReader(PlatformDbContext db) : IAuditLog
     public async Task<(IReadOnlyList<AuditRecord> Items, int Total)> SecurityEventsPageAsync(
         IReadOnlyCollection<string>? events, int skip, int take, CancellationToken ct)
     {
-        var query = SecurityQuery(null, events, withoutSelfRevocations: true);
+        // The admin journal: an adult's own failed sign-ins stay theirs, only those without a person show (local-accounts.md §16).
+        var query = SecurityQuery(null, events, withoutSelfRevocations: true)
+            .Where(r => !(r.Action == SecurityEventNames.LoginFailed && r.SubjectPersonId != null));
         var total = await query.CountAsync(ct);
         var rows = await query.OrderByDescending(r => r.Seq).Skip(skip).Take(take).ToListAsync(ct);
         return (rows.Select(ToRecord).ToList(), total);

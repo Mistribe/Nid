@@ -80,17 +80,16 @@ export function InsuranceForm({ detail, titleId, onDone }: { detail: Detail; tit
   const submit = form.handleSubmit((values) => {
     errors.clear();
     // The blank rows leave the form first, so the list sent and the rows shown share their indices (a refusal names a row).
-    const blank = values.guarantees.flatMap((g, i) => (g.label.trim() === '' && g.ceiling.trim() === '' && g.deductible.trim() === '' ? [i] : []));
-    if (blank.length > 0) rows.remove(blank);
+    // setValue, not rows.remove: a field-array action re-runs the schema on the array and wipes the refusal set below.
+    const guarantees = values.guarantees.filter((g) => g.label.trim() !== '' || g.ceiling.trim() !== '' || g.deductible.trim() !== '');
+    if (guarantees.length < values.guarantees.length) form.setValue('guarantees', guarantees);
     save.mutate({
       params: { path: { id: detail.id } },
       body: {
         kind: values.kind, propertyId: values.propertyId === '' ? null : values.propertyId,
         keepProperty: keepsHidden && values.propertyId === '',
         insuredLabel: text(values.insuredLabel), policyNumber: text(values.policyNumber), insurerContact: text(values.insurerContact),
-        guarantees: values.guarantees
-          .filter((_, i) => !blank.includes(i))
-          .map((g) => ({ label: g.label.trim(), ceiling: text(g.ceiling), deductible: text(g.deductible) })),
+        guarantees: guarantees.map((g) => ({ label: g.label.trim(), ceiling: text(g.ceiling), deductible: text(g.deductible) })),
       },
     });
   });

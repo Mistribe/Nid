@@ -195,12 +195,12 @@ public class HoldingMovementEndpointTests(PostgresFixture fixture) : IClassFixtu
         });
         var refused = await JsonAsync(twice);
         Assert.Equal((HttpStatusCode.UnprocessableEntity, "investments.invalid_movement", "to[1].holdingId"),
-            (twice.StatusCode, refused.GetProperty("code").GetString(), refused.GetProperty("errors")[0].GetProperty("path").GetString()));
+            (twice.StatusCode, refused.GetProperty("code").GetString(), refused.GetProperty("errors")[0].FieldPath()));
 
         var empty = await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Url(id)}/switches",
             new { occurredOn = "2025-01-10", from = Array.Empty<object>(), to = new[] { new { holdingId = euro, amount = Eur("5.00") } } });
         Assert.Equal(HttpStatusCode.UnprocessableEntity, empty.StatusCode);
-        Assert.Equal("from", (await JsonAsync(empty)).GetProperty("errors")[0].GetProperty("path").GetString());
+        Assert.Equal("from", (await JsonAsync(empty)).GetProperty("errors")[0].FieldPath());
     }
 
     [Fact]
@@ -217,7 +217,7 @@ public class HoldingMovementEndpointTests(PostgresFixture fixture) : IClassFixtu
             var json = await JsonAsync(response);
             Assert.Equal((status, code), (response.StatusCode, json.GetProperty("code").GetString()));
             if (path is not null)
-                Assert.Equal(path, json.GetProperty("errors")[0].GetProperty("path").GetString());
+                Assert.Equal(path, json.GetProperty("errors")[0].FieldPath());
         }
 
         var moves = $"{Url(id)}/holdings/{fund}/movements";

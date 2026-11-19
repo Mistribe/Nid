@@ -23,7 +23,7 @@ describe('DocumentDetailPage', () => {
     await waitFor(() => expectTrailBack('Documents', '/documents'));
     cleanup();
 
-    server.use(http.get('*/api/v1/documents/:id', () => HttpResponse.json({ status: 404, code: null, title: 'Not found' }, { status: 404 })));
+    server.use(http.get('*/api/v1/documents/:id', () => HttpResponse.json({ status: 404, code: null, detail: 'Not found' }, { status: 404 })));
     await renderApp(PATH);
     expect(await screen.findByRole('heading', { level: 1, name: 'Page introuvable' })).toBeInTheDocument();
     await waitFor(() => expectTrailBack('Documents', '/documents'));
@@ -33,7 +33,7 @@ describe('DocumentDetailPage', () => {
     const api = serveDocument();
     const { user, router } = await renderApp(PATH);
     await screen.findByRole('heading', { level: 1, name: 'Bail 2024' });
-    server.use(http.get('*/api/v1/documents/:id', () => HttpResponse.json({ status: 404, title: 'Not found.' }, { status: 404 })));
+    server.use(http.get('*/api/v1/documents/:id', () => HttpResponse.json({ status: 404, detail: 'Not found.' }, { status: 404 })));
     await user.click(screen.getByRole('button', { name: 'Retirer' }));
     await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
     await waitFor(() => expect(router.state.location.pathname).toBe('/documents'));
@@ -167,7 +167,7 @@ describe('DocumentDetailPage', () => {
     serveDocument();
     const { queryClient } = await renderApp(PATH);
     await screen.findByRole('heading', { level: 1, name: 'Bail 2024' });
-    server.use(http.get(`*/api/v1/documents/${DOC}`, () => HttpResponse.json({ status: 500, title: 'Boom' }, { status: 500 })));
+    server.use(http.get(`*/api/v1/documents/${DOC}`, () => HttpResponse.json({ status: 500, detail: 'Boom' }, { status: 500 })));
     await queryClient.refetchQueries({ queryKey: ['get', '/api/v1/documents/{id}'] });
     await waitFor(() => expect(queryClient.getQueryCache().findAll({ queryKey: ['get', '/api/v1/documents/{id}'] }).some((q) => q.state.status === 'error')).toBe(true));
 
@@ -185,7 +185,7 @@ describe('DocumentDetailPage', () => {
 
   it('a missing document shows the not-found state', async () => {
     serveDocument();
-    server.use(http.get(`*/api/v1/documents/${DOC}`, () => HttpResponse.json({ status: 404, title: 'Not found.' }, { status: 404 })));
+    server.use(http.get(`*/api/v1/documents/${DOC}`, () => HttpResponse.json({ status: 404, detail: 'Not found.' }, { status: 404 })));
     await renderApp(PATH);
     expect(await screen.findByRole('heading', { level: 1, name: 'Page introuvable' })).toBeInTheDocument();
   });

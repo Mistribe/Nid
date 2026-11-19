@@ -14,6 +14,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatInstant, formatInstantDay } from '@/lib/format';
+import { CALENDAR_MODULES, moduleLabelKey, type CalendarModule } from '../calendar/modules';
 import { TOKEN, TOKENS } from '../security/tokens';
 import { SettingsFrame } from './SettingsFrame';
 import '@/locales/calendar';
@@ -57,6 +58,9 @@ function FeedForm({ feed, onCreated }: { feed: Feed | null; onCreated: (url: str
   const queryClient = useQueryClient();
   const [scope, setScope] = useState<Scope>(feed?.scope === 'me' ? 'me' : 'household');
   const [amounts, setAmounts] = useState(feed?.amounts ?? false);
+  const [modules, setModules] = useState<readonly string[]>(feed?.modules ?? CALENDAR_MODULES);
+  const modulesId = useId();
+  const toggle = (module: CalendarModule, on: boolean) => setModules(CALENDAR_MODULES.filter((m) => (m === module ? on : modules.includes(m))));
   const scopeId = useId();
   const amountsId = useId();
   const amountsHintId = useId();
@@ -69,7 +73,8 @@ function FeedForm({ feed, onCreated }: { feed: Feed | null; onCreated: (url: str
   const save = $api.useMutation('put', CALENDAR, { onSuccess: () => { toast.success(t('calendar_settings.saved')); refresh(); } });
   const revoke = $api.useMutation('delete', TOKEN, { onSuccess: () => { toast.success(t('calendar_settings.revoked')); refresh(); } });
   const problem = [create.error, save.error, revoke.error].map((e) => (e ? toProblem(e) : null)).find((p) => p !== null) ?? null;
-  const changed = feed !== null && (feed.scope !== scope || feed.amounts !== amounts);
+  const changed = feed !== null && (feed.scope !== scope || feed.amounts !== amounts || feed.modules.join() !== modules.join());
+  const none = modules.length === 0;
 
   return (
     <div className="space-y-4">
@@ -81,6 +86,18 @@ function FeedForm({ feed, onCreated }: { feed: Feed | null; onCreated: (url: str
         <Segmented aria-labelledby={scopeId} value={scope} onValueChange={(v) => setScope(v as Scope)}
           options={(['household', 'me'] as const).map((s) => ({ value: s, label: t(`calendar_settings.scope.${s}`) }))} />
       </div>
+      <div className="space-y-2">
+        <p id={modulesId} className="font-medium">{t('calendar_settings.modules_label')}</p>
+        <div role="group" aria-labelledby={modulesId} className="flex flex-wrap gap-x-4 gap-y-2">
+          {CALENDAR_MODULES.map((m) => (
+            <div key={m} className="flex items-center gap-2">
+              <Checkbox id={`${modulesId}-${m}`} checked={modules.includes(m)} onCheckedChange={(checked) => toggle(m, checked === true)} />
+              <Label htmlFor={`${modulesId}-${m}`}>{t(moduleLabelKey(m))}</Label>
+            </div>
+          ))}
+        </div>
+        {none ? <p className="text-sm text-muted-foreground">{t('calendar_settings.modules_none')}</p> : null}
+      </div>
       <div className="space-y-1">
         <div className="flex items-center gap-2">
           <Checkbox id={amountsId} checked={amounts} aria-describedby={amountsHintId} onCheckedChange={(checked) => setAmounts(checked === true)} />
@@ -89,10 +106,10 @@ function FeedForm({ feed, onCreated }: { feed: Feed | null; onCreated: (url: str
         <p id={amountsHintId} className="text-sm text-muted-foreground">{t('calendar_settings.amounts_hint')}</p>
       </div>
       {feed === null ? (
-        <Button type="button" disabled={create.isPending} onClick={() => create.mutate({ body: { scope, amounts } })}>{t('calendar_settings.create')}</Button>
+        <Button type="button" disabled={none || create.isPending} onClick={() => create.mutate({ body: { scope, amounts, modules: [...modules] } })}>{t('calendar_settings.create')}</Button>
       ) : (
         <>
-          <Button type="button" disabled={!changed || save.isPending} onClick={() => save.mutate({ body: { scope, amounts } })}>{t('calendar_settings.save')}</Button>
+          <Button type="button" disabled={!changed || none || save.isPending} onClick={() => save.mutate({ body: { scope, amounts, modules: [...modules] } })}>{t('calendar_settings.save')}</Button>
           <div className="space-y-1 text-sm">
             <p className="font-medium">{t('calendar_settings.active')}</p>
             <p className="text-muted-foreground">{t('calendar_settings.expires', { date: formatInstantDay(feed.token.expiresAt) })}</p>
@@ -102,7 +119,7 @@ function FeedForm({ feed, onCreated }: { feed: Feed | null; onCreated: (url: str
           </div>
           <div className="flex flex-wrap gap-2">
             <ConfirmAction label={t('calendar_settings.regenerate')} confirmation={t('calendar_settings.regenerate_confirm')} pending={create.isPending}
-              onConfirm={() => create.mutate({ body: { scope: feed.scope, amounts: feed.amounts } })} />
+              onConfirm={() => create.mutate({ body: { scope: feed.scope, amounts: feed.amounts, modules: feed.modules } })} />
             <ConfirmAction label={t('calendar_settings.revoke')} confirmation={t('calendar_settings.revoke_confirm')} pending={revoke.isPending}
               onConfirm={() => revoke.mutate({ params: { path: { id: feed.token.id } } })} />
           </div>

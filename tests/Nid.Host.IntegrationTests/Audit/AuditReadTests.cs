@@ -109,6 +109,30 @@ public class AuditReadTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         Assert.Equal(("logout", app.AdultB.Value), (entry.GetProperty("event").GetString(), entry.GetProperty("subjectPersonId").GetGuid()));
     }
 
+    /// <summary>#308: the assistant's reads apart from the sign-ins and refusals, filtered in the query, before the limit.</summary>
+    [Fact]
+    public async Task My_events_split_the_assistants_reads_from_the_rest()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await using (var scope = app.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            db.AuditLog.AddRange(new[] { "login", "mcp_tool_called", "mcp_tool_called", "access_denied" }.Select(action => new AuditEntryRow
+            {
+                Id = Guid.CreateVersion7(), At = SystemClock.Instance.GetCurrentInstant(), Category = "security", Action = action,
+                ActorKind = "person", PersonId = app.AdultB.Value, SubjectPersonId = app.AdultB.Value, Via = "ui",
+            }));
+            await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        async Task<List<string?>> Events(string query) => Json(await app.GetRawAsync(app.AdultB, $"/api/v1/platform/audit/me/security{query}"))
+            .GetProperty("entries").EnumerateArray().Select(e => e.GetProperty("event").GetString()).ToList();
+
+        Assert.Equal(["access_denied", "login"], await Events("?kind=access&limit=2"));
+        Assert.Equal(["mcp_tool_called", "mcp_tool_called"], await Events("?kind=assistant"));
+        Assert.Equal(4, (await Events("")).Count);
+    }
+
     [Fact]
     public async Task The_journal_is_the_admins_and_leaves_out_other_adults_own_sessions()
     {
@@ -181,6 +205,31 @@ public class AuditReadTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         Assert.Equal(1, Json(await app.GetRawAsync(app.AdultA, "/api/v1/admin/security-journal?page=-5")).GetProperty("page").GetInt32());
         var past = Json(await app.GetRawAsync(app.AdultA, $"/api/v1/admin/security-journal?page={int.MaxValue}"));
         Assert.Equal((0, 53), (past.GetProperty("items").GetArrayLength(), past.GetProperty("total").GetInt32()));
+    }
+
+    /// <summary>#292: a failed sign-in without a person is the admins' to see; an adult's own stays theirs.</summary>
+    [Fact]
+    public async Task The_journal_shows_failed_sign_ins_without_a_person_only()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await using (var scope = app.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            db.AuditLog.AddRange(new Guid?[] { null, app.AdultB.Value }.Select(subject => new AuditEntryRow
+            {
+                Id = Guid.CreateVersion7(), At = SystemClock.Instance.GetCurrentInstant(), Category = "security", Action = "login_failed",
+                ActorKind = "system", SubjectPersonId = subject, Via = "ui",
+            }));
+            await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        var all = Json(await app.GetRawAsync(app.AdultA, "/api/v1/admin/security-journal"));
+        var filtered = Json(await app.GetRawAsync(app.AdultA, "/api/v1/admin/security-journal?event=login_failed"));
+
+        var entry = Assert.Single(all.GetProperty("items").EnumerateArray());
+        Assert.Equal("login_failed", entry.GetProperty("event").GetString());
+        Assert.False(entry.TryGetProperty("subjectPersonId", out var subject) && subject.ValueKind != JsonValueKind.Null);
+        Assert.Equal(1, filtered.GetProperty("total").GetInt32());
     }
 
     /// <summary>T5b: the filter never widens what the journal shows, even for an event that really happened.</summary>

@@ -25,7 +25,7 @@ public static class DocumentEndpoints
         routes.MapPost(UploadsPath + "/{token}", async (string token, HttpRequest request, DocumentsOptions options, IDocumentStore store,
                 IPersonalAccessTokens tokens, IPersonRegistry persons, IActorAccessor actor, IInvoker invoker, IClock clock, CancellationToken ct) =>
             {
-                var gone = Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "This upload URL is not valid: ask for a new one.");
+                var gone = Results.Problem(statusCode: StatusCodes.Status404NotFound, detail: "This upload URL is not valid: ask for a new one.");
                 var now = clock.GetCurrentInstant();
                 if (await store.ClaimUploadTicketAsync(UploadTokens.Hash(token), now, ct) is not { } ticket)
                     return gone;
@@ -58,7 +58,7 @@ public static class DocumentEndpoints
         api.MapPost("", async (HttpRequest request, DocumentsOptions options, IInvoker invoker, CancellationToken ct) =>
             {
                 if (!request.HasFormContentType || !request.ContentType!.StartsWith("multipart/form-data", StringComparison.OrdinalIgnoreCase))
-                    return Results.Problem(statusCode: StatusCodes.Status415UnsupportedMediaType, title: "Upload a multipart/form-data body.");
+                    return Results.Problem(statusCode: StatusCodes.Status415UnsupportedMediaType, detail: "Upload a multipart/form-data body.");
                 var tooLarge = Result.Failure<Guid>(new Failure(DocumentsCodes.TooLarge, $"A document is at most {options.MaxSizeBytes} bytes.", null))
                     .ToHttp(id => new IdResponse(id));
                 // Review Focus 1: refused from the declared length, or while reading one sent with none; nothing is kept of it.
@@ -85,12 +85,12 @@ public static class DocumentEndpoints
                 catch (InvalidDataException)
                 {
                     // A missing boundary or a broken part: the client's body, not the server.
-                    return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "The multipart body cannot be read.");
+                    return Results.Problem(statusCode: StatusCodes.Status400BadRequest, detail: "The multipart body cannot be read.");
                 }
 
                 string? Text(string name) => form.TryGetValue(name, out var v) && v.Count > 0 ? v.ToString() : null;
                 if (form.Files.GetFile("file") is not { } file)
-                    return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "The file part is required.");
+                    return Results.Problem(statusCode: StatusCodes.Status400BadRequest, detail: "The file part is required.");
                 if (file.Length > options.MaxSizeBytes)
                     return tooLarge;
 
@@ -102,7 +102,7 @@ public static class DocumentEndpoints
                 if (Text("targetId") is { } rawTarget)
                 {
                     if (!Guid.TryParse(rawTarget, out var parsed))
-                        return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "The targetId is not a valid identifier.");
+                        return Results.Problem(statusCode: StatusCodes.Status400BadRequest, detail: "The targetId is not a valid identifier.");
                     targetId = parsed;
                 }
                 var targetKind = Text("targetKind");
@@ -115,7 +115,7 @@ public static class DocumentEndpoints
                     Text("role"), WarnDuplicate: Text("warnDuplicate") == "true"), ct);
                 // #297: the document already holding the file, for the page to offer linking it or adding the file anyway.
                 return result.TryGetValue(out var uploaded) && uploaded!.Duplicate is { } duplicate
-                    ? Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "This file is already in a document.",
+                    ? Results.Problem(statusCode: StatusCodes.Status409Conflict, detail: "This file is already in a document.",
                         extensions: new Dictionary<string, object?> { ["code"] = DocumentsCodes.Duplicate, ["duplicate"] = duplicate })
                     : result.ToHttp(created => new IdResponse(created.Id), StatusCodes.Status201Created);
             })
@@ -159,9 +159,9 @@ public static class DocumentEndpoints
         api.MapGet("", async (string? scope, bool? archived, bool? inbox, string? targetKind, Guid? targetId, Guid? anchor,
                     string? role, int? year, Guid? linked, string? q, int? page, IInvoker invoker, CancellationToken ct)
                 => anchor is not null && (inbox == true || targetKind is not null || targetId is not null)
-                    ? Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "Give anchor alone.")
+                    ? Results.Problem(statusCode: StatusCodes.Status400BadRequest, detail: "Give anchor alone.")
                     : (targetKind is null) != (targetId is null) && !(targetKind == TargetKinds.CoreHousehold && targetId is null)
-                    ? Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "Give targetKind and targetId together.")
+                    ? Results.Problem(statusCode: StatusCodes.Status400BadRequest, detail: "Give targetKind and targetId together.")
                     : (await invoker.InvokeAsync(new ListDocumentsQuery(ParseScope(scope), archived ?? false, inbox ?? false,
                         targetKind is null ? null : new DocumentTarget(targetKind, targetId ?? TargetKinds.Household), anchor,
                         Role: string.IsNullOrEmpty(role) ? null : role, Year: year, Linked: linked, Search: q, Page: page), ct)).ToHttp(list => list))

@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using Nid.Banking.Contracts;
+using Nid.Banking.Domain;
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
 using NodaTime;
@@ -49,13 +50,17 @@ internal static class BankAuthorization
 }
 
 [RequestHandler<GetBankingStatusQuery, BankingStatusView>]
-public sealed class GetBankingStatusHandler(IHouseholdSettings settings, BankingOptions options)
+public sealed class GetBankingStatusHandler(IHouseholdSettings settings, BankingOptions options, BankingKey key, IActorAccessor actor)
     : IRequestHandler<GetBankingStatusQuery, BankingStatusView>
 {
     public async ValueTask<Result<BankingStatusView>> HandleAsync(GetBankingStatusQuery query, CancellationToken ct = default)
     {
         var household = await settings.ReadAsync(ct);
-        return Result.Success(new BankingStatusView(household.BankingEnabled, BankingAccess.Configured(household, options)));
+        var status = new BankingStatusView(household.BankingEnabled, BankingAccess.Configured(household, options));
+        // Issue #343: the administrator is told which part is missing; the others only that it is.
+        return Result.Success(actor.Current?.IsAdmin == true
+            ? status with { AppIdSaved = !string.IsNullOrWhiteSpace(household.EnableBankingAppId), KeyStatus = key.Status }
+            : status);
     }
 }
 
@@ -183,7 +188,7 @@ public sealed class CompleteConnectionHandler(
 }
 
 [RequestHandler<ListMyConnectionsQuery, IReadOnlyList<ConnectionView>>]
-public sealed class ListMyConnectionsHandler(BankingAccess access, IConnectionStore connections, IAccountStore accounts, BankAccountReader reader)
+public sealed class ListMyConnectionsHandler(BankingAccess access, IConnectionStore connections, IAccountStore accounts, BankAccountReader reader, IClock clock)
     : IRequestHandler<ListMyConnectionsQuery, IReadOnlyList<ConnectionView>>
 {
     public async ValueTask<Result<IReadOnlyList<ConnectionView>>> HandleAsync(ListMyConnectionsQuery query, CancellationToken ct = default)
@@ -194,9 +199,13 @@ public sealed class ListMyConnectionsHandler(BankingAccess access, IConnectionSt
 
         var views = new List<ConnectionView>();
         foreach (var c in (await connections.MineAsync(access.Person, ct)).Where(c => c.Status != ConnectionStatus.Pending))
+        {
+            var seen = await accounts.ForConnectionAsync(c.Id, ct);
+            var counts = await reader.CountsAsync([.. seen.Select(a => a.Id)], ct);
             views.Add(new ConnectionView(
                 c.Id, c.AspspName, c.Status.ToString().ToLowerInvariant(), c.ValidUntil?.ToDateTimeOffset(), c.LastSyncedAt?.ToDateTimeOffset(),
-                c.LastErrorCode, await reader.ReadAsync(await accounts.ForConnectionAsync(c.Id, ct), ct)));
+                c.LastErrorCode, await reader.ReadAsync(seen, ct), BankReadsView.From(BankReads.Worst(counts.Values), clock.GetCurrentInstant())));
+        }
         return Result.Success<IReadOnlyList<ConnectionView>>(views);
     }
 }

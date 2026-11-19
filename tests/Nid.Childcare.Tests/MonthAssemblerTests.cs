@@ -30,7 +30,7 @@ public class MonthAssemblerTests
         // 1.5 h extra paid as worked, declared as 2 h, the normal hours left to the pay at the normal rate.
         Assert.Equal(598.02m, figures.Declaration.NetPay);
         Assert.Equal(2m, figures.Declaration.ComplementaryHours);
-        Assert.Equal(138, figures.Declaration.NormalHours); // (598.02 − 1.5 × 4.30) ÷ 4.30 = 137.57
+        Assert.Equal(137, figures.Declaration.NormalHours); // (598.02 − 1.5 × 4.30) ÷ 4.30 = 137.57
         Assert.Equal(16, figures.Declaration.ActivityDays); // 16 × 17 ÷ 18 = 15.11, rounded up
     }
 
@@ -48,6 +48,70 @@ public class MonthAssemblerTests
         var with = MonthAssembler.Evaluate(terms, days, [], [], null, 0m, 0m, next: new Statement(Item, month.PlusMonths(1), false, 0m, null, [may[0]], null, 1)).Figures!;
 
         Assert.Equal(without.Declaration.ComplementaryHours, with.Declaration.ComplementaryHours);
+    }
+
+    private static MonthTerms Revised(LocalDate from, YearMonth month, decimal rate = 4.30m)
+        => MonthTerms.For([
+            new Terms(Item, D(2025, 9, 1), from.PlusDays(-1), 4.30m, null, 0.10m, 4.50m, 3.20m, [new WeekType("Semaine type", ProgrammedWeeks, Schedule)]),
+            new Terms(Item, from, null, rate, null, 0.10m, 5.00m, 4.00m, [new WeekType("Semaine type", ProgrammedWeeks, Schedule)], 1.00m),
+        ], [], [], month);
+
+    /// <summary>#227: a new hourly rate from Thursday 2026-07-16 splits the mensualised pay by the template hours on each side of the date.</summary>
+    [Fact]
+    public void A_revision_taking_effect_mid_month_splits_the_base_pay_at_its_date()
+    {
+        var terms = Revised(D(2026, 7, 16), new YearMonth(2026, 7), 4.50m);
+        // The 16th goes home two hours late and Monday the 13th is an unpaid absence: each at its own day's rate.
+        var days = MonthAssembler.Prepared(terms).Select(d => d.Date.Day switch
+        {
+            13 => d with { Present = false, Arrival = null, Departure = null, Absence = AbsenceReason.ChildSick },
+            16 => d with { Departure = d.Departure!.Value.PlusHours(2) },
+            _ => d,
+        }).ToList();
+        var plan = terms.Plan;
+        var potential = days.Sum(d => plan.HoursOn(d.Date));
+        var before = days.Where(d => d.Date.Day < 16).Sum(d => plan.HoursOn(d.Date));
+        var annual = Mensualisation.AnnualHours(plan.Types);
+        var (oldPay, newPay) = (Mensualisation.BasePay(4.30m, annual), Mensualisation.BasePay(4.50m, annual));
+
+        var figures = MonthAssembler.Evaluate(terms, days, [], [], null, 0m, 0m).Figures!;
+
+        var (oldBase, newBase) = (Mensualisation.Round(oldPay * before / potential), Mensualisation.Round(newPay * (potential - before) / potential));
+        var deduction = Mensualisation.Round(oldPay * plan.HoursOn(D(2026, 7, 13)) / potential);
+        Assert.Equal(oldBase + newBase, figures.BasePay);
+        Assert.Equal(deduction, figures.Deduction);
+        Assert.Equal(ExtraHours.Pay(2m, 0m, 4.50m, 0.10m), figures.ExtraPay);
+        Assert.Equal((int)Math.Floor((oldBase - deduction) / 4.30m + newBase / 4.50m), figures.Declaration.NormalHours);
+        Assert.NotEqual(Mensualisation.BasePay(4.30m, annual), figures.BasePay);
+    }
+
+    /// <summary>A revision taking effect on Friday 2026-07-31 prices that day's upkeep, lunch and snack, the days before keep the old prices.</summary>
+    [Fact]
+    public void A_revision_taking_effect_mid_month_prices_its_own_days()
+    {
+        var terms = Revised(D(2026, 7, 31), new YearMonth(2026, 7));
+        var days = MonthAssembler.Prepared(terms).Select(d => d.Date.Day == 31 ? d with { Snack = true } : d).ToList();
+        var before = days.Count(d => d.Present) - 1;
+
+        var figures = MonthAssembler.Evaluate(terms, days, [], [], null, 0m, 0m).Figures!;
+
+        // 9.5 h a day: 4.50 × 9.5 ÷ 9 = 4.75 before, 5.00 × 9.5 ÷ 9 = 5.28 on the 31st.
+        Assert.Equal(before * 4.75m + 5.28m, figures.Declaration.Upkeep);
+        Assert.Equal(before * 3.20m + 4.00m + 1.00m, figures.Declaration.Meals);
+        Assert.Equal((before * 3.20m + 4.00m, 1.00m), Upkeep.MealCharges(days, terms.On));
+    }
+
+    [Fact]
+    public void A_revision_from_the_first_prices_the_whole_month_as_before()
+    {
+        var terms = Revised(D(2026, 7, 1), new YearMonth(2026, 7));
+        var days = MonthAssembler.Prepared(terms);
+        var present = days.Count(d => d.Present);
+
+        var figures = MonthAssembler.Evaluate(terms, days, [], [], null, 0m, 0m).Figures!;
+
+        Assert.Equal(Upkeep.Month(days, terms.Contract), (figures.Declaration.Upkeep, figures.Declaration.Meals));
+        Assert.Equal((present * 5.28m, present * 4.00m), (figures.Declaration.Upkeep, figures.Declaration.Meals));
     }
 
     /// <summary>Decision 30.</summary>

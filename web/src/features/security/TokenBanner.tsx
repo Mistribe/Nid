@@ -13,7 +13,7 @@ export function TokenBanner() {
   return (
     <div role="note" className="material rounded-pane mx-2 mb-2 flex flex-wrap items-center gap-2 px-4 py-2 md:ml-0">
       <span>{t('security.tokens.banner')}</span>
-      <Link to="/security" className="underline">{t('security.tokens.banner_link')}</Link>
+      <Link to="/security" search={{ tab: 'tokens' }} className="underline">{t('security.tokens.banner_link')}</Link>
     </div>
   );
 }

@@ -162,6 +162,15 @@ public sealed class ItemRegistry(CoreDbContext db, IClock clock) : IItemRegistry
             Version = row.Version,
         };
 
+    public async Task ResolveCurrencyAsync(ItemId id, Currency currency, CancellationToken ct)
+    {
+        // A tracked update: the write audit records the currency.
+        if (await db.Items.SingleOrDefaultAsync(i => i.Id == id.Value && i.Currency == Currency.None.Code, ct) is not { } row)
+            return;
+        row.Currency = currency.Code;
+        await db.SaveChangesAsync(ct);
+    }
+
     public Task<Result> ArchiveAsync(ItemId id, Instant at, CancellationToken ct) => SetArchivedAsync(id, at, ct);
 
     public Task<Result> UnarchiveAsync(ItemId id, CancellationToken ct) => SetArchivedAsync(id, null, ct);
@@ -193,7 +202,7 @@ public sealed class ItemRegistry(CoreDbContext db, IClock clock) : IItemRegistry
         }
         catch (DbUpdateConcurrencyException)
         {
-            return Result.Failure(new Failure(ItemCodes.Changed, "The item changed since it was read.", null));
+            return Result.Failure(new ConflictFailure("The item changed since it was read.") { Code = ItemCodes.Changed });
         }
     }
 }

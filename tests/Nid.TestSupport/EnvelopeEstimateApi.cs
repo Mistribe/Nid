@@ -42,7 +42,7 @@ public static class EnvelopeEstimateApi
     public static async Task<(ItemId Id, Guid Etf)> EnvelopeAsync(
         NidApp app, bool enable = true, Visibility visibility = Visibility.Shared, string statement = "2025-09-30", params (string Isin, string Value)[] others)
     {
-        var id = await app.NewEnvelopeAsync("PEA", app.AdultA, visibility);
+        var id = await app.NewEnvelopeAsync("PEA", app.AdultA, visibility, kind: "pea");
         var euro = await AddAsync(app, id, new { name = "Fonds euros", kind = "euro_fund" });
         var etf = await AddAsync(app, id, new { name = "ETF Monde", kind = "etf", isin = EtfIsin });
         var lines = new List<object>

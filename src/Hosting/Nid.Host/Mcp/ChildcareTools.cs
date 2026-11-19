@@ -21,7 +21,7 @@ public sealed class ChildcareTools
         => McpCalls.RunAsync(services, () => new ListChildcareQuery(SubscriptionEndpoints.ParseScope(scope), closed), ct);
 
     [McpServerTool(Name = "get_childcare", ReadOnly = true)]
-    [Description("One arrangement: its revisions with their week types (named weekly schedules and the weeks each covers) and whether each is a full year (fullYear: care over 52 weeks, the carer's leave included, else an incomplete year), the weeks of the contract year (the week type each follows), its weeks without care, the paid-leave days accrued, a full year's leave counter (accrued, taken, left), the estimated CMG and its version. " + McpSetup.Untrusted)]
+    [Description("One arrangement: its revisions with their week types (named weekly schedules and the weeks each covers) and whether each is a full year (fullYear: care over 52 weeks, the carer's leave included, else an incomplete year), the weeks of the contract year (the week type each follows), its weeks without care, the paid-leave days accrued, a full year's leave counter (accrued, taken, left), the estimated CMG, the legal minimums its terms fall below (belowMinimums: hourly rate or upkeep, the minimum and the day it took effect) and its version. " + McpSetup.Untrusted)]
     public static Task<CallToolResult> GetChildcare(IServiceProvider services, [Description("The arrangement's id.")] Guid id, CancellationToken ct = default)
         => McpCalls.RunAsync(services, () => new GetChildcareQuery(new ItemId(id)), ct);
 
@@ -32,12 +32,12 @@ public sealed class ChildcareTools
 
     [McpServerTool(Name = "get_childcare_statement", ReadOnly = true)]
     [Description("One month's statement: every day (planned, present, times, lunch, snack, absence reason), the mileage, the CMG, the contributions left to the household, the exemption on the extra hours, the Pajemploi declaration "
-        + "field by field and its version. Its days are what propose_save_childcare_statement sends back, the deviations changed. " + McpSetup.Untrusted)]
+        + "field by field, the legal minimums the month's terms fall below (belowMinimums) and its version. Its days are what propose_save_childcare_statement sends back, the deviations changed. " + McpSetup.Untrusted)]
     public static Task<CallToolResult> GetChildcareStatement(IServiceProvider services, [Description("The arrangement's id.")] Guid id,
         [Description("The month, yyyy-MM.")] string month, CancellationToken ct = default)
         => Month.Parse(month) is { Success: true } parsed
             ? McpCalls.RunAsync(services, () => new GetStatementQuery(new ItemId(id), parsed.Value), ct)
-            : Task.FromResult(McpCalls.Error("month: a month is yyyy-MM."));
+            : Task.FromResult(McpCalls.Invalid(services, "month", "A month is yyyy-MM."));
 
     [McpServerTool(Name = "get_childcare_year", ReadOnly = true)]
     [Description("An arrangement's year for the tax return, from its validated months (the figures the tax estimate uses): net pay, CMG, upkeep, "
@@ -45,4 +45,18 @@ public sealed class ChildcareTools
     public static Task<CallToolResult> GetChildcareYear(IServiceProvider services, [Description("The arrangement's id.")] Guid id,
         [Description("The year; the year just ended when omitted.")] int? year = null, CancellationToken ct = default)
         => McpCalls.RunAsync(services, () => new GetChildcareYearQuery(new ItemId(id), year), ct);
+
+    [McpServerTool(Name = "list_nannies", ReadOnly = true)]
+    [Description("The nannies at home (garde à domicile), each with the current year's net cost (paid − CMG) and months recorded. " + McpSetup.Untrusted)]
+    public static Task<CallToolResult> ListNannies(IServiceProvider services,
+        [Description("'household' (default) or 'me'.")] string? scope = null, [Description("Include closed ones.")] bool closed = false,
+        CancellationToken ct = default)
+        => McpCalls.RunAsync(services, () => new ListNanniesQuery(SubscriptionEndpoints.ParseScope(scope), closed), ct);
+
+    [McpServerTool(Name = "get_nanny", ReadOnly = true)]
+    [Description("A nanny at home's months of a year, newest first (paid, CMG, net cost, hours), the year's totals, and for the current year how the rest "
+        + "of the year is counted for the home-employment credit (the months left at the mean net cost). " + McpSetup.Untrusted)]
+    public static Task<CallToolResult> GetNanny(IServiceProvider services, [Description("The nanny's id.")] Guid id,
+        [Description("The year; the current year when omitted.")] int? year = null, CancellationToken ct = default)
+        => McpCalls.RunAsync(services, () => new GetNannyQuery(new ItemId(id), year), ct);
 }

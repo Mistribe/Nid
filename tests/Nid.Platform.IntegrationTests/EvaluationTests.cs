@@ -18,6 +18,7 @@ public class EvaluationTests(PostgresFixture fixture) : IClassFixture<PostgresFi
 {
     private static readonly NotificationKind Dated = new("fake_dated", "fake", NotificationLevel.Action, "fake", 90);
     private static readonly NotificationKind Undated = new("fake_undated", "fake", NotificationLevel.Info, "fake", null);
+    private static readonly NotificationKind OptIn = new("fake_opt_in", "fake", NotificationLevel.Info, "fake", null, new SignalThreshold(10m, 1m, 100m, "eur"));
 
     // Household zone: Europe/Paris, UTC+2 until 2025-10-26.
     private static readonly Instant Before0600 = Instant.FromUtc(2025, 10, 15, 3, 30);
@@ -35,7 +36,7 @@ public class EvaluationTests(PostgresFixture fixture) : IClassFixture<PostgresFi
     {
         public string Name => "fake";
 
-        public IReadOnlyList<NotificationKind> Kinds { get; } = [Dated, Undated];
+        public IReadOnlyList<NotificationKind> Kinds { get; } = [Dated, Undated, OptIn];
 
         public List<Signal> Signals { get; } = [];
 
@@ -173,6 +174,31 @@ public class EvaluationTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         Assert.NotNull(last);
         Assert.Equal(app.AdultA, last!.PersonId);
         Assert.NotEqual(ActorOrigin.Job, last.Via);
+    }
+
+    [Fact]
+    public async Task An_opt_in_kind_is_raised_only_while_turned_on()
+    {
+        await using var h = await StartAsync(After0600);
+        h.Source.Signals.Add(SignalOf(OptIn.Kind, "o:1"));
+
+        async Task TurnAsync(IReadOnlyDictionary<string, decimal> signals, int version)
+        {
+            var (_, failure) = await h.App.InvokeAsync(h.App.AdultA, new SaveNotificationPreferencesCommand(
+                false, ActionMode.Immediate, InfoMode.Digest, DigestFrequency.Weekly, 1, new Dictionary<string, int>(), signals, version), TestContext.Current.CancellationToken);
+            Assert.Null(failure);
+        }
+
+        await RunAsync(h, force: true);
+        Assert.Empty(await RowsAsync(h.App, h.App.AdultA)); // off by default
+
+        await TurnAsync(new Dictionary<string, decimal> { [OptIn.Kind] = 10m }, 0);
+        await RunAsync(h, force: true);
+        Assert.Equal(NotificationStates.Open, Assert.Single(await RowsAsync(h.App, h.App.AdultA)).State);
+
+        await TurnAsync(new Dictionary<string, decimal>(), 1);
+        await RunAsync(h, force: true);
+        Assert.Equal(NotificationStates.Resolved, Assert.Single(await RowsAsync(h.App, h.App.AdultA)).State);
     }
 
     [Fact]

@@ -107,8 +107,12 @@ public class CoreSourceTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         Assert.Equal("routine_due:2025-10", Assert.Single(await SignalsAsync(app, app.AdultB)).Key);
     }
 
-    /// <summary>A net worth part whose history is <paramref name="history"/>, counting its reads; nothing on the dashboard.</summary>
-    private sealed class FakeHistory(Func<IReadOnlyList<LocalDate>, Result<IReadOnlyList<NetWorthPoint>>> history, Action read) : INetWorthContribution
+    /// <summary>
+    /// A net worth part whose history is <paramref name="history"/>, counting its reads; nothing on the dashboard. <paramref name="saved"/>:
+    /// the euros contributed from a date to today, none when not given.
+    /// </summary>
+    private sealed class FakeHistory(
+        Func<IReadOnlyList<LocalDate>, Result<IReadOnlyList<NetWorthPoint>>> history, Action read, Func<LocalDate, decimal>? saved = null) : INetWorthContribution
     {
         public Task<Result<NetWorthPart>> NetWorthAsync(PersonId reader, VisibilityScope scope, LocalDate today, CancellationToken ct)
             => Task.FromResult(Result.Success(new NetWorthPart(0, 0, 0, null, new Dictionary<Currency, decimal>(), new Dictionary<Currency, decimal>(),
@@ -119,7 +123,9 @@ public class CoreSourceTests(PostgresFixture fixture) : IClassFixture<PostgresFi
             return Task.FromResult(history(dates));
         }
         public Task<Result<IReadOnlyDictionary<Currency, decimal>>> NetContributionsAsync(PersonId reader, VisibilityScope scope, LocalDate from, LocalDate to, CancellationToken ct)
-            => Task.FromResult(Result.Success<IReadOnlyDictionary<Currency, decimal>>(new Dictionary<Currency, decimal>()));
+            => Task.FromResult(Result.Success<IReadOnlyDictionary<Currency, decimal>>(saved is null
+                ? new Dictionary<Currency, decimal>()
+                : new Dictionary<Currency, decimal> { [Currency.Eur] = saved(from) }));
     }
 
     [Fact]
@@ -216,6 +222,47 @@ public class CoreSourceTests(PostgresFixture fixture) : IClassFixture<PostgresFi
             new NotificationKind("tax_filing_deadline", "due_date", NotificationLevel.Action, "core", 14),
             new NotificationKind("tax_new_rate", "due_date", NotificationLevel.Info, "core", 7),
             new NotificationKind("tax_balance_due", "due_date", NotificationLevel.Info, "core", 7),
+            new NotificationKind("net_worth_milestone", "finding", NotificationLevel.Info, "core", null, new SignalThreshold(50_000m, 1_000m, 10_000_000m, "eur")),
+            new NotificationKind("savings_pace", "finding", NotificationLevel.Info, "core", null, new SignalThreshold(30m, 5m, 95m, "pct")),
         ], source.Kinds);
+    }
+
+    [Fact]
+    public async Task A_step_crossed_since_the_month_end_is_a_milestone_once_turned_on()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var livret = await app.NewEnvelopeAsync("Livret", app.AdultA, Visibility.Shared);
+        await ValueAsync(app, app.AdultA, livret, "2025-09-01", "40000.00");
+        await ValueAsync(app, app.AdultA, livret, "2025-10-01", "62000.00");
+        Assert.DoesNotContain(await SignalsAsync(app, app.AdultA), s => s.Kind == "net_worth_milestone"); // off by default
+
+        var (_, failure) = await app.InvokeAsync(app.AdultA, new Nid.Platform.Notifications.SaveNotificationPreferencesCommand(
+            false, Nid.Platform.Notifications.ActionMode.Immediate, Nid.Platform.Notifications.InfoMode.Digest, Nid.Platform.Notifications.DigestFrequency.Weekly, 1,
+            new Dictionary<string, int>(), new Dictionary<string, decimal> { ["net_worth_milestone"] = 50_000m }, 0), TestContext.Current.CancellationToken);
+        Assert.Null(failure);
+
+        var signal = Assert.Single(await SignalsAsync(app, app.AdultA), s => s.Kind == "net_worth_milestone");
+        Assert.Equal("net_worth_milestone:50000", signal.Key);
+        Assert.Empty(signal.ItemIds);
+        Assert.Equal(("62000.00", "50000"), (signal.Params["net_worth_amount"], signal.Params["step_amount"]));
+    }
+
+    [Fact]
+    public async Task A_slower_savings_pace_is_raised_once_a_month_once_turned_on()
+    {
+        // 12 000 over the year, 1 500 over the last 3 months: 500 a month against 1 000.
+        await using var app = await NidApp.StartAsync(fixture, s => s.AddScoped<INetWorthContribution>(_ => new FakeHistory(
+            dates => Result.Success<IReadOnlyList<NetWorthPoint>>(dates.Select(d => new NetWorthPoint(
+                d, new Dictionary<Currency, decimal>(), new Dictionary<Currency, decimal>(), 0)).ToList()), () => { }, from => from < new LocalDate(2025, 6, 1) ? 12_000m : 1_500m)));
+        Assert.DoesNotContain(await SignalsAsync(app, app.AdultA), s => s.Kind == "savings_pace"); // off by default
+
+        var (_, failure) = await app.InvokeAsync(app.AdultA, new Nid.Platform.Notifications.SaveNotificationPreferencesCommand(
+            false, Nid.Platform.Notifications.ActionMode.Immediate, Nid.Platform.Notifications.InfoMode.Digest, Nid.Platform.Notifications.DigestFrequency.Weekly, 1,
+            new Dictionary<string, int>(), new Dictionary<string, decimal> { ["savings_pace"] = 30m }, 0), TestContext.Current.CancellationToken);
+        Assert.Null(failure);
+
+        var signal = Assert.Single(await SignalsAsync(app, app.AdultA), s => s.Kind == "savings_pace");
+        Assert.Equal("savings_pace:2025-10", signal.Key);
+        Assert.Equal(("500", "1000", "EUR"), (signal.Params["recent_amount"], signal.Params["average_amount"], signal.Params["currency"]));
     }
 }

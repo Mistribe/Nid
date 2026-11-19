@@ -21,7 +21,7 @@ export function statementError(t: TFunction, error: unknown): string {
   const problem = toProblem(error);
   const fields = fieldErrorsOf(error);
   if (fields.length > 0) return fields.map((f) => t(`childcare_statement.problem.${f.code.replaceAll('.', '_')}`, { defaultValue: f.message })).join(' ');
-  return t(`childcare_statement.error.${(problem.code ?? '').replaceAll('.', '_')}`, { defaultValue: problem.title ?? '' });
+  return t(`childcare_statement.error.${(problem.code ?? '').replaceAll('.', '_')}`, { defaultValue: problem.detail ?? '' });
 }
 
 const STATES = { none: 'childcare_statement.state_none', draft: 'childcare_statement.state_draft', validated: 'childcare_statement.state_validated' } as const;
@@ -30,10 +30,16 @@ export const stateLabel = (t: TFunction, state: string) => t(STATES[state as key
 
 const REASONS = {
   family: 'childcare_statement.reason.family', parent_rtt: 'childcare_statement.reason.parent_rtt', child_sick: 'childcare_statement.reason.child_sick',
-  carer_absent: 'childcare_statement.reason.carer_absent', holiday: 'childcare_statement.reason.holiday', paid_leave: 'childcare_statement.reason.paid_leave',
+  carer_absent: 'childcare_statement.reason.carer_absent', carer_sick: 'childcare_statement.reason.carer_sick', holiday: 'childcare_statement.reason.holiday', paid_leave: 'childcare_statement.reason.paid_leave',
   carer_training: 'childcare_statement.reason.carer_training', family_agreed: 'childcare_statement.reason.family_agreed',
 } as const;
 
 export const ABSENCE_REASONS = Object.keys(REASONS) as (keyof typeof REASONS)[];
+
+const END_REASONS = ['withdrawal', 'misconduct', 'approval', 'child_death', 'resignation', 'trial'] as const;
+
+/** Why a contract ended, in words; an unknown code reads as a withdrawal's. */
+export const endReasonLabel = (t: TFunction, reason: string) =>
+  t(`childcare_end.reason.${END_REASONS.find((r) => r === reason) ?? 'withdrawal'}`);
 
 export const reasonLabel = (t: TFunction, reason: string) => t(REASONS[reason as keyof typeof REASONS] ?? REASONS.family);

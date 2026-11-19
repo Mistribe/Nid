@@ -14,18 +14,18 @@ public sealed record FundingShare(ItemId Envelope, int ShareBp);
 
 public sealed record CreateGoalCommand(
     string Name, string Kind, decimal? TargetAmount, int? Months, LocalDate? TargetDate, string? Note, IReadOnlyList<FundingShare> Funding,
-    Visibility Visibility, IReadOnlyList<OwnerShare> Owners, ShareLevel ShareLevel = ShareLevel.View) : ICommand<ItemId>, ICreatesItem;
+    Visibility Visibility, IReadOnlyList<OwnerShare> Owners, ShareLevel ShareLevel = ShareLevel.View) : ICommand<ItemId>, ICreatesItem, ITransactional;
 
 /// <summary>Replaces every editable field; the kind, the visibility and the owners never change (D10b). <paramref name="Version"/>: the one read with the goal.</summary>
 public sealed record EditGoalCommand(
     ItemId ItemId, string Name, decimal? TargetAmount, int? Months, LocalDate? TargetDate, string? Note, IReadOnlyList<FundingShare> Funding,
     uint Version)
-    : ICommand<ItemId>, IItemScoped
+    : ICommand<ItemId>, IItemScoped, ITransactional
 {
     public AccessKind Access => AccessKind.Write;
 }
 
-public sealed record CloseGoalCommand(ItemId ItemId) : ICommand<ItemId>, IItemScoped
+public sealed record CloseGoalCommand(ItemId ItemId) : ICommand<ItemId>, IItemScoped, ITransactional
 {
     public AccessKind Access => AccessKind.Write;
 }
@@ -36,18 +36,18 @@ public sealed record DeleteGoalCommand(ItemId ItemId, uint Version) : ICommand<I
     public AccessKind Access => AccessKind.Write;
 }
 
-public sealed record ReopenGoalCommand(ItemId ItemId) : ICommand<ItemId>, IItemScoped
+public sealed record ReopenGoalCommand(ItemId ItemId) : ICommand<ItemId>, IItemScoped, ITransactional
 {
     public AccessKind Access => AccessKind.Write;
 }
 
 /// <summary>A free goal's amount reached on a date: one entry per date, the last one written replaces (spec §2).</summary>
-public sealed record PutGoalProgressCommand(ItemId ItemId, LocalDate On, decimal Amount) : ICommand<ItemId>, IItemScoped
+public sealed record PutGoalProgressCommand(ItemId ItemId, LocalDate On, decimal Amount) : ICommand<ItemId>, IItemScoped, ITransactional
 {
     public AccessKind Access => AccessKind.Write;
 }
 
-public sealed record DeleteGoalProgressCommand(ItemId ItemId, LocalDate On) : ICommand<ItemId>, IItemScoped
+public sealed record DeleteGoalProgressCommand(ItemId ItemId, LocalDate On) : ICommand<ItemId>, IItemScoped, ITransactional
 {
     public AccessKind Access => AccessKind.Write;
 }
@@ -55,7 +55,7 @@ public sealed record DeleteGoalProgressCommand(ItemId ItemId, LocalDate On) : IC
 [RequestHandler<CreateGoalCommand, ItemId>]
 public sealed class CreateGoalHandler(
     IItemRegistry items, IGoalStore goals, IEnvelopeFunding envelopes, IVisibleItems visible, IHouseholdCalendar calendar,
-    IActorAccessor actor, IUnitOfWork unitOfWork)
+    IActorAccessor actor)
     : IRequestHandler<CreateGoalCommand, ItemId>
 {
     public async ValueTask<Result<ItemId>> HandleAsync(CreateGoalCommand command, CancellationToken ct = default)
@@ -75,13 +75,11 @@ public sealed class CreateGoalHandler(
             || (await GoalCheck.RoomAsync(goals, visible, person, null, funding, seen!, located: true, [], ct)).TryGetFailure(out failure))
             return Result.Failure<ItemId>(failure!);
 
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         var created = await items.CreateAsync(new NewItem("goals", command.Kind, command.Name, command.Visibility, null, command.Owners, command.ShareLevel), ct);
         if (!created.TryGetValue(out var id))
-            return created; // disposed without commit: nothing is left
+            return created; // a failure rolls the transaction back: nothing is left
         await goals.CreateAsync(new Goal(id, command.Kind, command.TargetAmount, months, command.TargetDate, command.Note, 0), ct);
         await goals.ReplaceFundingAsync(id, funding.Select(f => new Funding(id, f.Envelope, f.ShareBp)).ToList(), ct);
-        await transaction.CommitAsync(ct);
         return Result.Success(id);
     }
 }
@@ -90,7 +88,7 @@ public sealed class CreateGoalHandler(
 [RequestHandler<EditGoalCommand, ItemId>]
 public sealed class EditGoalHandler(
     IItemRegistry items, IGoalStore goals, IEnvelopeFunding envelopes, IVisibleItems visible, IHouseholdCalendar calendar,
-    IActorAccessor actor, IUnitOfWork unitOfWork)
+    IActorAccessor actor)
     : IRequestHandler<EditGoalCommand, ItemId>
 {
     public async ValueTask<Result<ItemId>> HandleAsync(EditGoalCommand command, CancellationToken ct = default)
@@ -104,7 +102,7 @@ public sealed class EditGoalHandler(
             return Result.Failure<ItemId>(failure!);
         // Checked here too: an edit that leaves the goal row as it is writes nothing, so the store's token would not see it.
         if (goal.Version != command.Version)
-            return Result.Failure<ItemId>(new Failure(GoalsCodes.Conflict, "The goal changed since it was read.", null));
+            return Result.Failure<ItemId>(new ConflictFailure("The goal changed since it was read.") { Code = GoalsCodes.Conflict });
 
         var today = await calendar.TodayAsync(ct);
         var funding = command.Funding ?? [];
@@ -123,7 +121,6 @@ public sealed class EditGoalHandler(
             return Result.Failure<ItemId>(failure!);
         var hidden = stored.Where(f => !seen!.ContainsKey(f.Envelope));
 
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         if (command.Name != item.DisplayName)
         {
             var renamed = await items.ReplaceAsync(command.ItemId, command.Name, item.Visibility,
@@ -139,14 +136,13 @@ public sealed class EditGoalHandler(
             return Result.Failure<ItemId>(failure!);
         await goals.ReplaceFundingAsync(command.ItemId,
             funding.Select(f => new Funding(command.ItemId, f.Envelope, f.ShareBp)).Concat(hidden).ToList(), ct);
-        await transaction.CommitAsync(ct);
         return Result.Success(command.ItemId);
     }
 }
 
 /// <summary>D12: closing archives the item; the goal no longer counts in the shares of its envelopes.</summary>
 [RequestHandler<CloseGoalCommand, ItemId>]
-public sealed class CloseGoalHandler(IItemRegistry items, IGoalStore goals, IUnitOfWork unitOfWork, IClock clock)
+public sealed class CloseGoalHandler(IItemRegistry items, IGoalStore goals, IClock clock)
     : IRequestHandler<CloseGoalCommand, ItemId>
 {
     public async ValueTask<Result<ItemId>> HandleAsync(CloseGoalCommand command, CancellationToken ct = default)
@@ -157,11 +153,9 @@ public sealed class CloseGoalHandler(IItemRegistry items, IGoalStore goals, IUni
         loaded.TryGetValue(out var found);
         if (GoalCheck.RequireOpen(found.Item).TryGetFailure(out failure))
             return Result.Failure<ItemId>(failure!);
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         var archived = await items.ArchiveAsync(command.ItemId, clock.GetCurrentInstant(), ct);
         if (archived.TryGetFailure(out failure))
             return Result.Failure<ItemId>(failure!);
-        await transaction.CommitAsync(ct);
         return Result.Success(command.ItemId);
     }
 }
@@ -177,7 +171,7 @@ public sealed class DeleteGoalHandler(IItemDeletions deletions) : IRequestHandle
 [RequestHandler<ReopenGoalCommand, ItemId>]
 public sealed class ReopenGoalHandler(
     IItemRegistry items, IGoalStore goals, IEnvelopeFunding envelopes, IVisibleItems visible, IHouseholdCalendar calendar,
-    IActorAccessor actor, IUnitOfWork unitOfWork)
+    IActorAccessor actor)
     : IRequestHandler<ReopenGoalCommand, ItemId>
 {
     public async ValueTask<Result<ItemId>> HandleAsync(ReopenGoalCommand command, CancellationToken ct = default)
@@ -187,7 +181,7 @@ public sealed class ReopenGoalHandler(
             return Result.Failure<ItemId>(failure!);
         loaded.TryGetValue(out var found);
         if (found.Item.ArchivedAt is null)
-            return Result.Failure<ItemId>(new Failure(GoalsCodes.GoalOpen, "This goal is not closed.", null));
+            return Result.Failure<ItemId>(new ConflictFailure("This goal is not closed.") { Code = GoalsCodes.GoalOpen });
 
         var person = actor.Current!.PersonId!.Value;
         var stored = await goals.FundingOfAsync([command.ItemId], ct);
@@ -198,17 +192,15 @@ public sealed class ReopenGoalHandler(
         if ((await GoalCheck.RoomAsync(goals, visible, person, command.ItemId, links, seen!, located: false, [], ct)).TryGetFailure(out failure))
             return Result.Failure<ItemId>(failure!);
 
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         var reopened = await items.UnarchiveAsync(command.ItemId, ct);
         if (reopened.TryGetFailure(out failure))
             return Result.Failure<ItemId>(failure!);
-        await transaction.CommitAsync(ct);
         return Result.Success(command.ItemId);
     }
 }
 
 [RequestHandler<PutGoalProgressCommand, ItemId>]
-public sealed class PutGoalProgressHandler(IItemRegistry items, IGoalStore goals, IHouseholdCalendar calendar, IUnitOfWork unitOfWork)
+public sealed class PutGoalProgressHandler(IItemRegistry items, IGoalStore goals, IHouseholdCalendar calendar)
     : IRequestHandler<PutGoalProgressCommand, ItemId>
 {
     public async ValueTask<Result<ItemId>> HandleAsync(PutGoalProgressCommand command, CancellationToken ct = default)
@@ -229,9 +221,7 @@ public sealed class PutGoalProgressHandler(IItemRegistry items, IGoalStore goals
         if ((await goals.FundingOfAsync([command.ItemId], ct)).Count > 0)
             return Fail(GoalsCodes.MixedFunding, "This goal is funded by envelopes: remove them to record its progress by hand.", null);
 
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         await goals.PutEntryAsync(new GoalEntry(command.ItemId, command.On, command.Amount), ct);
-        await transaction.CommitAsync(ct);
         return Result.Success(command.ItemId);
     }
 
@@ -240,7 +230,7 @@ public sealed class PutGoalProgressHandler(IItemRegistry items, IGoalStore goals
 }
 
 [RequestHandler<DeleteGoalProgressCommand, ItemId>]
-public sealed class DeleteGoalProgressHandler(IItemRegistry items, IGoalStore goals, IUnitOfWork unitOfWork)
+public sealed class DeleteGoalProgressHandler(IItemRegistry items, IGoalStore goals)
     : IRequestHandler<DeleteGoalProgressCommand, ItemId>
 {
     public async ValueTask<Result<ItemId>> HandleAsync(DeleteGoalProgressCommand command, CancellationToken ct = default)
@@ -252,10 +242,8 @@ public sealed class DeleteGoalProgressHandler(IItemRegistry items, IGoalStore go
         if (GoalCheck.RequireOpen(found.Item).TryGetFailure(out failure))
             return Result.Failure<ItemId>(failure!);
 
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         if (!await goals.DeleteEntryAsync(command.ItemId, command.On, ct))
             return Result.Failure<ItemId>(new NotFoundFailure("progress entry", command.On.ToString("uuuu-MM-dd", null)));
-        await transaction.CommitAsync(ct);
         return Result.Success(command.ItemId);
     }
 }

@@ -47,13 +47,13 @@ describe('AdminSeries', () => {
   });
 
   it('shows the problem when the points fail', async () => {
-    serve({ status: 500, code: 'server.error', title: 'Boom' }, 500);
+    serve({ status: 500, code: 'server.error', detail: 'Boom' }, 500);
     renderSeries({ seriesKey: 'irl' });
     expect(await screen.findByRole('alert')).toHaveTextContent('Une erreur inattendue est survenue. Réessayez dans un instant.');
   });
 
   it('says there is no data for a quote with no stored rate', async () => {
-    serve({ status: 404, code: 'core.series_not_found', key: 'fx:EUR', title: 'Not found' }, 404);
+    serve({ status: 404, code: 'core.series_not_found', key: 'fx:EUR', detail: 'Not found' }, 404);
     renderSeries({ seriesKey: 'fx:EUR' });
     expect(await screen.findByText('Aucune donnée sur cette période')).toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();

@@ -216,7 +216,7 @@ describe('an envelope\'s settings', () => {
     });
 
     it('shows a refusal to drop the other adult under the owners', async () => {
-      serve(owned(), [], problem(422, 'core.drops_adult_owner', { errors: [{ path: 'owners', code: 'core.drops_adult_owner', message: 'x' }] }));
+      serve(owned(), [], problem(422, 'core.drops_adult_owner', { errors: [{ detail: 'x', pointer: '#/owners', code: 'core.drops_adult_owner' }] }));
       household();
       const { user } = await renderApp(`/investments/${PEA}?tab=settings`);
 
@@ -239,7 +239,7 @@ describe('an envelope\'s settings', () => {
   });
 
   it('places a refused value on the field the server names', async () => {
-    serve(detail(), [], problem(422, 'investments.invalid_envelope', { errors: [{ path: 'accountHint', code: 'investments.invalid_envelope', message: 'x' }] }));
+    serve(detail(), [], problem(422, 'investments.invalid_envelope', { errors: [{ detail: 'x', pointer: '#/accountHint', code: 'investments.invalid_envelope' }] }));
     const { user, container } = await renderApp(`/investments/${PEA}?tab=settings`);
 
     const form = await openForm();

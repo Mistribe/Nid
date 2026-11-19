@@ -7,6 +7,7 @@ import { present, toProblem } from '@/api/errors';
 import { OwnerChips } from '@/components/OwnerChips';
 import { RowActions } from '@/components/page/RowActions';
 import { Section } from '@/components/page/Section';
+import { SectionCard } from '@/components/page/SectionCard';
 import { StatLine } from '@/components/page/StatLine';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { SourceLink } from '@/features/documents/SourceLink';
@@ -33,10 +34,10 @@ const MONEY_GROUPS = [
 ] as const;
 
 /** The server's balance, signed: a refund is negative. The sign is read from the string, nothing is computed. */
-function balanceText(t: TFunction, balance: Money): string {
-  if (!balance) return '—';
-  if (ZERO.test(balance.amount)) return eur(balance.amount);
-  return balance.amount.startsWith('-') ? t('tax.assessment.refunded', { amount: eur(balance.amount.slice(1)) }) : t('tax.assessment.to_pay', { amount: eur(balance.amount) });
+export function balanceText(t: TFunction, amount: string | null | undefined): string {
+  if (!amount) return '—';
+  if (ZERO.test(amount)) return eur(amount);
+  return amount.startsWith('-') ? t('tax.assessment.refunded', { amount: eur(amount.slice(1)) }) : t('tax.assessment.to_pay', { amount: eur(amount) });
 }
 
 function declarantText(t: TFunction, d: Declarant, key: (typeof DECLARANT_ROWS)[number]): string | null {
@@ -56,7 +57,7 @@ function figures(t: TFunction, a: TaxAssessment, persons: Person[]): Map<string,
   out.set('averageRate', { label: label('averageRate'), text: a.averageRate ? percentText(t, a.averageRate) : '—' });
   out.set('marginalRate', { label: label('marginalRate'), text: a.marginalRate ? percentText(t, a.marginalRate) : '—' });
   for (const [, keys] of MONEY_GROUPS)
-    for (const key of keys) out.set(key, { label: label(key), text: key === 'balance' ? balanceText(t, a[key]) : money(a[key]) });
+    for (const key of keys) out.set(key, { label: label(key), text: key === 'balance' ? balanceText(t, a[key]?.amount) : money(a[key]) });
   for (const d of a.declarants) {
     const who = t('tax.assessment.changes.of', { declarant: t('tax.assessment.declarant', { rank: d.rank }), name: persons.find((p) => p.id === d.personId)?.displayName ?? '' });
     for (const key of DECLARANT_ROWS) {
@@ -125,32 +126,30 @@ export function AssessmentView({ assessment: a, persons, actions = true }: { ass
         ...keys.flatMap((key) => {
           const value = a[key];
           if (!value) return [];
-          return [{ key, label: label(key), cells: [key === 'balance' ? balanceText(t, value) : eur(value.amount)] }];
+          return [{ key, label: label(key), cells: [key === 'balance' ? balanceText(t, value.amount) : eur(value.amount)] }];
         }),
       ],
     })),
   ].filter((g) => g.rows.length > 0);
 
   return (
-    <Section title={t('tax.assessment.title', { year: a.year })}>
-      <p className="text-sm text-muted-foreground">{t('tax.assessment.issued', { year: a.issuedYear })}</p>
+    <SectionCard title={t('tax.assessment.title', { year: a.year })} note={t('tax.assessment.issued', { year: a.issuedYear })} className="space-y-4" actions={<>
+      <SourceLink documentId={a.documentId} />
+      {actions ? (
+        <RowActions menuId={`assessment-menu-${a.id}`} menuLabel={t('tax.assessment.menu', { year: a.year })}
+          items={[{ label: t('tax.assessment.correct'), onSelect: () => void navigate({ to: '/tax/assessments/$id/edit', params: { id: a.id } }) }]}
+          confirmation={t('tax.assessment.delete_confirm', { year: a.year })} remove={remove}
+          present={(_t, error) => present(toProblem(error))} invalidate={invalidateAssessments}
+          onConfirm={() => remove.mutate({ params: { path: { id: a.id } } })} />
+      ) : null}
+    </>}>
       <StatLine items={[
         { label: label('shares'), value: a.shares ?? '—' },
         { label: label('referenceIncome'), value: money(a.referenceIncome) },
         { label: label('netTax'), value: money(a.netTax) },
-        { label: label('balance'), value: balanceText(t, a.balance) },
+        { label: label('balance'), value: balanceText(t, a.balance?.amount) },
       ]} />
-      <div className="flex flex-wrap items-center gap-2">
-        <OwnerChips owners={declarants.map((d) => ({ personId: d.personId, shareBp: 10000 / declarants.length }))} shares={false} />
-        <SourceLink documentId={a.documentId} />
-        {actions ? (
-          <RowActions menuId={`assessment-menu-${a.id}`} menuLabel={t('tax.assessment.menu', { year: a.year })}
-            items={[{ label: t('tax.assessment.correct'), onSelect: () => void navigate({ to: '/tax/assessments/$id/edit', params: { id: a.id } }) }]}
-            confirmation={t('tax.assessment.delete_confirm', { year: a.year })} remove={remove}
-            present={(_t, error) => present(toProblem(error))} invalidate={invalidateAssessments}
-            onConfirm={() => remove.mutate({ params: { path: { id: a.id } } })} />
-        ) : null}
-      </div>
+      <OwnerChips owners={declarants.map((d) => ({ personId: d.personId, shareBp: 10000 / declarants.length }))} shares={false} />
       <Table aria-label={t('tax.assessment.table', { year: a.year })}>
         <TableHeader>
           <TableRow>
@@ -181,6 +180,6 @@ export function AssessmentView({ assessment: a, persons, actions = true }: { ass
           ))}
         </TableBody>
       </Table>
-    </Section>
+    </SectionCard>
   );
 }

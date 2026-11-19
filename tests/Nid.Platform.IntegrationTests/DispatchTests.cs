@@ -613,7 +613,9 @@ public class DispatchTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
         var failures = new[] { 1 };
         PersonId? a = null;
         await using var h = await StartAsync(more: services =>
-            services.AddScoped<IDeliveryOutbox>(sp => new FlakyOutbox(ActivatorUtilities.CreateInstance<DeliveryOutbox>(sp), a!.Value, failures)));
+            services.AddScoped<IDeliveryOutbox>(sp => a is { } person // null while the host starts: its pipeline validation resolves the outbox
+                ? new FlakyOutbox(ActivatorUtilities.CreateInstance<DeliveryOutbox>(sp), person, failures)
+                : ActivatorUtilities.CreateInstance<DeliveryOutbox>(sp)));
         a = h.App.AdultA;
         h.Source.Signals.Add(SignalOf(Action, "a:1", await ItemAsync(h)));
 

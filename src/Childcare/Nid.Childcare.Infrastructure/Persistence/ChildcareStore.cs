@@ -46,7 +46,7 @@ public sealed class ChildcareStore(ChildcareDbContext db, IClock clock) : IChild
         }
         catch (DbUpdateConcurrencyException)
         {
-            return Result.Failure(new Failure(ChildcareCodes.Conflict, "The arrangement changed since it was read.", null));
+            return Result.Failure(new ConflictFailure("The arrangement changed since it was read.") { Code = ChildcareCodes.Conflict });
         }
     }
 
@@ -65,7 +65,7 @@ public sealed class ChildcareStore(ChildcareDbContext db, IClock clock) : IChild
             r.SnackPrice, MealProviderCodes.Parse(r.LunchProvider), MealProviderCodes.Parse(r.SnackProvider), r.UnpaidAbsences.Select(AbsenceCodes.Parse).ToList(), r.FullYear)).ToList();
     }
 
-    public async Task ReplaceCurrentTermsAsync(Terms terms, CancellationToken ct)
+    public async Task ReplaceTermsAsync(Terms terms, CancellationToken ct)
     {
         var row = await db.Terms.SingleAsync(t => t.ItemId == terms.ItemId.Value && t.From == terms.From, ct);
         Apply(row, terms);
@@ -131,10 +131,12 @@ public sealed class ChildcareStore(ChildcareDbContext db, IClock clock) : IChild
         await db.SaveChangesAsync(ct);
     }
 
-    public async Task SetEndAsync(ItemId id, LocalDate? to, CancellationToken ct)
+    public async Task SetEndAsync(ItemId id, LocalDate? to, CancellationToken ct, ContractEnd? end = null)
     {
         var current = await db.Terms.Where(t => t.ItemId == id.Value).OrderByDescending(t => t.From).FirstAsync(ct);
         current.To = to;
+        var arrangement = await db.Arrangements.SingleAsync(a => a.ItemId == id.Value, ct);
+        (arrangement.EndReason, arrangement.EndNotified) = (end is null ? null : EndReasonCodes.Of(end.Reason), end?.Notified);
         await TouchAsync(id, ct);
         await db.SaveChangesAsync(ct);
     }
@@ -142,6 +144,13 @@ public sealed class ChildcareStore(ChildcareDbContext db, IClock clock) : IChild
     public async Task<IReadOnlyList<Statement>> StatementsOfAsync(ItemId id, CancellationToken ct)
         => (await db.Statements.AsNoTracking().Where(st => st.ItemId == id.Value).OrderBy(st => st.Month).ToListAsync(ct))
             .Select(r => ToStatement(r, [])).ToList();
+
+    public async Task<IReadOnlyList<Statement>> StatementsOfAsync(IReadOnlyCollection<ItemId> ids, CancellationToken ct)
+    {
+        var keys = ids.Select(i => i.Value).ToList();
+        return (await db.Statements.AsNoTracking().Where(st => keys.Contains(st.ItemId)).OrderBy(st => st.Month).ToListAsync(ct))
+            .Select(r => ToStatement(r, [])).ToList();
+    }
 
     public async Task<Statement?> FindStatementAsync(ItemId id, YearMonth month, CancellationToken ct)
     {
@@ -169,7 +178,7 @@ public sealed class ChildcareStore(ChildcareDbContext db, IClock clock) : IChild
             if (draft.Version == 0 || row.Version != draft.Version)
                 return StatementConflict();
             if (row.Validated)
-                return Result.Failure(new Failure(ChildcareCodes.StatementValidated, "A validated statement is read only.", null));
+                return Result.Failure(new ConflictFailure("A validated statement is read only.") { Code = ChildcareCodes.StatementValidated });
             db.Entry(row).Property(r => r.Version).OriginalValue = draft.Version;
             db.Entry(row).Property(r => r.Mileage).IsModified = true;
         }
@@ -190,7 +199,7 @@ public sealed class ChildcareStore(ChildcareDbContext db, IClock clock) : IChild
         if (row is null || row.Version != version)
             return StatementConflict();
         if (row.Validated)
-            return Result.Failure(new Failure(ChildcareCodes.StatementValidated, "The statement is already validated.", null));
+            return Result.Failure(new ConflictFailure("The statement is already validated.") { Code = ChildcareCodes.StatementValidated });
         db.Entry(row).Property(r => r.Version).OriginalValue = version;
         var d = figures.Declaration;
         row.Validated = true;
@@ -215,6 +224,7 @@ public sealed class ChildcareStore(ChildcareDbContext db, IClock clock) : IChild
         row.TaxBase = figures.TaxBase;
         row.ChildSickDeducted = figures.ChildSickDeducted;
         row.PaidLeaveTaken = figures.PaidLeaveTaken;
+        Settle(row, figures);
         ReplaceDays(id, first, days, await db.StatementDays.Where(d => d.ItemId == id.Value && d.Month == first).ToListAsync(ct));
         return await SaveStatementAsync(ct);
     }
@@ -228,6 +238,7 @@ public sealed class ChildcareStore(ChildcareDbContext db, IClock clock) : IChild
         row.NormalHours = row.ActivityDays = row.PaidLeaveDays = row.ChildSickDeducted = row.PaidLeaveTaken = null;
         row.ComplementaryHours = row.OvertimeHours = row.NetPay = row.Upkeep = row.Meals = null;
         row.BasePay = row.Deduction = row.ExtraPay = row.PaidLeavePay = row.Cost = row.TaxBase = null;
+        row.Regularisation = row.LeaveIndemnity = row.RuptureIndemnity = null;
         await db.SaveChangesAsync(ct);
     }
 
@@ -266,16 +277,16 @@ public sealed class ChildcareStore(ChildcareDbContext db, IClock clock) : IChild
         }
     }
 
-    private static Result StatementConflict() => Result.Failure(new Failure(ChildcareCodes.StatementConflict, "The statement changed since it was read.", null));
+    private static Result StatementConflict() => Result.Failure(new ConflictFailure("The statement changed since it was read.") { Code = ChildcareCodes.StatementConflict });
 
     private static Statement ToStatement(StatementRow r, IReadOnlyList<StatementDay> days)
         => new(new ItemId(r.ItemId), r.Month.ToYearMonth(), r.Validated, r.Mileage, r.Cmg, days,
             r.Validated
                 ? new MonthFigures(
                     new PajemploiDeclaration(r.NormalHours!.Value, r.ActivityDays!.Value, r.PaidLeaveDays, r.ComplementaryHours!.Value, r.OvertimeHours!.Value,
-                        r.NetPay!.Value, r.Upkeep!.Value, r.Meals!.Value, r.Mileage),
+                        r.NetPay!.Value, r.Upkeep!.Value, r.Meals!.Value, r.Mileage, r.LeaveIndemnity ?? 0m, r.RuptureIndemnity ?? 0m),
                     r.BasePay!.Value, r.Deduction!.Value, r.ExtraPay!.Value, r.PaidLeavePay!.Value, r.Cmg!.Value, r.Cost!.Value, r.TaxBase!.Value,
-                    r.ChildSickDeducted!.Value, r.Contributions ?? 0m, r.Exemption ?? 0m, r.PaidLeaveTaken ?? 0)
+                    r.ChildSickDeducted!.Value, r.Contributions ?? 0m, r.Exemption ?? 0m, r.Regularisation ?? 0m, r.PaidLeaveTaken ?? 0)
                 : null,
             r.Version, r.ValidatedAt,
             new DeclaredFigures(r.DeclaredNetPay, r.DeclaredUpkeep, r.DeclaredMeals, r.DeclaredNormalHours, r.DeclaredActivityDays, r.DeclaredPaidLeaveDays,
@@ -344,6 +355,7 @@ public sealed class ChildcareStore(ChildcareDbContext db, IClock clock) : IChild
         (row.NetPay, row.Upkeep, row.Meals, row.BasePay, row.Deduction, row.ExtraPay) =
             (d.NetPay, d.Upkeep, d.Meals, figures.BasePay, figures.Deduction, figures.ExtraPay);
         (row.PaidLeavePay, row.Cost, row.TaxBase, row.ChildSickDeducted, row.PaidLeaveTaken) = (figures.PaidLeavePay, figures.Cost, figures.TaxBase, figures.ChildSickDeducted, figures.PaidLeaveTaken);
+        Settle(row, figures);
         ReplaceDays(statement.ItemId, first, statement.Days, await db.StatementDays.Where(x => x.ItemId == statement.ItemId.Value && x.Month == first).ToListAsync(ct));
         await db.SaveChangesAsync(ct);
     }
@@ -385,6 +397,16 @@ public sealed class ChildcareStore(ChildcareDbContext db, IClock clock) : IChild
         row.CarerName = a.CarerName;
         row.CarerPajemploi = a.CarerPajemploi;
         row.CarerApproval = a.CarerApproval;
+        (row.EndReason, row.EndNotified) = (a.End is null ? null : EndReasonCodes.Of(a.End.Reason), a.End?.Notified);
+    }
+
+    /// <summary>The end-of-contract lines, null on a month without them so that only the last month carries them.</summary>
+    private static void Settle(StatementRow row, MonthFigures figures)
+    {
+        var settles = figures.Regularisation != 0m || figures.Declaration.LeaveIndemnity != 0m || figures.Declaration.RuptureIndemnity != 0m;
+        (row.Regularisation, row.LeaveIndemnity, row.RuptureIndemnity) = settles
+            ? (figures.Regularisation, figures.Declaration.LeaveIndemnity, figures.Declaration.RuptureIndemnity)
+            : ((decimal?)null, (decimal?)null, (decimal?)null);
     }
 
     private static void Apply(TermsRow row, Terms t)
@@ -402,5 +424,6 @@ public sealed class ChildcareStore(ChildcareDbContext db, IClock clock) : IChild
     }
 
     private static Arrangement ToArrangement(ArrangementRow r)
-        => new(new ItemId(r.ItemId), new PersonId(r.ChildId), r.CarerName, r.CarerPajemploi, r.CarerApproval, r.Version);
+        => new(new ItemId(r.ItemId), new PersonId(r.ChildId), r.CarerName, r.CarerPajemploi, r.CarerApproval, r.Version,
+            EndReasonCodes.TryParse(r.EndReason) is { } reason && r.EndNotified is { } notified ? new ContractEnd(reason, notified) : null);
 }

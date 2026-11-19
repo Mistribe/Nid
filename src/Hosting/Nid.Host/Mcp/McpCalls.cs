@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Options;
@@ -10,18 +11,20 @@ using Nid.Documents.Contracts;
 using Nid.Platform.Contracts;
 using UnambitiousFx.Functional.Failures;
 using UnambitiousFx.Synapse.Abstractions;
+using UnambitiousFx.Synapse.ModelContextProtocol;
 
 namespace Nid.Host.Mcp;
 
 /// <summary>
-/// Spec 4B §2: the one way a tool runs a query. Same pipeline as REST (actor set by the call filter), same JSON as REST
-/// (the host's HTTP JSON options), a refusal as a short tool error, a result above the limit refused whole. Spec 4D1 §5:
-/// and the one way a write tool proposes or writes a document.
+/// Spec 4B §2: the one way a tool runs a query, through Synapse's <see cref="IMcpInvoker"/>. Same pipeline as REST (actor set
+/// by the call filter), same JSON as REST (the host's HTTP JSON options), every refusal as a tool error from Synapse's
+/// <see cref="IMcpFailurePolicy"/> (<c>code: message</c>, a missing and an unreadable item alike), a read's answer above the
+/// limit refused whole. Spec 4D1 §5: and the one way a write tool proposes or writes a document.
 /// </summary>
 public static partial class McpCalls
 {
-    public const string TooLarge = "Result too large: narrow the request.";
-    public const string NotFound = "Not found.";
+    /// <summary>A write tool asked for a scope the token does not hold.</summary>
+    public const string ScopeRequired = "platform.scope_required";
 
     private sealed record ConformeAnswer(string Outcome, JsonElement Expected, JsonElement Given);
 
@@ -50,9 +53,21 @@ public static partial class McpCalls
     /// <summary>A JSON object built by hand (a payload, a schema), as an element.</summary>
     internal static JsonElement Element(System.Text.Json.Nodes.JsonObject node) => JsonSerializer.SerializeToElement(node, AnswersJson.Default.JsonObject);
 
-    public static Task<CallToolResult> RunAsync<T>(IServiceProvider services, Func<IQuery<T>> build, CancellationToken ct)
+    public static async Task<CallToolResult> RunAsync<T>(IServiceProvider services, Func<IQuery<T>> build, CancellationToken ct)
         where T : notnull
-        => RunAsync<T, T>(services, build, view => view, ct);
+    {
+        IQuery<T> request;
+        try
+        {
+            request = build();
+        }
+        catch (BadHttpRequestException unreadable)
+        {
+            return Refuse(services, new Failure(FieldErrors.ShapeCode, unreadable.Message, null));
+        }
+
+        return await services.GetRequiredService<IMcpInvoker>().InvokeAsync(request, ct);
+    }
 
     public static Task<CallToolResult> RunAsync<T, TOut>(
         IServiceProvider services, Func<IQuery<T>> build, Func<T, TOut> map, CancellationToken ct)
@@ -70,20 +85,31 @@ public static partial class McpCalls
         }
         catch (BadHttpRequestException unreadable)
         {
-            return Error(unreadable.Message);
+            return Refuse(services, new Failure(FieldErrors.ShapeCode, unreadable.Message, null));
         }
 
         var result = await services.GetRequiredService<IInvoker>().InvokeAsync(request, ct);
         if (result.TryGetFailure(out var failure))
-            return ReadRefusal(failure!);
+            return Refuse(services, failure!);
 
         result.TryGetValue(out var view);
         return Answer(services, await map(view!));
     }
 
-    /// <summary>A read refused: not found and unauthorized stay « Not found. », any other refusal names its code.</summary>
-    internal static CallToolResult ReadRefusal(Failure failure)
-        => Error(failure is NotFoundFailure or UnauthorizedFailure ? NotFound : $"Refused: {failure.Code}.");
+    /// <summary>
+    /// A refusal as Synapse's tool error: <c>NOT_FOUND</c> for a missing or unreadable item (and any <see cref="UnauthorizedFailure"/>),
+    /// else <c>code: message</c>; a rule's refusal that names its fields lists them, one per line (<see cref="ProblemMapping.Located"/>).
+    /// </summary>
+    internal static CallToolResult Refuse(IServiceProvider services, Failure failure)
+        => services.GetRequiredService<IMcpFailurePolicy>().ToToolError(ProblemMapping.Located(failure));
+
+    /// <summary>An argument the tool could not read, as the field error <c>request.invalid</c> names.</summary>
+    internal static CallToolResult Invalid(IServiceProvider services, string field, string message)
+        => Refuse(services, FieldErrors.Shape([new FieldError(field, FieldErrors.ShapeCode, message)]));
+
+    /// <summary>A write tool's scope check, before anything runs.</summary>
+    internal static CallToolResult MissingScope(IServiceProvider services, string message)
+        => Refuse(services, new Failure(ScopeRequired, message, null));
 
     /// <summary>Tranche 3 design §4.1: the role a proposal's source document takes on its element, by kind.</summary>
     private static readonly Dictionary<string, string> SourceRoles = new(StringComparer.Ordinal)
@@ -106,16 +132,16 @@ public static partial class McpCalls
         IServiceProvider services, string kind, Guid? target, JsonElement body, string? sourceLabel, bool apply, Guid? documentId, CancellationToken ct)
     {
         if (services.GetRequiredService<IActorAccessor>().Current?.Has(apply ? ScopeNames.WriteDirect : ScopeNames.Write) != true)
-            return Error(apply
-                ? $"Refused: applying directly needs the '{ScopeNames.WriteDirect}' scope; call again without apply to propose."
-                : $"Refused: proposing needs the '{ScopeNames.Write}' scope.");
+            return MissingScope(services, apply
+                ? $"Applying directly needs the '{ScopeNames.WriteDirect}' scope; call again without apply to propose."
+                : $"Proposing needs the '{ScopeNames.Write}' scope.");
 
         var invoker = services.GetRequiredService<IInvoker>();
         if (documentId is { } document)
         {
             // Review Focus 1: missing and unreadable alike, whatever the refusal.
             if (!(await invoker.InvokeAsync(new GetDocumentQuery(document), ct)).TryGetValue(out _))
-                return Error(NotFound);
+                return Refuse(services, new NotFoundFailure("document", document.ToString()));
         }
 
         // The source follows the element once something was written or proposed (nothing for a refusal or a « conforme »), by the
@@ -136,7 +162,7 @@ public static partial class McpCalls
         {
             var written = await invoker.InvokeAsync(new ApplyDirectCommand(kind, Item(target), body, documentId), ct);
             if (!written.TryGetValue(out var write))
-                return Refusal(written.TryGetFailure(out var refused) ? refused! : throw new InvalidOperationException());
+                return Refuse(services, written.TryGetFailure(out var refused) ? refused! : throw new InvalidOperationException());
             if (write!.Conforme is { } same)
                 return Answer(services, Conforme(same), limited: false);
             return Answer(services, Applied(write, await LinkSourceAsync()), limited: false);
@@ -144,7 +170,7 @@ public static partial class McpCalls
 
         var submitted = await invoker.InvokeAsync(new SubmitProposalCommand(kind, Item(target), body, sourceLabel, documentId), ct);
         if (!submitted.TryGetValue(out var outcome))
-            return Refusal(submitted.TryGetFailure(out var rejected) ? rejected! : throw new InvalidOperationException());
+            return Refuse(services, submitted.TryGetFailure(out var rejected) ? rejected! : throw new InvalidOperationException());
         if (outcome!.Proposal is null)
             return Answer(services, Conforme(outcome.Conforme!.Value), limited: false);
         var sourceLinked = await LinkSourceAsync();
@@ -160,29 +186,18 @@ public static partial class McpCalls
     /// <summary>4D1's shapes; `summary` (spec 4D2 §2, the bank table's comparison) only for a kind that gives one.</summary>
     private static object Applied(DirectWrite w, bool? sourceLinked) => new AppliedAnswer("applied", w.AppliedRefs, w.Skipped, w.Summary, sourceLinked);
 
-    /// <summary>Not found and unauthorized stay « Not found. »; any other refusal names its code, then each field (`payload.movements[3].amount: …`) or its message.</summary>
-    internal static CallToolResult Refusal(Failure failure)
-    {
-        if (failure is NotFoundFailure or UnauthorizedFailure)
-            return Error(NotFound);
-        var detail = FieldErrors.Of(failure) is { Count: > 0 } fields
-            ? string.Join("; ", fields.Select(f => $"{f.Path}: {f.Message}"))
-            : failure.Metadata is { } metadata && metadata.TryGetValue("field", out var field) && field is string path
-                ? $"{path}: {failure.Message}"
-                : failure.Message;
-        return Error($"Refused: {failure.Code}. {detail}");
-    }
-
-    /// <summary>A read's result above <c>Mcp:MaxResultBytes</c> is refused whole; a write's answer (<paramref name="limited"/> false) only echoes its input, bounded per field, and is never refused after the write.</summary>
+    /// <summary>
+    /// A hand-built answer (a transformed view, a write's outcome), as <see cref="IMcpInvoker"/> answers a request: the host's
+    /// HTTP JSON, and for a read (<paramref name="limited"/>) the answer refused whole above <see cref="SynapseMcpOptions.MaxAnswerLength"/>
+    /// with Synapse's <c>ANSWER_TOO_LARGE</c>. A write's answer only echoes its input, bounded per field, and is never refused after the write.
+    /// </summary>
     internal static CallToolResult Answer<TOut>(IServiceProvider services, TOut value, bool limited = true)
     {
-        var json = JsonSerializer.Serialize(value, services.GetRequiredService<IOptions<Microsoft.AspNetCore.Http.Json.JsonOptions>>().Value.SerializerOptions.GetTypeInfo(typeof(TOut)));
-        var limit = services.GetRequiredService<IConfiguration>().GetValue("Mcp:MaxResultBytes", 102_400);
-        return limited && System.Text.Encoding.UTF8.GetByteCount(json) > limit
-            ? Error(TooLarge)
+        var options = services.GetRequiredService<IOptions<SynapseMcpOptions>>().Value;
+        var json = JsonSerializer.Serialize(value, options.SerializerOptions!.GetTypeInfo(typeof(TOut)));
+        return limited && options.MaxAnswerLength is { } max && json.Length > max
+            ? Refuse(services, new Failure(SynapseMcpOptions.AnswerTooLargeCode, string.Create(CultureInfo.InvariantCulture,
+                $"The answer is {json.Length} characters, above the {max} limit: narrow the request (a shorter period, a filter, a page)."), null))
             : new CallToolResult { Content = [new TextContentBlock { Text = json }] };
     }
-
-    public static CallToolResult Error(string message)
-        => new() { IsError = true, Content = [new TextContentBlock { Text = message }] };
 }

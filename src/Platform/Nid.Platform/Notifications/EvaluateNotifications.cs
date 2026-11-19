@@ -179,10 +179,10 @@ public sealed partial class EvaluateNotificationsHandler(
         var known = new List<Signal>();
         foreach (var signal in signals)
         {
-            if (kinds.ContainsKey(signal.Kind))
-                known.Add(signal);
-            else
+            if (!kinds.TryGetValue(signal.Kind, out var kind))
                 LogUnknownKind(source.Name, signal.Kind);
+            else if (prefs.Wants(kind)) // issue #81: an opt-in kind turned off is not raised, so its open rows resolve
+                known.Add(signal);
         }
 
         var existing = await store.ForSourceAsync(person, kinds.Keys, ct);

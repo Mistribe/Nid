@@ -84,7 +84,12 @@ public sealed class StatementAssembly(IChildcareStore store, IItemRegistry items
         var following = context.Month.PlusMonths(1);
         var before = context.Stored.Any(s => s.Month == previous) ? await store.FindStatementAsync(context.Arrangement.ItemId, previous, ct) : null;
         var after = context.Stored.Any(s => s.Month == following) ? await store.FindStatementAsync(context.Arrangement.ItemId, following, ct) : null;
-        return MonthAssembler.Evaluate(context.Terms, days, stale, context.Stored, before, mileage, cmg, declared, contributions, after, exemption);
+        var end = context.Arrangement.End;
+        // The last month settles the whole contract, June the reference period's leave: they read the validated months' days.
+        var stored = new List<Statement>();
+        foreach (var s in context.Stored) // one at a time: the store's context runs one query at once
+            stored.Add(s.Validated && MonthAssembler.ReadsDaysOf(context.Terms, end, s.Month) ? (await store.FindStatementAsync(context.Arrangement.ItemId, s.Month, ct))! : s);
+        return MonthAssembler.Evaluate(context.Terms, days, stale, stored, before, mileage, cmg, declared, contributions, after, exemption, end);
     }
 
     /// <summary>
@@ -115,7 +120,7 @@ public sealed class StatementAssembly(IChildcareStore store, IItemRegistry items
             ? evaluation.Figures
             : (await EvaluateAsync(context, stored.Validated ? MonthAssembler.Replanned(context.Terms, days) : days, stale, stored.Mileage, stored.Cmg, null, stored.Contributions ?? 0m, stored.Exemption, ct)).Figures;
         // Shown only while the parts add up to the line: a figure typed by hand, or frozen under other prices, may not.
-        var (lunch, snack) = Upkeep.MealCharges(days, context.Contract);
+        var (lunch, snack) = Upkeep.MealCharges(days, context.Terms.On);
         var mealCharges = snack > 0m && evaluation.Figures?.Declaration.Meals == lunch + snack ? new MealChargesView(Amount(lunch), Amount(snack)) : null;
         var next = context.Month.PlusMonths(1);
         var prepared = Prepared(context);
@@ -134,7 +139,9 @@ public sealed class StatementAssembly(IChildcareStore store, IItemRegistry items
                 ? Amount(estimate) : null,
             stored?.Declared is { } entered ? DeclaredOf(entered) : null,
             computed is { } n ? DeclarationOf(n.Declaration) : null,
-            stored?.Contributions is { } k ? Amount(k) : null, mealCharges, stored?.Exemption is { } x ? Amount(x) : null);
+            stored?.Contributions is { } k ? Amount(k) : null, mealCharges, stored?.Exemption is { } x ? Amount(x) : null,
+            BelowMinimums: LegalMinimumView.Of(LegalMinimums.Check(context.Chosen.NetHourlyRate, context.Chosen.GrossHourlyRate, context.Chosen.UpkeepPer9h,
+                context.Month.OnDayOfMonth(context.Month.Calendar.GetDaysInMonth(context.Month.Year, context.Month.Month)))));
     }
 
     public async Task<ChildcareStatementList> ListAsync(ItemId id, IReadOnlyList<Terms> revisions, IReadOnlyList<Statement> stored, LocalDate today, CancellationToken ct)
@@ -185,10 +192,15 @@ public sealed class StatementAssembly(IChildcareStore store, IItemRegistry items
         return new StatementFiguresView(
             DeclarationOf(f.Declaration),
             ChildcareMoneyView.Of(f.BasePay, currency), ChildcareMoneyView.Of(f.Deduction, currency), ChildcareMoneyView.Of(f.ExtraPay, currency),
-            ChildcareMoneyView.Of(f.PaidLeavePay, currency), ChildcareMoneyView.Of(f.Cost, currency), beforeCmg, ChildcareMoneyView.Of(f.Exemption, currency));
+            ChildcareMoneyView.Of(f.PaidLeavePay, currency), ChildcareMoneyView.Of(f.Cost, currency), beforeCmg, ChildcareMoneyView.Of(f.Exemption, currency),
+            Settles(f) ? ChildcareMoneyView.Of(f.Regularisation, currency) : null);
     }
 
     private static DeclarationView DeclarationOf(PajemploiDeclaration d)
         => new(d.NormalHours, d.ActivityDays, d.PaidLeaveDays, Amount(d.ComplementaryHours), Amount(d.OvertimeHours), Amount(d.NetPay),
-            Amount(d.Upkeep), Amount(d.Meals), Amount(d.Mileage));
+            Amount(d.Upkeep), Amount(d.Meals), Amount(d.Mileage), d.LeaveIndemnity != 0m || d.RuptureIndemnity != 0m ? Amount(d.LeaveIndemnity) : null,
+            d.LeaveIndemnity != 0m || d.RuptureIndemnity != 0m ? Amount(d.RuptureIndemnity) : null);
+
+    /// <summary>The month carries the end-of-contract lines.</summary>
+    private static bool Settles(MonthFigures f) => f.Regularisation != 0m || f.Declaration.LeaveIndemnity != 0m || f.Declaration.RuptureIndemnity != 0m;
 }

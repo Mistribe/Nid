@@ -5,8 +5,8 @@ using UnambitiousFx.Functional;
 
 namespace Nid.Childcare.Application;
 
-/// <summary>Spec §1.8–9: one arrangement per item — the child and the carer — whatever its revisions.</summary>
-public sealed record Arrangement(ItemId ItemId, PersonId Child, string CarerName, string? CarerPajemploi, string? CarerApproval, uint Version);
+/// <summary>Spec §1.8–9: one arrangement per item — the child and the carer — whatever its revisions. <c>End</c>: how a closed contract ended, when told.</summary>
+public sealed record Arrangement(ItemId ItemId, PersonId Child, string CarerName, string? CarerPajemploi, string? CarerApproval, uint Version, ContractEnd? End = null);
 
 /// <summary>Spec §1.8, §2: the figures of one revision, in force from <c>From</c> to <c>To</c> (open while current). <c>FullYear</c>: see <see cref="ContractTerms"/>.</summary>
 public sealed record Terms(
@@ -43,8 +43,8 @@ public interface IChildcareStore
     /// <summary>Every revision of these arrangements, by item then <c>From</c>.</summary>
     Task<IReadOnlyList<Terms>> TermsOfAsync(IReadOnlyCollection<ItemId> ids, CancellationToken ct);
 
-    /// <summary>Corrects the current revision in place: the row with the same <c>From</c>, its week types replaced.</summary>
-    Task ReplaceCurrentTermsAsync(Terms terms, CancellationToken ct);
+    /// <summary>Corrects a revision in place, a past one included: the row with the same <c>From</c>, its week types replaced; its end stays.</summary>
+    Task ReplaceTermsAsync(Terms terms, CancellationToken ct);
 
     /// <summary>#192: the absence reasons deducted under the revision starting on <paramref name="from"/>.</summary>
     Task SetUnpaidAbsencesAsync(ItemId id, LocalDate from, IReadOnlyList<AbsenceReason> reasons, CancellationToken ct);
@@ -62,11 +62,14 @@ public interface IChildcareStore
     /// <summary>Sets the week type of a Monday; <c>null</c> removes the exception, and does nothing when there is none.</summary>
     Task SetOverrideAsync(ItemId id, LocalDate monday, int? weekType, CancellationToken ct);
 
-    /// <summary>Sets or clears the current revision's end.</summary>
-    Task SetEndAsync(ItemId id, LocalDate? to, CancellationToken ct);
+    /// <summary>Sets or clears the current revision's end, and how the contract ended.</summary>
+    Task SetEndAsync(ItemId id, LocalDate? to, CancellationToken ct, ContractEnd? end = null);
 
     /// <summary>Every stored month of the arrangement, with its figures, without its days.</summary>
     Task<IReadOnlyList<Statement>> StatementsOfAsync(ItemId id, CancellationToken ct);
+
+    /// <summary>The stored months of several arrangements in one read, as <see cref="StatementsOfAsync(ItemId, CancellationToken)"/>.</summary>
+    Task<IReadOnlyList<Statement>> StatementsOfAsync(IReadOnlyCollection<ItemId> ids, CancellationToken ct);
 
     Task<Statement?> FindStatementAsync(ItemId id, YearMonth month, CancellationToken ct);
 

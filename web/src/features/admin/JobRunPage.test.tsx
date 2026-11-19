@@ -34,7 +34,7 @@ describe('Administration › Tâches › une exécution', () => {
   });
 
   it('says when the run does not exist', async () => {
-    answer({ type: 'about:blank', title: 'Not found', status: 404, code: 'job_run.not_found' }, 404);
+    answer({ type: 'about:blank', detail: 'Not found', status: 404, code: 'job_run.not_found' }, 404);
     await renderApp(url, { capabilities: adminCapabilities });
 
     expect(await screen.findByRole('alert')).toBeInTheDocument();

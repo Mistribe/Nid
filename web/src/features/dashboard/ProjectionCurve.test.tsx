@@ -191,7 +191,7 @@ describe('net worth projection card', () => {
   it('says why when the server refuses', async () => {
     server.use(
       http.get('*/api/v1/dashboard', () => HttpResponse.json(dashboard())),
-      http.get('*/api/v1/projection', () => HttpResponse.json({ status: 422, title: 'No birth date', code: 'projection.no_birth_date' }, { status: 422 })),
+      http.get('*/api/v1/projection', () => HttpResponse.json({ status: 422, detail: 'No birth date', code: 'projection.no_birth_date' }, { status: 422 })),
     );
     await renderApp('/dashboard');
     expect(await within(await card()).findByRole('alert')).toBeInTheDocument();

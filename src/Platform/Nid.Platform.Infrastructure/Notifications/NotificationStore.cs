@@ -22,6 +22,8 @@ public sealed partial class NotificationStore(PlatformDbContext db, IClock clock
     [JsonSerializable(typeof(Dictionary<string, string>))]
     [JsonSerializable(typeof(IReadOnlyDictionary<string, int>))]
     [JsonSerializable(typeof(Dictionary<string, int>))]
+    [JsonSerializable(typeof(IReadOnlyDictionary<string, decimal>))]
+    [JsonSerializable(typeof(Dictionary<string, decimal>))]
     private sealed partial class StoreJson : JsonSerializerContext;
 
     public async Task<IReadOnlyList<StoredNotification>> ForSourceAsync(PersonId person, IReadOnlyCollection<string> kinds, CancellationToken ct)
@@ -314,6 +316,7 @@ public sealed partial class NotificationStore(PlatformDbContext db, IClock clock
         row.Frequency = next.Frequency.ToString().ToLowerInvariant();
         row.Weekday = (int)next.Weekday;
         row.LeadDays = JsonSerializer.Serialize(next.LeadDays, StoreJson.Default.IReadOnlyDictionaryStringInt32);
+        row.Signals = JsonSerializer.Serialize(next.Signals, StoreJson.Default.IReadOnlyDictionaryStringDecimal);
         row.Version = next.Version + 1;
         try
         {
@@ -350,7 +353,8 @@ public sealed partial class NotificationStore(PlatformDbContext db, IClock clock
     private static NotificationPreferences ToPreferences(NotificationPreferencesRow row) => new(
         row.EmailEnabled, Enum.Parse<ActionMode>(row.ActionMode, ignoreCase: true), Enum.Parse<InfoMode>(row.InfoMode, ignoreCase: true),
         Enum.Parse<DigestFrequency>(row.Frequency, ignoreCase: true), (IsoDayOfWeek)row.Weekday,
-        JsonSerializer.Deserialize(row.LeadDays, StoreJson.Default.DictionaryStringInt32) ?? [], row.Version);
+        JsonSerializer.Deserialize(row.LeadDays, StoreJson.Default.DictionaryStringInt32) ?? [],
+        JsonSerializer.Deserialize(row.Signals, StoreJson.Default.DictionaryStringDecimal) ?? [], row.Version);
 
     private static string LevelText(NotificationLevel level) => level.ToString().ToLowerInvariant();
 

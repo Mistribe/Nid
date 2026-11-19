@@ -15,10 +15,12 @@ public interface IAuditLog
 
     /// <summary>
     /// Security entries, newest first: about <paramref name="subject"/> when given; restricted to <paramref name="events"/>
-    /// when given; <paramref name="withoutSelfRevocations"/> drops the <c>session_revoked</c> an adult made on themselves.
+    /// when given, without <paramref name="except"/> when given; <paramref name="withoutSelfRevocations"/> drops the
+    /// <c>session_revoked</c> an adult made on themselves.
     /// </summary>
     Task<IReadOnlyList<AuditRecord>> SecurityEventsAsync(
-        PersonId? subject, IReadOnlyCollection<string>? events, bool withoutSelfRevocations, long? before, int limit, CancellationToken ct);
+        PersonId? subject, IReadOnlyCollection<string>? events, IReadOnlyCollection<string>? except, bool withoutSelfRevocations,
+        long? before, int limit, CancellationToken ct);
 
     /// <summary>
     /// One page of the admin journal: <paramref name="events"/> only, the <c>session_revoked</c> an adult made on themselves left out,

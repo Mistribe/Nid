@@ -33,7 +33,7 @@ public class WriteEndpointTests(PostgresFixture fixture) : IClassFixture<Postgre
             var refused = await app.RawAsync(app.AdultA, HttpMethod.Patch, path, new { displayName = name, autoRenew = false });
             var body = await refused.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
             Assert.Equal(HttpStatusCode.UnprocessableContent, refused.StatusCode);
-            Assert.Contains("\"path\":\"displayName\"", body);
+            Assert.Contains("\"pointer\":\"#/displayName\"", body);
         }
         Assert.Equal("Netflix Premium", (await app.GetAsync<SubscriptionApi.DetailResponse>(app.AdultA, path)).DisplayName);
     }
@@ -51,7 +51,7 @@ public class WriteEndpointTests(PostgresFixture fixture) : IClassFixture<Postgre
             });
             var body = await refused.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
             Assert.Equal(HttpStatusCode.UnprocessableContent, refused.StatusCode);
-            Assert.Contains("\"path\":\"displayName\"", body);
+            Assert.Contains("\"pointer\":\"#/displayName\"", body);
         }
         Assert.Equal(0, (await app.GetAsync<System.Text.Json.JsonElement>(app.AdultA, "/api/v1/subscriptions")).GetProperty("items").GetArrayLength());
     }

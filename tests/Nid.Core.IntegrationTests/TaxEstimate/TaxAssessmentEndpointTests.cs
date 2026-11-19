@@ -38,7 +38,7 @@ public class TaxAssessmentEndpointTests(PostgresFixture fixture) : IClassFixture
     private static async Task<(HttpStatusCode Status, string? Code, string? Path)> ProblemOf(HttpResponseMessage response)
     {
         var json = await JsonOf(response);
-        var path = json.TryGetProperty("errors", out var errors) ? errors[0].GetProperty("path").GetString() : null;
+        var path = json.TryGetProperty("errors", out var errors) ? errors[0].FieldPath() : null;
         return (response.StatusCode, json.GetProperty("code").GetString(), path);
     }
 

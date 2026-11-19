@@ -13,7 +13,7 @@ public class NotificationTemplatesTests
     private static readonly (string Kind, string Module)[] Kinds =
     [
         ("subscription_renewal", "subscriptions"), ("subscription_expiry", "subscriptions"),
-        ("subscription_cancel_deadline", "subscriptions"),
+        ("subscription_cancel_deadline", "subscriptions"), ("subscription_trial_end", "subscriptions"), ("subscription_price_increase", "subscriptions"),
         ("subscriptions.ends_without_renewal", "subscriptions"),
         ("tenancy_end", "properties"), ("property_cost_due", "properties"), ("rent_arrears", "properties"),
         ("revision_due", "properties"), ("revision_lost", "properties"), ("irl_missing", "properties"),
@@ -21,7 +21,7 @@ public class NotificationTemplatesTests
         ("loan_phase_end", "loans"), ("loan_end", "loans"),
         ("holding_maturity", "investments"), ("stale_value", "investments"), ("uc_share_below_floor", "investments"),
         ("income_phase_end", "income"), ("income_gap_soon", "income"),
-        ("childcare_statement_due", "childcare"),
+        ("childcare_statement_due", "childcare"), ("childcare_below_minimum", "childcare"),
     ];
 
     private static NotificationRecord Record(string kind, LocalDate? dueOn = null, string key = "k")
@@ -113,6 +113,7 @@ public class NotificationTemplatesTests
         Assert.Equal("En ligne avant le 21 mai 2026, la date la plus tôt : département non renseigné",
             Tax("tax_filing_deadline", new() { ["note"] = "department_unknown" }).Body);
         Assert.Equal(("À partir du 21 mai 2026", "/tax"), (Tax("tax_balance_due", []).Body, Tax("tax_new_rate", []).Link));
+        Assert.Equal("/tax?tab=withholding", Tax("tax_balance_due", []).Link);
     }
 
     [Fact]
@@ -182,11 +183,19 @@ public class NotificationTemplatesTests
             (Published("backup_failed", "backup_failed:never"), "La sauvegarde a échoué", "/admin/system"),
             (Published("job_failed", "job_failed:fx-sync", new() { ["job"] = "fx-sync" }), "Une tâche planifiée a échoué", "/admin/jobs/fx-sync"),
             (Published("sync_failed", "sync_failed:prices:never", new() { ["source"] = "prices" }), "Une synchronisation a échoué", "/admin/prices"),
+            // #291: the holder of a local account, sent to their Security page.
+            (Published("login_locked", "login_locked:abc:1"), "Votre compte a été verrouillé", "/security"),
+            (Published("password_link_issued", "password_link_issued:abc:1"), "Un lien de réinitialisation a été créé pour vous", "/security"),
+            (Published("password_reset", "password_reset:abc:1"), "Votre mot de passe a été réinitialisé", "/security"),
+            (Published("password_changed", "password_changed:abc:1", new() { ["field"] = "password" }), "Votre mot de passe a changé", "/security"),
+            (Published("totp_reset", "totp_reset:abc:1"), "Votre validation en deux étapes a été désactivée", "/security"),
+            (Published("recovery_codes_low", "recovery_codes_low:abc"), "Il vous reste 2 codes de secours", "/security"),
         };
         foreach (var (record, title, link) in cases)
         {
             var rendered = NotificationTemplates.Render(record, KindOf(record.Kind, "platform"), names);
             Assert.Equal((title, link), (rendered.Title, rendered.Link));
+            if (link == "/security" && record.Kind != "token_expiring") Assert.NotEmpty(rendered.Body);
             Assert.DoesNotContain("Maison", rendered.Body);
             Assert.DoesNotMatch(@"\d+\s?(€|EUR)", rendered.Body);
         }
@@ -209,5 +218,96 @@ public class NotificationTemplatesTests
         var record = Record("backup_failed", key: "backup_failed:never") with { ItemIds = [], Params = parameters };
 
         Assert.Equal(body, NotificationTemplates.Render(record, KindOf("backup_failed", "platform"), new Dictionary<ItemId, string>()).Body);
+    }
+
+    [Fact]
+    public void The_centre_shows_a_signals_figures_the_french_way()
+    {
+        var record = Record("net_worth_milestone", key: "net_worth_milestone:300000") with
+        {
+            ItemIds = [],
+            Params = new Dictionary<string, string> { ["net_worth_amount"] = "302140.40", ["step_amount"] = "300000" },
+        };
+        var kind = KindOf("net_worth_milestone", "core");
+
+        var centre = NotificationTemplates.Render(record, kind, new Dictionary<ItemId, string>(), withFigures: true);
+        var plain = NotificationTemplates.Render(record, kind, new Dictionary<ItemId, string>());
+
+        Assert.Equal("Votre patrimoine a franchi un palier", centre.Title);
+        Assert.Equal("Patrimoine : 302 140 € · Palier : 300 000 €", centre.Body.Replace('\u202f', ' ').Replace('\u00a0', ' '));
+        Assert.Equal("/dashboard", centre.Link);
+        Assert.Equal("", plain.Body);
+
+        var swiss = record with { Params = new Dictionary<string, string>(record.Params) { ["currency"] = "CHF" } };
+        Assert.EndsWith("300 000 CHF", NotificationTemplates.Render(swiss, kind, new Dictionary<ItemId, string>(), withFigures: true).Body.Replace('\u202f', ' ').Replace('\u00a0', ' '));
+    }
+
+    [Fact]
+    public void A_shortfall_opens_its_accounts_operations_and_names_its_charges_in_the_centre_only()
+    {
+        var figures = new Dictionary<string, string>
+        {
+            ["balance_amount"] = "800.00", ["charges_amount"] = "1150.50", ["currency"] = "EUR", ["short_on"] = "2027-03-05",
+            ["charges"] = "Loyer, Netflix", ["module"] = "investments",
+        };
+        var record = Record("shortfall_ahead", new LocalDate(2027, 3, 5)) with { Params = figures };
+        var kind = KindOf("shortfall_ahead", "banking");
+        var names = new Dictionary<ItemId, string> { [Item] = "Compte joint" };
+
+        var centre = NotificationTemplates.Render(record, kind, names, withFigures: true);
+        var plain = NotificationTemplates.Render(record, kind, names);
+
+        Assert.Equal("Compte joint — le 5 mars 2027 — Solde : 800 € · Charges à venir : 1 151 € · Ce jour-là : Loyer, Netflix",
+            centre.Body.Replace('\u202f', ' ').Replace('\u00a0', ' '));
+        Assert.Equal("Compte joint — le 5 mars 2027", plain.Body);
+        Assert.Equal($"/investments/{Item.Value:D}?tab=operations", centre.Link);
+
+        // Without an envelope the account has no item to be named by: its own name follows the date.
+        var unassociated = record with { ItemIds = [], Params = new Dictionary<string, string>(figures.Where(p => p.Key != "module")) { ["account"] = "Compte courant" } };
+        Assert.Equal(("Le 5 mars 2027 — Compte courant", "/settings/banks"), (NotificationTemplates.Render(unassociated, kind, names) is var r ? (r.Body, r.Link) : default));
+    }
+
+    [Fact]
+    public void An_unused_card_is_named_by_its_name_and_masked_number_and_opens_the_banks()
+    {
+        var record = Record("card_unused", key: "card_unused:x:2027-03") with
+        {
+            ItemIds = [], DueOn = new LocalDate(2027, 3, 31),
+            Params = new Dictionary<string, string> { ["card"] = "Carte Visa", ["number"] = "4321", ["count"] = "0", ["min"] = "1" },
+        };
+        var kind = KindOf("card_unused", "banking");
+
+        var rendered = NotificationTemplates.Render(record, kind, new Dictionary<ItemId, string>());
+
+        Assert.Equal("Une carte n'a pas assez servi ce mois-ci", rendered.Title);
+        Assert.Equal("Carte Visa •••• 4321 : aucun paiement ce mois-ci, 1 attendu. Utilisez-la avant le 31 mars 2027.", rendered.Body);
+        Assert.Equal("/settings/banks", rendered.Link);
+        Assert.StartsWith("Une carte : 2 paiements ce mois-ci, 3 attendus.", NotificationTemplates.Render(record with
+            { Params = new Dictionary<string, string> { ["card"] = "", ["number"] = "", ["count"] = "2", ["min"] = "3" } }, kind, new Dictionary<ItemId, string>()).Body);
+    }
+
+    [Fact]
+    public void Idle_cash_says_what_held_and_opens_the_investments()
+    {
+        var record = Record("idle_cash", key: "idle_cash:2027-03") with
+        {
+            ItemIds = [],
+            Params = new Dictionary<string, string>
+            {
+                ["above_amount"] = "4200.40", ["buffer_amount"] = "6000.00", ["room_amount"] = "2000", ["currency"] = "EUR", ["reason"] = "room_goal_behind",
+            },
+        };
+        var kind = KindOf("idle_cash", "banking");
+
+        var centre = NotificationTemplates.Render(record, kind, new Dictionary<ItemId, string>(), withFigures: true);
+        var plain = NotificationTemplates.Render(record, kind, new Dictionary<ItemId, string>());
+
+        Assert.Equal("Vos comptes courants dépassent l'épargne de précaution", centre.Title);
+        Assert.Equal("Au-dessus de l'épargne de précaution depuis 4 semaines, un livret a de la place et un objectif est en retard", plain.Body);
+        Assert.EndsWith("Au-dessus de l'épargne de précaution : 4 200 € · Épargne de précaution : 6 000 € · Place sur les livrets : 2 000 €",
+            centre.Body.Replace('\u202f', ' ').Replace('\u00a0', ' '));
+        Assert.Equal("/investments", centre.Link);
+        Assert.EndsWith(", un objectif est en retard",
+            NotificationTemplates.Render(record with { Params = new Dictionary<string, string> { ["reason"] = "goal_behind" } }, kind, new Dictionary<ItemId, string>()).Body);
     }
 }

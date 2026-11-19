@@ -24,6 +24,10 @@ public sealed class ChildcareDbContext(DbContextOptions<ChildcareDbContext> opti
 
     public DbSet<StatementDayRow> StatementDays => Set<StatementDayRow>();
 
+    public DbSet<NannyRow> Nannies => Set<NannyRow>();
+
+    public DbSet<NannyMonthRow> NannyMonths => Set<NannyMonthRow>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schema);
@@ -110,7 +114,8 @@ public sealed class ChildcareDbContext(DbContextOptions<ChildcareDbContext> opti
             e.HasKey(x => new { x.ItemId, x.Month });
             foreach (var amount in new[] { nameof(StatementRow.Mileage), nameof(StatementRow.Cmg), nameof(StatementRow.Contributions), nameof(StatementRow.Exemption), nameof(StatementRow.DeclaredNetPay), nameof(StatementRow.DeclaredUpkeep), nameof(StatementRow.DeclaredMeals), nameof(StatementRow.NetPay), nameof(StatementRow.Upkeep),
                          nameof(StatementRow.Meals), nameof(StatementRow.BasePay), nameof(StatementRow.Deduction), nameof(StatementRow.ExtraPay),
-                         nameof(StatementRow.PaidLeavePay), nameof(StatementRow.Cost), nameof(StatementRow.TaxBase) })
+                         nameof(StatementRow.PaidLeavePay), nameof(StatementRow.Cost), nameof(StatementRow.TaxBase), nameof(StatementRow.Regularisation),
+                         nameof(StatementRow.LeaveIndemnity), nameof(StatementRow.RuptureIndemnity) })
                 e.Property(amount).HasColumnType("numeric(19,4)");
             e.Property(x => x.ComplementaryHours).HasColumnType("numeric(9,2)");
             e.Property(x => x.OvertimeHours).HasColumnType("numeric(9,2)");
@@ -124,11 +129,35 @@ public sealed class ChildcareDbContext(DbContextOptions<ChildcareDbContext> opti
         {
             e.ToTable("statement_day", t =>
             {
-                t.HasCheckConstraint("ck_statement_day_absence", "absence is null or absence in ('family', 'parent_rtt', 'child_sick', 'carer_absent', 'holiday', 'paid_leave', 'carer_training', 'family_agreed')");
+                t.HasCheckConstraint("ck_statement_day_absence", "absence is null or absence in ('family', 'parent_rtt', 'child_sick', 'carer_absent', 'holiday', 'paid_leave', 'carer_training', 'family_agreed', 'carer_sick')");
                 t.HasCheckConstraint("ck_statement_day_hours", "not present or (arrival is not null and departure > arrival)");
             });
             e.HasKey(x => new { x.ItemId, x.Date });
             e.HasOne<StatementRow>().WithMany().HasForeignKey(x => new { x.ItemId, x.Month }).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<NannyRow>(e =>
+        {
+            e.ToTable("nanny", t => t.HasCheckConstraint("ck_nanny_import",
+                "(import_ref is null) = (import_hash is null) and (import_ref is null) = (imported_by is null)"));
+            e.HasKey(x => x.ItemId);
+            e.Property(x => x.ItemId).ValueGeneratedNever();
+            e.Property(x => x.ImportHash).HasColumnType("char(64)");
+            e.HasIndex(x => new { x.ImportedBy, x.ImportRef }).IsUnique().HasFilter("import_ref is not null");
+        });
+
+        modelBuilder.Entity<NannyMonthRow>(e =>
+        {
+            e.ToTable("nanny_month", t =>
+            {
+                t.HasCheckConstraint("ck_nanny_month_month", "extract(day from month) = 1");
+                t.HasCheckConstraint("ck_nanny_month_amounts", "paid > 0 and cmg >= 0 and cmg <= paid and (hours is null or hours > 0)");
+            });
+            e.HasKey(x => new { x.ItemId, x.Month });
+            e.Property(x => x.Paid).HasColumnType("numeric(19,4)");
+            e.Property(x => x.Cmg).HasColumnType("numeric(19,4)");
+            e.Property(x => x.Hours).HasColumnType("numeric(9,2)");
+            e.HasOne<NannyRow>().WithMany().HasForeignKey(x => x.ItemId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.MapAuditLog(ownedHere: false);

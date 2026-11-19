@@ -1,126 +1,53 @@
-import { cleanup, screen, waitFor, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw/http';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
-import { expectLabelBefore } from '@/test/filters';
 import { expectHeaderActionRule } from '@/test/headerActions';
 import { renderApp } from '@/test/renderApp';
-import { pick } from '@/test/controls';
+import { pick, pickYear } from '@/test/controls';
 import { server } from '@/test/server';
 import type { Rental2044, TaxEstimate } from '@/api/tax';
 import { jointAssessment, soloAssessment } from './assessments/testData';
 import { ADULT, estimate, result } from './taxTestData';
 
+/** An estimate whose household rents a property out: the Déclarations tab then offers the 2044. */
+const rentalEstimate = (): TaxEstimate => ({ ...estimate(), rentalProperties: [{ id: 'p1', name: 'Studio', acquiredIn: 2020 }] });
+
 describe('TaxPage', () => {
   beforeAll(async () => { await import('./TaxPage'); }, 30_000);
 
-  it('shows the server’s figures, the notes and the steps', async () => {
-    server.use(http.get('*/api/v1/tax', () => HttpResponse.json(estimate())));
-    const { container, user } = await renderApp('/tax');
+  it('a cold load shows the overview’s skeleton, not a grey block', async () => {
+    server.use(http.get('*/api/v1/tax', () => new Promise(() => {})));
+    const { container } = await renderApp('/tax');
 
-    expect(await screen.findByText('Net fiscal')).toBeInTheDocument();
-    expect(screen.getAllByText('64 407,00 €').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('5 729,42 €').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('11 %').length).toBeGreaterThan(0);
-    expect(screen.getByText(/Prime : pas de brut renseigné, le net versé \(1 000,00 €\)/)).toBeInTheDocument();
-    expect(screen.getByText('Estimation selon le barème 2025')).toBeInTheDocument();
-    const table = screen.getByRole('table', { name: 'Calcul de l’impôt étape par étape' });
-    expect(within(table).getByRole('row', { name: /Crédit garde hors du domicile/ })).toHaveTextContent('3 000,00 €');
-    expect(within(table).getByRole('row', { name: /^Revenu fiscal de référence/ })).toHaveTextContent('66 407,00 €');
-    expect(screen.getByText(/se compare à l’avis d’imposition de la même année de revenus/)).toBeInTheDocument();
-    const people = screen.getByRole('table', { name: 'Revenus par déclarant' });
-    expect(within(people).getByRole('columnheader', { name: 'Alice' })).toBeInTheDocument();
-    expect(within(people).getByRole('row', { name: /Abattement de 10 %/ })).toHaveTextContent('4 042,46 €');
-    expect(within(people).queryByRole('row', { name: /PER/ })).not.toBeInTheDocument();
-    expect(within(table).queryByRole('row', { name: /Alice/ })).not.toBeInTheDocument();
-    expect(screen.getByText('2 973,39 €')).toBeInTheDocument();
-    expect(screen.getByText('remboursés')).toBeInTheDocument();
-    expect(screen.getByRole('img', { name: /^Reste .+, Impôt sur le revenu 247,00/ })).toBeInTheDocument();
-    expect(within(table).queryByRole('row', { name: /Réduction Pinel/ })).not.toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /Afficher les \d+ lignes à 0 €/ }));
-    expect(within(table).getByRole('row', { name: /Réduction Pinel/ })).toHaveTextContent('0,00 €');
-    await expectNoAxeViolations(container);
+    const status = await screen.findByRole('status', { name: 'Calcul de l’impôt' });
+    expect(container.querySelector('[data-slot="skeleton"]')).not.toBeNull();
+    expect(status.querySelector('[class*="rounded-[22px]"]')).not.toBeNull();
   });
 
-  it('explains the tax terms and asks micro-foncier or réel with the server’s comparison', async () => {
-    const loaded = estimate();
-    loaded.result = result({ rentalRegimeGap: '-344.00' });
-    server.use(http.get('*/api/v1/tax', () => HttpResponse.json(loaded)));
-    const { container, user } = await renderApp('/tax');
-
-    const table = await screen.findByRole('table', { name: 'Calcul de l’impôt étape par étape' });
-    const rfr = within(table).getByRole('button', { name: 'À propos : Revenu fiscal de référence' });
-    await user.hover(rfr);
-    expect(await screen.findByRole('tooltip')).toHaveTextContent(/en haut de la première page de votre avis/);
-    expect(screen.getAllByRole('button', { name: 'À propos : Tranche marginale' })).toHaveLength(2);
-    expect(screen.getByText('Micro-foncier ou réel ?')).toBeInTheDocument();
-    expect(screen.getByText(/Vos loyers sont imposés au micro-foncier\. Nid compare les deux : le réel vous ferait payer 344,00 € de moins\./)).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Changer de régime dans le Profil fiscal' }));
-    expect(screen.getByRole('tab', { name: 'Profil fiscal', selected: true })).toBeInTheDocument();
-    await expectNoAxeViolations(container);
-  });
-
-  it('asks nothing about the regime when the server has no comparison', async () => {
-    server.use(http.get('*/api/v1/tax', () => HttpResponse.json(estimate())));
-    await renderApp('/tax');
-
-    await screen.findByRole('table', { name: 'Calcul de l’impôt étape par étape' });
-    expect(screen.queryByText('Micro-foncier ou réel ?')).not.toBeInTheDocument();
-  });
-
-  it('lists what to type on impots.gouv.fr and the rate that should follow', async () => {
-    server.use(http.get('*/api/v1/tax', () => HttpResponse.json(estimate())));
-    const { container } = await renderApp('/tax?tab=withholding');
-
-    const declared = await screen.findByRole('table', { name: 'Revenus estimés à déclarer' });
-    expect(within(declared).getByRole('row', { name: /Alice : salaires nets imposables/ })).toHaveTextContent('40 424,63 €');
-    expect(within(declared).queryByText(/PER/)).not.toBeInTheDocument();
-    const expected = screen.getByRole('table', { name: 'Ce que le taux devrait donner' });
-    expect(within(expected).getByRole('row', { name: /Taux du foyer/ })).toHaveTextContent('4,5 %');
-    expect(within(expected).getByRole('row', { name: /Alice : prélevé chaque mois/ })).toHaveTextContent('151,59 €');
-    expect(within(expected).getByRole('row', { name: /Solde à la déclaration/ })).toHaveTextContent('-2 973,39 €');
-    expect(screen.queryByRole('table', { name: 'Baisse sans risque' })).not.toBeInTheDocument();
-    await expectNoAxeViolations(container);
-  });
-
-  it('suggests the salaries for the largest cut without surcharge', async () => {
-    const withCut = estimate();
-    withCut.result.withholding.cut = {
-      rate: '4.2', declarants: [{ name: 'Alice', salaries: '37518.00', monthly: '141.49' }],
-      rentalMonthly: '0.00', annual: '3005.70', less: '214.69', balance: '-2758.70',
-    };
-    server.use(http.get('*/api/v1/tax', () => HttpResponse.json(withCut)));
-    const { container } = await renderApp('/tax?tab=withholding');
-
-    const cut = await screen.findByRole('table', { name: 'Baisse sans risque' });
-    expect(within(cut).getByRole('row', { name: /Alice : salaires à saisir/ })).toHaveTextContent('37 518,00 €');
-    expect(within(cut).getByRole('row', { name: /Taux attendu/ })).toHaveTextContent('4,2 %');
-    expect(within(cut).getByRole('row', { name: /Alice : prélevé chaque mois/ })).toHaveTextContent('141,49 €');
-    expect(within(cut).getByRole('row', { name: /Prélevé en moins/ })).toHaveTextContent('214,69 €');
-    expect(within(cut).getByRole('row', { name: /Solde restant/ })).toHaveTextContent('-2 758,70 €');
-    expect(within(cut).queryByText(/revenus fonciers/)).not.toBeInTheDocument();
-    await expectNoAxeViolations(container);
-  });
-
-  it('simulates edited inputs beside the estimate', async () => {
-    const sent: unknown[] = [];
+  it('the Évolution tab loads with a card skeleton', async () => {
     server.use(
-      http.get('*/api/v1/tax', () => HttpResponse.json(estimate())),
-      http.post('*/api/v1/tax/simulate', async ({ request }) => {
-        sent.push(await request.json());
-        return HttpResponse.json(result({ incomeTax: '1500.00', netAfterTax: '67500.00' }));
-      }),
+      http.get('*/api/v1/tax/assessments', () => HttpResponse.json({ items: [{ ...soloAssessment({ year: 2024 }), netTax: undefined }] })),
+      http.get('*/api/v1/tax', () => new Promise(() => {})),
     );
-    const { user } = await renderApp('/tax?tab=simulation');
+    const { container } = await renderApp('/tax?tab=evolution&year=2024');
 
-    const gross = await screen.findByLabelText('Salaire brut annuel');
-    await user.clear(gross);
-    await user.type(gross, '60000,50');
-    await user.click(screen.getByRole('button', { name: 'Calculer' }));
+    await screen.findByRole('tab', { name: 'Évolution' });
+    expect(screen.getByRole('status', { name: 'Calcul de l’impôt' })).toBeInTheDocument();
+    expect(container.querySelector('[data-slot="skeleton"]')).not.toBeNull();
+  });
 
-    const table = await screen.findByRole('table', { name: 'Estimation et simulation' });
-    expect(within(table).getByRole('row', { name: /^Impôt sur le revenu/ })).toHaveTextContent('247,00 €1 500,00 €');
-    expect(sent[0]).toMatchObject({ declarants: [{ salaryGross: '60000.50', status: 'non_executive' }], childcareOutsideHome: '6000.00' });
+  it('the 2044 loads with a card skeleton', async () => {
+    server.use(
+      http.get('*/api/v1/tax', () => HttpResponse.json(rentalEstimate())),
+      http.get('*/api/v1/tax/2044', () => new Promise(() => {})),
+    );
+    await renderApp('/tax?tab=declarations&form=2044');
+
+    await screen.findByRole('radiogroup', { name: /formulaire/i });
+    const status = screen.getByRole('status', { name: 'Calcul de l’impôt' });
+    expect(status).toBeInTheDocument();
+    expect(status.querySelector('[data-slot="skeleton"]')).not.toBeNull();
   });
 
   it('says where each person’s taxable salary comes from, and lists the payments behind it', async () => {
@@ -136,7 +63,7 @@ describe('TaxPage', () => {
       detail({ on: '2026-03-31', note: 'Mars', category: 'net', amount: '3900.00' }),
     ];
     server.use(http.get('*/api/v1/tax', () => HttpResponse.json(loaded)));
-    const { user, container } = await renderApp('/tax');
+    const { user, container } = await renderApp('/tax?tab=detail');
 
     const people = await screen.findByRole('table', { name: 'Revenus par déclarant' });
     const row = within(people).getByRole('row', { name: /Salaires nets imposables/ });
@@ -164,7 +91,7 @@ describe('TaxPage', () => {
       ({ person, item, name, on: '2026-01-31', note: null, category: 'entered', amount });
     loaded.salaryDetail = [pay(ADULT, 'i1', 'Salaire premier', '1111.00'), pay(OTHER, 'i2', 'Salaire second', '2222.00')];
     server.use(http.get('*/api/v1/tax', () => HttpResponse.json(loaded)));
-    const { user } = await renderApp('/tax');
+    const { user } = await renderApp('/tax?tab=detail');
 
     const people = await screen.findByRole('table', { name: 'Revenus par déclarant' });
     const row = within(people).getByRole('row', { name: /Salaires nets imposables/ });
@@ -181,39 +108,10 @@ describe('TaxPage', () => {
     const loaded = estimate();
     loaded.result.declarants[0]!.method = method;
     server.use(http.get('*/api/v1/tax', () => HttpResponse.json(loaded)));
-    await renderApp('/tax');
+    await renderApp('/tax?tab=detail');
 
     const people = await screen.findByRole('table', { name: 'Revenus par déclarant' });
     expect(within(people).getByRole('row', { name: /Salaires nets imposables/ })).toHaveTextContent(pill);
-  });
-
-  it('shows a rate differing from the payslips as a percent, never as euros', async () => {
-    const loaded = estimate();
-    loaded.notices = [{ code: 'contribution_rate_differs', item: 'i1', name: 'Alice', amount: '22.85' }];
-    server.use(http.get('*/api/v1/tax', () => HttpResponse.json(loaded)));
-    await renderApp('/tax');
-
-    expect(await screen.findByText('Alice : le taux de cotisations saisi s’écarte du taux constaté sur les bulletins (22,85 %).')).toBeInTheDocument();
-  });
-
-  it('links each childcare arrangement counted to its year summary', async () => {
-    const loaded = estimate();
-    loaded.notices = [{ code: 'childcare_from_statements', item: 'c1', name: 'Garde de Léa', amount: '1728.81' }];
-    server.use(http.get('*/api/v1/tax', () => HttpResponse.json(loaded)));
-    await renderApp('/tax');
-
-    expect(await screen.findByText(/Frais de garde de « Garde de Léa » : 1 728,81 € d’après ses relevés validés/)).toBeInTheDocument();
-    const link = screen.getByRole('link', { name: `Récapitulatif ${loaded.year} à recopier` });
-    expect(link).toHaveAttribute('href', expect.stringMatching(new RegExp(`^/childcare/c1\\?tab=summary&year=.*${loaded.year}`)));
-  });
-
-  it('says how many childcare months are validated and how the rest of the year is counted', async () => {
-    const loaded = estimate();
-    loaded.notices = [{ code: 'childcare_projected', item: 'c1', name: 'Garde de Léa', amount: '900.00', monthsValidated: 7, monthsEstimated: 5 }];
-    server.use(http.get('*/api/v1/tax', () => HttpResponse.json(loaded)));
-    await renderApp('/tax');
-
-    expect(await screen.findByText('Reste de l’année pour « Garde de Léa » : 900,00 € (mois validés : 7 ; mois estimés à leur moyenne : 5).')).toBeInTheDocument();
   });
 
   it('offers the rate seen on the payslips and shows the status’s rate as the default', async () => {
@@ -271,10 +169,10 @@ describe('TaxPage', () => {
     await renderApp('/tax?tab=profile');
 
     const nav = await screen.findByRole('navigation', { name: 'Rubriques du profil' });
-    expect(within(nav).getAllByRole('link').map((l) => l.getAttribute('href'))).toEqual(['#foyer', '#activite', '#retraite', '#depenses', '#exoneres']);
+    expect(within(nav).getAllByRole('link').map((l) => l.getAttribute('href'))).toEqual(['#foyer', '#activite', '#retraite', '#depenses', '#placements', '#exoneres']);
     expect(within(nav).getByRole('link', { name: /Dépenses de l’année/ })).toHaveTextContent('à revoir');
     expect(within(nav).getByRole('link', { name: /Foyer/ })).not.toHaveTextContent('à revoir');
-    expect(screen.getByText(/Repris du profil de 2025/)).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Profil repris d’une autre année' })).toHaveTextContent(/Repris du profil de 2025/);
   });
 
   it('sends nothing and focuses the first invalid field on save', async () => {
@@ -315,17 +213,17 @@ describe('TaxPage', () => {
   it('leaves a refused save’s message behind on another year already loaded', async () => {
     server.use(
       http.get('*/api/v1/tax', ({ request }) => HttpResponse.json({ ...estimate(), year: Number(new URL(request.url).searchParams.get('year')) })),
-      http.put('*/api/v1/tax/profile/:year', () => HttpResponse.json({ status: 400, title: 'Profil refusé' }, { status: 400, headers: { 'Content-Type': 'application/problem+json' } })),
+      http.put('*/api/v1/tax/profile/:year', () => HttpResponse.json({ status: 400, detail: 'Profil refusé' }, { status: 400, headers: { 'Content-Type': 'application/problem+json' } })),
     );
     const { user } = await renderApp('/tax?tab=profile');
 
     await screen.findByLabelText('Emploi à domicile');
-    await user.click(screen.getByRole('radio', { name: '2025' }));
+    await pickYear(user, '2025');
     await screen.findByLabelText('Emploi à domicile');
-    await user.click(screen.getByRole('radio', { name: '2026' }));
+    await pickYear(user, '2026');
     await user.click(await screen.findByRole('button', { name: 'Enregistrer le profil' }));
     expect(await screen.findByText(/Profil refusé/)).toBeInTheDocument();
-    await user.click(screen.getByRole('radio', { name: '2025' }));
+    await pickYear(user, '2025');
 
     expect(await screen.findByLabelText('Emploi à domicile')).toBeInTheDocument();
     expect(screen.queryByText(/Profil refusé/)).not.toBeInTheDocument();
@@ -342,9 +240,9 @@ describe('TaxPage', () => {
 
     await screen.findByLabelText('Emploi à domicile');
     expect(screen.queryByLabelText('Revenus exonérés de Alice')).not.toBeInTheDocument();
-    await user.click(screen.getByRole('radio', { name: '2026' }));
+    await pickYear(user, '2026');
     expect(await screen.findByLabelText('Revenus exonérés de Alice')).toBeInTheDocument();
-    await user.click(screen.getByRole('radio', { name: '2025' }));
+    await pickYear(user, '2025');
 
     await screen.findByLabelText('Emploi à domicile');
     expect(screen.queryByLabelText('Revenus exonérés de Alice')).not.toBeInTheDocument();
@@ -480,7 +378,7 @@ describe('TaxPage', () => {
 
     expect(await screen.findByLabelText('Emploi à domicile')).toHaveValue('9000');
     expect(screen.getByText('1 modification non enregistrée')).toBeInTheDocument();
-    await user.click(screen.getByRole('radio', { name: '2025' }));
+    await pickYear(user, '2025');
     expect(await screen.findByLabelText('Emploi à domicile')).toHaveValue('0,00');
     expect(screen.queryByText(/non enregistrée/)).not.toBeInTheDocument();
   });
@@ -488,7 +386,7 @@ describe('TaxPage', () => {
   it('keeps the draft when the server refuses the profile', async () => {
     server.use(
       http.get('*/api/v1/tax', () => HttpResponse.json(estimate())),
-      http.put('*/api/v1/tax/profile/:year', () => HttpResponse.json({ status: 400, title: 'Profil refusé' }, { status: 400, headers: { 'Content-Type': 'application/problem+json' } })),
+      http.put('*/api/v1/tax/profile/:year', () => HttpResponse.json({ status: 400, detail: 'Profil refusé' }, { status: 400, headers: { 'Content-Type': 'application/problem+json' } })),
     );
     const { user } = await renderApp('/tax?tab=profile');
 
@@ -562,7 +460,7 @@ describe('TaxPage, Déclaration 2044 tab', () => {
       notices: [{ code: 'rental_charges_removed', item: 'a', name: 'Studio', amount: '600.00' }],
     });
     server.use(
-      http.get('*/api/v1/tax', ({ request }) => { asked.push(`tax ${new URL(request.url).searchParams.get('year')}`); return HttpResponse.json(estimate()); }),
+      http.get('*/api/v1/tax', ({ request }) => { asked.push(`tax ${new URL(request.url).searchParams.get('year')}`); return HttpResponse.json(rentalEstimate()); }),
       http.get('*/api/v1/tax/2044', ({ request }) => { asked.push(`2044 ${new URL(request.url).searchParams.get('year')}`); return HttpResponse.json(loaded); }),
     );
     const { container } = await renderApp('/tax?tab=2044');
@@ -578,7 +476,7 @@ describe('TaxPage, Déclaration 2044 tab', () => {
     const check = screen.getByRole('region', { name: 'À vérifier' });
     expect(within(check).getByRole('link', { name: 'Studio' })).toHaveAttribute('href', '/properties/a?tab=expenses');
     expect(within(check).getByText('Travaux')).toBeInTheDocument();
-    expect(screen.getByText(/Studio : 600,00 € de charges/)).toBeInTheDocument();
+    expect(within(screen.getByRole('region', { name: 'À savoir' })).getByText('600,00 €')).toBeInTheDocument();
     expect(asked).toContain('2044 2025');
     expect(asked).toContain('tax 2025');
     await expectNoAxeViolations(container);
@@ -590,14 +488,15 @@ describe('TaxPage, Déclaration 2044 tab', () => {
     server.use(
       http.get('*/api/v1/tax', async ({ request }) => {
         if (new URL(request.url).searchParams.get('year') !== String(new Date().getFullYear())) await lastYear;
-        return HttpResponse.json(estimate());
+        return HttpResponse.json(rentalEstimate());
       }),
       http.get('*/api/v1/tax/2044', () => HttpResponse.json(view2044())),
     );
     const { user } = await renderApp('/tax');
 
-    await user.click(await screen.findByRole('tab', { name: 'Déclaration 2044' }));
-    expect(screen.getByRole('tab', { name: 'Déclaration 2044', selected: true })).toBeInTheDocument();
+    await user.click(await screen.findByRole('tab', { name: 'Déclarations' }));
+    await user.click(screen.getByRole('radio', { name: '2044' }));
+    expect(screen.getByRole('tab', { name: 'Déclarations', selected: true })).toBeInTheDocument();
     expect(screen.queryByLabelText('Calcul de l’impôt')).not.toBeInTheDocument();
     release();
     expect(await screen.findByRole('region', { name: 'Studio' })).toBeInTheDocument();
@@ -610,7 +509,7 @@ describe('TaxPage, Déclaration 2044 tab', () => {
       toCheck: [{ property: 'a', name: 'Studio', occurredOn: '2025-04-02', category: 'works', note: null, amount: '3000.00' }],
     });
     server.use(
-      http.get('*/api/v1/tax', () => HttpResponse.json(estimate())),
+      http.get('*/api/v1/tax', () => HttpResponse.json(rentalEstimate())),
       http.get('*/api/v1/tax/2044', () => HttpResponse.json(micro)),
     );
     await renderApp('/tax?tab=2044');
@@ -627,7 +526,7 @@ describe('TaxPage, Déclaration 2044 tab', () => {
   it('numbers the deficit lines 435 and 438 when the interest exceeds the rents, 440 and 441 otherwise', async () => {
     const totals = { ...view2044().totals, result: '-500.00', globalDeficit: '500.00', carriedDeficit: '100.00' };
     const answer = (interestDeficit: string) => server.use(
-      http.get('*/api/v1/tax', () => HttpResponse.json(estimate())),
+      http.get('*/api/v1/tax', () => HttpResponse.json(rentalEstimate())),
       http.get('*/api/v1/tax/2044', () => HttpResponse.json(view2044({ totals: { ...totals, interestDeficit } }))),
     );
     answer('300.00');
@@ -643,22 +542,10 @@ describe('TaxPage, Déclaration 2044 tab', () => {
     expect(screen.queryByText('435')).not.toBeInTheDocument();
   });
 
-  it('a deficit is named by its label, the figure carries no colour', async () => {
-    server.use(
-      http.get('*/api/v1/tax', () => HttpResponse.json(estimate())),
-      http.get('*/api/v1/tax/2044', () => HttpResponse.json(view2044({ totals: { ...view2044().totals, result: '-500.00', globalDeficit: '500.00' } }))),
-    );
-    await renderApp('/tax?tab=2044');
-
-    const figure = (await screen.findByText('Déficit', { selector: 'dt' })).nextElementSibling!;
-    expect(figure).toHaveTextContent('-500,00');
-    expect(figure.className).not.toMatch(/text-status-|text-destructive/);
-  });
-
   it('falls back to last year when ?year= is not one of the offered years', async () => {
     const asked: string[] = [];
     server.use(
-      http.get('*/api/v1/tax', ({ request }) => { asked.push(`tax ${new URL(request.url).searchParams.get('year')}`); return HttpResponse.json(estimate()); }),
+      http.get('*/api/v1/tax', ({ request }) => { asked.push(`tax ${new URL(request.url).searchParams.get('year')}`); return HttpResponse.json(rentalEstimate()); }),
       http.get('*/api/v1/tax/2044', ({ request }) => { asked.push(`2044 ${new URL(request.url).searchParams.get('year')}`); return HttpResponse.json(view2044()); }),
     );
     await renderApp('/tax?tab=2044&year=2024');
@@ -670,7 +557,7 @@ describe('TaxPage, Déclaration 2044 tab', () => {
 
   it('says so when the year has no rental income', async () => {
     server.use(
-      http.get('*/api/v1/tax', () => HttpResponse.json(estimate())),
+      http.get('*/api/v1/tax', () => HttpResponse.json(rentalEstimate())),
       http.get('*/api/v1/tax/2044', () => HttpResponse.json(view2044({ properties: [] }))),
     );
     await renderApp('/tax?tab=2044');
@@ -688,10 +575,32 @@ describe('TaxPage, Déclaration 2044 tab', () => {
 
     it('offers the years that have a notice', async () => {
       server.use(notices(soloAssessment({ year: 2018 }), jointAssessment({ year: 2023 })), http.get('*/api/v1/tax', () => HttpResponse.json(estimate())));
-      await renderApp('/tax');
+      const { user } = await renderApp('/tax');
 
-      const group = await screen.findByRole('radiogroup', { name: 'Année des revenus' });
-      await waitFor(() => expect(within(group).getAllByRole('radio').map((r) => r.textContent)).toEqual(['2018', '2023', '2025', '2026']));
+      await screen.findByRole('tab', { name: 'Calcul' });
+      await user.click(screen.getByRole('button', { name: '2026, changer d’année' }));
+      const grid = await screen.findByRole('dialog', { name: 'Année des revenus' });
+      await waitFor(() => expect(within(grid).getAllByRole('button').map((b) => b.textContent)).toEqual(['2018 Avis', '2023 Avis', '2025 Estimation', '2026 Estimation']));
+    });
+
+    it('marks a year with both a notice and an estimate', async () => {
+      server.use(notices(jointAssessment({ year: 2025 })), http.get('*/api/v1/tax', () => HttpResponse.json(estimate())));
+      const { user } = await renderApp('/tax');
+
+      await screen.findByRole('tab', { name: 'Calcul' });
+      await user.click(screen.getByRole('button', { name: '2026, changer d’année' }));
+      const grid = await screen.findByRole('dialog');
+      await waitFor(() => expect(within(grid).getByRole('button', { name: /^2025/ })).toHaveTextContent('2025 Avis + estimation'));
+    });
+
+    it('puts the year in the header, not in a filter row', async () => {
+      server.use(http.get('*/api/v1/tax', () => HttpResponse.json(estimate())));
+      const { container } = await renderApp('/tax');
+
+      await screen.findByRole('tab', { name: 'Calcul' });
+      const header = container.querySelector<HTMLElement>('[data-page-header]')!;
+      expect(within(header).getByRole('group', { name: 'Année des revenus' })).toBeInTheDocument();
+      expect(screen.queryByRole('group', { name: 'Filtres' })).toBeNull();
     });
 
     it('shows a past year’s notices without calling the estimate', async () => {
@@ -703,66 +612,6 @@ describe('TaxPage, Déclaration 2044 tab', () => {
       expect(years).toEqual([]);
     });
 
-    it('shows the tax year by year, a notice before an estimate', async () => {
-      const years = taxCalls();
-      const loaded = estimate();
-      loaded.result = result({ capitalFlatTax: '120.00' });
-      server.use(notices(soloAssessment({ year: 2024 }), jointAssessment({ year: 2025 })), http.get('*/api/v1/tax', ({ request }) => {
-        years.push(new URL(request.url).searchParams.get('year'));
-        return HttpResponse.json(loaded);
-      }));
-      const { container } = await renderApp('/tax?tab=evolution');
-
-      const table = await screen.findByRole('table', { name: 'Évolution de l’impôt d’une année à l’autre' });
-      await waitFor(() => expect(within(table).getAllByRole('row')).toHaveLength(4));
-      expect(within(table).getByRole('row', { name: /^2024/ })).toHaveTextContent(/^2024—2 100,00 €.*—.*Avis/);
-      expect(within(table).getByRole('row', { name: /^2025/ })).toHaveTextContent(/^202570 000,00 €2 688,00 €.*4,5 %.*Avis/);
-      const current = within(table).getByRole('row', { name: /^2026/ });
-      expect(current).toHaveTextContent(/^202664 407,00 €247,00 €\+ 120,00 € de prélèvement forfaitaire.*0,38 %.*Estimation/);
-      expect(current).toHaveAttribute('aria-current', 'true');
-      expect(years).not.toContain('2025');
-      await expectNoAxeViolations(container);
-    });
-
-    it('opens the notices’ net tax in the explorer, and shows no link without a notice', async () => {
-      server.use(notices(soloAssessment({ year: 2024 })), http.get('*/api/v1/tax', () => HttpResponse.json(estimate())));
-      const { user, router } = await renderApp('/tax?tab=evolution');
-      await user.click(await screen.findByRole('link', { name: 'Voir la série' }));
-      await waitFor(() => expect(router.state.location.pathname).toBe('/series'));
-      expect(router.state.location.search).toMatchObject({ s: 'tax:yearly' });
-      cleanup();
-
-      server.use(notices(soloAssessment({ year: 2024, netTax: undefined })), http.get('*/api/v1/tax', () => HttpResponse.json(estimate())));
-      await renderApp('/tax?tab=evolution');
-      await screen.findByRole('table', { name: 'Évolution de l’impôt d’une année à l’autre' });
-      expect(screen.queryByRole('link', { name: 'Voir la série' })).not.toBeInTheDocument();
-    });
-
-    it('says what changed since last year, line by line, sorted by the server', async () => {
-      let asked: string | null = null;
-      server.use(http.get('*/api/v1/tax', () => HttpResponse.json(estimate())), http.get('*/api/v1/tax/changes', ({ request }) => {
-        asked = new URL(request.url).searchParams.get('year');
-        return HttpResponse.json({
-          year: 2026, taxBefore: '2500.00', taxBeforeFromNotice: true, taxNow: '6604.00', remainder: '-396.00',
-          lines: [
-            { code: 'salaries', person: ADULT, before: '30000.00', now: '45000.00', effect: '4500.00', fromNotice: true },
-            { code: 'shares', person: null, before: '1.00', now: '1.50', effect: '-1807.00', fromNotice: false },
-          ],
-        });
-      }));
-      const { container } = await renderApp('/tax?tab=evolution');
-
-      const table = await screen.findByRole('table', { name: 'Ce qui a changé depuis 2025' });
-      const rows = within(table).getAllByRole('row');
-      expect(rows[1]).toHaveTextContent(/^Salaires nets — Alice30 000,00 €avis45 000,00 €\+4 500,00 €$/);
-      expect(rows[2]).toHaveTextContent(/^Parts11,5-1 807,00 €$/);
-      expect(rows[3]).toHaveTextContent(/barème, plafonds, arrondis-396,00 €$/);
-      expect(rows[4]).toHaveTextContent(/2 500,00 €avis6 604,00 €$/);
-      expect(screen.getByText(/^Indicatif/)).toBeInTheDocument();
-      expect(asked).toBe('2026');
-      await expectNoAxeViolations(container);
-    });
-
     it('has an Avis tab beside the estimate of a year that has a notice', async () => {
       server.use(notices(jointAssessment({ year: 2025 })), http.get('*/api/v1/tax', () => HttpResponse.json(estimate())));
       const { user } = await renderApp('/tax?year=2025');
@@ -771,56 +620,21 @@ describe('TaxPage, Déclaration 2044 tab', () => {
       expect(await screen.findByRole('region', { name: 'Avis 2025' })).toBeInTheDocument();
     });
 
-    it('Shows_the_gaps_above_their_notice', async () => {
-      const loaded = estimate();
-      const a = jointAssessment({ year: 2025 });
-      loaded.gaps = {
-        assessment: a.id,
-        lines: [
-          { code: 'balance', notice: '-312.00', nid: null, gap: null },
-          { code: 'net_tax', notice: '2688.00', nid: '2500.00', gap: '188.00' },
-        ],
-        declarants: [{ person: ADULT, notice: '46800.00', nid: '46000.00', gap: '800.00' }],
-      };
-      // The names come from the estimate's adults, not from the persons list.
-      server.use(notices(a), http.get('*/api/v1/tax', () => HttpResponse.json(loaded)), http.get('*/api/v1/core/persons', () => HttpResponse.json([])));
-      const { user } = await renderApp('/tax?year=2025');
-
-      await user.click(await screen.findByRole('tab', { name: 'Avis' }));
-      const table = await screen.findByRole('table', { name: 'Écarts entre l’avis et l’estimation' });
-      const rows = within(table).getAllByRole('row').slice(1);
-      expect(rows.map((r) => r.firstChild?.textContent)).toEqual(['Impôt net', 'Solde', 'Salaires nets — Alice']);
-      expect(rows[0]).toHaveTextContent('188,00 €');
-      expect(rows[1]).toHaveTextContent('—');
-      expect(screen.getByText('Écart = avis − estimation de Nid')).toBeInTheDocument();
-      expect(screen.getByText(/prélèvement forfaitaire de 12,8 %/)).toBeInTheDocument();
-      expect(table.compareDocumentPosition(screen.getByRole('region', { name: 'Avis 2025' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    });
-
-    it('No_gap_table_without_gaps', async () => {
-      server.use(notices(jointAssessment({ year: 2025 })), http.get('*/api/v1/tax', () => HttpResponse.json(estimate())));
-      const { user } = await renderApp('/tax?year=2025');
-
-      await user.click(await screen.findByRole('tab', { name: 'Avis' }));
-      await screen.findByRole('region', { name: 'Avis 2025' });
-      expect(screen.queryByRole('table', { name: 'Écarts entre l’avis et l’estimation' })).not.toBeInTheDocument();
-    });
-
-    it('falls back to Calcul when the year switched to has no notice', async () => {
+    it('falls back to the overview when the year switched to has no notice', async () => {
       server.use(notices(jointAssessment({ year: 2025 })), http.get('*/api/v1/tax', () => HttpResponse.json(estimate())));
       const { user } = await renderApp('/tax?year=2025&tab=assessment');
 
       await screen.findByRole('region', { name: 'Avis 2025' });
-      await user.click(screen.getByRole('radio', { name: '2026' }));
-      expect(await screen.findByRole('tab', { name: 'Calcul', selected: true })).toBeInTheDocument();
-      expect(screen.getByRole('table', { name: 'Calcul de l’impôt étape par étape' })).toBeInTheDocument();
+      await pickYear(user, '2026');
+      expect(await screen.findByRole('tab', { name: 'Vue d’ensemble', selected: true })).toBeInTheDocument();
+      expect(screen.getByRole('region', { name: /^Impôt total/ })).toBeInTheDocument();
     });
 
     it('has no Avis tab when the year has no notice', async () => {
       server.use(http.get('*/api/v1/tax', () => HttpResponse.json(estimate())));
       await renderApp('/tax');
 
-      await screen.findByText('Net fiscal');
+      await screen.findByRole('tab', { name: 'Calcul' });
       expect(screen.queryByRole('tab', { name: 'Avis' })).not.toBeInTheDocument();
     });
 
@@ -828,7 +642,7 @@ describe('TaxPage, Déclaration 2044 tab', () => {
       const years = taxCalls();
       await renderApp('/tax?year=2018');
 
-      await screen.findByText('Net fiscal');
+      await screen.findByRole('tab', { name: 'Calcul' });
       expect(years).toEqual(['2026']);
     });
 
@@ -855,102 +669,211 @@ describe('TaxPage, page grammar', () => {
   beforeAll(async () => { await import('./TaxPage'); }, 30_000);
 
   const follows = (a: Element, b: Element) => expect(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  const figures = () => screen.getByText('Impôt total', { selector: 'dt' }).closest('dl')!;
+  const figures = () => screen.getByRole('region', { name: /^Impôt total/ });
   const notices = (...items: ReturnType<typeof jointAssessment>[]) => http.get('*/api/v1/tax/assessments', () => HttpResponse.json({ items }));
-  const tax = () => http.get('*/api/v1/tax', () => HttpResponse.json(estimate()));
+  const tax = () => http.get('*/api/v1/tax', () => HttpResponse.json(rentalEstimate()));
 
-  it('the header holds « Ajouter un avis » alone', async () => {
+  it('the header holds the year, then « Ajouter un avis »', async () => {
     server.use(tax());
     const { container } = await renderApp('/tax');
-    await screen.findByText('Net fiscal');
+    await screen.findByRole('tab', { name: 'Calcul' });
 
     expectHeaderActionRule(container);
     const header = container.querySelector<HTMLElement>('header[data-page-header]')!;
-    expect([...header.querySelectorAll('[data-page-actions] :is(button, a[href])')].map((el) => el.textContent)).toEqual(['Ajouter un avis']);
-    expect(within(header).queryByRole('radiogroup')).not.toBeInTheDocument();
+    expect([...header.querySelectorAll('[data-page-actions] :is(button, a[href])')].map((el) => el.getAttribute('aria-label') ?? el.textContent))
+      .toEqual(['Année précédente', '2026, changer d’année', 'Année suivante', 'Ajouter un avis']);
     expect(within(header).queryByRole('combobox')).not.toBeInTheDocument();
   });
 
-  it('the year is the filter row, above the figures and the tabs', async () => {
+  it('the year sits in the header, above the tabs, the hero inside the first tab', async () => {
     server.use(tax());
     const { container } = await renderApp('/tax');
-    await screen.findByText('Net fiscal');
+    await screen.findByRole('tab', { name: 'Calcul' });
 
-    const row = screen.getByRole('group', { name: 'Filtres' });
-    expectLabelBefore(within(row).getByText('Année des revenus'), within(row).getByRole('radiogroup', { name: 'Année des revenus' }));
-    follows(screen.getByRole('heading', { level: 1 }), row);
-    follows(row, figures());
-    follows(figures(), screen.getByRole('tablist'));
+    const year = screen.getByRole('group', { name: 'Année des revenus' });
+    expect(year.closest('[data-page-actions]')).not.toBeNull();
+    expect(screen.queryByRole('group', { name: 'Filtres' })).toBeNull();
+    follows(year, screen.getByRole('tablist'));
+    follows(screen.getByRole('tablist'), figures());
+    expect(within(screen.getByRole('tabpanel', { name: 'Vue d’ensemble' })).getByRole('region', { name: /^Impôt total/ })).toBe(figures());
     expect(container.querySelector('.text-3xl')).toBeNull();
   });
 
-  it('the year is a list in the filter row past six years', async () => {
+  it('the year stays arrows and a grid past six years', async () => {
     server.use(tax(), notices(...[2019, 2020, 2021, 2022, 2023].map((year) => soloAssessment({ id: `0192f0aa-0000-7000-8000-00000000${year}`, year }))));
-    await renderApp('/tax');
+    const { user } = await renderApp('/tax');
 
-    const row = await screen.findByRole('group', { name: 'Filtres' });
-    const year = await within(row).findByRole('combobox', { name: 'Année des revenus' });
-    expectLabelBefore(within(row).getByText('Année des revenus'), year);
+    await screen.findByRole('tab', { name: 'Calcul' });
+    expect(screen.queryByRole('combobox', { name: 'Année des revenus' })).toBeNull();
+    await user.click(screen.getByRole('button', { name: '2026, changer d’année' }));
+    const grid = await screen.findByRole('dialog');
+    await waitFor(() => expect(within(grid).getAllByRole('button')).toHaveLength(7));
   });
 
-  it('profile and 2044 are ordinary tabs', async () => {
-    server.use(tax(), notices(jointAssessment({ year: 2025 })), http.get('*/api/v1/tax/2044', () => HttpResponse.json(view2044())));
-    const { user } = await renderApp('/tax?year=2025');
+  it('the tabs, in order', async () => {
+    server.use(tax(), notices(jointAssessment({ year: 2025 })));
+    await renderApp('/tax?year=2025');
 
     await screen.findByRole('tab', { name: 'Avis' });
     expect(screen.getAllByRole('tab').map((tab) => tab.textContent))
-      .toEqual(['Calcul', 'Prélèvement', 'Avis', 'Évolution', 'Simuler', 'Profil fiscal', 'Déclaration 2044']);
-    await user.click(screen.getByRole('tab', { name: 'Profil fiscal' }));
+      .toEqual(['Vue d’ensemble', 'Calcul', 'Prélèvement', 'Avis', 'Évolution', 'Simuler', 'Profil fiscal', 'Déclarations']);
+  });
+
+  it('the profile is an ordinary tab', async () => {
+    server.use(tax());
+    const { user } = await renderApp('/tax');
+
+    await user.click(await screen.findByRole('tab', { name: 'Profil fiscal' }));
     expect(await screen.findByRole('form', { name: 'Profil fiscal' })).toBeInTheDocument();
   });
 
-  it.each([['profile', 'Profil fiscal'], ['2044', 'Déclaration 2044']])('?tab=%s still opens that tab', async (id, label) => {
-    server.use(tax(), http.get('*/api/v1/tax/2044', () => HttpResponse.json(view2044())));
-    await renderApp(`/tax?tab=${id}`);
+  it.each([['detail', 'Calcul'], ['withholding', 'Prélèvement'], ['evolution', 'Évolution'], ['simulation', 'Simuler'], ['profile', 'Profil fiscal'], ['declarations', 'Déclarations']])(
+    '?tab=%s opens its tab and shows no hero', async (id, label) => {
+      server.use(tax(), http.get('*/api/v1/tax/2044', () => HttpResponse.json(view2044())));
+      await renderApp(`/tax?tab=${id}`);
 
-    expect(await screen.findByRole('tab', { name: label, selected: true })).toBeInTheDocument();
+      expect(await screen.findByRole('tab', { name: label, selected: true })).toBeInTheDocument();
+      expect(screen.queryByRole('region', { name: /^Impôt total/ })).not.toBeInTheDocument();
+    });
+
+  it.each([['2042', '2042'], ['2044', '2044'], ['%222044%22', '2044']])('?tab=%s lands on Déclarations with its form', async (id, form) => {
+    server.use(tax(), http.get('*/api/v1/tax/2044', () => HttpResponse.json(view2044())));
+    const { user, router } = await renderApp(`/tax?tab=${id}`);
+
+    expect(await screen.findByRole('tab', { name: 'Déclarations', selected: true })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: form, checked: true })).toBeInTheDocument();
+    expect(router.state.location.href).not.toContain('%22');
+    if (form === '2044') expect(router.state.location.href).toContain('form=2044');
+    await user.click(screen.getByRole('tab', { name: 'Calcul' }));
+    expect(router.state.location.href).toContain('tab=detail');
+    expect(router.state.location.href).not.toContain('%22');
   });
 
-  it('the second line of figures and the notes are in « Calcul »', async () => {
+  it('the 2044 is chosen with a plain number in the URL, and an alias names its own form', async () => {
+    server.use(tax(), http.get('*/api/v1/tax/2044', () => HttpResponse.json(view2044())));
+    const { user, router } = await renderApp('/tax?tab=2042&form=2044');
+
+    await screen.findByRole('radio', { name: '2044' });
+    expect(screen.getByRole('radio', { name: '2042', checked: true })).toBeInTheDocument();
+    await user.click(screen.getByRole('radio', { name: '2044' }));
+    await waitFor(() => expect(router.state.location.href).toContain('form=2044'));
+    expect(router.state.location.href).not.toContain('%22');
+    await user.click(screen.getByRole('radio', { name: '2042' }));
+    await waitFor(() => expect(router.state.location.href).not.toContain('form='));
+  });
+
+  it('an old 2044 link to a past year lands on Avis', async () => {
+    server.use(notices(jointAssessment({ year: 2023 })));
+    await renderApp('/tax?tab=2044&year=2023');
+
+    expect(await screen.findByRole('tab', { name: 'Avis', selected: true })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Avis 2023' })).toBeInTheDocument();
+  });
+
+  const history = (asked: string[] = []) => http.get('*/api/v1/tax/history', ({ request }) => {
+    asked.push(new URL(request.url).search);
+    return HttpResponse.json({ years: [{ year: 2023, source: 'assessment', tax: '2100.00', netTaxable: null, averageRate: null }] });
+  });
+
+  it('a past year offers Avis then Évolution', async () => {
+    server.use(notices(jointAssessment({ year: 2023 })), history());
+    const { user, router } = await renderApp('/tax?year=2023');
+
+    expect(await screen.findByRole('tab', { name: 'Avis', selected: true })).toBeInTheDocument();
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Avis', 'Évolution']);
+    expect(screen.getByRole('region', { name: 'Avis 2023' })).toBeInTheDocument();
+    expect(within(screen.getByRole('group', { name: 'Année des revenus' })).getByRole('button', { name: '2023, changer d’année' })).toBeInTheDocument();
+    await user.click(screen.getByRole('tab', { name: 'Évolution' }));
+    expect(await screen.findByRole('tab', { name: 'Évolution', selected: true })).toBeInTheDocument();
+    await user.click(screen.getByRole('tab', { name: 'Avis' }));
+    expect(await screen.findByRole('tab', { name: 'Avis', selected: true })).toBeInTheDocument();
+    expect((router.state.location.search as { tab?: string }).tab).toBeUndefined();
+  });
+
+  it('a past year’s Évolution reads the history only', async () => {
+    const asked: string[] = [];
+    server.use(notices(jointAssessment({ year: 2023 })), history(asked));
+    await renderApp('/tax?year=2023&tab=evolution');
+
+    const chart = await screen.findByRole('region', { name: 'Impôt année par année' });
+    expect(chart).toBeInTheDocument();
+    expect(asked).toEqual(['?scope=household']);
+  });
+
+  it('« Moi » asks the history of « Moi »', async () => {
+    const asked: string[] = [];
+    server.use(notices(soloAssessment({ year: 2023 })), history(asked));
+    await renderApp('/tax?year=2023&tab=evolution&scope=me');
+
+    await screen.findByRole('region', { name: 'Impôt année par année' });
+    expect(asked).toEqual(['?scope=me']);
+  });
+
+  it('a cold load of a past year shows no hero skeleton', async () => {
+    server.use(notices(jointAssessment({ year: 2023 })), http.get('*/api/v1/tax', () => new Promise(() => {})));
+    const { container } = await renderApp('/tax?year=2023&tab=assessment');
+
+    await screen.findByRole('tab', { name: 'Avis', selected: true });
+    expect(container.querySelector('[class*="rounded-[22px]"]')).toBeNull();
+  });
+
+  it('opening the overview from last year’s tab shows its skeleton, not last year’s hero', async () => {
+    let release = () => {};
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    server.use(
+      http.get('*/api/v1/tax', async ({ request }) => {
+        const year = Number(new URL(request.url).searchParams.get('year'));
+        if (year === 2026) await gate;
+        return HttpResponse.json({ ...rentalEstimate(), year, result: { ...result(), year } });
+      }),
+      http.get('*/api/v1/tax/2044', () => HttpResponse.json(view2044())),
+    );
+    const { user } = await renderApp('/tax?tab=declarations');
+
+    await screen.findByRole('radiogroup', { name: 'Formulaire' });
+    await user.click(screen.getByRole('tab', { name: 'Vue d’ensemble' }));
+    expect(await screen.findByRole('status', { name: 'Calcul de l’impôt' })).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: /^Impôt total 2025/ })).not.toBeInTheDocument();
+    release();
+    expect(await screen.findByRole('region', { name: 'Impôt total 2026 · estimation' })).toBeInTheDocument();
+  });
+
+  it('the hero stays on this year after visiting Déclarations', async () => {
+    server.use(tax(), http.get('*/api/v1/tax/2044', () => HttpResponse.json(view2044())));
+    const { user } = await renderApp('/tax');
+
+    await user.click(await screen.findByRole('tab', { name: 'Déclarations' }));
+    await user.click(screen.getByRole('tab', { name: 'Vue d’ensemble' }));
+    expect(await screen.findByRole('region', { name: 'Impôt total 2026 · estimation' })).toBeInTheDocument();
+  });
+
+  it('Calcul holds the steps and nothing of the overview', async () => {
     server.use(tax());
-    await renderApp('/tax');
+    await renderApp('/tax?tab=detail');
 
     const panel = await screen.findByRole('tabpanel', { name: 'Calcul' });
-    expect(within(panel).getByText('Net fiscal')).toBeInTheDocument();
-    expect(within(panel).getByRole('img', { name: /^Reste / })).toBeInTheDocument();
-    expect(within(panel).getByText(/Prime : pas de brut renseigné/)).toBeInTheDocument();
-    follows(screen.getByRole('tablist'), screen.getByText('Net fiscal'));
-    // Issue 355: the tables fill the column, as every other table; no reading width of their own.
-    const capped = (el: Element | null): boolean => !!el && el !== panel && (/\bmax-w-(?!full\b)/.test(el.className) || capped(el.parentElement));
-    expect(within(panel).getAllByRole('table').filter(capped).map((table) => table.getAttribute('aria-label'))).toEqual([]);
+    expect(await within(panel).findByRole('region', { name: 'Du revenu à l’impôt' })).toBeInTheDocument();
+    expect(within(panel).queryByRole('region', { name: 'Où vont vos revenus' })).not.toBeInTheDocument();
+    expect(within(panel).queryByRole('region', { name: 'À savoir' })).not.toBeInTheDocument();
+    follows(screen.getByRole('tablist'), panel);
   });
 
-  it('a past year shows its notices, with the year row and no tabs', async () => {
-    server.use(notices(jointAssessment({ year: 2023 })));
-    await renderApp('/tax?year=2023');
-
-    expect(await screen.findByRole('region', { name: 'Avis 2023' })).toBeInTheDocument();
-    expect(within(screen.getByRole('group', { name: 'Filtres' })).getByRole('radio', { name: '2023', checked: true })).toBeInTheDocument();
-    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
-  });
-
-  it('printing the 2044 hides the figures and the notes', async () => {
-    server.use(tax(), http.get('*/api/v1/tax/2044', () => HttpResponse.json(view2044())));
-    await renderApp('/tax?tab=2044');
-
-    await screen.findByRole('region', { name: 'Studio' });
-    expect(figures().parentElement).toHaveClass('print:hidden');
-    expect(screen.getByRole('group', { name: 'Filtres' }).parentElement).toHaveClass('print:hidden');
-    expect(screen.getByRole('heading', { level: 2, name: 'Déclaration 2044 — revenus 2025', hidden: true })).toHaveClass('print:block');
-    // The notes live in « Calcul »: not rendered, so not printed, with the 2044.
-    expect(screen.queryByText(/Prime : pas de brut renseigné/)).not.toBeInTheDocument();
-  });
-
-  it('prints the figures with the estimate', async () => {
+  it('prints the hero with the overview', async () => {
     server.use(tax());
     await renderApp('/tax');
 
-    await screen.findByText('Net fiscal');
+    expect(await screen.findByRole('region', { name: /^Impôt total/ })).toBeInTheDocument();
     expect(figures().parentElement).not.toHaveClass('print:hidden');
+  });
+
+  it('printing a declaration prints the form only', async () => {
+    server.use(tax(), http.get('*/api/v1/tax/2044', () => HttpResponse.json(view2044())));
+    await renderApp('/tax?tab=declarations&form=2044');
+
+    await screen.findByRole('region', { name: 'Studio' });
+    expect(screen.queryByRole('region', { name: /^Impôt total/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Année des revenus', hidden: true }).closest('header')!.parentElement).toHaveClass('print:hidden');
+    expect(screen.getByRole('radiogroup', { name: 'Formulaire' }).parentElement).toHaveClass('print:hidden');
+    expect(screen.getByRole('heading', { level: 2, name: 'Déclaration 2044 — revenus 2025', hidden: true })).toHaveClass('print:block');
   });
 });

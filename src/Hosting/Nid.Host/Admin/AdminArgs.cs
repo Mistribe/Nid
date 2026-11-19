@@ -1,17 +1,27 @@
 namespace Nid.Host.Admin;
 
-public sealed record ParsedArgs(string? Command, IReadOnlyDictionary<string, string> Options, bool Yes, bool Help, string? Error);
+public sealed record ParsedArgs(string? Command, IReadOnlyDictionary<string, string> Options, bool Yes, bool Help, string? Error, bool RevokeTokens = false);
 
 /// <summary>`nid admin` arguments (1F4 design §3): a command, then `--name value` options, `--yes`, `--help`.</summary>
 public static class AdminArgs
 {
     private static readonly Dictionary<string, (string[] Required, string Summary, string Usage)> Commands = new(StringComparer.Ordinal)
     {
-        ["list-persons"] = ([], "Lister les personnes (identifiant, type, état, admin, sub rattaché).", "nid admin list-persons"),
+        ["list-persons"] = ([], "Lister les personnes (identifiant, type, état, admin, sub rattaché, connexion, verrouillage).", "nid admin list-persons"),
         ["revoke-sessions"] = (["person"], "Fermer toutes les sessions d'un adulte.", "nid admin revoke-sessions --person <id|email|nom>"),
         ["revoke-tokens"] = (["person"], "Révoquer tous les jetons d'accès actifs d'un adulte.", "nid admin revoke-tokens --person <id|email|nom>"),
         ["rebind-subject"] = (["person", "sub"], "Rattacher un adulte à un nouveau sub OIDC ; ferme ses sessions (confirmation demandée).",
             "nid admin rebind-subject --person <id|email|nom> --sub <sub> [--yes]"),
+        // Issue 215: local accounts (local-accounts.md §15). A link is printed, never a password asked for.
+        ["create-admin"] = (["name"], "Créer un adulte administrateur et afficher son lien pour choisir un mot de passe (comptes locaux).",
+            "nid admin create-admin --name <nom> [--email <email>]"),
+        ["reset-password"] = (["person"], "Afficher un lien à usage unique pour choisir un nouveau mot de passe ; déverrouille le compte.",
+            "nid admin reset-password --person <id|email|nom> [--revoke-tokens]"),
+        ["unlock"] = (["person"], "Déverrouiller le compte local d'un adulte après trop d'échecs.", "nid admin unlock --person <id|email|nom>"),
+        ["reset-totp"] = (["person"], "Désactiver la validation en deux étapes d'un adulte (téléphone et codes de secours perdus) ; ferme ses sessions.",
+            "nid admin reset-totp --person <id|email|nom>"),
+        ["grant-admin"] = (["person"], "Donner le rôle admin à un adulte (quand Nid décide du rôle).", "nid admin grant-admin --person <id|email|nom>"),
+        ["revoke-admin"] = (["person"], "Retirer le rôle admin à un adulte ; le dernier admin le garde.", "nid admin revoke-admin --person <id|email|nom>"),
     };
 
     public static ParsedArgs Parse(IReadOnlyList<string> args)
@@ -20,15 +30,17 @@ public static class AdminArgs
         string? command = null;
         var yes = false;
         var help = false;
+        var revokeTokens = false;
         for (var i = 0; i < args.Count; i++)
         {
             var arg = args[i];
             if (arg is "--help" or "-h") { help = true; continue; }
             if (arg == "--yes") { yes = true; continue; }
+            if (arg == "--revoke-tokens") { revokeTokens = true; continue; }
             if (arg.StartsWith("--", StringComparison.Ordinal))
             {
                 var name = arg[2..];
-                if (name is not ("person" or "sub"))
+                if (name is not ("person" or "sub" or "name" or "email"))
                     return new(command, options, yes, help, $"Option inconnue : {arg}.");
                 if (i + 1 >= args.Count || args[i + 1].StartsWith("--", StringComparison.Ordinal))
                     return new(command, options, yes, help, $"L'option {arg} attend une valeur.");
@@ -46,7 +58,7 @@ public static class AdminArgs
             return new(command, options, yes, help, $"Commande inconnue : {command}.");
         var missing = spec.Required.FirstOrDefault(r => !options.ContainsKey(r));
         return missing is null
-            ? new(command, options, yes, help, null)
+            ? new(command, options, yes, help, null, revokeTokens)
             : new(command, options, yes, help, $"L'option --{missing} est obligatoire.");
     }
 

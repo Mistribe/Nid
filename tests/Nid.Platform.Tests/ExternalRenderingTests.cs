@@ -15,7 +15,7 @@ public class ExternalRenderingTests
     private static readonly (string Kind, string Module)[] Kinds =
     [
         ("subscription_renewal", "subscriptions"), ("subscription_expiry", "subscriptions"),
-        ("subscription_cancel_deadline", "subscriptions"),
+        ("subscription_cancel_deadline", "subscriptions"), ("subscription_trial_end", "subscriptions"), ("subscription_price_increase", "subscriptions"),
         ("subscriptions.ends_without_renewal", "subscriptions"), ("tenancy_end", "properties"), ("property_cost_due", "properties"),
         ("rent_arrears", "properties"), ("revision_due", "properties"), ("revision_lost", "properties"), ("irl_missing", "properties"),
         ("valuation_stale", "properties"), ("loan_phase_end", "loans"), ("loan_end", "loans"),
@@ -189,5 +189,24 @@ public class ExternalRenderingTests
         var digest = renderer.Digest([(Record("loan_end"), KindOf("loan_end", "loans"))], Names("Prêt"));
 
         Assert.Equal("Nid : 1 notification", digest.Subject);
+    }
+
+    [Fact]
+    public void A_signals_figures_never_leave_the_application()
+    {
+        var row = Record("net_worth_milestone", NotificationLevel.Info, items: [],
+            parameters: new Dictionary<string, string> { ["net_worth_amount"] = "302140", ["step_amount"] = "300000" });
+        var kind = KindOf("net_worth_milestone", "core", NotificationLevel.Info);
+
+        var one = renderer.One(row, kind, Names("Maison"));
+        var digest = renderer.Digest([(row, kind)], Names("Maison"));
+
+        Assert.Contains("Votre patrimoine a franchi un palier", one.Text);
+        Assert.Contains("https://nid.example/dashboard", one.Text);
+        foreach (var text in new[] { one.Text, one.Html, digest.Text, digest.Html })
+        {
+            Assert.DoesNotContain("€", text);
+            Assert.DoesNotContain("300", text);
+        }
     }
 }

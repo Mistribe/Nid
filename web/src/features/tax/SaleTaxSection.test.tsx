@@ -126,10 +126,31 @@ describe('SaleTaxSection', () => {
     expect(s.queryByText('Abattement utilisé', { selector: 'dt' })).not.toBeInTheDocument();
   });
 
+  it('shows the section’s skeleton while the sale loads', async () => {
+    server.use(
+      http.get('*/api/v1/realestate/properties/:id', () => HttpResponse.json(propertyDetail())),
+      http.get('*/api/v1/tax/sale', () => new Promise(() => {})),
+    );
+    const { container } = await renderApp(`/properties/${PROPERTY}`);
+
+    expect(await screen.findByRole('status', { name: 'Calcul de l’impôt' })).toBeInTheDocument();
+    expect(container.querySelector('[data-slot="skeleton"]')).not.toBeNull();
+  });
+
+  it('shows a section skeleton while the sale tax loads', async () => {
+    server.use(
+      http.get('*/api/v1/realestate/properties/:id', () => HttpResponse.json(propertyDetail())),
+      http.get('*/api/v1/tax/sale', () => new Promise(() => {})),
+    );
+    await renderApp(`/properties/${PROPERTY}`);
+    const status = await screen.findByRole('status', { name: 'Calcul de l’impôt' });
+    expect(status.querySelector('.shimmer:not([data-slot="skeleton"])')).toBeNull();
+  });
+
   it('shows a server error inside the titled section', async () => {
     server.use(
       http.get('*/api/v1/realestate/properties/:id', () => HttpResponse.json(propertyDetail())),
-      http.get('*/api/v1/tax/sale', () => HttpResponse.json({ status: 500, title: 'Boom' }, { status: 500, headers: { 'Content-Type': 'application/problem+json' } })),
+      http.get('*/api/v1/tax/sale', () => HttpResponse.json({ status: 500, detail: 'Boom' }, { status: 500, headers: { 'Content-Type': 'application/problem+json' } })),
     );
     await renderApp(`/properties/${PROPERTY}`);
 

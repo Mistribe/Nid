@@ -9,6 +9,7 @@ import { useLineActions } from './api';
 import '@/locales/banks';
 
 const LinkDialog = lazy(() => import('./LinkDialog'));
+const CategoryDialog = lazy(() => import('./CategoryDialog'));
 
 /** What a line says about its link: « À relier », « Reliée · Netflix », « Reliée » when the target is not the reader's to see… */
 export function lineState(t: TFunction, l: BankTransaction): string {
@@ -17,21 +18,24 @@ export function lineState(t: TFunction, l: BankTransaction): string {
   return t(l.linkState === 'ignored' ? 'banks.operations.ignored' : 'banks.operations.unlinked');
 }
 
-/** A line's `⋯` menu: « Relier… » and « Ignorer » on an unlinked line, « Délier » on a linked or ignored one; a refusal shows under it. */
+/** A line's `⋯` menu: « Relier… » and « Ignorer » on an unlinked line, « Délier » on a linked or ignored one, « Catégoriser… » on any but an ignored one; a refusal shows under it. */
 export function LineActions({ line, onDone }: { line: BankTransaction; onDone: (message: string) => void }) {
   const { t } = useTranslation();
   const { unlink, ignore } = useLineActions();
   const [linking, setLinking] = useState(false);
+  const [categorising, setCategorising] = useState(false);
   const run = (action: typeof unlink, message: string) => () => action.mutate({ params: { path: { id: line.id } } }, { onSuccess: () => onDone(message) });
   const items = line.linkState === 'unlinked'
     ? [{ label: t('banks.operations.link'), onSelect: () => setLinking(true) }, { label: t('banks.operations.ignore'), onSelect: run(ignore, t('banks.operations.done_ignore')) }]
     : [{ label: t('banks.operations.unlink'), onSelect: run(unlink, t('banks.operations.done_unlink')) }];
+  if (line.linkState !== 'ignored') items.push({ label: t('banks.operations.categorise'), onSelect: () => setCategorising(true) });
   const error = unlink.error ?? ignore.error;
   return (
     <span className="flex flex-col items-end gap-2">
       <RowMenu label={t('banks.operations.actions')} items={items} />
       {error ? <ProblemMessage problem={present(toProblem(error))} /> : null}
       {linking ? <Suspense fallback={null}><LinkDialog line={line} onClose={() => setLinking(false)} onDone={(m) => { setLinking(false); onDone(m); }} /></Suspense> : null}
+      {categorising ? <Suspense fallback={null}><CategoryDialog line={line} onClose={() => setCategorising(false)} onDone={(m) => { setCategorising(false); onDone(m); }} /></Suspense> : null}
     </span>
   );
 }

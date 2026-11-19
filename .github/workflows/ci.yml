@@ -5,10 +5,13 @@ name: ci
 #  - a pull request into `main` calls, in parallel, the workflows its files concern: backend.yml (build, openapi.json, unit and
 #    integration tests), web.yml (API client, types, lint, vitest, build, budget), e2e.yml (every Playwright journey, images
 #    scanned by Trivy); and reviews its new dependencies;
+#  - `sonarqube` analyses the whole repository on SonarQube Cloud with the coverage backend.yml and web.yml report, and fails a
+#    pull request whose new code fails the quality gate;
 #  - `ci-ok` sums them up: it is the one check the `main` ruleset requires (with `changelog`);
-#  - `main` runs only the release (`version`, `build`, `publish`, `release`: the images on ghcr.io, then the tag and its
-#    GitHub release, and `demo`: the public demo moves to that version): the pull request already ran its checks on the tree
-#    being merged;
+#  - `main` runs the release (`version`, `build`, `publish`, `release`: the images on ghcr.io, then the tag and its GitHub
+#    release, and `demo`: the public demo moves to that version), which waits for no test: the pull request already ran them on
+#    the tree being merged. Alongside, backend.yml and web.yml run again only for `sonarqube`, so that the analysis of `main`
+#    has its coverage;
 #  - every Monday, every check runs on `main` whatever changed: base images, the identity provider and the browsers move without
 #    a push;
 #  - a push that only touches docs releases nothing; a pull request that only touches docs runs only `changes` and `ci-ok`.
@@ -19,8 +22,8 @@ name: ci
 # `skipped`, which counts as a pass, and `ci-ok` always reports.
 #
 # Pull requests from forks: `pull_request` only, never `pull_request_target`, so their code runs with a read-only token and no
-# secret. No job holds a secret: the release publishes with the workflow's own token, `demo` signs in to Azure with a
-# federated token (OIDC), and neither ever runs for a pull request.
+# secret. The release publishes with the workflow's own token and `demo` signs in to Azure with a federated token (OIDC); neither
+# ever runs for a pull request. One job holds a secret, `sonarqube` (SONAR_TOKEN): it is skipped for a pull request from a fork.
 on:
   push:
     branches: [main]
@@ -46,9 +49,9 @@ permissions:
   contents: read
 
 jobs:
-  # What the pull request touches. Without a pull request (schedule, workflow_dispatch), everything runs.
+  # What the pull request touches. Without a pull request (schedule, workflow_dispatch), everything runs; a push to main runs the
+  # backend and the web app for the coverage of `sonarqube`, not the journeys.
   changes:
-    if: github.event_name != 'push'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -62,7 +65,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           PR: ${{ github.event.pull_request.number }}
+          EVENT: ${{ github.event_name }}
         run: |
+          if [ "$EVENT" = push ]; then
+            { echo "backend=true"; echo "web=true"; echo "e2e=false"; } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           if [ -z "$PR" ]; then
             { echo "backend=true"; echo "web=true"; echo "e2e=true"; } >> "$GITHUB_OUTPUT"
             exit 0
@@ -85,11 +93,15 @@ jobs:
     needs: changes
     if: needs.changes.outputs.backend == 'true'
     uses: ./.github/workflows/backend.yml
+    with:
+      coverage: true # for `sonarqube`
 
   web:
     needs: changes
     if: needs.changes.outputs.web == 'true'
     uses: ./.github/workflows/web.yml
+    with:
+      coverage: true # for `sonarqube`
 
   e2e:
     needs: changes
@@ -105,10 +117,77 @@ jobs:
         with:
           fail-on-severity: high
 
+  # SonarQube Cloud (project mistribe_nid): one analysis of the whole repository, its own for a pull request. SonarScanner for
+  # .NET wraps the build of the solution for C# and analyses the other files of the tree (TypeScript, CSS, YAML…) from the root.
+  # The coverage is what backend and web reported (`coverage-*` artifacts): on a pull request, only the areas it touches, which
+  # is all its new code. Runs even when a test failed: the analysis then counts the coverage the other tests reported. On a pull
+  # request, it waits for the quality gate and fails when the new code fails it: a false positive is marked in SonarQube Cloud,
+  # then the job re-run. A push to main does not wait: its gate covers code nobody is merging.
+  sonarqube:
+    needs: [changes, backend, web]
+    if: >-
+      !cancelled()
+      && (needs.changes.outputs.backend == 'true' || needs.changes.outputs.web == 'true')
+      && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # blame and new code: the analysis reads the whole history
+          persist-credentials: false
+      # The scanner's engine runs on Java.
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          java-version: 21
+          distribution: zulu
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          global-json-file: global.json
+      # The analysers SonarQube Cloud downloads at each run.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+      # The .NET reports name the sources by their absolute path, the same on every runner (the workspace's).
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: coverage-*
+          path: coverage
+          merge-multiple: true
+      # dotnet-sonarscanner, pinned in .config/dotnet-tools.json (Renovate updates it).
+      - run: dotnet tool restore
+      # Excluded: what is generated (EF migrations, the OpenAPI document and the types made from it) and the captured pages and
+      # generators of tests/vectors. Out of the coverage: the scripts of deploy/ and the Playwright journeys, which no unit test
+      # runs. Rules ignored where they are wrong by design: the import parsers' `&` evaluates every check so that one answer
+      # lists every error (S2178); `[` rather than `[[` in the shell scripts is style only (S7688).
+      - name: Build and analyse
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          GATE_WAIT: ${{ github.event_name == 'pull_request' }}
+        run: |
+          dotnet tool run dotnet-sonarscanner begin \
+            /k:"mistribe_nid" /o:"mistribe" \
+            /d:sonar.host.url="https://sonarcloud.io" \
+            /d:sonar.token="$SONAR_TOKEN" \
+            /d:sonar.qualitygate.wait="$GATE_WAIT" \
+            /d:sonar.exclusions="**/Migrations/**,web/src/api/openapi.json,web/src/api/schema.d.ts,tests/vectors/**" \
+            /d:sonar.issue.ignore.multicriteria="parsers,shell" \
+            /d:sonar.issue.ignore.multicriteria.parsers.ruleKey="csharpsquid:S2178" \
+            /d:sonar.issue.ignore.multicriteria.parsers.resourceKey="src/**/Import/**" \
+            /d:sonar.issue.ignore.multicriteria.shell.ruleKey="shell:S7688" \
+            /d:sonar.issue.ignore.multicriteria.shell.resourceKey="**/*.sh" \
+            /d:sonar.coverage.exclusions="deploy/**,web/e2e/**" \
+            /d:sonar.cs.vscoveragexml.reportsPaths="coverage/*.coverage.xml" \
+            /d:sonar.javascript.lcov.reportPaths="coverage/lcov.info"
+          dotnet build Nid.slnx --configuration Release
+          dotnet tool run dotnet-sonarscanner end /d:sonar.token="$SONAR_TOKEN"
+
   # The required check: fails if any part failed or was cancelled; a skipped part is a pass.
   ci-ok:
     if: always() && github.event_name != 'push'
-    needs: [changes, backend, web, e2e, dependencies]
+    needs: [changes, backend, web, e2e, dependencies, sonarqube]
     runs-on: ubuntu-latest
     steps:
       - env:

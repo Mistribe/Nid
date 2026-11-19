@@ -193,6 +193,20 @@ public class ChildcareIntegrationTests(PostgresFixture fixture) : IClassFixture<
         Assert.Equal(september.GetProperty("figures").GetProperty("cost").GetProperty("amount").GetString(), source.GetProperty("amortized").GetProperty("amount").GetString());
     }
 
+    /// <summary>The carer's own sickness is stored as its own reason (the check constraint lists it).</summary>
+    [Fact]
+    public async Task Carer_sickness_is_stored()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var url = $"{await CreateAsync(app)}/statements/2025-10";
+        var days = (await GetAsync(app, url)).GetProperty("days").EnumerateArray().Select(d => d.GetProperty("date").GetString() == "2025-10-06"
+            ? new { date = d.GetProperty("date").GetString(), present = false, arrival = (string?)null, departure = (string?)null, lunch = false, absence = (string?)"carer_sick" }
+            : new { date = d.GetProperty("date").GetString(), present = d.GetProperty("present").GetBoolean(), arrival = d.GetProperty("arrival").GetString(),
+                departure = d.GetProperty("departure").GetString(), lunch = d.GetProperty("lunch").GetBoolean(), absence = d.GetProperty("absence").GetString() }).ToList();
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Put, url, new { days, mileage = "0", cmg = (string?)null, version = 0 })).StatusCode);
+        Assert.Equal("carer_sick", (await GetAsync(app, url)).GetProperty("days").EnumerateArray().Single(d => d.GetProperty("date").GetString() == "2025-10-06").GetProperty("absence").GetString());
+    }
+
     [Fact]
     public async Task Closed_arrangement_commits_nothing()
     {
@@ -211,7 +225,7 @@ public class ChildcareIntegrationTests(PostgresFixture fixture) : IClassFixture<
         if (writable)
             return await scope.ServiceProvider.GetRequiredService<ExpectedChargeReader>().WritableAsync(reader, from, to, CancellationToken.None);
         var source = scope.ServiceProvider.GetServices<IExpectedCharges>().Single(s => s.GetType().Name == "ChildcareCharges");
-        Assert.True((await source.ChargesAsync(reader, from, to, CancellationToken.None)).TryGetValue(out var charges));
+        Assert.True((await source.ChargesAsync(reader, VisibilityScope.Me, from, to, CancellationToken.None)).TryGetValue(out var charges));
         return charges!;
     }
 
@@ -228,6 +242,16 @@ public class ChildcareIntegrationTests(PostgresFixture fixture) : IClassFixture<
         Assert.Equal(september.GetProperty("figures").GetProperty("cost").GetProperty("amount").GetString(), charge.Amount.AmountText);
         Assert.False(charge.Credit);
         Assert.Contains("PAJEMPLOI", charge.LabelHints);
+    }
+
+    [Fact]
+    public async Task Month_entered_long_after_is_expected_back_then()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var arrangement = await CreateAsync(app, from: "2025-08-01");
+        await ValidateAsync(app, arrangement, "2025-08"); // validated on 2025-10-15: debited by the end of September
+        await ValidateAsync(app, arrangement, "2025-09");
+        Assert.Equal(["statement:2025-09"], (await ChargesAsync(app, app.AdultA)).Select(c => c.Key));
     }
 
     [Fact]
@@ -251,7 +275,7 @@ public class ChildcareIntegrationTests(PostgresFixture fixture) : IClassFixture<
     }
 
     [Fact]
-    public void A_childcare_charge_opens_the_arrangement() => Assert.Equal("childcare", BankingNotificationSource.ModuleOf(ChargeKind.Childcare));
+    public void A_childcare_charge_opens_the_arrangement() => Assert.Equal("childcare", ChargeKinds.ModuleOf(ChargeKind.Childcare));
 
     [Fact]
     public async Task A_Pajemploi_line_links_to_the_statement()
@@ -462,6 +486,11 @@ public class ChildcareIntegrationTests(PostgresFixture fixture) : IClassFixture<
         var notice = tax.GetProperty("notices").EnumerateArray().Single(n => n.GetProperty("code").GetString() == "childcare_from_statements");
         Assert.Equal(summary.GetProperty("retained").GetProperty("amount").GetString(), notice.GetProperty("amount").GetString());
         Assert.Equal(summary.GetProperty("id").GetGuid(), notice.GetProperty("item").GetGuid());
+        // #233: the 2042 list puts the costs in the year summary's box, the months still to validate included.
+        var box = tax.GetProperty("declaration").GetProperty("boxes").EnumerateArray().Single(b => b.GetProperty("code").GetString()!.StartsWith("7G"));
+        var inputs = decimal.Parse(tax.GetProperty("inputs").GetProperty("childcareOutsideHome").GetString()!, System.Globalization.CultureInfo.InvariantCulture);
+        Assert.Equal("7GA", box.GetProperty("code").GetString());
+        Assert.Equal(Math.Round(inputs, 0, MidpointRounding.AwayFromZero).ToString("0.00", System.Globalization.CultureInfo.InvariantCulture), box.GetProperty("amount").GetString());
         var declaration = september.GetProperty("figures").GetProperty("declaration");
         Assert.Equal(declaration.GetProperty("netPay").GetString(), summary.GetProperty("netPay").GetProperty("amount").GetString());
         Assert.Equal(declaration.GetProperty("upkeep").GetString(), summary.GetProperty("upkeep").GetProperty("amount").GetString());

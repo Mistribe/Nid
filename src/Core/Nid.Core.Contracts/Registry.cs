@@ -46,13 +46,15 @@ public sealed record ItemAccess(ItemId Id, string DisplayName, Visibility Visibi
 }
 
 /// <summary>
-/// <paramref name="IsPending"/>: an adult an admin pre-registered who has not signed in yet (no OIDC subject).
+/// <paramref name="IsPending"/>: an adult an admin pre-registered who has not signed in yet (no OIDC subject, no local account).
+/// <paramref name="HasSubject"/>, <paramref name="HasLocalAccount"/> (issue 215): how an active adult signs in, never the values.
 /// <paramref name="IsAdmin"/>: the technical role; it never widens Readers or Writers (authorization.md §1).
 /// <paramref name="BirthDate"/> and <paramref name="RetirementAge"/> (50 to 75, 64 until set) feed the net worth projection.
 /// </summary>
 public sealed record PersonInfo(
     PersonId Id, PersonKind Kind, string DisplayName, string? Email, int SessionEpoch,
-    bool IsAdmin = false, bool IsPending = false, LocalDate? BirthDate = null, int RetirementAge = 64, int RetirementMonths = 0);
+    bool IsAdmin = false, bool IsPending = false, LocalDate? BirthDate = null, int RetirementAge = 64, int RetirementMonths = 0,
+    bool HasSubject = false, bool HasLocalAccount = false);
 
 /// <summary>1F4 design §3: what a rebinding did; <c>Changed</c> is false when the adult already had that subject.</summary>
 public sealed record RebindOutcome(PersonInfo Person, string? PreviousSubject, bool Changed);
@@ -78,13 +80,15 @@ public interface IPersonRegistry
     /// the cap is reached (<see cref="PersonCodes.AdultCap"/>) or another adult already has that email under another
     /// subject (<see cref="PersonCodes.EmailTaken"/>: <c>rebind-subject</c> is the way to move an adult to a new subject).
     /// </summary>
-    Task<Result<PersonInfo>> ProvisionAdultAsync(string oidcSubject, string displayName, string? email, bool isAdmin, CancellationToken ct);
+    /// <remarks>Issue 215: a null <paramref name="isAdmin"/> (`Auth:AdminSource=nid`) leaves the role as it is; a new adult starts without it.</remarks>
+    Task<Result<PersonInfo>> ProvisionAdultAsync(string oidcSubject, string displayName, string? email, bool? isAdmin, CancellationToken ct);
 
     /// <summary>The adult bound to this OIDC subject, <c>null</c> when none is.</summary>
     Task<PersonInfo?> FindBySubjectAsync(string oidcSubject, CancellationToken ct);
 
     /// <summary>An admin adds an adult who will be recognised by email at their first sign-in. Pending adults count against the cap.</summary>
-    Task<Result<PersonInfo>> PreRegisterAdultAsync(string displayName, string email, CancellationToken ct);
+    /// <remarks>Issue 215: <paramref name="emailOptional"/> with local accounts only, where the email binds nothing.</remarks>
+    Task<Result<PersonInfo>> PreRegisterAdultAsync(string displayName, string? email, CancellationToken ct, bool emailOptional = false);
 
     Task<Result<PersonInfo>> CreateDependentAsync(string displayName, CancellationToken ct);
 
@@ -120,6 +124,12 @@ public interface IPersonRegistry
 
     /// <summary>"Sign out everywhere": increments the adult's session epoch, so every cookie they hold is refused.</summary>
     Task<Result<PersonInfo>> RevokeSessionsAsync(PersonId id, CancellationToken ct);
+
+    /// <summary>
+    /// Issue 215 (local-accounts.md §6): grants or takes away the admin role of an adult, under the provisioning lock. Taking it
+    /// from the last admin is <see cref="PersonCodes.LastAdmin"/>; a dependent is not found. <c>Changed</c> is false when nothing moved.
+    /// </summary>
+    Task<Result<AdminChange>> SetAdminAsync(PersonId id, bool admin, CancellationToken ct);
 }
 
 public interface IItemRegistry
@@ -155,6 +165,12 @@ public interface IItemRegistry
     /// <see cref="ItemCodes.PrivateHasNoLevel"/>, <see cref="ShareLevel.View"/> changes nothing. Checks no access.
     /// </summary>
     Task<Result> SetShareLevelAsync(ItemId id, ShareLevel level, CancellationToken ct);
+
+    /// <summary>
+    /// #355: the currency of an item created in <see cref="Currency.None"/> (an envelope made from a bank account whose currency the bank
+    /// did not state), once it is known; an item in any other currency is left as it is. Checks no access.
+    /// </summary>
+    Task ResolveCurrencyAsync(ItemId id, Currency currency, CancellationToken ct);
 
     /// <summary>2B1a: archives the item (a closed envelope). Checks no access: the caller has.</summary>
     Task<Result> ArchiveAsync(ItemId id, Instant at, CancellationToken ct);
@@ -208,3 +224,6 @@ public interface IAccessPolicy
     /// </summary>
     Task<Result> CheckCreationAsync(PersonId actor, IReadOnlyList<OwnerShare> owners, CancellationToken ct);
 }
+
+/// <summary>Issue 215: the adult after <see cref="IPersonRegistry.SetAdminAsync"/>, and whether their role changed.</summary>
+public sealed record AdminChange(PersonInfo Person, bool Changed);

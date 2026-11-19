@@ -27,8 +27,8 @@ public sealed class EnvelopePerformance(
     public async Task<Result<PeriodPerformance>> PeriodAsync(ItemId envelope, LocalDate from, LocalDate to, CancellationToken ct)
     {
         if (from > to)
-            return Result.Failure<PeriodPerformance>(new UnambitiousFx.Functional.Failures.Failure(
-                InvestmentsCodes.InvalidPeriod, "The period's start is after its end.", null));
+            return Result.Failure<PeriodPerformance>(new UnambitiousFx.Functional.Failures.BadRequestFailure(
+                "The period's start is after its end.") { Code = InvestmentsCodes.InvalidPeriod });
         var facts = await FactsAsync(envelope, ct);
         if (facts.TryGetFailure(out var failure))
             return Result.Failure<PeriodPerformance>(failure!);

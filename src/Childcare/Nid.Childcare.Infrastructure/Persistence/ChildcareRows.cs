@@ -12,6 +12,9 @@ public sealed class ArrangementRow
     public string? ImportRef { get; set; }
     public string? ImportHash { get; set; }
     public Guid? ImportedBy { get; set; }
+    /// <summary>Why the contract ended (<c>EndReasonCodes</c>) and when it was notified; null while open, or closed before they were asked.</summary>
+    public string? EndReason { get; set; }
+    public LocalDate? EndNotified { get; set; }
     public uint Version { get; set; }
 }
 
@@ -104,6 +107,10 @@ public sealed class StatementRow
     public decimal? TaxBase { get; set; }
     public int? ChildSickDeducted { get; set; }
     public int? PaidLeaveTaken { get; set; }
+    /// <summary>The last month's regularisation, leave and breach indemnities; null on any other month.</summary>
+    public decimal? Regularisation { get; set; }
+    public decimal? LeaveIndemnity { get; set; }
+    public decimal? RuptureIndemnity { get; set; }
     public uint Version { get; set; }
 }
 
@@ -119,4 +126,23 @@ public sealed class StatementDayRow
     public bool Lunch { get; set; }
     public bool Snack { get; set; }
     public string? Absence { get; set; }
+}
+
+/// <summary>#94: a nanny at home; the item is the registry's, this row holds its import mark.</summary>
+public sealed class NannyRow
+{
+    public Guid ItemId { get; set; }
+    public string? ImportRef { get; set; }
+    public string? ImportHash { get; set; }
+    public Guid? ImportedBy { get; set; }
+}
+
+public sealed class NannyMonthRow
+{
+    public Guid ItemId { get; set; }
+    /// <summary>The month's first day.</summary>
+    public LocalDate Month { get; set; }
+    public decimal Paid { get; set; }
+    public decimal Cmg { get; set; }
+    public decimal? Hours { get; set; }
 }

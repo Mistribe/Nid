@@ -60,7 +60,7 @@ describe('ProjectionScenarioPage', () => {
     await waitFor(() => expectTrailBack('Simulations', '/scenarios'));
     cleanup();
 
-    server.use(http.get('*/api/v1/scenarios/projection/:id', () => HttpResponse.json({ status: 404, code: null, title: 'Not found' }, { status: 404 })));
+    server.use(http.get('*/api/v1/scenarios/projection/:id', () => HttpResponse.json({ status: 404, code: null, detail: 'Not found' }, { status: 404 })));
     await renderApp(`/scenarios/projection/${ID}`);
     expect(await screen.findByText('Cet élément est introuvable.')).toBeInTheDocument();
     await waitFor(() => expectTrailBack('Simulations', '/scenarios'));
@@ -105,11 +105,14 @@ describe('ProjectionScenarioPage', () => {
   it('keeps the saved departures when the persons did not load', async () => {
     const retirements = [{ person: ALICE, years: 60, months: 6, monthlyPension: '1500.00' }];
     const { puts } = serve(view({ result: { ...view().result, document: { ...DOCUMENT, retirements } } }));
-    server.use(http.get('*/api/v1/core/persons', () => HttpResponse.json({ status: 500, code: null, title: 'Boom' }, { status: 500 })));
+    // Slow, as on a loaded machine: the read is tried three times and « Enregistrer » waits for its outcome.
+    server.use(http.get('*/api/v1/core/persons', async () => { await delay(100); return HttpResponse.json({ status: 500, code: null, detail: 'Boom' }, { status: 500 }); }));
     const { user } = await renderApp(`/scenarios/projection/${ID}?tab=assumptions`);
 
     await user.click(await screen.findByRole('button', { name: 'Modifier les hypothèses' }));
-    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Enregistrer' }));
+    const save = within(await screen.findByRole('dialog')).getByRole('button', { name: 'Enregistrer' });
+    await waitFor(() => expect(save).toBeEnabled());
+    await user.click(save);
 
     await waitFor(() => expect(puts.at(-1)?.document.retirements).toEqual([{ person: ALICE, years: 60, months: 6, monthlyPension: '1500.00' }]));
   });
@@ -323,8 +326,8 @@ describe('ProjectionScenarioPage', () => {
   it('shows a refused event’s field under it', async () => {
     serve();
     server.use(http.put('*/api/v1/scenarios/projection/:id', () => HttpResponse.json({
-      type: 'about:blank', title: 'Invalid', status: 422, code: 'projection.invalid_field',
-      errors: [{ path: 'events[0].amount', code: 'projection.invalid_field', message: 'The amount is above the balance.' }],
+      type: 'about:blank', detail: 'Invalid', status: 422, code: 'projection.invalid_field',
+      errors: [{ detail: 'The amount is above the balance.', pointer: '#/events/0/amount', code: 'projection.invalid_field' }],
     }, { status: 422, headers: { 'Content-Type': 'application/problem+json' } })));
     const { user } = await renderApp(`/scenarios/projection/${ID}?tab=events`);
 

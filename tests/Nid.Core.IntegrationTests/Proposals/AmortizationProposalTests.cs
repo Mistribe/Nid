@@ -53,7 +53,7 @@ public class AmortizationProposalTests(PostgresFixture fixture) : IClassFixture<
     {
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
         var error = (await JsonOf(response)).GetProperty("errors")[0];
-        Assert.Equal((path, code), (error.GetProperty("path").GetString(), error.GetProperty("code").GetString()));
+        Assert.Equal((path, code), (error.FieldPath(), error.GetProperty("code").GetString()));
     }
 
     private static async Task StoreAsReferenceAsync(NidApp app, Guid loan)

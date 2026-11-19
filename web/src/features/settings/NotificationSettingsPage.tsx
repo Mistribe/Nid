@@ -4,6 +4,10 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { present, toProblem } from '@/api/errors';
 import { Field } from '@/components/form/Field';
+import { InfoTip } from '@/components/InfoTip';
+import { formatCurrency } from '@/components/Money';
+import { SwitchField } from '@/components/page/SwitchField';
+import { AMOUNT, toWireAmount } from '@/lib/amount';
 import { Segmented } from '@/components/form/Segmented';
 import { SelectField } from '@/components/form/SelectField';
 import { ProblemMessage } from '@/components/ProblemMessage';
@@ -26,9 +30,16 @@ import '@/locales/notifications';
 
 const WEEKDAYS = [1, 2, 3, 4, 5, 6, 7] as const;
 const LEAD_PREFIX = 'leadDays.';
+const SIGNAL_PREFIX = 'signals.';
 
 /** A number field's text as the integer the server checks: anything else goes as -1, which it refuses on that field. */
 const daysOf = (text: string) => (/^\d+$/.test(text.trim()) ? Number(text) : -1);
+
+/** A threshold as typed (`50 000`, `2,5`) as the number the server checks; anything else goes as -1, which it refuses on that field. */
+const thresholdOf = (text: string) => (AMOUNT.test(toWireAmount(text)) ? Number(toWireAmount(text)) : -1);
+
+/** A threshold in its unit, for the hint: whole euros (« 50 000 € »). */
+const shown = (value: number, unit: string) => (unit === 'eur' ? formatCurrency(String(value), 'EUR', { maximumFractionDigits: 0 }) : String(value));
 
 /** Réglages › Notifications (notifications spec §6.3): channels, rhythm, lead times; one « Enregistrer » for the whole set. */
 export function NotificationSettingsPage() {
@@ -62,6 +73,8 @@ function PreferencesForm({ prefs }: { prefs: PreferencesView }) {
   const [frequency, setFrequency] = useState(prefs.frequency);
   const [weekday, setWeekday] = useState(prefs.weekday);
   const [leads, setLeads] = useState<Record<string, string>>(() => Object.fromEntries(prefs.leadDays.map((l) => [l.kind, String(l.days)])));
+  const [signals, setSignals] = useState<Record<string, { on: boolean; text: string }>>(
+    () => Object.fromEntries(prefs.signals.map((s) => [s.kind, { on: s.enabled, text: String(s.threshold) }])));
   const [stale, setStale] = useState(false);
   const [open, setOpen] = useState(false);
 
@@ -76,7 +89,8 @@ function PreferencesForm({ prefs }: { prefs: PreferencesView }) {
   const fields = fieldErrorsOf(save.error);
   const errorOf = (path: string) => { const f = fields.find((x) => x.path === path); return f ? messageOf(f.code, f.message) : undefined; };
   const leadError = (kind: string) => errorOf(`${LEAD_PREFIX}${kind}`);
-  const placed = (path: string) => path === 'emailEnabled' || path === 'weekday' || (path.startsWith(LEAD_PREFIX) && path.slice(LEAD_PREFIX.length) in leads);
+  const placed = (path: string) => path === 'emailEnabled' || path === 'weekday' || (path.startsWith(LEAD_PREFIX) && path.slice(LEAD_PREFIX.length) in leads)
+    || (path.startsWith(SIGNAL_PREFIX) && signals[path.slice(SIGNAL_PREFIX.length)]?.on === true);
   const unplaced = save.error && !stale && !(fields.length > 0 && fields.every((f) => placed(f.path)));
   const leadsWithError = fields.some((f) => f.path.startsWith(LEAD_PREFIX));
 
@@ -89,6 +103,8 @@ function PreferencesForm({ prefs }: { prefs: PreferencesView }) {
       frequency: frequency,
       weekday,
       leadDays: Object.fromEntries(prefs.leadDays.map((l) => [l.kind, daysOf(leads[l.kind] ?? '')])),
+      // A kind turned off is left out: absent is off.
+      signals: Object.fromEntries(prefs.signals.filter((s) => signals[s.kind]?.on).map((s) => [s.kind, thresholdOf(signals[s.kind]?.text ?? '')])),
       version: prefs.version,
     };
     save.mutate(body, {
@@ -170,6 +186,38 @@ function PreferencesForm({ prefs }: { prefs: PreferencesView }) {
           </div>
         ) : null}
       </Section>
+
+      {prefs.signals.length > 0 ? (
+        <Section title={t('notification_settings.signals')}>
+          <p className="text-sm text-muted-foreground">{t('notification_settings.signals_intro')}</p>
+          {prefs.signals.map((signal) => {
+            const state = signals[signal.kind] ?? { on: false, text: String(signal.defaultThreshold) };
+            const set = (next: Partial<typeof state>) => { setSignals((all) => ({ ...all, [signal.kind]: { ...state, ...next } })); };
+            const label = t(`notification_settings.signal.${signal.kind}.threshold`, { defaultValue: t('notification_settings.threshold') });
+            return (
+              <div key={signal.kind} className="space-y-2">
+                <SwitchField label={signal.title} checked={state.on} onCheckedChange={(on) => { set({ on }); }}
+                  tip={<InfoTip label={signal.title}>{t(`notification_settings.signal.${signal.kind}.tip`, { defaultValue: '' })}</InfoTip>} />
+                {state.on ? (
+                  <div className="flex flex-wrap items-start gap-3 pl-11">
+                    <div className="w-48">
+                      <Field label={label} error={errorOf(`${SIGNAL_PREFIX}${signal.kind}`)}
+                        hint={t('notification_settings.threshold_hint', { value: shown(signal.defaultThreshold, signal.unit), min: shown(signal.min, signal.unit), max: shown(signal.max, signal.unit) })}>
+                        {(c) => <Input {...c} inputMode="decimal" value={state.text} onChange={(e) => { set({ text: e.target.value }); }} />}
+                      </Field>
+                    </div>
+                    <Button type="button" variant="ghost" size="sm" className="mt-6" disabled={state.text === String(signal.defaultThreshold)}
+                      aria-label={t('notification_settings.reset_of', { title: label })}
+                      onClick={() => { set({ text: String(signal.defaultThreshold) }); }}>
+                      {t('notification_settings.reset')}
+                    </Button>
+                  </div>
+                ) : null}
+              </div>
+            );
+          })}
+        </Section>
+      ) : null}
 
       <Collapsible open={open || leadsWithError} onOpenChange={setOpen} className="space-y-2">
         <h2 className="text-lg font-semibold">

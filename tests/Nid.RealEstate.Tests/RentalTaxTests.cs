@@ -17,7 +17,8 @@ public class RentalTaxTests
             ["rent"] = TaxLineCodes.Rental211, ["recoverable_charges"] = null, ["other_income"] = null,
             ["management_fees"] = TaxLineCodes.Rental221, ["insurance"] = TaxLineCodes.Rental223, ["maintenance"] = TaxLineCodes.Rental224,
             ["property_tax"] = TaxLineCodes.Rental227, ["condo_fees"] = TaxLineCodes.Rental229, ["energy"] = null,
-            ["works"] = TaxLineCodes.RentalToCheck, ["other"] = TaxLineCodes.RentalToCheck,
+            // Repairs and improvement are deductible; building or enlarging never is, so it stays to check, uncounted.
+            ["works"] = TaxLineCodes.Rental224, ["construction_works"] = TaxLineCodes.RentalToCheck, ["other"] = TaxLineCodes.RentalToCheck,
         }, lines);
     }
 }

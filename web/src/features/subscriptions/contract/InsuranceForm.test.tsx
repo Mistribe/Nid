@@ -134,8 +134,8 @@ describe('Abonnements › assurance', () => {
     serve(detail(), async ({ request }) => {
       sent.push(await request.json());
       return HttpResponse.json({
-        status: 422, code: 'subscriptions.guarantee_label', title: 'A guarantee has a label.',
-        errors: [{ path: 'guarantees[0].label', code: 'subscriptions.guarantee_label', message: 'A guarantee has a label.' }],
+        status: 422, code: 'subscriptions.guarantee_label', detail: 'A guarantee has a label.',
+        errors: [{ detail: 'A guarantee has a label.', pointer: '#/guarantees/0/label', code: 'subscriptions.guarantee_label' }],
       }, { status: 422 });
     });
     const { user } = await renderApp(`/subscriptions/${SUB}`);
@@ -157,8 +157,8 @@ describe('Abonnements › assurance', () => {
 
   it('shows a refusal on the guarantee row it names', async () => {
     serve(detail(), () => HttpResponse.json({
-      status: 422, code: 'subscriptions.guarantee_label', title: 'A guarantee has a label.',
-      errors: [{ path: 'guarantees[0].label', code: 'subscriptions.guarantee_label', message: 'A guarantee has a label.' }],
+      status: 422, code: 'subscriptions.guarantee_label', detail: 'A guarantee has a label.',
+      errors: [{ detail: 'A guarantee has a label.', pointer: '#/guarantees/0/label', code: 'subscriptions.guarantee_label' }],
     }, { status: 422 }));
     const { user } = await renderApp(`/subscriptions/${SUB}`);
     const form = await openDialog(user);

@@ -30,7 +30,7 @@ public class CreateWithPhaseTests(PostgresFixture fixture) : IClassFixture<Postg
 
     private static List<(string Path, string Code)> ErrorsOf(JsonElement problem)
         => problem.GetProperty("errors").EnumerateArray()
-            .Select(e => (e.GetProperty("path").GetString()!, e.GetProperty("code").GetString()!)).ToList();
+            .Select(e => (e.FieldPath()!, e.GetProperty("code").GetString()!)).ToList();
 
     [Fact]
     public async Task A_subscription_and_its_first_phase_are_created_by_one_request()

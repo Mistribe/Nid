@@ -64,7 +64,7 @@ describe('income settings', () => {
 
     it('shows a refusal to hide the source from the other adult under the owners', async () => {
       owned([], () => HttpResponse.json(
-        { status: 422, code: 'core.takes_read_away', title: 'x', errors: [{ path: 'owners', code: 'core.takes_read_away', message: 'x' }] },
+        { status: 422, code: 'core.takes_read_away', detail: 'x', errors: [{ detail: 'x', pointer: '#/owners', code: 'core.takes_read_away' }] },
         { status: 422 }));
       const { user } = await renderApp(`/income/${SALARY}?tab=settings`);
 
@@ -99,7 +99,7 @@ describe('income settings', () => {
 
   it('shows a server refusal under the field it names', async () => {
     serve([], () => HttpResponse.json(
-      { status: 422, code: 'income.invalid_source', title: 'x', errors: [{ path: 'payerLabel', code: 'income.invalid_source', message: 'x' }] },
+      { status: 422, code: 'income.invalid_source', detail: 'x', errors: [{ detail: 'x', pointer: '#/payerLabel', code: 'income.invalid_source' }] },
       { status: 422 }));
     const { user } = await renderApp(`/income/${SALARY}?tab=settings`);
 

@@ -23,6 +23,11 @@ export const handlers = [
   // ... and its « Évolution » what changed since the year before (#410): nothing to compare.
   http.get('*/api/v1/tax/changes', () => HttpResponse.json({ year: 2026, taxBefore: null, taxBeforeFromNotice: false, taxNow: null, remainder: null, lines: [] })),
   http.get('*/api/v1/core/me/tokens', () => HttpResponse.json([])),
+  // Every admin screen reads whether plain HTTP is allowed (issue 215): it is not.
+  http.get('*/api/v1/admin/system', () => HttpResponse.json({
+    version: '1.0.0', startedAt: '2026-09-24T06:00:00+00:00', health: { database: 'healthy', identityProvider: 'healthy' }, databaseSizeBytes: 1000,
+    auth: { mode: 'oidc', adminSource: 'identity_provider', insecureHttp: false },
+  })),
   // A detail page's badges and `⋯` read the item's sharing (#294): shared, view only, owned by Alice.
   http.get('*/api/v1/core/items/:id/sharing', () => HttpResponse.json({ visibility: 'shared', shareLevel: 'view', canChange: true, isOwner: true })),
   // The shell's Foyer / Moi selector shows only to an owner of a private item (issue 85).
@@ -70,6 +75,7 @@ export const handlers = [
   http.get('*/api/v1/investments/routine', () => HttpResponse.json(routine([]))),
   http.get('*/api/v1/realestate/routine', () => HttpResponse.json(estateRoutine())),
   http.get('*/api/v1/childcare', () => HttpResponse.json({ items: [] })),
+  http.get('*/api/v1/childcare/nannies', () => HttpResponse.json({ items: [] })),
   http.get('*/api/v1/income/overview', () => HttpResponse.json(overview())),
   http.get('*/api/v1/income/sources', () => HttpResponse.json({ items: [] })),
   http.get('*/api/v1/realestate/loans', () => HttpResponse.json({ items: [] })),

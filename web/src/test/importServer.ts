@@ -8,7 +8,7 @@ type Session = components['schemas']['ImportSessionView'];
 type Report = components['schemas']['ImportReport'];
 type Issue = components['schemas']['ImportIssue'];
 type Person = components['schemas']['PersonDto'];
-type Refusal = { status: number; code: string; title: string };
+type Refusal = { status: number; code: string; detail: string };
 
 export const SESSION_ID = '0192aaaa-0000-7000-8000-000000000001';
 
@@ -57,8 +57,8 @@ export function fakeImportServer(options: FakeImportOptions = {}) {
   let puts = 0;
   let validates = 0;
 
-  const problem = ({ status, code, title }: Refusal) => HttpResponse.json({ status, code, title }, { status });
-  const missing = () => problem({ status: 404, code: 'platform.not_found', title: 'Not found.' });
+  const problem = ({ status, code, detail }: Refusal) => HttpResponse.json({ status, code, detail }, { status });
+  const missing = () => problem({ status: 404, code: 'platform.not_found', detail: 'Not found.' });
 
   const handlers = [
     http.get('*/api/v1/core/persons', () => HttpResponse.json(householdPersons)),
@@ -67,7 +67,7 @@ export function fakeImportServer(options: FakeImportOptions = {}) {
       calls.push('start');
       started.push(await request.json());
       const active = options.oneActive && [...sessions.values()].some((s) => ACTIVE_STATES.has(effectiveState(s)));
-      if (options.sessionActive || active) return problem({ status: 409, code: 'import.session_active', title: 'You already have an import in progress.' });
+      if (options.sessionActive || active) return problem({ status: 409, code: 'import.session_active', detail: 'You already have an import in progress.' });
       const created = session();
       sessions.set(created.id, created);
       return HttpResponse.json(created, { status: 201 });
@@ -105,7 +105,7 @@ export function fakeImportServer(options: FakeImportOptions = {}) {
       const found = sessions.get(String(params.id));
       if (!found) return missing();
       if (validates <= (options.validateStale ?? 0))
-        return problem({ status: 409, code: 'import.state', title: 'The import changed while it was being validated; validate again.' });
+        return problem({ status: 409, code: 'import.state', detail: 'The import changed while it was being validated; validate again.' });
       const report = options.validation ?? createdOf(received);
       found.state = report.state;
       found.report = report;
@@ -119,7 +119,7 @@ export function fakeImportServer(options: FakeImportOptions = {}) {
       if (options.commitFails) {
         found.state = 'invalid';
         found.report = { state: 'invalid', sections: found.report?.sections ?? {}, issues: options.commitFails };
-        return problem({ status: 422, code: 'import.not_committed', title: 'The import was not written.' });
+        return problem({ status: 422, code: 'import.not_committed', detail: 'The import was not written.' });
       }
       found.state = 'committed';
       found.report = { ...(found.report ?? createdOf(received)), state: 'committed' };

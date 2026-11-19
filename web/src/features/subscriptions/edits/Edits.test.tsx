@@ -144,8 +144,8 @@ describe('Abonnements › modifications', () => {
 
   it('shows a refusal of the server on its field', async () => {
     serve(detail(), [http.post('*/api/v1/subscriptions/:id/price-changes', () => HttpResponse.json({
-      status: 422, code: 'subscriptions.no_open_phase', title: 'No phase is open on this date.',
-      errors: [{ path: 'startsOn', code: 'subscriptions.no_open_phase', message: 'No phase is open on this date.' }],
+      status: 422, code: 'subscriptions.no_open_phase', detail: 'No phase is open on this date.',
+      errors: [{ detail: 'No phase is open on this date.', pointer: '#/startsOn', code: 'subscriptions.no_open_phase' }],
     }, { status: 422 }))]);
     const { user } = await open();
 
@@ -261,7 +261,7 @@ describe('ProviderPicker', () => {
   });
 
   it('says so, and offers no new provider, when the providers cannot be read', async () => {
-    serve(detail(), [http.get('*/api/v1/subscriptions/providers', () => HttpResponse.json({ status: 403, title: 'no', traceId: '00-t-09' }, { status: 403 }))]);
+    serve(detail(), [http.get('*/api/v1/subscriptions/providers', () => HttpResponse.json({ status: 403, detail: 'no', traceId: '00-t-09' }, { status: 403 }))]);
     await open();
 
     expect(await screen.findByRole('alert')).toBeInTheDocument();

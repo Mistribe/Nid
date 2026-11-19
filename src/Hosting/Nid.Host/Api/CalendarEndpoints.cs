@@ -6,6 +6,7 @@ using Nid.Host.Auth;
 using Nid.Platform.Contracts;
 using NodaTime;
 using UnambitiousFx.Synapse.Abstractions;
+using static Nid.Host.Api.SubscriptionEndpoints;
 
 namespace Nid.Host.Api;
 
@@ -15,7 +16,11 @@ public static class CalendarEndpoints
     /// <summary>The feed's route: no session and no header, the secret is the URL's last segment. Never traced (url.path holds it).</summary>
     public const string FeedPath = Microsoft.Extensions.Hosting.Extensions.CalendarFeedPath;
 
-    public sealed record CalendarFeedBody(string? Scope, bool Amounts);
+    /// <summary>The calendar page's timeline (#240): the one path under the feed's that traces keep.</summary>
+    public const string TimelinePath = Microsoft.Extensions.Hosting.Extensions.CalendarTimelinePath;
+
+    /// <summary>No <c>Modules</c> is every module (#243).</summary>
+    public sealed record CalendarFeedBody(string? Scope, bool Amounts, IReadOnlyList<string>? Modules = null);
 
     /// <summary>The only answer carrying the feed's URL (its secret): shown once, as a token's.</summary>
     public sealed record CreatedCalendarFeedResponse(CalendarFeedView Feed, string Url);
@@ -48,6 +53,21 @@ public static class CalendarEndpoints
             .Produces<string>(StatusCodes.Status200OK, "text/calendar")
             .Produces(StatusCodes.Status404NotFound);
 
+        // Issue #239: the calendar page, « À venir » over [from, to] across the modules (comma-joined, absent: every one).
+        // Issue #241: `amounts=true` adds the money expected in and out, by day and in all.
+        routes.MapGet(FeedPath, async (string? scope, string from, string to, string? modules, bool? amounts, IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new GetCalendarQuery(ParseScope(scope), RequireDate(from), RequireDate(to),
+                    modules is null ? null : ParseLabels(modules), amounts == true), ct)).ToHttp(v => v))
+            .RequireAuthorization().AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>()
+            .Returns<CalendarView>();
+
+        // Issue #240: the timeline, the milestones from today over `horizon` years (1, 3, 5 or 10).
+        routes.MapGet(TimelinePath, async (string? scope, int horizon, string? modules, IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new GetCalendarTimelineQuery(ParseScope(scope), horizon,
+                    modules is null ? null : ParseLabels(modules)), ct)).ToHttp(v => v))
+            .RequireAuthorization().AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>()
+            .Returns<CalendarView>();
+
         var api = routes.MapGroup("/api/v1/core/me/calendar").RequireAuthorization()
             .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>();
 
@@ -57,13 +77,13 @@ public static class CalendarEndpoints
 
         // Creates the feed, or regenerates it: the old URL answers 404 from now on.
         api.MapPost("", async (CalendarFeedBody body, HttpRequest request, IOptions<NidAuthOptions> auth, IInvoker invoker, CancellationToken ct)
-                => (await invoker.InvokeAsync(new CreateCalendarFeedCommand(body.Scope, body.Amounts), ct))
+                => (await invoker.InvokeAsync(new CreateCalendarFeedCommand(body.Scope, body.Amounts, body.Modules), ct))
                     .ToHttp(created => new CreatedCalendarFeedResponse(created.Feed, $"{PublicUrl(auth, request)}{FeedPath}/{created.Secret}.ics"),
                         StatusCodes.Status201Created))
             .Returns<CreatedCalendarFeedResponse>(StatusCodes.Status201Created);
 
         api.MapPut("", async (CalendarFeedBody body, IInvoker invoker, CancellationToken ct)
-                => (await invoker.InvokeAsync(new UpdateCalendarFeedCommand(body.Scope, body.Amounts), ct)).ToHttp(v => v))
+                => (await invoker.InvokeAsync(new UpdateCalendarFeedCommand(body.Scope, body.Amounts, body.Modules), ct)).ToHttp(v => v))
             .Returns<CalendarFeedView>();
 
         return routes;

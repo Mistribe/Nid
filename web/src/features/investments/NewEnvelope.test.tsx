@@ -97,7 +97,7 @@ describe('NewEnvelope', () => {
 
   it('shows a server refusal under the field it names', async () => {
     serveCreate([], () => HttpResponse.json(
-      { status: 422, code: 'core.date_in_future', title: 'A value or a flow is not dated after today.', errors: [{ path: 'firstValuation.asOf', code: 'core.date_in_future', message: 'x' }] },
+      { status: 422, code: 'core.date_in_future', detail: 'A value or a flow is not dated after today.', errors: [{ detail: 'x', pointer: '#/firstValuation/asOf', code: 'core.date_in_future' }] },
       { status: 422 }));
     const { user } = await renderApp('/investments/new');
 
@@ -110,7 +110,7 @@ describe('NewEnvelope', () => {
 
   it('goes back to the step of the field a server refusal names', async () => {
     serveCreate([], () => HttpResponse.json(
-      { status: 422, code: 'investments.invalid_envelope', title: 'Invalid', errors: [{ path: 'displayName', code: 'investments.invalid_envelope', message: 'x' }] },
+      { status: 422, code: 'investments.invalid_envelope', detail: 'Invalid', errors: [{ detail: 'x', pointer: '#/displayName', code: 'investments.invalid_envelope' }] },
       { status: 422 }));
     const { user } = await renderApp('/investments/new');
 
@@ -121,7 +121,7 @@ describe('NewEnvelope', () => {
   });
 
   it('shows a refusal no field owns above the form', async () => {
-    serveCreate([], () => HttpResponse.json({ status: 422, code: 'core.date_in_future', title: 'A value or a flow is not dated after today.' }, { status: 422 }));
+    serveCreate([], () => HttpResponse.json({ status: 422, code: 'core.date_in_future', detail: 'A value or a flow is not dated after today.' }, { status: 422 }));
     const { user } = await renderApp('/investments/new');
 
     await toValueStep(user);
@@ -210,7 +210,7 @@ describe('NewEnvelope', () => {
   // Task 3 brief: a pathless code (the Core fact codes carry no path, 2A) is placed on the one date/amount
   // field it can concern when exactly one such field was filled; otherwise (above) it stays page-level.
   it('attributes a pathless refusal to the one field that was filled', async () => {
-    serveCreate([], () => HttpResponse.json({ status: 422, code: 'core.date_in_future', title: 'A value or a flow is not dated after today.' }, { status: 422 }));
+    serveCreate([], () => HttpResponse.json({ status: 422, code: 'core.date_in_future', detail: 'A value or a flow is not dated after today.' }, { status: 422 }));
     const { user } = await renderApp('/investments/new');
 
     await toValueStep(user);

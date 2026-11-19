@@ -1,4 +1,6 @@
+using Nid.Childcare.Contracts;
 using Nid.Childcare.Domain;
+using NodaTime;
 using static Nid.Childcare.Tests.Fixture;
 
 namespace Nid.Childcare.Tests;
@@ -8,15 +10,94 @@ public class PaidLeaveTests
     [Fact]
     public void Reference_period_starts_the_june_before() => Assert.Equal(D(2026, 6, 1), PaidLeave.ReferenceStart(D(2027, 6, 1)));
 
-    [Fact]
-    public void Full_reference_year()
+    /// <summary>The fixture's template days from <paramref name="from"/> to <paramref name="to"/>, holidays off included.</summary>
+    private static List<StatementDay> Days(LocalDate from, LocalDate to, IReadOnlyList<CareGap> gaps)
     {
-        Assert.Equal(30, PaidLeave.Accrued(12));
-        Assert.Equal(30, PaidLeave.Accrued(14));
+        var days = new List<StatementDay>();
+        for (var m = from.ToYearMonth(); m.CompareTo(to.ToYearMonth()) <= 0; m = m.PlusMonths(1))
+            days.AddRange(StatementPreparation.Prepare(m, Plan, gaps).Where(d => d.Date >= from && d.Date <= to));
+        return days;
     }
 
+    private static List<StatementDay> Absent(List<StatementDay> days, AbsenceReason reason, params LocalDate[] dates)
+        => [.. days.Select(d => dates.Contains(d.Date) ? d with { Present = false, Arrival = null, Departure = null, Lunch = false, Absence = reason } : d)];
+
+    /// <summary>1 June 2026 (a Monday) to 31 May 2027 (a Monday): 52 ¼ weeks, 32,66 days, held at 30.</summary>
     [Fact]
-    public void Partial_year_rounds_up() => Assert.Equal(18, PaidLeave.Accrued(7));
+    public void Full_reference_period_is_capped() => Assert.Equal(30, PaidLeave.Accrued(Days(D(2026, 6, 1), D(2027, 5, 31), []), Plan));
+
+    /// <summary>Six weeks without care leave 46 ¼ weeks: 28,91 days, so 29.</summary>
+    [Fact]
+    public void Weeks_without_care_earn_nothing()
+        => Assert.Equal(29, PaidLeave.Accrued(Days(D(2026, 6, 1), D(2027, 5, 31), [new(D(2026, 8, 3), 4), new(D(2027, 2, 15), 2)]), Plan));
+
+    /// <summary>
+    /// From Tuesday 1 September 2026: ¾ of a week, 38 weeks, the Monday 31 May, less two weeks without care: 37 weeks, 23,13
+    /// days, so 24. Counting nine months would give 23; counting the calendar months the contract covers counts weeks without care.
+    /// </summary>
+    [Fact]
+    public void Contract_starting_mid_period() => Assert.Equal(24, PaidLeave.Accrued(Days(D(2026, 9, 1), D(2027, 5, 31), [new(D(2027, 2, 15), 2)]), Plan));
+
+    /// <summary>Four sick-child days, unpaid, take a week off the 37: 36 weeks, 22,5 days, rounded up to 23. Four days of the family's convenience, paid, take nothing.</summary>
+    [Fact]
+    public void Unpaid_absences_earn_nothing()
+    {
+        var days = Days(D(2026, 9, 1), D(2027, 5, 31), [new(D(2027, 2, 15), 2)]);
+        LocalDate[] week = [D(2026, 11, 9), D(2026, 11, 10), D(2026, 11, 12), D(2026, 11, 13)];
+        Assert.Equal(23, PaidLeave.Accrued(Absent(days, AbsenceReason.ChildSick, week), Plan));
+        Assert.Equal(24, PaidLeave.Accrued(Absent(days, AbsenceReason.Family, week), Plan));
+        // The contract decides: a sick-child day it pays counts.
+        Assert.Equal(24, PaidLeave.Accrued(Absent(days, AbsenceReason.ChildSick, week), Plan, [AbsenceReason.CarerAbsent]));
+        // Training is assimilated to work, though the employer does not pay it.
+        Assert.Equal(24, PaidLeave.Accrued(Absent(days, AbsenceReason.CarerTraining, week), Plan));
+    }
+
+    /// <summary>
+    /// The carer's own sickness (L3141-5 7°, L3141-5-1): eight sick weeks of the 37 leave 29 weeks, 18,13 days, plus 8 × 2 ÷ 4
+    /// = 4 for the sickness, 22,13, so 23; an unpaid absence of the same weeks gives 19. Sick all year, 37 weeks earn 18,5, so 19.
+    /// </summary>
+    [Fact]
+    public void Carer_sickness_earns_two_days_per_four_weeks()
+    {
+        var days = Days(D(2026, 9, 1), D(2027, 5, 31), [new(D(2027, 2, 15), 2)]);
+        var sickWeeks = days.Where(d => d.Date >= D(2026, 11, 2) && d.Date < D(2026, 12, 28) && d.Planned).Select(d => d.Date).ToArray();
+        Assert.Equal(23, PaidLeave.Accrued(Absent(days, AbsenceReason.CarerSick, sickWeeks), Plan));
+        Assert.Equal(19, PaidLeave.Accrued(Absent(days, AbsenceReason.CarerAbsent, sickWeeks), Plan));
+        Assert.Equal(19, PaidLeave.Accrued(Absent(days, AbsenceReason.CarerSick, [.. days.Where(d => d.Planned).Select(d => d.Date)]), Plan));
+    }
+
+    /// <summary>A whole reference period of sickness: 52 ¼ weeks would give 26,13, held at 24 (L3141-5-1).</summary>
+    [Fact]
+    public void Carer_sickness_is_capped_at_24()
+    {
+        var days = Days(D(2026, 6, 1), D(2027, 5, 31), []);
+        Assert.Equal(24, PaidLeave.Accrued(Absent(days, AbsenceReason.CarerSick, [.. days.Where(d => d.Planned).Select(d => d.Date)]), Plan));
+    }
+
+    /// <summary>
+    /// Paid leave taken in the two weeks without care replaces no planned day: still 37 weeks, 24 days. Read as work, it would
+    /// make 39 weeks, 25 days. A day worked there still counts.
+    /// </summary>
+    [Fact]
+    public void Absences_in_weeks_without_care_earn_nothing()
+    {
+        IReadOnlyList<CareGap> gaps = [new(D(2027, 2, 15), 2)];
+        var days = Days(D(2026, 9, 1), D(2027, 5, 31), gaps).Select(d => StatementPreparation.InGap(d.Date, gaps) && d.Date.DayOfWeek <= IsoDayOfWeek.Friday
+            ? d with { Planned = true, Absence = AbsenceReason.PaidLeave } : d).ToList();
+        Assert.Equal(25, PaidLeave.Accrued(days, Plan));
+        Assert.Equal(24, PaidLeave.Accrued(days, Plan, gaps: gaps));
+        var worked = days.Select(d => d.Absence == AbsenceReason.PaidLeave ? d with { Absence = null, Present = true } : d).ToList();
+        Assert.Equal(25, PaidLeave.Accrued(worked, Plan, gaps: gaps));
+    }
+
+    /// <summary>Four weeks give 2,5 days, rounded up to 3; a single day of four gives 0,16, so 1.</summary>
+    [Fact]
+    public void Rounds_up_to_the_whole_day()
+    {
+        Assert.Equal(3, PaidLeave.Accrued(Days(D(2026, 9, 7), D(2026, 10, 4), []), Plan));
+        Assert.Equal(1, PaidLeave.Accrued(Days(D(2026, 9, 7), D(2026, 9, 7), []), Plan));
+        Assert.Equal(0, PaidLeave.Accrued([], Plan));
+    }
 
     [Fact]
     public void Maintained_pay_wins() => Assert.Equal(817.00m, PaidLeave.JuneIndemnity(6500m, 4.30m, 38m, 30));

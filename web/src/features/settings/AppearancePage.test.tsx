@@ -38,7 +38,7 @@ function queuePreferencesFailingFirst(sent: Body[]) {
     const body = (await request.json()) as Body;
     sent.push({ ...body, csrf: request.headers.get('X-Nid-Csrf') });
     await new Promise<void>((resolve) => releases.push(resolve));
-    if (mine === 0) return HttpResponse.json({ status: 500, title: 'boom', traceId: '00-t-03' }, { status: 500 });
+    if (mine === 0) return HttpResponse.json({ status: 500, detail: 'boom', traceId: '00-t-03' }, { status: 500 });
     return HttpResponse.json({ theme: 'sobre', mode: 'system', chartPatterns: false, guidesSeen: {}, ...body });
   }));
   return releases;
@@ -97,7 +97,7 @@ describe('Réglages › Apparence', () => {
 
   it('puts the saved theme back and says so when saving fails', async () => {
     server.use(http.patch('*/api/v1/core/me/preferences', () =>
-      HttpResponse.json({ status: 500, title: 'boom', traceId: '00-t-01' }, { status: 500 })));
+      HttpResponse.json({ status: 500, detail: 'boom', traceId: '00-t-01' }, { status: 500 })));
     const { user } = await renderApp('/settings/appearance');
 
     await user.click(screen.getByRole('radio', { name: 'Ardoise' }));
@@ -165,7 +165,7 @@ describe('Réglages › Apparence', () => {
 
   it('puts the saved mode back and says so when saving fails', async () => {
     server.use(http.patch('*/api/v1/core/me/preferences', () =>
-      HttpResponse.json({ status: 500, title: 'boom', traceId: '00-t-02' }, { status: 500 })));
+      HttpResponse.json({ status: 500, detail: 'boom', traceId: '00-t-02' }, { status: 500 })));
     const { user } = await renderApp('/settings/appearance');
 
     await user.click(screen.getByRole('radio', { name: 'Sombre' }));

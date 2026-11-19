@@ -13,7 +13,7 @@ public class McpToolTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
 {
     private static readonly string[] Expected =
     [
-        "get_childcare", "get_childcare_statement", "get_childcare_statements", "get_childcare_year", "list_childcare", "get_dashboard", "get_envelope", "get_envelope_holdings", "get_envelope_performance", "get_goal", "get_goals", "get_holding_performance", "get_income_source", "get_loan", "get_loan_schedule", "get_loans_overview",
+        "get_childcare", "get_childcare_statement", "get_childcare_statements", "get_childcare_year", "list_childcare", "list_nannies", "get_nanny", "get_dashboard", "get_envelope", "get_envelope_holdings", "get_envelope_performance", "get_goal", "get_goals", "get_holding_performance", "get_income_source", "get_loan", "get_loan_schedule", "get_loans_overview",
         "get_net_worth_history", "get_passive_income", "get_property", "get_property_routine", "get_rent_arrears", "get_rent_revisions", "get_rental_2044", "get_routine", "get_sale_tax_estimate", "get_subscription", "get_tax", "get_tax_changes", "list_envelopes",
         "list_bank_transactions", "list_expected_charges", "propose_bank_link", "list_holding_movements", "list_holding_snapshots", "list_income_sources", "list_loans", "list_documents", "list_persons", "list_properties", "list_providers", "list_subscriptions", "list_tax_years", "get_projection", "delete_proposal", "get_proposal", "list_proposals", "simulate_projection", "simulate_property_sale", "propose_amortization", "propose_breakdown", "propose_holdings_snapshot", "propose_invoice", "propose_payslip", "propose_statement", "read_document", "simulate_early_repayment", "simulate_household_early_repayment", "simulate_loan_renegotiation", "compare_loan_insurance", "upload_document", "request_document_upload",
         "get_month_changes", "get_inflation", "get_year_review",
@@ -209,7 +209,7 @@ public class McpToolTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
         }
     }
 
-    private const string McpCallsNotFound = "Not found.";
+    private const string McpCallsNotFound = "NOT_FOUND: The requested item was not found.";
 
     // Review Focus 3.
     [Theory]
@@ -240,8 +240,8 @@ public class McpToolTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
                 new Dictionary<string, object?> { ["id"] = loan, ["on"] = "15/01/2026", ["amount"] = "1 000,50" }, cancellationToken: TestContext.Current.CancellationToken);
 
             Assert.True(result.IsError);
-            Assert.Contains("on:", McpHarness.TextOf(result));
-            Assert.Contains("amount:", McpHarness.TextOf(result));
+            Assert.Contains("on (", McpHarness.TextOf(result));
+            Assert.Contains("amount (", McpHarness.TextOf(result));
         }
     }
 
@@ -257,7 +257,7 @@ public class McpToolTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
             }, cancellationToken: TestContext.Current.CancellationToken);
 
             Assert.True(result.IsError);
-            foreach (var field in new[] { "on:", "amount:", "loanId:", "effect:" })
+            foreach (var field in new[] { "on (", "amount (", "loanId (", "effect (" })
                 Assert.Contains(field, McpHarness.TextOf(result));
         }
     }

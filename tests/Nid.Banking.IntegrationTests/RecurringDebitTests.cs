@@ -5,6 +5,7 @@ using Nid.Banking.Application;
 using Nid.Banking.Application.Reconciliation;
 using Nid.Banking.Application.Sync;
 using Nid.Banking.Contracts;
+using Nid.Banking.Domain;
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
 using Nid.TestSupport;
@@ -153,6 +154,11 @@ public class RecurringDebitTests(PostgresFixture fixture) : IClassFixture<Postgr
                 (link.TargetModule, link.TargetItem!.Value.Value, link.TargetKey, link.Outcome, link.DecidedBy));
         }
         await using var scope = app.Services.CreateAsyncScope();
+        foreach (var line in lines)
+        {
+            var stored = (await scope.ServiceProvider.GetRequiredService<ITransactionStore>().FindAsync(line, TestContext.Current.CancellationToken))!;
+            Assert.Equal((CategorySeed.Find("leisure.subscriptions")!.Id, CategorySource.Link), (stored.Category, stored.CategorySource));
+        }
         var rule = Assert.Single(await scope.ServiceProvider.GetRequiredService<IRuleStore>().ByAsync(app.AdultA, TestContext.Current.CancellationToken));
         Assert.Equal((courant, "SPOTIFY", "subscriptions", subscription), (rule.Account, rule.LabelStem, rule.TargetModule, rule.TargetItem.Value));
     }

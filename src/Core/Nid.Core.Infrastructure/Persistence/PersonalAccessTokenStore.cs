@@ -37,7 +37,7 @@ public sealed class PersonalAccessTokenStore(CoreDbContext db, IClock clock) : I
         if (calendar is not null)
             await Active(person, now).Where(t => t.CalendarScope != null).ExecuteUpdateAsync(s => s.SetProperty(t => t.RevokedAt, now), ct);
         if (await Active(person, now).CountAsync(ct) >= TokenLimits.MaxActive)
-            return Result.Failure<NewToken>(new Failure(TokenCodes.LimitReached, "A person holds at most 10 active tokens.", null));
+            return Result.Failure<NewToken>(new ConflictFailure("A person holds at most 10 active tokens.") { Code = TokenCodes.LimitReached });
 
         var (token, prefix, hash) = calendar is null ? TokenFormat.Generate() : TokenFormat.GenerateCalendar();
         var row = new PersonalAccessTokenRow
@@ -45,6 +45,7 @@ public sealed class PersonalAccessTokenStore(CoreDbContext db, IClock clock) : I
             Id = Guid.CreateVersion7(), PersonId = person.Value, Name = name, Prefix = prefix, TokenHash = hash,
             Scopes = TokenPresets.Stored(preset), CreatedAt = now, ExpiresAt = now.Plus(NodaTime.Duration.FromDays(days)),
             CalendarScope = calendar is null ? null : ScopeText(calendar.Scope), CalendarAmounts = calendar?.Amounts,
+            CalendarModules = calendar?.Modules?.ToArray(),
         };
         db.PersonalAccessTokens.Add(row);
         await db.SaveChangesAsync(ct);
@@ -59,6 +60,7 @@ public sealed class PersonalAccessTokenStore(CoreDbContext db, IClock clock) : I
             return Result.Failure<PersonalAccessToken>(new NotFoundFailure("calendar", person.Value.ToString()));
         row.CalendarScope = ScopeText(options.Scope);
         row.CalendarAmounts = options.Amounts;
+        row.CalendarModules = options.Modules?.ToArray();
         await db.SaveChangesAsync(ct);
         return Result.Success(ToToken(row));
     }
@@ -72,10 +74,12 @@ public sealed class PersonalAccessTokenStore(CoreDbContext db, IClock clock) : I
     private IQueryable<PersonalAccessTokenRow> Active(PersonId person, Instant now)
         => db.PersonalAccessTokens.Where(t => t.PersonId == person.Value && t.RevokedAt == null && t.ExpiresAt > now);
 
-    private static string ScopeText(VisibilityScope scope) => scope == VisibilityScope.Me ? "me" : "household";
+    private static string ScopeText(VisibilityScope scope) => scope is VisibilityScope.Me or VisibilityScope.Mine ? "me" : "household";
 
     private static CalendarFeedOptions? OptionsOf(PersonalAccessTokenRow r)
-        => r.CalendarScope is { } scope ? new CalendarFeedOptions(scope == "me" ? VisibilityScope.Me : VisibilityScope.Household, r.CalendarAmounts == true) : null;
+        => r.CalendarScope is { } scope
+            ? new CalendarFeedOptions(scope == "me" ? VisibilityScope.Mine : VisibilityScope.Household, r.CalendarAmounts == true, r.CalendarModules)
+            : null;
 
     public async Task<IReadOnlyList<PersonalAccessToken>> ListAsync(PersonId person, CancellationToken ct)
         => (await db.PersonalAccessTokens.AsNoTracking().Where(t => t.PersonId == person.Value)

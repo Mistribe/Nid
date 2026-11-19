@@ -123,7 +123,7 @@ public class SessionTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
 
     /// <summary>
     /// The 1C1 hazard: a request Synapse's generator did not see runs with no behavior at all. These two
-    /// refusals can only come from ActorBehavior and ScopeBehavior wrapping Platform's own requests.
+    /// refusals can only come from the actor and scope checks wrapping Platform's own requests.
     /// </summary>
     [Fact]
     public async Task Import_requests_run_behind_the_actor_and_scope_behaviors()

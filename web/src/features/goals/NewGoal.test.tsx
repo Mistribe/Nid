@@ -137,7 +137,7 @@ describe('NewGoal', () => {
 
   it('Shows_free_share_on_share_exceeded', async () => {
     const bodies: unknown[] = [];
-    serve(bodies, () => HttpResponse.json({ status: 409, code: 'goals.share_exceeded', title: 'Over.', freeBp: 3050 }, { status: 409 }));
+    serve(bodies, () => HttpResponse.json({ status: 409, code: 'goals.share_exceeded', detail: 'Over.', freeBp: 3050 }, { status: 409 }));
     const { user } = await renderApp('/goals/new');
 
     await user.type(await screen.findByLabelText('Nom'), 'Voyage');
@@ -153,7 +153,7 @@ describe('NewGoal', () => {
   });
 
   it('puts the free share on the row the server names', async () => {
-    serve([], () => HttpResponse.json({ status: 409, code: 'goals.share_exceeded', title: 'Over.', freeBp: 2500, errors: [{ path: 'funding[1].shareBp', code: 'goals.share_exceeded', message: 'Over.' }] }, { status: 409 }));
+    serve([], () => HttpResponse.json({ status: 409, code: 'goals.share_exceeded', detail: 'Over.', freeBp: 2500, errors: [{ detail: 'Over.', pointer: '#/funding/1/shareBp', code: 'goals.share_exceeded' }] }, { status: 409 }));
     const { user } = await renderApp('/goals/new');
 
     await user.type(await screen.findByLabelText('Nom'), 'Voyage');

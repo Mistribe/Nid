@@ -65,7 +65,14 @@ Exception : `/signed-out`, où mène la déconnexion, s'affiche sans redirection
 
 ## 5. Erreurs
 
-Les réponses d'erreur sont des Problem Details (RFC 9457) avec un `code` stable. Un module unique (`/api/errors`) les convertit en présentation :
+Les réponses d'erreur sont des Problem Details (RFC 9457) avec un `code` stable. `title` nomme seulement le statut ;
+la phrase du serveur sur ce refus est dans `detail`. Un champ refusé est une entrée de `errors` :
+`{ detail, pointer, code }`, où `pointer` est un JSON Pointer (`#/payload/movements/3/amount`, absent pour une erreur
+qui ne vise aucun champ). Côté serveur, `ProblemMapping` (`src/Hosting/Nid.Host/Api/`) écrit ces corps avec le mapper
+d'`UnambitiousFx.Functional.AspNetCore` ; côté web, `toProblem` relit chaque `pointer` en chemin de formulaire
+(`payload.movements[3].amount`), si bien que les pages comparent toujours des chemins.
+
+Un module unique (`/api/errors`) les convertit en présentation :
 
 | Code | Présentation |
 |---|---|

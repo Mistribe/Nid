@@ -1,0 +1,4 @@
+# Analyzer settings only.
+[*.cs]
+# Mediator's source generator lists every handler it finds (info): hundreds of lines of noise in SonarQube Cloud.
+dotnet_diagnostic.MDG003.severity = none

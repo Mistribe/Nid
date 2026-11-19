@@ -8,7 +8,8 @@ namespace Nid.Income.Application;
 
 /// <summary>
 /// Tax estimate spec §6: each visible source's occurrences in the revenue year (closed sources too: their months still count),
-/// the gross where the phase has it, and the one-offs of the year, as net amounts.
+/// the gross where the phase has it, and the one-offs of the year, as net amounts. Pensions and alimony received go to one line,
+/// the phase's net taxable where entered.
 /// </summary>
 public sealed class IncomeSourcesTax(IVisibleItems visible, IItemRegistry items, ISourceStore sources, IPhaseStore phases, IFlows flows, IOneOffTaxableStore taxables) : ITaxContribution
 {
@@ -75,6 +76,11 @@ public sealed class IncomeSourcesTax(IVisibleItems visible, IItemRegistry items,
                         lines.AddRange(TaxLineCodes.Split(TaxLineCodes.SalaryDetail, item, hasTaxable ? oneOffTaxable : f.Amount.Amount)
                             .Select(l => l with { On = f.OccurredOn, Note = f.Note, Category = hasTaxable ? TaxLineCodes.DetailEntered : TaxLineCodes.DetailNet }));
                     }
+                    break;
+                case IncomeKind.Pension or IncomeKind.Alimony:
+                    // shortcut: a pension phase without its net taxable counts the net paid (its CSG left out); enter the taxable to be exact.
+                    var pensions = occurrences.Sum(o => o.Phase.TaxableAmount?.Amount ?? o.Amount.Amount) + extra;
+                    lines.AddRange(TaxLineCodes.Split(TaxLineCodes.Pension, item, pensions));
                     break;
                 case IncomeKind.Unemployment:
                     lines.AddRange(TaxLineCodes.Split(TaxLineCodes.OtherTaxable, item, net + extra));

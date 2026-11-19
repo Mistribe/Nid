@@ -59,6 +59,7 @@ Un **seul format** sert à trois usages :
 | `valuations`, `flows` | tableaux | Core (§5.6) |
 | `goals` | tableau | Module Objectifs (`superpowers/specs/2026-10-23-savings-goals-design.md` D16 et §2) : l'objectif, ses liens vers les enveloppes du fichier et ses relevés |
 | `childcare_arrangements`, `childcare_statements` | tableaux | Module Garde (`superpowers/specs/2026-10-30-childcare-design.md` décisions 24 à 26) : la garde d'assistante maternelle et ses relevés validés (§5.9) |
+| `childcare_nannies` | tableau | Module Garde (#94) : la garde à domicile et ses mois saisis tels que payés (§5.9) |
 | `bank_accounts`, `bank_transactions`, `bank_links`, `bank_rules` | tableaux | Module Banque (`superpowers/specs/2026-10-29-bank-sync-design.md` D24) : les comptes bancaires, leurs opérations, ce que chaque opération paie et les règles de libellé de la personne (§5.7) |
 
 Section **réservée**, pas encore définie : `documents`. Un fichier qui la contient est refusé. Une section d'un module désactivé est refusée elle aussi.
@@ -306,7 +307,7 @@ du fichier (`target_ref`).
 | `carer` | objet | `{ name, pajemploi?, approval? }` |
 | `terms` | tableau | Les révisions, la plus ancienne d'abord : `{ from, to?, net_hourly_rate, gross_hourly_rate?, overtime_pct, upkeep_per_9h, lunch_price?, snack_price?, lunch_provider?, snack_provider?, unpaid_absences?, full_year?, week_types }`, `lunch_provider` et `snack_provider` parmi `nanny` (par défaut) et `employer`, seuls les repas fournis par `nanny` étant payés ; un fichier plus ancien porte `meal_price`, lu comme `lunch_price` ; chacune finit la veille de la suivante, seule la dernière peut rester ouverte ; `overtime_pct` en pour cent (10 = 10 %) ; la somme des `weeks` des semaines types va de 1 à 46, ou vaut 52 avec `full_year` |
 | `terms[].full_year` | booléen, facultatif | `true` pour un accueil sur 52 semaines, congés de l'assistante maternelle compris (année complète) ; absent : année incomplète |
-| `terms[].unpaid_absences` | tableau, facultatif | Les motifs d'absence retenus sur le salaire, parmi `family`, `parent_rtt`, `child_sick`, `carer_absent`, `carer_training`, `family_agreed`, `holiday`, `paid_leave` ; absent : `parent_rtt`, `child_sick` et `carer_absent` |
+| `terms[].unpaid_absences` | tableau, facultatif | Les motifs d'absence retenus sur le salaire, parmi `family`, `parent_rtt`, `child_sick`, `carer_absent`, `carer_sick`, `carer_training`, `family_agreed`, `holiday`, `paid_leave` ; absent : `parent_rtt`, `child_sick` et `carer_absent` |
 | `terms[].week_types` | tableau | Les semaines types de la révision, au moins une : `{ name, weeks, schedule }` ; `name` de 1 à 40 caractères, unique sans tenir compte de la casse ; `weeks` d'au moins 1. L'ancienne forme `programmed_weeks` + `schedule` (une seule semaine) est encore lue, comme une semaine type « Semaine type » ; l'export n'écrit que `week_types`. Les deux formes ensemble sont refusées (`childcare.terms_both_formats`), aucune aussi (`import.invalid_value`) |
 | `terms[].week_types[].schedule` | tableau | `{ day, arrival, departure, lunch, snack }` (un fichier plus ancien porte `meal`, lu comme `lunch`) : `day` de 1 (lundi) à 7, heures `HH:mm`, un jour au plus une fois |
 | `week_overrides` | tableau | Les exceptions `{ monday, week_type }` : la semaine de ce lundi suit la semaine type de ce rang (à partir de 0) dans la révision en vigueur cette semaine-là (`childcare.override_invalid_monday`, `childcare.override_unknown_week_type`). Absent, il vaut `[]` ; un import qui remplace remplace aussi les exceptions |
@@ -322,7 +323,7 @@ du fichier (`target_ref`).
 | `mileage`, `cmg` | chaînes décimales | Frais kilométriques et CMG du récapitulatif Pajemploi |
 | `contributions` | chaîne décimale, facultative | Cotisations restant à la charge du foyer sur le récapitulatif Pajemploi (au-delà du plafond horaire de prise en charge) ; absente : aucune. Comptées dans `cost` et `tax_base` |
 | `exemption` | chaîne décimale, facultative | Exonération de cotisations salariales sur les heures complémentaires et majorées, que Pajemploi ajoute au salaire versé (récapitulatif Pajemploi) ; absente : aucune. Comptée dans `cost` et `tax_base` |
-| `days` | tableau | Chaque jour du mois : `{ date, planned, present, arrival?, departure?, lunch, snack, absence? }` (un fichier plus ancien porte `meal`, lu comme `lunch`), `absence` parmi `family`, `parent_rtt`, `child_sick`, `carer_absent`, `carer_training`, `family_agreed`, `holiday`, `paid_leave` (aussi sur un jour présent écourté : la part manquante est retenue si le contrat ne paie pas ce motif) ; `planned` est recalculé |
+| `days` | tableau | Chaque jour du mois : `{ date, planned, present, arrival?, departure?, lunch, snack, absence? }` (un fichier plus ancien porte `meal`, lu comme `lunch`), `absence` parmi `family`, `parent_rtt`, `child_sick`, `carer_absent`, `carer_sick`, `carer_training`, `family_agreed`, `holiday`, `paid_leave` (aussi sur un jour présent écourté : la part manquante est retenue si le contrat ne paie pas ce motif) ; `planned` est recalculé |
 | `figures` | objet | Les chiffres figés : `normal_hours`, `activity_days`, `paid_leave_days?`, `complementary_hours`, `overtime_hours`, `net_pay`, `upkeep`, `meals`, `base_pay`, `deduction`, `extra_pay`, `paid_leave_pay`, `cost`, `tax_base`, `child_sick_deducted`, `paid_leave_taken?` (année complète : jours de congés pris et payés dans le mois, absent : aucun) |
 
 **Règles** : les relevés d'une garde sont repris dans l'ordre des mois, chacun **recalculé** depuis le fichier (révision du mois,
@@ -335,6 +336,17 @@ daté validé le 1er du mois suivant, à peu près quand sa déclaration Pajempl
 Remplacer une garde déjà importée (import qui remplace) est refusé si l'un de ses mois validés tombe hors des dates du
 fichier (`childcare.end_before_validated`, comme une fin de garde dans l'interface) ou changerait de chiffres sous les
 conditions du fichier sans y figurer (`childcare.figures_differ` sur `terms`) : il faut le rouvrir, ou l'ajouter au fichier.
+
+**`childcare_nannies`** (#94)
+
+Une garde à domicile et ses mois, saisis tels que payés (aucun calcul de paie). Ordre 106, après les gardes d'assistante maternelle.
+
+| Champ | Type | Remarques |
+|---|---|---|
+| `id`, `name`, `visibility`, `share_level`, `ownership`, `closed` | | Comme pour les autres éléments (§4) |
+| `months` | tableau | `{ month, paid, cmg, hours? }` : `month` en `YYYY-MM`, commencé (`childcare.nanny_month_in_future`), une fois par garde ; `paid` (salaire net et cotisations employeur) au-dessus de 0 ; `cmg` reçu, de 0 à `paid` (`childcare.cmg_above_paid`) ; `hours` facultatif |
+
+**Règles** : comme `goals` (§8) — inchangée, en conflit, ou remplacée avec tous ses mois quand l'import remplace.
 
 ## 6. Résolution des personnes
 
@@ -447,7 +459,7 @@ Le staging est vidé à `commit`, à l'annulation et à l'expiration.
 ### 11.4 Validation et écriture
 
 - **`validate`** : chaque module valide l'ensemble de sa section sur le staging (références entre lots, chevauchements, invariants du Core, droits de la personne, idempotence par `import_ref`, taux de change), et Platform assemble un rapport unique. Rien n'est écrit dans les données du foyer.
-- **`commit`** : le serveur **rejoue la validation complète** (l'état a pu changer depuis `validate`), puis appelle les modules dans l'ordre `persons` → `providers` → les sections qui créent des éléments (`subscriptions`, `envelopes`, `properties`, `loans`, `income_sources`) → les sections qui en dépendent (`billing_phases`, `purchases`, `valuations`, `flows`, `property_recurring_costs`, `tenancies`, `loan_phases`, `loan_insurances`, `loan_fees`, `loan_events`, `loan_bank_schedule`, `subscription_insurances`, `income_phases`, `income_one_off_taxable`) → les supports d'enveloppe (`holdings`, `holding_snapshots`, `holding_movements`, après `flows` qu'un mouvement peut nommer) → leurs répartitions (`security_breakdowns`, après `holdings` dont elles nomment les ISIN) → les objectifs (`goals`, après les enveloppes qu'ils lient) → les gardes et leurs relevés validés (`childcare_arrangements`, `childcare_statements`) → les comptes bancaires, leurs opérations, leurs liens et leurs règles (`bank_accounts`, `bank_transactions`, `bank_links`, `bank_rules`), dans **une transaction unique**. Le staging de la session est vidé dans la même transaction. Une erreur annule tout.
+- **`commit`** : le serveur **rejoue la validation complète** (l'état a pu changer depuis `validate`), puis appelle les modules dans l'ordre `persons` → `providers` → les sections qui créent des éléments (`subscriptions`, `envelopes`, `properties`, `loans`, `income_sources`) → les sections qui en dépendent (`billing_phases`, `purchases`, `valuations`, `flows`, `property_recurring_costs`, `tenancies`, `loan_phases`, `loan_insurances`, `loan_fees`, `loan_events`, `loan_bank_schedule`, `subscription_insurances`, `income_phases`, `income_one_off_taxable`) → les supports d'enveloppe (`holdings`, `holding_snapshots`, `holding_movements`, après `flows` qu'un mouvement peut nommer) → leurs répartitions (`security_breakdowns`, après `holdings` dont elles nomment les ISIN) → les objectifs (`goals`, après les enveloppes qu'ils lient) → les gardes et leurs relevés validés (`childcare_arrangements`, `childcare_statements`), les gardes à domicile (`childcare_nannies`) → les comptes bancaires, leurs opérations, leurs liens et leurs règles (`bank_accounts`, `bank_transactions`, `bank_links`, `bank_rules`), dans **une transaction unique**. Le staging de la session est vidé dans la même transaction. Une erreur annule tout.
 - Les `DbContext` des modules partagent la connexion et la transaction de l'import (`Database.UseTransactionAsync`). **Vérifié** (`spikes.md` §6) : le retour arrière efface l'écriture de tous les modules, et l'outbox reste invisible aux autres sessions jusqu'au commit.
 
 ### 11.5 Bornes

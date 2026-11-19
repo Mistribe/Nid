@@ -74,7 +74,7 @@ public class AccountTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
         var refused = await PatchAsync(app, app.AdultA, account, new { envelopeId = (await EnvelopeAsync(app, app.AdultA, "checking")).Value });
 
         await BankingApi.AssertRefusedAsync(refused, HttpStatusCode.UnprocessableEntity, BankingCodes.CurrencyMismatch);
-        Assert.Equal("envelopeId", (await BankingApi.JsonAsync(refused)).GetProperty("errors")[0].GetProperty("path").GetString());
+        Assert.Equal("envelopeId", (await BankingApi.JsonAsync(refused)).GetProperty("errors")[0].FieldPath());
         Assert.Equal(HttpStatusCode.OK, (await PatchAsync(app, app.AdultA, account, new { envelopeId = (await app.NewEnvelopeAsync("Dollars", app.AdultA, Visibility.Private, "USD")).Value })).StatusCode);
     }
 
@@ -92,7 +92,7 @@ public class AccountTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
         {
             var refused = await PatchAsync(app, app.AdultA, Id(account), new { cardOfAccountId = Id(parent) });
             await BankingApi.AssertRefusedAsync(refused, HttpStatusCode.UnprocessableEntity, BankingCodes.CardParent);
-            Assert.Equal("cardOfAccountId", (await BankingApi.JsonAsync(refused)).GetProperty("errors")[0].GetProperty("path").GetString());
+            Assert.Equal("cardOfAccountId", (await BankingApi.JsonAsync(refused)).GetProperty("errors")[0].FieldPath());
         }
 
         Assert.Equal(HttpStatusCode.OK, (await PatchAsync(app, app.AdultA, Id("Carte"), new { cardOfAccountId = Id("Courant") })).StatusCode);
@@ -193,6 +193,56 @@ public class AccountTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
         var refused = await PatchAsync(app, app.AdultA, card, new { envelopeId = (await EnvelopeAsync(app, app.AdultA, "checking")).Value });
 
         await BankingApi.AssertRefusedAsync(refused, HttpStatusCode.UnprocessableEntity, BankingCodes.EnvelopeKind);
-        Assert.Equal("envelopeId", (await BankingApi.JsonAsync(refused)).GetProperty("errors")[0].GetProperty("path").GetString());
+        Assert.Equal("envelopeId", (await BankingApi.JsonAsync(refused)).GetProperty("errors")[0].FieldPath());
+    }
+
+    [Fact]
+    public async Task The_household_names_an_account_and_no_session_read_overwrites_it()
+    {
+        await using var app = await BankingApi.StartAsync(fixture);
+        // As a bank sent it before: the card's debit code as its name.
+        await BankingApi.ConnectAsync(app, app.AdultA, "code-a",
+            BankingApi.Account("uid-1", "hash-1", "FR7600000000000000000001234", "Compte courant"),
+            BankingApi.Account("uid-2", "hash-2", null, "immediat_debit", "CARD"));
+        var accounts = await ByNameAsync(app, app.AdultA);
+        var checking = accounts["Compte courant"].GetProperty("id").GetGuid();
+
+        foreach (var name in new[] { "   ", new string('x', 101) })
+        {
+            var refused = await PatchAsync(app, app.AdultA, checking, new { name });
+            await BankingApi.AssertRefusedAsync(refused, HttpStatusCode.UnprocessableEntity, BankingCodes.InvalidName);
+            Assert.Equal("name", (await BankingApi.JsonAsync(refused)).GetProperty("errors")[0].FieldPath());
+        }
+        Assert.Equal(HttpStatusCode.OK, (await PatchAsync(app, app.AdultA, checking, new { name = "  Compte joint d'Alice et Bob " })).StatusCode);
+
+        // A later session, as a renewed consent or another connection gives it: the bank's names change, the household's stays.
+        await BankingApi.ConnectAsync(app, app.AdultA, "code-a2",
+            BankingApi.Account("uid-3", "hash-1", "FR7600000000000000000001234", "Compte de dépôt"),
+            BankingApi.Account("uid-4", "hash-2", null, "Carte Visa", "CARD", debit: CardDebit.Immediate, numberLast4: "4321"));
+        accounts = await ByNameAsync(app, app.AdultA);
+        var renamed = accounts["Compte joint d'Alice et Bob"];
+        Assert.Equal((checking, "Compte de dépôt", true),
+            (renamed.GetProperty("id").GetGuid(), renamed.GetProperty("bankName").GetString(), renamed.GetProperty("renamed").GetBoolean()));
+        var card = accounts["Carte Visa"];
+        Assert.Equal(("immediate", "4321", false),
+            (card.GetProperty("cardDebit").GetString(), card.GetProperty("ibanMasked").GetString(), card.GetProperty("renamed").GetBoolean()));
+
+        Assert.Equal(HttpStatusCode.OK, (await PatchAsync(app, app.AdultA, checking, new { clearName = true })).StatusCode);
+        var reset = (await ByNameAsync(app, app.AdultA))["Compte de dépôt"];
+        Assert.Equal((checking, false), (reset.GetProperty("id").GetGuid(), reset.GetProperty("renamed").GetBoolean()));
+        // Naming it as the bank does is no renaming: it keeps following the bank.
+        Assert.Equal(HttpStatusCode.OK, (await PatchAsync(app, app.AdultA, checking, new { name = "Compte de dépôt" })).StatusCode);
+        Assert.False((await ByNameAsync(app, app.AdultA))["Compte de dépôt"].GetProperty("renamed").GetBoolean());
+    }
+
+    [Fact]
+    public async Task Only_whoever_writes_an_account_renames_it()
+    {
+        await using var app = await BankingApi.StartAsync(fixture);
+        await BankingApi.ConnectAsync(app, app.AdultA, "code-a", BankingApi.Account("uid-1", "hash-1", null, "Courant"));
+        var courant = (await ByNameAsync(app, app.AdultA))["Courant"].GetProperty("id").GetGuid();
+
+        await BankingApi.AssertRefusedAsync(await PatchAsync(app, app.AdultB, courant, new { name = "Le mien" }), HttpStatusCode.NotFound, BankingCodes.AccountNotFound);
+        Assert.True((await ByNameAsync(app, app.AdultA)).ContainsKey("Courant"));
     }
 }

@@ -12,6 +12,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { pageOf, type RootSearch } from '@/lib/search';
 import { DashboardPage } from '@/features/dashboard/DashboardPage';
+import { AMOUNT_MODULES } from '@/features/calendar/modules';
 import type { Panel } from '@/features/dashboard/KeyFigures';
 import type { LoanContractView } from '@/api/loans';
 import { compareSearch } from '@/features/scenarios/compare/compareSearch';
@@ -28,13 +29,20 @@ const PANELS: readonly Panel[] = ['net_worth', 'income', 'commitments', 'margin'
 export type RouterContext = { capabilities: Capabilities };
 
 /** The tax page's tab and the year of its figures (absent: the tab's own default). */
-export type TaxSearch = RootSearch & DetailSearch & { year?: string };
+export type TaxSearch = RootSearch & DetailSearch & { year?: string; form?: 2044 };
 /** A childcare arrangement's tab and the year of its summary (#411; absent: the year just ended). */
 export type ChildcareSearch = DetailSearch & { year?: string };
+/** #94: a nanny at home's year (absent: the current one). */
+export type NannySearch = { year?: string };
 export type RoutineSearch = { on?: string };
-export type BanksSearch = { connected?: string; error?: string };
+export type BanksSearch = { connected?: string; error?: string; tab?: 'categories' };
 /** The home page: the curve's span, a figure panel, the projection's horizon (`10y` stays out of the URL) and its reading (`0`: current value). */
 export type DashboardSearch = { curve?: '3y' | 'all'; curveReal?: 1; panel?: Panel; projection?: ProjectionHorizon; real?: 0; ranges?: 1 };
+/**
+ * The calendar page (#239): its month (`yyyy-mm`, absent for the current one) and its modules (comma-joined, absent for every one);
+ * its view (#240, absent for the month) and the timeline's horizon in years (absent for 5); the month's amounts (#241, absent: off).
+ */
+export type CalendarSearch = { month?: string; modules?: string; view?: 'timeline'; horizon?: 1 | 3 | 10; amounts?: 1 };
 /** The annual review (#12): the year, absent for the current one (so it stays out of the URL). */
 export type YearReviewSearch = { year?: number };
 export type ProjectionHorizon = '5y' | '20y' | '30y' | `retire:${string}`;
@@ -93,6 +101,11 @@ const pageSearch = (search: Record<string, unknown>): { page?: number } => {
 
 /** A tabbed list: the tab and the page. */
 const listSearch = (search: Record<string, unknown>): DetailSearch & { page?: number } => ({ ...detailSearch(search), ...pageSearch(search) });
+
+/** Sécurité (#308): the tab, and which events the Activité tab shows (`access`, the default, stays out of the URL). */
+const securityPageSearch = (search: Record<string, unknown>): DetailSearch & { show?: 'assistant' | 'all' } => ({
+  ...detailSearch(search), ...(search.show === 'assistant' || search.show === 'all' ? { show: search.show } : {}),
+});
 
 /** Administration › Journal de sécurité: the event filtered on, and the page. */
 const securitySearch = (search: Record<string, unknown>): { event?: string; page?: number } => ({
@@ -162,6 +175,26 @@ const dashboardRoute = createRoute({
       ...(search.ranges === 1 || search.ranges === '1' ? { ranges: 1 as const } : {}),
     }),
   component: DashboardPage,
+});
+
+const calendarRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/calendar',
+  beforeLoad: requireModule('core'),
+  validateSearch: (search: Record<string, unknown>): CalendarSearch => {
+    const asked = typeof search.modules === 'string' ? search.modules.split(',') : [];
+    const modules = AMOUNT_MODULES.filter((m) => asked.includes(m));
+    return {
+      // A malformed month would be a 400: it is overwritten, as the subscriptions calendar's.
+      month: typeof search.month === 'string' && /^\d{4}-(0[1-9]|1[0-2])$/.test(search.month) ? search.month : undefined,
+      // Unknown modules dropped; none known, or all of them, is every module.
+      modules: modules.length > 0 && modules.length < AMOUNT_MODULES.length ? modules.join(',') : undefined,
+      view: search.view === 'timeline' ? 'timeline' : undefined,
+      horizon: ([1, 3, 10] as const).find((h) => h === Number(search.horizon)),
+      amounts: search.amounts === 1 || search.amounts === '1' ? 1 : undefined,
+    };
+  },
+  component: lazyRouteComponent(() => import('@/features/calendar/CalendarPage'), 'CalendarPage'),
 });
 
 const yearReviewRoute = createRoute({
@@ -281,6 +314,35 @@ const childcareDetailRoute = createRoute({
   component: lazyRouteComponent(() => import('@/features/childcare/ChildcareDetailPage'), 'ChildcareDetailPage'),
 });
 
+const nannyNewRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/childcare/nannies/new',
+  beforeLoad: requireModule('childcare'),
+  component: lazyRouteComponent(() => import('@/features/childcare/NewNanny'), 'NewNanny'),
+});
+
+const nannyDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/childcare/nannies/$id',
+  validateSearch: (search: Record<string, unknown>): NannySearch => (/^\d{4}$/.test(String(search.year)) ? { year: String(search.year) } : {}),
+  beforeLoad: requireModule('childcare'),
+  component: lazyRouteComponent(() => import('@/features/childcare/NannyDetailPage'), 'NannyDetailPage'),
+});
+
+const childcareEndRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/childcare/$id/end',
+  beforeLoad: requireModule('childcare'),
+  component: lazyRouteComponent(() => import('@/features/childcare/EndContractPage'), 'EndContractPage'),
+});
+
+const childcareSettlementRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/childcare/$id/settlement',
+  beforeLoad: requireModule('childcare'),
+  component: lazyRouteComponent(() => import('@/features/childcare/SettlementPage'), 'SettlementPage'),
+});
+
 const childcareStatementRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/childcare/$id/statements/$month',
@@ -354,10 +416,20 @@ const taxRoute = createRoute({
   path: '/tax',
   beforeLoad: requireModule('income'),
   // The router parses `year=2025` to a number: both spellings are read, anything but 4 digits is dropped.
-  validateSearch: (search: Record<string, unknown>): TaxSearch => ({
-    ...detailSearch(search),
-    ...(/^\d{4}$/.test(String(search.year)) ? { year: String(search.year) } : {}),
-  }),
+  validateSearch: (search: Record<string, unknown>): TaxSearch => {
+    // The 2042 and the 2044 were tabs: their old links land on Déclarations, with the form.
+    const tab = detailSearch(search).tab?.replace(/^"|"$/g, '');
+    const alias = tab === '2042' || tab === '2044' ? 'declarations' : tab;
+    // The form is the Declarations tab's own: it leaves the URL with the tab.
+    // A number, so the URL reads `form=2044`; an alias names its own form, `form` is for the tab itself. 2042 is the default.
+    const aliased = tab === '2042' || tab === '2044';
+    const form = alias === 'declarations' && (aliased ? tab === '2044' : String(search.form) === '2044') ? (2044 as const) : undefined;
+    return {
+      ...(alias ? { tab: alias } : {}),
+      form, // explicit even when dropped: the router keeps the raw keys a validator leaves out
+      ...(/^\d{4}$/.test(String(search.year)) ? { year: String(search.year) } : {}),
+    };
+  },
   component: lazyRouteComponent(() => import('@/features/tax/TaxPage'), 'TaxPage'),
 });
 
@@ -620,13 +692,14 @@ const banksSettingsRoute = createRoute({
   validateSearch: (search: Record<string, unknown>): BanksSearch => ({
     ...(typeof search.connected === 'string' ? { connected: search.connected } : {}),
     ...(typeof search.error === 'string' ? { error: search.error } : {}),
+    ...(search.tab === 'categories' ? { tab: 'categories' as const } : {}),
   }),
   component: lazyRouteComponent(() => import('@/features/settings/banks/BanksPage'), 'BanksPage'),
 });
 const notificationSettingsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/settings/notifications', component: lazyRouteComponent(() => import('@/features/settings/NotificationSettingsPage'), 'NotificationSettingsPage') });
 const calendarSettingsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/settings/calendar', component: lazyRouteComponent(() => import('@/features/settings/CalendarSettingsPage'), 'CalendarSettingsPage') });
 
-const securityRoute = createRoute({ getParentRoute: () => rootRoute, path: '/security', component: lazyRouteComponent(() => import('@/features/security/SecurityPage'), 'SecurityPage') });
+const securityRoute = createRoute({ getParentRoute: () => rootRoute, path: '/security', validateSearch: securityPageSearch, component: lazyRouteComponent(() => import('@/features/security/SecurityPage'), 'SecurityPage') });
 const changelogRoute = createRoute({ getParentRoute: () => rootRoute, path: '/changelog', component: lazyRouteComponent(() => import('./ChangelogPage'), 'ChangelogPage') });
 const moreRoute = createRoute({ getParentRoute: () => rootRoute, path: '/more', component: lazyRouteComponent(() => import('./MorePage'), 'MorePage') });
 
@@ -674,8 +747,8 @@ const adminNotificationsRoute = createRoute({ getParentRoute: () => rootRoute, v
 const adminSecurityRoute = createRoute({ getParentRoute: () => rootRoute, validateSearch: securitySearch, path: '/admin/security', beforeLoad: requireAdmin, component: lazyRouteComponent(() => import('@/features/admin/SecurityJournalPage'), 'SecurityJournalPage') });
 
 export const routeTree = rootRoute.addChildren([
-  indexRoute, dashboardRoute, yearReviewRoute, subscriptionsRoute, subscriptionNewRoute, subscriptionDetailRoute, investmentsRoute, investmentNewRoute, investmentDetailRoute, holdingDetailRoute,
-  goalsRoute, goalNewRoute, goalDetailRoute, childcareRoute, childcareNewRoute, childcareDetailRoute, childcareStatementRoute, documentsRoute, documentDetailRoute, seriesRoute, incomeRoute, incomeNewRoute, incomeDetailRoute, taxRoute, taxAssessmentNewRoute, taxAssessmentEditRoute, retirementRoute, scenariosRoute, scenarioNewRoute, projectionScenarioRoute, saleScenarioRoute, scenarioCompareRoute, scenarioDetailRoute, propertiesRoute, propertyNewRoute, propertyDetailRoute, loansRoute, loanNewRoute, loanDetailRoute, loanContractRoute, propertyReceiptRoute, propertyArrearsLetterRoute, notificationsRoute, routineRoute, proposalsRoute, proposalDetailRoute,
+  indexRoute, dashboardRoute, calendarRoute, yearReviewRoute, subscriptionsRoute, subscriptionNewRoute, subscriptionDetailRoute, investmentsRoute, investmentNewRoute, investmentDetailRoute, holdingDetailRoute,
+  goalsRoute, goalNewRoute, goalDetailRoute, childcareRoute, childcareNewRoute, childcareDetailRoute, childcareEndRoute, childcareSettlementRoute, childcareStatementRoute, nannyNewRoute, nannyDetailRoute, documentsRoute, documentDetailRoute, seriesRoute, incomeRoute, incomeNewRoute, incomeDetailRoute, taxRoute, taxAssessmentNewRoute, taxAssessmentEditRoute, retirementRoute, scenariosRoute, scenarioNewRoute, projectionScenarioRoute, saleScenarioRoute, scenarioCompareRoute, scenarioDetailRoute, propertiesRoute, propertyNewRoute, propertyDetailRoute, loansRoute, loanNewRoute, loanDetailRoute, loanContractRoute, propertyReceiptRoute, propertyArrearsLetterRoute, notificationsRoute, routineRoute, proposalsRoute, proposalDetailRoute,
   importRoute.addChildren([importHomeRoute, importSessionRoute]), exportRoute, settingsRoute, appearanceRoute, notificationSettingsRoute, projectionSettingsRoute, personsSettingsRoute, calendarSettingsRoute, banksSettingsRoute,
   securityRoute, operationsRoute, moreRoute, changelogRoute, forbiddenRoute, adminRoute, adminUsersRoute, adminHouseholdRoute, adminFxRoute, adminPricesRoute, adminIrlRoute, adminInflationRoute, adminBankingRoute, adminCatalogRoute, adminJobsRoute, adminJobRoute, adminJobRunRoute,
   adminSystemRoute, adminNotificationsRoute, adminSecurityRoute,

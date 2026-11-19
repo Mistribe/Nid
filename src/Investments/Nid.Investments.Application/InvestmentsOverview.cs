@@ -29,9 +29,10 @@ public sealed record PersonEnvelopeShareView(Guid PersonId, AmountView? Value, A
 /// An open envelope: its figures in its currency, as the list's, and its value and gain converted (D4). Holding prices spec §5.4: when
 /// <c>Estimated</c>, the value (in the figures and converted) is the estimate of <c>EstimatedOn</c>; the rest of the figures stay on the valuation.
 /// </summary>
+/// <param name="RatePct">#356: a regulated livret's rate today, in percent a year; with <paramref name="Ceiling"/>, its ceiling and room.</param>
 public sealed record EnvelopeOverviewRow(
     ItemId Id, string Name, string Kind, string? Institution, IReadOnlyList<ItemOwnerView> Owners, string Currency, FiguresView Figures,
-    AmountView? ValueConverted, AmountView? GainConverted, bool Estimated, LocalDate? EstimatedOn);
+    AmountView? ValueConverted, AmountView? GainConverted, bool Estimated, LocalDate? EstimatedOn, decimal? RatePct = null, CeilingView? Ceiling = null);
 
 public sealed record KindValueView(string Kind, AmountView? Value);
 
@@ -59,7 +60,7 @@ public sealed record InvestmentsOverview(
     AmountView? SinceJanuary, decimal? SinceJanuaryPct, int WithoutStartCount,
     IReadOnlyList<KindShareView> ByKind, IReadOnlyList<PersonEnvelopeShareView> ByPerson, IReadOnlyList<EnvelopeOverviewRow> Envelopes,
     IReadOnlyList<OverviewPointView> Points, IReadOnlyList<EnvelopeWatchView> Watch, IReadOnlyList<OverviewFindingView> Findings,
-    int EstimatedCount) : IExposesItems
+    int EstimatedCount, AmountView? Available = null, AmountView? Invested = null) : IExposesItems
 {
     // The watch list names open envelopes only, all in the rows.
     public IEnumerable<ItemId> ExposedItems() => Envelopes.Select(e => e.Id);
@@ -200,15 +201,19 @@ internal static class InvestmentsOverviewMath
             .ToList();
 
         var value = SumOrNull(valued.Select(v => v.Value));
-        var net = SumOrNull(valued.Select(v => convert.Of(v.Figures.NetContributions!.Value.Amount, v.Facts.Currency, today)));
-        // D5: a transfer between two envelopes is no money the household paid in.
-        var paidIn = SumOrNull(valued.Select(v => convert.Of(v.Facts.Flows
-            .Where(f => f.OccurredOn <= v.Figures.AsOf && f.Kind is FlowKind.Opening or FlowKind.Contribution && !IsTransfer(f))
+        // #356: checking accounts and livrets are counted in the value, apart; what was paid in, the gain and the returns are the investments'.
+        var available = valued.Where(v => EnvelopeAllocation.IsAvailable(v.Facts.Envelope.Kind)).ToList();
+        var invested = valued.Except(available).ToList();
+        var net = SumOrNull(invested.Select(v => convert.Of(v.Figures.NetContributions!.Value.Amount, v.Facts.Currency, today)));
+        // D5: a transfer between two investments is no money the household paid in; one from a livret is (#356).
+        var transfer = InvestedTransfer(open);
+        var paidIn = SumOrNull(invested.Select(v => convert.Of(v.Facts.Flows
+            .Where(f => f.OccurredOn <= v.Figures.AsOf && f.Kind is FlowKind.Opening or FlowKind.Contribution && !transfer(f))
             .Sum(f => f.Amount.Amount), v.Facts.Currency, today)));
-        var gain = SumOrNull(valued.Select(v => v.Gain));
+        var gain = SumOrNull(invested.Select(v => v.Gain));
 
         // D3: the dashboard's « since 1 January ».
-        var since = valued.Select(v => (v.Facts, Period: EnvelopesNetWorth.SinceJanuary(v.Facts, today))).Where(x => x.Period is not null).ToList();
+        var since = invested.Select(v => (v.Facts, Period: EnvelopesNetWorth.SinceJanuary(v.Facts, today))).Where(x => x.Period is not null).ToList();
         var sinceGain = SumOrNull(since.Select(x => convert.Of(x.Period!.Performance!.Value.Amount, x.Facts.Currency, today)));
         var sinceBase = SumOrNull(since.Select(x => convert.Of(x.Period!.StartValue!.Value.Amount + x.Period.NetContributions!.Value.Amount, x.Facts.Currency, today)));
 
@@ -220,7 +225,8 @@ internal static class InvestmentsOverviewMath
             .Select(x => new EnvelopeOverviewRow(x.Facts.Item.Id, x.Facts.Item.DisplayName, EnvelopeWire.Of(x.Facts.Envelope.Kind),
                 x.Facts.Envelope.Institution, x.Facts.Item.OwnerViews(), x.Facts.Currency.Code,
                 x.Estimate is { } estimate ? FiguresView.From(x.Figures) with { Value = AmountView.From(estimate) } : FiguresView.From(x.Figures),
-                convert.View(x.Value), convert.View(x.Gain), x.Estimate is not null, x.EstimatedOn))
+                convert.View(x.Value), convert.View(x.Gain), x.Estimate is not null, x.EstimatedOn,
+                x.Facts.Envelope.Regulated is { } regulated ? RegulatedSavings.Rate(regulated, today)?.Value : null, EnvelopeInsights.Ceiling(x.Facts, today)))
             .ToList();
 
         var byKind = valued.GroupBy(v => EnvelopeWire.Of(v.Facts.Envelope.Kind))
@@ -241,12 +247,13 @@ internal static class InvestmentsOverviewMath
             figures.Count - valued.Count,
             convert.View(net), convert.View(paidIn), convert.View(gain),
             gain is { } g && paidIn is { } p && p > 0m ? EnvelopeMath.RoundPercent(g / p * 100m) : null,
-            AnnualReturn(valued, convert, today),
+            AnnualReturn(invested, convert, today),
             convert.View(sinceGain), sinceGain is { } sg && sinceBase is { } sb && sb > 0m ? EnvelopeMath.RoundPercent(sg / sb * 100m) : null,
-            valued.Count - since.Count,
+            invested.Count - since.Count,
             byKind, People(valued, persons, value, convert), rows,
             Points(facts, grid, span, convert, today, valued.Where(v => v.Estimate is not null).ToDictionary(v => v.Facts.Item.Id, v => v.Estimate!.Value)),
-            watch, convert.Missing, valued.Count(v => v.Estimate is not null));
+            watch, convert.Missing, valued.Count(v => v.Estimate is not null),
+            available.Count > 0 ? convert.View(SumOrNull(available.Select(v => v.Value))) : null, convert.View(SumOrNull(invested.Select(v => v.Value))));
     }
 
     /// <summary>
@@ -358,7 +365,7 @@ internal static class InvestmentsOverviewMath
                 .Where(s => s.Facts.Envelope.ClosedOn is not { } closed || date < closed)
                 .Select(s => (s.Facts, Reading: s.Readings.LastOrDefault(r => r.AsOf <= date)))
                 .Where(x => x.Reading is not null)
-                .Select(x => (Kind: EnvelopeWire.Of(x.Facts.Envelope.Kind),
+                .Select(x => (Kind: EnvelopeWire.Of(x.Facts.Envelope.Kind), Available: EnvelopeAllocation.IsAvailable(x.Facts.Envelope.Kind),
                     Value: convert.Of(date == today && estimates.TryGetValue(x.Facts.Item.Id, out var e) ? e.Amount : x.Reading!.Value.Amount, x.Facts.Currency, date),
                     Net: convert.Of(x.Reading!.NetContributions.Amount, x.Facts.Currency, date), x.Reading.PaidIn))
                 .ToList();
@@ -369,12 +376,26 @@ internal static class InvestmentsOverviewMath
             }
             var byKind = at.GroupBy(x => x.Kind).OrderBy(g => g.Key, StringComparer.Ordinal)
                 .Select(g => new KindValueView(g.Key, convert.View(SumOrNull(g.Select(x => x.Value))))).ToList();
-            points.Add(new OverviewPointView(date, convert.View(SumOrNull(at.Select(x => x.Value))), convert.View(SumOrNull(at.Select(x => x.Net))), byKind, at.Any(x => x.PaidIn)));
+            // #356: the net paid in is the investments' (a checking account's salary is no contribution).
+            var investedAt = at.Where(x => !x.Available).ToList();
+            points.Add(new OverviewPointView(date, convert.View(SumOrNull(at.Select(x => x.Value))),
+                investedAt.Count > 0 ? convert.View(SumOrNull(investedAt.Select(x => x.Net))) : null, byKind, investedAt.Any(x => x.PaidIn)));
         }
         return span == OverviewSpan.All ? points.SkipWhile(p => p.ByKind.Count == 0).ToList() : points;
     }
 
     internal static bool IsTransfer(Flow f) => f.Category == FlowCategories.Transfer;
+
+    /// <summary>
+    /// #356: which transfers move money between investments. One whose other leg is on a checking account or a livret among
+    /// <paramref name="facts"/> brings money in (or takes it out): for the investments' figures it is a contribution (a withdrawal).
+    /// </summary>
+    internal static Func<Flow, bool> InvestedTransfer(IEnumerable<EnvelopePerformance.Facts> facts)
+    {
+        var fromAvailable = facts.Where(f => EnvelopeAllocation.IsAvailable(f.Envelope.Kind))
+            .SelectMany(f => f.Flows).Where(f => IsTransfer(f) && f.ExternalRef is not null).Select(f => f.ExternalRef!).ToHashSet();
+        return f => IsTransfer(f) && !(f.ExternalRef is { } reference && fromAvailable.Contains(reference));
+    }
 
     private static decimal? Share(decimal? part, decimal? total)
         => part is { } p && total is { } t && t > 0m ? EnvelopeMath.RoundPercent(p / t * 100m) : null;

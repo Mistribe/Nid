@@ -54,7 +54,7 @@ export function ScenarioComparePage() {
     { enabled: ids.length > 0, placeholderData: keepPreviousData, retry: false });
 
   const go = (next: Partial<CompareSearch>) => {
-    void navigate({ to: '/scenarios/compare', replace: true, search: (prev: RootSearch & CompareSearch) => ({ ...prev, ...next }) });
+    void navigate({ to: '/scenarios/compare', replace: true, search: (prev) => ({ ...(prev as RootSearch & CompareSearch), ...next }) });
   };
   const choose = (index: number, id: string) => {
     const next = [...ids];

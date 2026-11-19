@@ -19,7 +19,7 @@ namespace Nid.Platform.Infrastructure.Persistence.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("platform")
-                .HasAnnotation("ProductVersion", "10.0.4")
+                .HasAnnotation("ProductVersion", "10.0.15")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -416,6 +416,13 @@ namespace Nid.Platform.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("jsonb")
                         .HasColumnName("lead_days");
+
+                    b.Property<string>("Signals")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("signals")
+                        .HasDefaultValueSql("'{}'::jsonb");
 
                     b.Property<int>("Version")
                         .IsConcurrencyToken()

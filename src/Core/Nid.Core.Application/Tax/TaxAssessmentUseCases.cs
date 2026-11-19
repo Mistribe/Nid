@@ -118,7 +118,7 @@ public sealed class DeleteTaxAssessmentHandler(ITaxAssessmentStore store, IActor
 /// <summary>Tax assessments spec §4: who may touch a notice and what it must satisfy; the reads and writes share it.</summary>
 internal static class TaxAssessmentAccess
 {
-    public static Failure Changed { get; } = new(TaxAssessmentCodes.Conflict, "The tax assessment changed since it was read.", null);
+    public static Failure Changed { get; } = new ConflictFailure("The tax assessment changed since it was read.") { Code = TaxAssessmentCodes.Conflict };
 
     /// <summary>
     /// Whether the notice counts in the household scope: both adults declare it (two declarants are both adults, validated), or the household

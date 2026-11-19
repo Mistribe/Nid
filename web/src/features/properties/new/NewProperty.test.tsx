@@ -142,8 +142,8 @@ describe('NewProperty', () => {
 
   it('sends the person back to the step of a field the server refuses, which opens the folded options holding one', async () => {
     serveCreate([], () => HttpResponse.json({
-      status: 422, code: 'realestate.invalid_property_field', title: 'x',
-      errors: [{ path: 'locationLabel', code: 'realestate.invalid_property_field', message: 'x' }],
+      status: 422, code: 'realestate.invalid_property_field', detail: 'x',
+      errors: [{ detail: 'x', pointer: '#/locationLabel', code: 'realestate.invalid_property_field' }],
     }, { status: 422 }));
     const { user } = await renderApp('/properties/new');
 
@@ -160,8 +160,8 @@ describe('NewProperty', () => {
 
   it('opens the options holding a refused field of the purchase step', async () => {
     serveCreate([], () => HttpResponse.json({
-      status: 422, code: 'realestate.invalid_property_field', title: 'x',
-      errors: [{ path: 'staleAfterDays', code: 'realestate.invalid_property_field', message: 'x' }],
+      status: 422, code: 'realestate.invalid_property_field', detail: 'x',
+      errors: [{ detail: 'x', pointer: '#/staleAfterDays', code: 'realestate.invalid_property_field' }],
     }, { status: 422 }));
     const { user } = await renderApp('/properties/new');
 
@@ -176,7 +176,7 @@ describe('NewProperty', () => {
 
   it('shows a refusal no field owns above the form', async () => {
     serveCreate([], () => HttpResponse.json(
-      { status: 422, code: 'realestate.invalid_property_field', title: 'x', errors: [{ path: 'rentalStartsOn', code: 'realestate.invalid_property_field', message: 'x' }] },
+      { status: 422, code: 'realestate.invalid_property_field', detail: 'x', errors: [{ detail: 'x', pointer: '#/rentalStartsOn', code: 'realestate.invalid_property_field' }] },
       { status: 422 }));
     const { user } = await renderApp('/properties/new');
 

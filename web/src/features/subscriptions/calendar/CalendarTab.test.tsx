@@ -85,9 +85,9 @@ describe('Abonnements › calendrier', () => {
     const link = within(await day('mardi 3 novembre')).getByRole('link', { name: /Spotify/ });
     expect(link).toHaveAttribute('href', `/subscriptions/${SPOTIFY}`);
     expect(link).toHaveTextContent('9,20 €');
-    // The phone's list of days repeats it, with the day's short name.
+    // The phone's list of days repeats it, under the day's full name (the shared month view, issue #242).
     const phone = screen.getByRole('list', { name: 'Prélèvements par jour' });
-    expect(within(phone).getByText('mar. 3 nov.')).toBeInTheDocument();
+    expect(within(phone).getByRole('heading', { name: 'mardi 3 novembre' })).toBeInTheDocument();
     expect(within(phone).getByRole('link', { name: /Spotify/ })).toHaveAttribute('href', `/subscriptions/${SPOTIFY}`);
   });
 

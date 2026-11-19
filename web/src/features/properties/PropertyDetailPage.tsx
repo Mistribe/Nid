@@ -96,7 +96,7 @@ export function PropertyDetailPage() {
             <AccessBadge access={property.visibility === 'private' ? 'private' : 'shared'} /><SharingBadges item={id} />
             <OwnerChips owners={property.owners} />
             {property.type === 'rental' && capabilities.modules.includes('income') ? (
-              <Link to="/tax" search={{ tab: '2044' }} className="text-sm hover:underline">{t('property_detail.tax_2044')}</Link>
+              <Link to="/tax" search={{ tab: 'declarations', form: 2044 }} className="text-sm hover:underline">{t('property_detail.tax_2044')}</Link>
             ) : null}
           </>
         )}>

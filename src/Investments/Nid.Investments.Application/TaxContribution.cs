@@ -7,8 +7,8 @@ namespace Nid.Investments.Application;
 
 /// <summary>
 /// Tax estimate spec §6: a brokerage account's income of the year (flat tax), a PER's contributions (deducted, per owner), its
-/// opening too when it was opened that year, and the withdrawals from tax wrappers, whose tax is not estimated. Savings accounts
-/// are taken as tax-free regulated ones. Tax-per spec §4.5: a PER open at the end of the year (or closed in it) that holds a value
+/// opening too when it was opened that year, and the withdrawals from tax wrappers, whose tax is not estimated. #234: its dividends apart; the savings
+/// accounts' interest and the sales' gains come from <see cref="CapitalTaxContribution"/>. Tax-per spec §4.5: a PER open at the end of the year (or closed in it) that holds a value
 /// and received neither a payment nor an opening in it comes as <see cref="TaxLineCodes.PerNoContribution"/>.
 /// </summary>
 public sealed class EnvelopesTax(IVisibleItems visible, IItemRegistry items, IEnvelopeStore envelopes, IFlows flows, IValuations valuations) : ITaxContribution
@@ -45,7 +45,12 @@ public sealed class EnvelopesTax(IVisibleItems visible, IItemRegistry items, IEn
             var facts = byItem!.GetValueOrDefault(envelope.ItemId, []);
             decimal Sum(FlowKind kind) => facts.Where(f => f.Kind == kind).Sum(f => f.Amount.Amount);
             if (envelope.Kind == EnvelopeKind.Brokerage && Sum(FlowKind.Income) is > 0 and var income)
+            {
+                // The income every one; the dividends again apart, the part the scale's 40 % allowance reaches (#234).
                 lines.Add(new TaxLine(TaxLineCodes.CapitalIncome, item.Id, item.DisplayName, null, income));
+                if (facts.Where(f => f.Kind == FlowKind.Income && f.Category == FlowCategories.Dividend).Sum(f => f.Amount.Amount) is > 0 and var dividends)
+                    lines.Add(new TaxLine(TaxLineCodes.CapitalDividends, item.Id, item.DisplayName, null, Math.Min(dividends, income)));
+            }
             // An opening is the payments made before the tracking: paid in the year only when the PER was opened in it.
             var opening = envelope.OpenedOn?.Year == year ? Sum(FlowKind.Opening) : 0m;
             if (envelope.Kind == EnvelopeKind.Per && Sum(FlowKind.Contribution) + opening is > 0 and var paid)

@@ -96,8 +96,8 @@ describe('Un tableau d’amortissement proposé', () => {
   });
 
   it.each([
-    [409, { status: 409, code: 'realestate.bank_schedule_invalid', title: 'The bank table does not match the loan.' }],
-    [422, { status: 422, code: 'request.invalid', title: 'Invalid.', errors: [{ path: 'payload.rows', code: 'realestate.early_repayment', message: 'Impossible.' }] }],
+    [409, { status: 409, code: 'realestate.bank_schedule_invalid', detail: 'The bank table does not match the loan.' }],
+    [422, { status: 422, code: 'request.invalid', detail: 'Invalid.', errors: [{ detail: 'Impossible.', pointer: '#/payload/rows', code: 'realestate.early_repayment' }] }],
   ])('tells a refused approval (%i) in French, never with the server’s sentence', async (status, body) => {
     const p = table();
     serve([p], { preview: tablePreview() });
@@ -114,7 +114,7 @@ describe('Un tableau d’amortissement proposé', () => {
     const p = table();
     serve([p], { preview: tablePreview() });
     server.use(http.post('*/api/v1/core/proposals/:id/approve', () => HttpResponse.json(
-      { status: 422, code: 'realestate.bank_schedule_invalid', title: 'x', errors: [{ path: 'payload.rows[11].crd', code: 'realestate.bank_schedule_invalid', message: 'x' }] },
+      { status: 422, code: 'realestate.bank_schedule_invalid', detail: 'x', errors: [{ detail: 'x', pointer: '#/payload/rows/11/crd', code: 'realestate.bank_schedule_invalid' }] },
       { status: 422 })));
     const { user } = await renderApp(`/proposals/${p.id}`);
 

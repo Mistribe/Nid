@@ -32,7 +32,7 @@ describe('key figure panels', () => {
     const panel = await dialog('Patrimoine net');
     expect(router.state.location.search).toEqual({ scope: 'me', panel: 'net_worth' });
     expect(panel).toHaveTextContent('Valeurs au 30 septembre 2025');
-    expect(within(panel).getByRole('link', { name: 'Voir les placements' })).toHaveAttribute('href', '/investments?scope=me');
+    expect(within(panel).getByRole('link', { name: 'Voir les comptes et placements' })).toHaveAttribute('href', '/investments?scope=me');
     expect(within(panel).getByRole('link', { name: 'Voir les biens' })).toHaveAttribute('href', '/properties?scope=me');
     await expectNoAxeViolations(container);
 
@@ -68,7 +68,7 @@ describe('key figure panels', () => {
     const panel = await dialog('Patrimoine net');
     const table = within(panel).getByRole('table', { name: 'Valeur de chaque élément' });
     expect(within(table).getAllByRole('rowheader').map((h) => h.textContent)).toEqual(['PEA', 'Vide', 'Maison', 'Prêt travaux']);
-    expect(within(table).getAllByRole('columnheader', { name: /Placements|Biens|Crédits/ }).map((h) => h.textContent)).toEqual(['Placements', 'Biens', 'Crédits']);
+    expect(within(table).getAllByRole('columnheader', { name: /Comptes et placements|Biens|Crédits/ }).map((h) => h.textContent)).toEqual(['Comptes et placements', 'Biens', 'Crédits']);
     const rows = within(table).getAllByRole('row');
     expect(rows.find((r) => r.textContent?.includes('PEA'))).toHaveTextContent('25 000,00 €');
     expect(rows.find((r) => r.textContent?.includes('Maison'))).toHaveTextContent('310 000,00 €');

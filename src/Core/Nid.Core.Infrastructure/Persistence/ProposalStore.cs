@@ -96,9 +96,9 @@ public sealed partial class ProposalStore(CoreDbContext db, IClock clock, IEnume
         if (row is null)
             return Result.Failure<StoredProposal>(new NotFoundFailure("proposal", id.ToString()));
         if (row.Status != "pending")
-            return Result.Failure<StoredProposal>(new Failure(ProposalCodes.Decided, "This proposal was already decided or replaced.", null));
+            return Result.Failure<StoredProposal>(new ConflictFailure("This proposal was already decided or replaced.") { Code = ProposalCodes.Decided });
         if (row.Version != version)
-            return Result.Failure<StoredProposal>(new Failure(ProposalCodes.Conflict, "This proposal changed meanwhile: reload it.", null));
+            return Result.Failure<StoredProposal>(new ConflictFailure("This proposal changed meanwhile: reload it.") { Code = ProposalCodes.Conflict });
 
         row.Status = Wire(to);
         row.DecidedByPersonId = by.Value;
@@ -113,7 +113,7 @@ public sealed partial class ProposalStore(CoreDbContext db, IClock clock, IEnume
         catch (DbUpdateConcurrencyException)
         {
             db.ChangeTracker.Clear();
-            return Result.Failure<StoredProposal>(new Failure(ProposalCodes.Conflict, "This proposal changed meanwhile: reload it.", null));
+            return Result.Failure<StoredProposal>(new ConflictFailure("This proposal changed meanwhile: reload it.") { Code = ProposalCodes.Conflict });
         }
         return Result.Success(ToStored(row));
     }
@@ -124,9 +124,9 @@ public sealed partial class ProposalStore(CoreDbContext db, IClock clock, IEnume
         if (row is null)
             return Result.Failure<Guid>(new NotFoundFailure("proposal", id.ToString()));
         if (row.Status != "pending")
-            return Result.Failure<Guid>(new Failure(ProposalCodes.Decided, "This proposal was already decided or replaced.", null));
+            return Result.Failure<Guid>(new ConflictFailure("This proposal was already decided or replaced.") { Code = ProposalCodes.Decided });
         if (row.Version != version)
-            return Result.Failure<Guid>(new Failure(ProposalCodes.Conflict, "This proposal changed meanwhile: reload it.", null));
+            return Result.Failure<Guid>(new ConflictFailure("This proposal changed meanwhile: reload it.") { Code = ProposalCodes.Conflict });
 
         db.Proposals.Remove(row);
         try
@@ -136,7 +136,7 @@ public sealed partial class ProposalStore(CoreDbContext db, IClock clock, IEnume
         catch (DbUpdateConcurrencyException)
         {
             db.ChangeTracker.Clear();
-            return Result.Failure<Guid>(new Failure(ProposalCodes.Conflict, "This proposal changed meanwhile: reload it.", null));
+            return Result.Failure<Guid>(new ConflictFailure("This proposal changed meanwhile: reload it.") { Code = ProposalCodes.Conflict });
         }
         return Result.Success(id);
     }

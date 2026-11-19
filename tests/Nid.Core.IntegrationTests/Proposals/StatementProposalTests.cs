@@ -86,7 +86,7 @@ public class StatementProposalTests(PostgresFixture fixture) : IClassFixture<Pos
         {
             var response = await app.RawAsync(app.AdultA, HttpMethod.Post, ProposalKindHelpers.Proposals, body);
             var error = (await JsonOf(response)).GetProperty("errors")[0];
-            Assert.Equal(("payload.movements[0].category", code), (error.GetProperty("path").GetString(), error.GetProperty("code").GetString()));
+            Assert.Equal(("payload.movements[0].category", code), (error.FieldPath(), error.GetProperty("code").GetString()));
         }
     }
 
@@ -125,7 +125,7 @@ public class StatementProposalTests(PostgresFixture fixture) : IClassFixture<Pos
 
         var refused = await ApproveAsync(app, proposal, Edited(proposal)); // every movement re-checked
         Assert.Equal(HttpStatusCode.Conflict, refused.StatusCode); // core.external_ref_taken answers 409
-        Assert.Equal("payload.movements[1].ref", (await JsonOf(refused)).GetProperty("errors")[0].GetProperty("path").GetString());
+        Assert.Equal("payload.movements[1].ref", (await JsonOf(refused)).GetProperty("errors")[0].FieldPath());
 
         var reread = (await ReadAsync(app, proposal)).GetProperty("proposal");
         Assert.Equal("pending", reread.GetProperty("status").GetString());
@@ -157,7 +157,7 @@ public class StatementProposalTests(PostgresFixture fixture) : IClassFixture<Pos
         var refused = await ApproveAsync(app, proposal);
 
         var error = (await JsonOf(refused)).GetProperty("errors")[0];
-        Assert.Equal(("payload.movements[2].amount", "investments.above_ceiling"), (error.GetProperty("path").GetString(), error.GetProperty("code").GetString()));
+        Assert.Equal(("payload.movements[2].amount", "investments.above_ceiling"), (error.FieldPath(), error.GetProperty("code").GetString()));
         Assert.Empty((await EnvelopeAsync(app, lep)).GetProperty("flows").EnumerateArray()); // none of the statement kept
         Assert.Equal("pending", (await ReadAsync(app, proposal)).GetProperty("proposal").GetProperty("status").GetString());
     }
@@ -187,7 +187,7 @@ public class StatementProposalTests(PostgresFixture fixture) : IClassFixture<Pos
         {
             var response = await app.RawAsync(app.AdultA, HttpMethod.Post, ProposalKindHelpers.Proposals, body);
             Assert.True(response.StatusCode == HttpStatusCode.UnprocessableEntity, $"{path}: {response.StatusCode}");
-            Assert.Equal(path, (await JsonOf(response)).GetProperty("errors")[0].GetProperty("path").GetString());
+            Assert.Equal(path, (await JsonOf(response)).GetProperty("errors")[0].FieldPath());
         }
     }
 
@@ -230,7 +230,7 @@ public class StatementProposalTests(PostgresFixture fixture) : IClassFixture<Pos
         var refused = await app.RawAsync(app.AdultA, HttpMethod.Post, ProposalKindHelpers.Proposals,
             Statement(envelope, [.. Enumerable.Range(0, 201).Select(i => Movement(amount: $"{i + 1}.00"))]));
 
-        var message = (await JsonOf(refused)).GetProperty("errors")[0].GetProperty("message").GetString();
+        var message = (await JsonOf(refused)).GetProperty("errors")[0].GetProperty("detail").GetString();
         Assert.Contains("by date", message);
         Assert.Contains("its last movement's date", message);
         Assert.Contains("never send the same asOf twice", message);

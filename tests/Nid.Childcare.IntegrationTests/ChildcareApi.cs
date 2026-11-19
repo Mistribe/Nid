@@ -13,8 +13,8 @@ internal static class ChildcareApi
     public static async Task<JsonElement> JsonAsync(HttpResponseMessage response)
         => JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement;
 
-    /// <summary><paramref name="weekTypes"/>: the revision's week types in place of the one « Semaine type » of 46 weeks.</summary>
-    public static async Task<string> CreateAsync(NidApp app, string visibility = "shared", object[]? weekTypes = null)
+    /// <summary><paramref name="weekTypes"/>: the revision's week types in place of the one « Semaine type » of 46 weeks; <paramref name="from"/>: another start.</summary>
+    public static async Task<string> CreateAsync(NidApp app, string visibility = "shared", object[]? weekTypes = null, string from = "2025-09-01")
     {
         var response = await app.RawAsync(app.AdultA, HttpMethod.Post, Url, new
         {
@@ -22,7 +22,7 @@ internal static class ChildcareApi
             carer = new { name = "Martine", pajemploi = "P123", approval = (string?)null },
             terms = new
             {
-                from = "2025-09-01", netHourlyRate = "4.30", grossHourlyRate = (string?)null, overtimePct = "10", upkeepPer9h = "3.80", lunchPrice = "3.20",
+                from, netHourlyRate = "4.30", grossHourlyRate = (string?)null, overtimePct = "10", upkeepPer9h = "3.80", lunchPrice = "3.20",
                 weekTypes = weekTypes ?? [new { name = "Semaine type", weeks = 46, schedule = Schedule }],
             },
             gaps = Array.Empty<object>(), visibility,

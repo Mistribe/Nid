@@ -153,7 +153,7 @@ public class NotificationEndpointTests(PostgresFixture fixture) : IClassFixture<
             Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
             var problem = await JsonOf(response);
             Assert.Equal("notifications.invalid_snooze", problem.GetProperty("code").GetString());
-            Assert.Equal("until", problem.GetProperty("errors")[0].GetProperty("path").GetString());
+            Assert.Equal("until", problem.GetProperty("errors")[0].FieldPath());
         }
         Assert.Equal(NotificationStates.Open, await StateOfAsync(app, id));
 
@@ -247,7 +247,7 @@ public class NotificationEndpointTests(PostgresFixture fixture) : IClassFixture<
         var catalog = scope.ServiceProvider.GetRequiredService<NotificationCatalog>();
         var item = new ItemId(Guid.NewGuid());
 
-        Assert.Equal(37, catalog.Kinds.Count);
+        Assert.Equal(51, catalog.Kinds.Count);
         foreach (var kind in catalog.Kinds.Values)
         {
             var record = new NotificationRecord(Guid.NewGuid(), app.AdultA, kind.Kind, kind.Kind, kind.Level, [item], null, Today,

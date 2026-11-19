@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Nid.Banking.Contracts;
+using Nid.Banking.Domain;
 using UnambitiousFx.Myelin;
 using NodaTime;
 using NodaTime.Text;
@@ -97,6 +98,10 @@ public sealed class EnableBankingClient(SafeHttpClient http, BankingOptions opti
         return result.TryGetFailure(out var failure) ? Result.Failure(failure!) : Result.Success();
     }
 
+    public async Task<Result<EnableBankingApplication>> ApplicationAsync(string appId, CancellationToken ct)
+        => Map(await CallAsync<ApplicationDto>(HttpMethod.Get, "/application", null, appId, null, ct),
+            dto => new EnableBankingApplication(dto.Active, dto.RedirectUrls ?? []));
+
     private static Result<T> Map<S, T>(Result<S> result, Func<S, T> map)
         where S : notnull where T : notnull
     {
@@ -120,8 +125,16 @@ public sealed class EnableBankingClient(SafeHttpClient http, BankingOptions opti
         dto.SessionId, Instant.FromDateTimeOffset(DateTimeOffset.Parse(dto.Access.ValidUntil, CultureInfo.InvariantCulture)),
         // An account without a uid cannot be read (blocked or closed at the bank): it is not offered.
         dto.Accounts.Where(a => a.Uid is not null)
-            .Select(a => new SessionAccount(a.Uid!, a.IdentificationHash, a.AccountId?.Iban, a.Details ?? a.Name ?? "", a.CashAccountType, a.Currency))
+            .Select(a => new SessionAccount(
+                a.Uid!, a.IdentificationHash, a.AccountId?.Iban, AccountNames.Pick(a.Details, a.Product, a.Name), a.CashAccountType, a.Currency,
+                a.CashAccountType == "CARD" ? AccountNames.Debit(a.Details, a.Product) : null,
+                CardLast4([a.AccountId?.Other, .. a.AllAccountIds ?? []]), AccountNames.Word(a.Name), AccountNames.Word(a.Product)))
             .ToList());
+
+    /// <summary>The last four digits of the first card number among the ids; the rest of it, masked or not, is never kept.</summary>
+    private static string? CardLast4(IEnumerable<OtherIdDto?> ids)
+        => ids.Select(other => other is { SchemeName: "CPAN", Identification: { Length: >= 4 } number } && number[^4..].All(char.IsAsciiDigit) ? number[^4..] : null)
+            .FirstOrDefault(last4 => last4 is not null);
 
     private static IReadOnlyList<ProviderBalance> ToBalances(BalancesDto dto) => (dto.Balances ?? [])
         .Select(b => new ProviderBalance(
@@ -153,7 +166,7 @@ public sealed class EnableBankingClient(SafeHttpClient http, BankingOptions opti
         where T : notnull
     {
         if (string.IsNullOrWhiteSpace(options.PrivateKey))
-            return Fail<T>(BankingCodes.NotConfigured, "No Enable Banking private key is configured.");
+            return Result.Failure<T>(new ConflictFailure("No Enable Banking private key is configured.") { Code = BankingCodes.NotConfigured });
         string jwt;
         try
         {

@@ -4,6 +4,7 @@ import { useApi } from '@/api/ApiProvider';
 import { NAV, type NavItem } from '@/components/nav';
 import { PageHeader } from '@/components/page/PageHeader';
 import { Section } from '@/components/page/Section';
+import { InsecureHttpBanner } from './InsecureHttpBanner';
 import { LastRun } from './JobsPage';
 import '@/locales/admin';
 
@@ -34,7 +35,7 @@ export function AdminOverviewPage() {
 
   const state = (key: Key) => {
     if (key === 'jobs') return failed > 0 ? t('admin.overview.jobs_failed', { count: failed }) : null;
-    if (key === 'system') return health ? t(health.database === 'healthy' && health.identityProvider === 'healthy' ? 'admin.system.healthy' : 'admin.system.unhealthy') : null;
+    if (key === 'system') return health ? t(health.database === 'healthy' && health.identityProvider !== 'unhealthy' ? 'admin.system.healthy' : 'admin.system.unhealthy') : null;
     const job = jobs?.find((j) => j.key === JOB_OF[key]);
     return job ? <LastRun run={job.lastRun} /> : null;
   };
@@ -42,6 +43,7 @@ export function AdminOverviewPage() {
   return (
     <div className="space-y-6">
       <PageHeader title={t('nav.admin')} />
+      <InsecureHttpBanner />
       {GROUPS.map(([group, keys]) => (
         <Section key={group} title={t(`admin.overview.group_${group}`)}>
           <ul className="divide-y">

@@ -21,6 +21,7 @@ import { Answer, type Scope } from './Answer';
 import { PensionDialog } from './PensionDialog';
 import type { Departure, RetirementView } from './api';
 import '@/locales/retirement';
+import '@/locales/settings';
 
 const OverviewTab = lazy(() => import('./overview/OverviewTab').then((m) => ({ default: m.OverviewTab })));
 const AnalysisTab = lazy(() => import('./overview/OverviewTab').then((m) => ({ default: m.AnalysisTab })));

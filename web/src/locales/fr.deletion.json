@@ -23,7 +23,8 @@
       "income.delete_income_source": "Terminer cette source",
       "investments.delete_envelope": "Clôturer l’enveloppe",
       "subscriptions.delete_subscription": "Indiquer une date de résiliation (onglet Réglages)",
-      "childcare.delete_childcare": "Terminer la garde"
+      "childcare.delete_childcare": "Terminer la garde",
+      "childcare.delete_nanny": "Terminer la garde à domicile"
     },
     "done": "Élément supprimé : « {{name}} »",
     "keys": {
@@ -88,7 +89,9 @@
       "week_overrides_one": "{{count}} semaine d’exception",
       "week_overrides_other": "{{count}} semaines d’exception",
       "validated_statements_one": "{{count}} mois validé",
-      "validated_statements_other": "{{count}} mois validés"
+      "validated_statements_other": "{{count}} mois validés",
+      "nanny_months_one": "{{count}} mois de garde à domicile",
+      "nanny_months_other": "{{count}} mois de garde à domicile"
     }
   }
 }

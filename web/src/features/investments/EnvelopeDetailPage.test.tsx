@@ -23,13 +23,28 @@ describe('EnvelopeDetailPage', () => {
     server.use(http.get('*/api/v1/investments/envelopes/:id', async () => { await delay('infinite'); return HttpResponse.json({}); }));
     await renderApp(`/investments/${PEA}`);
     expect(await screen.findByLabelText('Chargement de l’enveloppe')).toBeInTheDocument();
-    await waitFor(() => expectTrailBack('Placements', '/investments'));
+    await waitFor(() => expectTrailBack('Comptes et placements', '/investments'));
     cleanup();
 
-    server.use(http.get('*/api/v1/investments/envelopes/:id', () => HttpResponse.json({ status: 404, code: null, title: 'Not found' }, { status: 404 })));
+    server.use(http.get('*/api/v1/investments/envelopes/:id', () => HttpResponse.json({ status: 404, code: null, detail: 'Not found' }, { status: 404 })));
     await renderApp(`/investments/${PEA}`);
     expect(await screen.findByRole('heading', { level: 1, name: 'Page introuvable' })).toBeInTheDocument();
-    await waitFor(() => expectTrailBack('Placements', '/investments'));
+    await waitFor(() => expectTrailBack('Comptes et placements', '/investments'));
+  });
+
+  it('offers « Supports » on an investment, not on a livret or a checking account (#356)', async () => {
+    serve(detail());
+    await renderApp(`/investments/${PEA}`);
+    expect(await screen.findByRole('tab', { name: 'Supports' })).toBeInTheDocument();
+    cleanup();
+
+    for (const kind of ['savings', 'checking']) {
+      serve({ ...detail(), kind });
+      await renderApp(`/investments/${PEA}?tab=holdings`);
+      expect(await screen.findByRole('tab', { name: 'Vue d’ensemble', selected: true })).toBeInTheDocument();
+      expect(screen.queryByRole('tab', { name: 'Supports' })).toBeNull();
+      cleanup();
+    }
   });
 
   it('opens the envelope value and net contributions in the explorer', async () => {
@@ -170,15 +185,15 @@ describe('EnvelopeDetailPage', () => {
   });
 
   it('says an unknown envelope is not found', async () => {
-    server.use(http.get('*/api/v1/investments/envelopes/:id', () => HttpResponse.json({ status: 404, code: null, title: 'Not found' }, { status: 404 })));
+    server.use(http.get('*/api/v1/investments/envelopes/:id', () => HttpResponse.json({ status: 404, code: null, detail: 'Not found' }, { status: 404 })));
     await renderApp(`/investments/${PEA}`);
 
     const heading = await screen.findByRole('heading', { level: 1, name: 'Page introuvable' });
     // Issue 362: the module's tile on the nest, the way to its list; the trail still leads back to it.
     const page = heading.closest('section')!;
     expect(page.querySelector('[data-tile="1"]')).not.toBeNull();
-    expect(within(page).getByRole('link', { name: 'Ouvrir Placements' })).toHaveAttribute('href', '/investments');
-    expectTrailBack('Placements', '/investments');
+    expect(within(page).getByRole('link', { name: 'Ouvrir Comptes et placements' })).toHaveAttribute('href', '/investments');
+    expectTrailBack('Comptes et placements', '/investments');
     await expectNoAxeViolations(page);
   });
 
@@ -186,7 +201,7 @@ describe('EnvelopeDetailPage', () => {
     let calls = 0;
     server.use(http.get('*/api/v1/investments/envelopes/:id', () => {
       calls += 1;
-      return HttpResponse.json({ status: 500, title: 'Boom', traceId: 'req-42' }, { status: 500 });
+      return HttpResponse.json({ status: 500, detail: 'Boom', traceId: 'req-42' }, { status: 500 });
     }));
     const { user } = await renderApp(`/investments/${PEA}`);
 

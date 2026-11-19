@@ -238,7 +238,7 @@ public static class RouteActions
         // Childcare (childminder, Pajemploi).
         new("create_childcare", "POST", "/api/v1/childcare/", typeof(CreateChildcareBody),
             "Record a childminder's contract (assistante maternelle, année incomplète): childId is a dependent (list_persons); carer name, "
-            + "Pajemploi and approval numbers; terms from a date with the net hourly rate, overtimePct (10 = 10 %), the upkeep for 9 hours, unpaidAbsences (the absence reasons deducted from the salary, among family, parent_rtt, child_sick, carer_absent, carer_training, family_agreed, holiday and paid_leave; absent to keep the current ones), "
+            + "Pajemploi and approval numbers; terms from a date with the net hourly rate, overtimePct (10 = 10 %), the upkeep for 9 hours, unpaidAbsences (the absence reasons deducted from the salary, among family, parent_rtt, child_sick, carer_absent, carer_sick, carer_training, family_agreed, holiday and paid_leave; absent to keep the current ones), "
             + "lunchPrice, snackPrice, lunchProvider and snackProvider (nanny or employer, only the nanny's meals are paid), weekTypes (each a name, its weeks and its weekly schedule: day 1 = Monday, arrival and departure HH:mm, lunch, snack; together 1 to 46 weeks); "
             + "gaps are weeks without care, each from a Monday. " + Owners + Amounts),
         new("edit_childcare", "PUT", "/api/v1/childcare/{id:guid}", typeof(EditChildcareBody),
@@ -248,7 +248,7 @@ public static class RouteActions
             "Revise an arrangement from a date after its current terms' start: the current terms end the day before. " + Ids + Amounts),
         new("set_childcare_unpaid_absences", "PUT", "/api/v1/childcare/{id:guid}/revisions/{from}", typeof(UnpaidAbsencesBody),
             "Correct which absence reasons are deducted from the salary under one revision of the terms (from yyyy-MM-dd, its start in get_childcare's terms), "
-            + "a past one included: unpaidAbsences among family, parent_rtt, child_sick, carer_absent, carer_training, family_agreed, holiday and paid_leave, [] for none, all of them sent. "
+            + "a past one included: unpaidAbsences among family, parent_rtt, child_sick, carer_absent, carer_sick, carer_training, family_agreed, holiday and paid_leave, [] for none, all of them sent. "
             + "Draft months recompute; validated ones keep their figures until reopened. " + Ids),
         new("replace_childcare_gaps", "PUT", "/api/v1/childcare/{id:guid}/gaps", typeof(GapsBody),
             "Replace an arrangement's weeks without care (each from a Monday, 1 to 52 weeks; send them all). " + Ids + Amounts),
@@ -256,7 +256,9 @@ public static class RouteActions
             "Make one week (monday yyyy-MM-dd, a Monday of the contract) follow another week type: weekType is the rank in get_childcare's "
             + "weekTypes, 0 for the first; the rank the rotation gives removes the exception. " + Ids),
         new("close_childcare", "POST", "/api/v1/childcare/{id:guid}/close", typeof(CloseChildcareBody),
-            "End an arrangement on its last day (on). " + Ids + Amounts),
+            "End an arrangement on its last day (on), with why (reason: withdrawal, misconduct, approval, child_death, resignation or trial) "
+            + "and the day the letter was handed over (notified, yyyy-MM-dd), so the last month settles notice, regularisation, leave and breach indemnity; "
+            + "grossHourlyRate when the terms lack it and the indemnity is due. " + Ids + Amounts),
         new("reopen_childcare", "POST", "/api/v1/childcare/{id:guid}/reopen", null,
             "Reopen an ended arrangement. " + Ids),
         new("delete_childcare", "DELETE", "/api/v1/childcare/{id:guid}", null,
@@ -265,10 +267,29 @@ public static class RouteActions
             Destructive: true, Query: ["version"], Current: "/api/v1/childcare/{id:guid}/deletion"),
         new("save_childcare_statement", "PUT", "/api/v1/childcare/{id:guid}/statements/{month}", typeof(StatementBody),
             "Propose a month's statement as a draft (month yyyy-MM): every day of the month as get_childcare_statement gives it, the deviations "
-            + "changed (present with arrival and departure HH:mm, lunch, snack and, for a planned day cut short, an optional reason; or absent with a reason: family, parent_rtt, child_sick, carer_absent, carer_training (always deducted: Ipéria pays the training), family_agreed (the family's convenience, always deducted: agreed with the carer), "
+            + "changed (present with arrival and departure HH:mm, lunch, snack and, for a planned day cut short, an optional reason; or absent with a reason: family, parent_rtt, child_sick, carer_absent, carer_sick (the carer's own sickness, always deducted: the CPAM and Ircem pay her), carer_training (always deducted: Ipéria pays the training), family_agreed (the family's convenience, always deducted: agreed with the carer), "
             + "holiday, paid_leave), the mileage, the CMG, the contributions left to the household (contributions, absent when all are covered) and the exemption on the extra hours (exemption, absent to let Nid estimate it) of the Pajemploi summary. For a past month, summary (careDays, hours, absence for the planned days "
             + "left over) replaces the days, and declared gives the declaration fields entered by hand (normalHours, activityDays, paidLeaveDays, complementaryHours, overtimeHours, netPay, upkeep, meals). Validating it stays the person's gesture in the web app. "
             + Ids + Versioned + Amounts),
+
+        // #94: a nanny at home, its months typed as paid (no payroll computation).
+        new("create_nanny", "POST", "/api/v1/childcare/nannies/", typeof(CreateNannyBody),
+            "Record a nanny at home (garde à domicile) by its name, to track each month's pay for the home-employment tax credit. " + Owners),
+        new("rename_nanny", "PUT", "/api/v1/childcare/nannies/{id:guid}", typeof(NannyNameBody),
+            "Rename a nanny at home. " + Ids),
+        new("record_nanny_month", "PUT", "/api/v1/childcare/nannies/{id:guid}/months/{month}", typeof(NannyMonthBody),
+            "Record or correct a month of a nanny at home (month yyyy-MM, begun): paid is the net salary plus the employer contributions, cmg the CMG received "
+            + "(0 when none, at most paid), hours the hours worked if known; it replaces that month's entry. " + Ids + Amounts),
+        new("delete_nanny_month", "DELETE", "/api/v1/childcare/nannies/{id:guid}/months/{month}", null,
+            "Remove a month of a nanny at home. " + Ids, Destructive: true),
+        new("close_nanny", "POST", "/api/v1/childcare/nannies/{id:guid}/close", null,
+            "Close a nanny at home who no longer works for the household: the rest of the year is no longer counted. " + Ids, Destructive: true),
+        new("reopen_nanny", "POST", "/api/v1/childcare/nannies/{id:guid}/reopen", null,
+            "Reopen a closed nanny at home. " + Ids),
+        new("delete_nanny", "DELETE", "/api/v1/childcare/nannies/{id:guid}", null,
+            "Propose deleting a nanny at home created by mistake, with its months (to end one who left, use close_nanny). The household confirms it "
+            + "by typing its name. version is the one the deletion preview returned. " + Ids, Destructive: true, Query: ["version"],
+            Current: "/api/v1/childcare/nannies/{id:guid}/deletion"),
 
         // Savings goals.
         new("create_goal", "POST", "/api/v1/goals/", typeof(CreateGoalBody),
@@ -352,7 +373,8 @@ public static class RouteActions
         new("bank_account_update", "PATCH", "/api/v1/banking/accounts/{id:guid}", typeof(BankAccountBody),
             "Change a bank account's settings; only the fields given change: envelopeId associates it with a checking, savings or other "
             + "envelope (clearEnvelope: true dissociates it), cardOfAccountId attaches a card to its account, autoApplyBalance writes its "
-            + "month-end balances as valuations instead of proposing them, ignored stops following it. id is the bank account's id (Réglages › Banques in the web app); envelope ids come from list_envelopes.",
+            + "month-end balances as valuations instead of proposing them, ignored stops following it, name gives it the household's own name "
+            + "(kept across syncs; clearName: true goes back to the bank's). id is the bank account's id (Réglages › Banques in the web app); envelope ids come from list_envelopes.",
             OnItem: false),
         // 5C: a line's link and its rules; linking itself is propose_bank_link.
         new("unlink_bank_transaction", "POST", "/api/v1/banking/transactions/{id:guid}/unlink", null,

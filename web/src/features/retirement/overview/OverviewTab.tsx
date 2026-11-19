@@ -13,6 +13,7 @@ import { yyyyMmLabel as month } from '@/lib/format';
 import { Answer, type Scope } from '../Answer';
 import type { RetirementView } from '../api';
 import '@/locales/retirement';
+import '@/locales/settings';
 
 const IndependenceChart = lazy(() => import('../IndependenceChart'));
 
@@ -36,7 +37,8 @@ export function OverviewTab({ scope }: { scope: Scope }) {
               <>
                 <Hero label={t('retirement.gap')} figure={money(f.gap)} note={t('retirement.gap_note', { month: month(f.month) })} aside={(
                   <StatLine className="xl:grid-cols-4" items={[
-                    { label: t('retirement.income_now'), value: money(f.incomeNow) },
+                    // With a living cost the gap is the need beyond the income at retirement; without one, the income it loses.
+                    f.need ? { label: t('retirement.need'), tip: t('retirement.need_tip'), value: money(f.need) } : { label: t('retirement.income_now'), value: money(f.incomeNow) },
                     { label: t('retirement.income_at_retirement'), value: money(f.incomeAtRetirement) },
                     { label: t('retirement.capital_needed'), tip: t('retirement.capital_needed_tip'), value: money(f.capitalNeeded) },
                     {

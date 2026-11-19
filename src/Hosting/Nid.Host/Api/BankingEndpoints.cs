@@ -7,7 +7,9 @@ using Nid.Banking.Application.Sync;
 using Nid.Banking.Contracts;
 using Nid.Banking.Domain.Files;
 using Nid.Core.Contracts;
+using Nid.Host.Composition;
 using Nid.Host.Auth;
+using Nid.Platform.Admin;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Functional.Failures;
 using UnambitiousFx.Synapse.Abstractions;
@@ -73,9 +75,21 @@ public static class BankingEndpoints
 
         api.MapPatch("/accounts/{id:guid}", async (Guid id, BankAccountBody body, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new UpdateBankAccountCommand(
-                    id, body.EnvelopeId, body.ClearEnvelope ?? false, body.CardOfAccountId, body.ClearCard ?? false, body.AutoApplyBalance, body.Ignored), ct))
+                    id, body.EnvelopeId, body.ClearEnvelope ?? false, body.CardOfAccountId, body.ClearCard ?? false, body.AutoApplyBalance, body.Ignored,
+                    body.Name, body.ClearName ?? false, body.MinPayments, body.ClearMinPayments ?? false, body.CountWithdrawals), ct))
                 .ToHttp(x => new IdResponse(x)))
             .Returns<IdResponse>();
+
+        // #353: what « Régler » shows to recognise an account, and a card's likely checking account.
+        api.MapGet("/accounts/{id:guid}/overview", async (Guid id, IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new BankAccountOverviewQuery(id), ct)).ToHttp(overview => overview))
+            .Returns<BankAccountOverview>();
+
+        // #346: « Créer une enveloppe » in « Régler »: the envelope and the link, together or neither.
+        api.MapPost("/accounts/{id:guid}/envelope", async (Guid id, BankAccountEnvelopeBody body, IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new CreateBankAccountEnvelopeCommand(id, body.DisplayName, body.Kind, body.Joint ?? false, body.DependentId), ct))
+                    .ToHttp(envelope => new IdResponse(envelope.Value), StatusCodes.Status201Created))
+            .Returns<IdResponse>(StatusCodes.Status201Created);
 
         api.MapGet("/envelopes/{envelopeId:guid}/transactions",
                 async (Guid envelopeId, string? from, string? to, int? page, string? state, IInvoker invoker, CancellationToken ct)
@@ -110,6 +124,14 @@ public static class BankingEndpoints
             => (await invoker.InvokeAsync(new IgnoreTransactionCommand(id), ct)).ToHttp(line => line))
             .Returns<BankTransactionView>();
 
+        api.MapPut("/transactions/{id:guid}/category", async (Guid id, LineCategoryBody body, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new SetTransactionCategoryCommand(id, body.CategoryId), ct)).ToHttp(line => line))
+            .Returns<BankTransactionView>();
+
+        api.MapDelete("/transactions/{id:guid}/category", async (Guid id, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new ResetTransactionCategoryCommand(id), ct)).ToHttp(line => line))
+            .Returns<BankTransactionView>();
+
         api.MapGet("/rules", async (IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new ListBankRulesQuery(), ct)).ToHttp(rules => rules))
             .Returns<IReadOnlyList<BankRuleView>>();
@@ -120,6 +142,57 @@ public static class BankingEndpoints
                 return result.TryGetValue(out _) ? Results.NoContent() : result.ToHttp(v => v);
             })
             .ReturnsNoContent();
+
+        api.MapGet("/categories", async (IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new ListBankCategoriesQuery(), ct)).ToHttp(categories => categories))
+            .Returns<IReadOnlyList<BankCategoryView>>();
+
+        api.MapPost("/categories", async (CategoryBody body, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new CreateBankCategoryCommand(body.ParentId, body.Name ?? "", body.Kind), ct))
+                .ToHttp(category => category, StatusCodes.Status201Created))
+            .Returns<BankCategoryView>(StatusCodes.Status201Created);
+
+        api.MapPatch("/categories/{id:guid}", async (Guid id, CategoryPatchBody body, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new UpdateBankCategoryCommand(
+                    id, body.Name, body.ParentId, body.MoveParent ?? false, body.Archived, body.ResetName ?? false), ct))
+                .ToHttp(category => category))
+            .Returns<BankCategoryView>();
+
+        api.MapPost("/categories/{id:guid}/merge", async (Guid id, CategoryMergeBody body, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new MergeBankCategoryCommand(id, body.Into ?? Guid.Empty), ct)).ToHttp(category => category))
+            .Returns<BankCategoryView>();
+
+        // Transaction categories spec §Rules: the household's rules (decision 7), and « Appliquer aux opérations passées » after its preview.
+        api.MapGet("/category-rules", async (IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new ListCategoryRulesQuery(), ct)).ToHttp(rules => rules))
+            .Returns<IReadOnlyList<CategoryRuleView>>();
+
+        api.MapPost("/category-rules", async (CategoryRuleBody body, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new CreateCategoryRuleCommand(
+                    body.Pattern ?? "", body.AccountId, body.Direction, body.MinAmount, body.MaxAmount, body.CategoryId ?? Guid.Empty), ct))
+                .ToHttp(rule => rule, StatusCodes.Status201Created))
+            .Returns<CategoryRuleView>(StatusCodes.Status201Created);
+
+        api.MapPatch("/category-rules/{id:guid}", async (Guid id, CategoryRuleBody body, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new UpdateCategoryRuleCommand(
+                    id, body.Pattern ?? "", body.AccountId, body.Direction, body.MinAmount, body.MaxAmount, body.CategoryId ?? Guid.Empty), ct))
+                .ToHttp(rule => rule))
+            .Returns<CategoryRuleView>();
+
+        api.MapDelete("/category-rules/{id:guid}", async (Guid id, IInvoker invoker, CancellationToken ct) =>
+            {
+                var result = await invoker.InvokeAsync(new DeleteCategoryRuleCommand(id), ct);
+                return result.TryGetValue(out _) ? Results.NoContent() : result.ToHttp(v => v);
+            })
+            .ReturnsNoContent();
+
+        api.MapGet("/category-rules/{id:guid}/preview", async (Guid id, int? page, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new PreviewCategoryRuleQuery(id, page ?? 1), ct)).ToHttp(preview => preview))
+            .Returns<CategoryRulePreview>();
+
+        api.MapPost("/category-rules/{id:guid}/apply", async (Guid id, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new ApplyCategoryRuleCommand(id), ct)).ToHttp(changed => new CategoryRuleApplied(changed)))
+            .Returns<CategoryRuleApplied>();
 
         // Read now, in the request: the bank sees the person's own browser (Psu-Ip-Address, Psu-User-Agent), as UseForwardedHeaders resolved it.
         api.MapPost("/sync", async (SyncBody body, HttpContext http, IInvoker invoker, CancellationToken ct)
@@ -133,7 +206,7 @@ public static class BankingEndpoints
         api.MapPost("/statements", async (HttpRequest request, IInvoker invoker, CancellationToken ct) =>
             {
                 if (!request.HasFormContentType || !request.ContentType!.StartsWith("multipart/form-data", StringComparison.OrdinalIgnoreCase))
-                    return Results.Problem(statusCode: StatusCodes.Status415UnsupportedMediaType, title: "Upload a multipart/form-data body.");
+                    return Results.Problem(statusCode: StatusCodes.Status415UnsupportedMediaType, detail: "Upload a multipart/form-data body.");
                 var tooLarge = Result.Failure<StatementImportView>(new Failure(BankingCodes.FileTooLarge, "A statement file is at most 5 MiB.", null)).ToHttp(v => v);
                 if (request.ContentLength > StatementReader.MaxBytes + FormSlack)
                     return tooLarge;
@@ -158,24 +231,24 @@ public static class BankingEndpoints
                 }
                 catch (InvalidDataException)
                 {
-                    return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "The multipart body cannot be read.");
+                    return Results.Problem(statusCode: StatusCodes.Status400BadRequest, detail: "The multipart body cannot be read.");
                 }
 
                 string? Text(string name) => form.TryGetValue(name, out var v) && v.Count > 0 ? v.ToString() : null;
                 if (form.Files.GetFile("file") is not { } file)
-                    return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "The file part is required.");
+                    return Results.Problem(statusCode: StatusCodes.Status400BadRequest, detail: "The file part is required.");
                 if (file.Length > StatementReader.MaxBytes)
                     return tooLarge;
                 Guid? envelopeId = null;
                 if (Text("envelopeId") is { } rawEnvelope)
                 {
                     if (!Guid.TryParse(rawEnvelope, out var parsed))
-                        return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "The envelopeId is not a valid identifier.");
+                        return Results.Problem(statusCode: StatusCodes.Status400BadRequest, detail: "The envelopeId is not a valid identifier.");
                     envelopeId = parsed;
                 }
                 bool? Flag(string name) => Text(name) is not { } raw ? false : bool.TryParse(raw, out var value) ? value : null;
                 if (Flag("confirm") is not { } confirm || Flag("keepProbablyKnown") is not { } keep)
-                    return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "confirm and keepProbablyKnown are true or false.");
+                    return Results.Problem(statusCode: StatusCodes.Status400BadRequest, detail: "confirm and keepProbablyKnown are true or false.");
 
                 await using var stream = file.OpenReadStream();
                 var content = new byte[file.Length];
@@ -196,6 +269,19 @@ public static class BankingEndpoints
             => (await invoker.InvokeAsync(new GetBankSyncRunsQuery(page), ct)).ToHttp(runs => runs))
             .Returns<BankSyncRunPage>();
 
+        // Issue #343: why bank sync is not configured, and Enable Banking's answer to the saved id and key.
+        admin.MapGet("/diagnostics", async (IOptions<NidAuthOptions> auth, IJobStatusReader jobs, IInvoker invoker, CancellationToken ct) =>
+            {
+                // Issue #344: the scheduler is the host's; none when this instance runs no job.
+                var next = (await jobs.ListAsync(ct)).FirstOrDefault(j => j.Key == Nid.Host.Jobs.BankingJobs.NightlyKey.Name)?.NextRunAt;
+                return (await invoker.InvokeAsync(new GetBankingDiagnosticsQuery(Callback(auth), next), ct)).ToHttp(diagnostics => diagnostics);
+            })
+            .Returns<BankingDiagnosticsView>();
+
+        admin.MapPost("/test", async (IOptions<NidAuthOptions> auth, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new TestBankingConnectionCommand(Callback(auth)), ct)).ToHttp(test => test))
+            .Returns<BankingConnectionTestView>();
+
         return routes;
     }
 
@@ -209,13 +295,44 @@ public static class BankingEndpoints
 
     public sealed record ConnectBody(string? AspspName);
 
+    /// <summary>The new envelope's name and kind (<c>checking</c>, <c>savings</c> or <c>other</c>); <c>joint</c>: every adult owns it.</summary>
+    [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+    public sealed record BankAccountEnvelopeBody(string DisplayName, string Kind, bool? Joint = null, Guid? DependentId = null);
+
     /// <summary>A field left out is left as it is; a key nobody reads is refused rather than silently dropped (400).</summary>
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
-    public sealed record BankAccountBody(Guid? EnvelopeId, bool? ClearEnvelope, Guid? CardOfAccountId, bool? ClearCard, bool? AutoApplyBalance, bool? Ignored);
+    public sealed record BankAccountBody(
+        Guid? EnvelopeId, bool? ClearEnvelope, Guid? CardOfAccountId, bool? ClearCard, bool? AutoApplyBalance, bool? Ignored, string? Name = null,
+        bool? ClearName = null, int? MinPayments = null, bool? ClearMinPayments = null, bool? CountWithdrawals = null);
 
     /// <summary>A charge of <c>itemId</c> (a subscription, a loan, a property); <c>key</c> names one, else the nearest is taken.</summary>
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
     public sealed record LinkBody(string? Module, Guid? ItemId, string? Key);
+
+    /// <summary>A line's category chosen by hand; an absent or null <c>categoryId</c> is « Sans catégorie », chosen by hand all the same.</summary>
+    [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+    public sealed record LineCategoryBody(Guid? CategoryId);
+
+    /// <summary>A new category; <c>kind</c> (<c>expense</c>, <c>income</c>, <c>transfer</c>) is required without a <c>parentId</c>.</summary>
+    [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+    public sealed record CategoryBody(Guid? ParentId, string? Name, string? Kind);
+
+    /// <summary>A field left out stays; <c>moveParent</c> says <c>parentId</c> (null: top-level) is meant; <c>resetName</c> restores a starter name.</summary>
+    [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+    public sealed record CategoryPatchBody(string? Name, Guid? ParentId, bool? MoveParent, bool? Archived, bool? ResetName);
+
+    [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+    public sealed record CategoryMergeBody(Guid? Into);
+
+    /// <summary>
+    /// A rule as a whole (a field left out is cleared): <c>direction</c> is <c>debit</c>, <c>credit</c> or null; <c>minAmount</c> and
+    /// <c>maxAmount</c> are absolute amounts, inclusive.
+    /// </summary>
+    [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+    public sealed record CategoryRuleBody(string? Pattern, Guid? AccountId, string? Direction, string? MinAmount, string? MaxAmount, Guid? CategoryId);
+
+    /// <summary>How many lines took the rule's category.</summary>
+    public sealed record CategoryRuleApplied(int Changed);
 
     /// <summary>Without <c>connectionId</c>, every connection of the person.</summary>
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]

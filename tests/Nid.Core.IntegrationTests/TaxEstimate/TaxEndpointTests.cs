@@ -165,6 +165,34 @@ public class TaxEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresF
     }
 
     [Fact]
+    public async Task The_2042_boxes_give_each_declarants_salary_and_PER_and_the_dividends_apart()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var salary = await app.NewIncomeSourceAsync("Salaire A", app.AdultA);
+        await AddPaymentAsync(app, app.AdultA, salary, "Salaire", "2025-03-01", "30000", null, "32000");
+        await PerAsync(app, app.AdultA, "PER", "2025-02-01", "2025-02-01");
+        var account = JsonDocument.Parse(await (await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/investments/envelopes", new
+        {
+            displayName = "Compte-titres", kind = "brokerage", currency = "EUR", visibility = "shared", openedOn = "2020-01-01",
+            owners = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } },
+        })).EnsureSuccessStatusCode().Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.GetProperty("id").GetString();
+        foreach (var (category, amount) in new[] { ("dividend", "300.00"), ("interest", "100.00") })
+            (await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/investments/envelopes/{account}/flows",
+                new { occurredOn = "2025-05-02", kind = "income", category, amount = new { amount, currency = "EUR" } })).EnsureSuccessStatusCode();
+
+        var estimate = await EstimateAsync(app, app.AdultA, 2025, "household");
+        var boxes = estimate.GetProperty("declaration").GetProperty("boxes").EnumerateArray()
+            .ToDictionary(b => b.GetProperty("code").GetString()!, b => (b.GetProperty("person").ValueKind == JsonValueKind.Null ? (Guid?)null : b.GetProperty("person").GetGuid(), b.GetProperty("amount").GetString()));
+
+        var first = IndexOf(estimate, app.AdultA) == 0 ? 'A' : 'B';
+        Assert.Equal((app.AdultA.Value, "32000.00"), boxes[$"1{first}J"]);
+        Assert.Equal((app.AdultA.Value, "1000.00"), boxes[first == 'A' ? "6NS" : "6NT"]);
+        Assert.Equal((null, "300.00"), boxes["2DC"]);
+        Assert.Equal((null, "100.00"), boxes["2TR"]);
+        Assert.Equal((null, "51.00"), boxes["2CK"]);
+    }
+
+    [Fact]
     public async Task Every_PER_payment_of_the_year_is_deducted_the_opening_of_a_PER_opened_that_year_included()
     {
         await using var app = await NidApp.StartAsync(fixture);
@@ -277,7 +305,7 @@ public class TaxEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresF
 
         var refused = await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/tax/simulate", Body("boss"));
         Assert.Equal(HttpStatusCode.UnprocessableEntity, refused.StatusCode);
-        Assert.Contains("declarants[1].status", await refused.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        Assert.Contains("#/declarants/1/status", await refused.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -312,6 +340,97 @@ public class TaxEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresF
             pinel = Array.Empty<object>(), exemptIncomes = new Dictionary<string, string> { [adult] = "-1" },
         });
         Assert.Equal(HttpStatusCode.UnprocessableEntity, negative.StatusCode);
+    }
+
+    [Fact]
+    public async Task A_brokerage_accounts_dividends_get_the_allowance_under_the_scale_option()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var account = JsonDocument.Parse(await (await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/investments/envelopes", new
+        {
+            displayName = "CTO", kind = "brokerage", currency = "EUR", visibility = "shared", openedOn = "2020-01-01",
+            owners = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } },
+        })).EnsureSuccessStatusCode().Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.GetProperty("id").GetString()!;
+        foreach (var (amount, category) in new[] { ("3000.00", "dividend"), ("1000.00", "interest") })
+            (await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/investments/envelopes/{account}/flows",
+                new { occurredOn = "2025-05-10", kind = "income", category, amount = new { amount, currency = "EUR" } })).EnsureSuccessStatusCode();
+
+        var flat = await EstimateAsync(app, app.AdultA, 2025);
+        Assert.Equal(("4000.00", "3000.00"), (flat.GetProperty("inputs").GetProperty("capitalIncome").GetString(), flat.GetProperty("inputs").GetProperty("capitalDividends").GetString()));
+        Assert.Equal(("512.00", "0.00", false), (flat.GetProperty("result").GetProperty("capitalFlatTax").GetString(),
+            flat.GetProperty("result").GetProperty("dividendAllowance").GetString(), flat.GetProperty("result").GetProperty("capitalScale").GetBoolean()));
+
+        var saved = await PutProfileAsync(app, app.AdultA, 2025, new { pinel = Array.Empty<object>(), capitalScale = true, deductibleCsg = "100.00" });
+        Assert.Equal((true, "100.00"), (saved.GetProperty("profile").GetProperty("capitalScale").GetBoolean(), saved.GetProperty("profile").GetProperty("deductibleCsg").GetString()));
+        var scale = saved.GetProperty("result");
+        // 40 % of the 3 000 of dividends; the 6.8 % of next year's 6DE on the whole 4 000.
+        Assert.Equal(("0.00", "1200.00", "272.00", true), (scale.GetProperty("capitalFlatTax").GetString(), scale.GetProperty("dividendAllowance").GetString(),
+            scale.GetProperty("deductibleCsgNextYear").GetString(), scale.GetProperty("capitalScale").GetBoolean()));
+        // No salary: the 2 800 left after the allowance and the 6DE stay in the 0 % bracket, so the scale saves the whole flat tax.
+        Assert.Equal(("-512.00", "512.00"), (flat.GetProperty("result").GetProperty("capitalOptionGap").GetString(), scale.GetProperty("capitalOptionGap").GetString()));
+    }
+
+    [Fact]
+    public async Task Alternate_custody_and_a_disabled_adult_set_in_the_profile_change_the_shares()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var adult = app.AdultA.Value;
+
+        // Two adults, two children of whom one in alternate custody, A disabled: 2 + 0.5 + 0.5 + 0.25.
+        var saved = await PutProfileAsync(app, app.AdultA, 2025, new
+        {
+            pinel = Array.Empty<object>(), dependents = 2, alternateCustody = 1, disabledAdults = new[] { adult, adult }, cohabiting = true,
+        });
+        var profile = saved.GetProperty("profile");
+        Assert.Equal((1, true, 1), (profile.GetProperty("alternateCustody").GetInt32(), profile.GetProperty("cohabiting").GetBoolean(), profile.GetProperty("disabledAdults").GetArrayLength()));
+        Assert.Equal("3.25", saved.GetProperty("result").GetProperty("parts").GetString());
+
+        var tooMany = await app.RawAsync(app.AdultA, HttpMethod.Put, "/api/v1/tax/profile/2025", new { pinel = Array.Empty<object>(), dependents = 1, alternateCustody = 2 });
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, tooMany.StatusCode);
+    }
+
+    [Fact]
+    public async Task A_disabled_dependent_and_a_birth_date_reach_the_estimate()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        // 65 on 31 December 2025, the last day of the year that counts.
+        (await app.RawAsync(app.AdultA, HttpMethod.Put, $"/api/v1/core/persons/{app.AdultA.Value}/retirement",
+            new { birthDate = "1960-12-31", retirementAge = 64, retirementMonths = 0 })).EnsureSuccessStatusCode();
+
+        // Two adults, two children of whom one disabled: 2 + 0.5 + 0.5 + 0.5.
+        var saved = await PutProfileAsync(app, app.AdultA, 2025, new { pinel = Array.Empty<object>(), dependents = 2, disabledDependents = 1 });
+        Assert.Equal(1, saved.GetProperty("profile").GetProperty("disabledDependents").GetInt32());
+        Assert.Equal((1, "3.5"), (saved.GetProperty("inputs").GetProperty("disabledDependents").GetInt32(), saved.GetProperty("result").GetProperty("parts").GetString()));
+        var declarants = saved.GetProperty("inputs").GetProperty("declarants");
+        Assert.Equal((true, false), (declarants[IndexOf(saved, app.AdultA)].GetProperty("over65").GetBoolean(), declarants[IndexOf(saved, app.AdultB)].GetProperty("over65").GetBoolean()));
+
+        var tooMany = await app.RawAsync(app.AdultA, HttpMethod.Put, "/api/v1/tax/profile/2025", new { pinel = Array.Empty<object>(), dependents = 1, disabledDependents = 2 });
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, tooMany.StatusCode);
+    }
+
+    [Fact]
+    public async Task A_simulated_declarant_over_65_gets_the_allowance()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var simulated = await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/tax/simulate", new
+        {
+            year = 2025,
+            declarants = new[] { new { name = "A", salaryGross = "0", status = "non_executive", otherTaxable = "0", perContributions = "0", pensions = "30000", over65 = true } },
+        });
+        var result = JsonDocument.Parse(await simulated.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement;
+        Assert.Equal(("1411.00", "25589.00"), (result.GetProperty("ageDisabilityAllowance").GetString(), result.GetProperty("netTaxableIncome").GetString()));
+    }
+
+    [Fact]
+    public async Task A_simulated_single_parent_gets_box_t()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var simulated = await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/tax/simulate", new
+        {
+            year = 2025, dependents = 1, singleParent = true,
+            declarants = new[] { new { name = "A", salaryGross = "0", status = "non_executive", otherTaxable = "40000", perContributions = "0" } },
+        });
+        Assert.Equal("2.0", JsonDocument.Parse(await simulated.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.GetProperty("parts").GetString());
     }
 
     private static async Task ContributeAsync(NidApp app, PersonId owner, string envelope, string on, string amount)
@@ -544,5 +663,72 @@ public class TaxEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresF
         var estimate = await EstimateAsync(app, app.AdultA, 2025, "household");
 
         Assert.DoesNotContain(estimate.GetProperty("notices").EnumerateArray(), n => n.GetProperty("code").GetString() == "per_without_contributions");
+    }
+
+    private static async Task<(JsonElement Estimate, Dictionary<string, JsonElement> Body)> SalariedAsync(NidApp app)
+    {
+        var source = await app.NewIncomeSourceAsync("Salaire A", app.AdultA);
+        await AddPhaseAsync(app, app.AdultA, source, "90000", "120000");
+        var estimate = await EstimateAsync(app, app.AdultA, 2025, "household");
+        return (estimate, JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(estimate.GetProperty("inputs").GetRawText())!);
+    }
+
+    private static async Task<JsonElement> SimulateAsync(NidApp app, object body, string query)
+        => JsonDocument.Parse(await (await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/tax/simulate" + query, body)).EnsureSuccessStatusCode()
+            .Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement;
+
+    [Fact]
+    public async Task Simulate_with_scope_gives_differences()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var (estimate, body) = await SalariedAsync(app);
+        var declarant = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(body["declarants"][0].GetRawText())!;
+        declarant["perContributions"] = JsonSerializer.SerializeToElement("3000.00");
+        declarant["perCeiling"] = JsonSerializer.SerializeToElement("20000.00");
+        body["declarants"] = JsonSerializer.SerializeToElement(new[] { declarant }.Concat(body["declarants"].EnumerateArray().Skip(1).Select(d => JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(d.GetRawText())!)));
+
+        var simulated = await SimulateAsync(app, body, "?scope=household");
+
+        var differences = simulated.GetProperty("differences");
+        var expected = DecimalOf(simulated, "totalTax") - DecimalOf(estimate.GetProperty("result"), "totalTax");
+        Assert.True(expected < 0m);
+        Assert.Equal(expected, DecimalOf(differences, "totalTax"));
+        Assert.Equal(DecimalOf(simulated, "netAfterTaxMonthly") - DecimalOf(estimate.GetProperty("result"), "netAfterTaxMonthly"), DecimalOf(differences, "netAfterTaxMonthly"));
+        Assert.Equal(DecimalOf(simulated.GetProperty("withholding"), "balance") - DecimalOf(estimate.GetProperty("result").GetProperty("withholding"), "balance"), DecimalOf(differences, "balance"));
+    }
+
+    [Fact]
+    public async Task Simulate_with_an_invalid_scope_answers_400()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var (_, body) = await SalariedAsync(app);
+
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/tax/simulate?scope=nobody", body);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Simulate_unchanged_inputs_give_zero_differences()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var (_, body) = await SalariedAsync(app);
+
+        var differences = (await SimulateAsync(app, body, "?scope=household")).GetProperty("differences");
+
+        Assert.Equal(0m, DecimalOf(differences, "totalTax"));
+        Assert.Equal(0m, DecimalOf(differences, "netAfterTaxMonthly"));
+        Assert.Equal(0m, DecimalOf(differences, "balance"));
+    }
+
+    [Fact]
+    public async Task Simulate_without_scope_has_no_differences()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var (_, body) = await SalariedAsync(app);
+
+        var simulated = await SimulateAsync(app, body, "");
+
+        Assert.True(!simulated.TryGetProperty("differences", out var d) || d.ValueKind == JsonValueKind.Null);
     }
 }

@@ -96,7 +96,7 @@ describe('DocumentUpload', () => {
         const name = (form.get('file') as File).name;
         sent.push({ name, warn: form.get('warnDuplicate') });
         return name !== 'avis.pdf' && form.get('warnDuplicate') === 'true'
-          ? HttpResponse.json({ status: 409, code: 'documents.duplicate', title: 'Duplicate.', duplicate: existing }, { status: 409 })
+          ? HttpResponse.json({ status: 409, code: 'documents.duplicate', detail: 'Duplicate.', duplicate: existing }, { status: 409 })
           : HttpResponse.json({ id: crypto.randomUUID() }, { status: 201 });
       }),
     );

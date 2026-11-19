@@ -35,7 +35,7 @@ public class YearReviewEndpointTests(PostgresFixture fixture) : IClassFixture<Po
     /// <summary>A PEA opened with 20 000 on 31/12/2023 worth 21 000, 2 000 paid in on 15/06/2024, worth 25 000 on 31/12/2024 and 26 000 on 30/09/2025.</summary>
     private static async Task<ItemId> PeaAsync(NidApp app, string name, PersonId owner, Visibility visibility)
     {
-        var id = await app.NewEnvelopeAsync(name, owner, visibility);
+        var id = await app.NewEnvelopeAsync(name, owner, visibility, kind: "pea");
         var url = $"/api/v1/investments/envelopes/{id.Value}";
         await app.RawAsync(owner, HttpMethod.Post, $"{url}/flows", new { occurredOn = "2023-12-31", kind = "opening", amount = Eur("20000.00") });
         await app.RawAsync(owner, HttpMethod.Post, $"{url}/flows", new { occurredOn = "2024-06-15", kind = "contribution", amount = Eur("2000.00") });
@@ -50,7 +50,7 @@ public class YearReviewEndpointTests(PostgresFixture fixture) : IClassFixture<Po
     {
         await using var app = await NidApp.StartAsync(fixture);
         await PeaAsync(app, "PEA", app.AdultA, Visibility.Shared);
-        var late = await app.NewEnvelopeAsync("Récent", app.AdultB, Visibility.Shared);
+        var late = await app.NewEnvelopeAsync("Récent", app.AdultB, Visibility.Shared, kind: "pea");
         await app.RawAsync(app.AdultB, HttpMethod.Post, $"/api/v1/investments/envelopes/{late.Value}/valuations", new { asOf = "2024-03-01", amount = Eur("100.00") });
 
         var review = (await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Review}?year=2024&scope=household"))).GetProperty("investments");
@@ -91,7 +91,7 @@ public class YearReviewEndpointTests(PostgresFixture fixture) : IClassFixture<Po
     {
         await using var app = await NidApp.StartAsync(fixture);
         await PeaAsync(app, "PEA", app.AdultA, Visibility.Shared);
-        var closed = await app.NewEnvelopeAsync("Clos", app.AdultA, Visibility.Shared);
+        var closed = await app.NewEnvelopeAsync("Clos", app.AdultA, Visibility.Shared, kind: "pea");
         var url = $"/api/v1/investments/envelopes/{closed.Value}";
         await app.RawAsync(app.AdultA, HttpMethod.Post, $"{url}/flows", new { occurredOn = "2023-12-31", kind = "opening", amount = Eur("10000.00") });
         await app.RawAsync(app.AdultA, HttpMethod.Post, $"{url}/valuations", new { asOf = "2023-12-31", amount = Eur("10500.00") });
@@ -157,7 +157,7 @@ public class YearReviewEndpointTests(PostgresFixture fixture) : IClassFixture<Po
     public async Task A_missing_rate_says_why_the_net_worth_is_absent()
     {
         await using var app = await NidApp.StartAsync(fixture);
-        var dollars = await app.NewEnvelopeAsync("Brokerage", app.AdultA, Visibility.Shared, "USD");
+        var dollars = await app.NewEnvelopeAsync("Brokerage", app.AdultA, Visibility.Shared, "USD", kind: "brokerage");
         await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/investments/envelopes/{dollars.Value}/valuations",
             new { asOf = "2023-12-31", amount = new { amount = "1000.00", currency = "USD" } });
 
@@ -419,7 +419,7 @@ public class YearReviewEndpointTests(PostgresFixture fixture) : IClassFixture<Po
         })).EnsureSuccessStatusCode();
         if (foreignHolding)
         {
-            var dollars = await app.NewEnvelopeAsync("Brokerage", app.AdultA, Visibility.Shared, "USD");
+            var dollars = await app.NewEnvelopeAsync("Brokerage", app.AdultA, Visibility.Shared, "USD", kind: "brokerage");
             await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/investments/envelopes/{dollars.Value}/valuations",
                 new { asOf = "2023-12-31", amount = new { amount = "1000.00", currency = "USD" } });
         }

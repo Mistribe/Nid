@@ -92,7 +92,7 @@ describe('Un bulletin de paie et une facture proposés', () => {
     const p = payslip();
     serve([p], { preview: payslipPreview });
     server.use(http.post('*/api/v1/core/proposals/:id/approve', () => HttpResponse.json(
-      { status: 422, code: 'income.invalid_phase', title: 'x', errors: [{ path: 'payload.effectiveOn', code: 'income.invalid_phase', message: 'x' }] },
+      { status: 422, code: 'income.invalid_phase', detail: 'x', errors: [{ detail: 'x', pointer: '#/payload/effectiveOn', code: 'income.invalid_phase' }] },
       { status: 422 })));
     const { user } = await renderApp(`/proposals/${p.id}`);
 
@@ -154,7 +154,7 @@ describe('Un bulletin de paie et une facture proposés', () => {
     const p = invoice();
     serve([p], { preview: invoicePreview });
     server.use(http.post('*/api/v1/core/proposals/:id/approve', () => HttpResponse.json(
-      { status: 422, code: 'subscriptions.phase_range', title: 'x', errors: [{ path: 'payload.chargedOn', code: 'subscriptions.phase_range', message: 'x' }] },
+      { status: 422, code: 'subscriptions.phase_range', detail: 'x', errors: [{ detail: 'x', pointer: '#/payload/chargedOn', code: 'subscriptions.phase_range' }] },
       { status: 422 })));
     const { user, container } = await renderApp(`/proposals/${p.id}`);
 

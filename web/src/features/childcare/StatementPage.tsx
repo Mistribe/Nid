@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useParams } from '@tanstack/react-router';
-import { useState } from 'react';
+import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
+import { Link, useParams } from '@tanstack/react-router';
+import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { elision } from '@/lib/elision';
 import { toast } from 'sonner';
@@ -19,10 +20,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
-  ARRANGEMENT, dayBody, type ChildcareDetail, useDiscardStatement, useReopenStatement, useSaveStatement, useStatement, useValidateStatement, type Statement, type StatementDay,
+  ARRANGEMENT, dayBody, type ChildcareDetail, useDiscardStatement, useReopenStatement, useSaveStatement, useStatement, useStatements, useValidateStatement, type Statement, type StatementDay,
   type StatementDayBody,
 } from './api';
 import { DayDialog } from './DayDialog';
+import { BelowMinimums } from './BelowMinimums';
 import { Declaration, type DeclarationEntry } from './Declaration';
 import { MonthSummaryDialog, type MonthSummary } from './MonthSummaryDialog';
 import { dayTitle, frenchNumber, monthTitle, problemText, reasonLabel, stateLabel, statementError } from './statementText';
@@ -134,7 +136,7 @@ function Month({ id, month, view }: { id: string; month: string; view: Statement
     <article className="space-y-6">
       <PageHeader crumbs={[...[{ label: t('childcare_list.title'), to: '/childcare' as const }], { label: view.name, to: '/childcare/$id', params: { id } }]}
         title={monthTitle(month)} actions={actions}
-        meta={<Badge variant={view.state === 'validated' ? 'default' : 'secondary'}>{stateLabel(t, view.state)}</Badge>}>
+        meta={<><MonthArrows id={id} month={month} /><Badge variant={view.state === 'validated' ? 'default' : 'secondary'}>{stateLabel(t, view.state)}</Badge></>}>
         <section aria-label={t('childcare_statement.figures')}>
           {view.figures ? (
             <StatLine items={[
@@ -144,6 +146,10 @@ function Month({ id, month, view }: { id: string; month: string; view: Statement
                 hint: view.figures.costBeforeCmg ? t('childcare_statement.before_cmg') : null },
               { label: t('childcare_statement.cmg'), tip: t('childcare_detail.cmg_tip'), value: view.cmg == null ? '—' : formatCurrency(view.cmg, 'EUR') },
               ...(view.contributions == null ? [] : [{ label: t('childcare_statement.contributions'), value: formatCurrency(view.contributions, 'EUR') }]),
+              // The contract's last month: the incomplete year's balance is part of the net pay.
+              ...(view.figures.regularisation ? [{ label: t('childcare_statement.regularisation'), tip: t('childcare_statement.regularisation_tip'),
+                value: <Money value={view.figures.regularisation} tabular />,
+                hint: <Link to="/childcare/$id/settlement" params={{ id }} className="underline">{t('childcare_statement.settlement')}</Link> }] : []),
               ...(!view.figures.exemption || /^0(\.0+)?$/.test(view.figures.exemption.amount) ? [] : [{ label: t('childcare_statement.exemption'),
                 tip: t('childcare_statement.exemption_tip'), value: <Money value={view.figures.exemption} tabular />,
                 hint: view.exemption == null ? t('childcare_statement.estimated') : null }]),
@@ -153,6 +159,8 @@ function Month({ id, month, view }: { id: string; month: string; view: Statement
       </PageHeader>
       {error && editing === null && !summarising ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
       {view.state === 'validated' ? <p>{t('childcare_statement.read_only')}</p> : null}
+      <BelowMinimums items={view.belowMinimums}
+        action={<Link to="/childcare/$id" params={{ id }} className="font-medium underline underline-offset-4">{t('childcare_statement.minimums_open')}</Link>} />
       {editable && view.cmg == null ? <p className="text-sm text-muted-foreground">{t('childcare_statement.validate_needs_cmg')}</p> : null}
 
       <Section title={t('childcare_statement.days')}
@@ -226,5 +234,23 @@ function DayRow({ day, problems, onEdit }: { day: StatementDay; problems: string
       <TableCell className="tabular-nums">{day.present ? `${day.arrival} – ${day.departure}` : ''}</TableCell>
       <TableCell>{day.present ? [day.lunch ? t('childcare_statement.lunch') : '', day.snack ? t('childcare_statement.snack') : ''].filter(Boolean).join(' · ') : ''}</TableCell>
     </TableRow>
+  );
+}
+
+/** The contract's neighbouring months, from the server's list (newest first); an arrow is disabled at either end. */
+function MonthArrows({ id, month }: { id: string; month: string }) {
+  const { t } = useTranslation();
+  const months = useStatements(id).data?.months.map((r) => r.month) ?? [];
+  const at = months.indexOf(month);
+  const previous = at < 0 ? undefined : months[at + 1];
+  const next = at <= 0 ? undefined : months[at - 1];
+  const arrow = (to: string | undefined, label: string, icon: ReactNode) => to
+    ? <Button asChild variant="ghost" size="icon"><Link to="/childcare/$id/statements/$month" params={{ id, month: to }} aria-label={label}>{icon}</Link></Button>
+    : <Button type="button" variant="ghost" size="icon" disabled aria-label={label}>{icon}</Button>;
+  return (
+    <span className="flex items-center">
+      {arrow(previous, previous ? t('childcare_statement.previous_month', { month: monthTitle(previous) }) : t('childcare_statement.no_previous_month'), <ChevronLeftIcon aria-hidden="true" />)}
+      {arrow(next, next ? t('childcare_statement.next_month', { month: monthTitle(next) }) : t('childcare_statement.no_next_month'), <ChevronRightIcon aria-hidden="true" />)}
+    </span>
   );
 }

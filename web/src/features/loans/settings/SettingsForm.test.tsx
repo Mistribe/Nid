@@ -58,7 +58,7 @@ describe('loan settings', () => {
 
   it('shows a server refusal under the field it names', async () => {
     serve([], () => HttpResponse.json(
-      { status: 422, code: 'realestate.invalid_loan', title: 'x', errors: [{ path: 'lender', code: 'realestate.invalid_loan', message: 'x' }] },
+      { status: 422, code: 'realestate.invalid_loan', detail: 'x', errors: [{ detail: 'x', pointer: '#/lender', code: 'realestate.invalid_loan' }] },
       { status: 422 }));
     const { user } = await renderApp(PAGE);
 
@@ -158,7 +158,7 @@ describe('loan settings', () => {
 
   it('shows realestate.invalid_property under « Bien financé »', async () => {
     serve([], () => HttpResponse.json(
-      { status: 422, code: 'realestate.invalid_property', title: 'x', errors: [{ path: 'propertyId', code: 'realestate.invalid_property', message: 'x' }] },
+      { status: 422, code: 'realestate.invalid_property', detail: 'x', errors: [{ detail: 'x', pointer: '#/propertyId', code: 'realestate.invalid_property' }] },
       { status: 422 }));
     twoProperties();
     const { user } = await renderApp(PAGE);

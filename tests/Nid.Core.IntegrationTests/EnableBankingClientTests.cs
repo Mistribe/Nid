@@ -89,8 +89,16 @@ public class EnableBankingClientTests
         Assert.Equal(Instant.FromUtc(2027, 4, 27, 9, 30), session.ValidUntil);
         Assert.Equal(
             [
-                new SessionAccount("3e0b5f58-52f1-4a1c-9b0e-0a8c8d9d1f01", "aGFzaC1jb21wdGUtY291cmFudA", "FR7630006000011234567890189", "Compte courant", "CACC", "EUR"),
-                new SessionAccount("5a9d6d0e-71c4-4bb5-8d49-9c1b3b6f2a02", "aGFzaC1saXZyZXQ", "FR1420041010050500013M02606", "M DUPONT JEAN", "SVGS", "EUR"),
+                new SessionAccount("3e0b5f58-52f1-4a1c-9b0e-0a8c8d9d1f01", "aGFzaC1jb21wdGUtY291cmFudA", "FR7630006000011234567890189", "Compte courant", "CACC", "EUR",
+                    Holder: "M DUPONT JEAN"),
+                new SessionAccount("5a9d6d0e-71c4-4bb5-8d49-9c1b3b6f2a02", "aGFzaC1saXZyZXQ", "FR1420041010050500013M02606", "M DUPONT JEAN", "SVGS", "EUR",
+                    Holder: "M DUPONT JEAN"),
+                // A code in details is passed over for the product; the masked card number gives its last four digits; name is the holder.
+                new SessionAccount("7c2e8a14-0d3b-4f6e-9a57-2b8f1c3d4e03", "aGFzaC1jYXJ0ZS12aXNh", null, "Carte Visa", "CARD", "EUR", CardDebit.Immediate, "4321",
+                    "M DUPONT JEAN", "Carte Visa"),
+                // #353: a card number found among all_account_ids only.
+                new SessionAccount("9d4f1b26-3e5a-4c7d-8b69-4e0a2c5f6a04", "aGFzaC1jYXJ0ZS1kaWZmZXJl", null, "Débit différé", "CARD", "EUR", CardDebit.Deferred, "9876",
+                    "MME DUPONT ALICE"),
             ],
             session.Accounts);
         Assert.Equal("the-code", JsonDocument.Parse(handler.Requests.Single().Body).RootElement.GetProperty("code").GetString());
@@ -254,6 +262,30 @@ public class EnableBankingClientTests
             new SafeHttpClient(new HttpMessageInvoker(handler), NidOutbound.Options(), NullLogger<SafeHttpClient>.Instance), new BankingOptions(), new FixedClock(Now));
         Assert.Equal(BankingCodes.NotConfigured, FailureOf(await none.AspspsAsync("app", "FR", TestContext.Current.CancellationToken)));
         Assert.Empty(handler.Requests);
+    }
+
+    [Fact]
+    public async Task Application_reads_whether_it_is_active_and_its_redirect_urls()
+    {
+        var (client, handler) = Client(HttpStatusCode.OK, """
+            {"name":"Nid","kid":"4f1c0000-0000-4000-8000-000000000001","environment":"PRODUCTION","active":false,
+             "redirect_urls":["https://nid.example/api/v1/banking/callback"],"countries":["FR"],"services":["AIS"]}
+            """);
+
+        var application = Ok(await client.ApplicationAsync("app", TestContext.Current.CancellationToken));
+
+        Assert.False(application.Active);
+        Assert.Equal(["https://nid.example/api/v1/banking/callback"], application.RedirectUrls);
+        var request = handler.Requests.Single();
+        Assert.Equal((HttpMethod.Get, "https://api.enablebanking.com/application"), (request.Method, request.Url.AbsoluteUri));
+    }
+
+    [Fact]
+    public async Task Application_refused_names_the_api_error()
+    {
+        var (client, _) = Client(HttpStatusCode.Unauthorized, """{"message":"Invalid token","code":401,"error":"UNAUTHORIZED_ACCESS"}""");
+
+        Assert.Equal("enablebanking.UNAUTHORIZED_ACCESS", FailureOf(await client.ApplicationAsync("app", TestContext.Current.CancellationToken)));
     }
 
     private static string FailureOf<T>(UnambitiousFx.Functional.Result<T> result) where T : notnull

@@ -28,7 +28,7 @@ function serve(initial: PropertyDetail = propertyDetail()) {
       const body = (await request.json()) as Body;
       sent.push(body);
       if (body.version !== current.version)
-        return HttpResponse.json({ status: 409, code: 'realestate.property_conflict', title: 'Changed.' }, { status: 409 });
+        return HttpResponse.json({ status: 409, code: 'realestate.property_conflict', detail: 'Changed.' }, { status: 409 });
       const fields = Object.entries(body).some(([k, v]) => k !== 'version' && k !== 'name' && v !== false);
       current = {
         ...current,
@@ -82,7 +82,7 @@ describe('property settings', () => {
     it('shows a refusal to drop the other adult under the owners', async () => {
       owned();
       server.use(http.patch('*/api/v1/realestate/properties/:id', () => HttpResponse.json(
-        { status: 422, code: 'core.drops_adult_owner', title: 'x', errors: [{ path: 'owners', code: 'core.drops_adult_owner', message: 'x' }] },
+        { status: 422, code: 'core.drops_adult_owner', detail: 'x', errors: [{ detail: 'x', pointer: '#/owners', code: 'core.drops_adult_owner' }] },
         { status: 422 })));
       const { user } = await renderApp(`/properties/${PROPERTY}?tab=settings`);
 
@@ -193,7 +193,7 @@ describe('property settings', () => {
   it('shows a server refusal under the field it names', async () => {
     serve();
     server.use(http.patch('*/api/v1/realestate/properties/:id', () => HttpResponse.json(
-      { status: 422, code: 'realestate.invalid_property_field', title: 'x', errors: [{ path: 'purchaseDate', code: 'realestate.invalid_property_field', message: 'x' }] },
+      { status: 422, code: 'realestate.invalid_property_field', detail: 'x', errors: [{ detail: 'x', pointer: '#/purchaseDate', code: 'realestate.invalid_property_field' }] },
       { status: 422 })));
     const { user } = await renderApp(`/properties/${PROPERTY}?tab=settings`);
 
@@ -233,7 +233,7 @@ describe('property settings', () => {
   it('shows a rental start the server refuses (before the purchase) under « Début de location »', async () => {
     serve();
     server.use(http.patch('*/api/v1/realestate/properties/:id', () => HttpResponse.json(
-      { status: 422, code: 'realestate.invalid_property_field', title: 'x', errors: [{ path: 'rentalStartsOn', code: 'realestate.invalid_property_field', message: 'x' }] },
+      { status: 422, code: 'realestate.invalid_property_field', detail: 'x', errors: [{ detail: 'x', pointer: '#/rentalStartsOn', code: 'realestate.invalid_property_field' }] },
       { status: 422 })));
     const { user } = await renderApp(`/properties/${PROPERTY}?tab=settings`);
 

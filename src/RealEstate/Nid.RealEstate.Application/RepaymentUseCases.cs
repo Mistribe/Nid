@@ -12,19 +12,19 @@ namespace Nid.RealEstate.Application;
 /// <summary>An early repayment as a body sends it (spec 3A2 §4); <c>Penalty</c>, when sent, becomes its penalty fee.</summary>
 public sealed record RepaymentDraft(LocalDate OnDate, decimal Amount, RepaymentEffect Effect, decimal? Penalty, string? Note);
 
-public sealed record AddLoanRepaymentCommand(ItemId ItemId, RepaymentDraft Repayment) : ICommand<Guid>, IItemScoped
+public sealed record AddLoanRepaymentCommand(ItemId ItemId, RepaymentDraft Repayment) : ICommand<Guid>, IItemScoped, ITransactional
 {
     public AccessKind Access => AccessKind.Write;
 }
 
 /// <summary>The same body as the creation: a penalty sent is created or updated, a penalty omitted is deleted.</summary>
-public sealed record EditLoanRepaymentCommand(ItemId ItemId, Guid Repayment, RepaymentDraft Values, uint Version) : ICommand<Guid>, IItemScoped
+public sealed record EditLoanRepaymentCommand(ItemId ItemId, Guid Repayment, RepaymentDraft Values, uint Version) : ICommand<Guid>, IItemScoped, ITransactional
 {
     public AccessKind Access => AccessKind.Write;
 }
 
 /// <summary>The repayment and its penalty.</summary>
-public sealed record DeleteLoanRepaymentCommand(ItemId ItemId, Guid Repayment, uint Version) : ICommand<bool>, IItemScoped
+public sealed record DeleteLoanRepaymentCommand(ItemId ItemId, Guid Repayment, uint Version) : ICommand<bool>, IItemScoped, ITransactional
 {
     public AccessKind Access => AccessKind.Write;
 }
@@ -92,7 +92,7 @@ internal static class RepaymentCheck
 
 /// <summary>Spec 3A2 §1 decision 4: the repayment and its penalty in one transaction.</summary>
 [RequestHandler<AddLoanRepaymentCommand, Guid>]
-public sealed class AddLoanRepaymentHandler(IItemRegistry items, ILoanStore loans, IUnitOfWork unitOfWork)
+public sealed class AddLoanRepaymentHandler(IItemRegistry items, ILoanStore loans)
     : IRequestHandler<AddLoanRepaymentCommand, Guid>
 {
     public async ValueTask<Result<Guid>> HandleAsync(AddLoanRepaymentCommand command, CancellationToken ct = default)
@@ -101,7 +101,6 @@ public sealed class AddLoanRepaymentHandler(IItemRegistry items, ILoanStore loan
         if (RepaymentCheck.Rules(draft) is { } refused)
             return Result.Failure<Guid>(refused);
 
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         var loaded = await LoanCheck.LockAsync(loans, items, command.ItemId, ct);
         if (loaded.TryGetFailure(out var failure))
             return Result.Failure<Guid>(failure!);
@@ -115,13 +114,12 @@ public sealed class AddLoanRepaymentHandler(IItemRegistry items, ILoanStore loan
         if (penalty is not null)
             await loans.AddFeeAsync(command.ItemId, penalty.Id, penalty.Fee, null, ct);
         await loans.AddRepaymentAsync(command.ItemId, written.Id, written.Repayment, written.FeeId, written.Note, ct);
-        await transaction.CommitAsync(ct);
         return Result.Success(written.Id);
     }
 }
 
 [RequestHandler<EditLoanRepaymentCommand, Guid>]
-public sealed class EditLoanRepaymentHandler(IItemRegistry items, ILoanStore loans, IUnitOfWork unitOfWork)
+public sealed class EditLoanRepaymentHandler(IItemRegistry items, ILoanStore loans)
     : IRequestHandler<EditLoanRepaymentCommand, Guid>
 {
     public async ValueTask<Result<Guid>> HandleAsync(EditLoanRepaymentCommand command, CancellationToken ct = default)
@@ -130,7 +128,6 @@ public sealed class EditLoanRepaymentHandler(IItemRegistry items, ILoanStore loa
         if (RepaymentCheck.Rules(draft) is { } refused)
             return Result.Failure<Guid>(refused);
 
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         var loaded = await LoanCheck.LockAsync(loans, items, command.ItemId, ct);
         if (loaded.TryGetFailure(out var failure))
             return Result.Failure<Guid>(failure!);
@@ -152,18 +149,16 @@ public sealed class EditLoanRepaymentHandler(IItemRegistry items, ILoanStore loa
             await loans.AddFeeAsync(command.ItemId, penalty.Id, penalty.Fee, null, ct);
         else if (old.FeeId is { } removed)
             await loans.DeleteFeeAsync(command.ItemId, removed, ct);
-        await transaction.CommitAsync(ct);
         return Result.Success(written.Id);
     }
 }
 
 [RequestHandler<DeleteLoanRepaymentCommand, bool>]
-public sealed class DeleteLoanRepaymentHandler(IItemRegistry items, ILoanStore loans, IUnitOfWork unitOfWork)
+public sealed class DeleteLoanRepaymentHandler(IItemRegistry items, ILoanStore loans)
     : IRequestHandler<DeleteLoanRepaymentCommand, bool>
 {
     public async ValueTask<Result<bool>> HandleAsync(DeleteLoanRepaymentCommand command, CancellationToken ct = default)
     {
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         var loaded = await LoanCheck.LockAsync(loans, items, command.ItemId, ct);
         if (loaded.TryGetFailure(out var failure))
             return Result.Failure<bool>(failure!);
@@ -179,7 +174,6 @@ public sealed class DeleteLoanRepaymentHandler(IItemRegistry items, ILoanStore l
         await loans.DeleteRepaymentAsync(command.ItemId, id, ct);
         if (penaltyId is { } penalty)
             await loans.DeleteFeeAsync(command.ItemId, penalty, ct);
-        await transaction.CommitAsync(ct);
         return Result.Success(true);
     }
 }

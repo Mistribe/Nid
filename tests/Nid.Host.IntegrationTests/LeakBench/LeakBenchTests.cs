@@ -853,7 +853,7 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
                         $"{scope} as {data.NameOf(actor)} returned {data.NameOf(new ItemId(item.Id))}, which the rules hide");
 
                 // Equality, not containment: this also catches an item that wrongly disappears.
-                var expected = data.ExpectedVisible(actor, scope == "me" ? VisibilityScope.Me : VisibilityScope.Household);
+                var expected = data.ExpectedVisible(actor, scope == "me" ? VisibilityScope.Mine : VisibilityScope.Household);
                 Assert.Equal(
                     expected.Select(i => data.NameOf(i)).OrderBy(n => n, StringComparer.Ordinal),
                     list.Items.Select(i => data.NameOf(new ItemId(i.Id))).OrderBy(n => n, StringComparer.Ordinal));
@@ -861,7 +861,7 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
                 // The same, exactly, for the envelope twins (2B1a): the table expects of them what it expects of their rows.
                 var envelopes = await app.GetAsync<IdListResponse>(actor, $"/api/v1/investments/envelopes?scope={scope}");
                 var expectedEnvelopes = data.ExpectedVisible(
-                    actor, scope == "me" ? VisibilityScope.Me : VisibilityScope.Household, data.Envelopes);
+                    actor, scope == "me" ? VisibilityScope.Mine : VisibilityScope.Household, data.Envelopes);
                 Assert.Equal(
                     expectedEnvelopes.Select(i => data.NameOf(i)).OrderBy(n => n, StringComparer.Ordinal),
                     envelopes.Items.Select(i => data.NameOf(new ItemId(i.Id))).OrderBy(n => n, StringComparer.Ordinal));
@@ -869,7 +869,7 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
                 // And for the income twins (2C1).
                 var sources = await app.GetAsync<IdListResponse>(actor, $"/api/v1/income/sources?scope={scope}");
                 var expectedSources = data.ExpectedVisible(
-                    actor, scope == "me" ? VisibilityScope.Me : VisibilityScope.Household, data.IncomeSources);
+                    actor, scope == "me" ? VisibilityScope.Mine : VisibilityScope.Household, data.IncomeSources);
                 Assert.Equal(
                     expectedSources.Select(i => data.NameOf(i)).OrderBy(n => n, StringComparer.Ordinal),
                     sources.Items.Select(i => data.NameOf(new ItemId(i.Id))).OrderBy(n => n, StringComparer.Ordinal));
@@ -877,7 +877,7 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
                 // And for the loan twins (3A2): none has ended, so the default list holds them all.
                 var loans = await app.GetAsync<IdListResponse>(actor, $"/api/v1/realestate/loans?scope={scope}");
                 var expectedLoans = data.ExpectedVisible(
-                    actor, scope == "me" ? VisibilityScope.Me : VisibilityScope.Household, data.Loans);
+                    actor, scope == "me" ? VisibilityScope.Mine : VisibilityScope.Household, data.Loans);
                 Assert.Equal(
                     expectedLoans.Select(i => data.NameOf(i)).OrderBy(n => n, StringComparer.Ordinal),
                     loans.Items.Select(i => data.NameOf(new ItemId(i.Id))).OrderBy(n => n, StringComparer.Ordinal));
@@ -885,14 +885,14 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
                 // And for the property twins (3C1).
                 var properties = await app.GetAsync<IdListResponse>(actor, $"/api/v1/realestate/properties?scope={scope}");
                 var expectedProperties = data.ExpectedVisible(
-                    actor, scope == "me" ? VisibilityScope.Me : VisibilityScope.Household, data.Properties);
+                    actor, scope == "me" ? VisibilityScope.Mine : VisibilityScope.Household, data.Properties);
                 Assert.Equal(
                     expectedProperties.Select(i => data.NameOf(i)).OrderBy(n => n, StringComparer.Ordinal),
                     properties.Items.Select(i => data.NameOf(new ItemId(i.Id))).OrderBy(n => n, StringComparer.Ordinal));
 
                 // And for the goal twins.
                 var goals = await app.GetAsync<IdListResponse>(actor, $"/api/v1/goals?scope={scope}");
-                var expectedGoals = data.ExpectedVisible(actor, scope == "me" ? VisibilityScope.Me : VisibilityScope.Household, data.Goals);
+                var expectedGoals = data.ExpectedVisible(actor, scope == "me" ? VisibilityScope.Mine : VisibilityScope.Household, data.Goals);
                 Assert.Equal(
                     expectedGoals.Select(i => data.NameOf(i)).OrderBy(n => n, StringComparer.Ordinal),
                     goals.Items.Select(i => data.NameOf(new ItemId(i.Id))).OrderBy(n => n, StringComparer.Ordinal));

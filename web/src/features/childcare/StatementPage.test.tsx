@@ -43,7 +43,7 @@ describe('StatementPage', () => {
       http.get('*/api/v1/childcare/:id', () => HttpResponse.json(detail())),
       http.get('*/api/v1/childcare/:id/statements', () => HttpResponse.json(statements())),
       http.get('*/api/v1/documents', () => HttpResponse.json(list([]))),
-      http.get('*/api/v1/childcare/:id/statements/:month', () => HttpResponse.json({ status: 404, code: null, title: 'Not found' }, { status: 404 })),
+      http.get('*/api/v1/childcare/:id/statements/:month', () => HttpResponse.json({ status: 404, code: null, detail: 'Not found' }, { status: 404 })),
     );
     const { router } = await renderApp(`/childcare/${ARRANGEMENT_ID}`);
     await screen.findByRole('heading', { level: 1, name: 'Garde de Léa' });
@@ -51,6 +51,14 @@ describe('StatementPage', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Page introuvable' })).toBeInTheDocument();
     await waitFor(() => expectTrailBack('Garde de Léa', `/childcare/${ARRANGEMENT_ID}`));
     expectTrailBack('Garde', '/childcare');
+  });
+  it("the arrows by the title lead to the contract's neighbouring months, disabled at either end", async () => {
+    serve(statement());
+    server.use(http.get('*/api/v1/childcare/:id/statements', () => HttpResponse.json(statements())));
+    await renderApp(url);
+    const next = await screen.findByRole('link', { name: 'Mois suivant : octobre 2025' });
+    expect(next).toHaveAttribute('href', `/childcare/${ARRANGEMENT_ID}/statements/2025-10`);
+    expect(screen.getByRole('button', { name: 'Pas de mois précédent' })).toBeDisabled();
   });
   it("shows the server's declaration", async () => {
     serve(statement());
@@ -65,6 +73,14 @@ describe('StatementPage', () => {
     expect(within(declaration).getByText('Heures majorées effectuées ?').nextSibling).toHaveTextContent('Non');
     expect(screen.getByRole('region', { name: 'Chiffres du mois' })).toHaveTextContent('avant CMG');
     expect(screen.getByRole('region', { name: 'Chiffres du mois' })).toHaveTextContent('Salaire net626,37 €');
+  });
+
+  it('a month after a revaluation the terms miss warns and links to the contract', async () => {
+    serve(statement({ belowMinimums: [{ code: 'childcare.below_minimum_net_rate', since: '2026-06-01', minimum: '3.28', value: '3.10' }] }));
+    await renderApp(url);
+    const warning = await screen.findByRole('status', { name: 'Le contrat est sous un minimum légal' });
+    expect(warning).toHaveTextContent('Le salaire horaire net (3,10 €) est sous le minimum conventionnel de 3,28 € net par heure, à compter du 1 juin 2026.');
+    expect(within(warning).getByRole('link', { name: 'Ouvrir le contrat pour le réviser' })).toHaveAttribute('href', `/childcare/${ARRANGEMENT_ID}`);
   });
 
   it('names the week type next to the date', async () => {

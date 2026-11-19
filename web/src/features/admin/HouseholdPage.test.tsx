@@ -45,7 +45,7 @@ describe('Administration › Foyer', () => {
     server.use(
       http.get('*/api/v1/admin/household', () => HttpResponse.json(settings)),
       http.patch('*/api/v1/admin/household', () => HttpResponse.json(
-        { status: 422, code: 'core.unknown_currency', title: 'The reference currency is a three-letter ISO 4217 code, in capitals.' },
+        { status: 422, code: 'core.unknown_currency', detail: 'The reference currency is a three-letter ISO 4217 code, in capitals.' },
         { status: 422 })),
     );
     const { user } = await renderApp('/admin/household', { capabilities: adminCapabilities });

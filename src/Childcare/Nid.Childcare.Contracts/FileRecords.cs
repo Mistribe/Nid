@@ -30,6 +30,17 @@ public sealed record ArrangementRecord
 
     public required IReadOnlyList<ShareRecord> Ownership { get; init; }
     public bool Closed { get; set; }
+
+    /// <summary>How a closed contract ended; omitted when it was closed without saying.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public EndRecord? End { get; set; }
+}
+
+/// <summary>The end's reason (<c>withdrawal</c>, <c>misconduct</c>, <c>approval</c>, <c>child_death</c>, <c>resignation</c>, <c>trial</c>) and the day it was notified.</summary>
+public sealed record EndRecord
+{
+    public required string Reason { get; init; }
+    public required string Notified { get; init; }
 }
 
 public sealed record CarerRecord
@@ -244,4 +255,43 @@ public sealed record FiguresRecord
     /// <summary>A full year's leave days taken and paid this month; absent: none.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public int? PaidLeaveTaken { get; set; }
+
+    /// <summary>The last month's end-of-contract lines, omitted on any other month.</summary>
+    [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.WriteAsString)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public decimal? Regularisation { get; set; }
+
+    [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.WriteAsString)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public decimal? LeaveIndemnity { get; set; }
+
+    [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.WriteAsString)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public decimal? RuptureIndemnity { get; set; }
+}
+
+/// <summary>#94: a nanny at home of <c>nid.data</c> with its months, the amounts as paid.</summary>
+public sealed record NannyRecord
+{
+    public required string Id { get; init; }
+    public required string Name { get; init; }
+    public string Visibility { get; set; } = "shared";
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ShareLevel { get; set; }
+
+    public required IReadOnlyList<ShareRecord> Ownership { get; init; }
+    public bool Closed { get; set; }
+    public IReadOnlyList<NannyMonthRecord> Months { get; set; } = [];
+}
+
+/// <summary>A month <c>YYYY-MM</c>: the amount paid (net salary and employer contributions), the CMG received, the hours if entered.</summary>
+public sealed record NannyMonthRecord
+{
+    public required string Month { get; init; }
+    public required decimal Paid { get; init; }
+    public decimal Cmg { get; set; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public decimal? Hours { get; set; }
 }

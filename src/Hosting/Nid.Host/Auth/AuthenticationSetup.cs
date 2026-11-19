@@ -14,6 +14,9 @@ public static class AuthenticationSetup
         var section = configuration.GetSection(NidAuthOptions.Section);
         services.Configure<NidAuthOptions>(section);
         var options = section.Get<NidAuthOptions>() ?? new NidAuthOptions();
+        // Issue 215: the sign-in methods, checked here so a configuration that cannot work stops the start with its reason.
+        var settings = AuthSettings.Resolve(options, demo);
+        services.AddSingleton(settings);
 
         services.Configure<ForwardedHeadersOptions>(o =>
         {
@@ -42,8 +45,10 @@ public static class AuthenticationSetup
             .AddScheme<AuthenticationSchemeOptions, TokenAuthenticationHandler>(TokenAuthentication.Scheme, _ => { })
             .AddCookie(cookie =>
             {
-                cookie.Cookie.Name = "__Host-nid";
-                cookie.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+                // __Host- requires Secure: plain HTTP, when the hoster allowed it, gets a cookie without the prefix that
+                // keeps Secure on HTTPS requests (local-accounts spec §12).
+                cookie.Cookie.Name = CookieName(settings);
+                cookie.Cookie.SecurePolicy = settings.AllowInsecureHttp ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
                 cookie.Cookie.HttpOnly = true;
                 cookie.Cookie.SameSite = SameSiteMode.Lax;
                 cookie.Cookie.Path = "/";
@@ -53,7 +58,8 @@ public static class AuthenticationSetup
                 cookie.Events.OnRedirectToAccessDenied = c => { c.Response.StatusCode = StatusCodes.Status403Forbidden; return Task.CompletedTask; };
                 cookie.Events.OnValidatePrincipal = RejectRevokedSessions;
             });
-        if (!demo)
+        // Neither demo mode nor local accounts alone have an identity provider, whose options would refuse an empty authority.
+        if (!demo && settings.Oidc)
             authentication.AddOpenIdConnect(oidc =>
             {
                 oidc.Authority = options.Authority;
@@ -79,6 +85,9 @@ public static class AuthenticationSetup
         services.AddAuthorization();
         return services;
     }
+
+    /// <summary>The session cookie's name: <c>__Host-nid</c>, or <c>nid</c> when plain HTTP is allowed.</summary>
+    public static string CookieName(AuthSettings settings) => settings.AllowInsecureHttp ? "nid" : "__Host-nid";
 
     private static async Task RejectRevokedSessions(CookieValidatePrincipalContext context)
     {

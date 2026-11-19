@@ -71,7 +71,7 @@ public class BreakdownProposalTests(PostgresFixture fixture) : IClassFixture<Pos
 
         var error = (await RefusedAsync(app, Body(envelope, isin: "FR0000131104")))
             .GetProperty("errors")[0];
-        Assert.Equal("payload.isin", error.GetProperty("path").GetString());
+        Assert.Equal("payload.isin", error.FieldPath());
     }
 
     [Fact]
@@ -82,10 +82,10 @@ public class BreakdownProposalTests(PostgresFixture fixture) : IClassFixture<Pos
         await HoldingAsync(app, envelope, "Fonds A", "etf", Isin);
 
         var error = (await RefusedAsync(app, Body(envelope, regions: Parts(("north_america", 60m), ("france", 30m))))).GetProperty("errors")[0];
-        Assert.Equal(("payload.regions", "investments.breakdown_not_100"), (error.GetProperty("path").GetString(), error.GetProperty("code").GetString()));
+        Assert.Equal(("payload.regions", "investments.breakdown_not_100"), (error.FieldPath(), error.GetProperty("code").GetString()));
 
         var unknown = (await RefusedAsync(app, Body(envelope, regions: Parts(("mars", 100m))))).GetProperty("errors")[0];
-        Assert.Equal("payload.regions[0].code", unknown.GetProperty("path").GetString());
+        Assert.Equal("payload.regions[0].code", unknown.FieldPath());
     }
 
     [Fact]
@@ -97,6 +97,6 @@ public class BreakdownProposalTests(PostgresFixture fixture) : IClassFixture<Pos
 
         var refused = await RefusedAsync(app, Body(envelope));
         var error = refused.GetProperty("errors")[0];
-        Assert.Equal(("payload.isin", "investments.breakdown_not_market"), (error.GetProperty("path").GetString(), error.GetProperty("code").GetString()));
+        Assert.Equal(("payload.isin", "investments.breakdown_not_market"), (error.FieldPath(), error.GetProperty("code").GetString()));
     }
 }

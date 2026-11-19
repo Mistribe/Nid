@@ -17,12 +17,12 @@ public sealed record PhaseDraft(
 
 public sealed record CreateIncomeSourceCommand(
     string DisplayName, string Kind, Currency Currency, Visibility Visibility, IReadOnlyList<OwnerShare> Owners,
-    string? PayerLabel, string? Note, IReadOnlyList<PhaseDraft> Phases, ShareLevel ShareLevel = ShareLevel.View) : ICommand<ItemId>, ICreatesItem;
+    string? PayerLabel, string? Note, IReadOnlyList<PhaseDraft> Phases, ShareLevel ShareLevel = ShareLevel.View) : ICommand<ItemId>, ICreatesItem, ITransactional;
 
 /// <summary>#69: <paramref name="Visibility"/>, <paramref name="ShareLevel"/> and <paramref name="Owners"/> null keep the source's.</summary>
 public sealed record EditIncomeSourceCommand(ItemId ItemId, string? DisplayName, string? Kind, IncomeSourceChange Change,
     Visibility? Visibility = null, ShareLevel? ShareLevel = null, IReadOnlyList<OwnerShare>? Owners = null)
-    : ICommand<ItemId>, IItemScoped
+    : ICommand<ItemId>, IItemScoped, ITransactional
 {
     public AccessKind Access => AccessKind.Write;
 }
@@ -51,7 +51,7 @@ public sealed record IncomeSourceDeletionQuery(ItemId ItemId) : IQuery<ItemDelet
 }
 
 [RequestHandler<CreateIncomeSourceCommand, ItemId>]
-public sealed class CreateIncomeSourceHandler(IItemRegistry items, ISourceStore sources, IPhaseStore phases, IUnitOfWork unitOfWork)
+public sealed class CreateIncomeSourceHandler(IItemRegistry items, ISourceStore sources, IPhaseStore phases)
     : IRequestHandler<CreateIncomeSourceCommand, ItemId>
 {
     public async ValueTask<Result<ItemId>> HandleAsync(CreateIncomeSourceCommand command, CancellationToken ct = default)
@@ -78,22 +78,20 @@ public sealed class CreateIncomeSourceHandler(IItemRegistry items, ISourceStore 
                 d.GrossAmount, d.MaxCycles, d.Note, TaxableAmount: d.TaxableAmount));
         }
 
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         var created = await items.CreateAsync(new NewItem("income", "source", command.DisplayName, command.Visibility,
             command.Currency.Code, command.Owners, command.ShareLevel), ct);
         if (!created.TryGetValue(out var id))
-            return created; // disposed without commit: nothing is left
+            return created; // a failure rolls the transaction back: nothing is left
         await sources.CreateAsync(new IncomeSource(id, k, command.PayerLabel, command.Note), null, ct);
         foreach (var phase in accepted)
             await phases.AddAsync(phase with { Source = id }, null, ct);
-        await transaction.CommitAsync(ct);
         return Result.Success(id);
     }
 }
 
 [RequestHandler<EditIncomeSourceCommand, ItemId>]
 public sealed class EditIncomeSourceHandler(
-    IItemRegistry items, ISourceStore sources, IUnitOfWork unitOfWork, IItemRules rules, IActorAccessor actor, IPersonRegistry persons)
+    IItemRegistry items, ISourceStore sources, IItemRules rules, IActorAccessor actor, IPersonRegistry persons)
     : IRequestHandler<EditIncomeSourceCommand, ItemId>
 {
     public async ValueTask<Result<ItemId>> HandleAsync(EditIncomeSourceCommand command, CancellationToken ct = default)
@@ -125,13 +123,11 @@ public sealed class EditIncomeSourceHandler(
         if (await OwnershipEdit.RefusalAsync(rules, persons, actor.Current!.PersonId!.Value, item, target, "income source", ct) is { } refused)
             return Result.Failure<ItemId>(refused);
 
-        await using var transaction = await unitOfWork.BeginAsync(ct);
         var replaced = await OwnershipEdit.ReplaceAsync(items, item, command.DisplayName ?? item.DisplayName, target, ct);
         if (replaced.TryGetFailure(out failure))
             return Result.Failure<ItemId>(failure!);
 
         await sources.UpdateAsync(command.ItemId, change, ct);
-        await transaction.CommitAsync(ct);
         return Result.Success(command.ItemId);
     }
 }
@@ -159,7 +155,7 @@ public sealed class GetIncomeSourceHandler(
             ? DateRange.Create(today.PlusYears(-1), today.PlusDays(1))
             : DateRange.Create(query.From ?? LocalDate.MinIsoValue, query.To?.PlusDays(1));
         if (!window.TryGetValue(out var range))
-            return Result.Failure<IncomeSourceDetail>(new Failure(IncomeCodes.InvalidPeriod, "A period starts on or before its end.", null));
+            return Result.Failure<IncomeSourceDetail>(new BadRequestFailure("A period starts on or before its end.") { Code = IncomeCodes.InvalidPeriod });
         var oneOffs = await OneOffsAsync(flows, query.ItemId, range!, ct);
         if (oneOffs.TryGetFailure(out failure))
             return Result.Failure<IncomeSourceDetail>(failure!);

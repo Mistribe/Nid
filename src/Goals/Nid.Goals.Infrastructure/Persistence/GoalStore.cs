@@ -45,7 +45,7 @@ public sealed class GoalStore(GoalsDbContext db) : IGoalStore
         }
         catch (DbUpdateConcurrencyException)
         {
-            return Result.Failure(new Failure(GoalsCodes.Conflict, "The goal changed since it was read.", null));
+            return Result.Failure(new ConflictFailure("The goal changed since it was read.") { Code = GoalsCodes.Conflict });
         }
     }
 

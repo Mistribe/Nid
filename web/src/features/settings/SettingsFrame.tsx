@@ -6,6 +6,7 @@ import { tabsListVariants } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { useBankingStatus } from '@/api/banking';
 import '@/locales/notifications';
+import '@/locales/settings';
 
 const SECTIONS = [
   { to: '/settings/appearance', label: 'settings_frame.nav.appearance' },

@@ -93,4 +93,37 @@ public static class ChargeCycles
             .Where(x => x.Phase is not null && LongerThanAMonth(x.Phase.Every))
             .GroupBy(x => x.Phase!.Id)
             .Select(g => g.MinBy(x => x.Charge.Date).Charge);
+
+    /// <summary>
+    /// Issue #244: the paid phase charges in <c>[from, until]</c> that end a free period (the coverage just before them is a trial,
+    /// a gift, a bonus or a 0 € phase: <see cref="UpcomingKinds.SubscriptionTrialEnd"/>) or open a phase dearer per period than the
+    /// one before (<see cref="UpcomingKinds.SubscriptionPriceIncrease"/>), whatever the cycle.
+    /// </summary>
+    public static IEnumerable<(Charge Charge, string Kind)> PriceChanges(SubscriptionInput input, Timeline timeline, LocalDate from, LocalDate until)
+    {
+        foreach (var charge in timeline.Charges.Where(c => c.Date >= from && c.Date <= until && c.Price.Amount > 0m))
+        {
+            if (PhaseOf(input, charge) is not { } phase
+                || timeline.Coverage.Where(p => p.Start < charge.Date).MaxBy(p => p.Start) is not { } before)
+                continue;
+            var previous = before.Origin is CoverageOrigin.FromPhase f ? input.Phases.FirstOrDefault(p => p.Id == f.PhaseId) : null;
+            if (before.Source is CoverageSource.Trial or CoverageSource.Gift or CoverageSource.Bonus || previous is { Price.Amount: 0m })
+                yield return (charge, UpcomingKinds.SubscriptionTrialEnd);
+            else if (previous is not null && previous.Id != phase.Id && Dearer(phase, previous))
+                yield return (charge, UpcomingKinds.SubscriptionPriceIncrease);
+        }
+    }
+
+    // Per period, cross-multiplied: 10 € a month and 120 € a year cost the same. Another currency is not comparable.
+    private static bool Dearer(BillingPhase next, BillingPhase previous)
+        => next.Price.Currency == previous.Price.Currency
+           && next.Price.Amount * Days(previous.CoverageEvery) > previous.Price.Amount * Days(next.CoverageEvery);
+
+    private static decimal Days(Duration every) => every.Count * every.Unit switch
+    {
+        DurationUnit.Day => 1m,
+        DurationUnit.Week => 7m,
+        DurationUnit.Month => 30.4375m, // 365.25 / 12
+        _ => 365.25m,
+    };
 }

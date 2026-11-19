@@ -3,7 +3,7 @@ import { http, HttpResponse } from 'msw/http';
 import { describe, expect, it } from 'vitest';
 import type { YearReview } from '@/api/reports';
 import { expectNoAxeViolations } from '@/test/axe';
-import { pick } from '@/test/controls';
+import { pickYear } from '@/test/controls';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 
@@ -116,18 +116,29 @@ describe('YearReviewPage', () => {
     expect(seen).toEqual(['?scope=household']);
   });
 
+  it('steps to the year before with the arrow, in a group named « Année du bilan »', async () => {
+    const seen = serve((year) => review({ year: Number(year ?? 2025) }));
+    const { user } = await renderApp('/reports/year?year=2025');
+    await screen.findByRole('heading', { level: 1, name: 'Bilan 2025' });
+
+    expect(screen.queryByRole('combobox', { name: 'Année du bilan' })).toBeNull();
+    await user.click(within(screen.getByRole('group', { name: 'Année du bilan' })).getByRole('button', { name: 'Année précédente' }));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Bilan 2024' })).toBeInTheDocument();
+    expect(seen).toContain('?scope=household&year=2024');
+  });
+
   it('puts the picked year in the address and asks for it', async () => {
     const seen = serve((year) => review({ year: Number(year ?? 2025) }));
     const { router, user } = await renderApp('/reports/year?year=2025&scope=me');
     await screen.findByRole('heading', { level: 1, name: 'Bilan 2025' });
 
-    await pick(user, 'Année du bilan', '2024');
+    await pickYear(user, '2024');
     expect(router.state.location.search).toEqual({ scope: 'me', year: 2024 });
     expect(await screen.findByRole('heading', { level: 1, name: 'Bilan 2024' })).toBeInTheDocument();
     await waitFor(() => expect(seen).toContain('?scope=me&year=2024'));
 
     // The server's current year, the latest it offers, stays out of the address.
-    await pick(user, 'Année du bilan', '2026');
+    await pickYear(user, '2026');
     expect(router.state.location.search).toEqual({ scope: 'me' });
   });
 

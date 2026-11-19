@@ -280,7 +280,7 @@ internal static partial class LoansOverviewMath
     /// </summary>
     private static LoanDebtRatioView Ratio(IReadOnlyList<Reading> running, OverviewIncome income, YearMonth month, Converter convert)
     {
-        var mine = income.Scope == VisibilityScope.Me;
+        var mine = income.Scope is VisibilityScope.Me or VisibilityScope.Mine;
         var payments = SumOrNull(running.Select(r =>
         {
             var payment = convert.Of(r.Payments.GetValueOrDefault(month), r.Currency);

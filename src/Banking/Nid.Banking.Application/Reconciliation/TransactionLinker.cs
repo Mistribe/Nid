@@ -19,7 +19,7 @@ namespace Nid.Banking.Application.Reconciliation;
 /// </summary>
 public sealed class TransactionLinker(
     ExpectedChargeReader charges, ITransactionStore transactions, ILinkStore links, IRuleStore rules, IFlows flows, IItemRegistry items,
-    IAccessPolicy policy, BankingAccess access, IProposalSubmitter proposals, IActorAccessor actor, IClock clock)
+    IAccessPolicy policy, BankingAccess access, IProposalSubmitter proposals, IActorAccessor actor, IClock clock, LinkCategoryReader categories)
 {
     public const int AskDays = 45;
 
@@ -47,7 +47,7 @@ public sealed class TransactionLinker(
             return BankingAccess.Fail<BankTransaction>(BankingCodes.LinkTarget, "This item is not of that module.");
         return line.LinkState == TransactionLinkState.Unlinked
             ? Result.Success(line)
-            : BankingAccess.Fail<BankTransaction>(BankingCodes.TransactionLinked, "This line is already linked or ignored.");
+            : Result.Failure<BankTransaction>(new ConflictFailure("This line is already linked or ignored.") { Code = BankingCodes.TransactionLinked });
     }
 
     /// <summary>
@@ -146,7 +146,7 @@ public sealed class TransactionLinker(
         }
 
         var link = new BankLink(line.Id, module, item, key, null, outcome, charge?.Amount, decidedBy, clock.GetCurrentInstant());
-        await links.SetAsync(link, TransactionLinkState.Linked, ct);
+        await links.SetAsync(link, TransactionLinkState.Linked, ct, await categories.KeyAsync(link, charge?.Kind, line.Amount > 0, ct));
         // A refused follow-up (a price change the subscription's phases refuse) leaves the link as it is. §0 n°1: a follow-up carries the
         // line's amount to every reader of the item, so only when they all read its account; else the account-filtered findings speak.
         if (followUp is { } payload && await access.ItemReadersReadAsync(line.Account, item, ct))

@@ -74,7 +74,7 @@ public sealed class GetIncomeSourceOverviewHandler(
         if (loaded.TryGetFailure(out var failure))
             return Result.Failure<IncomeSourceOverview>(failure!);
         if (!TryParse(query.Period, out var span))
-            return Result.Failure<IncomeSourceOverview>(new Failure(IncomeCodes.InvalidPeriod, "A period is 12m, 3y or all.", null));
+            return Result.Failure<IncomeSourceOverview>(new BadRequestFailure("A period is 12m, 3y or all.") { Code = IncomeCodes.InvalidPeriod });
         loaded.TryGetValue(out var source);
         var currency = SourceCheck.CurrencyOf(source.Item);
         var today = await calendar.TodayAsync(ct);

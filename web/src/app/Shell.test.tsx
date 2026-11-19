@@ -20,7 +20,7 @@ describe('the shell', () => {
   it('lists the enabled modules and settings', async () => {
     await renderApp('/subscriptions');
     const links = within(sidebar()).getAllByRole('link').map((l) => l.textContent);
-    expect(links).toEqual(['Accueil', 'Routine', 'À valider', 'Documents', 'Placements', 'Objectifs', 'Biens', 'Crédits', 'Retraite', 'Simulations', 'Revenus', 'Impôts', 'Abonnements', 'Garde']);
+    expect(links).toEqual(['Accueil', 'Calendrier', 'Routine', 'À valider', 'Documents', 'Comptes et placements', 'Objectifs', 'Biens', 'Crédits', 'Retraite', 'Simulations', 'Revenus', 'Impôts', 'Abonnements', 'Garde']);
   });
 
   it('each sidebar entry shows its tile, also on the rail', async () => {
@@ -32,8 +32,8 @@ describe('the shell', () => {
     expect(tabs().querySelector('[data-tile]')).toBeNull();
     await user.click(screen.getByRole('button', { name: 'Replier le menu' }));
     everyLinkHasOneTile();
-    const link = within(sidebar()).getByRole('link', { name: 'Placements' });
-    expect(link.querySelector('.sr-only')).toHaveTextContent('Placements');
+    const link = within(sidebar()).getByRole('link', { name: 'Comptes et placements' });
+    expect(link.querySelector('.sr-only')).toHaveTextContent('Comptes et placements');
     expect(link.querySelector('[data-tile] svg')).not.toHaveClass('text-primary');
   });
 
@@ -75,7 +75,7 @@ describe('the shell', () => {
     expect(container.querySelector('[data-pane="toolbar"]')).toHaveClass('pointer-events-auto');
   });
 
-  // A phone's 390 px: the trail keeps « Placements » whole between the tight row and the bar's 36 px icon buttons.
+  // A phone's 390 px: the trail keeps « Comptes et placements » whole between the tight row and the bar's 36 px icon buttons.
   it('the top bar packs tighter on a phone, its icon buttons 36 px', async () => {
     const { container } = await renderApp('/subscriptions');
     const row = container.querySelector<HTMLElement>('[data-pane="toolbar"] > div')!;
@@ -108,7 +108,7 @@ describe('the shell', () => {
     const nav = within(sidebar());
     expect(nav.getAllByRole('heading').map((h) => h.textContent)).toEqual(['Suivi', 'Patrimoine', 'Budget']);
     const groups = nav.getAllByRole('list').map((l) => within(l).getAllByRole('link').map((a) => a.textContent));
-    expect(groups).toEqual([['Accueil', 'Routine', 'À valider', 'Documents'], ['Placements', 'Objectifs', 'Biens', 'Crédits', 'Retraite', 'Simulations'], ['Revenus', 'Impôts', 'Abonnements', 'Garde']]);
+    expect(groups).toEqual([['Accueil', 'Calendrier', 'Routine', 'À valider', 'Documents'], ['Comptes et placements', 'Objectifs', 'Biens', 'Crédits', 'Retraite', 'Simulations'], ['Revenus', 'Impôts', 'Abonnements', 'Garde']]);
   });
 
   it('shows the API version beside the web version, in the person menu', async () => {
@@ -320,7 +320,7 @@ describe('the shell', () => {
     const { router, user } = await renderApp('/subscriptions?scope=me');
     await user.click(screen.getByRole('radio', { name: 'Foyer' }));
     expect(router.state.location.search).toEqual({});
-    await user.click(within(sidebar()).getByRole('link', { name: 'Placements' }));
+    await user.click(within(sidebar()).getByRole('link', { name: 'Comptes et placements' }));
     expect(router.state.location.search).toEqual({});
   });
 
@@ -331,7 +331,7 @@ describe('the shell', () => {
     await user.click(screen.getByRole('radio', { name: 'Moi' }));
     expect(router.state.location.search).toEqual({ scope: 'me' });
 
-    await user.click(within(sidebar()).getByRole('link', { name: 'Placements' }));
+    await user.click(within(sidebar()).getByRole('link', { name: 'Comptes et placements' }));
     expect(router.state.location.pathname).toBe('/investments');
     expect(router.state.location.search).toEqual({ scope: 'me' });
     expect(screen.getByRole('radio', { name: 'Moi' })).toBeChecked();
@@ -366,7 +366,7 @@ describe('the shell', () => {
     const heading = await screen.findByRole('heading', { level: 1, name: 'Page introuvable' });
     const page = heading.closest('section')!;
     expect(page.querySelector('[data-tile="1"]')).not.toBeNull();
-    expect(within(page).getByRole('link', { name: 'Ouvrir Placements' })).toHaveAttribute('href', '/investments');
+    expect(within(page).getByRole('link', { name: 'Ouvrir Comptes et placements' })).toHaveAttribute('href', '/investments');
   });
 
   it('signs out with the CSRF token and says what stays open', async () => {
@@ -413,20 +413,20 @@ describe('the shell', () => {
     const { container } = await renderApp('/subscriptions');
     await expectNoAxeViolations(container);
   });
-  it('phone tabs are Accueil, Placements, Abonnements, Routine, Plus', async () => {
+  it('phone tabs are Accueil, Comptes, Abonnements, Routine, Plus', async () => {
     await renderApp('/subscriptions');
-    expect(within(tabs()).getAllByRole('link').map((l) => l.textContent)).toEqual(['Accueil', 'Placements', 'Abonnements', 'Routine', 'Plus']);
+    expect(within(tabs()).getAllByRole('link').map((l) => l.textContent)).toEqual(['Accueil', 'Comptes', 'Abonnements', 'Routine', 'Plus']);
   });
 
   it('the tab bar follows the enabled modules', async () => {
     await renderApp('/subscriptions', { capabilities: { modules: ['core', 'subscriptions', 'investments'], admin: false } });
-    expect(within(tabs()).getAllByRole('link').map((l) => l.textContent)).toEqual(['Accueil', 'Placements', 'Abonnements', 'Routine', 'Plus']);
+    expect(within(tabs()).getAllByRole('link').map((l) => l.textContent)).toEqual(['Accueil', 'Comptes', 'Abonnements', 'Routine', 'Plus']);
   });
 
   it('lists the other sections on /more, Administration for an admin only', async () => {
     const { container } = await renderApp('/more');
     const list = await screen.findByRole('list', { name: 'Autres sections' });
-    expect(within(list).getAllByRole('link').map((l) => l.textContent)).toEqual(['À valider', 'Documents', 'Objectifs', 'Biens', 'Crédits', 'Revenus', 'Impôts', 'Retraite', 'Simulations', 'Garde', 'Import', 'Export', 'Sécurité', 'Réglages', 'Nouveautés']);
+    expect(within(list).getAllByRole('link').map((l) => l.textContent)).toEqual(['Calendrier', 'À valider', 'Documents', 'Objectifs', 'Biens', 'Crédits', 'Revenus', 'Impôts', 'Retraite', 'Simulations', 'Garde', 'Import', 'Export', 'Sécurité', 'Réglages', 'Nouveautés']);
     await expectNoAxeViolations(container);
   });
 
@@ -488,7 +488,7 @@ describe('the shell', () => {
       expect(sidebar()).toHaveAttribute('data-rail');
       expect(localStorage.getItem('nid.sidebar')).toBe('rail');
       // The names stay for screen readers, and the groups keep their headings.
-      expect(within(sidebar()).getAllByRole('link').map((l) => l.textContent)).toEqual(['Accueil', 'Routine', 'À valider', 'Documents', 'Placements', 'Objectifs', 'Biens', 'Crédits', 'Retraite', 'Simulations', 'Revenus', 'Impôts', 'Abonnements', 'Garde']);
+      expect(within(sidebar()).getAllByRole('link').map((l) => l.textContent)).toEqual(['Accueil', 'Calendrier', 'Routine', 'À valider', 'Documents', 'Comptes et placements', 'Objectifs', 'Biens', 'Crédits', 'Retraite', 'Simulations', 'Revenus', 'Impôts', 'Abonnements', 'Garde']);
       expect(within(sidebar()).getAllByRole('heading').map((h) => h.textContent)).toEqual(['Suivi', 'Patrimoine', 'Budget']);
       await user.click(toggle('Déplier le menu'));
       expect(sidebar()).not.toHaveAttribute('data-rail');
@@ -550,7 +550,7 @@ describe('the top bar trail', () => {
     serveEnvelope();
     await renderApp(`/investments/${PEA}`);
     await screen.findByRole('heading', { level: 1, name: 'PEA' });
-    expect(within(trail()).getByRole('link', { name: 'Placements' })).toHaveAttribute('href', '/investments');
+    expect(within(trail()).getByRole('link', { name: 'Comptes et placements' })).toHaveAttribute('href', '/investments');
     const last = within(trail()).getAllByRole('listitem').filter((li) => li.textContent).at(-1)!;
     expect(last).toHaveTextContent('PEA');
     expect(within(last).getByText('PEA')).toHaveAttribute('aria-current', 'page');
@@ -570,9 +570,9 @@ describe('the top bar trail', () => {
 
   it('a top-level page shows its name alone', async () => {
     await renderApp('/investments');
-    await screen.findByRole('heading', { level: 1, name: 'Placements' });
+    await screen.findByRole('heading', { level: 1, name: 'Comptes et placements' });
     expect(within(trail()).queryByRole('link')).toBeNull();
-    expect(within(trail()).getByText('Placements')).toHaveAttribute('aria-current', 'page');
+    expect(within(trail()).getByText('Comptes et placements')).toHaveAttribute('aria-current', 'page');
   });
 
   it('while a page suspends, the bar shows the module of its route', async () => {
@@ -593,9 +593,9 @@ describe('the top bar trail', () => {
     serveEnvelope();
     const { user } = await renderApp(`/investments/${PEA}`);
     await screen.findByRole('heading', { level: 1, name: 'PEA' });
-    await user.click(within(trail()).getByRole('link', { name: 'Placements' }));
-    await screen.findByRole('heading', { level: 1, name: 'Placements' });
-    expect(within(trail()).getByText('Placements')).toHaveAttribute('aria-current', 'page');
+    await user.click(within(trail()).getByRole('link', { name: 'Comptes et placements' }));
+    await screen.findByRole('heading', { level: 1, name: 'Comptes et placements' });
+    expect(within(trail()).getByText('Comptes et placements')).toHaveAttribute('aria-current', 'page');
     expect(trail()).not.toHaveTextContent('PEA');
   });
 
@@ -604,7 +604,7 @@ describe('the top bar trail', () => {
     await renderApp(`/investments/${PEA}`);
     await screen.findByRole('heading', { level: 1, name: 'PEA' });
     expect(within(trail()).getByRole('list')).toHaveClass('min-w-0');
-    for (const text of [within(trail()).getByRole('link', { name: 'Placements' }), within(trail()).getByText('PEA')]) {
+    for (const text of [within(trail()).getByRole('link', { name: 'Comptes et placements' }), within(trail()).getByText('PEA')]) {
       expect(text).toHaveClass('truncate');
       expect(text.className).toMatch(/max-w-/);
     }
@@ -614,11 +614,11 @@ describe('the top bar trail', () => {
     serveEnvelope();
     await renderApp(`/investments/${PEA}`);
     await screen.findByRole('heading', { level: 1, name: 'PEA' });
-    const back = within(bar()).getByRole('link', { name: 'Retour à Placements' });
+    const back = within(bar()).getByRole('link', { name: 'Retour à Comptes et placements' });
     expect(back).toHaveAttribute('href', '/investments');
     expect(back).toHaveClass('md:hidden');
     expect(back).not.toHaveAttribute('aria-current');
-    expect(within(trail()).getByRole('link', { name: 'Placements' })).not.toHaveAttribute('aria-current');
+    expect(within(trail()).getByRole('link', { name: 'Comptes et placements' })).not.toHaveAttribute('aria-current');
     expect(within(trail()).queryByRole('link', { name: 'PEA' })).toBeNull();
     expect(bar().querySelector('[data-wordmark]')).toBeNull();
   });
@@ -627,7 +627,7 @@ describe('the top bar trail', () => {
     serveEnvelope();
     await renderApp(`/investments/${PEA}`);
     await screen.findByRole('heading', { level: 1, name: 'PEA' });
-    expect(within(trail()).getByRole('link', { name: 'Placements' }).closest('li')).toHaveClass('shrink-[0.1]');
+    expect(within(trail()).getByRole('link', { name: 'Comptes et placements' }).closest('li')).toHaveClass('shrink-[0.1]');
     expect(within(trail()).getByText('PEA').closest('li')).not.toHaveClass('shrink-[0.1]');
   });
 
@@ -635,18 +635,18 @@ describe('the top bar trail', () => {
     serveEnvelope();
     await renderApp(`/investments/${PEA}`);
     await screen.findByRole('heading', { level: 1, name: 'PEA' });
-    expect(within(bar()).getByRole('link', { name: 'Retour à Placements' })).toHaveClass('h-9', 'pointer-coarse:h-11', 'focus-visible:ring-[3px]');
+    expect(within(bar()).getByRole('link', { name: 'Retour à Comptes et placements' })).toHaveClass('h-9', 'pointer-coarse:h-11', 'focus-visible:ring-[3px]');
   });
 
   it('the end group never shrinks, so the scope switch stays on one line', async () => {
     await renderApp('/investments');
-    await screen.findByRole('heading', { level: 1, name: 'Placements' });
+    await screen.findByRole('heading', { level: 1, name: 'Comptes et placements' });
     expect(bar().querySelector('.ml-auto')).toHaveClass('shrink-0');
   });
 
   it('a top-level page has the wordmark and no back link on a phone', async () => {
     await renderApp('/investments');
-    await screen.findByRole('heading', { level: 1, name: 'Placements' });
+    await screen.findByRole('heading', { level: 1, name: 'Comptes et placements' });
     expect(bar().querySelector('[data-wordmark]')).not.toBeNull();
     expect(within(bar()).queryByRole('link', { name: /^Retour/ })).toBeNull();
   });

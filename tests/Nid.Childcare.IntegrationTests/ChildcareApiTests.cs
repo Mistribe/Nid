@@ -49,7 +49,7 @@ public class ChildcareApiTests(PostgresFixture fixture) : IClassFixture<Postgres
     {
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
         var errors = (await JsonAsync(response)).GetProperty("errors").EnumerateArray()
-            .Select(e => (e.GetProperty("path").GetString()!, e.GetProperty("code").GetString()!)).ToList();
+            .Select(e => (e.FieldPath()!, e.GetProperty("code").GetString()!)).ToList();
         foreach (var e in expected) Assert.Contains(e, errors);
     }
 
@@ -71,7 +71,7 @@ public class ChildcareApiTests(PostgresFixture fixture) : IClassFixture<Postgres
         Assert.Equal("Martine", summary.GetProperty("carerName").GetString());
         Assert.True(summary.GetProperty("canWrite").GetBoolean());
         var terms = Assert.Single(detail.GetProperty("terms").EnumerateArray());
-        Assert.Equal(146, terms.GetProperty("normalHours").GetInt32());
+        Assert.Equal(145, terms.GetProperty("normalHours").GetInt32());
         Assert.Equal("08:00", terms.GetProperty("weekTypes")[0].GetProperty("schedule")[0].GetProperty("arrival").GetString());
         Assert.Equal(6, detail.GetProperty("gapWeeksToPlace").GetInt32());
         Assert.Single((await GetAsync(app, app.AdultA, $"{Url}?scope=household")).GetProperty("items").EnumerateArray());
@@ -140,6 +140,24 @@ public class ChildcareApiTests(PostgresFixture fixture) : IClassFixture<Postgres
             .Select(t => t.GetProperty("unpaidAbsences").EnumerateArray().Select(a => a.GetString()).ToList()).ToList();
         Assert.Equal(["family", "child_sick"], terms[0]);
         Assert.Equal(["parent_rtt", "child_sick", "carer_absent"], terms[1]);
+    }
+
+    /// <summary>A past revision is correctable in full: its start and end stay, the later revision keeps its own terms.</summary>
+    [Fact]
+    public async Task A_past_revision_is_edited_in_place()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await CreateAsync(app);
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Url}/{id.Value}/revisions", new { terms = Terms("2025-10-01") })).StatusCode);
+        var version = (await GetAsync(app, app.AdultA, $"{Url}/{id.Value}?scope=household")).GetProperty("version").GetUInt32();
+        object Edit(string revision) => new { name = "Garde de Léa", carer = new { name = "Martine" }, terms = Terms("2025-09-01", "5.00", weeks: 40), version, revision };
+        Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultA, HttpMethod.Put, $"{Url}/{id.Value}", Edit("2025-09-02"))).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Put, $"{Url}/{id.Value}", Edit("2025-09-01"))).StatusCode);
+        var terms = (await GetAsync(app, app.AdultA, $"{Url}/{id.Value}?scope=household")).GetProperty("terms").EnumerateArray().ToList();
+        Assert.Equal(2, terms.Count);
+        Assert.Equal(("2025-09-01", "2025-09-30", 5.00m), (terms[0].GetProperty("from").GetString(), terms[0].GetProperty("to").GetString(), decimal.Parse(terms[0].GetProperty("netHourlyRate").GetString()!, System.Globalization.CultureInfo.InvariantCulture)));
+        Assert.Equal(40, terms[0].GetProperty("weekTypes")[0].GetProperty("weeks").GetInt32());
+        Assert.Equal(4.30m, decimal.Parse(terms[1].GetProperty("netHourlyRate").GetString()!, System.Globalization.CultureInfo.InvariantCulture));
     }
 
     [Fact]

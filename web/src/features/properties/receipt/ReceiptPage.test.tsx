@@ -45,7 +45,7 @@ describe('receipt page', () => {
     // Coming from the property, its name is already in the cache: no request names it.
     server.use(
       http.get('*/api/v1/realestate/properties/:id', () => HttpResponse.json(propertyDetail())),
-      http.get('*/api/v1/realestate/properties/:id/receipts', () => HttpResponse.json({ status: 404, code: null, title: 'Not found' }, { status: 404 })),
+      http.get('*/api/v1/realestate/properties/:id/receipts', () => HttpResponse.json({ status: 404, code: null, detail: 'Not found' }, { status: 404 })),
     );
     const { router } = await renderApp(`/properties/${PROPERTY}`);
     await screen.findByRole('heading', { level: 1, name: 'Maison de Nantes' });
@@ -107,7 +107,7 @@ describe('receipt page', () => {
       const month = new URL(request.url).searchParams.get('month');
       asked.push(month);
       return month
-        ? HttpResponse.json({ status: 422, code: 'realestate.receipt_month', title: 'x', errors: [{ path: 'month', code: 'realestate.receipt_month', message: 'x' }] }, { status: 422 })
+        ? HttpResponse.json({ status: 422, code: 'realestate.receipt_month', detail: 'x', errors: [{ detail: 'x', pointer: '#/month', code: 'realestate.receipt_month' }] }, { status: 422 })
         : HttpResponse.json(view());
     }));
     const { router } = await renderApp(`${PAGE}?month=2020-01`);
@@ -120,7 +120,7 @@ describe('receipt page', () => {
 
   it('shows the refusal of a month for another reason', async () => {
     server.use(http.get('*/api/v1/realestate/properties/:id/receipts', () => HttpResponse.json(
-      { status: 422, code: 'realestate.receipt_two_leases', title: 'Two leases cover this month.' }, { status: 422 })));
+      { status: 422, code: 'realestate.receipt_two_leases', detail: 'Two leases cover this month.' }, { status: 422 })));
     const { router } = await renderApp(`${PAGE}?month=2026-06`);
 
     expect(await screen.findByText('Two leases cover this month.', { exact: false })).toBeInTheDocument();

@@ -91,6 +91,9 @@ public interface IAccountStore
     /// <summary>The connections that see the account, with its uid in each.</summary>
     Task<IReadOnlyList<BankAccountSource>> SourcesAsync(Guid account, CancellationToken ct);
 
+    /// <summary>#355: the currency a read learned for an account stored in <see cref="Currency.None"/>; any other account is left as it is.</summary>
+    Task ResolveCurrencyAsync(Guid account, Currency currency, CancellationToken ct);
+
     /// <summary>
     /// Writes the account's settings (envelope and association date, card's account, auto-apply, ignored), never the sync's columns but to
     /// clear them when the envelope changes. Fails with <see cref="BankingCodes.EnvelopeTaken"/> when another account holds the envelope.
@@ -113,15 +116,30 @@ public interface IBalanceStore
 
     /// <summary>The account's balances in the month of <paramref name="monthEnd"/>, by date.</summary>
     Task<IReadOnlyList<BankBalance>> InMonthAsync(Guid account, LocalDate monthEnd, CancellationToken ct);
+
+    /// <summary>Issue #81: the account's balances from the last one on or before <paramref name="from"/> onwards, by date.</summary>
+    Task<IReadOnlyList<BankBalance>> SinceAsync(Guid account, LocalDate from, CancellationToken ct);
 }
 
 /// <summary>
 /// One sync, <c>banking.sync_run</c> (spec §2.8): counts and codes only, never a bank, an account, an amount or a person.
 /// <paramref name="Trigger"/> is <c>schedule</c> or <c>manual</c>; <paramref name="Outcome"/> <c>running</c>, <c>succeeded</c> or <c>failed</c>.
 /// </summary>
+/// <param name="RateLimited">#365: the accounts a bank refused for its read limit, apart from <paramref name="Skipped"/>.</param>
 public sealed record BankSyncRunView(
     Guid Id, DateTimeOffset StartedAt, DateTimeOffset? FinishedAt, string Trigger, string Outcome, int Connections, int Accounts, int Balances,
-    int Proposals, int Written, int Skipped, string? FailureCode, int Transactions = 0);
+    int Proposals, int Written, int Skipped, string? FailureCode, int Transactions = 0, int RateLimited = 0);
+
+/// <summary>#365: the reads the sync made of each account, kept <see cref="Nid.Banking.Domain.BankReads.Kept"/>.</summary>
+public interface IAccountReadLog
+{
+    Task RecordAsync(BankRead read, CancellationToken ct);
+
+    /// <summary>The reads of <paramref name="accounts"/> since <paramref name="since"/>, every account when null.</summary>
+    Task<IReadOnlyList<BankRead>> SinceAsync(IReadOnlyCollection<Guid>? accounts, Instant since, CancellationToken ct);
+
+    Task PurgeBeforeAsync(Instant before, CancellationToken ct);
+}
 
 public sealed record BankSyncRunPage(IReadOnlyList<BankSyncRunView> Items, int Total, int Page)
 {
@@ -181,6 +199,9 @@ public interface ITransactionStore
 
     Task<BankTransaction?> FindAsync(Guid id, CancellationToken ct);
 
+    /// <summary>Linked or internal lines with no category source yet, by id after <paramref name="after"/> (the category backfill's page).</summary>
+    Task<IReadOnlyList<BankTransaction>> UncategorisedLinkedAsync(Guid? after, int take, CancellationToken ct);
+
     Task MarkReconciledAsync(IReadOnlyCollection<Guid> ids, Instant at, CancellationToken ct);
 
     /// <summary>Retention (D3): deletes the unlinked and ignored lines booked before <paramref name="before"/>; returns how many.</summary>
@@ -196,10 +217,16 @@ public interface ILinkStore
 
     Task<IReadOnlyList<(BankLink Link, BankTransaction Line)>> OutcomeSinceAsync(LinkOutcome outcome, LocalDate since, CancellationToken ct);
 
-    /// <summary>Upserts the link and sets the line's <c>link_state</c> (linked or internal) in one transaction.</summary>
-    Task SetAsync(BankLink link, TransactionLinkState state, CancellationToken ct);
+    /// <summary>
+    /// Upserts the link and sets the line's <c>link_state</c> (linked or internal) in one transaction; with a <paramref name="categoryKey"/>,
+    /// the line takes that category as a <c>link</c> one, unless a person's choice holds it (<c>CategoryPrecedence</c>).
+    /// </summary>
+    Task SetAsync(BankLink link, TransactionLinkState state, CancellationToken ct, string? categoryKey = null);
 
-    /// <summary>Deletes the link, if any, and sets the line's state (unlinked or ignored).</summary>
+    /// <summary>
+    /// Deletes the link, if any, and sets the line's state (unlinked or ignored); clears a <c>link</c> category, and when ignored a
+    /// <c>rule</c> or <c>hint</c> one too.
+    /// </summary>
     Task ClearAsync(Guid transaction, TransactionLinkState state, CancellationToken ct);
 
     /// <summary>Whether a link already has the property flow as its target (<c>target_key</c> <c>flow:{id:N}</c>).</summary>
@@ -222,4 +249,77 @@ public interface IRuleStore
 
     /// <summary>Remembers that the group was proposed; false when it already was.</summary>
     Task<bool> TryRememberGroupAsync(Guid account, string stem, Instant at, CancellationToken ct);
+}
+
+/// <summary>The household's categories of bank lines, and the category of each line (spec §Category). A category is never deleted.</summary>
+public interface ICategoryStore
+{
+    /// <summary>Every category, archived and merged ones included: top-level ones first, then by name.</summary>
+    Task<IReadOnlyList<BankCategory>> AllAsync(CancellationToken ct);
+
+    Task<BankCategory?> FindAsync(Guid id, CancellationToken ct);
+
+    /// <summary>The category of a seed key, following its merges to the end; null when no category has the key.</summary>
+    Task<Guid?> ResolveKeyAsync(string key, CancellationToken ct);
+
+    /// <summary>A new category; under a parent it takes the parent's kind, <paramref name="kind"/> is then ignored.</summary>
+    Task<Result<BankCategory>> CreateAsync(Guid? parent, string name, CategoryKind kind, CancellationToken ct);
+
+    /// <summary>
+    /// Renames when <paramref name="name"/> is given, moves under <paramref name="parent"/> (null: top-level) when <paramref name="moveParent"/>,
+    /// archives or unarchives when <paramref name="archived"/> is given. Archiving a parent archives its children; unarchiving a child
+    /// unarchives its parent.
+    /// </summary>
+    Task<Result<BankCategory>> UpdateAsync(Guid id, string? name, Guid? parent, bool moveParent, bool? archived, CancellationToken ct);
+
+    /// <summary>
+    /// In one transaction: moves the lines and the rules of <paramref name="from"/> to <paramref name="into"/> (their source unchanged), merges each child
+    /// into the target's child of the same name (whatever the case) or moves it under the target, then archives <paramref name="from"/> as merged.
+    /// A merged category is neither merged again, merged into, moved nor unarchived (<see cref="BankingCodes.CategoryArchived"/>).
+    /// </summary>
+    Task<Result<BankCategory>> MergeAsync(Guid from, Guid into, CancellationToken ct);
+
+    /// <summary>
+    /// Sets the category of the lines whose current source <paramref name="source"/> may replace (<c>CategoryPrecedence</c>); a null
+    /// <paramref name="source"/> clears category and source (« Laisser Nid décider »), a hand or assistant one only when
+    /// <paramref name="byPerson"/>. <paramref name="ruleId"/> is the rule behind a <see cref="CategorySource.Rule"/> write, cleared by any
+    /// other. How many lines changed.
+    /// </summary>
+    Task<int> SetForLinesAsync(
+        IReadOnlyCollection<Guid> lines, Guid? category, CategorySource? source, string by, Instant at, bool byPerson, CancellationToken ct,
+        Guid? ruleId = null);
+
+    /// <summary>Clears the category of the lines whose current source is one of <paramref name="sources"/>; how many changed.</summary>
+    Task<int> ClearSourceAsync(IReadOnlyCollection<Guid> lines, IReadOnlyCollection<CategorySource> sources, CancellationToken ct);
+}
+
+/// <summary>The household's category rules (spec §Rules); who sees and applies one is the caller's to check.</summary>
+public interface ICategoryRuleStore
+{
+    /// <summary>Every rule, oldest first.</summary>
+    Task<IReadOnlyList<CategoryRule>> AllAsync(CancellationToken ct);
+
+    Task<CategoryRule?> FindAsync(Guid id, CancellationToken ct);
+
+    /// <summary>Saves <paramref name="draft"/> as given, under a new id and the current instant; its pattern is normalised already.</summary>
+    Task<CategoryRule> CreateAsync(CategoryRule draft, CancellationToken ct);
+
+    /// <summary>Its pattern, account, direction, bounds and category; null when no such rule.</summary>
+    Task<CategoryRule?> UpdateAsync(CategoryRule rule, CancellationToken ct);
+
+    /// <summary>Whether it existed; the lines it categorised keep their category, without the rule.</summary>
+    Task<bool> DeleteAsync(Guid id, CancellationToken ct);
+
+    /// <summary>Records that the rules categorised lines at <paramref name="at"/>.</summary>
+    Task TouchAsync(IReadOnlyCollection<Guid> ids, Instant at, CancellationToken ct);
+
+    /// <summary>For each rule, how many lines of <paramref name="accounts"/> it categorised, and the latest time it did.</summary>
+    Task<IReadOnlyDictionary<Guid, (int Lines, Instant? LastUsed)>> UsageAsync(IReadOnlyCollection<Guid> accounts, CancellationToken ct);
+
+    /// <summary>
+    /// The lines of <paramref name="accounts"/> the rule may categorise, newest first: not ignored, with no category or a rule's or a hint's
+    /// other than the rule's, in its direction and bounds, whose label or counterparty may hold its pattern. More than it matches: the
+    /// caller confirms each line.
+    /// </summary>
+    Task<IReadOnlyList<BankTransaction>> CandidatesAsync(CategoryRule rule, IReadOnlyCollection<Guid> accounts, CancellationToken ct);
 }

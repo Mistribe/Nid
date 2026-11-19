@@ -7,6 +7,7 @@ namespace Nid.Childcare.Application.Import;
 /// <summary>This module's import-file records, source-generated for NativeAOT, with <see cref="NidDataJson"/>'s rules.</summary>
 [JsonSerializable(typeof(ArrangementRecord))]
 [JsonSerializable(typeof(StatementRecord))]
+[JsonSerializable(typeof(NannyRecord))]
 public sealed partial class ChildcareFileJson : JsonSerializerContext
 {
     public static ChildcareFileJson Records { get; } = new(NidDataJson.NewOptions());

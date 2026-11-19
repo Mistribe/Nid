@@ -52,8 +52,8 @@ describe('EditDocumentDialog', () => {
 
   it('shows the server’s field error on its field', async () => {
     const { writes } = serveDocument({
-      put: () => HttpResponse.json({ status: 400, code: 'documents.invalid_field', title: 'A note is at most 2000 characters.',
-        errors: [{ path: 'note', code: 'documents.invalid_field', message: 'A note is at most 2000 characters.' }] }, { status: 400 }),
+      put: () => HttpResponse.json({ status: 400, code: 'documents.invalid_field', detail: 'A note is at most 2000 characters.',
+        errors: [{ detail: 'A note is at most 2000 characters.', pointer: '#/note', code: 'documents.invalid_field' }] }, { status: 400 }),
     });
     const { user } = await renderApp(`/documents/${DOC}`);
     await open(user);
