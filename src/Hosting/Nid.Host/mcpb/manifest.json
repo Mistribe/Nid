@@ -1,0 +1,35 @@
+{
+  "manifest_version": "0.3",
+  "name": "nid",
+  "display_name": "Nid",
+  "version": "0.0.0",
+  "description": "Lets Claude read your household's figures in Nid, and prepare entries you approve, with an access token of yours.",
+  "author": { "name": "Nid" },
+  "server": {
+    "type": "node",
+    "entry_point": "server/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/server/index.js"],
+      "env": { "NID_URL": "${user_config.url}", "NID_TOKEN": "${user_config.token}" }
+    }
+  },
+  "user_config": {
+    "url": {
+      "type": "string",
+      "title": "Adresse du serveur MCP",
+      "description": "L'adresse de Nid suivie de /mcp, telle que la page Sécurité de Nid l'affiche.",
+      "default": "https://nid.example/mcp",
+      "required": true
+    },
+    "token": {
+      "type": "string",
+      "title": "Jeton d'accès",
+      "description": "Un jeton créé dans Nid, Sécurité › Jetons. Claude Desktop le garde dans le trousseau de l'ordinateur.",
+      "sensitive": true,
+      "required": true
+    }
+  },
+  "privacy_policies": ["https://nid.example/"],
+  "compatibility": { "platforms": ["darwin", "win32", "linux"], "runtimes": { "node": ">=20.0.0" } }
+}

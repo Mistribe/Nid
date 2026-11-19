@@ -1,0 +1,4 @@
+{
+  "en": "Claude Desktop can plug into a Nid that is only reachable at home: download the Nid extension from the Security page, open it, and paste your token when Claude Desktop asks. No Node.js to install, and the token stays in your computer's keychain.",
+  "fr": "Claude Desktop se branche sur un Nid joignable seulement chez vous : téléchargez l’extension Nid depuis la page Sécurité, ouvrez-la et collez votre jeton quand Claude Desktop le demande. Pas de Node.js à installer, et le jeton reste dans le trousseau de l’ordinateur."
+}

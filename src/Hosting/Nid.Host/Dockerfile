@@ -41,6 +41,16 @@ ENV VITE_NID_VERSION=$VERSION
 # Node 24 strips the types of src/security-headers.ts.
 RUN pnpm build && node scripts/security-headers.mjs > /security-headers.json
 
+# #309: Claude Desktop's extension. Its bridge (mcp-remote) is vendored here from the lockfile, never fetched when it runs;
+# the MCPB CLI checks the manifest template, then leaves with the other build-time packages. Pure JavaScript: the same
+# files run on the adult's computer, whatever this image's architecture.
+FROM node:26-alpine@sha256:6bd9ab43c0ec0190ca7b2d193906cb8b7edf6e7f4afa43ddeccd6452710bffb5 AS mcpb
+WORKDIR /mcpb
+COPY src/Hosting/Nid.Host/mcpb/package.json src/Hosting/Nid.Host/mcpb/package-lock.json ./
+RUN npm ci --ignore-scripts
+COPY src/Hosting/Nid.Host/mcpb/ ./
+RUN npm run validate && npm prune --omit=dev --ignore-scripts && rm -rf node_modules/.bin validate.mjs package-lock.json
+
 # -extra: ICU and time zone data. Globalization is not invariant (Directory.Build.props), so .NET needs ICU;
 # glibc, libstdc++ and libgcc_s, all SkiaSharp needs, are in every chiseled variant.
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled-extra@sha256:cae5b962bfb786606def03d250c6a645cc98839095c89e806e4bd8978a68115b
@@ -49,6 +59,8 @@ COPY --from=build /app ./
 # The SPA the host serves (Web:Root) and its headers (Web:SecurityHeaders), both under the content root.
 COPY --from=web /web/dist ./wwwroot
 COPY --from=web /security-headers.json ./security-headers.json
+# Zipped by the host for each download (GET /api/v1/mcp/nid.mcpb, McpBundle.cs).
+COPY --from=mcpb /mcpb ./mcpb
 COPY --from=build /volumes/ /
 ENV PATH="/app:${PATH}" \
     ASPNETCORE_HTTP_PORTS=8080 \

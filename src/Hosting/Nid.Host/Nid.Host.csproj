@@ -61,5 +61,8 @@
     <!-- The Dockerfile's corepack lockfile, not a file the host serves or reads. -->
     <Content Remove="corepack/**" />
     <None Remove="corepack/**" />
+    <!-- #309: the Claude Desktop extension's sources; the Dockerfile builds them and copies the result next to the host. -->
+    <Content Remove="mcpb/**" />
+    <None Remove="mcpb/**" />
   </ItemGroup>
 </Project>
