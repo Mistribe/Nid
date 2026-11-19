@@ -10,6 +10,7 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { formatMoney } from '@/components/Money';
 import { formatLocalDate } from '@/components/LocalDate';
+import '@/locales/investments';
 
 const VALUATION = 'investments.record_valuation';
 /** Bank sync's proposals carry this source label (`BankSyncCollector.SourceLabel`). */
