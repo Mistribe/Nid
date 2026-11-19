@@ -173,11 +173,11 @@ public interface ITransactionStore
     /// <summary>
     /// The accounts' transactions, newest booked first, within [<paramref name="from"/>, <paramref name="to"/>] when given; <paramref name="state"/> is a
     /// <c>link_state</c> wire value, null for all. With <paramref name="readable"/> (D19), an internal line whose counterpart account is not in it
-    /// counts as <c>linked</c>.
+    /// counts as <c>linked</c>. <paramref name="uncategorised"/> keeps the lines with no category, no category source and a state other than <c>ignored</c>.
     /// </summary>
     Task<IReadOnlyList<BankTransaction>> ListAsync(
         IReadOnlyList<Guid> accounts, LocalDate? from, LocalDate? to, int skip, int take, CancellationToken ct, string? state = null,
-        IReadOnlyList<Guid>? readable = null);
+        IReadOnlyList<Guid>? readable = null, bool uncategorised = false);
 
     /// <summary>The lines the reconciliation job has not looked at yet, oldest booked first; null accounts = all.</summary>
     Task<IReadOnlyList<BankTransaction>> UnreconciledAsync(IReadOnlyCollection<Guid>? accounts, CancellationToken ct);

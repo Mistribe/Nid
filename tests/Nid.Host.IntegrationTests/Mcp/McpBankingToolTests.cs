@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol.Client;
 using Nid.Banking.Application;
 using Nid.Banking.Contracts;
+using Nid.Banking.Domain;
 using Nid.Core.Contracts;
 using Nid.Host.IntegrationTests.Admin;
 using Nid.Platform.Contracts;
@@ -113,5 +114,72 @@ public class McpBankingToolTests(PostgresFixture fixture) : IClassFixture<Postgr
 
         await using var read = await ClientAsync(s.App, TokenPresets.Read);
         Assert.True((await CallAsync(read, "propose_bank_link", new { transactionId = s.Open, module = "subscriptions", itemId = s.Netflix.Value })).Error);
+    }
+
+    private static async Task<Guid> AddLineAsync(NidApp app, Guid account, string reference, string label)
+    {
+        await using var scope = app.Services.CreateAsyncScope();
+        scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
+        var store = scope.ServiceProvider.GetRequiredService<ITransactionStore>();
+        await store.AddAsync(account, [new NewBankTransaction(reference, new LocalDate(2026, 10, 6), null, -4.50m, Currency.Eur, label, null, null, "api")], default);
+        return (await store.ListAsync([account], null, null, 0, 100, default)).Single(t => t.ProviderRef == reference).Id;
+    }
+
+    private static async Task<Guid> AccountAsync(NidApp app, PersonId person, string name)
+        => (await BankingApi.AccountsAsync(app, person)).EnumerateArray().Single(a => a.GetProperty("name").GetString() == name).GetProperty("id").GetGuid();
+
+    [Fact]
+    public async Task Uncategorised_lists_only_readable_lines()
+    {
+        await using var s = await StartAsync();
+        var groceries = CategorySeed.Find("food.groceries")!.Id;
+        var kept = await AddLineAsync(s.App, s.Account, "r-3", "CARREFOUR CITY");
+        var ignored = await AddLineAsync(s.App, s.Account, "r-4", "AVOIR DIVERS");
+        var done = await AddLineAsync(s.App, s.Account, "r-5", "BOULANGERIE");
+        (await s.App.RawAsync(s.App.AdultA, HttpMethod.Post, $"{BankingApi.Root}/transactions/{ignored}/ignore", new { })).EnsureSuccessStatusCode();
+        (await s.App.RawAsync(s.App.AdultA, HttpMethod.Put, $"{BankingApi.Root}/transactions/{done}/category", new { categoryId = groceries })).EnsureSuccessStatusCode();
+        await BankingApi.ConnectAsync(s.App, s.App.AdultB, "code-b", BankingApi.Account("uid-b", "hash-b", null, "Courant B"));
+        await AddLineAsync(s.App, await AccountAsync(s.App, s.App.AdultB, "Courant B"), "b-1", "LIGNE PRIVEE DE B");
+        await using var client = await ClientAsync(s.App, TokenPresets.Read);
+
+        var answer = JsonDocument.Parse(await ReadAsync(client, "list_uncategorised_bank_transactions", new { })).RootElement;
+
+        Assert.Equal(["CARREFOUR CITY", "VIR SEPA BOB"], answer.GetProperty("items").EnumerateArray().Select(l => l.GetProperty("label").GetString()).Order());
+        var line = answer.GetProperty("items").EnumerateArray().Single(l => l.GetProperty("id").GetGuid() == kept);
+        Assert.Equal(("-4.50", "Courant"), (line.GetProperty("amount").GetString(), line.GetProperty("accountName").GetString()));
+        var category = answer.GetProperty("categories").EnumerateArray().Single(c => c.GetProperty("id").GetGuid() == groceries);
+        Assert.Equal(("Courses", "Alimentation", "expense"), (category.GetProperty("name").GetString(), category.GetProperty("parentName").GetString(), category.GetProperty("kind").GetString()));
+    }
+
+    [Fact]
+    public async Task Propose_creates_one_pending_proposal()
+    {
+        await using var s = await StartAsync();
+        var groceries = CategorySeed.Find("food.groceries")!.Id;
+        await using var client = await ClientAsync(s.App, TokenPresets.Propose);
+
+        var answer = JsonDocument.Parse(await ReadAsync(client, "propose_bank_categories",
+            new { lines = new[] { new { transactionId = s.Open, categoryId = groceries } } })).RootElement;
+
+        Assert.Equal(("proposed", "banking.categorise_transactions"), (answer.GetProperty("outcome").GetString(), answer.GetProperty("proposal").GetProperty("kind").GetString()));
+        var line = JsonDocument.Parse(await s.App.GetRawAsync(s.App.AdultA, $"{BankingApi.Root}/transactions?state=unlinked")).RootElement.GetProperty("items");
+        Assert.Equal(JsonValueKind.Null, line.EnumerateArray().Single().GetProperty("category").ValueKind); // nothing changes until an adult approves
+
+        await using var read = await ClientAsync(s.App, TokenPresets.Read);
+        Assert.True((await CallAsync(read, "propose_bank_categories", new { lines = new[] { new { transactionId = s.Open, categoryId = groceries } } })).Error);
+    }
+
+    [Fact]
+    public async Task A_person_without_accounts_gets_an_empty_page()
+    {
+        await using var app = await BankingApi.StartAsync(fixture);
+        await BankingApi.ConnectAsync(app, app.AdultA, "code-a", BankingApi.Account("uid-1", "hash-1", null, "Courant"));
+        await AddLineAsync(app, await AccountAsync(app, app.AdultA, "Courant"), "a-1", "CARREFOUR CITY");
+        await using var client = await McpHarness.ClientAsync(app, (await TokenApi.CreateAsync(app, app.AdultB, TokenPresets.Read)).Secret);
+
+        var answer = JsonDocument.Parse(await ReadAsync(client, "list_uncategorised_bank_transactions", new { })).RootElement;
+
+        Assert.Empty(answer.GetProperty("items").EnumerateArray());
+        Assert.False(answer.GetProperty("hasMore").GetBoolean());
     }
 }

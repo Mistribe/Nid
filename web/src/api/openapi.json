@@ -12438,6 +12438,13 @@
               "type": "integer",
               "format": "int32"
             }
+          },
+          {
+            "name": "uncategorised",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
           }
         ],
         "responses": {

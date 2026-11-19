@@ -94,9 +94,11 @@ public sealed class TransactionStore(BankingDbContext db, IClock clock) : ITrans
 
     public async Task<IReadOnlyList<BankTransaction>> ListAsync(
         IReadOnlyList<Guid> accounts, LocalDate? from, LocalDate? to, int skip, int take, CancellationToken ct, string? state = null,
-        IReadOnlyList<Guid>? readable = null)
+        IReadOnlyList<Guid>? readable = null, bool uncategorised = false)
     {
         var query = db.Transactions.AsNoTracking().Where(t => accounts.Contains(t.AccountId));
+        if (uncategorised)
+            query = query.Where(t => t.CategoryId == null && t.CategorySource == null && t.LinkState != "ignored");
         var hidden = db.Links.Where(l => l.CounterpartAccountId != null && readable != null && !readable.Contains(l.CounterpartAccountId.Value))
             .Select(l => l.TransactionId);
         if (state is "internal" && readable is not null)

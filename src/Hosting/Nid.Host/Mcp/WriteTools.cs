@@ -77,6 +77,10 @@ public sealed partial class WriteTools
 
     private sealed record BankLinkArguments(Guid TransactionId, string Module, Guid ItemId, string? Key);
 
+    public sealed record BankCategoryLine(Guid TransactionId, Guid CategoryId);
+
+    private sealed record BankCategoriesArguments(BankCategoryLine[] Lines);
+
     /// <summary>A tool's arguments as a proposal payload: camelCase, absent fields left out (the handler normalizes the rest).</summary>
     [JsonSourceGenerationOptions(JsonSerializerDefaults.Web, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
     [JsonSerializable(typeof(StatementArguments))]
@@ -86,6 +90,8 @@ public sealed partial class WriteTools
     [JsonSerializable(typeof(InvoiceArguments))]
     [JsonSerializable(typeof(AmortizationArguments))]
     [JsonSerializable(typeof(BankLinkArguments))]
+    [JsonSerializable(typeof(BankCategoriesArguments))]
+    [JsonSerializable(typeof(BankCategoryLine[]))]
     // The tools' parameters: under NativeAOT the SDK finds no metadata for them by reflection.
     [JsonSerializable(typeof(string))]
     [JsonSerializable(typeof(bool))]
@@ -199,6 +205,15 @@ public sealed partial class WriteTools
         CancellationToken ct = default)
         => McpCalls.ProposeAsync(services, "banking.link_transaction", itemId,
             JsonSerializer.SerializeToElement(new BankLinkArguments(transactionId, module, itemId, key), ArgumentsJson.Default.BankLinkArguments), sourceLabel, apply, null, ct);
+
+    [McpServerTool(Name = "propose_bank_categories", ReadOnly = false, Destructive = false, Idempotent = true)]
+    [Description("Give a category to bank lines (list_uncategorised_bank_transactions): 1 to 100 lines, each with the id of a category in use. "
+        + "Nothing changes until an adult approves it in « À valider »; a line a person already categorised keeps its category.")]
+    public static Task<CallToolResult> ProposeBankCategories(IServiceProvider services,
+        [Description("The lines and their categories: { transactionId, categoryId }, 100 at most, each line once.")] BankCategoryLine[] lines,
+        CancellationToken ct = default)
+        => McpCalls.ProposeAsync(services, "banking.categorise_transactions", null,
+            JsonSerializer.SerializeToElement(new BankCategoriesArguments(lines), ArgumentsJson.Default.BankCategoriesArguments), null, false, null, ct);
 
     [McpServerTool(Name = "propose_invoice", ReadOnly = false, Destructive = false, Idempotent = true)]
     [Description("An invoice for one subscription, all taxes included. Nid compares it with the price on that date: the same, to the "

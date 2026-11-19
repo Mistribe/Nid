@@ -602,10 +602,10 @@ public class ReconciliationTests(PostgresFixture fixture) : IClassFixture<Postgr
     {
         public Task<IReadOnlyList<BankTransaction>> ListAsync(
             IReadOnlyList<Guid> accounts, LocalDate? from, LocalDate? to, int skip, int take, CancellationToken ct, string? state = null,
-            IReadOnlyList<Guid>? readable = null)
+            IReadOnlyList<Guid>? readable = null, bool uncategorised = false)
             => accounts.Any(failing.Accounts.Contains)
                 ? throw new InvalidOperationException("The card's lines cannot be read.")
-                : inner.ListAsync(accounts, from, to, skip, take, ct, state, readable);
+                : inner.ListAsync(accounts, from, to, skip, take, ct, state, readable, uncategorised);
 
         public Task<TransactionWrite> AddAsync(Guid account, IReadOnlyList<NewBankTransaction> lines, CancellationToken ct, bool reconciled = false)
             => inner.AddAsync(account, lines, ct, reconciled);
