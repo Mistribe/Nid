@@ -34078,6 +34078,25 @@
               "null",
               "boolean"
             ]
+          },
+          "minPayments": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "clearMinPayments": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "countWithdrawals": {
+            "type": [
+              "null",
+              "boolean"
+            ]
           }
         },
         "additionalProperties": false
@@ -34144,6 +34163,7 @@
           "canWrite",
           "bankName",
           "renamed",
+          "countWithdrawals",
           "reads"
         ],
         "type": "object",
@@ -34239,6 +34259,17 @@
           },
           "reads": {
             "$ref": "#/components/schemas/BankReadsView"
+          },
+          "minPayments": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "countWithdrawals": {
+            "type": "boolean",
+            "default": false
           }
         }
       },

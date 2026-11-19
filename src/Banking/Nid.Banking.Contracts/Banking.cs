@@ -26,10 +26,13 @@ public sealed record BankConnection(
 /// <param name="Debit">A card's immediate or deferred debit, when the bank says which.</param>
 /// <param name="Holder">The holder's name, as the bank gives it (#353).</param>
 /// <param name="Product">The bank's product name (a card's range), as the bank gives it (#353).</param>
+/// <param name="MinPayments">#362: a card's minimum payments a calendar month, which the household sets (null: no rule).</param>
+/// <param name="CountWithdrawals">#362: whether a cash withdrawal counts as one of those payments.</param>
 public sealed record BankAccount(
     Guid Id, string? IbanMasked, string Name, BankAccountKind Kind, Currency Currency, ItemId? Envelope, Guid? CardOf, bool AutoApplyBalance,
     bool Ignored, LocalDate? BalanceConflictOn, LocalDate? AssociatedOn, PersonId CreatedBy, LocalDate? LastValuedOn = null, PersonId? AssociatedBy = null,
-    string? HouseholdName = null, string? BankName = null, CardDebit? Debit = null, string? Holder = null, string? Product = null);
+    string? HouseholdName = null, string? BankName = null, CardDebit? Debit = null, string? Holder = null, string? Product = null,
+    int? MinPayments = null, bool CountWithdrawals = false);
 
 /// <summary>A connection that sees an account, under the account's uid in that connection's session.</summary>
 public sealed record BankAccountSource(Guid Account, Guid Connection, string ProviderUid, string IdentificationHash);

@@ -31593,6 +31593,10 @@ export interface components {
             ignored?: null | boolean;
             name?: null | string;
             clearName?: null | boolean;
+            /** Format: int32 */
+            minPayments?: null | number;
+            clearMinPayments?: null | boolean;
+            countWithdrawals?: null | boolean;
         };
         BankAccountEnvelopeBody: {
             displayName: string;
@@ -31632,6 +31636,10 @@ export interface components {
             holder?: null | string;
             product?: null | string;
             reads: components["schemas"]["BankReadsView"];
+            /** Format: int32 */
+            minPayments?: null | number;
+            /** @default false */
+            countWithdrawals: boolean;
         };
         BankingConnectionTestView: {
             outcome: string;

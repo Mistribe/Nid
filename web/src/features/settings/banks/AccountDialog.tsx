@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import type { TFunction } from 'i18next';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
@@ -10,6 +10,8 @@ import { ComboboxField } from '@/components/form/ComboboxField';
 import { SelectField, type Option } from '@/components/form/SelectField';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { SwitchField } from '@/components/page/SwitchField';
+import { Segmented } from '@/components/form/Segmented';
+import { InfoTip } from '@/components/InfoTip';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import type { EnvelopeSummary } from '@/api/investments';
@@ -87,6 +89,13 @@ export function AccountDialog({ account, envelopes, taken = [], bank, parents, o
   const cardOf = picked ?? account.cardOfAccountId ?? suggested ?? '';
   const [ignored, setIgnored] = useState(account.ignored);
   const [auto, setAuto] = useState(account.autoApplyBalance);
+  // #362: a card's minimum usage, the household's rule: off, 1 payment a month, or more (typed).
+  const [usage, setUsage] = useState(account.minPayments == null ? 'off' : account.minPayments === 1 ? 'one' : 'many');
+  const [many, setMany] = useState(account.minPayments != null && account.minPayments > 1 ? String(account.minPayments) : '2');
+  const [withdrawals, setWithdrawals] = useState(account.countWithdrawals ?? false);
+  const usageId = useId();
+  const usageHintId = useId();
+  const minPayments = usage === 'off' ? null : usage === 'one' ? 1 : Number(many);
   const [creating, setCreating] = useState(false);
   const persons = $api.useQuery('get', PERSONS);
   // A child is named by their first name, as on the owner chips.
@@ -108,7 +117,8 @@ export function AccountDialog({ account, envelopes, taken = [], bank, parents, o
   const envelopeError = code && ON_ENVELOPE.includes(code) ? bankErrorText(t, code, '') : errorOf('envelopeId');
   const cardError = errorOf('cardOfAccountId');
   const nameError = errorOf('name');
-  const unplaced = save.error && !envelopeError && !cardError && !nameError;
+  const usageError = errorOf('minPayments');
+  const unplaced = save.error && !envelopeError && !cardError && !nameError && !usageError;
   const typed = rename.trim();
 
   const submit = (done: (message: string) => void) => save.mutate({
@@ -119,6 +129,8 @@ export function AccountDialog({ account, envelopes, taken = [], bank, parents, o
       ...(card && cardOf !== (account.cardOfAccountId ?? '') ? (cardOf ? { cardOfAccountId: cardOf } : { clearCard: true }) : {}),
       ...(ignored !== account.ignored ? { ignored } : {}),
       ...(auto !== account.autoApplyBalance ? { autoApplyBalance: auto } : {}),
+      ...(card && minPayments !== (account.minPayments ?? null) ? (minPayments === null ? { clearMinPayments: true } : { minPayments }) : {}),
+      ...(card && withdrawals !== (account.countWithdrawals ?? false) ? { countWithdrawals: withdrawals } : {}),
     },
   }, {
     onSuccess: () => {
@@ -164,6 +176,28 @@ export function AccountDialog({ account, envelopes, taken = [], bank, parents, o
                 : <SelectField {...c} value={envelopeId} onValueChange={pickEnvelope} options={options} />)}
             </Field>
           )}
+          {card ? (
+            <div className="space-y-2">
+              <span id={usageId} className="flex items-center gap-1 text-sm">
+                {t('banks.account_dialog.usage')}
+                <InfoTip label={t('banks.account_dialog.usage')}>{t('banks.account_dialog.usage_tip')}</InfoTip>
+              </span>
+              <Segmented aria-labelledby={usageId} aria-describedby={usageHintId} value={usage} onValueChange={setUsage} options={[
+                { value: 'off', label: t('banks.account_dialog.usage_off') },
+                { value: 'one', label: t('banks.account_dialog.usage_one') },
+                { value: 'many', label: t('banks.account_dialog.usage_many') },
+              ]} />
+              <p id={usageHintId} className="text-sm text-muted-foreground">{t('banks.account_dialog.usage_hint')}</p>
+              {usage === 'many' ? (
+                <Field label={t('banks.account_dialog.usage_count')} error={usageError}>
+                  {(c) => <Input {...c} inputMode="numeric" className="w-24" value={many} onChange={(event) => setMany(event.target.value)} />}
+                </Field>
+              ) : usageError ? <p role="alert" className="text-sm text-destructive">{usageError}</p> : null}
+              {usage !== 'off' ? (
+                <SwitchField label={t('banks.account_dialog.usage_withdrawals')} checked={withdrawals} onCheckedChange={setWithdrawals} />
+              ) : null}
+            </div>
+          ) : null}
           <SwitchField label={t('banks.account_dialog.ignored')} checked={ignored} onCheckedChange={setIgnored} />
           <SwitchField label={t('banks.account_dialog.auto')} hint={t('banks.account_dialog.auto_hint')} checked={auto} onCheckedChange={setAuto} />
           <div className="flex justify-end gap-2">

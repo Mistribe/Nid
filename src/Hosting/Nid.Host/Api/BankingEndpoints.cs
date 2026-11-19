@@ -76,7 +76,7 @@ public static class BankingEndpoints
         api.MapPatch("/accounts/{id:guid}", async (Guid id, BankAccountBody body, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new UpdateBankAccountCommand(
                     id, body.EnvelopeId, body.ClearEnvelope ?? false, body.CardOfAccountId, body.ClearCard ?? false, body.AutoApplyBalance, body.Ignored,
-                    body.Name, body.ClearName ?? false), ct))
+                    body.Name, body.ClearName ?? false, body.MinPayments, body.ClearMinPayments ?? false, body.CountWithdrawals), ct))
                 .ToHttp(x => new IdResponse(x)))
             .Returns<IdResponse>();
 
@@ -244,7 +244,7 @@ public static class BankingEndpoints
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
     public sealed record BankAccountBody(
         Guid? EnvelopeId, bool? ClearEnvelope, Guid? CardOfAccountId, bool? ClearCard, bool? AutoApplyBalance, bool? Ignored, string? Name = null,
-        bool? ClearName = null);
+        bool? ClearName = null, int? MinPayments = null, bool? ClearMinPayments = null, bool? CountWithdrawals = null);
 
     /// <summary>A charge of <c>itemId</c> (a subscription, a loan, a property); <c>key</c> names one, else the nearest is taken.</summary>
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]

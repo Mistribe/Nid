@@ -13,7 +13,7 @@ export const noReads: BankAccount['reads'] = { unattended: 0, attended: 0, limit
 export const account = (over: Partial<BankAccount> = {}): BankAccount => ({
   id: CHECKING, name: 'Compte courant', ibanMasked: '1234', kind: 'checking', currency: 'EUR', envelopeId: null,
   cardOfAccountId: null, autoApplyBalance: false, ignored: false, balanceConflictOn: null, lastBalance: '1520.30', lastBalanceOn: '2026-09-30',
-  synced: true, canWrite: true, bankName: over.name ?? 'Compte courant', renamed: false, cardDebit: null, holder: null, product: null, reads: noReads, ...over,
+  synced: true, canWrite: true, bankName: over.name ?? 'Compte courant', renamed: false, cardDebit: null, holder: null, product: null, reads: noReads, minPayments: null, countWithdrawals: false, ...over,
 });
 
 export const rule = (over: Partial<BankRule> = {}): BankRule => ({

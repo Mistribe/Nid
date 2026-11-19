@@ -58,6 +58,7 @@ public sealed class BankingDbContext(DbContextOptions<BankingDbContext> options)
                 t.HasCheckConstraint("ck_account_card_debit", "card_debit is null or card_debit in ('immediate','deferred')");
                 t.HasCheckConstraint("ck_account_holder", "holder is null or char_length(holder) between 1 and 200");
                 t.HasCheckConstraint("ck_account_product", "product is null or char_length(product) between 1 and 200");
+                t.HasCheckConstraint("ck_account_card_min_payments", "card_min_payments is null or (kind = 'card' and card_min_payments between 1 and 31)");
             });
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
