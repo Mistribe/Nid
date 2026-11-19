@@ -12,9 +12,9 @@ public static class CategoryRules
     public static Result<string> NormalizePattern(string raw)
     {
         var pattern = TransactionLabel.Normalize(raw + " "); // a bare « cb » is the bank prefix, not a pattern
-        return pattern.Length is >= MinPattern and <= MaxPattern
+        return pattern.Length is >= MinPattern and <= MaxPattern && pattern.Any(char.IsLetter)
             ? Result.Success(pattern)
-            : Result.Failure<string>(new Failure(BankingCodes.RulePattern, $"A pattern is {MinPattern} to {MaxPattern} characters long.", null));
+            : Result.Failure<string>(new Failure(BankingCodes.RulePattern, $"A pattern is {MinPattern} to {MaxPattern} characters long and has a letter.", null));
     }
 
     public static bool Matches(CategoryRule rule, Guid account, decimal amount, string normalizedLabel, string? normalizedCounterparty)

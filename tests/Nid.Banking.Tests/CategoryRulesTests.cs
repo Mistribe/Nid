@@ -24,11 +24,20 @@ public class CategoryRulesTests
     [Theory]
     [InlineData("cb")]
     [InlineData("")]
+    [InlineData("12")]
+    [InlineData("-- 12")]
     public void Refuses_a_short_pattern(string raw)
     {
         var result = CategoryRules.NormalizePattern(raw);
         Assert.True(result.TryGetFailure(out var failure));
         Assert.Equal(BankingCodes.RulePattern, failure.Code);
+    }
+
+    [Fact]
+    public void Keeps_a_two_letter_pattern()
+    {
+        Assert.True(CategoryRules.NormalizePattern("bp").TryGetValue(out var p));
+        Assert.Equal("BP", p);
     }
 
     [Fact]
