@@ -52,7 +52,7 @@ internal static partial class Camt053Reader
             lines.Add(new StatementLine(
                 Text(entry.Element(ns + "AcctSvcrRef")), DateOf(Child(entry, ns + "BookgDt"), ns, latest),
                 entry.Element(ns + "ValDt") is { } valueDate ? DateOf(valueDate, ns) : null, amount,
-                remittance ?? Text(entry.Element(ns + "AddtlNtryInf")) ?? counterparty ?? NoLabel, counterparty, remittance));
+                remittance ?? Text(entry.Element(ns + "AddtlNtryInf")) ?? counterparty ?? NoLabel, counterparty, remittance, BankCode(entry, ns)));
         }
 
         var closing = statement.Elements(ns + "Bal")
@@ -65,6 +65,15 @@ internal static partial class Camt053Reader
             period?.Element(ns + "FrDtTm") is { } from ? Date(from, ofx: false) : null,
             period?.Element(ns + "ToDtTm") is { } to ? Date(to, ofx: false) : null,
             lines);
+    }
+
+    /// <summary><c>BkTxCd/Domn</c> as <c>Cd/Fmly/Cd/SubFmlyCd</c>, else <c>BkTxCd/Prtry/Cd</c>.</summary>
+    private static string? BankCode(XElement entry, XNamespace ns)
+    {
+        var code = entry.Element(ns + "BkTxCd");
+        var domain = code?.Element(ns + "Domn");
+        string?[] parts = [Text(domain?.Element(ns + "Cd")), Text(domain?.Element(ns + "Fmly")?.Element(ns + "Cd")), Text(domain?.Element(ns + "Fmly")?.Element(ns + "SubFmlyCd"))];
+        return parts.Any(p => p is not null) ? string.Join('/', parts.OfType<string>()) : Text(code?.Element(ns + "Prtry")?.Element(ns + "Cd"));
     }
 
     private static XElement Child(XElement parent, XName name)

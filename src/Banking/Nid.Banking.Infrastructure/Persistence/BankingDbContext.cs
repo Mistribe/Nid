@@ -100,6 +100,7 @@ public sealed class BankingDbContext(DbContextOptions<BankingDbContext> options)
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.Amount).HasColumnType("numeric(19,4)");
             e.Property(x => x.Currency).HasColumnType("char(3)");
+            e.Property(x => x.BankCode).HasMaxLength(140);
             e.HasIndex(x => new { x.AccountId, x.ProviderRef }).IsUnique();
             e.HasIndex(x => new { x.AccountId, x.Fingerprint }).IsUnique();
             e.HasIndex(x => new { x.AccountId, x.BookedOn });

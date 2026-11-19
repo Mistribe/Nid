@@ -3,7 +3,7 @@ using NodaTime;
 namespace Nid.Banking.Domain.Files;
 
 /// <summary>A booked line of a statement file: the amount is signed (debit negative), the label never empty.</summary>
-public sealed record StatementLine(string? ProviderRef, LocalDate BookedOn, LocalDate? ValueOn, decimal Amount, string Label, string? Counterparty, string? Remittance);
+public sealed record StatementLine(string? ProviderRef, LocalDate BookedOn, LocalDate? ValueOn, decimal Amount, string Label, string? Counterparty, string? Remittance, string? BankCode = null);
 
 /// <summary>
 /// Spec §5: one account's statement read from an OFX or CAMT.053 file (<see cref="Format"/> is <c>ofx</c> or <c>camt053</c>);

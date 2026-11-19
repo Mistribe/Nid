@@ -156,8 +156,14 @@ public sealed class EnableBankingClient(SafeHttpClient http, BankingOptions opti
         return new ProviderTransaction(
             string.IsNullOrWhiteSpace(t.EntryReference) ? null : t.EntryReference, LocalDatePattern.Iso.Parse(date).GetValueOrThrow(),
             t.ValueDate is { } v ? LocalDatePattern.Iso.Parse(v).GetValueOrThrow() : null,
-            debit ? -Math.Abs(amount) : Math.Abs(amount), t.TransactionAmount.Currency, label, counterparty, remittance);
+            debit ? -Math.Abs(amount) : Math.Abs(amount), t.TransactionAmount.Currency, label, counterparty, remittance, BankCodeOf(t.BankTransactionCode));
     }
+
+    /// <summary><c>code/sub_code</c> when the bank gives codes, else its free description (never matched by hints).</summary>
+    private static string? BankCodeOf(BankCodeDto? c)
+        => c is null ? null
+            : string.Join('/', new[] { c.Code, c.SubCode }.Where(p => !string.IsNullOrWhiteSpace(p)).Select(p => p!.Trim())) is { Length: > 0 } codes ? codes
+            : c.Description;
 
     private async Task<Result<T>> CallAsync<T>(
         HttpMethod method, string path, byte[]? body, string appId, IReadOnlyDictionary<string, string>? extra, CancellationToken ct, bool expectBody = true)

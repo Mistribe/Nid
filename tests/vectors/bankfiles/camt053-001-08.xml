@@ -29,6 +29,7 @@
         <BookgDt><Dt>2026-10-12</Dt></BookgDt>
         <ValDt><Dt>2026-10-11</Dt></ValDt>
         <AcctSvcrRef>REF-20261012-0001</AcctSvcrRef>
+        <BkTxCd><Domn><Cd>PMNT</Cd><Fmly><Cd>CCRD</Cd><SubFmlyCd>POSD</SubFmlyCd></Fmly></Domn></BkTxCd>
         <NtryDtls>
           <TxDtls>
             <RltdPties><Cdtr><Pty><Nm>AMAZON EU SARL</Nm></Pty></Cdtr></RltdPties>

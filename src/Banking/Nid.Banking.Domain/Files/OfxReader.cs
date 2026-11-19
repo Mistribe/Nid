@@ -115,7 +115,7 @@ internal static partial class OfxReader
             var label = string.Join(' ', new[] { Text(First(entry, "NAME")), Text(First(entry, "MEMO")) }.OfType<string>());
             lines.Add(new StatementLine(
                 Text(First(entry, "FITID")), Date(Field(entry, "DTPOSTED"), ofx: true, latest), null, Amount(Field(entry, "TRNAMT")),
-                label.Length > 0 ? label : NoLabel, null, null));
+                label.Length > 0 ? label : NoLabel, null, null, Text(First(entry, "TRNTYPE"))));
         }
 
         var balance = First(statement, "LEDGERBAL");

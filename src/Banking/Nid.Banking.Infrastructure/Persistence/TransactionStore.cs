@@ -56,7 +56,7 @@ public sealed class TransactionStore(BankingDbContext db, IClock clock) : ITrans
                 Id = Guid.CreateVersion7(), AccountId = account, ProviderRef = refs[i], Fingerprint = fingerprint, BookedOn = l.BookedOn,
                 ValueOn = l.ValueOn, Amount = l.Amount, Currency = l.Currency.Code, Label = l.Label, Counterparty = l.Counterparty,
                 Remittance = l.Remittance, NormalizedLabel = normalized[i], FetchedVia = l.FetchedVia, CreatedAt = now,
-                ReconciledAt = reconciled ? now : null,
+                ReconciledAt = reconciled ? now : null, BankCode = CleanBankCode(l.BankCode),
             });
             added++;
         }
@@ -137,6 +137,9 @@ public sealed class TransactionStore(BankingDbContext db, IClock clock) : ITrans
     public Task<int> PurgeBookedBeforeAsync(LocalDate before, CancellationToken ct)
         => db.Transactions.Where(t => t.BookedOn < before && (t.LinkState == "unlinked" || t.LinkState == "ignored")).ExecuteDeleteAsync(ct);
 
+    private static string? CleanBankCode(string? code)
+        => code?.Trim() is { Length: > 0 } t ? (t.Length > 140 ? t[..140] : t) : null;
+
     internal static BankTransaction ToModel(TransactionRow r) => new(
         r.Id, r.AccountId, r.ProviderRef, r.Fingerprint, r.BookedOn, r.ValueOn, r.Amount,
         Currency.TryCreate(r.Currency, out var currency) ? currency : throw new InvalidOperationException($"Bank transaction {r.Id} has no valid currency."),
@@ -147,5 +150,5 @@ public sealed class TransactionStore(BankingDbContext db, IClock clock) : ITrans
             _ => TransactionLinkState.Unlinked,
         },
         r.FetchedVia, r.CreatedAt, r.CategoryId,
-        r.CategorySource is { } source ? Enum.Parse<CategorySource>(source, ignoreCase: true) : null);
+        r.CategorySource is { } source ? Enum.Parse<CategorySource>(source, ignoreCase: true) : null, r.BankCode);
 }

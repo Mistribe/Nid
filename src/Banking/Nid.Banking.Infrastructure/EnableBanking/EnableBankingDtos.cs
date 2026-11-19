@@ -41,7 +41,7 @@ internal sealed record TransactionDto(
 
 internal sealed record PartyDto(string? Name = null);
 
-internal sealed record BankCodeDto(string? Description = null);
+internal sealed record BankCodeDto(string? Code = null, string? SubCode = null, string? Description = null);
 
 internal sealed record AmountDto(string Currency, string Amount);
 

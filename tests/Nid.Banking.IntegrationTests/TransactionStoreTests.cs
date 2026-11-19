@@ -66,6 +66,25 @@ public class TransactionStoreTests(PostgresFixture fixture) : IClassFixture<Post
     }
 
     [Fact]
+    public async Task Known_line_is_not_updated_with_a_bank_code()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var (scope, account) = await SetUpAsync(app);
+        await using var _ = scope;
+        var store = scope.ServiceProvider.GetRequiredService<ITransactionStore>();
+        await store.AddAsync(account, [Line("a", Day, -10m, "LOYER"), Line("b", Day, -5m, "CB TEST") with { BankCode = "  PMNT/CCRD/POSD " }, Line("c", Day, -6m, "CB LONG") with { BankCode = new string('x', 200) }, Line("d", Day, -7m, "CB VIDE") with { BankCode = " " }], TestContext.Current.CancellationToken);
+
+        // The same lines again, now with codes: known, never rewritten.
+        Assert.Equal(new TransactionWrite(0, 2), await store.AddAsync(account, [Line("a", Day, -10m, "LOYER") with { BankCode = "ACMT/MDOP" }, Line("b", Day, -5m, "CB TEST") with { BankCode = "OTHER" }], TestContext.Current.CancellationToken));
+
+        var stored = (await store.ListAsync([account], null, null, 0, 10, TestContext.Current.CancellationToken)).ToDictionary(t => t.ProviderRef, t => t.BankCode);
+        Assert.Null(stored["a"]);
+        Assert.Equal("PMNT/CCRD/POSD", stored["b"]);
+        Assert.Equal(new string('x', 140), stored["c"]);
+        Assert.Null(stored["d"]);
+    }
+
+    [Fact]
     public async Task Latest_booked_date_and_fetch_origin()
     {
         await using var app = await NidApp.StartAsync(fixture);

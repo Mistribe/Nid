@@ -23,9 +23,9 @@ public class OfxReaderTests
         Assert.Equal(new LocalDate(2026, 10, 28), file.To);
         Assert.Equal(
             [
-                new StatementLine("2026101200001", new LocalDate(2026, 10, 12), null, -13.49m, "CARTE X1234 11/10 AMAZON EU SARL AMAZON.FR PAYMENTS LU", null, null),
-                new StatementLine("2026101500002", new LocalDate(2026, 10, 15), null, -84.20m, "PRLV SEPA EDF CLIENTS PARTICULIE Échéance électricité octobre", null, null),
-                new StatementLine("2026102700003", new LocalDate(2026, 10, 27), null, 2450m, "VIR SEPA SOCIETE EXEMPLE SAS", null, null),
+                new StatementLine("2026101200001", new LocalDate(2026, 10, 12), null, -13.49m, "CARTE X1234 11/10 AMAZON EU SARL AMAZON.FR PAYMENTS LU", null, null, "DEBIT"),
+                new StatementLine("2026101500002", new LocalDate(2026, 10, 15), null, -84.20m, "PRLV SEPA EDF CLIENTS PARTICULIE Échéance électricité octobre", null, null, "DIRECTDEBIT"),
+                new StatementLine("2026102700003", new LocalDate(2026, 10, 27), null, 2450m, "VIR SEPA SOCIETE EXEMPLE SAS", null, null, "CREDIT"),
             ],
             file.Lines);
     }

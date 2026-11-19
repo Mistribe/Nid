@@ -51,14 +51,15 @@ public enum TransactionLinkState { Unlinked, Linked, Ignored, Internal }
 /// <param name="ProviderRef">The source's own id (<c>entry_reference</c>, FITID, AcctSvcrRef); the fingerprint stands in when it has none.</param>
 public sealed record NewBankTransaction(
     string? ProviderRef, LocalDate BookedOn, LocalDate? ValueOn, decimal Amount, Currency Currency,
-    string Label, string? Counterparty, string? Remittance, string FetchedVia);
+    string Label, string? Counterparty, string? Remittance, string FetchedVia, string? BankCode = null);
 
 /// <summary>A stored booked transaction, signed (debit negative); <paramref name="NormalizedLabel"/> is what rules and fingerprints read.</summary>
 /// <param name="Category">The line's category; null with a <paramref name="CategorySource"/> of hand is « Sans catégorie » chosen by a person.</param>
 public sealed record BankTransaction(
     Guid Id, Guid Account, string ProviderRef, string Fingerprint, LocalDate BookedOn, LocalDate? ValueOn,
     decimal Amount, Currency Currency, string Label, string? Counterparty, string? Remittance, string NormalizedLabel,
-    TransactionLinkState LinkState, string FetchedVia, Instant CreatedAt, Guid? Category = null, CategorySource? CategorySource = null);
+    TransactionLinkState LinkState, string FetchedVia, Instant CreatedAt, Guid? Category = null, CategorySource? CategorySource = null,
+    string? BankCode = null);
 
 public sealed record TransactionWrite(int Added, int Known);
 

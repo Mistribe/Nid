@@ -630,6 +630,11 @@ namespace Nid.Banking.Infrastructure.Persistence.Migrations
                         .HasColumnType("numeric(19,4)")
                         .HasColumnName("amount");
 
+                    b.Property<string>("BankCode")
+                        .HasMaxLength(140)
+                        .HasColumnType("character varying(140)")
+                        .HasColumnName("bank_code");
+
                     b.Property<LocalDate>("BookedOn")
                         .HasColumnType("date")
                         .HasColumnName("booked_on");
