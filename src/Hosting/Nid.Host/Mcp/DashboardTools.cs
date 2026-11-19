@@ -15,7 +15,7 @@ public sealed class DashboardTools
     private const string Scope = "'household' (default) or 'me'.";
 
     [McpServerTool(Name = "get_dashboard", ReadOnly = true)]
-    [Description("The household dashboard: net worth and its split, monthly commitments, income and margin, upcoming events. " + McpSetup.Untrusted)]
+    [Description("The household dashboard: net worth and its split, monthly commitments, income and margin, the month's everyday spending from the bank lines and what is left after it, upcoming events. " + McpSetup.Untrusted)]
     public static Task<CallToolResult> GetDashboard(IServiceProvider services, [Description(Scope)] string? scope = null, CancellationToken ct = default)
         => McpCalls.RunAsync(services, () => new GetDashboardQuery(SubscriptionEndpoints.ParseScope(scope)), ct);
 

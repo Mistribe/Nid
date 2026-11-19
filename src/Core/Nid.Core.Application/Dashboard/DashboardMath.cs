@@ -47,6 +47,9 @@ public sealed record AllocationView(
     DashboardMoneyView Assets, DashboardMoneyView Debts, DashboardMoneyView Approximate,
     IReadOnlyList<AllocationLineView> Classes, IReadOnlyList<AllocationLineView> Liquidity, IReadOnlyDictionary<string, decimal> Target);
 
+/// <summary>#85 decision 10: a top-level category's everyday spending this month, in the household currency; « Autres » gathers the rest.</summary>
+public sealed record DashboardSpendingSliceView(string Name, DashboardMoneyView Amount);
+
 public sealed record DashboardView(
     string Currency,
     DashboardFigure NetWorth, LocalDate? ValuesAsOf, int Envelopes, int EnvelopesWithoutValue, int StaleEnvelopes, int EstimatedEnvelopes,
@@ -57,7 +60,10 @@ public sealed record DashboardView(
     IReadOnlyList<DashboardEventView> Upcoming, IReadOnlyList<DashboardTodoView> Todo, int EnvelopesWithoutStart,
     IReadOnlyList<DashboardCommitmentSourceView> CommitmentSources,
     // Issue #104: null without assets above 0, or when a rate is missing (then PeopleMissingCurrency names it, the split's).
-    AllocationView? Allocation)
+    AllocationView? Allocation,
+    // #85 decision 10: null without a bank account or with bank sync off, or when a rate is missing; Left (margin − everyday spending)
+    // also without a margin. The slices: the five largest top-level categories, then « Autres »; none without the figure.
+    DashboardMoneyView? EverydaySpending, DashboardMoneyView? Left, IReadOnlyList<DashboardSpendingSliceView> SpendingSlices)
     : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems() => EnvelopeSplit.Select(e => e.Id).Concat(Upcoming.Select(e => e.Id).OfType<ItemId>()).Concat(Todo.Select(t => t.Id));
@@ -71,20 +77,23 @@ public sealed record DashboardView(
 public static class DashboardMath
 {
     public const int UpcomingDays = 60;
+    public const int SpendingSlices = 5;
+    public const string OtherSpending = "Autres";
 
     /// <summary>Names sort in French order, ignoring case, as the envelope list does.</summary>
     private static readonly StringComparer French = StringComparer.Create(CultureInfo.GetCultureInfo("fr-FR"), ignoreCase: true);
 
     public static IReadOnlySet<Currency> Currencies(
-        IEnumerable<NetWorthPart> worth, IEnumerable<CommitmentsPart> commitments, IEnumerable<IncomePart> income)
+        IEnumerable<NetWorthPart> worth, IEnumerable<CommitmentsPart> commitments, IEnumerable<IncomePart> income, IEnumerable<SpendingPart>? spending = null)
         => worth.SelectMany(p => p.Values.Keys.Concat(p.StartValues.Keys).Concat(p.NetContributions.Keys).Concat(p.Gains.Keys))
             .Concat(commitments.SelectMany(p => p.Amortized.Keys.Concat(p.Cash.Keys)))
             .Concat(income.SelectMany(p => p.MonthlyEquivalent.Keys))
+            .Concat((spending ?? []).SelectMany(p => p.Total.Keys))
             .ToHashSet();
 
     public static DashboardView Compose(
         IReadOnlyList<NetWorthPart> worth, IReadOnlyList<CommitmentsPart> commitments, IReadOnlyList<IncomePart> income,
-        IReadOnlyList<UpcomingEvent> events, IReadOnlyList<PersonInfo> persons, Currency reference, RateTable rates, LocalDate today,
+        IReadOnlyList<SpendingPart> spending, IReadOnlyList<UpcomingEvent> events, IReadOnlyList<PersonInfo> persons, Currency reference, RateTable rates, LocalDate today,
         IReadOnlyDictionary<string, decimal>? target = null, IReadOnlyList<DashboardEventView>? itemless = null)
     {
         Sum Of(IEnumerable<IReadOnlyDictionary<Currency, decimal>> parts) => Sum.Of(Merge(parts), reference, rates, today);
@@ -103,6 +112,22 @@ public static class DashboardMath
         decimal? committed = amortized.Missing is null ? amortized.Total ?? 0m : null;
         decimal? margin = incomeTotal is { } i && committed is { } c ? i - c : null;
         decimal? share = ShareOfIncome(committed);
+        var everyday = Of(spending.Select(p => p.Total));
+        decimal? left = margin - everyday.Total;
+        List<DashboardSpendingSliceView> slices = [];
+        if (everyday.Total is { } spent)
+        {
+            var ranked = spending.SelectMany(p => p.ByCategory).GroupBy(s => s.Name)
+                .Select(g => (Name: g.Key, Amount: Of(g.Select(s => s.Amount)).Total ?? 0m))
+                .Where(s => s.Amount > 0m)
+                .OrderByDescending(s => s.Amount).ThenBy(s => s.Name, French)
+                .Take(SpendingSlices).ToList();
+            slices = [.. ranked.Select(s => new DashboardSpendingSliceView(s.Name, Money(s.Amount, reference)))];
+            // « Autres » is the rest of the total, so the slices add up to it; a net refund among the rest can leave nothing to show.
+            var rest = spent - ranked.Sum(s => s.Amount);
+            if (Math.Round(rest, 2, MidpointRounding.AwayFromZero) > 0m)
+                slices.Add(new DashboardSpendingSliceView(OtherSpending, Money(rest, reference)));
+        }
 
         // 3E1 spec §3: each source counting at least one item, its amortized month converted as the total.
         var bySource = commitments.GroupBy(p => p.Source)
@@ -158,7 +183,8 @@ public static class DashboardMath
             margin is { } m ? Money(m, reference) : null, share, ShareOfIncome(margin),
             gain.View(reference), net.View(reference), changePct,
             split, people, peopleMissing, upcoming, todo, worth.Sum(p => p.WithoutStart), bySource,
-            peopleMissing is null ? Allocation(holdings, reference, target ?? new Dictionary<string, decimal>()) : null);
+            peopleMissing is null ? Allocation(holdings, reference, target ?? new Dictionary<string, decimal>()) : null,
+            everyday.Total is { } e ? Money(e, reference) : null, left is { } l ? Money(l, reference) : null, slices);
     }
 
     /// <summary>
