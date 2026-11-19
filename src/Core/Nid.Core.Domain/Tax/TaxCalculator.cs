@@ -266,7 +266,7 @@ public static class TaxCalculator
         var carriedLosses = Math.Max(0m, inputs.CapitalLossesCarried);
         var lossesUsed = Math.Min(carriedLosses, Math.Max(0m, inputs.RealisedGains));
         var gainsTaxable = Math.Max(0m, inputs.RealisedGains) - lossesUsed;
-        // shortcut: the 10-year limit is not followed, as for the rental deficit; nothing Nid computes expires before 2035.
+        // shortcut: the 10-year limit is not followed, as for the rental deficit; nothing Nid computes expires before 2031, follow it by then.
         var lossesForward = carriedLosses - lossesUsed + Math.Max(0m, -inputs.RealisedGains);
         var income = Math.Max(0m, inputs.CapitalIncome);
         var capital = income + gainsTaxable;
@@ -357,7 +357,7 @@ public static class TaxCalculator
             Euros(netBefore), Euros(netAfter), Euros(netAfter / 12), warnings,
             Withhold(rules, declarants, rentalTaxable, grossTax - decote, pinel + donation + childcare + home - excess, incomeTax, capitalInGlobal),
             perHousehold, reference, regimeGap,
-            // shortcut: the 10-year limit is not followed; the rules start in 2025, so no deficit Nid computes expires before 2035.
+            // shortcut: the 10-year limit is not followed; the rules start in 2020, so no deficit Nid computes expires before 2031, follow it by then.
             Euros(Math.Max(0m, inputs.RentalDeficitCarried) - carriedUsed + loss - deficit),
             inputs.CapitalScale, optionGap, dividendAllowance, inputs.CapitalScale ? Euros(TaxRules.DeductibleCsgRate * capital) : 0m, cehr, smoothed, alimony,
             Euros(gainsTaxable), Euros(lossesForward), ageDisability,
