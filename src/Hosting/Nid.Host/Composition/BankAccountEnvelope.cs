@@ -1,0 +1,45 @@
+using Nid.Banking.Application;
+using Nid.Banking.Contracts;
+using Nid.Core.Contracts;
+using Nid.Investments.Application;
+using UnambitiousFx.Functional;
+using UnambitiousFx.Synapse.Abstractions;
+
+namespace Nid.Host.Composition;
+
+/// <summary>
+/// #346: an envelope made from the « Régler » dialog of a bank account, in the account's currency with its IBAN's last four characters as
+/// its hint, and the account linked to it. Banking does not reach the investments module's commands, so the composition root runs both in one
+/// transaction: a refused link (another currency, a card, an account the actor may not move) leaves no envelope behind.
+/// <paramref name="Joint"/>: every adult owns it in equal shares; otherwise the actor alone.
+/// </summary>
+public sealed record CreateBankAccountEnvelopeCommand(Guid AccountId, string DisplayName, string Kind, bool Joint) : ICommand<ItemId>, ITransactional;
+
+[RequestHandler<CreateBankAccountEnvelopeCommand, ItemId>]
+public sealed class CreateBankAccountEnvelopeHandler(BankingAccess access, IPersonRegistry persons, IInvoker invoker)
+    : IRequestHandler<CreateBankAccountEnvelopeCommand, ItemId>
+{
+    public async ValueTask<Result<ItemId>> HandleAsync(CreateBankAccountEnvelopeCommand command, CancellationToken ct = default)
+    {
+        if ((await access.EnabledAsync(ct)).TryGetFailure(out var off))
+            return Result.Failure<ItemId>(off!);
+        // Read first: an account the actor does not write is refused before anything is created.
+        var found = await access.AccountAsync(command.AccountId, AccessKind.Write, ct);
+        if (!found.TryGetValue(out var account))
+            return Result.Failure<ItemId>(found.TryGetFailure(out var missing) ? missing! : throw new InvalidOperationException());
+
+        var owners = command.Joint ? Equal(await persons.AdultIdsAsync(ct)) : [new OwnerShare(access.Person, 10_000)];
+        var created = await invoker.InvokeAsync(new CreateEnvelopeCommand(
+            command.DisplayName, command.Kind, account!.Currency, Visibility.Shared, owners, null, account.IbanMasked, null, null, null, null, null, null), ct);
+        if (!created.TryGetValue(out var envelope))
+            return created;
+
+        // Under its own savepoint: its refusal fails this command, whose transaction then takes the envelope back too.
+        var linked = await invoker.InvokeAsync(new UpdateBankAccountCommand(account.Id, envelope.Value, false, null, false, null, null), ct);
+        return linked.TryGetFailure(out var refused) ? Result.Failure<ItemId>(refused!) : Result.Success(envelope);
+    }
+
+    /// <summary>10 000 basis points shared out, the remainder to the first: 3 adults hold 3 334, 3 333 and 3 333.</summary>
+    internal static IReadOnlyList<OwnerShare> Equal(IReadOnlyList<PersonId> adults)
+        => adults.Select((p, i) => new OwnerShare(p, 10_000 / adults.Count + (i == 0 ? 10_000 % adults.Count : 0))).ToList();
+}

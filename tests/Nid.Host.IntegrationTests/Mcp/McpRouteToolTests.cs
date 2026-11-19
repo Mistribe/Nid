@@ -33,6 +33,8 @@ public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
         "/api/v1/banking/sync",
         // A statement file is dropped in the browser and confirmed after its preview: browser-only.
         "/api/v1/banking/statements",
+        // An envelope made and linked from « Régler » (#346): a tool creates the envelope, then bank_account_update links it.
+        "POST /api/v1/banking/accounts/{id:guid}/envelope",
         // A line linked to a charge: propose_bank_link proposes it, with the line and the charge in its preview.
         "POST /api/v1/banking/transactions/{id:guid}/link",
         // An insurance is set by propose_set_insurance (spec 2026-10-30 §10); removing it is a click in the web app.
