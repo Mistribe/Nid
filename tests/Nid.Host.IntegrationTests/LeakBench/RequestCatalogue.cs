@@ -632,6 +632,7 @@ public static class RequestCatalogue
         new(typeof(ListBankTransactionsQuery), true, (_, item) => new ListBankTransactionsQuery(item, null, null, 1, "all")),
         // 5C, D19: every readable account's lines; the joint line's link to A's private subscription never reaches B.
         new(typeof(ListBankLinesQuery), false, (_, _) => new ListBankLinesQuery("all", null, null, 1)),
+        new(typeof(ListBankLinesQuery), false, (_, _) => new ListBankLinesQuery("all", null, null, 1, Uncategorised: true)),
         new(typeof(LinkCandidatesQuery), false, (d, _) => new LinkCandidatesQuery(d.JointLine)),
         new(typeof(ListExpectedChargesQuery), false, (_, _) => new ListExpectedChargesQuery(new LocalDate(2025, 1, 1), new LocalDate(2025, 3, 31))),
         new(typeof(LinkTransactionCommand), false, (d, item) => new LinkTransactionCommand(d.JointLine, "subscriptions", item.Value, null)),

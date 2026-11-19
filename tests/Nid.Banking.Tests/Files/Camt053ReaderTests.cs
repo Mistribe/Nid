@@ -24,9 +24,9 @@ public class Camt053ReaderTests
         Assert.Equal(
             [
                 new StatementLine("REF-20261015-0002", new LocalDate(2026, 10, 15), new LocalDate(2026, 10, 14), -84.20m,
-                    "PRLV SEPA EDF ECHEANCE ELECTRICITE OCTOBRE 2026", "EDF CLIENTS PARTICULIERS", "PRLV SEPA EDF ECHEANCE ELECTRICITE OCTOBRE 2026"),
+                    "PRLV SEPA EDF ECHEANCE ELECTRICITE OCTOBRE 2026", "EDF CLIENTS PARTICULIERS", "PRLV SEPA EDF ECHEANCE ELECTRICITE OCTOBRE 2026", "PMNT/ICDT/ESCT"),
                 new StatementLine("REF-20261027-0003", new LocalDate(2026, 10, 27), null, 2450m,
-                    "VIR SEPA SOCIETE EXEMPLE SAS SALAIRE", "SOCIETE EXEMPLE SAS", null),
+                    "VIR SEPA SOCIETE EXEMPLE SAS SALAIRE", "SOCIETE EXEMPLE SAS", null, "NTRF"),
             ],
             file.Lines);
     }
@@ -43,7 +43,7 @@ public class Camt053ReaderTests
         Assert.Equal(
             [
                 new StatementLine("REF-20261012-0001", new LocalDate(2026, 10, 12), new LocalDate(2026, 10, 11), -13.49m,
-                    "CARTE X1234 11/10 AMAZON EU SARL", "AMAZON EU SARL", "CARTE X1234 11/10 AMAZON EU SARL"),
+                    "CARTE X1234 11/10 AMAZON EU SARL", "AMAZON EU SARL", "CARTE X1234 11/10 AMAZON EU SARL", "PMNT/CCRD/POSD"),
                 new StatementLine("REF-20261020-0002", new LocalDate(2026, 10, 20), null, 30m,
                     "REMBOURSEMENT RESTAURANT", "MARIE EXEMPLE", "REMBOURSEMENT RESTAURANT"),
             ],
@@ -157,7 +157,7 @@ public class Camt053ReaderTests
     [Fact]
     public void Broken_xml_is_refused_with_its_line()
     {
-        var text = System.Text.Encoding.UTF8.GetString(Vectors.Read("camt053-001-02.xml")).Replace("</AcctSvcrRef>\n        <NtryDtls>", "\n        <NtryDtls>");
+        var text = System.Text.Encoding.UTF8.GetString(Vectors.Read("camt053-001-02.xml")).Replace("</AcctSvcrRef>\n        <BkTxCd>", "\n        <BkTxCd>");
         var e = Assert.Throws<StatementFileException>(() => StatementReader.Read(System.Text.Encoding.UTF8.GetBytes(text)));
         Assert.Equal(BankingCodes.FileMalformed, e.Code);
         Assert.NotNull(e.Line);

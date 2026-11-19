@@ -71,6 +71,9 @@ public static class BankingCodes
     /// <summary>A bank proposal approved with an edited payload: reject it instead.</summary>
     public const string ProposalNotEditable = "banking.proposal_not_editable";
 
+    /// <summary>A categorise proposal names 1 to 100 lines, each once.</summary>
+    public const string ProposalLines = "banking.proposal_lines";
+
     /// <summary>A category's name is 1 to 60 characters, and unique among its siblings whatever the case (archived ones included).</summary>
     public const string CategoryName = "banking.category_name";
 

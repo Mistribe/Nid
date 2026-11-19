@@ -14,6 +14,7 @@ namespace Nid.Host.Api.Json;
 [JsonSerializable(typeof(IReadOnlyList<BankAccountView>))]
 [JsonSerializable(typeof(BankTransactionPage))]
 [JsonSerializable(typeof(BankAccountOverview))]
+[JsonSerializable(typeof(Mcp.BankingTools.UncategorisedLines))]
 [JsonSerializable(typeof(BankTransactionView))]
 [JsonSerializable(typeof(IReadOnlyList<ExpectedChargeView>))]
 [JsonSerializable(typeof(IReadOnlyList<BankRuleView>))]

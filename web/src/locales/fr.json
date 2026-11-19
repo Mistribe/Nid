@@ -815,7 +815,7 @@
     "origin": { "ui": "dans Nid", "api": "par l’API", "mcp": "par l’assistant (MCP)", "job": "par la synchronisation" },
     "proposed_on": "Proposée {{origin}} le {{date}}",
     "decided": { "approved": "Approuvée le {{date}}", "rejected": "Rejetée le {{date}}" },
-    "kind": { "valuation": "Valeur d’une enveloppe", "statement": "Relevé d’une enveloppe", "holdings": "Relevé des supports d’une enveloppe", "breakdown": "Répartition d’un support", "payslip": "Bulletin de paie", "invoice": "Facture d’un abonnement", "amortization": "Tableau d’amortissement", "link": "Opération bancaire à relier", "recurring": "Prélèvement récurrent" },
+    "kind": { "valuation": "Valeur d’une enveloppe", "statement": "Relevé d’une enveloppe", "holdings": "Relevé des supports d’une enveloppe", "breakdown": "Répartition d’un support", "payslip": "Bulletin de paie", "invoice": "Facture d’un abonnement", "amortization": "Tableau d’amortissement", "link": "Opération bancaire à relier", "recurring": "Prélèvement récurrent", "categorise": "Catégories d’opérations bancaires" },
     "summary": {
       "valuation": "{{name}} — valeur au {{date}} : {{amount}}",
       "statement_one": "{{name}} — relevé au {{date}} ({{count}} mouvement)",
@@ -828,7 +828,9 @@
       "amortization_one": "{{name}} — tableau de la banque, {{count}} échéance",
       "amortization_other": "{{name}} — tableau de la banque, {{count}} échéances",
       "link": "{{name}} — opération bancaire à relier",
-      "recurring": "{{name}} — prélèvement récurrent de {{amount}}"
+      "recurring": "{{name}} — prélèvement récurrent de {{amount}}",
+      "categorise_one": "{{count}} opération bancaire à catégoriser",
+      "categorise_other": "{{count}} opérations bancaires à catégoriser"
     },
     "unknown_target": "Élément inconnu"
   },

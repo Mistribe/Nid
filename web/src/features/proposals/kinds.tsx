@@ -11,6 +11,7 @@ import type { ProposalView } from '@/api/proposals';
 import { DateInput, ValueComparison, errorOf, sameAmount, wireAmount, type KindUi, type Money } from './kindParts';
 import { amortization } from './amortizationKind';
 import { breakdown } from './breakdownKind';
+import { categorise } from './categoriseKind';
 import { holdings } from './holdingsKind';
 import { invoice } from './invoiceKind';
 import { link } from './linkKind';
@@ -77,6 +78,7 @@ const KINDS: Record<string, KindUi> = {
   'realestate.import_amortization': amortization,
   'banking.link_transaction': link,
   'banking.create_subscription': recurring,
+  'banking.categorise_transactions': categorise,
 };
 
 export const kindOf = (kind: string): KindUi | undefined => KINDS[kind];

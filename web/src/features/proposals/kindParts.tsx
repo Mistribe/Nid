@@ -21,7 +21,7 @@ export type LinkTarget = { to: '/investments/$id' | '/income/$id' | '/subscripti
 /** Spec 4D1 §5: what a kind brings to « À valider ». Each kind reads its own payload and preview. */
 export type KindUi = {
   /** An i18n key. */
-  label: `proposals.kind.${'valuation' | 'statement' | 'holdings' | 'breakdown' | 'payslip' | 'invoice' | 'amortization' | 'link' | 'recurring'}`;
+  label: `proposals.kind.${'valuation' | 'statement' | 'holdings' | 'breakdown' | 'payslip' | 'invoice' | 'amortization' | 'link' | 'recurring' | 'categorise'}`;
   summary: (t: TFunction, p: ProposalView) => string;
   /** `original`: the payload, for a kind whose server preview leaves out what it proposes. */
   Preview: (props: { preview: unknown; original: unknown }) => JSX.Element;
@@ -36,7 +36,11 @@ export type KindUi = {
   /** The French text of a refused approval of this kind, when the server's own sentence must not be shown. */
   refusal?: (t: TFunction, problem: Problem) => string | undefined;
   Fields: (props: { form: UseFormReturn<FieldValues>; original: unknown; preview: unknown }) => JSX.Element;
-  link: (p: ProposalView) => LinkTarget;
+  link: (p: ProposalView) => LinkTarget | undefined;
+  /** The kind names no item, now or once approved: no « Élément » line. */
+  targetless?: true;
+  /** What an approved proposal changed, told under its decision. */
+  outcome?: (t: TFunction, p: ProposalView) => string;
   /** True when approving would record nothing: the approval is then disabled. */
   nothing?: (values: FieldValues, original: unknown) => boolean;
 };

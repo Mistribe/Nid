@@ -48,11 +48,12 @@ public class CategoryRuleReconciliationTests(PostgresFixture fixture) : IClassFi
     }
 
     private static Task<Guid> AddAsync(
-        NidApp app, Guid account, string reference, decimal amount, string label = "PRLV SEPA NETFLIX 123", string? counterparty = null)
+        NidApp app, Guid account, string reference, decimal amount, string label = "PRLV SEPA NETFLIX 123", string? counterparty = null,
+        string? bankCode = null)
         => InScopeAsync(app, async sp =>
         {
             var store = sp.GetRequiredService<ITransactionStore>();
-            await store.AddAsync(account, [new NewBankTransaction(reference, D(10, 5), null, amount, Currency.Eur, label, counterparty, null, "api")], default);
+            await store.AddAsync(account, [new NewBankTransaction(reference, D(10, 5), null, amount, Currency.Eur, label, counterparty, null, "api", bankCode)], default);
             return (await store.ListAsync([account], null, null, 0, 100, default)).Single(t => t.ProviderRef == reference).Id;
         });
 
@@ -101,6 +102,28 @@ public class CategoryRuleReconciliationTests(PostgresFixture fixture) : IClassFi
         Assert.Equal((Seed("food.groceries"), "rule", carrefour.Id, $"rule:{carrefour.Id:D}"), await CategoryAsync(app, byCounterparty));
         Assert.Equal((null, null, null, null), await CategoryAsync(app, none));
         Assert.Equal(At, (await FindRuleAsync(app, netflix.Id))!.LastUsedAt);
+    }
+
+    [Fact]
+    public async Task A_hint_categorises_an_unmatched_line()
+    {
+        var (app, account) = await StartAsync(fixture);
+        var cash = await AddAsync(app, account, "r-atm", -20m, "RETRAIT DAB", bankCode: "PMNT/CCRD/CWDL");
+        var plain = await AddAsync(app, account, "r-free", -20m, "RETRAIT DAB 2", bankCode: "Retrait DAB");
+        await PassAsync(app);
+        Assert.Equal((Seed("internal.cash"), "hint", null, "job"), await CategoryAsync(app, cash));
+        Assert.Null((await CategoryAsync(app, plain)).Category);
+    }
+
+    [Fact]
+    public async Task A_rule_beats_a_hint_in_the_same_pass()
+    {
+        var (app, account) = await StartAsync(fixture);
+        await RuleAsync(app, "RETRAIT", "misc", app.AdultA);
+        var line = await AddAsync(app, account, "r-atm", -20m, "RETRAIT DAB", bankCode: "PMNT/CCRD/CWDL");
+        await PassAsync(app);
+        var (category, source, _, _) = await CategoryAsync(app, line);
+        Assert.Equal((Seed("misc"), "rule"), (category, source));
     }
 
     [Fact]

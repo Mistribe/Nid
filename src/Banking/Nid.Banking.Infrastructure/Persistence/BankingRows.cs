@@ -106,6 +106,10 @@ public sealed class TransactionRow
     public string Label { get; set; } = "";
     public string? Counterparty { get; set; }
     public string? Remittance { get; set; }
+
+    /// <summary>The bank's own transaction code (raw bank data, 140 characters at most); null for lines stored before it was kept.</summary>
+    public string? BankCode { get; set; }
+
     public string NormalizedLabel { get; set; } = "";
     public string LinkState { get; set; } = "unlinked";
     public string FetchedVia { get; set; } = "";

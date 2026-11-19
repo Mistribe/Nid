@@ -11784,6 +11784,7 @@ export interface paths {
                     from?: string;
                     to?: string;
                     page?: number;
+                    uncategorised?: boolean;
                 };
                 header?: never;
                 path?: never;

@@ -137,6 +137,18 @@ public class EnableBankingClientTests
     }
 
     [Fact]
+    public async Task A_description_only_code_stores_no_bank_code_and_gets_no_hint()
+    {
+        var body = """{"transactions":[{"entry_reference":"r","transaction_amount":{"currency":"EUR","amount":"2.50"},"credit_debit_indicator":"DBIT","status":"BOOK","booking_date":"2026-10-20","bank_transaction_code":{"description":"FEE"}}]}""";
+        var (client, _) = Client(HttpStatusCode.OK, body);
+
+        var line = Ok(await client.TransactionsAsync("app", "sess", "uid-1", new LocalDate(2026, 10, 1), null, TestContext.Current.CancellationToken)).Lines.Single();
+
+        Assert.Null(line.BankCode);
+        Assert.Null(Nid.Banking.Domain.CategoryHints.KeyFor(line.BankCode, line.Amount));
+    }
+
+    [Fact]
     public async Task Transactions_read_every_page_keep_booked_lines_and_sign_the_amount()
     {
         var (client, handler) = Client(HttpStatusCode.OK, Vector("transactions-page1.json"), second: Vector("transactions-page2.json"));
@@ -145,10 +157,10 @@ public class EnableBankingClientTests
 
         Assert.Equal(
         [
-            new ProviderTransaction("ref-1", new LocalDate(2026, 10, 27), new LocalDate(2026, 10, 28), -13.49m, "EUR", "PRLV SEPA NETFLIX OCT 2026", "NETFLIX INTERNATIONAL", "PRLV SEPA NETFLIX OCT 2026"),
-            new ProviderTransaction("ref-2", new LocalDate(2026, 10, 26), null, 1500.00m, "EUR", "ACME SAS", "ACME SAS", null),
-            // No booking date: the value date stands in; no remittance nor party: the code's description.
-            new ProviderTransaction("ref-3", new LocalDate(2026, 10, 20), new LocalDate(2026, 10, 20), -2.50m, "EUR", "Frais", null, null),
+            new ProviderTransaction("ref-1", new LocalDate(2026, 10, 27), new LocalDate(2026, 10, 28), -13.49m, "EUR", "PRLV SEPA NETFLIX OCT 2026", "NETFLIX INTERNATIONAL", "PRLV SEPA NETFLIX OCT 2026", "RDDT/ESDD"),
+            new ProviderTransaction("ref-2", new LocalDate(2026, 10, 26), null, 1500.00m, "EUR", "ACME SAS", "ACME SAS", null, null),
+            // No booking date: the value date stands in; no remittance nor party: the code's description as the label, never as a bank code.
+            new ProviderTransaction("ref-3", new LocalDate(2026, 10, 20), new LocalDate(2026, 10, 20), -2.50m, "EUR", "Frais", null, null, null),
         ], lines);
         Assert.Equal(["https://api.enablebanking.com/accounts/uid-1/transactions?date_from=2026-10-01",
             "https://api.enablebanking.com/accounts/uid-1/transactions?date_from=2026-10-01&continuation_key=page-2-key"], handler.Requests.Select(r => r.Url.AbsoluteUri));

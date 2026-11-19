@@ -43,12 +43,13 @@ public class TransactionCategoryTests(PostgresFixture fixture) : IClassFixture<P
         return new Setup(app, accounts["Courant A"], accounts["Livret A"]);
     }
 
-    private static async Task<Guid> AddAsync(NidApp app, Guid account, string reference, decimal amount, string label = "PRLV SEPA NETFLIX 123")
+    private static async Task<Guid> AddAsync(
+        NidApp app, Guid account, string reference, decimal amount, string label = "PRLV SEPA NETFLIX 123", string? bankCode = null)
     {
         await using var scope = app.Services.CreateAsyncScope();
         scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
         var store = scope.ServiceProvider.GetRequiredService<ITransactionStore>();
-        await store.AddAsync(account, [new NewBankTransaction(reference, new LocalDate(2026, 10, 5), null, amount, Currency.Eur, label, null, null, "api")], default);
+        await store.AddAsync(account, [new NewBankTransaction(reference, new LocalDate(2026, 10, 5), null, amount, Currency.Eur, label, null, null, "api") { BankCode = bankCode }], default);
         return (await store.ListAsync([account], null, null, 0, 100, default)).Single(t => t.ProviderRef == reference).Id;
     }
 
@@ -166,6 +167,23 @@ public class TransactionCategoryTests(PostgresFixture fixture) : IClassFixture<P
 
         Assert.Equal(("Virement entre comptes", "link"), Of(await OkAsync(await app.RawAsync(app.AdultA, HttpMethod.Delete, Category(debit)))));
         Assert.Equal((null, null), Of(await OkAsync(await app.RawAsync(app.AdultA, HttpMethod.Delete, Category(unlinked)))));
+    }
+
+    [Fact]
+    public async Task Reset_gives_back_the_bank_code_hint_unless_its_category_is_archived()
+    {
+        await using var s = await StartAsync(fixture);
+        var app = s.App;
+        var cash = await AddAsync(app, s.Courant, "a", -20m, "RETRAIT DAB", bankCode: "CCRD/CWDL");
+        var fee = await AddAsync(app, s.Courant, "b", -2m, "FRAIS TENUE DE COMPTE", bankCode: "MDOP/CHRG");
+        await OkAsync(await PutAsync(app, app.AdultA, cash, Seed("food.groceries")));
+        await OkAsync(await PutAsync(app, app.AdultA, fee, Seed("food.groceries")));
+
+        Assert.Equal(("Retrait d'espèces", "hint"), Of(await OkAsync(await app.RawAsync(app.AdultA, HttpMethod.Delete, Category(cash)))));
+
+        // A hint never writes an archived category, as a rule does not.
+        await OkAsync(await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{BankingApi.Root}/categories/{Seed("bank")}", new { archived = true }));
+        Assert.Equal((null, null), Of(await OkAsync(await app.RawAsync(app.AdultA, HttpMethod.Delete, Category(fee)))));
     }
 
     [Fact]

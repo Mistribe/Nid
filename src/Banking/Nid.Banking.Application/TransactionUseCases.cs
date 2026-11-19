@@ -21,8 +21,8 @@ public sealed record ListBankTransactionsQuery(ItemId ItemId, LocalDate? From, L
     public AccessKind Access => AccessKind.Read;
 }
 
-/// <summary>5C spec §8: the lines of every account the actor reads, cards included, newest first; <paramref name="State"/> defaults to <c>unlinked</c>.</summary>
-public sealed record ListBankLinesQuery(string? State, LocalDate? From, LocalDate? To, int Page) : IQuery<BankTransactionPage>;
+/// <summary>5C spec §8: the lines of every account the actor reads, cards included, newest first; <paramref name="State"/> defaults to <c>unlinked</c>. <paramref name="Uncategorised"/>: only the lines with no category and no category source that are not ignored.</summary>
+public sealed record ListBankLinesQuery(string? State, LocalDate? From, LocalDate? To, int Page, bool Uncategorised = false) : IQuery<BankTransactionPage>;
 
 /// <summary>The charges within ±30 days of a line the actor reads that they may link it to, nearest amount first, 20 at most.</summary>
 public sealed record LinkCandidatesQuery(Guid TransactionId) : IQuery<IReadOnlyList<ExpectedChargeView>>;
@@ -109,12 +109,12 @@ public sealed class BankLines(
     public static Result<T> NotFound<T>(Guid line) where T : notnull => Result.Failure<T>(new NotFoundFailure("bank transaction", line.ToString()));
 
     /// <summary>A page of the accounts' lines (null: every account the actor reads) in a <c>link_state</c>, or <c>all</c>.</summary>
-    public async Task<BankTransactionPage> PageAsync(IReadOnlyList<Guid>? of, string state, LocalDate? from, LocalDate? to, int page, CancellationToken ct)
+    public async Task<BankTransactionPage> PageAsync(IReadOnlyList<Guid>? of, string state, LocalDate? from, LocalDate? to, int page, CancellationToken ct, bool uncategorised = false)
     {
         var readable = await ReadableAsync(ct);
         // One more than a page tells whether another follows.
         var lines = await transactions.ListAsync(of ?? [.. readable.Keys], from, to, (Math.Clamp(page, 1, MaxPage) - 1) * PageSize, PageSize + 1, ct,
-            state == "all" ? null : state, [.. readable.Keys]);
+            state == "all" ? null : state, [.. readable.Keys], uncategorised);
         return new BankTransactionPage(await ViewsAsync([.. lines.Take(PageSize)], readable, ct), lines.Count > PageSize);
     }
 
@@ -217,7 +217,7 @@ public sealed class ListBankLinesHandler(BankingAccess access, BankLines lines)
         if (!parsed.TryGetValue(out var state))
             return BankingAccess.Failed<BankTransactionPage, string>(parsed);
 
-        return Result.Success(await lines.PageAsync(null, state!, query.From, query.To, query.Page, ct));
+        return Result.Success(await lines.PageAsync(null, state!, query.From, query.To, query.Page, ct, query.Uncategorised));
     }
 }
 

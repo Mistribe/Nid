@@ -24,7 +24,7 @@ public sealed record ProviderBalance(string Type, decimal Amount, string Currenc
 
 /// <summary>A booked line as the bank reports it; <paramref name="Amount"/> is signed (debit negative).</summary>
 public sealed record ProviderTransaction(
-    string? EntryReference, LocalDate BookedOn, LocalDate? ValueOn, decimal Amount, string Currency, string Label, string? Counterparty, string? Remittance);
+    string? EntryReference, LocalDate BookedOn, LocalDate? ValueOn, decimal Amount, string Currency, string Label, string? Counterparty, string? Remittance, string? BankCode = null);
 
 /// <summary>The lines read; <paramref name="Truncated"/> when the page cap stopped the read while the bank had more.</summary>
 public sealed record ProviderTransactions(IReadOnlyList<ProviderTransaction> Lines, bool Truncated);

@@ -276,6 +276,8 @@ public sealed class ApproveProposalHandler(
         if (ProposalAccess.Payload(payload, "editedPayload").TryGetFailure(out var notObject))
             return Result.Failure<ProposalView>(notObject!);
         Failure? refused = null;
+        // Set before the validation too: a kind tells an approval's check from a submission's by it.
+        approving.Id = proposal.Id;
         try
         {
             await using var transaction = await unitOfWork.BeginAsync(ct);
@@ -286,8 +288,7 @@ public sealed class ApproveProposalHandler(
             {
                 // Applied and kept normalized, as a submission is.
                 // A payload that now matches what Nid expects (« conforme ») has nothing to apply: approved, nothing written.
-                // #23: an item delete applied here supersedes the item's other pending proposals, not this one.
-                approving.Id = proposal.Id;
+                // #23: an item delete applied here supersedes the item's other pending proposals, not this one (approving.Id, set above).
                 var applied = valid!.Conforme is not null
                     ? Result.Success<IReadOnlyList<Guid>>([])
                     : await handler.ApplyAsync(proposal.Target ?? default, valid.Payload, ct);

@@ -99,8 +99,8 @@ public static class BankingEndpoints
             .Returns<BankTransactionPage>();
 
         // 5C spec §8: the lines of every account the person reads, their links, the charges they may pay, and the person's rules.
-        api.MapGet("/transactions", async (string? state, string? from, string? to, int? page, IInvoker invoker, CancellationToken ct)
-                => (await invoker.InvokeAsync(new ListBankLinesQuery(state, OptionalDate(from), OptionalDate(to), page ?? 1), ct))
+        api.MapGet("/transactions", async (string? state, string? from, string? to, int? page, bool? uncategorised, IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new ListBankLinesQuery(state, OptionalDate(from), OptionalDate(to), page ?? 1, uncategorised ?? false), ct))
                     .ToHttp(transactions => transactions))
             .Returns<BankTransactionPage>();
 

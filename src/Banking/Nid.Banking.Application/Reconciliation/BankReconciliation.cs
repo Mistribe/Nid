@@ -15,7 +15,7 @@ public sealed record ReconciliationCounts(int Internal, int Linked, int Proposed
 /// <summary>
 /// 5C spec §6.3: the lines no pass has looked at yet, after a sync or a statement import. Transfers and card settlements first, over the
 /// whole batch; then, line by line, its writers' rules, else its single candidate charge, proposed to a writer of the account who writes it (D22);
-/// then the category rules of the authors who write each line's account (transaction categories spec §Rules). The
+/// then the category rules of the authors who write each line's account (transaction categories spec §Rules), then the bank-code hints. The
 /// counts and codes of a failure are logged, never a label or an amount; a failed line stays for the next pass.
 /// </summary>
 public sealed class BankReconciliation(
@@ -192,6 +192,9 @@ public sealed class BankReconciliation(
             await WritersAsync(looked.Select(l => l.Account));
             await categoryRules.ApplyAsync(looked, (rule, account) => Task.FromResult(writersOf[account].Contains(rule.CreatedBy)), ct);
         });
+
+        // `lines` is a snapshot, stale after the rule and link steps: the SQL precedence in SetForLinesAsync guards the write.
+        await TryAsync([.. looked.Select(l => l.Id)], () => categoryRules.HintAsync(looked, ct));
 
         await transactions.MarkReconciledAsync([.. lines.Select(l => l.Id).Where(id => !failed.Contains(id))], now, ct);
         return new ReconciliationCounts(internals, linked, proposed);

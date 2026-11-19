@@ -177,7 +177,7 @@ public sealed class BankSyncCollector(
                 var booked = read.Lines;
                 // A line in another currency than the account's would be stored as the wrong money.
                 var mine = booked.Where(t => string.Equals(t.Currency, account.Currency.Code, StringComparison.OrdinalIgnoreCase))
-                    .Select(t => new NewBankTransaction(string.IsNullOrWhiteSpace(t.EntryReference) ? null : t.EntryReference, t.BookedOn, t.ValueOn, t.Amount, account.Currency, t.Label, t.Counterparty, t.Remittance, "api"))
+                    .Select(t => new NewBankTransaction(string.IsNullOrWhiteSpace(t.EntryReference) ? null : t.EntryReference, t.BookedOn, t.ValueOn, t.Amount, account.Currency, t.Label, t.Counterparty, t.Remittance, "api", t.BankCode))
                     .ToList();
                 progress.Transactions += (await stored.AddAsync(account.Id, mine, ct)).Added;
                 // The oldest part of the window may stay unread: journal only, the connection is fine.

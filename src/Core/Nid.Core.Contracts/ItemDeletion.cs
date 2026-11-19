@@ -49,7 +49,7 @@ public interface IItemDeletions
     Task<Result> DeleteAsync(ItemId id, string module, string? kind, uint version, CancellationToken ct);
 }
 
-/// <summary>Scoped: the proposal being approved in this request, so the delete does not supersede it.</summary>
+/// <summary>Scoped: the proposal being approved in this request, so the delete does not supersede it, and a kind checks an approval as such.</summary>
 public interface IApprovingProposal
 {
     Guid? Id { get; set; }

@@ -119,7 +119,7 @@ public sealed class ImportStatementHandler(
         }
 
         var lines = file.Lines
-            .Select(l => new NewBankTransaction(l.ProviderRef, l.BookedOn, l.ValueOn, l.Amount, currency, l.Label, l.Counterparty, l.Remittance, "file"))
+            .Select(l => new NewBankTransaction(l.ProviderRef, l.BookedOn, l.ValueOn, l.Amount, currency, l.Label, l.Counterparty, l.Remittance, "file", l.BankCode))
             .ToList();
         var probable = await ProbablyKnownAsync(account.Id, lines, ct);
         var written = await transactions.AddAsync(account.Id, command.KeepProbablyKnown ? lines : lines.Where((_, i) => !probable[i]).ToList(), ct);
