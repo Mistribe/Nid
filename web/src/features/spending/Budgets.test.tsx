@@ -2,8 +2,10 @@ import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw/http';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
+import { pick } from '@/test/controls';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
+import type { Spending } from './api';
 import { budgeted, budgetServer, spendingServer, year } from './testData';
 
 const COURSES = budgeted.categories[0]!.id;
@@ -53,6 +55,7 @@ describe('« Dépenses » budgets', () => {
     const table = await screen.findByRole('table', { name: 'Par catégorie' });
     expect(within(table).queryByRole('columnheader', { name: 'Budget' })).toBeNull();
     expect(within(table).queryByRole('button', { name: /Actions sur/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Ajouter un budget' })).toBeNull();
     expect(screen.getByText(/Le budget est celui du foyer : passez en vue Foyer pour le suivre\./)).toBeInTheDocument();
 
     await user.click(screen.getByRole('link', { name: 'Voir la vue Foyer' }));
@@ -65,7 +68,66 @@ describe('« Dépenses » budgets', () => {
     await renderApp('/spending?period=12m');
     const table = await screen.findByRole('table', { name: 'Par catégorie' });
     expect(within(table).queryByRole('columnheader', { name: 'Budget' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Ajouter un budget' })).toBeNull();
     expect(screen.queryByText(/Le budget est celui du foyer/)).toBeNull();
+  });
+
+  it('shows the committed part of a typed budget, as the server gives it', async () => {
+    const committed: Spending = { ...budgeted, categories: [{ ...budgeted.categories[0]!, budget: { ...budgeted.categories[0]!.budget!, period: 'month', committed: '120.00' } }, budgeted.categories[1]!] };
+    spendingServer(committed);
+    await renderApp('/spending');
+
+    const cells = within(rowOf(await screen.findByRole('table', { name: 'Par catégorie' }), 'Courses')).getAllByRole('cell');
+    expect(cells[3]).toHaveTextContent(/^600,00\s€dont 120,00\s€ engagés$/);
+    expect(within(cells[3]!).getByRole('button', { name: /^À propos : dont 120,00\s€ engagés$/ })).toBeInTheDocument();
+    // A budget that follows its commitments says so already: no « dont ».
+    expect(within(rowOf(await screen.findByRole('table', { name: 'Par catégorie' }), 'Loisirs')).queryByText(/dont/)).toBeNull();
+  });
+
+  it('says when a commitment had no rate, apart from the lines', async () => {
+    spendingServer({ ...budgeted, budgetIncomplete: true });
+    await renderApp('/spending');
+
+    expect(await screen.findByText('Une échéance en devise n’a pas de taux : le budget d’après vos engagements est incomplet.')).toBeInTheDocument();
+    expect(screen.queryByText(/total incomplet/)).toBeNull();
+  });
+
+  it('offers no budget on a child of a typed budget', async () => {
+    spendingServer(budgeted);
+    const { user } = await renderApp('/spending');
+
+    const table = await screen.findByRole('table', { name: 'Par catégorie' });
+    await user.click(within(table).getByRole('button', { name: 'Afficher les sous-catégories de Courses' }));
+    expect(within(rowOf(table, 'Supermarché')).queryByRole('button', { name: /Actions sur/ })).toBeNull();
+    // Loisirs follows its commitments: Cinéma can still take one (the server refuses a pair).
+    await user.click(within(table).getByRole('button', { name: 'Afficher les sous-catégories de Loisirs' }));
+    expect(within(rowOf(table, 'Cinéma')).getByRole('button', { name: 'Actions sur Cinéma' })).toBeInTheDocument();
+  });
+
+  it('adds a budget to a category with no row, picked among the active expense ones without a budget', async () => {
+    spendingServer(budgeted);
+    const writes = budgetServer();
+    server.use(http.get('*/api/v1/banking/categories', () => HttpResponse.json([
+      { id: 'c1', name: 'Logement', kind: 'expense', archived: false },
+      { id: 'c2', parentId: 'c1', name: 'Travaux', kind: 'expense', archived: false },
+      { id: 'c3', parentId: 'c1', name: 'Ancienne', kind: 'expense', archived: true },
+      { id: 'c4', name: 'Salaires', kind: 'income', archived: false },
+      { id: COURSES, name: 'Courses', kind: 'expense', archived: false },
+    ])));
+    const { user } = await renderApp('/spending');
+
+    await user.click(await screen.findByRole('button', { name: 'Ajouter un budget' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Ajouter un budget' });
+    await user.click(await within(dialog).findByRole('combobox', { name: 'Catégorie' }));
+    const options = within(await screen.findByRole('listbox')).getAllByRole('option').map((o) => o.textContent);
+    expect(options).toEqual(['Logement', 'Logement › Travaux']);
+    await user.keyboard('{Escape}');
+    await pick(user, 'Catégorie', 'Logement › Travaux');
+    await user.type(within(dialog).getByRole('textbox', { name: 'Montant' }), '50');
+    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
+
+    await waitFor(() => expect(writes).toEqual([['PUT', 'c2', { amount: '50', period: 'month' }]]));
+    expect(await screen.findByText('Budget enregistré.')).toBeInTheDocument();
   });
 
   it('changes a budget: the amount as typed, the period chosen', async () => {

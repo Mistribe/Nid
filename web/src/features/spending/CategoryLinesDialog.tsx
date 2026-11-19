@@ -70,11 +70,11 @@ export function CategoryLinesDialog({ target, query, period, currency, onClose }
 }
 
 /** The server left out a foreign line it had no rate for. */
-export function Incomplete() {
+export function Incomplete({ text }: { text?: string }) {
   const { t } = useTranslation();
   return (
     <p role="note" className="flex items-center gap-2 text-sm">
-      <AlertTriangle aria-hidden="true" className="size-4 shrink-0 text-status-warning" />{t('spending.incomplete')}
+      <AlertTriangle aria-hidden="true" className="size-4 shrink-0 text-status-warning" />{text ?? t('spending.incomplete')}
     </p>
   );
 }

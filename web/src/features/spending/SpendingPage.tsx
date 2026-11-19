@@ -51,6 +51,9 @@ const PACE: Record<string, string> = {
 /** A row's budget menu: the visible one (table or phone list), to take the focus back after its dialog. */
 const menuId = (id: string, mobile = false) => `budget-${id}${mobile ? '-mobile' : ''}`;
 
+/** « Ajouter un budget »: its button's id is `menuId(ADD)`, so the focus goes back to it as to a row's menu. */
+const ADD = 'add';
+
 /** An arrow at the end stays focusable (`aria-disabled`), as the year stepper's. */
 const END = 'aria-disabled:cursor-default aria-disabled:opacity-50 aria-disabled:hover:bg-transparent';
 
@@ -71,14 +74,14 @@ export function SpendingPage() {
   const accounts = useBankAccounts();
   const spending = $api.useQuery('get', SPENDING, { params: { query } }, { enabled: (accounts?.length ?? 0) > 0, placeholderData: keepPreviousData });
   const [open, setOpen] = useState<{ categoryId?: string; name: string } | null>(null);
-  const [budget, setBudget] = useState<BudgetTarget | null>(null);
+  const [budget, setBudget] = useState<BudgetTarget | 'pick' | null>(null);
   const [focus, setFocus] = useState<string | null>(null);
   useEffect(() => {
     if (focus === null) return;
     [menuId(focus), menuId(focus, true)].map((id) => document.getElementById(id)).find((el) => el && el.checkVisibility?.() !== false)?.focus();
     setFocus(null);
   }, [focus]);
-  const closeBudget = () => { setFocus(budget?.id ?? null); setBudget(null); };
+  const closeBudget = () => { setFocus(budget === 'pick' ? ADD : budget?.id ?? null); setBudget(null); };
 
   const set = (patch: SpendingSearch) =>
     void navigate({ from: '/spending', to: '/spending', replace: true, resetScroll: false, search: (prev: RootSearch & SpendingSearch) => ({ ...prev, ...patch }) });
@@ -131,7 +134,7 @@ export function SpendingPage() {
 
 function Figures({ data, period, year, household, onOpen, onBudget }: {
   data: Spending; period: string; year: boolean; household: boolean; onOpen: (target: { categoryId?: string; name: string }) => void;
-  onBudget: (target: BudgetTarget) => void;
+  onBudget: (target: BudgetTarget | 'pick') => void;
 }) {
   const { t } = useTranslation();
   const money = (amount: string) => formatCurrency(amount, data.currency);
@@ -169,6 +172,13 @@ function Figures({ data, period, year, household, onOpen, onBudget }: {
             {t(`spending.budget.${mark}`)}<InfoTip label={t('spending.budget.of', { name: r.name })}>{t(`spending.budget.${mark}_tip`)}</InfoTip>
           </span>
         ) : null}
+        {/* A typed amount says how much of it is already committed. */}
+        {b.source === 'typed' && b.committed ? (
+          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+            {t('spending.budget.committed_part', { amount: money(b.committed) })}
+            <InfoTip label={t('spending.budget.committed_part', { amount: money(b.committed) })}>{t('spending.budget.committed_part_tip')}</InfoTip>
+          </span>
+        ) : null}
       </span>
     );
   };
@@ -188,7 +198,9 @@ function Figures({ data, period, year, household, onOpen, onBudget }: {
       </span>
     );
   };
-  const menu = (r: Row, mobile = false) => (r.uncategorised ? null : (
+  // A child under a parent's typed budget has none of its own to set (one budget per branch).
+  const underTyped = new Set(data.categories.filter((c) => c.budget?.source === 'typed').flatMap((c) => c.children.map((child) => child.id)));
+  const menu = (r: Row, mobile = false) => (r.uncategorised || underTyped.has(r.id) ? null : (
     <RowMenu id={menuId(r.id, mobile)} label={t('spending.budget.actions', { name: r.name })}
       items={[{ label: t('spending.budget.edit'), onSelect: () => onBudget({ id: r.id, name: r.name, budget: r.budget }) }]} />
   ));
@@ -201,12 +213,15 @@ function Figures({ data, period, year, household, onOpen, onBudget }: {
         { label: t('spending.uncategorised'), value: money(data.uncategorised.amount), tip: t('spending.uncategorised_tip') },
       ]} />
       {data.incomplete ? <Incomplete /> : null}
+      {budgets && data.budgetIncomplete ? <Incomplete text={t('spending.budget_incomplete')} /> : null}
       {year ? (
         <Suspense fallback={<Loading label={t('spending.loading')}><Skeleton className="h-48 w-full" /></Loading>}>
           <MonthsChart months={data.months} currency={data.currency} />
         </Suspense>
       ) : null}
-      <SectionCard title={t('spending.by_category')} note={period}>
+      <SectionCard title={t('spending.by_category')} note={period} actions={budgets ? (
+        <Button id={menuId(ADD)} type="button" variant="outline" size="sm" onClick={() => onBudget('pick')}>{t('spending.budget.add')}</Button>
+      ) : null}>
         {data.categories.length === 0 ? (
           <>
             <EmptyState module="/spending" level={3} title={t('spending.no_category_title')} body={t('spending.no_category_body')}

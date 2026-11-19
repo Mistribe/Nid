@@ -60,20 +60,22 @@ public class SpendingBudgetTests(PostgresFixture fixture) : IClassFixture<Postgr
         await app.NewMonthlyAsync(app.AdultA, 9.99m);
 
         var view = await SpendingAsync(app, app.AdultB);
-        Assert.Equal(("9.99", "9.99", "committed", "month", "9.99", "4.83", "on_track"), Of(Budget(view, "leisure.subscriptions")));
-        // A child's commitment counts in its parent's too.
-        Assert.Equal(("9.99", "9.99", "committed", "month", "9.99", "4.83", "on_track"), Of(Budget(view, "leisure")));
+        Assert.Equal(("9.99", "9.99", "committed", "month", "9.99", "9.99", "on_track"), Of(Budget(view, "leisure.subscriptions")));
+        // Due on the 1st, it is expected whole from then on. A child's commitment counts in its parent's too.
+        Assert.Equal(("9.99", "9.99", "committed", "month", "9.99", "9.99", "on_track"), Of(Budget(view, "leisure")));
 
         Assert.False(view.GetProperty("incomplete").GetBoolean());
+        Assert.False(view.GetProperty("budgetIncomplete").GetBoolean());
 
         // A budget with no amount follows the commitment, a month's even when the budget is yearly; a typed amount wins and shows the
         // commitment inside it.
         await BudgetAsync(app, "leisure.subscriptions", null, "year");
-        Assert.Equal(("9.99", "9.99", "committed", "month", "9.99", "4.83", "on_track"),
+        Assert.Equal(("9.99", "9.99", "committed", "month", "9.99", "9.99", "on_track"),
             Of(Budget(await SpendingAsync(app, app.AdultA), "leisure.subscriptions")));
         await BudgetAsync(app, "leisure.subscriptions", "30");
         view = await SpendingAsync(app, app.AdultA);
-        Assert.Equal(("30.00", "9.99", "typed", "month", "30.00", "14.52", "on_track"), Of(Budget(view, "leisure.subscriptions")));
+        // 9.99 due on the 1st, then the 20.01 left spread: 9.99 + 20.01 × 15 ÷ 31.
+        Assert.Equal(("30.00", "9.99", "typed", "month", "30.00", "19.67", "on_track"), Of(Budget(view, "leisure.subscriptions")));
         // A budget on a child takes the branch: the parent shows none.
         Assert.Null(Budget(view, "leisure"));
     }
@@ -95,10 +97,77 @@ public class SpendingBudgetTests(PostgresFixture fixture) : IClassFixture<Postgr
         })).EnsureSuccessStatusCode();
 
         var view = await SpendingAsync(app, app.AdultA);
-        Assert.True(view.GetProperty("incomplete").GetBoolean());
-        Assert.Equal(("9.99", "9.99", "committed", "month", "9.99", "4.83", "on_track"), Of(Budget(view, "leisure.subscriptions")));
+        // The budgets' flag, not the figures': every line had its rate.
+        Assert.True(view.GetProperty("budgetIncomplete").GetBoolean());
+        Assert.False(view.GetProperty("incomplete").GetBoolean());
+        Assert.Equal(("9.99", "9.99", "committed", "month", "9.99", "9.99", "on_track"), Of(Budget(view, "leisure.subscriptions")));
         // « Moi » computes no commitment: nothing to flag.
-        Assert.False((await SpendingAsync(app, app.AdultA, "?scope=me")).GetProperty("incomplete").GetBoolean());
+        Assert.False((await SpendingAsync(app, app.AdultA, "?scope=me")).GetProperty("budgetIncomplete").GetBoolean());
+    }
+
+    [Fact]
+    public async Task A_subscription_charged_on_the_1st_keeps_its_budget_on_track()
+    {
+        var (app, joint) = await StartAsync(fixture);
+        await using var _ = app;
+        await app.NewMonthlyAsync(app.AdultA, 9.99m);
+        await LineAsync(app, joint, new(2025, 10, 1), -9.99m, "leisure.subscriptions");
+
+        // Spread over the days, 4.83 would be expected by the 15th and the month « ahead »; the charge is due whole on the 1st.
+        Assert.Equal(("9.99", "9.99", "committed", "month", "0.00", "9.99", "on_track"),
+            Of(Budget(await SpendingAsync(app, app.AdultA), "leisure.subscriptions")));
+    }
+
+    [Fact]
+    public async Task A_typed_budget_with_no_commitment_spreads_over_the_days()
+    {
+        var (app, joint) = await StartAsync(fixture);
+        await using var _ = app;
+        await BudgetAsync(app, "food.groceries", "300");
+        // 300 × 15 ÷ 31 = 145.16; « ahead » past 159.68.
+        await LineAsync(app, joint, new(2025, 10, 3), -160m, "food.groceries");
+
+        Assert.Equal(("300.00", null, "typed", "month", "140.00", "145.16", "ahead"), Of(Budget(await SpendingAsync(app, app.AdultA), "food.groceries")));
+    }
+
+    [Fact]
+    public async Task A_loan_instalment_inside_a_typed_budget_is_expected_from_its_due_day()
+    {
+        var (app, joint) = await StartAsync(fixture);
+        await using var _ = app;
+        // 800 on the 5th of every month, interest-free: « Logement › Loyer & prêt ».
+        (await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/realestate/loans", new
+        {
+            name = "Prêt maison", currency = "EUR", visibility = "shared",
+            borrowers = new[] { new { personId = app.AdultA.Value, shareBp = 5_000 }, new { personId = app.AdultB.Value, shareBp = 5_000 } },
+            principal = "19200", disbursedOn = "2025-01-01", firstPaymentDate = "2025-01-05", totalPayments = 24,
+            rounding = "half_up", firstPeriod = "full",
+            phases = new[] { new { seq = 1, mode = "annuity", annualRate = "0", rateType = "fixed" } },
+        })).EnsureSuccessStatusCode();
+        await BudgetAsync(app, "home", "1000");
+        await LineAsync(app, joint, new(2025, 10, 5), -850m, "home.rent_loan");
+
+        // 800 + 200 × 15 ÷ 31 = 896.77: on track, where 1 000 × 15 ÷ 31 = 483.87 would read « ahead ».
+        Assert.Equal(("1000.00", "800.00", "typed", "month", "150.00", "896.77", "on_track"), Of(Budget(await SpendingAsync(app, app.AdultA), "home")));
+    }
+
+    [Fact]
+    public async Task A_private_subscription_of_the_reader_is_no_household_commitment()
+    {
+        var app = (await StartAsync(fixture)).App;
+        await using var _ = app;
+        var mine = await app.NewSubscriptionAsync("Abonnement perso", app.AdultA, Visibility.Private);
+        (await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/subscriptions/{mine.Value}/phases", new
+        {
+            startsOn = "2025-01-01",
+            price = new { amount = "9.99", currency = "EUR" },
+            every = new { count = 1, unit = "month" },
+            payer = new { type = "household" },
+        })).EnsureSuccessStatusCode();
+
+        var view = await SpendingAsync(app, app.AdultA);
+        Assert.Null(Find(view, "leisure.subscriptions"));
+        Assert.Null(Find(view, "leisure"));
     }
 
     [Fact]

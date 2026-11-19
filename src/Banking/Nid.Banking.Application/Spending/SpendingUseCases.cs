@@ -17,14 +17,14 @@ public sealed record GetSpendingQuery(VisibilityScope Scope, YearMonth? Month, Y
 
 /// <summary>
 /// Amounts in <paramref name="Currency"/> (the household's reference), positive for money spent. <paramref name="Incomplete"/>: a line in
-/// the range, or a charge a budget counts as committed, had no rate and is left out. <paramref name="Average"/>: the monthly average of the 12 months before <paramref name="From"/>, or of
+/// the range had no rate and is left out. <paramref name="BudgetIncomplete"/>: a charge a budget counts as committed had no rate and is left out. <paramref name="Average"/>: the monthly average of the 12 months before <paramref name="From"/>, or of
 /// those the accounts' history covers when fewer (whole months from the first line, and within the household's retention); null when it
 /// covers fewer than 3 of them or a line of them has no rate (every average then). <paramref name="From"/> and <paramref name="To"/> are <c>yyyy-MM</c>.
 /// <paramref name="Months"/>: every month of the range, oldest first, with what it spent under the same rules as <paramref name="Total"/>.
 /// </summary>
 public sealed record SpendingView(
     string Currency, string Total, bool Incomplete, string? Average, IReadOnlyList<SpendingCategoryView> Categories,
-    SpendingUncategorisedView Uncategorised, string From, string To, IReadOnlyList<SpendingMonthView> Months);
+    SpendingUncategorisedView Uncategorised, string From, string To, IReadOnlyList<SpendingMonthView> Months, bool BudgetIncomplete);
 
 /// <summary>One month of a <see cref="SpendingView"/>: <paramref name="Month"/> is <c>yyyy-MM</c>.</summary>
 public sealed record SpendingMonthView(string Month, string Total);
@@ -40,7 +40,8 @@ public sealed record SpendingCategoryView(
 /// #85 decisions 7 and 8: a category's budget for the month. <paramref name="Planned"/> is the typed amount (a yearly one ÷ 12), or, with
 /// <paramref name="Source"/> <c>committed</c>, what the household's expected charges of the month commit there (<paramref name="Committed"/>,
 /// null when none). <paramref name="Period"/>: <c>month</c> or <c>year</c>. <paramref name="Left"/> = planned − spent, negative once over.
-/// <paramref name="ExpectedSoFar"/>, for the current month only: planned × days elapsed (today included) ÷ days in the month.
+/// <paramref name="ExpectedSoFar"/>, for the current month only: the committed charges due on or before today, plus what planned leaves
+/// over the month's commitment × days elapsed (today included) ÷ days in the month.
 /// <paramref name="State"/>: <c>over</c> past the planned amount, <c>ahead</c> (current month) more than 10 % past the expected so far, else
 /// <c>on_track</c>; null for a month to come.
 /// </summary>
@@ -218,13 +219,13 @@ public sealed class GetSpendingHandler(
 
         var none = spent.GetValueOrDefault(Guid.Empty);
         return Result.Success(new SpendingView(
-            reference.Code, Money(spent.Values.Sum(s => s.Range)), sums.Incomplete.Count > 0 || uncommitted, Average(spent.Values.Sum(s => s.Before)),
+            reference.Code, Money(spent.Values.Sum(s => s.Range)), sums.Incomplete.Count > 0, Average(spent.Values.Sum(s => s.Before)),
             [.. tops.OrderByDescending(t => t.Range).ThenBy(t => t.View.Name, ByName).Select(t => t.View)],
             new SpendingUncategorisedView(Money(none.Range), Average(none.Before)),
-            YearMonthPattern.Iso.Format(from), YearMonthPattern.Iso.Format(to), months));
+            YearMonthPattern.Iso.Format(from), YearMonthPattern.Iso.Format(to), months, uncommitted));
     }
 
-    private sealed record Plan(decimal Planned, decimal? Committed, string Source, string Period);
+    private sealed record Plan(decimal Planned, decimal? Committed, decimal CommittedToDate, string Source, string Period);
 
     /// <summary>
     /// Each active expense category's plan for <paramref name="month"/>: its budget's typed amount, else what is committed there; none
@@ -245,22 +246,27 @@ public sealed class GetSpendingHandler(
                     : !rows.ContainsKey(category.Id) && rows.Keys.Any(r => byId[r].Parent == category.Id))
                 continue;
             var row = rows.GetValueOrDefault(category.Id);
-            var commitment = Round(commitments.GetValueOrDefault(category.Id));
+            var (due, toDate) = commitments.GetValueOrDefault(category.Id);
+            var commitment = Round(due);
             decimal? typed = row?.Amount is { } amount ? Round(row.Period == BudgetPeriod.Year ? amount / 12 : amount) : null;
             if (typed is null && commitment <= 0m)
                 continue;
-            plans[category.Id] = new Plan(typed ?? commitment, commitment > 0m ? commitment : null, typed is null ? "committed" : "typed",
+            plans[category.Id] = new Plan(typed ?? commitment, commitment > 0m ? commitment : null, Round(toDate), typed is null ? "committed" : "typed",
                 // « Annuel » describes a typed yearly amount; a commitment is the month's.
                 typed is not null && row!.Period == BudgetPeriod.Year ? "year" : "month");
         }
         return (plans, incomplete);
     }
 
-    /// <summary>Decision 8: the pace of the current month against its days elapsed; a past month's spent against planned only.</summary>
+    /// <summary>
+    /// Decision 8: the pace of the current month: a committed charge counts whole from its due day, the rest of planned by the days
+    /// elapsed; a past month's spent against planned only.
+    /// </summary>
     private static SpendingBudgetView Pace(Plan plan, decimal spent, YearMonth month, LocalDate today)
     {
         var current = month == today.ToYearMonth();
-        decimal? expected = current ? Round(plan.Planned * today.Day / month.ToDateInterval().Length) : null;
+        var spread = Math.Max(plan.Planned - (plan.Committed ?? 0m), 0m);
+        decimal? expected = current ? Round(plan.CommittedToDate + spread * today.Day / month.ToDateInterval().Length) : null;
         var state = month > today.ToYearMonth() ? null
             : spent > plan.Planned ? "over"
             : expected is { } soFar && spent > soFar * AheadMargin ? "ahead"

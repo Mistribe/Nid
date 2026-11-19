@@ -4,7 +4,7 @@ import type { Spending } from './api';
 
 /** An invented month of the demo household: two categories, one with two children, and some lines left unclassified. */
 export const month: Spending = {
-  currency: 'EUR', total: '1234.56', incomplete: false, average: '1100.00', from: '2026-11', to: '2026-11',
+  currency: 'EUR', total: '1234.56', incomplete: false, budgetIncomplete: false, average: '1100.00', from: '2026-11', to: '2026-11',
   categories: [
     { id: '11111111-1111-1111-1111-111111111111', name: 'Courses', amount: '640.10', average: '600.00', children: [
       { id: '11111111-1111-1111-1111-11111111111a', name: 'Supermarché', amount: '520.10', average: '480.00', children: [] },

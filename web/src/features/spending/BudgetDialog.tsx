@@ -1,10 +1,11 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useId, useState } from 'react';
+import { type ReactNode, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
-import { bankErrorText, presentBankError } from '@/api/banking';
+import { activeCategoryOptions, bankErrorText, presentBankError, useCategories } from '@/api/banking';
 import { ConfirmAction } from '@/components/ConfirmAction';
 import { FormDialog } from '@/components/FormDialog';
+import { ComboboxField } from '@/components/form/ComboboxField';
 import { Field } from '@/components/form/Field';
 import { fieldErrorsOf } from '@/components/form/fieldErrors';
 import { Segmented } from '@/components/form/Segmented';
@@ -23,22 +24,41 @@ export type BudgetTarget = { id: string; name: string; budget?: SpendingBudget |
 /**
  * #85: a category's budget, typed per month or per year; « Suivre mes engagements » leaves the amount to what is committed there
  * (subscriptions, loans, childcare). The household's budgets say whether one exists, the spending figures whether anything is committed.
+ * `pick`: « Ajouter un budget », the category chosen first among the active expense ones that have none.
  */
-export function BudgetDialog({ target, onClose, onDone }: { target: BudgetTarget; onClose: () => void; onDone: (message: string) => void }) {
+export function BudgetDialog({ target, onClose, onDone }: { target: BudgetTarget | 'pick'; onClose: () => void; onDone: (message: string) => void }) {
   const { t } = useTranslation();
   const { $api } = useApi();
   const budgets = $api.useQuery('get', BUDGETS);
   return (
-    <FormDialog title={t('spending.budget.title', { name: target.name })} onClose={onClose} onDone={onDone}>
+    <FormDialog title={target === 'pick' ? t('spending.budget.add') : t('spending.budget.title', { name: target.name })} onClose={onClose} onDone={onDone}>
       {({ titleId, done }) => budgets.error ? <ProblemMessage problem={presentBankError(t, budgets.error)} />
         : !budgets.data ? <Loading label={t('spending.budget.loading')}><Skeleton className="h-24 w-full" /></Loading>
+        : target === 'pick' ? <PickedBudget budgeted={budgets.data.map((b) => b.categoryId)} titleId={titleId} done={done} />
         : <BudgetForm target={target} existing={budgets.data.find((b) => b.categoryId === target.id)} titleId={titleId} done={done} />}
     </FormDialog>
   );
 }
 
-function BudgetForm({ target, existing, titleId, done }: {
-  target: BudgetTarget; existing?: { amount?: string | null; period: string }; titleId: string; done: (message?: string) => void;
+function PickedBudget({ budgeted, titleId, done }: { budgeted: string[]; titleId: string; done: (message?: string) => void }) {
+  const { t } = useTranslation();
+  const categories = useCategories();
+  const [category, setCategory] = useState('');
+  if (categories.error) return <ProblemMessage problem={presentBankError(t, categories.error)} />;
+  if (!categories.data) return <Loading label={t('spending.budget.loading')}><Skeleton className="h-24 w-full" /></Loading>;
+  const options = activeCategoryOptions(categories.data.filter((c) => c.kind === 'expense')).filter((o) => !budgeted.includes(o.value));
+  const picker = (
+    <Field label={t('spending.budget.category')}>
+      {(c) => <ComboboxField {...c} value={category} onValueChange={setCategory} options={options} placeholder={t('spending.budget.pick')}
+        searchPlaceholder={t('spending.budget.search')} empty={t('spending.budget.none_found')} />}
+    </Field>
+  );
+  const name = options.find((o) => o.value === category)?.label ?? '';
+  return <BudgetForm target={{ id: category, name }} titleId={titleId} done={done} picker={picker} />;
+}
+
+function BudgetForm({ target, existing, titleId, done, picker }: {
+  target: BudgetTarget; existing?: { amount?: string | null; period: string }; titleId: string; done: (message?: string) => void; picker?: ReactNode;
 }) {
   const { t } = useTranslation();
   const { $api } = useApi();
@@ -65,6 +85,7 @@ function BudgetForm({ target, existing, titleId, done }: {
       save(toWireAmount(amount), t('spending.budget.saved'));
     }}>
       {failure ? <ProblemMessage problem={presentBankError(t, failure)} /> : null}
+      {picker}
       <Field label={t('spending.budget.amount')} hint={t(period === 'year' ? 'spending.budget.amount_hint_year' : 'spending.budget.amount_hint_month')}
         error={field ? bankErrorText(t, field.code, field.message) : undefined}>
         {(c) => <Input inputMode="decimal" {...c} value={amount} onChange={(event) => setAmount(event.target.value)} />}
@@ -92,7 +113,7 @@ function BudgetForm({ target, existing, titleId, done }: {
           </span>
         ) : null}
         <Button type="button" variant="outline" onClick={() => done()}>{t('common.cancel')}</Button>
-        <Button type="submit" disabled={!amount.trim() || put.isPending}>{t('spending.budget.save')}</Button>
+        <Button type="submit" disabled={!target.id || !amount.trim() || put.isPending}>{t('spending.budget.save')}</Button>
       </div>
     </form>
   );

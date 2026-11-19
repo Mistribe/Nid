@@ -38820,6 +38820,7 @@ export interface components {
             from: string;
             to: string;
             months: components["schemas"]["SpendingMonthView"][];
+            budgetIncomplete: boolean;
         };
         SpentView: {
             /** Format: date */

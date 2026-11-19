@@ -60480,7 +60480,8 @@
           "uncategorised",
           "from",
           "to",
-          "months"
+          "months",
+          "budgetIncomplete"
         ],
         "type": "object",
         "properties": {
@@ -60519,6 +60520,9 @@
             "items": {
               "$ref": "#/components/schemas/SpendingMonthView"
             }
+          },
+          "budgetIncomplete": {
+            "type": "boolean"
           }
         }
       },

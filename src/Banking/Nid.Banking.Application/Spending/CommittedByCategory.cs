@@ -10,17 +10,17 @@ namespace Nid.Banking.Application.Spending;
 /// <summary>
 /// #85 decision 7: what the household's expected debits of a month commit, per category, in the reference currency; a child's amount also
 /// counts in its parent's. A charge maps as a line linked to it would (<see cref="LinkCategory.KeyFor"/>); one without a rate is left out,
-/// and <c>Incomplete</c> says so.
+/// and <c>Incomplete</c> says so. <c>ToDate</c>: the part due on or before today (the pace counts a dated charge whole from its day).
 /// </summary>
 public sealed class CommittedByCategory(
     BankingAccess access, ExpectedChargeReader charges, ISubscriptionLabels labels, ICategoryStore categories, IFxRates fx)
 {
-    public async Task<(Dictionary<Guid, decimal> Amounts, bool Incomplete)> ForAsync(
+    public async Task<(Dictionary<Guid, (decimal Month, decimal ToDate)> Amounts, bool Incomplete)> ForAsync(
         YearMonth month, Currency reference, LocalDate today, IReadOnlyDictionary<Guid, BankCategory> byId, CancellationToken ct)
     {
         var days = month.ToDateInterval();
         var due = (await charges.InScopeAsync(access.Person, VisibilityScope.Household, days.Start, days.End, ct)).Where(c => !c.Credit).ToList();
-        var committed = new Dictionary<Guid, decimal>();
+        var committed = new Dictionary<Guid, (decimal Month, decimal ToDate)>();
         if (due.Count == 0)
             return (committed, false);
 
@@ -49,9 +49,13 @@ public sealed class CommittedByCategory(
                 incomplete = true;
                 continue;
             }
-            committed[id] = committed.GetValueOrDefault(id) + amount;
-            if (byId.GetValueOrDefault(id)?.Parent is { } parent)
-                committed[parent] = committed.GetValueOrDefault(parent) + amount;
+            var toDate = charge.DueOn <= today ? amount : 0m;
+            Guid[] counted = byId.GetValueOrDefault(id)?.Parent is { } parent ? [id, parent] : [id];
+            foreach (var target in counted)
+            {
+                var (total, sofar) = committed.GetValueOrDefault(target);
+                committed[target] = (total + amount, sofar + toDate);
+            }
         }
         return (committed, incomplete);
     }

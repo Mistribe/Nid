@@ -201,6 +201,9 @@ public class McpBankingToolTests(PostgresFixture fixture) : IClassFixture<Postgr
         SameJson(await s.App.GetRawAsync(s.App.AdultA, $"{BankingApi.Root}/spending?month=2026-10"), month);
         var figures = JsonDocument.Parse(month).RootElement;
         Assert.Equal(("EUR", "12.99"), (figures.GetProperty("currency").GetString(), figures.GetProperty("total").GetString()));
+        // Two flags: a line without a rate, a commitment without one.
+        Assert.False(figures.GetProperty("incomplete").GetBoolean());
+        Assert.False(figures.GetProperty("budgetIncomplete").GetBoolean());
         SameJson(await s.App.GetRawAsync(s.App.AdultA, $"{BankingApi.Root}/spending?scope=me"), await ReadAsync(client, "get_spending", new { scope = "me" }));
 
         // Bob reads no account of a household whose only account is Alice's own.
