@@ -1,7 +1,7 @@
 import { keepPreviousData } from '@tanstack/react-query';
 import { Link, useNavigate, useSearch } from '@tanstack/react-router';
 import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { Fragment, lazy, Suspense, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
@@ -160,30 +160,41 @@ function Figures({ data, period, year, household, onOpen, onBudget }: {
   const average = (r: Row) => (r.average ? money(r.average) : '—');
   // The budget is the household's, for one month: Foyer's month view only.
   const budgets = household && !year;
+  // What qualifies a budget's amount, each word with its tip: where it comes from, and how much of a typed one is already committed.
+  const notes = (r: Row, b: SpendingBudget) => {
+    const mark = b.source === 'committed' ? 'committed' : b.period === 'year' ? 'yearly' : null;
+    const committed = b.source === 'typed' && b.committed ? t('spending.budget.committed_part', { amount: money(b.committed) }) : null;
+    return [
+      mark ? <span key="mark" className="inline-flex items-center gap-1">{t(`spending.budget.${mark}`)}<InfoTip label={t('spending.budget.of', { name: r.name })}>{t(`spending.budget.${mark}_tip`)}</InfoTip></span> : null,
+      committed ? <span key="committed" className="inline-flex items-center gap-1">{committed}<InfoTip label={committed}>{t('spending.budget.committed_part_tip')}</InfoTip></span> : null,
+    ].filter(Boolean);
+  };
   const planned = (r: Row) => {
     const b = r.budget;
     if (!b) return '—';
-    const mark = b.source === 'committed' ? 'committed' : b.period === 'year' ? 'yearly' : null;
     return (
       <span className="inline-flex flex-wrap items-center justify-end gap-x-1">
         <span className="tabular-nums">{money(b.planned)}</span>
-        {mark ? (
-          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-            {t(`spending.budget.${mark}`)}<InfoTip label={t('spending.budget.of', { name: r.name })}>{t(`spending.budget.${mark}_tip`)}</InfoTip>
-          </span>
-        ) : null}
-        {/* A typed amount says how much of it is already committed. */}
-        {b.source === 'typed' && b.committed ? (
-          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-            {t('spending.budget.committed_part', { amount: money(b.committed) })}
-            <InfoTip label={t('spending.budget.committed_part', { amount: money(b.committed) })}>{t('spending.budget.committed_part_tip')}</InfoTip>
-          </span>
-        ) : null}
+        <span className="contents text-xs text-muted-foreground">{notes(r, b)}</span>
       </span>
     );
   };
   // The server's sign, read off its text: « Dépassé de » the amount without its minus.
-  const left = (r: Row) => (!r.budget ? '—' : r.budget.left.startsWith('-') ? t('spending.budget.over_by', { amount: money(r.budget.left.slice(1)) }) : money(r.budget.left));
+  const over = (b: SpendingBudget) => (b.left.startsWith('-') ? t('spending.budget.over_by', { amount: money(b.left.slice(1)) }) : null);
+  const left = (r: Row) => (!r.budget ? '—' : over(r.budget) ?? money(r.budget.left));
+  // Phone: the budget's facts inline, wrapping as words do (« Budget 1 200,00 € · dont … engagés ⓘ · Reste 40,00 € »).
+  const budgetLine = (r: Row) => {
+    const b = r.budget;
+    if (!b) return <>{t('spending.col_budget')} —</>;
+    return (
+      <>
+        {t('spending.col_budget')} <span className="tabular-nums">{money(b.planned)}</span>
+        {notes(r, b).map((note, i) => <Fragment key={i}> · {note}</Fragment>)}
+        {' · '}{over(b) ?? <>{t('spending.col_left')} <span className="tabular-nums">{money(b.left)}</span></>}
+        {b.state ? <> {pace(r)}</> : null}
+      </>
+    );
+  };
   const pace = (r: Row) => {
     const state = r.budget?.state;
     if (!state) return '—';
@@ -240,7 +251,8 @@ function Figures({ data, period, year, household, onOpen, onBudget }: {
           <SortableTable<Row> caption={t('spending.by_category')} rows={rows} rowKey={(r) => r.id}
             subRows={(r) => r.children} expandSingle expandLabel={(r) => t('spending.expand', { name: r.name })}
             columns={[
-              { id: 'name', header: t('spending.col_category'), wrap: true, cell: name },
+              // Not `wrap`: the chevron and the name stay on one line.
+              { id: 'name', header: t('spending.col_category'), cell: name },
               { id: 'amount', header: t('spending.col_amount'), align: 'end', cell: (r) => money(r.amount) },
               // A period's amounts cover its months, the usual month one: side by side they would mislead.
               ...(year ? [] : [{ id: 'average', header: t('spending.col_average'), align: 'end' as const, cell: average }]),
@@ -258,12 +270,8 @@ function Figures({ data, period, year, household, onOpen, onBudget }: {
                 {bar(r)}
                 {year ? null : <div className="text-sm text-muted-foreground">{t('spending.average_line', { amount: average(r) })}</div>}
                 {budgets && !r.uncategorised ? (
-                  <div className="flex items-center justify-between gap-2 text-sm">
-                    <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                      <span className="text-muted-foreground">{t('spending.col_budget')} {planned(r)}</span>
-                      {r.budget ? <span className="text-muted-foreground">{t('spending.col_left')} {left(r)}</span> : null}
-                      {r.budget?.state ? pace(r) : null}
-                    </span>
+                  <div className="flex items-start justify-between gap-2 text-sm">
+                    <p className="text-muted-foreground">{budgetLine(r)}</p>
                     {menu(r, true)}
                   </div>
                 ) : null}

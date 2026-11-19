@@ -45,6 +45,12 @@ describe('« Dépenses » budgets', () => {
     // « Non classées » has no budget to set.
     expect(within(rowOf(table, 'Non classées')).queryByRole('button', { name: /Actions sur/ })).toBeNull();
     expect(screen.queryByText(/Le budget est celui du foyer/)).toBeNull();
+
+    // The phone list: the budget's facts on one line; over budget says only « Dépassé de », without « Reste ».
+    const items = within(screen.getByRole('list', { name: 'Par catégorie' })).getAllByRole('listitem');
+    const line = (i: number) => within(items[i]!).getByText(/^Budget/, { selector: 'p' });
+    expect(line(0)).toHaveTextContent(/^Budget 600,00\s€ · annuel · Dépassé de 40,10\s€ Dépassé$/);
+    expect(line(1)).toHaveTextContent(/^Budget 300,00\s€ · d’après vos engagements · Reste 5,54\s€ En avance$/);
     await expectNoAxeViolations(container);
   });
 
