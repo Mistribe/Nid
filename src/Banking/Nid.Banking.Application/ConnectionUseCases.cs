@@ -49,13 +49,17 @@ internal static class BankAuthorization
 }
 
 [RequestHandler<GetBankingStatusQuery, BankingStatusView>]
-public sealed class GetBankingStatusHandler(IHouseholdSettings settings, BankingOptions options)
+public sealed class GetBankingStatusHandler(IHouseholdSettings settings, BankingOptions options, BankingKey key, IActorAccessor actor)
     : IRequestHandler<GetBankingStatusQuery, BankingStatusView>
 {
     public async ValueTask<Result<BankingStatusView>> HandleAsync(GetBankingStatusQuery query, CancellationToken ct = default)
     {
         var household = await settings.ReadAsync(ct);
-        return Result.Success(new BankingStatusView(household.BankingEnabled, BankingAccess.Configured(household, options)));
+        var status = new BankingStatusView(household.BankingEnabled, BankingAccess.Configured(household, options));
+        // Issue #343: the administrator is told which part is missing; the others only that it is.
+        return Result.Success(actor.Current?.IsAdmin == true
+            ? status with { AppIdSaved = !string.IsNullOrWhiteSpace(household.EnableBankingAppId), KeyStatus = key.Status }
+            : status);
     }
 }
 

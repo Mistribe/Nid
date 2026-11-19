@@ -100,6 +100,18 @@ public sealed class FakeEnableBanking : IEnableBankingClient
         return Task.FromResult(FailWith is { } code ? Result.Failure(new Failure(code, "Fake provider failure.", null)) : Result.Success());
     }
 
+    /// <summary>What <c>GET /application</c> answers; unset, the call fails like an unknown application.</summary>
+    public EnableBankingApplication? Application { get; set; }
+
+    public List<string> ApplicationCalls { get; } = [];
+
+    public Task<Result<EnableBankingApplication>> ApplicationAsync(string appId, CancellationToken ct)
+    {
+        Record(ApplicationCalls, appId);
+        return Task.FromResult(FailWith is { } code ? Fail<EnableBankingApplication>(code)
+            : Application is { } application ? Result.Success(application) : Fail<EnableBankingApplication>("enablebanking.UNAUTHORIZED_ACCESS"));
+    }
+
     private static void Record<T>(List<T> list, T item)
     {
         lock (list)

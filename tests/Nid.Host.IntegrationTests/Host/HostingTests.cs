@@ -65,6 +65,40 @@ public class HostingTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
         Assert.Equal("from-a-secret-file", catalog.Commit);
     }
 
+    /// <summary>Issue #343: bank sync is optional, so its key Docker made a folder, or one Nid may not read, does not stop the host.</summary>
+    [Theory]
+    [InlineData(Nid.Banking.Contracts.BankingKeyStatus.Directory)]
+    [InlineData(Nid.Banking.Contracts.BankingKeyStatus.Unreadable)]
+    [System.Runtime.Versioning.UnsupportedOSPlatform("windows")]
+    public async Task A_bank_key_nid_cannot_read_leaves_the_other_secrets_and_says_why(string status)
+    {
+        var secrets = Directory.CreateTempSubdirectory("nid-secrets-").FullName;
+        var key = Path.Combine(secrets, Nid.Banking.Contracts.BankingKey.FileName);
+        await File.WriteAllTextAsync(Path.Combine(secrets, "Catalog__Commit"), "from-a-secret-file", TestContext.Current.CancellationToken);
+        if (status == Nid.Banking.Contracts.BankingKeyStatus.Directory)
+            Directory.CreateDirectory(key);
+        else
+        {
+            await File.WriteAllTextAsync(key, "-----BEGIN PRIVATE KEY-----", TestContext.Current.CancellationToken);
+            File.SetUnixFileMode(key, UnixFileMode.None);
+            Assert.SkipWhen(Nid.Banking.Contracts.BankingKey.CanRead(key), "root reads every file");
+        }
+
+        try
+        {
+            await using var app = await NidApp.StartAsync(fixture, settings: new Dictionary<string, string> { ["Secrets:Path"] = secrets });
+
+            Assert.Equal("from-a-secret-file", app.Services.GetRequiredService<Nid.Subscriptions.Contracts.CatalogOptions>().Commit);
+            Assert.Equal(status, app.Services.GetRequiredService<Nid.Banking.Contracts.BankingKey>().Status);
+            Assert.True(string.IsNullOrEmpty(app.Services.GetRequiredService<Nid.Banking.Contracts.BankingOptions>().PrivateKey));
+        }
+        finally
+        {
+            if (File.Exists(key))
+                File.SetUnixFileMode(key, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+        }
+    }
+
     [Fact]
     public async Task Forwarded_headers_are_trusted_from_the_configured_networks_only()
     {

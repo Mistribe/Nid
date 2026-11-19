@@ -552,7 +552,10 @@ Pour l'activer :
    "$PWD/deploy/compose.override.yaml"` (chemin absolu). Une sauvegarde prise avant la clé ne la contient pas : restaurez-la
    sans ce fichier, puis refaites l'étape 2.
 4. Dans Nid, Administration › Banque : collez l'identifiant de l'application, puis activez la synchronisation. La page
-   rappelle l'adresse de retour à déclarer.
+   rappelle l'adresse de retour à déclarer, dit si Nid a chargé la clé (absente, dossier à sa place, illisible, pas une
+   clé RSA privée en PEM) et « Tester la connexion » la soumet à Enable Banking avec l'identifiant. Si
+   `deploy/secrets/enable_banking_private_key` est un **dossier**, Docker l'a créé faute de fichier à l'étape 2 :
+   supprimez-le, copiez la clé à sa place, puis recréez `nid` (`docker compose logs nid` le signale aussi au démarrage).
 5. Chaque adulte relie **ses** banques dans Réglages › Banques (« Relier une banque » ; l'authentification se fait chez la
    banque, dans le navigateur), puis associe chaque compte à une enveloppe courante, d'épargne ou autre de même devise.
 

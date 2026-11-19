@@ -49,11 +49,15 @@ public class AdminMarkerTests
         Assert.DoesNotContain(prices, t => !typeof(IAdminOnly).IsAssignableFrom(t));
     }
 
-    /// <summary>Bank sync spec §2.8: the nightly sync and its journal are the admin's; the person's own sync is not.</summary>
+    /// <summary>Bank sync spec §2.8: the nightly sync, its journal and the diagnostics (#343) are the admin's; the person's own sync is not.</summary>
     [Fact]
     public void The_bank_sync_journal_is_admin_only()
     {
-        Type[] journal = [typeof(Nid.Banking.Application.Sync.SyncAllCommand), typeof(Nid.Banking.Application.Sync.GetBankSyncRunsQuery)];
+        Type[] journal =
+        [
+            typeof(Nid.Banking.Application.Sync.SyncAllCommand), typeof(Nid.Banking.Application.Sync.GetBankSyncRunsQuery),
+            typeof(Nid.Banking.Application.GetBankingDiagnosticsQuery), typeof(Nid.Banking.Application.TestBankingConnectionCommand),
+        ];
         Assert.DoesNotContain(journal, t => !typeof(IAdminOnly).IsAssignableFrom(t));
         Assert.False(typeof(IAdminOnly).IsAssignableFrom(typeof(Nid.Banking.Application.Sync.SyncMineCommand)));
     }

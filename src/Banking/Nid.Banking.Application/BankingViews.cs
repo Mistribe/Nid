@@ -4,8 +4,24 @@ using NodaTime;
 
 namespace Nid.Banking.Application;
 
-/// <summary>Whether bank sync is on, and whether the administrator gave it an application id and the server a private key.</summary>
-public sealed record BankingStatusView(bool Enabled, bool Configured);
+/// <summary>
+/// Whether bank sync is on, and whether the administrator gave it an application id and the server a private key. For an administrator
+/// only (issue #343), <paramref name="AppIdSaved"/> and <paramref name="KeyStatus"/> (<see cref="BankingKeyStatus"/>) say which is missing.
+/// </summary>
+public sealed record BankingStatusView(bool Enabled, bool Configured, bool? AppIdSaved = null, string? KeyStatus = null);
+
+/// <summary>
+/// Issue #343, Administration › Banque: the key's <see cref="BankingKeyStatus"/> (never the key), whether an application id is saved, and
+/// the redirect URL Nid sends the banks to, which the application must declare.
+/// </summary>
+public sealed record BankingDiagnosticsView(string KeyStatus, bool AppIdSaved, string RedirectUrl);
+
+/// <summary>
+/// Issue #343, « Tester la connexion »: <paramref name="Outcome"/> is <c>accepted</c>, <c>rejected</c> (Enable Banking answered with
+/// <paramref name="Code"/>, <c>enablebanking.&lt;ERROR&gt;</c>) or <c>unreachable</c> (no answer that could be read). Once accepted,
+/// whether the application is active and whether its redirect URLs hold the one Nid sends.
+/// </summary>
+public sealed record BankingConnectionTestView(string Outcome, string? Code = null, bool? Active = null, bool? RedirectUrlAllowed = null);
 
 public sealed record AspspView(string Name, string? Logo);
 
