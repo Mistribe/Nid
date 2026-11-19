@@ -57,6 +57,17 @@ On top of the type label:
 - `no-changelog` when the household would not notice the PR (see above).
 - `pdf` when the PR touches PDF import or attachment.
 
+## Roadmap
+
+Open issues live in the public project [Nid roadmap](https://github.com/orgs/Mistribe/projects/1)
+(`gh project … 1 --owner Mistribe`, needs the `project` scope). Its `Status` field is
+`Triage` → `Next` → `In progress` → `Done`, its `Priority` field `P1`–`P3`.
+
+- "What's next?" means the `Next` items, highest priority first (the « Next up » view), not the newest issues.
+- Workflows move items on their own: a new issue lands in `Triage`, a PR whose body says `Closes #N` moves #N to
+  `In progress`, a merge or a close moves it to `Done`. Do not set these statuses by hand.
+- Only the household sets `Priority` and moves an issue out of `Triage`.
+
 ## Web UI
 
 The web app uses shadcn/ui (`web/components.json`, components in `web/src/components/ui/`).
