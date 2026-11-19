@@ -1,0 +1,77 @@
+using System.IO.Compression;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using Nid.Host.Api;
+using Nid.Host.Auth;
+
+namespace Nid.Host.Mcp;
+
+/// <summary>
+/// #309: Nid's Claude Desktop extension. The image builds <c>mcpb/</c> (the manifest template and the vendored
+/// <c>mcp-remote</c> bridge); this zips it with the manifest filled in for this instance: its version, its <c>/mcp</c> as the
+/// default address, the instance as the privacy policy. No token is ever in the file: Claude Desktop asks for it.
+/// </summary>
+public static class McpBundle
+{
+    public const string Path = "/api/v1/mcp/nid.mcpb";
+    public const string RootKey = "Mcp:BundleRoot";
+    public const string ContentType = "application/zip";
+
+    public static IEndpointRouteBuilder MapMcpBundle(this IEndpointRouteBuilder routes)
+    {
+        // Resolved once, at startup, from the host's own settings: no part of a request ever reaches a path.
+        var configuration = routes.ServiceProvider.GetRequiredService<IConfiguration>();
+        var root = System.IO.Path.GetFullPath(configuration[RootKey]
+            ?? System.IO.Path.Combine(routes.ServiceProvider.GetRequiredService<IWebHostEnvironment>().ContentRootPath, "mcpb"));
+        var publicUrl = configuration["Auth:PublicUrl"];
+
+        routes.MapGet(Path, (HttpRequest request) =>
+            {
+                // An adult signed in to the browser; a token is for the assistant, not for fetching its own setup.
+                if (SessionClaims.ReadPersonId(request.HttpContext.User) is null)
+                    return Results.Problem(statusCode: StatusCodes.Status401Unauthorized, title: "A signed-in adult downloads the extension.");
+                // A development checkout without `npm ci` in mcpb/: nothing to hand out.
+                if (!File.Exists(System.IO.Path.Combine(root, "manifest.json")) || !Directory.Exists(System.IO.Path.Combine(root, "node_modules")))
+                    return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "The Claude Desktop extension is not built on this server.");
+
+                var origin = (publicUrl is { Length: > 0 } ? publicUrl : $"{request.Scheme}://{request.Host}").TrimEnd('/');
+                // ponytail: zipped on each download (a few MB, a click from the Sécurité page now and then); cache it if that changes.
+                return Results.File(Build(root, origin, PlatformEndpoints.Version), ContentType, "nid.mcpb");
+            })
+            .RequireAuthorization()
+            .Produces(StatusCodes.Status200OK, typeof(Stream), ContentType)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        return routes;
+    }
+
+    /// <summary>The bundle: <paramref name="root"/>'s files, its manifest filled in, without the build-time ones.</summary>
+    public static byte[] Build(string root, string origin, string version)
+    {
+        var manifest = JsonNode.Parse(File.ReadAllText(System.IO.Path.Combine(root, "manifest.json")))!.AsObject();
+        manifest["version"] = version;
+        manifest["privacy_policies"] = new JsonArray($"{origin}/");
+        manifest["user_config"]!["url"]!["default"] = $"{origin}{McpSetup.Path}";
+
+        using var buffer = new MemoryStream();
+        using (var zip = new ZipArchive(buffer, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            using (var entry = zip.CreateEntry("manifest.json").Open())
+                JsonSerializer.Serialize(entry, manifest, BundleJson.Default.JsonObject);
+            foreach (var file in Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories))
+            {
+                var name = System.IO.Path.GetRelativePath(root, file).Replace('\\', '/');
+                if (Shipped(name))
+                    zip.CreateEntryFromFile(file, name, CompressionLevel.Optimal);
+            }
+        }
+        return buffer.ToArray();
+    }
+
+    /// <summary>The package and its dependencies; never the template, nor npm's own files.</summary>
+    private static bool Shipped(string name) =>
+        name is "package.json" || (name.StartsWith("node_modules/", StringComparison.Ordinal) && !name.StartsWith("node_modules/.", StringComparison.Ordinal));
+}
+
+[System.Text.Json.Serialization.JsonSerializable(typeof(JsonObject))]
+internal sealed partial class BundleJson : System.Text.Json.Serialization.JsonSerializerContext;

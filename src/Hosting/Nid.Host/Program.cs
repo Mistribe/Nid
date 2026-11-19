@@ -236,6 +236,7 @@ app.MapFxEndpoints();
 app.MapCatalogEndpoints();
 app.MapAdminEndpoints();
 app.MapNidMcp();
+app.MapMcpBundle();
 await app.RunAsync();
 return 0;
 

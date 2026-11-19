@@ -5,6 +5,7 @@ import { Folded } from '@/components/form/Folded';
 import { Segmented } from '@/components/form/Segmented';
 import { SelectField } from '@/components/form/SelectField';
 import { InfoTip } from '@/components/InfoTip';
+import { buttonVariants } from '@/components/ui/button';
 import { CopyButton } from './CopyButton';
 import {
   AGENTS, claudeCodeCommand, claudeCodeProject, claudeDesktopConfig, codexConfig, cursorConfig, exportLine, geminiCommand,
@@ -13,6 +14,8 @@ import {
 import '@/locales/security';
 
 const REMEMBERED = 'nid.mcp.agent';
+/** Nid's Claude Desktop extension, zipped for this instance (McpBundle.cs). */
+const MCP_BUNDLE = '/api/v1/mcp/nid.mcpb';
 
 function rememberedAgent(): Agent {
   try {
@@ -59,7 +62,7 @@ export function McpHelp({ token }: { token?: string }) {
   );
 
   const steps: Record<Agent, ReactNode> = {
-    claude_desktop: <ClaudeDesktop address={address} secret={secret} copy={copy} />,
+    claude_desktop: <ClaudeDesktop address={address} secret={secret} token={token} copy={copy} />,
     claude_code: (
       <>
         <Steps>
@@ -134,7 +137,7 @@ export function McpHelp({ token }: { token?: string }) {
   );
 }
 
-function ClaudeDesktop({ address, secret, copy }: { address: string; secret: string; copy: (what: string) => string }) {
+function ClaudeDesktop({ address, secret, token, copy }: { address: string; secret: string; token?: string; copy: (what: string) => string }) {
   const { t } = useTranslation();
   const reason = unreachableReason(window.location.origin);
   const [online, setOnline] = useState(reason ? 'no' : 'yes');
@@ -165,14 +168,30 @@ function ClaudeDesktop({ address, secret, copy }: { address: string; secret: str
       ) : (
         <>
           <Steps>
-            <li>{t('mcp_help.desktop.manual_open')}</li>
             <li className="space-y-2">
-              <p>{t('mcp_help.desktop.manual_add')}</p>
-              <Snippet value={claudeDesktopConfig(address, secret)} label={copy('claude_desktop_config.json')} />
+              <p>{t('mcp_help.desktop.extension_download')}</p>
+              <a href={MCP_BUNDLE} download className={buttonVariants({ variant: 'outline' })}>{t('mcp_help.desktop.extension_link')}</a>
             </li>
-            <li>{t('mcp_help.restart', { agent: 'Claude Desktop' })}</li>
+            <li>{t('mcp_help.desktop.extension_open')}</li>
+            {token ? (
+              <li className="space-y-2">
+                <p>{t('mcp_help.desktop.extension_token')}</p>
+                <Snippet value={token} label={copy(t('mcp_help.what.token'))} />
+              </li>
+            ) : <li>{t('mcp_help.desktop.extension_token_later')}</li>}
           </Steps>
-          <p className="text-sm text-muted-foreground">{t('mcp_help.desktop.manual_stored')}</p>
+          <p className="text-sm text-muted-foreground">{t('mcp_help.desktop.extension_stored')}</p>
+          <Folded label={t('mcp_help.desktop.manual_title')} hasError={false}>
+            <Steps>
+              <li>{t('mcp_help.desktop.manual_open')}</li>
+              <li className="space-y-2">
+                <p>{t('mcp_help.desktop.manual_add')}</p>
+                <Snippet value={claudeDesktopConfig(address, secret)} label={copy('claude_desktop_config.json')} />
+              </li>
+              <li>{t('mcp_help.restart', { agent: 'Claude Desktop' })}</li>
+            </Steps>
+            <p className="text-sm text-muted-foreground">{t('mcp_help.desktop.manual_stored')}</p>
+          </Folded>
         </>
       )}
     </div>

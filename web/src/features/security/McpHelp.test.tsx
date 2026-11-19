@@ -23,11 +23,20 @@ describe('Brancher un assistant IA', () => {
     expect(within(section).getAllByRole('button', { name: 'Copier l’adresse' }).length).toBeGreaterThan(0);
     expect(section).toHaveTextContent('« Lecture + propositions » est recommandé');
     expect(section).not.toHaveTextContent('ne peut encore que consulter');
-    // jsdom's origin is http://localhost: the connector cannot reach it, so the manual configuration comes first, and why.
+    // jsdom's origin is http://localhost: the connector cannot reach it, so the extension comes first, and why.
     expect(section).toHaveTextContent('n’est pas en https');
+    expect(within(section).getByRole('link', { name: 'Télécharger l’extension (nid.mcpb)' })).toHaveAttribute('href', '/api/v1/mcp/nid.mcpb');
+    expect(section).not.toHaveTextContent('mcp-remote@');
+    await expectNoAxeViolations(container);
+  });
+
+  it('keeps the manual Claude Desktop configuration folded, its bridge pinned', async () => {
+    const { user, section } = await openHelp();
+
+    await user.click(within(section).getByRole('button', { name: 'Configuration manuelle' }));
+
     expect(section).toHaveTextContent('"mcp-remote@0.16.5"');
     expect(section).toHaveTextContent('"NID_AUTH": "Bearer <votre jeton>"');
-    await expectNoAxeViolations(container);
   });
 
   it('walks Claude Desktop through a custom connector when Nid is on the internet', async () => {

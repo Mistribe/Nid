@@ -1,5 +1,7 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { claudeDesktopConfig, codexConfig, cursorConfig, unreachableReason, vscodeConfig } from './mcpSnippets';
+import { claudeDesktopConfig, codexConfig, cursorConfig, MCP_REMOTE, unreachableReason, vscodeConfig } from './mcpSnippets';
 
 const address = 'https://nid.example.org/mcp';
 
@@ -8,6 +10,12 @@ describe('MCP snippets', () => {
     const config = JSON.parse(claudeDesktopConfig(address, 'secret')) as { mcpServers: { nid: { args: string[]; env: Record<string, string> } } };
     expect(config.mcpServers.nid.args).toEqual(['-y', 'mcp-remote@0.16.5', address, '--header', 'Authorization:${NID_AUTH}']);
     expect(config.mcpServers.nid.env).toEqual({ NID_AUTH: 'Bearer secret' });
+  });
+
+  // The manual setup and the extension run the same bridge: Renovate bumps both (.github/renovate.json, « MCP extension »).
+  it('pins the version the extension vendors', () => {
+    const bundle = JSON.parse(readFileSync(join(__dirname, '../../../../src/Hosting/Nid.Host/mcpb/package.json'), 'utf8')) as { dependencies: Record<string, string> };
+    expect(MCP_REMOTE).toBe(`mcp-remote@${bundle.dependencies['mcp-remote']}`);
   });
 
   it('reads the token from the environment, in each client’s own syntax', () => {
