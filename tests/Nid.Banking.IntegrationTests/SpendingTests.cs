@@ -147,7 +147,7 @@ public class SpendingTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
             ], Ct);
         await LineAsync(app, account, new(2025, 9, 10), -100m, "food.groceries", "USD");
         await LineAsync(app, account, new(2025, 10, 5), -50m, "food.groceries", "USD");
-        await LineAsync(app, account, new(2025, 7, 10), -20m, "food.groceries");
+        await LineAsync(app, account, new(2025, 7, 1), -20m, "food.groceries");
         await LineAsync(app, account, new(2025, 8, 10), -20m, "food.groceries");
         await LineAsync(app, account, new(2025, 8, 12), -100m, "food.groceries", "GBP");
 
@@ -182,20 +182,21 @@ public class SpendingTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
         await using var app = await BankingApi.StartAsync(fixture);
         await BankingApi.ConnectAsync(app, app.AdultA, "code-a", BankingApi.Account("uid-1", "hash-1", null, "Compte"));
         var account = (await AccountsAsync(app, app.AdultA))["Compte"];
-        await LineAsync(app, account, new(2025, 7, 10), -120m, "food.groceries");
+        // A first line on the 1st: July is a whole month.
+        await LineAsync(app, account, new(2025, 7, 1), -120m, "food.groceries");
         await LineAsync(app, account, new(2025, 8, 10), -60m, "food.groceries");
         await LineAsync(app, account, new(2025, 8, 20), -24m, "transport.fuel");
         await LineAsync(app, account, new(2025, 9, 10), -180m, "food.groceries");
         await LineAsync(app, account, new(2025, 10, 2), -10m, "food.groceries");
 
-        // July to September: three months of the twelve before October.
+        // July to September: three months of the twelve before October, and the average is theirs (384 over 3), not over 12.
         var october = await SpendingAsync(app, app.AdultA, "?scope=me");
         Assert.Equal("10.00", october.GetProperty("total").GetString());
-        Assert.Equal("32.00", october.GetProperty("average").GetString());
-        Assert.Equal("30.00", Category(Category(october, "Alimentation"), "Courses").GetProperty("average").GetString());
+        Assert.Equal("128.00", october.GetProperty("average").GetString());
+        Assert.Equal("120.00", Category(Category(october, "Alimentation"), "Courses").GetProperty("average").GetString());
         // No spending this month but an average: still listed.
         var transport = Category(october, "Transport");
-        Assert.Equal(("0.00", "2.00"), (transport.GetProperty("amount").GetString(), transport.GetProperty("average").GetString()));
+        Assert.Equal(("0.00", "8.00"), (transport.GetProperty("amount").GetString(), transport.GetProperty("average").GetString()));
         Assert.Equal(["Alimentation", "Transport"], Names(october.GetProperty("categories")));
         Assert.Equal("0.00", october.GetProperty("uncategorised").GetProperty("average").GetString());
         // Two months of history before September: no average.
@@ -215,6 +216,52 @@ public class SpendingTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
             await BankingApi.AssertRefusedAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Spending}{query}"),
                 HttpStatusCode.UnprocessableEntity, BankingCodes.SpendingPeriod);
         Assert.Equal(HttpStatusCode.BadRequest, (await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Spending}?month=2025-13")).StatusCode);
+    }
+
+    [Fact]
+    public async Task A_first_line_mid_month_leaves_that_month_out_of_the_average()
+    {
+        await using var app = await BankingApi.StartAsync(fixture);
+        await BankingApi.ConnectAsync(app, app.AdultA, "code-a", BankingApi.Account("uid-1", "hash-1", null, "Compte"));
+        var account = (await AccountsAsync(app, app.AdultA))["Compte"];
+        // June is only half there: neither a covered month nor in the sum.
+        await LineAsync(app, account, new(2025, 6, 15), -900m, "food.groceries");
+        await LineAsync(app, account, new(2025, 7, 10), -30m, "food.groceries");
+        await LineAsync(app, account, new(2025, 8, 10), -30m, "food.groceries");
+        await LineAsync(app, account, new(2025, 9, 10), -60m, "food.groceries");
+
+        Assert.Equal("40.00", (await SpendingAsync(app, app.AdultA, "?scope=me")).GetProperty("average").GetString());
+        Assert.Null(Text(await SpendingAsync(app, app.AdultA, "?scope=me&month=2025-09"), "average"));
+    }
+
+    [Fact]
+    public async Task The_average_starts_no_earlier_than_the_retention_keeps_lines()
+    {
+        await using var app = await BankingApi.StartAsync(fixture);
+        await BankingApi.ConnectAsync(app, app.AdultA, "code-a", BankingApi.Account("uid-1", "hash-1", null, "Compte"));
+        var account = (await AccountsAsync(app, app.AdultA))["Compte"];
+        // A line the purge kept (a linked one) from long before the retention: it does not make the history longer.
+        await LineAsync(app, account, new(2025, 1, 1), -900m, "food.groceries");
+        await LineAsync(app, account, new(2025, 7, 10), -30m, "food.groceries");
+        await LineAsync(app, account, new(2025, 8, 10), -30m, "food.groceries");
+        await LineAsync(app, account, new(2025, 9, 10), -60m, "food.groceries");
+
+        // No retention: January to September, 1020 over 9.
+        Assert.Equal("113.33", (await SpendingAsync(app, app.AdultA, "?scope=me")).GetProperty("average").GetString());
+        // Kept from 2025-06-15: July is the first whole month, 120 over 3.
+        await RetentionAsync(app, 4);
+        Assert.Equal("40.00", (await SpendingAsync(app, app.AdultA, "?scope=me")).GetProperty("average").GetString());
+        // Kept from 2025-07-15: August and September only.
+        await RetentionAsync(app, 3);
+        Assert.Null(Text(await SpendingAsync(app, app.AdultA, "?scope=me"), "average"));
+    }
+
+    private static async Task RetentionAsync(NidApp app, int months)
+    {
+        await using var scope = app.Services.CreateAsyncScope();
+        scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
+        Assert.True((await scope.ServiceProvider.GetRequiredService<IHouseholdSettings>()
+            .UpdateAsync(new HouseholdSettingsChange(null, null, BankRetentionMonths: months), Ct)).IsSuccess);
     }
 
     private static (string, string)[] Months(JsonElement view)
@@ -301,13 +348,18 @@ public class SpendingTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
         var account = (await AccountsAsync(app, app.AdultA))["Compte"];
         await LineAsync(app, account, new(2025, 8, 10), -20m, "food.groceries");
         await LineAsync(app, account, new(2025, 8, 12), -100m, "food.groceries", "GBP");
+        await LineAsync(app, account, new(2025, 8, 14), -15m, "transport.fuel");
 
         var figures = await SpendingAsync(app, app.AdultA, "?scope=me&month=2025-08");
+        Assert.True(figures.GetProperty("incomplete").GetBoolean());
         var id = Category(figures, "Alimentation").GetProperty("id").GetGuid();
         var lines = await LinesAsync(app, app.AdultA, $"?scope=me&month=2025-08&categoryId={id}");
 
         Assert.Equal(2, lines.GetProperty("count").GetInt32());
         Assert.Equal(("20.00", true), (lines.GetProperty("total").GetString(), lines.GetProperty("incomplete").GetBoolean()));
+        // Another category's lines all have their rate: their total is whole.
+        var fuel = await LinesAsync(app, app.AdultA, $"?scope=me&month=2025-08&categoryId={Seed("transport")}");
+        Assert.Equal(("15.00", false), (fuel.GetProperty("total").GetString(), fuel.GetProperty("incomplete").GetBoolean()));
     }
 
     [Fact]

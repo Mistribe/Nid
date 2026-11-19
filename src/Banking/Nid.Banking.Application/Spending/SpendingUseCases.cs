@@ -17,8 +17,9 @@ public sealed record GetSpendingQuery(VisibilityScope Scope, YearMonth? Month, Y
 
 /// <summary>
 /// Amounts in <paramref name="Currency"/> (the household's reference), positive for money spent. <paramref name="Incomplete"/>: a line in
-/// the range had no rate and is left out. <paramref name="Average"/>: the monthly average of the 12 months before <paramref name="From"/>,
-/// null when the accounts' history covers fewer than 3 of them or a line of them has no rate (every average then). <paramref name="From"/> and <paramref name="To"/> are <c>yyyy-MM</c>.
+/// the range had no rate and is left out. <paramref name="Average"/>: the monthly average of the 12 months before <paramref name="From"/>, or of
+/// those the accounts' history covers when fewer (whole months from the first line, and within the household's retention); null when it
+/// covers fewer than 3 of them or a line of them has no rate (every average then). <paramref name="From"/> and <paramref name="To"/> are <c>yyyy-MM</c>.
 /// <paramref name="Months"/>: every month of the range, oldest first, with what it spent under the same rules as <paramref name="Total"/>.
 /// </summary>
 public sealed record SpendingView(
@@ -68,11 +69,12 @@ public sealed class ListSpendingLinesHandler(
         List<Guid> ids = query.CategoryId is { } id
             ? [.. (await categories.AllAsync(ct)).Where(c => c.Kind == CategoryKind.Expense && (c.Id == id || c.Parent == id)).Select(c => c.Id)]
             : [];
-        var total = (query.Uncategorised ? [Guid.Empty] : ids).Sum(key => sums.ByCategory.GetValueOrDefault(key).Range);
+        List<Guid> keys = query.Uncategorised ? [Guid.Empty] : ids;
+        var total = keys.Sum(key => sums.ByCategory.GetValueOrDefault(key).Range);
 
         var (page, count) = await lines.SpendingLinesAsync(sums.Accounts, ids, query.Uncategorised, sums.From.ToDateInterval().Start, sums.To.ToDateInterval().End,
             (Math.Clamp(query.Page, 1, BankLines.MaxPage) - 1) * BankLines.PageSize, BankLines.PageSize, ct);
-        return Result.Success(new SpendingLines(await views.ViewsAsync(page, ct), GetSpendingHandler.Money(total), count, sums.Incomplete));
+        return Result.Success(new SpendingLines(await views.ViewsAsync(page, ct), GetSpendingHandler.Money(total), count, keys.Any(sums.Incomplete.Contains)));
     }
 }
 
@@ -87,11 +89,12 @@ public sealed class GetSpendingHandler(
     private static readonly StringComparer ByName = StringComparer.Create(CultureInfo.GetCultureInfo("fr-FR"), true);
 
     /// <summary>
-    /// The range's and the preceding 12 months' spending per category (Guid.Empty: none), before any view filter; the range's per month.
+    /// The range's and the preceding <paramref name="Covered"/> months' spending per category (Guid.Empty: none), before any view filter; the
+    /// range's per month. <paramref name="Incomplete"/>: the categories (Guid.Empty: none) a line of the range left without a rate.
     /// </summary>
     public sealed record Spent(
         YearMonth From, YearMonth To, IReadOnlyList<Guid> Accounts, Currency Reference, Dictionary<Guid, (decimal Range, decimal Before)> ByCategory,
-        Dictionary<YearMonth, decimal> ByMonth, bool Incomplete, bool AverageMissing);
+        Dictionary<YearMonth, decimal> ByMonth, HashSet<Guid> Incomplete, bool AverageMissing, int Covered);
 
     public async ValueTask<Result<Spent>> SpentAsync(GetSpendingQuery query, CancellationToken ct)
     {
@@ -110,17 +113,30 @@ public sealed class GetSpendingHandler(
 
         var accounts = await scopes.ForAsync(query.Scope, ct);
         var averageFrom = from.PlusMonths(-AverageMonths);
-        var sums = await lines.SpendingAsync(accounts, averageFrom.ToDateInterval().Start, to.ToDateInterval().End, ct);
+        // Decision 6: the window's whole months from the accounts' first line on, and not before the retention, whose purge keeps linked
+        // lines older than it (so the first line can lie). A month is whole when its first day is in.
+        static YearMonth Whole(LocalDate day) => day.Day == 1 ? day.ToYearMonth() : day.ToYearMonth().PlusMonths(1);
+        var covered = 0;
+        if (await lines.EarliestBookedOnAsync(accounts, ct) is { } earliest)
+        {
+            var start = Whole(earliest);
+            if ((await household.ReadAsync(ct)).BankRetentionMonths is { } retention && Whole(today.PlusMonths(-retention)) is var kept && kept > start)
+                start = kept;
+            covered = Math.Clamp(Index(from) - Index(start), 0, AverageMonths);
+        }
+        var coveredFrom = from.PlusMonths(-covered);
+        var sums = await lines.SpendingAsync(accounts, coveredFrom.ToDateInterval().Start, to.ToDateInterval().End, ct);
         var byId = (await categories.AllAsync(ct)).ToDictionary(c => c.Id);
         var reference = await household.ReferenceCurrencyAsync(ct);
         var foreign = sums.Select(s => s.Currency).Where(c => c != reference).Distinct().ToList();
         // The reference's own quote too: rates are per USD (RateTable converts through it).
         var rates = foreign.Count == 0 ? RateTable.Empty(today, 0) : await fx.LoadAsync([.. foreign, reference], averageFrom.ToDateInterval().End, today, ct);
 
-        // Per category (Guid.Empty: none), what the range spent and what the 12 months before it spent.
+        // Per category (Guid.Empty: none), what the range spent and what its covered months before it spent.
         var spent = new Dictionary<Guid, (decimal Range, decimal Before)>();
         var byMonth = new Dictionary<YearMonth, decimal>();
-        bool incomplete = false, averageMissing = false;
+        var incomplete = new HashSet<Guid>();
+        var averageMissing = false;
         foreach (var sum in sums)
         {
             // Decision 3: an expense category nets its refunds, a line with no category counts its debits only, income and transfer never.
@@ -135,7 +151,8 @@ public sealed class GetSpendingHandler(
             if (!rates.TryConvert(a, sum.Currency, reference, sum.Month.ToDateInterval().End, projected: true, out var converted, out _))
             {
                 // Never a guess: the line is left out, the range's figure flagged, and no average rather than a short one.
-                incomplete |= inRange;
+                if (inRange)
+                    incomplete.Add(sum.Category ?? Guid.Empty);
                 averageMissing |= !inRange;
                 continue;
             }
@@ -146,7 +163,7 @@ public sealed class GetSpendingHandler(
                 byMonth[sum.Month] = byMonth.GetValueOrDefault(sum.Month) + converted;
         }
 
-        return Result.Success(new Spent(from, to, accounts, reference, spent, byMonth, incomplete, averageMissing));
+        return Result.Success(new Spent(from, to, accounts, reference, spent, byMonth, incomplete, averageMissing, covered));
     }
 
     public async ValueTask<Result<SpendingView>> HandleAsync(GetSpendingQuery query, CancellationToken ct = default)
@@ -154,16 +171,14 @@ public sealed class GetSpendingHandler(
         var figures = await SpentAsync(query, ct);
         if (!figures.TryGetValue(out var sums))
             return BankingAccess.Failed<SpendingView, Spent>(figures);
-        var (from, to, accounts, reference, spent, incomplete, averageMissing) = (sums.From, sums.To, sums.Accounts, sums.Reference, sums.ByCategory, sums.Incomplete, sums.AverageMissing);
+        var (from, to, reference, spent, covered) = (sums.From, sums.To, sums.Reference, sums.ByCategory, sums.Covered);
         var months = Enumerable.Range(0, Index(to) - Index(from) + 1).Select(i => from.PlusMonths(i))
             .Select(m => new SpendingMonthView(YearMonthPattern.Iso.Format(m), Money(sums.ByMonth.GetValueOrDefault(m)))).ToList();
         var byId = (await categories.AllAsync(ct)).ToDictionary(c => c.Id);
 
-        // Decision 6: months of the window from the accounts' first line on.
-        var earliest = await lines.EarliestBookedOnAsync(accounts, ct);
-        var averaged = !averageMissing && earliest is { } e && Math.Clamp(Index(from) - Index(e.ToYearMonth()), 0, AverageMonths) >= MinHistoryMonths;
-        string? Average(decimal before) => averaged ? Money(before / AverageMonths) : null;
-        bool Shown((decimal Range, decimal Before) s) => Round(s.Range) != 0m || (averaged && Round(s.Before / AverageMonths) != 0m);
+        var averaged = !sums.AverageMissing && covered >= MinHistoryMonths;
+        string? Average(decimal before) => averaged ? Money(before / covered) : null;
+        bool Shown((decimal Range, decimal Before) s) => Round(s.Range) != 0m || (averaged && Round(s.Before / covered) != 0m);
 
         var tops = new List<(SpendingCategoryView View, decimal Range)>();
         foreach (var top in byId.Values.Where(c => c.Parent is null && c.Kind == CategoryKind.Expense))
@@ -181,7 +196,7 @@ public sealed class GetSpendingHandler(
 
         var none = spent.GetValueOrDefault(Guid.Empty);
         return Result.Success(new SpendingView(
-            reference.Code, Money(spent.Values.Sum(s => s.Range)), incomplete, Average(spent.Values.Sum(s => s.Before)),
+            reference.Code, Money(spent.Values.Sum(s => s.Range)), sums.Incomplete.Count > 0, Average(spent.Values.Sum(s => s.Before)),
             [.. tops.OrderByDescending(t => t.Range).ThenBy(t => t.View.Name, ByName).Select(t => t.View)],
             new SpendingUncategorisedView(Money(none.Range), Average(none.Before)),
             YearMonthPattern.Iso.Format(from), YearMonthPattern.Iso.Format(to), months));

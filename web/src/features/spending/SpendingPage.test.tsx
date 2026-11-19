@@ -45,7 +45,7 @@ describe('« Dépenses »', () => {
       const { user, container } = await renderApp('/spending?period=12m');
 
       const chart = await screen.findByRole('region', { name: 'Mois par mois' });
-      expect(screen.getByText('Mois habituel', { selector: 'dt' }).closest('div')).toHaveTextContent('par mois, sur les 12 mois avant la période');
+      expect(screen.getByText('Mois habituel', { selector: 'dt' }).closest('div')).toHaveTextContent('par mois, sur les mois avant la période (12 au plus)');
       const categories = screen.getByRole('table', { name: 'Par catégorie' });
       expect(within(categories).queryByRole('columnheader', { name: 'Mois habituel' })).toBeNull();
       await expectNoAxeViolations(container);
@@ -104,10 +104,21 @@ describe('« Dépenses »', () => {
   it('points to the Opérations tab while nothing is categorised, the unclassified lines still listed', async () => {
     spendingServer({ ...month, categories: [] });
     const { container } = await renderApp('/spending');
-    expect(await screen.findByRole('heading', { name: 'Aucune opération classée' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Aucune dépense classée sur cette période' })).toBeInTheDocument();
     const rows = within(screen.getByRole('table', { name: 'Par catégorie' })).getAllByRole('row').slice(1);
     expect(rows).toHaveLength(1);
     expect(rows[0]).toHaveTextContent('Non classées');
     await expectNoAxeViolations(container);
+  });
+
+  it('points Foyer to Moi while it has nothing classified, keeping the month and period', async () => {
+    const asked = spendingServer({ ...month, categories: [] });
+    const { user, router } = await renderApp('/spending?month=2026-10&period=12m');
+    expect(await screen.findByText('Les comptes que vous êtes seul à lire sont comptés dans la vue Moi.')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('link', { name: 'Voir la vue Moi' }));
+    await waitFor(() => expect(asked.at(-1)).toContain('scope=me'));
+    expect(router.state.location.search).toMatchObject({ scope: 'me', month: '2026-10', period: '12m' });
+    expect(screen.queryByText('Les comptes que vous êtes seul à lire sont comptés dans la vue Moi.')).toBeNull();
   });
 });

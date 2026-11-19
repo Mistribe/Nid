@@ -90,7 +90,7 @@ export function SpendingPage() {
       );
     if (spending.error) return <ProblemMessage problem={present(toProblem(spending.error))} />;
     if (!spending.data) return <Loading label={t('spending.loading')}><TableSkeleton columns={4} /></Loading>;
-    return <Figures data={spending.data} period={period(spending.data)} year={year} onOpen={setOpen} />;
+    return <Figures data={spending.data} period={period(spending.data)} year={year} household={query.scope === 'household'} onOpen={setOpen} />;
   };
   const period = (data: Spending) => (year ? t('spending.range', { from: monthText(data.from), to: monthText(data.to) }) : monthText(data.to));
 
@@ -105,8 +105,8 @@ export function SpendingPage() {
   );
 }
 
-function Figures({ data, period, year, onOpen }: {
-  data: Spending; period: string; year: boolean; onOpen: (target: { categoryId?: string; name: string }) => void;
+function Figures({ data, period, year, household, onOpen }: {
+  data: Spending; period: string; year: boolean; household: boolean; onOpen: (target: { categoryId?: string; name: string }) => void;
 }) {
   const { t } = useTranslation();
   const money = (amount: string) => formatCurrency(amount, data.currency);
@@ -146,8 +146,18 @@ function Figures({ data, period, year, onOpen }: {
       ) : null}
       <SectionCard title={t('spending.by_category')} note={period}>
         {data.categories.length === 0 ? (
-          <EmptyState module="/spending" level={3} title={t('spending.no_category_title')} body={t('spending.no_category_body')}
-            action={<Link to="/investments" className={buttonVariants({ variant: 'outline' })}>{t('spending.no_category_action')}</Link>} />
+          <>
+            <EmptyState module="/spending" level={3} title={t('spending.no_category_title')} body={t('spending.no_category_body')}
+              action={<Link to="/investments" className={buttonVariants({ variant: 'outline' })}>{t('spending.no_category_action')}</Link>} />
+            {/* Foyer leaves out the accounts only the person reads: they may hold every line. */}
+            {household ? (
+              <p className="pb-6 text-center text-sm text-muted-foreground">
+                {t('spending.no_category_mine')}{' '}
+                <Link from="/spending" to="/spending" search={(prev: RootSearch & SpendingSearch) => ({ ...prev, scope: 'me' as const })}
+                  className="font-medium text-foreground underline underline-offset-4">{t('spending.no_category_mine_action')}</Link>
+              </p>
+            ) : null}
+          </>
         ) : null}
         {rows.length > 0 ? (
           <SortableTable<Row> caption={t('spending.by_category')} rows={rows} rowKey={(r) => r.id}

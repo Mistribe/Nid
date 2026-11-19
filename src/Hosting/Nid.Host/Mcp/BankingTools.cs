@@ -56,8 +56,9 @@ public sealed class BankingTools
 
     [McpServerTool(Name = "get_spending", ReadOnly = true)]
     [Description("What the household's bank accounts spent by category over one month (default: the current month), with each category's "
-        + "monthly average over the 12 months before it when the history allows. Amounts are in the household's reference currency; transfers "
-        + "between accounts never count, refunds lower their category, and lines with no category are counted apart as 'uncategorised'. "
+        + "monthly average over the 12 months before it, or over the months the accounts' history covers when fewer (none under 3). Amounts "
+        + "are in the household's reference currency; transfers between accounts never count, refunds lower their category, and lines with "
+        + "no category are counted apart as 'uncategorised'. "
         + "'incomplete' means a line in another currency had no exchange rate and is left out. " + McpSetup.Untrusted)]
     public static Task<CallToolResult> GetSpending(IServiceProvider services,
         [Description("ISO month (yyyy-mm); default the current month.")] string? month = null,
