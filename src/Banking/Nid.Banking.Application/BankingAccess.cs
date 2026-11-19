@@ -84,6 +84,15 @@ public sealed class BankingAccess(
         return true;
     }
 
+    /// <summary>Every adult, a pending one (not signed in yet) included: he reads nothing, so he keeps an account from being « shared ».</summary>
+    public async Task<int> AdultCountAsync(CancellationToken ct) => (await persons.ListAsync(ct)).Count(p => p.Kind == PersonKind.Adult);
+
+    /// <summary>
+    /// Whether every adult (<paramref name="adults"/>, from <see cref="AdultCountAsync"/>) reads the account: a rule made from one
+    /// of its lines then needs no account of its own.
+    /// </summary>
+    public async Task<bool> SharedAsync(BankAccount account, int adults, CancellationToken ct) => (await ReadersAsync(account, ct)).Count == adults;
+
     private async Task<IEnumerable<PersonId>> AdultsAsync(CancellationToken ct)
         => (await persons.ListAsync(ct)).Where(p => p.Kind == PersonKind.Adult && !p.IsPending).Select(p => p.Id);
 

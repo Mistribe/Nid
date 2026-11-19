@@ -7,6 +7,7 @@ using Nid.Banking.Application.Sync;
 using Nid.Banking.Contracts;
 using Nid.Banking.Infrastructure.Persistence;
 using Nid.Core.Contracts;
+using Nid.Core.Infrastructure.Persistence;
 using Nid.Platform.Contracts;
 using Nid.TestSupport;
 using NodaTime;
@@ -127,12 +128,30 @@ public class TransactionReadTests(PostgresFixture fixture) : IClassFixture<Postg
         var refused = await app.RawAsync(app.AdultB, HttpMethod.Get, $"{BankingApi.Root}/envelopes/{privateEnvelope.Value}/transactions");
         Assert.Equal(HttpStatusCode.NotFound, refused.StatusCode);
         Assert.DoesNotContain("SECRET", await refused.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
-        Assert.Equal(["SECRET"], Labels(await ReadAsync(app, app.AdultA, privateEnvelope)));
+        var mine = await ReadAsync(app, app.AdultA, privateEnvelope);
+        Assert.Equal(["SECRET"], Labels(mine));
+        var line = mine.GetProperty("items")[0];
+        Assert.Equal(("SECRET", false), (line.GetProperty("suggestedPattern").GetString(), line.GetProperty("sharedAccount").GetBoolean()));
 
-        // On a shared envelope, B reads what A's account holds.
+        // On a shared envelope, B reads what A's account holds, and the account is every adult's.
         var shared = await app.NewEnvelopeAsync("Commun", app.AdultA, Visibility.Shared);
         Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{BankingApi.Root}/accounts/{account}", new { envelopeId = shared.Value })).StatusCode);
-        Assert.Equal(["SECRET"], Labels(await ReadAsync(app, app.AdultB, shared)));
+        var theirs = await ReadAsync(app, app.AdultB, shared);
+        Assert.Equal(["SECRET"], Labels(theirs));
+        Assert.True(theirs.GetProperty("items")[0].GetProperty("sharedAccount").GetBoolean());
+
+        // An adult who has not signed in yet reads nothing: the account is no longer every adult's.
+        await using (var core = PostgresFixture.NewCoreContext(app.ConnectionString))
+        {
+            // Room for a third adult: the test household has two.
+            await core.HouseholdSettings.ExecuteUpdateAsync(x => x.SetProperty(h => h.MaxAdults, 3), TestContext.Current.CancellationToken);
+        }
+        await using (var scope = app.Services.CreateAsyncScope())
+        {
+            scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
+            Assert.True((await scope.ServiceProvider.GetRequiredService<IPersonRegistry>().PreRegisterAdultAsync("Camille", "camille@example.test", TestContext.Current.CancellationToken)).IsSuccess);
+        }
+        Assert.False((await ReadAsync(app, app.AdultB, shared)).GetProperty("items")[0].GetProperty("sharedAccount").GetBoolean());
     }
 
     [Fact]

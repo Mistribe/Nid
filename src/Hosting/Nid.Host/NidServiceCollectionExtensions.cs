@@ -284,6 +284,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ILinkStore, LinkStore>();
         services.AddScoped<IRuleStore, RuleStore>();
         services.AddScoped<ICategoryStore, CategoryStore>();
+        services.AddScoped<ICategoryRuleStore, CategoryRuleStore>();
         services.AddScoped<IBankSyncRunLog, SyncRunLog>();
         services.AddScoped<IAccountReadLog, AccountReadLog>();
         services.AddScoped<BankingAccess>();
@@ -291,9 +292,11 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<Nid.Banking.Application.Reconciliation.LinkCategoryReader>();
         services.AddScoped<Nid.Banking.Application.Reconciliation.TransactionLinker>();
         services.AddScoped<Nid.Banking.Application.Reconciliation.CategoryBackfill>();
+        services.AddScoped<Nid.Banking.Application.Reconciliation.CategoryRuleApplier>();
         services.AddScoped<Nid.Banking.Application.Reconciliation.BankReconciliation>();
         services.AddScoped<Nid.Banking.Application.Reconciliation.RecurringDebits>();
         services.AddScoped<Nid.Banking.Application.BankLines>();
+        services.AddScoped<Nid.Banking.Application.CategoryRuleScope>();
         services.AddScoped<IProposalHandler, Nid.Banking.Application.Reconciliation.LinkProposal>();
         services.AddScoped<IProposalHandler, Nid.Banking.Application.Reconciliation.SubscriptionProposal>();
         services.AddScoped<Nid.Platform.Contracts.INotificationSource, BankingNotificationSource>();

@@ -158,6 +158,9 @@ public sealed class MixedDataset
     /// <summary>A's line on the joint account, linked to A's private subscription twin: B reads the line, never its link.</summary>
     public Guid JointLine { get; private init; }
 
+    /// <summary>A category rule restricted to A's private account: B never lists, previews or edits it.</summary>
+    public (Guid Rule, Guid Account) PrivateRule { get; private init; }
+
     /// <summary>As <see cref="PrivatePhases"/> for each private source's one-off income, by the source's row name.</summary>
     public IReadOnlyDictionary<string, Guid> PrivateOneOffs { get; private init; } = new Dictionary<string, Guid>();
 
@@ -466,10 +469,18 @@ public sealed class MixedDataset
             await scope.ServiceProvider.GetRequiredService<IRuleStore>().UpsertAsync(bankAccount, PrivateLabelA + " LIGNE", "subscriptions", items["J-AB"], app.AdultA, default);
         }
 
+        // A category rule restricted to A's private account, its pattern her private label: B sees neither the rule, its usage nor its preview.
+        var made = await app.RawAsync(app.AdultA, HttpMethod.Post, $"{BankingApi.Root}/category-rules",
+            new { pattern = PrivateLabelA, accountId = bankAccount, categoryId = Nid.Banking.Domain.CategorySeed.Find("food.groceries")!.Id });
+        if (made.StatusCode != System.Net.HttpStatusCode.Created)
+            throw new InvalidOperationException($"Seeding A's category rule failed: {made.StatusCode}");
+        var privateRule = (await BankingApi.JsonAsync(made)).GetProperty("id").GetGuid();
+
         return new MixedDataset(app, items, envelopes, incomeSources, loans, properties, scenarios, projectionScenarios, saleScenarios, goals, childcare, nannies, proposals, documents, unlinkDocuments)
         {
             NoticeB = (notice, noticeDocument),
             JointLine = jointLine,
+            PrivateRule = (privateRule, bankAccount),
             PrivatePhases = privatePhases,
             PrivateOneOffs = privateOneOffs,
         };

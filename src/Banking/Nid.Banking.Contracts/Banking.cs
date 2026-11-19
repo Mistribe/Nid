@@ -83,6 +83,15 @@ public enum CategoryKind { Expense, Income, Transfer }
 /// <summary>What set a line's category; see <c>CategoryPrecedence</c> in the Domain.</summary>
 public enum CategorySource { Link, Rule, Hand, Assistant, Hint }
 
+/// <summary>Which side of the account a rule reads: a debit is a negative amount.</summary>
+public enum RuleDirection { Debit, Credit }
+
+/// <summary>A household's rule: a line whose label (or counterparty) contains <paramref name="Pattern"/> gets <paramref name="Category"/>.
+/// <paramref name="MinAmount"/> and <paramref name="MaxAmount"/> bound the absolute amount, inclusive.</summary>
+public sealed record CategoryRule(
+    Guid Id, string Pattern, Guid? Account, RuleDirection? Direction, decimal? MinAmount, decimal? MaxAmount, Guid Category,
+    PersonId CreatedBy, Instant CreatedAt, Instant? LastUsedAt);
+
 /// <summary>A category of bank lines; <paramref name="Key"/> is a seeded one's stable key, null for the household's own.</summary>
 /// <param name="MergedInto">Set on a merged (and archived) category: where its lines went.</param>
 public sealed record BankCategory(Guid Id, Guid? Parent, string? Key, string Name, CategoryKind Kind, Instant? ArchivedAt, Guid? MergedInto);

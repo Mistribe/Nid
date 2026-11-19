@@ -10,6 +10,7 @@ import { detail, PEA } from '../testData';
 const line: BankTransaction = {
   id: 't1', bookedOn: '2026-10-27', valueOn: null, amount: '-42.10', currency: 'EUR', label: 'CARREFOUR CITY', counterparty: null,
   fromCard: true, cardName: null, fetchedVia: 'file', linkState: 'unlinked', link: null, accountName: 'Compte', category: null, categorySource: null,
+  accountId: 'acc-1', suggestedPattern: 'CARREFOUR CITY', sharedAccount: false,
 };
 const category = (over: Partial<BankCategory>): BankCategory => ({ id: 'c', parentId: null, key: null, name: '', kind: 'expense', archived: false, mergedIntoId: null, defaultName: null, ...over });
 const categories = [
@@ -32,6 +33,7 @@ function serve(over: Partial<BankTransaction> = {}) {
     http.get('*/api/v1/banking/categories', () => HttpResponse.json(categories)),
     http.put('*/api/v1/banking/transactions/:id/category', async ({ request, params }) => { writes.push(['PUT', params.id, await request.json()]); return HttpResponse.json(line); }),
     http.delete('*/api/v1/banking/transactions/:id/category', ({ params }) => { writes.push(['DELETE', params.id, null]); return HttpResponse.json(line); }),
+    http.post('*/api/v1/banking/category-rules', async ({ request }) => { writes.push(['RULE', null, await request.json()]); return HttpResponse.json({}, { status: 201 }); }),
   );
   return writes;
 }
@@ -101,6 +103,66 @@ describe('« Catégoriser… »', () => {
     await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
 
     await waitFor(() => expect(writes).toEqual([['PUT', 't1', { categoryId: null }]]));
+    // No category, no rule to offer: the dialog closes.
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+
+  it('then offers a rule from the line’s suggested pattern, on its account alone when not every adult reads it', async () => {
+    const writes = serve();
+    const user = await open();
+
+    await pick(user, 'Catégorie', 'Alimentation › Courses');
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+    const offer = await screen.findByRole('form', { name: 'Toujours classer « CARREFOUR CITY » en Alimentation › Courses\u00a0?' });
+    expect(within(offer).getByRole('textbox', { name: 'Motif' })).toHaveValue('CARREFOUR CITY');
+    expect(within(offer).getByRole('checkbox', { name: 'Seulement ce compte (Compte)' })).toBeChecked();
+    await user.clear(within(offer).getByRole('textbox', { name: 'Motif' }));
+    await user.type(within(offer).getByRole('textbox', { name: 'Motif' }), 'CARREFOUR');
+    await user.click(within(offer).getByRole('button', { name: 'Créer la règle' }));
+
+    await waitFor(() => expect(writes).toEqual([
+      ['PUT', 't1', { categoryId: 'groceries' }],
+      ['RULE', null, { pattern: 'CARREFOUR', categoryId: 'groceries', accountId: 'acc-1' }],
+    ]));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+
+  it('leaves « Seulement ce compte » unticked on an account every adult reads, and « Non merci » creates nothing', async () => {
+    const writes = serve({ sharedAccount: true });
+    const user = await open();
+
+    await pick(user, 'Catégorie', 'Alimentation');
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+    expect(await screen.findByRole('checkbox', { name: 'Seulement ce compte (Compte)' })).not.toBeChecked();
+    await user.click(screen.getByRole('button', { name: 'Non merci' }));
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(writes).toEqual([['PUT', 't1', { categoryId: 'food' }]]);
+  });
+
+  it('says so in plain words when the rule is refused on this account', async () => {
+    serve();
+    server.use(http.post('*/api/v1/banking/category-rules', () => HttpResponse.json({ status: 403, detail: 'Forbidden.' }, { status: 403 })));
+    const user = await open();
+
+    await pick(user, 'Catégorie', 'Alimentation');
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+    expect(await screen.findByRole('status')).toHaveTextContent('Catégorie enregistrée.');
+    await user.click(await screen.findByRole('button', { name: 'Créer la règle' }));
+
+    expect(await screen.findByText('Vous ne pouvez pas créer de règle sur ce compte.')).toBeInTheDocument();
+  });
+
+  it('offers no rule for a line without a suggested pattern', async () => {
+    serve({ suggestedPattern: null });
+    const user = await open();
+
+    await pick(user, 'Catégorie', 'Alimentation');
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });
 
   it('« Laisser Nid décider » hands the line back to Nid', async () => {
