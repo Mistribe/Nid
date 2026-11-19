@@ -10,6 +10,10 @@ export function formatInstant(iso: string): string {
   return `${instantDay.format(date)} à ${instantTime.format(date)}`;
 }
 
+/** The two halves of {@link formatInstant}, for a figure that stays on one line with its time under it: « 18 oct. 2026 », « 14:18 ». */
+export const formatInstantDate = (iso: string): string => instantDay.format(new Date(iso));
+export const formatInstantTime = (iso: string): string => instantTime.format(new Date(iso));
+
 const day = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long' });
 /** The day of a moment from the API, in the reader's time zone (not the UTC day its text starts with). */
 export const formatInstantDay = (iso: string): string => day.format(new Date(iso));
