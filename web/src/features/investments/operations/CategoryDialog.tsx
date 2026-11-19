@@ -1,13 +1,17 @@
-import { useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { present, toProblem } from '@/api/errors';
 import { FormDialog } from '@/components/FormDialog';
 import { ComboboxField } from '@/components/form/ComboboxField';
 import { Field } from '@/components/form/Field';
+import { fieldErrorsOf } from '@/components/form/fieldErrors';
 import { formatCurrency } from '@/components/Money';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
-import { useCategories, type BankTransaction } from '@/api/banking';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { activeCategoryOptions, bankErrorText, presentBankError, useCategories, type BankTransaction } from '@/api/banking';
 import { useLineActions } from './api';
 import '@/locales/banks';
 
@@ -15,20 +19,21 @@ import '@/locales/banks';
 const NONE = 'none';
 const AUTO = 'auto';
 
-/** A line's category by hand: an active category (« Parent › Enfant », a parent alone too), « Sans catégorie », or back to Nid's own choice. */
+/**
+ * A line's category by hand: an active category (« Parent › Enfant », a parent alone too), « Sans catégorie », or back to Nid's own choice.
+ * A category chosen for a line with a stem then offers a rule for the next ones.
+ */
 export default function CategoryDialog({ line, onClose, onDone }: { line: BankTransaction; onClose: () => void; onDone: (message: string) => void }) {
   const { t } = useTranslation();
   const { categorise, resetCategory } = useLineActions();
   const categories = useCategories();
   const [picked, setPicked] = useState(line.category?.id ?? (line.categorySource === 'hand' ? NONE : ''));
-  const active = (categories.data ?? []).filter((c) => !c.archived && !c.mergedIntoId);
+  // The chosen category's name once saved: the dialog then offers a rule instead of closing.
+  const [offer, setOffer] = useState<string | null>(null);
   const options = [
     { value: NONE, label: t('banks.categories.uncategorised') },
     { value: AUTO, label: t('banks.categories.auto') },
-    ...active.filter((p) => !p.parentId).flatMap((p) => [
-      { value: p.id, label: p.name },
-      ...active.filter((c) => c.parentId === p.id).map((c) => ({ value: c.id, label: `${p.name} › ${c.name}` })),
-    ]),
+    ...activeCategoryOptions(categories.data),
   ];
   // The line's own category may be archived by now: not on the list, so not sent back as is.
   const chosen = options.some((o) => o.value === picked);
@@ -39,14 +44,18 @@ export default function CategoryDialog({ line, onClose, onDone }: { line: BankTr
 
   return (
     <FormDialog title={t('banks.categories.title')} onClose={onClose} onDone={onDone}>
-      {({ titleId, done }) => (
+      {({ titleId, done }) => offer !== null ? <RuleOffer line={line} category={offer} categoryId={picked} done={done} /> : (
         <form aria-labelledby={titleId} noValidate className="space-y-4" onSubmit={(event) => {
           event.preventDefault();
           event.stopPropagation();
           const path = { params: { path: { id: line.id } } };
           const then = { onSuccess: () => done(t('banks.operations.done_category')) };
           if (picked === AUTO) resetCategory.mutate(path, then);
-          else if (chosen) categorise.mutate({ ...path, body: { categoryId: picked === NONE ? null : picked } }, then);
+          else if (chosen) {
+            const name = picked !== NONE && line.stem ? options.find((o) => o.value === picked)?.label : undefined;
+            categorise.mutate({ ...path, body: { categoryId: picked === NONE ? null : picked } },
+              name ? { onSuccess: () => setOffer(name) } : then);
+          }
         }}>
           <p className="text-sm text-muted-foreground">{line.label} · {formatCurrency(line.amount, line.currency)}</p>
           {problem ? <ProblemMessage problem={present(toProblem(problem))} /> : null}
@@ -60,5 +69,45 @@ export default function CategoryDialog({ line, onClose, onDone }: { line: BankTr
         </form>
       )}
     </FormDialog>
+  );
+}
+
+/** « Toujours classer « CARREFOUR CITY » en Courses ? »: the line's stem, editable; its account alone when not every adult reads it. */
+function RuleOffer({ line, category, categoryId, done }: { line: BankTransaction; category: string; categoryId: string; done: (message?: string) => void }) {
+  const { t } = useTranslation();
+  const { createRule } = useLineActions();
+  const [pattern, setPattern] = useState(line.stem ?? '');
+  const [only, setOnly] = useState(!line.sharedAccount);
+  const questionId = useId();
+  const onlyId = useId();
+  const question = useRef<HTMLParagraphElement>(null);
+  // The form that had the focus is gone: the question takes it, so it is read first.
+  useEffect(() => { question.current?.focus(); }, []);
+  const field = fieldErrorsOf(createRule.error).find((f) => f.path === 'pattern');
+
+  return (
+    <form aria-labelledby={questionId} noValidate className="space-y-4" onSubmit={(event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      createRule.mutate({ body: { pattern: pattern.trim(), categoryId, accountId: only ? line.accountId : null } },
+        { onSuccess: () => done(t('banks.categories.offer_done')) });
+    }}>
+      <p role="status" className="text-sm text-muted-foreground">{t('banks.categories.offer_saved')}</p>
+      <p id={questionId} ref={question} tabIndex={-1} className="font-medium outline-none">
+        {t('banks.categories.offer', { pattern: pattern.trim() || line.stem, category })}
+      </p>
+      {createRule.error && !field ? <ProblemMessage problem={presentBankError(t, createRule.error)} /> : null}
+      <Field label={t('banks.category_rules.pattern')} hint={t('banks.categories.offer_hint')} error={field ? bankErrorText(t, field.code, field.message) : undefined}>
+        {(c) => <Input {...c} value={pattern} maxLength={60} onChange={(event) => setPattern(event.target.value)} />}
+      </Field>
+      <div className="flex items-center gap-2">
+        <Checkbox id={onlyId} checked={only} onCheckedChange={(checked) => setOnly(checked === true)} />
+        <Label htmlFor={onlyId}>{t('banks.categories.offer_only_account', { account: line.accountName })}</Label>
+      </div>
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="outline" onClick={() => done(t('banks.operations.done_category'))}>{t('banks.categories.offer_decline')}</Button>
+        <Button type="submit" disabled={!pattern.trim() || createRule.isPending}>{t('banks.categories.offer_create')}</Button>
+      </div>
+    </form>
   );
 }

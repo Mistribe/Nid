@@ -1,5 +1,6 @@
 import type { TFunction } from 'i18next';
 import { useApi } from './ApiProvider';
+import { present, toProblem, type Presentation } from './errors';
 import '@/locales/banks';
 import type { components } from './schema';
 
@@ -78,3 +79,26 @@ export const dayMonth = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}
 
 /** A server code as a `banks.error` key (its dots would read as nesting); an unknown one reads as `fallback`. */
 export const bankErrorText = (t: TFunction, code: string, fallback: string) => t(`banks.error.${code.replaceAll('.', '_')}`, { defaultValue: fallback });
+
+/** A refusal as people read it: a banking code in French, anything else as `present` words it. */
+export function presentBankError(t: TFunction, error: unknown): Presentation {
+  const problem = toProblem(error);
+  const shown = present(problem);
+  return problem.code?.startsWith('banking.') ? { ...shown, detail: bankErrorText(t, problem.code, shown.detail ?? '') } : shown;
+}
+
+/** The active categories as a combobox lists them: each parent, then its children as « Parent › Enfant ». */
+export const activeCategoryOptions = (categories: BankCategory[] | undefined) => {
+  const active = (categories ?? []).filter((c) => !c.archived && !c.mergedIntoId);
+  return active.filter((p) => !p.parentId).flatMap((p) => [
+    { value: p.id, label: p.name },
+    ...active.filter((c) => c.parentId === p.id).map((c) => ({ value: c.id, label: `${p.name} › ${c.name}` })),
+  ]);
+};
+
+/** The household's category rules (« CARREFOUR » → Courses), the lines « Appliquer aux opérations passées » would change, and that change. */
+export type CategoryRule = components['schemas']['CategoryRuleView'];
+export const CATEGORY_RULES = '/api/v1/banking/category-rules' as const;
+export const CATEGORY_RULE = '/api/v1/banking/category-rules/{id}' as const;
+export const CATEGORY_RULE_PREVIEW = '/api/v1/banking/category-rules/{id}/preview' as const;
+export const CATEGORY_RULE_APPLY = '/api/v1/banking/category-rules/{id}/apply' as const;

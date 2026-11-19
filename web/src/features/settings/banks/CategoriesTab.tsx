@@ -4,7 +4,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
-import { present, toProblem, type Presentation } from '@/api/errors';
+import { present, toProblem } from '@/api/errors';
 import { ConfirmAction } from '@/components/ConfirmAction';
 import { FormDialog } from '@/components/FormDialog';
 import { InfoTip } from '@/components/InfoTip';
@@ -21,8 +21,9 @@ import { SortableTable } from '@/components/page/SortableTable';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { bankErrorText, CATEGORIES, CATEGORY, CATEGORY_MERGE, TRANSACTIONS, useCategories, type BankCategory } from '@/api/banking';
+import { bankErrorText, CATEGORIES, CATEGORY, CATEGORY_MERGE, presentBankError, TRANSACTIONS, useCategories, type BankCategory } from '@/api/banking';
 import '@/locales/banks';
+import { CategoryRules } from './CategoryRules';
 
 const KINDS = ['expense', 'income', 'transfer'] as const;
 type Kind = (typeof KINDS)[number];
@@ -30,13 +31,6 @@ type Kind = (typeof KINDS)[number];
 const NONE = 'none';
 
 const kindLabel = (t: TFunction, kind: string) => t(`banks.category_list.kind.${kind as Kind}`);
-
-/** A refusal as people read it: a banking code in French, anything else as `present` words it. */
-function presentError(t: TFunction, error: unknown): Presentation {
-  const problem = toProblem(error);
-  const shown = present(problem);
-  return problem.code?.startsWith('banking.') ? { ...shown, detail: bankErrorText(t, problem.code, shown.detail ?? '') } : shown;
-}
 
 /** The writes on the list; a new name or a merge shows on the bank lines too. */
 function useCategoryWrites() {
@@ -54,7 +48,7 @@ type Dialog = { mode: 'rename' | 'merge'; category: BankCategory } | { mode: 'cr
 
 /**
  * Réglages › Banques › Catégories: the household's categories by kind, each parent followed by its children; archived ones
- * folded under « Archivées »; merged ones are history and not listed.
+ * folded under « Archivées »; merged ones are history and not listed. Then the rules that pick them.
  */
 export default function CategoriesTab() {
   const { t } = useTranslation();
@@ -148,6 +142,7 @@ export default function CategoriesTab() {
             ) : null}
           </>
         )}
+      <CategoryRules />
       {dialog?.mode === 'create' ? <CreateDialog parents={tops.filter((c) => !c.parentId)} onClose={close} onDone={done} /> : null}
       {dialog?.mode === 'rename' ? <RenameDialog category={dialog.category} onClose={close} onDone={done} /> : null}
       {dialog?.mode === 'merge' ? <MergeDialog category={dialog.category} targets={targetsOf(dialog.category)} onClose={close} onDone={done} /> : null}
@@ -161,7 +156,7 @@ function useNameError(error: unknown) {
   const field = fieldErrorsOf(error).find((f) => f.path === 'name');
   return {
     name: field ? bankErrorText(t, field.code, field.message) : undefined,
-    problem: error && !field ? <ProblemMessage problem={presentError(t, error)} /> : null,
+    problem: error && !field ? <ProblemMessage problem={presentBankError(t, error)} /> : null,
   };
 }
 
@@ -210,7 +205,7 @@ function MergeDialog({ category, targets, onClose, onDone }: {
     <FormDialog title={t('banks.category_list.merge_title', { name: category.name })} onClose={onClose} onDone={onDone}>
       {({ done }) => (
         <div className="space-y-4">
-          {merge.error ? <ProblemMessage problem={presentError(t, merge.error)} /> : null}
+          {merge.error ? <ProblemMessage problem={presentBankError(t, merge.error)} /> : null}
           <Field label={t('banks.category_list.merge_into')}>
             {(c) => <ComboboxField {...c} value={into} onValueChange={setInto} options={targets} placeholder={t('banks.categories.pick')}
               searchPlaceholder={t('banks.categories.search')} empty={t('banks.categories.none_found')} />}
