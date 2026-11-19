@@ -6,9 +6,9 @@ import { pick } from '@/test/controls';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { toasts } from '@/test/toasts';
-import { formatInstant, formatInstantDay } from '@/lib/format';
+import { formatInstant, formatInstantDay, formatInstantTime } from '@/lib/format';
 import { summary } from '../../investments/testData';
-import { account, CONNECTION, connection, rule, serveBanks } from './testData';
+import { account, CARD, CONNECTION, connection, noReads, rule, serveBanks } from './testData';
 
 describe('Réglages › Banques', () => {
   beforeAll(async () => { await import('./BanksPage'); }, 30_000);
@@ -31,6 +31,30 @@ describe('Réglages › Banques', () => {
     expect(screen.getByRole('region', { name: 'Crédit Agricole' })).toHaveTextContent('Expirée');
     expect(within(screen.getByRole('navigation', { name: 'Réglages' })).getByRole('link', { name: 'Banques' })).toHaveAttribute('aria-current', 'page');
     await expectNoAxeViolations(container);
+  });
+
+  it('counts the reads without the person as Nid’s estimate, and warns before « Synchroniser » after a refusal (#365)', async () => {
+    const limitedAt = '2026-10-28T13:02:00+00:00';
+    const freesAt = '2026-10-29T04:30:00+00:00';
+    const refused = { ...noReads, limitedAt, warn: true };
+    serveBanks([connection({
+      reads: { ...noReads, unattended: 2, attended: 1, freesAt, limitedAt, warn: true },
+      accounts: [account({ reads: refused }), account({ id: CARD, name: 'Visa Premier', ibanMasked: null, kind: 'card' })],
+    }), connection({ id: 'c2', aspspName: 'Crédit Agricole', accounts: [] })]);
+    const { user } = await renderApp('/settings/banks');
+
+    const bnp = await screen.findByRole('region', { name: 'BNP Paribas' });
+    expect(bnp).toHaveTextContent(`2 / 4 lectures sans vous sur 24 h · la plus ancienne ne compte plus à ${formatInstantTime(freesAt)} · 1 lecture avec vous`);
+    await user.hover(within(bnp).getByRole('button', { name: 'À propos : Lectures de la banque' }));
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Estimation de Nid, pas le quota de la banque.');
+    expect(within(bnp).getByRole('status')).toHaveTextContent(`La banque a refusé une lecture le ${formatInstant(limitedAt)} ; prochaine tentative cette nuit. Vous pouvez quand même synchroniser.`);
+    const [, first] = within(within(bnp).getByRole('table', { name: 'Comptes de BNP Paribas' })).getAllByRole('row');
+    expect(first).toHaveTextContent(`limite de la banque le ${formatInstant(limitedAt)}`);
+    // Nothing refused, nothing read: no warning.
+    expect(within(screen.getByRole('region', { name: 'Crédit Agricole' })).queryByRole('status')).toBeNull();
+    // The warning never blocks: « Synchroniser » stays in the menu.
+    await user.click(within(bnp).getByRole('button', { name: 'Actions sur BNP Paribas' }));
+    expect(await screen.findByRole('menuitem', { name: 'Synchroniser' })).toBeEnabled();
   });
 
   it('says whether a card is debited at once or later, when the bank says so', async () => {

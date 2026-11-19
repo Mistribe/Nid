@@ -25,6 +25,7 @@ public sealed class BankingDbContext(DbContextOptions<BankingDbContext> options)
     public DbSet<RecurringGroupRow> RecurringGroups => Set<RecurringGroupRow>();
 
     public DbSet<SyncRunRow> SyncRuns => Set<SyncRunRow>();
+    public DbSet<AccountReadRow> AccountReads => Set<AccountReadRow>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -144,9 +145,20 @@ public sealed class BankingDbContext(DbContextOptions<BankingDbContext> options)
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.Transactions).HasDefaultValue(0);
+            e.Property(x => x.RateLimited).HasDefaultValue(0);
             // At most one running row, as investments.price_run: a second start fails on this index.
             e.HasIndex(x => x.Outcome).IsUnique().HasFilter("outcome = 'running'");
             e.HasIndex(x => x.StartedAt);
+        });
+
+        modelBuilder.Entity<AccountReadRow>(e =>
+        {
+            e.ToTable("account_read");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.HasIndex(x => new { x.AccountId, x.ReadAt });
+            e.HasIndex(x => x.ReadAt);
+            e.HasOne<AccountRow>().WithMany().HasForeignKey(x => x.AccountId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.MapAuditLog(ownedHere: false);

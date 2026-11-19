@@ -24,6 +24,40 @@ namespace Nid.Banking.Infrastructure.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Nid.Banking.Infrastructure.Persistence.AccountReadRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("account_id");
+
+                    b.Property<bool>("Attended")
+                        .HasColumnType("boolean")
+                        .HasColumnName("attended");
+
+                    b.Property<bool>("RateLimited")
+                        .HasColumnType("boolean")
+                        .HasColumnName("rate_limited");
+
+                    b.Property<Instant>("ReadAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("read_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_account_read");
+
+                    b.HasIndex("ReadAt")
+                        .HasDatabaseName("ix_account_read_read_at");
+
+                    b.HasIndex("AccountId", "ReadAt")
+                        .HasDatabaseName("ix_account_read_account_id_read_at");
+
+                    b.ToTable("account_read", "banking");
+                });
+
             modelBuilder.Entity("Nid.Banking.Infrastructure.Persistence.AccountRow", b =>
                 {
                     b.Property<Guid>("Id")
@@ -459,6 +493,12 @@ namespace Nid.Banking.Infrastructure.Persistence.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("proposals");
 
+                    b.Property<int>("RateLimited")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("rate_limited");
+
                     b.Property<int>("Skipped")
                         .HasColumnType("integer")
                         .HasColumnName("skipped");
@@ -699,6 +739,16 @@ namespace Nid.Banking.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("ck_audit_log_category", "category in ('write','security','import')");
                         });
+                });
+
+            modelBuilder.Entity("Nid.Banking.Infrastructure.Persistence.AccountReadRow", b =>
+                {
+                    b.HasOne("Nid.Banking.Infrastructure.Persistence.AccountRow", null)
+                        .WithMany()
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_account_read_account_account_id");
                 });
 
             modelBuilder.Entity("Nid.Banking.Infrastructure.Persistence.AccountRow", b =>
