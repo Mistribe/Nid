@@ -21,14 +21,14 @@ public class SpendingTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
 
     private static Guid Seed(string key) => CategorySeed.Find(key)!.Id;
 
-    private static async Task<Dictionary<string, Guid>> AccountsAsync(NidApp app, PersonId person)
+    internal static async Task<Dictionary<string, Guid>> AccountsAsync(NidApp app, PersonId person)
         => (await BankingApi.AccountsAsync(app, person)).EnumerateArray().ToDictionary(a => a.GetProperty("name").GetString()!, a => a.GetProperty("id").GetGuid());
 
-    private static async Task PatchAsync(NidApp app, PersonId person, Guid account, object body)
+    internal static async Task PatchAsync(NidApp app, PersonId person, Guid account, object body)
         => Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(person, HttpMethod.Patch, $"{BankingApi.Root}/accounts/{account}", body)).StatusCode);
 
     /// <summary>A booked line, filed by hand in <paramref name="category"/> when given.</summary>
-    private static async Task<Guid> LineAsync(NidApp app, Guid account, LocalDate on, decimal amount, string? category = null, string currency = "EUR")
+    internal static async Task<Guid> LineAsync(NidApp app, Guid account, LocalDate on, decimal amount, string? category = null, string currency = "EUR")
     {
         await using var scope = app.Services.CreateAsyncScope();
         scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
@@ -52,7 +52,7 @@ public class SpendingTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
             TransactionLinkState.Internal, Ct);
     }
 
-    private static async Task<JsonElement> SpendingAsync(NidApp app, PersonId person, string query = "")
+    internal static async Task<JsonElement> SpendingAsync(NidApp app, PersonId person, string query = "")
     {
         var response = await app.RawAsync(person, HttpMethod.Get, $"{Spending}{query}");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);

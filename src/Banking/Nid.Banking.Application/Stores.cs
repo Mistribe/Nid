@@ -284,7 +284,7 @@ public interface ICategoryStore
     /// <summary>
     /// Renames when <paramref name="name"/> is given, moves under <paramref name="parent"/> (null: top-level) when <paramref name="moveParent"/>,
     /// archives or unarchives when <paramref name="archived"/> is given. Archiving a parent archives its children; unarchiving a child
-    /// unarchives its parent.
+    /// unarchives its parent. A budgeted category moves under no budgeted parent (<see cref="BankingCodes.BudgetBranch"/>).
     /// </summary>
     Task<Result<BankCategory>> UpdateAsync(Guid id, string? name, Guid? parent, bool moveParent, bool? archived, CancellationToken ct);
 
@@ -292,6 +292,7 @@ public interface ICategoryStore
     /// In one transaction: moves the lines and the rules of <paramref name="from"/> to <paramref name="into"/> (their source unchanged), merges each child
     /// into the target's child of the same name (whatever the case) or moves it under the target, then archives <paramref name="from"/> as merged.
     /// A merged category is neither merged again, merged into, moved nor unarchived (<see cref="BankingCodes.CategoryArchived"/>).
+    /// A budget follows its category, refused when two would meet on one category or one branch (<see cref="BankingCodes.BudgetConflict"/>).
     /// </summary>
     Task<Result<BankCategory>> MergeAsync(Guid from, Guid into, CancellationToken ct);
 
@@ -307,6 +308,19 @@ public interface ICategoryStore
 
     /// <summary>Clears the category of the lines whose current source is one of <paramref name="sources"/>; how many changed.</summary>
     Task<int> ClearSourceAsync(IReadOnlyCollection<Guid> lines, IReadOnlyCollection<CategorySource> sources, CancellationToken ct);
+}
+
+/// <summary>#85: the household's budgets, one per category; which category may take one is the caller's to check.</summary>
+public interface ICategoryBudgetStore
+{
+    /// <summary>Every budget, archived categories' included.</summary>
+    Task<IReadOnlyList<CategoryBudget>> AllAsync(CancellationToken ct);
+
+    /// <summary>Creates or replaces the budget of <see cref="CategoryBudget.Category"/>.</summary>
+    Task SetAsync(CategoryBudget budget, CancellationToken ct);
+
+    /// <summary>Whether the category had one.</summary>
+    Task<bool> DeleteAsync(Guid category, CancellationToken ct);
 }
 
 /// <summary>The household's category rules (spec §Rules); who sees and applies one is the caller's to check.</summary>

@@ -24,6 +24,8 @@ public sealed class BankingDbContext(DbContextOptions<BankingDbContext> options)
 
     public DbSet<CategoryRuleRow> CategoryRules => Set<CategoryRuleRow>();
 
+    public DbSet<CategoryBudgetRow> CategoryBudgets => Set<CategoryBudgetRow>();
+
     public DbSet<RuleRow> Rules => Set<RuleRow>();
 
     public DbSet<RecurringGroupRow> RecurringGroups => Set<RecurringGroupRow>();
@@ -145,6 +147,22 @@ public sealed class BankingDbContext(DbContextOptions<BankingDbContext> options)
             e.Property(x => x.MaxAmount).HasColumnType("numeric(19,4)");
             // The author lives in core: no foreign key across contexts.
             e.HasOne<AccountRow>().WithMany().HasForeignKey(x => x.AccountId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<CategoryRow>().WithMany().HasForeignKey(x => x.CategoryId).OnDelete(DeleteBehavior.Restrict);
+            MapXmin(e.Property(x => x.Version));
+        });
+
+        modelBuilder.Entity<CategoryBudgetRow>(e =>
+        {
+            e.ToTable("category_budget", t =>
+            {
+                t.HasCheckConstraint("ck_category_budget_amount", "amount is null or amount >= 0");
+                t.HasCheckConstraint("ck_category_budget_period", "period in ('month','year')");
+            });
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Amount).HasColumnType("numeric(19,4)");
+            // One per category; one per branch (a parent and its children) is the store's to check.
+            e.HasIndex(x => x.CategoryId).IsUnique();
             e.HasOne<CategoryRow>().WithMany().HasForeignKey(x => x.CategoryId).OnDelete(DeleteBehavior.Restrict);
             MapXmin(e.Property(x => x.Version));
         });

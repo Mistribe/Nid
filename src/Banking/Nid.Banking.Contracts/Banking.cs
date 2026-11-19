@@ -87,6 +87,12 @@ public enum CategorySource { Link, Rule, Hand, Assistant, Hint }
 /// <summary>Which side of the account a rule reads: a debit is a negative amount.</summary>
 public enum RuleDirection { Debit, Credit }
 
+/// <summary>#85: how a budget's amount is meant, a month's or a year's.</summary>
+public enum BudgetPeriod { Month, Year }
+
+/// <summary>#85: the household's budget of an expense category; a null <paramref name="Amount"/> follows what is committed, in the reference currency.</summary>
+public sealed record CategoryBudget(Guid Category, decimal? Amount, BudgetPeriod Period);
+
 /// <summary>A household's rule: a line whose label (or counterparty) contains <paramref name="Pattern"/> gets <paramref name="Category"/>.
 /// <paramref name="MinAmount"/> and <paramref name="MaxAmount"/> bound the absolute amount, inclusive.</summary>
 public sealed record CategoryRule(

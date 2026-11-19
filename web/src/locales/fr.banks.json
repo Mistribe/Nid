@@ -77,7 +77,11 @@
       "banking_category_kind": "Une catégorie ne se range ou ne se fusionne qu'avec une catégorie du même type.",
       "banking_category_archived": "Cette catégorie est archivée : choisissez-en une en usage.",
       "banking_rule_pattern": "Un motif compte de 2 à 60 caractères, dont au moins une lettre, sans compter les préfixes de banque (CB, VIR, PRLV…).",
-      "banking_rule_amounts": "Les montants sont positifs, et le minimum ne dépasse pas le maximum."
+      "banking_rule_amounts": "Les montants sont positifs, et le minimum ne dépasse pas le maximum.",
+      "banking_budget_amount": "Un budget est un montant de zéro ou plus.",
+      "banking_budget_branch": "Un budget existe déjà sur la catégorie parente ou une sous-catégorie.",
+      "banking_budget_conflict": "La fusion mettrait deux budgets sur une même catégorie ou branche : supprimez-en un d’abord.",
+      "banking_disabled": "La synchronisation bancaire n’est pas activée."
     },
     "connect_dialog": {
       "bank": "Banque",

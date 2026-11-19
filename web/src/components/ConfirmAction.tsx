@@ -49,7 +49,7 @@ export function ConfirmAction(props: {
 
   return (
     <>
-      <Button ref={triggerRef} variant="outline" size="sm" disabled={props.disabled || props.pending} onClick={() => setAsking(true)}>{props.label}</Button>
+      <Button ref={triggerRef} type="button" variant="outline" size="sm" disabled={props.disabled || props.pending} onClick={() => setAsking(true)}>{props.label}</Button>
       {asking ? (
         <Suspense fallback={null}>
           <ConfirmDialog label={props.label} title={props.title} confirmation={props.confirmation} pending={props.pending} onClose={() => setAsking(false)}

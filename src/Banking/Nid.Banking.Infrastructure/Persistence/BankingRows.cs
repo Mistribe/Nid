@@ -170,6 +170,21 @@ public sealed class CategoryRuleRow
     public uint Version { get; set; }
 }
 
+/// <summary>#85: the household's budget of an expense category, one per category and per branch (a parent or its children).</summary>
+public sealed class CategoryBudgetRow
+{
+    public Guid Id { get; set; }
+    public Guid CategoryId { get; set; }
+
+    /// <summary>In the household's reference currency; null follows what is committed.</summary>
+    public decimal? Amount { get; set; }
+
+    /// <summary><c>month</c> or <c>year</c>.</summary>
+    public string Period { get; set; } = "";
+
+    public uint Version { get; set; }
+}
+
 public sealed class LinkRow
 {
     public Guid TransactionId { get; set; }
