@@ -140,6 +140,13 @@ export function BankingPage() {
               ? { label: t('admin.banking.next_run'), value: formatInstantDate(d.nextRunAt),
                 hint: settings.bankingEnabled ? t('admin.banking.next_run_hint', { time: formatInstantTime(d.nextRunAt) }) : t('admin.banking.next_run_off_hint') }
               : { label: t('admin.banking.next_run'), value: t('admin.banking.next_run_none'), hint: t('admin.banking.next_run_none_hint') },
+            // #365: Nid's own count, never the bank's quota; counts only, no bank or account named.
+            ...(d.reads ? [{
+              label: t('admin.banking.reads'), tip: t('admin.banking.reads_tip'),
+              value: t('admin.banking.reads_value', { count: d.reads.unattended, limit: d.reads.limit }),
+              hint: d.reads.limitedAt ? t('admin.banking.reads_limited', { date: formatInstant(d.reads.limitedAt) })
+                : d.reads.freesAt ? t('admin.banking.reads_frees', { time: formatInstantTime(d.reads.freesAt) }) : t('admin.banking.reads_estimate'),
+            }] : []),
           ]} />
           <div aria-live="polite" className="space-y-1">
             {testProblem ? <ProblemMessage problem={testProblem} /> : null}
@@ -203,7 +210,7 @@ export function BankingPage() {
 
       <Section title={t('admin.banking.runs_title')}>
         {runs.error ? <ProblemMessage problem={present(toProblem(runs.error))} /> : null}
-        {!runs.error && (!runs.data || (runs.data.items.length === 0 && runs.data.total > 0)) ? <Loading label={t('admin.loading')}><TableSkeleton columns={10} /></Loading> : null}
+        {!runs.error && (!runs.data || (runs.data.items.length === 0 && runs.data.total > 0)) ? <Loading label={t('admin.loading')}><TableSkeleton columns={11} /></Loading> : null}
         {runs.data && runs.data.total === 0 ? (
           <EmptyState module="/admin" level={3} title={t('admin.banking.no_runs')}
             body={d.nextRunAt ? t('admin.banking.no_runs_next', { date: formatInstant(d.nextRunAt) }) : t('admin.banking.no_runs_unscheduled')}
@@ -222,13 +229,14 @@ export function BankingPage() {
                 { id: 'proposals', header: t('admin.banking.proposals'), cell: (r) => r.proposals },
                 { id: 'written', header: t('admin.banking.written'), cell: (r) => r.written },
                 { id: 'skipped', header: t('admin.banking.skipped'), cell: (r) => r.skipped },
+                { id: 'rate_limited', header: t('admin.banking.rate_limited'), cell: (r) => r.rateLimited ?? 0 },
                 { id: 'failure', header: t('admin.banking.failure'), wrap: true, className: 'min-w-56', cell: (r) => <Failure run={r} /> },
               ]}
               mobile={(r) => (
                 <>
                   <p className="flex flex-wrap items-center gap-2 font-medium">{formatInstant(r.startedAt)} · {triggerText(t, r.trigger)} <Outcome outcome={r.outcome} /></p>
                   <p className="text-sm text-muted-foreground">
-                    {t('admin.banking.connections')} {r.connections} · {t('admin.banking.accounts')} {r.accounts} · {t('admin.banking.balances')} {r.balances} · {t('admin.banking.proposals')} {r.proposals} · {t('admin.banking.written')} {r.written} · {t('admin.banking.skipped')} {r.skipped}
+                    {t('admin.banking.connections')} {r.connections} · {t('admin.banking.accounts')} {r.accounts} · {t('admin.banking.balances')} {r.balances} · {t('admin.banking.proposals')} {r.proposals} · {t('admin.banking.written')} {r.written} · {t('admin.banking.skipped')} {r.skipped} · {t('admin.banking.rate_limited')} {r.rateLimited ?? 0}
                   </p>
                   {r.failureCode ? <p className="text-sm"><Failure run={r} /></p> : null}
                 </>

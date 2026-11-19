@@ -134,6 +134,10 @@
         "threshold": "Marge (€)",
         "tip": "Part du dernier solde synchronisé de chaque compte courant (7 jours au plus) et retire les prélèvements attendus d’ici votre prochain revenu, ou sur 31 jours sans revenu prévu. Prévient quand le solde passerait sous la marge, avec le jour concerné. Les montants n’apparaissent que dans Nid."
       },
+      "card_unused": {
+        "threshold": "Jours avant la fin du mois",
+        "tip": "Pour chaque carte dont vous avez réglé l’utilisation minimale (Réglages › Banques, « Régler »), compte ses paiements du mois, remboursements exclus. Prévient une fois par mois, ce nombre de jours avant la fin du mois, si le minimum n’est pas atteint. Rien n’est conclu sur une carte qui n’a pas été lue depuis 2 jours ou dont le consentement a expiré."
+      },
       "idle_cash": {
         "threshold": "Épargne de précaution (mois)",
         "tip": "Additionne chaque jour les soldes synchronisés de vos comptes courants. Prévient une fois par mois quand ce total est resté au-dessus de votre épargne de précaution les 28 derniers jours, et qu’un livret réglementé a encore de la place ou qu’un objectif est en retard. L’épargne de précaution est la cible de votre objectif du même nom, sinon ce nombre de mois de vos engagements. Les montants n’apparaissent que dans Nid."

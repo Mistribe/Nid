@@ -13,7 +13,7 @@ describe('the ⌘K palette', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Rechercher ou aller à…' }));
     const palette = await screen.findByRole('dialog', { name: 'Aller à' });
-    expect(within(palette).getByRole('option', { name: 'Placements' })).toBeInTheDocument();
+    expect(within(palette).getByRole('option', { name: 'Comptes et placements' })).toBeInTheDocument();
     expect(within(palette).getByRole('option', { name: 'Ajouter un crédit' })).toBeInTheDocument();
     expect(within(palette).getByRole('option', { name: 'Nouvel objectif' })).toBeInTheDocument();
     await user.keyboard('{Escape}');
@@ -22,7 +22,7 @@ describe('the ⌘K palette', () => {
     await user.keyboard('{Control>}k{/Control}');
     const again = await screen.findByRole('dialog', { name: 'Aller à' });
     await user.type(within(again).getByRole('combobox'), 'abonn');
-    expect(within(again).queryByRole('option', { name: 'Placements' })).toBeNull();
+    expect(within(again).queryByRole('option', { name: 'Comptes et placements' })).toBeNull();
     await user.click(within(again).getByRole('option', { name: 'Abonnements' }));
     await waitFor(() => expect(router.state.location.pathname).toBe('/subscriptions'));
   });

@@ -24,13 +24,24 @@ public sealed record BankConnection(
 /// <param name="HouseholdName">The household's own name for it, which no session read touches; null: the bank's.</param>
 /// <param name="BankName">The name the bank's last session gave (empty when it gave none); null on a record built without it, where it is <paramref name="Name"/>.</param>
 /// <param name="Debit">A card's immediate or deferred debit, when the bank says which.</param>
+/// <param name="Holder">The holder's name, as the bank gives it (#353).</param>
+/// <param name="Product">The bank's product name (a card's range), as the bank gives it (#353).</param>
+/// <param name="MinPayments">#362: a card's minimum payments a calendar month, which the household sets (null: no rule).</param>
+/// <param name="CountWithdrawals">#362: whether a cash withdrawal counts as one of those payments.</param>
 public sealed record BankAccount(
     Guid Id, string? IbanMasked, string Name, BankAccountKind Kind, Currency Currency, ItemId? Envelope, Guid? CardOf, bool AutoApplyBalance,
     bool Ignored, LocalDate? BalanceConflictOn, LocalDate? AssociatedOn, PersonId CreatedBy, LocalDate? LastValuedOn = null, PersonId? AssociatedBy = null,
-    string? HouseholdName = null, string? BankName = null, CardDebit? Debit = null);
+    string? HouseholdName = null, string? BankName = null, CardDebit? Debit = null, string? Holder = null, string? Product = null,
+    int? MinPayments = null, bool CountWithdrawals = false);
 
 /// <summary>A connection that sees an account, under the account's uid in that connection's session.</summary>
 public sealed record BankAccountSource(Guid Account, Guid Connection, string ProviderUid, string IdentificationHash);
+
+/// <summary>
+/// #365: one read of an account at its bank by the sync (its balances and lines, one pass), <paramref name="Attended"/> when the person's
+/// browser was forwarded (a click on « Synchroniser »), <paramref name="RateLimited"/> when the bank refused it for its read limit.
+/// </summary>
+public sealed record BankRead(Guid Account, Instant At, bool Attended, bool RateLimited);
 
 /// <summary>The balance kept for an account and a day (spec §2.4), of the type chosen by spec §4.2.</summary>
 public sealed record BankBalance(Guid Account, LocalDate AsOf, decimal Amount, string BalanceType, Instant FetchedAt);
@@ -38,11 +49,12 @@ public sealed record BankBalance(Guid Account, LocalDate AsOf, decimal Amount, s
 /// <summary>
 /// An account as a bank session lists it: <paramref name="Uid"/> holds for that session only, <paramref name="IdentificationHash"/> across
 /// sessions; <paramref name="CashAccountType"/> is the ISO 20022 code (<c>CACC</c>, <c>SVGS</c>, <c>CARD</c>…). <paramref name="Name"/> is the bank's
-/// most readable field (empty when none reads as a name), <paramref name="NumberLast4"/> a card number's last four digits when it has no IBAN.
+/// most readable field (empty when none reads as a name), <paramref name="NumberLast4"/> a card number's last four digits when it has no IBAN,
+/// <paramref name="Holder"/> and <paramref name="Product"/> the bank's <c>name</c> and <c>product</c> when they read as words.
 /// </summary>
 public sealed record SessionAccount(
     string Uid, string IdentificationHash, string? Iban, string Name, string CashAccountType, string Currency, CardDebit? Debit = null,
-    string? NumberLast4 = null);
+    string? NumberLast4 = null, string? Holder = null, string? Product = null);
 
 /// <summary>Where a bank transaction stands against the household's own records; <c>Unlinked</c> in 5B, the others are 5C's.</summary>
 public enum TransactionLinkState { Unlinked, Linked, Ignored, Internal }

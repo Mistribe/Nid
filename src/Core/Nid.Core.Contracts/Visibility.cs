@@ -6,8 +6,17 @@ public enum VisibilityScope
     /// <summary>Shared items only.</summary>
     Household,
 
-    /// <summary>Shared items plus the actor's own private ones.</summary>
+    /// <summary>
+    /// Shared items plus the actor's own private ones: everything the actor reads, which the routine, the reminders, the bank
+    /// reconciliation and the output guard work on.
+    /// </summary>
     Me,
+
+    /// <summary>
+    /// #360: the « Moi » selector: <see cref="Me"/> without the items only dependents own (a child's account), which both adults read
+    /// but neither holds. What the person picks as « Moi » in a page, a tool or a saved scenario.
+    /// </summary>
+    Mine,
 }
 
 /// <summary>

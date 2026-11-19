@@ -24,6 +24,40 @@ namespace Nid.Banking.Infrastructure.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Nid.Banking.Infrastructure.Persistence.AccountReadRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("account_id");
+
+                    b.Property<bool>("Attended")
+                        .HasColumnType("boolean")
+                        .HasColumnName("attended");
+
+                    b.Property<bool>("RateLimited")
+                        .HasColumnType("boolean")
+                        .HasColumnName("rate_limited");
+
+                    b.Property<Instant>("ReadAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("read_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_account_read");
+
+                    b.HasIndex("ReadAt")
+                        .HasDatabaseName("ix_account_read_read_at");
+
+                    b.HasIndex("AccountId", "ReadAt")
+                        .HasDatabaseName("ix_account_read_account_id_read_at");
+
+                    b.ToTable("account_read", "banking");
+                });
+
             modelBuilder.Entity("Nid.Banking.Infrastructure.Persistence.AccountRow", b =>
                 {
                     b.Property<Guid>("Id")
@@ -46,9 +80,17 @@ namespace Nid.Banking.Infrastructure.Persistence.Migrations
                         .HasColumnType("date")
                         .HasColumnName("balance_conflict_on");
 
+                    b.Property<bool>("CardCountWithdrawals")
+                        .HasColumnType("boolean")
+                        .HasColumnName("card_count_withdrawals");
+
                     b.Property<string>("CardDebit")
                         .HasColumnType("text")
                         .HasColumnName("card_debit");
+
+                    b.Property<int?>("CardMinPayments")
+                        .HasColumnType("integer")
+                        .HasColumnName("card_min_payments");
 
                     b.Property<Guid?>("CardOfAccountId")
                         .HasColumnType("uuid")
@@ -66,6 +108,10 @@ namespace Nid.Banking.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("EnvelopeItemId")
                         .HasColumnType("uuid")
                         .HasColumnName("envelope_item_id");
+
+                    b.Property<string>("Holder")
+                        .HasColumnType("text")
+                        .HasColumnName("holder");
 
                     b.Property<string>("HouseholdName")
                         .HasColumnType("text")
@@ -97,6 +143,10 @@ namespace Nid.Banking.Infrastructure.Persistence.Migrations
                         .HasColumnType("text")
                         .HasColumnName("name");
 
+                    b.Property<string>("Product")
+                        .HasColumnType("text")
+                        .HasColumnName("product");
+
                     b.Property<uint>("Version")
                         .IsConcurrencyToken()
                         .ValueGeneratedOnAddOrUpdate()
@@ -121,11 +171,17 @@ namespace Nid.Banking.Infrastructure.Persistence.Migrations
                         {
                             t.HasCheckConstraint("ck_account_card_debit", "card_debit is null or card_debit in ('immediate','deferred')");
 
+                            t.HasCheckConstraint("ck_account_card_min_payments", "card_min_payments is null or (kind = 'card' and card_min_payments between 1 and 31)");
+
+                            t.HasCheckConstraint("ck_account_holder", "holder is null or char_length(holder) between 1 and 200");
+
                             t.HasCheckConstraint("ck_account_household_name", "household_name is null or char_length(household_name) between 1 and 100");
 
                             t.HasCheckConstraint("ck_account_iban_masked", "iban_masked is null or char_length(iban_masked) <= 4");
 
                             t.HasCheckConstraint("ck_account_kind", "kind in ('checking','savings','card','other')");
+
+                            t.HasCheckConstraint("ck_account_product", "product is null or char_length(product) between 1 and 200");
                         });
                 });
 
@@ -574,6 +630,12 @@ namespace Nid.Banking.Infrastructure.Persistence.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("proposals");
 
+                    b.Property<int>("RateLimited")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("rate_limited");
+
                     b.Property<int>("Skipped")
                         .HasColumnType("integer")
                         .HasColumnName("skipped");
@@ -845,6 +907,16 @@ namespace Nid.Banking.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("ck_audit_log_category", "category in ('write','security','import')");
                         });
+                });
+
+            modelBuilder.Entity("Nid.Banking.Infrastructure.Persistence.AccountReadRow", b =>
+                {
+                    b.HasOne("Nid.Banking.Infrastructure.Persistence.AccountRow", null)
+                        .WithMany()
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_account_read_account_account_id");
                 });
 
             modelBuilder.Entity("Nid.Banking.Infrastructure.Persistence.AccountRow", b =>

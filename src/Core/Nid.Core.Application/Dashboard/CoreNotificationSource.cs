@@ -98,7 +98,7 @@ public sealed class CoreNotificationSource(
     {
         decimal? now = view.Envelopes > 0 && view.NetWorth.Total is { } total ? decimal.Parse(total.Amount, CultureInfo.InvariantCulture) : null;
         var monthEnd = new LocalDate(today.Year, today.Month, 1).PlusDays(-1);
-        var read = await Contributions.CollectAsync(netWorth, c => c.NetWorthHistoryAsync(reader, VisibilityScope.Me, [monthEnd], ct));
+        var read = await Contributions.CollectAsync(netWorth, c => c.NetWorthHistoryAsync(reader, VisibilityScope.Mine, [monthEnd], ct));
         if (!read.TryGetValue(out var parts))
         {
             logger.LogWarning("The net worth history of {Person} could not be read: {Code}", reader.Value, read.TryGetFailure(out var f) ? f!.Code : "core.unknown");
@@ -127,7 +127,7 @@ public sealed class CoreNotificationSource(
     {
         async Task<decimal?> SavedAsync(LocalDate from)
         {
-            var read = await Contributions.CollectAsync(netWorth, c => c.NetContributionsAsync(reader, VisibilityScope.Me, from, today, ct));
+            var read = await Contributions.CollectAsync(netWorth, c => c.NetContributionsAsync(reader, VisibilityScope.Mine, from, today, ct));
             if (read.TryGetValue(out var parts))
                 return (await ConvertedAsync(parts!, today, today, ct)).Total;
             logger.LogWarning("The net contributions of {Person} could not be read: {Code}", reader.Value, read.TryGetFailure(out var f) ? f!.Code : "core.unknown");

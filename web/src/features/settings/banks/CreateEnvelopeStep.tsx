@@ -29,19 +29,24 @@ export function CreateEnvelopeStep({ account, bank, onBack, done }: {
   const label = accountLabel(t, account);
   const [displayName, setDisplayName] = useState((bank ? `${bank} ${label}` : label).slice(0, 100));
   const [kind, setKind] = useState(ASSOCIABLE.includes(account.kind) ? account.kind : 'checking');
-  const [owners, setOwners] = useState<'mine' | 'joint'>('mine');
+  // « mine », « joint » or a dependent's id (#354): a child's account, theirs alone, which both adults manage.
+  const [owners, setOwners] = useState('mine');
   const headingId = useId();
   const kindId = useId();
   const ownersId = useId();
   const ownersHintId = useId();
   // « Commun » only means something with another adult in the household.
-  const shared = (persons.data?.filter((p) => p.kind === 'adult').length ?? 0) > 1;
+  const joint = (persons.data?.filter((p) => p.kind === 'adult').length ?? 0) > 1;
+  const dependents = persons.data?.filter((p) => p.kind === 'dependent') ?? [];
+  const child = dependents.find((d) => d.id === owners);
+  // A child is named by their first name, as on the owner chips.
+  const firstName = (name: string) => name.split(' ')[0]!;
 
   const nameError = fieldErrorsOf(create.error).find((f) => f.path === 'displayName');
   const code = create.error ? toProblem(create.error).code : null;
   const submit = () => create.mutate({
     params: { path: { id: account.id } },
-    body: { displayName: displayName.trim(), kind, joint: owners === 'joint' },
+    body: { displayName: displayName.trim(), kind, ...(child ? { dependentId: child.id } : { joint: owners === 'joint' }) },
   }, {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['get', CONNECTIONS] });
@@ -70,13 +75,18 @@ export function CreateEnvelopeStep({ account, bank, onBack, done }: {
         <Segmented aria-labelledby={kindId} value={kind} onValueChange={setKind}
           options={ASSOCIABLE.map((k) => ({ value: k, label: t(`investments.kind.${k}`, { defaultValue: k }) }))} />
       </div>
-      {shared ? (
+      {joint || dependents.length > 0 ? (
         <div className="space-y-1">
           <span id={ownersId} className="block text-sm">{t('banks.create_envelope.owners')}</span>
-          <Segmented aria-labelledby={ownersId} aria-describedby={ownersHintId} value={owners} onValueChange={(v) => setOwners(v === 'joint' ? 'joint' : 'mine')}
-            options={[{ value: 'mine', label: t('banks.create_envelope.mine') }, { value: 'joint', label: t('banks.create_envelope.joint') }]} />
+          <Segmented aria-labelledby={ownersId} aria-describedby={ownersHintId} value={owners} onValueChange={setOwners}
+            options={[
+              { value: 'mine', label: t('banks.create_envelope.mine') },
+              ...(joint ? [{ value: 'joint', label: t('banks.create_envelope.joint') }] : []),
+              ...dependents.map((d) => ({ value: d.id, label: t('banks.create_envelope.child', { name: firstName(d.displayName) }) })),
+            ]} />
           <p id={ownersHintId} className="text-sm text-muted-foreground">
-            {owners === 'joint' ? t('banks.create_envelope.joint_hint') : t('banks.create_envelope.mine_hint')}
+            {child ? t('banks.create_envelope.child_hint', { name: firstName(child.displayName) })
+              : owners === 'joint' ? t('banks.create_envelope.joint_hint') : t('banks.create_envelope.mine_hint')}
           </p>
         </div>
       ) : null}

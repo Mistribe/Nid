@@ -268,6 +268,25 @@ public class NotificationTemplatesTests
     }
 
     [Fact]
+    public void An_unused_card_is_named_by_its_name_and_masked_number_and_opens_the_banks()
+    {
+        var record = Record("card_unused", key: "card_unused:x:2027-03") with
+        {
+            ItemIds = [], DueOn = new LocalDate(2027, 3, 31),
+            Params = new Dictionary<string, string> { ["card"] = "Carte Visa", ["number"] = "4321", ["count"] = "0", ["min"] = "1" },
+        };
+        var kind = KindOf("card_unused", "banking");
+
+        var rendered = NotificationTemplates.Render(record, kind, new Dictionary<ItemId, string>());
+
+        Assert.Equal("Une carte n'a pas assez servi ce mois-ci", rendered.Title);
+        Assert.Equal("Carte Visa •••• 4321 : aucun paiement ce mois-ci, 1 attendu. Utilisez-la avant le 31 mars 2027.", rendered.Body);
+        Assert.Equal("/settings/banks", rendered.Link);
+        Assert.StartsWith("Une carte : 2 paiements ce mois-ci, 3 attendus.", NotificationTemplates.Render(record with
+            { Params = new Dictionary<string, string> { ["card"] = "", ["number"] = "", ["count"] = "2", ["min"] = "3" } }, kind, new Dictionary<ItemId, string>()).Body);
+    }
+
+    [Fact]
     public void Idle_cash_says_what_held_and_opens_the_investments()
     {
         var record = Record("idle_cash", key: "idle_cash:2027-03") with

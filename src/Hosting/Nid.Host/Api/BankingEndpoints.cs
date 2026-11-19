@@ -76,13 +76,18 @@ public static class BankingEndpoints
         api.MapPatch("/accounts/{id:guid}", async (Guid id, BankAccountBody body, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new UpdateBankAccountCommand(
                     id, body.EnvelopeId, body.ClearEnvelope ?? false, body.CardOfAccountId, body.ClearCard ?? false, body.AutoApplyBalance, body.Ignored,
-                    body.Name, body.ClearName ?? false), ct))
+                    body.Name, body.ClearName ?? false, body.MinPayments, body.ClearMinPayments ?? false, body.CountWithdrawals), ct))
                 .ToHttp(x => new IdResponse(x)))
             .Returns<IdResponse>();
 
+        // #353: what « Régler » shows to recognise an account, and a card's likely checking account.
+        api.MapGet("/accounts/{id:guid}/overview", async (Guid id, IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new BankAccountOverviewQuery(id), ct)).ToHttp(overview => overview))
+            .Returns<BankAccountOverview>();
+
         // #346: « Créer une enveloppe » in « Régler »: the envelope and the link, together or neither.
         api.MapPost("/accounts/{id:guid}/envelope", async (Guid id, BankAccountEnvelopeBody body, IInvoker invoker, CancellationToken ct)
-                => (await invoker.InvokeAsync(new CreateBankAccountEnvelopeCommand(id, body.DisplayName, body.Kind, body.Joint ?? false), ct))
+                => (await invoker.InvokeAsync(new CreateBankAccountEnvelopeCommand(id, body.DisplayName, body.Kind, body.Joint ?? false, body.DependentId), ct))
                     .ToHttp(envelope => new IdResponse(envelope.Value), StatusCodes.Status201Created))
             .Returns<IdResponse>(StatusCodes.Status201Created);
 
@@ -292,13 +297,13 @@ public static class BankingEndpoints
 
     /// <summary>The new envelope's name and kind (<c>checking</c>, <c>savings</c> or <c>other</c>); <c>joint</c>: every adult owns it.</summary>
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
-    public sealed record BankAccountEnvelopeBody(string DisplayName, string Kind, bool? Joint = null);
+    public sealed record BankAccountEnvelopeBody(string DisplayName, string Kind, bool? Joint = null, Guid? DependentId = null);
 
     /// <summary>A field left out is left as it is; a key nobody reads is refused rather than silently dropped (400).</summary>
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
     public sealed record BankAccountBody(
         Guid? EnvelopeId, bool? ClearEnvelope, Guid? CardOfAccountId, bool? ClearCard, bool? AutoApplyBalance, bool? Ignored, string? Name = null,
-        bool? ClearName = null);
+        bool? ClearName = null, int? MinPayments = null, bool? ClearMinPayments = null, bool? CountWithdrawals = null);
 
     /// <summary>A charge of <c>itemId</c> (a subscription, a loan, a property); <c>key</c> names one, else the nearest is taken.</summary>
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]

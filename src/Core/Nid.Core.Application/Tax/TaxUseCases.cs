@@ -673,7 +673,7 @@ public sealed class PerDeadline(TaxEstimates estimates, IPersonRegistry persons)
         var events = new List<DashboardEventView>();
         foreach (var (adult, d) in TaxEstimates.Adults(await persons.ListAsync(ct)).Zip(r.Declarants))
         {
-            if (d.Per is not { } per || scope == VisibilityScope.Me && adult.Id != reader) continue;
+            if (d.Per is not { } per || scope is VisibilityScope.Me or VisibilityScope.Mine && adult.Id != reader) continue;
             if (!pooled && per.Remaining > 0m) events.Add(Event(UpcomingKinds.PerDeadline, adult.DisplayName, null, per.Remaining));
             // What keeps the expiring ceiling: the year's own ceiling is used first (spec §4.3).
             if (per.Minimum > 0m) events.Add(Event(UpcomingKinds.PerCeilingExpiring, adult.DisplayName, null, per.Minimum));

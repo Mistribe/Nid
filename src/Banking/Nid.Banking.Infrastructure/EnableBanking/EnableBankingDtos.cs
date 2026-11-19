@@ -21,7 +21,7 @@ internal sealed record SessionDto(string SessionId, List<SessionAccountDto> Acco
 /// <summary><c>details</c> is the account's description, <c>product</c> the bank's product name, <c>name</c> the holders' name.</summary>
 internal sealed record SessionAccountDto(
     string IdentificationHash, string CashAccountType, string Currency, string? Uid = null, AccountIdDto? AccountId = null, string? Name = null,
-    string? Details = null, string? Product = null);
+    string? Details = null, string? Product = null, List<OtherIdDto>? AllAccountIds = null);
 
 internal sealed record AccountIdDto(string? Iban = null, OtherIdDto? Other = null);
 

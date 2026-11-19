@@ -4,7 +4,7 @@ namespace Nid.Banking.Infrastructure.Persistence;
 
 /// <summary>
 /// A connection is its creator's setting, audited under no item and never with its session id or state hash. An account is logged
-/// against its envelope, the item whose readers see it (D7). Balances, transactions and the run journal are fetched data, not decisions; the recurring groups are the job's memory.
+/// against its envelope, the item whose readers see it (D7). Balances, transactions and the run journal and the reads (#365) are fetched data, not decisions; the recurring groups are the job's memory.
 /// </summary>
 public sealed class BankingAuditMap : IAuditMap
 {
@@ -22,5 +22,5 @@ public sealed class BankingAuditMap : IAuditMap
         [typeof(CategoryRuleRow)] = AuditRule.NoItem,
     };
 
-    public IReadOnlySet<Type> Excluded { get; } = new HashSet<Type> { typeof(AuditEntryRow), typeof(BalanceRow), typeof(TransactionRow), typeof(RecurringGroupRow), typeof(SyncRunRow) };
+    public IReadOnlySet<Type> Excluded { get; } = new HashSet<Type> { typeof(AuditEntryRow), typeof(BalanceRow), typeof(TransactionRow), typeof(RecurringGroupRow), typeof(SyncRunRow), typeof(AccountReadRow) };
 }
