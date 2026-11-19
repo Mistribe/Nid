@@ -19,6 +19,7 @@ namespace Nid.Host.Api.Json;
 [JsonSerializable(typeof(BankingEndpoints.LinkBody))]
 [JsonSerializable(typeof(BankingEndpoints.ConnectBody))]
 [JsonSerializable(typeof(BankingEndpoints.BankAccountBody))]
+[JsonSerializable(typeof(BankingEndpoints.BankAccountEnvelopeBody))]
 [JsonSerializable(typeof(BankingEndpoints.SyncBody))]
 [JsonSerializable(typeof(Nid.Banking.Application.Sync.BankSyncRequested))]
 [JsonSerializable(typeof(BankSyncRunPage))]

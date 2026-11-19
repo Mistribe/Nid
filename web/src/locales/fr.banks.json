@@ -67,6 +67,11 @@
       "reset_name": "Rétablir le nom de la banque",
       "envelope": "Enveloppe",
       "none": "Aucune",
+      "matching": "Pour ce compte",
+      "others": "Autres enveloppes",
+      "create": "Créer une enveloppe",
+      "search": "Rechercher une enveloppe",
+      "no_envelope": "Aucune enveloppe trouvée",
       "card_of": "Carte rattachée à",
       "no_card": "Aucun",
       "ignored": "Ne pas suivre ce compte",
@@ -74,6 +79,21 @@
       "auto_hint": "Sinon, chaque solde de fin de mois arrive dans À valider.",
       "save": "Enregistrer",
       "saved": "{{name}} enregistré."
+    },
+    "create_envelope": {
+      "title": "Créer une enveloppe",
+      "name": "Nom de l'enveloppe",
+      "kind": "Type",
+      "owners": "À qui",
+      "mine": "À moi",
+      "joint": "Commun",
+      "mine_hint": "L'enveloppe est à vous seul.",
+      "joint_hint": "L'enveloppe est à parts égales entre les adultes du foyer : un compte joint.",
+      "currency": "En {{currency}}, comme le compte, et reliée à lui.",
+      "back": "Retour",
+      "submit": "Créer et relier",
+      "done": "Enveloppe {{name}} créée et reliée.",
+      "failed": "L'enveloppe n'a pas pu être créée."
     },
     "envelope_note": {
       "linked": "Relié à {{name}}",

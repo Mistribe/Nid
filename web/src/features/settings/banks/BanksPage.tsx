@@ -165,6 +165,8 @@ function Connections({ configured }: { configured: boolean }) {
       {connecting ? <ConnectBankDialog onClose={() => setConnecting(false)} /> : null}
       {editing ? (
         <AccountDialog account={editing} envelopes={envelopes.data?.items ?? []}
+          taken={all.flatMap((a) => (a.envelopeId && a.id !== editing.id ? [a.envelopeId] : []))}
+          bank={connections.data?.find((c) => c.accounts.some((a) => a.id === editing.id))?.aspspName}
           parents={all.filter((a) => a.kind === 'checking' && a.canWrite)} onClose={() => setEditing(null)} onDone={announce} />
       ) : null}
     </div>

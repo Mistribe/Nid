@@ -1,6 +1,6 @@
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { FieldControl } from './Field';
-import { NONE, type Option } from './options';
+import { NONE, runs, type Option } from './options';
 
 export type { Option } from './options';
 
@@ -20,7 +20,10 @@ export function SelectField({ value, onValueChange, options, placeholder, disabl
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent>
-        {options.map((o) => <SelectItem key={o.value} value={o.value === '' ? NONE : o.value}>{o.label}</SelectItem>)}
+        {runs(options).map((run, i) => {
+          const items = run.options.map((o) => <SelectItem key={o.value} value={o.value === '' ? NONE : o.value}>{o.label}</SelectItem>);
+          return run.group ? <SelectGroup key={`group-${i}`}><SelectLabel>{run.group}</SelectLabel>{items}</SelectGroup> : items;
+        })}
       </SelectContent>
     </Select>
   );
