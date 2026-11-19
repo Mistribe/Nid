@@ -53,6 +53,20 @@ export function envelopeOptions(t: TFunction, account: BankAccount, envelopes: E
 }
 
 /**
+ * #366: the checking accounts a card may go with, named as the household knows them: the envelope and its owners first, then the
+ * bank's label (« Compte joint · Alice et Bob · •••• 1234 »); those on an envelope come first, the others keep the bank's label.
+ */
+export function parentOptions(t: TFunction, card: BankAccount, parents: BankAccount[], envelopes: EnvelopeSummary[], names: ReadonlyMap<string, string>): Option[] {
+  const list = new Intl.ListFormat('fr', { type: 'conjunction' });
+  const labelled = parents.filter((p) => p.id !== card.id).map((p) => {
+    const envelope = envelopes.find((e) => e.id === p.envelopeId);
+    const owners = envelope ? list.format(envelope.owners.flatMap((o) => names.get(o.personId) ?? [])) : '';
+    return { value: p.id, label: [envelope?.displayName, owners, accountLabel(t, p)].filter(Boolean).join(' · '), associated: !!envelope };
+  });
+  return [...labelled.filter((o) => o.associated), ...labelled.filter((o) => !o.associated)].map(({ value, label }) => ({ value, label }));
+}
+
+/**
  * Where an account's balances go: an envelope the person writes (a card: the checking account it belongs to), whether it is
  * followed at all, and whether its balances are written straight away or proposed in « À valider ». Only what changed is sent.
  */
@@ -138,7 +152,7 @@ export function AccountDialog({ account, envelopes, taken = [], bank, parents, o
               {(c) => (
                 <SelectField {...c} value={cardOf} onValueChange={setPicked} options={[
                   { value: '', label: t('banks.account_dialog.no_card') },
-                  ...parents.filter((p) => p.id !== account.id).map((p) => ({ value: p.id, label: accountLabel(t, p) })),
+                  ...parentOptions(t, account, parents, envelopes, names),
                 ]} />
               )}
             </Field>
