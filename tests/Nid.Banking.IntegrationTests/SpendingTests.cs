@@ -42,6 +42,15 @@ public class SpendingTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
         return id;
     }
 
+    private static async Task InternalAsync(NidApp app, Guid account, Guid line)
+    {
+        await using var scope = app.Services.CreateAsyncScope();
+        scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
+        await scope.ServiceProvider.GetRequiredService<ILinkStore>().SetAsync(
+            new BankLink(line, null, null, null, account, LinkOutcome.InternalTransfer, null, "job", Instant.FromUtc(2025, 10, 15, 12, 0)),
+            TransactionLinkState.Internal, Ct);
+    }
+
     private static async Task<JsonElement> SpendingAsync(NidApp app, PersonId person, string query = "")
     {
         var response = await app.RawAsync(person, HttpMethod.Get, $"{Spending}{query}");
@@ -83,6 +92,9 @@ public class SpendingTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
         // The card's line counts with its checking account.
         await LineAsync(app, a["Carte commune"], new(2025, 10, 7), -40m, "food.restaurants");
         await LineAsync(app, joint, new(2025, 10, 9), -500m, "internal.transfer");
+        // Internal lines (a transfer, a card settlement) never count, uncategorised or filed by hand in an expense category.
+        await InternalAsync(app, joint, await LineAsync(app, joint, new(2025, 10, 13), -300m));
+        await InternalAsync(app, joint, await LineAsync(app, joint, new(2025, 10, 14), -200m, "food.groceries"));
         await LineAsync(app, joint, new(2025, 10, 10), -25m);
         await LineAsync(app, joint, new(2025, 10, 11), 15m);
         var ignored = await LineAsync(app, joint, new(2025, 10, 12), -70m, "food.groceries");
@@ -134,6 +146,7 @@ public class SpendingTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
             ], Ct);
         await LineAsync(app, account, new(2025, 9, 10), -100m, "food.groceries", "USD");
         await LineAsync(app, account, new(2025, 10, 5), -50m, "food.groceries", "USD");
+        await LineAsync(app, account, new(2025, 7, 10), -20m, "food.groceries");
         await LineAsync(app, account, new(2025, 8, 10), -20m, "food.groceries");
         await LineAsync(app, account, new(2025, 8, 12), -100m, "food.groceries", "GBP");
 
@@ -142,8 +155,14 @@ public class SpendingTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
         Assert.Equal("90.00", september.GetProperty("total").GetString());
         // August's GBP line has no rate, but it is only in the average's window.
         Assert.False(september.GetProperty("incomplete").GetBoolean());
-        // The current month at today's rate.
-        Assert.Equal("40.00", (await SpendingAsync(app, app.AdultA, "?scope=me")).GetProperty("total").GetString());
+        // The current month at today's rate. July to September cover the average's window, but August's GBP line has no rate: no
+        // average rather than a short one.
+        var october = await SpendingAsync(app, app.AdultA, "?scope=me");
+        Assert.Equal("40.00", october.GetProperty("total").GetString());
+        Assert.False(october.GetProperty("incomplete").GetBoolean());
+        Assert.Null(Text(october, "average"));
+        Assert.Null(Text(Category(october, "Alimentation"), "average"));
+        Assert.Null(Text(october.GetProperty("uncategorised"), "average"));
         // No GBP rate: the line is left out, never guessed, and the figure flagged.
         var august = await SpendingAsync(app, app.AdultA, "?scope=me&month=2025-08");
         Assert.Equal("20.00", august.GetProperty("total").GetString());

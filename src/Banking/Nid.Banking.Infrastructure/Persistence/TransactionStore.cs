@@ -141,7 +141,7 @@ public sealed class TransactionStore(BankingDbContext db, IClock clock) : ITrans
 
     public async Task<IReadOnlyList<SpendingSum>> SpendingAsync(IReadOnlyList<Guid> accounts, LocalDate from, LocalDate to, CancellationToken ct)
         => (await db.Transactions.AsNoTracking()
-            .Where(t => accounts.Contains(t.AccountId) && t.BookedOn >= from && t.BookedOn <= to && t.LinkState != "ignored")
+            .Where(t => accounts.Contains(t.AccountId) && t.BookedOn >= from && t.BookedOn <= to && t.LinkState != "ignored" && t.LinkState != "internal")
             .GroupBy(t => new { t.CategoryId, t.Currency, t.BookedOn.Year, t.BookedOn.Month })
             .Select(g => new { g.Key, Debits = g.Sum(t => t.Amount < 0 ? t.Amount : 0m), Credits = g.Sum(t => t.Amount > 0 ? t.Amount : 0m) })
             .ToListAsync(ct))

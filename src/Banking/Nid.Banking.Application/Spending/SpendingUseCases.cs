@@ -18,7 +18,7 @@ public sealed record GetSpendingQuery(VisibilityScope Scope, YearMonth? Month, Y
 /// <summary>
 /// Amounts in <paramref name="Currency"/> (the household's reference), positive for money spent. <paramref name="Incomplete"/>: a line in
 /// the range had no rate and is left out. <paramref name="Average"/>: the monthly average of the 12 months before <paramref name="From"/>,
-/// null when the accounts' history covers fewer than 3 of them. <paramref name="From"/> and <paramref name="To"/> are <c>yyyy-MM</c>.
+/// null when the accounts' history covers fewer than 3 of them or a line of them has no rate (every average then). <paramref name="From"/> and <paramref name="To"/> are <c>yyyy-MM</c>.
 /// </summary>
 public sealed record SpendingView(
     string Currency, string Total, bool Incomplete, string? Average, IReadOnlyList<SpendingCategoryView> Categories,
@@ -69,10 +69,11 @@ public sealed class GetSpendingHandler(
 
         // Per category (Guid.Empty: none), what the range spent and what the 12 months before it spent.
         var spent = new Dictionary<Guid, (decimal Range, decimal Before)>();
-        var incomplete = false;
+        bool incomplete = false, averageMissing = false;
         foreach (var sum in sums)
         {
             // Decision 3: an expense category nets its refunds, a line with no category counts its debits only, income and transfer never.
+            // Categories are never deleted (a merge moves the lines), so an unknown id is not expected; it would not count.
             decimal? amount = sum.Category is not { } id ? -sum.Debits
                 : byId.TryGetValue(id, out var category) && category.Kind == CategoryKind.Expense ? -(sum.Debits + sum.Credits)
                 : null;
@@ -82,8 +83,9 @@ public sealed class GetSpendingHandler(
             // Decision 5: a past month at its month-end rate; the current one, whose end is after today, at today's.
             if (!rates.TryConvert(a, sum.Currency, reference, sum.Month.ToDateInterval().End, projected: true, out var converted, out _))
             {
-                // Never a guess: the line is left out, the range's figure flagged.
+                // Never a guess: the line is left out, the range's figure flagged, and no average rather than a short one.
                 incomplete |= inRange;
+                averageMissing |= !inRange;
                 continue;
             }
             var key = sum.Category ?? Guid.Empty;
@@ -93,7 +95,7 @@ public sealed class GetSpendingHandler(
 
         // Decision 6: months of the window from the accounts' first line on.
         var earliest = await lines.EarliestBookedOnAsync(accounts, ct);
-        var averaged = earliest is { } e && Math.Clamp(Index(from) - Index(e.ToYearMonth()), 0, AverageMonths) >= MinHistoryMonths;
+        var averaged = !averageMissing && earliest is { } e && Math.Clamp(Index(from) - Index(e.ToYearMonth()), 0, AverageMonths) >= MinHistoryMonths;
         string? Average(decimal before) => averaged ? Money(before / AverageMonths) : null;
         bool Shown((decimal Range, decimal Before) s) => Round(s.Range) != 0m || (averaged && Round(s.Before / AverageMonths) != 0m);
 
