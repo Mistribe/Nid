@@ -64,7 +64,8 @@ public sealed class SetBudgetHandler(BankingAccess access, ICategoryStore catego
         if (category.Kind != CategoryKind.Expense)
             return BankingAccess.Fail<CategoryBudgetView>(BankingCodes.CategoryKind, "A budget goes on an expense category.");
         // An archived category's budget is hidden and inert: it never blocks.
-        // ponytail: read then write, no lock: two adults budgeting a parent and its child at once both pass; upgrade with an advisory lock.
+        // ponytail: read then write, no lock: two adults budgeting a parent and its child at once both pass, and two first PUTs on one
+        // category at once hit the unique index (a 500); upgrade with an advisory lock.
         var branch = all.Where(c => c.ArchivedAt is null && (c.Id == category.Parent || c.Parent == category.Id)).Select(c => c.Id).ToHashSet();
         if ((await budgets.AllAsync(ct)).Any(b => branch.Contains(b.Category)))
             return BankingAccess.Fail<CategoryBudgetView>(BankingCodes.BudgetBranch, "Its parent or one of its children has a budget: one per branch.");

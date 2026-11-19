@@ -76,6 +76,8 @@ public class CategoryBudgetTests(PostgresFixture fixture) : IClassFixture<Postgr
     {
         await using var app = await BankingApi.StartAsync(fixture, enable: false);
         await BankingApi.AssertRefusedAsync(await SetAsync(app, "food.groceries", "10"), HttpStatusCode.Conflict, BankingCodes.Disabled);
+        await BankingApi.AssertRefusedAsync(
+            await app.RawAsync(app.AdultA, HttpMethod.Delete, $"{Root}/{Seed("food.groceries")}"), HttpStatusCode.Conflict, BankingCodes.Disabled);
     }
 
     [Fact]
