@@ -56,10 +56,37 @@ describe('NewChildcare', () => {
     const slot = (day: number) => ({ day, arrival: '08:00', departure: '17:30', lunch: true, snack: false });
     expect(bodies).toEqual([{
       name: 'Garde de Léa', childId: CHILD, carer: { name: 'Martine' },
-      terms: { from: '2025-09-01', netHourlyRate: '4.30', overtimePct: '10', upkeepPer9h: '3.80', lunchPrice: '3.20', lunchProvider: 'nanny', snackProvider: 'nanny', unpaidAbsences: ['parent_rtt', 'child_sick', 'carer_absent'],
+      terms: { from: '2025-09-01', netHourlyRate: '4.30', overtimePct: '10', upkeepPer9h: '3.80', lunchPrice: '3.20', lunchProvider: 'nanny', snackProvider: 'nanny', unpaidAbsences: ['parent_rtt', 'child_sick', 'carer_absent'], fullYear: false,
         weekTypes: [{ name: 'Semaine type', weeks: 46, schedule: [1, 2, 4, 5].map(slot) }] },
       gaps: [], visibility: 'shared', owners: [{ personId: '01926b9e-0000-7000-8000-00000000000a', shareBp: 10000 }],
     }]);
+  });
+
+  it('a full year sends its 52 weeks and asks for no week without care', async () => {
+    const bodies: { terms: { fullYear: boolean; weekTypes: { weeks: number }[] }; gaps: unknown[] }[] = [];
+    serve(bodies);
+    const { user } = await renderApp('/childcare/new');
+    await user.type(await screen.findByLabelText('Nom'), 'Garde de Léa');
+    await pick(user, 'Enfant', 'Léa');
+    await user.type(screen.getByLabelText('Assistante maternelle'), 'Martine');
+    await next(user);
+    await user.click(screen.getByRole('radio', { name: 'Oui, 52 semaines' }));
+    // A single template week covers the 52 weeks: no weeks field to fill.
+    expect(screen.queryByLabelText('Semaines programmées')).not.toBeInTheDocument();
+    await user.type(screen.getByLabelText('Début du contrat'), '01/09/2025');
+    await user.type(screen.getByLabelText('Taux horaire net (€)'), '4,30');
+    await user.type(screen.getByLabelText('Entretien pour 9 h (€)'), '3,80');
+    await next(user);
+    await user.click(screen.getByRole('checkbox', { name: 'Lundi' }));
+    await next(user);
+    expect(screen.getByText(/il n’y a pas de semaine sans accueil/)).toBeInTheDocument();
+    await next(user);
+    await submit(user);
+
+    await waitFor(() => expect(bodies).toHaveLength(1));
+    expect(bodies[0]!.terms.fullYear).toBe(true);
+    expect(bodies[0]!.terms.weekTypes[0]!.weeks).toBe(52);
+    expect(bodies[0]!.gaps).toEqual([]);
   });
 
   it('continuing with no weekday checked is refused', async () => {
@@ -166,7 +193,7 @@ describe('NewChildcare', () => {
     await user.type(weeks, '47');
     await next(user);
     expect(step()).toHaveTextContent('Tarifs');
-    expect(screen.getByText('Entre 1 et 46 semaines.')).toBeInTheDocument();
+    expect(screen.getByText('Entre 1 et 46 semaines, 52 en année complète.')).toBeInTheDocument();
   });
 
   it('with two types, a blank weeks field blocks Next on the schedule step and shows its error', async () => {
@@ -181,6 +208,6 @@ describe('NewChildcare', () => {
     await user.clear(screen.getByLabelText('Semaines de la semaine type 2'));
     await next(user);
     expect(step()).toHaveTextContent('Planning');
-    expect(screen.getByText('Entre 1 et 46 semaines.')).toBeVisible();
+    expect(screen.getByText('Entre 1 et 46 semaines, 52 en année complète.')).toBeVisible();
   });
 });

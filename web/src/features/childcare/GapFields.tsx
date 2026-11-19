@@ -14,6 +14,8 @@ export function GapFields<T extends WithGaps>({ form }: { form: UseFormReturn<T>
   const { t } = useTranslation();
   const rows = useFieldArray({ control: form.control, name: 'gaps' as ArrayPath<T> });
   const errors = form.formState.errors.gaps as { message?: string; [i: number]: { monday?: { message?: string }; weeks?: { message?: string } } } | undefined;
+  // A full year has none: its leave goes in the months' days (the hook above runs either way).
+  if (form.watch('fullYear' as Path<T>) === true) return <p className="text-sm text-muted-foreground">{t('childcare_form.gaps_full_year')}</p>;
   return (
     <div className="space-y-3">
       <p className="text-sm text-muted-foreground">{t('childcare_form.gaps_hint')}</p>

@@ -21,12 +21,14 @@ public sealed record EndingInput(
 /// <c>Contributions</c>: #30, the contributions left to the household on the Pajemploi summary; <c>Exemption</c>: the contributions
 /// Pajemploi waived on the extra hours, from its summary, estimated while null; <c>TermsOn</c>: the terms in force on a day,
 /// for a month a revision takes effect in (<c>Terms</c> on every day while null): #227, each day's pay at its own rate.
+/// <c>LeaveLeft</c>: a full year's leave days accrued and not yet taken before this month (<see cref="StatementContext.LeaveLeft"/>);
+/// null leaves its leave days unlimited.
 /// </summary>
 public sealed record MonthInput(
     YearMonth Month, ContractTerms Terms, WeekPlan Plan, IReadOnlyList<CareGap> Gaps,
     IReadOnlyList<StatementDay> Days, IReadOnlyList<StatementDay> NeighbourDays, int ChildSickUsedBefore,
     decimal Mileage, decimal Cmg, PaidLeaveInput? June, DeclaredFigures? Declared = null, decimal Contributions = 0m, decimal? Exemption = null,
-    Func<LocalDate, ContractTerms>? TermsOn = null, EndingInput? Ending = null);
+    Func<LocalDate, ContractTerms>? TermsOn = null, EndingInput? Ending = null, int? LeaveLeft = null);
 
 /// <summary>Childcare spec §3 and §6: a month's Pajemploi declaration, its cost and its childcare tax base. Pure.</summary>
 public static class ChildcareMonth
@@ -57,15 +59,16 @@ public static class ChildcareMonth
         var basePay = basePays.Sum();
 
         var deductions = new List<decimal>();
-        var (deductedDays, childSick) = (0, 0);
+        var (deductedDays, childSick, leaveTaken) = (0, 0, 0);
         var complementaryRuns = new List<decimal>();
         var overtimeRuns = new List<decimal>();
         for (var i = 0; i < runs.Count; i++)
         {
-            // The sick-child quota runs over the month in day order, so each run starts where the one before left it.
-            var (d, n, c) = AbsenceDeduction.Compute(runPay[i], runs[i].Days, input.Plan, input.ChildSickUsedBefore + childSick, runs[i].Terms.UnpaidAbsences, potentialHours);
+            // The sick-child quota and a full year's leave run over the month in day order, so each run starts where the one before left them.
+            var (d, n, c, l) = AbsenceDeduction.Compute(runPay[i], runs[i].Days, input.Plan, input.ChildSickUsedBefore + childSick, runs[i].Terms.UnpaidAbsences, potentialHours,
+                runs[i].Terms.FullYear ? (input.LeaveLeft ?? int.MaxValue) - leaveTaken : null);
             deductions.Add(d);
-            (deductedDays, childSick) = (deductedDays + n, childSick + c);
+            (deductedDays, childSick, leaveTaken) = (deductedDays + n, childSick + c, leaveTaken + l);
             // A week straddling the date keeps its 45 h over the whole week; each day's extra hours go to its own run.
             var (from, until) = (runs[i].From, i + 1 < runs.Count ? runs[i + 1].From : LocalDate.MaxIsoValue);
             var (comp, over) = ExtraHours.Compute(input.Month, [.. input.Days, .. input.NeighbourDays], input.Plan, runs[i].Terms, day => day >= from && day < until);
@@ -87,11 +90,16 @@ public static class ChildcareMonth
         var upkeep = input.Declared?.Upkeep ?? computedUpkeep;
         var meals = input.Declared?.Meals ?? computedMeals;
 
-        var leaveDays = input.Declared?.PaidLeaveDays ?? input.June?.AccruedDays;
+        var fullYear = last.FullYear;
+        // A full year leaves the leave days field empty: the leave is paid in the monthly pay (Urssaf, Pajemploi FAQ « Comment
+        // déclarer les jours de congés payés », except for a mensualisation over 52 weeks).
+        var leaveDays = input.Declared?.PaidLeaveDays ?? (fullYear ? null : input.June?.AccruedDays);
         // The contract's average week over its template weeks (38,389 h for 23 × 39 h + 22 × 37,75 h).
         var weeklyHours = annualHours / input.Plan.ProgrammedWeeks;
         // Leave is paid at the rate in force at the month's end.
-        var leavePay = input.June is { } j ? PaidLeave.JuneIndemnity(j.ReferenceNetPay, last.NetHourlyRate, weeklyHours, leaveDays!.Value) : 0m;
+        var leavePay = input.June is not { } j ? 0m
+            : fullYear ? PaidLeave.JuneDifference(j.ReferenceNetPay, last.NetHourlyRate, weeklyHours, j.AccruedDays)
+            : PaidLeave.JuneIndemnity(j.ReferenceNetPay, last.NetHourlyRate, weeklyHours, leaveDays!.Value);
 
         // The last month settles the incomplete year (art. 124) and the leave not yet paid, as the higher of the tenth and maintained pay (art. 125).
         var (regularisation, balanceDays, leaveIndemnity) = (0m, 0, 0m);
@@ -142,7 +150,7 @@ public static class ChildcareMonth
         // The breach indemnity is not a salary (art. 121): in the cost, not in the childcare tax base.
         return new MonthFigures(declaration, basePay, deduction, extraPay, leavePay, input.Cmg,
             netPay + leaveIndemnity + rupture + upkeep + meals + input.Mileage + paid - input.Cmg, netPay + leaveIndemnity + upkeep + paid - input.Cmg, childSick,
-            input.Contributions, exemption, regularisation);
+            input.Contributions, exemption, regularisation, leaveTaken);
     }
 
     /// <summary>

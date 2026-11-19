@@ -26,7 +26,7 @@ public sealed record MonthTerms(
 
     private static ContractTerms ContractOf(IReadOnlyList<Terms> revisions, Terms r)
         => new(revisions[0].From, revisions[^1].To, r.NetHourlyRate, r.OvertimeRate, r.UpkeepPer9h, r.LunchPrice,
-            r.SnackPrice, r.LunchProvider, r.SnackProvider, r.UnpaidAbsences);
+            r.SnackPrice, r.LunchProvider, r.SnackProvider, r.UnpaidAbsences, r.FullYear);
 }
 
 /// <summary>
@@ -104,7 +104,8 @@ public static class MonthAssembler
         var input = new MonthInput(terms.Month, terms.Contract, terms.Plan, terms.Gaps, days,
             [.. Neighbour(terms, terms.Month.PlusMonths(-1), previous), .. Neighbour(terms, terms.Month.PlusMonths(1), next)], StatementContext.ChildSickUsedBefore(terms.Contract.Start, terms.Month,
                 validated.Select(s => (s.Month, s.Figures!.ChildSickDeducted)).ToList()),
-            mileage, cmg ?? 0m, june, declared, contributions, exemption, terms.On, ending);
+            mileage, cmg ?? 0m, june, declared, contributions, exemption, terms.On, ending,
+            terms.Contract.FullYear ? StatementContext.LeaveLeft(terms.Contract.Start, terms.Contract.End, terms.Month, validated.Select(s => (s.Month, s.Figures!.PaidLeaveTaken)).ToList()) : null);
         return new MonthEvaluation(ChildcareMonth.Compute(input), problems, missing);
     }
 

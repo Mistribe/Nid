@@ -16,6 +16,8 @@ export type GapRow = { monday: string; weeks: string };
 
 export type TermsValues = {
   from: string; net: string; gross: string; overtimePct: string; upkeep: string; lunch: string; snack: string; lunchProvider: MealProvider; snackProvider: MealProvider; weekTypes: WeekTypeRow[]; unpaid: string[];
+  /** Care over 52 weeks, the carer's leave included (année complète); else an incomplete year. */
+  fullYear: boolean;
 };
 
 export type ChildcareValues = TermsValues & {
@@ -42,7 +44,12 @@ export const termsDefaults = (terms?: ChildcareTerms): TermsValues => ({
     ? terms.weekTypes.map((w) => ({ name: w.name, weeks: String(w.weeks), days: daysOf(w.schedule) }))
     : [{ name: DEFAULT_WEEK_TYPE, weeks: '46', days: daysOf() }],
   unpaid: terms?.unpaidAbsences ?? ['parent_rtt', 'child_sick', 'carer_absent'],
+  fullYear: terms?.fullYear ?? false,
 });
+
+/** The weeks a full year takes (IDCC 3239 art. 97), and an incomplete year's most. */
+export const FULL_YEAR_WEEKS = 52;
+export const MAX_INCOMPLETE_WEEKS = 46;
 
 export const gapsDefaults = (detail?: ChildcareDetail): GapRow[] => (detail?.gaps ?? []).map((g) => ({ monday: g.monday, weeks: String(g.weeks) }));
 
@@ -62,10 +69,10 @@ function checkTerms(v: TermsValues, add: Add, withFrom: boolean) {
   if (!AMOUNT.test(v.upkeep.trim())) add(['upkeep'], 'amount_format');
   if (v.lunch.trim() && !AMOUNT.test(v.lunch.trim())) add(['lunch'], 'amount_format');
   if (v.snack.trim() && !AMOUNT.test(v.snack.trim())) add(['snack'], 'amount_format');
-  // The sum of the weeks (46 at most) and the duplicate names are the server's to refuse.
+  // The sum of the weeks (46 at most, 52 in a full year) and the duplicate names are the server's to refuse.
   v.weekTypes.forEach((w, k) => {
     if (v.weekTypes.length > 1 && !(w.name.trim().length >= 1 && w.name.trim().length <= 40)) add(['weekTypes', k, 'name'], 'name_range');
-    if (!(WEEKS.test(w.weeks.trim()) && Number(w.weeks) >= 1 && Number(w.weeks) <= 46)) add(['weekTypes', k, 'weeks'], 'weeks_range');
+    if (!(WEEKS.test(w.weeks.trim()) && Number(w.weeks) >= 1 && Number(w.weeks) <= (v.fullYear ? FULL_YEAR_WEEKS : MAX_INCOMPLETE_WEEKS))) add(['weekTypes', k, 'weeks'], 'weeks_range');
     if (!w.days.some((d) => d.on)) add(['weekTypes', k, 'days'], 'no_day');
     w.days.forEach((d, i) => {
       if (!d.on) return;
@@ -84,7 +91,7 @@ function checkGaps(gaps: GapRow[], add: Add) {
 }
 
 const termsShape = {
-  from: z.string(), net: z.string(), gross: z.string(), overtimePct: z.string(), upkeep: z.string(), unpaid: z.array(z.string()), lunch: z.string(), snack: z.string(), lunchProvider: z.enum(['nanny', 'employer']), snackProvider: z.enum(['nanny', 'employer']),
+  from: z.string(), net: z.string(), gross: z.string(), overtimePct: z.string(), upkeep: z.string(), unpaid: z.array(z.string()), lunch: z.string(), snack: z.string(), lunchProvider: z.enum(['nanny', 'employer']), snackProvider: z.enum(['nanny', 'employer']), fullYear: z.boolean(),
   weekTypes: z.array(z.object({
     name: z.string(), weeks: z.string(),
     days: z.array(z.object({ day: z.number(), on: z.boolean(), arrival: z.string(), departure: z.string(), lunch: z.boolean(), snack: z.boolean() })),
@@ -134,7 +141,7 @@ export function termsToWire(v: TermsValues, from: string): TermsBody {
   return {
     from, netHourlyRate: toWireAmount(v.net), ...(v.gross.trim() ? { grossHourlyRate: toWireAmount(v.gross) } : {}),
     overtimePct: toWireAmount(v.overtimePct), upkeepPer9h: toWireAmount(v.upkeep), ...(v.lunch.trim() ? { lunchPrice: toWireAmount(v.lunch) } : {}),
-    ...(v.snack.trim() ? { snackPrice: toWireAmount(v.snack) } : {}), lunchProvider: v.lunchProvider, snackProvider: v.snackProvider, unpaidAbsences: v.unpaid,
+    ...(v.snack.trim() ? { snackPrice: toWireAmount(v.snack) } : {}), lunchProvider: v.lunchProvider, snackProvider: v.snackProvider, unpaidAbsences: v.unpaid, fullYear: v.fullYear,
     weekTypes: v.weekTypes.map((w) => ({
       name: w.name.trim() || DEFAULT_WEEK_TYPE, weeks: Number(w.weeks),
       schedule: w.days.filter((d) => d.on).map((d) => ({ day: d.day, arrival: d.arrival, departure: d.departure, lunch: d.lunch, snack: d.snack })),
@@ -149,7 +156,7 @@ export function carerToWire(v: Pick<ChildcareValues, 'carerName' | 'carerPajempl
 }
 
 export const toCreateBody = (v: ChildcareValues): CreateChildcareBody => ({
-  name: v.name.trim(), childId: v.childId, carer: carerToWire(v), terms: termsToWire(v, v.from), gaps: gapsToWire(v.gaps), ...ownershipToWire(v),
+  name: v.name.trim(), childId: v.childId, carer: carerToWire(v), terms: termsToWire(v, v.from), gaps: v.fullYear ? [] : gapsToWire(v.gaps), ...ownershipToWire(v),
 });
 
 /**
@@ -160,7 +167,7 @@ export function childcarePath(path: string, weekTypes: WeekTypeRow[]): Path<Chil
   const top: Record<string, Path<ChildcareValues>> = {
     name: 'name', childId: 'childId', 'carer.name': 'carerName', 'carer.pajemploi': 'carerPajemploi', 'carer.approval': 'carerApproval',
     'terms.from': 'from', 'terms.netHourlyRate': 'net', 'terms.grossHourlyRate': 'gross', 'terms.overtimePct': 'overtimePct',
-    'terms.upkeepPer9h': 'upkeep', 'terms.lunchPrice': 'lunch', 'terms.snackPrice': 'snack', 'terms.unpaidAbsences': 'unpaid', 'terms.weekTypes': 'weekTypes', weekTypes: 'weekTypes', gaps: 'gaps',
+    'terms.upkeepPer9h': 'upkeep', 'terms.lunchPrice': 'lunch', 'terms.snackPrice': 'snack', 'terms.unpaidAbsences': 'unpaid', 'terms.fullYear': 'fullYear', 'terms.weekTypes': 'weekTypes', weekTypes: 'weekTypes', gaps: 'gaps',
   };
   if (Object.hasOwn(top, path)) return top[path];
   if (path.startsWith('weekOverrides')) return 'weekTypes';

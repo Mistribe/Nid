@@ -13,11 +13,12 @@ public sealed record CarerInput(string Name, string? Pajemploi, string? Approval
 public sealed record TermsInput(
     LocalDate From, decimal NetHourlyRate, decimal? GrossHourlyRate, decimal OvertimeRate, decimal UpkeepPer9h, decimal? LunchPrice,
     IReadOnlyList<WeekType> WeekTypes, decimal? SnackPrice = null, MealProvider LunchProvider = MealProvider.Nanny, MealProvider SnackProvider = MealProvider.Nanny,
-    IReadOnlyList<AbsenceReason>? UnpaidAbsences = null)
+    IReadOnlyList<AbsenceReason>? UnpaidAbsences = null, bool? FullYear = null)
 {
-    /// <summary>Week type names are stored trimmed.</summary>
+    /// <summary>Week type names are stored trimmed; without <c>FullYear</c>, an incomplete year.</summary>
     public Terms For(ItemId id)
-        => new(id, From, null, NetHourlyRate, GrossHourlyRate, OvertimeRate, UpkeepPer9h, LunchPrice, [.. WeekTypes.Select(w => w with { Name = w.Name.Trim() })], SnackPrice, LunchProvider, SnackProvider, UnpaidAbsences ?? AbsenceCodes.DefaultUnpaid);
+        => new(id, From, null, NetHourlyRate, GrossHourlyRate, OvertimeRate, UpkeepPer9h, LunchPrice, [.. WeekTypes.Select(w => w with { Name = w.Name.Trim() })], SnackPrice, LunchProvider, SnackProvider, UnpaidAbsences ?? AbsenceCodes.DefaultUnpaid,
+            FullYear ?? false);
 
     public int ProgrammedWeeks => WeekTypes.Sum(w => w.Weeks);
 }
@@ -137,7 +138,7 @@ public sealed class EditChildcareHandler(IItemRegistry items, IChildcareStore st
         if (at < 0)
             return Result.Failure<ItemId>(new NotFoundFailure("childcare.revision", $"{command.Revision:uuuu-MM-dd}"));
         var edited = revisions[at];
-        var terms = command.Terms with { From = edited.From, UnpaidAbsences = command.Terms.UnpaidAbsences ?? edited.UnpaidAbsences }; // a correction keeps the revision's start, and its absences when not given
+        var terms = command.Terms with { From = edited.From, UnpaidAbsences = command.Terms.UnpaidAbsences ?? edited.UnpaidAbsences, FullYear = command.Terms.FullYear ?? edited.FullYear }; // a correction keeps the revision's start, and its absences and year when not given
         var errors = ChildcareCheck.Name(command.Name);
         errors.AddRange(ChildcareCheck.Carer(command.Carer));
         errors.AddRange(ChildcareCheck.Terms(terms));
@@ -180,8 +181,8 @@ public sealed class ReviseChildcareHandler(IItemRegistry items, IChildcareStore 
         var (_, item, revisions) = found;
         if (ChildcareCheck.RequireOpen(item).TryGetFailure(out failure))
             return Result.Failure<ItemId>(failure!);
-        var kept = command.Terms with { UnpaidAbsences = command.Terms.UnpaidAbsences ?? revisions[^1].UnpaidAbsences };
-        var errors = ChildcareCheck.Terms(command.Terms);
+        var kept = command.Terms with { UnpaidAbsences = command.Terms.UnpaidAbsences ?? revisions[^1].UnpaidAbsences, FullYear = command.Terms.FullYear ?? revisions[^1].FullYear };
+        var errors = ChildcareCheck.Terms(kept);
         if (command.Terms.From <= revisions[^1].From)
             errors.Add(new("terms.from", ChildcareCodes.RevisionNotAfter, "A revision starts after the current terms' start."));
         if (errors.Count == 0)

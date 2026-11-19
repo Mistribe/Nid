@@ -89,6 +89,10 @@ public sealed record TermsRecord
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyList<string>? UnpaidAbsences { get; set; }
 
+    /// <summary>True for care over 52 weeks, leave included (année complète); absent: an incomplete year.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? FullYear { get; set; }
+
     /// <summary>The old form, one template week: read, never written. Either it and <c>schedule</c>, or <c>week_types</c>.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public int? ProgrammedWeeks { get; set; }
@@ -247,6 +251,10 @@ public sealed record FiguresRecord
     public required decimal TaxBase { get; init; }
 
     public required int ChildSickDeducted { get; init; }
+
+    /// <summary>A full year's leave days taken and paid this month; absent: none.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? PaidLeaveTaken { get; set; }
 
     /// <summary>The last month's end-of-contract lines, omitted on any other month.</summary>
     [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.WriteAsString)]

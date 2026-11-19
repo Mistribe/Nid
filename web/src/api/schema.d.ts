@@ -33150,6 +33150,7 @@ export interface components {
             childSickQuota: number;
             belowMinimums?: null | components["schemas"]["LegalMinimumView"][];
             end?: null | components["schemas"]["ContractEndView"];
+            leave?: null | components["schemas"]["LeaveCounterView"];
         };
         ChildcareList: {
             items: components["schemas"]["ChildcareSummary"][];
@@ -33252,6 +33253,8 @@ export interface components {
             /** Format: int32 */
             normalHours: number;
             unpaidAbsences: string[];
+            /** @default false */
+            fullYear: boolean;
         };
         ChildcareYearView: {
             /** Format: uuid */
@@ -35654,6 +35657,14 @@ export interface components {
             days: number;
             /** Format: int32 */
             defaultDays: number;
+        };
+        LeaveCounterView: {
+            /** Format: int32 */
+            accrued: number;
+            /** Format: int32 */
+            taken: number;
+            /** Format: int32 */
+            left: number;
         };
         LegalMinimumView: {
             code: string;
@@ -39207,6 +39218,7 @@ export interface components {
             lunchProvider?: null | string;
             snackProvider?: null | string;
             unpaidAbsences?: null | string[];
+            fullYear?: null | boolean;
         };
         TestChannelBody: {
             channel?: null | string;

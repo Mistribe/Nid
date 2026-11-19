@@ -16,50 +16,50 @@ public class AbsenceDeductionTests
             : d)];
 
     [Fact]
-    public void No_absence() => Assert.Equal((0m, 0, 0), AbsenceDeduction.Compute(BasePay, November(), Plan, 0));
+    public void No_absence() => Assert.Equal((0m, 0, 0, 0), AbsenceDeduction.Compute(BasePay, November(), Plan, 0));
 
     [Fact]
     public void Two_carer_absences()
-        => Assert.Equal((73.69m, 2, 0), AbsenceDeduction.Compute(BasePay, November((2, AbsenceReason.CarerAbsent), (3, AbsenceReason.CarerAbsent)), Plan, 0));
+        => Assert.Equal((73.69m, 2, 0, 0), AbsenceDeduction.Compute(BasePay, November((2, AbsenceReason.CarerAbsent), (3, AbsenceReason.CarerAbsent)), Plan, 0));
 
     [Fact]
     public void Child_sick_over_the_quota()
-        => Assert.Equal((36.85m, 1, 1), AbsenceDeduction.Compute(BasePay, November((5, AbsenceReason.ChildSick), (6, AbsenceReason.ChildSick)), Plan, 4));
+        => Assert.Equal((36.85m, 1, 1, 0), AbsenceDeduction.Compute(BasePay, November((5, AbsenceReason.ChildSick), (6, AbsenceReason.ChildSick)), Plan, 4));
 
     [Fact]
     public void Paid_leave_is_paid_by_default()
-        => Assert.Equal((0m, 0, 0), AbsenceDeduction.Compute(BasePay, November((2, AbsenceReason.PaidLeave)), Plan, 0));
+        => Assert.Equal((0m, 0, 0, 0), AbsenceDeduction.Compute(BasePay, November((2, AbsenceReason.PaidLeave)), Plan, 0));
 
     [Fact]
     public void Carer_training_is_deducted_whatever_the_contract()
-        => Assert.Equal((36.85m, 1, 0), AbsenceDeduction.Compute(BasePay, November((2, AbsenceReason.CarerTraining)), Plan, 0, []));
+        => Assert.Equal((36.85m, 1, 0, 0), AbsenceDeduction.Compute(BasePay, November((2, AbsenceReason.CarerTraining)), Plan, 0, []));
 
     [Fact]
     public void An_agreed_family_absence_is_deducted_whatever_the_contract()
-        => Assert.Equal((36.85m, 1, 0), AbsenceDeduction.Compute(BasePay, November((2, AbsenceReason.FamilyAgreed)), Plan, 0, []));
+        => Assert.Equal((36.85m, 1, 0, 0), AbsenceDeduction.Compute(BasePay, November((2, AbsenceReason.FamilyAgreed)), Plan, 0, []));
 
     [Fact]
     public void The_contract_decides_which_reasons_are_unpaid()
-        => Assert.Equal((36.85m, 1, 0), AbsenceDeduction.Compute(BasePay, November((2, AbsenceReason.Family), (5, AbsenceReason.ChildSick)), Plan, 0, [AbsenceReason.Family]));
+        => Assert.Equal((36.85m, 1, 0, 0), AbsenceDeduction.Compute(BasePay, November((2, AbsenceReason.Family), (5, AbsenceReason.ChildSick)), Plan, 0, [AbsenceReason.Family]));
 
     private static IReadOnlyList<StatementDay> ShortMonday(AbsenceReason reason)
         => [.. November().Select(d => d.Date.Day == 2 ? d with { Departure = new LocalTime(12, 45), Absence = reason } : d)];
 
     [Fact]
     public void A_shortened_day_deducts_its_missing_share()
-        => Assert.Equal((18.42m, 0, 0), AbsenceDeduction.Compute(BasePay, ShortMonday(AbsenceReason.CarerAbsent), Plan, 0));
+        => Assert.Equal((18.42m, 0, 0, 0), AbsenceDeduction.Compute(BasePay, ShortMonday(AbsenceReason.CarerAbsent), Plan, 0));
 
     [Fact]
     public void A_shortened_sick_day_takes_a_day_of_the_quota()
-        => Assert.Equal((18.42m, 0, 1), AbsenceDeduction.Compute(BasePay, ShortMonday(AbsenceReason.ChildSick), Plan, 0));
+        => Assert.Equal((18.42m, 0, 1, 0), AbsenceDeduction.Compute(BasePay, ShortMonday(AbsenceReason.ChildSick), Plan, 0));
 
     [Fact]
     public void A_shortened_day_for_a_paid_reason_deducts_nothing()
-        => Assert.Equal((0m, 0, 0), AbsenceDeduction.Compute(BasePay, ShortMonday(AbsenceReason.Family), Plan, 0));
+        => Assert.Equal((0m, 0, 0, 0), AbsenceDeduction.Compute(BasePay, ShortMonday(AbsenceReason.Family), Plan, 0));
 
     [Fact]
     public void Family_is_paid()
-        => Assert.Equal((0m, 0, 0), AbsenceDeduction.Compute(BasePay, November((10, AbsenceReason.Family)), Plan, 0));
+        => Assert.Equal((0m, 0, 0, 0), AbsenceDeduction.Compute(BasePay, November((10, AbsenceReason.Family)), Plan, 0));
 
     /// <summary>An employer's RTT day is deducted by default, as a carer's absence on the same day would be.</summary>
     [Fact]
@@ -74,7 +74,7 @@ public class AbsenceDeductionTests
         var days = Absent(StatementPreparation.Prepare(new YearMonth(2026, 11), plan, []), (3, AbsenceReason.CarerAbsent));
         // The hours of that day over November's template hours, not one day of 17.
         var potential = days.Sum(d => plan.HoursOn(d.Date));
-        Assert.Equal((Mensualisation.Round(698.20m * plan.HoursOn(D(2026, 11, 3)) / potential), 1, 0), AbsenceDeduction.Compute(698.20m, days, plan, 0));
+        Assert.Equal((Mensualisation.Round(698.20m * plan.HoursOn(D(2026, 11, 3)) / potential), 1, 0, 0), AbsenceDeduction.Compute(698.20m, days, plan, 0));
         Assert.Equal(36.35m, AbsenceDeduction.Compute(698.20m, days, plan, 0).Deduction);
     }
 
@@ -82,6 +82,6 @@ public class AbsenceDeductionTests
     public void Gap_days_stay_in_the_denominator()
     {
         var days = Absent(StatementPreparation.Prepare(new YearMonth(2026, 12), Plan, [new CareGap(D(2026, 12, 21), 1)]), (3, AbsenceReason.CarerAbsent));
-        Assert.Equal((34.80m, 1, 0), AbsenceDeduction.Compute(BasePay, days, Plan, 0));
+        Assert.Equal((34.80m, 1, 0, 0), AbsenceDeduction.Compute(BasePay, days, Plan, 0));
     }
 }
