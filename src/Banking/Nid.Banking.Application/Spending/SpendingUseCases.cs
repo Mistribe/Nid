@@ -17,7 +17,7 @@ public sealed record GetSpendingQuery(VisibilityScope Scope, YearMonth? Month, Y
 
 /// <summary>
 /// Amounts in <paramref name="Currency"/> (the household's reference), positive for money spent. <paramref name="Incomplete"/>: a line in
-/// the range had no rate and is left out. <paramref name="Average"/>: the monthly average of the 12 months before <paramref name="From"/>, or of
+/// the range, or a charge a budget counts as committed, had no rate and is left out. <paramref name="Average"/>: the monthly average of the 12 months before <paramref name="From"/>, or of
 /// those the accounts' history covers when fewer (whole months from the first line, and within the household's retention); null when it
 /// covers fewer than 3 of them or a line of them has no rate (every average then). <paramref name="From"/> and <paramref name="To"/> are <c>yyyy-MM</c>.
 /// <paramref name="Months"/>: every month of the range, oldest first, with what it spent under the same rules as <paramref name="Total"/>.
@@ -107,7 +107,7 @@ public sealed class GetSpendingHandler(
     /// </summary>
     public sealed record Spent(
         YearMonth From, YearMonth To, IReadOnlyList<Guid> Accounts, Currency Reference, Dictionary<Guid, (decimal Range, decimal Before)> ByCategory,
-        Dictionary<YearMonth, decimal> ByMonth, HashSet<Guid> Incomplete, bool AverageMissing, int Covered);
+        Dictionary<YearMonth, decimal> ByMonth, HashSet<Guid> Incomplete, bool AverageMissing, int Covered, LocalDate Today);
 
     public async ValueTask<Result<Spent>> SpentAsync(GetSpendingQuery query, CancellationToken ct)
     {
@@ -176,7 +176,7 @@ public sealed class GetSpendingHandler(
                 byMonth[sum.Month] = byMonth.GetValueOrDefault(sum.Month) + converted;
         }
 
-        return Result.Success(new Spent(from, to, accounts, reference, spent, byMonth, incomplete, averageMissing, covered));
+        return Result.Success(new Spent(from, to, accounts, reference, spent, byMonth, incomplete, averageMissing, covered, today));
     }
 
     public async ValueTask<Result<SpendingView>> HandleAsync(GetSpendingQuery query, CancellationToken ct = default)
@@ -184,15 +184,14 @@ public sealed class GetSpendingHandler(
         var figures = await SpentAsync(query, ct);
         if (!figures.TryGetValue(out var sums))
             return BankingAccess.Failed<SpendingView, Spent>(figures);
-        var (from, to, reference, spent, covered) = (sums.From, sums.To, sums.Reference, sums.ByCategory, sums.Covered);
+        var (from, to, reference, spent, covered, today) = (sums.From, sums.To, sums.Reference, sums.ByCategory, sums.Covered, sums.Today);
         var months = Enumerable.Range(0, Index(to) - Index(from) + 1).Select(i => from.PlusMonths(i))
             .Select(m => new SpendingMonthView(YearMonthPattern.Iso.Format(m), Money(sums.ByMonth.GetValueOrDefault(m)))).ToList();
         var byId = (await categories.AllAsync(ct)).ToDictionary(c => c.Id);
         // Decision 7: the budget is the household's, set against « Foyer » one month at a time.
-        var today = await calendar.TodayAsync(ct);
-        var plans = query is { Scope: VisibilityScope.Household, From: null, To: null }
+        var (plans, uncommitted) = query is { Scope: VisibilityScope.Household, From: null, To: null }
             ? await PlansAsync(from, reference, today, byId, ct)
-            : [];
+            : ([], false);
         SpendingBudgetView? Budget(Guid id, decimal range) => plans.TryGetValue(id, out var plan) ? Pace(plan, Round(range), from, today) : null;
 
         var averaged = !sums.AverageMissing && covered >= MinHistoryMonths;
@@ -219,7 +218,7 @@ public sealed class GetSpendingHandler(
 
         var none = spent.GetValueOrDefault(Guid.Empty);
         return Result.Success(new SpendingView(
-            reference.Code, Money(spent.Values.Sum(s => s.Range)), sums.Incomplete.Count > 0, Average(spent.Values.Sum(s => s.Before)),
+            reference.Code, Money(spent.Values.Sum(s => s.Range)), sums.Incomplete.Count > 0 || uncommitted, Average(spent.Values.Sum(s => s.Before)),
             [.. tops.OrderByDescending(t => t.Range).ThenBy(t => t.View.Name, ByName).Select(t => t.View)],
             new SpendingUncategorisedView(Money(none.Range), Average(none.Before)),
             YearMonthPattern.Iso.Format(from), YearMonthPattern.Iso.Format(to), months));
@@ -232,12 +231,12 @@ public sealed class GetSpendingHandler(
     /// without either. One budget per branch, the parent's first (both can exist after an unarchive): a child under a budgeted parent, and
     /// a parent over a budgeted child, have none.
     /// </summary>
-    private async Task<Dictionary<Guid, Plan>> PlansAsync(
+    private async Task<(Dictionary<Guid, Plan> Plans, bool Incomplete)> PlansAsync(
         YearMonth month, Currency reference, LocalDate today, Dictionary<Guid, BankCategory> byId, CancellationToken ct)
     {
         static bool Active(BankCategory c) => c is { Kind: CategoryKind.Expense, ArchivedAt: null, MergedInto: null };
         var rows = (await budgets.AllAsync(ct)).Where(b => byId.TryGetValue(b.Category, out var c) && Active(c)).ToDictionary(b => b.Category);
-        var commitments = await committed.ForAsync(month, reference, today, byId, ct);
+        var (commitments, incomplete) = await committed.ForAsync(month, reference, today, byId, ct);
         var plans = new Dictionary<Guid, Plan>();
         foreach (var category in byId.Values.Where(Active))
         {
@@ -251,9 +250,10 @@ public sealed class GetSpendingHandler(
             if (typed is null && commitment <= 0m)
                 continue;
             plans[category.Id] = new Plan(typed ?? commitment, commitment > 0m ? commitment : null, typed is null ? "committed" : "typed",
-                row?.Period == BudgetPeriod.Year ? "year" : "month");
+                // « Annuel » describes a typed yearly amount; a commitment is the month's.
+                typed is not null && row!.Period == BudgetPeriod.Year ? "year" : "month");
         }
-        return plans;
+        return (plans, incomplete);
     }
 
     /// <summary>Decision 8: the pace of the current month against its days elapsed; a past month's spent against planned only.</summary>

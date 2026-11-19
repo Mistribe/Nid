@@ -64,14 +64,41 @@ public class SpendingBudgetTests(PostgresFixture fixture) : IClassFixture<Postgr
         // A child's commitment counts in its parent's too.
         Assert.Equal(("9.99", "9.99", "committed", "month", "9.99", "4.83", "on_track"), Of(Budget(view, "leisure")));
 
-        // A budget with no amount follows the commitment; a typed amount wins and shows the commitment inside it.
-        await BudgetAsync(app, "leisure.subscriptions", null);
-        Assert.Equal("committed", S(Assert.NotNull(Budget(await SpendingAsync(app, app.AdultA), "leisure.subscriptions")), "source"));
+        Assert.False(view.GetProperty("incomplete").GetBoolean());
+
+        // A budget with no amount follows the commitment, a month's even when the budget is yearly; a typed amount wins and shows the
+        // commitment inside it.
+        await BudgetAsync(app, "leisure.subscriptions", null, "year");
+        Assert.Equal(("9.99", "9.99", "committed", "month", "9.99", "4.83", "on_track"),
+            Of(Budget(await SpendingAsync(app, app.AdultA), "leisure.subscriptions")));
         await BudgetAsync(app, "leisure.subscriptions", "30");
         view = await SpendingAsync(app, app.AdultA);
         Assert.Equal(("30.00", "9.99", "typed", "month", "30.00", "14.52", "on_track"), Of(Budget(view, "leisure.subscriptions")));
         // A budget on a child takes the branch: the parent shows none.
         Assert.Null(Budget(view, "leisure"));
+    }
+
+    [Fact]
+    public async Task A_commitment_with_no_rate_is_left_out_and_flags_the_month()
+    {
+        var app = (await StartAsync(fixture)).App;
+        await using var _ = app;
+        await app.NewMonthlyAsync(app.AdultA, 9.99m);
+        // No GBP rate is ever loaded in a test host.
+        var pounds = await app.NewSubscriptionAsync("Box GBP", app.AdultA, Visibility.Shared);
+        (await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/subscriptions/{pounds.Value}/phases", new
+        {
+            startsOn = "2025-01-01",
+            price = new { amount = "20", currency = "GBP" },
+            every = new { count = 1, unit = "month" },
+            payer = new { type = "household" },
+        })).EnsureSuccessStatusCode();
+
+        var view = await SpendingAsync(app, app.AdultA);
+        Assert.True(view.GetProperty("incomplete").GetBoolean());
+        Assert.Equal(("9.99", "9.99", "committed", "month", "9.99", "4.83", "on_track"), Of(Budget(view, "leisure.subscriptions")));
+        // « Moi » computes no commitment: nothing to flag.
+        Assert.False((await SpendingAsync(app, app.AdultA, "?scope=me")).GetProperty("incomplete").GetBoolean());
     }
 
     [Fact]

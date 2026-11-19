@@ -9,19 +9,20 @@ namespace Nid.Banking.Application.Spending;
 
 /// <summary>
 /// #85 decision 7: what the household's expected debits of a month commit, per category, in the reference currency; a child's amount also
-/// counts in its parent's. A charge maps as a line linked to it would (<see cref="LinkCategory.KeyFor"/>); one without a rate is left out.
+/// counts in its parent's. A charge maps as a line linked to it would (<see cref="LinkCategory.KeyFor"/>); one without a rate is left out,
+/// and <c>Incomplete</c> says so.
 /// </summary>
 public sealed class CommittedByCategory(
     BankingAccess access, ExpectedChargeReader charges, ISubscriptionLabels labels, ICategoryStore categories, IFxRates fx)
 {
-    public async Task<Dictionary<Guid, decimal>> ForAsync(
+    public async Task<(Dictionary<Guid, decimal> Amounts, bool Incomplete)> ForAsync(
         YearMonth month, Currency reference, LocalDate today, IReadOnlyDictionary<Guid, BankCategory> byId, CancellationToken ct)
     {
         var days = month.ToDateInterval();
         var due = (await charges.InScopeAsync(access.Person, VisibilityScope.Household, days.Start, days.End, ct)).Where(c => !c.Credit).ToList();
         var committed = new Dictionary<Guid, decimal>();
         if (due.Count == 0)
-            return committed;
+            return (committed, false);
 
         var subscriptions = due.Where(c => c.Kind == ChargeKind.Subscription).Select(c => c.Item).Distinct().ToList();
         IReadOnlyDictionary<ItemId, IReadOnlyList<string>> labelKeys = subscriptions.Count == 0
@@ -33,6 +34,7 @@ public sealed class CommittedByCategory(
             : await fx.LoadAsync([.. foreign, reference], days.End < today ? days.End : today, today, ct);
 
         var resolved = new Dictionary<string, Guid?>();
+        var incomplete = false;
         foreach (var charge in due)
         {
             // The charge's kind decides the key, so the item's kind is never needed.
@@ -40,13 +42,17 @@ public sealed class CommittedByCategory(
                 continue;
             if (!resolved.TryGetValue(key, out var category))
                 resolved[key] = category = await categories.ResolveKeyAsync(key, ct);
-            if (category is not { } id
-                || !rates.TryConvert(charge.Amount.Amount, charge.Amount.Currency, reference, days.End, projected: true, out var amount, out _))
+            if (category is not { } id)
                 continue;
+            if (!rates.TryConvert(charge.Amount.Amount, charge.Amount.Currency, reference, days.End, projected: true, out var amount, out _))
+            {
+                incomplete = true;
+                continue;
+            }
             committed[id] = committed.GetValueOrDefault(id) + amount;
             if (byId.GetValueOrDefault(id)?.Parent is { } parent)
                 committed[parent] = committed.GetValueOrDefault(parent) + amount;
         }
-        return committed;
+        return (committed, incomplete);
     }
 }
