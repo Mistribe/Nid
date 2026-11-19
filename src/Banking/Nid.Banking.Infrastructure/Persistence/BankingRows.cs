@@ -51,6 +51,11 @@ public sealed class AccountRow
 
     public string? Product { get; set; }
 
+    /// <summary>#362: a card's minimum payments a month, the household's rule; null: none.</summary>
+    public int? CardMinPayments { get; set; }
+
+    public bool CardCountWithdrawals { get; set; }
+
     public string Currency { get; set; } = "";
     public Guid? EnvelopeItemId { get; set; }
     public Guid? CardOfAccountId { get; set; }

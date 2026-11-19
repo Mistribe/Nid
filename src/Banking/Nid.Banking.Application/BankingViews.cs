@@ -63,7 +63,7 @@ public sealed record ConnectionView(
 public sealed record BankAccountView(
     Guid Id, string Name, string? IbanMasked, string Kind, string Currency, Guid? EnvelopeId, Guid? CardOfAccountId, bool AutoApplyBalance,
     bool Ignored, LocalDate? BalanceConflictOn, string? LastBalance, LocalDate? LastBalanceOn, bool Synced, bool CanWrite, string BankName,
-    bool Renamed, string? CardDebit, string? Holder, string? Product, BankReadsView Reads);
+    bool Renamed, string? CardDebit, string? Holder, string? Product, BankReadsView Reads, int? MinPayments = null, bool CountWithdrawals = false);
 
 /// <summary>The account views of what <see cref="BankingAccess.ReadableAsync"/> lets the actor read, by name.</summary>
 public sealed class BankAccountReader(
@@ -91,7 +91,7 @@ public sealed class BankAccountReader(
                 account.CardOf, account.AutoApplyBalance, account.Ignored, account.BalanceConflictOn,
                 latest?.Amount.ToString("0.00", CultureInfo.InvariantCulture), latest?.AsOf, synced, canWrite, account.BankName ?? account.Name,
                 account.HouseholdName is not null, account.Debit?.ToString().ToLowerInvariant(), account.Holder, account.Product,
-                BankReadsView.From(counts.GetValueOrDefault(account.Id, ReadCount.None), clock.GetCurrentInstant())));
+                BankReadsView.From(counts.GetValueOrDefault(account.Id, ReadCount.None), clock.GetCurrentInstant()), account.MinPayments, account.CountWithdrawals));
         }
 
         return views.OrderBy(v => v.Name, StringComparer.Ordinal).ToList();

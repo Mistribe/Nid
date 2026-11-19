@@ -178,6 +178,7 @@ public sealed class AccountStore(BankingDbContext db) : IAccountStore
             row.AssociatedOn = account.AssociatedOn;
             row.AssociatedByPersonId = account.AssociatedBy?.Value;
             row.HouseholdName = account.HouseholdName;
+            (row.CardMinPayments, row.CardCountWithdrawals) = (account.MinPayments, account.CountWithdrawals);
             try
             {
                 await db.SaveChangesAsync(ct);
@@ -218,5 +219,5 @@ public sealed class AccountStore(BankingDbContext db) : IAccountStore
             Currency.TryCreate(r.Currency, out var currency) ? currency : throw new InvalidOperationException($"Bank account {r.Id} has no valid currency."),
             r.EnvelopeItemId is { } envelope ? new ItemId(envelope) : null, r.CardOfAccountId, r.AutoApplyBalance, r.Ignored, r.BalanceConflictOn,
             r.AssociatedOn, new PersonId(r.CreatedByPersonId), r.LastValuedOn, r.AssociatedByPersonId is { } by ? new PersonId(by) : null,
-            r.HouseholdName, r.Name, r.CardDebit is { } debit ? Enum.Parse<CardDebit>(debit, ignoreCase: true) : null, r.Holder, r.Product);
+            r.HouseholdName, r.Name, r.CardDebit is { } debit ? Enum.Parse<CardDebit>(debit, ignoreCase: true) : null, r.Holder, r.Product, r.CardMinPayments, r.CardCountWithdrawals);
 }

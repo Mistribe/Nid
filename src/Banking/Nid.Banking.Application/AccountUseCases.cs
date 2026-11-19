@@ -19,11 +19,12 @@ public sealed record ListBankAccountsQuery(ItemId? Envelope) : IQuery<IReadOnlyL
 /// <paramref name="CardOfAccountId"/> attaches a card to a checking account its author may write; <paramref name="ClearCard"/> detaches it.
 /// Moving it (to an envelope or an account) is its owner's alone (<see cref="BankingAccess.OwnsAsync(BankAccount, CancellationToken)"/>);
 /// a card takes no envelope. <paramref name="Name"/> is the household's own name for it, which whoever writes it sets;
-/// <paramref name="ClearName"/> goes back to the bank's.
+/// <paramref name="ClearName"/> goes back to the bank's. #362: a card's <paramref name="MinPayments"/> a month (1 to 31) and whether
+/// <paramref name="CountWithdrawals"/>; <paramref name="ClearMinPayments"/> turns the rule off; whoever writes the card sets them.
 /// </summary>
 public sealed record UpdateBankAccountCommand(
     Guid Id, Guid? EnvelopeId, bool ClearEnvelope, Guid? CardOfAccountId, bool ClearCard, bool? AutoApplyBalance, bool? Ignored, string? Name = null,
-    bool ClearName = false) : ICommand<Guid>, ITransactional;
+    bool ClearName = false, int? MinPayments = null, bool ClearMinPayments = false, bool? CountWithdrawals = null) : ICommand<Guid>, ITransactional;
 
 /// <summary>
 /// #353: what « Régler » shows to recognise an account: its latest lines, and for a card not yet attached, the checking account it most
@@ -116,6 +117,16 @@ public sealed class UpdateBankAccountHandler(
             // The bank's own name is no renaming: the account keeps following it.
             changed = changed with { HouseholdName = name == bankName ? null : name, Name = name };
         }
+        if ((command.MinPayments is not null || command.ClearMinPayments || command.CountWithdrawals is not null) && account.Kind != BankAccountKind.Card)
+            return Result.Failure<Guid>(FieldErrors.At(new Failure(BankingCodes.CardRule, "Only a card has a minimum usage.", null), "minPayments"));
+        if (command.MinPayments is { } payments and (< 1 or > CardUsage.MaxPayments))
+            return Result.Failure<Guid>(FieldErrors.At(
+                new Failure(BankingCodes.CardRule, $"A card's minimum usage is 1 to {CardUsage.MaxPayments} payments a month.", null), "minPayments"));
+        changed = changed with
+        {
+            MinPayments = command.ClearMinPayments ? null : command.MinPayments ?? account.MinPayments,
+            CountWithdrawals = command.CountWithdrawals ?? account.CountWithdrawals,
+        };
         if (command.ClearEnvelope)
             changed = changed with { Envelope = null, AssociatedOn = null, AssociatedBy = null };
         else if (command.EnvelopeId is { } id && new ItemId(id) is var envelope && envelope != account.Envelope)

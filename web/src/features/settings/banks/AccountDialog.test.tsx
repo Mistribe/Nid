@@ -128,6 +128,40 @@ describe('the account dialog', () => {
     await waitFor(() => expect(sent).toEqual([{ id: CARD, body: { cardOfAccountId: SECOND } }]));
   });
 
+  it('sets a card’s minimum usage, the withdrawals counted or not, and turns it off again (#362)', async () => {
+    const card = account({ id: CARD, name: 'Visa Premier', ibanMasked: null, kind: 'card' });
+    serveBanks([connection({ accounts: [account(), card] })], envelopes);
+    const sent = patches();
+    const { user, container } = await renderApp('/settings/banks');
+
+    await user.click((await screen.findAllByRole('button', { name: 'Régler Visa Premier' }))[0]!);
+    const dialog = await screen.findByRole('dialog', { name: 'Régler Visa Premier' });
+    const usage = within(dialog).getByRole('radiogroup', { name: /Utilisation minimale/ });
+    expect(within(usage).getByRole('radio', { name: 'Aucune' })).toBeChecked();
+    expect(within(dialog).queryByRole('switch', { name: 'Les retraits d’espèces comptent comme des paiements' })).toBeNull();
+    await user.click(within(usage).getByRole('radio', { name: 'Plusieurs' }));
+    await user.clear(within(dialog).getByRole('textbox', { name: 'Paiements par mois' }));
+    await user.type(within(dialog).getByRole('textbox', { name: 'Paiements par mois' }), '3');
+    await user.click(within(dialog).getByRole('switch', { name: 'Les retraits d’espèces comptent comme des paiements' }));
+    await expectNoAxeViolations(container);
+    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
+    await waitFor(() => expect(sent).toEqual([{ id: CARD, body: { minPayments: 3, countWithdrawals: true } }]));
+  });
+
+  it('turns a card’s minimum usage off by clearing it, nothing else (#362)', async () => {
+    const card = account({ id: CARD, name: 'Visa Premier', ibanMasked: null, kind: 'card', minPayments: 1 });
+    serveBanks([connection({ accounts: [account(), card] })], envelopes);
+    const sent = patches();
+    const { user } = await renderApp('/settings/banks');
+
+    await user.click((await screen.findAllByRole('button', { name: 'Régler Visa Premier' }))[0]!);
+    const dialog = await screen.findByRole('dialog', { name: 'Régler Visa Premier' });
+    expect(within(dialog).getByRole('radio', { name: '1 paiement par mois' })).toBeChecked();
+    await user.click(within(dialog).getByRole('radio', { name: 'Aucune' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
+    await waitFor(() => expect(sent).toEqual([{ id: CARD, body: { clearMinPayments: true } }]));
+  });
+
   it('names an account the bank sent no name for by its masked IBAN, else by its kind, everywhere', async () => {
     const SECOND = '00000000-0000-7000-8000-0000000000b4';
     const card = account({ id: CARD, name: 'Visa Premier', ibanMasked: null, kind: 'card', cardOfAccountId: CHECKING });

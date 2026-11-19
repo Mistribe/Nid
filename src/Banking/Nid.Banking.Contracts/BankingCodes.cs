@@ -41,6 +41,9 @@ public static class BankingCodes
     /// </summary>
     public const string CurrencyUnknown = "banking.currency_unknown";
 
+    /// <summary>#362: a minimum usage on an account that is not a card, or outside 1 to 31 payments a month.</summary>
+    public const string CardRule = "banking.card_rule";
+
     /// <summary>A statement file that is neither OFX nor CAMT.053.</summary>
     public const string FileFormat = "banking.file_format";
 
