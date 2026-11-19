@@ -1,4 +1,5 @@
 using Nid.Banking.Contracts;
+using Nid.Core.Contracts;
 
 namespace Nid.Banking.Domain;
 
@@ -18,4 +19,15 @@ public static class BalancePick
 
     /// <summary>Anything but a booked balance: the valuation's note says it is the available one.</summary>
     public static bool IsFallback(string type) => type is not ("CLBD" or "ITBD");
+}
+
+/// <summary>#355: the currency of an account the bank sent in <c>XXX</c>, from its balances.</summary>
+public static class BankCurrency
+{
+    /// <summary>The one currency every stated balance is in; <c>null</c> when they name several, or none.</summary>
+    public static Currency? Infer(IReadOnlyList<ProviderBalance> balances)
+    {
+        var named = balances.Select(b => b.Currency.ToUpperInvariant()).Where(c => c != Currency.None.Code).Distinct().ToList();
+        return named is [var only] && Currency.TryCreate(only, out var currency) ? currency : null;
+    }
 }

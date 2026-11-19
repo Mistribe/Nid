@@ -35,6 +35,12 @@ public static class BankingCodes
     /// <summary>A transactions read hit the page cap: the run is journaled failed, the connection stays active.</summary>
     public const string TransactionsTruncated = "banking.transactions_truncated";
 
+    /// <summary>
+    /// #355: an account the bank sent in <c>XXX</c> (no currency) whose balances did not name a single one: skipped, journaled with this
+    /// code; it takes no envelope until a read learns its currency.
+    /// </summary>
+    public const string CurrencyUnknown = "banking.currency_unknown";
+
     /// <summary>A statement file that is neither OFX nor CAMT.053.</summary>
     public const string FileFormat = "banking.file_format";
 

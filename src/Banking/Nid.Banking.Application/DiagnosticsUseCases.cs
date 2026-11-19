@@ -7,19 +7,23 @@ using UnambitiousFx.Synapse.Abstractions;
 
 namespace Nid.Banking.Application;
 
-/// <summary>Issue #343: why bank sync is or is not configured. <paramref name="RedirectUrl"/> is the callback, set by the route.</summary>
-public sealed record GetBankingDiagnosticsQuery(string RedirectUrl) : IQuery<BankingDiagnosticsView>, IAdminOnly;
+/// <summary>
+/// Issue #343: why bank sync is or is not configured. <paramref name="RedirectUrl"/> is the callback and <paramref name="NextRunAt"/> the
+/// scheduler's next nightly run, both set by the route.
+/// </summary>
+public sealed record GetBankingDiagnosticsQuery(string RedirectUrl, DateTimeOffset? NextRunAt = null) : IQuery<BankingDiagnosticsView>, IAdminOnly;
 
 /// <summary>Issue #343: one read-only call to Enable Banking with the saved id and the server's key, whether bank sync is on or not.</summary>
 public sealed record TestBankingConnectionCommand(string RedirectUrl) : ICommand<BankingConnectionTestView>, IAdminOnly;
 
 [RequestHandler<GetBankingDiagnosticsQuery, BankingDiagnosticsView>]
-public sealed class GetBankingDiagnosticsHandler(IHouseholdSettings settings, BankingKey key)
+public sealed class GetBankingDiagnosticsHandler(IHouseholdSettings settings, BankingKey key, IBankSyncRunLog runs, IConnectionStore connections)
     : IRequestHandler<GetBankingDiagnosticsQuery, BankingDiagnosticsView>
 {
     public async ValueTask<Result<BankingDiagnosticsView>> HandleAsync(GetBankingDiagnosticsQuery query, CancellationToken ct = default)
         => Result.Success(new BankingDiagnosticsView(
-            key.Status, !string.IsNullOrWhiteSpace((await settings.ReadAsync(ct)).EnableBankingAppId), query.RedirectUrl));
+            key.Status, !string.IsNullOrWhiteSpace((await settings.ReadAsync(ct)).EnableBankingAppId), query.RedirectUrl,
+            (await runs.RecentAsync(1, ct)).FirstOrDefault(), query.NextRunAt, (await connections.ActiveAsync(ct)).Count > 0));
 }
 
 [RequestHandler<TestBankingConnectionCommand, BankingConnectionTestView>]

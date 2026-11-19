@@ -1,7 +1,9 @@
 using System.Net;
 using System.Security.Cryptography;
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
 using Nid.Banking.Contracts;
+using Nid.Platform.Admin;
 using Nid.TestSupport;
 
 namespace Nid.Banking.IntegrationTests;
@@ -98,6 +100,30 @@ public class DiagnosticsTests(PostgresFixture fixture) : IClassFixture<PostgresF
         app.Banks.FailWith = BankingCodes.ProviderError;
         var unreachable = await BankingApi.JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, Test));
         Assert.Equal(("unreachable", null), (unreachable.GetProperty("outcome").GetString(), OptionalString(unreachable, "code")));
+    }
+
+    private sealed class Scheduled(DateTimeOffset next) : IJobStatusReader
+    {
+        public Task<IReadOnlyList<JobSchedule>> ListAsync(CancellationToken ct)
+            => Task.FromResult<IReadOnlyList<JobSchedule>>([new("fx-daily", "0 0 6 * * ?", next.AddHours(2)), new("bank-sync-nightly", "0 30 4 * * ?", next)]);
+    }
+
+    [Fact]
+    public async Task Diagnostics_give_the_last_run_the_next_one_and_whether_a_bank_is_linked()
+    {
+        var next = new DateTimeOffset(2025, 10, 16, 4, 30, 0, TimeSpan.Zero);
+        await using var app = await BankingApi.StartAsync(fixture, overrides: s => s.AddSingleton<IJobStatusReader>(new Scheduled(next)));
+
+        var before = JsonDocument.Parse(await app.GetRawAsync(app.AdultA, Diagnostics)).RootElement;
+        Assert.Equal((JsonValueKind.Null, next, false),
+            (before.GetProperty("lastRun").ValueKind, before.GetProperty("nextRunAt").GetDateTimeOffset(), before.GetProperty("bankLinked").GetBoolean()));
+
+        var connection = await BankingApi.ConnectAsync(app, app.AdultB, "code-b", BankingApi.Account("uid-1", "hash-1", null, "Courant B"));
+        (await app.RawAsync(app.AdultB, HttpMethod.Post, $"{BankingApi.Root}/sync", new { connectionId = connection })).EnsureSuccessStatusCode();
+
+        var after = JsonDocument.Parse(await app.GetRawAsync(app.AdultA, Diagnostics)).RootElement;
+        Assert.True(after.GetProperty("bankLinked").GetBoolean());
+        Assert.Equal("manual", after.GetProperty("lastRun").GetProperty("trigger").GetString());
     }
 
     [Fact]

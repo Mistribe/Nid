@@ -47,6 +47,7 @@
       "banking_provider_error": "La banque ne répond pas pour l'instant : réessayez plus tard.",
       "banking_sync_running": "Une synchronisation est déjà en cours.",
       "banking_currency_mismatch": "La devise du compte et celle de l'enveloppe diffèrent.",
+      "banking_currency_unknown": "La banque n'a pas encore indiqué la devise de ce compte : synchronisez-le, puis reliez-le à une enveloppe.",
       "banking_card_parent": "Une carte se rattache à un compte courant.",
       "banking_invalid_name": "Un nom compte de 1 à 100 caractères.",
       "banking_envelope_taken": "Un autre compte bancaire est déjà relié à cette enveloppe.",
