@@ -20,7 +20,7 @@ public sealed record ReconciliationCounts(int Internal, int Linked, int Proposed
 /// </summary>
 public sealed class BankReconciliation(
     BankingAccess access, ITransactionStore transactions, IAccountStore accountStore, ILinkStore links, IRuleStore rules,
-    ExpectedChargeReader charges, TransactionLinker linker, CategoryRuleApplier categoryRules, IAccessPolicy policy, IProposalSubmitter proposals,
+    ExpectedChargeReader charges, TransactionLinker linker, CategoryRuleApplier categoryRules, ICategoryStore categories, IAccessPolicy policy, IProposalSubmitter proposals,
     IActorAccessor actor, IUnitOfWork unitOfWork, IClock clock, ILogger<BankReconciliation> log)
 {
     /// <summary>The widest tolerance of a charge (a rent's): the charges read around the batch.</summary>
@@ -191,6 +191,15 @@ public sealed class BankReconciliation(
         {
             await WritersAsync(looked.Select(l => l.Account));
             await categoryRules.ApplyAsync(looked, (rule, account) => Task.FromResult(writersOf[account].Contains(rule.CreatedBy)), ct);
+        });
+
+        // After the rules: a hint only fills a line still without a category (precedence in SQL keeps the rest).
+        await TryAsync([.. looked.Select(l => l.Id)], async () =>
+        {
+            foreach (var group in looked.Where(l => l.LinkState != TransactionLinkState.Ignored && l.CategorySource is null)
+                         .Select(l => (l.Id, Key: CategoryHints.KeyFor(l.BankCode, l.Amount))).Where(x => x.Key is not null).GroupBy(x => x.Key!))
+                if (await categories.ResolveKeyAsync(group.Key, ct) is { } category)
+                    await categories.SetForLinesAsync([.. group.Select(x => x.Id)], category, CategorySource.Hint, "job", now, byPerson: false, ct);
         });
 
         await transactions.MarkReconciledAsync([.. lines.Select(l => l.Id).Where(id => !failed.Contains(id))], now, ct);
