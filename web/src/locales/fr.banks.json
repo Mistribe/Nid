@@ -250,7 +250,7 @@
       "submit": "Enregistrer",
       "current_gone": "Sa catégorie actuelle, {{name}}, est archivée : choisissez-en une autre.",
       "offer_saved": "Catégorie enregistrée.",
-      "offer": "Toujours classer « {{pattern}} » en {{category}} ?",
+      "offer": "Toujours classer « {{pattern}} » en {{category}} ?",
       "offer_hint": "Les prochaines opérations dont le libellé contient ce motif prendront cette catégorie.",
       "offer_only_account": "Seulement ce compte ({{account}})",
       "offer_create": "Créer la règle",

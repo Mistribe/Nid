@@ -35,8 +35,12 @@ public class CategoryRulesTests
 
     [Theory]
     [InlineData("NETFLIX 123 PARIS", "NETFLIX")]
-    [InlineData("EDF CLIENTS PARTICULIE ECHEANCE", "EDF CLIENTS PARTICULIE ECHEANCE")]
-    [InlineData("ASSOCIATION SPORTIVE DES AMIS DU QUARTIER NORD POUR LA PRATIQUE DU VELO", "ASSOCIATION SPORTIVE DES AMIS DU QUARTIER NORD POUR LA")]
+    [InlineData("EDF CLIENTS PARTICULIE ECHEANCE ELECTRICITE OCTOBRE", "EDF CLIENTS")]
+    [InlineData("CARREFOUR CITY", "CARREFOUR CITY")]
+    [InlineData("AMAZON EU SARL", "AMAZON EU")]
+    [InlineData("SOCIETE EXEMPLE SAS", "SOCIETE EXEMPLE")]
+    [InlineData("NETFLIX", "NETFLIX")]
+    [InlineData("ASSOCIATION SPORTIVE DES AMIS DU QUARTIER NORD POUR LA PRATIQUE DU VELO", "ASSOCIATION SPORTIVE")]
     [InlineData("123456 EDF", null)]
     [InlineData("A 12 CARREFOUR", null)]
     [InlineData("", null)]
@@ -51,6 +55,7 @@ public class CategoryRulesTests
     [InlineData("AMAZON PAYMENTS EUROPE S.C.A. 4521")]
     [InlineData("PRLV SEPA Électricité de France 0042")]
     [InlineData("ASSOCIATION SPORTIVE DES AMIS DU QUARTIER NORD POUR LA PRATIQUE DU VELO")]
+    [InlineData("PRLV SEPA EDF CLIENTS PARTICULIE Échéance électricité octobre")]
     public void A_suggestion_matches_the_line_it_comes_from(string raw)
     {
         var label = TransactionLabel.Normalize(raw);
@@ -59,6 +64,12 @@ public class CategoryRulesTests
         Assert.Contains(suggested, label, StringComparison.Ordinal);
         Assert.True(suggested.Length <= CategoryRules.MaxPattern);
     }
+
+    [Fact]
+    public void Next_month_s_line_gets_the_same_suggestion()
+        => Assert.Equal(
+            CategoryRules.Suggest(TransactionLabel.Normalize("PRLV SEPA EDF CLIENTS PARTICULIE Échéance électricité octobre")),
+            CategoryRules.Suggest(TransactionLabel.Normalize("PRLV SEPA EDF CLIENTS PARTICULIE Échéance électricité novembre")));
 
     [Fact]
     public void Keeps_a_two_letter_pattern()

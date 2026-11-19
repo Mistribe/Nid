@@ -114,7 +114,7 @@ describe('« Catégoriser… »', () => {
     await pick(user, 'Catégorie', 'Alimentation › Courses');
     await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
 
-    const offer = await screen.findByRole('form', { name: 'Toujours classer « CARREFOUR CITY » en Alimentation › Courses ?' });
+    const offer = await screen.findByRole('form', { name: 'Toujours classer « CARREFOUR CITY » en Alimentation › Courses\u00a0?' });
     expect(within(offer).getByRole('textbox', { name: 'Motif' })).toHaveValue('CARREFOUR CITY');
     expect(within(offer).getByRole('checkbox', { name: 'Seulement ce compte (Compte)' })).toBeChecked();
     await user.clear(within(offer).getByRole('textbox', { name: 'Motif' }));
