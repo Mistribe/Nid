@@ -10,10 +10,12 @@ import { ModalDialog } from '@/components/ModalDialog';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Field } from '@/components/form/Field';
+import { Folded } from '@/components/form/Folded';
 import { Segmented } from '@/components/form/Segmented';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { McpHelp } from './McpHelp';
 import { EXPIRIES, PRESETS, TOKENS, type Preset } from './tokens';
 import '@/locales/forms';
 
@@ -50,7 +52,7 @@ export function NewTokenDialog({ onClose }: { onClose: () => void }) {
 
   if (secret) {
     return (
-      <ModalDialog title={t('security.tokens.created_title')} onClose={onClose}>
+      <ModalDialog title={t('security.tokens.created_title')} onClose={onClose} className="sm:max-w-2xl">
         {() => (
           <div className="space-y-3">
             <p>{t('security.tokens.created_once')}</p>
@@ -62,6 +64,8 @@ export function NewTokenDialog({ onClose }: { onClose: () => void }) {
               </Button>
               <Button type="button" onClick={onClose}>{t('security.tokens.done')}</Button>
             </div>
+            {/* #309: the same help with the real secret in every snippet; it stays in this component's state. */}
+            <Folded label={t('security.mcp.title')} hasError={false}><McpHelp token={secret} /></Folded>
           </div>
         )}
       </ModalDialog>

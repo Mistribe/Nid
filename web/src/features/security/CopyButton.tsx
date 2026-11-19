@@ -1,0 +1,17 @@
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Button } from '@/components/ui/button';
+import '@/locales/security';
+
+/** Copies `value`; `label` names what it copies for a screen reader when several sit side by side. */
+export function CopyButton({ value, label }: { value: string; label?: string }) {
+  const { t } = useTranslation();
+  const [copied, setCopied] = useState(false);
+  return (
+    <Button type="button" variant="outline" size="sm" aria-label={label} onClick={() => {
+      void navigator.clipboard?.writeText(value).then(() => setCopied(true), () => setCopied(false));
+    }}>
+      {t(copied ? 'security.totp.copied' : 'security.totp.copy')}
+    </Button>
+  );
+}

@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import '@/locales/security';
 import { SettingRow } from './SettingRow';
 import { TotpQrCode } from './TotpQrCode';
+import { CopyButton } from './CopyButton';
 
 type Dialog = { kind: 'setup'; secret: string; uri: string } | { kind: 'codes'; codes: string[]; first: boolean } | { kind: 'regenerate' } | { kind: 'disable' };
 
@@ -232,17 +233,5 @@ function DisableDialog({ error, onClose, onFail, onDone }: {
         </form>
       )}
     </ModalDialog>
-  );
-}
-
-function CopyButton({ value }: { value: string }) {
-  const { t } = useTranslation();
-  const [copied, setCopied] = useState(false);
-  return (
-    <Button type="button" variant="outline" size="sm" onClick={() => {
-      void navigator.clipboard?.writeText(value).then(() => setCopied(true), () => setCopied(false));
-    }}>
-      {t(copied ? 'security.totp.copied' : 'security.totp.copy')}
-    </Button>
   );
 }

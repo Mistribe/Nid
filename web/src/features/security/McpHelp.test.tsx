@@ -1,36 +1,61 @@
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw/http';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { pick } from '@/test/controls';
 import { server } from '@/test/server';
 
-describe('Brancher un assistant', () => {
-  it('gives the MCP address, the Claude Code command and the read-only advice', async () => {
-    server.use(http.get('*/api/v1/platform/audit/me/security', () => HttpResponse.json({ entries: [], next: null })));
-    const { user, container } = await renderApp('/security?tab=tokens');
+async function openHelp() {
+  const rendered = await renderApp('/security?tab=tokens');
+  await rendered.user.click(await screen.findByRole('button', { name: 'Brancher un assistant IA' }));
+  return { ...rendered, section: await screen.findByRole('region', { name: 'Brancher un assistant IA' }) };
+}
 
-    await user.click(await screen.findByRole('button', { name: 'Brancher un assistant' }));
-    const section = await screen.findByRole('region', { name: 'Brancher un assistant' });
+describe('Brancher un assistant IA', () => {
+  beforeEach(() => localStorage.removeItem('nid.mcp.agent'));
+
+  it('gives the address with a copy button, the token advice of today’s presets, and starts with Claude Desktop', async () => {
+    const { container, section } = await openHelp();
     const origin = window.location.origin;
-    expect(section).toHaveTextContent(`${origin}/mcp`);
-    expect(section).toHaveTextContent(`claude mcp add --transport http nid ${origin}/mcp --header "Authorization: Bearer <votre jeton>"`);
-    expect(section).toHaveTextContent('Lecture seule');
+
+    expect(within(section).getAllByText(`${origin}/mcp`)[0]).toBeInTheDocument();
+    expect(within(section).getAllByRole('button', { name: 'Copier l’adresse' }).length).toBeGreaterThan(0);
+    expect(section).toHaveTextContent('« Lecture + propositions » est recommandé');
+    expect(section).not.toHaveTextContent('ne peut encore que consulter');
+    // jsdom's origin is http://localhost: the connector cannot reach it, so the manual configuration comes first, and why.
+    expect(section).toHaveTextContent('n’est pas en https');
+    expect(section).toHaveTextContent('"mcp-remote@0.16.5"');
+    expect(section).toHaveTextContent('"NID_AUTH": "Bearer <votre jeton>"');
     await expectNoAxeViolations(container);
   });
 
-  it('gives the Claude Desktop config once picked', async () => {
-    server.use(http.get('*/api/v1/platform/audit/me/security', () => HttpResponse.json({ entries: [], next: null })));
-    const { user } = await renderApp('/security?tab=tokens');
+  it('walks Claude Desktop through a custom connector when Nid is on the internet', async () => {
+    const { user, section } = await openHelp();
 
-    await user.click(await screen.findByRole('button', { name: 'Brancher un assistant' }));
-    const section = await screen.findByRole('region', { name: 'Brancher un assistant' });
-    await pick(user, 'Mon assistant', 'Claude Desktop');
-    expect(section).toHaveTextContent('claude_desktop_config.json');
-    expect(section).toHaveTextContent('"args": [ "-y", "mcp-remote", "' + window.location.origin + '/mcp"');
-    expect(section).toHaveTextContent('Bearer <votre jeton>');
-    expect(section).not.toHaveTextContent('claude mcp add');
+    await user.click(within(section).getByRole('radio', { name: 'Oui' }));
+
+    expect(section).toHaveTextContent('Connecteur personnalisé');
+    expect(section).toHaveTextContent('« Sans connexion »');
+    expect(section).toHaveTextContent('en-tête de requête nommé authorization');
+    expect(within(section).getByText('Bearer <votre jeton>')).toBeInTheDocument();
+    expect(section).toHaveTextContent('jamais comme connecteur de l’organisation');
+  });
+
+  it.each([
+    ['Claude Code', `claude mcp add --transport http nid ${window.location.origin}/mcp --header "Authorization: Bearer <votre jeton>"`],
+    ['Cursor', '"Authorization": "Bearer ${env:NID_TOKEN}"'],
+    ['VS Code (Copilot)', '"Authorization": "Bearer ${NID_TOKEN}"'],
+    ['Gemini CLI', `gemini mcp add --transport http --header "Authorization: Bearer <votre jeton>" nid ${window.location.origin}/mcp`],
+    ['Codex CLI', 'bearer_token_env_var = "NID_TOKEN"'],
+  ])('gives %s its own snippet', async (agent, snippet) => {
+    const { user, section } = await openHelp();
+
+    await pick(user, 'Mon assistant', agent);
+
+    expect(section).toHaveTextContent(snippet);
+    expect(section).not.toHaveTextContent('claude_desktop_config.json');
+    expect(localStorage.getItem('nid.mcp.agent')).not.toBeNull();
   });
 
   it('names the assistant’s reads in my events', async () => {

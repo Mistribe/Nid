@@ -1,59 +1,180 @@
-import { Field } from '@/components/form/Field';
-import { SelectField } from '@/components/form/SelectField';
-import { useState } from 'react';
+import { useId, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Field } from '@/components/form/Field';
+import { Folded } from '@/components/form/Folded';
+import { Segmented } from '@/components/form/Segmented';
+import { SelectField } from '@/components/form/SelectField';
+import { InfoTip } from '@/components/InfoTip';
+import { CopyButton } from './CopyButton';
+import {
+  AGENTS, claudeCodeCommand, claudeCodeProject, claudeDesktopConfig, codexConfig, cursorConfig, exportLine, geminiCommand,
+  unreachableReason, vscodeConfig, type Agent,
+} from './mcpSnippets';
+import '@/locales/security';
 
-type Agent = 'claude_code' | 'claude_desktop';
+const REMEMBERED = 'nid.mcp.agent';
 
-/** Spec 4B §6: where the MCP server is and how to plug an assistant into it. */
-export function McpHelp() {
+function rememberedAgent(): Agent {
+  try {
+    const saved = localStorage.getItem(REMEMBERED);
+    return AGENTS.find((agent) => agent === saved) ?? AGENTS[0];
+  } catch {
+    return AGENTS[0];
+  }
+}
+
+/** A value to copy: the address, a command, a file. Wraps rather than scrolls sideways. */
+function Snippet({ value, label }: { value: string; label: string }) {
+  return (
+    <div className="flex items-start gap-2">
+      <pre className="min-w-0 flex-1 rounded-md border bg-muted p-2 font-mono text-sm break-all whitespace-pre-wrap"><code>{value}</code></pre>
+      <CopyButton value={value} label={label} />
+    </div>
+  );
+}
+
+function Steps({ children }: { children: ReactNode }) {
+  return <ol className="list-decimal space-y-3 pl-5">{children}</ol>;
+}
+
+/**
+ * #309, « Brancher un assistant IA »: one assistant at a time, numbered steps and every value ready to copy. With `token` (the
+ * secret just created, shown once by `NewTokenDialog`), the snippets carry it; it never leaves the caller's state.
+ */
+export function McpHelp({ token }: { token?: string }) {
   const { t } = useTranslation();
-  const [agent, setAgent] = useState<Agent>('claude_code');
+  const [agent, setAgent] = useState<Agent>(rememberedAgent);
   const address = `${window.location.origin}/mcp`;
-  const token = t('security.mcp.token_placeholder');
-  const command = `claude mcp add --transport http nid ${address} --header "Authorization: Bearer ${token}"`;
-  // Claude Desktop only reaches a remote server with a bearer header through mcp-remote; the header sits in env because a space in an arg breaks on Windows.
-  const desktopConfig = JSON.stringify({
-    mcpServers: {
-      nid: {
-        command: 'npx',
-        args: ['-y', 'mcp-remote', address, '--header', 'Authorization:${NID_AUTH}'],
-        env: { NID_AUTH: `Bearer ${token}` },
-      },
-    },
-  }, null, 2);
+  const secret = token ?? t('security.mcp.token_placeholder');
+  const choose = (next: string) => {
+    setAgent(next as Agent);
+    try { localStorage.setItem(REMEMBERED, next); } catch { /* a private window: the choice lasts this visit */ }
+  };
+  const copy = (what: string) => t('security.mcp.copy', { what });
+  const variable = (
+    <li className="space-y-2">
+      <p>{t('security.mcp.variable')}</p>
+      <Snippet value={exportLine(secret)} label={copy(t('security.mcp.what.variable'))} />
+    </li>
+  );
+
+  const steps: Record<Agent, ReactNode> = {
+    claude_desktop: <ClaudeDesktop address={address} secret={secret} copy={copy} />,
+    claude_code: (
+      <>
+        <Steps>
+          <li className="space-y-2">
+            <p>{t('security.mcp.claude_code.command')}</p>
+            <Snippet value={claudeCodeCommand(address, secret)} label={copy(t('security.mcp.what.command'))} />
+          </li>
+        </Steps>
+        <p className="text-sm text-muted-foreground">{t('security.mcp.claude_code.stored')}</p>
+        <Folded label={t('security.mcp.claude_code.project_title')} hasError={false}>
+          <p>{t('security.mcp.claude_code.project')}</p>
+          <Snippet value={claudeCodeProject(address)} label={copy('.mcp.json')} />
+          <p role="note" className="text-sm text-status-warning-text">{t('security.mcp.never_commit')}</p>
+        </Folded>
+      </>
+    ),
+    cursor: (
+      <Steps>
+        {variable}
+        <li className="space-y-2"><p>{t('security.mcp.cursor.file')}</p><Snippet value={cursorConfig(address)} label={copy('mcp.json')} /></li>
+        <li>{t('security.mcp.restart', { agent: 'Cursor' })}</li>
+      </Steps>
+    ),
+    vscode: (
+      <Steps>
+        {variable}
+        <li className="space-y-2"><p>{t('security.mcp.vscode.file')}</p><Snippet value={vscodeConfig(address)} label={copy('.mcp.json')} /></li>
+        <li>{t('security.mcp.restart', { agent: 'VS Code' })}</li>
+      </Steps>
+    ),
+    gemini: (
+      <Steps>
+        <li className="space-y-2"><p>{t('security.mcp.gemini.command')}</p><Snippet value={geminiCommand(address, secret)} label={copy(t('security.mcp.what.command'))} /></li>
+      </Steps>
+    ),
+    codex: (
+      <Steps>
+        {variable}
+        <li className="space-y-2"><p>{t('security.mcp.codex.file')}</p><Snippet value={codexConfig(address)} label={copy('config.toml')} /></li>
+        <li>{t('security.mcp.restart', { agent: 'Codex' })}</li>
+      </Steps>
+    ),
+  };
+  const stored: Partial<Record<Agent, string>> = {
+    cursor: t('security.mcp.stored_variable'), vscode: t('security.mcp.stored_variable'), codex: t('security.mcp.stored_variable'),
+    gemini: t('security.mcp.gemini.stored'),
+  };
 
   return (
-    // Folded under its title in the Jetons tab (#308): the fold's button says it.
+    // Folded under its title in the Jetons tab (#308) and in the new-token dialog: the fold's button says it.
     <section className="max-w-prose space-y-3" aria-label={t('security.mcp.title')}>
-      <p>{t('security.mcp.intro')}</p>
-      <p className="flex flex-wrap gap-2">
-        {t('security.mcp.address')}
-        <code className="break-all rounded-md border bg-muted px-1 font-mono text-sm">{address}</code>
+      <p>
+        {t('security.mcp.intro')}{' '}
+        <InfoTip label={t('security.mcp.mcp')}>{t('security.mcp.mcp_about')}</InfoTip>
       </p>
+      <div className="space-y-1">
+        <p className="text-sm text-muted-foreground">{t('security.mcp.address')}</p>
+        <Snippet value={address} label={copy(t('security.mcp.what.address'))} />
+      </div>
       <div className="max-w-xs">
         <Field label={t('security.mcp.agent_label')}>
           {(c) => (
-            <SelectField {...c} value={agent} onValueChange={(v) => setAgent(v as Agent)} options={[
-              { value: 'claude_code', label: t('security.mcp.agent_claude_code') },
-              { value: 'claude_desktop', label: t('security.mcp.agent_claude_desktop') },
-            ]} />
+            <SelectField {...c} value={agent} onValueChange={choose}
+              options={AGENTS.map((a) => ({ value: a, label: t(`security.mcp.agent.${a}`) }))} />
           )}
         </Field>
       </div>
-      {agent === 'claude_code' ? (
+      {steps[agent]}
+      {stored[agent] ? <p className="text-sm text-muted-foreground">{stored[agent]}</p> : null}
+      {token ? null : <p>{t('security.mcp.advice')}</p>}
+    </section>
+  );
+}
+
+function ClaudeDesktop({ address, secret, copy }: { address: string; secret: string; copy: (what: string) => string }) {
+  const { t } = useTranslation();
+  const reason = unreachableReason(window.location.origin);
+  const [online, setOnline] = useState(reason ? 'no' : 'yes');
+  const questionId = useId();
+  return (
+    <div className="space-y-3">
+      <p id={questionId} className="font-medium">{t('security.mcp.desktop.question')}</p>
+      <Segmented aria-labelledby={questionId} value={online} onValueChange={setOnline}
+        options={[{ value: 'yes', label: t('security.mcp.desktop.yes') }, { value: 'no', label: t('security.mcp.desktop.no') }]} />
+      {reason ? <p className="text-sm text-muted-foreground">{t(`security.mcp.desktop.reason_${reason}`)}</p> : null}
+      {online === 'yes' ? (
         <>
-          <p>{t('security.mcp.command_label')}</p>
-          <code className="block break-all rounded-md border bg-muted p-2 font-mono text-sm">{command}</code>
+          <Steps>
+            <li>{t('security.mcp.desktop.connector_open')}</li>
+            <li className="space-y-2">
+              <p>{t('security.mcp.desktop.connector_url')}</p>
+              <Snippet value={address} label={copy(t('security.mcp.what.address'))} />
+            </li>
+            <li className="space-y-2">
+              <p>{t('security.mcp.desktop.connector_header')}</p>
+              <Snippet value={`Bearer ${secret}`} label={copy(t('security.mcp.what.header'))} />
+            </li>
+          </Steps>
+          <p className="text-sm text-muted-foreground">{t('security.mcp.desktop.connector_cloud')}</p>
+          <p role="note" className="text-sm text-status-warning-text">{t('security.mcp.desktop.connector_team')}</p>
+          <p className="text-sm text-muted-foreground">{t('security.mcp.desktop.connector_missing')}</p>
         </>
       ) : (
         <>
-          <p>{t('security.mcp.desktop_label')}</p>
-          <pre className="overflow-x-auto rounded-md border bg-muted p-2 font-mono text-sm"><code>{desktopConfig}</code></pre>
-          <p>{t('security.mcp.desktop_restart')}</p>
+          <Steps>
+            <li>{t('security.mcp.desktop.manual_open')}</li>
+            <li className="space-y-2">
+              <p>{t('security.mcp.desktop.manual_add')}</p>
+              <Snippet value={claudeDesktopConfig(address, secret)} label={copy('claude_desktop_config.json')} />
+            </li>
+            <li>{t('security.mcp.restart', { agent: 'Claude Desktop' })}</li>
+          </Steps>
+          <p className="text-sm text-muted-foreground">{t('security.mcp.desktop.manual_stored')}</p>
         </>
       )}
-      <p>{t('security.mcp.advice')}</p>
-    </section>
+    </div>
   );
 }
