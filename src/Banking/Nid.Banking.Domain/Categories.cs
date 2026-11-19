@@ -75,7 +75,9 @@ public static class CategoryPrecedence
 
     /// <summary>A write replaces the current category if there is none or its source ranks the same or lower; a person's write always may.</summary>
     public static bool CanReplace(CategorySource? current, CategorySource incoming, bool byPerson)
-        => byPerson || current is null || Rank(current.Value) <= Rank(incoming);
+        => current is CategorySource.Hand or CategorySource.Assistant
+            ? byPerson
+            : byPerson || current is null || Rank(current.Value) <= Rank(incoming);
 }
 
 /// <summary>The category a link gives its line (spec §Category).</summary>
