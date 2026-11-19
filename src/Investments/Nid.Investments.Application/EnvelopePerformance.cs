@@ -18,7 +18,7 @@ public sealed class EnvelopePerformance(
             return Result.Failure<EnvelopeFigures>(failure!);
         facts.TryGetValue(out var f);
         var d = on ?? await calendar.TodayAsync(ct);
-        var figures = EnvelopeMath.At(f!.Values, f.Flows, f.Currency, f.Envelope.Cadence, f.Envelope.StaleAfterDays, d);
+        var figures = EnvelopeMath.At(f!.Envelope.Kind, f.Values, f.Flows, f.Currency, f.Envelope.Cadence, f.Envelope.StaleAfterDays, d);
         // Minor 2: a closed envelope reports no staleness — EnvelopeMath stays pure and unaware of "closed";
         // this is where "closed" is known.
         return Result.Success(f.Item.ArchivedAt is not null ? figures with { StaleDays = null } : figures);

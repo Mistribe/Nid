@@ -7,7 +7,28 @@ namespace Nid.Investments.Domain;
 /// <summary>2B1a spec §4; <c>investments-data-model.md</c> §5. Pure, exact decimals, in the envelope's currency.</summary>
 public static class EnvelopeMath
 {
-    public static EnvelopeFigures At(IReadOnlyList<Valuation> values, IReadOnlyList<Flow> flows, Currency currency,
+    /// <summary>Issue #374: an envelope without <see cref="HasPerformance"/> has no gain, gain %, annual return nor missing opening.</summary>
+    public static EnvelopeFigures At(EnvelopeKind kind, IReadOnlyList<Valuation> values, IReadOnlyList<Flow> flows, Currency currency,
+        ValuationCadence cadence, int? staleAfterDays, LocalDate d)
+    {
+        var figures = Figures(values, flows, currency, cadence, staleAfterDays, d);
+        return figures.Value is null || HasPerformance(kind, values, flows) ? figures
+            : figures with { Gain = null, GainPct = null, AnnualReturnPct = null, GainAfterFees = null, MissingOpening = false };
+    }
+
+    /// <summary>
+    /// Issue #374: a checking account's money comes and goes as salary and spending, never as contributions, so a gain means nothing.
+    /// A livret has one only when what is paid in is recorded and the bank does not feed its balance (as passive income counts it).
+    /// </summary>
+    public static bool HasPerformance(EnvelopeKind kind, IReadOnlyList<Valuation> values, IReadOnlyList<Flow> flows) => kind switch
+    {
+        EnvelopeKind.Checking => false,
+        EnvelopeKind.Savings => values.All(v => v.Source != FactSource.BankApi)
+            && flows.Any(f => f.Kind is FlowKind.Opening or FlowKind.Contribution),
+        _ => true,
+    };
+
+    private static EnvelopeFigures Figures(IReadOnlyList<Valuation> values, IReadOnlyList<Flow> flows, Currency currency,
         ValuationCadence cadence, int? staleAfterDays, LocalDate d)
     {
         var latest = LastOnOrBefore(values, d);

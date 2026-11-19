@@ -195,7 +195,7 @@ public class InvestmentsPerformanceTests
         var with = Build(Life(), savings, pea);
         var without = Build(Life(), pea);
 
-        var own = EnvelopeMath.At(savings.Values, savings.Flows, Currency.Eur, ValuationCadence.Monthly, null, Today).AnnualReturnPct;
+        var own = EnvelopeMath.At(savings.Envelope.Kind, savings.Values, savings.Flows, Currency.Eur, ValuationCadence.Monthly, null, Today).AnnualReturnPct;
         Assert.NotNull(own);
         Assert.Equal(own, with.Reference!.AnnualReturnPct);
         Assert.Null(without.Reference);

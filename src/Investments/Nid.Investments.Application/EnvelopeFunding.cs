@@ -30,7 +30,7 @@ public sealed class EnvelopeFunding(
         {
             if (!facts.TryGetValue(envelope.ItemId, out var f)) continue;
             var closed = past ? envelope.ClosedOn <= date : f.Item.ArchivedAt is not null;
-            var figures = EnvelopeMath.At(f.Values, f.Flows, f.Currency, f.Envelope.Cadence, f.Envelope.StaleAfterDays, date);
+            var figures = EnvelopeMath.At(f.Envelope.Kind, f.Values, f.Flows, f.Currency, f.Envelope.Cadence, f.Envelope.StaleAfterDays, date);
             Money? value = null;
             LocalDate? asOf = null;
             var estimated = false;

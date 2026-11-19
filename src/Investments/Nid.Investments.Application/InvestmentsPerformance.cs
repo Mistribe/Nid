@@ -109,7 +109,7 @@ internal static class InvestmentsPerformanceMath
             var limit = EnvelopeMath.StaleThreshold(f.Envelope.Cadence, f.Envelope.StaleAfterDays);
             var stale = period.StartAsOf is { } start && limit is { } days && Period.DaysBetween(start, from) > days;
             var value = to == today && (f.Envelope.ClosedOn is not { } closedOn || today < closedOn) && estimates?.GetValueOrDefault(f.Item.Id) is { } estimate
-                ? TodayValue.Pick(EnvelopeMath.At(f.Values, f.Flows, f.Currency, f.Envelope.Cadence, f.Envelope.StaleAfterDays, today), estimate).Value.Amount
+                ? TodayValue.Pick(EnvelopeMath.At(f.Envelope.Kind, f.Values, f.Flows, f.Currency, f.Envelope.Cadence, f.Envelope.StaleAfterDays, today), estimate).Value.Amount
                 : end.Amount;
             counted.Add(new Counted(f, period, value, stale));
         }
@@ -139,7 +139,7 @@ internal static class InvestmentsPerformanceMath
             {
                 var (start, end, net) = (AtStart(c.Start, c.Facts.Currency), At(c.End, c.Facts.Currency), At(c.Net, c.Facts.Currency));
                 return new PeriodFigures.Row(c.Facts, c.End - c.Start - c.Net, start, end, net, end - start - net,
-                    EnvelopeMath.At(c.Facts.Values, c.Facts.Flows, c.Facts.Currency, c.Facts.Envelope.Cadence, c.Facts.Envelope.StaleAfterDays, today).AnnualReturnPct,
+                    EnvelopeMath.At(c.Facts.Envelope.Kind, c.Facts.Values, c.Facts.Flows, c.Facts.Currency, c.Facts.Envelope.Cadence, c.Facts.Envelope.StaleAfterDays, today).AnnualReturnPct,
                     Xirr.PeriodPercent(c.Cash(from, to).Select(x => (x.On, x.Amount)), from, to), c.StaleStart, c.Period.NoStartValue);
             })
             .OrderBy(r => r.PerformanceConverted is null).ThenByDescending(r => r.PerformanceConverted)
@@ -182,7 +182,7 @@ internal static class InvestmentsPerformanceMath
     private static decimal? Reference(IReadOnlyList<EnvelopePerformance.Facts> facts, Converter convert, LocalDate today)
     {
         var savings = facts.Where(f => f.Item.ArchivedAt is null && f.Envelope.Kind == EnvelopeKind.Savings)
-            .Select(f => (Facts: f, Figures: EnvelopeMath.At(f.Values, f.Flows, f.Currency, f.Envelope.Cadence, f.Envelope.StaleAfterDays, today)))
+            .Select(f => (Facts: f, Figures: EnvelopeMath.At(f.Envelope.Kind, f.Values, f.Flows, f.Currency, f.Envelope.Cadence, f.Envelope.StaleAfterDays, today)))
             .Where(x => x.Figures.Value is not null)
             .Select(x => new Valued(x.Facts, x.Figures, convert.Of(x.Figures.Value!.Value.Amount, x.Facts.Currency, today), null))
             .ToList();

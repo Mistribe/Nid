@@ -217,11 +217,14 @@ export function EnvelopeDetailPage() {
             { label: figures.asOf ? t('envelope.value_at', { date: formatLocalDate(figures.asOf, 'short') }) : t('envelope.value'),
               value: figures.value ? <Money value={figures.value} tabular /> : absent,
               hint: figures.value && figures.staleDays != null ? <StaleBadge days={figures.staleDays} /> : null },
-            { label: t('envelope.net_contributions'), value: figures.netContributions ? <Money value={figures.netContributions} tabular /> : absent },
-            // #376: the amount on its line, its percent under it.
-            figures.gain
-              ? { label: t('envelope.gain'), value: <Direction amount={figures.gain} />, hint: <GainPct value={figures.gainPct} /> }
-              : { label: t('envelope.gain'), value: <Gain figures={figures} /> },
+            // #374: an account that is no investment (a value, no gain) shows its balance, not what was paid in nor a gain.
+            ...(figures.value && !figures.gain ? [] : [
+              { label: t('envelope.net_contributions'), value: figures.netContributions ? <Money value={figures.netContributions} tabular /> : absent },
+              // #376: the amount on its line, its percent under it.
+              figures.gain
+                ? { label: t('envelope.gain'), value: <Direction amount={figures.gain} />, hint: <GainPct value={figures.gainPct} /> }
+                : { label: t('envelope.gain'), value: <Gain figures={figures} /> },
+            ]),
             ...(figures.annualReturnPct != null ? [{ label: t('envelope.annual_return'), value: <AnnualReturn value={figures.annualReturnPct} /> }] : []),
             ...realReturnItem(t, detail.realReturn),
             ...(sinceJanuary.data?.performance ? [{ label: t('envelope.since_january'), value: <Direction amount={sinceJanuary.data.performance} /> }] : []),
