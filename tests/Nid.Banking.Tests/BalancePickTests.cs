@@ -1,5 +1,6 @@
 using Nid.Banking.Contracts;
 using Nid.Banking.Domain;
+using Nid.Core.Contracts;
 using NodaTime;
 
 namespace Nid.Banking.Tests;
@@ -31,4 +32,16 @@ public class BalancePickTests
     [Fact]
     public void None_of_the_five_types_is_no_balance()
         => Assert.Null(BalancePick.Choose([Of("OPBD", 1m), Of("PRCD", 2m)]));
+
+    private static ProviderBalance In(string currency, string type = "CLBD") => new(type, 1m, currency, null);
+
+    [Fact]
+    public void An_account_in_no_currency_takes_the_one_its_balances_name()
+    {
+        Assert.Equal(Currency.Eur, BankCurrency.Infer([In("EUR"), In("eur", "CLAV"), In("XXX", "XPCD")]));
+        // Several, or none: still unknown.
+        Assert.Null(BankCurrency.Infer([In("EUR"), In("USD", "CLAV")]));
+        Assert.Null(BankCurrency.Infer([In("XXX")]));
+        Assert.Null(BankCurrency.Infer([]));
+    }
 }
