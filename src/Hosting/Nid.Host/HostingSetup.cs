@@ -1,6 +1,9 @@
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Primitives;
+using Nid.Banking.Contracts;
 using Npgsql;
 using Serilog;
 using Serilog.Debugging;
@@ -13,7 +16,43 @@ public static class HostingSetup
 {
     /// <summary>Docker secrets: one file per setting, `Auth__ClientSecret` becoming `Auth:ClientSecret` (security/infrastructure.md §3).</summary>
     public static void AddSecretFiles(this ConfigurationManager configuration)
-        => configuration.AddKeyPerFile(configuration["Secrets:Path"] ?? "/run/secrets", optional: true);
+    {
+        var path = configuration.SecretsPath();
+        configuration.AddKeyPerFile(source =>
+        {
+            if (Directory.Exists(path))
+                source.FileProvider = new SecretFolder(path);
+            source.Optional = true;
+        });
+    }
+
+    /// <summary>
+    /// The secrets folder, less the Enable Banking key when Nid may not read it (issue #343): bank sync is optional, so that key leaves it
+    /// « not configured », said at startup and in Administration › Banque, instead of stopping Nid. Key-per-file reads every file before its
+    /// ignore rule, so the file is left out of the listing.
+    /// </summary>
+    private sealed class SecretFolder(string path) : IFileProvider
+    {
+        private readonly PhysicalFileProvider files = new(path);
+
+        public IDirectoryContents GetDirectoryContents(string subpath) => new Readable(files.GetDirectoryContents(subpath));
+
+        public IFileInfo GetFileInfo(string subpath) => files.GetFileInfo(subpath);
+
+        public IChangeToken Watch(string filter) => files.Watch(filter);
+
+        private sealed class Readable(IDirectoryContents contents) : IDirectoryContents
+        {
+            public bool Exists => contents.Exists;
+
+            public IEnumerator<IFileInfo> GetEnumerator()
+                => contents.Where(f => f.IsDirectory || f.Name != BankingKey.FileName || f.PhysicalPath is not { } p || BankingKey.CanRead(p)).GetEnumerator();
+
+            System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+        }
+    }
+
+    public static string SecretsPath(this IConfiguration configuration) => configuration["Secrets:Path"] ?? "/run/secrets";
 
     /// <summary>Keys on a volume, so a restart does not sign everyone out; unset in development, as before.</summary>
     public static void AddNidDataProtection(this IServiceCollection services, IConfiguration configuration)

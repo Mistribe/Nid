@@ -15,9 +15,12 @@ const run = {
   trigger: 'schedule', outcome: 'succeeded', connections: 2, accounts: 5, balances: 9, proposals: 3, written: 4, skipped: 1, failureCode: null,
 };
 
-function serve(household: object, runs: unknown[] = [], total = runs.length, seen: string[] = []) {
+const redirectUrl = 'https://nid.example/api/v1/banking/callback';
+
+function serve(household: object, runs: unknown[] = [], total = runs.length, seen: string[] = [], diagnostics: object = {}) {
   const sent: unknown[] = [];
   server.use(
+    http.get('*/api/v1/admin/banking/diagnostics', () => HttpResponse.json({ keyStatus: 'loaded', appIdSaved: true, redirectUrl, ...diagnostics })),
     http.get('*/api/v1/admin/household', () => HttpResponse.json({ ...settings, ...household })),
     http.get('*/api/v1/admin/banking/runs', ({ request }) => {
       seen.push(request.url);
@@ -40,7 +43,7 @@ describe('Administration › Banque', () => {
     const row = await screen.findByRole('row', { name: /réussi/ });
     expect(row).toHaveTextContent(formatInstant(run.startedAt));
     expect(within(row).getAllByRole('cell').map((c) => c.textContent).slice(1)).toEqual(['Nuit', 'réussi', '2', '5', '9', '3', '4', '1', '']);
-    expect(screen.getByText(`Les données bancaires passent par Enable Banking (prestataire agréé, Finlande). Adresse de retour à déclarer : ${window.location.origin}/api/v1/banking/callback`))
+    expect(screen.getByText(`Les données bancaires passent par Enable Banking (prestataire agréé, Finlande). Adresse de retour à déclarer : ${redirectUrl}`))
       .toBeInTheDocument();
     expect(screen.queryByRole('navigation', { name: "Sections de l'administration" })).toBeNull();
     expect(within(screen.getByRole('navigation', { name: 'Fil d’Ariane' })).getByRole('link', { name: 'Administration' })).toHaveAttribute('href', '/admin');
@@ -91,5 +94,47 @@ describe('Administration › Banque', () => {
     await waitFor(() => expect(sent).toEqual([{ bankRetentionMonths: 24 }]));
     await pick(user, 'Conserver les opérations', 'Sans limite');
     await waitFor(() => expect(sent).toEqual([{ bankRetentionMonths: 24 }, { clearBankRetention: true }]));
+  });
+
+  it.each([
+    ['missing', /Nid ne trouve pas la clé privée/],
+    ['directory', /Un dossier se trouve à la place de la clé privée/],
+    ['unreadable', /Nid n’a pas le droit de lire la clé privée/],
+    ['invalid', /n’est pas une clé RSA privée au format PEM/],
+  ])('says what to do when the key is %s, and offers no test', async (keyStatus, sentence) => {
+    serve({ bankingEnabled: true, enableBankingAppId: null }, [], 0, [], { keyStatus, appIdSaved: false });
+    await renderApp('/admin/banking', { capabilities: adminCapabilities });
+
+    expect(await screen.findByText(sentence)).toHaveTextContent('deploy/README.md, § 12');
+    expect(screen.getByText('Aucun identifiant d’application n’est enregistré.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Tester la connexion' })).toBeDisabled();
+  });
+
+  it('tests the connection: accepted, with an inactive application and the redirect URL missing', async () => {
+    serve({ bankingEnabled: true, enableBankingAppId: 'app-1' });
+    server.use(http.post('*/api/v1/admin/banking/test', () => HttpResponse.json({ outcome: 'accepted', active: false, redirectUrlAllowed: false })));
+    const { user } = await renderApp('/admin/banking', { capabilities: adminCapabilities });
+
+    expect(await screen.findByText('La clé privée de l’application est chargée.')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Tester la connexion' }));
+
+    expect(await screen.findByText('Enable Banking accepte l’identifiant et la clé.')).toBeInTheDocument();
+    expect(screen.getByText(/L’application n’est pas encore active/)).toBeInTheDocument();
+    expect(screen.getByText(new RegExp(`ne déclare pas l’adresse de retour ${redirectUrl}`))).toBeInTheDocument();
+  });
+
+  it('tests the connection: a refusal shows the API code, an unreachable API says where to look', async () => {
+    serve({ bankingEnabled: true, enableBankingAppId: 'app-1' });
+    let answer: object = { outcome: 'rejected', code: 'enablebanking.UNAUTHORIZED_ACCESS' };
+    server.use(http.post('*/api/v1/admin/banking/test', () => HttpResponse.json(answer)));
+    const { user } = await renderApp('/admin/banking', { capabilities: adminCapabilities });
+
+    await user.click(await screen.findByRole('button', { name: 'Tester la connexion' }));
+    expect(await screen.findByText(/Enable Banking refuse l’identifiant et la clé/)).toHaveTextContent('enablebanking.UNAUTHORIZED_ACCESS');
+
+    answer = { outcome: 'unreachable' };
+    await user.click(screen.getByRole('button', { name: 'Tester la connexion' }));
+    expect(await screen.findByText(/Nid n’a pas pu joindre api.enablebanking.com/)).toBeInTheDocument();
+    expect(screen.queryByText(/Enable Banking refuse/)).toBeNull();
   });
 });

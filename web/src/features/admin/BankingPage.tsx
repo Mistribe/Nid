@@ -17,10 +17,13 @@ import { Section } from '@/components/page/Section';
 import { SortableTable } from '@/components/page/SortableTable';
 import { AdminFrame } from './AdminFrame';
 import { formatInstant } from '@/lib/format';
+import type { components } from '@/api/schema';
 import '@/locales/admin';
 
 const HOUSEHOLD = '/api/v1/admin/household';
 const RUNS = '/api/v1/admin/banking/runs';
+const DIAGNOSTICS = '/api/v1/admin/banking/diagnostics';
+const TEST = '/api/v1/admin/banking/test';
 
 const STATUS = { running: 'admin.fx.status_running', succeeded: 'admin.fx.status_succeeded', failed: 'admin.fx.status_failed' } as const;
 /** « Conserver les opérations » (D3): the choices offered, in months; « Sans limite » clears the setting. */
@@ -37,6 +40,7 @@ export function BankingPage() {
   const household = $api.useQuery('get', HOUSEHOLD);
   const [page, toPage] = useListPage();
   const runs = $api.useQuery('get', RUNS, { params: { query: { page } } });
+  const diagnostics = $api.useQuery('get', DIAGNOSTICS);
   useStepBack(page, runs.data, toPage);
   const save = $api.useMutation('patch', HOUSEHOLD, {
     onSuccess: () => {
@@ -44,6 +48,7 @@ export function BankingPage() {
       toast.success(t('admin.banking.saved'));
       setAppId(null);
       void queryClient.invalidateQueries({ queryKey: ['get', HOUSEHOLD] });
+      void queryClient.invalidateQueries({ queryKey: ['get', DIAGNOSTICS] });
       // The settings tabs and the envelope pages ask whether bank sync is on.
       void queryClient.invalidateQueries({ queryKey: ['get', '/api/v1/banking/status'] });
     },
@@ -66,7 +71,7 @@ export function BankingPage() {
         <SwitchField label={t('admin.banking.enabled')} checked={household.data.bankingEnabled}
           onCheckedChange={(bankingEnabled) => { save.mutate({ body: { bankingEnabled } }); }} />
         <p className="text-sm text-muted-foreground">{t('admin.banking.hint')}</p>
-        <p className="text-sm">{t('admin.banking.provider', { publicUrl: window.location.origin })}</p>
+        {diagnostics.data ? <p className="text-sm">{t('admin.banking.provider', { redirectUrl: diagnostics.data.redirectUrl })}</p> : null}
         <form noValidate className="flex flex-wrap items-end gap-2" onSubmit={(event) => {
           event.preventDefault();
           save.mutate({ body: { enableBankingAppId: appId ?? household.data.enableBankingAppId ?? '' } });
@@ -78,6 +83,8 @@ export function BankingPage() {
           </div>
           <Button type="submit" variant="outline" disabled={save.isPending}>{t('admin.banking.save_app_id')}</Button>
         </form>
+        {diagnostics.error ? <ProblemMessage problem={present(toProblem(diagnostics.error))} /> : null}
+        {diagnostics.data ? <Diagnostics diagnostics={diagnostics.data} /> : null}
         <div className="max-w-64">
           <Field label={t('admin.banking.retention')} hint={t('admin.banking.retention_hint')}>
             {(c) => (
@@ -126,5 +133,56 @@ export function BankingPage() {
         ) : null}
       </Section>
     </AdminFrame>
+  );
+}
+
+type DiagnosticsView = components['schemas']['BankingDiagnosticsView'];
+type ConnectionTest = components['schemas']['BankingConnectionTestView'];
+
+const KEY = {
+  missing: 'admin.banking.key_missing', directory: 'admin.banking.key_directory', unreadable: 'admin.banking.key_unreadable',
+  invalid: 'admin.banking.key_invalid', loaded: 'admin.banking.key_loaded',
+} as const;
+
+/** Issue #343: the private key as the server found it, with its fix, and Enable Banking's answer to the saved id and key. */
+function Diagnostics({ diagnostics }: { diagnostics: DiagnosticsView }) {
+  const { t } = useTranslation();
+  const { $api } = useApi();
+  const [result, setResult] = useState<ConnectionTest | null>(null);
+  const [problem, setProblem] = useState<Presentation | null>(null);
+  const test = $api.useMutation('post', TEST, {
+    onMutate: () => { setResult(null); setProblem(null); },
+    onSuccess: setResult,
+    onError: (error) => { setProblem(present(toProblem(error))); },
+  });
+  const loaded = diagnostics.keyStatus === 'loaded';
+  const key = diagnostics.keyStatus in KEY ? t(KEY[diagnostics.keyStatus as keyof typeof KEY]) : diagnostics.keyStatus;
+
+  return (
+    <div className="space-y-2">
+      <p className={loaded ? 'text-sm' : 'text-sm text-status-warning-text'}>{key}</p>
+      {diagnostics.appIdSaved ? null : <p className="text-sm text-status-warning-text">{t('admin.banking.app_id_missing')}</p>}
+      <Button type="button" variant="outline" disabled={!loaded || !diagnostics.appIdSaved || test.isPending} onClick={() => test.mutate({})}>
+        {t('admin.banking.test')}
+      </Button>
+      <div aria-live="polite" className="space-y-1">
+        {problem ? <ProblemMessage problem={problem} /> : null}
+        {result ? <TestResult result={result} redirectUrl={diagnostics.redirectUrl} /> : null}
+      </div>
+    </div>
+  );
+}
+
+function TestResult({ result, redirectUrl }: { result: ConnectionTest; redirectUrl: string }) {
+  const { t } = useTranslation();
+  if (result.outcome === 'rejected')
+    return <p className="text-sm text-status-warning-text">{t('admin.banking.test_rejected')} <code>{result.code}</code></p>;
+  if (result.outcome !== 'accepted') return <p className="text-sm text-status-warning-text">{t('admin.banking.test_unreachable')}</p>;
+  return (
+    <>
+      <p className="text-sm text-status-good-text">{t('admin.banking.test_accepted')}</p>
+      {result.active === false ? <p className="text-sm text-status-warning-text">{t('admin.banking.test_inactive')}</p> : null}
+      {result.redirectUrlAllowed === false ? <p className="text-sm text-status-warning-text">{t('admin.banking.test_redirect_missing', { redirectUrl })}</p> : null}
+    </>
   );
 }

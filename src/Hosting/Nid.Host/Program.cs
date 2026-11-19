@@ -77,6 +77,8 @@ var bankingOptions = demo.Enabled
     ? new Nid.Banking.Contracts.BankingOptions()
     : builder.Configuration.GetSection("EnableBanking").Get<Nid.Banking.Contracts.BankingOptions>() ?? new Nid.Banking.Contracts.BankingOptions();
 builder.Services.AddSingleton(bankingOptions);
+var bankingKey = Nid.Banking.Contracts.BankingKey.Inspect(builder.Configuration.SecretsPath(), bankingOptions.PrivateKey);
+builder.Services.AddSingleton(bankingKey);
 var irlOptions = builder.Configuration.GetSection("Irl").Get<IrlOptions>() ?? new IrlOptions();
 builder.Services.AddSingleton(irlOptions);
 var inflationOptions = builder.Configuration.GetSection("Inflation").Get<InflationOptions>() ?? new InflationOptions();
@@ -177,6 +179,11 @@ if (!generatingOpenApi && !builder.Configuration.GetValue<bool>("Health:SkipMigr
     await scope.ServiceProvider.GetRequiredService<BankingDbContext>().Database.MigrateAsync();
     await scope.ServiceProvider.GetRequiredService<PlatformDbContext>().Database.MigrateAsync();
 }
+// Issue #343: a key Docker turned into a folder, or one Nid may not read, would otherwise leave bank sync « not configured » without a word.
+if (!generatingOpenApi && bankingKey.Status is Nid.Banking.Contracts.BankingKeyStatus.Directory or Nid.Banking.Contracts.BankingKeyStatus.Unreadable)
+    app.Logger.LogWarning("The Enable Banking private key at {Path} is {Status}: bank sync stays not configured. See deploy/README.md §12.",
+        Path.Combine(builder.Configuration.SecretsPath(), Nid.Banking.Contracts.BankingKey.FileName),
+        bankingKey.Status == Nid.Banking.Contracts.BankingKeyStatus.Directory ? "a directory, not a file" : "not readable by Nid's user");
 // Issue 215: plain HTTP is the hoster's explicit choice, said again at every start (local-accounts spec §12).
 if (!generatingOpenApi && app.Services.GetRequiredService<AuthSettings>().AllowInsecureHttp)
     app.Logger.LogWarning("Plain HTTP is allowed (Auth__AllowInsecureHttp): passwords and the session cookie can travel unencrypted. Put Nid behind an HTTPS reverse proxy unless this network is trusted.");

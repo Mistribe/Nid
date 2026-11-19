@@ -256,6 +256,30 @@ public class EnableBankingClientTests
         Assert.Empty(handler.Requests);
     }
 
+    [Fact]
+    public async Task Application_reads_whether_it_is_active_and_its_redirect_urls()
+    {
+        var (client, handler) = Client(HttpStatusCode.OK, """
+            {"name":"Nid","kid":"4f1c0000-0000-4000-8000-000000000001","environment":"PRODUCTION","active":false,
+             "redirect_urls":["https://nid.example/api/v1/banking/callback"],"countries":["FR"],"services":["AIS"]}
+            """);
+
+        var application = Ok(await client.ApplicationAsync("app", TestContext.Current.CancellationToken));
+
+        Assert.False(application.Active);
+        Assert.Equal(["https://nid.example/api/v1/banking/callback"], application.RedirectUrls);
+        var request = handler.Requests.Single();
+        Assert.Equal((HttpMethod.Get, "https://api.enablebanking.com/application"), (request.Method, request.Url.AbsoluteUri));
+    }
+
+    [Fact]
+    public async Task Application_refused_names_the_api_error()
+    {
+        var (client, _) = Client(HttpStatusCode.Unauthorized, """{"message":"Invalid token","code":401,"error":"UNAUTHORIZED_ACCESS"}""");
+
+        Assert.Equal("enablebanking.UNAUTHORIZED_ACCESS", FailureOf(await client.ApplicationAsync("app", TestContext.Current.CancellationToken)));
+    }
+
     private static string FailureOf<T>(UnambitiousFx.Functional.Result<T> result) where T : notnull
     {
         Assert.True(result.TryGetFailure(out var failure));
