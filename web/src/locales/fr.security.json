@@ -33,5 +33,99 @@
     "recovery_code_used": "Connexion avec un code de secours",
     "recovery_codes_regenerated": "Nouveaux codes de secours",
     "unknown": "Événement {{name}}"
+  },
+  "mcp_help": {
+    "title": "Brancher un assistant IA",
+    "intro": "Un assistant compatible MCP (Claude Desktop, Claude Code, un éditeur de code avec IA…) lit vos chiffres dans Nid avec un de vos jetons d’accès. Avec un jeton « Lecture + propositions », il prépare aussi des saisies que vous validez dans « À valider ».",
+    "mcp": "MCP",
+    "mcp_about": "MCP (Model Context Protocol) est la manière standard de brancher un assistant IA sur une application : Nid lui ouvre une adresse, l’assistant s’y connecte avec votre jeton.",
+    "address": "Adresse du serveur MCP",
+    "agent_label": "Mon assistant",
+    "agent": {
+      "claude_desktop": "Claude Desktop",
+      "claude_code": "Claude Code",
+      "cursor": "Cursor",
+      "vscode": "VS Code (Copilot)",
+      "gemini": "Gemini CLI",
+      "codex": "Codex CLI"
+    },
+    "token_placeholder": "<votre jeton>",
+    "copy": "Copier {{what}}",
+    "what": {
+      "address": "l’adresse",
+      "command": "la commande",
+      "header": "la valeur de l’en-tête",
+      "variable": "la variable d’environnement"
+    },
+    "variable": "Mettez le jeton dans la variable d’environnement NID_TOKEN (dans le profil de votre terminal, par exemple ~/.zshrc) :",
+    "restart": "Enregistrez, puis redémarrez {{agent}}.",
+    "stored_variable": "Le fichier ne contient que le nom de la variable : le jeton reste dans votre environnement.",
+    "never_commit": "Ne committez jamais un jeton : ce fichier ne doit contenir que ${NID_TOKEN}.",
+    "advice": "Quel jeton créer ? « Lecture + propositions » est recommandé. « Lecture seule » suffit pour poser des questions. « Écriture directe » laisse l’assistant écrire sans validation : à réserver aux saisies que vous lui dictez.",
+    "claude_code": {
+      "command": "Lancez cette commande dans un terminal :",
+      "stored": "Claude Code garde le jeton dans sa configuration locale, propre à vous et au projet, hors du dépôt.",
+      "project_title": "Partager la configuration d’un projet",
+      "project": "Le fichier .mcp.json à la racine du projet lit le jeton dans la variable d’environnement NID_TOKEN :"
+    },
+    "cursor": {
+      "file": "Ajoutez ce serveur à ~/.cursor/mcp.json (ou .cursor/mcp.json dans un projet) :"
+    },
+    "vscode": {
+      "file": "Ajoutez ce serveur à .mcp.json à la racine de l’espace de travail (ou à ~/.copilot/mcp-config.json pour tous vos projets) :"
+    },
+    "gemini": {
+      "command": "Lancez cette commande dans un terminal :",
+      "stored": "Gemini CLI écrit le jeton en clair dans son fichier settings.json : gardez ce fichier pour vous."
+    },
+    "codex": {
+      "file": "Ajoutez ce serveur à ~/.codex/config.toml :"
+    },
+    "desktop": {
+      "question": "Votre Nid est-il accessible depuis Internet (adresse en https, sans numéro de port) ?",
+      "yes": "Oui",
+      "no": "Non, seulement chez moi",
+      "reason_http": "Cette adresse n’est pas en https : le connecteur ne pourra pas la joindre.",
+      "reason_port": "Cette adresse porte un numéro de port : le connecteur n’accepte que le port standard (443).",
+      "reason_private": "Cette adresse est celle d’un réseau privé : les serveurs d’Anthropic ne peuvent pas la joindre.",
+      "connector_open": "Dans Claude Desktop, ouvrez Personnaliser › Connecteurs › Ajouter › Connecteur personnalisé, et nommez-le Nid.",
+      "connector_url": "Collez cette adresse comme URL :",
+      "connector_header": "Choisissez l’authentification « Sans connexion », puis ajoutez un en-tête de requête nommé authorization, avec cette valeur :",
+      "connector_cloud": "Le connecteur appelle Nid depuis les serveurs d’Anthropic, pas depuis votre ordinateur. La valeur de l’en-tête ne s’affiche plus ensuite : pour la changer, retirez le connecteur et ajoutez-le de nouveau.",
+      "connector_team": "Sur un abonnement Team ou Enterprise, un connecteur d’organisation partage son en-tête avec tous les membres : ajoutez Nid depuis votre compte personnel, jamais comme connecteur de l’organisation.",
+      "connector_missing": "Pas de section « En-têtes de requête » ? Elle est encore en bêta : répondez « Non » et suivez la configuration manuelle.",
+      "manual_open": "Dans Claude Desktop, ouvrez le fichier claude_desktop_config.json (Paramètres › Développeur › Modifier la configuration). Node.js doit être installé.",
+      "manual_add": "Ajoutez ce serveur au fichier :",
+      "manual_stored": "Le jeton est écrit en clair dans ce fichier, et Claude Desktop passe par un pont local (mcp-remote, version fixée) qui tourne sur votre ordinateur : il joint un Nid de votre réseau."
+    }
+  },
+  "security_page": {
+    "tab": {
+      "sign_in": "Connexion",
+      "tokens": "Jetons",
+      "activity": "Activité"
+    },
+    "status": {
+      "sign_in": "Connexion",
+      "oidc": "Fournisseur d’identité",
+      "password": "Identifiant local",
+      "login": "Identifiant {{login}}",
+      "turn_on": "L’activer",
+      "tokens": "Jetons actifs"
+    },
+    "activity": {
+      "filter": "Événements affichés",
+      "kind": {
+        "access": "Connexions et accès",
+        "assistant": "Assistant",
+        "all": "Tout"
+      },
+      "details": "Détails",
+      "more": "Afficher plus",
+      "tool": "Outil {{tool}}",
+      "preset": "Droits : {{preset}}",
+      "access": "Accès : {{access}}",
+      "prefix": "Jeton {{prefix}}…"
+    }
   }
 }

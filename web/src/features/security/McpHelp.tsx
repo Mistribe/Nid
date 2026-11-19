@@ -45,16 +45,16 @@ export function McpHelp({ token }: { token?: string }) {
   const { t } = useTranslation();
   const [agent, setAgent] = useState<Agent>(rememberedAgent);
   const address = `${window.location.origin}/mcp`;
-  const secret = token ?? t('security.mcp.token_placeholder');
+  const secret = token ?? t('mcp_help.token_placeholder');
   const choose = (next: string) => {
     setAgent(next as Agent);
     try { localStorage.setItem(REMEMBERED, next); } catch { /* a private window: the choice lasts this visit */ }
   };
-  const copy = (what: string) => t('security.mcp.copy', { what });
+  const copy = (what: string) => t('mcp_help.copy', { what });
   const variable = (
     <li className="space-y-2">
-      <p>{t('security.mcp.variable')}</p>
-      <Snippet value={exportLine(secret)} label={copy(t('security.mcp.what.variable'))} />
+      <p>{t('mcp_help.variable')}</p>
+      <Snippet value={exportLine(secret)} label={copy(t('mcp_help.what.variable'))} />
     </li>
   );
 
@@ -64,72 +64,72 @@ export function McpHelp({ token }: { token?: string }) {
       <>
         <Steps>
           <li className="space-y-2">
-            <p>{t('security.mcp.claude_code.command')}</p>
-            <Snippet value={claudeCodeCommand(address, secret)} label={copy(t('security.mcp.what.command'))} />
+            <p>{t('mcp_help.claude_code.command')}</p>
+            <Snippet value={claudeCodeCommand(address, secret)} label={copy(t('mcp_help.what.command'))} />
           </li>
         </Steps>
-        <p className="text-sm text-muted-foreground">{t('security.mcp.claude_code.stored')}</p>
-        <Folded label={t('security.mcp.claude_code.project_title')} hasError={false}>
-          <p>{t('security.mcp.claude_code.project')}</p>
+        <p className="text-sm text-muted-foreground">{t('mcp_help.claude_code.stored')}</p>
+        <Folded label={t('mcp_help.claude_code.project_title')} hasError={false}>
+          <p>{t('mcp_help.claude_code.project')}</p>
           <Snippet value={claudeCodeProject(address)} label={copy('.mcp.json')} />
-          <p role="note" className="text-sm text-status-warning-text">{t('security.mcp.never_commit')}</p>
+          <p role="note" className="text-sm text-status-warning-text">{t('mcp_help.never_commit')}</p>
         </Folded>
       </>
     ),
     cursor: (
       <Steps>
         {variable}
-        <li className="space-y-2"><p>{t('security.mcp.cursor.file')}</p><Snippet value={cursorConfig(address)} label={copy('mcp.json')} /></li>
-        <li>{t('security.mcp.restart', { agent: 'Cursor' })}</li>
+        <li className="space-y-2"><p>{t('mcp_help.cursor.file')}</p><Snippet value={cursorConfig(address)} label={copy('mcp.json')} /></li>
+        <li>{t('mcp_help.restart', { agent: 'Cursor' })}</li>
       </Steps>
     ),
     vscode: (
       <Steps>
         {variable}
-        <li className="space-y-2"><p>{t('security.mcp.vscode.file')}</p><Snippet value={vscodeConfig(address)} label={copy('.mcp.json')} /></li>
-        <li>{t('security.mcp.restart', { agent: 'VS Code' })}</li>
+        <li className="space-y-2"><p>{t('mcp_help.vscode.file')}</p><Snippet value={vscodeConfig(address)} label={copy('.mcp.json')} /></li>
+        <li>{t('mcp_help.restart', { agent: 'VS Code' })}</li>
       </Steps>
     ),
     gemini: (
       <Steps>
-        <li className="space-y-2"><p>{t('security.mcp.gemini.command')}</p><Snippet value={geminiCommand(address, secret)} label={copy(t('security.mcp.what.command'))} /></li>
+        <li className="space-y-2"><p>{t('mcp_help.gemini.command')}</p><Snippet value={geminiCommand(address, secret)} label={copy(t('mcp_help.what.command'))} /></li>
       </Steps>
     ),
     codex: (
       <Steps>
         {variable}
-        <li className="space-y-2"><p>{t('security.mcp.codex.file')}</p><Snippet value={codexConfig(address)} label={copy('config.toml')} /></li>
-        <li>{t('security.mcp.restart', { agent: 'Codex' })}</li>
+        <li className="space-y-2"><p>{t('mcp_help.codex.file')}</p><Snippet value={codexConfig(address)} label={copy('config.toml')} /></li>
+        <li>{t('mcp_help.restart', { agent: 'Codex' })}</li>
       </Steps>
     ),
   };
   const stored: Partial<Record<Agent, string>> = {
-    cursor: t('security.mcp.stored_variable'), vscode: t('security.mcp.stored_variable'), codex: t('security.mcp.stored_variable'),
-    gemini: t('security.mcp.gemini.stored'),
+    cursor: t('mcp_help.stored_variable'), vscode: t('mcp_help.stored_variable'), codex: t('mcp_help.stored_variable'),
+    gemini: t('mcp_help.gemini.stored'),
   };
 
   return (
     // Folded under its title in the Jetons tab (#308) and in the new-token dialog: the fold's button says it.
-    <section className="max-w-prose space-y-3" aria-label={t('security.mcp.title')}>
+    <section className="max-w-prose space-y-3" aria-label={t('mcp_help.title')}>
       <p>
-        {t('security.mcp.intro')}{' '}
-        <InfoTip label={t('security.mcp.mcp')}>{t('security.mcp.mcp_about')}</InfoTip>
+        {t('mcp_help.intro')}{' '}
+        <InfoTip label={t('mcp_help.mcp')}>{t('mcp_help.mcp_about')}</InfoTip>
       </p>
       <div className="space-y-1">
-        <p className="text-sm text-muted-foreground">{t('security.mcp.address')}</p>
-        <Snippet value={address} label={copy(t('security.mcp.what.address'))} />
+        <p className="text-sm text-muted-foreground">{t('mcp_help.address')}</p>
+        <Snippet value={address} label={copy(t('mcp_help.what.address'))} />
       </div>
       <div className="max-w-xs">
-        <Field label={t('security.mcp.agent_label')}>
+        <Field label={t('mcp_help.agent_label')}>
           {(c) => (
             <SelectField {...c} value={agent} onValueChange={choose}
-              options={AGENTS.map((a) => ({ value: a, label: t(`security.mcp.agent.${a}`) }))} />
+              options={AGENTS.map((a) => ({ value: a, label: t(`mcp_help.agent.${a}`) }))} />
           )}
         </Field>
       </div>
       {steps[agent]}
       {stored[agent] ? <p className="text-sm text-muted-foreground">{stored[agent]}</p> : null}
-      {token ? null : <p>{t('security.mcp.advice')}</p>}
+      {token ? null : <p>{t('mcp_help.advice')}</p>}
     </section>
   );
 }
@@ -141,38 +141,38 @@ function ClaudeDesktop({ address, secret, copy }: { address: string; secret: str
   const questionId = useId();
   return (
     <div className="space-y-3">
-      <p id={questionId} className="font-medium">{t('security.mcp.desktop.question')}</p>
+      <p id={questionId} className="font-medium">{t('mcp_help.desktop.question')}</p>
       <Segmented aria-labelledby={questionId} value={online} onValueChange={setOnline}
-        options={[{ value: 'yes', label: t('security.mcp.desktop.yes') }, { value: 'no', label: t('security.mcp.desktop.no') }]} />
-      {reason ? <p className="text-sm text-muted-foreground">{t(`security.mcp.desktop.reason_${reason}`)}</p> : null}
+        options={[{ value: 'yes', label: t('mcp_help.desktop.yes') }, { value: 'no', label: t('mcp_help.desktop.no') }]} />
+      {reason ? <p className="text-sm text-muted-foreground">{t(`mcp_help.desktop.reason_${reason}`)}</p> : null}
       {online === 'yes' ? (
         <>
           <Steps>
-            <li>{t('security.mcp.desktop.connector_open')}</li>
+            <li>{t('mcp_help.desktop.connector_open')}</li>
             <li className="space-y-2">
-              <p>{t('security.mcp.desktop.connector_url')}</p>
-              <Snippet value={address} label={copy(t('security.mcp.what.address'))} />
+              <p>{t('mcp_help.desktop.connector_url')}</p>
+              <Snippet value={address} label={copy(t('mcp_help.what.address'))} />
             </li>
             <li className="space-y-2">
-              <p>{t('security.mcp.desktop.connector_header')}</p>
-              <Snippet value={`Bearer ${secret}`} label={copy(t('security.mcp.what.header'))} />
+              <p>{t('mcp_help.desktop.connector_header')}</p>
+              <Snippet value={`Bearer ${secret}`} label={copy(t('mcp_help.what.header'))} />
             </li>
           </Steps>
-          <p className="text-sm text-muted-foreground">{t('security.mcp.desktop.connector_cloud')}</p>
-          <p role="note" className="text-sm text-status-warning-text">{t('security.mcp.desktop.connector_team')}</p>
-          <p className="text-sm text-muted-foreground">{t('security.mcp.desktop.connector_missing')}</p>
+          <p className="text-sm text-muted-foreground">{t('mcp_help.desktop.connector_cloud')}</p>
+          <p role="note" className="text-sm text-status-warning-text">{t('mcp_help.desktop.connector_team')}</p>
+          <p className="text-sm text-muted-foreground">{t('mcp_help.desktop.connector_missing')}</p>
         </>
       ) : (
         <>
           <Steps>
-            <li>{t('security.mcp.desktop.manual_open')}</li>
+            <li>{t('mcp_help.desktop.manual_open')}</li>
             <li className="space-y-2">
-              <p>{t('security.mcp.desktop.manual_add')}</p>
+              <p>{t('mcp_help.desktop.manual_add')}</p>
               <Snippet value={claudeDesktopConfig(address, secret)} label={copy('claude_desktop_config.json')} />
             </li>
-            <li>{t('security.mcp.restart', { agent: 'Claude Desktop' })}</li>
+            <li>{t('mcp_help.restart', { agent: 'Claude Desktop' })}</li>
           </Steps>
-          <p className="text-sm text-muted-foreground">{t('security.mcp.desktop.manual_stored')}</p>
+          <p className="text-sm text-muted-foreground">{t('mcp_help.desktop.manual_stored')}</p>
         </>
       )}
     </div>

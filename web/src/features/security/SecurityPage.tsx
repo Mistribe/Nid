@@ -19,6 +19,7 @@ import { SettingRow } from './SettingRow';
 import { TwoStepSection } from './TwoStepSection';
 import { TokensSection } from './TokensSection';
 import { TOKENS } from './tokens';
+import '@/locales/security';
 
 const TABS = ['sign-in', 'tokens', 'activity'] as const;
 
@@ -35,16 +36,16 @@ export function SecurityPage() {
         <Status />
       </PageHeader>
       <DetailTabs value={tab} onChange={setTab} tabs={[
-        { id: 'sign-in', label: t('security.tab.sign_in'), content: <SignInTab /> },
+        { id: 'sign-in', label: t('security_page.tab.sign_in'), content: <SignInTab /> },
         {
-          id: 'tokens', label: t('security.tab.tokens'), content: (
+          id: 'tokens', label: t('security_page.tab.tokens'), content: (
             <>
               <TokensSection />
-              <Folded label={t('security.mcp.title')} hasError={false}><McpHelp /></Folded>
+              <Folded label={t('mcp_help.title')} hasError={false}><McpHelp /></Folded>
             </>
           ),
         },
-        { id: 'activity', label: t('security.tab.activity'), content: <ActivitySection /> },
+        { id: 'activity', label: t('security_page.tab.activity'), content: <ActivitySection /> },
       ]} />
     </div>
   );
@@ -58,16 +59,16 @@ function Status() {
   const local = session.methods.includes('password');
   const credential = $api.useQuery('get', '/api/v1/core/me/credential', {}, { retry: false, enabled: local });
   const tokens = $api.useQuery('get', TOKENS);
-  const ways = [session.methods.includes('oidc') ? t('security.status.oidc') : null, local ? t('security.status.password') : null].filter(Boolean).join(' + ');
+  const ways = [session.methods.includes('oidc') ? t('security_page.status.oidc') : null, local ? t('security_page.status.password') : null].filter(Boolean).join(' + ');
   return (
     <StatLine items={[
-      { label: t('security.status.sign_in'), value: ways, hint: credential.data ? t('security.status.login', { login: credential.data.login }) : undefined },
+      { label: t('security_page.status.sign_in'), value: ways, hint: credential.data ? t('security_page.status.login', { login: credential.data.login }) : undefined },
       ...(credential.data ? [{
         label: t('security.totp.title'),
         value: credential.data.totpEnabled ? t('security.totp.badge_on') : <span className="text-status-warning-text">{t('security.totp.badge_off')}</span>,
-        hint: credential.data.totpEnabled ? undefined : <Link to="/security" hash="two-step" className="underline">{t('security.status.turn_on')}</Link>,
+        hint: credential.data.totpEnabled ? undefined : <Link to="/security" hash="two-step" className="underline">{t('security_page.status.turn_on')}</Link>,
       }] : []),
-      { label: t('security.status.tokens'), value: tokens.data ? String(tokens.data.filter((token) => token.status === 'active').length) : '…' },
+      { label: t('security_page.status.tokens'), value: tokens.data ? String(tokens.data.filter((token) => token.status === 'active').length) : '…' },
     ]} />
   );
 }

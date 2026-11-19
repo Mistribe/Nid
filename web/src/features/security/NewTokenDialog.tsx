@@ -18,6 +18,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { McpHelp } from './McpHelp';
 import { EXPIRIES, PRESETS, TOKENS, type Preset } from './tokens';
 import '@/locales/forms';
+import '@/locales/security';
 
 /**
  * Spec 4A §8: name, rights (« Lecture + propositions » by default) and validity, then the secret shown once. The secret
@@ -65,7 +66,7 @@ export function NewTokenDialog({ onClose }: { onClose: () => void }) {
               <Button type="button" onClick={onClose}>{t('security.tokens.done')}</Button>
             </div>
             {/* #309: the same help with the real secret in every snippet; it stays in this component's state. */}
-            <Folded label={t('security.mcp.title')} hasError={false}><McpHelp token={secret} /></Folded>
+            <Folded label={t('mcp_help.title')} hasError={false}><McpHelp token={secret} /></Folded>
           </div>
         )}
       </ModalDialog>

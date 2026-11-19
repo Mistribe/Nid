@@ -12,6 +12,7 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { formatInstant } from '@/lib/format';
 import { eventLabel, viaLabel } from './eventLabel';
+import '@/locales/security';
 
 type Entry = components['schemas']['SecurityEventView'];
 type SecurityEventPage = components['schemas']['SecurityEventPage'];
@@ -26,10 +27,10 @@ const WARNINGS = new Set(['access_denied', 'access_violation', 'login_failed', '
 /** What each event may show (`SecurityEventViews.Shown`), in words, then where it came from. */
 function details(t: TFunction, entry: Entry): string {
   const { tool, preset, access, prefix } = entry.details;
-  const said = entry.event === 'mcp_tool_called' && tool ? t('security.activity.tool', { tool })
-    : entry.event === 'token_created' && preset ? t('security.activity.preset', { preset: t(`security.tokens.preset.${preset as 'read'}`) })
-    : entry.event === 'access_denied' && access ? t('security.activity.access', { access })
-    : entry.event === 'token_auth_failed' && prefix ? t('security.activity.prefix', { prefix })
+  const said = entry.event === 'mcp_tool_called' && tool ? t('security_page.activity.tool', { tool })
+    : entry.event === 'token_created' && preset ? t('security_page.activity.preset', { preset: t(`security.tokens.preset.${preset as 'read'}`) })
+    : entry.event === 'access_denied' && access ? t('security_page.activity.access', { access })
+    : entry.event === 'token_auth_failed' && prefix ? t('security_page.activity.prefix', { prefix })
     : null;
   return [said, viaLabel(t, entry.actor.via)].filter(Boolean).join(' · ');
 }
@@ -64,8 +65,8 @@ export function ActivitySection() {
     <section aria-labelledby={filterId} className="space-y-4">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <h2 id={filterId} className="text-title">{t('security.events_title')}</h2>
-        <Segmented aria-label={t('security.activity.filter')} value={kind} onValueChange={setKind}
-          options={EVENT_KINDS.map((k) => ({ value: k, label: t(`security.activity.kind.${k}`) }))} />
+        <Segmented aria-label={t('security_page.activity.filter')} value={kind} onValueChange={setKind}
+          options={EVENT_KINDS.map((k) => ({ value: k, label: t(`security_page.activity.kind.${k}`) }))} />
       </div>
       {events.error ? <ProblemMessage problem={present(toProblem(events.error))} /> : null}
       {events.data && rows.length === 0 ? <p>{t('security.empty')}</p> : null}
@@ -74,7 +75,7 @@ export function ActivitySection() {
           columns={[
             { id: 'when', header: t('security.when'), cell: (entry) => formatInstant(entry.at) },
             { id: 'event', header: t('security.event'), cell: (entry) => <Event entry={entry} /> },
-            { id: 'details', header: t('security.activity.details'), wrap: true, cell: (entry) => <span className="text-muted-foreground">{details(t, entry)}</span> },
+            { id: 'details', header: t('security_page.activity.details'), wrap: true, cell: (entry) => <span className="text-muted-foreground">{details(t, entry)}</span> },
           ]}
           mobile={(entry) => (
             <div className="space-y-1">
@@ -84,7 +85,7 @@ export function ActivitySection() {
           )} />
       ) : null}
       {events.hasNextPage ? (
-        <Button type="button" variant="outline" disabled={events.isFetchingNextPage} onClick={() => void events.fetchNextPage()}>{t('security.activity.more')}</Button>
+        <Button type="button" variant="outline" disabled={events.isFetchingNextPage} onClick={() => void events.fetchNextPage()}>{t('security_page.activity.more')}</Button>
       ) : null}
     </section>
   );
