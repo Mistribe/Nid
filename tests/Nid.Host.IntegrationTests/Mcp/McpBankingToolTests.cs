@@ -138,6 +138,8 @@ public class McpBankingToolTests(PostgresFixture fixture) : IClassFixture<Postgr
         var done = await AddLineAsync(s.App, s.Account, "r-5", "BOULANGERIE");
         (await s.App.RawAsync(s.App.AdultA, HttpMethod.Post, $"{BankingApi.Root}/transactions/{ignored}/ignore", new { })).EnsureSuccessStatusCode();
         (await s.App.RawAsync(s.App.AdultA, HttpMethod.Put, $"{BankingApi.Root}/transactions/{done}/category", new { categoryId = groceries })).EnsureSuccessStatusCode();
+        var none = await AddLineAsync(s.App, s.Account, "r-6", "SANS CATEGORIE");
+        (await s.App.RawAsync(s.App.AdultA, HttpMethod.Put, $"{BankingApi.Root}/transactions/{none}/category", new { categoryId = (Guid?)null })).EnsureSuccessStatusCode();
         await BankingApi.ConnectAsync(s.App, s.App.AdultB, "code-b", BankingApi.Account("uid-b", "hash-b", null, "Courant B"));
         await AddLineAsync(s.App, await AccountAsync(s.App, s.App.AdultB, "Courant B"), "b-1", "LIGNE PRIVEE DE B");
         await using var client = await ClientAsync(s.App, TokenPresets.Read);

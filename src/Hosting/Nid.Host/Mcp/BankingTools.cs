@@ -37,16 +37,21 @@ public sealed class BankingTools
     [Description("The booked bank lines of the accounts the person reads that have no category yet (ignored lines left out), newest first, 50 per page, "
         + "with the categories in use (id, name, parent, kind: expense, income or transfer). Pick a category for each line and send them to "
         + "propose_bank_categories. " + McpSetup.Untrusted)]
-    public static Task<CallToolResult> ListUncategorisedBankTransactions(IServiceProvider services,
+    public static async Task<CallToolResult> ListUncategorisedBankTransactions(IServiceProvider services,
         [Description("Page, from 1.")] int page = 1, CancellationToken ct = default)
-        => McpCalls.RunAsync(services, () => new ListBankLinesQuery("all", null, null, page, Uncategorised: true), async (BankTransactionPage lines) =>
+    {
+        var listed = await services.GetRequiredService<IInvoker>().InvokeAsync(new ListBankCategoriesQuery(), ct);
+        if (listed.TryGetFailure(out var failure))
+            return McpCalls.Refuse(services, failure!);
+        var categories = listed.TryGetValue(out var all) ? all! : [];
+        var names = categories.ToDictionary(c => c.Id, c => c.Name);
+        return await McpCalls.RunAsync(services, () => new ListBankLinesQuery("all", null, null, page, Uncategorised: true), (BankTransactionPage lines) =>
         {
-            var categories = (await services.GetRequiredService<IInvoker>().InvokeAsync(new ListBankCategoriesQuery(), ct)).TryGetValue(out var all) ? all! : [];
-            var names = categories.ToDictionary(c => c.Id, c => c.Name);
             return new UncategorisedLines(
                 [.. lines.Items.Select(t => new UncategorisedLine(t.Id, t.BookedOn, t.Label, t.Counterparty, t.Amount, t.Currency, t.AccountName))], lines.HasMore,
                 [.. categories.Where(c => !c.Archived).Select(c => new CategoryChoice(c.Id, c.Name, c.ParentId is { } p ? names.GetValueOrDefault(p) : null, c.Kind))]);
         }, ct);
+    }
 
     [McpServerTool(Name = "list_expected_charges", ReadOnly = true)]
     [Description("The charges expected between two dates (subscriptions, loan instalments, rents…) that the person may link a bank line to, "
