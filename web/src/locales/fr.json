@@ -215,7 +215,11 @@
       "col_per_month": "Par mois",
       "col_share": "Part du revenu",
       "from": "D’où il vient",
-      "to": "Où il part"
+      "to": "Où il part",
+      "everyday": "Dépenses courantes",
+      "everyday_tip": "Les opérations de vos comptes de ce mois, hors abonnements, crédits, garde et impôts déjà comptés dans les engagements, et hors virements entre vos comptes.",
+      "left": "Reste réel",
+      "overspent": "Dépassement de {{amount}}"
     },
     "notice_one": "{{count}} chose à faire",
     "notice_other": "{{count}} choses à faire",

@@ -266,6 +266,56 @@ describe('DashboardPage', () => {
     expect(within(month).queryAllByRole('listitem')).toHaveLength(0);
   });
 
+  // #85 decision 10: the « Reste » splits into the everyday spending's categories, then what is really left.
+  const spending = (left: string) => dashboard({
+    margin: eur('1000.00'), everydaySpending: eur('800.00'), left: eur(left),
+    spendingSlices: [
+      { name: 'Alimentation', amount: eur('300.00'), others: false }, { name: 'Transports', amount: eur('150.00'), others: false },
+      { name: 'Loisirs', amount: eur('120.00'), others: false }, { name: 'Santé', amount: eur('80.00'), others: false },
+      { name: 'Non classées', amount: eur('70.00'), others: false }, { name: 'Autres', amount: eur('80.00'), others: true },
+    ],
+  });
+  const text = (el: Element) => el.textContent?.replace(/[\u00a0\u202f]/g, ' ');
+
+  it('splits the rest into everyday spending by category and what is really left', async () => {
+    serve(spending('200.00'));
+    const { container } = await renderApp('/dashboard');
+
+    const month = await screen.findByRole('region', { name: 'Où part le revenu du mois' });
+    expect(within(within(month).getByRole('list', { name: 'Où il part' })).getAllByRole('listitem').map(text)).toEqual([
+      'Abonnements 250,56 €', 'Alimentation 300,00 €', 'Transports 150,00 €', 'Loisirs 120,00 €', 'Santé 80,00 €',
+      'Non classées 70,00 €', 'Autres 80,00 €', 'Reste réel 200,00 €',
+    ]);
+    expect(Array.from(within(month).getByRole('group', { name: /Flux du revenu/ }).querySelectorAll('[data-band]')).map((el) => el.getAttribute('data-band')))
+      .toEqual(['income', 'subscriptions', 'spend-0', 'spend-1', 'spend-2', 'spend-3', 'spend-4', 'spend-5', 'rest']);
+    expect(await within(month).findByRole('button', { name: 'À propos : Dépenses courantes' })).toBeInTheDocument();
+    expect(Array.from(month.querySelectorAll('dt')).map(text)).toEqual(['Reste à vivre', 'Dépenses courantes', 'Reste réel']);
+    expect(Array.from(month.querySelectorAll('dd')).map(text)).toEqual(['1 000,00 €', 'avant dépenses courantes', '800,00 €', '200,00 €']);
+    await expectNoAxeViolations(container);
+  });
+
+  it('says the overspend instead of drawing a negative rest', async () => {
+    serve(spending('-200.00'));
+    await renderApp('/dashboard');
+
+    const month = await screen.findByRole('region', { name: 'Où part le revenu du mois' });
+    expect(month.querySelector('[data-segment="rest"]')).toBeNull();
+    expect(month.querySelector('[data-band="rest"]')).toBeNull();
+    await within(month).findByText(/Dépassement de/);
+    expect(text(month)).toContain('Reste réelDépassement de 200,00 €');
+    expect(text(month)).not.toContain('-200');
+  });
+
+  it('keeps the month as it was without everyday spending', async () => {
+    serve(dashboard());
+    await renderApp('/dashboard');
+
+    const month = await screen.findByRole('region', { name: 'Où part le revenu du mois' });
+    expect(within(within(month).getByRole('list', { name: 'Où il part' })).getAllByRole('listitem').map(text)).toEqual(['Abonnements 250,56 €', 'Reste 2 249,45 €']);
+    expect(month.querySelector('dl')).toBeNull();
+    expect(month).not.toHaveTextContent('Reste réel');
+  });
+
   it('shows one notice line when something is due', async () => {
     serve(dashboard({ todo: [todoItem(), todoItem({ kind: 'no_value', id: '00000000-0000-7000-8000-0000000000e5', name: 'PER', on: null })] }));
     await renderApp('/dashboard');
