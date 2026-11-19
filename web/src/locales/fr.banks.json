@@ -132,7 +132,7 @@
       "done_unlink": "Opération déliée.",
       "categorise": "Catégoriser…",
       "done_category": "Catégorie enregistrée.",
-      "to_link":"Opérations à relier",
+      "to_link": "Opérations à relier",
       "to_link_empty": "Aucune opération à relier.",
       "empty": "Aucune opération.",
       "empty_period": "Aucune opération sur cette période."
@@ -157,6 +157,7 @@
       "uncategorised": "Sans catégorie",
       "auto": "Laisser Nid décider",
       "submit": "Enregistrer",
+      "current_gone": "Sa catégorie actuelle, {{name}}, est archivée : choisissez-en une autre.",
       "source": { "link": "Reliée", "rule": "Règle", "hand": "Vous", "assistant": "Assistant", "hint": "Suggestion de la banque" },
       "source_about": {
         "link": "Reliée : la catégorie vient de ce que la ligne paie.",

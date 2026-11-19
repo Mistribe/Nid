@@ -32,6 +32,7 @@ export default function CategoryDialog({ line, onClose, onDone }: { line: BankTr
   ];
   // The line's own category may be archived by now: not on the list, so not sent back as is.
   const chosen = options.some((o) => o.value === picked);
+  const gone = categories.data && line.category && picked === line.category.id && !chosen ? line.category.name : null;
   const problem = categories.error ?? categorise.error ?? resetCategory.error;
 
   return (
@@ -47,7 +48,7 @@ export default function CategoryDialog({ line, onClose, onDone }: { line: BankTr
         }}>
           <p className="text-sm text-muted-foreground">{line.label} · {formatCurrency(line.amount, line.currency)}</p>
           {problem ? <ProblemMessage problem={present(toProblem(problem))} /> : null}
-          <Field label={t('banks.categories.field')}>
+          <Field label={t('banks.categories.field')} hint={gone ? t('banks.categories.current_gone', { name: gone }) : undefined}>
             {(c) => <ComboboxField {...c} value={picked} onValueChange={setPicked} options={options} placeholder={t('banks.categories.pick')} searchPlaceholder={t('banks.categories.search')} empty={t('banks.categories.none_found')} />}
           </Field>
           <div className="flex justify-end gap-2">

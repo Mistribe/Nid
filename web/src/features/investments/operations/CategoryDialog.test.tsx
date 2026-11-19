@@ -20,16 +20,18 @@ const categories = [
   category({ id: 'income', key: 'income', name: 'Revenus', kind: 'income' }),
 ];
 
-/** The line, the categories, and every write to the line's category as `[method, body]`. */
-function serve() {
-  const writes: [string, unknown][] = [];
+const courses = { id: 'groceries', name: 'Courses', parentId: 'food', parentName: 'Alimentation', kind: 'expense' };
+
+/** The line (`over` on top), the categories, and every write to a line's category as `[method, line id, body]`. */
+function serve(over: Partial<BankTransaction> = {}) {
+  const writes: [string, unknown, unknown][] = [];
   server.use(
     http.get('*/api/v1/investments/envelopes/:id', () => HttpResponse.json(detail({ kind: 'checking' }))),
     http.get('*/api/v1/banking/status', () => HttpResponse.json({ enabled: true, configured: false })),
-    http.get('*/api/v1/banking/envelopes/:id/transactions', () => HttpResponse.json({ items: [line], hasMore: false })),
+    http.get('*/api/v1/banking/envelopes/:id/transactions', () => HttpResponse.json({ items: [{ ...line, ...over }], hasMore: false })),
     http.get('*/api/v1/banking/categories', () => HttpResponse.json(categories)),
-    http.put('*/api/v1/banking/transactions/:id/category', async ({ request }) => { writes.push(['PUT', await request.json()]); return HttpResponse.json(line); }),
-    http.delete('*/api/v1/banking/transactions/:id/category', () => { writes.push(['DELETE', null]); return HttpResponse.json(line); }),
+    http.put('*/api/v1/banking/transactions/:id/category', async ({ request, params }) => { writes.push(['PUT', params.id, await request.json()]); return HttpResponse.json(line); }),
+    http.delete('*/api/v1/banking/transactions/:id/category', ({ params }) => { writes.push(['DELETE', params.id, null]); return HttpResponse.json(line); }),
   );
   return writes;
 }
@@ -57,7 +59,36 @@ describe('« Catégoriser… »', () => {
     await user.click(within(list).getByRole('option', { name: 'Alimentation › Courses' }));
     await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
 
-    await waitFor(() => expect(writes).toEqual([['PUT', { categoryId: 'groceries' }]]));
+    await waitFor(() => expect(writes).toEqual([['PUT', 't1', { categoryId: 'groceries' }]]));
+  });
+
+  it('opens on the line’s category, sent back as is', async () => {
+    const writes = serve({ category: courses, categorySource: 'rule' });
+    const user = await open();
+
+    expect(await screen.findByRole('combobox', { name: 'Catégorie' })).toHaveTextContent('Alimentation › Courses');
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+    await waitFor(() => expect(writes).toEqual([['PUT', 't1', { categoryId: 'groceries' }]]));
+  });
+
+  it('opens on « Sans catégorie » when a person left the line without one', async () => {
+    const writes = serve({ category: null, categorySource: 'hand' });
+    const user = await open();
+
+    expect(await screen.findByRole('combobox', { name: 'Catégorie' })).toHaveTextContent('Sans catégorie');
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+    await waitFor(() => expect(writes).toEqual([['PUT', 't1', { categoryId: null }]]));
+  });
+
+  it('says so when the line’s category is archived, and asks for another', async () => {
+    serve({ category: { ...courses, id: 'old', name: 'Marché du dimanche' }, categorySource: 'hand' });
+    await open();
+
+    const field = await screen.findByRole('combobox', { name: 'Catégorie' });
+    await waitFor(() => expect(field).toHaveAccessibleDescription('Sa catégorie actuelle, Marché du dimanche, est archivée : choisissez-en une autre.'));
+    expect(screen.getByRole('button', { name: 'Enregistrer' })).toBeDisabled();
   });
 
   it('« Sans catégorie » sends no category', async () => {
@@ -67,7 +98,7 @@ describe('« Catégoriser… »', () => {
     await pick(user, 'Catégorie', 'Sans catégorie');
     await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
 
-    await waitFor(() => expect(writes).toEqual([['PUT', { categoryId: null }]]));
+    await waitFor(() => expect(writes).toEqual([['PUT', 't1', { categoryId: null }]]));
   });
 
   it('« Laisser Nid décider » hands the line back to Nid', async () => {
@@ -77,6 +108,6 @@ describe('« Catégoriser… »', () => {
     await pick(user, 'Catégorie', 'Laisser Nid décider');
     await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
 
-    await waitFor(() => expect(writes).toEqual([['DELETE', null]]));
+    await waitFor(() => expect(writes).toEqual([['DELETE', 't1', null]]));
   });
 });
