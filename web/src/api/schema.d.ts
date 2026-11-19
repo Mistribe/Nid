@@ -31598,6 +31598,8 @@ export interface components {
             displayName: string;
             kind: string;
             joint?: null | boolean;
+            /** Format: uuid */
+            dependentId?: null | string;
         };
         BankAccountOverview: {
             recent: components["schemas"]["BankTransactionView"][];

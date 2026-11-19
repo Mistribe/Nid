@@ -34100,6 +34100,13 @@
               "null",
               "boolean"
             ]
+          },
+          "dependentId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
           }
         },
         "additionalProperties": false

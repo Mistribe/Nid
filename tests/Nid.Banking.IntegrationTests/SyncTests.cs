@@ -113,6 +113,40 @@ public class SyncTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
     }
 
     [Fact]
+    public async Task A_dependent_s_account_proposes_its_balances_to_both_adults()
+    {
+        var (app, clock) = await StartAsync(fixture);
+        await using var _app = app;
+        await BankingApi.ConnectAsync(app, app.AdultA, "code-a", BankingApi.Account("uid-1", "hash-1", null, "Compte de Léa"));
+        var account = await AccountAsync(app, app.AdultA, "Compte de Léa");
+        var created = await app.RawAsync(app.AdultA, HttpMethod.Post, $"{BankingApi.Root}/accounts/{account}/envelope",
+            new { displayName = "Compte de Léa", kind = "checking", dependentId = app.Dependent.Value });
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var envelope = (await BankingApi.JsonAsync(created)).GetProperty("id").GetGuid();
+        foreach (var (on, amount) in new[] { (D(8, 31), 120m), (D(9, 30), 150m) })
+        {
+            Serve(app, "session-code-a", "uid-1", on, amount);
+            await NightAsync(app, clock, on.PlusDays(1));
+        }
+
+        // B, who connected nothing, sees the same proposals as A, and approves one.
+        var forA = await BankProposalsAsync(app, app.AdultA);
+        var forB = await BankProposalsAsync(app, app.AdultB);
+        Assert.Equal(["2026-08-31", "2026-09-30"], forB.Select(p => p.GetProperty("subjectKey").GetString()));
+        Assert.Equal(forA.Select(p => p.GetProperty("id").GetGuid()), forB.Select(p => p.GetProperty("id").GetGuid()));
+        Assert.All(forB, p => Assert.Equal(envelope, p.GetProperty("targetItemId").GetGuid()));
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultB, HttpMethod.Post, $"{ProposalKindHelpers.Proposals}/{forB[0].GetProperty("id").GetGuid()}/approve",
+            new { version = forB[0].GetProperty("version").GetUInt32() })).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Post, $"{ProposalKindHelpers.Proposals}/{forA[1].GetProperty("id").GetGuid()}/approve",
+            new { version = forA[1].GetProperty("version").GetUInt32() })).StatusCode);
+
+        // The balances land in the child's envelope.
+        await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
+        var values = await core.Valuations.Where(v => v.ItemId == envelope && v.RetiredAt == null).OrderBy(v => v.AsOf).ToListAsync(TestContext.Current.CancellationToken);
+        Assert.Equal([(D(8, 31), 120m), (D(9, 30), 150m)], values.Select(v => (v.AsOf, v.Amount)));
+    }
+
+    [Fact]
     public async Task Auto_apply_writes_bank_valuations_without_proposals()
     {
         var (app, _, _, envelope) = await MonthsAsync(fixture, auto: true);

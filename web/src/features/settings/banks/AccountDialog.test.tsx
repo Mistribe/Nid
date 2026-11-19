@@ -251,6 +251,38 @@ describe('the account dialog', () => {
     expect(await screen.findByText('Enveloppe BNP Paribas Compte courant créée et reliée.')).toBeInTheDocument();
   });
 
+  it('creates a child’s envelope, theirs alone, for an account both adults manage', async () => {
+    serveBanks([connection()], envelopes);
+    server.use(http.get('*/api/v1/core/persons', () => HttpResponse.json(householdPersons)));
+    const sent: unknown[] = [];
+    server.use(http.post('*/api/v1/banking/accounts/:id/envelope', async ({ request }) => {
+      sent.push(await request.json());
+      return HttpResponse.json({ id: 'new' }, { status: 201 });
+    }));
+    const { user } = await renderApp('/settings/banks');
+
+    await user.click((await screen.findAllByRole('button', { name: 'Régler Compte courant' }))[0]!);
+    const dialog = await screen.findByRole('dialog', { name: 'Régler Compte courant' });
+    await pick(user, 'Enveloppe', 'Créer une enveloppe');
+    const step = within(dialog).getByRole('form', { name: 'Créer une enveloppe' });
+    await user.click(within(step).getByRole('radio', { name: 'Compte de Léo' }));
+    expect(step).toHaveTextContent('L\'enveloppe est à Léo et partagée');
+    await user.click(within(step).getByRole('button', { name: 'Créer et relier' }));
+
+    await waitFor(() => expect(sent).toEqual([{ displayName: 'BNP Paribas Compte courant', kind: 'checking', dependentId: householdPersons[2]!.id }]));
+  });
+
+  it('shows whose account each associated one is, a card its account’s', async () => {
+    const child = summary({ id: JOINT, displayName: 'Compte de Léo', kind: 'checking', owners: [{ personId: householdPersons[2]!.id, shareBp: 10000 }] });
+    serveBanks([connection({ accounts: [account({ envelopeId: JOINT }), account({ id: CARD, name: 'Visa Premier', ibanMasked: null, kind: 'card', cardOfAccountId: CHECKING })] })], [child]);
+    server.use(http.get('*/api/v1/core/persons', () => HttpResponse.json(householdPersons)));
+    await renderApp('/settings/banks');
+
+    const table = (await screen.findAllByRole('table'))[0]!;
+    // The account's chip and its card's.
+    await waitFor(() => expect(within(table).getAllByText('Léo')).toHaveLength(2));
+  });
+
   it('goes back from the creation step, and shows a refused link there', async () => {
     serveBanks([connection()], envelopes);
     server.use(http.post('*/api/v1/banking/accounts/:id/envelope', () =>
