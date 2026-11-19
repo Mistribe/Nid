@@ -528,6 +528,9 @@ Pour l'activer :
 1. Dans le portail d'Enable Banking, créez une application **de production en mode restreint** (gratuit, réservé à l'usage
    personnel : seuls les comptes reliés dans le portail sont lisibles) :
    - adresse de retour (« redirect URL ») : `https://nid.<domaine>/api/v1/banking/callback`, exactement ;
+   - « Privacy URL » et « Terms URL » : le portail les exige mais ne les vérifie pas en mode restreint. Donnez
+     `https://github.com/Mistribe/Nid/blob/main/PRIVACY.md` et `https://github.com/Mistribe/Nid/blob/main/LICENSE`,
+     plutôt que l'adresse de votre instance ;
    - générez la paire de clés de l'application et **gardez la clé privée** (fichier `.pem`) hors du portail ;
    - reliez les comptes de chaque adulte que Nid doit lire, comme le portail le demande ;
    - notez l'**identifiant de l'application**.
