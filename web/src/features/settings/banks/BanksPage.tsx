@@ -226,7 +226,9 @@ function AccountTable({ caption, accounts, all, envelopes, onEdit }: {
       {a.ibanMasked && a.name.trim() ? <span className="block text-sm text-muted-foreground">{maskedIban(a.ibanMasked)}</span> : null}
     </span>
   );
-  const kind = (a: BankAccount) => t(`banks.kind.${a.kind}`, { defaultValue: a.kind });
+  const kind = (a: BankAccount) => (a.kind === 'card' && a.cardDebit === 'immediate' ? t('banks.kind_card_immediate')
+    : a.kind === 'card' && a.cardDebit === 'deferred' ? t('banks.kind_card_deferred')
+    : t(`banks.kind.${a.kind}`, { defaultValue: a.kind }));
   const balance = (a: BankAccount) => (a.lastBalance && a.lastBalanceOn
     ? t('banks.balance_on', { amount: formatCurrency(a.lastBalance, a.currency), date: formatLocalDate(a.lastBalanceOn) }) : '—');
   const edit = (a: BankAccount) => (a.canWrite ? (

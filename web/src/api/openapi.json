@@ -33876,6 +33876,18 @@
               "null",
               "boolean"
             ]
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "clearName": {
+            "type": [
+              "null",
+              "boolean"
+            ]
           }
         },
         "additionalProperties": false
@@ -33889,7 +33901,9 @@
           "autoApplyBalance",
           "ignored",
           "synced",
-          "canWrite"
+          "canWrite",
+          "bankName",
+          "renamed"
         ],
         "type": "object",
         "properties": {
@@ -33957,6 +33971,66 @@
           },
           "canWrite": {
             "type": "boolean"
+          },
+          "bankName": {
+            "type": "string"
+          },
+          "renamed": {
+            "type": "boolean"
+          },
+          "cardDebit": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "BankingConnectionTestView": {
+        "required": [
+          "outcome"
+        ],
+        "type": "object",
+        "properties": {
+          "outcome": {
+            "type": "string"
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "active": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "redirectUrlAllowed": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          }
+        }
+      },
+      "BankingDiagnosticsView": {
+        "required": [
+          "keyStatus",
+          "appIdSaved",
+          "redirectUrl"
+        ],
+        "type": "object",
+        "properties": {
+          "keyStatus": {
+            "type": "string"
+          },
+          "appIdSaved": {
+            "type": "boolean"
+          },
+          "redirectUrl": {
+            "type": "string"
           }
         }
       },

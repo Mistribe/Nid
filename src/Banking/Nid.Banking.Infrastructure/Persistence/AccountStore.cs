@@ -41,7 +41,12 @@ public sealed class AccountStore(BankingDbContext db) : IAccountStore
 
             // An account first seen without its IBAN takes it when a session gives it.
             row.IbanHash ??= ibanHash;
-            row.IbanMasked ??= iban?[^Math.Min(4, iban.Length)..];
+            row.IbanMasked ??= iban?[^Math.Min(4, iban.Length)..] ?? seen.NumberLast4;
+            // The bank's name follows its latest session, unless that gives none where a readable one is kept (a statement file's);
+            // the household's own name is another column.
+            if (seen.Name.Length > 0 || AccountNames.IsCode(row.Name))
+                row.Name = seen.Name;
+            row.CardDebit = seen.Debit is { } debit ? Wire(debit) : row.CardDebit;
 
             if (await db.Sources.FindAsync([row.Id, connection], ct) is { } source)
             {
@@ -151,6 +156,7 @@ public sealed class AccountStore(BankingDbContext db) : IAccountStore
             row.Ignored = account.Ignored;
             row.AssociatedOn = account.AssociatedOn;
             row.AssociatedByPersonId = account.AssociatedBy?.Value;
+            row.HouseholdName = account.HouseholdName;
             try
             {
                 await db.SaveChangesAsync(ct);
@@ -183,12 +189,13 @@ public sealed class AccountStore(BankingDbContext db) : IAccountStore
         return (ibanHash, Convert.ToHexStringLower(ibanHash ?? SHA256.HashData(Encoding.UTF8.GetBytes(Compact(accountId)!))));
     }
 
-    private static string Wire(BankAccountKind kind) => kind.ToString().ToLowerInvariant();
+    private static string Wire<T>(T value) where T : struct, Enum => value.ToString().ToLowerInvariant();
 
     private static BankAccount ToAccount(AccountRow r)
-        => new(r.Id, r.IbanMasked, r.Name, Enum.Parse<BankAccountKind>(r.Kind, ignoreCase: true),
+        => new(r.Id, r.IbanMasked, r.HouseholdName ?? r.Name, Enum.Parse<BankAccountKind>(r.Kind, ignoreCase: true),
             // The callback keeps only accounts with an ISO currency: anything else here is a broken row, not a euro.
             Currency.TryCreate(r.Currency, out var currency) ? currency : throw new InvalidOperationException($"Bank account {r.Id} has no valid currency."),
             r.EnvelopeItemId is { } envelope ? new ItemId(envelope) : null, r.CardOfAccountId, r.AutoApplyBalance, r.Ignored, r.BalanceConflictOn,
-            r.AssociatedOn, new PersonId(r.CreatedByPersonId), r.LastValuedOn, r.AssociatedByPersonId is { } by ? new PersonId(by) : null);
+            r.AssociatedOn, new PersonId(r.CreatedByPersonId), r.LastValuedOn, r.AssociatedByPersonId is { } by ? new PersonId(by) : null,
+            r.HouseholdName, r.Name, r.CardDebit is { } debit ? Enum.Parse<CardDebit>(debit, ignoreCase: true) : null);
 }

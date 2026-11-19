@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Nid.Banking.Contracts;
+using Nid.Banking.Domain;
 using UnambitiousFx.Myelin;
 using NodaTime;
 using NodaTime.Text;
@@ -124,8 +125,14 @@ public sealed class EnableBankingClient(SafeHttpClient http, BankingOptions opti
         dto.SessionId, Instant.FromDateTimeOffset(DateTimeOffset.Parse(dto.Access.ValidUntil, CultureInfo.InvariantCulture)),
         // An account without a uid cannot be read (blocked or closed at the bank): it is not offered.
         dto.Accounts.Where(a => a.Uid is not null)
-            .Select(a => new SessionAccount(a.Uid!, a.IdentificationHash, a.AccountId?.Iban, a.Details ?? a.Name ?? "", a.CashAccountType, a.Currency))
+            .Select(a => new SessionAccount(
+                a.Uid!, a.IdentificationHash, a.AccountId?.Iban, AccountNames.Pick(a.Details, a.Product, a.Name), a.CashAccountType, a.Currency,
+                a.CashAccountType == "CARD" ? AccountNames.Debit(a.Details, a.Product) : null, CardLast4(a.AccountId?.Other)))
             .ToList());
+
+    /// <summary>A masked card number's last four digits (<c>XXXXXXXXXXXX1234</c>), never more.</summary>
+    private static string? CardLast4(OtherIdDto? other)
+        => other is { SchemeName: "CPAN", Identification: { Length: >= 4 } number } && number[^4..].All(char.IsAsciiDigit) ? number[^4..] : null;
 
     private static IReadOnlyList<ProviderBalance> ToBalances(BalancesDto dto) => (dto.Balances ?? [])
         .Select(b => new ProviderBalance(

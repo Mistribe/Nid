@@ -33,6 +33,19 @@ describe('Réglages › Banques', () => {
     await expectNoAxeViolations(container);
   });
 
+  it('says whether a card is debited at once or later, when the bank says so', async () => {
+    serveBanks([connection({ accounts: [
+      account({ id: 'c1', name: 'Carte Visa', kind: 'card', ibanMasked: '4321', cardDebit: 'immediate' }),
+      account({ id: 'c2', name: 'Carte Premier', kind: 'card', ibanMasked: null, cardDebit: 'deferred' }),
+      account({ id: 'c3', name: 'Carte de Léa', kind: 'card', ibanMasked: null }),
+    ] })]);
+    await renderApp('/settings/banks');
+
+    const rows = within(await screen.findByRole('table', { name: 'Comptes de BNP Paribas' })).getAllByRole('row').slice(1);
+    expect(rows.map((r) => within(r).getAllByRole('cell')[1]!.textContent)).toEqual(['Carte, débit immédiat', 'Carte, débit différé', 'Carte']);
+    expect(rows[0]).toHaveTextContent('•••• 4321');
+  });
+
   it('labels a revoked connection and one in error', async () => {
     serveBanks([connection({ status: 'revoked' }), connection({ id: 'c2', aspspName: 'Crédit Agricole', status: 'error', accounts: [] })]);
     await renderApp('/settings/banks');

@@ -31405,6 +31405,8 @@ export interface components {
             clearCard?: null | boolean;
             autoApplyBalance?: null | boolean;
             ignored?: null | boolean;
+            name?: null | string;
+            clearName?: null | boolean;
         };
         BankAccountView: {
             /** Format: uuid */
@@ -31426,6 +31428,20 @@ export interface components {
             lastBalanceOn?: null | string;
             synced: boolean;
             canWrite: boolean;
+            bankName: string;
+            renamed: boolean;
+            cardDebit?: null | string;
+        };
+        BankingConnectionTestView: {
+            outcome: string;
+            code?: null | string;
+            active?: null | boolean;
+            redirectUrlAllowed?: null | boolean;
+        };
+        BankingDiagnosticsView: {
+            keyStatus: string;
+            appIdSaved: boolean;
+            redirectUrl: string;
         };
         BankingConnectionTestView: {
             outcome: string;

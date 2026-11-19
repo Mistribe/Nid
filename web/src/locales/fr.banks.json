@@ -33,6 +33,8 @@
     "balance": "Dernier solde",
     "actions": "Actions",
     "kind": { "checking": "Compte courant", "savings": "Épargne", "card": "Carte", "other": "Autre" },
+    "kind_card_immediate": "Carte, débit immédiat",
+    "kind_card_deferred": "Carte, débit différé",
     "ignored": "Non suivi",
     "card_of": "Carte de {{name}}",
     "balance_on": "{{amount}} au {{date}}",
@@ -46,6 +48,7 @@
       "banking_sync_running": "Une synchronisation est déjà en cours.",
       "banking_currency_mismatch": "La devise du compte et celle de l'enveloppe diffèrent.",
       "banking_card_parent": "Une carte se rattache à un compte courant.",
+      "banking_invalid_name": "Un nom compte de 1 à 100 caractères.",
       "banking_envelope_taken": "Un autre compte bancaire est déjà relié à cette enveloppe.",
       "banking_envelope_kind": "Un compte bancaire se relie à une enveloppe compte courant, livret ou autre.",
       "banking_file_format": "Ce fichier n'est ni un relevé OFX ni un relevé CAMT.053.",
@@ -63,6 +66,9 @@
       "submit": "Continuer vers la banque"
     },
     "account_dialog": {
+      "name": "Nom",
+      "name_hint": "Le nom que le foyer donne à ce compte ; vide, celui de la banque. Une synchronisation ne le change pas.",
+      "reset_name": "Rétablir le nom de la banque",
       "envelope": "Enveloppe",
       "none": "Aucune",
       "card_of": "Carte rattachée à",

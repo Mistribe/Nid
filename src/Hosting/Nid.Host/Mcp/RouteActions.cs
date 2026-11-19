@@ -373,7 +373,8 @@ public static class RouteActions
         new("bank_account_update", "PATCH", "/api/v1/banking/accounts/{id:guid}", typeof(BankAccountBody),
             "Change a bank account's settings; only the fields given change: envelopeId associates it with a checking, savings or other "
             + "envelope (clearEnvelope: true dissociates it), cardOfAccountId attaches a card to its account, autoApplyBalance writes its "
-            + "month-end balances as valuations instead of proposing them, ignored stops following it. id is the bank account's id (Réglages › Banques in the web app); envelope ids come from list_envelopes.",
+            + "month-end balances as valuations instead of proposing them, ignored stops following it, name gives it the household's own name "
+            + "(kept across syncs; clearName: true goes back to the bank's). id is the bank account's id (Réglages › Banques in the web app); envelope ids come from list_envelopes.",
             OnItem: false),
         // 5C: a line's link and its rules; linking itself is propose_bank_link.
         new("unlink_bank_transaction", "POST", "/api/v1/banking/transactions/{id:guid}/unlink", null,

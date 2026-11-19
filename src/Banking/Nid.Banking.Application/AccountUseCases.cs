@@ -16,10 +16,12 @@ public sealed record ListBankAccountsQuery(ItemId? Envelope) : IQuery<IReadOnlyL
 /// savings or other envelope in its currency, one account per envelope); <paramref name="ClearEnvelope"/> dissociates it;
 /// <paramref name="CardOfAccountId"/> attaches a card to a checking account its author may write; <paramref name="ClearCard"/> detaches it.
 /// Moving it (to an envelope or an account) is its owner's alone (<see cref="BankingAccess.OwnsAsync(BankAccount, CancellationToken)"/>);
-/// a card takes no envelope.
+/// a card takes no envelope. <paramref name="Name"/> is the household's own name for it, which whoever writes it sets;
+/// <paramref name="ClearName"/> goes back to the bank's.
 /// </summary>
 public sealed record UpdateBankAccountCommand(
-    Guid Id, Guid? EnvelopeId, bool ClearEnvelope, Guid? CardOfAccountId, bool ClearCard, bool? AutoApplyBalance, bool? Ignored) : ICommand<Guid>, ITransactional;
+    Guid Id, Guid? EnvelopeId, bool ClearEnvelope, Guid? CardOfAccountId, bool ClearCard, bool? AutoApplyBalance, bool? Ignored, string? Name = null,
+    bool ClearName = false) : ICommand<Guid>, ITransactional;
 
 [RequestHandler<ListBankAccountsQuery, IReadOnlyList<BankAccountView>>]
 public sealed class ListBankAccountsHandler(BankingAccess access, IAccountStore accounts, BankAccountReader reader)
@@ -53,6 +55,18 @@ public sealed class UpdateBankAccountHandler(
         {
             AutoApplyBalance = command.AutoApplyBalance ?? account.AutoApplyBalance, Ignored = command.Ignored ?? account.Ignored,
         };
+        var bankName = account.BankName ?? account.Name;
+        if (command.ClearName)
+            changed = changed with { HouseholdName = null, Name = bankName };
+        else if (command.Name is { } raw)
+        {
+            var name = raw.Trim();
+            if (name.Length is 0 or > BankAccountRules.MaxName)
+                return Result.Failure<Guid>(FieldErrors.At(
+                    new Failure(BankingCodes.InvalidName, $"A bank account's name is 1 to {BankAccountRules.MaxName} characters, and not only whitespace.", null), "name"));
+            // The bank's own name is no renaming: the account keeps following it.
+            changed = changed with { HouseholdName = name == bankName ? null : name, Name = name };
+        }
         if (command.ClearEnvelope)
             changed = changed with { Envelope = null, AssociatedOn = null, AssociatedBy = null };
         else if (command.EnvelopeId is { } id && new ItemId(id) is var envelope && envelope != account.Envelope)
@@ -98,6 +112,9 @@ public sealed class UpdateBankAccountHandler(
 public static class BankAccountRules
 {
     private static readonly EnvelopeKind[] Associable = [EnvelopeKind.Checking, EnvelopeKind.Savings, EnvelopeKind.Other];
+
+    /// <summary>The longest name the household gives a bank account (the column's check says the same).</summary>
+    public const int MaxName = 100;
 
     /// <summary>A card takes no envelope; any other account a checking, savings or other envelope (<paramref name="envelopeKind"/> null: none) in its currency.</summary>
     public static Failure? Association(BankAccountKind kind, Currency currency, EnvelopeKind? envelopeKind, string? envelopeCurrency)
