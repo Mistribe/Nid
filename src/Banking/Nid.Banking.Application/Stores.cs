@@ -91,6 +91,9 @@ public interface IAccountStore
     /// <summary>The connections that see the account, with its uid in each.</summary>
     Task<IReadOnlyList<BankAccountSource>> SourcesAsync(Guid account, CancellationToken ct);
 
+    /// <summary>#355: the currency a read learned for an account stored in <see cref="Currency.None"/>; any other account is left as it is.</summary>
+    Task ResolveCurrencyAsync(Guid account, Currency currency, CancellationToken ct);
+
     /// <summary>
     /// Writes the account's settings (envelope and association date, card's account, auto-apply, ignored), never the sync's columns but to
     /// clear them when the envelope changes. Fails with <see cref="BankingCodes.EnvelopeTaken"/> when another account holds the envelope.

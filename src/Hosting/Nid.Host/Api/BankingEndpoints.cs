@@ -80,6 +80,11 @@ public static class BankingEndpoints
                 .ToHttp(x => new IdResponse(x)))
             .Returns<IdResponse>();
 
+        // #353: what « Régler » shows to recognise an account, and a card's likely checking account.
+        api.MapGet("/accounts/{id:guid}/overview", async (Guid id, IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new BankAccountOverviewQuery(id), ct)).ToHttp(overview => overview))
+            .Returns<BankAccountOverview>();
+
         // #346: « Créer une enveloppe » in « Régler »: the envelope and the link, together or neither.
         api.MapPost("/accounts/{id:guid}/envelope", async (Guid id, BankAccountEnvelopeBody body, IInvoker invoker, CancellationToken ct)
                 => (await invoker.InvokeAsync(new CreateBankAccountEnvelopeCommand(id, body.DisplayName, body.Kind, body.Joint ?? false, body.DependentId), ct))

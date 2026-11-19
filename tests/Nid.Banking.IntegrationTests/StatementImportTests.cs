@@ -533,6 +533,8 @@ public class StatementImportTests(PostgresFixture fixture) : IClassFixture<Postg
 
         public Task<IReadOnlyList<BankAccountSource>> SourcesAsync(Guid account, CancellationToken ct) => inner.SourcesAsync(account, ct);
 
+        public Task ResolveCurrencyAsync(Guid account, Currency currency, CancellationToken ct) => inner.ResolveCurrencyAsync(account, currency, ct);
+
         public Task<UnambitiousFx.Functional.Result> UpdateAsync(BankAccount account, CancellationToken ct) => inner.UpdateAsync(account, ct);
 
         public Task RecordValuedAsync(Guid account, LocalDate valuedOn, LocalDate? conflictOn, CancellationToken ct) => inner.RecordValuedAsync(account, valuedOn, conflictOn, ct);

@@ -6,6 +6,9 @@ public readonly record struct Currency
     public static readonly Currency Eur = new("EUR");
     public static readonly Currency Usd = new("USD");
 
+    /// <summary>ISO 4217's « no currency »: some banks send it for an account whose currency they do not state (#355).</summary>
+    public static readonly Currency None = new("XXX");
+
     private Currency(string code) => Code = code;
 
     public string Code { get; }

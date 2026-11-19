@@ -24,10 +24,12 @@ public sealed record BankConnection(
 /// <param name="HouseholdName">The household's own name for it, which no session read touches; null: the bank's.</param>
 /// <param name="BankName">The name the bank's last session gave (empty when it gave none); null on a record built without it, where it is <paramref name="Name"/>.</param>
 /// <param name="Debit">A card's immediate or deferred debit, when the bank says which.</param>
+/// <param name="Holder">The holder's name, as the bank gives it (#353).</param>
+/// <param name="Product">The bank's product name (a card's range), as the bank gives it (#353).</param>
 public sealed record BankAccount(
     Guid Id, string? IbanMasked, string Name, BankAccountKind Kind, Currency Currency, ItemId? Envelope, Guid? CardOf, bool AutoApplyBalance,
     bool Ignored, LocalDate? BalanceConflictOn, LocalDate? AssociatedOn, PersonId CreatedBy, LocalDate? LastValuedOn = null, PersonId? AssociatedBy = null,
-    string? HouseholdName = null, string? BankName = null, CardDebit? Debit = null);
+    string? HouseholdName = null, string? BankName = null, CardDebit? Debit = null, string? Holder = null, string? Product = null);
 
 /// <summary>A connection that sees an account, under the account's uid in that connection's session.</summary>
 public sealed record BankAccountSource(Guid Account, Guid Connection, string ProviderUid, string IdentificationHash);
@@ -38,11 +40,12 @@ public sealed record BankBalance(Guid Account, LocalDate AsOf, decimal Amount, s
 /// <summary>
 /// An account as a bank session lists it: <paramref name="Uid"/> holds for that session only, <paramref name="IdentificationHash"/> across
 /// sessions; <paramref name="CashAccountType"/> is the ISO 20022 code (<c>CACC</c>, <c>SVGS</c>, <c>CARD</c>…). <paramref name="Name"/> is the bank's
-/// most readable field (empty when none reads as a name), <paramref name="NumberLast4"/> a card number's last four digits when it has no IBAN.
+/// most readable field (empty when none reads as a name), <paramref name="NumberLast4"/> a card number's last four digits when it has no IBAN,
+/// <paramref name="Holder"/> and <paramref name="Product"/> the bank's <c>name</c> and <c>product</c> when they read as words.
 /// </summary>
 public sealed record SessionAccount(
     string Uid, string IdentificationHash, string? Iban, string Name, string CashAccountType, string Currency, CardDebit? Debit = null,
-    string? NumberLast4 = null);
+    string? NumberLast4 = null, string? Holder = null, string? Product = null);
 
 /// <summary>Where a bank transaction stands against the household's own records; <c>Unlinked</c> in 5B, the others are 5C's.</summary>
 public enum TransactionLinkState { Unlinked, Linked, Ignored, Internal }

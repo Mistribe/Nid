@@ -46,6 +46,11 @@ public sealed class AccountRow
     /// <summary>A card's <c>immediate</c> or <c>deferred</c> debit, when the bank says which.</summary>
     public string? CardDebit { get; set; }
 
+    /// <summary>#353: the holder's name and the bank's product name, as its latest session gave them; null when it gave none.</summary>
+    public string? Holder { get; set; }
+
+    public string? Product { get; set; }
+
     public string Currency { get; set; } = "";
     public Guid? EnvelopeItemId { get; set; }
     public Guid? CardOfAccountId { get; set; }

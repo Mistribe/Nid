@@ -1,0 +1,4 @@
+{
+  "en": "A bank that does not state an account's currency no longer leaves it empty: Nid takes the currency of its balances and imports its balance and operations.",
+  "fr": "Une banque qui n'indique pas la devise d'un compte ne le laisse plus vide : Nid prend la devise de ses soldes et importe son solde et ses opérations."
+}
