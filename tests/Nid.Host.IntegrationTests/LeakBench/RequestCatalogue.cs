@@ -633,6 +633,13 @@ public static class RequestCatalogue
         // 5C, D19: every readable account's lines; the joint line's link to A's private subscription never reaches B.
         new(typeof(ListBankLinesQuery), false, (_, _) => new ListBankLinesQuery("all", null, null, 1)),
         new(typeof(ListBankLinesQuery), false, (_, _) => new ListBankLinesQuery("all", null, null, 1, Uncategorised: true)),
+        // #85: spending by category, figures only; A's private account never counts for B, in either scope.
+        new(typeof(Nid.Banking.Application.Spending.GetSpendingQuery), false, (_, _) => new Nid.Banking.Application.Spending.GetSpendingQuery(VisibilityScope.Household, new YearMonth(2025, 1), null, null)),
+        new(typeof(Nid.Banking.Application.Spending.GetSpendingQuery), false, (_, _) => new Nid.Banking.Application.Spending.GetSpendingQuery(VisibilityScope.Mine, new YearMonth(2025, 1), null, null)),
+        new(typeof(Nid.Banking.Application.Spending.ListSpendingLinesQuery), false, (_, _) => new Nid.Banking.Application.Spending.ListSpendingLinesQuery(VisibilityScope.Household, null, true, new YearMonth(2025, 1), null, null, 1)),
+        new(typeof(Nid.Banking.Application.Spending.ListSpendingLinesQuery), false, (_, _) => new Nid.Banking.Application.Spending.ListSpendingLinesQuery(VisibilityScope.Mine, null, true, new YearMonth(2025, 1), null, null, 1)),
+        new(typeof(Nid.Banking.Application.Spending.ListSpendingLinesQuery), false, (_, _) => new Nid.Banking.Application.Spending.ListSpendingLinesQuery(VisibilityScope.Household, Nid.Banking.Domain.CategorySeed.Find("food.groceries")!.Id, false, new YearMonth(2025, 1), null, null, 1)),
+        new(typeof(Nid.Banking.Application.Spending.ListSpendingLinesQuery), false, (_, _) => new Nid.Banking.Application.Spending.ListSpendingLinesQuery(VisibilityScope.Mine, Nid.Banking.Domain.CategorySeed.Find("food.groceries")!.Id, false, new YearMonth(2025, 1), null, null, 1)),
         new(typeof(LinkCandidatesQuery), false, (d, _) => new LinkCandidatesQuery(d.JointLine)),
         new(typeof(ListExpectedChargesQuery), false, (_, _) => new ListExpectedChargesQuery(new LocalDate(2025, 1, 1), new LocalDate(2025, 3, 31))),
         new(typeof(LinkTransactionCommand), false, (d, item) => new LinkTransactionCommand(d.JointLine, "subscriptions", item.Value, null)),

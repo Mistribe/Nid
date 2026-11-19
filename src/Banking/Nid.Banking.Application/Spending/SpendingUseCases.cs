@@ -1,0 +1,210 @@
+using System.Globalization;
+using Nid.Banking.Contracts;
+using Nid.Core.Contracts;
+using NodaTime;
+using NodaTime.Text;
+using UnambitiousFx.Functional;
+using UnambitiousFx.Functional.Failures;
+using UnambitiousFx.Synapse.Abstractions;
+
+namespace Nid.Banking.Application.Spending;
+
+/// <summary>
+/// #85: what the scope's bank accounts spent by category, over <paramref name="Month"/> (default: the household's current month) or over
+/// [<paramref name="From"/>, <paramref name="To"/>], both given and 24 months at most.
+/// </summary>
+public sealed record GetSpendingQuery(VisibilityScope Scope, YearMonth? Month, YearMonth? From, YearMonth? To) : IQuery<SpendingView>;
+
+/// <summary>
+/// Amounts in <paramref name="Currency"/> (the household's reference), positive for money spent. <paramref name="Incomplete"/>: a line in
+/// the range had no rate and is left out. <paramref name="Average"/>: the monthly average of the 12 months before <paramref name="From"/>, or of
+/// those the accounts' history covers when fewer (whole months from the first line, and within the household's retention); null when it
+/// covers fewer than 3 of them or a line of them has no rate (every average then). <paramref name="From"/> and <paramref name="To"/> are <c>yyyy-MM</c>.
+/// <paramref name="Months"/>: every month of the range, oldest first, with what it spent under the same rules as <paramref name="Total"/>.
+/// </summary>
+public sealed record SpendingView(
+    string Currency, string Total, bool Incomplete, string? Average, IReadOnlyList<SpendingCategoryView> Categories,
+    SpendingUncategorisedView Uncategorised, string From, string To, IReadOnlyList<SpendingMonthView> Months);
+
+/// <summary>One month of a <see cref="SpendingView"/>: <paramref name="Month"/> is <c>yyyy-MM</c>.</summary>
+public sealed record SpendingMonthView(string Month, string Total);
+
+/// <summary>
+/// A top-level expense category, its <paramref name="Amount"/> including its children's and the lines filed on it directly (those have no
+/// child row of their own); or one of its children, with no children.
+/// </summary>
+public sealed record SpendingCategoryView(Guid Id, string Name, string Amount, string? Average, IReadOnlyList<SpendingCategoryView> Children);
+
+/// <summary>« Non classées »: the debits of lines with no category; their credits never count.</summary>
+public sealed record SpendingUncategorisedView(string Amount, string? Average);
+
+/// <summary>
+/// #85: the lines behind one figure of <see cref="GetSpendingQuery"/> (same scope, same period): those of the category and its children, or,
+/// with <paramref name="Uncategorised"/>, the uncategorised debits; newest first, 50 a page (<paramref name="Page"/> from 1).
+/// </summary>
+public sealed record ListSpendingLinesQuery(
+    VisibilityScope Scope, Guid? CategoryId, bool Uncategorised, YearMonth? Month, YearMonth? From, YearMonth? To, int Page) : IQuery<SpendingLines>;
+
+/// <summary>
+/// One page of lines (each in its own currency); <paramref name="Total"/> is the figure the spending view shows for them, in its reference
+/// currency, <paramref name="Incomplete"/> as there; <paramref name="Count"/> all the lines, not only the page's.
+/// </summary>
+public sealed record SpendingLines(IReadOnlyList<BankTransactionView> Items, string Total, int Count, bool Incomplete);
+
+[RequestHandler<ListSpendingLinesQuery, SpendingLines>]
+public sealed class ListSpendingLinesHandler(
+    GetSpendingHandler spending, ITransactionStore lines, ICategoryStore categories, BankLines views)
+    : IRequestHandler<ListSpendingLinesQuery, SpendingLines>
+{
+    public async ValueTask<Result<SpendingLines>> HandleAsync(ListSpendingLinesQuery query, CancellationToken ct = default)
+    {
+        if (query.Uncategorised == (query.CategoryId is not null))
+            return BankingAccess.Fail<SpendingLines>(BankingCodes.SpendingTarget, "Send a categoryId, or uncategorised=true.");
+        // The total is the figure itself, so the two never differ: same rows, same conversion, same flag.
+        var figures = await spending.SpentAsync(new GetSpendingQuery(query.Scope, query.Month, query.From, query.To), ct);
+        if (!figures.TryGetValue(out var sums))
+            return BankingAccess.Failed<SpendingLines, GetSpendingHandler.Spent>(figures);
+
+        // An expense category and its children; any other kind is no spending, so it lists nothing.
+        List<Guid> ids = query.CategoryId is { } id
+            ? [.. (await categories.AllAsync(ct)).Where(c => c.Kind == CategoryKind.Expense && (c.Id == id || c.Parent == id)).Select(c => c.Id)]
+            : [];
+        List<Guid> keys = query.Uncategorised ? [Guid.Empty] : ids;
+        var total = keys.Sum(key => sums.ByCategory.GetValueOrDefault(key).Range);
+
+        var (page, count) = await lines.SpendingLinesAsync(sums.Accounts, ids, query.Uncategorised, sums.From.ToDateInterval().Start, sums.To.ToDateInterval().End,
+            (Math.Clamp(query.Page, 1, BankLines.MaxPage) - 1) * BankLines.PageSize, BankLines.PageSize, ct);
+        return Result.Success(new SpendingLines(await views.ViewsAsync(page, ct), GetSpendingHandler.Money(total), count, keys.Any(sums.Incomplete.Contains)));
+    }
+}
+
+[RequestHandler<GetSpendingQuery, SpendingView>]
+public sealed class GetSpendingHandler(
+    BankingAccess access, SpendingAccounts scopes, ITransactionStore lines, ICategoryStore categories, IHouseholdSettings household,
+    IHouseholdCalendar calendar, IFxRates fx) : IRequestHandler<GetSpendingQuery, SpendingView>
+{
+    public const int MaxMonths = 24;
+    private const int AverageMonths = 12;
+    private const int MinHistoryMonths = 3;
+    private static readonly StringComparer ByName = StringComparer.Create(CultureInfo.GetCultureInfo("fr-FR"), true);
+
+    /// <summary>
+    /// The range's and the preceding <paramref name="Covered"/> months' spending per category (Guid.Empty: none), before any view filter; the
+    /// range's per month. <paramref name="Incomplete"/>: the categories (Guid.Empty: none) a line of the range left without a rate.
+    /// </summary>
+    public sealed record Spent(
+        YearMonth From, YearMonth To, IReadOnlyList<Guid> Accounts, Currency Reference, Dictionary<Guid, (decimal Range, decimal Before)> ByCategory,
+        Dictionary<YearMonth, decimal> ByMonth, HashSet<Guid> Incomplete, bool AverageMissing, int Covered);
+
+    public async ValueTask<Result<Spent>> SpentAsync(GetSpendingQuery query, CancellationToken ct)
+    {
+        var enabled = await access.EnabledAsync(ct);
+        if (!enabled.IsSuccess)
+            return BankingAccess.Failed<Spent>(enabled);
+        var today = await calendar.TodayAsync(ct);
+        YearMonth from, to;
+        if (query is { From: null, To: null })
+            from = to = query.Month ?? today.ToYearMonth();
+        else if (query is { Month: null, From: { } f, To: { } t } && Index(f) <= Index(t) && Index(t) - Index(f) < MaxMonths)
+            (from, to) = (f, t);
+        else
+            return Result.Failure<Spent>(new Failure(BankingCodes.SpendingPeriod,
+                $"A period names a first and a last month (yyyy-mm), the first not after the last, {MaxMonths} months at most; or send one month.", null));
+
+        var accounts = await scopes.ForAsync(query.Scope, ct);
+        var averageFrom = from.PlusMonths(-AverageMonths);
+        // Decision 6: the window's whole months from the accounts' first line on, and not before the retention, whose purge keeps linked
+        // lines older than it (so the first line can lie). A month is whole when its first day is in.
+        static YearMonth Whole(LocalDate day) => day.Day == 1 ? day.ToYearMonth() : day.ToYearMonth().PlusMonths(1);
+        var covered = 0;
+        if (await lines.EarliestBookedOnAsync(accounts, ct) is { } earliest)
+        {
+            var start = Whole(earliest);
+            if ((await household.ReadAsync(ct)).BankRetentionMonths is { } retention && Whole(today.PlusMonths(-retention)) is var kept && kept > start)
+                start = kept;
+            covered = Math.Clamp(Index(from) - Index(start), 0, AverageMonths);
+        }
+        var coveredFrom = from.PlusMonths(-covered);
+        var sums = await lines.SpendingAsync(accounts, coveredFrom.ToDateInterval().Start, to.ToDateInterval().End, ct);
+        var byId = (await categories.AllAsync(ct)).ToDictionary(c => c.Id);
+        var reference = await household.ReferenceCurrencyAsync(ct);
+        var foreign = sums.Select(s => s.Currency).Where(c => c != reference).Distinct().ToList();
+        // The reference's own quote too: rates are per USD (RateTable converts through it).
+        var rates = foreign.Count == 0 ? RateTable.Empty(today, 0) : await fx.LoadAsync([.. foreign, reference], averageFrom.ToDateInterval().End, today, ct);
+
+        // Per category (Guid.Empty: none), what the range spent and what its covered months before it spent.
+        var spent = new Dictionary<Guid, (decimal Range, decimal Before)>();
+        var byMonth = new Dictionary<YearMonth, decimal>();
+        var incomplete = new HashSet<Guid>();
+        var averageMissing = false;
+        foreach (var sum in sums)
+        {
+            // Decision 3: an expense category nets its refunds, a line with no category counts its debits only, income and transfer never.
+            // Categories are never deleted (a merge moves the lines), so an unknown id is not expected; it would not count.
+            decimal? amount = sum.Category is not { } id ? -sum.Debits
+                : byId.TryGetValue(id, out var category) && category.Kind == CategoryKind.Expense ? -(sum.Debits + sum.Credits)
+                : null;
+            if (amount is not { } a || a == 0m)
+                continue;
+            var inRange = Index(sum.Month) >= Index(from);
+            // Decision 5: a past month at its month-end rate; the current one, whose end is after today, at today's.
+            if (!rates.TryConvert(a, sum.Currency, reference, sum.Month.ToDateInterval().End, projected: true, out var converted, out _))
+            {
+                // Never a guess: the line is left out, the range's figure flagged, and no average rather than a short one.
+                if (inRange)
+                    incomplete.Add(sum.Category ?? Guid.Empty);
+                averageMissing |= !inRange;
+                continue;
+            }
+            var key = sum.Category ?? Guid.Empty;
+            var (range, before) = spent.GetValueOrDefault(key);
+            spent[key] = inRange ? (range + converted, before) : (range, before + converted);
+            if (inRange)
+                byMonth[sum.Month] = byMonth.GetValueOrDefault(sum.Month) + converted;
+        }
+
+        return Result.Success(new Spent(from, to, accounts, reference, spent, byMonth, incomplete, averageMissing, covered));
+    }
+
+    public async ValueTask<Result<SpendingView>> HandleAsync(GetSpendingQuery query, CancellationToken ct = default)
+    {
+        var figures = await SpentAsync(query, ct);
+        if (!figures.TryGetValue(out var sums))
+            return BankingAccess.Failed<SpendingView, Spent>(figures);
+        var (from, to, reference, spent, covered) = (sums.From, sums.To, sums.Reference, sums.ByCategory, sums.Covered);
+        var months = Enumerable.Range(0, Index(to) - Index(from) + 1).Select(i => from.PlusMonths(i))
+            .Select(m => new SpendingMonthView(YearMonthPattern.Iso.Format(m), Money(sums.ByMonth.GetValueOrDefault(m)))).ToList();
+        var byId = (await categories.AllAsync(ct)).ToDictionary(c => c.Id);
+
+        var averaged = !sums.AverageMissing && covered >= MinHistoryMonths;
+        string? Average(decimal before) => averaged ? Money(before / covered) : null;
+        bool Shown((decimal Range, decimal Before) s) => Round(s.Range) != 0m || (averaged && Round(s.Before / covered) != 0m);
+
+        var tops = new List<(SpendingCategoryView View, decimal Range)>();
+        foreach (var top in byId.Values.Where(c => c.Parent is null && c.Kind == CategoryKind.Expense))
+        {
+            var children = byId.Values.Where(c => c.Parent == top.Id).Select(c => (Category: c, Spent: spent.GetValueOrDefault(c.Id))).ToList();
+            var own = spent.GetValueOrDefault(top.Id);
+            var total = (Range: own.Range + children.Sum(c => c.Spent.Range), Before: own.Before + children.Sum(c => c.Spent.Before));
+            if (!Shown(total))
+                continue;
+            var shown = children.Where(c => Shown(c.Spent)).OrderByDescending(c => c.Spent.Range).ThenBy(c => c.Category.Name, ByName)
+                .Select(c => new SpendingCategoryView(c.Category.Id, c.Category.Name, Money(c.Spent.Range), Average(c.Spent.Before), []))
+                .ToList();
+            tops.Add((new SpendingCategoryView(top.Id, top.Name, Money(total.Range), Average(total.Before), shown), total.Range));
+        }
+
+        var none = spent.GetValueOrDefault(Guid.Empty);
+        return Result.Success(new SpendingView(
+            reference.Code, Money(spent.Values.Sum(s => s.Range)), sums.Incomplete.Count > 0, Average(spent.Values.Sum(s => s.Before)),
+            [.. tops.OrderByDescending(t => t.Range).ThenBy(t => t.View.Name, ByName).Select(t => t.View)],
+            new SpendingUncategorisedView(Money(none.Range), Average(none.Before)),
+            YearMonthPattern.Iso.Format(from), YearMonthPattern.Iso.Format(to), months));
+    }
+
+    private static int Index(YearMonth month) => month.Year * 12 + month.Month;
+
+    private static decimal Round(decimal amount) => Math.Round(amount, 2, MidpointRounding.AwayFromZero);
+
+    internal static string Money(decimal amount) => Round(amount).ToString("0.00", CultureInfo.InvariantCulture);
+}

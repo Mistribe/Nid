@@ -2,6 +2,7 @@ using System.ComponentModel;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using Nid.Banking.Application;
+using Nid.Banking.Application.Spending;
 using Nid.Core.Contracts;
 using Nid.Host.Api;
 using NodaTime;
@@ -52,6 +53,17 @@ public sealed class BankingTools
                 [.. categories.Where(c => !c.Archived).Select(c => new CategoryChoice(c.Id, c.Name, c.ParentId is { } p ? names.GetValueOrDefault(p) : null, c.Kind))]);
         }, ct);
     }
+
+    [McpServerTool(Name = "get_spending", ReadOnly = true)]
+    [Description("What the household's bank accounts spent by category over one month (default: the current month), with each category's "
+        + "monthly average over the 12 months before it, or over the months the accounts' history covers when fewer (none under 3). Amounts "
+        + "are in the household's reference currency; transfers between accounts never count, refunds lower their category, and lines with "
+        + "no category are counted apart as 'uncategorised'. "
+        + "'incomplete' means a line in another currency had no exchange rate and is left out. " + McpSetup.Untrusted)]
+    public static Task<CallToolResult> GetSpending(IServiceProvider services,
+        [Description("ISO month (yyyy-mm); default the current month.")] string? month = null,
+        [Description("'household' (default) or 'me'.")] string? scope = null, CancellationToken ct = default)
+        => McpCalls.RunAsync(services, () => new GetSpendingQuery(SubscriptionEndpoints.ParseScope(scope), SubscriptionEndpoints.OptionalMonth(month), null, null), ct);
 
     [McpServerTool(Name = "list_expected_charges", ReadOnly = true)]
     [Description("The charges expected between two dates (subscriptions, loan instalments, rents…) that the person may link a bank line to, "

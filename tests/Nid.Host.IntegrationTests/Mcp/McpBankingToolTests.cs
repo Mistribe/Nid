@@ -190,4 +190,26 @@ public class McpBankingToolTests(PostgresFixture fixture) : IClassFixture<Postgr
         Assert.Empty(answer.GetProperty("items").EnumerateArray());
         Assert.False(answer.GetProperty("hasMore").GetBoolean());
     }
+
+    [Fact]
+    public async Task get_spending_answers_as_its_route_and_is_empty_for_a_person_without_accounts()
+    {
+        await using var s = await StartAsync();
+        await using var client = await ClientAsync(s.App, TokenPresets.Read);
+
+        var month = await ReadAsync(client, "get_spending", new { month = "2026-10" });
+        SameJson(await s.App.GetRawAsync(s.App.AdultA, $"{BankingApi.Root}/spending?month=2026-10"), month);
+        var figures = JsonDocument.Parse(month).RootElement;
+        Assert.Equal(("EUR", "12.99"), (figures.GetProperty("currency").GetString(), figures.GetProperty("total").GetString()));
+        SameJson(await s.App.GetRawAsync(s.App.AdultA, $"{BankingApi.Root}/spending?scope=me"), await ReadAsync(client, "get_spending", new { scope = "me" }));
+
+        // Bob reads no account of a household whose only account is Alice's own.
+        await using var alone = await BankingApi.StartAsync(fixture, overrides: o => o.AddSingleton<IClock>(new FixedClock()));
+        await BankingApi.ConnectAsync(alone, alone.AdultA, "code-a", BankingApi.Account("uid-1", "hash-1", null, "Courant"));
+        await AddLineAsync(alone, await AccountAsync(alone, alone.AdultA, "Courant"), "a-1", "CARREFOUR CITY");
+        await using var nobody = await McpHarness.ClientAsync(alone, (await TokenApi.CreateAsync(alone, alone.AdultB, TokenPresets.Read)).Secret);
+        var empty = JsonDocument.Parse(await ReadAsync(nobody, "get_spending", new { month = "2026-10" })).RootElement;
+        Assert.Equal("0.00", empty.GetProperty("total").GetString());
+        Assert.Empty(empty.GetProperty("categories").EnumerateArray());
+    }
 }

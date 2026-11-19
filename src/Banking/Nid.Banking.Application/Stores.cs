@@ -206,7 +206,23 @@ public interface ITransactionStore
 
     /// <summary>Retention (D3): deletes the unlinked and ignored lines booked before <paramref name="before"/>; returns how many.</summary>
     Task<int> PurgeBookedBeforeAsync(LocalDate before, CancellationToken ct);
+
+    /// <summary>#85: the accounts' lines booked within [<paramref name="from"/>, <paramref name="to"/>], ignored and internal ones (transfers, card settlements) left out, summed by category, currency and month.</summary>
+    Task<IReadOnlyList<SpendingSum>> SpendingAsync(IReadOnlyList<Guid> accounts, LocalDate from, LocalDate to, CancellationToken ct);
+
+    /// <summary>
+    /// One page of the lines <see cref="SpendingAsync"/> sums (same filter), newest first, and how many there are: those filed in one of
+    /// <paramref name="categories"/>, or, with <paramref name="uncategorised"/>, the debits with no category.
+    /// </summary>
+    Task<(IReadOnlyList<BankTransaction> Items, int Count)> SpendingLinesAsync(
+        IReadOnlyList<Guid> accounts, IReadOnlyList<Guid> categories, bool uncategorised, LocalDate from, LocalDate to, int skip, int take, CancellationToken ct);
+
+    /// <summary>The accounts' earliest booking, null with no line: how far back their history goes.</summary>
+    Task<LocalDate?> EarliestBookedOnAsync(IReadOnlyList<Guid> accounts, CancellationToken ct);
 }
+
+/// <summary>One month's lines of a category (null: none) in one currency: <paramref name="Debits"/> negative or zero, <paramref name="Credits"/> positive or zero.</summary>
+public sealed record SpendingSum(Guid? Category, Currency Currency, YearMonth Month, decimal Debits, decimal Credits);
 
 /// <summary>Links between bank lines and the household's records (spec §2.6).</summary>
 public interface ILinkStore
