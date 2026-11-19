@@ -33,6 +33,20 @@ describe('Réglages › Banques', () => {
     await expectNoAxeViolations(container);
   });
 
+  it('lets long cells wrap, the date under the balance, and « Régler » at the end, so the table never scrolls sideways (#364)', async () => {
+    serveBanks([connection()]);
+    await renderApp('/settings/banks');
+
+    const table = within(await screen.findByRole('region', { name: 'BNP Paribas' })).getByRole('table', { name: 'Comptes de BNP Paribas' });
+    const [, first] = within(table).getAllByRole('row');
+    const cells = within(first!).getAllByRole('cell');
+    // Compte, Type, Enveloppe, À qui, Dernier solde wrap; Actions sits at the end.
+    for (const cell of cells.slice(0, 5)) expect(cell).toHaveClass('whitespace-normal');
+    expect(cells[5]).toHaveClass('text-right');
+    expect(cells[4]).toHaveTextContent('1 520,30 €au 30 septembre 2026');
+    expect(within(cells[4]!).getByText('au 30 septembre 2026')).toHaveClass('block');
+  });
+
   it('says whether a card is debited at once or later, when the bank says so', async () => {
     serveBanks([connection({ accounts: [
       account({ id: 'c1', name: 'Carte Visa', kind: 'card', ibanMasked: '4321', cardDebit: 'immediate' }),
