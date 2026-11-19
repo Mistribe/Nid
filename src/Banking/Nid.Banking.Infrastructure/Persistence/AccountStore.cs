@@ -48,6 +48,9 @@ public sealed class AccountStore(BankingDbContext db) : IAccountStore
                 row.Name = seen.Name;
             row.CardDebit = seen.Debit is { } debit ? Wire(debit) : row.CardDebit;
             (row.Holder, row.Product) = (seen.Holder ?? row.Holder, seen.Product ?? row.Product);
+            // #355: an account first seen in « no currency » takes the one a later session states.
+            if (row.Currency == Currency.None.Code && Currency.TryCreate(seen.Currency.ToUpperInvariant(), out var stated))
+                row.Currency = stated.Code;
 
             if (await db.Sources.FindAsync([row.Id, connection], ct) is { } source)
             {
@@ -135,6 +138,23 @@ public sealed class AccountStore(BankingDbContext db) : IAccountStore
     public async Task<IReadOnlyList<BankAccountSource>> SourcesAsync(Guid account, CancellationToken ct)
         => (await db.Sources.AsNoTracking().Where(s => s.AccountId == account).ToListAsync(ct))
             .Select(s => new BankAccountSource(s.AccountId, s.ConnectionId, s.ProviderUid, s.IdentificationHash)).ToList();
+
+    public async Task ResolveCurrencyAsync(Guid account, Currency currency, CancellationToken ct)
+    {
+        // A tracked update: the write audit keeps the currency's change.
+        if (await db.Accounts.SingleOrDefaultAsync(a => a.Id == account && a.Currency == Currency.None.Code, ct) is not { } row)
+            return;
+        row.Currency = currency.Code;
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // A person saved the account meanwhile: the next read learns it again.
+            db.Entry(row).State = EntityState.Detached;
+        }
+    }
 
     public async Task<Result> UpdateAsync(BankAccount account, CancellationToken ct)
     {

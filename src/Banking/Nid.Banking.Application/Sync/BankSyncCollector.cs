@@ -110,8 +110,9 @@ public sealed class BankSyncCollector(
         // Retention (D3): a read never reaches back to what the night purges again.
         var floor = await services.GetRequiredService<IHouseholdSettings>().ReadAsync(ct) is { BankRetentionMonths: { } months } ? today.PlusMonths(-months) : (LocalDate?)null;
         string? error = null;
-        foreach (var account in await accounts.ForConnectionAsync(connection.Id, ct))
+        foreach (var listed in await accounts.ForConnectionAsync(connection.Id, ct))
         {
+            var account = listed;
             if (account.Ignored || progress.Read.Contains(account.Id))
                 continue;
             var uid = (await accounts.SourcesAsync(account.Id, ct)).Single(s => s.Connection == connection.Id).ProviderUid;
@@ -133,6 +134,21 @@ public sealed class BankSyncCollector(
 
             progress.Read.Add(account.Id);
             progress.Accounts++;
+            if (account.Currency == Currency.None)
+            {
+                // #355: the bank stated no currency; its balances, when all in one, do. Several, or none: nothing can be stored as money.
+                if (BankCurrency.Infer(list!) is not { } learned)
+                {
+                    progress.Skipped++;
+                    progress.FailureCode ??= BankingCodes.CurrencyUnknown;
+                    continue;
+                }
+                await accounts.ResolveCurrencyAsync(account.Id, learned, ct);
+                // An envelope made from it in « Régler » took the same « no currency ».
+                if (account.Envelope is { } envelope)
+                    await services.GetRequiredService<IItemRegistry>().ResolveCurrencyAsync(envelope, learned, ct);
+                account = account with { Currency = learned };
+            }
             // A balance in another currency than the account's would be stored as the wrong money.
             if (BalancePick.Choose(list!.Where(b => string.Equals(b.Currency, account.Currency.Code, StringComparison.OrdinalIgnoreCase)).ToList()) is var (balance, _))
             {

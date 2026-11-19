@@ -437,6 +437,50 @@ public class SyncTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
     }
 
     [Fact]
+    public async Task An_account_sent_in_no_currency_takes_its_balances_one_and_so_does_its_envelope()
+    {
+        var (app, clock) = await StartAsync(fixture);
+        await using var _app = app;
+        await BankingApi.ConnectAsync(app, app.AdultA, "code-a", BankingApi.Account("uid-1", "hash-1", null, "Courant A", currency: "XXX"));
+        var account = await AccountAsync(app, app.AdultA, "Courant A");
+        // Linking it is refused until its currency is known…
+        await BankingApi.AssertRefusedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{BankingApi.Root}/accounts/{account}/envelope",
+            new { displayName = "Courant", kind = "checking" }), HttpStatusCode.UnprocessableEntity, BankingCodes.CurrencyUnknown);
+        // …but an envelope made in « no currency » before that rule, and linked, is left from earlier versions.
+        var envelope = await app.NewEnvelopeAsync("Courant", app.AdultA, Visibility.Private);
+        await using (var core = PostgresFixture.NewCoreContext(app.ConnectionString))
+            await core.Items.Where(i => i.Id == envelope.Value).ExecuteUpdateAsync(s => s.SetProperty(i => i.Currency, "XXX"), cancellationToken: TestContext.Current.CancellationToken);
+        await using (var db = Db(app))
+            await db.Accounts.Where(a => a.Id == account).ExecuteUpdateAsync(s => s
+                .SetProperty(a => a.EnvelopeItemId, envelope.Value), cancellationToken: TestContext.Current.CancellationToken);
+        Serve(app, "session-code-a", "uid-1", D(8, 12), 10m);
+        app.Banks.Transactions[("session-code-a", "uid-1")] = [Line("r1", D(8, 10), -13.49m)];
+
+        var run = await NightAsync(app, clock, D(8, 12));
+
+        // Not skipped: the envelope's currency is the account's again.
+        Assert.Equal(("succeeded", 1, 1, 0), (run.Outcome, run.Balances, run.Transactions, run.Skipped));
+        Assert.Equal("EUR", (await BankingApi.AccountsAsync(app, app.AdultA)).EnumerateArray().Single().GetProperty("currency").GetString());
+        await using var check = PostgresFixture.NewCoreContext(app.ConnectionString);
+        Assert.Equal("EUR", await check.Items.Where(i => i.Id == envelope.Value).Select(i => i.Currency).SingleAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task An_account_in_no_currency_whose_balances_name_several_is_skipped()
+    {
+        var (app, clock) = await StartAsync(fixture);
+        await using var _app = app;
+        await BankingApi.ConnectAsync(app, app.AdultA, "code-a", BankingApi.Account("uid-1", "hash-1", null, "Multi", currency: "XXX"));
+        app.Banks.Balances[("session-code-a", "uid-1")] = [new ProviderBalance("CLBD", 10m, "EUR", D(8, 12)), new ProviderBalance("CLBD", 12m, "USD", D(8, 12))];
+        app.Banks.Transactions[("session-code-a", "uid-1")] = [Line("r1", D(8, 10), -13.49m)];
+
+        var run = await NightAsync(app, clock, D(8, 12));
+
+        Assert.Equal(("failed", BankingCodes.CurrencyUnknown, 1, 0, 0), (run.Outcome, run.FailureCode, run.Skipped, run.Balances, run.Transactions));
+        Assert.Equal("XXX", (await BankingApi.AccountsAsync(app, app.AdultA)).EnumerateArray().Single().GetProperty("currency").GetString());
+    }
+
+    [Fact]
     public async Task Manual_sync_sends_the_browser_headers_values_today_and_waits_for_a_running_one()
     {
         var (app, clock) = await StartAsync(fixture);

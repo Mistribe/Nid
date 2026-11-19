@@ -171,6 +171,9 @@ public static class BankAccountRules
         // A card's deferred debit is no value of anything (spec failure 7).
         if (kind == BankAccountKind.Card)
             return FieldErrors.At(new Failure(BankingCodes.EnvelopeKind, "A card goes with no envelope: attach it to its checking account.", null), "envelopeId");
+        // Its balances could not be valued in any money yet (#355).
+        if (currency == Currency.None)
+            return FieldErrors.At(new Failure(BankingCodes.CurrencyUnknown, "The bank gave no currency for this account yet: sync it first.", null), "envelopeId");
         if (envelopeKind is not { } target || !Associable.Contains(target))
             return new Failure(BankingCodes.EnvelopeKind, "A bank account goes with a checking, savings or other envelope.", null);
         // Its balances become the envelope's values: they must be in its money.
