@@ -10,7 +10,7 @@ import { detail, PEA } from '../testData';
 const line: BankTransaction = {
   id: 't1', bookedOn: '2026-10-27', valueOn: null, amount: '-42.10', currency: 'EUR', label: 'CARREFOUR CITY', counterparty: null,
   fromCard: true, cardName: null, fetchedVia: 'file', linkState: 'unlinked', link: null, accountName: 'Compte', category: null, categorySource: null,
-  accountId: 'acc-1', stem: 'CARREFOUR CITY', sharedAccount: false,
+  accountId: 'acc-1', suggestedPattern: 'CARREFOUR CITY', sharedAccount: false,
 };
 const category = (over: Partial<BankCategory>): BankCategory => ({ id: 'c', parentId: null, key: null, name: '', kind: 'expense', archived: false, mergedIntoId: null, defaultName: null, ...over });
 const categories = [
@@ -107,7 +107,7 @@ describe('« Catégoriser… »', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });
 
-  it('then offers a rule from the line’s stem, on its account alone when not every adult reads it', async () => {
+  it('then offers a rule from the line’s suggested pattern, on its account alone when not every adult reads it', async () => {
     const writes = serve();
     const user = await open();
 
@@ -142,8 +142,21 @@ describe('« Catégoriser… »', () => {
     expect(writes).toEqual([['PUT', 't1', { categoryId: 'food' }]]);
   });
 
-  it('offers no rule for a line without a stem', async () => {
-    serve({ stem: null });
+  it('says so in plain words when the rule is refused on this account', async () => {
+    serve();
+    server.use(http.post('*/api/v1/banking/category-rules', () => HttpResponse.json({ status: 403, detail: 'Forbidden.' }, { status: 403 })));
+    const user = await open();
+
+    await pick(user, 'Catégorie', 'Alimentation');
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+    expect(await screen.findByRole('status')).toHaveTextContent('Catégorie enregistrée.');
+    await user.click(await screen.findByRole('button', { name: 'Créer la règle' }));
+
+    expect(await screen.findByText('Vous ne pouvez pas créer de règle sur ce compte.')).toBeInTheDocument();
+  });
+
+  it('offers no rule for a line without a suggested pattern', async () => {
+    serve({ suggestedPattern: null });
     const user = await open();
 
     await pick(user, 'Catégorie', 'Alimentation');

@@ -149,7 +149,7 @@ function RuleDialog({ rule, onClose, onDone }: { rule?: CategoryRule; onClose: (
     const found = fields.find((f) => paths.includes(f.path));
     return found ? bankErrorText(t, found.code, found.message) : undefined;
   };
-  const errors = { pattern: fieldError('pattern'), category: fieldError('categoryId'), amounts: fieldError('minAmount', 'maxAmount'), account: fieldError('accountId') };
+  const errors = { pattern: fieldError('pattern'), category: fieldError('categoryId'), min: fieldError('minAmount'), max: fieldError('maxAmount'), account: fieldError('accountId') };
   const problem = toProblem(write.error);
   const shown = write.error && !fields.length
     ? problem.status === 403 ? { ...present(problem), detail: t('banks.category_rules.account_forbidden') } : presentBankError(t, write.error)
@@ -186,7 +186,7 @@ function RuleDialog({ rule, onClose, onDone }: { rule?: CategoryRule; onClose: (
             {(c) => <ComboboxField {...c} value={category} onValueChange={setCategory} options={options} placeholder={t('banks.categories.pick')}
               searchPlaceholder={t('banks.categories.search')} empty={t('banks.categories.none_found')} />}
           </Field>
-          <Folded label={t('banks.category_rules.more')} open={more} onOpenChange={setMore} hasError={!!(errors.amounts ?? errors.account)}>
+          <Folded label={t('banks.category_rules.more')} open={more} onOpenChange={setMore} hasError={!!(errors.min ?? errors.max ?? errors.account)}>
             <Field label={t('banks.category_rules.account')} error={errors.account}>
               {(c) => <SelectField {...c} value={account} onValueChange={setAccount} options={accountOptions} />}
             </Field>
@@ -199,10 +199,10 @@ function RuleDialog({ rule, onClose, onDone }: { rule?: CategoryRule; onClose: (
               ]} />
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
-              <Field label={t('banks.category_rules.min')} hint={t('banks.category_rules.amount_hint')} error={errors.amounts}>
+              <Field label={t('banks.category_rules.min')} hint={t('banks.category_rules.amount_hint')} error={errors.min}>
                 {(c) => <Input inputMode="decimal" {...c} value={min} onChange={(event) => setMin(event.target.value)} />}
               </Field>
-              <Field label={t('banks.category_rules.max')} hint={t('banks.category_rules.amount_hint')}>
+              <Field label={t('banks.category_rules.max')} hint={t('banks.category_rules.amount_hint')} error={errors.max}>
                 {(c) => <Input inputMode="decimal" {...c} value={max} onChange={(event) => setMax(event.target.value)} />}
               </Field>
             </div>

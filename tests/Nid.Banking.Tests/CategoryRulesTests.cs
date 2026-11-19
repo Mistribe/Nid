@@ -33,6 +33,33 @@ public class CategoryRulesTests
         Assert.Equal(BankingCodes.RulePattern, failure.Code);
     }
 
+    [Theory]
+    [InlineData("NETFLIX 123 PARIS", "NETFLIX")]
+    [InlineData("EDF CLIENTS PARTICULIE ECHEANCE", "EDF CLIENTS PARTICULIE ECHEANCE")]
+    [InlineData("ASSOCIATION SPORTIVE DES AMIS DU QUARTIER NORD POUR LA PRATIQUE DU VELO", "ASSOCIATION SPORTIVE DES AMIS DU QUARTIER NORD POUR LA")]
+    [InlineData("123456 EDF", null)]
+    [InlineData("A 12 CARREFOUR", null)]
+    [InlineData("", null)]
+    public void Suggests_the_label_s_leading_words(string label, string? expected)
+        => Assert.Equal(expected, CategoryRules.Suggest(label));
+
+    [Theory]
+    [InlineData("CARREFOUR CITY")]
+    [InlineData("NETFLIX 123 PARIS")]
+    [InlineData("SNCF INTERNET 12/10")]
+    [InlineData("CB CB SHOP")]
+    [InlineData("AMAZON PAYMENTS EUROPE S.C.A. 4521")]
+    [InlineData("PRLV SEPA Électricité de France 0042")]
+    [InlineData("ASSOCIATION SPORTIVE DES AMIS DU QUARTIER NORD POUR LA PRATIQUE DU VELO")]
+    public void A_suggestion_matches_the_line_it_comes_from(string raw)
+    {
+        var label = TransactionLabel.Normalize(raw);
+        var suggested = CategoryRules.Suggest(label);
+        Assert.NotNull(suggested);
+        Assert.Contains(suggested, label, StringComparison.Ordinal);
+        Assert.True(suggested.Length <= CategoryRules.MaxPattern);
+    }
+
     [Fact]
     public void Keeps_a_two_letter_pattern()
     {

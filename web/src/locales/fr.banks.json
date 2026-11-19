@@ -256,6 +256,7 @@
       "offer_create": "Créer la règle",
       "offer_decline": "Non merci",
       "offer_done": "Catégorie enregistrée, et règle créée.",
+      "offer_forbidden": "Vous ne pouvez pas créer de règle sur ce compte.",
       "source": { "link": "Reliée", "rule": "Règle", "hand": "À la main", "assistant": "Assistant", "hint": "Suggestion de la banque" },
       "source_about": {
         "link": "Reliée : la catégorie vient de ce que la ligne paie.",

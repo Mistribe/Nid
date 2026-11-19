@@ -17,6 +17,23 @@ public static class CategoryRules
             : Result.Failure<string>(new Failure(BankingCodes.RulePattern, $"A pattern is {MinPattern} to {MaxPattern} characters long and has a letter.", null));
     }
 
+    /// <summary>
+    /// The pattern a rule made from a line starts with: the label's tokens before the first one holding a digit, cut to
+    /// <see cref="MaxPattern"/> on a token boundary; always a part of <paramref name="normalizedLabel"/>, null when no such pattern is valid.
+    /// </summary>
+    public static string? Suggest(string normalizedLabel)
+    {
+        var kept = new List<string>();
+        foreach (var token in normalizedLabel.Split(' ', StringSplitOptions.RemoveEmptyEntries).TakeWhile(t => !t.Any(char.IsDigit)))
+        {
+            if (kept.Sum(k => k.Length + 1) + token.Length > MaxPattern) break;
+            kept.Add(token);
+        }
+
+        return NormalizePattern(string.Join(' ', kept)).TryGetValue(out var pattern) && normalizedLabel.Contains(pattern, StringComparison.Ordinal)
+            ? pattern : null;
+    }
+
     public static bool Matches(CategoryRule rule, Guid account, decimal amount, string normalizedLabel, string? normalizedCounterparty)
     {
         if (rule.Account is { } only && only != account) return false;

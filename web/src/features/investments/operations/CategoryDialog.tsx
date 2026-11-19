@@ -21,7 +21,7 @@ const AUTO = 'auto';
 
 /**
  * A line's category by hand: an active category (« Parent › Enfant », a parent alone too), « Sans catégorie », or back to Nid's own choice.
- * A category chosen for a line with a stem then offers a rule for the next ones.
+ * A category chosen for a line with a suggested pattern then offers a rule for the next ones.
  */
 export default function CategoryDialog({ line, onClose, onDone }: { line: BankTransaction; onClose: () => void; onDone: (message: string) => void }) {
   const { t } = useTranslation();
@@ -52,7 +52,7 @@ export default function CategoryDialog({ line, onClose, onDone }: { line: BankTr
           const then = { onSuccess: () => done(t('banks.operations.done_category')) };
           if (picked === AUTO) resetCategory.mutate(path, then);
           else if (chosen) {
-            const name = picked !== NONE && line.stem ? options.find((o) => o.value === picked)?.label : undefined;
+            const name = picked !== NONE && line.suggestedPattern ? options.find((o) => o.value === picked)?.label : undefined;
             categorise.mutate({ ...path, body: { categoryId: picked === NONE ? null : picked } },
               name ? { onSuccess: () => setOffer(name) } : then);
           }
@@ -72,18 +72,25 @@ export default function CategoryDialog({ line, onClose, onDone }: { line: BankTr
   );
 }
 
-/** « Toujours classer « CARREFOUR CITY » en Courses ? »: the line's stem, editable; its account alone when not every adult reads it. */
+/** « Toujours classer « CARREFOUR CITY » en Courses ? »: the line's suggested pattern, editable; its account alone when not every adult reads it. */
 function RuleOffer({ line, category, categoryId, done }: { line: BankTransaction; category: string; categoryId: string; done: (message?: string) => void }) {
   const { t } = useTranslation();
   const { createRule } = useLineActions();
-  const [pattern, setPattern] = useState(line.stem ?? '');
+  const [pattern, setPattern] = useState(line.suggestedPattern ?? '');
   const [only, setOnly] = useState(!line.sharedAccount);
   const questionId = useId();
   const onlyId = useId();
   const question = useRef<HTMLParagraphElement>(null);
+  // Filled after mount, so the live region is already there and announces it.
+  const [saved, setSaved] = useState(false);
   // The form that had the focus is gone: the question takes it, so it is read first.
-  useEffect(() => { question.current?.focus(); }, []);
+  useEffect(() => { question.current?.focus(); setSaved(true); }, []);
   const field = fieldErrorsOf(createRule.error).find((f) => f.path === 'pattern');
+  const refused = createRule.error && !field
+    ? toProblem(createRule.error).status === 403
+      ? { ...present(toProblem(createRule.error)), detail: t('banks.categories.offer_forbidden') }
+      : presentBankError(t, createRule.error)
+    : null;
 
   return (
     <form aria-labelledby={questionId} noValidate className="space-y-4" onSubmit={(event) => {
@@ -92,11 +99,11 @@ function RuleOffer({ line, category, categoryId, done }: { line: BankTransaction
       createRule.mutate({ body: { pattern: pattern.trim(), categoryId, accountId: only ? line.accountId : null } },
         { onSuccess: () => done(t('banks.categories.offer_done')) });
     }}>
-      <p role="status" className="text-sm text-muted-foreground">{t('banks.categories.offer_saved')}</p>
+      <p role="status" className="text-sm text-muted-foreground">{saved ? t('banks.categories.offer_saved') : ''}</p>
       <p id={questionId} ref={question} tabIndex={-1} className="font-medium outline-none">
-        {t('banks.categories.offer', { pattern: pattern.trim() || line.stem, category })}
+        {t('banks.categories.offer', { pattern: pattern.trim() || line.suggestedPattern, category })}
       </p>
-      {createRule.error && !field ? <ProblemMessage problem={presentBankError(t, createRule.error)} /> : null}
+      {refused ? <ProblemMessage problem={refused} /> : null}
       <Field label={t('banks.category_rules.pattern')} hint={t('banks.categories.offer_hint')} error={field ? bankErrorText(t, field.code, field.message) : undefined}>
         {(c) => <Input {...c} value={pattern} maxLength={60} onChange={(event) => setPattern(event.target.value)} />}
       </Field>

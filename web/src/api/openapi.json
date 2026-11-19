@@ -35726,7 +35726,7 @@
             "type": "string",
             "format": "uuid"
           },
-          "stem": {
+          "suggestedPattern": {
             "type": [
               "null",
               "string"

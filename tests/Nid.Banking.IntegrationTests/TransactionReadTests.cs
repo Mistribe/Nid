@@ -130,7 +130,7 @@ public class TransactionReadTests(PostgresFixture fixture) : IClassFixture<Postg
         var mine = await ReadAsync(app, app.AdultA, privateEnvelope);
         Assert.Equal(["SECRET"], Labels(mine));
         var line = mine.GetProperty("items")[0];
-        Assert.Equal(("SECRET", false), (line.GetProperty("stem").GetString(), line.GetProperty("sharedAccount").GetBoolean()));
+        Assert.Equal(("SECRET", false), (line.GetProperty("suggestedPattern").GetString(), line.GetProperty("sharedAccount").GetBoolean()));
 
         // On a shared envelope, B reads what A's account holds, and the account is every adult's.
         var shared = await app.NewEnvelopeAsync("Commun", app.AdultA, Visibility.Shared);

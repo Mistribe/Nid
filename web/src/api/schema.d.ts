@@ -32717,7 +32717,7 @@ export interface components {
             categorySource?: null | string;
             /** Format: uuid */
             accountId: string;
-            stem?: null | string;
+            suggestedPattern?: null | string;
             sharedAccount: boolean;
         };
         BatchView: {

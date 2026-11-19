@@ -27,7 +27,7 @@ const rules = () => [
 
 const line = (id: string, label: string, amount: string): BankTransaction => ({
   id, bookedOn: '2026-10-27', valueOn: null, amount, currency: 'EUR', label, counterparty: null, fromCard: false, cardName: null, fetchedVia: 'file',
-  linkState: 'unlinked', link: null, accountName: 'Compte courant', category: null, categorySource: null, accountId: CHECKING, stem: label, sharedAccount: true,
+  linkState: 'unlinked', link: null, accountName: 'Compte courant', category: null, categorySource: null, accountId: CHECKING, suggestedPattern: label, sharedAccount: true,
 });
 
 const refusal = (code: string, path: string) => HttpResponse.json(
@@ -44,7 +44,9 @@ function serve() {
     http.post('*/api/v1/banking/category-rules', async ({ request }) => {
       const body = await request.json() as { pattern: string };
       writes.push(['POST', null, body]);
-      return body.pattern === 'X' ? refusal('banking.rule_pattern', 'pattern') : HttpResponse.json(rule({ id: 'r3' }), { status: 201 });
+      if (body.pattern === 'X') return refusal('banking.rule_pattern', 'pattern');
+      if (body.pattern === 'BORNES') return refusal('banking.rule_amounts', 'maxAmount');
+      return HttpResponse.json(rule({ id: 'r3' }), { status: 201 });
     }),
     http.patch('*/api/v1/banking/category-rules/:id', async ({ request, params }) => {
       const body = await request.json() as { accountId: string | null };
@@ -109,6 +111,7 @@ describe('Réglages › Banques › Catégories › Règles de catégorie', () =
     await user.click(screen.getByRole('option', { name: 'Compte courant' }));
     await user.click(within(dialog).getByRole('radio', { name: 'Débits' }));
     await user.type(within(dialog).getByRole('textbox', { name: 'Montant minimum' }), '10,5');
+    await expectNoAxeViolations(dialog);
     await user.click(within(dialog).getByRole('button', { name: 'Créer la règle' }));
 
     await waitFor(() => expect(writes).toEqual([['POST', null,
@@ -129,6 +132,24 @@ describe('Réglages › Banques › Catégories › Règles de catégorie', () =
 
     await waitFor(() => expect(field).toHaveAttribute('aria-invalid', 'true'));
     expect(field).toHaveAccessibleDescription(/Un motif compte de 2 à 60 caractères, dont au moins une lettre\./);
+  });
+
+  it('shows a refused bound under the field the server names', async () => {
+    serve();
+    const { user } = await open();
+
+    await user.click(screen.getByRole('button', { name: 'Nouvelle règle' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Nouvelle règle' });
+    await user.type(within(dialog).getByRole('textbox', { name: 'Motif' }), 'BORNES');
+    await pick(user, 'Catégorie', 'Loisirs');
+    await user.click(within(dialog).getByRole('button', { name: 'Personnaliser' }));
+    await user.type(within(dialog).getByRole('textbox', { name: 'Montant minimum' }), '50');
+    await user.type(within(dialog).getByRole('textbox', { name: 'Montant maximum' }), '10');
+    await user.click(within(dialog).getByRole('button', { name: 'Créer la règle' }));
+
+    const max = within(dialog).getByRole('textbox', { name: 'Montant maximum' });
+    await waitFor(() => expect(max).toHaveAttribute('aria-invalid', 'true'));
+    expect(within(dialog).getByRole('textbox', { name: 'Montant minimum' })).not.toHaveAttribute('aria-invalid');
   });
 
   it('saves a rule as a whole, and says who may change its account', async () => {
@@ -162,6 +183,7 @@ describe('Réglages › Banques › Catégories › Règles de catégorie', () =
     expect(table).toHaveTextContent('CARREFOUR CITY');
     expect(table).toHaveTextContent('Sans catégorie');
     expect(within(dialog).getByText('Seules les 2 plus récentes sont listées ici.')).toBeInTheDocument();
+    await expectNoAxeViolations(dialog);
     expect(writes).toEqual([]);
 
     await user.click(within(dialog).getByRole('button', { name: 'Appliquer à 51 opérations' }));
