@@ -301,12 +301,13 @@ public interface ICategoryRuleStore
     /// <summary>Records that the rules categorised lines at <paramref name="at"/>.</summary>
     Task TouchAsync(IReadOnlyCollection<Guid> ids, Instant at, CancellationToken ct);
 
-    /// <summary>How many lines of <paramref name="accounts"/> each rule categorised.</summary>
-    Task<IReadOnlyDictionary<Guid, int>> LinesAsync(IReadOnlyCollection<Guid> accounts, CancellationToken ct);
+    /// <summary>For each rule, how many lines of <paramref name="accounts"/> it categorised, and the latest time it did.</summary>
+    Task<IReadOnlyDictionary<Guid, (int Lines, Instant? LastUsed)>> UsageAsync(IReadOnlyCollection<Guid> accounts, CancellationToken ct);
 
     /// <summary>
     /// The lines of <paramref name="accounts"/> the rule may categorise, newest first: not ignored, with no category or a rule's or a hint's
-    /// other than the rule's, whose label or counterparty may hold its pattern. More than it matches: the caller confirms each line.
+    /// other than the rule's, in its direction and bounds, whose label or counterparty may hold its pattern. More than it matches: the
+    /// caller confirms each line.
     /// </summary>
     Task<IReadOnlyList<BankTransaction>> CandidatesAsync(CategoryRule rule, IReadOnlyCollection<Guid> accounts, CancellationToken ct);
 }

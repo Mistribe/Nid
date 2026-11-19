@@ -45,29 +45,38 @@ public sealed class CategoryRuleStore(BankingDbContext db, IClock clock) : ICate
     public async Task TouchAsync(IReadOnlyCollection<Guid> ids, Instant at, CancellationToken ct)
         => await db.CategoryRules.Where(r => ids.Contains(r.Id)).ExecuteUpdateAsync(s => s.SetProperty(r => r.LastUsedAt, at), ct);
 
-    public async Task<IReadOnlyDictionary<Guid, int>> LinesAsync(IReadOnlyCollection<Guid> accounts, CancellationToken ct)
+    public async Task<IReadOnlyDictionary<Guid, (int Lines, Instant? LastUsed)>> UsageAsync(IReadOnlyCollection<Guid> accounts, CancellationToken ct)
         => await db.Transactions.Where(t => t.CategoryRuleId != null && accounts.Contains(t.AccountId))
-            .GroupBy(t => t.CategoryRuleId!.Value).Select(g => new { g.Key, Count = g.Count() })
-            .ToDictionaryAsync(g => g.Key, g => g.Count, ct);
+            .GroupBy(t => t.CategoryRuleId!.Value).Select(g => new { g.Key, Count = g.Count(), Last = g.Max(t => t.CategorisedAt) })
+            .ToDictionaryAsync(g => g.Key, g => (g.Count, g.Last), ct);
 
     public async Task<IReadOnlyList<BankTransaction>> CandidatesAsync(CategoryRule rule, IReadOnlyCollection<Guid> accounts, CancellationToken ct)
     {
         var label = LikePattern.Contains(rule.Pattern);
         var counterparty = Loose(rule.Pattern);
-        return (await db.Transactions.AsNoTracking()
+        var query = db.Transactions.AsNoTracking()
             .Where(t => accounts.Contains(t.AccountId) && t.LinkState != "ignored"
                 && (t.CategorySource == null || t.CategorySource == "rule" || t.CategorySource == "hint")
                 && (t.CategoryId == null || t.CategoryId != rule.Category)
                 && (EF.Functions.Like(t.NormalizedLabel, label, @"\")
-                    || (t.Counterparty != null && EF.Functions.ILike(t.Counterparty, counterparty, @"\"))))
+                    || (t.Counterparty != null && EF.Functions.ILike(t.Counterparty, counterparty, @"\"))));
+        if (rule.Direction is { } direction)
+            query = direction == RuleDirection.Debit ? query.Where(t => t.Amount < 0) : query.Where(t => t.Amount >= 0);
+        if (rule.MinAmount is { } min)
+            query = query.Where(t => t.Amount >= min || t.Amount <= -min);
+        if (rule.MaxAmount is { } max)
+            query = query.Where(t => t.Amount <= max && t.Amount >= -max);
+        return (await query
             .OrderByDescending(t => t.BookedOn).ThenByDescending(t => t.Id)
             .ToListAsync(ct)).Select(TransactionStore.ToModel).ToList();
     }
 
     /// <summary>
-    /// The pattern against a raw counterparty: a letter that may carry an accent there and a space that may be several (or a card number
-    /// Normalize drops) match loosely; <see cref="Nid.Banking.Domain.CategoryRules.Matches"/> then decides.
+    /// The pattern against a raw counterparty, which Normalize has not folded: a vowel, C, N or Y (where É, Ç, Ñ, Ÿ… fold to) and a space
+    /// (several of them, or a card number Normalize drops) match loosely; <see cref="Nid.Banking.Domain.CategoryRules.Matches"/> then decides.
     /// </summary>
+    // ponytail: misses other accented consonants (Š, Ž, Ł…) and decomposed text (a letter plus its combining accent), and a pattern of
+    // vowels barely narrows; upgrade with a normalized_counterparty column written at import, matched like normalized_label.
     private static string Loose(string pattern) => $"%{string.Concat(pattern.Select(c => c switch
     {
         ' ' => "%",

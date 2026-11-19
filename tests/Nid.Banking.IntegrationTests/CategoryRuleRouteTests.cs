@@ -18,23 +18,38 @@ public class CategoryRuleRouteTests(PostgresFixture fixture) : IClassFixture<Pos
 
     private static Guid Seed(string key) => CategorySeed.Find(key)!.Id;
 
-    private sealed record Setup(NidApp App, Guid Commun, Guid Livret) : IAsyncDisposable
+    private sealed class MovingClock : IClock
+    {
+        public Instant Now { get; set; } = BankingApi.Now;
+
+        public Instant GetCurrentInstant() => Now;
+    }
+
+    private sealed record Setup(NidApp App, Guid Commun, Guid Livret, Guid Courant, MovingClock Clock) : IAsyncDisposable
     {
         public ValueTask DisposeAsync() => App.DisposeAsync();
     }
 
-    /// <summary>A's « Commun », on an envelope A and B own (both write it), and A's « Livret A », which B cannot read.</summary>
+    /// <summary>
+    /// A's « Commun », on an envelope A and B own (both write it), A's « Livret A », which B cannot read, and A's « Courant A », on a shared
+    /// envelope of A's that B reads but does not write.
+    /// </summary>
     private static async Task<Setup> StartAsync(PostgresFixture fixture)
     {
-        var app = await BankingApi.StartAsync(fixture);
+        var clock = new MovingClock();
+        var app = await BankingApi.StartAsync(fixture, overrides: s => s.AddSingleton<IClock>(clock));
         await BankingApi.ConnectAsync(app, app.AdultA, "code-a",
-            BankingApi.Account("uid-1", "hash-1", null, "Commun"), BankingApi.Account("uid-2", "hash-2", null, "Livret A", "SVGS"));
+            BankingApi.Account("uid-1", "hash-1", null, "Commun"), BankingApi.Account("uid-2", "hash-2", null, "Livret A", "SVGS"),
+            BankingApi.Account("uid-3", "hash-3", null, "Courant A"));
         var accounts = (await BankingApi.AccountsAsync(app, app.AdultA)).EnumerateArray()
             .ToDictionary(a => a.GetProperty("name").GetString()!, a => a.GetProperty("id").GetGuid());
         var envelope = await app.NewEnvelopeAsync("Commun", Visibility.Shared, (app.AdultA, 5_000), (app.AdultB, 5_000));
         Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{BankingApi.Root}/accounts/{accounts["Commun"]}",
             new { envelopeId = envelope.Value })).StatusCode);
-        return new Setup(app, accounts["Commun"], accounts["Livret A"]);
+        var read = await app.NewEnvelopeAsync("Courant", app.AdultA, Visibility.Shared);
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{BankingApi.Root}/accounts/{accounts["Courant A"]}",
+            new { envelopeId = read.Value })).StatusCode);
+        return new Setup(app, accounts["Commun"], accounts["Livret A"], accounts["Courant A"], clock);
     }
 
     private static async Task<Guid> AddAsync(NidApp app, Guid account, string reference, string label, string? counterparty = null, decimal amount = -30m)
@@ -91,6 +106,8 @@ public class CategoryRuleRouteTests(PostgresFixture fixture) : IClassFixture<Pos
         Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultB, HttpMethod.Get, $"{Root}/{restricted}/preview")).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultB, HttpMethod.Post, $"{Root}/{restricted}/apply")).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultB, HttpMethod.Delete, $"{Root}/{restricted}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultB, HttpMethod.Patch, $"{Root}/{restricted}",
+            new { pattern = "CARREFOUR", categoryId = Seed("food.groceries") })).StatusCode);
     }
 
     [Fact]
@@ -116,12 +133,56 @@ public class CategoryRuleRouteTests(PostgresFixture fixture) : IClassFixture<Pos
         var after = await PreviewAsync(app, app.AdultB, rule);
         Assert.Equal(0, after.Total);
         Assert.Empty(after.Items);
+        var bobs = (await ListAsync(app, app.AdultB)).Single();
+        Assert.Equal(2, bobs.GetProperty("lines").GetInt32());
+        var bobsDate = bobs.GetProperty("lastUsedAt").GetString();
+        Assert.NotNull(bobsDate);
+
         // A's own preview reaches her private line only: the shared ones took the category already.
         Assert.Equal([hidden], (await PreviewAsync(app, app.AdultA, rule)).Items);
+        s.Clock.Now += NodaTime.Duration.FromDays(1);
+        Assert.Equal(1, await ApplyAsync(app, app.AdultA, rule));
+        var alices = (await ListAsync(app, app.AdultA)).Single();
+        Assert.Equal(3, alices.GetProperty("lines").GetInt32());
+        Assert.NotEqual(bobsDate, alices.GetProperty("lastUsedAt").GetString());
+        // Her private line is neither in B's count nor in his date.
+        bobs = (await ListAsync(app, app.AdultB)).Single();
+        Assert.Equal((2, bobsDate), (bobs.GetProperty("lines").GetInt32(), bobs.GetProperty("lastUsedAt").GetString()));
         var lines = (await OkAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{BankingApi.Root}/transactions?state=all")))
             .GetProperty("items").EnumerateArray().ToDictionary(i => i.GetProperty("id").GetGuid(), i => i.GetProperty("categorySource").GetString());
-        Assert.Equal(("rule", "rule", "hand", (string?)null), (lines[byLabel], lines[byCounterparty], lines[byHand], lines[hidden]));
-        Assert.NotNull((await ListAsync(app, app.AdultB)).Single().GetProperty("lastUsedAt").GetString());
+        Assert.Equal(("rule", "rule", "hand", "rule"), (lines[byLabel], lines[byCounterparty], lines[byHand], lines[hidden]));
+    }
+
+    [Fact]
+    public async Task A_reader_who_does_not_write_an_account_gets_no_preview_lines_from_it()
+    {
+        await using var s = await StartAsync(fixture);
+        var app = s.App;
+        var readOnly = await AddAsync(app, s.Courant, "r", "CARREFOUR CITY 12");
+        var shared = await AddAsync(app, s.Commun, "w", "CARREFOUR CITY 34");
+        var rule = await RuleAsync(app, app.AdultB, "CARREFOUR CITY");
+
+        Assert.Equal([shared], (await PreviewAsync(app, app.AdultB, rule)).Items);
+        Assert.Equal(1, await ApplyAsync(app, app.AdultB, rule));
+        // A writes « Courant A »: the line B left is hers to apply.
+        Assert.Equal([readOnly], (await PreviewAsync(app, app.AdultA, rule)).Items);
+    }
+
+    [Fact]
+    public async Task Direction_and_bounds_narrow_the_preview()
+    {
+        await using var s = await StartAsync(fixture);
+        var app = s.App;
+        var inside = await AddAsync(app, s.Commun, "a", "NETFLIX 1", amount: -12.99m);
+        await AddAsync(app, s.Commun, "b", "NETFLIX 2", amount: -40m);
+        await AddAsync(app, s.Commun, "c", "NETFLIX 3", amount: 12.99m);
+        await AddAsync(app, s.Commun, "d", "NETFLIX 4", amount: -5m);
+        var rule = (await OkAsync(await CreateAsync(app, app.AdultA, new
+        {
+            pattern = "NETFLIX", direction = "debit", minAmount = "10", maxAmount = "20", categoryId = Seed("leisure.subscriptions"),
+        }), HttpStatusCode.Created)).GetProperty("id").GetGuid();
+
+        Assert.Equal([inside], (await PreviewAsync(app, app.AdultA, rule)).Items);
     }
 
     [Theory]
@@ -179,12 +240,18 @@ public class CategoryRuleRouteTests(PostgresFixture fixture) : IClassFixture<Pos
 
         var edited = await OkAsync(await app.RawAsync(app.AdultB, HttpMethod.Patch, $"{Root}/{onCommun}", edit));
         Assert.Equal("CARREFOUR MARKET", edited.GetProperty("pattern").GetString());
-        // Moving a rule onto an account the editor cannot read: not found, never named.
-        await BankingApi.AssertRefusedAsync(await app.RawAsync(app.AdultB, HttpMethod.Patch, $"{Root}/{onCommun}", edit with { accountId = s.Livret }),
-            HttpStatusCode.NotFound, BankingCodes.AccountNotFound);
+        // Only the author moves the restriction, onto another account or off any.
+        Assert.Equal(HttpStatusCode.Forbidden, (await app.RawAsync(app.AdultB, HttpMethod.Patch, $"{Root}/{onCommun}",
+            new { pattern = "CARREFOUR", categoryId = Seed("food.groceries") })).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await app.RawAsync(app.AdultB, HttpMethod.Patch, $"{Root}/{onCommun}", edit with { accountId = s.Courant })).StatusCode);
+        var moved = await OkAsync(await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{Root}/{onCommun}", edit with { accountId = s.Courant }));
+        Assert.Equal("Courant A", moved.GetProperty("accountName").GetString());
+        // B reads « Courant A » but does not write it: the moved rule is no longer his to edit.
+        Assert.Equal(HttpStatusCode.Forbidden, (await app.RawAsync(app.AdultB, HttpMethod.Patch, $"{Root}/{onCommun}", edit with { accountId = s.Courant })).StatusCode);
+        // Creating on an account the actor cannot read: not found, never named.
         await BankingApi.AssertRefusedAsync(await CreateAsync(app, app.AdultB, edit with { accountId = s.Livret }),
             HttpStatusCode.NotFound, BankingCodes.AccountNotFound);
-        Assert.Equal(HttpStatusCode.NoContent, (await app.RawAsync(app.AdultB, HttpMethod.Delete, $"{Root}/{onCommun}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await app.RawAsync(app.AdultA, HttpMethod.Delete, $"{Root}/{onCommun}")).StatusCode);
         Assert.Equal(HttpStatusCode.NoContent, (await app.RawAsync(app.AdultA, HttpMethod.Delete, $"{Root}/{alices}")).StatusCode);
     }
 }

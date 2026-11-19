@@ -22,7 +22,10 @@ public sealed record ListCategoryRulesQuery : IQuery<IReadOnlyList<CategoryRuleV
 public sealed record CreateCategoryRuleCommand(
     string Pattern, Guid? AccountId, string? Direction, string? MinAmount, string? MaxAmount, Guid CategoryId) : ICommand<CategoryRuleView>;
 
-/// <summary>The rule as a whole, as on creation: a field left out is cleared. Its author, or an adult who writes its account.</summary>
+/// <summary>
+/// The rule as a whole, as on creation: a field left out is cleared. Its author, or an adult who writes its account; only the author
+/// changes its account.
+/// </summary>
 public sealed record UpdateCategoryRuleCommand(
     Guid Id, string Pattern, Guid? AccountId, string? Direction, string? MinAmount, string? MaxAmount, Guid CategoryId) : ICommand<CategoryRuleView>;
 
@@ -38,8 +41,8 @@ public sealed record ApplyCategoryRuleCommand(Guid Id) : ICommand<int>, ITransac
 public sealed record CategoryRulePreview(int Total, IReadOnlyList<BankTransactionView> Items);
 
 /// <summary>
-/// <paramref name="CanEdit"/>: the actor is its author or writes its account. <paramref name="Lines"/>: the lines it categorised that the actor
-/// reads.
+/// <paramref name="CanEdit"/>: the actor is its author or writes its account. <paramref name="Lines"/> and <paramref name="LastUsedAt"/>: the
+/// lines it categorised that the actor reads, and the latest time it categorised one of them.
 /// </summary>
 public sealed record CategoryRuleView(
     Guid Id, string Pattern, Guid? AccountId, string? AccountName, string? Direction, string? MinAmount, string? MaxAmount, Guid CategoryId,
@@ -126,12 +129,13 @@ public sealed class CategoryRuleScope(BankingAccess access, IAccountStore accoun
     public async Task<IReadOnlyList<CategoryRuleView>> ViewsAsync(IReadOnlyList<CategoryRule> list, Readable readable, CancellationToken ct)
     {
         var names = (await categories.AllAsync(ct)).ToDictionary(c => c.Id, c => c.Name);
-        var lines = await rules.LinesAsync([.. readable.Keys], ct);
+        // Decision 7: what a rule did on lines the actor cannot read is not theirs to see, neither the count nor the date.
+        var usage = await rules.UsageAsync([.. readable.Keys], ct);
         return [.. list.Select(r => new CategoryRuleView(
             r.Id, r.Pattern, r.Account, r.Account is { } a && readable.TryGetValue(a, out var account) ? account.Account.Name : null,
             r.Direction is { } d ? BankLines.Wire(d) : null, r.MinAmount is { } min ? TransactionLinker.Amount(min) : null,
             r.MaxAmount is { } max ? TransactionLinker.Amount(max) : null, r.Category, names.GetValueOrDefault(r.Category, ""), Edits(r, readable),
-            lines.GetValueOrDefault(r.Id), r.LastUsedAt?.ToDateTimeOffset()))];
+            usage.GetValueOrDefault(r.Id).Lines, usage.GetValueOrDefault(r.Id).LastUsed?.ToDateTimeOffset()))];
     }
 }
 
@@ -178,8 +182,11 @@ public sealed class UpdateCategoryRuleHandler(BankingAccess access, ICategoryRul
             return BankingAccess.Failed<CategoryRuleView>(enabled);
         var readable = await scope.ReadableAsync(ct);
         var found = await scope.FindAsync(command.Id, edit: true, readable, ct);
-        if (!found.IsSuccess)
+        if (!found.TryGetValue(out var current))
             return BankingAccess.Failed<CategoryRuleView, CategoryRule>(found);
+        // Who may edit follows the restriction: only the author moves it.
+        if (command.AccountId != current!.Account && current.CreatedBy != access.Person)
+            return Result.Failure<CategoryRuleView>(new UnauthorizedFailure("Only its author changes the account of this rule.", null));
         var draft = await scope.DraftAsync(
             command.Id, command.Pattern, command.AccountId, command.Direction, command.MinAmount, command.MaxAmount, command.CategoryId, ct);
         if (!draft.TryGetValue(out var rule))
