@@ -619,6 +619,8 @@ public static class RequestCatalogue
         // Every account the actor reads: A's, on A's private envelope twin, must never reach B (MixedDataset seeds it).
         new(typeof(ListBankAccountsQuery), false, (_, _) => new ListBankAccountsQuery(null)),
         new(typeof(UpdateBankAccountCommand), false, (_, item) => new UpdateBankAccountCommand(Guid.NewGuid(), item.Value, false, null, false, null, null)),
+        new(typeof(Nid.Host.Composition.CreateBankAccountEnvelopeCommand), false,
+            (_, _) => new Nid.Host.Composition.CreateBankAccountEnvelopeCommand(Guid.NewGuid(), "bench", "checking", false)),
         new(typeof(Nid.Banking.Application.Sync.SyncAllCommand), false, (_, _) => new Nid.Banking.Application.Sync.SyncAllCommand()),
         new(typeof(Nid.Banking.Application.Sync.SyncMineCommand), false, (_, _) => new Nid.Banking.Application.Sync.SyncMineCommand(Guid.NewGuid(), new PsuHeaders(null, null))),
         new(typeof(Nid.Banking.Application.Sync.GetBankSyncRunsQuery), false, (_, _) => new Nid.Banking.Application.Sync.GetBankSyncRunsQuery(null)),

@@ -1,5 +1,5 @@
-import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import type { Option } from './options';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { runs, type Option } from './options';
 
 /** Loaded lazily by ComboboxField so cmdk stays out of the initial bundle. */
 export default function ComboboxList({ options, onPick, searchPlaceholder, empty, onSearch, more }: {
@@ -11,9 +11,12 @@ export default function ComboboxList({ options, onPick, searchPlaceholder, empty
       <CommandInput onValueChange={onSearch} placeholder={searchPlaceholder} />
       <CommandList>
         <CommandEmpty>{empty}</CommandEmpty>
-        {options.map((o) => (
-          <CommandItem key={o.value} value={onSearch ? o.value : o.label} disabled={o.disabled} onSelect={() => onPick(o.value)}>{o.icon}{o.label}</CommandItem>
-        ))}
+        {runs(options).map((run, i) => {
+          const items = run.options.map((o) => (
+            <CommandItem key={o.value} value={onSearch ? o.value : o.label} disabled={o.disabled} onSelect={() => onPick(o.value)}>{o.icon}{o.label}</CommandItem>
+          ));
+          return run.group ? <CommandGroup key={`group-${i}`} heading={run.group}>{items}</CommandGroup> : items;
+        })}
         {more ? <p className="px-3 py-2 text-xs text-muted-foreground">{more}</p> : null}
       </CommandList>
     </Command>

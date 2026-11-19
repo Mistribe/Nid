@@ -5,6 +5,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { pick } from '@/test/controls';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
+import { householdPersons } from '@/test/importServer';
 import { summary } from '../../investments/testData';
 import { account, CARD, CHECKING, connection, JOINT, serveBanks } from './testData';
 
@@ -36,9 +37,9 @@ describe('the account dialog', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Régler Compte courant' });
     await user.click(within(dialog).getByRole('combobox', { name: 'Enveloppe' }));
     const options = within(await screen.findByRole('listbox')).getAllByRole('option').map((o) => o.textContent);
-    expect(options).toEqual(['Aucune', 'Compte joint', 'Livret A']);
+    expect(options).toEqual(['Aucune', 'Compte joint · Compte courant', 'Livret A · Livret', 'Créer une enveloppe']);
     await user.keyboard('{Escape}');
-    await pick(user, 'Enveloppe', 'Compte joint');
+    await pick(user, 'Enveloppe', /^Compte joint/);
     expect(within(dialog).getByText('Sinon, chaque solde de fin de mois arrive dans À valider.')).toBeInTheDocument();
     await user.click(within(dialog).getByRole('switch', { name: 'Appliquer les soldes automatiquement' }));
     await expectNoAxeViolations(container);
@@ -139,6 +140,93 @@ describe('the account dialog', () => {
       .toHaveAccessibleDescription(/Un nom compte de 1 à 100 caractères\./));
   });
 
+  it('names each envelope with its owners and kind, those that fit the account first, none another bank account holds', async () => {
+    const [alice, bob, leo] = householdPersons;
+    const own = (...ids: string[]) => ids.map((personId) => ({ personId, shareBp: 10_000 / ids.length }));
+    serveBanks([connection({ accounts: [account(), account({ id: 'other', name: 'Livret', kind: 'savings', envelopeId: 'held' })] })], [
+      summary({ id: 'la-alice', displayName: 'Livret A', kind: 'savings', owners: own(alice!.id) }),
+      summary({ id: 'cc-joint', displayName: 'Compte joint', kind: 'checking', owners: own(alice!.id, bob!.id) }),
+      summary({ id: 'cc-usd', displayName: 'Compte dollars', kind: 'checking', currency: 'USD', owners: own(bob!.id) }),
+      summary({ id: 'la-leo', displayName: 'Livret A', kind: 'savings', owners: own(leo!.id) }),
+      summary({ id: 'held', displayName: 'Livret tenu', kind: 'savings' }),
+    ]);
+    server.use(http.get('*/api/v1/core/persons', () => HttpResponse.json(householdPersons)));
+    const { user } = await renderApp('/settings/banks');
+
+    await user.click((await screen.findAllByRole('button', { name: 'Régler Compte courant' }))[0]!);
+    const dialog = await screen.findByRole('dialog', { name: 'Régler Compte courant' });
+    await waitFor(async () => {
+      await user.click(within(dialog).getByRole('combobox', { name: 'Enveloppe' }));
+      const list = await screen.findByRole('listbox');
+      expect(within(list).getAllByRole('option').map((o) => o.textContent)).toEqual([
+        'Aucune', 'Compte joint · Alice Dev et Bob Dev · Compte courant',
+        'Livret A · Alice Dev · Livret', 'Compte dollars · Bob Dev · Compte courant · USD', 'Livret A · Léo · Livret', 'Créer une enveloppe',
+      ]);
+      expect(within(list).getByRole('group', { name: 'Pour ce compte' })).toHaveTextContent('Compte joint');
+      expect(within(list).getByRole('group', { name: 'Autres enveloppes' })).toHaveTextContent('Compte dollars');
+      await user.keyboard('{Escape}');
+    });
+  });
+
+  it('offers a search box once the list is long', async () => {
+    serveBanks([connection()], Array.from({ length: 8 }, (_, i) => summary({ id: `livret-${i}`, displayName: `Livret ${i}`, kind: 'savings' })));
+    const sent = patches();
+    const { user } = await renderApp('/settings/banks');
+
+    await user.click((await screen.findAllByRole('button', { name: 'Régler Compte courant' }))[0]!);
+    const dialog = await screen.findByRole('dialog', { name: 'Régler Compte courant' });
+    await user.click(within(dialog).getByRole('combobox', { name: 'Enveloppe' }));
+    await user.type(await screen.findByPlaceholderText('Rechercher une enveloppe'), 'Livret 7');
+    await user.click(await screen.findByRole('option', { name: 'Livret 7 · Livret' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
+
+    await waitFor(() => expect(sent).toEqual([{ id: CHECKING, body: { envelopeId: 'livret-7' } }]));
+  });
+
+  it('creates the envelope from the account and links it, in one request', async () => {
+    serveBanks([connection()], envelopes);
+    server.use(http.get('*/api/v1/core/persons', () => HttpResponse.json(householdPersons)));
+    const sent: unknown[] = [];
+    server.use(http.post('*/api/v1/banking/accounts/:id/envelope', async ({ params, request }) => {
+      sent.push({ id: params.id, body: await request.json() });
+      return HttpResponse.json({ id: 'new' }, { status: 201 });
+    }));
+    const { user, container } = await renderApp('/settings/banks');
+
+    await user.click((await screen.findAllByRole('button', { name: 'Régler Compte courant' }))[0]!);
+    const dialog = await screen.findByRole('dialog', { name: 'Régler Compte courant' });
+    await pick(user, 'Enveloppe', 'Créer une enveloppe');
+    const step = within(dialog).getByRole('form', { name: 'Créer une enveloppe' });
+    expect(within(step).getByRole('textbox', { name: 'Nom de l\'enveloppe' })).toHaveValue('BNP Paribas Compte courant');
+    expect(within(step).getByRole('radio', { name: 'Compte courant' })).toBeChecked();
+    expect(within(step).getByRole('radio', { name: 'À moi' })).toBeChecked();
+    expect(step).toHaveTextContent('En EUR, comme le compte, et reliée à lui.');
+    await user.click(within(step).getByRole('radio', { name: 'Commun' }));
+    await expectNoAxeViolations(container);
+    await user.click(within(step).getByRole('button', { name: 'Créer et relier' }));
+
+    await waitFor(() => expect(sent).toEqual([{ id: CHECKING, body: { displayName: 'BNP Paribas Compte courant', kind: 'checking', joint: true } }]));
+    expect(await screen.findByText('Enveloppe BNP Paribas Compte courant créée et reliée.')).toBeInTheDocument();
+  });
+
+  it('goes back from the creation step, and shows a refused link there', async () => {
+    serveBanks([connection()], envelopes);
+    server.use(http.post('*/api/v1/banking/accounts/:id/envelope', () =>
+      HttpResponse.json({ status: 409, code: 'banking.envelope_taken', detail: 'Taken.' }, { status: 409 })));
+    const { user } = await renderApp('/settings/banks');
+
+    await user.click((await screen.findAllByRole('button', { name: 'Régler Compte courant' }))[0]!);
+    const dialog = await screen.findByRole('dialog', { name: 'Régler Compte courant' });
+    await pick(user, 'Enveloppe', 'Créer une enveloppe');
+    // Alone in the household: nothing to share it with.
+    expect(within(dialog).queryByRole('radio', { name: 'Commun' })).toBeNull();
+    await user.click(within(dialog).getByRole('button', { name: 'Créer et relier' }));
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Un autre compte bancaire est déjà relié à cette enveloppe.');
+
+    await user.click(within(dialog).getByRole('button', { name: 'Retour' }));
+    expect(within(dialog).getByRole('combobox', { name: 'Enveloppe' })).toBeInTheDocument();
+  });
+
   it('stops following an account', async () => {
     serveBanks([connection()], envelopes);
     const sent = patches();
@@ -172,7 +260,7 @@ describe('the account dialog', () => {
 
     await user.click((await screen.findAllByRole('button', { name: 'Régler Compte courant' }))[0]!);
     const dialog = await screen.findByRole('dialog', { name: 'Régler Compte courant' });
-    await pick(user, 'Enveloppe', 'Compte joint');
+    await pick(user, 'Enveloppe', /^Compte joint/);
     await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
 
     const field = await within(dialog).findByRole('combobox', { name: 'Enveloppe' });
@@ -189,7 +277,7 @@ describe('the account dialog', () => {
 
     await user.click((await screen.findAllByRole('button', { name: 'Régler Compte courant' }))[0]!);
     const dialog = await screen.findByRole('dialog', { name: 'Régler Compte courant' });
-    await pick(user, 'Enveloppe', 'Compte joint');
+    await pick(user, 'Enveloppe', /^Compte joint/);
     await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
 
     await waitFor(() => expect(within(dialog).getByRole('combobox', { name: 'Enveloppe' }))

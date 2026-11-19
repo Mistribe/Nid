@@ -7,6 +7,7 @@ using Nid.Banking.Application.Sync;
 using Nid.Banking.Contracts;
 using Nid.Banking.Domain.Files;
 using Nid.Core.Contracts;
+using Nid.Host.Composition;
 using Nid.Host.Auth;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Functional.Failures;
@@ -77,6 +78,12 @@ public static class BankingEndpoints
                     body.Name, body.ClearName ?? false), ct))
                 .ToHttp(x => new IdResponse(x)))
             .Returns<IdResponse>();
+
+        // #346: « Créer une enveloppe » in « Régler »: the envelope and the link, together or neither.
+        api.MapPost("/accounts/{id:guid}/envelope", async (Guid id, BankAccountEnvelopeBody body, IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new CreateBankAccountEnvelopeCommand(id, body.DisplayName, body.Kind, body.Joint ?? false), ct))
+                    .ToHttp(envelope => new IdResponse(envelope.Value), StatusCodes.Status201Created))
+            .Returns<IdResponse>(StatusCodes.Status201Created);
 
         api.MapGet("/envelopes/{envelopeId:guid}/transactions",
                 async (Guid envelopeId, string? from, string? to, int? page, string? state, IInvoker invoker, CancellationToken ct)
@@ -218,6 +225,10 @@ public static class BankingEndpoints
     private static string Callback(IOptions<NidAuthOptions> auth) => auth.Value.PublicUrl.TrimEnd('/') + CallbackPath;
 
     public sealed record ConnectBody(string? AspspName);
+
+    /// <summary>The new envelope's name and kind (<c>checking</c>, <c>savings</c> or <c>other</c>); <c>joint</c>: every adult owns it.</summary>
+    [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+    public sealed record BankAccountEnvelopeBody(string DisplayName, string Kind, bool? Joint = null);
 
     /// <summary>A field left out is left as it is; a key nobody reads is refused rather than silently dropped (400).</summary>
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
