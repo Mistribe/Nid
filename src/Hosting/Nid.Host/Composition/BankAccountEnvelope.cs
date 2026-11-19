@@ -2,7 +2,9 @@ using Nid.Banking.Application;
 using Nid.Banking.Contracts;
 using Nid.Core.Contracts;
 using Nid.Investments.Application;
+using Nid.Platform.Contracts;
 using UnambitiousFx.Functional;
+using UnambitiousFx.Functional.Failures;
 using UnambitiousFx.Synapse.Abstractions;
 
 namespace Nid.Host.Composition;
@@ -11,9 +13,11 @@ namespace Nid.Host.Composition;
 /// #346: an envelope made from the « Régler » dialog of a bank account, in the account's currency with its IBAN's last four characters as
 /// its hint, and the account linked to it. Banking does not reach the investments module's commands, so the composition root runs both in one
 /// transaction: a refused link (another currency, a card, an account the actor may not move) leaves no envelope behind.
-/// <paramref name="Joint"/>: every adult owns it in equal shares; otherwise the actor alone.
+/// <paramref name="Joint"/>: every adult owns it in equal shares; <paramref name="DependentId"/> (#354, before <paramref name="Joint"/>): that
+/// child owns it all, shared, so both adults manage it; otherwise the actor alone.
 /// </summary>
-public sealed record CreateBankAccountEnvelopeCommand(Guid AccountId, string DisplayName, string Kind, bool Joint) : ICommand<ItemId>, ITransactional;
+public sealed record CreateBankAccountEnvelopeCommand(Guid AccountId, string DisplayName, string Kind, bool Joint, Guid? DependentId = null)
+    : ICommand<ItemId>, ITransactional;
 
 [RequestHandler<CreateBankAccountEnvelopeCommand, ItemId>]
 public sealed class CreateBankAccountEnvelopeHandler(BankingAccess access, IPersonRegistry persons, IInvoker invoker)
@@ -28,7 +32,15 @@ public sealed class CreateBankAccountEnvelopeHandler(BankingAccess access, IPers
         if (!found.TryGetValue(out var account))
             return Result.Failure<ItemId>(found.TryGetFailure(out var missing) ? missing! : throw new InvalidOperationException());
 
-        var owners = command.Joint ? Equal(await persons.AdultIdsAsync(ct)) : [new OwnerShare(access.Person, 10_000)];
+        IReadOnlyList<OwnerShare> owners;
+        if (command.DependentId is { } dependent)
+        {
+            if (!(await persons.ListAsync(ct)).Any(p => p.Id.Value == dependent && p.Kind == PersonKind.Dependent))
+                return Result.Failure<ItemId>(FieldErrors.At(new Failure("core.owner_unknown", "No such dependent in the household.", null), "dependentId"));
+            owners = [new OwnerShare(new PersonId(dependent), 10_000)];
+        }
+        else
+            owners = command.Joint ? Equal(await persons.AdultIdsAsync(ct)) : [new OwnerShare(access.Person, 10_000)];
         var created = await invoker.InvokeAsync(new CreateEnvelopeCommand(
             command.DisplayName, command.Kind, account!.Currency, Visibility.Shared, owners, null, account.IbanMasked, null, null, null, null, null, null), ct);
         if (!created.TryGetValue(out var envelope))

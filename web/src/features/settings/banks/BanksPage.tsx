@@ -10,6 +10,7 @@ import type { BanksSearch } from '@/app/router';
 import { EmptyState } from '@/components/EmptyState';
 import { formatLocalDate } from '@/components/LocalDate';
 import { formatCurrency } from '@/components/Money';
+import { OwnerChips } from '@/components/OwnerChips';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { RowActions } from '@/components/page/RowActions';
 import { Section } from '@/components/page/Section';
@@ -221,6 +222,11 @@ function AccountTable({ caption, accounts, all, envelopes, onEdit }: {
     a.ignored ? t('banks.ignored')
       : a.cardOfAccountId ? t('banks.card_of', { name: parentLabel(a.cardOfAccountId) })
       : envelopes.find((e) => e.id === a.envelopeId)?.displayName ?? '—';
+  // #354: whose account it is reads from its envelope (a card's: its account's), so a child's account shows as the child's.
+  const owners = (a: BankAccount) => {
+    const envelopeId = a.cardOfAccountId ? all.find((x) => x.id === a.cardOfAccountId)?.envelopeId : a.envelopeId;
+    return <OwnerChips owners={envelopes.find((e) => e.id === envelopeId)?.owners ?? []} shares={false} />;
+  };
 
   const name = (a: BankAccount) => (
     <span className="whitespace-normal">
@@ -243,6 +249,7 @@ function AccountTable({ caption, accounts, all, envelopes, onEdit }: {
         { id: 'name', header: t('banks.account'), sort: (a) => accountLabel(t, a), cell: name },
         { id: 'kind', header: t('banks.kind_label'), cell: kind },
         { id: 'target', header: t('banks.envelope'), cell: envelopeOf },
+        { id: 'owner', header: t('banks.owners'), cell: owners },
         { id: 'balance', header: t('banks.balance'), cell: balance },
         { id: 'actions', header: t('banks.actions'), cell: edit },
       ]}
@@ -250,6 +257,7 @@ function AccountTable({ caption, accounts, all, envelopes, onEdit }: {
         <div className="space-y-1">
           <div className="flex items-start justify-between gap-2">{name(a)}{edit(a)}</div>
           <div className="flex flex-wrap justify-between gap-x-3 text-sm text-muted-foreground"><span>{kind(a)} · {envelopeOf(a)}</span><span className="tabular-nums">{balance(a)}</span></div>
+          {owners(a)}
         </div>
       )} />
   );
