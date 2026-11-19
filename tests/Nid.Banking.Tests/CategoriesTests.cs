@@ -1,0 +1,74 @@
+using Nid.Banking.Contracts;
+using Nid.Banking.Domain;
+using Nid.Core.Contracts;
+
+namespace Nid.Banking.Tests;
+
+public class CategoriesTests
+{
+    [Fact]
+    public void Seed_has_unique_keys_and_ids_and_children_share_their_parents_kind()
+    {
+        var all = CategorySeed.All.ToList();
+        Assert.Equal(all.Count, all.Select(c => c.Key).Distinct().Count());
+        Assert.Equal(all.Count, all.Select(c => c.Id).Distinct().Count());
+        foreach (var child in all.Where(c => c.ParentKey is not null))
+        {
+            var parent = CategorySeed.Find(child.ParentKey!);
+            Assert.NotNull(parent);
+            Assert.Null(parent.ParentKey);
+            Assert.Equal(parent.Kind, child.Kind);
+            Assert.StartsWith(parent.Key + ".", child.Key);
+            Assert.True(all.IndexOf(parent) < all.IndexOf(child));
+        }
+    }
+
+    [Fact]
+    public void Seed_names_are_unique_among_siblings()
+        => Assert.All(
+            CategorySeed.All.GroupBy(c => c.ParentKey),
+            g => Assert.Equal(g.Count(), g.Select(c => c.Name.ToUpperInvariant()).Distinct().Count()));
+
+    [Theory]
+    [InlineData(null, CategorySource.Hint, false, true)]
+    [InlineData(CategorySource.Hint, CategorySource.Rule, false, true)]
+    [InlineData(CategorySource.Rule, CategorySource.Hint, false, false)]
+    [InlineData(CategorySource.Rule, CategorySource.Link, false, true)]
+    [InlineData(CategorySource.Link, CategorySource.Rule, false, false)]
+    [InlineData(CategorySource.Link, CategorySource.Link, false, true)]
+    [InlineData(CategorySource.Hand, CategorySource.Link, false, false)]
+    [InlineData(CategorySource.Assistant, CategorySource.Rule, false, false)]
+    [InlineData(CategorySource.Hand, CategorySource.Hand, true, true)]
+    [InlineData(CategorySource.Assistant, CategorySource.Hand, true, true)]
+    [InlineData(CategorySource.Hand, CategorySource.Assistant, true, true)]
+    public void CanReplace_follows_the_precedence(CategorySource? current, CategorySource incoming, bool byPerson, bool expected)
+        => Assert.Equal(expected, CategoryPrecedence.CanReplace(current, incoming, byPerson));
+
+    [Theory]
+    [InlineData(LinkOutcome.InternalTransfer, null, null, null, false, "", "internal.transfer")]
+    [InlineData(LinkOutcome.CardSettlement, null, null, null, false, "", "internal.card")]
+    [InlineData(LinkOutcome.Contribution, null, null, null, false, "", "internal.savings")]
+    [InlineData(LinkOutcome.AsExpected, ChargeKind.LoanInstalment, null, null, false, "", "home.rent_loan")]
+    [InlineData(LinkOutcome.AsExpected, ChargeKind.PropertyCost, null, null, false, "", "home.utilities")]
+    [InlineData(LinkOutcome.Income, ChargeKind.Rent, null, null, true, "", "income.rent")]
+    [InlineData(LinkOutcome.AsExpected, ChargeKind.Childcare, null, null, false, "", "children.childcare")]
+    [InlineData(LinkOutcome.AsExpected, ChargeKind.Subscription, null, null, false, "streaming", "leisure.subscriptions")]
+    [InlineData(LinkOutcome.PriceDiffers, ChargeKind.Subscription, null, null, false, "telecom", "home.telecom")]
+    [InlineData(LinkOutcome.AsExpected, ChargeKind.Subscription, null, null, false, "unknown,insurance", "insurance")]
+    [InlineData(LinkOutcome.AsExpected, ChargeKind.Subscription, null, null, false, "", "leisure.subscriptions")]
+    [InlineData(LinkOutcome.AsExpected, null, "realestate", "loan", false, "", "home.rent_loan")]
+    [InlineData(LinkOutcome.AsExpected, null, "realestate", "property", false, "", "home.utilities")]
+    [InlineData(LinkOutcome.Income, null, "realestate", "property", true, "", "income.rent")]
+    [InlineData(LinkOutcome.AsExpected, null, "childcare", "x", false, "", "children.childcare")]
+    [InlineData(LinkOutcome.AsExpected, null, "subscriptions", "x", false, "music", "leisure.subscriptions")]
+    [InlineData(LinkOutcome.AsExpected, null, "other", "x", false, "", null)]
+    public void KeyFor_maps_a_link_to_a_category(
+        LinkOutcome outcome, ChargeKind? charge, string? module, string? itemKind, bool credit, string labels, string? expected)
+        => Assert.Equal(
+            expected,
+            LinkCategory.KeyFor(outcome, charge, module, itemKind, credit, labels.Split(',', StringSplitOptions.RemoveEmptyEntries)));
+
+    [Fact]
+    public void Subscription_labels_only_point_to_seeded_categories()
+        => Assert.All(LinkCategory.SubscriptionLabels.Values, k => Assert.NotNull(CategorySeed.Find(k)));
+}

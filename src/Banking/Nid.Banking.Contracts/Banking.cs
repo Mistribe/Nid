@@ -64,6 +64,12 @@ public sealed record TransactionWrite(int Added, int Known);
 /// <summary>Why a line is linked (spec §6.3); the wire values are snake_case. <c>Contribution</c> is reserved for 5D.</summary>
 public enum LinkOutcome { AsExpected, PriceDiffers, Income, Contribution, InternalTransfer, CardSettlement }
 
+/// <summary>Whether a category is for money out, money in, or a move between the household's own accounts.</summary>
+public enum CategoryKind { Expense, Income, Transfer }
+
+/// <summary>What set a line's category; see <c>CategoryPrecedence</c> in the Domain.</summary>
+public enum CategorySource { Link, Rule, Hand, Assistant, Hint }
+
 /// <summary>A line's link (spec §2.6): to a charge of an item, or, for an internal transfer or a card settlement, to the counterpart account.</summary>
 /// <param name="TargetKey">The charge's key, or <c>flow:{id:N}</c> for a property flow already recorded.</param>
 /// <param name="DecidedBy"><c>person:{id}</c>, <c>rule:{id}</c> or <c>job</c>.</param>
