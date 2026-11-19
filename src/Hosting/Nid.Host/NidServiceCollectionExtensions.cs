@@ -299,6 +299,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<Nid.Banking.Application.BankLines>();
         services.AddScoped<Nid.Banking.Application.CategoryRuleScope>();
         services.AddScoped<Nid.Banking.Application.Spending.SpendingAccounts>();
+        services.AddScoped<Nid.Banking.Application.Spending.CommittedByCategory>();
         services.AddScoped<IProposalHandler, Nid.Banking.Application.Reconciliation.LinkProposal>();
         services.AddScoped<IProposalHandler, Nid.Banking.Application.Reconciliation.SubscriptionProposal>();
         services.AddScoped<IProposalHandler, Nid.Banking.Application.Reconciliation.CategoriseProposal>();

@@ -59,7 +59,11 @@ public sealed class BankingTools
         + "monthly average over the 12 months before it, or over the months the accounts' history covers when fewer (none under 3). Amounts "
         + "are in the household's reference currency; transfers between accounts never count, refunds lower their category, and lines with "
         + "no category are counted apart as 'uncategorised'. "
-        + "'incomplete' means a line in another currency had no exchange rate and is left out. " + McpSetup.Untrusted)]
+        + "'incomplete' means a line in another currency had no exchange rate and is left out. "
+        + "In the household scope only, a category may carry its monthly 'budget': 'planned' (the typed amount, a yearly one divided by 12, "
+        + "or with source 'committed' the month's expected charges there such as subscriptions and loan instalments), 'left' (planned minus "
+        + "spent, negative once over), 'expectedSoFar' for the current month and 'state' ('on_track', 'ahead' of the month's pace, 'over'). "
+        + McpSetup.Untrusted)]
     public static Task<CallToolResult> GetSpending(IServiceProvider services,
         [Description("ISO month (yyyy-mm); default the current month.")] string? month = null,
         [Description("'household' (default) or 'me'.")] string? scope = null, CancellationToken ct = default)

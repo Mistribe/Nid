@@ -38777,6 +38777,15 @@ export interface components {
             until?: null | string;
             preset?: null | string;
         };
+        SpendingBudgetView: {
+            planned: string;
+            committed?: null | string;
+            source: string;
+            period: string;
+            left: string;
+            expectedSoFar?: null | string;
+            state?: null | string;
+        };
         SpendingCategoryView: {
             /** Format: uuid */
             id: string;
@@ -38784,6 +38793,7 @@ export interface components {
             amount: string;
             average?: null | string;
             children: components["schemas"]["SpendingCategoryView"][];
+            budget?: null | components["schemas"]["SpendingBudgetView"];
         };
         SpendingLines: {
             items: components["schemas"]["BankTransactionView"][];

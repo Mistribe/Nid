@@ -31,9 +31,20 @@ public sealed record SpendingMonthView(string Month, string Total);
 
 /// <summary>
 /// A top-level expense category, its <paramref name="Amount"/> including its children's and the lines filed on it directly (those have no
-/// child row of their own); or one of its children, with no children.
+/// child row of their own); or one of its children, with no children. <paramref name="Budget"/>: only for one month in « Foyer ».
 /// </summary>
-public sealed record SpendingCategoryView(Guid Id, string Name, string Amount, string? Average, IReadOnlyList<SpendingCategoryView> Children);
+public sealed record SpendingCategoryView(
+    Guid Id, string Name, string Amount, string? Average, IReadOnlyList<SpendingCategoryView> Children, SpendingBudgetView? Budget);
+
+/// <summary>
+/// #85 decisions 7 and 8: a category's budget for the month. <paramref name="Planned"/> is the typed amount (a yearly one ÷ 12), or, with
+/// <paramref name="Source"/> <c>committed</c>, what the household's expected charges of the month commit there (<paramref name="Committed"/>,
+/// null when none). <paramref name="Period"/>: <c>month</c> or <c>year</c>. <paramref name="Left"/> = planned − spent, negative once over.
+/// <paramref name="ExpectedSoFar"/>, for the current month only: planned × days elapsed (today included) ÷ days in the month.
+/// <paramref name="State"/>: <c>over</c> past the planned amount, <c>ahead</c> (current month) more than 10 % past the expected so far, else
+/// <c>on_track</c>; null for a month to come.
+/// </summary>
+public sealed record SpendingBudgetView(string Planned, string? Committed, string Source, string Period, string Left, string? ExpectedSoFar, string? State);
 
 /// <summary>« Non classées »: the debits of lines with no category; their credits never count.</summary>
 public sealed record SpendingUncategorisedView(string Amount, string? Average);
@@ -81,11 +92,13 @@ public sealed class ListSpendingLinesHandler(
 [RequestHandler<GetSpendingQuery, SpendingView>]
 public sealed class GetSpendingHandler(
     BankingAccess access, SpendingAccounts scopes, ITransactionStore lines, ICategoryStore categories, IHouseholdSettings household,
-    IHouseholdCalendar calendar, IFxRates fx) : IRequestHandler<GetSpendingQuery, SpendingView>
+    IHouseholdCalendar calendar, IFxRates fx, ICategoryBudgetStore budgets, CommittedByCategory committed)
+    : IRequestHandler<GetSpendingQuery, SpendingView>
 {
     public const int MaxMonths = 24;
     private const int AverageMonths = 12;
     private const int MinHistoryMonths = 3;
+    private const decimal AheadMargin = 1.10m;
     private static readonly StringComparer ByName = StringComparer.Create(CultureInfo.GetCultureInfo("fr-FR"), true);
 
     /// <summary>
@@ -175,6 +188,12 @@ public sealed class GetSpendingHandler(
         var months = Enumerable.Range(0, Index(to) - Index(from) + 1).Select(i => from.PlusMonths(i))
             .Select(m => new SpendingMonthView(YearMonthPattern.Iso.Format(m), Money(sums.ByMonth.GetValueOrDefault(m)))).ToList();
         var byId = (await categories.AllAsync(ct)).ToDictionary(c => c.Id);
+        // Decision 7: the budget is the household's, set against « Foyer » one month at a time.
+        var today = await calendar.TodayAsync(ct);
+        var plans = query is { Scope: VisibilityScope.Household, From: null, To: null }
+            ? await PlansAsync(from, reference, today, byId, ct)
+            : [];
+        SpendingBudgetView? Budget(Guid id, decimal range) => plans.TryGetValue(id, out var plan) ? Pace(plan, Round(range), from, today) : null;
 
         var averaged = !sums.AverageMissing && covered >= MinHistoryMonths;
         string? Average(decimal before) => averaged ? Money(before / covered) : null;
@@ -186,12 +205,16 @@ public sealed class GetSpendingHandler(
             var children = byId.Values.Where(c => c.Parent == top.Id).Select(c => (Category: c, Spent: spent.GetValueOrDefault(c.Id))).ToList();
             var own = spent.GetValueOrDefault(top.Id);
             var total = (Range: own.Range + children.Sum(c => c.Spent.Range), Before: own.Before + children.Sum(c => c.Spent.Before));
-            if (!Shown(total))
+            if (!Shown(total) && !plans.ContainsKey(top.Id) && !children.Any(c => plans.ContainsKey(c.Category.Id)))
                 continue;
-            var shown = children.Where(c => Shown(c.Spent)).OrderByDescending(c => c.Spent.Range).ThenBy(c => c.Category.Name, ByName)
-                .Select(c => new SpendingCategoryView(c.Category.Id, c.Category.Name, Money(c.Spent.Range), Average(c.Spent.Before), []))
+            // A budgeted category shows with nothing spent yet.
+            var shown = children.Where(c => Shown(c.Spent) || plans.ContainsKey(c.Category.Id))
+                .OrderByDescending(c => c.Spent.Range).ThenBy(c => c.Category.Name, ByName)
+                .Select(c => new SpendingCategoryView(c.Category.Id, c.Category.Name, Money(c.Spent.Range), Average(c.Spent.Before), [],
+                    Budget(c.Category.Id, c.Spent.Range)))
                 .ToList();
-            tops.Add((new SpendingCategoryView(top.Id, top.Name, Money(total.Range), Average(total.Before), shown), total.Range));
+            tops.Add((new SpendingCategoryView(top.Id, top.Name, Money(total.Range), Average(total.Before), shown, Budget(top.Id, total.Range)),
+                total.Range));
         }
 
         var none = spent.GetValueOrDefault(Guid.Empty);
@@ -200,6 +223,50 @@ public sealed class GetSpendingHandler(
             [.. tops.OrderByDescending(t => t.Range).ThenBy(t => t.View.Name, ByName).Select(t => t.View)],
             new SpendingUncategorisedView(Money(none.Range), Average(none.Before)),
             YearMonthPattern.Iso.Format(from), YearMonthPattern.Iso.Format(to), months));
+    }
+
+    private sealed record Plan(decimal Planned, decimal? Committed, string Source, string Period);
+
+    /// <summary>
+    /// Each active expense category's plan for <paramref name="month"/>: its budget's typed amount, else what is committed there; none
+    /// without either. One budget per branch, the parent's first (both can exist after an unarchive): a child under a budgeted parent, and
+    /// a parent over a budgeted child, have none.
+    /// </summary>
+    private async Task<Dictionary<Guid, Plan>> PlansAsync(
+        YearMonth month, Currency reference, LocalDate today, Dictionary<Guid, BankCategory> byId, CancellationToken ct)
+    {
+        static bool Active(BankCategory c) => c is { Kind: CategoryKind.Expense, ArchivedAt: null, MergedInto: null };
+        var rows = (await budgets.AllAsync(ct)).Where(b => byId.TryGetValue(b.Category, out var c) && Active(c)).ToDictionary(b => b.Category);
+        var commitments = await committed.ForAsync(month, reference, today, byId, ct);
+        var plans = new Dictionary<Guid, Plan>();
+        foreach (var category in byId.Values.Where(Active))
+        {
+            if (category.Parent is { } parent
+                    ? rows.ContainsKey(parent)
+                    : !rows.ContainsKey(category.Id) && rows.Keys.Any(r => byId[r].Parent == category.Id))
+                continue;
+            var row = rows.GetValueOrDefault(category.Id);
+            var commitment = Round(commitments.GetValueOrDefault(category.Id));
+            decimal? typed = row?.Amount is { } amount ? Round(row.Period == BudgetPeriod.Year ? amount / 12 : amount) : null;
+            if (typed is null && commitment <= 0m)
+                continue;
+            plans[category.Id] = new Plan(typed ?? commitment, commitment > 0m ? commitment : null, typed is null ? "committed" : "typed",
+                row?.Period == BudgetPeriod.Year ? "year" : "month");
+        }
+        return plans;
+    }
+
+    /// <summary>Decision 8: the pace of the current month against its days elapsed; a past month's spent against planned only.</summary>
+    private static SpendingBudgetView Pace(Plan plan, decimal spent, YearMonth month, LocalDate today)
+    {
+        var current = month == today.ToYearMonth();
+        decimal? expected = current ? Round(plan.Planned * today.Day / month.ToDateInterval().Length) : null;
+        var state = month > today.ToYearMonth() ? null
+            : spent > plan.Planned ? "over"
+            : expected is { } soFar && spent > soFar * AheadMargin ? "ahead"
+            : "on_track";
+        return new SpendingBudgetView(Money(plan.Planned), plan.Committed is { } c ? Money(c) : null, plan.Source, plan.Period,
+            Money(plan.Planned - spent), expected is { } e ? Money(e) : null, state);
     }
 
     private static int Index(YearMonth month) => month.Year * 12 + month.Month;

@@ -6,11 +6,15 @@ namespace Nid.Banking.Application.Reconciliation;
 /// <summary>5C spec §6.1: every module's expected charges for a person, and their amounts in a line's currency (D25).</summary>
 public sealed class ExpectedChargeReader(IEnumerable<IExpectedCharges> sources, IAccessPolicy policy, IFxRates fx, IAccountStore accounts)
 {
-    public async Task<IReadOnlyList<ExpectedCharge>> ReadableAsync(PersonId person, LocalDate from, LocalDate to, CancellationToken ct)
+    public Task<IReadOnlyList<ExpectedCharge>> ReadableAsync(PersonId person, LocalDate from, LocalDate to, CancellationToken ct)
+        => InScopeAsync(person, VisibilityScope.Me, from, to, ct);
+
+    /// <summary>Every module's charges on the items the person sees in <paramref name="scope"/>; a module that fails adds none.</summary>
+    public async Task<IReadOnlyList<ExpectedCharge>> InScopeAsync(PersonId person, VisibilityScope scope, LocalDate from, LocalDate to, CancellationToken ct)
     {
         var charges = new List<ExpectedCharge>();
         foreach (var source in sources)
-            if ((await source.ChargesAsync(person, VisibilityScope.Me, from, to, ct)).TryGetValue(out var found))
+            if ((await source.ChargesAsync(person, scope, from, to, ct)).TryGetValue(out var found))
                 charges.AddRange(found);
         return charges;
     }

@@ -60328,6 +60328,47 @@
           }
         }
       },
+      "SpendingBudgetView": {
+        "required": [
+          "planned",
+          "source",
+          "period",
+          "left"
+        ],
+        "type": "object",
+        "properties": {
+          "planned": {
+            "type": "string"
+          },
+          "committed": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "source": {
+            "type": "string"
+          },
+          "period": {
+            "type": "string"
+          },
+          "left": {
+            "type": "string"
+          },
+          "expectedSoFar": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "state": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "SpendingCategoryView": {
         "required": [
           "id",
@@ -60358,6 +60399,16 @@
             "items": {
               "$ref": "#/components/schemas/SpendingCategoryView"
             }
+          },
+          "budget": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SpendingBudgetView"
+              }
+            ]
           }
         }
       },
