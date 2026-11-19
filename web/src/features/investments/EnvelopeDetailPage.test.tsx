@@ -388,8 +388,84 @@ describe('EnvelopeDetailPage', () => {
     await renderApp(`/investments/${PEA}`);
 
     const figuresBlock = await screen.findByRole('region', { name: 'Valeur et gain' });
-    expect(await within(figuresBlock).findByText('Relié à Compte titres BNP · dernier solde du 30/09')).toBeInTheDocument();
+    expect(await within(figuresBlock).findByText('Relié à Compte titres BNP · dernier solde du 30/09 · pas encore appliqué')).toBeInTheDocument();
     expect(within(figuresBlock).getByText('Solde bancaire du 31/08 non appliqué : une valeur saisie existe à cette date')).toBeInTheDocument();
+  });
+
+  describe('what awaits approval (#373)', () => {
+    const account = (over: Record<string, unknown> = {}) => ({
+      id: 'b1', name: 'Compte courant', ibanMasked: '1234', kind: 'checking', currency: 'EUR', envelopeId: PEA, cardOfAccountId: null,
+      autoApplyBalance: false, ignored: false, balanceConflictOn: null, lastBalance: '1234.56', lastBalanceOn: '2025-11-19', synced: true, canWrite: true, ...over,
+    });
+    const proposal = (id: string, over: Record<string, unknown> = {}) => ({
+      id, kind: 'investments.record_valuation', targetItemId: PEA, status: 'pending', payloadVersion: 1, warnings: [],
+      payload: { asOf: '2025-11-19', amount: eur('1234.56'), note: 'Solde bancaire du 19/11/2025' }, editedPayload: null,
+      subjectKey: '2025-11-19', sourceLabel: 'Banque', createdVia: 'job', createdAt: '2025-11-19T08:00:00Z', createdByPersonId: 'p1',
+      supersededById: null, decidedAt: null, decidedByPersonId: null, decisionNote: null, appliedRefs: [], version: 3, targetName: 'Compte courant',
+      documentId: null, ...over,
+    });
+    const banking = (accounts: unknown[], proposals: unknown[]) => server.use(
+      http.get('*/api/v1/banking/status', () => HttpResponse.json({ enabled: true, configured: true })),
+      http.get('*/api/v1/banking/accounts', () => HttpResponse.json(accounts)),
+      // Filtered by the server: the page asks for this envelope's pending proposals only.
+      http.get('*/api/v1/core/proposals', ({ request }) => HttpResponse.json({
+        items: new URL(request.url).searchParams.get('targetItemId') === PEA ? proposals : [] })),
+    );
+    const empty = () => detail({ kind: 'checking', valuations: [], figures: figures({ value: null, asOf: null, netContributions: null, gain: null, gainPct: null, annualReturnPct: null, gainAfterFees: null }) });
+
+    it('shows a bank value waiting, says the value awaits approval, and approves it in place', async () => {
+      serve(empty());
+      banking([account()], [proposal('pr1')]);
+      let approved: unknown = null;
+      server.use(http.post('*/api/v1/core/proposals/:id/approve', async ({ request, params }) => {
+        approved = { id: params.id, body: await request.json() };
+        return HttpResponse.json(proposal('pr1', { status: 'approved' }));
+      }));
+      const { user } = await renderApp(`/investments/${PEA}`);
+
+      const notice = await screen.findByRole('note', { name: 'À valider' });
+      expect(notice).toHaveTextContent('Une valeur de la banque attend votre accord : 1 234,56 € au 19 nov. 2025');
+      expect(within(notice).getByRole('link', { name: 'Voir dans À valider' })).toHaveAttribute('href', '/proposals/pr1');
+      const block = screen.getByRole('region', { name: 'Valeur et gain' });
+      expect(block).toHaveTextContent('En attente de validation');
+      await waitFor(() => expect(block).toHaveTextContent('Relié à Compte courant · dernier solde du 19/11 · en attente de validation'));
+      expect(within(block).getByRole('link', { name: 'Appliquer les soldes automatiquement' })).toHaveAttribute('href', '/settings/banks?account=b1');
+
+      await user.click(within(notice).getByRole('button', { name: 'Valider' }));
+      await waitFor(() => expect(approved).toEqual({ id: 'pr1', body: { version: 3 } }));
+      await waitFor(() => expect(toasts()).toHaveTextContent('Valeur enregistrée'));
+    });
+
+    it('shows a reader who cannot write the envelope the notice without the approve action', async () => {
+      serve({ ...empty(), canWrite: false });
+      banking([account({ canWrite: false })], [proposal('pr1')]);
+      await renderApp(`/investments/${PEA}`);
+
+      const notice = await screen.findByRole('note', { name: 'À valider' });
+      expect(within(notice).queryByRole('button', { name: 'Valider' })).toBeNull();
+      expect(screen.queryByRole('link', { name: 'Appliquer les soldes automatiquement' })).toBeNull();
+    });
+
+    it('counts several proposals and links to the list narrowed to this envelope', async () => {
+      serve(detail());
+      banking([], [proposal('pr1'), proposal('pr2', { kind: 'investments.record_holdings_snapshot', sourceLabel: 'Relevé' })]);
+      await renderApp(`/investments/${PEA}`);
+
+      const notice = await screen.findByRole('note', { name: 'À valider' });
+      expect(notice).toHaveTextContent('2 propositions attendent votre accord');
+      expect(within(notice).queryByRole('button', { name: 'Valider' })).toBeNull();
+      expect(within(notice).getByRole('link', { name: 'Voir dans À valider' })).toHaveAttribute('href', `/proposals?target=${PEA}`);
+    });
+
+    it('says the last balance was applied once a bank value covers it', async () => {
+      serve(detail({ valuations: [{ id: 'v1', asOf: '2025-11-19', amount: eur('1234.56'), note: null, fromBank: true }] }));
+      banking([account({ autoApplyBalance: true })], []);
+      await renderApp(`/investments/${PEA}`);
+
+      const block = await screen.findByRole('region', { name: 'Valeur et gain' });
+      expect(await within(block).findByText(/dernier solde du 19\/11 · appliqué$/)).toBeInTheDocument();
+      expect(screen.queryByRole('note', { name: 'À valider' })).toBeNull();
+    });
   });
 
   it('says nothing about a bank while bank sync is off', async () => {

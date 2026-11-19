@@ -35,8 +35,8 @@ public static class ProposalEndpoints
             .Produces<ProposalView>(StatusCodes.Status200OK) // a deduplicated submission
             .Produces(StatusCodes.Status204NoContent); // a conforme document
 
-        api.MapGet("", async (string? status, IInvoker invoker, CancellationToken ct)
-                => await ShownAsync(await invoker.InvokeAsync(new ListProposalsQuery(status), ct),
+        api.MapGet("", async (string? status, Guid? targetItemId, IInvoker invoker, CancellationToken ct)
+                => await ShownAsync(await invoker.InvokeAsync(new ListProposalsQuery(status, targetItemId is { } t ? new ItemId(t) : null), ct),
                     async list => list with { Items = await HideDocumentsAsync(invoker, list.Items, ct) }))
             .Returns<ProposalList>();
 

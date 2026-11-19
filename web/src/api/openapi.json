@@ -2323,6 +2323,14 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "targetItemId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
         ],
         "responses": {
@@ -63449,7 +63457,8 @@
         "required": [
           "id",
           "asOf",
-          "amount"
+          "amount",
+          "fromBank"
         ],
         "type": "object",
         "properties": {
@@ -63476,6 +63485,10 @@
               "string"
             ],
             "format": "uuid"
+          },
+          "fromBank": {
+            "type": "boolean",
+            "default": false
           }
         }
       },

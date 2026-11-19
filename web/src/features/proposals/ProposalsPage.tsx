@@ -15,6 +15,7 @@ import { PROPOSALS, type ProposalView } from '@/api/proposals';
 import { kindOf, originText } from './kinds';
 import { isRouteKind, routeSummary, useNames } from './routeKind';
 import '@/locales/forms';
+import '@/locales/proposals';
 
 const STATUSES = ['pending', 'approved', 'rejected'] as const;
 
@@ -25,7 +26,7 @@ export function ProposalsPage() {
   const search: RootSearch & ProposalsSearch = useSearch({ strict: false });
   const navigate = useNavigate();
   const status = search.status ?? 'pending';
-  const answer = $api.useQuery('get', PROPOSALS, { params: { query: { status } } });
+  const answer = $api.useQuery('get', PROPOSALS, { params: { query: { status, ...(search.target ? { targetItemId: search.target } : {}) } } });
   const names = useNames(answer.data?.items.map((p) => p.kind) ?? []);
   const setStatus = (s: string) =>
     void navigate({ to: '/proposals', search: (prev) => ({ ...prev, status: s === 'approved' || s === 'rejected' ? s : undefined }), replace: true, resetScroll: false });
@@ -35,7 +36,14 @@ export function ProposalsPage() {
       : t('proposals.unknown_summary', { kind: p.kind, target: p.targetName ?? t('proposals.unknown_target') }));
 
   const list = (
-    <div>
+    <div className="space-y-2">
+      {search.target ? (
+        <p className="text-sm">
+          {t('proposal.narrowed', { name: answer.data?.items[0]?.targetName ?? t('proposals.unknown_target') })}
+          {' · '}
+          <Link to="/proposals" search={search.status ? { status: search.status } : {}} className="underline">{t('proposal.show_all')}</Link>
+        </p>
+      ) : null}
       {answer.error ? <ProblemMessage problem={present(toProblem(answer.error))} /> : null}
       {!answer.data && !answer.error ? <div role="status" aria-busy="true" aria-label={t('proposals.loading')} className="h-24 shimmer rounded-md border bg-muted" /> : null}
       {answer.data && answer.data.items.length === 0 ? <EmptyState module="/proposals" title={t(`proposals.empty.${status}`)} body={t(`proposals.empty_body.${status}`)} /> : null}

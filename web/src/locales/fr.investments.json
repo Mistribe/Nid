@@ -43,6 +43,17 @@
   "envelope": {
     "loading": "Chargement de l’enveloppe",
     "figures": "Valeur et gain",
+    "value_pending": "En attente de validation",
+    "pending": {
+      "label": "À valider",
+      "bank_value": "Une valeur de la banque attend votre accord : {{amount}} au {{date}}",
+      "value": "Une valeur attend votre accord : {{amount}} au {{date}}",
+      "many_one": "{{count}} proposition attend votre accord",
+      "many_other": "{{count}} propositions attendent votre accord",
+      "approve": "Valider",
+      "see": "Voir dans À valider",
+      "approved": "Valeur enregistrée"
+    },
     "evolution": "Évolution",
     "period": {
       "title": "Performance d’une période",

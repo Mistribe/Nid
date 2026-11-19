@@ -140,7 +140,11 @@
     "envelope_note": {
       "linked": "Relié à {{name}}",
       "last": "Relié à {{name}} · dernier solde du {{date}}",
-      "conflict": "Solde bancaire du {{date}} non appliqué : une valeur saisie existe à cette date"
+      "conflict": "Solde bancaire du {{date}} non appliqué : une valeur saisie existe à cette date",
+      "pending": "en attente de validation",
+      "written": "appliqué",
+      "not_written": "pas encore appliqué",
+      "auto": "Appliquer les soldes automatiquement"
     },
     "routine_balance": "Solde bancaire du {{date}}",
     "operations": {
