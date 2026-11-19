@@ -47,6 +47,9 @@ internal sealed record AmountDto(string Currency, string Amount);
 
 internal sealed record ErrorDto(string? Error = null);
 
+/// <summary><c>GET /application</c>: only what the connection test shows; the name, countries and services are not read.</summary>
+internal sealed record ApplicationDto(bool Active, List<string>? RedirectUrls = null);
+
 // A missing or null required field is a JsonException (a provider error), never a null slipping through: optional ones have defaults.
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     RespectNullableAnnotations = true, RespectRequiredConstructorParameters = true)]
@@ -58,4 +61,5 @@ internal sealed record ErrorDto(string? Error = null);
 [JsonSerializable(typeof(BalancesDto))]
 [JsonSerializable(typeof(TransactionsDto))]
 [JsonSerializable(typeof(ErrorDto))]
+[JsonSerializable(typeof(ApplicationDto))]
 internal sealed partial class EbJson : JsonSerializerContext;

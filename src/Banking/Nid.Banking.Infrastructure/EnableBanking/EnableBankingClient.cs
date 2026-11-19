@@ -98,6 +98,10 @@ public sealed class EnableBankingClient(SafeHttpClient http, BankingOptions opti
         return result.TryGetFailure(out var failure) ? Result.Failure(failure!) : Result.Success();
     }
 
+    public async Task<Result<EnableBankingApplication>> ApplicationAsync(string appId, CancellationToken ct)
+        => Map(await CallAsync<ApplicationDto>(HttpMethod.Get, "/application", null, appId, null, ct),
+            dto => new EnableBankingApplication(dto.Active, dto.RedirectUrls ?? []));
+
     private static Result<T> Map<S, T>(Result<S> result, Func<S, T> map)
         where S : notnull where T : notnull
     {

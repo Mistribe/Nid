@@ -144,7 +144,7 @@ function Connections({ configured }: { configured: boolean }) {
   return (
     <div className="space-y-6">
       {arrival.error ? <p role="alert" className="text-sm text-destructive">{bankErrorText(t, arrival.error, t('banks.error.generic'))}</p> : null}
-      {configured ? null : <p>{t('banks.not_configured')}</p>}
+      {configured ? null : <NotConfigured />}
       {connections.error ? <ProblemMessage problem={present(toProblem(connections.error))} /> : null}
       {configured && !connections.data && !connections.error ? <Skeleton aria-busy="true" className="h-32"><span className="sr-only">{t('banks.loading')}</span></Skeleton> : null}
       {connections.data?.length === 0 ? <EmptyState module="/settings/appearance" title={t('banks.empty_title')} body={t('banks.empty_body')} action={connect} /> : null}
@@ -315,5 +315,20 @@ function RuleActions({ rule, menuId }: { rule: BankRule; menuId: string }) {
       confirmation={t('banks.rules.delete_confirm', { stem: rule.labelStem })} remove={remove}
       onConfirm={() => remove.mutate({ params: { path: { id: rule.id } } })}
       present={(_, error) => present(toProblem(error))} invalidate={invalidateRules} />
+  );
+}
+
+/** Issue #343: the administrator, whom the server tells what is missing, gets which part and the way to their page; the others the plain sentence. */
+function NotConfigured() {
+  const { t } = useTranslation();
+  const status = useBankingStatus().data;
+  if (status?.appIdSaved == null) return <p>{t('banks.not_configured')}</p>;
+  const sentence = status.appIdSaved ? t('banks.not_configured_key')
+    : status.keyStatus === 'loaded' ? t('banks.not_configured_app_id') : t('banks.not_configured_both');
+  return (
+    <p>
+      {sentence}{' '}
+      <Link to="/admin/banking" className="underline underline-offset-4">{t('banks.open_admin_banking')}</Link>
+    </p>
   );
 }

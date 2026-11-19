@@ -13439,6 +13439,164 @@
         }
       }
     },
+    "/api/v1/admin/banking/diagnostics": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BankingDiagnosticsView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/banking/test": {
+      "post": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BankingConnectionTestView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/childcare": {
       "get": {
         "tags": [
@@ -33950,6 +34108,54 @@
           }
         }
       },
+      "BankingConnectionTestView": {
+        "required": [
+          "outcome"
+        ],
+        "type": "object",
+        "properties": {
+          "outcome": {
+            "type": "string"
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "active": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "redirectUrlAllowed": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          }
+        }
+      },
+      "BankingDiagnosticsView": {
+        "required": [
+          "keyStatus",
+          "appIdSaved",
+          "redirectUrl"
+        ],
+        "type": "object",
+        "properties": {
+          "keyStatus": {
+            "type": "string"
+          },
+          "appIdSaved": {
+            "type": "boolean"
+          },
+          "redirectUrl": {
+            "type": "string"
+          }
+        }
+      },
       "BankingStatusView": {
         "required": [
           "enabled",
@@ -33962,6 +34168,18 @@
           },
           "configured": {
             "type": "boolean"
+          },
+          "appIdSaved": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "keyStatus": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },

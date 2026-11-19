@@ -204,6 +204,15 @@ public static class BankingEndpoints
             => (await invoker.InvokeAsync(new GetBankSyncRunsQuery(page), ct)).ToHttp(runs => runs))
             .Returns<BankSyncRunPage>();
 
+        // Issue #343: why bank sync is not configured, and Enable Banking's answer to the saved id and key.
+        admin.MapGet("/diagnostics", async (IOptions<NidAuthOptions> auth, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new GetBankingDiagnosticsQuery(Callback(auth)), ct)).ToHttp(diagnostics => diagnostics))
+            .Returns<BankingDiagnosticsView>();
+
+        admin.MapPost("/test", async (IOptions<NidAuthOptions> auth, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new TestBankingConnectionCommand(Callback(auth)), ct)).ToHttp(test => test))
+            .Returns<BankingConnectionTestView>();
+
         return routes;
     }
 
