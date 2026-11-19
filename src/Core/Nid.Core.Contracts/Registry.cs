@@ -166,6 +166,12 @@ public interface IItemRegistry
     /// </summary>
     Task<Result> SetShareLevelAsync(ItemId id, ShareLevel level, CancellationToken ct);
 
+    /// <summary>
+    /// #355: the currency of an item created in <see cref="Currency.None"/> (an envelope made from a bank account whose currency the bank
+    /// did not state), once it is known; an item in any other currency is left as it is. Checks no access.
+    /// </summary>
+    Task ResolveCurrencyAsync(ItemId id, Currency currency, CancellationToken ct);
+
     /// <summary>2B1a: archives the item (a closed envelope). Checks no access: the caller has.</summary>
     Task<Result> ArchiveAsync(ItemId id, Instant at, CancellationToken ct);
 

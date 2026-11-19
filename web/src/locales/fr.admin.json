@@ -178,6 +178,7 @@
         "banking_sync_run_interrupted": "Nid s’est arrêté pendant la synchronisation.",
         "banking_sync_run_crashed": "La lecture d’une banque a échoué de façon imprévue ; les autres ont été lues.",
         "banking_transactions_truncated": "Une banque avait plus d’opérations que Nid n’en lit en une fois : une partie n’a pas été lue.",
+        "banking_currency_unknown": "Une banque n’a pas indiqué la devise d’un compte, et ses soldes n’en nommaient pas une seule : ce compte n’a pas été lu.",
         "enablebanking_EXPIRED_SESSION": "Le consentement d’une banque a expiré : l’adulte concerné le renouvelle dans Réglages › Banques.",
         "enablebanking_REVOKED_SESSION": "Une banque a retiré son consentement : l’adulte concerné la relie de nouveau dans Réglages › Banques.",
         "enablebanking_CLOSED_SESSION": "Une banque a retiré son consentement : l’adulte concerné la relie de nouveau dans Réglages › Banques.",
