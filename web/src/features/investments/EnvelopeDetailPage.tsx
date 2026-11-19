@@ -43,7 +43,7 @@ import { SaleTaxSection } from '@/features/tax/SaleTaxSection';
 import '@/locales/investments';
 import { ItemDocuments } from '@/features/documents/ItemDocuments';
 import '@/locales/documents';
-import { ASSOCIABLE, dayMonth, useBankAccounts, useBankingStatus } from '@/api/banking';
+import { accountLabel, ASSOCIABLE, dayMonth, useBankAccounts, useBankingStatus } from '@/api/banking';
 import '@/locales/banks';
 import '@/locales/deletion';
 import { PageSkeleton } from '@/components/page/skeletons';
@@ -264,7 +264,7 @@ export function EnvelopeDetailPage() {
           ) : null}
           {bank ? (
             <p className="text-sm text-muted-foreground">
-              {bank.lastBalanceOn ? t('banks.envelope_note.last', { name: bank.name, date: dayMonth(bank.lastBalanceOn) }) : t('banks.envelope_note.linked', { name: bank.name })}
+              {bank.lastBalanceOn ? t('banks.envelope_note.last', { name: accountLabel(t, bank), date: dayMonth(bank.lastBalanceOn) }) : t('banks.envelope_note.linked', { name: accountLabel(t, bank) })}
             </p>
           ) : null}
           {bank?.balanceConflictOn ? (

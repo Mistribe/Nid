@@ -8,7 +8,7 @@ export const CARD = '00000000-0000-7000-8000-0000000000b3';
 export const JOINT = '00000000-0000-7000-8000-0000000000e1';
 
 export const account = (over: Partial<BankAccount> = {}): BankAccount => ({
-  id: CHECKING, name: 'Compte courant', ibanMasked: 'FR76 •••• 1234', kind: 'checking', currency: 'EUR', envelopeId: null,
+  id: CHECKING, name: 'Compte courant', ibanMasked: '1234', kind: 'checking', currency: 'EUR', envelopeId: null,
   cardOfAccountId: null, autoApplyBalance: false, ignored: false, balanceConflictOn: null, lastBalance: '1520.30', lastBalanceOn: '2026-09-30',
   synced: true, canWrite: true, ...over,
 });
