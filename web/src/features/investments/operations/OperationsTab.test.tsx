@@ -13,7 +13,7 @@ import type { BankTransaction } from '@/api/banking';
 const line = (over: Partial<BankTransaction> = {}): BankTransaction => ({
   id: 't1', bookedOn: '2026-10-27', valueOn: null, amount: '2450.00', currency: 'EUR', label: 'VIR SEPA SOCIETE EXEMPLE SAS',
   counterparty: 'Société Exemple', fromCard: false, cardName: null, fetchedVia: 'file', linkState: 'unlinked', link: null,
-  accountName: 'Compte courant', ...over,
+  accountName: 'Compte courant', category: null, categorySource: null, ...over,
 });
 
 /** Banking on (not configured: files alone), the envelope, and its lines page by page; every query string is kept. */
@@ -109,6 +109,37 @@ describe('« Opérations »', () => {
     expect(rows[1]).toHaveTextContent('Reliée · Netflix');
     expect(rows[2]).toHaveTextContent('Interne · Livret A');
     expect(rows[3]).toHaveTextContent('Ignorée');
+  });
+
+  it('shows a line’s category and where it comes from, « — » when it has none', async () => {
+    serve([[
+      line({ id: 'a', category: { id: 'groceries', name: 'Courses', parentId: 'food', parentName: 'Alimentation', kind: 'expense' }, categorySource: 'hand' }),
+      line({ id: 'b' }),
+    ]]);
+    const { container } = await renderApp(`/investments/${PEA}?tab=operations`);
+
+    const table = await screen.findByRole('table', { name: 'Opérations' });
+    expect(within(table).getByRole('columnheader', { name: /Catégorie/ })).toBeInTheDocument();
+    const rows = within(table).getAllByRole('row').slice(1);
+    expect(rows[0]).toHaveTextContent('CoursesVous');
+    expect(within(rows[0]!).getByRole('button', { name: 'À propos : Vous' })).toBeInTheDocument();
+    expect(rows[1]).toHaveTextContent('—');
+    expect(screen.getByRole('list', { name: 'Opérations' })).toHaveTextContent('Courses');
+    await expectNoAxeViolations(container);
+  });
+
+  it('offers « Catégoriser… » on every line but an ignored one', async () => {
+    serve([[line({ id: 'a', linkState: 'linked', link: null }), line({ id: 'b', linkState: 'ignored' })]]);
+    const { user } = await renderApp(`/investments/${PEA}?tab=operations`);
+
+    const table = await screen.findByRole('table', { name: 'Opérations' });
+    const [linked, ignored] = within(table).getAllByRole('button', { name: /Actions/ });
+    await user.click(linked!);
+    expect(await screen.findByRole('menuitem', { name: 'Catégoriser…' })).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    await user.click(ignored!);
+    await screen.findByRole('menuitem', { name: 'Délier' });
+    expect(screen.queryByRole('menuitem', { name: 'Catégoriser…' })).toBeNull();
   });
 
   it('a masked link reads « Reliée » only', async () => {

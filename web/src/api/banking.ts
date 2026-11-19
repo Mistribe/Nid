@@ -60,6 +60,19 @@ export const STATEMENTS = '/api/v1/banking/statements' as const;
 export const UNLINKED_LINES = '/api/v1/banking/transactions' as const;
 export const CANDIDATES = '/api/v1/banking/transactions/{id}/candidates' as const;
 
+/** The household's bank categories (archived and merged ones included) and a line's category (`features/operations`). */
+export type BankCategory = components['schemas']['BankCategoryView'];
+export const CATEGORIES = '/api/v1/banking/categories' as const;
+export const CATEGORY = '/api/v1/banking/categories/{id}' as const;
+export const CATEGORY_MERGE = '/api/v1/banking/categories/{id}/merge' as const;
+export const TRANSACTION_CATEGORY = '/api/v1/banking/transactions/{id}/category' as const;
+
+/** Every bank category of the household, archived and merged ones included. */
+export function useCategories() {
+  const { $api } = useApi();
+  return $api.useQuery('get', CATEGORIES);
+}
+
 /** « 2026-09-30 » as « 30/09 »: the day of a balance, as the notes and the routine write it (a string swap, nothing computed). */
 export const dayMonth = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
 

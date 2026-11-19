@@ -130,7 +130,9 @@
       "done_link": "Opération reliée.",
       "done_ignore": "Opération ignorée.",
       "done_unlink": "Opération déliée.",
-      "to_link": "Opérations à relier",
+      "categorise": "Catégoriser…",
+      "done_category": "Catégorie enregistrée.",
+      "to_link":"Opérations à relier",
       "to_link_empty": "Aucune opération à relier.",
       "empty": "Aucune opération.",
       "empty_period": "Aucune opération sur cette période."
@@ -144,6 +146,25 @@
       "empty": "Aucune charge attendue proche",
       "gap": "écart {{gap}}",
       "submit": "Relier"
+    },
+    "categories": {
+      "column": "Catégorie",
+      "title": "Catégoriser l'opération",
+      "field": "Catégorie",
+      "pick": "Choisir une catégorie",
+      "search": "Rechercher une catégorie",
+      "none_found": "Aucune catégorie",
+      "uncategorised": "Sans catégorie",
+      "auto": "Laisser Nid décider",
+      "submit": "Enregistrer",
+      "source": { "link": "Reliée", "rule": "Règle", "hand": "Vous", "assistant": "Assistant", "hint": "Suggestion de la banque" },
+      "source_about": {
+        "link": "Reliée : la catégorie vient de ce que la ligne paie.",
+        "rule": "Règle : une règle du foyer l'a classée.",
+        "hand": "Vous : choisie à la main.",
+        "assistant": "Assistant : proposée par l'assistant et validée.",
+        "hint": "Suggestion de la banque : déduite du code de l'opération."
+      }
     },
     "import": {
       "open": "Importer un relevé",
