@@ -31,14 +31,21 @@ public sealed class CategoriseProposal(
 
     private sealed record Entry(Guid Transaction, Guid Category);
 
-    /// <summary>A line of the payload as the actor sees it: <paramref name="Line"/> null when unknown or unreadable.</summary>
-    private sealed record Seen(Entry Entry, BankTransaction? Line, BankAccount? Account, bool CanWrite);
+    /// <summary>
+    /// A line of the payload as the actor sees it: <paramref name="Line"/> null when unknown or unreadable; <paramref name="CategoryActive"/>
+    /// false once its category was archived or merged.
+    /// </summary>
+    private sealed record Seen(Entry Entry, BankTransaction? Line, BankAccount? Account, bool CanWrite, bool CategoryActive);
 
     public async Task<Result<ProposalCheck>> ValidateAsync(ItemId target, JsonElement payload, bool edited, CancellationToken ct)
     {
         var parsed = Parse(payload);
         if (!parsed.TryGetValue(out var entries))
             return Result.Failure<ProposalCheck>(FailureOf(parsed));
+        // Only a submission is checked against the current categories and lines (Core sets approving.Id before an approval's check; this kind
+        // has no nested submission). Approved, a line whose category went out of use or that the approver no longer reads is skipped instead.
+        if (approving.Id is not null)
+            return Result.Success(new ProposalCheck(null, [], Normalized(entries!)));
         var named = (await categories.AllAsync(ct)).ToDictionary(c => c.Id);
         for (var i = 0; i < entries!.Count; i++)
         {
@@ -49,9 +56,8 @@ public sealed class CategoriseProposal(
                 return Result.Failure<ProposalCheck>(FieldErrors.At(
                     new Failure(BankingCodes.CategoryArchived, "A line takes only a category in use.", null), $"payload.lines[{i}].categoryId"));
         }
-        // Submitted, every line is one the submitter reads (an unknown one answers the same: its existence is not told). Approved, a line
-        // the approver no longer reads is skipped, not refused.
-        if (approving.Id is null && (await SeeAsync(entries, ct)).FirstOrDefault(s => s.Line is null) is { } unread)
+        // Every line is one the submitter reads: an unknown one answers the same, its existence is not told.
+        if ((await SeeAsync(entries, ct)).FirstOrDefault(s => s.Line is null) is { } unread)
             return BankLines.NotFound<ProposalCheck>(unread.Entry.Transaction);
         return Result.Success(new ProposalCheck(null, [], Normalized(entries)));
     }
@@ -61,7 +67,8 @@ public sealed class CategoriseProposal(
 
     /// <summary>
     /// `{ count, hidden, lines [{ transactionId, bookedOn, label, accountName, amount, currency, current, proposed, applies }] }`: only the lines
-    /// the viewer reads, the others counted in `hidden`; `applies` is false for a line the viewer does not write or a person categorised.
+    /// the viewer reads, the others counted in `hidden`; `applies` is false for a line the viewer does not write, a person categorised, or
+    /// whose proposed category went out of use.
     /// </summary>
     public async Task<JsonElement> PreviewAsync(ItemId target, JsonElement payload, CancellationToken ct)
     {
@@ -95,21 +102,34 @@ public sealed class CategoriseProposal(
         // Not byPerson: the store's precedence then leaves a hand or assistant category set since the read above.
         foreach (var group in applying.GroupBy(e => e.Category))
             applied += await categories.SetForLinesAsync([.. group.Select(e => e.Transaction)], group.Key, CategorySource.Assistant, by, now, byPerson: false, ct);
-        logger.LogInformation("Categorise proposal: {Applied} lines applied, {Skipped} skipped", applied, entries!.Count - applied);
-        return Result.Success<IReadOnlyList<Guid>>([.. applying.Select(e => e.Transaction)]);
+        // Fewer written than chosen: a person categorised some meanwhile. Read back, in this transaction, which ones the write took.
+        var written = applied == applying.Count ? applying.Select(e => e.Transaction).ToList() : await WrittenAsync(applying, ct);
+        logger.LogInformation("Categorise proposal: {Applied} lines applied, {Skipped} skipped", written.Count, entries!.Count - written.Count);
+        return Result.Success<IReadOnlyList<Guid>>(written);
     }
 
-    private static bool Applies(Seen s) => s is { Line: not null, CanWrite: true }
+    private static bool Applies(Seen s) => s is { Line: not null, CanWrite: true, CategoryActive: true }
         && s.Line.CategorySource is not (CategorySource.Hand or CategorySource.Assistant);
+
+    private async Task<List<Guid>> WrittenAsync(IReadOnlyList<Entry> applying, CancellationToken ct)
+    {
+        var written = new List<Guid>();
+        foreach (var e in applying)
+            if (await transactions.FindAsync(e.Transaction, ct) is { CategorySource: CategorySource.Assistant } line && line.Category == e.Category)
+                written.Add(e.Transaction);
+        return written;
+    }
 
     private async Task<IReadOnlyList<Seen>> SeeAsync(IReadOnlyList<Entry> entries, CancellationToken ct)
     {
         var readable = (await access.ReadableAsync(await accounts.AllAsync(ct), ct)).ToDictionary(r => r.Account.Id);
+        var active = (await categories.AllAsync(ct)).Where(c => c.ArchivedAt is null).Select(c => c.Id).ToHashSet();
         var seen = new List<Seen>();
+        // ponytail: one lookup per line (at most 100); use a batch find once ITransactionStore has one.
         foreach (var entry in entries)
             seen.Add(await transactions.FindAsync(entry.Transaction, ct) is { } line && readable.TryGetValue(line.Account, out var account)
-                ? new Seen(entry, line, account.Account, account.CanWrite)
-                : new Seen(entry, null, null, false));
+                ? new Seen(entry, line, account.Account, account.CanWrite, active.Contains(entry.Category))
+                : new Seen(entry, null, null, false, false));
         return seen;
     }
 

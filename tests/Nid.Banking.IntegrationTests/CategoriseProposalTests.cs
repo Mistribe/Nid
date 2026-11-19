@@ -156,6 +156,28 @@ public class CategoriseProposalTests(PostgresFixture fixture) : IClassFixture<Po
     }
 
     [Fact]
+    public async Task A_category_archived_since_submission_is_skipped_at_approval()
+    {
+        await using var s = await StartAsync(fixture);
+        var app = s.App;
+        var kept = await AddAsync(app, s.OfB, "b1", -30m);
+        var dropped = await AddAsync(app, s.OfB, "b2", -18m, "UBER EATS");
+        var proposal = await JsonOf(await ProposeAsync(app, app.AdultB, (kept, Seed("food.groceries")), (dropped, Seed("food.delivery"))));
+        var id = proposal.GetProperty("id").GetGuid();
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{BankingApi.Root}/categories/{Seed("food.delivery")}",
+            new { archived = true })).StatusCode);
+
+        var shown = (await PreviewAsync(app, app.AdultB, id)).GetProperty("lines").EnumerateArray().ToDictionary(l => l.GetProperty("transactionId").GetGuid());
+        Assert.Equal((true, false), (shown[kept].GetProperty("applies").GetBoolean(), shown[dropped].GetProperty("applies").GetBoolean()));
+        var approved = await app.RawAsync(app.AdultB, HttpMethod.Post, $"{Proposals}/{id}/approve", new { version = proposal.GetProperty("version").GetUInt32() });
+
+        Assert.True(approved.StatusCode == HttpStatusCode.OK, await approved.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        Assert.Equal([kept], (await JsonOf(approved)).GetProperty("appliedRefs").EnumerateArray().Select(r => r.GetGuid()));
+        Assert.Equal((Seed("food.groceries"), CategorySource.Assistant), ((await LineAsync(app, kept)).Category, (await LineAsync(app, kept)).CategorySource));
+        Assert.Null((await LineAsync(app, dropped)).CategorySource);
+    }
+
+    [Fact]
     public async Task More_than_100_lines_is_refused()
     {
         await using var s = await StartAsync(fixture);
