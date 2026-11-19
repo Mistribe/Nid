@@ -31542,6 +31542,11 @@ export interface components {
             keyStatus: string;
             appIdSaved: boolean;
             redirectUrl: string;
+            lastRun?: null | components["schemas"]["BankSyncRunView"];
+            /** Format: date-time */
+            nextRunAt?: null | string;
+            /** @default false */
+            bankLinked: boolean;
         };
         BankingStatusView: {
             enabled: boolean;

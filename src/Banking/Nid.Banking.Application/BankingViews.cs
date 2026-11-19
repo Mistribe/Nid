@@ -12,9 +12,11 @@ public sealed record BankingStatusView(bool Enabled, bool Configured, bool? AppI
 
 /// <summary>
 /// Issue #343, Administration › Banque: the key's <see cref="BankingKeyStatus"/> (never the key), whether an application id is saved, and
-/// the redirect URL Nid sends the banks to, which the application must declare.
+/// the redirect URL Nid sends the banks to, which the application must declare. Issue #344: the last run, the next nightly run
+/// (<c>null</c> when this instance schedules no job) and whether any adult has a bank connection the sync reads.
 /// </summary>
-public sealed record BankingDiagnosticsView(string KeyStatus, bool AppIdSaved, string RedirectUrl);
+public sealed record BankingDiagnosticsView(
+    string KeyStatus, bool AppIdSaved, string RedirectUrl, BankSyncRunView? LastRun = null, DateTimeOffset? NextRunAt = null, bool BankLinked = false);
 
 /// <summary>
 /// Issue #343, « Tester la connexion »: <paramref name="Outcome"/> is <c>accepted</c>, <c>rejected</c> (Enable Banking answered with

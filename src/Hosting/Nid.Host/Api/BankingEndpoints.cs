@@ -9,6 +9,7 @@ using Nid.Banking.Domain.Files;
 using Nid.Core.Contracts;
 using Nid.Host.Composition;
 using Nid.Host.Auth;
+using Nid.Platform.Admin;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Functional.Failures;
 using UnambitiousFx.Synapse.Abstractions;
@@ -205,8 +206,12 @@ public static class BankingEndpoints
             .Returns<BankSyncRunPage>();
 
         // Issue #343: why bank sync is not configured, and Enable Banking's answer to the saved id and key.
-        admin.MapGet("/diagnostics", async (IOptions<NidAuthOptions> auth, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new GetBankingDiagnosticsQuery(Callback(auth)), ct)).ToHttp(diagnostics => diagnostics))
+        admin.MapGet("/diagnostics", async (IOptions<NidAuthOptions> auth, IJobStatusReader jobs, IInvoker invoker, CancellationToken ct) =>
+            {
+                // Issue #344: the scheduler is the host's; none when this instance runs no job.
+                var next = (await jobs.ListAsync(ct)).FirstOrDefault(j => j.Key == Nid.Host.Jobs.BankingJobs.NightlyKey.Name)?.NextRunAt;
+                return (await invoker.InvokeAsync(new GetBankingDiagnosticsQuery(Callback(auth), next), ct)).ToHttp(diagnostics => diagnostics);
+            })
             .Returns<BankingDiagnosticsView>();
 
         admin.MapPost("/test", async (IOptions<NidAuthOptions> auth, IInvoker invoker, CancellationToken ct)

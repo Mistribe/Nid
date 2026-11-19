@@ -34141,7 +34141,8 @@
         "required": [
           "keyStatus",
           "appIdSaved",
-          "redirectUrl"
+          "redirectUrl",
+          "bankLinked"
         ],
         "type": "object",
         "properties": {
@@ -34153,6 +34154,27 @@
           },
           "redirectUrl": {
             "type": "string"
+          },
+          "lastRun": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/BankSyncRunView"
+              }
+            ]
+          },
+          "nextRunAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "bankLinked": {
+            "type": "boolean",
+            "default": false
           }
         }
       },
