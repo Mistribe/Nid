@@ -127,12 +127,17 @@ public class TransactionReadTests(PostgresFixture fixture) : IClassFixture<Postg
         var refused = await app.RawAsync(app.AdultB, HttpMethod.Get, $"{BankingApi.Root}/envelopes/{privateEnvelope.Value}/transactions");
         Assert.Equal(HttpStatusCode.NotFound, refused.StatusCode);
         Assert.DoesNotContain("SECRET", await refused.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
-        Assert.Equal(["SECRET"], Labels(await ReadAsync(app, app.AdultA, privateEnvelope)));
+        var mine = await ReadAsync(app, app.AdultA, privateEnvelope);
+        Assert.Equal(["SECRET"], Labels(mine));
+        var line = mine.GetProperty("items")[0];
+        Assert.Equal(("SECRET", false), (line.GetProperty("stem").GetString(), line.GetProperty("sharedAccount").GetBoolean()));
 
-        // On a shared envelope, B reads what A's account holds.
+        // On a shared envelope, B reads what A's account holds, and the account is every adult's.
         var shared = await app.NewEnvelopeAsync("Commun", app.AdultA, Visibility.Shared);
         Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{BankingApi.Root}/accounts/{account}", new { envelopeId = shared.Value })).StatusCode);
-        Assert.Equal(["SECRET"], Labels(await ReadAsync(app, app.AdultB, shared)));
+        var theirs = await ReadAsync(app, app.AdultB, shared);
+        Assert.Equal(["SECRET"], Labels(theirs));
+        Assert.True(theirs.GetProperty("items")[0].GetProperty("sharedAccount").GetBoolean());
     }
 
     [Fact]

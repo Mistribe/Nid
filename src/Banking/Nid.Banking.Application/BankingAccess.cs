@@ -84,6 +84,10 @@ public sealed class BankingAccess(
         return true;
     }
 
+    /// <summary>Whether every signed-up adult reads the account: a rule made from one of its lines then needs no account of its own.</summary>
+    public async Task<bool> SharedAsync(BankAccount account, CancellationToken ct)
+        => (await ReadersAsync(account, ct)).Count == (await AdultsAsync(ct)).Count();
+
     private async Task<IEnumerable<PersonId>> AdultsAsync(CancellationToken ct)
         => (await persons.ListAsync(ct)).Where(p => p.Kind == PersonKind.Adult && !p.IsPending).Select(p => p.Id);
 

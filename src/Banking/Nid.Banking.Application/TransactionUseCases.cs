@@ -57,10 +57,13 @@ public sealed record BankTransactionPage(IReadOnlyList<BankTransactionView> Item
 /// <paramref name="AccountName"/> the line's own account. <paramref name="Link"/> is null when the line is not linked, or its target is
 /// hidden from the reader (D19): <paramref name="LinkState"/> still says <c>linked</c> or <c>internal</c>. <paramref name="Category"/> shows to
 /// every reader of the line, link masked or not; <paramref name="CategorySource"/> is <c>hand</c>, <c>link</c>…, null when nothing chose it.
+/// <paramref name="Stem"/> is the label a rule made from the line would match (<see cref="TransactionLabel.Stem"/>), null when it has none;
+/// <paramref name="SharedAccount"/> says whether every adult reads the line's account (<paramref name="AccountId"/>, a card's own for its lines).
 /// </summary>
 public sealed record BankTransactionView(
     Guid Id, LocalDate BookedOn, LocalDate? ValueOn, string Amount, string Currency, string Label, string? Counterparty, bool FromCard,
-    string? CardName, string FetchedVia, string LinkState, LinkView? Link, string AccountName, CategoryView? Category, string? CategorySource);
+    string? CardName, string FetchedVia, string LinkState, LinkView? Link, string AccountName, CategoryView? Category, string? CategorySource,
+    Guid AccountId, string? Stem, bool SharedAccount);
 
 /// <summary>A line's category; <paramref name="Kind"/> is <c>expense</c>, <c>income</c> or <c>transfer</c>.</summary>
 public sealed record CategoryView(Guid Id, string Name, Guid? ParentId, string? ParentName, string Kind);
@@ -137,6 +140,9 @@ public sealed class BankLines(
         var targets = found.Values.Select(l => l.TargetItem).OfType<ItemId>().Distinct().ToList();
         var names = await items.FindManyAsync([.. await policy.CheckManyAsync(access.Person, targets, AccessKind.Read, ct)], ct);
         var named = (await categories.AllAsync(ct)).ToDictionary(c => c.Id);
+        var shared = new Dictionary<Guid, bool>();
+        foreach (var id in lines.Select(l => l.Account).Distinct())
+            shared[id] = await access.SharedAsync(all[id], ct);
 
         // Decision 6: the category shows whatever D19 masks; it names a category, never the link's target.
         CategoryView? Category(Guid? id) => id is { } key && named.TryGetValue(key, out var c)
@@ -161,7 +167,8 @@ public sealed class BankLines(
                 t.Id, t.BookedOn, t.ValueOn, TransactionLinker.Amount(t.Amount), t.Currency.Code, t.Label, t.Counterparty, account.CardOf is not null,
                 account.CardOf is not null ? account.Name : null, t.FetchedVia,
                 t.LinkState == TransactionLinkState.Internal && view is null ? "linked" : Wire(t.LinkState), view, account.Name,
-                Category(t.Category), t.CategorySource is { } source ? Wire(source) : null);
+                Category(t.Category), t.CategorySource is { } source ? Wire(source) : null,
+                t.Account, TransactionLabel.Stem(t.NormalizedLabel) is { Length: > 0 } stem ? stem : null, shared[t.Account]);
         })];
     }
 

@@ -35642,7 +35642,9 @@
           "fromCard",
           "fetchedVia",
           "linkState",
-          "accountName"
+          "accountName",
+          "accountId",
+          "sharedAccount"
         ],
         "type": "object",
         "properties": {
@@ -35719,6 +35721,19 @@
               "null",
               "string"
             ]
+          },
+          "accountId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "stem": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sharedAccount": {
+            "type": "boolean"
           }
         }
       },

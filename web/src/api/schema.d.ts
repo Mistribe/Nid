@@ -32715,6 +32715,10 @@ export interface components {
             accountName: string;
             category?: null | components["schemas"]["CategoryView"];
             categorySource?: null | string;
+            /** Format: uuid */
+            accountId: string;
+            stem?: null | string;
+            sharedAccount: boolean;
         };
         BatchView: {
             section: string;

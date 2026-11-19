@@ -13,7 +13,7 @@ import type { BankTransaction } from '@/api/banking';
 const line = (over: Partial<BankTransaction> = {}): BankTransaction => ({
   id: 't1', bookedOn: '2026-10-27', valueOn: null, amount: '2450.00', currency: 'EUR', label: 'VIR SEPA SOCIETE EXEMPLE SAS',
   counterparty: 'Société Exemple', fromCard: false, cardName: null, fetchedVia: 'file', linkState: 'unlinked', link: null,
-  accountName: 'Compte courant', category: null, categorySource: null, ...over,
+  accountName: 'Compte courant', category: null, categorySource: null, accountId: 'acc-1', stem: 'VIR SEPA SOCIETE EXEMPLE SAS', sharedAccount: true, ...over,
 });
 
 /** Banking on (not configured: files alone), the envelope, and its lines page by page; every query string is kept. */
