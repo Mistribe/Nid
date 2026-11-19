@@ -39,6 +39,7 @@
     "ignored": "Non suivi",
     "card_of": "Carte de {{name}}",
     "balance_on": "{{amount}} au {{date}}",
+    "balance_date": "au {{date}}",
     "edit": "Régler",
     "edit_of": "Régler {{name}}",
     "error": {
