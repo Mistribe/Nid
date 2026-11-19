@@ -1107,4 +1107,11 @@ public class TaxCalculatorTests
 
         Assert.Equal(expected, result.IncomeTax);
     }
+
+    /// <summary>The LFSS 2026's 18,6 % reaches the gains from the 2025 revenues; before, 17,2 %.</summary>
+    [Theory]
+    [InlineData(2024, 344)]
+    [InlineData(2025, 372)]
+    public void The_social_levies_on_gains_follow_their_year(int year, int levies)
+        => Assert.Equal(levies, TaxCalculator.Compute(Inputs([Other(30_000m)], year: year) with { RealisedGains = 2_000m }).SocialLevies);
 }

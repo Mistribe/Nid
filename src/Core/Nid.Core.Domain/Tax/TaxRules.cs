@@ -192,9 +192,10 @@ public sealed record TaxRules(
 
     /// <summary>
     /// The social levies on the gains declared in 3VG: patrimony income, taxed on the declaration, so the LFSS 2026's 18,6 % already
-    /// reaches the 2025 gains, while the interest and dividends withheld in 2025 stay at 17,2 % (art. 12 of loi n° 2025-1403).
+    /// reaches the 2025 gains, while the interest and dividends withheld in 2025 stay at 17,2 % (art. 12 of loi n° 2025-1403), as do
+    /// the gains of earlier years.
     /// </summary>
-    public const decimal GainsSocialRate = 0.186m;
+    public static decimal GainsSocialRate(int revenueYear) => revenueYear >= 2025 ? 0.186m : 0.172m;
 
     /// <summary>CSG non déductible (2,4 %) and CRDS (0,5 %) on 98,25 % of the gross: withheld, yet taxable.</summary>
     public const decimal NonDeductibleCsg = 0.029m * 0.9825m;

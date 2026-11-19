@@ -312,7 +312,7 @@ public static class TaxCalculator
         var incomeTax = Math.Round(tax - childcare - home + excess, 0, MidpointRounding.AwayFromZero);
 
         var flat = inputs.CapitalScale ? 0m : Euros(rules.FlatTaxRate * capital);
-        var levies = Euros(rules.CapitalSocialRate * income + TaxRules.GainsSocialRate * gainsTaxable + rules.RentalSocialRate * rentalTaxable);
+        var levies = Euros(rules.CapitalSocialRate * income + TaxRules.GainsSocialRate(inputs.Year) * gainsTaxable + rules.RentalSocialRate * rentalTaxable);
         // The reference income adds back the PER deduction, the dividends' allowance, the flat-taxed capital income and the exempt income.
         var reference = Math.Floor(taxable + declarants.Sum(d => d.PerDeducted) + dividendAllowance + (inputs.CapitalScale ? 0m : capital)
             + inputs.Declarants.Sum(d => ExemptNet(d, rules)));
