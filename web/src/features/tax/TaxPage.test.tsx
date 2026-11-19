@@ -583,6 +583,40 @@ describe('TaxPage, Déclaration 2044 tab', () => {
       await waitFor(() => expect(within(grid).getAllByRole('button').map((b) => b.textContent)).toEqual(['2016 Avis', '2018 Avis', '2025 Estimation', '2026 Estimation']));
     });
 
+    const withHistory = (...years: number[]) => http.get('*/api/v1/tax', () => HttpResponse.json({
+      ...estimate(), history: years.map((year) => ({ year, source: 'estimate', tax: '1000.00', netTaxable: '30000.00', averageRate: '3.3' })),
+    }));
+
+    it('offers a past year Nid holds data for', async () => {
+      server.use(notices(), withHistory(2022, 2025, 2026));
+      const { user } = await renderApp('/tax');
+
+      await screen.findByRole('tab', { name: 'Calcul' });
+      await user.click(screen.getByRole('button', { name: '2026, changer d’année' }));
+      const grid = await screen.findByRole('dialog', { name: 'Année des revenus' });
+      await waitFor(() => expect(within(grid).getAllByRole('button').map((b) => b.textContent)).toEqual(['2022 Estimation', '2025 Estimation', '2026 Estimation']));
+    });
+
+    it('does not offer a year without data between two that have some', async () => {
+      server.use(notices(), withHistory(2021, 2023, 2025, 2026));
+      const { user } = await renderApp('/tax');
+
+      await screen.findByRole('tab', { name: 'Calcul' });
+      await user.click(screen.getByRole('button', { name: '2026, changer d’année' }));
+      const grid = await screen.findByRole('dialog', { name: 'Année des revenus' });
+      await waitFor(() => expect(within(grid).getAllByRole('button').map((b) => b.textContent)).toEqual(['2021 Estimation', '2023 Estimation', '2025 Estimation', '2026 Estimation']));
+    });
+
+    it('opens a past year of the rules from the URL and estimates it', async () => {
+      server.use(notices());
+      const years = taxCalls();
+      await renderApp('/tax?year=2022');
+
+      await screen.findByRole('tab', { name: 'Calcul' });
+      expect(years).toEqual(['2022']);
+      expect(screen.getByRole('button', { name: '2022, changer d’année' })).toBeInTheDocument();
+    });
+
     it('marks a year with both a notice and an estimate', async () => {
       server.use(notices(jointAssessment({ year: 2025 })), http.get('*/api/v1/tax', () => HttpResponse.json(estimate())));
       const { user } = await renderApp('/tax');
