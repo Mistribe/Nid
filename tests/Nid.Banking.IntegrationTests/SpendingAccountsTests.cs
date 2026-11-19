@@ -4,6 +4,7 @@ using Nid.Banking.Application.Spending;
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
 using Nid.TestSupport;
+using NodaTime;
 
 namespace Nid.Banking.IntegrationTests;
 
@@ -31,7 +32,8 @@ public class SpendingAccountsTests(PostgresFixture fixture) : IClassFixture<Post
         await BankingApi.ConnectAsync(app, app.AdultA, "code-a",
             BankingApi.Account("uid-1", "hash-1", null, "Commun"), BankingApi.Account("uid-2", "hash-2", null, "Perso A"),
             BankingApi.Account("uid-3", "hash-3", null, "Carte A", "CARD"), BankingApi.Account("uid-4", "hash-4", null, "Compte de Léa"),
-            BankingApi.Account("uid-5", "hash-5", null, "Ancien"));
+            BankingApi.Account("uid-5", "hash-5", null, "Ancien"), BankingApi.Account("uid-6", "hash-6", null, "Carte Ancien", "CARD"),
+            BankingApi.Account("uid-7", "hash-7", null, "Clos"));
         var accounts = await AccountsAsync(app, app.AdultA);
         var shared = await app.NewEnvelopeAsync("Commun", Visibility.Shared, (app.AdultA, 5_000), (app.AdultB, 5_000));
         await PatchAsync(app, accounts["Commun"], new { envelopeId = shared.Value });
@@ -39,14 +41,23 @@ public class SpendingAccountsTests(PostgresFixture fixture) : IClassFixture<Post
         await PatchAsync(app, accounts["Carte A"], new { cardOfAccountId = accounts["Perso A"] });
         await PatchAsync(app, accounts["Compte de Léa"], new { envelopeId = (await app.NewEnvelopeAsync("Léa", Visibility.Shared, (app.Dependent, 10_000))).Value });
         var old = await app.NewEnvelopeAsync("Ancien", Visibility.Shared, (app.AdultA, 5_000), (app.AdultB, 5_000));
+        await PatchAsync(app, accounts["Carte Ancien"], new { cardOfAccountId = accounts["Ancien"] });
         await PatchAsync(app, accounts["Ancien"], new { envelopeId = old.Value, ignored = true });
+        // An archived envelope's account still counts: its past months were spent.
+        var closed = await app.NewEnvelopeAsync("Clos", Visibility.Shared, (app.AdultA, 5_000), (app.AdultB, 5_000));
+        await PatchAsync(app, accounts["Clos"], new { envelopeId = closed.Value });
+        await using (var services = app.Services.CreateAsyncScope())
+        {
+            services.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.Browser(app.AdultA);
+            Assert.True((await services.ServiceProvider.GetRequiredService<IItemRegistry>().ArchiveAsync(closed, Instant.FromUtc(2026, 6, 30, 12, 0), TestContext.Current.CancellationToken)).IsSuccess);
+        }
 
         foreach (var adult in new[] { app.AdultA, app.AdultB })
-            Assert.Equal(["Commun", "Compte de Léa"], await ScopeAsync(app, adult, VisibilityScope.Household, accounts));
-        Assert.Equal(["Carte A", "Commun", "Perso A"], await ScopeAsync(app, app.AdultA, VisibilityScope.Mine, accounts));
-        Assert.Equal(["Commun"], await ScopeAsync(app, app.AdultB, VisibilityScope.Mine, accounts));
+            Assert.Equal(["Clos", "Commun", "Compte de Léa"], await ScopeAsync(app, adult, VisibilityScope.Household, accounts));
+        Assert.Equal(["Carte A", "Clos", "Commun", "Perso A"], await ScopeAsync(app, app.AdultA, VisibilityScope.Mine, accounts));
+        Assert.Equal(["Clos", "Commun"], await ScopeAsync(app, app.AdultB, VisibilityScope.Mine, accounts));
         // Me keeps the child's account, which Mine leaves out (#360).
-        Assert.Equal(["Carte A", "Commun", "Compte de Léa", "Perso A"], await ScopeAsync(app, app.AdultA, VisibilityScope.Me, accounts));
+        Assert.Equal(["Carte A", "Clos", "Commun", "Compte de Léa", "Perso A"], await ScopeAsync(app, app.AdultA, VisibilityScope.Me, accounts));
     }
 
     [Fact]
