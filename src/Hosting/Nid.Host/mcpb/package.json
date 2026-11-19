@@ -11,5 +11,8 @@
   },
   "scripts": {
     "validate": "mcpb validate manifest.json"
+  },
+  "overrides": {
+    "tmp": "^0.2.6"
   }
 }
