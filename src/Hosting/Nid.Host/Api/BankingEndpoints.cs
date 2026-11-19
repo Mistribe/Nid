@@ -267,7 +267,7 @@ public static class BankingEndpoints
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
     public sealed record LinkBody(string? Module, Guid? ItemId, string? Key);
 
-    /// <summary>A line's category chosen by hand; a null <c>categoryId</c> is « Sans catégorie ».</summary>
+    /// <summary>A line's category chosen by hand; an absent or null <c>categoryId</c> is « Sans catégorie », chosen by hand all the same.</summary>
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
     public sealed record LineCategoryBody(Guid? CategoryId);
 

@@ -40,10 +40,10 @@ public sealed record UnlinkTransactionCommand(Guid TransactionId) : ICommand<Ban
 public sealed record IgnoreTransactionCommand(Guid TransactionId) : ICommand<BankTransactionView>;
 
 /// <summary>A person's category for a line of an account they write; null is « Sans catégorie », kept over any link or rule alike.</summary>
-public sealed record SetTransactionCategoryCommand(Guid TransactionId, Guid? CategoryId) : ICommand<BankTransactionView>;
+public sealed record SetTransactionCategoryCommand(Guid TransactionId, Guid? CategoryId) : ICommand<BankTransactionView>, ITransactional;
 
-/// <summary>« Laisser Nid décider »: the line's category cleared, then its link's again when it is linked.</summary>
-public sealed record ResetTransactionCategoryCommand(Guid TransactionId) : ICommand<BankTransactionView>;
+/// <summary>« Laisser Nid décider »: the line's category cleared, then its link's again when it is linked, in one transaction.</summary>
+public sealed record ResetTransactionCategoryCommand(Guid TransactionId) : ICommand<BankTransactionView>, ITransactional;
 
 /// <summary>The actor's own rules.</summary>
 public sealed record ListBankRulesQuery : IQuery<IReadOnlyList<BankRuleView>>;
