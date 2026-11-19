@@ -70,7 +70,8 @@ public sealed class BankReconciliation(
         }
 
         Task InternalAsync(Guid line, Guid counterpart, LinkOutcome outcome)
-            => links.SetAsync(new BankLink(line, null, null, null, counterpart, outcome, null, "job", now), TransactionLinkState.Internal, ct);
+            => links.SetAsync(new BankLink(line, null, null, null, counterpart, outcome, null, "job", now), TransactionLinkState.Internal, ct,
+                LinkCategory.KeyFor(outcome, null, null, null, false, []));
 
         // Step 1: a counterpart reconciled in an earlier pass still pairs; a pair of two older lines is not this pass's. A card line is never
         // one side of a transfer, and two accounts pair only when an adult reads both: one who sees the pair and can undo it.

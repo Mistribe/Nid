@@ -13,6 +13,7 @@ import { formatLocalDate } from '@/components/LocalDate';
 import { formatCurrency } from '@/components/Money';
 import { OwnerChips } from '@/components/OwnerChips';
 import { ProblemMessage } from '@/components/ProblemMessage';
+import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
 import { RowActions } from '@/components/page/RowActions';
 import { Section } from '@/components/page/Section';
 import { SortableTable } from '@/components/page/SortableTable';
@@ -30,6 +31,9 @@ import '@/locales/banks';
 
 // Loaded when opened: most visits import no statement.
 const ImportStatementDialog = lazy(() => import('../../investments/operations/ImportStatementDialog'));
+const CategoriesTab = lazy(() => import('./CategoriesTab'));
+
+const TABS = ['accounts', 'categories'] as const;
 
 const PROPOSALS = '/api/v1/core/proposals' as const;
 const day = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'short' });
@@ -67,8 +71,21 @@ export function BanksPage() {
       {status.error ? <ProblemMessage problem={present(toProblem(status.error))} />
         : !status.data ? <Skeleton aria-busy="true" className="h-32"><span className="sr-only">{t('banks.loading')}</span></Skeleton>
         : !status.data.enabled ? <p>{t('banks.disabled')}</p>
-        : <div className="space-y-8"><Connections configured={status.data.configured} /><Rules /></div>}
+        : <BanksTabs configured={status.data.configured} />}
     </SettingsFrame>
+  );
+}
+
+/** « Comptes » (connections, accounts, rules) first, then « Catégories » (`?tab=categories`). */
+function BanksTabs({ configured }: { configured: boolean }) {
+  const { t } = useTranslation();
+  const [tab, setTab] = useDetailTab(TABS);
+  const loading = <Skeleton aria-busy="true" className="h-32"><span className="sr-only">{t('banks.category_list.loading')}</span></Skeleton>;
+  return (
+    <DetailTabs value={tab} onChange={setTab} tabs={[
+      { id: 'accounts', label: t('banks.tabs.accounts'), content: <div className="space-y-8"><Connections configured={configured} /><Rules /></div> },
+      { id: 'categories', label: t('banks.tabs.categories'), content: <Suspense fallback={loading}><CategoriesTab /></Suspense> },
+    ]} />
   );
 }
 

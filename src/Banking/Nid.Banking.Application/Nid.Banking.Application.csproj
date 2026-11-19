@@ -7,6 +7,7 @@
     <ProjectReference Include="..\..\Core\Nid.Core.Contracts\Nid.Core.Contracts.csproj" />
     <ProjectReference Include="..\..\Goals\Nid.Goals.Contracts\Nid.Goals.Contracts.csproj" />
     <ProjectReference Include="..\..\Investments\Nid.Investments.Contracts\Nid.Investments.Contracts.csproj" />
+    <ProjectReference Include="..\..\Subscriptions\Nid.Subscriptions.Contracts\Nid.Subscriptions.Contracts.csproj" />
     <PackageReference Include="UnambitiousFx.Synapse.Generator">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

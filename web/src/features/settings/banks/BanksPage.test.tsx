@@ -262,6 +262,24 @@ describe('Réglages › Banques', () => {
     await waitFor(() => expect(deleted).toBe(CONNECTION));
   });
 
+  it('opens on « Comptes », and « Catégories » is a tab of its own in the address', async () => {
+    serveBanks([connection()]);
+    server.use(http.get('*/api/v1/banking/categories', () => HttpResponse.json([
+      { id: 'food', parentId: null, key: 'food', name: 'Alimentation', kind: 'expense', archived: false, mergedIntoId: null, defaultName: 'Alimentation' },
+    ])));
+    const { user, router } = await renderApp('/settings/banks');
+
+    expect(await screen.findByRole('tab', { name: 'Comptes', selected: true })).toBeInTheDocument();
+    expect(await screen.findByRole('region', { name: 'BNP Paribas' })).toBeInTheDocument();
+    await user.click(screen.getByRole('tab', { name: 'Catégories' }));
+
+    expect(await screen.findByRole('region', { name: 'Dépenses' })).toHaveTextContent('Alimentation');
+    expect(screen.queryByRole('region', { name: 'BNP Paribas' })).toBeNull();
+    await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'categories' }));
+    await user.click(screen.getByRole('tab', { name: 'Comptes' }));
+    await waitFor(() => expect(router.state.location.search).toEqual({}));
+  });
+
   it('lists and deletes a rule', async () => {
     serveBanks([connection()]);
     const loan = '00000000-0000-7000-8000-0000000000d2', property = '00000000-0000-7000-8000-0000000000d3';

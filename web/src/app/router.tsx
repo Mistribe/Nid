@@ -35,7 +35,7 @@ export type ChildcareSearch = DetailSearch & { year?: string };
 /** #94: a nanny at home's year (absent: the current one). */
 export type NannySearch = { year?: string };
 export type RoutineSearch = { on?: string };
-export type BanksSearch = { connected?: string; error?: string };
+export type BanksSearch = { connected?: string; error?: string; tab?: 'categories' };
 /** The home page: the curve's span, a figure panel, the projection's horizon (`10y` stays out of the URL) and its reading (`0`: current value). */
 export type DashboardSearch = { curve?: '3y' | 'all'; curveReal?: 1; panel?: Panel; projection?: ProjectionHorizon; real?: 0; ranges?: 1 };
 /**
@@ -692,6 +692,7 @@ const banksSettingsRoute = createRoute({
   validateSearch: (search: Record<string, unknown>): BanksSearch => ({
     ...(typeof search.connected === 'string' ? { connected: search.connected } : {}),
     ...(typeof search.error === 'string' ? { error: search.error } : {}),
+    ...(search.tab === 'categories' ? { tab: 'categories' as const } : {}),
   }),
   component: lazyRouteComponent(() => import('@/features/settings/banks/BanksPage'), 'BanksPage'),
 });

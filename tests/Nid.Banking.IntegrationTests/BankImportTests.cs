@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Nid.Banking.Application;
 using Nid.Banking.Contracts;
+using Nid.Banking.Domain;
 using Nid.Banking.Infrastructure.Persistence;
 using Nid.Core.Contracts;
 using UnambitiousFx.Engram;
@@ -20,6 +21,14 @@ public class BankImportTests(PostgresFixture fixture) : IClassFixture<PostgresFi
     private const string Export = "/api/v1/platform/export";
 
     private static BankingDbContext Db(NidApp app) => new(new DbContextOptionsBuilder<BankingDbContext>().Configure(app.ConnectionString).Options);
+
+    /// <summary>The category and its source of the household's one linked line.</summary>
+    private static async Task<(Guid?, string?)> LinkedCategoryAsync(NidApp app)
+    {
+        await using var db = Db(app);
+        var line = await db.Transactions.AsNoTracking().SingleAsync(t => t.LinkState == "linked", TestContext.Current.CancellationToken);
+        return (line.CategoryId, line.CategorySource);
+    }
 
     private static async Task AddAsync(NidApp app, Guid account, params NewBankTransaction[] lines)
     {
@@ -411,6 +420,7 @@ public class BankImportTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         Assert.Equal((1, 0), Counts(report, "bank_links"));
         var linked = JsonDocument.Parse(await target.GetRawAsync(target.AdultA, $"{BankingApi.Root}/transactions?state=linked")).RootElement.GetProperty("items").EnumerateArray().Single();
         Assert.Equal(("childcare", "Garde de Léa"), (linked.GetProperty("link").GetProperty("module").GetString(), linked.GetProperty("link").GetProperty("itemName").GetString()));
+        Assert.Equal((CategorySeed.Find("children.childcare")!.Id, "link"), await LinkedCategoryAsync(target));
     }
 
     [Fact]
@@ -440,6 +450,7 @@ public class BankImportTests(PostgresFixture fixture) : IClassFixture<PostgresFi
             .EnumerateArray().Select(l => l.GetProperty("label").GetString()));
         await using (var db = Db(target))
             Assert.Equal($"person:{target.AdultA.Value:D}", (await db.Links.SingleAsync(cancellationToken: TestContext.Current.CancellationToken)).DecidedBy);
+        Assert.Equal((CategorySeed.Find("leisure.subscriptions")!.Id, "link"), await LinkedCategoryAsync(target));
         Assert.Single(JsonDocument.Parse(await target.GetRawAsync(target.AdultA, $"{BankingApi.Root}/rules")).RootElement.EnumerateArray());
 
         var (again, _) = await ImportAsync(target, target.AdultA, file);

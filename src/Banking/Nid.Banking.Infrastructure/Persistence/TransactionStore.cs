@@ -126,6 +126,11 @@ public sealed class TransactionStore(BankingDbContext db, IClock clock) : ITrans
     public async Task<BankTransaction?> FindAsync(Guid id, CancellationToken ct)
         => await db.Transactions.AsNoTracking().FirstOrDefaultAsync(t => t.Id == id, ct) is { } row ? ToModel(row) : null;
 
+    public async Task<IReadOnlyList<BankTransaction>> UncategorisedLinkedAsync(Guid? after, int take, CancellationToken ct)
+        => (await db.Transactions.AsNoTracking()
+            .Where(t => t.CategorySource == null && (t.LinkState == "linked" || t.LinkState == "internal") && (after == null || t.Id.CompareTo(after.Value) > 0))
+            .OrderBy(t => t.Id).Take(take).ToListAsync(ct)).Select(ToModel).ToList();
+
     public async Task MarkReconciledAsync(IReadOnlyCollection<Guid> ids, Instant at, CancellationToken ct)
         => await db.Transactions.Where(t => ids.Contains(t.Id)).ExecuteUpdateAsync(s => s.SetProperty(t => t.ReconciledAt, at), ct);
 
@@ -141,5 +146,6 @@ public sealed class TransactionStore(BankingDbContext db, IClock clock) : ITrans
             "linked" => TransactionLinkState.Linked, "ignored" => TransactionLinkState.Ignored, "internal" => TransactionLinkState.Internal,
             _ => TransactionLinkState.Unlinked,
         },
-        r.FetchedVia, r.CreatedAt);
+        r.FetchedVia, r.CreatedAt, r.CategoryId,
+        r.CategorySource is { } source ? Enum.Parse<CategorySource>(source, ignoreCase: true) : null);
 }

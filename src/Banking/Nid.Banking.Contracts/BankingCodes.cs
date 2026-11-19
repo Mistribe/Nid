@@ -70,4 +70,16 @@ public static class BankingCodes
 
     /// <summary>A bank proposal approved with an edited payload: reject it instead.</summary>
     public const string ProposalNotEditable = "banking.proposal_not_editable";
+
+    /// <summary>A category's name is 1 to 60 characters, and unique among its siblings whatever the case (archived ones included).</summary>
+    public const string CategoryName = "banking.category_name";
+
+    /// <summary>Categories are two levels deep: a child has no children, and a category with children stays top-level.</summary>
+    public const string CategoryDepth = "banking.category_depth";
+
+    /// <summary>A move or a merge between categories of different kinds (expense, income, transfer).</summary>
+    public const string CategoryKind = "banking.category_kind";
+
+    /// <summary>A new or moved child under an archived parent, or a merge into an archived category.</summary>
+    public const string CategoryArchived = "banking.category_archived";
 }

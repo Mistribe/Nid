@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Nid.Banking.Contracts;
 using Nid.Core.Contracts;
 
 namespace Nid.Banking.Infrastructure.Persistence;
@@ -24,6 +25,9 @@ public sealed class BankingDeletionPart(BankingDbContext db) : IItemDeletionPart
     public async Task RemoveAsync(ItemAccess item, CancellationToken ct)
     {
         var id = item.Id.Value;
+        // The lines keep a category a person chose; the one their link gave goes with it.
+        await CategoryStore.ClearSourceAsync(
+            db.Transactions.Where(t => db.Links.Any(l => l.TransactionId == t.Id && l.TargetItemId == id)), [CategorySource.Link], ct);
         db.Links.RemoveRange(await db.Links.Where(l => l.TargetItemId == id).ToListAsync(ct));
         db.Rules.RemoveRange(await db.Rules.Where(r => r.TargetItemId == id).ToListAsync(ct));
         foreach (var account in await db.Accounts.Where(a => a.EnvelopeItemId == id).ToListAsync(ct))

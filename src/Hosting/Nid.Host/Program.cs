@@ -123,7 +123,11 @@ builder.Services.AddNidEmail(smtpOptions, builder.Configuration["Auth:PublicUrl"
 builder.Services.AddNid(connectionString);
 builder.Services.AddNidOpenApi();
 if (!generatingOpenApi && !adminMode && builder.Configuration.GetValue("Jobs:Enabled", true))
+{
     builder.Services.AddNidJobs(connectionString, fxOptions, priceOptions, irlOptions, inflationOptions, bankingOptions, builder.Configuration.GetValue("Jobs:SchedulerName", "nid")!);
+    // Startup work, not a job: it must not show on the admin Jobs screen.
+    builder.Services.AddHostedService<Nid.Host.Jobs.CategoryBackfillStartup>();
+}
 
 builder.Services.AddNidAuthentication(builder.Configuration, demo.Enabled);
 builder.Services.AddTokenRateLimiter();

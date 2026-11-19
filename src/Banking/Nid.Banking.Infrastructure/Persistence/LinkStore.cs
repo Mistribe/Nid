@@ -6,8 +6,12 @@ using NodaTime;
 
 namespace Nid.Banking.Infrastructure.Persistence;
 
-public sealed class LinkStore(BankingDbContext db) : ILinkStore
+public sealed class LinkStore(BankingDbContext db, ICategoryStore categories) : ILinkStore
 {
+    // ponytail: a key resolved once per scope (an import or a pass links many lines); a merge in another scope meanwhile lands this
+    // scope's later lines on the merged category until the next scope.
+    private readonly Dictionary<string, Guid?> resolved = [];
+
     public async Task<IReadOnlyDictionary<Guid, BankLink>> ForTransactionsAsync(IReadOnlyCollection<Guid> transactions, CancellationToken ct)
         => (await db.Links.AsNoTracking().Where(l => transactions.Contains(l.TransactionId)).ToListAsync(ct)).ToDictionary(l => l.TransactionId, ToModel);
 
@@ -24,7 +28,7 @@ public sealed class LinkStore(BankingDbContext db) : ILinkStore
             db.Links.Where(l => l.Outcome == wire && db.Transactions.Any(t => t.Id == l.TransactionId && t.BookedOn >= since)), ct);
     }
 
-    public async Task SetAsync(BankLink link, TransactionLinkState state, CancellationToken ct)
+    public async Task SetAsync(BankLink link, TransactionLinkState state, CancellationToken ct, string? categoryKey = null)
     {
         await using var transaction = db.Database.CurrentTransaction is null ? await db.Database.BeginTransactionAsync(ct) : null;
         try
@@ -45,6 +49,8 @@ public sealed class LinkStore(BankingDbContext db) : ILinkStore
             (await db.Transactions.FindAsync([link.Transaction], ct))!.LinkState = Wire(state);
 
             await db.SaveChangesAsync(ct);
+            if (categoryKey is not null && await ResolveAsync(categoryKey, ct) is { } category)
+                await categories.SetForLinesAsync([link.Transaction], category, CategorySource.Link, link.DecidedBy, link.DecidedAt, false, ct);
             if (transaction is not null)
                 await transaction.CommitAsync(ct);
         }
@@ -66,8 +72,17 @@ public sealed class LinkStore(BankingDbContext db) : ILinkStore
             line.LinkState = Wire(state);
 
         await db.SaveChangesAsync(ct);
+        await categories.ClearSourceAsync(
+            [transaction], state == TransactionLinkState.Ignored ? [CategorySource.Link, CategorySource.Rule, CategorySource.Hint] : [CategorySource.Link], ct);
         if (scope is not null)
             await scope.CommitAsync(ct);
+    }
+
+    private async Task<Guid?> ResolveAsync(string key, CancellationToken ct)
+    {
+        if (!resolved.TryGetValue(key, out var id))
+            resolved[key] = id = await categories.ResolveKeyAsync(key, ct);
+        return id;
     }
 
     public Task<bool> FlowTakenAsync(Guid flowId, CancellationToken ct)

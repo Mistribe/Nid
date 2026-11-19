@@ -7,6 +7,7 @@ using Nid.Banking.Application;
 using Nid.Banking.Application.Reconciliation;
 using Nid.Banking.Application.Sync;
 using Nid.Banking.Contracts;
+using Nid.Banking.Domain;
 using Nid.Banking.Infrastructure.Persistence;
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
@@ -155,7 +156,9 @@ public class ReconciliationTests(PostgresFixture fixture) : IClassFixture<Postgr
 
         var link = (await LinkOfAsync(app, settlement))!;
         Assert.Equal((LinkOutcome.CardSettlement, card), (link.Outcome, link.CounterpartAccount));
-        Assert.Equal(TransactionLinkState.Internal, (await LineAsync(app, settlement)).LinkState);
+        var settled = await LineAsync(app, settlement);
+        Assert.Equal((TransactionLinkState.Internal, CategorySeed.Find("internal.card")!.Id, CategorySource.Link),
+            (settled.LinkState, settled.Category, settled.CategorySource));
         Assert.Equal(TransactionLinkState.Unlinked, (await LineAsync(app, bread)).LinkState);
     }
 
@@ -565,7 +568,8 @@ public class ReconciliationTests(PostgresFixture fixture) : IClassFixture<Postgr
         public Task<IReadOnlyList<(BankLink Link, BankTransaction Line)>> ForItemsAsync(IReadOnlyCollection<ItemId> items, CancellationToken ct)
             => inner.ForItemsAsync(items, ct);
 
-        public Task SetAsync(BankLink link, TransactionLinkState state, CancellationToken ct) => inner.SetAsync(link, state, ct);
+        public Task SetAsync(BankLink link, TransactionLinkState state, CancellationToken ct, string? categoryKey = null)
+            => inner.SetAsync(link, state, ct, categoryKey);
 
         public Task ClearAsync(Guid transaction, TransactionLinkState state, CancellationToken ct) => inner.ClearAsync(transaction, state, ct);
 
@@ -606,6 +610,7 @@ public class ReconciliationTests(PostgresFixture fixture) : IClassFixture<Postgr
 
         public Task MarkReconciledAsync(IReadOnlyCollection<Guid> ids, Instant at, CancellationToken ct) => inner.MarkReconciledAsync(ids, at, ct);
 
+        public Task<IReadOnlyList<BankTransaction>> UncategorisedLinkedAsync(Guid? after, int take, CancellationToken ct) => inner.UncategorisedLinkedAsync(after, take, ct);
         public Task<int> PurgeBookedBeforeAsync(LocalDate before, CancellationToken ct) => inner.PurgeBookedBeforeAsync(before, ct);
     }
 }
