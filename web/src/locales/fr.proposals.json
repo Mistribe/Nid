@@ -86,6 +86,20 @@
       "amount": "Montant",
       "as_proposed": "L’abonnement se crée tel que proposé, puis ses opérations s’y relient : approuvez, ou rejetez puis créez-le à la main."
     },
+    "categorise": {
+      "count_one": "{{count}} opération proposée.",
+      "count_other": "{{count}} opérations proposées.",
+      "hidden_one": "{{count}} d’entre elles est sur un compte que vous ne voyez pas : elle ne sera pas modifiée.",
+      "hidden_other": "{{count}} d’entre elles sont sur des comptes que vous ne voyez pas : elles ne seront pas modifiées.",
+      "date": "Date",
+      "label": "Libellé",
+      "account": "Compte",
+      "amount": "Montant",
+      "current": "Catégorie actuelle",
+      "proposed": "Catégorie proposée",
+      "skipped": "Ne sera pas modifiée : choisie à la main, ou compte que vous ne pouvez pas modifier.",
+      "as_proposed": "Les catégories s’appliquent telles que proposées : approuvez, ou rejetez puis catégorisez les opérations à la main."
+    },
     "approve": "Approuver",
     "nothing_to_record": "Aucun mouvement n’est coché et le relevé n’a pas de valeur : il n’y aurait rien à enregistrer. Cochez un mouvement, ou rejetez la proposition.",
     "reject": "Rejeter",

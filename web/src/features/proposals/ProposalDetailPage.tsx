@@ -87,7 +87,7 @@ function Proposal({ id }: { id: string }) {
   // Spec 4D3: a kind without its own screen replays a web write, approved as proposed.
   const route = !kind && !unsupported && isRouteKind(p.kind);
   const link = kind ? kind.link(p) : route ? routeLink(p) : undefined;
-  const targetName = route ? routeElement(t, p, names) : p.targetName ?? t(p.targetItemId ? 'proposals.unknown_target' : 'proposal.route.new');
+  const targetName = route ? routeElement(t, p, names) : kind?.targetless ? null : p.targetName ?? t(p.targetItemId ? 'proposals.unknown_target' : 'proposal.route.new');
 
   const title = kind ? t(kind.label) : route ? routeLabel(t, p.kind) : t('proposal.unknown_kind', { kind: p.kind });
   const head = (actions: ReactNode) => (

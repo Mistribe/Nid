@@ -298,6 +298,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<Nid.Banking.Application.CategoryRuleScope>();
         services.AddScoped<IProposalHandler, Nid.Banking.Application.Reconciliation.LinkProposal>();
         services.AddScoped<IProposalHandler, Nid.Banking.Application.Reconciliation.SubscriptionProposal>();
+        services.AddScoped<IProposalHandler, Nid.Banking.Application.Reconciliation.CategoriseProposal>();
         services.AddScoped<Nid.Platform.Contracts.INotificationSource, BankingNotificationSource>();
         services.AddScoped<BankAccountReader>();
         services.AddScoped<Nid.Banking.Application.Sync.BankSyncCollector>();
