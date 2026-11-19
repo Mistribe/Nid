@@ -63,6 +63,47 @@ public class CategoryRouteTests(PostgresFixture fixture) : IClassFixture<Postgre
             await app.RawAsync(app.AdultA, HttpMethod.Post, Root, new { name = "Sans genre" }), HttpStatusCode.UnprocessableEntity, BankingCodes.CategoryKind);
     }
 
+    [Theory]
+    [InlineData("0")]
+    [InlineData("Expense")]
+    [InlineData("")]
+    public async Task Kind_is_only_the_exact_wire_value(string kind)
+    {
+        await using var app = await BankingApi.StartAsync(fixture);
+        await BankingApi.AssertRefusedAsync(
+            await app.RawAsync(app.AdultA, HttpMethod.Post, Root, new { name = "Autre", kind }), HttpStatusCode.UnprocessableEntity, BankingCodes.CategoryKind);
+    }
+
+    [Fact]
+    public async Task Reset_name_with_a_name_is_refused()
+    {
+        await using var app = await BankingApi.StartAsync(fixture);
+        await BankingApi.AssertRefusedAsync(
+            await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{Root}/{Seed("food.groceries")}", new { name = "Autre", resetName = true }),
+            HttpStatusCode.UnprocessableEntity, BankingCodes.CategoryName);
+    }
+
+    [Fact]
+    public async Task Writes_are_refused_when_banking_is_disabled_but_the_list_reads()
+    {
+        await using var app = await BankingApi.StartAsync(fixture, enable: false);
+        await BankingApi.AssertRefusedAsync(
+            await app.RawAsync(app.AdultA, HttpMethod.Post, Root, new { name = "Animaux", kind = "expense" }), HttpStatusCode.Conflict, BankingCodes.Disabled);
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Get, Root)).StatusCode);
+    }
+
+    [Fact]
+    public async Task Move_parent_takes_a_child_to_the_top_and_a_top_level_under_a_parent()
+    {
+        await using var app = await BankingApi.StartAsync(fixture);
+        var groceries = Seed("food.groceries");
+        var top = await BankingApi.JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{Root}/{groceries}", new { parentId = (Guid?)null, moveParent = true }));
+        Assert.Equal(JsonValueKind.Null, top.GetProperty("parentId").ValueKind);
+
+        var under = await BankingApi.JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{Root}/{groceries}", new { parentId = Seed("home"), moveParent = true }));
+        Assert.Equal(Seed("home"), under.GetProperty("parentId").GetGuid());
+    }
+
     [Fact]
     public async Task Merge_returns_the_target_and_the_source_is_archived()
     {
