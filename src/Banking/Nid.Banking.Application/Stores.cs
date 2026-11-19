@@ -210,6 +210,13 @@ public interface ITransactionStore
     /// <summary>#85: the accounts' lines booked within [<paramref name="from"/>, <paramref name="to"/>], ignored and internal ones (transfers, card settlements) left out, summed by category, currency and month.</summary>
     Task<IReadOnlyList<SpendingSum>> SpendingAsync(IReadOnlyList<Guid> accounts, LocalDate from, LocalDate to, CancellationToken ct);
 
+    /// <summary>
+    /// One page of the lines <see cref="SpendingAsync"/> sums (same filter), newest first, and how many there are: those filed in one of
+    /// <paramref name="categories"/>, or, with <paramref name="uncategorised"/>, the debits with no category.
+    /// </summary>
+    Task<(IReadOnlyList<BankTransaction> Items, int Count)> SpendingLinesAsync(
+        IReadOnlyList<Guid> accounts, IReadOnlyList<Guid> categories, bool uncategorised, LocalDate from, LocalDate to, int skip, int take, CancellationToken ct);
+
     /// <summary>The accounts' earliest booking, null with no line: how far back their history goes.</summary>
     Task<LocalDate?> EarliestBookedOnAsync(IReadOnlyList<Guid> accounts, CancellationToken ct);
 }

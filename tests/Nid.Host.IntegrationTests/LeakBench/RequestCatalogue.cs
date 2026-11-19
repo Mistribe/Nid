@@ -636,6 +636,8 @@ public static class RequestCatalogue
         // #85: spending by category, figures only; A's private account never counts for B, in either scope.
         new(typeof(Nid.Banking.Application.Spending.GetSpendingQuery), false, (_, _) => new Nid.Banking.Application.Spending.GetSpendingQuery(VisibilityScope.Household, null, null, null)),
         new(typeof(Nid.Banking.Application.Spending.GetSpendingQuery), false, (_, _) => new Nid.Banking.Application.Spending.GetSpendingQuery(VisibilityScope.Mine, null, null, null)),
+        new(typeof(Nid.Banking.Application.Spending.ListSpendingLinesQuery), false, (_, _) => new Nid.Banking.Application.Spending.ListSpendingLinesQuery(VisibilityScope.Household, null, true, null, null, null, 1)),
+        new(typeof(Nid.Banking.Application.Spending.ListSpendingLinesQuery), false, (_, _) => new Nid.Banking.Application.Spending.ListSpendingLinesQuery(VisibilityScope.Mine, null, true, null, null, null, 1)),
         new(typeof(LinkCandidatesQuery), false, (d, _) => new LinkCandidatesQuery(d.JointLine)),
         new(typeof(ListExpectedChargesQuery), false, (_, _) => new ListExpectedChargesQuery(new LocalDate(2025, 1, 1), new LocalDate(2025, 3, 31))),
         new(typeof(LinkTransactionCommand), false, (d, item) => new LinkTransactionCommand(d.JointLine, "subscriptions", item.Value, null)),

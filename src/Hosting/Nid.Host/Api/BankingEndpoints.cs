@@ -111,6 +111,14 @@ public static class BankingEndpoints
                     .ToHttp(spending => spending))
             .Returns<SpendingView>();
 
+        // #85: the lines behind one figure of /spending: a category's (children included) or « Non classées », 50 a page.
+        api.MapGet("/spending/lines", async (string? scope, Guid? categoryId, bool? uncategorised, string? month, string? from, string? to, int? page,
+                    IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new ListSpendingLinesQuery(
+                        ParseScope(scope), categoryId, uncategorised ?? false, OptionalMonth(month), OptionalMonth(from), OptionalMonth(to), page ?? 1), ct))
+                    .ToHttp(spending => spending))
+            .Returns<SpendingLines>();
+
         api.MapGet("/transactions/{id:guid}/candidates", async (Guid id, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new LinkCandidatesQuery(id), ct)).ToHttp(charges => charges))
             .Returns<IReadOnlyList<ExpectedChargeView>>();

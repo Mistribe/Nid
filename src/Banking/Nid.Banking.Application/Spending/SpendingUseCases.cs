@@ -33,6 +33,53 @@ public sealed record SpendingCategoryView(Guid Id, string Name, string Amount, s
 /// <summary>« Non classées »: the debits of lines with no category; their credits never count.</summary>
 public sealed record SpendingUncategorisedView(string Amount, string? Average);
 
+/// <summary>
+/// #85: the lines behind one figure of <see cref="GetSpendingQuery"/> (same scope, same period): those of the category and its children, or,
+/// with <paramref name="Uncategorised"/>, the uncategorised debits; newest first, 50 a page (<paramref name="Page"/> from 1).
+/// </summary>
+public sealed record ListSpendingLinesQuery(
+    VisibilityScope Scope, Guid? CategoryId, bool Uncategorised, YearMonth? Month, YearMonth? From, YearMonth? To, int Page) : IQuery<SpendingLines>;
+
+/// <summary>
+/// One page of lines (each in its own currency); <paramref name="Total"/> is the figure the spending view shows for them, in its reference
+/// currency, <paramref name="Incomplete"/> as there; <paramref name="Count"/> all the lines, not only the page's.
+/// </summary>
+public sealed record SpendingLines(IReadOnlyList<BankTransactionView> Items, string Total, int Count, bool Incomplete);
+
+[RequestHandler<ListSpendingLinesQuery, SpendingLines>]
+public sealed class ListSpendingLinesHandler(
+    IInvoker invoker, SpendingAccounts scopes, ITransactionStore lines, ICategoryStore categories, BankLines views)
+    : IRequestHandler<ListSpendingLinesQuery, SpendingLines>
+{
+    public async ValueTask<Result<SpendingLines>> HandleAsync(ListSpendingLinesQuery query, CancellationToken ct = default)
+    {
+        if (query.Uncategorised == (query.CategoryId is not null))
+            return BankingAccess.Fail<SpendingLines>(BankingCodes.SpendingTarget, "Send a categoryId, or uncategorised=true.");
+        // The total is the figure itself, so the two never differ: same rows, same conversion, same flag.
+        var figures = await invoker.InvokeAsync(new GetSpendingQuery(query.Scope, query.Month, query.From, query.To), ct);
+        if (!figures.TryGetValue(out var view))
+            return BankingAccess.Failed<SpendingLines, SpendingView>(figures);
+        var from = YearMonthPattern.Iso.Parse(view.From).Value;
+        var to = YearMonthPattern.Iso.Parse(view.To).Value;
+
+        string total;
+        List<Guid> ids = [];
+        if (query.CategoryId is { } id)
+        {
+            // An expense category and its children; any other kind is no spending, so it lists nothing.
+            ids = [.. (await categories.AllAsync(ct)).Where(c => c.Kind == CategoryKind.Expense && (c.Id == id || c.Parent == id)).Select(c => c.Id)];
+            total = view.Categories.SelectMany(c => c.Children.Prepend(c)).FirstOrDefault(c => c.Id == id)?.Amount ?? "0.00";
+        }
+        else
+            total = view.Uncategorised.Amount;
+
+        var accounts = await scopes.ForAsync(query.Scope, ct);
+        var (page, count) = await lines.SpendingLinesAsync(accounts, ids, query.Uncategorised, from.ToDateInterval().Start, to.ToDateInterval().End,
+            (Math.Clamp(query.Page, 1, BankLines.MaxPage) - 1) * BankLines.PageSize, BankLines.PageSize, ct);
+        return Result.Success(new SpendingLines(await views.ViewsAsync(page, ct), total, count, view.Incomplete));
+    }
+}
+
 [RequestHandler<GetSpendingQuery, SpendingView>]
 public sealed class GetSpendingHandler(
     BankingAccess access, SpendingAccounts scopes, ITransactionStore lines, ICategoryStore categories, IHouseholdSettings household,

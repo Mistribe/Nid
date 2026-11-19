@@ -209,4 +209,90 @@ public class SpendingTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
                 HttpStatusCode.UnprocessableEntity, BankingCodes.SpendingPeriod);
         Assert.Equal(HttpStatusCode.BadRequest, (await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Spending}?month=2025-13")).StatusCode);
     }
+
+    private static async Task<JsonElement> LinesAsync(NidApp app, PersonId person, string query)
+    {
+        var response = await app.RawAsync(person, HttpMethod.Get, $"{Spending}/lines{query}");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        return await BankingApi.JsonAsync(response);
+    }
+
+    private static string[] Amounts(JsonElement lines) => [.. lines.GetProperty("items").EnumerateArray().Select(l => l.GetProperty("amount").GetString()!).Order()];
+
+    [Fact]
+    public async Task A_category_s_lines_are_the_ones_its_figure_sums_and_page_by_fifty()
+    {
+        await using var app = await BankingApi.StartAsync(fixture);
+        await BankingApi.ConnectAsync(app, app.AdultA, "code-a", BankingApi.Account("uid-1", "hash-1", null, "Commun"), BankingApi.Account("uid-2", "hash-2", null, "Carte commune", "CARD"));
+        await BankingApi.ConnectAsync(app, app.AdultB, "code-b", BankingApi.Account("uid-b", "hash-b", null, "Perso B"));
+        var a = await AccountsAsync(app, app.AdultA);
+        var b = await AccountsAsync(app, app.AdultB);
+        await PatchAsync(app, app.AdultA, a["Commun"], new { envelopeId = (await app.NewEnvelopeAsync("Commun", Visibility.Shared, (app.AdultA, 5_000), (app.AdultB, 5_000))).Value });
+        await PatchAsync(app, app.AdultA, a["Carte commune"], new { cardOfAccountId = a["Commun"] });
+        await PatchAsync(app, app.AdultB, b["Perso B"], new { envelopeId = (await app.NewEnvelopeAsync("Perso B", app.AdultB, Visibility.Private)).Value });
+
+        var joint = a["Commun"];
+        await LineAsync(app, joint, new(2025, 10, 3), -80m, "food.groceries");
+        await LineAsync(app, joint, new(2025, 10, 5), 20m, "food.groceries");
+        await LineAsync(app, joint, new(2025, 10, 8), 50m, "income.refunds");
+        await LineAsync(app, joint, new(2025, 10, 6), -30m, "food");
+        await LineAsync(app, a["Carte commune"], new(2025, 10, 7), -40m, "food.restaurants");
+        await InternalAsync(app, joint, await LineAsync(app, joint, new(2025, 10, 13), -300m));
+        await InternalAsync(app, joint, await LineAsync(app, joint, new(2025, 10, 14), -200m, "food.groceries"));
+        await LineAsync(app, joint, new(2025, 10, 10), -25m);
+        await LineAsync(app, joint, new(2025, 10, 11), 15m);
+        await LineAsync(app, joint, new(2025, 9, 15), -45m, "food.groceries");
+        await LineAsync(app, b["Perso B"], new(2025, 10, 4), -1000m, "food.groceries");
+        for (var i = 0; i < 55; i++)
+            await LineAsync(app, joint, new(2025, 10, 1), -1m, "transport.fuel");
+
+        var figures = await SpendingAsync(app, app.AdultA);
+        var food = Category(figures, "Alimentation");
+        var foodId = food.GetProperty("id").GetGuid();
+        // A parent: its own lines, its children's and the refund; no transfer, no income, no other month, nothing of Bob's.
+        var lines = await LinesAsync(app, app.AdultA, $"?categoryId={foodId}");
+        Assert.Equal(["-30.00", "-40.00", "-80.00", "20.00"], Amounts(lines));
+        Assert.Equal((food.GetProperty("amount").GetString(), 4, false), (lines.GetProperty("total").GetString(), lines.GetProperty("count").GetInt32(), lines.GetProperty("incomplete").GetBoolean()));
+        var groceries = Category(food, "Courses");
+        var child = await LinesAsync(app, app.AdultA, $"?categoryId={groceries.GetProperty("id").GetGuid()}&month=2025-10");
+        Assert.Equal(["-80.00", "20.00"], Amounts(child));
+        Assert.Equal(groceries.GetProperty("amount").GetString(), child.GetProperty("total").GetString());
+        // A period lists its months' lines and sums them as the figures do.
+        var period = await LinesAsync(app, app.AdultA, $"?categoryId={foodId}&from=2025-09&to=2025-10");
+        Assert.Equal(5, period.GetProperty("count").GetInt32());
+        Assert.Equal(Category(await SpendingAsync(app, app.AdultA, "?from=2025-09&to=2025-10"), "Alimentation").GetProperty("amount").GetString(), period.GetProperty("total").GetString());
+        // « Non classées »: the uncategorised debits only.
+        var none = await LinesAsync(app, app.AdultA, "?uncategorised=true");
+        Assert.Equal(["-25.00"], Amounts(none));
+        Assert.Equal(figures.GetProperty("uncategorised").GetProperty("amount").GetString(), none.GetProperty("total").GetString());
+        // Bob's account is not Alice's to read: his category lines are his alone.
+        var bob = await LinesAsync(app, app.AdultB, $"?categoryId={foodId}&scope=me");
+        Assert.Equal(["-1000.00", "-30.00", "-40.00", "-80.00", "20.00"], Amounts(bob));
+
+        var fuelId = Category(figures, "Transport").GetProperty("id").GetGuid();
+        var first = await LinesAsync(app, app.AdultA, $"?categoryId={fuelId}");
+        var second = await LinesAsync(app, app.AdultA, $"?categoryId={fuelId}&page=2");
+        Assert.Equal((50, 5, 55, "55.00"), (first.GetProperty("items").GetArrayLength(), second.GetProperty("items").GetArrayLength(), first.GetProperty("count").GetInt32(), first.GetProperty("total").GetString()));
+        Assert.Empty(first.GetProperty("items").EnumerateArray().Select(l => l.GetProperty("id").GetGuid()).Intersect(second.GetProperty("items").EnumerateArray().Select(l => l.GetProperty("id").GetGuid())));
+
+        foreach (var query in new[] { "", $"?categoryId={foodId}&uncategorised=true" })
+            await BankingApi.AssertRefusedAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Spending}/lines{query}"), HttpStatusCode.UnprocessableEntity, BankingCodes.SpendingTarget);
+    }
+
+    [Fact]
+    public async Task A_line_with_no_rate_flags_the_lines_total_as_the_figures_do()
+    {
+        await using var app = await BankingApi.StartAsync(fixture);
+        await BankingApi.ConnectAsync(app, app.AdultA, "code-a", BankingApi.Account("uid-1", "hash-1", null, "Compte"));
+        var account = (await AccountsAsync(app, app.AdultA))["Compte"];
+        await LineAsync(app, account, new(2025, 8, 10), -20m, "food.groceries");
+        await LineAsync(app, account, new(2025, 8, 12), -100m, "food.groceries", "GBP");
+
+        var figures = await SpendingAsync(app, app.AdultA, "?scope=me&month=2025-08");
+        var id = Category(figures, "Alimentation").GetProperty("id").GetGuid();
+        var lines = await LinesAsync(app, app.AdultA, $"?scope=me&month=2025-08&categoryId={id}");
+
+        Assert.Equal(2, lines.GetProperty("count").GetInt32());
+        Assert.Equal(("20.00", true), (lines.GetProperty("total").GetString(), lines.GetProperty("incomplete").GetBoolean()));
+    }
 }

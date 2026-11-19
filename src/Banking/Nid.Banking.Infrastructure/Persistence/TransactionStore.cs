@@ -150,6 +150,18 @@ public sealed class TransactionStore(BankingDbContext db, IClock clock) : ITrans
                 new YearMonth(g.Key.Year, g.Key.Month), g.Debits, g.Credits))
             .ToList();
 
+    public async Task<(IReadOnlyList<BankTransaction> Items, int Count)> SpendingLinesAsync(
+        IReadOnlyList<Guid> accounts, IReadOnlyList<Guid> categories, bool uncategorised, LocalDate from, LocalDate to, int skip, int take, CancellationToken ct)
+    {
+        var query = db.Transactions.AsNoTracking()
+            .Where(t => accounts.Contains(t.AccountId) && t.BookedOn >= from && t.BookedOn <= to && t.LinkState != "ignored" && t.LinkState != "internal");
+        query = uncategorised ? query.Where(t => t.CategoryId == null && t.Amount < 0)
+            : query.Where(t => t.CategoryId != null && categories.Contains(t.CategoryId.Value));
+        var count = await query.CountAsync(ct);
+        var page = await query.OrderByDescending(t => t.BookedOn).ThenByDescending(t => t.Id).Skip(skip).Take(take).ToListAsync(ct);
+        return (page.Select(ToModel).ToList(), count);
+    }
+
     public Task<LocalDate?> EarliestBookedOnAsync(IReadOnlyList<Guid> accounts, CancellationToken ct)
         => db.Transactions.Where(t => accounts.Contains(t.AccountId)).MinAsync(t => (LocalDate?)t.BookedOn, ct);
 

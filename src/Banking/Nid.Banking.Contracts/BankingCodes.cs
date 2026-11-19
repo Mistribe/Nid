@@ -94,4 +94,7 @@ public static class BankingCodes
 
     /// <summary>#85: a spending period names both its months, the first not after the last, 24 months at most.</summary>
     public const string SpendingPeriod = "banking.spending_period";
+
+    /// <summary>#85: the lines of a spending figure name a category, or « Non classées », not both nor neither.</summary>
+    public const string SpendingTarget = "banking.spending_target";
 }
