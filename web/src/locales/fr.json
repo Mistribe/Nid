@@ -836,7 +836,6 @@
     "empty": "Aucun événement pour l'instant.",
     "when": "Date",
     "event": "Événement",
-    "via": "Origine",
     "via_label": {
       "ui": "Navigateur",
       "api": "API",
@@ -850,15 +849,15 @@
     "revoke_confirm": "Toutes vos sessions seront fermées, celle-ci comprise : vous devrez vous reconnecter.",
     "sso_reminder": "Se déconnecter de Nid ne ferme pas votre session auprès du fournisseur d'identité : fermez-la depuis son portail sur un appareil partagé.",
     "password_title": "Mot de passe",
-    "password_state": "Vous vous connectez avec l'identifiant {{login}}. Mot de passe changé le {{at}}.",
+    "password_state": "Identifiant {{login}} · changé le {{at}}",
     "password_current": "Mot de passe actuel",
     "password_others_close": "Vos autres sessions ouvertes seront fermées ; celle-ci reste ouverte.",
     "password_submit": "Changer le mot de passe",
     "totp": {
       "title": "Validation en deux étapes",
       "about": "En plus du mot de passe, Nid demande à chaque connexion un code à 6 chiffres qui change toutes les 30 secondes, affiché par une application d'authentification sur votre téléphone (Aegis, Google Authenticator, 1Password…). Un mot de passe deviné ou volé ne suffit plus.",
-      "off": "Désactivée : votre mot de passe suffit pour vous connecter.",
-      "on": "Active : un code de l'application est demandé à chaque connexion.",
+      "off": "Votre mot de passe suffit pour vous connecter : activez-la pour qu’un mot de passe deviné ou volé ne suffise plus.",
+      "on": "Un code de l’application est demandé à chaque connexion.",
       "codes_left": "Codes de secours restants : {{count}}.",
       "codes_low": "Il ne vous reste que {{count}} codes de secours : générez-en de nouveaux.",
       "enable": "Activer",
@@ -887,7 +886,10 @@
       "code": "Code de l'application ou de secours",
       "enabled": "Validation en deux étapes activée.",
       "disabled": "Validation en deux étapes désactivée.",
-      "expired": "La clé a expiré : recommencez l'activation."
+      "expired": "La clé a expiré : recommencez l'activation.",
+      "badge_on": "Active",
+      "badge_off": "Désactivée",
+      "menu": "Autres actions de la validation en deux étapes"
     },
     "revoke_tokens": "Révoquer aussi mes jetons d’accès",
     "tokens": {
@@ -902,8 +904,17 @@
       "last_used": "Dernière utilisation",
       "never_used": "Jamais",
       "status_label": "État",
-      "status": { "active": "Actif", "expired": "Expiré", "revoked": "Révoqué" },
-      "preset": { "read": "Lecture seule", "propose": "Lecture + propositions", "direct": "Écriture directe", "calendar": "Abonnement de calendrier" },
+      "status": {
+        "active": "Actif",
+        "expired": "Expiré",
+        "revoked": "Révoqué"
+      },
+      "preset": {
+        "read": "Lecture seule",
+        "propose": "Lecture + propositions",
+        "direct": "Écriture directe",
+        "calendar": "Abonnement de calendrier"
+      },
       "preset_hint": {
         "read": "L’assistant consulte vos données, sans rien modifier.",
         "propose": "L’assistant consulte et propose des saisies, que vous validez.",
@@ -911,7 +922,11 @@
       },
       "direct_warning": "À réserver aux saisies que vous dictez vous-même : un assistant qui lit un document ou un email peut être manipulé par son contenu et écrire à votre place.",
       "expiry_label": "Durée de validité",
-      "expiry": { "30": "30 jours", "90": "90 jours", "365": "1 an" },
+      "expiry": {
+        "30": "30 jours",
+        "90": "90 jours",
+        "365": "1 an"
+      },
       "submit": "Créer",
       "cancel": "Annuler",
       "created_title": "Votre nouveau jeton",
@@ -925,7 +940,11 @@
       "revoked": "Jeton révoqué.",
       "limit_reached": "Vous avez déjà 10 jetons actifs : révoquez-en un avant d’en créer un autre.",
       "banner": "Un jeton d’accès expire bientôt.",
-      "banner_link": "Voir mes jetons"
+      "banner_link": "Voir mes jetons",
+      "expires_on": "expire le {{at}}",
+      "inactive_one": "Afficher le jeton révoqué ou expiré",
+      "inactive_other": "Afficher les jetons révoqués ou expirés ({{count}})",
+      "inactive_caption": "Jetons révoqués ou expirés"
     },
     "mcp": {
       "title": "Brancher un assistant",
@@ -939,6 +958,36 @@
       "desktop_restart": "Enregistrez, puis redémarrez Claude Desktop.",
       "token_placeholder": "<votre jeton>",
       "advice": "Choisissez un jeton « Lecture seule » : l’assistant ne peut encore que consulter vos données."
+    },
+    "password_change": "Changer",
+    "sessions_hint": "Fermer toutes mes sessions, celle-ci comprise.",
+    "revoke_confirm_tokens": "Toutes vos sessions seront fermées, celle-ci comprise, et vos jetons d’accès cesseront de fonctionner : vous devrez vous reconnecter.",
+    "tab": {
+      "sign_in": "Connexion",
+      "tokens": "Jetons",
+      "activity": "Activité"
+    },
+    "status": {
+      "sign_in": "Connexion",
+      "oidc": "Fournisseur d’identité",
+      "password": "Identifiant local",
+      "login": "Identifiant {{login}}",
+      "turn_on": "L’activer",
+      "tokens": "Jetons actifs"
+    },
+    "activity": {
+      "filter": "Événements affichés",
+      "kind": {
+        "access": "Connexions et accès",
+        "assistant": "Assistant",
+        "all": "Tout"
+      },
+      "details": "Détails",
+      "more": "Afficher plus",
+      "tool": "Outil {{tool}}",
+      "preset": "Droits : {{preset}}",
+      "access": "Accès : {{access}}",
+      "prefix": "Jeton {{prefix}}…"
     }
   }
 }

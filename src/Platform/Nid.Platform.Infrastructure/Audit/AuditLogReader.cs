@@ -24,9 +24,15 @@ public sealed class AuditLogReader(PlatformDbContext db) : IAuditLog
     }
 
     public async Task<IReadOnlyList<AuditRecord>> SecurityEventsAsync(
-        PersonId? subject, IReadOnlyCollection<string>? events, bool withoutSelfRevocations, long? before, int limit, CancellationToken ct)
+        PersonId? subject, IReadOnlyCollection<string>? events, IReadOnlyCollection<string>? except, bool withoutSelfRevocations,
+        long? before, int limit, CancellationToken ct)
     {
         var query = SecurityQuery(subject, events, withoutSelfRevocations);
+        if (except is not null)
+        {
+            var names = except.ToArray();
+            query = query.Where(r => !names.Contains(r.Action));
+        }
         if (before is { } cursor)
             query = query.Where(r => r.Seq < cursor);
 

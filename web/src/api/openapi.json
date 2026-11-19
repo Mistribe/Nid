@@ -28888,6 +28888,13 @@
               "type": "integer",
               "format": "int32"
             }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {

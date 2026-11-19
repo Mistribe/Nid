@@ -41,14 +41,14 @@ const isRace = (error: unknown) => RACES.includes(toProblem(error).code ?? '');
 function refusalText(t: TFunction, error: unknown): string {
   const problem = toProblem(error);
   const index = problem.errors?.map((e) => /^payload\.movements\[(\d+)\]\.ref$/.exec(e.path)?.[1]).find((i) => i !== undefined);
-  if (problem.code === 'core.external_ref_taken' && index !== undefined) return t('field_error.core_external_ref_taken', { context: 'movement', n: Number(index) + 1 });
+  if (problem.code === 'core.external_ref_taken' && index !== undefined) return t('field_error.core_external_ref_taken_movement', { n: Number(index) + 1 });
   return knownConflictMessage(t, problem.code) ?? t('problem.unexpected');
 }
 
 /** An `apply_failed` warning reads `<code>: <server sentence>`: its code in French when known, never the server's English. */
 function applyFailedText(t: TFunction, message: string): string {
   const reason = knownConflictMessage(t, message.split(':')[0]?.trim());
-  return reason ? t('proposal.apply_failed', { message: reason }) : t('proposal.apply_failed', { context: 'unknown' });
+  return reason ? t('proposal.apply_failed', { message: reason }) : t('proposal.apply_failed_unknown');
 }
 
 /** Spec 4C2 §4: one proposal — read, edit, decide, move on. */

@@ -25,7 +25,7 @@ describe('the token banner', () => {
     const { container } = await renderApp('/');
 
     expect(await screen.findByText('Un jeton d’accès expire bientôt.')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Voir mes jetons' })).toHaveAttribute('href', '/security');
+    expect(screen.getByRole('link', { name: 'Voir mes jetons' })).toHaveAttribute('href', '/security?tab=tokens');
     await expectNoAxeViolations(container);
   });
 
