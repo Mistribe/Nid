@@ -54,7 +54,7 @@ public class TaxChangesEndpointTests(PostgresFixture fixture) : IClassFixture<Po
     {
         await using var app = await StartAsync(fixture);
 
-        var changes = await ChangesAsync(app, 2025, "me");
+        var changes = await ChangesAsync(app, 2020, "me");
 
         Assert.Empty(changes.GetProperty("lines").EnumerateArray());
         Assert.Equal(JsonValueKind.Null, changes.GetProperty("taxBefore").ValueKind);

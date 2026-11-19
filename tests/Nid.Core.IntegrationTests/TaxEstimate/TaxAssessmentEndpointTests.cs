@@ -60,7 +60,7 @@ public class TaxAssessmentEndpointTests(PostgresFixture fixture) : IClassFixture
         Assert.Equal("4145.00", allowance.GetProperty("deductionAmount").GetProperty("amount").GetString());
         Assert.Equal("37302.00", allowance.GetProperty("netSalaries").GetProperty("amount").GetString());
         Assert.Equal((HttpStatusCode.UnprocessableEntity, "request.invalid", "year"),
-            await ProblemOf(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Route}/salary-allowance?year=2023&grossSalaries=41447")));
+            await ProblemOf(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Route}/salary-allowance?year=2019&grossSalaries=41447")));
         Assert.Equal((HttpStatusCode.UnprocessableEntity, "request.invalid", "grossSalaries"),
             await ProblemOf(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Route}/salary-allowance?year=2025&grossSalaries=-1")));
     }

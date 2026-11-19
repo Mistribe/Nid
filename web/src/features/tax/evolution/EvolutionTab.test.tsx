@@ -57,16 +57,16 @@ describe('EvolutionTab', () => {
     const asked: (string | null)[] = [];
     let release = () => {};
     const gate = new Promise<void>((r) => { release = r; });
-    // The year list comes from the assessments: 2024 is offered only when a notice lists it. A past year never calls the estimate.
+    // The year list comes from the assessments: 2019 is offered only when a notice lists it. A past year never calls the estimate.
     server.use(
-      http.get('*/api/v1/tax/assessments', () => HttpResponse.json({ items: [{ ...soloAssessment({ year: 2024 }), netTax: undefined }] })),
+      http.get('*/api/v1/tax/assessments', () => HttpResponse.json({ items: [{ ...soloAssessment({ year: 2019 }), netTax: undefined }] })),
       http.get('*/api/v1/tax/history', async ({ request }) => {
         asked.push(new URL(request.url).searchParams.get('scope'));
         await gate;
         return HttpResponse.json({ years: history().slice(0, 1) });
       }),
     );
-    const { container } = await renderApp(`/tax?tab=evolution&year=2024${query}`);
+    const { container } = await renderApp(`/tax?tab=evolution&year=2019${query}`);
 
     await waitFor(() => expect(asked).toEqual([scope]));
     expect(container.querySelector('[data-slot="skeleton"]')).not.toBeNull();
