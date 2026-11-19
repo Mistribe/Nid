@@ -9,6 +9,8 @@ export const pct = (value: number) => new Intl.NumberFormat('fr-FR', { signDispl
 /** The gain in euros and percent; unknown figures are said, never shown as zero (spec §4). */
 export function Gain({ figures }: { figures: Figures }) {
   const { t } = useTranslation();
+  // #374: a value without a gain is an account that is no investment (a checking account, a livret fed by the bank).
+  if (!figures.gain && figures.value) return <><span aria-hidden="true">{t('investments.dash')}</span><span className="sr-only">{t('investments.no_gain')}</span></>;
   if (!figures.gain) return <span className="text-muted-foreground">{t('investments.no_value')}</span>;
   return (
     <Direction amount={figures.gain}>

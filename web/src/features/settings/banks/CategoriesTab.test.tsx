@@ -27,6 +27,7 @@ function serve() {
     http.get('*/api/v1/banking/status', () => HttpResponse.json({ enabled: true, configured: false })),
     http.get('*/api/v1/banking/accounts', () => HttpResponse.json([])),
     http.get('*/api/v1/banking/categories', () => HttpResponse.json(list)),
+    http.get('*/api/v1/banking/category-rules', () => HttpResponse.json([])),
     http.post('*/api/v1/banking/categories', async ({ request }) => {
       const body = await request.json() as { name: string; parentId?: string; kind?: string };
       writes.push(['POST', 'categories', body]);

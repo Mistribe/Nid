@@ -20,8 +20,45 @@ public class EnvelopeMathTests
     private static readonly Flow[] PeaFlows = [Flow(2024, 12, 31, FlowKind.Opening, 20_000m), Flow(2025, 6, 15, FlowKind.Contribution, 2_000m)];
 
     private static EnvelopeFigures At(IReadOnlyList<Valuation> values, IReadOnlyList<Flow> flows, LocalDate d,
-        ValuationCadence cadence = ValuationCadence.Monthly, int? staleAfter = null)
-        => EnvelopeMath.At(values, flows, Currency.Eur, cadence, staleAfter, d);
+        ValuationCadence cadence = ValuationCadence.Monthly, int? staleAfter = null, EnvelopeKind kind = EnvelopeKind.Pea)
+        => EnvelopeMath.At(kind, values, flows, Currency.Eur, cadence, staleAfter, d);
+
+    [Theory]
+    [InlineData(EnvelopeKind.Checking, false)]
+    [InlineData(EnvelopeKind.Savings, false)]
+    [InlineData(EnvelopeKind.Pea, true)]
+    [InlineData(EnvelopeKind.LifeInsurance, true)]
+    [InlineData(EnvelopeKind.Per, true)]
+    [InlineData(EnvelopeKind.Brokerage, true)]
+    [InlineData(EnvelopeKind.Other, true)]
+    [InlineData(EnvelopeKind.Tontine, true)]
+    public void Only_an_investment_has_a_gain_on_a_balance_with_no_money_paid_in(EnvelopeKind kind, bool performance)
+    {
+        var f = At([Value(2025, 6, 30, 1_000m)], [], new LocalDate(2025, 6, 30), kind: kind);
+
+        Assert.Equal(Eur(1_000m), f.Value);
+        Assert.Equal(performance, f.Gain is not null);
+        Assert.Equal(performance, f.MissingOpening);
+    }
+
+    [Fact]
+    public void A_checking_account_has_no_gain_even_with_money_paid_in()
+    {
+        var f = At(PeaValues, PeaFlows, new LocalDate(2025, 12, 31), kind: EnvelopeKind.Checking);
+
+        Assert.Equal((Eur(25_000m), Eur(22_000m)), (f.Value, f.NetContributions));
+        Assert.Equal((null, null, null, null, false), (f.Gain, f.GainPct, f.AnnualReturnPct, f.GainAfterFees, f.MissingOpening));
+    }
+
+    [Fact]
+    public void A_livret_has_a_gain_when_what_is_paid_in_is_recorded_unless_the_bank_feeds_its_balance()
+    {
+        var day = new LocalDate(2025, 12, 31);
+        Assert.Equal(Eur(3_000m), At(PeaValues, PeaFlows, day, kind: EnvelopeKind.Savings).Gain);
+
+        Valuation[] fromBank = [PeaValues[0], PeaValues[1] with { Source = FactSource.BankApi }];
+        Assert.Null(At(fromBank, PeaFlows, day, kind: EnvelopeKind.Savings).Gain);
+    }
 
     [Fact]
     public void The_golden_case_gives_plus_3000_and_13_6_percent()

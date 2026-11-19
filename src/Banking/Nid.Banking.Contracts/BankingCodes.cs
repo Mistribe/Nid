@@ -82,4 +82,10 @@ public static class BankingCodes
 
     /// <summary>A new or moved child under an archived parent, or a merge into an archived category.</summary>
     public const string CategoryArchived = "banking.category_archived";
+
+    /// <summary>A rule's pattern is 2 to 60 characters once normalised.</summary>
+    public const string RulePattern = "banking.rule_pattern";
+
+    /// <summary>A rule's amount bounds are not negative, and the minimum is not above the maximum.</summary>
+    public const string RuleAmounts = "banking.rule_amounts";
 }

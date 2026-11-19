@@ -119,7 +119,7 @@ public sealed class TransactionRow
     /// <summary><c>link</c>, <c>rule</c>, <c>hand</c>, <c>assistant</c> or <c>hint</c>; <c>hand</c> with no category is « Sans catégorie ».</summary>
     public string? CategorySource { get; set; }
 
-    /// <summary>The rule that set the category (PR 2); no foreign key until the rule table exists.</summary>
+    /// <summary>The <see cref="CategoryRuleRow"/> that set the category; null once the rule is deleted.</summary>
     public Guid? CategoryRuleId { get; set; }
 
     public Instant? CategorisedAt { get; set; }
@@ -141,6 +141,28 @@ public sealed class CategoryRow
     public string Kind { get; set; } = "";
     public Instant? ArchivedAt { get; set; }
     public Guid? MergedIntoId { get; set; }
+    public uint Version { get; set; }
+}
+
+/// <summary>A household's category rule: a line whose label or counterparty contains <see cref="Pattern"/> takes <see cref="CategoryId"/>.</summary>
+public sealed class CategoryRuleRow
+{
+    public Guid Id { get; set; }
+
+    /// <summary>Normalised like a line's label (<c>TransactionLabel.Normalize</c>).</summary>
+    public string Pattern { get; set; } = "";
+
+    public Guid? AccountId { get; set; }
+
+    /// <summary><c>debit</c>, <c>credit</c> or null for both.</summary>
+    public string? Direction { get; set; }
+
+    public decimal? MinAmount { get; set; }
+    public decimal? MaxAmount { get; set; }
+    public Guid CategoryId { get; set; }
+    public Guid CreatedByPersonId { get; set; }
+    public Instant CreatedAt { get; set; }
+    public Instant? LastUsedAt { get; set; }
     public uint Version { get; set; }
 }
 

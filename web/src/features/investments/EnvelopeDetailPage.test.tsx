@@ -143,6 +143,17 @@ describe('EnvelopeDetailPage', () => {
     expect(await screen.findByText('Le gain comprend peut-être des versements faits avant le début du suivi.')).toBeInTheDocument();
   });
 
+  it('shows a checking account its balance, without what was paid in nor a gain (#374)', async () => {
+    serve(detail({ kind: 'checking', figures: figures({ netContributions: eur('0.0000'), gain: null, gainPct: null, annualReturnPct: null, gainAfterFees: null }) }));
+    await renderApp(`/investments/${PEA}`);
+
+    const block = await screen.findByRole('region', { name: 'Valeur et gain' });
+    expect(block).toHaveTextContent('25 000,00 €');
+    expect(block).not.toHaveTextContent('Versements nets');
+    expect(block).not.toHaveTextContent('Gain');
+    expect(block).not.toHaveTextContent('par an');
+  });
+
   it('shows what was paid in or out since the last value, and fees and income only when there are any', async () => {
     serve(detail({ figures: figures({ contributionsSince: eur('700.0000'), withdrawalsSince: eur('50.0000'), fees: eur('120.0000'), gainAfterFees: eur('2880.0000') }) }));
     await renderApp(`/investments/${PEA}`);

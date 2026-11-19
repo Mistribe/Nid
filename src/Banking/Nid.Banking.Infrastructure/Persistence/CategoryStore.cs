@@ -139,6 +139,9 @@ public sealed class CategoryStore(BankingDbContext db, IClock clock) : ICategory
     private async Task MergeRowAsync(CategoryRow source, CategoryRow target, Instant at, CancellationToken ct)
     {
         await db.Transactions.Where(t => t.CategoryId == source.Id).ExecuteUpdateAsync(s => s.SetProperty(t => t.CategoryId, target.Id), ct);
+        // Tracked, so audited: a rule is the household's decision, a line's category is not.
+        foreach (var rule in await db.CategoryRules.Where(r => r.CategoryId == source.Id).ToListAsync(ct))
+            rule.CategoryId = target.Id;
         // Never into a merged child (its lines would land on a pointer): an active one first, else an archived one.
         var targetChildren = (await db.Categories.Where(c => c.ParentId == target.Id && c.MergedIntoId == null).ToListAsync(ct))
             .OrderBy(c => c.ArchivedAt is not null).ToList();
@@ -158,7 +161,8 @@ public sealed class CategoryStore(BankingDbContext db, IClock clock) : ICategory
     }
 
     public async Task<int> SetForLinesAsync(
-        IReadOnlyCollection<Guid> lines, Guid? category, CategorySource? source, string by, Instant at, bool byPerson, CancellationToken ct)
+        IReadOnlyCollection<Guid> lines, Guid? category, CategorySource? source, string by, Instant at, bool byPerson, CancellationToken ct,
+        Guid? ruleId = null)
     {
         // CategoryPrecedence, in the WHERE: one source of truth for which current sources a write replaces. A clear (no source) leaves a
         // person's choice (hand, assistant) to a person.
@@ -173,10 +177,11 @@ public sealed class CategoryStore(BankingDbContext db, IClock clock) : ICategory
                 .SetProperty(t => t.CategorisedBy, (string?)null), ct);
 
         var wire = Wire(source.Value);
+        var rule = source == CategorySource.Rule ? ruleId : null;
         return await query
             .ExecuteUpdateAsync(s => s
                 .SetProperty(t => t.CategoryId, category).SetProperty(t => t.CategorySource, wire)
-                .SetProperty(t => t.CategoryRuleId, (Guid?)null).SetProperty(t => t.CategorisedAt, at)
+                .SetProperty(t => t.CategoryRuleId, rule).SetProperty(t => t.CategorisedAt, at)
                 .SetProperty(t => t.CategorisedBy, by), ct);
     }
 

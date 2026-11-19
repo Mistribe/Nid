@@ -54,7 +54,7 @@ public sealed class EnvelopesNetWorth(
                 holdings.Add(new Holding(envelope.ItemId, "investments", name, null, null, false, owners, UnlocksAtRetirement: envelope.Kind == EnvelopeKind.Per));
                 continue;
             }
-            var figures = EnvelopeMath.At(f!.Values, f.Flows, f.Currency, f.Envelope.Cadence, f.Envelope.StaleAfterDays, today);
+            var figures = EnvelopeMath.At(f!.Envelope.Kind, f.Values, f.Flows, f.Currency, f.Envelope.Cadence, f.Envelope.StaleAfterDays, today);
             if (figures.Value is null)
             {
                 withoutValue++;
@@ -121,7 +121,7 @@ public sealed class EnvelopesNetWorth(
             if (facts.TryGetValue(envelope.ItemId, out var f))
             {
                 Money? estimate = estimates.GetValueOrDefault(envelope.ItemId) is { Value: not null } e
-                    && EnvelopeMath.At(f.Values, f.Flows, f.Currency, f.Envelope.Cadence, f.Envelope.StaleAfterDays, today) is { Value: not null } figures
+                    && EnvelopeMath.At(f.Envelope.Kind, f.Values, f.Flows, f.Currency, f.Envelope.Cadence, f.Envelope.StaleAfterDays, today) is { Value: not null } figures
                     && TodayValue.Pick(figures, e) is { Estimated: true } picked ? picked.Value : null;
                 var readings = EnvelopeMath.Series(f.Values, f.Flows, f.Currency).Where(p => !p.PaidIn).ToList();
                 // Frozen only when it was valued before its closing: one never valued stayed out of the count and stays out.

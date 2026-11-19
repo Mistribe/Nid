@@ -191,12 +191,12 @@ internal static class InvestmentsOverviewMath
     {
         var convert = new Converter(reference, rates);
         var open = facts.Where(f => f.Item.ArchivedAt is null).ToList();
-        var figures = open.Select(f => (Facts: f, Figures: EnvelopeMath.At(f.Values, f.Flows, f.Currency, f.Envelope.Cadence, f.Envelope.StaleAfterDays, today)))
+        var figures = open.Select(f => (Facts: f, Figures: EnvelopeMath.At(f.Envelope.Kind, f.Values, f.Flows, f.Currency, f.Envelope.Cadence, f.Envelope.StaleAfterDays, today)))
             .ToList();
         var valued = figures.Where(x => x.Figures.Value is not null)
             .Select(x => (x.Facts, x.Figures, Today: TodayValue.Pick(x.Figures, estimates?.GetValueOrDefault(x.Facts.Item.Id))))
             .Select(x => new Valued(x.Facts, x.Figures, convert.Of(x.Today.Value.Amount, x.Facts.Currency, today),
-                convert.Of(x.Figures.Gain!.Value.Amount, x.Facts.Currency, today),
+                x.Figures.Gain is { } gain ? convert.Of(gain.Amount, x.Facts.Currency, today) : null,
                 x.Today.Estimated ? x.Today.Value : null, x.Today.Estimated ? x.Today.AsOf : null))
             .ToList();
 
@@ -319,7 +319,8 @@ internal static class InvestmentsOverviewMath
         {
             var owners = v.Facts.Item.Owners;
             var values = Split(v.Value, owners);
-            var gains = Split(v.Gain, owners);
+            // #374: an envelope without a gain (a checking account) adds none to its owners'.
+            var gains = Split(v.Figures.Gain is null ? 0m : v.Gain, owners);
             for (var k = 0; k < owners.Count; k++)
             {
                 var (value, gain) = parts.GetValueOrDefault(owners[k].PersonId, (0m, 0m));

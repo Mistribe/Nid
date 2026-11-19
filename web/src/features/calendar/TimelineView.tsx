@@ -73,7 +73,8 @@ function Band({ from, to, events, modules }: { from: string; to: string; events:
               <div className={NAMES} />
               <div className={`${TRACK} h-full text-xs text-muted-foreground`}>
                 <span className="absolute top-1/2 left-0 -translate-y-1/2 font-medium text-primary">{t('calendar_page.today')}</span>
-                {ticks.map((y) => (
+                {/* A year too close to the start would print over « Aujourd’hui » (15 % of the narrowest track): its grid line stays. */}
+                {ticks.filter((y) => y.at >= 0.15).map((y) => (
                   <span key={y.year} className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 tabular-nums" style={{ left: pct(y.at) }}>{y.year}</span>
                 ))}
               </div>
