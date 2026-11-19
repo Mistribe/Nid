@@ -37,6 +37,9 @@ public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
         "POST /api/v1/banking/accounts/{id:guid}/envelope",
         // A line linked to a charge: propose_bank_link proposes it, with the line and the charge in its preview.
         "POST /api/v1/banking/transactions/{id:guid}/link",
+        // #83: the household's category list is edited in Réglages › Banques, and a line's category chosen in the browser; the
+        // assistant gets its own batch proposal for line categories.
+        "/api/v1/banking/categories", "/api/v1/banking/transactions/{id:guid}/category",
         // An insurance is set by propose_set_insurance (spec 2026-10-30 §10); removing it is a click in the web app.
         "DELETE /api/v1/subscriptions/{id:guid}/insurance",
         // Childcare spec decision 27: validating, reopening or restarting a statement stays the person's gesture in the browser.
