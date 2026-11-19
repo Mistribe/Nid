@@ -251,12 +251,14 @@ public interface ICategoryStore
     /// <summary>
     /// In one transaction: moves the lines of <paramref name="from"/> to <paramref name="into"/> (their source unchanged), merges each child
     /// into the target's child of the same name (whatever the case) or moves it under the target, then archives <paramref name="from"/> as merged.
+    /// A merged category is neither merged again, merged into, moved nor unarchived (<see cref="BankingCodes.CategoryArchived"/>).
     /// </summary>
     Task<Result<BankCategory>> MergeAsync(Guid from, Guid into, CancellationToken ct);
 
     /// <summary>
     /// Sets the category of the lines whose current source <paramref name="source"/> may replace (<c>CategoryPrecedence</c>); a null
-    /// <paramref name="source"/> clears category and source (« Laisser Nid décider »). How many lines changed.
+    /// <paramref name="source"/> clears category and source (« Laisser Nid décider »), a hand or assistant one only when
+    /// <paramref name="byPerson"/>. How many lines changed.
     /// </summary>
     Task<int> SetForLinesAsync(
         IReadOnlyCollection<Guid> lines, Guid? category, CategorySource? source, string by, Instant at, bool byPerson, CancellationToken ct);

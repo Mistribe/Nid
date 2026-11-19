@@ -166,6 +166,47 @@ public class CategoryStoreTests(PostgresFixture fixture) : IClassFixture<Postgre
     }
 
     [Fact]
+    public async Task Merge_skips_merged_children_on_both_sides()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await using var scope = Scope(app);
+        var store = scope.ServiceProvider.GetRequiredService<ICategoryStore>();
+        var target = Value(await store.CreateAsync(null, "Maison et table", CategoryKind.Expense, Ct));
+        var oldCourses = Value(await store.CreateAsync(target.Id, "Courses", CategoryKind.Expense, Ct));
+        var grocery = Value(await store.CreateAsync(target.Id, "Épicerie", CategoryKind.Expense, Ct));
+        var delivery = Value(await store.CreateAsync(target.Id, "livraison", CategoryKind.Expense, Ct));
+        Value(await store.MergeAsync(oldCourses.Id, grocery.Id, Ct));
+        Value(await store.MergeAsync(Seed("food.delivery"), Seed("food.restaurants"), Ct));
+
+        Value(await store.MergeAsync(Seed("food"), target.Id, Ct));
+
+        // The target's merged « Courses » is no match: the source's moves under the target, still itself.
+        var groceries = (await store.FindAsync(Seed("food.groceries"), Ct))!;
+        Assert.Equal((target.Id, (Guid?)null), (groceries.Parent!.Value, groceries.MergedInto));
+        Assert.Equal(Seed("food.groceries"), await store.ResolveKeyAsync("food.groceries", Ct));
+        // The source's merged « Livraison » keeps its target, never merged again into the target's « livraison ».
+        var merged = (await store.FindAsync(Seed("food.delivery"), Ct))!;
+        Assert.Equal((target.Id, Seed("food.restaurants")), (merged.Parent!.Value, merged.MergedInto!.Value));
+        Assert.Null((await store.FindAsync(delivery.Id, Ct))!.ArchivedAt);
+        Assert.Equal(Seed("food.restaurants"), await store.ResolveKeyAsync("food.delivery", Ct));
+    }
+
+    [Fact]
+    public async Task A_merged_category_stays_merged()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await using var scope = Scope(app);
+        var store = scope.ServiceProvider.GetRequiredService<ICategoryStore>();
+        Value(await store.MergeAsync(Seed("donations"), Seed("misc"), Ct));
+
+        Assert.Equal(BankingCodes.CategoryArchived, Code(await store.MergeAsync(Seed("donations"), Seed("taxes"), Ct)));
+        Assert.Equal(BankingCodes.CategoryArchived, Code(await store.MergeAsync(Seed("taxes"), Seed("donations"), Ct)));
+        Assert.Equal(BankingCodes.CategoryArchived, Code(await store.UpdateAsync(Seed("donations"), null, null, false, false, Ct)));
+        Assert.Equal(BankingCodes.CategoryArchived, Code(await store.UpdateAsync(Seed("donations"), null, Seed("leisure"), true, null, Ct)));
+        Assert.Equal(Seed("misc"), await store.ResolveKeyAsync("donations", Ct));
+    }
+
+    [Fact]
     public async Task Merge_across_kinds_is_refused()
     {
         await using var app = await NidApp.StartAsync(fixture);
@@ -205,9 +246,19 @@ public class CategoryStoreTests(PostgresFixture fixture) : IClassFixture<Postgre
         // A rule does not replace a link's.
         Assert.Equal(0, await store.SetForLinesAsync([lines[1]], Seed("misc"), CategorySource.Rule, "rule:x", At, false, Ct));
 
-        // Clearing the link's leaves the hand one; « Laisser Nid décider » clears it.
+        // Clearing the link's leaves the hand one.
         Assert.Equal(1, await store.ClearSourceAsync(lines, [CategorySource.Link], Ct));
         Assert.Null((await transactions.FindAsync(lines[1], Ct))!.CategorySource);
+
+        // A person replaces a hand category; a link never replaces an assistant one.
+        Assert.Equal(1, await store.SetForLinesAsync([lines[0]], Seed("bank"), CategorySource.Hand, "person:y", At, true, Ct));
+        Assert.Equal(Seed("bank"), (await transactions.FindAsync(lines[0], Ct))!.Category);
+        Assert.Equal(1, await store.SetForLinesAsync([lines[1]], Seed("bank"), CategorySource.Assistant, "person:y", At, true, Ct));
+        Assert.Equal(0, await store.SetForLinesAsync([lines[1]], Seed("misc"), CategorySource.Link, "job", At, false, Ct));
+        Assert.Equal(Seed("bank"), (await transactions.FindAsync(lines[1], Ct))!.Category);
+
+        // A clear by no person leaves a person's choice; « Laisser Nid décider » by a person clears it.
+        Assert.Equal(0, await store.SetForLinesAsync(lines, null, null, "job", At, false, Ct));
         Assert.Equal(1, await store.SetForLinesAsync([lines[0]], null, null, "person:x", At, true, Ct));
         var cleared = (await transactions.FindAsync(lines[0], Ct))!;
         Assert.Equal((null, null), (cleared.Category, cleared.CategorySource));

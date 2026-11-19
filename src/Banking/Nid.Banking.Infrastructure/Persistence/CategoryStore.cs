@@ -64,12 +64,16 @@ public sealed class CategoryStore(BankingDbContext db, IClock clock) : ICategory
         if (newName.Length is 0 or > MaxName)
             return NameError(InvalidName);
 
+        // A merged category is a pointer to its target: moving or bringing it back would fork the chain.
+        if (row.MergedIntoId is not null && (archived == false || (moveParent && parent != row.ParentId)))
+            return Fail(BankingCodes.CategoryArchived, "A merged category is neither moved nor unarchived.");
+
         var newParent = moveParent ? parent : row.ParentId;
         if (moveParent && parent is { } parentId)
         {
             if (await db.Categories.AsNoTracking().SingleOrDefaultAsync(c => c.Id == parentId, ct) is not { } parentRow)
                 return NotFound(parentId);
-            if (parentId == id || parentRow.ParentId is not null || await db.Categories.AnyAsync(c => c.ParentId == id, ct))
+            if (parentId == id || parentRow.ParentId is not null || await db.Categories.AnyAsync(c => c.ParentId == id && c.MergedIntoId == null, ct))
                 return Fail(BankingCodes.CategoryDepth, "Categories are two levels deep: a child has no children.");
             if (parentRow.Kind != row.Kind)
                 return Fail(BankingCodes.CategoryKind, "A category moves only under a parent of its kind.");
@@ -106,7 +110,9 @@ public sealed class CategoryStore(BankingDbContext db, IClock clock) : ICategory
             return NotFound(from);
         if (await db.Categories.SingleOrDefaultAsync(c => c.Id == into, ct) is not { } target)
             return NotFound(into);
-        if (from == into || (target.ParentId is not null && await db.Categories.AnyAsync(c => c.ParentId == from, ct)))
+        if (source.MergedIntoId is not null || target.MergedIntoId is not null)
+            return Fail(BankingCodes.CategoryArchived, "A merged category is merged no further, and nothing merges into it.");
+        if (from == into || (target.ParentId is not null && await db.Categories.AnyAsync(c => c.ParentId == from && c.MergedIntoId == null, ct)))
             return Fail(BankingCodes.CategoryDepth, "A category with children merges only into a top-level one, never into itself.");
         if (source.Kind != target.Kind)
             return Fail(BankingCodes.CategoryKind, "A category merges only into one of its kind.");
@@ -133,12 +139,17 @@ public sealed class CategoryStore(BankingDbContext db, IClock clock) : ICategory
     private async Task MergeRowAsync(CategoryRow source, CategoryRow target, Instant at, CancellationToken ct)
     {
         await db.Transactions.Where(t => t.CategoryId == source.Id).ExecuteUpdateAsync(s => s.SetProperty(t => t.CategoryId, target.Id), ct);
-        var targetChildren = await db.Categories.Where(c => c.ParentId == target.Id).ToListAsync(ct);
+        // Never into a merged child (its lines would land on a pointer): an active one first, else an archived one.
+        var targetChildren = (await db.Categories.Where(c => c.ParentId == target.Id && c.MergedIntoId == null).ToListAsync(ct))
+            .OrderBy(c => c.ArchivedAt is not null).ToList();
         foreach (var child in await db.Categories.Where(c => c.ParentId == source.Id).ToListAsync(ct))
         {
-            if (targetChildren.FirstOrDefault(c => string.Equals(c.Name, child.Name, StringComparison.OrdinalIgnoreCase)) is { } same)
+            // OrdinalIgnoreCase here, Postgres lower() for sibling uniqueness: the same for French letters.
+            if (child.MergedIntoId is null
+                && targetChildren.FirstOrDefault(c => string.Equals(c.Name, child.Name, StringComparison.OrdinalIgnoreCase)) is { } same)
                 await MergeRowAsync(child, same, at, ct);
-            else
+            // An already merged child keeps its target; it follows its parent only where it stays two levels deep.
+            else if (child.MergedIntoId is null || target.ParentId is null)
                 child.ParentId = target.Id;
         }
 
@@ -149,18 +160,20 @@ public sealed class CategoryStore(BankingDbContext db, IClock clock) : ICategory
     public async Task<int> SetForLinesAsync(
         IReadOnlyCollection<Guid> lines, Guid? category, CategorySource? source, string by, Instant at, bool byPerson, CancellationToken ct)
     {
-        var query = db.Transactions.Where(t => lines.Contains(t.Id));
+        // CategoryPrecedence, in the WHERE: one source of truth for which current sources a write replaces. A clear (no source) leaves a
+        // person's choice (hand, assistant) to a person.
+        var replaceable = Enum.GetValues<CategorySource>()
+            .Where(c => source is { } incoming ? CategoryPrecedence.CanReplace(c, incoming, byPerson) : byPerson || c is not (CategorySource.Hand or CategorySource.Assistant))
+            .Select(Wire).ToList();
+        var query = db.Transactions.Where(t => lines.Contains(t.Id) && (t.CategorySource == null || replaceable.Contains(t.CategorySource)));
         if (source is null)
-            // « Laisser Nid décider »: the person's choice, whatever set the category.
             return await query.ExecuteUpdateAsync(s => s
                 .SetProperty(t => t.CategoryId, (Guid?)null).SetProperty(t => t.CategorySource, (string?)null)
                 .SetProperty(t => t.CategoryRuleId, (Guid?)null).SetProperty(t => t.CategorisedAt, (Instant?)null)
                 .SetProperty(t => t.CategorisedBy, (string?)null), ct);
 
-        // CategoryPrecedence, in the WHERE: one source of truth for which current sources a write replaces.
-        var replaceable = Enum.GetValues<CategorySource>().Where(c => CategoryPrecedence.CanReplace(c, source.Value, byPerson)).Select(Wire).ToList();
         var wire = Wire(source.Value);
-        return await query.Where(t => t.CategorySource == null || replaceable.Contains(t.CategorySource))
+        return await query
             .ExecuteUpdateAsync(s => s
                 .SetProperty(t => t.CategoryId, category).SetProperty(t => t.CategorySource, wire)
                 .SetProperty(t => t.CategoryRuleId, (Guid?)null).SetProperty(t => t.CategorisedAt, at)
