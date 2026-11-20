@@ -5,6 +5,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { pick } from '@/test/controls';
 import { server } from '@/test/server';
+import { MCP_REMOTE } from './mcpSnippets';
 
 async function openHelp() {
   const rendered = await renderApp('/security?tab=tokens');
@@ -35,7 +36,7 @@ describe('Brancher un assistant IA', () => {
 
     await user.click(within(section).getByRole('button', { name: 'Configuration manuelle' }));
 
-    expect(section).toHaveTextContent('"mcp-remote@0.16.5"');
+    expect(section).toHaveTextContent(`"${MCP_REMOTE}"`);
     expect(section).toHaveTextContent('"NID_AUTH": "Bearer <votre jeton>"');
   });
 
