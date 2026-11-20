@@ -36,12 +36,12 @@ public sealed class TestBankingConnectionHandler(IHouseholdSettings settings, Ba
 {
     public async ValueTask<Result<BankingConnectionTestView>> HandleAsync(TestBankingConnectionCommand command, CancellationToken ct = default)
     {
-        var app = (await settings.ReadAsync(ct)).EnableBankingAppId;
-        if (string.IsNullOrWhiteSpace(app) || key.Status != BankingKeyStatus.Loaded || string.IsNullOrWhiteSpace(options.PrivateKey))
+        var appId = (await settings.ReadAsync(ct)).EnableBankingAppId;
+        if (string.IsNullOrWhiteSpace(appId) || key.Status != BankingKeyStatus.Loaded || string.IsNullOrWhiteSpace(options.PrivateKey))
             return Result.Failure<BankingConnectionTestView>(
                 new ConflictFailure("Bank sync has no Enable Banking application id or no usable private key.") { Code = BankingCodes.NotConfigured });
 
-        var answer = await client.ApplicationAsync(new EnableBankingApp(app, options.PrivateKey), ct);
+        var answer = await client.ApplicationAsync(new EnableBankingApp(appId, options.PrivateKey), ct);
         if (answer.TryGetValue(out var application))
             return Result.Success(new BankingConnectionTestView(
                 "accepted", null, application!.Active, application.RedirectUrls.Contains(command.RedirectUrl, StringComparer.Ordinal)));

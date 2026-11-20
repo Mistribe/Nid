@@ -14,23 +14,53 @@ namespace Nid.Banking.Application;
 /// </summary>
 public sealed class BankingAccess(
     IHouseholdSettings settings, BankingOptions options, IAccessPolicy policy, IConnectionStore connections, IAccountStore accounts,
-    IActorAccessor actor, IPersonRegistry persons, IItemRegistry items)
+    IActorAccessor actor, IPersonRegistry persons, IItemRegistry items, IApplicationStore applications)
 {
     public PersonId Person => actor.Current!.PersonId!.Value;
 
-    public static bool Configured(HouseholdSettingsInfo household, BankingOptions options)
+    private static bool Configured(HouseholdSettingsInfo household, BankingOptions options)
         => !string.IsNullOrWhiteSpace(household.EnableBankingAppId) && !string.IsNullOrWhiteSpace(options.PrivateKey);
 
-    /// <summary>The installation's application (id and key), when banking is on and configured: every request that reaches a bank asks it first.</summary>
-    public async Task<Result<EnableBankingApp>> InstallationAppAsync(CancellationToken ct)
+    /// <summary>Whether the person can reach Enable Banking: their own application with a readable key, else the installation's.</summary>
+    public async Task<bool> ConfiguredAsync(PersonId person, CancellationToken ct)
+        => await applications.FindAsync(person, ct) is { } own ? own.KeyReadable : Configured(await settings.ReadAsync(ct), options);
+
+    /// <summary>
+    /// The application the actor's next call uses (list banks, start, status): banking on, then their own application when they
+    /// declared one (an unreadable key is not configured), else the installation's.
+    /// </summary>
+    public async Task<Result<EnableBankingApp>> MyAppAsync(CancellationToken ct)
     {
         var household = await settings.ReadAsync(ct);
         if (!household.BankingEnabled)
             return Result.Failure<EnableBankingApp>(new ConflictFailure("Bank sync is turned off for this household.") { Code = BankingCodes.Disabled });
-        return Configured(household, options)
-            ? Result.Success(new EnableBankingApp(household.EnableBankingAppId!, options.PrivateKey!))
-            : Result.Failure<EnableBankingApp>(new ConflictFailure("Bank sync has no Enable Banking application id or private key.") { Code = BankingCodes.NotConfigured });
+        return await applications.FindAsync(Person, ct) is not null
+            ? await OwnAsync(Person, ct)
+            : Installation(household);
     }
+
+    /// <summary>
+    /// The application a connection was made with, whoever asks: its creator's own when the id is theirs, else the installation's
+    /// (legacy connections have no id); an application that is gone or unreadable is not configured. Banking being on is the caller's.
+    /// </summary>
+    public async Task<Result<EnableBankingApp>> AppForAsync(BankConnection connection, CancellationToken ct)
+    {
+        if (await applications.FindAsync(connection.Person, ct) is { } own && own.ApplicationId == connection.ApplicationId)
+            return await OwnAsync(connection.Person, ct);
+        var household = await settings.ReadAsync(ct);
+        return connection.ApplicationId is null || connection.ApplicationId == household.EnableBankingAppId
+            ? Installation(household)
+            : NotConfigured();
+    }
+
+    private async Task<Result<EnableBankingApp>> OwnAsync(PersonId person, CancellationToken ct)
+        => await applications.CredentialAsync(person, ct) is { } credential ? Result.Success(credential) : NotConfigured();
+
+    private Result<EnableBankingApp> Installation(HouseholdSettingsInfo household)
+        => Configured(household, options) ? Result.Success(new EnableBankingApp(household.EnableBankingAppId!, options.PrivateKey!)) : NotConfigured();
+
+    private static Result<EnableBankingApp> NotConfigured()
+        => Result.Failure<EnableBankingApp>(new ConflictFailure("Bank sync has no usable Enable Banking application.") { Code = BankingCodes.NotConfigured });
 
     /// <summary>Banking on, whatever Enable Banking's configuration: what file imports and the accounts they make need (ruling R-d).</summary>
     public async Task<Result> EnabledAsync(CancellationToken ct)

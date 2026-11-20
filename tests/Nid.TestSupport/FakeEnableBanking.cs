@@ -44,6 +44,11 @@ public sealed class FakeEnableBanking : IEnableBankingClient
 
     public List<string> CodesExchanged { get; } = [];
 
+    /// <summary>The application each code exchange and each session deletion was signed with.</summary>
+    public List<string> SessionApps { get; } = [];
+
+    public List<string> DeleteApps { get; } = [];
+
     public List<BalancesCall> BalanceCalls { get; } = [];
 
     public List<TransactionsCall> TransactionCalls { get; } = [];
@@ -70,6 +75,7 @@ public sealed class FakeEnableBanking : IEnableBankingClient
     public Task<Result<AuthorizedSession>> CreateSessionAsync(EnableBankingApp app, string code, CancellationToken ct)
     {
         Record(CodesExchanged, code);
+        Record(SessionApps, app.Id);
         return Task.FromResult(FailWith is { } fail ? Fail<AuthorizedSession>(fail)
             : Sessions.TryGetValue(code, out var session) ? Result.Success(session) : Fail<AuthorizedSession>("enablebanking.WRONG_AUTHORIZATION_CODE"));
     }
@@ -97,6 +103,7 @@ public sealed class FakeEnableBanking : IEnableBankingClient
     public Task<Result> DeleteSessionAsync(EnableBankingApp app, string sessionId, CancellationToken ct)
     {
         Record(DeletedSessions, sessionId);
+        Record(DeleteApps, app.Id);
         return Task.FromResult(FailWith is { } code ? Result.Failure(new Failure(code, "Fake provider failure.", null)) : Result.Success());
     }
 
