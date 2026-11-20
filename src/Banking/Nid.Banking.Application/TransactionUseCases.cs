@@ -132,7 +132,7 @@ public sealed class BankLines(
     /// D19: a link shows only to a reader of its target item, or of its counterpart account; an internal line whose counterpart the reader
     /// cannot read says <c>linked</c>, as the store's state filter counts it.
     /// </summary>
-    private async Task<IReadOnlyList<BankTransactionView>> ViewsAsync(
+    public async Task<IReadOnlyList<BankTransactionView>> ViewsAsync(
         IReadOnlyList<BankTransaction> lines, IReadOnlyDictionary<Guid, BankAccount> readable, CancellationToken ct)
     {
         var all = (await accounts.AllAsync(ct)).ToDictionary(a => a.Id);

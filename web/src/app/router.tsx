@@ -523,10 +523,41 @@ const notificationsRoute = createRoute({
   component: lazyRouteComponent(() => import('@/features/notifications/NotificationsPage'), 'NotificationsPage'),
 });
 
+/** The « Opérations » filters (#84): all in the URL, the server applies them; `page` from 2; `state` absent is every line. */
+export type OperationsSearch = {
+  q?: string; account?: string[]; owner?: string[]; from?: string; to?: string; category?: string[]; uncategorised?: boolean;
+  state?: 'unlinked' | 'linked' | 'internal' | 'ignored'; direction?: 'out' | 'in'; min?: number; max?: number; page?: number;
+};
+const ids = (value: unknown): string[] | undefined => {
+  const list = (Array.isArray(value) ? value : [value]).filter((v): v is string => typeof v === 'string' && v !== '');
+  return list.length > 0 ? list : undefined;
+};
+const isoDate = (value: unknown) => (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : undefined);
+// A bound is a plain non-negative decimal (the server refuses a negative one and reads no exponent).
+const amount = (value: unknown) => (typeof value === 'string' || typeof value === 'number') && /^\d{1,12}(\.\d{1,6})?$/.test(String(value)) ? Number(value) : undefined;
+const STATES = ['unlinked', 'linked', 'internal', 'ignored'] as const;
+
 const operationsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/operations',
-  component: lazyRouteComponent(() => import('@/features/operations/UnlinkedPage'), 'UnlinkedPage'),
+  beforeLoad: requireModule('banking'),
+  // Every key is answered, undefined when invalid: a key left out would keep its raw URL value for a `strict: false` reader.
+  validateSearch: (search: Record<string, unknown>): OperationsSearch => ({
+    q: typeof search.q === 'string' && search.q !== '' ? search.q : undefined,
+    // The page picks one account, owner and category: a longer list in the URL keeps its first.
+    account: ids(search.account)?.slice(0, 1),
+    owner: ids(search.owner)?.slice(0, 1),
+    category: ids(search.category)?.slice(0, 1),
+    from: isoDate(search.from),
+    to: isoDate(search.to),
+    uncategorised: search.uncategorised === true || search.uncategorised === 'true' ? true : undefined,
+    state: STATES.find((s) => s === search.state),
+    direction: search.direction === 'out' || search.direction === 'in' ? search.direction : undefined,
+    min: amount(search.min),
+    max: amount(search.max),
+    page: (positive(search.page) ?? 1) > 1 ? positive(search.page) : undefined,
+  }),
+  component: lazyRouteComponent(() => import('@/features/operations/OperationsPage'), 'OperationsPage'),
 });
 
 const routineRoute = createRoute({

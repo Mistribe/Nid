@@ -38,6 +38,8 @@ public sealed class BankingDbContext(DbContextOptions<BankingDbContext> options)
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schema);
+        // #84: the operations search ignores accents.
+        modelBuilder.HasPostgresExtension("unaccent");
 
         modelBuilder.Entity<ApplicationRow>(e =>
         {

@@ -103,6 +103,25 @@ public sealed class BankingAccess(
         return readers;
     }
 
+    /// <summary>The readers of each account, as <see cref="ReadersAsync(BankAccount, CancellationToken, AccessKind)"/> gives them, the adults and their connections loaded once.</summary>
+    public async Task<IReadOnlyDictionary<Guid, IReadOnlyList<PersonId>>> ReadersAsync(IReadOnlyList<BankAccount> list, CancellationToken ct)
+    {
+        var adults = (await AdultsAsync(ct)).ToList();
+        var mine = new Dictionary<PersonId, IReadOnlySet<Guid>>();
+        foreach (var adult in adults)
+            mine[adult] = (await connections.MineAsync(adult, ct)).Select(c => c.Id).ToHashSet();
+        var readers = new Dictionary<Guid, IReadOnlyList<PersonId>>();
+        foreach (var account in list)
+        {
+            var found = new List<PersonId>();
+            foreach (var adult in adults.OrderBy(a => a != account.CreatedBy))
+                if (await CanWriteAsync(adult, account, mine[adult], ct) is not null)
+                    found.Add(adult);
+            readers[account.Id] = found;
+        }
+        return readers;
+    }
+
     /// <summary>
     /// §0 n°1: whether every adult who reads <paramref name="item"/> reads the account too. Only then may a proposal on the item tell of
     /// one of the account's lines: the item's readers see it and are asked to decide.

@@ -252,6 +252,17 @@ public interface ITransactionStore
     Task<(IReadOnlyList<BankTransaction> Items, int Count)> SpendingLinesAsync(
         IReadOnlyList<Guid> accounts, IReadOnlyList<Guid> categories, bool uncategorised, LocalDate from, LocalDate to, int skip, int take, CancellationToken ct);
 
+    /// <summary>
+    /// #84: one page of the lines of <paramref name="filter"/>.Accounts (the actor's pick among <paramref name="readable"/>, already resolved), newest booked
+    /// first, with how many there are, and the filter's <see cref="SpendingSum"/>s (ignored and internal lines and ignored accounts left out, no category).
+    /// <paramref name="categories"/> are the filter's categories with their children. D19 and the state filter work as in <see cref="ListAsync"/>.
+    /// </summary>
+    Task<(IReadOnlyList<BankTransaction> Items, int Total, IReadOnlyList<SpendingSum> Sums)> OperationsAsync(
+        IReadOnlyList<Guid> readable, Operations.OperationFilter filter, IReadOnlyList<Guid> categories, int skip, int take, CancellationToken ct);
+
+    /// <summary>The categories the accounts' lines are filed in.</summary>
+    Task<IReadOnlyList<Guid>> OperationCategoriesAsync(IReadOnlyList<Guid> accounts, CancellationToken ct);
+
     /// <summary>The accounts' earliest booking, null with no line: how far back their history goes.</summary>
     Task<LocalDate?> EarliestBookedOnAsync(IReadOnlyList<Guid> accounts, CancellationToken ct);
 }

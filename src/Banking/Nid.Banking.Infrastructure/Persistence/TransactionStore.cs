@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Nid.Banking.Application;
+using Nid.Banking.Application.Operations;
 using Nid.Banking.Contracts;
 using Nid.Banking.Domain;
 using Nid.Core.Contracts;
@@ -99,14 +100,7 @@ public sealed class TransactionStore(BankingDbContext db, IClock clock) : ITrans
         var query = db.Transactions.AsNoTracking().Where(t => accounts.Contains(t.AccountId));
         if (uncategorised)
             query = query.Where(t => t.CategoryId == null && t.CategorySource == null && t.LinkState != "ignored");
-        var hidden = db.Links.Where(l => l.CounterpartAccountId != null && readable != null && !readable.Contains(l.CounterpartAccountId.Value))
-            .Select(l => l.TransactionId);
-        if (state is "internal" && readable is not null)
-            query = query.Where(t => t.LinkState == state && !hidden.Contains(t.Id));
-        else if (state is "linked" && readable is not null)
-            query = query.Where(t => t.LinkState == state || (t.LinkState == "internal" && hidden.Contains(t.Id)));
-        else if (state is not null)
-            query = query.Where(t => t.LinkState == state);
+        query = ByState(query, state, readable);
         if (from is { } f)
             query = query.Where(t => t.BookedOn >= f);
         if (to is { } u)
@@ -114,6 +108,67 @@ public sealed class TransactionStore(BankingDbContext db, IClock clock) : ITrans
         return (await query.OrderByDescending(t => t.BookedOn).ThenByDescending(t => t.Id).Skip(skip).Take(take).ToListAsync(ct))
             .Select(ToModel).ToList();
     }
+
+    /// <summary>D19: with <paramref name="readable"/>, an internal line whose counterpart account is not in it counts as <c>linked</c>.</summary>
+    private IQueryable<TransactionRow> ByState(IQueryable<TransactionRow> query, string? state, IReadOnlyList<Guid>? readable)
+    {
+        var hidden = db.Links.Where(l => l.CounterpartAccountId != null && readable != null && !readable.Contains(l.CounterpartAccountId.Value))
+            .Select(l => l.TransactionId);
+        if (state is "internal" && readable is not null)
+            return query.Where(t => t.LinkState == state && !hidden.Contains(t.Id));
+        if (state is "linked" && readable is not null)
+            return query.Where(t => t.LinkState == state || (t.LinkState == "internal" && hidden.Contains(t.Id)));
+        return state is not null ? query.Where(t => t.LinkState == state) : query;
+    }
+
+    public async Task<(IReadOnlyList<BankTransaction> Items, int Total, IReadOnlyList<SpendingSum> Sums)> OperationsAsync(
+        IReadOnlyList<Guid> readable, OperationFilter filter, IReadOnlyList<Guid> categories, int skip, int take, CancellationToken ct)
+    {
+        var accounts = filter.Accounts;
+        var query = ByState(db.Transactions.AsNoTracking().Where(t => accounts.Contains(t.AccountId)), filter.State, readable);
+        if (filter.From is { } from)
+            query = query.Where(t => t.BookedOn >= from);
+        if (filter.To is { } to)
+            query = query.Where(t => t.BookedOn <= to);
+        if (filter.Categories.Count > 0 || filter.Uncategorised)
+        {
+            var uncategorised = filter.Uncategorised;
+            query = query.Where(t => (t.CategoryId != null && categories.Contains(t.CategoryId.Value)) || (uncategorised && t.CategoryId == null));
+        }
+        if (filter.Direction is "out")
+            query = query.Where(t => t.Amount < 0m);
+        else if (filter.Direction is "in")
+            query = query.Where(t => t.Amount > 0m);
+        if (filter.Min is { } min)
+            query = query.Where(t => Math.Abs(t.Amount) >= min);
+        if (filter.Max is { } max)
+            query = query.Where(t => Math.Abs(t.Amount) <= max);
+        if (filter.Search is { Length: >= 2 } search)
+        {
+            // Literal: %, _ and \ escaped; accents and case aside on both sides (the unaccent extension).
+            var pattern = "%" + search.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_") + "%";
+            query = query.Where(t => EF.Functions.ILike(EF.Functions.Unaccent(t.Label), EF.Functions.Unaccent(pattern), "\\")
+                || (t.Counterparty != null && EF.Functions.ILike(EF.Functions.Unaccent(t.Counterparty), EF.Functions.Unaccent(pattern), "\\")));
+        }
+
+        var total = await query.CountAsync(ct);
+        var page = await query.OrderByDescending(t => t.BookedOn).ThenByDescending(t => t.Id).Skip(skip).Take(take).ToListAsync(ct);
+        var ignoredAccounts = db.Accounts.Where(a => a.Ignored).Select(a => a.Id);
+        // D19: an internal line whose counterpart the reader cannot read shows as linked, so it counts like one.
+        var hidden = db.Links.Where(l => l.CounterpartAccountId != null && !readable.Contains(l.CounterpartAccountId.Value)).Select(l => l.TransactionId);
+        var sums = (await query.Where(t => t.LinkState != "ignored" && (t.LinkState != "internal" || hidden.Contains(t.Id)) && !ignoredAccounts.Contains(t.AccountId))
+            .GroupBy(t => new { t.Currency, t.BookedOn.Year, t.BookedOn.Month })
+            .Select(g => new { g.Key, Debits = g.Sum(t => t.Amount < 0 ? t.Amount : 0m), Credits = g.Sum(t => t.Amount > 0 ? t.Amount : 0m) })
+            .ToListAsync(ct))
+            .Select(g => new SpendingSum(null, Currency.TryCreate(g.Key.Currency, out var currency) ? currency
+                    : throw new InvalidOperationException($"Bank lines in '{g.Key.Currency}' have no valid currency."),
+                new YearMonth(g.Key.Year, g.Key.Month), g.Debits, g.Credits))
+            .ToList();
+        return (page.Select(ToModel).ToList(), total, sums);
+    }
+
+    public async Task<IReadOnlyList<Guid>> OperationCategoriesAsync(IReadOnlyList<Guid> accounts, CancellationToken ct)
+        => await db.Transactions.Where(t => accounts.Contains(t.AccountId) && t.CategoryId != null).Select(t => t.CategoryId!.Value).Distinct().ToListAsync(ct);
 
     public async Task<IReadOnlyList<BankTransaction>> UnreconciledAsync(IReadOnlyCollection<Guid>? accounts, CancellationToken ct)
         => (await db.Transactions.AsNoTracking()

@@ -8,5 +8,5 @@ import '@/locales/banks';
 export function ToLinkLink() {
   const { t } = useTranslation();
   if (useBankingStatus().data?.enabled !== true) return null;
-  return <Link to="/operations" className={buttonVariants({ variant: 'outline', size: 'sm' })}>{t('banks.operations.to_link')}</Link>;
+  return <Link to="/operations" search={{ state: 'unlinked' }} className={buttonVariants({ variant: 'outline', size: 'sm' })}>{t('banks.operations.to_link')}</Link>;
 }
