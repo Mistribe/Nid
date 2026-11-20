@@ -46,7 +46,7 @@ public sealed class CategoryRuleApplier(
                 await categories.SetForLinesAsync([.. group.Select(x => x.Id)], category, CategorySource.Hint, "job", now, byPerson: false, ct);
     }
 
-    /// <summary>The accounts of <paramref name="lines"/> whose envelope is a savings one: one account and one envelope read per call.</summary>
+    /// <summary>The accounts of <paramref name="lines"/> whose envelope is a savings one: one read per distinct account, then a single read of their envelopes.</summary>
     private async Task<HashSet<Guid>> SavingsAccountsAsync(IReadOnlyList<BankTransaction> lines, CancellationToken ct)
     {
         var byEnvelope = new List<(Guid Account, ItemId Envelope)>();
