@@ -56,8 +56,6 @@ public sealed class CategoryRuleStore(BankingDbContext db, IClock clock) : ICate
         var counterparty = Loose(rule.Pattern);
         var query = db.Transactions.AsNoTracking()
             .Where(t => accounts.Contains(t.AccountId) && t.LinkState != "ignored"
-                && (t.CategorySource == null || t.CategorySource == "rule" || t.CategorySource == "hint")
-                && (t.CategoryId == null || t.CategoryId != rule.Category)
                 && (EF.Functions.Like(t.NormalizedLabel, label, @"\")
                     || (t.Counterparty != null && EF.Functions.ILike(t.Counterparty, counterparty, @"\"))));
         if (rule.Direction is { } direction)

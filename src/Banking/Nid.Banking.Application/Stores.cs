@@ -422,9 +422,8 @@ public interface ICategoryRuleStore
     Task<IReadOnlyDictionary<Guid, (int Lines, Instant? LastUsed)>> UsageAsync(IReadOnlyCollection<Guid> accounts, CancellationToken ct);
 
     /// <summary>
-    /// The lines of <paramref name="accounts"/> the rule may categorise, newest first: not ignored, with no category or a rule's or a hint's
-    /// other than the rule's, in its direction and bounds, whose label or counterparty may hold its pattern. More than it matches: the
-    /// caller confirms each line.
+    /// The lines of <paramref name="accounts"/> the rule may match, newest first, whatever their category: not ignored, in its direction
+    /// and bounds, whose label or counterparty may hold its pattern. More than it matches: the caller confirms each line.
     /// </summary>
     Task<IReadOnlyList<BankTransaction>> CandidatesAsync(CategoryRule rule, IReadOnlyCollection<Guid> accounts, CancellationToken ct);
 }

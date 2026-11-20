@@ -328,6 +328,13 @@ public static class BankingEndpoints
             })
             .ReturnsNoContent();
 
+        // #418: the categorise dialog's rule, previewed as it is typed, before it is saved.
+        api.MapPost("/category-rules/preview", async (CategoryRuleBody body, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new PreviewCategoryRuleDraftQuery(
+                    body.Pattern ?? "", body.AccountId, body.Direction, body.MinAmount, body.MaxAmount, body.CategoryId ?? Guid.Empty), ct))
+                .ToHttp(preview => preview))
+            .Returns<CategoryRuleDraftPreview>();
+
         api.MapGet("/category-rules/{id:guid}/preview", async (Guid id, int? page, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new PreviewCategoryRuleQuery(id, page ?? 1), ct)).ToHttp(preview => preview))
             .Returns<CategoryRulePreview>();

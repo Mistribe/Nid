@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useApi } from '@/api/ApiProvider';
 import type { Api } from '@/api/client';
 import { ProblemError, toProblem, type Problem } from '@/api/errors';
-import { bankErrorText, CATEGORY_RULES, STATEMENTS, TRANSACTION_CATEGORY, TRANSACTIONS, type BankTransactionPage, type StatementImport } from '@/api/banking';
+import { bankErrorText, CATEGORY_RULE_APPLY, CATEGORY_RULES, STATEMENTS, TRANSACTION_CATEGORY, TRANSACTIONS, type BankTransactionPage, type StatementImport } from '@/api/banking';
 import '@/locales/banks';
 
 /** The lines of an envelope's bank account and its cards, newest first, 50 a page; `from`/`to` (ISO, or absent) bound the period. */
@@ -63,6 +63,6 @@ export function useLineActions() {
   }); };
   return { link: $api.useMutation('post', LINK, { onSuccess }), unlink: $api.useMutation('post', UNLINK, { onSuccess }), ignore: $api.useMutation('post', IGNORE, { onSuccess }),
     categorise: $api.useMutation('put', TRANSACTION_CATEGORY, { onSuccess }), resetCategory: $api.useMutation('delete', TRANSACTION_CATEGORY, { onSuccess }),
-    createRule: $api.useMutation('post', CATEGORY_RULES, { onSuccess }),
+    createRule: $api.useMutation('post', CATEGORY_RULES, { onSuccess }), applyRule: $api.useMutation('post', CATEGORY_RULE_APPLY, { onSuccess }),
     setNote: $api.useMutation('put', NOTE, { onSuccess }), split: $api.useMutation('put', SPLIT, { onSuccess }), unsplit: $api.useMutation('delete', SPLIT, { onSuccess }) };
 }
