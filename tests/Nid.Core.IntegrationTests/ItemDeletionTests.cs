@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.DataProtection;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -49,6 +50,7 @@ public class ItemDeletionTests(PostgresFixture postgres)
     {
         var services = new ServiceCollection();
         services.AddNid(await postgres.NewConnectionStringAsync());
+        services.AddDataProtection(); // the host registers it; Banking's deletion part reaches the connection store through receipts (#84)
         if (blocked)
             services.AddScoped<IItemDeletionPart, BlockingPart>();
         if (reading)
