@@ -67,6 +67,10 @@ Open issues live in the public project [Nid roadmap](https://github.com/orgs/Mis
 - Workflows move items on their own: a new issue lands in `Triage`, a PR whose body says `Closes #N` moves #N to
   `In progress`, a merge or a close moves it to `Done`. Do not set these statuses by hand.
 - Only the household sets `Priority` and moves an issue out of `Triage`.
+- When an issue cannot start before another, record it as a « blocked by » link, not only in the text
+  (`gh api graphql` with `addBlockedBy(input: {issueId, blockingIssueId})`, node ids from `gh api repos/Mistribe/Nid/issues/N -q .node_id`).
+  The steps of one large issue are its sub-issues, linked to each other the same way.
+- Do not start an issue that is still blocked by an open one: say which one blocks it.
 
 ## Web UI
 
