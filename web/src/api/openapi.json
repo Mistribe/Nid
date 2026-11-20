@@ -35740,6 +35740,12 @@
               "string"
             ],
             "format": "uuid"
+          },
+          "visibility": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
         "additionalProperties": false
