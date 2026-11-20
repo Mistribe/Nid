@@ -20,7 +20,7 @@ public sealed record ReconciliationCounts(int Internal, int Linked, int Proposed
 /// </summary>
 public sealed class BankReconciliation(
     BankingAccess access, ITransactionStore transactions, IAccountStore accountStore, ILinkStore links, IRuleStore rules,
-    ExpectedChargeReader charges, TransactionLinker linker, CategoryRuleApplier categoryRules, IAccessPolicy policy, IProposalSubmitter proposals,
+    ExpectedChargeReader charges, TransactionLinker linker, CategoryRuleApplier categoryRules, ICategoryStore categories, IAccessPolicy policy, IProposalSubmitter proposals,
     IActorAccessor actor, IUnitOfWork unitOfWork, IClock clock, ILogger<BankReconciliation> log)
 {
     /// <summary>The widest tolerance of a charge (a rent's): the charges read around the batch.</summary>
@@ -97,19 +97,23 @@ public sealed class BankReconciliation(
                     internals += 2;
                 });
 
-        // Step 2: a checking debit that pays one attached card's lines since that card's previous settlement.
+        // Step 2: a checking debit that pays one attached card's lines since that card's previous settlement; never an immediate card's.
         var cardsOf = accounts.Values.Where(a => a.CardOf is not null).ToLookup(a => a.CardOf!.Value);
         var debits = lines.Where(l => open.Contains(l.Id) && l.Amount < 0
             && accounts.GetValueOrDefault(l.Account)?.Kind == BankAccountKind.Checking && cardsOf.Contains(l.Account)).ToList();
+        // A card's links: its settlements, and its echoes (step 2b), which name their card line in the target key.
+        List<(BankLink Link, BankTransaction Line)>? cardLinks = null;
+        async Task<List<(BankLink Link, BankTransaction Line)>> CardLinksAsync()
+            => cardLinks ??= [.. await links.OutcomeSinceAsync(LinkOutcome.CardSettlement, min.PlusYears(-1), ct)];
         List<(Guid? Card, LocalDate BookedOn)> settlements = [];
         // Unread, the previous settlements would give wrong windows: step 2 waits for the next pass, its debits with it.
         if (debits.Count > 0)
             await TryAsync([.. debits.Select(d => d.Id)], async () => settlements =
-                [.. (await links.OutcomeSinceAsync(LinkOutcome.CardSettlement, min.PlusYears(-1), ct)).Select(s => (s.Link.CounterpartAccount, s.Line.BookedOn))]);
+                [.. (await CardLinksAsync()).Where(s => s.Link.TargetKey is null).Select(s => (s.Link.CounterpartAccount, s.Line.BookedOn))]);
         foreach (var debit in debits.Where(d => open.Contains(d.Id)))
             await TryAsync([debit.Id], async () =>
             {
-                foreach (var card in cardsOf[debit.Account])
+                foreach (var card in cardsOf[debit.Account].Where(c => c.Debit != CardDebit.Immediate))
                 {
                     var since = settlements.Where(s => s.Card == card.Id && s.BookedOn < debit.BookedOn).Select(s => (LocalDate?)s.BookedOn).Max()
                         ?? debit.BookedOn.PlusDays(-CardSettlement.FirstWindowDays);
@@ -123,6 +127,56 @@ public sealed class BankReconciliation(
                     return;
                 }
             });
+
+        // Step 2b (#416): a checking debit that echoes one line of an attached card: the card line is the spending, the echo internal. A
+        // deferred card never echoes; one whose debit the bank does not say echoes until it has a settlement. A pair of two older lines is not
+        // this pass's.
+        var passIds = lines.Select(l => l.Id).Where(id => !failed.Contains(id)).ToHashSet();
+        var echoCards = accounts.Values.Where(a => a.CardOf is { } parent && a.Debit != CardDebit.Deferred
+            && accounts.GetValueOrDefault(parent)?.Kind == BankAccountKind.Checking).ToList();
+        var unlinked = echoCards.Count == 0 ? []
+            : await transactions.UnlinkedBetweenAsync(min.PlusDays(-InternalTransfers.Days), max.PlusDays(InternalTransfers.Days), ct);
+        // The cards of one account pair together: the same purchase on two of them is a tie.
+        foreach (var group in echoCards.GroupBy(c => c.CardOf!.Value))
+        {
+            var echoes = unlinked.Where(l => l.Account == group.Key && l.Amount < 0 && !failed.Contains(l.Id) && l.CategorySource != CategorySource.Split).ToList();
+            if (echoes.Count == 0)
+                continue;
+            var cardIds = group.Select(c => c.Id).ToHashSet();
+            List<(BankTransaction Echo, BankTransaction CardLine)> pairs = [];
+            await TryAsync([.. echoes.Where(e => open.Contains(e.Id)).Select(e => e.Id), .. lines.Where(l => cardIds.Contains(l.Account) && passIds.Contains(l.Id)).Select(l => l.Id)], async () =>
+            {
+                var cardLinksOf = (await CardLinksAsync()).Where(s => s.Link.CounterpartAccount is { } c && cardIds.Contains(c)).ToList();
+                var settled = cardLinksOf.Where(s => s.Link.TargetKey is null).Select(s => s.Link.CounterpartAccount!.Value).ToHashSet();
+                List<Guid> echoing = [.. group.Where(c => c.Debit is not null || !settled.Contains(c.Id)).Select(c => c.Id)];
+                if (echoing.Count == 0)
+                    return;
+                var echoed = cardLinksOf.Select(s => s.Link.TargetKey).ToHashSet();
+                var cardLines = (await transactions.ListAsync(echoing, echoes[0].BookedOn.PlusDays(-InternalTransfers.Days),
+                    echoes[^1].BookedOn.PlusDays(InternalTransfers.Days), 0, int.MaxValue, ct)).Where(l => !echoed.Contains(EchoKey(l.Id)) && !failed.Contains(l.Id)).ToList();
+                var byId = echoes.Concat(cardLines).ToDictionary(l => l.Id);
+                pairs = [.. CardEchoes.Pair([.. echoes.Select(TransactionLinker.LineOf)], [.. cardLines.Select(TransactionLinker.LineOf)])
+                    .Where(p => open.Contains(p.Echo) || passIds.Contains(p.CardLine)).Select(p => (byId[p.Echo], byId[p.CardLine]))];
+            });
+            foreach (var (echo, cardLine) in pairs)
+                await TryAsync([echo.Id, cardLine.Id], async () =>
+                {
+                    await using (var both = await unitOfWork.BeginAsync(ct))
+                    {
+                        // A person's category is the purchase's: it goes to the card line, unless that line has its own.
+                        if (echo is { Category: { } category, CategorySource: CategorySource.Hand or CategorySource.Assistant } && cardLine.CategorySource is null)
+                        {
+                            await categories.SetForLinesAsync([cardLine.Id], category, echo.CategorySource, "job", now, false, ct);
+                            await categories.ClearSourceAsync([echo.Id], [echo.CategorySource.Value], ct);
+                        }
+                        await links.SetAsync(new BankLink(echo.Id, null, null, EchoKey(cardLine.Id), cardLine.Account, LinkOutcome.CardSettlement, null, "job", now),
+                            TransactionLinkState.Internal, ct, LinkCategory.KeyFor(LinkOutcome.CardSettlement, null, null, null, false, []));
+                        await both.CommitAsync(ct);
+                    }
+                    open.Remove(echo.Id);
+                    internals++;
+                });
+        }
 
         // Steps 3 and 4, per account: its writers (who links a line writes its account), their rules that still apply, their writable
         // charges (the first writer's wins) of the items whose readers all read the account (§0 n°1: a proposal shows the line to them).
@@ -199,6 +253,9 @@ public sealed class BankReconciliation(
         await transactions.MarkReconciledAsync([.. lines.Select(l => l.Id).Where(id => !failed.Contains(id))], now, ct);
         return new ReconciliationCounts(internals, linked, proposed);
     }
+
+    /// <summary>The target key of an echo's link (step 2b): the card line it echoes.</summary>
+    private static string EchoKey(Guid cardLine) => $"line:{cardLine:N}";
 
     /// <summary>A <c>banking.link_transaction</c> proposal, submitted as <paramref name="depositor"/>; whether one was created.</summary>
     private async Task<bool> ProposeAsync(BankTransaction line, ExpectedCharge charge, PersonId depositor, CancellationToken ct)

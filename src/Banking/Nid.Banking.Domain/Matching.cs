@@ -93,6 +93,40 @@ public static class CardSettlement
 }
 
 /// <summary>
+/// #416: an immediate-debit card's line and its echo, the same debit on the checking account the card is attached to within
+/// <see cref="InternalTransfers.Days"/> days. One echo per card line and one card line per echo, nearest first; a line with two candidates
+/// equally near (two identical purchases the same day) links to none of them.
+/// </summary>
+public static class CardEchoes
+{
+    public static IReadOnlyList<(Guid Echo, Guid CardLine)> Pair(IReadOnlyList<Line> checking, IReadOnlyList<Line> card)
+    {
+        var candidates = (
+            from d in checking
+            from c in card
+            where d.Amount < 0 && c.Amount < 0
+                && string.Equals(d.Currency, c.Currency, StringComparison.Ordinal)
+                && Math.Round(d.Amount, 2) == Math.Round(c.Amount, 2)
+                && Math.Abs(Period.DaysBetween(c.BookedOn, d.BookedOn)) <= InternalTransfers.Days
+            select (Echo: d.Id, CardLine: c.Id, Days: Math.Abs(Period.DaysBetween(c.BookedOn, d.BookedOn))))
+            .ToList();
+
+        var used = new HashSet<Guid>();
+        var pairs = new List<(Guid, Guid)>();
+        foreach (var level in candidates.GroupBy(p => p.Days).OrderBy(g => g.Key))
+        {
+            var open = level.Where(p => !used.Contains(p.Echo) && !used.Contains(p.CardLine)).ToList();
+            foreach (var (echo, cardLine, _) in open)
+                if (open.Count(p => p.Echo == echo) == 1 && open.Count(p => p.CardLine == cardLine) == 1)
+                    pairs.Add((echo, cardLine));
+            // A tied line is out for good: a farther candidate is no surer than the two near ones.
+            used.UnionWith(open.SelectMany(p => new[] { p.Echo, p.CardLine }));
+        }
+        return pairs;
+    }
+}
+
+/// <summary>
 /// #353: the checking account a card most likely belongs to, as a suggestion. The bank never says (Enable Banking has no such field):
 /// the only checking account of the card's own connection, else the one whose lines echo the card's — the same debit within
 /// <see cref="InternalTransfers.Days"/> days (immediate debit) or a debit paying the card's lines of the month or two before (deferred).
