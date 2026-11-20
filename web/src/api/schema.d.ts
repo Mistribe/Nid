@@ -33098,6 +33098,7 @@ export interface components {
             joint?: null | boolean;
             /** Format: uuid */
             dependentId?: null | string;
+            visibility?: null | string;
         };
         BankAccountOverview: {
             recent: components["schemas"]["BankTransactionView"][];
