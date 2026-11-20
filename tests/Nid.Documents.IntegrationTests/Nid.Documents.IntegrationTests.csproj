@@ -6,7 +6,6 @@
   <ItemGroup>
     <Using Include="Xunit" />
     <PackageReference Include="xunit.v3" />
-    <PackageReference Include="Testcontainers.Minio" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Nid.TestSupport\Nid.TestSupport.csproj" />
