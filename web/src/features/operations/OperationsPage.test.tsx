@@ -242,6 +242,33 @@ describe('« Opérations » receipts', () => {
     await waitFor(() => expect(body).toEqual({ targetKind: 'banking.transaction', targetId: 't1', role: 'receipt' }));
   });
 
+  it('a receipt gone since the list was read closes with a toast, and the paperclip still answers', async () => {
+    server.use(
+      http.get('*/api/v1/banking/operations', () => HttpResponse.json(answer([withReceipts]))),
+      http.get('*/api/v1/documents/:id', () => HttpResponse.json({ code: 'not_found' }, { status: 404 })),
+    );
+    const { user } = await renderApp('/operations');
+    await user.click(within(await rowOf()).getByRole('button', { name: '2 justificatifs' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Reçu' }));
+    expect(await screen.findByText("Ce justificatif n'est plus disponible.")).toBeInTheDocument();
+    await user.click(within(await rowOf()).getByRole('button', { name: '2 justificatifs' }));
+    expect(await screen.findByRole('menuitem', { name: 'Reçu' })).toBeInTheDocument();
+  });
+
+  it('closing the upload dialog reads the lines again, so a receipt kept before closing shows', async () => {
+    let reads = 0;
+    server.use(http.get('*/api/v1/banking/operations', () => { reads += 1; return HttpResponse.json(answer([netflix])); }));
+    const { user } = await renderApp('/operations');
+    await user.click(within(await rowOf()).getByRole('button', { name: /Actions/ }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Joindre un justificatif' }));
+    await choose('Déposer un fichier…');
+    await screen.findByRole('dialog');
+    const before = reads;
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await waitFor(() => expect(reads).toBeGreaterThan(before));
+  });
+
   it('a read-only account has the paperclip but no attach entry', async () => {
     server.use(http.get('*/api/v1/banking/operations', () => HttpResponse.json({ ...answer([withReceipts]), accountOwners: [{ accountId: 'a1', owners: [], writable: false }] })));
     await renderApp('/operations');

@@ -81,6 +81,16 @@ public class ReceiptTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
             : [.. item.GetProperty("documents").EnumerateArray().Select(d => (d.GetProperty("id").GetGuid(), d.GetProperty("title").GetString()!))];
     }
 
+    /// <summary>The links of the document its reader sees (GET /documents/{id}), and whether « À classer » lists it for them.</summary>
+    private static async Task<((string Kind, Guid Id, bool CanWrite)[] Links, bool Inbox)> SeenAsync(NidApp app, PersonId actor, Guid document)
+    {
+        var links = (await JsonAsync(await GetAsync(app, actor, document))).GetProperty("document").GetProperty("links").EnumerateArray()
+            .Select(l => (l.GetProperty("targetKind").GetString()!, l.GetProperty("targetId").GetGuid(), l.GetProperty("canWrite").GetBoolean())).ToArray();
+        var inbox = JsonDocument.Parse(await app.GetRawAsync(actor, $"{DocumentApi.Documents}?inbox=true")).RootElement.GetProperty("items")
+            .EnumerateArray().Any(i => i.GetProperty("id").GetGuid() == document);
+        return (links, inbox);
+    }
+
     private static async Task<Guid?> AnchorAsync(NidApp app, Guid document, Guid line)
     {
         await using var scope = app.Services.CreateAsyncScope();
@@ -100,7 +110,7 @@ public class ReceiptTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
         Assert.Equal(s.Joint.Value, await AnchorAsync(app, receipt, line));
         var detail = await JsonAsync(await GetAsync(app, app.AdultB, receipt));
         var link = Assert.Single(detail.GetProperty("document").GetProperty("links").EnumerateArray());
-        Assert.Equal(("receipt", "PHARMACIE DU CENTRE · 05/10/2026 · -100.00 EUR"), (link.GetProperty("role").GetString(), link.GetProperty("label").GetString()));
+        Assert.Equal(("receipt", "PHARMACIE DU CENTRE · 05/10/2026 · -100,00 €"), (link.GetProperty("role").GetString(), link.GetProperty("label").GetString()));
         Assert.Equal(HttpStatusCode.OK, (await GetAsync(app, app.AdultB, receipt, "/content")).StatusCode);
         Assert.Equal([(receipt, "ticket")], await ListedAsync(app, app.AdultB, line));
         Assert.Equal([(receipt, "ticket")], await ListedAsync(app, app.AdultA, line));
@@ -130,6 +140,10 @@ public class ReceiptTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
         Assert.Equal(HttpStatusCode.NotFound, await ReadsAsync(app, app.AdultB, receipt));
         Assert.Empty(await ListedAsync(app, app.AdultB, line));
         Assert.Equal([(receipt, "ticket")], await ListedAsync(app, app.AdultA, line));
+        // Its uploader sees the link outside Opérations too, and the document is filed, not « À classer ».
+        var seen = await SeenAsync(app, app.AdultA, receipt);
+        Assert.Equal([(Kind, line, true)], seen.Links);
+        Assert.False(seen.Inbox);
         // B reads a document through another link of it: that does not show it on this line, whose link B does not read.
         var shared = await UploadedAsync(app, app.AdultA, Pdf, $"fileName=facture.pdf&targetKind=core.item&targetId={s.Joint.Value}&role=invoice");
         Assert.Equal(HttpStatusCode.OK, (await LinkAsync(app, app.AdultA, shared, line)).StatusCode);
@@ -185,6 +199,9 @@ public class ReceiptTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
         Assert.Null(await AnchorAsync(app, receipt, line));
         Assert.Equal(HttpStatusCode.NotFound, await ReadsAsync(app, app.AdultB, receipt));
         Assert.Equal([(receipt, "ticket")], await ListedAsync(app, app.AdultA, line));
+        var seen = await SeenAsync(app, app.AdultA, receipt);
+        Assert.Equal([(Kind, line, true)], seen.Links);
+        Assert.False(seen.Inbox);
     }
 
     /// <summary>B imports A's statement onto B's envelope, with B's card attached; A's bank connection claims the account (ConnectionUseCases).</summary>

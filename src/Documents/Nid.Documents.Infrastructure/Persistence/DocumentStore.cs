@@ -36,11 +36,13 @@ public sealed class DocumentStore(DocumentsDbContext db) : IDocumentStore
 
     public async Task<DocumentPageRecord> PageAsync(DocumentPageQuery q, CancellationToken ct)
     {
-        List<Guid> readable = [.. q.ReadableItems], persons = [.. q.Persons], dependents = [.. q.Dependents];
-        // DocumentRules.CanReadLink: an anchored link is judged on its anchor, whatever its kind.
+        List<Guid> readable = [.. q.ReadableItems], persons = [.. q.Persons], dependents = [.. q.Dependents], own = [.. q.OwnUnanchored ?? []];
+        // DocumentRules.CanReadLink: an anchored link is judged on its anchor, whatever its kind; another unanchored kind is its uploader's (#84).
         var seen = db.Links.Where(l => (l.AnchorItemId != null && readable.Contains(l.AnchorItemId.Value))
             || (l.AnchorItemId == null && (l.TargetKind == TargetKinds.CoreHousehold
-                || (l.TargetKind == TargetKinds.CorePerson && persons.Contains(l.TargetId)))));
+                || (l.TargetKind == TargetKinds.CorePerson && persons.Contains(l.TargetId))
+                || (l.TargetKind != TargetKinds.CorePerson && own.Contains(l.TargetId)
+                    && db.Documents.Any(d => d.Id == l.DocumentId && d.UploadedByPersonId == q.Actor)))));
 
         var docs = db.Documents.AsNoTracking().Where(d => q.Archived || d.ArchivedAt == null)
             .Where(d => d.UploadedByPersonId == q.Actor || seen.Any(l => l.DocumentId == d.Id));
@@ -115,6 +117,12 @@ public sealed class DocumentStore(DocumentsDbContext db) : IDocumentStore
         var wanted = targets.ToList();
         return (await db.Links.AsNoTracking().Where(l => l.TargetKind == kind && wanted.Contains(l.TargetId)).ToListAsync(ct)).Select(ToLink).ToList();
     }
+
+    public async Task<IReadOnlyList<DocumentTarget>> UnanchoredTargetsOfAsync(Guid uploader, CancellationToken ct)
+        => (await db.Links.AsNoTracking().Where(l => l.AnchorItemId == null && l.TargetKind != TargetKinds.CorePerson && l.TargetKind != TargetKinds.CoreHousehold
+                && db.Documents.Any(d => d.Id == l.DocumentId && d.UploadedByPersonId == uploader))
+            .Select(l => new { l.TargetKind, l.TargetId }).Distinct().ToListAsync(ct))
+            .Select(l => new DocumentTarget(l.TargetKind, l.TargetId)).ToList();
 
     public async Task<IReadOnlyList<DocumentRecord>> FindManyAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct)
     {

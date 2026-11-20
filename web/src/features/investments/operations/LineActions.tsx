@@ -63,7 +63,7 @@ export function LineActions({ line, onDone }: { line: BankTransaction; onDone: (
       {linking ? <Suspense fallback={null}><LinkDialog line={line} onClose={() => setLinking(false)} onDone={(m) => { setLinking(false); onDone(m); }} /></Suspense> : null}
       {categorising ? <Suspense fallback={null}><CategoryDialog line={line} onClose={() => setCategorising(false)} onDone={(m) => { setCategorising(false); onDone(m); }} /></Suspense> : null}
       {noting ? <Suspense fallback={null}><NoteDialog line={line} onClose={() => setNoting(false)} onDone={(m) => { setNoting(false); onDone(m); }} /></Suspense> : null}
-      {receipt === 'upload' ? <Suspense fallback={null}><ReceiptUpload itemId={line.id} targetKind={TARGET} defaultRole="receipt" onClose={() => setReceipt(null)} onDone={attached} /></Suspense> : null}
+      {receipt === 'upload' ? <Suspense fallback={null}><ReceiptUpload itemId={line.id} targetKind={TARGET} defaultRole="receipt" onClose={() => { setReceipt(null); refresh(); }} onDone={attached} /></Suspense> : null}
       {receipt === 'link' ? <Suspense fallback={null}><ReceiptLink itemId={line.id} targetKind={TARGET} defaultRole="receipt" onClose={() => setReceipt(null)} onDone={attached} /></Suspense> : null}
       {splitting ? <Suspense fallback={null}><SplitDialog line={line} onClose={() => setSplitting(false)} onDone={(m) => { setSplitting(false); onDone(m); }} /></Suspense> : null}
     </span>

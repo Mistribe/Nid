@@ -27,11 +27,11 @@ public interface IDocumentTargets
     Task<IReadOnlyDictionary<Guid, ResolvedTarget>> ResolveAsync(string kind, IReadOnlyCollection<Guid> ids, CancellationToken ct);
 
     /// <summary>
-    /// #84: whether <paramref name="actor"/> may link to, or unlink from, a target <see cref="ResolveAsync"/> gives no anchor. The document rules
-    /// know no writer of such a target but a person's and the household's; reading still follows them: only its uploader reads a document
-    /// linked to it alone.
+    /// #84: those of <paramref name="ids"/>, targets <see cref="ResolveAsync"/> gives no anchor, that <paramref name="actor"/> writes. The document rules
+    /// know no reader of such a target but a person's and the household's: a link to one is its document's uploader's alone, while they write it.
     /// </summary>
-    Task<bool> WritesUnanchoredAsync(string kind, Guid id, PersonId actor, CancellationToken ct) => Task.FromResult(false);
+    Task<IReadOnlySet<Guid>> WritableUnanchoredAsync(string kind, IReadOnlyCollection<Guid> ids, PersonId actor, CancellationToken ct)
+        => Task.FromResult<IReadOnlySet<Guid>>(new HashSet<Guid>());
 }
 
 public interface IDocumentLinks
