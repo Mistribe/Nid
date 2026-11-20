@@ -24,7 +24,7 @@ describe('a category’s lines', () => {
       const query = new URL(request.url).searchParams;
       asked.push(query);
       const page = Number(query.get('page'));
-      return HttpResponse.json({ items: page === 1 ? Array.from({ length: 50 }, (_, i) => line(i)) : [line(50)], total: '640.10', count: 51, incomplete: false });
+      return HttpResponse.json({ items: page === 1 ? Array.from({ length: 50 }, (_, i) => line(i)) : [line(50)], total: '640.10', count: 51, incomplete: false, currency: 'EUR' });
     }));
     const { user } = await renderApp('/spending?scope=me');
 
@@ -47,7 +47,7 @@ describe('a category’s lines', () => {
     let asked: URLSearchParams | undefined;
     server.use(http.get('*/api/v1/banking/spending/lines', ({ request }) => {
       asked = new URL(request.url).searchParams;
-      return HttpResponse.json({ items: [], total: '300.00', count: 0, incomplete: true });
+      return HttpResponse.json({ items: [], total: '300.00', count: 0, incomplete: true, currency: 'EUR' });
     }));
     const { user } = await renderApp('/spending?period=12m');
 

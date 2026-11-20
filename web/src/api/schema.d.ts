@@ -33872,6 +33872,13 @@ export interface components {
             /** Format: uuid */
             mergedIntoId?: null | string;
             defaultName?: null | string;
+            /**
+             * Format: int32
+             * @default 0
+             */
+            lines: number;
+            /** Format: date */
+            lastLineOn?: null | string;
         };
         BankingConnectionTestView: {
             outcome: string;
@@ -39604,6 +39611,7 @@ export interface components {
             /** Format: int32 */
             count: number;
             incomplete: boolean;
+            currency: string;
         };
         SpendingMonthView: {
             month: string;

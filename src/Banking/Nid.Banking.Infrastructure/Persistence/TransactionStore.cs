@@ -277,6 +277,18 @@ public sealed class TransactionStore(BankingDbContext db, IClock clock) : ITrans
         return (page.Select(e => (ToModel(rows[e.LineId]), e.PartId, e.Amount)).ToList(), count);
     }
 
+    public async Task<IReadOnlyList<CategoryUse>> CategoryUseAsync(IReadOnlyList<Guid> accounts, LocalDate from, CancellationToken ct)
+    {
+        // Internal lines count: they are what the transfer categories classify.
+        var lines = db.Transactions.AsNoTracking().Where(t => accounts.Contains(t.AccountId) && t.BookedOn >= from && t.LinkState != "ignored");
+        var filed = lines.Where(t => t.CategorySource != "split" && t.CategoryId != null)
+            .Select(t => new SpendingEntry { LineId = t.Id, BookedOn = t.BookedOn, CategoryId = t.CategoryId })
+            .Concat(db.TransactionParts.AsNoTracking().Where(p => p.CategoryId != null).Join(lines.Where(t => t.CategorySource == "split"), p => p.TransactionId, t => t.Id,
+                (p, t) => new SpendingEntry { LineId = t.Id, BookedOn = t.BookedOn, CategoryId = p.CategoryId }));
+        return (await filed.GroupBy(e => e.CategoryId!.Value).Select(g => new { g.Key, Lines = g.Count(), LastOn = g.Max(e => e.BookedOn) }).ToListAsync(ct))
+            .Select(g => new CategoryUse(g.Key, g.Lines, g.LastOn)).ToList();
+    }
+
     public Task<LocalDate?> EarliestBookedOnAsync(IReadOnlyList<Guid> accounts, CancellationToken ct)
         => db.Transactions.Where(t => accounts.Contains(t.AccountId)).MinAsync(t => (LocalDate?)t.BookedOn, ct);
 

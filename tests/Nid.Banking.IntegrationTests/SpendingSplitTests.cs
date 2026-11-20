@@ -72,6 +72,7 @@ public class SpendingSplitTests(PostgresFixture fixture) : IClassFixture<Postgre
         await using var _ = app;
         var lines = await GetAsync(app, $"{BankingApi.Root}/spending/lines?categoryId={Seed("food.groceries")}");
         Assert.Equal(2, lines.GetProperty("count").GetInt32());
+        Assert.Equal("EUR", lines.GetProperty("currency").GetString());
         var items = lines.GetProperty("items").EnumerateArray().ToList();
         var part = Assert.Single(items, i => i.GetProperty("id").GetGuid() == split);
         Assert.Equal("-70.00", part.GetProperty("amount").GetString());

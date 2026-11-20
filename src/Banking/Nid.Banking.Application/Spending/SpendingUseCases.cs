@@ -59,9 +59,10 @@ public sealed record ListSpendingLinesQuery(
 
 /// <summary>
 /// One page of lines (each in its own currency); <paramref name="Total"/> is the figure the spending view shows for them, in its reference
-/// currency, <paramref name="Incomplete"/> as there; <paramref name="Count"/> all the lines, not only the page's.
+/// currency, <paramref name="Incomplete"/> as there; <paramref name="Count"/> all the lines, not only the page's; <paramref name="Currency"/> the
+/// reference currency of <paramref name="Total"/>.
 /// </summary>
-public sealed record SpendingLines(IReadOnlyList<BankTransactionView> Items, string Total, int Count, bool Incomplete);
+public sealed record SpendingLines(IReadOnlyList<BankTransactionView> Items, string Total, int Count, bool Incomplete, string Currency);
 
 [RequestHandler<ListSpendingLinesQuery, SpendingLines>]
 public sealed class ListSpendingLinesHandler(
@@ -91,7 +92,7 @@ public sealed class ListSpendingLinesHandler(
         var items = page.Select(r => r.PartId is { } part && byId[r.Line.Id].Parts?.FirstOrDefault(p => p.Id == part) is { } shown
             ? byId[r.Line.Id] with { Amount = shown.Amount, Category = shown.Category, Note = shown.Note, Parts = null, PartId = part }
             : byId[r.Line.Id]).ToList();
-        return Result.Success(new SpendingLines(items, GetSpendingHandler.Money(total), count, keys.Any(sums.Incomplete.Contains)));
+        return Result.Success(new SpendingLines(items, GetSpendingHandler.Money(total), count, keys.Any(sums.Incomplete.Contains), sums.Reference.Code));
     }
 }
 

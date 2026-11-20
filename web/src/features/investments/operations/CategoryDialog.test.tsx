@@ -12,7 +12,7 @@ const line: BankTransaction = {
   fromCard: true, cardName: null, fetchedVia: 'file', linkState: 'unlinked', link: null, accountName: 'Compte', category: null, categorySource: null,
   accountId: 'acc-1', suggestedPattern: 'CARREFOUR CITY', sharedAccount: false,
 };
-const category = (over: Partial<BankCategory>): BankCategory => ({ id: 'c', parentId: null, key: null, name: '', kind: 'expense', archived: false, mergedIntoId: null, defaultName: null, ...over });
+const category = (over: Partial<BankCategory>): BankCategory => ({ id: 'c', parentId: null, key: null, name: '', kind: 'expense', archived: false, mergedIntoId: null, defaultName: null, lines: 0, ...over });
 const categories = [
   category({ id: 'food', key: 'food', name: 'Alimentation' }),
   category({ id: 'groceries', parentId: 'food', key: 'food.groceries', name: 'Courses' }),
