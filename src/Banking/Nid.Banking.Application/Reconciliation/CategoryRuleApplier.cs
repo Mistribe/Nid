@@ -1,6 +1,7 @@
 using Nid.Banking.Contracts;
 using Nid.Banking.Domain;
 using Nid.Core.Contracts;
+using Nid.Investments.Contracts;
 using NodaTime;
 
 namespace Nid.Banking.Application.Reconciliation;
@@ -10,7 +11,8 @@ namespace Nid.Banking.Application.Reconciliation;
 /// and <c>mayApply</c> allows on its account. A line no rule matches keeps its category: a pass never retracts a rule's.
 /// </summary>
 public sealed class CategoryRuleApplier(
-    ICategoryRuleStore rules, ICategoryStore categories, ITransactionStore transactions, IAccountStore accounts, BankingAccess access, IClock clock)
+    ICategoryRuleStore rules, ICategoryStore categories, ITransactionStore transactions, IAccountStore accounts, IEnvelopeStore envelopes, BankingAccess access,
+    IClock clock)
 {
     /// <summary>On one line, as the pass would (its authors write its account): after an unlink or « Laisser Nid décider ».</summary>
     public async Task<int> ApplyAsync(Guid line, CancellationToken ct)
@@ -29,8 +31,12 @@ public sealed class CategoryRuleApplier(
     /// </summary>
     public async Task HintAsync(IReadOnlyList<BankTransaction> lines, CancellationToken ct)
     {
-        var keyed = lines.Where(l => l.LinkState != TransactionLinkState.Ignored && l.CategorySource is null)
-            .Select(l => (l.Id, Key: CategoryHints.KeyFor(l.BankCode, l.Amount))).Where(x => x.Key is not null).ToList();
+        var open = lines.Where(l => l.LinkState != TransactionLinkState.Ignored && l.CategorySource is null).ToList();
+        if (open.Count == 0)
+            return;
+        var savings = await SavingsAccountsAsync(open, ct);
+        var keyed = open.Select(l => (l.Id, Key: CategoryHints.KeyFor(l.BankCode, l.Amount, l.Label, savings.Contains(l.Account))))
+            .Where(x => x.Key is not null).ToList();
         if (keyed.Count == 0)
             return;
         var archived = (await categories.AllAsync(ct)).Where(c => c.ArchivedAt is not null).Select(c => c.Id).ToHashSet();
@@ -38,6 +44,20 @@ public sealed class CategoryRuleApplier(
         foreach (var group in keyed.GroupBy(x => x.Key!))
             if (await categories.ResolveKeyAsync(group.Key, ct) is { } category && !archived.Contains(category))
                 await categories.SetForLinesAsync([.. group.Select(x => x.Id)], category, CategorySource.Hint, "job", now, byPerson: false, ct);
+    }
+
+    /// <summary>The accounts of <paramref name="lines"/> whose envelope is a savings one: one account and one envelope read per call.</summary>
+    private async Task<HashSet<Guid>> SavingsAccountsAsync(IReadOnlyList<BankTransaction> lines, CancellationToken ct)
+    {
+        var byEnvelope = new List<(Guid Account, ItemId Envelope)>();
+        foreach (var id in lines.Select(l => l.Account).Distinct())
+            if (await accounts.FindAsync(id, ct) is { Envelope: { } envelope })
+                byEnvelope.Add((id, envelope));
+        if (byEnvelope.Count == 0)
+            return [];
+        var savings = (await envelopes.FindManyAsync([.. byEnvelope.Select(x => x.Envelope).Distinct()], ct))
+            .Where(e => e.Kind == EnvelopeKind.Savings).Select(e => e.ItemId).ToHashSet();
+        return [.. byEnvelope.Where(x => savings.Contains(x.Envelope)).Select(x => x.Account)];
     }
 
     /// <summary>How many lines took a rule's category; the rules that set one are touched.</summary>

@@ -26,11 +26,13 @@ public class CategoriesTests
     [Fact]
     public void Seed_pins_exact_entries_and_count()
     {
-        Assert.Equal(46, CategorySeed.All.Count);
+        Assert.Equal(47, CategorySeed.All.Count);
         var groceries = CategorySeed.Find("food.groceries")!;
         Assert.Equal(("Courses", CategoryKind.Expense, "food"), (groceries.Name, groceries.Kind, groceries.ParentKey));
         var card = CategorySeed.Find("internal.card")!;
         Assert.Equal(("Règlement carte", CategoryKind.Transfer, "internal"), (card.Name, card.Kind, card.ParentKey));
+        var interest = CategorySeed.Find("income.interest")!;
+        Assert.Equal(("Intérêts", CategoryKind.Income, "income"), (interest.Name, interest.Kind, interest.ParentKey));
         var rent = CategorySeed.Find("income.rent")!;
         Assert.Equal(("Loyers perçus", CategoryKind.Income, "income"), (rent.Name, rent.Kind, rent.ParentKey));
     }
