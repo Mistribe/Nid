@@ -114,3 +114,6 @@ export const CATEGORY_RULES = '/api/v1/banking/category-rules' as const;
 export const CATEGORY_RULE = '/api/v1/banking/category-rules/{id}' as const;
 export const CATEGORY_RULE_PREVIEW = '/api/v1/banking/category-rules/{id}/preview' as const;
 export const CATEGORY_RULE_APPLY = '/api/v1/banking/category-rules/{id}/apply' as const;
+/** #418: a rule not yet saved, previewed: the lines it would change, those it matches but would not, by reason. */
+export const CATEGORY_RULE_DRAFT_PREVIEW = '/api/v1/banking/category-rules/preview' as const;
+export type CategoryRuleDraftPreview = components['schemas']['CategoryRuleDraftPreview'];
