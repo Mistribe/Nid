@@ -156,6 +156,22 @@ describe('« Opérations »', () => {
     expect(await screen.findByText('Aucune opération ne correspond.')).toBeInTheDocument();
   });
 
+  it('drops a negative or exponent bound from the URL', async () => {
+    const asked: string[] = [];
+    server.use(http.get('*/api/v1/banking/operations', ({ request }) => { asked.push(new URL(request.url).search); return HttpResponse.json(answer([netflix])); }));
+    await renderApp('/operations?min=-5&max=1e21');
+    await screen.findByRole('table', { name: 'Opérations' });
+    expect(asked).toEqual(['']);
+  });
+
+  it('does not search a lone letter and a space', async () => {
+    const asked: string[] = [];
+    server.use(http.get('*/api/v1/banking/operations', ({ request }) => { asked.push(new URL(request.url).search); return HttpResponse.json(answer([netflix])); }));
+    await renderApp('/operations?q=a%20');
+    await screen.findByRole('table', { name: 'Opérations' });
+    expect(asked).toEqual(['']);
+  });
+
   it('keeps one id of a longer category list', async () => {
     const { router } = await renderApp('/operations?category=c1&category=c2');
     await waitFor(() => expect(router.state.location.search).toEqual({ category: ['c1'] }));

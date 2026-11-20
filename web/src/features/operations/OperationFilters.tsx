@@ -39,8 +39,9 @@ export function OperationFilters({ facets, search, onChange }: {
   // Half-typed dates and amounts stay in the text: only a whole one (or none) goes to the URL; the search and the amounts wait for a pause.
   const day = (key: 'from' | 'to') => (v: string) => (v === '' || ISO.test(v) ? (onChange({ [key]: v || undefined }), v) : null);
   const sum = (key: 'min' | 'max') => (v: string) => {
+    // Plain non-negative decimals only: the URL and the server read no sign and no exponent.
     const n = Number(v);
-    if (v !== '' && !Number.isFinite(n)) return null;
+    if (v !== '' && !/^\d{1,12}(\.\d{1,6})?$/.test(v)) return null;
     onChange({ [key]: v === '' ? undefined : n });
     return v === '' ? '' : String(n);
   };
@@ -71,7 +72,7 @@ export function OperationFilters({ facets, search, onChange }: {
   const amount = (label: string, value: string, set: (v: string) => void) => (
     <FilterField label={label} labelFor className="w-full sm:w-auto">
       {(labelId, controlId) => (
-        <Input id={controlId} aria-labelledby={labelId} type="number" step="any" className="min-w-0 flex-1 sm:w-28 sm:flex-none" value={value} onChange={(e) => set(e.target.value)} />
+        <Input id={controlId} aria-labelledby={labelId} type="number" min="0" step="any" className="min-w-0 flex-1 sm:w-28 sm:flex-none" value={value} onChange={(e) => set(e.target.value)} />
       )}
     </FilterField>
   );

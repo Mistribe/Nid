@@ -23,14 +23,13 @@ import { formatInstant, formatInstantDay, formatInstantTime } from '@/lib/format
 import { ENVELOPES, invalidateInvestments, type EnvelopeSummary } from '@/api/investments';
 import { LOANS } from '@/api/loans';
 import { PROPERTIES } from '@/api/properties';
+import { ImportStatement } from '../../investments/operations/ImportStatement';
 import { SettingsFrame } from '../SettingsFrame';
 import { AccountDialog } from './AccountDialog';
 import { ConnectBankDialog } from './ConnectBankDialog';
 import { accountKind, accountLabel, ACCOUNTS, bankErrorText, maskedIban, CONNECTION, CONNECTIONS, RENEW, RULE, RULES, SYNC, useBankAccounts, useBankingStatus, type BankAccount, type BankRule, type Connection } from '@/api/banking';
 import '@/locales/banks';
 
-// Loaded when opened: most visits import no statement.
-const ImportStatementDialog = lazy(() => import('../../investments/operations/ImportStatementDialog'));
 const CategoriesTab = lazy(() => import('./CategoriesTab'));
 const ApplicationTab = lazy(() => import('./ApplicationTab'));
 
@@ -103,26 +102,6 @@ function SyncAll() {
   };
   if (!connections.data?.length) return null;
   return <Button type="button" variant="outline" disabled={sync.isPending} onClick={() => sync.mutate({ body: {} }, { onError: failed })}>{t('banks.sync_all')}</Button>;
-}
-
-/** « Importer un relevé » (spec §5.2) on no envelope: banking on is enough, a household may use statement files alone. */
-function ImportStatement() {
-  const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
-  const [landOn, setLandOn] = useState(false);
-  const button = useRef<HTMLButtonElement>(null);
-  // Once the dialog handed itself back, the focus returns to its button, never <body>.
-  useEffect(() => { if (landOn) { button.current?.focus(); setLandOn(false); } }, [landOn]);
-  return (
-    <>
-      <Button ref={button} type="button" variant="outline" onClick={() => setOpen(true)}>{t('banks.import.open')}</Button>
-      {open ? (
-        <Suspense fallback={null}>
-          <ImportStatementDialog onClose={() => setOpen(false)} onDone={(message) => { setOpen(false); toast.success(message); setLandOn(true); }} />
-        </Suspense>
-      ) : null}
-    </>
-  );
 }
 
 /** Without Enable Banking (`configured` false) no bank can be connected: the accounts imported from statement files are listed all the same. */

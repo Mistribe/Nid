@@ -15,6 +15,7 @@ import { SortableTable } from '@/components/page/SortableTable';
 import { StatLine } from '@/components/page/StatLine';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { OPERATIONS, type BankTransaction, type OperationPage } from '@/api/banking';
+import { ImportStatement } from '../investments/operations/ImportStatement';
 import { LineActions, lineState } from '../investments/operations/LineActions';
 import { OperationFilters } from './OperationFilters';
 import '@/locales/banks';
@@ -34,18 +35,18 @@ export function OperationsPage() {
   const query = {
     account: search.account, owner: search.owner, category: search.category, from: search.from, to: search.to, uncategorised: search.uncategorised,
     state: search.state, direction: search.direction, min: search.min === undefined ? undefined : String(search.min),
-    max: search.max === undefined ? undefined : String(search.max), q: search.q && search.q.length >= MIN_SEARCH ? search.q : undefined, page: search.page,
+    max: search.max === undefined ? undefined : String(search.max), q: search.q && search.q.trim().length >= MIN_SEARCH ? search.q.trim() : undefined, page: search.page,
   };
   const answer = $api.useQuery('get', OPERATIONS, { params: { query } }, { placeholderData: keepPreviousData });
   const toPage = (n: number) => go({ page: n > 1 ? n : undefined });
   useStepBack(page, answer.data && !answer.isPlaceholderData ? answer.data : undefined, toPage);
   const rows = answer.data?.items ?? [];
-  const onlyUnlinked = search.state === 'unlinked' && Object.keys(search).every((k) => k === 'state' || k === 'page');
+  const onlyUnlinked = search.state === 'unlinked' && Object.entries(search).every(([k, v]) => v === undefined || k === 'state' || k === 'page');
   const totals = answer.data?.totals;
   const money = (v: string) => formatCurrency(v, totals?.currency ?? 'EUR');
   return (
     <div className="space-y-4">
-      <PageHeader title={t('banks.operations.title')} />
+      <PageHeader title={t('banks.operations.title')} actions={<ImportStatement />} />
       <OperationFilters facets={answer.data?.facets} search={search} onChange={(change) => go({ ...change, page: undefined })} />
       {answer.error ? <ProblemMessage problem={present(toProblem(answer.error))} />
         : !answer.data || !totals ? <Loading label={t('banks.operations.loading')}><TableSkeleton columns={6} /></Loading>

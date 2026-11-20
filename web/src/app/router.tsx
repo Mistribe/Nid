@@ -533,26 +533,29 @@ const ids = (value: unknown): string[] | undefined => {
   return list.length > 0 ? list : undefined;
 };
 const isoDate = (value: unknown) => (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : undefined);
-const amount = (value: unknown) => (value !== '' && value != null && Number.isFinite(Number(value)) ? Number(value) : undefined);
+// A bound is a plain non-negative decimal (the server refuses a negative one and reads no exponent).
+const amount = (value: unknown) => (typeof value === 'string' || typeof value === 'number') && /^\d{1,12}(\.\d{1,6})?$/.test(String(value)) ? Number(value) : undefined;
 const STATES = ['unlinked', 'linked', 'internal', 'ignored'] as const;
 
 const operationsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/operations',
+  beforeLoad: requireModule('banking'),
+  // Every key is answered, undefined when invalid: a key left out would keep its raw URL value for a `strict: false` reader.
   validateSearch: (search: Record<string, unknown>): OperationsSearch => ({
-    ...(typeof search.q === 'string' && search.q !== '' ? { q: search.q } : {}),
+    q: typeof search.q === 'string' && search.q !== '' ? search.q : undefined,
     // The page picks one account, owner and category: a longer list in the URL keeps its first.
-    ...(ids(search.account) ? { account: ids(search.account)!.slice(0, 1) } : {}),
-    ...(ids(search.owner) ? { owner: ids(search.owner)!.slice(0, 1) } : {}),
-    ...(ids(search.category) ? { category: ids(search.category)!.slice(0, 1) } : {}),
-    ...(isoDate(search.from) ? { from: isoDate(search.from) } : {}),
-    ...(isoDate(search.to) ? { to: isoDate(search.to) } : {}),
-    ...(search.uncategorised === true || search.uncategorised === 'true' ? { uncategorised: true } : {}),
-    ...(STATES.find((s) => s === search.state) ? { state: search.state as (typeof STATES)[number] } : {}),
-    ...(search.direction === 'out' || search.direction === 'in' ? { direction: search.direction } : {}),
-    ...(amount(search.min) !== undefined ? { min: amount(search.min) } : {}),
-    ...(amount(search.max) !== undefined ? { max: amount(search.max) } : {}),
-    ...((positive(search.page) ?? 1) > 1 ? { page: positive(search.page) } : {}),
+    account: ids(search.account)?.slice(0, 1),
+    owner: ids(search.owner)?.slice(0, 1),
+    category: ids(search.category)?.slice(0, 1),
+    from: isoDate(search.from),
+    to: isoDate(search.to),
+    uncategorised: search.uncategorised === true || search.uncategorised === 'true' ? true : undefined,
+    state: STATES.find((s) => s === search.state),
+    direction: search.direction === 'out' || search.direction === 'in' ? search.direction : undefined,
+    min: amount(search.min),
+    max: amount(search.max),
+    page: (positive(search.page) ?? 1) > 1 ? positive(search.page) : undefined,
   }),
   component: lazyRouteComponent(() => import('@/features/operations/OperationsPage'), 'OperationsPage'),
 });

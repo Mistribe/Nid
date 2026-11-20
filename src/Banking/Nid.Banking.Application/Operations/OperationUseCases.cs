@@ -80,7 +80,7 @@ public sealed class ListOperationsHandler(
             facetCategories);
         var accountOwners = readable.Select(a => new AccountOwnersView(a.Id,
             [.. people.Where(p => readers[a.Id].Contains(p.Id)).Select(p => new OptionView(p.Id.Value, p.DisplayName))])).ToList();
-        return Result.Success(new OperationPage(await lines.ViewsAsync(items, ct), total, totals, facets, accountOwners));
+        return Result.Success(new OperationPage(await lines.ViewsAsync(items, readable.ToDictionary(a => a.Id), ct), total, totals, facets, accountOwners));
     }
 
     private static List<FieldError>? Invalid(OperationFilter f)
