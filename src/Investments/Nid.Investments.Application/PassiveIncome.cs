@@ -88,7 +88,7 @@ internal static class PassiveIncomeMath
             var savings = f.Envelope.Kind == EnvelopeKind.Savings;
             if (savings && f.Envelope.ClosedOn is { } closed && closed < from) continue;
             string? code = !savings ? null
-                : f.Values.Any(v => v.Source == FactSource.BankApi && InWindow(v.AsOf)) ? PassiveIncomeCodes.BankLinkedSavings
+                : f.Values.Any(v => v.Source == FactSource.BankApi && InWindow(v.AsOf)) && !EnvelopeMath.BankFedCovered(f.Values, f.Flows) ? PassiveIncomeCodes.BankLinkedSavings
                 : !f.Flows.Any(x => x.Kind is FlowKind.Opening or FlowKind.Contribution) ? PassiveIncomeCodes.SavingsWithoutFlows
                 : null;
             if (code is not null)

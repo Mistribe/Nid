@@ -60,6 +60,25 @@ public class EnvelopeMathTests
         Assert.Null(At(fromBank, PeaFlows, day, kind: EnvelopeKind.Savings).Gain);
     }
 
+    private static readonly Valuation[] BankValues = [Value(2025, 1, 1, 1_000m) with { Source = FactSource.BankApi }, Value(2025, 12, 31, 1_112.5m) with { Source = FactSource.BankApi }];
+
+    [Fact]
+    public void A_bank_fed_livret_with_bank_flows_has_a_gain()
+    {
+        Flow[] flows =
+        [
+            Flow(2025, 1, 1, FlowKind.Opening, 1_000m),
+            Flow(2025, 6, 15, FlowKind.Contribution, 100m) with { ExternalRef = "bank:11111111-1111-1111-1111-111111111111" },
+            Flow(2025, 12, 31, FlowKind.Income, 12.5m) with { Category = "interest", ExternalRef = "bank:22222222-2222-2222-2222-222222222222:interest" },
+        ];
+
+        Assert.Equal(Eur(12.5m), At(BankValues, flows, new LocalDate(2025, 12, 31), kind: EnvelopeKind.Savings).Gain);
+    }
+
+    [Fact]
+    public void A_bank_fed_livret_without_bank_flows_still_has_none()
+        => Assert.Null(At(BankValues, [Flow(2025, 1, 1, FlowKind.Opening, 1_000m)], new LocalDate(2025, 12, 31), kind: EnvelopeKind.Savings).Gain);
+
     [Fact]
     public void The_golden_case_gives_plus_3000_and_13_6_percent()
     {

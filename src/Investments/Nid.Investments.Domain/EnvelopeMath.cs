@@ -18,15 +18,20 @@ public static class EnvelopeMath
 
     /// <summary>
     /// Issue #374: a checking account's money comes and goes as salary and spending, never as contributions, so a gain means nothing.
-    /// A livret has one only when what is paid in is recorded and the bank does not feed its balance (as passive income counts it).
+    /// A livret has one only when what is paid in is recorded and, if the bank feeds its balance, the bank's lines are flows too
+    /// (<see cref="BankFedCovered"/>), as passive income counts it.
     /// </summary>
     public static bool HasPerformance(EnvelopeKind kind, IReadOnlyList<Valuation> values, IReadOnlyList<Flow> flows) => kind switch
     {
         EnvelopeKind.Checking => false,
-        EnvelopeKind.Savings => values.All(v => v.Source != FactSource.BankApi)
+        EnvelopeKind.Savings => BankFedCovered(values, flows)
             && flows.Any(f => f.Kind is FlowKind.Opening or FlowKind.Contribution),
         _ => true,
     };
+
+    /// <summary>A balance the bank feeds says nothing about interest until the bank's lines are also kept as flows (<c>bank:</c> references); active flows.</summary>
+    public static bool BankFedCovered(IReadOnlyList<Valuation> values, IReadOnlyList<Flow> flows)
+        => values.All(v => v.Source != FactSource.BankApi) || flows.Any(f => f.ExternalRef?.StartsWith("bank:", StringComparison.Ordinal) == true);
 
     private static EnvelopeFigures Figures(IReadOnlyList<Valuation> values, IReadOnlyList<Flow> flows, Currency currency,
         ValuationCadence cadence, int? staleAfterDays, LocalDate d)
