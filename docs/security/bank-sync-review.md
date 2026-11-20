@@ -17,7 +17,7 @@ Ce que 5A ajoute à la surface de Nid :
 |---|---|
 | Hôte sortant | `api.enablebanking.com`, par `SafeHttpClient` (liste autorisée par défaut), depuis `nid` seul (D13) |
 | Secret | Clé privée RSA de l'application Enable Banking : secret Docker `enable_banking_private_key` (cible `EnableBanking__PrivateKey`), hors du compose de référence : l'hébergeur qui active la banque le déclare dans `deploy/compose.override.yaml` (`deploy/README.md` §12) ; sans lui, Nid démarre et dit la banque « non configurée » ; un dossier à sa place ou un fichier illisible n'empêche pas le démarrage : Nid l'écrit au journal et Administration › Banque le montre (#343) |
-| Données stockées | Schéma `banking` : connexions (`session_id` chiffré par Data Protection, but `Nid.Banking.Session` ; seul le SHA-256 du `state`), comptes (IBAN masqué et haché, libellé, type, devise, enveloppe), soldes quotidiens, journal des synchronisations |
+| Données stockées | Schéma `banking` : connexions (`session_id` chiffré par Data Protection, but `Nid.Banking.Session` ; seul le SHA-256 du `state`), comptes (IBAN masqué et haché, libellé, type, devise, enveloppe), applications `banking.application` (une par adulte : identifiant et clé privée chiffrée par Data Protection, but `Nid.Banking.ApplicationKey`), soldes quotidiens, journal des synchronisations |
 | Écritures dans les chiffres | Valorisations d'enveloppe : proposition `investments.record_valuation` par défaut, écriture directe `source = bank_api`, `created_via = job` si le compte l'a demandé (D5) |
 | Routes | `/api/v1/banking` (établissements, connexions, rappel, comptes, synchroniser), `/api/v1/admin/banking/runs`, `/api/v1/admin/banking/diagnostics` (état de la clé, jamais la clé) et `/api/v1/admin/banking/test` (un `GET /application` en lecture seule), réglages dans `/api/v1/admin/household` |
 | Tâche | `bank-sync-nightly`, Quartz, 04:30 ; bouton « Synchroniser » exécuté dans la requête |
@@ -156,6 +156,10 @@ ou une trace OpenTelemetry.
 - Clé privée : secret Docker lu par `AddKeyPerFile` (facultatif : absent, la banque est « non configurée »), déclaré seulement par l'override de l'hébergeur, jamais en base ni dans l'interface ; une clé illisible échoue sans être
   recopiée dans le message. L'identifiant d'application, seul visible (Administration › Banque), n'est pas un secret, et
   l'audit de son changement ne le recopie pas.
+- Clé privée d'un adulte (#382) : envoyée dans Réglages › Banques, validée (clé RSA privée en PEM, 16 Kio au plus), chiffrée par
+  Data Protection (but `Nid.Banking.ApplicationKey`) dans `banking.application`, jamais renvoyée par l'API, colonne
+  `private_key` exclue de l'audit, absente des journaux ; les événements de sécurité `banking_application_saved` et
+  `banking_application_deleted` disent seulement si la clé a été remplacée.
 - `session_id` chiffré par Data Protection (but `Nid.Banking.Session`), exclu de l'audit avec le hachage du `state` (colonnes
   `Secret` de la règle d'audit) ; une clé Data Protection perdue rend la session illisible : la connexion demande un
   renouvellement, sans erreur dans le journal au-delà d'un avertissement sans valeur.
@@ -206,7 +210,7 @@ ou une trace OpenTelemetry.
 | # | Point | Effet | Suite |
 |---|---|---|---|
 | R1 | Banques du foyer présentes dans `GET /aspsps?country=FR` (Boursorama et banques en ligne) | **À vérifier** : la tâche 1 du plan n'a pas été exécutée, faute de l'application Enable Banking du foyer | Avant mise en service ; sinon import de fichiers (5B), liste dans `deploy/README.md` |
-| R2 | Le second adulte peut-il relier ses comptes à l'application de l'installation (mode restreint) ? | **À vérifier.** La documentation d'Enable Banking le laisse attendre (comptes reliés dans son portail) ; sinon une application par adulte, à reprendre dans les réglages et le parcours de connexion | Avant mise en service |
+| R2 | Le second adulte peut-il relier ses comptes à l'application de l'installation (mode restreint) ? | **Non** : en mode restreint une application ne lit que les comptes reliés dans son propre portail, et les relier dans celui du premier adulte romprait la confidentialité. Une application par adulte (#382) ; celle de l'installation sert ceux qui n'en ont pas | Levé |
 | R3 | Livrets et cartes à débit différé exposés | **À vérifier** | Avant mise en service |
 | R4 | Durée maximale du consentement et historique au premier passage | **À vérifier** ; la durée demandée est celle que la banque annonce (180 jours si elle n'en dit rien), et les rappels sont à 14 et 3 jours | Avant mise en service |
 | R5 | Créancier SEPA dans les opérations | **À vérifier** ; sans effet sur 5A | Avant 5C |
@@ -216,9 +220,10 @@ ou une trace OpenTelemetry.
 | M1 | Instrumentation des métriques HTTP non filtrée | Les métriques ne portent pas l'URL complète par défaut ; à surveiller si on en ajoute | — |
 | M2 | Un rappel avec le `state` d'une autre personne ou expiré consomme ce `state` | Le titulaire doit recommencer ; aucune donnée ne passe | Accepté |
 | M3 | Suppression d'une connexion refusée si Enable Banking répond une autre erreur qu'expirée ou révoquée | La session reste ouverte chez Enable Banking jusqu'à un nouvel essai | Accepté ; à revoir avec R4 |
-| M4 | Clé Data Protection perdue | Sessions illisibles : chaque connexion est à renouveler (`deploy/README.md` §7) | Accepté |
+| M4 | Clé Data Protection perdue | Sessions illisibles : chaque connexion est à renouveler (`deploy/README.md` §7). Clé d'un adulte illisible : « Clé illisible », à renvoyer dans Réglages › Banques ; ses connexions échouent en `banking.not_configured` d'ici là | Accepté |
+| M5 | Un compte sans IBAN (une carte) vu par deux applications n'est fusionné que si Enable Banking lui donne la même empreinte d'identification sous les deux | Non vérifié : il peut apparaître deux fois | Accepté |
 
-La revue est à refaire quand R1 à R5 sont levés (amendement daté de la spec), et avant 5C (rapprochement).
+La revue est à refaire quand R1 et R3 à R5 sont levés (amendement daté de la spec), et avant 5C (rapprochement).
 
 ## 5. Sous-plan 5B : opérations et fichiers (2026-10-30)
 
