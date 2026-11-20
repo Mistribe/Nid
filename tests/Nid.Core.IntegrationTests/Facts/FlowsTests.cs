@@ -32,6 +32,21 @@ public class FlowsTests(PostgresFixture postgres)
     private static readonly IReadOnlySet<FlowKind> Net = new HashSet<FlowKind> { FlowKind.Opening, FlowKind.Contribution };
 
     [Fact]
+    public async Task A_bank_flow_is_stored_with_its_source()
+    {
+        await using var w = await FactWorld.NewAsync(postgres);
+        var item = await w.ItemAsync(w.Alice);
+        var ct = TestContext.Current.CancellationToken;
+        var bankRef = $"bank:{Guid.NewGuid()}";
+
+        (await w.Flows.RecordAsync(Flow(item, FlowKind.Income, 12m, externalRef: bankRef) with { Source = FactSource.BankApi }, ct)).Ok();
+
+        var listed = (await w.Flows.ListAsync(item, UpTo(V), null, ct)).Ok();
+        Assert.Equal(bankRef, Assert.Single(listed).ExternalRef);
+        Assert.Equal("bank_api", Assert.Single(await w.Db.Flows.AsNoTracking().ToListAsync(ct)).Source);
+    }
+
+    [Fact]
     public async Task Find_many_reads_active_flows_by_id_and_skips_voided_and_superseded_ones()
     {
         await using var w = await FactWorld.NewAsync(postgres);
