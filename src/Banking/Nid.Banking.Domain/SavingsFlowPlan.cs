@@ -49,7 +49,7 @@ public static class SavingsFlowPlan
                 && Math.Abs(Movement(l)) == Math.Round(t.Amount, 2)
                 && Gap(t.OccurredOn, l.BookedOn) <= InternalTransfers.Days
             select (Typed: t, Line: l, Days: Gap(t.OccurredOn, l.BookedOn)))
-            .OrderBy(p => p.Days) // stable: ties keep the line booking order
+            .OrderBy(p => p.Days).ThenBy(p => p.Line.BookedOn).ThenBy(p => p.Line.Id).ThenBy(p => p.Typed.Id) // never depends on input order
             .ToList();
 
         var usedTyped = new HashSet<Guid>();

@@ -121,4 +121,31 @@ public class SavingsFlowPlanTests
         Assert.Single(Plan([line], [new TypedFlow(Guid.NewGuid(), D(3, 14), FlowKind.Contribution, 50m)]));
         Assert.Empty(Plan([line], [new TypedFlow(Guid.NewGuid(), D(3, 13), FlowKind.Contribution, 50m)]));
     }
+
+    [Fact]
+    public void Equal_gaps_give_the_same_outcome_in_any_input_order()
+    {
+        var a = new TypedFlow(Guid.NewGuid(), D(3, 9), FlowKind.Contribution, 50m);
+        var b = new TypedFlow(Guid.NewGuid(), D(3, 11), FlowKind.Contribution, 50m);
+        var early = L(D(3, 10), 50m);
+        Assert.Empty(Plan([early], [a, b]));
+        Assert.Empty(Plan([early], [b, a]));
+        var x = L(D(3, 9), 50m);
+        var y = L(D(3, 11), 50m);
+        var typed = new TypedFlow(Guid.NewGuid(), D(3, 10), FlowKind.Contribution, 50m);
+        var expected = Plan([x, y], [typed]).Select(f => f.Ref).ToList();
+        Assert.Single(expected);
+        Assert.Equal(expected, Plan([y, x], [typed]).Select(f => f.Ref));
+    }
+
+    [Fact]
+    public void A_zero_movement_line_gives_only_its_interest()
+    {
+        var line = L(D(3, 10), 12.5m, 12.5m);
+        Assert.Equal([FlowKind.Income], Plan([line]).Select(f => f.Kind));
+    }
+
+    [Fact]
+    public void A_debit_is_absorbed_by_a_typed_withdrawal()
+        => Assert.Empty(Plan([L(D(3, 10), -40m)], [new TypedFlow(Guid.NewGuid(), D(3, 11), FlowKind.Withdrawal, 40m)]));
 }
