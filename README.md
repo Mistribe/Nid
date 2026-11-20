@@ -4,6 +4,8 @@
 French tax. With an MCP server, so your AI assistant can read your figures and propose changes you approve.**
 
 [![CI](https://github.com/Mistribe/Nid/actions/workflows/ci.yml/badge.svg)](https://github.com/Mistribe/Nid/actions/workflows/ci.yml)
+[![Quality gate](https://img.shields.io/sonar/quality_gate/mistribe_nid?server=https%3A%2F%2Fsonarcloud.io)](https://sonarcloud.io/summary/new_code?id=mistribe_nid)
+[![Coverage](https://img.shields.io/sonar/coverage/mistribe_nid?server=https%3A%2F%2Fsonarcloud.io)](https://sonarcloud.io/summary/new_code?id=mistribe_nid)
 [![Release](https://img.shields.io/github/v/release/Mistribe/Nid?sort=semver)](https://github.com/Mistribe/Nid/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
