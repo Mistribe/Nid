@@ -54,7 +54,7 @@ describe('« Opérations »', () => {
 
   it('shows a line’s note, and a split line’s parts on the narrow list', async () => {
     serve([[line({ note: 'pour Léa' }), line({ id: 't2', amount: '-60.00', label: 'MARCHE', categorySource: 'split', parts: [
-      { id: 'p1', amount: '-40.00', category: { id: 'food', name: 'Alimentation' }, note: 'fruits' },
+      { id: 'p1', amount: '-40.00', category: { id: 'food', name: 'Alimentation', kind: 'expense' }, note: 'fruits' },
       { id: 'p2', amount: '-20.00', category: null, note: null },
     ] })]]);
     await renderApp(`/investments/${PEA}?tab=operations`);
