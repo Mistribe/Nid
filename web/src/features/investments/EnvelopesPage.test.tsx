@@ -166,7 +166,7 @@ describe('EnvelopesPage', () => {
   it('appears in the navigation only when the module is enabled', async () => {
     serve(list([]));
     await renderApp('/investments?tab=list');
-    expect(screen.getAllByRole('link', { name: 'Comptes et placements' }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', { name: 'Comptes' }).length).toBeGreaterThan(0);
   });
 });
 
