@@ -25,6 +25,10 @@ public sealed class BankingAccess(
     public async Task<bool> ConfiguredAsync(PersonId person, CancellationToken ct)
         => await applications.FindAsync(person, ct) is { } own ? own.KeyReadable : Configured(await settings.ReadAsync(ct), options);
 
+    /// <summary>Whether any application exists to call Enable Banking with: the installation's, or an adult's own.</summary>
+    public async Task<bool> AnyApplicationAsync(CancellationToken ct)
+        => Configured(await settings.ReadAsync(ct), options) || (await applications.OwnersAsync(ct)).Count > 0;
+
     /// <summary>
     /// The application the actor's next call uses (list banks, start, status): banking on, then their own application when they
     /// declared one (an unreadable key is not configured), else the installation's.

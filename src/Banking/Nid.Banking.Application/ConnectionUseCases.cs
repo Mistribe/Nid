@@ -229,12 +229,10 @@ public sealed class DeleteConnectionHandler(BankingAccess access, IConnectionSto
         var mine = await access.MyConnectionAsync(command.Id, ct);
         if (!mine.TryGetValue(out var connection))
             return BankingAccess.Failed<Guid, BankConnection>(mine);
-        var app = await access.AppForAsync(connection!, ct);
-        if (!app.TryGetValue(out var used))
-            return BankingAccess.Failed<Guid, EnableBankingApp>(app);
-
-        // An expired or revoked consent has nothing left to revoke; a live one must be revoked before Nid forgets its session.
-        if (connection!.Status is ConnectionStatus.Active or ConnectionStatus.Error && await connections.SessionIdAsync(connection.Id, ct) is { } session)
+        // An expired or revoked consent has nothing left to revoke; a live one is revoked before Nid forgets its session. When its
+        // application is gone or unreadable it cannot be: the connection is forgotten anyway, the consent lapsing at the bank on its own.
+        if (connection!.Status is ConnectionStatus.Active or ConnectionStatus.Error && await connections.SessionIdAsync(connection.Id, ct) is { } session
+            && (await access.AppForAsync(connection, ct)).TryGetValue(out var used))
         {
             var revoked = await client.DeleteSessionAsync(used!, session, ct);
             // A 404: the session is already gone there.

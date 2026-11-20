@@ -34,6 +34,11 @@ public sealed class ConnectionStore(BankingDbContext db, IDataProtectionProvider
         => db.Connections.AsNoTracking().AnyAsync(
             c => c.ApplicationId == applicationId && c.Status != "pending" && (person == null || c.PersonId == person.Value.Value), ct);
 
+    public Task<bool> HasOtherApplicationThanAsync(string installationId, CancellationToken ct)
+        => db.Connections.AsNoTracking().AnyAsync(
+            c => c.ApplicationId != null && c.ApplicationId != installationId && c.Status != "pending"
+                && !db.Applications.Any(a => a.PersonId == c.PersonId && a.ApplicationId == c.ApplicationId), ct);
+
     public async Task<BankConnection?> FindByStateAsync(byte[] stateHash, CancellationToken ct)
     {
         var row = await db.Connections.SingleOrDefaultAsync(c => c.StateHash == stateHash, ct);

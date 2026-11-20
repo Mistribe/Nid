@@ -158,4 +158,22 @@ public class ApplicationRouteTests(PostgresFixture fixture) : IClassFixture<Post
         var own = JsonDocument.Parse(raw).RootElement.GetProperty("ownApplications");
         Assert.Equal(app.AdultA.Value, Assert.Single(own.EnumerateArray()).GetProperty("personId").GetGuid());
     }
+
+    [Fact]
+    public async Task A_non_json_body_is_a_415()
+    {
+        await using var app = await BankingApi.StartAsync(fixture);
+
+        var response = await app.RawContentAsync(app.AdultA, HttpMethod.Put, Route, new StringContent("applicationId=x", System.Text.Encoding.UTF8, "text/plain"));
+
+        Assert.Equal(HttpStatusCode.UnsupportedMediaType, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task An_adult_cannot_declare_the_installation_application_as_theirs()
+    {
+        await using var app = await BankingApi.StartAsync(fixture); // installation id: app-1
+
+        await AssertFieldAsync(await PutAsync(app, app.AdultB, "app-1", Pem()), BankingCodes.ApplicationIdInvalid, "applicationId");
+    }
 }

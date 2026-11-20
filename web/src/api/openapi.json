@@ -12169,6 +12169,9 @@
           },
           "413": {
             "description": "Payload Too Large"
+          },
+          "415": {
+            "description": "Unsupported Media Type"
           }
         }
       },

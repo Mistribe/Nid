@@ -23,5 +23,18 @@ public class HouseholdBankingApplicationTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task Clearing_then_setting_another_id_cannot_orphan_a_connection()
+    {
+        await using var app = await BankingApi.StartAsync(postgres);
+        await BankingApi.ConnectAsync(app, app.AdultA, "code-a", BankingApi.Account("uid-1", "hash-1", null, "Courant"));
+        const string Household = "/api/v1/admin/household";
+
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Patch, Household, new { enableBankingAppId = "" })).StatusCode);
+        await BankingApi.AssertRefusedAsync(
+            await app.RawAsync(app.AdultA, HttpMethod.Patch, Household, new { enableBankingAppId = "app-2" }), HttpStatusCode.Conflict, BankingCodes.ApplicationInUse);
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Patch, Household, new { enableBankingAppId = "app-1" })).StatusCode);
+    }
+
+    [Fact]
     public void The_shared_code_is_the_banking_one() => Assert.Equal(BankingApplicationCodes.InUse, BankingCodes.ApplicationInUse);
 }

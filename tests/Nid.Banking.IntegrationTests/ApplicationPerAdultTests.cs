@@ -67,6 +67,32 @@ public class ApplicationPerAdultTests(PostgresFixture fixture) : IClassFixture<P
         Assert.Equal(["app-alice"], app.Banks.SessionApps);
     }
 
+    private static async Task SetRowAsync(NidApp app, Guid id, string applicationId, string? status = null)
+    {
+        await using var db = Db(app);
+        var row = await db.Connections.SingleAsync(c => c.Id == id, Ct);
+        row.ApplicationId = applicationId;
+        if (status is not null)
+            row.Status = status;
+        await db.SaveChangesAsync(Ct);
+    }
+
+    [Fact]
+    public async Task A_connection_whose_application_is_gone_is_still_deleted()
+    {
+        await using var app = await StartAsync(fixture);
+        var expired = await BankingApi.ConnectAsync(app, app.AdultA, "code-a", BankingApi.Account("uid-1", "hash-1", null, "Courant"));
+        var active = await BankingApi.ConnectAsync(app, app.AdultA, "code-b", BankingApi.Account("uid-2", "hash-2", null, "Epargne"));
+        await SetRowAsync(app, expired, "app-vanished", "expired");
+        await SetRowAsync(app, active, "app-vanished");
+
+        Assert.Equal(HttpStatusCode.NoContent, (await app.RawAsync(app.AdultA, HttpMethod.Delete, $"{BankingApi.Root}/connections/{expired}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await app.RawAsync(app.AdultA, HttpMethod.Delete, $"{BankingApi.Root}/connections/{active}")).StatusCode);
+
+        Assert.Empty(app.Banks.DeleteApps); // nothing could be revoked at the bank
+        Assert.Empty(await app.GetAsync<List<JsonElement>>(app.AdultA, $"{BankingApi.Root}/connections"));
+    }
+
     [Fact]
     public async Task Bob_without_one_uses_the_installation()
     {

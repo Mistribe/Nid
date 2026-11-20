@@ -84,6 +84,8 @@ public static class BankingEndpoints
             {
                 const int MaxBody = 32 * 1024;
                 var tooLarge = Results.Problem(statusCode: StatusCodes.Status413PayloadTooLarge, detail: "The application is at most 32 KiB.");
+                if (!request.HasJsonContentType())
+                    return Results.Problem(statusCode: StatusCodes.Status415UnsupportedMediaType, detail: "Send the application as application/json.");
                 if (request.ContentLength > MaxBody)
                     return tooLarge;
                 if (request.HttpContext.Features.Get<IHttpMaxRequestBodySizeFeature>() is { IsReadOnly: false } limit)
@@ -106,7 +108,8 @@ public static class BankingEndpoints
             })
             .Accepts<ApplicationBody>("application/json")
             .Returns<MyApplicationView>()
-            .Produces(StatusCodes.Status413PayloadTooLarge);
+            .Produces(StatusCodes.Status413PayloadTooLarge)
+            .Produces(StatusCodes.Status415UnsupportedMediaType);
 
         api.MapDelete("/application", async (IInvoker invoker, CancellationToken ct) =>
             {

@@ -11465,6 +11465,13 @@ export interface paths {
                     };
                     content?: never;
                 };
+                /** @description Unsupported Media Type */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
                 /** @description Unprocessable Entity */
                 422: {
                     headers: {

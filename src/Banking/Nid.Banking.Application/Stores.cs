@@ -38,6 +38,12 @@ public interface IConnectionStore
     Task<bool> InUseAsync(string applicationId, PersonId? person, CancellationToken ct);
 
     /// <summary>
+    /// Whether a connection past its pending state was made with an application id that is neither <paramref name="installationId"/> nor
+    /// its creator's own declared one: a previous installation application, which a new installation id would orphan.
+    /// </summary>
+    Task<bool> HasOtherApplicationThanAsync(string installationId, CancellationToken ct);
+
+    /// <summary>
     /// The connection holding this state hash (pending, or being renewed), which it clears: a state is used once, even past its time.
     /// <c>null</c> when none holds it or its time ran out.
     /// </summary>
