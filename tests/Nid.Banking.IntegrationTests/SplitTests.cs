@@ -229,7 +229,7 @@ public class SplitTests(PostgresFixture fixture) : IClassFixture<PostgresFixture
         await using var scope = app.Services.CreateAsyncScope();
         scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
         var store = scope.ServiceProvider.GetRequiredService<ITransactionStore>();
-        Assert.Equal(1, await store.PurgeBookedBeforeAsync(new LocalDate(2025, 1, 1), TestContext.Current.CancellationToken));
+        Assert.Equal(1, await store.PurgeBookedBeforeAsync(new LocalDate(2025, 1, 1), [], TestContext.Current.CancellationToken));
 
         Assert.Equal(new[] { noted, split }.Order(), (await store.ListAsync([s.Courant], null, null, 0, 10, TestContext.Current.CancellationToken)).Select(t => t.Id).Order());
         Assert.DoesNotContain(plain, (await store.ListAsync([s.Courant], null, null, 0, 10, TestContext.Current.CancellationToken)).Select(t => t.Id));

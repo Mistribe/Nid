@@ -133,7 +133,7 @@ public class TransactionStoreTests(PostgresFixture fixture) : IClassFixture<Post
             t.LinkState = t.ProviderRef switch { "i" => "ignored", "l" => "linked", _ => t.LinkState };
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        Assert.Equal(2, await store.PurgeBookedBeforeAsync(Day.PlusYears(-1), TestContext.Current.CancellationToken));
+        Assert.Equal(2, await store.PurgeBookedBeforeAsync(Day.PlusYears(-1), [], TestContext.Current.CancellationToken));
 
         Assert.Equal(["l", "n"], (await store.ListAsync([account], null, null, 0, 10, TestContext.Current.CancellationToken)).Select(t => t.ProviderRef).Order());
     }

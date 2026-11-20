@@ -1,4 +1,6 @@
+using Nid.Core.Contracts;
 using Nid.Documents.Contracts;
+using Nid.Documents.Domain;
 using NodaTime;
 
 namespace Nid.Documents.Application;
@@ -51,6 +53,14 @@ public interface IDocumentStore
 
     Task<IReadOnlyList<LinkRecord>> LinksOfAsync(IReadOnlyCollection<Guid> documents, CancellationToken ct);
 
+    /// <summary>#84: the links to these targets of one kind.</summary>
+    Task<IReadOnlyList<LinkRecord>> LinksToAsync(string kind, IReadOnlyCollection<Guid> targets, CancellationToken ct);
+
+    Task<IReadOnlyList<DocumentRecord>> FindManyAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct);
+
+    /// <summary>#84: sets the anchor of the links to these targets.</summary>
+    Task ReanchorLinksAsync(string kind, IReadOnlyCollection<Guid> targets, Guid? anchor, CancellationToken ct);
+
     /// <summary>Writes the title, date and note only: a concurrent archive is not undone.</summary>
     Task EditAsync(Guid id, string title, LocalDate? documentDate, string? note, CancellationToken ct);
 
@@ -83,9 +93,32 @@ public interface IDocumentStore
     Task<UploadTicket?> ClaimUploadTicketAsync(string tokenHash, Instant now, CancellationToken ct);
 }
 
-public sealed class DocumentLinks(IDocumentStore store) : IDocumentLinks
+public sealed class DocumentLinks(IDocumentStore store, DocumentAccess access) : IDocumentLinks
 {
     public Task UnlinkTargetAsync(DocumentTarget target, CancellationToken ct) => store.RemoveLinksToAsync(target, ct);
 
     public Task MoveTargetAsync(DocumentTarget from, DocumentTarget to, CancellationToken ct) => store.MoveLinksAsync(from, to, ct);
+
+    public Task ReanchorTargetsAsync(string kind, IReadOnlyCollection<Guid> targetIds, Guid? anchor, CancellationToken ct)
+        => store.ReanchorLinksAsync(kind, targetIds, anchor, ct);
+
+    public async Task<IReadOnlySet<Guid>> TargetIdsWithLinksAsync(string kind, IReadOnlyCollection<Guid> targetIds, CancellationToken ct)
+        => (await store.LinksToAsync(kind, targetIds, ct)).Select(l => l.TargetId).ToHashSet();
+
+    public async Task<IReadOnlyDictionary<Guid, IReadOnlyList<LinkedDocumentView>>> ReadableOfTargetsAsync(
+        string kind, IReadOnlyCollection<Guid> targetIds, PersonId reader, CancellationToken ct)
+    {
+        var linked = await store.LinksToAsync(kind, targetIds, ct);
+        if (linked.Count == 0)
+            return new Dictionary<Guid, IReadOnlyList<LinkedDocumentView>>();
+        // As the list: the documents, all their links and one rights check over their anchors, whatever the number of targets.
+        var ids = linked.Select(l => l.DocumentId).Distinct().ToList();
+        var documents = (await store.FindManyAsync(ids, ct)).ToDictionary(d => d.Id);
+        var links = (await store.LinksOfAsync(ids, ct)).ToLookup(l => l.DocumentId);
+        var facts = await access.FactsAsync(reader, links.SelectMany(l => l).Select(l => l.AnchorItemId).OfType<Guid>().ToList(), ct);
+        return linked.Where(l => documents.TryGetValue(l.DocumentId, out var d) && DocumentRules.CanRead(d.UploadedBy, links[d.Id].Select(DocumentAccess.Facts), facts))
+            .GroupBy(l => l.TargetId)
+            .ToDictionary(g => g.Key, g => (IReadOnlyList<LinkedDocumentView>)[.. g.Select(l => new LinkedDocumentView(l.DocumentId, documents[l.DocumentId].Title))
+                .OrderBy(d => d.Title, StringComparer.CurrentCultureIgnoreCase)]);
+    }
 }

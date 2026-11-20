@@ -34028,6 +34028,7 @@ export interface components {
             parts?: null | components["schemas"]["PartView"][];
             /** Format: uuid */
             partId?: null | string;
+            documents?: null | components["schemas"]["LinkedDocumentView"][];
         };
         BatchView: {
             section: string;
@@ -36911,6 +36912,11 @@ export interface components {
             /** Format: uuid */
             targetId?: null | string;
             role?: null | string;
+        };
+        LinkedDocumentView: {
+            /** Format: uuid */
+            id: string;
+            title: string;
         };
         LinkPreview: {
             gainedReaders: components["schemas"]["ReaderView"][];

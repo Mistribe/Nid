@@ -1,6 +1,7 @@
 using Nid.Banking.Application.Reconciliation;
 using Nid.Banking.Contracts;
 using Nid.Core.Contracts;
+using Nid.Documents.Contracts;
 using Nid.Platform.Contracts;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Functional.Failures;
@@ -25,7 +26,7 @@ public sealed record BankSyncRequested(Guid RunId);
 [RequestHandler<SyncAllCommand, BankSyncRunView>]
 public sealed class SyncAllHandler(
     BankingAccess access, IConnectionStore connections, BankSyncCollector collector, IHouseholdSettings settings, IHouseholdCalendar calendar,
-    ITransactionStore transactions, BankReconciliation reconciliation, RecurringDebits recurring)
+    ITransactionStore transactions, BankReconciliation reconciliation, RecurringDebits recurring, IDocumentLinks documents)
     : IRequestHandler<SyncAllCommand, BankSyncRunView>
 {
     public async ValueTask<Result<BankSyncRunView>> HandleAsync(SyncAllCommand command, CancellationToken ct = default)
@@ -45,7 +46,12 @@ public sealed class SyncAllHandler(
         // Spec §6.4: once the night's lines are reconciled, the unknown recurring debits.
         await recurring.ProposeAsync(today, ct);
         if (enabled.IsSuccess && (await settings.ReadAsync(ct)).BankRetentionMonths is { } months)
-            await transactions.PurgeBookedBeforeAsync(today.PlusMonths(-months), ct);
+        {
+            // #84: a line with a receipt is kept, like a linked one.
+            var before = today.PlusMonths(-months);
+            var receipts = await documents.TargetIdsWithLinksAsync(Operations.BankingDocumentTargets.Kind, await transactions.PurgeableBeforeAsync(before, ct), ct);
+            await transactions.PurgeBookedBeforeAsync(before, receipts, ct);
+        }
         return run;
     }
 }

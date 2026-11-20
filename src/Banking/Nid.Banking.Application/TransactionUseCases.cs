@@ -4,6 +4,7 @@ using Nid.Banking.Application.Reconciliation;
 using Nid.Banking.Contracts;
 using Nid.Banking.Domain;
 using Nid.Core.Contracts;
+using Nid.Documents.Contracts;
 using Nid.Platform.Contracts;
 using NodaTime;
 using UnambitiousFx.Functional;
@@ -66,7 +67,8 @@ public sealed record BankTransactionPage(IReadOnlyList<BankTransactionView> Item
 public sealed record BankTransactionView(
     Guid Id, LocalDate BookedOn, LocalDate? ValueOn, string Amount, string Currency, string Label, string? Counterparty, bool FromCard,
     string? CardName, string FetchedVia, string LinkState, LinkView? Link, string AccountName, CategoryView? Category, string? CategorySource,
-    Guid AccountId, string? SuggestedPattern, bool SharedAccount, string? Note = null, IReadOnlyList<PartView>? Parts = null, Guid? PartId = null);
+    Guid AccountId, string? SuggestedPattern, bool SharedAccount, string? Note = null, IReadOnlyList<PartView>? Parts = null, Guid? PartId = null,
+    IReadOnlyList<LinkedDocumentView>? Documents = null);
 
 /// <summary>#84: a part of a split line, <paramref name="Amount"/> signed like the line; the parts add up to it.</summary>
 public sealed record PartView(Guid Id, string Amount, CategoryView? Category, string? Note);
@@ -92,7 +94,7 @@ public sealed record BankRuleView(Guid Id, string LabelStem, string? AccountName
 /// <summary>The lines the actor reads, as views masked by D19, and the line a request names.</summary>
 public sealed class BankLines(
     BankingAccess access, IAccountStore accounts, ITransactionStore transactions, ILinkStore links, IItemRegistry items, IAccessPolicy policy,
-    ICategoryStore categories, ISplitStore splits)
+    ICategoryStore categories, ISplitStore splits, IDocumentLinks documents)
 {
     public const int PageSize = 50;
 
@@ -147,6 +149,8 @@ public sealed class BankLines(
         var names = await items.FindManyAsync([.. await policy.CheckManyAsync(access.Person, targets, AccessKind.Read, ct)], ct);
         var named = (await categories.AllAsync(ct)).ToDictionary(c => c.Id);
         var parts = await splits.PartsAsync([.. lines.Select(l => l.Id)], ct);
+        // #84: the receipts the reader reads, as the documents list would show them.
+        var receipts = await documents.ReadableOfTargetsAsync(BankingDocumentTargets.Kind, [.. lines.Select(l => l.Id)], access.Person, ct);
         var adults = await access.AdultCountAsync(ct);
         var shared = new Dictionary<Guid, bool>();
         foreach (var id in lines.Select(l => l.Account).Distinct())
@@ -177,7 +181,8 @@ public sealed class BankLines(
                 t.LinkState == TransactionLinkState.Internal && view is null ? "linked" : Wire(t.LinkState), view, account.Name,
                 Category(t.Category), t.CategorySource is { } source ? Wire(source) : null,
                 t.Account, CategoryRules.Suggest(t.NormalizedLabel), shared[t.Account], t.Note,
-                parts.TryGetValue(t.Id, out var own) ? [.. own.Select(x => new PartView(x.Id, TransactionLinker.Amount(x.Amount), Category(x.Category), x.Note))] : null);
+                parts.TryGetValue(t.Id, out var own) ? [.. own.Select(x => new PartView(x.Id, TransactionLinker.Amount(x.Amount), Category(x.Category), x.Note))] : null,
+                Documents: receipts.GetValueOrDefault(t.Id));
         })];
     }
 

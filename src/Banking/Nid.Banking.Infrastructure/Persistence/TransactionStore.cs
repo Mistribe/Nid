@@ -207,9 +207,30 @@ public sealed class TransactionStore(BankingDbContext db, IClock clock) : ITrans
     public async Task MarkReconciledAsync(IReadOnlyCollection<Guid> ids, Instant at, CancellationToken ct)
         => await db.Transactions.Where(t => ids.Contains(t.Id)).ExecuteUpdateAsync(s => s.SetProperty(t => t.ReconciledAt, at), ct);
 
-    public Task<int> PurgeBookedBeforeAsync(LocalDate before, CancellationToken ct)
+    public Task<int> PurgeBookedBeforeAsync(LocalDate before, IReadOnlyCollection<Guid> keep, CancellationToken ct)
+    {
+        var kept = keep.ToList();
+        return Purgeable(before).Where(t => !kept.Contains(t.Id)).ExecuteDeleteAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<Guid>> PurgeableBeforeAsync(LocalDate before, CancellationToken ct)
+        => await Purgeable(before).Select(t => t.Id).ToListAsync(ct);
+
+    private IQueryable<TransactionRow> Purgeable(LocalDate before)
         => db.Transactions.Where(t => t.BookedOn < before && (t.LinkState == "unlinked" || t.LinkState == "ignored")
-            && t.Note == null && !db.TransactionParts.Any(p => p.TransactionId == t.Id)).ExecuteDeleteAsync(ct);
+            && t.Note == null && !db.TransactionParts.Any(p => p.TransactionId == t.Id));
+
+    public async Task<IReadOnlyList<BankTransaction>> FindManyAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct)
+    {
+        var wanted = ids.ToList();
+        return (await db.Transactions.AsNoTracking().Where(t => wanted.Contains(t.Id)).ToListAsync(ct)).Select(ToModel).ToList();
+    }
+
+    public async Task<IReadOnlyList<Guid>> IdsOfAsync(IReadOnlyCollection<Guid> accounts, CancellationToken ct)
+    {
+        var wanted = accounts.ToList();
+        return await db.Transactions.Where(t => wanted.Contains(t.AccountId)).Select(t => t.Id).ToListAsync(ct);
+    }
 
     /// <summary>The lines of the spending views: an unsplit line is one entry, a split line its parts (never also itself).</summary>
     private IQueryable<SpendingEntry> Entries(IReadOnlyList<Guid> accounts, LocalDate from, LocalDate to, bool withLinked = true)

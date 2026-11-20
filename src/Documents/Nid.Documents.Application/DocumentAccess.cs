@@ -83,7 +83,7 @@ public sealed class DocumentAccess(
 
         var link = new LinkFacts(target.Kind, target.Id, resolved.AnchorItemId);
         var facts = await FactsAsync(actor, links.Select(l => l.AnchorItemId).Append(resolved.AnchorItemId).OfType<Guid>().ToList(), ct);
-        if (!DocumentRules.CanWriteLink(link, facts))
+        if (!DocumentRules.CanWriteLink(link, facts) && !await WritesUnanchoredAsync(kind, target, resolved.AnchorItemId, actor, ct))
             return DocumentRules.CanReadLink(link, facts)
                 ? Result.Failure<LinkRecord>(new UnauthorizedFailure("The target is read-only for this person.", null))
                 : Fail(DocumentsCodes.TargetNotFound, "The target does not exist.", "targetId");
@@ -118,6 +118,8 @@ public sealed class DocumentAccess(
             return Result.Failure<LinkRecord>(read.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
 
         var link = found!.Links.FirstOrDefault(l => l.TargetKind == target.Kind && l.TargetId == target.Id);
+        if (link is not null && TargetsFor(link.TargetKind) is { } kind && await WritesUnanchoredAsync(kind, target, link.AnchorItemId, actor, ct))
+            return Result.Success(link);
         if (link is null || !DocumentRules.CanReadLink(Facts(link), found.Actor))
             return Result.Failure<LinkRecord>(new NotFoundFailure("document link", $"{id}/{target.Kind}/{target.Id}"));
         return DocumentRules.CanWriteLink(Facts(link), found.Actor)
@@ -142,6 +144,10 @@ public sealed class DocumentAccess(
     public bool IsKnownKind(string kind) => TargetsFor(kind) is not null;
 
     private IDocumentTargets? TargetsFor(string kind) => targets.FirstOrDefault(t => t.Kinds.Contains(kind));
+
+    /// <summary>#84: a target with no anchor whose module says the actor writes it (a line of an account on no envelope).</summary>
+    private static async Task<bool> WritesUnanchoredAsync(IDocumentTargets kind, DocumentTarget target, Guid? anchor, PersonId actor, CancellationToken ct)
+        => anchor is null && await kind.WritesUnanchoredAsync(target.Kind, target.Id, actor, ct);
 
     private static List<Guid> Anchors(IEnumerable<LinkRecord> links) => links.Select(l => l.AnchorItemId).OfType<Guid>().ToList();
 

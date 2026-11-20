@@ -107,8 +107,31 @@ public sealed class DocumentStore(DocumentsDbContext db) : IDocumentStore
     {
         var wanted = documents.ToList();
         return (await db.Links.AsNoTracking().Where(l => wanted.Contains(l.DocumentId)).ToListAsync(ct))
-            .Select(l => new LinkRecord(l.DocumentId, l.TargetKind, l.TargetId, l.AnchorItemId, l.Role, l.LinkedByPersonId, l.LinkedAt)).ToList();
+            .Select(ToLink).ToList();
     }
+
+    public async Task<IReadOnlyList<LinkRecord>> LinksToAsync(string kind, IReadOnlyCollection<Guid> targets, CancellationToken ct)
+    {
+        var wanted = targets.ToList();
+        return (await db.Links.AsNoTracking().Where(l => l.TargetKind == kind && wanted.Contains(l.TargetId)).ToListAsync(ct)).Select(ToLink).ToList();
+    }
+
+    public async Task<IReadOnlyList<DocumentRecord>> FindManyAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct)
+    {
+        var wanted = ids.ToList();
+        return (await db.Documents.AsNoTracking().Where(d => wanted.Contains(d.Id)).ToListAsync(ct)).Select(ToRecord).ToList();
+    }
+
+    public async Task ReanchorLinksAsync(string kind, IReadOnlyCollection<Guid> targets, Guid? anchor, CancellationToken ct)
+    {
+        var wanted = targets.ToList();
+        // Tracked, not a bulk update: the write audit keeps each link's new anchor.
+        foreach (var row in await db.Links.Where(l => l.TargetKind == kind && wanted.Contains(l.TargetId) && l.AnchorItemId != anchor).ToListAsync(ct))
+            row.AnchorItemId = anchor;
+        await db.SaveChangesAsync(ct);
+    }
+
+    private static LinkRecord ToLink(DocumentLinkRow l) => new(l.DocumentId, l.TargetKind, l.TargetId, l.AnchorItemId, l.Role, l.LinkedByPersonId, l.LinkedAt);
 
     public async Task<IReadOnlyList<ExpectedDismissal>> DismissalsAsync(CancellationToken ct)
         => (await db.ExpectedDismissals.AsNoTracking().ToListAsync(ct))

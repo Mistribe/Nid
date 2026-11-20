@@ -33,11 +33,13 @@ public static class DocumentRoles
     public const string Request = "request";
     public const string Advice = "advice";
     public const string ProductSheet = "product_sheet";
+    /// <summary>#84: a bank line's receipt or invoice.</summary>
+    public const string Receipt = "receipt";
     public const string Other = "other";
 
     public static readonly IReadOnlySet<string> All = new HashSet<string>
     {
         Lease, LoanOffer, Deed, TaxNotice, Statement, Payslip, Insurance, Invoice, AmortizationTable, CoproCall, CoproMinutes, CoproAccounts,
-        Contract, TransactionNotice, Request, Advice, ProductSheet, Other,
+        Contract, TransactionNotice, Request, Advice, ProductSheet, Receipt, Other,
     };
 }
