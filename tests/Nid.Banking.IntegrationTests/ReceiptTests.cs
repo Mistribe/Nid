@@ -49,9 +49,9 @@ public class ReceiptTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
         return new Setup(app, accounts["Courant A"], accounts["Carte A"], accounts["Livret A"], joint, connection);
     }
 
-    private static async Task PatchAsync(NidApp app, Guid account, object body)
+    private static async Task PatchAsync(NidApp app, Guid account, object body, PersonId? person = null)
     {
-        var response = await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{BankingApi.Root}/accounts/{account}", body);
+        var response = await app.RawAsync(person ?? app.AdultA, HttpMethod.Patch, $"{BankingApi.Root}/accounts/{account}", body);
         Assert.True(response.StatusCode == HttpStatusCode.OK, await response.Content.ReadAsStringAsync());
     }
 
@@ -107,6 +107,9 @@ public class ReceiptTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
         // B reads the envelope but does not write it: no receipt of B's goes on A's line.
         var mine = await UploadedAsync(app, app.AdultB, Pdf, "fileName=b.pdf");
         Assert.Equal(HttpStatusCode.Forbidden, (await LinkAsync(app, app.AdultB, mine, line)).StatusCode);
+        // An archived receipt leaves the line's list, as it leaves the documents list.
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Post, $"{DocumentApi.Documents}/{receipt}/archive")).StatusCode);
+        Assert.Empty(await ListedAsync(app, app.AdultA, line));
     }
 
     [Fact]
@@ -127,9 +130,14 @@ public class ReceiptTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
         Assert.Equal(HttpStatusCode.NotFound, await ReadsAsync(app, app.AdultB, receipt));
         Assert.Empty(await ListedAsync(app, app.AdultB, line));
         Assert.Equal([(receipt, "ticket")], await ListedAsync(app, app.AdultA, line));
+        // B reads a document through another link of it: that does not show it on this line, whose link B does not read.
+        var shared = await UploadedAsync(app, app.AdultA, Pdf, $"fileName=facture.pdf&targetKind=core.item&targetId={s.Joint.Value}&role=invoice");
+        Assert.Equal(HttpStatusCode.OK, (await LinkAsync(app, app.AdultA, shared, line)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, await ReadsAsync(app, app.AdultB, shared));
+        Assert.Empty(await ListedAsync(app, app.AdultB, line));
         // Its uploader takes it off the line again.
         Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Delete, $"{DocumentApi.Documents}/{receipt}/links/{Kind}/{line}")).StatusCode);
-        Assert.Empty(await ListedAsync(app, app.AdultA, line));
+        Assert.Equal([(shared, "facture")], await ListedAsync(app, app.AdultA, line));
     }
 
     [Fact]
@@ -168,13 +176,57 @@ public class ReceiptTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
         var receipt = await ReceiptAsync(app, app.AdultA, line);
 
         var url = $"/api/v1/investments/envelopes/{s.Joint.Value}";
-        var version = JsonDocument.Parse(await app.GetRawAsync(app.AdultA, $"{url}/deletion")).RootElement.GetProperty("version").GetUInt32();
+        var preview = JsonDocument.Parse(await app.GetRawAsync(app.AdultA, $"{url}/deletion")).RootElement;
+        // The receipt stays on its line: the delete does not count it among the documents it unlinks.
+        Assert.DoesNotContain(preview.GetProperty("removes").EnumerateArray(), r => r.GetProperty("key").GetString() == "documents" && r.GetProperty("count").GetInt32() > 0);
+        var version = preview.GetProperty("version").GetUInt32();
         Assert.Equal(HttpStatusCode.NoContent, (await app.RawAsync(app.AdultA, HttpMethod.Delete, $"{url}?version={version}")).StatusCode);
 
         Assert.Null(await AnchorAsync(app, receipt, line));
         Assert.Equal(HttpStatusCode.NotFound, await ReadsAsync(app, app.AdultB, receipt));
         Assert.Equal([(receipt, "ticket")], await ListedAsync(app, app.AdultA, line));
     }
+
+    /// <summary>B imports A's statement onto B's envelope, with B's card attached; A's bank connection claims the account (ConnectionUseCases).</summary>
+    [Theory]
+    [InlineData(Visibility.Private)]
+    [InlineData(Visibility.Shared)]
+    public async Task A_bank_connection_claiming_an_account_re_anchors_its_receipts_and_its_detached_card_s(Visibility visibility)
+    {
+        var app = await BankingApi.StartAsync(fixture, overrides: s => s.AddSingleton<IClock>(new FixedClock()));
+        await using var _app = app;
+        var envelope = await app.NewEnvelopeAsync("Courant de B", app.AdultB, visibility);
+        var statement = await app.RawContentAsync(app.AdultB, HttpMethod.Post, $"{BankingApi.Root}/statements", Multipart(Ofx(Iban),
+            $"fileName=releve.ofx&confirm=true&envelopeId={envelope.Value}"));
+        Assert.True(statement.StatusCode == HttpStatusCode.OK, await statement.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        var account = (await JsonAsync(statement)).GetProperty("accountId").GetGuid();
+        await BankingApi.ConnectAsync(app, app.AdultB, "code-b", BankingApi.Account("uid-c", "hash-c", null, "Carte B", "CARD"));
+        var card = (await BankingApi.AccountsAsync(app, app.AdultB)).EnumerateArray().Single(a => a.GetProperty("name").GetString() == "Carte B").GetProperty("id").GetGuid();
+        await PatchAsync(app, card, new { cardOfAccountId = account }, app.AdultB);
+        var line = await AddAsync(app, account, "a");
+        var cardLine = await AddAsync(app, card, "b");
+        var receipt = await ReceiptAsync(app, app.AdultB, line);
+        var cardReceipt = await ReceiptAsync(app, app.AdultB, cardLine);
+        Assert.Equal((envelope.Value, envelope.Value), (await AnchorAsync(app, receipt, line), await AnchorAsync(app, cardReceipt, cardLine)));
+
+        await BankingApi.ConnectAsync(app, app.AdultA, "code-a", BankingApi.Account("uid-1", "hash-1", Iban, "Courant A"));
+
+        // A private envelope of B's would hide A's own account from A: it goes, and the receipt with it; a shared one stays.
+        Assert.Equal(visibility == Visibility.Shared ? envelope.Value : null, await AnchorAsync(app, receipt, line));
+        // B's own card does not go with A's account: its line's receipt counts through nothing.
+        Assert.Null(await AnchorAsync(app, cardReceipt, cardLine));
+    }
+
+    private static byte[] Ofx(string iban) => System.Text.Encoding.UTF8.GetBytes($"""
+        <?xml version="1.0" encoding="UTF-8"?>
+        <?OFX OFXHEADER="200" VERSION="211" SECURITY="NONE" OLDFILEUID="NONE" NEWFILEUID="NONE"?>
+        <OFX><BANKMSGSRSV1><STMTTRNRS><STMTRS>
+        <CURDEF>EUR</CURDEF>
+        <BANKACCTFROM><ACCTID>{iban}</ACCTID><ACCTTYPE>CHECKING</ACCTTYPE></BANKACCTFROM>
+        <BANKTRANLIST><DTSTART>20261012</DTSTART><DTEND>20261012</DTEND><STMTTRN><TRNTYPE>OTHER</TRNTYPE><DTPOSTED>20261012</DTPOSTED><TRNAMT>-10</TRNAMT><FITID>F1</FITID><NAME>BOULANGERIE</NAME></STMTTRN></BANKTRANLIST>
+        <LEDGERBAL><BALAMT>100</BALAMT><DTASOF>20261028</DTASOF></LEDGERBAL>
+        </STMTRS></STMTTRNRS></BANKMSGSRSV1></OFX>
+        """);
 
     [Fact]
     public async Task Deleting_the_connection_keeps_the_receipt_on_its_line()

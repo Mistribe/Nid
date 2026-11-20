@@ -13,8 +13,11 @@ public sealed class DocumentsDeletionPart(DocumentsDbContext db) : IItemDeletion
     private IQueryable<DocumentLinkRow> Links(Guid id)
         => db.Links.Where(l => (l.TargetKind == TargetKinds.CoreItem && l.TargetId == id) || l.AnchorItemId == id);
 
+    // #84: a bank line's receipt anchored on an envelope is re-anchored by Banking's part, which runs first: it stays, so it is not counted.
+    private const string BankLine = "banking.transaction";
+
     public async Task<IReadOnlyList<DeletionCount>> CountAsync(ItemAccess item, CancellationToken ct)
-        => [new("documents", await Links(item.Id.Value).Select(l => l.DocumentId).Distinct().CountAsync(ct))];
+        => [new("documents", await Links(item.Id.Value).Where(l => l.TargetKind != BankLine).Select(l => l.DocumentId).Distinct().CountAsync(ct))];
 
     public Task<IReadOnlyList<DeletionBlocker>> BlockersAsync(ItemAccess item, CancellationToken ct) => Task.FromResult<IReadOnlyList<DeletionBlocker>>([]);
 

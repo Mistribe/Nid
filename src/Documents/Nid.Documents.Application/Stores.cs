@@ -111,12 +111,12 @@ public sealed class DocumentLinks(IDocumentStore store, DocumentAccess access) :
         var linked = await store.LinksToAsync(kind, targetIds, ct);
         if (linked.Count == 0)
             return new Dictionary<Guid, IReadOnlyList<LinkedDocumentView>>();
-        // As the list: the documents, all their links and one rights check over their anchors, whatever the number of targets.
-        var ids = linked.Select(l => l.DocumentId).Distinct().ToList();
-        var documents = (await store.FindManyAsync(ids, ct)).ToDictionary(d => d.Id);
-        var links = (await store.LinksOfAsync(ids, ct)).ToLookup(l => l.DocumentId);
-        var facts = await access.FactsAsync(reader, links.SelectMany(l => l).Select(l => l.AnchorItemId).OfType<Guid>().ToList(), ct);
-        return linked.Where(l => documents.TryGetValue(l.DocumentId, out var d) && DocumentRules.CanRead(d.UploadedBy, links[d.Id].Select(DocumentAccess.Facts), facts))
+        // The link itself must be readable (or the document the reader's own): another readable link of the document does not show it on this
+        // target. Archived documents are left out, as the documents list does by default. One rights check, whatever the number of targets.
+        var documents = (await store.FindManyAsync(linked.Select(l => l.DocumentId).Distinct().ToList(), ct)).Where(d => d.ArchivedAt is null).ToDictionary(d => d.Id);
+        var facts = await access.FactsAsync(reader, linked.Select(l => l.AnchorItemId).OfType<Guid>().ToList(), ct);
+        return linked.Where(l => documents.TryGetValue(l.DocumentId, out var d)
+                && (d.UploadedBy == reader.Value || DocumentRules.CanReadLink(DocumentAccess.Facts(l), facts)))
             .GroupBy(l => l.TargetId)
             .ToDictionary(g => g.Key, g => (IReadOnlyList<LinkedDocumentView>)[.. g.Select(l => new LinkedDocumentView(l.DocumentId, documents[l.DocumentId].Title))
                 .OrderBy(d => d.Title, StringComparer.CurrentCultureIgnoreCase)]);
