@@ -25,8 +25,9 @@ public sealed record ListOperationsQuery(OperationFilter Filter, int Page) : IQu
 public sealed record OperationPage(IReadOnlyList<BankTransactionView> Items, int Total, OperationTotals Totals, OperationFacets Facets,
     IReadOnlyList<AccountOwnersView> AccountOwners);
 
-/// <summary>Who owns a readable account, as the accounts list shows it (the joint account has both adults): the page's owner column.</summary>
-public sealed record AccountOwnersView(Guid AccountId, IReadOnlyList<OptionView> Owners);
+/// <summary>Who owns a readable account, as the accounts list shows it (the joint account has both adults): the page's owner column;
+/// <paramref name="Writable"/> when the reader may edit its lines.</summary>
+public sealed record AccountOwnersView(Guid AccountId, IReadOnlyList<OptionView> Owners, bool Writable);
 
 /// <summary>
 /// The filter's money out (positive), in and net (signed) in the household's reference currency, internal and ignored lines and ignored accounts
@@ -55,7 +56,8 @@ public sealed class ListOperationsHandler(
         if (Invalid(filter) is { Count: > 0 } errors)
             return Result.Failure<OperationPage>(FieldErrors.Shape(errors));
 
-        var readable = (await access.ReadableAsync(await accounts.AllAsync(ct), ct)).Select(r => r.Account).ToList();
+        var rights = await access.ReadableAsync(await accounts.AllAsync(ct), ct);
+        var readable = rights.Select(r => r.Account).ToList();
         // Who reads each account is who owns it as the accounts list shows it: the joint account has both adults.
         var readers = await access.ReadersAsync(readable, ct);
         var scope = readable.Where(a => (filter.Accounts.Count == 0 || filter.Accounts.Contains(a.Id))
@@ -79,7 +81,8 @@ public sealed class ListOperationsHandler(
             [.. people.Select(p => new OptionView(p.Id.Value, p.DisplayName))],
             facetCategories);
         var accountOwners = readable.Select(a => new AccountOwnersView(a.Id,
-            [.. people.Where(p => readers[a.Id].Contains(p.Id)).Select(p => new OptionView(p.Id.Value, p.DisplayName))])).ToList();
+            [.. people.Where(p => readers[a.Id].Contains(p.Id)).Select(p => new OptionView(p.Id.Value, p.DisplayName))],
+            rights.Single(r => r.Account.Id == a.Id).CanWrite)).ToList();
         return Result.Success(new OperationPage(await lines.ViewsAsync(items, readable.ToDictionary(a => a.Id), ct), total, totals, facets, accountOwners));
     }
 

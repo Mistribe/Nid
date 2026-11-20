@@ -1,5 +1,8 @@
 {
   "field_error": {
+    "banking_split_sum": "Les parties font {{parts}}, l'opération fait {{line}}.",
+    "banking_category_archived": "Une des catégories est archivée : choisissez-en une autre.",
+    "banking_split_part": "Chaque partie doit avoir un montant non nul, du même sens que l'opération (2 à 20 parties).",
     "tax_declarant_taken": "Cette personne a déjà un avis pour cette année.",
     "tax_declarant_required": "Vous devez être l’un des déclarants.",
     "tax_invalid_assessment": "Valeur refusée par le contrôle de l’avis.",

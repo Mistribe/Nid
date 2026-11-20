@@ -56,7 +56,7 @@ public partial class AuditCompletenessTests(PostgresFixture fixture) : IClassFix
         ["src/Banking/Nid.Banking.Infrastructure/Persistence/AccountReadLog.cs"] = 1, // account_read: excluded (fetched data), the week's purge
         ["src/Banking/Nid.Banking.Infrastructure/Persistence/AccountStore.cs"] = 1,  // last_valued_on, balance_conflict_on: the sync's bookkeeping, not a decision (as last_used_at)
         ["src/Banking/Nid.Banking.Infrastructure/Persistence/ConnectionStore.cs"] = 1, // a person's file-import advisory lock: no row written
-        ["src/Banking/Nid.Banking.Infrastructure/Persistence/CategoryStore.cs"] = 4, // transaction: excluded (a line's category, its categorised_by is its record)
+        ["src/Banking/Nid.Banking.Infrastructure/Persistence/CategoryStore.cs"] = 5, // transaction, transaction_part: excluded (a line's category, its categorised_by is its record)
         ["src/Banking/Nid.Banking.Infrastructure/Persistence/CategoryRuleStore.cs"] = 1, // last_used_at (not audited, as the link rules')
         ["src/Banking/Nid.Banking.Infrastructure/Persistence/BankingDeletionPart.cs"] = 1, // transaction: excluded (its lines unlinked, left to the next pass)
         ["src/Banking/Nid.Banking.Infrastructure/Persistence/RuleStore.cs"] = 2,     // last_used_at (not audited); recurring_group: excluded (the job's memory)

@@ -109,7 +109,7 @@ public sealed class CategoriseProposal(
     }
 
     private static bool Applies(Seen s) => s is { Line: not null, CanWrite: true, CategoryActive: true }
-        && s.Line.CategorySource is not (CategorySource.Hand or CategorySource.Assistant);
+        && s.Line.CategorySource is not (CategorySource.Hand or CategorySource.Assistant or CategorySource.Split);
 
     private async Task<List<Guid>> WrittenAsync(IReadOnlyList<Entry> applying, CancellationToken ct)
     {

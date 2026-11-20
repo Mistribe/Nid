@@ -43,9 +43,11 @@ export function statementErrorText(t: TFunction, problem: Problem & { line?: num
 
 const LINK = '/api/v1/banking/transactions/{id}/link' as const;
 const UNLINK = '/api/v1/banking/transactions/{id}/unlink' as const;
+const NOTE = '/api/v1/banking/transactions/{id}/note' as const;
+const SPLIT = '/api/v1/banking/transactions/{id}/split' as const;
 const IGNORE = '/api/v1/banking/transactions/{id}/ignore' as const;
 
-/** « Relier », « Délier », « Ignorer » and « Catégoriser » (a hand choice, or back to Nid's, and the rule it may offer) on a line; each refreshes every line list, the candidates and the proposals. */
+/** « Relier », « Délier », « Ignorer » and « Note », « Découper » and « Annuler le découpage », « Catégoriser » (a hand choice, or back to Nid's, and the rule it may offer) on a line; each refreshes every line list, the candidates and the proposals. */
 export function useLineActions() {
   const { $api } = useApi();
   const queryClient = useQueryClient();
@@ -55,5 +57,6 @@ export function useLineActions() {
   }); };
   return { link: $api.useMutation('post', LINK, { onSuccess }), unlink: $api.useMutation('post', UNLINK, { onSuccess }), ignore: $api.useMutation('post', IGNORE, { onSuccess }),
     categorise: $api.useMutation('put', TRANSACTION_CATEGORY, { onSuccess }), resetCategory: $api.useMutation('delete', TRANSACTION_CATEGORY, { onSuccess }),
-    createRule: $api.useMutation('post', CATEGORY_RULES, { onSuccess }) };
+    createRule: $api.useMutation('post', CATEGORY_RULES, { onSuccess }),
+    setNote: $api.useMutation('put', NOTE, { onSuccess }), split: $api.useMutation('put', SPLIT, { onSuccess }), unsplit: $api.useMutation('delete', SPLIT, { onSuccess }) };
 }

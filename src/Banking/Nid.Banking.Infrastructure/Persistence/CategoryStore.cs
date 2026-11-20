@@ -144,6 +144,8 @@ public sealed class CategoryStore(BankingDbContext db, IClock clock) : ICategory
 
             foreach (var (moved, to) in lineMoves)
                 await db.Transactions.Where(t => t.CategoryId == moved).ExecuteUpdateAsync(s => s.SetProperty(t => t.CategoryId, to), ct);
+            foreach (var (moved, to) in lineMoves)
+                await db.TransactionParts.Where(p => p.CategoryId == moved).ExecuteUpdateAsync(s => s.SetProperty(p => p.CategoryId, to), ct);
             await db.SaveChangesAsync(ct);
             if (transaction is not null)
                 await transaction.CommitAsync(ct);
@@ -188,7 +190,8 @@ public sealed class CategoryStore(BankingDbContext db, IClock clock) : ICategory
         // CategoryPrecedence, in the WHERE: one source of truth for which current sources a write replaces. A clear (no source) leaves a
         // person's choice (hand, assistant) to a person.
         var replaceable = Enum.GetValues<CategorySource>()
-            .Where(c => source is { } incoming ? CategoryPrecedence.CanReplace(c, incoming, byPerson) : byPerson || c is not (CategorySource.Hand or CategorySource.Assistant))
+            .Where(c => source is { } incoming ? CategoryPrecedence.CanReplace(c, incoming, byPerson)
+                : c is not CategorySource.Split && (byPerson || c is not (CategorySource.Hand or CategorySource.Assistant)))
             .Select(Wire).ToList();
         var query = db.Transactions.Where(t => lines.Contains(t.Id) && (t.CategorySource == null || replaceable.Contains(t.CategorySource)));
         if (source is null)

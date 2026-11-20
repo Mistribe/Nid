@@ -24,5 +24,5 @@ public sealed class BankingAuditMap : IAuditMap
         [typeof(CategoryBudgetRow)] = AuditRule.NoItem,
     };
 
-    public IReadOnlySet<Type> Excluded { get; } = new HashSet<Type> { typeof(AuditEntryRow), typeof(BalanceRow), typeof(TransactionRow), typeof(RecurringGroupRow), typeof(SyncRunRow), typeof(AccountReadRow) };
+    public IReadOnlySet<Type> Excluded { get; } = new HashSet<Type> { typeof(AuditEntryRow), typeof(BalanceRow), typeof(TransactionRow), typeof(TransactionPartRow), typeof(RecurringGroupRow), typeof(SyncRunRow), typeof(AccountReadRow) };
 }

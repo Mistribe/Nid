@@ -46,7 +46,7 @@ export function CategoryLinesDialog({ target, query, period, currency, onClose }
           {first?.incomplete ? <Incomplete /> : null}
           {first && rows.length === 0 ? <p className="text-muted-foreground">{t('spending.lines.empty')}</p> : null}
           {rows.length > 0 ? (
-            <SortableTable<BankTransaction> caption={t('spending.lines.list')} rows={rows} rowKey={(l) => l.id}
+            <SortableTable<BankTransaction> caption={t('spending.lines.list')} rows={rows} rowKey={(l) => `${l.id}:${l.partId ?? ''}`}
               columns={[
                 { id: 'date', header: t('spending.lines.date'), cell: (l) => <LocalDate value={l.bookedOn} style="short" /> },
                 { id: 'label', header: t('spending.lines.label'), wrap: true, cell: (l) => l.label },

@@ -258,6 +258,22 @@ public static class BankingEndpoints
             => (await invoker.InvokeAsync(new ResetTransactionCategoryCommand(id), ct)).ToHttp(line => line))
             .Returns<BankTransactionView>();
 
+        api.MapPut("/transactions/{id:guid}/note", async (Guid id, LineNoteBody body, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new SetTransactionNoteCommand(id, body.Note), ct)).ToHttp(line => line))
+            .Returns<BankTransactionView>();
+
+        api.MapPut("/transactions/{id:guid}/split", async (Guid id, LineSplitBody body, IInvoker invoker, CancellationToken ct)
+            => (await (Parts(body) is { } parts
+                    ? invoker.InvokeAsync(new SplitTransactionCommand(id, parts), ct)
+                    : ValueTask.FromResult(Result.Failure<BankTransactionView>(Nid.Platform.Contracts.FieldErrors.At(
+                        new Failure(BankingCodes.SplitPart, "A part is an object with an amount (an invariant decimal string).", null), "parts")))))
+                .ToHttp(line => line))
+            .Returns<BankTransactionView>();
+
+        api.MapDelete("/transactions/{id:guid}/split", async (Guid id, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new UnsplitTransactionCommand(id), ct)).ToHttp(line => line))
+            .Returns<BankTransactionView>();
+
         api.MapGet("/rules", async (IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new ListBankRulesQuery(), ct)).ToHttp(rules => rules))
             .Returns<IReadOnlyList<BankRuleView>>();
@@ -442,6 +458,32 @@ public static class BankingEndpoints
     /// <summary>A line's category chosen by hand; an absent or null <c>categoryId</c> is « Sans catégorie », chosen by hand all the same.</summary>
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
     public sealed record LineCategoryBody(Guid? CategoryId);
+
+    /// <summary>A line's note; empty or null clears it, 500 characters at most.</summary>
+    [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+    public sealed record LineNoteBody(string? Note);
+
+    /// <summary>A line cut into 2 to 20 parts that add up to its amount; a split replaces any earlier one.</summary>
+    [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+    public sealed record LineSplitBody(IReadOnlyList<LinePartBody?>? Parts);
+
+    /// <summary>A part: <c>amount</c> an invariant decimal string signed like the line, an optional category in use and note.</summary>
+    [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+    public sealed record LinePartBody(string? Amount, Guid? CategoryId, string? Note);
+
+    /// <summary>The body's parts, null when one is missing, null or not an amount.</summary>
+    private static List<PartInput>? Parts(LineSplitBody body)
+    {
+        var parts = new List<PartInput>();
+        foreach (var part in body.Parts ?? [])
+        {
+            if (part is null || !decimal.TryParse(part.Amount, System.Globalization.NumberStyles.AllowDecimalPoint | System.Globalization.NumberStyles.AllowLeadingSign,
+                    System.Globalization.CultureInfo.InvariantCulture, out var amount))
+                return null;
+            parts.Add(new PartInput(amount, part.CategoryId, part.Note));
+        }
+        return parts;
+    }
 
     /// <summary>A new category; <c>kind</c> (<c>expense</c>, <c>income</c>, <c>transfer</c>) is required without a <c>parentId</c>.</summary>
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]

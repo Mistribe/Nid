@@ -121,4 +121,13 @@ public static class BankingCodes
 
     /// <summary>#85: a merge that would leave two budgets on one category or on one branch.</summary>
     public const string BudgetConflict = "banking.budget_conflict";
+
+    /// <summary>#84: a split's parts do not add up to the line's amount.</summary>
+    public const string SplitSum = "banking.split_sum";
+
+    /// <summary>#84: a split has 2 to 20 parts, each non-zero, of the line's sign, to 4 decimals, with a note of 500 characters at most.</summary>
+    public const string SplitPart = "banking.split_part";
+
+    /// <summary>#84: a split line has no category of its own: its parts do (un-split it first).</summary>
+    public const string LineSplit = "banking.line_split";
 }
