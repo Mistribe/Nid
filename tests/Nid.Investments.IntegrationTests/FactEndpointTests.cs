@@ -1,8 +1,11 @@
 using System.Net;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Contracts;
+using Nid.Platform.Contracts;
 using Nid.TestSupport;
+using NodaTime;
 
 namespace Nid.Investments.IntegrationTests;
 
@@ -281,14 +284,27 @@ public class FactEndpointTests(PostgresFixture fixture, SharedNidApp shared) : I
             new { occurredOn = "2025-06-15", kind = "withdrawal", amount = Eur("100.00"), category = "transfer" })).StatusCode);
     }
 
-    /// <summary>#16: a flow kept from a bank line (<c>bank:</c> ref), on a livret; its url.</summary>
+    /// <summary>#16: a flow kept from a bank line (<c>bank:</c> ref), on a livret, written as Banking does (through IFlows); its url.</summary>
     private static async Task<string> BankFlowAsync(NidApp app)
     {
         var id = await app.NewEnvelopeAsync("Livret", app.AdultA, Visibility.Shared);
-        var url = $"/api/v1/investments/envelopes/{id.Value}/flows";
-        var flow = (await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, url,
-            new { occurredOn = "2025-06-15", kind = "contribution", amount = Eur("100.00"), externalRef = $"bank:{Guid.NewGuid():D}" }))).GetProperty("id").GetGuid();
-        return $"{url}/{flow}";
+        await using var scope = app.Services.CreateAsyncScope();
+        scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.BankSync(app.AdultA);
+        var amount = Money.Create(100m, Currency.Eur).TryGetValue(out var money) ? money! : throw new InvalidOperationException();
+        Assert.True((await scope.ServiceProvider.GetRequiredService<IFlows>().RecordAsync(new NewFlow(
+            id, new LocalDate(2025, 6, 15), FlowKind.Contribution, amount, null, $"bank:{Guid.NewGuid():D}", null, FactSource.BankApi),
+            TestContext.Current.CancellationToken)).TryGetValue(out var flow));
+        return $"/api/v1/investments/envelopes/{id.Value}/flows/{flow!.Id}";
+    }
+
+    [Fact]
+    public async Task Typing_a_bank_ref_is_refused()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await app.NewEnvelopeAsync("Livret", app.AdultA, Visibility.Shared);
+
+        await AssertBankFlowAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/investments/envelopes/{id.Value}/flows",
+            new { occurredOn = "2025-06-15", kind = "contribution", amount = Eur("100.00"), externalRef = $"bank:{Guid.NewGuid():D}" }));
     }
 
     private static async Task AssertBankFlowAsync(HttpResponseMessage response)

@@ -11,7 +11,8 @@ namespace Nid.Investments.Application;
 public sealed record FlowDraft(LocalDate OccurredOn, string Kind, Money Amount, string? Category, string? ExternalRef, string? Note)
 {
     internal Result<NewFlow> ToNewFlow(ItemId item)
-        => EnvelopeWire.TryFlowKind(Kind, out var kind)
+        => BankFlows.IsBank(ExternalRef) ? Result.Failure<NewFlow>(BankFlows.Refused())
+            : EnvelopeWire.TryFlowKind(Kind, out var kind)
             ? Result.Success(new NewFlow(item, OccurredOn, kind, Amount, Category, ExternalRef, Note))
             : Result.Failure<NewFlow>(new Failure(CoreFactCodes.InvalidFact, $"'{Kind}' is not a flow kind.",
                 new Dictionary<string, object?> { ["field"] = "kind" }));
@@ -244,11 +245,16 @@ public sealed class VoidFlowHandler(IEnvelopeStore envelopes, IItemRegistry item
     }
 }
 
-/// <summary>#16: a flow Banking keeps from a bank line (<c>bank:</c> ref) changes with its line only; a hand correction or void is refused.</summary>
+/// <summary>
+/// #16: a flow Banking keeps from a bank line (<c>bank:</c> ref) changes with its line only: typing such a ref, or correcting or voiding
+/// such a flow by hand, is refused. Banking writes them through <see cref="IFlows"/>, not these commands.
+/// </summary>
 internal static class BankFlows
 {
-    public static Failure? Refuse(IEnumerable<Flow> found, ItemId item)
-        => found.Any(f => f.Item == item && f.ExternalRef?.StartsWith("bank:", StringComparison.Ordinal) == true)
-            ? new ConflictFailure("This flow follows its bank line: change the line instead.") { Code = InvestmentsCodes.BankFlow }
-            : null;
+    public static bool IsBank(string? reference) => reference?.StartsWith("bank:", StringComparison.Ordinal) == true;
+
+    public static Failure Refused()
+        => new ConflictFailure("A flow with a « bank: » reference follows its bank line: change the line instead.") { Code = InvestmentsCodes.BankFlow };
+
+    public static Failure? Refuse(IEnumerable<Flow> found, ItemId item) => found.Any(f => f.Item == item && IsBank(f.ExternalRef)) ? Refused() : null;
 }

@@ -320,10 +320,19 @@ public class SavingsFlowsTests(PostgresFixture fixture) : IClassFixture<Postgres
         var envelope = await app.NewEnvelopeAsync("Livret Alice", app.AdultA, Visibility.Shared);
         await using var s = new Setup(app, account, envelope, await TodayAsync(app));
         var line = await LineAsync(s, s.Day, 100m, "VIR LIVRET");
+        // Reconciled while the account was no savings one: no hint said « Intérêts » then.
+        var interest = await LineAsync(s, s.Day, 5m, "INTERETS 2026");
+        await using (var scope = app.Services.CreateAsyncScope())
+        {
+            scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
+            await scope.ServiceProvider.GetRequiredService<BankReconciliation>().RunAsync([account], s.Day, Ct);
+        }
 
         await OkAsync(s, HttpMethod.Patch, $"/accounts/{account}", new { envelopeId = envelope.Value });
 
-        Assert.Equal([(SavingsFlowPlan.MovementRef(line), FlowKind.Contribution, 100m)], Shape(await FlowsAsync(s)));
+        Assert.Equal(
+            [(SavingsFlowPlan.MovementRef(line), FlowKind.Contribution, 100m), (SavingsFlowPlan.InterestRef(interest), FlowKind.Income, 5m)],
+            Shape(await FlowsAsync(s)));
     }
 
     [Fact]
@@ -355,5 +364,19 @@ public class SavingsFlowsTests(PostgresFixture fixture) : IClassFixture<Postgres
         Assert.Equal(new SavingsFlowCounts(1, 0, 0, 0), await BackfillAsync());
         Assert.Equal([(SavingsFlowPlan.InterestRef(line), FlowKind.Income, 5m)], Shape(await FlowsAsync(s)));
         Assert.Equal(new SavingsFlowCounts(0, 0, 0, 0), await BackfillAsync());
+    }
+
+    [Fact]
+    public async Task The_backfill_waits_while_bank_sync_is_off()
+    {
+        await using var s = await AssociatedAsync();
+        await LineAsync(s, s.Day, 100m, "VIR LIVRET");
+        await BankingApi.SettingsAsync(s.App, new { bankingEnabled = false });
+
+        await using var scope = s.App.Services.CreateAsyncScope();
+        scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
+        Assert.Equal(new SavingsFlowCounts(0, 0, 0, 0), await scope.ServiceProvider.GetRequiredService<SavingsFlowBackfill>().RunAsync(Ct));
+
+        Assert.Empty(await FlowsAsync(s));
     }
 }

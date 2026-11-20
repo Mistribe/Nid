@@ -164,9 +164,13 @@ public sealed class UpdateBankAccountHandler(
             return Result.Failure<Guid>(failure!);
         if (changed.Envelope != account.Envelope || changed.CardOf != account.CardOf)
             await receipts.FollowAsync(account.Id, ct);
-        // #16: newly associated, its lines since the start of the month become the envelope's flows (moved or detached, the old ones stay).
+        // #16: newly associated, its lines since the start of the month become the envelope's flows (moved or detached, the old ones stay);
+        // hinted first, as they were reconciled when the account was not a savings one yet.
         if (changed.Envelope is not null && changed.Envelope != account.Envelope)
+        {
+            await savingsFlows.HintAsync([account.Id], ct);
             await savingsFlows.RunAsync([account.Id], access.Person, ct);
+        }
         return Result.Success(account.Id);
     }
 
