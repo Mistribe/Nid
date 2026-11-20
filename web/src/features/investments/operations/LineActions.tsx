@@ -1,7 +1,8 @@
 import type { TFunction } from 'i18next';
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { present, toProblem } from '@/api/errors';
+import { ConfirmFromMenu } from '@/components/ConfirmAction';
 import { RowMenu } from '@/components/page/RowMenu';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { formatCurrency } from '@/components/Money';
@@ -29,6 +30,8 @@ export function LineActions({ line, onDone }: { line: BankTransaction; onDone: (
   const [categorising, setCategorising] = useState(false);
   const [noting, setNoting] = useState(false);
   const [splitting, setSplitting] = useState(false);
+  const [unsplitting, setUnsplitting] = useState(false);
+  const menu = useRef<HTMLButtonElement>(null);
   const run = (action: typeof unlink, message: string) => () => action.mutate({ params: { path: { id: line.id } } }, { onSuccess: () => onDone(message) });
   const items = line.linkState === 'unlinked'
     ? [{ label: t('banks.operations.link'), onSelect: () => setLinking(true) }, { label: t('banks.operations.ignore'), onSelect: run(ignore, t('banks.operations.done_ignore')) }]
@@ -37,11 +40,13 @@ export function LineActions({ line, onDone }: { line: BankTransaction; onDone: (
   // A split line has no category of its own (the server answers 409 `banking.line_split`).
   if (line.linkState !== 'ignored' && !isSplit) items.push({ label: t('banks.operations.categorise'), onSelect: () => setCategorising(true) });
   items.push({ label: t('banks.operations.note'), onSelect: () => setNoting(true) });
-  items.push(isSplit ? { label: t('banks.operations.unsplit'), onSelect: run(unsplit, t('banks.operations.done_unsplit')) } : { label: t('banks.operations.split'), onSelect: () => setSplitting(true) });
+  items.push(isSplit ? { label: t('banks.operations.unsplit'), onSelect: () => setUnsplitting(true) } : { label: t('banks.operations.split'), onSelect: () => setSplitting(true) });
   const error = unlink.error ?? ignore.error ?? unsplit.error;
   return (
     <span className="flex flex-col items-end gap-2">
-      <RowMenu label={t('banks.operations.actions')} items={items} />
+      <RowMenu label={t('banks.operations.actions')} items={items} triggerRef={menu} />
+      {unsplitting ? <ConfirmFromMenu label={t('banks.operations.unsplit')} confirmation={t('banks.operations.unsplit_confirm')} pending={unsplit.isPending} returnFocus={menu}
+        onClose={() => setUnsplitting(false)} onConfirm={run(unsplit, t('banks.operations.done_unsplit'))} /> : null}
       {error ? <ProblemMessage problem={present(toProblem(error))} /> : null}
       {linking ? <Suspense fallback={null}><LinkDialog line={line} onClose={() => setLinking(false)} onDone={(m) => { setLinking(false); onDone(m); }} /></Suspense> : null}
       {categorising ? <Suspense fallback={null}><CategoryDialog line={line} onClose={() => setCategorising(false)} onDone={(m) => { setCategorising(false); onDone(m); }} /></Suspense> : null}

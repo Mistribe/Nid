@@ -75,7 +75,7 @@ describe('« Opérations »: note and split', () => {
   it('shows the server message when the parts do not add up', async () => {
     serve(shop);
     server.use(http.put('*/api/v1/banking/transactions/:id/split', () => HttpResponse.json(
-      { status: 422, code: 'banking.split_sum', detail: 'Les parties font 50,00, la ligne fait 60,00.', errors: [{ path: 'parts', code: 'banking.split_sum', message: 'Les parties font 50,00, la ligne fait 60,00.' }] },
+      { status: 422, code: 'banking.split_sum', detail: 'The parts add up to 50.00, the line to 60.00.', errors: [{ path: 'parts', code: 'banking.split_sum', message: 'The parts add up to 50.00, the line to 60.00.' }] },
       { status: 422, headers: { 'content-type': 'application/problem+json' } })));
     const user = await openMenu('Découper…');
     const dialog = await screen.findByRole('dialog', { name: "Découper l'opération" });
@@ -83,12 +83,32 @@ describe('« Opérations »: note and split', () => {
     await user.type(amounts[0]!, '30');
     await user.type(amounts[1]!, '20');
     await user.click(within(dialog).getByRole('button', { name: 'Découper' }));
-    expect(await within(dialog).findByText('Les parties font 50,00, la ligne fait 60,00.')).toBeInTheDocument();
+    expect(await within(dialog).findByText('La somme des parties doit être égale au montant de la ligne.')).toBeInTheDocument();
+  });
+
+  it('sends a credit line unsigned, a comma as a point, and refuses junk typed amounts', async () => {
+    const writes: unknown[] = [];
+    serve({ ...shop, amount: '60.00' });
+    server.use(http.put('*/api/v1/banking/transactions/:id/split', async ({ request }) => { writes.push(await request.json()); return HttpResponse.json(splitShop); }));
+    const user = await openMenu('Découper…');
+    const dialog = await screen.findByRole('dialog', { name: "Découper l'opération" });
+    const amounts = within(dialog).getAllByRole('textbox', { name: /Montant/ });
+    await user.type(amounts[0]!, '5,5,0');
+    await user.type(amounts[1]!, 'abc');
+    await user.click(within(dialog).getByRole('button', { name: 'Découper' }));
+    expect(within(dialog).getAllByText('Saisissez un montant positif, avec au plus deux décimales.')).toHaveLength(2);
+    expect(writes).toEqual([]);
+    await user.clear(amounts[0]!); await user.type(amounts[0]!, '5,50');
+    await user.clear(amounts[1]!); await user.type(amounts[1]!, '54.50');
+    await user.click(within(dialog).getByRole('button', { name: 'Découper' }));
+    await waitFor(() => expect(writes).toEqual([{ parts: [{ amount: '5.50', categoryId: null, note: null }, { amount: '54.50', categoryId: null, note: null }] }]));
   });
 
   it('shows a split line with its parts, and un-splits it from the menu', async () => {
     const writes = serve(splitShop);
     const user = await openMenu('Annuler le découpage');
+    expect(writes).toEqual([]);
+    await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
     await waitFor(() => expect(writes).toEqual([['unsplit', null]]));
     void user;
   });

@@ -212,6 +212,8 @@
       "part_category": "Catégorie de la partie {{n}}",
       "part_note": "Note de la partie {{n}}",
       "part_remove": "Retirer la partie {{n}}",
+      "unsplit_confirm": "Les catégories et notes des parties seront perdues.",
+      "part_amount_invalid": "Saisissez un montant positif, avec au plus deux décimales.",
       "part_add": "Ajouter une partie",
       "to_link": "Opérations à relier",
       "no_match": "Aucune opération ne correspond.",
