@@ -1,4 +1,6 @@
+using Nid.Core.Contracts;
 using Nid.Documents.Contracts;
+using Nid.Documents.Domain;
 using NodaTime;
 
 namespace Nid.Documents.Application;
@@ -15,7 +17,8 @@ public sealed record LinkRecord(
 
 /// <summary>
 /// Issue #420: the list's question, answered in SQL. A link is readable when its anchor is in <paramref name="ReadableItems"/>, or, without
-/// an anchor, when it names the household or one of <paramref name="Persons"/>; a document is readable when <paramref name="Actor"/>
+/// an anchor, when it names the household or one of <paramref name="Persons"/>, or one of <paramref name="OwnUnanchored"/> on a document
+/// <paramref name="Actor"/> uploaded (#84: the targets they write, from <c>DocumentRules</c>); a document is readable when <paramref name="Actor"/>
 /// uploaded it or it holds a readable link. <paramref name="SharedItems"/> (the household scope) keeps the documents with a readable link
 /// to one of them, to one of <paramref name="Dependents"/> or to the household. The facets come before <paramref name="Role"/>,
 /// <paramref name="Year"/>, <paramref name="Linked"/> and <paramref name="Search"/>; <paramref name="Take"/> null answers every document.
@@ -23,7 +26,7 @@ public sealed record LinkRecord(
 public sealed record DocumentPageQuery(
     Guid Actor, IReadOnlyCollection<Guid> ReadableItems, IReadOnlyCollection<Guid> Persons, IReadOnlyCollection<Guid> Dependents,
     bool Archived, string? SourceRefPrefix, bool Inbox, DocumentTarget? Target, Guid? Anchor, IReadOnlyCollection<Guid>? SharedItems,
-    string? Role, int? Year, Guid? Linked, string? Search, DateTimeZone Zone, int Skip, int? Take);
+    string? Role, int? Year, Guid? Linked, string? Search, DateTimeZone Zone, int Skip, int? Take, IReadOnlyCollection<DocumentTarget>? OwnUnanchored = null);
 
 /// <summary>One page, newest document date first (undated last), the number that matched, and the readable links' roles and targets and the years over the list before the filters.</summary>
 public sealed record DocumentPageRecord(
@@ -50,6 +53,17 @@ public interface IDocumentStore
     Task<IReadOnlyList<DocumentRecord>> ListAsync(bool includeArchived, CancellationToken ct);
 
     Task<IReadOnlyList<LinkRecord>> LinksOfAsync(IReadOnlyCollection<Guid> documents, CancellationToken ct);
+
+    /// <summary>#84: the links to these targets of one kind.</summary>
+    Task<IReadOnlyList<LinkRecord>> LinksToAsync(string kind, IReadOnlyCollection<Guid> targets, CancellationToken ct);
+
+    Task<IReadOnlyList<DocumentRecord>> FindManyAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct);
+
+    /// <summary>#84: the targets with no anchor, a person and the household aside, of the documents <paramref name="uploader"/> uploaded.</summary>
+    Task<IReadOnlyList<DocumentTarget>> UnanchoredTargetsOfAsync(Guid uploader, CancellationToken ct);
+
+    /// <summary>#84: sets the anchor of the links to these targets.</summary>
+    Task ReanchorLinksAsync(string kind, IReadOnlyCollection<Guid> targets, Guid? anchor, CancellationToken ct);
 
     /// <summary>Writes the title, date and note only: a concurrent archive is not undone.</summary>
     Task EditAsync(Guid id, string title, LocalDate? documentDate, string? note, CancellationToken ct);
@@ -83,9 +97,31 @@ public interface IDocumentStore
     Task<UploadTicket?> ClaimUploadTicketAsync(string tokenHash, Instant now, CancellationToken ct);
 }
 
-public sealed class DocumentLinks(IDocumentStore store) : IDocumentLinks
+public sealed class DocumentLinks(IDocumentStore store, DocumentAccess access) : IDocumentLinks
 {
     public Task UnlinkTargetAsync(DocumentTarget target, CancellationToken ct) => store.RemoveLinksToAsync(target, ct);
 
     public Task MoveTargetAsync(DocumentTarget from, DocumentTarget to, CancellationToken ct) => store.MoveLinksAsync(from, to, ct);
+
+    public Task ReanchorTargetsAsync(string kind, IReadOnlyCollection<Guid> targetIds, Guid? anchor, CancellationToken ct)
+        => store.ReanchorLinksAsync(kind, targetIds, anchor, ct);
+
+    public async Task<IReadOnlySet<Guid>> TargetIdsWithLinksAsync(string kind, IReadOnlyCollection<Guid> targetIds, CancellationToken ct)
+        => (await store.LinksToAsync(kind, targetIds, ct)).Select(l => l.TargetId).ToHashSet();
+
+    public async Task<IReadOnlyDictionary<Guid, IReadOnlyList<LinkedDocumentView>>> ReadableOfTargetsAsync(
+        string kind, IReadOnlyCollection<Guid> targetIds, PersonId reader, CancellationToken ct)
+    {
+        var linked = await store.LinksToAsync(kind, targetIds, ct);
+        if (linked.Count == 0)
+            return new Dictionary<Guid, IReadOnlyList<LinkedDocumentView>>();
+        // The link itself must be readable: another readable link of the document does not show it on this target. Archived documents are left out, as the documents list does by default. One rights check, whatever the number of targets.
+        var documents = (await store.FindManyAsync(linked.Select(l => l.DocumentId).Distinct().ToList(), ct)).Where(d => d.ArchivedAt is null).ToDictionary(d => d.Id);
+        var facts = await access.FactsAsync(reader, linked.Select(l => l.AnchorItemId).OfType<Guid>().ToList(), ct,
+            DocumentAccess.Unanchored(linked.Where(l => documents.TryGetValue(l.DocumentId, out var d) && d.UploadedBy == reader.Value)));
+        return linked.Where(l => documents.TryGetValue(l.DocumentId, out var d) && DocumentRules.CanReadLink(DocumentAccess.Facts(l, d.UploadedBy), facts))
+            .GroupBy(l => l.TargetId)
+            .ToDictionary(g => g.Key, g => (IReadOnlyList<LinkedDocumentView>)[.. g.Select(l => new LinkedDocumentView(l.DocumentId, documents[l.DocumentId].Title))
+                .OrderBy(d => d.Title, StringComparer.CurrentCultureIgnoreCase)]);
+    }
 }

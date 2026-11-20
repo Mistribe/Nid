@@ -142,7 +142,8 @@ public sealed class RenewConnectionHandler(
 /// </summary>
 [RequestHandler<CompleteConnectionCommand, Guid>]
 public sealed class CompleteConnectionHandler(
-    BankingAccess access, IConnectionStore connections, IAccountStore accounts, IEnableBankingClient client, IAccessPolicy policy, IUnitOfWork unitOfWork)
+    BankingAccess access, IConnectionStore connections, IAccountStore accounts, IEnableBankingClient client, IAccessPolicy policy, IUnitOfWork unitOfWork,
+    Operations.ReceiptAnchors receipts)
     : IRequestHandler<CompleteConnectionCommand, Guid>
 {
     public async ValueTask<Result<Guid>> HandleAsync(CompleteConnectionCommand command, CancellationToken ct = default)
@@ -178,13 +179,20 @@ public sealed class CompleteConnectionHandler(
                 if (!await accounts.ClaimFromFileAsync(found.Id, access.Person, ct))
                     continue;
                 var account = found with { AutoApplyBalance = false, Ignored = false }; // as the claim left it
-                if (account.Envelope is { } envelope && !(await policy.CheckAsync(access.Person, envelope, AccessKind.Read, ct)).IsSuccess
-                    && (await accounts.UpdateAsync(account with { Envelope = null, AssociatedOn = null, AssociatedBy = null }, ct)).TryGetFailure(out var failure))
-                    return Result.Failure<Guid>(failure!);
+                if (account.Envelope is { } envelope && !(await policy.CheckAsync(access.Person, envelope, AccessKind.Read, ct)).IsSuccess)
+                {
+                    if ((await accounts.UpdateAsync(account with { Envelope = null, AssociatedOn = null, AssociatedBy = null }, ct)).TryGetFailure(out var failure))
+                        return Result.Failure<Guid>(failure!);
+                    await receipts.FollowAsync(account.Id, ct);
+                }
                 // A card follows its parent's access: the other adult's own card does not go with the claimed account.
                 foreach (var card in (await accounts.AllAsync(ct)).Where(c => c.CardOf == account.Id))
-                    if (!await access.OwnsAsync(card, ct) && (await accounts.UpdateAsync(card with { CardOf = null }, ct)).TryGetFailure(out var detach))
-                        return Result.Failure<Guid>(detach!);
+                    if (!await access.OwnsAsync(card, ct))
+                    {
+                        if ((await accounts.UpdateAsync(card with { CardOf = null }, ct)).TryGetFailure(out var detach))
+                            return Result.Failure<Guid>(detach!);
+                        await receipts.FollowAsync(card.Id, ct);
+                    }
             }
             // #381: the person's other connection to this bank that already reaches every account of the session is renewed by this one,
             // not doubled; the session's sources are already here, its own go with it. Another adult's (D21) or one missing an account stays.

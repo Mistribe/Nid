@@ -302,6 +302,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<Nid.Banking.Application.Reconciliation.BankReconciliation>();
         services.AddScoped<Nid.Banking.Application.Reconciliation.RecurringDebits>();
         services.AddScoped<Nid.Banking.Application.BankLines>();
+        services.AddScoped<Nid.Banking.Application.Operations.ReceiptAnchors>();
         services.AddScoped<Nid.Banking.Application.CategoryRuleScope>();
         services.AddScoped<Nid.Banking.Application.Spending.SpendingAccounts>();
         services.AddScoped<Nid.Banking.Application.Spending.CommittedByCategory>();
@@ -340,12 +341,14 @@ public static class NidServiceCollectionExtensions
             npgsql.MigrationsHistoryTable("__ef_migrations_history", DocumentsDbContext.Schema);
         }).AddInterceptors(sp.GetRequiredService<AuditInterceptor>()));
         services.AddScoped<ITransactionParticipant, DbContextParticipant<DocumentsDbContext>>();
+        // After Banking's part (registered above): it re-anchors its lines' receipts off a deleted envelope before these links are removed.
         services.AddScoped<IItemDeletionPart, Nid.Documents.Infrastructure.Persistence.DocumentsDeletionPart>();
         services.AddScoped<IPersonUsePart, Nid.Documents.Infrastructure.Persistence.DocumentsPersonUsePart>();
         services.AddScoped<IDocumentStore, DocumentStore>();
         services.AddScoped<Nid.Documents.Contracts.IDocumentLinks, DocumentLinks>();
         services.AddScoped<Nid.Documents.Contracts.IDocumentTargets, CoreDocumentTargets>();
         services.AddScoped<Nid.Documents.Contracts.IDocumentTargets, Nid.Income.Application.IncomeDocumentTargets>();
+        services.AddScoped<Nid.Documents.Contracts.IDocumentTargets, Nid.Banking.Application.Operations.BankingDocumentTargets>();
         services.AddScoped<DocumentAccess>();
         services.AddScoped<ExpectedDocuments>();
 

@@ -66,6 +66,19 @@ public class DocumentRulesTests
         Assert.False(DocumentRules.CanWriteLink(link, Actor(true, true)));
     }
 
+    [Theory]
+    [InlineData(true, true, true)]
+    [InlineData(false, true, false)]
+    [InlineData(true, false, false)]
+    public void Unknown_kind_without_anchor_is_its_uploader_s_while_they_write_the_target(bool uploader, bool writes, bool allowed)
+    {
+        var target = new DocumentTarget("banking.transaction", Guid.NewGuid());
+        var link = new LinkFacts(target.Kind, target.Id, null, uploader ? Me : Spouse);
+        var actor = Actor() with { WritableUnanchored = writes ? new HashSet<DocumentTarget> { target } : new HashSet<DocumentTarget>() };
+        Assert.Equal(allowed, DocumentRules.CanReadLink(link, actor));
+        Assert.Equal(allowed, DocumentRules.CanWriteLink(link, actor));
+    }
+
     [Fact]
     public void Uploader_reads_with_no_link_or_an_unreadable_one()
     {

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Nid.Banking.Application.Operations;
 using Nid.Banking.Contracts;
 using Nid.Core.Contracts;
 using NodaTime;
@@ -6,7 +7,7 @@ using NodaTime;
 namespace Nid.Banking.Infrastructure.Persistence;
 
 /// <summary>#23: Banking's share of an item delete: the transaction links (their lines unlinked) and rules aimed at it, and the account's envelope association.</summary>
-public sealed class BankingDeletionPart(BankingDbContext db) : IItemDeletionPart
+public sealed class BankingDeletionPart(BankingDbContext db, ReceiptAnchors receipts) : IItemDeletionPart
 {
     public async Task<IReadOnlyList<DeletionCount>> CountAsync(ItemAccess item, CancellationToken ct)
     {
@@ -35,12 +36,16 @@ public sealed class BankingDeletionPart(BankingDbContext db) : IItemDeletionPart
             .SetProperty(t => t.LinkState, LinkStore.Wire(TransactionLinkState.Unlinked)).SetProperty(t => t.ReconciledAt, (Instant?)null), ct);
         db.Links.RemoveRange(await db.Links.Where(l => l.TargetItemId == id).ToListAsync(ct));
         db.Rules.RemoveRange(await db.Rules.Where(r => r.TargetItemId == id).ToListAsync(ct));
-        foreach (var account in await db.Accounts.Where(a => a.EnvelopeItemId == id).ToListAsync(ct))
+        var dissociated = await db.Accounts.Where(a => a.EnvelopeItemId == id).ToListAsync(ct);
+        foreach (var account in dissociated)
         {
             account.EnvelopeItemId = null;
             account.AssociatedOn = null;
             account.AssociatedByPersonId = null;
         }
         await db.SaveChangesAsync(ct);
+        // #84: their lines' receipts stay on them, anchored on nothing; Documents' part (registered after) then finds no link on the envelope.
+        foreach (var account in dissociated)
+            await receipts.FollowAsync(account.Id, ct);
     }
 }

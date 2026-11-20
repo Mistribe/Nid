@@ -23,10 +23,10 @@ public sealed record DocumentSummary(
     public static DocumentSummary Of(ReadableDocument read, IReadOnlyDictionary<(string Kind, Guid Id), string> labels)
     {
         var d = read.Document;
-        var links = read.Links.Where(l => DocumentRules.CanReadLink(DocumentAccess.Facts(l), read.Actor))
+        var links = read.Links.Where(l => DocumentRules.CanReadLink(DocumentAccess.Facts(l, d.UploadedBy), read.Actor))
             .OrderBy(l => l.LinkedAt)
             .Select(l => new DocumentLinkView(l.TargetKind, l.TargetId, l.AnchorItemId, l.Role, labels.GetValueOrDefault((l.TargetKind, l.TargetId), DeletedTargetLabel),
-                DocumentRules.CanWriteLink(DocumentAccess.Facts(l), read.Actor)))
+                DocumentRules.CanWriteLink(DocumentAccess.Facts(l, d.UploadedBy), read.Actor)))
             .ToList();
         return new DocumentSummary(d.Id, d.Title, d.MediaType, d.SizeBytes, d.DocumentDate, d.UploadedAt, d.UploadedBy, d.ArchivedAt is not null, read.CanEdit, links, d.SourceRef);
     }

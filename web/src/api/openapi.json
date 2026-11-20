@@ -37343,6 +37343,15 @@
               "string"
             ],
             "format": "uuid"
+          },
+          "documents": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/LinkedDocumentView"
+            }
           }
         }
       },
@@ -49988,6 +49997,22 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "LinkedDocumentView": {
+        "required": [
+          "id",
+          "title"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
           }
         }
       },

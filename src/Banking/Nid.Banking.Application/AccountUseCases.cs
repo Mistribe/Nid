@@ -89,7 +89,8 @@ public sealed class ListBankAccountsHandler(BankingAccess access, IAccountStore 
 
 [RequestHandler<UpdateBankAccountCommand, Guid>]
 public sealed class UpdateBankAccountHandler(
-    BankingAccess access, IAccountStore accounts, IAccessPolicy policy, IEnvelopeStore envelopes, IItemRegistry items, IHouseholdCalendar calendar)
+    BankingAccess access, IAccountStore accounts, IAccessPolicy policy, IEnvelopeStore envelopes, IItemRegistry items, IHouseholdCalendar calendar,
+    Operations.ReceiptAnchors receipts)
     : IRequestHandler<UpdateBankAccountCommand, Guid>
 {
     public async ValueTask<Result<Guid>> HandleAsync(UpdateBankAccountCommand command, CancellationToken ct = default)
@@ -161,6 +162,8 @@ public sealed class UpdateBankAccountHandler(
         // Its own transaction (a savepoint under an approved proposal's): the store's unique violation rolls back to it, not further.
         if ((await accounts.UpdateAsync(changed, ct)).TryGetFailure(out var failure))
             return Result.Failure<Guid>(failure!);
+        if (changed.Envelope != account.Envelope || changed.CardOf != account.CardOf)
+            await receipts.FollowAsync(account.Id, ct);
         return Result.Success(account.Id);
     }
 

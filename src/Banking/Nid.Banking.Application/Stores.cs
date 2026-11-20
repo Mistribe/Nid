@@ -231,13 +231,25 @@ public interface ITransactionStore
 
     Task<BankTransaction?> FindAsync(Guid id, CancellationToken ct);
 
+    /// <summary>#84: the lines of these ids that exist.</summary>
+    Task<IReadOnlyList<BankTransaction>> FindManyAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct);
+
+    /// <summary>#84: the ids of every line of the accounts, whatever their date.</summary>
+    Task<IReadOnlyList<Guid>> IdsOfAsync(IReadOnlyCollection<Guid> accounts, CancellationToken ct);
+
     /// <summary>Linked or internal lines with no category source yet, by id after <paramref name="after"/> (the category backfill's page).</summary>
     Task<IReadOnlyList<BankTransaction>> UncategorisedLinkedAsync(Guid? after, int take, CancellationToken ct);
 
     Task MarkReconciledAsync(IReadOnlyCollection<Guid> ids, Instant at, CancellationToken ct);
 
-    /// <summary>Retention (D3): deletes the unlinked and ignored lines booked before <paramref name="before"/>, except those with a note or parts (#84); returns how many.</summary>
-    Task<int> PurgeBookedBeforeAsync(LocalDate before, CancellationToken ct);
+    /// <summary>
+    /// Retention (D3): deletes the unlinked and ignored lines booked before <paramref name="before"/>, except those with a note or parts and those of
+    /// <paramref name="keep"/> (#84: a receipt's); returns how many.
+    /// </summary>
+    Task<int> PurgeBookedBeforeAsync(LocalDate before, IReadOnlyCollection<Guid> keep, CancellationToken ct);
+
+    /// <summary>#84: the lines <see cref="PurgeBookedBeforeAsync"/> would delete, none kept.</summary>
+    Task<IReadOnlyList<Guid>> PurgeableBeforeAsync(LocalDate before, CancellationToken ct);
 
     /// <summary>
     /// #85: the accounts' lines booked within [<paramref name="from"/>, <paramref name="to"/>], ignored and internal ones (transfers, card

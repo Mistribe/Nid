@@ -43,7 +43,7 @@ public class BankingDeletionPartTests(PostgresFixture fixture) : IClassFixture<P
         (associated.EnvelopeItemId, associated.AssociatedOn, associated.AssociatedByPersonId) = (item.Value, new LocalDate(2026, 10, 1), app.AdultA.Value);
         await db.SaveChangesAsync(ct);
 
-        var part = new BankingDeletionPart(db);
+        var part = new BankingDeletionPart(db, sp.GetRequiredService<Nid.Banking.Application.Operations.ReceiptAnchors>());
         var access = new ItemAccess(item, "Netflix", Visibility.Shared, []);
         Assert.Equal([("bank_links", 1), ("bank_rules", 1), ("bank_account", 1)], (await part.CountAsync(access, ct)).Select(c => (c.Key, c.Count)));
 
