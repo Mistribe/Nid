@@ -12956,8 +12956,7 @@
             "schema": {
               "type": "array",
               "items": {
-                "type": "string",
-                "format": "uuid"
+                "type": "string"
               }
             }
           },
@@ -12968,8 +12967,7 @@
             "schema": {
               "type": "array",
               "items": {
-                "type": "string",
-                "format": "uuid"
+                "type": "string"
               }
             }
           },
@@ -12994,8 +12992,7 @@
             "schema": {
               "type": "array",
               "items": {
-                "type": "string",
-                "format": "uuid"
+                "type": "string"
               }
             }
           },
@@ -13024,16 +13021,14 @@
             "name": "min",
             "in": "query",
             "schema": {
-              "type": "number",
-              "format": "double"
+              "type": "string"
             }
           },
           {
             "name": "max",
             "in": "query",
             "schema": {
-              "type": "number",
-              "format": "double"
+              "type": "string"
             }
           },
           {
@@ -13052,6 +13047,19 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "description": "OK",

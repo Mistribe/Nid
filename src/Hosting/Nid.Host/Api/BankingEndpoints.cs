@@ -167,15 +167,32 @@ public static class BankingEndpoints
             .Returns<BankTransactionPage>();
 
         // #84: « Opérations »: every line the person reads, filtered, searched and paged by the server, with its total, converted totals and facets.
-        api.MapGet("/operations", async (Guid[]? account, Guid[]? owner, string? from, string? to, Guid[]? category, bool? uncategorised, string? state,
-                    string? direction, decimal? min, decimal? max, string? q, int? page, IInvoker invoker, CancellationToken ct) =>
+        api.MapGet("/operations", async (string[]? account, string[]? owner, string? from, string? to, string[]? category, bool? uncategorised, string? state,
+                    string? direction, string? min, string? max, string? q, int? page, IInvoker invoker, CancellationToken ct) =>
             {
                 var reader = new FieldReader();
                 var (first, last) = (reader.Date(from, "from", required: false), reader.Date(to, "to", required: false));
+                IReadOnlyList<Guid> Ids(string[]? values, string field) => [.. (values ?? []).Select(v =>
+                {
+                    if (Guid.TryParse(v, out var id))
+                        return id;
+                    reader.Add(field, "request.invalid", $"'{v}' is not an id.");
+                    return Guid.Empty;
+                })];
+                decimal? Amount(string? value, string field)
+                {
+                    if (value is null)
+                        return null;
+                    if (decimal.TryParse(value, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out var amount))
+                        return amount;
+                    reader.Add(field, "request.invalid", $"'{value}' is not an amount.");
+                    return null;
+                }
+                var (accounts, owners, categories, lowest, highest) = (Ids(account, "account"), Ids(owner, "owner"), Ids(category, "category"), Amount(min, "min"), Amount(max, "max"));
                 return !reader.Ok
                     ? reader.Problem()
                     : (await invoker.InvokeAsync(new ListOperationsQuery(new OperationFilter(
-                            account ?? [], owner ?? [], first, last, category ?? [], uncategorised ?? false, state, direction, min, max,
+                            accounts, owners, first, last, categories, uncategorised ?? false, state, direction, lowest, highest,
                             string.IsNullOrWhiteSpace(q) ? null : q.Trim()), Math.Max(page ?? 1, 1)), ct))
                         .ToHttp(operations => operations);
             })

@@ -46,15 +46,14 @@ public sealed class ListOperationsHandler(
         var enabled = await access.EnabledAsync(ct);
         if (!enabled.IsSuccess)
             return BankingAccess.Failed<OperationPage>(enabled);
-        var filter = query.Filter;
+        // « all » is no state at all, as for the other lists.
+        var filter = query.Filter with { State = query.Filter.State == "all" ? null : query.Filter.State };
         if (Invalid(filter) is { Count: > 0 } errors)
             return Result.Failure<OperationPage>(FieldErrors.Shape(errors));
 
         var readable = (await access.ReadableAsync(await accounts.AllAsync(ct), ct)).Select(r => r.Account).ToList();
         // Who reads each account is who owns it as the accounts list shows it: the joint account has both adults.
-        var readers = new Dictionary<Guid, IReadOnlyList<PersonId>>();
-        foreach (var account in readable)
-            readers[account.Id] = await access.ReadersAsync(account, ct);
+        var readers = await access.ReadersAsync(readable, ct);
         var scope = readable.Where(a => (filter.Accounts.Count == 0 || filter.Accounts.Contains(a.Id))
             && (filter.Owners.Count == 0 || readers[a.Id].Any(p => filter.Owners.Contains(p.Value)))).Select(a => a.Id).ToList();
 
@@ -82,7 +81,7 @@ public sealed class ListOperationsHandler(
         var errors = new List<FieldError>();
         void Add(string field, string message) => errors.Add(new FieldError(field, FieldErrors.ShapeCode, message));
         if (f.State is not null && BankLines.State(f.State, "all") is { IsSuccess: false })
-            Add("state", "A state is unlinked, linked, ignored or internal.");
+            Add("state", "A state is unlinked, linked, ignored, internal or all.");
         if (f.Direction is not (null or "out" or "in"))
             Add("direction", "A direction is out or in.");
         if (f.Min < 0m)

@@ -154,7 +154,9 @@ public sealed class TransactionStore(BankingDbContext db, IClock clock) : ITrans
         var total = await query.CountAsync(ct);
         var page = await query.OrderByDescending(t => t.BookedOn).ThenByDescending(t => t.Id).Skip(skip).Take(take).ToListAsync(ct);
         var ignoredAccounts = db.Accounts.Where(a => a.Ignored).Select(a => a.Id);
-        var sums = (await query.Where(t => t.LinkState != "ignored" && t.LinkState != "internal" && !ignoredAccounts.Contains(t.AccountId))
+        // D19: an internal line whose counterpart the reader cannot read shows as linked, so it counts like one.
+        var hidden = db.Links.Where(l => l.CounterpartAccountId != null && !readable.Contains(l.CounterpartAccountId.Value)).Select(l => l.TransactionId);
+        var sums = (await query.Where(t => t.LinkState != "ignored" && (t.LinkState != "internal" || hidden.Contains(t.Id)) && !ignoredAccounts.Contains(t.AccountId))
             .GroupBy(t => new { t.Currency, t.BookedOn.Year, t.BookedOn.Month })
             .Select(g => new { g.Key, Debits = g.Sum(t => t.Amount < 0 ? t.Amount : 0m), Credits = g.Sum(t => t.Amount > 0 ? t.Amount : 0m) })
             .ToListAsync(ct))

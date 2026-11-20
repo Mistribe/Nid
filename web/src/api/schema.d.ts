@@ -12231,8 +12231,8 @@ export interface paths {
                     uncategorised?: boolean;
                     state?: string;
                     direction?: string;
-                    min?: number;
-                    max?: number;
+                    min?: string;
+                    max?: string;
                     q?: string;
                     page?: number;
                 };
@@ -12240,7 +12240,11 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody: {
+                content: {
+                    "application/json": string[];
+                };
+            };
             responses: {
                 /** @description OK */
                 200: {

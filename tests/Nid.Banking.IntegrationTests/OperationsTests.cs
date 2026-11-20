@@ -70,7 +70,7 @@ public class OperationsTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         }
         var ignored = await LineAsync(w.App, w.Joint, new(2025, 10, 12), -70m, "CB ABANDONNE");
         Assert.Equal(HttpStatusCode.OK, (await w.App.RawAsync(w.App.AdultA, HttpMethod.Post, $"{BankingApi.Root}/transactions/{ignored}/ignore")).StatusCode);
-        await LineAsync(w.App, w.PersonB, new(2025, 10, 4), -1000m, "CB SECRET", category: "food.groceries");
+        await LineAsync(w.App, w.PersonB, new(2025, 10, 4), -1000m, "CB SECRET", category: "leisure.culture");
     }
 
     private static async Task<JsonElement> GetAsync(NidApp app, PersonId person, string query = "")
@@ -103,6 +103,8 @@ public class OperationsTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         Assert.Equal(new[] { "Commun", "Perso A" }, Names(facets.GetProperty("accounts")).Order());
         Assert.DoesNotContain("Perso B", Names(facets.GetProperty("accounts")));
         Assert.Equal(2, facets.GetProperty("owners").GetArrayLength());
+        // Bob's category is nobody else's: Alice's facet does not name it.
+        Assert.DoesNotContain(Seed("leisure.culture"), facets.GetProperty("categories").EnumerateArray().Select(c => c.GetProperty("id").GetGuid()));
         // Naming Bob's account, or his category's lines, reveals nothing.
         var asked = await GetAsync(w.App, w.App.AdultA, $"?account={w.PersonB}");
         Assert.Equal(0, asked.GetProperty("total").GetInt32());
@@ -127,6 +129,7 @@ public class OperationsTests(PostgresFixture fixture) : IClassFixture<PostgresFi
     [InlineData("?category={Food}", 2)]
     [InlineData("?uncategorised=true", 4)]
     [InlineData("?category={Groceries}&uncategorised=true", 5)]
+    [InlineData("?state=all", 8)]
     [InlineData("?state=internal", 1)]
     [InlineData("?state=ignored", 1)]
     [InlineData("?state=unlinked", 6)]
@@ -260,6 +263,11 @@ public class OperationsTests(PostgresFixture fixture) : IClassFixture<PostgresFi
     [InlineData("?from=2025-10-05&to=2025-10-01", "from")]
     [InlineData("?from=yesterday", "from")]
     [InlineData("?q=a", "q")]
+    [InlineData("?account=nope", "account")]
+    [InlineData("?owner=nope", "owner")]
+    [InlineData("?category=nope", "category")]
+    [InlineData("?min=lots", "min")]
+    [InlineData("?max=lots", "max")]
     public async Task Bad_filters_are_field_errors(string query, string field)
     {
         var w = await StartAsync();
@@ -269,5 +277,28 @@ public class OperationsTests(PostgresFixture fixture) : IClassFixture<PostgresFi
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
         Assert.Contains(field, (await BankingApi.JsonAsync(response)).GetProperty("errors").EnumerateArray().Select(e => e.FieldPath()));
+    }
+
+    [Fact]
+    public async Task A_transfer_to_an_account_the_reader_cannot_read_counts_like_a_linked_line()
+    {
+        var w = await StartAsync();
+        await using var _ = w.App;
+        var line = await LineAsync(w.App, w.Joint, new(2025, 10, 3), -60m, "VIR VERS COMPTE DE BOB");
+        await using (var scope = w.App.Services.CreateAsyncScope())
+        {
+            scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
+            await scope.ServiceProvider.GetRequiredService<ILinkStore>().SetAsync(
+                new BankLink(line, null, null, null, w.PersonB, LinkOutcome.InternalTransfer, null, "job", Instant.FromUtc(2025, 10, 15, 12, 0)),
+                TransactionLinkState.Internal, Ct);
+        }
+
+        // Alice cannot read Bob's account: the line shows as linked, and its amount counts.
+        var alice = await GetAsync(w.App, w.App.AdultA, "?state=linked");
+        Assert.Equal(1, alice.GetProperty("total").GetInt32());
+        Assert.Equal("60.00", alice.GetProperty("totals").GetProperty("out").GetString());
+        Assert.Equal("60.00", (await GetAsync(w.App, w.App.AdultA)).GetProperty("totals").GetProperty("out").GetString());
+        // Bob reads both accounts: for him it is a transfer, and it counts in neither.
+        Assert.Equal("0.00", (await GetAsync(w.App, w.App.AdultB, "?state=internal")).GetProperty("totals").GetProperty("out").GetString());
     }
 }
