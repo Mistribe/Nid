@@ -38,7 +38,7 @@ parcours tournent en local contre la pile Aspire (`pnpm --dir web e2e`), pas en 
 
 | Sujet | Budget |
 |---|---|
-| JavaScript initial (shell et tableau de bord) | 200 ko gzip au plus |
+| JavaScript initial (shell et tableau de bord) | 250 ko gzip au plus, et 5 ko gzip de plus au plus par pull request (comparé au build de `main`) |
 | Chargement à la demande | Recharts, pdf.js et l'assistant d'import dans des morceaux séparés |
 | Chaînes | Celles des modules chargés à la demande hors du bundle initial (`locales/fr.<module>.json`, `architecture.md` §11) : une nouvelle clé propre à un module va dans son bundle |
 | Mobile, tableau de bord | LCP sous 2,5 s, CLS sous 0,1 |
