@@ -12952,7 +12952,6 @@
           {
             "name": "account",
             "in": "query",
-            "required": true,
             "schema": {
               "type": "array",
               "items": {
@@ -12963,7 +12962,6 @@
           {
             "name": "owner",
             "in": "query",
-            "required": true,
             "schema": {
               "type": "array",
               "items": {
@@ -12988,7 +12986,6 @@
           {
             "name": "category",
             "in": "query",
-            "required": true,
             "schema": {
               "type": "array",
               "items": {
@@ -13047,19 +13044,6 @@
             }
           }
         ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "required": true
-        },
         "responses": {
           "200": {
             "description": "OK",

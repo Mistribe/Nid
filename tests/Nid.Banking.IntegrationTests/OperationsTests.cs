@@ -268,6 +268,7 @@ public class OperationsTests(PostgresFixture fixture) : IClassFixture<PostgresFi
     [InlineData("?category=nope", "category")]
     [InlineData("?min=lots", "min")]
     [InlineData("?max=lots", "max")]
+    [InlineData("?min=1,000", "min")]
     public async Task Bad_filters_are_field_errors(string query, string field)
     {
         var w = await StartAsync();
@@ -276,7 +277,10 @@ public class OperationsTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         var response = await w.App.RawAsync(w.App.AdultA, HttpMethod.Get, $"{Route}{query}");
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
-        Assert.Contains(field, (await BankingApi.JsonAsync(response)).GetProperty("errors").EnumerateArray().Select(e => e.FieldPath()));
+        var errors = (await BankingApi.JsonAsync(response)).GetProperty("errors").EnumerateArray().ToList();
+        Assert.Contains(field, errors.Select(e => e.FieldPath()));
+        if (field is "account" or "owner" or "category" or "min" or "max")
+            Assert.All(errors, e => Assert.Equal(Nid.Platform.Contracts.FieldErrors.ShapeCode, e.GetProperty("code").GetString()));
     }
 
     [Fact]

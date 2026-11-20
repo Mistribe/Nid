@@ -12222,12 +12222,12 @@ export interface paths {
         };
         get: {
             parameters: {
-                query: {
-                    account: string[];
-                    owner: string[];
+                query?: {
+                    account?: string[];
+                    owner?: string[];
                     from?: string;
                     to?: string;
-                    category: string[];
+                    category?: string[];
                     uncategorised?: boolean;
                     state?: string;
                     direction?: string;
@@ -12240,11 +12240,7 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody: {
-                content: {
-                    "application/json": string[];
-                };
-            };
+            requestBody?: never;
             responses: {
                 /** @description OK */
                 200: {
