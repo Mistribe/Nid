@@ -523,10 +523,37 @@ const notificationsRoute = createRoute({
   component: lazyRouteComponent(() => import('@/features/notifications/NotificationsPage'), 'NotificationsPage'),
 });
 
+/** The « Opérations » filters (#84): all in the URL, the server applies them; `page` from 2; `state` absent is every line. */
+export type OperationsSearch = {
+  q?: string; account?: string[]; owner?: string[]; from?: string; to?: string; category?: string[]; uncategorised?: boolean;
+  state?: 'unlinked' | 'linked' | 'internal' | 'ignored'; direction?: 'out' | 'in'; min?: number; max?: number; page?: number;
+};
+const ids = (value: unknown): string[] | undefined => {
+  const list = (Array.isArray(value) ? value : [value]).filter((v): v is string => typeof v === 'string' && v !== '');
+  return list.length > 0 ? list : undefined;
+};
+const isoDate = (value: unknown) => (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : undefined);
+const amount = (value: unknown) => (value !== '' && value != null && Number.isFinite(Number(value)) ? Number(value) : undefined);
+const STATES = ['unlinked', 'linked', 'internal', 'ignored'] as const;
+
 const operationsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/operations',
-  component: lazyRouteComponent(() => import('@/features/operations/UnlinkedPage'), 'UnlinkedPage'),
+  validateSearch: (search: Record<string, unknown>): OperationsSearch => ({
+    ...(typeof search.q === 'string' && search.q !== '' ? { q: search.q } : {}),
+    ...(ids(search.account) ? { account: ids(search.account) } : {}),
+    ...(ids(search.owner) ? { owner: ids(search.owner) } : {}),
+    ...(ids(search.category) ? { category: ids(search.category) } : {}),
+    ...(isoDate(search.from) ? { from: isoDate(search.from) } : {}),
+    ...(isoDate(search.to) ? { to: isoDate(search.to) } : {}),
+    ...(search.uncategorised === true || search.uncategorised === 'true' ? { uncategorised: true } : {}),
+    ...(STATES.find((s) => s === search.state) ? { state: search.state as (typeof STATES)[number] } : {}),
+    ...(search.direction === 'out' || search.direction === 'in' ? { direction: search.direction } : {}),
+    ...(amount(search.min) !== undefined ? { min: amount(search.min) } : {}),
+    ...(amount(search.max) !== undefined ? { max: amount(search.max) } : {}),
+    ...((positive(search.page) ?? 1) > 1 ? { page: positive(search.page) } : {}),
+  }),
+  component: lazyRouteComponent(() => import('@/features/operations/OperationsPage'), 'OperationsPage'),
 });
 
 const routineRoute = createRoute({

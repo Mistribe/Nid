@@ -61,6 +61,8 @@ export const accountLabel = (t: TFunction, account: Pick<BankAccount, 'name' | '
 
 /** An envelope's bank lines, the statement import and the lines left to link (`features/operations`). */
 export type BankTransaction = components['schemas']['BankTransactionView'];
+export type OperationPage = components['schemas']['OperationPage'];
+export const OPERATIONS = '/api/v1/banking/operations' as const;
 export type BankTransactionPage = components['schemas']['BankTransactionPage'];
 export type ExpectedCharge = components['schemas']['ExpectedChargeView'];
 export type StatementImport = components['schemas']['StatementImportView'];
