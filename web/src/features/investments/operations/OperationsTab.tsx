@@ -17,7 +17,7 @@ import type { EnvelopeDetail } from '@/api/investments';
 import { type BankTransaction } from '@/api/banking';
 import { useTransactions } from './api';
 import ImportStatementDialog from './ImportStatementDialog';
-import { LineActions, lineState } from './LineActions';
+import { LineActions, lineState, SplitParts } from './LineActions';
 import '@/locales/banks';
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
@@ -47,6 +47,7 @@ export default function OperationsTab({ envelope, writable }: { envelope: Envelo
   );
   // The category, then where it comes from in a muted word explained by its « i ».
   const category = (l: BankTransaction) => {
+    if (l.parts?.length) return <SplitParts line={l} />;
     if (!l.category && l.categorySource !== 'hand') return '—';
     const source = l.categorySource ? t(`banks.categories.source.${l.categorySource}`, { defaultValue: l.categorySource }) : null;
     return (

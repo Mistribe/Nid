@@ -16,7 +16,7 @@ import { StatLine } from '@/components/page/StatLine';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { OPERATIONS, type BankTransaction, type OperationPage } from '@/api/banking';
 import { ImportStatement } from '../investments/operations/ImportStatement';
-import { LineActions, lineState } from '../investments/operations/LineActions';
+import { LineActions, lineState, SplitParts } from '../investments/operations/LineActions';
 import { OperationFilters } from './OperationFilters';
 import '@/locales/banks';
 
@@ -76,6 +76,7 @@ function Table({ rows, owners }: { rows: BankTransaction[]; owners: OperationPag
     <span className="whitespace-normal">
       {l.label}
       {l.counterparty ? <span className="block text-sm text-muted-foreground">{l.counterparty}</span> : null}
+      {l.note ? <span className="block text-sm italic text-muted-foreground">{l.note}</span> : null}
     </span>
   );
   return (
@@ -85,7 +86,7 @@ function Table({ rows, owners }: { rows: BankTransaction[]; owners: OperationPag
         { id: 'label', header: t('banks.operations.label'), cell: label },
         { id: 'account', header: t('banks.operations.account'), cell: (l) => l.accountName },
         { id: 'owner', header: t('banks.operations.owner'), cell: owner },
-        { id: 'category', header: t('banks.operations.filter.category'), cell: (l) => l.category?.name ?? '—' },
+        { id: 'category', header: t('banks.operations.filter.category'), cell: (l) => l.parts?.length ? <SplitParts line={l} /> : l.category?.name ?? '—' },
         { id: 'state', header: t('banks.operations.state'), cell: (l) => lineState(t, l) },
         { id: 'amount', header: t('banks.operations.amount'), align: 'end', cell: amount },
         { id: 'actions', header: t('banks.operations.actions_col'), align: 'end', cell: actions },
