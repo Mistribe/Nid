@@ -45,6 +45,36 @@ public class AccountEnvelopeTests(PostgresFixture fixture) : IClassFixture<Postg
     }
 
     [Fact]
+    public async Task The_envelope_takes_the_visibility_asked_and_a_child_s_cannot_be_private()
+    {
+        await using var app = await BankingApi.StartAsync(fixture);
+        await BankingApi.ConnectAsync(app, app.AdultA, "code-a",
+            BankingApi.Account("uid-1", "hash-1", null, "Courant"), BankingApi.Account("uid-2", "hash-2", null, "Compte de Léa"),
+            BankingApi.Account("uid-3", "hash-3", null, "Joint"));
+        var accounts = await AccountsAsync(app);
+        var before = (await EnvelopesAsync(app)).Count;
+
+        // #383: neither a child's nor the adults' joint envelope can be private; nothing is made.
+        await BankingApi.AssertRefusedAsync(await CreateAsync(app, app.AdultA, accounts["Compte de Léa"],
+            new { displayName = "Léa", kind = "checking", dependentId = app.Dependent.Value, visibility = "private" }),
+            HttpStatusCode.UnprocessableEntity, "core.private_dependent");
+        await BankingApi.AssertRefusedAsync(await CreateAsync(app, app.AdultA, accounts["Joint"],
+            new { displayName = "Joint", kind = "checking", joint = true, visibility = "private" }),
+            HttpStatusCode.UnprocessableEntity, "core.private_single_owner");
+        Assert.Equal(before, (await EnvelopesAsync(app)).Count);
+
+        var response = await CreateAsync(app, app.AdultA, accounts["Courant"], new { displayName = "Courant", kind = "checking", visibility = "private" });
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var id = (await BankingApi.JsonAsync(response)).GetProperty("id").GetGuid();
+        // A private item shows in « Moi » only, and never to B.
+        var mine = JsonDocument.Parse(await app.GetRawAsync(app.AdultA, "/api/v1/investments/envelopes?scope=me")).RootElement.GetProperty("items").EnumerateArray();
+        Assert.Equal("private", mine.Single(e => e.GetProperty("id").GetGuid() == id).GetProperty("visibility").GetString());
+        foreach (var scope in new[] { "me", "household" })
+            Assert.DoesNotContain(JsonDocument.Parse(await app.GetRawAsync(app.AdultB, $"/api/v1/investments/envelopes?scope={scope}")).RootElement
+                .GetProperty("items").EnumerateArray(), e => e.GetProperty("id").GetGuid() == id);
+    }
+
+    [Fact]
     public async Task A_refused_link_leaves_no_envelope_behind()
     {
         await using var app = await BankingApi.StartAsync(fixture);

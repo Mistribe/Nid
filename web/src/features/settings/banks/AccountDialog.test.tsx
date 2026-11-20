@@ -300,11 +300,16 @@ describe('the account dialog', () => {
     expect(within(step).getByRole('radio', { name: 'Compte courant' })).toBeChecked();
     expect(within(step).getByRole('radio', { name: 'À moi' })).toBeChecked();
     expect(step).toHaveTextContent('En EUR, comme le compte, et reliée à lui.');
+    // #383: one's own account is private by default, a joint one shared and not private-able.
+    expect(within(step).getByRole('radio', { name: 'Privé' })).toBeChecked();
+    expect(step).toHaveTextContent('Visible par vous seul.');
     await user.click(within(step).getByRole('radio', { name: 'Commun' }));
+    expect(within(step).getByRole('radio', { name: 'Partagé' })).toBeChecked();
+    expect(within(step).getByRole('radio', { name: 'Privé' })).toBeDisabled();
     await expectNoAxeViolations(container);
     await user.click(within(step).getByRole('button', { name: 'Créer et relier' }));
 
-    await waitFor(() => expect(sent).toEqual([{ id: CHECKING, body: { displayName: 'BNP Paribas Compte courant', kind: 'checking', joint: true } }]));
+    await waitFor(() => expect(sent).toEqual([{ id: CHECKING, body: { displayName: 'BNP Paribas Compte courant', kind: 'checking', visibility: 'shared', joint: true } }]));
     expect(await screen.findByText('Enveloppe BNP Paribas Compte courant créée et reliée.')).toBeInTheDocument();
   });
 
@@ -326,7 +331,32 @@ describe('the account dialog', () => {
     expect(step).toHaveTextContent('L\'enveloppe est à Léo et partagée');
     await user.click(within(step).getByRole('button', { name: 'Créer et relier' }));
 
-    await waitFor(() => expect(sent).toEqual([{ displayName: 'BNP Paribas Compte courant', kind: 'checking', dependentId: householdPersons[2]!.id }]));
+    await waitFor(() => expect(sent).toEqual([{ displayName: 'BNP Paribas Compte courant', kind: 'checking', visibility: 'shared', dependentId: householdPersons[2]!.id }]));
+  });
+
+  it('shares one’s own envelope when asked, the choice kept across owner changes (#383)', async () => {
+    serveBanks([connection()], envelopes);
+    server.use(http.get('*/api/v1/core/persons', () => HttpResponse.json(householdPersons)));
+    const sent: unknown[] = [];
+    server.use(http.post('*/api/v1/banking/accounts/:id/envelope', async ({ request }) => {
+      sent.push(await request.json());
+      return HttpResponse.json({ id: 'new' }, { status: 201 });
+    }));
+    const { user } = await renderApp('/settings/banks');
+
+    await user.click((await screen.findAllByRole('button', { name: 'Régler Compte courant' }))[0]!);
+    const dialog = await screen.findByRole('dialog', { name: 'Régler Compte courant' });
+    await pick(user, 'Enveloppe', 'Créer une enveloppe');
+    const step = within(dialog).getByRole('form', { name: 'Créer une enveloppe' });
+    expect(step).not.toHaveTextContent('à vous seul');
+    await user.click(within(step).getByRole('radio', { name: 'Partagé' }));
+    expect(step).toHaveTextContent('Visible par Bob, en lecture seule.');
+    await user.click(within(step).getByRole('radio', { name: 'Compte de Léo' }));
+    await user.click(within(step).getByRole('radio', { name: 'À moi' }));
+    expect(within(step).getByRole('radio', { name: 'Partagé' })).toBeChecked();
+    await user.click(within(step).getByRole('button', { name: 'Créer et relier' }));
+
+    await waitFor(() => expect(sent).toEqual([{ displayName: 'BNP Paribas Compte courant', kind: 'checking', visibility: 'shared', joint: false }]));
   });
 
   it('shows whose account each associated one is, a card its account’s', async () => {

@@ -5,6 +5,7 @@ import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import { invalidateInvestments } from '@/api/investments';
 import { PERSONS } from '@/api/persons';
+import { useSession } from '@/app/Providers';
 import { Field } from '@/components/form/Field';
 import { fieldErrorsOf, messageFor } from '@/components/form/fieldErrors';
 import { Segmented } from '@/components/form/Segmented';
@@ -23,6 +24,7 @@ export function CreateEnvelopeStep({ account, bank, onBack, done }: {
 }) {
   const { t } = useTranslation();
   const { $api } = useApi();
+  const { session } = useSession();
   const queryClient = useQueryClient();
   const persons = $api.useQuery('get', PERSONS);
   const create = $api.useMutation('post', ACCOUNT_ENVELOPE);
@@ -31,22 +33,28 @@ export function CreateEnvelopeStep({ account, bank, onBack, done }: {
   const [kind, setKind] = useState(ASSOCIABLE.includes(account.kind) ? account.kind : 'checking');
   // « mine », « joint » or a dependent's id (#354): a child's account, theirs alone, which both adults manage.
   const [owners, setOwners] = useState('mine');
+  // #383: an account of the person's own is private unless they share it; a joint or a child's account is shared, as its owners require.
+  const [chosen, setChosen] = useState<string | null>(null);
+  const visibility = owners === 'mine' ? chosen ?? 'private' : 'shared';
   const headingId = useId();
   const kindId = useId();
   const ownersId = useId();
   const ownersHintId = useId();
+  const visibilityId = useId();
+  const visibilityHintId = useId();
   // « Commun » only means something with another adult in the household.
   const joint = (persons.data?.filter((p) => p.kind === 'adult').length ?? 0) > 1;
   const dependents = persons.data?.filter((p) => p.kind === 'dependent') ?? [];
   const child = dependents.find((d) => d.id === owners);
   // A child is named by their first name, as on the owner chips.
   const firstName = (name: string) => name.split(' ')[0]!;
+  const others = persons.data?.filter((p) => p.kind === 'adult' && p.id !== session.person.id).map((p) => firstName(p.displayName)) ?? [];
 
   const nameError = fieldErrorsOf(create.error).find((f) => f.path === 'displayName');
   const code = create.error ? toProblem(create.error).code : null;
   const submit = () => create.mutate({
     params: { path: { id: account.id } },
-    body: { displayName: displayName.trim(), kind, ...(child ? { dependentId: child.id } : { joint: owners === 'joint' }) },
+    body: { displayName: displayName.trim(), kind, visibility, ...(child ? { dependentId: child.id } : { joint: owners === 'joint' }) },
   }, {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['get', CONNECTIONS] });
@@ -90,6 +98,16 @@ export function CreateEnvelopeStep({ account, bank, onBack, done }: {
           </p>
         </div>
       ) : null}
+      <div className="space-y-1">
+        <span id={visibilityId} className="block text-sm">{t('banks.create_envelope.visibility')}</span>
+        <Segmented aria-labelledby={visibilityId} aria-describedby={visibilityHintId} value={visibility} onValueChange={setChosen}
+          disabled={owners !== 'mine'} options={(['private', 'shared'] as const).map((v) => ({ value: v, label: t(`banks.create_envelope.${v}`) }))} />
+        <p id={visibilityHintId} className="text-sm text-muted-foreground">
+          {visibility === 'private' ? t('banks.create_envelope.private_hint')
+            : owners !== 'mine' ? t('banks.create_envelope.shared_all_hint')
+              : others.length > 0 ? t('banks.create_envelope.shared_hint', { name: others.join(', ') }) : t('banks.create_envelope.shared_household_hint')}
+        </p>
+      </div>
       <p className="text-sm text-muted-foreground">{t('banks.create_envelope.currency', { currency: account.currency })}</p>
       <div className="flex justify-end gap-2">
         <Button type="button" variant="outline" onClick={onBack}>{t('banks.create_envelope.back')}</Button>
