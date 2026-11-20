@@ -133,7 +133,11 @@ public sealed class TransactionStore(BankingDbContext db, IClock clock) : ITrans
         if (filter.Categories.Count > 0 || filter.Uncategorised)
         {
             var uncategorised = filter.Uncategorised;
-            query = query.Where(t => (t.CategoryId != null && categories.Contains(t.CategoryId.Value)) || (uncategorised && t.CategoryId == null));
+            // A split line matches by its parts (listed once), an unsplit one by its own category.
+            query = query.Where(t => t.CategorySource != "split"
+                ? (t.CategoryId != null && categories.Contains(t.CategoryId.Value)) || (uncategorised && t.CategoryId == null)
+                : db.TransactionParts.Any(p => p.TransactionId == t.Id
+                    && ((p.CategoryId != null && categories.Contains(p.CategoryId.Value)) || (uncategorised && p.CategoryId == null))));
         }
         if (filter.Direction is "out")
             query = query.Where(t => t.Amount < 0m);
@@ -168,7 +172,9 @@ public sealed class TransactionStore(BankingDbContext db, IClock clock) : ITrans
     }
 
     public async Task<IReadOnlyList<Guid>> OperationCategoriesAsync(IReadOnlyList<Guid> accounts, CancellationToken ct)
-        => await db.Transactions.Where(t => accounts.Contains(t.AccountId) && t.CategoryId != null).Select(t => t.CategoryId!.Value).Distinct().ToListAsync(ct);
+        => await db.Transactions.Where(t => accounts.Contains(t.AccountId) && t.CategoryId != null).Select(t => t.CategoryId!.Value)
+            .Union(db.TransactionParts.Where(p => p.CategoryId != null && db.Transactions.Any(t => t.Id == p.TransactionId && accounts.Contains(t.AccountId)))
+                .Select(p => p.CategoryId!.Value)).ToListAsync(ct);
 
     public async Task<IReadOnlyList<BankTransaction>> UnreconciledAsync(IReadOnlyCollection<Guid>? accounts, CancellationToken ct)
         => (await db.Transactions.AsNoTracking()
@@ -195,28 +201,49 @@ public sealed class TransactionStore(BankingDbContext db, IClock clock) : ITrans
         => db.Transactions.Where(t => t.BookedOn < before && (t.LinkState == "unlinked" || t.LinkState == "ignored")
             && t.Note == null && !db.TransactionParts.Any(p => p.TransactionId == t.Id)).ExecuteDeleteAsync(ct);
 
-    public async Task<IReadOnlyList<SpendingSum>> SpendingAsync(IReadOnlyList<Guid> accounts, LocalDate from, LocalDate to, CancellationToken ct, bool withLinked = true)
-        => (await db.Transactions.AsNoTracking()
+    /// <summary>The lines of the spending views: an unsplit line is one entry, a split line its parts (never also itself).</summary>
+    private IQueryable<SpendingEntry> Entries(IReadOnlyList<Guid> accounts, LocalDate from, LocalDate to, bool withLinked = true)
+    {
+        var lines = db.Transactions.AsNoTracking()
             .Where(t => accounts.Contains(t.AccountId) && t.BookedOn >= from && t.BookedOn <= to && t.LinkState != "ignored" && t.LinkState != "internal"
-                && (withLinked || t.LinkState != "linked"))
-            .GroupBy(t => new { t.CategoryId, t.Currency, t.BookedOn.Year, t.BookedOn.Month })
-            .Select(g => new { g.Key, Debits = g.Sum(t => t.Amount < 0 ? t.Amount : 0m), Credits = g.Sum(t => t.Amount > 0 ? t.Amount : 0m) })
+                && (withLinked || t.LinkState != "linked"));
+        return lines.Where(t => t.CategorySource != "split").Select(t => new SpendingEntry { LineId = t.Id, PartId = null, BookedOn = t.BookedOn, CategoryId = t.CategoryId, Currency = t.Currency, Amount = t.Amount, Position = 0 })
+            .Concat(db.TransactionParts.AsNoTracking().Join(lines.Where(t => t.CategorySource == "split"), p => p.TransactionId, t => t.Id,
+                (p, t) => new SpendingEntry { LineId = t.Id, PartId = p.Id, BookedOn = t.BookedOn, CategoryId = p.CategoryId, Currency = t.Currency, Amount = p.Amount, Position = p.Position }));
+    }
+
+    private sealed class SpendingEntry
+    {
+        public Guid LineId { get; init; }
+        public Guid? PartId { get; init; }
+        public LocalDate BookedOn { get; init; }
+        public Guid? CategoryId { get; init; }
+        public string Currency { get; init; } = "";
+        public decimal Amount { get; init; }
+        public int Position { get; init; }
+    }
+
+    public async Task<IReadOnlyList<SpendingSum>> SpendingAsync(IReadOnlyList<Guid> accounts, LocalDate from, LocalDate to, CancellationToken ct, bool withLinked = true)
+        => (await Entries(accounts, from, to, withLinked)
+            .GroupBy(e => new { e.CategoryId, e.Currency, e.BookedOn.Year, e.BookedOn.Month })
+            .Select(g => new { g.Key, Debits = g.Sum(e => e.Amount < 0 ? e.Amount : 0m), Credits = g.Sum(e => e.Amount > 0 ? e.Amount : 0m) })
             .ToListAsync(ct))
             .Select(g => new SpendingSum(g.Key.CategoryId, Currency.TryCreate(g.Key.Currency, out var currency) ? currency
                     : throw new InvalidOperationException($"Bank lines in '{g.Key.Currency}' have no valid currency."),
                 new YearMonth(g.Key.Year, g.Key.Month), g.Debits, g.Credits))
             .ToList();
 
-    public async Task<(IReadOnlyList<BankTransaction> Items, int Count)> SpendingLinesAsync(
+    public async Task<(IReadOnlyList<(BankTransaction Line, Guid? PartId, decimal Amount)> Items, int Count)> SpendingLinesAsync(
         IReadOnlyList<Guid> accounts, IReadOnlyList<Guid> categories, bool uncategorised, LocalDate from, LocalDate to, int skip, int take, CancellationToken ct)
     {
-        var query = db.Transactions.AsNoTracking()
-            .Where(t => accounts.Contains(t.AccountId) && t.BookedOn >= from && t.BookedOn <= to && t.LinkState != "ignored" && t.LinkState != "internal");
-        query = uncategorised ? query.Where(t => t.CategoryId == null && t.Amount < 0)
-            : query.Where(t => t.CategoryId != null && categories.Contains(t.CategoryId.Value));
+        var query = Entries(accounts, from, to);
+        query = uncategorised ? query.Where(e => e.CategoryId == null && e.Amount < 0)
+            : query.Where(e => e.CategoryId != null && categories.Contains(e.CategoryId.Value));
         var count = await query.CountAsync(ct);
-        var page = await query.OrderByDescending(t => t.BookedOn).ThenByDescending(t => t.Id).Skip(skip).Take(take).ToListAsync(ct);
-        return (page.Select(ToModel).ToList(), count);
+        var page = await query.OrderByDescending(e => e.BookedOn).ThenByDescending(e => e.LineId).ThenBy(e => e.Position).Skip(skip).Take(take).ToListAsync(ct);
+        var ids = page.Select(e => e.LineId).Distinct().ToList();
+        var rows = (await db.Transactions.AsNoTracking().Where(t => ids.Contains(t.Id)).ToListAsync(ct)).ToDictionary(t => t.Id);
+        return (page.Select(e => (ToModel(rows[e.LineId]), e.PartId, e.Amount)).ToList(), count);
     }
 
     public Task<LocalDate?> EarliestBookedOnAsync(IReadOnlyList<Guid> accounts, CancellationToken ct)

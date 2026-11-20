@@ -86,7 +86,12 @@ public sealed class ListSpendingLinesHandler(
 
         var (page, count) = await lines.SpendingLinesAsync(sums.Accounts, ids, query.Uncategorised, sums.From.ToDateInterval().Start, sums.To.ToDateInterval().End,
             (Math.Clamp(query.Page, 1, BankLines.MaxPage) - 1) * BankLines.PageSize, BankLines.PageSize, ct);
-        return Result.Success(new SpendingLines(await views.ViewsAsync(page, ct), GetSpendingHandler.Money(total), count, keys.Any(sums.Incomplete.Contains)));
+        var byId = (await views.ViewsAsync([.. page.Select(r => r.Line).DistinctBy(l => l.Id)], ct)).ToDictionary(v => v.Id);
+        // A part's row shows the part's amount, category and note.
+        var items = page.Select(r => r.PartId is { } part && byId[r.Line.Id].Parts?.FirstOrDefault(p => p.Id == part) is { } shown
+            ? byId[r.Line.Id] with { Amount = shown.Amount, Category = shown.Category, Note = shown.Note }
+            : byId[r.Line.Id]).ToList();
+        return Result.Success(new SpendingLines(items, GetSpendingHandler.Money(total), count, keys.Any(sums.Incomplete.Contains)));
     }
 }
 
