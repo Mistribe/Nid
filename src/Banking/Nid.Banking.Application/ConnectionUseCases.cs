@@ -200,9 +200,9 @@ public sealed class ListMyConnectionsHandler(BankingAccess access, IConnectionSt
 {
     public async ValueTask<Result<IReadOnlyList<ConnectionView>>> HandleAsync(ListMyConnectionsQuery query, CancellationToken ct = default)
     {
-        var app = await access.MyAppAsync(ct);
-        if (!app.IsSuccess)
-            return BankingAccess.Failed<IReadOnlyList<ConnectionView>, EnableBankingApp>(app);
+        var enabled = await access.EnabledAsync(ct);
+        if (enabled.TryGetFailure(out var off))
+            return Result.Failure<IReadOnlyList<ConnectionView>>(off!);
 
         var views = new List<ConnectionView>();
         foreach (var c in (await connections.MineAsync(access.Person, ct)).Where(c => c.Status != ConnectionStatus.Pending))

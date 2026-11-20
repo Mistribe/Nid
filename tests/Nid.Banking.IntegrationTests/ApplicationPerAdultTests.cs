@@ -50,7 +50,7 @@ public class ApplicationPerAdultTests(PostgresFixture fixture) : IClassFixture<P
         await using var scope = app.Services.CreateAsyncScope();
         scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
         var result = await scope.ServiceProvider.GetRequiredService<IInvoker>().InvokeAsync(new SyncAllCommand());
-        Assert.True(result.IsSuccess || result.TryGetFailure(out _));
+        Assert.True(result.IsSuccess);
     }
 
     [Fact]
@@ -111,23 +111,37 @@ public class ApplicationPerAdultTests(PostgresFixture fixture) : IClassFixture<P
     {
         await using var app = await StartAsync(fixture);
         await SaveAsync(app, app.AdultA, "app-alice");
-        var alice = await BankingApi.ConnectAsync(app, app.AdultA, "code-a", BankingApi.Account("uid-a", "hash-a", Iban, "Compte joint"));
-        await using (var scope = app.Services.CreateAsyncScope())
-        {
-            scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
-            await scope.ServiceProvider.GetRequiredService<IApplicationStore>().DeleteAsync(app.AdultA, Ct);
-        }
-        var bob = await BankingApi.ConnectAsync(app, app.AdultB, "code-b", BankingApi.Account("uid-b", "hash-b", Iban, "Compte joint"));
-        await SaveAsync(app, app.AdultA, "app-alice"); // Alice's connection was made with this application
+        await BankingApi.ConnectAsync(app, app.AdultA, "code-a", BankingApi.Account("uid-a", "hash-a", Iban, "Compte joint"));
+        await BankingApi.ConnectAsync(app, app.AdultB, "code-b", BankingApi.Account("uid-b", "hash-b", Iban, "Compte joint"));
         foreach (var uid in new[] { ("session-code-a", "uid-a"), ("session-code-b", "uid-b") })
             app.Banks.Balances[uid] = [new ProviderBalance("CLBD", 10m, "EUR", new LocalDate(2026, 1, 1))];
 
         await NightAsync(app);
 
         Assert.Single((await BankingApi.AccountsAsync(app, app.AdultA)).EnumerateArray());
-        var call = Assert.Single(app.Banks.BalanceCalls);
-        Assert.Equal(call.SessionId == "session-code-a" ? "app-alice" : "app-home", call.AppId);
-        Assert.NotEqual(alice, bob);
+        var balance = Assert.Single(app.Banks.BalanceCalls);
+        Assert.Equal(balance.SessionId == "session-code-a" ? "app-alice" : "app-home", balance.AppId);
+        var transactions = Assert.Single(app.Banks.TransactionCalls);
+        Assert.Equal((balance.SessionId, balance.AppId), (transactions.SessionId, transactions.AppId));
+    }
+
+    [Fact]
+    public async Task A_manual_sync_whose_application_cannot_be_resolved_succeeds_and_fails_the_connection()
+    {
+        await using var app = await StartAsync(fixture);
+        await SaveAsync(app, app.AdultA, "app-alice");
+        var id = await BankingApi.ConnectAsync(app, app.AdultA, "code-a", BankingApi.Account("uid-a", "hash-a", null, "Courant A"));
+        await using var db = Db(app);
+        var key = await db.Applications.AsNoTracking().Select(a => a.PrivateKey).SingleAsync(Ct);
+        key[^1] ^= 0xFF;
+        await db.Database.ExecuteSqlAsync($"update banking.application set private_key = {key}", Ct);
+
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Post, $"{BankingApi.Root}/sync", new { connectionId = id });
+
+        Assert.True(response.IsSuccessStatusCode, response.StatusCode.ToString());
+        var row = await db.Connections.AsNoTracking().SingleAsync(c => c.Id == id, Ct);
+        Assert.Equal(("error", BankingCodes.NotConfigured), (row.Status, row.LastErrorCode));
+        Assert.Empty(app.Banks.BalanceCalls);
     }
 
     [Fact]

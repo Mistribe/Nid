@@ -45,8 +45,8 @@ public sealed class BankingAccess(
     /// </summary>
     public async Task<Result<EnableBankingApp>> AppForAsync(BankConnection connection, CancellationToken ct)
     {
-        if (await applications.FindAsync(connection.Person, ct) is { } own && own.ApplicationId == connection.ApplicationId)
-            return await OwnAsync(connection.Person, ct);
+        if (await applications.CredentialAsync(connection.Person, ct) is { } own && own.Id == connection.ApplicationId)
+            return Result.Success(own);
         var household = await settings.ReadAsync(ct);
         return connection.ApplicationId is null || connection.ApplicationId == household.EnableBankingAppId
             ? Installation(household)
