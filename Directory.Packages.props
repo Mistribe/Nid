@@ -16,7 +16,6 @@
     <!-- Npgsql 10.0.3 brings EF Core 10.0.4; the Design tooling needs the same EF Core as the runtime (MSB3277). -->
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.15" />
     <PackageVersion Include="Testcontainers.PostgreSql" Version="4.17.0" />
-    <PackageVersion Include="Testcontainers.Minio" Version="4.15.0" />
     <PackageVersion Include="AWSSDK.S3" Version="4.1.2" />
     <PackageVersion Include="UnambitiousFx.Synapse" Version="3.6.0" />
     <PackageVersion Include="UnambitiousFx.Synapse.Abstractions" Version="3.6.0" />

@@ -3,7 +3,8 @@ using Amazon.Runtime;
 using Amazon.S3;
 using Nid.Documents.Application;
 using Nid.Documents.Infrastructure.Storage;
-using Testcontainers.Minio;
+using DotNet.Testcontainers.Builders;
+using DotNet.Testcontainers.Containers;
 using Nid.TestSupport;
 
 namespace Nid.Documents.IntegrationTests;
@@ -11,8 +12,17 @@ namespace Nid.Documents.IntegrationTests;
 /// <summary>One MinIO container for the run, like <c>PostgresFixture</c>: Testcontainers' reaper removes it.</summary>
 public sealed class MinioFixture : IAsyncLifetime
 {
+    private const string User = "minioadmin", Password = "minioadmin";
+
     // minio/minio is no longer published on Docker Hub or quay.io; Chainguard's free tier only ships :latest.
-    private static readonly MinioContainer Container = new MinioBuilder("cgr.dev/chainguard/minio:latest").Build();
+    // A plain container: Testcontainers.Minio stopped at 4.15 and breaks against newer Testcontainers.
+    private static readonly IContainer Container = new ContainerBuilder("cgr.dev/chainguard/minio:latest")
+        .WithPortBinding(9000, true)
+        .WithEnvironment("MINIO_ROOT_USER", User)
+        .WithEnvironment("MINIO_ROOT_PASSWORD", Password)
+        .WithCommand("server", "/data")
+        .WithWaitStrategy(Wait.ForUnixContainer().UntilHttpRequestIsSucceeded(r => r.ForPath("/minio/health/ready").ForPort(9000)))
+        .Build();
     private static readonly Lazy<Task> Started = new(() => Container.StartAsync());
 
     public ValueTask InitializeAsync() => new(Started.Value);
@@ -28,8 +38,8 @@ public sealed class MinioFixture : IAsyncLifetime
         await Started.Value;
         var options = new DocumentStorageOptions
         {
-            Kind = "s3", ServiceUrl = Container.GetConnectionString(), Bucket = $"docs-{Guid.NewGuid():N}",
-            AccessKey = Container.GetAccessKey(), SecretKey = Container.GetSecretKey(),
+            Kind = "s3", ServiceUrl = $"http://{Container.Hostname}:{Container.GetMappedPublicPort(9000)}", Bucket = $"docs-{Guid.NewGuid():N}",
+            AccessKey = User, SecretKey = Password,
         };
         using var client = NewClient(options);
         await client.PutBucketAsync(options.Bucket);
