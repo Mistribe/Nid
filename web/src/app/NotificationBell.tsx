@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { useNotificationCount } from '@/features/notifications/api';
 import { cn } from '@/lib/utils';
 
-// The popover code loads after the first render; the bare button shows meanwhile (200 kB budget).
+// The popover code loads after the first render; the bare button shows meanwhile (initial bundle budget).
 const BellPopover = lazy(() => import('@/features/notifications/BellPopover').then((m) => ({ default: m.BellPopover })));
 
 /**

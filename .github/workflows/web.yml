@@ -39,6 +39,17 @@ jobs:
           # Typed linting outgrows Node's default heap of about 2 GB.
           NODE_OPTIONS: --max-old-space-size=4096
           COVERAGE: ${{ inputs.coverage }}
+      # A pull request: the initial bundle against the build of its base (main), so one pull request cannot grow it by more than
+      # scripts/budget.mjs allows, however far it stays from the ceiling.
+      - if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git fetch --no-tags --depth=1 origin "$BASE_SHA"
+          git worktree add --detach "$RUNNER_TEMP/base" "$BASE_SHA"
+          pnpm --dir "$RUNNER_TEMP/base/web" install --frozen-lockfile
+          pnpm --dir "$RUNNER_TEMP/base/web" build
+          pnpm --dir web budget --base "$RUNNER_TEMP/base/web/dist"
       # vitest writes the paths from web/; the scanner reads them from the repository root. Also after a failed test: the
       # analysis counts the coverage the others reported.
       - if: ${{ !cancelled() && inputs.coverage && hashFiles('web/coverage/lcov.info') != '' }}
