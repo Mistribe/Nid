@@ -50,9 +50,10 @@ public class ApplicationRouteTests(PostgresFixture fixture) : IClassFixture<Post
     {
         await using var app = await BankingApi.StartAsync(fixture);
 
-        var response = await PutAsync(app, app.AdultA, "app-alice", new string('A', 40 * 1024));
+        var response = await app.RawContentAsync(app.AdultA, HttpMethod.Put, Route, new StringContent(
+            JsonSerializer.Serialize(new { applicationId = "app-alice", privateKey = Pem() }) + new string(' ', 40 * 1024), System.Text.Encoding.UTF8, "application/json"));
 
-        Assert.True((int)response.StatusCode is 413 or 400 or 422, response.StatusCode.ToString());
+        Assert.Equal(HttpStatusCode.RequestEntityTooLarge, response.StatusCode);
         Assert.Equal(HttpStatusCode.NoContent, (await app.RawAsync(app.AdultA, HttpMethod.Get, Route)).StatusCode);
     }
 

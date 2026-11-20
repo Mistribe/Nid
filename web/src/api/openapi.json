@@ -12166,6 +12166,9 @@
                 }
               }
             }
+          },
+          "413": {
+            "description": "Payload Too Large"
           }
         }
       },

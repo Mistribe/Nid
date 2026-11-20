@@ -79,16 +79,34 @@ public static class BankingEndpoints
             .Returns<MyApplicationView>()
             .Produces(StatusCodes.Status204NoContent); // none declared
 
-        api.MapPut("/application", async (ApplicationBody body, IInvoker invoker, CancellationToken ct)
-                => (await invoker.InvokeAsync(new SaveMyApplicationCommand(body.ApplicationId ?? "", body.PrivateKey), ct)).ToHttp(view => view))
-            .Returns<MyApplicationView>()
-            .AddEndpointFilter(async (context, next) =>
+        // A key is a few KiB: the body is capped before anything reads it (the route binds nothing itself), 413 past it.
+        api.MapPut("/application", async (HttpRequest request, IInvoker invoker, CancellationToken ct) =>
             {
-                // A key is a few KiB: refuse anything bigger before it is parsed.
-                if (context.HttpContext.Features.Get<IHttpMaxRequestBodySizeFeature>() is { IsReadOnly: false } limit)
-                    limit.MaxRequestBodySize = 32 * 1024;
-                return await next(context);
-            });
+                const int MaxBody = 32 * 1024;
+                var tooLarge = Results.Problem(statusCode: StatusCodes.Status413PayloadTooLarge, detail: "The application is at most 32 KiB.");
+                if (request.ContentLength > MaxBody)
+                    return tooLarge;
+                if (request.HttpContext.Features.Get<IHttpMaxRequestBodySizeFeature>() is { IsReadOnly: false } limit)
+                    limit.MaxRequestBodySize = MaxBody;
+                ApplicationBody? body;
+                try
+                {
+                    body = await request.ReadFromJsonAsync<ApplicationBody>(ct);
+                }
+                catch (BadHttpRequestException e) when (e.StatusCode == StatusCodes.Status413PayloadTooLarge)
+                {
+                    return tooLarge;
+                }
+                catch (System.Text.Json.JsonException)
+                {
+                    return Results.Problem(statusCode: StatusCodes.Status400BadRequest, detail: "The body is not a valid application.");
+                }
+
+                return (await invoker.InvokeAsync(new SaveMyApplicationCommand(body?.ApplicationId ?? "", body?.PrivateKey), ct)).ToHttp(view => view);
+            })
+            .Accepts<ApplicationBody>("application/json")
+            .Returns<MyApplicationView>()
+            .Produces(StatusCodes.Status413PayloadTooLarge);
 
         api.MapDelete("/application", async (IInvoker invoker, CancellationToken ct) =>
             {
