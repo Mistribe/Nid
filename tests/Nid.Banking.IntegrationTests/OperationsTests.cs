@@ -310,4 +310,54 @@ public class OperationsTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         // Bob reads both accounts: for him it is a transfer, and it counts in neither.
         Assert.Equal("0.00", (await GetAsync(w.App, w.App.AdultB, "?state=internal")).GetProperty("totals").GetProperty("out").GetString());
     }
+
+    /// <summary>A −110 line split 40 « Courses » / 70 « Restauration », a −10 « Courses » line, a −20 line with no category.</summary>
+    private static async Task SeedSplitAsync(World w)
+    {
+        var split = await LineAsync(w.App, w.Joint, new(2025, 10, 3), -110m, "CB SUPERMARCHE ET RESTO");
+        await LineAsync(w.App, w.Joint, new(2025, 10, 4), -10m, "CB MARCHE", category: "food.groceries");
+        await LineAsync(w.App, w.Joint, new(2025, 10, 5), -20m, "CB DIVERS");
+        var response = await w.App.RawAsync(w.App.AdultA, HttpMethod.Put, $"{BankingApi.Root}/transactions/{split}/split", new
+        {
+            parts = new object[]
+            {
+                new { amount = "-40", categoryId = Seed("food.groceries") },
+                new { amount = "-70", categoryId = Seed("food.restaurants") },
+            },
+        });
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Totals_under_a_category_filter_count_the_matching_parts_of_a_split_line()
+    {
+        var w = await StartAsync();
+        await using var _ = w.App;
+        await SeedSplitAsync(w);
+
+        var groceries = await GetAsync(w.App, w.App.AdultA, $"?category={Seed("food.groceries")}");
+        Assert.Equal(2, groceries.GetProperty("total").GetInt32());
+        Assert.Equal("50.00", groceries.GetProperty("totals").GetProperty("out").GetString());
+        Assert.Equal("70.00", (await GetAsync(w.App, w.App.AdultA, $"?category={Seed("food.restaurants")}")).GetProperty("totals").GetProperty("out").GetString());
+        // No category filter: the lines are summed.
+        Assert.Equal("140.00", (await GetAsync(w.App, w.App.AdultA)).GetProperty("totals").GetProperty("out").GetString());
+    }
+
+    [Fact]
+    public async Task Totals_of_uncategorised_count_an_uncategorised_part_not_the_whole_split_line()
+    {
+        var w = await StartAsync();
+        await using var _ = w.App;
+        var split = await LineAsync(w.App, w.Joint, new(2025, 10, 3), -110m, "CB MIXTE");
+        await LineAsync(w.App, w.Joint, new(2025, 10, 5), -20m, "CB DIVERS");
+        var response = await w.App.RawAsync(w.App.AdultA, HttpMethod.Put, $"{BankingApi.Root}/transactions/{split}/split", new
+        {
+            parts = new object[] { new { amount = "-40", categoryId = Seed("food.groceries") }, new { amount = "-70" } },
+        });
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var page = await GetAsync(w.App, w.App.AdultA, "?uncategorised=true");
+        Assert.Equal(2, page.GetProperty("total").GetInt32());
+        Assert.Equal("90.00", page.GetProperty("totals").GetProperty("out").GetString());
+    }
 }

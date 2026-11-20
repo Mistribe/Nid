@@ -160,7 +160,17 @@ public sealed class TransactionStore(BankingDbContext db, IClock clock) : ITrans
         var ignoredAccounts = db.Accounts.Where(a => a.Ignored).Select(a => a.Id);
         // D19: an internal line whose counterpart the reader cannot read shows as linked, so it counts like one.
         var hidden = db.Links.Where(l => l.CounterpartAccountId != null && !readable.Contains(l.CounterpartAccountId.Value)).Select(l => l.TransactionId);
-        var sums = (await query.Where(t => t.LinkState != "ignored" && (t.LinkState != "internal" || hidden.Contains(t.Id)) && !ignoredAccounts.Contains(t.AccountId))
+        var counted = query.Where(t => t.LinkState != "ignored" && (t.LinkState != "internal" || hidden.Contains(t.Id)) && !ignoredAccounts.Contains(t.AccountId));
+        // Under a category filter a split line counts by its matching parts only (as the page lists it), else by its amount.
+        var byCategory = filter.Categories.Count > 0 || filter.Uncategorised;
+        var uncategorisedParts = filter.Uncategorised;
+        var entries = counted.Where(t => !byCategory || t.CategorySource != "split")
+            .Select(t => new SpendingEntry { LineId = t.Id, BookedOn = t.BookedOn, Currency = t.Currency, Amount = t.Amount });
+        if (byCategory)
+            entries = entries.Concat(db.TransactionParts.Where(p => (p.CategoryId != null && categories.Contains(p.CategoryId.Value)) || (uncategorisedParts && p.CategoryId == null))
+                .Join(counted.Where(t => t.CategorySource == "split"), p => p.TransactionId, t => t.Id,
+                    (p, t) => new SpendingEntry { LineId = t.Id, BookedOn = t.BookedOn, Currency = t.Currency, Amount = p.Amount }));
+        var sums = (await entries
             .GroupBy(t => new { t.Currency, t.BookedOn.Year, t.BookedOn.Month })
             .Select(g => new { g.Key, Debits = g.Sum(t => t.Amount < 0 ? t.Amount : 0m), Credits = g.Sum(t => t.Amount > 0 ? t.Amount : 0m) })
             .ToListAsync(ct))
