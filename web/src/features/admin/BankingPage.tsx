@@ -156,6 +156,10 @@ export function BankingPage() {
       )}>
       {problem ? <ProblemMessage problem={problem} /> : null}
 
+      <Section title={t('admin.banking.own_apps')}>
+        <p className="text-sm">{d.ownApplications?.length ? d.ownApplications.map((a) => a.name).join(', ') : t('admin.banking.own_apps_none')}</p>
+      </Section>
+
       {state === 'ready' ? null : (
         <Section title={t('admin.banking.setup_title')}>
           <p className="text-sm text-muted-foreground">{t('admin.banking.setup_intro')}</p>

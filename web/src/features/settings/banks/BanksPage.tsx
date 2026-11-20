@@ -32,8 +32,9 @@ import '@/locales/banks';
 // Loaded when opened: most visits import no statement.
 const ImportStatementDialog = lazy(() => import('../../investments/operations/ImportStatementDialog'));
 const CategoriesTab = lazy(() => import('./CategoriesTab'));
+const ApplicationTab = lazy(() => import('./ApplicationTab'));
 
-const TABS = ['accounts', 'categories'] as const;
+const TABS = ['accounts', 'categories', 'application'] as const;
 
 const PROPOSALS = '/api/v1/core/proposals' as const;
 const day = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'short' });
@@ -76,7 +77,7 @@ export function BanksPage() {
   );
 }
 
-/** « Comptes » (connections, accounts, rules) first, then « Catégories » (`?tab=categories`). */
+/** « Comptes » (connections, accounts, rules) first, then « Catégories » (`?tab=categories`) and « Mon application » (`?tab=application`), reachable whenever banking is on, configured or not. */
 function BanksTabs({ configured }: { configured: boolean }) {
   const { t } = useTranslation();
   const [tab, setTab] = useDetailTab(TABS);
@@ -85,6 +86,7 @@ function BanksTabs({ configured }: { configured: boolean }) {
     <DetailTabs value={tab} onChange={setTab} tabs={[
       { id: 'accounts', label: t('banks.tabs.accounts'), content: <div className="space-y-8"><Connections configured={configured} /><Rules /></div> },
       { id: 'categories', label: t('banks.tabs.categories'), content: <Suspense fallback={loading}><CategoriesTab /></Suspense> },
+      { id: 'application', label: t('banks.tabs.application'), content: <Suspense fallback={loading}><ApplicationTab /></Suspense> },
     ]} />
   );
 }

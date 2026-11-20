@@ -85,6 +85,8 @@
     "banking": {
       "title": "Banque",
       "figures": "État de la synchronisation bancaire",
+      "own_apps": "Adultes avec leur propre application",
+      "own_apps_none": "Aucun",
       "state": "État",
       "state_tip": "Désactivée : Nid ne lit aucune banque. À configurer : une étape de la mise en route reste à faire. Prête : chaque nuit, Nid lit les comptes reliés. En erreur : Enable Banking refuse la connexion ou la dernière synchronisation a échoué.",
       "state_disabled": "Désactivée",

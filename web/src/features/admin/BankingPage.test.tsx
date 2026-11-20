@@ -240,4 +240,20 @@ describe('Administration › Banque', () => {
     expect(figures()).toHaveTextContent(`Lectures sans la personne (24 h)3 / 4estimation de Nid · dernière limite de la banque : ${formatInstant(limitedAt)}`);
     expect(screen.getByRole('columnheader', { name: 'Limites de la banque' })).toBeInTheDocument();
   });
+
+  it('lists the adults who declared their own application, or says none', async () => {
+    serve(on, [], 0, [], { ...ready, ownApplications: [{ personId: 'a', name: 'Alice' }, { personId: 'b', name: 'Bob' }] });
+    await renderApp('/admin/banking', { capabilities: adminCapabilities });
+
+    const own = await screen.findByRole('region', { name: 'Adultes avec leur propre application' });
+    expect(own).toHaveTextContent('Alice');
+    expect(own).toHaveTextContent('Bob');
+  });
+
+  it('says none when no adult declared an application', async () => {
+    serve(on, [], 0, [], { ...ready, ownApplications: [] });
+    await renderApp('/admin/banking', { capabilities: adminCapabilities });
+
+    expect(await screen.findByRole('region', { name: 'Adultes avec leur propre application' })).toHaveTextContent('Aucun');
+  });
 });
