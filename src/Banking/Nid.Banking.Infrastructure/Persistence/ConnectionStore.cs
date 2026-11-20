@@ -18,17 +18,21 @@ public sealed class ConnectionStore(BankingDbContext db, IDataProtectionProvider
 
     private readonly IDataProtector _protector = protection.CreateProtector("Nid.Banking.Session");
 
-    public async Task<Guid> CreatePendingAsync(PersonId person, string aspspName, string country, byte[] stateHash, Instant expiresAt, CancellationToken ct)
+    public async Task<Guid> CreatePendingAsync(PersonId person, string applicationId, string aspspName, string country, byte[] stateHash, Instant expiresAt, CancellationToken ct)
     {
         var row = new ConnectionRow
         {
-            Id = Guid.CreateVersion7(), PersonId = person.Value, AspspName = aspspName, AspspCountry = country, StateHash = stateHash,
+            Id = Guid.CreateVersion7(), PersonId = person.Value, ApplicationId = applicationId, AspspName = aspspName, AspspCountry = country, StateHash = stateHash,
             StateExpiresAt = expiresAt, CreatedAt = clock.GetCurrentInstant(),
         };
         db.Connections.Add(row);
         await db.SaveChangesAsync(ct);
         return row.Id;
     }
+
+    public Task<bool> InUseAsync(string applicationId, PersonId? person, CancellationToken ct)
+        => db.Connections.AsNoTracking().AnyAsync(
+            c => c.ApplicationId == applicationId && c.Status != "pending" && (person == null || c.PersonId == person.Value.Value), ct);
 
     public async Task<BankConnection?> FindByStateAsync(byte[] stateHash, CancellationToken ct)
     {
@@ -163,5 +167,5 @@ public sealed class ConnectionStore(BankingDbContext db, IDataProtectionProvider
 
     private static BankConnection ToConnection(ConnectionRow r)
         => new(r.Id, new PersonId(r.PersonId), r.Source, r.AspspName, r.AspspCountry, Enum.Parse<ConnectionStatus>(r.Status, ignoreCase: true),
-            r.ValidUntil, r.LastSyncedAt, r.LastErrorCode, r.ConsecutiveFailures, r.CreatedAt);
+            r.ValidUntil, r.LastSyncedAt, r.LastErrorCode, r.ConsecutiveFailures, r.CreatedAt, r.ApplicationId);
 }

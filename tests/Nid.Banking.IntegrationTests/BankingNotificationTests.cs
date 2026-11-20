@@ -22,7 +22,7 @@ public class BankingNotificationTests(PostgresFixture fixture) : IClassFixture<P
         await using var scope = app.Services.CreateAsyncScope();
         scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
         var store = scope.ServiceProvider.GetRequiredService<IConnectionStore>();
-        var id = await store.CreatePendingAsync(person, "Boursorama", "FR", SHA256.HashData(Encoding.UTF8.GetBytes(Guid.NewGuid().ToString())), Now + Duration.FromMinutes(15), default);
+        var id = await store.CreatePendingAsync(person, "app-home", "Boursorama", "FR", SHA256.HashData(Encoding.UTF8.GetBytes(Guid.NewGuid().ToString())), Now + Duration.FromMinutes(15), default);
         await store.ActivateAsync(id, "session", Now + validFor, default);
         return id;
     }

@@ -30,7 +30,7 @@ public class CategoryStoreTests(PostgresFixture fixture) : IClassFixture<Postgre
     private static async Task<List<Guid>> LinesAsync(AsyncServiceScope scope, NidApp app, params string[] refs)
     {
         var connections = scope.ServiceProvider.GetRequiredService<IConnectionStore>();
-        var id = await connections.CreatePendingAsync(app.AdultA, "Boursorama", "FR", [1, 2, 3], At + Duration.FromMinutes(15), Ct);
+        var id = await connections.CreatePendingAsync(app.AdultA, "app-home", "Boursorama", "FR", [1, 2, 3], At + Duration.FromMinutes(15), Ct);
         await connections.ActivateAsync(id, "session", At + Duration.FromDays(180), Ct);
         var account = (await scope.ServiceProvider.GetRequiredService<IAccountStore>()
             .UpsertFromSessionAsync(id, [new SessionAccount("uid", "hash", "FR7630006000011234567890189", "Compte", "CACC", "EUR")], Ct))[0].Id;

@@ -99,7 +99,7 @@ public sealed class StartConnectionHandler(
         var started = await BankAuthorization.StartAsync(client, installation!, aspsp, command.RedirectUrl, now, ct);
         if (!started.TryGetValue(out var auth))
             return BankingAccess.Failed<ConnectionStarted, (string, byte[])>(started);
-        var id = await connections.CreatePendingAsync(access.Person, aspsp.Name, aspsp.Country, auth.StateHash, now + stateTime, ct);
+        var id = await connections.CreatePendingAsync(access.Person, installation!.Id, aspsp.Name, aspsp.Country, auth.StateHash, now + stateTime, ct);
         return Result.Success(new ConnectionStarted(id, auth.Url));
     }
 }

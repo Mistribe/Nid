@@ -5,11 +5,33 @@ using UnambitiousFx.Functional;
 
 namespace Nid.Banking.Application;
 
+/// <summary>What an adult's own application is, without its key.</summary>
+public sealed record StoredApplication(PersonId Person, string ApplicationId, Instant KeyLoadedAt, bool KeyReadable);
+
+/// <summary>Each adult's Enable Banking application; the private key is encrypted at rest and only <see cref="CredentialAsync"/> reads it back.</summary>
+public interface IApplicationStore
+{
+    Task<StoredApplication?> FindAsync(PersonId person, CancellationToken ct);
+
+    /// <summary>The decrypted key; null without an application or when the key ring cannot read it.</summary>
+    Task<EnableBankingApp?> CredentialAsync(PersonId person, CancellationToken ct);
+
+    /// <summary>Creates, or changes the id and/or the key (null <paramref name="privateKeyPem"/>: keeps the key).</summary>
+    Task SaveAsync(PersonId person, string applicationId, string? privateKeyPem, CancellationToken ct);
+
+    Task DeleteAsync(PersonId person, CancellationToken ct);
+
+    Task<IReadOnlyList<PersonId>> OwnersAsync(CancellationToken ct);
+}
+
 /// <summary>Bank connections (spec §2.2); the session id is encrypted at rest and only <see cref="SessionIdAsync"/> reads it back.</summary>
 public interface IConnectionStore
 {
     /// <summary>A connection waiting for the bank's callback; only the SHA-256 of its <c>state</c> is kept, until <paramref name="expiresAt"/>.</summary>
-    Task<Guid> CreatePendingAsync(PersonId person, string aspspName, string country, byte[] stateHash, Instant expiresAt, CancellationToken ct);
+    Task<Guid> CreatePendingAsync(PersonId person, string applicationId, string aspspName, string country, byte[] stateHash, Instant expiresAt, CancellationToken ct);
+
+    /// <summary>Whether a connection past its pending state was made with this application (the person's, when given).</summary>
+    Task<bool> InUseAsync(string applicationId, PersonId? person, CancellationToken ct);
 
     /// <summary>
     /// The connection holding this state hash (pending, or being renewed), which it clears: a state is used once, even past its time.
