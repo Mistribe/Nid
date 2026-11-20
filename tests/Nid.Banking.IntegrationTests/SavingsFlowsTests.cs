@@ -87,9 +87,7 @@ public class SavingsFlowsTests(PostgresFixture fixture) : IClassFixture<Postgres
         var withdrawal = await LineAsync(s, s.Day.PlusDays(3), -40m, "VIR COURANT");
         var split = await LineAsync(s, s.Day.PlusDays(4), 60m, "VIR ET INTERETS");
         await AsInterestAsync(s, interest);
-        await using (var scope = s.App.Services.CreateAsyncScope())
-            await scope.ServiceProvider.GetRequiredService<ISplitStore>().SplitAsync(split,
-                [new PartInput(50m, null, null), new PartInput(10m, await InterestCategoryAsync(s), null)], "test", BankingApi.Now, Ct);
+        await SplitAsync(s, split, 50m, 10m);
 
         var counts = await RunAsync(s, s.App.AdultA);
 
@@ -105,6 +103,44 @@ public class SavingsFlowsTests(PostgresFixture fixture) : IClassFixture<Postgres
                 (SavingsFlowPlan.InterestRef(split), FlowKind.Income, 10m, s.Day.PlusDays(4), "interest", "VIR ET INTERETS"),
             }.OrderBy(x => x.Item1),
             flows.Values.Select(f => (f.ExternalRef!, f.Kind, f.Amount.Amount, f.OccurredOn, f.Category, f.Note)).OrderBy(x => x.Item1));
+    }
+
+    private static async Task SplitAsync(Setup s, Guid line, decimal movement, decimal interest)
+    {
+        await using var scope = s.App.Services.CreateAsyncScope();
+        await scope.ServiceProvider.GetRequiredService<ISplitStore>().SplitAsync(line,
+            [new PartInput(movement, null, null), new PartInput(interest, await InterestCategoryAsync(s), null)], "test", BankingApi.Now, Ct);
+    }
+
+    [Fact]
+    public async Task Resplitting_a_line_supersedes_its_flows()
+    {
+        await using var s = await AssociatedAsync();
+        var line = await LineAsync(s, s.Day, 60m, "VIR ET INTERETS");
+        await SplitAsync(s, line, 50m, 10m);
+        Assert.Equal(new SavingsFlowCounts(2, 0, 0, 0), await RunAsync(s, s.App.AdultA));
+
+        await SplitAsync(s, line, 40m, 20m);
+
+        Assert.Equal(new SavingsFlowCounts(0, 2, 0, 0), await RunAsync(s, s.App.AdultA));
+        Assert.Equal(
+            [(SavingsFlowPlan.MovementRef(line), FlowKind.Contribution, 40m), (SavingsFlowPlan.InterestRef(line), FlowKind.Income, 20m)],
+            (await FlowsAsync(s)).Select(f => (f.ExternalRef!, f.Kind, f.Amount.Amount)).OrderBy(x => x.Item1, StringComparer.Ordinal));
+    }
+
+    [Fact]
+    public async Task A_line_booked_after_today_waits_for_its_day()
+    {
+        await using var s = await AssociatedAsync();
+        LocalDate today;
+        await using (var scope = s.App.Services.CreateAsyncScope())
+            today = await scope.ServiceProvider.GetRequiredService<IHouseholdCalendar>().TodayAsync(Ct);
+        var booked = await LineAsync(s, today, 100m, "VIR LIVRET");
+        await LineAsync(s, today.PlusDays(1), 30m, "VIR A VENIR");
+
+        Assert.Equal(new SavingsFlowCounts(1, 0, 0, 0), await RunAsync(s, s.App.AdultA));
+
+        Assert.Equal(SavingsFlowPlan.MovementRef(booked), Assert.Single(await FlowsAsync(s)).ExternalRef);
     }
 
     [Fact]

@@ -19,7 +19,7 @@ public sealed record SavingsFlowCounts(int Recorded, int Superseded, int Voided,
 /// </summary>
 public sealed class SavingsFlows(
     IAccountStore accountStore, ITransactionStore transactions, ISplitStore splits, ICategoryStore categories, IEnvelopeStore envelopes,
-    IItemRegistry items, IAccessPolicy policy, IFlows flows, IActorAccessor actor, ILogger<SavingsFlows> log)
+    IItemRegistry items, IAccessPolicy policy, IFlows flows, IHouseholdCalendar calendar, IActorAccessor actor, ILogger<SavingsFlows> log)
 {
     private const int Page = 500;
 
@@ -42,19 +42,21 @@ public sealed class SavingsFlows(
                     list.Add(found);
 
         var interest = await categories.ResolveKeyAsync("income.interest", ct);
+        var today = await calendar.TodayAsync(ct);
         var tally = new Tally();
         foreach (var account in list)
             try
             {
-                if (await AccountAsync(account, reader, interest, tally, ct) is { } code)
+                if (await AccountAsync(account, reader, interest, today, tally, ct) is { } code)
                 {
-                    log.LogWarning("The savings flows of a bank account were refused {Code}", code);
+                    log.LogWarning("The savings flows of bank account {Account} were refused {Code}", account.Id, code);
                     tally.Skipped++;
                 }
             }
             catch (Exception e) when (!ct.IsCancellationRequested)
             {
-                log.LogError("The savings flows of a bank account threw {Exception}", e.GetType().Name);
+                // The type only, as the rest of Banking: a message may carry a label or an amount.
+                log.LogError("The savings flows of bank account {Account} threw {Exception}", account.Id, e.GetType().Name);
                 tally.Skipped++;
             }
         return new SavingsFlowCounts(tally.Recorded, tally.Superseded, tally.Voided, tally.Skipped);
@@ -64,7 +66,7 @@ public sealed class SavingsFlows(
         => await transactions.FindAsync(line, ct) is { } found ? await RunAsync([found.Account], reader, ct) : new SavingsFlowCounts(0, 0, 0, 0);
 
     /// <summary>The failure code of a refused write, null when done or not a savings account.</summary>
-    private async Task<string?> AccountAsync(BankAccount account, PersonId? reader, Guid? interest, Tally tally, CancellationToken ct)
+    private async Task<string?> AccountAsync(BankAccount account, PersonId? reader, Guid? interest, LocalDate today, Tally tally, CancellationToken ct)
     {
         if (account is not { Envelope: { } envelope, AssociatedOn: { } associatedOn }
             || (await envelopes.FindAsync(envelope, ct))?.Kind != EnvelopeKind.Savings
@@ -80,7 +82,7 @@ public sealed class SavingsFlows(
         actor.Current = Actor.BankSync(writer);
         try
         {
-            return await WriteAsync(account, envelope, associatedOn, interest, tally, ct);
+            return await WriteAsync(account, envelope, associatedOn, interest, today, tally, ct);
         }
         finally
         {
@@ -88,7 +90,8 @@ public sealed class SavingsFlows(
         }
     }
 
-    private async Task<string?> WriteAsync(BankAccount account, ItemId envelope, LocalDate associatedOn, Guid? interest, Tally tally, CancellationToken ct)
+    private async Task<string?> WriteAsync(
+        BankAccount account, ItemId envelope, LocalDate associatedOn, Guid? interest, LocalDate today, Tally tally, CancellationToken ct)
     {
         var read = new List<BankTransaction>();
         IReadOnlyList<BankTransaction> page;
@@ -109,10 +112,10 @@ public sealed class SavingsFlows(
             .OrderBy(f => f.OccurredOn).ThenBy(f => f.Id)
             .Select(f => new TypedFlow(f.Id, f.OccurredOn, f.Kind, f.Amount.Amount))
             .ToList();
-        var banked = current!.Where(f => f.ExternalRef?.StartsWith(SavingsFlowPlan.RefPrefix, StringComparison.Ordinal) == true).ToList();
-        // Two passes at once may both record a ref: the first is kept, the other voided below.
-        var existing = banked.GroupBy(f => f.ExternalRef!, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
-        var wanted = SavingsFlowPlan.Plan(lines, typed, associatedOn, account.Currency.Code);
+        var existing = current!.Where(f => f.ExternalRef?.StartsWith(SavingsFlowPlan.RefPrefix, StringComparison.Ordinal) == true)
+            .ToDictionary(f => f.ExternalRef!, StringComparer.Ordinal);
+        // Core refuses a flow dated after today: a line booked ahead waits for its day, the others are written.
+        var wanted = SavingsFlowPlan.Plan(lines, typed, associatedOn, account.Currency.Code).Where(w => w.OccurredOn <= today).ToList();
 
         var missing = new List<NewFlow>();
         foreach (var w in wanted)
@@ -134,8 +137,8 @@ public sealed class SavingsFlows(
         // Only a flow of a line read here: one whose line was purged, or is older than the association, stays as it is.
         var readIds = read.Select(l => l.Id).ToHashSet();
         var wantedRefs = wanted.Select(w => w.Ref).ToHashSet(StringComparer.Ordinal);
-        foreach (var held in banked)
-            if ((!wantedRefs.Contains(held.ExternalRef!) || existing[held.ExternalRef!].Id != held.Id) && LineOf(held.ExternalRef!) is { } line && readIds.Contains(line))
+        foreach (var (reference, held) in existing)
+            if (!wantedRefs.Contains(reference) && LineOf(reference) is { } line && readIds.Contains(line))
             {
                 if ((await flows.VoidAsync(envelope, held.Id, ct)).TryGetFailure(out var failure))
                     return failure!.Code;
