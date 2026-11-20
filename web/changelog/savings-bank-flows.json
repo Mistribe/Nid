@@ -1,4 +1,4 @@
 {
-  "en": "A savings account fed by the bank (connection or statement) now records its deposits, withdrawals and interest by itself, and a new \"Interest\" category files the interest it earns.",
-  "fr": "Un livret alimenté par la banque (connexion ou relevé) enregistre désormais tout seul ses versements, retraits et intérêts, et une nouvelle catégorie « Intérêts » range les intérêts qu’il rapporte."
+  "en": "A savings account fed by the bank (connection or statement) now records its deposits, withdrawals and interest by itself, and a new \"Interest\" category files the interest it earns. Its deposits and withdrawals read \"From the bank\" and are changed by recategorising the transaction.",
+  "fr": "Un livret alimenté par la banque (connexion ou relevé) enregistre désormais tout seul ses versements, retraits et intérêts, et une nouvelle catégorie « Intérêts » range les intérêts qu’il rapporte. Ses versements et retraits portent la mention « Depuis la banque » et se corrigent en changeant la catégorie de l’opération."
 }

@@ -47,7 +47,7 @@ export function RowActions(props: RowActionsProps) {
 
   if (props.kind === 'flow' && isBankFlow(props.item)) {
     return (
-      <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+      <span className="flex items-center justify-end gap-1.5 whitespace-nowrap text-sm text-muted-foreground">
         {t('envelope.from_bank')}
         <InfoTip label={t('envelope.from_bank')}>{t('envelope.from_bank_hint')}</InfoTip>
       </span>
