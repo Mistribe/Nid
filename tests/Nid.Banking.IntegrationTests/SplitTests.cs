@@ -96,6 +96,22 @@ public class SplitTests(PostgresFixture fixture) : IClassFixture<PostgresFixture
     }
 
     [Fact]
+    public async Task A_split_that_does_not_add_up_says_by_how_much()
+    {
+        await using var s = await StartAsync(fixture);
+        var app = s.App;
+        var line = await AddAsync(app, s.Courant, "a", -100m);
+
+        var response = await SplitAsync(app, app.AdultA, line, Part(-60m), Part(-39.99m));
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+        var body = await BankingApi.JsonAsync(response);
+        Assert.Equal("-99.99", body.GetProperty("partsSum").GetString());
+        Assert.Equal("-100.00", body.GetProperty("lineAmount").GetString());
+        Assert.Equal(BankingCodes.SplitSum, body.GetProperty("code").GetString());
+    }
+
+    [Fact]
     public async Task A_split_that_does_not_add_up_or_has_bad_parts_is_refused()
     {
         await using var s = await StartAsync(fixture);

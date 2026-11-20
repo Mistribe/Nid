@@ -72,10 +72,10 @@ describe('« Opérations »: note and split', () => {
     ] }]));
   });
 
-  it('shows the server message when the parts do not add up', async () => {
+  it('says by how much the parts miss the line', async () => {
     serve(shop);
     server.use(http.put('*/api/v1/banking/transactions/:id/split', () => HttpResponse.json(
-      { status: 422, code: 'banking.split_sum', detail: 'The parts add up to 50.00, the line to 60.00.', errors: [{ path: 'parts', code: 'banking.split_sum', message: 'The parts add up to 50.00, the line to 60.00.' }] },
+      { status: 422, code: 'banking.split_sum', detail: "The parts add up to the line's amount.", partsSum: '-50.00', lineAmount: '-60.00' },
       { status: 422, headers: { 'content-type': 'application/problem+json' } })));
     const user = await openMenu('Découper…');
     const dialog = await screen.findByRole('dialog', { name: "Découper l'opération" });
@@ -83,7 +83,7 @@ describe('« Opérations »: note and split', () => {
     await user.type(amounts[0]!, '30');
     await user.type(amounts[1]!, '20');
     await user.click(within(dialog).getByRole('button', { name: 'Découper' }));
-    expect(await within(dialog).findByText('La somme des parties doit être égale au montant de la ligne.')).toBeInTheDocument();
+    expect(await within(dialog).findByText(/Les parties font 50,00.€, l'opération fait 60,00.€\./)).toBeInTheDocument();
   });
 
   it('sends a credit line unsigned, a comma as a point, and refuses junk typed amounts', async () => {

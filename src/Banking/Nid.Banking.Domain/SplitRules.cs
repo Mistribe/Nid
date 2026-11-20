@@ -1,3 +1,4 @@
+using System.Globalization;
 using Nid.Banking.Contracts;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Functional.Failures;
@@ -19,8 +20,14 @@ public static class SplitRules
         if (parts.Any(p => p.Amount == 0m || Math.Sign(p.Amount) != Math.Sign(lineAmount) || decimal.Round(p.Amount, 4) != p.Amount
             || (p.Note?.Trim().Length ?? 0) > MaxNote))
             return Fail(BankingCodes.SplitPart, $"A part is not zero, has the line's sign, 4 decimals at most and a note of {MaxNote} characters at most.");
-        return parts.Sum(p => p.Amount) == lineAmount ? Result.Success() : Fail(BankingCodes.SplitSum, "The parts add up to the line's amount.");
+        return parts.Sum(p => p.Amount) == lineAmount ? Result.Success() : Fail(BankingCodes.SplitSum, "The parts add up to the line's amount.", Sums(parts.Sum(p => p.Amount), lineAmount));
     }
 
-    private static Result Fail(string code, string message) => Result.Failure(new Failure(code, message, new Dictionary<string, object?> { ["field"] = "parts" }));
+    /// <summary>Both sums as decimal strings, so the form can say by how much they differ. Not a located field error: the mapper
+    /// exposes a plain failure's metadata (ProblemMapping.Exposed), not a validation error's.</summary>
+    private static Dictionary<string, object?> Sums(decimal parts, decimal line)
+        => new() { ["partsSum"] = parts.ToString("0.00##", CultureInfo.InvariantCulture), ["lineAmount"] = line.ToString("0.00##", CultureInfo.InvariantCulture) };
+
+    private static Result Fail(string code, string message, Dictionary<string, object?>? sums = null)
+        => Result.Failure(new Failure(code, message, sums ?? new Dictionary<string, object?> { ["field"] = "parts" }));
 }

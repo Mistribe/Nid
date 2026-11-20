@@ -24,7 +24,7 @@ type Part = { key: number; amount: string; category: string; note: string };
 
 /**
  * « Découper »: a line into 2 to 20 parts, typed positive and sent with the line's sign. The dialog adds nothing up: the server
- * answers `banking.split_sum` with the two sums, shown on the parts.
+ * refuses a wrong sum with `banking.split_sum` and both sums (`partsSum`, `lineAmount`), which the message below the parts quotes.
  */
 export default function SplitDialog({ line, onClose, onDone }: { line: BankTransaction; onClose: () => void; onDone: (message: string) => void }) {
   const { t } = useTranslation();
@@ -40,6 +40,10 @@ export default function SplitDialog({ line, onClose, onDone }: { line: BankTrans
   const change = (key: number, over: Partial<Part>) => setParts((all) => all.map((p) => (p.key === key ? { ...p, ...over } : p)));
   const errors = fieldErrorsOf(split.error);
   const onParts = errors.find((f) => f.path === 'parts');
+  const refused = toProblem(split.error) as { code?: string; partsSum?: string; lineAmount?: string };
+  const unsigned = (amount: string) => formatCurrency(amount.replace(/^-/, ''), line.currency);
+  const sumMessage = refused.code === 'banking.split_sum' && refused.partsSum && refused.lineAmount
+    ? t('field_error.banking_split_sum', { parts: unsigned(refused.partsSum), line: unsigned(refused.lineAmount) }) : undefined;
   const [checked, setChecked] = useState(false);
   const bad = (p: Part) => checked && !AMOUNT.test(p.amount.trim());
 
@@ -57,7 +61,7 @@ export default function SplitDialog({ line, onClose, onDone }: { line: BankTrans
           }, { onSuccess: () => done(t('banks.operations.done_split')) });
         }}>
           <p className="text-sm text-muted-foreground">{line.label} · {formatCurrency(line.amount, line.currency)}</p>
-          {split.error && !onParts ? <ProblemMessage problem={present(toProblem(split.error))} /> : null}
+          {split.error && !onParts && !sumMessage ? <ProblemMessage problem={present(toProblem(split.error))} /> : null}
           <ul className="space-y-3">
             {parts.map((p, i) => (
               <li key={p.key} className="grid gap-2 sm:grid-cols-[8rem_1fr_1fr_auto] sm:items-end">
@@ -77,7 +81,7 @@ export default function SplitDialog({ line, onClose, onDone }: { line: BankTrans
               </li>
             ))}
           </ul>
-          {onParts ? <p role="alert" className="text-sm text-destructive">{messageFor(t, onParts)}</p> : null}
+          {sumMessage || onParts ? <p role="alert" className="text-sm text-destructive">{sumMessage ?? messageFor(t, onParts!)}</p> : null}
           <Button type="button" variant="outline" disabled={parts.length >= MAX_PARTS} onClick={() => setParts((all) => [...all, blank()])}>{t('banks.operations.part_add')}</Button>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => done()}>{t('common.cancel')}</Button>

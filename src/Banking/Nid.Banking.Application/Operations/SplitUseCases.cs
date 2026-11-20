@@ -59,7 +59,8 @@ public sealed class SplitTransactionHandler(BankingAccess access, BankLines line
             return BankingAccess.Failed<BankTransactionView, BankTransaction>(found);
         var valid = SplitRules.Validate(line!.Amount, command.Parts);
         if (valid.TryGetFailure(out var invalid))
-            return Result.Failure<BankTransactionView>(FieldErrors.At(invalid, "parts"));
+            // A sum refusal carries both sums as they are (a located field error would drop them).
+            return Result.Failure<BankTransactionView>(invalid.Code == BankingCodes.SplitSum ? invalid : FieldErrors.At(invalid, "parts"));
         foreach (var id in command.Parts.Select(p => p.CategoryId).OfType<Guid>().Distinct())
         {
             if (await categories.FindAsync(id, ct) is not { } category)
