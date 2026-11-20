@@ -8,7 +8,7 @@ const address = 'https://nid.example.org/mcp';
 describe('MCP snippets', () => {
   it('pins mcp-remote and keeps the token out of the arguments', () => {
     const config = JSON.parse(claudeDesktopConfig(address, 'secret')) as { mcpServers: { nid: { args: string[]; env: Record<string, string> } } };
-    expect(config.mcpServers.nid.args).toEqual(['-y', 'mcp-remote@0.16.5', address, '--header', 'Authorization:${NID_AUTH}']);
+    expect(config.mcpServers.nid.args).toEqual(['-y', MCP_REMOTE, address, '--header', 'Authorization:${NID_AUTH}']);
     expect(config.mcpServers.nid.env).toEqual({ NID_AUTH: 'Bearer secret' });
   });
 
