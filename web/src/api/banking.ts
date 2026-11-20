@@ -92,6 +92,9 @@ export const bankErrorText = (t: TFunction, code: string, fallback: string) => t
 export function presentBankError(t: TFunction, error: unknown): Presentation {
   const problem = toProblem(error);
   const shown = present(problem);
+  // The size cap and the JSON-only guard answer before any code: 413 is an oversized key file, 415 a malformed upload.
+  if (problem.status === 413) return { ...shown, detail: t('banks.application.file_too_large') };
+  if (problem.status === 415) return { ...shown, detail: t('banks.error.invalid_upload') };
   return problem.code?.startsWith('banking.') ? { ...shown, detail: bankErrorText(t, problem.code, shown.detail ?? '') } : shown;
 }
 

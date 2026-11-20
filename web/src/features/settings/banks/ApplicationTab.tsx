@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
+import { ConnectionTestResult } from './ConnectionTestResult';
 import { bankErrorText, presentBankError } from '@/api/banking';
 import { formatInstantDate } from '@/lib/format';
 import '@/locales/banks';
@@ -26,6 +27,7 @@ const APPLICATION = '/api/v1/banking/application' as const;
 const TEST = '/api/v1/banking/application/test' as const;
 
 type Test = components['schemas']['BankingConnectionTestView'];
+const MAX_KEY_BYTES = 16 * 1024;
 
 /**
  * Réglages › Banques › Mon application (#382): the Enable Banking application this adult declares instead of the installation's.
@@ -76,7 +78,7 @@ export default function ApplicationTab() {
               ]} />
             </span>
           </div>
-          <div aria-live="polite" className="space-y-1">{tested ? <TestResult result={tested} /> : null}</div>
+          <div aria-live="polite" className="space-y-1">{tested ? <ConnectionTestResult result={tested} /> : null}</div>
         </div>
       ) : <div><Button type="button" onClick={() => setDialog('declare')}>{t('banks.application.declare')}</Button></div>}
       {dialog ? <ApplicationDialog current={view ?? null} onClose={() => setDialog(null)} onDone={done} /> : null}
@@ -88,20 +90,6 @@ export default function ApplicationTab() {
   );
 }
 
-function TestResult({ result }: { result: Test }) {
-  const { t } = useTranslation();
-  if (result.outcome === 'rejected')
-    return <p className="text-sm text-status-warning-text">{t('banks.application.test_rejected')} <code>{result.code}</code></p>;
-  if (result.outcome !== 'accepted') return <p className="text-sm text-status-warning-text">{t('banks.application.test_unreachable')}</p>;
-  return (
-    <>
-      <p className="text-sm text-status-good-text">{t('banks.application.test_accepted')}</p>
-      {result.active === false ? <p className="text-sm text-status-warning-text">{t('banks.application.test_inactive')}</p> : null}
-      {result.redirectUrlAllowed === false ? <p className="text-sm text-status-warning-text">{t('banks.application.test_redirect_missing')}</p> : null}
-    </>
-  );
-}
-
 /** The identifier and the key; with an application already declared, an empty key keeps the one loaded. The key lives in this dialog's state only. */
 function ApplicationDialog({ current, onClose, onDone }: {
   current: components['schemas']['MyApplicationView'] | null; onClose: () => void; onDone: (message: string) => void;
@@ -110,6 +98,7 @@ function ApplicationDialog({ current, onClose, onDone }: {
   const { $api } = useApi();
   const [applicationId, setApplicationId] = useState(current?.applicationId ?? '');
   const [privateKey, setPrivateKey] = useState('');
+  const [fileError, setFileError] = useState<string>();
   const save = $api.useMutation('put', APPLICATION);
   const fields = fieldErrorsOf(save.error);
   const fieldText = (path: string) => {
@@ -132,7 +121,7 @@ function ApplicationDialog({ current, onClose, onDone }: {
             tip={<InfoTip label={t('banks.application.id')}>{t('banks.application.id_tip')}</InfoTip>}>
             {(c) => <Input {...c} value={applicationId} autoComplete="off" onChange={(e) => setApplicationId(e.target.value)} />}
           </Field>
-          <Field label={t('banks.application.private_key')} error={fieldText('privateKey')}
+          <Field label={t('banks.application.private_key')} error={fileError ?? fieldText('privateKey')}
             hint={replacing ? t('banks.application.key_replace_hint') : t('banks.application.key_hint')}
             tip={<InfoTip label={t('banks.application.private_key')}>{t('banks.application.key_tip')}</InfoTip>}>
             {(c) => (
@@ -140,7 +129,16 @@ function ApplicationDialog({ current, onClose, onDone }: {
                 <Textarea {...c} value={privateKey} rows={5} spellCheck={false} autoComplete="off" className="font-mono text-xs"
                   onChange={(e) => setPrivateKey(e.target.value)} />
                 <Input type="file" accept=".pem,.key,text/plain" aria-label={t('banks.application.key_file')}
-                  onChange={(e) => { const file = e.target.files?.[0]; if (file) void file.text().then(setPrivateKey); }} />
+                  onChange={(e) => {
+                    const input = e.currentTarget;
+                    const file = input.files?.[0];
+                    setFileError(undefined);
+                    if (!file) return;
+                    if (file.size > MAX_KEY_BYTES) setFileError(t('banks.application.file_too_large'));
+                    else file.text().then(setPrivateKey, () => setFileError(t('banks.application.file_unreadable')));
+                    // The key is now in the field only: the input keeps no file.
+                    input.value = '';
+                  }} />
               </div>
             )}
           </Field>

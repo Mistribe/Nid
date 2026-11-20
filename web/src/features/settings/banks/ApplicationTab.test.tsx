@@ -137,4 +137,44 @@ describe('Réglages › Banques › Mon application', () => {
 
     expect(await screen.findByText('Enable Banking accepte l’identifiant et la clé.')).toBeInTheDocument();
   });
+
+  it('refuses a key file over 16 KiB before sending it', async () => {
+    const writes = serve(null);
+    const { user } = await open();
+
+    await user.click(await screen.findByRole('button', { name: 'Déclarer mon application' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.upload(within(dialog).getByLabelText('Choisir le fichier de la clé'), new File(['x'.repeat(16 * 1024 + 1)], 'big.pem'));
+
+    expect(await within(dialog).findByText('Le fichier dépasse 16 Kio : ce n’est pas une clé privée.')).toBeInTheDocument();
+    expect(within(dialog).getByRole('textbox', { name: /Clé privée/ })).toHaveValue('');
+    expect(writes).toEqual([]);
+  });
+
+  it('reads a key file into the field', async () => {
+    serve(null);
+    const { user } = await open();
+
+    await user.click(await screen.findByRole('button', { name: 'Déclarer mon application' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.upload(within(dialog).getByLabelText('Choisir le fichier de la clé'), new File([PEM], 'key.pem'));
+
+    await waitFor(() => expect(within(dialog).getByRole('textbox', { name: /Clé privée/ })).toHaveValue(PEM));
+  });
+
+  it('words a 413 and a 415 from the server', async () => {
+    serve(null);
+    server.use(http.put('*/api/v1/banking/application', () => HttpResponse.json({ status: 413 }, { status: 413 })));
+    const { user } = await open();
+
+    await user.click(await screen.findByRole('button', { name: 'Déclarer mon application' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.type(within(dialog).getByRole('textbox', { name: /Identifiant/ }), 'app-alice');
+    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
+    expect(await within(dialog).findByText('Le fichier dépasse 16 Kio : ce n’est pas une clé privée.')).toBeInTheDocument();
+
+    server.use(http.put('*/api/v1/banking/application', () => HttpResponse.json({ status: 415 }, { status: 415 })));
+    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
+    expect(await within(dialog).findByText('Envoi invalide, réessayez.')).toBeInTheDocument();
+  });
 });

@@ -57,6 +57,7 @@
       "banking_application_id_invalid": "Cet identifiant n’est pas valable, ou c’est celui de l’installation.",
       "banking_key_required": "La clé privée est nécessaire pour déclarer une application.",
       "banking_key_invalid": "Cette clé n’est pas une clé privée valide : envoyez le fichier .pem de votre application.",
+      "invalid_upload": "Envoi invalide, réessayez.",
       "banking_application_in_use": "Supprimez d’abord les banques reliées avec cette application.",
       "banking_application_changed": "Votre application a changé entre-temps, rechargez la page.",
       "generic": "La banque n'a pas pu être reliée.",
@@ -234,11 +235,8 @@
       "replaced": "Application mise à jour.",
       "removed": "Application retirée.",
       "failed": "L’opération a échoué.",
-      "test_accepted": "Enable Banking accepte l’identifiant et la clé.",
-      "test_inactive": "L’application n’est pas encore active : en mode restreint, reliez au moins un compte dans le portail Enable Banking.",
-      "test_redirect_missing": "L’application ne déclare pas l’adresse de retour de Nid : ajoutez-la dans le portail Enable Banking, exactement.",
-      "test_rejected": "Enable Banking refuse l’identifiant et la clé : vérifiez que la clé privée est bien celle de cette application. Code :",
-      "test_unreachable": "Nid n’a pas pu joindre Enable Banking : réessayez plus tard."
+      "file_too_large": "Le fichier dépasse 16 Kio : ce n’est pas une clé privée.",
+      "file_unreadable": "Ce fichier n’a pas pu être lu : choisissez-le de nouveau ou collez son contenu."
     },
     "category_rules": {
       "title": "Règles de catégorie",
