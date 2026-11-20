@@ -298,6 +298,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<Nid.Banking.Application.Reconciliation.TransactionLinker>();
         services.AddScoped<Nid.Banking.Application.Reconciliation.CategoryBackfill>();
         services.AddScoped<Nid.Banking.Application.Reconciliation.CategoryRuleApplier>();
+        services.AddScoped<Nid.Banking.Application.Reconciliation.LineRecategoriser>();
         services.AddScoped<Nid.Banking.Application.Reconciliation.BankReconciliation>();
         services.AddScoped<Nid.Banking.Application.Reconciliation.RecurringDebits>();
         services.AddScoped<Nid.Banking.Application.BankLines>();

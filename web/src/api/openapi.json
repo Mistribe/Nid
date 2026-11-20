@@ -49837,17 +49837,17 @@
               "string"
             ]
           }
-        }
+        },
+        "additionalProperties": false
       },
       "LinePartBody": {
-        "required": [
-          "amount"
-        ],
         "type": "object",
         "properties": {
           "amount": {
-            "type": "number",
-            "format": "double"
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "categoryId": {
             "type": [
@@ -49862,7 +49862,8 @@
               "string"
             ]
           }
-        }
+        },
+        "additionalProperties": false
       },
       "LineSplitBody": {
         "type": "object",
@@ -49876,7 +49877,8 @@
               "$ref": "#/components/schemas/LinePartBody"
             }
           }
-        }
+        },
+        "additionalProperties": false
       },
       "LineView": {
         "required": [

@@ -1,6 +1,8 @@
 using System.Net;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Nid.Banking.Infrastructure.Persistence;
 using Nid.Banking.Application;
 using Nid.Banking.Contracts;
 using Nid.Banking.Domain;
@@ -53,7 +55,7 @@ public class SplitTests(PostgresFixture fixture) : IClassFixture<PostgresFixture
 
     private static string Url(Guid line, string tail) => $"{BankingApi.Root}/transactions/{line}/{tail}";
 
-    private static object Part(decimal amount, string? key = null, string? note = null) => new { amount, categoryId = key is null ? (Guid?)null : Seed(key), note };
+    private static object Part(decimal amount, string? key = null, string? note = null) => new { amount = amount.ToString(System.Globalization.CultureInfo.InvariantCulture), categoryId = key is null ? (Guid?)null : Seed(key), note };
 
     private static Task<HttpResponseMessage> SplitAsync(NidApp app, PersonId person, Guid line, params object[] parts)
         => app.RawAsync(person, HttpMethod.Put, Url(line, "split"), new { parts });
@@ -105,7 +107,7 @@ public class SplitTests(PostgresFixture fixture) : IClassFixture<PostgresFixture
         await BankingApi.AssertRefusedAsync(await SplitAsync(app, app.AdultA, line, Part(-100m)), HttpStatusCode.UnprocessableEntity, BankingCodes.SplitPart);
         await BankingApi.AssertRefusedAsync(await SplitAsync(app, app.AdultA, line, Part(-60m, note: new string('x', 501)), Part(-40m)),
             HttpStatusCode.UnprocessableEntity, BankingCodes.SplitPart);
-        Assert.Equal(HttpStatusCode.NotFound, (await SplitAsync(app, app.AdultA, line, Part(-60m), new { amount = -40m, categoryId = Guid.NewGuid() })).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await SplitAsync(app, app.AdultA, line, Part(-60m), new { amount = "-40", categoryId = Guid.NewGuid() })).StatusCode);
         Assert.Equal((null, false, 0), Of(await LineAsync(app, app.AdultA, line)));
     }
 
@@ -215,5 +217,58 @@ public class SplitTests(PostgresFixture fixture) : IClassFixture<PostgresFixture
 
         Assert.Equal(new[] { noted, split }.Order(), (await store.ListAsync([s.Courant], null, null, 0, 10, TestContext.Current.CancellationToken)).Select(t => t.Id).Order());
         Assert.DoesNotContain(plain, (await store.ListAsync([s.Courant], null, null, 0, 10, TestContext.Current.CancellationToken)).Select(t => t.Id));
+    }
+
+    [Fact]
+    public async Task A_null_part_a_missing_or_malformed_amount_and_an_unknown_key_are_refused()
+    {
+        await using var s = await StartAsync(fixture);
+        var app = s.App;
+        var line = await AddAsync(app, s.Courant, "a", -100m);
+        Task<HttpResponseMessage> Put(object body) => app.RawAsync(app.AdultA, HttpMethod.Put, Url(line, "split"), body);
+
+        await BankingApi.AssertRefusedAsync(await Put(new { parts = new object?[] { null, Part(-100m) } }), HttpStatusCode.UnprocessableEntity, BankingCodes.SplitPart);
+        await BankingApi.AssertRefusedAsync(await Put(new { parts = new object[] { new { note = "x" }, Part(-100m) } }), HttpStatusCode.UnprocessableEntity, BankingCodes.SplitPart);
+        await BankingApi.AssertRefusedAsync(await Put(new { parts = new object[] { new { amount = "abc" }, Part(-100m) } }), HttpStatusCode.UnprocessableEntity, BankingCodes.SplitPart);
+        await BankingApi.AssertRefusedAsync(await Put(new { }), HttpStatusCode.UnprocessableEntity, BankingCodes.SplitPart);
+        Assert.Equal(HttpStatusCode.BadRequest, (await Put(new { parts = new object[] { Part(-60m), Part(-40m) }, extra = 1 })).StatusCode);
+        Assert.Equal((null, false, 0), Of(await LineAsync(app, app.AdultA, line)));
+    }
+
+    [Fact]
+    public async Task Unsplitting_a_linked_line_gives_back_its_link_category()
+    {
+        await using var s = await StartAsync(fixture);
+        var app = s.App;
+        var line = await AddAsync(app, s.Courant, "a", -500m, "VIR VERS LIVRET");
+        await using (var scope = app.Services.CreateAsyncScope())
+        {
+            scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
+            await scope.ServiceProvider.GetRequiredService<ILinkStore>().SetAsync(new BankLink(line, null, null, null, s.Livret,
+                LinkOutcome.InternalTransfer, null, "job", At), TransactionLinkState.Internal, TestContext.Current.CancellationToken, "internal.transfer");
+        }
+        await OkAsync(await app.RawAsync(app.AdultA, HttpMethod.Put, Url(line, "category"), new { categoryId = Seed("food.groceries") }));
+        await OkAsync(await SplitAsync(app, app.AdultA, line, Part(-300m, "food.groceries"), Part(-200m)));
+
+        var back = await OkAsync(await app.RawAsync(app.AdultA, HttpMethod.Delete, Url(line, "split")));
+
+        Assert.Equal(("link", true, 0), Of(back));
+        Assert.Equal("Virement entre comptes", back.GetProperty("category").GetProperty("name").GetString());
+    }
+
+    [Fact]
+    public async Task Deleting_an_account_removes_its_lines_parts()
+    {
+        await using var s = await StartAsync(fixture);
+        var app = s.App;
+        var line = await AddAsync(app, s.Courant, "a", -100m);
+        await OkAsync(await SplitAsync(app, app.AdultA, line, Part(-60m), Part(-40m)));
+
+        await using var scope = app.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<BankingDbContext>();
+        Assert.Equal(2, await db.TransactionParts.CountAsync(TestContext.Current.CancellationToken));
+        await db.Accounts.Where(a => a.Id == s.Courant).ExecuteDeleteAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, await db.TransactionParts.CountAsync(TestContext.Current.CancellationToken));
     }
 }

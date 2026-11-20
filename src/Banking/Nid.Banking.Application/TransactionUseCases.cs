@@ -397,8 +397,7 @@ public sealed class SetTransactionCategoryHandler(BankingAccess access, BankLine
 
 [RequestHandler<ResetTransactionCategoryCommand, BankTransactionView>]
 public sealed class ResetTransactionCategoryHandler(
-    BankingAccess access, BankLines lines, ILinkStore links, ICategoryStore categories, LinkCategoryReader reader, CategoryRuleApplier categoryRules,
-    IClock clock)
+    BankingAccess access, BankLines lines, ICategoryStore categories, LineRecategoriser recategoriser, IClock clock)
     : IRequestHandler<ResetTransactionCategoryCommand, BankTransactionView>
 {
     public async ValueTask<Result<BankTransactionView>> HandleAsync(ResetTransactionCategoryCommand command, CancellationToken ct = default)
@@ -413,12 +412,7 @@ public sealed class ResetTransactionCategoryHandler(
             return Result.Failure<BankTransactionView>(SplitUseCases.Split());
 
         await categories.SetForLinesAsync([line.Id], null, null, $"person:{access.Person.Value:D}", clock.GetCurrentInstant(), byPerson: true, ct);
-        // The link does not keep its charge's kind: the item's kind stands in, as for the backfill.
-        if ((await links.ForTransactionsAsync([line.Id], ct)).GetValueOrDefault(line.Id) is { } link
-            && await reader.KeyAsync(link, null, line.Amount > 0, ct) is { } key
-            && await categories.ResolveKeyAsync(key, ct) is { } category)
-            await categories.SetForLinesAsync([line.Id], category, CategorySource.Link, link.DecidedBy, link.DecidedAt, byPerson: false, ct);
-        await categoryRules.ApplyAsync(line.Id, ct);
+        await recategoriser.ApplyAsync(line, ct);
         return Result.Success(await lines.ViewAsync(line.Id, ct));
     }
 }

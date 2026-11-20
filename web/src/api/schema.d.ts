@@ -36878,8 +36878,7 @@ export interface components {
             note?: null | string;
         };
         LinePartBody: {
-            /** Format: double */
-            amount: number;
+            amount?: null | string;
             /** Format: uuid */
             categoryId?: null | string;
             note?: null | string;

@@ -77,8 +77,7 @@ public sealed class SplitTransactionHandler(BankingAccess access, BankLines line
 
 [RequestHandler<UnsplitTransactionCommand, BankTransactionView>]
 public sealed class UnsplitTransactionHandler(
-    BankingAccess access, BankLines lines, ISplitStore splits, ILinkStore links, ICategoryStore categories, LinkCategoryReader reader,
-    CategoryRuleApplier categoryRules)
+    BankingAccess access, BankLines lines, ISplitStore splits, LineRecategoriser recategoriser)
     : IRequestHandler<UnsplitTransactionCommand, BankTransactionView>
 {
     public async ValueTask<Result<BankTransactionView>> HandleAsync(UnsplitTransactionCommand command, CancellationToken ct = default)
@@ -90,15 +89,8 @@ public sealed class UnsplitTransactionHandler(
         if (!found.TryGetValue(out var line))
             return BankingAccess.Failed<BankTransactionView, BankTransaction>(found);
 
-        // Same passes as ResetTransactionCategoryHandler, once the parts are gone: its link's category if linked, then the rules.
         if (await splits.UnsplitAsync(line!.Id, ct))
-        {
-            if ((await links.ForTransactionsAsync([line.Id], ct)).GetValueOrDefault(line.Id) is { } link
-                && await reader.KeyAsync(link, null, line.Amount > 0, ct) is { } key
-                && await categories.ResolveKeyAsync(key, ct) is { } category)
-                await categories.SetForLinesAsync([line.Id], category, CategorySource.Link, link.DecidedBy, link.DecidedAt, byPerson: false, ct);
-            await categoryRules.ApplyAsync(line.Id, ct);
-        }
+            await recategoriser.ApplyAsync(line, ct);
         return Result.Success(await lines.ViewAsync(line.Id, ct));
     }
 }
