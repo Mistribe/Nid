@@ -280,4 +280,39 @@ public class FactEndpointTests(PostgresFixture fixture, SharedNidApp shared) : I
         Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Put, url,
             new { occurredOn = "2025-06-15", kind = "withdrawal", amount = Eur("100.00"), category = "transfer" })).StatusCode);
     }
+
+    /// <summary>#16: a flow kept from a bank line (<c>bank:</c> ref), on a livret; its url.</summary>
+    private static async Task<string> BankFlowAsync(NidApp app)
+    {
+        var id = await app.NewEnvelopeAsync("Livret", app.AdultA, Visibility.Shared);
+        var url = $"/api/v1/investments/envelopes/{id.Value}/flows";
+        var flow = (await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, url,
+            new { occurredOn = "2025-06-15", kind = "contribution", amount = Eur("100.00"), externalRef = $"bank:{Guid.NewGuid():D}" }))).GetProperty("id").GetGuid();
+        return $"{url}/{flow}";
+    }
+
+    private static async Task AssertBankFlowAsync(HttpResponseMessage response)
+    {
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal("investments.bank_flow", (await JsonAsync(response)).GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task Correcting_a_bank_flow_is_refused()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var url = await BankFlowAsync(app);
+
+        await AssertBankFlowAsync(await app.RawAsync(app.AdultA, HttpMethod.Put, url,
+            new { occurredOn = "2025-06-15", kind = "contribution", amount = Eur("90.00") }));
+    }
+
+    [Fact]
+    public async Task Voiding_a_bank_flow_is_refused()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var url = await BankFlowAsync(app);
+
+        await AssertBankFlowAsync(await app.RawAsync(app.AdultA, HttpMethod.Delete, url));
+    }
 }
