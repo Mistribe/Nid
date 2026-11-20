@@ -37332,6 +37332,13 @@
             "items": {
               "$ref": "#/components/schemas/PartView"
             }
+          },
+          "partId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
           }
         }
       },

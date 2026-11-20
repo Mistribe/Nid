@@ -34025,6 +34025,8 @@ export interface components {
             sharedAccount: boolean;
             note?: null | string;
             parts?: null | components["schemas"]["PartView"][];
+            /** Format: uuid */
+            partId?: null | string;
         };
         BatchView: {
             section: string;

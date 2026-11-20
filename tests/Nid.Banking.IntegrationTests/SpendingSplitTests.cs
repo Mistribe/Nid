@@ -77,6 +77,12 @@ public class SpendingSplitTests(PostgresFixture fixture) : IClassFixture<Postgre
         Assert.Equal("-70.00", part.GetProperty("amount").GetString());
         Assert.Equal("Courses", part.GetProperty("note").GetString());
         Assert.Equal(Seed("food.groceries"), part.GetProperty("category").GetProperty("id").GetGuid());
+        Assert.Equal(JsonValueKind.Null, part.GetProperty("parts").ValueKind);
+        // A parent lists both parts of the line, each under its own part id.
+        var parent = await GetAsync(app, $"{BankingApi.Root}/spending/lines?categoryId={Seed("food")}");
+        var rows = parent.GetProperty("items").EnumerateArray().Where(i => i.GetProperty("id").GetGuid() == split).ToList();
+        Assert.Equal(2, rows.Count);
+        Assert.Equal(2, rows.Select(r => r.GetProperty("partId").GetGuid()).Distinct().Count());
         var other = await GetAsync(app, $"{BankingApi.Root}/spending/lines?categoryId={Seed("food.delivery")}");
         Assert.Equal(["-30.00"], other.GetProperty("items").EnumerateArray().Select(i => i.GetProperty("amount").GetString()!));
         var none = await GetAsync(app, $"{BankingApi.Root}/spending/lines?uncategorised=true");
@@ -126,5 +132,23 @@ public class SpendingSplitTests(PostgresFixture fixture) : IClassFixture<Postgre
         var lines = await GetAsync(app, $"{BankingApi.Root}/spending/lines?categoryId={Seed("food.restaurants")}");
         Assert.Equal(["-30.00"], lines.GetProperty("items").EnumerateArray().Select(i => i.GetProperty("amount").GetString()!));
         Assert.Equal(split, lines.GetProperty("items")[0].GetProperty("id").GetGuid());
+    }
+
+    [Fact]
+    public async Task A_part_without_category_is_uncategorised_once()
+    {
+        var (app, account, _) = await StartAsync(fixture);
+        await using var _ = app;
+        var line = await SpendingTests.LineAsync(app, account, new(2025, 10, 4), -50m);
+        var put = await app.RawAsync(app.AdultA, HttpMethod.Put, $"{BankingApi.Root}/transactions/{line}/split", new
+        {
+            parts = new object[] { new { amount = Money(-20m), categoryId = (Guid?)null }, new { amount = Money(-30m), categoryId = Seed("food.groceries") } },
+        });
+        Assert.True(put.StatusCode == HttpStatusCode.OK, await put.Content.ReadAsStringAsync(Ct));
+        var ops = await GetAsync(app, $"{BankingApi.Root}/operations?uncategorised=true");
+        Assert.Single(ops.GetProperty("items").EnumerateArray(), i => i.GetProperty("id").GetGuid() == line);
+        var lines = await GetAsync(app, $"{BankingApi.Root}/spending/lines?uncategorised=true");
+        Assert.Equal(["-20.00"], lines.GetProperty("items").EnumerateArray().Select(i => i.GetProperty("amount").GetString()!));
+        Assert.Equal("20.00", (await GetAsync(app, $"{BankingApi.Root}/spending")).GetProperty("uncategorised").GetProperty("amount").GetString());
     }
 }

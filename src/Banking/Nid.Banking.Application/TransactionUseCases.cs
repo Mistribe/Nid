@@ -58,6 +58,7 @@ public sealed record BankTransactionPage(IReadOnlyList<BankTransactionView> Item
 /// <paramref name="AccountName"/> the line's own account. <paramref name="Link"/> is null when the line is not linked, or its target is
 /// hidden from the reader (D19): <paramref name="LinkState"/> still says <c>linked</c> or <c>internal</c>. <paramref name="Category"/> shows to
 /// every reader of the line, link masked or not; <paramref name="CategorySource"/> is <c>hand</c>, <c>link</c>…, null when nothing chose it.
+/// <paramref name="PartId"/> is set only on a row of the spending lines that stands for one part of a split line (the row's amount, category and note are the part's).
 /// <paramref name="Note"/> is a person's note; <paramref name="Parts"/> the parts of a split line (<paramref name="CategorySource"/> <c>split</c>), null otherwise.
 /// <paramref name="SuggestedPattern"/> is the pattern a rule made from the line would offer (<see cref="CategoryRules.Suggest"/>), null when none fits;
 /// <paramref name="SharedAccount"/> says whether every adult reads the line's account (<paramref name="AccountId"/>, a card's own for its lines).
@@ -65,7 +66,7 @@ public sealed record BankTransactionPage(IReadOnlyList<BankTransactionView> Item
 public sealed record BankTransactionView(
     Guid Id, LocalDate BookedOn, LocalDate? ValueOn, string Amount, string Currency, string Label, string? Counterparty, bool FromCard,
     string? CardName, string FetchedVia, string LinkState, LinkView? Link, string AccountName, CategoryView? Category, string? CategorySource,
-    Guid AccountId, string? SuggestedPattern, bool SharedAccount, string? Note = null, IReadOnlyList<PartView>? Parts = null);
+    Guid AccountId, string? SuggestedPattern, bool SharedAccount, string? Note = null, IReadOnlyList<PartView>? Parts = null, Guid? PartId = null);
 
 /// <summary>#84: a part of a split line, <paramref name="Amount"/> signed like the line; the parts add up to it.</summary>
 public sealed record PartView(Guid Id, string Amount, CategoryView? Category, string? Note);

@@ -89,7 +89,7 @@ public sealed class ListSpendingLinesHandler(
         var byId = (await views.ViewsAsync([.. page.Select(r => r.Line).DistinctBy(l => l.Id)], ct)).ToDictionary(v => v.Id);
         // A part's row shows the part's amount, category and note.
         var items = page.Select(r => r.PartId is { } part && byId[r.Line.Id].Parts?.FirstOrDefault(p => p.Id == part) is { } shown
-            ? byId[r.Line.Id] with { Amount = shown.Amount, Category = shown.Category, Note = shown.Note }
+            ? byId[r.Line.Id] with { Amount = shown.Amount, Category = shown.Category, Note = shown.Note, Parts = null, PartId = part }
             : byId[r.Line.Id]).ToList();
         return Result.Success(new SpendingLines(items, GetSpendingHandler.Money(total), count, keys.Any(sums.Incomplete.Contains)));
     }
