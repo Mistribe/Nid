@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Nid.Banking.Contracts;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Functional.Failures;
@@ -5,9 +6,13 @@ using UnambitiousFx.Functional.Failures;
 namespace Nid.Banking.Domain;
 
 /// <summary>What a category rule reads and which one wins when several match a line.</summary>
-public static class CategoryRules
+public static partial class CategoryRules
 {
     public const int MinPattern = 2, MaxPattern = 60;
+
+    // « CARTE 12/03/26 »: Normalize keeps it (its output feeds the fingerprint), the suggestion skips it.
+    [GeneratedRegex(@"^CARTE \d{2}/\d{2}(/\d{2,4})? ")]
+    private static partial Regex CardDate();
 
     public static Result<string> NormalizePattern(string raw)
     {
@@ -18,13 +23,14 @@ public static class CategoryRules
     }
 
     /// <summary>
-    /// The pattern a rule made from a line starts with: the first two words of the label, both before any token holding a digit
+    /// The pattern a rule made from a line starts with: the first two words of the label after a leading « CARTE dd/mm/yy »,
+    /// both before any token holding a digit
     /// (« EDF CLIENTS »: the words after them change from month to month, « ECHEANCE OCTOBRE »); always a part of
     /// <paramref name="normalizedLabel"/>, null when no such pattern is valid.
     /// </summary>
     public static string? Suggest(string normalizedLabel)
     {
-        var words = normalizedLabel.Split(' ', StringSplitOptions.RemoveEmptyEntries).TakeWhile(t => !t.Any(char.IsDigit)).Take(2);
+        var words = CardDate().Replace(normalizedLabel, "").Split(' ', StringSplitOptions.RemoveEmptyEntries).TakeWhile(t => !t.Any(char.IsDigit)).Take(2);
         return NormalizePattern(string.Join(' ', words)).TryGetValue(out var pattern) && normalizedLabel.Contains(pattern, StringComparison.Ordinal)
             ? pattern : null;
     }
