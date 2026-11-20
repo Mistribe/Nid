@@ -19,7 +19,7 @@ public sealed class ApplicationStore(BankingDbContext db, IDataProtectionProvide
     public async Task<StoredApplication?> FindAsync(PersonId person, CancellationToken ct)
     {
         var row = await db.Applications.AsNoTracking().SingleOrDefaultAsync(a => a.PersonId == person.Value, ct);
-        return row is null ? null : new StoredApplication(person, row.ApplicationId, row.KeyLoadedAt, Decrypt(row.PrivateKey) is not null);
+        return row is null ? null : new StoredApplication(person, row.ApplicationId, row.KeyLoadedAt, Decrypt(row.PrivateKey, quiet: true) is not null);
     }
 
     public async Task<EnableBankingApp?> CredentialAsync(PersonId person, CancellationToken ct)
@@ -66,7 +66,7 @@ public sealed class ApplicationStore(BankingDbContext db, IDataProtectionProvide
 
     private byte[] Encrypt(string pem) => _protector.Protect(Encoding.UTF8.GetBytes(pem));
 
-    private string? Decrypt(byte[] secret)
+    private string? Decrypt(byte[] secret, bool quiet = false)
     {
         try
         {
@@ -75,7 +75,8 @@ public sealed class ApplicationStore(BankingDbContext db, IDataProtectionProvide
         catch (CryptographicException)
         {
             // The key ring was lost or rotated: the adult must load the key again.
-            log.LogWarning("An application's private key cannot be decrypted; it must be loaded again.");
+            if (!quiet)
+                log.LogWarning("An application's private key cannot be decrypted; it must be loaded again.");
             return null;
         }
     }

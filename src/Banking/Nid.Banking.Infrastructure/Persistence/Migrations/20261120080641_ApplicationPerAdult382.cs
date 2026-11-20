@@ -39,7 +39,7 @@ namespace Nid.Banking.Infrastructure.Persistence.Migrations
             // Core migrates first, in the same database: existing connections were made with the installation's application.
             migrationBuilder.Sql(
                 """
-                UPDATE banking.connection SET application_id = (SELECT enable_banking_app_id FROM core.household_settings LIMIT 1)
+                UPDATE banking.connection SET application_id = NULLIF((SELECT enable_banking_app_id FROM core.household_settings LIMIT 1), '')
                 WHERE source = 'enable_banking'
                 """);
         }
