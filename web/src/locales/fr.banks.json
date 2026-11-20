@@ -88,7 +88,9 @@
       "search": "Rechercher une banque",
       "no_bank": "Aucune banque trouvée",
       "hint": "Votre banque vous demande ensuite d'autoriser la lecture de vos comptes : lecture seule, aucun paiement possible.",
-      "submit": "Continuer vers la banque"
+      "submit": "Continuer vers la banque",
+      "existing": "Vous avez déjà relié {{bank}}. Renouvelez cette connexion pour donner à nouveau votre accord sur les mêmes comptes, ou reliez un autre accès si vous avez un second identifiant client dans cette banque.",
+      "another": "Relier un autre accès"
     },
     "account_dialog": {
       "name": "Nom",

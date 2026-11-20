@@ -164,6 +164,40 @@ describe('Réglages › Banques', () => {
     expect(posted).toEqual([{ aspspName: 'Crédit Agricole' }]);
   });
 
+  it('offers to renew a bank the person is already connected to (#381)', async () => {
+    serveBanks([connection()]);
+    server.use(http.post('*/api/v1/banking/connections/:id/renew', ({ params }) =>
+      HttpResponse.json({ id: String(params.id), redirectUrl: `https://bank.example/renew/${String(params.id)}` })));
+    const { user, location } = await renderApp('/settings/banks');
+
+    await user.click(await screen.findByRole('button', { name: 'Relier une banque' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Relier une banque' });
+    await pick(user, 'Banque', 'BNP Paribas');
+
+    expect(within(dialog).getByRole('status')).toHaveTextContent('Vous avez déjà relié BNP Paribas.');
+    expect(within(dialog).queryByRole('button', { name: 'Continuer vers la banque' })).toBeNull();
+    await user.click(within(dialog).getByRole('button', { name: 'Renouveler' }));
+    await waitFor(() => expect(location.assign).toHaveBeenCalledWith(`https://bank.example/renew/${CONNECTION}`));
+  });
+
+  it('links another access to a bank the person is already connected to', async () => {
+    serveBanks([connection()]);
+    const posted: unknown[] = [];
+    server.use(http.post('*/api/v1/banking/connections', async ({ request }) => {
+      posted.push(await request.json());
+      return HttpResponse.json({ id: 'c2', redirectUrl: 'https://bank.example/authorize' }, { status: 201 });
+    }));
+    const { user, location } = await renderApp('/settings/banks');
+
+    await user.click(await screen.findByRole('button', { name: 'Relier une banque' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Relier une banque' });
+    await pick(user, 'Banque', 'BNP Paribas');
+    await user.click(within(dialog).getByRole('button', { name: 'Relier un autre accès' }));
+
+    await waitFor(() => expect(location.assign).toHaveBeenCalledWith('https://bank.example/authorize'));
+    expect(posted).toEqual([{ aspspName: 'BNP Paribas' }]);
+  });
+
   it('back from the bank, says so and opens its first unassociated account', async () => {
     serveBanks([connection()]);
     const { router } = await renderApp(`/settings/banks?connected=${CONNECTION}`);

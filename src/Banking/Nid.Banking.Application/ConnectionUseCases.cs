@@ -152,7 +152,7 @@ public sealed class CompleteConnectionHandler(
         if (command.Error is not null || string.IsNullOrEmpty(command.Code))
             return BankingAccess.Fail<Guid>(BankingCodes.AuthRefused, "The bank refused or cancelled the authorisation.");
 
-        var superseded = connection.Status == ConnectionStatus.Pending ? null : await connections.SessionIdAsync(connection.Id, ct);
+        List<string?> superseded = [connection.Status == ConnectionStatus.Pending ? null : await connections.SessionIdAsync(connection.Id, ct)];
         var created = await client.CreateSessionAsync(appId!, command.Code, ct);
         if (!created.TryGetValue(out var session))
             return BankingAccess.Failed<Guid, AuthorizedSession>(created);
@@ -177,12 +177,24 @@ public sealed class CompleteConnectionHandler(
                     if (!await access.OwnsAsync(card, ct) && (await accounts.UpdateAsync(card with { CardOf = null }, ct)).TryGetFailure(out var detach))
                         return Result.Failure<Guid>(detach!);
             }
+            // #381: the person's other connection to this bank that already reaches every account of the session is renewed by this one,
+            // not doubled; the session's sources are already here, its own go with it. Another adult's (D21) or one missing an account stays.
+            var reached = seen.Select(a => a.Id).ToHashSet();
+            foreach (var other in (await connections.MineAsync(access.Person, ct)).Where(c => reached.Count > 0 && c.Id != connection.Id
+                         && c.Status != ConnectionStatus.Pending && c.AspspName == connection.AspspName && c.AspspCountry == connection.AspspCountry))
+            {
+                if (!reached.IsSubsetOf((await accounts.ForConnectionAsync(other.Id, ct)).Select(a => a.Id)))
+                    continue;
+                if (other.Status is ConnectionStatus.Active or ConnectionStatus.Error)
+                    superseded.Add(await connections.SessionIdAsync(other.Id, ct));
+                await connections.DeleteAsync(other.Id, ct);
+            }
             await transaction.CommitAsync(ct);
         }
 
         // A renewal's previous consent is revoked at the bank; it is dead weight there, and a failure here changes nothing for Nid.
-        if (superseded is not null && superseded != session.SessionId)
-            await client.DeleteSessionAsync(appId!, superseded, ct);
+        foreach (var old in superseded.OfType<string>().Where(s => s != session.SessionId))
+            await client.DeleteSessionAsync(appId!, old, ct);
         return Result.Success(connection.Id);
     }
 }
