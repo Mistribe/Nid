@@ -15,6 +15,7 @@ import { categorise } from './categoriseKind';
 import { holdings } from './holdingsKind';
 import { invoice } from './invoiceKind';
 import { link } from './linkKind';
+import { makePrivate } from './makePrivateKind';
 import { payslip } from './payslipKind';
 import { recurring } from './recurringKind';
 import { statement } from './statementKind';
@@ -79,6 +80,7 @@ const KINDS: Record<string, KindUi> = {
   'banking.link_transaction': link,
   'banking.create_subscription': recurring,
   'banking.categorise_transactions': categorise,
+  'core.make_private': makePrivate,
 };
 
 export const kindOf = (kind: string): KindUi | undefined => KINDS[kind];

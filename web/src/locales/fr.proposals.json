@@ -88,6 +88,10 @@
       "amount": "Montant",
       "as_proposed": "L’abonnement se crée tel que proposé, puis ses opérations s’y relient : approuvez, ou rejetez puis créez-le à la main."
     },
+    "make_private": {
+      "effect": "Si vous approuvez, l’élément devient privé : seul {{owner}} le verra, vous ne le verrez plus. Si vous refusez, il reste partagé et {{owner}} en est prévenu.",
+      "as_proposed": "Cette demande s’approuve ou se refuse telle quelle."
+    },
     "categorise": {
       "count_one": "{{count}} opération proposée.",
       "count_other": "{{count}} opérations proposées.",

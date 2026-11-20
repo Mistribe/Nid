@@ -101,17 +101,35 @@ internal static class ProposalAccess
 
     public static string NoticeKey(Guid proposal) => ProposalNotices.Key(proposal);
 
-    /// <summary>Who can decide it: the person it is for without a target, else every active adult with Write on the target (as <see cref="LoadAsync"/> and <c>canDecide</c>).</summary>
-    public static async Task<IReadOnlyList<PersonId>> DecidersAsync(IPersonRegistry persons, IAccessPolicy policy, ItemId? target, PersonId forPerson, CancellationToken ct)
+    /// <summary>
+    /// #384: a kind that asks the other adults' consent (<see cref="PrivateRequestProposal"/>) is decided by those who read its target,
+    /// never by whoever asked; every other kind by those who write it.
+    /// </summary>
+    public static bool ByConsent(string kind) => kind == PrivateRequestProposal.KindName;
+
+    /// <summary>Whether <paramref name="person"/> may decide a proposal on <paramref name="target"/> (as <see cref="LoadAsync"/>, <c>canDecide</c> and the notice).</summary>
+    private static async Task<bool> DecidesAsync(IAccessPolicy policy, PersonId person, string kind, ItemId target, PersonId submitter, CancellationToken ct)
+        => ByConsent(kind)
+            ? person != submitter && (await policy.CheckAsync(person, target, AccessKind.Read, ct)).IsSuccess
+            : (await policy.CheckAsync(person, target, AccessKind.Write, ct)).IsSuccess;
+
+    /// <summary>Who can decide it: the person it is for without a target, else every active adult <see cref="DecidesAsync"/> lets decide.</summary>
+    public static async Task<IReadOnlyList<PersonId>> DecidersAsync(
+        IPersonRegistry persons, IAccessPolicy policy, string kind, ItemId? target, PersonId forPerson, CancellationToken ct)
     {
         if (target is null)
             return [forPerson];
         var deciders = new List<PersonId>();
         foreach (var adult in (await persons.ListAsync(ct)).Where(p => p is { Kind: PersonKind.Adult, IsPending: false }))
-            if ((await policy.CheckAsync(adult.Id, target.Value, AccessKind.Write, ct)).IsSuccess)
+            if (await DecidesAsync(policy, adult.Id, kind, target.Value, forPerson, ct))
                 deciders.Add(adult.Id);
         return deciders;
     }
+
+    /// <summary>The <c>canDecide</c> of a proposal's detail: pending, and <see cref="DecidesAsync"/> (without a target, its submitter).</summary>
+    public static async Task<bool> CanDecideAsync(IAccessPolicy policy, StoredProposal proposal, PersonId me, CancellationToken ct)
+        => proposal.Status == ProposalStatus.Pending
+           && (proposal.Target is not { } target || await DecidesAsync(policy, me, proposal.Kind, target, proposal.CreatedBy, ct));
 
     /// <summary>A kind that needs a target refuses a proposal without one, at <c>targetItemId</c>.</summary>
     public static Result Target(IProposalHandler handler, ItemId? target)
@@ -141,6 +159,11 @@ internal static class ProposalAccess
             await denials.RecordAsync(me, target, "read", ct);
             return Result.Failure<(StoredProposal, PersonId)>(new NotFoundFailure("proposal", id.ToString()));
         }
+        // #384: the other adult consents by reading the item, the owner who asked never decides.
+        if (access == AccessKind.Write && ByConsent(proposal.Kind))
+            return proposal.CreatedBy != me
+                ? Result.Success((proposal, me))
+                : Result.Failure<(StoredProposal, PersonId)>(new UnauthorizedFailure("The other adult decides this request.", null));
         if (access == AccessKind.Write && (await policy.CheckAsync(me, target, AccessKind.Write, ct)).TryGetFailure(out var denied))
         {
             await denials.RecordAsync(me, target, "write", ct);
@@ -195,7 +218,7 @@ public sealed class SubmitProposalHandler(
 
         // Before the submit commits: a lookup that fails then fails the request with nothing stored, so a retry is not deduplicated
         // into a proposal whose notice was never published.
-        var deciders = await ProposalAccess.DecidersAsync(persons, policy, command.ItemId, me, ct);
+        var deciders = await ProposalAccess.DecidersAsync(persons, policy, handler.Kind, command.ItemId, me, ct);
         var outcome = await store.SubmitAsync(new NewProposal(handler.Module, handler.Kind, command.ItemId, me, check.SubjectKey,
             check.Payload, handler.PayloadVersion, check.Warnings, actor.Via.ToWire(), actor.TokenId, command.SourceLabel?.Trim(), command.DocumentId), ct);
         if (outcome.Created)
@@ -240,8 +263,7 @@ public sealed class GetProposalHandler(
         if (!loaded.TryGetValue(out var found))
             return Result.Failure<ProposalDetail>(loaded.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
         var (proposal, me) = found;
-        var canDecide = (proposal.Target is not { } target || (await policy.CheckAsync(me, target, AccessKind.Write, ct)).IsSuccess)
-            && proposal.Status == ProposalStatus.Pending
+        var canDecide = await ProposalAccess.CanDecideAsync(policy, proposal, me, ct)
             && accessor.Current?.TokenId is null; // deciding is browser-only
         var names = await ProposalAccess.NamesAsync(items, [proposal.Target], ct);
         var handler = handlers.Find(proposal.Kind);
@@ -357,6 +379,10 @@ public sealed class RejectProposalHandler(
         if (!decided.TryGetValue(out var stored))
             return Result.Failure<ProposalView>(decided.TryGetFailure(out var lost) ? lost! : throw new InvalidOperationException());
         await notifier.ResolveAsync(ProposalAccess.NoticeKey(stored.Id), ct);
+        // #384: the owner who asked is told the other adult refused; the item stays shared.
+        if (ProposalAccess.ByConsent(stored.Kind))
+            await notifier.PublishAsync(new Notice(PrivateRequestProposal.RefusedNotice, new Recipients.People([stored.CreatedBy]),
+                $"{PrivateRequestProposal.RefusedNotice}:{stored.Id}", stored.Target is { } t ? [t] : [], new Dictionary<string, string>()), ct);
         return Result.Success(ProposalView.From(stored, names(stored.Target)));
     }
 }
@@ -390,6 +416,9 @@ public sealed class ApplyDirectHandler(ProposalHandlers handlers, IProposalStore
             return Result.Failure<DirectWrite>(notObject!);
         if (ProposalAccess.Target(handler, command.ItemId).TryGetFailure(out var noTarget))
             return Result.Failure<DirectWrite>(noTarget!);
+        // #384: a consent is never written directly.
+        if (ProposalAccess.ByConsent(handler.Kind))
+            return Result.Failure<DirectWrite>(new Failure(ProposalCodes.KindUnknown, $"'{command.Kind}' is only proposed.", null));
 
         // Every early return skips the commit and so rolls back whatever the application wrote: never commit after a refusal.
         await using var transaction = await unitOfWork.BeginAsync(ct);

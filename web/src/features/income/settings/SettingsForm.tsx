@@ -20,6 +20,7 @@ import { invalidateIncome, SOURCE, type IncomeSourceDetail } from '@/api/income'
 import { PERSONS } from '@/api/persons';
 import { checkEditOwnership, editOwnershipShape, ownershipApplied, ownershipDefaults, ownershipPath, type OwnershipValues } from '@/components/ownership/ownership';
 import { OwnershipFields } from '@/components/ownership/OwnershipFields';
+import { usePrivateRequest } from '@/components/ownership/privateRequest';
 import { ITEM_SHARING } from '@/components/ownership/SharingBadges';
 import { KINDS } from '../format';
 import { toEditBody, toWireBody, type SettingsValues } from './settingsBody';
@@ -67,6 +68,7 @@ export function SettingsForm({ source, onDone }: { source: IncomeSourceDetail; o
   const baseline = useRef(source);
   const errors = useSubmitErrors(form.setError, (path) => PATHS[path as keyof typeof PATHS] ?? ownershipPath(path));
   const persons = $api.useQuery('get', PERSONS, {}, { enabled: source.canChangeOwners }).data ?? [];
+  const asking = usePrivateRequest(source.id, source.canChangeOwners);
   const save = $api.useMutation('patch', SOURCE, {
     onSuccess: () => {
       void invalidateIncome(queryClient);
@@ -74,17 +76,19 @@ export function SettingsForm({ source, onDone }: { source: IncomeSourceDetail; o
     },
   });
 
-  const submit = form.handleSubmit((values) => {
+  const submit = form.handleSubmit((typed) => {
     errors.clear();
+    // #384: « Privé » the other adult must agree to is sent to them as a request; the rest is saved as usual.
+    const [values, asks] = asking.split(baseline.current, typed);
     const body = toEditBody(baseline.current, values);
-    if (!body) { onDone(t('income_detail.settings.nothing')); return; }
+    if (!body) { form.reset(values); asking.settle(asks, t('income_detail.settings.nothing'), onDone, errors.onError); return; }
     save.mutate(
       { params: { path: { id: source.id } }, body: toWireBody(body) },
       {
         onSuccess: () => {
           baseline.current = applied(baseline.current, values);
           form.reset({ ...values, displayName: values.displayName.trim() });
-          onDone(t('income_detail.settings.saved'));
+          asking.settle(asks, t('income_detail.settings.saved'), onDone, errors.onError);
         },
         onError: (error) => errors.onError(error),
       },
@@ -123,7 +127,7 @@ export function SettingsForm({ source, onDone }: { source: IncomeSourceDetail; o
         {(c) => <Textarea {...c} {...form.register('note')} />}
       </Field>
       {/* Shown only when the defaults hold the ownership: its values are never undefined here. */}
-      {source.canChangeOwners ? <OwnershipFields form={form as unknown as UseFormReturn<OwnershipValues>} persons={persons} /> : null}
+      {source.canChangeOwners ? <OwnershipFields form={form as unknown as UseFormReturn<OwnershipValues>} persons={persons} item={source.id} /> : null}
       <Button type="submit" disabled={save.isPending}>{t('income_detail.settings.submit')}</Button>
     </form>
   );

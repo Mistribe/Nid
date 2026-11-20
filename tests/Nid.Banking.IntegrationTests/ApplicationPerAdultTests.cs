@@ -120,6 +120,20 @@ public class ApplicationPerAdultTests(PostgresFixture fixture) : IClassFixture<P
     }
 
     [Fact]
+    public async Task Linking_the_bank_again_revokes_the_old_session_with_its_own_application()
+    {
+        await using var app = await StartAsync(fixture);
+        var old = await BankingApi.ConnectAsync(app, app.AdultA, "code-a", BankingApi.Account("uid-1", "hash-1", null, "Courant"));
+        await SaveAsync(app, app.AdultA, "app-alice");
+
+        var renewed = await BankingApi.ConnectAsync(app, app.AdultA, "code-b", BankingApi.Account("uid-2", "hash-1", null, "Courant"));
+
+        Assert.NotEqual(old, renewed);
+        Assert.Equal(["app-home", "app-alice"], app.Banks.SessionApps);
+        Assert.Equal(["app-home"], app.Banks.DeleteApps); // the superseded session was opened with the installation's application
+    }
+
+    [Fact]
     public async Task The_callback_uses_the_pending_connection_application()
     {
         await using var app = await StartAsync(fixture);

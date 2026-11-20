@@ -20,6 +20,7 @@ import { invalidateProperties, PROPERTY, type PropertyDetail } from '@/api/prope
 import { PERSONS } from '@/api/persons';
 import type { OwnershipValues } from '@/components/ownership/ownership';
 import { OwnershipFields } from '@/components/ownership/OwnershipFields';
+import { usePrivateRequest } from '@/components/ownership/privateRequest';
 import { ITEM_SHARING } from '@/components/ownership/SharingBadges';
 import { PropertyFields } from '../new/PropertyFields';
 import { settingsPath, settingsSchema, settingsValuesOf, toEditBody, toWireBody, type SettingsValues } from './settingsBody';
@@ -74,18 +75,21 @@ function SettingsForm({ property, onDone }: { property: PropertyDetail; onDone: 
   const errors = useSubmitErrors(form.setError, settingsPath);
   const save = $api.useMutation('patch', PROPERTY);
   const persons = $api.useQuery('get', PERSONS, {}, { enabled: opened.canChangeOwners }).data ?? [];
+  const asking = usePrivateRequest(opened.id, opened.canChangeOwners);
 
-  const submit = form.handleSubmit((values) => {
+  const submit = form.handleSubmit((typed) => {
     errors.clear();
+    // #384: « Privé » the other adult must agree to is sent to them as a request; the rest is saved as usual.
+    const [values, asks] = asking.split(opened, typed);
     const body = toEditBody(opened, values);
-    if (!body) { onDone(t('loan_detail.settings.nothing')); return; }
+    if (!body) { asking.settle(asks, t('loan_detail.settings.nothing'), onDone, errors.onError); return; }
     save.mutate(
       { params: { path: { id: opened.id } }, body: toWireBody(body, opened.version) },
       {
         // The section remounts this form once the property is read again, on its new values and version.
         onSuccess: () => {
           void queryClient.invalidateQueries({ queryKey: ['get', ITEM_SHARING] });
-          void invalidateProperties(queryClient).then(() => onDone(t('loan_detail.settings.saved')));
+          void invalidateProperties(queryClient).then(() => asking.settle(asks, t('loan_detail.settings.saved'), onDone, errors.onError));
         },
         onError: (error) => errors.onError(error),
       },
@@ -128,7 +132,7 @@ function SettingsForm({ property, onDone }: { property: PropertyDetail; onDone: 
           {(c) => <Textarea {...c} {...form.register('note')} />}
         </Field>
         {/* Shown only when the defaults hold the ownership: its values are never undefined here. */}
-        {opened.canChangeOwners ? <OwnershipFields form={form as unknown as UseFormReturn<OwnershipValues>} persons={persons} /> : null}
+        {opened.canChangeOwners ? <OwnershipFields form={form as unknown as UseFormReturn<OwnershipValues>} persons={persons} item={opened.id} /> : null}
       </form>
     </FormProvider>
   );

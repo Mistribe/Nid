@@ -14,9 +14,11 @@ namespace Nid.Host.Composition;
 /// its hint, and the account linked to it. Banking does not reach the investments module's commands, so the composition root runs both in one
 /// transaction: a refused link (another currency, a card, an account the actor may not move) leaves no envelope behind.
 /// <paramref name="Joint"/>: every adult owns it in equal shares; <paramref name="DependentId"/> (#354, before <paramref name="Joint"/>): that
-/// child owns it all, shared, so both adults manage it; otherwise the actor alone.
+/// child owns it all, shared, so both adults manage it; otherwise the actor alone. <paramref name="Visibility"/> (#383): the form presets it from
+/// the owners; a private one owned by a child or by every adult is refused like any other item's (<c>OwnershipRules</c>).
 /// </summary>
-public sealed record CreateBankAccountEnvelopeCommand(Guid AccountId, string DisplayName, string Kind, bool Joint, Guid? DependentId = null)
+public sealed record CreateBankAccountEnvelopeCommand(
+    Guid AccountId, string DisplayName, string Kind, bool Joint, Guid? DependentId = null, Visibility Visibility = Visibility.Shared)
     : ICommand<ItemId>, ITransactional;
 
 [RequestHandler<CreateBankAccountEnvelopeCommand, ItemId>]
@@ -42,7 +44,7 @@ public sealed class CreateBankAccountEnvelopeHandler(BankingAccess access, IPers
         else
             owners = command.Joint ? Equal(await persons.AdultIdsAsync(ct)) : [new OwnerShare(access.Person, 10_000)];
         var created = await invoker.InvokeAsync(new CreateEnvelopeCommand(
-            command.DisplayName, command.Kind, account!.Currency, Visibility.Shared, owners, null, account.IbanMasked, null, null, null, null, null, null), ct);
+            command.DisplayName, command.Kind, account!.Currency, command.Visibility, owners, null, account.IbanMasked, null, null, null, null, null, null), ct);
         if (!created.TryGetValue(out var envelope))
             return created;
 
