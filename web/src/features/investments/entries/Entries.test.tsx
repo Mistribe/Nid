@@ -369,6 +369,16 @@ describe('recording values and flows', () => {
     expect(calls).toEqual([{ method: 'DELETE', path: 'flows/t1' }]);
   });
 
+  it('a bank flow shows « Depuis la banque » and no actions', async () => {
+    serve(detail({ flows: [{ id: 'b1', occurredOn: '2025-06-15', kind: 'deposit', amount: eur('100.0000'), category: null, externalRef: 'bank:00000000-0000-0000-0000-000000000001', note: null }] }), []);
+    await renderApp(`/investments/${PEA}?tab=flows`);
+
+    const table = await screen.findByRole('table', { name: 'Flux de l’enveloppe' });
+    expect(within(table).getByText('Depuis la banque')).toBeInTheDocument();
+    expect(within(table).getByRole('button', { name: 'À propos : Depuis la banque' })).toBeInTheDocument();
+    expect(within(table).queryByRole('button', { name: /^Actions pour le/ })).not.toBeInTheDocument();
+  });
+
   it('toasts each deletion, even when the message repeats', async () => {
     serve(detail(), []);
     const { user } = await renderApp(`/investments/${PEA}?tab=flows`);

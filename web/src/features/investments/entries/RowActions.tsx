@@ -4,7 +4,8 @@ import { useApi } from '@/api/ApiProvider';
 import { formatLocalDate } from '@/components/LocalDate';
 import { RowActions as SharedRowActions } from '@/components/page/RowActions';
 import { FLOW, invalidateInvestments, VALUATION, type EnvelopeDetail, type Flow, type Valuation } from '@/api/investments';
-import { flowKindText, isTransferLeg } from '../format';
+import { InfoTip } from '@/components/InfoTip';
+import { flowKindText, isBankFlow, isTransferLeg } from '../format';
 import { presentConflict } from '@/components/form/fieldErrors';
 import '@/locales/investments';
 
@@ -43,6 +44,15 @@ export function RowActions(props: RowActionsProps) {
     if (props.kind === 'value') removeValuation.mutate({ params: { path: { id: props.envelope.id, valuationId: props.item.id } } });
     else removeFlow.mutate({ params: { path: { id: props.envelope.id, flowId: props.item.id } } });
   };
+
+  if (props.kind === 'flow' && isBankFlow(props.item)) {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+        {t('envelope.from_bank')}
+        <InfoTip label={t('envelope.from_bank')}>{t('envelope.from_bank_hint')}</InfoTip>
+      </span>
+    );
+  }
 
   const date = formatLocalDate(props.kind === 'value' ? props.item.asOf : props.item.occurredOn);
 

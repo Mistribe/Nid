@@ -137,6 +137,8 @@
     "delete_value": "Cette valeur sera supprimée ; la précédente redevient la dernière.",
     "delete_flow": "Ce flux sera supprimé.",
     "delete_transfer_leg": "Seule cette jambe du virement sera supprimée : l’autre enveloppe garde la sienne.",
+    "from_bank": "Depuis la banque",
+    "from_bank_hint": "Écrit depuis les opérations du compte. Pour le corriger, changez la catégorie de l’opération.",
     "value_deleted": "Valeur supprimée.",
     "flow_deleted": "Flux supprimé.",
     "add_opening": "Saisir les versements antérieurs",
