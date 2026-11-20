@@ -12213,6 +12213,108 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/banking/operations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query: {
+                    account: string[];
+                    owner: string[];
+                    from?: string;
+                    to?: string;
+                    category: string[];
+                    uncategorised?: boolean;
+                    state?: string;
+                    direction?: string;
+                    min?: number;
+                    max?: number;
+                    q?: string;
+                    page?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["OperationPage"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/banking/spending": {
         parameters: {
             query?: never;
@@ -37227,6 +37329,30 @@ export interface components {
         OpeningBody: {
             occurredOn: string;
             amount: components["schemas"]["MoneyBody"];
+        };
+        OperationFacets: {
+            accounts: components["schemas"]["OptionView"][];
+            owners: components["schemas"]["OptionView"][];
+            categories: components["schemas"]["OptionView"][];
+        };
+        OperationPage: {
+            items: components["schemas"]["BankTransactionView"][];
+            /** Format: int32 */
+            total: number;
+            totals: components["schemas"]["OperationTotals"];
+            facets: components["schemas"]["OperationFacets"];
+        };
+        OperationTotals: {
+            out: string;
+            in: string;
+            net: string;
+            currency: string;
+            incomplete: boolean;
+        };
+        OptionView: {
+            /** Format: uuid */
+            id: string;
+            name: string;
         };
         OverviewFindingView: {
             code: string;

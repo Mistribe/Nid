@@ -635,6 +635,10 @@ public static class RequestCatalogue
         // An envelope's bank lines (and its card's): read by whoever reads the envelope, A's two on her private envelope never reach B.
         new(typeof(ListBankTransactionsQuery), true, (_, item) => new ListBankTransactionsQuery(item, null, null, 1, "all")),
         // 5C, D19: every readable account's lines; the joint line's link to A's private subscription never reaches B.
+        new(typeof(Nid.Banking.Application.Operations.ListOperationsQuery), false, (_, _) => new Nid.Banking.Application.Operations.ListOperationsQuery(
+            new Nid.Banking.Application.Operations.OperationFilter([], [], null, null, [], false, null, null, null, null, null), 1)),
+        new(typeof(Nid.Banking.Application.Operations.ListOperationsQuery), false, (_, _) => new Nid.Banking.Application.Operations.ListOperationsQuery(
+            new Nid.Banking.Application.Operations.OperationFilter([], [], null, null, [], true, "all", "out", 1m, 100m, "cb"), 1)),
         new(typeof(ListBankLinesQuery), false, (_, _) => new ListBankLinesQuery("all", null, null, 1)),
         new(typeof(ListBankLinesQuery), false, (_, _) => new ListBankLinesQuery("all", null, null, 1, Uncategorised: true)),
         // #85: spending by category, figures only; A's private account never counts for B, in either scope.

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Options;
 using Nid.Banking.Application;
 using Nid.Banking.Application.Files;
+using Nid.Banking.Application.Operations;
 using Nid.Banking.Application.Spending;
 using Nid.Banking.Application.Sync;
 using Nid.Banking.Contracts;
@@ -164,6 +165,21 @@ public static class BankingEndpoints
                 => (await invoker.InvokeAsync(new ListBankLinesQuery(state, OptionalDate(from), OptionalDate(to), page ?? 1, uncategorised ?? false), ct))
                     .ToHttp(transactions => transactions))
             .Returns<BankTransactionPage>();
+
+        // #84: « Opérations »: every line the person reads, filtered, searched and paged by the server, with its total, converted totals and facets.
+        api.MapGet("/operations", async (Guid[]? account, Guid[]? owner, string? from, string? to, Guid[]? category, bool? uncategorised, string? state,
+                    string? direction, decimal? min, decimal? max, string? q, int? page, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var (first, last) = (reader.Date(from, "from", required: false), reader.Date(to, "to", required: false));
+                return !reader.Ok
+                    ? reader.Problem()
+                    : (await invoker.InvokeAsync(new ListOperationsQuery(new OperationFilter(
+                            account ?? [], owner ?? [], first, last, category ?? [], uncategorised ?? false, state, direction, min, max,
+                            string.IsNullOrWhiteSpace(q) ? null : q.Trim()), Math.Max(page ?? 1, 1)), ct))
+                        .ToHttp(operations => operations);
+            })
+            .Returns<OperationPage>();
 
         // #85: what the scope's accounts spent by category over a month (default: the current one) or a period of whole months.
         api.MapGet("/spending", async (string? scope, string? month, string? from, string? to, IInvoker invoker, CancellationToken ct)
