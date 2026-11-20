@@ -7,7 +7,7 @@ export const AGENTS = ['claude_desktop', 'claude_code', 'cursor', 'vscode', 'gem
 export type Agent = (typeof AGENTS)[number];
 
 /** Pinned: `npx -y mcp-remote` alone would run whatever version is latest at each launch, with the token in hand. */
-export const MCP_REMOTE = 'mcp-remote@0.16.5';
+export const MCP_REMOTE = 'mcp-remote@0.16.6';
 
 /** Where the token is read from, for the clients that can take it from the environment. */
 export const TOKEN_VARIABLE = 'NID_TOKEN';
