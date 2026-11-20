@@ -24,6 +24,16 @@ public class CapitalTaxContributionTests
     }
 
     [Fact]
+    public void A_bank_value_of_a_prior_year_without_bank_flows_leaves_the_interest_unknown()
+    {
+        var livret = new EnvelopeFacts("Livret A", EnvelopeKind.Savings)
+            .Flow(D(2024, 12, 31), FlowKind.Opening, 1_000m).Value(D(2024, 12, 31), 1_000m, FactSource.BankApi)
+            .Value(D(2025, 12, 31), 1_012.5m).Build();
+
+        Assert.Equal(TaxLineCodes.SavingsInterestUnknown, CapitalTaxContribution.SavingsLine(livret, D(2025, 1, 1), D(2025, 12, 31)).Code);
+    }
+
+    [Fact]
     public void The_tax_line_of_a_bank_fed_livret_without_bank_flows_stays_unknown()
     {
         var livret = new EnvelopeFacts("Livret A", EnvelopeKind.Savings)

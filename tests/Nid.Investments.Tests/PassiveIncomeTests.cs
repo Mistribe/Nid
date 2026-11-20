@@ -248,7 +248,7 @@ public class PassiveIncomeTests
             .Flow(D(2025, 1, 1), FlowKind.Opening, 1_000m).Value(D(2025, 11, 30), 1_000m, FactSource.BankApi)
             .Flow(D(2026, 2, 10), FlowKind.Contribution, 100m, reference: "bank:11111111-1111-1111-1111-111111111111")
             .Flow(D(2026, 3, 31), FlowKind.Income, 12.5m, FlowCategories.Interest, "bank:22222222-2222-2222-2222-222222222222:interest")
-            .Value(D(2026, 3, 31), 1_112.5m, FactSource.BankApi).Build();
+            .Value(D(2026, 2, 28), 1_100m, FactSource.BankApi).Value(D(2026, 3, 31), 1_112.5m, FactSource.BankApi).Build();
 
         var p = Build([livret]);
 
