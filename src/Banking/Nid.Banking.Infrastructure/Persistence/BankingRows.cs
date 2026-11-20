@@ -146,6 +146,20 @@ public sealed class TransactionRow
 
     /// <summary><c>person:{id}</c>, <c>rule:{id}</c> or <c>job</c>, like <see cref="LinkRow.DecidedBy"/>.</summary>
     public string? CategorisedBy { get; set; }
+
+    /// <summary>#84: a person's note on the line, 500 characters at most; null when none.</summary>
+    public string? Note { get; set; }
+}
+
+/// <summary>#84: a part of a split line; <see cref="Amount"/> is signed like the line, the parts add up to it. Kept in <see cref="Position"/> order.</summary>
+public sealed class TransactionPartRow
+{
+    public Guid Id { get; set; }
+    public Guid TransactionId { get; set; }
+    public decimal Amount { get; set; }
+    public Guid? CategoryId { get; set; }
+    public string? Note { get; set; }
+    public int Position { get; set; }
 }
 
 /// <summary>A category of bank lines, two levels deep; never deleted (lines and the audit refer to it).</summary>

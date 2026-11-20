@@ -192,7 +192,8 @@ public sealed class TransactionStore(BankingDbContext db, IClock clock) : ITrans
         => await db.Transactions.Where(t => ids.Contains(t.Id)).ExecuteUpdateAsync(s => s.SetProperty(t => t.ReconciledAt, at), ct);
 
     public Task<int> PurgeBookedBeforeAsync(LocalDate before, CancellationToken ct)
-        => db.Transactions.Where(t => t.BookedOn < before && (t.LinkState == "unlinked" || t.LinkState == "ignored")).ExecuteDeleteAsync(ct);
+        => db.Transactions.Where(t => t.BookedOn < before && (t.LinkState == "unlinked" || t.LinkState == "ignored")
+            && t.Note == null && !db.TransactionParts.Any(p => p.TransactionId == t.Id)).ExecuteDeleteAsync(ct);
 
     public async Task<IReadOnlyList<SpendingSum>> SpendingAsync(IReadOnlyList<Guid> accounts, LocalDate from, LocalDate to, CancellationToken ct, bool withLinked = true)
         => (await db.Transactions.AsNoTracking()
@@ -234,5 +235,5 @@ public sealed class TransactionStore(BankingDbContext db, IClock clock) : ITrans
             _ => TransactionLinkState.Unlinked,
         },
         r.FetchedVia, r.CreatedAt, r.CategoryId,
-        r.CategorySource is { } source ? Enum.Parse<CategorySource>(source, ignoreCase: true) : null, r.BankCode);
+        r.CategorySource is { } source ? Enum.Parse<CategorySource>(source, ignoreCase: true) : null, r.BankCode, r.Note);
 }

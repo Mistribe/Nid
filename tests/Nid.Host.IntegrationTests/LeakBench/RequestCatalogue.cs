@@ -1,5 +1,6 @@
 using Nid.Core.Application.Tax;
 using Nid.Banking.Application;
+using Nid.Banking.Application.Operations;
 using Nid.Banking.Contracts;
 using Nid.Core.Domain.Tax;
 using System.Reflection;
@@ -656,6 +657,9 @@ public static class RequestCatalogue
         new(typeof(IgnoreTransactionCommand), false, (d, _) => new IgnoreTransactionCommand(d.JointLine)),
         new(typeof(SetTransactionCategoryCommand), false, (d, _) => new SetTransactionCategoryCommand(d.JointLine, null)),
         new(typeof(ResetTransactionCategoryCommand), false, (d, _) => new ResetTransactionCategoryCommand(d.JointLine)),
+        new(typeof(SetTransactionNoteCommand), false, (d, _) => new SetTransactionNoteCommand(d.JointLine, null)),
+        new(typeof(SplitTransactionCommand), false, (d, _) => new SplitTransactionCommand(d.JointLine, [])),
+        new(typeof(UnsplitTransactionCommand), false, (d, _) => new UnsplitTransactionCommand(d.JointLine)),
         // The household's categories: no item, no person's data.
         new(typeof(ListBankCategoriesQuery), false, (_, _) => new ListBankCategoriesQuery()),
         new(typeof(CreateBankCategoryCommand), false, (_, _) => new CreateBankCategoryCommand(null, $"bench-{Guid.NewGuid():N}", "expense")),

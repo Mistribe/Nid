@@ -42,6 +42,8 @@ public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
         // #83: the household's category list is edited in Réglages › Banques, and a line's category chosen in the browser; the
         // assistant gets its own batch proposal for line categories.
         "/api/v1/banking/categories", "/api/v1/banking/transactions/{id:guid}/category",
+        // #84: a note and a split are a person's own bookkeeping on a bank line, not proposed to the assistant.
+        "/api/v1/banking/transactions/{id:guid}/note", "/api/v1/banking/transactions/{id:guid}/split",
         // #83: category rules are set, previewed and applied in Réglages › Banques.
         "/api/v1/banking/category-rules",
         // #85: the household's budget is set on the Dépenses page.

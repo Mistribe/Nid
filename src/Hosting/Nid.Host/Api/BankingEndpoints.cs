@@ -258,6 +258,19 @@ public static class BankingEndpoints
             => (await invoker.InvokeAsync(new ResetTransactionCategoryCommand(id), ct)).ToHttp(line => line))
             .Returns<BankTransactionView>();
 
+        api.MapPut("/transactions/{id:guid}/note", async (Guid id, LineNoteBody body, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new SetTransactionNoteCommand(id, body.Note), ct)).ToHttp(line => line))
+            .Returns<BankTransactionView>();
+
+        api.MapPut("/transactions/{id:guid}/split", async (Guid id, LineSplitBody body, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new SplitTransactionCommand(id, [.. (body.Parts ?? []).Select(p => new PartInput(p.Amount, p.CategoryId, p.Note))]), ct))
+                .ToHttp(line => line))
+            .Returns<BankTransactionView>();
+
+        api.MapDelete("/transactions/{id:guid}/split", async (Guid id, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new UnsplitTransactionCommand(id), ct)).ToHttp(line => line))
+            .Returns<BankTransactionView>();
+
         api.MapGet("/rules", async (IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new ListBankRulesQuery(), ct)).ToHttp(rules => rules))
             .Returns<IReadOnlyList<BankRuleView>>();
@@ -442,6 +455,12 @@ public static class BankingEndpoints
     /// <summary>A line's category chosen by hand; an absent or null <c>categoryId</c> is « Sans catégorie », chosen by hand all the same.</summary>
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
     public sealed record LineCategoryBody(Guid? CategoryId);
+
+    public sealed record LineNoteBody(string? Note);
+
+    public sealed record LineSplitBody(IReadOnlyList<LinePartBody>? Parts);
+
+    public sealed record LinePartBody(decimal Amount, Guid? CategoryId, string? Note);
 
     /// <summary>A new category; <c>kind</c> (<c>expense</c>, <c>income</c>, <c>transfer</c>) is required without a <c>parentId</c>.</summary>
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]

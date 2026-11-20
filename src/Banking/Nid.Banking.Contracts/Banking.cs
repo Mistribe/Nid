@@ -72,7 +72,13 @@ public sealed record BankTransaction(
     Guid Id, Guid Account, string ProviderRef, string Fingerprint, LocalDate BookedOn, LocalDate? ValueOn,
     decimal Amount, Currency Currency, string Label, string? Counterparty, string? Remittance, string NormalizedLabel,
     TransactionLinkState LinkState, string FetchedVia, Instant CreatedAt, Guid? Category = null, CategorySource? CategorySource = null,
-    string? BankCode = null);
+    string? BankCode = null, string? Note = null);
+
+/// <summary>#84: a part of a split line, as asked: <paramref name="Amount"/> signed like the line.</summary>
+public sealed record PartInput(decimal Amount, Guid? CategoryId, string? Note);
+
+/// <summary>#84: a stored part of a split line.</summary>
+public sealed record TransactionPart(Guid Id, Guid Transaction, decimal Amount, Guid? Category, string? Note);
 
 public sealed record TransactionWrite(int Added, int Known);
 
@@ -82,8 +88,8 @@ public enum LinkOutcome { AsExpected, PriceDiffers, Income, Contribution, Intern
 /// <summary>Whether a category is for money out, money in, or a move between the household's own accounts.</summary>
 public enum CategoryKind { Expense, Income, Transfer }
 
-/// <summary>What set a line's category; see <c>CategoryPrecedence</c> in the Domain.</summary>
-public enum CategorySource { Link, Rule, Hand, Assistant, Hint }
+/// <summary>What set a line's category; see <c>CategoryPrecedence</c> in the Domain. <c>Split</c> (#84): the line is cut into parts and has no category of its own.</summary>
+public enum CategorySource { Link, Rule, Hand, Assistant, Hint, Split }
 
 /// <summary>Which side of the account a rule reads: a debit is a negative amount.</summary>
 public enum RuleDirection { Debit, Credit }

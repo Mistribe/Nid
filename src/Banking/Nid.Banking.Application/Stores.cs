@@ -236,7 +236,7 @@ public interface ITransactionStore
 
     Task MarkReconciledAsync(IReadOnlyCollection<Guid> ids, Instant at, CancellationToken ct);
 
-    /// <summary>Retention (D3): deletes the unlinked and ignored lines booked before <paramref name="before"/>; returns how many.</summary>
+    /// <summary>Retention (D3): deletes the unlinked and ignored lines booked before <paramref name="before"/>, except those with a note or parts (#84); returns how many.</summary>
     Task<int> PurgeBookedBeforeAsync(LocalDate before, CancellationToken ct);
 
     /// <summary>
@@ -354,6 +354,22 @@ public interface ICategoryStore
 
     /// <summary>Clears the category of the lines whose current source is one of <paramref name="sources"/>; how many changed.</summary>
     Task<int> ClearSourceAsync(IReadOnlyCollection<Guid> lines, IReadOnlyCollection<CategorySource> sources, CancellationToken ct);
+}
+
+/// <summary>#84: the notes and the split parts of bank lines; who may write is the caller's to check.</summary>
+public interface ISplitStore
+{
+    /// <summary>The parts of the lines, in order; a line with none is absent.</summary>
+    Task<IReadOnlyDictionary<Guid, IReadOnlyList<TransactionPart>>> PartsAsync(IReadOnlyCollection<Guid> lines, CancellationToken ct);
+
+    /// <summary>Replaces the parts of the line and gives it the category source <c>split</c> and no category of its own, in one save.</summary>
+    Task SplitAsync(Guid line, IReadOnlyList<PartInput> parts, string by, Instant at, CancellationToken ct);
+
+    /// <summary>Deletes the parts and clears the <c>split</c> source (the category passes then run again); false when the line was not split.</summary>
+    Task<bool> UnsplitAsync(Guid line, CancellationToken ct);
+
+    /// <summary>Sets the note, null clears it.</summary>
+    Task SetNoteAsync(Guid line, string? note, CancellationToken ct);
 }
 
 /// <summary>#85: the household's budgets, one per category; which category may take one is the caller's to check.</summary>
