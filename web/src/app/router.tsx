@@ -35,7 +35,7 @@ export type ChildcareSearch = DetailSearch & { year?: string };
 /** #94: a nanny at home's year (absent: the current one). */
 export type NannySearch = { year?: string };
 export type RoutineSearch = { on?: string };
-export type BanksSearch = { connected?: string; error?: string; tab?: 'categories'; account?: string };
+export type BanksSearch = { connected?: string; error?: string; tab?: 'categories' | 'application'; account?: string };
 /** The home page: the curve's span, a figure panel, the projection's horizon (`10y` stays out of the URL) and its reading (`0`: current value). */
 export type DashboardSearch = { curve?: '3y' | 'all'; curveReal?: 1; panel?: Panel; projection?: ProjectionHorizon; real?: 0; ranges?: 1 };
 /**
@@ -707,7 +707,7 @@ const banksSettingsRoute = createRoute({
   validateSearch: (search: Record<string, unknown>): BanksSearch => ({
     ...(typeof search.connected === 'string' ? { connected: search.connected } : {}),
     ...(typeof search.error === 'string' ? { error: search.error } : {}),
-    ...(search.tab === 'categories' ? { tab: 'categories' as const } : {}),
+    ...(search.tab === 'categories' || search.tab === 'application' ? { tab: search.tab } : {}),
     // #373: an envelope's page opens its account's « Régler » here.
     ...(typeof search.account === 'string' ? { account: search.account } : {}),
   }),

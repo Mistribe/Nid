@@ -22,6 +22,7 @@ import { Pager, useListPage, useStepBack } from '@/components/page/Pager';
 import { Section } from '@/components/page/Section';
 import { SortableTable } from '@/components/page/SortableTable';
 import { StatLine } from '@/components/page/StatLine';
+import { ConnectionTestResult } from '../settings/banks/ConnectionTestResult';
 import { AdminFrame } from './AdminFrame';
 import { formatInstant, formatInstantDate, formatInstantTime } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -150,11 +151,15 @@ export function BankingPage() {
           ]} />
           <div aria-live="polite" className="space-y-1">
             {testProblem ? <ProblemMessage problem={testProblem} /> : null}
-            {tested ? <TestResult result={tested} redirectUrl={d.redirectUrl} /> : null}
+            {tested ? <ConnectionTestResult result={tested} redirectUrl={d.redirectUrl} /> : null}
           </div>
         </section>
       )}>
       {problem ? <ProblemMessage problem={problem} /> : null}
+
+      <Section title={t('admin.banking.own_apps')}>
+        <p className="text-sm">{d.ownApplications?.length ? d.ownApplications.map((a) => a.name).join(', ') : t('admin.banking.own_apps_none')}</p>
+      </Section>
 
       {state === 'ready' ? null : (
         <Section title={t('admin.banking.setup_title')}>
@@ -271,20 +276,6 @@ function Failure({ run }: { run: Run }) {
       {failureText(t, run.failureCode)}{' '}
       <InfoTip label={t('admin.banking.failure')}>{t('admin.banking.failure_code', { code: run.failureCode })}</InfoTip>
     </span>
-  );
-}
-
-function TestResult({ result, redirectUrl }: { result: ConnectionTest; redirectUrl: string }) {
-  const { t } = useTranslation();
-  if (result.outcome === 'rejected')
-    return <p className="text-sm text-status-warning-text">{t('admin.banking.test_rejected')} <code>{result.code}</code></p>;
-  if (result.outcome !== 'accepted') return <p className="text-sm text-status-warning-text">{t('admin.banking.test_unreachable')}</p>;
-  return (
-    <>
-      <p className="text-sm text-status-good-text">{t('admin.banking.test_accepted')}</p>
-      {result.active === false ? <p className="text-sm text-status-warning-text">{t('admin.banking.test_inactive')}</p> : null}
-      {result.redirectUrlAllowed === false ? <p className="text-sm text-status-warning-text">{t('admin.banking.test_redirect_missing', { redirectUrl })}</p> : null}
-    </>
   );
 }
 
