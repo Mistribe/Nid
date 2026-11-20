@@ -2,14 +2,19 @@ using Nid.Documents.Contracts;
 
 namespace Nid.Documents.Domain;
 
-public sealed record LinkFacts(string TargetKind, Guid TargetId, Guid? AnchorItemId);
+/// <summary><paramref name="UploadedBy"/>: the uploader of the link's document, for an unanchored link only (#84).</summary>
+public sealed record LinkFacts(string TargetKind, Guid TargetId, Guid? AnchorItemId, Guid? UploadedBy = null);
 
-/// <summary>The actor is always an adult: dependents cannot sign in.</summary>
+/// <summary>
+/// The actor is always an adult: dependents cannot sign in. <paramref name="WritableUnanchored"/> (#84): the targets with no anchor (a bank line of an
+/// account on no envelope) the actor writes, as their module says.
+/// </summary>
 public sealed record ActorFacts(
     Guid Person,
     IReadOnlySet<Guid> Dependents,
     IReadOnlySet<Guid> ReadableItems,
-    IReadOnlySet<Guid> WritableItems);
+    IReadOnlySet<Guid> WritableItems,
+    IReadOnlySet<DocumentTarget>? WritableUnanchored = null);
 
 public static class DocumentRules
 {
@@ -29,6 +34,7 @@ public static class DocumentRules
         { AnchorItemId: { } anchor } => items.Contains(anchor),
         { TargetKind: TargetKinds.CorePerson } => link.TargetId == actor.Person || actor.Dependents.Contains(link.TargetId),
         { TargetKind: TargetKinds.CoreHousehold } => true,
-        _ => false,
+        // #84: another unanchored kind is the document's uploader's alone, while they write its target.
+        _ => link.UploadedBy == actor.Person && actor.WritableUnanchored?.Contains(new DocumentTarget(link.TargetKind, link.TargetId)) == true,
     };
 }

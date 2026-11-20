@@ -75,7 +75,7 @@ public sealed class ListDocumentsHandler(
             return Result.Failure<DocumentList>(new Failure(DocumentsCodes.UnknownTargetKind, $"The target kind '{asked.Kind}' is unknown.",
                 new Dictionary<string, object?> { ["field"] = "targetKind" }));
         // One rights check over every anchored item, then the list's question in SQL: a constant number of queries.
-        var facts = await access.FactsAsync(person, await store.AnchorItemsAsync(ct), ct);
+        var facts = await access.FactsAsync(person, await store.AnchorItemsAsync(ct), ct, await store.UnanchoredTargetsOfAsync(person.Value, ct));
         var shared = query is { Scope: VisibilityScope.Household, Inbox: false, Target: null, Anchor: null }
             ? (await visible.ForAsync(person, VisibilityScope.Household, includeArchived: true, ct)).Select(i => i.Value).ToList()
             : null;
@@ -86,7 +86,8 @@ public sealed class ListDocumentsHandler(
             DocumentFields.SourceRef(query.SourceRefPrefix), query.Inbox, query.Target, query.Anchor, shared,
             string.IsNullOrEmpty(query.Role) ? null : query.Role, query.Year, query.Linked,
             string.IsNullOrWhiteSpace(query.Search) ? null : query.Search.Trim(), await calendar.ZoneAsync(ct),
-            query.Page is { } page ? (Math.Max(page, 1) - 1) * size : 0, query.Page is null ? null : size), ct);
+            query.Page is { } page ? (Math.Max(page, 1) - 1) * size : 0, query.Page is null ? null : size,
+            facts.WritableUnanchored), ct);
 
         // The facets' targets hold every readable link of the page: one label lookup serves both.
         var labels = await access.LabelsAsync(found.Links.Select(l => (l.TargetKind, l.TargetId)), ct);

@@ -25,7 +25,7 @@ public class TransactionStoreTests(PostgresFixture fixture) : IClassFixture<Post
         scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
         var connections = scope.ServiceProvider.GetRequiredService<IConnectionStore>();
         var now = NidApp.GoldenCaseToday.AtMidnight().InUtc().ToInstant();
-        var id = await connections.CreatePendingAsync(app.AdultA, "Boursorama", "FR", [1, 2, 3], now + Duration.FromMinutes(15), default);
+        var id = await connections.CreatePendingAsync(app.AdultA, "app-home", "Boursorama", "FR", [1, 2, 3], now + Duration.FromMinutes(15), default);
         await connections.ActivateAsync(id, "session", now + Duration.FromDays(180), default);
         var accounts = await scope.ServiceProvider.GetRequiredService<IAccountStore>()
             .UpsertFromSessionAsync(id, [new SessionAccount("uid", "hash", iban, "Compte", "CACC", "EUR")], default);
@@ -133,7 +133,7 @@ public class TransactionStoreTests(PostgresFixture fixture) : IClassFixture<Post
             t.LinkState = t.ProviderRef switch { "i" => "ignored", "l" => "linked", _ => t.LinkState };
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        Assert.Equal(2, await store.PurgeBookedBeforeAsync(Day.PlusYears(-1), TestContext.Current.CancellationToken));
+        Assert.Equal(2, await store.PurgeBookedBeforeAsync(Day.PlusYears(-1), [], TestContext.Current.CancellationToken));
 
         Assert.Equal(["l", "n"], (await store.ListAsync([account], null, null, 0, 10, TestContext.Current.CancellationToken)).Select(t => t.ProviderRef).Order());
     }

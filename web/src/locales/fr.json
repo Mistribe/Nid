@@ -66,6 +66,7 @@
     "goals": "Objectifs",
     "childcare": "Garde",
     "income": "Revenus",
+    "operations": "Opérations",
     "spending": "Dépenses",
     "tax": "Impôts",
     "scenarios": "Simulations",
@@ -90,6 +91,7 @@
     "admin_users": "Utilisateurs",
     "admin_household": "Foyer",
     "admin_security": "Journal de sécurité",
+    "admin_security_side": "Sécurité",
     "admin_system": "Système",
     "admin_notifications": "Notifications",
     "security": "Sécurité",
@@ -215,7 +217,11 @@
       "col_per_month": "Par mois",
       "col_share": "Part du revenu",
       "from": "D’où il vient",
-      "to": "Où il part"
+      "to": "Où il part",
+      "everyday": "Dépenses courantes",
+      "everyday_tip": "Les dépenses de vos comptes ce mois-ci, remboursements déduits. Les impôts et les opérations rapprochées d'un abonnement, d'un crédit, d'une charge de bien ou de la garde n'y sont pas : ils sont déjà dans les engagements. Une opération pas encore rapprochée y compte encore. Les virements entre vos comptes n'y sont pas.",
+      "left": "Reste réel",
+      "overspent": "Dépassement de {{amount}}"
     },
     "notice_one": "{{count}} chose à faire",
     "notice_other": "{{count}} choses à faire",
@@ -816,7 +822,7 @@
     "origin": { "ui": "dans Nid", "api": "par l’API", "mcp": "par l’assistant (MCP)", "job": "par la synchronisation" },
     "proposed_on": "Proposée {{origin}} le {{date}}",
     "decided": { "approved": "Approuvée le {{date}}", "rejected": "Rejetée le {{date}}" },
-    "kind": { "valuation": "Valeur d’une enveloppe", "statement": "Relevé d’une enveloppe", "holdings": "Relevé des supports d’une enveloppe", "breakdown": "Répartition d’un support", "payslip": "Bulletin de paie", "invoice": "Facture d’un abonnement", "amortization": "Tableau d’amortissement", "link": "Opération bancaire à relier", "recurring": "Prélèvement récurrent", "categorise": "Catégories d’opérations bancaires" },
+    "kind": { "valuation": "Valeur d’une enveloppe", "statement": "Relevé d’une enveloppe", "holdings": "Relevé des supports d’une enveloppe", "breakdown": "Répartition d’un support", "payslip": "Bulletin de paie", "invoice": "Facture d’un abonnement", "amortization": "Tableau d’amortissement", "link": "Opération bancaire à relier", "recurring": "Prélèvement récurrent", "categorise": "Catégories d’opérations bancaires", "make_private": "Passage en privé" },
     "summary": {
       "valuation": "{{name}} — valeur au {{date}} : {{amount}}",
       "statement_one": "{{name}} — relevé au {{date}} ({{count}} mouvement)",
@@ -831,7 +837,8 @@
       "link": "{{name}} — opération bancaire à relier",
       "recurring": "{{name}} — prélèvement récurrent de {{amount}}",
       "categorise_one": "{{count}} opération bancaire à catégoriser",
-      "categorise_other": "{{count}} opérations bancaires à catégoriser"
+      "categorise_other": "{{count}} opérations bancaires à catégoriser",
+      "make_private": "{{owner}} souhaite rendre « {{name}} » privé : vous ne le verrez plus"
     },
     "unknown_target": "Élément inconnu"
   },

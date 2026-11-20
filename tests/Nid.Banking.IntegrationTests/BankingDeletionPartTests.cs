@@ -27,7 +27,7 @@ public class BankingDeletionPartTests(PostgresFixture fixture) : IClassFixture<P
         var sp = scope.ServiceProvider;
         sp.GetRequiredService<IActorAccessor>().Current = Actor.System;
         var now = NidApp.GoldenCaseToday.AtMidnight().InUtc().ToInstant();
-        var connection = await sp.GetRequiredService<IConnectionStore>().CreatePendingAsync(app.AdultA, "Banque", "FR", [1, 2, 3], now + Duration.FromMinutes(15), ct);
+        var connection = await sp.GetRequiredService<IConnectionStore>().CreatePendingAsync(app.AdultA, "app-home", "Banque", "FR", [1, 2, 3], now + Duration.FromMinutes(15), ct);
         await sp.GetRequiredService<IConnectionStore>().ActivateAsync(connection, "session", now + Duration.FromDays(180), ct);
         var account = (await sp.GetRequiredService<IAccountStore>()
             .UpsertFromSessionAsync(connection, [new SessionAccount("uid", "hash", "FR7630006000011234567890189", "Compte", "CACC", "EUR")], ct))[0].Id;
@@ -43,7 +43,7 @@ public class BankingDeletionPartTests(PostgresFixture fixture) : IClassFixture<P
         (associated.EnvelopeItemId, associated.AssociatedOn, associated.AssociatedByPersonId) = (item.Value, new LocalDate(2026, 10, 1), app.AdultA.Value);
         await db.SaveChangesAsync(ct);
 
-        var part = new BankingDeletionPart(db);
+        var part = new BankingDeletionPart(db, sp.GetRequiredService<Nid.Banking.Application.Operations.ReceiptAnchors>());
         var access = new ItemAccess(item, "Netflix", Visibility.Shared, []);
         Assert.Equal([("bank_links", 1), ("bank_rules", 1), ("bank_account", 1)], (await part.CountAsync(access, ct)).Select(c => (c.Key, c.Count)));
 

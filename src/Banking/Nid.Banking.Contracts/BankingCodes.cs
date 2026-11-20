@@ -14,6 +14,21 @@ public static class BankingCodes
     public const string SyncRunning = "banking.sync_running";
     public const string ProviderError = "banking.provider_error";
 
+    /// <summary>An Enable Banking application that connections still use cannot be removed.</summary>
+    public const string ApplicationInUse = Nid.Core.Contracts.BankingApplicationCodes.InUse;
+
+    /// <summary>An application id that is empty or longer than 100 characters.</summary>
+    public const string ApplicationIdInvalid = "banking.application_id_invalid";
+
+    /// <summary>An application declared without its private key.</summary>
+    public const string KeyRequired = "banking.key_required";
+
+    /// <summary>The adult's application changed at the same time: nothing was saved, try again.</summary>
+    public const string ApplicationChanged = "banking.application_changed";
+
+    /// <summary>A private key that is not an RSA private key in PEM.</summary>
+    public const string KeyInvalid = "banking.key_invalid";
+
     /// <summary>An account associated with an envelope in another currency: its balance would be written as the wrong money.</summary>
     public const string CurrencyMismatch = "banking.currency_mismatch";
 
@@ -97,4 +112,22 @@ public static class BankingCodes
 
     /// <summary>#85: the lines of a spending figure name a category, or « Non classées », not both nor neither.</summary>
     public const string SpendingTarget = "banking.spending_target";
+
+    /// <summary>#85: a budget's amount is a number of zero or more, under 10^15.</summary>
+    public const string BudgetAmount = "banking.budget_amount";
+
+    /// <summary>#85: a budget on a category and one on its parent or a child: one per branch.</summary>
+    public const string BudgetBranch = "banking.budget_branch";
+
+    /// <summary>#85: a merge that would leave two budgets on one category or on one branch.</summary>
+    public const string BudgetConflict = "banking.budget_conflict";
+
+    /// <summary>#84: a split's parts do not add up to the line's amount.</summary>
+    public const string SplitSum = "banking.split_sum";
+
+    /// <summary>#84: a split has 2 to 20 parts, each non-zero, of the line's sign, to 4 decimals, with a note of 500 characters at most.</summary>
+    public const string SplitPart = "banking.split_part";
+
+    /// <summary>#84: a split line has no category of its own: its parts do (un-split it first).</summary>
+    public const string LineSplit = "banking.line_split";
 }

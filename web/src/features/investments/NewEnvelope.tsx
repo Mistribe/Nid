@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { ChevronRightIcon } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Controller, useForm, type Path } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
@@ -73,6 +73,17 @@ export function NewEnvelope() {
       firstValueOn: todayIso(), firstValueAmount: '',
     },
   });
+  // #383: a checking account of one adult's is private, until the person picks a visibility; any other is shared, as before.
+  useEffect(() => {
+    let touched = false;
+    const subscription = form.watch((values, { name, type }) => {
+      if (name === 'visibility' && type === 'change') touched = true;
+      if (touched || !(name === 'kind' || name?.startsWith('owners'))) return;
+      const owner = values.owners?.length === 1 ? people.data?.find((p) => p.id === values.owners?.[0]?.personId) : undefined;
+      form.setValue('visibility', values.kind === 'checking' && owner?.kind === 'adult' ? 'private' : 'shared');
+    });
+    return () => subscription.unsubscribe();
+  }, [form, people.data]);
   const pathOf = (path: string): Path<NewEnvelopeValues> | undefined =>
     (NEW_ENVELOPE_PATHS[path] as Path<NewEnvelopeValues> | undefined) ?? ownershipPath(path);
   const errors = useSubmitErrors(form.setError, pathOf);

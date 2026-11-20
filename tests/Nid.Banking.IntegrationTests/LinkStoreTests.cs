@@ -24,7 +24,7 @@ public class LinkStoreTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
         var connections = scope.ServiceProvider.GetRequiredService<IConnectionStore>();
         var now = NidApp.GoldenCaseToday.AtMidnight().InUtc().ToInstant();
-        var id = await connections.CreatePendingAsync(app.AdultA, "Boursorama", "FR", [1, 2, 3], now + Duration.FromMinutes(15), default);
+        var id = await connections.CreatePendingAsync(app.AdultA, "app-home", "Boursorama", "FR", [1, 2, 3], now + Duration.FromMinutes(15), default);
         await connections.ActivateAsync(id, "session", now + Duration.FromDays(180), default);
         var accounts = await scope.ServiceProvider.GetRequiredService<IAccountStore>()
             .UpsertFromSessionAsync(id, [new SessionAccount("uid", "hash", "FR7630006000011234567890189", "Compte", "CACC", "EUR")], default);

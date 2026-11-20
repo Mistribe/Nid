@@ -25,6 +25,7 @@ import { ENVELOPE, invalidateInvestments, type EnvelopeDetail } from '@/api/inve
 import { PERSONS } from '@/api/persons';
 import { checkEditOwnership, editOwnershipShape, ownershipApplied, ownershipDefaults, ownershipPath, type OwnershipValues } from '@/components/ownership/ownership';
 import { OwnershipFields } from '@/components/ownership/OwnershipFields';
+import { usePrivateRequest } from '@/components/ownership/privateRequest';
 import { ITEM_SHARING } from '@/components/ownership/SharingBadges';
 import { CADENCES, hasPremiumsBefore2017, KINDS, REGULATED, regulatedOptions } from '../format';
 import { toEditBody, toWireBody, type EditBody, type SettingsValues } from './settingsBody';
@@ -124,6 +125,7 @@ export function SettingsForm({ envelope, onDone }: {
   const baseline = useRef(envelope);
   const errors = useSubmitErrors(form.setError, (path) => PATHS[path as keyof typeof PATHS] ?? ownershipPath(path));
   const persons = $api.useQuery('get', PERSONS, {}, { enabled: envelope.canChangeOwners }).data ?? [];
+  const asking = usePrivateRequest(envelope.id, envelope.canChangeOwners);
   const save = $api.useMutation('patch', ENVELOPE, {
     onSuccess: () => {
       void invalidateInvestments(queryClient);
@@ -131,10 +133,12 @@ export function SettingsForm({ envelope, onDone }: {
     },
   });
 
-  const submit = form.handleSubmit((values) => {
+  const submit = form.handleSubmit((typed) => {
     errors.clear();
+    // #384: « Privé » the other adult must agree to is sent to them as a request; the rest is saved as usual.
+    const [values, asks] = asking.split(baseline.current, typed);
     const body = toEditBody(baseline.current, values);
-    if (!body) { onDone(t('envelope.settings.nothing')); return; }
+    if (!body) { form.reset(values); asking.settle(asks, t('envelope.settings.nothing'), onDone, errors.onError); return; }
     save.mutate(
       { params: { path: { id: envelope.id } }, body: toWireBody(body) },
       {
@@ -142,7 +146,7 @@ export function SettingsForm({ envelope, onDone }: {
           const keeps = keepsPremiums(baseline.current, values);
           baseline.current = applied(baseline.current, values);
           form.reset({ ...values, displayName: values.displayName.trim(), premiumsBefore2017: keeps ? values.premiumsBefore2017 : '' });
-          onDone(t('envelope.settings.saved'));
+          asking.settle(asks, t('envelope.settings.saved'), onDone, errors.onError);
         },
         onError: (error) => {
           const owner = soleChangedField(body);
@@ -232,7 +236,7 @@ export function SettingsForm({ envelope, onDone }: {
         </div>
       </Folded>
       {/* Shown only when the defaults hold the ownership: its values are never undefined here. */}
-      {envelope.canChangeOwners ? <OwnershipFields form={form as unknown as UseFormReturn<OwnershipValues>} persons={persons} /> : null}
+      {envelope.canChangeOwners ? <OwnershipFields form={form as unknown as UseFormReturn<OwnershipValues>} persons={persons} item={envelope.id} /> : null}
       <Button type="submit" disabled={save.isPending}>{t('envelope.settings.submit')}</Button>
     </form>
   );

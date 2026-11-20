@@ -102,6 +102,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IProposalStore, ProposalStore>();
         services.AddScoped<Nid.Core.Application.ProposalHandlers>();
         services.AddScoped<IProposalSubmitter, Nid.Core.Application.ProposalSubmitter>();
+        services.AddScoped<IProposalHandler, Nid.Core.Application.PrivateRequestProposal>();
         services.AddScoped<IItemRegistry, ItemRegistry>();
         services.AddScoped<IAccessPolicy, AccessPolicy>();
         services.AddScoped<IHouseholdCalendar, HouseholdCalendar>();
@@ -277,6 +278,8 @@ public static class NidServiceCollectionExtensions
         }).AddInterceptors(sp.GetRequiredService<AuditInterceptor>()));
         services.AddScoped<ITransactionParticipant, DbContextParticipant<BankingDbContext>>();
         services.AddScoped<IItemDeletionPart, Nid.Banking.Infrastructure.Persistence.BankingDeletionPart>();
+        services.AddScoped<IApplicationStore, ApplicationStore>();
+        services.AddScoped<IBankingApplicationUse, BankingApplicationUse>();
         services.AddScoped<IConnectionStore, ConnectionStore>();
         services.AddScoped<IAccountStore, AccountStore>();
         services.AddScoped<IBalanceStore, BalanceStore>();
@@ -284,7 +287,9 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ILinkStore, LinkStore>();
         services.AddScoped<IRuleStore, RuleStore>();
         services.AddScoped<ICategoryStore, CategoryStore>();
+        services.AddScoped<ISplitStore, SplitStore>();
         services.AddScoped<ICategoryRuleStore, CategoryRuleStore>();
+        services.AddScoped<ICategoryBudgetStore, CategoryBudgetStore>();
         services.AddScoped<IBankSyncRunLog, SyncRunLog>();
         services.AddScoped<IAccountReadLog, AccountReadLog>();
         services.AddScoped<BankingAccess>();
@@ -293,11 +298,15 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<Nid.Banking.Application.Reconciliation.TransactionLinker>();
         services.AddScoped<Nid.Banking.Application.Reconciliation.CategoryBackfill>();
         services.AddScoped<Nid.Banking.Application.Reconciliation.CategoryRuleApplier>();
+        services.AddScoped<Nid.Banking.Application.Reconciliation.LineRecategoriser>();
         services.AddScoped<Nid.Banking.Application.Reconciliation.BankReconciliation>();
         services.AddScoped<Nid.Banking.Application.Reconciliation.RecurringDebits>();
         services.AddScoped<Nid.Banking.Application.BankLines>();
+        services.AddScoped<Nid.Banking.Application.Operations.ReceiptAnchors>();
         services.AddScoped<Nid.Banking.Application.CategoryRuleScope>();
         services.AddScoped<Nid.Banking.Application.Spending.SpendingAccounts>();
+        services.AddScoped<Nid.Banking.Application.Spending.CommittedByCategory>();
+        services.AddScoped<ISpendingContribution, Nid.Banking.Application.Spending.DashboardSpending>();
         services.AddScoped<IProposalHandler, Nid.Banking.Application.Reconciliation.LinkProposal>();
         services.AddScoped<IProposalHandler, Nid.Banking.Application.Reconciliation.SubscriptionProposal>();
         services.AddScoped<IProposalHandler, Nid.Banking.Application.Reconciliation.CategoriseProposal>();
@@ -332,12 +341,14 @@ public static class NidServiceCollectionExtensions
             npgsql.MigrationsHistoryTable("__ef_migrations_history", DocumentsDbContext.Schema);
         }).AddInterceptors(sp.GetRequiredService<AuditInterceptor>()));
         services.AddScoped<ITransactionParticipant, DbContextParticipant<DocumentsDbContext>>();
+        // After Banking's part (registered above): it re-anchors its lines' receipts off a deleted envelope before these links are removed.
         services.AddScoped<IItemDeletionPart, Nid.Documents.Infrastructure.Persistence.DocumentsDeletionPart>();
         services.AddScoped<IPersonUsePart, Nid.Documents.Infrastructure.Persistence.DocumentsPersonUsePart>();
         services.AddScoped<IDocumentStore, DocumentStore>();
         services.AddScoped<Nid.Documents.Contracts.IDocumentLinks, DocumentLinks>();
         services.AddScoped<Nid.Documents.Contracts.IDocumentTargets, CoreDocumentTargets>();
         services.AddScoped<Nid.Documents.Contracts.IDocumentTargets, Nid.Income.Application.IncomeDocumentTargets>();
+        services.AddScoped<Nid.Documents.Contracts.IDocumentTargets, Nid.Banking.Application.Operations.BankingDocumentTargets>();
         services.AddScoped<DocumentAccess>();
         services.AddScoped<ExpectedDocuments>();
 

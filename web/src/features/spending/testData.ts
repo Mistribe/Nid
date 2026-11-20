@@ -4,7 +4,7 @@ import type { Spending } from './api';
 
 /** An invented month of the demo household: two categories, one with two children, and some lines left unclassified. */
 export const month: Spending = {
-  currency: 'EUR', total: '1234.56', incomplete: false, average: '1100.00', from: '2026-11', to: '2026-11',
+  currency: 'EUR', total: '1234.56', incomplete: false, budgetIncomplete: false, average: '1100.00', from: '2026-11', to: '2026-11',
   categories: [
     { id: '11111111-1111-1111-1111-111111111111', name: 'Courses', amount: '640.10', average: '600.00', children: [
       { id: '11111111-1111-1111-1111-11111111111a', name: 'Supermarché', amount: '520.10', average: '480.00', children: [] },
@@ -24,6 +24,30 @@ export const year: Spending = {
   months: ['2025-12', '2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10', '2026-11']
     .map((m, i) => ({ month: m, total: i === 0 ? '1500.00' : '1172.73' })),
 };
+
+/** The same month in Foyer with budgets: Courses on a yearly budget and over it, Loisirs filled by its commitments and ahead of the month. */
+export const budgeted: Spending = {
+  ...month,
+  categories: [
+    { ...month.categories[0]!, budget: { planned: '600.00', committed: null, source: 'typed', period: 'year', left: '-40.10', expectedSoFar: '380.00', state: 'over' } },
+    { ...month.categories[1]!, budget: { planned: '300.00', committed: '300.00', source: 'committed', period: 'month', left: '5.54', expectedSoFar: '190.00', state: 'ahead' } },
+  ],
+};
+
+/** The household's budgets and their writes, each `[method, categoryId, body]`. */
+export function budgetServer(budgets = [{ categoryId: budgeted.categories[0]!.id, categoryName: 'Courses', amount: '7200.00', period: 'year' }]) {
+  const writes: [string, string, unknown][] = [];
+  server.use(
+    http.get('*/api/v1/banking/budgets', () => HttpResponse.json(budgets)),
+    http.put('*/api/v1/banking/budgets/:id', async ({ request, params }) => {
+      const body = await request.json();
+      writes.push(['PUT', params.id as string, body]);
+      return HttpResponse.json({ categoryId: params.id, categoryName: 'x', ...(body as object) });
+    }),
+    http.delete('*/api/v1/banking/budgets/:id', ({ params }) => { writes.push(['DELETE', params.id as string, null]); return new HttpResponse(null, { status: 204 }); }),
+  );
+  return writes;
+}
 
 /** Bank sync on, one account read, and the spending answer; the requests' query strings land in `asked`. */
 export function spendingServer(view: Spending = month) {

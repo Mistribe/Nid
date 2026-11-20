@@ -12,3 +12,8 @@ export type SpendingQuery = { scope: 'me' | 'household' } & ({ month: string } |
 
 /** The server's page size for the lines. */
 export const LINES_PAGE = 50;
+
+/** #85: a category's budget for the month (Foyer only), the household's budgets, and one of them set or removed. */
+export type SpendingBudget = components['schemas']['SpendingBudgetView'];
+export const BUDGETS = '/api/v1/banking/budgets' as const;
+export const BUDGET = '/api/v1/banking/budgets/{categoryId}' as const;

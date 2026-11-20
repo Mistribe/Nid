@@ -26,10 +26,11 @@ public sealed class GetDashboardHandler(DashboardReader dashboard, IActorAccesso
 /// <summary>The dashboard's composition for a reader on a day: the handler serves it, the notification source reads the same figures.</summary>
 public sealed class DashboardReader(
     IEnumerable<INetWorthContribution> netWorth, IEnumerable<ICommitmentsContribution> commitments,
-    IEnumerable<IIncomeContribution> income, IEnumerable<IUpcomingEvents> upcoming, PerDeadline perDeadline,
+    IEnumerable<IIncomeContribution> income, IEnumerable<ISpendingContribution> spending, IEnumerable<IUpcomingEvents> upcoming, PerDeadline perDeadline,
     IHouseholdSettings household, IFxRates fx, IPersonRegistry persons, TaxCalendarEvents taxCalendar)
 {
-    public async Task<Result<DashboardView>> ReadAsync(PersonId reader, VisibilityScope scope, LocalDate today, CancellationToken ct)
+    /// <summary><paramref name="withSpending"/> false leaves the everyday spending out (null), as the notifications never use it.</summary>
+    public async Task<Result<DashboardView>> ReadAsync(PersonId reader, VisibilityScope scope, LocalDate today, CancellationToken ct, bool withSpending = true)
     {
         var worth = await Contributions.CollectAsync(netWorth, c => c.NetWorthAsync(reader, scope, today, ct));
         if (worth.TryGetFailure(out var failure)) return Result.Failure<DashboardView>(failure!);
@@ -37,6 +38,8 @@ public sealed class DashboardReader(
         if (committed.TryGetFailure(out failure)) return Result.Failure<DashboardView>(failure!);
         var earned = await Contributions.CollectAsync(income, c => c.IncomeAsync(reader, scope, today, ct));
         if (earned.TryGetFailure(out failure)) return Result.Failure<DashboardView>(failure!);
+        var spent = await Contributions.CollectAsync(withSpending ? spending : [], s => s.EverydayAsync(reader, scope, today, ct));
+        if (spent.TryGetFailure(out failure)) return Result.Failure<DashboardView>(failure!);
         var until = today.PlusDays(DashboardMath.UpcomingDays);
         var dated = await Contributions.CollectAsync(upcoming, u => u.UpcomingAsync(reader, scope, today, until, ct));
         if (dated.TryGetFailure(out failure)) return Result.Failure<DashboardView>(failure!);
@@ -45,19 +48,20 @@ public sealed class DashboardReader(
         worth.TryGetValue(out var w);
         committed.TryGetValue(out var c);
         earned.TryGetValue(out var e);
+        spent.TryGetValue(out var s);
         dated.TryGetValue(out var d);
         per.TryGetValue(out var p);
         var taxDates = await taxCalendar.EventsAsync(reader, scope, today, until, ct);
 
         var reference = await household.ReferenceCurrencyAsync(ct);
-        var foreign = DashboardMath.Currencies(w!, c!, e!).Where(x => x != reference).ToList();
+        var foreign = DashboardMath.Currencies(w!, c!, e!, s!).Where(x => x != reference).ToList();
         // The reference's own quote is needed too: rates are per USD (RateTable converts through it).
         var rates = foreign.Count == 0
             ? RateTable.Empty(today, 0)
             : await fx.LoadAsync(foreign.Append(reference).ToList(), today, today, ct);
         var people = await persons.ListAsync(ct);
         var target = await household.AllocationTargetAsync(ct);
-        return Result.Success(DashboardMath.Compose(w!, c!, e!, d!.SelectMany(x => x).ToList(), people, reference, rates, today, target, [.. p!, .. taxDates]));
+        return Result.Success(DashboardMath.Compose(w!, c!, e!, s!, d!.SelectMany(x => x).ToList(), people, reference, rates, today, target, [.. p!, .. taxDates]));
     }
 
     /// <summary>

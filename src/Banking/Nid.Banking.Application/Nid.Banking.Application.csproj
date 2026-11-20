@@ -5,6 +5,7 @@
     <ProjectReference Include="..\Nid.Banking.Domain\Nid.Banking.Domain.csproj" />
     <ProjectReference Include="..\..\Platform\Nid.Platform.Contracts\Nid.Platform.Contracts.csproj" />
     <ProjectReference Include="..\..\Core\Nid.Core.Contracts\Nid.Core.Contracts.csproj" />
+    <ProjectReference Include="..\..\Documents\Nid.Documents.Contracts\Nid.Documents.Contracts.csproj" />
     <ProjectReference Include="..\..\Goals\Nid.Goals.Contracts\Nid.Goals.Contracts.csproj" />
     <ProjectReference Include="..\..\Investments\Nid.Investments.Contracts\Nid.Investments.Contracts.csproj" />
     <ProjectReference Include="..\..\Subscriptions\Nid.Subscriptions.Contracts\Nid.Subscriptions.Contracts.csproj" />

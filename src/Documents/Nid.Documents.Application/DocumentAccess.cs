@@ -22,17 +22,33 @@ public sealed class DocumentAccess(
 {
     public static LinkFacts Facts(LinkRecord link) => new(link.TargetKind, link.TargetId, link.AnchorItemId);
 
-    public async Task<ActorFacts> FactsAsync(PersonId actor, IReadOnlyCollection<Guid> anchors, CancellationToken ct)
+    /// <summary>A link of a document uploaded by <paramref name="uploadedBy"/>: an unanchored one of another kind than a person's or the household's is theirs (#84).</summary>
+    public static LinkFacts Facts(LinkRecord link, Guid uploadedBy) => new(link.TargetKind, link.TargetId, link.AnchorItemId, uploadedBy);
+
+    /// <summary>
+    /// The actor's rights on <paramref name="anchors"/>, and among <paramref name="unanchored"/> (targets with no anchor of the actor's own documents)
+    /// those their module says the actor writes.
+    /// </summary>
+    public async Task<ActorFacts> FactsAsync(PersonId actor, IReadOnlyCollection<Guid> anchors, CancellationToken ct, IEnumerable<DocumentTarget>? unanchored = null)
     {
         var items = anchors.Distinct().Select(a => new ItemId(a)).ToList();
         var dependents = (await persons.ListAsync(ct)).Where(p => p.Kind == PersonKind.Dependent).Select(p => p.Id.Value).ToHashSet();
+        var writable = new HashSet<DocumentTarget>();
+        foreach (var kind in (unanchored ?? []).Where(t => t.Kind is not (TargetKinds.CorePerson or TargetKinds.CoreHousehold)).GroupBy(t => t.Kind))
+            if (TargetsFor(kind.Key) is { } module)
+                writable.UnionWith((await module.WritableUnanchoredAsync(kind.Key, kind.Select(t => t.Id).Distinct().ToList(), actor, ct))
+                    .Select(id => new DocumentTarget(kind.Key, id)));
         if (items.Count == 0)
-            return new ActorFacts(actor.Value, dependents, new HashSet<Guid>(), new HashSet<Guid>());
+            return new ActorFacts(actor.Value, dependents, new HashSet<Guid>(), new HashSet<Guid>(), writable);
 
         var read = await policy.CheckManyAsync(actor, items, AccessKind.Read, ct);
         var write = await policy.CheckManyAsync(actor, items, AccessKind.Write, ct);
-        return new ActorFacts(actor.Value, dependents, read.Select(i => i.Value).ToHashSet(), write.Select(i => i.Value).ToHashSet());
+        return new ActorFacts(actor.Value, dependents, read.Select(i => i.Value).ToHashSet(), write.Select(i => i.Value).ToHashSet(), writable);
     }
+
+    /// <summary>The targets of the links that have no anchor.</summary>
+    public static IEnumerable<DocumentTarget> Unanchored(IEnumerable<LinkRecord> links)
+        => links.Where(l => l.AnchorItemId is null).Select(l => new DocumentTarget(l.TargetKind, l.TargetId));
 
     /// <summary>The adults who read a document uploaded by <paramref name="uploadedBy"/> with these links.</summary>
     public async Task<IReadOnlyList<PersonId>> ReadersAsync(Guid uploadedBy, IReadOnlyList<LinkFacts> links, CancellationToken ct)
@@ -51,7 +67,7 @@ public sealed class DocumentAccess(
         if (await store.FindAsync(id, ct) is not { } document)
             return NotFound(id);
         var links = await store.LinksOfAsync([id], ct);
-        var facts = await FactsAsync(actor, Anchors(links), ct);
+        var facts = await FactsAsync(actor, Anchors(links), ct, document.UploadedBy == actor.Value ? Unanchored(links) : null);
         return DocumentRules.CanRead(document.UploadedBy, links.Select(Facts), facts)
             ? Result.Success(new ReadableDocument(document, links, facts))
             : NotFound(id);
@@ -81,8 +97,9 @@ public sealed class DocumentAccess(
         if (!(await kind.ResolveAsync(target.Kind, [target.Id], ct)).TryGetValue(target.Id, out var resolved))
             return Fail(DocumentsCodes.TargetNotFound, "The target does not exist.", "targetId");
 
-        var link = new LinkFacts(target.Kind, target.Id, resolved.AnchorItemId);
-        var facts = await FactsAsync(actor, links.Select(l => l.AnchorItemId).Append(resolved.AnchorItemId).OfType<Guid>().ToList(), ct);
+        var link = new LinkFacts(target.Kind, target.Id, resolved.AnchorItemId, uploadedBy);
+        var facts = await FactsAsync(actor, links.Select(l => l.AnchorItemId).Append(resolved.AnchorItemId).OfType<Guid>().ToList(), ct,
+            resolved.AnchorItemId is null && uploadedBy == actor.Value ? [target] : null);
         if (!DocumentRules.CanWriteLink(link, facts))
             return DocumentRules.CanReadLink(link, facts)
                 ? Result.Failure<LinkRecord>(new UnauthorizedFailure("The target is read-only for this person.", null))
@@ -118,9 +135,9 @@ public sealed class DocumentAccess(
             return Result.Failure<LinkRecord>(read.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
 
         var link = found!.Links.FirstOrDefault(l => l.TargetKind == target.Kind && l.TargetId == target.Id);
-        if (link is null || !DocumentRules.CanReadLink(Facts(link), found.Actor))
+        if (link is null || !DocumentRules.CanReadLink(Facts(link, found.Document.UploadedBy), found.Actor))
             return Result.Failure<LinkRecord>(new NotFoundFailure("document link", $"{id}/{target.Kind}/{target.Id}"));
-        return DocumentRules.CanWriteLink(Facts(link), found.Actor)
+        return DocumentRules.CanWriteLink(Facts(link, found.Document.UploadedBy), found.Actor)
             ? Result.Success(link)
             : Result.Failure<LinkRecord>(new UnauthorizedFailure("The target is read-only for this person.", null));
     }

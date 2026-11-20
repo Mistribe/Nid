@@ -1,5 +1,8 @@
 {
   "field_error": {
+    "banking_split_sum": "Les parties font {{parts}}, l'opération fait {{line}}.",
+    "banking_category_archived": "Une des catégories est archivée : choisissez-en une autre.",
+    "banking_split_part": "Chaque partie doit avoir un montant non nul, du même sens que l'opération (2 à 20 parties).",
     "tax_declarant_taken": "Cette personne a déjà un avis pour cette année.",
     "tax_declarant_required": "Vous devez être l’un des déclarants.",
     "tax_invalid_assessment": "Valeur refusée par le contrôle de l’avis.",
@@ -281,6 +284,11 @@
     "saved": "Partage enregistré.",
     "not_owner": "Seuls les propriétaires changent le partage.",
     "owner": "Vous en êtes propriétaire",
-    "not_an_owner": "Vous n’en êtes pas propriétaire"
+    "not_an_owner": "Vous n’en êtes pas propriétaire",
+    "private": "Privé (vous seul)",
+    "private_ask_effect": "L’autre adulte le voit aujourd’hui : il doit d’abord accepter. L’enregistrement lui envoie une demande dans « À valider » ; l’élément reste partagé jusqu’à sa réponse.",
+    "ask": "Envoyer la demande",
+    "private_asked": "Demande envoyée : l’élément reste partagé jusqu’à la réponse de l’autre adulte.",
+    "private_pending": "Passage en privé demandé"
   }
 }

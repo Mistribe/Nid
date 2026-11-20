@@ -37,10 +37,14 @@ public sealed class DocumentStore(DocumentsDbContext db) : IDocumentStore
     public async Task<DocumentPageRecord> PageAsync(DocumentPageQuery q, CancellationToken ct)
     {
         List<Guid> readable = [.. q.ReadableItems], persons = [.. q.Persons], dependents = [.. q.Dependents];
-        // DocumentRules.CanReadLink: an anchored link is judged on its anchor, whatever its kind.
+        // (kind, id) as one key, as Postgres prints a uuid: a pair list does not translate.
+        List<string> own = [.. (q.OwnUnanchored ?? []).Select(t => $"{t.Kind}:{t.Id}")];
+        // DocumentRules.CanReadLink: an anchored link is judged on its anchor, whatever its kind; another unanchored kind is its uploader's (#84).
         var seen = db.Links.Where(l => (l.AnchorItemId != null && readable.Contains(l.AnchorItemId.Value))
             || (l.AnchorItemId == null && (l.TargetKind == TargetKinds.CoreHousehold
-                || (l.TargetKind == TargetKinds.CorePerson && persons.Contains(l.TargetId)))));
+                || (l.TargetKind == TargetKinds.CorePerson && persons.Contains(l.TargetId))
+                || (own.Contains(l.TargetKind + ":" + l.TargetId.ToString())
+                    && db.Documents.Any(d => d.Id == l.DocumentId && d.UploadedByPersonId == q.Actor)))));
 
         var docs = db.Documents.AsNoTracking().Where(d => q.Archived || d.ArchivedAt == null)
             .Where(d => d.UploadedByPersonId == q.Actor || seen.Any(l => l.DocumentId == d.Id));
@@ -107,8 +111,37 @@ public sealed class DocumentStore(DocumentsDbContext db) : IDocumentStore
     {
         var wanted = documents.ToList();
         return (await db.Links.AsNoTracking().Where(l => wanted.Contains(l.DocumentId)).ToListAsync(ct))
-            .Select(l => new LinkRecord(l.DocumentId, l.TargetKind, l.TargetId, l.AnchorItemId, l.Role, l.LinkedByPersonId, l.LinkedAt)).ToList();
+            .Select(ToLink).ToList();
     }
+
+    public async Task<IReadOnlyList<LinkRecord>> LinksToAsync(string kind, IReadOnlyCollection<Guid> targets, CancellationToken ct)
+    {
+        var wanted = targets.ToList();
+        return (await db.Links.AsNoTracking().Where(l => l.TargetKind == kind && wanted.Contains(l.TargetId)).ToListAsync(ct)).Select(ToLink).ToList();
+    }
+
+    public async Task<IReadOnlyList<DocumentTarget>> UnanchoredTargetsOfAsync(Guid uploader, CancellationToken ct)
+        => (await db.Links.AsNoTracking().Where(l => l.AnchorItemId == null && l.TargetKind != TargetKinds.CorePerson && l.TargetKind != TargetKinds.CoreHousehold
+                && db.Documents.Any(d => d.Id == l.DocumentId && d.UploadedByPersonId == uploader))
+            .Select(l => new { l.TargetKind, l.TargetId }).Distinct().ToListAsync(ct))
+            .Select(l => new DocumentTarget(l.TargetKind, l.TargetId)).ToList();
+
+    public async Task<IReadOnlyList<DocumentRecord>> FindManyAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct)
+    {
+        var wanted = ids.ToList();
+        return (await db.Documents.AsNoTracking().Where(d => wanted.Contains(d.Id)).ToListAsync(ct)).Select(ToRecord).ToList();
+    }
+
+    public async Task ReanchorLinksAsync(string kind, IReadOnlyCollection<Guid> targets, Guid? anchor, CancellationToken ct)
+    {
+        var wanted = targets.ToList();
+        // Tracked, not a bulk update: the write audit keeps each link's new anchor.
+        foreach (var row in await db.Links.Where(l => l.TargetKind == kind && wanted.Contains(l.TargetId) && l.AnchorItemId != anchor).ToListAsync(ct))
+            row.AnchorItemId = anchor;
+        await db.SaveChangesAsync(ct);
+    }
+
+    private static LinkRecord ToLink(DocumentLinkRow l) => new(l.DocumentId, l.TargetKind, l.TargetId, l.AnchorItemId, l.Role, l.LinkedByPersonId, l.LinkedAt);
 
     public async Task<IReadOnlyList<ExpectedDismissal>> DismissalsAsync(CancellationToken ct)
         => (await db.ExpectedDismissals.AsNoTracking().ToListAsync(ct))

@@ -1,8 +1,10 @@
 using System.Text.Json;
+using Nid.Banking.Application.Operations;
 using Nid.Banking.Application.Reconciliation;
 using Nid.Banking.Contracts;
 using Nid.Banking.Domain;
 using Nid.Core.Contracts;
+using Nid.Documents.Contracts;
 using Nid.Platform.Contracts;
 using NodaTime;
 using UnambitiousFx.Functional;
@@ -57,13 +59,19 @@ public sealed record BankTransactionPage(IReadOnlyList<BankTransactionView> Item
 /// <paramref name="AccountName"/> the line's own account. <paramref name="Link"/> is null when the line is not linked, or its target is
 /// hidden from the reader (D19): <paramref name="LinkState"/> still says <c>linked</c> or <c>internal</c>. <paramref name="Category"/> shows to
 /// every reader of the line, link masked or not; <paramref name="CategorySource"/> is <c>hand</c>, <c>link</c>…, null when nothing chose it.
+/// <paramref name="PartId"/> is set only on a row of the spending lines that stands for one part of a split line (the row's amount, category and note are the part's).
+/// <paramref name="Note"/> is a person's note; <paramref name="Parts"/> the parts of a split line (<paramref name="CategorySource"/> <c>split</c>), null otherwise.
 /// <paramref name="SuggestedPattern"/> is the pattern a rule made from the line would offer (<see cref="CategoryRules.Suggest"/>), null when none fits;
 /// <paramref name="SharedAccount"/> says whether every adult reads the line's account (<paramref name="AccountId"/>, a card's own for its lines).
 /// </summary>
 public sealed record BankTransactionView(
     Guid Id, LocalDate BookedOn, LocalDate? ValueOn, string Amount, string Currency, string Label, string? Counterparty, bool FromCard,
     string? CardName, string FetchedVia, string LinkState, LinkView? Link, string AccountName, CategoryView? Category, string? CategorySource,
-    Guid AccountId, string? SuggestedPattern, bool SharedAccount);
+    Guid AccountId, string? SuggestedPattern, bool SharedAccount, string? Note = null, IReadOnlyList<PartView>? Parts = null, Guid? PartId = null,
+    IReadOnlyList<LinkedDocumentView>? Documents = null);
+
+/// <summary>#84: a part of a split line, <paramref name="Amount"/> signed like the line; the parts add up to it.</summary>
+public sealed record PartView(Guid Id, string Amount, CategoryView? Category, string? Note);
 
 /// <summary>A line's category; <paramref name="Kind"/> is <c>expense</c>, <c>income</c> or <c>transfer</c>.</summary>
 public sealed record CategoryView(Guid Id, string Name, Guid? ParentId, string? ParentName, string Kind);
@@ -86,7 +94,7 @@ public sealed record BankRuleView(Guid Id, string LabelStem, string? AccountName
 /// <summary>The lines the actor reads, as views masked by D19, and the line a request names.</summary>
 public sealed class BankLines(
     BankingAccess access, IAccountStore accounts, ITransactionStore transactions, ILinkStore links, IItemRegistry items, IAccessPolicy policy,
-    ICategoryStore categories)
+    ICategoryStore categories, ISplitStore splits, IDocumentLinks documents)
 {
     public const int PageSize = 50;
 
@@ -132,7 +140,7 @@ public sealed class BankLines(
     /// D19: a link shows only to a reader of its target item, or of its counterpart account; an internal line whose counterpart the reader
     /// cannot read says <c>linked</c>, as the store's state filter counts it.
     /// </summary>
-    private async Task<IReadOnlyList<BankTransactionView>> ViewsAsync(
+    public async Task<IReadOnlyList<BankTransactionView>> ViewsAsync(
         IReadOnlyList<BankTransaction> lines, IReadOnlyDictionary<Guid, BankAccount> readable, CancellationToken ct)
     {
         var all = (await accounts.AllAsync(ct)).ToDictionary(a => a.Id);
@@ -140,6 +148,9 @@ public sealed class BankLines(
         var targets = found.Values.Select(l => l.TargetItem).OfType<ItemId>().Distinct().ToList();
         var names = await items.FindManyAsync([.. await policy.CheckManyAsync(access.Person, targets, AccessKind.Read, ct)], ct);
         var named = (await categories.AllAsync(ct)).ToDictionary(c => c.Id);
+        var parts = await splits.PartsAsync([.. lines.Select(l => l.Id)], ct);
+        // #84: the receipts the reader reads, as the documents list would show them.
+        var receipts = await documents.ReadableOfTargetsAsync(BankingDocumentTargets.Kind, [.. lines.Select(l => l.Id)], access.Person, ct);
         var adults = await access.AdultCountAsync(ct);
         var shared = new Dictionary<Guid, bool>();
         foreach (var id in lines.Select(l => l.Account).Distinct())
@@ -169,7 +180,9 @@ public sealed class BankLines(
                 account.CardOf is not null ? account.Name : null, t.FetchedVia,
                 t.LinkState == TransactionLinkState.Internal && view is null ? "linked" : Wire(t.LinkState), view, account.Name,
                 Category(t.Category), t.CategorySource is { } source ? Wire(source) : null,
-                t.Account, CategoryRules.Suggest(t.NormalizedLabel), shared[t.Account]);
+                t.Account, CategoryRules.Suggest(t.NormalizedLabel), shared[t.Account], t.Note,
+                parts.TryGetValue(t.Id, out var own) ? [.. own.Select(x => new PartView(x.Id, TransactionLinker.Amount(x.Amount), Category(x.Category), x.Note))] : null,
+                Documents: receipts.GetValueOrDefault(t.Id));
         })];
     }
 
@@ -370,6 +383,8 @@ public sealed class SetTransactionCategoryHandler(BankingAccess access, BankLine
         var found = await lines.FindAsync(command.TransactionId, AccessKind.Write, ct);
         if (!found.TryGetValue(out var line))
             return BankingAccess.Failed<BankTransactionView, BankTransaction>(found);
+        if (line!.CategorySource == CategorySource.Split)
+            return Result.Failure<BankTransactionView>(SplitUseCases.Split());
         if (command.CategoryId is { } id)
         {
             if (await categories.FindAsync(id, ct) is not { } category)
@@ -388,8 +403,7 @@ public sealed class SetTransactionCategoryHandler(BankingAccess access, BankLine
 
 [RequestHandler<ResetTransactionCategoryCommand, BankTransactionView>]
 public sealed class ResetTransactionCategoryHandler(
-    BankingAccess access, BankLines lines, ILinkStore links, ICategoryStore categories, LinkCategoryReader reader, CategoryRuleApplier categoryRules,
-    IClock clock)
+    BankingAccess access, BankLines lines, ICategoryStore categories, LineRecategoriser recategoriser, IClock clock)
     : IRequestHandler<ResetTransactionCategoryCommand, BankTransactionView>
 {
     public async ValueTask<Result<BankTransactionView>> HandleAsync(ResetTransactionCategoryCommand command, CancellationToken ct = default)
@@ -400,14 +414,11 @@ public sealed class ResetTransactionCategoryHandler(
         var found = await lines.FindAsync(command.TransactionId, AccessKind.Write, ct);
         if (!found.TryGetValue(out var line))
             return BankingAccess.Failed<BankTransactionView, BankTransaction>(found);
+        if (line!.CategorySource == CategorySource.Split)
+            return Result.Failure<BankTransactionView>(SplitUseCases.Split());
 
-        await categories.SetForLinesAsync([line!.Id], null, null, $"person:{access.Person.Value:D}", clock.GetCurrentInstant(), byPerson: true, ct);
-        // The link does not keep its charge's kind: the item's kind stands in, as for the backfill.
-        if ((await links.ForTransactionsAsync([line.Id], ct)).GetValueOrDefault(line.Id) is { } link
-            && await reader.KeyAsync(link, null, line.Amount > 0, ct) is { } key
-            && await categories.ResolveKeyAsync(key, ct) is { } category)
-            await categories.SetForLinesAsync([line.Id], category, CategorySource.Link, link.DecidedBy, link.DecidedAt, byPerson: false, ct);
-        await categoryRules.ApplyAsync(line.Id, ct);
+        await categories.SetForLinesAsync([line.Id], null, null, $"person:{access.Person.Value:D}", clock.GetCurrentInstant(), byPerson: true, ct);
+        await recategoriser.ApplyAsync(line, ct);
         return Result.Success(await lines.ViewAsync(line.Id, ct));
     }
 }

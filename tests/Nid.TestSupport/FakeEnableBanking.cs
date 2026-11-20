@@ -44,6 +44,11 @@ public sealed class FakeEnableBanking : IEnableBankingClient
 
     public List<string> CodesExchanged { get; } = [];
 
+    /// <summary>The application each code exchange and each session deletion was signed with.</summary>
+    public List<string> SessionApps { get; } = [];
+
+    public List<string> DeleteApps { get; } = [];
+
     public List<BalancesCall> BalanceCalls { get; } = [];
 
     public List<TransactionsCall> TransactionCalls { get; } = [];
@@ -53,7 +58,7 @@ public sealed class FakeEnableBanking : IEnableBankingClient
     /// <summary>What every test host uses unless a test scripts its own: every call is a provider error.</summary>
     public static FakeEnableBanking Offline() => new() { FailWith = BankingCodes.ProviderError };
 
-    public Task<Result<IReadOnlyList<Aspsp>>> AspspsAsync(string appId, string country, CancellationToken ct)
+    public Task<Result<IReadOnlyList<Aspsp>>> AspspsAsync(EnableBankingApp app, string country, CancellationToken ct)
     {
         Record(Countries, country);
         return Task.FromResult(FailWith is { } code
@@ -61,22 +66,23 @@ public sealed class FakeEnableBanking : IEnableBankingClient
             : Result.Success<IReadOnlyList<Aspsp>>(Aspsps.Where(a => a.Country == country).ToList()));
     }
 
-    public Task<Result<AuthStart>> StartAuthAsync(string appId, Aspsp aspsp, Instant validUntil, string state, string redirectUrl, CancellationToken ct)
+    public Task<Result<AuthStart>> StartAuthAsync(EnableBankingApp app, Aspsp aspsp, Instant validUntil, string state, string redirectUrl, CancellationToken ct)
     {
-        Record(StartAuths, new StartAuthCall(appId, aspsp, validUntil, state, redirectUrl));
+        Record(StartAuths, new StartAuthCall(app.Id, aspsp, validUntil, state, redirectUrl));
         return Task.FromResult(FailWith is { } code ? Fail<AuthStart>(code) : Result.Success(new AuthStart($"https://bank.example/auth?state={state}")));
     }
 
-    public Task<Result<AuthorizedSession>> CreateSessionAsync(string appId, string code, CancellationToken ct)
+    public Task<Result<AuthorizedSession>> CreateSessionAsync(EnableBankingApp app, string code, CancellationToken ct)
     {
         Record(CodesExchanged, code);
+        Record(SessionApps, app.Id);
         return Task.FromResult(FailWith is { } fail ? Fail<AuthorizedSession>(fail)
             : Sessions.TryGetValue(code, out var session) ? Result.Success(session) : Fail<AuthorizedSession>("enablebanking.WRONG_AUTHORIZATION_CODE"));
     }
 
-    public Task<Result<IReadOnlyList<ProviderBalance>>> BalancesAsync(string appId, string sessionId, string accountUid, PsuHeaders? psu, CancellationToken ct)
+    public Task<Result<IReadOnlyList<ProviderBalance>>> BalancesAsync(EnableBankingApp app, string sessionId, string accountUid, PsuHeaders? psu, CancellationToken ct)
     {
-        Record(BalanceCalls, new BalancesCall(appId, sessionId, accountUid, psu));
+        Record(BalanceCalls, new BalancesCall(app.Id, sessionId, accountUid, psu));
         var key = (sessionId, accountUid);
         return Task.FromResult(FailWith is { } fail ? Fail<IReadOnlyList<ProviderBalance>>(fail)
             : BalanceFailures.TryGetValue(key, out var code) ? Fail<IReadOnlyList<ProviderBalance>>(code)
@@ -85,18 +91,19 @@ public sealed class FakeEnableBanking : IEnableBankingClient
 
     /// <summary>An account with nothing scripted has no transactions (an empty read), so tests about balances stay unchanged.</summary>
     public Task<Result<ProviderTransactions>> TransactionsAsync(
-        string appId, string sessionId, string accountUid, LocalDate? dateFrom, PsuHeaders? psu, CancellationToken ct)
+        EnableBankingApp app, string sessionId, string accountUid, LocalDate? dateFrom, PsuHeaders? psu, CancellationToken ct)
     {
-        Record(TransactionCalls, new TransactionsCall(appId, sessionId, accountUid, dateFrom, psu));
+        Record(TransactionCalls, new TransactionsCall(app.Id, sessionId, accountUid, dateFrom, psu));
         var key = (sessionId, accountUid);
         return Task.FromResult(FailWith is { } fail ? Fail<ProviderTransactions>(fail)
             : TransactionFailures.TryGetValue(key, out var code) ? Fail<ProviderTransactions>(code)
             : Result.Success(new ProviderTransactions(Transactions.TryGetValue(key, out var lines) ? lines : [], TransactionsTruncated.Contains(key))));
     }
 
-    public Task<Result> DeleteSessionAsync(string appId, string sessionId, CancellationToken ct)
+    public Task<Result> DeleteSessionAsync(EnableBankingApp app, string sessionId, CancellationToken ct)
     {
         Record(DeletedSessions, sessionId);
+        Record(DeleteApps, app.Id);
         return Task.FromResult(FailWith is { } code ? Result.Failure(new Failure(code, "Fake provider failure.", null)) : Result.Success());
     }
 
@@ -105,9 +112,9 @@ public sealed class FakeEnableBanking : IEnableBankingClient
 
     public List<string> ApplicationCalls { get; } = [];
 
-    public Task<Result<EnableBankingApplication>> ApplicationAsync(string appId, CancellationToken ct)
+    public Task<Result<EnableBankingApplication>> ApplicationAsync(EnableBankingApp app, CancellationToken ct)
     {
-        Record(ApplicationCalls, appId);
+        Record(ApplicationCalls, app.Id);
         return Task.FromResult(FailWith is { } code ? Fail<EnableBankingApplication>(code)
             : Application is { } application ? Result.Success(application) : Fail<EnableBankingApplication>("enablebanking.UNAUTHORIZED_ACCESS"));
     }

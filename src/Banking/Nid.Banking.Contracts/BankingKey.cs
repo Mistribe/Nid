@@ -57,7 +57,7 @@ public sealed record BankingKey(string Status)
         }
     }
 
-    private static bool IsRsaPrivateKey(string pem)
+    public static bool IsRsaPrivateKey(string pem)
     {
         try
         {

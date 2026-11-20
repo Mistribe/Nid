@@ -298,6 +298,19 @@ describe('key figure panels', () => {
     expect(within(panel).getByRole('region', { name: 'Où part le revenu du mois' })).toHaveTextContent('Reste 2 249,45 €');
     await expectNoAxeViolations(container);
   });
+
+  it('gives the margin once in its panel, above the everyday spending', async () => {
+    serve(dashboard({
+      margin: eur('1000.00'), everydaySpending: eur('800.00'), left: eur('200.00'),
+      spendingSlices: [{ name: 'Alimentation', amount: eur('800.00'), others: false, uncategorised: false }],
+    }));
+    await renderApp('/dashboard?panel=margin');
+
+    const panel = await dialog('Reste à vivre');
+    await within(panel).findByText('Dépenses courantes');
+    expect(Array.from(panel.querySelectorAll('dt')).map((el) => el.textContent)).toEqual(['Dépenses courantes', 'Reste réel']);
+    expect(panel.textContent?.match(/1\s000,00\s€/g)).toHaveLength(1);
+  });
 });
 
 describe('net worth charts', () => {

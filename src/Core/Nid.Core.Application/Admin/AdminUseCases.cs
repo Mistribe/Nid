@@ -2,6 +2,7 @@ using NodaTime;
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
 using UnambitiousFx.Functional;
+using UnambitiousFx.Functional.Failures;
 using UnambitiousFx.Synapse.Abstractions;
 
 namespace Nid.Core.Application.Admin;
@@ -141,14 +142,23 @@ public sealed class GetHouseholdSettingsHandler(IHouseholdSettings settings) : I
 }
 
 [RequestHandler<UpdateHouseholdSettingsCommand, HouseholdSettingsView>]
-public sealed class UpdateHouseholdSettingsHandler(IHouseholdSettings settings)
+public sealed class UpdateHouseholdSettingsHandler(IHouseholdSettings settings, IEnumerable<IBankingApplicationUse> applicationUse)
     : IRequestHandler<UpdateHouseholdSettingsCommand, HouseholdSettingsView>
 {
     public async ValueTask<Result<HouseholdSettingsView>> HandleAsync(UpdateHouseholdSettingsCommand command, CancellationToken ct = default)
-        => (await settings.UpdateAsync(new HouseholdSettingsChange(
+    {
+        // #382: a new installation id would orphan the connections made with a previous one; clearing it stays allowed.
+        if (command.EnableBankingAppId?.Trim() is { Length: > 0 } wanted && (await settings.ReadAsync(ct)).EnableBankingAppId != wanted)
+            foreach (var use in applicationUse)
+                if (await use.WouldOrphanAsync(wanted, ct))
+                    return Result.Failure<HouseholdSettingsView>(
+                        new ConflictFailure("Bank connections still use another Enable Banking application.") { Code = BankingApplicationCodes.InUse });
+
+        return (await settings.UpdateAsync(new HouseholdSettingsChange(
                 command.MaxAdults, command.ReferenceCurrency, command.PricesEnabled, command.IrlEnabled, command.BankingEnabled, command.EnableBankingAppId,
                 command.BankRetentionMonths, command.ClearBankRetention, command.InflationEnabled), ct))
             .Map(HouseholdSettingsView.From);
+    }
 }
 
 /// <summary>

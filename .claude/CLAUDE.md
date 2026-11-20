@@ -67,6 +67,10 @@ Open issues live in the public project [Nid roadmap](https://github.com/orgs/Mis
 - Workflows move items on their own: a new issue lands in `Triage`, a PR whose body says `Closes #N` moves #N to
   `In progress`, a merge or a close moves it to `Done`. Do not set these statuses by hand.
 - Only the household sets `Priority` and moves an issue out of `Triage`.
+- When an issue cannot start before another, record it as a « blocked by » link, not only in the text
+  (`gh api graphql` with `addBlockedBy(input: {issueId, blockingIssueId})`, node ids from `gh api repos/Mistribe/Nid/issues/N -q .node_id`).
+  The steps of one large issue are its sub-issues, linked to each other the same way.
+- Do not start an issue that is still blocked by an open one: say which one blocks it.
 
 ## Web UI
 
@@ -87,7 +91,7 @@ Every screen follows one page grammar (`docs/frontend/design-system.md` §6.1, `
 - Colours come from theme tokens only; the default theme is `ardoise` (« Confiance », blue accent); chart and status colours are fixed (`docs/frontend/dataviz.md`).
 - Never compute an amount in the browser (`nid/no-amount-arithmetic`): show the server's figures; `toPlot` only sizes marks or sorts.
 - Filters and search are applied on the server, never in the browser. A list that can grow takes its filters, its search and `page` as query parameters. It answers one page, the total, and the options its filters offer. The store applies them in the SQL query, read rights included, rather than loading everything and filtering in memory. The page keeps them in the URL. `GET /api/v1/documents` and `DocumentsPage` are the reference (#420).
-- Initial JS stays under 200 kB gzip (`pnpm --dir web budget`): pages are lazy routes, heavy parts (cmdk, calendar, confirmation dialog) load lazily.
+- Initial JS stays under 250 kB gzip and grows by at most 5 kB gzip in one PR, measured against `main` in CI (`pnpm --dir web budget`). Raising the ceiling is a PR of its own that says why: pages are lazy routes, heavy parts (cmdk, calendar, confirmation dialog) load lazily.
 - Tests: `pick` (`web/src/test/controls.ts`) for selects and comboboxes; `pick` / `fillDate` (`web/e2e/controls.ts`) in Playwright; a Radix modal makes the page behind inert (`hidden: true`).
 
 ## Versioning

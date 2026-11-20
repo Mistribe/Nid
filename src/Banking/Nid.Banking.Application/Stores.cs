@@ -5,11 +5,43 @@ using UnambitiousFx.Functional;
 
 namespace Nid.Banking.Application;
 
+/// <summary>What an adult's own application is, without its key.</summary>
+public sealed record StoredApplication(PersonId Person, string ApplicationId, Instant KeyLoadedAt, bool KeyReadable);
+
+/// <summary>Each adult's Enable Banking application; the private key is encrypted at rest and only <see cref="CredentialAsync"/> reads it back.</summary>
+public interface IApplicationStore
+{
+    Task<StoredApplication?> FindAsync(PersonId person, CancellationToken ct);
+
+    /// <summary>The decrypted key; null without an application or when the key ring cannot read it.</summary>
+    Task<EnableBankingApp?> CredentialAsync(PersonId person, CancellationToken ct);
+
+    /// <summary>
+    /// Creates, or changes the id and/or the key (null <paramref name="privateKeyPem"/>: keeps the key). False when a concurrent save
+    /// of the same person won: nothing was written.
+    /// </summary>
+    Task<bool> SaveAsync(PersonId person, string applicationId, string? privateKeyPem, CancellationToken ct);
+
+    /// <summary>False when a concurrent change of the same person won: nothing was removed.</summary>
+    Task<bool> DeleteAsync(PersonId person, CancellationToken ct);
+
+    Task<IReadOnlyList<PersonId>> OwnersAsync(CancellationToken ct);
+}
+
 /// <summary>Bank connections (spec §2.2); the session id is encrypted at rest and only <see cref="SessionIdAsync"/> reads it back.</summary>
 public interface IConnectionStore
 {
     /// <summary>A connection waiting for the bank's callback; only the SHA-256 of its <c>state</c> is kept, until <paramref name="expiresAt"/>.</summary>
-    Task<Guid> CreatePendingAsync(PersonId person, string aspspName, string country, byte[] stateHash, Instant expiresAt, CancellationToken ct);
+    Task<Guid> CreatePendingAsync(PersonId person, string applicationId, string aspspName, string country, byte[] stateHash, Instant expiresAt, CancellationToken ct);
+
+    /// <summary>Whether a connection past its pending state was made with this application (the person's, when given).</summary>
+    Task<bool> InUseAsync(string applicationId, PersonId? person, CancellationToken ct);
+
+    /// <summary>
+    /// Whether a connection past its pending state was made with an application id that is neither <paramref name="installationId"/> nor
+    /// its creator's own declared one: a previous installation application, which a new installation id would orphan.
+    /// </summary>
+    Task<bool> HasOtherApplicationThanAsync(string installationId, CancellationToken ct);
 
     /// <summary>
     /// The connection holding this state hash (pending, or being renewed), which it clears: a state is used once, even past its time.
@@ -199,23 +231,50 @@ public interface ITransactionStore
 
     Task<BankTransaction?> FindAsync(Guid id, CancellationToken ct);
 
+    /// <summary>#84: the lines of these ids that exist.</summary>
+    Task<IReadOnlyList<BankTransaction>> FindManyAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct);
+
+    /// <summary>#84: the ids of every line of the accounts, whatever their date.</summary>
+    Task<IReadOnlyList<Guid>> IdsOfAsync(IReadOnlyCollection<Guid> accounts, CancellationToken ct);
+
     /// <summary>Linked or internal lines with no category source yet, by id after <paramref name="after"/> (the category backfill's page).</summary>
     Task<IReadOnlyList<BankTransaction>> UncategorisedLinkedAsync(Guid? after, int take, CancellationToken ct);
 
     Task MarkReconciledAsync(IReadOnlyCollection<Guid> ids, Instant at, CancellationToken ct);
 
-    /// <summary>Retention (D3): deletes the unlinked and ignored lines booked before <paramref name="before"/>; returns how many.</summary>
-    Task<int> PurgeBookedBeforeAsync(LocalDate before, CancellationToken ct);
+    /// <summary>
+    /// Retention (D3): deletes the unlinked and ignored lines booked before <paramref name="before"/>, except those with a note or parts and those of
+    /// <paramref name="keep"/> (#84: a receipt's); returns how many.
+    /// </summary>
+    Task<int> PurgeBookedBeforeAsync(LocalDate before, IReadOnlyCollection<Guid> keep, CancellationToken ct);
 
-    /// <summary>#85: the accounts' lines booked within [<paramref name="from"/>, <paramref name="to"/>], ignored and internal ones (transfers, card settlements) left out, summed by category, currency and month.</summary>
-    Task<IReadOnlyList<SpendingSum>> SpendingAsync(IReadOnlyList<Guid> accounts, LocalDate from, LocalDate to, CancellationToken ct);
+    /// <summary>#84: the lines <see cref="PurgeBookedBeforeAsync"/> would delete, none kept.</summary>
+    Task<IReadOnlyList<Guid>> PurgeableBeforeAsync(LocalDate before, CancellationToken ct);
 
     /// <summary>
-    /// One page of the lines <see cref="SpendingAsync"/> sums (same filter), newest first, and how many there are: those filed in one of
-    /// <paramref name="categories"/>, or, with <paramref name="uncategorised"/>, the debits with no category.
+    /// #85: the accounts' lines booked within [<paramref name="from"/>, <paramref name="to"/>], ignored and internal ones (transfers, card
+    /// settlements) left out, and linked ones too without <paramref name="withLinked"/>, summed by category, currency and month.
     /// </summary>
-    Task<(IReadOnlyList<BankTransaction> Items, int Count)> SpendingLinesAsync(
+    Task<IReadOnlyList<SpendingSum>> SpendingAsync(IReadOnlyList<Guid> accounts, LocalDate from, LocalDate to, CancellationToken ct, bool withLinked = true);
+
+    /// <summary>
+    /// One page of what <see cref="SpendingAsync"/> sums (same filter), newest first, and how many there are: the unsplit lines and the parts of split
+    /// ones (a part's id and amount, null and the line's own for an unsplit line) filed in one of <paramref name="categories"/>, or, with
+    /// <paramref name="uncategorised"/>, the debits with no category.
+    /// </summary>
+    Task<(IReadOnlyList<(BankTransaction Line, Guid? PartId, decimal Amount)> Items, int Count)> SpendingLinesAsync(
         IReadOnlyList<Guid> accounts, IReadOnlyList<Guid> categories, bool uncategorised, LocalDate from, LocalDate to, int skip, int take, CancellationToken ct);
+
+    /// <summary>
+    /// #84: one page of the lines of <paramref name="filter"/>.Accounts (the actor's pick among <paramref name="readable"/>, already resolved), newest booked
+    /// first, with how many there are, and the filter's <see cref="SpendingSum"/>s (ignored and internal lines and ignored accounts left out, no category).
+    /// <paramref name="categories"/> are the filter's categories with their children. D19 and the state filter work as in <see cref="ListAsync"/>.
+    /// </summary>
+    Task<(IReadOnlyList<BankTransaction> Items, int Total, IReadOnlyList<SpendingSum> Sums)> OperationsAsync(
+        IReadOnlyList<Guid> readable, Operations.OperationFilter filter, IReadOnlyList<Guid> categories, int skip, int take, CancellationToken ct);
+
+    /// <summary>The categories the accounts' lines are filed in.</summary>
+    Task<IReadOnlyList<Guid>> OperationCategoriesAsync(IReadOnlyList<Guid> accounts, CancellationToken ct);
 
     /// <summary>The accounts' earliest booking, null with no line: how far back their history goes.</summary>
     Task<LocalDate?> EarliestBookedOnAsync(IReadOnlyList<Guid> accounts, CancellationToken ct);
@@ -284,7 +343,7 @@ public interface ICategoryStore
     /// <summary>
     /// Renames when <paramref name="name"/> is given, moves under <paramref name="parent"/> (null: top-level) when <paramref name="moveParent"/>,
     /// archives or unarchives when <paramref name="archived"/> is given. Archiving a parent archives its children; unarchiving a child
-    /// unarchives its parent.
+    /// unarchives its parent. A budgeted category moves under no budgeted parent (<see cref="BankingCodes.BudgetBranch"/>).
     /// </summary>
     Task<Result<BankCategory>> UpdateAsync(Guid id, string? name, Guid? parent, bool moveParent, bool? archived, CancellationToken ct);
 
@@ -292,6 +351,7 @@ public interface ICategoryStore
     /// In one transaction: moves the lines and the rules of <paramref name="from"/> to <paramref name="into"/> (their source unchanged), merges each child
     /// into the target's child of the same name (whatever the case) or moves it under the target, then archives <paramref name="from"/> as merged.
     /// A merged category is neither merged again, merged into, moved nor unarchived (<see cref="BankingCodes.CategoryArchived"/>).
+    /// A budget follows its category, refused when two would meet on one category or one branch (<see cref="BankingCodes.BudgetConflict"/>).
     /// </summary>
     Task<Result<BankCategory>> MergeAsync(Guid from, Guid into, CancellationToken ct);
 
@@ -307,6 +367,35 @@ public interface ICategoryStore
 
     /// <summary>Clears the category of the lines whose current source is one of <paramref name="sources"/>; how many changed.</summary>
     Task<int> ClearSourceAsync(IReadOnlyCollection<Guid> lines, IReadOnlyCollection<CategorySource> sources, CancellationToken ct);
+}
+
+/// <summary>#84: the notes and the split parts of bank lines; who may write is the caller's to check.</summary>
+public interface ISplitStore
+{
+    /// <summary>The parts of the lines, in order; a line with none is absent.</summary>
+    Task<IReadOnlyDictionary<Guid, IReadOnlyList<TransactionPart>>> PartsAsync(IReadOnlyCollection<Guid> lines, CancellationToken ct);
+
+    /// <summary>Replaces the parts of the line and gives it the category source <c>split</c> and no category of its own, in one save.</summary>
+    Task SplitAsync(Guid line, IReadOnlyList<PartInput> parts, string by, Instant at, CancellationToken ct);
+
+    /// <summary>Deletes the parts and clears the <c>split</c> source (the category passes then run again); false when the line was not split.</summary>
+    Task<bool> UnsplitAsync(Guid line, CancellationToken ct);
+
+    /// <summary>Sets the note, null clears it.</summary>
+    Task SetNoteAsync(Guid line, string? note, CancellationToken ct);
+}
+
+/// <summary>#85: the household's budgets, one per category; which category may take one is the caller's to check.</summary>
+public interface ICategoryBudgetStore
+{
+    /// <summary>Every budget, archived categories' included.</summary>
+    Task<IReadOnlyList<CategoryBudget>> AllAsync(CancellationToken ct);
+
+    /// <summary>Creates or replaces the budget of <see cref="CategoryBudget.Category"/>.</summary>
+    Task SetAsync(CategoryBudget budget, CancellationToken ct);
+
+    /// <summary>Whether the category had one.</summary>
+    Task<bool> DeleteAsync(Guid category, CancellationToken ct);
 }
 
 /// <summary>The household's category rules (spec §Rules); who sees and applies one is the caller's to check.</summary>

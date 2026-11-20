@@ -3,6 +3,12 @@ using UnambitiousFx.Functional;
 
 namespace Nid.Banking.Contracts;
 
+/// <summary>An Enable Banking application: the id the JWT names and the PEM that signs it. <see cref="ToString"/> keeps the key out of any log.</summary>
+public sealed record EnableBankingApp(string Id, string PrivateKeyPem)
+{
+    public override string ToString() => $"EnableBankingApp {{ Id = {Id} }}";
+}
+
 /// <summary>Banking settings (stage 5A): bound from configuration section <c>EnableBanking</c>; the PEM arrives from the Docker secret file.</summary>
 public sealed class BankingOptions
 {
@@ -38,22 +44,22 @@ public sealed record PsuHeaders(string? IpAddress, string? UserAgent);
 /// </summary>
 public interface IEnableBankingClient
 {
-    Task<Result<IReadOnlyList<Aspsp>>> AspspsAsync(string appId, string country, CancellationToken ct);
+    Task<Result<IReadOnlyList<Aspsp>>> AspspsAsync(EnableBankingApp app, string country, CancellationToken ct);
 
-    Task<Result<AuthStart>> StartAuthAsync(string appId, Aspsp aspsp, Instant validUntil, string state, string redirectUrl, CancellationToken ct);
+    Task<Result<AuthStart>> StartAuthAsync(EnableBankingApp app, Aspsp aspsp, Instant validUntil, string state, string redirectUrl, CancellationToken ct);
 
-    Task<Result<AuthorizedSession>> CreateSessionAsync(string appId, string code, CancellationToken ct);
+    Task<Result<AuthorizedSession>> CreateSessionAsync(EnableBankingApp app, string code, CancellationToken ct);
 
-    Task<Result<IReadOnlyList<ProviderBalance>>> BalancesAsync(string appId, string sessionId, string accountUid, PsuHeaders? psu, CancellationToken ct);
+    Task<Result<IReadOnlyList<ProviderBalance>>> BalancesAsync(EnableBankingApp app, string sessionId, string accountUid, PsuHeaders? psu, CancellationToken ct);
 
     /// <summary>The booked lines since <paramref name="dateFrom"/> (all the bank gives when <c>null</c>), every page followed.</summary>
     Task<Result<ProviderTransactions>> TransactionsAsync(
-        string appId, string sessionId, string accountUid, LocalDate? dateFrom, PsuHeaders? psu, CancellationToken ct);
+        EnableBankingApp app, string sessionId, string accountUid, LocalDate? dateFrom, PsuHeaders? psu, CancellationToken ct);
 
-    Task<Result> DeleteSessionAsync(string appId, string sessionId, CancellationToken ct);
+    Task<Result> DeleteSessionAsync(EnableBankingApp app, string sessionId, CancellationToken ct);
 
     /// <summary>Issue #343: the application the id and the key sign for (<c>GET /application</c>), the one call that reads no bank.</summary>
-    Task<Result<EnableBankingApplication>> ApplicationAsync(string appId, CancellationToken ct);
+    Task<Result<EnableBankingApplication>> ApplicationAsync(EnableBankingApp app, CancellationToken ct);
 }
 
 /// <summary>What Enable Banking says of the application: whether it is active, and the redirect URLs it accepts.</summary>

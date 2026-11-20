@@ -1,7 +1,9 @@
 using System.Net;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
+using Nid.Core.Application.Dashboard;
 using Nid.Core.Contracts;
+using Nid.Platform.Contracts;
 using Nid.TestSupport;
 using NodaTime;
 using UnambitiousFx.Functional;
@@ -35,6 +37,14 @@ public class DashboardAggregationTests(PostgresFixture fixture) : IClassFixture<
         public Task<Result<IncomeTimeline>> TimelineAsync(PersonId reader, VisibilityScope scope, LocalDate today, int months, IReadOnlyDictionary<PersonId, int> switches, CancellationToken ct)
             => Task.FromResult(Result.Success(new IncomeTimeline([], [])));
     }
+    private sealed class Spending(SpendingPart part, List<PersonId> calls) : ISpendingContribution
+    {
+        public Task<Result<SpendingPart>> EverydayAsync(PersonId reader, VisibilityScope scope, LocalDate today, CancellationToken ct)
+        {
+            calls.Add(reader);
+            return Task.FromResult(Result.Success(part));
+        }
+    }
     private sealed class Rates(RateTable table, List<Currency> asked) : IFxRates
     {
         public Task<RateTable> LoadAsync(IReadOnlyCollection<Currency> quotes, LocalDate from, LocalDate to, CancellationToken ct)
@@ -45,13 +55,16 @@ public class DashboardAggregationTests(PostgresFixture fixture) : IClassFixture<
     }
 
     private readonly List<Currency> quotesAsked = [];
+    private readonly List<PersonId> spendingReads = [];
 
     private static RateTable UsdToEur(decimal eurPerUsd)
         => new([new FxRate(Today, Currency.Eur, eurPerUsd, FxRateSource.Ecb)], Today, maxGapDays: 7);
 
-    private Task<NidApp> StartAsync(NetWorthPart? worth = null, IReadOnlyList<CommitmentsPart>? commitments = null, IncomePart? income = null, RateTable? rates = null)
+    private Task<NidApp> StartAsync(NetWorthPart? worth = null, IReadOnlyList<CommitmentsPart>? commitments = null, IncomePart? income = null, RateTable? rates = null,
+        SpendingPart? spending = null)
         => NidApp.StartAsync(fixture, services =>
         {
+            if (spending is not null) services.AddScoped<ISpendingContribution>(_ => new Spending(spending, spendingReads));
             if (worth is not null) services.AddScoped<INetWorthContribution>(_ => new Worth(worth));
             foreach (var part in commitments ?? [])
                 services.AddScoped<ICommitmentsContribution>(_ => new Commitments(part));
@@ -99,6 +112,55 @@ public class DashboardAggregationTests(PostgresFixture fixture) : IClassFixture<
         Assert.Equal("1000.00", Total(view.GetProperty("changeContributions")));
         Assert.Equal(9.1m, view.GetProperty("changePct").GetDecimal()); // 1000 ÷ (10000 + 1000)
         Assert.Contains(Currency.Eur, quotesAsked); // the reference's own quote is loaded too
+    }
+
+    [Fact]
+    public async Task Without_a_bank_account_the_month_has_no_everyday_spending_and_the_margin_is_unchanged()
+    {
+        await using var app = await StartAsync(
+            commitments: [new CommitmentsPart(CommitmentSources.Subscriptions, 1, Sums((Currency.Eur, 1000m)), Sums((Currency.Eur, 1000m)))],
+            income: new IncomePart(1, Sums((Currency.Eur, 2000m))));
+
+        var view = await ReadAsync(app);
+
+        Assert.Equal("1000.00", view.GetProperty("margin").GetProperty("amount").GetString());
+        Assert.Equal(50.0m, view.GetProperty("marginPct").GetDecimal());
+        Assert.Equal(JsonValueKind.Null, view.GetProperty("everydaySpending").ValueKind);
+        Assert.Equal(JsonValueKind.Null, view.GetProperty("left").ValueKind);
+        Assert.Equal(0, view.GetProperty("spendingSlices").GetArrayLength());
+    }
+
+    [Fact]
+    public async Task Everyday_spending_converts_at_today_s_rate_and_what_is_left_can_go_below_zero()
+    {
+        await using var app = await StartAsync(
+            commitments: [new CommitmentsPart(CommitmentSources.Subscriptions, 1, Sums((Currency.Eur, 1000m)), Sums((Currency.Eur, 1000m)))],
+            income: new IncomePart(1, Sums((Currency.Eur, 2000m))),
+            rates: UsdToEur(0.9m),
+            spending: new SpendingPart(Sums((Currency.Eur, 1110m), (Currency.Usd, 100m)),
+                [new SpendingSlice(Guid.NewGuid(), "Alimentation", Sums((Currency.Eur, 1110m))), new SpendingSlice(Guid.NewGuid(), "Transport", Sums((Currency.Usd, 100m)))]));
+
+        var view = await ReadAsync(app);
+
+        Assert.Equal("1200.00", view.GetProperty("everydaySpending").GetProperty("amount").GetString());
+        Assert.Equal("-200.00", view.GetProperty("left").GetProperty("amount").GetString());
+        var slices = view.GetProperty("spendingSlices").EnumerateArray()
+            .Select(s => (s.GetProperty("name").GetString(), s.GetProperty("amount").GetProperty("amount").GetString())).ToArray();
+        Assert.Equal([("Alimentation", "1110.00"), ("Transport", "90.00")], slices);
+        Assert.Contains(Currency.Usd, quotesAsked); // the spending's currency is loaded with the others
+        Assert.Equal([app.AdultA], spendingReads);
+    }
+
+    [Fact]
+    public async Task The_notification_digest_never_reads_everyday_spending()
+    {
+        await using var app = await StartAsync(spending: new SpendingPart(Sums((Currency.Eur, 50m)), []));
+        await using var scope = app.Services.CreateAsyncScope();
+        scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.Notifier(app.AdultA);
+        var core = scope.ServiceProvider.GetServices<INotificationSource>().OfType<CoreNotificationSource>().Single();
+
+        Assert.True((await core.SignalsAsync(app.AdultA, Today, Today.PlusDays(30), TestContext.Current.CancellationToken)).IsSuccess);
+        Assert.Empty(spendingReads);
     }
 
     [Fact]

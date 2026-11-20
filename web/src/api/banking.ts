@@ -61,12 +61,13 @@ export const accountLabel = (t: TFunction, account: Pick<BankAccount, 'name' | '
 
 /** An envelope's bank lines, the statement import and the lines left to link (`features/operations`). */
 export type BankTransaction = components['schemas']['BankTransactionView'];
+export type OperationPage = components['schemas']['OperationPage'];
+export const OPERATIONS = '/api/v1/banking/operations' as const;
 export type BankTransactionPage = components['schemas']['BankTransactionPage'];
 export type ExpectedCharge = components['schemas']['ExpectedChargeView'];
 export type StatementImport = components['schemas']['StatementImportView'];
 export const TRANSACTIONS = '/api/v1/banking/envelopes/{envelopeId}/transactions' as const;
 export const STATEMENTS = '/api/v1/banking/statements' as const;
-export const UNLINKED_LINES = '/api/v1/banking/transactions' as const;
 export const CANDIDATES = '/api/v1/banking/transactions/{id}/candidates' as const;
 
 /** The household's bank categories (archived and merged ones included) and a line's category (`features/operations`). */
@@ -92,6 +93,9 @@ export const bankErrorText = (t: TFunction, code: string, fallback: string) => t
 export function presentBankError(t: TFunction, error: unknown): Presentation {
   const problem = toProblem(error);
   const shown = present(problem);
+  // The size cap and the JSON-only guard answer before any code: 413 is an oversized key file, 415 a malformed upload.
+  if (problem.status === 413) return { ...shown, detail: t('banks.application.file_too_large') };
+  if (problem.status === 415) return { ...shown, detail: t('banks.error.invalid_upload') };
   return problem.code?.startsWith('banking.') ? { ...shown, detail: bankErrorText(t, problem.code, shown.detail ?? '') } : shown;
 }
 

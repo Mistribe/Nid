@@ -1,4 +1,4 @@
-import { ArrowLeftRight, Baby, Bell, Building, Building2, Calculator, CalendarCheck, CalendarDays, ChartCandlestick, FileText, FlaskConical, Download, House, HousePlus, Inbox, KeyRound, Landmark, LayoutGrid, Library, Mail, PiggyBank, Repeat, Server, ShieldCheck, Settings, ShoppingBasket, Sunset, Target, Timer, TrendingUp, Upload, Users, Wallet } from 'lucide-react';
+import { ArrowLeftRight, Baby, Bell, Building, Building2, Calculator, CalendarCheck, CalendarDays, ChartCandlestick, FileText, FlaskConical, Download, House, HousePlus, Inbox, KeyRound, Landmark, LayoutGrid, Library, Mail, PiggyBank, ReceiptText, Repeat, Server, ShieldCheck, Settings, ShoppingBasket, Sunset, Target, Timer, TrendingUp, Upload, Users, Wallet } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { components } from '@/api/schema';
 import type { Tile } from '@/components/ModuleTile';
@@ -15,11 +15,12 @@ export const NAV = [
   { group: 'follow', module: ['investments', 'realestate'], admin: false, mobile: 'tab', to: '/routine', icon: CalendarCheck, tile: 'primary', label: 'nav.routine' },
   { group: 'follow', module: 'core', admin: false, mobile: 'more', to: '/proposals', icon: Inbox, tile: 'primary', label: 'nav.proposals' },
   { group: 'follow', module: 'documents', admin: false, mobile: 'more', to: '/documents', icon: FileText, tile: 'neutral', label: 'nav.documents' },
-  { group: 'estate', module: 'investments', admin: false, mobile: 'tab', to: '/investments', icon: PiggyBank, tile: 1, label: 'nav.investments', tabLabel: 'nav.investments_tab' },
+  { group: 'estate', module: 'investments', admin: false, mobile: 'tab', to: '/investments', icon: PiggyBank, tile: 1, label: 'nav.investments', tabLabel: 'nav.investments_tab', sideLabel: 'nav.investments_tab' },
   { group: 'estate', module: 'goals', admin: false, mobile: 'more', to: '/goals', icon: Target, tile: 4, label: 'nav.goals' },
   { group: 'estate', module: 'realestate', admin: false, mobile: 'more', to: '/properties', icon: Building2, tile: 3, label: 'nav.properties' },
   { group: 'estate', module: 'realestate', admin: false, mobile: 'more', to: '/loans', icon: Landmark, tile: 2, label: 'nav.loans' },
   { group: 'budget', module: 'income', admin: false, mobile: 'more', to: '/income', icon: Wallet, tile: 6, label: 'nav.income' },
+  { group: 'budget', module: 'banking', admin: false, mobile: 'more', to: '/operations', icon: ReceiptText, tile: 'neutral', label: 'nav.operations' },
   { group: 'budget', module: 'banking', admin: false, mobile: 'more', to: '/spending', icon: ShoppingBasket, tile: 'neutral', label: 'nav.spending' },
   { group: 'budget', module: 'income', admin: false, mobile: 'more', to: '/tax', icon: Calculator, tile: 'neutral', label: 'nav.tax' },
   { group: 'estate', module: 'core', admin: false, mobile: 'more', to: '/retirement', icon: Sunset, tile: 'neutral', label: 'nav.retirement' },
@@ -40,7 +41,7 @@ export const NAV = [
   { group: 'admin', module: null, admin: true, mobile: 'none', to: '/admin/catalog', icon: Library, tile: 'neutral', label: 'nav.admin_catalog' },
   { group: 'admin', module: null, admin: true, mobile: 'none', to: '/admin/users', icon: Users, tile: 'neutral', label: 'nav.admin_users' },
   { group: 'admin', module: null, admin: true, mobile: 'none', to: '/admin/household', icon: HousePlus, tile: 'neutral', label: 'nav.admin_household' },
-  { group: 'admin', module: null, admin: true, mobile: 'none', to: '/admin/security', icon: ShieldCheck, tile: 'neutral', label: 'nav.admin_security' },
+  { group: 'admin', module: null, admin: true, mobile: 'none', to: '/admin/security', icon: ShieldCheck, tile: 'neutral', label: 'nav.admin_security', sideLabel: 'nav.admin_security_side' },
   { group: 'admin', module: null, admin: true, mobile: 'none', to: '/admin/system', icon: Server, tile: 'neutral', label: 'nav.admin_system' },
   { group: 'admin', module: null, admin: true, mobile: 'none', to: '/admin/notifications', icon: Mail, tile: 'neutral', label: 'nav.admin_notifications' },
 ] as const satisfies readonly ({ tile: Tile } & Record<string, unknown>)[];

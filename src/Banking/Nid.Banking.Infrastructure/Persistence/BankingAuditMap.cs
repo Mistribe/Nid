@@ -10,6 +10,7 @@ public sealed class BankingAuditMap : IAuditMap
 {
     public IReadOnlyDictionary<Type, AuditRule> Audited { get; } = new Dictionary<Type, AuditRule>
     {
+        [typeof(ApplicationRow)] = new(_ => [], new HashSet<string> { "private_key", "application_id" }),
         [typeof(ConnectionRow)] = new(_ => [], new HashSet<string> { "session_id", "state_hash" }),
         [typeof(AccountRow)] = new(e => AuditItems.Of(e, nameof(AccountRow.EnvelopeItemId))),
         [typeof(AccountSourceRow)] = AuditRule.NoItem,
@@ -20,7 +21,8 @@ public sealed class BankingAuditMap : IAuditMap
         // A category is the household's, no item's; a line's category is not audited (TransactionRow), categorised_by is its record.
         [typeof(CategoryRow)] = AuditRule.NoItem,
         [typeof(CategoryRuleRow)] = AuditRule.NoItem,
+        [typeof(CategoryBudgetRow)] = AuditRule.NoItem,
     };
 
-    public IReadOnlySet<Type> Excluded { get; } = new HashSet<Type> { typeof(AuditEntryRow), typeof(BalanceRow), typeof(TransactionRow), typeof(RecurringGroupRow), typeof(SyncRunRow), typeof(AccountReadRow) };
+    public IReadOnlySet<Type> Excluded { get; } = new HashSet<Type> { typeof(AuditEntryRow), typeof(BalanceRow), typeof(TransactionRow), typeof(TransactionPartRow), typeof(RecurringGroupRow), typeof(SyncRunRow), typeof(AccountReadRow) };
 }

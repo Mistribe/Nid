@@ -63,6 +63,27 @@ public static class AllocationLiquidity
 public sealed record CommitmentsPart(
     string Source, int Count, IReadOnlyDictionary<Currency, decimal> Amortized, IReadOnlyDictionary<Currency, decimal> Cash, bool Estimated = false);
 
+/// <summary>
+/// #85 decision 4: the month's everyday spending, from the bank lines: what the margin has not already taken out (no line linked
+/// to an item, no tax). Banking off or no bank account: <see cref="SpendingPart.None"/>.
+/// </summary>
+public interface ISpendingContribution
+{
+    Task<Result<SpendingPart>> EverydayAsync(PersonId reader, VisibilityScope scope, LocalDate today, CancellationToken ct);
+}
+
+/// <summary>
+/// #85 decision 10: positive for money spent, per currency; <c>ByCategory</c> one slice per top-level category, the lines with none as
+/// « Non classées » (no <c>Category</c>). An empty <c>Total</c> means nothing to read (no account), a zero one an account that spent nothing.
+/// </summary>
+public sealed record SpendingPart(IReadOnlyDictionary<Currency, decimal> Total, IReadOnlyList<SpendingSlice> ByCategory)
+{
+    public static readonly SpendingPart None = new(new Dictionary<Currency, decimal>(), []);
+}
+
+/// <summary>A top-level category's spending; <c>Category</c> null for the lines without one, so slices group by it, never by name.</summary>
+public sealed record SpendingSlice(Guid? Category, string Name, IReadOnlyDictionary<Currency, decimal> Amount);
+
 /// <summary>3E1 spec §3: the sources of the commitments, as the wire names them.</summary>
 public static class CommitmentSources
 {

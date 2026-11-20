@@ -79,6 +79,9 @@ public sealed class CategoryStore(BankingDbContext db, IClock clock) : ICategory
                 return Fail(BankingCodes.CategoryKind, "A category moves only under a parent of its kind.");
             if (parentRow.ArchivedAt is not null && parentId != row.ParentId)
                 return Fail(BankingCodes.CategoryArchived, "A category moved under an archived one.");
+            // The parent is in use here; an archived category's budget is inert and never blocks.
+            if (parentId != row.ParentId && row.ArchivedAt is null && await db.CategoryBudgets.CountAsync(b => b.CategoryId == id || b.CategoryId == parentId, ct) == 2)
+                return Fail(BankingCodes.BudgetBranch, "A budgeted category moves under no budgeted one: one budget per branch.");
         }
 
         if ((newName != row.Name || newParent != row.ParentId) && await SiblingNamedAsync(newParent, newName, id, ct))
@@ -122,7 +125,27 @@ public sealed class CategoryStore(BankingDbContext db, IClock clock) : ICategory
         await using var transaction = db.Database.CurrentTransaction is null ? await db.Database.BeginTransactionAsync(ct) : null;
         try
         {
-            await MergeRowAsync(source, target, clock.GetCurrentInstant(), ct);
+            // Tracked first, so the budgets' check reads the tree as the merge leaves it; the lines move only once it passes.
+            var tree = (await db.Categories.ToListAsync(ct)).ToDictionary(c => c.Id);
+            var budgets = await db.CategoryBudgets.ToListAsync(ct);
+            var lineMoves = new List<(Guid From, Guid To)>();
+            await MergeRowAsync(source, target, clock.GetCurrentInstant(), lineMoves, ct);
+            // A merged category had no budget before this merge: one hop takes each budget to where its category went.
+            foreach (var budget in budgets.Where(b => tree[b.CategoryId].MergedIntoId is not null))
+                budget.CategoryId = tree[budget.CategoryId].MergedIntoId!.Value;
+            var budgeted = budgets.Select(b => b.CategoryId).ToList();
+            // One per category always (the unique index); one per branch among categories in use, an archived one's budget being inert.
+            if (budgeted.Count != budgeted.Distinct().Count()
+                || budgeted.Any(c => tree[c].ArchivedAt is null && tree[c].ParentId is { } up && tree[up].ArchivedAt is null && budgeted.Contains(up)))
+            {
+                db.ChangeTracker.Clear();
+                return Fail(BankingCodes.BudgetConflict, "Both have a budget, or the merge puts two on one branch: remove one first.");
+            }
+
+            foreach (var (moved, to) in lineMoves)
+                await db.Transactions.Where(t => t.CategoryId == moved).ExecuteUpdateAsync(s => s.SetProperty(t => t.CategoryId, to), ct);
+            foreach (var (moved, to) in lineMoves)
+                await db.TransactionParts.Where(p => p.CategoryId == moved).ExecuteUpdateAsync(s => s.SetProperty(p => p.CategoryId, to), ct);
             await db.SaveChangesAsync(ct);
             if (transaction is not null)
                 await transaction.CommitAsync(ct);
@@ -136,9 +159,9 @@ public sealed class CategoryStore(BankingDbContext db, IClock clock) : ICategory
         }
     }
 
-    private async Task MergeRowAsync(CategoryRow source, CategoryRow target, Instant at, CancellationToken ct)
+    private async Task MergeRowAsync(CategoryRow source, CategoryRow target, Instant at, List<(Guid From, Guid To)> lineMoves, CancellationToken ct)
     {
-        await db.Transactions.Where(t => t.CategoryId == source.Id).ExecuteUpdateAsync(s => s.SetProperty(t => t.CategoryId, target.Id), ct);
+        lineMoves.Add((source.Id, target.Id));
         // Tracked, so audited: a rule is the household's decision, a line's category is not.
         foreach (var rule in await db.CategoryRules.Where(r => r.CategoryId == source.Id).ToListAsync(ct))
             rule.CategoryId = target.Id;
@@ -150,7 +173,7 @@ public sealed class CategoryStore(BankingDbContext db, IClock clock) : ICategory
             // OrdinalIgnoreCase here, Postgres lower() for sibling uniqueness: the same for French letters.
             if (child.MergedIntoId is null
                 && targetChildren.FirstOrDefault(c => string.Equals(c.Name, child.Name, StringComparison.OrdinalIgnoreCase)) is { } same)
-                await MergeRowAsync(child, same, at, ct);
+                await MergeRowAsync(child, same, at, lineMoves, ct);
             // An already merged child keeps its target; it follows its parent only where it stays two levels deep.
             else if (child.MergedIntoId is null || target.ParentId is null)
                 child.ParentId = target.Id;
@@ -167,7 +190,8 @@ public sealed class CategoryStore(BankingDbContext db, IClock clock) : ICategory
         // CategoryPrecedence, in the WHERE: one source of truth for which current sources a write replaces. A clear (no source) leaves a
         // person's choice (hand, assistant) to a person.
         var replaceable = Enum.GetValues<CategorySource>()
-            .Where(c => source is { } incoming ? CategoryPrecedence.CanReplace(c, incoming, byPerson) : byPerson || c is not (CategorySource.Hand or CategorySource.Assistant))
+            .Where(c => source is { } incoming ? CategoryPrecedence.CanReplace(c, incoming, byPerson)
+                : c is not CategorySource.Split && (byPerson || c is not (CategorySource.Hand or CategorySource.Assistant)))
             .Select(Wire).ToList();
         var query = db.Transactions.Where(t => lines.Contains(t.Id) && (t.CategorySource == null || replaceable.Contains(t.CategorySource)));
         if (source is null)

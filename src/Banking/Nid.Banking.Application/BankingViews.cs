@@ -19,7 +19,13 @@ public sealed record BankingStatusView(bool Enabled, bool Configured, bool? AppI
 /// <param name="Reads">#365: the installation's busiest account and latest refusal, counts only (no bank, no account named).</param>
 public sealed record BankingDiagnosticsView(
     string KeyStatus, bool AppIdSaved, string RedirectUrl, BankSyncRunView? LastRun = null, DateTimeOffset? NextRunAt = null, bool BankLinked = false,
-    BankReadsView? Reads = null);
+    BankReadsView? Reads = null, IReadOnlyList<OwnApplicationView>? OwnApplications = null);
+
+/// <summary>#382: an adult who declared their own Enable Banking application; neither its id nor its key.</summary>
+public sealed record OwnApplicationView(Guid PersonId, string Name);
+
+/// <summary>#382: the actor's own application: <paramref name="KeyStatus"/> is <c>loaded</c> or <c>unreadable</c> (the key ring lost it), never the key.</summary>
+public sealed record MyApplicationView(string ApplicationId, string KeyStatus, DateTimeOffset KeyLoadedAt, bool InUse);
 
 /// <summary>
 /// #365: Nid's own count of an account's reads at its bank, an estimate (<see cref="BankReads"/>): <paramref name="Unattended"/> of

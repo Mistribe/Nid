@@ -82,7 +82,8 @@ public class ConnectionTests(PostgresFixture fixture) : IClassFixture<PostgresFi
 
             await BankingApi.SettingsAsync(off, new { bankingEnabled = true });
             Assert.Equal((true, false), await StatusAsync(off));
-            await BankingApi.AssertRefusedAsync(await off.RawAsync(off.AdultA, HttpMethod.Get, $"{BankingApi.Root}/connections"), HttpStatusCode.Conflict, BankingCodes.NotConfigured);
+            // Listing calls no Enable Banking API: it needs banking on, not configured.
+            Assert.Equal(0, (await BankingApi.ConnectionsAsync(off, off.AdultA)).GetArrayLength());
         }
 
         // An application id without the private key is not configured either.
@@ -234,6 +235,44 @@ public class ConnectionTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         await using var db = Db(app);
         Assert.Equal(1, await db.Accounts.CountAsync(cancellationToken: TestContext.Current.CancellationToken));
         Assert.Equal([first, second], (await db.Sources.Where(s => s.AccountId == ofA).Select(s => s.ConnectionId).ToListAsync(cancellationToken: TestContext.Current.CancellationToken)).Order());
+        // #381: the other adult's link to the same bank and accounts renews nothing of the first one's.
+        Assert.Empty(app.Banks.DeletedSessions);
+    }
+
+    [Fact]
+    public async Task Linking_the_same_bank_again_with_the_same_accounts_renews_the_connection()
+    {
+        await using var app = await BankingApi.StartAsync(fixture);
+        var first = await BankingApi.ConnectAsync(app, app.AdultA, "code-1",
+            BankingApi.Account("uid-1", "hash-1", JointIban, "Compte"), BankingApi.Account("uid-2", "hash-2", null, "Livret", "SVGS"));
+        var accounts = (await BankingApi.AccountsAsync(app, app.AdultA)).EnumerateArray().Select(a => a.GetProperty("id").GetGuid()).Order().ToList();
+
+        // #381: a new consent to the same accounts, the person's first connection still live.
+        var second = await BankingApi.ConnectAsync(app, app.AdultA, "code-2",
+            BankingApi.Account("uid-1b", "hash-1", JointIban, "Compte"), BankingApi.Account("uid-2b", "hash-2", null, "Livret", "SVGS"));
+
+        var connection = Assert.Single((await BankingApi.ConnectionsAsync(app, app.AdultA)).EnumerateArray());
+        Assert.Equal(second, connection.GetProperty("id").GetGuid());
+        Assert.Equal(accounts, connection.GetProperty("accounts").EnumerateArray().Select(a => a.GetProperty("id").GetGuid()).Order());
+        await using var db = Db(app);
+        Assert.False(await db.Connections.AnyAsync(c => c.Id == first, TestContext.Current.CancellationToken));
+        Assert.Equal(["uid-1b", "uid-2b"], await db.Sources.OrderBy(s => s.ProviderUid).Select(s => s.ProviderUid).ToListAsync(TestContext.Current.CancellationToken));
+        // The old consent is revoked at the bank.
+        Assert.Equal(["session-code-1"], app.Banks.DeletedSessions);
+    }
+
+    [Fact]
+    public async Task Linking_the_same_bank_again_with_another_account_keeps_both_connections()
+    {
+        await using var app = await BankingApi.StartAsync(fixture);
+        var first = await BankingApi.ConnectAsync(app, app.AdultA, "code-1", BankingApi.Account("uid-1", "hash-1", null, "Compte"));
+
+        // Another customer login at the same bank: an account the first connection does not reach.
+        var second = await BankingApi.ConnectAsync(app, app.AdultA, "code-2",
+            BankingApi.Account("uid-1b", "hash-1", null, "Compte"), BankingApi.Account("uid-3", "hash-3", null, "Compte pro"));
+
+        Assert.Equal([first, second], (await BankingApi.ConnectionsAsync(app, app.AdultA)).EnumerateArray().Select(c => c.GetProperty("id").GetGuid()));
+        Assert.Empty(app.Banks.DeletedSessions);
     }
 
     [Fact]

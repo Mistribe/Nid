@@ -13,7 +13,8 @@ public enum CardDebit { Immediate, Deferred }
 /// <summary>A consent at a bank (spec §2.2), its creator's only (D7). <paramref name="Source"/> is <c>enable_banking</c>.</summary>
 public sealed record BankConnection(
     Guid Id, PersonId Person, string Source, string AspspName, string AspspCountry, ConnectionStatus Status, Instant? ValidUntil,
-    Instant? LastSyncedAt, string? LastErrorCode, int ConsecutiveFailures, Instant CreatedAt);
+    Instant? LastSyncedAt, string? LastErrorCode, int ConsecutiveFailures, Instant CreatedAt,
+    string? ApplicationId = null);
 
 /// <summary>An account seen at the bank (spec §2.3), once per installation however many connections see it (D21).</summary>
 /// <param name="IbanMasked">The IBAN's last four characters (a card's number's, when it has no IBAN), never more.</param>
@@ -71,7 +72,13 @@ public sealed record BankTransaction(
     Guid Id, Guid Account, string ProviderRef, string Fingerprint, LocalDate BookedOn, LocalDate? ValueOn,
     decimal Amount, Currency Currency, string Label, string? Counterparty, string? Remittance, string NormalizedLabel,
     TransactionLinkState LinkState, string FetchedVia, Instant CreatedAt, Guid? Category = null, CategorySource? CategorySource = null,
-    string? BankCode = null);
+    string? BankCode = null, string? Note = null);
+
+/// <summary>#84: a part of a split line, as asked: <paramref name="Amount"/> signed like the line.</summary>
+public sealed record PartInput(decimal Amount, Guid? CategoryId, string? Note);
+
+/// <summary>#84: a stored part of a split line.</summary>
+public sealed record TransactionPart(Guid Id, Guid Transaction, decimal Amount, Guid? Category, string? Note);
 
 public sealed record TransactionWrite(int Added, int Known);
 
@@ -81,11 +88,17 @@ public enum LinkOutcome { AsExpected, PriceDiffers, Income, Contribution, Intern
 /// <summary>Whether a category is for money out, money in, or a move between the household's own accounts.</summary>
 public enum CategoryKind { Expense, Income, Transfer }
 
-/// <summary>What set a line's category; see <c>CategoryPrecedence</c> in the Domain.</summary>
-public enum CategorySource { Link, Rule, Hand, Assistant, Hint }
+/// <summary>What set a line's category; see <c>CategoryPrecedence</c> in the Domain. <c>Split</c> (#84): the line is cut into parts and has no category of its own.</summary>
+public enum CategorySource { Link, Rule, Hand, Assistant, Hint, Split }
 
 /// <summary>Which side of the account a rule reads: a debit is a negative amount.</summary>
 public enum RuleDirection { Debit, Credit }
+
+/// <summary>#85: how a budget's amount is meant, a month's or a year's.</summary>
+public enum BudgetPeriod { Month, Year }
+
+/// <summary>#85: the household's budget of an expense category; a null <paramref name="Amount"/> follows what is committed, in the reference currency.</summary>
+public sealed record CategoryBudget(Guid Category, decimal? Amount, BudgetPeriod Period);
 
 /// <summary>A household's rule: a line whose label (or counterparty) contains <paramref name="Pattern"/> gets <paramref name="Category"/>.
 /// <paramref name="MinAmount"/> and <paramref name="MaxAmount"/> bound the absolute amount, inclusive.</summary>

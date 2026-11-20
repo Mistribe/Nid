@@ -62,7 +62,7 @@ public static class CategorySeed
     public static SeedCategory? Find(string key) => All.FirstOrDefault(c => c.Key == key);
 }
 
-/// <summary>Spec §Category: <c>hand</c> = <c>assistant</c> &gt; <c>link</c> &gt; <c>rule</c> &gt; <c>hint</c>.</summary>
+/// <summary>Spec §Category: <c>hand</c> = <c>assistant</c> &gt; <c>link</c> &gt; <c>rule</c> &gt; <c>hint</c>; nothing replaces <c>split</c> (#84), only un-splitting does.</summary>
 public static class CategoryPrecedence
 {
     private static int Rank(CategorySource source) => source switch
@@ -75,7 +75,8 @@ public static class CategoryPrecedence
 
     /// <summary>A write replaces the current category if there is none or its source ranks the same or lower; a person's write always may.</summary>
     public static bool CanReplace(CategorySource? current, CategorySource incoming, bool byPerson)
-        => current is CategorySource.Hand or CategorySource.Assistant
+        => current is CategorySource.Split ? false
+            : current is CategorySource.Hand or CategorySource.Assistant
             ? byPerson
             : byPerson || current is null || Rank(current.Value) <= Rank(incoming);
 }

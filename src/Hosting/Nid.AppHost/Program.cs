@@ -41,7 +41,7 @@ builder.AddContainer("mailpit", "axllent/mailpit", "v1.31.4")
     .WithEndpoint(port: 1025, targetPort: 1025, name: "smtp", isProxied: false)
     .WithHttpEndpoint(port: 8025, targetPort: 8025, name: "http", isProxied: false);
 
-var api = builder.AddProject<Projects.Nid_Host>("nid-api")
+var api = builder.AddDotnetProject("nid-api", "../Nid.Host/Nid.Host.csproj")
     .WithHttpEndpoint(port: 5080, name: "http", isProxied: false)
     .WithReference(nidDb)                       // injects ConnectionStrings__nid
     .WaitFor(nidDb)

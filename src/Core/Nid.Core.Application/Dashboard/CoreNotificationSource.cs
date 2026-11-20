@@ -50,7 +50,7 @@ public sealed class CoreNotificationSource(
 
     public async Task<Result<IReadOnlyList<Signal>>> SignalsAsync(PersonId reader, LocalDate today, LocalDate horizon, CancellationToken ct)
     {
-        var read = await dashboard.ReadAsync(reader, VisibilityScope.Me, today, ct);
+        var read = await dashboard.ReadAsync(reader, VisibilityScope.Me, today, ct, withSpending: false);
         if (!read.TryGetValue(out var view))
             return Result.Failure<IReadOnlyList<Signal>>(read.TryGetFailure(out var failure) ? failure! : new Failure("core.unknown", "The dashboard could not be read.", null));
 

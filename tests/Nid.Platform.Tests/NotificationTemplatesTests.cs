@@ -180,6 +180,7 @@ public class NotificationTemplatesTests
             (Published("banking.consent_expired", "banking.consent_expired:abc:2027-03-31"), "Le consentement d'une banque a expiré", "/settings/banks"),
             (Published("banking.sync_failing", "banking.sync_failing:abc:2027-03-01"), "La synchronisation d'une banque échoue", "/settings/banks"),
             (Published("proposal_pending", $"proposal_pending:{proposal}", withItem: true), "Une proposition attend votre décision", $"/proposals/{proposal}"),
+            (Published("private_request_refused", $"private_request_refused:{proposal}", withItem: true), "Votre demande de passage en privé a été refusée", $"/proposals/{proposal}"),
             (Published("backup_failed", "backup_failed:never"), "La sauvegarde a échoué", "/admin/system"),
             (Published("job_failed", "job_failed:fx-sync", new() { ["job"] = "fx-sync" }), "Une tâche planifiée a échoué", "/admin/jobs/fx-sync"),
             (Published("sync_failed", "sync_failed:prices:never", new() { ["source"] = "prices" }), "Une synchronisation a échoué", "/admin/prices"),

@@ -40,7 +40,7 @@ public sealed class DocumentTools
     public static async Task<CallToolResult> ListDocuments(IServiceProvider services,
         [Description("'household' (default): the documents linked to something shared; 'me': every document you read.")] string? scope = null,
         [Description("Only the documents linked to nothing you see (« À classer »).")] bool inbox = false,
-        [Description("Only the documents linked to this target: 'core.item', 'core.person' or 'core.household', with targetId (none for the household).")] string? targetKind = null,
+        [Description("Only the documents linked to this target: 'core.item', 'banking.transaction' (a bank line, from list_bank_transactions), 'core.person' or 'core.household', with targetId (none for the household).")] string? targetKind = null,
         [Description("The target's id, with targetKind.")] Guid? targetId = null,
         [Description("Only the documents of this year: their own date, else the day they were uploaded.")] int? year = null,
         [Description("At most this many documents (default 50).")] int limit = DefaultLimit,
@@ -124,7 +124,7 @@ public sealed class DocumentTools
         [Description("The file's name, with its extension.")] string filename,
         [Description("A readable title, 255 characters at most.")] string title,
         [Description("The document's own date (yyyy-mm-dd), not in the future.")] string date,
-        [Description("'core.item', 'core.person' or 'core.household'.")] string targetKind,
+        [Description("'core.item', 'banking.transaction' (a bank line, from list_bank_transactions), 'core.person' or 'core.household'.")] string targetKind,
         [Description("The target's id (none for the household).")] Guid? targetId,
         [Description("The link's role: " + RoleList + ".")] string role,
         [Description("A note, 2000 characters at most.")] string? note = null,
@@ -160,7 +160,7 @@ public sealed class DocumentTools
         [Description("The file's name, with its extension.")] string filename,
         [Description("A readable title, 255 characters at most.")] string title,
         [Description("The document's own date (yyyy-mm-dd), not in the future.")] string date,
-        [Description("'core.item', 'core.person' or 'core.household'.")] string targetKind,
+        [Description("'core.item', 'banking.transaction' (a bank line, from list_bank_transactions), 'core.person' or 'core.household'.")] string targetKind,
         [Description("The target's id (none for the household).")] Guid? targetId,
         [Description("The link's role: " + RoleList + ".")] string role,
         [Description("A note, 2000 characters at most.")] string? note = null,
@@ -191,7 +191,7 @@ public sealed class DocumentTools
     internal const string RoleList = "lease, loan_offer, deed, tax_notice, statement (periodic information), payslip, insurance, invoice, amortization_table, " +
                                      "copro_call (call for funds), copro_minutes (general meeting), copro_accounts (co-ownership accounts), " +
                                      "contract (membership letter, particular conditions), transaction_notice (notice of a switch, surrender or scheduled investment), " +
-                                     "request (switch request, surrender form), advice (personalised advice, proposal), product_sheet (a fund's annex, information document), other";
+                                     "request (switch request, surrender form), advice (personalised advice, proposal), product_sheet (a fund's annex, information document), receipt (a bank line's receipt), other";
 
     // #181: MCP has no content type for a PDF and clients refuse one as a resource, so the assistant reads its pages as PNG.
     private static List<ContentBlock> PdfPages(byte[] pdf)

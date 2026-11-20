@@ -2,11 +2,27 @@ using NodaTime;
 
 namespace Nid.Banking.Infrastructure.Persistence;
 
+public sealed class ApplicationRow
+{
+    public Guid PersonId { get; set; }
+    public string ApplicationId { get; set; } = "";
+
+    /// <summary>The private key PEM, protected by Data Protection; never audited.</summary>
+    public byte[] PrivateKey { get; set; } = [];
+
+    public Instant KeyLoadedAt { get; set; }
+    public Instant CreatedAt { get; set; }
+    public uint Version { get; set; }
+}
+
 public sealed class ConnectionRow
 {
     public Guid Id { get; set; }
     public Guid PersonId { get; set; }
     public string Source { get; set; } = "enable_banking";
+
+    /// <summary>The Enable Banking application the connection was made with; null: the installation's.</summary>
+    public string? ApplicationId { get; set; }
     public string AspspName { get; set; } = "";
     public string AspspCountry { get; set; } = "";
 
@@ -130,6 +146,20 @@ public sealed class TransactionRow
 
     /// <summary><c>person:{id}</c>, <c>rule:{id}</c> or <c>job</c>, like <see cref="LinkRow.DecidedBy"/>.</summary>
     public string? CategorisedBy { get; set; }
+
+    /// <summary>#84: a person's note on the line, 500 characters at most; null when none.</summary>
+    public string? Note { get; set; }
+}
+
+/// <summary>#84: a part of a split line; <see cref="Amount"/> is signed like the line, the parts add up to it. Kept in <see cref="Position"/> order.</summary>
+public sealed class TransactionPartRow
+{
+    public Guid Id { get; set; }
+    public Guid TransactionId { get; set; }
+    public decimal Amount { get; set; }
+    public Guid? CategoryId { get; set; }
+    public string? Note { get; set; }
+    public int Position { get; set; }
 }
 
 /// <summary>A category of bank lines, two levels deep; never deleted (lines and the audit refer to it).</summary>
@@ -167,6 +197,21 @@ public sealed class CategoryRuleRow
     public Guid CreatedByPersonId { get; set; }
     public Instant CreatedAt { get; set; }
     public Instant? LastUsedAt { get; set; }
+    public uint Version { get; set; }
+}
+
+/// <summary>#85: the household's budget of an expense category, one per category and per branch (a parent or its children).</summary>
+public sealed class CategoryBudgetRow
+{
+    public Guid Id { get; set; }
+    public Guid CategoryId { get; set; }
+
+    /// <summary>In the household's reference currency; null follows what is committed.</summary>
+    public decimal? Amount { get; set; }
+
+    /// <summary><c>month</c> or <c>year</c>.</summary>
+    public string Period { get; set; } = "";
+
     public uint Version { get; set; }
 }
 

@@ -33,12 +33,21 @@ public class EnableBankingClientTests
 
     private static string Vector(string name) => File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "vectors", "enablebanking", name));
 
-    private static (EnableBankingClient Client, StubHandler Handler) Client(HttpStatusCode status, string body, string? key = null, string? second = null)
+    private static readonly string Pem = NewPem();
+
+    private static string NewPem()
+    {
+        using var rsa = RSA.Create(2048);
+        return rsa.ExportPkcs8PrivateKeyPem();
+    }
+
+    private static EnableBankingApp App(string id = "app", string? key = null) => new(id, key ?? Pem);
+
+    private static (EnableBankingClient Client, StubHandler Handler) Client(HttpStatusCode status, string body, string? second = null)
     {
         var handler = new StubHandler(status, second is null ? [body] : [body, second]);
-        using var rsa = RSA.Create(2048);
         var http = new SafeHttpClient(new HttpMessageInvoker(handler), NidOutbound.Options(), NullLogger<SafeHttpClient>.Instance);
-        return (new EnableBankingClient(http, new BankingOptions { PrivateKey = key ?? rsa.ExportPkcs8PrivateKeyPem() }, new FixedClock(Now)), handler);
+        return (new EnableBankingClient(http, new FixedClock(Now)), handler);
     }
 
     private static T Ok<T>(UnambitiousFx.Functional.Result<T> result) where T : notnull
@@ -52,7 +61,7 @@ public class EnableBankingClientTests
     {
         var (client, handler) = Client(HttpStatusCode.OK, Vector("aspsps-fr.json"));
 
-        var list = Ok(await client.AspspsAsync("app", "FR", TestContext.Current.CancellationToken));
+        var list = Ok(await client.AspspsAsync(App(), "FR", TestContext.Current.CancellationToken));
 
         Assert.Equal(new Aspsp("Banque Exemple", "FR", "https://enablebanking.com/brands/FR/BanqueExemple/", 15552000), list[0]);
         Assert.Null(list[1].MaximumConsentSeconds);
@@ -64,7 +73,7 @@ public class EnableBankingClientTests
     {
         var (client, handler) = Client(HttpStatusCode.OK, Vector("auth.json"));
 
-        var start = Ok(await client.StartAuthAsync("app", new Aspsp("Banque Exemple", "FR", null, null), Instant.FromUtc(2027, 4, 27, 9, 30), "st4te", "https://nid.example/api/v1/banking/callback", TestContext.Current.CancellationToken));
+        var start = Ok(await client.StartAuthAsync(App(), new Aspsp("Banque Exemple", "FR", null, null), Instant.FromUtc(2027, 4, 27, 9, 30), "st4te", "https://nid.example/api/v1/banking/callback", TestContext.Current.CancellationToken));
 
         Assert.Equal("https://bank.example/authorize?client=synthetic&state=abc", start.Url);
         var request = handler.Requests.Single();
@@ -83,7 +92,7 @@ public class EnableBankingClientTests
     {
         var (client, handler) = Client(HttpStatusCode.OK, Vector("session.json"));
 
-        var session = Ok(await client.CreateSessionAsync("app", "the-code", TestContext.Current.CancellationToken));
+        var session = Ok(await client.CreateSessionAsync(App(), "the-code", TestContext.Current.CancellationToken));
 
         Assert.Equal("0b9f6c2e-3f64-4d3a-8a51-6d1a5c7b9e20", session.SessionId);
         Assert.Equal(Instant.FromUtc(2027, 4, 27, 9, 30), session.ValidUntil);
@@ -113,7 +122,7 @@ public class EnableBankingClientTests
     {
         var (client, _) = Client(HttpStatusCode.OK, body);
 
-        Assert.Equal(BankingCodes.ProviderError, FailureOf(await client.CreateSessionAsync("app", "code", TestContext.Current.CancellationToken)));
+        Assert.Equal(BankingCodes.ProviderError, FailureOf(await client.CreateSessionAsync(App(), "code", TestContext.Current.CancellationToken)));
     }
 
     [Fact]
@@ -124,7 +133,7 @@ public class EnableBankingClientTests
         System.Globalization.CultureInfo.CurrentCulture = new System.Globalization.CultureInfo("fr-FR");
         try
         {
-            var balances = Ok(await client.BalancesAsync("app", "sess", "3e0b5f58-52f1-4a1c-9b0e-0a8c8d9d1f01", null, TestContext.Current.CancellationToken));
+            var balances = Ok(await client.BalancesAsync(App(), "sess", "3e0b5f58-52f1-4a1c-9b0e-0a8c8d9d1f01", null, TestContext.Current.CancellationToken));
 
             Assert.Equal([new ProviderBalance("ITAV", 1234.56m, "EUR", new LocalDate(2026, 10, 28)), new ProviderBalance("CLBD", -42.10m, "EUR", null)], balances);
         }
@@ -142,7 +151,7 @@ public class EnableBankingClientTests
         var body = """{"transactions":[{"entry_reference":"r","transaction_amount":{"currency":"EUR","amount":"2.50"},"credit_debit_indicator":"DBIT","status":"BOOK","booking_date":"2026-10-20","bank_transaction_code":{"description":"FEE"}}]}""";
         var (client, _) = Client(HttpStatusCode.OK, body);
 
-        var line = Ok(await client.TransactionsAsync("app", "sess", "uid-1", new LocalDate(2026, 10, 1), null, TestContext.Current.CancellationToken)).Lines.Single();
+        var line = Ok(await client.TransactionsAsync(App(), "sess", "uid-1", new LocalDate(2026, 10, 1), null, TestContext.Current.CancellationToken)).Lines.Single();
 
         Assert.Null(line.BankCode);
         Assert.Null(Nid.Banking.Domain.CategoryHints.KeyFor(line.BankCode, line.Amount));
@@ -153,7 +162,7 @@ public class EnableBankingClientTests
     {
         var (client, handler) = Client(HttpStatusCode.OK, Vector("transactions-page1.json"), second: Vector("transactions-page2.json"));
 
-        var lines = Ok(await client.TransactionsAsync("app", "sess", "uid-1", new LocalDate(2026, 10, 1), null, TestContext.Current.CancellationToken)).Lines;
+        var lines = Ok(await client.TransactionsAsync(App(), "sess", "uid-1", new LocalDate(2026, 10, 1), null, TestContext.Current.CancellationToken)).Lines;
 
         Assert.Equal(
         [
@@ -172,7 +181,7 @@ public class EnableBankingClientTests
         var (client, handler) = Client(HttpStatusCode.OK,
             """{"transactions":[{"transaction_amount":{"currency":"EUR","amount":"1"},"credit_debit_indicator":"CRDT","status":"BOOK","booking_date":"2026-10-01"}]}""");
 
-        var lines = Ok(await client.TransactionsAsync("app", "s", "u", null, null, TestContext.Current.CancellationToken)).Lines;
+        var lines = Ok(await client.TransactionsAsync(App(), "s", "u", null, null, TestContext.Current.CancellationToken)).Lines;
 
         Assert.Equal("(sans libellé)", Assert.Single(lines).Label);
         Assert.Equal("https://api.enablebanking.com/accounts/u/transactions", handler.Requests.Single().Url.AbsoluteUri);
@@ -187,7 +196,7 @@ public class EnableBankingClientTests
               {"transaction_amount":{"currency":"EUR","amount":"-7.00"},"credit_debit_indicator":"CRDT","status":"BOOK","booking_date":"2026-10-01"}]}
             """);
 
-        Assert.Equal([-5.00m, 7.00m], Ok(await client.TransactionsAsync("app", "s", "u", null, null, TestContext.Current.CancellationToken)).Lines.Select(t => t.Amount));
+        Assert.Equal([-5.00m, 7.00m], Ok(await client.TransactionsAsync(App(), "s", "u", null, null, TestContext.Current.CancellationToken)).Lines.Select(t => t.Amount));
     }
 
     [Fact]
@@ -195,7 +204,7 @@ public class EnableBankingClientTests
     {
         var (client, handler) = Client(HttpStatusCode.OK, """{"transactions":[],"continuation_key":"again"}""");
 
-        var read = Ok(await client.TransactionsAsync("app", "s", "u", null, null, TestContext.Current.CancellationToken));
+        var read = Ok(await client.TransactionsAsync(App(), "s", "u", null, null, TestContext.Current.CancellationToken));
         Assert.Equal((0, true), (read.Lines.Count, read.Truncated));
         Assert.Equal(EnableBankingClient.MaxPages, handler.Requests.Count);
     }
@@ -205,9 +214,9 @@ public class EnableBankingClientTests
     {
         var (client, handler) = Client(HttpStatusCode.OK, Vector("balances.json"));
 
-        await client.BalancesAsync("app", "s", "uid", null, TestContext.Current.CancellationToken);
-        await client.BalancesAsync("app", "s", "uid", new PsuHeaders("203.0.113.7", "Mozilla/5.0"), TestContext.Current.CancellationToken);
-        await client.BalancesAsync("app", "s", "uid", new PsuHeaders(null, "Mozilla/5.0"), TestContext.Current.CancellationToken);
+        await client.BalancesAsync(App(), "s", "uid", null, TestContext.Current.CancellationToken);
+        await client.BalancesAsync(App(), "s", "uid", new PsuHeaders("203.0.113.7", "Mozilla/5.0"), TestContext.Current.CancellationToken);
+        await client.BalancesAsync(App(), "s", "uid", new PsuHeaders(null, "Mozilla/5.0"), TestContext.Current.CancellationToken);
 
         Assert.All(handler.Requests, r => Assert.True(r.Headers.Contains("Authorization")));
         Assert.False(handler.Requests[0].Headers.Contains("Psu-Ip-Address"));
@@ -220,7 +229,7 @@ public class EnableBankingClientTests
     public async Task Every_call_carries_a_bearer_token_for_the_application()
     {
         var (client, handler) = Client(HttpStatusCode.OK, Vector("aspsps-fr.json"));
-        await client.AspspsAsync("app-1", "FR", TestContext.Current.CancellationToken);
+        await client.AspspsAsync(App("app-1"), "FR", TestContext.Current.CancellationToken);
 
         var auth = handler.Requests.Single().Headers.Authorization!;
         Assert.Equal("Bearer", auth.Scheme);
@@ -233,7 +242,7 @@ public class EnableBankingClientTests
     {
         var (client, handler) = Client(HttpStatusCode.OK, "{}");
 
-        Assert.True((await client.DeleteSessionAsync("app", "sess-1", TestContext.Current.CancellationToken)).IsSuccess);
+        Assert.True((await client.DeleteSessionAsync(App(), "sess-1", TestContext.Current.CancellationToken)).IsSuccess);
         Assert.Equal((HttpMethod.Delete, "https://api.enablebanking.com/sessions/sess-1"), (handler.Requests.Single().Method, handler.Requests.Single().Url.AbsoluteUri));
     }
 
@@ -244,7 +253,7 @@ public class EnableBankingClientTests
     {
         var (client, _) = Client(status, Vector(vector));
 
-        var result = await client.BalancesAsync("app", "s", "uid", null, TestContext.Current.CancellationToken);
+        var result = await client.BalancesAsync(App(), "s", "uid", null, TestContext.Current.CancellationToken);
 
         Assert.True(result.TryGetFailure(out var failure));
         Assert.Equal(code, failure!.Code);
@@ -255,24 +264,22 @@ public class EnableBankingClientTests
     public async Task An_unnamed_error_is_the_status_and_an_unreadable_success_is_a_provider_error()
     {
         var (bad, _) = Client(HttpStatusCode.BadGateway, "<html>nope</html>");
-        Assert.Equal("enablebanking.HTTP_502", FailureOf(await bad.AspspsAsync("app", "FR", TestContext.Current.CancellationToken)));
+        Assert.Equal("enablebanking.HTTP_502", FailureOf(await bad.AspspsAsync(App(), "FR", TestContext.Current.CancellationToken)));
 
         var (garbled, _) = Client(HttpStatusCode.OK, "<html>");
-        Assert.Equal(BankingCodes.ProviderError, FailureOf(await garbled.AspspsAsync("app", "FR", TestContext.Current.CancellationToken)));
+        Assert.Equal(BankingCodes.ProviderError, FailureOf(await garbled.AspspsAsync(App(), "FR", TestContext.Current.CancellationToken)));
 
         var (badAmount, _) = Client(HttpStatusCode.OK, """{"balances":[{"balance_type":"CLBD","balance_amount":{"currency":"EUR","amount":"abc"}}]}""");
-        Assert.Equal(BankingCodes.ProviderError, FailureOf(await badAmount.BalancesAsync("app", "s", "u", null, TestContext.Current.CancellationToken)));
+        Assert.Equal(BankingCodes.ProviderError, FailureOf(await badAmount.BalancesAsync(App(), "s", "u", null, TestContext.Current.CancellationToken)));
     }
 
     [Fact]
     public async Task A_missing_or_unreadable_key_fails_without_a_request()
     {
-        var (client, handler) = Client(HttpStatusCode.OK, "{}", key: "not a key");
-        Assert.Equal(BankingCodes.ProviderError, FailureOf(await client.AspspsAsync("app", "FR", TestContext.Current.CancellationToken)));
+        var (client, handler) = Client(HttpStatusCode.OK, "{}");
+        Assert.Equal(BankingCodes.ProviderError, FailureOf(await client.AspspsAsync(App(key: "not a key"), "FR", TestContext.Current.CancellationToken)));
 
-        var none = new EnableBankingClient(
-            new SafeHttpClient(new HttpMessageInvoker(handler), NidOutbound.Options(), NullLogger<SafeHttpClient>.Instance), new BankingOptions(), new FixedClock(Now));
-        Assert.Equal(BankingCodes.NotConfigured, FailureOf(await none.AspspsAsync("app", "FR", TestContext.Current.CancellationToken)));
+        Assert.Equal(BankingCodes.NotConfigured, FailureOf(await client.AspspsAsync(App(key: ""), "FR", TestContext.Current.CancellationToken)));
         Assert.Empty(handler.Requests);
     }
 
@@ -284,7 +291,7 @@ public class EnableBankingClientTests
              "redirect_urls":["https://nid.example/api/v1/banking/callback"],"countries":["FR"],"services":["AIS"]}
             """);
 
-        var application = Ok(await client.ApplicationAsync("app", TestContext.Current.CancellationToken));
+        var application = Ok(await client.ApplicationAsync(App(), TestContext.Current.CancellationToken));
 
         Assert.False(application.Active);
         Assert.Equal(["https://nid.example/api/v1/banking/callback"], application.RedirectUrls);
@@ -297,7 +304,7 @@ public class EnableBankingClientTests
     {
         var (client, _) = Client(HttpStatusCode.Unauthorized, """{"message":"Invalid token","code":401,"error":"UNAUTHORIZED_ACCESS"}""");
 
-        Assert.Equal("enablebanking.UNAUTHORIZED_ACCESS", FailureOf(await client.ApplicationAsync("app", TestContext.Current.CancellationToken)));
+        Assert.Equal("enablebanking.UNAUTHORIZED_ACCESS", FailureOf(await client.ApplicationAsync(App(), TestContext.Current.CancellationToken)));
     }
 
     private static string FailureOf<T>(UnambitiousFx.Functional.Result<T> result) where T : notnull

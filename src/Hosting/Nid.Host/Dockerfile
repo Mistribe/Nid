@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.29@sha256:572cebbc2b15e6f84c077742952674889cb63cd5e9b80abdffcbe587b6f19183
 # nid: the backend and the web app in one image (single-image design §2). Build context: the repository root (docker build -f src/Hosting/Nid.Host/Dockerfile .).
-FROM mcr.microsoft.com/dotnet/sdk:10.0-noble@sha256:fe0fd4e93bd2fbb47c883b7a6369e5c8d3db8bf01cdc5981f6ee35fbdf3ff4fb AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0-noble@sha256:bef136a371963aaa46ec97882845ef6f54dec15728bb4b128b1c2a400ffbc9b4 AS build
 ARG TARGETARCH
 # The semver of the release (CI passes it); 0.0.0 for a local build.
 ARG VERSION=0.0.0

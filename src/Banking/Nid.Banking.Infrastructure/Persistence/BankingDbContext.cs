@@ -8,6 +8,8 @@ public sealed class BankingDbContext(DbContextOptions<BankingDbContext> options)
 {
     public const string Schema = "banking";
 
+    public DbSet<ApplicationRow> Applications => Set<ApplicationRow>();
+
     public DbSet<ConnectionRow> Connections => Set<ConnectionRow>();
 
     public DbSet<AccountRow> Accounts => Set<AccountRow>();
@@ -18,11 +20,15 @@ public sealed class BankingDbContext(DbContextOptions<BankingDbContext> options)
 
     public DbSet<TransactionRow> Transactions => Set<TransactionRow>();
 
+    public DbSet<TransactionPartRow> TransactionParts => Set<TransactionPartRow>();
+
     public DbSet<LinkRow> Links => Set<LinkRow>();
 
     public DbSet<CategoryRow> Categories => Set<CategoryRow>();
 
     public DbSet<CategoryRuleRow> CategoryRules => Set<CategoryRuleRow>();
+
+    public DbSet<CategoryBudgetRow> CategoryBudgets => Set<CategoryBudgetRow>();
 
     public DbSet<RuleRow> Rules => Set<RuleRow>();
 
@@ -34,6 +40,17 @@ public sealed class BankingDbContext(DbContextOptions<BankingDbContext> options)
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schema);
+        // #84: the operations search ignores accents.
+        modelBuilder.HasPostgresExtension("unaccent");
+
+        modelBuilder.Entity<ApplicationRow>(e =>
+        {
+            e.ToTable("application");
+            // The person lives in core: no foreign key across contexts.
+            e.HasKey(x => x.PersonId);
+            e.Property(x => x.PersonId).ValueGeneratedNever();
+            MapXmin(e.Property(x => x.Version));
+        });
 
         modelBuilder.Entity<ConnectionRow>(e =>
         {
@@ -98,13 +115,14 @@ public sealed class BankingDbContext(DbContextOptions<BankingDbContext> options)
             {
                 t.HasCheckConstraint("ck_transaction_link_state", "link_state in ('unlinked','linked','ignored','internal')");
                 t.HasCheckConstraint("ck_transaction_fetched_via", "fetched_via in ('api','file')");
-                t.HasCheckConstraint("ck_transaction_category_source", "category_source is null or category_source in ('link','rule','hand','assistant','hint')");
+                t.HasCheckConstraint("ck_transaction_category_source", "category_source is null or category_source in ('link','rule','hand','assistant','hint','split')");
             });
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.Amount).HasColumnType("numeric(19,4)");
             e.Property(x => x.Currency).HasColumnType("char(3)");
             e.Property(x => x.BankCode).HasMaxLength(140);
+            e.Property(x => x.Note).HasMaxLength(500);
             e.HasIndex(x => new { x.AccountId, x.ProviderRef }).IsUnique();
             e.HasIndex(x => new { x.AccountId, x.Fingerprint }).IsUnique();
             e.HasIndex(x => new { x.AccountId, x.BookedOn });
@@ -112,6 +130,19 @@ public sealed class BankingDbContext(DbContextOptions<BankingDbContext> options)
             e.HasOne<AccountRow>().WithMany().HasForeignKey(x => x.AccountId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne<CategoryRow>().WithMany().HasForeignKey(x => x.CategoryId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne<CategoryRuleRow>().WithMany().HasForeignKey(x => x.CategoryRuleId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<TransactionPartRow>(e =>
+        {
+            e.ToTable("transaction_part");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Amount).HasColumnType("numeric(19,4)");
+            e.Property(x => x.Note).HasMaxLength(500);
+            e.HasIndex(x => new { x.TransactionId, x.Position }).IsUnique();
+            e.HasIndex(x => x.CategoryId);
+            e.HasOne<TransactionRow>().WithMany().HasForeignKey(x => x.TransactionId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<CategoryRow>().WithMany().HasForeignKey(x => x.CategoryId).OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<CategoryRow>(e =>
@@ -145,6 +176,22 @@ public sealed class BankingDbContext(DbContextOptions<BankingDbContext> options)
             e.Property(x => x.MaxAmount).HasColumnType("numeric(19,4)");
             // The author lives in core: no foreign key across contexts.
             e.HasOne<AccountRow>().WithMany().HasForeignKey(x => x.AccountId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<CategoryRow>().WithMany().HasForeignKey(x => x.CategoryId).OnDelete(DeleteBehavior.Restrict);
+            MapXmin(e.Property(x => x.Version));
+        });
+
+        modelBuilder.Entity<CategoryBudgetRow>(e =>
+        {
+            e.ToTable("category_budget", t =>
+            {
+                t.HasCheckConstraint("ck_category_budget_amount", "amount is null or amount >= 0");
+                t.HasCheckConstraint("ck_category_budget_period", "period in ('month','year')");
+            });
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Amount).HasColumnType("numeric(19,4)");
+            // One per category; one per branch (a parent and its children) is the store's to check.
+            e.HasIndex(x => x.CategoryId).IsUnique();
             e.HasOne<CategoryRow>().WithMany().HasForeignKey(x => x.CategoryId).OnDelete(DeleteBehavior.Restrict);
             MapXmin(e.Property(x => x.Version));
         });

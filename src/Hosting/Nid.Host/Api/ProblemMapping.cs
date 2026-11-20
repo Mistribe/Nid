@@ -26,8 +26,8 @@ namespace Nid.Host.Api;
 /// </summary>
 public static class ProblemMapping
 {
-    /// <summary>The metadata a client reads next to the code (goals' free share, a statement's line, a series key, a person's uses).</summary>
-    private static readonly string[] Exposed = ["freeBp", "line", "key", "uses"];
+    /// <summary>The metadata a client reads next to the code (goals' free share, a statement's line, a series key, a person's uses, a split's two sums).</summary>
+    private static readonly string[] Exposed = ["freeBp", "line", "key", "uses", "partsSum", "lineAmount"];
 
     /// <summary>Built once: the mapper holds no state but its table.</summary>
     public static IFailureHttpMapper Mapper { get; } = new ServiceCollection()

@@ -65,7 +65,7 @@ message, so do not write them unless the change deserves the bump.
   tokens instead of Tailwind palette colours (`web/src/nativeControls.test.ts` checks both). New screens follow the page
   grammar of [`docs/frontend/design-system.md`](docs/frontend/design-system.md) §6.1, with
   `web/src/features/investments/EnvelopeDetailPage.tsx` as the reference.
-- **Bundle budget**: the initial JavaScript stays under 200 kB gzip (`pnpm --dir web budget`); pages are lazy routes.
+- **Bundle budget**: the initial JavaScript stays under 250 kB gzip and grows by at most 5 kB gzip in one pull request, measured against `main` in CI (`pnpm --dir web budget`); pages are lazy routes.
 - **API contract**: after a change to the API, `dotnet build` rewrites `web/src/api/openapi.json`; run
   `pnpm --dir web gen:api` and commit both files.
 

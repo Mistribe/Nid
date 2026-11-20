@@ -245,7 +245,7 @@ public class EnvelopeDeleteTests(PostgresFixture fixture) : IClassFixture<Postgr
             sp.GetRequiredService<IActorAccessor>().Current = Actor.System;
             var now = NidApp.GoldenCaseToday.AtMidnight().InUtc().ToInstant();
             var connections = sp.GetRequiredService<IConnectionStore>();
-            var connection = await connections.CreatePendingAsync(app.AdultA, "Banque", "FR", [1, 2, 3], now + Duration.FromMinutes(15), ct);
+            var connection = await connections.CreatePendingAsync(app.AdultA, "app-home", "Banque", "FR", [1, 2, 3], now + Duration.FromMinutes(15), ct);
             await connections.ActivateAsync(connection, "session", now + Duration.FromDays(180), ct);
             account = (await sp.GetRequiredService<IAccountStore>()
                 .UpsertFromSessionAsync(connection, [new SessionAccount("uid", "hash", "FR7630006000011234567890189", "Compte", "CACC", "EUR")], ct))[0].Id;

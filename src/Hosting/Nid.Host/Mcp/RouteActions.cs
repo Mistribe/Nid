@@ -347,7 +347,8 @@ public static class RouteActions
         new("link_document", "POST", "/api/v1/documents/{id:guid}/links", typeof(LinkDocumentBody),
             "Link a document already in Nid to what it is about: id is the document's id (list_documents, inbox=true for those not filed "
             + "yet); targetKind 'core.item' (an envelope, property, loan, income source, subscription…), 'income.phase' (an income "
-            + "period, get_income_source), 'income.one_off' (a one-off income), 'core.person' or 'core.household' (no targetId); role: "
+            + "period, get_income_source), 'income.one_off' (a one-off income), 'banking.transaction' (a bank line, from list_bank_transactions), "
+            + "'core.person' or 'core.household' (no targetId); role: "
             + DocumentTools.RoleList + ". Nothing else changes: a payslip linked to its period records no pay. " + Ids, OnItem: false),
         // #305: filing: one document or link replays the web's route; a round is one proposal, approved at once.
         new("edit_document", "PUT", "/api/v1/documents/{id:guid}", typeof(EditDocumentBody),

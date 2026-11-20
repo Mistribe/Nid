@@ -1,8 +1,10 @@
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using Nid.Banking.Application;
 using Nid.Banking.Application.Files;
+using Nid.Banking.Application.Operations;
 using Nid.Banking.Application.Spending;
 using Nid.Banking.Application.Sync;
 using Nid.Banking.Contracts;
@@ -70,6 +72,58 @@ public static class BankingEndpoints
             })
             .ReturnsNoContent();
 
+        // #382: the adult's own Enable Banking application; its key goes in and never comes back.
+        api.MapGet("/application", async (IInvoker invoker, CancellationToken ct) =>
+            {
+                var result = await invoker.InvokeAsync(new GetMyApplicationQuery(), ct);
+                return result.TryGetFailure(out var failure) && failure is NotFoundFailure ? Results.NoContent() : result.ToHttp(v => v);
+            })
+            .Returns<MyApplicationView>()
+            .Produces(StatusCodes.Status204NoContent); // none declared
+
+        // A key is a few KiB: the body is capped before anything reads it (the route binds nothing itself), 413 past it.
+        api.MapPut("/application", async (HttpRequest request, IInvoker invoker, CancellationToken ct) =>
+            {
+                const int MaxBody = 32 * 1024;
+                var tooLarge = Results.Problem(statusCode: StatusCodes.Status413PayloadTooLarge, detail: "The application is at most 32 KiB.");
+                if (!request.HasJsonContentType())
+                    return Results.Problem(statusCode: StatusCodes.Status415UnsupportedMediaType, detail: "Send the application as application/json.");
+                if (request.ContentLength > MaxBody)
+                    return tooLarge;
+                if (request.HttpContext.Features.Get<IHttpMaxRequestBodySizeFeature>() is { IsReadOnly: false } limit)
+                    limit.MaxRequestBodySize = MaxBody;
+                ApplicationBody? body;
+                try
+                {
+                    body = await request.ReadFromJsonAsync<ApplicationBody>(ct);
+                }
+                catch (BadHttpRequestException e) when (e.StatusCode == StatusCodes.Status413PayloadTooLarge)
+                {
+                    return tooLarge;
+                }
+                catch (System.Text.Json.JsonException)
+                {
+                    return Results.Problem(statusCode: StatusCodes.Status400BadRequest, detail: "The body is not a valid application.");
+                }
+
+                return (await invoker.InvokeAsync(new SaveMyApplicationCommand(body?.ApplicationId ?? "", body?.PrivateKey), ct)).ToHttp(view => view);
+            })
+            .Accepts<ApplicationBody>("application/json")
+            .Returns<MyApplicationView>()
+            .Produces(StatusCodes.Status413PayloadTooLarge)
+            .Produces(StatusCodes.Status415UnsupportedMediaType);
+
+        api.MapDelete("/application", async (IInvoker invoker, CancellationToken ct) =>
+            {
+                var result = await invoker.InvokeAsync(new DeleteMyApplicationCommand(), ct);
+                return result.TryGetValue(out _) ? Results.NoContent() : result.ToHttp(v => v);
+            })
+            .ReturnsNoContent();
+
+        api.MapPost("/application/test", async (IOptions<NidAuthOptions> auth, IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new TestMyApplicationCommand(Callback(auth)), ct)).ToHttp(test => test))
+            .Returns<BankingConnectionTestView>();
+
         api.MapGet("/accounts", async (Guid? envelopeId, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new ListBankAccountsQuery(envelopeId is { } e ? new ItemId(e) : null), ct)).ToHttp(accounts => accounts))
             .Returns<IReadOnlyList<BankAccountView>>();
@@ -87,9 +141,17 @@ public static class BankingEndpoints
             .Returns<BankAccountOverview>();
 
         // #346: « Créer une enveloppe » in « Régler »: the envelope and the link, together or neither.
-        api.MapPost("/accounts/{id:guid}/envelope", async (Guid id, BankAccountEnvelopeBody body, IInvoker invoker, CancellationToken ct)
-                => (await invoker.InvokeAsync(new CreateBankAccountEnvelopeCommand(id, body.DisplayName, body.Kind, body.Joint ?? false, body.DependentId), ct))
-                    .ToHttp(envelope => new IdResponse(envelope.Value), StatusCodes.Status201Created))
+        api.MapPost("/accounts/{id:guid}/envelope", async (Guid id, BankAccountEnvelopeBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                // #383: an omitted visibility is shared, as before.
+                var reader = new FieldReader();
+                var visibility = reader.Visibility(body.Visibility ?? "shared", "visibility");
+                return visibility is null
+                    ? reader.Problem()
+                    : (await invoker.InvokeAsync(new CreateBankAccountEnvelopeCommand(
+                            id, body.DisplayName, body.Kind, body.Joint ?? false, body.DependentId, visibility.Value), ct))
+                        .ToHttp(envelope => new IdResponse(envelope.Value), StatusCodes.Status201Created);
+            })
             .Returns<IdResponse>(StatusCodes.Status201Created);
 
         api.MapGet("/envelopes/{envelopeId:guid}/transactions",
@@ -105,6 +167,39 @@ public static class BankingEndpoints
                     .ToHttp(transactions => transactions))
             .Returns<BankTransactionPage>();
 
+        // #84: « Opérations »: every line the person reads, filtered, searched and paged by the server, with its total, converted totals and facets.
+        api.MapGet("/operations", async (IInvoker invoker, CancellationToken ct, [FromQuery] string[]? account = null, [FromQuery] string[]? owner = null,
+                    string? from = null, string? to = null, [FromQuery] string[]? category = null, bool? uncategorised = null, string? state = null,
+                    string? direction = null, string? min = null, string? max = null, string? q = null, int? page = null) =>
+            {
+                var reader = new FieldReader();
+                var (first, last) = (reader.Date(from, "from", required: false), reader.Date(to, "to", required: false));
+                IReadOnlyList<Guid> Ids(string[]? values, string field) => [.. (values ?? []).Select(v =>
+                {
+                    if (Guid.TryParse(v, out var id))
+                        return id;
+                    reader.Add(field, Nid.Platform.Contracts.FieldErrors.ShapeCode, $"'{v}' is not an id.");
+                    return Guid.Empty;
+                })];
+                decimal? Amount(string? value, string field)
+                {
+                    if (value is null)
+                        return null;
+                    if (decimal.TryParse(value, System.Globalization.NumberStyles.AllowDecimalPoint | System.Globalization.NumberStyles.AllowLeadingSign, System.Globalization.CultureInfo.InvariantCulture, out var amount))
+                        return amount;
+                    reader.Add(field, Nid.Platform.Contracts.FieldErrors.ShapeCode, $"'{value}' is not an amount.");
+                    return null;
+                }
+                var (accounts, owners, categories, lowest, highest) = (Ids(account, "account"), Ids(owner, "owner"), Ids(category, "category"), Amount(min, "min"), Amount(max, "max"));
+                return !reader.Ok
+                    ? reader.Problem()
+                    : (await invoker.InvokeAsync(new ListOperationsQuery(new OperationFilter(
+                            accounts, owners, first, last, categories, uncategorised ?? false, state, direction, lowest, highest,
+                            string.IsNullOrWhiteSpace(q) ? null : q.Trim()), Math.Max(page ?? 1, 1)), ct))
+                        .ToHttp(operations => operations);
+            })
+            .Returns<OperationPage>();
+
         // #85: what the scope's accounts spent by category over a month (default: the current one) or a period of whole months.
         api.MapGet("/spending", async (string? scope, string? month, string? from, string? to, IInvoker invoker, CancellationToken ct)
                 => (await invoker.InvokeAsync(new GetSpendingQuery(ParseScope(scope), OptionalMonth(month), OptionalMonth(from), OptionalMonth(to)), ct))
@@ -118,6 +213,22 @@ public static class BankingEndpoints
                         ParseScope(scope), categoryId, uncategorised ?? false, OptionalMonth(month), OptionalMonth(from), OptionalMonth(to), page ?? 1), ct))
                     .ToHttp(spending => spending))
             .Returns<SpendingLines>();
+
+        // #85: the household's budgets, one per expense category (or branch), compared with the « Foyer » figures.
+        api.MapGet("/budgets", async (IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new ListBudgetsQuery(), ct)).ToHttp(budgets => budgets))
+            .Returns<IReadOnlyList<CategoryBudgetView>>();
+
+        api.MapPut("/budgets/{categoryId:guid}", async (Guid categoryId, BudgetBody body, IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new SetBudgetCommand(categoryId, body.Amount, body.Period ?? ""), ct)).ToHttp(budget => budget))
+            .Returns<CategoryBudgetView>();
+
+        api.MapDelete("/budgets/{categoryId:guid}", async (Guid categoryId, IInvoker invoker, CancellationToken ct) =>
+            {
+                var result = await invoker.InvokeAsync(new DeleteBudgetCommand(categoryId), ct);
+                return result.TryGetValue(out _) ? Results.NoContent() : result.ToHttp(v => v);
+            })
+            .ReturnsNoContent();
 
         api.MapGet("/transactions/{id:guid}/candidates", async (Guid id, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new LinkCandidatesQuery(id), ct)).ToHttp(charges => charges))
@@ -145,6 +256,22 @@ public static class BankingEndpoints
 
         api.MapDelete("/transactions/{id:guid}/category", async (Guid id, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new ResetTransactionCategoryCommand(id), ct)).ToHttp(line => line))
+            .Returns<BankTransactionView>();
+
+        api.MapPut("/transactions/{id:guid}/note", async (Guid id, LineNoteBody body, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new SetTransactionNoteCommand(id, body.Note), ct)).ToHttp(line => line))
+            .Returns<BankTransactionView>();
+
+        api.MapPut("/transactions/{id:guid}/split", async (Guid id, LineSplitBody body, IInvoker invoker, CancellationToken ct)
+            => (await (Parts(body) is { } parts
+                    ? invoker.InvokeAsync(new SplitTransactionCommand(id, parts), ct)
+                    : ValueTask.FromResult(Result.Failure<BankTransactionView>(Nid.Platform.Contracts.FieldErrors.At(
+                        new Failure(BankingCodes.SplitPart, "A part is an object with an amount (an invariant decimal string).", null), "parts")))))
+                .ToHttp(line => line))
+            .Returns<BankTransactionView>();
+
+        api.MapDelete("/transactions/{id:guid}/split", async (Guid id, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new UnsplitTransactionCommand(id), ct)).ToHttp(line => line))
             .Returns<BankTransactionView>();
 
         api.MapGet("/rules", async (IInvoker invoker, CancellationToken ct)
@@ -310,9 +437,13 @@ public static class BankingEndpoints
 
     public sealed record ConnectBody(string? AspspName);
 
+    /// <summary>The adult's application; the key is optional once one is stored.</summary>
+    [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+    public sealed record ApplicationBody(string? ApplicationId, string? PrivateKey);
+
     /// <summary>The new envelope's name and kind (<c>checking</c>, <c>savings</c> or <c>other</c>); <c>joint</c>: every adult owns it.</summary>
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
-    public sealed record BankAccountEnvelopeBody(string DisplayName, string Kind, bool? Joint = null, Guid? DependentId = null);
+    public sealed record BankAccountEnvelopeBody(string DisplayName, string Kind, bool? Joint = null, Guid? DependentId = null, string? Visibility = null);
 
     /// <summary>A field left out is left as it is; a key nobody reads is refused rather than silently dropped (400).</summary>
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
@@ -327,6 +458,32 @@ public static class BankingEndpoints
     /// <summary>A line's category chosen by hand; an absent or null <c>categoryId</c> is « Sans catégorie », chosen by hand all the same.</summary>
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
     public sealed record LineCategoryBody(Guid? CategoryId);
+
+    /// <summary>A line's note; empty or null clears it, 500 characters at most.</summary>
+    [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+    public sealed record LineNoteBody(string? Note);
+
+    /// <summary>A line cut into 2 to 20 parts that add up to its amount; a split replaces any earlier one.</summary>
+    [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+    public sealed record LineSplitBody(IReadOnlyList<LinePartBody?>? Parts);
+
+    /// <summary>A part: <c>amount</c> an invariant decimal string signed like the line, an optional category in use and note.</summary>
+    [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+    public sealed record LinePartBody(string? Amount, Guid? CategoryId, string? Note);
+
+    /// <summary>The body's parts, null when one is missing, null or not an amount.</summary>
+    private static List<PartInput>? Parts(LineSplitBody body)
+    {
+        var parts = new List<PartInput>();
+        foreach (var part in body.Parts ?? [])
+        {
+            if (part is null || !decimal.TryParse(part.Amount, System.Globalization.NumberStyles.AllowDecimalPoint | System.Globalization.NumberStyles.AllowLeadingSign,
+                    System.Globalization.CultureInfo.InvariantCulture, out var amount))
+                return null;
+            parts.Add(new PartInput(amount, part.CategoryId, part.Note));
+        }
+        return parts;
+    }
 
     /// <summary>A new category; <c>kind</c> (<c>expense</c>, <c>income</c>, <c>transfer</c>) is required without a <c>parentId</c>.</summary>
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
@@ -345,6 +502,10 @@ public static class BankingEndpoints
     /// </summary>
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
     public sealed record CategoryRuleBody(string? Pattern, Guid? AccountId, string? Direction, string? MinAmount, string? MaxAmount, Guid? CategoryId);
+
+    /// <summary>A category's budget as a whole: <c>amount</c> an invariant decimal of zero or more, null to follow what is committed; <c>period</c> <c>month</c> or <c>year</c>.</summary>
+    [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+    public sealed record BudgetBody(string? Amount, string? Period);
 
     /// <summary>How many lines took the rule's category.</summary>
     public sealed record CategoryRuleApplied(int Changed);

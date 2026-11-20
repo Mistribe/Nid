@@ -85,6 +85,8 @@
     "banking": {
       "title": "Banque",
       "figures": "État de la synchronisation bancaire",
+      "own_apps": "Adultes avec leur propre application",
+      "own_apps_none": "Aucun",
       "state": "État",
       "state_tip": "Désactivée : Nid ne lit aucune banque. À configurer : une étape de la mise en route reste à faire. Prête : chaque nuit, Nid lit les comptes reliés. En erreur : Enable Banking refuse la connexion ou la dernière synchronisation a échoué.",
       "state_disabled": "Désactivée",
@@ -106,6 +108,7 @@
       "test_accepted": "Enable Banking accepte l’identifiant et la clé.",
       "test_inactive": "L’application n’est pas encore active : en mode restreint, reliez au moins un compte dans le portail Enable Banking.",
       "test_redirect_missing": "L’application ne déclare pas l’adresse de retour {{redirectUrl}} : ajoutez-la dans le portail Enable Banking, exactement.",
+      "test_redirect_missing_own": "L’application ne déclare pas l’adresse de retour de Nid : ajoutez-la dans le portail Enable Banking, exactement.",
       "test_rejected": "Enable Banking refuse l’identifiant et la clé : vérifiez que la clé privée est bien celle de cette application. Code :",
       "test_unreachable": "Nid n’a pas pu joindre api.enablebanking.com : vérifiez la résolution DNS, le pare-feu et le réglage Outbound:AllowedHosts.",
       "setup_title": "Mise en route",

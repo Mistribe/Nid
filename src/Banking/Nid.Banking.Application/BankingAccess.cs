@@ -14,23 +14,57 @@ namespace Nid.Banking.Application;
 /// </summary>
 public sealed class BankingAccess(
     IHouseholdSettings settings, BankingOptions options, IAccessPolicy policy, IConnectionStore connections, IAccountStore accounts,
-    IActorAccessor actor, IPersonRegistry persons, IItemRegistry items)
+    IActorAccessor actor, IPersonRegistry persons, IItemRegistry items, IApplicationStore applications)
 {
     public PersonId Person => actor.Current!.PersonId!.Value;
 
-    public static bool Configured(HouseholdSettingsInfo household, BankingOptions options)
+    private static bool Configured(HouseholdSettingsInfo household, BankingOptions options)
         => !string.IsNullOrWhiteSpace(household.EnableBankingAppId) && !string.IsNullOrWhiteSpace(options.PrivateKey);
 
-    /// <summary>The application id, when banking is on and configured: every request that reaches a bank asks it first.</summary>
-    public async Task<Result<string>> AppIdAsync(CancellationToken ct)
+    /// <summary>Whether the person can reach Enable Banking: their own application with a readable key, else the installation's.</summary>
+    public async Task<bool> ConfiguredAsync(PersonId person, CancellationToken ct)
+        => await applications.FindAsync(person, ct) is { } own ? own.KeyReadable : Configured(await settings.ReadAsync(ct), options);
+
+    /// <summary>Whether any application exists to call Enable Banking with: the installation's, or an adult's own.</summary>
+    public async Task<bool> AnyApplicationAsync(CancellationToken ct)
+        => Configured(await settings.ReadAsync(ct), options) || (await applications.OwnersAsync(ct)).Count > 0;
+
+    /// <summary>
+    /// The application the actor's next call uses (list banks, start, status): banking on, then their own application when they
+    /// declared one (an unreadable key is not configured), else the installation's.
+    /// </summary>
+    public async Task<Result<EnableBankingApp>> MyAppAsync(CancellationToken ct)
     {
         var household = await settings.ReadAsync(ct);
         if (!household.BankingEnabled)
-            return Result.Failure<string>(new ConflictFailure("Bank sync is turned off for this household.") { Code = BankingCodes.Disabled });
-        return Configured(household, options)
-            ? Result.Success(household.EnableBankingAppId!)
-            : Result.Failure<string>(new ConflictFailure("Bank sync has no Enable Banking application id or private key.") { Code = BankingCodes.NotConfigured });
+            return Result.Failure<EnableBankingApp>(new ConflictFailure("Bank sync is turned off for this household.") { Code = BankingCodes.Disabled });
+        return await applications.FindAsync(Person, ct) is not null
+            ? await OwnAsync(Person, ct)
+            : Installation(household);
     }
+
+    /// <summary>
+    /// The application a connection was made with, whoever asks: its creator's own when the id is theirs, else the installation's
+    /// (legacy connections have no id); an application that is gone or unreadable is not configured. Banking being on is the caller's.
+    /// </summary>
+    public async Task<Result<EnableBankingApp>> AppForAsync(BankConnection connection, CancellationToken ct)
+    {
+        if (await applications.CredentialAsync(connection.Person, ct) is { } own && own.Id == connection.ApplicationId)
+            return Result.Success(own);
+        var household = await settings.ReadAsync(ct);
+        return connection.ApplicationId is null || connection.ApplicationId == household.EnableBankingAppId
+            ? Installation(household)
+            : NotConfigured();
+    }
+
+    private async Task<Result<EnableBankingApp>> OwnAsync(PersonId person, CancellationToken ct)
+        => await applications.CredentialAsync(person, ct) is { } credential ? Result.Success(credential) : NotConfigured();
+
+    private Result<EnableBankingApp> Installation(HouseholdSettingsInfo household)
+        => Configured(household, options) ? Result.Success(new EnableBankingApp(household.EnableBankingAppId!, options.PrivateKey!)) : NotConfigured();
+
+    private static Result<EnableBankingApp> NotConfigured()
+        => Result.Failure<EnableBankingApp>(new ConflictFailure("Bank sync has no usable Enable Banking application.") { Code = BankingCodes.NotConfigured });
 
     /// <summary>Banking on, whatever Enable Banking's configuration: what file imports and the accounts they make need (ruling R-d).</summary>
     public async Task<Result> EnabledAsync(CancellationToken ct)
@@ -66,6 +100,25 @@ public sealed class BankingAccess(
             if (await CanWriteAsync(adult, account, (await connections.MineAsync(adult, ct)).Select(c => c.Id).ToHashSet(), ct) is { } canWrite
                 && (canWrite || kind == AccessKind.Read))
                 readers.Add(adult);
+        return readers;
+    }
+
+    /// <summary>The readers of each account, as <see cref="ReadersAsync(BankAccount, CancellationToken, AccessKind)"/> gives them, the adults and their connections loaded once.</summary>
+    public async Task<IReadOnlyDictionary<Guid, IReadOnlyList<PersonId>>> ReadersAsync(IReadOnlyList<BankAccount> list, CancellationToken ct)
+    {
+        var adults = (await AdultsAsync(ct)).ToList();
+        var mine = new Dictionary<PersonId, IReadOnlySet<Guid>>();
+        foreach (var adult in adults)
+            mine[adult] = (await connections.MineAsync(adult, ct)).Select(c => c.Id).ToHashSet();
+        var readers = new Dictionary<Guid, IReadOnlyList<PersonId>>();
+        foreach (var account in list)
+        {
+            var found = new List<PersonId>();
+            foreach (var adult in adults.OrderBy(a => a != account.CreatedBy))
+                if (await CanWriteAsync(adult, account, mine[adult], ct) is not null)
+                    found.Add(adult);
+            readers[account.Id] = found;
+        }
         return readers;
     }
 

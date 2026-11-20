@@ -18,12 +18,12 @@ import { useSession } from './Providers';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { AVATAR, initials, useAdminGroup, useSidebar } from './sidebar';
 
-// The menu's Radix code stays out of the initial bundle (200 kB budget); the initials show meanwhile.
+// The menu's Radix code stays out of the initial bundle (initial bundle budget); the initials show meanwhile.
 const PersonMenu = lazy(() => import('./PersonMenu').then((m) => ({ default: m.PersonMenu })));
-// The rail's tooltips load with the first rail (200 kB budget); the bare link shows meanwhile.
+// The rail's tooltips load with the first rail (initial bundle budget); the bare link shows meanwhile.
 const RailTip = lazy(() => import('./RailTip').then((m) => ({ default: m.RailTip })));
-// cmdk and the dialog load on the first ⌘K (200 kB budget).
-// sonner loads after the shell (200 kB budget); a toast fired before it mounts is replayed when it does.
+// cmdk and the dialog load on the first ⌘K (initial bundle budget).
+// sonner loads after the shell (initial bundle budget); a toast fired before it mounts is replayed when it does.
 const Toaster = lazy(() => import('@/components/ui/sonner').then((m) => ({ default: m.Toaster })));
 const CommandMenu = lazy(() => import('./CommandMenu').then((m) => ({ default: m.CommandMenu })));
 const MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);

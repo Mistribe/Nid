@@ -233,4 +233,35 @@ describe('NewEnvelope', () => {
     await user.click(screen.getByRole('radio', { name: 'Privé' }));
     expect(screen.getByRole('radiogroup', { name: 'Visibilité' })).toHaveAccessibleDescription('Visible de vous seulement, avec un seul propriétaire.');
   });
+
+  it('presets a checking account of one adult’s as private, the other kinds shared, until the person picks (#383)', async () => {
+    const bodies: unknown[] = [];
+    serveCreate(bodies);
+    const { user } = await renderApp('/investments/new');
+
+    await pick(user, 'Type', 'Compte courant');
+    await user.type(await screen.findByLabelText('Nom'), 'Compte courant');
+    await next(user);
+    expect(await screen.findByRole('radio', { name: 'Privé' })).toBeChecked();
+    await user.click(screen.getByRole('button', { name: 'Retour' }));
+    await pick(user, 'Type', 'Livret');
+    await next(user);
+    expect(await screen.findByRole('radio', { name: 'Partagé' })).toBeChecked();
+    await user.click(screen.getByRole('button', { name: 'Retour' }));
+    await pick(user, 'Type', 'Compte courant');
+    await next(user);
+    // Picked, it stays whatever the kind.
+    await user.click(await screen.findByRole('radio', { name: 'Partagé' }));
+    await user.click(screen.getByRole('button', { name: 'Retour' }));
+    await pick(user, 'Type', 'PEA');
+    await pick(user, 'Type', 'Compte courant');
+    await next(user);
+    expect(await screen.findByRole('radio', { name: 'Partagé' })).toBeChecked();
+    await next(user);
+    await screen.findByLabelText('Valeur du compte');
+    await submit(user);
+
+    await screen.findByRole('heading', { level: 1 });
+    expect(bodies).toEqual([expect.objectContaining({ kind: 'checking', visibility: 'shared' })]);
+  });
 });
