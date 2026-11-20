@@ -22,7 +22,11 @@ public sealed record OperationFilter(
 public sealed record ListOperationsQuery(OperationFilter Filter, int Page) : IQuery<OperationPage>;
 
 /// <summary><paramref name="Total"/> counts every line the filter keeps, not only the page's; <paramref name="Totals"/> and <paramref name="Facets"/> are the filter's.</summary>
-public sealed record OperationPage(IReadOnlyList<BankTransactionView> Items, int Total, OperationTotals Totals, OperationFacets Facets);
+public sealed record OperationPage(IReadOnlyList<BankTransactionView> Items, int Total, OperationTotals Totals, OperationFacets Facets,
+    IReadOnlyList<AccountOwnersView> AccountOwners);
+
+/// <summary>Who owns a readable account, as the accounts list shows it (the joint account has both adults): the page's owner column.</summary>
+public sealed record AccountOwnersView(Guid AccountId, IReadOnlyList<OptionView> Owners);
 
 /// <summary>
 /// The filter's money out (positive), in and net (signed) in the household's reference currency, internal and ignored lines and ignored accounts
@@ -69,11 +73,14 @@ public sealed class ListOperationsHandler(
         var facetCategories = used.Concat(used.Where(byId.ContainsKey).Select(id => byId[id].Parent).OfType<Guid>()).Distinct()
             .Where(byId.ContainsKey).Select(id => new OptionView(id, byId[id].Name)).OrderBy(o => o.Name, StringComparer.CurrentCultureIgnoreCase).ToList();
         var owners = readers.Values.SelectMany(r => r).ToHashSet();
+        var people = (await persons.ListAsync(ct)).Where(p => owners.Contains(p.Id)).ToList();
         var facets = new OperationFacets(
             [.. readable.Select(a => new OptionView(a.Id, a.Name)).OrderBy(o => o.Name, StringComparer.CurrentCultureIgnoreCase)],
-            [.. (await persons.ListAsync(ct)).Where(p => owners.Contains(p.Id)).Select(p => new OptionView(p.Id.Value, p.DisplayName))],
+            [.. people.Select(p => new OptionView(p.Id.Value, p.DisplayName))],
             facetCategories);
-        return Result.Success(new OperationPage(await lines.ViewsAsync(items, ct), total, totals, facets));
+        var accountOwners = readable.Select(a => new AccountOwnersView(a.Id,
+            [.. people.Where(p => readers[a.Id].Contains(p.Id)).Select(p => new OptionView(p.Id.Value, p.DisplayName))])).ToList();
+        return Result.Success(new OperationPage(await lines.ViewsAsync(items, ct), total, totals, facets, accountOwners));
     }
 
     private static List<FieldError>? Invalid(OperationFilter f)

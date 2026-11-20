@@ -68,7 +68,6 @@ export type ExpectedCharge = components['schemas']['ExpectedChargeView'];
 export type StatementImport = components['schemas']['StatementImportView'];
 export const TRANSACTIONS = '/api/v1/banking/envelopes/{envelopeId}/transactions' as const;
 export const STATEMENTS = '/api/v1/banking/statements' as const;
-export const UNLINKED_LINES = '/api/v1/banking/transactions' as const;
 export const CANDIDATES = '/api/v1/banking/transactions/{id}/candidates' as const;
 
 /** The household's bank categories (archived and merged ones included) and a line's category (`features/operations`). */

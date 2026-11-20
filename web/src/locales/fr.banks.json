@@ -197,6 +197,8 @@
       "done_category": "Catégorie enregistrée.",
       "to_link": "Opérations à relier",
       "no_match": "Aucune opération ne correspond.",
+      "to_link_empty": "Aucune opération à relier.",
+      "owner": "Titulaire",
       "count_one": "{{count}} opération",
       "count_other": "{{count}} opérations",
       "pages": "Pages des opérations",

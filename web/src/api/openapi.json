@@ -35237,6 +35237,25 @@
           }
         }
       },
+      "AccountOwnersView": {
+        "required": [
+          "accountId",
+          "owners"
+        ],
+        "type": "object",
+        "properties": {
+          "accountId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "owners": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OptionView"
+            }
+          }
+        }
+      },
       "AddTaxAssessmentBody": {
         "type": "object",
         "properties": {
@@ -52757,7 +52776,8 @@
           "items",
           "total",
           "totals",
-          "facets"
+          "facets",
+          "accountOwners"
         ],
         "type": "object",
         "properties": {
@@ -52776,6 +52796,12 @@
           },
           "facets": {
             "$ref": "#/components/schemas/OperationFacets"
+          },
+          "accountOwners": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AccountOwnersView"
+            }
           }
         }
       },

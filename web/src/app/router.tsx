@@ -541,9 +541,10 @@ const operationsRoute = createRoute({
   path: '/operations',
   validateSearch: (search: Record<string, unknown>): OperationsSearch => ({
     ...(typeof search.q === 'string' && search.q !== '' ? { q: search.q } : {}),
-    ...(ids(search.account) ? { account: ids(search.account) } : {}),
-    ...(ids(search.owner) ? { owner: ids(search.owner) } : {}),
-    ...(ids(search.category) ? { category: ids(search.category) } : {}),
+    // The page picks one account, owner and category: a longer list in the URL keeps its first.
+    ...(ids(search.account) ? { account: ids(search.account)!.slice(0, 1) } : {}),
+    ...(ids(search.owner) ? { owner: ids(search.owner)!.slice(0, 1) } : {}),
+    ...(ids(search.category) ? { category: ids(search.category)!.slice(0, 1) } : {}),
     ...(isoDate(search.from) ? { from: isoDate(search.from) } : {}),
     ...(isoDate(search.to) ? { to: isoDate(search.to) } : {}),
     ...(search.uncategorised === true || search.uncategorised === 'true' ? { uncategorised: true } : {}),

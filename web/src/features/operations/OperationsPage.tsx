@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import type { OperationsSearch } from '@/app/router';
+import { OwnerChips } from '@/components/OwnerChips';
 import { LocalDate } from '@/components/LocalDate';
 import { formatCurrency } from '@/components/Money';
 import { Pager, useStepBack } from '@/components/page/Pager';
@@ -13,7 +14,7 @@ import { Loading, TableSkeleton } from '@/components/page/skeletons';
 import { SortableTable } from '@/components/page/SortableTable';
 import { StatLine } from '@/components/page/StatLine';
 import { ProblemMessage } from '@/components/ProblemMessage';
-import { OPERATIONS, type BankTransaction } from '@/api/banking';
+import { OPERATIONS, type BankTransaction, type OperationPage } from '@/api/banking';
 import { LineActions, lineState } from '../investments/operations/LineActions';
 import { OperationFilters } from './OperationFilters';
 import '@/locales/banks';
@@ -39,6 +40,7 @@ export function OperationsPage() {
   const toPage = (n: number) => go({ page: n > 1 ? n : undefined });
   useStepBack(page, answer.data && !answer.isPlaceholderData ? answer.data : undefined, toPage);
   const rows = answer.data?.items ?? [];
+  const onlyUnlinked = search.state === 'unlinked' && Object.keys(search).every((k) => k === 'state' || k === 'page');
   const totals = answer.data?.totals;
   const money = (v: string) => formatCurrency(v, totals?.currency ?? 'EUR');
   return (
@@ -55,7 +57,8 @@ export function OperationsPage() {
               { label: t('banks.operations.total_net'), value: money(totals.net), hint: totals.incomplete ? t('banks.operations.total_incomplete') : undefined },
             ]} />
             <p className="text-sm text-muted-foreground">{t('banks.operations.count', { count: answer.data.total })}</p>
-            {rows.length === 0 ? <p className="text-muted-foreground">{t('banks.operations.no_match')}</p> : <Table rows={rows} />}
+            {rows.length === 0 ? <p className="text-muted-foreground">{t(onlyUnlinked ? 'banks.operations.to_link_empty' : 'banks.operations.no_match')}</p>
+              : <div aria-busy={answer.isPlaceholderData} className={answer.isPlaceholderData ? 'opacity-60 transition-opacity' : undefined}><Table rows={rows} owners={answer.data.accountOwners} /></div>}
             <Pager page={page} total={answer.data.total} label={t('banks.operations.pages')} onPage={toPage} />
           </>
         )}
@@ -63,8 +66,9 @@ export function OperationsPage() {
   );
 }
 
-function Table({ rows }: { rows: BankTransaction[] }) {
+function Table({ rows, owners }: { rows: BankTransaction[]; owners: OperationPage['accountOwners'] }) {
   const { t } = useTranslation();
+  const owner = (l: BankTransaction) => <OwnerChips shares={false} owners={(owners.find((a) => a.accountId === l.accountId)?.owners ?? []).map((o) => ({ personId: o.id, shareBp: 10_000 }))} />;
   const amount = (l: BankTransaction) => <span className="tabular-nums">{formatCurrency(l.amount, l.currency)}</span>;
   const actions = (l: BankTransaction) => <LineActions line={l} onDone={toast.success} />;
   const label = (l: BankTransaction) => (
@@ -79,6 +83,7 @@ function Table({ rows }: { rows: BankTransaction[] }) {
         { id: 'date', header: t('banks.operations.date'), cell: (l) => <LocalDate value={l.bookedOn} style="short" /> },
         { id: 'label', header: t('banks.operations.label'), cell: label },
         { id: 'account', header: t('banks.operations.account'), cell: (l) => l.accountName },
+        { id: 'owner', header: t('banks.operations.owner'), cell: owner },
         { id: 'category', header: t('banks.operations.filter.category'), cell: (l) => l.category?.name ?? '—' },
         { id: 'state', header: t('banks.operations.state'), cell: (l) => lineState(t, l) },
         { id: 'amount', header: t('banks.operations.amount'), align: 'end', cell: amount },
@@ -88,7 +93,7 @@ function Table({ rows }: { rows: BankTransaction[] }) {
         <div className="space-y-1">
           <div className="flex items-start justify-between gap-2">{label(l)}{amount(l)}</div>
           <div className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
-            <span><LocalDate value={l.bookedOn} style="short" /> · {l.accountName} · {lineState(t, l)}</span>
+            <span><LocalDate value={l.bookedOn} style="short" /> · {l.accountName} · {lineState(t, l)}</span>{owner(l)}
             {actions(l)}
           </div>
         </div>

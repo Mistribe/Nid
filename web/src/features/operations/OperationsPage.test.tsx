@@ -9,14 +9,20 @@ const base = { bookedOn: '2026-10-27', valueOn: null, currency: 'EUR', counterpa
 const netflix = { ...base, id: 't1', amount: '-13.49', label: 'PRLV NETFLIX', linkState: 'unlinked', category: null };
 const salary = { ...base, id: 't2', bookedOn: '2026-10-28', amount: '2000.00', label: 'VIREMENT EMPLOYEUR', linkState: 'linked', link: { itemName: 'Salaire Alice' }, category: { id: 'c1', name: 'Revenus' } };
 const facets = { accounts: [{ id: 'a1', name: 'Compte courant' }], owners: [{ id: 'p1', name: 'Alice' }], categories: [{ id: 'c1', name: 'Revenus' }] };
-const answer = (items: unknown[], total = items.length) => ({ items, total, totals: { out: '13.49', in: '2000.00', net: '1986.51', currency: 'EUR', incomplete: false }, facets });
+const answer = (items: unknown[], total = items.length) => ({ items, total, totals: { out: '13.49', in: '2000.00', net: '1986.51', currency: 'EUR', incomplete: false }, facets,
+  accountOwners: [{ accountId: 'a1', owners: [{ id: 'p1', name: 'Alice' }] }] });
+
+const search = () => screen.getByRole<HTMLInputElement>('searchbox', { name: 'Rechercher' });
 
 describe('« Opérations »', () => {
   beforeAll(async () => { await import('./OperationsPage'); }, 30_000);
 
   it('lists every line with the server totals as given', async () => {
     let asked = '';
-    server.use(http.get('*/api/v1/banking/operations', ({ request }) => { asked = new URL(request.url).search; return HttpResponse.json(answer([netflix, salary])); }));
+    server.use(
+      http.get('*/api/v1/banking/operations', ({ request }) => { asked = new URL(request.url).search; return HttpResponse.json(answer([netflix, salary])); }),
+      http.get('*/api/v1/core/persons', () => HttpResponse.json([{ id: 'p1', kind: 'adult', displayName: 'Alice' }])),
+    );
     await renderApp('/operations');
 
     expect(await screen.findByRole('heading', { name: 'Opérations' })).toBeInTheDocument();
@@ -24,6 +30,7 @@ describe('« Opérations »', () => {
     expect(rows[1]).toHaveTextContent('PRLV NETFLIX');
     expect(rows[1]).toHaveTextContent('-13,49 €');
     expect(rows[1]).toHaveTextContent('À relier');
+    expect(await within(rows[1]!).findByText('Alice')).toBeInTheDocument();
     expect(rows[2]).toHaveTextContent('Revenus');
     expect(rows[2]).toHaveTextContent('Reliée · Salaire Alice');
     const stats = document.querySelector<HTMLElement>('[data-stat-line]')!;
@@ -95,6 +102,39 @@ describe('« Opérations »', () => {
     });
   });
 
+  it('seeds the inputs from the URL and follows it when it changes from outside', async () => {
+    server.use(http.get('*/api/v1/banking/operations', () => HttpResponse.json(answer([netflix]))));
+    const { router } = await renderApp('/operations?q=netflix&from=2026-10-01&min=5');
+    const input = (name: string) => screen.getByRole<HTMLInputElement>('textbox', { name });
+    await screen.findByRole('table', { name: 'Opérations' });
+    expect(search().value).toBe('netflix');
+    expect(input('Du').value).toBe('01/10/2026');
+    expect(screen.getByRole<HTMLInputElement>('spinbutton', { name: 'Montant de' }).value).toBe('5');
+
+    await router.navigate({ to: '/operations', search: { state: 'unlinked' } });
+    await waitFor(() => expect(search().value).toBe(''));
+    expect(input('Du').value).toBe('');
+    expect(screen.getByRole<HTMLInputElement>('spinbutton', { name: 'Montant de' }).value).toBe('');
+  });
+
+  it('keeps a half-typed date out of the URL and waits for a pause before searching', async () => {
+    const asked: string[] = [];
+    server.use(http.get('*/api/v1/banking/operations', ({ request }) => { asked.push(new URL(request.url).search); return HttpResponse.json(answer([netflix])); }));
+    const { router } = await renderApp('/operations');
+    await screen.findByRole('table', { name: 'Opérations' });
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Du' }), { target: { value: '12/1' } });
+    expect(screen.getByRole<HTMLInputElement>('textbox', { name: 'Du' }).value).toBe('12/1');
+    expect(router.state.location.search).toEqual({});
+
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Rechercher' }), { target: { value: 'ne' } });
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Rechercher' }), { target: { value: 'net' } });
+    expect(router.state.location.search).toEqual({});
+    await waitFor(() => expect(router.state.location.search).toEqual({ q: 'net' }));
+    await waitFor(() => expect(asked.at(-1)).toBe('?q=net'));
+    expect(asked).not.toContain('?q=ne');
+  });
+
   it('goes to page 2', async () => {
     const asked: string[] = [];
     server.use(http.get('*/api/v1/banking/operations', ({ request }) => { asked.push(new URL(request.url).search); return HttpResponse.json(answer([netflix], 120)); }));
@@ -107,6 +147,17 @@ describe('« Opérations »', () => {
   it('says so when nothing matches', async () => {
     server.use(http.get('*/api/v1/banking/operations', () => HttpResponse.json(answer([]))));
     await renderApp('/operations?state=unlinked');
+    expect(await screen.findByText('Aucune opération à relier.')).toBeInTheDocument();
+  });
+
+  it('says no line matches when other filters narrow the list', async () => {
+    server.use(http.get('*/api/v1/banking/operations', () => HttpResponse.json(answer([]))));
+    await renderApp('/operations?state=unlinked&direction=in');
     expect(await screen.findByText('Aucune opération ne correspond.')).toBeInTheDocument();
+  });
+
+  it('keeps one id of a longer category list', async () => {
+    const { router } = await renderApp('/operations?category=c1&category=c2');
+    await waitFor(() => expect(router.state.location.search).toEqual({ category: ['c1'] }));
   });
 });

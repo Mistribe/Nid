@@ -33339,6 +33339,11 @@ export interface components {
         AcceptPriceBody: {
             onDate?: null | string;
         };
+        AccountOwnersView: {
+            /** Format: uuid */
+            accountId: string;
+            owners: components["schemas"]["OptionView"][];
+        };
         AddTaxAssessmentBody: {
             /** Format: int32 */
             year?: null | number;
@@ -37341,6 +37346,7 @@ export interface components {
             total: number;
             totals: components["schemas"]["OperationTotals"];
             facets: components["schemas"]["OperationFacets"];
+            accountOwners: components["schemas"]["AccountOwnersView"][];
         };
         OperationTotals: {
             out: string;

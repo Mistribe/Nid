@@ -103,6 +103,11 @@ public class OperationsTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         Assert.Equal(new[] { "Commun", "Perso A" }, Names(facets.GetProperty("accounts")).Order());
         Assert.DoesNotContain("Perso B", Names(facets.GetProperty("accounts")));
         Assert.Equal(2, facets.GetProperty("owners").GetArrayLength());
+        // The owner column: the joint account has both adults, Alice's own her alone, and Bob's private one is not listed at all.
+        var owned = alice.GetProperty("accountOwners").EnumerateArray().ToDictionary(o => o.GetProperty("accountId").GetGuid(), o => o.GetProperty("owners").GetArrayLength());
+        Assert.Equal(2, owned.Count);
+        Assert.Equal([1, 2], owned.Values.Order());
+        Assert.DoesNotContain(w.PersonB, owned.Keys);
         // Bob's category is nobody else's: Alice's facet does not name it.
         Assert.DoesNotContain(Seed("leisure.culture"), facets.GetProperty("categories").EnumerateArray().Select(c => c.GetProperty("id").GetGuid()));
         // Naming Bob's account, or his category's lines, reveals nothing.
