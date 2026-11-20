@@ -38,8 +38,10 @@
     <PackageVersion Include="Microsoft.Testing.Extensions.HangDump" Version="2.5.3" />
     <!-- Its own version line (18.x), built against Microsoft.Testing.Platform 2.5. -->
     <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.12.0" />
-    <PackageVersion Include="Aspire.Hosting.PostgreSQL" Version="13.6.5" />
-    <PackageVersion Include="Aspire.Hosting.JavaScript" Version="13.6.5" />
+    <PackageVersion Include="Aspire.Hosting.AppHost" Version="17.0.0" />
+    <PackageVersion Include="Aspire.Hosting.Dotnet" Version="17.0.0" />
+    <PackageVersion Include="Aspire.Hosting.PostgreSQL" Version="17.0.0" />
+    <PackageVersion Include="Aspire.Hosting.JavaScript" Version="17.0.0" />
     <PackageVersion Include="Quartz" Version="4.7.3" />
     <!-- Rotated log files (#267): Microsoft.Extensions.Logging has no file provider. -->
     <PackageVersion Include="Serilog.Extensions.Logging" Version="10.0.0" />
