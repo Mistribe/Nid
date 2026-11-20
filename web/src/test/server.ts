@@ -29,7 +29,7 @@ export const handlers = [
     auth: { mode: 'oidc', adminSource: 'identity_provider', insecureHttp: false },
   })),
   // A detail page's badges and `⋯` read the item's sharing (#294): shared, view only, owned by Alice.
-  http.get('*/api/v1/core/items/:id/sharing', () => HttpResponse.json({ visibility: 'shared', shareLevel: 'view', canChange: true, isOwner: true })),
+  http.get('*/api/v1/core/items/:id/sharing', () => HttpResponse.json({ visibility: 'shared', shareLevel: 'view', canChange: true, isOwner: true, canAskPrivate: false, privateAsked: false })),
   // The shell's Foyer / Moi selector shows only to an owner of a private item (issue 85).
   http.get('*/api/v1/core/me/private-items', () => HttpResponse.json({ owns: true })),
   // The shell's badge reads the pending proposals (4C2).

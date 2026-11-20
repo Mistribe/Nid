@@ -36045,6 +36045,8 @@ export interface components {
             shareLevel: string;
             canChange: boolean;
             isOwner: boolean;
+            canAskPrivate: boolean;
+            privateAsked: boolean;
         };
         JobDetailView: {
             key: string;

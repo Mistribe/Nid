@@ -76,6 +76,32 @@ describe('income settings', () => {
         .toHaveTextContent('L’autre adulte ne verrait plus cet élément');
     });
 
+    it('#384: asks the other adult instead of failing when its sole owner makes a shared source private', async () => {
+      const bodies: unknown[] = [];
+      const asked: unknown[] = [];
+      let pending = false;
+      owned(bodies);
+      server.use(
+        http.get('*/api/v1/income/sources/:id', () => HttpResponse.json(detail({ visibility: 'shared', owners: [{ personId: ALICE, shareBp: 10000 }], canChangeOwners: true }))),
+        http.get('*/api/v1/core/items/:id/sharing', () => HttpResponse.json(
+          { visibility: 'shared', shareLevel: 'view', canChange: true, isOwner: true, canAskPrivate: true, privateAsked: pending })),
+        http.post('*/api/v1/core/proposals', async ({ request }) => { asked.push(await request.json()); pending = true; return HttpResponse.json({}, { status: 201 }); }),
+      );
+      const { user } = await renderApp(`/income/${SALARY}?tab=settings`);
+
+      await screen.findByRole('heading', { name: 'Salaire Alice', level: 1 });
+      await user.click(within(settings()).getByRole('radio', { name: 'Privé' }));
+      expect(within(settings()).getByText(/il doit d’abord accepter/)).toBeInTheDocument();
+      await user.clear(within(settings()).getByLabelText(/Payeur/));
+      await user.click(within(settings()).getByRole('button', { name: 'Enregistrer les réglages' }));
+
+      await waitFor(() => expect(toasts()).toHaveTextContent('Demande envoyée'));
+      // The rest is saved; the visibility is left to the other adult's answer.
+      expect(bodies).toEqual([{ clearPayerLabel: true, clearNote: false }]);
+      expect(asked).toEqual([{ kind: 'core.make_private', targetItemId: SALARY, payload: {} }]);
+      expect(await screen.findByText('Passage en privé demandé')).toBeInTheDocument();
+    });
+
     it('is not offered to an adult who may edit without owning', async () => {
       serve([]);
       await renderApp(`/income/${SALARY}?tab=settings`);

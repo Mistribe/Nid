@@ -58,6 +58,7 @@ public static class NotificationTemplates
         [AccountNotices.TotpReset] = "Votre validation en deux étapes a été désactivée",
         [AccountNotices.RecoveryCodesLow] = "Il vous reste 2 codes de secours",
         ["proposal_pending"] = "Une proposition attend votre décision",
+        ["private_request_refused"] = "Votre demande de passage en privé a été refusée",
         ["backup_failed"] = "La sauvegarde a échoué",
         ["job_failed"] = "Une tâche planifiée a échoué",
         ["sync_failed"] = "Une synchronisation a échoué",
@@ -144,13 +145,14 @@ public static class NotificationTemplates
     }
 
     /// <summary>The notices published by code (security, pending actions, health): they carry no name and no amount.</summary>
-    private static readonly HashSet<string> Notices = [.. AccountNotices.Kinds.Select(k => k.Kind), "access_violation", "token_expiring", "proposal_pending", "backup_failed", "job_failed", "sync_failed", "banking.consent_expiring", "banking.consent_expired", "banking.sync_failing"];
+    private static readonly HashSet<string> Notices = [.. AccountNotices.Kinds.Select(k => k.Kind), "access_violation", "token_expiring", "proposal_pending", "private_request_refused", "backup_failed", "job_failed", "sync_failed", "banking.consent_expiring", "banking.consent_expired", "banking.sync_failing"];
 
     private static string NoticeBody(NotificationRecord n) => n.Kind switch
     {
         "access_violation" => n.Params.TryGetValue("request", out var request) && request.Length > 0 ? $"Requête : {request}" : "",
         "token_expiring" => KeyDate(n.Key, "yyyy-MM-dd") is { } on ? $"Expire le {Day(on)}" : "",
         "proposal_pending" => "Une décision est attendue",
+        "private_request_refused" => "L'autre adulte n'a pas accepté : l'élément reste partagé.",
         "backup_failed" => BackupReason(n.Params),
         "job_failed" => n.Params.TryGetValue("job", out var job) && job.Length > 0 ? $"Tâche : {job}" : "",
         "sync_failed" => n.Params.TryGetValue("source", out var source) && source.Length > 0 ? $"Source : {source}" : "",
@@ -190,7 +192,7 @@ public static class NotificationTemplates
         "token_expiring" => "/security",
         _ when AccountNotices.Kinds.Any(k => k.Kind == n.Kind) => "/security",
         "banking.consent_expiring" or "banking.consent_expired" or "banking.sync_failing" => "/settings/banks",
-        "proposal_pending" => $"/proposals/{n.Key[(n.Key.LastIndexOf(':') + 1)..]}",
+        "proposal_pending" or "private_request_refused" => $"/proposals/{n.Key[(n.Key.LastIndexOf(':') + 1)..]}",
         "backup_failed" => "/admin/system",
         "job_failed" => n.Params.GetValueOrDefault("job") is { Length: > 0 } job ? $"/admin/jobs/{job}" : "/admin/jobs",
         "sync_failed" => n.Params.GetValueOrDefault("source") is "fx" or "catalog" or "prices" or "irl" or "inflation" ? $"/admin/{n.Params["source"]}" : "/admin/system",

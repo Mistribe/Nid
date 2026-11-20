@@ -1,4 +1,4 @@
-import { Eye, PenLine, UserCheck, UserX } from 'lucide-react';
+import { Eye, Hourglass, PenLine, UserCheck, UserX } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import '@/locales/forms';
@@ -13,7 +13,7 @@ export function useItemSharing(item: string, enabled = true) {
 
 const chip = 'inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-sm';
 
-/** Beside a detail page's `AccessBadge`: a shared item's level, and whether the person owns it. Icon AND text, never colour alone. */
+/** Beside a detail page's `AccessBadge`: a shared item's level, whether the person owns it, a pending private request. Icon AND text, never colour alone. */
 export function SharingBadges({ item }: { item: string }) {
   const { t } = useTranslation();
   const sharing = useItemSharing(item).data;
@@ -27,6 +27,8 @@ export function SharingBadges({ item }: { item: string }) {
         <span className={chip}><Level aria-hidden="true" className="size-4" />{t(edit ? 'sharing.edit' : 'sharing.view')}</span>
       ) : null}
       <span className={chip}><Owner aria-hidden="true" className="size-4" />{t(sharing.isOwner ? 'sharing.owner' : 'sharing.not_an_owner')}</span>
+      {/* #384: shown to both adults until the other one decides. */}
+      {sharing.privateAsked ? <span className={chip}><Hourglass aria-hidden="true" className="size-4" />{t('sharing.private_pending')}</span> : null}
     </>
   );
 }
