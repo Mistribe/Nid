@@ -35528,7 +35528,8 @@
       "AccountOwnersView": {
         "required": [
           "accountId",
-          "owners"
+          "owners",
+          "writable"
         ],
         "type": "object",
         "properties": {
@@ -35541,6 +35542,9 @@
             "items": {
               "$ref": "#/components/schemas/OptionView"
             }
+          },
+          "writable": {
+            "type": "boolean"
           }
         }
       },

@@ -360,4 +360,23 @@ public class OperationsTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         Assert.Equal(2, page.GetProperty("total").GetInt32());
         Assert.Equal("90.00", page.GetProperty("totals").GetProperty("out").GetString());
     }
+
+    [Fact]
+    public async Task An_account_a_reader_cannot_write_says_so()
+    {
+        await using var app = await BankingApi.StartAsync(fixture);
+        await BankingApi.ConnectAsync(app, app.AdultA, "code-a", BankingApi.Account("uid-1", "hash-1", null, "Lecture"), BankingApi.Account("uid-2", "hash-2", null, "Commun"));
+        var accounts = await SpendingTests.AccountsAsync(app, app.AdultA);
+        // Alice owns the first envelope and Bob only reads it; the second is written by both.
+        await SpendingTests.PatchAsync(app, app.AdultA, accounts["Lecture"], new { envelopeId = (await app.NewEnvelopeAsync("Lecture", app.AdultA, Visibility.Shared)).Value });
+        await SpendingTests.PatchAsync(app, app.AdultA, accounts["Commun"],
+            new { envelopeId = (await app.NewEnvelopeAsync("Commun", Visibility.Shared, (app.AdultA, 5_000), (app.AdultB, 5_000))).Value });
+
+        bool Writable(JsonElement page, string name) => page.GetProperty("accountOwners").EnumerateArray()
+            .Single(o => o.GetProperty("accountId").GetGuid() == accounts[name]).GetProperty("writable").GetBoolean();
+        var bob = await GetAsync(app, app.AdultB);
+        Assert.False(Writable(bob, "Lecture"));
+        Assert.True(Writable(bob, "Commun"));
+        Assert.True(Writable(await GetAsync(app, app.AdultA), "Lecture"));
+    }
 }

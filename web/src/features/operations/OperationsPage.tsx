@@ -71,7 +71,9 @@ function Table({ rows, owners }: { rows: BankTransaction[]; owners: OperationPag
   const { t } = useTranslation();
   const owner = (l: BankTransaction) => <OwnerChips shares={false} owners={(owners.find((a) => a.accountId === l.accountId)?.owners ?? []).map((o) => ({ personId: o.id, shareBp: 10_000 }))} />;
   const amount = (l: BankTransaction) => <span className="tabular-nums">{formatCurrency(l.amount, l.currency)}</span>;
-  const actions = (l: BankTransaction) => <LineActions line={l} onDone={toast.success} />;
+  // A reader of an account they cannot write sees its lines, not the menu that edits them.
+  const actions = (l: BankTransaction) => owners.find((a) => a.accountId === l.accountId)?.writable ? <LineActions line={l} onDone={toast.success} /> : null;
+  const category = (l: BankTransaction) => l.parts?.length ? <SplitParts line={l} /> : l.category?.name ?? '—';
   const label = (l: BankTransaction) => (
     <span className="whitespace-normal">
       {l.label}
@@ -86,7 +88,7 @@ function Table({ rows, owners }: { rows: BankTransaction[]; owners: OperationPag
         { id: 'label', header: t('banks.operations.label'), cell: label },
         { id: 'account', header: t('banks.operations.account'), cell: (l) => l.accountName },
         { id: 'owner', header: t('banks.operations.owner'), cell: owner },
-        { id: 'category', header: t('banks.operations.filter.category'), cell: (l) => l.parts?.length ? <SplitParts line={l} /> : l.category?.name ?? '—' },
+        { id: 'category', header: t('banks.operations.filter.category'), cell: category },
         { id: 'state', header: t('banks.operations.state'), cell: (l) => lineState(t, l) },
         { id: 'amount', header: t('banks.operations.amount'), align: 'end', cell: amount },
         { id: 'actions', header: t('banks.operations.actions_col'), align: 'end', cell: actions },
@@ -98,6 +100,7 @@ function Table({ rows, owners }: { rows: BankTransaction[]; owners: OperationPag
             <span><LocalDate value={l.bookedOn} style="short" /> · {l.accountName} · {lineState(t, l)}</span>{owner(l)}
             {actions(l)}
           </div>
+          <div className="text-sm">{category(l)}</div>
         </div>
       )} />
   );

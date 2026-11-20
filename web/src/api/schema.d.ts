@@ -33608,6 +33608,7 @@ export interface components {
             /** Format: uuid */
             accountId: string;
             owners: components["schemas"]["OptionView"][];
+            writable: boolean;
         };
         AddTaxAssessmentBody: {
             /** Format: int32 */

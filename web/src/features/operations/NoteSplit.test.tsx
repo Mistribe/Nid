@@ -12,13 +12,13 @@ const splitShop = { ...shop, categorySource: 'split', parts: [
   { id: 'p2', amount: '-20.00', category: null, note: null },
 ] };
 const facets = { accounts: [{ id: 'a1', name: 'Compte courant' }], owners: [], categories: [] };
-const answer = (items: unknown[]) => ({ items, total: items.length, totals: { out: '60.00', in: '0.00', net: '-60.00', currency: 'EUR', incomplete: false }, facets, accountOwners: [] });
+const answer = (items: unknown[], writable = true) => ({ items, total: items.length, totals: { out: '60.00', in: '0.00', net: '-60.00', currency: 'EUR', incomplete: false }, facets, accountOwners: [{ accountId: 'a1', owners: [], writable }] });
 const categories = [{ id: 'food', parentId: null, key: null, name: 'Alimentation', kind: 'expense', archived: false, mergedIntoId: null, defaultName: null }];
 
-function serve(line: object) {
+function serve(line: object, writable = true) {
   const writes: [string, unknown][] = [];
   server.use(
-    http.get('*/api/v1/banking/operations', () => HttpResponse.json(answer([line]))),
+    http.get('*/api/v1/banking/operations', () => HttpResponse.json(answer([line], writable))),
     http.get('*/api/v1/core/persons', () => HttpResponse.json([])),
     http.get('*/api/v1/banking/categories', () => HttpResponse.json(categories)),
     http.put('*/api/v1/banking/transactions/:id/note', async ({ request }) => { writes.push(['note', await request.json()]); return HttpResponse.json(line); }),
@@ -111,6 +111,21 @@ describe('« Opérations »: note and split', () => {
     await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
     await waitFor(() => expect(writes).toEqual([['unsplit', null]]));
     void user;
+  });
+
+  it('offers no actions on a line of an account the reader cannot write', async () => {
+    serve(shop, false);
+    await renderApp('/operations');
+    const row = within(await screen.findByRole('table', { name: 'Opérations' })).getAllByRole('row')[1]!;
+    expect(row).toHaveTextContent('MARCHE');
+    expect(screen.queryByRole('button', { name: /Actions/ })).not.toBeInTheDocument();
+  });
+
+  it('shows the parts of a split line on the narrow list too', async () => {
+    serve(splitShop);
+    await renderApp('/operations');
+    await screen.findByRole('table', { name: 'Opérations' });
+    expect(screen.getAllByText('-40,00 € · Alimentation · fruits')).toHaveLength(2);
   });
 
   it('lists a split line as « Découpée (2) » with its parts under it', async () => {

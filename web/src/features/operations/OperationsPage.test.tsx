@@ -10,7 +10,7 @@ const netflix = { ...base, id: 't1', amount: '-13.49', label: 'PRLV NETFLIX', li
 const salary = { ...base, id: 't2', bookedOn: '2026-10-28', amount: '2000.00', label: 'VIREMENT EMPLOYEUR', linkState: 'linked', link: { itemName: 'Salaire Alice' }, category: { id: 'c1', name: 'Revenus' } };
 const facets = { accounts: [{ id: 'a1', name: 'Compte courant' }], owners: [{ id: 'p1', name: 'Alice' }], categories: [{ id: 'c1', name: 'Revenus' }] };
 const answer = (items: unknown[], total = items.length) => ({ items, total, totals: { out: '13.49', in: '2000.00', net: '1986.51', currency: 'EUR', incomplete: false }, facets,
-  accountOwners: [{ accountId: 'a1', owners: [{ id: 'p1', name: 'Alice' }] }] });
+  accountOwners: [{ accountId: 'a1', owners: [{ id: 'p1', name: 'Alice' }], writable: true }] });
 
 const search = () => screen.getByRole<HTMLInputElement>('searchbox', { name: 'Rechercher' });
 
