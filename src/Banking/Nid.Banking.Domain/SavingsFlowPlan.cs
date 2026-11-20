@@ -31,11 +31,17 @@ public static class SavingsFlowPlan
 
     private static decimal Movement(SavingsLine line) => Math.Round(line.Amount - line.Interest, 2);
 
-    public static IReadOnlyList<WantedFlow> Plan(IReadOnlyList<SavingsLine> lines, IReadOnlyList<TypedFlow> typed, LocalDate associatedOn, string envelopeCurrency)
+    /// <summary>
+    /// The lines booked on or after the first day of the association's month, and after <paramref name="openedOn"/> (the envelope's latest
+    /// active opening, null when none): a line booked on or before the opening is already inside it.
+    /// </summary>
+    public static IReadOnlyList<WantedFlow> Plan(
+        IReadOnlyList<SavingsLine> lines, IReadOnlyList<TypedFlow> typed, LocalDate associatedOn, LocalDate? openedOn, string envelopeCurrency)
     {
         var since = associatedOn.With(DateAdjusters.StartOfMonth);
         var counted = lines
-            .Where(l => l.BookedOn >= since && string.Equals(l.Currency, envelopeCurrency, StringComparison.Ordinal))
+            .Where(l => l.BookedOn >= since && (openedOn is not { } opened || l.BookedOn > opened)
+                && string.Equals(l.Currency, envelopeCurrency, StringComparison.Ordinal))
             .OrderBy(l => l.BookedOn).ThenBy(l => l.Id)
             .ToList();
 

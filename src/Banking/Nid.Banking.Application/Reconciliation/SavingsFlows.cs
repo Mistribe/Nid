@@ -18,7 +18,7 @@ public sealed record SavingsFlowCounts(int Recorded, int Superseded, int Voided,
 /// of a line read in this pass are ever touched. A failing account is logged, never a label or an amount, skipped, and the others go on.
 /// </summary>
 public sealed class SavingsFlows(
-    IAccountStore accountStore, ITransactionStore transactions, ISplitStore splits, ICategoryStore categories, IEnvelopeStore envelopes,
+    IAccountStore accountStore, IConnectionStore connections, ITransactionStore transactions, ISplitStore splits, ICategoryStore categories, IEnvelopeStore envelopes,
     IItemRegistry items, IAccessPolicy policy, IFlows flows, CategoryRuleApplier categoryRules, IHouseholdCalendar calendar, IActorAccessor actor,
     ILogger<SavingsFlows> log)
 {
@@ -31,17 +31,22 @@ public sealed class SavingsFlows(
         public int Recorded, Superseded, Voided, Skipped;
     }
 
-    /// <summary>Every account (null) or these: each associated with a Savings envelope, in its currency, written as BalanceValuation picks its writer.</summary>
+    /// <summary>
+    /// Every account (null) or these: each associated with a Savings envelope, in its currency, written as BalanceValuation picks its writer.
+    /// With no <paramref name="reader"/> (the sync, a statement import, the backfill), the reader is the creator of a connection that reads
+    /// the account, as the sync values it; an account read from statement files only has none, and goes to who associated it.
+    /// </summary>
     public async Task<SavingsFlowCounts> RunAsync(IReadOnlyCollection<Guid>? accounts, PersonId? reader, CancellationToken ct)
     {
         var list = await SavingsAccountsAsync(accounts, ct);
+        var active = reader is null && list.Count > 0 ? await connections.ActiveAsync(ct) : [];
         var interest = await categories.ResolveKeyAsync("income.interest", ct);
         var today = await calendar.TodayAsync(ct);
         var tally = new Tally();
         foreach (var account in list)
             try
             {
-                if (await AccountAsync(account, reader, interest, today, tally, ct) is { } code)
+                if (await AccountAsync(account, reader, active, interest, today, tally, ct) is { } code)
                 {
                     log.LogWarning("The savings flows of bank account {Account} were refused {Code}", account.Id, code);
                     tally.Skipped++;
@@ -103,9 +108,20 @@ public sealed class SavingsFlows(
         => await transactions.FindAsync(line, ct) is { } found ? await RunAsync([found.Account], reader, ct) : new SavingsFlowCounts(0, 0, 0, 0);
 
     /// <summary>The failure code of a refused write, null when done.</summary>
-    private async Task<string?> AccountAsync(BankAccount account, PersonId? reader, Guid? interest, LocalDate today, Tally tally, CancellationToken ct)
+    private async Task<string?> AccountAsync(
+        BankAccount account, PersonId? reader, IReadOnlyList<BankConnection> active, Guid? interest, LocalDate today, Tally tally, CancellationToken ct)
     {
         var (envelope, associatedOn) = (account.Envelope!.Value, account.AssociatedOn!.Value);
+        if (reader is null && active.Count > 0)
+        {
+            var sources = (await accountStore.SourcesAsync(account.Id, ct)).Select(s => s.Connection).ToHashSet();
+            foreach (var creator in active.Where(c => sources.Contains(c.Id)).Select(c => c.Person))
+                if ((await policy.CheckAsync(creator, envelope, AccessKind.Write, ct)).IsSuccess)
+                {
+                    reader = creator;
+                    break;
+                }
+        }
         if (await BalanceValuation.WriterAsync(policy, reader, account, envelope, ct) is not { } writer)
         {
             tally.Skipped++;
@@ -139,10 +155,11 @@ public sealed class SavingsFlows(
             .OrderBy(f => f.OccurredOn).ThenBy(f => f.Id)
             .Select(f => new TypedFlow(f.Id, f.OccurredOn, f.Kind, f.Amount.Amount))
             .ToList();
+        var openedOn = current!.Where(f => f.Kind == FlowKind.Opening).Max(f => (LocalDate?)f.OccurredOn);
         var existing = current!.Where(f => f.ExternalRef?.StartsWith(SavingsFlowPlan.RefPrefix, StringComparison.Ordinal) == true)
             .ToDictionary(f => f.ExternalRef!, StringComparer.Ordinal);
         // Core refuses a flow dated after today: a line booked ahead waits for its day, the others are written.
-        var wanted = SavingsFlowPlan.Plan(lines, typed, associatedOn, account.Currency.Code).Where(w => w.OccurredOn <= today).ToList();
+        var wanted = SavingsFlowPlan.Plan(lines, typed, associatedOn, openedOn, account.Currency.Code).Where(w => w.OccurredOn <= today).ToList();
 
         var missing = new List<NewFlow>();
         foreach (var w in wanted)
@@ -161,7 +178,8 @@ public sealed class SavingsFlows(
             }
         }
 
-        // Only a flow of a line read here: one whose line was purged, or is older than the association, stays as it is.
+        // Only a flow of a line read here: one whose line was purged, or is older than the association, stays as it is. A line read but now
+        // inside a later-typed opening is no longer wanted: its flow goes.
         var readIds = read.Select(l => l.Id).ToHashSet();
         var wantedRefs = wanted.Select(w => w.Ref).ToHashSet(StringComparer.Ordinal);
         foreach (var (reference, held) in existing)

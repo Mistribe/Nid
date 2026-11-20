@@ -231,6 +231,48 @@ public class SavingsFlowsTests(PostgresFixture fixture) : IClassFixture<Postgres
         Assert.Empty(await FlowsAsync(s));
     }
 
+    [Fact]
+    public async Task An_opening_typed_later_in_the_association_month_holds_the_lines_up_to_its_day()
+    {
+        await using var s = await AssociatedAsync();
+        await LineAsync(s, s.Day, 100m, "VIR LIVRET");
+        await LineAsync(s, s.Day.PlusDays(1), 30m, "VIR OUVERTURE");
+        var after = await LineAsync(s, s.Day.PlusDays(2), 50m, "VIR APRES");
+        Assert.Equal(new SavingsFlowCounts(3, 0, 0, 0), await RunAsync(s, s.App.AdultA));
+
+        // The household types the opening after the pass: the lines up to its day are inside it, their flows go.
+        await using (var scope = s.App.Services.CreateAsyncScope())
+        {
+            scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.Browser(s.App.AdultA);
+            Assert.True((await scope.ServiceProvider.GetRequiredService<IFlows>().RecordAsync(
+                new NewFlow(s.Envelope, s.Day.PlusDays(1), FlowKind.Opening, Money.Create(1000m, Currency.Eur).TryGetValue(out var amount) ? amount! : throw new InvalidOperationException(),
+                    null, null, "Ouverture"), Ct)).IsSuccess);
+        }
+
+        Assert.Equal(new SavingsFlowCounts(0, 0, 2, 0), await RunAsync(s, s.App.AdultA));
+        Assert.Equal([(SavingsFlowPlan.MovementRef(after), FlowKind.Contribution, 50m)], Shape((await FlowsAsync(s)).Where(f => f.Kind != FlowKind.Opening)));
+    }
+
+    [Fact]
+    public async Task The_sync_writes_as_the_connection_creator_when_the_linker_no_longer_writes_the_envelope()
+    {
+        await using var s = await AssociatedAsync(visibility: Visibility.Private);
+        await LineAsync(s, s.Day, 100m, "VIR LIVRET");
+        // Bob is on record as the linker, but Alice's private envelope is not his to write; Alice's connection reads the account.
+        await using (var db = new BankingDbContext(new DbContextOptionsBuilder<BankingDbContext>().Configure(s.App.ConnectionString).Options))
+            await db.Accounts.Where(a => a.Id == s.Account).ExecuteUpdateAsync(u => u.SetProperty(a => a.AssociatedByPersonId, (Guid?)s.App.AdultB.Value), Ct);
+
+        await using (var scope = s.App.Services.CreateAsyncScope())
+        {
+            scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
+            await scope.ServiceProvider.GetRequiredService<BankReconciliation>().RunAsync([s.Account], await TodayAsync(s.App), Ct);
+        }
+
+        await using var core = PostgresFixture.NewCoreContext(s.App.ConnectionString);
+        var written = await core.Flows.Where(f => f.ItemId == s.Envelope.Value).ToListAsync(Ct);
+        Assert.Equal([("bank_api", s.App.AdultA.Value)], written.Select(f => (f.Source, f.CreatedByPersonId)));
+    }
+
     private static async Task<LocalDate> TodayAsync(NidApp app)
     {
         await using var scope = app.Services.CreateAsyncScope();

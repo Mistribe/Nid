@@ -13,8 +13,9 @@ public class SavingsFlowPlanTests
 
     private static LocalDate D(int month, int day) => new(2026, month, day);
 
-    private static IReadOnlyList<WantedFlow> Plan(IReadOnlyList<SavingsLine> lines, IReadOnlyList<TypedFlow>? typed = null, LocalDate? associatedOn = null)
-        => SavingsFlowPlan.Plan(lines, typed ?? [], associatedOn ?? Associated, "EUR");
+    private static IReadOnlyList<WantedFlow> Plan(
+        IReadOnlyList<SavingsLine> lines, IReadOnlyList<TypedFlow>? typed = null, LocalDate? associatedOn = null, LocalDate? openedOn = null)
+        => SavingsFlowPlan.Plan(lines, typed ?? [], associatedOn ?? Associated, openedOn, "EUR");
 
     [Fact]
     public void A_deposit_is_a_contribution()
@@ -47,6 +48,17 @@ public class SavingsFlowPlanTests
                 new WantedFlow($"bank:{line.Id}:interest", D(3, 10), FlowKind.Income, 12.5m, "interest", "VIR Alice"),
             ],
             Plan([line]));
+    }
+
+    [Fact]
+    public void A_line_on_or_before_the_opening_of_the_association_month_is_inside_it()
+    {
+        var associatedOn = D(3, 20);
+        var opened = D(3, 5);
+        Assert.Empty(Plan([L(D(3, 3), 100m)], associatedOn: associatedOn, openedOn: opened));
+        Assert.Empty(Plan([L(D(3, 5), 100m, 100m)], associatedOn: associatedOn, openedOn: opened)); // the opening day, its interest too
+        var after = L(D(3, 6), 100m);
+        Assert.Equal([SavingsFlowPlan.MovementRef(after.Id)], Plan([after], associatedOn: associatedOn, openedOn: opened).Select(w => w.Ref));
     }
 
     [Fact]
