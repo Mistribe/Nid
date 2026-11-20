@@ -29,6 +29,8 @@ public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
         "/api/v1/core/projection-assumptions",
         // Bank sync §8: connecting a bank needs the person at their bank, in the browser; no tool touches a connection.
         "/api/v1/banking/connections",
+        // An adult's Enable Banking application (#382): a private key is never handed to the assistant.
+        "PUT /api/v1/banking/application", "DELETE /api/v1/banking/application", "POST /api/v1/banking/application/test",
         // The sync reads the person's banks with their browser's address: a click, not a proposal.
         "/api/v1/banking/sync",
         // A statement file is dropped in the browser and confirmed after its preview: browser-only.

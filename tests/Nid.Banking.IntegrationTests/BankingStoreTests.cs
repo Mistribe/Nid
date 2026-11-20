@@ -32,7 +32,7 @@ public class BankingStoreTests(PostgresFixture fixture) : IClassFixture<Postgres
 
     private static async Task<Guid> ActiveConnectionAsync(IConnectionStore store, PersonId person, string state)
     {
-        var id = await store.CreatePendingAsync(person, "Boursorama", "FR", State(state), Now + Duration.FromMinutes(15), default);
+        var id = await store.CreatePendingAsync(person, "app-home", "Boursorama", "FR", State(state), Now + Duration.FromMinutes(15), default);
         await store.ActivateAsync(id, $"session-{state}", Now + Duration.FromDays(180), default);
         return id;
     }
@@ -45,8 +45,8 @@ public class BankingStoreTests(PostgresFixture fixture) : IClassFixture<Postgres
         var store = scope.ServiceProvider.GetRequiredService<IConnectionStore>();
         var validUntil = Instant.FromUtc(2027, 4, 27, 10, 0);
 
-        var id = await store.CreatePendingAsync(app.AdultA, "Boursorama", "FR", State("abc"), Now + Duration.FromMinutes(15), TestContext.Current.CancellationToken);
-        var expired = await store.CreatePendingAsync(app.AdultA, "Boursorama", "FR", State("old"), Now - Duration.FromMinutes(1), TestContext.Current.CancellationToken);
+        var id = await store.CreatePendingAsync(app.AdultA, "app-home", "Boursorama", "FR", State("abc"), Now + Duration.FromMinutes(15), TestContext.Current.CancellationToken);
+        var expired = await store.CreatePendingAsync(app.AdultA, "app-home", "Boursorama", "FR", State("old"), Now - Duration.FromMinutes(1), TestContext.Current.CancellationToken);
 
         var pending = await store.FindByStateAsync(State("abc"), TestContext.Current.CancellationToken);
         Assert.Equal((id, app.AdultA, "enable_banking", "Boursorama", "FR", ConnectionStatus.Pending),

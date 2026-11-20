@@ -13,7 +13,8 @@ public enum CardDebit { Immediate, Deferred }
 /// <summary>A consent at a bank (spec §2.2), its creator's only (D7). <paramref name="Source"/> is <c>enable_banking</c>.</summary>
 public sealed record BankConnection(
     Guid Id, PersonId Person, string Source, string AspspName, string AspspCountry, ConnectionStatus Status, Instant? ValidUntil,
-    Instant? LastSyncedAt, string? LastErrorCode, int ConsecutiveFailures, Instant CreatedAt);
+    Instant? LastSyncedAt, string? LastErrorCode, int ConsecutiveFailures, Instant CreatedAt,
+    string? ApplicationId = null);
 
 /// <summary>An account seen at the bank (spec §2.3), once per installation however many connections see it (D21).</summary>
 /// <param name="IbanMasked">The IBAN's last four characters (a card's number's, when it has no IBAN), never more.</param>

@@ -8,6 +8,8 @@ public sealed class BankingDbContext(DbContextOptions<BankingDbContext> options)
 {
     public const string Schema = "banking";
 
+    public DbSet<ApplicationRow> Applications => Set<ApplicationRow>();
+
     public DbSet<ConnectionRow> Connections => Set<ConnectionRow>();
 
     public DbSet<AccountRow> Accounts => Set<AccountRow>();
@@ -36,6 +38,15 @@ public sealed class BankingDbContext(DbContextOptions<BankingDbContext> options)
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schema);
+
+        modelBuilder.Entity<ApplicationRow>(e =>
+        {
+            e.ToTable("application");
+            // The person lives in core: no foreign key across contexts.
+            e.HasKey(x => x.PersonId);
+            e.Property(x => x.PersonId).ValueGeneratedNever();
+            MapXmin(e.Property(x => x.Version));
+        });
 
         modelBuilder.Entity<ConnectionRow>(e =>
         {

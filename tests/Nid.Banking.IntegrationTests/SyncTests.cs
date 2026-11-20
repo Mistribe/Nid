@@ -88,6 +88,20 @@ public class SyncTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
     }
 
     [Fact]
+    public async Task The_night_records_no_run_where_there_is_nothing_to_read_and_no_application()
+    {
+        var (app, clock) = await StartAsync(fixture);
+        await using var _ = app;
+        await BankingApi.SettingsAsync(app, new { enableBankingAppId = "" });
+
+        var result = await NightlyAsync(app, clock, new LocalDate(2026, 1, 5));
+
+        Assert.True(result.TryGetFailure(out var failure));
+        Assert.Equal(BankingCodes.NotConfigured, failure!.Code);
+        Assert.Empty((await app.GetAsync<BankSyncRunPage>(app.AdultA, "/api/v1/admin/banking/runs")).Items);
+    }
+
+    [Fact]
     public async Task Nightly_proposes_each_elapsed_month_end_for_the_connection_creator()
     {
         var (app, _, _, envelope) = await MonthsAsync(fixture, auto: false);

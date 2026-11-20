@@ -82,7 +82,8 @@ public class ConnectionTests(PostgresFixture fixture) : IClassFixture<PostgresFi
 
             await BankingApi.SettingsAsync(off, new { bankingEnabled = true });
             Assert.Equal((true, false), await StatusAsync(off));
-            await BankingApi.AssertRefusedAsync(await off.RawAsync(off.AdultA, HttpMethod.Get, $"{BankingApi.Root}/connections"), HttpStatusCode.Conflict, BankingCodes.NotConfigured);
+            // Listing calls no Enable Banking API: it needs banking on, not configured.
+            Assert.Equal(0, (await BankingApi.ConnectionsAsync(off, off.AdultA)).GetArrayLength());
         }
 
         // An application id without the private key is not configured either.

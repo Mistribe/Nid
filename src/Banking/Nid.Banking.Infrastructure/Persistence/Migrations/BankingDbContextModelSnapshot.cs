@@ -217,6 +217,42 @@ namespace Nid.Banking.Infrastructure.Persistence.Migrations
                     b.ToTable("account_source", "banking");
                 });
 
+            modelBuilder.Entity("Nid.Banking.Infrastructure.Persistence.ApplicationRow", b =>
+                {
+                    b.Property<Guid>("PersonId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("person_id");
+
+                    b.Property<string>("ApplicationId")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("application_id");
+
+                    b.Property<Instant>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Instant>("KeyLoadedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("key_loaded_at");
+
+                    b.Property<byte[]>("PrivateKey")
+                        .IsRequired()
+                        .HasColumnType("bytea")
+                        .HasColumnName("private_key");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("PersonId")
+                        .HasName("pk_application");
+
+                    b.ToTable("application", "banking");
+                });
+
             modelBuilder.Entity("Nid.Banking.Infrastructure.Persistence.BalanceRow", b =>
                 {
                     b.Property<Guid>("AccountId")
@@ -418,6 +454,10 @@ namespace Nid.Banking.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid")
                         .HasColumnName("id");
+
+                    b.Property<string>("ApplicationId")
+                        .HasColumnType("text")
+                        .HasColumnName("application_id");
 
                     b.Property<string>("AspspCountry")
                         .IsRequired()

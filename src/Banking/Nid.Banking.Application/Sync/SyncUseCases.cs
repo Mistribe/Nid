@@ -3,6 +3,7 @@ using Nid.Banking.Contracts;
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
 using UnambitiousFx.Functional;
+using UnambitiousFx.Functional.Failures;
 using UnambitiousFx.Synapse.Abstractions;
 
 namespace Nid.Banking.Application.Sync;
@@ -31,10 +32,13 @@ public sealed class SyncAllHandler(
     {
         // Retention (D3), counted nowhere visible, runs with banking on even where there is no bank to read: statement files alone fill the table.
         var enabled = await access.EnabledAsync(ct);
-        var app = await access.AppIdAsync(ct);
-        var run = app.TryGetValue(out var appId)
-            ? await collector.SyncAsync(appId!, "schedule", await connections.ActiveAsync(ct), null, ct)
-            : BankingAccess.Failed<BankSyncRunView, string>(app);
+        var toRead = enabled.IsSuccess ? await connections.ActiveAsync(ct) : [];
+        // No run is recorded where there is nothing to read and no application to read it with.
+        var run = !enabled.IsSuccess
+            ? BankingAccess.Failed<BankSyncRunView>(enabled)
+            : toRead.Count == 0 && !await access.AnyApplicationAsync(ct)
+                ? Result.Failure<BankSyncRunView>(new ConflictFailure("Bank sync has no Enable Banking application.") { Code = BankingCodes.NotConfigured })
+                : await collector.SyncAsync("schedule", toRead, null, ct);
         var today = await calendar.TodayAsync(ct);
         // Before the purge: a line it would delete may still be linked tonight.
         await reconciliation.RunAsync(null, today, ct);
@@ -54,9 +58,9 @@ public sealed class SyncMineHandler(
 {
     public async ValueTask<Result<BankSyncRequested>> HandleAsync(SyncMineCommand command, CancellationToken ct = default)
     {
-        var app = await access.AppIdAsync(ct);
-        if (!app.TryGetValue(out var appId))
-            return BankingAccess.Failed<BankSyncRequested, string>(app);
+        var enabled = await access.EnabledAsync(ct);
+        if (enabled.TryGetFailure(out var off))
+            return Result.Failure<BankSyncRequested>(off!);
 
         IReadOnlyList<BankConnection> mine;
         if (command.ConnectionId is { } id)
@@ -71,7 +75,7 @@ public sealed class SyncMineHandler(
 
         // An expired or revoked consent has nothing to read until it is renewed.
         var readable = mine.Where(c => c.Status is ConnectionStatus.Active or ConnectionStatus.Error).ToList();
-        var run = await collector.SyncAsync(appId!, "manual", readable, command.Psu, ct);
+        var run = await collector.SyncAsync("manual", readable, command.Psu, ct);
         if (run.IsSuccess)
         {
             var read = new List<Guid>();

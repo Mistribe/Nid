@@ -70,6 +70,58 @@ public static class BankingEndpoints
             })
             .ReturnsNoContent();
 
+        // #382: the adult's own Enable Banking application; its key goes in and never comes back.
+        api.MapGet("/application", async (IInvoker invoker, CancellationToken ct) =>
+            {
+                var result = await invoker.InvokeAsync(new GetMyApplicationQuery(), ct);
+                return result.TryGetFailure(out var failure) && failure is NotFoundFailure ? Results.NoContent() : result.ToHttp(v => v);
+            })
+            .Returns<MyApplicationView>()
+            .Produces(StatusCodes.Status204NoContent); // none declared
+
+        // A key is a few KiB: the body is capped before anything reads it (the route binds nothing itself), 413 past it.
+        api.MapPut("/application", async (HttpRequest request, IInvoker invoker, CancellationToken ct) =>
+            {
+                const int MaxBody = 32 * 1024;
+                var tooLarge = Results.Problem(statusCode: StatusCodes.Status413PayloadTooLarge, detail: "The application is at most 32 KiB.");
+                if (!request.HasJsonContentType())
+                    return Results.Problem(statusCode: StatusCodes.Status415UnsupportedMediaType, detail: "Send the application as application/json.");
+                if (request.ContentLength > MaxBody)
+                    return tooLarge;
+                if (request.HttpContext.Features.Get<IHttpMaxRequestBodySizeFeature>() is { IsReadOnly: false } limit)
+                    limit.MaxRequestBodySize = MaxBody;
+                ApplicationBody? body;
+                try
+                {
+                    body = await request.ReadFromJsonAsync<ApplicationBody>(ct);
+                }
+                catch (BadHttpRequestException e) when (e.StatusCode == StatusCodes.Status413PayloadTooLarge)
+                {
+                    return tooLarge;
+                }
+                catch (System.Text.Json.JsonException)
+                {
+                    return Results.Problem(statusCode: StatusCodes.Status400BadRequest, detail: "The body is not a valid application.");
+                }
+
+                return (await invoker.InvokeAsync(new SaveMyApplicationCommand(body?.ApplicationId ?? "", body?.PrivateKey), ct)).ToHttp(view => view);
+            })
+            .Accepts<ApplicationBody>("application/json")
+            .Returns<MyApplicationView>()
+            .Produces(StatusCodes.Status413PayloadTooLarge)
+            .Produces(StatusCodes.Status415UnsupportedMediaType);
+
+        api.MapDelete("/application", async (IInvoker invoker, CancellationToken ct) =>
+            {
+                var result = await invoker.InvokeAsync(new DeleteMyApplicationCommand(), ct);
+                return result.TryGetValue(out _) ? Results.NoContent() : result.ToHttp(v => v);
+            })
+            .ReturnsNoContent();
+
+        api.MapPost("/application/test", async (IOptions<NidAuthOptions> auth, IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new TestMyApplicationCommand(Callback(auth)), ct)).ToHttp(test => test))
+            .Returns<BankingConnectionTestView>();
+
         api.MapGet("/accounts", async (Guid? envelopeId, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new ListBankAccountsQuery(envelopeId is { } e ? new ItemId(e) : null), ct)).ToHttp(accounts => accounts))
             .Returns<IReadOnlyList<BankAccountView>>();
@@ -333,6 +385,10 @@ public static class BankingEndpoints
     private static string Callback(IOptions<NidAuthOptions> auth) => auth.Value.PublicUrl.TrimEnd('/') + CallbackPath;
 
     public sealed record ConnectBody(string? AspspName);
+
+    /// <summary>The adult's application; the key is optional once one is stored.</summary>
+    [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+    public sealed record ApplicationBody(string? ApplicationId, string? PrivateKey);
 
     /// <summary>The new envelope's name and kind (<c>checking</c>, <c>savings</c> or <c>other</c>); <c>joint</c>: every adult owns it.</summary>
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]

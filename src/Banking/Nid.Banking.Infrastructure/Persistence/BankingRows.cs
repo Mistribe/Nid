@@ -2,11 +2,27 @@ using NodaTime;
 
 namespace Nid.Banking.Infrastructure.Persistence;
 
+public sealed class ApplicationRow
+{
+    public Guid PersonId { get; set; }
+    public string ApplicationId { get; set; } = "";
+
+    /// <summary>The private key PEM, protected by Data Protection; never audited.</summary>
+    public byte[] PrivateKey { get; set; } = [];
+
+    public Instant KeyLoadedAt { get; set; }
+    public Instant CreatedAt { get; set; }
+    public uint Version { get; set; }
+}
+
 public sealed class ConnectionRow
 {
     public Guid Id { get; set; }
     public Guid PersonId { get; set; }
     public string Source { get; set; } = "enable_banking";
+
+    /// <summary>The Enable Banking application the connection was made with; null: the installation's.</summary>
+    public string? ApplicationId { get; set; }
     public string AspspName { get; set; } = "";
     public string AspspCountry { get; set; } = "";
 
