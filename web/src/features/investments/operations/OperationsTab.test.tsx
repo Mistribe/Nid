@@ -52,6 +52,18 @@ describe('« Opérations »', () => {
     await expectNoAxeViolations(container);
   });
 
+  it('shows a line’s note, and a split line’s parts on the narrow list', async () => {
+    serve([[line({ note: 'pour Léa' }), line({ id: 't2', amount: '-60.00', label: 'MARCHE', categorySource: 'split', parts: [
+      { id: 'p1', amount: '-40.00', category: { id: 'food', name: 'Alimentation' }, note: 'fruits' },
+      { id: 'p2', amount: '-20.00', category: null, note: null },
+    ] })]]);
+    await renderApp(`/investments/${PEA}?tab=operations`);
+
+    const rows = within(await screen.findByRole('table', { name: 'Opérations' })).getAllByRole('row').slice(1);
+    expect(rows[0]).toHaveTextContent('pour Léa');
+    expect(within(screen.getByRole('list', { name: 'Opérations' })).getAllByText('-40,00 € · Alimentation · fruits')).toHaveLength(1);
+  });
+
   it('« Plus » loads the next page under the first', async () => {
     const asked = serve([[line()], [line({ id: 't2', label: 'PRLV SEPA EDF' })]]);
     const { user } = await renderApp(`/investments/${PEA}?tab=operations`);

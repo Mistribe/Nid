@@ -43,6 +43,7 @@ export default function OperationsTab({ envelope, writable }: { envelope: Envelo
       {l.counterparty || l.cardName ? (
         <span className="block text-sm text-muted-foreground">{[l.counterparty, l.cardName].filter(Boolean).join(' · ')}</span>
       ) : null}
+      {l.note ? <span className="block text-sm italic text-muted-foreground">{l.note}</span> : null}
     </span>
   );
   // The category, then where it comes from in a muted word explained by its « i ».
@@ -99,7 +100,7 @@ export default function OperationsTab({ envelope, writable }: { envelope: Envelo
             <div className="space-y-1">
               <div className="flex items-start justify-between gap-2">{label(l)}{amount(l)}</div>
               <div className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
-                <span><LocalDate value={l.bookedOn} style="short" />{l.category || l.categorySource === 'hand' ? <> · {category(l)}</> : null} · {lineState(t, l)}</span>
+                <span><LocalDate value={l.bookedOn} style="short" />{l.category || l.parts?.length || l.categorySource === 'hand' ? <> · {category(l)}</> : null} · {lineState(t, l)}</span>
                 {writable ? actions(l) : null}
               </div>
             </div>
