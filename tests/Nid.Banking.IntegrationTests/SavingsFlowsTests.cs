@@ -1,4 +1,6 @@
+using System.Globalization;
 using System.Net;
+using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Nid.Banking.Application;
@@ -227,5 +229,131 @@ public class SavingsFlowsTests(PostgresFixture fixture) : IClassFixture<Postgres
         Assert.Equal(new SavingsFlowCounts(0, 0, 0, 1), await RunAsync(s, s.App.AdultB));
 
         Assert.Empty(await FlowsAsync(s));
+    }
+
+    private static async Task<LocalDate> TodayAsync(NidApp app)
+    {
+        await using var scope = app.Services.CreateAsyncScope();
+        return await scope.ServiceProvider.GetRequiredService<IHouseholdCalendar>().TodayAsync(Ct);
+    }
+
+    private static async Task OkAsync(Setup s, HttpMethod method, string path, object? body = null)
+    {
+        var response = await s.App.RawAsync(s.App.AdultA, method, $"{BankingApi.Root}{path}", body);
+        Assert.True(response.StatusCode == HttpStatusCode.OK, await response.Content.ReadAsStringAsync(Ct));
+    }
+
+    private static IEnumerable<(string, FlowKind, decimal)> Shape(IEnumerable<Flow> flows)
+        => flows.Select(f => (f.ExternalRef!, f.Kind, f.Amount.Amount)).OrderBy(x => x.Item1, StringComparer.Ordinal);
+
+    [Fact]
+    public async Task Importing_a_statement_on_a_savings_envelope_writes_its_flows()
+    {
+        await using var app = await BankingApi.StartAsync(fixture);
+        var envelope = await app.NewEnvelopeAsync("Livret Alice", app.AdultA, Visibility.Shared);
+        var day = (await TodayAsync(app)).ToString("yyyyMMdd", CultureInfo.InvariantCulture);
+        static string Line(string id, string day, string amount, string name)
+            => $"<STMTTRN><TRNTYPE>OTHER</TRNTYPE><DTPOSTED>{day}</DTPOSTED><TRNAMT>{amount}</TRNAMT><FITID>{id}</FITID><NAME>{name}</NAME></STMTTRN>";
+        var ofx = Encoding.UTF8.GetBytes($"""
+            <?xml version="1.0" encoding="UTF-8"?>
+            <?OFX OFXHEADER="200" VERSION="211" SECURITY="NONE" OLDFILEUID="NONE" NEWFILEUID="NONE"?>
+            <OFX><BANKMSGSRSV1><STMTTRNRS><STMTRS>
+            <CURDEF>EUR</CURDEF>
+            <BANKACCTFROM><ACCTID>FR7630006000011234567890189</ACCTID><ACCTTYPE>SAVINGS</ACCTTYPE></BANKACCTFROM>
+            <BANKTRANLIST><DTSTART>{day}</DTSTART><DTEND>{day}</DTEND>{Line("F1", day, "100", "VIR LIVRET")}{Line("F2", day, "-40", "VIR COURANT")}{Line("F3", day, "5", "INTERETS 2026")}</BANKTRANLIST>
+            </STMTRS></STMTTRNRS></BANKMSGSRSV1></OFX>
+            """);
+
+        var response = await app.RawContentAsync(app.AdultA, HttpMethod.Post, BankingApi.Root + "/statements",
+            DocumentApi.Multipart(ofx, $"fileName=releve.ofx&confirm=true&keepProbablyKnown=false&envelopeId={envelope.Value}"));
+
+        Assert.True(response.StatusCode == HttpStatusCode.OK, await response.Content.ReadAsStringAsync(Ct));
+        var s = new Setup(app, Guid.Empty, envelope, default);
+        Assert.Equal(
+            [(FlowKind.Contribution, 100m, "VIR LIVRET"), (FlowKind.Withdrawal, 40m, "VIR COURANT"), (FlowKind.Income, 5m, "INTERETS 2026")],
+            (await FlowsAsync(s)).Select(f => (f.Kind, f.Amount.Amount, f.Note!)).OrderBy(x => x.Kind));
+    }
+
+    [Fact]
+    public async Task Setting_a_line_category_by_hand_updates_its_flow()
+    {
+        await using var s = await AssociatedAsync();
+        var line = await LineAsync(s, s.Day, 5m, "VIR 2026");
+        await RunAsync(s, s.App.AdultA);
+
+        await OkAsync(s, HttpMethod.Put, $"/transactions/{line}/category", new { categoryId = await InterestCategoryAsync(s) });
+
+        Assert.Equal([(SavingsFlowPlan.InterestRef(line), FlowKind.Income, 5m)], Shape(await FlowsAsync(s)));
+
+        await OkAsync(s, HttpMethod.Delete, $"/transactions/{line}/category");
+
+        Assert.Equal([(SavingsFlowPlan.MovementRef(line), FlowKind.Contribution, 5m)], Shape(await FlowsAsync(s)));
+    }
+
+    [Fact]
+    public async Task Splitting_a_line_updates_its_flows()
+    {
+        await using var s = await AssociatedAsync();
+        var line = await LineAsync(s, s.Day, 60m, "VIR LIVRET");
+        await RunAsync(s, s.App.AdultA);
+
+        await OkAsync(s, HttpMethod.Put, $"/transactions/{line}/split", new
+        {
+            parts = new object[] { new { amount = "50" }, new { amount = "10", categoryId = await InterestCategoryAsync(s) } },
+        });
+
+        Assert.Equal(
+            [(SavingsFlowPlan.MovementRef(line), FlowKind.Contribution, 50m), (SavingsFlowPlan.InterestRef(line), FlowKind.Income, 10m)],
+            Shape(await FlowsAsync(s)));
+
+        await OkAsync(s, HttpMethod.Delete, $"/transactions/{line}/split");
+
+        Assert.Equal([(SavingsFlowPlan.MovementRef(line), FlowKind.Contribution, 60m)], Shape(await FlowsAsync(s)));
+    }
+
+    [Fact]
+    public async Task Associating_an_account_writes_its_flows()
+    {
+        var app = await BankingApi.StartAsync(fixture);
+        await BankingApi.ConnectAsync(app, app.AdultA, "code-a", BankingApi.Account("uid-1", "hash-1", null, "Livret Alice"));
+        var account = (await BankingApi.AccountsAsync(app, app.AdultA)).EnumerateArray().Single().GetProperty("id").GetGuid();
+        var envelope = await app.NewEnvelopeAsync("Livret Alice", app.AdultA, Visibility.Shared);
+        await using var s = new Setup(app, account, envelope, await TodayAsync(app));
+        var line = await LineAsync(s, s.Day, 100m, "VIR LIVRET");
+
+        await OkAsync(s, HttpMethod.Patch, $"/accounts/{account}", new { envelopeId = envelope.Value });
+
+        Assert.Equal([(SavingsFlowPlan.MovementRef(line), FlowKind.Contribution, 100m)], Shape(await FlowsAsync(s)));
+    }
+
+    [Fact]
+    public async Task Detaching_keeps_the_flows()
+    {
+        await using var s = await AssociatedAsync();
+        var line = await LineAsync(s, s.Day, 100m, "VIR LIVRET");
+        await RunAsync(s, s.App.AdultA);
+
+        await OkAsync(s, HttpMethod.Patch, $"/accounts/{s.Account}", new { clearEnvelope = true });
+        await RunAsync(s, s.App.AdultA);
+
+        Assert.Equal([(SavingsFlowPlan.MovementRef(line), FlowKind.Contribution, 100m)], Shape(await FlowsAsync(s)));
+    }
+
+    [Fact]
+    public async Task The_backfill_hints_interest_then_writes_the_flows_once()
+    {
+        await using var s = await AssociatedAsync();
+        var line = await LineAsync(s, s.Day, 5m, "INTERETS 2026");
+
+        async Task<SavingsFlowCounts> BackfillAsync()
+        {
+            await using var scope = s.App.Services.CreateAsyncScope();
+            scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
+            return await scope.ServiceProvider.GetRequiredService<SavingsFlowBackfill>().RunAsync(Ct);
+        }
+
+        Assert.Equal(new SavingsFlowCounts(1, 0, 0, 0), await BackfillAsync());
+        Assert.Equal([(SavingsFlowPlan.InterestRef(line), FlowKind.Income, 5m)], Shape(await FlowsAsync(s)));
+        Assert.Equal(new SavingsFlowCounts(0, 0, 0, 0), await BackfillAsync());
     }
 }

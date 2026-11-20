@@ -372,7 +372,7 @@ public sealed class IgnoreTransactionHandler(BankingAccess access, BankLines lin
 }
 
 [RequestHandler<SetTransactionCategoryCommand, BankTransactionView>]
-public sealed class SetTransactionCategoryHandler(BankingAccess access, BankLines lines, ICategoryStore categories, IClock clock)
+public sealed class SetTransactionCategoryHandler(BankingAccess access, BankLines lines, ICategoryStore categories, SavingsFlows savingsFlows, IClock clock)
     : IRequestHandler<SetTransactionCategoryCommand, BankTransactionView>
 {
     public async ValueTask<Result<BankTransactionView>> HandleAsync(SetTransactionCategoryCommand command, CancellationToken ct = default)
@@ -397,13 +397,14 @@ public sealed class SetTransactionCategoryHandler(BankingAccess access, BankLine
 
         await categories.SetForLinesAsync([line!.Id], command.CategoryId, CategorySource.Hand, $"person:{access.Person.Value:D}",
             clock.GetCurrentInstant(), byPerson: true, ct);
+        await savingsFlows.RunForLineAsync(line.Id, access.Person, ct);
         return Result.Success(await lines.ViewAsync(line.Id, ct));
     }
 }
 
 [RequestHandler<ResetTransactionCategoryCommand, BankTransactionView>]
 public sealed class ResetTransactionCategoryHandler(
-    BankingAccess access, BankLines lines, ICategoryStore categories, LineRecategoriser recategoriser, IClock clock)
+    BankingAccess access, BankLines lines, ICategoryStore categories, LineRecategoriser recategoriser, SavingsFlows savingsFlows, IClock clock)
     : IRequestHandler<ResetTransactionCategoryCommand, BankTransactionView>
 {
     public async ValueTask<Result<BankTransactionView>> HandleAsync(ResetTransactionCategoryCommand command, CancellationToken ct = default)
@@ -419,6 +420,7 @@ public sealed class ResetTransactionCategoryHandler(
 
         await categories.SetForLinesAsync([line.Id], null, null, $"person:{access.Person.Value:D}", clock.GetCurrentInstant(), byPerson: true, ct);
         await recategoriser.ApplyAsync(line, ct);
+        await savingsFlows.RunForLineAsync(line.Id, access.Person, ct);
         return Result.Success(await lines.ViewAsync(line.Id, ct));
     }
 }

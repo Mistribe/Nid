@@ -90,7 +90,7 @@ public sealed class ListBankAccountsHandler(BankingAccess access, IAccountStore 
 [RequestHandler<UpdateBankAccountCommand, Guid>]
 public sealed class UpdateBankAccountHandler(
     BankingAccess access, IAccountStore accounts, IAccessPolicy policy, IEnvelopeStore envelopes, IItemRegistry items, IHouseholdCalendar calendar,
-    Operations.ReceiptAnchors receipts)
+    Operations.ReceiptAnchors receipts, SavingsFlows savingsFlows)
     : IRequestHandler<UpdateBankAccountCommand, Guid>
 {
     public async ValueTask<Result<Guid>> HandleAsync(UpdateBankAccountCommand command, CancellationToken ct = default)
@@ -164,6 +164,9 @@ public sealed class UpdateBankAccountHandler(
             return Result.Failure<Guid>(failure!);
         if (changed.Envelope != account.Envelope || changed.CardOf != account.CardOf)
             await receipts.FollowAsync(account.Id, ct);
+        // #16: newly associated, its lines since the start of the month become the envelope's flows (moved or detached, the old ones stay).
+        if (changed.Envelope is not null && changed.Envelope != account.Envelope)
+            await savingsFlows.RunAsync([account.Id], access.Person, ct);
         return Result.Success(account.Id);
     }
 
