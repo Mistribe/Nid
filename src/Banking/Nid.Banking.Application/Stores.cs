@@ -22,7 +22,8 @@ public interface IApplicationStore
     /// </summary>
     Task<bool> SaveAsync(PersonId person, string applicationId, string? privateKeyPem, CancellationToken ct);
 
-    Task DeleteAsync(PersonId person, CancellationToken ct);
+    /// <summary>False when a concurrent change of the same person won: nothing was removed.</summary>
+    Task<bool> DeleteAsync(PersonId person, CancellationToken ct);
 
     Task<IReadOnlyList<PersonId>> OwnersAsync(CancellationToken ct);
 }

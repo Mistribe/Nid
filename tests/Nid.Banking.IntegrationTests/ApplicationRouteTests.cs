@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using Nid.Banking.Contracts;
 using Nid.Core.Contracts;
+using Nid.Platform.Contracts;
 using Nid.TestSupport;
 
 namespace Nid.Banking.IntegrationTests;
@@ -16,6 +17,44 @@ public class ApplicationRouteTests(PostgresFixture fixture) : IClassFixture<Post
 
     private static Task<HttpResponseMessage> PutAsync(NidApp app, PersonId person, string id, string? key)
         => app.RawAsync(person, HttpMethod.Put, Route, new { applicationId = id, privateKey = key });
+
+    private static async Task AssertFieldAsync(HttpResponseMessage response, string code, string field)
+    {
+        await BankingApi.AssertRefusedAsync(response, HttpStatusCode.UnprocessableEntity, code);
+        var errors = (await BankingApi.JsonAsync(response)).GetProperty("errors").EnumerateArray().Select(e => e.FieldPath()).ToList();
+        Assert.Contains(field, errors);
+    }
+
+    [Fact]
+    public async Task Saving_and_deleting_leave_security_events_without_the_key_or_the_id()
+    {
+        await using var app = await BankingApi.StartAsync(fixture);
+        await PutAsync(app, app.AdultA, "app-alice", Pem());
+        await PutAsync(app, app.AdultA, "app-alice", null);
+        await PutAsync(app, app.AdultA, "app-alice", Pem());
+        await app.RawAsync(app.AdultA, HttpMethod.Delete, Route);
+
+        var saved = await AuditApi.EventsAsync(app, SecurityEventNames.BankingApplicationSaved);
+        Assert.Equal(["true", "false", "true"], saved.Select(e => JsonDocument.Parse(e.Data).RootElement.GetProperty("key_replaced").GetString()));
+        var deleted = await AuditApi.EventsAsync(app, SecurityEventNames.BankingApplicationDeleted);
+        Assert.Single(deleted);
+        foreach (var e in saved.Concat(deleted))
+        {
+            Assert.DoesNotContain("app-alice", e.Data);
+            Assert.DoesNotContain("PRIVATE KEY", e.Data);
+        }
+    }
+
+    [Fact]
+    public async Task A_body_over_the_cap_is_refused()
+    {
+        await using var app = await BankingApi.StartAsync(fixture);
+
+        var response = await PutAsync(app, app.AdultA, "app-alice", new string('A', 40 * 1024));
+
+        Assert.True((int)response.StatusCode is 413 or 400 or 422, response.StatusCode.ToString());
+        Assert.Equal(HttpStatusCode.NoContent, (await app.RawAsync(app.AdultA, HttpMethod.Get, Route)).StatusCode);
+    }
 
     [Fact]
     public async Task Alice_declares_her_application_and_the_key_never_comes_back()
@@ -45,7 +84,10 @@ public class ApplicationRouteTests(PostgresFixture fixture) : IClassFixture<Post
         await using var app = await BankingApi.StartAsync(fixture);
         using var rsa = RSA.Create(2048);
 
-        await BankingApi.AssertRefusedAsync(await PutAsync(app, app.AdultA, "app-alice", rsa.ExportRSAPublicKeyPem()), HttpStatusCode.UnprocessableEntity, BankingCodes.KeyInvalid);
+        var pem = rsa.ExportRSAPublicKeyPem();
+        var refused = await PutAsync(app, app.AdultA, "app-alice", pem);
+        await BankingApi.AssertRefusedAsync(refused, HttpStatusCode.UnprocessableEntity, BankingCodes.KeyInvalid);
+        Assert.DoesNotContain(pem.Split('\n')[1], await refused.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
 
         Assert.Equal(HttpStatusCode.NoContent, (await app.RawAsync(app.AdultA, HttpMethod.Get, Route)).StatusCode);
     }
@@ -55,9 +97,9 @@ public class ApplicationRouteTests(PostgresFixture fixture) : IClassFixture<Post
     {
         await using var app = await BankingApi.StartAsync(fixture);
 
-        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await PutAsync(app, app.AdultA, "app-alice", null)).StatusCode);
-        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await PutAsync(app, app.AdultA, "  ", Pem())).StatusCode);
-        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await PutAsync(app, app.AdultA, new string('x', 101), Pem())).StatusCode);
+        await AssertFieldAsync(await PutAsync(app, app.AdultA, "app-alice", null), BankingCodes.KeyRequired, "privateKey");
+        await AssertFieldAsync(await PutAsync(app, app.AdultA, "  ", Pem()), BankingCodes.ApplicationIdInvalid, "applicationId");
+        await AssertFieldAsync(await PutAsync(app, app.AdultA, new string('x', 101), Pem()), BankingCodes.ApplicationIdInvalid, "applicationId");
     }
 
     [Fact]

@@ -31,6 +31,17 @@ public class ApplicationStoreTests(PostgresFixture fixture) : IClassFixture<Post
     }
 
     [Fact]
+    public async Task A_keyless_save_of_a_missing_application_loses_the_race_instead_of_throwing()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await using var scope = Scope(app);
+        var store = scope.ServiceProvider.GetRequiredService<IApplicationStore>();
+
+        Assert.False(await store.SaveAsync(app.AdultA, "app-alice", null, Ct));
+        Assert.True(await store.DeleteAsync(app.AdultA, Ct));
+    }
+
+    [Fact]
     public async Task An_application_is_saved_found_and_its_key_decrypted()
     {
         await using var app = await NidApp.StartAsync(fixture);

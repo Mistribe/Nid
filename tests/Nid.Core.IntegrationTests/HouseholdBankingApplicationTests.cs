@@ -1,5 +1,6 @@
 using System.Net;
 using Nid.Banking.Contracts;
+using Nid.Core.Contracts;
 using Nid.TestSupport;
 
 namespace Nid.Core.IntegrationTests;
@@ -20,4 +21,7 @@ public class HouseholdBankingApplicationTests(PostgresFixture postgres)
         Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Patch, Household, new { enableBankingAppId = "app-1" })).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Patch, Household, new { enableBankingAppId = "" })).StatusCode);
     }
+
+    [Fact]
+    public void The_shared_code_is_the_banking_one() => Assert.Equal(BankingApplicationCodes.InUse, BankingCodes.ApplicationInUse);
 }

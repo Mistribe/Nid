@@ -3,6 +3,7 @@ using System.Text;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Npgsql;
 using Nid.Banking.Application;
 using Nid.Banking.Contracts;
 using Nid.Core.Contracts;
@@ -34,7 +35,8 @@ public sealed class ApplicationStore(BankingDbContext db, IDataProtectionProvide
         var row = await db.Applications.SingleOrDefaultAsync(a => a.PersonId == person.Value, ct);
         if (row is null)
         {
-            ArgumentNullException.ThrowIfNull(privateKeyPem);
+            if (privateKeyPem is null)
+                return false; // the application was deleted since the caller read it
             db.Applications.Add(new ApplicationRow
             {
                 PersonId = person.Value, ApplicationId = applicationId, PrivateKey = Encrypt(privateKeyPem), KeyLoadedAt = now, CreatedAt = now,
@@ -55,7 +57,8 @@ public sealed class ApplicationStore(BankingDbContext db, IDataProtectionProvide
             await db.SaveChangesAsync(ct);
             return true;
         }
-        catch (DbUpdateException)
+        catch (Exception e) when (e is DbUpdateConcurrencyException
+            || (e is DbUpdateException { InnerException: PostgresException { SqlState: PostgresErrorCodes.UniqueViolation } }))
         {
             // A concurrent save of the same person: a duplicate key, or a changed row version.
             db.ChangeTracker.Clear();
@@ -63,12 +66,21 @@ public sealed class ApplicationStore(BankingDbContext db, IDataProtectionProvide
         }
     }
 
-    public async Task DeleteAsync(PersonId person, CancellationToken ct)
+    public async Task<bool> DeleteAsync(PersonId person, CancellationToken ct)
     {
         if (await db.Applications.SingleOrDefaultAsync(a => a.PersonId == person.Value, ct) is not { } row)
-            return;
+            return true;
         db.Applications.Remove(row);
-        await db.SaveChangesAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+            return true;
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            db.ChangeTracker.Clear(); // changed or removed meanwhile
+            return false;
+        }
     }
 
     public async Task<IReadOnlyList<PersonId>> OwnersAsync(CancellationToken ct)

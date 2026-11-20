@@ -2,6 +2,7 @@ using NodaTime;
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
 using UnambitiousFx.Functional;
+using UnambitiousFx.Functional.Failures;
 using UnambitiousFx.Synapse.Abstractions;
 
 namespace Nid.Core.Application.Admin;
@@ -152,7 +153,7 @@ public sealed class UpdateHouseholdSettingsHandler(IHouseholdSettings settings, 
             foreach (var use in applicationUse)
                 if (await use.InUseAsync(current, ct))
                     return Result.Failure<HouseholdSettingsView>(
-                        new UnambitiousFx.Functional.Failures.ConflictFailure("Bank connections still use the installation's Enable Banking application.") { Code = "banking.application_in_use" });
+                        new ConflictFailure("Bank connections still use the installation's Enable Banking application.") { Code = BankingApplicationCodes.InUse });
 
         return (await settings.UpdateAsync(new HouseholdSettingsChange(
                 command.MaxAdults, command.ReferenceCurrency, command.PricesEnabled, command.IrlEnabled, command.BankingEnabled, command.EnableBankingAppId,

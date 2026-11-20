@@ -40,6 +40,9 @@ internal static class MyApplication
         => new(stored.ApplicationId, stored.KeyReadable ? "loaded" : "unreadable", stored.KeyLoadedAt.ToDateTimeOffset(),
             await connections.InUseAsync(stored.ApplicationId, stored.Person, ct));
 
+    public static Result<T> Changed<T>() where T : notnull
+        => Result.Failure<T>(new ConflictFailure("The application changed meanwhile: try again.") { Code = BankingCodes.ApplicationChanged });
+
     public static Result<T> InUse<T>() where T : notnull
         => Result.Failure<T>(new ConflictFailure("Bank connections still use this Enable Banking application.") { Code = BankingCodes.ApplicationInUse });
 }
@@ -73,9 +76,9 @@ public sealed class SaveMyApplicationHandler(BankingAccess access, IApplicationS
         if (current is not null && current.ApplicationId != id && await connections.InUseAsync(current.ApplicationId, person, ct))
             return MyApplication.InUse<MyApplicationView>();
 
-        if (!await applications.SaveAsync(person, id, command.PrivateKey, ct))
-            return Result.Failure<MyApplicationView>(new ConflictFailure("The application changed meanwhile: try again.") { Code = BankingCodes.ApplicationChanged });
-        return Result.Success(await MyApplication.ViewAsync((await applications.FindAsync(person, ct))!, connections, ct));
+        if (!await applications.SaveAsync(person, id, command.PrivateKey, ct) || await applications.FindAsync(person, ct) is not { } saved)
+            return MyApplication.Changed<MyApplicationView>();
+        return Result.Success(await MyApplication.ViewAsync(saved, connections, ct));
     }
 
     private static Result<MyApplicationView> Refused(string code, string message, string field)
@@ -97,8 +100,7 @@ public sealed class DeleteMyApplicationHandler(BankingAccess access, IApplicatio
         // Past the in-use check, only pending connections can carry the id: their flow could not finish without it.
         foreach (var pending in (await connections.MineAsync(person, ct)).Where(c => c.Status == ConnectionStatus.Pending && c.ApplicationId == stored.ApplicationId))
             await connections.DeleteAsync(pending.Id, ct);
-        await applications.DeleteAsync(person, ct);
-        return Result.Success(true);
+        return await applications.DeleteAsync(person, ct) ? Result.Success(true) : MyApplication.Changed<bool>();
     }
 }
 

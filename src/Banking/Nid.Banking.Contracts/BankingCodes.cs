@@ -15,7 +15,7 @@ public static class BankingCodes
     public const string ProviderError = "banking.provider_error";
 
     /// <summary>An Enable Banking application that connections still use cannot be removed.</summary>
-    public const string ApplicationInUse = "banking.application_in_use";
+    public const string ApplicationInUse = Nid.Core.Contracts.BankingApplicationCodes.InUse;
 
     /// <summary>An application id that is empty or longer than 100 characters.</summary>
     public const string ApplicationIdInvalid = "banking.application_id_invalid";

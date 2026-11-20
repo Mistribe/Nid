@@ -76,11 +76,19 @@ public static class BankingEndpoints
                 var result = await invoker.InvokeAsync(new GetMyApplicationQuery(), ct);
                 return result.TryGetFailure(out var failure) && failure is NotFoundFailure ? Results.NoContent() : result.ToHttp(v => v);
             })
-            .Returns<MyApplicationView>();
+            .Returns<MyApplicationView>()
+            .Produces(StatusCodes.Status204NoContent); // none declared
 
         api.MapPut("/application", async (ApplicationBody body, IInvoker invoker, CancellationToken ct)
                 => (await invoker.InvokeAsync(new SaveMyApplicationCommand(body.ApplicationId ?? "", body.PrivateKey), ct)).ToHttp(view => view))
-            .Returns<MyApplicationView>();
+            .Returns<MyApplicationView>()
+            .AddEndpointFilter(async (context, next) =>
+            {
+                // A key is a few KiB: refuse anything bigger before it is parsed.
+                if (context.HttpContext.Features.Get<IHttpMaxRequestBodySizeFeature>() is { IsReadOnly: false } limit)
+                    limit.MaxRequestBodySize = 32 * 1024;
+                return await next(context);
+            });
 
         api.MapDelete("/application", async (IInvoker invoker, CancellationToken ct) =>
             {
