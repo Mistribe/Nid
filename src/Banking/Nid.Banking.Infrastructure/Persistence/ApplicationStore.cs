@@ -28,7 +28,7 @@ public sealed class ApplicationStore(BankingDbContext db, IDataProtectionProvide
         return row is not null && Decrypt(row.PrivateKey) is { } pem ? new EnableBankingApp(row.ApplicationId, pem) : null;
     }
 
-    public async Task SaveAsync(PersonId person, string applicationId, string? privateKeyPem, CancellationToken ct)
+    public async Task<bool> SaveAsync(PersonId person, string applicationId, string? privateKeyPem, CancellationToken ct)
     {
         var now = clock.GetCurrentInstant();
         var row = await db.Applications.SingleOrDefaultAsync(a => a.PersonId == person.Value, ct);
@@ -50,7 +50,17 @@ public sealed class ApplicationStore(BankingDbContext db, IDataProtectionProvide
             }
         }
 
-        await db.SaveChangesAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+            return true;
+        }
+        catch (DbUpdateException)
+        {
+            // A concurrent save of the same person: a duplicate key, or a changed row version.
+            db.ChangeTracker.Clear();
+            return false;
+        }
     }
 
     public async Task DeleteAsync(PersonId person, CancellationToken ct)

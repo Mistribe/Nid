@@ -20,14 +20,19 @@ public sealed record TestBankingConnectionCommand(string RedirectUrl) : ICommand
 
 [RequestHandler<GetBankingDiagnosticsQuery, BankingDiagnosticsView>]
 public sealed class GetBankingDiagnosticsHandler(
-    IHouseholdSettings settings, BankingKey key, IBankSyncRunLog runs, IConnectionStore connections, BankAccountReader reader, IClock clock)
+    IHouseholdSettings settings, BankingKey key, IBankSyncRunLog runs, IConnectionStore connections, BankAccountReader reader, IClock clock,
+    IApplicationStore applications, IPersonRegistry persons)
     : IRequestHandler<GetBankingDiagnosticsQuery, BankingDiagnosticsView>
 {
     public async ValueTask<Result<BankingDiagnosticsView>> HandleAsync(GetBankingDiagnosticsQuery query, CancellationToken ct = default)
-        => Result.Success(new BankingDiagnosticsView(
+    {
+        var owners = (await applications.OwnersAsync(ct)).ToHashSet();
+        return Result.Success(new BankingDiagnosticsView(
             key.Status, !string.IsNullOrWhiteSpace((await settings.ReadAsync(ct)).EnableBankingAppId), query.RedirectUrl,
             (await runs.RecentAsync(1, ct)).FirstOrDefault(), query.NextRunAt, (await connections.ActiveAsync(ct)).Count > 0,
-            BankReadsView.From(BankReads.Worst((await reader.CountsAsync(null, ct)).Values), clock.GetCurrentInstant())));
+            BankReadsView.From(BankReads.Worst((await reader.CountsAsync(null, ct)).Values), clock.GetCurrentInstant()),
+            [.. (await persons.ListAsync(ct)).Where(p => owners.Contains(p.Id)).Select(p => new OwnApplicationView(p.Id.Value, p.DisplayName))]));
+    }
 }
 
 [RequestHandler<TestBankingConnectionCommand, BankingConnectionTestView>]
@@ -41,14 +46,23 @@ public sealed class TestBankingConnectionHandler(IHouseholdSettings settings, Ba
             return Result.Failure<BankingConnectionTestView>(
                 new ConflictFailure("Bank sync has no Enable Banking application id or no usable private key.") { Code = BankingCodes.NotConfigured });
 
-        var answer = await client.ApplicationAsync(new EnableBankingApp(appId, options.PrivateKey), ct);
+        return Result.Success(await ConnectionTest.RunAsync(client, new EnableBankingApp(appId, options.PrivateKey), command.RedirectUrl, ct));
+    }
+}
+
+/// <summary>One read-only call to Enable Banking with an application, as « Tester la connexion » reports it.</summary>
+internal static class ConnectionTest
+{
+    public static async Task<BankingConnectionTestView> RunAsync(IEnableBankingClient client, EnableBankingApp app, string redirectUrl, CancellationToken ct)
+    {
+        var answer = await client.ApplicationAsync(app, ct);
         if (answer.TryGetValue(out var application))
-            return Result.Success(new BankingConnectionTestView(
-                "accepted", null, application!.Active, application.RedirectUrls.Contains(command.RedirectUrl, StringComparer.Ordinal)));
+            return new BankingConnectionTestView(
+                "accepted", null, application!.Active, application.RedirectUrls.Contains(redirectUrl, StringComparer.Ordinal));
         answer.TryGetFailure(out var failure);
         // An enablebanking.* code is the API's own answer; anything else never reached it, or could not be read.
-        return Result.Success(failure!.Code.StartsWith(EnableBankingErrors.Prefix, StringComparison.Ordinal)
+        return failure!.Code.StartsWith(EnableBankingErrors.Prefix, StringComparison.Ordinal)
             ? new BankingConnectionTestView("rejected", failure.Code)
-            : new BankingConnectionTestView("unreachable"));
+            : new BankingConnectionTestView("unreachable");
     }
 }

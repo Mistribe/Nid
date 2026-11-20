@@ -70,6 +70,29 @@ public static class BankingEndpoints
             })
             .ReturnsNoContent();
 
+        // #382: the adult's own Enable Banking application; its key goes in and never comes back.
+        api.MapGet("/application", async (IInvoker invoker, CancellationToken ct) =>
+            {
+                var result = await invoker.InvokeAsync(new GetMyApplicationQuery(), ct);
+                return result.TryGetFailure(out var failure) && failure is NotFoundFailure ? Results.NoContent() : result.ToHttp(v => v);
+            })
+            .Returns<MyApplicationView>();
+
+        api.MapPut("/application", async (ApplicationBody body, IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new SaveMyApplicationCommand(body.ApplicationId ?? "", body.PrivateKey), ct)).ToHttp(view => view))
+            .Returns<MyApplicationView>();
+
+        api.MapDelete("/application", async (IInvoker invoker, CancellationToken ct) =>
+            {
+                var result = await invoker.InvokeAsync(new DeleteMyApplicationCommand(), ct);
+                return result.TryGetValue(out _) ? Results.NoContent() : result.ToHttp(v => v);
+            })
+            .ReturnsNoContent();
+
+        api.MapPost("/application/test", async (IOptions<NidAuthOptions> auth, IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new TestMyApplicationCommand(Callback(auth)), ct)).ToHttp(test => test))
+            .Returns<BankingConnectionTestView>();
+
         api.MapGet("/accounts", async (Guid? envelopeId, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new ListBankAccountsQuery(envelopeId is { } e ? new ItemId(e) : null), ct)).ToHttp(accounts => accounts))
             .Returns<IReadOnlyList<BankAccountView>>();
@@ -325,6 +348,10 @@ public static class BankingEndpoints
     private static string Callback(IOptions<NidAuthOptions> auth) => auth.Value.PublicUrl.TrimEnd('/') + CallbackPath;
 
     public sealed record ConnectBody(string? AspspName);
+
+    /// <summary>The adult's application; the key is optional once one is stored.</summary>
+    [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+    public sealed record ApplicationBody(string? ApplicationId, string? PrivateKey);
 
     /// <summary>The new envelope's name and kind (<c>checking</c>, <c>savings</c> or <c>other</c>); <c>joint</c>: every adult owns it.</summary>
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]

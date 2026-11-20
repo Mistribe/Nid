@@ -22,6 +22,11 @@ public static class SecurityEventNames
     public const string TokenRevoked = "token_revoked";
     public const string TokenAuthFailed = "token_auth_failed";
 
+    /// <summary>#382: an adult declared or changed their Enable Banking application (<c>key_replaced</c>); never the key or the id.</summary>
+    public const string BankingApplicationSaved = "banking_application_saved";
+
+    public const string BankingApplicationDeleted = "banking_application_deleted";
+
     /// <summary>4B: one per MCP tool call (spec §4); not in the admin journal — an adult's own reads.</summary>
     public const string McpToolCalled = "mcp_tool_called";
 

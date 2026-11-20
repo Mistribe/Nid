@@ -16,8 +16,11 @@ public interface IApplicationStore
     /// <summary>The decrypted key; null without an application or when the key ring cannot read it.</summary>
     Task<EnableBankingApp?> CredentialAsync(PersonId person, CancellationToken ct);
 
-    /// <summary>Creates, or changes the id and/or the key (null <paramref name="privateKeyPem"/>: keeps the key).</summary>
-    Task SaveAsync(PersonId person, string applicationId, string? privateKeyPem, CancellationToken ct);
+    /// <summary>
+    /// Creates, or changes the id and/or the key (null <paramref name="privateKeyPem"/>: keeps the key). False when a concurrent save
+    /// of the same person won: nothing was written.
+    /// </summary>
+    Task<bool> SaveAsync(PersonId person, string applicationId, string? privateKeyPem, CancellationToken ct);
 
     Task DeleteAsync(PersonId person, CancellationToken ct);
 

@@ -141,14 +141,24 @@ public sealed class GetHouseholdSettingsHandler(IHouseholdSettings settings) : I
 }
 
 [RequestHandler<UpdateHouseholdSettingsCommand, HouseholdSettingsView>]
-public sealed class UpdateHouseholdSettingsHandler(IHouseholdSettings settings)
+public sealed class UpdateHouseholdSettingsHandler(IHouseholdSettings settings, IEnumerable<IBankingApplicationUse> applicationUse)
     : IRequestHandler<UpdateHouseholdSettingsCommand, HouseholdSettingsView>
 {
     public async ValueTask<Result<HouseholdSettingsView>> HandleAsync(UpdateHouseholdSettingsCommand command, CancellationToken ct = default)
-        => (await settings.UpdateAsync(new HouseholdSettingsChange(
+    {
+        // #382: a new installation id would orphan the connections made with the current one; clearing it stays allowed.
+        if (command.EnableBankingAppId?.Trim() is { Length: > 0 } wanted
+            && (await settings.ReadAsync(ct)).EnableBankingAppId is { } current && current != wanted)
+            foreach (var use in applicationUse)
+                if (await use.InUseAsync(current, ct))
+                    return Result.Failure<HouseholdSettingsView>(
+                        new UnambitiousFx.Functional.Failures.ConflictFailure("Bank connections still use the installation's Enable Banking application.") { Code = "banking.application_in_use" });
+
+        return (await settings.UpdateAsync(new HouseholdSettingsChange(
                 command.MaxAdults, command.ReferenceCurrency, command.PricesEnabled, command.IrlEnabled, command.BankingEnabled, command.EnableBankingAppId,
                 command.BankRetentionMonths, command.ClearBankRetention, command.InflationEnabled), ct))
             .Map(HouseholdSettingsView.From);
+    }
 }
 
 /// <summary>

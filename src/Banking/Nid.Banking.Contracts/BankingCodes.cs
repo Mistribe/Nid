@@ -17,6 +17,15 @@ public static class BankingCodes
     /// <summary>An Enable Banking application that connections still use cannot be removed.</summary>
     public const string ApplicationInUse = "banking.application_in_use";
 
+    /// <summary>An application id that is empty or longer than 100 characters.</summary>
+    public const string ApplicationIdInvalid = "banking.application_id_invalid";
+
+    /// <summary>An application declared without its private key.</summary>
+    public const string KeyRequired = "banking.key_required";
+
+    /// <summary>The adult's application changed at the same time: nothing was saved, try again.</summary>
+    public const string ApplicationChanged = "banking.application_changed";
+
     /// <summary>A private key that is not an RSA private key in PEM.</summary>
     public const string KeyInvalid = "banking.key_invalid";
 
