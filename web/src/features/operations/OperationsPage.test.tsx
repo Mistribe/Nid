@@ -1,6 +1,8 @@
+import { File as NodeFile } from 'node:buffer';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw/http';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import userEvent from '@testing-library/user-event';
 import { pick } from '@/test/controls';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
@@ -175,5 +177,75 @@ describe('« Opérations »', () => {
   it('keeps one id of a longer category list', async () => {
     const { router } = await renderApp('/operations?category=c1&category=c2');
     await waitFor(() => expect(router.state.location.search).toEqual({ category: ['c1'] }));
+  });
+});
+
+describe('« Opérations » receipts', () => {
+  beforeAll(async () => { await import('./OperationsPage'); await import('@/features/documents/ItemUploadDialog'); await import('@/features/documents/ItemLinkDialog'); await import('../investments/operations/ReceiptPreview');
+    // jsdom's FormData and File do not cross into Node's Request (MSW): a browser sends them as is, the tests use Node's.
+    const form = await new Response('a=1', { headers: { 'content-type': 'application/x-www-form-urlencoded' } }).formData();
+    vi.stubGlobal('FormData', form.constructor);
+    vi.stubGlobal('File', NodeFile);
+  }, 30_000);
+  afterAll(() => { vi.unstubAllGlobals(); });
+  const withReceipts = { ...netflix, documents: [{ id: 'd1', title: 'Facture octobre' }, { id: 'd2', title: 'Reçu' }] };
+  // A submenu item is chosen from the keyboard: jsdom pointer moves close the submenu before the click lands.
+  const choose = async (name: string) => { (await screen.findByRole('menuitem', { name })).focus(); await userEvent.keyboard('{Enter}'); };
+  const rowOf = async () => within(await screen.findByRole('table', { name: 'Opérations' })).getAllByRole('row')[1]!;
+
+  it('shows a paperclip with the count, lists the documents and opens one in the preview', async () => {
+    server.use(
+      http.get('*/api/v1/banking/operations', () => HttpResponse.json(answer([withReceipts, salary]))),
+      http.get('*/api/v1/documents/:id', ({ params }) => HttpResponse.json({ document: { id: params.id, title: 'Facture octobre', mediaType: 'application/pdf', links: [], archived: false, canEdit: true }, links: [] })),
+    );
+    const { user } = await renderApp('/operations');
+    const row = await rowOf();
+    expect(within(screen.getAllByRole('table')[0]!).getAllByRole('button', { name: /justificatif/ })).toHaveLength(1);
+    await user.click(within(row).getByRole('button', { name: '2 justificatifs' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Facture octobre' }));
+    expect(await screen.findByRole('dialog', { name: 'Facture octobre' })).toBeInTheDocument();
+  });
+
+  it('« Joindre un justificatif » uploads onto the line with the receipt role', async () => {
+    let body: Record<string, FormDataEntryValue> = {};
+    server.use(
+      http.get('*/api/v1/banking/operations', () => HttpResponse.json(answer([netflix]))),
+      http.post('*/api/v1/documents', async ({ request }) => { body = Object.fromEntries((await request.formData()).entries()); return HttpResponse.json({ id: 'd9' }, { status: 201 }); }),
+    );
+    const { user } = await renderApp('/operations');
+    await user.click(within(await rowOf()).getByRole('button', { name: /Actions/ }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Joindre un justificatif' }));
+    await choose('Déposer un fichier…');
+    const dialog = await screen.findByRole('dialog');
+    await user.upload(within(dialog).getByLabelText('Fichiers'), new File(['%PDF-1.7'], 'facture.pdf', { type: 'application/pdf' }));
+    expect(within(dialog).getByRole('combobox', { name: 'Type' })).toHaveTextContent('Justificatif');
+    await user.click(within(dialog).getByRole('button', { name: 'Déposer' }));
+    await waitFor(() => expect(body).toMatchObject({ targetKind: 'banking.transaction', targetId: 't1', role: 'receipt' }));
+  });
+
+  it('« Choisir un document… » links an existing document to the line', async () => {
+    let body: unknown;
+    server.use(
+      http.get('*/api/v1/banking/operations', () => HttpResponse.json(answer([netflix]))),
+      http.get('*/api/v1/documents', () => HttpResponse.json({ items: [{ id: 'd3', title: 'Ticket', mediaType: 'application/pdf', archived: false, canEdit: true, links: [] }], total: 1, facets: {} })),
+      http.get('*/api/v1/documents/:id/links/preview', () => HttpResponse.json({ gainedReaders: [] })),
+      http.post('*/api/v1/documents/:id/links', async ({ request }) => { body = await request.json(); return new HttpResponse(null, { status: 204 }); }),
+    );
+    const { user } = await renderApp('/operations');
+    await user.click(within(await rowOf()).getByRole('button', { name: /Actions/ }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Joindre un justificatif' }));
+    await choose('Choisir un document…');
+    await screen.findByRole('dialog');
+    await pick(user, 'Document', 'Ticket');
+    expect(screen.getByRole('combobox', { name: 'Type' })).toHaveTextContent('Justificatif');
+    await user.click(screen.getByRole('button', { name: 'Relier' }));
+    await waitFor(() => expect(body).toEqual({ targetKind: 'banking.transaction', targetId: 't1', role: 'receipt' }));
+  });
+
+  it('a read-only account has the paperclip but no attach entry', async () => {
+    server.use(http.get('*/api/v1/banking/operations', () => HttpResponse.json({ ...answer([withReceipts]), accountOwners: [{ accountId: 'a1', owners: [], writable: false }] })));
+    await renderApp('/operations');
+    expect(within(await rowOf()).getByRole('button', { name: '2 justificatifs' })).toBeInTheDocument();
+    expect(within(await rowOf()).queryByRole('button', { name: /Actions/ })).not.toBeInTheDocument();
   });
 });

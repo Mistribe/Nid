@@ -47,6 +47,12 @@ const NOTE = '/api/v1/banking/transactions/{id}/note' as const;
 const SPLIT = '/api/v1/banking/transactions/{id}/split' as const;
 const IGNORE = '/api/v1/banking/transactions/{id}/ignore' as const;
 
+/** Refreshes every banking list: a receipt attached through the documents routes changes the line's `documents`. */
+export function useRefreshLines() {
+  const queryClient = useQueryClient();
+  return () => { void queryClient.invalidateQueries({ predicate: (q) => typeof q.queryKey[1] === 'string' && q.queryKey[1].startsWith('/api/v1/banking/') }); };
+}
+
 /** « Relier », « Délier », « Ignorer » and « Note », « Découper » and « Annuler le découpage », « Catégoriser » (a hand choice, or back to Nid's, and the rule it may offer) on a line; each refreshes every line list, the candidates and the proposals. */
 export function useLineActions() {
   const { $api } = useApi();

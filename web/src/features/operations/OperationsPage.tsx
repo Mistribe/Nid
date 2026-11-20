@@ -17,6 +17,7 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { OPERATIONS, type BankTransaction, type OperationPage } from '@/api/banking';
 import { ImportStatement } from '../investments/operations/ImportStatement';
 import { LineActions, lineState, SplitParts } from '../investments/operations/LineActions';
+import { Receipts } from '../investments/operations/Receipts';
 import { OperationFilters } from './OperationFilters';
 import '@/locales/banks';
 
@@ -76,7 +77,7 @@ function Table({ rows, owners }: { rows: BankTransaction[]; owners: OperationPag
   const category = (l: BankTransaction) => l.parts?.length ? <SplitParts line={l} /> : l.category?.name ?? '—';
   const label = (l: BankTransaction) => (
     <span className="whitespace-normal">
-      {l.label}
+      {l.label}<Receipts line={l} />
       {l.counterparty ? <span className="block text-sm text-muted-foreground">{l.counterparty}</span> : null}
       {l.note ? <span className="block text-sm italic text-muted-foreground">{l.note}</span> : null}
     </span>

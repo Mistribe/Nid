@@ -18,6 +18,7 @@ import { type BankTransaction } from '@/api/banking';
 import { useTransactions } from './api';
 import ImportStatementDialog from './ImportStatementDialog';
 import { LineActions, lineState, SplitParts } from './LineActions';
+import { Receipts } from './Receipts';
 import '@/locales/banks';
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
@@ -39,7 +40,7 @@ export default function OperationsTab({ envelope, writable }: { envelope: Envelo
 
   const label = (l: BankTransaction) => (
     <span className="whitespace-normal">
-      <span className="flex flex-wrap items-center gap-2">{l.label}{l.fromCard ? <Badge variant="secondary">{t('banks.operations.card')}</Badge> : null}</span>
+      <span className="flex flex-wrap items-center gap-2">{l.label}<Receipts line={l} />{l.fromCard ? <Badge variant="secondary">{t('banks.operations.card')}</Badge> : null}</span>
       {l.counterparty || l.cardName ? (
         <span className="block text-sm text-muted-foreground">{[l.counterparty, l.cardName].filter(Boolean).join(' · ')}</span>
       ) : null}

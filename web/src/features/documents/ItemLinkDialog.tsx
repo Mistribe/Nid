@@ -15,10 +15,10 @@ import '@/locales/documents';
 /**
  * An existing document linked to the item, as `AddLinkDialog` does from the document's side: the candidates are the
  * readable, unarchived documents the actor may edit and that have no link to this item yet (a link to one of its phases
- * does not count). The preview first; if it names anyone, nothing is linked until « Relier quand même ».
+ * does not count). `targetKind` links to something else than an item (a bank line's receipt). The preview first; if it names anyone, nothing is linked until « Relier quand même ».
  */
-export function ItemLinkDialog({ itemId, defaultRole, onClose, onDone }: {
-  itemId: string; defaultRole: string; onClose: () => void; onDone: (message: string) => void;
+export function ItemLinkDialog({ itemId, targetKind = 'core.item', defaultRole, onClose, onDone }: {
+  itemId: string; targetKind?: string; defaultRole: string; onClose: () => void; onDone: (message: string) => void;
 }) {
   const { t } = useTranslation();
   const { fetchClient } = useApi();
@@ -31,18 +31,18 @@ export function ItemLinkDialog({ itemId, defaultRole, onClose, onDone }: {
   const [checking, setChecking] = useState(false);
   const [problem, setProblem] = useState<unknown>(null);
   const offered = (docs.data?.items ?? []).filter((d) => !d.archived && d.canEdit
-    && !d.links.some((l) => l.targetKind === 'core.item' && l.targetId === itemId));
+    && !d.links.some((l) => l.targetKind === targetKind && l.targetId === itemId));
   const pick = (set: (v: string) => void) => (v: string) => { set(v); setGained(null); setProblem(null); };
 
   const add = async (done: (message?: string) => void) => {
     if (!docId || !role) return;
-    const post = () => link.mutate({ params: { path: { id: docId } }, body: { targetKind: 'core.item', targetId: itemId, role } },
+    const post = () => link.mutate({ params: { path: { id: docId } }, body: { targetKind, targetId: itemId, role } },
       { onSuccess: () => done(t('documents_item.linked')), onError: setProblem });
     if (gained) { post(); return; }
     setProblem(null);
     setChecking(true);
     try {
-      const { gainedReaders } = await previewLink(fetchClient, docId, 'core.item', itemId);
+      const { gainedReaders } = await previewLink(fetchClient, docId, targetKind, itemId);
       if (gainedReaders.length === 0) post();
       else setGained(gainedReaders.map((r) => r.name));
     } catch (error) {
