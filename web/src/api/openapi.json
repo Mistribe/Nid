@@ -48569,7 +48569,9 @@
           "visibility",
           "shareLevel",
           "canChange",
-          "isOwner"
+          "isOwner",
+          "canAskPrivate",
+          "privateAsked"
         ],
         "type": "object",
         "properties": {
@@ -48583,6 +48585,12 @@
             "type": "boolean"
           },
           "isOwner": {
+            "type": "boolean"
+          },
+          "canAskPrivate": {
+            "type": "boolean"
+          },
+          "privateAsked": {
             "type": "boolean"
           }
         }

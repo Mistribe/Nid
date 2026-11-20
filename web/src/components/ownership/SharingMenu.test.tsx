@@ -41,6 +41,39 @@ describe('SharingMenu (#294)', () => {
     expect(await screen.findByText('Lecture et modification')).toBeInTheDocument();
   });
 
+  it('#384: offers its sole owner « Privé (vous seul) », sent to the other adult as a request', async () => {
+    const asked: unknown[] = [];
+    let pending = false;
+    server.use(
+      http.get('*/api/v1/goals/:id', () => HttpResponse.json(detail())),
+      http.get('*/api/v1/core/items/:id/sharing', () => HttpResponse.json(sharing({ canAskPrivate: true, privateAsked: pending }))),
+      http.post('*/api/v1/core/proposals', async ({ request }) => { asked.push(await request.json()); pending = true; return HttpResponse.json({}, { status: 201 }); }),
+    );
+    const { user } = await renderApp(`/goals/${GOAL}`);
+
+    await user.click(await screen.findByRole('button', { name: 'Autres actions' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Partage…' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Partage' });
+    await user.click(await within(dialog).findByRole('radio', { name: 'Privé (vous seul)' }));
+    expect(within(dialog).getByText(/il doit d’abord accepter/)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Envoyer la demande' }));
+
+    await waitFor(() => expect(toasts()).toHaveTextContent('Demande envoyée'));
+    expect(asked).toEqual([{ kind: 'core.make_private', targetItemId: GOAL, payload: {} }]);
+    expect(await screen.findByText('Passage en privé demandé')).toBeInTheDocument();
+  });
+
+  it('does not offer « Privé » to an owner who cannot ask it', async () => {
+    server.use(http.get('*/api/v1/goals/:id', () => HttpResponse.json(detail())));
+    const { user } = await renderApp(`/goals/${GOAL}`);
+
+    await user.click(await screen.findByRole('button', { name: 'Autres actions' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Partage…' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Partage' });
+    expect(await within(dialog).findByRole('radio', { name: 'Lecture seule' })).toBeInTheDocument();
+    expect(within(dialog).queryByRole('radio', { name: 'Privé (vous seul)' })).not.toBeInTheDocument();
+  });
+
   it('shows an adult who may only edit the item its level and that they do not own it, with no way to change it', async () => {
     server.use(
       http.get('*/api/v1/goals/:id', () => HttpResponse.json(detail())),

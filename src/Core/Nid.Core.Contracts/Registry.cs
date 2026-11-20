@@ -196,6 +196,12 @@ public static class ItemCodes
     /// <summary>#25: an edit hides the item from an adult other than the actor who reads it today (<see cref="IItemRules.TakesReadAway"/>). HTTP 422.</summary>
     public const string TakesReadAway = "core.takes_read_away";
 
+    /// <summary>
+    /// #384: a request to make the item private, refused: the requester is not its sole adult owner, or it is not shared with
+    /// another adult who reads it. HTTP 422.
+    /// </summary>
+    public const string PrivateRequestRefused = "core.private_request_refused";
+
     /// <summary>#23: something still refers to the item being deleted (<see cref="IItemDeletionPart.BlockersAsync"/>). HTTP 409.</summary>
     public const string InUse = "core.item_in_use";
 

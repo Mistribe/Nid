@@ -102,6 +102,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IProposalStore, ProposalStore>();
         services.AddScoped<Nid.Core.Application.ProposalHandlers>();
         services.AddScoped<IProposalSubmitter, Nid.Core.Application.ProposalSubmitter>();
+        services.AddScoped<IProposalHandler, Nid.Core.Application.PrivateRequestProposal>();
         services.AddScoped<IItemRegistry, ItemRegistry>();
         services.AddScoped<IAccessPolicy, AccessPolicy>();
         services.AddScoped<IHouseholdCalendar, HouseholdCalendar>();

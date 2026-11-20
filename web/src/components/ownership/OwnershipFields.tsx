@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Field } from '@/components/form/Field';
 import type { OwnershipValues } from './ownership';
+import { useItemSharing } from './SharingBadges';
 import '@/locales/forms';
 
 type Person = components['schemas']['PersonDto'];
@@ -22,9 +23,13 @@ type Person = components['schemas']['PersonDto'];
  *
  * The income form asks its own visibility question (2C2a design §5) and passes `withVisibility={false}`.
  * #294: a shared item's level (view only, or view and edit) follows the visibility, whoever asks it.
+ * #384: an edit form passes its `item`: « Privé » on a shared item the other adult reads says the save asks them first.
  */
-export function OwnershipFields<T extends OwnershipValues>({ form, persons, withVisibility = true }: { form: UseFormReturn<T>; persons: Person[]; withVisibility?: boolean }) {
+export function OwnershipFields<T extends OwnershipValues>({ form, persons, withVisibility = true, item }: {
+  form: UseFormReturn<T>; persons: Person[]; withVisibility?: boolean; item?: string;
+}) {
   const { t } = useTranslation();
+  const canAskPrivate = useItemSharing(item ?? '', item !== undefined).data?.canAskPrivate === true;
   const owners = useFieldArray({ control: form.control, name: 'owners' as ArrayPath<T> });
   // Same reason as above: `errors.owners` / `errors.visibility` exist on every `T extends OwnershipValues`, but
   // RHF's `FieldErrors<T>` for a generic, unresolved `T` can't express that, so this narrows to the concrete shape.
@@ -45,7 +50,8 @@ export function OwnershipFields<T extends OwnershipValues>({ form, persons, with
               options={(['shared', 'private'] as const).map((v) => ({ value: v, label: t(`wizard.${v}`) }))} />
           )} />
           <p id={effectId} className="text-sm text-muted-foreground">
-            {form.watch('visibility' as Path<T>) === 'private' ? t('wizard.private_effect') : t('wizard.shared_effect')}
+            {form.watch('visibility' as Path<T>) !== 'private' ? t('wizard.shared_effect')
+              : canAskPrivate ? t('sharing.private_ask_effect') : t('wizard.private_effect')}
           </p>
         </div>
       ) : null}
