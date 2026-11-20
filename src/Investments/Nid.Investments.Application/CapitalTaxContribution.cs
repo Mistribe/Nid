@@ -51,8 +51,9 @@ public sealed class CapitalTaxContribution(
     internal static TaxLine SavingsLine(EnvelopePerformance.Facts f, LocalDate start, LocalDate end)
     {
         TaxLine Unknown() => new(TaxLineCodes.SavingsInterestUnknown, f.Item.Id, f.Item.DisplayName, null, 0m);
-        if (!EnvelopeMath.BankFedCovered(f.Values, f.Flows)
-            || !f.Flows.Any(x => x.Kind is FlowKind.Opening or FlowKind.Contribution))
+        // A year the bank fed the balance tells its interest only once the bank's lines are flows too.
+        if ((f.Values.Any(v => v.Source == FactSource.BankApi && v.AsOf >= start && v.AsOf <= end) && !EnvelopeMath.BankFedCovered(f.Values, f.Flows))
+            || !EnvelopeMath.PaidInKnown(f.Flows))
             return Unknown();
         // shortcut: the current year counts the interest its values show so far; most banks credit it on 31 December.
         var period = EnvelopeMath.Period(f.Values, f.Flows, f.Currency, start.PlusDays(-1), end);

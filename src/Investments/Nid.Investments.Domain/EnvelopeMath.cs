@@ -11,7 +11,7 @@ public static class EnvelopeMath
     public static EnvelopeFigures At(EnvelopeKind kind, IReadOnlyList<Valuation> values, IReadOnlyList<Flow> flows, Currency currency,
         ValuationCadence cadence, int? staleAfterDays, LocalDate d)
     {
-        var figures = Figures(values, flows, currency, cadence, staleAfterDays, d);
+        var figures = Figures(kind, values, flows, currency, cadence, staleAfterDays, d);
         return figures.Value is null || HasPerformance(kind, values, flows) ? figures
             : figures with { Gain = null, GainPct = null, AnnualReturnPct = null, GainAfterFees = null, MissingOpening = false };
     }
@@ -24,16 +24,24 @@ public static class EnvelopeMath
     public static bool HasPerformance(EnvelopeKind kind, IReadOnlyList<Valuation> values, IReadOnlyList<Flow> flows) => kind switch
     {
         EnvelopeKind.Checking => false,
-        EnvelopeKind.Savings => BankFedCovered(values, flows)
-            && flows.Any(f => f.Kind is FlowKind.Opening or FlowKind.Contribution),
+        EnvelopeKind.Savings => BankFedCovered(values, flows) && PaidInKnown(flows),
         _ => true,
     };
 
     /// <summary>A balance the bank feeds says nothing about interest until the bank's lines are also kept as flows (<c>bank:</c> references); active flows.</summary>
     public static bool BankFedCovered(IReadOnlyList<Valuation> values, IReadOnlyList<Flow> flows)
-        => values.All(v => v.Source != FactSource.BankApi) || flows.Any(f => f.ExternalRef?.StartsWith("bank:", StringComparison.Ordinal) == true);
+        => values.All(v => v.Source != FactSource.BankApi) || flows.Any(IsBankFlow);
 
-    private static EnvelopeFigures Figures(IReadOnlyList<Valuation> values, IReadOnlyList<Flow> flows, Currency currency,
+    /// <summary>
+    /// What was paid into a livret is known from an opening or a contribution the household entered; a bank deposit alone is not enough,
+    /// since the balance at association may hold money paid long before.
+    /// </summary>
+    public static bool PaidInKnown(IEnumerable<Flow> flows)
+        => flows.Any(f => f.Kind == FlowKind.Opening || (f.Kind == FlowKind.Contribution && !IsBankFlow(f)));
+
+    private static bool IsBankFlow(Flow f) => f.ExternalRef?.StartsWith("bank:", StringComparison.Ordinal) == true;
+
+    private static EnvelopeFigures Figures(EnvelopeKind kind, IReadOnlyList<Valuation> values, IReadOnlyList<Flow> flows, Currency currency,
         ValuationCadence cadence, int? staleAfterDays, LocalDate d)
     {
         var latest = LastOnOrBefore(values, d);
@@ -49,8 +57,9 @@ public static class EnvelopeMath
         var value = latest.Value.Amount;
         var gain = value - net;
         var fees = Total(flows, f => f.Kind == FlowKind.Expense && f.OccurredOn <= v);
-        var missingOpening = value != 0
-            && !flows.Any(f => f.OccurredOn <= v && f.Kind is FlowKind.Opening or FlowKind.Contribution);
+        var missingOpening = value != 0 && !(kind == EnvelopeKind.Savings
+            ? PaidInKnown(flows.Where(f => f.OccurredOn <= v))
+            : flows.Any(f => f.OccurredOn <= v && f.Kind is FlowKind.Opening or FlowKind.Contribution));
         var threshold = StaleThreshold(cadence, staleAfterDays);
         var age = NodaTime.Period.DaysBetween(v, d);
 

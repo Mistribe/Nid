@@ -79,6 +79,32 @@ public class EnvelopeMathTests
     public void A_bank_fed_livret_without_bank_flows_still_has_none()
         => Assert.Null(At(BankValues, [Flow(2025, 1, 1, FlowKind.Opening, 1_000m)], new LocalDate(2025, 12, 31), kind: EnvelopeKind.Savings).Gain);
 
+    // A livret linked in January with 10 000 on it: its first value, then a bank deposit of 100.
+    private static readonly Valuation[] LinkedValues =
+        [Value(2026, 1, 31, 10_000m) with { Source = FactSource.BankApi }, Value(2026, 3, 31, 10_150m) with { Source = FactSource.BankApi }];
+
+    private static readonly Flow BankDeposit = Flow(2026, 2, 10, FlowKind.Contribution, 100m) with { ExternalRef = "bank:33333333-3333-3333-3333-333333333333" };
+
+    [Fact]
+    public void A_bank_deposit_alone_does_not_tell_what_was_paid_into_a_livret()
+    {
+        var day = new LocalDate(2026, 3, 31);
+        var f = At(LinkedValues, [BankDeposit], day, kind: EnvelopeKind.Savings);
+        // As a livret with no flow at all (#374): no gain, no opening asked for.
+        Assert.Equal((null, false), (f.Gain, f.MissingOpening));
+
+        Assert.Equal(Eur(50m), At(LinkedValues, [Flow(2026, 1, 31, FlowKind.Opening, 10_000m), BankDeposit], day, kind: EnvelopeKind.Savings).Gain);
+    }
+
+    [Fact]
+    public void A_livret_whose_deposits_up_to_its_value_all_came_from_the_bank_misses_its_opening()
+    {
+        // A versement typed after the value tells something was paid in, not what the balance held before.
+        var f = At(LinkedValues, [BankDeposit, Flow(2026, 4, 5, FlowKind.Contribution, 200m)], new LocalDate(2026, 4, 30), kind: EnvelopeKind.Savings);
+
+        Assert.True(f.MissingOpening);
+    }
+
     [Fact]
     public void The_golden_case_gives_plus_3000_and_13_6_percent()
     {
