@@ -14,6 +14,12 @@ public static class BankingCodes
     public const string SyncRunning = "banking.sync_running";
     public const string ProviderError = "banking.provider_error";
 
+    /// <summary>An Enable Banking application that connections still use cannot be removed.</summary>
+    public const string ApplicationInUse = "banking.application_in_use";
+
+    /// <summary>A private key that is not an RSA private key in PEM.</summary>
+    public const string KeyInvalid = "banking.key_invalid";
+
     /// <summary>An account associated with an envelope in another currency: its balance would be written as the wrong money.</summary>
     public const string CurrencyMismatch = "banking.currency_mismatch";
 

@@ -31,10 +31,10 @@ public sealed class SyncAllHandler(
     {
         // Retention (D3), counted nowhere visible, runs with banking on even where there is no bank to read: statement files alone fill the table.
         var enabled = await access.EnabledAsync(ct);
-        var app = await access.AppIdAsync(ct);
-        var run = app.TryGetValue(out var appId)
-            ? await collector.SyncAsync(appId!, "schedule", await connections.ActiveAsync(ct), null, ct)
-            : BankingAccess.Failed<BankSyncRunView, string>(app);
+        var app = await access.InstallationAppAsync(ct);
+        var run = app.TryGetValue(out var installation)
+            ? await collector.SyncAsync(installation!, "schedule", await connections.ActiveAsync(ct), null, ct)
+            : BankingAccess.Failed<BankSyncRunView, EnableBankingApp>(app);
         var today = await calendar.TodayAsync(ct);
         // Before the purge: a line it would delete may still be linked tonight.
         await reconciliation.RunAsync(null, today, ct);
@@ -54,9 +54,9 @@ public sealed class SyncMineHandler(
 {
     public async ValueTask<Result<BankSyncRequested>> HandleAsync(SyncMineCommand command, CancellationToken ct = default)
     {
-        var app = await access.AppIdAsync(ct);
-        if (!app.TryGetValue(out var appId))
-            return BankingAccess.Failed<BankSyncRequested, string>(app);
+        var app = await access.InstallationAppAsync(ct);
+        if (!app.TryGetValue(out var installation))
+            return BankingAccess.Failed<BankSyncRequested, EnableBankingApp>(app);
 
         IReadOnlyList<BankConnection> mine;
         if (command.ConnectionId is { } id)
@@ -71,7 +71,7 @@ public sealed class SyncMineHandler(
 
         // An expired or revoked consent has nothing to read until it is renewed.
         var readable = mine.Where(c => c.Status is ConnectionStatus.Active or ConnectionStatus.Error).ToList();
-        var run = await collector.SyncAsync(appId!, "manual", readable, command.Psu, ct);
+        var run = await collector.SyncAsync(installation!, "manual", readable, command.Psu, ct);
         if (run.IsSuccess)
         {
             var read = new List<Guid>();

@@ -21,15 +21,15 @@ public sealed class BankingAccess(
     public static bool Configured(HouseholdSettingsInfo household, BankingOptions options)
         => !string.IsNullOrWhiteSpace(household.EnableBankingAppId) && !string.IsNullOrWhiteSpace(options.PrivateKey);
 
-    /// <summary>The application id, when banking is on and configured: every request that reaches a bank asks it first.</summary>
-    public async Task<Result<string>> AppIdAsync(CancellationToken ct)
+    /// <summary>The installation's application (id and key), when banking is on and configured: every request that reaches a bank asks it first.</summary>
+    public async Task<Result<EnableBankingApp>> InstallationAppAsync(CancellationToken ct)
     {
         var household = await settings.ReadAsync(ct);
         if (!household.BankingEnabled)
-            return Result.Failure<string>(new ConflictFailure("Bank sync is turned off for this household.") { Code = BankingCodes.Disabled });
+            return Result.Failure<EnableBankingApp>(new ConflictFailure("Bank sync is turned off for this household.") { Code = BankingCodes.Disabled });
         return Configured(household, options)
-            ? Result.Success(household.EnableBankingAppId!)
-            : Result.Failure<string>(new ConflictFailure("Bank sync has no Enable Banking application id or private key.") { Code = BankingCodes.NotConfigured });
+            ? Result.Success(new EnableBankingApp(household.EnableBankingAppId!, options.PrivateKey!))
+            : Result.Failure<EnableBankingApp>(new ConflictFailure("Bank sync has no Enable Banking application id or private key.") { Code = BankingCodes.NotConfigured });
     }
 
     /// <summary>Banking on, whatever Enable Banking's configuration: what file imports and the accounts they make need (ruling R-d).</summary>

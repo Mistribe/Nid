@@ -11,13 +11,13 @@ public sealed class AspspCache(IEnableBankingClient client, IClock clock)
 
     private Cached? cached;
 
-    public async Task<Result<IReadOnlyList<Aspsp>>> FrenchAsync(string appId, CancellationToken ct)
+    public async Task<Result<IReadOnlyList<Aspsp>>> FrenchAsync(EnableBankingApp app, CancellationToken ct)
     {
         var now = clock.GetCurrentInstant();
         if (cached is { } kept && now - kept.At < Duration.FromDays(1))
             return Result.Success(kept.Banks);
 
-        var read = await client.AspspsAsync(appId, "FR", ct);
+        var read = await client.AspspsAsync(app, "FR", ct);
         if (read.TryGetValue(out var banks))
             cached = new Cached(now, banks!);
         return read;

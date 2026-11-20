@@ -41,11 +41,11 @@ internal static class BankAuthorization
     public static byte[] Hash(string state) => SHA256.HashData(Encoding.UTF8.GetBytes(state));
 
     public static async Task<Result<(string Url, byte[] StateHash)>> StartAsync(
-        IEnableBankingClient client, string appId, Aspsp aspsp, string redirectUrl, Instant now, CancellationToken ct)
+        IEnableBankingClient client, EnableBankingApp installation, Aspsp aspsp, string redirectUrl, Instant now, CancellationToken ct)
     {
         var state = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)).TrimEnd('=').Replace('+', '-').Replace('/', '_');
         var validUntil = now + (aspsp.MaximumConsentSeconds is { } seconds ? Duration.FromSeconds(seconds) : LongestConsent);
-        return (await client.StartAuthAsync(appId, aspsp, validUntil, state, redirectUrl, ct)).Map(started => (started.Url, Hash(state)));
+        return (await client.StartAuthAsync(installation, aspsp, validUntil, state, redirectUrl, ct)).Map(started => (started.Url, Hash(state)));
     }
 }
 
@@ -69,10 +69,10 @@ public sealed class ListAspspsHandler(BankingAccess access, AspspCache aspsps) :
 {
     public async ValueTask<Result<IReadOnlyList<AspspView>>> HandleAsync(ListAspspsQuery query, CancellationToken ct = default)
     {
-        var app = await access.AppIdAsync(ct);
-        if (!app.TryGetValue(out var appId))
-            return BankingAccess.Failed<IReadOnlyList<AspspView>, string>(app);
-        return (await aspsps.FrenchAsync(appId!, ct)).Map(banks => (IReadOnlyList<AspspView>)banks.Select(b => new AspspView(b.Name, b.Logo)).ToList());
+        var app = await access.InstallationAppAsync(ct);
+        if (!app.TryGetValue(out var installation))
+            return BankingAccess.Failed<IReadOnlyList<AspspView>, EnableBankingApp>(app);
+        return (await aspsps.FrenchAsync(installation!, ct)).Map(banks => (IReadOnlyList<AspspView>)banks.Select(b => new AspspView(b.Name, b.Logo)).ToList());
     }
 }
 
@@ -83,10 +83,10 @@ public sealed class StartConnectionHandler(
 {
     public async ValueTask<Result<ConnectionStarted>> HandleAsync(StartConnectionCommand command, CancellationToken ct = default)
     {
-        var app = await access.AppIdAsync(ct);
-        if (!app.TryGetValue(out var appId))
-            return BankingAccess.Failed<ConnectionStarted, string>(app);
-        var banks = await aspsps.FrenchAsync(appId!, ct);
+        var app = await access.InstallationAppAsync(ct);
+        if (!app.TryGetValue(out var installation))
+            return BankingAccess.Failed<ConnectionStarted, EnableBankingApp>(app);
+        var banks = await aspsps.FrenchAsync(installation!, ct);
         if (!banks.TryGetValue(out var list))
             return BankingAccess.Failed<ConnectionStarted, IReadOnlyList<Aspsp>>(banks);
         if (list!.FirstOrDefault(b => b.Name == command.AspspName) is not { } aspsp)
@@ -96,7 +96,7 @@ public sealed class StartConnectionHandler(
         var stateTime = Duration.FromMinutes(options.StateMinutes);
         // The person's flows abandoned at the bank, or refused at their callback, are dead by now.
         await connections.DeletePendingAsync(access.Person, now - stateTime, ct);
-        var started = await BankAuthorization.StartAsync(client, appId!, aspsp, command.RedirectUrl, now, ct);
+        var started = await BankAuthorization.StartAsync(client, installation!, aspsp, command.RedirectUrl, now, ct);
         if (!started.TryGetValue(out var auth))
             return BankingAccess.Failed<ConnectionStarted, (string, byte[])>(started);
         var id = await connections.CreatePendingAsync(access.Person, aspsp.Name, aspsp.Country, auth.StateHash, now + stateTime, ct);
@@ -111,20 +111,20 @@ public sealed class RenewConnectionHandler(
 {
     public async ValueTask<Result<ConnectionStarted>> HandleAsync(RenewConnectionCommand command, CancellationToken ct = default)
     {
-        var app = await access.AppIdAsync(ct);
-        if (!app.TryGetValue(out var appId))
-            return BankingAccess.Failed<ConnectionStarted, string>(app);
+        var app = await access.InstallationAppAsync(ct);
+        if (!app.TryGetValue(out var installation))
+            return BankingAccess.Failed<ConnectionStarted, EnableBankingApp>(app);
         var mine = await access.MyConnectionAsync(command.Id, ct);
         if (!mine.TryGetValue(out var connection))
             return BankingAccess.Failed<ConnectionStarted, BankConnection>(mine);
-        var banks = await aspsps.FrenchAsync(appId!, ct);
+        var banks = await aspsps.FrenchAsync(installation!, ct);
         if (!banks.TryGetValue(out var list))
             return BankingAccess.Failed<ConnectionStarted, IReadOnlyList<Aspsp>>(banks);
         if (list!.FirstOrDefault(b => b.Name == connection!.AspspName && b.Country == connection.AspspCountry) is not { } aspsp)
             return BankingAccess.Fail<ConnectionStarted>(BankingCodes.UnknownAspsp, "Enable Banking no longer lists this bank.");
 
         var now = clock.GetCurrentInstant();
-        var started = await BankAuthorization.StartAsync(client, appId!, aspsp, command.RedirectUrl, now, ct);
+        var started = await BankAuthorization.StartAsync(client, installation!, aspsp, command.RedirectUrl, now, ct);
         if (!started.TryGetValue(out var auth))
             return BankingAccess.Failed<ConnectionStarted, (string, byte[])>(started);
         await connections.SetStateAsync(connection!.Id, auth.StateHash, now + Duration.FromMinutes(options.StateMinutes), ct);
@@ -143,9 +143,9 @@ public sealed class CompleteConnectionHandler(
 {
     public async ValueTask<Result<Guid>> HandleAsync(CompleteConnectionCommand command, CancellationToken ct = default)
     {
-        var app = await access.AppIdAsync(ct);
-        if (!app.TryGetValue(out var appId))
-            return BankingAccess.Failed<Guid, string>(app);
+        var app = await access.InstallationAppAsync(ct);
+        if (!app.TryGetValue(out var installation))
+            return BankingAccess.Failed<Guid, EnableBankingApp>(app);
         var connection = await connections.FindByStateAsync(BankAuthorization.Hash(command.State), ct);
         if (connection is null || connection.Person != access.Person)
             return BankingAccess.Fail<Guid>(BankingCodes.StateInvalid, "This bank callback is unknown, used, expired or someone else's.");
@@ -153,7 +153,7 @@ public sealed class CompleteConnectionHandler(
             return BankingAccess.Fail<Guid>(BankingCodes.AuthRefused, "The bank refused or cancelled the authorisation.");
 
         var superseded = connection.Status == ConnectionStatus.Pending ? null : await connections.SessionIdAsync(connection.Id, ct);
-        var created = await client.CreateSessionAsync(appId!, command.Code, ct);
+        var created = await client.CreateSessionAsync(installation!, command.Code, ct);
         if (!created.TryGetValue(out var session))
             return BankingAccess.Failed<Guid, AuthorizedSession>(created);
 
@@ -182,7 +182,7 @@ public sealed class CompleteConnectionHandler(
 
         // A renewal's previous consent is revoked at the bank; it is dead weight there, and a failure here changes nothing for Nid.
         if (superseded is not null && superseded != session.SessionId)
-            await client.DeleteSessionAsync(appId!, superseded, ct);
+            await client.DeleteSessionAsync(installation!, superseded, ct);
         return Result.Success(connection.Id);
     }
 }
@@ -193,9 +193,9 @@ public sealed class ListMyConnectionsHandler(BankingAccess access, IConnectionSt
 {
     public async ValueTask<Result<IReadOnlyList<ConnectionView>>> HandleAsync(ListMyConnectionsQuery query, CancellationToken ct = default)
     {
-        var app = await access.AppIdAsync(ct);
+        var app = await access.InstallationAppAsync(ct);
         if (!app.IsSuccess)
-            return BankingAccess.Failed<IReadOnlyList<ConnectionView>, string>(app);
+            return BankingAccess.Failed<IReadOnlyList<ConnectionView>, EnableBankingApp>(app);
 
         var views = new List<ConnectionView>();
         foreach (var c in (await connections.MineAsync(access.Person, ct)).Where(c => c.Status != ConnectionStatus.Pending))
@@ -216,9 +216,9 @@ public sealed class DeleteConnectionHandler(BankingAccess access, IConnectionSto
 {
     public async ValueTask<Result<Guid>> HandleAsync(DeleteConnectionCommand command, CancellationToken ct = default)
     {
-        var app = await access.AppIdAsync(ct);
-        if (!app.TryGetValue(out var appId))
-            return BankingAccess.Failed<Guid, string>(app);
+        var app = await access.InstallationAppAsync(ct);
+        if (!app.TryGetValue(out var installation))
+            return BankingAccess.Failed<Guid, EnableBankingApp>(app);
         var mine = await access.MyConnectionAsync(command.Id, ct);
         if (!mine.TryGetValue(out var connection))
             return BankingAccess.Failed<Guid, BankConnection>(mine);
@@ -226,7 +226,7 @@ public sealed class DeleteConnectionHandler(BankingAccess access, IConnectionSto
         // An expired or revoked consent has nothing left to revoke; a live one must be revoked before Nid forgets its session.
         if (connection!.Status is ConnectionStatus.Active or ConnectionStatus.Error && await connections.SessionIdAsync(connection.Id, ct) is { } session)
         {
-            var revoked = await client.DeleteSessionAsync(appId!, session, ct);
+            var revoked = await client.DeleteSessionAsync(installation!, session, ct);
             // A 404: the session is already gone there.
             if (revoked.TryGetFailure(out var failure) && failure!.Code != EnableBankingErrors.Prefix + "HTTP_404"
                 && EnableBankingErrors.Classify(failure.Code) is not (ProviderErrorKind.Expired or ProviderErrorKind.Revoked))

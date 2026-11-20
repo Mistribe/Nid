@@ -41,7 +41,7 @@ public sealed class BankSyncCollector(
 
     /// <param name="psu">The browser's address and agent on a manual sync, <c>null</c> at night.</param>
     public async Task<Result<BankSyncRunView>> SyncAsync(
-        string appId, string trigger, IReadOnlyList<BankConnection> connections, PsuHeaders? psu, CancellationToken ct)
+        EnableBankingApp app, string trigger, IReadOnlyList<BankConnection> connections, PsuHeaders? psu, CancellationToken ct)
     {
         var run = await runs.TryStartAsync(trigger, ct);
         if (run is null)
@@ -52,7 +52,7 @@ public sealed class BankSyncCollector(
         try
         {
             foreach (var connection in connections)
-                await SyncConnectionAsync(appId, connection, psu, trigger == "manual", progress, ct);
+                await SyncConnectionAsync(app, connection, psu, trigger == "manual", progress, ct);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -77,7 +77,7 @@ public sealed class BankSyncCollector(
     }
 
     /// <summary>A connection that throws is journaled and the next one read: one bank's trouble never stops the others'.</summary>
-    private async Task SyncConnectionAsync(string appId, BankConnection connection, PsuHeaders? psu, bool manual, Progress progress, CancellationToken ct)
+    private async Task SyncConnectionAsync(EnableBankingApp app, BankConnection connection, PsuHeaders? psu, bool manual, Progress progress, CancellationToken ct)
     {
         progress.Connections++;
         try
@@ -85,7 +85,7 @@ public sealed class BankSyncCollector(
             await using var scope = scopes.CreateAsyncScope();
             var services = scope.ServiceProvider;
             services.GetRequiredService<IActorAccessor>().Current = Actor.BankSync(connection.Person);
-            await ReadAsync(services, appId, connection, psu, manual, progress, ct);
+            await ReadAsync(services, app, connection, psu, manual, progress, ct);
         }
         catch (Exception e) when (!ct.IsCancellationRequested)
         {
@@ -95,7 +95,7 @@ public sealed class BankSyncCollector(
         }
     }
 
-    private async Task ReadAsync(IServiceProvider services, string appId, BankConnection connection, PsuHeaders? psu, bool manual, Progress progress, CancellationToken ct)
+    private async Task ReadAsync(IServiceProvider services, EnableBankingApp app, BankConnection connection, PsuHeaders? psu, bool manual, Progress progress, CancellationToken ct)
     {
         var connections = services.GetRequiredService<IConnectionStore>();
         var accounts = services.GetRequiredService<IAccountStore>();
@@ -122,7 +122,7 @@ public sealed class BankSyncCollector(
             if (account.Ignored || progress.Read.Contains(account.Id))
                 continue;
             var uid = (await accounts.SourcesAsync(account.Id, ct)).Single(s => s.Connection == connection.Id).ProviderUid;
-            var fetched = await client.BalancesAsync(appId, session, uid, psu, ct);
+            var fetched = await client.BalancesAsync(app, session, uid, psu, ct);
             if (!fetched.TryGetValue(out var list))
             {
                 var code = fetched.TryGetFailure(out var failure) ? failure!.Code : BankingCodes.ProviderError;
@@ -171,7 +171,7 @@ public sealed class BankSyncCollector(
             var since = latest is { } l ? (l < today ? l : today).PlusDays(-TransactionOverlapDays) : (LocalDate?)null;
             if (floor is { } f && !(since >= f))
                 since = f;
-            var lines = await client.TransactionsAsync(appId, session, uid, since, psu, ct);
+            var lines = await client.TransactionsAsync(app, session, uid, since, psu, ct);
             if (lines.TryGetValue(out var read))
             {
                 var booked = read.Lines;

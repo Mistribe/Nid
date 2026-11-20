@@ -17,31 +17,31 @@ namespace Nid.Banking.Infrastructure.EnableBanking;
 /// Enable Banking over <see cref="SafeHttpClient"/>. Never logs a body, a header, the token or a session id; a failure message names the
 /// host, the HTTP status and the API's error name only.
 /// </summary>
-public sealed class EnableBankingClient(SafeHttpClient http, BankingOptions options, IClock clock) : IEnableBankingClient
+public sealed class EnableBankingClient(SafeHttpClient http, IClock clock) : IEnableBankingClient
 {
     public const int MaxBytes = 1024 * 1024;
     public const int MaxPages = 50;
     private const string Base = "https://api.enablebanking.com";
 
-    public async Task<Result<IReadOnlyList<Aspsp>>> AspspsAsync(string appId, string country, CancellationToken ct)
-        => Map(await CallAsync<AspspsDto>(HttpMethod.Get, $"/aspsps?country={Uri.EscapeDataString(country)}", null, appId, null, ct),
+    public async Task<Result<IReadOnlyList<Aspsp>>> AspspsAsync(EnableBankingApp app, string country, CancellationToken ct)
+        => Map(await CallAsync<AspspsDto>(HttpMethod.Get, $"/aspsps?country={Uri.EscapeDataString(country)}", null, app, null, ct),
             dto => (IReadOnlyList<Aspsp>)(dto.Aspsps ?? []).Select(a => new Aspsp(a.Name, a.Country, a.Logo, a.MaximumConsentValidity)).ToList());
 
-    public async Task<Result<AuthStart>> StartAuthAsync(string appId, Aspsp aspsp, Instant validUntil, string state, string redirectUrl, CancellationToken ct)
+    public async Task<Result<AuthStart>> StartAuthAsync(EnableBankingApp app, Aspsp aspsp, Instant validUntil, string state, string redirectUrl, CancellationToken ct)
     {
         var request = new StartAuthDto(
             new AccessDto(InstantPattern.ExtendedIso.Format(validUntil)), new AspspRefDto(aspsp.Name, aspsp.Country), state, redirectUrl, "personal");
-        return Map(await CallAsync<StartAuthResponseDto>(HttpMethod.Post, "/auth", JsonSerializer.SerializeToUtf8Bytes(request, EbJson.Default.StartAuthDto), appId, null, ct),
+        return Map(await CallAsync<StartAuthResponseDto>(HttpMethod.Post, "/auth", JsonSerializer.SerializeToUtf8Bytes(request, EbJson.Default.StartAuthDto), app, null, ct),
             dto => new AuthStart(dto.Url));
     }
 
-    public async Task<Result<AuthorizedSession>> CreateSessionAsync(string appId, string code, CancellationToken ct)
-        => Map(await CallAsync<SessionDto>(HttpMethod.Post, "/sessions", JsonSerializer.SerializeToUtf8Bytes(new CodeDto(code), EbJson.Default.CodeDto), appId, null, ct), ToSession);
+    public async Task<Result<AuthorizedSession>> CreateSessionAsync(EnableBankingApp app, string code, CancellationToken ct)
+        => Map(await CallAsync<SessionDto>(HttpMethod.Post, "/sessions", JsonSerializer.SerializeToUtf8Bytes(new CodeDto(code), EbJson.Default.CodeDto), app, null, ct), ToSession);
 
     /// <summary>The session is implied by the account uid on Enable Banking's side; <paramref name="sessionId"/> is not sent.</summary>
-    public async Task<Result<IReadOnlyList<ProviderBalance>>> BalancesAsync(string appId, string sessionId, string accountUid, PsuHeaders? psu, CancellationToken ct)
+    public async Task<Result<IReadOnlyList<ProviderBalance>>> BalancesAsync(EnableBankingApp app, string sessionId, string accountUid, PsuHeaders? psu, CancellationToken ct)
     {
-        return Map(await CallAsync<BalancesDto>(HttpMethod.Get, $"/accounts/{Uri.EscapeDataString(accountUid)}/balances", null, appId, PsuHeaderMap(psu), ct), ToBalances);
+        return Map(await CallAsync<BalancesDto>(HttpMethod.Get, $"/accounts/{Uri.EscapeDataString(accountUid)}/balances", null, app, PsuHeaderMap(psu), ct), ToBalances);
     }
 
     private static Dictionary<string, string> PsuHeaderMap(PsuHeaders? psu)
@@ -56,7 +56,7 @@ public sealed class EnableBankingClient(SafeHttpClient http, BankingOptions opti
 
     /// <summary>At most <see cref="MaxPages"/> pages: a bank that never stops sending a continuation key cannot hold a night.</summary>
     public async Task<Result<ProviderTransactions>> TransactionsAsync(
-        string appId, string sessionId, string accountUid, LocalDate? dateFrom, PsuHeaders? psu, CancellationToken ct)
+        EnableBankingApp app, string sessionId, string accountUid, LocalDate? dateFrom, PsuHeaders? psu, CancellationToken ct)
     {
         var headers = PsuHeaderMap(psu);
         var lines = new List<ProviderTransaction>();
@@ -69,7 +69,7 @@ public sealed class EnableBankingClient(SafeHttpClient http, BankingOptions opti
             if (key is not null)
                 query.Add("continuation_key=" + Uri.EscapeDataString(key));
             var path = $"/accounts/{Uri.EscapeDataString(accountUid)}/transactions" + (query.Count == 0 ? "" : "?" + string.Join('&', query));
-            var result = await CallAsync<TransactionsDto>(HttpMethod.Get, path, null, appId, headers, ct);
+            var result = await CallAsync<TransactionsDto>(HttpMethod.Get, path, null, app, headers, ct);
             if (!result.TryGetValue(out var dto))
             {
                 result.TryGetFailure(out var failure);
@@ -92,14 +92,14 @@ public sealed class EnableBankingClient(SafeHttpClient http, BankingOptions opti
         return Result.Success(new ProviderTransactions(lines, true));
     }
 
-    public async Task<Result> DeleteSessionAsync(string appId, string sessionId, CancellationToken ct)
+    public async Task<Result> DeleteSessionAsync(EnableBankingApp app, string sessionId, CancellationToken ct)
     {
-        var result = await CallAsync<object>(HttpMethod.Delete, $"/sessions/{Uri.EscapeDataString(sessionId)}", null, appId, null, ct, expectBody: false);
+        var result = await CallAsync<object>(HttpMethod.Delete, $"/sessions/{Uri.EscapeDataString(sessionId)}", null, app, null, ct, expectBody: false);
         return result.TryGetFailure(out var failure) ? Result.Failure(failure!) : Result.Success();
     }
 
-    public async Task<Result<EnableBankingApplication>> ApplicationAsync(string appId, CancellationToken ct)
-        => Map(await CallAsync<ApplicationDto>(HttpMethod.Get, "/application", null, appId, null, ct),
+    public async Task<Result<EnableBankingApplication>> ApplicationAsync(EnableBankingApp app, CancellationToken ct)
+        => Map(await CallAsync<ApplicationDto>(HttpMethod.Get, "/application", null, app, null, ct),
             dto => new EnableBankingApplication(dto.Active, dto.RedirectUrls ?? []));
 
     private static Result<T> Map<S, T>(Result<S> result, Func<S, T> map)
@@ -168,15 +168,15 @@ public sealed class EnableBankingClient(SafeHttpClient http, BankingOptions opti
             : null;
 
     private async Task<Result<T>> CallAsync<T>(
-        HttpMethod method, string path, byte[]? body, string appId, IReadOnlyDictionary<string, string>? extra, CancellationToken ct, bool expectBody = true)
+        HttpMethod method, string path, byte[]? body, EnableBankingApp app, IReadOnlyDictionary<string, string>? extra, CancellationToken ct, bool expectBody = true)
         where T : notnull
     {
-        if (string.IsNullOrWhiteSpace(options.PrivateKey))
+        if (string.IsNullOrWhiteSpace(app.PrivateKeyPem))
             return Result.Failure<T>(new ConflictFailure("No Enable Banking private key is configured.") { Code = BankingCodes.NotConfigured });
         string jwt;
         try
         {
-            jwt = EnableBankingJwt.Create(appId, options.PrivateKey, clock.GetCurrentInstant());
+            jwt = EnableBankingJwt.Create(app.Id, app.PrivateKeyPem, clock.GetCurrentInstant());
         }
         catch (Exception e) when (e is CryptographicException or ArgumentException)
         {

@@ -93,4 +93,23 @@ public sealed class BankingKeyTests : IDisposable
         Assert.Equal(BankingKeyStatus.Loaded, BankingKey.Inspect(secrets, RsaPem()).Status);
         Assert.Equal(BankingKeyStatus.Invalid, BankingKey.Inspect(secrets, "garbage").Status);
     }
+
+    [Fact]
+    public void Only_an_rsa_private_key_is_one()
+    {
+        using var rsa = RSA.Create(2048);
+        var cert = new System.Security.Cryptography.X509Certificates.CertificateRequest("CN=nid", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1)
+            .CreateSelfSigned(DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddDays(1)).ExportCertificatePem();
+        Assert.Equal(
+            [true, false, false, false],
+            [BankingKey.IsRsaPrivateKey(rsa.ExportPkcs8PrivateKeyPem()), BankingKey.IsRsaPrivateKey(rsa.ExportRSAPublicKeyPem()), BankingKey.IsRsaPrivateKey(""), BankingKey.IsRsaPrivateKey(cert)]);
+    }
+
+    [Fact]
+    public void An_application_prints_its_id_and_never_its_key()
+    {
+        var text = new EnableBankingApp("app-alice", RsaPem()).ToString();
+        Assert.Contains("app-alice", text);
+        Assert.DoesNotContain("PRIVATE KEY", text);
+    }
 }
