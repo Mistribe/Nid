@@ -15,9 +15,9 @@
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.15" />
     <!-- Npgsql 10.0.3 brings EF Core 10.0.4; the Design tooling needs the same EF Core as the runtime (MSB3277). -->
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.15" />
-    <PackageVersion Include="Testcontainers.PostgreSql" Version="4.16.0" />
+    <PackageVersion Include="Testcontainers.PostgreSql" Version="4.17.0" />
     <PackageVersion Include="Testcontainers.Minio" Version="4.15.0" />
-    <PackageVersion Include="AWSSDK.S3" Version="4.1.0" />
+    <PackageVersion Include="AWSSDK.S3" Version="4.1.2" />
     <PackageVersion Include="UnambitiousFx.Synapse" Version="3.6.0" />
     <PackageVersion Include="UnambitiousFx.Synapse.Abstractions" Version="3.6.0" />
     <PackageVersion Include="UnambitiousFx.Synapse.Authorization" Version="3.6.0" />
@@ -45,8 +45,8 @@
     <PackageVersion Include="Serilog.Extensions.Logging" Version="10.0.0" />
     <PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />
     <PackageVersion Include="MailKit" Version="4.18.2" />
-    <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.11.0" />
-    <PackageVersion Include="Microsoft.Extensions.ServiceDiscovery" Version="10.11.0" />
+    <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.11.1" />
+    <PackageVersion Include="Microsoft.Extensions.ServiceDiscovery" Version="10.11.1" />
     <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.21.0" />
     <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.21.0" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.21.0" />
@@ -54,8 +54,8 @@
     <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.21.0" />
     <!-- 1C2c: icon decoding and lossless WebP encoding (MIT). SkiaSharp brings its macOS and Windows native libraries;
          the Linux one (CI, the 1F image) is the no-dependencies build: it needs glibc and libstdc++, nothing else. -->
-    <PackageVersion Include="SkiaSharp" Version="4.156.1" />
-    <PackageVersion Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.156.1" />
+    <PackageVersion Include="SkiaSharp" Version="4.157.0" />
+    <PackageVersion Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.157.0" />
     <!-- #181: read_document renders a PDF's pages for the assistant (MIT, PDFium + SkiaSharp). -->
     <PackageVersion Include="PDFtoImage" Version="5.4.0" />
   </ItemGroup>
