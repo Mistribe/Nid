@@ -307,7 +307,7 @@ describe('Réglages › Banques', () => {
   it('opens on « Comptes », and « Catégories » is a tab of its own in the address', async () => {
     serveBanks([connection()]);
     server.use(http.get('*/api/v1/banking/categories', () => HttpResponse.json([
-      { id: 'food', parentId: null, key: 'food', name: 'Alimentation', kind: 'expense', archived: false, mergedIntoId: null, defaultName: 'Alimentation' },
+      { id: 'food', parentId: null, key: 'food', name: 'Alimentation', kind: 'expense', archived: false, mergedIntoId: null, defaultName: 'Alimentation', lines: 3 },
     ])));
     const { user, router } = await renderApp('/settings/banks');
 

@@ -5,7 +5,7 @@ import { Fragment, lazy, Suspense, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
-import { useBankAccounts, useBankingStatus } from '@/api/banking';
+import { useBankAccounts, useBankingStatus, useCategories, type BankCategory } from '@/api/banking';
 import { present, toProblem } from '@/api/errors';
 import type { SpendingSearch } from '@/app/router';
 import { EmptyState } from '@/components/EmptyState';
@@ -24,6 +24,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { shiftMonth } from '@/features/calendar/calendarDates';
+import { mergeTargets } from './categoryTargets';
 import { toPlot } from '@/lib/plot';
 import type { RootSearch } from '@/lib/search';
 import { todayIso } from '@/lib/today';
@@ -38,6 +39,9 @@ const ZERO = /^-?0(\.0+)?$/;
 
 // Its own chunk: Recharts loads with the 12-month view only.
 const MonthsChart = lazy(() => import('./MonthsChart').then((m) => ({ default: m.MonthsChart })));
+// #415: a row's rename or merge, the categories page's own dialogs, loaded when one opens.
+const CategoryEdit = lazy(() => import('./categoryEdits').then((m) => ({ default: m.CategoryEdit })));
+type Edit = { mode: 'rename' | 'merge'; id: string };
 
 type Row = { id: string; name: string; amount: string; average?: string | null; budget?: SpendingBudget | null; children: Row[]; uncategorised?: true };
 
@@ -75,6 +79,8 @@ export function SpendingPage() {
   const spending = $api.useQuery('get', SPENDING, { params: { query } }, { enabled: (accounts?.length ?? 0) > 0, placeholderData: keepPreviousData });
   const [open, setOpen] = useState<{ categoryId?: string; name: string } | null>(null);
   const [budget, setBudget] = useState<BudgetTarget | 'pick' | null>(null);
+  const [edit, setEdit] = useState<Edit | null>(null);
+  const categories = useCategories();
   const [focus, setFocus] = useState<string | null>(null);
   useEffect(() => {
     if (focus === null) return;
@@ -82,6 +88,7 @@ export function SpendingPage() {
     setFocus(null);
   }, [focus]);
   const closeBudget = () => { setFocus(budget === 'pick' ? ADD : budget?.id ?? null); setBudget(null); };
+  const closeEdit = () => { setFocus(edit?.id ?? null); setEdit(null); };
 
   const set = (patch: SpendingSearch) =>
     void navigate({ from: '/spending', to: '/spending', replace: true, resetScroll: false, search: (prev: RootSearch & SpendingSearch) => ({ ...prev, ...patch }) });
@@ -116,7 +123,8 @@ export function SpendingPage() {
       );
     if (spending.error) return <ProblemMessage problem={present(toProblem(spending.error))} />;
     if (!spending.data) return <Loading label={t('spending.loading')}><TableSkeleton columns={4} /></Loading>;
-    return <Figures data={spending.data} period={period(spending.data)} year={year} household={query.scope === 'household'} onOpen={setOpen} onBudget={setBudget} />;
+    return <Figures data={spending.data} period={period(spending.data)} year={year} household={query.scope === 'household'} onOpen={setOpen} onBudget={setBudget}
+      categories={categories.data ?? []} onEdit={setEdit} />;
   };
   const period = (data: Spending) => (year ? t('spending.range', { from: monthText(data.from), to: monthText(data.to) }) : monthText(data.to));
 
@@ -125,16 +133,21 @@ export function SpendingPage() {
       <PageHeader title={t('spending.title')} actions={controls} />
       {body()}
       {open && spending.data ? (
-        <CategoryLinesDialog target={open} query={query} currency={spending.data.currency} period={period(spending.data)} onClose={() => setOpen(null)} />
+        <CategoryLinesDialog target={open} query={query} period={period(spending.data)} onClose={() => setOpen(null)} />
       ) : null}
       {budget ? <BudgetDialog target={budget} onClose={closeBudget} onDone={(message) => { toast.success(message); closeBudget(); }} /> : null}
+      {edit && categories.data ? (
+        <Suspense fallback={null}>
+          <CategoryEdit edit={edit} categories={categories.data} onClose={closeEdit} onDone={(message) => { toast.success(message); closeEdit(); }} />
+        </Suspense>
+      ) : null}
     </div>
   );
 }
 
-function Figures({ data, period, year, household, onOpen, onBudget }: {
+function Figures({ data, period, year, household, onOpen, onBudget, categories, onEdit }: {
   data: Spending; period: string; year: boolean; household: boolean; onOpen: (target: { categoryId?: string; name: string }) => void;
-  onBudget: (target: BudgetTarget | 'pick') => void;
+  onBudget: (target: BudgetTarget | 'pick') => void; categories: BankCategory[]; onEdit: (edit: Edit) => void;
 }) {
   const { t } = useTranslation();
   const money = (amount: string) => formatCurrency(amount, data.currency);
@@ -211,10 +224,16 @@ function Figures({ data, period, year, household, onOpen, onBudget }: {
   };
   // A child under a parent's typed budget has none of its own to set (one budget per branch).
   const underTyped = new Set(data.categories.filter((c) => c.budget?.source === 'typed').flatMap((c) => c.children.map((child) => child.id)));
-  const menu = (r: Row, mobile = false) => (r.uncategorised || underTyped.has(r.id) ? null : (
-    <RowMenu id={menuId(r.id, mobile)} label={t('spending.budget.actions', { name: r.name })}
-      items={[{ label: t('spending.budget.edit'), onSelect: () => onBudget({ id: r.id, name: r.name, budget: r.budget }) }]} />
-  ));
+  // #415: a category is renamed or merged where it is noticed; merging needs another of its kind to go into.
+  const menu = (r: Row, mobile = false) => {
+    if (r.uncategorised) return null;
+    const items = [
+      ...(budgets && !underTyped.has(r.id) ? [{ label: t('spending.budget.edit'), onSelect: () => onBudget({ id: r.id, name: r.name, budget: r.budget }) }] : []),
+      ...(categories.some((c) => c.id === r.id) ? [{ label: t('spending.rename'), onSelect: () => onEdit({ mode: 'rename', id: r.id }) }] : []),
+      ...(categories.some((c) => c.id === r.id && mergeTargets(categories, c).length > 0) ? [{ label: t('spending.merge'), onSelect: () => onEdit({ mode: 'merge', id: r.id }) }] : []),
+    ];
+    return items.length === 0 ? null : <RowMenu id={menuId(r.id, mobile)} label={t('spending.budget.actions', { name: r.name })} items={items} />;
+  };
 
   return (
     <>
@@ -262,11 +281,11 @@ function Figures({ data, period, year, household, onOpen, onBudget }: {
                 { id: 'pace', header: t('spending.col_pace'), cell: pace },
               ] : []),
               { id: 'share', header: t('spending.col_share'), className: budgets ? 'w-1/6' : 'w-1/4', cell: bar },
-              ...(budgets ? [{ id: 'actions', header: t('spending.col_actions'), align: 'end' as const, cell: (r: Row) => menu(r) }] : []),
+              { id: 'actions', header: t('spending.col_actions'), align: 'end' as const, cell: (r: Row) => menu(r) },
             ]}
             mobile={(r) => (
               <div className="space-y-1">
-                <div className="flex items-start justify-between gap-2">{name(r)}<span className="tabular-nums">{money(r.amount)}</span></div>
+                <div className="flex items-start justify-between gap-2">{name(r)}<span className="tabular-nums">{money(r.amount)}</span>{budgets ? null : menu(r, true)}</div>
                 {bar(r)}
                 {year ? null : <div className="text-sm text-muted-foreground">{t('spending.average_line', { amount: average(r) })}</div>}
                 {budgets && !r.uncategorised ? (

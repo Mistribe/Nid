@@ -34,6 +34,8 @@
     "average_line": "Mois habituel : {{amount}}",
     "expand": "Afficher les sous-catégories de {{name}}",
     "open_lines": "Voir les opérations : {{name}}",
+    "rename": "Renommer",
+    "merge": "Fusionner…",
     "disabled_title": "La banque n’est pas activée",
     "disabled_body": "Un administrateur active la synchronisation bancaire du foyer : vos dépenses apparaîtront ici, catégorie par catégorie.",
     "no_account_title": "Aucun compte bancaire relié",

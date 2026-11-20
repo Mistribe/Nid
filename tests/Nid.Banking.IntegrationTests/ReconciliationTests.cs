@@ -648,5 +648,7 @@ public class ReconciliationTests(PostgresFixture fixture) : IClassFixture<Postgr
             => inner.OperationsAsync(readable, filter, categories, skip, take, ct);
 
         public Task<IReadOnlyList<Guid>> OperationCategoriesAsync(IReadOnlyList<Guid> accounts, CancellationToken ct) => inner.OperationCategoriesAsync(accounts, ct);
+
+        public Task<IReadOnlyList<CategoryUse>> CategoryUseAsync(IReadOnlyList<Guid> accounts, LocalDate from, CancellationToken ct) => inner.CategoryUseAsync(accounts, from, ct);
     }
 }
