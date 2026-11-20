@@ -40,7 +40,11 @@ export function LineActions({ line, onDone }: { line: BankTransaction; onDone: (
   // A split line has no category of its own (the server answers 409 `banking.line_split`).
   if (line.linkState !== 'ignored' && !isSplit) items.push({ label: t('banks.operations.categorise'), onSelect: () => setCategorising(true) });
   items.push({ label: t('banks.operations.note'), onSelect: () => setNoting(true) });
-  items.push(isSplit ? { label: t('banks.operations.unsplit'), onSelect: () => setUnsplitting(true) } : { label: t('banks.operations.split'), onSelect: () => setSplitting(true) });
+  if (isSplit) {
+    items.push({ label: t('banks.operations.edit_split'), onSelect: () => setSplitting(true) }, { label: t('banks.operations.unsplit'), onSelect: () => setUnsplitting(true) });
+  } else {
+    items.push({ label: t('banks.operations.split'), onSelect: () => setSplitting(true) });
+  }
   const error = unlink.error ?? ignore.error ?? unsplit.error;
   return (
     <span className="flex flex-col items-end gap-2">

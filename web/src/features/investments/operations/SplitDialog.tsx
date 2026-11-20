@@ -15,8 +15,8 @@ import '@/locales/banks';
 import '@/locales/forms';
 
 const NONE = 'none';
-// The typed text only: digits, one separator, up to two decimals.
-const AMOUNT = /^\d+([.,]\d{1,2})?$/;
+// The typed text only: digits, one separator, up to the four decimals the server stores.
+const AMOUNT = /^\d+([.,]\d{1,4})?$/;
 const MIN_PARTS = 2;
 const MAX_PARTS = 20;
 
@@ -36,7 +36,10 @@ export default function SplitDialog({ line, onClose, onDone }: { line: BankTrans
     ? line.parts.map((p) => ({ key: next.current++, amount: p.amount.replace(/^-/, ''), category: p.category?.id ?? NONE, note: p.note ?? '' }))
     : [blank(), blank()]);
   const sign = line.amount.startsWith('-') ? '-' : '';
-  const options = [{ value: NONE, label: t('banks.categories.uncategorised') }, ...activeCategoryOptions(categories.data)];
+  const active = activeCategoryOptions(categories.data);
+  // A part's own category stays pickable when archived, so the prefill shows it; the server refuses it with a message.
+  const archived = [...new Map((line.parts ?? []).flatMap((p) => p.category && !active.some((o) => o.value === p.category!.id) ? [[p.category.id, { value: p.category.id, label: p.category.name }] as const] : [])).values()];
+  const options = [{ value: NONE, label: t('banks.categories.uncategorised') }, ...active, ...archived];
   const change = (key: number, over: Partial<Part>) => setParts((all) => all.map((p) => (p.key === key ? { ...p, ...over } : p)));
   const errors = fieldErrorsOf(split.error);
   const onParts = errors.find((f) => f.path === 'parts');

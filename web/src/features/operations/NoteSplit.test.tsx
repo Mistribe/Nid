@@ -96,7 +96,7 @@ describe('« Opérations »: note and split', () => {
     await user.type(amounts[0]!, '5,5,0');
     await user.type(amounts[1]!, 'abc');
     await user.click(within(dialog).getByRole('button', { name: 'Découper' }));
-    expect(within(dialog).getAllByText('Saisissez un montant positif, avec au plus deux décimales.')).toHaveLength(2);
+    expect(within(dialog).getAllByText('Saisissez un montant positif, avec au plus quatre décimales.')).toHaveLength(2);
     expect(writes).toEqual([]);
     await user.clear(amounts[0]!); await user.type(amounts[0]!, '5,50');
     await user.clear(amounts[1]!); await user.type(amounts[1]!, '54.50');
@@ -126,6 +126,50 @@ describe('« Opérations »: note and split', () => {
     await renderApp('/operations');
     await screen.findByRole('table', { name: 'Opérations' });
     expect(screen.getAllByText('-40,00 € · Alimentation · fruits')).toHaveLength(2);
+  });
+
+  it('edits a split: the dialog is prefilled and the new parts replace the old', async () => {
+    const writes: unknown[] = [];
+    serve(splitShop);
+    server.use(http.put('*/api/v1/banking/transactions/:id/split', async ({ request }) => { writes.push(await request.json()); return HttpResponse.json(splitShop); }));
+    const user = await openMenu('Modifier le découpage');
+    const dialog = await screen.findByRole('dialog', { name: "Découper l'opération" });
+    const amounts = within(dialog).getAllByRole('textbox', { name: /Montant/ });
+    expect(amounts.map((a) => (a as HTMLInputElement).value)).toEqual(['40.00', '20.00']);
+    expect(within(dialog).getByRole('textbox', { name: 'Note de la partie 1' })).toHaveValue('fruits');
+    await user.clear(amounts[0]!); await user.type(amounts[0]!, '30');
+    await user.clear(amounts[1]!); await user.type(amounts[1]!, '30');
+    await user.click(within(dialog).getByRole('button', { name: 'Découper' }));
+    await waitFor(() => expect(writes).toEqual([{ parts: [
+      { amount: '-30', categoryId: 'food', note: 'fruits' },
+      { amount: '-30', categoryId: null, note: null },
+    ] }]));
+  });
+
+  it('accepts the four decimals the server stores', async () => {
+    const writes: unknown[] = [];
+    serve({ ...shop, amount: '-12.3450' });
+    server.use(http.put('*/api/v1/banking/transactions/:id/split', async ({ request }) => { writes.push(await request.json()); return HttpResponse.json(splitShop); }));
+    const user = await openMenu('Découper…');
+    const dialog = await screen.findByRole('dialog', { name: "Découper l'opération" });
+    const amounts = within(dialog).getAllByRole('textbox', { name: /Montant/ });
+    await user.type(amounts[0]!, '10');
+    await user.type(amounts[1]!, '2,345');
+    await user.click(within(dialog).getByRole('button', { name: 'Découper' }));
+    await waitFor(() => expect(writes).toEqual([{ parts: [{ amount: '-10', categoryId: null, note: null }, { amount: '-2.345', categoryId: null, note: null }] }]));
+  });
+
+  it('keeps an archived part category in the prefill and explains the refusal', async () => {
+    const archivedSplit = { ...splitShop, parts: [{ id: 'p1', amount: '-40.00', category: { id: 'old', name: 'Ancienne catégorie' }, note: null }, splitShop.parts[1]] };
+    serve(archivedSplit);
+    server.use(http.put('*/api/v1/banking/transactions/:id/split', () => HttpResponse.json(
+      { status: 422, code: 'banking.category_archived', detail: 'A part takes only a category in use.', errors: [{ path: 'parts', code: 'banking.category_archived', message: 'A part takes only a category in use.' }] },
+      { status: 422, headers: { 'content-type': 'application/problem+json' } })));
+    const user = await openMenu('Modifier le découpage');
+    const dialog = await screen.findByRole('dialog', { name: "Découper l'opération" });
+    expect(within(dialog).getByRole('combobox', { name: 'Catégorie de la partie 1' })).toHaveTextContent('Ancienne catégorie');
+    await user.click(within(dialog).getByRole('button', { name: 'Découper' }));
+    expect(await within(dialog).findByText('Une des catégories est archivée : choisissez-en une autre.')).toBeInTheDocument();
   });
 
   it('lists a split line as « Découpée (2) » with its parts under it', async () => {
