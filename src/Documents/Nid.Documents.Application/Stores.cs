@@ -26,7 +26,7 @@ public sealed record LinkRecord(
 public sealed record DocumentPageQuery(
     Guid Actor, IReadOnlyCollection<Guid> ReadableItems, IReadOnlyCollection<Guid> Persons, IReadOnlyCollection<Guid> Dependents,
     bool Archived, string? SourceRefPrefix, bool Inbox, DocumentTarget? Target, Guid? Anchor, IReadOnlyCollection<Guid>? SharedItems,
-    string? Role, int? Year, Guid? Linked, string? Search, DateTimeZone Zone, int Skip, int? Take, IReadOnlyCollection<Guid>? OwnUnanchored = null);
+    string? Role, int? Year, Guid? Linked, string? Search, DateTimeZone Zone, int Skip, int? Take, IReadOnlyCollection<DocumentTarget>? OwnUnanchored = null);
 
 /// <summary>One page, newest document date first (undated last), the number that matched, and the readable links' roles and targets and the years over the list before the filters.</summary>
 public sealed record DocumentPageRecord(

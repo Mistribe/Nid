@@ -87,7 +87,7 @@ public sealed class ListDocumentsHandler(
             string.IsNullOrEmpty(query.Role) ? null : query.Role, query.Year, query.Linked,
             string.IsNullOrWhiteSpace(query.Search) ? null : query.Search.Trim(), await calendar.ZoneAsync(ct),
             query.Page is { } page ? (Math.Max(page, 1) - 1) * size : 0, query.Page is null ? null : size,
-            [.. facts.WritableUnanchored!.Select(t => t.Id)]), ct);
+            facts.WritableUnanchored), ct);
 
         // The facets' targets hold every readable link of the page: one label lookup serves both.
         var labels = await access.LabelsAsync(found.Links.Select(l => (l.TargetKind, l.TargetId)), ct);

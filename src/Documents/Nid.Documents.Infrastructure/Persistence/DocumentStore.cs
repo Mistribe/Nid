@@ -36,12 +36,14 @@ public sealed class DocumentStore(DocumentsDbContext db) : IDocumentStore
 
     public async Task<DocumentPageRecord> PageAsync(DocumentPageQuery q, CancellationToken ct)
     {
-        List<Guid> readable = [.. q.ReadableItems], persons = [.. q.Persons], dependents = [.. q.Dependents], own = [.. q.OwnUnanchored ?? []];
+        List<Guid> readable = [.. q.ReadableItems], persons = [.. q.Persons], dependents = [.. q.Dependents];
+        // (kind, id) as one key, as Postgres prints a uuid: a pair list does not translate.
+        List<string> own = [.. (q.OwnUnanchored ?? []).Select(t => $"{t.Kind}:{t.Id}")];
         // DocumentRules.CanReadLink: an anchored link is judged on its anchor, whatever its kind; another unanchored kind is its uploader's (#84).
         var seen = db.Links.Where(l => (l.AnchorItemId != null && readable.Contains(l.AnchorItemId.Value))
             || (l.AnchorItemId == null && (l.TargetKind == TargetKinds.CoreHousehold
                 || (l.TargetKind == TargetKinds.CorePerson && persons.Contains(l.TargetId))
-                || (l.TargetKind != TargetKinds.CorePerson && own.Contains(l.TargetId)
+                || (own.Contains(l.TargetKind + ":" + l.TargetId.ToString())
                     && db.Documents.Any(d => d.Id == l.DocumentId && d.UploadedByPersonId == q.Actor)))));
 
         var docs = db.Documents.AsNoTracking().Where(d => q.Archived || d.ArchivedAt == null)

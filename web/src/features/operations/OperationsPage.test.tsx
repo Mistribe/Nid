@@ -245,12 +245,18 @@ describe('« Opérations » receipts', () => {
   it('a receipt gone since the list was read closes with a toast, and the paperclip still answers', async () => {
     server.use(
       http.get('*/api/v1/banking/operations', () => HttpResponse.json(answer([withReceipts]))),
-      http.get('*/api/v1/documents/:id', () => HttpResponse.json({ code: 'not_found' }, { status: 404 })),
+      http.get('*/api/v1/documents/:id', ({ params }) => params.id === 'd2'
+        ? HttpResponse.json({ status: 404, code: 'not_found' }, { status: 404, headers: { 'content-type': 'application/problem+json' } })
+        : HttpResponse.json({ status: 500 }, { status: 500, headers: { 'content-type': 'application/problem+json' } })),
     );
     const { user } = await renderApp('/operations');
     await user.click(within(await rowOf()).getByRole('button', { name: '2 justificatifs' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Reçu' }));
     expect(await screen.findByText("Ce justificatif n'est plus disponible.")).toBeInTheDocument();
+    // Another failure says so as any other does, and closes too.
+    await user.click(within(await rowOf()).getByRole('button', { name: '2 justificatifs' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Facture octobre' }));
+    expect(await screen.findByText('Une erreur inattendue est survenue. Réessayez dans un instant.')).toBeInTheDocument();
     await user.click(within(await rowOf()).getByRole('button', { name: '2 justificatifs' }));
     expect(await screen.findByRole('menuitem', { name: 'Reçu' })).toBeInTheDocument();
   });

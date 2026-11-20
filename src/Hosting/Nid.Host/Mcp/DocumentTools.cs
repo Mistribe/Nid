@@ -40,7 +40,7 @@ public sealed class DocumentTools
     public static async Task<CallToolResult> ListDocuments(IServiceProvider services,
         [Description("'household' (default): the documents linked to something shared; 'me': every document you read.")] string? scope = null,
         [Description("Only the documents linked to nothing you see (« À classer »).")] bool inbox = false,
-        [Description("Only the documents linked to this target: 'core.item', 'core.person' or 'core.household', with targetId (none for the household).")] string? targetKind = null,
+        [Description("Only the documents linked to this target: 'core.item', 'banking.transaction' (a bank line, from list_bank_transactions), 'core.person' or 'core.household', with targetId (none for the household).")] string? targetKind = null,
         [Description("The target's id, with targetKind.")] Guid? targetId = null,
         [Description("Only the documents of this year: their own date, else the day they were uploaded.")] int? year = null,
         [Description("At most this many documents (default 50).")] int limit = DefaultLimit,

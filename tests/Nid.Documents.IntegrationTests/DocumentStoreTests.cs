@@ -41,6 +41,24 @@ public class DocumentStoreTests(PostgresFixture fixture) : IClassFixture<Postgre
     }
 
     [Fact]
+    public async Task An_unanchored_link_of_the_actor_s_own_counts_on_its_kind_and_id_both()
+    {
+        var (app, scope, store) = await StartAsync();
+        await using var _ = app;
+        await using var __ = scope;
+        var ct = TestContext.Current.CancellationToken;
+        var doc = Doc();
+        var line = new DocumentTarget("banking.transaction", Guid.NewGuid());
+        await store.CreateAsync(doc, ct);
+        await store.AddLinkAsync(Link(doc.Id, line, "receipt"), ct);
+        async Task<bool> InboxAsync(DocumentTarget own) => (await store.PageAsync(new DocumentPageQuery(doc.UploadedBy, [], [], [], false, null, true, null, null,
+            null, null, null, null, null, DateTimeZone.Utc, 0, null, [own]), ct)).Items.Any(d => d.Id == doc.Id);
+
+        Assert.False(await InboxAsync(line));
+        Assert.True(await InboxAsync(line with { Kind = "income.phase" }));
+    }
+
+    [Fact]
     public async Task Add_link_twice_returns_false_the_second_time()
     {
         var (app, scope, store) = await StartAsync();
