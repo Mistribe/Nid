@@ -1,7 +1,8 @@
 # Fournisseurs LLM et OCR
 
-> Statut : brouillon issu de la discussion technique. Décrit comment l'extraction de documents peut utiliser des modèles locaux ou des fournisseurs cloud (Gemini, OpenAI, Anthropic), avec offres gratuites d'abord, puis local, puis payant si l'utilisateur l'accepte.
-> Références : `../architecture.md` §9 (ingestion, jobs, propositions), `../security/ai-ingestion.md` (menaces et mesures), `../Project.md` §4 principe 7 et §9.
+> Statut : brouillon issu de la discussion technique. Décrit comment l'extraction de documents peut utiliser des modèles locaux ou des fournisseurs cloud (Gemini, OpenAI, Anthropic), local par défaut (workers appariés), puis cloud, gratuit ou payant, si l'utilisateur l'accepte.
+> Depuis #171 (2026-11-21), `../ai/README.md` couvre **tout usage d'un modèle** (assistant, index des documents, `decide`, extraction) : workers appariés, passerelle, une politique de données, budget. Ce document garde les profils cloud, le consentement par document, le masquage et les clés ; là où ils diffèrent, la spec l'emporte.
+> Références : `../ai/README.md`, `../architecture.md` §9 (ingestion, jobs, propositions), `../security/ai-ingestion.md` (menaces et mesures), `../Project.md` §4 principe 7 et §9.
 
 ---
 
@@ -15,9 +16,9 @@ L'ingestion (étape 4 de la feuille de route) transforme un document déposé pa
 2. **Le cloud est un opt-in explicite**, à trois niveaux : activation du fournisseur, choix à chaque dépôt de document, plafond de dépense pour le payant.
 3. **Jamais d'entraînement sur des documents financiers.** Une offre dont les conditions autorisent l'entraînement sur les données pour la région du foyer est **inéligible**, sans contournement en v1.
 4. **L'IA propose, les humains valident** : rien ne change dans les propositions ni dans la file de validation.
-5. **Les workers restent sans Internet et sans clés d'API** ; toute sortie vers un fournisseur passe par la **passerelle LLM** de `nid`.
+5. **Les workers n'ont ni clé d'API ni rien qui ouvre `nid`** ; toute sortie vers un fournisseur cloud passe par la **passerelle LLM** de `nid`. Un modèle auto-hébergé est servi par un **worker apparié** que `nid` appelle, seule route vers lui (`../ai/README.md` §3).
 6. **Les conditions des fournisseurs sont revues par un humain**, datées, et jamais présumées par le code.
-7. **Les bulletins de paie restent en local** (voir §5.2).
+7. **Les bulletins de paie ne vont jamais au cloud** ; seulement à un worker étiqueté `safe`, comme les documents « local seulement » (voir §5.2, `../ai/README.md` §6.1).
 
 ## 3. Conditions des fournisseurs (vérifiées le 19/09/2026)
 
@@ -31,7 +32,7 @@ Ces conditions changent : elles servent à remplir les profils du §4 et doivent
 
 **Lecture** :
 
-- Le « gratuit d'abord » n'est réaliste qu'avec **Gemini, dans l'EEE, la Suisse ou le Royaume-Uni**. Hors de ces régions, l'offre gratuite de Gemini est inéligible.
+- Une offre gratuite n'est éligible qu'avec **Gemini, dans l'EEE, la Suisse ou le Royaume-Uni** ; c'est un profil cloud à prix nul, après les workers (`../ai/README.md` §5.3). Hors de ces régions, l'offre gratuite de Gemini est inéligible.
 - Le gratuit d'OpenAI implique l'entraînement sur les données : **exclu**.
 - OpenAI et Anthropic ne servent qu'en **payant**, avec l'accord de l'utilisateur.
 
@@ -41,8 +42,8 @@ Un **profil** décrit un fournisseur pour une offre donnée. Les profils sont **
 
 | Champ | Contenu |
 |---|---|
-| `id` | ex. `gemini-free`, `gemini-paid`, `openai-paid`, `anthropic-paid`, `ollama-local` |
-| `provider`, `tier` | Fournisseur ; offre : `free`, `paid` ou `local` |
+| `id` | ex. `gemini-free`, `gemini-paid`, `openai-paid`, `anthropic-paid` |
+| `provider`, `tier` | Fournisseur ; offre : `free` ou `paid`. Les modèles des workers appariés ne sont pas des profils : ils viennent de la déclaration du worker (`../ai/README.md` §3.4) |
 | `host` | Hôte autorisé pour le `SafeHttpClient` |
 | `model` | Modèle utilisé ; configurable, non figé dans le code |
 | `capabilities` | `vision`, `pdf_input`, `structured_output`, `max_pages`, `max_input_mb` |
@@ -76,11 +77,15 @@ Exemple (valeurs illustratives) :
 
 ### 5.1 Modes
 
-| Mode | Chaîne |
+Remplacés par un réglage par usage (#171, `../ai/README.md` §5.3) :
+
+| Réglage d'un usage | Chaîne |
 |---|---|
-| `local_only` (défaut) | Local |
-| `free_then_local` | Offres gratuites éligibles, puis local |
-| `free_then_local_then_paid` | Offres gratuites, puis local, puis payant **si le budget le permet** |
+| `off` | Aucun appel |
+| `local` (défaut, sauf `decide`) | Workers appariés : locaux, puis distants si le foyer les accepte |
+| `local_then_cloud` | Workers, puis profils cloud activés et éligibles, gratuits ou payants **si le budget le permet** |
+
+Les anciens modes `local_only`, `free_then_local` et `free_then_local_then_paid` (offres gratuites avant le local) sont abandonnés.
 
 ### 5.2 Éligibilité d'un profil pour un document
 
@@ -88,7 +93,7 @@ Un profil est éligible seulement si **tout** est vrai :
 
 1. il est activé et une clé valide est enregistrée (profils cloud) ;
 2. `trains_on_data` est faux pour la région confirmée ;
-3. le type de document (`statement`, `amortization`, `invoice`, `contract`) est autorisé au cloud (§6). Le type **`payslip`** (bulletin de paie) **n'est jamais éligible au cloud en v1**, même avec le consentement par dépôt : il contient nom, employeur et numéro de sécurité sociale, et le masquage n'est pas une garantie suffisante ;
+3. le type de document (`statement`, `amortization`, `invoice`, `contract`) est autorisé au cloud (§6). Le type **`payslip`** (bulletin de paie) **n'est jamais éligible au cloud en v1**, ni à un worker qui n'est pas `safe` (`../ai/README.md` §6.1), même avec le consentement par dépôt : il contient nom, employeur et numéro de sécurité sociale, et le masquage n'est pas une garantie suffisante ;
 4. le déposant a consenti pour ce document (§6) ;
 5. les capacités couvrent le document (pages, taille, vision) ;
 6. le quota du fournisseur n'est pas épuisé ;
@@ -110,6 +115,8 @@ Un profil est éligible seulement si **tout** est vrai :
 | **2. Envoi d'un document** | À chaque dépôt : « Extraire avec : Local » ou « Cloud : *fournisseur*, *offre* » avec le résumé des conditions, l'aperçu de ce qui sera envoyé (§8) et, si payant, l'estimation du coût. Option « toujours pour ce type de document » |
 | **3. Budget** | Plafond mensuel en euros (0 par défaut), voir §7 |
 
+Ce tableau vaut pour l'**extraction**. Le chat (consentement par adulte), l'index des documents, `decide` et les workers distants (consentement par foyer) suivent `../ai/README.md` §6.2.
+
 - **Préférence par adulte** : `person.preferences.ai_cloud_default` vaut `ask` (défaut) ou `never`. `never` interdit tout envoi cloud pour les documents de cet adulte.
 - Un document déposé par un adulte n'est envoyé au cloud qu'avec **son** consentement, jamais celui de l'autre.
 - Règles mémorisées : `ai_consent_rules` (par adulte : type de document → `ask`, `local` ou `cloud`).
@@ -118,13 +125,14 @@ Un profil est éligible seulement si **tout** est vrai :
 ## 7. Budget des offres payantes
 
 - `ai_settings.monthly_budget_eur` : **0 par défaut**, modifiable par un adulte. Les deux adultes reçoivent un email quand il change.
-- **Estimation avant envoi** : jetons estimés × prix du profil, affichée dans le dialogue de dépôt.
+- **Estimation avant envoi** : jetons estimés × prix du profil, affichée dans le dialogue de dépôt (extraction seulement).
+- **Réserver puis régler** : avant chaque appel payant, de toute tâche, la passerelle réserve son coût maximal en euros (taux de change de Nid) et refuse s'il dépasse le reste ; elle règle ensuite sur les jetons rapportés (`../ai/README.md` §10).
 - **Alerte à 80 %** et **blocage à 100 %** du plafond (les deux adultes sont prévenus).
 - Les coûts sont des **estimations** calculées à partir des jetons rapportés par le fournisseur, pas la facture.
 
 ## 8. Minimisation locale avant envoi
 
-Le traitement a lieu **dans le worker**, avant tout envoi.
+Le traitement a lieu **dans `nid`**, avant tout envoi hors des lieux, sur le texte rendu par le job `document-text` du worker (`../ai/README.md` §6.5).
 
 | Étape | Détail |
 |---|---|
@@ -139,24 +147,23 @@ Le traitement a lieu **dans le worker**, avant tout envoi.
 
 ## 9. Passerelle LLM
 
-La passerelle vit dans le module Ingestion de `nid` et se place entre les workers et les fournisseurs.
+Remplacé en partie par `../ai/README.md` §3 à §5 (#171). La passerelle vit dans le module `Ai` de `nid` et se place entre les usages (extraction, chat, index, `decide`) et les modèles.
 
 ```
-worker (sans Internet, sans clé)
-   │  POST /internal/v1/llm/complete  (identifiant de worker + jeton de job)
+usage (nid : extraction, chat, index, decide)
    ▼
 passerelle LLM (nid)
-   ├─ politique : éligibilité, quotas, budget, consentement du document
-   ├─ Ollama (réseau workers)
-   └─ SafeHttpClient ──> Gemini / OpenAI / Anthropic (hôtes des profils activés)
+   ├─ politique : usage activé, éligibilité, consentement, budget
+   ├─ mTLS ──> worker apparié ──> moteur LLM (réseau du worker, jamais exposé)
+   └─ SafeHttpClient ──> Gemini / OpenAI / Anthropic / Mistral (hôtes des profils activés)
 ```
 
-- **Adaptateurs** derrière une interface `ILlmProvider` : `OllamaProvider`, `GeminiProvider`, `OpenAiProvider`, `AnthropicProvider`. Appels HTTP avec JSON source-généré ; le recours aux SDK officiels reste à évaluer.
-- **Entrée** : `job_id`, `task` (`extract` ou `ocr`), contenu (texte et/ou images), identifiant de schéma, rapport de masquage.
-- **Contrôles avant tout appel** : le job est réclamé par ce worker, la tâche est autorisée pour ce type de job, taille bornée, quotas, éligibilité, budget, consentement du document. Le **modèle est imposé par le profil**.
-- **Aucun outil** : function calling désactivé chez tous les fournisseurs. Sortie structurée quand le fournisseur la propose, et **toujours validée par schéma côté serveur**.
+- **Adaptateurs** derrière une interface `ILlmProvider` : `WorkerProvider` (modèles des workers appariés), `GeminiProvider`, `OpenAiProvider`, `AnthropicProvider`. Appels HTTP avec JSON source-généré ; le recours aux SDK officiels reste à évaluer.
+- **Entrée** : usage, `task` (`extract`, `ocr`, `chat`, `embed`, `decide`), contenu (texte et/ou images), identifiant de schéma, rapport de masquage ; `job_id` ou `conversation_id`.
+- **Contrôles avant tout appel** : l'usage est activé, la tâche est autorisée pour cet usage, taille bornée, quotas, éligibilité, budget, consentement du document. Le **modèle est imposé par le profil**.
+- **Aucun outil**, sauf pour la tâche `chat` de l'assistant, qui ne déclare que ses outils (`../ai/README.md` §5.5 et §8.2) : function calling désactivé pour toutes les autres tâches. Sortie structurée quand le fournisseur la propose, et **toujours validée par schéma côté serveur**.
 - **Sortie du réseau** : seul `nid` sort, par le `SafeHttpClient`, vers les hôtes des profils activés.
-- **Ollama** est joint par la passerelle sur le réseau `workers` : mêmes comptes et mêmes quotas que les autres profils.
+- **Modèles auto-hébergés** : servis par un worker apparié, jamais joints directement (Ollama, vLLM et llama.cpp tournent derrière le worker, `../ai/README.md` §3) ; « Ollama joint par la passerelle sur le réseau `workers` » est abandonné (#171).
 - **OCR** : local par défaut (Tesseract dans le worker). La vision d'un fournisseur suit exactement les mêmes règles.
 
 ## 10. Clés d'API
@@ -182,6 +189,7 @@ Table `llm_call` (le **contenu n'est jamais stocké**) :
 |---|---|
 | `id`, `created_at` | |
 | `job_id`, `document_id`, `person_id` | Qui, pour quel document |
+| `task`, `use`, `worker_id`, `conversation_id`, `reserved_eur` | Tâche et usage, worker qui a servi l'appel, conversation de l'assistant, réservation sur le budget (`../ai/README.md` §10 et §13) |
 | `profile_id`, `provider`, `tier`, `model` | Ce qui a été utilisé |
 | `pages`, `tokens_in`, `tokens_out`, `cost_estimate_eur` | Volume et coût estimé |
 | `consent_id` | Décision de consentement |
@@ -194,7 +202,7 @@ Une page « Utilisation IA » présente les appels récents, le coût du mois et
 
 | Table | Contenu |
 |---|---|
-| `ai_settings` (une ligne) | `mode`, `chain`, `allowed_kinds` (types de documents autorisés au cloud), `region`, `monthly_budget_eur`, `redaction_enabled` (défaut oui) |
+| `ai_settings` (une ligne) | `uses` (réglage par usage, remplace `mode` et `chain`), `models`, `allowed_kinds` (types de documents et `bank_labels` autorisés au cloud), `region`, `monthly_budget_eur`, `remote_workers_allowed`, `conversation_retention_days`, `redaction_enabled` (défaut oui) ; détail dans `../ai/README.md` §13 |
 | `llm_provider_credential` | Voir §10 |
 | `llm_call` | Voir §11 |
 | `ai_consent_rules` | Règles mémorisées par adulte |
@@ -221,7 +229,7 @@ Les profils (§4) ne sont **pas** en base : ils sont de la configuration version
 
 Sources : [annonce](https://typesafe.ai/blog/introducing-system-one-models-and-jev), [documentation](https://docs.typesafe.ai), [documents légaux](https://docs.typesafe.ai/legal.md). Aucun essai exécuté.
 
-**Le principe, indépendant du fournisseur.** Du code déterministe (regex réglées pour trop trouver) repère les valeurs candidates dans le texte ; le modèle **choisit** l'une d'elles dans une liste fermée. La valeur retenue est toujours un texte présent dans le document : le modèle ne peut ni inventer un montant ni inverser un chiffre (LLM09, `../security/ai-ingestion.md` §1). **Ollama peut le faire en local** avec un schéma JSON dont l'`enum` contient les candidats, sans renoncer au local par défaut. Ce principe est à mettre dans le jeu d'évaluation de l'étape 4 (`../architecture.md` §9.4), face à l'extraction classique.
+**Le principe, indépendant du fournisseur.** Du code déterministe (regex réglées pour trop trouver) repère les valeurs candidates dans le texte ; le modèle **choisit** l'une d'elles dans une liste fermée. La valeur retenue est toujours un texte présent dans le document : le modèle ne peut ni inventer un montant ni inverser un chiffre (LLM09, `../security/ai-ingestion.md` §1). **Un modèle local peut le faire**, servi par un worker apparié (Ollama derrière le worker, `../ai/README.md` §7), avec un schéma JSON dont l'`enum` contient les candidats, sans renoncer au local par défaut. Ce principe est à mettre dans le jeu d'évaluation de l'étape 4 (`../architecture.md` §9.4), face à l'extraction classique.
 
 - Les valeurs issues d'un **texte caché** sont retirées des candidats, sinon un PDF piégé fait choisir la sienne.
 - Le principe ne convient pas aux longs tableaux (échéancier de 240 lignes : une question par valeur) : l'extraction par LLM et le recalcul de RealEstate restent la voie prévue.

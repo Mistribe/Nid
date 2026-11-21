@@ -1,6 +1,6 @@
 # Jetons et identifiants de service
 
-> Statut : brouillon. Jetons d'accès personnels pour le MCP et les automatisations, identifiants des workers d'ingestion, secrets des comptes locaux (§6).
+> Statut : brouillon. Jetons d'accès personnels pour le MCP et les automatisations, appairage des workers (§3, renvoie à `../ai/README.md`), secrets des comptes locaux (§6).
 > Références : `README.md`, `authorization.md` (portées), `../architecture.md` §8 (MCP) et §9.3 (jobs).
 
 ---
@@ -151,28 +151,23 @@ ChatGPT n'est pas couvert tant que ses connecteurs ne confirment pas un en-tête
 
 ## 3. Identifiants des workers
 
-Les workers d'ingestion appellent l'API interne (`../architecture.md` §9.3) avec des identifiants de service, distincts des jetons personnels.
+**Remplacé par l'appairage (#171).** Les workers n'appellent plus `nid` : `nid` appelle des workers appariés, avec
+clés épinglées des deux côtés, mutual TLS et messages signés (`../ai/README.md` §3 et §4, #166). Un worker ne détient
+aucun identifiant qui ouvre `nid`, et `nid` n'expose aucune route aux workers.
 
-### 3.1 Table `worker_credential` (schéma `core`)
-
-| Champ | Type | Remarques |
-|---|---|---|
-| `id`, `name` | uuid, text | |
-| `secret_hash` | char(64) | SHA-256 |
-| `job_types` | text[] | Types de jobs que ce worker peut traiter |
-| `created_at`, `revoked_at?` | timestamptz | |
-
-### 3.2 Règles
-
-- Format `nid_wrk_…`, remis au conteneur par **secret Docker**.
-- Droits : réclamer, signaler (`heartbeat`), terminer ou échouer les jobs **de ses types**, et télécharger le document du job réclamé (jeton court). **Aucun accès** aux éléments ni aux personnes.
-- L'API interne écoute sur un port séparé, non routé par le proxy (`../architecture.md` §7).
-- **Rotation** par commande d'administration ; l'ancien secret est révoqué immédiatement (la mise à jour du secret côté conteneur provoque une brève interruption, acceptable ici).
+- **Appairage** : au premier démarrage, le worker génère sa paire de clés et affiche un code à usage unique et
+  l'empreinte de sa clé ; un admin saisit l'URL et le code dans Réglages › IA, confirme l'empreinte, puis les deux
+  côtés épinglent la clé de l'autre.
+- **Clé de Nid** : chiffrée par Data Protection, comme les clés d'API des fournisseurs (`ai.ai_key`).
+- **Rotation et révocation** : depuis les réglages, par un admin, effectives à l'appel suivant ; chaque opération est
+  auditée (`../ai/README.md` §12).
+- La table `worker_credential` (secret `nid_wrk_…`, `job_types`) et les droits `claim` / `heartbeat` / `complete` sont
+  abandonnés ; le registre est `ai.model_worker` (`../ai/README.md` §13).
 
 ## 4. Extensions écartées
 
 - **Jeton d'accès par requête** (JWT courts) : inutile pour deux utilisateurs.
-- **mTLS entre nid et les workers** : le réseau compose segmenté suffit.
+- **mTLS entre nid et les workers** : écarté à l'origine (le réseau compose segmenté suffisait) ; **retenu depuis #171**, un worker pouvant être sur une autre machine ou hors des lieux (§3).
 
 ## 5. OAuth pour le MCP : écarté en v1
 

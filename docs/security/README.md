@@ -11,6 +11,7 @@
 | Document | Sujet |
 |---|---|
 | `ai-ingestion.md` | Documents non fiables, LLM local et cloud, workers, MCP |
+| `ai-assistant-review.md` | Revue de risque de l'assistant, de la passerelle et des workers de modèles (#171, spec `../ai/README.md`) |
 | `application.md` | Navigateur, API, import, export, SSRF, uploads, emails, données tierces |
 | `infrastructure.md` | Conteneurs, réseaux, secrets, sauvegardes, chaîne d'approvisionnement, incident |
 | `risk-register.md` | Registre des risques, exigences par étape, risques acceptés |
@@ -23,7 +24,7 @@
 | A2 | Éléments privés d'un adulte | Confidentialité **entre adultes** |
 | A3 | Documents d'origine (PDF) | Confidentialité |
 | A4 | Identités, sessions, jetons | Intégrité, confidentialité |
-| A5 | Secrets : clés Data Protection, secrets de workers, mot de passe restic, clés d'API de fournisseurs LLM, plus tard jetons bancaires | Confidentialité |
+| A5 | Secrets : clés Data Protection, clés d'appairage des workers (celle de Nid et celle de chaque worker), mot de passe restic, clés d'API de fournisseurs LLM, plus tard jetons bancaires | Confidentialité |
 | A6 | **Exactitude des chiffres** | Intégrité : un faux chiffre validé par distraction est le pire scénario réaliste |
 | A7 | Disponibilité et sauvegardes | Disponibilité |
 
@@ -46,13 +47,13 @@
 ```
 Internet ── proxy hébergeur ──> nid (SPA + API) ──┬─ Postgres, volume documents       [interne]
 Navigateur ──cookie─────────────────────►│        ├─ Pocket ID (OIDC)                 [interne]
-Client MCP ──jeton personnel────────────►│        ├─ API interne ── workers ── Ollama [interne, sans Internet]
+Client MCP ──jeton personnel────────────►│        ├─ mTLS ──> workers appariés ── moteur LLM [réseau du worker]
                                                    └─ sortie : SubTracker-Data, SMTP,
                                                       fournisseurs LLM (par la passerelle)
 ```
 
 - `nid` est le **seul composant applicatif qui sort vers Internet**, par un client HTTP unique (`application.md` §3).
-- Les workers n'ont **ni Internet ni clés** ; ils ne parlent qu'à l'API interne.
+- Les workers n'ont **ni clé d'API ni rien qui ouvre `nid`** ; `nid` les appelle, jamais l'inverse (`../ai/README.md` §3). Un worker local n'a pas Internet ; un worker distant compte comme une sortie des lieux (opt-in du foyer). Une adresse privée n'est joignable que pour un worker enregistré (`application.md` §3).
 
 ## 5. Principes
 
@@ -68,7 +69,7 @@ Client MCP ──jeton personnel────────────►│      
 | # | Décision |
 |---|---|
 | D19 | Sources d'ingestion : **dépôt manuel seulement en v1** ; emails et banque à l'étape 4 ou 5, avec revue de risque |
-| D20 | Extraction **sans outils** ; workers **sans Internet ni clés** |
+| D20 | Extraction **sans outils** (outils pour la seule tâche `chat` de l'assistant) ; workers **sans clés d'API**, appariés, appelés par `nid` (précisé par #171, `../ai/README.md`) |
 | D21 | **Client HTTP sortant unique** (`SafeHttpClient`) avec garde SSRF |
 | D22 | Emails **sans montants** par défaut |
 | D23 | Fournisseurs LLM multiples : gratuit, puis local, puis payant **avec accord** ; local par défaut (`../ingestion/llm-providers.md`) |

@@ -129,5 +129,5 @@ Un élément `private` n'a pas de niveau (il est stocké `view`). Le niveau ne c
 ## 9. Jobs, workers et import
 
 - Les tâches de maintenance (taux, catalogue) n'ont pas de `person_id` et aucun accès aux éléments. Exception bornée : la synchronisation du catalogue enregistre, côté hôte seulement, les identifiants des abonnements qui utilisaient une clé adoptée ou en conflit, et le journal n'en montre à chaque lecteur que ce que `IVisibleItems` lui laisse voir (`../superpowers/specs/2026-09-24-provider-catalog-design.md` §3.6).
-- **Extraction** : le worker rend son résultat à l'API interne ; Ingestion crée la `Proposal` pour la personne qui a créé le job et **revérifie le droit d'écriture** sur la cible au moment de la création.
+- **Extraction** : `nid` relève le résultat chez le worker apparié (`../ai/README.md` §3) ; le module `Ai` crée la `Proposal` pour la personne qui a créé le job et **revérifie le droit d'écriture** sur la cible au moment de la création.
 - **Import** : exécuté via l'interface ou l'API avec `write:direct` (`../import-format.md`).

@@ -1,7 +1,8 @@
 # Sécurité de l'IA et de l'ingestion
 
 > Statut : brouillon. Documents non fiables, LLM local et cloud, workers, passerelle, MCP.
-> Références : `README.md`, `../ingestion/llm-providers.md`, `../architecture.md` §9, `../identity-and-access/tokens-and-credentials.md`, [OWASP Top 10 LLM 2025](https://genai.owasp.org/llm-top-10/).
+> Depuis #171 : workers de modèles appariés, assistant dans l'application, plongements et `decide` sont spécifiés dans `../ai/README.md` et revus dans `ai-assistant-review.md` ; les sections ci-dessous renvoient à cette revue là où elles changent.
+> Références : `README.md`, `../ai/README.md`, `ai-assistant-review.md`, `../ingestion/llm-providers.md`, `../architecture.md` §9, `../identity-and-access/tokens-and-credentials.md`, [OWASP Top 10 LLM 2025](https://genai.owasp.org/llm-top-10/).
 
 ---
 
@@ -14,9 +15,9 @@
 | LLM03 Chaîne d'approvisionnement | Modèle ou bibliothèque compromis | §4, `infrastructure.md` §5 |
 | LLM04 Empoisonnement | Un document déclenche des propositions abusives | §2 (quotas, déduplication) |
 | LLM05 Gestion inadaptée des sorties | Sortie du modèle rendue comme HTML ou injectée dans du code | §2 |
-| LLM06 Agentivité excessive | Le modèle ou l'assistant dispose d'outils dangereux | §2 (aucun outil), §6 |
+| LLM06 Agentivité excessive | Le modèle ou l'assistant dispose d'outils dangereux | §2 (aucun outil), §6 ; assistant dans l'application : outils choisis, propositions seulement (`ai-assistant-review.md` §4) |
 | LLM07 Fuite du prompt système | Le prompt contient un secret | §2 |
-| LLM08 Vecteurs et plongements | Non applicable (pas de base vectorielle) | — |
+| LLM08 Vecteurs et plongements | Les plongements des documents (pgvector, #168) révèlent leur texte ; une recherche fuit un document illisible | `ai-assistant-review.md` §5 (EMB-1) |
 | LLM09 Désinformation | Valeur extraite fausse mais plausible | §2 |
 | LLM10 Consommation non bornée | Document géant, boucle, coût d'un fournisseur payant | §2, §5 |
 
@@ -41,17 +42,16 @@
 | Mesure | Détail |
 |---|---|
 | Conteneur | Non-root, système de fichiers en lecture seule plus `tmpfs`, `cap_drop: ALL`, `no-new-privileges`, limites CPU et mémoire |
-| **Réseau** | Réseau interne **sans Internet** ; le worker ne joint que l'API interne |
-| Secrets | Un seul : son identifiant de worker (`../identity-and-access/tokens-and-credentials.md` §3). **Aucune clé d'API de fournisseur** |
-| Base de données | Aucun accès ; il ne voit que les documents des jobs qu'il réclame (jeton de téléchargement court) |
-| Blast radius | Un worker compromis peut soumettre de fausses propositions (validées par un humain) et lire les documents de ses jobs ; il ne peut ni sortir vers Internet ni lire d'autres données |
+| **Réseau** | Worker local : réseau interne **sans Internet**. `nid` appelle le worker (push), le worker ne joint rien de `nid` ; un worker distant compte comme une sortie des lieux (opt-in du foyer, `../ai/README.md` §6) |
+| Secrets | Sa clé privée d'appairage, qui ne le quitte pas (`../identity-and-access/tokens-and-credentials.md` §3). **Aucune clé d'API de fournisseur**, rien qui ouvre `nid` |
+| Base de données | Aucun accès ; il ne voit que les documents des jobs que `nid` lui envoie, chiffrés pour lui (HPKE) |
+| Blast radius | Un worker compromis peut soumettre de fausses propositions (validées par un humain) et lire les documents de ses jobs ; il ne peut pas lire d'autres données. Un worker local ne sort pas vers Internet ; un worker distant compromis emporte ce qu'on lui envoie (WRK-7). Risques des workers : `ai-assistant-review.md` §3 |
 
-## 4. Modèle local (Ollama)
+## 4. Modèle local (derrière un worker)
 
-- Réseau interne uniquement, **port non publié**.
-- **Sans authentification native** ([source](https://www.indusface.com/blog/exposed-ollama-servers-llm-security-risks/), [source](https://nsfocusglobal.com/ollama-unauthorized-access-vulnerability-due-to-misconfiguration-cnvd-2025-04094/)) : **l'isolement réseau tient lieu d'authentification**. Une exposition accidentelle donnerait un accès libre au modèle.
+- **Derrière un worker apparié**, sur le réseau propre du worker, **port non publié** ; `nid` ne le joint jamais directement (#166, #171).
+- **Sans authentification native** ([source](https://www.indusface.com/blog/exposed-ollama-servers-llm-security-risks/), [source](https://nsfocusglobal.com/ollama-unauthorized-access-vulnerability-due-to-misconfiguration-cnvd-2025-04094/)) : le worker porte l'appairage, le mutual TLS et les signatures, et l'isolement réseau protège le moteur. Une exposition accidentelle donnerait un accès libre au modèle (WRK-4).
 - Modèles **épinglés par empreinte** ; pas de téléchargement automatique ; mise à jour manuelle après revue.
-- Joint par la passerelle LLM sur le réseau `workers`.
 
 ## 5. Fournisseurs cloud et passerelle
 
@@ -59,16 +59,16 @@ Décrits dans `../ingestion/llm-providers.md`. Ici, les risques et les mesures :
 
 | Risque | Mesures |
 |---|---|
-| **Divulgation à un tiers** | Local par défaut ; consentement à l'activation **et à chaque dépôt** ; aperçu de ce qui part ; **masquage** des identifiants sensibles (activé, non garanti) ; offres qui entraînent sur les données **inéligibles** ; région confirmée par l'utilisateur |
+| **Divulgation à un tiers** | Local par défaut ; consentement à l'activation **et à chaque dépôt** pour l'extraction (chat par adulte, index et `decide` par foyer, résultats d'outils filtrés selon la destination : `../ai/README.md` §6) ; aperçu de ce qui part ; **masquage** des identifiants sensibles (activé, non garanti) ; offres qui entraînent sur les données **inéligibles** ; région confirmée par l'utilisateur |
 | **Conditions qui changent** | Profils déclaratifs datés (`reviewed_on`) ; avertissement au-delà de 90 jours ; revue humaine |
 | **Vol ou abus de clé d'API** | Clés chiffrées (Data Protection), jamais réaffichées, **jamais envoyées au navigateur ni aux workers** ; plafonds de dépense côté fournisseur recommandés ; révocation depuis l'interface |
-| **Abus de la passerelle** par un worker compromis | Appel lié à un job réclamé et à son document ; tâche autorisée pour ce type de job ; taille, quotas et budget ; modèle imposé par le profil ; aucun outil |
-| **Dépassement de budget** | Plafond mensuel à 0 par défaut ; estimation avant envoi ; alerte à 80 % ; blocage à 100 % |
+| **Abus de la passerelle** par un worker compromis | Sans objet depuis #171 : un worker n'appelle plus la passerelle, `nid` l'appelle. Une sortie malveillante d'un worker est WRK-8 (`ai-assistant-review.md` §3) |
+| **Dépassement de budget** | Plafond mensuel du foyer à 0 par défaut ; coût maximal réservé avant chaque appel payant, réglé après (`../ai/README.md` §10) ; estimation avant envoi pour l'extraction ; alerte à 80 % ; blocage à 100 % |
 | **Rétention chez le fournisseur** | Information explicite à l'utilisateur ; minimisation avant envoi ; ce qui est parti ne peut pas être repris |
 | **Masquage incomplet** | Aperçu avant envoi ; **confirmation explicite** pour les documents sans couche texte ; non garanti (risque résiduel accepté) |
-| **Panne ou quotas** | Chaîne avec repli sur le local ; disjoncteur |
-| **Bulletins de paie** | Type `payslip` **inéligible au cloud** en v1, même avec consentement : traitement local uniquement (`../ingestion/llm-providers.md` §5.2) |
-| **Sortie du réseau** | Seul `nid` sort, par le `SafeHttpClient`, vers les hôtes des profils **activés** (`application.md` §3) |
+| **Panne ou quotas** | Chaîne avec repli sur une autre destination éligible ; disjoncteur |
+| **Bulletins de paie** | Type `payslip` **inéligible au cloud** en v1, même avec consentement : seulement un worker `safe` (`../ingestion/llm-providers.md` §5.2, `../ai/README.md` §6.1) |
+| **Sortie du réseau** | Seul `nid` sort, par le `SafeHttpClient`, vers les hôtes des profils **activés** et des workers appariés (`application.md` §3) |
 
 ## 6. MCP
 

@@ -19,7 +19,7 @@ Hors périmètre :
 | Contrainte | Conséquence technique |
 |---|---|
 | Auto-hébergé, deux utilisateurs | Pas de recherche de scalabilité ; priorité à la simplicité d'exploitation |
-| L'IA ne calcule jamais | Calculs en fonctions pures déterministes, testées ; l'IA ne sert qu'à l'ingestion |
+| L'IA ne calcule jamais | Calculs en fonctions pures déterministes, testées ; l'IA lit, cherche, choisit dans une liste fermée et propose : l'ingestion, l'assistant et les suggestions de catégories (`ai/README.md`), jamais un calcul |
 | L'IA propose, les humains valident | File de validation obligatoire pour toute donnée automatique |
 | Chaque donnée garde sa source | Provenance sur toutes les données saisies ou importées |
 | Confidentialité | Extraction par modèle local par défaut ; aucun document ne quitte l'infra sans opt-in |
@@ -38,8 +38,8 @@ Hors périmètre :
 | D4 | Hébergement **Docker Compose** sur un serveur maison / mini PC | Décidé |
 | D5 | **Monolithe modulaire** | Décidé |
 | D6 | Authentification par **OIDC externe, Pocket ID** : l'accès à Nid et le rôle admin viennent des **groupes** du fournisseur (`nid-users`, `nid-admins`), appliqués à chaque connexion. Choisi à la place d'Authelia, retenu d'abord : un foyer qui accumule des services veut un endroit où voir les utilisateurs, leurs groupes et ce que chaque groupe atteint, sur un standard (claim OIDC `groups`) que les autres services reprennent ; Pocket ID le donne dans un conteneur léger (SQLite, passkeys, groupes, accès par client). Revue : `spikes.md` §9septies | Décidé |
-| D7 | Extraction de documents : **port pluggable** ; local (Ollama) par défaut, fournisseurs cloud sur opt-in (D23, D24) | Décidé |
-| D8 | Jobs domaine en **Quartz.NET in-process** ; jobs d'ingestion en **workers conteneurisés** via table de jobs | Décidé (frontière) ; Quartz **retenu par défaut** |
+| D7 | Extraction de documents : **port pluggable** ; modèle auto-hébergé **derrière un worker apparié** par défaut, fournisseurs cloud sur opt-in (D23, D24, `ai/README.md`) | Décidé ; « Ollama joint directement » remplacé par un worker apparié (#171) |
+| D8 | Jobs domaine en **Quartz.NET in-process** ; jobs d'ingestion et de modèles en **workers appariés que `nid` appelle** (push), via table de jobs (`ai/README.md` §3) | Décidé (frontière) ; Quartz **retenu par défaut** ; modèle pull remplacé par push (#171) |
 | D9 | Registre **`Item` central** dans Core pour propriété et visibilité | **Retenu par défaut** |
 | D10 | Écritures MCP : **proposition par défaut**, écriture directe via la portée `write:direct`. **Propositions explicites** (décidé 2026-10-16) : une commande « soumettre une proposition » exige `write` ; toute commande directe exige `write:direct` ; le comportement `IProposable` est abandonné. **Outils d’écriture MCP** (4D1) : un par usage, `ApplyDirectCommand` (`IDirectWrite`, `write:direct`) pour l’écriture directe, « conforme » sans écriture | Décidé |
 | D11 | Accès externe : **hors scope**, choix de l'hébergeur | Décidé |
@@ -51,10 +51,10 @@ Hors périmètre :
 | D17 | Import et export **orchestrés par le navigateur**, sessions d'import en lots avec staging côté serveur, **aucune tâche de fond** (`import-format.md` §11) | Décidé |
 | D18 | **Thèmes** : quatre jeux de couleurs curés, préférence par personne côté serveur (`frontend/design-system.md` §7) | Décidé |
 | D19 | Sources d'ingestion : **dépôt manuel seulement en v1** ; emails et banque à l'étape 4 ou 5, avec revue de risque préalable (`security/`) | Décidé |
-| D20 | Extraction **sans outils** ; workers d'extraction **sans Internet ni clés d'API** | Décidé |
+| D20 | Extraction **sans outils** (les appels d'outils ne servent qu'à la tâche `chat` de l'assistant, `ai/README.md` §5.5) ; workers **sans clés d'API ni rien qui ouvre `nid`**, sans Internet quand ils sont locaux | Décidé ; précisé par #171 |
 | D21 | **Client HTTP sortant unique** (`SafeHttpClient` de `UnambitiousFx.Myelin`, réglé par `NidOutbound`) avec garde SSRF et liste d'hôtes (`security/application.md` §3) | Décidé |
 | D22 | Emails **sans montants** par défaut | Décidé |
-| D23 | Fournisseurs LLM multiples : offres gratuites éligibles, puis local, puis payant **avec accord** ; local par défaut ; consentement à chaque dépôt ; offres qui entraînent sur les données inéligibles (`ingestion/llm-providers.md`) | Décidé |
+| D23 | Fournisseurs LLM multiples : un réglage par usage (`off`, `local`, `local_then_cloud`), workers d'abord puis cloud **avec accord**, offres gratuites comprises ; local par défaut ; consentement à chaque dépôt pour l'extraction ; offres qui entraînent sur les données inéligibles (`ingestion/llm-providers.md`, `ai/README.md` §5.3 et §6) | Décidé ; « gratuit d'abord » remplacé par #171 |
 | D24 | **Passerelle LLM** dans `nid` : seule à contacter les fournisseurs, détient les clés, applique la politique | Décidé |
 | D25 | **Aspire** (`Nid.AppHost`) orchestre la pile de **développement local** : API, frontend Vite, PostgreSQL, Pocket ID, proxy TLS. Le déploiement reste Docker Compose (D4) ; Aspire n'est ni déployé ni requis en production (§10.3) | Décidé |
 
@@ -75,7 +75,7 @@ Hors périmètre :
 | Authentification | Pocket ID (OIDC), l'application est cliente OIDC | SPA via BFF, cookie de session ; accès et rôle admin par les groupes |
 | Jobs domaine | Quartz.NET in-process, magasin persistant Postgres | Voir §9 |
 | Workers | Conteneurs, techno libre (Python pour l'extraction) | Voir §9 |
-| LLM | Ollama (local) et fournisseurs cloud optionnels (Gemini, OpenAI, Anthropic), derrière la passerelle LLM | Local par défaut ; voir `ingestion/llm-providers.md` |
+| LLM | Modèles auto-hébergés derrière des workers appariés (Ollama, vLLM, llama.cpp) et fournisseurs cloud optionnels (Gemini, OpenAI, Anthropic, Mistral), derrière la passerelle LLM | Local par défaut ; voir `ai/README.md` et `ingestion/llm-providers.md` |
 | Environnement local | Aspire (AppHost .NET) | Lance la pile de développement d'une commande ; tableau de bord OpenTelemetry ; voir §10.3 |
 | Notifications | SMTP derrière `INotificationChannel` | Push PWA, ntfy, Home Assistant plus tard |
 | Fichiers | Volume de fichiers, adressage par contenu | Métadonnées en base |
@@ -86,13 +86,12 @@ Hors périmètre :
 [reverse proxy de l'hébergeur : hors application]
         │
         └──> nid       (.NET : SPA statique + API + BFF + MCP + Quartz, un seul port)
-                │  ▲
-   OIDC ◄───────┘  │ API interne (port séparé, non routé par le proxy)
-   Pocket ID       │
-                   ├── nid-worker-* (conteneurs d'ingestion)
-                   ├── postgres
-                   ├── volume documents
-                   └── ollama (optionnel)
+                │
+   OIDC ◄───────┤
+   Pocket ID    ├── postgres
+                ├── volume documents
+                └──mTLS──> worker-* (appariés ; même hôte, réseau local ou distant ;
+                                     moteur LLM derrière chacun, jamais exposé)
 
 backup (restic, chiffré) ──> cible locale + cible distante
 ```
@@ -147,7 +146,7 @@ Le modèle de données du Core est détaillé dans `core-data-model.md`, celui d
 | **Documents** | `Document` (fichier adressé par son sha256, métadonnées) et ses liens génériques vers des cibles (`target_kind`, `target_id`, rôle) ; stockage fichiers ou S3 | `IDocumentTargets` (cibles que chaque module résout), `IDocumentLinks` | Core |
 | **Goals** | `Goal` (objectif d'épargne ou de précaution), ses liens aux enveloppes (`share_bp`) et ses relevés | Rien (lit `IEnvelopeFunding` d'Investments et `ICommitmentsContribution`) | Core, `Investments.Contracts` |
 | **Banking** (étape 5, livré en 5A) | Connexions Enable Banking (session chiffrée), comptes bancaires et leurs sources, soldes, journal des synchronisations (schéma `banking`) | Rien en 5A ; ses soldes deviennent des valorisations par `IValuations` ou une proposition (`IProposalSubmitter`) | Core, `Investments.Contracts` |
-| **Ingestion** | Pipeline de documents, table `job`, contrats de jobs, résultats d'extraction | Entrée des propositions vers Core, API interne pour les workers | Core |
+| **Ai** (remplace le module Ingestion prévu, #171) | Passerelle LLM, profils, registre et appairage des workers, table `job` et contrats, budget, `llm_call`, conversations de l'assistant (schéma `ai`, `ai/README.md` §5.2 et §13) | Entrée des propositions vers Core ; tâches de modèles pour Documents et Banking | Core |
 | **Dashboard** (hébergé dans Core : `Core.Application/Dashboard`) | Rien (lecture seule, composition) | Agrégats patrimoine / engagements / évolution | Core + contributions des modules |
 | **Tax** (hébergé dans Core : `Core.Application/Tax`, `Core.Domain/Tax`) | Profil fiscal du foyer par année (`core.tax_profile`) | Estimation d'impôt ; les modules fournissent leurs lignes (`ITaxContribution`) | Core + contributions des modules |
 | **Platform** (technique) | Notifications, audit, sessions d'import (staging), planification | `INotificationChannel` ; les modules implémentent `IImportSection` (`import-format.md` §11.7) | Tous, via contrats |
@@ -222,7 +221,7 @@ Principe : générer à la compilation plutôt que réfléchir à l'exécution ;
 - **Authentification** : le SPA passe par un **BFF** (code + PKCE côté serveur, cookie `HttpOnly`, protection CSRF). L'API accepte aussi des jetons bearer (MCP, automatisations) avec les portées `read`, `write` et `write:direct`. Détail dans `identity-and-access/`.
 - Écritures idempotentes via l'en-tête `Idempotency-Key` (workers, MCP).
 - Couche application en CQRS avec **Synapse** (§5.4). Chaque endpoint se limite à traduire HTTP → requête Synapse → `Result` → réponse (Problem Details en cas d'échec). L'idempotence (`Idempotency-Key`) est un comportement de pipeline.
-- **API interne des workers** : groupe de routes `/internal/v1/jobs/…` sur un port / listener séparé, non routé par le proxy, avec identifiants de service par worker.
+- **API interne des workers** : remplacée (#171). `nid` appelle les workers appariés (`ai/README.md` §3) ; aucune route n'est ouverte aux workers.
 
 ## 8. Serveur MCP
 
@@ -241,8 +240,8 @@ Principe : générer à la compilation plutôt que réfléchir à l'exécution ;
 ```
 Source (dépôt UI / mail / banque)
   → Document (module Documents, SHA-256)
-  → Job (Ingestion) ──claim──> Worker (conteneur, techno libre)
-  → JSON structuré (schéma versionné) ──> API interne
+  → Job (Ai) ──push──> Worker apparié (techno libre, ai/README.md §3)
+  → JSON structuré (schéma versionné), signé et chiffré, relevé par nid
   → validation du schéma + contrôles métier .NET
   → Proposal (Core, statut pending)
   → humain : approuve / édite / rejette
@@ -254,7 +253,7 @@ Source (dépôt UI / mail / banque)
 | Type de travail | Exécution | Raison |
 |---|---|---|
 | Rappels, résumé mensuel, alertes d'échéance, recalcul des timelines | **Quartz.NET in-process** | Réutilise les règles métier (couverture, coût amorti, droits) ; les conteneuriser dupliquerait la logique |
-| Extraction PDF/OCR/LLM, scrapers woob, lecture de mails | **Workers conteneurisés** | Écosystème Python, travaux lourds et fragiles, isolation et mise à jour indépendantes |
+| Extraction PDF/OCR/LLM, modèles (chat, plongements, `decide`), scrapers woob, lecture de mails | **Workers conteneurisés** ; pour les modèles, **workers appariés appelés par `nid`** (`ai/README.md` §3) | Écosystème Python, travaux lourds et fragiles, isolation et mise à jour indépendantes |
 | Synchronisation bancaire (Enable Banking, étape 5) | **Quartz.NET in-process** (`bank-sync-nightly`), par `SafeHttpClient` | Un appel REST signé (JWT RS256), comme la collecte des taux : aucun code tiers ni page web à isoler (spec de la synchronisation bancaire, D13). Le bouton « Synchroniser » s'exécute dans la requête, pour transmettre à la banque l'adresse et l'agent du navigateur |
 
 Le planificateur n'a pas accès à `docker.sock` : lancer des conteneurs depuis l'application donnerait de fait un accès root à la machine, et déléguer à un cron d'hôte lierait l'application à l'orchestrateur de l'hébergeur.
@@ -263,15 +262,15 @@ Le magasin persistant de Quartz est en Postgres, avec un préfixe de tables qual
 
 ### 9.3 Jobs
 
-- Table `job` (schéma Ingestion) : `type`, `schema_version`, `payload`, `status` (`queued` / `running` / `succeeded` / `failed` / `dead`), `attempts`, `run_after`, `lease_until`, `result`, `error`, `created_by`.
-- Les workers **n'accèdent pas à la base**. Ils appellent l'API interne : `claim` (long-poll, `FOR UPDATE SKIP LOCKED` côté API), `heartbeat`, `complete`, `fail`. Bail expiré → remise en file. Retry avec délai croissant ; état `dead` après N essais, avec alerte email.
+- Table `job` (schéma `ai`, `ai/README.md` §5.2) : `type`, `schema_version`, `payload`, `status` (`queued` / `running` / `succeeded` / `failed` / `dead`), `attempts`, `run_after`, `lease_until`, `result`, `error`, `created_by`.
+- Les workers **n'accèdent pas à la base**. **Modèle push** (#166, `ai/README.md` §3 et §4) : `nid` envoie le job et son fichier au worker apparié, puis l'interroge sur son état et son résultat. Bail expiré → le job passe à un autre worker éligible. Retry avec délai croissant ; état `dead` après N essais, avec alerte email. Le modèle « pull » (`claim`, `heartbeat`, `complete`, `fail` sur l'API interne) est remplacé (#171).
 - **Idempotence** : `(type, hash de l'entrée)` évite de retraiter le même document.
 - **Contrats** dans le dépôt : `contracts/jobs/{type}/v{n}/{input,output}.schema.json`. L'API valide la sortie du worker avant toute suite ; version inconnue = rejet. Ajouter une techno = respecter le contrat.
 - Types initiaux : `extract-statement` (relevés de placements), `extract-amortization`, `extract-invoice`. Plus tard : `fetch-mail`, `scrape-woob`. La banque n'est pas un job : elle tourne dans `nid` (§9.2, livré en 5A).
-- Les workers récupèrent le document par l'API (flux à jeton court), sans volume partagé : ils restent sans état.
+- Le fichier part avec le job, chiffré de bout en bout pour le worker (HPKE), sans volume partagé : le worker reste sans état.
 - Traçage OpenTelemetry API ↔ worker (`traceparent` dans le job). Page « jobs » dans l'interface.
 
-### 9.4 Extraction (worker Python + Ollama par défaut)
+### 9.4 Extraction (worker apparié, modèle auto-hébergé par défaut)
 
 1. PDF → texte (PyMuPDF, pdfplumber) ; si scanné, OCR ou modèle de vision.
 2. LLM avec **sortie JSON contrainte** par le schéma.
@@ -280,7 +279,7 @@ Le magasin persistant de Quartz est en Postgres, avec un préfixe de tables qual
 
 Pour `extract-amortization`, RealEstate **recalcule** le tableau depuis les conditions du prêt et le compare à celui de la banque (`Project.md` §8.5) ; l'écart figure dans la proposition. Une extraction douteuse devient visible.
 
-Avant d'engager un modèle : constituer un **jeu d'évaluation** de vrais relevés avec le JSON attendu pour mesurer la précision par champ. Le choix du modèle relève de la configuration, pas de l'architecture. L'extracteur est un port (`IDocumentExtractor`). Le modèle est appelé **par la passerelle LLM** de `nid` (D24) : Ollama en local, ou un fournisseur cloud **sur opt-in à chaque dépôt de document**, tracé dans la provenance et dans `llm_call`. Politique, consentement, budget, masquage et clés : `ingestion/llm-providers.md`.
+Avant d'engager un modèle : constituer un **jeu d'évaluation** de vrais relevés avec le JSON attendu pour mesurer la précision par champ. Le choix du modèle relève de la configuration, pas de l'architecture. L'extracteur est un port (`IDocumentExtractor`). Le modèle est appelé **par la passerelle LLM** de `nid` (D24) : un modèle d'un worker apparié (`ai/README.md`), ou un fournisseur cloud **sur opt-in à chaque dépôt de document**, tracé dans la provenance et dans `llm_call`. Politique, consentement, budget, masquage et clés : `ingestion/llm-providers.md`.
 
 ### 9.5 Proposal (Core)
 
@@ -310,7 +309,7 @@ Avant d'engager un modèle : constituer un **jeu d'évaluation** de vrais relev�
 
 ### 9.7 Sécurité de l'ingestion
 
-- Identifiants de service **par worker**, limités à ses types de jobs. Réseau compose segmenté : un worker d'extraction n'atteint que l'API interne (et, par elle, la passerelle LLM) ; **sans Internet, sans clés d'API**.
+- Chaque worker est **apparié** (clés épinglées, mutual TLS, messages signés, contenu chiffré de bout en bout) et limité à ses capacités déclarées ; il ne détient **ni clé d'API ni rien qui ouvre `nid`**, et `nid` l'appelle sans qu'il puisse appeler `nid` (`ai/README.md` §3 et §4, remplace les identifiants de service par worker, #171). Un worker local n'a pas Internet.
 - Les workers de **connecteurs** (mail, woob) exigent une sortie limitée à leurs hôtes et une **revue de risque préalable** (`security/risk-register.md` §7). La banque n'est pas un worker : elle tourne dans `nid` (§9.2), vers le seul `api.enablebanking.com`, et sa revue est `security/bank-sync-review.md`.
 - Aucun document ne quitte l'infrastructure par défaut ; tout envoi cloud exige le consentement du déposant (`ingestion/llm-providers.md` §6).
 - Menaces et mesures détaillées : `security/ai-ingestion.md`.
@@ -324,8 +323,8 @@ Avant d'engager un modèle : constituer un **jeu d'évaluation** de vrais relev�
 | `nid` | SPA statique + API + BFF + MCP + Quartz, une seule image et un seul port ; l'hôte sert lui-même le SPA (fichiers hachés en cache immuable, repli sur `index.html` pour les routes du client, en-têtes de sécurité) : origine unique | oui |
 | `postgres` | Base | oui |
 | `pocket-id` | OIDC | oui |
-| `nid-worker-*` | Workers d'ingestion | à la carte |
-| `ollama` | LLM local | optionnel (avec les workers d'extraction) |
+| `nid-worker-*` | Workers appariés (texte, OCR, modèles) ; un profil Compose démarre un worker sur le même hôte (#166) | à la carte |
+| moteur LLM (Ollama, vLLM…) | Derrière un worker, sur le réseau du worker, port jamais publié (`ai/README.md` §3) | optionnel |
 | `backup` | restic chiffré ; dépôt local `deploy/backups/`, dépôt distant optionnel (1F2) | oui |
 
 - Configuration par variables d'environnement et secrets Docker (fichiers). Aucun secret dans l'image ni dans le dépôt.
@@ -405,7 +404,7 @@ Le projet `Nid.AppHost` (Aspire) décrit en C# toute la pile de développement e
 /src
   /Nid.Core/{Contracts,Domain,Application,Infrastructure}
   /Nid.Subscriptions/…   /Nid.Investments/…   /Nid.RealEstate/…   /Nid.Income/…
-  /Nid.Ingestion/…       /Nid.Dashboard/…     /Nid.Platform/…
+  /Nid.Ai/…              /Nid.Dashboard/…     /Nid.Platform/…
   /Nid.Host              (racine de composition : API, BFF, MCP, Quartz)
   /Nid.AppHost           (Aspire : pile de développement local, §10.3)
   /Nid.ServiceDefaults   (OpenTelemetry, health checks, résilience HTTP)

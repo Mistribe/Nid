@@ -154,7 +154,7 @@ Deux tables du schéma `core`, détaillées dans `identity-and-access/tokens-and
 | `created_at`, `expires_at` | timestamptz | Expiration obligatoire |
 | `last_used_at?`, `revoked_at?` | timestamptz | |
 
-**`worker_credential`** : identifiant de service d'un worker d'ingestion.
+**`worker_credential`** : identifiant de service d'un worker d'ingestion. **Remplacé** (#171) par `ai.model_worker`, un worker apparié par clés épinglées que `nid` appelle (`ai/README.md` §3 et §13).
 
 | Champ | Type | Remarques |
 |---|---|---|
