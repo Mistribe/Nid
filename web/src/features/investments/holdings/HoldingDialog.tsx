@@ -28,20 +28,24 @@ import '@/locales/forms';
 const ASSET_CLASSES = ['equity', 'bond', 'money_market', 'mixed', 'real_estate', 'capital_guaranteed', 'other'] as const;
 const PATHS = {
   name: 'name', kind: 'kind', isin: 'isin', assetClass: 'assetClass', issuer: 'issuer', riskIndicator: 'riskIndicator',
-  openedOn: 'openedOn', maturesOn: 'maturesOn', entryCostPct: 'entryCostPct', note: 'note',
+  openedOn: 'openedOn', maturesOn: 'maturesOn', entryCostPct: 'entryCostPct', note: 'note', entitlementDelayMonths: 'entitlementDelayMonths',
 } as const;
 const FALLBACK = { 'investments.unknown_holding_kind': 'kind', 'investments.invalid_isin': 'isin' } as const;
 const OPTIONAL_DATE = /^(\d{4}-\d{2}-\d{2})?$/;
 
 type Values = {
   name: string; kind: (typeof HOLDING_KINDS)[number]; isin: string; assetClass: string; issuer: string; riskIndicator: string;
-  openedOn: string; maturesOn: string; entryCostPct: string; note: string; autoPrice: boolean;
+  openedOn: string; maturesOn: string; entryCostPct: string; note: string; autoPrice: boolean; entitlementDelayMonths: string;
 };
+
+/** Issue #180: an SCPI's entitlement delay, 0 to 12 months as the server bounds it. */
+const DELAYS = Array.from({ length: 13 }, (_, i) => String(i));
 
 const valuesOf = (h?: Holding): Values => ({
   name: h?.name ?? '', kind: h ? (HOLDING_KINDS.find((k) => k === h.kind) ?? 'other') : 'fund', isin: h?.isin ?? '', assetClass: h?.assetClass ?? '', issuer: h?.issuer ?? '',
   riskIndicator: h?.riskIndicator != null ? String(h.riskIndicator) : '', openedOn: h?.openedOn ?? '', maturesOn: h?.maturesOn ?? '',
   entryCostPct: h?.entryCostPct != null ? String(h.entryCostPct) : '', note: h?.note ?? '', autoPrice: h?.autoPrice ?? true,
+  entitlementDelayMonths: h?.entitlementDelayMonths != null ? String(h.entitlementDelayMonths) : '',
 });
 
 /** The PUT replaces every field: the holding as it stands, with the form's values over it. */
@@ -50,6 +54,8 @@ const bodyOf = (v: Values, before?: Holding): HoldingBody => ({
   issuer: v.issuer.trim() || null, riskIndicator: v.riskIndicator ? Number(v.riskIndicator) : null, openedOn: v.openedOn || null,
   maturesOn: v.maturesOn || null, entryCostPct: v.entryCostPct.trim().replace(',', '.') || null, note: v.note.trim() || null,
   closedOn: before?.closedOn ?? null, version: before?.version ?? null, autoPrice: v.autoPrice,
+  // Only an SCPI has the delay: another kind sends none, which clears it.
+  entitlementDelayMonths: v.kind === 'scpi' && v.entitlementDelayMonths ? Number(v.entitlementDelayMonths) : null,
 });
 
 /**
@@ -70,11 +76,12 @@ export function HoldingDialog({ envelope, editing, pricesOn, onClose, onDone }: 
     openedOn: z.string().regex(OPTIONAL_DATE, t('holdings.form.date_format')),
     maturesOn: z.string().regex(OPTIONAL_DATE, t('holdings.form.date_format')),
     entryCostPct: z.string().trim().regex(/^(\d{1,3}([.,]\d{1,4})?)?$/, t('holdings.form.pct_format')),
-    note: z.string().max(2000, t('investments_form.note_too_long')), autoPrice: z.boolean(),
+    note: z.string().max(2000, t('investments_form.note_too_long')), autoPrice: z.boolean(), entitlementDelayMonths: z.string(),
   });
   const form = useForm({ resolver: zodResolver(schema), defaultValues: valuesOf(editing) });
   const errors = useSubmitErrors(form.setError, PATHS);
   const hasIsin = useWatch({ control: form.control, name: 'isin' }).trim() !== '';
+  const isScpi = useWatch({ control: form.control, name: 'kind' }) === 'scpi';
   const create = $api.useMutation('post', HOLDINGS, { onSuccess: () => { void invalidateInvestments(queryClient); } });
   const update = $api.useMutation('put', HOLDING, { onSuccess: () => { void invalidateInvestments(queryClient); } });
   const mutation = editing ? update : create;
@@ -125,6 +132,16 @@ export function HoldingDialog({ envelope, editing, pricesOn, onClose, onDone }: 
                 </Field>
               )} />
             </div>
+            {isScpi ? (
+              <Controller control={form.control} name="entitlementDelayMonths" render={({ field }) => (
+                <Field label={t('holdings.form.entitlement_delay')} hint={t('holdings.form.entitlement_delay_hint')} error={e.entitlementDelayMonths?.message}
+                  tip={<InfoTip label={t('holdings.form.entitlement_delay')}>{t('investments_tips.entitlement_delay')}</InfoTip>}>
+                  {(c) => <SelectField {...c} value={field.value} onValueChange={field.onChange}
+                    options={[{ value: '', label: t('holdings.form.none') },
+                      ...DELAYS.map((k) => ({ value: k, label: t('holdings.form.entitlement_delay_months', { count: Number(k) }) }))]} />}
+                </Field>
+              )} />
+            ) : null}
             <Folded label={t('holdings.form.more')} hasError={folded}>
               <div className="grid gap-3 sm:grid-cols-2">
                 <Controller control={form.control} name="assetClass" render={({ field }) => (

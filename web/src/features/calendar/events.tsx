@@ -1,6 +1,6 @@
 import type { LinkProps } from '@tanstack/react-router';
 import type { TFunction } from 'i18next';
-import { CalendarClock, CalendarX, FileText, Flag, Gift, Hourglass, KeyRound, Landmark, Milestone, Percent, PiggyBank, RefreshCw, Receipt, Scale, TimerOff, TrendingUp, Wallet, type LucideIcon } from 'lucide-react';
+import { Building2, CalendarClock, CalendarX, FileText, Flag, Gift, Hourglass, KeyRound, Landmark, Milestone, Percent, PiggyBank, RefreshCw, Receipt, Scale, TimerOff, TrendingUp, Wallet, type LucideIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { DashboardEvent } from '@/api/dashboard';
 import { itemRoute } from '@/components/ItemLink';
@@ -22,6 +22,7 @@ export function EventText({ e }: { e: DashboardEvent }) {
     case 'property_cost_due': return <>{categoryText(t, e.label)}</>;
     case 'tenancy_end': return <>{t('dashboard.upcoming.tenancy_end', { label: e.label ?? '' })}</>;
     case 'holding_maturity': return <>{t('dashboard.upcoming.holding_maturity', { label: e.label ?? '' })}</>;
+    case 'holding_entitlement': return <>{t('dashboard.upcoming.holding_entitlement', { label: e.label ?? '' })}</>;
     case 'tax_milestone': {
       const milestone = (['life_insurance_8y', 'pea_5y', 'per_retirement'] as const).find((m) => m === e.label);
       return milestone ? <>{t(`dashboard.upcoming.tax_milestone.${milestone}`)}</> : null;
@@ -39,7 +40,7 @@ export function EventText({ e }: { e: DashboardEvent }) {
 const ICON: Record<string, LucideIcon> = {
   subscription_renewal: RefreshCw, subscription_expiry: CalendarX, subscription_cancel_deadline: CalendarClock,
   subscription_trial_end: Gift, subscription_price_increase: TrendingUp, income_phase_end: Wallet, loan_phase_end: Landmark,
-  loan_end: Flag, valuation_due: Scale, property_cost_due: Receipt, tenancy_end: KeyRound, holding_maturity: Hourglass,
+  loan_end: Flag, valuation_due: Scale, property_cost_due: Receipt, tenancy_end: KeyRound, holding_maturity: Hourglass, holding_entitlement: Building2,
   per_deadline: PiggyBank, per_ceiling_expiring: TimerOff, tax_milestone: Milestone,
   tax_filing_deadline: FileText, tax_new_rate: Percent, tax_balance_due: Landmark, property_tax_due: Receipt,
 };

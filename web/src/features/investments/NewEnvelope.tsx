@@ -84,6 +84,14 @@ export function NewEnvelope() {
     });
     return () => subscription.unsubscribe();
   }, [form, people.data]);
+  // Issue #180: an SCPI's manager sends a bulletin each quarter; the cadence follows the kind until the person picks one.
+  useEffect(() => {
+    const subscription = form.watch((values, { name, type }) => {
+      if (name !== 'kind' || type !== 'change' || form.getFieldState('valuationCadence').isDirty) return;
+      form.setValue('valuationCadence', values.kind === 'scpi' ? 'quarterly' : 'monthly');
+    });
+    return () => subscription.unsubscribe();
+  }, [form]);
   const pathOf = (path: string): Path<NewEnvelopeValues> | undefined =>
     (NEW_ENVELOPE_PATHS[path] as Path<NewEnvelopeValues> | undefined) ?? ownershipPath(path);
   const errors = useSubmitErrors(form.setError, pathOf);

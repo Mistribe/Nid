@@ -169,6 +169,23 @@ describe('recording values and flows', () => {
     await waitFor(() => expect(calls).toEqual([{ method: 'POST', path: 'flows', body: expect.objectContaining({ kind: 'withdrawal', category: 'dividend' }) as unknown }]));
   });
 
+  it('records what an SCPI pays out as a distribution, its withdrawals as ordinary (#180)', async () => {
+    const calls: Call[] = [];
+    serve(detail({ kind: 'scpi' }), calls);
+    const { user } = await renderApp(`/investments/${PEA}`);
+
+    const flow = await openFlow(user);
+    await pick(user, 'Type', 'Revenu');
+    expect(flow.getByLabelText('Nature')).toHaveTextContent('Distribution');
+    await pick(user, 'Type', 'Retrait');
+    expect(flow.getByLabelText('Nature')).not.toHaveTextContent('Distribution');
+    await pick(user, 'Type', 'Revenu');
+    await user.type(flow.getByLabelText('Montant'), '50');
+    await user.click(flow.getByRole('button', { name: 'Ajouter le flux' }));
+
+    await waitFor(() => expect(calls).toEqual([{ method: 'POST', path: 'flows', body: expect.objectContaining({ kind: 'income', category: 'distribution' }) as unknown }]));
+  });
+
   it('offers no nature on a contribution', async () => {
     serve(detail(), []);
     const { user } = await renderApp(`/investments/${PEA}`);

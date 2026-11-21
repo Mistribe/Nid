@@ -46407,6 +46407,13 @@
               "null",
               "boolean"
             ]
+          },
+          "entitlementDelayMonths": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
           }
         }
       },
@@ -46976,6 +46983,20 @@
                 "$ref": "#/components/schemas/RealPercentView"
               }
             ]
+          },
+          "entitlementDelayMonths": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "entitledFrom": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
           }
         }
       },

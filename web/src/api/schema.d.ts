@@ -36651,6 +36651,8 @@ export interface components {
             /** Format: uint32 */
             version?: null | number;
             autoPrice?: null | boolean;
+            /** Format: int32 */
+            entitlementDelayMonths?: null | number;
         };
         HoldingBreakdownView: {
             /** Format: date */
@@ -36782,6 +36784,10 @@ export interface components {
             autoPrice: boolean;
             price?: null | components["schemas"]["PriceView"];
             realReturn?: null | components["schemas"]["RealPercentView"];
+            /** Format: int32 */
+            entitlementDelayMonths?: null | number;
+            /** Format: date */
+            entitledFrom?: null | string;
         };
         HoldingWarningView: {
             code: string;
