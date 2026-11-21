@@ -16,6 +16,8 @@ public sealed class EnvelopeRow
     public decimal? UcShareFloorPct { get; set; }
     public decimal? PremiumsBefore2017 { get; set; }
     public string? Regulated { get; set; }
+    /// <summary>#184: the tranches of an employee savings plan, a JSON array of <c>{ "availableOn": "yyyy-mm-dd", "amount": "…" }</c>.</summary>
+    public string? Availability { get; set; }
     public string? ImportRef { get; set; }
     public string? ImportHash { get; set; }
     public Guid? ImportedBy { get; set; }

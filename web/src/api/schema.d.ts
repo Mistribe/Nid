@@ -34148,6 +34148,11 @@ export interface components {
             /** Format: uuid */
             tokenId?: null | string;
         };
+        AvailabilityView: {
+            availableToday?: null | components["schemas"]["AmountView"];
+            releases: components["schemas"]["ReleaseView"][];
+            tranches: components["schemas"]["TrancheView"][];
+        };
         BalanceMonthView: {
             month: string;
             total?: null | components["schemas"]["LoanMoneyView"];
@@ -35611,6 +35616,8 @@ export interface components {
             visibility?: null | string;
             shareLevel?: null | string;
             owners?: null | components["schemas"]["OwnerBody"][];
+            availability?: null | components["schemas"]["TrancheBody"][];
+            clearAvailability?: null | boolean;
         };
         EditGoalBody: {
             name?: null | string;
@@ -35742,6 +35749,7 @@ export interface components {
             interest?: null | components["schemas"]["InterestEstimateView"];
             milestone?: null | components["schemas"]["TaxMilestoneView"];
             realReturn?: null | components["schemas"]["RealPercentView"];
+            availability?: null | components["schemas"]["AvailabilityView"];
         };
         EnvelopeEstimateView: {
             value?: null | components["schemas"]["AmountView"];
@@ -39237,6 +39245,11 @@ export interface components {
             version: number;
             note?: null | string;
         };
+        ReleaseView: {
+            /** Format: date */
+            on: string;
+            amount: components["schemas"]["AmountView"];
+        };
         RenegotiationSideView: {
             payment: string;
             /** Format: date */
@@ -40992,6 +41005,15 @@ export interface components {
         TotpSetupView: {
             secret: string;
             otpauthUri: string;
+        };
+        TrancheBody: {
+            availableOn?: null | string;
+            amount?: null | string;
+        };
+        TrancheView: {
+            /** Format: date */
+            availableOn: string;
+            amount: components["schemas"]["AmountView"];
         };
         TransferBody: {
             /** Format: uuid */

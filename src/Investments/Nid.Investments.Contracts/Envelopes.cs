@@ -88,7 +88,10 @@ public static class EnvelopeWire
 public sealed record Envelope(
     ItemId ItemId, EnvelopeKind Kind, string? Institution, string? AccountHint, LocalDate? OpenedOn,
     ValuationCadence Cadence, int? StaleAfterDays, string? Note, LocalDate? ClosedOn = null, decimal? UcShareFloorPct = null, decimal? PremiumsBefore2017 = null,
-    RegulatedKind? Regulated = null);
+    RegulatedKind? Regulated = null, IReadOnlyList<AvailabilityTranche>? Availability = null);
+
+/// <summary>#184: a part of an employee savings plan released on a date, as its statement prints it on the statement's date.</summary>
+public sealed record AvailabilityTranche(LocalDate AvailableOn, decimal Amount);
 
 public sealed record ImportedEnvelope(ItemId Item, string Hash, PersonId ImportedBy);
 public sealed record StoredEnvelope(Envelope Envelope, ImportMark? Import);
@@ -99,7 +102,8 @@ public sealed record EnvelopeChange(
     string? AccountHint = null, bool ClearAccountHint = false, LocalDate? OpenedOn = null, bool ClearOpenedOn = false,
     ValuationCadence? Cadence = null, int? StaleAfterDays = null, bool ClearStaleAfterDays = false,
     string? Note = null, bool ClearNote = false, decimal? UcShareFloorPct = null, bool ClearUcShareFloorPct = false,
-    decimal? PremiumsBefore2017 = null, bool ClearPremiumsBefore2017 = false, RegulatedKind? Regulated = null, bool ClearRegulated = false);
+    decimal? PremiumsBefore2017 = null, bool ClearPremiumsBefore2017 = false, RegulatedKind? Regulated = null, bool ClearRegulated = false,
+    IReadOnlyList<AvailabilityTranche>? Availability = null, bool ClearAvailability = false);
 
 public interface IEnvelopeStore
 {

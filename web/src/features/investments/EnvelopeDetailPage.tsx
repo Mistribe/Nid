@@ -32,6 +32,7 @@ import { RowActions } from './entries/RowActions';
 import { CloseDialog } from './closing/CloseDialog';
 import { ClosedBanner } from './closing/ClosedBanner';
 import { SettingsForm } from './settings/SettingsForm';
+import { AvailabilitySection } from './availability/Availability';
 import { TransferDialog } from './transfer/TransferDialog';
 import { AnnualReturn, Gain, GainPct, StaleBadge } from './Figures';
 import { Direction } from '@/components/Direction';
@@ -261,6 +262,11 @@ export function EnvelopeDetailPage() {
             ...(detail.ceiling ? [{ label: t('envelope.regulated.ceiling'), value: formatMoney(detail.ceiling.ceiling), hint: detail.ceiling.reached
               ? t('envelope.regulated.reached')
               : t('envelope.regulated.room', { amount: formatMoney(detail.ceiling.room) }) }] : []),
+            // #184: a PEE's part that can be withdrawn today, from its tranches; the next release under it.
+            ...(detail.availability?.availableToday ? [{ label: t('envelope.availability.today'), value: <Money value={detail.availability.availableToday} tabular />,
+              hint: detail.availability.releases[0] ? t('envelope.availability.next', {
+                amount: formatMoney(detail.availability.releases[0].amount), date: formatLocalDate(detail.availability.releases[0].on, 'short'),
+              }) : null }] : []),
             ...(detail.interest ? [{ label: t('envelope.regulated.interest_to_date'), value: <Money value={detail.interest.toDate} tabular />,
               hint: t('envelope.regulated.interest_expected', { amount: formatMoney(detail.interest.expected) }) }] : []),
           ]} />
@@ -355,6 +361,7 @@ export function EnvelopeDetailPage() {
                   <PeriodPerformance envelopeId={detail.id} />
                 </Section>
               </div>
+              {detail.kind === 'employee_savings' ? <AvailabilitySection envelope={detail} writable={writable} /> : null}
               <SaleTaxSection id={SALE_TAX} item={detail.id} canWrite={detail.canWrite} />
             </>
           ),

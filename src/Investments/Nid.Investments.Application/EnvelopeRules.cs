@@ -86,6 +86,17 @@ internal static class EnvelopeRules
             : EnvelopeWire.TryCadence(wire, out var cadence) ? Result.Success(cadence)
             : Result.Failure<ValuationCadence>(new Failure(InvestmentsCodes.UnknownCadence, $"'{wire}' is not a valuation cadence.", null));
 
+    public const int TranchesMax = 120;
+
+    /// <summary>#184: the tranches of an employee savings plan, each on its own date, a positive amount with 4 decimals at most.</summary>
+    public static Result Availability(IReadOnlyList<AvailabilityTranche>? tranches, EnvelopeKind kind)
+        => tranches is null ? Result.Success()
+            : kind != EnvelopeKind.EmployeeSavings ? Invalid("availability", "Availability dates only apply to an employee savings plan.")
+            : tranches.Count > TranchesMax ? Invalid("availability", $"A plan has at most {TranchesMax} availability dates.")
+            : tranches.Any(t => t.Amount <= 0 || Math.Round(t.Amount, 4) != t.Amount) ? Invalid("availability", "A tranche is a positive amount, with 4 decimals at most.")
+            : tranches.Select(t => t.AvailableOn).Distinct().Count() != tranches.Count ? Invalid("availability", "Each availability date appears once.")
+            : Result.Success();
+
     private static Result Invalid(string field, string message)
         => Result.Failure(new Failure(InvestmentsCodes.InvalidEnvelope, message, new Dictionary<string, object?> { ["field"] = field }));
 }

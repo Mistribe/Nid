@@ -45,8 +45,20 @@ internal static class EnvelopeAllocation
     }
 
     /// <summary>
+    /// #184: an employee savings plan's locked slices split by its tranches: what is released is a withdrawal away (days), the rest locked
+    /// until its date. Without tranches, unchanged.
+    /// </summary>
+    public static IReadOnlyList<AllocationSlice> Release(IReadOnlyList<AllocationSlice> slices, IReadOnlyList<AvailabilityTranche>? tranches, LocalDate today)
+        => tranches is not { Count: > 0 } ? slices : slices.SelectMany(s =>
+            s.Liquidity != AllocationLiquidity.Locked || EnvelopeAvailability.At(tranches, s.Amount, today) is not { } availability
+                ? [s]
+                : availability.Releases.Select(r => s with { Amount = r.Amount, AvailableOn = r.On })
+                    .Prepend(s with { Liquidity = AllocationLiquidity.Days, Amount = availability.AvailableToday })
+                    .Where(x => x.Amount != 0m)).ToList();
+
+    /// <summary>
     /// Current and savings accounts can be spent now; a PER (individual or collective) waits for retirement, a tontine for its term, a PEE
-    /// five years (#182: its release dates come with its contributions); the rest takes a sale or a withdrawal.
+    /// five years (#184: until the dates of its tranches, <see cref="Release"/>); the rest takes a sale or a withdrawal.
     /// </summary>
     internal static string Liquidity(EnvelopeKind kind) => kind switch
     {

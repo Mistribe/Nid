@@ -44,7 +44,7 @@ public sealed record EnvelopeDetail(
     decimal? UcShareFloorPct, AmountView? PremiumsBefore2017, FiguresView Figures, IReadOnlyList<ValuationView> Valuations, IReadOnlyList<FlowView> Flows,
     IReadOnlyList<ItemOwnerView> Owners, string ShareLevel, bool CanChangeOwners,
     string? Regulated = null, CeilingView? Ceiling = null, InterestEstimateView? Interest = null, TaxMilestoneView? Milestone = null,
-    RealPercentView? RealReturn = null) : IExposesItems, IExposesDocuments
+    RealPercentView? RealReturn = null, AvailabilityView? Availability = null) : IExposesItems, IExposesDocuments
 {
     public IEnumerable<ItemId> ExposedItems() => [Id];
 
@@ -55,6 +55,27 @@ public sealed record EnvelopeDetail(
         Valuations = Valuations.Select(v => v with { DocumentId = readable.Keep(v.DocumentId) }).ToList(),
         Flows = Flows.Select(f => f with { DocumentId = readable.Keep(f.DocumentId) }).ToList(),
     };
+}
+
+public sealed record TrancheView(LocalDate AvailableOn, AmountView Amount);
+
+public sealed record ReleaseView(LocalDate On, AmountView Amount);
+
+/// <summary>
+/// #184: an employee savings plan with tranches: the amount available today and the releases to come, shares of the latest value
+/// (null without one), and the tranches as printed, to edit them.
+/// </summary>
+public sealed record AvailabilityView(AmountView? AvailableToday, IReadOnlyList<ReleaseView> Releases, IReadOnlyList<TrancheView> Tranches)
+{
+    public static AvailabilityView? Of(IReadOnlyList<AvailabilityTranche>? tranches, Money? value, Currency currency, LocalDate today)
+    {
+        if (tranches is not { Count: > 0 }) return null;
+        AmountView Amount(decimal amount) => new(Money.Create(amount, currency).TryGetValue(out var m) ? m.AmountText : amount.ToString(System.Globalization.CultureInfo.InvariantCulture), currency.Code);
+        var printed = tranches.OrderBy(t => t.AvailableOn).Select(t => new TrancheView(t.AvailableOn, Amount(t.Amount))).ToList();
+        if (value is not { } v || EnvelopeAvailability.At(tranches, v.Amount, today) is not { } at)
+            return new AvailabilityView(null, [], printed);
+        return new AvailabilityView(Amount(at.AvailableToday), at.Releases.Select(r => new ReleaseView(r.On, Amount(r.Amount))).ToList(), printed);
+    }
 }
 
 public sealed record PeriodView(

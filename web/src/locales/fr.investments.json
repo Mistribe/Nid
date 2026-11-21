@@ -179,6 +179,27 @@
       "interest_expected": "attendus au 31 décembre : {{amount}}",
       "interest_note": "Estimation au taux réglementé ({{rate}} % aujourd’hui) et par quinzaines ; la valeur reste celle du relevé. Source : {{source}}"
     },
+    "availability": {
+      "title": "Disponibilité",
+      "tip": "Les sommes d’un PEE sont bloquées cinq ans après chaque versement, sauf cas de déblocage anticipé. Votre relevé indique, pour chaque date, le montant qui deviendra disponible : Nid répartit la dernière valeur du plan dans les mêmes proportions.",
+      "today": "Disponible aujourd’hui",
+      "next": "puis {{amount}} le {{date}}",
+      "none": "Renseignez les dates de disponibilité imprimées sur votre relevé. D’ici là, tout le plan compte comme bloqué.",
+      "all_available": "Tout le plan est disponible.",
+      "releases": "Prochaines dates de déblocage",
+      "on": "Disponible le",
+      "released": "Montant",
+      "enter": "Renseigner les dates",
+      "edit": "Modifier les dates",
+      "dialog": "Dates de disponibilité",
+      "how": "Recopiez chaque date de votre relevé avec le montant qui sera disponible ce jour-là, y compris ce qui l’est déjà.",
+      "amount": "Montant ({{currency}})",
+      "add": "Ajouter une date",
+      "remove": "Retirer la date {{n}}",
+      "date_format": "Saisissez une date au format jj/mm/aaaa.",
+      "duplicate": "Cette date figure déjà plus haut.",
+      "saved": "Dates de disponibilité enregistrées."
+    },
     "milestone": {
       "life_insurance_8y": "8 ans le {{date}}",
       "pea_5y": "5 ans le {{date}}",
