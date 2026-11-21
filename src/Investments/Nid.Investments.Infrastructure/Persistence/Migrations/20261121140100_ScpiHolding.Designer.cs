@@ -13,7 +13,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Nid.Investments.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(InvestmentsDbContext))]
-    [Migration("20261121110000_ScpiHolding")]
+    [Migration("20261121140100_ScpiHolding")]
     partial class ScpiHolding
     {
         /// <inheritdoc />
@@ -22,7 +22,7 @@ namespace Nid.Investments.Infrastructure.Persistence.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("investments")
-                .HasAnnotation("ProductVersion", "10.0.14")
+                .HasAnnotation("ProductVersion", "10.0.15")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -113,7 +113,7 @@ namespace Nid.Investments.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("ck_envelope_import", "(import_ref is null) = (import_hash is null) and (import_ref is null) = (imported_by is null)");
 
-                            t.HasCheckConstraint("ck_envelope_kind", "kind in ('checking','savings','pea','life_insurance','per','brokerage','other','tontine','scpi')");
+                            t.HasCheckConstraint("ck_envelope_kind", "kind in ('checking','savings','pea','life_insurance','per','brokerage','other','tontine','employee_savings','collective_per','scpi')");
 
                             t.HasCheckConstraint("ck_envelope_premiums_before_2017", "premiums_before_2017 is null or premiums_before_2017 >= 0");
 
