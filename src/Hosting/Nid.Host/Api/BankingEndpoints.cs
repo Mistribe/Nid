@@ -168,9 +168,10 @@ public static class BankingEndpoints
             .Returns<BankTransactionPage>();
 
         // #84: « Opérations »: every line the person reads, filtered, searched and paged by the server, with its total, converted totals and facets.
+        // #437: `scope` (me or household) keeps the accounts that scope's spending counts; without it, every account read.
         api.MapGet("/operations", async (IInvoker invoker, CancellationToken ct, [FromQuery] string[]? account = null, [FromQuery] string[]? owner = null,
                     string? from = null, string? to = null, [FromQuery] string[]? category = null, bool? uncategorised = null, string? state = null,
-                    string? direction = null, string? min = null, string? max = null, string? q = null, int? page = null) =>
+                    string? direction = null, string? min = null, string? max = null, string? q = null, int? page = null, string? scope = null) =>
             {
                 var reader = new FieldReader();
                 var (first, last) = (reader.Date(from, "from", required: false), reader.Date(to, "to", required: false));
@@ -195,7 +196,7 @@ public static class BankingEndpoints
                     ? reader.Problem()
                     : (await invoker.InvokeAsync(new ListOperationsQuery(new OperationFilter(
                             accounts, owners, first, last, categories, uncategorised ?? false, state, direction, lowest, highest,
-                            string.IsNullOrWhiteSpace(q) ? null : q.Trim()), Math.Max(page ?? 1, 1)), ct))
+                            string.IsNullOrWhiteSpace(q) ? null : q.Trim(), scope is null ? null : ParseScope(scope)), Math.Max(page ?? 1, 1)), ct))
                         .ToHttp(operations => operations);
             })
             .Returns<OperationPage>();

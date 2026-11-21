@@ -191,6 +191,7 @@
       "internal": "Interne",
       "internal_to": "Interne · {{name}}",
       "ignored": "Ignorée",
+      "counted": "Comptée dans les dépenses",
       "link": "Relier…",
       "ignore": "Ignorer",
       "unlink": "Délier",

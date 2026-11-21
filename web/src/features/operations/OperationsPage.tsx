@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import type { OperationsSearch } from '@/app/router';
+import type { RootSearch } from '@/lib/search';
 import { OwnerChips } from '@/components/OwnerChips';
 import { LocalDate } from '@/components/LocalDate';
 import { formatCurrency } from '@/components/Money';
@@ -32,7 +33,7 @@ export function OperationsPage() {
   const { t } = useTranslation();
   const { $api } = useApi();
   const navigate = useNavigate();
-  const search: OperationsSearch = useSearch({ strict: false });
+  const search: OperationsSearch & RootSearch = useSearch({ strict: false });
   const page = search.page ?? 1;
   const go = (change: Partial<OperationsSearch>) =>
     void navigate({ to: '.', replace: true, resetScroll: false, search: ((prev: OperationsSearch) => ({ ...prev, ...change })) as never });
@@ -40,6 +41,8 @@ export function OperationsPage() {
     account: search.account, owner: search.owner, category: search.category, from: search.from, to: search.to, uncategorised: search.uncategorised,
     state: search.state, direction: search.direction, min: search.min === undefined ? undefined : String(search.min),
     max: search.max === undefined ? undefined : String(search.max), q: search.q && search.q.trim().length >= MIN_SEARCH ? search.q.trim() : undefined, page: search.page,
+    // #437: the lines a figure of Dépenses counts are those of its Foyer / Moi accounts; any other state lists every account read.
+    scope: search.state === 'counted' ? (search.scope === 'me' ? 'me' : 'household') : undefined,
   };
   const answer = $api.useQuery('get', OPERATIONS, { params: { query } }, { placeholderData: keepPreviousData });
   // #426: the lines picked for « Catégoriser… », of the page shown: another page or filter starts with none.

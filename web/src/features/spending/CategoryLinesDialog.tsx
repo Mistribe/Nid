@@ -17,12 +17,12 @@ import '@/locales/spending';
 
 /**
  * #423: the Opérations tab on the lines of one figure, over its whole months: a category (the server adds its children) or, for
- * « Non classées », the uncategorised debits (the figure counts no credit).
+ * « Non classées », the uncategorised debits (the figure counts no credit). #437: only the lines the figure counts, on its scope's accounts.
  */
 export function operationsSearch(months: { from: string; to: string }, categoryId?: string) {
   const [y, m] = [Number(months.to.slice(0, 4)), Number(months.to.slice(5, 7))];
   return {
-    tab: 'operations' as const, from: `${months.from}-01`, to: `${months.to}-${daysIn(y, m)}`,
+    tab: 'operations' as const, state: 'counted' as const, from: `${months.from}-01`, to: `${months.to}-${daysIn(y, m)}`,
     ...(categoryId ? { category: [categoryId] } : { uncategorised: true, direction: 'out' as const }),
   };
 }

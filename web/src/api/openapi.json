@@ -13042,6 +13042,13 @@
               "type": "integer",
               "format": "int32"
             }
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {

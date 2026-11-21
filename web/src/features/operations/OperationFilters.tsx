@@ -10,7 +10,8 @@ import { Input } from '@/components/ui/input';
 import type { OperationPage } from '@/api/banking';
 import '@/locales/banks';
 
-const STATES = ['unlinked', 'linked', 'internal', 'ignored'] as const;
+// #437: « counted » is what a figure of Dépenses counts, on the Foyer / Moi accounts (OperationsPage sends the scope with it).
+const STATES = ['unlinked', 'linked', 'internal', 'ignored', 'counted'] as const;
 const NONE = 'none';
 const DEBOUNCE = 250;
 const ISO = /^\d{4}-\d{2}-\d{2}$/;

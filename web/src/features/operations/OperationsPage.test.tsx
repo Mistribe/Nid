@@ -66,6 +66,20 @@ describe('« Opérations »', () => {
     await waitFor(() => expect(body).toEqual({ module: 'subscriptions', itemId: 's1', key: '2026-10-27' }));
   });
 
+  // #437: a figure's lines: those it counts, on the Foyer / Moi accounts; « Foyer » is the scope the URL leaves out.
+  it.each([
+    ['/spending?scope=me&tab=operations&state=counted', '?state=counted&scope=me'],
+    ['/spending?tab=operations&state=counted', '?state=counted&scope=household'],
+  ])('%s asks for the lines the scope counts', async (url, expected) => {
+    let asked = '';
+    server.use(http.get('*/api/v1/banking/operations', ({ request }) => { asked = new URL(request.url).search; return HttpResponse.json(answer([netflix])); }));
+    await renderApp(url);
+
+    await screen.findByRole('table', { name: 'Opérations' });
+    expect(asked).toBe(expected);
+    expect(screen.getByRole('combobox', { name: 'État' })).toHaveTextContent('Comptée dans les dépenses');
+  });
+
   it('announces an ignored line', async () => {
     server.use(
       http.get('*/api/v1/banking/operations', () => HttpResponse.json(answer([netflix]))),

@@ -640,6 +640,9 @@ public static class RequestCatalogue
             new Nid.Banking.Application.Operations.OperationFilter([], [], null, null, [], false, null, null, null, null, null), 1)),
         new(typeof(Nid.Banking.Application.Operations.ListOperationsQuery), false, (_, _) => new Nid.Banking.Application.Operations.ListOperationsQuery(
             new Nid.Banking.Application.Operations.OperationFilter([], [], null, null, [], true, "all", "out", 1m, 100m, "cb"), 1)),
+        // #437: a spending figure's lines: its scope's accounts, the lines it counts.
+        new(typeof(Nid.Banking.Application.Operations.ListOperationsQuery), false, (_, _) => new Nid.Banking.Application.Operations.ListOperationsQuery(
+            new Nid.Banking.Application.Operations.OperationFilter([], [], null, null, [], false, "counted", null, null, null, null, VisibilityScope.Household), 1)),
         // 5C, D19: every readable account's lines; the joint line's link to A's private subscription never reaches B.
         new(typeof(ListBankLinesQuery), false, (_, _) => new ListBankLinesQuery("all", null, null, 1)),
         new(typeof(ListBankLinesQuery), false, (_, _) => new ListBankLinesQuery("all", null, null, 1, Uncategorised: true)),

@@ -12235,6 +12235,7 @@ export interface paths {
                     max?: string;
                     q?: string;
                     page?: number;
+                    scope?: string;
                 };
                 header?: never;
                 path?: never;
