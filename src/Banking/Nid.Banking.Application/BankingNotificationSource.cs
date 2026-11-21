@@ -1,6 +1,7 @@
 using System.Globalization;
 using Microsoft.Extensions.Logging;
 using Nid.Banking.Application.Reconciliation;
+using Nid.Banking.Application.Spending;
 using Nid.Banking.Contracts;
 using Nid.Banking.Domain;
 using Nid.Core.Contracts;
@@ -19,13 +20,13 @@ namespace Nid.Banking.Application;
 /// 5C spec §6.3, §6.6: a line that paid another amount than its charge, and a charge the bank never took, as findings for the readers of the item
 /// (amounts as decimal strings, never a label). Issue #81: the shortfall ahead on a checking account and idle cash on the checking accounts,
 /// opt-in, whose figures only the centre shows. Issue #362: a card under its minimum usage a few days before the month ends, opt-in,
-/// for whoever sets the card.
+/// for whoever sets the card. Issue #305: a category whose month runs away, opt-in, over « Foyer »'s lines the reader reads.
 /// </summary>
 public sealed class BankingNotificationSource(
     IConnectionStore connections, IHouseholdSettings settings, IHouseholdCalendar calendar, ILinkStore links, ExpectedChargeReader charges,
     IAccessPolicy policy, IAccountStore accounts, BankingAccess access, IBalanceStore balances, IExpectedIncome income, ISignalSettings signalSettings,
     IEmergencyBuffer buffers, ISavingsRoom savings, ITransactionStore transactions, IAccountReadLog reads, IClock clock,
-    ILogger<BankingNotificationSource> logger) : INotificationSource
+    GetSpendingHandler spending, SpendingAccounts scopes, ILogger<BankingNotificationSource> logger) : INotificationSource
 {
     public const string ConsentExpiring = "banking.consent_expiring";
     public const string ConsentExpired = "banking.consent_expired";
@@ -36,6 +37,7 @@ public sealed class BankingNotificationSource(
     public const string ShortfallAhead = "shortfall_ahead";
     public const string IdleCash = "idle_cash";
     public const string CardUnused = "card_unused";
+    public const string UnusualSpending = "unusual_spending";
 
     /// <summary>How far back a charge still counts as not taken.</summary>
     private const int MissingDays = 62;
@@ -55,6 +57,8 @@ public sealed class BankingNotificationSource(
         new(IdleCash, "finding", NotificationLevel.Info, "banking", null, new SignalThreshold(3m, 1m, 24m, "months")),
         // Issue #362: how many days before the month's end.
         new(CardUnused, "finding", NotificationLevel.Action, "banking", null, new SignalThreshold(5m, 1m, 20m, "days")),
+        // Issue #305: how far above the usual month, in percent.
+        new(UnusualSpending, "finding", NotificationLevel.Info, "banking", null, new SignalThreshold(50m, 10m, 500m, "pct")),
     ];
 
     public async Task<Result<IReadOnlyList<Signal>>> SignalsAsync(PersonId reader, LocalDate today, LocalDate horizon, CancellationToken ct)
@@ -96,6 +100,8 @@ public sealed class BankingNotificationSource(
             signals.Add(idle);
         if (turnedOn.TryGetValue(CardUnused, out var days))
             await AddCardUnusedAsync(signals, reader, today, (int)days, ct);
+        if (turnedOn.TryGetValue(UnusualSpending, out var percent))
+            await AddUnusualSpendingAsync(signals, reader, today, percent, ct);
         return Result.Success<IReadOnlyList<Signal>>(signals);
     }
 
@@ -130,6 +136,60 @@ public sealed class BankingNotificationSource(
                     ["card"] = card.Name, ["number"] = card.IbanMasked ?? "",
                     ["count"] = count.ToString(CultureInfo.InvariantCulture), ["min"] = min.ToString(CultureInfo.InvariantCulture),
                 }));
+        }
+    }
+
+    /// <summary>
+    /// Issue #305: each expense category of « Foyer » (the accounts every adult reads, as the spending view counts them for the reader) whose
+    /// month runs away (<see cref="Domain.UnusualSpending"/>), once per category and month (the key). A child that stands out above its
+    /// usual month says it for its parent. The centre alone shows the figures and the three heaviest lines (bank text, which may hold amounts).
+    /// </summary>
+    private async Task AddUnusualSpendingAsync(List<Signal> signals, PersonId reader, LocalDate today, decimal percent, CancellationToken ct)
+    {
+        var month = today.ToYearMonth();
+        var read = await spending.HandleAsync(new GetSpendingQuery(VisibilityScope.Household, month, null, null), ct);
+        if (!read.TryGetValue(out var view))
+        {
+            logger.LogWarning("The spending of {Person} could not be read: {Code}", reader.Value, read.TryGetFailure(out var f) ? f!.Code : "banking.unknown");
+            return;
+        }
+        static decimal? Amount(string? text) => text is null ? null : decimal.Parse(text, CultureInfo.InvariantCulture);
+        IReadOnlyList<Guid>? accounts = null;
+
+        async Task<string?> TellAsync(SpendingCategoryView category, bool childTold)
+        {
+            var (spent, usual, planned, expected) = (Amount(category.Amount)!.Value, Amount(category.Average), Amount(category.Budget?.Planned),
+                Amount(category.Budget?.ExpectedSoFar));
+            var reason = Domain.UnusualSpending.Find(today, percent, spent, usual, planned, expected);
+            if (reason is null || (childTold && reason == Domain.UnusualSpending.AboveUsual))
+                return reason;
+            accounts ??= await scopes.ForAsync(VisibilityScope.Household, ct);
+            var (lines, _) = await transactions.SpendingLinesAsync(accounts, [category.Id, .. category.Children.Select(c => c.Id)], false,
+                month.ToDateInterval().Start, month.ToDateInterval().End, 0, int.MaxValue, ct);
+            var figures = new Dictionary<string, string>
+            {
+                ["category"] = category.Id.ToString("D"), ["name"] = category.Name, ["month"] = YearMonthPattern.Iso.Format(month), ["reason"] = reason,
+                ["spent_amount"] = category.Amount, ["currency"] = view!.Currency,
+                // ponytail: ranked by the lines' own amounts, whatever their currency; most households hold one.
+                ["lines"] = string.Join(", ", lines.Where(l => l.Amount < 0).OrderBy(l => l.Amount).Take(3).Select(l => l.Line.Label.Trim())),
+            };
+            if (category.Average is { } average)
+                figures["usual_amount"] = average;
+            if (category.Budget is { } budget)
+                figures["budget_amount"] = budget.Planned;
+            if (reason == Domain.UnusualSpending.BudgetPace)
+                figures["projected_amount"] = decimal.Round(Domain.UnusualSpending.Projected(planned!.Value, expected!.Value, spent, today), 2)
+                    .ToString(CultureInfo.InvariantCulture);
+            signals.Add(new Signal(SignalKeys.Monthly(UnusualSpending, new ItemId(category.Id), today), UnusualSpending, [], null, figures));
+            return reason;
+        }
+
+        foreach (var top in view!.Categories)
+        {
+            var childTold = false;
+            foreach (var child in top.Children)
+                childTold |= await TellAsync(child, false) is not null;
+            await TellAsync(top, childTold);
         }
     }
 
