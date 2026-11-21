@@ -13,7 +13,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Nid.Banking.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(BankingDbContext))]
-    [Migration("20261120130000_InterestCategory16")]
+    [Migration("20261121090000_InterestCategory16")]
     partial class InterestCategory16
     {
         /// <inheritdoc />
