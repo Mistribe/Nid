@@ -26,8 +26,12 @@ function serve() {
     http.post('*/api/v1/banking/transactions/category', async ({ request }) => write('categorise', await request.json(), { changed: ['t1', 't2'], refused: [] })),
     http.post('*/api/v1/banking/category-suggestions/dismissals', async ({ request }) => write('dismiss', await request.json(), { id: 'd1' }, 201)),
     http.post('*/api/v1/banking/category-rules/preview', () => HttpResponse.json({ total: 2, items: [], conflicts: [], tooBroad: false })),
-    http.post('*/api/v1/banking/category-rules', async ({ request }) => { writes.push(['rule', await request.json()]); return HttpResponse.json({ id: 'r1' }, { status: 201 }); }),
-    http.post('*/api/v1/banking/category-rules/:id/apply', ({ params }) => write(`apply ${String(params.id)}`, null, { changed: 2 })),
+    // As the server: the new rule matches the group's lines, so the block empties before the rule is applied to them.
+    http.post('*/api/v1/banking/category-rules', async ({ request }) => write('rule', await request.json(), { id: 'r1' }, 201)),
+    http.post('*/api/v1/banking/category-rules/:id/apply', async ({ params }) => {
+      // The apply answers once the block has emptied, as it did on a real stack.
+      await waitFor(() => expect(screen.queryByRole('region', { name: /suggestion/ })).not.toBeInTheDocument());
+      return write(`apply ${String(params.id)}`, null, { changed: 2 }); }),
   );
   return writes;
 }

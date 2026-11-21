@@ -37,39 +37,44 @@ export function CategorySuggestions() {
   const [offer, setOffer] = useState<CategorySuggestion | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const data = answer.data;
-  if (!data || data.total === 0) return null;
   // The group a write removes takes its buttons with it: the focus goes to the block's heading.
   const done = (message: string) => { toast.success(message); heading.current?.focus(); };
+  // Beside the block, at the same place whether it shows or not: a new rule takes the group's lines, so the block empties while the
+  // offer still applies the rule to them, and the offer must stay mounted to finish and say so.
+  const dialog = offer ? (
+    <Suspense fallback={null}>
+      <RuleOfferDialog line={offer.lines[0]!} category={offer.categoryName} categoryId={offer.categoryId}
+        onClose={() => setOffer(null)} onDone={(message) => { setOffer(null); done(message); }} />
+    </Suspense>
+  ) : null;
+  if (!data || data.total === 0) return <>{null}{dialog}</>;
   // A page emptied by the last write steps back.
   if (data.items.length === 0 && page > 1) setPage(Math.max(1, Math.ceil(data.total / PAGE_SIZE)));
   const error = categoriseMany.error ?? dismiss.error;
 
   return (
-    <Section title={t('banks.suggestions.title', { count: data.total })} headingRef={heading}
-      tip={<InfoTip label={t('banks.suggestions.title', { count: data.total })}>{t('banks.suggestions.about')}</InfoTip>}>
-      {error ? <ProblemMessage problem={presentBankError(t, error)} /> : null}
-      <Folded label={t('banks.suggestions.show', { count: data.total })} hasError={false}>
-        <ul className="divide-y">
-          {data.items.map((s) => (
-            <Suggestion key={`${s.pattern}-${s.direction}`} suggestion={s} busy={categoriseMany.isPending || dismiss.isPending}
-              onRule={() => setOffer(s)}
-              onCategorise={() => categoriseMany.mutate({ body: { transactionIds: s.lines.map((l) => l.id), categoryId: s.categoryId } }, {
-                onSuccess: (result) => done(t('banks.suggestions.done_categorise', { count: result.changed.length, category: s.categoryName })),
-              })}
-              onIgnore={() => dismiss.mutate({ body: { pattern: s.pattern, direction: s.direction, categoryId: s.categoryId } }, {
-                onSuccess: () => done(t('banks.suggestions.done_ignore')),
-              })} />
-          ))}
-        </ul>
-        <Pager page={page} total={data.total} pageSize={PAGE_SIZE} label={t('banks.suggestions.pages')} onPage={setPage} />
-      </Folded>
-      {offer ? (
-        <Suspense fallback={null}>
-          <RuleOfferDialog line={offer.lines[0]!} category={offer.categoryName} categoryId={offer.categoryId}
-            onClose={() => setOffer(null)} onDone={(message) => { setOffer(null); done(message); }} />
-        </Suspense>
-      ) : null}
-    </Section>
+    <>
+      <Section title={t('banks.suggestions.title', { count: data.total })} headingRef={heading}
+        tip={<InfoTip label={t('banks.suggestions.title', { count: data.total })}>{t('banks.suggestions.about')}</InfoTip>}>
+        {error ? <ProblemMessage problem={presentBankError(t, error)} /> : null}
+        <Folded label={t('banks.suggestions.show', { count: data.total })} hasError={false}>
+          <ul className="divide-y">
+            {data.items.map((s) => (
+              <Suggestion key={`${s.pattern}-${s.direction}`} suggestion={s} busy={categoriseMany.isPending || dismiss.isPending}
+                onRule={() => setOffer(s)}
+                onCategorise={() => categoriseMany.mutate({ body: { transactionIds: s.lines.map((l) => l.id), categoryId: s.categoryId } }, {
+                  onSuccess: (result) => done(t('banks.suggestions.done_categorise', { count: result.changed.length, category: s.categoryName })),
+                })}
+                onIgnore={() => dismiss.mutate({ body: { pattern: s.pattern, direction: s.direction, categoryId: s.categoryId } }, {
+                  onSuccess: () => done(t('banks.suggestions.done_ignore')),
+                })} />
+            ))}
+          </ul>
+          <Pager page={page} total={data.total} pageSize={PAGE_SIZE} label={t('banks.suggestions.pages')} onPage={setPage} />
+        </Folded>
+      </Section>
+      {dialog}
+    </>
   );
 }
 
