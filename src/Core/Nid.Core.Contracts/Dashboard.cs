@@ -81,6 +81,27 @@ public sealed record SpendingPart(IReadOnlyDictionary<Currency, decimal> Total, 
     public static readonly SpendingPart None = new(new Dictionary<Currency, decimal>(), []);
 }
 
+/// <summary>
+/// Issue #425: Accueil's « Reste réel » and its parts for one month, in the household's reference currency, so the spending page shows
+/// the same figures. <c>Income</c> null without a declared source (« inconnu », never 0) or with a missing rate; <c>Committed</c> null with
+/// a missing rate; <c>Everyday</c> null without a bank account or with a missing rate.
+/// </summary>
+public sealed record MonthBudget(decimal? Income, decimal? Committed, decimal? Everyday)
+{
+    public decimal? Margin => Income - Committed;
+
+    public decimal? Left => Margin - Everyday;
+}
+
+public interface IMonthBudget
+{
+    /// <summary>
+    /// The month of <paramref name="month"/> as Accueil reads it: the current one on <paramref name="today"/>, another on its last day, a
+    /// past one with the items archived since (as the annual review's past months).
+    /// </summary>
+    Task<Result<MonthBudget>> MonthAsync(PersonId reader, VisibilityScope scope, YearMonth month, LocalDate today, CancellationToken ct);
+}
+
 /// <summary>A top-level category's spending; <c>Category</c> null for the lines without one, so slices group by it, never by name.</summary>
 public sealed record SpendingSlice(Guid? Category, string Name, IReadOnlyDictionary<Currency, decimal> Amount);
 

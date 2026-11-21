@@ -27,7 +27,7 @@ public sealed class GetDashboardHandler(DashboardReader dashboard, IActorAccesso
 public sealed class DashboardReader(
     IEnumerable<INetWorthContribution> netWorth, IEnumerable<ICommitmentsContribution> commitments,
     IEnumerable<IIncomeContribution> income, IEnumerable<ISpendingContribution> spending, IEnumerable<IUpcomingEvents> upcoming, PerDeadline perDeadline,
-    IHouseholdSettings household, IFxRates fx, IPersonRegistry persons, TaxCalendarEvents taxCalendar)
+    IHouseholdSettings household, IFxRates fx, IPersonRegistry persons, TaxCalendarEvents taxCalendar) : IMonthBudget
 {
     /// <summary><paramref name="withSpending"/> false leaves the everyday spending out (null), as the notifications never use it.</summary>
     public async Task<Result<DashboardView>> ReadAsync(PersonId reader, VisibilityScope scope, LocalDate today, CancellationToken ct, bool withSpending = true)
@@ -62,6 +62,26 @@ public sealed class DashboardReader(
         var people = await persons.ListAsync(ct);
         var target = await household.AllocationTargetAsync(ct);
         return Result.Success(DashboardMath.Compose(w!, c!, e!, s!, d!.SelectMany(x => x).ToList(), people, reference, rates, today, target, [.. p!, .. taxDates]));
+    }
+
+    /// <summary>Issue #425: the parts <see cref="ReadAsync"/> reads, through the same <see cref="DashboardMath.Budget"/>.</summary>
+    public async Task<Result<MonthBudget>> MonthAsync(PersonId reader, VisibilityScope scope, YearMonth month, LocalDate today, CancellationToken ct)
+    {
+        var day = month == today.ToYearMonth() ? today : month.ToDateInterval().End;
+        var committed = await Contributions.CollectAsync(commitments, c => c.CommitmentsAsync(reader, scope, day, ct, includeArchived: month < today.ToYearMonth()));
+        if (committed.TryGetFailure(out var failure)) return Result.Failure<MonthBudget>(failure!);
+        var earned = await Contributions.CollectAsync(income, c => c.IncomeAsync(reader, scope, day, ct));
+        if (earned.TryGetFailure(out failure)) return Result.Failure<MonthBudget>(failure!);
+        var spent = await Contributions.CollectAsync(spending, s => s.EverydayAsync(reader, scope, day, ct));
+        if (spent.TryGetFailure(out failure)) return Result.Failure<MonthBudget>(failure!);
+        committed.TryGetValue(out var c);
+        earned.TryGetValue(out var e);
+        spent.TryGetValue(out var s);
+
+        var reference = await household.ReferenceCurrencyAsync(ct);
+        var foreign = DashboardMath.Currencies([], c!, e!, s!).Where(x => x != reference).ToList();
+        var rates = foreign.Count == 0 ? RateTable.Empty(day, 0) : await fx.LoadAsync(foreign.Append(reference).ToList(), day, day, ct);
+        return Result.Success(DashboardMath.Budget(c!, e!, s!, reference, rates, day));
     }
 
     /// <summary>

@@ -248,21 +248,23 @@ function Figures({ data, period, year, household, onOpen, onBudget, categories, 
 
   return (
     <>
-      <StatLine items={[
-        { label: t('spending.total'), value: money(data.total), hint: period },
-        { label: t('spending.average'), value: data.average ? money(data.average) : '—', hint: data.average ? t(year ? 'spending.average_hint_period' : 'spending.average_hint') : t('spending.average_none'), tip: t('spending.average_tip') },
-        { label: t('spending.uncategorised'), value: money(data.uncategorised.amount), tip: t('spending.uncategorised_tip'), hint: toOperations },
-      ]} />
-      {data.incomplete ? <Incomplete /> : null}
-      {budgets && data.budgetIncomplete ? <Incomplete text={t('spending.budget_incomplete')} /> : null}
+      {year ? null : <MonthLeft data={data} />}
       {year ? (
         <Suspense fallback={<Loading label={t('spending.loading')}><Skeleton className="h-48 w-full" /></Loading>}>
           <MonthsChart months={data.months} currency={data.currency} />
         </Suspense>
       ) : null}
-      <SectionCard title={t('spending.by_category')} note={period} actions={budgets ? (
+      <SectionCard title={t('spending.by_category')} note={period} className="space-y-4" actions={budgets ? (
         <Button id={menuId(ADD)} type="button" variant="outline" size="sm" onClick={() => onBudget('pick')}>{t('spending.budget.add')}</Button>
       ) : null}>
+        {/* #425: where the month went, above its table; what is left comes first, above the card. */}
+        <StatLine items={[
+          { label: t('spending.total'), value: money(data.total), hint: period },
+          { label: t('spending.average'), value: data.average ? money(data.average) : '—', hint: data.average ? t(year ? 'spending.average_hint_period' : 'spending.average_hint') : t('spending.average_none'), tip: t('spending.average_tip') },
+          { label: t('spending.uncategorised'), value: money(data.uncategorised.amount), tip: t('spending.uncategorised_tip'), hint: toOperations },
+        ]} />
+        {data.incomplete ? <Incomplete /> : null}
+        {budgets && data.budgetIncomplete ? <Incomplete text={t('spending.budget_incomplete')} /> : null}
         {data.categories.length === 0 ? (
           <>
             <EmptyState module="/spending" level={3} title={t('spending.no_category_title')} body={t('spending.no_category_body')}
@@ -318,5 +320,37 @@ function Figures({ data, period, year, household, onOpen, onBudget, categories, 
         ) : null}
       </SectionCard>
     </>
+  );
+}
+
+/**
+ * #425: what is left this month (Accueil's « Reste réel ») and its parts, then how the month would end as usual. Every figure is the
+ * server's, its sign read off its text: an overspend reads « Dépassement de » the amount without its minus.
+ */
+function MonthLeft({ data }: { data: Spending }) {
+  const { t } = useTranslation();
+  const money = (amount: string) => formatCurrency(amount, data.currency);
+  const known = (amount: string | null | undefined) => (amount ? money(amount) : '—');
+  // No income declared: « inconnu », never 0, with the way to declare one.
+  const left = !data.income ? t('spending.left.unknown')
+    : data.left?.startsWith('-') ? <span className="text-status-critical">{t('spending.left.over', { amount: money(data.left.slice(1)) })}</span>
+    : known(data.left);
+  const estimate = data.leftEstimate;
+  return (
+    <div className="space-y-2">
+      <StatLine items={[
+        { label: t('spending.left.title'), value: left, tip: t('spending.left.tip'),
+          hint: data.income ? undefined : <Link to="/income" className="font-medium text-foreground underline underline-offset-4">{t('spending.left.declare_income')}</Link> },
+        { label: t('spending.left.income'), value: data.income ? money(data.income) : t('spending.left.unknown'), tip: t('spending.left.income_tip') },
+        { label: t('spending.left.committed'), value: known(data.committed), tip: t('spending.left.committed_tip') },
+        { label: t('spending.left.everyday'), value: known(data.everyday), tip: t('spending.left.everyday_tip') },
+      ]} />
+      {estimate ? (
+        <p className="flex items-center gap-1 text-sm text-muted-foreground">
+          {estimate.startsWith('-') ? t('spending.left.estimate_over', { amount: money(estimate.slice(1)) }) : t('spending.left.estimate', { amount: money(estimate) })}
+          <InfoTip label={t('spending.left.estimate_label')}>{t('spending.left.estimate_tip')}</InfoTip>
+        </p>
+      ) : null}
+    </div>
   );
 }

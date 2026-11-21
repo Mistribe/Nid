@@ -1,3 +1,4 @@
+using Nid.Banking.Contracts;
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
 using NodaTime;
@@ -30,10 +31,9 @@ public sealed class DashboardSpending(
         var month = today.ToYearMonth().ToDateInterval();
         foreach (var sum in await lines.SpendingAsync(accounts, month.Start, month.End, ct, withLinked: false))
         {
-            // Guid.Empty: no category.
-            var top = sum.Category is { } id && byId.TryGetValue(id, out var category) ? category.Parent ?? category.Id : Guid.Empty;
-            if (top != Guid.Empty && byId[top].Key == Taxes || GetSpendingHandler.Spending(sum, byId) is not { } amount || amount == 0m)
+            if (Everyday(sum, byId) is not { } amount || amount == 0m)
                 continue;
+            var top = Top(sum, byId);
             total[sum.Currency] = total.GetValueOrDefault(sum.Currency) + amount;
             var slice = slices.TryGetValue(top, out var found) ? found : slices[top] = [];
             slice[sum.Currency] = slice.GetValueOrDefault(sum.Currency) + amount;
@@ -41,4 +41,15 @@ public sealed class DashboardSpending(
         return Result.Success(new SpendingPart(total,
             [.. slices.Select(s => s.Key == Guid.Empty ? new SpendingSlice(null, Uncategorised, s.Value) : new SpendingSlice(s.Key, byId[s.Key].Name, s.Value))]));
     }
+
+    /// <summary>
+    /// What <paramref name="sum"/> (of lines not linked to an item) adds to the everyday spending: its spending, none in the tax category.
+    /// Issue #425: the spending page's usual everyday month counts the same.
+    /// </summary>
+    internal static decimal? Everyday(SpendingSum sum, IReadOnlyDictionary<Guid, BankCategory> byId)
+        => Top(sum, byId) is var top && top != Guid.Empty && byId[top].Key == Taxes ? null : GetSpendingHandler.Spending(sum, byId);
+
+    /// <summary>The top-level category of <paramref name="sum"/>; Guid.Empty for none.</summary>
+    private static Guid Top(SpendingSum sum, IReadOnlyDictionary<Guid, BankCategory> byId)
+        => sum.Category is { } id && byId.TryGetValue(id, out var category) ? category.Parent ?? category.Id : Guid.Empty;
 }

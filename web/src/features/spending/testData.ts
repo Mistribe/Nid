@@ -16,11 +16,13 @@ export const month: Spending = {
   ],
   uncategorised: { amount: '300.00', average: '250.00' },
   months: [{ month: '2026-11', total: '1234.56' }],
+  // #425: Accueil's month, and how it would end as usual.
+  income: '3200.00', committed: '1500.00', everyday: '900.00', left: '800.00', leftEstimate: '600.00',
 };
 
 /** The same household over the 12 months to November 2026, each month's figure the server's. */
 export const year: Spending = {
-  ...month, total: '14400.00', from: '2025-12', to: '2026-11',
+  ...month, total: '14400.00', from: '2025-12', to: '2026-11', income: null, committed: null, everyday: null, left: null, leftEstimate: null,
   months: ['2025-12', '2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10', '2026-11']
     .map((m, i) => ({ month: m, total: i === 0 ? '1500.00' : '1172.73' })),
 };

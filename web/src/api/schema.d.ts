@@ -39741,6 +39741,11 @@ export interface components {
             to: string;
             months: components["schemas"]["SpendingMonthView"][];
             budgetIncomplete: boolean;
+            income?: null | string;
+            committed?: null | string;
+            everyday?: null | string;
+            left?: null | string;
+            leftEstimate?: null | string;
         };
         SpentView: {
             /** Format: date */
