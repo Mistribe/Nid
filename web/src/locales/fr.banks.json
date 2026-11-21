@@ -267,7 +267,6 @@
       "gap": "écart {{gap}}",
       "submit": "Relier"
     },
-    "tabs": { "accounts": "Comptes", "application": "Mon application" },
     "application": {
       "title": "Mon application Enable Banking",
       "intro": "Sans application à vous, Nid utilise celle de l’installation. Si vous avez créé la vôtre sur le portail Enable Banking, déclarez-la ici : vos banques seront reliées avec elle.",

@@ -17,6 +17,7 @@ export const ACCOUNTS = '/api/v1/banking/accounts' as const;
 export const ACCOUNT = '/api/v1/banking/accounts/{id}' as const;
 export const ACCOUNT_ENVELOPE = '/api/v1/banking/accounts/{id}/envelope' as const;
 export const SYNC = '/api/v1/banking/sync' as const;
+export const APPLICATION = '/api/v1/banking/application' as const;
 export const RULES = '/api/v1/banking/rules' as const;
 export const RULE = '/api/v1/banking/rules/{id}' as const;
 

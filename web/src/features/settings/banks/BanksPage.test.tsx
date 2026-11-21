@@ -304,16 +304,36 @@ describe('Réglages › Banques', () => {
     await waitFor(() => expect(deleted).toBe(CONNECTION));
   });
 
-  it('opens on « Comptes »; « Catégories » moved to Dépenses, its old address with it', async () => {
+  const headings = () => within(screen.getByRole('main')).getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
+
+  it('is one page of sections, « Mon application » last once the person has a connection (#413); « Catégories » moved to Dépenses', async () => {
     serveBanks([connection()]);
     const { router } = await renderApp('/settings/banks');
 
-    expect(await screen.findByRole('tab', { name: 'Comptes', selected: true })).toBeInTheDocument();
-    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Comptes', 'Mon application']);
+    await screen.findByRole('region', { name: 'Mon application Enable Banking' });
+    expect(screen.queryByRole('tab')).toBeNull();
+    expect(headings()).toEqual(['BNP Paribas', 'Règles mémorisées', 'Mon application Enable Banking']);
 
     await router.navigate({ href: '/settings/banks?tab=categories&kind=income&scope=me' });
     await waitFor(() => expect(router.state.location.pathname).toBe('/spending'));
     expect(router.state.location.search).toEqual({ scope: 'me', tab: 'categories', kind: 'income' });
+  });
+
+  it('puts « Mon application » first while the person has neither an application nor a connection', async () => {
+    serveBanks([]);
+    await renderApp('/settings/banks');
+
+    await screen.findByRole('button', { name: 'Déclarer mon application' });
+    expect(headings()[0]).toBe('Mon application Enable Banking');
+  });
+
+  it('leads `?tab=application` to « Mon application », its heading focused', async () => {
+    serveBanks([connection()]);
+    await renderApp('/settings/banks?tab=application');
+
+    const heading = await screen.findByRole('heading', { name: 'Mon application Enable Banking' });
+    await waitFor(() => expect(heading).toHaveFocus());
+    expect(heading.closest('section')).toHaveAttribute('id', 'application');
   });
 
   it('lists and deletes a rule', async () => {
