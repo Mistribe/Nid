@@ -20,7 +20,7 @@ namespace Nid.RealEstate.Application.Import;
 /// </summary>
 public sealed partial class RealEstateImportSection(
     IItemRegistry items, IPropertyStore properties, ILoanStore loans, IRealEstateImports imports, IAccessPolicy policy, IItemRules rules,
-    IHouseholdCalendar calendar, IVisibleItems visible, IPersonRegistry persons) : IImportSection
+    IHouseholdCalendar calendar, IVisibleItems visible, IPersonRegistry persons, IFinancedEnvelopes financed) : IImportSection
 {
     public const string PropertiesSection = "properties";
     public const string CostsSection = "property_recurring_costs";
