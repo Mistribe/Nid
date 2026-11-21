@@ -76,10 +76,56 @@ public class SpendingLeftTests(PostgresFixture fixture) : IClassFixture<Postgres
         Assert.Equal("300.00", Text(september, "everyday"));
         Assert.NotNull(Text(september, "left"));
         Assert.Null(Text(september, "leftEstimate"));
-        // A period: none of them.
+        // A period is no month to end: no estimate (#428 gives it the other figures).
         var period = await SpendingTests.SpendingAsync(app, app.AdultA, "?scope=me&from=2024-11&to=2025-10");
-        Assert.Equal((null, null, null, null, null),
-            (Text(period, "income"), Text(period, "committed"), Text(period, "everyday"), Text(period, "left"), Text(period, "leftEstimate")));
+        Assert.Null(Text(period, "leftEstimate"));
+    }
+
+    [Fact]
+    public async Task A_period_shows_each_month_as_its_month_view_and_adds_them_up_with_the_savings_rate()
+    {
+        await using var app = await BankingApi.StartAsync(fixture);
+        await BankingApi.ConnectAsync(app, app.AdultA, "code-a", BankingApi.Account("uid-1", "hash-1", null, "Compte"));
+        var account = (await SpendingTests.AccountsAsync(app, app.AdultA))["Compte"];
+        await SpendingTests.LineAsync(app, account, new(2025, 8, 10), -300m, "food.groceries");
+        await SpendingTests.LineAsync(app, account, new(2025, 9, 10), -200m, "food.groceries");
+        await SpendingTests.LineAsync(app, account, new(2025, 10, 3), -100m, "food.groceries");
+        const string query = "?scope=me&from=2025-07&to=2025-10";
+
+        // No income declared: unknown each month and over the period, and no savings rate; the spending is still added up.
+        var unknown = await SpendingTests.SpendingAsync(app, app.AdultA, query);
+        Assert.All(unknown.GetProperty("months").EnumerateArray(), m => Assert.Null(Text(m, "income")));
+        Assert.Equal((null, null, "600.00"), (Text(unknown, "income"), Text(unknown, "left"), Text(unknown, "everyday")));
+        Assert.Equal(JsonValueKind.Null, unknown.GetProperty("savingsRate").ValueKind);
+
+        // A raise from September: 1 000 a month, then 1 500.
+        var salary = await app.NewIncomeSourceAsync("Salaire Alice", app.AdultA);
+        foreach (var phase in new object[]
+                 {
+                     new { label = "Salaire", startsOn = "2025-01-01", endsOn = "2025-09-01", netAmount = new { amount = "1000", currency = "EUR" }, every = new { count = 1, unit = "month" } },
+                     new { label = "Salaire", startsOn = "2025-09-01", netAmount = new { amount = "1500", currency = "EUR" }, every = new { count = 1, unit = "month" } },
+                 })
+            (await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/income/sources/{salary.Value}/phases", phase)).EnsureSuccessStatusCode();
+
+        var period = await SpendingTests.SpendingAsync(app, app.AdultA, query);
+        var months = period.GetProperty("months").EnumerateArray().ToList();
+        Assert.Equal(["1000.00", "1000.00", "1500.00", "1500.00"], months.Select(m => Text(m, "income")));
+        Assert.Equal(["0.00", "300.00", "200.00", "100.00"], months.Select(m => Text(m, "everyday")));
+        // Each month is its month view's, the current one included.
+        foreach (var m in months)
+        {
+            var alone = await SpendingTests.SpendingAsync(app, app.AdultA, $"?scope=me&month={Text(m, "month")}");
+            Assert.Equal((Text(alone, "income"), Text(alone, "committed"), Text(alone, "everyday"), Text(alone, "left")),
+                (Text(m, "income"), Text(m, "committed"), Text(m, "everyday"), Text(m, "left")));
+        }
+
+        // The period adds its months up; the savings rate is what is left of the income, to 0.1 %.
+        decimal Total(string property) => months.Sum(m => Number(m, property));
+        Assert.Equal((5000m, Total("committed"), 600m, Total("left")),
+            (Number(period, "income"), Number(period, "committed"), Number(period, "everyday"), Number(period, "left")));
+        Assert.Equal(Number(period, "income") - Number(period, "committed") - Number(period, "everyday"), Number(period, "left"));
+        Assert.Equal(Math.Round(Number(period, "left") / 5000m * 100m, 1, MidpointRounding.AwayFromZero), period.GetProperty("savingsRate").GetDecimal());
+        Assert.Null(Text(period, "leftEstimate"));
     }
 
     [Fact]

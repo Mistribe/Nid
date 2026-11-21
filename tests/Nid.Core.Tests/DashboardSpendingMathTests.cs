@@ -60,6 +60,21 @@ public class DashboardSpendingMathTests
     }
 
     [Fact]
+    public void A_period_adds_its_months_up_and_its_savings_rate_is_what_is_left_of_the_income()
+    {
+        // #428: a raise in the second month; what is left of 4 500 is 1 000, 22.2 %.
+        var period = MonthBudget.Sum([new MonthBudget(2000m, 1000m, 700m), new MonthBudget(2500m, 1000m, 800m)]);
+        Assert.Equal((4500m, 2000m, 1500m, 1000m, 22.2m), (period.Income, period.Committed, period.Everyday, period.Left, period.SavingsRate));
+        // Overspent: a negative rate.
+        Assert.Equal(-10m, new MonthBudget(1000m, 600m, 500m).SavingsRate);
+
+        // One month unknown makes the period's part unknown; no income, or none above 0, has no rate.
+        var unknown = MonthBudget.Sum([new MonthBudget(null, 1000m, 700m), new MonthBudget(2500m, 1000m, null)]);
+        Assert.Equal((null, 2000m, null, null), (unknown.Income, unknown.Committed, unknown.Everyday, unknown.SavingsRate));
+        Assert.Null(new MonthBudget(0m, 100m, 50m).SavingsRate);
+    }
+
+    [Fact]
     public void Nothing_to_read_a_missing_rate_or_no_margin_leave_the_figures_unknown()
     {
         foreach (var none in new[] { Compose([]), Compose([SpendingPart.None]) })

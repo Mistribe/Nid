@@ -69,7 +69,8 @@ public sealed class BankingTools
         + "'committed' (subscriptions, loans, childcare, property charges and tax, per month), 'everyday' (the month's spending less the lines "
         + "linked to a commitment and the tax), 'left' (income minus committed minus everyday, negative once overspent) and, for the current "
         + "month only, 'leftEstimate': what would be left if the month ends as usual (income minus committed minus the larger of everyday and "
-        + "the usual month's everyday spending); null when it cannot be computed. "
+        + "the usual month's everyday spending); null when it cannot be computed. 'savingsRate' is left divided by income, in percent "
+        + "(null without an income above 0); each entry of 'months' carries its own 'income', 'committed', 'everyday' and 'left'. "
         + McpSetup.Untrusted)]
     public static Task<CallToolResult> GetSpending(IServiceProvider services,
         [Description("ISO month (yyyy-mm); default the current month.")] string? month = null,

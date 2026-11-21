@@ -40017,6 +40017,10 @@ export interface components {
         SpendingMonthView: {
             month: string;
             total: string;
+            income?: null | string;
+            committed?: null | string;
+            everyday?: null | string;
+            left?: null | string;
         };
         SpendingUncategorisedView: {
             amount: string;
@@ -40040,6 +40044,8 @@ export interface components {
             everyday?: null | string;
             left?: null | string;
             leftEstimate?: null | string;
+            /** Format: double */
+            savingsRate?: null | number;
         };
         SpentView: {
             /** Format: date */

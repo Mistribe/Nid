@@ -62197,6 +62197,30 @@
           },
           "total": {
             "type": "string"
+          },
+          "income": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "committed": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "everyday": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "left": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -62304,6 +62328,13 @@
               "null",
               "string"
             ]
+          },
+          "savingsRate": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
           }
         }
       },
