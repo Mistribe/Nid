@@ -35,7 +35,7 @@ export type ChildcareSearch = DetailSearch & { year?: string };
 /** #94: a nanny at home's year (absent: the current one). */
 export type NannySearch = { year?: string };
 export type RoutineSearch = { on?: string };
-export type BanksSearch = { connected?: string; error?: string; tab?: 'categories' | 'application'; account?: string };
+export type BanksSearch = { connected?: string; error?: string; tab?: 'categories' | 'application'; account?: string; kind?: 'income' | 'transfer' };
 /** The home page: the curve's span, a figure panel, the projection's horizon (`10y` stays out of the URL) and its reading (`0`: current value). */
 export type DashboardSearch = { curve?: '3y' | 'all'; curveReal?: 1; panel?: Panel; projection?: ProjectionHorizon; real?: 0; ranges?: 1 };
 /**
@@ -741,6 +741,8 @@ const banksSettingsRoute = createRoute({
     ...(search.tab === 'categories' || search.tab === 'application' ? { tab: search.tab } : {}),
     // #373: an envelope's page opens its account's « Régler » here.
     ...(typeof search.account === 'string' ? { account: search.account } : {}),
+    // #415: the categories' kind, Dépenses (none) first.
+    ...(search.kind === 'income' || search.kind === 'transfer' ? { kind: search.kind } : {}),
   }),
   component: lazyRouteComponent(() => import('@/features/settings/banks/BanksPage'), 'BanksPage'),
 });

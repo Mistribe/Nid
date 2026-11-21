@@ -276,9 +276,18 @@ public interface ITransactionStore
     /// <summary>The categories the accounts' lines are filed in.</summary>
     Task<IReadOnlyList<Guid>> OperationCategoriesAsync(IReadOnlyList<Guid> accounts, CancellationToken ct);
 
+    /// <summary>
+    /// #415: per category, the accounts' lines booked from <paramref name="from"/> on, ignored ones left out, a split line counted in its parts'
+    /// categories: how many, and the latest booking.
+    /// </summary>
+    Task<IReadOnlyList<CategoryUse>> CategoryUseAsync(IReadOnlyList<Guid> accounts, LocalDate from, CancellationToken ct);
+
     /// <summary>The accounts' earliest booking, null with no line: how far back their history goes.</summary>
     Task<LocalDate?> EarliestBookedOnAsync(IReadOnlyList<Guid> accounts, CancellationToken ct);
 }
+
+/// <summary>#415: how many lines a category has and when its latest one was booked.</summary>
+public sealed record CategoryUse(Guid Category, int Lines, LocalDate LastOn);
 
 /// <summary>One month's lines of a category (null: none) in one currency: <paramref name="Debits"/> negative or zero, <paramref name="Credits"/> positive or zero.</summary>
 public sealed record SpendingSum(Guid? Category, Currency Currency, YearMonth Month, decimal Debits, decimal Credits);
@@ -422,9 +431,8 @@ public interface ICategoryRuleStore
     Task<IReadOnlyDictionary<Guid, (int Lines, Instant? LastUsed)>> UsageAsync(IReadOnlyCollection<Guid> accounts, CancellationToken ct);
 
     /// <summary>
-    /// The lines of <paramref name="accounts"/> the rule may categorise, newest first: not ignored, with no category or a rule's or a hint's
-    /// other than the rule's, in its direction and bounds, whose label or counterparty may hold its pattern. More than it matches: the
-    /// caller confirms each line.
+    /// The lines of <paramref name="accounts"/> the rule may match, newest first, whatever their category: not ignored, in its direction
+    /// and bounds, whose label or counterparty may hold its pattern. More than it matches: the caller confirms each line.
     /// </summary>
     Task<IReadOnlyList<BankTransaction>> CandidatesAsync(CategoryRule rule, IReadOnlyCollection<Guid> accounts, CancellationToken ct);
 }

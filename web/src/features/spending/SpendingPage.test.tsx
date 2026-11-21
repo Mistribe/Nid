@@ -121,4 +121,42 @@ describe('« Dépenses »', () => {
     expect(router.state.location.search).toMatchObject({ scope: 'me', month: '2026-10', period: '12m' });
     expect(screen.queryByText('Les comptes que vous êtes seul à lire sont comptés dans la vue Moi.')).toBeNull();
   });
+
+  it('renames and merges a category from its row', async () => {
+    spendingServer();
+    const [courses, loisirs] = [month.categories[0]!, month.categories[1]!];
+    const cat = (id: string, name: string) => ({ id, parentId: null, key: null, name, kind: 'expense', archived: false, mergedIntoId: null, defaultName: null, lines: 1 });
+    const writes: [string, string, unknown][] = [];
+    server.use(
+      http.get('*/api/v1/banking/categories', () => HttpResponse.json([cat(courses.id, 'Courses'), cat(loisirs.id, 'Loisirs')])),
+      http.patch('*/api/v1/banking/categories/:id', async ({ request, params }) => {
+        writes.push(['PATCH', String(params.id), await request.json()]);
+        return HttpResponse.json(cat(String(params.id), 'Sorties'));
+      }),
+      http.post('*/api/v1/banking/categories/:id/merge', async ({ request, params }) => {
+        writes.push(['MERGE', String(params.id), await request.json()]);
+        return HttpResponse.json(cat(courses.id, 'Courses'));
+      }),
+    );
+    const { user } = await renderApp('/spending?scope=me');
+    const table = await screen.findByRole('table', { name: 'Par catégorie' });
+
+    await user.click(await within(table).findByRole('button', { name: 'Actions sur Loisirs' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Renommer' }));
+    const rename = await screen.findByRole('dialog', { name: 'Renommer Loisirs' });
+    const field = within(rename).getByRole('textbox', { name: 'Nom' });
+    await user.clear(field);
+    await user.type(field, 'Sorties');
+    await user.click(within(rename).getByRole('button', { name: 'Enregistrer' }));
+    await waitFor(() => expect(writes).toEqual([['PATCH', loisirs.id, { name: 'Sorties' }]]));
+
+    await user.click(within(table).getByRole('button', { name: 'Actions sur Loisirs' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Fusionner…' }));
+    const merge = await screen.findByRole('dialog', { name: 'Fusionner Loisirs' });
+    await user.click(within(merge).getByRole('combobox', { name: 'Fusionner dans' }));
+    await user.click(within(await screen.findByRole('listbox')).getByRole('option', { name: 'Courses' }));
+    await user.click(within(merge).getByRole('button', { name: 'Fusionner' }));
+    await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
+    await waitFor(() => expect(writes[1]).toEqual(['MERGE', loisirs.id, { into: courses.id }]));
+  });
 });

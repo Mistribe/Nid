@@ -41,6 +41,26 @@ public sealed record ApplyCategoryRuleCommand(Guid Id) : ICommand<int>, ITransac
 public sealed record CategoryRulePreview(int Total, IReadOnlyList<BankTransactionView> Items);
 
 /// <summary>
+/// #418: what a rule not yet saved would do, as <see cref="PreviewCategoryRuleQuery"/> once created, without saving anything; the fields
+/// and the rights of <see cref="CreateCategoryRuleCommand"/>.
+/// </summary>
+public sealed record PreviewCategoryRuleDraftQuery(
+    string Pattern, Guid? AccountId, string? Direction, string? MinAmount, string? MaxAmount, Guid CategoryId) : IQuery<CategoryRuleDraftPreview>;
+
+/// <summary>
+/// <paramref name="Total"/> lines it would change, the most recent of them in <paramref name="Items"/>; <paramref name="Conflicts"/>, the
+/// lines it matches in another category but would not change; <paramref name="TooBroad"/>: the lines it matches sit in several other categories.
+/// </summary>
+public sealed record CategoryRuleDraftPreview(int Total, IReadOnlyList<BankTransactionView> Items, IReadOnlyList<CategoryRuleConflict> Conflicts, bool TooBroad);
+
+/// <summary>
+/// <paramref name="Reason"/>: <c>hand</c> (classified by a person, the assistant or a split), <c>rule</c> (another rule wins them,
+/// <paramref name="RulePattern"/>, and gives them <paramref name="CategoryId"/>) or <c>link</c> (categorised through their link).
+/// A null category is « Sans catégorie ».
+/// </summary>
+public sealed record CategoryRuleConflict(string Reason, string? RulePattern, Guid? CategoryId, string? CategoryName, int Lines);
+
+/// <summary>
 /// <paramref name="CanEdit"/>: the actor is its author or writes its account. <paramref name="Lines"/> and <paramref name="LastUsedAt"/>: the
 /// lines it categorised that the actor reads, and the latest time it categorised one of them.
 /// </summary>
@@ -113,17 +133,32 @@ public sealed class CategoryRuleScope(BankingAccess access, IAccountStore accoun
 
     /// <summary>
     /// The lines the rule would change for the actor (so the preview counts what apply changes): of accounts they write within its
-    /// restriction, matched by it, and won by it among the rules they see, as the pass picks (<see cref="CategoryRuleApplier"/>).
+    /// restriction, matched by it, with no category or a rule's or a hint's other than its own, and won by it among the rules they see,
+    /// as the pass picks (<see cref="CategoryRuleApplier"/>).
     /// </summary>
     public async Task<IReadOnlyList<BankTransaction>> TargetsAsync(CategoryRule rule, Readable readable, CancellationToken ct)
+        => [.. (await MatchedAsync(rule, readable, ct)).Where(m => Changes(rule, m.Line, m.Winner)).Select(m => m.Line)];
+
+    public static bool Changes(CategoryRule rule, BankTransaction line, CategoryRule? winner)
+        => winner?.Id == rule.Id && line.Category != rule.Category
+           && line.CategorySource is null or CategorySource.Rule or CategorySource.Hint;
+
+    /// <summary>
+    /// The lines of accounts the actor writes within the rule's restriction that it matches, newest first, each with the rule that wins it
+    /// among those they see. A draft (<see cref="Guid.Empty"/>) competes with them as the newest rule, as it will once created.
+    /// </summary>
+    public async Task<IReadOnlyList<(BankTransaction Line, CategoryRule? Winner)>> MatchedAsync(CategoryRule rule, Readable readable, CancellationToken ct)
     {
         var writable = readable.Values.Where(r => r.CanWrite && (rule.Account is null || r.Account.Id == rule.Account)).Select(r => r.Account.Id).ToList();
         if (writable.Count == 0)
             return [];
         var archived = (await categories.AllAsync(ct)).Where(c => c.ArchivedAt is not null).Select(c => c.Id).ToHashSet();
         var seen = (await rules.AllAsync(ct)).Where(r => Sees(r, readable) && !archived.Contains(r.Category)).ToList();
-        return [.. (await rules.CandidatesAsync(rule, writable, ct)).Where(l => CategoryRules.Pick(
-            seen, l.Account, l.Amount, l.NormalizedLabel, l.Counterparty is { } raw ? TransactionLabel.Normalize(raw) : null)?.Id == rule.Id)];
+        if (rule.Id == Guid.Empty)
+            seen.Add(rule);
+        return [.. (await rules.CandidatesAsync(rule, writable, ct)).Select(l => (Line: l, Counterparty: l.Counterparty is { } raw ? TransactionLabel.Normalize(raw) : null))
+            .Where(l => CategoryRules.Matches(rule, l.Line.Account, l.Line.Amount, l.Line.NormalizedLabel, l.Counterparty))
+            .Select(l => (l.Line, CategoryRules.Pick(seen, l.Line.Account, l.Line.Amount, l.Line.NormalizedLabel, l.Counterparty)))];
     }
 
     public async Task<IReadOnlyList<CategoryRuleView>> ViewsAsync(IReadOnlyList<CategoryRule> list, Readable readable, CancellationToken ct)
@@ -233,6 +268,50 @@ public sealed class PreviewCategoryRuleHandler(BankingAccess access, CategoryRul
         var targets = await scope.TargetsAsync(rule!, readable, ct);
         var page = targets.Skip((Math.Clamp(query.Page, 1, BankLines.MaxPage) - 1) * BankLines.PageSize).Take(BankLines.PageSize).ToList();
         return Result.Success(new CategoryRulePreview(targets.Count, await lines.ViewsAsync(page, ct)));
+    }
+}
+
+[RequestHandler<PreviewCategoryRuleDraftQuery, CategoryRuleDraftPreview>]
+public sealed class PreviewCategoryRuleDraftHandler(BankingAccess access, CategoryRuleScope scope, ICategoryStore categories, BankLines lines, IClock clock)
+    : IRequestHandler<PreviewCategoryRuleDraftQuery, CategoryRuleDraftPreview>
+{
+    /// <summary>How many of the lines it would change the dialog lists.</summary>
+    public const int Listed = 5;
+
+    /// <summary>Matched lines in this many other categories make a pattern too broad (« CARTE », « VIR »).</summary>
+    public const int Broad = 2;
+
+    public async ValueTask<Result<CategoryRuleDraftPreview>> HandleAsync(PreviewCategoryRuleDraftQuery query, CancellationToken ct = default)
+    {
+        var enabled = await access.EnabledAsync(ct);
+        if (!enabled.IsSuccess)
+            return BankingAccess.Failed<CategoryRuleDraftPreview>(enabled);
+        var draft = await scope.DraftAsync(
+            Guid.Empty, query.Pattern, query.AccountId, query.Direction, query.MinAmount, query.MaxAmount, query.CategoryId, ct);
+        if (!draft.TryGetValue(out var rule))
+            return BankingAccess.Failed<CategoryRuleDraftPreview, CategoryRule>(draft);
+        rule = rule! with { CreatedAt = clock.GetCurrentInstant() };
+
+        var matched = await scope.MatchedAsync(rule, await scope.ReadableAsync(ct), ct);
+        var targets = matched.Where(m => CategoryRuleScope.Changes(rule, m.Line, m.Winner)).Select(m => m.Line).ToList();
+        var names = (await categories.AllAsync(ct)).ToDictionary(c => c.Id, c => c.Name);
+        var conflicts = matched
+            .Where(m => m.Line.Category != rule.Category && !CategoryRuleScope.Changes(rule, m.Line, m.Winner))
+            .Select(m => m.Line.CategorySource switch
+            {
+                CategorySource.Link => (Reason: "link", Rule: (CategoryRule?)null, Category: m.Line.Category),
+                CategorySource.Hand or CategorySource.Assistant or CategorySource.Split => (Reason: "hand", Rule: null, Category: m.Line.Category),
+                _ => (Reason: "rule", Rule: m.Winner, Category: m.Winner?.Category),
+            })
+            // A saved rule whose category is archived wins nothing, so nothing beats it: nothing to show.
+            .Where(c => c.Reason != "rule" || c.Rule is not null)
+            .GroupBy(c => (c.Reason, Rule: c.Rule?.Id, c.Category))
+            .Select(g => new CategoryRuleConflict(g.Key.Reason, g.First().Rule?.Pattern, g.Key.Category,
+                g.Key.Category is { } id ? names.GetValueOrDefault(id) : null, g.Count()))
+            .OrderByDescending(c => c.Lines).ThenBy(c => c.Reason, StringComparer.Ordinal).ThenBy(c => c.CategoryName, StringComparer.Ordinal)
+            .ToList();
+        var others = matched.Select(m => m.Line.Category).Where(c => c is not null && c != rule.Category).Distinct().Count();
+        return Result.Success(new CategoryRuleDraftPreview(targets.Count, await lines.ViewsAsync([.. targets.Take(Listed)], ct), conflicts, others >= Broad));
     }
 }
 

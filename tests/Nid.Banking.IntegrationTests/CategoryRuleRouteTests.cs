@@ -197,6 +197,65 @@ public class CategoryRuleRouteTests(PostgresFixture fixture) : IClassFixture<Pos
         Assert.Equal([inside], (await PreviewAsync(app, app.AdultA, rule)).Items);
     }
 
+    private static async Task<JsonElement> DraftAsync(NidApp app, PersonId person, object body)
+        => await OkAsync(await app.RawAsync(person, HttpMethod.Post, $"{Root}/preview", body));
+
+    [Fact]
+    public async Task A_draft_previews_the_lines_it_would_change_without_being_saved()
+    {
+        await using var s = await StartAsync(fixture);
+        var app = s.App;
+        var older = await AddAsync(app, s.Commun, "a", "CARREFOUR CITY 1");
+        await AddAsync(app, s.Commun, "b", "CARREFOUR CITY 2");
+        var body = new { pattern = "carrefour city", categoryId = Seed("food.groceries") };
+
+        var draft = await DraftAsync(app, app.AdultA, body);
+        Assert.Equal(2, draft.GetProperty("total").GetInt32());
+        Assert.Empty(await ListAsync(app, app.AdultA));
+        // Once saved, its preview lists the same lines.
+        var rule = await RuleAsync(app, app.AdultA, "CARREFOUR CITY");
+        Assert.Equal([.. draft.GetProperty("items").EnumerateArray().Select(i => i.GetProperty("id").GetGuid())], (await PreviewAsync(app, app.AdultA, rule)).Items);
+        Assert.Contains(older, (await PreviewAsync(app, app.AdultA, rule)).Items);
+        Assert.False(draft.GetProperty("tooBroad").GetBoolean());
+    }
+
+    [Fact]
+    public async Task A_draft_shows_the_lines_it_would_not_change_by_reason_and_flags_a_broad_pattern()
+    {
+        await using var s = await StartAsync(fixture);
+        var app = s.App;
+        var byHand = await AddAsync(app, s.Commun, "a", "CARTE SHOP ONE");
+        await AddAsync(app, s.Commun, "b", "CARTE CAFE DU COIN");
+        await AddAsync(app, s.Commun, "c", "CARTE SHOP TWO");
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Put, $"{BankingApi.Root}/transactions/{byHand}/category",
+            new { categoryId = Seed("leisure.subscriptions") })).StatusCode);
+        var cafe = await RuleAsync(app, app.AdultA, "CAFE DU COIN", key: "food.restaurants");
+        Assert.Equal(1, await ApplyAsync(app, app.AdultA, cafe));
+
+        var draft = await DraftAsync(app, app.AdultA, new { pattern = "CARTE", categoryId = Seed("food.groceries") });
+
+        Assert.Equal(1, draft.GetProperty("total").GetInt32());
+        var conflicts = draft.GetProperty("conflicts").EnumerateArray()
+            .Select(c => (c.GetProperty("reason").GetString(), c.GetProperty("rulePattern").GetString(), c.GetProperty("categoryId").GetGuid(), c.GetProperty("lines").GetInt32()))
+            .OrderBy(c => c.Item1).ToList();
+        Assert.Equal([("hand", null, Seed("leisure.subscriptions"), 1), ("rule", "CAFE DU COIN", Seed("food.restaurants"), 1)], conflicts);
+        Assert.True(draft.GetProperty("tooBroad").GetBoolean());
+    }
+
+    [Fact]
+    public async Task A_draft_on_an_account_the_actor_cannot_write_is_refused_and_a_bad_pattern_named()
+    {
+        await using var s = await StartAsync(fixture);
+        var app = s.App;
+        await AddAsync(app, s.Livret, "a", "CARREFOUR CITY 1");
+
+        Assert.Equal(0, (await DraftAsync(app, app.AdultB, new { pattern = "CARREFOUR", categoryId = Seed("food.groceries") })).GetProperty("total").GetInt32());
+        Assert.False((await app.RawAsync(app.AdultB, HttpMethod.Post, $"{Root}/preview",
+            new { pattern = "CARREFOUR", accountId = s.Livret, categoryId = Seed("food.groceries") })).IsSuccessStatusCode);
+        await BankingApi.AssertRefusedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Root}/preview", new { pattern = "cb", categoryId = Seed("food.groceries") }),
+            HttpStatusCode.UnprocessableEntity, BankingCodes.RulePattern);
+    }
+
     [Theory]
     [InlineData("Cb")]
     [InlineData("12")]
