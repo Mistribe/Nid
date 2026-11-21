@@ -33,12 +33,16 @@ public sealed class RealEstateDeletionPart(RealEstateDbContext db, IItemRegistry
         ];
     }
 
-    /// <summary>The loans that finance the property: deleting them (or editing their property) frees it.</summary>
+    private static bool IsEnvelope(ItemAccess item) => item is { Module: "investments", Kind: "envelope" };
+
+    /// <summary>The loans that finance the property, or (#180) the SCPI envelope: deleting them (or editing their link) frees it.</summary>
     public async Task<IReadOnlyList<DeletionBlocker>> BlockersAsync(ItemAccess item, CancellationToken ct)
     {
-        if (!IsProperty(item))
+        var id = item.Id.Value;
+        if (!IsProperty(item) && !IsEnvelope(item))
             return [];
-        var loans = await db.Loans.Where(l => l.PropertyItemId == item.Id.Value).Select(l => l.ItemId).ToListAsync(ct);
+        var byProperty = IsProperty(item);
+        var loans = await db.Loans.Where(l => byProperty ? l.PropertyItemId == id : l.EnvelopeItemId == id).Select(l => l.ItemId).ToListAsync(ct);
         if (loans.Count == 0)
             return [];
         var found = await items.FindManyAsync(loans.Select(l => new ItemId(l)).ToList(), ct);

@@ -46,11 +46,13 @@ public sealed class RealEstateDbContext(DbContextOptions<RealEstateDbContext> op
                 t.HasCheckConstraint("ck_loan_first_period_mode", "first_period_mode in ('full','prorata_actual_365')");
                 t.HasCheckConstraint("ck_loan_import", ImportCheck);
                 t.HasCheckConstraint("ck_loan_schedule_source", "schedule_source in ('computed','bank')");
+                t.HasCheckConstraint("ck_loan_financed", "property_item_id is null or envelope_item_id is null");
             });
             e.HasKey(x => x.ItemId);
             e.Property(x => x.ItemId).ValueGeneratedNever();
             e.Property(x => x.Principal).HasColumnType("numeric(19,4)");
             e.HasIndex(x => x.PropertyItemId);
+            e.HasIndex(x => x.EnvelopeItemId);
             e.Property(x => x.ScheduleSource).HasDefaultValue("computed"); // the loans stored before 3F2 read the calculation
             MapXmin(e.Property(x => x.Version));
         });

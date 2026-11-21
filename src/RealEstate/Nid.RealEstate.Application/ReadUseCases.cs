@@ -9,8 +9,8 @@ using UnambitiousFx.Synapse.Abstractions;
 
 namespace Nid.RealEstate.Application;
 
-/// <summary>Spec 3A2 §4: <c>scope</c> is the Foyer / Moi selector; ended loans only when asked for.</summary>
-public sealed record ListLoansQuery(VisibilityScope Scope, bool IncludeEnded) : IQuery<LoanList>;
+/// <summary>Spec 3A2 §4: <c>scope</c> is the Foyer / Moi selector; ended loans only when asked for; #180: <c>Envelope</c>, the loans financing it.</summary>
+public sealed record ListLoansQuery(VisibilityScope Scope, bool IncludeEnded, ItemId? Envelope = null) : IQuery<LoanList>;
 
 public sealed record GetLoanQuery(ItemId ItemId) : IQuery<LoanDetail>, IItemScoped
 {
@@ -39,7 +39,9 @@ public sealed class ListLoansHandler(
     public async ValueTask<Result<LoanList>> HandleAsync(ListLoansQuery query, CancellationToken ct = default)
     {
         var person = actor.Current!.PersonId!.Value;
-        var ids = await visible.ForAsync(person, query.Scope, ct);
+        IEnumerable<ItemId> ids = await visible.ForAsync(person, query.Scope, ct);
+        if (query.Envelope is { } envelope)
+            ids = ids.Intersect(await loans.FinancingAsync(envelope, ct));
         var today = await calendar.TodayAsync(ct);
 
         // Batched reads spec §3: the items, the write checks and the linked properties' names, each read once for the list.
@@ -48,7 +50,8 @@ public sealed class ListLoansHandler(
         var accesses = await items.FindManyAsync(loanIds, ct);
         var writable = await policy.CheckManyAsync(person, loanIds, AccessKind.Write, ct);
         // As LoanCheck.PropertyNameAsync: a linked property's name only when the reader can read it.
-        var readable = await policy.CheckManyAsync(person, found.Select(l => l.PropertyId).OfType<ItemId>().ToList(), AccessKind.Read, ct);
+        var linkedIds = found.Select(l => l.PropertyId).Concat(found.Select(l => l.EnvelopeId)).OfType<ItemId>().Distinct().ToList();
+        var readable = await policy.CheckManyAsync(person, linkedIds, AccessKind.Read, ct);
         var properties = await items.FindManyAsync(readable.ToList(), ct);
 
         var rows = new List<LoanSummary>();
@@ -57,7 +60,8 @@ public sealed class ListLoansHandler(
             if (!accesses.TryGetValue(loan.ItemId, out var item))
                 continue;
             var propertyName = loan.PropertyId is { } property && properties.TryGetValue(property, out var linked) ? linked.DisplayName : null;
-            var row = LoanViews.Summary(item, loan, today, writable.Contains(loan.ItemId), propertyName);
+            var envelopeName = loan.EnvelopeId is { } financed && properties.TryGetValue(financed, out var scpi) ? scpi.DisplayName : null;
+            var row = LoanViews.Summary(item, loan, today, writable.Contains(loan.ItemId), propertyName, envelopeName);
             if (query.IncludeEnded || !row.Ended)
                 rows.Add(row);
         }
@@ -80,7 +84,8 @@ public sealed class GetLoanHandler(ILoanStore loans, IItemRegistry items, IHouse
         var person = actor.Current!.PersonId!.Value;
         var canWrite = (await policy.CheckAsync(person, query.ItemId, AccessKind.Write, ct)).IsSuccess;
         var propertyName = await LoanCheck.PropertyNameAsync(policy, items, person, found.Loan.PropertyId, ct);
-        return Result.Success(LoanViews.Detail(found.Item, found.Loan, await calendar.TodayAsync(ct), canWrite, propertyName));
+        var envelopeName = await LoanCheck.PropertyNameAsync(policy, items, person, found.Loan.EnvelopeId, ct);
+        return Result.Success(LoanViews.Detail(found.Item, found.Loan, await calendar.TodayAsync(ct), canWrite, propertyName, envelopeName));
     }
 }
 

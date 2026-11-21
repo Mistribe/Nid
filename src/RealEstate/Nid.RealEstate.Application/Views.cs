@@ -13,7 +13,13 @@ namespace Nid.RealEstate.Application;
 public sealed record LoanSummary(
     ItemId Id, string Name, string? Lender, string Currency, string Visibility, string Principal, string RemainingBalance,
     LocalDate? NextPaymentOn, string? NextPaymentTotal, string? CurrentRate, LocalDate? EndDate, bool CanWrite, bool Ended,
-    ItemId? PropertyId, string? PropertyName, IReadOnlyList<ItemOwnerView> Owners);
+    ItemId? PropertyId, string? PropertyName, IReadOnlyList<ItemOwnerView> Owners)
+{
+    /// <summary>#180: the SCPI envelope it finances; its name as <c>PropertyName</c>, null when unreadable.</summary>
+    public ItemId? EnvelopeId { get; init; }
+
+    public string? EnvelopeName { get; init; }
+}
 
 public sealed record LoanList(IReadOnlyList<LoanSummary> Items) : IExposesItems
 {
@@ -53,6 +59,11 @@ public sealed record LoanDetail(
     string ScheduleSource, BankScheduleView? BankSchedule, ScheduleComparisonView? Comparison) : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems() => [Id];
+
+    /// <summary>#180: as <see cref="LoanSummary.EnvelopeId"/>.</summary>
+    public ItemId? EnvelopeId { get; init; }
+
+    public string? EnvelopeName { get; init; }
 }
 
 /// <summary>A row of the schedule; <c>FromBank</c>: its figures are the bank's table's (spec 3F2 §3), only with the bank as the reference.</summary>
@@ -90,17 +101,18 @@ public sealed record LoanSimulationView(LocalDate On, string Amount, string Pena
 /// <summary>Pure builders of the views, with the real engine (spec §5 tests them in Nid.RealEstate.Tests).</summary>
 internal static class LoanViews
 {
-    public static LoanSummary Summary(ItemAccess item, StoredLoan loan, LocalDate today, bool canWrite, string? propertyName = null)
+    public static LoanSummary Summary(ItemAccess item, StoredLoan loan, LocalDate today, bool canWrite, string? propertyName = null, string? envelopeName = null)
     {
         var terms = Terms(CurrencyOf(item), loan.Contract, loan.Fees, loan.Repayments);
         var schedule = LoanReading.Schedule(terms, loan);
         var figures = LoanMath.At(terms, schedule, today);
         return new LoanSummary(loan.ItemId, item.DisplayName, loan.Lender, terms.Currency.Code, Wire(item.Visibility), Amount(loan.Contract.Principal),
             Amount(figures.Balance), figures.NextPaymentOn, Amount(figures.NextPaymentTotal), Rate(figures.CurrentRate), figures.EndDate,
-            canWrite, Ended(terms, schedule, today), loan.PropertyId, propertyName, item.OwnerViews());
+            canWrite, Ended(terms, schedule, today), loan.PropertyId, propertyName, item.OwnerViews())
+        { EnvelopeId = loan.EnvelopeId, EnvelopeName = envelopeName };
     }
 
-    public static LoanDetail Detail(ItemAccess item, StoredLoan loan, LocalDate today, bool canWrite, string? propertyName = null)
+    public static LoanDetail Detail(ItemAccess item, StoredLoan loan, LocalDate today, bool canWrite, string? propertyName = null, string? envelopeName = null)
     {
         var terms = Terms(CurrencyOf(item), loan.Contract, loan.Fees, loan.Repayments);
         var schedule = LoanReading.Schedule(terms, loan);
@@ -127,7 +139,8 @@ internal static class LoanViews
             FiguresOf(LoanMath.At(terms, schedule, today)), warnings, canWrite, Ended(terms, schedule, today),
             loan.PropertyId, propertyName, LoanWire.Of(loan.Source),
             bank.Count == 0 ? null : new BankScheduleView(bank.Select(BankRowOf).ToList(), bank[0].DueDate, bank[^1].DueDate),
-            diff is null ? null : ComparisonOf(diff.Summary));
+            diff is null ? null : ComparisonOf(diff.Summary))
+        { EnvelopeId = loan.EnvelopeId, EnvelopeName = envelopeName };
     }
 
     /// <summary>

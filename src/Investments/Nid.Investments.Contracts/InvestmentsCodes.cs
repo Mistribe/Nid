@@ -35,4 +35,6 @@ public static class InvestmentsCodes
     public const string AboveCeiling = "investments.above_ceiling";
     /// <summary>#182: a PEE or a collective PER belongs to one employee, so exactly one adult owns it.</summary>
     public const string PlanOwner = "investments.plan_owner";
+    /// <summary>#180: an SCPI a loan finances keeps its kind.</summary>
+    public const string EnvelopeFinanced = "investments.envelope_financed";
 }
