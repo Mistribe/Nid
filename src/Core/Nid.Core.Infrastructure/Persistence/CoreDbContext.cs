@@ -1,3 +1,4 @@
+using Nid.Platform.Infrastructure.Persistence;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
@@ -359,19 +360,7 @@ public sealed class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbC
             property.SetColumnName(ToSnakeCase(property.Name));
         }
 
-        foreach (var entity in modelBuilder.Model.GetEntityTypes())
-        {
-            var table = entity.GetTableName()!;
-            entity.FindPrimaryKey()?.SetName($"pk_{table}");
-
-            // An index named in the model (HasDatabaseName) keeps its name: the partial unique ones are named for what they guard.
-            foreach (var index in entity.GetIndexes().Where(i => i.FindAnnotation(RelationalAnnotationNames.Name) is null))
-                index.SetDatabaseName($"ix_{table}_{string.Join('_', index.Properties.Select(p => ((Microsoft.EntityFrameworkCore.Metadata.IReadOnlyProperty)p).GetColumnName()))}");
-
-            foreach (var foreignKey in entity.GetForeignKeys())
-                foreignKey.SetConstraintName(
-                    $"fk_{table}_{foreignKey.PrincipalEntityType.GetTableName()}_{string.Join('_', foreignKey.Properties.Select(p => ((Microsoft.EntityFrameworkCore.Metadata.IReadOnlyProperty)p).GetColumnName()))}");
-        }
+        ModelNaming.NameConstraints(modelBuilder);
     }
 
     internal static string ToSnakeCase(string name)

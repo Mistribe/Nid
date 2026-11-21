@@ -155,12 +155,14 @@ public class IncomeDocumentTargetTests(PostgresFixture fixture) : IClassFixture<
         var payslip = await LinkedAsync(app, app.AdultA, Phase, phase);
         var bonus = await LinkedAsync(app, app.AdultA, OneOff, flow, "statement");
 
-        // A stale version fails the deletion: the link stays with the phase.
-        Assert.Equal(HttpStatusCode.Conflict, (await app.RawAsync(app.AdultA, HttpMethod.Delete, $"{Sources}/{source.Value}/phases/{phase}?version=999")).StatusCode);
-        Assert.Single(await StoredLinksAsync(app, payslip));
-
         var version = (await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Sources}/{source.Value}"))).GetProperty("phases")
             .EnumerateArray().Single(p => p.GetProperty("id").GetGuid() == phase).GetProperty("version").GetUInt32();
+
+        // A stale version fails the deletion: the link stays with the phase. Any other number than the row's xmin is stale (a fixed
+        // one such as 999 can be the xmin itself on a fresh database).
+        Assert.Equal(HttpStatusCode.Conflict, (await app.RawAsync(app.AdultA, HttpMethod.Delete, $"{Sources}/{source.Value}/phases/{phase}?version={version + 1}")).StatusCode);
+        Assert.Single(await StoredLinksAsync(app, payslip));
+
         Assert.Equal(HttpStatusCode.NoContent,
             (await app.RawAsync(app.AdultA, HttpMethod.Delete, $"{Sources}/{source.Value}/phases/{phase}?version={version}")).StatusCode);
         Assert.Equal(HttpStatusCode.NoContent, (await app.RawAsync(app.AdultA, HttpMethod.Delete, $"{Sources}/{source.Value}/one-offs/{flow}")).StatusCode);
