@@ -28,7 +28,7 @@ function serve(line: object, writable = true) {
 }
 
 async function openMenu(item: string) {
-  const { user } = await renderApp('/operations');
+  const { user } = await renderApp('/spending?tab=operations');
   const row = within(await screen.findByRole('table', { name: 'Opérations' })).getAllByRole('row')[1]!;
   await user.click(within(row).getByRole('button', { name: /Actions/ }));
   await user.click(await screen.findByRole('menuitem', { name: item }));
@@ -36,7 +36,7 @@ async function openMenu(item: string) {
 }
 
 describe('« Opérations »: note and split', () => {
-  beforeAll(async () => { await import('./OperationsPage'); await import('../investments/operations/NoteDialog'); await import('../investments/operations/SplitDialog'); }, 30_000);
+  beforeAll(async () => { await import('@/features/spending/SpendingPage'); await import('./OperationsPage'); await import('../investments/operations/NoteDialog'); await import('../investments/operations/SplitDialog'); }, 30_000);
 
   it('saves a note, and clears it when emptied', async () => {
     const writes = serve({ ...shop, note: 'pour Léa' });
@@ -115,7 +115,7 @@ describe('« Opérations »: note and split', () => {
 
   it('offers no actions on a line of an account the reader cannot write', async () => {
     serve(shop, false);
-    await renderApp('/operations');
+    await renderApp('/spending?tab=operations');
     const row = within(await screen.findByRole('table', { name: 'Opérations' })).getAllByRole('row')[1]!;
     expect(row).toHaveTextContent('MARCHE');
     expect(screen.queryByRole('button', { name: /Actions/ })).not.toBeInTheDocument();
@@ -123,7 +123,7 @@ describe('« Opérations »: note and split', () => {
 
   it('shows the parts of a split line on the narrow list too', async () => {
     serve(splitShop);
-    await renderApp('/operations');
+    await renderApp('/spending?tab=operations');
     await screen.findByRole('table', { name: 'Opérations' });
     expect(screen.getAllByText('-40,00 € · Alimentation · fruits')).toHaveLength(2);
   });
@@ -174,7 +174,7 @@ describe('« Opérations »: note and split', () => {
 
   it('lists a split line as « Découpée (2) » with its parts under it', async () => {
     serve(splitShop);
-    await renderApp('/operations');
+    await renderApp('/spending?tab=operations');
     const row = within(await screen.findByRole('table', { name: 'Opérations' })).getAllByRole('row')[1]!;
     expect(row).toHaveTextContent('Découpée (2)');
     expect(row).toHaveTextContent('-40,00 € · Alimentation · fruits');

@@ -1,6 +1,8 @@
 {
   "spending": {
     "title": "Dépenses",
+    "tabs": { "overview": "Vue d’ensemble", "operations": "Opérations", "categories": "Catégories" },
+    "see_operations": "Voir dans Opérations",
     "loading": "Chargement des dépenses",
     "month": "Mois",
     "previous": "Mois précédent",
@@ -16,7 +18,7 @@
     "average_none": "pas encore calculable",
     "average_tip": "La moyenne par mois des 12 mois précédents, ou des mois que vos comptes couvrent quand ils sont moins nombreux. Elle apparaît dès que vos comptes couvrent au moins 3 mois entiers et que chaque devise a son taux.",
     "uncategorised": "Non classées",
-    "uncategorised_tip": "Opérations sans catégorie : classez-les dans l’onglet Opérations d’un compte.",
+    "uncategorised_tip": "Opérations sans catégorie : classez-les dans l’onglet Opérations.",
     "incomplete": "Certaines opérations en devise n’ont pas de taux : total incomplet.",
     "budget_incomplete": "Une échéance en devise n’a pas de taux : le budget d’après vos engagements est incomplet.",
     "by_category": "Par catégorie",
@@ -44,8 +46,8 @@
     "no_category_title": "Aucune dépense classée sur cette période",
     "no_category_mine": "Les comptes que vous êtes seul à lire sont comptés dans la vue Moi.",
     "no_category_mine_action": "Voir la vue Moi",
-    "no_category_body": "Classez vos opérations dans l’onglet Opérations d’un compte : chaque catégorie de dépense apparaîtra ici.",
-    "no_category_action": "Voir les comptes",
+    "no_category_body": "Classez vos opérations dans l’onglet Opérations : chaque catégorie de dépense apparaîtra ici.",
+    "no_category_action": "Voir les opérations non classées",
     "lines": {
       "title": "{{name}} · {{period}}",
       "loading": "Chargement des opérations",

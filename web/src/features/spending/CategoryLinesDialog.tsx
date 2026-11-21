@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router';
 import { AlertTriangle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
@@ -10,8 +11,21 @@ import { SortableTable } from '@/components/page/SortableTable';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import type { BankTransaction } from '@/api/banking';
+import { daysIn } from '@/features/calendar/calendarDates';
 import { LINES_PAGE, SPENDING_LINES, type SpendingLines, type SpendingQuery } from './api';
 import '@/locales/spending';
+
+/**
+ * #423: the Opérations tab on the lines of one figure, over its whole months: a category (the server adds its children) or, for
+ * « Non classées », the uncategorised debits (the figure counts no credit).
+ */
+export function operationsSearch(months: { from: string; to: string }, categoryId?: string) {
+  const [y, m] = [Number(months.to.slice(0, 4)), Number(months.to.slice(5, 7))];
+  return {
+    tab: 'operations' as const, from: `${months.from}-01`, to: `${months.to}-${daysIn(y, m)}`,
+    ...(categoryId ? { category: [categoryId] } : { uncategorised: true, direction: 'out' as const }),
+  };
+}
 
 /** The lines behind one figure of the page (a category and its children, or « Non classées »), newest first; the total is the server's. */
 export function CategoryLinesDialog({ target, query, period, onClose }: {
@@ -29,6 +43,7 @@ export function CategoryLinesDialog({ target, query, period, onClose }: {
   const first = lines.data?.pages[0];
   const rows = lines.data?.pages.flatMap((p) => p.items) ?? [];
   const amount = (l: BankTransaction) => <span className="tabular-nums">{formatCurrency(l.amount, l.currency)}</span>;
+  const months = 'month' in query ? { from: query.month, to: query.month } : query;
 
   return (
     <ModalDialog title={t('spending.lines.title', { name: target.name, period })} onClose={onClose} className="sm:max-w-3xl">
@@ -41,6 +56,8 @@ export function CategoryLinesDialog({ target, query, period, onClose }: {
               <span className="text-muted-foreground">{t('spending.lines.total')}</span>
               <span className="text-figure">{formatCurrency(first.total, first.currency)}</span>
               <span className="text-sm text-muted-foreground">{t('spending.lines.count', { count: first.count })}</span>
+              <Link to="/spending" search={operationsSearch(months, target.categoryId)} onClick={onClose}
+                className="ms-auto text-sm font-medium underline underline-offset-4">{t('spending.see_operations')}</Link>
             </p>
           ) : null}
           {first?.incomplete ? <Incomplete /> : null}

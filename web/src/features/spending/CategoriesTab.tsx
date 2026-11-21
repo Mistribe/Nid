@@ -4,7 +4,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { present, toProblem } from '@/api/errors';
-import type { BanksSearch } from '@/app/router';
+import type { SpendingSearch } from '@/app/router';
 import { InfoTip } from '@/components/InfoTip';
 import { LocalDate } from '@/components/LocalDate';
 import { ProblemMessage } from '@/components/ProblemMessage';
@@ -22,11 +22,11 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { bankErrorText, useCategories, type BankCategory } from '@/api/banking';
 import { shiftMonth } from '@/features/calendar/calendarDates';
-import { CategoryLinesDialog } from '@/features/spending/CategoryLinesDialog';
+import { CategoryLinesDialog } from './CategoryLinesDialog';
 import { todayIso } from '@/lib/today';
 import '@/locales/banks';
-import { Buttons, MergeDialog, RenameDialog, useCategoryWrites, useNameError } from '@/features/spending/categoryEdits';
-import { fullName as nameIn, mergeTargets } from '@/features/spending/categoryTargets';
+import { Buttons, MergeDialog, RenameDialog, useCategoryWrites, useNameError } from './categoryEdits';
+import { fullName as nameIn, mergeTargets } from './categoryTargets';
 import { CategoryRules } from './CategoryRules';
 
 const KINDS = ['expense', 'income', 'transfer'] as const;
@@ -42,14 +42,14 @@ const byUse = (list: BankCategory[]) => [...list].sort((a, b) => b.lines - a.lin
 type Dialog = { mode: 'rename' | 'merge'; category: BankCategory } | { mode: 'create' };
 
 /**
- * Réglages › Banques › Catégories (#415): what categories are for, then one kind at a time (`?kind=`, Dépenses first), its top-level
+ * Dépenses › Catégories (#415, #423): what categories are for, then one kind at a time (`?kind=`, Dépenses first), its top-level
  * categories by use over 12 months (the server's counts), each unfolding its children; the unused and the archived folded; merged ones
  * are history and not listed. Then the rules that pick them.
  */
 export default function CategoriesTab() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const search: BanksSearch = useSearch({ strict: false });
+  const search: SpendingSearch = useSearch({ strict: false });
   const kind: Kind = search.kind ?? 'expense';
   const categories = useCategories();
   const { update } = useCategoryWrites();
@@ -153,12 +153,12 @@ export default function CategoriesTab() {
     <>
       <p className="max-w-prose text-sm text-muted-foreground">
         {t('banks.category_list.about')}{' '}
-        <Link to="/spending" className="font-medium text-foreground underline underline-offset-4">{t('banks.category_list.about_link')}</Link>
+        <Link to="/spending" search={{}} className="font-medium text-foreground underline underline-offset-4">{t('banks.category_list.about_link')}</Link>
       </p>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Segmented aria-label={t('banks.category_list.kind_label')} value={kind}
-          onValueChange={(v) => void navigate({ to: '/settings/banks', replace: true, resetScroll: false,
-            search: { ...search, kind: v === 'expense' ? undefined : v as Exclude<Kind, 'expense'> } })}
+          onValueChange={(v) => void navigate({ from: '/spending', to: '/spending', replace: true, resetScroll: false,
+            search: (prev: SpendingSearch) => ({ ...prev, kind: v === 'expense' ? undefined : v as Exclude<Kind, 'expense'> }) })}
           options={KINDS.map((k) => ({ value: k, label: kindLabel(t, k) }))} />
         <Button ref={addButton} type="button" onClick={() => setDialog({ mode: 'create' })}>{t('banks.category_list.create')}</Button>
       </div>

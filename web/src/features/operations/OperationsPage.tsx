@@ -9,13 +9,11 @@ import { OwnerChips } from '@/components/OwnerChips';
 import { LocalDate } from '@/components/LocalDate';
 import { formatCurrency } from '@/components/Money';
 import { Pager, useStepBack } from '@/components/page/Pager';
-import { PageHeader } from '@/components/page/PageHeader';
 import { Loading, TableSkeleton } from '@/components/page/skeletons';
 import { SortableTable } from '@/components/page/SortableTable';
 import { StatLine } from '@/components/page/StatLine';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { OPERATIONS, type BankTransaction, type OperationPage } from '@/api/banking';
-import { ImportStatement } from '../investments/operations/ImportStatement';
 import { LineActions, lineState, SplitParts } from '../investments/operations/LineActions';
 import { Receipts } from '../investments/operations/Receipts';
 import { OperationFilters } from './OperationFilters';
@@ -24,7 +22,7 @@ import '@/locales/banks';
 /** The server answers a search of two characters or more; one typed character asks nothing yet. */
 const MIN_SEARCH = 2;
 
-/** « Opérations » (#84): every bank line the reader may read, filtered and paged by the server; « À relier » is `?state=unlinked`. */
+/** « Opérations » (#84), a tab of Dépenses (#423): every bank line the reader may read, filtered and paged by the server; « À relier » is `?state=unlinked`. */
 export function OperationsPage() {
   const { t } = useTranslation();
   const { $api } = useApi();
@@ -42,12 +40,12 @@ export function OperationsPage() {
   const toPage = (n: number) => go({ page: n > 1 ? n : undefined });
   useStepBack(page, answer.data && !answer.isPlaceholderData ? answer.data : undefined, toPage);
   const rows = answer.data?.items ?? [];
-  const onlyUnlinked = search.state === 'unlinked' && Object.entries(search).every(([k, v]) => v === undefined || k === 'state' || k === 'page');
+  // The page's tab and Foyer / Moi filter no line.
+  const onlyUnlinked = search.state === 'unlinked' && Object.entries(search).every(([k, v]) => v === undefined || ['state', 'page', 'tab', 'scope'].includes(k));
   const totals = answer.data?.totals;
   const money = (v: string) => formatCurrency(v, totals?.currency ?? 'EUR');
   return (
     <div className="space-y-4">
-      <PageHeader title={t('banks.operations.title')} actions={<ImportStatement />} />
       <OperationFilters facets={answer.data?.facets} search={search} onChange={(change) => go({ ...change, page: undefined })} />
       {answer.error ? <ProblemMessage problem={present(toProblem(answer.error))} />
         : !answer.data || !totals ? <Loading label={t('banks.operations.loading')}><TableSkeleton columns={6} /></Loading>

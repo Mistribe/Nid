@@ -256,7 +256,7 @@
       "gap": "écart {{gap}}",
       "submit": "Relier"
     },
-    "tabs": { "accounts": "Comptes", "categories": "Catégories", "application": "Mon application" },
+    "tabs": { "accounts": "Comptes", "application": "Mon application" },
     "application": {
       "title": "Mon application Enable Banking",
       "intro": "Sans application à vous, Nid utilise celle de l’installation. Si vous avez créé la vôtre sur le portail Enable Banking, déclarez-la ici : vos banques seront reliées avec elle.",
@@ -339,8 +339,8 @@
       "done_apply_other": "{{count}} opérations classées."
     },
     "category_list": {
-      "about": "Les catégories classent les opérations de vos comptes pour la page Dépenses et les budgets. Elles sont communes au foyer : une modification vaut pour tous.",
-      "about_link": "Voir les dépenses",
+      "about": "Les catégories classent les opérations de vos comptes pour la vue d’ensemble des dépenses et les budgets. Elles sont communes au foyer : une modification vaut pour tous.",
+      "about_link": "Voir la vue d’ensemble",
       "loading": "Chargement des catégories",
       "empty": "Aucune catégorie.",
       "none_used": "Aucune opération classée ici depuis 12 mois.",
