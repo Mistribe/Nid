@@ -1,6 +1,6 @@
 import { keepPreviousData } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { OPERATIONS, type BankTransaction, type OperationPage } from '@/api/banking';
 import { LineActions, lineState, SplitParts } from '../investments/operations/LineActions';
 import { Receipts } from '../investments/operations/Receipts';
+import { CategorySuggestions } from './CategorySuggestions';
 import { OperationFilters } from './OperationFilters';
 import '@/locales/banks';
 
@@ -50,6 +51,8 @@ export function OperationsPage() {
   const [picked, setPicked] = useState<{ of: string; ids: ReadonlySet<string> }>({ of: shown, ids: NONE });
   const selected = picked.of === shown ? picked.ids : NONE;
   const [categorising, setCategorising] = useState(false);
+  // Where the focus goes once a suggestion's write leaves none: the list's count, just above it.
+  const count = useRef<HTMLParagraphElement>(null);
   const toPage = (n: number) => go({ page: n > 1 ? n : undefined });
   useStepBack(page, answer.data && !answer.isPlaceholderData ? answer.data : undefined, toPage);
   const rows = answer.data?.items ?? [];
@@ -60,6 +63,7 @@ export function OperationsPage() {
   const money = (v: string) => formatCurrency(v, totals?.currency ?? 'EUR');
   return (
     <div className="space-y-4">
+      <CategorySuggestions emptied={count} />
       <OperationFilters facets={answer.data?.facets} search={search} onChange={(change) => go({ ...change, page: undefined })} />
       {answer.error ? <ProblemMessage problem={present(toProblem(answer.error))} />
         : !answer.data || !totals ? <Loading label={t('banks.operations.loading')}><TableSkeleton columns={6} /></Loading>
@@ -71,7 +75,7 @@ export function OperationsPage() {
               { label: t('banks.operations.total_net'), value: money(totals.net), hint: totals.incomplete ? t('banks.operations.total_incomplete') : undefined },
             ]} />
             <div className="flex min-h-9 flex-wrap items-center justify-between gap-2">
-              <p className="text-sm text-muted-foreground">{t('banks.operations.count', { count: answer.data.total })}</p>
+              <p ref={count} tabIndex={-1} className="text-sm text-muted-foreground outline-none">{t('banks.operations.count', { count: answer.data.total })}</p>
               {chosen.length > 0 ? <Button type="button" size="sm" onClick={() => setCategorising(true)}>{t('banks.operations.categorise_many', { count: chosen.length })}</Button> : null}
             </div>
             {rows.length === 0 ? <p className="text-muted-foreground">{t(onlyUnlinked ? 'banks.operations.to_link_empty' : 'banks.operations.no_match')}</p>

@@ -127,6 +127,9 @@ public sealed class TransactionRow
     public string? BankCode { get; set; }
 
     public string NormalizedLabel { get; set; } = "";
+
+    /// <summary>#449: <c>CategoryRules.Suggest</c> of <see cref="NormalizedLabel"/>, written at import; null when no pattern fits.</summary>
+    public string? SuggestedPattern { get; set; }
     public string LinkState { get; set; } = "unlinked";
     public string FetchedVia { get; set; } = "";
     public Instant CreatedAt { get; set; }
@@ -198,6 +201,22 @@ public sealed class CategoryRuleRow
     public Instant CreatedAt { get; set; }
     public Instant? LastUsedAt { get; set; }
     public uint Version { get; set; }
+}
+
+/// <summary>#449: a dismissed category suggestion, the household's: the pattern, of debits or credits, is never again suggested into the category.</summary>
+public sealed class SuggestionDismissalRow
+{
+    public Guid Id { get; set; }
+
+    /// <summary>A suggested pattern (<c>CategoryRules.Suggest</c>).</summary>
+    public string Pattern { get; set; } = "";
+
+    /// <summary><c>debit</c> or <c>credit</c>.</summary>
+    public string Direction { get; set; } = "";
+
+    public Guid CategoryId { get; set; }
+    public Guid CreatedByPersonId { get; set; }
+    public Instant CreatedAt { get; set; }
 }
 
 /// <summary>#85: the household's budget of an expense category, one per category and per branch (a parent or its children).</summary>

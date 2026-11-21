@@ -436,3 +436,31 @@ public interface ICategoryRuleStore
     /// </summary>
     Task<IReadOnlyList<BankTransaction>> CandidatesAsync(CategoryRule rule, IReadOnlyCollection<Guid> accounts, CancellationToken ct);
 }
+
+/// <summary>
+/// #449: what category suggestions are made of, grouped in the database (never the lines loaded to be filtered), and the household's dismissals.
+/// Which accounts the actor reads or writes is the caller's to say.
+/// </summary>
+public interface ICategorySuggestionStore
+{
+    /// <summary>The lines of <paramref name="accounts"/> a person categorised (by hand, or the assistant), counted per suggested pattern, direction and category.</summary>
+    Task<IReadOnlyList<Nid.Banking.Domain.CategorySuggestions.Evidence>> EvidenceAsync(IReadOnlyCollection<Guid> accounts, CancellationToken ct);
+
+    /// <summary>
+    /// The lines of <paramref name="accounts"/> a suggestion may cover, counted per suggested pattern and direction: no category (« Sans
+    /// catégorie » chosen by hand is one), not ignored, and matched by no rule in use.
+    /// </summary>
+    Task<IReadOnlyList<(string Pattern, bool Debit, int Lines)>> OpenAsync(IReadOnlyCollection<Guid> accounts, CancellationToken ct);
+
+    /// <summary>The most recent <paramref name="take"/> of those lines for one pattern and direction, newest first.</summary>
+    Task<IReadOnlyList<BankTransaction>> OpenLinesAsync(IReadOnlyCollection<Guid> accounts, string pattern, bool debit, int take, CancellationToken ct);
+
+    /// <summary>Every dismissal, or with <paramref name="readable"/> those <paramref name="author"/> made or whose pattern a line of those accounts has.</summary>
+    Task<IReadOnlyList<SuggestionDismissal>> DismissalsAsync(CancellationToken ct, IReadOnlyCollection<Guid>? readable = null, PersonId? author = null);
+
+    /// <summary>The dismissal of that pattern, direction and category: the one already there, else a new one by <paramref name="by"/>.</summary>
+    Task<SuggestionDismissal> DismissAsync(string pattern, RuleDirection direction, Guid category, PersonId by, CancellationToken ct);
+
+    /// <summary>Whether it existed.</summary>
+    Task<bool> WithdrawAsync(Guid id, CancellationToken ct);
+}
