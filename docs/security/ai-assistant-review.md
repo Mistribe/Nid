@@ -84,8 +84,8 @@ Hors périmètre : l'extraction de documents (`ai-ingestion.md` §2), le MCP ext
 
 ## 7. Points ouverts
 
-- HPKE : bibliothèque revue ou implémentation testée sur les vecteurs de la RFC 9180 (`../ai/README.md` §4.1), dans #166.
-- UnambitiousFx/Myelin#9, prérequis de #166.
+- HPKE : API de .NET 11 encore expérimentale (`SYSLIB5009`), testée contre les vecteurs de la RFC 9180 à chaque build
+  (`../ai/README.md` §4.1) ; Nid passe à .NET 11 avant #166 (#460).
 - Jev : accord de traitement des données à lire avant tout profil.
 - Données de tiers dans le chat vers le cloud, à décider avec #173.
 - Cette revue est refaite sur chaque implémentation listée en tête, avant sa mise en service (`risk-register.md` §7).

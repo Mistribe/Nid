@@ -44,7 +44,8 @@ Chaque décision a sa sous-section : décision, raison, options écartées, et l
   Les réponses ne sont plus signées RFC 9421 : la clé dérivée les authentifie. Détail : §4.
 - **Raison** : une seule sécurité pour les deux modes ; la dérivation depuis la requête lie la réponse à sa requête et
   évite la faiblesse du mode authentifié face à une clé compromise (KCI, RFC 9180 §9.1.1) ; les limites de morceaux HTTP
-  ne survivent pas à un proxy, d'où le cadrage dans le texte scellé ; P-256 parce que .NET n'a pas X25519.
+  ne survivent pas à un proxy, d'où le cadrage dans le texte scellé ; HPKE vient de .NET 11, jamais d'un code maison
+  (§4.1).
 - **Écarté** : mode authentifié de HPKE (KCI, pas de lien à la requête) ; mTLS et empreinte signée en fin de flux, sans
   chiffrement de bout en bout ; pas de flux depuis les workers ; JWE (ne scelle pas un flux).
 
@@ -155,10 +156,10 @@ Chaque décision a sa sous-section : décision, raison, options écartées, et l
 
 ### 1.K Décision K : des points d'accès enregistrés dans Myelin (H2)
 
-- **Décision** : les workers sont joints par des **points d'accès enregistrés**, une option demandée à Myelin
-  (UnambitiousFx/Myelin#9) : hôte et port exacts ; adresses privées, CGNAT et ULA permises ; bouclage, link-local et
-  métadonnées toujours refusés ; résolution refaite à chaque appel. L'identité est la **clé épinglée**, pas l'adresse.
-  Seul un admin enregistre un worker. Myelin#9 est un **prérequis de #166**. Détail : §3.5.
+- **Décision** : les workers sont joints par des **points d'accès enregistrés**, l'option de Myelin 1.2.0
+  (UnambitiousFx/Myelin#9, publiée) : hôte et port exacts ; adresses privées, CGNAT et ULA permises ; bouclage,
+  link-local et métadonnées toujours refusés ; résolution refaite à chaque appel. L'identité est la **clé épinglée**, pas
+  l'adresse. Seul un admin enregistre un worker. #166 monte Myelin à 1.2.0. Détail : §3.5.
 - **Raison** : Myelin 1.1.0 refuse toute plage non publique sans exception par hôte ; épingler une adresse ne prouve
   rien et casse au premier changement de bail DHCP ; un seul client sortant (D21).
 - **Écarté** : adresse épinglée à l'enregistrement ; un second client hors de Myelin ; plages privées ouvertes à tous.
@@ -319,15 +320,16 @@ placement et de l'étiquette `safe`. Il n'a ni hôte de fournisseur, ni prix, ni
 Myelin 1.1.0 refuse toute plage non publique (privée, CGNAT `100.64/10` d'un Tailscale, ULA, bouclage) sans exception
 par hôte, et `SafeHttpClient` rend la réponse entière, sans flux. Les workers passent donc par un `HttpClient` gardé par
 Myelin (`AddHttpClient().UseMyelin()`, qui permet le flux et un certificat client), avec l'option de **points d'accès
-enregistrés** demandée dans UnambitiousFx/Myelin#9 :
+enregistrés** de Myelin 1.2.0 (`AllowRegisteredEndpoints`, `IRegisteredEndpoints`, UnambitiousFx/Myelin#9) :
 
 - un point d'accès est un hôte et un port exacts, enregistrés par un **admin** (l'enregistrement est lui-même une
   requête vers une adresse du réseau local) ;
-- adresses privées, CGNAT et ULA permises pour lui seul ; bouclage, link-local et métadonnées cloud toujours refusés ;
-- la résolution est refaite et revérifiée à chaque appel ; redirections non suivies ;
+- HTTPS seulement ; adresses privées (RFC 1918), CGNAT et ULA permises pour lui seul ; bouclage, link-local, adresses
+  de métadonnées cloud (même dans ces plages) toujours refusés ;
+- la résolution est refaite et revérifiée sur les adresses réellement composées ; redirections non suivies ;
+- Myelin redemande la liste à chaque nouvelle connexion et garde une connexion une minute au plus : un worker révoqué
+  sort de la liste en une minute ; Nid refuse déjà sa clé tout de suite ;
 - l'identité du worker est sa **clé épinglée**, jamais son adresse.
-
-Tant que Myelin#9 n'est pas publié, #166 ne peut pas joindre un worker du réseau local : c'est son prérequis.
 
 ### 3.6 Cycle de vie des clés (décision T)
 
@@ -358,10 +360,14 @@ Tant que Myelin#9 n'est pas publié, #166 ne peut pas joindre un worker du rése
   est donc scellée.
 - **TLS** : épinglé quand Nid joint le worker directement ; certificat d'autorité publique accepté derrière un proxy
   déclaré par l'admin. Dans les deux cas, le proxy ne voit ni requête, ni fichier, ni réponse.
-- **Suite HPKE** : DHKEM(P-256), HKDF-SHA256, AES-GCM, mode de base. .NET 10 n'a pas HPKE (.NET 11 l'a, en expérimental,
-  `SYSLIB5009`) ni X25519 ; BouncyCastle 2.7.0 n'a pas HPKE et le seul paquet NuGet est immature. Soit une bibliothèque
-  revue, soit une implémentation sur `ECDiffieHellman.DeriveRawSecretAgreement`, `HKDF` et `AesGcm`, testée contre les
-  vecteurs de l'annexe A de la RFC 9180 (#166).
+- **Suite HPKE** : DHKEM(P-256, HKDF-SHA256), HKDF-SHA256, AES-GCM, mode de base.
+- **Implémentation** : celle de .NET 11 (`Hpke`, `HpkeSender`, `HpkeRecipient` : contexte à plusieurs messages et
+  `Export()`), jamais un code maison. Elle passe les vecteurs du mode de base de l'annexe A de la RFC 9180 sur macOS et
+  sur Linux (image `sdk:11.0`, OpenSSL 3.5), suites P-256 et X25519, 257 messages par contexte. .NET 10 ne l'a pas, et
+  `Microsoft.Bcl.Cryptography` 11.0.0 ne l'apporte pas à `net10.0` : **Nid passe à .NET 11 avant #166** (#460).
+- **API expérimentale** (`SYSLIB5009`) : son usage tient dans une classe interne du module `Ai`, seule à lever
+  l'avertissement ; un test rejoue les vecteurs de l'annexe A à chaque build, pour qu'un changement d'API ou de
+  comportement casse la CI, pas la production. P-256 reste : X25519 est désormais possible, sans rien à y gagner ici.
 
 ### 4.2 Réponse liée à sa requête, en flux (décision A)
 
@@ -686,7 +692,7 @@ admin (`../identity-and-access/authorization.md`).
 
 ### 14.1 Ordre des issues (question 6)
 
-#171, puis #166 (après UnambitiousFx/Myelin#9), puis #172, puis #173, #174 et #175. #167 après #166 ; #168 après #167
+#171, puis #460 (.NET 11), puis #166, puis #172, puis #173, #174 et #175. #167 après #166 ; #168 après #167
 et #172 ; #450 après #449 (terminée), #172 et **#168** (pgvector, pour les voisins proches). Ces dépendances sont des
 liens « bloquée par » sur GitHub.
 
@@ -700,11 +706,8 @@ et §3, `authorization.md`), `../security/` (`infrastructure.md`, `README.md`, `
 
 ## 15. Ce qui reste ouvert
 
-- **HPKE** : bibliothèque revue ou implémentation testée sur les vecteurs de la RFC 9180 (§4.1), dans #166, avec
-  l'équivalent côté worker. La classe expérimentale `Hpke` de .NET 11 (`SYSLIB5009`) documente un `Seal` et un `Open`
-  en un coup : vérifier qu'elle expose `Export()` et des contextes à plusieurs messages ; sinon, implémenter sur les
-  primitives de base, testé contre l'annexe A de la RFC 9180.
-- **UnambitiousFx/Myelin#9** : points d'accès enregistrés, prérequis de #166.
+- **HPKE** : l'API de .NET 11 est encore expérimentale ; la revoir à chaque version majeure de .NET (elle peut changer
+  de forme en devenant stable). Côté worker, la même suite, testée contre les mêmes vecteurs (#166).
 - **Jev** : accord de traitement des données à lire ; rétention, relecture humaine et région non documentées
   (`../ingestion/llm-providers.md` §14.1).
 - **Données de tiers** dans le chat (coordonnées d'une assistante maternelle, personnes à charge) : les retenir aussi

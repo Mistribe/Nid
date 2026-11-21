@@ -53,7 +53,7 @@ Client MCP ──jeton personnel────────────►│      
 ```
 
 - `nid` est le **seul composant applicatif qui sort vers Internet**, par un client HTTP unique (`application.md` §3).
-- Les workers n'ont **ni clé d'API ni rien qui ouvre `nid`** ; `nid` les appelle, jamais l'inverse (`../ai/README.md` §3). Un worker local n'a pas Internet ; un worker distant compte comme une sortie des lieux (opt-in du foyer). Une adresse privée n'est joignable que pour un point d'accès de worker enregistré par un admin (`application.md` §3, UnambitiousFx/Myelin#9).
+- Les workers n'ont **ni clé d'API ni rien qui ouvre `nid`** ; `nid` les appelle, jamais l'inverse (`../ai/README.md` §3). Un worker local n'a pas Internet ; un worker distant compte comme une sortie des lieux (opt-in du foyer). Une adresse privée n'est joignable que pour un point d'accès de worker enregistré par un admin (`application.md` §3, Myelin 1.2.0).
 
 ## 5. Principes
 
