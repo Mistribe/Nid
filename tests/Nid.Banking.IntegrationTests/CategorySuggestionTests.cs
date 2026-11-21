@@ -215,7 +215,7 @@ public class CategorySuggestionTests(PostgresFixture fixture) : IClassFixture<Po
         await BankingApi.AssertRefusedAsync(await Post(new { pattern = "SHOP", direction = "debit", categoryId = archived }), HttpStatusCode.UnprocessableEntity, BankingCodes.CategoryArchived);
     }
 
-    /// <summary>The migration's backfill writes the pattern <see cref="CategoryRules.Suggest"/> gives at import.</summary>
+    /// <summary>The latest backfill (#457) writes the pattern <see cref="CategoryRules.Suggest"/> gives at import, and clears a stale one.</summary>
     [Fact]
     public async Task The_backfill_writes_the_pattern_import_writes()
     {
@@ -225,6 +225,8 @@ public class CategorySuggestionTests(PostgresFixture fixture) : IClassFixture<Po
             "CB CARREFOUR CITY 12/10", "CARTE X1234 11/10 AMAZON EU SARL", "PRLV SEPA EDF CLIENTS PARTICULIE", "VIR SEPA SOCIETE EXEMPLE SAS",
             "CARTE 12/03/26 BOULANGERIE DU COIN", "CARTE 12/03/2026 CB VIR INSTANT", "NETFLIX 123 PARIS", "12/10 X", "X 1", "AB", "VIR SEPA",
             "Prélèvement Free Mobile", "PAIEMENT PAR CARTE MONOP", "CHÈQUE 1234567", "E2E SHOP", "ÉCOLE MATERNELLE ÉTÉ", "SHOP  ONE",
+            "VIR DE BOB DEV", "PRLV SPOTIFY P2A4F81C", "VIR VERS COMPTE JOINT", "VIREMENT SEPA RECU ENTREPRISE EXEMPLE", "VIR INST EMIS VERS BOB",
+            "PRLV ECHEANCE PRET IMMO", "BOULANGERIE DE LA GARE", "CARTE 12/03/26 VIR DE SHOP", "DE DU VERS", "VIR DE 1234 BOB", "VIREMENTS RECUS",
         ];
         foreach (var label in labels)
             await AddAsync(s.App, s.Shared, label);
@@ -232,9 +234,9 @@ public class CategorySuggestionTests(PostgresFixture fixture) : IClassFixture<Po
         var imported = await db.Transactions.AsNoTracking().ToDictionaryAsync(t => t.Id, t => (t.NormalizedLabel, t.SuggestedPattern), TestContext.Current.CancellationToken);
         Assert.All(imported.Values, t => Assert.Equal(CategoryRules.Suggest(t.NormalizedLabel), t.SuggestedPattern));
 
-        await db.Transactions.ExecuteUpdateAsync(u => u.SetProperty(t => t.SuggestedPattern, (string?)null), TestContext.Current.CancellationToken);
+        await db.Transactions.ExecuteUpdateAsync(u => u.SetProperty(t => t.SuggestedPattern, "STALE"), TestContext.Current.CancellationToken);
         // As the migration runs it: braces are no format placeholders there.
-        await db.Database.ExecuteSqlRawAsync(CategorySuggestions449.Backfill.Replace("{", "{{").Replace("}", "}}"), TestContext.Current.CancellationToken);
+        await db.Database.ExecuteSqlRawAsync(GenericBankPrefixes457.Backfill.Replace("{", "{{").Replace("}", "}}"), TestContext.Current.CancellationToken);
         Assert.Equal(imported, await db.Transactions.AsNoTracking().ToDictionaryAsync(t => t.Id, t => (t.NormalizedLabel, t.SuggestedPattern), TestContext.Current.CancellationToken));
     }
 }
