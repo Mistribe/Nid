@@ -17,12 +17,7 @@ export type NoticeItem = { key: string; name: string; amount?: string; detail?: 
 export type NoticeGroup = { kind: string; tile: Place; heading: string; items: NoticeItem[]; continued?: boolean };
 
 const FOLD = 5;
-function groupBy<K>(notices: TaxNotice[], by: (n: TaxNotice) => K): [K, TaxNotice[]][] {
-  const groups = new Map<K, TaxNotice[]>();
-  for (const n of notices) groups.set(by(n), [...(groups.get(by(n)) ?? []), n]);
-  return [...groups];
-}
-const CHILDCARE = ['childcare_from_statements', 'childcare_projected', 'childcare_estimated'] as const;
+const CHILDCARE = ['childcare_from_statements', 'childcare_estimated'] as const;
 const PER_TILE = ['per_over_ceiling', 'per_ceiling_estimated'];
 const PROPERTY_TILE = ['micro_over_ceiling', 'pinel_requires_real'];
 const NO_AMOUNT = ['per_without_contributions', 'savings_interest_unknown', 'other_currency'];
@@ -51,16 +46,13 @@ const KINDS: readonly Kind[] = [
 ];
 
 function childcareItems(t: TFunction, notices: TaxNotice[], year: number): NoticeItem[] {
-  return groupBy(notices, (n) => n.item).map(([id, parts]) => ({
-    key: id,
-    name: parts[0]!.name,
-    detail: parts.map((n) => {
-      const amount = eur(n.amount);
-      if (n.code === 'childcare_from_statements') return t('tax.notices.childcare.from_statements', { amount });
-      if (n.code === 'childcare_projected') return t('tax.notices.childcare.projected', { amount, validated: n.monthsValidated, estimated: n.monthsEstimated });
-      return t('tax.notices.childcare.estimated', { amount, estimated: n.monthsEstimated });
-    }).join(' · '),
-    link: { to: '/childcare/$id', params: { id }, search: { tab: 'summary', year: String(year) } },
+  // The server sends one notice per arrangement: its total, its validated and estimated months.
+  return notices.map((n) => ({
+    key: n.item,
+    name: n.name,
+    detail: t(n.code === 'childcare_estimated' ? 'tax.notices.childcare.estimated' : n.monthsEstimated ? 'tax.notices.childcare.projected' : 'tax.notices.childcare.from_statements',
+      { amount: eur(n.amount), validated: n.monthsValidated, estimated: n.monthsEstimated }),
+    link: { to: '/childcare/$id', params: { id: n.item }, search: { tab: 'summary', year: String(year) } },
   }));
 }
 
