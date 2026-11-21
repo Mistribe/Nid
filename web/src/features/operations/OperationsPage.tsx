@@ -15,7 +15,9 @@ import { Loading, TableSkeleton } from '@/components/page/skeletons';
 import { SortableTable } from '@/components/page/SortableTable';
 import { StatLine } from '@/components/page/StatLine';
 import { ProblemMessage } from '@/components/ProblemMessage';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { OPERATIONS, type BankTransaction, type OperationPage } from '@/api/banking';
 import { LineActions, lineState, SplitParts } from '../investments/operations/LineActions';
 import { Receipts } from '../investments/operations/Receipts';
@@ -101,39 +103,51 @@ function Table({ rows, owners, selected, onSelect }: {
   // As « Catégoriser… » in a row's menu: a line of an account the reader writes, neither split nor ignored.
   const categorisable = (l: BankTransaction) => !!owners.find((a) => a.accountId === l.accountId)?.writable && !l.parts?.length && l.linkState !== 'ignored';
   const owner = (l: BankTransaction) => <OwnerChips shares={false} owners={(owners.find((a) => a.accountId === l.accountId)?.owners ?? []).map((o) => ({ personId: o.id, shareBp: 10_000 }))} />;
-  const amount = (l: BankTransaction) => <span className="tabular-nums">{formatCurrency(l.amount, l.currency)}</span>;
+  // A credit reads in the « good » colour; the server's sign, read off its text.
+  const amount = (l: BankTransaction) => (
+    <span className={cn('font-medium whitespace-nowrap tabular-nums', !l.amount.startsWith('-') && 'text-status-good-text')}>{formatCurrency(l.amount, l.currency)}</span>
+  );
   // A reader of an account they cannot write sees its lines, not the menu that edits them.
   const actions = (l: BankTransaction) => owners.find((a) => a.accountId === l.accountId)?.writable ? <LineActions line={l} onDone={toast.success} /> : null;
-  const category = (l: BankTransaction) => l.parts?.length ? <SplitParts line={l} /> : l.category?.name ?? '—';
+  // A line still to classify says so, as the tab's count does.
+  const toClassify = (l: BankTransaction) => !l.category && !l.parts?.length && l.linkState !== 'ignored' && l.linkState !== 'internal';
+  const category = (l: BankTransaction) => l.parts?.length ? <SplitParts line={l} />
+    : l.category ? l.category.name
+    : toClassify(l) ? <Badge variant="outline" className="border-transparent bg-status-warning/15 text-status-warning-text">{t('banks.operations.to_classify')}</Badge> : '—';
+  // « À relier » is most lines' state: only a line linked, internal or ignored says it, under its label.
+  const state = (l: BankTransaction) => l.linkState === 'unlinked' ? null : <span className="block text-xs text-muted-foreground">{lineState(t, l)}</span>;
+  // A bank label can run long (references, mandates): two lines, the whole of it on hover.
   const label = (l: BankTransaction) => (
-    <span className="whitespace-normal">
-      {l.label}<Receipts line={l} />
-      {l.counterparty ? <span className="block text-sm text-muted-foreground">{l.counterparty}</span> : null}
+    <span className="block min-w-0">
+      <span className="line-clamp-2 font-medium break-words" title={l.label}>{l.label}<Receipts line={l} /></span>
+      {l.counterparty ? <span className="block truncate text-sm text-muted-foreground">{l.counterparty}</span> : null}
       {l.note ? <span className="block text-sm italic text-muted-foreground">{l.note}</span> : null}
+      {state(l)}
     </span>
+  );
+  const account = (l: BankTransaction) => (
+    <span className="inline-flex items-center gap-2">{owner(l)}<span className="text-sm text-muted-foreground">{l.accountName}</span></span>
   );
   return (
     <SortableTable<BankTransaction> caption={t('banks.operations.title')} rows={rows} rowKey={(l) => l.id}
       selection={{ selected, onChange: onSelect, label: (l) => t('banks.operations.select', { label: l.label }), allLabel: t('banks.operations.select_page'),
         disabled: (l) => !categorisable(l) }}
       columns={[
-        { id: 'date', header: t('banks.operations.date'), cell: (l) => <LocalDate value={l.bookedOn} style="short" /> },
-        { id: 'label', header: t('banks.operations.label'), cell: label },
-        { id: 'account', header: t('banks.operations.account'), cell: (l) => l.accountName },
-        { id: 'owner', header: t('banks.operations.owner'), cell: owner },
-        { id: 'category', header: t('banks.operations.filter.category'), cell: category },
-        { id: 'state', header: t('banks.operations.state'), cell: (l) => lineState(t, l) },
+        { id: 'date', header: t('banks.operations.date'), className: 'w-24 text-muted-foreground', cell: (l) => <LocalDate value={l.bookedOn} style="short" /> },
+        { id: 'label', header: t('banks.operations.label'), wrap: true, className: 'w-full min-w-56', cell: label },
+        { id: 'category', header: t('banks.operations.filter.category'), wrap: true, className: 'min-w-36', cell: category },
+        { id: 'account', header: t('banks.operations.account'), cell: account },
         { id: 'amount', header: t('banks.operations.amount'), align: 'end', cell: amount },
-        { id: 'actions', header: t('banks.operations.actions_col'), align: 'end', cell: actions },
+        { id: 'actions', header: t('banks.operations.actions_col'), align: 'end', className: 'w-10', cell: actions },
       ]}
       mobile={(l) => (
         <div className="space-y-1">
           <div className="flex items-start justify-between gap-2">{label(l)}{amount(l)}</div>
           <div className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
-            <span><LocalDate value={l.bookedOn} style="short" /> · {l.accountName} · {lineState(t, l)}</span>{owner(l)}
+            <span className="flex min-w-0 flex-wrap items-center gap-x-2"><LocalDate value={l.bookedOn} style="short" /> · {category(l)}</span>
             {actions(l)}
           </div>
-          <div className="text-sm">{category(l)}</div>
+          <div className="text-sm">{account(l)}</div>
         </div>
       )} />
   );
