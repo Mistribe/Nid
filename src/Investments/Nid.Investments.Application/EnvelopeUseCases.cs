@@ -48,7 +48,7 @@ public sealed record EnvelopeDeletionQuery(ItemId ItemId) : IQuery<ItemDeletionP
 
 [RequestHandler<CreateEnvelopeCommand, ItemId>]
 public sealed class CreateEnvelopeHandler(
-    IItemRegistry items, IEnvelopeStore envelopes, IValuations valuations, IFlows flows)
+    IItemRegistry items, IEnvelopeStore envelopes, IValuations valuations, IFlows flows, IPersonRegistry persons)
     : IRequestHandler<CreateEnvelopeCommand, ItemId>
 {
     public async ValueTask<Result<ItemId>> HandleAsync(CreateEnvelopeCommand command, CancellationToken ct = default)
@@ -62,7 +62,8 @@ public sealed class CreateEnvelopeHandler(
         kind.TryGetValue(out var k);
         if (EnvelopeRules.PremiumsBefore2017(command.PremiumsBefore2017, k).TryGetFailure(out failure))
             return Result.Failure<ItemId>(failure!);
-        if (EnvelopeRules.Regulated(command.Regulated, k).TryGetFailure(out failure))
+        if (EnvelopeRules.Regulated(command.Regulated, k).TryGetFailure(out failure)
+            || (await EnvelopeRules.PlanOwnerAsync(k, command.Owners, persons, ct)).TryGetFailure(out failure))
             return Result.Failure<ItemId>(failure!);
         cadence.TryGetValue(out var c);
 
@@ -150,6 +151,9 @@ public sealed class EditEnvelopeHandler(
         var target = OwnershipEdit.Of(item, command.Visibility, command.ShareLevel, command.Owners);
         if (await OwnershipEdit.RefusalAsync(rules, persons, actor.Current!.PersonId!.Value, item, target, "envelope", ct) is { } refused)
             return Result.Failure<ItemId>(refused);
+        // #182: checked when the kind becomes a plan or the owners change, so an envelope never ends up a plan with several owners.
+        if ((kind is not null || target.Changed) && (await EnvelopeRules.PlanOwnerAsync(finalKind, target.Owners, persons, ct)).TryGetFailure(out failure))
+            return Result.Failure<ItemId>(failure!);
 
         var replaced = await OwnershipEdit.ReplaceAsync(items, item, command.DisplayName ?? item.DisplayName, target, ct);
         if (replaced.TryGetFailure(out failure))

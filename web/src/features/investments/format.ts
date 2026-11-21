@@ -1,6 +1,8 @@
 import type { TFunction } from 'i18next';
 
-export const KINDS = ['checking', 'savings', 'pea', 'life_insurance', 'per', 'brokerage', 'tontine', 'other'] as const;
+export const KINDS = ['checking', 'savings', 'pea', 'life_insurance', 'per', 'employee_savings', 'collective_per', 'brokerage', 'tontine', 'other'] as const;
+/** #182: a PEE or a collective PER is one employee's plan, so exactly one adult owns it (the server's rule). */
+export const isEmployeePlan = (kind: string) => kind === 'employee_savings' || kind === 'collective_per';
 /** The kinds taxed as a life insurance contract, which keep the premiums paid before 27/09/2017. */
 export const hasPremiumsBefore2017 = (kind: string) => kind === 'life_insurance' || kind === 'tontine';
 

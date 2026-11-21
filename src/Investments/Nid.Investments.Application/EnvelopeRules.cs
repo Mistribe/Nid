@@ -1,4 +1,6 @@
+using Nid.Core.Contracts;
 using Nid.Investments.Contracts;
+using Nid.Platform.Contracts;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Functional.Failures;
 
@@ -56,6 +58,22 @@ internal static class EnvelopeRules
             : !EnvelopeWire.TryRegulated(wire, out _) ? Invalid("regulated", $"'{wire}' is not a regulated livret.")
             : kind != EnvelopeKind.Savings ? Invalid("regulated", "Only a savings envelope is a regulated livret.")
             : Result.Success();
+
+    /// <summary>#182: a PEE or a collective PER is one employee's plan: exactly one owner, an adult, whatever the visibility.</summary>
+    public static Result PlanOwner(EnvelopeKind kind, IReadOnlyList<Owner> owners)
+        => !EnvelopeKinds.IsEmployeePlan(kind) || owners is [{ Kind: PersonKind.Adult }] ? Result.Success()
+            : Result.Failure(FieldErrors.At(new Failure(InvestmentsCodes.PlanOwner,
+                "A company savings plan or a collective PER belongs to one employee: exactly one adult owns it.", null), "owners"));
+
+    /// <summary><see cref="PlanOwner(EnvelopeKind, IReadOnlyList{Owner})"/> on owners the request names by id, their kind read from the household.</summary>
+    public static async Task<Result> PlanOwnerAsync(EnvelopeKind kind, IReadOnlyList<OwnerShare> owners, IPersonRegistry persons, CancellationToken ct)
+    {
+        if (!EnvelopeKinds.IsEmployeePlan(kind))
+            return Result.Success();
+        var kinds = (await persons.ListAsync(ct)).ToDictionary(p => p.Id, p => p.Kind);
+        // An unknown person is the Core's to refuse: counted as a dependent here, never as the plan's adult.
+        return PlanOwner(kind, owners.Select(o => new Owner(o.PersonId, kinds.GetValueOrDefault(o.PersonId, PersonKind.Dependent), o.ShareBp)).ToList());
+    }
 
     public static RegulatedKind? ParseRegulated(string? wire) => EnvelopeWire.TryRegulated(wire, out var kind) ? kind : null;
 

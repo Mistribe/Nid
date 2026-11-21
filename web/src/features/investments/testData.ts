@@ -117,7 +117,7 @@ export const holdings = (over: Partial<HouseholdHoldings> = {}): HouseholdHoldin
   withoutReportCount: 0, undetailedEnvelopes: [], watch: [], findings: [], envelopeFees: [], projection: null, estimated: false,
   references: {
     assumedReturnPct: 4,
-    envelopes: { checking: 0, savings: 0, pea: 0, life_insurance: 0.5, per: 0.5, brokerage: 0, other: 0, tontine: 0 },
+    envelopes: { checking: 0, savings: 0, pea: 0, life_insurance: 0.5, per: 0.5, brokerage: 0, other: 0, tontine: 0, employee_savings: 0, collective_per: 0.5 },
     holdings: { euro_fund: 0, fund: 0.2, etf: 0.2, equity: 0, bond: 0, structured: 0.2, other: 0.2 },
   },
   ...over,
