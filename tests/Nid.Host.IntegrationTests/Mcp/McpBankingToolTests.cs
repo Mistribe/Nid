@@ -215,4 +215,32 @@ public class McpBankingToolTests(PostgresFixture fixture) : IClassFixture<Postgr
         Assert.Equal("0.00", empty.GetProperty("total").GetString());
         Assert.Empty(empty.GetProperty("categories").EnumerateArray());
     }
+
+    [Fact]
+    public async Task get_spending_over_a_period_answers_as_its_route_and_refuses_what_the_route_refuses()
+    {
+        await using var s = await StartAsync();
+        await using var client = await ClientAsync(s.App, TokenPresets.Read);
+
+        var period = await ReadAsync(client, "get_spending", new { from = "2026-01", to = "2026-10" });
+        SameJson(await s.App.GetRawAsync(s.App.AdultA, $"{BankingApi.Root}/spending?from=2026-01&to=2026-10"), period);
+        var figures = JsonDocument.Parse(period).RootElement;
+        Assert.Equal(("2026-01", "2026-10"), (figures.GetProperty("from").GetString(), figures.GetProperty("to").GetString()));
+        Assert.Equal(10, figures.GetProperty("months").GetArrayLength());
+        Assert.True(figures.TryGetProperty("savingsRate", out _));
+
+        foreach (var (args, code) in new (object, string)[]
+                 {
+                     (new { from = "2026-10", to = "2026-01" }, BankingCodes.SpendingPeriod),
+                     (new { from = "2024-01", to = "2026-01" }, BankingCodes.SpendingPeriod),
+                     (new { from = "2026-01" }, BankingCodes.SpendingPeriod),
+                     (new { month = "2026-10", from = "2026-01", to = "2026-10" }, BankingCodes.SpendingPeriod),
+                     (new { from = "2026-01-01", to = "2026-10" }, "is not a month"),
+                 })
+        {
+            var (error, text) = await CallAsync(client, "get_spending", args);
+            Assert.True(error, text);
+            Assert.Contains(code, text);
+        }
+    }
 }

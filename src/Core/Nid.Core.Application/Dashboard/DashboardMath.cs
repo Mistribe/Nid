@@ -111,16 +111,12 @@ public static class DashboardMath
         var cash = Of(commitments.Select(p => p.Cash));
         var monthly = Of(income.Select(p => p.MonthlyEquivalent));
         var sources = income.Sum(p => p.Sources);
-        // No income declared reads « inconnu », never 0 (spec §3); no subscription commits nothing.
-        decimal? incomeTotal = sources > 0 ? monthly.Total : null;
+        var budget = Budget(commitments, income, spending, reference, rates, today);
+        var (incomeTotal, committed, margin, left) = (budget.Income, budget.Committed, budget.Margin, budget.Left);
         decimal? ShareOfIncome(decimal? part) => incomeTotal is { } i && i > 0m && part is { } p ? Percent(p / i) : null;
-        decimal? committed = amortized.Missing is null ? amortized.Total ?? 0m : null;
-        decimal? margin = incomeTotal is { } i && committed is { } c ? i - c : null;
         decimal? share = ShareOfIncome(committed);
-        var everyday = Of(spending.Select(p => p.Total));
-        decimal? left = margin - everyday.Total;
         List<DashboardSpendingSliceView> slices = [];
-        if (everyday.Total is { } spent)
+        if (budget.Everyday is { } spent)
         {
             // By category, never by name: two categories of one name stay apart.
             var ranked = spending.SelectMany(p => p.ByCategory).GroupBy(s => s.Category)
@@ -191,7 +187,24 @@ public static class DashboardMath
             gain.View(reference), net.View(reference), changePct,
             split, people, peopleMissing, upcoming, todo, worth.Sum(p => p.WithoutStart), bySource,
             peopleMissing is null ? Allocation(holdings, reference, target ?? new Dictionary<string, decimal>()) : null,
-            everyday.Total is { } e ? Money(e, reference) : null, left is { } l ? Money(l, reference) : null, slices);
+            budget.Everyday is { } e ? Money(e, reference) : null, left is { } l ? Money(l, reference) : null, slices);
+    }
+
+    /// <summary>
+    /// The margin and « Reste réel »'s parts, each sum converted at <paramref name="today"/>'s rate. Issue #425: the spending page reads
+    /// them through <see cref="IMonthBudget"/>, so both pages show one figure.
+    /// </summary>
+    public static MonthBudget Budget(
+        IReadOnlyList<CommitmentsPart> commitments, IReadOnlyList<IncomePart> income, IReadOnlyList<SpendingPart> spending,
+        Currency reference, RateTable rates, LocalDate today)
+    {
+        Sum Of(IEnumerable<IReadOnlyDictionary<Currency, decimal>> parts) => Sum.Of(Merge(parts), reference, rates, today);
+
+        var amortized = Of(commitments.Select(p => p.Amortized));
+        // No income declared reads « inconnu », never 0 (spec §3); no subscription commits nothing.
+        decimal? incomeTotal = income.Sum(p => p.Sources) > 0 ? Of(income.Select(p => p.MonthlyEquivalent)).Total : null;
+        decimal? committed = amortized.Missing is null ? amortized.Total ?? 0m : null;
+        return new MonthBudget(incomeTotal, committed, Of(spending.Select(p => p.Total)).Total);
     }
 
     /// <summary>

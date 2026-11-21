@@ -107,6 +107,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IAccessPolicy, AccessPolicy>();
         services.AddScoped<IHouseholdCalendar, HouseholdCalendar>();
         services.AddScoped<Nid.Core.Application.Dashboard.DashboardReader>();
+        services.AddScoped<IMonthBudget>(sp => sp.GetRequiredService<Nid.Core.Application.Dashboard.DashboardReader>());
         services.AddScoped<Nid.Core.Application.Dashboard.MonthChangesReader>();
         services.AddSingleton<Nid.Core.Application.Dashboard.MonthChangeWords>();
         services.AddScoped<Nid.Platform.Contracts.INotificationSource, Nid.Core.Application.Dashboard.CoreNotificationSource>();
@@ -300,6 +301,8 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<Nid.Banking.Application.Reconciliation.CategoryRuleApplier>();
         services.AddScoped<Nid.Banking.Application.Reconciliation.LineRecategoriser>();
         services.AddScoped<Nid.Banking.Application.Reconciliation.BankReconciliation>();
+        services.AddScoped<Nid.Banking.Application.Reconciliation.SavingsFlows>();
+        services.AddScoped<Nid.Banking.Application.Reconciliation.SavingsFlowBackfill>();
         services.AddScoped<Nid.Banking.Application.Reconciliation.RecurringDebits>();
         services.AddScoped<Nid.Banking.Application.BankLines>();
         services.AddScoped<Nid.Banking.Application.Operations.ReceiptAnchors>();

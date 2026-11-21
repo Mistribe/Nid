@@ -305,7 +305,7 @@ namespace Nid.Core.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("ck_flow_kind", "kind in ('contribution','withdrawal','opening','income','expense')");
 
-                            t.HasCheckConstraint("ck_flow_source", "source in ('manual','import')");
+                            t.HasCheckConstraint("ck_flow_source", "source in ('manual','import','bank_api')");
                         });
                 });
 

@@ -13,7 +13,7 @@ public enum FlowKind
     Expense,
 }
 
-/// <summary><c>core-data-model.md</c> §5.1. <c>document</c> arrives with stage 4; <see cref="BankApi"/> is a bank balance written by the sync (valuations only).</summary>
+/// <summary><c>core-data-model.md</c> §5.1. <c>document</c> arrives with stage 4; <see cref="BankApi"/> is a bank balance written by the sync, or a flow the bank pass writes from a savings account's lines (#16).</summary>
 public enum FactSource
 {
     Manual,

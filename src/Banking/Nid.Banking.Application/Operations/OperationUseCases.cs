@@ -12,11 +12,13 @@ namespace Nid.Banking.Application.Operations;
 /// the reader's own pick among what they read: an id they cannot see is ignored. <paramref name="Min"/> and <paramref name="Max"/> bound the
 /// absolute amount; <paramref name="State"/> is a <c>link_state</c> wire value; <paramref name="Direction"/> is <c>out</c> or <c>in</c>;
 /// <paramref name="Search"/> is a substring of the label or the counterparty, case and accents aside. A parent category takes its children,
-/// and <paramref name="Uncategorised"/> adds the lines with none.
+/// and <paramref name="Uncategorised"/> adds the lines with none. #437: <paramref name="Scope"/> keeps the accounts a spending figure of that
+/// scope counts (<see cref="Spending.SpendingAccounts"/>), and <paramref name="State"/> <c>counted</c> the lines it counts (neither ignored nor
+/// internal, on an account that is not ignored), so a figure's link lists its lines.
 /// </summary>
 public sealed record OperationFilter(
     IReadOnlyList<Guid> Accounts, IReadOnlyList<Guid> Owners, LocalDate? From, LocalDate? To, IReadOnlyList<Guid> Categories,
-    bool Uncategorised, string? State, string? Direction, decimal? Min, decimal? Max, string? Search);
+    bool Uncategorised, string? State, string? Direction, decimal? Min, decimal? Max, string? Search, VisibilityScope? Scope = null);
 
 /// <summary>One page (<see cref="BankLines.PageSize"/>, newest booked first, <paramref name="Page"/> from 1) of the lines the actor reads, whatever their account.</summary>
 public sealed record ListOperationsQuery(OperationFilter Filter, int Page) : IQuery<OperationPage>;
@@ -43,7 +45,7 @@ public sealed record OptionView(Guid Id, string Name);
 [RequestHandler<ListOperationsQuery, OperationPage>]
 public sealed class ListOperationsHandler(
     BankingAccess access, IAccountStore accounts, ITransactionStore transactions, ICategoryStore categories, BankLines lines,
-    IPersonRegistry persons, IHouseholdSettings household, IHouseholdCalendar calendar, IFxRates fx)
+    IPersonRegistry persons, IHouseholdSettings household, IHouseholdCalendar calendar, IFxRates fx, Spending.SpendingAccounts spending)
     : IRequestHandler<ListOperationsQuery, OperationPage>
 {
     public async ValueTask<Result<OperationPage>> HandleAsync(ListOperationsQuery query, CancellationToken ct = default)
@@ -60,7 +62,8 @@ public sealed class ListOperationsHandler(
         var readable = rights.Select(r => r.Account).ToList();
         // Who reads each account is who owns it as the accounts list shows it: the joint account has both adults.
         var readers = await access.ReadersAsync(readable, ct);
-        var scope = readable.Where(a => (filter.Accounts.Count == 0 || filter.Accounts.Contains(a.Id))
+        var counted = filter.Scope is { } within ? (await spending.ForAsync(within, ct)).ToHashSet() : null;
+        var scope = readable.Where(a => (counted is null || counted.Contains(a.Id)) && (filter.Accounts.Count == 0 || filter.Accounts.Contains(a.Id))
             && (filter.Owners.Count == 0 || readers[a.Id].Any(p => filter.Owners.Contains(p.Value)))).Select(a => a.Id).ToList();
 
         var all = await categories.AllAsync(ct);
@@ -90,8 +93,8 @@ public sealed class ListOperationsHandler(
     {
         var errors = new List<FieldError>();
         void Add(string field, string message) => errors.Add(new FieldError(field, FieldErrors.ShapeCode, message));
-        if (f.State is not null && BankLines.State(f.State, "all") is { IsSuccess: false })
-            Add("state", "A state is unlinked, linked, ignored, internal or all.");
+        if (f.State is not (null or "counted") && BankLines.State(f.State, "all") is { IsSuccess: false })
+            Add("state", "A state is unlinked, linked, ignored, internal, counted or all.");
         if (f.Direction is not (null or "out" or "in"))
             Add("direction", "A direction is out or in.");
         if (f.Min < 0m)

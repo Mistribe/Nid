@@ -35,7 +35,7 @@ export type ChildcareSearch = DetailSearch & { year?: string };
 /** #94: a nanny at home's year (absent: the current one). */
 export type NannySearch = { year?: string };
 export type RoutineSearch = { on?: string };
-export type BanksSearch = { connected?: string; error?: string; tab?: 'categories' | 'application'; account?: string };
+export type BanksSearch = { connected?: string; error?: string; tab?: 'application'; account?: string };
 /** The home page: the curve's span, a figure panel, the projection's horizon (`10y` stays out of the URL) and its reading (`0`: current value). */
 export type DashboardSearch = { curve?: '3y' | 'all'; curveReal?: 1; panel?: Panel; projection?: ProjectionHorizon; real?: 0; ranges?: 1 };
 /**
@@ -73,8 +73,11 @@ export type InvestmentsSearch = { closed?: 1; tab?: string; curve?: '3y' | 'all'
  */
 export type IncomeSearch = { ended?: 1; period?: '12m' | '3y'; person?: string; kind?: string; source?: string; tab?: string };
 
-/** #85 « Dépenses »: the month (`yyyy-mm`, absent for the current one) and the 12 months up to it (`12m`, absent for the month alone). */
-export type SpendingSearch = { month?: string; period?: '12m' };
+/**
+ * #85 « Dépenses »: the month (`yyyy-mm`, absent for the current one) and the 12 months up to it (`12m`, absent for the month alone);
+ * #423: its tab (the overview, none, first), the Opérations tab's filters and the Catégories tab's kind (Dépenses, none, first).
+ */
+export type SpendingSearch = OperationsSearch & { month?: string; period?: '12m'; tab?: 'operations' | 'categories'; kind?: 'income' | 'transfer' };
 
 /**
  * The income detail's own choices: the history period (2C2b design §5, `last12` by default), the one-offs listed (issue
@@ -419,8 +422,11 @@ const spendingRoute = createRoute({
   path: '/spending',
   beforeLoad: requireModule('banking'),
   validateSearch: (search: Record<string, unknown>): SpendingSearch => ({
+    ...operationsSearch(search),
     ...(typeof search.month === 'string' && /^\d{4}-(0[1-9]|1[0-2])$/.test(search.month) ? { month: search.month } : {}),
     ...(search.period === '12m' ? { period: '12m' as const } : {}),
+    tab: search.tab === 'operations' || search.tab === 'categories' ? search.tab : undefined,
+    kind: search.kind === 'income' || search.kind === 'transfer' ? search.kind : undefined,
   }),
   component: lazyRouteComponent(() => import('@/features/spending/SpendingPage'), 'SpendingPage'),
 });
@@ -526,7 +532,7 @@ const notificationsRoute = createRoute({
 /** The « Opérations » filters (#84): all in the URL, the server applies them; `page` from 2; `state` absent is every line. */
 export type OperationsSearch = {
   q?: string; account?: string[]; owner?: string[]; from?: string; to?: string; category?: string[]; uncategorised?: boolean;
-  state?: 'unlinked' | 'linked' | 'internal' | 'ignored'; direction?: 'out' | 'in'; min?: number; max?: number; page?: number;
+  state?: 'unlinked' | 'linked' | 'internal' | 'ignored' | 'counted'; direction?: 'out' | 'in'; min?: number; max?: number; page?: number;
 };
 const ids = (value: unknown): string[] | undefined => {
   const list = (Array.isArray(value) ? value : [value]).filter((v): v is string => typeof v === 'string' && v !== '');
@@ -535,29 +541,30 @@ const ids = (value: unknown): string[] | undefined => {
 const isoDate = (value: unknown) => (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : undefined);
 // A bound is a plain non-negative decimal (the server refuses a negative one and reads no exponent).
 const amount = (value: unknown) => (typeof value === 'string' || typeof value === 'number') && /^\d{1,12}(\.\d{1,6})?$/.test(String(value)) ? Number(value) : undefined;
-const STATES = ['unlinked', 'linked', 'internal', 'ignored'] as const;
+const STATES = ['unlinked', 'linked', 'internal', 'ignored', 'counted'] as const;
 
+// Every key is answered, undefined when invalid: a key left out would keep its raw URL value for a `strict: false` reader.
+const operationsSearch = (search: Record<string, unknown>): OperationsSearch => ({
+  q: typeof search.q === 'string' && search.q !== '' ? search.q : undefined,
+  // The page picks one account, owner and category: a longer list in the URL keeps its first.
+  account: ids(search.account)?.slice(0, 1),
+  owner: ids(search.owner)?.slice(0, 1),
+  category: ids(search.category)?.slice(0, 1),
+  from: isoDate(search.from),
+  to: isoDate(search.to),
+  uncategorised: search.uncategorised === true || search.uncategorised === 'true' ? true : undefined,
+  state: STATES.find((s) => s === search.state),
+  direction: search.direction === 'out' || search.direction === 'in' ? search.direction : undefined,
+  min: amount(search.min),
+  max: amount(search.max),
+  page: (positive(search.page) ?? 1) > 1 ? positive(search.page) : undefined,
+});
+
+// #423: Opérations is a tab of Dépenses (which asks for banking); an old link lands there with its filters.
 const operationsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/operations',
-  beforeLoad: requireModule('banking'),
-  // Every key is answered, undefined when invalid: a key left out would keep its raw URL value for a `strict: false` reader.
-  validateSearch: (search: Record<string, unknown>): OperationsSearch => ({
-    q: typeof search.q === 'string' && search.q !== '' ? search.q : undefined,
-    // The page picks one account, owner and category: a longer list in the URL keeps its first.
-    account: ids(search.account)?.slice(0, 1),
-    owner: ids(search.owner)?.slice(0, 1),
-    category: ids(search.category)?.slice(0, 1),
-    from: isoDate(search.from),
-    to: isoDate(search.to),
-    uncategorised: search.uncategorised === true || search.uncategorised === 'true' ? true : undefined,
-    state: STATES.find((s) => s === search.state),
-    direction: search.direction === 'out' || search.direction === 'in' ? search.direction : undefined,
-    min: amount(search.min),
-    max: amount(search.max),
-    page: (positive(search.page) ?? 1) > 1 ? positive(search.page) : undefined,
-  }),
-  component: lazyRouteComponent(() => import('@/features/operations/OperationsPage'), 'OperationsPage'),
+  beforeLoad: ({ search }) => { redirect({ to: '/spending', search: { ...operationsSearch(search), scope: search.scope, tab: 'operations' }, throw: true }); },
 });
 
 const routineRoute = createRoute({
@@ -738,10 +745,16 @@ const banksSettingsRoute = createRoute({
   validateSearch: (search: Record<string, unknown>): BanksSearch => ({
     ...(typeof search.connected === 'string' ? { connected: search.connected } : {}),
     ...(typeof search.error === 'string' ? { error: search.error } : {}),
-    ...(search.tab === 'categories' || search.tab === 'application' ? { tab: search.tab } : {}),
+    ...(search.tab === 'application' ? { tab: search.tab } : {}),
     // #373: an envelope's page opens its account's « Régler » here.
     ...(typeof search.account === 'string' ? { account: search.account } : {}),
   }),
+  // #423: the categories moved to Dépenses. `location.search` is the address's own, before validation dropped that tab.
+  beforeLoad: ({ location }) => {
+    const raw = location.search as Record<string, unknown>;
+    if (raw.tab !== 'categories') return;
+    redirect({ to: '/spending', search: { tab: 'categories', kind: raw.kind === 'income' || raw.kind === 'transfer' ? raw.kind : undefined, scope: raw.scope === 'me' ? 'me' : undefined }, throw: true });
+  },
   component: lazyRouteComponent(() => import('@/features/settings/banks/BanksPage'), 'BanksPage'),
 });
 const notificationSettingsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/settings/notifications', component: lazyRouteComponent(() => import('@/features/settings/NotificationSettingsPage'), 'NotificationSettingsPage') });

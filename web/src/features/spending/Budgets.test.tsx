@@ -21,7 +21,7 @@ async function openBudget(user: Awaited<ReturnType<typeof renderApp>>['user'], n
 }
 
 describe('« Dépenses » budgets', () => {
-  beforeAll(async () => { await import('./SpendingPage'); }, 30_000);
+  beforeAll(async () => { await import('./SpendingPage'); await import('./SpendingOverview'); }, 30_000);
   beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date(2026, 10, 19, 12)); });
   afterEach(() => vi.useRealTimers());
 

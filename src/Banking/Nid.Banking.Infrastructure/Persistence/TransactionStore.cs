@@ -118,6 +118,9 @@ public sealed class TransactionStore(BankingDbContext db, IClock clock) : ITrans
             return query.Where(t => t.LinkState == state && !hidden.Contains(t.Id));
         if (state is "linked" && readable is not null)
             return query.Where(t => t.LinkState == state || (t.LinkState == "internal" && hidden.Contains(t.Id)));
+        // #437: the lines a spending figure counts (its Entries), whatever their counterpart.
+        if (state is "counted")
+            return query.Where(t => t.LinkState != "ignored" && t.LinkState != "internal" && !db.Accounts.Any(a => a.Id == t.AccountId && a.Ignored));
         return state is not null ? query.Where(t => t.LinkState == state) : query;
     }
 
@@ -257,11 +260,12 @@ public sealed class TransactionStore(BankingDbContext db, IClock clock) : ITrans
     public async Task<IReadOnlyList<SpendingSum>> SpendingAsync(IReadOnlyList<Guid> accounts, LocalDate from, LocalDate to, CancellationToken ct, bool withLinked = true)
         => (await Entries(accounts, from, to, withLinked)
             .GroupBy(e => new { e.CategoryId, e.Currency, e.BookedOn.Year, e.BookedOn.Month })
-            .Select(g => new { g.Key, Debits = g.Sum(e => e.Amount < 0 ? e.Amount : 0m), Credits = g.Sum(e => e.Amount > 0 ? e.Amount : 0m) })
+            .Select(g => new { g.Key, Debits = g.Sum(e => e.Amount < 0 ? e.Amount : 0m), Credits = g.Sum(e => e.Amount > 0 ? e.Amount : 0m),
+                DebitLines = g.Sum(e => e.Amount < 0 ? 1 : 0) })
             .ToListAsync(ct))
             .Select(g => new SpendingSum(g.Key.CategoryId, Currency.TryCreate(g.Key.Currency, out var currency) ? currency
                     : throw new InvalidOperationException($"Bank lines in '{g.Key.Currency}' have no valid currency."),
-                new YearMonth(g.Key.Year, g.Key.Month), g.Debits, g.Credits))
+                new YearMonth(g.Key.Year, g.Key.Month), g.Debits, g.Credits, g.DebitLines))
             .ToList();
 
     public async Task<(IReadOnlyList<(BankTransaction Line, Guid? PartId, decimal Amount)> Items, int Count)> SpendingLinesAsync(
@@ -275,6 +279,18 @@ public sealed class TransactionStore(BankingDbContext db, IClock clock) : ITrans
         var ids = page.Select(e => e.LineId).Distinct().ToList();
         var rows = (await db.Transactions.AsNoTracking().Where(t => ids.Contains(t.Id)).ToListAsync(ct)).ToDictionary(t => t.Id);
         return (page.Select(e => (ToModel(rows[e.LineId]), e.PartId, e.Amount)).ToList(), count);
+    }
+
+    public async Task<IReadOnlyList<CategoryUse>> CategoryUseAsync(IReadOnlyList<Guid> accounts, LocalDate from, CancellationToken ct)
+    {
+        // Internal lines count: they are what the transfer categories classify.
+        var lines = db.Transactions.AsNoTracking().Where(t => accounts.Contains(t.AccountId) && t.BookedOn >= from && t.LinkState != "ignored");
+        var filed = lines.Where(t => t.CategorySource != "split" && t.CategoryId != null)
+            .Select(t => new SpendingEntry { LineId = t.Id, BookedOn = t.BookedOn, CategoryId = t.CategoryId })
+            .Concat(db.TransactionParts.AsNoTracking().Where(p => p.CategoryId != null).Join(lines.Where(t => t.CategorySource == "split"), p => p.TransactionId, t => t.Id,
+                (p, t) => new SpendingEntry { LineId = t.Id, BookedOn = t.BookedOn, CategoryId = p.CategoryId }));
+        return (await filed.GroupBy(e => e.CategoryId!.Value).Select(g => new { g.Key, Lines = g.Count(), LastOn = g.Max(e => e.BookedOn) }).ToListAsync(ct))
+            .Select(g => new CategoryUse(g.Key, g.Lines, g.LastOn)).ToList();
     }
 
     public Task<LocalDate?> EarliestBookedOnAsync(IReadOnlyList<Guid> accounts, CancellationToken ct)

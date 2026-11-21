@@ -11,7 +11,7 @@ import { summary } from '../../investments/testData';
 import { account, CARD, CHECKING, CONNECTION, connection, noReads, rule, serveBanks } from './testData';
 
 describe('Réglages › Banques', () => {
-  beforeAll(async () => { await import('./BanksPage'); }, 30_000);
+  beforeAll(async () => { await import('./BanksPage'); await import('@/features/spending/SpendingPage'); }, 30_000);
 
   it('lists each connection with its state, its expiry, its last sync and its accounts', async () => {
     serveBanks([connection(), connection({ id: 'c2', aspspName: 'Crédit Agricole', status: 'expired', lastSyncedAt: null, accounts: [] })]);
@@ -304,22 +304,36 @@ describe('Réglages › Banques', () => {
     await waitFor(() => expect(deleted).toBe(CONNECTION));
   });
 
-  it('opens on « Comptes », and « Catégories » is a tab of its own in the address', async () => {
+  const headings = () => within(screen.getByRole('main')).getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
+
+  it('is one page of sections, « Mon application » last once the person has a connection (#413); « Catégories » moved to Dépenses', async () => {
     serveBanks([connection()]);
-    server.use(http.get('*/api/v1/banking/categories', () => HttpResponse.json([
-      { id: 'food', parentId: null, key: 'food', name: 'Alimentation', kind: 'expense', archived: false, mergedIntoId: null, defaultName: 'Alimentation' },
-    ])));
-    const { user, router } = await renderApp('/settings/banks');
+    const { router } = await renderApp('/settings/banks');
 
-    expect(await screen.findByRole('tab', { name: 'Comptes', selected: true })).toBeInTheDocument();
-    expect(await screen.findByRole('region', { name: 'BNP Paribas' })).toBeInTheDocument();
-    await user.click(screen.getByRole('tab', { name: 'Catégories' }));
+    await screen.findByRole('region', { name: 'Mon application Enable Banking' });
+    expect(screen.queryByRole('tab')).toBeNull();
+    expect(headings()).toEqual(['BNP Paribas', 'Règles mémorisées', 'Mon application Enable Banking']);
 
-    expect(await screen.findByRole('region', { name: 'Dépenses' })).toHaveTextContent('Alimentation');
-    expect(screen.queryByRole('region', { name: 'BNP Paribas' })).toBeNull();
-    await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'categories' }));
-    await user.click(screen.getByRole('tab', { name: 'Comptes' }));
-    await waitFor(() => expect(router.state.location.search).toEqual({}));
+    await router.navigate({ href: '/settings/banks?tab=categories&kind=income&scope=me' });
+    await waitFor(() => expect(router.state.location.pathname).toBe('/spending'));
+    expect(router.state.location.search).toEqual({ scope: 'me', tab: 'categories', kind: 'income' });
+  });
+
+  it('puts « Mon application » first while the person has neither an application nor a connection', async () => {
+    serveBanks([]);
+    await renderApp('/settings/banks');
+
+    await screen.findByRole('button', { name: 'Déclarer mon application' });
+    expect(headings()[0]).toBe('Mon application Enable Banking');
+  });
+
+  it('leads `?tab=application` to « Mon application », its heading focused', async () => {
+    serveBanks([connection()]);
+    await renderApp('/settings/banks?tab=application');
+
+    const heading = await screen.findByRole('heading', { name: 'Mon application Enable Banking' });
+    await waitFor(() => expect(heading).toHaveFocus());
+    expect(heading.closest('section')).toHaveAttribute('id', 'application');
   });
 
   it('lists and deletes a rule', async () => {

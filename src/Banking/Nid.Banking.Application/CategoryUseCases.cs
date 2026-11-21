@@ -1,13 +1,18 @@
 using Nid.Banking.Contracts;
 using Nid.Banking.Domain;
+using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
+using NodaTime;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Functional.Failures;
 using UnambitiousFx.Synapse.Abstractions;
 
 namespace Nid.Banking.Application;
 
-/// <summary>Every category, archived ones included (the web folds them), top-level first. Any signed-in person reads them.</summary>
+/// <summary>
+/// Every category, archived ones included (the web folds them), top-level first. Any signed-in person reads them; each with its use over
+/// the last 12 months, from the lines the actor reads only.
+/// </summary>
 public sealed record ListBankCategoriesQuery : IQuery<IReadOnlyList<BankCategoryView>>;
 
 /// <summary><paramref name="Kind"/> (<c>expense</c>, <c>income</c> or <c>transfer</c>) is required for a top-level category; a child takes its parent's.</summary>
@@ -22,18 +27,38 @@ public sealed record UpdateBankCategoryCommand(Guid Id, string? Name, Guid? Pare
 /// <summary>Moves the lines and children of <paramref name="Id"/> into <paramref name="Into"/>, which is returned.</summary>
 public sealed record MergeBankCategoryCommand(Guid Id, Guid Into) : ICommand<BankCategoryView>;
 
-/// <summary><paramref name="DefaultName"/> is the starter name of a seeded category, null for the household's own.</summary>
-public sealed record BankCategoryView(Guid Id, Guid? ParentId, string? Key, string Name, string Kind, bool Archived, Guid? MergedIntoId, string? DefaultName)
+/// <summary>
+/// <paramref name="DefaultName"/> is the starter name of a seeded category, null for the household's own. <paramref name="Lines"/> and
+/// <paramref name="LastLineOn"/> (#415): its lines over the last 12 months, its children's included, and the latest one's booking; given by the
+/// list only, zero and null on a write's answer.
+/// </summary>
+public sealed record BankCategoryView(
+    Guid Id, Guid? ParentId, string? Key, string Name, string Kind, bool Archived, Guid? MergedIntoId, string? DefaultName, int Lines = 0, LocalDate? LastLineOn = null)
 {
     public static BankCategoryView Of(BankCategory c) => new(
         c.Id, c.Parent, c.Key, c.Name, BankLines.Wire(c.Kind), c.ArchivedAt is not null, c.MergedInto, c.Key is null ? null : CategorySeed.Find(c.Key)?.Name);
 }
 
 [RequestHandler<ListBankCategoriesQuery, IReadOnlyList<BankCategoryView>>]
-public sealed class ListBankCategoriesHandler(ICategoryStore categories) : IRequestHandler<ListBankCategoriesQuery, IReadOnlyList<BankCategoryView>>
+public sealed class ListBankCategoriesHandler(
+    ICategoryStore categories, BankingAccess access, IAccountStore accounts, ITransactionStore lines, IHouseholdCalendar calendar)
+    : IRequestHandler<ListBankCategoriesQuery, IReadOnlyList<BankCategoryView>>
 {
+    public const int UseMonths = 12;
+
     public async ValueTask<Result<IReadOnlyList<BankCategoryView>>> HandleAsync(ListBankCategoriesQuery query, CancellationToken ct = default)
-        => Result.Success<IReadOnlyList<BankCategoryView>>([.. (await categories.AllAsync(ct)).Select(BankCategoryView.Of)]);
+    {
+        var all = await categories.AllAsync(ct);
+        var readable = (await access.ReadableAsync(await accounts.AllAsync(ct), ct)).Where(r => !r.Account.Ignored).Select(r => r.Account.Id).ToList();
+        var since = (await calendar.TodayAsync(ct)).PlusMonths(-UseMonths);
+        var used = (await lines.CategoryUseAsync(readable, since, ct)).ToDictionary(u => u.Category);
+        // A parent's use is its own lines and its children's (one level deep, `banking.category_depth`).
+        return Result.Success<IReadOnlyList<BankCategoryView>>([.. all.Select(c =>
+        {
+            var uses = all.Where(x => x.Id == c.Id || x.Parent == c.Id).Select(x => used.GetValueOrDefault(x.Id)).OfType<CategoryUse>().ToList();
+            return BankCategoryView.Of(c) with { Lines = uses.Sum(u => u.Lines), LastLineOn = uses.Count == 0 ? null : uses.Max(u => u.LastOn) };
+        })]);
+    }
 }
 
 [RequestHandler<CreateBankCategoryCommand, BankCategoryView>]

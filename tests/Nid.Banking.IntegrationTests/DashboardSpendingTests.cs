@@ -26,7 +26,7 @@ public class DashboardSpendingTests(PostgresFixture fixture) : IClassFixture<Pos
     private static Dictionary<string, decimal> Slices(SpendingPart part)
         => part.ByCategory.ToDictionary(s => s.Name, s => Assert.Single(s.Amount).Value);
 
-    private static async Task LinkAsync(NidApp app, Guid line)
+    internal static async Task LinkAsync(NidApp app, Guid line)
     {
         await using var scope = app.Services.CreateAsyncScope();
         scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;

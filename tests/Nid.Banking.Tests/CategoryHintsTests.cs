@@ -18,6 +18,9 @@ public class CategoryHintsTests
     [InlineData("MDOP/CHRG", -2, "bank")]
     [InlineData("ICDT/CHRG", -2, "bank")]
     [InlineData("RCDT/SALA", 100, "income.salary")]
+    [InlineData("ACMT/MCOP/INTR", 5, "income.interest")]
+    [InlineData("MCOP/INTR", 5, "income.interest")]
+    [InlineData("INT", 5, "income.interest")]
     public void A_structured_code_gives_its_seed(string code, int amount, string key) => Assert.Equal(key, CategoryHints.KeyFor(code, amount));
 
     [Theory]
@@ -41,9 +44,21 @@ public class CategoryHintsTests
     [InlineData("RCDT/ESCT", 100)]
     [InlineData("ICDT/ESCT", -20)]
     [InlineData("CWDL", -20)]
+    [InlineData("ACMT/MCOP/INTR", -5)]
+    [InlineData("MCOP/INTR", -5)]
+    [InlineData("INT", -5)]
     [InlineData("12/32", -20)]
     [InlineData("12/32", 20)]
     [InlineData("", -20)]
     [InlineData(null, -20)]
     public void Anything_else_gives_nothing(string? code, int amount) => Assert.Null(CategoryHints.KeyFor(code, amount));
+
+    [Theory]
+    [InlineData("INTERETS 2026", 5, true, "income.interest")]
+    [InlineData("Intérêts créditeurs", 5, true, "income.interest")]
+    [InlineData("Intérêts créditeurs", 5, false, null)]
+    [InlineData("Intérêts créditeurs", -5, true, null)]
+    [InlineData("VIREMENT", 5, true, null)]
+    public void An_interest_label_counts_on_a_savings_account_only(string label, int amount, bool savings, string? key)
+        => Assert.Equal(key, CategoryHints.KeyFor(null, amount, label, savings));
 }

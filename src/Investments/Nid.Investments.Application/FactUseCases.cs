@@ -11,7 +11,8 @@ namespace Nid.Investments.Application;
 public sealed record FlowDraft(LocalDate OccurredOn, string Kind, Money Amount, string? Category, string? ExternalRef, string? Note)
 {
     internal Result<NewFlow> ToNewFlow(ItemId item)
-        => EnvelopeWire.TryFlowKind(Kind, out var kind)
+        => BankFlows.IsBank(ExternalRef) ? Result.Failure<NewFlow>(BankFlows.Refused())
+            : EnvelopeWire.TryFlowKind(Kind, out var kind)
             ? Result.Success(new NewFlow(item, OccurredOn, kind, Amount, Category, ExternalRef, Note))
             : Result.Failure<NewFlow>(new Failure(CoreFactCodes.InvalidFact, $"'{Kind}' is not a flow kind.",
                 new Dictionary<string, object?> { ["field"] = "kind" }));
@@ -212,8 +213,10 @@ public sealed class CorrectFlowHandler(IEnvelopeStore envelopes, IItemRegistry i
         var draft = command.Flow.ToNewFlow(command.ItemId);
         if (!draft.TryGetValue(out var flow))
             return Result.Failure<Guid>(draft.TryGetFailure(out failure) ? failure! : throw new InvalidOperationException());
-        // Spec C2b: a transfer leg is corrected through its transfer; checked first, it is the more specific refusal.
         var replaced = await flows.FindManyAsync([command.FlowId], ct);
+        if (BankFlows.Refuse(replaced, command.ItemId) is { } bank)
+            return Result.Failure<Guid>(bank);
+        // Spec C2b: a transfer leg is corrected through its transfer; checked first, it is the more specific refusal.
         if (replaced.Any(f => f.Item == command.ItemId && f.Category == FlowCategories.Transfer) && flow!.Category != FlowCategories.Transfer)
             return Result.Failure<Guid>(new Failure(InvestmentsCodes.TransferLeg, "A transfer leg is corrected through its transfer.",
                 new Dictionary<string, object?> { ["field"] = "category" }));
@@ -235,7 +238,23 @@ public sealed class VoidFlowHandler(IEnvelopeStore envelopes, IItemRegistry item
     {
         if ((await OpenEnvelope.RequireAsync(envelopes, items, command.ItemId, ct)).TryGetFailure(out var failure))
             return Result.Failure<Guid>(failure!);
+        if (BankFlows.Refuse(await flows.FindManyAsync([command.FlowId], ct), command.ItemId) is { } bank)
+            return Result.Failure<Guid>(bank);
         var voided = await flows.VoidAsync(command.ItemId, command.FlowId, ct);
         return voided.TryGetFailure(out failure) ? Result.Failure<Guid>(failure!) : Result.Success(command.FlowId);
     }
+}
+
+/// <summary>
+/// #16: a flow Banking keeps from a bank line (<c>bank:</c> ref) changes with its line only: typing such a ref, or correcting or voiding
+/// such a flow by hand, is refused. Banking writes them through <see cref="IFlows"/>, not these commands.
+/// </summary>
+internal static class BankFlows
+{
+    public static bool IsBank(string? reference) => reference?.StartsWith("bank:", StringComparison.Ordinal) == true;
+
+    public static Failure Refused()
+        => new ConflictFailure("A flow with a « bank: » reference follows its bank line: change the line instead.") { Code = InvestmentsCodes.BankFlow };
+
+    public static Failure? Refuse(IEnumerable<Flow> found, ItemId item) => found.Any(f => f.Item == item && IsBank(f.ExternalRef)) ? Refused() : null;
 }

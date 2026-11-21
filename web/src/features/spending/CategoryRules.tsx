@@ -60,7 +60,7 @@ function conditions(t: TFunction, r: CategoryRule) {
 
 type Dialog = { mode: 'create' } | { mode: 'edit' | 'apply'; rule: CategoryRule };
 
-/** Réglages › Banques › Catégories › « Règles de catégorie »: the rules the actor sees, each with what it did on the lines they read. */
+/** Dépenses › Catégories › « Règles de catégorie »: the rules the actor sees, each with what it did on the lines they read. */
 export function CategoryRules() {
   const { t } = useTranslation();
   const { $api } = useApi();

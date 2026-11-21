@@ -17,6 +17,7 @@ export const ACCOUNTS = '/api/v1/banking/accounts' as const;
 export const ACCOUNT = '/api/v1/banking/accounts/{id}' as const;
 export const ACCOUNT_ENVELOPE = '/api/v1/banking/accounts/{id}/envelope' as const;
 export const SYNC = '/api/v1/banking/sync' as const;
+export const APPLICATION = '/api/v1/banking/application' as const;
 export const RULES = '/api/v1/banking/rules' as const;
 export const RULE = '/api/v1/banking/rules/{id}' as const;
 
@@ -76,6 +77,8 @@ export const CATEGORIES = '/api/v1/banking/categories' as const;
 export const CATEGORY = '/api/v1/banking/categories/{id}' as const;
 export const CATEGORY_MERGE = '/api/v1/banking/categories/{id}/merge' as const;
 export const TRANSACTION_CATEGORY = '/api/v1/banking/transactions/{id}/category' as const;
+/** #426: one category for several lines; the server answers the lines changed and the refused ones with their code. */
+export const TRANSACTIONS_CATEGORY = '/api/v1/banking/transactions/category' as const;
 
 /** Every bank category of the household, archived and merged ones included. */
 export function useCategories() {
@@ -114,3 +117,6 @@ export const CATEGORY_RULES = '/api/v1/banking/category-rules' as const;
 export const CATEGORY_RULE = '/api/v1/banking/category-rules/{id}' as const;
 export const CATEGORY_RULE_PREVIEW = '/api/v1/banking/category-rules/{id}/preview' as const;
 export const CATEGORY_RULE_APPLY = '/api/v1/banking/category-rules/{id}/apply' as const;
+/** #418: a rule not yet saved, previewed: the lines it would change, those it matches but would not, by reason. */
+export const CATEGORY_RULE_DRAFT_PREVIEW = '/api/v1/banking/category-rules/preview' as const;
+export type CategoryRuleDraftPreview = components['schemas']['CategoryRuleDraftPreview'];

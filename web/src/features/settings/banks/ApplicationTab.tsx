@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
@@ -19,11 +19,10 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { ConnectionTestResult } from './ConnectionTestResult';
-import { bankErrorText, presentBankError } from '@/api/banking';
+import { APPLICATION, bankErrorText, presentBankError } from '@/api/banking';
 import { formatInstantDate } from '@/lib/format';
 import '@/locales/banks';
 
-const APPLICATION = '/api/v1/banking/application' as const;
 const TEST = '/api/v1/banking/application/test' as const;
 
 type Test = components['schemas']['BankingConnectionTestView'];
@@ -33,7 +32,7 @@ const MAX_KEY_BYTES = 16 * 1024;
  * Réglages › Banques › Mon application (#382): the Enable Banking application this adult declares instead of the installation's.
  * The private key is write-only: sent once, never read back, never shown.
  */
-export default function ApplicationTab() {
+export default function ApplicationTab({ focus = false }: { focus?: boolean }) {
   const { t } = useTranslation();
   const { $api } = useApi();
   const queryClient = useQueryClient();
@@ -42,6 +41,7 @@ export default function ApplicationTab() {
   const [asking, setAsking] = useState(false);
   const [tested, setTested] = useState<Test | null>(null);
   const menu = useRef<HTMLButtonElement>(null);
+  const heading = useRef<HTMLHeadingElement>(null);
   const changed = () => queryClient.invalidateQueries({ queryKey: ['get', APPLICATION] });
   const remove = $api.useMutation('delete', APPLICATION, {
     onSuccess: () => { toast.success(t('banks.application.removed')); setTested(null); void changed(); },
@@ -53,13 +53,16 @@ export default function ApplicationTab() {
     onError: (error) => { toast.error(presentBankError(t, error).detail ?? t('banks.application.failed')); },
   });
 
+  // `?tab=application`: once the section shows, focusing its heading scrolls the page to it.
+  useEffect(() => { if (focus && mine.isSuccess) heading.current?.focus(); }, [focus, mine.isSuccess]);
+
   if (mine.error) return <ProblemMessage problem={present(toProblem(mine.error))} />;
   if (!mine.isSuccess) return <Skeleton aria-busy="true" className="h-32"><span className="sr-only">{t('banks.application.loading')}</span></Skeleton>;
   const view = mine.data;
   const done = (message: string) => { toast.success(message); setTested(null); setDialog(null); void changed(); };
 
   return (
-    <Section title={t('banks.application.title')}>
+    <Section id="application" title={t('banks.application.title')} headingRef={heading}>
       <p className="max-w-prose text-sm text-muted-foreground">{t('banks.application.intro')}</p>
       {view ? (
         <div className="space-y-3">

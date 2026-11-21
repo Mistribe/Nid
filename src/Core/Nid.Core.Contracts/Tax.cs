@@ -106,7 +106,11 @@ public static class TaxLineCodes
     }
 }
 
-/// <summary>Tax estimate spec §6: a module's figures for revenue year <c>year</c>, over the items the reader sees in the scope.</summary>
+/// <summary>
+/// Tax estimate spec §6: a module's figures for revenue year <c>year</c>, over the items the reader sees in the scope. <c>today</c>
+/// may shape the reading year's lines (what is recorded so far, then projected), never an earlier year's: those are the same on any
+/// later day, as the estimate reads the year before once per request (issue #438).
+/// </summary>
 public interface ITaxContribution
 {
     Task<Result<IReadOnlyList<TaxLine>>> TaxLinesAsync(PersonId reader, VisibilityScope scope, int year, LocalDate today, CancellationToken ct);

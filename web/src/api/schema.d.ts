@@ -12235,6 +12235,7 @@ export interface paths {
                     max?: string;
                     q?: string;
                     page?: number;
+                    scope?: string;
                 };
                 header?: never;
                 path?: never;
@@ -12529,6 +12530,172 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["CategoryBudgetView"][];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["BudgetsBody"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CategoryBudgetView"][];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/banking/budgets/suggestions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BudgetSuggestionView"][];
                     };
                 };
                 /** @description Bad Request */
@@ -13388,6 +13555,99 @@ export interface paths {
                 };
             };
         };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/banking/transactions/category": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["LinesCategoryBody"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LinesCategorised"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -14524,6 +14784,99 @@ export interface paths {
                 };
             };
         };
+        trace?: never;
+    };
+    "/api/v1/banking/category-rules/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CategoryRuleBody"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CategoryRuleDraftPreview"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/banking/category-rules/{id}/preview": {
@@ -33872,6 +34225,13 @@ export interface components {
             /** Format: uuid */
             mergedIntoId?: null | string;
             defaultName?: null | string;
+            /**
+             * Format: int32
+             * @default 0
+             */
+            lines: number;
+            /** Format: date */
+            lastLineOn?: null | string;
         };
         BankingConnectionTestView: {
             outcome: string;
@@ -34057,6 +34417,18 @@ export interface components {
         BudgetBody: {
             amount?: null | string;
             period?: null | string;
+        };
+        BudgetsBody: {
+            budgets?: null | components["schemas"]["NewBudget"][];
+        };
+        BudgetSuggestionView: {
+            /** Format: uuid */
+            categoryId: string;
+            name: string;
+            average: string;
+            proposed: string;
+            committed: boolean;
+            preselected: boolean;
         };
         CalendarAmountsView: {
             currency: string;
@@ -34246,6 +34618,22 @@ export interface components {
             maxAmount?: null | string;
             /** Format: uuid */
             categoryId?: null | string;
+        };
+        CategoryRuleConflict: {
+            reason: string;
+            rulePattern?: null | string;
+            /** Format: uuid */
+            categoryId?: null | string;
+            categoryName?: null | string;
+            /** Format: int32 */
+            lines: number;
+        };
+        CategoryRuleDraftPreview: {
+            /** Format: int32 */
+            total: number;
+            items: components["schemas"]["BankTransactionView"][];
+            conflicts: components["schemas"]["CategoryRuleConflict"][];
+            tooBroad: boolean;
         };
         CategoryRulePreview: {
             /** Format: int32 */
@@ -36887,6 +37275,20 @@ export interface components {
             categoryId?: null | string;
             note?: null | string;
         };
+        LineRefusal: {
+            /** Format: uuid */
+            id: string;
+            code: string;
+        };
+        LinesCategorised: {
+            changed: string[];
+            refused: components["schemas"]["LineRefusal"][];
+        };
+        LinesCategoryBody: {
+            transactionIds?: null | string[];
+            /** Format: uuid */
+            categoryId?: null | string;
+        };
         LineSplitBody: {
             parts?: null | components["schemas"]["LinePartBody"][];
         };
@@ -37566,6 +37968,13 @@ export interface components {
             parts: components["schemas"]["ReviewPartView"][];
             previousChange?: null | components["schemas"]["DashboardMoneyView"];
             previousParts: components["schemas"]["ReviewPartView"][];
+        };
+        NewBudget: {
+            /** Format: uuid */
+            categoryId: string;
+            amount?: null | string;
+            source?: null | string;
+            period?: null | string;
         };
         NewTokenBody: {
             name: string;
@@ -39604,14 +40013,21 @@ export interface components {
             /** Format: int32 */
             count: number;
             incomplete: boolean;
+            currency: string;
         };
         SpendingMonthView: {
             month: string;
             total: string;
+            income?: null | string;
+            committed?: null | string;
+            everyday?: null | string;
+            left?: null | string;
         };
         SpendingUncategorisedView: {
             amount: string;
             average?: null | string;
+            /** Format: int32 */
+            count: number;
         };
         SpendingView: {
             currency: string;
@@ -39624,6 +40040,13 @@ export interface components {
             to: string;
             months: components["schemas"]["SpendingMonthView"][];
             budgetIncomplete: boolean;
+            income?: null | string;
+            committed?: null | string;
+            everyday?: null | string;
+            left?: null | string;
+            leftEstimate?: null | string;
+            /** Format: double */
+            savingsRate?: null | number;
         };
         SpentView: {
             /** Format: date */

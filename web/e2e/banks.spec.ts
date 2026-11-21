@@ -37,6 +37,10 @@ test('alice turns bank sync on, names the application, finds Réglages › Banqu
   const { configured } = (await (await page.request.get('/api/v1/banking/status')).json()) as { configured: boolean };
   await expect(configured ? page.getByRole('heading', { name: 'Aucune banque reliée' }) : page.getByText(/n'a pas chargé la clé privée/)).toBeVisible();
   if (!configured) await expect(page.getByRole('link', { name: 'Voir Administration › Banque' })).toHaveAttribute('href', '/admin/banking');
+  // #413: one page, no second tab row; `?tab=application` leads to « Mon application ».
+  await expect(page.getByRole('tab')).toHaveCount(0);
+  await page.goto('/settings/banks?tab=application');
+  await expect(page.getByRole('heading', { name: 'Mon application Enable Banking' })).toBeFocused();
 
   await page.goto('/admin/banking');
   await page.getByRole('switch', { name: 'Synchronisation bancaire' }).click();
@@ -65,14 +69,17 @@ test('alice keeps the operations 24 months, then without limit', async ({ page }
   await bankSync(page, { bankingEnabled: false, enableBankingAppId: '' });
 });
 
-/** 5C, #84: bank sync on without Enable Banking, alice reaches the Opérations page filtered on the lines to link from « À valider » and keeps no rule yet. */
+/** 5C, #84: bank sync on without Enable Banking, alice reaches the Opérations tab of Dépenses filtered on the lines to link from « À valider » and keeps no rule yet. */
 test('alice opens the lines to link in « Opérations » and finds « Règles mémorisées » empty', async ({ page }) => {
   await signIn(page, 'alice', '/admin/banking');
   await bankSync(page, { bankingEnabled: true, enableBankingAppId: '' });
 
   await page.goto('/proposals');
   await page.getByRole('link', { name: 'Opérations à relier' }).click();
-  await expect(page.getByRole('heading', { level: 1, name: 'Opérations' })).toBeVisible();
+  // #423: Opérations is a tab of Dépenses.
+  await expect(page.getByRole('heading', { level: 1, name: 'Dépenses' })).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Opérations', selected: true })).toBeVisible();
+  await expect(page).toHaveURL(/\/spending\?/);
   await expect(page).toHaveURL(/state=unlinked/);
   // Empty on a fresh stack; the statement journey below leaves lines to link on a stack that ran it before.
   await expect(page.getByText('Aucune opération à relier.').or(page.getByRole('table', { name: 'Opérations' }))).toBeVisible();

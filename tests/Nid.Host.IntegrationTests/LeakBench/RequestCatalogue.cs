@@ -640,6 +640,9 @@ public static class RequestCatalogue
             new Nid.Banking.Application.Operations.OperationFilter([], [], null, null, [], false, null, null, null, null, null), 1)),
         new(typeof(Nid.Banking.Application.Operations.ListOperationsQuery), false, (_, _) => new Nid.Banking.Application.Operations.ListOperationsQuery(
             new Nid.Banking.Application.Operations.OperationFilter([], [], null, null, [], true, "all", "out", 1m, 100m, "cb"), 1)),
+        // #437: a spending figure's lines: its scope's accounts, the lines it counts.
+        new(typeof(Nid.Banking.Application.Operations.ListOperationsQuery), false, (_, _) => new Nid.Banking.Application.Operations.ListOperationsQuery(
+            new Nid.Banking.Application.Operations.OperationFilter([], [], null, null, [], false, "counted", null, null, null, null, VisibilityScope.Household), 1)),
         // 5C, D19: every readable account's lines; the joint line's link to A's private subscription never reaches B.
         new(typeof(ListBankLinesQuery), false, (_, _) => new ListBankLinesQuery("all", null, null, 1)),
         new(typeof(ListBankLinesQuery), false, (_, _) => new ListBankLinesQuery("all", null, null, 1, Uncategorised: true)),
@@ -657,6 +660,7 @@ public static class RequestCatalogue
         new(typeof(IgnoreTransactionCommand), false, (d, _) => new IgnoreTransactionCommand(d.JointLine)),
         new(typeof(SetTransactionCategoryCommand), false, (d, _) => new SetTransactionCategoryCommand(d.JointLine, null)),
         new(typeof(ResetTransactionCategoryCommand), false, (d, _) => new ResetTransactionCategoryCommand(d.JointLine)),
+        new(typeof(SetTransactionsCategoryCommand), false, (d, _) => new SetTransactionsCategoryCommand([d.JointLine], null)),
         new(typeof(SetTransactionNoteCommand), false, (d, _) => new SetTransactionNoteCommand(d.JointLine, null)),
         new(typeof(SplitTransactionCommand), false, (d, _) => new SplitTransactionCommand(d.JointLine, [])),
         new(typeof(UnsplitTransactionCommand), false, (d, _) => new UnsplitTransactionCommand(d.JointLine)),
@@ -672,10 +676,16 @@ public static class RequestCatalogue
         new(typeof(DeleteCategoryRuleCommand), false, (_, _) => new DeleteCategoryRuleCommand(Guid.NewGuid())),
         new(typeof(PreviewCategoryRuleQuery), false, (d, _) => new PreviewCategoryRuleQuery(d.PrivateRule.Rule, 1)),
         new(typeof(ApplyCategoryRuleCommand), false, (_, _) => new ApplyCategoryRuleCommand(Guid.NewGuid())),
+        // #418: a draft on the private label previews only lines the actor writes, and names only rules they see.
+        new(typeof(PreviewCategoryRuleDraftQuery), false, (_, _) => new PreviewCategoryRuleDraftQuery(MixedDataset.PrivateLabelA, null, null, null, null, Nid.Banking.Domain.CategorySeed.Find("food.groceries")!.Id)),
         // #85: the household's budgets, on its categories: no item, no person's data.
         new(typeof(Nid.Banking.Application.Spending.ListBudgetsQuery), false, (_, _) => new Nid.Banking.Application.Spending.ListBudgetsQuery()),
         new(typeof(Nid.Banking.Application.Spending.SetBudgetCommand), false, (_, _) => new Nid.Banking.Application.Spending.SetBudgetCommand(Guid.NewGuid(), "100", "month")),
         new(typeof(Nid.Banking.Application.Spending.DeleteBudgetCommand), false, (_, _) => new Nid.Banking.Application.Spending.DeleteBudgetCommand(Guid.NewGuid())),
+        // #427: budgets at once, and those proposed from the « Foyer » figures (the household's accounts, as Foyer shows them).
+        new(typeof(Nid.Banking.Application.Spending.CreateBudgetsCommand), false, (_, _) => new Nid.Banking.Application.Spending.CreateBudgetsCommand(
+            [new Nid.Banking.Application.Spending.NewBudget(Guid.NewGuid(), "100", "typed", "month")])),
+        new(typeof(Nid.Banking.Application.Spending.SuggestBudgetsQuery), false, (_, _) => new Nid.Banking.Application.Spending.SuggestBudgetsQuery()),
         new(typeof(ListBankRulesQuery), false, (_, _) => new ListBankRulesQuery()),
         new(typeof(DeleteBankRuleCommand), false, (_, _) => new DeleteBankRuleCommand(Guid.NewGuid())),
         // A preview: the actor's own new account from a file, rolled back; dropped on the row's item, refused unless they write an envelope.

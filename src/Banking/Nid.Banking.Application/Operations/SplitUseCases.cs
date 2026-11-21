@@ -46,7 +46,8 @@ public sealed class SetTransactionNoteHandler(BankingAccess access, BankLines li
 }
 
 [RequestHandler<SplitTransactionCommand, BankTransactionView>]
-public sealed class SplitTransactionHandler(BankingAccess access, BankLines lines, ICategoryStore categories, ISplitStore splits, IClock clock)
+public sealed class SplitTransactionHandler(
+    BankingAccess access, BankLines lines, ICategoryStore categories, ISplitStore splits, SavingsFlows savingsFlows, IClock clock)
     : IRequestHandler<SplitTransactionCommand, BankTransactionView>
 {
     public async ValueTask<Result<BankTransactionView>> HandleAsync(SplitTransactionCommand command, CancellationToken ct = default)
@@ -72,13 +73,14 @@ public sealed class SplitTransactionHandler(BankingAccess access, BankLines line
         }
 
         await splits.SplitAsync(line.Id, command.Parts, $"person:{access.Person.Value:D}", clock.GetCurrentInstant(), ct);
+        await savingsFlows.RunForLineAsync(line.Id, access.Person, ct);
         return Result.Success(await lines.ViewAsync(line.Id, ct));
     }
 }
 
 [RequestHandler<UnsplitTransactionCommand, BankTransactionView>]
 public sealed class UnsplitTransactionHandler(
-    BankingAccess access, BankLines lines, ISplitStore splits, LineRecategoriser recategoriser)
+    BankingAccess access, BankLines lines, ISplitStore splits, LineRecategoriser recategoriser, SavingsFlows savingsFlows)
     : IRequestHandler<UnsplitTransactionCommand, BankTransactionView>
 {
     public async ValueTask<Result<BankTransactionView>> HandleAsync(UnsplitTransactionCommand command, CancellationToken ct = default)
@@ -91,7 +93,10 @@ public sealed class UnsplitTransactionHandler(
             return BankingAccess.Failed<BankTransactionView, BankTransaction>(found);
 
         if (await splits.UnsplitAsync(line!.Id, ct))
+        {
             await recategoriser.ApplyAsync(line, ct);
+            await savingsFlows.RunForLineAsync(line.Id, access.Person, ct);
+        }
         return Result.Success(await lines.ViewAsync(line.Id, ct));
     }
 }

@@ -120,7 +120,9 @@ public class SpendingTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
             Assert.Equal(["Courses", "Restaurants & cafés"], Names(food.GetProperty("children")));
             Assert.Equal("60.00", Category(food, "Courses").GetProperty("amount").GetString());
             Assert.Equal("40.00", Category(food, "Restaurants & cafés").GetProperty("amount").GetString());
-            Assert.Equal("25.00", household.GetProperty("uncategorised").GetProperty("amount").GetString());
+            // #426: one debit to classify; the credit, the internal and the ignored lines are not.
+            Assert.Equal(("25.00", 1), (household.GetProperty("uncategorised").GetProperty("amount").GetString(),
+                household.GetProperty("uncategorised").GetProperty("count").GetInt32()));
         }
 
         // Bob's private line never counts for Alice; it counts in his own « Moi ».
@@ -326,6 +328,7 @@ public class SpendingTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
         var none = await LinesAsync(app, app.AdultA, "?uncategorised=true");
         Assert.Equal(["-25.00"], Amounts(none));
         Assert.Equal(figures.GetProperty("uncategorised").GetProperty("amount").GetString(), none.GetProperty("total").GetString());
+        Assert.Equal(none.GetProperty("count").GetInt32(), figures.GetProperty("uncategorised").GetProperty("count").GetInt32());
         // Bob's account is not Alice's to read: his category lines are his alone.
         var bob = await LinesAsync(app, app.AdultB, $"?categoryId={foodId}&scope=me");
         Assert.Equal(["-1000.00", "-30.00", "-40.00", "-80.00", "20.00"], Amounts(bob));

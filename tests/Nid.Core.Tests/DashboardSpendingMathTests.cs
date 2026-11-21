@@ -40,6 +40,41 @@ public class DashboardSpendingMathTests
     }
 
     [Fact]
+    public void The_month_budget_the_spending_page_reads_is_accueil_s()
+    {
+        IReadOnlyList<CommitmentsPart> commitments = [new CommitmentsPart(CommitmentSources.Subscriptions, 1, Eur(1000m), Eur(1000m))];
+        IReadOnlyList<SpendingPart> spending = [Part(("Alimentation", 700m), ("Non classées", 500m))];
+        foreach (var income in new[] { 1, 0 })
+        {
+            IReadOnlyList<IncomePart> earned = [new IncomePart(income, income > 0 ? Eur(2000m) : [])];
+            var view = DashboardMath.Compose([], commitments, earned, spending, [], [], Currency.Eur, RateTable.Empty(Today, 7), Today);
+            var month = DashboardMath.Budget(commitments, earned, spending, Currency.Eur, RateTable.Empty(Today, 7), Today);
+            Assert.Equal((view.Income.Total?.Amount, view.Commitments.Total?.Amount, view.Margin?.Amount, view.EverydaySpending?.Amount, view.Left?.Amount),
+                (M(month.Income), M(month.Committed), M(month.Margin), M(month.Everyday), M(month.Left)));
+        }
+        // No income declared: unknown, never 0, and so is what is left.
+        var none = DashboardMath.Budget(commitments, [new IncomePart(0, new Dictionary<Currency, decimal>())], spending, Currency.Eur, RateTable.Empty(Today, 7), Today);
+        Assert.Equal((null, 1000m, null, 1200m, null), (none.Income, none.Committed, none.Margin, none.Everyday, none.Left));
+
+        static string? M(decimal? amount) => amount?.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    [Fact]
+    public void A_period_adds_its_months_up_and_its_savings_rate_is_what_is_left_of_the_income()
+    {
+        // #428: a raise in the second month; what is left of 4 500 is 1 000, 22.2 %.
+        var period = MonthBudget.Sum([new MonthBudget(2000m, 1000m, 700m), new MonthBudget(2500m, 1000m, 800m)]);
+        Assert.Equal((4500m, 2000m, 1500m, 1000m, 22.2m), (period.Income, period.Committed, period.Everyday, period.Left, period.SavingsRate));
+        // Overspent: a negative rate.
+        Assert.Equal(-10m, new MonthBudget(1000m, 600m, 500m).SavingsRate);
+
+        // One month unknown makes the period's part unknown; no income, or none above 0, has no rate.
+        var unknown = MonthBudget.Sum([new MonthBudget(null, 1000m, 700m), new MonthBudget(2500m, 1000m, null)]);
+        Assert.Equal((null, 2000m, null, null), (unknown.Income, unknown.Committed, unknown.Everyday, unknown.SavingsRate));
+        Assert.Null(new MonthBudget(0m, 100m, 50m).SavingsRate);
+    }
+
+    [Fact]
     public void Nothing_to_read_a_missing_rate_or_no_margin_leave_the_figures_unknown()
     {
         foreach (var none in new[] { Compose([]), Compose([SpendingPart.None]) })

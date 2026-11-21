@@ -168,9 +168,10 @@ public static class BankingEndpoints
             .Returns<BankTransactionPage>();
 
         // #84: « Opérations »: every line the person reads, filtered, searched and paged by the server, with its total, converted totals and facets.
+        // #437: `scope` (me or household) keeps the accounts that scope's spending counts; without it, every account read.
         api.MapGet("/operations", async (IInvoker invoker, CancellationToken ct, [FromQuery] string[]? account = null, [FromQuery] string[]? owner = null,
                     string? from = null, string? to = null, [FromQuery] string[]? category = null, bool? uncategorised = null, string? state = null,
-                    string? direction = null, string? min = null, string? max = null, string? q = null, int? page = null) =>
+                    string? direction = null, string? min = null, string? max = null, string? q = null, int? page = null, string? scope = null) =>
             {
                 var reader = new FieldReader();
                 var (first, last) = (reader.Date(from, "from", required: false), reader.Date(to, "to", required: false));
@@ -195,7 +196,7 @@ public static class BankingEndpoints
                     ? reader.Problem()
                     : (await invoker.InvokeAsync(new ListOperationsQuery(new OperationFilter(
                             accounts, owners, first, last, categories, uncategorised ?? false, state, direction, lowest, highest,
-                            string.IsNullOrWhiteSpace(q) ? null : q.Trim()), Math.Max(page ?? 1, 1)), ct))
+                            string.IsNullOrWhiteSpace(q) ? null : q.Trim(), scope is null ? null : ParseScope(scope)), Math.Max(page ?? 1, 1)), ct))
                         .ToHttp(operations => operations);
             })
             .Returns<OperationPage>();
@@ -218,6 +219,16 @@ public static class BankingEndpoints
         api.MapGet("/budgets", async (IInvoker invoker, CancellationToken ct)
                 => (await invoker.InvokeAsync(new ListBudgetsQuery(), ct)).ToHttp(budgets => budgets))
             .Returns<IReadOnlyList<CategoryBudgetView>>();
+
+        // #427: several budgets created at once, all or none (the suggestions ticked); a PUT replaces one, this never does.
+        api.MapPost("/budgets", async (BudgetsBody body, IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new CreateBudgetsCommand(body.Budgets ?? []), ct)).ToHttp(budgets => budgets, StatusCodes.Status201Created))
+            .Returns<IReadOnlyList<CategoryBudgetView>>(StatusCodes.Status201Created);
+
+        // #427: budgets proposed from the Mois habituel, for a household that has none yet.
+        api.MapGet("/budgets/suggestions", async (IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new SuggestBudgetsQuery(), ct)).ToHttp(suggestions => suggestions))
+            .Returns<IReadOnlyList<BudgetSuggestionView>>();
 
         api.MapPut("/budgets/{categoryId:guid}", async (Guid categoryId, BudgetBody body, IInvoker invoker, CancellationToken ct)
                 => (await invoker.InvokeAsync(new SetBudgetCommand(categoryId, body.Amount, body.Period ?? ""), ct)).ToHttp(budget => budget))
@@ -253,6 +264,11 @@ public static class BankingEndpoints
         api.MapPut("/transactions/{id:guid}/category", async (Guid id, LineCategoryBody body, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new SetTransactionCategoryCommand(id, body.CategoryId), ct)).ToHttp(line => line))
             .Returns<BankTransactionView>();
+
+        // #426: one category for the lines selected in « Opérations »; each line refused as it would be alone is listed, not fatal.
+        api.MapPost("/transactions/category", async (LinesCategoryBody body, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new SetTransactionsCategoryCommand(body.TransactionIds ?? [], body.CategoryId), ct)).ToHttp(result => result))
+            .Returns<LinesCategorised>();
 
         api.MapDelete("/transactions/{id:guid}/category", async (Guid id, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new ResetTransactionCategoryCommand(id), ct)).ToHttp(line => line))
@@ -327,6 +343,13 @@ public static class BankingEndpoints
                 return result.TryGetValue(out _) ? Results.NoContent() : result.ToHttp(v => v);
             })
             .ReturnsNoContent();
+
+        // #418: the categorise dialog's rule, previewed as it is typed, before it is saved.
+        api.MapPost("/category-rules/preview", async (CategoryRuleBody body, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new PreviewCategoryRuleDraftQuery(
+                    body.Pattern ?? "", body.AccountId, body.Direction, body.MinAmount, body.MaxAmount, body.CategoryId ?? Guid.Empty), ct))
+                .ToHttp(preview => preview))
+            .Returns<CategoryRuleDraftPreview>();
 
         api.MapGet("/category-rules/{id:guid}/preview", async (Guid id, int? page, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new PreviewCategoryRuleQuery(id, page ?? 1), ct)).ToHttp(preview => preview))
@@ -459,6 +482,10 @@ public static class BankingEndpoints
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
     public sealed record LineCategoryBody(Guid? CategoryId);
 
+    /// <summary>One category (null: « Sans catégorie ») for 1 to 200 lines.</summary>
+    [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+    public sealed record LinesCategoryBody(IReadOnlyList<Guid>? TransactionIds, Guid? CategoryId);
+
     /// <summary>A line's note; empty or null clears it, 500 characters at most.</summary>
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
     public sealed record LineNoteBody(string? Note);
@@ -506,6 +533,9 @@ public static class BankingEndpoints
     /// <summary>A category's budget as a whole: <c>amount</c> an invariant decimal of zero or more, null to follow what is committed; <c>period</c> <c>month</c> or <c>year</c>.</summary>
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
     public sealed record BudgetBody(string? Amount, string? Period);
+
+    /// <summary>#427: budgets created at once, each with its <c>source</c>: <c>typed</c> with an <c>amount</c>, <c>committed</c> without.</summary>
+    public sealed record BudgetsBody(IReadOnlyList<NewBudget>? Budgets);
 
     /// <summary>How many lines took the rule's category.</summary>
     public sealed record CategoryRuleApplied(int Changed);

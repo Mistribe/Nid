@@ -119,6 +119,9 @@ public static class BankingCodes
     /// <summary>#85: a budget on a category and one on its parent or a child: one per branch.</summary>
     public const string BudgetBranch = "banking.budget_branch";
 
+    /// <summary>#427: budgets created at once never replace one: the category has its budget already (or is asked twice).</summary>
+    public const string BudgetExists = "banking.budget_exists";
+
     /// <summary>#85: a merge that would leave two budgets on one category or on one branch.</summary>
     public const string BudgetConflict = "banking.budget_conflict";
 
@@ -130,4 +133,10 @@ public static class BankingCodes
 
     /// <summary>#84: a split line has no category of its own: its parts do (un-split it first).</summary>
     public const string LineSplit = "banking.line_split";
+
+    /// <summary>#426: an ignored line counts nowhere, so it takes no category (un-ignore it first).</summary>
+    public const string LineIgnored = "banking.line_ignored";
+
+    /// <summary>#426: several lines categorised at once name 1 to 200 of them.</summary>
+    public const string CategoriseLines = "banking.categorise_lines";
 }
