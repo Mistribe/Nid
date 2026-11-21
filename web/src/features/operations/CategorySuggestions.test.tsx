@@ -15,14 +15,14 @@ const suggestion = {
 };
 const operations = { items: [], total: 0, totals: { out: '0', in: '0', net: '0', currency: 'EUR', incomplete: false }, facets: { accounts: [], owners: [], categories: [] }, accountOwners: [] };
 
-/** The operations page with one suggestion, gone once a write lands; every write as `[path, body]`. */
-function serve() {
+/** The operations page with one suggestion, replaced by `after` once a write lands; every write as `[path, body]`. */
+function serve(after: object[] = []) {
   let shown = true;
   const writes: [string, unknown][] = [];
   const write = (path: string, body: unknown, answer: JsonBodyType, status = 200) => { writes.push([path, body]); shown = false; return HttpResponse.json(answer, { status }); };
   server.use(
     http.get('*/api/v1/banking/operations', () => HttpResponse.json(operations)),
-    http.get('*/api/v1/banking/category-suggestions', () => HttpResponse.json(shown ? { items: [suggestion], total: 1 } : { items: [], total: 0 })),
+    http.get('*/api/v1/banking/category-suggestions', () => HttpResponse.json(shown ? { items: [suggestion], total: 1 } : { items: after, total: after.length })),
     http.post('*/api/v1/banking/transactions/category', async ({ request }) => write('categorise', await request.json(), { changed: ['t1', 't2'], refused: [] })),
     http.post('*/api/v1/banking/category-suggestions/dismissals', async ({ request }) => write('dismiss', await request.json(), { id: 'd1' }, 201)),
     http.post('*/api/v1/banking/category-rules/preview', () => HttpResponse.json({ total: 2, items: [], conflicts: [], tooBroad: false })),
@@ -67,14 +67,18 @@ describe('« Suggestions » in Opérations (#449)', () => {
     await waitFor(() => expect(writes).toEqual([['categorise', { transactionIds: ['t1', 't2'], categoryId: 'groceries' }]]));
     expect(await screen.findByText('2 opérations classées en Courses.')).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByRole('region', { name: /suggestion/ })).not.toBeInTheDocument());
+    // Nothing left to suggest: the focus goes to the list's count, not to the page's body.
+    await waitFor(() => expect(screen.getByText('0 opération')).toHaveFocus());
   });
 
-  it('ignores a group for the household', async () => {
-    const writes = serve();
+  it('ignores a group for the household, the focus on the block while groups remain', async () => {
+    const writes = serve([{ ...suggestion, pattern: 'OTHER SHOP', lines: [line('t3', 'OTHER SHOP')] }]);
     const { user, block } = await open();
     await user.click(within(block).getByRole('button', { name: 'Ignorer' }));
     await waitFor(() => expect(writes).toEqual([['dismiss', { pattern: 'SHOP ONE', direction: 'debit', categoryId: 'groceries' }]]));
     expect(await screen.findByText(/Suggestion ignorée/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('OTHER SHOP')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole('heading', { name: '1 suggestion de catégorie' })).toHaveFocus());
   });
 
   it('offers the rule, its pattern and category filled in and the past lines taken', async () => {
@@ -88,6 +92,7 @@ describe('« Suggestions » in Opérations (#449)', () => {
 
     await waitFor(() => expect(writes).toEqual([['rule', { pattern: 'SHOP ONE', categoryId: 'groceries', accountId: null }], ['apply r1', null]]));
     expect(await screen.findByText('Règle créée, et 2 opérations passées classées.')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('0 opération')).toHaveFocus());
   });
 });
 

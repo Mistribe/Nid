@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { lazy, Suspense, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
@@ -23,8 +23,9 @@ const PAGE_SIZE = 10;
 /**
  * #449: above the operations, the categories the household's own hand choices suggest for its uncategorised lines, the largest group first,
  * folded; nothing at all when there is nothing to suggest. Each one makes a rule, categorises its lines by hand, or is ignored for the household.
+ * After a write, the focus goes to the block's heading, or to `emptied` (the page's own) once the write left nothing to suggest.
  */
-export function CategorySuggestions() {
+export function CategorySuggestions({ emptied }: { emptied?: RefObject<HTMLElement | null> }) {
   const { t } = useTranslation();
   const { $api } = useApi();
   const queryClient = useQueryClient();
@@ -37,8 +38,17 @@ export function CategorySuggestions() {
   const [offer, setOffer] = useState<CategorySuggestion | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const data = answer.data;
-  // The group a write removes takes its buttons with it: the focus goes to the block's heading.
-  const done = (message: string) => { toast.success(message); heading.current?.focus(); };
+  // The group a write removes takes its buttons with it: once the refetch the write started has answered, the focus goes to the
+  // heading while groups remain, else to the page's own target.
+  const [refocus, setRefocus] = useState(false);
+  const settled = refocus && !answer.isFetching;
+  const left = data?.total ?? 0;
+  useEffect(() => {
+    if (!settled) return;
+    (left > 0 ? heading.current : emptied?.current)?.focus();
+    setRefocus(false);
+  }, [settled, left, emptied]);
+  const done = (message: string) => { toast.success(message); setRefocus(true); };
   // Beside the block, at the same place whether it shows or not: a new rule takes the group's lines, so the block empties while the
   // offer still applies the rule to them, and the offer must stay mounted to finish and say so.
   const dialog = offer ? (
