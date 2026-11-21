@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { present, toProblem } from '@/api/errors';
@@ -22,6 +22,8 @@ import { Receipts } from './Receipts';
 import '@/locales/banks';
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
+const CategoryDialog = lazy(() => import('./CategoryDialog'));
+const NONE: ReadonlySet<string> = new Set();
 
 /** Bank sync spec §6: the booked lines of the envelope's bank account and its cards, newest first, page by page, and « Importer un relevé ». */
 export default function OperationsTab({ envelope, writable }: { envelope: EnvelopeDetail; writable: boolean }) {
@@ -35,6 +37,14 @@ export default function OperationsTab({ envelope, writable }: { envelope: Envelo
   const filtered = ISO.test(from) || ISO.test(to);
   const lines = useTransactions(envelope.id, ISO.test(from) ? from : undefined, ISO.test(to) ? to : undefined);
   const rows = lines.data?.pages.flatMap((p) => p.items) ?? [];
+  // #435: the lines picked for « Catégoriser… », of the period shown: another period starts with none.
+  const period = `${ISO.test(from) ? from : ''}|${ISO.test(to) ? to : ''}`;
+  const [picked, setPicked] = useState<{ of: string; ids: ReadonlySet<string> }>({ of: period, ids: NONE });
+  const selected = picked.of === period ? picked.ids : NONE;
+  const [categorising, setCategorising] = useState(false);
+  const chosen = rows.filter((l) => selected.has(l.id));
+  // As « Catégoriser… » in a row's menu: neither split nor ignored.
+  const categorisable = (l: BankTransaction) => !l.parts?.length && l.linkState !== 'ignored';
   // Once the dialog handed itself back, the focus returns to its button, never <body>.
   useEffect(() => { if (landOn) { importRef.current?.focus(); setLandOn(false); } }, [landOn]);
 
@@ -79,9 +89,10 @@ export default function OperationsTab({ envelope, writable }: { envelope: Envelo
           </FilterField>
         </FilterRow>
         {writable ? (
-          <Button ref={importRef} type="button" variant="outline" className="ml-auto" onClick={() => setImporting(true)}>
-            {t('banks.import.open')}
-          </Button>
+          <div className="ml-auto flex flex-wrap gap-2">
+            {chosen.length > 0 ? <Button type="button" onClick={() => setCategorising(true)}>{t('banks.operations.categorise_many', { count: chosen.length })}</Button> : null}
+            <Button ref={importRef} type="button" variant="outline" onClick={() => setImporting(true)}>{t('banks.import.open')}</Button>
+          </div>
         ) : null}
       </div>
       {lines.error ? <ProblemMessage problem={present(toProblem(lines.error))} /> : null}
@@ -89,6 +100,8 @@ export default function OperationsTab({ envelope, writable }: { envelope: Envelo
       {lines.data && rows.length === 0 ? <p className="text-muted-foreground">{t(filtered ? 'banks.operations.empty_period' : 'banks.operations.empty')}</p> : null}
       {rows.length > 0 ? (
         <SortableTable<BankTransaction> caption={t('banks.operations.title')} rows={rows} rowKey={(l) => l.id}
+          selection={writable ? { selected, onChange: (ids) => setPicked({ of: period, ids }), label: (l) => t('banks.operations.select', { label: l.label }),
+            allLabel: t('banks.operations.select_page'), disabled: (l) => !categorisable(l) } : undefined}
           columns={[
             { id: 'date', header: t('banks.operations.date'), sort: (l) => l.bookedOn, cell: (l) => <LocalDate value={l.bookedOn} style="short" /> },
             { id: 'label', header: t('banks.operations.label'), cell: label },
@@ -109,6 +122,11 @@ export default function OperationsTab({ envelope, writable }: { envelope: Envelo
       ) : null}
       {lines.hasNextPage ? (
         <Button type="button" variant="outline" disabled={lines.isFetchingNextPage} onClick={() => void lines.fetchNextPage()}>{t('common.more')}</Button>
+      ) : null}
+      {categorising && chosen.length > 0 ? (
+        <Suspense fallback={null}>
+          <CategoryDialog lines={chosen} onClose={() => setCategorising(false)} onDone={(message) => { setCategorising(false); setPicked({ of: period, ids: NONE }); toast.success(message); }} />
+        </Suspense>
       ) : null}
       {importing ? (
         <ImportStatementDialog envelopeId={envelope.id} onClose={() => setImporting(false)}

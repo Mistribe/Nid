@@ -207,4 +207,79 @@ describe('« Opérations »', () => {
 
     await waitFor(() => expect(called).toBe(true));
   });
+
+  describe('several lines at once', () => {
+    const table = () => screen.getByRole('table', { name: 'Opérations' });
+    const box = (label: string) => within(table()).getByRole('checkbox', { name: `Sélectionner « ${label} »` });
+    const all = () => within(table()).getByRole('checkbox', { name: 'Sélectionner les opérations de la page' });
+
+    function serveBulk(items: BankTransaction[], answerWith: (ids: string[]) => { changed: string[]; refused: { id: string; code: string }[] }) {
+      serve([items]);
+      const writes: unknown[] = [];
+      server.use(
+        http.get('*/api/v1/banking/categories', () => HttpResponse.json([
+          { id: 'food', parentId: null, key: 'food', name: 'Alimentation', kind: 'expense', archived: false, mergedIntoId: null, defaultName: null, lines: 0 },
+        ])),
+        http.post('*/api/v1/banking/transactions/category', async ({ request }) => {
+          const body = await request.json() as { transactionIds: string[] };
+          writes.push(body);
+          return HttpResponse.json(answerWith(body.transactionIds));
+        }),
+        http.post('*/api/v1/banking/category-rules/preview', () => HttpResponse.json({ total: 0, items: [], conflicts: [], tooBroad: false })),
+      );
+      return writes;
+    }
+
+    it('selects the lines a writer may categorise, and categorises them in one call', async () => {
+      const writes = serveBulk([
+        line({ id: 'a', label: 'CB CARREFOUR CITY 12', suggestedPattern: 'CARREFOUR CITY' }),
+        line({ id: 'b', label: 'CB MONOPRIX', suggestedPattern: 'MONOPRIX' }),
+        line({ id: 'c', label: 'CB IGNOREE', linkState: 'ignored' }),
+        line({ id: 'd', label: 'CB DIVERS', categorySource: 'split', parts: [{ id: 'p1', amount: '-10.00', category: null, note: null }] }),
+      ], (ids) => ({ changed: ids, refused: [] }));
+      const { user } = await renderApp(`/investments/${PEA}?tab=operations`);
+      await screen.findByRole('table', { name: 'Opérations' });
+
+      expect(box('CB IGNOREE')).toBeDisabled();
+      expect(box('CB DIVERS')).toBeDisabled();
+      expect(screen.queryByRole('button', { name: /^Catégoriser…/ })).toBeNull();
+      await user.click(all());
+      expect(box('CB IGNOREE')).not.toBeChecked();
+      await user.click(screen.getByRole('button', { name: 'Catégoriser… (2)' }));
+      const dialog = await screen.findByRole('dialog', { name: 'Catégoriser 2 opérations' });
+      await pick(user, 'Catégorie', 'Alimentation');
+      await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
+
+      await waitFor(() => expect(writes).toEqual([{ transactionIds: ['a', 'b'], categoryId: 'food' }]));
+      expect(await screen.findByText('2 opérations classées.')).toBeInTheDocument();
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(screen.queryByRole('button', { name: /^Catégoriser…/ })).toBeNull();
+      expect(box('CB MONOPRIX')).not.toBeChecked();
+    });
+
+    it('offers the rule when the changed lines share their suggested pattern', async () => {
+      serveBulk([
+        line({ id: 'a', label: 'CB CARREFOUR CITY 12', suggestedPattern: 'CARREFOUR CITY' }),
+        line({ id: 'b', label: 'CB CARREFOUR CITY 34', suggestedPattern: 'CARREFOUR CITY' }),
+      ], (ids) => ({ changed: ids, refused: [] }));
+      const { user } = await renderApp(`/investments/${PEA}?tab=operations`);
+      await screen.findByRole('table', { name: 'Opérations' });
+      await user.click(all());
+      await user.click(screen.getByRole('button', { name: 'Catégoriser… (2)' }));
+      const dialog = await screen.findByRole('dialog', { name: 'Catégoriser 2 opérations' });
+      await pick(user, 'Catégorie', 'Alimentation');
+      await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
+
+      expect(await within(dialog).findByText('Toujours classer « CARREFOUR CITY » en Alimentation ?')).toBeInTheDocument();
+      expect(within(dialog).getByRole('textbox', { name: 'Motif' })).toHaveValue('CARREFOUR CITY');
+    });
+
+    it('shows no selection to a reader', async () => {
+      serve([[line()]], detail({ kind: 'checking', canWrite: false }));
+      await renderApp(`/investments/${PEA}?tab=operations`);
+
+      await screen.findByRole('table', { name: 'Opérations' });
+      expect(screen.queryByRole('checkbox')).toBeNull();
+    });
+  });
 });
