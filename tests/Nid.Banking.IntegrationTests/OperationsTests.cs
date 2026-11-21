@@ -138,6 +138,10 @@ public class OperationsTests(PostgresFixture fixture) : IClassFixture<PostgresFi
     [InlineData("?state=internal", 1)]
     [InlineData("?state=ignored", 1)]
     [InlineData("?state=unlinked", 6)]
+    [InlineData("?state=counted", 6)]
+    [InlineData("?scope=me", 8)]
+    [InlineData("?scope=household", 6)]
+    [InlineData("?scope=household&state=counted", 4)]
     [InlineData("?state=linked", 0)]
     [InlineData("?direction=in", 1)]
     [InlineData("?direction=out", 7)]
@@ -158,6 +162,46 @@ public class OperationsTests(PostgresFixture fixture) : IClassFixture<PostgresFi
 
         Assert.Equal(expected, page.GetProperty("total").GetInt32());
         Assert.Equal(expected, page.GetProperty("items").GetArrayLength());
+    }
+
+    /// <summary>
+    /// #437: a figure of Dépenses opens Opérations on its scope's accounts and the lines it counts: the same lines, the same total, an ignored
+    /// and an internal line of the category left out, and Alice's own account only in « Moi ».
+    /// </summary>
+    [Theory]
+    [InlineData("me", 3, "140.00")]
+    [InlineData("household", 2, "130.00")]
+    public async Task A_figure_link_lists_the_lines_behind_the_figure(string scope, int count, string figure)
+    {
+        var w = await StartAsync();
+        await using var _ = w.App;
+        await SeedLinesAsync(w);
+        await LineAsync(w.App, w.Joint, new(2025, 10, 13), -30m, "CB EPICERIE", category: "food.groceries");
+        var ignored = await LineAsync(w.App, w.Joint, new(2025, 10, 14), -60m, "CB EPICERIE ANNULEE", category: "food.groceries");
+        Assert.Equal(HttpStatusCode.OK, (await w.App.RawAsync(w.App.AdultA, HttpMethod.Post, $"{BankingApi.Root}/transactions/{ignored}/ignore")).StatusCode);
+        var transfer = await LineAsync(w.App, w.Joint, new(2025, 10, 15), -25m, "VIR COURSES", category: "food.groceries");
+        await using (var services = w.App.Services.CreateAsyncScope())
+        {
+            services.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
+            await services.ServiceProvider.GetRequiredService<ILinkStore>().SetAsync(
+                new BankLink(transfer, null, null, null, w.PersonA, LinkOutcome.InternalTransfer, null, "job", Instant.FromUtc(2025, 10, 15, 12, 0)),
+                TransactionLinkState.Internal, Ct);
+        }
+        var food = Seed("food");
+
+        var response = await w.App.RawAsync(w.App.AdultA, HttpMethod.Get,
+            $"{BankingApi.Root}/spending/lines?scope={scope}&categoryId={food}&from=2025-09&to=2025-10");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var lines = await BankingApi.JsonAsync(response);
+        Assert.Equal((figure, count), (lines.GetProperty("total").GetString(), lines.GetProperty("count").GetInt32()));
+
+        var list = await GetAsync(w.App, w.App.AdultA, $"?scope={scope}&state=counted&category={food}&from=2025-09-01&to=2025-10-31");
+        Assert.Equal(count, list.GetProperty("total").GetInt32());
+        Assert.Equal("-" + figure, list.GetProperty("totals").GetProperty("net").GetString());
+        Assert.Equal(lines.GetProperty("items").EnumerateArray().Select(i => i.GetProperty("id").GetGuid()).Order(),
+            list.GetProperty("items").EnumerateArray().Select(i => i.GetProperty("id").GetGuid()).Order());
+        // Without them, today's list: every account read, the ignored and the internal lines too.
+        Assert.Equal(5, (await GetAsync(w.App, w.App.AdultA, $"?category={food}&from=2025-09-01&to=2025-10-31")).GetProperty("total").GetInt32());
     }
 
     [Fact]

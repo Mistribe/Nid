@@ -139,7 +139,7 @@ describe('« Dépenses »', () => {
     expect(figure).toHaveTextContent(/300,00\s€/);
     await user.click(within(figure).getByRole('link', { name: '12 opérations à classer' }));
     // The answer's months (testData: 2026-11), as the server read them.
-    await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'operations', from: '2026-11-01', to: '2026-11-30', uncategorised: true, direction: 'out' }));
+    await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'operations', state: 'counted', from: '2026-11-01', to: '2026-11-30', uncategorised: true, direction: 'out' }));
     expect(screen.getByRole('tab', { name: /^Opérations/, selected: true })).toBeInTheDocument();
   });
 

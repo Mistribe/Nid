@@ -41,10 +41,10 @@ describe('a category’s lines', () => {
     expect(asked[1]!.get('page')).toBe('2');
     expect(within(dialog).queryByRole('button', { name: 'Charger plus' })).toBeNull();
 
-    // #423: the same lines in the Opérations tab, over the whole month; the server adds the children.
+    // #423: the same lines in the Opérations tab, over the whole month; the server adds the children. #437: only those the figure counts.
     await user.click(within(dialog).getByRole('link', { name: 'Voir dans Opérations' }));
     await waitFor(() => expect(router.state.location.search).toEqual({
-      scope: 'me', tab: 'operations', from: '2026-11-01', to: '2026-11-30', category: ['11111111-1111-1111-1111-111111111111'],
+      scope: 'me', tab: 'operations', state: 'counted', from: '2026-11-01', to: '2026-11-30', category: ['11111111-1111-1111-1111-111111111111'],
     }));
     expect(screen.queryByRole('dialog')).toBeNull();
   });
@@ -66,6 +66,6 @@ describe('a category’s lines', () => {
 
     // The figure counts the debits only: so does the list.
     await user.click(within(dialog).getByRole('link', { name: 'Voir dans Opérations' }));
-    await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'operations', from: '2025-12-01', to: '2026-11-30', uncategorised: true, direction: 'out' }));
+    await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'operations', state: 'counted', from: '2025-12-01', to: '2026-11-30', uncategorised: true, direction: 'out' }));
   });
 });

@@ -118,6 +118,9 @@ public sealed class TransactionStore(BankingDbContext db, IClock clock) : ITrans
             return query.Where(t => t.LinkState == state && !hidden.Contains(t.Id));
         if (state is "linked" && readable is not null)
             return query.Where(t => t.LinkState == state || (t.LinkState == "internal" && hidden.Contains(t.Id)));
+        // #437: the lines a spending figure counts (its Entries), whatever their counterpart.
+        if (state is "counted")
+            return query.Where(t => t.LinkState != "ignored" && t.LinkState != "internal" && !db.Accounts.Any(a => a.Id == t.AccountId && a.Ignored));
         return state is not null ? query.Where(t => t.LinkState == state) : query;
     }
 

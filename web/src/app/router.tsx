@@ -532,7 +532,7 @@ const notificationsRoute = createRoute({
 /** The « Opérations » filters (#84): all in the URL, the server applies them; `page` from 2; `state` absent is every line. */
 export type OperationsSearch = {
   q?: string; account?: string[]; owner?: string[]; from?: string; to?: string; category?: string[]; uncategorised?: boolean;
-  state?: 'unlinked' | 'linked' | 'internal' | 'ignored'; direction?: 'out' | 'in'; min?: number; max?: number; page?: number;
+  state?: 'unlinked' | 'linked' | 'internal' | 'ignored' | 'counted'; direction?: 'out' | 'in'; min?: number; max?: number; page?: number;
 };
 const ids = (value: unknown): string[] | undefined => {
   const list = (Array.isArray(value) ? value : [value]).filter((v): v is string => typeof v === 'string' && v !== '');
@@ -541,7 +541,7 @@ const ids = (value: unknown): string[] | undefined => {
 const isoDate = (value: unknown) => (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : undefined);
 // A bound is a plain non-negative decimal (the server refuses a negative one and reads no exponent).
 const amount = (value: unknown) => (typeof value === 'string' || typeof value === 'number') && /^\d{1,12}(\.\d{1,6})?$/.test(String(value)) ? Number(value) : undefined;
-const STATES = ['unlinked', 'linked', 'internal', 'ignored'] as const;
+const STATES = ['unlinked', 'linked', 'internal', 'ignored', 'counted'] as const;
 
 // Every key is answered, undefined when invalid: a key left out would keep its raw URL value for a `strict: false` reader.
 const operationsSearch = (search: Record<string, unknown>): OperationsSearch => ({
