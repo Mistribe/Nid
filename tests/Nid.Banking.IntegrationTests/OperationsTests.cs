@@ -204,6 +204,40 @@ public class OperationsTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         Assert.Equal(5, (await GetAsync(w.App, w.App.AdultA, $"?category={food}&from=2025-09-01&to=2025-10-31")).GetProperty("total").GetInt32());
     }
 
+    /// <summary>
+    /// #445: opened from a figure, the filter offers the accounts, owners and categories of the scope's accounts only: in « Moi », not Léa's
+    /// account that Bob connected (Alice reads it, only Léa holds it); in « Foyer », not Alice's own account nor its categories.
+    /// </summary>
+    [Fact]
+    public async Task A_scope_bounds_the_filter_options()
+    {
+        var w = await StartAsync();
+        await using var _ = w.App;
+        await SeedLinesAsync(w);
+        await BankingApi.ConnectAsync(w.App, w.App.AdultB, "code-l", BankingApi.Account("uid-l", "hash-l", null, "Compte de Léa"));
+        var lea = (await SpendingTests.AccountsAsync(w.App, w.App.AdultB))["Compte de Léa"];
+        await SpendingTests.PatchAsync(w.App, w.App.AdultB, lea, new { envelopeId = (await w.App.NewEnvelopeAsync("Léa", Visibility.Shared, (w.App.Dependent, 10_000))).Value });
+        await LineAsync(w.App, lea, new(2025, 10, 6), -15m, "CB PISCINE", category: "children.school");
+        Guid[] Categories(JsonElement page) => [.. page.GetProperty("facets").GetProperty("categories").EnumerateArray().Select(c => c.GetProperty("id").GetGuid())];
+
+        var everything = await GetAsync(w.App, w.App.AdultA);
+        Assert.Equal(new[] { "Commun", "Compte de Léa", "Perso A" }, Names(everything.GetProperty("facets").GetProperty("accounts")).Order());
+        Assert.Contains(Seed("children.school"), Categories(everything));
+        Assert.Contains(Seed("transport.fuel"), Categories(everything));
+
+        var me = await GetAsync(w.App, w.App.AdultA, "?scope=me&state=counted");
+        Assert.Equal(new[] { "Commun", "Perso A" }, Names(me.GetProperty("facets").GetProperty("accounts")).Order());
+        Assert.DoesNotContain(Seed("children.school"), Categories(me));
+        Assert.DoesNotContain(Seed("children"), Categories(me));
+        Assert.Contains(Seed("transport.fuel"), Categories(me));
+        Assert.Equal(2, me.GetProperty("facets").GetProperty("owners").GetArrayLength());
+
+        var household = await GetAsync(w.App, w.App.AdultA, "?scope=household&state=counted");
+        Assert.Equal(new[] { "Commun", "Compte de Léa" }, Names(household.GetProperty("facets").GetProperty("accounts")).Order());
+        Assert.DoesNotContain(Seed("transport.fuel"), Categories(household));
+        Assert.Contains(Seed("children.school"), Categories(household));
+    }
+
     [Fact]
     public async Task Search_is_case_and_accent_insensitive_and_literal()
     {
