@@ -55,13 +55,14 @@ public sealed class BankingTools
     }
 
     [McpServerTool(Name = "get_spending", ReadOnly = true)]
-    [Description("What the household's bank accounts spent by category over one month (default: the current month), with each category's "
+    [Description("What the household's bank accounts spent by category over one month (default: the current month) or over a period of "
+        + "whole months ('from' and 'to' both given, at most 24 months; not with 'month'), with each category's "
         + "monthly average over the 12 months before it, or over the months the accounts' history covers when fewer (none under 3). Amounts "
         + "are in the household's reference currency; transfers between accounts never count, refunds lower their category, and lines with "
         + "no category are counted apart as 'uncategorised'. "
         + "'incomplete' means a bank line in another currency had no exchange rate and is left out of the figures; 'budgetIncomplete' means "
         + "an expected charge (a commitment) in another currency had no rate and is left out of the budgets. "
-        + "In the household scope only, a category may carry its monthly 'budget': 'planned' (the typed amount, a yearly one divided by 12, "
+        + "In the household scope and over one month only, a category may carry its monthly 'budget': 'planned' (the typed amount, a yearly one divided by 12, "
         + "or with source 'committed' the month's expected charges there such as subscriptions and loan instalments), 'committed' (those "
         + "charges, also inside a typed amount), 'left' (planned minus spent, negative once over), 'expectedSoFar' for the current month "
         + "(the charges already due, plus the rest of planned spread over the days elapsed) and 'state' ('on_track', 'ahead' of that pace, 'over'). "
@@ -69,13 +70,18 @@ public sealed class BankingTools
         + "'committed' (subscriptions, loans, childcare, property charges and tax, per month), 'everyday' (the month's spending less the lines "
         + "linked to a commitment and the tax), 'left' (income minus committed minus everyday, negative once overspent) and, for the current "
         + "month only, 'leftEstimate': what would be left if the month ends as usual (income minus committed minus the larger of everyday and "
-        + "the usual month's everyday spending); null when it cannot be computed. 'savingsRate' is left divided by income, in percent "
-        + "(null without an income above 0); each entry of 'months' carries its own 'income', 'committed', 'everyday' and 'left'. "
+        + "the usual month's everyday spending); null when it cannot be computed. Over a period, 'income', 'committed', 'everyday' and 'left' "
+        + "are the sums of its months (each null when one month's is) and there is no 'leftEstimate'. 'savingsRate' is left divided by income, "
+        + "in percent, for the month or the whole period (null without an income above 0). 'months' lists every month from 'from' to 'to', "
+        + "oldest first (a single entry for one month), each with what it spent ('total') and its own 'income', 'committed', 'everyday' and 'left'. "
         + McpSetup.Untrusted)]
     public static Task<CallToolResult> GetSpending(IServiceProvider services,
         [Description("ISO month (yyyy-mm); default the current month.")] string? month = null,
-        [Description("'household' (default) or 'me'.")] string? scope = null, CancellationToken ct = default)
-        => McpCalls.RunAsync(services, () => new GetSpendingQuery(SubscriptionEndpoints.ParseScope(scope), SubscriptionEndpoints.OptionalMonth(month), null, null), ct);
+        [Description("'household' (default) or 'me'.")] string? scope = null,
+        [Description("ISO first month of a period (yyyy-mm), with 'to'.")] string? from = null,
+        [Description("ISO last month of a period (yyyy-mm), with 'from'.")] string? to = null, CancellationToken ct = default)
+        => McpCalls.RunAsync(services, () => new GetSpendingQuery(SubscriptionEndpoints.ParseScope(scope), SubscriptionEndpoints.OptionalMonth(month),
+            SubscriptionEndpoints.OptionalMonth(from), SubscriptionEndpoints.OptionalMonth(to)), ct);
 
     [McpServerTool(Name = "list_expected_charges", ReadOnly = true)]
     [Description("The charges expected between two dates (subscriptions, loan instalments, rents…) that the person may link a bank line to, "
