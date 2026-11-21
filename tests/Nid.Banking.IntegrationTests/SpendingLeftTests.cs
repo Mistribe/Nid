@@ -1,7 +1,12 @@
+using System.Collections.Concurrent;
 using System.Globalization;
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Contracts;
+using Nid.Platform.Contracts;
 using Nid.TestSupport;
+using NodaTime;
+using UnambitiousFx.Functional;
 
 namespace Nid.Banking.IntegrationTests;
 
@@ -150,5 +155,54 @@ public class SpendingLeftTests(PostgresFixture fixture) : IClassFixture<Postgres
         var october = await SpendingTests.SpendingAsync(app, app.AdultA, "?scope=me");
         Assert.Equal("50.00", Text(october, "average"));
         Assert.Equal(Text(october, "left"), Text(october, "leftEstimate"));
+    }
+
+    /// <summary>Issue #438: the tax lines each year is read for, by year.</summary>
+    private sealed class CountingTax(ConcurrentDictionary<int, int> reads) : ITaxContribution
+    {
+        public Task<Result<IReadOnlyList<TaxLine>>> TaxLinesAsync(PersonId reader, VisibilityScope scope, int year, LocalDate today, CancellationToken ct)
+        {
+            reads.AddOrUpdate(year, 1, (_, n) => n + 1);
+            return Task.FromResult(Result.Success<IReadOnlyList<TaxLine>>([]));
+        }
+    }
+
+    [Fact]
+    public async Task A_period_reads_the_year_before_once_and_each_month_still_matches_its_month_view()
+    {
+        var reads = new ConcurrentDictionary<int, int>();
+        await using var app = await BankingApi.StartAsync(fixture, overrides: s => s.AddScoped<ITaxContribution>(_ => new CountingTax(reads)));
+        await BankingApi.ConnectAsync(app, app.AdultA, "code-a", BankingApi.Account("uid-1", "hash-1", null, "Compte"));
+        // A salary whose year before sets the PER ceiling of a large payment, a let property and a nanny whose months are projected.
+        var salary = await app.NewIncomeSourceAsync("Salaire Alice", app.AdultA);
+        (await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/income/sources/{salary.Value}/phases",
+            new { label = "Salaire", startsOn = "2024-01-01", netAmount = new { amount = "6000", currency = "EUR" }, every = new { count = 1, unit = "month" } })).EnsureSuccessStatusCode();
+        var per = await LoanApi.CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/investments/envelopes", new
+        {
+            displayName = "PER", kind = "per", currency = "EUR", visibility = "shared", openedOn = "2025-02-01",
+            owners = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } },
+            opening = new { occurredOn = "2025-02-01", amount = new { amount = "1000.00", currency = "EUR" } },
+        }));
+        (await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/investments/envelopes/{per}/flows",
+            new { occurredOn = "2025-03-10", kind = "contribution", amount = new { amount = "20000", currency = "EUR" } })).EnsureSuccessStatusCode();
+        var property = $"{PropertyApi.Properties}/{(await app.NewPropertyAsync("Locatif", Visibility.Shared, (app.AdultA, 10_000))).Value}";
+        await LoanApi.CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{property}/tenancies",
+            new { label = "Bail", startsOn = "2024-01-01", rentMonthly = "750", chargesMonthly = "0" }));
+        var nanny = $"/api/v1/childcare/nannies/{await LoanApi.CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/childcare/nannies",
+            new { name = "Garde à domicile", visibility = "shared", owners = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } } }))}";
+        foreach (var month in new[] { "2024-11", "2025-02" })
+            (await app.RawAsync(app.AdultA, HttpMethod.Put, $"{nanny}/months/{month}", new { paid = "1000", cmg = "400" })).EnsureSuccessStatusCode();
+
+        reads.Clear();
+        var months = (await SpendingTests.SpendingAsync(app, app.AdultA, "?scope=me&from=2024-11&to=2025-10")).GetProperty("months").EnumerateArray().ToList();
+        // Ten months of 2025 each estimate their year as read that month; the year before is read once (2024 is before the rules).
+        Assert.Equal((10, 1), (reads.GetValueOrDefault(2025), reads.GetValueOrDefault(2024)));
+        // The tax changes from month to month (the rents projected after each), and each month is still its month view's.
+        Assert.True(months.Select(m => Text(m, "committed")).Distinct().Count() > 2);
+        foreach (var m in months)
+        {
+            var alone = await SpendingTests.SpendingAsync(app, app.AdultA, $"?scope=me&month={Text(m, "month")}");
+            Assert.Equal((Text(alone, "income"), Text(alone, "committed"), Text(alone, "left")), (Text(m, "income"), Text(m, "committed"), Text(m, "left")));
+        }
     }
 }
