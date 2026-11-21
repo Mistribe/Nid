@@ -141,6 +141,10 @@
       "idle_cash": {
         "threshold": "Épargne de précaution (mois)",
         "tip": "Additionne chaque jour les soldes synchronisés de vos comptes courants. Prévient une fois par mois quand ce total est resté au-dessus de votre épargne de précaution les 28 derniers jours, et qu’un livret réglementé a encore de la place ou qu’un objectif est en retard. L’épargne de précaution est la cible de votre objectif du même nom, sinon ce nombre de mois de vos engagements. Les montants n’apparaissent que dans Nid."
+      },
+      "unusual_spending": {
+        "threshold": "Hausse (%)",
+        "tip": "Regarde chaque catégorie de dépenses du foyer (vue « Foyer » de Dépenses). Prévient une fois par catégorie et par mois quand son budget est dépassé, ou, à partir du 10 du mois, quand il le sera au rythme actuel, ou quand le mois dépasse son mois habituel de plus de ce pourcentage et d’au moins 50 €. Les montants et les libellés des opérations n’apparaissent que dans Nid."
       }
     },
     "lead_days": "Délais",

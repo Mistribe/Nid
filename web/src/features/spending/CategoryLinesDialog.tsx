@@ -12,6 +12,7 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import type { BankTransaction } from '@/api/banking';
 import { daysIn } from '@/features/calendar/calendarDates';
+import { SplitParts } from '@/features/investments/operations/LineActions';
 import { LINES_PAGE, SPENDING_LINES, type SpendingLines, type SpendingQuery } from './api';
 import '@/locales/spending';
 
@@ -27,7 +28,10 @@ export function operationsSearch(months: { from: string; to: string }, categoryI
   };
 }
 
-/** The lines behind one figure of the page (a category and its children, or « Non classées »), newest first; the total is the server's. */
+/**
+ * The lines behind one figure of the page (a category and its children, or « Non classées »), newest first; the total is the server's.
+ * #446: a split line is one row, its parts of the figure summed by the server and listed under its label, as in Opérations.
+ */
 export function CategoryLinesDialog({ target, query, period, onClose }: {
   target: { categoryId?: string; name: string }; query: SpendingQuery; period: string; onClose: () => void;
 }) {
@@ -43,6 +47,7 @@ export function CategoryLinesDialog({ target, query, period, onClose }: {
   const first = lines.data?.pages[0];
   const rows = lines.data?.pages.flatMap((p) => p.items) ?? [];
   const amount = (l: BankTransaction) => <span className="tabular-nums">{formatCurrency(l.amount, l.currency)}</span>;
+  const label = (l: BankTransaction) => <>{l.label}{l.parts?.length ? <span className="block"><SplitParts line={l} /></span> : null}</>;
   const months = 'month' in query ? { from: query.month, to: query.month } : query;
 
   return (
@@ -63,16 +68,16 @@ export function CategoryLinesDialog({ target, query, period, onClose }: {
           {first?.incomplete ? <Incomplete /> : null}
           {first && rows.length === 0 ? <p className="text-muted-foreground">{t('spending.lines.empty')}</p> : null}
           {rows.length > 0 ? (
-            <SortableTable<BankTransaction> caption={t('spending.lines.list')} rows={rows} rowKey={(l) => `${l.id}:${l.partId ?? ''}`}
+            <SortableTable<BankTransaction> caption={t('spending.lines.list')} rows={rows} rowKey={(l) => l.id}
               columns={[
                 { id: 'date', header: t('spending.lines.date'), cell: (l) => <LocalDate value={l.bookedOn} style="short" /> },
-                { id: 'label', header: t('spending.lines.label'), wrap: true, cell: (l) => l.label },
+                { id: 'label', header: t('spending.lines.label'), wrap: true, cell: label },
                 { id: 'account', header: t('spending.lines.account'), cell: (l) => l.accountName },
                 { id: 'amount', header: t('spending.lines.amount'), align: 'end', cell: amount },
               ]}
               mobile={(l) => (
                 <div className="space-y-1">
-                  <div className="flex items-start justify-between gap-2"><span>{l.label}</span>{amount(l)}</div>
+                  <div className="flex items-start justify-between gap-2"><span>{label(l)}</span>{amount(l)}</div>
                   <div className="text-sm text-muted-foreground"><LocalDate value={l.bookedOn} style="short" /> · {l.accountName}</div>
                 </div>
               )} />

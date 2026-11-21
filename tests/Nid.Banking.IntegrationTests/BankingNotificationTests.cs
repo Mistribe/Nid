@@ -475,4 +475,47 @@ public class BankingNotificationTests(PostgresFixture fixture) : IClassFixture<P
         Assert.False(signal.Params.ContainsKey("room_amount"));
         Assert.Empty(Findings(await SignalsAsync(app, app.AdultB), "idle_cash")); // A's own account
     }
+
+    [Fact]
+    public async Task Unusual_spending_tells_a_category_above_its_usual_month_and_a_budget_over_on_the_household_lines_only()
+    {
+        await using var app = await BankingApi.StartAsync(fixture);
+        await BankingApi.ConnectAsync(app, app.AdultA, "code-a", BankingApi.Account("uid-1", "hash-1", null, "Commun"));
+        await BankingApi.ConnectAsync(app, app.AdultB, "code-b", BankingApi.Account("uid-b", "hash-b", null, "Perso B"));
+        var joint = (await SpendingTests.AccountsAsync(app, app.AdultA))["Commun"];
+        var own = (await SpendingTests.AccountsAsync(app, app.AdultB))["Perso B"];
+        await SpendingTests.PatchAsync(app, app.AdultA, joint, new { envelopeId = (await app.NewEnvelopeAsync("Commun", Visibility.Shared, (app.AdultA, 5_000), (app.AdultB, 5_000))).Value });
+        await SpendingTests.PatchAsync(app, app.AdultB, own, new { envelopeId = (await app.NewEnvelopeAsync("Perso B", app.AdultB, Visibility.Private)).Value });
+        // Four months of history (June to September): 100 a month in « Courses ».
+        foreach (var on in new LocalDate[] { new(2025, 6, 1), new(2025, 7, 10), new(2025, 8, 10), new(2025, 9, 10) })
+            await SpendingTests.LineAsync(app, joint, on, -100m, "food.groceries");
+        // Today is 2025-10-15: twice the usual month.
+        await SpendingTests.LineAsync(app, joint, new LocalDate(2025, 10, 3), -120m, "food.groceries");
+        await SpendingTests.LineAsync(app, joint, new LocalDate(2025, 10, 8), -80m, "food.groceries");
+        // B's own account: A does not read it, and « Foyer » never counts it.
+        await SpendingTests.LineAsync(app, own, new LocalDate(2025, 10, 9), -1_000m, "food.groceries");
+        await SpendingTests.LineAsync(app, joint, new LocalDate(2025, 10, 4), -60m, "transport.fuel");
+        Assert.Equal(System.Net.HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Put,
+            $"{BankingApi.Root}/budgets/{Nid.Banking.Domain.CategorySeed.Find("transport.fuel")!.Id}", new { amount = "50", period = "month" })).StatusCode);
+
+        Assert.Empty(Findings(await SignalsAsync(app, app.AdultA), "unusual_spending")); // off by default
+        var (_, failure) = await app.InvokeAsync(app.AdultA, new Nid.Platform.Notifications.SaveNotificationPreferencesCommand(
+            false, Nid.Platform.Notifications.ActionMode.Immediate, Nid.Platform.Notifications.InfoMode.Digest, Nid.Platform.Notifications.DigestFrequency.Weekly, 1,
+            new Dictionary<string, int>(), new Dictionary<string, decimal> { ["unusual_spending"] = 50m }, 0), TestContext.Current.CancellationToken);
+        Assert.Null(failure);
+
+        var signals = Findings(await SignalsAsync(app, app.AdultA), "unusual_spending").ToDictionary(s => s.Params["name"]);
+        // « Alimentation » runs away with « Courses »: the child says it.
+        Assert.Equal(["Carburant", "Courses"], signals.Keys.Order());
+        var groceries = signals["Courses"];
+        Assert.Equal($"unusual_spending:{Nid.Banking.Domain.CategorySeed.Find("food.groceries")!.Id:D}:2025-10", groceries.Key);
+        Assert.Empty(groceries.ItemIds);
+        Assert.Equal(("usual", "200.00", "100.00", "2025-10"),
+            (groceries.Params["reason"], groceries.Params["spent_amount"], groceries.Params["usual_amount"], groceries.Params["month"]));
+        Assert.Equal(2, groceries.Params["lines"].Split(", ").Length); // the household's two lines, not B's own
+        var fuel = signals["Carburant"];
+        Assert.Equal(("budget_over", "60.00", "50.00"), (fuel.Params["reason"], fuel.Params["spent_amount"], fuel.Params["budget_amount"]));
+
+        Assert.Empty(Findings(await SignalsAsync(app, app.AdultB), "unusual_spending")); // B did not turn it on
+    }
 }

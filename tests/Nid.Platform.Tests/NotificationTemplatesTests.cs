@@ -311,4 +311,31 @@ public class NotificationTemplatesTests
         Assert.EndsWith(", un objectif est en retard",
             NotificationTemplates.Render(record with { Params = new Dictionary<string, string> { ["reason"] = "goal_behind" } }, kind, new Dictionary<ItemId, string>()).Body);
     }
+
+    [Fact]
+    public void Unusual_spending_names_the_category_keeps_figures_and_lines_in_the_centre_and_opens_its_operations()
+    {
+        var record = Record("unusual_spending", key: "unusual_spending:x:2027-02") with
+        {
+            ItemIds = [],
+            Params = new Dictionary<string, string>
+            {
+                ["category"] = "22222222-2222-2222-2222-222222222222", ["name"] = "Courses", ["month"] = "2027-02", ["reason"] = "usual",
+                ["spent_amount"] = "420.00", ["usual_amount"] = "250.00", ["currency"] = "EUR", ["lines"] = "CB MARCHE 120,00, CB EPICERIE",
+            },
+        };
+        var kind = KindOf("unusual_spending", "banking");
+
+        var centre = NotificationTemplates.Render(record, kind, new Dictionary<ItemId, string>(), withFigures: true);
+        var plain = NotificationTemplates.Render(record, kind, new Dictionary<ItemId, string>());
+
+        Assert.Equal("Des dépenses sortent de l'ordinaire", plain.Title);
+        Assert.Equal("Courses : bien au-dessus du mois habituel", plain.Body); // e-mail and Discord: no amount, no bank label
+        Assert.EndsWith("Dépensé ce mois : 420 € · Mois habituel : 250 € · Plus grosses dépenses : CB MARCHE 120,00, CB EPICERIE",
+            centre.Body.Replace(' ', ' ').Replace(' ', ' '));
+        Assert.Equal("/spending?tab=operations&category=22222222-2222-2222-2222-222222222222&from=2027-02-01&to=2027-02-28&state=counted", plain.Link);
+        Assert.Equal("Une catégorie : le budget sera dépassé au rythme actuel",
+            NotificationTemplates.Render(record with { Params = new Dictionary<string, string> { ["reason"] = "budget_pace" } }, kind, new Dictionary<ItemId, string>()).Body);
+        Assert.Equal("/spending", NotificationTemplates.Render(record with { Params = new Dictionary<string, string>() }, kind, new Dictionary<ItemId, string>()).Link);
+    }
 }
