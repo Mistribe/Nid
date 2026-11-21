@@ -11,7 +11,7 @@
 |---|---|
 | `authentication.md` | Connexion du navigateur : client OIDC dans Pocket ID, session BFF, routes, accès et rôle admin par les groupes, provisionnement, limites de Pocket ID |
 | `authorization.md` | Acteur, portées, pipeline, règles `Readers` / `Writers`, garde de sortie |
-| `tokens-and-credentials.md` | Jetons d'accès personnels (MCP, API) et identifiants des workers |
+| `tokens-and-credentials.md` | Jetons d'accès personnels (MCP, API) ; les workers sont appariés (`../ai/README.md` §3) |
 | `administration-and-audit.md` | Rôle admin et zone admin, commandes d'administration, audit et événements de sécurité, frontière de confiance |
 | `local-accounts.md` | Comptes locaux (#215) : identifiant et mot de passe sans fournisseur d'identité, modes `local` / `oidc` / `both`, premier admin, liens à usage unique, verrouillage, TOTP, HTTP sans TLS en option |
 | `access-tests.md` | Banc anti-fuite et tests de propriétés |

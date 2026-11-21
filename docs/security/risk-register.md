@@ -21,7 +21,7 @@
 | AI-4 | Spam de propositions, consommation excessive | LLM04, LLM10 | Faible | Quotas, déduplication, délais | 4 | Faible |
 | AI-5 | Extraction erronée mais plausible | LLM09 | Moyenne | `large_change`, diff, contrôle de l'amortissement, jeu d'évaluation | 4 | Moyen |
 | AI-6 | Modèle ou bibliothèque compromis | LLM03 | Moyenne | Empreintes, pas de téléchargement automatique | 4 | Faible |
-| AI-7 | Ollama joignable sans authentification | — | Élevée | Réseau `workers` sans port publié | 4 | Faible |
+| AI-7 | Moteur LLM (Ollama, vLLM) joignable sans authentification | — | Élevée | Remplacée par WRK-4 (#171) : le moteur tourne derrière un worker apparié, seul le port du worker est publié, aucune URL directe vers un moteur | #166 | Faible |
 | AI-8 | Fuite du prompt système | LLM07 | Faible | Aucun secret dans le prompt | 4 | Aucun |
 | AI-9 | Fichier polyglotte, type mensonger | — | Faible | Octets magiques, liste blanche | 1 | Faible |
 | AI-10 | Proposition sur un élément où le déposant n'a pas le droit d'écrire | — | Moyenne | Droit d'écriture revérifié à la création | 4 | Aucun |
@@ -33,12 +33,49 @@
 | LLM-1 | Divulgation d'un document à un tiers | LLM02 | Élevée | Local par défaut, consentement à chaque dépôt, masquage, profils, offres qui entraînent exclues, région confirmée | 4 | Le tiers conserve les données selon sa rétention |
 | LLM-2 | Conditions du fournisseur qui changent | — | Moyenne | Profils datés, avertissement à 90 jours, revue humaine | 4 | Fenêtre avant revue |
 | LLM-3 | Vol ou abus de clé d'API | LLM10 | Moyenne | Chiffrement, jamais côté worker, plafonds fournisseur, budget | 4 | Faible |
-| LLM-4 | Abus de la passerelle par un worker compromis | — | Moyenne | Lien job et document, quotas, taille, modèle imposé, aucun outil | 4 | Faible |
+| LLM-4 | Abus de la passerelle par un worker compromis | — | Moyenne | Sans objet depuis #171 : un worker n'appelle plus la passerelle, Nid l'appelle (`../ai/README.md` §3). Le risque devient une sortie malveillante du worker (WRK-8) | #166 | Faible |
 | LLM-5 | Rétention chez le fournisseur | LLM02 | Moyenne | Information de l'utilisateur, minimisation | 4 | Accepté |
 | LLM-6 | Masquage incomplet | LLM02 | Moyenne | Aperçu, confirmation pour scans, mesure du rappel | 4 | Accepté |
 | LLM-7 | Dépassement du budget d'une offre payante | LLM10 | Faible | Plafond à 0 par défaut, estimation, blocage | 4 | Faible |
 | LLM-8 | Panne ou quota d'un fournisseur | — | Faible | Chaîne avec repli local, disjoncteur | 4 | Faible |
 | LLM-9 | Bulletin de paie envoyé à un fournisseur cloud (nom, employeur, numéro de sécurité sociale) | LLM02 | Élevée | Type `payslip` inéligible au cloud, sans contournement | 4 | Aucun |
+
+## 3 bis. Risques liés à l'assistant et aux workers de modèles
+
+Spec : `../ai/README.md` (décisions 1.1 et A à V). Revue : `ai-assistant-review.md`, dont §2 liste les défauts H1 à H5
+trouvés par la relecture indépendante et leur correction.
+
+| ID | Risque | Réf. | Gravité | Mesures | Étape | Résiduel |
+|---|---|---|---|---|---|---|
+| WRK-1 | Worker usurpé, ou Nid usurpé auprès d'un worker | — | Élevée | Code d'appairage et empreinte confirmée, clé épinglée, réponse scellée avec une clé dérivée de la requête ; signature de Nid sur le `content-digest` du corps scellé, `@method`, `@target-uri`, `created`, `nonce`, `keyid`, vérifiée avant d'ouvrir | #166 | Faible |
+| WRK-2 | Clé privée d'un worker volée | — | Moyenne | Rotation avec recouvrement court, révocation immédiate, la clé ne quitte pas le worker, audit | #166 | Faible |
+| WRK-3 | Clé de Nid face aux workers volée, ou trousseau Data Protection perdu | — | Moyenne | Chiffrée par Data Protection ; rotation qui fait ré-épingler chaque worker ; trousseau perdu = ré-appairage ; secret de résultat d'un job chiffré sur sa ligne, job renvoyé s'il est perdu | #166 | Faible |
+| WRK-4 | Moteur LLM derrière un worker exposé | — | Élevée | Réseau propre du worker, seul son port publié (testé) ; aucune URL directe vers un moteur | #166 | Faible |
+| WRK-5 | Interception, proxy qui termine TLS devant un worker (H3) | LLM02 | Élevée | Identité et confidentialité au niveau applicatif : HPKE pour la requête, le fichier, la réponse et chaque trame ; proxy déclaré par l'admin | #166 | Aucun pour le contenu |
+| WRK-6 | Flux réordonné ou tronqué | — | Moyenne | Trames longueur-type-contenu scellées avec compteur, trame `end` exigée | #166 | Aucun |
+| WRK-7 | Hôte distant compromis, ou worker qui renvoie les données à un tiers | LLM02 | Élevée | Distant = sortie des lieux : opt-in du foyer et de chaque adulte pour ses données privées ; `safe` posé par un adulte ; « local seulement » vers `safe` seulement | #166 | Accepté |
+| WRK-8 | Sortie malveillante d'un worker (schéma, option hors liste, flux sans fin) | LLM05 | Moyenne | Clé dérivée puis schéma vérifiés, liste fermée revérifiée, bornes d'octets, de durée et de trames, propositions validées par une personne | #166 | Faible |
+| WRK-9 | SSRF par l'adresse d'un worker (H2) | — | Moyenne | Points d'accès enregistrés par un admin (UnambitiousFx/Myelin#9) : hôte et port exacts, bouclage, link-local et métadonnées refusés, résolution revérifiée à chaque appel ; identité par la clé | #166 | Faible |
+| WRK-10 | Réponse rejouée ou servie pour une autre requête | — | Moyenne | Clé de réponse dérivée de l'`Export()` de la requête et d'un nonce de réponse ; chaque requête scellée, interrogations d'état comprises ; requête signée avec horodatage et nonce | #166 | Aucun |
+| WRK-11 | Identité de modèle déclarée par le worker | LLM03 | Moyenne | Sortie non fiable : outils autorisés, propositions seulement, limites ; profils `decide` par empreinte | #166 | Accepté |
+| AST-1 | Injection indirecte vers l'assistant par un libellé ou un document | LLM01, LLM06 | Élevée | Liste d'outils autorisée sans `apply`, propositions seulement, contenu marqué comme données, test d'injection | #173 | Moyen |
+| AST-2 | Élément privé de l'autre adulte dans un prompt | LLM02 | Élevée | Outils exécutés comme la personne, même pipeline que REST, banc anti-fuite étendu | #173 | Faible |
+| AST-3 | Contenu d'un bulletin de paie ou d'un document « local seulement » envoyé au cloud | LLM02 | Élevée | Filtrage par classe de données déclarée par chaque outil et testée ; « local seulement » par défaut pour un bulletin | #173 | Faible |
+| AST-4 | Fournisseur payant ou boucle qui s'emballe | LLM10 | Moyenne | Réservation atomique, blocage à 100 % ; étapes, jetons et durée bornés par tour et par personne, workers compris | #172 | Faible |
+| AST-5 | Copies de chiffres dans les conversations stockées | LLM02 | Moyenne | Privées à l'auteur, 30 jours, sans résultats d'outils, suppression, purge avec le document, hors export, audit sans texte | #174 | Accepté (sauvegardes) |
+| AST-6 | Montant inventé ou mal recopié par l'assistant | LLM09 | Moyenne | Chiffres des outils cités avec un lien, aucun calcul par le modèle, modèle nommé | #173 | Moyen |
+| AST-7 | Acteur de l'assistant qui passe les contrôles réservés au navigateur | LLM06 | Élevée | `ActorOrigin.Assistant` ; refus quand `TokenId is not null` ou `Via == Assistant`, exemption de la simulation des `propose_delete_*` gardée ; jamais admin | #173 | Faible |
+| AST-8 | Proposition en attente de l'assistant visible de l'autre adulte, ou qui en remplace une visible (H5) | LLM02 | Moyenne | Visible de son seul auteur jusqu'à la décision ; dédoublonnage et remplacement seulement entre ses propositions en attente | #173 | Faible |
+| AST-9 | Exfiltration par balisage dans une réponse | LLM05 | Moyenne | Texte brut, aucune image, liens construits par Nid depuis des identifiants | #174 | Aucun |
+| AST-10 | Résultat d'outil ancien renvoyé après un changement de droits ou de destination (H1) | LLM02 | Élevée | Résultats jamais stockés ni renvoyés, outils rappelés, conversation fixée à la classe de politique de son premier tour | #174 | Faible : les réponses précédentes de l'assistant, qui peuvent citer des chiffres, repartent vers la même destination après qu'un élément est devenu privé ou qu'un propriétaire a choisi `never` |
+| AST-11 | Lien de document créé par une proposition de l'assistant | — | Moyenne | `documentId` retiré des `propose_*` de l'assistant | #173 | Aucun |
+| AST-12 | Préférence de l'autre adulte révélée par la mention de ce qui est retenu | LLM02 | Faible | Mention générique, sans nom ni préférence | #173 | Faible |
+| EMB-1 | Vecteurs qui révèlent le texte, recherche qui fuit un document illisible | LLM08 | Moyenne | Droits appliqués en SQL, vecteurs purgés avec le document, mêmes règles de classe de données que le texte | #168 | Faible |
+| EMB-2 | Document indexé ou lu hors des lieux sans l'accord d'un adulte concerné | LLM02 | Moyenne | `allow` du déposant et de chaque propriétaire des éléments liés pour une tâche de fond (OCR distant, plongements), `ask` vaut « non » | #168 | Faible |
+| DEC-1 | Mauvaise catégorie suggérée puis acceptée | LLM09 | Faible | Liste fermée, seuil par empreinte de modèle tiré de l'évaluation, toujours une suggestion | #450 | Faible |
+| DEC-2 | Vote de voisins proches qui révèle des lignes de comptes illisibles (H4) | LLM02 | Moyenne | Vote à l'affichage, en SQL, filtré par le lecteur ; aucun vote mis en cache pour le foyer | #450 | Aucun |
+| CNS-1 | Données privées d'un adulte envoyées sur le seul consentement de l'autre | LLM02 | Élevée | `ai_offsite_default` par adulte, `never` d'un propriétaire respecté, `allow` de chacun en tâche de fond, emails aux deux adultes | #172 | Faible |
+| CNS-2 | Rétention chez un fournisseur malgré des conditions « sans rétention » | LLM02 | Moyenne | Interrupteurs de rétention listés dans le profil et imposés par l'adaptateur | #172 | Faible |
 
 ## 4. Risques liés au MCP
 
@@ -107,9 +144,10 @@ Comptes locaux (#215, `../identity-and-access/local-accounts.md`) : obligatoires
 | **1. Noyau + Abonnements** | BFF et CSP ; banc anti-fuite ; `SafeHttpClient` (catalogue, taux) ; icônes ré-encodées ; export CSV neutralisé ; bornes d'import et sessions aléatoires ; jetons personnels et limitation de débit ; politique de dépendances avec SBOM et analyse ; durcissement des conteneurs et réseaux ; sauvegarde **avec test de restauration** |
 | 2. Placements et Revenus | `large_change` sur les valorisations ; emails sans montants ; question de visibilité à la création d'un revenu et revenus dans le banc anti-fuite |
 | 3. Immobilier et crédits | Écart d'amortissement affiché ; pas de nouvelle surface majeure |
-| **4. Automatisation IA** | Tout `ai-ingestion.md` : extraction sans outils, workers sans Internet, passerelle LLM, profils et consentement, masquage, quotas, corpus de PDF piégés ; **revue de risque avant IMAP ou email** |
+| **4. Automatisation IA** | Tout `ai-ingestion.md` : extraction sans outils, workers locaux sans Internet, passerelle LLM, profils et consentement, masquage, quotas, corpus de PDF piégés ; **revue de risque avant IMAP ou email** |
 | **5. Banque** | **Lecture seule** (aucune portée d'initiation de paiement) ; jetons chiffrés ; alerte d'expiration du consentement ; conservation des opérations réglable (D3 : toutes gardées par défaut, durée fixée par l'administrateur, purge chaque nuit) ; revue de risque. **5A (connexion et soldes, 2026-10-29)** : lecture seule (accès aux comptes seulement, aucun appel de paiement dans le client), `session_id` chiffré par Data Protection et hors de l'audit, des journaux et des traces, clé privée en secret Docker, rappels avant expiration (14 et 3 jours) et après expiration, révocation ou deux nuits d'échec, synchronisation dans `nid` (D13) par `SafeHttpClient` vers le seul `api.enablebanking.com` ; revue de risque faite : `bank-sync-review.md` (R1 à R5 encore à vérifier contre l'application du foyer). **5B (opérations et fichiers, 2026-10-30)** : D3 remplace l'exigence « conservation minimale » (toutes les opérations gardées, `bank_retention_months` de 1 à 600 mois dans Administration › Banque, purge de nuit des opérations non reliées ou ignorées) ; opérations lues par qui lit leur compte (`BankingAccess`), banc anti-fuite étendu ; relevés OFX et CAMT.053 lus sans DTD ni résolveur (XXE), 5 Mio et 20 000 opérations au plus, profondeur 32, montants bornés à `numeric(19,4)`, gardés en mémoire et jamais stockés ; compte d'un relevé que la personne ne peut pas écrire refusé sans le nommer ; une connexion bancaire reprend un compte que l'autre adulte ne tient que par un relevé ; revue de risque faite : `bank-sync-review.md` §5 |
 | **Comptes locaux (#215)** | LOC-1 à LOC-10 : hachage lent auto-descriptif, règles NIST sans service externe, mise en place par jeton ou CLI, liens à usage unique, verrouillage croissant et limite par adresse, CSRF de connexion, TOTP et codes de secours, HTTP sans TLS seulement sur option explicite ; test d'absence de secrets dans les journaux, l'audit et l'export ; une installation OIDC existante inchangée (`../identity-and-access/local-accounts.md` §18) |
+| **Assistant et workers de modèles** (#166, #168, #172 à #175, #450) | WRK-1 à WRK-11, AST-1 à AST-12, EMB-1 et EMB-2, DEC-1 et DEC-2, CNS-1 et CNS-2 ; Nid sur .NET 11 (#460) et Myelin 1.2.0 (UnambitiousFx/Myelin#9) avant #166 ; `ai-assistant-review.md` refaite sur chaque implémentation avant sa mise en service |
 | 6. Approfondissements | Revue du registre |
 
 ## 8. Revue

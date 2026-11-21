@@ -23,22 +23,22 @@
 | `edge` | Proxy de l'hébergeur, `nid`, Pocket ID (le navigateur doit l'atteindre) ; `nid` n'y croit par défaut que les plages privées pour `X-Forwarded-*` (`Auth__TrustedNetworks`) | Non (`internal: true`) ; le proxy garde ses propres réseaux |
 | `data` | `nid`, Postgres | Non (`internal: true`) |
 | `egress` | `nid` ; `backup` seulement avec la surcouche `compose.backup-remote.yaml` (dépôt distant, 1F2) | **Oui** : le seul chemin vers Internet |
-| `workers` | `nid` (API interne et passerelle LLM), workers, Ollama | **Non** |
+| `workers` | `nid` (passerelle LLM), workers locaux (profil Compose de #166) | **Non** ; le moteur LLM d'un worker reste sur le réseau propre du worker, seul le port du worker est joint par `nid` (`../ai/README.md` §3) |
 
 - **`nid` est le seul composant applicatif qui sort vers Internet**, par le `SafeHttpClient` et sa liste d'hôtes (`application.md` §3). Le service `backup` ne sort que si l'hébergeur ajoute la surcouche du dépôt distant, et seulement vers ce dépôt (1F2).
-- Postgres, Ollama, Pocket ID et l'API interne **ne publient aucun port**.
-- Ollama n'a **pas d'authentification native** : le réseau `workers` tient lieu d'authentification.
+- Postgres, Pocket ID et les moteurs LLM **ne publient aucun port** ; un worker distant publie seulement son port, joint en TLS épinglé ou derrière un proxy déclaré par l'admin ; l'identité et la confidentialité viennent de HPKE et de la clé épinglée (`../ai/README.md` §4.1).
+- Ollama et les autres moteurs n'ont **pas d'authentification native** : ils ne sont joints que par leur worker, qui porte l'appairage, la clé épinglée et le chiffrement HPKE (WRK-4, `risk-register.md` §3 bis). « Le réseau `workers` tient lieu d'authentification » est abandonné (#171).
 
 ## 3. Secrets
 
 | Secret | Règle |
 |---|---|
 | Format | **Secrets Docker** (fichiers), un par composant ; jamais en variable d'environnement |
-| Clés Data Protection | Volume dédié, droits `0700`, sauvegardé |
-| Secret client OIDC, secrets de workers, mot de passe restic, clés d'API de fournisseurs LLM | Séparés ; jamais partagés entre composants |
+| Clés Data Protection | Volume dédié, droits `0700`, sauvegardé. Un trousseau perdu rend illisible la clé de Nid face aux workers : chaque worker doit être ré-apparié, et les jobs en cours sont renvoyés (`../ai/README.md` §3.6) |
+| Secret client OIDC, clé d'appairage de Nid (chiffrée en base), mot de passe restic, clés d'API de fournisseurs LLM | Séparés ; jamais partagés entre composants |
 | Clés d'API des fournisseurs | Chiffrées en base (Data Protection), jamais renvoyées (`../ingestion/llm-providers.md` §10) |
 | Banque (étape 5) | Clé privée d'Enable Banking : secret Docker `enable_banking_private_key` de `nid`, absent du compose de référence et déclaré par l'hébergeur dans `deploy/compose.override.yaml` quand il active la banque (`../../deploy/README.md` §12) ; le fichier vit dans `deploy/secrets/`, donc dans la sauvegarde ; sessions bancaires chiffrées en base (Data Protection, but `Nid.Banking.Session`) |
-| Rotation | Procédure documentée ; commandes d'administration pour les workers et les jetons |
+| Rotation | Procédure documentée ; clés des workers depuis Réglages › IA, commandes d'administration pour les jetons |
 | Journaux | Aucun secret, jeton masqué |
 
 ## 4. Sauvegardes
@@ -81,8 +81,8 @@ Voir aussi `../architecture.md` §11.
 
 Runbook minimal, exécutable par l'hébergeur :
 
-1. **Contenir** : `revoke-sessions` et `revoke-tokens` pour la personne concernée ; `revoke-worker` ; révoquer les clés d'API des fournisseurs LLM (depuis l'interface et chez le fournisseur).
-2. **Éradiquer** : renouveler les secrets (client OIDC, workers, restic, clés Data Protection si compromises : elles invalident les cookies et déchiffrent les secrets en base, à traiter avec précaution), mettre à jour l'image fautive.
+1. **Contenir** : `revoke-sessions` et `revoke-tokens` pour la personne concernée ; révoquer le worker depuis Réglages › IA ; révoquer les clés d'API des fournisseurs LLM (depuis l'interface et chez le fournisseur).
+2. **Éradiquer** : renouveler les secrets (client OIDC, clés d'appairage des workers, restic, clés Data Protection si compromises : elles invalident les cookies et déchiffrent les secrets en base, à traiter avec précaution), mettre à jour l'image fautive.
 3. **Restaurer** depuis une sauvegarde saine si l'intégrité est en doute.
 4. **Comprendre** : audit et journaux (`request_id`), événements de sécurité.
 5. **Prévenir** les deux adultes ; consigner et corriger la cause.
