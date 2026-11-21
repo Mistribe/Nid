@@ -253,6 +253,8 @@
       "autoApplyBalance": "Soldes enregistrés comme valeurs",
       "autoPrice": "Prix mis à jour automatiquement",
       "entitlementDelayMonths": "Délai de jouissance (mois)",
+      "availability": "Dates de disponibilité",
+      "availableOn": "Disponible le",
       "autoRenew": "Reconduction tacite",
       "averageRate": "Taux moyen",
       "balance": "Solde à payer ou à rembourser",
@@ -271,6 +273,7 @@
       "chargesMonthly": "Charges mensuelles",
       "childId": "Enfant",
       "childcareExpenses": "Frais de garde",
+      "clearAvailability": "Effacer les dates de disponibilité",
       "clearAccountHint": "Retirer l’indice du compte",
       "clearAnniversaryOn": "Retirer la date anniversaire",
       "clearCancellableFrom": "Retirer la date de résiliation possible",
@@ -539,6 +542,7 @@
       "year": "Année"
     },
     "entry": {
+      "availability": "Tranche",
       "borrowers": "Emprunteur",
       "days": "Jour",
       "declarants": "Déclarant",

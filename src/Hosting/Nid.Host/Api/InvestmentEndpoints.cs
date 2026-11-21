@@ -329,6 +329,9 @@ public static class InvestmentEndpoints
 
     public sealed record FirstValuationBody(string AsOf, MoneyBody Amount);
 
+    /// <summary>#184: a tranche of an employee savings plan, as its statement prints it.</summary>
+    public sealed record TrancheBody(string? AvailableOn, string? Amount);
+
     public sealed record CreateEnvelopeBody(
         string DisplayName, string Kind, string Currency, string? Visibility, IReadOnlyList<OwnerBody> Owners,
         string? Institution, string? AccountHint, string? OpenedOn, string? ValuationCadence, int? StaleAfterDays, string? Note,
@@ -363,16 +366,24 @@ public static class InvestmentEndpoints
         string? OpenedOn, bool ClearOpenedOn, string? ValuationCadence, int? StaleAfterDays, bool ClearStaleAfterDays,
         string? Note, bool ClearNote, decimal? UcShareFloorPct, bool? ClearUcShareFloorPct,
         string? PremiumsBefore2017, bool? ClearPremiumsBefore2017, string? Regulated = null, bool? ClearRegulated = null,
-        string? Visibility = null, string? ShareLevel = null, IReadOnlyList<OwnerBody>? Owners = null)
+        string? Visibility = null, string? ShareLevel = null, IReadOnlyList<OwnerBody>? Owners = null,
+        IReadOnlyList<TrancheBody>? Availability = null, bool? ClearAvailability = null)
     {
         internal EditEnvelopeCommand? ToCommand(ItemId id, FieldReader reader)
         {
             var premiums = reader.Decimal(PremiumsBefore2017, "premiumsBefore2017");
+            // #184: the whole list replaces the plan's tranches; an empty one clears them.
+            var tranches = Availability?.Select((t, i) => (
+                On: reader.Date(t.AvailableOn, $"availability[{i}].availableOn"),
+                Amount: t.Amount is null ? null : reader.Decimal(t.Amount, $"availability[{i}].amount"))).ToList();
+            if (tranches is not null)
+                for (var i = 0; i < tranches.Count; i++)
+                    if (Availability![i].Amount is null) reader.Add($"availability[{i}].amount", "request.required", "This field is required.");
             // #25: each omitted keeps the envelope's.
             var visibility = Visibility is null ? null : reader.Visibility(Visibility, "visibility");
             var level = ShareLevel is null ? null : reader.ShareLevel(ShareLevel, "shareLevel");
             return reader.Ok
-                ? ToCommand(id, premiums) with
+                ? ToCommand(id, premiums, tranches?.Select(t => new AvailabilityTranche(t.On!.Value, t.Amount!.Value)).ToList()) with
                 {
                     Visibility = visibility, ShareLevel = level,
                     Owners = Owners?.Select(o => new OwnerShare(new PersonId(o.PersonId), o.ShareBp)).ToList(),
@@ -380,12 +391,13 @@ public static class InvestmentEndpoints
                 : null;
         }
 
-        private EditEnvelopeCommand ToCommand(ItemId id, decimal? premiums) => new(id, DisplayName, Kind, new EnvelopeChange(
+        private EditEnvelopeCommand ToCommand(ItemId id, decimal? premiums, IReadOnlyList<AvailabilityTranche>? tranches) => new(id, DisplayName, Kind, new EnvelopeChange(
             Institution: Institution, ClearInstitution: ClearInstitution, AccountHint: AccountHint, ClearAccountHint: ClearAccountHint,
             OpenedOn: OptionalDate(OpenedOn), ClearOpenedOn: ClearOpenedOn, StaleAfterDays: StaleAfterDays,
             ClearStaleAfterDays: ClearStaleAfterDays, Note: Note, ClearNote: ClearNote, UcShareFloorPct: UcShareFloorPct,
             ClearUcShareFloorPct: ClearUcShareFloorPct ?? false, PremiumsBefore2017: premiums,
-            ClearPremiumsBefore2017: ClearPremiumsBefore2017 ?? false, ClearRegulated: ClearRegulated ?? false), ValuationCadence, Regulated);
+            ClearPremiumsBefore2017: ClearPremiumsBefore2017 ?? false, ClearRegulated: ClearRegulated ?? false,
+            Availability: tranches, ClearAvailability: ClearAvailability ?? false), ValuationCadence, Regulated);
     }
 
     // MoneyBody? (not the non-nullable MoneyBody the wire shape implies) because a missing "amount" member

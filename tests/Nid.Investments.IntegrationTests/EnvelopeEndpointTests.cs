@@ -404,6 +404,47 @@ public class EnvelopeEndpointTests(PostgresFixture fixture, SharedNidApp shared)
         Assert.Equal("investments.plan_owner", (await JsonAsync(shared)).GetProperty("code").GetString());
     }
 
+    /// <summary>#184: a PEE's tranches split its latest value into what is available today and what is released later.</summary>
+    [Fact]
+    public async Task An_employee_savings_plan_shows_what_is_available_today_and_its_next_releases()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        const string url = "/api/v1/investments/envelopes";
+        var created = await app.RawAsync(app.AdultA, HttpMethod.Post, url, new
+        {
+            displayName = "PEE", kind = "employee_savings", currency = "EUR", visibility = "shared", valuationCadence = "monthly",
+            owners = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } },
+            firstValuation = new { asOf = "2025-01-31", amount = new { amount = "10000.00", currency = "EUR" } },
+        });
+        var id = (await JsonAsync(created)).GetProperty("id").GetGuid();
+
+        var edited = await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{url}/{id}", new
+        {
+            availability = new[]
+            {
+                new { availableOn = "2099-01-01", amount = "3000.00" },
+                new { availableOn = "2001-01-01", amount = "1000.00" },
+                new { availableOn = "2098-01-01", amount = "1000.00" },
+            },
+        });
+
+        Assert.Equal(HttpStatusCode.OK, edited.StatusCode);
+        var availability = (await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{url}/{id}"))).GetProperty("availability");
+        Assert.Equal(2000m, decimal.Parse(availability.GetProperty("availableToday").GetProperty("amount").GetString()!, System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal(["2098-01-01:2000.00", "2099-01-01:6000.00"], availability.GetProperty("releases").EnumerateArray()
+            .Select(r => $"{r.GetProperty("on").GetString()}:{r.GetProperty("amount").GetProperty("amount").GetString()}"));
+        Assert.Equal(3, availability.GetProperty("tranches").GetArrayLength());
+
+        // Off an employee savings plan, the tranches go; on any other kind they are refused.
+        await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{url}/{id}", new { kind = "collective_per" });
+        var moved = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{url}/{id}"));
+        Assert.True(!moved.TryGetProperty("availability", out var gone) || gone.ValueKind == JsonValueKind.Null);
+        var refused = await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{url}/{id}",
+            new { availability = new[] { new { availableOn = "2099-01-01", amount = "1.00" } } });
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, refused.StatusCode);
+        Assert.Equal("availability", (await JsonAsync(refused)).GetProperty("errors")[0].FieldPath());
+    }
+
     private static object Plan(NidApp app, string kind, params PersonId[] owners)
         => new
         {

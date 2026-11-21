@@ -26,8 +26,11 @@ public sealed record Holding(
     IReadOnlyList<AllocationSlice>? Slices = null, bool Estimated = false, LocalDate? ValuedOn = null,
     bool UnlocksAtRetirement = false);
 
-/// <summary>Issue #104: a part of a holding's value, in its currency; <c>Approximate</c> when the class is guessed from a kind.</summary>
-public sealed record AllocationSlice(string Class, string Liquidity, decimal Amount, bool Approximate);
+/// <summary>
+/// Issue #104: a part of a holding's value, in its currency; <c>Approximate</c> when the class is guessed from a kind.
+/// #184: <c>AvailableOn</c>, the date a locked part is released (an employee savings tranche); null when no date is known.
+/// </summary>
+public sealed record AllocationSlice(string Class, string Liquidity, decimal Amount, bool Approximate, LocalDate? AvailableOn = null);
 
 /// <summary>Issue #104: the asset classes of the allocation, in display order; a debt is no class (it is shown apart).</summary>
 public static class AllocationClasses

@@ -67,7 +67,9 @@ public sealed class EnvelopesNetWorth(
             // D17: stale follows the valuation, estimated or not.
             if (figures.StaleDays is not null) stale++;
             holdings.Add(new Holding(envelope.ItemId, "investments", name, value, asOf, figures.StaleDays is not null, owners,
-                EnvelopeAllocation.Of(f.Envelope.Kind, value.Amount, EnvelopeAllocation.Latest(export.Snapshots, envelope.ItemId, today), holdingsOf, lines),
+                EnvelopeAllocation.Release(
+                    EnvelopeAllocation.Of(f.Envelope.Kind, value.Amount, EnvelopeAllocation.Latest(export.Snapshots, envelope.ItemId, today), holdingsOf, lines),
+                    f.Envelope.Availability, today),
                 estimated, figures.AsOf, EnvelopeKinds.IsRetirement(f.Envelope.Kind)));
 
             if (SinceJanuary(f, today) is { StartValue: { } start, NetContributions: { } net, Performance: { } gain })

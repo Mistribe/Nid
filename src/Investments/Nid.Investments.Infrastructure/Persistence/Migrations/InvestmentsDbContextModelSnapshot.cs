@@ -34,6 +34,10 @@ namespace Nid.Investments.Infrastructure.Persistence.Migrations
                         .HasColumnType("text")
                         .HasColumnName("account_hint");
 
+                    b.Property<string>("Availability")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("availability");
+
                     b.Property<LocalDate?>("ClosedOn")
                         .HasColumnType("date")
                         .HasColumnName("closed_on");
@@ -105,6 +109,8 @@ namespace Nid.Investments.Infrastructure.Persistence.Migrations
                     b.ToTable("envelope", "investments", t =>
                         {
                             t.HasCheckConstraint("ck_envelope_account_hint", "account_hint is null or char_length(account_hint) between 1 and 4");
+
+                            t.HasCheckConstraint("ck_envelope_availability", "availability is null or kind = 'employee_savings'");
 
                             t.HasCheckConstraint("ck_envelope_cadence", "valuation_cadence in ('monthly','quarterly','yearly','manual')");
 

@@ -24,6 +24,7 @@ public sealed class EnvelopeStore(InvestmentsDbContext db) : IEnvelopeStore
             ClosedOn = envelope.ClosedOn,
             PremiumsBefore2017 = envelope.PremiumsBefore2017,
             Regulated = envelope.Regulated is { } regulated ? EnvelopeWire.Of(regulated) : null,
+            Availability = AvailabilityJson.Write(envelope.Availability),
         };
         Mark(row, import);
         db.Envelopes.Add(row);
@@ -44,6 +45,8 @@ public sealed class EnvelopeStore(InvestmentsDbContext db) : IEnvelopeStore
         row.PremiumsBefore2017 = envelope.PremiumsBefore2017;
         // The file carries no regulated livret: the one set in Nid stays, unless the envelope is no longer a savings account.
         if (envelope.Kind != EnvelopeKind.Savings) row.Regulated = null;
+        // #184: nor any availability date, kept unless the envelope is no longer an employee savings plan.
+        if (envelope.Kind != EnvelopeKind.EmployeeSavings) row.Availability = null;
         Mark(row, import);
         await db.SaveChangesAsync(ct);
     }
@@ -105,6 +108,7 @@ public sealed class EnvelopeStore(InvestmentsDbContext db) : IEnvelopeStore
         if (change.ClearUcShareFloorPct) row.UcShareFloorPct = null; else if (change.UcShareFloorPct is { } floor) row.UcShareFloorPct = floor;
         if (change.ClearPremiumsBefore2017) row.PremiumsBefore2017 = null; else if (change.PremiumsBefore2017 is { } premiums) row.PremiumsBefore2017 = premiums;
         if (change.ClearRegulated) row.Regulated = null; else if (change.Regulated is { } regulated) row.Regulated = EnvelopeWire.Of(regulated);
+        if (change.ClearAvailability) row.Availability = null; else if (change.Availability is { } tranches) row.Availability = AvailabilityJson.Write(tranches);
         await db.SaveChangesAsync(ct);
     }
 
@@ -113,6 +117,24 @@ public sealed class EnvelopeStore(InvestmentsDbContext db) : IEnvelopeStore
         if (!EnvelopeWire.TryKind(row.Kind, out var kind) || !EnvelopeWire.TryCadence(row.ValuationCadence, out var cadence))
             throw new InvalidOperationException($"Envelope {row.ItemId} has a stored kind or cadence this code does not know.");
         return new Envelope(new ItemId(row.ItemId), kind, row.Institution, row.AccountHint, row.OpenedOn, cadence, row.StaleAfterDays, row.Note, row.ClosedOn, row.UcShareFloorPct, row.PremiumsBefore2017,
-            EnvelopeWire.TryRegulated(row.Regulated, out var regulated) ? regulated : (RegulatedKind?)null);
+            EnvelopeWire.TryRegulated(row.Regulated, out var regulated) ? regulated : (RegulatedKind?)null, AvailabilityJson.Read(row.Availability));
     }
+}
+
+/// <summary>#184: the tranches as stored, dates in ISO and amounts as invariant strings so no precision is lost.</summary>
+internal static class AvailabilityJson
+{
+    private sealed record Tranche(string AvailableOn, string Amount);
+
+    private static readonly System.Text.Json.JsonSerializerOptions Options = new(System.Text.Json.JsonSerializerDefaults.Web);
+
+    // An empty list is stored as none: the plan is then locked as a whole.
+    public static string? Write(IReadOnlyList<AvailabilityTranche>? tranches)
+        => tranches is not { Count: > 0 } ? null : System.Text.Json.JsonSerializer.Serialize(
+            tranches.OrderBy(t => t.AvailableOn).Select(t => new Tranche(
+                NodaTime.Text.LocalDatePattern.Iso.Format(t.AvailableOn), t.Amount.ToString(System.Globalization.CultureInfo.InvariantCulture))).ToList(), Options);
+
+    public static IReadOnlyList<AvailabilityTranche>? Read(string? json)
+        => json is null ? null : System.Text.Json.JsonSerializer.Deserialize<List<Tranche>>(json, Options)!.Select(t => new AvailabilityTranche(
+            NodaTime.Text.LocalDatePattern.Iso.Parse(t.AvailableOn).Value, decimal.Parse(t.Amount, System.Globalization.CultureInfo.InvariantCulture))).ToList();
 }

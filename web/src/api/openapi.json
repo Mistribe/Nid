@@ -37138,6 +37138,37 @@
           }
         }
       },
+      "AvailabilityView": {
+        "required": [
+          "releases",
+          "tranches"
+        ],
+        "type": "object",
+        "properties": {
+          "availableToday": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AmountView"
+              }
+            ]
+          },
+          "releases": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReleaseView"
+            }
+          },
+          "tranches": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TrancheView"
+            }
+          }
+        }
+      },
       "BalanceMonthView": {
         "required": [
           "month",
@@ -43430,6 +43461,21 @@
             "items": {
               "$ref": "#/components/schemas/OwnerBody"
             }
+          },
+          "availability": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/TrancheBody"
+            }
+          },
+          "clearAvailability": {
+            "type": [
+              "null",
+              "boolean"
+            ]
           }
         }
       },
@@ -44069,6 +44115,16 @@
               },
               {
                 "$ref": "#/components/schemas/RealPercentView"
+              }
+            ]
+          },
+          "availability": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AvailabilityView"
               }
             ]
           }
@@ -59391,6 +59447,22 @@
           }
         }
       },
+      "ReleaseView": {
+        "required": [
+          "on",
+          "amount"
+        ],
+        "type": "object",
+        "properties": {
+          "on": {
+            "type": "string",
+            "format": "date"
+          },
+          "amount": {
+            "$ref": "#/components/schemas/AmountView"
+          }
+        }
+      },
       "RenegotiationSideView": {
         "required": [
           "payment",
@@ -66958,6 +67030,39 @@
           },
           "otpauthUri": {
             "type": "string"
+          }
+        }
+      },
+      "TrancheBody": {
+        "type": "object",
+        "properties": {
+          "availableOn": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "amount": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "TrancheView": {
+        "required": [
+          "availableOn",
+          "amount"
+        ],
+        "type": "object",
+        "properties": {
+          "availableOn": {
+            "type": "string",
+            "format": "date"
+          },
+          "amount": {
+            "$ref": "#/components/schemas/AmountView"
           }
         }
       },

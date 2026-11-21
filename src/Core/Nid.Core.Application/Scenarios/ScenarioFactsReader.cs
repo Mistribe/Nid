@@ -78,7 +78,7 @@ public sealed class ScenarioFactsReader(
             var slices = DashboardMath.SlicesOf(h, h.Value?.Amount ?? 0m);
             var liquidity = slices.Select(s => s.Liquidity).MaxBy(Rank) ?? AllocationLiquidity.Available;
             IReadOnlyList<SavingsSlice> parts = h.Value is { } v && v.Amount != 0m && amount is { } a
-                ? slices.Select(s => new SavingsSlice(h.Item, s.Class, s.Liquidity, s.Amount * a / v.Amount)).ToList()
+                ? slices.Select(s => new SavingsSlice(h.Item, s.Class, s.Liquidity, s.Amount * a / v.Amount, UnlockMonth(s.AvailableOn, today))).ToList()
                 : [];
             return new SavingsHolding(h, amount, parts, liquidity);
         }).ToList();
@@ -195,6 +195,10 @@ public sealed class ScenarioFactsReader(
         };
         return ((TaxCalculator.Compute(replayed).TotalTax - TaxCalculator.Compute(inputs).TotalTax) / 12m, false);
     }
+
+    /// <summary>#184: the first projection month after the one a locked part is released in, as a departure (<see cref="Departures.SwitchMonths"/>).</summary>
+    private static int? UnlockMonth(LocalDate? on, LocalDate today)
+        => on is { } d ? Math.Max(0, (d.Year - today.Year) * 12 + d.Month - today.Month + 1) : null;
 
     private static int Rank(string liquidity) => liquidity switch
     {
