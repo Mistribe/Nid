@@ -112,9 +112,9 @@ public sealed class GetSpendingHandler(
 {
     public const int MaxMonths = 24;
     private const int AverageMonths = 12;
-    private const int MinHistoryMonths = 3;
+    internal const int MinHistoryMonths = 3;
     private const decimal AheadMargin = 1.10m;
-    private static readonly StringComparer ByName = StringComparer.Create(CultureInfo.GetCultureInfo("fr-FR"), true);
+    internal static readonly StringComparer ByName = StringComparer.Create(CultureInfo.GetCultureInfo("fr-FR"), true);
 
     /// <summary>
     /// The range's and the preceding <paramref name="Covered"/> months' spending per category (Guid.Empty: none), before any view filter; the

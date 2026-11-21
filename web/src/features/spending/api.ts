@@ -17,3 +17,7 @@ export const LINES_PAGE = 50;
 export type SpendingBudget = components['schemas']['SpendingBudgetView'];
 export const BUDGETS = '/api/v1/banking/budgets' as const;
 export const BUDGET = '/api/v1/banking/budgets/{categoryId}' as const;
+
+/** #427: budgets proposed from the Mois habituel, for a household that has none; ticked ones created with one POST on `BUDGETS`. */
+export const BUDGET_SUGGESTIONS = '/api/v1/banking/budgets/suggestions' as const;
+export type BudgetSuggestion = components['schemas']['BudgetSuggestionView'];

@@ -679,6 +679,10 @@ public static class RequestCatalogue
         new(typeof(Nid.Banking.Application.Spending.ListBudgetsQuery), false, (_, _) => new Nid.Banking.Application.Spending.ListBudgetsQuery()),
         new(typeof(Nid.Banking.Application.Spending.SetBudgetCommand), false, (_, _) => new Nid.Banking.Application.Spending.SetBudgetCommand(Guid.NewGuid(), "100", "month")),
         new(typeof(Nid.Banking.Application.Spending.DeleteBudgetCommand), false, (_, _) => new Nid.Banking.Application.Spending.DeleteBudgetCommand(Guid.NewGuid())),
+        // #427: budgets at once, and those proposed from the « Foyer » figures (the household's accounts, as Foyer shows them).
+        new(typeof(Nid.Banking.Application.Spending.CreateBudgetsCommand), false, (_, _) => new Nid.Banking.Application.Spending.CreateBudgetsCommand(
+            [new Nid.Banking.Application.Spending.NewBudget(Guid.NewGuid(), "100", "typed", "month")])),
+        new(typeof(Nid.Banking.Application.Spending.SuggestBudgetsQuery), false, (_, _) => new Nid.Banking.Application.Spending.SuggestBudgetsQuery()),
         new(typeof(ListBankRulesQuery), false, (_, _) => new ListBankRulesQuery()),
         new(typeof(DeleteBankRuleCommand), false, (_, _) => new DeleteBankRuleCommand(Guid.NewGuid())),
         // A preview: the actor's own new account from a file, rolled back; dropped on the row's item, refused unless they write an envelope.

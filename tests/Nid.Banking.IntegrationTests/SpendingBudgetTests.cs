@@ -253,4 +253,51 @@ public class SpendingBudgetTests(PostgresFixture fixture) : IClassFixture<Postgr
         Assert.NotNull(Find(view, "food.groceries"));
         Assert.Null(Budget(view, "food.groceries"));
     }
+
+    private static async Task<List<(string?, string?, string?, bool, bool)>> SuggestionsAsync(NidApp app, PersonId person)
+    {
+        var response = await app.RawAsync(person, HttpMethod.Get, $"{BankingApi.Root}/budgets/suggestions");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        return [.. (await BankingApi.JsonAsync(response)).EnumerateArray().Select(s => (s.GetProperty("name").GetString(), S(s, "average"), S(s, "proposed"),
+            s.GetProperty("committed").GetBoolean(), s.GetProperty("preselected").GetBoolean()))];
+    }
+
+    [Fact]
+    public async Task Budgets_are_suggested_from_the_household_s_usual_month_where_its_branch_has_none()
+    {
+        var (app, joint) = await StartAsync(fixture);
+        await using var _ = app;
+        // An account of Alice's alone: never in « Foyer », so never in its usual month.
+        await BankingApi.ConnectAsync(app, app.AdultA, "code-b", BankingApi.Account("uid-2", "hash-2", null, "Perso"));
+        var own = (await AccountsAsync(app, app.AdultA))["Perso"];
+        await LineAsync(app, own, new(2025, 8, 5), -3_000m, "home.upkeep");
+        // July to September before October: three months, July whole from its 1st.
+        await LineAsync(app, joint, new(2025, 7, 1), -120m, "food.groceries");
+        await LineAsync(app, joint, new(2025, 8, 10), -60m, "food.groceries");
+        await LineAsync(app, joint, new(2025, 9, 10), -183m, "food.restaurants");
+        await LineAsync(app, joint, new(2025, 8, 20), -24m, "transport.fuel");
+        foreach (var month in new[] { 7, 8, 9 })
+            await LineAsync(app, joint, new(2025, month, 1), -9.99m, "leisure.subscriptions");
+        // Due every month: Loisirs follows its commitments.
+        await app.NewMonthlyAsync(app.AdultA, 9.99m);
+
+        // 363 over 3, rounded up; 24 over 3 is 8, up to 10; a multiple of 10 would stay.
+        Assert.Equal([("Alimentation", "121.00", "130.00", false, true), ("Loisirs", "9.99", "10.00", true, true), ("Transport", "8.00", "10.00", false, true)],
+            await SuggestionsAsync(app, app.AdultB));
+
+        // A budget on a child takes its branch out; the others stay.
+        await BudgetAsync(app, "food.groceries", "300");
+        Assert.Equal(["Loisirs", "Transport"], (await SuggestionsAsync(app, app.AdultA)).Select(s => s.Item1));
+    }
+
+    [Fact]
+    public async Task No_budget_is_suggested_without_a_usual_month()
+    {
+        var (app, joint) = await StartAsync(fixture);
+        await using var _ = app;
+        // Two months before October: no Mois habituel.
+        await LineAsync(app, joint, new(2025, 8, 1), -120m, "food.groceries");
+        await LineAsync(app, joint, new(2025, 9, 10), -60m, "food.groceries");
+        Assert.Empty(await SuggestionsAsync(app, app.AdultA));
+    }
 }

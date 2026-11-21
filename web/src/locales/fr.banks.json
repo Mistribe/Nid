@@ -89,6 +89,7 @@
       "banking_rule_amounts": "Les montants sont positifs, et le minimum ne dépasse pas le maximum.",
       "banking_budget_amount": "Un budget est un montant de zéro ou plus.",
       "banking_budget_branch": "Un budget existe déjà sur la catégorie parente ou une sous-catégorie.",
+      "banking_budget_exists": "Cette catégorie a déjà un budget.",
       "banking_budget_conflict": "La fusion mettrait deux budgets sur une même catégorie ou branche : supprimez-en un d’abord.",
       "banking_disabled": "La synchronisation bancaire n’est pas activée."
     },

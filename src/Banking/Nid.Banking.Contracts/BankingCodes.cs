@@ -119,6 +119,9 @@ public static class BankingCodes
     /// <summary>#85: a budget on a category and one on its parent or a child: one per branch.</summary>
     public const string BudgetBranch = "banking.budget_branch";
 
+    /// <summary>#427: budgets created at once never replace one: the category has its budget already (or is asked twice).</summary>
+    public const string BudgetExists = "banking.budget_exists";
+
     /// <summary>#85: a merge that would leave two budgets on one category or on one branch.</summary>
     public const string BudgetConflict = "banking.budget_conflict";
 

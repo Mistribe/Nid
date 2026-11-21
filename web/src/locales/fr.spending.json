@@ -121,7 +121,19 @@
       "delete_confirm": "Le budget de {{name}} sera supprimé.",
       "saved": "Budget enregistré.",
       "following": "Le budget suit vos engagements.",
-      "deleted": "Budget supprimé."
+      "deleted": "Budget supprimé.",
+      "suggest": "Proposer des budgets",
+      "suggest_title": "Budgets proposés",
+      "suggest_intro": "Chaque montant est votre mois habituel arrondi à la dizaine supérieure. Cochez les budgets à créer et ajustez les montants si besoin.",
+      "suggest_loading": "Chargement des propositions",
+      "suggest_none": "Aucune proposition pour l’instant : il faut au moins trois mois de dépenses classées pour connaître votre mois habituel.",
+      "suggest_list": "Budgets proposés",
+      "suggest_usual": "Mois habituel {{amount}}",
+      "suggest_amount": "Budget mensuel de {{name}}",
+      "suggest_create_one": "Créer {{count}} budget",
+      "suggest_create_other": "Créer {{count}} budgets",
+      "suggest_created_one": "{{count}} budget créé.",
+      "suggest_created_other": "{{count}} budgets créés."
     }
   }
 }
