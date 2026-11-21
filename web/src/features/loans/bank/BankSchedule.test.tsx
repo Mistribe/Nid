@@ -148,7 +148,7 @@ describe('the bank’s table', () => {
 
     await waitFor(() => expect(toasts()).toHaveTextContent('Le tableau de la banque est la référence.'));
     expect(sent).toEqual([expect.objectContaining({
-      method: 'PATCH', body: { clearLender: false, clearNote: false, clearProperty: false, scheduleSource: 'bank' },
+      method: 'PATCH', body: { clearLender: false, clearNote: false, clearProperty: false, clearEnvelope: false, scheduleSource: 'bank' },
     })]);
     await expectNoAxeViolations(container);
   });

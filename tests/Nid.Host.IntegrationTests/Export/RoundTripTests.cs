@@ -174,6 +174,10 @@ public class RoundTripTests(PostgresFixture fixture) : IClassFixture<PostgresFix
             asOf = "2024-12-31", recordValuation = true,
             lines = new object[] { new { holdingId = scpi, units = "20", unitPrice = "225", value = Eur("4500.00") } },
         });
+        // Its loan (PR 2 of #180): the link travels as the envelope's file id.
+        var scpiLoan = Nid.TestSupport.LoanApi.Golden(app, name: "Prêt SCPI");
+        scpiLoan["envelopeId"] = Guid.Parse(scpiEnvelope);
+        await SendAsync(app, HttpMethod.Post, Nid.TestSupport.LoanApi.Loans, scpiLoan);
     }
 
     /// <summary>An envelope's holdings, snapshots, and each holding's movements and series, by holding name; lines by value (they come in id order).</summary>
@@ -395,6 +399,12 @@ public class RoundTripTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         Assert.Equal([3], first["holdings"].Where(h => h.TryGetProperty("entitlement_delay_months", out _)).Select(h => h.GetProperty("entitlement_delay_months").GetInt32()));
         var scpiReads = JsonNode.Parse(reads)!["SCPI"]!["holdings"]!["holdings"]!["holdings"]!.AsArray().Single()!;
         Assert.Equal(("scpi", 3, "2024-05-01"), (scpiReads["kind"]!.GetValue<string>(), scpiReads["entitlementDelayMonths"]!.GetValue<int>(), scpiReads["entitledFrom"]!.GetValue<string>()));
+        var scpiFileId = first["envelopes"].Single(e => e.GetProperty("name").GetString() == "SCPI").GetProperty("id").GetString();
+        Assert.Equal(scpiFileId, first["loans"].Single(l => l.GetProperty("name").GetString() == "Prêt SCPI").GetProperty("envelope").GetString());
+        Assert.All(first["loans"].Where(l => l.GetProperty("name").GetString() != "Prêt SCPI"), l => Assert.False(l.TryGetProperty("envelope", out _)));
+        var targetLoans = JsonNode.Parse(await (await target.RawAsync(target.AdultA, HttpMethod.Get, Nid.TestSupport.LoanApi.Loans)).Content.ReadAsStringAsync(TestContext.Current.CancellationToken))!;
+        var targetLoan = targetLoans["items"]!.AsArray().Single(l => l!["name"]!.GetValue<string>() == "Prêt SCPI")!;
+        Assert.Equal("SCPI", targetLoan["envelopeName"]!.GetValue<string>());
         Assert.Equal(["2023-12-31", "2024-12-31", "2024-12-31"], first["holding_snapshots"].Select(s => s.GetProperty("as_of").GetString()).Order(StringComparer.Ordinal));
         Assert.Equal(9, first["holding_movements"].Count);
         Assert.Single(first["holding_movements"].Where(m => m.GetProperty("switch_ref").ValueKind == JsonValueKind.String)

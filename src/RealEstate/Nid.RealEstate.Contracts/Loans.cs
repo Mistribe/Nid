@@ -131,6 +131,16 @@ public static class LoanCodes
 
     /// <summary>Spec 3F2 §3: the bank chosen as the reference without a stored table (in a file, without its rows).</summary>
     public const string BankScheduleMissing = "realestate.bank_schedule_missing";
+
+    /// <summary>#180: not an SCPI envelope the actor reads, or a loan that would finance a property and an SCPI at once.</summary>
+    public const string InvalidEnvelope = "realestate.invalid_envelope";
+}
+
+/// <summary>#180: what a loan may finance besides a property, answered by Investments (RealEstate does not reference it).</summary>
+public interface IFinancedEnvelopes
+{
+    /// <summary>True when the item is an envelope of kind <c>scpi</c>, open or closed; access is the caller's to check.</summary>
+    Task<bool> IsScpiAsync(ItemId item, CancellationToken ct);
 }
 
 public static class LoanWarnings

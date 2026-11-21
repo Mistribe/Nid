@@ -125,6 +125,14 @@ export function LoanDetailPage() {
             : t('loan_detail.property_unreadable')}
         </p>
       ) : null}
+      {loan.envelopeId ? (
+        <p>
+          {t('loan_detail.envelope')}{' '}
+          {loan.envelopeName
+            ? <Link to="/investments/$id" params={{ id: loan.envelopeId }} className="underline">{loan.envelopeName}</Link>
+            : t('loan_detail.envelope_unreadable')}
+        </p>
+      ) : null}
       {loan.warnings.length > 0 ? (
         <ul aria-label={t('loan_detail.warnings')} className="space-y-1">
           {loan.warnings.map((w, i) => (

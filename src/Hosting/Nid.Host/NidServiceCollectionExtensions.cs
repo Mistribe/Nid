@@ -225,6 +225,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ITaxContribution, Nid.Investments.Application.EnvelopesTax>();
         services.AddScoped<ITaxContribution, Nid.Investments.Application.CapitalTaxContribution>();
         services.AddScoped<ISaleContribution, Nid.Investments.Application.EnvelopesSale>();
+        services.AddScoped<Nid.RealEstate.Contracts.IFinancedEnvelopes, Nid.Investments.Application.FinancedEnvelopes>();
         services.AddScoped<Nid.Investments.Application.InvestmentsUpcoming>();
         services.AddScoped<IUpcomingEvents>(sp => sp.GetRequiredService<Nid.Investments.Application.InvestmentsUpcoming>());
         services.AddScoped<Nid.Investments.Application.InvestmentsOverviewReader>();

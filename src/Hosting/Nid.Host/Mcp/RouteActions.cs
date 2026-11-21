@@ -113,9 +113,10 @@ public static class RouteActions
         // Real estate: loans.
         new("create_loan", "POST", "/api/v1/realestate/loans", typeof(CreateLoanBody),
             "Create a loan with its contract, linked to an existing property when propertyId is given (propose the property first, "
-            + "then the loan once it is approved). Once approved, propose_amortization can attach the bank's table. " + Owners + Amounts),
+            + "then the loan once it is approved), or to an SCPI envelope (kind 'scpi') when envelopeId is given, never both. Once approved, propose_amortization can attach the bank's table. " + Owners + Amounts),
         new("edit_loan", "PATCH", "/api/v1/realestate/loans/{id:guid}", typeof(EditLoanBody),
-            "Edit a loan's details; only the fields given change. " + Ids),
+            "Edit a loan's details; only the fields given change. envelopeId links an SCPI envelope instead of a property: send "
+            + "clearProperty with it when the loan finances a property. " + Ids),
         new("replace_loan_contract", "PUT", "/api/v1/realestate/loans/{id:guid}/contract", typeof(LoanContractBody),
             "Replace a loan's contract (amount, rate, phases, insurance). " + Ids + Versioned + Amounts, Destructive: true),
         new("add_loan_fee", "POST", "/api/v1/realestate/loans/{id:guid}/fees", typeof(LoanFeeBody),

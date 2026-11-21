@@ -44,8 +44,8 @@ public static class RealEstateEndpoints
             })
             .Returns<IrlValueView>();
 
-        api.MapGet("/loans", async (string? scope, bool? ended, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new ListLoansQuery(ParseScope(scope), ended ?? false), ct)).ToHttp(list => list))
+        api.MapGet("/loans", async (string? scope, bool? ended, Guid? envelope, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new ListLoansQuery(ParseScope(scope), ended ?? false, envelope is { } e ? new ItemId(e) : null), ct)).ToHttp(list => list))
             .Returns<LoanList>();
 
         api.MapGet("/loans/overview", async (string? scope, IInvoker invoker, CancellationToken ct)
@@ -522,7 +522,8 @@ public static class RealEstateEndpoints
     public sealed record CreateLoanBody(
         string? Name, string? Currency, string? Visibility, IReadOnlyList<OwnerBody>? Borrowers, string? Lender, string? Note,
         string? Principal, string? DisbursedOn, string? FirstPaymentDate, int? TotalPayments, string? Rounding, string? FirstPeriod,
-        IReadOnlyList<LoanPhaseBody>? Phases, IReadOnlyList<LoanInsuranceBody>? Insurances, Guid? PropertyId, string? ShareLevel = null)
+        IReadOnlyList<LoanPhaseBody>? Phases, IReadOnlyList<LoanInsuranceBody>? Insurances, Guid? PropertyId, string? ShareLevel = null,
+        Guid? EnvelopeId = null)
     {
         internal CreateLoanCommand? ToCommand(FieldReader reader)
         {
@@ -534,17 +535,18 @@ public static class RealEstateEndpoints
             var contract = LoanBodies.Contract(reader, Principal, DisbursedOn, FirstPaymentDate, TotalPayments, Rounding, FirstPeriod, Phases, Insurances);
             return reader.Ok
                 ? new CreateLoanCommand(Name ?? "", currency, visibility!.Value, borrowers!, Lender, Note, contract!,
-                    PropertyId is { } property ? new ItemId(property) : null, level!.Value)
+                    PropertyId is { } property ? new ItemId(property) : null, level!.Value, EnvelopeId is { } envelope ? new ItemId(envelope) : null)
                 : null;
         }
     }
 
     /// <summary>
-    /// Spec §4: name, lender, note, the linked property (spec 3C1 §4) and the schedule's reference (spec 3F2 §3), only what is sent;
+    /// Spec §4: name, lender, note, the linked property (spec 3C1 §4) or SCPI envelope (#180) and the schedule's reference (spec 3F2 §3), only what is sent;
     /// <c>clear…</c> empties an optional field. Borrowers, visibility and currency are set at creation: the body has no such members (as an income source's).
     /// </summary>
     public sealed record EditLoanBody(
-        string? Name, string? Lender, bool ClearLender, string? Note, bool ClearNote, Guid? PropertyId, bool ClearProperty, string? ScheduleSource)
+        string? Name, string? Lender, bool ClearLender, string? Note, bool ClearNote, Guid? PropertyId, bool ClearProperty, string? ScheduleSource,
+        Guid? EnvelopeId = null, bool ClearEnvelope = false)
     {
         /// <summary>Spec 3F2 §3: <c>scheduleSource</c> is <c>computed</c> or <c>bank</c>, anything else refused at it (the enum named in full: this member shadows it).</summary>
         internal EditLoanCommand? ToCommand(ItemId id, FieldReader reader)
@@ -552,7 +554,7 @@ public static class RealEstateEndpoints
             var source = ScheduleSource is null ? null : LoanBodies.Wire<Nid.RealEstate.Contracts.ScheduleSource>(reader, ScheduleSource, "scheduleSource");
             return reader.Ok
                 ? new EditLoanCommand(id, Name, new LoanDetailsChange(Lender, ClearLender, Note, ClearNote, PropertyId is { } property ? new ItemId(property) : null,
-                    ClearProperty, source))
+                    ClearProperty, source, EnvelopeId is { } envelope ? new ItemId(envelope) : null, ClearEnvelope))
                 : null;
         }
     }

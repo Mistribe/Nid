@@ -22,8 +22,22 @@ public static class InvestmentEndpoints
             => (await invoker.InvokeAsync(new GetPriceRunsQuery(page), ct)).ToHttp(r => r))
             .Returns<PriceRunPage>();
 
-        api.MapGet("/envelopes", async (string? scope, bool? archived, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new ListEnvelopesQuery(ParseScope(scope), archived ?? false), ct)).ToHttp(list => list))
+        api.MapGet("/envelopes", async (string? scope, bool? archived, string? kind, IInvoker invoker, CancellationToken ct) =>
+            {
+                // #180: an unknown kind is refused at its parameter, as a body's kind is.
+                EnvelopeKind? parsed = null;
+                if (kind is not null)
+                {
+                    if (!EnvelopeWire.TryKind(kind, out var k))
+                    {
+                        var reader = new FieldReader();
+                        reader.Add("kind", InvestmentsCodes.UnknownKind, $"'{kind}' is not an envelope kind.");
+                        return reader.Problem();
+                    }
+                    parsed = k;
+                }
+                return (await invoker.InvokeAsync(new ListEnvelopesQuery(ParseScope(scope), archived ?? false, parsed), ct)).ToHttp(list => list);
+            })
             .Returns<EnvelopeList>();
 
         api.MapGet("/overview", async (string? scope, string? span, IInvoker invoker, CancellationToken ct)

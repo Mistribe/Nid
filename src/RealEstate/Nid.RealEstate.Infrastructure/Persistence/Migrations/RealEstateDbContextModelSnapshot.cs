@@ -575,6 +575,10 @@ namespace Nid.RealEstate.Infrastructure.Persistence.Migrations
                         .HasColumnType("date")
                         .HasColumnName("disbursed_on");
 
+                    b.Property<Guid?>("EnvelopeItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("envelope_item_id");
+
                     b.Property<LocalDate>("FirstPaymentDate")
                         .HasColumnType("date")
                         .HasColumnName("first_payment_date");
@@ -637,6 +641,9 @@ namespace Nid.RealEstate.Infrastructure.Persistence.Migrations
                     b.HasKey("ItemId")
                         .HasName("pk_loan");
 
+                    b.HasIndex("EnvelopeItemId")
+                        .HasDatabaseName("ix_loan_envelope_item_id");
+
                     b.HasIndex("PropertyItemId")
                         .HasDatabaseName("ix_loan_property_item_id");
 
@@ -648,6 +655,8 @@ namespace Nid.RealEstate.Infrastructure.Persistence.Migrations
                     b.ToTable("loan", "realestate", t =>
                         {
                             t.HasCheckConstraint("ck_loan_dates", "first_payment_date >= disbursed_on");
+
+                            t.HasCheckConstraint("ck_loan_financed", "property_item_id is null or envelope_item_id is null");
 
                             t.HasCheckConstraint("ck_loan_first_period_mode", "first_period_mode in ('full','prorata_actual_365')");
 

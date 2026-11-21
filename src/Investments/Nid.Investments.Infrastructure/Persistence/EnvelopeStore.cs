@@ -88,10 +88,11 @@ public sealed class EnvelopeStore(InvestmentsDbContext db) : IEnvelopeStore
     public async Task<Envelope?> FindAsync(ItemId item, CancellationToken ct)
         => await db.Envelopes.AsNoTracking().SingleOrDefaultAsync(e => e.ItemId == item.Value, ct) is { } row ? ToEnvelope(row) : null;
 
-    public async Task<IReadOnlyList<Envelope>> FindManyAsync(IReadOnlyCollection<ItemId> items, CancellationToken ct)
+    public async Task<IReadOnlyList<Envelope>> FindManyAsync(IReadOnlyCollection<ItemId> items, CancellationToken ct, EnvelopeKind? kind = null)
     {
         var ids = items.Select(i => i.Value).ToList();
-        var rows = await db.Envelopes.AsNoTracking().Where(e => ids.Contains(e.ItemId)).ToListAsync(ct);
+        var wire = kind is { } k ? EnvelopeWire.Of(k) : null;
+        var rows = await db.Envelopes.AsNoTracking().Where(e => ids.Contains(e.ItemId) && (wire == null || e.Kind == wire)).ToListAsync(ct);
         return rows.Select(ToEnvelope).ToList();
     }
 

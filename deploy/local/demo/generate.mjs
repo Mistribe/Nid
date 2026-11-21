@@ -246,12 +246,18 @@ function alice() {
       id: 'loan-studio', name: 'Prêt du studio', lender: 'Crédit Exemple', currency: 'EUR', principal: eur(118000), disbursed_on: '2019-04-30',
       first_payment_date: '2019-06-10', total_payments: 240, property: 'prop-studio', ownership: mine(A),
     },
+    // Issue #180: the SCPI's shares bought on credit, a loan linked to the envelope instead of a property.
+    {
+      id: 'loan-scpi', name: 'Prêt SCPI', lender: 'Banque Exemple', currency: 'EUR', principal: eur(4000), disbursed_on: '2024-04-10',
+      first_payment_date: '2024-05-10', total_payments: 120, envelope: 'env-scpi', ownership: halves(A, B), visibility: 'shared',
+    },
   ];
   const loan_phases = [
     { id: 'lp-home-1', loan: 'loan-home', seq: 1, mode: 'annuity', annual_rate: '0.0135', rate_type: 'fixed' },
     { id: 'lp-ptz-1', loan: 'loan-ptz', seq: 1, mode: 'deferred_total', annual_rate: '0', rate_type: 'fixed', payments: 120 },
     { id: 'lp-ptz-2', loan: 'loan-ptz', seq: 2, mode: 'annuity', annual_rate: '0', rate_type: 'fixed' },
     { id: 'lp-studio-1', loan: 'loan-studio', seq: 1, mode: 'annuity', annual_rate: '0.0115', rate_type: 'fixed' },
+    { id: 'lp-scpi-1', loan: 'loan-scpi', seq: 1, mode: 'annuity', annual_rate: '0.035', rate_type: 'fixed' },
   ];
   const loan_insurances = [
     { id: 'li-home', loan: 'loan-home', mode: 'rate_on_initial', annual_rate: '0.0028', starts_on: '2021-10-05' },

@@ -8,7 +8,7 @@ const valid = (over: Partial<NewLoanValues> = {}): NewLoanValues => ({
   name: 'Prêt maison', lender: 'Banque', currency: 'EUR', note: '', visibility: 'private',
   owners: [{ personId: 'alice', share: '100' }],
   principal: '200000', totalPayments: '240', disbursedOn: '2026-09-12', firstPaymentDate: '2026-10-12',
-  rounding: 'half_up', firstPeriod: 'full', phases: [{ ...newPhase(), rate: '3,5' }], insurances: [], propertyId: '', ...over,
+  rounding: 'half_up', firstPeriod: 'full', phases: [{ ...newPhase(), rate: '3,5' }], insurances: [], propertyId: '', envelopeId: '', ...over,
 });
 
 const issues = (v: NewLoanValues) => {

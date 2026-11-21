@@ -20,6 +20,11 @@ public sealed record LoanRecord
     public required string FirstPaymentDate { get; init; }
     public required int TotalPayments { get; init; }
     public string? Property { get; init; }
+
+    /// <summary>#180: the SCPI envelope it finances instead of a property; written only when set, so older files keep their hash.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Envelope { get; init; }
+
     public string? ScheduleSource { get; init; }
     public string RoundingMode { get; set; } = "half_up";
     public string FirstPeriodMode { get; set; } = "full";

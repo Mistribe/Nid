@@ -82,6 +82,9 @@ public sealed record StoredLoan(
     ItemId ItemId, string? Lender, string? Note, LoanContract Contract, uint Version,
     IReadOnlyList<StoredFee> Fees, IReadOnlyList<StoredRepayment> Repayments, ItemId? PropertyId = null)
 {
+    /// <summary>#180: the SCPI envelope it finances instead of a property; never both.</summary>
+    public ItemId? EnvelopeId { get; init; }
+
     /// <summary>Spec 3F2 §2: the schedule its readers read; the bank's only with a stored table.</summary>
     public ScheduleSource Source { get; init; }
 
@@ -91,15 +94,16 @@ public sealed record StoredLoan(
 
 /// <summary>
 /// A change: a null field is left as it is; <c>Clear*</c> empties an optional one. <c>PropertyId</c> links the loan (spec 3C1
-/// §1.5); <c>Source</c> chooses the schedule's reference (spec 3F2 §3).
+/// §1.5), <c>EnvelopeId</c> to an SCPI envelope (#180); <c>Source</c> chooses the schedule's reference (spec 3F2 §3).
 /// </summary>
 public sealed record LoanDetailsChange(
     string? Lender = null, bool ClearLender = false, string? Note = null, bool ClearNote = false,
-    ItemId? PropertyId = null, bool ClearProperty = false, ScheduleSource? Source = null);
+    ItemId? PropertyId = null, bool ClearProperty = false, ScheduleSource? Source = null,
+    ItemId? EnvelopeId = null, bool ClearEnvelope = false);
 
 public interface ILoanStore
 {
-    Task CreateAsync(ItemId item, string? lender, string? note, ItemId? property, LoanContract contract, CancellationToken ct);
+    Task CreateAsync(ItemId item, string? lender, string? note, ItemId? property, LoanContract contract, CancellationToken ct, ItemId? envelope = null);
 
     /// <summary>Null when the item is not a loan (or does not exist).</summary>
     Task<StoredLoan?> FindAsync(ItemId item, CancellationToken ct);
@@ -108,6 +112,9 @@ public interface ILoanStore
 
     /// <summary>The loans linked to these properties, whoever may read them: the caller filters (spec 3C1 §1.7).</summary>
     Task<IReadOnlyList<StoredLoan>> FindLinkedAsync(IReadOnlyCollection<ItemId> properties, CancellationToken ct);
+
+    /// <summary>#180: the ids of the loans that finance this envelope, whoever may read them: the caller filters.</summary>
+    Task<IReadOnlyList<ItemId>> FinancingAsync(ItemId envelope, CancellationToken ct);
 
     /// <summary>Locks the loan's row until the transaction ends: a loan's writes run one after the other (precision 5).</summary>
     Task LockAsync(ItemId item, CancellationToken ct);

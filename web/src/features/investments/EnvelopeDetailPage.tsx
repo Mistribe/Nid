@@ -33,6 +33,8 @@ import { CloseDialog } from './closing/CloseDialog';
 import { ClosedBanner } from './closing/ClosedBanner';
 import { SettingsForm } from './settings/SettingsForm';
 import { AvailabilitySection } from './availability/Availability';
+import { ScpiLoans } from './scpi/ScpiLoans';
+import { useSession } from '@/app/Providers';
 import { TransferDialog } from './transfer/TransferDialog';
 import { AnnualReturn, Gain, GainPct, StaleBadge } from './Figures';
 import { Direction } from '@/components/Direction';
@@ -73,6 +75,7 @@ const newestFirst = <T,>(rows: T[], date: (row: T) => string) =>
  */
 export function EnvelopeDetailPage() {
   const { t } = useTranslation();
+  const { capabilities } = useSession();
   const { $api } = useApi();
   const { id } = useParams({ from: '/investments/$id' });
   const answer = $api.useQuery('get', ENVELOPE, { params: { path: { id } } });
@@ -367,6 +370,7 @@ export function EnvelopeDetailPage() {
                 </Section>
               </div>
               {detail.kind === 'employee_savings' ? <AvailabilitySection envelope={detail} writable={writable} /> : null}
+              {detail.kind === 'scpi' && capabilities.modules.includes('realestate') ? <ScpiLoans envelopeId={detail.id} /> : null}
               <SaleTaxSection id={SALE_TAX} item={detail.id} canWrite={detail.canWrite} />
             </>
           ),

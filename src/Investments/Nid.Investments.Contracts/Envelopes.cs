@@ -123,7 +123,8 @@ public interface IEnvelopeStore
     /// <summary>Null when the item is not an envelope (or does not exist).</summary>
     Task<Envelope?> FindAsync(ItemId item, CancellationToken ct);
 
-    Task<IReadOnlyList<Envelope>> FindManyAsync(IReadOnlyCollection<ItemId> items, CancellationToken ct);
+    /// <summary>#180: <paramref name="kind"/>, only the envelopes of that kind (the query filters).</summary>
+    Task<IReadOnlyList<Envelope>> FindManyAsync(IReadOnlyCollection<ItemId> items, CancellationToken ct, EnvelopeKind? kind = null);
 
     Task UpdateAsync(ItemId item, EnvelopeChange change, CancellationToken ct);
 }

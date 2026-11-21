@@ -32,6 +32,24 @@ internal static class LoanCheck
             ? (await items.FindAsync(id, ct))?.DisplayName
             : null;
 
+    /// <summary>
+    /// #180: a loan finances an SCPI envelope its actor reads. An unreadable id, an unknown id and any other item get this one
+    /// refusal, as <see cref="PropertyCheck.LinkableAsync"/>.
+    /// </summary>
+    public static async Task<Failure?> EnvelopeLinkableAsync(
+        IFinancedEnvelopes envelopes, IAccessPolicy policy, PersonId actor, ItemId? envelope, CancellationToken ct)
+        => envelope is not { } id
+           || ((await policy.CheckAsync(actor, id, AccessKind.Read, ct)).IsSuccess && await envelopes.IsScpiAsync(id, ct))
+            ? null
+            : InvalidEnvelope("This is not an SCPI envelope you can read.");
+
+    /// <summary>#180: a loan finances a property or an SCPI, never both.</summary>
+    public static Failure? OneFinanced(ItemId? property, ItemId? envelope)
+        => property is not null && envelope is not null ? InvalidEnvelope("A loan finances a property or an SCPI, not both.") : null;
+
+    private static Failure InvalidEnvelope(string message)
+        => new(LoanCodes.InvalidEnvelope, message, new Dictionary<string, object?> { ["field"] = "envelopeId" });
+
     public static Failure Conflict(string code, string what)
         => new ConflictFailure($"Someone else changed this {what} since you read it; read it again.") { Code = code };
 }

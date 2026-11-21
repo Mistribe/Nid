@@ -4536,6 +4536,31 @@
           "share_bp": 10000
         }
       ]
+    },
+    {
+      "id": "loan-scpi",
+      "name": "Prêt SCPI",
+      "lender": "Banque Exemple",
+      "currency": "EUR",
+      "principal": {
+        "amount": "4000.00",
+        "currency": "EUR"
+      },
+      "disbursed_on": "2024-04-10",
+      "first_payment_date": "2024-05-10",
+      "total_payments": 120,
+      "envelope": "env-scpi",
+      "ownership": [
+        {
+          "person": "adult-1",
+          "share_bp": 5000
+        },
+        {
+          "person": "adult-2",
+          "share_bp": 5000
+        }
+      ],
+      "visibility": "shared"
     }
   ],
   "loan_phases": [
@@ -4570,6 +4595,14 @@
       "seq": 1,
       "mode": "annuity",
       "annual_rate": "0.0115",
+      "rate_type": "fixed"
+    },
+    {
+      "id": "lp-scpi-1",
+      "loan": "loan-scpi",
+      "seq": 1,
+      "mode": "annuity",
+      "annual_rate": "0.035",
       "rate_type": "fixed"
     }
   ],
