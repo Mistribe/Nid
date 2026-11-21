@@ -204,6 +204,45 @@ public class OperationsTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         Assert.Equal(5, (await GetAsync(w.App, w.App.AdultA, $"?category={food}&from=2025-09-01&to=2025-10-31")).GetProperty("total").GetInt32());
     }
 
+    /// <summary>
+    /// #446: a line split in two parts of a category (and one elsewhere) is one row of the category's lines, as in Opérations: the same count and
+    /// total for the same month and scope; the part filed elsewhere still shows in its own category's lines.
+    /// </summary>
+    [Fact]
+    public async Task A_line_split_within_a_category_is_one_row_of_its_lines()
+    {
+        var w = await StartAsync();
+        await using var _ = w.App;
+        await SeedLinesAsync(w);
+        var split = await LineAsync(w.App, w.Joint, new(2025, 10, 12), -90m, "CB HYPERMARCHE");
+        var put = await w.App.RawAsync(w.App.AdultA, HttpMethod.Put, $"{BankingApi.Root}/transactions/{split}/split", new
+        {
+            parts = new object[]
+            {
+                new { amount = "-50", categoryId = Seed("food.groceries") }, new { amount = "-30", categoryId = Seed("food.restaurants") },
+                new { amount = "-10", categoryId = Seed("transport.fuel") },
+            },
+        });
+        Assert.True(put.StatusCode == HttpStatusCode.OK, await put.Content.ReadAsStringAsync(Ct));
+        var food = Seed("food");
+
+        var response = await w.App.RawAsync(w.App.AdultA, HttpMethod.Get, $"{BankingApi.Root}/spending/lines?scope=household&categoryId={food}&month=2025-10");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var lines = await BankingApi.JsonAsync(response);
+        var list = await GetAsync(w.App, w.App.AdultA, $"?scope=household&state=counted&category={food}&from=2025-10-01&to=2025-10-31");
+        Assert.Equal(list.GetProperty("total").GetInt32(), lines.GetProperty("count").GetInt32());
+        Assert.Equal(list.GetProperty("totals").GetProperty("net").GetString(), "-" + lines.GetProperty("total").GetString());
+        Assert.Equal(list.GetProperty("items").GetArrayLength(), lines.GetProperty("items").GetArrayLength());
+        var row = Assert.Single(lines.GetProperty("items").EnumerateArray(), i => i.GetProperty("id").GetGuid() == split);
+        Assert.Equal("-80.00", row.GetProperty("amount").GetString());
+        Assert.Equal(["-50.00", "-30.00"], row.GetProperty("parts").EnumerateArray().Select(p => p.GetProperty("amount").GetString()!));
+
+        var fuel = await BankingApi.JsonAsync(await w.App.RawAsync(w.App.AdultA, HttpMethod.Get,
+            $"{BankingApi.Root}/spending/lines?scope=household&categoryId={Seed("transport")}&month=2025-10"));
+        var part = Assert.Single(fuel.GetProperty("items").EnumerateArray(), i => i.GetProperty("id").GetGuid() == split);
+        Assert.Equal("-10.00", part.GetProperty("amount").GetString());
+    }
+
     [Fact]
     public async Task Search_is_case_and_accent_insensitive_and_literal()
     {

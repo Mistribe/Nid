@@ -49,6 +49,26 @@ describe('a category’s lines', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
+  it('shows a split line once, with the server’s sum and its parts of the figure', async () => {
+    spendingServer();
+    const parts = [
+      { id: 'p1', amount: '-30.00', category: { id: 'c1', name: 'Courses', parentId: null, parentName: null, kind: 'expense' }, note: null },
+      { id: 'p2', amount: '-12.50', category: { id: 'c2', name: 'Primeur', parentId: 'c1', parentName: 'Courses', kind: 'expense' }, note: 'Fruits' },
+    ];
+    server.use(http.get('*/api/v1/banking/spending/lines', () => HttpResponse.json({
+      items: [{ ...line(1), categorySource: 'split', parts }], total: '42.50', count: 1, incomplete: false, currency: 'EUR',
+    })));
+    const { user } = await renderApp('/spending?scope=me');
+
+    await user.click(within(await screen.findByRole('table', { name: 'Par catégorie' })).getByRole('button', { name: 'Voir les opérations : Courses' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Courses · novembre 2026' });
+    expect(await within(dialog).findByText('1 opération')).toBeInTheDocument();
+    const row = within(dialog).getAllByRole('row')[1]!;
+    expect(row).toHaveTextContent(/-42,50\s€/);
+    expect(within(row).getByText('Découpée (2)')).toBeInTheDocument();
+    expect(within(row).getByText(/-12,50\s€ · Primeur · Fruits/)).toBeInTheDocument();
+  });
+
   it('lists the unclassified lines of the 12 months', async () => {
     spendingServer({ ...month, from: '2025-12', to: '2026-11' });
     let asked: URLSearchParams | undefined;
