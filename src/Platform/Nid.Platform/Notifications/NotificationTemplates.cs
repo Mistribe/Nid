@@ -72,6 +72,7 @@ public static class NotificationTemplates
         ["shortfall_ahead"] = "Un compte courant risque de manquer d'argent",
         ["idle_cash"] = "Vos comptes courants dépassent l'épargne de précaution",
         ["card_unused"] = "Une carte n'a pas assez servi ce mois-ci",
+        ["unusual_spending"] = "Des dépenses sortent de l'ordinaire",
     };
 
     /// <summary>Issue #81: the figures a signal carries (params ending in <c>_amount</c>), named, in this order.</summary>
@@ -80,6 +81,7 @@ public static class NotificationTemplates
         ("recent_amount", "Épargne par mois sur 3 mois"), ("average_amount", "sur 12 mois"),
         ("balance_amount", "Solde"), ("charges_amount", "Charges à venir"),
         ("above_amount", "Au-dessus de l'épargne de précaution"), ("buffer_amount", "Épargne de précaution"), ("room_amount", "Place sur les livrets"),
+        ("spent_amount", "Dépensé ce mois"), ("usual_amount", "Mois habituel"), ("budget_amount", "Budget"), ("projected_amount", "Fin de mois au rythme actuel"),
     ];
 
     /// <summary>The investments tab a kind opens; a kind not listed opens the envelope's first tab.</summary>
@@ -129,6 +131,9 @@ public static class NotificationTemplates
         // The shortfall's tipping charges, in the centre only: a name may hold an amount (« Loyer 1 200 € »).
         if (p.TryGetValue("charges", out var charges) && charges.Length > 0)
             shown.Add($"Ce jour-là : {charges}");
+        // Issue #305: the heaviest lines' bank labels, which may hold an amount.
+        if (p.TryGetValue("lines", out var lines) && lines.Length > 0)
+            shown.Add($"Plus grosses dépenses : {lines}");
         return string.Join(" · ", shown);
     }
 
@@ -218,6 +223,12 @@ public static class NotificationTemplates
             "room_goal_behind" => ", un livret a de la place et un objectif est en retard",
             _ => "",
         },
+        "unusual_spending" => $"{(n.Params.GetValueOrDefault("name") is { Length: > 0 } name ? name : "Une catégorie")} : " + n.Params.GetValueOrDefault("reason") switch
+        {
+            "budget_over" => "budget dépassé",
+            "budget_pace" => "le budget sera dépassé au rythme actuel",
+            _ => "bien au-dessus du mois habituel",
+        },
         _ => "",
     };
 
@@ -290,10 +301,16 @@ public static class NotificationTemplates
         return LocalDatePattern.CreateWithInvariantCulture(format).Parse(last) is { Success: true } parsed ? parsed.Value : null;
     }
 
+    /// <summary>Issue #305: « Opérations » on the lines the category's figure counts that month; the spending page without them.</summary>
+    private static string SpendingLink(IReadOnlyDictionary<string, string> p)
+        => Guid.TryParse(p.GetValueOrDefault("category"), out var category) && YearMonthPattern.Iso.Parse(p.GetValueOrDefault("month") ?? "") is { Success: true } month
+            ? $"/spending?tab=operations&category={category:D}&from={month.Value.ToDateInterval().Start:yyyy-MM-dd}&to={month.Value.ToDateInterval().End:yyyy-MM-dd}&state=counted"
+            : "/spending";
+
     private static string? LinkOf(NotificationRecord n, NotificationKind kind)
     {
         if (n.ItemIds.Count == 0)
-            return n.Kind switch { "fx_rate_missing" or "month_changes" or "net_worth_milestone" or "savings_pace" => "/dashboard", "idle_cash" => "/investments", "routine_due" => "/routine", "shortfall_ahead" or "card_unused" => "/settings/banks", "tax_filing_deadline" or "tax_new_rate" => "/tax", "tax_balance_due" => "/tax?tab=withholding", _ => "/" };
+            return n.Kind switch { "unusual_spending" => SpendingLink(n.Params), "fx_rate_missing" or "month_changes" or "net_worth_milestone" or "savings_pace" => "/dashboard", "idle_cash" => "/investments", "routine_due" => "/routine", "shortfall_ahead" or "card_unused" => "/settings/banks", "tax_filing_deadline" or "tax_new_rate" => "/tax", "tax_balance_due" => "/tax?tab=withholding", _ => "/" };
         var id = n.ItemIds[0].Value.ToString("D");
         // The banking findings name the page of their item in "module", the item being any module's.
         return (kind.Module == "banking" ? n.Params.GetValueOrDefault("module") : kind.Module) switch
