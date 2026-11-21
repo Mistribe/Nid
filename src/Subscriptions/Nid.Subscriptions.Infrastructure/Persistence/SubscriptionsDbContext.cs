@@ -163,7 +163,7 @@ public sealed class SubscriptionsDbContext(DbContextOptions<SubscriptionsDbConte
                 t.HasCheckConstraint("ck_provider_icon", "(icon_asset is null) = (icon_source is null)");
             });
             e.HasKey(x => x.Key);
-            e.Property(x => x.IncludedKeys).HasDefaultValueSql("'{}'");
+            e.PrimitiveCollection(x => x.IncludedKeys).HasDefaultValueSql("'{}'");
             e.Property(x => x.ImportHash).HasColumnType("char(64)");
             e.Property(x => x.IconAsset).HasColumnType("char(64)");
             e.HasIndex(x => x.IconAsset); // the icon route asks whether a hash is a catalog provider's (Task 5)
@@ -226,11 +226,11 @@ public sealed class SubscriptionsDbContext(DbContextOptions<SubscriptionsDbConte
             entity.FindPrimaryKey()?.SetName($"pk_{table}");
 
             foreach (var index in entity.GetIndexes())
-                index.SetDatabaseName($"ix_{table}_{string.Join('_', index.Properties.Select(p => p.GetColumnName()))}");
+                index.SetDatabaseName($"ix_{table}_{string.Join('_', index.Properties.Select(p => ((Microsoft.EntityFrameworkCore.Metadata.IReadOnlyProperty)p).GetColumnName()))}");
 
             foreach (var foreignKey in entity.GetForeignKeys())
                 foreignKey.SetConstraintName(
-                    $"fk_{table}_{foreignKey.PrincipalEntityType.GetTableName()}_{string.Join('_', foreignKey.Properties.Select(p => p.GetColumnName()))}");
+                    $"fk_{table}_{foreignKey.PrincipalEntityType.GetTableName()}_{string.Join('_', foreignKey.Properties.Select(p => ((Microsoft.EntityFrameworkCore.Metadata.IReadOnlyProperty)p).GetColumnName()))}");
         }
     }
 

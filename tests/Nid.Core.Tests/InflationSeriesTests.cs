@@ -7,7 +7,7 @@ public class InflationSeriesTests
 {
     private static readonly YearMonth Start = new(2024, 1);
 
-    private static decimal Idx(int n) => 100m * (decimal)Math.Pow(1.002, n);
+    private static decimal Idx(int n) => 100m * Decimals.FromDouble(Math.Pow(1.002, n));
 
     // 100 x 1.002^n from 2024-01 to 2026-09 (33 months), minus the months named.
     private static InflationSeries Series(params YearMonth[] without)

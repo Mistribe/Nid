@@ -17,7 +17,7 @@ public sealed class CpiStore(CoreDbContext db) : ICpiStore
     }
 
     public async Task<bool> UpsertManualAsync(CpiValue value, CancellationToken ct)
-        => await db.Database.ExecuteSqlInterpolatedAsync($"""
+        => await db.Database.ExecuteSqlAsync($"""
             insert into core.cpi (month, value, published_on, fetched_on, source)
             values ({YearMonthPattern.Iso.Format(value.Month)}, {value.Value}, {value.PublishedOn}, {value.FetchedOn}, 'manual')
             on conflict (month) do update

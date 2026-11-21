@@ -1,3 +1,4 @@
+using Nid.Core.Contracts;
 using Nid.RealEstate.Contracts;
 using Nid.RealEstate.Domain;
 using NodaTime;
@@ -115,7 +116,7 @@ public class LoanSimulationsTests
     [InlineData("2029-01-15", 0.02, 541, "payments")] // 60 paid + 541 > 600
     public void A_renegotiation_the_engine_cannot_read_is_refused_at_its_field(string on, double rate, int? payments, string field)
     {
-        var failure = Loans.Fail(LoanSimulations.Renegotiate(Loans.Golden(), LocalDate.FromDateTime(DateTime.Parse(on)), (decimal)rate, payments, 0m));
+        var failure = Loans.Fail(LoanSimulations.Renegotiate(Loans.Golden(), LocalDate.FromDateTime(DateTime.Parse(on)), Decimals.FromDouble(rate), payments, 0m));
 
         Assert.Equal(field, Loans.FieldOf(failure));
     }

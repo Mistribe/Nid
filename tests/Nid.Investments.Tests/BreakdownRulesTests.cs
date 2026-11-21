@@ -1,3 +1,4 @@
+using Nid.Core.Contracts;
 using Nid.Investments.Contracts;
 using Nid.Investments.Domain;
 using NodaTime;
@@ -18,11 +19,11 @@ public class BreakdownRulesTests
     public void A_breakdown_adding_up_to_100_is_valid_with_or_without_sectors() => Assert.Empty(Paths(Valid));
 
     [Theory]
-    [InlineData(99.9)]
-    [InlineData(100.1)]
-    public void A_part_not_adding_up_to_100_is_refused_at_its_field(double total)
+    [InlineData("99.9")]
+    [InlineData("100.1")]
+    public void A_part_not_adding_up_to_100_is_refused_at_its_field(string total)
     {
-        var parts = new[] { P("north_america", (decimal)total - 10m), P("japan", 10m) };
+        var parts = new[] { P("north_america", decimal.Parse(total, System.Globalization.CultureInfo.InvariantCulture) - 10m), P("japan", 10m) };
         Assert.Equal(["regions=investments.breakdown_not_100"], Paths(parts));
         Assert.Equal(["sectors=investments.breakdown_not_100"], Paths(Valid, parts.Select(p => p with { Code = p.Code == "japan" ? "energy" : "utilities" }).ToArray()));
     }
@@ -32,7 +33,7 @@ public class BreakdownRulesTests
     [InlineData(-5)]
     [InlineData(12.25)]
     public void A_share_is_above_zero_with_one_decimal(double pct)
-        => Assert.Contains("regions[1].pct=request.invalid", Paths([P("north_america", 100m), P("japan", (decimal)pct)]));
+        => Assert.Contains("regions[1].pct=request.invalid", Paths([P("north_america", 100m), P("japan", Decimals.FromDouble(pct))]));
 
     [Fact]
     public void An_unknown_or_repeated_code_is_refused_at_its_field()

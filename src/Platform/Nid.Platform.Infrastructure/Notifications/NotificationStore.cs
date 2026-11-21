@@ -154,7 +154,7 @@ public sealed partial class NotificationStore(PlatformDbContext db, IClock clock
         var state = insert.Open ? NotificationStates.Open : NotificationStates.Pending;
         var openedAt = insert.Open ? now : (Instant?)null;
         var json = JsonSerializer.Serialize(signal.Params, StoreJson.Default.IReadOnlyDictionaryStringString);
-        return db.Database.ExecuteSqlInterpolatedAsync($"""
+        return db.Database.ExecuteSqlAsync($"""
             INSERT INTO platform.notification
                 (id, person_id, kind, key, level, item_ids, due_on, notify_on, params, state, created_at, opened_at)
             VALUES
@@ -206,7 +206,7 @@ public sealed partial class NotificationStore(PlatformDbContext db, IClock clock
     public Task RecordRunAsync(PersonId person, string source, LocalDate on, bool ok, CancellationToken ct)
     {
         var lastOk = ok ? on : (LocalDate?)null;
-        return db.Database.ExecuteSqlInterpolatedAsync($"""
+        return db.Database.ExecuteSqlAsync($"""
             INSERT INTO platform.notification_run (person_id, source, ran_on, ran_at, ok, last_ok_on)
             VALUES ({person.Value}, {source}, {on}, {clock.GetCurrentInstant()}, {ok}, {lastOk})
             ON CONFLICT (person_id, source) DO UPDATE SET

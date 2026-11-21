@@ -224,7 +224,7 @@ public class CpiCollectorTests(PostgresFixture fixture) : IClassFixture<Postgres
         await using var app = await StartAsync(fixture);
         await Put(app, new CpiValue(new YearMonth(2026, 8), 103.00m, null, Today, "manual"));
 
-        var (_, failure) = await app.InvokeAsync(app.AdultA, new SetCpiValueCommand(year, month, (decimal)value), TestContext.Current.CancellationToken);
+        var (_, failure) = await app.InvokeAsync(app.AdultA, new SetCpiValueCommand(year, month, Decimals.FromDouble(value)), TestContext.Current.CancellationToken);
 
         Assert.Equal((InflationCodes.InvalidValue, field), (failure?.Code, failure?.Metadata?["field"]));
         Assert.Single(await StoredAsync(app));

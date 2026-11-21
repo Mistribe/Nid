@@ -1,3 +1,4 @@
+using Nid.Core.Contracts;
 using NodaTime;
 
 namespace Nid.Core.Domain.Projection;
@@ -50,7 +51,7 @@ public static class ProjectionRanges
                 var sigma = (double)a.VolatilityOf(c.Key);
                 if (sigma == 0) return c.Value;
                 // A year's factor exp(σ z − σ² / 2) as twelve equal monthly factors.
-                var monthly = shocks[run].Select(z => (decimal)Math.Exp((sigma * z - sigma * sigma / 2) / 12)).ToArray();
+                var monthly = shocks[run].Select(z => Decimals.FromDouble(Math.Exp((sigma * z - sigma * sigma / 2) / 12))).ToArray();
                 var shocked = new decimal[c.Value.Count];
                 for (var k = 1; k < shocked.Length; k++) shocked[k] = (1m + c.Value[k]) * monthly[yearOf[k]] - 1m;
                 return (IReadOnlyList<decimal>)shocked;

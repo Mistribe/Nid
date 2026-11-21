@@ -64,7 +64,7 @@ public sealed class ChildcareDbContext(DbContextOptions<ChildcareDbContext> opti
             e.Property(x => x.SnackPrice).HasColumnType("numeric(19,4)");
             e.Property(x => x.LunchProvider).HasMaxLength(8).HasDefaultValue("nanny");
             e.Property(x => x.SnackProvider).HasMaxLength(8).HasDefaultValue("nanny");
-            e.Property(x => x.UnpaidAbsences).HasColumnType("text[]").HasDefaultValueSql("'{parent_rtt,child_sick,carer_absent}'");
+            e.PrimitiveCollection(x => x.UnpaidAbsences).HasColumnType("text[]").HasDefaultValueSql("'{parent_rtt,child_sick,carer_absent}'");
             e.HasOne<ArrangementRow>().WithMany().HasForeignKey(x => x.ItemId).OnDelete(DeleteBehavior.Cascade);
         });
 
@@ -184,11 +184,11 @@ public sealed class ChildcareDbContext(DbContextOptions<ChildcareDbContext> opti
             entity.FindPrimaryKey()?.SetName($"pk_{table}");
 
             foreach (var index in entity.GetIndexes())
-                index.SetDatabaseName($"ix_{table}_{string.Join('_', index.Properties.Select(p => p.GetColumnName()))}");
+                index.SetDatabaseName($"ix_{table}_{string.Join('_', index.Properties.Select(p => ((Microsoft.EntityFrameworkCore.Metadata.IReadOnlyProperty)p).GetColumnName()))}");
 
             foreach (var foreignKey in entity.GetForeignKeys())
                 foreignKey.SetConstraintName(
-                    $"fk_{table}_{foreignKey.PrincipalEntityType.GetTableName()}_{string.Join('_', foreignKey.Properties.Select(p => p.GetColumnName()))}");
+                    $"fk_{table}_{foreignKey.PrincipalEntityType.GetTableName()}_{string.Join('_', foreignKey.Properties.Select(p => ((Microsoft.EntityFrameworkCore.Metadata.IReadOnlyProperty)p).GetColumnName()))}");
         }
     }
 

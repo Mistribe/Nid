@@ -65,7 +65,7 @@ public static class PropertyReturn
     /// <summary>Spec §4.2: the latest valuation grown to <paramref name="on"/>, null without one.</summary>
     private static decimal? Grown(ReturnInputs i, LocalDate on)
         => i.Latest is { } v
-            ? Cents(v.Value.Amount * (decimal)Math.Pow(1 + (double)i.Assumptions.ValueGrowth, Period.DaysBetween(i.Today, on) / 365.0))
+            ? Cents(v.Value.Amount * Decimals.FromDouble(Math.Pow(1 + (double)i.Assumptions.ValueGrowth, Period.DaysBetween(i.Today, on) / 365.0)))
             : null;
 
     /// <summary>Spec §4.2–§4.4: every flow to <paramref name="resaleOn"/>, the resale day's included.</summary>

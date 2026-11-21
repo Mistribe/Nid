@@ -24,13 +24,13 @@ public static class ProjectionRates
     {
         var thisMonth = new YearMonth(today.Year, today.Month);
         int Year(int k) => thisMonth.PlusMonths(k).Year;
-        static decimal Monthly(decimal annual) => (decimal)Math.Pow(1 + (double)annual, 1.0 / 12);
+        static decimal Monthly(decimal annual) => Decimals.FromDouble(Math.Pow(1 + (double)annual, 1.0 / 12));
 
         var inflation = new decimal[months + 1];
         var income = new decimal[months + 1];
         inflation[0] = 1m;
         for (var k = 1; k <= months; k++) inflation[k] = inflation[k - 1] * Monthly(InflationIn(a, observedLast12, today, Year(k)));
-        for (var k = 0; k <= months; k++) income[k] = inflation[k] * (decimal)Math.Pow(1 + (double)a.IncomeGrowth, k / 12.0);
+        for (var k = 0; k <= months; k++) income[k] = inflation[k] * Decimals.FromDouble(Math.Pow(1 + (double)a.IncomeGrowth, k / 12.0));
 
         var classRates = classes.Distinct().ToDictionary(c => c, IReadOnlyList<decimal> (c) =>
         {

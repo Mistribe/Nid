@@ -125,9 +125,9 @@ public class PropertyReturnTests
     public void Penalty_at_legal_cap(double rate, double penalty)
     {
         var flows = PropertyReturn.Flows(Inputs(Bought(new LocalDate(2020, 1, 1)), new LocalDate(2026, 1, 1),
-            loans: [OneRow(new LocalDate(2026, 12, 5), 100_000m, (decimal)rate)]), new LocalDate(2027, 1, 1), 100_000m);
+            loans: [OneRow(new LocalDate(2026, 12, 5), 100_000m, Decimals.FromDouble(rate))]), new LocalDate(2027, 1, 1), 100_000m);
 
-        Assert.Equal((decimal)penalty, On(flows, "penalty", new LocalDate(2027, 1, 1)));
+        Assert.Equal(Decimals.FromDouble(penalty), On(flows, "penalty", new LocalDate(2027, 1, 1)));
         Assert.Equal(-100_000m, On(flows, "loan_balance", new LocalDate(2027, 1, 1)));
     }
 

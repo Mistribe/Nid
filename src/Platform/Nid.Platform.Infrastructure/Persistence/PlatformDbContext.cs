@@ -58,7 +58,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             });
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
-            e.Property(x => x.ItemIds).HasColumnType("uuid[]").HasDefaultValueSql("'{}'");
+            e.PrimitiveCollection(x => x.ItemIds).HasColumnType("uuid[]").HasDefaultValueSql("'{}'");
             e.Property(x => x.Params).HasColumnType("jsonb");
             e.HasIndex(x => new { x.PersonId, x.Key }).IsUnique();
             e.HasIndex(x => new { x.PersonId, x.State });
@@ -156,11 +156,11 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.FindPrimaryKey()?.SetName($"pk_{table}");
 
             foreach (var index in entity.GetIndexes())
-                index.SetDatabaseName($"ix_{table}_{string.Join('_', index.Properties.Select(p => p.GetColumnName()))}");
+                index.SetDatabaseName($"ix_{table}_{string.Join('_', index.Properties.Select(p => ((Microsoft.EntityFrameworkCore.Metadata.IReadOnlyProperty)p).GetColumnName()))}");
 
             foreach (var foreignKey in entity.GetForeignKeys())
                 foreignKey.SetConstraintName(
-                    $"fk_{table}_{foreignKey.PrincipalEntityType.GetTableName()}_{string.Join('_', foreignKey.Properties.Select(p => p.GetColumnName()))}");
+                    $"fk_{table}_{foreignKey.PrincipalEntityType.GetTableName()}_{string.Join('_', foreignKey.Properties.Select(p => ((Microsoft.EntityFrameworkCore.Metadata.IReadOnlyProperty)p).GetColumnName()))}");
         }
     }
 

@@ -126,7 +126,7 @@ internal static class PropertiesValuationMath
         var days = Period.DaysBetween(purchased, today);
         if (value is not { } v || v <= 0m || costPrice <= 0m || days < 365) return null;
         var pace = Math.Pow((double)(v / costPrice), 365.25 / days) - 1;
-        return Math.Round((decimal)pace * 100m, 1, MidpointRounding.AwayFromZero);
+        return Math.Round(Decimals.FromDouble(pace) * 100m, 1, MidpointRounding.AwayFromZero);
     }
 
     /// <summary>D18: the cost price from the purchase on, then after each date of works (several the same day are one step).</summary>

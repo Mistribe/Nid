@@ -342,7 +342,7 @@ public sealed class ProjectionScenarioReader(
             var end = m.Month.ToDateInterval().End;
             foreach (var (document, loans, from) in bought.Where(b => b.Month <= k))
             {
-                value += document.Price * (decimal)Math.Pow(1 + growth, (k - from) / 12.0);
+                value += document.Price * Decimals.FromDouble(Math.Pow(1 + growth, (k - from) / 12.0));
                 debt += document.Loans.Zip(loans, (l, s) => s.Rows.LastOrDefault(r => r.DueDate <= end) is { } row ? row.Balance : l.Amount).Sum();
             }
             return m with { PropertyValue = m.PropertyValue + value, Debt = m.Debt + debt };

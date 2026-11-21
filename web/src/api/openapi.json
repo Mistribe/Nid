@@ -1,5 +1,5 @@
 {
-  "openapi": "3.1.1",
+  "openapi": "3.2.0",
   "info": {
     "title": "Nid.Host | v1",
     "version": "1.0.0"
@@ -62,8 +62,8 @@
               }
             }
           },
-          "401": {
-            "description": "Unauthorized",
+          "400": {
+            "description": "Bad Request",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -72,8 +72,8 @@
               }
             }
           },
-          "400": {
-            "description": "Bad Request",
+          "401": {
+            "description": "Unauthorized",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -367,16 +367,6 @@
               }
             }
           },
-          "422": {
-            "description": "Unprocessable Entity",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
           "413": {
             "description": "Payload Too Large",
             "content": {
@@ -389,6 +379,16 @@
           },
           "415": {
             "description": "Unsupported Media Type",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -2227,6 +2227,16 @@
           "required": true
         },
         "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProposalView"
+                }
+              }
+            }
+          },
           "201": {
             "description": "Created",
             "content": {
@@ -2236,6 +2246,9 @@
                 }
               }
             }
+          },
+          "204": {
+            "description": "No Content"
           },
           "400": {
             "description": "Bad Request",
@@ -2296,19 +2309,6 @@
                 }
               }
             }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProposalView"
-                }
-              }
-            }
-          },
-          "204": {
-            "description": "No Content"
           }
         }
       },
@@ -12017,6 +12017,9 @@
               }
             }
           },
+          "204": {
+            "description": "No Content"
+          },
           "400": {
             "description": "Bad Request",
             "content": {
@@ -12076,9 +12079,6 @@
                 }
               }
             }
-          },
-          "204": {
-            "description": "No Content"
           }
         }
       },
@@ -12157,6 +12157,12 @@
               }
             }
           },
+          "413": {
+            "description": "Payload Too Large"
+          },
+          "415": {
+            "description": "Unsupported Media Type"
+          },
           "422": {
             "description": "Unprocessable Entity",
             "content": {
@@ -12166,12 +12172,6 @@
                 }
               }
             }
-          },
-          "413": {
-            "description": "Payload Too Large"
-          },
-          "415": {
-            "description": "Unsupported Media Type"
           }
         }
       },
@@ -16506,16 +16506,6 @@
               }
             }
           },
-          "422": {
-            "description": "Unprocessable Entity",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
           "413": {
             "description": "Payload Too Large",
             "content": {
@@ -16528,6 +16518,16 @@
           },
           "415": {
             "description": "Unsupported Media Type",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -19839,16 +19839,6 @@
               }
             }
           },
-          "422": {
-            "description": "Unprocessable Entity",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
           "413": {
             "description": "Payload Too Large",
             "content": {
@@ -19861,6 +19851,16 @@
           },
           "415": {
             "description": "Unsupported Media Type",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
             "content": {
               "application/problem+json": {
                 "schema": {

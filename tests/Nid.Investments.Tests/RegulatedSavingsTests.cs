@@ -47,25 +47,25 @@ public class RegulatedSavingsTests
 
     [Theory]
     // « Dépôt entre le 1er et le 15 mai : pris en compte le 16 mai »: 5 fortnights at 1,5 %, 10 at 1,7 %.
-    [InlineData(10, 10.21)]
+    [InlineData(10, "10.21")]
     // « Dépôt entre le 16 et le 31 mai : pris en compte le 1er juin »: 4 at 1,5 %, 10 at 1,7 %.
-    [InlineData(20, 9.58)]
-    public void A_deposit_counts_from_the_next_fortnight(int day, decimal expected)
+    [InlineData(20, "9.58")]
+    public void A_deposit_counts_from_the_next_fortnight(int day, string expected)
     {
         var e = RegulatedSavings.Interest(RegulatedKind.LivretA, [], [Flow(D(2026, 5, day), FlowKind.Contribution, 1_000m)], D(2026, 11, 5))!;
-        Assert.Equal(expected, e.Expected);
+        Assert.Equal(decimal.Parse(expected, System.Globalization.CultureInfo.InvariantCulture), e.Expected);
     }
 
     [Theory]
     // « Retrait entre le 1er et le 15 mai : solde arrêté au 30 avril »: 2 000 to April, 1 000 from 1 May.
-    [InlineData(10, 21.17)]
+    [InlineData(10, "21.17")]
     // « Retrait entre le 16 et le 31 mai : solde arrêté au 15 mai »: 2 000 to 15 May.
-    [InlineData(20, 21.79)]
-    public void A_withdrawal_stops_earning_from_the_start_of_its_fortnight(int day, decimal expected)
+    [InlineData(20, "21.79")]
+    public void A_withdrawal_stops_earning_from_the_start_of_its_fortnight(int day, string expected)
     {
         var e = RegulatedSavings.Interest(RegulatedKind.LivretA, [Value(D(2026, 1, 2), 2_000m)],
             [Flow(D(2026, 5, day), FlowKind.Withdrawal, 1_000m)], D(2026, 11, 5))!;
-        Assert.Equal(expected, e.Expected);
+        Assert.Equal(decimal.Parse(expected, System.Globalization.CultureInfo.InvariantCulture), e.Expected);
     }
 
     [Fact]

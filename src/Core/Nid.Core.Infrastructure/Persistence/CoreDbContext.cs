@@ -194,7 +194,7 @@ public sealed class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbC
             e.Property(x => x.EditedPayload).HasColumnType("jsonb");
             e.Property(x => x.Warnings).HasColumnType("jsonb");
             e.Property(x => x.Fingerprint).HasColumnType("char(64)");
-            e.Property(x => x.AppliedRefs).HasDefaultValueSql("'{}'");
+            e.PrimitiveCollection(x => x.AppliedRefs).HasDefaultValueSql("'{}'");
             e.HasIndex(x => x.Fingerprint).IsUnique().HasFilter("status = 'pending'");
             e.HasIndex(x => new { x.Kind, x.TargetItemId, x.SubjectKey }).HasFilter("status = 'pending'");
             e.HasIndex(x => new { x.TargetItemId, x.Status });
@@ -366,11 +366,11 @@ public sealed class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbC
 
             // An index named in the model (HasDatabaseName) keeps its name: the partial unique ones are named for what they guard.
             foreach (var index in entity.GetIndexes().Where(i => i.FindAnnotation(RelationalAnnotationNames.Name) is null))
-                index.SetDatabaseName($"ix_{table}_{string.Join('_', index.Properties.Select(p => p.GetColumnName()))}");
+                index.SetDatabaseName($"ix_{table}_{string.Join('_', index.Properties.Select(p => ((Microsoft.EntityFrameworkCore.Metadata.IReadOnlyProperty)p).GetColumnName()))}");
 
             foreach (var foreignKey in entity.GetForeignKeys())
                 foreignKey.SetConstraintName(
-                    $"fk_{table}_{foreignKey.PrincipalEntityType.GetTableName()}_{string.Join('_', foreignKey.Properties.Select(p => p.GetColumnName()))}");
+                    $"fk_{table}_{foreignKey.PrincipalEntityType.GetTableName()}_{string.Join('_', foreignKey.Properties.Select(p => ((Microsoft.EntityFrameworkCore.Metadata.IReadOnlyProperty)p).GetColumnName()))}");
         }
     }
 

@@ -15,7 +15,7 @@ public sealed class DeliveryStore(PlatformDbContext db) : IDeliveryStore, IDiges
         // In SQL: a delivery another run queued meanwhile makes the insert a no-op, not a failure.
         foreach (var d in deliveries)
         {
-            await db.Database.ExecuteSqlInterpolatedAsync($"""
+            await db.Database.ExecuteSqlAsync($"""
                 INSERT INTO platform.notification_delivery
                     (id, notification_id, person_id, channel, round, state, attempts, next_attempt_at, created_at)
                 VALUES
@@ -29,7 +29,7 @@ public sealed class DeliveryStore(PlatformDbContext db) : IDeliveryStore, IDiges
     {
         foreach (var d in deliveries)
         {
-            await db.Database.ExecuteSqlInterpolatedAsync($"""
+            await db.Database.ExecuteSqlAsync($"""
                 INSERT INTO platform.notification_delivery
                     (id, notification_id, person_id, channel, round, state, attempts, next_attempt_at, created_at, household_key)
                 VALUES
@@ -92,7 +92,7 @@ public sealed class DeliveryStore(PlatformDbContext db) : IDeliveryStore, IDiges
 
     public async Task<bool> TryCreateAsync(Guid id, PersonId person, string periodKey, Instant now, CancellationToken ct)
         // In SQL: the unique (person, period) makes the second insert a no-op; only the run that inserted goes on.
-        => await db.Database.ExecuteSqlInterpolatedAsync($"""
+        => await db.Database.ExecuteSqlAsync($"""
             INSERT INTO platform.notification_digest (id, person_id, period_key, created_at)
             VALUES ({id}, {person.Value}, {periodKey}, {now})
             ON CONFLICT (person_id, period_key) DO NOTHING
@@ -119,7 +119,7 @@ public sealed class DeliveryStore(PlatformDbContext db) : IDeliveryStore, IDiges
     {
         foreach (var d in deliveries)
         {
-            await db.Database.ExecuteSqlInterpolatedAsync($"""
+            await db.Database.ExecuteSqlAsync($"""
                 INSERT INTO platform.notification_delivery
                     (id, digest_id, person_id, channel, round, state, attempts, next_attempt_at, created_at)
                 VALUES

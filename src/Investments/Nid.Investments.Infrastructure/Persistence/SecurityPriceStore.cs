@@ -51,7 +51,7 @@ public sealed class SecurityPriceStore(InvestmentsDbContext db) : ISecurityPrice
     {
         var status = price.Status == PriceStatus.Accepted ? "accepted" : "rejected";
         var acceptedBy = price.AcceptedBy?.Value;
-        return await db.Database.ExecuteSqlInterpolatedAsync($"""
+        return await db.Database.ExecuteSqlAsync($"""
             insert into investments.security_price (isin, on_date, price, currency, source, status, previous, fetched_at, accepted_by)
             values ({price.Isin}, {price.OnDate}, {price.Price}, {price.Currency.Code}, {price.Source},
                 {status}, {price.Previous}, {price.FetchedAt}, {acceptedBy})

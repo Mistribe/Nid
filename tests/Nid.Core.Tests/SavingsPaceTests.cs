@@ -1,3 +1,4 @@
+using Nid.Core.Contracts;
 using Nid.Core.Application.Dashboard;
 
 namespace Nid.Core.Tests;
@@ -16,7 +17,7 @@ public class SavingsPaceTests
     [InlineData(0, 0)]          // nothing saved in the year: no pace to fall from
     [InlineData(-500, -1_200)]  // a year of withdrawals
     public void No_drop_beyond_the_threshold_raises_nothing(double recent, double year)
-        => Assert.Null(SavingsPace.Dropped((decimal)recent, (decimal)year, 30m));
+        => Assert.Null(SavingsPace.Dropped(Decimals.FromDouble(recent), Decimals.FromDouble(year), 30m));
 
     [Fact]
     public void A_missing_total_raises_nothing()

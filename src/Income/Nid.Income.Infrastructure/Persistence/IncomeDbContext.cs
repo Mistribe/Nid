@@ -98,11 +98,11 @@ public sealed class IncomeDbContext(DbContextOptions<IncomeDbContext> options) :
             entity.FindPrimaryKey()?.SetName($"pk_{table}");
 
             foreach (var index in entity.GetIndexes())
-                index.SetDatabaseName($"ix_{table}_{string.Join('_', index.Properties.Select(p => p.GetColumnName()))}");
+                index.SetDatabaseName($"ix_{table}_{string.Join('_', index.Properties.Select(p => ((Microsoft.EntityFrameworkCore.Metadata.IReadOnlyProperty)p).GetColumnName()))}");
 
             foreach (var foreignKey in entity.GetForeignKeys())
                 foreignKey.SetConstraintName(
-                    $"fk_{table}_{foreignKey.PrincipalEntityType.GetTableName()}_{string.Join('_', foreignKey.Properties.Select(p => p.GetColumnName()))}");
+                    $"fk_{table}_{foreignKey.PrincipalEntityType.GetTableName()}_{string.Join('_', foreignKey.Properties.Select(p => ((Microsoft.EntityFrameworkCore.Metadata.IReadOnlyProperty)p).GetColumnName()))}");
         }
     }
 

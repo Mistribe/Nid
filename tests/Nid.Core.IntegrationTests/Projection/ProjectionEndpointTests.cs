@@ -488,7 +488,7 @@ public class ProjectionEndpointTests(PostgresFixture fixture, SharedNidApp share
         var view = await ProjectionAsync(app, app.AdultA);
 
         Assert.Equal(("USD", JsonValueKind.Null), (Str(view, "currency"), view.GetProperty("observedInflation").ValueKind));
-        var i = Enumerable.Range(0, 121).Select(k => (decimal)Math.Pow(1.02, k / 12.0)).ToList();
+        var i = Enumerable.Range(0, 121).Select(k => Decimals.FromDouble(Math.Pow(1.02, k / 12.0))).ToList();
         DeflatedBy(i, List(view, "points"), 2, 12, 120);
     }
 
@@ -501,7 +501,7 @@ public class ProjectionEndpointTests(PostgresFixture fixture, SharedNidApp share
         var view = await ProjectionAsync(app, app.AdultA);
 
         Assert.Equal(JsonValueKind.Null, view.GetProperty("observedInflation").ValueKind);
-        var i = Enumerable.Range(0, 121).Select(k => (decimal)Math.Pow(1.02, k / 12.0)).ToList();
+        var i = Enumerable.Range(0, 121).Select(k => Decimals.FromDouble(Math.Pow(1.02, k / 12.0))).ToList();
         DeflatedBy(i, List(view, "points"), 2, 12, 120);
     }
 

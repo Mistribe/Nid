@@ -53,8 +53,8 @@ public class HouseholdProjectionTests
         var points = Run(10_000m, months: 14, assumptions: assumptions).Points;
 
         // November and December 2026 at 2 %, then the twelve months of 2027 at 3 %: 10,000 × 1.02^(2/12) × 1.03 = 10,334.05.
-        var m2 = (decimal)Math.Pow(1.02, 1.0 / 12) - 1m;
-        var m3 = (decimal)Math.Pow(1.03, 1.0 / 12) - 1m;
+        var m2 = Decimals.FromDouble(Math.Pow(1.02, 1.0 / 12)) - 1m;
+        var m3 = Decimals.FromDouble(Math.Pow(1.03, 1.0 / 12)) - 1m;
         var expected = 10_000m;
         for (var k = 1; k <= 14; k++) expected *= 1m + (k <= 2 ? m2 : m3);
         Assert.Equal(Math.Round(expected, 2, MidpointRounding.AwayFromZero), points[14].Savings);

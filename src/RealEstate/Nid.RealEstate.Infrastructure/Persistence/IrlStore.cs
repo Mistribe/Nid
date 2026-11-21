@@ -16,7 +16,7 @@ public sealed class IrlStore(RealEstateDbContext db) : IIrlStore
     }
 
     public async Task<bool> UpsertManualAsync(IrlValue value, CancellationToken ct)
-        => await db.Database.ExecuteSqlInterpolatedAsync($"""
+        => await db.Database.ExecuteSqlAsync($"""
             insert into realestate.irl (quarter, value, published_on, fetched_on, source)
             values ({value.Quarter.ToString()}, {value.Value}, {value.PublishedOn}, {value.FetchedOn}, 'manual')
             on conflict (quarter) do update

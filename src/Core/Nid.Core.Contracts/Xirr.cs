@@ -16,7 +16,7 @@ public static class Xirr
         if (first.PlusYears(1) > at) return null;
 
         var rate = Solve(cash, first);
-        return rate is null ? null : Math.Round((decimal)(rate.Value * 100), 1, MidpointRounding.AwayFromZero);
+        return rate is null ? null : Math.Round(Decimals.FromDouble(rate.Value * 100), 1, MidpointRounding.AwayFromZero);
     }
 
     /// <summary>
@@ -35,7 +35,7 @@ public static class Xirr
         var rate = Solve(cash, first);
         if (rate is null) return null;
         var growth = Math.Pow(1 + rate.Value, days / 365.0) - 1;
-        return Math.Round((decimal)(growth * 100), 1, MidpointRounding.AwayFromZero);
+        return Math.Round(Decimals.FromDouble(growth * 100), 1, MidpointRounding.AwayFromZero);
     }
 
     /// <summary>The non-zero cash flows; null with fewer than two, or all of one sign.</summary>

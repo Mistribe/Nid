@@ -164,7 +164,7 @@ Dashboard et Tax ne possèdent pas de module à eux : ils composent les contribu
 
 ### 5.4 Couche application : CQRS avec Synapse
 
-Bibliothèque : `UnambitiousFx.Synapse` et `UnambitiousFx.Synapse.Generator` (MIT ; net8, net9, net10). Médiateur in-process sans réflexion à l'exécution, `ValueTask`, retours en `Result<T>` (`UnambitiousFx.Functional`).
+Bibliothèque : `UnambitiousFx.Synapse` et `UnambitiousFx.Synapse.Generator` (MIT ; net8 à net11). Médiateur in-process sans réflexion à l'exécution, `ValueTask`, retours en `Result<T>` (`UnambitiousFx.Functional`).
 
 - **Un cas d'usage = une requête + un handler** `[RequestHandler<TRequest, TResponse>]`. Le générateur produit, par assembly, une classe `RegisterGroup` ; le host appelle `cfg.AddRegisterGroup(new …RegisterGroup())` pour chaque module. L'enregistrement est **explicite par module** : un module absent n'est pas chargé.
 - **Commande ou requête** : Synapse n'expose que `IRequest` et `IRequest<T>` (vérifié, `spikes.md` §3). Le projet définit ses marqueurs `ICommand` / `IQuery`, imposés par un test d'architecture.
@@ -490,7 +490,7 @@ Consultées dans la documentation à jour :
 - **SDK MCP C#** : `AddMcpServer().WithHttpTransport(...)`, mode sans session par défaut, `MapMcp()` et `RequireAuthorization()`, `AddAuthorizationFilters()`.
 - **Quartz.NET** : `AddQuartz` / `AddQuartzHostedService`, magasin persistant avec clustering, préfixe de tables qualifié par schéma pour Postgres.
 - **Npgsql EF Core** : plugin `UseNodaTime()`, concurrence optimiste via une propriété `uint` mappée sur `xmin`.
-- **Synapse** (documentation et NuGet) : `[RequestHandler<,>]` et `RegisterGroup` générés par assembly, `[PipelineBehavior]`, validation, événements avec outbox (stockage transactionnel à écrire, pas de paquet EF Core : `spikes.md` §3), contexte par « features », MIT, net8 à net10.
+- **Synapse** (documentation et NuGet) : `[RequestHandler<,>]` et `RegisterGroup` générés par assembly, `[PipelineBehavior]`, validation, événements avec outbox (stockage transactionnel à écrire, pas de paquet EF Core : `spikes.md` §3), contexte par « features », MIT, net8 à net11.
 - **Native AOT** (Microsoft Learn, Npgsql, Quartz.NET, SDK MCP) : voir §4.3.
 - **EF Core** : modèle compilé et requêtes précompilées utilisables sans NativeAOT.
 - **Spikes exécutés** : Synapse, NodaTime et JSON, RFC 8785, échéancier de prêt, EF Core et PostgreSQL (`spikes.md`).
