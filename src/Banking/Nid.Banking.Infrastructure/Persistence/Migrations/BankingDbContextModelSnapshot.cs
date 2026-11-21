@@ -676,6 +676,52 @@ namespace Nid.Banking.Infrastructure.Persistence.Migrations
                     b.ToTable("rule", "banking");
                 });
 
+            modelBuilder.Entity("Nid.Banking.Infrastructure.Persistence.SuggestionDismissalRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("CategoryId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("category_id");
+
+                    b.Property<Instant>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("CreatedByPersonId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by_person_id");
+
+                    b.Property<string>("Direction")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("direction");
+
+                    b.Property<string>("Pattern")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("pattern");
+
+                    b.HasKey("Id")
+                        .HasName("pk_suggestion_dismissal");
+
+                    b.HasIndex("CategoryId")
+                        .HasDatabaseName("ix_suggestion_dismissal_category_id");
+
+                    b.HasIndex("Pattern", "Direction", "CategoryId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_suggestion_dismissal_pattern_direction_category_id");
+
+                    b.ToTable("suggestion_dismissal", "banking", t =>
+                        {
+                            t.HasCheckConstraint("ck_suggestion_dismissal_direction", "direction in ('debit','credit')");
+
+                            t.HasCheckConstraint("ck_suggestion_dismissal_pattern", "char_length(pattern) between 2 and 60");
+                        });
+                });
+
             modelBuilder.Entity("Nid.Banking.Infrastructure.Persistence.SyncRunRow", b =>
                 {
                     b.Property<Guid>("Id")
@@ -898,6 +944,11 @@ namespace Nid.Banking.Infrastructure.Persistence.Migrations
                         .HasColumnType("text")
                         .HasColumnName("remittance");
 
+                    b.Property<string>("SuggestedPattern")
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("suggested_pattern");
+
                     b.Property<LocalDate?>("ValueOn")
                         .HasColumnType("date")
                         .HasColumnName("value_on");
@@ -921,6 +972,9 @@ namespace Nid.Banking.Infrastructure.Persistence.Migrations
                     b.HasIndex("AccountId", "ProviderRef")
                         .IsUnique()
                         .HasDatabaseName("ix_transaction_account_id_provider_ref");
+
+                    b.HasIndex("AccountId", "SuggestedPattern")
+                        .HasDatabaseName("ix_transaction_account_id_suggested_pattern");
 
                     b.HasIndex("AccountId", "CategoryId", "BookedOn")
                         .HasDatabaseName("ix_transaction_account_id_category_id_booked_on");
@@ -1154,6 +1208,16 @@ namespace Nid.Banking.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_rule_account_account_id");
+                });
+
+            modelBuilder.Entity("Nid.Banking.Infrastructure.Persistence.SuggestionDismissalRow", b =>
+                {
+                    b.HasOne("Nid.Banking.Infrastructure.Persistence.CategoryRow", null)
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_suggestion_dismissal_category_category_id");
                 });
 
             modelBuilder.Entity("Nid.Banking.Infrastructure.Persistence.TransactionPartRow", b =>

@@ -165,6 +165,12 @@ public sealed class CategoryStore(BankingDbContext db, IClock clock) : ICategory
         // Tracked, so audited: a rule is the household's decision, a line's category is not.
         foreach (var rule in await db.CategoryRules.Where(r => r.CategoryId == source.Id).ToListAsync(ct))
             rule.CategoryId = target.Id;
+        // #449: a dismissed suggestion follows its category, unless the target has the same one already.
+        foreach (var dismissal in await db.SuggestionDismissals.Where(d => d.CategoryId == source.Id).ToListAsync(ct))
+            if (await db.SuggestionDismissals.AnyAsync(d => d.CategoryId == target.Id && d.Pattern == dismissal.Pattern && d.Direction == dismissal.Direction, ct))
+                db.SuggestionDismissals.Remove(dismissal);
+            else
+                dismissal.CategoryId = target.Id;
         // Never into a merged child (its lines would land on a pointer): an active one first, else an archived one.
         var targetChildren = (await db.Categories.Where(c => c.ParentId == target.Id && c.MergedIntoId == null).ToListAsync(ct))
             .OrderBy(c => c.ArchivedAt is not null).ToList();

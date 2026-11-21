@@ -50,6 +50,8 @@ public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
         "/api/v1/banking/category-rules",
         // #85: the household's budget is set on the Dépenses page.
         "/api/v1/banking/budgets",
+        // #449: a suggestion is ignored, or its dismissal withdrawn, in Dépenses (a list_category_suggestions tool is a possible follow-up).
+        "/api/v1/banking/category-suggestions",
         // An insurance is set by propose_set_insurance (spec 2026-10-30 §10); removing it is a click in the web app.
         "DELETE /api/v1/subscriptions/{id:guid}/insurance",
         // Childcare spec decision 27: validating, reopening or restarting a statement stays the person's gesture in the browser.

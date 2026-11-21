@@ -95,10 +95,11 @@ export default function CategoryDialog({ lines, onClose, onDone }: { lines: Bank
 /**
  * « Toujours classer « CARREFOUR CITY » en Courses ? »: the line's suggested pattern, editable; its account alone when not every adult reads it.
  * As the pattern is typed, the server previews the rule (#418): the past lines it would change, those it matches but would not, a too broad
- * pattern; the rule can then be applied to the past lines as it is created.
+ * pattern; the rule can then be applied to the past lines as it is created. #449: `suggested`, it is offered from a suggestion, no category
+ * just saved: the past lines are taken by default, and « Non merci » just closes.
  */
-function RuleOffer({ line, category, categoryId, skipped, done: close }: {
-  line: BankTransaction; category: string; categoryId: string; skipped?: string; done: (message?: string) => void;
+function RuleOffer({ line, category, categoryId, skipped, suggested = false, done: close }: {
+  line: BankTransaction; category: string; categoryId: string; skipped?: string; suggested?: boolean; done: (message?: string) => void;
 }) {
   const { t } = useTranslation();
   const { $api } = useApi();
@@ -107,7 +108,7 @@ function RuleOffer({ line, category, categoryId, skipped, done: close }: {
   const done = (message: string) => close(skipped ? `${message} ${skipped}` : message);
   const [pattern, setPattern] = useState(line.suggestedPattern ?? '');
   const [only, setOnly] = useState(!line.sharedAccount);
-  const [applyPast, setApplyPast] = useState(false);
+  const [applyPast, setApplyPast] = useState(suggested);
   // The pattern the preview was asked for, a moment after the last key.
   const [asked, setAsked] = useState(pattern.trim());
   useEffect(() => { const timer = setTimeout(() => setAsked(pattern.trim()), 300); return () => clearTimeout(timer); }, [pattern]);
@@ -137,10 +138,10 @@ function RuleOffer({ line, category, categoryId, skipped, done: close }: {
       createRule.mutate({ body: { pattern: pattern.trim(), categoryId, accountId } }, {
         onSuccess: (rule) => applyPast && total > 0
           ? applyRule.mutate({ params: { path: { id: rule.id } } }, { onSuccess: (r) => done(t('banks.categories.offer_done_apply', { count: r.changed })) })
-          : done(t('banks.categories.offer_done')),
+          : done(t(suggested ? 'banks.category_rules.done_create' : 'banks.categories.offer_done')),
       });
     }}>
-      <p role="status" className="text-sm text-muted-foreground">{saved ? t('banks.categories.offer_saved') : ''}</p>
+      <p role="status" className="text-sm text-muted-foreground">{saved && !suggested ? t('banks.categories.offer_saved') : ''}</p>
       <p id={questionId} ref={question} tabIndex={-1} className="font-medium outline-none">
         {t('banks.categories.offer', { pattern: pattern.trim() || line.suggestedPattern, category })}
       </p>
@@ -162,10 +163,22 @@ function RuleOffer({ line, category, categoryId, skipped, done: close }: {
         </div>
       ) : null}
       <div className="flex justify-end gap-2">
-        <Button type="button" variant="outline" onClick={() => done(t('banks.operations.done_category'))}>{t('banks.categories.offer_decline')}</Button>
+        <Button type="button" variant="outline" onClick={() => (suggested ? close() : done(t('banks.operations.done_category')))}>{t('banks.categories.offer_decline')}</Button>
         <Button type="submit" disabled={!pattern.trim() || createRule.isPending || applyRule.isPending}>{t('banks.categories.offer_create')}</Button>
       </div>
     </form>
+  );
+}
+
+/** #449: the rule offer of a suggestion, its pattern and category already chosen, in a dialog of its own. */
+export function RuleOfferDialog({ line, category, categoryId, onClose, onDone }: {
+  line: BankTransaction; category: string; categoryId: string; onClose: () => void; onDone: (message: string) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <FormDialog title={t('banks.suggestions.rule_title')} onClose={onClose} onDone={onDone}>
+      {({ done }) => <RuleOffer line={line} category={category} categoryId={categoryId} suggested done={done} />}
+    </FormDialog>
   );
 }
 
