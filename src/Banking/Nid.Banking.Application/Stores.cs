@@ -258,11 +258,11 @@ public interface ITransactionStore
     Task<IReadOnlyList<SpendingSum>> SpendingAsync(IReadOnlyList<Guid> accounts, LocalDate from, LocalDate to, CancellationToken ct, bool withLinked = true);
 
     /// <summary>
-    /// One page of what <see cref="SpendingAsync"/> sums (same filter), newest first, and how many there are: the unsplit lines and the parts of split
-    /// ones (a part's id and amount, null and the line's own for an unsplit line) filed in one of <paramref name="categories"/>, or, with
-    /// <paramref name="uncategorised"/>, the debits with no category.
+    /// One page of what <see cref="SpendingAsync"/> sums (same filter), one row per bank line, newest first, and how many lines there are: the unsplit
+    /// lines and the split ones with a part filed in one of <paramref name="categories"/>, or, with <paramref name="uncategorised"/>, the debits with no
+    /// category. A split line's row has the ids of its parts that match and their sum (#446); an unsplit line's no part and its own amount.
     /// </summary>
-    Task<(IReadOnlyList<(BankTransaction Line, Guid? PartId, decimal Amount)> Items, int Count)> SpendingLinesAsync(
+    Task<(IReadOnlyList<(BankTransaction Line, IReadOnlyList<Guid> PartIds, decimal Amount)> Items, int Count)> SpendingLinesAsync(
         IReadOnlyList<Guid> accounts, IReadOnlyList<Guid> categories, bool uncategorised, LocalDate from, LocalDate to, int skip, int take, CancellationToken ct);
 
     /// <summary>

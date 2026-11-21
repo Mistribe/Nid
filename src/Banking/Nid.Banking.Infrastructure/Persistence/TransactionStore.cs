@@ -268,17 +268,21 @@ public sealed class TransactionStore(BankingDbContext db, IClock clock) : ITrans
                 new YearMonth(g.Key.Year, g.Key.Month), g.Debits, g.Credits, g.DebitLines))
             .ToList();
 
-    public async Task<(IReadOnlyList<(BankTransaction Line, Guid? PartId, decimal Amount)> Items, int Count)> SpendingLinesAsync(
+    public async Task<(IReadOnlyList<(BankTransaction Line, IReadOnlyList<Guid> PartIds, decimal Amount)> Items, int Count)> SpendingLinesAsync(
         IReadOnlyList<Guid> accounts, IReadOnlyList<Guid> categories, bool uncategorised, LocalDate from, LocalDate to, int skip, int take, CancellationToken ct)
     {
         var query = Entries(accounts, from, to);
         query = uncategorised ? query.Where(e => e.CategoryId == null && e.Amount < 0)
             : query.Where(e => e.CategoryId != null && categories.Contains(e.CategoryId.Value));
-        var count = await query.CountAsync(ct);
-        var page = await query.OrderByDescending(e => e.BookedOn).ThenByDescending(e => e.LineId).ThenBy(e => e.Position).Skip(skip).Take(take).ToListAsync(ct);
-        var ids = page.Select(e => e.LineId).Distinct().ToList();
+        // #446: one row per bank line, as Opérations counts them; a split line's parts that match add up.
+        var byLine = query.GroupBy(e => new { e.LineId, e.BookedOn }).Select(g => new { g.Key.LineId, g.Key.BookedOn, Amount = g.Sum(e => e.Amount) });
+        var count = await byLine.CountAsync(ct);
+        var page = await byLine.OrderByDescending(e => e.BookedOn).ThenByDescending(e => e.LineId).Skip(skip).Take(take).ToListAsync(ct);
+        var ids = page.Select(e => e.LineId).ToList();
+        var parts = (await query.Where(e => e.PartId != null && ids.Contains(e.LineId)).Select(e => new { e.LineId, PartId = e.PartId!.Value }).ToListAsync(ct))
+            .ToLookup(e => e.LineId, e => e.PartId);
         var rows = (await db.Transactions.AsNoTracking().Where(t => ids.Contains(t.Id)).ToListAsync(ct)).ToDictionary(t => t.Id);
-        return (page.Select(e => (ToModel(rows[e.LineId]), e.PartId, e.Amount)).ToList(), count);
+        return (page.Select(e => (ToModel(rows[e.LineId]), (IReadOnlyList<Guid>)[.. parts[e.LineId]], e.Amount)).ToList(), count);
     }
 
     public async Task<IReadOnlyList<CategoryUse>> CategoryUseAsync(IReadOnlyList<Guid> accounts, LocalDate from, CancellationToken ct)

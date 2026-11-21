@@ -79,11 +79,13 @@ public class SpendingSplitTests(PostgresFixture fixture) : IClassFixture<Postgre
         Assert.Equal("Courses", part.GetProperty("note").GetString());
         Assert.Equal(Seed("food.groceries"), part.GetProperty("category").GetProperty("id").GetGuid());
         Assert.Equal(JsonValueKind.Null, part.GetProperty("parts").ValueKind);
-        // A parent lists both parts of the line, each under its own part id.
+        // #446: a parent lists the line once, with the sum of its two parts and those parts.
         var parent = await GetAsync(app, $"{BankingApi.Root}/spending/lines?categoryId={Seed("food")}");
-        var rows = parent.GetProperty("items").EnumerateArray().Where(i => i.GetProperty("id").GetGuid() == split).ToList();
-        Assert.Equal(2, rows.Count);
-        Assert.Equal(2, rows.Select(r => r.GetProperty("partId").GetGuid()).Distinct().Count());
+        Assert.Equal(2, parent.GetProperty("count").GetInt32());
+        var row = Assert.Single(parent.GetProperty("items").EnumerateArray(), i => i.GetProperty("id").GetGuid() == split);
+        Assert.Equal("-100.00", row.GetProperty("amount").GetString());
+        Assert.Equal(JsonValueKind.Null, row.GetProperty("partId").ValueKind);
+        Assert.Equal(["-70.00", "-30.00"], row.GetProperty("parts").EnumerateArray().Select(p => p.GetProperty("amount").GetString()!));
         var other = await GetAsync(app, $"{BankingApi.Root}/spending/lines?categoryId={Seed("food.delivery")}");
         Assert.Equal(["-30.00"], other.GetProperty("items").EnumerateArray().Select(i => i.GetProperty("amount").GetString()!));
         var none = await GetAsync(app, $"{BankingApi.Root}/spending/lines?uncategorised=true");

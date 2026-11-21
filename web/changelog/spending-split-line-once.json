@@ -1,0 +1,4 @@
+{
+  "en": "In a Spending category's lines, a line split into several parts of that category is now one row with their sum and its parts beneath, so its count matches Operations.",
+  "fr": "Dans les opérations d'une catégorie de Dépenses, une opération découpée en plusieurs parties de cette catégorie tient maintenant sur une ligne, avec leur somme et ses parties en dessous : le nombre d'opérations est celui d'Opérations."
+}

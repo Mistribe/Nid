@@ -101,10 +101,12 @@ public sealed class ListSpendingLinesHandler(
         var (page, count) = await lines.SpendingLinesAsync(sums.Accounts, ids, query.Uncategorised, sums.From.ToDateInterval().Start, sums.To.ToDateInterval().End,
             (Math.Clamp(query.Page, 1, BankLines.MaxPage) - 1) * BankLines.PageSize, BankLines.PageSize, ct);
         var byId = (await views.ViewsAsync([.. page.Select(r => r.Line).DistinctBy(l => l.Id)], ct)).ToDictionary(v => v.Id);
-        // A part's row shows the part's amount, category and note.
-        var items = page.Select(r => r.PartId is { } part && byId[r.Line.Id].Parts?.FirstOrDefault(p => p.Id == part) is { } shown
-            ? byId[r.Line.Id] with { Amount = shown.Amount, Category = shown.Category, Note = shown.Note, Parts = null, PartId = part }
-            : byId[r.Line.Id]).ToList();
+        // One part's row shows the part's amount, category and note; several parts' row their sum and those parts (#446).
+        var items = page.Select(r => byId[r.Line.Id] is var line && line.Parts?.Where(p => r.PartIds.Contains(p.Id)).ToList() is { Count: > 0 } parts
+            ? parts is [var shown]
+                ? line with { Amount = shown.Amount, Category = shown.Category, Note = shown.Note, Parts = null, PartId = shown.Id }
+                : line with { Amount = Reconciliation.TransactionLinker.Amount(r.Amount), Parts = parts }
+            : line).ToList();
         return Result.Success(new SpendingLines(items, GetSpendingHandler.Money(total), count, keys.Any(sums.Incomplete.Contains), sums.Reference.Code));
     }
 }
