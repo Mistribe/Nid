@@ -11,7 +11,7 @@ import { DetailTabsSkeleton, HeroSkeleton, Loading, SectionCardSkeleton, StatLin
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { todayIso } from '@/lib/today';
-import { FIRST_ESTIMATE_YEAR, TAX } from '@/api/tax';
+import { FIRST_ESTIMATE_YEAR, TAX, TAX_HISTORY } from '@/api/tax';
 import { useTaxAssessments } from './assessments/api';
 import { AssessmentTab } from './assessment/AssessmentTab';
 import { DeclarationsTab } from './declarations/DeclarationsTab';
@@ -67,11 +67,12 @@ export function TaxPage() {
     if (Number(y) >= FIRST_ESTIMATE_YEAR) return notice ? t('tax.year_hint.both') : t('tax.year_hint.estimate');
     return notice ? t('tax.year_hint.notice') : '';
   };
-  const years = [...new Set([lastYear, thisYear, ...assessments.map((a) => String(a.year))])].sort().map((y) => ({ value: y, hint: yearHint(y) }));
-  // A year the page does not offer (the server refuses it) falls back to the tab's default.
-  // Until the notices are known, a past year in the URL is kept (and not estimated: the server would refuse it).
+  const known = [lastYear, thisYear, ...assessments.map((a) => String(a.year))];
+  // A year the server refuses (before the rules without a notice, or after next year) falls back to the tab's default; one of the
+  // rules is estimated even when no list offers it yet. Until the notices are known, a past year in the URL is kept (and not estimated).
   const awaiting = list.isPending && Number(search.year) < FIRST_ESTIMATE_YEAR;
-  const year = awaiting || years.some((y) => y.value === search.year) ? search.year! : defaultYear;
+  const estimable = Number(search.year) >= FIRST_ESTIMATE_YEAR && Number(search.year) <= Number(thisYear) + 1;
+  const year = awaiting || estimable || known.includes(search.year ?? '') ? search.year! : defaultYear;
   const setYear = (next: string) => {
     void navigate({ to: '.', replace: true, resetScroll: false, search: ((prev: Record<string, unknown>) => ({ ...prev, year: next === defaultYear ? undefined : next })) as never });
   };
@@ -80,6 +81,11 @@ export function TaxPage() {
   // menu does not vanish under the pointer.
   const answer = $api.useQuery('get', TAX, { params: { query: { year: Number(year), scope } } }, { enabled: !past, placeholderData: keepPreviousData });
   const estimate = past ? undefined : answer.data;
+  // The years the whole history holds data for join the notices' and this year's: the estimate's own stops at the year it shows.
+  // The Évolution tab reads the same query, so it is asked once.
+  const history = $api.useQuery('get', TAX_HISTORY, { params: { query: { scope } } });
+  const years = [...new Set([...known, year, ...(history.data?.years ?? []).filter((h) => h.source === 'estimate').map((h) => String(h.year))])]
+    .sort((a, b) => a.localeCompare(b)).map((y) => ({ value: y, hint: yearHint(y) }));
   const notices = assessments.filter((a) => String(a.year) === year);
   // The Avis tab exists only for a year with notices: a URL asking for it elsewhere shows the overview.
   const tab = rawTab === 'assessment' && !notices.length ? 'overview' : rawTab;

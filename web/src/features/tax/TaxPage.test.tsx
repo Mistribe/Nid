@@ -27,10 +27,10 @@ describe('TaxPage', () => {
 
   it('the Évolution tab loads with a card skeleton', async () => {
     server.use(
-      http.get('*/api/v1/tax/assessments', () => HttpResponse.json({ items: [{ ...soloAssessment({ year: 2024 }), netTax: undefined }] })),
+      http.get('*/api/v1/tax/assessments', () => HttpResponse.json({ items: [{ ...soloAssessment({ year: 2019 }), netTax: undefined }] })),
       http.get('*/api/v1/tax', () => new Promise(() => {})),
     );
-    const { container } = await renderApp('/tax?tab=evolution&year=2024');
+    const { container } = await renderApp('/tax?tab=evolution&year=2019');
 
     await screen.findByRole('tab', { name: 'Évolution' });
     expect(screen.getByRole('status', { name: 'Calcul de l’impôt' })).toBeInTheDocument();
@@ -502,6 +502,23 @@ describe('TaxPage, Déclaration 2044 tab', () => {
     expect(await screen.findByRole('region', { name: 'Studio' })).toBeInTheDocument();
   });
 
+  it('holds the 2042 while last year’s estimate loads: this year’s would export under the wrong year', async () => {
+    let release = () => {};
+    const lastYear = new Promise<void>((resolve) => { release = resolve; });
+    server.use(http.get('*/api/v1/tax', async ({ request }) => {
+      const year = Number(new URL(request.url).searchParams.get('year'));
+      if (year !== new Date().getFullYear()) await lastYear;
+      return HttpResponse.json({ ...estimate(), year });
+    }));
+    const { user } = await renderApp('/tax');
+
+    await user.click(await screen.findByRole('tab', { name: 'Déclarations' }));
+    expect(screen.getByRole('status', { name: 'Calcul de l’impôt' })).toBeInTheDocument();
+    expect(screen.queryByText('Cases remplies par Nid')).not.toBeInTheDocument();
+    release();
+    expect(await screen.findByText('Cases remplies par Nid')).toBeInTheDocument();
+  });
+
   it('shows case 4BE and no form to fill under the micro-foncier', async () => {
     // The server always sends the columns; under micro none is shown, nor the to-check list.
     const micro = view2044({
@@ -548,11 +565,11 @@ describe('TaxPage, Déclaration 2044 tab', () => {
       http.get('*/api/v1/tax', ({ request }) => { asked.push(`tax ${new URL(request.url).searchParams.get('year')}`); return HttpResponse.json(rentalEstimate()); }),
       http.get('*/api/v1/tax/2044', ({ request }) => { asked.push(`2044 ${new URL(request.url).searchParams.get('year')}`); return HttpResponse.json(view2044()); }),
     );
-    await renderApp('/tax?tab=2044&year=2024');
+    await renderApp('/tax?tab=2044&year=2019');
 
     await screen.findByRole('region', { name: 'Studio' });
-    expect(asked).not.toContain('2044 2024');
-    expect(asked).not.toContain('tax 2024');
+    expect(asked).not.toContain('2044 2019');
+    expect(asked).not.toContain('tax 2019');
   });
 
   it('says so when the year has no rental income', async () => {
@@ -574,13 +591,64 @@ describe('TaxPage, Déclaration 2044 tab', () => {
     };
 
     it('offers the years that have a notice', async () => {
-      server.use(notices(soloAssessment({ year: 2018 }), jointAssessment({ year: 2023 })), http.get('*/api/v1/tax', () => HttpResponse.json(estimate())));
+      server.use(notices(soloAssessment({ year: 2016 }), jointAssessment({ year: 2018 })), http.get('*/api/v1/tax', () => HttpResponse.json(estimate())));
       const { user } = await renderApp('/tax');
 
       await screen.findByRole('tab', { name: 'Calcul' });
       await user.click(screen.getByRole('button', { name: '2026, changer d’année' }));
       const grid = await screen.findByRole('dialog', { name: 'Année des revenus' });
-      await waitFor(() => expect(within(grid).getAllByRole('button').map((b) => b.textContent)).toEqual(['2018 Avis', '2023 Avis', '2025 Estimation', '2026 Estimation']));
+      await waitFor(() => expect(within(grid).getAllByRole('button').map((b) => b.textContent)).toEqual(['2016 Avis', '2018 Avis', '2025 Estimation', '2026 Estimation']));
+    });
+
+    // The estimate's own history stops at the year it estimates; the page's list reads the whole one.
+    const row = (year: number) => ({ year, source: 'estimate', tax: '1000.00', netTaxable: '30000.00', averageRate: '3.3' });
+    const withHistory = (...years: number[]) => [
+      http.get('*/api/v1/tax', ({ request }) => {
+        const asked = Number(new URL(request.url).searchParams.get('year'));
+        return HttpResponse.json({ ...estimate(), year: asked, history: years.filter((y) => y <= asked).map(row) });
+      }),
+      http.get('*/api/v1/tax/history', () => HttpResponse.json({ years: years.map(row) })),
+    ];
+
+    it('offers a past year Nid holds data for', async () => {
+      server.use(notices(), ...withHistory(2022, 2025, 2026));
+      const { user } = await renderApp('/tax');
+
+      await screen.findByRole('tab', { name: 'Calcul' });
+      await user.click(screen.getByRole('button', { name: '2026, changer d’année' }));
+      const grid = await screen.findByRole('dialog', { name: 'Année des revenus' });
+      await waitFor(() => expect(within(grid).getAllByRole('button').map((b) => b.textContent)).toEqual(['2022 Estimation', '2025 Estimation', '2026 Estimation']));
+    });
+
+    it('does not offer a year without data between two that have some', async () => {
+      server.use(notices(), ...withHistory(2021, 2023, 2025, 2026));
+      const { user } = await renderApp('/tax');
+
+      await screen.findByRole('tab', { name: 'Calcul' });
+      await user.click(screen.getByRole('button', { name: '2026, changer d’année' }));
+      const grid = await screen.findByRole('dialog', { name: 'Année des revenus' });
+      await waitFor(() => expect(within(grid).getAllByRole('button').map((b) => b.textContent)).toEqual(['2021 Estimation', '2023 Estimation', '2025 Estimation', '2026 Estimation']));
+    });
+
+    it('keeps offering the later years with data once an earlier one is open', async () => {
+      server.use(notices(), ...withHistory(2021, 2022, 2023, 2025, 2026));
+      const { user } = await renderApp('/tax?year=2021');
+
+      await screen.findByRole('tab', { name: 'Calcul' });
+      await user.click(screen.getByRole('button', { name: '2021, changer d’année' }));
+      const grid = await screen.findByRole('dialog', { name: 'Année des revenus' });
+      await waitFor(() => expect(within(grid).getAllByRole('button').map((b) => b.textContent)).toEqual(
+        ['2021 Estimation', '2022 Estimation', '2023 Estimation', '2025 Estimation', '2026 Estimation']));
+    });
+
+    it('opens a past year of the rules from the URL and estimates it', async () => {
+      server.use(notices());
+      const years = taxCalls();
+      await renderApp('/tax?year=2022');
+
+      await screen.findByRole('tab', { name: 'Calcul' });
+      expect(years).toEqual(['2022']);
+      expect(screen.getByRole('button', { name: '2022, changer d’année' })).toBeInTheDocument();
     });
 
     it('marks a year with both a notice and an estimate', async () => {
@@ -605,10 +673,10 @@ describe('TaxPage, Déclaration 2044 tab', () => {
 
     it('shows a past year’s notices without calling the estimate', async () => {
       const years = taxCalls();
-      server.use(notices(jointAssessment({ year: 2023 })));
-      await renderApp('/tax?year=2023');
+      server.use(notices(jointAssessment({ year: 2018 })));
+      await renderApp('/tax?year=2018');
 
-      expect(await screen.findByRole('region', { name: 'Avis 2023' })).toBeInTheDocument();
+      expect(await screen.findByRole('region', { name: 'Avis 2018' })).toBeInTheDocument();
       expect(years).toEqual([]);
     });
 
@@ -648,12 +716,12 @@ describe('TaxPage, Déclaration 2044 tab', () => {
 
     it('shows the solo notices of « Moi »', async () => {
       server.use(
-        http.get('*/api/v1/tax/assessments', ({ request }) => HttpResponse.json({ items: new URL(request.url).searchParams.get('scope') === 'me' ? [soloAssessment({ year: 2024 })] : [] })),
+        http.get('*/api/v1/tax/assessments', ({ request }) => HttpResponse.json({ items: new URL(request.url).searchParams.get('scope') === 'me' ? [soloAssessment({ year: 2019 })] : [] })),
         http.get('*/api/v1/tax', () => HttpResponse.json(estimate())),
       );
-      await renderApp('/tax?scope=me&year=2024');
+      await renderApp('/tax?scope=me&year=2019');
 
-      expect(await screen.findByRole('region', { name: 'Avis 2024' })).toBeInTheDocument();
+      expect(await screen.findByRole('region', { name: 'Avis 2019' })).toBeInTheDocument();
     });
 
     it('adds a notice from the header', async () => {
@@ -763,26 +831,26 @@ describe('TaxPage, page grammar', () => {
   });
 
   it('an old 2044 link to a past year lands on Avis', async () => {
-    server.use(notices(jointAssessment({ year: 2023 })));
-    await renderApp('/tax?tab=2044&year=2023');
+    server.use(notices(jointAssessment({ year: 2018 })));
+    await renderApp('/tax?tab=2044&year=2018');
 
     expect(await screen.findByRole('tab', { name: 'Avis', selected: true })).toBeInTheDocument();
-    expect(screen.getByRole('region', { name: 'Avis 2023' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Avis 2018' })).toBeInTheDocument();
   });
 
   const history = (asked: string[] = []) => http.get('*/api/v1/tax/history', ({ request }) => {
     asked.push(new URL(request.url).search);
-    return HttpResponse.json({ years: [{ year: 2023, source: 'assessment', tax: '2100.00', netTaxable: null, averageRate: null }] });
+    return HttpResponse.json({ years: [{ year: 2018, source: 'assessment', tax: '2100.00', netTaxable: null, averageRate: null }] });
   });
 
   it('a past year offers Avis then Évolution', async () => {
-    server.use(notices(jointAssessment({ year: 2023 })), history());
-    const { user, router } = await renderApp('/tax?year=2023');
+    server.use(notices(jointAssessment({ year: 2018 })), history());
+    const { user, router } = await renderApp('/tax?year=2018');
 
     expect(await screen.findByRole('tab', { name: 'Avis', selected: true })).toBeInTheDocument();
     expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Avis', 'Évolution']);
-    expect(screen.getByRole('region', { name: 'Avis 2023' })).toBeInTheDocument();
-    expect(within(screen.getByRole('group', { name: 'Année des revenus' })).getByRole('button', { name: '2023, changer d’année' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Avis 2018' })).toBeInTheDocument();
+    expect(within(screen.getByRole('group', { name: 'Année des revenus' })).getByRole('button', { name: '2018, changer d’année' })).toBeInTheDocument();
     await user.click(screen.getByRole('tab', { name: 'Évolution' }));
     expect(await screen.findByRole('tab', { name: 'Évolution', selected: true })).toBeInTheDocument();
     await user.click(screen.getByRole('tab', { name: 'Avis' }));
@@ -792,8 +860,8 @@ describe('TaxPage, page grammar', () => {
 
   it('a past year’s Évolution reads the history only', async () => {
     const asked: string[] = [];
-    server.use(notices(jointAssessment({ year: 2023 })), history(asked));
-    await renderApp('/tax?year=2023&tab=evolution');
+    server.use(notices(jointAssessment({ year: 2018 })), history(asked));
+    await renderApp('/tax?year=2018&tab=evolution');
 
     const chart = await screen.findByRole('region', { name: 'Impôt année par année' });
     expect(chart).toBeInTheDocument();
@@ -802,16 +870,16 @@ describe('TaxPage, page grammar', () => {
 
   it('« Moi » asks the history of « Moi »', async () => {
     const asked: string[] = [];
-    server.use(notices(soloAssessment({ year: 2023 })), history(asked));
-    await renderApp('/tax?year=2023&tab=evolution&scope=me');
+    server.use(notices(soloAssessment({ year: 2018 })), history(asked));
+    await renderApp('/tax?year=2018&tab=evolution&scope=me');
 
     await screen.findByRole('region', { name: 'Impôt année par année' });
     expect(asked).toEqual(['?scope=me']);
   });
 
   it('a cold load of a past year shows no hero skeleton', async () => {
-    server.use(notices(jointAssessment({ year: 2023 })), http.get('*/api/v1/tax', () => new Promise(() => {})));
-    const { container } = await renderApp('/tax?year=2023&tab=assessment');
+    server.use(notices(jointAssessment({ year: 2018 })), http.get('*/api/v1/tax', () => new Promise(() => {})));
+    const { container } = await renderApp('/tax?year=2018&tab=assessment');
 
     await screen.findByRole('tab', { name: 'Avis', selected: true });
     expect(container.querySelector('[class*="rounded-[22px]"]')).toBeNull();

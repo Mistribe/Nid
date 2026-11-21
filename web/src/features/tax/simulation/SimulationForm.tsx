@@ -1,6 +1,7 @@
 import { useId, useState, type FormEvent, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import { aidCap } from '../profile/ExpensesSection';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import { Field } from '@/components/form/Field';
@@ -96,7 +97,7 @@ export function SimulationForm({ estimate, scope, onResult }: {
       case 'deductibleCsg': return t('tax.profile.deductible_csg_hint');
       case 'capitalLossesCarried': return t('tax.profile.capital_losses_hint');
       case 'capitalScale': return t('tax.profile.capital_option_hint.scale');
-      case 'donationsAid': return t('tax.profile.aid_hint');
+      case 'donationsAid': return t('tax.profile.aid_hint', { cap: aidCap(estimate.year) });
       case 'donations': return tipText(t, 'donations');
       case 'childcareOutsideHome': return t('tax.profile.childcare_hint');
       case 'homeEmployment': return t('tax.profile.home_hint');

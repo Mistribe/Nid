@@ -11,7 +11,7 @@ export type TaxDeclaration = components['schemas']['TaxDeclarationView'];
 
 export const TAX = '/api/v1/tax' as const;
 /** The estimate starts with the 2025 incomes: the server refuses an earlier year, which shows its notices only. */
-export const FIRST_ESTIMATE_YEAR = 2025;
+export const FIRST_ESTIMATE_YEAR = 2020;
 export const TAX_PROFILE = '/api/v1/tax/profile/{year}' as const;
 export const TAX_SIMULATE = '/api/v1/tax/simulate' as const;
 /** Issue #410: what changed since the year before, line by line. */

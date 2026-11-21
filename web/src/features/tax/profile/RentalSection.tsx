@@ -11,6 +11,8 @@ import { AmountField, type SectionProps } from './fields';
 import '@/locales/tax';
 
 /** The last revenue year whose energy renovation works raise the deficit's cap (works paid from 2023 to 2025). */
+/** The energy works raise the deficit's cap for works paid from 2023 to 2025 (CGI art. 156 I 3°). */
+const FIRST_ENERGY_YEAR = 2023;
 const LAST_ENERGY_YEAR = 2025;
 
 /** The rental income's regime, the deficit carried over, the energy renovation works, and each let property's Pinel commitment. */
@@ -43,7 +45,7 @@ export function RentalSection({ estimate, draft }: SectionProps) {
           hint={!suggestedDeficit(estimate) ? t('tax.profile.deficit_carried_hint')
             : estimate.carriedFrom?.rentalDeficitCarried != null ? t('tax.profile.deficit_suggested', { year: estimate.carriedFrom.year })
               : t('tax.profile.deficit_estimated', { year: estimate.year - 1 })} />
-        {estimate.year <= LAST_ENERGY_YEAR && draft.value.regime !== 'micro' && (
+        {estimate.year >= FIRST_ENERGY_YEAR && estimate.year <= LAST_ENERGY_YEAR && draft.value.regime !== 'micro' && (
           <AmountField draft={draft} name="rentalEnergyWorks" hint={t('tax.profile.energy_works_hint')} />
         )}
       </div>
