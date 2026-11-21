@@ -252,6 +252,7 @@
       "assetClass": "Classe d’actifs",
       "autoApplyBalance": "Soldes enregistrés comme valeurs",
       "autoPrice": "Prix mis à jour automatiquement",
+      "entitlementDelayMonths": "Délai de jouissance (mois)",
       "autoRenew": "Reconduction tacite",
       "averageRate": "Taux moyen",
       "balance": "Solde à payer ou à rembourser",
