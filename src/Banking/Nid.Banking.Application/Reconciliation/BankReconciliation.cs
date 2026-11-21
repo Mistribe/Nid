@@ -21,7 +21,7 @@ public sealed record ReconciliationCounts(int Internal, int Linked, int Proposed
 public sealed class BankReconciliation(
     BankingAccess access, ITransactionStore transactions, IAccountStore accountStore, ILinkStore links, IRuleStore rules,
     ExpectedChargeReader charges, TransactionLinker linker, CategoryRuleApplier categoryRules, ICategoryStore categories, IAccessPolicy policy, IProposalSubmitter proposals,
-    IActorAccessor actor, IUnitOfWork unitOfWork, IClock clock, ILogger<BankReconciliation> log)
+    SavingsFlows savingsFlows, IActorAccessor actor, IUnitOfWork unitOfWork, IClock clock, ILogger<BankReconciliation> log)
 {
     /// <summary>The widest tolerance of a charge (a rent's): the charges read around the batch.</summary>
     private const int ChargeMarginDays = 10;
@@ -31,9 +31,12 @@ public sealed class BankReconciliation(
     /// <summary>Steps 1–4 of §6.3 and the category rules on the unreconciled lines (all accounts when null), then marks them reconciled.</summary>
     public async Task<ReconciliationCounts> RunAsync(IReadOnlyCollection<Guid>? accounts, LocalDate today, CancellationToken ct)
     {
+        ReconciliationCounts counts;
         try
         {
-            return (await access.EnabledAsync(ct)).IsSuccess ? await PassAsync(accounts, today, ct) : None;
+            if (!(await access.EnabledAsync(ct)).IsSuccess)
+                return None;
+            counts = await PassAsync(accounts, today, ct);
         }
         catch (Exception e) when (!ct.IsCancellationRequested)
         {
@@ -41,6 +44,18 @@ public sealed class BankReconciliation(
             log.LogError("The reconciliation pass threw {Exception}", e.GetType().Name);
             return None;
         }
+
+        // #16: once the lines are categorised, a savings account's lines as its envelope's flows; with no new line too, so the nightly
+        // pass catches what changed since (a rule, the assistant, a typed flow). Never fails the sync or the import either.
+        try
+        {
+            await savingsFlows.RunAsync(accounts, null, ct);
+        }
+        catch (Exception e) when (!ct.IsCancellationRequested)
+        {
+            log.LogError("The savings flows pass threw {Exception}", e.GetType().Name);
+        }
+        return counts;
     }
 
     private async Task<ReconciliationCounts> PassAsync(IReadOnlyCollection<Guid>? accountIds, LocalDate today, CancellationToken ct)

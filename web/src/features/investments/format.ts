@@ -22,6 +22,9 @@ export function kindText(t: TFunction, kind: string): string {
 
 export const isTransferLeg = (flow: { category?: string | null }) => flow.category === 'transfer';
 
+/** A flow written from the bank's lines: the bank owns it, the API refuses to correct or delete it. */
+export const isBankFlow = (flow: { externalRef?: string | null }) => flow.externalRef?.startsWith('bank:') ?? false;
+
 /** A transfer leg reads as « Virement »; a flow kind the server added later reads as its raw name, as kindText. */
 export function flowKindText(t: TFunction, flow: { kind: string; category?: string | null }): string {
   if (isTransferLeg(flow)) return t('investments.flow_kind.transfer');

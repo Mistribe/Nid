@@ -46,15 +46,7 @@ public sealed class BalanceValuation
             return;
         }
 
-        var policy = services.GetRequiredService<IAccessPolicy>();
-        PersonId? writer = null;
-        foreach (var candidate in new[] { reader, account.AssociatedBy }.OfType<PersonId>())
-            if ((await policy.CheckAsync(candidate, envelope, AccessKind.Write, ct)).IsSuccess)
-            {
-                writer = candidate;
-                break;
-            }
-        if (writer is not { } person)
+        if (await WriterAsync(services.GetRequiredService<IAccessPolicy>(), reader, account, envelope, ct) is not { } person)
         {
             progress.Skipped++;
             return;
@@ -73,6 +65,15 @@ public sealed class BalanceValuation
         {
             accessor.Current = saved; // the connection's own writes stay its creator's
         }
+    }
+
+    /// <summary>Ruling R3: who writes an associated account's envelope, the reader when they may, else who associated the account; neither: null.</summary>
+    internal static async Task<PersonId?> WriterAsync(IAccessPolicy policy, PersonId? reader, BankAccount account, ItemId envelope, CancellationToken ct)
+    {
+        foreach (var candidate in new[] { reader, account.AssociatedBy }.OfType<PersonId>())
+            if ((await policy.CheckAsync(candidate, envelope, AccessKind.Write, ct)).IsSuccess)
+                return candidate;
+        return null;
     }
 
     private static async Task ValueAsAsync(

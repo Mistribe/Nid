@@ -28,5 +28,7 @@ public static class InvestmentsCodes
     public const string InvalidFeeReferences = "investments.invalid_fee_references";
     public const string InvalidIncomeCategory = "investments.invalid_income_category";
     public const string TransferLeg = "investments.transfer_leg";
+    /// <summary>#16: a flow kept from a bank line (<c>bank:</c> ref) follows its line, never a hand edit.</summary>
+    public const string BankFlow = "investments.bank_flow";
     public const string AboveCeiling = "investments.above_ceiling";
 }

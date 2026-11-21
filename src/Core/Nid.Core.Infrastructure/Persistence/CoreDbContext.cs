@@ -315,7 +315,7 @@ public sealed class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbC
             {
                 t.HasCheckConstraint("ck_flow_amount_positive", "amount > 0");
                 t.HasCheckConstraint("ck_flow_kind", "kind in ('contribution','withdrawal','opening','income','expense')");
-                t.HasCheckConstraint("ck_flow_source", "source in ('manual','import')");
+                t.HasCheckConstraint("ck_flow_source", "source in ('manual','import','bank_api')");
                 t.HasCheckConstraint("ck_flow_created_via", createdVia);
                 // 2B1b: an imported fact keeps its file id per importer (import-format.md §8); a correction retires the old row and
                 // the new one takes the reference over, hence the filter on current rows.

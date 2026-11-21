@@ -196,7 +196,7 @@ public sealed class Flows(CoreDbContext db, FactGate gate, IClock clock) : IFlow
         Category = flow.Category,
         ExternalRef = flow.ExternalRef,
         Note = flow.Note,
-        Source = flow.Source == FactSource.Import ? "import" : "manual",
+        Source = flow.Source switch { FactSource.Import => "import", FactSource.BankApi => "bank_api", _ => "manual" },
         CreatedVia = w.Via,
         CreatedByPersonId = w.Person.Value,
         CreatedAt = at,

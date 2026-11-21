@@ -1,18 +1,26 @@
+using System.Globalization;
+using System.Text;
+
 namespace Nid.Banking.Domain;
 
 /// <summary>
 /// The seed category a bank's structured transaction code points at (spec §Hints). Only unambiguous codes: an ISO 20022 code
 /// (<c>Domn/Fmly/SubFmly</c>, or Enable Banking's <c>Fmly/SubFmly</c> without the domain; upper-case, segment-wise) or an OFX
-/// <c>TRNTYPE</c> token. Free text and proprietary codes (<c>12/32</c>) never match.
+/// <c>TRNTYPE</c> token. Free text and proprietary codes (<c>12/32</c>) never match, with one exception: on a savings account
+/// (<c>savings</c>), a credit whose label says « intérêts » is the interest credit.
 /// </summary>
 public static class CategoryHints
 {
     private static readonly HashSet<string> OfxFees = ["FEE", "SRVCHG"];
 
-    public static string? KeyFor(string? bankCode, decimal amount)
+    public static string? KeyFor(string? bankCode, decimal amount, string? label = null, bool savings = false)
     {
+        if (savings && amount > 0 && label is not null && IsInterestLabel(label))
+            return "income.interest";
         if (bankCode is not { Length: > 0 })
             return null;
+        if (bankCode is "INT")
+            return amount > 0 ? "income.interest" : null;
         // Cash withdrawals and bank fees are debits: a credit with the same code (a fee refund) says nothing.
         if (bankCode is "ATM")
             return amount < 0 ? "internal.cash" : null;
@@ -26,7 +34,12 @@ public static class CategoryHints
             ["PMNT", "CCRD", "CWDL", ..] or ["CCRD", "CWDL"] when amount < 0 => "internal.cash",
             ["ACMT", "MDOP", "CHRG", ..] or ["PMNT", _, "CHRG", ..] or [_, "CHRG"] when amount < 0 => "bank",
             ["PMNT", "RCDT", "SALA", ..] or ["RCDT", "SALA"] when amount > 0 => "income.salary",
+            ["ACMT", "MCOP", "INTR", ..] or ["MCOP", "INTR"] when amount > 0 => "income.interest",
             _ => null,
         };
     }
+
+    private static bool IsInterestLabel(string label)
+        => new string([.. label.Normalize(NormalizationForm.FormD).Where(c => char.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark)])
+            .ToUpperInvariant().Contains("INTERET", StringComparison.Ordinal);
 }

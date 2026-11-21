@@ -51,6 +51,7 @@ public static class CategorySeed
         new("income.salary", "income", "Salaire", CategoryKind.Income, new("9ff40f42-dafa-4ffe-a831-8fcbaeaa27b1")),
         new("income.rent", "income", "Loyers perçus", CategoryKind.Income, new("f062f105-47d4-4329-a455-0d9b769a8a22")),
         new("income.refunds", "income", "Remboursements", CategoryKind.Income, new("66f12d47-ee0e-4cfe-94bb-dac4eec8326b")),
+        new("income.interest", "income", "Intérêts", CategoryKind.Income, new("7e2e4790-8ac8-4ea9-b97d-cf99679feff6")),
         new("income.other", "income", "Autres revenus", CategoryKind.Income, new("aa97ef8b-1155-4b48-8952-36e3be4b99f4")),
         new("internal", null, "Mouvements internes", CategoryKind.Transfer, new("7df143f6-384a-4999-bb4a-3fdcea2ea6a4")),
         new("internal.transfer", "internal", "Virement entre comptes", CategoryKind.Transfer, new("c62b3382-d295-4120-b25c-e534ffb7d8ef")),

@@ -300,6 +300,8 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<Nid.Banking.Application.Reconciliation.CategoryRuleApplier>();
         services.AddScoped<Nid.Banking.Application.Reconciliation.LineRecategoriser>();
         services.AddScoped<Nid.Banking.Application.Reconciliation.BankReconciliation>();
+        services.AddScoped<Nid.Banking.Application.Reconciliation.SavingsFlows>();
+        services.AddScoped<Nid.Banking.Application.Reconciliation.SavingsFlowBackfill>();
         services.AddScoped<Nid.Banking.Application.Reconciliation.RecurringDebits>();
         services.AddScoped<Nid.Banking.Application.BankLines>();
         services.AddScoped<Nid.Banking.Application.Operations.ReceiptAnchors>();

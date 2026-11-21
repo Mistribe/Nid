@@ -1,8 +1,11 @@
 using System.Net;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Contracts;
+using Nid.Platform.Contracts;
 using Nid.TestSupport;
+using NodaTime;
 
 namespace Nid.Investments.IntegrationTests;
 
@@ -279,5 +282,53 @@ public class FactEndpointTests(PostgresFixture fixture, SharedNidApp shared) : I
 
         Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Put, url,
             new { occurredOn = "2025-06-15", kind = "withdrawal", amount = Eur("100.00"), category = "transfer" })).StatusCode);
+    }
+
+    /// <summary>#16: a flow kept from a bank line (<c>bank:</c> ref), on a livret, written as Banking does (through IFlows); its url.</summary>
+    private static async Task<string> BankFlowAsync(NidApp app)
+    {
+        var id = await app.NewEnvelopeAsync("Livret", app.AdultA, Visibility.Shared);
+        await using var scope = app.Services.CreateAsyncScope();
+        scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.BankSync(app.AdultA);
+        var amount = Money.Create(100m, Currency.Eur).TryGetValue(out var money) ? money! : throw new InvalidOperationException();
+        Assert.True((await scope.ServiceProvider.GetRequiredService<IFlows>().RecordAsync(new NewFlow(
+            id, new LocalDate(2025, 6, 15), FlowKind.Contribution, amount, null, $"bank:{Guid.NewGuid():D}", null, FactSource.BankApi),
+            TestContext.Current.CancellationToken)).TryGetValue(out var flow));
+        return $"/api/v1/investments/envelopes/{id.Value}/flows/{flow!.Id}";
+    }
+
+    [Fact]
+    public async Task Typing_a_bank_ref_is_refused()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await app.NewEnvelopeAsync("Livret", app.AdultA, Visibility.Shared);
+
+        await AssertBankFlowAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/investments/envelopes/{id.Value}/flows",
+            new { occurredOn = "2025-06-15", kind = "contribution", amount = Eur("100.00"), externalRef = $"bank:{Guid.NewGuid():D}" }));
+    }
+
+    private static async Task AssertBankFlowAsync(HttpResponseMessage response)
+    {
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal("investments.bank_flow", (await JsonAsync(response)).GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task Correcting_a_bank_flow_is_refused()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var url = await BankFlowAsync(app);
+
+        await AssertBankFlowAsync(await app.RawAsync(app.AdultA, HttpMethod.Put, url,
+            new { occurredOn = "2025-06-15", kind = "contribution", amount = Eur("90.00") }));
+    }
+
+    [Fact]
+    public async Task Voiding_a_bank_flow_is_refused()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var url = await BankFlowAsync(app);
+
+        await AssertBankFlowAsync(await app.RawAsync(app.AdultA, HttpMethod.Delete, url));
     }
 }
