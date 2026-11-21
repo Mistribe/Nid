@@ -510,19 +510,15 @@ public sealed class TaxEstimates(
             notices.Add(new TaxNoticeView("per_without_contributions", envelope.Key.Item, envelope.Key.Name, Amount(0m)));
 
         decimal All(string code) => lines.Where(l => l.Code == code).Sum(l => l.Amount);
-        // Childcare decision 21: the validated statements of the year replace the profile's childcare costs; #411: one notice per
-        // arrangement, its year summary a link away.
-        var statements = lines.Where(l => l.Code == TaxLineCodes.ChildcareOutsideHome).ToList();
-        foreach (var arrangement in statements.GroupBy(l => (l.Item, l.Name)))
-            notices.Add(new TaxNoticeView("childcare_from_statements", arrangement.Key.Item, arrangement.Key.Name, Amount(arrangement.Sum(l => l.Amount))));
-        // #14: the months of the current year still to validate, told apart from the validated ones.
-        var projected = lines.Where(l => l.Code == TaxLineCodes.ChildcareProjected).ToList();
-        // Without a validated month, the months are estimated from the contract (childcare_estimated).
-        foreach (var arrangement in projected.GroupBy(l => (l.Item, l.Name)))
+        // Childcare decision 21: the validated statements of the year (#14: and the months still to validate) replace the profile's
+        // childcare costs; #411: one notice per arrangement, its total and months, its year summary a link away. Without a validated
+        // month, the months are estimated from the contract (childcare_estimated).
+        var childcare = lines.Where(l => l.Code is TaxLineCodes.ChildcareOutsideHome or TaxLineCodes.ChildcareProjected).ToList();
+        foreach (var arrangement in childcare.GroupBy(l => (l.Item, l.Name)))
         {
-            var validated = statements.Count(l => l.Item == arrangement.Key.Item);
-            notices.Add(new TaxNoticeView(validated > 0 ? "childcare_projected" : "childcare_estimated", arrangement.Key.Item, arrangement.Key.Name,
-                Amount(arrangement.Sum(l => l.Amount)), validated, arrangement.Count()));
+            var validated = arrangement.Count(l => l.Code == TaxLineCodes.ChildcareOutsideHome);
+            notices.Add(new TaxNoticeView(validated > 0 ? "childcare_from_statements" : "childcare_estimated", arrangement.Key.Item, arrangement.Key.Name,
+                Amount(arrangement.Sum(l => l.Amount)), validated, arrangement.Count() - validated));
         }
         // #94: a nanny's tracked months, and the rest of the current year at their mean, replace the profile's home employment.
         var home = lines.Where(l => l.Code is TaxLineCodes.HomeEmploymentTracked or TaxLineCodes.HomeEmploymentProjected).ToList();
@@ -553,7 +549,7 @@ public sealed class TaxEstimates(
             columns.Sum(c => c.L215), columns.Sum(c => c.L250), columns.Sum(c => c.L240),
             TryRegime(profile.RentalRegime, out var regime) ? regime : null,
             All(TaxLineCodes.CapitalIncome) + All(TaxLineCodes.SavingsInterest), All(TaxLineCodes.NonTaxable), pinel,
-            statements.Count + projected.Count > 0 ? statements.Sum(l => l.Amount) + projected.Sum(l => l.Amount) : profile.ChildcareOutsideHome, home.Count > 0 ? home.Sum(l => l.Amount) : profile.HomeEmployment, profile.Donations, profile.DonationsAid, profile.RentalDeficitCarried, profile.PerPooling,
+            childcare.Count > 0 ? childcare.Sum(l => l.Amount) : profile.ChildcareOutsideHome, home.Count > 0 ? home.Sum(l => l.Amount) : profile.HomeEmployment, profile.Donations, profile.DonationsAid, profile.RentalDeficitCarried, profile.PerPooling,
             profile.DonationsAidLate, profile.RentalEnergyWorks,
             All(TaxLineCodes.CapitalDividends), profile.CapitalScale, profile.DeductibleCsg, referenceBefore,
             profile.AlimonyPaid, profile.AlimonyAdultChildren, profile.AlimonyAdultChildrenCount,

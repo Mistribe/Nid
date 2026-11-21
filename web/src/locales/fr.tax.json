@@ -319,9 +319,9 @@
       "more": "Afficher les {{count}} autres",
       "less": "Afficher moins",
       "childcare": {
-        "from_statements": "{{amount}} d’après les relevés validés",
-        "projected": "reste de l’année : {{amount}} ({{validated}} mois validés, {{estimated}} estimés)",
-        "estimated": "{{amount}} estimés d’après le contrat pour {{estimated}} mois"
+        "from_statements": "{{amount}} ({{validated}} mois validés)",
+        "projected": "{{amount}} ({{validated}} mois validés, {{estimated}} estimés)",
+        "estimated": "{{amount}} ({{estimated}} mois estimés)"
       },
       "home_employment": {
         "recorded": "{{amount}} d’après {{validated}} mois enregistrés",
@@ -339,7 +339,7 @@
         "realised_gain_unknown": "Ventes sans nombre de parts ou sans prix de revient : leur plus-value n’est pas comptée.",
         "withdrawal_not_estimated": "L’impôt sur ces retraits n’est pas estimé.",
         "per_without_contributions": "Aucun versement PER enregistré cette année.",
-        "childcare": "Frais de garde : le montant du profil est remplacé par celui des relevés, ou estimé d’après le contrat en attendant un relevé validé.",
+        "childcare": "Frais de garde : le montant du profil est remplacé par le réel ou estimé d’après le contrat.",
         "home_employment": "Emploi à domicile : le montant du profil est remplacé par le coût net (salaire et cotisations, moins la CMG) des mois enregistrés de la garde à domicile ; pour l’année en cours, le reste de l’année est compté à leur moyenne.",
         "rental_charges_removed": "Charges locatives retirées des loyers enregistrés avec leurs charges.",
         "rental_fee_not_counted": "Pénalité de remboursement anticipé ou frais de prêt non comptés en ligne 250.",
@@ -357,9 +357,8 @@
       "rental_fee_not_counted": "{{name}} : {{amount}} de pénalité de remboursement anticipé ou de frais de prêt non comptés en ligne 250.",
       "contribution_rate_differs": "{{name}} : le taux de cotisations saisi s’écarte du taux constaté sur les bulletins ({{amount}}).",
       "per_without_contributions": "{{name}} : aucun versement enregistré cette année.",
-      "childcare_from_statements": "Frais de garde de « {{name}} » : {{amount}} d’après ses relevés validés, à la place du montant du profil.",
-      "childcare_projected": "Reste de l’année pour « {{name}} » : {{amount}} (mois validés : {{validated}} ; mois estimés à leur moyenne : {{estimated}}).",
-      "childcare_estimated": "Frais de garde de « {{name}} » : {{amount}} estimés d’après le contrat pour {{estimated}} mois, à la place du montant du profil, en attendant un relevé validé.",
+      "childcare_from_statements": "Frais de garde de « {{name}} » : {{amount}} ({{validated}} mois validés, {{estimated}} estimés), à la place du montant du profil.",
+      "childcare_estimated": "Frais de garde de « {{name}} » : {{amount}} estimés d’après le contrat ({{estimated}} mois), à la place du montant du profil.",
       "rental_to_check": "{{name}} : {{amount}} de dépenses à vérifier (construction ou agrandissement, autres) non comptées — voir Déclaration 2044.",
       "savings_interest": "{{name}} : {{amount}} d’intérêts imposables cette année (compte d’épargne non réglementé). Si c’est un livret A, un LDDS, un LEP ou un livret jeune, indiquez-le sur le compte.",
       "savings_interest_unknown": "{{name}} : les intérêts de ce compte d’épargne non réglementé ne se distinguent pas des versements (solde de la banque ou aucun versement enregistré) ; ils ne sont pas comptés.",

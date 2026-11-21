@@ -45,10 +45,10 @@ public class ChildcareIntegrationTests(PostgresFixture fixture) : IClassFixture<
         // Today is 2025-10-15: #14 counts October to December at September's tax base.
         var perMonth = decimal.Parse(TaxBase(september), CultureInfo.InvariantCulture);
         Assert.Equal((4 * perMonth).ToString("0.00", CultureInfo.InvariantCulture), tax.GetProperty("inputs").GetProperty("childcareOutsideHome").GetString());
-        Assert.Contains(tax.GetProperty("notices").EnumerateArray(), n => n.GetProperty("code").GetString() == "childcare_from_statements");
-        var projected = tax.GetProperty("notices").EnumerateArray().Single(n => n.GetProperty("code").GetString() == "childcare_projected");
-        Assert.Equal(1, projected.GetProperty("monthsValidated").GetInt32());
-        Assert.Equal(3, projected.GetProperty("monthsEstimated").GetInt32());
+        var counted = tax.GetProperty("notices").EnumerateArray().Single(n => n.GetProperty("code").GetString() == "childcare_from_statements");
+        Assert.Equal(1, counted.GetProperty("monthsValidated").GetInt32());
+        Assert.Equal(3, counted.GetProperty("monthsEstimated").GetInt32());
+        Assert.Equal(tax.GetProperty("inputs").GetProperty("childcareOutsideHome").GetString(), counted.GetProperty("amount").GetString());
 
         var next = await GetAsync(app, "/api/v1/tax?year=2026&scope=household");
         Assert.Equal("9999.00", next.GetProperty("inputs").GetProperty("childcareOutsideHome").GetString());
@@ -484,7 +484,9 @@ public class ChildcareIntegrationTests(PostgresFixture fixture) : IClassFixture<
         Assert.Equal("7GA", summary.GetProperty("box").GetString());
         Assert.Equal(TaxBase(september), summary.GetProperty("retained").GetProperty("amount").GetString());
         var notice = tax.GetProperty("notices").EnumerateArray().Single(n => n.GetProperty("code").GetString() == "childcare_from_statements");
-        Assert.Equal(summary.GetProperty("retained").GetProperty("amount").GetString(), notice.GetProperty("amount").GetString());
+        // The notice gives the year's whole figure (the months still to validate included); the summary, the validated months to copy.
+        Assert.Equal(tax.GetProperty("inputs").GetProperty("childcareOutsideHome").GetString(), notice.GetProperty("amount").GetString());
+        Assert.Equal(1, notice.GetProperty("monthsValidated").GetInt32());
         Assert.Equal(summary.GetProperty("id").GetGuid(), notice.GetProperty("item").GetGuid());
         // #233: the 2042 list puts the costs in the year summary's box, the months still to validate included.
         var box = tax.GetProperty("declaration").GetProperty("boxes").EnumerateArray().Single(b => b.GetProperty("code").GetString()!.StartsWith("7G"));
