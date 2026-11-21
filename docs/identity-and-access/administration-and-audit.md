@@ -51,7 +51,7 @@ API `/api/v1/admin`, écrans `/admin/*` (`../frontend/screens.md` §12).
 
 ## 3. Commandes d'administration (CLI)
 
-La zone admin couvre l'administration courante. La CLI reste le **recours de secours**, pour ce que l'interface ne peut pas faire (plus aucun admin joignable, `sub` changé). Elle s'exécute dans le conteneur `nid` par l'hébergeur : `nid admin <commande>`. **Livrée en 1F4** (`../superpowers/specs/2026-09-26-admin-cli-design.md`) pour `rebind-subject`, `list-persons` et `revoke-sessions` : les cas d'usage de l'API, joués par l'acteur système avec `via: admin-cli`, confirmation pour `rebind-subject`. `revoke-tokens` est livrée en 4A ; les commandes de workers attendent l'étape 4.
+La zone admin couvre l'administration courante. La CLI reste le **recours de secours**, pour ce que l'interface ne peut pas faire (plus aucun admin joignable, `sub` changé). Elle s'exécute dans le conteneur `nid` par l'hébergeur : `nid admin <commande>`. **Livrée en 1F4** (`../superpowers/specs/2026-09-26-admin-cli-design.md`) pour `rebind-subject`, `list-persons` et `revoke-sessions` : les cas d'usage de l'API, joués par l'acteur système avec `via: admin-cli`, confirmation pour `rebind-subject`. `revoke-tokens` est livrée en 4A. Les commandes de workers sont abandonnées (#171) : les workers se gèrent dans Réglages › IA (tableau ci-dessous).
 
 | Commande | Usage |
 |---|---|
@@ -74,9 +74,9 @@ Le journal d'audit (table `platform.audit_log`, `../architecture.md` §6) reçoi
 
 | Champ | Contenu |
 |---|---|
-| `actor_kind` | `person`, `system`, `worker` |
+| `actor_kind` | `person`, `system` (l'ancien `worker` disparaît, #171) |
 | `person_id` | La personne concernée |
-| `via` | `ui`, `api`, `mcp`, `job`, `import`, `admin-cli` |
+| `via` | `ui`, `api`, `mcp`, `job`, `import`, `admin-cli`, `assistant` (`../ai/README.md` §8.4) |
 | `scopes` | Portées de l'acteur |
 | `token_id?` | Jeton utilisé (livré en 4A) |
 | `on_behalf_of?` | Personne au nom de qui agit une tâche (arrive à l'étape 4) |

@@ -29,6 +29,7 @@ Chaque décision a sa sous-section : décision, raison, options écartées, et l
 - **Décision** : l'identité du worker et la confidentialité viennent de la **couche applicative** (clés épinglées,
   HPKE, requêtes signées). TLS est épinglé quand Nid joint le worker directement ; derrière un **proxy déclaré par
   l'admin**, un certificat d'autorité publique est accepté. Un worker distant peut donc être derrière un reverse proxy.
+  Sans mutual TLS, Nid est authentifié par sa seule signature, qui couvre le `content-digest` du corps scellé.
   Détail : §4.1.
 - **Raison** : « mutual TLS 1.3 épinglé, aucune autorité publique » (#166) contredit « un proxy qui termine TLS ne voit
   rien » : avec un proxy, le TLS épinglé de bout en bout est impossible ; seule la couche applicative tient les deux.
@@ -126,7 +127,9 @@ Chaque décision a sa sous-section : décision, raison, options écartées, et l
 - **Décision** : un réglage par usage (`chat`, `decide`, `embed`, `extract`) : `off`, `self_hosted` (« auto-hébergé ») ou
   `self_hosted_then_cloud`. La chaîne est : workers locaux, workers distants, profils cloud ; les offres gratuites sont
   des profils cloud à prix nul. Le réglage du chat est un **plafond** ; chaque adulte active encore l'assistant pour lui.
-  **Pas de repli en cours de conversation** : la classe de destination est fixée par conversation. D23 est modifiée.
+  **Pas de repli en cours de conversation** : une conversation est fixée à la **classe de politique** du worker ou du
+  profil qui a servi son premier tour (`local+safe`, `local`, `remote+safe`, `remote` ou `cloud:<profil>`). D23 est
+  modifiée.
   Détail : §5.3.
 - **Raison** : suit #172 (workers d'abord) et #450 ; « auto-hébergé » plutôt que « local », un worker distant étant
   auto-hébergé ; une conversation ne change pas de destination sans que la personne le voie (H1).
@@ -173,23 +176,26 @@ Chaque décision a sa sous-section : décision, raison, options écartées, et l
 
 - **Décision** : `person.preferences.ai_offsite_default` vaut `ask` (défaut), `allow` ou `never` et couvre les données
   privées de l'adulte hors des lieux : workers distants (`safe` compris) et cloud. Un élément partagé ne sort que si
-  aucun de ses propriétaires n'a choisi `never` ; pour une tâche de fond, il faut `allow` de chaque propriétaire.
-  Détail : §6.3.
+  aucun de ses propriétaires n'a choisi `never` ; pour une tâche de fond, il faut `allow` de chaque propriétaire. Un
+  **document** n'a pas de propriétaire : les adultes concernés sont son déposant et chaque propriétaire de chaque
+  élément auquel il est lié ; il ne sort des lieux en tâche de fond (OCR sur un worker distant, plongements) qu'avec
+  `allow` de chacun d'eux. Détail : §6.3.
 - **Raison** : décision G ; une tâche de fond n'a personne à qui demander.
 - **Écarté** : un seul opt-in du foyer pour les données des deux adultes.
 
 ### 1.N Décision N : les propositions de l'assistant restent privées jusqu'à la décision
 
 - **Décision** : une proposition soumise par l'assistant n'est visible **que de son auteur** tant qu'elle n'est pas
-  décidée, même sur un élément partagé. Détail : §8.2.
+  décidée, même sur un élément partagé ; le dédoublonnage et le remplacement ne jouent qu'entre les propositions en
+  attente de cet auteur. Détail : §8.2.
 - **Raison** : les lecteurs d'une proposition sont ceux de sa cible (`../identity-and-access/authorization.md` §5) :
   sans cette règle, une proposition née d'une question privée apparaîtrait chez l'autre adulte (H5).
 - **Écarté** : les lecteurs de la cible.
 
 ### 1.O Décision O : le contexte d'une conversation
 
-- **Décision** : messages de la personne et de l'assistant seulement ; outils rappelés à chaque tour ; destination fixée
-  par conversation. Détail : §9.
+- **Décision** : messages de la personne et de l'assistant seulement ; outils rappelés à chaque tour ; classe de
+  politique de la destination fixée par conversation (§5.3). Détail : §9.
 - **Raison** : décisions E et H (H1).
 
 ### 1.P Décision P : rendu des réponses
@@ -214,8 +220,9 @@ Chaque décision a sa sous-section : décision, raison, options écartées, et l
 
 ### 1.S Décision S : qui voit « Utilisation IA »
 
-- **Décision** : `llm_call` porte une personne et un document : chaque ligne est filtrée par lecteur (ses propres appels ;
-  les appels de fond sans le document s'il ne le lit pas) ; les totaux du mois sont visibles des deux adultes.
+- **Décision** : `llm_call` porte une personne et un document : chaque lecteur voit ses propres appels, et un appel de
+  fond **seulement s'il lit son élément ou son document** ; les autres ne comptent que dans le total du mois, visible
+  des deux adultes.
   Détail : §13.
 - **Raison** : la page ne doit pas révéler un document privé de l'autre adulte.
 
@@ -342,8 +349,13 @@ Tant que Myelin#9 n'est pas publié, #166 ne peut pas joindre un worker du rése
 | Sans worker éligible | Le job reste en file, la page des jobs dit pourquoi | La requête échoue tout de suite, avec la raison |
 
 - **Identité et confidentialité** au niveau applicatif (§1.1) : la requête de Nid est scellée par HPKE vers la clé
-  épinglée du worker et signée par Nid (RFC 9421, horodatage, nonce, fenêtre courte, rejeu refusé) ; la réponse est
-  scellée avec une clé dérivée de la requête (§4.2).
+  épinglée du worker et signée par Nid (RFC 9421) ; la réponse est scellée avec une clé dérivée de la requête (§4.2).
+- **Nid est authentifié par sa seule signature** : derrière un proxy, sans mutual TLS, et HPKE en mode de base laissant
+  n'importe qui chiffrer vers la clé du worker. Les composants signés comprennent le `content-digest` du corps scellé
+  (encapsulation `enc` comprise), `@method`, `@target-uri`, `created`, `nonce` et `keyid` ; fenêtre courte, rejeu
+  refusé. Le worker vérifie la signature et le digest **avant** d'ouvrir le corps.
+- **Chaque requête porte une encapsulation**, interrogations d'état comprises : chaque réponse, même « job en échec »,
+  est donc scellée.
 - **TLS** : épinglé quand Nid joint le worker directement ; certificat d'autorité publique accepté derrière un proxy
   déclaré par l'admin. Dans les deux cas, le proxy ne voit ni requête, ni fichier, ni réponse.
 - **Suite HPKE** : DHKEM(P-256), HKDF-SHA256, AES-GCM, mode de base. .NET 10 n'a pas HPKE (.NET 11 l'a, en expérimental,
@@ -359,7 +371,9 @@ Tant que Myelin#9 n'est pas publié, #166 ne peut pas joindre un worker du rése
 - Le texte scellé est une suite de **trames** : longueur, octet de type (`data`, `end`, `error`), contenu. Chaque trame
   est scellée avec un compteur ; une trame retirée, rejouée ou déplacée ne s'ouvre pas ; un flux sans trame `end` est
   une erreur, jamais une réponse. Le cadrage ne dépend pas des morceaux HTTP, qu'un proxy peut redécouper.
-- Un job suit la même règle : son résultat est scellé avec une clé dérivée de la requête qui l'a envoyé.
+- Un job suit la même règle : son résultat est scellé avec une clé dérivée du contexte HPKE de sa **soumission**. Nid
+  garde donc le secret exporté de ce contexte jusqu'à ce qu'il relève le résultat : chiffré par Data Protection sur la
+  ligne `job`, supprimé avec le résultat. S'il est perdu (redémarrage sans lui, trousseau perdu), Nid renvoie le job.
 - Nid ouvre chaque trame, vérifie les bornes (octets, durée, nombre de trames), puis émet ses **propres** événements vers
   le navigateur (sur la session, même origine) : jamais les octets du worker.
 
@@ -399,9 +413,11 @@ avec les outils MCP qu'elle appelle. Les usages restent chez leurs modules : Doc
   `local` et `local then cloud` de #450 deviennent `self_hosted` et `self_hosted_then_cloud`.
 - Les offres gratuites sont des profils cloud comme les autres, à prix nul ; il n'y a plus de « gratuit d'abord ».
 - Parmi les workers éligibles : locaux d'abord, puis le moins chargé ; un job d'un worker en échec passe à un autre.
-- **Conversation** : sa classe de destination (auto-hébergée ou un profil cloud) est fixée à son premier tour ; si elle
-  n'est plus disponible, le tour échoue avec la raison, sans repli. Changer de destination, c'est ouvrir une nouvelle
-  conversation.
+- **Conversation** : elle est fixée à la **classe de politique** de la destination qui a servi son premier tour :
+  `local+safe`, `local`, `remote+safe`, `remote` (selon le placement et l'étiquette du worker) ou `cloud:<profil>`. Les
+  tours suivants ne vont qu'à cette classe ; si elle n'est plus disponible, le tour échoue avec la raison, sans repli,
+  comme pour le cloud. « Auto-hébergé » ne suffit pas : passer d'un worker `local+safe` à un worker `remote` renverrait
+  les messages vers une destination moins sûre (H1). Changer de classe, c'est ouvrir une nouvelle conversation.
 - Repli des jobs, disjoncteur et refus de contenu : `../ingestion/llm-providers.md` §5.3 ; jamais de repli vers une
   destination non éligible.
 
@@ -454,8 +470,11 @@ cet adulte (§6.3). Chaque décision est enregistrée (`consent_id`) et liée au
   `allow` ; `ask` vaut « non ». Un élément partagé ne sort que si **chacun** de ses propriétaires a choisi `allow`.
 - **Chat** : la personne qui demande consent pour ses propres données en activant l'assistant ; un élément partagé est
   retenu si **un** de ses propriétaires a choisi `never`. Les données privées de l'autre adulte ne sont jamais lues.
-- **Index des documents** : un document privé d'un adulte n'est indexé hors des lieux qu'avec son consentement (`allow`).
-  Pour les documents partagés, le réglage `embed` du foyer vaut consentement, sauf `never` d'un propriétaire.
+- **Documents** : un document n'a pas de propriétaire ; ses lecteurs viennent de son déposant et des éléments auxquels
+  il est lié (`../identity-and-access/authorization.md` §5). Les **adultes concernés** par un document sont son déposant
+  et chaque propriétaire de chaque élément lié. Un document ne sort des lieux en tâche de fond (texte et OCR sur un
+  worker distant, plongements vers un worker distant ou le cloud) qu'avec `allow` de **chacun** d'eux ; le réglage
+  `embed` du foyer est nécessaire, jamais suffisant.
 
 ### 6.4 Filtrage des résultats d'outils (décision C)
 
@@ -522,8 +541,9 @@ livrée par défaut.
 
 - Origine `ActorOrigin.Assistant`, `via: assistant`, la personne connectée, portées `read` et `write`, jamais
   `write:direct`, `is_admin` faux.
-- **Refusé par les contrôles réservés au navigateur** (`IBrowserOnly`, `IConfirmedInBrowser`), qui doivent tester
-  l'origine (`Via != Ui`) et pas seulement la présence d'un jeton.
+- **Refusé par les contrôles réservés au navigateur** (`IBrowserOnly`, `IConfirmedInBrowser`) : la règle devient « refuser
+  quand `TokenId is not null` **ou** `Via == Assistant` », en gardant l'exemption de la simulation (dry run) des
+  `propose_delete_*` pour `IConfirmedInBrowser`. Un test « `Via != Ui` » casserait cette simulation.
 - Lectures et propositions passent par les mêmes requêtes Synapse que REST et le MCP (`../architecture.md` §8).
 - Le modèle d'un worker est déclaré par le worker (décision V) : sa sortie est une entrée non fiable, comme celle d'un
   modèle cloud.
@@ -537,6 +557,9 @@ livrée par défaut.
   document.
 - **Une proposition soumise par l'assistant n'est visible que de son auteur** tant qu'elle n'est pas décidée, même sur
   un élément partagé ; une fois décidée, elle suit les règles des propositions.
+- **Dédoublonnage et remplacement** : tant qu'elle est cachée, une proposition de l'assistant ne remplace et n'est
+  remplacée que par une proposition en attente **du même auteur** (même `kind`, cible et sujet). Sinon une proposition
+  cachée pourrait remplacer (`superseded`) celle, visible, d'une autre personne, et inversement.
 - « Approuver » dans le chat appelle la route de décision du navigateur, avec ses contrôles.
 - La passerelle réduit la liste et borne la taille d'un résultat selon `context_tokens` du modèle ; un résultat trop
   grand répond « réduisez la demande », jamais tronqué.
@@ -565,7 +588,7 @@ voudrait rien dire, l'audit étant gardé sans limite.
   coût viennent de `llm_call`. **Pas de résultats d'outils**, ni octets de document, ni image de page.
 - **Contexte** : à chaque tour, le modèle reçoit les messages de la conversation, jamais un résultat d'outil stocké ; il
   rappelle les outils, sous les droits et la destination du moment.
-- **Destination fixée** par conversation (§5.3).
+- **Classe de politique fixée** par conversation : celle de la destination de son premier tour (§5.3).
 - **Visibilité** : l'auteur seul, admin compris. Aucun compteur hors de ses écrans.
 - **Conservation** : `ai_settings.conversation_retention_days`, posé par un adulte, **30 jours** par défaut ; purge
   chaque nuit ; suppression immédiate par l'auteur ; supprimer un document retire les tours qui l'ont lu (§6.6).
@@ -653,8 +676,9 @@ admin (`../identity-and-access/authorization.md`).
 | `ai_consent_rules` | `../ingestion/llm-providers.md` §6 |
 
 - **« Utilisation IA »** (décision S) : `llm_call` porte une personne et un document ; chaque lecteur voit ses propres
-  appels et les appels de fond, sans le document s'il ne le lit pas ; les totaux du mois et l'état du budget sont
-  visibles des deux adultes.
+  appels, et un appel de fond seulement s'il lit son élément ou son document. Les autres appels ne comptent que dans le
+  total du mois et l'état du budget, visibles des deux adultes : aucun compteur par élément
+  (`../identity-and-access/authorization.md` §8).
 - Le drapeau « local seulement » vit sur le document (module Documents) ; les plongements et le cache des décisions de
   catégories restent chez Documents et Banking.
 
@@ -677,7 +701,9 @@ et §3, `authorization.md`), `../security/` (`infrastructure.md`, `README.md`, `
 ## 15. Ce qui reste ouvert
 
 - **HPKE** : bibliothèque revue ou implémentation testée sur les vecteurs de la RFC 9180 (§4.1), dans #166, avec
-  l'équivalent côté worker.
+  l'équivalent côté worker. La classe expérimentale `Hpke` de .NET 11 (`SYSLIB5009`) documente un `Seal` et un `Open`
+  en un coup : vérifier qu'elle expose `Export()` et des contextes à plusieurs messages ; sinon, implémenter sur les
+  primitives de base, testé contre l'annexe A de la RFC 9180.
 - **UnambitiousFx/Myelin#9** : points d'accès enregistrés, prérequis de #166.
 - **Jev** : accord de traitement des données à lire ; rétention, relecture humaine et région non documentées
   (`../ingestion/llm-providers.md` §14.1).

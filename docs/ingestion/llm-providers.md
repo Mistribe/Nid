@@ -12,7 +12,7 @@ L'ingestion (étape 4 de la feuille de route) transforme un document déposé pa
 
 ## 2. Principes
 
-1. **Local par défaut.** Tant qu'un adulte n'a pas activé un fournisseur cloud, tout reste local.
+1. **Local par défaut.** Tant qu'un admin n'a pas activé un fournisseur cloud, tout reste local (`../ai/README.md` §12).
 2. **Le cloud est un opt-in explicite**, à trois niveaux : activation du fournisseur, choix à chaque dépôt de document, plafond de dépense pour le payant.
 3. **Jamais d'entraînement sur des documents financiers.** Une offre dont les conditions autorisent l'entraînement sur les données pour la région du foyer est **inéligible**, sans contournement en v1.
 4. **L'IA propose, les humains valident** : rien ne change dans les propositions ni dans la file de validation.
@@ -70,7 +70,7 @@ Exemple (valeurs illustratives) :
 }
 ```
 
-- **Région** : l'adulte qui active un fournisseur **confirme la région du compte** (`eea_ch_uk` ou `other`). C'est cette valeur, pas une supposition, qui sélectionne les conditions applicables.
+- **Région** : l'admin qui active un fournisseur **confirme la région du compte** (`eea_ch_uk` ou `other`). C'est cette valeur, pas une supposition, qui sélectionne les conditions applicables.
 - **Péremption** : au-delà de 90 jours après `reviewed_on`, l'interface affiche un avertissement sur le profil.
 
 ## 5. Politique de sélection
@@ -177,7 +177,7 @@ Table `llm_provider_credential` :
 | `hint` | Quatre derniers caractères, pour reconnaître la clé |
 | `created_by_person_id`, `created_at`, `last_used_at`, `revoked_at?` | |
 
-- Saisie par un adulte ; **jamais réaffichée**, jamais envoyée au navigateur ni aux workers.
+- Saisie par un admin (`../ai/README.md` §12) ; **jamais réaffichée**, jamais envoyée au navigateur ni aux workers.
 - Remplacement et révocation depuis Réglages > IA ; chaque action est auditée.
 - **Recommandations affichées à l'utilisateur** : une clé dédiée à Nid, un plafond de dépense et une alerte de budget configurés **chez le fournisseur**.
 
@@ -196,7 +196,7 @@ Table `llm_call` (le **contenu n'est jamais stocké**) :
 | `redaction` | Résumé du masquage (nombre d'éléments masqués par type, `not_masked`) |
 | `status` | `succeeded`, `refused`, `quota`, `error`, `blocked_budget` |
 
-Une page « Utilisation IA » présente les appels récents, le coût du mois et l'état des quotas. Chaque lecteur n'y voit que ses propres appels et les appels de fond, sans un document qu'il ne lit pas ; les totaux du mois sont visibles des deux adultes (`../ai/README.md` §13).
+Une page « Utilisation IA » présente les appels récents, le coût du mois et l'état des quotas. Chaque lecteur n'y voit que ses propres appels, et un appel de fond seulement s'il lit son élément ou son document ; les autres ne comptent que dans le total du mois, visible des deux adultes, sans compteur par élément (`../ai/README.md` §13, `../identity-and-access/authorization.md` §8).
 
 ## 12. Données et réglages
 

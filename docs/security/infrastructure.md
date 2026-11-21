@@ -34,7 +34,7 @@
 | Secret | Règle |
 |---|---|
 | Format | **Secrets Docker** (fichiers), un par composant ; jamais en variable d'environnement |
-| Clés Data Protection | Volume dédié, droits `0700`, sauvegardé |
+| Clés Data Protection | Volume dédié, droits `0700`, sauvegardé. Un trousseau perdu rend illisible la clé de Nid face aux workers : chaque worker doit être ré-apparié, et les jobs en cours sont renvoyés (`../ai/README.md` §3.6) |
 | Secret client OIDC, clé d'appairage de Nid (chiffrée en base), mot de passe restic, clés d'API de fournisseurs LLM | Séparés ; jamais partagés entre composants |
 | Clés d'API des fournisseurs | Chiffrées en base (Data Protection), jamais renvoyées (`../ingestion/llm-providers.md` §10) |
 | Banque (étape 5) | Clé privée d'Enable Banking : secret Docker `enable_banking_private_key` de `nid`, absent du compose de référence et déclaré par l'hébergeur dans `deploy/compose.override.yaml` quand il active la banque (`../../deploy/README.md` §12) ; le fichier vit dans `deploy/secrets/`, donc dans la sauvegarde ; sessions bancaires chiffrées en base (Data Protection, but `Nid.Banking.Session`) |

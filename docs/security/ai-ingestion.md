@@ -50,7 +50,7 @@
 ## 4. Modèle local (derrière un worker)
 
 - **Derrière un worker apparié**, sur le réseau propre du worker, **port non publié** ; `nid` ne le joint jamais directement (#166, #171).
-- **Sans authentification native** ([source](https://www.indusface.com/blog/exposed-ollama-servers-llm-security-risks/), [source](https://nsfocusglobal.com/ollama-unauthorized-access-vulnerability-due-to-misconfiguration-cnvd-2025-04094/)) : le worker porte l'appairage, le mutual TLS et les signatures, et l'isolement réseau protège le moteur. Une exposition accidentelle donnerait un accès libre au modèle (WRK-4).
+- **Sans authentification native** ([source](https://www.indusface.com/blog/exposed-ollama-servers-llm-security-risks/), [source](https://nsfocusglobal.com/ollama-unauthorized-access-vulnerability-due-to-misconfiguration-cnvd-2025-04094/)) : le worker porte l'appairage, la clé épinglée et le chiffrement HPKE (identité au niveau applicatif, TLS épinglé en direct ou autorité publique derrière un proxy déclaré, `../ai/README.md` §1.1), et l'isolement réseau protège le moteur. Une exposition accidentelle donnerait un accès libre au modèle (WRK-4).
 - Modèles **épinglés par empreinte** ; pas de téléchargement automatique ; mise à jour manuelle après revue.
 
 ## 5. Fournisseurs cloud et passerelle
@@ -68,7 +68,7 @@ Décrits dans `../ingestion/llm-providers.md`. Ici, les risques et les mesures :
 | **Masquage incomplet** | Aperçu avant envoi ; **confirmation explicite** pour les documents sans couche texte ; non garanti (risque résiduel accepté) |
 | **Panne ou quotas** | Chaîne avec repli sur une autre destination éligible ; disjoncteur |
 | **Bulletins de paie** | Type `payslip` **inéligible au cloud** en v1, même avec consentement : seulement un worker `safe` (`../ingestion/llm-providers.md` §5.2, `../ai/README.md` §6.1) |
-| **Sortie du réseau** | Seul `nid` sort, par le `SafeHttpClient`, vers les hôtes des profils **activés** et des workers appariés (`application.md` §3) |
+| **Sortie du réseau** | Seul `nid` sort : par le `SafeHttpClient` vers les hôtes des profils **activés** ; vers les workers appariés par un `HttpClient` gardé par Myelin (`UseMyelin()`) et leurs points d'accès enregistrés (`application.md` §3, UnambitiousFx/Myelin#9) |
 
 ## 6. MCP
 
