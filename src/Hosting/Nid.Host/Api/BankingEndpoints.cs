@@ -219,6 +219,16 @@ public static class BankingEndpoints
                 => (await invoker.InvokeAsync(new ListBudgetsQuery(), ct)).ToHttp(budgets => budgets))
             .Returns<IReadOnlyList<CategoryBudgetView>>();
 
+        // #427: several budgets created at once, all or none (the suggestions ticked); a PUT replaces one, this never does.
+        api.MapPost("/budgets", async (BudgetsBody body, IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new CreateBudgetsCommand(body.Budgets ?? []), ct)).ToHttp(budgets => budgets, StatusCodes.Status201Created))
+            .Returns<IReadOnlyList<CategoryBudgetView>>(StatusCodes.Status201Created);
+
+        // #427: budgets proposed from the Mois habituel, for a household that has none yet.
+        api.MapGet("/budgets/suggestions", async (IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new SuggestBudgetsQuery(), ct)).ToHttp(suggestions => suggestions))
+            .Returns<IReadOnlyList<BudgetSuggestionView>>();
+
         api.MapPut("/budgets/{categoryId:guid}", async (Guid categoryId, BudgetBody body, IInvoker invoker, CancellationToken ct)
                 => (await invoker.InvokeAsync(new SetBudgetCommand(categoryId, body.Amount, body.Period ?? ""), ct)).ToHttp(budget => budget))
             .Returns<CategoryBudgetView>();
@@ -522,6 +532,9 @@ public static class BankingEndpoints
     /// <summary>A category's budget as a whole: <c>amount</c> an invariant decimal of zero or more, null to follow what is committed; <c>period</c> <c>month</c> or <c>year</c>.</summary>
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
     public sealed record BudgetBody(string? Amount, string? Period);
+
+    /// <summary>#427: budgets created at once, each with its <c>source</c>: <c>typed</c> with an <c>amount</c>, <c>committed</c> without.</summary>
+    public sealed record BudgetsBody(IReadOnlyList<NewBudget>? Budgets);
 
     /// <summary>How many lines took the rule's category.</summary>
     public sealed record CategoryRuleApplied(int Changed);

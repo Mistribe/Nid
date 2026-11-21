@@ -23,6 +23,8 @@ namespace Nid.Host.Api.Json;
 [JsonSerializable(typeof(Nid.Banking.Application.Spending.CategoryBudgetView))]
 [JsonSerializable(typeof(IReadOnlyList<Nid.Banking.Application.Spending.CategoryBudgetView>))]
 [JsonSerializable(typeof(BankingEndpoints.BudgetBody))]
+[JsonSerializable(typeof(BankingEndpoints.BudgetsBody))]
+[JsonSerializable(typeof(IReadOnlyList<Nid.Banking.Application.Spending.BudgetSuggestionView>))]
 [JsonSerializable(typeof(IReadOnlyList<ExpectedChargeView>))]
 [JsonSerializable(typeof(IReadOnlyList<BankRuleView>))]
 [JsonSerializable(typeof(BankingEndpoints.LinkBody))]

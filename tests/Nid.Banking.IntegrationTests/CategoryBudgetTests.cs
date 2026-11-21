@@ -71,10 +71,66 @@ public class CategoryBudgetTests(PostgresFixture fixture) : IClassFixture<Postgr
         Assert.Empty(await ListAsync(app));
     }
 
+    private static Task<HttpResponseMessage> CreateAsync(NidApp app, params object[] budgets)
+        => app.RawAsync(app.AdultA, HttpMethod.Post, Root, new { budgets });
+
+    private static object Typed(string key, string? amount, string period = "month") => new { categoryId = Seed(key), amount, source = "typed", period };
+
+    /// <summary>A 422 under <paramref name="code"/>, naming <paramref name="pointer"/>.</summary>
+    private static async Task RefusedAtAsync(HttpResponseMessage response, string code, string pointer)
+    {
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+        Assert.Contains(code, body);
+        Assert.Contains($"\"#/{pointer}\"", body);
+    }
+
+    [Fact]
+    public async Task Several_budgets_are_created_at_once()
+    {
+        await using var app = await BankingApi.StartAsync(fixture);
+
+        var response = await CreateAsync(app, Typed("food", "130"), new { categoryId = Seed("leisure"), source = "committed", period = "month" },
+            Typed("transport.fuel", "120", "year"));
+        Assert.True(response.StatusCode == HttpStatusCode.Created, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        Assert.Equal(3, (await BankingApi.JsonAsync(response)).GetArrayLength());
+
+        var listed = (await ListAsync(app)).ToDictionary(b => b.GetProperty("categoryId").GetGuid(), b => (b.GetProperty("amount").GetString(), b.GetProperty("period").GetString()));
+        Assert.Equal(("130.00", "month"), listed[Seed("food")]);
+        Assert.Equal(((string?)null, "month"), listed[Seed("leisure")]);
+        Assert.Equal(("120.00", "year"), listed[Seed("transport.fuel")]);
+    }
+
+    [Fact]
+    public async Task Budgets_at_once_are_checked_as_one_and_never_replace_one()
+    {
+        await using var app = await BankingApi.StartAsync(fixture);
+        await OkAsync(SetAsync(app, "home", "900"));
+
+        // The second is refused, so the first is not written either; the existing budget is untouched.
+        await RefusedAtAsync(await CreateAsync(app, Typed("transport", "10"), Typed("home", "5")), BankingCodes.BudgetExists, "budgets/1/categoryId");
+        await RefusedAtAsync(await CreateAsync(app, Typed("transport", "10"), Typed("home.utilities", "5")), BankingCodes.BudgetBranch, "budgets/1/categoryId");
+        // Two of the batch on one branch, or one twice.
+        await RefusedAtAsync(await CreateAsync(app, Typed("transport.fuel", "10"), Typed("transport", "5")), BankingCodes.BudgetBranch, "budgets/1/categoryId");
+        await RefusedAtAsync(await CreateAsync(app, Typed("transport", "10"), Typed("transport", "5")), BankingCodes.BudgetExists, "budgets/1/categoryId");
+        await RefusedAtAsync(await CreateAsync(app, Typed("food", "10"), Typed("income.salary", "5")), BankingCodes.CategoryKind, "budgets/1/categoryId");
+        await RefusedAtAsync(await CreateAsync(app, Typed("food", "10"), Typed("transport", "-5")), BankingCodes.BudgetAmount, "budgets/1/amount");
+        await RefusedAtAsync(await CreateAsync(app, Typed("food", "10"), Typed("transport", null)), BankingCodes.BudgetAmount, "budgets/1/amount");
+        await RefusedAtAsync(await CreateAsync(app, Typed("food", "10"), Typed("transport", "5", "week")), "request.invalid", "budgets/1/period");
+        await RefusedAtAsync(await CreateAsync(app, new { categoryId = Seed("food"), amount = "5", source = "committed", period = "month" }), "request.invalid", "budgets/0/amount");
+        await RefusedAtAsync(await CreateAsync(app, new { categoryId = Seed("food"), amount = "5", period = "month" }), "request.invalid", "budgets/0/source");
+        await RefusedAtAsync(await CreateAsync(app), "request.invalid", "budgets");
+        Assert.Equal(HttpStatusCode.NotFound, (await CreateAsync(app, Typed("food", "10"), new { categoryId = Guid.NewGuid(), amount = "5", source = "typed", period = "month" })).StatusCode);
+
+        var budget = Assert.Single(await ListAsync(app));
+        Assert.Equal((Seed("home"), "900.00"), (budget.GetProperty("categoryId").GetGuid(), budget.GetProperty("amount").GetString()));
+    }
+
     [Fact]
     public async Task Writes_need_banking_on()
     {
         await using var app = await BankingApi.StartAsync(fixture, enable: false);
+        await BankingApi.AssertRefusedAsync(await CreateAsync(app, Typed("food", "10")), HttpStatusCode.Conflict, BankingCodes.Disabled);
         await BankingApi.AssertRefusedAsync(await SetAsync(app, "food.groceries", "10"), HttpStatusCode.Conflict, BankingCodes.Disabled);
         await BankingApi.AssertRefusedAsync(
             await app.RawAsync(app.AdultA, HttpMethod.Delete, $"{Root}/{Seed("food.groceries")}"), HttpStatusCode.Conflict, BankingCodes.Disabled);

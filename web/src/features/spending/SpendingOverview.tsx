@@ -28,7 +28,7 @@ import { toPlot } from '@/lib/plot';
 import type { RootSearch } from '@/lib/search';
 import { todayIso } from '@/lib/today';
 import { cn } from '@/lib/utils';
-import { SPENDING, type Spending, type SpendingBudget, type SpendingQuery } from './api';
+import { BUDGETS, SPENDING, type Spending, type SpendingBudget, type SpendingQuery } from './api';
 import { BudgetDialog, type BudgetTarget } from './BudgetDialog';
 import { CategoryLinesDialog, Incomplete, operationsSearch } from './CategoryLinesDialog';
 import '@/locales/spending';
@@ -40,6 +40,8 @@ const ZERO = /^-?0(\.0+)?$/;
 const MonthsChart = lazy(() => import('./MonthsChart').then((m) => ({ default: m.MonthsChart })));
 // #415: a row's rename or merge, the categories page's own dialogs, loaded when one opens.
 const CategoryEdit = lazy(() => import('./categoryEdits').then((m) => ({ default: m.CategoryEdit })));
+// #427: « Proposer des budgets », loaded when it opens.
+const BudgetSuggestions = lazy(() => import('./BudgetSuggestions').then((m) => ({ default: m.BudgetSuggestions })));
 type Edit = { mode: 'rename' | 'merge'; id: string };
 
 type Row = { id: string; name: string; amount: string; average?: string | null; budget?: SpendingBudget | null; children: Row[]; uncategorised?: true };
@@ -56,6 +58,7 @@ const menuId = (id: string, mobile = false) => `budget-${id}${mobile ? '-mobile'
 
 /** « Ajouter un budget »: its button's id is `menuId(ADD)`, so the focus goes back to it as to a row's menu. */
 const ADD = 'add';
+const SUGGEST = 'suggest';
 
 /** An arrow at the end stays focusable (`aria-disabled`), as the year stepper's. */
 const END = 'aria-disabled:cursor-default aria-disabled:opacity-50 aria-disabled:hover:bg-transparent';
@@ -110,6 +113,9 @@ export function SpendingOverview() {
   const spending = $api.useQuery('get', SPENDING, { params: { query } }, { enabled: (accounts?.length ?? 0) > 0, placeholderData: keepPreviousData });
   const [open, setOpen] = useState<{ categoryId?: string; name: string } | null>(null);
   const [budget, setBudget] = useState<BudgetTarget | 'pick' | null>(null);
+  // #427: suggestions are offered to a household with no budget yet, where budgets show (Foyer, one month).
+  const [suggest, setSuggest] = useState(false);
+  const held = $api.useQuery('get', BUDGETS, undefined, { enabled: query.scope === 'household' && !year && (accounts?.length ?? 0) > 0 });
   const [edit, setEdit] = useState<Edit | null>(null);
   const categories = useCategories();
   const [focus, setFocus] = useState<string | null>(null);
@@ -120,6 +126,8 @@ export function SpendingOverview() {
   }, [focus]);
   const closeBudget = () => { setFocus(budget === 'pick' ? ADD : budget?.id ?? null); setBudget(null); };
   const closeEdit = () => { setFocus(edit?.id ?? null); setEdit(null); };
+  // Once budgets exist the button is gone: « Ajouter un budget » takes the focus.
+  const closeSuggest = (created: boolean) => { setFocus(created ? ADD : SUGGEST); setSuggest(false); };
 
   const body = () => {
     if (status.data?.enabled === false)
@@ -132,7 +140,7 @@ export function SpendingOverview() {
     if (spending.error) return <ProblemMessage problem={present(toProblem(spending.error))} />;
     if (!spending.data) return <Loading label={t('spending.loading')}><TableSkeleton columns={4} /></Loading>;
     return <Figures data={spending.data} period={period(spending.data)} year={year} household={query.scope === 'household'} onOpen={setOpen} onBudget={setBudget}
-      categories={categories.data ?? []} onEdit={setEdit} />;
+      onSuggest={held.data?.length === 0 ? () => setSuggest(true) : undefined} categories={categories.data ?? []} onEdit={setEdit} />;
   };
   const period = (data: Spending) => (year ? t('spending.range', { from: monthText(data.from), to: monthText(data.to) }) : monthText(data.to));
 
@@ -143,6 +151,11 @@ export function SpendingOverview() {
         <CategoryLinesDialog target={open} query={query} period={period(spending.data)} onClose={() => setOpen(null)} />
       ) : null}
       {budget ? <BudgetDialog target={budget} onClose={closeBudget} onDone={(message) => { toast.success(message); closeBudget(); }} /> : null}
+      {suggest && spending.data ? (
+        <Suspense fallback={null}>
+          <BudgetSuggestions currency={spending.data.currency} onClose={() => closeSuggest(false)} onDone={(message) => { toast.success(message); closeSuggest(true); }} />
+        </Suspense>
+      ) : null}
       {edit && categories.data ? (
         <Suspense fallback={null}>
           <CategoryEdit edit={edit} categories={categories.data} onClose={closeEdit} onDone={(message) => { toast.success(message); closeEdit(); }} />
@@ -152,9 +165,9 @@ export function SpendingOverview() {
   );
 }
 
-function Figures({ data, period, year, household, onOpen, onBudget, categories, onEdit }: {
+function Figures({ data, period, year, household, onOpen, onBudget, onSuggest, categories, onEdit }: {
   data: Spending; period: string; year: boolean; household: boolean; onOpen: (target: { categoryId?: string; name: string }) => void;
-  onBudget: (target: BudgetTarget | 'pick') => void; categories: BankCategory[]; onEdit: (edit: Edit) => void;
+  onBudget: (target: BudgetTarget | 'pick') => void; onSuggest?: () => void; categories: BankCategory[]; onEdit: (edit: Edit) => void;
 }) {
   const { t } = useTranslation();
   const money = (amount: string) => formatCurrency(amount, data.currency);
@@ -257,7 +270,10 @@ function Figures({ data, period, year, household, onOpen, onBudget, categories, 
         </Suspense>
       ) : null}
       <SectionCard title={t('spending.by_category')} note={period} className="space-y-4" actions={budgets ? (
-        <Button id={menuId(ADD)} type="button" variant="outline" size="sm" onClick={() => onBudget('pick')}>{t('spending.budget.add')}</Button>
+        <>
+          {onSuggest ? <Button id={menuId(SUGGEST)} type="button" variant="outline" size="sm" onClick={onSuggest}>{t('spending.budget.suggest')}</Button> : null}
+          <Button id={menuId(ADD)} type="button" variant="outline" size="sm" onClick={() => onBudget('pick')}>{t('spending.budget.add')}</Button>
+        </>
       ) : null}>
         {/* #425: where the month went, above its table; what is left comes first, above the card. */}
         <StatLine items={[
