@@ -58,7 +58,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             });
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
-            e.Property(x => x.ItemIds).HasColumnType("uuid[]").HasDefaultValueSql("'{}'");
+            e.PrimitiveCollection(x => x.ItemIds).HasColumnType("uuid[]").HasDefaultValueSql("'{}'");
             e.Property(x => x.Params).HasColumnType("jsonb");
             e.HasIndex(x => new { x.PersonId, x.Key }).IsUnique();
             e.HasIndex(x => new { x.PersonId, x.State });
@@ -139,41 +139,6 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
         });
 
         modelBuilder.MapAuditLog(ownedHere: true);
-        ApplySnakeCase(modelBuilder);
-    }
-
-    private static void ApplySnakeCase(ModelBuilder modelBuilder)
-    {
-        foreach (var entity in modelBuilder.Model.GetEntityTypes())
-        foreach (var property in entity.GetProperties())
-        {
-            property.SetColumnName(ToSnakeCase(property.Name));
-        }
-
-        foreach (var entity in modelBuilder.Model.GetEntityTypes())
-        {
-            var table = entity.GetTableName()!;
-            entity.FindPrimaryKey()?.SetName($"pk_{table}");
-
-            foreach (var index in entity.GetIndexes())
-                index.SetDatabaseName($"ix_{table}_{string.Join('_', index.Properties.Select(p => p.GetColumnName()))}");
-
-            foreach (var foreignKey in entity.GetForeignKeys())
-                foreignKey.SetConstraintName(
-                    $"fk_{table}_{foreignKey.PrincipalEntityType.GetTableName()}_{string.Join('_', foreignKey.Properties.Select(p => p.GetColumnName()))}");
-        }
-    }
-
-    internal static string ToSnakeCase(string name)
-    {
-        var builder = new StringBuilder(name.Length + 4);
-        for (var i = 0; i < name.Length; i++)
-        {
-            if (char.IsUpper(name[i]) && i > 0)
-                builder.Append('_');
-            builder.Append(char.ToLowerInvariant(name[i]));
-        }
-
-        return builder.ToString();
+        ModelNaming.Apply(modelBuilder);
     }
 }

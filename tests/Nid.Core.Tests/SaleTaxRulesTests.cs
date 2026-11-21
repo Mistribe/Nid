@@ -1,3 +1,4 @@
+using Nid.Core.Contracts;
 using Nid.Core.Domain.Tax;
 using NodaTime;
 
@@ -47,7 +48,7 @@ public class SaleTaxRulesTests
     [InlineData(22, 1.00)]
     [InlineData(23, 1.00)]
     public void Income_allowance_by_years_held(int years, double expected) =>
-        Assert.Equal((decimal)expected, PropertyAllowance.Income(years));
+        Assert.Equal(Decimals.FromDouble(expected), PropertyAllowance.Income(years));
 
     [Theory]
     [InlineData(5, 0)]
@@ -58,7 +59,7 @@ public class SaleTaxRulesTests
     [InlineData(30, 1.00)]
     [InlineData(31, 1.00)]
     public void Social_allowance_by_years_held(int years, double expected) =>
-        Assert.Equal((decimal)expected, PropertyAllowance.Social(years));
+        Assert.Equal(Decimals.FromDouble(expected), PropertyAllowance.Social(years));
 
     [Theory]
     [InlineData(50_000, 0)]
@@ -71,7 +72,7 @@ public class SaleTaxRulesTests
     [InlineData(260_000, 15_600)]
     [InlineData(300_000, 18_000)]
     public void Surtax_follows_the_smoothed_scale(int gain, int expected) =>
-        Assert.Equal((decimal)expected, Surtax.Of(gain));
+        Assert.Equal(Decimals.FromDouble(expected), Surtax.Of(gain));
 
     [Fact]
     public void Full_years_held_count_anniversaries()

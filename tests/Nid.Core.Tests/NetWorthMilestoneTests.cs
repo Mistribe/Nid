@@ -1,3 +1,4 @@
+using Nid.Core.Contracts;
 using Nid.Core.Application.Dashboard;
 
 namespace Nid.Core.Tests;
@@ -10,7 +11,7 @@ public class NetWorthMilestoneTests
     [InlineData(48_000, 52_000, 50_000)]
     [InlineData(90_000, 210_000, 200_000)] // several steps at once: the highest
     public void Crossing_gives_the_highest_step_reached(double before, double now, double crossed)
-        => Assert.Equal((decimal)crossed, NetWorthMilestone.Crossed((decimal)before, (decimal)now, 50_000m));
+        => Assert.Equal(Decimals.FromDouble(crossed), NetWorthMilestone.Crossed(Decimals.FromDouble(before), Decimals.FromDouble(now), 50_000m));
 
     [Theory]
     [InlineData(50_000, 99_999)] // already above the step at the month-end
@@ -18,7 +19,7 @@ public class NetWorthMilestoneTests
     [InlineData(120_000, 60_000)] // going down crosses nothing
     [InlineData(-20_000, 10_000)] // zero is not a milestone
     public void No_crossing_raises_nothing(double before, double now)
-        => Assert.Null(NetWorthMilestone.Crossed((decimal)before, (decimal)now, 50_000m));
+        => Assert.Null(NetWorthMilestone.Crossed(Decimals.FromDouble(before), Decimals.FromDouble(now), 50_000m));
 
     [Fact]
     public void A_missing_figure_raises_nothing()

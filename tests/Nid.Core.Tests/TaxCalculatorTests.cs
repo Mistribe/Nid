@@ -1,3 +1,4 @@
+using Nid.Core.Contracts;
 using Nid.Core.Domain.Tax;
 
 namespace Nid.Core.Tests;
@@ -76,7 +77,7 @@ public class TaxCalculatorTests
         var inputs = Inputs([new("A", 0m, EmploymentStatus.NonExecutive, 0m, 0m, Disabled: disabled)], dependents)
             with { AlternateCustody = alternate, SingleParent = single };
 
-        Assert.Equal(((decimal)parts, (decimal)cap), TaxCalculator.Shares(TaxRules.For(2025), inputs));
+        Assert.Equal((Decimals.FromDouble(parts), Decimals.FromDouble(cap)), TaxCalculator.Shares(TaxRules.For(2025), inputs));
     }
 
     [Theory]
@@ -89,7 +90,7 @@ public class TaxCalculatorTests
     {
         var inputs = Inputs([Other(0m), Other(0m)], dependents) with { AlternateCustody = alternate, DisabledDependents = disabled };
 
-        Assert.Equal(((decimal)parts, (decimal)cap), TaxCalculator.Shares(TaxRules.For(2025), inputs));
+        Assert.Equal((Decimals.FromDouble(parts), Decimals.FromDouble(cap)), TaxCalculator.Shares(TaxRules.For(2025), inputs));
     }
 
     [Theory]
@@ -101,7 +102,7 @@ public class TaxCalculatorTests
     [InlineData(2_000, 2, 2_000)]  // never more than the income
     [InlineData(10_000, 0, 0)]
     public void The_age_or_disability_allowance_follows_the_income_brackets(int income, int qualifying, int allowance)
-        => Assert.Equal((decimal)allowance, TaxRules.For(2025).AgeDisabilityAllowance(income, qualifying));
+        => Assert.Equal(Decimals.FromDouble(allowance), TaxRules.For(2025).AgeDisabilityAllowance(income, qualifying));
 
     [Fact]
     public void The_age_or_disability_allowance_counts_each_declarant_over_65_or_disabled_once()
@@ -448,13 +449,13 @@ public class TaxCalculatorTests
     public void The_minimum_keeps_the_expiring_ceiling_after_the_years_own(double paid, double minimum)
     {
         // The 2026 notice: 4 114 + 4 399 + 4 637 unused, 4 710 on 2025's income.
-        var declarant = Other(50_000m) with { PerContributions = (decimal)paid, PerCeiling = 17_860m, PerUnusedCeiling = 13_150m, PerExpiring = 4_114m };
+        var declarant = Other(50_000m) with { PerContributions = Decimals.FromDouble(paid), PerCeiling = 17_860m, PerUnusedCeiling = 13_150m, PerExpiring = 4_114m };
 
         var per = TaxCalculator.Compute(Inputs([declarant])).Declarants[0].Per!;
 
-        Assert.Equal((decimal)minimum, per.Minimum);
+        Assert.Equal(Decimals.FromDouble(minimum), per.Minimum);
         Assert.False(per.MinimumEstimated);
-        Assert.Equal(17_860m - (decimal)paid, per.Remaining);
+        Assert.Equal(17_860m - Decimals.FromDouble(paid), per.Remaining);
     }
 
     [Fact]
@@ -495,14 +496,14 @@ public class TaxCalculatorTests
     [InlineData(500_000, 37_094)] // capped at 8 PASS: 10 % × 370 944
     public void Without_a_notice_the_ceiling_comes_from_last_years_income(double previous, double ceiling)
     {
-        var declarant = Other(30_000m) with { PerContributions = 1_000m, PreviousYearIncome = (decimal)previous };
+        var declarant = Other(30_000m) with { PerContributions = 1_000m, PreviousYearIncome = Decimals.FromDouble(previous) };
 
         var result = TaxCalculator.Compute(Inputs([declarant]));
 
         var per = result.Declarants[0].Per!;
-        Assert.Equal((decimal)ceiling, per.Ceiling);
+        Assert.Equal(Decimals.FromDouble(ceiling), per.Ceiling);
         Assert.Equal(PerCeilingSource.Estimated, per.Source);
-        Assert.Equal((decimal)ceiling - 1_000m, per.Remaining);
+        Assert.Equal(Decimals.FromDouble(ceiling) - 1_000m, per.Remaining);
         Assert.Equal([TaxWarnings.PerCeilingEstimated], result.Warnings);
     }
 
@@ -722,7 +723,7 @@ public class TaxCalculatorTests
     [InlineData(2037, 1_666.67)]
     [InlineData(2038, 0)]
     public void Pinel_2023_nine_years_extended_to_twelve(int year, double expected)
-        => Assert.Equal((decimal)expected, Pinel.AnnualReduction(200_000m, 2023, false, 9, 12, 2026, year));
+        => Assert.Equal(Decimals.FromDouble(expected), Pinel.AnnualReduction(200_000m, 2023, false, 9, 12, 2026, year));
 
     [Fact]
     public void Pinel_base_is_capped_by_the_price_and_the_surface()
@@ -798,7 +799,7 @@ public class TaxCalculatorTests
     [InlineData(400, 400)]     // never more than the salaries
     [InlineData(200_000, 14_555)] // the maximum
     public void The_salary_allowance_is_ten_percent_between_its_bounds(double income, double allowance)
-        => Assert.Equal((decimal)allowance, TaxRules.For(2025).SalaryAllowance((decimal)income));
+        => Assert.Equal(Decimals.FromDouble(allowance), TaxRules.For(2025).SalaryAllowance(Decimals.FromDouble(income)));
 
     /// <summary>Spec §4bis, art. 1729 G and 204 J CGI: a cut of 5 % to 10 %, never beyond 10 % with the rate one tenth lower.</summary>
     private static WithholdingCut SafeCut(TaxResult result)
@@ -911,7 +912,7 @@ public class TaxCalculatorTests
     [InlineData(120_000)]
     public void The_rounded_cut_rate_never_goes_beyond_ten_percent(double salaries)
     {
-        var result = TaxCalculator.Compute(Inputs([Other((decimal)salaries)]) with { HomeEmployment = 12_000m });
+        var result = TaxCalculator.Compute(Inputs([Other(Decimals.FromDouble(salaries))]) with { HomeEmployment = 12_000m });
         if (result.Withholding.Cut is not null)
             SafeCut(result);
     }
@@ -979,7 +980,7 @@ public class TaxCalculatorTests
     [InlineData(700_000, true, 6_000)]
     [InlineData(1_500_000, true, 35_000)]
     public void The_high_income_contribution_follows_the_reference_income(int reference, bool couple, int expected)
-        => Assert.Equal(((decimal)expected, false), TaxCalculator.HighIncome(reference, couple, null));
+        => Assert.Equal((Decimals.FromDouble(expected), false), TaxCalculator.HighIncome(reference, couple, null));
 
     [Fact]
     public void A_first_year_over_the_threshold_is_smoothed_by_the_quotient()

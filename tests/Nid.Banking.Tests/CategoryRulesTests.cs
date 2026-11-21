@@ -129,7 +129,7 @@ public class CategoryRulesTests
     [InlineData(-9.99, false)]
     [InlineData(-20.01, false)]
     public void Bounds_are_inclusive_on_the_absolute_amount(double amount, bool expected)
-        => Assert.Equal(expected, CategoryRules.Matches(Rule(min: 10m, max: 20m), Acc, (decimal)amount, "CARREFOUR", null));
+        => Assert.Equal(expected, CategoryRules.Matches(Rule(min: 10m, max: 20m), Acc, Decimals.FromDouble(amount), "CARREFOUR", null));
 
     [Fact]
     public void Pick_prefers_the_account_over_a_longer_newer_rule()

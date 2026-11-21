@@ -15,7 +15,7 @@ public class ProjectionRatesTests
     /// <summary>The annual rate's monthly factor, (1 + r)^(1/12).</summary>
     private static double Monthly(double rate) => Math.Pow(1 + rate, 1.0 / 12);
 
-    private static void Near(double expected, decimal actual) => Assert.True(Math.Abs((decimal)expected - actual) < 1e-12m, $"{expected} ≠ {actual}");
+    private static void Near(double expected, decimal actual) => Assert.True(Math.Abs(Decimals.FromDouble(expected) - actual) < 1e-12m, $"{expected} ≠ {actual}");
 
     [Fact]
     public void GridYears_start_with_next_month()
@@ -64,7 +64,7 @@ public class ProjectionRatesTests
             Assert.Equal(rates.Inflation[k], rates.Income[k]);
         }
         for (var k = 1; k <= 120; k++)
-            Assert.Equal((decimal)Monthly(0.02) - 1m, rates.MonthlyClassRate[AllocationClasses.Cash][k]);
+            Assert.Equal(Decimals.FromDouble(Monthly(0.02)) - 1m, rates.MonthlyClassRate[AllocationClasses.Cash][k]);
     }
 
     [Fact]
@@ -108,11 +108,11 @@ public class ProjectionRatesTests
         var rates = ProjectionRates.Resolve(yearly, null, Today, 14, Classes);
 
         var cash = rates.MonthlyClassRate[AllocationClasses.Cash];
-        Assert.Equal((decimal)Monthly(0.02) - 1m, cash[1]); // December 2026: the long-term 2 %
-        Assert.Equal((decimal)Monthly(0.03) - 1m, cash[2]); // January 2027
-        Assert.Equal((decimal)Monthly(0.03) - 1m, cash[13]); // December 2027
-        Assert.Equal((decimal)Monthly(0.02) - 1m, cash[14]); // January 2028
-        Assert.Equal((decimal)Monthly(0.025) - 1m, rates.MonthlyClassRate[AllocationClasses.MoneyMarket][2]);
+        Assert.Equal(Decimals.FromDouble(Monthly(0.02)) - 1m, cash[1]); // December 2026: the long-term 2 %
+        Assert.Equal(Decimals.FromDouble(Monthly(0.03)) - 1m, cash[2]); // January 2027
+        Assert.Equal(Decimals.FromDouble(Monthly(0.03)) - 1m, cash[13]); // December 2027
+        Assert.Equal(Decimals.FromDouble(Monthly(0.02)) - 1m, cash[14]); // January 2028
+        Assert.Equal(Decimals.FromDouble(Monthly(0.025)) - 1m, rates.MonthlyClassRate[AllocationClasses.MoneyMarket][2]);
     }
 
     [Fact]

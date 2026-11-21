@@ -1,3 +1,4 @@
+using Nid.Platform.Infrastructure.Persistence;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -238,7 +239,7 @@ public sealed class RealEstateDbContext(DbContextOptions<RealEstateDbContext> op
         }
 
         modelBuilder.MapAuditLog(ownedHere: false);
-        ApplySnakeCase(modelBuilder);
+        ModelNaming.Apply(modelBuilder);
     }
 
     private static void MapXmin(PropertyBuilder<uint> property)
@@ -246,42 +247,4 @@ public sealed class RealEstateDbContext(DbContextOptions<RealEstateDbContext> op
 
     /// <summary>A row is imported or it is not: ref, hash and importer come together (as investments.envelope).</summary>
     private const string ImportCheck = "(import_ref is null) = (import_hash is null) and (import_ref is null) = (imported_by is null)";
-
-    private static void ApplySnakeCase(ModelBuilder modelBuilder)
-    {
-        foreach (var entity in modelBuilder.Model.GetEntityTypes())
-        foreach (var property in entity.GetProperties())
-        {
-            if (property.Name == nameof(LoanRow.Version))
-                continue; // mapped to the system column xmin
-
-            property.SetColumnName(ToSnakeCase(property.Name));
-        }
-
-        foreach (var entity in modelBuilder.Model.GetEntityTypes())
-        {
-            var table = entity.GetTableName()!;
-            entity.FindPrimaryKey()?.SetName($"pk_{table}");
-
-            foreach (var index in entity.GetIndexes())
-                index.SetDatabaseName($"ix_{table}_{string.Join('_', index.Properties.Select(p => p.GetColumnName()))}");
-
-            foreach (var foreignKey in entity.GetForeignKeys())
-                foreignKey.SetConstraintName(
-                    $"fk_{table}_{foreignKey.PrincipalEntityType.GetTableName()}_{string.Join('_', foreignKey.Properties.Select(p => p.GetColumnName()))}");
-        }
-    }
-
-    internal static string ToSnakeCase(string name)
-    {
-        var builder = new StringBuilder(name.Length + 4);
-        for (var i = 0; i < name.Length; i++)
-        {
-            if (char.IsUpper(name[i]) && i > 0)
-                builder.Append('_');
-            builder.Append(char.ToLowerInvariant(name[i]));
-        }
-
-        return builder.ToString();
-    }
 }

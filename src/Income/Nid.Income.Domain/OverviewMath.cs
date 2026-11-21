@@ -158,7 +158,7 @@ public static class OverviewMath
 
     private static decimal? YearlyRate(decimal? now, decimal? then)
         => now is { } n && then is { } t && t > 0m && n >= 0m
-            ? Math.Round((decimal)(Math.Pow((double)(n / t), 1.0 / 3.0) - 1.0) * 100m, 1, MidpointRounding.AwayFromZero)
+            ? Math.Round(Decimals.FromDouble(Math.Pow((double)(n / t), 1.0 / 3.0) - 1.0) * 100m, 1, MidpointRounding.AwayFromZero)
             : null;
 
     /// <summary>Sum of the dues within the dates; null when one of them is not convertible.</summary>

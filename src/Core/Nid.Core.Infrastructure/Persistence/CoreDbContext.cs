@@ -1,3 +1,4 @@
+using Nid.Platform.Infrastructure.Persistence;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
@@ -194,7 +195,7 @@ public sealed class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbC
             e.Property(x => x.EditedPayload).HasColumnType("jsonb");
             e.Property(x => x.Warnings).HasColumnType("jsonb");
             e.Property(x => x.Fingerprint).HasColumnType("char(64)");
-            e.Property(x => x.AppliedRefs).HasDefaultValueSql("'{}'");
+            e.PrimitiveCollection(x => x.AppliedRefs).HasDefaultValueSql("'{}'");
             e.HasIndex(x => x.Fingerprint).IsUnique().HasFilter("status = 'pending'");
             e.HasIndex(x => new { x.Kind, x.TargetItemId, x.SubjectKey }).HasFilter("status = 'pending'");
             e.HasIndex(x => new { x.TargetItemId, x.Status });
@@ -342,48 +343,9 @@ public sealed class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbC
         });
 
         modelBuilder.MapAuditLog(ownedHere: false);
-        ApplySnakeCase(modelBuilder);
+        ModelNaming.Apply(modelBuilder);
     }
 
     private static void MapXmin(Microsoft.EntityFrameworkCore.Metadata.Builders.PropertyBuilder<uint> property)
         => property.HasColumnName("xmin").HasColumnType("xid").ValueGeneratedOnAddOrUpdate().IsConcurrencyToken();
-
-    private static void ApplySnakeCase(ModelBuilder modelBuilder)
-    {
-        foreach (var entity in modelBuilder.Model.GetEntityTypes())
-        foreach (var property in entity.GetProperties())
-        {
-            if (property.Name == nameof(PersonRow.Version))
-                continue; // mapped to the system column xmin
-
-            property.SetColumnName(ToSnakeCase(property.Name));
-        }
-
-        foreach (var entity in modelBuilder.Model.GetEntityTypes())
-        {
-            var table = entity.GetTableName()!;
-            entity.FindPrimaryKey()?.SetName($"pk_{table}");
-
-            // An index named in the model (HasDatabaseName) keeps its name: the partial unique ones are named for what they guard.
-            foreach (var index in entity.GetIndexes().Where(i => i.FindAnnotation(RelationalAnnotationNames.Name) is null))
-                index.SetDatabaseName($"ix_{table}_{string.Join('_', index.Properties.Select(p => p.GetColumnName()))}");
-
-            foreach (var foreignKey in entity.GetForeignKeys())
-                foreignKey.SetConstraintName(
-                    $"fk_{table}_{foreignKey.PrincipalEntityType.GetTableName()}_{string.Join('_', foreignKey.Properties.Select(p => p.GetColumnName()))}");
-        }
-    }
-
-    internal static string ToSnakeCase(string name)
-    {
-        var builder = new StringBuilder(name.Length + 4);
-        for (var i = 0; i < name.Length; i++)
-        {
-            if (char.IsUpper(name[i]) && i > 0)
-                builder.Append('_');
-            builder.Append(char.ToLowerInvariant(name[i]));
-        }
-
-        return builder.ToString();
-    }
 }

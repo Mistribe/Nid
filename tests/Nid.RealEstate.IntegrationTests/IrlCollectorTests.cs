@@ -253,7 +253,7 @@ public class IrlCollectorTests(PostgresFixture fixture) : IClassFixture<Postgres
         await using var app = await StartAsync(fixture);
 
         var (_, failure) = await app.InvokeAsync(app.AdultA,
-            new SetIrlValueCommand(year, quarter, (decimal)value, NodaTime.Text.LocalDatePattern.Iso.Parse(publishedOn).Value), TestContext.Current.CancellationToken);
+            new SetIrlValueCommand(year, quarter, Decimals.FromDouble(value), NodaTime.Text.LocalDatePattern.Iso.Parse(publishedOn).Value), TestContext.Current.CancellationToken);
 
         Assert.Equal((IrlCodes.InvalidIrlValue, field), (failure?.Code, failure?.Metadata?["field"]));
         Assert.Empty(await StoredAsync(app));

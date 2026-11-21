@@ -39,7 +39,7 @@ public class ProjectionAssumptionRulesTests
     [InlineData(0.51)]
     [InlineData(-0.51)]
     public void Rate_above_50_percent_is_refused(double rate)
-        => Assert.Equal("classRates.equity", Only(WithRate(AllocationClasses.Equity, (decimal)rate)));
+        => Assert.Equal("classRates.equity", Only(WithRate(AllocationClasses.Equity, Decimals.FromDouble(rate))));
 
     [Fact]
     public void Rate_at_the_limits_is_accepted()
@@ -52,7 +52,7 @@ public class ProjectionAssumptionRulesTests
     [InlineData(-0.06)]
     [InlineData(0.21)]
     public void Inflation_outside_minus5_to_20_is_refused(double inflation)
-        => Assert.Equal("inflation", Only(With(a => a with { Inflation = (decimal)inflation })));
+        => Assert.Equal("inflation", Only(With(a => a with { Inflation = Decimals.FromDouble(inflation) })));
 
     [Fact]
     public void Unknown_savings_class_is_refused()

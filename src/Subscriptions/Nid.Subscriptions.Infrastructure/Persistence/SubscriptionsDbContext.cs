@@ -1,3 +1,4 @@
+using Nid.Platform.Infrastructure.Persistence;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Nid.Platform.Infrastructure.Audit;
@@ -163,7 +164,7 @@ public sealed class SubscriptionsDbContext(DbContextOptions<SubscriptionsDbConte
                 t.HasCheckConstraint("ck_provider_icon", "(icon_asset is null) = (icon_source is null)");
             });
             e.HasKey(x => x.Key);
-            e.Property(x => x.IncludedKeys).HasDefaultValueSql("'{}'");
+            e.PrimitiveCollection(x => x.IncludedKeys).HasDefaultValueSql("'{}'");
             e.Property(x => x.ImportHash).HasColumnType("char(64)");
             e.Property(x => x.IconAsset).HasColumnType("char(64)");
             e.HasIndex(x => x.IconAsset); // the icon route asks whether a hash is a catalog provider's (Task 5)
@@ -184,7 +185,7 @@ public sealed class SubscriptionsDbContext(DbContextOptions<SubscriptionsDbConte
         });
 
         modelBuilder.MapAuditLog(ownedHere: false);
-        ApplySnakeCase(modelBuilder);
+        ModelNaming.Apply(modelBuilder);
     }
 
     // A row is imported or it is not: ref and hash come together. Where the ref is unique: see MapImport
@@ -208,42 +209,4 @@ public sealed class SubscriptionsDbContext(DbContextOptions<SubscriptionsDbConte
 
     private static void MapXmin(Microsoft.EntityFrameworkCore.Metadata.Builders.PropertyBuilder<uint> property)
         => property.HasColumnName("xmin").HasColumnType("xid").ValueGeneratedOnAddOrUpdate().IsConcurrencyToken();
-
-    private static void ApplySnakeCase(ModelBuilder modelBuilder)
-    {
-        foreach (var entity in modelBuilder.Model.GetEntityTypes())
-        foreach (var property in entity.GetProperties())
-        {
-            if (property.Name == nameof(SubscriptionRow.Version))
-                continue; // mapped to the system column xmin
-
-            property.SetColumnName(ToSnakeCase(property.Name));
-        }
-
-        foreach (var entity in modelBuilder.Model.GetEntityTypes())
-        {
-            var table = entity.GetTableName()!;
-            entity.FindPrimaryKey()?.SetName($"pk_{table}");
-
-            foreach (var index in entity.GetIndexes())
-                index.SetDatabaseName($"ix_{table}_{string.Join('_', index.Properties.Select(p => p.GetColumnName()))}");
-
-            foreach (var foreignKey in entity.GetForeignKeys())
-                foreignKey.SetConstraintName(
-                    $"fk_{table}_{foreignKey.PrincipalEntityType.GetTableName()}_{string.Join('_', foreignKey.Properties.Select(p => p.GetColumnName()))}");
-        }
-    }
-
-    internal static string ToSnakeCase(string name)
-    {
-        var builder = new StringBuilder(name.Length + 4);
-        for (var i = 0; i < name.Length; i++)
-        {
-            if (char.IsUpper(name[i]) && i > 0)
-                builder.Append('_');
-            builder.Append(char.ToLowerInvariant(name[i]));
-        }
-
-        return builder.ToString();
-    }
 }

@@ -80,7 +80,7 @@ public class ProjectionScenarioSimulateTests(PostgresFixture fixture) : IClassFi
         => List(view, "warnings").Select(w => (Str(w, "code"), Str(w, "detail"))).ToList();
 
     /// <summary>The savings class's monthly rate as the engine computes it (cash, 2 % a year).</summary>
-    private static decimal CashMonthly => (decimal)Math.Pow(1.02, 1.0 / 12) - 1m;
+    private static decimal CashMonthly => Decimals.FromDouble(Math.Pow(1.02, 1.0 / 12)) - 1m;
 
     [Fact]
     public async Task Income_drop_at_retirement_lowers_the_curve()
@@ -311,7 +311,7 @@ public class ProjectionScenarioSimulateTests(PostgresFixture fixture) : IClassFi
         var expected = Dec(based[3], "savings") - 30_000m * (1m + CashMonthly) + 700m;
         Assert.InRange(Dec(scenario[3], "savings"), expected - 0.01m, expected + 0.01m);
         // The home grows at the real estate rate (2 %); the loan's balance falls.
-        var grown = 215_000m * (decimal)Math.Pow(1.02, 1.0 / 12);
+        var grown = 215_000m * Decimals.FromDouble(Math.Pow(1.02, 1.0 / 12));
         Assert.InRange(Dec(scenario[4], "property"), grown - 0.01m, grown + 0.01m);
         Assert.True(Dec(scenario[4], "debt") < 200_000m);
         var milestone = Assert.Single(List(view.GetProperty("scenario"), "milestones"), m => Str(m, "kind") == "event");

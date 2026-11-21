@@ -106,7 +106,7 @@ How adults sign in, and the trade-offs of each way: [`docs/identity-and-access/l
 
 ## Development
 
-Requirements: the .NET 10 SDK (see [`global.json`](global.json)), the [Aspire CLI](https://aspire.dev), Docker, and
+Requirements: the .NET 11 SDK (see [`global.json`](global.json)), the [Aspire CLI](https://aspire.dev), Docker, and
 Node 24 or later with pnpm (`corepack enable`).
 
 ```bash
@@ -140,7 +140,7 @@ node deploy/local/demo/sign-in-link.mjs alice   # a one-time sign-in link (the d
 
 | Layer | Choice |
 |---|---|
-| Back end | .NET 10, ASP.NET Core minimal APIs, EF Core with Npgsql, NodaTime, Quartz.NET, [Synapse](https://github.com/UnambitiousFx/Synapse) for commands, queries and events |
+| Back end | .NET 11, ASP.NET Core minimal APIs, EF Core with Npgsql, NodaTime, Quartz.NET, [Synapse](https://github.com/UnambitiousFx/Synapse) for commands, queries and events |
 | Database | PostgreSQL, one schema per module |
 | Front end | React, TypeScript, Vite, Tailwind CSS and shadcn/ui, TanStack Query, a client generated from the OpenAPI document; installable as a PWA |
 | Identity | Local accounts (PBKDF2 passwords, optional TOTP) or Pocket ID (OIDC, passkeys), or both; the browser talks to a backend-for-frontend with a session cookie |

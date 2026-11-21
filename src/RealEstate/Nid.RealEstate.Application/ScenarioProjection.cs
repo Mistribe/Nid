@@ -70,7 +70,7 @@ public sealed class RealEstateScenarioProjection(
             missing, reference, rates, today, months, repayments, sales.Select(s => s.Event).ToList());
 
         var growth = (double)annualGrowth;
-        decimal Grown(decimal amount, int k) => amount * (decimal)Math.Pow(1 + growth, k / 12.0);
+        decimal Grown(decimal amount, int k) => amount * Decimals.FromDouble(Math.Pow(1 + growth, k / 12.0));
         // A sold property leaves from its sale's month; without a sale the sum grows as one, as the purchase scenario reads it.
         decimal ValueAt(int k)
             => Grown(value - sales.Where(s => s.Event.Month <= k).Sum(s => values.GetValueOrDefault(s.Property.ItemId)), k);

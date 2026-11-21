@@ -357,7 +357,7 @@ internal static class InvestmentsHoldingsMath
     internal static FeesProjectionView? Projection(IReadOnlyList<FeeLine> lines, decimal assumedReturnPct, Converter convert)
     {
         if (lines.Count == 0) return null;
-        decimal Grown(decimal value, decimal feesPct, int years) => value * (decimal)Math.Pow(1 + (double)((assumedReturnPct - feesPct) / 100m), years);
+        decimal Grown(decimal value, decimal feesPct, int years) => value * Decimals.FromDouble(Math.Pow(1 + (double)((assumedReturnPct - feesPct) / 100m), years));
         static decimal Cent(decimal amount) => Math.Round(amount, 2, MidpointRounding.AwayFromZero);
         static decimal Weighted(IEnumerable<FeeLine> of, Func<FeeLine, decimal> pick)
         {

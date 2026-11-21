@@ -103,7 +103,7 @@ public static partial class ScenarioCalculator
         }
         var purchaseMonth = Of(purchaseOn);
         var monthlyRate = facts.Savings.Select(s => s.Class).Append(a.SavingsClass).Distinct().ToDictionary(c => c,
-            c => (decimal)Math.Pow(1 + (double)a.ClassRates.GetValueOrDefault(c), 1.0 / 12) - 1m);
+            c => Decimals.FromDouble(Math.Pow(1 + (double)a.ClassRates.GetValueOrDefault(c), 1.0 / 12)) - 1m);
         var growth = (double)(a.PropertyGrowth ?? a.ClassRates.GetValueOrDefault(AllocationClasses.RealEstate));
         var loans = doc.Loans.Zip(facts.Loans, (l, s) => (l.Amount, s.Rows)).ToList();
         var monthlyCost = doc.MonthlyCharges - Rent(doc) + facts.MonthlyTaxIncrease;
@@ -145,7 +145,7 @@ public static partial class ScenarioCalculator
             if (bought)
             {
                 var debt = loans.Sum(l => l.Rows.LastOrDefault(r => r.DueDate <= end) is { } r ? r.Balance : l.Amount);
-                netWith += doc.Price * (decimal)Math.Pow(1 + growth, held++ / 12.0) - debt;
+                netWith += doc.Price * Decimals.FromDouble(Math.Pow(1 + growth, held++ / 12.0)) - debt;
             }
             points.Add(new(end, Cent(netWithout), Cent(netWith)));
         }
