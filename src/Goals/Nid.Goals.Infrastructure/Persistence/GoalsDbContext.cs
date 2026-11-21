@@ -56,36 +56,9 @@ public sealed class GoalsDbContext(DbContextOptions<GoalsDbContext> options) : D
         });
 
         modelBuilder.MapAuditLog(ownedHere: false);
-        ApplySnakeCase(modelBuilder);
+        ModelNaming.Apply(modelBuilder);
     }
 
     private static void MapXmin(Microsoft.EntityFrameworkCore.Metadata.Builders.PropertyBuilder<uint> property)
         => property.HasColumnName("xmin").HasColumnType("xid").ValueGeneratedOnAddOrUpdate().IsConcurrencyToken();
-
-    private static void ApplySnakeCase(ModelBuilder modelBuilder)
-    {
-        foreach (var entity in modelBuilder.Model.GetEntityTypes())
-        foreach (var property in entity.GetProperties())
-        {
-            if (property.Name == nameof(GoalRow.Version))
-                continue; // mapped to the system column xmin
-
-            property.SetColumnName(ToSnakeCase(property.Name));
-        }
-
-        ModelNaming.NameConstraints(modelBuilder);
-    }
-
-    internal static string ToSnakeCase(string name)
-    {
-        var builder = new StringBuilder(name.Length + 4);
-        for (var i = 0; i < name.Length; i++)
-        {
-            if (char.IsUpper(name[i]) && i > 0)
-                builder.Append('_');
-            builder.Append(char.ToLowerInvariant(name[i]));
-        }
-
-        return builder.ToString();
-    }
 }

@@ -61,28 +61,6 @@ public sealed class DocumentsDbContext(DbContextOptions<DocumentsDbContext> opti
         });
 
         modelBuilder.MapAuditLog(ownedHere: false);
-        ApplySnakeCase(modelBuilder);
-    }
-
-    private static void ApplySnakeCase(ModelBuilder modelBuilder)
-    {
-        foreach (var entity in modelBuilder.Model.GetEntityTypes())
-        foreach (var property in entity.GetProperties())
-            property.SetColumnName(ToSnakeCase(property.Name));
-
-        ModelNaming.NameConstraints(modelBuilder);
-    }
-
-    internal static string ToSnakeCase(string name)
-    {
-        var builder = new StringBuilder(name.Length + 4);
-        for (var i = 0; i < name.Length; i++)
-        {
-            if (char.IsUpper(name[i]) && i > 0)
-                builder.Append('_');
-            builder.Append(char.ToLowerInvariant(name[i]));
-        }
-
-        return builder.ToString();
+        ModelNaming.Apply(modelBuilder);
     }
 }

@@ -237,7 +237,7 @@ public sealed class RealEstateDbContext(DbContextOptions<RealEstateDbContext> op
         }
 
         modelBuilder.MapAuditLog(ownedHere: false);
-        ApplySnakeCase(modelBuilder);
+        ModelNaming.Apply(modelBuilder);
     }
 
     private static void MapXmin(PropertyBuilder<uint> property)
@@ -245,31 +245,4 @@ public sealed class RealEstateDbContext(DbContextOptions<RealEstateDbContext> op
 
     /// <summary>A row is imported or it is not: ref, hash and importer come together (as investments.envelope).</summary>
     private const string ImportCheck = "(import_ref is null) = (import_hash is null) and (import_ref is null) = (imported_by is null)";
-
-    private static void ApplySnakeCase(ModelBuilder modelBuilder)
-    {
-        foreach (var entity in modelBuilder.Model.GetEntityTypes())
-        foreach (var property in entity.GetProperties())
-        {
-            if (property.Name == nameof(LoanRow.Version))
-                continue; // mapped to the system column xmin
-
-            property.SetColumnName(ToSnakeCase(property.Name));
-        }
-
-        ModelNaming.NameConstraints(modelBuilder);
-    }
-
-    internal static string ToSnakeCase(string name)
-    {
-        var builder = new StringBuilder(name.Length + 4);
-        for (var i = 0; i < name.Length; i++)
-        {
-            if (char.IsUpper(name[i]) && i > 0)
-                builder.Append('_');
-            builder.Append(char.ToLowerInvariant(name[i]));
-        }
-
-        return builder.ToString();
-    }
 }

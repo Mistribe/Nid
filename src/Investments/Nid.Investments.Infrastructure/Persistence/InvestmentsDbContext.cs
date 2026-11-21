@@ -183,7 +183,7 @@ public sealed class InvestmentsDbContext(DbContextOptions<InvestmentsDbContext> 
         });
 
         modelBuilder.MapAuditLog(ownedHere: false);
-        ApplySnakeCase(modelBuilder);
+        ModelNaming.Apply(modelBuilder, ToSnakeCase);
         // Issue #34 §2.5's name; snake case alone would glue the digit to the word before it.
         modelBuilder.Entity<HoldingCostReportRow>().Property(x => x.NetAnnualized5yPct).HasColumnName("net_annualized_5y_pct");
     }
@@ -199,20 +199,6 @@ public sealed class InvestmentsDbContext(DbContextOptions<InvestmentsDbContext> 
 
     private static void MapXmin(Microsoft.EntityFrameworkCore.Metadata.Builders.PropertyBuilder<uint> property)
         => property.HasColumnName("xmin").HasColumnType("xid").ValueGeneratedOnAddOrUpdate().IsConcurrencyToken();
-
-    private static void ApplySnakeCase(ModelBuilder modelBuilder)
-    {
-        foreach (var entity in modelBuilder.Model.GetEntityTypes())
-        foreach (var property in entity.GetProperties())
-        {
-            if (property.Name == nameof(EnvelopeRow.Version))
-                continue; // mapped to the system column xmin
-
-            property.SetColumnName(ToSnakeCase(property.Name));
-        }
-
-        ModelNaming.NameConstraints(modelBuilder);
-    }
 
     internal static string ToSnakeCase(string name)
     {
