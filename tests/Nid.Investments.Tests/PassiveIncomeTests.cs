@@ -242,6 +242,49 @@ public class PassiveIncomeTests
     }
 
     [Fact]
+    public void Passive_income_counts_the_interest_month_of_a_bank_fed_livret()
+    {
+        var livret = new EnvelopeFacts("Livret A", EnvelopeKind.Savings)
+            .Flow(D(2025, 1, 1), FlowKind.Opening, 1_000m).Value(D(2025, 11, 30), 1_000m, FactSource.BankApi)
+            .Flow(D(2026, 2, 10), FlowKind.Contribution, 100m, reference: "bank:11111111-1111-1111-1111-111111111111")
+            .Flow(D(2026, 3, 31), FlowKind.Income, 12.5m, FlowCategories.Interest, "bank:22222222-2222-2222-2222-222222222222:interest")
+            .Value(D(2026, 2, 28), 1_100m, FactSource.BankApi).Value(D(2026, 3, 31), 1_112.5m, FactSource.BankApi).Build();
+
+        var p = Build([livret]);
+
+        Assert.Empty(p.Excluded);
+        Assert.Equal(0m, N(Month(p, "2026-02").Total));
+        Assert.Equal(12.5m, N(Month(p, "2026-03").Total));
+        Assert.Equal(12.5m, N(p.Total));
+    }
+
+    [Fact]
+    public void A_bank_deposit_alone_leaves_a_livret_without_flows_until_its_opening_is_typed()
+    {
+        EnvelopePerformance.Facts Livret(bool opening)
+        {
+            var facts = new EnvelopeFacts("Livret A", EnvelopeKind.Savings).Value(D(2026, 1, 31), 10_000m, FactSource.BankApi)
+                .Flow(D(2026, 2, 10), FlowKind.Contribution, 100m, reference: "bank:33333333-3333-3333-3333-333333333333").Value(D(2026, 3, 31), 10_150m, FactSource.BankApi);
+            return (opening ? facts.Flow(D(2026, 1, 31), FlowKind.Opening, 10_000m) : facts).Build();
+        }
+
+        var linked = Livret(opening: false);
+        Assert.Equal(new ExcludedEnvelopeView(linked.Item.Id, "Livret A", PassiveIncomeCodes.SavingsWithoutFlows), Assert.Single(Build([linked]).Excluded));
+        Assert.Empty(Build([Livret(opening: true)]).Excluded);
+    }
+
+    [Fact]
+    public void A_livret_without_opening_or_contribution_stays_savings_without_flows()
+    {
+        var livret = new EnvelopeFacts("Livret A", EnvelopeKind.Savings).Value(D(2026, 3, 31), 1_012.5m, FactSource.BankApi)
+            .Flow(D(2026, 3, 31), FlowKind.Income, 12.5m, FlowCategories.Interest, "bank:22222222-2222-2222-2222-222222222222:interest").Build();
+
+        var p = Build([livret]);
+
+        Assert.Equal(new ExcludedEnvelopeView(livret.Item.Id, "Livret A", PassiveIncomeCodes.SavingsWithoutFlows), Assert.Single(p.Excluded));
+    }
+
+    [Fact]
     public void A_savings_account_without_flows_is_left_out()
     {
         var bare = new EnvelopeFacts("Livret A", EnvelopeKind.Savings).Value(D(2025, 11, 30), 10_000m).Value(D(2026, 6, 30), 10_200m).Build();
