@@ -27,14 +27,20 @@ public sealed record GetSpendingQuery(VisibilityScope Scope, YearMonth? Month, Y
 /// spending less the lines linked to an item and the tax, so not <paramref name="Total"/>) and <paramref name="Left"/>, income − committed −
 /// everyday. <paramref name="LeftEstimate"/>, the current month only: income − committed − the larger of everyday and the usual everyday
 /// month (the same lines averaged over the months of <paramref name="Average"/>); null without that average.
+/// Issue #428, over a period: <paramref name="Income"/>, <paramref name="Committed"/>, <paramref name="Everyday"/> and <paramref name="Left"/>
+/// are its months' sums, each null when one month's is; <paramref name="SavingsRate"/>, <paramref name="Left"/> ÷ <paramref name="Income"/> in
+/// percent to 0.1, null without an income above 0.
 /// </summary>
 public sealed record SpendingView(
     string Currency, string Total, bool Incomplete, string? Average, IReadOnlyList<SpendingCategoryView> Categories,
     SpendingUncategorisedView Uncategorised, string From, string To, IReadOnlyList<SpendingMonthView> Months, bool BudgetIncomplete,
-    string? Income, string? Committed, string? Everyday, string? Left, string? LeftEstimate);
+    string? Income, string? Committed, string? Everyday, string? Left, string? LeftEstimate, decimal? SavingsRate);
 
-/// <summary>One month of a <see cref="SpendingView"/>: <paramref name="Month"/> is <c>yyyy-MM</c>.</summary>
-public sealed record SpendingMonthView(string Month, string Total);
+/// <summary>
+/// One month of a <see cref="SpendingView"/>: <paramref name="Month"/> is <c>yyyy-MM</c>. Issue #428: <paramref name="Income"/>,
+/// <paramref name="Committed"/>, <paramref name="Everyday"/> and <paramref name="Left"/> are Accueil's figures for that month, as the month view's.
+/// </summary>
+public sealed record SpendingMonthView(string Month, string Total, string? Income, string? Committed, string? Everyday, string? Left);
 
 /// <summary>
 /// A top-level expense category, its <paramref name="Amount"/> including its children's and the lines filed on it directly (those have no
@@ -197,8 +203,7 @@ public sealed class GetSpendingHandler(
         if (!figures.TryGetValue(out var sums))
             return BankingAccess.Failed<SpendingView, Spent>(figures);
         var (from, to, reference, spent, covered, today) = (sums.From, sums.To, sums.Reference, sums.ByCategory, sums.Covered, sums.Today);
-        var months = Enumerable.Range(0, Index(to) - Index(from) + 1).Select(i => from.PlusMonths(i))
-            .Select(m => new SpendingMonthView(YearMonthPattern.Iso.Format(m), Money(sums.ByMonth.GetValueOrDefault(m)))).ToList();
+        var span = Enumerable.Range(0, Index(to) - Index(from) + 1).Select(i => from.PlusMonths(i)).ToList();
         var byId = (await categories.AllAsync(ct)).ToDictionary(c => c.Id);
         // Decision 7: the budget is the household's, set against « Foyer » one month at a time.
         var (plans, uncommitted) = query is { Scope: VisibilityScope.Household, From: null, To: null }
@@ -228,27 +233,40 @@ public sealed class GetSpendingHandler(
                 total.Range));
         }
 
-        // Issue #425: Accueil's month, one month at a time (a period's would read every module once a month).
+        // Issue #425: Accueil's month; #428: a period's each month the same way, then added up.
+        var perMonth = new List<MonthBudget>();
         MonthBudget? month = null;
         decimal? estimate = null;
-        if (query is { From: null, To: null } && actor.Current?.PersonId is { } reader)
+        if (actor.Current?.PersonId is { } reader)
         {
-            var read = await monthBudget.MonthAsync(reader, query.Scope, from, today, ct);
-            if (!read.TryGetValue(out month))
-                return BankingAccess.Failed<SpendingView, MonthBudget>(read);
-            // A past month is over: nothing to estimate.
-            if (from == today.ToYearMonth() && averaged && month!.Everyday is { } everyday && await UsualEverydayAsync(sums, byId, ct) is { } usual)
+            foreach (var m in span)
+            {
+                var read = await monthBudget.MonthAsync(reader, query.Scope, m, today, ct);
+                if (!read.TryGetValue(out var budget))
+                    return BankingAccess.Failed<SpendingView, MonthBudget>(read);
+                perMonth.Add(budget!);
+            }
+            month = MonthBudget.Sum(perMonth);
+            // A past month is over, and a period is no month to end: nothing to estimate.
+            if (query is { From: null, To: null } && from == today.ToYearMonth() && averaged && month.Everyday is { } everyday
+                    && await UsualEverydayAsync(sums, byId, ct) is { } usual)
                 estimate = month.Margin - Math.Max(everyday, usual);
         }
 
         var none = spent.GetValueOrDefault(Guid.Empty);
         string? Amount(decimal? amount) => amount is { } a ? Money(a) : null;
+        var months = span.Select((m, i) =>
+        {
+            var b = perMonth.ElementAtOrDefault(i); // none without a reader
+            return new SpendingMonthView(YearMonthPattern.Iso.Format(m), Money(sums.ByMonth.GetValueOrDefault(m)),
+                Amount(b?.Income), Amount(b?.Committed), Amount(b?.Everyday), Amount(b?.Left));
+        }).ToList();
         return Result.Success(new SpendingView(
             reference.Code, Money(spent.Values.Sum(s => s.Range)), sums.Incomplete.Count > 0, Average(spent.Values.Sum(s => s.Before)),
             [.. tops.OrderByDescending(t => t.Range).ThenBy(t => t.View.Name, ByName).Select(t => t.View)],
             new SpendingUncategorisedView(Money(none.Range), Average(none.Before), sums.ToClassify),
             YearMonthPattern.Iso.Format(from), YearMonthPattern.Iso.Format(to), months, uncommitted,
-            Amount(month?.Income), Amount(month?.Committed), Amount(month?.Everyday), Amount(month?.Left), Amount(estimate)));
+            Amount(month?.Income), Amount(month?.Committed), Amount(month?.Everyday), Amount(month?.Left), Amount(estimate), month?.SavingsRate));
     }
 
     /// <summary>

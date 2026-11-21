@@ -24,6 +24,7 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { shiftMonth } from '@/features/calendar/calendarDates';
 import { mergeTargets } from './categoryTargets';
+import { percent } from '@/lib/format';
 import { toPlot } from '@/lib/plot';
 import type { RootSearch } from '@/lib/search';
 import { todayIso } from '@/lib/today';
@@ -263,7 +264,7 @@ function Figures({ data, period, year, household, onOpen, onBudget, onSuggest, c
 
   return (
     <>
-      {year ? null : <MonthLeft data={data} />}
+      <MonthLeft data={data} year={year} />
       {year ? (
         <Suspense fallback={<Loading label={t('spending.loading')}><Skeleton className="h-48 w-full" /></Loading>}>
           <MonthsChart months={data.months} currency={data.currency} />
@@ -343,9 +344,10 @@ function Figures({ data, period, year, household, onOpen, onBudget, onSuggest, c
 
 /**
  * #425: what is left this month (Accueil's « Reste réel ») and its parts, then how the month would end as usual. Every figure is the
- * server's, its sign read off its text: an overspend reads « Dépassement de » the amount without its minus.
+ * server's, its sign read off its text: an overspend reads « Dépassement de » the amount without its minus. #428: over 12 months, the
+ * months' sums and the savings rate.
  */
-function MonthLeft({ data }: { data: Spending }) {
+function MonthLeft({ data, year }: { data: Spending; year: boolean }) {
   const { t } = useTranslation();
   const money = (amount: string) => formatCurrency(amount, data.currency);
   const known = (amount: string | null | undefined) => (amount ? money(amount) : '—');
@@ -357,11 +359,15 @@ function MonthLeft({ data }: { data: Spending }) {
   return (
     <div className="space-y-2">
       <StatLine items={[
-        { label: t('spending.left.title'), value: left, tip: t('spending.left.tip'),
+        { label: t(year ? 'spending.left.title_period' : 'spending.left.title'), value: left, tip: t(year ? 'spending.left.tip_period' : 'spending.left.tip'),
           hint: data.income ? undefined : <Link to="/income" className="font-medium text-foreground underline underline-offset-4">{t('spending.left.declare_income')}</Link> },
-        { label: t('spending.left.income'), value: data.income ? money(data.income) : t('spending.left.unknown'), tip: t('spending.left.income_tip') },
+        { label: t('spending.left.income'), value: data.income ? money(data.income) : t('spending.left.unknown'), tip: t(year ? 'spending.left.income_tip_period' : 'spending.left.income_tip') },
         { label: t('spending.left.committed'), value: known(data.committed), tip: t('spending.left.committed_tip') },
         { label: t('spending.left.everyday'), value: known(data.everyday), tip: t('spending.left.everyday_tip') },
+        ...(year ? [{
+          label: t('spending.left.savings_rate'), tip: t('spending.left.savings_rate_tip'),
+          value: data.savingsRate == null ? t('spending.left.unknown') : t('spending.left.rate_value', { value: percent(data.savingsRate) }),
+        }] : []),
       ]} />
       {estimate ? (
         <p className="flex items-center gap-1 text-sm text-muted-foreground">

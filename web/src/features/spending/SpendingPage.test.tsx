@@ -73,22 +73,49 @@ describe('« Dépenses »', () => {
       expect(screen.queryByText(/Si le mois finit/)).toBeNull();
     });
 
-    it('is not on the 12 months', async () => {
+    it('is the period’s on the 12 months, with its savings rate (#428), which a month has not', async () => {
       spendingServer(year);
-      await renderApp('/spending?period=12m');
+      const { container } = await renderApp('/spending?period=12m');
       await screen.findByRole('table', { name: 'Par catégorie' });
       expect(screen.queryByText('Reste ce mois-ci')).toBeNull();
+      expect(figure('Reste sur la période')).toHaveTextContent(/8\s250,00\s€/);
+      expect(figure('Revenus')).toHaveTextContent(/37\s200,00\s€/);
+      expect(figure('Engagements')).toHaveTextContent(/18\s000,00\s€/);
+      expect(figure('Dépenses courantes')).toHaveTextContent(/10\s950,00\s€/);
+      expect(figure('Taux d’épargne')).toHaveTextContent(/22,2\s%/);
+      expect(within(figure('Taux d’épargne')).getByRole('button', { name: /Taux d’épargne/ })).toBeInTheDocument();
+      expect(screen.queryByText(/Si le mois finit/)).toBeNull();
+      await expectNoAxeViolations(container);
+    });
+
+    it('reads the savings rate « inconnu » over 12 months without a declared income', async () => {
+      spendingServer({ ...year, income: null, left: null, savingsRate: null, months: year.months.map((m) => ({ ...m, income: null, left: null })) });
+      await renderApp('/spending?period=12m');
+      await screen.findByText('Reste sur la période', { selector: 'dt' });
+      expect(figure('Taux d’épargne')).toHaveTextContent('inconnu');
+      expect(figure('Revenus')).toHaveTextContent('inconnu');
+      expect(within(figure('Reste sur la période')).getByRole('link', { name: 'Déclarer un revenu' })).toHaveAttribute('href', '/income');
+    });
+
+    it('has no savings rate on a month', async () => {
+      spendingServer();
+      await renderApp('/spending');
+      await screen.findByText('Reste ce mois-ci', { selector: 'dt' });
+      expect(screen.queryByText('Taux d’épargne')).toBeNull();
     });
   });
 
   describe('the 12 months', () => {
     reduceMotion();
 
-    it('draws each month the server sums, its table showing the server’s figures, and no usual month beside a period’s amounts', async () => {
+    it('draws each month’s income against its commitments and everyday spending, its table showing the server’s figures, and no usual month beside a period’s amounts', async () => {
       spendingServer(year);
       const { user, container } = await renderApp('/spending?period=12m');
 
       const chart = await screen.findByRole('region', { name: 'Mois par mois' });
+      // #428: four series, named in the legend; a bar per month for each spending part.
+      await waitFor(() => expect(container.querySelectorAll('.recharts-bar-rectangle')).toHaveLength(24));
+      for (const name of ['Revenus', 'Engagements', 'Dépenses courantes', 'Reste']) expect(within(chart).getByText(name)).toBeInTheDocument();
       expect(screen.getByText('Mois habituel', { selector: 'dt' }).closest('div')).toHaveTextContent('par mois, sur les mois avant la période (12 au plus)');
       const categories = screen.getByRole('table', { name: 'Par catégorie' });
       expect(within(categories).queryByRole('columnheader', { name: 'Mois habituel' })).toBeNull();
@@ -97,8 +124,9 @@ describe('« Dépenses »', () => {
       await user.click(within(chart).getByRole('button', { name: 'Afficher en tableau' }));
       const rows = within(within(chart).getByRole('table', { name: 'Mois par mois' })).getAllByRole('row').slice(1);
       expect(rows).toHaveLength(12);
-      expect(rows[0]).toHaveTextContent(/décembre 2025\s*1\s500,00\s€/);
-      expect(rows[11]).toHaveTextContent(/novembre 2026\s*1\s172,73\s€/);
+      expect(within(chart).getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['Mois', 'Revenus', 'Engagements', 'Dépenses courantes', 'Reste']);
+      expect(rows[0]).toHaveTextContent(/décembre 2025\s*3\s000,00\s€\s*1\s500,00\s€\s*1\s600,00\s€\s*-100,00\s€/);
+      expect(rows[11]).toHaveTextContent(/novembre 2026\s*3\s200,00\s€\s*1\s500,00\s€\s*850,00\s€\s*850,00\s€/);
     });
   });
 
