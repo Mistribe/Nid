@@ -335,4 +335,64 @@ public class EnvelopeEndpointTests(PostgresFixture fixture, SharedNidApp shared)
         Assert.Equal(HttpStatusCode.UnprocessableEntity, negative.StatusCode);
         Assert.Equal("premiumsBefore2017", (await JsonAsync(negative)).GetProperty("errors")[0].FieldPath());
     }
+
+    /// <summary>#182: a PEE and a collective PER are kinds of their own, created and edited like any envelope.</summary>
+    [Theory]
+    [InlineData("employee_savings")]
+    [InlineData("collective_per")]
+    public async Task An_employee_plan_is_created_and_edited_with_its_own_kind(string kind)
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var created = await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/investments/envelopes", Plan(app, kind, app.AdultA));
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var id = (await JsonAsync(created)).GetProperty("id").GetGuid();
+
+        var edited = await app.RawAsync(app.AdultA, HttpMethod.Patch, $"/api/v1/investments/envelopes/{id}",
+            new { displayName = "Plan", kind = kind == "employee_savings" ? "collective_per" : "employee_savings" });
+
+        Assert.Equal(HttpStatusCode.OK, edited.StatusCode);
+        var detail = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"/api/v1/investments/envelopes/{id}"));
+        Assert.Equal(kind == "employee_savings" ? "collective_per" : "employee_savings", detail.GetProperty("kind").GetString());
+        var list = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, "/api/v1/investments/envelopes?scope=me"));
+        Assert.Equal(detail.GetProperty("kind").GetString(), Assert.Single(list.GetProperty("items").EnumerateArray()).GetProperty("kind").GetString());
+    }
+
+    /// <summary>#182: a plan is one employee's: two owners or a dependent are refused, on the owners field.</summary>
+    [Fact]
+    public async Task An_employee_plan_has_exactly_one_adult_owner()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        const string url = "/api/v1/investments/envelopes";
+
+        var two = await app.RawAsync(app.AdultA, HttpMethod.Post, url, Plan(app, "employee_savings", app.AdultA, app.AdultB));
+        var child = await app.RawAsync(app.AdultA, HttpMethod.Post, url, Plan(app, "collective_per", app.Dependent));
+
+        foreach (var refused in new[] { two, child })
+        {
+            Assert.Equal(HttpStatusCode.UnprocessableEntity, refused.StatusCode);
+            var body = await JsonAsync(refused);
+            Assert.Equal("investments.plan_owner", body.GetProperty("code").GetString());
+            Assert.Equal("owners", body.GetProperty("errors")[0].FieldPath());
+        }
+
+        // A shared envelope of two adults does not become a plan; one of one adult's does.
+        var joint = await app.RawAsync(app.AdultA, HttpMethod.Post, url, Plan(app, "pea", app.AdultA, app.AdultB));
+        var jointId = (await JsonAsync(joint)).GetProperty("id").GetGuid();
+        var becomes = await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{url}/{jointId}", new { kind = "collective_per" });
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, becomes.StatusCode);
+        Assert.Equal("investments.plan_owner", (await JsonAsync(becomes)).GetProperty("code").GetString());
+
+        var plan = (await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, url, Plan(app, "employee_savings", app.AdultA)))).GetProperty("id").GetGuid();
+        var shared = await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{url}/{plan}",
+            new { owners = new[] { new { personId = app.AdultA.Value, shareBp = 5_000 }, new { personId = app.AdultB.Value, shareBp = 5_000 } } });
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, shared.StatusCode);
+        Assert.Equal("investments.plan_owner", (await JsonAsync(shared)).GetProperty("code").GetString());
+    }
+
+    private static object Plan(NidApp app, string kind, params PersonId[] owners)
+        => new
+        {
+            displayName = "Plan", kind, currency = "EUR", visibility = "shared", valuationCadence = "monthly",
+            owners = owners.Select(o => new { personId = o.Value, shareBp = 10_000 / owners.Length }).ToArray(),
+        };
 }

@@ -361,6 +361,34 @@ public class EnvelopesImportTests(PostgresFixture fixture) : IClassFixture<Postg
         Assert.Equal([("investments.invalid_envelope", "envelopes[1].premiums_before_2017")], batch.Issues.Select(i => (i.Code, i.Path)).ToList());
     }
 
+    /// <summary>#182: a PEE and a collective PER import and export with their kind; a plan of two owners is refused on receipt.</summary>
+    [Fact]
+    public async Task Employee_plans_import_export_and_have_one_adult_owner()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var client = new ImportClient(app);
+        const string plans = """
+            [{"id":"env-pee","name":"PEE","kind":"employee_savings","currency":"EUR","ownership":[{"person":"adult-1","share_bp":10000}]},
+             {"id":"env-percol","name":"PERCOL","kind":"collective_per","currency":"EUR","ownership":[{"person":"adult-1","share_bp":10000}]}]
+            """;
+        await CommitAsync(client, app, app.AdultA, File(plans));
+
+        Assert.Equal("employee_savings", (await JsonAsync(app, app.AdultA, $"/api/v1/investments/envelopes/{await IdOf(app, "PEE")}")).GetProperty("kind").GetString());
+        var exported = (await new Export.ExportClient(app).ExportAllAsync(app.AdultA))["envelopes"];
+        Assert.Equal([("PEE", "employee_savings"), ("PERCOL", "collective_per")],
+            exported.Select(e => (e.GetProperty("name").GetString(), e.GetProperty("kind").GetString())).OrderBy(e => e.Item1).ToList());
+        var again = await CommitAsync(client, app, app.AdultA, File(plans));
+        Assert.Equal(new CountsResponse(0, 2, 0), again.Report!.Sections["envelopes"]);
+
+        var session = await client.StartAsync(app.AdultA, Adults(app));
+        var batch = await client.PutAsync(app.AdultA, session.Id, "envelopes", 0, """
+            [{"id":"env-joint","name":"PEE","kind":"employee_savings","currency":"EUR",
+              "ownership":[{"person":"adult-1","share_bp":5000},{"person":"adult-2","share_bp":5000}]}]
+            """);
+        await client.CancelRawAsync(app.AdultA, session.Id);
+        Assert.Equal([("investments.plan_owner", "envelopes[0].ownership")], batch.Issues.Select(i => (i.Code, i.Path)).ToList());
+    }
+
     /// <summary>#294: <c>share_level</c> imports and exports; an adult who may edit the envelope replaces it, never its sharing.</summary>
     [Fact]
     public async Task The_share_level_imports_exports_and_stays_with_the_owners()

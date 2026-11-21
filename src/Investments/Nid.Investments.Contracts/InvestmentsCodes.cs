@@ -31,4 +31,6 @@ public static class InvestmentsCodes
     /// <summary>#16: a flow kept from a bank line (<c>bank:</c> ref) follows its line, never a hand edit.</summary>
     public const string BankFlow = "investments.bank_flow";
     public const string AboveCeiling = "investments.above_ceiling";
+    /// <summary>#182: a PEE or a collective PER belongs to one employee, so exactly one adult owns it.</summary>
+    public const string PlanOwner = "investments.plan_owner";
 }

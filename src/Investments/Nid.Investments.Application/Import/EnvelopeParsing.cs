@@ -62,6 +62,9 @@ internal static class EnvelopeParsing
                 ok = false;
             }
 
+        if (ok && EnvelopeRules.PlanOwner(kind, owners).TryGetFailure(out var planOwner)) // #182, once the kind and every owner are known
+            ok = Invalid(issues, path + ".ownership", planOwner!.Message, planOwner.Code);
+
         ok &= TryDate(r.OpenedOn, path + ".opened_on", today, issues, out var openedOn)
               & TryDate(r.ClosedOn, path + ".closed_on", today, issues, out var closedOn);
         if (ok)
@@ -108,9 +111,9 @@ internal static class EnvelopeParsing
         return false;
     }
 
-    private static bool Invalid(List<ImportIssue> issues, string path, string message)
+    private static bool Invalid(List<ImportIssue> issues, string path, string message, string code = ImportCodes.InvalidValue)
     {
-        issues.Add(ImportIssue.Error(ImportCodes.InvalidValue, message, path));
+        issues.Add(ImportIssue.Error(code, message, path));
         return false;
     }
 }

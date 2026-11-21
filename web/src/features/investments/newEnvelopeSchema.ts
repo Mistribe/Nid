@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { checkOwnership, ownershipShape, ownershipToWire, type OwnershipValues } from '@/components/ownership/ownership';
 import { CURRENCY, ISO_DATE, toWireAmount, POSITIVE_AMOUNT, SIGNED_AMOUNT } from '@/lib/amount';
 import { todayIso } from '@/lib/today';
-import { CADENCES, KINDS, REGULATED } from './format';
+import { CADENCES, isEmployeePlan, KINDS, REGULATED } from './format';
 import '@/locales/investments';
 import '@/locales/forms';
 
@@ -25,6 +25,9 @@ export function newEnvelopeSchema(t: TFunction) {
     firstValueAmount: z.string(),
   }).superRefine((v, ctx) => {
     checkOwnership(v, ctx, t);
+    // #182: the server also checks the owner is an adult.
+    if (isEmployeePlan(v.kind) && v.owners.length !== 1)
+      ctx.addIssue({ code: 'custom', path: ['owners'], message: t('field_error.investments_plan_owner') });
     const date = (on: string, path: string) => {
       if (!ISO_DATE.test(on)) ctx.addIssue({ code: 'custom', path: [path], message: required });
       else if (on > todayIso()) ctx.addIssue({ code: 'custom', path: [path], message: t('field_error.core_date_in_future') });

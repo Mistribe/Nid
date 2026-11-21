@@ -20,6 +20,8 @@
       "pea": "Plan d’épargne en actions : des actions et fonds européens, avec moins d’impôt après 5 ans.",
       "life_insurance": "Une épargne à long terme, en fonds en euros ou en unités de compte, avec moins d’impôt après 8 ans.",
       "per": "Plan d’épargne retraite : bloqué jusqu’à la retraite, ses versements peuvent réduire l’impôt.",
+      "employee_savings": "Plan d’épargne entreprise, ouvert par votre employeur : bloqué 5 ans, sauf cas de déblocage anticipé.",
+      "collective_per": "PER collectif (PERCOL), ouvert par votre employeur : bloqué jusqu’à la retraite, comme un PER.",
       "brokerage": "Un compte pour acheter actions, fonds ou obligations, sans plafond ni avantage fiscal.",
       "tontine": "Une épargne mise en commun jusqu’à une date fixée, imposée comme une assurance-vie.",
       "other": "Tout autre placement que vous voulez suivre."
