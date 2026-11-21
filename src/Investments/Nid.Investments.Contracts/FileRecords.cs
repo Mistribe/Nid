@@ -61,6 +61,10 @@ public sealed record HoldingRecord
     /// <summary>Written only when false, so a file of before the field imports with the same hash.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public bool? AutoPrice { get; init; }
+
+    /// <summary>Issue #180: an SCPI's entitlement delay in months; written only when set, so a file of before the field keeps its hash.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? EntitlementDelayMonths { get; init; }
 }
 
 /// <summary>A snapshot of an envelope's holdings at a date, its lines nested; a line names a holding by its file id.</summary>
