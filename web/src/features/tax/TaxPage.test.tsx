@@ -502,6 +502,23 @@ describe('TaxPage, Déclaration 2044 tab', () => {
     expect(await screen.findByRole('region', { name: 'Studio' })).toBeInTheDocument();
   });
 
+  it('holds the 2042 while last year’s estimate loads: this year’s would export under the wrong year', async () => {
+    let release = () => {};
+    const lastYear = new Promise<void>((resolve) => { release = resolve; });
+    server.use(http.get('*/api/v1/tax', async ({ request }) => {
+      const year = Number(new URL(request.url).searchParams.get('year'));
+      if (year !== new Date().getFullYear()) await lastYear;
+      return HttpResponse.json({ ...estimate(), year });
+    }));
+    const { user } = await renderApp('/tax');
+
+    await user.click(await screen.findByRole('tab', { name: 'Déclarations' }));
+    expect(screen.getByRole('status', { name: 'Calcul de l’impôt' })).toBeInTheDocument();
+    expect(screen.queryByText('Cases remplies par Nid')).not.toBeInTheDocument();
+    release();
+    expect(await screen.findByText('Cases remplies par Nid')).toBeInTheDocument();
+  });
+
   it('shows case 4BE and no form to fill under the micro-foncier', async () => {
     // The server always sends the columns; under micro none is shown, nor the to-check list.
     const micro = view2044({

@@ -195,8 +195,8 @@ public class SpendingLeftTests(PostgresFixture fixture) : IClassFixture<Postgres
 
         reads.Clear();
         var months = (await SpendingTests.SpendingAsync(app, app.AdultA, "?scope=me&from=2024-11&to=2025-10")).GetProperty("months").EnumerateArray().ToList();
-        // Ten months of 2025 each estimate their year as read that month; the year before is read once (2024 is before the rules).
-        Assert.Equal((10, 1), (reads.GetValueOrDefault(2025), reads.GetValueOrDefault(2024)));
+        // Each month estimates its year as read that month (ten of 2025, two of 2024); each year before is read once: 2024 for 2025, 2023 for 2024.
+        Assert.Equal((10, 2 + 1, 1), (reads.GetValueOrDefault(2025), reads.GetValueOrDefault(2024), reads.GetValueOrDefault(2023)));
         // The tax changes from month to month (the rents projected after each), and each month is still its month view's.
         Assert.True(months.Select(m => Text(m, "committed")).Distinct().Count() > 2);
         foreach (var m in months)
