@@ -35,18 +35,20 @@ describe('noticeGroups', () => {
     expect(link('other_currency', 'o')).toBeUndefined();
   });
 
-  it("merges one arrangement's childcare notices into one item with its summary link", () => {
+  it('tells each childcare arrangement in one line: its total and its months, with its summary link', () => {
     const g = groups([
-      notice('childcare_from_statements', 'c1', '1728.81'),
-      notice('childcare_projected', 'c1', '900.00', { monthsValidated: 7, monthsEstimated: 5 }),
-      notice('childcare_estimated', 'c2', '500.00', { monthsEstimated: 3 }),
+      notice('childcare_from_statements', 'c1', '2628.81', { monthsValidated: 7, monthsEstimated: 5 }),
+      notice('childcare_from_statements', 'c2', '1200.00', { monthsValidated: 12, monthsEstimated: 0 }),
+      notice('childcare_estimated', 'c3', '500.00', { monthsValidated: 0, monthsEstimated: 3 }),
     ]);
     expect(g).toHaveLength(1);
-    expect(g[0]!.items).toHaveLength(2);
+    expect(g[0]!.heading).toBe('Frais de garde : le montant du profil est remplacé par le réel ou estimé d’après le contrat.');
+    expect(g[0]!.items.map((i) => i.detail!.replace(/\s/g, ' '))).toEqual([
+      '2 628,81 € (7 mois validés, 5 estimés)',
+      '1 200,00 € (12 mois validés)',
+      '500,00 € (3 mois estimés)',
+    ]);
     const c1 = g[0]!.items[0]!;
-    const detail = c1.detail!.replace(/\s/g, ' ');
-    expect(detail).toContain('1 728,81 €');
-    expect(detail).toContain('900,00 €');
     expect(c1.amount).toBeUndefined();
     expect(c1.link?.search).toEqual({ tab: 'summary', year: '2026' });
   });
