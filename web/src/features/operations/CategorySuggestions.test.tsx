@@ -1,4 +1,5 @@
 import { screen, waitFor, within } from '@testing-library/react';
+import type { JsonBodyType } from 'msw';
 import { http, HttpResponse } from 'msw/http';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { renderApp } from '@/test/renderApp';
@@ -18,7 +19,7 @@ const operations = { items: [], total: 0, totals: { out: '0', in: '0', net: '0',
 function serve() {
   let shown = true;
   const writes: [string, unknown][] = [];
-  const write = (path: string, body: unknown, answer: unknown, status = 200) => { writes.push([path, body]); shown = false; return HttpResponse.json(answer, { status }); };
+  const write = (path: string, body: unknown, answer: JsonBodyType, status = 200) => { writes.push([path, body]); shown = false; return HttpResponse.json(answer, { status }); };
   server.use(
     http.get('*/api/v1/banking/operations', () => HttpResponse.json(operations)),
     http.get('*/api/v1/banking/category-suggestions', () => HttpResponse.json(shown ? { items: [suggestion], total: 1 } : { items: [], total: 0 })),
