@@ -37,7 +37,7 @@ public sealed record AccountOwnersView(Guid AccountId, IReadOnlyList<OptionView>
 /// </summary>
 public sealed record OperationTotals(string Out, string In, string Net, string Currency, bool Incomplete);
 
-/// <summary>What the filter can pick from, never beyond what the actor reads.</summary>
+/// <summary>What the filter can pick from, never beyond what the actor reads, nor beyond the scope's accounts when one is sent (#445).</summary>
 public sealed record OperationFacets(IReadOnlyList<OptionView> Accounts, IReadOnlyList<OptionView> Owners, IReadOnlyList<OptionView> Categories);
 
 public sealed record OptionView(Guid Id, string Name);
@@ -63,7 +63,9 @@ public sealed class ListOperationsHandler(
         // Who reads each account is who owns it as the accounts list shows it: the joint account has both adults.
         var readers = await access.ReadersAsync(readable, ct);
         var counted = filter.Scope is { } within ? (await spending.ForAsync(within, ct)).ToHashSet() : null;
-        var scope = readable.Where(a => (counted is null || counted.Contains(a.Id)) && (filter.Accounts.Count == 0 || filter.Accounts.Contains(a.Id))
+        // #445: a figure's scope bounds the filter options as it bounds the list.
+        var offered = counted is null ? readable : [.. readable.Where(a => counted.Contains(a.Id))];
+        var scope = offered.Where(a => (filter.Accounts.Count == 0 || filter.Accounts.Contains(a.Id))
             && (filter.Owners.Count == 0 || readers[a.Id].Any(p => filter.Owners.Contains(p.Value)))).Select(a => a.Id).ToList();
 
         var all = await categories.AllAsync(ct);
@@ -72,16 +74,16 @@ public sealed class ListOperationsHandler(
             (Math.Clamp(query.Page, 1, BankLines.MaxPage) - 1) * BankLines.PageSize, BankLines.PageSize, ct);
 
         var totals = await TotalsAsync(sums, ct);
-        var readableIds = readable.Select(a => a.Id).ToList();
-        var used = (await transactions.OperationCategoriesAsync(readableIds, ct)).ToHashSet();
+        var used = (await transactions.OperationCategoriesAsync([.. offered.Select(a => a.Id)], ct)).ToHashSet();
         var byId = all.ToDictionary(c => c.Id);
         var facetCategories = used.Concat(used.Where(byId.ContainsKey).Select(id => byId[id].Parent).OfType<Guid>()).Distinct()
             .Where(byId.ContainsKey).Select(id => new OptionView(id, byId[id].Name)).OrderBy(o => o.Name, StringComparer.CurrentCultureIgnoreCase).ToList();
         var owners = readers.Values.SelectMany(r => r).ToHashSet();
         var people = (await persons.ListAsync(ct)).Where(p => owners.Contains(p.Id)).ToList();
+        var offeredOwners = offered.SelectMany(a => readers[a.Id]).ToHashSet();
         var facets = new OperationFacets(
-            [.. readable.Select(a => new OptionView(a.Id, a.Name)).OrderBy(o => o.Name, StringComparer.CurrentCultureIgnoreCase)],
-            [.. people.Select(p => new OptionView(p.Id.Value, p.DisplayName))],
+            [.. offered.Select(a => new OptionView(a.Id, a.Name)).OrderBy(o => o.Name, StringComparer.CurrentCultureIgnoreCase)],
+            [.. people.Where(p => offeredOwners.Contains(p.Id)).Select(p => new OptionView(p.Id.Value, p.DisplayName))],
             facetCategories);
         var accountOwners = readable.Select(a => new AccountOwnersView(a.Id,
             [.. people.Where(p => readers[a.Id].Contains(p.Id)).Select(p => new OptionView(p.Id.Value, p.DisplayName))],
