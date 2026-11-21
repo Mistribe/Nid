@@ -3,11 +3,22 @@ using NodaTime;
 
 namespace Nid.Investments.Contracts;
 
-public enum EnvelopeKind { Checking, Savings, Pea, LifeInsurance, Per, Brokerage, Other, Tontine }
+/// <summary>#182: <see cref="EmployeeSavings"/> is a company savings plan (PEE), <see cref="CollectivePer"/> a collective retirement plan (PERCOL).</summary>
+public enum EnvelopeKind { Checking, Savings, Pea, LifeInsurance, Per, Brokerage, Other, Tontine, EmployeeSavings, CollectivePer }
 public enum ValuationCadence { Monthly, Quarterly, Yearly, Manual }
 
 /// <summary>Issue #399: the regulated livret a savings envelope is, which sets its ceiling and rate; none for any other.</summary>
 public enum RegulatedKind { LivretA, Ldds, Lep, LivretJeune }
+
+/// <summary>#182: what several kinds share.</summary>
+public static class EnvelopeKinds
+{
+    /// <summary>A retirement plan, individual or collective: locked until retirement.</summary>
+    public static bool IsRetirement(EnvelopeKind kind) => kind is EnvelopeKind.Per or EnvelopeKind.CollectivePer;
+
+    /// <summary>An employee savings plan (PEE, PERCOL): one employee's, so exactly one adult owns it.</summary>
+    public static bool IsEmployeePlan(EnvelopeKind kind) => kind is EnvelopeKind.EmployeeSavings or EnvelopeKind.CollectivePer;
+}
 
 public static class EnvelopeWire
 {
@@ -15,7 +26,8 @@ public static class EnvelopeWire
     {
         EnvelopeKind.Checking => "checking", EnvelopeKind.Savings => "savings", EnvelopeKind.Pea => "pea",
         EnvelopeKind.LifeInsurance => "life_insurance", EnvelopeKind.Per => "per", EnvelopeKind.Brokerage => "brokerage",
-        EnvelopeKind.Other => "other", EnvelopeKind.Tontine => "tontine", _ => throw new ArgumentOutOfRangeException(nameof(kind)),
+        EnvelopeKind.Other => "other", EnvelopeKind.Tontine => "tontine",
+        EnvelopeKind.EmployeeSavings => "employee_savings", EnvelopeKind.CollectivePer => "collective_per", _ => throw new ArgumentOutOfRangeException(nameof(kind)),
     };
 
     public static string Of(ValuationCadence cadence) => cadence switch

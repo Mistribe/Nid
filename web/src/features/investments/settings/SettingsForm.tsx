@@ -38,7 +38,7 @@ const PATHS = {
 } as const;
 /** Fields whose value the server can refuse with `investments.invalid_envelope` (the server names the field; `soleChangedField` is the fallback for a refusal without one). */
 /** The kinds that hold units of account (the server's own list), where a floor on their share makes sense. */
-const UNIT_LINKED = ['life_insurance', 'per'];
+const UNIT_LINKED = ['life_insurance', 'per', 'collective_per'];
 const TEXT_FIELDS = ['displayName', 'institution', 'accountHint', 'staleAfterDays', 'ucShareFloorPct', 'note', 'openedOn', 'premiumsBefore2017'] as const;
 
 const schema = (t: TFunction) => z.object({
@@ -153,6 +153,7 @@ export function SettingsForm({ envelope, onDone }: {
           placeFieldError(error, t, form.setError, errors, {
             'investments.unknown_kind': 'kind',
             'investments.unknown_cadence': 'valuationCadence',
+            'investments.plan_owner': 'kind', // #182: a plan has one adult owner; only the kind changes here
             ...(owner ? { 'investments.invalid_envelope': owner } : {}),
           });
         },

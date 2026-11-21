@@ -29,7 +29,7 @@ Une **enveloppe** est un `item` du Core. Son nom, ses propriétaires, sa visibil
 | Champ | Type | Remarques |
 |---|---|---|
 | `item_id` | uuid | Clé primaire, référence l'`item` du Core |
-| `kind` | text | `checking` (compte courant), `savings` (livret), `pea`, `life_insurance`, `per`, `brokerage` (compte-titres), `tontine` (association tontinière), `other`. Détermine la couleur fixe du graphique (`frontend/dataviz.md` §5) |
+| `kind` | text | `checking` (compte courant), `savings` (livret), `pea`, `life_insurance`, `per`, `brokerage` (compte-titres), `tontine` (association tontinière), `employee_savings` (PEE), `collective_per` (PER collectif, PERCOL), `other`. Détermine la couleur fixe du graphique (`frontend/dataviz.md` §5). Un `employee_savings` ou un `collective_per` a exactement un propriétaire, adulte (`investments.plan_owner`, #182) |
 | `institution` | text? | Établissement, texte libre |
 | `account_hint` | text? | **Quatre derniers caractères** au plus, pour reconnaître le compte. Jamais le numéro complet |
 | `opened_on` | date? | |
@@ -40,6 +40,19 @@ Une **enveloppe** est un `item` du Core. Son nom, ses propriétaires, sa visibil
 | `regulated` | text? | `savings` seulement : `livret_a`, `ldds`, `lep` ou `livret_jeune` (#399). Fixe le plafond et le taux, règles datées de `RegulatedSavings` ; un versement au-delà du plafond est refusé (`investments.above_ceiling`) par la routine, le flux saisi ou corrigé sur l'enveloppe et un virement vers elle, jamais un retrait ni un solde passé au-dessus par les intérêts ; quitter `savings` l'efface. Absent du fichier d'import, qui le laisse tel quel |
 
 Colonnes de provenance et d'audit : celles du Core.
+
+### 3.1 Épargne salariale (#182, partie de #4)
+
+Deux genres à part, plutôt qu'un sous-genre de `per`, pour qu'un PEE ne tombe plus dans `other` ni un PERCOL dans `per` :
+
+| Genre | Ce que c'est | Ce qu'il partage avec les autres genres |
+|---|---|---|
+| `employee_savings` | Plan d'épargne entreprise (PEE) | Bloqué dans l'allocation (`locked`), classe `mixed` approchée ; un retrait est signalé dans l'impôt de l'année, sans estimation |
+| `collective_per` | PER collectif (PERCOL) | Ce que fait un `per` : bloqué jusqu'à la retraite (`EnvelopeKinds.IsRetirement`, tableau de bord), unités de compte (part UC, frais de contrat par défaut de 0,5 %). Ses versements ne sont pas encore déduits de l'impôt : ils mêlent abondement et intéressement, jamais déductibles, aux versements volontaires |
+
+- **Propriétaire** : un plan est celui d'un salarié. `EnvelopeRules.PlanOwner` exige exactement un propriétaire, adulte, quelle que soit la visibilité ; vérifié à la création, au changement de genre ou de propriétaires et à l'import (`ownership`).
+- **Catégories de versement** (sous-issue suivante de #4) : elles se poseront sur les flux `contribution` de ces deux genres (versement volontaire, abondement, intéressement, participation). Seul le versement volontaire d'un `collective_per` rejoindra alors la déduction du PER.
+- **Dates de disponibilité** (sous-issue suivante) : chaque versement d'un `employee_savings` se débloque cinq ans après, sauf déblocage anticipé ; un `collective_per` à la retraite de son propriétaire, comme un `per`. D'ici là, tout le plan compte comme bloqué.
 
 ## 4. Sens des faits du Core pour une enveloppe
 

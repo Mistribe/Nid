@@ -44,11 +44,14 @@ internal static class EnvelopeAllocation
         return slices;
     }
 
-    /// <summary>Current and savings accounts can be spent now; a PER waits for retirement, a tontine for its term; the rest takes a sale or a withdrawal.</summary>
+    /// <summary>
+    /// Current and savings accounts can be spent now; a PER (individual or collective) waits for retirement, a tontine for its term, a PEE
+    /// five years (#182: its release dates come with its contributions); the rest takes a sale or a withdrawal.
+    /// </summary>
     internal static string Liquidity(EnvelopeKind kind) => kind switch
     {
         EnvelopeKind.Checking or EnvelopeKind.Savings => AllocationLiquidity.Available,
-        EnvelopeKind.Per or EnvelopeKind.Tontine => AllocationLiquidity.Locked,
+        EnvelopeKind.Per or EnvelopeKind.CollectivePer or EnvelopeKind.Tontine or EnvelopeKind.EmployeeSavings => AllocationLiquidity.Locked,
         _ => AllocationLiquidity.Days,
     };
 
@@ -62,7 +65,7 @@ internal static class EnvelopeAllocation
     {
         EnvelopeKind.Checking or EnvelopeKind.Savings => (AllocationClasses.Cash, false),
         EnvelopeKind.Pea or EnvelopeKind.Brokerage => (AllocationClasses.Equity, true),
-        EnvelopeKind.LifeInsurance or EnvelopeKind.Per or EnvelopeKind.Tontine => (AllocationClasses.Mixed, true),
+        EnvelopeKind.LifeInsurance or EnvelopeKind.Per or EnvelopeKind.CollectivePer or EnvelopeKind.Tontine or EnvelopeKind.EmployeeSavings => (AllocationClasses.Mixed, true),
         _ => (AllocationClasses.Other, true),
     };
 

@@ -153,7 +153,7 @@ public static class FeesProjection
 
     public static readonly FeeReferences Defaults = new(DefaultReturnPct,
         Enum.GetValues<EnvelopeKind>().Select(EnvelopeWire.Of)
-            .ToDictionary(k => k, k => k is "life_insurance" or "per" ? 0.5m : 0m),
+            .ToDictionary(k => k, k => k is "life_insurance" or "per" or "collective_per" ? 0.5m : 0m),
         HoldingWire.Kinds.Where(k => k != "cash")
             .ToDictionary(k => k, k => k is "fund" or "etf" or "structured" or "other" ? 0.2m : 0m));
 
@@ -185,7 +185,7 @@ internal static class InvestmentsHoldingsMath
     private static readonly StringComparer French = StringComparer.Create(new CultureInfo("fr-FR"), true);
 
     /// <summary>The envelopes whose holdings count towards the share of units of account (D19).</summary>
-    private static readonly HashSet<EnvelopeKind> UnitLinked = [EnvelopeKind.LifeInsurance, EnvelopeKind.Per];
+    private static readonly HashSet<EnvelopeKind> UnitLinked = [EnvelopeKind.LifeInsurance, EnvelopeKind.Per, EnvelopeKind.CollectivePer];
 
     private static readonly int[] Horizons = [10, 20];
 

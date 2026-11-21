@@ -125,7 +125,7 @@ Palette de référence du skill, huit teintes, **sélectionnées** séparément 
 | | Autres (PER, CTO, immobilier net…) | gris neutre |
 | Enveloppes (Placements, vue détaillée) | PER | 5 |
 | | CTO | 6 |
-| | Tontine (juste avant « Autre ») | gris neutre |
+| | PEE, PER collectif, Tontine (juste avant « Autre ») | gris neutre |
 | Biens, par type (page Biens) | Résidence principale | 1 |
 | | Bien locatif | 2 |
 | | Résidence secondaire | 3 |
