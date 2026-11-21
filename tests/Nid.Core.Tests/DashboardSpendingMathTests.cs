@@ -40,6 +40,26 @@ public class DashboardSpendingMathTests
     }
 
     [Fact]
+    public void The_month_budget_the_spending_page_reads_is_accueil_s()
+    {
+        IReadOnlyList<CommitmentsPart> commitments = [new CommitmentsPart(CommitmentSources.Subscriptions, 1, Eur(1000m), Eur(1000m))];
+        IReadOnlyList<SpendingPart> spending = [Part(("Alimentation", 700m), ("Non classées", 500m))];
+        foreach (var income in new[] { 1, 0 })
+        {
+            IReadOnlyList<IncomePart> earned = [new IncomePart(income, income > 0 ? Eur(2000m) : [])];
+            var view = DashboardMath.Compose([], commitments, earned, spending, [], [], Currency.Eur, RateTable.Empty(Today, 7), Today);
+            var month = DashboardMath.Budget(commitments, earned, spending, Currency.Eur, RateTable.Empty(Today, 7), Today);
+            Assert.Equal((view.Income.Total?.Amount, view.Commitments.Total?.Amount, view.Margin?.Amount, view.EverydaySpending?.Amount, view.Left?.Amount),
+                (M(month.Income), M(month.Committed), M(month.Margin), M(month.Everyday), M(month.Left)));
+        }
+        // No income declared: unknown, never 0, and so is what is left.
+        var none = DashboardMath.Budget(commitments, [new IncomePart(0, new Dictionary<Currency, decimal>())], spending, Currency.Eur, RateTable.Empty(Today, 7), Today);
+        Assert.Equal((null, 1000m, null, 1200m, null), (none.Income, none.Committed, none.Margin, none.Everyday, none.Left));
+
+        static string? M(decimal? amount) => amount?.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    [Fact]
     public void Nothing_to_read_a_missing_rate_or_no_margin_leave_the_figures_unknown()
     {
         foreach (var none in new[] { Compose([]), Compose([SpendingPart.None]) })

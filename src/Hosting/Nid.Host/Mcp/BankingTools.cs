@@ -65,6 +65,11 @@ public sealed class BankingTools
         + "or with source 'committed' the month's expected charges there such as subscriptions and loan instalments), 'committed' (those "
         + "charges, also inside a typed amount), 'left' (planned minus spent, negative once over), 'expectedSoFar' for the current month "
         + "(the charges already due, plus the rest of planned spread over the days elapsed) and 'state' ('on_track', 'ahead' of that pace, 'over'). "
+        + "The month's budget, as the home page shows it: 'income' (declared income, monthly equivalent; null when none is declared), "
+        + "'committed' (subscriptions, loans, childcare, property charges and tax, per month), 'everyday' (the month's spending less the lines "
+        + "linked to a commitment and the tax), 'left' (income minus committed minus everyday, negative once overspent) and, for the current "
+        + "month only, 'leftEstimate': what would be left if the month ends as usual (income minus committed minus the larger of everyday and "
+        + "the usual month's everyday spending); null when it cannot be computed. "
         + McpSetup.Untrusted)]
     public static Task<CallToolResult> GetSpending(IServiceProvider services,
         [Description("ISO month (yyyy-mm); default the current month.")] string? month = null,

@@ -1,6 +1,7 @@
 using System.Globalization;
 using Nid.Banking.Contracts;
 using Nid.Core.Contracts;
+using Nid.Platform.Contracts;
 using NodaTime;
 using NodaTime.Text;
 using UnambitiousFx.Functional;
@@ -21,10 +22,16 @@ public sealed record GetSpendingQuery(VisibilityScope Scope, YearMonth? Month, Y
 /// those the accounts' history covers when fewer (whole months from the first line, and within the household's retention); null when it
 /// covers fewer than 3 of them or a line of them has no rate (every average then). <paramref name="From"/> and <paramref name="To"/> are <c>yyyy-MM</c>.
 /// <paramref name="Months"/>: every month of the range, oldest first, with what it spent under the same rules as <paramref name="Total"/>.
+/// Issue #425, one month only (null over a period): Accueil's figures for that month and scope (<see cref="IMonthBudget"/>):
+/// <paramref name="Income"/> (null without a declared source), <paramref name="Committed"/>, <paramref name="Everyday"/> (the month's
+/// spending less the lines linked to an item and the tax, so not <paramref name="Total"/>) and <paramref name="Left"/>, income − committed −
+/// everyday. <paramref name="LeftEstimate"/>, the current month only: income − committed − the larger of everyday and the usual everyday
+/// month (the same lines averaged over the months of <paramref name="Average"/>); null without that average.
 /// </summary>
 public sealed record SpendingView(
     string Currency, string Total, bool Incomplete, string? Average, IReadOnlyList<SpendingCategoryView> Categories,
-    SpendingUncategorisedView Uncategorised, string From, string To, IReadOnlyList<SpendingMonthView> Months, bool BudgetIncomplete);
+    SpendingUncategorisedView Uncategorised, string From, string To, IReadOnlyList<SpendingMonthView> Months, bool BudgetIncomplete,
+    string? Income, string? Committed, string? Everyday, string? Left, string? LeftEstimate);
 
 /// <summary>One month of a <see cref="SpendingView"/>: <paramref name="Month"/> is <c>yyyy-MM</c>.</summary>
 public sealed record SpendingMonthView(string Month, string Total);
@@ -99,7 +106,8 @@ public sealed class ListSpendingLinesHandler(
 [RequestHandler<GetSpendingQuery, SpendingView>]
 public sealed class GetSpendingHandler(
     BankingAccess access, SpendingAccounts scopes, ITransactionStore lines, ICategoryStore categories, IHouseholdSettings household,
-    IHouseholdCalendar calendar, IFxRates fx, ICategoryBudgetStore budgets, CommittedByCategory committed)
+    IHouseholdCalendar calendar, IFxRates fx, ICategoryBudgetStore budgets, CommittedByCategory committed, IMonthBudget monthBudget,
+    IActorAccessor actor)
     : IRequestHandler<GetSpendingQuery, SpendingView>
 {
     public const int MaxMonths = 24;
@@ -114,7 +122,7 @@ public sealed class GetSpendingHandler(
     /// </summary>
     public sealed record Spent(
         YearMonth From, YearMonth To, IReadOnlyList<Guid> Accounts, Currency Reference, Dictionary<Guid, (decimal Range, decimal Before)> ByCategory,
-        Dictionary<YearMonth, decimal> ByMonth, HashSet<Guid> Incomplete, bool AverageMissing, int Covered, LocalDate Today);
+        Dictionary<YearMonth, decimal> ByMonth, HashSet<Guid> Incomplete, bool AverageMissing, int Covered, LocalDate Today, RateTable Rates);
 
     public async ValueTask<Result<Spent>> SpentAsync(GetSpendingQuery query, CancellationToken ct)
     {
@@ -178,7 +186,7 @@ public sealed class GetSpendingHandler(
                 byMonth[sum.Month] = byMonth.GetValueOrDefault(sum.Month) + converted;
         }
 
-        return Result.Success(new Spent(from, to, accounts, reference, spent, byMonth, incomplete, averageMissing, covered, today));
+        return Result.Success(new Spent(from, to, accounts, reference, spent, byMonth, incomplete, averageMissing, covered, today, rates));
     }
 
     public async ValueTask<Result<SpendingView>> HandleAsync(GetSpendingQuery query, CancellationToken ct = default)
@@ -218,12 +226,47 @@ public sealed class GetSpendingHandler(
                 total.Range));
         }
 
+        // Issue #425: Accueil's month, one month at a time (a period's would read every module once a month).
+        MonthBudget? month = null;
+        decimal? estimate = null;
+        if (query is { From: null, To: null } && actor.Current?.PersonId is { } reader)
+        {
+            var read = await monthBudget.MonthAsync(reader, query.Scope, from, today, ct);
+            if (!read.TryGetValue(out month))
+                return BankingAccess.Failed<SpendingView, MonthBudget>(read);
+            // A past month is over: nothing to estimate.
+            if (from == today.ToYearMonth() && averaged && month!.Everyday is { } everyday && await UsualEverydayAsync(sums, byId, ct) is { } usual)
+                estimate = month.Margin - Math.Max(everyday, usual);
+        }
+
         var none = spent.GetValueOrDefault(Guid.Empty);
+        string? Amount(decimal? amount) => amount is { } a ? Money(a) : null;
         return Result.Success(new SpendingView(
             reference.Code, Money(spent.Values.Sum(s => s.Range)), sums.Incomplete.Count > 0, Average(spent.Values.Sum(s => s.Before)),
             [.. tops.OrderByDescending(t => t.Range).ThenBy(t => t.View.Name, ByName).Select(t => t.View)],
             new SpendingUncategorisedView(Money(none.Range), Average(none.Before)),
-            YearMonthPattern.Iso.Format(from), YearMonthPattern.Iso.Format(to), months, uncommitted));
+            YearMonthPattern.Iso.Format(from), YearMonthPattern.Iso.Format(to), months, uncommitted,
+            Amount(month?.Income), Amount(month?.Committed), Amount(month?.Everyday), Amount(month?.Left), Amount(estimate)));
+    }
+
+    /// <summary>
+    /// Issue #425: the usual everyday month, Accueil's everyday spending (no line linked to an item, no tax) averaged over the months
+    /// <see cref="SpendingView.Average"/> covers, each at its month-end rate; null when a line has none. The Mois habituel itself counts the
+    /// linked lines, which the margin has already taken out.
+    /// </summary>
+    private async Task<decimal?> UsualEverydayAsync(Spent sums, Dictionary<Guid, BankCategory> byId, CancellationToken ct)
+    {
+        var total = 0m;
+        foreach (var sum in await lines.SpendingAsync(sums.Accounts, sums.From.PlusMonths(-sums.Covered).ToDateInterval().Start,
+                     sums.From.PlusMonths(-1).ToDateInterval().End, ct, withLinked: false))
+        {
+            if (DashboardSpending.Everyday(sum, byId) is not { } amount || amount == 0m)
+                continue;
+            if (!sums.Rates.TryConvert(amount, sum.Currency, sums.Reference, sum.Month.ToDateInterval().End, projected: true, out var converted, out _))
+                return null;
+            total += converted;
+        }
+        return total / sums.Covered;
     }
 
     private sealed record Plan(decimal Planned, decimal? Committed, decimal CommittedToDate, string Source, string Period);

@@ -61871,6 +61871,36 @@
           },
           "budgetIncomplete": {
             "type": "boolean"
+          },
+          "income": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "committed": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "everyday": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "left": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "leftEstimate": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },

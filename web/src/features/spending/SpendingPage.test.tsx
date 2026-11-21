@@ -37,6 +37,50 @@ describe('« Dépenses »', () => {
     await expectNoAxeViolations(container);
   });
 
+  describe('what is left this month (#425)', () => {
+    const figure = (label: string) => screen.getByText(label, { selector: 'dt' }).closest('div')!;
+
+    it('shows Accueil’s figures as the server gives them, then how the month would end', async () => {
+      spendingServer();
+      const { container } = await renderApp('/spending');
+
+      expect(await screen.findByText('Reste ce mois-ci', { selector: 'dt' })).toBeInTheDocument();
+      expect(figure('Reste ce mois-ci')).toHaveTextContent(/800,00\s€/);
+      expect(figure('Revenus')).toHaveTextContent(/3\s200,00\s€/);
+      expect(figure('Engagements')).toHaveTextContent(/1\s500,00\s€/);
+      expect(figure('Dépenses courantes')).toHaveTextContent(/900,00\s€/);
+      expect(screen.getByText(/Si le mois finit comme d’habitude/)).toHaveTextContent(/il vous restera 600,00\s€/);
+      await expectNoAxeViolations(container);
+    });
+
+    it('reads an overspend as « Dépassement de », and the month’s end as how far it would go over', async () => {
+      spendingServer({ ...month, left: '-120.50', leftEstimate: '-300.00' });
+      await renderApp('/spending');
+
+      const over = await screen.findByText(/Dépassement de 120,50\s€/);
+      expect(over).toHaveClass('text-status-critical');
+      expect(screen.getByText(/Si le mois finit comme d’habitude/)).toHaveTextContent(/vous dépasserez de 300,00\s€/);
+    });
+
+    it('reads « inconnu » without a declared income, links to Revenus, and says nothing of the month’s end without an estimate', async () => {
+      spendingServer({ ...month, income: null, left: null, leftEstimate: null });
+      await renderApp('/spending');
+
+      await screen.findByText('Reste ce mois-ci', { selector: 'dt' });
+      expect(figure('Reste ce mois-ci')).toHaveTextContent('inconnu');
+      expect(within(figure('Reste ce mois-ci')).getByRole('link', { name: 'Déclarer un revenu' })).toHaveAttribute('href', '/income');
+      expect(figure('Revenus')).toHaveTextContent('inconnu');
+      expect(screen.queryByText(/Si le mois finit/)).toBeNull();
+    });
+
+    it('is not on the 12 months', async () => {
+      spendingServer(year);
+      await renderApp('/spending?period=12m');
+      await screen.findByRole('table', { name: 'Par catégorie' });
+      expect(screen.queryByText('Reste ce mois-ci')).toBeNull();
+    });
+  });
+
   describe('the 12 months', () => {
     reduceMotion();
 
