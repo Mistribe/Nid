@@ -50,6 +50,23 @@ public class CategoryRulesTests
         => Assert.Equal(expected, CategoryRules.Suggest(label));
 
     [Theory]
+    [InlineData("VIR SEPA ENTREPRISE EXEMPLE SALAIRE", "ENTREPRISE EXEMPLE")]
+    [InlineData("VIR DE BOB DEV", "BOB DEV")]
+    [InlineData("VIR DE ALICE DEV", "ALICE DEV")]
+    [InlineData("PRLV SPOTIFY P2A4F81C", "SPOTIFY")]
+    [InlineData("PRLV ENERGIE EXEMPLE", "ENERGIE EXEMPLE")]
+    [InlineData("VIR VERS COMPTE JOINT", "COMPTE JOINT")]
+    [InlineData("VIREMENT SEPA RECU ENTREPRISE EXEMPLE", "ENTREPRISE EXEMPLE")]
+    [InlineData("VIR INST EMIS VERS BOB DEV", "BOB DEV")]
+    [InlineData("PRELEVEMENT ECHEANCE PRET IMMO", "PRET IMMO")]
+    [InlineData("BOULANGERIE DE LA GARE", "BOULANGERIE DE")] // only the opening words are skipped
+    [InlineData("CB LIDL REZE", "LIDL REZE")]
+    [InlineData("VIR DE 1234 BOB", null)]
+    [InlineData("VIR SEPA", null)]
+    public void Skips_the_generic_words_of_transfers_and_direct_debits(string raw, string? expected)
+        => Assert.Equal(expected, CategoryRules.Suggest(TransactionLabel.Normalize(raw)));
+
+    [Theory]
     [InlineData("CARREFOUR CITY")]
     [InlineData("NETFLIX 123 PARIS")]
     [InlineData("SNCF INTERNET 12/10")]

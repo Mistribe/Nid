@@ -125,6 +125,7 @@ Palette de référence du skill, huit teintes, **sélectionnées** séparément 
 | | Autres (PER, CTO, immobilier net…) | gris neutre |
 | Enveloppes (Placements, vue détaillée) | PER | 5 |
 | | CTO | 6 |
+| | SCPI | 7 |
 | | PEE, PER collectif, Tontine (juste avant « Autre ») | gris neutre |
 | Biens, par type (page Biens) | Résidence principale | 1 |
 | | Bien locatif | 2 |
@@ -147,7 +148,7 @@ Un créneau peut avoir un sens différent selon le domaine, jamais deux séries 
 
 | Domaine | Créneau : sens |
 |---|---|
-| Enveloppes | 1 assurance-vie, 2 PEA, 3 livrets, 4 comptes courants, 5 PER, 6 CTO ; le reste (tontine, autre) en neutre |
+| Enveloppes | 1 assurance-vie, 2 PEA, 3 livrets, 4 comptes courants, 5 PER, 6 CTO, 7 SCPI ; le reste (tontine, autre) en neutre |
 | Types de bien | 1 résidence principale, 2 locatif, 3 résidence secondaire, 4 parking |
 | Personnes | 5, 6, 7 dans l'ordre de création |
 | Charges du foyer (mois) | 1 abonnements, 2 crédits, 3 charges des biens, 4 impôts, 5 garde d'enfants, 6 reste |

@@ -33,6 +33,23 @@ describe('NewEnvelope', () => {
   // The detail page (with Recharts) is a lazy chunk: loaded cold inside the test it raced findByRole's 1 s.
   beforeAll(async () => { await import('./EnvelopeDetailPage'); });
 
+  it('asks for an SCPI each quarter, as its bulletins come, unless the person picks a cadence', async () => {
+    const bodies: unknown[] = [];
+    serveCreate(bodies);
+    const { user } = await renderApp('/investments/new');
+
+    await user.type(await screen.findByLabelText('Nom'), 'SCPI');
+    await pick(user, 'Type', 'SCPI');
+    expect(screen.getByText(/Des parts de SCPI achetées directement/)).toBeInTheDocument();
+    await next(user);
+    await next(user);
+    await screen.findByLabelText('Valeur du compte');
+    await submit(user);
+
+    await screen.findByRole('heading', { name: 'PEA', level: 1 });
+    expect(bodies).toEqual([expect.objectContaining({ kind: 'scpi', valuationCadence: 'quarterly' })]);
+  });
+
   it('creates a private PEA with its opening and first value in three plain steps, then shows it', async () => {
     const bodies: unknown[] = [];
     serveCreate(bodies);

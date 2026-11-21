@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
@@ -15,12 +16,13 @@ import { Reload } from '@/components/form/Reload';
 import { useSubmitErrors } from '@/components/form/useSubmitErrors';
 import { todayIso } from '@/lib/today';
 import { FLOW, FLOWS, invalidateInvestments, type EnvelopeDetail, type Flow } from '@/api/investments';
-import { FLOW_KINDS, INCOME_CATEGORIES } from '../format';
+import { CONTRIBUTION_CATEGORIES, FLOW_KINDS, INCOME_CATEGORIES, isEmployeePlan } from '../format';
 import { flowSchema } from './entries';
 import { placeFieldError, presentConflict } from '@/components/form/fieldErrors';
 import '@/locales/investments';
 
-const isNature = (c?: string | null) => INCOME_CATEGORIES.some((k) => k === c);
+const NATURES = [...INCOME_CATEGORIES, ...CONTRIBUTION_CATEGORIES];
+const isNature = (c?: string | null) => NATURES.some((k) => k === c);
 const PATHS = { occurredOn: 'occurredOn', kind: 'kind', category: 'nature', amount: 'amount', note: 'note' } as const;
 const FALLBACK: Record<string, 'occurredOn' | 'amount'> = {
   'core.date_in_future': 'occurredOn', 'core.currency_mismatch': 'amount', 'core.invalid_fact': 'amount',
@@ -47,7 +49,7 @@ export function FlowForm({ envelope, editing, opening, titleId, onDone }: {
     defaultValues: {
       occurredOn: editing?.occurredOn ?? todayIso(),
       kind: (editing?.kind as (typeof FLOW_KINDS)[number] | undefined) ?? (opening ? 'opening' : 'contribution'),
-      nature: INCOME_CATEGORIES.find((c) => c === editing?.category) ?? '',
+      nature: NATURES.find((c) => c === editing?.category) ?? '',
       amount: editing ? toFieldAmount(trimAmount(editing.amount.amount)) : '',
       note: editing?.note ?? '',
     },
@@ -73,15 +75,22 @@ export function FlowForm({ envelope, editing, opening, titleId, onDone }: {
       // it (finding 8) travel unchanged — this form never lets a person set or clear them.
       ...(editing ? { externalRef: editing.externalRef } : {}),
       // « Retrait ordinaire » / « Revenu » keeps the category the flow already had (an import's, say): only a chosen nature replaces it.
-      // An income category is dropped when « ordinaire » is chosen or Nature is hidden; any other category stays.
-      category: (showNature && values.nature) || (isNature(editing?.category) ? undefined : editing?.category) || undefined,
+      // An income or employer category is dropped when « ordinaire » / « volontaire » is chosen or Nature is hidden; any other category stays.
+      category: (showNature && natures.find((k) => k === values.nature)) || (isNature(editing?.category) ? undefined : editing?.category) || undefined,
     };
     if (editing) update.mutate({ params: { path: { id: envelope.id, flowId: editing.id } }, body });
     else create.mutate({ params: { path: { id: envelope.id } }, body });
   });
 
   const kind = form.watch('kind');
-  const showNature = (kind === 'withdrawal' || kind === 'income') && envelope.kind !== 'savings';
+  // Issue #180: what an SCPI pays out is a distribution; its withdrawals (shares sold) stay ordinary.
+  useEffect(() => {
+    if (!editing && envelope.kind === 'scpi') form.setValue('nature', kind === 'income' ? 'distribution' : '');
+  }, [editing, envelope.kind, form, kind]);
+  // #183: an employee plan's contribution says whose money it is.
+  const employer = kind === 'contribution' && isEmployeePlan(envelope.kind);
+  const showNature = employer || ((kind === 'withdrawal' || kind === 'income') && envelope.kind !== 'savings');
+  const natures = employer ? CONTRIBUTION_CATEGORIES : INCOME_CATEGORIES;
   const e = form.formState.errors;
   const pending = editing ? update.isPending : create.isPending;
   // A conflict shows its own sentence when known (final findings #5), read from the mutation's own error rather
@@ -110,11 +119,11 @@ export function FlowForm({ envelope, editing, opening, titleId, onDone }: {
         )} />
         {showNature ? (
           <Controller control={form.control} name="nature" render={({ field }) => (
-            <Field label={t('envelope.nature')} hint={t('envelope.nature_hint')} error={e.nature?.message}>
-              {(c) => <SelectField {...c} value={field.value} onValueChange={field.onChange}
+            <Field label={t('envelope.nature')} hint={t(employer ? 'envelope.nature_own_hint' : 'envelope.nature_hint')} error={e.nature?.message}>
+              {(c) => <SelectField {...c} value={natures.some((k) => k === field.value) ? field.value : ''} onValueChange={field.onChange}
                 options={[
-                  { value: '', label: t(kind === 'income' ? 'envelope.nature_income' : 'envelope.nature_ordinary') },
-                  ...INCOME_CATEGORIES.map((k) => ({ value: k, label: t(`investments.flow_nature.${k}`) })),
+                  { value: '', label: t(employer ? 'envelope.nature_own' : kind === 'income' ? 'envelope.nature_income' : 'envelope.nature_ordinary') },
+                  ...natures.map((k) => ({ value: k, label: t(`investments.flow_nature.${k}`) })),
                 ]} />}
             </Field>
           )} />

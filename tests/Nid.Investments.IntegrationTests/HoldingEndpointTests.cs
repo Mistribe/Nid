@@ -145,6 +145,8 @@ public class HoldingEndpointTests(PostgresFixture fixture, SharedNidApp shared) 
     [InlineData("""{ "name": " ", "kind": "fund" }""", "investments.invalid_holding", "name")]
     [InlineData("""{ "name": "X", "kind": "fund", "riskIndicator": 8 }""", "investments.invalid_holding", "riskIndicator")]
     [InlineData("""{ "name": "X", "kind": "fund", "assetClass": "gold" }""", "investments.invalid_holding", "assetClass")]
+    [InlineData("""{ "name": "X", "kind": "fund", "entitlementDelayMonths": 3 }""", "investments.invalid_holding", "entitlementDelayMonths")]
+    [InlineData("""{ "name": "X", "kind": "scpi", "entitlementDelayMonths": 13 }""", "investments.invalid_holding", "entitlementDelayMonths")]
     [InlineData("""{ "name": "X", "kind": "fund", "isin": "FR0000120271" }""", "investments.invalid_holding", "isin")] // already fund A's
     public async Task A_holding_out_of_its_rules_is_refused_at_its_field(string body, string code, string field)
     {
@@ -209,6 +211,28 @@ public class HoldingEndpointTests(PostgresFixture fixture, SharedNidApp shared) 
         var unused = await AddAsync(app, id, new { name = "Liquidités", kind = "cash" });
         var unusedVersion = VersionOf(await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Url(id)}/holdings")), unused);
         Assert.Equal(HttpStatusCode.NoContent, (await app.RawAsync(app.AdultA, HttpMethod.Delete, $"{Url(id)}/holdings/{unused}?version={unusedVersion}")).StatusCode);
+    }
+
+    [Fact]
+    public async Task An_scpi_keeps_its_entitlement_delay_shows_when_its_shares_start_earning_and_drops_it_as_a_fund()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await app.NewEnvelopeAsync("SCPI", app.AdultA, Visibility.Shared);
+        var scpi = await AddAsync(app, id, new { name = "SCPI A", kind = "scpi", entitlementDelayMonths = 3 });
+        var bought = await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Url(id)}/holdings/{scpi}/movements",
+            new { occurredOn = "2025-01-15", kind = "allocation_in", amount = Eur("2500.00"), units = "10", unitPrice = "250" });
+        Assert.Equal(HttpStatusCode.Created, bought.StatusCode);
+        async Task<JsonElement> ReadAsync() => (await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Url(id)}/holdings")))
+            .GetProperty("holdings").EnumerateArray().Single(h => h.GetProperty("id").GetGuid() == scpi);
+
+        var read = await ReadAsync();
+        Assert.Equal((3, "2025-05-01"), (read.GetProperty("entitlementDelayMonths").GetInt32(), read.GetProperty("entitledFrom").GetString()));
+
+        var edited = await app.RawAsync(app.AdultA, HttpMethod.Put, $"{Url(id)}/holdings/{scpi}",
+            new { name = "SCPI A", kind = "fund", version = read.GetProperty("version").GetUInt32() });
+        Assert.Equal(HttpStatusCode.OK, edited.StatusCode);
+        var after = await ReadAsync();
+        Assert.Equal((JsonValueKind.Null, JsonValueKind.Null), (after.GetProperty("entitlementDelayMonths").ValueKind, after.GetProperty("entitledFrom").ValueKind));
     }
 
     [Fact]

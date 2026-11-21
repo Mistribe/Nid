@@ -24,6 +24,7 @@
       "collective_per": "PER collectif (PERCOL), ouvert par votre employeur : bloqué jusqu’à la retraite, comme un PER.",
       "brokerage": "Un compte pour acheter actions, fonds ou obligations, sans plafond ni avantage fiscal.",
       "tontine": "Une épargne mise en commun jusqu’à une date fixée, imposée comme une assurance-vie.",
+      "scpi": "Des parts de SCPI achetées directement auprès d’une société de gestion : de l’immobilier qui verse des revenus, revendu en quelques semaines ou mois.",
       "other": "Tout autre placement que vous voulez suivre."
     },
     "institution_hint": "La banque ou l’assureur qui tient le compte.",
@@ -84,6 +85,8 @@
     "chart_needs_two": "La courbe apparaît à partir de deux valeurs.",
     "value": "Valeur",
     "net_contributions": "Versements nets",
+    "own_contributions": "Vos versements",
+    "employer_contributions": "Part de l’employeur",
     "paid_in": "versé, pas encore valorisé",
     "gain": "Gain",
     "before_tax": "Avant fiscalité. Le pourcentage du gain se calcule sur le total versé ; le rendement annuel tient compte des dates des versements et des retraits, après 12 mois de suivi.",
@@ -130,6 +133,8 @@
     "nature_ordinary": "Retrait ordinaire",
     "nature_income": "Revenu",
     "nature_hint": "Seul l’argent versé directement hors de l’enveloppe ; un retrait d’un PEA reste un retrait.",
+    "nature_own": "Versement volontaire",
+    "nature_own_hint": "Ce que l’employeur verse sur le plan (abondement, intéressement, participation) ne vient pas de votre poche.",
     "flow_saved": "Flux ajouté.",
     "flow_corrected": "Flux corrigé.",
     "save": "Enregistrer",
@@ -591,8 +596,9 @@
     "uc_below_floor": "sous le plancher de {{floor}} %",
     "fees_taken": "Frais prélevés",
     "matures_on": "échéance le {{date}}",
+    "entitled_from": "en jouissance à partir du {{date}}",
     "closed_on": "clôturé le {{date}}",
-    "kind": { "fund": "Fonds", "etf": "ETF", "euro_fund": "Fonds en euros", "equity": "Action", "bond": "Obligation", "structured": "Produit structuré", "cash": "Liquidités", "other": "Autre" },
+    "kind": { "fund": "Fonds", "etf": "ETF", "euro_fund": "Fonds en euros", "equity": "Action", "bond": "Obligation", "structured": "Produit structuré", "cash": "Liquidités", "scpi": "SCPI", "other": "Autre" },
     "asset_class": { "equity": "Actions", "bond": "Obligations", "money_market": "Monétaire", "mixed": "Diversifié", "real_estate": "Immobilier", "capital_guaranteed": "Capital garanti", "other": "Autre" },
     "movement_kind": {
       "allocation_in": "Part d’un versement",
@@ -621,6 +627,9 @@
       "issuer": "Émetteur",
       "risk": "Niveau de risque (SRI)",
       "entry_cost": "Frais d’entrée (%)",
+      "entitlement_delay": "Délai de jouissance",
+      "entitlement_delay_months": "{{count}} mois",
+      "entitlement_delay_hint": "Imprimé sur le bulletin de souscription.",
       "opened_on": "Ouvert le",
       "matures_on": "Échéance",
       "note": "Note",
@@ -719,11 +728,13 @@
     }
   },
   "investments_tips": {
+    "employer_share": "L’abondement, l’intéressement et la participation versés sur le plan par l’employeur. Le gain se calcule sur tout ce qui a été versé, cette part comprise.",
     "isin": "Le code de 12 caractères qui identifie un fonds ou une action, imprimé sur le relevé ou la fiche du support (il commence par le pays : FR, LU…). Nid s’en sert pour récupérer le cours.",
     "sri": "L’indicateur de risque imprimé sur la fiche du support, de 1 (très prudent) à 7 (très risqué). Nid le garde pour mémoire : il ne change aucun calcul.",
     "uc": "Les unités de compte sont la part d’une assurance-vie ou d’un PER placée hors du fonds en euros (fonds, actions…). Elles peuvent rapporter plus, mais leur capital n’est pas garanti.",
     "asset_class": "La famille du support : actions, obligations, monétaire, immobilier… Nid s’en sert pour la répartition de l’enveloppe. Vide : Nid la déduit du type du support.",
     "entry_cost": "Le pourcentage prélevé sur chaque versement avant qu’il soit placé. Nid le garde pour mémoire : il ne change aucun calcul.",
+    "entitlement_delay": "Le temps pendant lequel des parts de SCPI tout juste achetées ne rapportent rien encore. Avec 3 mois, des parts achetées le 15 janvier rapportent à partir du 1er mai.",
     "net_annualized": "Ce que le support a rapporté en moyenne par an sur les 5 dernières années, frais déduits, tel qu’imprimé sur le rapport de frais. Nid le garde pour mémoire."
   }
 }

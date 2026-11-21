@@ -27,6 +27,8 @@ public static class InvestmentsCodes
     public const string InvalidCostReport = "investments.invalid_cost_report";
     public const string InvalidFeeReferences = "investments.invalid_fee_references";
     public const string InvalidIncomeCategory = "investments.invalid_income_category";
+    /// <summary>#183: an employer's share (match, profit-sharing, participation) off an employee plan's contribution.</summary>
+    public const string InvalidContributionCategory = "investments.invalid_contribution_category";
     public const string TransferLeg = "investments.transfer_leg";
     /// <summary>#16: a flow kept from a bank line (<c>bank:</c> ref) follows its line, never a hand edit.</summary>
     public const string BankFlow = "investments.bank_flow";

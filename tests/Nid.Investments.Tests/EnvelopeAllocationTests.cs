@@ -29,6 +29,16 @@ public class EnvelopeAllocationTests
         Assert.Equal([new AllocationSlice("mixed", "locked", 1000m, true)], EnvelopeAllocation.Of(EnvelopeKind.Tontine, 1000m, null, Of()));
         Assert.Equal([new AllocationSlice("mixed", "locked", 1000m, true)], EnvelopeAllocation.Of(EnvelopeKind.EmployeeSavings, 1000m, null, Of()));
         Assert.Equal([new AllocationSlice("mixed", "locked", 1000m, true)], EnvelopeAllocation.Of(EnvelopeKind.CollectivePer, 1000m, null, Of()));
+        Assert.Equal([new AllocationSlice("real_estate", "locked", 1000m, false)], EnvelopeAllocation.Of(EnvelopeKind.Scpi, 1000m, null, Of()));
+        Assert.False(EnvelopeAllocation.IsAvailable(EnvelopeKind.Scpi));
+    }
+
+    [Fact]
+    public void An_scpi_holding_line_is_real_estate_exactly()
+    {
+        var scpi = Holding("scpi");
+        Assert.Equal([new AllocationSlice("real_estate", "locked", 2000m, false)],
+            EnvelopeAllocation.Of(EnvelopeKind.Scpi, 2000m, Snapshot(new LocalDate(2026, 6, 30), (scpi, 2000m)), Of(scpi)));
     }
 
     [Fact]

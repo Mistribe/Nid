@@ -232,6 +232,11 @@ export function EnvelopeDetailPage() {
             // #374: an account that is no investment (a value, no gain) shows its balance, not what was paid in nor a gain.
             ...(figures.value && !figures.gain ? [] : [
               { label: t('envelope.net_contributions'), value: figures.netContributions ? <Money value={figures.netContributions} tabular /> : absent },
+              // #183: an employee plan's paid-in, split between the employee and the employer (the server's figures).
+              ...(figures.ownContributions && figures.employerContributions ? [
+                { label: t('envelope.own_contributions'), value: <Money value={figures.ownContributions} tabular /> },
+                { label: t('envelope.employer_contributions'), tip: t('investments_tips.employer_share'), value: <Money value={figures.employerContributions} tabular /> },
+              ] : []),
               // #376: the amount on its line, its percent under it.
               figures.gain
                 ? { label: t('envelope.gain'), value: <Direction amount={figures.gain} />, hint: <GainPct value={figures.gainPct} /> }

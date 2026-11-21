@@ -238,6 +238,9 @@ public static class UpcomingKinds
     // Issue #34 §2.7.
     public const string HoldingMaturity = "holding_maturity";
 
+    // Issue #180: SCPI shares start earning after their entitlement delay.
+    public const string HoldingEntitlement = "holding_entitlement";
+
     // Issue #400: an envelope's next tax date (8 years of a life insurance, 5 of a PEA, a PER's retirement); the label is its code.
     public const string TaxMilestone = "tax_milestone";
 
@@ -270,6 +273,7 @@ public static class UpcomingKinds
         [PropertyCostDue] = UpcomingCadence.Recurring,
         [TenancyEnd] = UpcomingCadence.Milestone,
         [HoldingMaturity] = UpcomingCadence.Milestone,
+        [HoldingEntitlement] = UpcomingCadence.Milestone,
         [TaxMilestone] = UpcomingCadence.Milestone,
         [PerDeadline] = UpcomingCadence.Recurring,
         [PerCeilingExpiring] = UpcomingCadence.Recurring,

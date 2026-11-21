@@ -66,8 +66,8 @@ public sealed class RecordHoldingBreakdownHandler(
         var holding = (await holdings.HoldingsAsync(command.ItemId, ct)).FirstOrDefault(h => h.Holding.Id == command.Holding)?.Holding;
         if (holding?.Isin is not { } isin)
             return Result.Failure<Guid>(new NotFoundFailure("holding", command.Holding.ToString()));
-        if (holding.Kind is "euro_fund" or "cash")
-            return Result.Failure<Guid>(new Failure(BreakdownCodes.NotMarket, "A euro fund or cash has no market exposure to break down.", null));
+        if (!HoldingWire.IsMarket(holding.Kind))
+            return Result.Failure<Guid>(new Failure(BreakdownCodes.NotMarket, "A euro fund, cash or an SCPI has no market exposure to break down.", null));
 
         var errors = BreakdownRules.Check(command.Regions, command.Sectors).Select(e => new FieldError(e.Path, e.Code, e.Message)).ToList();
         if (command.AsOf > await calendar.TodayAsync(ct))

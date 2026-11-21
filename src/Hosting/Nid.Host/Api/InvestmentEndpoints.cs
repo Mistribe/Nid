@@ -457,7 +457,8 @@ public static class InvestmentEndpoints
     /// </summary>
     public sealed record HoldingBody(
         string? Name, string? Isin, string? Kind, string? AssetClass, string? Issuer, int? RiskIndicator,
-        string? OpenedOn, string? MaturesOn, string? EntryCostPct, string? ClosedOn, string? Note, uint? Version, bool? AutoPrice = null)
+        string? OpenedOn, string? MaturesOn, string? EntryCostPct, string? ClosedOn, string? Note, uint? Version, bool? AutoPrice = null,
+        int? EntitlementDelayMonths = null)
     {
         internal HoldingDraft? Read(FieldReader reader)
         {
@@ -465,7 +466,7 @@ public static class InvestmentEndpoints
             var maturesOn = reader.Date(MaturesOn, "maturesOn", required: false);
             var closedOn = reader.Date(ClosedOn, "closedOn", required: false);
             var entryCost = reader.Decimal(EntryCostPct, "entryCostPct");
-            return reader.Ok ? new HoldingDraft(Name, Isin, Kind, AssetClass, Issuer, RiskIndicator, openedOn, maturesOn, entryCost, closedOn, Note, AutoPrice) : null;
+            return reader.Ok ? new HoldingDraft(Name, Isin, Kind, AssetClass, Issuer, RiskIndicator, openedOn, maturesOn, entryCost, closedOn, Note, AutoPrice, EntitlementDelayMonths) : null;
         }
     }
 

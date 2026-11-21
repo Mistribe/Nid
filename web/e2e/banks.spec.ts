@@ -129,3 +129,58 @@ test('alice imports an OFX statement on a checking envelope, previews it, confir
 
   await bankSync(page, { bankingEnabled: false, enableBankingAppId: '' });
 });
+
+/**
+ * #449: alice categorises two lines of a shop by hand; Nid then suggests the same category for its third line, and the rule that takes it.
+ * The shop's name is this run's own (letters only: a digit ends a suggested pattern), so earlier runs' lines and rules never meet it.
+ */
+test('alice categorises two lines by hand, sees the suggestion for the third and creates its rule', async ({ page }) => {
+  const stamp = Date.now();
+  const shop = `FOURNIL ${String(stamp).replace(/\d/g, (d) => 'ABCDEFGHIJ'[Number(d)])}`;
+  await signIn(page, 'alice', '/admin/banking');
+  await bankSync(page, { bankingEnabled: true, enableBankingAppId: '' });
+  const session = (await (await page.request.get('/auth/session')).json()) as { csrf: string; person: { id: string } };
+  const created = await page.request.post('/api/v1/investments/envelopes', {
+    headers: { 'X-Nid-Csrf': session.csrf },
+    data: { displayName: `Compte ${stamp}`, kind: 'checking', currency: 'EUR', visibility: 'private', owners: [{ personId: session.person.id, shareBp: 10000 }],
+      firstValuation: { asOf: '2026-01-01', amount: { amount: '1000', currency: 'EUR' } } },
+  });
+  expect(created.status()).toBe(201);
+  const { id } = (await created.json()) as { id: string };
+  const line = (day: number) => `<STMTTRN><TRNTYPE>DEBIT</TRNTYPE><DTPOSTED>202610${day}</DTPOSTED><TRNAMT>-4.${day}</TRNAMT><FITID>${stamp}-${day}</FITID><NAME>CB ${shop} ${day}/10</NAME></STMTTRN>`;
+  const ofx = `<OFX><BANKMSGSRSV1><STMTTRNRS><STMTRS><CURDEF>EUR</CURDEF><BANKACCTFROM><ACCTID>${stamp}</ACCTID><ACCTTYPE>CHECKING</ACCTTYPE></BANKACCTFROM>`
+    + `<BANKTRANLIST><DTSTART>20261001</DTSTART><DTEND>20261028</DTEND>${line(12)}${line(19)}${line(26)}</BANKTRANLIST></STMTRS></STMTTRNRS></BANKMSGSRSV1></OFX>`;
+  const imported = await page.request.post('/api/v1/banking/statements', {
+    headers: { 'X-Nid-Csrf': session.csrf },
+    multipart: { file: { name: 'releve.ofx', mimeType: 'application/x-ofx', buffer: Buffer.from(ofx) }, envelopeId: id, confirm: 'true', keepProbablyKnown: 'false' },
+  });
+  expect(imported.ok()).toBe(true);
+
+  await page.goto(`/spending?tab=operations&q=${encodeURIComponent(shop)}`);
+  const table = page.getByRole('table', { name: 'Opérations' });
+  await table.getByRole('checkbox', { name: `Sélectionner « CB ${shop} 12/10 »` }).check();
+  await table.getByRole('checkbox', { name: `Sélectionner « CB ${shop} 19/10 »` }).check();
+  await page.getByRole('button', { name: 'Catégoriser… (2)' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Catégoriser 2 opérations' });
+  await pick(dialog, 'Catégorie', 'Alimentation › Courses');
+  await dialog.getByRole('button', { name: 'Enregistrer' }).click();
+  // The dialog offers the rule at once; alice declines it here, the suggestion offers it again.
+  await dialog.getByRole('button', { name: 'Non merci' }).click();
+  await expect(dialog).toBeHidden();
+
+  const block = page.getByRole('region', { name: /suggestions? de catégorie/ });
+  await block.getByRole('button', { name: /^Voir (la|les \d+) suggestions?$/ }).click();
+  const suggestion = block.getByRole('listitem').filter({ hasText: `${shop} → Courses` });
+  await expect(suggestion).toContainText("1 opération à classer · d'après 2 opérations classées à la main");
+  await suggestion.getByRole('button', { name: 'Créer la règle' }).click();
+  const offer = page.getByRole('form', { name: `Toujours classer « ${shop} » en Courses\u00a0?` });
+  await expect(offer.getByRole('textbox', { name: 'Motif' })).toHaveValue(shop);
+  await expect(offer.getByRole('checkbox', { name: 'Appliquer aussi à l’opération passée' })).toBeChecked();
+  await offer.getByRole('button', { name: 'Créer la règle' }).click();
+
+  await expect(toasts(page)).toContainText('Règle créée, et 1 opération passée classée.');
+  await expect(page.getByRole('listitem').filter({ hasText: `${shop} → Courses` })).toHaveCount(0);
+  await expect(table.getByRole('row').filter({ hasText: `CB ${shop} 26/10` })).toContainText('Courses');
+
+  await bankSync(page, { bankingEnabled: false, enableBankingAppId: '' });
+});

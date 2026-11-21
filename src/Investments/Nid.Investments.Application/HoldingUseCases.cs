@@ -13,7 +13,7 @@ namespace Nid.Investments.Application;
 public sealed record HoldingDraft(
     string? Name, string? Isin, string? Kind, string? AssetClass, string? Issuer, int? RiskIndicator,
     LocalDate? OpenedOn, LocalDate? MaturesOn, decimal? EntryCostPct, LocalDate? ClosedOn, string? Note,
-    bool? AutoPrice = null);
+    bool? AutoPrice = null, int? EntitlementDelayMonths = null);
 
 public sealed record SnapshotLineDraft(Guid HoldingId, decimal? Units, decimal? UnitPrice, Money Value, decimal? CostBasisPerUnit);
 
@@ -89,6 +89,10 @@ internal static class HoldingRules
             return Invalid<EnvelopeHolding>(InvestmentsCodes.InvalidHolding, "issuer", $"An issuer has at most {EnvelopeRules.InstitutionMax} characters.");
         if (d.RiskIndicator is < 1 or > 7)
             return Invalid<EnvelopeHolding>(InvestmentsCodes.InvalidHolding, "riskIndicator", "A risk indicator is 1 to 7.");
+        if (d.EntitlementDelayMonths is not null && d.Kind != "scpi")
+            return Invalid<EnvelopeHolding>(InvestmentsCodes.InvalidHolding, "entitlementDelayMonths", "Only an SCPI has an entitlement delay.");
+        if (d.EntitlementDelayMonths is < 0 or > 12)
+            return Invalid<EnvelopeHolding>(InvestmentsCodes.InvalidHolding, "entitlementDelayMonths", "An entitlement delay is 0 to 12 months.");
         if (d.EntryCostPct is { } cost && (cost is < 0 or > 100 || Math.Round(cost, 4) != cost))
             return Invalid<EnvelopeHolding>(InvestmentsCodes.InvalidHolding, "entryCostPct", "An entry cost is 0 to 100 percent, with 4 decimals at most.");
         if (d is { OpenedOn: { } opened, ClosedOn: { } closed } && closed < opened)
@@ -98,7 +102,7 @@ internal static class HoldingRules
         return Result.Success(new EnvelopeHolding(id, envelope, d.Name.Trim(), isin, d.Kind, d.AssetClass, d.Issuer, d.RiskIndicator,
             d.OpenedOn, d.MaturesOn, d.EntryCostPct, d.ClosedOn, d.Note,
             // Absent: true on create, the stored value on edit.
-            d.AutoPrice ?? others.FirstOrDefault(o => o.Holding.Id == id)?.Holding.AutoPrice ?? true));
+            d.AutoPrice ?? others.FirstOrDefault(o => o.Holding.Id == id)?.Holding.AutoPrice ?? true, d.EntitlementDelayMonths));
     }
 
     /// <summary>The snapshot once checked against the envelope's holdings, its currency and today.</summary>
@@ -344,12 +348,13 @@ public sealed class GetHoldingsHandler(
         var latest = isins.Count == 0 ? new Dictionary<string, LatestPrices>() : await prices.LatestAsync(isins, ct);
         PriceView? Price(StoredHolding h) => h.Holding.Isin is { } isin ? PriceView.Of(latest.GetValueOrDefault(isin)) : null;
         var series = await inflation.ReadAsync(ct);
+        LocalDate? Entitled(EnvelopeHolding h) => h.EntitlementDelayMonths is { } delay ? ScpiMath.EntitledFrom(ScpiPurchases.Of(h, facts.Movements), delay, today) : null;
         RealPercentView? Real(Guid h) => HoldingMath.CashFlows(h, snapshots, facts.Movements, on) is var (cash, at) ? series.RealAnnualReturn(cash, at, currency) : null;
         // The estimate is a figure of today.
         var estimate = on == today ? EnvelopeEstimateView.Of((await estimator.EstimateAsync([query.ItemId], ct))[query.ItemId]) : null;
         if (snapshot is null)
             return Result.Success(new HoldingsView(query.ItemId, currency.Code, null, null, null, null, null, null, null, floor,
-                facts.Holdings.Select(h => HoldingView.Of(h, null, null, Price(h))).ToList(), movementWarnings.Select(HoldingWarningView.Of).ToList(), estimate));
+                facts.Holdings.Select(h => HoldingView.Of(h, null, null, Price(h), entitledFrom: Entitled(h.Holding))).ToList(), movementWarnings.Select(HoldingWarningView.Of).ToList(), estimate));
 
         var valuation = await HoldingCheck.ValuationOnAsync(valuations, query.ItemId, snapshot.AsOf, ct);
         var total = HoldingMath.Total(snapshot);
@@ -359,9 +364,19 @@ public sealed class GetHoldingsHandler(
             AmountView.From(Amounts.Of(total, currency)), valuation is { } v ? AmountView.From(Amounts.Of(v - total, currency)) : null,
             AmountView.From(Amounts.Of(HoldingMath.ExplicitFees(facts.Movements, snapshot.AsOf), currency)), ucShare, floor,
             facts.Holdings.Select(h => HoldingView.Of(h, snapshot.Lines.FirstOrDefault(l => l.HoldingId == h.Holding.Id) is { } line
-                ? LineView.Of(line, HoldingMath.Weight(snapshot, line), currency) : null, Figures(h.Holding.Id), Price(h), Real(h.Holding.Id))).ToList(),
+                ? LineView.Of(line, HoldingMath.Weight(snapshot, line), currency) : null, Figures(h.Holding.Id), Price(h), Real(h.Holding.Id), Entitled(h.Holding))).ToList(),
             HoldingMath.Warnings(snapshot, valuation).Concat(shareWarning).Concat(movementWarnings).Select(HoldingWarningView.Of).ToList(), estimate));
     }
+}
+
+/// <summary>Issue #180: an SCPI's purchases of shares, its allocations in; without any, the day it was opened.</summary>
+internal static class ScpiPurchases
+{
+    public static IReadOnlyList<LocalDate> Of(EnvelopeHolding h, IEnumerable<HoldingMovement> movements)
+        => Of(movements.Where(m => m.HoldingId == h.Id && m.Kind == MovementKinds.AllocationIn).Select(m => m.OccurredOn).ToList(), h.OpenedOn);
+
+    public static IReadOnlyList<LocalDate> Of(IReadOnlyList<LocalDate> bought, LocalDate? openedOn)
+        => bought.Count > 0 ? bought : openedOn is { } opened ? [opened] : [];
 }
 
 [RequestHandler<ListHoldingsSnapshotsQuery, HoldingSnapshotList>]

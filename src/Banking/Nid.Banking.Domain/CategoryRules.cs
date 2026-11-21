@@ -14,6 +14,11 @@ public static partial class CategoryRules
     [GeneratedRegex(@"^CARTE \d{2}/\d{2}(/\d{2,4})? ")]
     private static partial Regex CardDate();
 
+    // A transfer's or direct debit's opening words name the operation, not who it is with: « VIR DE BOB » and « VIR DE ALICE » differ after them.
+    // The #457 migration repeats this list in SQL: changing it needs a new backfill migration.
+    private static readonly HashSet<string> GenericWords =
+        ["VIR", "VIREMENT", "SEPA", "INST", "INSTANTANE", "DE", "DU", "VERS", "RECU", "EMIS", "PRLV", "PRELEVEMENT", "ECHEANCE"];
+
     public static Result<string> NormalizePattern(string raw)
     {
         var pattern = TransactionLabel.Normalize(raw + " "); // a bare « cb » is the bank prefix, not a pattern
@@ -23,14 +28,15 @@ public static partial class CategoryRules
     }
 
     /// <summary>
-    /// The pattern a rule made from a line starts with: the first two words of the label after a leading « CARTE dd/mm/yy »,
-    /// both before any token holding a digit
+    /// The pattern a rule made from a line starts with: the first two words of the label after a leading « CARTE dd/mm/yy »
+    /// and the transfer and direct debit words that open it (« VIR DE », « PRLV »), both before any token holding a digit
     /// (« EDF CLIENTS »: the words after them change from month to month, « ECHEANCE OCTOBRE »); always a part of
     /// <paramref name="normalizedLabel"/>, null when no such pattern is valid.
     /// </summary>
     public static string? Suggest(string normalizedLabel)
     {
-        var words = CardDate().Replace(normalizedLabel, "").Split(' ', StringSplitOptions.RemoveEmptyEntries).TakeWhile(t => !t.Any(char.IsDigit)).Take(2);
+        var words = CardDate().Replace(normalizedLabel, "").Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .SkipWhile(GenericWords.Contains).TakeWhile(t => !t.Any(char.IsDigit)).Take(2);
         return NormalizePattern(string.Join(' ', words)).TryGetValue(out var pattern) && normalizedLabel.Contains(pattern, StringComparison.Ordinal)
             ? pattern : null;
     }

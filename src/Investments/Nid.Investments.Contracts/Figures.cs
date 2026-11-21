@@ -7,13 +7,17 @@ namespace Nid.Investments.Contracts;
 /// 2B1a spec §4, at date d. Null means unknown (no value on or before d) — never zero. <see cref="GainPct"/> is the gain
 /// over the total paid in (opening and contributions), null when unknown or undefined (nothing paid in): <see cref="Value"/>
 /// tells which. <see cref="AnnualReturnPct"/> is the XIRR in percent, null when not meaningful (data model §6).
+/// #183: on an employee plan with an employer's share, <see cref="OwnContributions"/> is what the employee paid in (opening and
+/// contributions without an employer category) and <see cref="EmployerContributions"/> the match, profit-sharing and participation,
+/// dated on or before the value's date; both null otherwise. The gain stays against everything paid in.
 /// </summary>
 public sealed record EnvelopeFigures(
     Money? Value, LocalDate? AsOf,
     Money? NetContributions, Money? Gain, decimal? GainPct, decimal? AnnualReturnPct,
     Money? Fees, Money? GainAfterFees, Money? Income,
     Money ContributionsSince, Money WithdrawalsSince,
-    bool MissingOpening, int? StaleDays);
+    bool MissingOpening, int? StaleDays,
+    Money? OwnContributions = null, Money? EmployerContributions = null);
 
 /// <summary>
 /// 2B1a spec §4 <c>period(a, b)</c>; <see cref="Performance"/> null when either value is unknown. <see cref="NoStartValue"/>: no value at

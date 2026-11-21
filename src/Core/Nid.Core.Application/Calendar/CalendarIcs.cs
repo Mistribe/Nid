@@ -81,6 +81,7 @@ public static class CalendarIcs
         UpcomingKinds.PropertyCostDue => Category(e.Label),
         UpcomingKinds.TenancyEnd => $"Fin du bail « {e.Label} »",
         UpcomingKinds.HoldingMaturity => $"Échéance de « {e.Label} » : vérifier où ira le capital",
+        UpcomingKinds.HoldingEntitlement => $"Début de jouissance de « {e.Label} » : premiers revenus à venir",
         UpcomingKinds.TaxMilestone => e.Label switch
         {
             "life_insurance_8y" => "8 ans du contrat : la fiscalité des retraits change",

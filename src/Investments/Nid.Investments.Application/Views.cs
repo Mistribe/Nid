@@ -16,12 +16,14 @@ public sealed record AmountView(string Amount, string Currency)
 public sealed record FiguresView(
     AmountView? Value, LocalDate? AsOf, AmountView? NetContributions, AmountView? Gain, decimal? GainPct, decimal? AnnualReturnPct,
     AmountView? Fees, AmountView? GainAfterFees, AmountView? Income,
-    AmountView ContributionsSince, AmountView WithdrawalsSince, bool MissingOpening, int? StaleDays)
+    AmountView ContributionsSince, AmountView WithdrawalsSince, bool MissingOpening, int? StaleDays,
+    AmountView? OwnContributions = null, AmountView? EmployerContributions = null)
 {
     public static FiguresView From(EnvelopeFigures f) => new(
         AmountView.From(f.Value), f.AsOf, AmountView.From(f.NetContributions), AmountView.From(f.Gain), f.GainPct, f.AnnualReturnPct,
         AmountView.From(f.Fees), AmountView.From(f.GainAfterFees), AmountView.From(f.Income),
-        AmountView.From(f.ContributionsSince), AmountView.From(f.WithdrawalsSince), f.MissingOpening, f.StaleDays);
+        AmountView.From(f.ContributionsSince), AmountView.From(f.WithdrawalsSince), f.MissingOpening, f.StaleDays,
+        AmountView.From(f.OwnContributions), AmountView.From(f.EmployerContributions));
 }
 
 public sealed record EnvelopeSummary(
@@ -186,13 +188,15 @@ public static class Units6
 public sealed record HoldingView(
     Guid Id, string Name, string? Isin, string Kind, string? AssetClass, string? Issuer, int? RiskIndicator,
     LocalDate? OpenedOn, LocalDate? MaturesOn, decimal? EntryCostPct, LocalDate? ClosedOn, string? Note, uint Version, LineView? Line,
-    HoldingFiguresView? Figures, bool AutoPrice, PriceView? Price, RealPercentView? RealReturn = null)
+    HoldingFiguresView? Figures, bool AutoPrice, PriceView? Price, RealPercentView? RealReturn = null,
+    int? EntitlementDelayMonths = null, LocalDate? EntitledFrom = null)
 {
-    public static HoldingView Of(StoredHolding s, LineView? line, HoldingFigures? figures, PriceView? price, RealPercentView? realReturn = null)
+    public static HoldingView Of(StoredHolding s, LineView? line, HoldingFigures? figures, PriceView? price, RealPercentView? realReturn = null,
+        LocalDate? entitledFrom = null)
     {
         var h = s.Holding;
         return new(h.Id, h.Name, h.Isin, h.Kind, h.AssetClass, h.Issuer, h.RiskIndicator, h.OpenedOn, h.MaturesOn, h.EntryCostPct, h.ClosedOn, h.Note,
-            s.Version, line, HoldingFiguresView.Of(figures), h.AutoPrice, price, realReturn);
+            s.Version, line, HoldingFiguresView.Of(figures), h.AutoPrice, price, realReturn, h.EntitlementDelayMonths, entitledFrom);
     }
 }
 

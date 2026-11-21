@@ -58,12 +58,12 @@ internal static class EnvelopeAllocation
 
     /// <summary>
     /// Current and savings accounts can be spent now; a PER (individual or collective) waits for retirement, a tontine for its term, a PEE
-    /// five years (#184: until the dates of its tranches, <see cref="Release"/>); the rest takes a sale or a withdrawal.
+    /// five years (#184: until the dates of its tranches, <see cref="Release"/>), SCPI shares for a buyer; the rest takes a sale or a withdrawal.
     /// </summary>
     internal static string Liquidity(EnvelopeKind kind) => kind switch
     {
         EnvelopeKind.Checking or EnvelopeKind.Savings => AllocationLiquidity.Available,
-        EnvelopeKind.Per or EnvelopeKind.CollectivePer or EnvelopeKind.Tontine or EnvelopeKind.EmployeeSavings => AllocationLiquidity.Locked,
+        EnvelopeKind.Per or EnvelopeKind.CollectivePer or EnvelopeKind.Tontine or EnvelopeKind.EmployeeSavings or EnvelopeKind.Scpi => AllocationLiquidity.Locked,
         _ => AllocationLiquidity.Days,
     };
 
@@ -78,6 +78,7 @@ internal static class EnvelopeAllocation
         EnvelopeKind.Checking or EnvelopeKind.Savings => (AllocationClasses.Cash, false),
         EnvelopeKind.Pea or EnvelopeKind.Brokerage => (AllocationClasses.Equity, true),
         EnvelopeKind.LifeInsurance or EnvelopeKind.Per or EnvelopeKind.CollectivePer or EnvelopeKind.Tontine or EnvelopeKind.EmployeeSavings => (AllocationClasses.Mixed, true),
+        EnvelopeKind.Scpi => (AllocationClasses.RealEstate, false),
         _ => (AllocationClasses.Other, true),
     };
 
@@ -88,6 +89,7 @@ internal static class EnvelopeAllocation
         return holding?.Kind switch
         {
             "euro_fund" => (AllocationClasses.CapitalGuaranteed, false),
+            "scpi" => (AllocationClasses.RealEstate, false),
             "cash" => (AllocationClasses.Cash, false),
             "equity" => (AllocationClasses.Equity, false),
             "bond" => (AllocationClasses.Bond, false),

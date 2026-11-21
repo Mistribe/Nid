@@ -30,6 +30,8 @@ public sealed class BankingDbContext(DbContextOptions<BankingDbContext> options)
 
     public DbSet<CategoryBudgetRow> CategoryBudgets => Set<CategoryBudgetRow>();
 
+    public DbSet<SuggestionDismissalRow> SuggestionDismissals => Set<SuggestionDismissalRow>();
+
     public DbSet<RuleRow> Rules => Set<RuleRow>();
 
     public DbSet<RecurringGroupRow> RecurringGroups => Set<RecurringGroupRow>();
@@ -127,6 +129,8 @@ public sealed class BankingDbContext(DbContextOptions<BankingDbContext> options)
             e.HasIndex(x => new { x.AccountId, x.Fingerprint }).IsUnique();
             e.HasIndex(x => new { x.AccountId, x.BookedOn });
             e.HasIndex(x => new { x.AccountId, x.CategoryId, x.BookedOn });
+            e.Property(x => x.SuggestedPattern).HasMaxLength(60);
+            e.HasIndex(x => new { x.AccountId, x.SuggestedPattern });
             e.HasOne<AccountRow>().WithMany().HasForeignKey(x => x.AccountId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne<CategoryRow>().WithMany().HasForeignKey(x => x.CategoryId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne<CategoryRuleRow>().WithMany().HasForeignKey(x => x.CategoryRuleId).OnDelete(DeleteBehavior.SetNull);
@@ -178,6 +182,20 @@ public sealed class BankingDbContext(DbContextOptions<BankingDbContext> options)
             e.HasOne<AccountRow>().WithMany().HasForeignKey(x => x.AccountId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne<CategoryRow>().WithMany().HasForeignKey(x => x.CategoryId).OnDelete(DeleteBehavior.Restrict);
             MapXmin(e.Property(x => x.Version));
+        });
+
+        modelBuilder.Entity<SuggestionDismissalRow>(e =>
+        {
+            e.ToTable("suggestion_dismissal", t =>
+            {
+                t.HasCheckConstraint("ck_suggestion_dismissal_pattern", "char_length(pattern) between 2 and 60");
+                t.HasCheckConstraint("ck_suggestion_dismissal_direction", "direction in ('debit','credit')");
+            });
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.HasIndex(x => new { x.Pattern, x.Direction, x.CategoryId }).IsUnique();
+            // The author lives in core: no foreign key across contexts.
+            e.HasOne<CategoryRow>().WithMany().HasForeignKey(x => x.CategoryId).OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<CategoryBudgetRow>(e =>

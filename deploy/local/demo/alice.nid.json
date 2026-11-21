@@ -556,6 +556,25 @@
       ]
     },
     {
+      "id": "env-scpi",
+      "name": "SCPI Bureaux Ouest",
+      "kind": "scpi",
+      "institution": "Société de gestion Exemple",
+      "opened_on": "2024-04-10",
+      "currency": "EUR",
+      "valuation_cadence": "quarterly",
+      "ownership": [
+        {
+          "person": "adult-1",
+          "share_bp": 5000
+        },
+        {
+          "person": "adult-2",
+          "share_bp": 5000
+        }
+      ]
+    },
+    {
       "id": "env-tech",
       "name": "Compte-titres actions tech",
       "kind": "brokerage",
@@ -1540,6 +1559,96 @@
       "as_of": "2026-09-30",
       "amount": {
         "amount": "21912.42",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-scpi-2024-06",
+      "item": "env-scpi",
+      "as_of": "2024-06-30",
+      "amount": {
+        "amount": "4500.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-scpi-2024-09",
+      "item": "env-scpi",
+      "as_of": "2024-09-30",
+      "amount": {
+        "amount": "4500.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-scpi-2024-12",
+      "item": "env-scpi",
+      "as_of": "2024-12-31",
+      "amount": {
+        "amount": "4500.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-scpi-2025-03",
+      "item": "env-scpi",
+      "as_of": "2025-03-31",
+      "amount": {
+        "amount": "4500.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-scpi-2025-06",
+      "item": "env-scpi",
+      "as_of": "2025-06-30",
+      "amount": {
+        "amount": "4500.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-scpi-2025-09",
+      "item": "env-scpi",
+      "as_of": "2025-09-30",
+      "amount": {
+        "amount": "4500.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-scpi-2025-12",
+      "item": "env-scpi",
+      "as_of": "2025-12-31",
+      "amount": {
+        "amount": "4500.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-scpi-2026-03",
+      "item": "env-scpi",
+      "as_of": "2026-03-31",
+      "amount": {
+        "amount": "4500.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-scpi-2026-06",
+      "item": "env-scpi",
+      "as_of": "2026-06-30",
+      "amount": {
+        "amount": "4500.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-scpi-2026-09",
+      "item": "env-scpi",
+      "as_of": "2026-09-30",
+      "amount": {
+        "amount": "4500.00",
         "currency": "EUR"
       }
     },
@@ -2718,6 +2827,115 @@
       }
     },
     {
+      "id": "fl-scpi-buy",
+      "item": "env-scpi",
+      "occurred_on": "2024-04-10",
+      "kind": "contribution",
+      "amount": {
+        "amount": "5000.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-scpi-dist-2024-09",
+      "item": "env-scpi",
+      "occurred_on": "2024-09-30",
+      "kind": "income",
+      "category": "distribution",
+      "amount": {
+        "amount": "50.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-scpi-dist-2024-12",
+      "item": "env-scpi",
+      "occurred_on": "2024-12-31",
+      "kind": "income",
+      "category": "distribution",
+      "amount": {
+        "amount": "50.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-scpi-dist-2025-03",
+      "item": "env-scpi",
+      "occurred_on": "2025-03-31",
+      "kind": "income",
+      "category": "distribution",
+      "amount": {
+        "amount": "50.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-scpi-dist-2025-06",
+      "item": "env-scpi",
+      "occurred_on": "2025-06-30",
+      "kind": "income",
+      "category": "distribution",
+      "amount": {
+        "amount": "50.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-scpi-dist-2025-09",
+      "item": "env-scpi",
+      "occurred_on": "2025-09-30",
+      "kind": "income",
+      "category": "distribution",
+      "amount": {
+        "amount": "50.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-scpi-dist-2025-12",
+      "item": "env-scpi",
+      "occurred_on": "2025-12-31",
+      "kind": "income",
+      "category": "distribution",
+      "amount": {
+        "amount": "50.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-scpi-dist-2026-03",
+      "item": "env-scpi",
+      "occurred_on": "2026-03-31",
+      "kind": "income",
+      "category": "distribution",
+      "amount": {
+        "amount": "50.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-scpi-dist-2026-06",
+      "item": "env-scpi",
+      "occurred_on": "2026-06-30",
+      "kind": "income",
+      "category": "distribution",
+      "amount": {
+        "amount": "50.00",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "fl-scpi-dist-2026-09",
+      "item": "env-scpi",
+      "occurred_on": "2026-09-30",
+      "kind": "income",
+      "category": "distribution",
+      "amount": {
+        "amount": "50.00",
+        "currency": "EUR"
+      }
+    },
+    {
       "id": "fl-rent-2025-05",
       "item": "prop-studio",
       "occurred_on": "2025-05-03",
@@ -3449,6 +3667,14 @@
       "name": "ETF MSCI World",
       "kind": "etf",
       "isin": "IE00B4L5Y983"
+    },
+    {
+      "id": "h-scpi",
+      "item": "env-scpi",
+      "name": "SCPI Bureaux Ouest",
+      "kind": "scpi",
+      "entry_cost_pct": "10",
+      "entitlement_delay_months": 3
     }
   ],
   "holding_snapshots": [
@@ -3631,6 +3857,166 @@
           "unit_price": "90.25",
           "value": {
             "amount": "11533.28",
+            "currency": "EUR"
+          }
+        }
+      ]
+    },
+    {
+      "id": "hs-scpi-2024-06",
+      "item": "env-scpi",
+      "as_of": "2024-06-30",
+      "lines": [
+        {
+          "holding": "h-scpi",
+          "units": "20",
+          "unit_price": "225",
+          "value": {
+            "amount": "4500.00",
+            "currency": "EUR"
+          }
+        }
+      ]
+    },
+    {
+      "id": "hs-scpi-2024-09",
+      "item": "env-scpi",
+      "as_of": "2024-09-30",
+      "lines": [
+        {
+          "holding": "h-scpi",
+          "units": "20",
+          "unit_price": "225",
+          "value": {
+            "amount": "4500.00",
+            "currency": "EUR"
+          }
+        }
+      ]
+    },
+    {
+      "id": "hs-scpi-2024-12",
+      "item": "env-scpi",
+      "as_of": "2024-12-31",
+      "lines": [
+        {
+          "holding": "h-scpi",
+          "units": "20",
+          "unit_price": "225",
+          "value": {
+            "amount": "4500.00",
+            "currency": "EUR"
+          }
+        }
+      ]
+    },
+    {
+      "id": "hs-scpi-2025-03",
+      "item": "env-scpi",
+      "as_of": "2025-03-31",
+      "lines": [
+        {
+          "holding": "h-scpi",
+          "units": "20",
+          "unit_price": "225",
+          "value": {
+            "amount": "4500.00",
+            "currency": "EUR"
+          }
+        }
+      ]
+    },
+    {
+      "id": "hs-scpi-2025-06",
+      "item": "env-scpi",
+      "as_of": "2025-06-30",
+      "lines": [
+        {
+          "holding": "h-scpi",
+          "units": "20",
+          "unit_price": "225",
+          "value": {
+            "amount": "4500.00",
+            "currency": "EUR"
+          }
+        }
+      ]
+    },
+    {
+      "id": "hs-scpi-2025-09",
+      "item": "env-scpi",
+      "as_of": "2025-09-30",
+      "lines": [
+        {
+          "holding": "h-scpi",
+          "units": "20",
+          "unit_price": "225",
+          "value": {
+            "amount": "4500.00",
+            "currency": "EUR"
+          }
+        }
+      ]
+    },
+    {
+      "id": "hs-scpi-2025-12",
+      "item": "env-scpi",
+      "as_of": "2025-12-31",
+      "lines": [
+        {
+          "holding": "h-scpi",
+          "units": "20",
+          "unit_price": "225",
+          "value": {
+            "amount": "4500.00",
+            "currency": "EUR"
+          }
+        }
+      ]
+    },
+    {
+      "id": "hs-scpi-2026-03",
+      "item": "env-scpi",
+      "as_of": "2026-03-31",
+      "lines": [
+        {
+          "holding": "h-scpi",
+          "units": "20",
+          "unit_price": "225",
+          "value": {
+            "amount": "4500.00",
+            "currency": "EUR"
+          }
+        }
+      ]
+    },
+    {
+      "id": "hs-scpi-2026-06",
+      "item": "env-scpi",
+      "as_of": "2026-06-30",
+      "lines": [
+        {
+          "holding": "h-scpi",
+          "units": "20",
+          "unit_price": "225",
+          "value": {
+            "amount": "4500.00",
+            "currency": "EUR"
+          }
+        }
+      ]
+    },
+    {
+      "id": "hs-scpi-2026-09",
+      "item": "env-scpi",
+      "as_of": "2026-09-30",
+      "lines": [
+        {
+          "holding": "h-scpi",
+          "units": "20",
+          "unit_price": "225",
+          "value": {
+            "amount": "4500.00",
             "currency": "EUR"
           }
         }
@@ -3853,6 +4239,19 @@
         "currency": "EUR"
       },
       "envelope_flow": "fl-av-2026-09"
+    },
+    {
+      "id": "hm-scpi-buy",
+      "holding": "h-scpi",
+      "occurred_on": "2024-04-10",
+      "kind": "allocation_in",
+      "units": "20",
+      "unit_price": "250",
+      "amount": {
+        "amount": "5000.00",
+        "currency": "EUR"
+      },
+      "envelope_flow": "fl-scpi-buy"
     }
   ],
   "properties": [

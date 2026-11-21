@@ -26,7 +26,7 @@ public sealed record StatementMovement(
 public sealed record HoldingsLine(
     [property: Description("The holding's name as printed, e.g. 'R-Co Valor C EUR'.")] string? Name,
     [property: Description("The ISIN, if printed (12 characters).")] string? Isin,
-    [property: Description("Only for a holding Nid does not have yet: 'euro_fund', 'fund', 'etf', 'equity', 'bond', 'structured', 'cash' or 'other'.")] string? Kind,
+    [property: Description("Only for a holding Nid does not have yet: 'euro_fund', 'fund', 'etf', 'equity', 'bond', 'structured', 'cash', 'scpi' or 'other'.")] string? Kind,
     [property: Description("The units, if printed, a decimal string with a point; none for a euro fund or cash.")] string? Units,
     [property: Description("The unit price, if printed, a decimal string with a point; none for a euro fund or cash.")] string? UnitPrice,
     [property: Description("The line's value as printed, a decimal string with a point, in the envelope's currency.")] string? Value,

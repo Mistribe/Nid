@@ -212,10 +212,17 @@ public sealed class InvestmentsUpcoming(
     private async Task<List<UpcomingEvent>> MaturitiesAsync(IReadOnlyList<ItemId> visibleIds, LocalDate today, LocalDate until, CancellationToken ct)
     {
         var maturing = await holdings.MaturingAsync(visibleIds, today, until, ct);
-        var accesses = await items.FindManyAsync(maturing.Select(m => m.Envelope).Distinct().ToList(), ct);
+        // Issue #180: each purchase of SCPI shares starting to earn in the window.
+        var entitling = (await holdings.ScpisAsync(visibleIds, ct))
+            .SelectMany(s => ScpiPurchases.Of(s.Bought, s.OpenedOn).Select(p => ScpiMath.EntitledFrom(p, s.DelayMonths)).Distinct()
+                .Where(on => on >= today && on <= until).Select(on => (s.Envelope, s.Name, On: on)))
+            .ToList();
+        var accesses = await items.FindManyAsync(maturing.Select(m => m.Envelope).Concat(entitling.Select(e => e.Envelope)).Distinct().ToList(), ct);
         return maturing
             .Where(m => accesses.ContainsKey(m.Envelope))
             .Select(m => new UpcomingEvent(m.MaturesOn, UpcomingKinds.HoldingMaturity, m.Envelope, "investments", accesses[m.Envelope].DisplayName, m.Name, null))
+            .Concat(entitling.Where(e => accesses.ContainsKey(e.Envelope))
+                .Select(e => new UpcomingEvent(e.On, UpcomingKinds.HoldingEntitlement, e.Envelope, "investments", accesses[e.Envelope].DisplayName, e.Name, null)))
             .ToList();
     }
 }

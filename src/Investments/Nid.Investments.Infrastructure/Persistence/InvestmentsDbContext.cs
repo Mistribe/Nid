@@ -36,7 +36,7 @@ public sealed class InvestmentsDbContext(DbContextOptions<InvestmentsDbContext> 
         {
             e.ToTable("envelope", t =>
             {
-                t.HasCheckConstraint("ck_envelope_kind", "kind in ('checking','savings','pea','life_insurance','per','brokerage','other','tontine','employee_savings','collective_per')");
+                t.HasCheckConstraint("ck_envelope_kind", "kind in ('checking','savings','pea','life_insurance','per','brokerage','other','tontine','employee_savings','collective_per','scpi')");
                 t.HasCheckConstraint("ck_envelope_cadence", "valuation_cadence in ('monthly','quarterly','yearly','manual')");
                 t.HasCheckConstraint("ck_envelope_account_hint", "account_hint is null or char_length(account_hint) between 1 and 4");
                 t.HasCheckConstraint("ck_envelope_stale_after_days", "stale_after_days is null or stale_after_days between 1 and 3650");
@@ -61,10 +61,11 @@ public sealed class InvestmentsDbContext(DbContextOptions<InvestmentsDbContext> 
         {
             e.ToTable("holding", t =>
             {
-                t.HasCheckConstraint("ck_holding_kind", "kind in ('euro_fund','fund','etf','equity','bond','structured','cash','other')");
+                t.HasCheckConstraint("ck_holding_kind", "kind in ('euro_fund','fund','etf','equity','bond','structured','cash','scpi','other')");
                 t.HasCheckConstraint("ck_holding_asset_class",
                     "asset_class is null or asset_class in ('equity','bond','money_market','mixed','real_estate','capital_guaranteed','other')");
                 t.HasCheckConstraint("ck_holding_risk_indicator", "risk_indicator is null or risk_indicator between 1 and 7");
+                t.HasCheckConstraint("ck_holding_entitlement_delay", "entitlement_delay_months is null or entitlement_delay_months between 0 and 12");
                 t.HasCheckConstraint("ck_holding_entry_cost_pct", "entry_cost_pct is null or entry_cost_pct between 0 and 100");
                 t.HasCheckConstraint("ck_holding_dates", "closed_on is null or opened_on is null or closed_on >= opened_on");
             });

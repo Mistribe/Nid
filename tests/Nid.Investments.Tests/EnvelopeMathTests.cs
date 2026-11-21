@@ -396,4 +396,34 @@ public class EnvelopeMathTests
         // Never valued: every point is the amount paid in.
         Assert.All(EnvelopeMath.Series([], PeaFlows, Currency.Eur), p => Assert.True(p.PaidIn && p.Value == p.NetContributions));
     }
+
+    [Fact]
+    public void An_employee_plan_splits_what_was_paid_in_between_the_employee_and_the_employer()
+    {
+        Flow Employer(int m, decimal amount, string category) => Flow(2025, m, 1, FlowKind.Contribution, amount) with { Category = category };
+        Flow[] flows =
+        [
+            Flow(2025, 1, 1, FlowKind.Opening, 1_000m), Flow(2025, 2, 1, FlowKind.Contribution, 500m),
+            Employer(2, 300m, FlowCategories.EmployerMatch), Employer(4, 200m, FlowCategories.ProfitSharing),
+            Flow(2025, 5, 1, FlowKind.Withdrawal, 100m),
+            Employer(8, 400m, FlowCategories.Participation), // after the value: counted in ContributionsSince only
+        ];
+        var f = At([Value(2025, 6, 30, 2_500m)], flows, new LocalDate(2025, 9, 30), kind: EnvelopeKind.EmployeeSavings);
+
+        Assert.Equal((Eur(1_500m), Eur(500m)), (f.OwnContributions, f.EmployerContributions));
+        // The gain stays against everything paid in, the employer's share included.
+        Assert.Equal((Eur(1_900m), Eur(600m)), (f.NetContributions, f.Gain));
+
+        var unvalued = At([], flows, new LocalDate(2025, 9, 30), kind: EnvelopeKind.CollectivePer);
+        Assert.Equal((Eur(1_500m), Eur(900m)), (unvalued.OwnContributions, unvalued.EmployerContributions));
+    }
+
+    [Fact]
+    public void A_plan_without_an_employer_share_or_another_kind_has_no_split()
+    {
+        var day = new LocalDate(2025, 12, 31);
+        Assert.Null(At(PeaValues, PeaFlows, day, kind: EnvelopeKind.EmployeeSavings).EmployerContributions);
+        Flow[] matched = [.. PeaFlows, Flow(2025, 7, 1, FlowKind.Contribution, 100m) with { Category = FlowCategories.EmployerMatch }];
+        Assert.Equal((null, null), (At(PeaValues, matched, day).OwnContributions, At(PeaValues, matched, day).EmployerContributions));
+    }
 }

@@ -47,6 +47,9 @@ export const handlers = [
   http.get('*/api/v1/banking/application', () => new HttpResponse(null, { status: 204 })),
   // ... and the household's budgets (none: Dépenses then offers to propose some, #427).
   http.get('*/api/v1/banking/budgets', () => HttpResponse.json([])),
+  // Opérations and Catégories read the category suggestions and the dismissed ones (#449): none.
+  http.get('*/api/v1/banking/category-suggestions', () => HttpResponse.json({ items: [], total: 0 })),
+  http.get('*/api/v1/banking/category-suggestions/dismissals', () => HttpResponse.json([])),
   http.get('*/api/v1/dashboard', () => HttpResponse.json(emptyDashboard)),
   // The dashboard's notice, the documents page and an item's documents tab read the expected documents (#414): none.
   http.get('*/api/v1/documents/expected', () => HttpResponse.json({ items: [] })),

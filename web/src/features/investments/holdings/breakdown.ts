@@ -8,8 +8,8 @@ export const SECTORS = [
   'materials', 'communication_services', 'utilities', 'real_estate', 'other',
 ] as const;
 
-/** A euro fund and cash hold no market exposure (the server refuses a breakdown for them). */
-export const hasBreakdown = (kind: string) => kind !== 'euro_fund' && kind !== 'cash';
+/** A euro fund, cash and an SCPI's buildings have no market exposure (the server's `investments.breakdown_not_market`). */
+export const hasBreakdown = (kind: string) => kind !== 'euro_fund' && kind !== 'cash' && kind !== 'scpi';
 
 /** A share as the server rounded it, one decimal at least (`70` → `70,0`). */
 export const sharePct = (value: number) => new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 2 }).format(value);

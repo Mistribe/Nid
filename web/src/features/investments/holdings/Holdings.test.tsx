@@ -111,6 +111,38 @@ describe('the « Supports » tab', () => {
     for (const term of ['Classe d’actifs', 'Niveau de risque (SRI)', 'Frais d’entrée (%)']) expect(dialog.getByRole('button', { name: `À propos : ${term}` })).toBeInTheDocument();
   });
 
+  it('asks an SCPI for its entitlement delay, explained, and sends it in months (#180)', async () => {
+    const calls = serve(view({ holdings: [], warnings: [], ucSharePct: null, explicitFees: null, unallocated: null }));
+    const { user } = await renderApp(`/investments/${PEA}?tab=holdings`);
+
+    await user.click(await screen.findByRole('button', { name: 'Détailler les supports' }));
+    const dialog = within(await screen.findByRole('dialog', { name: 'Nouveau support' }));
+    await user.type(dialog.getByLabelText('Support'), 'SCPI A');
+    expect(dialog.queryByLabelText('Délai de jouissance')).not.toBeInTheDocument();
+    await pick(user, 'Type', 'SCPI');
+    expect(dialog.getByRole('button', { name: 'À propos : Délai de jouissance' })).toBeInTheDocument();
+    await pick(user, 'Délai de jouissance', '3 mois');
+    await user.click(dialog.getByRole('button', { name: 'Ajouter le support' }));
+
+    await screen.findByText('Support ajouté.');
+    expect(calls[0]).toMatchObject({ path: 'holdings', body: { name: 'SCPI A', kind: 'scpi', entitlementDelayMonths: 3 } });
+  });
+
+  it('sends no entitlement delay once an SCPI becomes another kind (#180)', async () => {
+    const calls = serve(view({ holdings: [holding({ kind: 'scpi', isin: null, entitlementDelayMonths: 3 })] }));
+    const { user } = await renderApp(`/investments/${PEA}?tab=holdings`);
+
+    const table = await screen.findByRole('table', { name: 'Supports de l’enveloppe' });
+    await user.click(within(table).getByRole('button', { name: 'Actions pour Monde ESG' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Modifier' }));
+    const dialog = within(await screen.findByRole('dialog', { name: 'Modifier le support' }));
+    expect(dialog.getByLabelText('Délai de jouissance')).toHaveTextContent('3 mois');
+    await pick(user, 'Type', 'Fonds');
+    await user.click(dialog.getByRole('button', { name: 'Enregistrer' }));
+
+    await waitFor(() => expect(calls[0]).toMatchObject({ method: 'PUT', body: { kind: 'fund', entitlementDelayMonths: null } }));
+  });
+
   it('offers « Cours automatique » once an ISIN is typed, and sends it off when unchecked', async () => {
     const calls = serve(view({ holdings: [], warnings: [], ucSharePct: null, explicitFees: null, unallocated: null }));
     const { user } = await renderApp(`/investments/${PEA}?tab=holdings`);
@@ -583,6 +615,14 @@ describe('a holding’s breakdown', () => {
 
     expect(await within(dialog.getByRole('group', { name: 'Régions' })).findByText('Chaque série saisie doit faire exactement 100 %.')).toBeInTheDocument();
     expect(dialog.getByRole('group', { name: 'Secteurs' })).not.toHaveTextContent('exactement 100 %');
+  });
+
+  it('says when an SCPI\u2019s shares start earning, and offers no breakdown on it (#180)', async () => {
+    open(view({ holdings: [holding({ kind: 'scpi', isin: null, entitlementDelayMonths: 3, entitledFrom: '2025-05-01' }), euroFund] }));
+    await renderApp(`/investments/${PEA}/holdings/${FUND}`);
+
+    expect(await screen.findByText(/en jouissance à partir du .*mai 2025/)).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Répartition' })).not.toBeInTheDocument();
   });
 
   it('offers no breakdown on a euro fund', async () => {

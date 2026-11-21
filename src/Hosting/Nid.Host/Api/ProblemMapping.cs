@@ -45,7 +45,7 @@ public static class ProblemMapping
             LocalAccountCodes.LoginInvalid, LocalAccountCodes.PasswordTooShort, LocalAccountCodes.PasswordTooLong,
             LocalAccountCodes.PasswordTooCommon, LocalSignIn.CurrentPasswordWrong, LocalSignIn.InvalidCode,
             SeriesCodes.InvalidKey, // names its field (s)
-            InvestmentsCodes.InvalidIncomeCategory, InvestmentsCodes.TransferLeg, BreakdownCodes.Not100, BreakdownCodes.NotMarket,
+            InvestmentsCodes.InvalidIncomeCategory, InvestmentsCodes.InvalidContributionCategory, InvestmentsCodes.TransferLeg, BreakdownCodes.Not100, BreakdownCodes.NotMarket,
             DocumentsCodes.InvalidField, DocumentsCodes.InvalidRole, DocumentsCodes.UnknownTargetKind);
         Map(options, StatusCodes.Status400BadRequest, [.. ImportCodes.BadRequests]);
 

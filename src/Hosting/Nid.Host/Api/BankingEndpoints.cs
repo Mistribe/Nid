@@ -359,6 +359,27 @@ public static class BankingEndpoints
             => (await invoker.InvokeAsync(new ApplyCategoryRuleCommand(id), ct)).ToHttp(changed => new CategoryRuleApplied(changed)))
             .Returns<CategoryRuleApplied>();
 
+        // #449: categories and rules suggested from the household's own choices, computed on every read; nothing applies until a person acts.
+        api.MapGet("/category-suggestions", async (int? page, IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new ListCategorySuggestionsQuery(page ?? 1), ct)).ToHttp(suggestions => suggestions))
+            .Returns<CategorySuggestionPage>();
+
+        api.MapGet("/category-suggestions/dismissals", async (IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new ListSuggestionDismissalsQuery(), ct)).ToHttp(dismissals => dismissals))
+            .Returns<IReadOnlyList<SuggestionDismissalView>>();
+
+        api.MapPost("/category-suggestions/dismissals", async (SuggestionDismissalBody body, IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new DismissCategorySuggestionCommand(body.Pattern ?? "", body.Direction, body.CategoryId ?? Guid.Empty), ct))
+                    .ToHttp(dismissal => dismissal, StatusCodes.Status201Created))
+            .Returns<SuggestionDismissalView>(StatusCodes.Status201Created);
+
+        api.MapDelete("/category-suggestions/dismissals/{id:guid}", async (Guid id, IInvoker invoker, CancellationToken ct) =>
+            {
+                var result = await invoker.InvokeAsync(new WithdrawSuggestionDismissalCommand(id), ct);
+                return result.TryGetValue(out _) ? Results.NoContent() : result.ToHttp(v => v);
+            })
+            .ReturnsNoContent();
+
         // Read now, in the request: the bank sees the person's own browser (Psu-Ip-Address, Psu-User-Agent), as UseForwardedHeaders resolved it.
         api.MapPost("/sync", async (SyncBody body, HttpContext http, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new SyncMineCommand(body.ConnectionId, new PsuHeaders(
@@ -539,6 +560,10 @@ public static class BankingEndpoints
 
     /// <summary>How many lines took the rule's category.</summary>
     public sealed record CategoryRuleApplied(int Changed);
+
+    /// <summary>#449: a suggestion dismissed: its pattern, <c>direction</c> <c>debit</c> or <c>credit</c>, and its category.</summary>
+    [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+    public sealed record SuggestionDismissalBody(string? Pattern, string? Direction, Guid? CategoryId);
 
     /// <summary>Without <c>connectionId</c>, every connection of the person.</summary>
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]

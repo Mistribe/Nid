@@ -259,6 +259,7 @@ function Meta({ holding }: { holding: Holding }) {
     holdingKindText(t, holding.kind),
     holding.isin,
     holding.maturesOn ? t('holdings.matures_on', { date: formatLocalDate(holding.maturesOn) }) : null,
+    holding.entitledFrom ? t('holdings.entitled_from', { date: formatLocalDate(holding.entitledFrom) }) : null,
     holding.closedOn ? t('holdings.closed_on', { date: formatLocalDate(holding.closedOn) }) : null,
   ].filter(Boolean);
   return <span className="text-sm text-muted-foreground">{parts.join(' · ')}</span>;

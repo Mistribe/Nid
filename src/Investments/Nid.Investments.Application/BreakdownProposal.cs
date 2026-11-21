@@ -95,9 +95,9 @@ public sealed partial class BreakdownProposal(
         var carrying = (await holdings.HoldingsAsync(target, ct)).Select(h => h.Holding).Where(h => string.Equals(h.Isin, isin, StringComparison.OrdinalIgnoreCase)).ToList();
         if (carrying.Count == 0)
             return Result.Failure<EnvelopeHolding>(new Failure(FieldErrors.ShapeCode, "No holding of this envelope has this ISIN.", null));
-        return carrying.FirstOrDefault(h => h.Kind is not ("euro_fund" or "cash")) is { } market
+        return carrying.FirstOrDefault(h => HoldingWire.IsMarket(h.Kind)) is { } market
             ? Result.Success(market)
-            : Result.Failure<EnvelopeHolding>(new Failure(BreakdownCodes.NotMarket, "A euro fund or cash has no market exposure to break down.", null));
+            : Result.Failure<EnvelopeHolding>(new Failure(BreakdownCodes.NotMarket, "A euro fund, cash or an SCPI has no market exposure to break down.", null));
     }
 
     private static JsonElement Normalized(Parsed p)

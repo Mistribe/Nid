@@ -44,6 +44,21 @@ public class EnvelopeEndpointTests(PostgresFixture fixture, SharedNidApp shared)
     }
 
     [Fact]
+    public async Task An_scpi_held_directly_is_stored_with_its_kind()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var body = JsonSerializer.SerializeToElement(Create(app, name: "SCPI")).Deserialize<Dictionary<string, object?>>()!;
+        body["kind"] = "scpi";
+
+        var created = await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/investments/envelopes", body);
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var id = (await JsonAsync(created)).GetProperty("id").GetGuid();
+
+        var detail = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"/api/v1/investments/envelopes/{id}"));
+        Assert.Equal("scpi", detail.GetProperty("kind").GetString());
+    }
+
+    [Fact]
     public async Task The_list_names_the_owners_so_two_envelopes_of_the_same_name_can_be_told_apart()
     {
         await using var app = await NidApp.StartAsync(fixture);

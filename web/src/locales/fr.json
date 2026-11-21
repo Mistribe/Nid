@@ -362,6 +362,7 @@
       "valuation_due": "Estimation à refaire",
       "tenancy_end": "Fin du bail « {{label}} »",
       "holding_maturity": "Échéance de « {{label}} » : vérifier où ira le capital",
+      "holding_entitlement": "« {{label}} » : les parts entrent en jouissance, premiers revenus à venir",
       "tax_milestone": {
         "life_insurance_8y": "8 ans du contrat : la fiscalité des retraits change",
         "pea_5y": "5 ans du PEA : la fiscalité des retraits change",
@@ -581,11 +582,11 @@
     "stale_one": "Valeur de plus de {{count}} jour",
     "stale_other": "Valeur de plus de {{count}} jours",
     "direction": { "up": "en hausse", "down": "en baisse", "flat": "stable" },
-    "kind": { "checking": "Compte courant", "savings": "Livret", "pea": "PEA", "life_insurance": "Assurance-vie", "per": "PER", "employee_savings": "PEE", "collective_per": "PER collectif", "brokerage": "Compte-titres", "tontine": "Tontine", "other": "Autre" },
+    "kind": { "checking": "Compte courant", "savings": "Livret", "pea": "PEA", "life_insurance": "Assurance-vie", "per": "PER", "employee_savings": "PEE", "collective_per": "PER collectif", "brokerage": "Compte-titres", "tontine": "Tontine", "scpi": "SCPI", "other": "Autre" },
     "cadence": { "monthly": "Chaque mois", "quarterly": "Chaque trimestre", "yearly": "Chaque année", "manual": "À la demande" },
     "regulated": { "none": "Aucun (livret bancaire)", "livret_a": "Livret A", "ldds": "LDDS", "lep": "LEP", "livret_jeune": "Livret jeune" },
     "flow_kind": { "contribution": "Versement", "withdrawal": "Retrait", "expense": "Frais", "income": "Revenu", "opening": "Versements antérieurs", "transfer": "Virement" },
-    "flow_nature": { "dividend": "Dividende", "interest": "Intérêts", "distribution": "Distribution" }
+    "flow_nature": { "dividend": "Dividende", "interest": "Intérêts", "distribution": "Distribution", "employer_match": "Abondement", "profit_sharing": "Intéressement", "participation": "Participation" }
   },
   "income": {
     "overview": {
