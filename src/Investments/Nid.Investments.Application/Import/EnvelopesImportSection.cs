@@ -251,6 +251,8 @@ public sealed class EnvelopesImportSection(
                     .OrderBy(w => w.Person, StringComparer.Ordinal).ToList(),
                 Visibility = head.Visibility == Visibility.Private ? "private" : "shared",
                 ShareLevel = ImportSectionKit.ShareLevelText(head),
+                Availability = e.Envelope.Availability?.OrderBy(t => t.AvailableOn)
+                    .Select(t => new TrancheRecord { AvailableOn = LocalDatePattern.Iso.Format(t.AvailableOn), Amount = t.Amount }).ToList(),
             });
         }
 
@@ -331,5 +333,5 @@ public sealed class EnvelopesImportSection(
             parsed.Currency.Code, "envelope", path, adults, ct);
 
     private static Envelope ToEnvelope(ItemId id, EnvelopeRecord record, ParsedEnvelope parsed)
-        => new(id, parsed.Kind, record.Institution, record.AccountHint, parsed.OpenedOn, parsed.Cadence, record.StaleAfterDays, record.Note, parsed.ClosedOn, PremiumsBefore2017: record.PremiumsBefore2017);
+        => new(id, parsed.Kind, record.Institution, record.AccountHint, parsed.OpenedOn, parsed.Cadence, record.StaleAfterDays, record.Note, parsed.ClosedOn, PremiumsBefore2017: record.PremiumsBefore2017, Availability: parsed.Availability);
 }

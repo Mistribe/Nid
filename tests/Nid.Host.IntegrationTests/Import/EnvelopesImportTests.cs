@@ -389,6 +389,50 @@ public class EnvelopesImportTests(PostgresFixture fixture) : IClassFixture<Postg
         Assert.Equal([("investments.plan_owner", "envelopes[0].ownership")], batch.Issues.Select(i => (i.Code, i.Path)).ToList());
     }
 
+    /// <summary>#462: a PEE's tranches export, import, replace and survive a file without them; a bad tranche names its field.</summary>
+    [Fact]
+    public async Task Availability_tranches_import_replace_and_export()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var client = new ImportClient(app);
+        const string plan = """
+            [{"id":"env-pee","name":"PEE","kind":"employee_savings","currency":"EUR","ownership":[{"person":"adult-1","share_bp":10000}],
+              "availability":[{"available_on":"2031-05-01","amount":"2000"},{"available_on":"2020-01-01","amount":"1500.25"}]}]
+            """;
+        await CommitAsync(client, app, app.AdultA, File(plan));
+        var pee = await IdOf(app, "PEE");
+        AvailabilityTranche[] both = [new(new LocalDate(2020, 1, 1), 1500.25m), new(new LocalDate(2031, 5, 1), 2000m)];
+        Assert.Equal(both, (await StoredAsync(app, pee)).Availability!.OrderBy(t => t.AvailableOn));
+
+        var exported = (await new Export.ExportClient(app).ExportAllAsync(app.AdultA))["envelopes"].Single();
+        Assert.Equal([("2020-01-01", "1500.25"), ("2031-05-01", "2000")], exported.GetProperty("availability").EnumerateArray()
+            .Select(t => (t.GetProperty("available_on").GetString(), t.GetProperty("amount").GetString())).ToList());
+
+        // A file without tranches keeps them; one with tranches replaces them.
+        const string bare = """
+            [{"id":"env-pee","name":"PEE","kind":"employee_savings","currency":"EUR","ownership":[{"person":"adult-1","share_bp":10000}]}]
+            """;
+        await CommitAsync(client, app, app.AdultA, File(bare), replace: true);
+        Assert.Equal(both, (await StoredAsync(app, pee)).Availability!.OrderBy(t => t.AvailableOn));
+        await CommitAsync(client, app, app.AdultA, File(plan.Replace("\"2000\"", "\"2500\"")), replace: true);
+        Assert.Equal(2500m, (await StoredAsync(app, pee)).Availability!.Single(t => t.AvailableOn.Year == 2031).Amount);
+
+        var session = await client.StartAsync(app.AdultA, Adults(app));
+        var batch = await client.PutAsync(app.AdultA, session.Id, "envelopes", 0, """
+            [{"id":"env-a","name":"PEE","kind":"employee_savings","currency":"EUR","ownership":[{"person":"adult-1","share_bp":10000}],
+              "availability":[{"available_on":"2031-05-01","amount":"-1"}]},
+             {"id":"env-b","name":"PEE 2","kind":"employee_savings","currency":"EUR","ownership":[{"person":"adult-1","share_bp":10000}],
+              "availability":[{"available_on":"mai","amount":"1"}]},
+             {"id":"env-c","name":"PEA","kind":"pea","currency":"EUR","ownership":[{"person":"adult-1","share_bp":10000}],
+              "availability":[{"available_on":"2031-05-01","amount":"1"}]}]
+            """);
+        await client.CancelRawAsync(app.AdultA, session.Id);
+        Assert.Equal(
+            [("investments.invalid_envelope", "envelopes[0].availability"), ("import.invalid_value", "envelopes[1].availability[0].available_on"),
+             ("investments.invalid_envelope", "envelopes[2].availability")],
+            batch.Issues.Select(i => (i.Code, i.Path)).ToList());
+    }
+
     /// <summary>#294: <c>share_level</c> imports and exports; an adult who may edit the envelope replaces it, never its sharing.</summary>
     [Fact]
     public async Task The_share_level_imports_exports_and_stays_with_the_owners()

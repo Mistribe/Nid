@@ -10,7 +10,7 @@ namespace Nid.Investments.Application.Import;
 /// <summary>An envelope record, parsed; owners carry their kind so the Core's rules can run on it.</summary>
 internal sealed record ParsedEnvelope(
     EnvelopeKind Kind, ValuationCadence Cadence, Currency Currency, Visibility Visibility, IReadOnlyList<Owner> Owners,
-    LocalDate? OpenedOn, LocalDate? ClosedOn, ShareLevel ShareLevel = ShareLevel.View);
+    LocalDate? OpenedOn, LocalDate? ClosedOn, ShareLevel ShareLevel = ShareLevel.View, IReadOnlyList<AvailabilityTranche>? Availability = null);
 
 /// <summary>
 /// File records to envelope inputs. Every refusal names the member it concerns; an entity's issues are all collected
@@ -23,6 +23,7 @@ internal static class EnvelopeParsing
     {
         ["displayName"] = "name", ["institution"] = "institution", ["accountHint"] = "account_hint",
         ["staleAfterDays"] = "stale_after_days", ["note"] = "note", ["premiumsBefore2017"] = "premiums_before_2017",
+        ["availability"] = "availability",
     };
 
     /// <summary>
@@ -66,9 +67,31 @@ internal static class EnvelopeParsing
             ok = Invalid(issues, path + ".ownership", planOwner!.Message, planOwner.Code);
 
         ok &= TryDate(r.OpenedOn, path + ".opened_on", today, issues, out var openedOn)
-              & TryDate(r.ClosedOn, path + ".closed_on", today, issues, out var closedOn);
+              & TryDate(r.ClosedOn, path + ".closed_on", today, issues, out var closedOn)
+              & TryTranches(r.Availability, path, issues, out var tranches);
+        if (ok && EnvelopeWire.TryKind(r.Kind, out var planKind))
+            ok = Check(EnvelopeRules.Availability(tranches, planKind), path, issues);
         if (ok)
-            parsed = new ParsedEnvelope(kind, cadence, currency, visibility, owners, openedOn, closedOn, level);
+            parsed = new ParsedEnvelope(kind, cadence, currency, visibility, owners, openedOn, closedOn, level, tranches);
+        return ok;
+    }
+
+    /// <summary>#462: the file's tranches; release dates are in the future, so they are only parsed.</summary>
+    private static bool TryTranches(IReadOnlyList<TrancheRecord>? records, string path, List<ImportIssue> issues, out List<AvailabilityTranche>? tranches)
+    {
+        tranches = null;
+        if (records is null)
+            return true;
+        if (!ImportSectionKit.NoNulls(records, path + ".availability", issues))
+            return false;
+        var read = new List<AvailabilityTranche>();
+        var ok = true;
+        for (var i = 0; i < records.Count; i++)
+            if (TryDate(records[i].AvailableOn, $"{path}.availability[{i}].available_on", null, issues, out var on))
+                read.Add(new AvailabilityTranche(on!.Value, records[i].Amount));
+            else
+                ok = false;
+        tranches = read;
         return ok;
     }
 

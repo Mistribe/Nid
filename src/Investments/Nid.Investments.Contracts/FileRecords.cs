@@ -33,6 +33,19 @@ public sealed record EnvelopeRecord
     /// <summary>#294: <c>view</c> when omitted, <c>edit</c> lets every adult write the shared item.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ShareLevel { get; set; }
+
+    /// <summary>#462: an employee savings plan's tranches; written only when set, so a file of before the field keeps its hash.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<TrancheRecord>? Availability { get; init; }
+}
+
+/// <summary>#462: a part of an employee savings plan released on a date, in the envelope's currency, as its statement prints it.</summary>
+public sealed record TrancheRecord
+{
+    public required string AvailableOn { get; init; }
+
+    [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.WriteAsString)]
+    public required decimal Amount { get; init; }
 }
 
 /// <summary>
