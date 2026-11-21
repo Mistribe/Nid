@@ -10,11 +10,12 @@ import { server } from '@/test/server';
 const base = { bookedOn: '2026-10-27', valueOn: null, currency: 'EUR', counterparty: null, fromCard: false, cardName: null, fetchedVia: 'file', link: null, accountName: 'Compte courant', accountId: 'a1', sharedAccount: false };
 const netflix = { ...base, id: 't1', amount: '-13.49', label: 'PRLV NETFLIX', linkState: 'unlinked', category: null };
 const salary = { ...base, id: 't2', bookedOn: '2026-10-28', amount: '2000.00', label: 'VIREMENT EMPLOYEUR', linkState: 'linked', link: { itemName: 'Salaire Alice' }, category: { id: 'c1', name: 'Revenus' } };
-const facets = { accounts: [{ id: 'a1', name: 'Compte courant' }], owners: [{ id: 'p1', name: 'Alice' }], categories: [{ id: 'c1', name: 'Revenus' }] };
+const facets = { accounts: [{ id: 'a1', name: 'Compte courant' }, { id: 'a2', name: 'Livret' }], owners: [{ id: 'p1', name: 'Alice' }], categories: [{ id: 'c1', name: 'Revenus' }] };
 const answer = (items: unknown[], total = items.length) => ({ items, total, totals: { out: '13.49', in: '2000.00', net: '1986.51', currency: 'EUR', incomplete: false }, facets,
   accountOwners: [{ accountId: 'a1', owners: [{ id: 'p1', name: 'Alice' }], writable: true }] });
 
 const search = () => screen.getByRole<HTMLInputElement>('searchbox', { name: 'Rechercher' });
+const filters = () => screen.getByRole('button', { name: /^Filtres/ });
 
 describe('« Opérations »', () => {
   beforeAll(async () => { await import('@/features/spending/SpendingPage'); await import('./OperationsPage'); }, 30_000);
@@ -31,7 +32,9 @@ describe('« Opérations »', () => {
     const rows = within(await screen.findByRole('table', { name: 'Opérations' })).getAllByRole('row');
     expect(rows[1]).toHaveTextContent('PRLV NETFLIX');
     expect(rows[1]).toHaveTextContent('-13,49 €');
-    expect(rows[1]).toHaveTextContent('À relier');
+    // « À relier », most lines' state, is left unsaid; a line without category says it is to classify.
+    expect(rows[1]).not.toHaveTextContent('À relier');
+    expect(rows[1]).toHaveTextContent('À classer');
     expect(await within(rows[1]!).findByText('Alice')).toBeInTheDocument();
     expect(rows[2]).toHaveTextContent('Revenus');
     expect(rows[2]).toHaveTextContent('Reliée · Salaire Alice');
@@ -77,6 +80,8 @@ describe('« Opérations »', () => {
 
     await screen.findByRole('table', { name: 'Opérations' });
     expect(asked).toBe(expected);
+    expect(screen.getByRole('list', { name: 'Filtres actifs' })).toHaveTextContent('Comptée dans les dépenses');
+    fireEvent.click(filters());
     expect(screen.getByRole('combobox', { name: 'État' })).toHaveTextContent('Comptée dans les dépenses');
   });
 
@@ -99,6 +104,7 @@ describe('« Opérations »', () => {
     await screen.findByRole('table', { name: 'Opérations' });
     expect(asked[0]).toBe('?page=2');
 
+    await user.click(filters());
     await pick(user, 'État', 'À relier');
     await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'operations', state: 'unlinked' }));
     await pick(user, 'Compte', 'Compte courant');
@@ -124,13 +130,15 @@ describe('« Opérations »', () => {
     const input = (name: string) => screen.getByRole<HTMLInputElement>('textbox', { name });
     await screen.findByRole('table', { name: 'Opérations' });
     expect(search().value).toBe('netflix');
+    expect(within(screen.getByRole('list', { name: 'Filtres actifs' })).getAllByRole('listitem').map((i) => i.textContent)).toEqual(['Depuis le 1 oct. 2026', 'Au moins 5', 'Tout effacer']);
+    fireEvent.click(filters());
     expect(input('Du').value).toBe('01/10/2026');
-    expect(screen.getByRole<HTMLInputElement>('spinbutton', { name: 'Montant de' }).value).toBe('5');
+    expect(screen.getByRole<HTMLInputElement>('spinbutton', { name: 'Montant minimum' }).value).toBe('5');
 
     await router.navigate({ to: '/spending', search: { tab: 'operations', state: 'unlinked' } });
     await waitFor(() => expect(search().value).toBe(''));
     expect(input('Du').value).toBe('');
-    expect(screen.getByRole<HTMLInputElement>('spinbutton', { name: 'Montant de' }).value).toBe('');
+    expect(screen.getByRole<HTMLInputElement>('spinbutton', { name: 'Montant minimum' }).value).toBe('');
   });
 
   it('keeps a half-typed date out of the URL and waits for a pause before searching', async () => {
@@ -139,6 +147,7 @@ describe('« Opérations »', () => {
     const { router } = await renderApp('/spending?tab=operations');
     await screen.findByRole('table', { name: 'Opérations' });
 
+    fireEvent.click(filters());
     fireEvent.change(screen.getByRole('textbox', { name: 'Du' }), { target: { value: '12/1' } });
     expect(screen.getByRole<HTMLInputElement>('textbox', { name: 'Du' }).value).toBe('12/1');
     expect(router.state.location.search).toEqual({ tab: 'operations' });

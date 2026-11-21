@@ -235,6 +235,7 @@
       "part_amount_invalid": "Saisissez un montant positif, avec au plus quatre décimales.",
       "part_add": "Ajouter une partie",
       "to_link": "Opérations à relier",
+      "to_classify": "À classer",
       "no_match": "Aucune opération ne correspond.",
       "to_link_empty": "Aucune opération à relier.",
       "owner": "Titulaire",
@@ -242,14 +243,16 @@
       "count_other": "{{count}} opérations",
       "pages": "Pages des opérations",
       "filter": {
-        "search": "Rechercher",
+        "search": "Rechercher", "search_placeholder": "Rechercher un libellé, un tiers…",
         "account": "Compte", "account_all": "Tous les comptes",
         "owner": "Titulaire", "owner_all": "Tous les titulaires",
         "category": "Catégorie", "category_all": "Toutes les catégories", "category_none": "Sans catégorie",
         "category_search": "Rechercher une catégorie",
         "state": "État", "state_all": "Tous les états",
         "direction": "Sens", "direction_all": "Toutes", "direction_out": "Sorties", "direction_in": "Entrées",
-        "from": "Du", "to": "Au", "min": "Montant de", "max": "à"
+        "from": "Du", "to": "Au", "min": "Montant minimum", "max": "Montant maximum",
+        "active": "Filtres actifs", "remove": "Retirer le filtre « {{label}} »", "clear": "Tout effacer",
+        "chip_from": "Depuis le {{date}}", "chip_to": "Jusqu'au {{date}}", "chip_min": "Au moins {{amount}}", "chip_max": "Au plus {{amount}}"
       },
       "total_out": "Sorties",
       "total_in": "Entrées",

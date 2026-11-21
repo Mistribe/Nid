@@ -43,7 +43,7 @@ export function SpendingPage() {
       <DetailTabs value={tab} onChange={change} tabs={[
         { id: 'overview', label: t('spending.tabs.overview'), content: lazyTab(<SpendingOverview />) },
         { id: 'operations', label: t('spending.tabs.operations'), content: lazyTab(<OperationsPage />), badge: toClassify ? (
-          <Badge variant="secondary"><span aria-hidden="true">{toClassify}</span><span className="sr-only">{t('spending.to_classify', { count: toClassify })}</span></Badge>
+          <Badge variant="outline" className="border-transparent bg-status-warning/15 text-status-warning-text"><span aria-hidden="true">{t('spending.to_classify_short', { count: toClassify })}</span><span className="sr-only">{t('spending.to_classify', { count: toClassify })}</span></Badge>
         ) : null },
         { id: 'categories', label: t('spending.tabs.categories'), content: lazyTab(<CategoriesTab />) },
       ]} />
