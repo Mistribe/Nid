@@ -26,10 +26,10 @@ public class TaxEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresF
         => estimate.GetProperty("inputs").GetProperty("declarants").EnumerateArray()
             .Sum(d => decimal.Parse(d.GetProperty("salaryGross").GetString()!, CultureInfo.InvariantCulture));
 
-    private static async Task<string> PerAsync(NidApp app, PersonId owner, string name, string openedOn, string openingOn, string visibility = "shared")
+    private static async Task<string> PerAsync(NidApp app, PersonId owner, string name, string openedOn, string openingOn, string visibility = "shared", string kind = "per")
         => JsonDocument.Parse(await (await app.RawAsync(owner, HttpMethod.Post, "/api/v1/investments/envelopes", new
         {
-            displayName = name, kind = "per", currency = "EUR", visibility, openedOn,
+            displayName = name, kind, currency = "EUR", visibility, openedOn,
             owners = new[] { new { personId = owner.Value, shareBp = 10_000 } },
             opening = new { occurredOn = openingOn, amount = new { amount = "1000.00", currency = "EUR" } },
         })).EnsureSuccessStatusCode().Content.ReadAsStringAsync()).RootElement.GetProperty("id").GetString()!;
@@ -433,9 +433,9 @@ public class TaxEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresF
         Assert.Equal("2.0", JsonDocument.Parse(await simulated.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.GetProperty("parts").GetString());
     }
 
-    private static async Task ContributeAsync(NidApp app, PersonId owner, string envelope, string on, string amount)
+    private static async Task ContributeAsync(NidApp app, PersonId owner, string envelope, string on, string amount, string? category = null)
         => (await app.RawAsync(owner, HttpMethod.Post, $"/api/v1/investments/envelopes/{envelope}/flows",
-            new { occurredOn = on, kind = "contribution", amount = new { amount, currency = "EUR" } })).EnsureSuccessStatusCode();
+            new { occurredOn = on, kind = "contribution", amount = new { amount, currency = "EUR" }, category })).EnsureSuccessStatusCode();
 
     private static async Task ValueAsync(NidApp app, PersonId owner, string envelope, string asOf, string amount)
         => (await app.RawAsync(owner, HttpMethod.Post, $"/api/v1/investments/envelopes/{envelope}/valuations",
@@ -575,6 +575,27 @@ public class TaxEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresF
         var notice = Assert.Single(estimate.GetProperty("notices").EnumerateArray(), n => n.GetProperty("code").GetString() == "per_without_contributions");
         Assert.Equal("PER dormant", notice.GetProperty("name").GetString());
         Assert.Equal("200.00", PerResultOf(estimate, app.AdultA).GetProperty("contributions").GetString());
+    }
+
+    [Fact]
+    public async Task A_collective_PER_deducts_its_voluntary_payments_only()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var mixed = await PerAsync(app, app.AdultA, "PERCOL", "2020-03-01", "2024-01-10", kind: "collective_per");
+        await ContributeAsync(app, app.AdultA, mixed, "2025-03-01", "1500.00");
+        await ContributeAsync(app, app.AdultA, mixed, "2025-03-01", "800.00", "employer_match");
+        await ContributeAsync(app, app.AdultA, mixed, "2025-04-01", "600.00", "profit_sharing");
+        await ContributeAsync(app, app.AdultA, mixed, "2025-05-01", "400.00", "participation");
+        await ValueAsync(app, app.AdultA, mixed, "2025-06-01", "9000.00");
+        var employerOnly = await PerAsync(app, app.AdultA, "PERCOL abondé", "2020-03-01", "2024-01-10", kind: "collective_per");
+        await ContributeAsync(app, app.AdultA, employerOnly, "2025-03-01", "700.00", "employer_match");
+        await ValueAsync(app, app.AdultA, employerOnly, "2025-06-01", "5000.00");
+
+        var estimate = await EstimateAsync(app, app.AdultA, 2025);
+
+        Assert.Equal("1500.00", PerResultOf(estimate, app.AdultA).GetProperty("contributions").GetString());
+        var notice = Assert.Single(estimate.GetProperty("notices").EnumerateArray(), n => n.GetProperty("code").GetString() == "per_without_contributions");
+        Assert.Equal("PERCOL abondé", notice.GetProperty("name").GetString());
     }
 
     [Fact]

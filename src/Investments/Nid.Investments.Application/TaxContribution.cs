@@ -9,15 +9,15 @@ namespace Nid.Investments.Application;
 /// Tax estimate spec §6: a brokerage account's income of the year (flat tax), a PER's contributions (deducted, per owner), its
 /// opening too when it was opened that year, and the withdrawals from tax wrappers, whose tax is not estimated. #234: its dividends apart; the savings
 /// accounts' interest and the sales' gains come from <see cref="CapitalTaxContribution"/>. Tax-per spec §4.5: a PER open at the end of the year (or closed in it) that holds a value
-/// and received neither a payment nor an opening in it comes as <see cref="TaxLineCodes.PerNoContribution"/>.
+/// and received neither a payment nor an opening in it comes as <see cref="TaxLineCodes.PerNoContribution"/>. #464: a collective PER counts as a PER,
+/// minus the employer's share (<see cref="FlowCategories.Employer"/>), never deductible.
 /// </summary>
 public sealed class EnvelopesTax(IVisibleItems visible, IItemRegistry items, IEnvelopeStore envelopes, IFlows flows, IValuations valuations) : ITaxContribution
 {
     public async Task<Result<IReadOnlyList<TaxLine>>> TaxLinesAsync(PersonId reader, VisibilityScope scope, int year, LocalDate today, CancellationToken ct)
     {
         var found = (await envelopes.FindManyAsync((await visible.ForAsync(reader, scope, includeArchived: true, ct)).ToList(), ct))
-            // #182: a PEE's or a collective PER's withdrawal is flagged, not estimated. A collective PER's payments are not deducted yet: they
-            // mix the employer's share and profit-sharing, never deductible, with the voluntary payments, told apart by the next sub-issues of #4.
+            // #182: a PEE's or a collective PER's withdrawal is flagged, not estimated.
             .Where(e => e.Kind is EnvelopeKind.Brokerage or EnvelopeKind.Per or EnvelopeKind.Pea or EnvelopeKind.LifeInsurance or EnvelopeKind.Tontine
                 or EnvelopeKind.EmployeeSavings or EnvelopeKind.CollectivePer)
             .ToList();
@@ -29,7 +29,7 @@ public sealed class EnvelopesTax(IVisibleItems visible, IItemRegistry items, IEn
 
         // A PER open at 31 December of the year (or closed during it) whose value is read: one batched read for these only.
         var yearEnd = new LocalDate(year, 12, 31);
-        var open = found.Where(e => e.Kind == EnvelopeKind.Per && accesses.ContainsKey(e.ItemId) && (e.OpenedOn is null || e.OpenedOn <= yearEnd)
+        var open = found.Where(e => IsPer(e.Kind) && accesses.ContainsKey(e.ItemId) && (e.OpenedOn is null || e.OpenedOn <= yearEnd)
                                     && (e.ClosedOn is null || e.ClosedOn >= new LocalDate(year, 1, 1)))
             .Select(e => e.ItemId).ToList();
         IReadOnlyDictionary<ItemId, IReadOnlyList<Valuation>>? series = null;
@@ -56,10 +56,11 @@ public sealed class EnvelopesTax(IVisibleItems visible, IItemRegistry items, IEn
             }
             // An opening is the payments made before the tracking: paid in the year only when the PER was opened in it.
             var opening = envelope.OpenedOn?.Year == year ? Sum(FlowKind.Opening) : 0m;
-            if (envelope.Kind == EnvelopeKind.Per && Sum(FlowKind.Contribution) + opening is > 0 and var paid)
+            var voluntary = facts.Where(f => f.Kind == FlowKind.Contribution && !FlowCategories.IsEmployer(f.Category)).Sum(f => f.Amount.Amount);
+            if (IsPer(envelope.Kind) && voluntary + opening is > 0 and var paid)
                 lines.AddRange(TaxLineCodes.Split(TaxLineCodes.PerContribution, item, paid));
             // The latest value on or before the year's end, positive: a PER emptied or never valued is nothing to flag.
-            if (envelope.Kind == EnvelopeKind.Per && Sum(FlowKind.Contribution) == 0m && Sum(FlowKind.Opening) == 0m
+            if (IsPer(envelope.Kind) && voluntary == 0m && Sum(FlowKind.Opening) == 0m
                 && series is not null && series.TryGetValue(envelope.ItemId, out var valued)
                 && valued.Where(v => v.AsOf <= yearEnd).OrderByDescending(v => v.AsOf).FirstOrDefault() is { } latest && latest.Value.Amount > 0m)
                 lines.AddRange(TaxLineCodes.Split(TaxLineCodes.PerNoContribution, item, 0m));
@@ -68,4 +69,6 @@ public sealed class EnvelopesTax(IVisibleItems visible, IItemRegistry items, IEn
         }
         return Result.Success<IReadOnlyList<TaxLine>>(lines);
     }
+
+    private static bool IsPer(EnvelopeKind kind) => kind is EnvelopeKind.Per or EnvelopeKind.CollectivePer;
 }
