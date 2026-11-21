@@ -56,7 +56,7 @@ public sealed class TransactionStore(BankingDbContext db, IClock clock) : ITrans
             {
                 Id = Guid.CreateVersion7(), AccountId = account, ProviderRef = refs[i], Fingerprint = fingerprint, BookedOn = l.BookedOn,
                 ValueOn = l.ValueOn, Amount = l.Amount, Currency = l.Currency.Code, Label = l.Label, Counterparty = l.Counterparty,
-                Remittance = l.Remittance, NormalizedLabel = normalized[i], FetchedVia = l.FetchedVia, CreatedAt = now,
+                Remittance = l.Remittance, NormalizedLabel = normalized[i], SuggestedPattern = CategoryRules.Suggest(normalized[i]), FetchedVia = l.FetchedVia, CreatedAt = now,
                 ReconciledAt = reconciled ? now : null, BankCode = CleanBankCode(l.BankCode),
             });
             added++;

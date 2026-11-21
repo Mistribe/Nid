@@ -686,6 +686,11 @@ public static class RequestCatalogue
         new(typeof(Nid.Banking.Application.Spending.CreateBudgetsCommand), false, (_, _) => new Nid.Banking.Application.Spending.CreateBudgetsCommand(
             [new Nid.Banking.Application.Spending.NewBudget(Guid.NewGuid(), "100", "typed", "month")])),
         new(typeof(Nid.Banking.Application.Spending.SuggestBudgetsQuery), false, (_, _) => new Nid.Banking.Application.Spending.SuggestBudgetsQuery()),
+        // #449: suggestions count only accounts the actor reads; a dismissal names a pattern, listed only to who reads a line of it.
+        new(typeof(ListCategorySuggestionsQuery), false, (_, _) => new ListCategorySuggestionsQuery(1)),
+        new(typeof(ListSuggestionDismissalsQuery), false, (_, _) => new ListSuggestionDismissalsQuery()),
+        new(typeof(DismissCategorySuggestionCommand), false, (_, _) => new DismissCategorySuggestionCommand("BENCH", "debit", Nid.Banking.Domain.CategorySeed.Find("food.groceries")!.Id)),
+        new(typeof(WithdrawSuggestionDismissalCommand), false, (_, _) => new WithdrawSuggestionDismissalCommand(Guid.NewGuid())),
         new(typeof(ListBankRulesQuery), false, (_, _) => new ListBankRulesQuery()),
         new(typeof(DeleteBankRuleCommand), false, (_, _) => new DeleteBankRuleCommand(Guid.NewGuid())),
         // A preview: the actor's own new account from a file, rolled back; dropped on the row's item, refused unless they write an envelope.

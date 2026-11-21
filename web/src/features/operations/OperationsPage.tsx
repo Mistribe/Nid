@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { OPERATIONS, type BankTransaction, type OperationPage } from '@/api/banking';
 import { LineActions, lineState, SplitParts } from '../investments/operations/LineActions';
 import { Receipts } from '../investments/operations/Receipts';
+import { CategorySuggestions } from './CategorySuggestions';
 import { OperationFilters } from './OperationFilters';
 import '@/locales/banks';
 
@@ -60,6 +61,7 @@ export function OperationsPage() {
   const money = (v: string) => formatCurrency(v, totals?.currency ?? 'EUR');
   return (
     <div className="space-y-4">
+      <CategorySuggestions />
       <OperationFilters facets={answer.data?.facets} search={search} onChange={(change) => go({ ...change, page: undefined })} />
       {answer.error ? <ProblemMessage problem={present(toProblem(answer.error))} />
         : !answer.data || !totals ? <Loading label={t('banks.operations.loading')}><TableSkeleton columns={6} /></Loading>

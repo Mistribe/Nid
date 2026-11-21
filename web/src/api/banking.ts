@@ -120,3 +120,10 @@ export const CATEGORY_RULE_APPLY = '/api/v1/banking/category-rules/{id}/apply' a
 /** #418: a rule not yet saved, previewed: the lines it would change, those it matches but would not, by reason. */
 export const CATEGORY_RULE_DRAFT_PREVIEW = '/api/v1/banking/category-rules/preview' as const;
 export type CategoryRuleDraftPreview = components['schemas']['CategoryRuleDraftPreview'];
+
+/** #449: categories (and the rule) the household's own hand choices suggest for its uncategorised lines, a page at a time; the dismissed ones. */
+export type CategorySuggestion = components['schemas']['CategorySuggestionView'];
+export type SuggestionDismissal = components['schemas']['SuggestionDismissalView'];
+export const CATEGORY_SUGGESTIONS = '/api/v1/banking/category-suggestions' as const;
+export const SUGGESTION_DISMISSALS = '/api/v1/banking/category-suggestions/dismissals' as const;
+export const SUGGESTION_DISMISSAL = '/api/v1/banking/category-suggestions/dismissals/{id}' as const;

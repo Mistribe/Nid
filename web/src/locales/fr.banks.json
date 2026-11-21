@@ -477,6 +477,38 @@
       "actions_of": "Actions sur la règle {{stem}}",
       "delete_confirm": "La règle « {{stem}} » sera supprimée : une prochaine opération à ce libellé n'est plus reliée d'elle-même. Les opérations déjà reliées le restent.",
       "deleted": "Règle supprimée."
+    },
+    "suggestions": {
+      "title_one": "{{count}} suggestion de catégorie",
+      "title_other": "{{count}} suggestions de catégorie",
+      "about": "Des opérations sans catégorie ressemblent à d'autres que le foyer a classées lui-même : Nid propose la même catégorie, et une règle pour les prochaines. Rien ne change sans votre accord.",
+      "show_one": "Voir la suggestion",
+      "show_other": "Voir les {{count}} suggestions",
+      "credits": "crédits",
+      "lines_one": "{{count}} opération à classer",
+      "lines_other": "{{count}} opérations à classer",
+      "evidence_one": "d'après {{count}} opération classée à la main",
+      "evidence_other": "d'après {{count}} opérations classées à la main",
+      "evidence_about": "Nid regarde les opérations au libellé semblable qu'un adulte du foyer a classées lui-même, ou validées après une proposition de l'assistant : {{agreement}} % d'entre elles sont en {{category}}. Ce que les règles ou la banque ont classé ne compte pas.",
+      "create_rule": "Créer la règle",
+      "categorise_one": "Classer cette opération",
+      "categorise_other": "Classer ces {{count}} opérations",
+      "ignore": "Ignorer",
+      "show_lines": "Voir les opérations",
+      "lines_of": "Opérations « {{pattern}} »",
+      "more_lines_one": "et {{count}} autre",
+      "more_lines_other": "et {{count}} autres",
+      "pages": "Pages des suggestions",
+      "rule_title": "Créer une règle",
+      "done_categorise_one": "{{count}} opération classée en {{category}}.",
+      "done_categorise_other": "{{count}} opérations classées en {{category}}.",
+      "done_ignore": "Suggestion ignorée. Elle peut être rétablie dans Dépenses › Catégories.",
+      "dismissed_title": "Suggestions ignorées",
+      "dismissed_hint": "Nid ne propose plus ces catégories pour ces opérations. Rétablissez-en une pour qu'elle revienne.",
+      "dismissed_at": "Ignorée le",
+      "restore": "Rétablir",
+      "restore_of": "Rétablir « {{pattern}} » en {{category}}",
+      "restored": "Suggestion rétablie."
     }
   }
 }

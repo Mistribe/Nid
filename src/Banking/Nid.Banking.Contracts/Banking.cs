@@ -106,6 +106,9 @@ public sealed record CategoryRule(
     Guid Id, string Pattern, Guid? Account, RuleDirection? Direction, decimal? MinAmount, decimal? MaxAmount, Guid Category,
     PersonId CreatedBy, Instant CreatedAt, Instant? LastUsedAt);
 
+/// <summary>#449: a suggestion the household dismissed: <paramref name="Pattern"/>, of debits or credits, is never again suggested into <paramref name="Category"/>.</summary>
+public sealed record SuggestionDismissal(Guid Id, string Pattern, RuleDirection Direction, Guid Category, PersonId CreatedBy, Instant CreatedAt);
+
 /// <summary>A category of bank lines; <paramref name="Key"/> is a seeded one's stable key, null for the household's own.</summary>
 /// <param name="MergedInto">Set on a merged (and archived) category: where its lines went.</param>
 public sealed record BankCategory(Guid Id, Guid? Parent, string? Key, string Name, CategoryKind Kind, Instant? ArchivedAt, Guid? MergedInto);
