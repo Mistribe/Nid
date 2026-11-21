@@ -242,14 +242,14 @@ public class YearReviewEndpointTests(PostgresFixture fixture) : IClassFixture<Po
         Assert.Equal([(salary.ToString(), "60000.00"), ("one_off", "500.00")],
             past.GetProperty("sources").EnumerateArray().Select(s => (s.GetProperty("key").GetString(), A(s, "amount"))));
         Assert.Equal(salary, past.GetProperty("sources")[0].GetProperty("id").GetGuid());
-        // 2025: ten months of the year's tax estimate; none before the rules.
+        // 2025: ten months of the year's tax estimate; 2024, the whole of its own.
         var tax = D((await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, "/api/v1/tax?scope=household&year=2025")))
             .GetProperty("result").GetProperty("totalTax").GetString());
         Assert.True(tax > 0m);
         Assert.Equal(Math.Round(tax * 10 / 12, 2, MidpointRounding.AwayFromZero), D(Engagements(current)[CommitmentSources.Tax]));
         Assert.True(current.GetProperty("engagementSources").EnumerateArray()
             .Single(s => s.GetProperty("source").GetString() == CommitmentSources.Tax).GetProperty("estimated").GetBoolean());
-        Assert.DoesNotContain(CommitmentSources.Tax, Engagements(past).Keys);
+        Assert.Contains(CommitmentSources.Tax, Engagements(past).Keys);
         Assert.Equal(D(A(current, "income")) - D(A(current, "engagements")), D(A(current, "margin")));
     }
 
@@ -686,17 +686,18 @@ public class YearReviewEndpointTests(PostgresFixture fixture) : IClassFixture<Po
         Assert.True(S(page, "totalTax") > 0m);
         Assert.Equal((S(page, "totalTax"), S(page, "incomeTax"), S(page, "socialLevies"), S(page, "capitalFlatTax")),
             (D(A(tax, "totalTax")), D(A(tax, "incomeTax")), D(A(tax, "socialLevies")), D(A(tax, "capitalFlatTax"))));
-        // 2024 is before the rules: no year before.
-        Assert.Null(A(tax, "previousTotalTax"));
+        // 2024 has its own rules: the year before is its estimate.
+        var before = (await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, "/api/v1/tax?year=2024&scope=household"))).GetProperty("result");
+        Assert.Equal(S(before, "totalTax"), D(A(tax, "previousTotalTax")));
     }
 
     [Fact]
     public async Task No_tax_section_before_the_rules()
     {
         await using var app = await NidApp.StartAsync(fixture);
-        await SalaryAsync(app, app.AdultA, amount: "5000"); // income since 2024: the year is on offer
+        await SalaryAsync(app, app.AdultA, amount: "5000", startsOn: "2019-01-01"); // income since 2019: the year is on offer
 
-        Assert.Equal(JsonValueKind.Null, (await YearAsync(app, "2024")).GetProperty("tax").ValueKind);
+        Assert.Equal(JsonValueKind.Null, (await YearAsync(app, "2019")).GetProperty("tax").ValueKind);
     }
 
     [Fact]

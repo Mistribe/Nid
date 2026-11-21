@@ -1088,4 +1088,30 @@ public class TaxCalculatorTests
         Assert.Equal(((decimal)taxable, (decimal)incomeTax, (decimal)flat, 43_000m), (result.NetTaxableIncome, result.IncomeTax, result.CapitalFlatTax, result.ReferenceIncome));
         Assert.Equal(860m + 372m, result.SocialLevies);
     }
+
+    /// <summary>
+    /// A couple with 30 000 € and 20 000 € of other taxable income: 45 000 € after the 10 % allowance, two shares (quotient 22 500 €).
+    /// The tax is 2 × 11 % of the quotient over that year's first bracket, under the couple's décote threshold every year, so less
+    /// the décote base minus 45,25 % of it, to the euro. 2020: 0,22 × 12 416 = 2 731,52, less 1 289 − 1 236,01 = 52,99, 2 679.
+    /// 2021: 2 700,50 less 85,02. 2022: 2 579,06 less 210,98. 2023: 2 465,32 less 328,44. 2024: 2 420,66 less 374,65.
+    /// </summary>
+    [Theory]
+    [InlineData(2020, 2_679)]
+    [InlineData(2021, 2_615)]
+    [InlineData(2022, 2_368)]
+    [InlineData(2023, 2_137)]
+    [InlineData(2024, 2_046)]
+    public void A_couple_in_a_past_year_pays_that_years_scale(int year, int expected)
+    {
+        var result = TaxCalculator.Compute(Inputs([Other(30_000m), new TaxDeclarant("B", 0m, EmploymentStatus.NonExecutive, 20_000m, 0m)], year: year));
+
+        Assert.Equal(expected, result.IncomeTax);
+    }
+
+    /// <summary>The LFSS 2026's 18,6 % reaches the gains from the 2025 revenues; before, 17,2 %.</summary>
+    [Theory]
+    [InlineData(2024, 344)]
+    [InlineData(2025, 372)]
+    public void The_social_levies_on_gains_follow_their_year(int year, int levies)
+        => Assert.Equal(levies, TaxCalculator.Compute(Inputs([Other(30_000m)], year: year) with { RealisedGains = 2_000m }).SocialLevies);
 }

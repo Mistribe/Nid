@@ -279,7 +279,7 @@ public class TaxEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresF
         });
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
-        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await app.RawAsync(app.AdultA, HttpMethod.Get, "/api/v1/tax?year=2024", null)).StatusCode);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await app.RawAsync(app.AdultA, HttpMethod.Get, "/api/v1/tax?year=2019", null)).StatusCode);
     }
 
     [Fact]
@@ -478,6 +478,23 @@ public class TaxEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresF
     }
 
     [Fact]
+    public async Task The_2020_revenues_are_estimated_on_their_own_rules()
+    {
+        // The first year of the rules: its previous-year pass reads 2019, before them, on the 2020 rules.
+        await using var app = await NidApp.StartAsync(fixture);
+        var salary = await app.NewIncomeSourceAsync("Salaire A", app.AdultA);
+        await AddPaymentAsync(app, app.AdultA, salary, "Salaire 2019", "2019-06-30", "30000", null, "30000");
+        await AddPaymentAsync(app, app.AdultA, salary, "Salaire 2020", "2020-06-30", "60000", null, "60000");
+
+        var estimate = await EstimateAsync(app, app.AdultA, 2020);
+
+        var result = estimate.GetProperty("result");
+        Assert.Equal(2020, result.GetProperty("rulesYear").GetInt32());
+        Assert.True(DecimalOf(result, "incomeTax") > 0m);
+        Assert.DoesNotContain(result.GetProperty("warnings").EnumerateArray(), w => w.GetString() == "rules_carried_forward");
+    }
+
+    [Fact]
     public async Task Without_a_notice_the_ceiling_is_estimated_on_last_years_salaries()
     {
         await using var app = await NidApp.StartAsync(fixture);
@@ -486,10 +503,10 @@ public class TaxEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresF
         var per = await PerAsync(app, app.AdultA, "PER ancien", "2020-03-01", "2024-01-10");
         await ContributeAsync(app, app.AdultA, per, "2025-03-01", "3000.00");
 
-        // What 2024's 100 000 gross comes to once taxable (the rules of 2025 stand in for 2024): the simulation, no PER.
+        // What 2024's 100 000 gross comes to once taxable on the 2024 rules: the simulation, no PER.
         var simulated = await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/tax/simulate", new
         {
-            year = 2025, declarants = new[] { new { name = "A", salaryGross = "100000", status = "non_executive", otherTaxable = "0", perContributions = "0" } },
+            year = 2024, declarants = new[] { new { name = "A", salaryGross = "100000", status = "non_executive", otherTaxable = "0", perContributions = "0" } },
         });
         var taxable2024 = DecimalOf(JsonDocument.Parse(await simulated.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.GetProperty("declarants")[0], "taxable");
         var estimate = await EstimateAsync(app, app.AdultA, 2025);

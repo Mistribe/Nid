@@ -352,7 +352,6 @@ public class Rental2044Tests(PostgresFixture fixture) : IClassFixture<PostgresFi
     {
         await using var app = await NidApp.StartAsync(fixture);
 
-        // Without a year, the form is last year's: 2024 here, before the first rules.
-        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await app.RawAsync(app.AdultA, HttpMethod.Get, "/api/v1/tax/2044")).StatusCode);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await app.RawAsync(app.AdultA, HttpMethod.Get, "/api/v1/tax/2044?year=2019")).StatusCode);
     }
 }

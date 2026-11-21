@@ -7,6 +7,8 @@ import '@/locales/tax';
 
 /** The 2025 aid donations have two boxes: 7UD until 13 October, 7UQ from 14 October (loi de finances pour 2026, art. 28). */
 const SPLIT_AID_YEAR = 2025;
+/** The aid donations' 75 % cap: 1 000 € before the 2025 revenues. */
+export const aidCap = (year: number) => (year < SPLIT_AID_YEAR ? '1 000' : '2 000');
 
 /** The year's expenses that open a credit or a reduction, with their 2042 boxes. */
 export function ExpensesSection({ estimate, draft }: SectionProps) {
@@ -18,7 +20,7 @@ export function ExpensesSection({ estimate, draft }: SectionProps) {
         <AmountField draft={draft} name="childcareOutsideHome" hint={t('tax.profile.childcare_hint')} badge="7GA" />
         <AmountField draft={draft} name="homeEmployment" hint={t('tax.profile.home_hint')} badge="7DB" />
         <AmountField draft={draft} name="donations" badge="7UF" />
-        <AmountField draft={draft} name="donationsAid" hint={t(split ? 'tax.profile.aid_hint_early' : 'tax.profile.aid_hint')} badge="7UD" />
+        <AmountField draft={draft} name="donationsAid" hint={split ? t('tax.profile.aid_hint_early') : t('tax.profile.aid_hint', { cap: aidCap(estimate.year) })} badge="7UD" />
         {split && <AmountField draft={draft} name="donationsAidLate" hint={t('tax.profile.aid_hint_late')} badge="7UQ" />}
         <AmountField draft={draft} name="alimonyPaid" hint={t('tax.profile.alimony_hint')} badge="6GP" />
         <AmountField draft={draft} name="alimonyAdultChildren" hint={t('tax.profile.alimony_children_hint')} badge="6GI" />

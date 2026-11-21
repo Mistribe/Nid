@@ -289,8 +289,8 @@ describe('AssessmentForm', () => {
   });
 
   it('Lands_on_the_new_past_year_without_estimating_the_current_one', async () => {
-    const items = [jointAssessment({ year: 2023 })];
-    const sent = serve(household, { post: () => { items.push(jointAssessment({ id: NOTICE, year: 2022 })); return HttpResponse.json({ id: NOTICE }, { status: 201 }); } });
+    const items = [jointAssessment({ year: 2018 })];
+    const sent = serve(household, { post: () => { items.push(jointAssessment({ id: NOTICE, year: 2017 })); return HttpResponse.json({ id: NOTICE }, { status: 201 }); } });
     const years: (string | null)[] = [];
     server.use(
       http.get('*/api/v1/tax/assessments', () => HttpResponse.json({ items })),
@@ -300,13 +300,13 @@ describe('AssessmentForm', () => {
     await screen.findByRole('tab', { name: 'Calcul' });
     await user.click(screen.getByRole('link', { name: 'Ajouter un avis' }));
 
-    await pick(user, 'Année des revenus', '2022');
+    await pick(user, 'Année des revenus', '2017');
     for (let i = 0; i < 4; i += 1) await next(user);
     years.length = 0;
     await submit(user);
 
-    await waitFor(() => expect(router.state.location.search).toEqual({ year: '2022', scope: 'me' }));
-    expect(await screen.findByRole('region', { name: 'Avis 2022' })).toBeInTheDocument();
+    await waitFor(() => expect(router.state.location.search).toEqual({ year: '2017', scope: 'me' }));
+    expect(await screen.findByRole('region', { name: 'Avis 2017' })).toBeInTheDocument();
     expect(years).toEqual([]);
     expect(sent.post).toHaveLength(1);
   });
@@ -323,13 +323,13 @@ describe('AssessmentForm', () => {
     const sent = serve([adult(SESSION_PERSON, 'Alice Dev')]);
     const { user, router } = await renderApp('/tax/assessments/new');
 
-    await pick(user, 'Année des revenus', '2024');
+    await pick(user, 'Année des revenus', '2019');
     expect(screen.queryByRole('combobox', { name: 'Déclarant 2' })).not.toBeInTheDocument();
     for (let i = 0; i < 4; i += 1) await next(user);
     await submit(user);
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/tax'));
-    expect(router.state.location.search).toEqual({ year: '2024', scope: 'me' });
+    expect(router.state.location.search).toEqual({ year: '2019', scope: 'me' });
     expect((sent.post[0] as { declarants: unknown[] }).declarants).toHaveLength(1);
   });
 
