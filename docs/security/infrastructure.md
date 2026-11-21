@@ -26,8 +26,8 @@
 | `workers` | `nid` (passerelle LLM), workers locaux (profil Compose de #166) | **Non** ; le moteur LLM d'un worker reste sur le réseau propre du worker, seul le port du worker est joint par `nid` (`../ai/README.md` §3) |
 
 - **`nid` est le seul composant applicatif qui sort vers Internet**, par le `SafeHttpClient` et sa liste d'hôtes (`application.md` §3). Le service `backup` ne sort que si l'hébergeur ajoute la surcouche du dépôt distant, et seulement vers ce dépôt (1F2).
-- Postgres, Pocket ID et les moteurs LLM **ne publient aucun port** ; un worker distant publie seulement son port, en mutual TLS.
-- Ollama et les autres moteurs n'ont **pas d'authentification native** : ils ne sont joints que par leur worker, qui porte l'appairage, le mutual TLS et les signatures (WRK-4, `risk-register.md` §3 bis). « Le réseau `workers` tient lieu d'authentification » est abandonné (#171).
+- Postgres, Pocket ID et les moteurs LLM **ne publient aucun port** ; un worker distant publie seulement son port, joint en TLS épinglé ou derrière un proxy déclaré par l'admin ; l'identité et la confidentialité viennent de HPKE et de la clé épinglée (`../ai/README.md` §4.1).
+- Ollama et les autres moteurs n'ont **pas d'authentification native** : ils ne sont joints que par leur worker, qui porte l'appairage, la clé épinglée et le chiffrement HPKE (WRK-4, `risk-register.md` §3 bis). « Le réseau `workers` tient lieu d'authentification » est abandonné (#171).
 
 ## 3. Secrets
 

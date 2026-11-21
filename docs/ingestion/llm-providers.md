@@ -47,7 +47,7 @@ Un **profil** décrit un fournisseur pour une offre donnée. Les profils sont **
 | `host` | Hôte autorisé pour le `SafeHttpClient` |
 | `model` | Modèle utilisé ; configurable, non figé dans le code |
 | `capabilities` | `vision`, `pdf_input`, `structured_output`, `max_pages`, `max_input_mb` |
-| `data_terms` | `trains_on_data` (par région), `human_review`, `retention_days?`, `terms_url`, `reviewed_on` |
+| `data_terms` | `trains_on_data` (par région), `human_review`, `retention_days?`, `retention_switches` (interrupteurs de rétention du fournisseur et valeur imposée par l'adaptateur, par exemple `store: false` pour les Responses d'OpenAI, `../ai/README.md` §5.4), `terms_url`, `reviewed_on` |
 | `quotas?` | `rpm`, `rpd`, `tokens_per_day`, tels que publiés par le fournisseur |
 | `pricing?` | Prix par million de jetons en entrée et en sortie, devise (offres payantes) |
 
@@ -82,8 +82,8 @@ Remplacés par un réglage par usage (#171, `../ai/README.md` §5.3) :
 | Réglage d'un usage | Chaîne |
 |---|---|
 | `off` | Aucun appel |
-| `local` (défaut, sauf `decide`) | Workers appariés : locaux, puis distants si le foyer les accepte |
-| `local_then_cloud` | Workers, puis profils cloud activés et éligibles, gratuits ou payants **si le budget le permet** |
+| `self_hosted` (« auto-hébergé », défaut sauf `decide`) | Workers appariés : locaux, puis distants si leurs règles le permettent |
+| `self_hosted_then_cloud` | Workers, puis profils cloud activés et éligibles, gratuits ou payants **si le budget le permet** ; une conversation garde sa destination, sans repli |
 
 Les anciens modes `local_only`, `free_then_local` et `free_then_local_then_paid` (offres gratuites avant le local) sont abandonnés.
 
@@ -93,7 +93,7 @@ Un profil est éligible seulement si **tout** est vrai :
 
 1. il est activé et une clé valide est enregistrée (profils cloud) ;
 2. `trains_on_data` est faux pour la région confirmée ;
-3. le type de document (`statement`, `amortization`, `invoice`, `contract`) est autorisé au cloud (§6). Le type **`payslip`** (bulletin de paie) **n'est jamais éligible au cloud en v1**, ni à un worker qui n'est pas `safe` (`../ai/README.md` §6.1), même avec le consentement par dépôt : il contient nom, employeur et numéro de sécurité sociale, et le masquage n'est pas une garantie suffisante ;
+3. le type de document (`statement`, `amortization`, `invoice`, `contract`) est autorisé au cloud (§6). Le type **`payslip`** (bulletin de paie) **n'est jamais éligible au cloud en v1**, ni à un worker qui n'est pas `safe` : un document lié comme bulletin de paie est « local seulement » par défaut (`../ai/README.md` §6.6), même avec le consentement par dépôt : il contient nom, employeur et numéro de sécurité sociale, et le masquage n'est pas une garantie suffisante ;
 4. le déposant a consenti pour ce document (§6) ;
 5. les capacités couvrent le document (pages, taille, vision) ;
 6. le quota du fournisseur n'est pas épuisé ;
@@ -115,9 +115,9 @@ Un profil est éligible seulement si **tout** est vrai :
 | **2. Envoi d'un document** | À chaque dépôt : « Extraire avec : Local » ou « Cloud : *fournisseur*, *offre* » avec le résumé des conditions, l'aperçu de ce qui sera envoyé (§8) et, si payant, l'estimation du coût. Option « toujours pour ce type de document » |
 | **3. Budget** | Plafond mensuel en euros (0 par défaut), voir §7 |
 
-Ce tableau vaut pour l'**extraction**. Le chat (consentement par adulte), l'index des documents, `decide` et les workers distants (consentement par foyer) suivent `../ai/README.md` §6.2.
+Ce tableau vaut pour l'**extraction**. Le chat (consentement par adulte), l'index des documents, `decide` et les workers distants (consentement du foyer, plus celui de chaque adulte pour ses données privées) suivent `../ai/README.md` §6.2 et §6.3.
 
-- **Préférence par adulte** : `person.preferences.ai_cloud_default` vaut `ask` (défaut) ou `never`. `never` interdit tout envoi cloud pour les documents de cet adulte.
+- **Préférence par adulte** : `person.preferences.ai_offsite_default` vaut `ask` (défaut), `allow` ou `never` et couvre ses données privées hors des lieux, cloud et workers distants (remplace `ai_cloud_default`, #171). `never` interdit tout envoi ; pour une tâche de fond, `ask` vaut « non » (`../ai/README.md` §6.3).
 - Un document déposé par un adulte n'est envoyé au cloud qu'avec **son** consentement, jamais celui de l'autre.
 - Règles mémorisées : `ai_consent_rules` (par adulte : type de document → `ask`, `local` ou `cloud`).
 - Chaque décision est enregistrée (`consent_id`) et liée à l'appel (§11).
@@ -154,7 +154,7 @@ usage (nid : extraction, chat, index, decide)
    ▼
 passerelle LLM (nid)
    ├─ politique : usage activé, éligibilité, consentement, budget
-   ├─ mTLS ──> worker apparié ──> moteur LLM (réseau du worker, jamais exposé)
+   ├─ HPKE ──> worker apparié ──> moteur LLM (réseau du worker, jamais exposé)
    └─ SafeHttpClient ──> Gemini / OpenAI / Anthropic / Mistral (hôtes des profils activés)
 ```
 
@@ -196,7 +196,7 @@ Table `llm_call` (le **contenu n'est jamais stocké**) :
 | `redaction` | Résumé du masquage (nombre d'éléments masqués par type, `not_masked`) |
 | `status` | `succeeded`, `refused`, `quota`, `error`, `blocked_budget` |
 
-Une page « Utilisation IA » présente les appels récents, le coût du mois et l'état des quotas.
+Une page « Utilisation IA » présente les appels récents, le coût du mois et l'état des quotas. Chaque lecteur n'y voit que ses propres appels et les appels de fond, sans un document qu'il ne lit pas ; les totaux du mois sont visibles des deux adultes (`../ai/README.md` §13).
 
 ## 12. Données et réglages
 

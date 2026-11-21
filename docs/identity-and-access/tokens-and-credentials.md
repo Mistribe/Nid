@@ -152,22 +152,24 @@ ChatGPT n'est pas couvert tant que ses connecteurs ne confirment pas un en-tête
 ## 3. Identifiants des workers
 
 **Remplacé par l'appairage (#171).** Les workers n'appellent plus `nid` : `nid` appelle des workers appariés, avec
-clés épinglées des deux côtés, mutual TLS et messages signés (`../ai/README.md` §3 et §4, #166). Un worker ne détient
+clés épinglées des deux côtés, requêtes signées, requêtes et réponses scellées par HPKE ; TLS épinglé en direct, autorité publique derrière un proxy déclaré (`../ai/README.md` §1.1, §3 et §4, #166). Un worker ne détient
 aucun identifiant qui ouvre `nid`, et `nid` n'expose aucune route aux workers.
 
 - **Appairage** : au premier démarrage, le worker génère sa paire de clés et affiche un code à usage unique et
   l'empreinte de sa clé ; un admin saisit l'URL et le code dans Réglages › IA, confirme l'empreinte, puis les deux
   côtés épinglent la clé de l'autre.
 - **Clé de Nid** : chiffrée par Data Protection, comme les clés d'API des fournisseurs (`ai.ai_key`).
-- **Rotation et révocation** : depuis les réglages, par un admin, effectives à l'appel suivant ; chaque opération est
-  auditée (`../ai/README.md` §12).
+- **Rotation et révocation** : depuis les réglages, par un admin ; la rotation d'une clé de worker garde l'ancienne
+  pendant une fenêtre courte, la révocation est immédiate ; faire tourner la clé de Nid oblige chaque worker à la
+  ré-épingler ; un trousseau Data Protection perdu impose de ré-apparier. Chaque opération est auditée
+  (`../ai/README.md` §3.6 et §12).
 - La table `worker_credential` (secret `nid_wrk_…`, `job_types`) et les droits `claim` / `heartbeat` / `complete` sont
   abandonnés ; le registre est `ai.model_worker` (`../ai/README.md` §13).
 
 ## 4. Extensions écartées
 
 - **Jeton d'accès par requête** (JWT courts) : inutile pour deux utilisateurs.
-- **mTLS entre nid et les workers** : écarté à l'origine (le réseau compose segmenté suffisait) ; **retenu depuis #171**, un worker pouvant être sur une autre machine ou hors des lieux (§3).
+- **mTLS entre nid et les workers** : écarté à l'origine (le réseau compose segmenté suffisait). Depuis #171, un worker peut être sur une autre machine, hors des lieux ou derrière un proxy : l'identité et la confidentialité viennent de la couche applicative (clé épinglée, HPKE), TLS est épinglé en direct et une autorité publique est acceptée derrière un proxy déclaré (§3).
 
 ## 5. OAuth pour le MCP : écarté en v1
 

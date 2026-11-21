@@ -54,7 +54,7 @@ Hors périmètre :
 | D20 | Extraction **sans outils** (les appels d'outils ne servent qu'à la tâche `chat` de l'assistant, `ai/README.md` §5.5) ; workers **sans clés d'API ni rien qui ouvre `nid`**, sans Internet quand ils sont locaux | Décidé ; précisé par #171 |
 | D21 | **Client HTTP sortant unique** (`SafeHttpClient` de `UnambitiousFx.Myelin`, réglé par `NidOutbound`) avec garde SSRF et liste d'hôtes (`security/application.md` §3) | Décidé |
 | D22 | Emails **sans montants** par défaut | Décidé |
-| D23 | Fournisseurs LLM multiples : un réglage par usage (`off`, `local`, `local_then_cloud`), workers d'abord puis cloud **avec accord**, offres gratuites comprises ; local par défaut ; consentement à chaque dépôt pour l'extraction ; offres qui entraînent sur les données inéligibles (`ingestion/llm-providers.md`, `ai/README.md` §5.3 et §6) | Décidé ; « gratuit d'abord » remplacé par #171 |
+| D23 | Fournisseurs LLM multiples : un réglage par usage (`off`, `self_hosted`, `self_hosted_then_cloud`), auto-hébergé d'abord (workers appariés) puis cloud **avec accord**, offres gratuites comprises, sans repli en cours de conversation ; auto-hébergé par défaut ; consentement à chaque dépôt pour l'extraction ; offres qui entraînent sur les données inéligibles (`ingestion/llm-providers.md`, `ai/README.md` §5.3 et §6) | Décidé ; « gratuit d'abord » remplacé par #171 |
 | D24 | **Passerelle LLM** dans `nid` : seule à contacter les fournisseurs, détient les clés, applique la politique | Décidé |
 | D25 | **Aspire** (`Nid.AppHost`) orchestre la pile de **développement local** : API, frontend Vite, PostgreSQL, Pocket ID, proxy TLS. Le déploiement reste Docker Compose (D4) ; Aspire n'est ni déployé ni requis en production (§10.3) | Décidé |
 
@@ -90,7 +90,7 @@ Hors périmètre :
    OIDC ◄───────┤
    Pocket ID    ├── postgres
                 ├── volume documents
-                └──mTLS──> worker-* (appariés ; même hôte, réseau local ou distant ;
+                └──HPKE──> worker-* (appariés ; même hôte, réseau local ou distant, proxy déclaré possible ;
                                      moteur LLM derrière chacun, jamais exposé)
 
 backup (restic, chiffré) ──> cible locale + cible distante
@@ -146,7 +146,7 @@ Le modèle de données du Core est détaillé dans `core-data-model.md`, celui d
 | **Documents** | `Document` (fichier adressé par son sha256, métadonnées) et ses liens génériques vers des cibles (`target_kind`, `target_id`, rôle) ; stockage fichiers ou S3 | `IDocumentTargets` (cibles que chaque module résout), `IDocumentLinks` | Core |
 | **Goals** | `Goal` (objectif d'épargne ou de précaution), ses liens aux enveloppes (`share_bp`) et ses relevés | Rien (lit `IEnvelopeFunding` d'Investments et `ICommitmentsContribution`) | Core, `Investments.Contracts` |
 | **Banking** (étape 5, livré en 5A) | Connexions Enable Banking (session chiffrée), comptes bancaires et leurs sources, soldes, journal des synchronisations (schéma `banking`) | Rien en 5A ; ses soldes deviennent des valorisations par `IValuations` ou une proposition (`IProposalSubmitter`) | Core, `Investments.Contracts` |
-| **Ai** (remplace le module Ingestion prévu, #171) | Passerelle LLM, profils, registre et appairage des workers, table `job` et contrats, budget, `llm_call`, conversations de l'assistant (schéma `ai`, `ai/README.md` §5.2 et §13) | Entrée des propositions vers Core ; tâches de modèles pour Documents et Banking | Core |
+| **Ai** (remplace le module Ingestion prévu, #171) | Passerelle LLM, profils, registre et appairage des workers, table `job` et contrats, budget, `llm_call`, conversations de l'assistant (schéma `ai`, `ai/README.md` §5.2 et §13). La boucle d'outils de l'assistant vit dans `Nid.Host`, avec les outils MCP ; le vote de `decide` dans Banking | Entrée des propositions vers Core ; tâches de modèles pour Documents et Banking | Core |
 | **Dashboard** (hébergé dans Core : `Core.Application/Dashboard`) | Rien (lecture seule, composition) | Agrégats patrimoine / engagements / évolution | Core + contributions des modules |
 | **Tax** (hébergé dans Core : `Core.Application/Tax`, `Core.Domain/Tax`) | Profil fiscal du foyer par année (`core.tax_profile`) | Estimation d'impôt ; les modules fournissent leurs lignes (`ITaxContribution`) | Core + contributions des modules |
 | **Platform** (technique) | Notifications, audit, sessions d'import (staging), planification | `INotificationChannel` ; les modules implémentent `IImportSection` (`import-format.md` §11.7) | Tous, via contrats |
@@ -309,7 +309,7 @@ Avant d'engager un modèle : constituer un **jeu d'évaluation** de vrais relev�
 
 ### 9.7 Sécurité de l'ingestion
 
-- Chaque worker est **apparié** (clés épinglées, mutual TLS, messages signés, contenu chiffré de bout en bout) et limité à ses capacités déclarées ; il ne détient **ni clé d'API ni rien qui ouvre `nid`**, et `nid` l'appelle sans qu'il puisse appeler `nid` (`ai/README.md` §3 et §4, remplace les identifiants de service par worker, #171). Un worker local n'a pas Internet.
+- Chaque worker est **apparié** (clé épinglée, requêtes signées, requêtes et réponses scellées par HPKE ; TLS épinglé en direct, autorité publique derrière un proxy déclaré) et limité à ses capacités déclarées ; il ne détient **ni clé d'API ni rien qui ouvre `nid`**, et `nid` l'appelle sans qu'il puisse appeler `nid` (`ai/README.md` §3 et §4, remplace les identifiants de service par worker, #171). Un worker local n'a pas Internet.
 - Les workers de **connecteurs** (mail, woob) exigent une sortie limitée à leurs hôtes et une **revue de risque préalable** (`security/risk-register.md` §7). La banque n'est pas un worker : elle tourne dans `nid` (§9.2), vers le seul `api.enablebanking.com`, et sa revue est `security/bank-sync-review.md`.
 - Aucun document ne quitte l'infrastructure par défaut ; tout envoi cloud exige le consentement du déposant (`ingestion/llm-providers.md` §6).
 - Menaces et mesures détaillées : `security/ai-ingestion.md`.

@@ -47,13 +47,13 @@
 ```
 Internet ── proxy hébergeur ──> nid (SPA + API) ──┬─ Postgres, volume documents       [interne]
 Navigateur ──cookie─────────────────────►│        ├─ Pocket ID (OIDC)                 [interne]
-Client MCP ──jeton personnel────────────►│        ├─ mTLS ──> workers appariés ── moteur LLM [réseau du worker]
+Client MCP ──jeton personnel────────────►│        ├─ HPKE ──> workers appariés ── moteur LLM [réseau du worker]
                                                    └─ sortie : SubTracker-Data, SMTP,
                                                       fournisseurs LLM (par la passerelle)
 ```
 
 - `nid` est le **seul composant applicatif qui sort vers Internet**, par un client HTTP unique (`application.md` §3).
-- Les workers n'ont **ni clé d'API ni rien qui ouvre `nid`** ; `nid` les appelle, jamais l'inverse (`../ai/README.md` §3). Un worker local n'a pas Internet ; un worker distant compte comme une sortie des lieux (opt-in du foyer). Une adresse privée n'est joignable que pour un worker enregistré (`application.md` §3).
+- Les workers n'ont **ni clé d'API ni rien qui ouvre `nid`** ; `nid` les appelle, jamais l'inverse (`../ai/README.md` §3). Un worker local n'a pas Internet ; un worker distant compte comme une sortie des lieux (opt-in du foyer). Une adresse privée n'est joignable que pour un point d'accès de worker enregistré par un admin (`application.md` §3, UnambitiousFx/Myelin#9).
 
 ## 5. Principes
 

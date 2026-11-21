@@ -30,7 +30,7 @@ Ordre d'exécution des comportements (par `IOrderedPipelineBehavior.Order`, vale
 | 1. Trace et journal | Identifiant de requête, OpenTelemetry |
 | 2. Acteur | Session, jeton ou tâche → `Actor` ; sans acteur, `401` |
 | 2 bis. Admin | Une requête `IAdminOnly` d'un acteur non admin est refusée : `403 platform.admin_required` |
-| 3. Portée | Voir §3 ; un jeton est d'abord refusé sur une requête `IBrowserOnly` (`403 platform.browser_only`) |
+| 3. Portée | Voir §3 ; un jeton est d'abord refusé sur une requête `IBrowserOnly` (`403 platform.browser_only`), comme l'acteur de l'assistant dans l'application (`ActorOrigin.Assistant`, `../ai/README.md` §8.1) |
 | 4. Accès | Contrôle sur l'élément visé (§4 et §5) |
 | 5. Idempotence | `Idempotency-Key` |
 | 6. Validation, transaction, handler | |
@@ -89,7 +89,7 @@ Un élément `private` n'a pas de niveau (il est stocké `view`). Le niveau ne c
 | **Changer les propriétaires** | L'acteur est propriétaire de l'état **actuel** (`Own`) — être dans `Writers` ne suffit pas : un adulte qui modifie un élément au niveau `edit` ne s'en rend pas propriétaire ; le résultat respecte les invariants du Core. Un adulte ne peut jamais s'ajouter lui-même à l'élément de l'autre. Se retirer d'un élément est un transfert explicite (confirmation dans l'interface) |
 | Changer la visibilité | Le propriétaire seul (`Own`, `../core-data-model.md` §4.3). `private` → `shared` révèle l'élément à l'autre immédiatement |
 | Changer le niveau de partage | Les propriétaires (`Own`), jamais un adulte qui ne fait que modifier l'élément. Repasser en `view` lui retire l'écriture tout de suite ; une proposition qu'il a soumise reste en attente pour les propriétaires. Aucun outil MCP ne le propose : c'est un geste du propriétaire dans l'application |
-| Proposition | Création : mêmes droits que l'écriture directe sur la cible. Lecture : `Readers` de la cible. **Décision : `Writers`** de la cible. Sans cible : la personne concernée seule |
+| Proposition | Création : mêmes droits que l'écriture directe sur la cible. Lecture : `Readers` de la cible, sauf une proposition soumise par l'assistant dans l'application (`via: assistant`), visible de son seul auteur tant qu'elle est en attente (`../ai/README.md` §8.2). **Décision : `Writers`** de la cible. Sans cible : la personne concernée seule |
 | Document | Rattacher à un élément : `Writers`. Lire : le déposant et les `Readers` des éléments liés |
 
 ## 6. Erreurs et listes

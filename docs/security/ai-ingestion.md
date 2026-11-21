@@ -42,7 +42,7 @@
 | Mesure | Détail |
 |---|---|
 | Conteneur | Non-root, système de fichiers en lecture seule plus `tmpfs`, `cap_drop: ALL`, `no-new-privileges`, limites CPU et mémoire |
-| **Réseau** | Worker local : réseau interne **sans Internet**. `nid` appelle le worker (push), le worker ne joint rien de `nid` ; un worker distant compte comme une sortie des lieux (opt-in du foyer, `../ai/README.md` §6) |
+| **Réseau** | Worker local : réseau interne **sans Internet**. `nid` appelle le worker (push), le worker ne joint rien de `nid` ; un worker distant compte comme une sortie des lieux (opt-in du foyer et de chaque adulte pour ses données privées, `../ai/README.md` §6) |
 | Secrets | Sa clé privée d'appairage, qui ne le quitte pas (`../identity-and-access/tokens-and-credentials.md` §3). **Aucune clé d'API de fournisseur**, rien qui ouvre `nid` |
 | Base de données | Aucun accès ; il ne voit que les documents des jobs que `nid` lui envoie, chiffrés pour lui (HPKE) |
 | Blast radius | Un worker compromis peut soumettre de fausses propositions (validées par un humain) et lire les documents de ses jobs ; il ne peut pas lire d'autres données. Un worker local ne sort pas vers Internet ; un worker distant compromis emporte ce qu'on lui envoie (WRK-7). Risques des workers : `ai-assistant-review.md` §3 |
@@ -59,7 +59,7 @@ Décrits dans `../ingestion/llm-providers.md`. Ici, les risques et les mesures :
 
 | Risque | Mesures |
 |---|---|
-| **Divulgation à un tiers** | Local par défaut ; consentement à l'activation **et à chaque dépôt** pour l'extraction (chat par adulte, index et `decide` par foyer, résultats d'outils filtrés selon la destination : `../ai/README.md` §6) ; aperçu de ce qui part ; **masquage** des identifiants sensibles (activé, non garanti) ; offres qui entraînent sur les données **inéligibles** ; région confirmée par l'utilisateur |
+| **Divulgation à un tiers** | Local par défaut ; consentement à l'activation **et à chaque dépôt** pour l'extraction (chat par adulte ; index, `decide` et workers distants par foyer, plus le consentement de chaque adulte pour ses données privées ; résultats d'outils filtrés par classe de données : `../ai/README.md` §6) ; aperçu de ce qui part ; **masquage** des identifiants sensibles (activé, non garanti) ; offres qui entraînent sur les données **inéligibles** ; région confirmée par l'utilisateur |
 | **Conditions qui changent** | Profils déclaratifs datés (`reviewed_on`) ; avertissement au-delà de 90 jours ; revue humaine |
 | **Vol ou abus de clé d'API** | Clés chiffrées (Data Protection), jamais réaffichées, **jamais envoyées au navigateur ni aux workers** ; plafonds de dépense côté fournisseur recommandés ; révocation depuis l'interface |
 | **Abus de la passerelle** par un worker compromis | Sans objet depuis #171 : un worker n'appelle plus la passerelle, `nid` l'appelle. Une sortie malveillante d'un worker est WRK-8 (`ai-assistant-review.md` §3) |
