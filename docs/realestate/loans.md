@@ -27,6 +27,7 @@ Un prêt est un `item` du Core (`module = realestate`, `kind = loan`). Ses **emp
 | `first_payment_date` | date | Les échéances suivantes : + k mois, jour d'ancrage écrasé en fin de mois (`Duration` du Core) |
 | `total_payments` | int | Durée contractuelle en échéances, de 1 à 600 |
 | `property_item_id` | uuid? | Bien financé. Un bien peut avoir plusieurs prêts |
+| `envelope_item_id` | uuid? | SCPI financée (#180) : une enveloppe `scpi`, à la place d'un bien (`ck_loan_financed` : jamais les deux) |
 | `schedule_source` | text | `computed` (défaut) ou `bank` |
 | `rounding_mode` | text | `half_up` (défaut) ou `truncate` : arrondi des intérêts à chaque échéance |
 | `first_period_mode` | text | `full` (défaut) ou `prorata_actual_365` |
@@ -239,6 +240,7 @@ La mensualité totale est la prochaine échéance assurance comprise ; le capita
 | **Engagements** | Mensualité et assurance de l'échéance courante : intérêts seuls en différé partiel, **0** en différé total |
 | **À venir** | Fin d'une phase (**changement de taux, fin de différé**), fin du crédit dans les 12 mois |
 | Lien avec un bien | Voir `README.md` §7 et §8 : valeur nette, coût réel |
+| Lien avec une SCPI | #180 : `envelopeId` à la création ou par `PATCH` (`clearEnvelope` le retire), refusé `422 realestate.invalid_envelope` sur `envelopeId` pour un identifiant illisible, inconnu, qui n'est pas une enveloppe `scpi`, ou avec un bien. `envelopeName` comme `propertyName`. `GET /loans?envelope=` liste les prêts d'une SCPI (filtre du serveur) ; la SCPI financée refuse sa suppression (bloqueur `loan`) et garde son type (`422 investments.envelope_financed`). Le fichier porte `loans.envelope`, écrit seulement s'il est posé. Les intérêts ne sont pas repris dans la fiscalité |
 
 ## 10. Propositions et sections d'import
 

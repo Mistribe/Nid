@@ -4382,6 +4382,13 @@
             "schema": {
               "type": "boolean"
             }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -21732,6 +21739,14 @@
             "in": "query",
             "schema": {
               "type": "boolean"
+            }
+          },
+          {
+            "name": "envelope",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
             }
           }
         ],
@@ -41805,6 +41820,13 @@
               "null",
               "string"
             ]
+          },
+          "envelopeId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
           }
         }
       },
@@ -43595,7 +43617,8 @@
         "required": [
           "clearLender",
           "clearNote",
-          "clearProperty"
+          "clearProperty",
+          "clearEnvelope"
         ],
         "type": "object",
         "properties": {
@@ -43638,6 +43661,17 @@
               "null",
               "string"
             ]
+          },
+          "envelopeId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "clearEnvelope": {
+            "type": "boolean",
+            "default": false
           }
         }
       },
@@ -51461,6 +51495,19 @@
                 "$ref": "#/components/schemas/ScheduleComparisonView"
               }
             ]
+          },
+          "envelopeId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "envelopeName": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -53154,6 +53201,19 @@
             "items": {
               "$ref": "#/components/schemas/ItemOwnerView"
             }
+          },
+          "envelopeId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "envelopeName": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },

@@ -4327,6 +4327,7 @@ export interface paths {
                 query?: {
                     scope?: string;
                     archived?: boolean;
+                    kind?: string;
                 };
                 header?: never;
                 path?: never;
@@ -20428,6 +20429,7 @@ export interface paths {
                 query?: {
                     scope?: string;
                     ended?: boolean;
+                    envelope?: string;
                 };
                 header?: never;
                 path?: never;
@@ -35594,6 +35596,8 @@ export interface components {
             /** Format: uuid */
             propertyId?: null | string;
             shareLevel?: null | string;
+            /** Format: uuid */
+            envelopeId?: null | string;
         };
         CreateNannyBody: {
             name?: null | string;
@@ -36016,6 +36020,10 @@ export interface components {
             propertyId?: null | string;
             clearProperty: boolean;
             scheduleSource?: null | string;
+            /** Format: uuid */
+            envelopeId?: null | string;
+            /** @default false */
+            clearEnvelope: boolean;
         };
         EditPropertyBody: {
             /** Format: uint32 */
@@ -37785,6 +37793,9 @@ export interface components {
             scheduleSource: string;
             bankSchedule?: null | components["schemas"]["BankScheduleView"];
             comparison?: null | components["schemas"]["ScheduleComparisonView"];
+            /** Format: uuid */
+            envelopeId?: null | string;
+            envelopeName?: null | string;
         };
         LoanEventView: {
             /** Format: date */
@@ -38165,6 +38176,9 @@ export interface components {
             propertyId?: null | string;
             propertyName?: null | string;
             owners: components["schemas"]["ItemOwnerView"][];
+            /** Format: uuid */
+            envelopeId?: null | string;
+            envelopeName?: null | string;
         };
         LoanWarningView: {
             code: string;

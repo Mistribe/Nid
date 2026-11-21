@@ -121,11 +121,24 @@ public class ScpiLinkTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
 
         var preview = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Envelopes}/{scpi}/deletion"));
         var blocker = Assert.Single(preview.GetProperty("blockers").EnumerateArray());
-        Assert.Equal(("loan", 1), (S(blocker, "key"), blocker.GetProperty("count").GetInt32()));
+        Assert.Equal(("scpi_loan", 1), (S(blocker, "key"), blocker.GetProperty("count").GetInt32()));
 
         (await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{Loans}/{loan}", new { clearEnvelope = true })).EnsureSuccessStatusCode();
         Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{Envelopes}/{scpi}", new { kind = "other" })).StatusCode);
         preview = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Envelopes}/{scpi}/deletion"));
         Assert.Empty(preview.GetProperty("blockers").EnumerateArray());
+    }
+
+    [Fact]
+    public async Task The_envelope_list_filters_by_kind_on_the_server()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var scpi = await ScpiAsync(app);
+        await app.NewEnvelopeAsync("Livret", app.AdultA, Visibility.Shared);
+
+        var items = (await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Envelopes}?kind=scpi"))).GetProperty("items").EnumerateArray();
+        Assert.Equal(scpi, Assert.Single(items).GetProperty("id").GetGuid());
+        Assert.Equal((HttpStatusCode.UnprocessableEntity, "investments.unknown_kind", "kind"),
+            await RefusalAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Envelopes}?kind=villa")));
     }
 }

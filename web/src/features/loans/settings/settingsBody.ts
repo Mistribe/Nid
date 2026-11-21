@@ -1,8 +1,8 @@
 import type { components } from '@/api/schema';
 import type { LoanDetail } from '@/api/loans';
 
-/** What the settings form holds: every field as typed, compared and sent trimmed; `propertyId` is '' for « Aucun ». */
-export type SettingsValues = { name: string; lender: string; note: string; propertyId: string };
+/** What the settings form holds: every field as typed, compared and sent trimmed; `propertyId` and `envelopeId` are '' for « Aucun ». */
+export type SettingsValues = { name: string; lender: string; note: string; propertyId: string; envelopeId: string };
 
 /** Only the fields that changed; an emptied optional field says so with its `clear*` flag. */
 export type EditBody = Partial<components['schemas']['EditLoanBody']>;
@@ -23,10 +23,14 @@ export function toEditBody(before: LoanDetail, values: SettingsValues): EditBody
   if (values.propertyId !== (before.propertyId ?? '')) {
     if (values.propertyId === '') body.clearProperty = true; else body.propertyId = values.propertyId;
   }
+  // #180: likewise for an SCPI; moving from one to the other clears the first in the same patch.
+  if (values.envelopeId !== (before.envelopeId ?? '')) {
+    if (values.envelopeId === '') body.clearEnvelope = true; else body.envelopeId = values.envelopeId;
+  }
   return Object.keys(body).length === 0 ? null : body;
 }
 
-/** The wire body: `clearLender`, `clearNote` and `clearProperty` are required members, so all are stated. */
+/** The wire body: `clearLender`, `clearNote`, `clearProperty` and `clearEnvelope` are required members, so all are stated. */
 export function toWireBody(body: EditBody): components['schemas']['EditLoanBody'] {
-  return { clearLender: false, clearNote: false, clearProperty: false, ...body };
+  return { clearLender: false, clearNote: false, clearProperty: false, clearEnvelope: false, ...body };
 }

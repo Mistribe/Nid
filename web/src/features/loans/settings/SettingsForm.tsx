@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import type { TFunction } from 'i18next';
 import { useRef } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { useApi } from '@/api/ApiProvider';
@@ -17,25 +17,27 @@ import { Reload } from '@/components/form/Reload';
 import { useSubmitErrors } from '@/components/form/useSubmitErrors';
 import { invalidateProperties } from '@/api/properties';
 import { invalidateLoans, LOAN, type LoanDetail } from '@/api/loans';
-import { PropertySelect } from '../PropertySelect';
+import { FinancedSelect } from '../FinancedSelect';
 import { toEditBody, toWireBody, type SettingsValues } from './settingsBody';
 import '@/locales/investments';
 import '@/locales/loans';
 import '@/locales/forms';
 
-const PATHS = { name: 'name', lender: 'lender', note: 'note', propertyId: 'propertyId' } as const;
+const PATHS = { name: 'name', lender: 'lender', note: 'note', propertyId: 'propertyId', envelopeId: 'propertyId' } as const;
 
 const schema = (t: TFunction) => z.object({
   name: z.string().trim().min(1, t('edit.required')).max(100, t('investments_form.name_too_long')),
   lender: z.string().max(100, t('loan_form.lender_too_long')),
   note: z.string().max(2000, t('investments_form.note_too_long')),
   propertyId: z.string(),
+  envelopeId: z.string(),
 });
 
 /** The loan as the form left it after a save: trimmed, an emptied optional field back to none. */
 function applied(before: LoanDetail, values: SettingsValues): LoanDetail {
   const text = (v: string) => (v.trim() === '' ? null : v.trim());
-  return { ...before, name: values.name.trim(), lender: text(values.lender), note: text(values.note), propertyId: values.propertyId === '' ? null : values.propertyId };
+  return { ...before, name: values.name.trim(), lender: text(values.lender), note: text(values.note), propertyId: values.propertyId === '' ? null : values.propertyId,
+    envelopeId: values.envelopeId === '' ? null : values.envelopeId };
 }
 
 /**
@@ -48,7 +50,7 @@ export function SettingsForm({ loan, onDone }: { loan: LoanDetail; onDone: (mess
   const queryClient = useQueryClient();
   const form = useForm<SettingsValues>({
     resolver: zodResolver(schema(t)),
-    defaultValues: { name: loan.name, lender: loan.lender ?? '', note: loan.note ?? '', propertyId: loan.propertyId ?? '' },
+    defaultValues: { name: loan.name, lender: loan.lender ?? '', note: loan.note ?? '', propertyId: loan.propertyId ?? '', envelopeId: loan.envelopeId ?? '' },
   });
   // Diffed against what the form started from (or last saved), never the live loan a refetch may have changed.
   const baseline = useRef(loan);
@@ -97,10 +99,13 @@ export function SettingsForm({ loan, onDone }: { loan: LoanDetail; onDone: (mess
         {(c) => <Input {...c} {...form.register('lender')} />}
       </Field>
       {/* What the form opened on (or last saved) is linked: its option stays whatever the list says (precision 10). */}
-      <Controller control={form.control} name="propertyId" render={({ field }) => (
-        <PropertySelect value={field.value} onValueChange={field.onChange} error={e.propertyId?.message}
-          linked={baseline.current.propertyId ? { id: baseline.current.propertyId, name: baseline.current.propertyName ?? null } : undefined} />
-      )} />
+      <FinancedSelect value={{ propertyId: form.watch('propertyId'), envelopeId: form.watch('envelopeId') }}
+        onValueChange={(v) => { form.clearErrors('propertyId'); form.setValue('propertyId', v.propertyId, { shouldDirty: true }); form.setValue('envelopeId', v.envelopeId, { shouldDirty: true }); }}
+        error={e.propertyId?.message}
+        linked={{
+          property: baseline.current.propertyId ? { id: baseline.current.propertyId, name: baseline.current.propertyName ?? null } : undefined,
+          envelope: baseline.current.envelopeId ? { id: baseline.current.envelopeId, name: baseline.current.envelopeName ?? null } : undefined,
+        }} />
       <Field label={t('loan_form.note')} error={e.note?.message}>
         {(c) => <Textarea {...c} {...form.register('note')} />}
       </Field>

@@ -16,7 +16,7 @@ namespace Nid.Investments.Application.Import;
 /// </summary>
 public sealed class EnvelopesImportSection(
     IItemRegistry items, IEnvelopeStore envelopes, IAccessPolicy policy, IItemRules rules, IHouseholdCalendar calendar,
-    IVisibleItems visible, IPersonRegistry persons, IFactImports facts, IClock clock) : IImportSection
+    IVisibleItems visible, IPersonRegistry persons, IFactImports facts, IClock clock, Nid.RealEstate.Contracts.ILoanStore loans) : IImportSection
 {
     public const string Section = "envelopes";
 
@@ -109,6 +109,15 @@ public sealed class EnvelopesImportSection(
                     if (refusal is not null)
                     {
                         issues.Add(refusal);
+                        context.FailedItems.Add((Section, record.Id));
+                        continue;
+                    }
+
+                    // #180: as the screen's edit, a loan keeps the SCPI it finances an SCPI.
+                    if (parsed.Kind != EnvelopeKind.Scpi && await FinancedScpiAsync(id, ct))
+                    {
+                        issues.Add(ImportIssue.Error(InvestmentsCodes.EnvelopeFinanced,
+                            "A loan finances this SCPI: unlink the loan before changing its kind.", path + ".kind"));
                         context.FailedItems.Add((Section, record.Id));
                         continue;
                     }
@@ -312,6 +321,9 @@ public sealed class EnvelopesImportSection(
     /// 1F3b spec §3.2 and 2B1b spec §4: replacing is a write, on the item as it is now, that never takes it from another
     /// adult, nor changes its currency. The first refusal, or null.
     /// </summary>
+    private async Task<bool> FinancedScpiAsync(ItemId id, CancellationToken ct)
+        => await envelopes.ReadAllAsync([id], ct) is [{ Envelope.Kind: EnvelopeKind.Scpi }] && (await loans.FinancingAsync(id, ct)).Count > 0;
+
     private Task<ImportIssue?> ReplaceRefusalAsync(
         PersonId actor, ItemId id, ItemAccess current, ParsedEnvelope parsed, string path,
         Func<Task<IReadOnlyList<PersonId>>> adults, CancellationToken ct)

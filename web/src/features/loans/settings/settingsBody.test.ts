@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { loanDetail } from '../testData';
 import { toEditBody, toWireBody } from './settingsBody';
 
-const values = { name: 'Prêt maison', lender: 'Banque', note: '', propertyId: '' };
+const values = { name: 'Prêt maison', lender: 'Banque', note: '', propertyId: '', envelopeId: '' };
 
 describe('toEditBody', () => {
   it('links, relinks and unlinks the property financed, and leaves an unchanged link alone (3D1 design §7)', () => {
@@ -11,6 +11,12 @@ describe('toEditBody', () => {
     expect(toEditBody(linked, { ...values, propertyId: 'p2' })).toEqual({ propertyId: 'p2' });
     expect(toEditBody(linked, values)).toEqual({ clearProperty: true });
     expect(toEditBody(linked, { ...values, propertyId: 'p1' })).toBeNull();
+  });
+
+  it('links an SCPI instead, clearing the property in the same patch (#180)', () => {
+    const linked = loanDetail({ propertyId: 'p1', propertyName: null });
+    expect(toEditBody(linked, { ...values, envelopeId: 'e1' })).toEqual({ clearProperty: true, envelopeId: 'e1' });
+    expect(toEditBody(loanDetail({ envelopeId: 'e1', envelopeName: 'SCPI' }), values)).toEqual({ clearEnvelope: true });
   });
 
   it('is null when nothing changed, a trimmed name included', () => {
@@ -29,6 +35,6 @@ describe('toEditBody', () => {
 
 describe('toWireBody', () => {
   it('states both clear flags, which the wire type requires', () => {
-    expect(toWireBody({ name: 'Résidence' })).toEqual({ name: 'Résidence', clearLender: false, clearNote: false, clearProperty: false });
+    expect(toWireBody({ name: 'Résidence' })).toEqual({ name: 'Résidence', clearLender: false, clearNote: false, clearProperty: false, clearEnvelope: false });
   });
 });

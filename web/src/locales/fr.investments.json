@@ -58,6 +58,12 @@
       "approved": "Valeur enregistrée"
     },
     "evolution": "Évolution",
+    "scpi_loans": {
+      "title": "Crédit",
+      "none": "Aucun crédit ne finance cette SCPI. Pour en lier un, choisissez-la dans « Bien financé » sur la fiche du crédit.",
+      "balance": "Capital restant dû : {{amount}}",
+      "error": "Les crédits de cette SCPI n’ont pas pu être chargés."
+    },
     "period": {
       "title": "Performance d’une période",
       "legend": "Période",

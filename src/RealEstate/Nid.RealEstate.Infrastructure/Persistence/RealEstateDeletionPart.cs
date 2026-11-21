@@ -46,7 +46,7 @@ public sealed class RealEstateDeletionPart(RealEstateDbContext db, IItemRegistry
         if (loans.Count == 0)
             return [];
         var found = await items.FindManyAsync(loans.Select(l => new ItemId(l)).ToList(), ct);
-        return [new("loan", loans.Count, found.Values.Select(l => new DeletionBlockerItem(l.Id.Value, l.DisplayName)).ToList())];
+        return [new(byProperty ? "loan" : "scpi_loan", loans.Count, found.Values.Select(l => new DeletionBlockerItem(l.Id.Value, l.DisplayName)).ToList())];
     }
 
     public async Task<bool> ImportedAsync(ItemAccess item, CancellationToken ct)

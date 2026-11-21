@@ -64,7 +64,7 @@ public sealed partial class RealEstateImportSection
             var path = NidDataJson.Path(LoansSection, entity.Index);
             PropertyPlan? property = null;
             if ((record.Property is { } propertyId && (property = Parent(propertyByFileId, PropertiesSection, propertyId, path + ".property", issues)) is null)
-                || !FinancedEnvelope(record, path, issues)
+                || !await FinancedEnvelopeAsync(record, path, issues, ct)
                 || !EstateParsing.TryLoan(record, path, Person, issues, out var parsed) || !Owners(parsed.Visibility, parsed.Owners, path, issues))
             {
                 context.FailedItems.Add((LoansSection, record.Id)); // its parts and facts are not reported again
@@ -256,9 +256,9 @@ public sealed partial class RealEstateImportSection
 
     /// <summary>
     /// #180: a loan's envelope is one of this file's envelopes the import resolved, never with a property. A refused envelope is
-    /// reported there, once; whether it is an SCPI is checked at apply, once the envelopes are written.
+    /// reported there, once. One already stored must be an SCPI now; one the file creates is checked at apply, once written.
     /// </summary>
-    private bool FinancedEnvelope(LoanRecord record, string path, List<ImportIssue> issues)
+    private async Task<bool> FinancedEnvelopeAsync(LoanRecord record, string path, List<ImportIssue> issues, CancellationToken ct)
     {
         if (record.Envelope is not { } envelope)
             return true;
@@ -269,9 +269,14 @@ public sealed partial class RealEstateImportSection
         }
         if (context.FailedItems.Contains((EnvelopesSection, envelope)))
             return false;
-        if (context.Items.ContainsKey((EnvelopesSection, envelope)))
+        if (!context.Items.TryGetValue((EnvelopesSection, envelope), out var id))
+        {
+            issues.Add(ImportIssue.Error(ImportCodes.UnresolvedReference, $"'{envelope}' names no entity of {EnvelopesSection}.", path + ".envelope"));
+            return false;
+        }
+        if (context.NewItems.Contains(id) || await financed.IsScpiAsync(id, ct))
             return true;
-        issues.Add(ImportIssue.Error(ImportCodes.UnresolvedReference, $"'{envelope}' names no entity of {EnvelopesSection}.", path + ".envelope"));
+        issues.Add(ImportIssue.Error(LoanCodes.InvalidEnvelope, $"'{envelope}' is not an SCPI envelope.", path + ".envelope"));
         return false;
     }
 

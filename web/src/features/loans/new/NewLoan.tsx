@@ -22,7 +22,7 @@ import { useSubmitErrors } from '@/components/form/useSubmitErrors';
 import { todayIso } from '@/lib/today';
 import { invalidateProperties } from '@/api/properties';
 import { invalidateLoans, LOANS } from '@/api/loans';
-import { PropertySelect } from '../PropertySelect';
+import { FinancedSelect } from '../FinancedSelect';
 import { InsuranceSection, LoanFields, useContract } from './ContractFields';
 import { Folded } from '@/components/form/Folded';
 import { contractFormOf, newLoanPath, newLoanSchema, newPhase, plusOneMonth, toCreateBody, type NewLoanValues } from './loanForm';
@@ -31,7 +31,7 @@ import '@/locales/loans';
 /** The form's field paths by step: what « Continuer » validates, and where a server refusal sends the person back to. */
 const FIELDS = {
   essentials: ['name', 'lender', 'currency', 'note', 'visibility', 'owners'],
-  loan: ['principal', 'totalPayments', 'disbursedOn', 'firstPaymentDate', 'phases', 'rounding', 'firstPeriod', 'propertyId'],
+  loan: ['principal', 'totalPayments', 'disbursedOn', 'firstPaymentDate', 'phases', 'rounding', 'firstPeriod', 'propertyId', 'envelopeId'],
   insurance: ['insurances'],
 } as const;
 
@@ -53,7 +53,7 @@ export function NewLoan() {
     defaultValues: {
       name: '', lender: '', currency: 'EUR', note: '', owners: [{ personId: session.person.id, share: '100' }],
       principal: '', totalPayments: '', disbursedOn: today, firstPaymentDate: plusOneMonth(today),
-      rounding: 'half_up', firstPeriod: 'full', phases: [newPhase()], insurances: [], propertyId: search.property ?? '',
+      rounding: 'half_up', firstPeriod: 'full', phases: [newPhase()], insurances: [], propertyId: search.property ?? '', envelopeId: '',
     },
   });
   // The contract's state lives here, not in its fields: a step unmounts them. Its fields are a subset of this form's.
@@ -124,9 +124,9 @@ export function NewLoan() {
             id: 'loan', title: t('loan_form.step_loan'), fields: [...FIELDS.loan],
             content: (
               <LoanFields contract={contract}>
-                <Controller control={form.control} name="propertyId" render={({ field }) => (
-                  <PropertySelect value={field.value} onValueChange={field.onChange} error={e.propertyId?.message} />
-                )} />
+                <FinancedSelect value={{ propertyId: form.watch('propertyId'), envelopeId: form.watch('envelopeId') }}
+                  onValueChange={(v) => { form.clearErrors('propertyId'); form.setValue('propertyId', v.propertyId); form.setValue('envelopeId', v.envelopeId); }}
+                  error={e.propertyId?.message} />
               </LoanFields>
             ),
           },

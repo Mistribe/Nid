@@ -111,6 +111,7 @@ export function newLoanSchema(t: TFunction) {
     owners: ownershipShape(t).owners,
     shareLevel: ownershipShape(t).shareLevel,
     propertyId: z.string(),
+    envelopeId: z.string(),
     ...contractShape(t),
   }).superRefine((v, ctx) => {
     checkOwnership(v, ctx, t);
@@ -167,6 +168,7 @@ export function toCreateBody(v: NewLoanValues): components['schemas']['CreateLoa
     ...(v.lender.trim() ? { lender: v.lender.trim() } : {}),
     ...(v.note.trim() ? { note: v.note } : {}),
     ...(v.propertyId ? { propertyId: v.propertyId } : {}),
+    ...(v.envelopeId ? { envelopeId: v.envelopeId } : {}),
     ...toContractBody(v),
   };
 }
@@ -178,7 +180,7 @@ const CONTRACT_TOP: Record<string, Path<ContractValues>> = {
   phases: 'totalPayments',
 };
 const IDENTITY_TOP: Record<string, Path<NewLoanValues>> = {
-  name: 'name', lender: 'lender', currency: 'currency', note: 'note', visibility: 'visibility', borrowers: 'owners', propertyId: 'propertyId',
+  name: 'name', lender: 'lender', currency: 'currency', note: 'note', visibility: 'visibility', borrowers: 'owners', propertyId: 'propertyId', envelopeId: 'propertyId',
 };
 const PHASE: Record<string, keyof PhaseLine> = {
   mode: 'mode', annualRate: 'rate', rateType: 'rateType', payments: 'payments', paymentOverride: 'paymentOverride',

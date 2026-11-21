@@ -32,7 +32,8 @@ public sealed record GetEnvelopeQuery(ItemId ItemId) : IQuery<EnvelopeDetail>, I
     public AccessKind Access => AccessKind.Read;
 }
 
-public sealed record ListEnvelopesQuery(VisibilityScope Scope, bool IncludeClosed) : IQuery<EnvelopeList>;
+/// <summary>#180: <c>Kind</c>, only the envelopes of that kind (the loan form lists the SCPIs a loan may finance).</summary>
+public sealed record ListEnvelopesQuery(VisibilityScope Scope, bool IncludeClosed, EnvelopeKind? Kind = null) : IQuery<EnvelopeList>;
 
 /// <summary>#23: an envelope created by mistake, deleted with its holdings and facts. <paramref name="Version"/>: the one the preview read.</summary>
 public sealed record DeleteEnvelopeCommand(ItemId ItemId, uint Version) : ICommand<ItemId>, IItemScoped, IConfirmedInBrowser
@@ -230,7 +231,7 @@ public sealed class ListEnvelopesHandler(
         // a closed envelope could never be listed, even with IncludeClosed set.
         var reader = actor.Current!.PersonId!.Value;
         var ids = await visible.ForAsync(reader, query.Scope, includeArchived: query.IncludeClosed, ct);
-        var found = await envelopes.FindManyAsync(ids.ToList(), ct);
+        var found = await envelopes.FindManyAsync(ids.ToList(), ct, query.Kind);
         // Batched reads spec §3: the items, facts and write rights read once for all; a block that cannot be read falls back
         // to each envelope's own read, which leaves out only the envelopes whose facts cannot be read.
         var accesses = await items.FindManyAsync(found.Select(e => e.ItemId).ToList(), ct);
