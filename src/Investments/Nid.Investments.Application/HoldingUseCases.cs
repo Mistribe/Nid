@@ -373,10 +373,10 @@ public sealed class GetHoldingsHandler(
 internal static class ScpiPurchases
 {
     public static IReadOnlyList<LocalDate> Of(EnvelopeHolding h, IEnumerable<HoldingMovement> movements)
-    {
-        var bought = movements.Where(m => m.HoldingId == h.Id && m.Kind == MovementKinds.AllocationIn).Select(m => m.OccurredOn).ToList();
-        return bought.Count > 0 ? bought : h.OpenedOn is { } opened ? [opened] : [];
-    }
+        => Of(movements.Where(m => m.HoldingId == h.Id && m.Kind == MovementKinds.AllocationIn).Select(m => m.OccurredOn).ToList(), h.OpenedOn);
+
+    public static IReadOnlyList<LocalDate> Of(IReadOnlyList<LocalDate> bought, LocalDate? openedOn)
+        => bought.Count > 0 ? bought : openedOn is { } opened ? [opened] : [];
 }
 
 [RequestHandler<ListHoldingsSnapshotsQuery, HoldingSnapshotList>]

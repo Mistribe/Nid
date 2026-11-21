@@ -97,6 +97,9 @@ public sealed record CostReport(
 /// <summary>A holding with a maturity date, for the upcoming events.</summary>
 public sealed record MaturingHolding(ItemId Envelope, Guid HoldingId, string Name, LocalDate MaturesOn);
 
+/// <summary>Issue #180: an open SCPI with an entitlement delay, the days it bought shares (its allocations in) and the day it was opened.</summary>
+public sealed record ScpiHolding(ItemId Envelope, Guid HoldingId, string Name, int DelayMonths, LocalDate? OpenedOn, IReadOnlyList<LocalDate> Bought);
+
 /// <summary>import-format.md §8: the holdings tables an import marks with the file id a row came from.</summary>
 public enum HoldingTable { Holding, Snapshot, Movement }
 
@@ -174,4 +177,7 @@ public interface IHoldingStore
 
     /// <summary>The open holdings of these envelopes maturing in [<paramref name="from"/>, <paramref name="until"/>].</summary>
     Task<IReadOnlyList<MaturingHolding>> MaturingAsync(IReadOnlyCollection<ItemId> envelopes, LocalDate from, LocalDate until, CancellationToken ct);
+
+    /// <summary>The open SCPI holdings of these envelopes that have an entitlement delay, with their purchases.</summary>
+    Task<IReadOnlyList<ScpiHolding>> ScpisAsync(IReadOnlyCollection<ItemId> envelopes, CancellationToken ct);
 }

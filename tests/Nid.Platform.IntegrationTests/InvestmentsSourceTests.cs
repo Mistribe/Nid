@@ -144,6 +144,7 @@ public class InvestmentsSourceTests(PostgresFixture fixture) : IClassFixture<Pos
         Assert.Equal(
         [
             new NotificationKind("holding_maturity", "due_date", NotificationLevel.Action, "investments", 30),
+            new NotificationKind("holding_entitlement", "due_date", NotificationLevel.Info, "investments", 30),
             new NotificationKind("stale_value", "finding", NotificationLevel.Info, "investments", null),
             new NotificationKind("uc_share_below_floor", "finding", NotificationLevel.Info, "investments", null),
         ], source.Kinds);

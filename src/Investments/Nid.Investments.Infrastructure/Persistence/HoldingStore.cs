@@ -236,6 +236,21 @@ public sealed class HoldingStore(InvestmentsDbContext db) : IHoldingStore
         return rows.Select(r => new MaturingHolding(new ItemId(r.EnvelopeItemId), r.Id, r.Name, r.MaturesOn!.Value)).ToList();
     }
 
+    public async Task<IReadOnlyList<ScpiHolding>> ScpisAsync(IReadOnlyCollection<ItemId> envelopes, CancellationToken ct)
+    {
+        var ids = envelopes.Select(e => e.Value).ToList();
+        var rows = await db.Holdings.AsNoTracking()
+            .Where(h => ids.Contains(h.EnvelopeItemId) && h.Kind == "scpi" && h.ClosedOn == null && h.EntitlementDelayMonths != null)
+            .Select(h => new { h.EnvelopeItemId, h.Id, h.Name, h.EntitlementDelayMonths, h.OpenedOn }).ToListAsync(ct);
+        if (rows.Count == 0) return [];
+        var holdingIds = rows.Select(r => r.Id).ToList();
+        var bought = (await db.HoldingMovements.AsNoTracking()
+                .Where(m => holdingIds.Contains(m.HoldingId) && m.Kind == MovementKinds.AllocationIn)
+                .Select(m => new { m.HoldingId, m.OccurredOn }).ToListAsync(ct))
+            .ToLookup(m => m.HoldingId, m => m.OccurredOn);
+        return rows.Select(r => new ScpiHolding(new ItemId(r.EnvelopeItemId), r.Id, r.Name, r.EntitlementDelayMonths!.Value, r.OpenedOn, bought[r.Id].ToList())).ToList();
+    }
+
     private static void Copy(EnvelopeHolding from, HoldingRow to)
     {
         to.Name = from.Name;

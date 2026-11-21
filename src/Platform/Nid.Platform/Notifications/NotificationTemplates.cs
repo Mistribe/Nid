@@ -36,6 +36,7 @@ public static class NotificationTemplates
         ["irl_missing"] = "L'IRL d'une révision manque",
         ["valuation_stale"] = "Une estimation est à refaire",
         ["holding_maturity"] = "Un support arrive à échéance",
+        ["holding_entitlement"] = "Des parts de SCPI entrent en jouissance",
         ["stale_value"] = "Une valeur est à mettre à jour",
         ["uc_share_below_floor"] = "La part en unités de compte est sous le plancher",
         ["income_phase_end"] = "Une phase de revenu se termine",
@@ -88,6 +89,7 @@ public static class NotificationTemplates
     private static readonly Dictionary<string, string> InvestmentTabs = new()
     {
         ["holding_maturity"] = "holdings",
+        ["holding_entitlement"] = "holdings",
         ["uc_share_below_floor"] = "holdings",
         ["shortfall_ahead"] = "operations",
     };
