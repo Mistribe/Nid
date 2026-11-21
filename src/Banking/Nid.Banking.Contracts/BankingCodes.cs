@@ -130,4 +130,10 @@ public static class BankingCodes
 
     /// <summary>#84: a split line has no category of its own: its parts do (un-split it first).</summary>
     public const string LineSplit = "banking.line_split";
+
+    /// <summary>#426: an ignored line counts nowhere, so it takes no category (un-ignore it first).</summary>
+    public const string LineIgnored = "banking.line_ignored";
+
+    /// <summary>#426: several lines categorised at once name 1 to 200 of them.</summary>
+    public const string CategoriseLines = "banking.categorise_lines";
 }

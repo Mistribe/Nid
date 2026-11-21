@@ -76,6 +76,8 @@ export const CATEGORIES = '/api/v1/banking/categories' as const;
 export const CATEGORY = '/api/v1/banking/categories/{id}' as const;
 export const CATEGORY_MERGE = '/api/v1/banking/categories/{id}/merge' as const;
 export const TRANSACTION_CATEGORY = '/api/v1/banking/transactions/{id}/category' as const;
+/** #426: one category for several lines; the server answers the lines changed and the refused ones with their code. */
+export const TRANSACTIONS_CATEGORY = '/api/v1/banking/transactions/category' as const;
 
 /** Every bank category of the household, archived and merged ones included. */
 export function useCategories() {

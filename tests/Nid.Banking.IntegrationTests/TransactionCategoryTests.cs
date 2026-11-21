@@ -154,6 +154,76 @@ public class TransactionCategoryTests(PostgresFixture fixture) : IClassFixture<P
         Assert.Equal((null, null), Of((await LineAsync(app, app.AdultA, readable)).Line));
     }
 
+    private static Task<HttpResponseMessage> BulkAsync(NidApp app, PersonId person, Guid? categoryId, params Guid[] lines)
+        => app.RawAsync(person, HttpMethod.Post, $"{BankingApi.Root}/transactions/category", new { transactionIds = lines, categoryId });
+
+    private static (Guid[] Changed, Dictionary<Guid, string> Refused) Outcome(JsonElement body) => (
+        [.. body.GetProperty("changed").EnumerateArray().Select(c => c.GetGuid())],
+        body.GetProperty("refused").EnumerateArray().ToDictionary(r => r.GetProperty("id").GetGuid(), r => r.GetProperty("code").GetString()!));
+
+    [Fact]
+    public async Task Bulk_sets_the_lines_it_may_and_lists_the_others_with_the_single_line_codes()
+    {
+        await using var s = await StartAsync(fixture);
+        var app = s.App;
+        var first = await AddAsync(app, s.Courant, "a", -30m, "CARREFOUR CITY");
+        var second = await AddAsync(app, s.Courant, "b", -12m, "CARREFOUR CITY");
+        var split = await AddAsync(app, s.Courant, "c", -30m, "CB DIVERS");
+        var ignored = await AddAsync(app, s.Courant, "d", -5m, "CB DIVERS");
+        await OkAsync(await app.RawAsync(app.AdultA, HttpMethod.Put, $"{BankingApi.Root}/transactions/{split}/split",
+            new { parts = new object[] { new { amount = "-10" }, new { amount = "-20" } } }));
+        await OkAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{BankingApi.Root}/transactions/{ignored}/ignore"));
+        var unknown = Guid.NewGuid();
+
+        var (changed, refused) = Outcome(await OkAsync(await BulkAsync(app, app.AdultA, Seed("food.groceries"), first, second, split, ignored, unknown, first)));
+
+        Assert.Equal([first, second], changed);
+        Assert.Equal(new Dictionary<Guid, string>
+        {
+            [split] = BankingCodes.LineSplit, [ignored] = BankingCodes.LineIgnored, [unknown] = "NOT_FOUND",
+        }, refused);
+        Assert.Equal(("Courses", "hand"), Of((await LineAsync(app, app.AdultA, first)).Line));
+        Assert.Equal(("Courses", "hand"), Of((await LineAsync(app, app.AdultA, second)).Line));
+        Assert.Equal((null, null), Of((await LineAsync(app, app.AdultA, ignored)).Line));
+        // One line alone is refused the same.
+        await BankingApi.AssertRefusedAsync(await PutAsync(app, app.AdultA, ignored, Seed("food.groceries")), HttpStatusCode.Conflict, BankingCodes.LineIgnored);
+    }
+
+    [Fact]
+    public async Task Bulk_refuses_a_line_the_caller_cannot_write_and_one_they_cannot_read_as_unknown()
+    {
+        await using var s = await StartAsync(fixture);
+        var app = s.App;
+        var readable = await AddAsync(app, s.Courant, "a", -30m, "CARREFOUR CITY");
+        var hidden = await AddAsync(app, s.Livret, "b", -30m, "CARREFOUR CITY");
+
+        var response = await BulkAsync(app, app.AdultB, null, readable, hidden, Guid.NewGuid());
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        var (changed, refused) = Outcome(await OkAsync(response));
+
+        Assert.Empty(changed);
+        Assert.Equal(refused[readable], (await BankingApi.JsonAsync(await PutAsync(app, app.AdultB, readable, null))).GetProperty("code").GetString());
+        // A line B cannot read answers as a line that does not exist.
+        Assert.Equal("NOT_FOUND", refused[hidden]);
+        Assert.DoesNotContain("Livret A", body, StringComparison.Ordinal);
+        Assert.Equal((null, null), Of((await LineAsync(app, app.AdultA, readable)).Line));
+        Assert.Equal((null, null), Of((await LineAsync(app, app.AdultA, hidden)).Line));
+    }
+
+    [Fact]
+    public async Task Bulk_names_1_to_200_lines_and_a_category_in_use()
+    {
+        await using var s = await StartAsync(fixture);
+        var app = s.App;
+        var line = await AddAsync(app, s.Courant, "a", -30m, "CARREFOUR CITY");
+
+        await BankingApi.AssertRefusedAsync(await BulkAsync(app, app.AdultA, null), HttpStatusCode.UnprocessableEntity, BankingCodes.CategoriseLines);
+        await BankingApi.AssertRefusedAsync(await BulkAsync(app, app.AdultA, null, [.. Enumerable.Range(0, 201).Select(_ => Guid.NewGuid())]),
+            HttpStatusCode.UnprocessableEntity, BankingCodes.CategoriseLines);
+        Assert.Equal(HttpStatusCode.NotFound, (await BulkAsync(app, app.AdultA, Guid.NewGuid(), line)).StatusCode);
+        Assert.Equal((null, null), Of((await LineAsync(app, app.AdultA, line)).Line));
+    }
+
     [Fact]
     public async Task Reset_on_a_linked_line_gives_back_the_link_category()
     {

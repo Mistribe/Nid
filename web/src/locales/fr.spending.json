@@ -3,6 +3,8 @@
     "title": "Dépenses",
     "tabs": { "overview": "Vue d’ensemble", "operations": "Opérations", "categories": "Catégories" },
     "see_operations": "Voir dans Opérations",
+    "to_classify_one": "{{count}} opération à classer",
+    "to_classify_other": "{{count}} opérations à classer",
     "left": {
       "title": "Reste ce mois-ci",
       "tip": "Vos revenus du mois, moins vos engagements et vos dépenses courantes : le « Reste réel » de l’Accueil.",

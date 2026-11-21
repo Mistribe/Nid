@@ -14,7 +14,7 @@ export const month: Spending = {
       { id: '22222222-2222-2222-2222-22222222222a', name: 'Cinéma', amount: '44.00', average: null, children: [] },
     ] },
   ],
-  uncategorised: { amount: '300.00', average: '250.00' },
+  uncategorised: { amount: '300.00', average: '250.00', count: 12 },
   months: [{ month: '2026-11', total: '1234.56' }],
   // #425: Accueil's month, and how it would end as usual.
   income: '3200.00', committed: '1500.00', everyday: '900.00', left: '800.00', leftEstimate: '600.00',

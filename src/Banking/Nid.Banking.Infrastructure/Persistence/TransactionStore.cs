@@ -257,11 +257,12 @@ public sealed class TransactionStore(BankingDbContext db, IClock clock) : ITrans
     public async Task<IReadOnlyList<SpendingSum>> SpendingAsync(IReadOnlyList<Guid> accounts, LocalDate from, LocalDate to, CancellationToken ct, bool withLinked = true)
         => (await Entries(accounts, from, to, withLinked)
             .GroupBy(e => new { e.CategoryId, e.Currency, e.BookedOn.Year, e.BookedOn.Month })
-            .Select(g => new { g.Key, Debits = g.Sum(e => e.Amount < 0 ? e.Amount : 0m), Credits = g.Sum(e => e.Amount > 0 ? e.Amount : 0m) })
+            .Select(g => new { g.Key, Debits = g.Sum(e => e.Amount < 0 ? e.Amount : 0m), Credits = g.Sum(e => e.Amount > 0 ? e.Amount : 0m),
+                DebitLines = g.Sum(e => e.Amount < 0 ? 1 : 0) })
             .ToListAsync(ct))
             .Select(g => new SpendingSum(g.Key.CategoryId, Currency.TryCreate(g.Key.Currency, out var currency) ? currency
                     : throw new InvalidOperationException($"Bank lines in '{g.Key.Currency}' have no valid currency."),
-                new YearMonth(g.Key.Year, g.Key.Month), g.Debits, g.Credits))
+                new YearMonth(g.Key.Year, g.Key.Month), g.Debits, g.Credits, g.DebitLines))
             .ToList();
 
     public async Task<(IReadOnlyList<(BankTransaction Line, Guid? PartId, decimal Amount)> Items, int Count)> SpendingLinesAsync(

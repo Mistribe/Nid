@@ -657,6 +657,7 @@ public static class RequestCatalogue
         new(typeof(IgnoreTransactionCommand), false, (d, _) => new IgnoreTransactionCommand(d.JointLine)),
         new(typeof(SetTransactionCategoryCommand), false, (d, _) => new SetTransactionCategoryCommand(d.JointLine, null)),
         new(typeof(ResetTransactionCategoryCommand), false, (d, _) => new ResetTransactionCategoryCommand(d.JointLine)),
+        new(typeof(SetTransactionsCategoryCommand), false, (d, _) => new SetTransactionsCategoryCommand([d.JointLine], null)),
         new(typeof(SetTransactionNoteCommand), false, (d, _) => new SetTransactionNoteCommand(d.JointLine, null)),
         new(typeof(SplitTransactionCommand), false, (d, _) => new SplitTransactionCommand(d.JointLine, [])),
         new(typeof(UnsplitTransactionCommand), false, (d, _) => new UnsplitTransactionCommand(d.JointLine)),

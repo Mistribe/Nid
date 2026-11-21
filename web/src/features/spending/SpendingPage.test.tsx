@@ -108,10 +108,26 @@ describe('« Dépenses »', () => {
     await screen.findByRole('table', { name: 'Par catégorie' });
 
     const figure = screen.getByText('Non classées', { selector: 'dt' }).closest('div')!;
-    await user.click(within(figure).getByRole('link', { name: 'Voir dans Opérations' }));
+    expect(figure).toHaveTextContent(/300,00\s€/);
+    await user.click(within(figure).getByRole('link', { name: '12 opérations à classer' }));
     // The answer's months (testData: 2026-11), as the server read them.
     await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'operations', from: '2026-11-01', to: '2026-11-30', uncategorised: true, direction: 'out' }));
-    expect(screen.getByRole('tab', { name: 'Opérations', selected: true })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /^Opérations/, selected: true })).toBeInTheDocument();
+  });
+
+  it('says nothing is left to classify when the period has no such line (#426)', async () => {
+    spendingServer({ ...month, uncategorised: { amount: '0.00', average: null, count: 0 } });
+    await renderApp('/spending');
+    await screen.findByRole('table', { name: 'Par catégorie' });
+    expect(screen.queryByRole('link', { name: /à classer/ })).toBeNull();
+    expect(screen.getByRole('tab', { name: 'Opérations' })).toBeInTheDocument();
+  });
+
+  it('counts the current month’s lines to classify on the « Opérations » tab, asking the overview’s question once (#426)', async () => {
+    const asked = spendingServer();
+    await renderApp('/spending');
+    expect(await screen.findByRole('tab', { name: 'Opérations12 opérations à classer' })).toBeInTheDocument();
+    expect(asked).toEqual(['?scope=household&month=2026-11']);
   });
 
   it('keeps each tab’s filters to itself, Foyer / Moi carried over', async () => {

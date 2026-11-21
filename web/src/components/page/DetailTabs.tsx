@@ -16,7 +16,8 @@ export function useDetailTab<T extends string>(ids: readonly T[]): [T, (next: T)
   return [current, set];
 }
 
-type DetailTab<T extends string> = { id: T; label: string; content: ReactNode; guide?: string; action?: ReactNode };
+/** `badge`: shown after the label, inside the tab (a count to act on). */
+type DetailTab<T extends string> = { id: T; label: string; content: ReactNode; guide?: string; action?: ReactNode; badge?: ReactNode };
 
 export function DetailTabs<T extends string>({ value, onChange, tabs, guide }: {
   value: T; onChange: (t: T) => void; tabs: DetailTab<T>[]; guide?: string;
@@ -38,7 +39,7 @@ export function DetailTabs<T extends string>({ value, onChange, tabs, guide }: {
     <Tabs value={value} onValueChange={(next) => onChange(next as T)}>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 print:hidden">
         <TabsList ref={list} variant="line" data-guide={guide} className="h-auto min-w-0 max-w-full justify-start overflow-x-auto overflow-y-hidden pb-1.5">
-          {tabs.map((tab) => <TabsTrigger key={tab.id} value={tab.id} data-guide={tab.guide} className="flex-none">{tab.label}</TabsTrigger>)}
+          {tabs.map((tab) => <TabsTrigger key={tab.id} value={tab.id} data-guide={tab.guide} className="flex-none">{tab.label}{tab.badge}</TabsTrigger>)}
         </TabsList>
         {action ? <div className="ml-auto max-w-full flex-none">{action}</div> : null}
       </div>
