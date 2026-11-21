@@ -413,12 +413,18 @@ public sealed class TaxEstimates(
     /// Tax-per spec §4.2: each adult's taxable income of the year before with the exempt overtime after the allowance (the professional
     /// income the PER ceiling reads, unemployment included: brochure IR 2026 § 232), by person id: the same lines (same reader and scope) and the
     /// profile standing for that year, assembled and computed without PER and without a previous-year pass of its own. Before the first
-    /// year of the rules the calculation runs on the first year's, as the PASS does.
+    /// year of the rules the calculation runs on the first year's, as the PASS does. Issue #438: kept for the rest of the scope by
+    /// reader, year and scope once the year before is over on <paramref name="today"/>, so a period's months read it once per year.
     /// </summary>
     private async Task<Result<IReadOnlyDictionary<Guid, decimal>>> PreviousYearIncomeAsync(
         int year, VisibilityScope scope, NodaTime.LocalDate today, IReadOnlyList<PersonInfo> people, CancellationToken ct)
     {
         var reader = actor.Current!.PersonId!.Value;
+        // ponytail: relies on ITaxContribution's contract (a past year's lines ignore the reading date), which only
+        // TaxPreviousYearTests guards; key it by the date as well if a contribution ever needs it for a past year.
+        var key = (reader, year, scope);
+        var past = year <= today.Year;
+        if (past && previousYears.TryGetValue(key, out var kept)) return Result.Success(kept);
         var collected = await Contributions.CollectAsync(contributions, c => c.TaxLinesAsync(reader, scope, year - 1, today, ct));
         if (collected.TryGetFailure(out var failure))
             return Result.Failure<IReadOnlyDictionary<Guid, decimal>>(failure!);
@@ -430,10 +436,14 @@ public sealed class TaxEstimates(
             Year = Math.Max(inputs.Year, TaxRules.FirstYear),
             Declarants = inputs.Declarants.Select(d => d with { PerContributions = 0m }).ToList(),
         });
-        return Result.Success<IReadOnlyDictionary<Guid, decimal>>(
-            // A pension is no professional income: the ceiling leaves it out.
-            Adults(people).Zip(result.Declarants, (adult, d) => (Id: adult.Id.Value, Income: d.Taxable - d.Pensions + d.PensionAllowance + d.ExemptNet)).ToDictionary(x => x.Id, x => x.Income));
+        // A pension is no professional income: the ceiling leaves it out.
+        IReadOnlyDictionary<Guid, decimal> income = Adults(people)
+            .Zip(result.Declarants, (adult, d) => (Id: adult.Id.Value, Income: d.Taxable - d.Pensions + d.PensionAllowance + d.ExemptNet)).ToDictionary(x => x.Id, x => x.Income);
+        if (past) previousYears[key] = income;
+        return Result.Success(income);
     }
+
+    private readonly Dictionary<(PersonId Reader, int Year, VisibilityScope Scope), IReadOnlyDictionary<Guid, decimal>> previousYears = [];
 
     /// <summary>The adults who declare, in a stable order: the household's first two.</summary>
     public static IReadOnlyList<PersonInfo> Adults(IReadOnlyList<PersonInfo> people)
