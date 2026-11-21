@@ -70,6 +70,20 @@ public class FactConventionImportTests(PostgresFixture fixture) : IClassFixture<
     }
 
     [Fact]
+    public async Task An_employer_share_sits_on_a_contribution_only()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        const string flows = """
+            [{"id":"f-ok","item":"env-pea","occurred_on":"2025-03-15","kind":"contribution","amount":{"amount":"2","currency":"EUR"},"category":"employer_match"},
+             {"id":"f-bad","item":"env-pea","occurred_on":"2025-03-16","kind":"withdrawal","amount":{"amount":"2","currency":"EUR"},"category":"profit_sharing"}]
+            """;
+
+        var validated = await ValidateAsync(new ImportClient(app), app, app.AdultA, FactsImportTests.Facts(valuations: "[]", flows: flows));
+
+        Assert.Equal([("investments.invalid_income_category", "flows[1].category")], ErrorsOf(validated));
+    }
+
+    [Fact]
     public async Task The_host_declares_the_property_convention_of_README_section_4()
     {
         await using var app = await NidApp.StartAsync(fixture);

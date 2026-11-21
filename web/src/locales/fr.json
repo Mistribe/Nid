@@ -585,7 +585,7 @@
     "cadence": { "monthly": "Chaque mois", "quarterly": "Chaque trimestre", "yearly": "Chaque année", "manual": "À la demande" },
     "regulated": { "none": "Aucun (livret bancaire)", "livret_a": "Livret A", "ldds": "LDDS", "lep": "LEP", "livret_jeune": "Livret jeune" },
     "flow_kind": { "contribution": "Versement", "withdrawal": "Retrait", "expense": "Frais", "income": "Revenu", "opening": "Versements antérieurs", "transfer": "Virement" },
-    "flow_nature": { "dividend": "Dividende", "interest": "Intérêts", "distribution": "Distribution" }
+    "flow_nature": { "dividend": "Dividende", "interest": "Intérêts", "distribution": "Distribution", "employer_match": "Abondement", "profit_sharing": "Intéressement", "participation": "Participation" }
   },
   "income": {
     "overview": {

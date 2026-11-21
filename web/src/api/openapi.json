@@ -45236,6 +45236,26 @@
               "integer"
             ],
             "format": "int32"
+          },
+          "ownContributions": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AmountView"
+              }
+            ]
+          },
+          "employerContributions": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AmountView"
+              }
+            ]
           }
         }
       },

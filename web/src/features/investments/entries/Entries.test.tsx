@@ -178,6 +178,19 @@ describe('recording values and flows', () => {
     expect(flow.getByLabelText('Nature')).toBeInTheDocument();
   });
 
+  it('records an employee plan\'s contribution as the employer\'s match (#183)', async () => {
+    const calls: Call[] = [];
+    serve(detail({ kind: 'employee_savings' }), calls);
+    const { user } = await renderApp(`/investments/${PEA}`);
+
+    const flow = await openFlow(user);
+    await pick(user, 'Nature', 'Abondement');
+    await user.type(flow.getByLabelText('Montant'), '40');
+    await user.click(flow.getByRole('button', { name: 'Ajouter le flux' }));
+
+    await waitFor(() => expect(calls).toEqual([{ method: 'POST', path: 'flows', body: expect.objectContaining({ kind: 'contribution', category: 'employer_match' }) as unknown }]));
+  });
+
   it('offers no nature on a savings account', async () => {
     serve(detail({ kind: 'savings' }), []);
     const { user } = await renderApp(`/investments/${PEA}`);

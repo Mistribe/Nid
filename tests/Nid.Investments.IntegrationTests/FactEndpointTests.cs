@@ -249,6 +249,23 @@ public class FactEndpointTests(PostgresFixture fixture, SharedNidApp shared) : I
     }
 
     [Fact]
+    public async Task An_employee_plan_shows_the_employer_share_of_what_was_paid_in()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await NewEnvelopeOfKindAsync(app, "employee_savings");
+        Assert.Equal(HttpStatusCode.Created, (await PostFlowAsync(app, id, "contribution", null)).StatusCode);
+        Assert.Equal(HttpStatusCode.Created, (await PostFlowAsync(app, id, "contribution", "employer_match")).StatusCode);
+
+        var figures = (await DetailAsync(app, id)).GetProperty("figures");
+
+        Assert.Equal("100.0000", figures.GetProperty("ownContributions").GetProperty("amount").GetString());
+        Assert.Equal("100.0000", figures.GetProperty("employerContributions").GetProperty("amount").GetString());
+        await AssertRefusedAsync(await PostFlowAsync(app, id, "withdrawal", "profit_sharing"), "investments.invalid_contribution_category");
+        await AssertRefusedAsync(await PostFlowAsync(app, await NewEnvelopeOfKindAsync(app, "pea"), "contribution", "participation"),
+            "investments.invalid_contribution_category");
+    }
+
+    [Fact]
     public async Task A_withdrawal_is_reclassified_by_a_correction()
     {
         await using var app = await NidApp.StartAsync(fixture);

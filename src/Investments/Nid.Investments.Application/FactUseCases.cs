@@ -65,10 +65,10 @@ internal static class OpenEnvelope
             ? Result.Failure<Envelope>(failure!) : Result.Success(envelope.Envelope);
     }
 
-    /// <summary>Spec C2: an income category only on a withdrawal or income of an envelope that is not a savings account.</summary>
+    /// <summary>Spec C2: an income category only on a withdrawal or income of an envelope that is not a savings account; #183: an employer's share only on an employee plan's contribution.</summary>
     public static Failure? RefuseIncomeCategory(Envelope envelope, NewFlow flow)
         => FlowCategories.Refusal(envelope.Kind, flow.Kind, flow.Category) is { } message
-            ? new Failure(InvestmentsCodes.InvalidIncomeCategory, message, new Dictionary<string, object?> { ["field"] = "category" })
+            ? new Failure(FlowCategories.IsEmployer(flow.Category) ? InvestmentsCodes.InvalidContributionCategory : InvestmentsCodes.InvalidIncomeCategory, message, new Dictionary<string, object?> { ["field"] = "category" })
             : null;
 
     /// <summary>Issue #399: a deposit beyond a livret's ceiling, against its balance without the flow it corrects (<paramref name="replaced"/>).</summary>

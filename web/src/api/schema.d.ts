@@ -36382,6 +36382,8 @@ export interface components {
             missingOpening: boolean;
             /** Format: int32 */
             staleDays?: null | number;
+            ownContributions?: null | components["schemas"]["AmountView"];
+            employerContributions?: null | components["schemas"]["AmountView"];
         };
         FiledDocuments: {
             /** Format: int32 */

@@ -11,9 +11,20 @@ public static class FlowCategories
 
     public static bool IsIncome(string? category) => category is not null && Income.Contains(category);
 
-    /// <summary>Spec C2: the refusal message, or null when the category is allowed on this envelope and flow kind.</summary>
+    /// <summary>#183: the employer's share of an employee plan's contribution; no category is the employee's own payment.</summary>
+    public const string EmployerMatch = "employer_match", ProfitSharing = "profit_sharing", Participation = "participation";
+
+    public static readonly IReadOnlyList<string> Employer = [EmployerMatch, ProfitSharing, Participation];
+
+    public static bool IsEmployer(string? category) => category is not null && Employer.Contains(category);
+
+    /// <summary>Spec C2, #183: the refusal message, or null when the category is allowed on this envelope and flow kind.</summary>
     public static string? Refusal(EnvelopeKind envelope, FlowKind kind, string? category)
     {
+        if (IsEmployer(category))
+            return !EnvelopeKinds.IsEmployeePlan(envelope)
+                ? $"'{category}' only classifies a contribution to an employee savings plan (PEE, collective PER)."
+                : kind == FlowKind.Contribution ? null : $"'{category}' only classifies a contribution.";
         if (!IsIncome(category))
             return null;
         if (envelope == EnvelopeKind.Savings)

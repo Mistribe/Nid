@@ -84,6 +84,8 @@
     "chart_needs_two": "La courbe apparaît à partir de deux valeurs.",
     "value": "Valeur",
     "net_contributions": "Versements nets",
+    "own_contributions": "Vos versements",
+    "employer_contributions": "Part de l’employeur",
     "paid_in": "versé, pas encore valorisé",
     "gain": "Gain",
     "before_tax": "Avant fiscalité. Le pourcentage du gain se calcule sur le total versé ; le rendement annuel tient compte des dates des versements et des retraits, après 12 mois de suivi.",
@@ -130,6 +132,8 @@
     "nature_ordinary": "Retrait ordinaire",
     "nature_income": "Revenu",
     "nature_hint": "Seul l’argent versé directement hors de l’enveloppe ; un retrait d’un PEA reste un retrait.",
+    "nature_own": "Versement volontaire",
+    "nature_own_hint": "Ce que l’employeur verse sur le plan (abondement, intéressement, participation) ne vient pas de votre poche.",
     "flow_saved": "Flux ajouté.",
     "flow_corrected": "Flux corrigé.",
     "save": "Enregistrer",
@@ -698,6 +702,7 @@
     }
   },
   "investments_tips": {
+    "employer_share": "L’abondement, l’intéressement et la participation versés sur le plan par l’employeur. Le gain se calcule sur tout ce qui a été versé, cette part comprise.",
     "isin": "Le code de 12 caractères qui identifie un fonds ou une action, imprimé sur le relevé ou la fiche du support (il commence par le pays : FR, LU…). Nid s’en sert pour récupérer le cours.",
     "sri": "L’indicateur de risque imprimé sur la fiche du support, de 1 (très prudent) à 7 (très risqué). Nid le garde pour mémoire : il ne change aucun calcul.",
     "uc": "Les unités de compte sont la part d’une assurance-vie ou d’un PER placée hors du fonds en euros (fonds, actions…). Elles peuvent rapporter plus, mais leur capital n’est pas garanti.",
