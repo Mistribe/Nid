@@ -157,6 +157,23 @@ public class RoundTripTests(PostgresFixture fixture) : IClassFixture<PostgresFix
             asOf = "2024-12-31", complete = false,
             lines = new object[] { new { holdingId = euro, value = Eur("4806.70") }, new { holdingId = fund, units = "78.4", unitPrice = "75", value = Eur("5880.00") } },
         });
+
+        // Issue #180: an SCPI held directly, its shares at the withdrawal price, its entitlement delay.
+        var scpiEnvelope = (await SendAsync(app, HttpMethod.Post, "/api/v1/investments/envelopes", new
+        {
+            displayName = "SCPI", kind = "scpi", currency = "EUR", visibility = "shared", valuationCadence = "quarterly",
+            owners = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } },
+        }))["id"]!.GetValue<string>();
+        var scpiUrl = $"/api/v1/investments/envelopes/{scpiEnvelope}";
+        var scpi = Id(await SendAsync(app, HttpMethod.Post, $"{scpiUrl}/holdings", new { name = "SCPI A", kind = "scpi", entitlementDelayMonths = 3, entryCostPct = "10" }));
+        var bought = Id(await SendAsync(app, HttpMethod.Post, $"{scpiUrl}/flows", new { occurredOn = "2024-01-15", kind = "contribution", amount = Eur("5000.00") }));
+        await SendAsync(app, HttpMethod.Post, $"{scpiUrl}/holdings/{scpi}/movements", Move("2024-01-15", "allocation_in", "5000.00", "20", "250", bought));
+        await SendAsync(app, HttpMethod.Post, $"{scpiUrl}/flows", new { occurredOn = "2024-09-30", kind = "income", category = "distribution", amount = Eur("50.00") });
+        await SendAsync(app, HttpMethod.Post, $"{scpiUrl}/holding-snapshots", new
+        {
+            asOf = "2024-12-31", recordValuation = true,
+            lines = new object[] { new { holdingId = scpi, units = "20", unitPrice = "225", value = Eur("4500.00") } },
+        });
     }
 
     /// <summary>An envelope's holdings, snapshots, and each holding's movements and series, by holding name; lines by value (they come in id order).</summary>
@@ -362,7 +379,7 @@ public class RoundTripTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         Assert.Equal(3, first["goals"].Count);
         Assert.Contains(first["goals"], g => g.GetProperty("funding").GetArrayLength() == 2 && g.GetProperty("entries").GetArrayLength() == 0);
         Assert.Contains(first["goals"], g => g.GetProperty("entries").GetArrayLength() == 2);
-        Assert.Equal(4, first["envelopes"].Count);
+        Assert.Equal(5, first["envelopes"].Count);
         // The comparison is not vacuous: the API-made facts are in the reads and in the file.
         var reads = await InvestmentReadsAsync(target, target.AdultA);
         Assert.Contains("25500", reads);
@@ -372,9 +389,14 @@ public class RoundTripTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         Assert.True(livret["closed"]!.GetValue<bool>());
         Assert.Contains(first["flows"], f => f.GetProperty("external_ref").GetString()?.StartsWith("transfer:") == true);
         // The holdings: both lines, both snapshots, the switch's two legs under one reference, the fees, and the allocations' flow.
-        Assert.Equal(["Fonds A", "Fonds euros"], first["holdings"].Select(h => h.GetProperty("name").GetString()));
-        Assert.Equal(["2023-12-31", "2024-12-31"], first["holding_snapshots"].Select(s => s.GetProperty("as_of").GetString()));
-        Assert.Equal(8, first["holding_movements"].Count);
+        Assert.Equal(["Fonds A", "Fonds euros", "SCPI A"], first["holdings"].Select(h => h.GetProperty("name").GetString()).Order(StringComparer.Ordinal));
+        // Issue #180: the SCPI's kind and entitlement delay; only it writes the delay.
+        Assert.Contains(first["envelopes"], e => e.GetProperty("name").GetString() == "SCPI" && e.GetProperty("kind").GetString() == "scpi");
+        Assert.Equal([3], first["holdings"].Where(h => h.TryGetProperty("entitlement_delay_months", out _)).Select(h => h.GetProperty("entitlement_delay_months").GetInt32()));
+        var scpiReads = JsonNode.Parse(reads)!["SCPI"]!["holdings"]!["holdings"]!["holdings"]!.AsArray().Single()!;
+        Assert.Equal(("scpi", 3, "2024-05-01"), (scpiReads["kind"]!.GetValue<string>(), scpiReads["entitlementDelayMonths"]!.GetValue<int>(), scpiReads["entitledFrom"]!.GetValue<string>()));
+        Assert.Equal(["2023-12-31", "2024-12-31", "2024-12-31"], first["holding_snapshots"].Select(s => s.GetProperty("as_of").GetString()).Order(StringComparer.Ordinal));
+        Assert.Equal(9, first["holding_movements"].Count);
         Assert.Single(first["holding_movements"].Where(m => m.GetProperty("switch_ref").ValueKind == JsonValueKind.String)
             .GroupBy(m => m.GetProperty("switch_ref").GetString()), g => g.Count() == 2);
         Assert.Equal(2, first["holding_movements"].Count(m => m.GetProperty("kind").GetString() == "fee"));

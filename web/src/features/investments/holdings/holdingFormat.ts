@@ -4,7 +4,7 @@ import { formatMoney } from '@/components/Money';
 import { formatLocalDate } from '@/components/LocalDate';
 import '@/locales/investments';
 
-export const HOLDING_KINDS = ['fund', 'etf', 'euro_fund', 'equity', 'bond', 'structured', 'cash', 'other'] as const;
+export const HOLDING_KINDS = ['fund', 'etf', 'euro_fund', 'equity', 'bond', 'structured', 'cash', 'scpi', 'other'] as const;
 /** The kinds a person records by hand; a switch's two legs go through their own dialog (spec §2.3). */
 export const MOVEMENT_KINDS = ['allocation_in', 'allocation_out', 'fee', 'interest', 'income', 'maturity'] as const;
 const OUT_KINDS = new Set(['allocation_out', 'switch_out', 'maturity', 'fee']);

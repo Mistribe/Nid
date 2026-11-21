@@ -168,8 +168,9 @@ public static class RouteActions
             + "by typing its name. version is the one the deletion preview returned. " + Ids, Destructive: true, Query: ["version"],
             Current: "/api/v1/investments/envelopes/{id:guid}/deletion"),
         new("add_holding", "POST", "/api/v1/investments/envelopes/{id:guid}/holdings", typeof(HoldingBody),
-            "Add a holding (support) to an envelope: a fund, ETF, share, the euro fund, a structured product or cash; kind 'euro_fund', 'fund', "
-            + "'etf', 'equity', 'bond', 'structured', 'cash' or 'other'. Copy the name and ISIN as printed. " + Ids + Amounts),
+            "Add a holding (support) to an envelope: a fund, ETF, share, the euro fund, a structured product, cash or an SCPI; kind 'euro_fund', 'fund', "
+            + "'etf', 'equity', 'bond', 'structured', 'cash', 'scpi' or 'other'. An SCPI may set entitlementDelayMonths (0 to 12, the délai de jouissance "
+            + "printed on its subscription bulletin). Copy the name and ISIN as printed. " + Ids + Amounts),
         new("edit_holding", "PUT", "/api/v1/investments/envelopes/{id:guid}/holdings/{holdingId:guid}", typeof(HoldingBody),
             "Replace a holding's details (every field; set closedOn to close it). " + Ids + Versioned, Destructive: true),
         new("delete_holding", "DELETE", "/api/v1/investments/envelopes/{id:guid}/holdings/{holdingId:guid}", null,

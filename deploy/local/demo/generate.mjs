@@ -169,6 +169,21 @@ function alice() {
     void world;
   }
 
+  // An SCPI held directly (issue #180), both adults': 20 shares bought at 250 (10 % entry fees), withdrawn at 225, 3 months before they earn,
+  // a quarterly distribution, a bulletin each quarter.
+  envelopes.push({ id: 'env-scpi', name: 'SCPI Bureaux Ouest', kind: 'scpi', institution: 'Société de gestion Exemple', opened_on: '2024-04-10',
+    currency: 'EUR', valuation_cadence: 'quarterly', ownership: halves(A, B) });
+  holdings.push({ id: 'h-scpi', item: 'env-scpi', name: 'SCPI Bureaux Ouest', kind: 'scpi', entry_cost_pct: '10', entitlement_delay_months: 3 });
+  flows.push({ id: 'fl-scpi-buy', item: 'env-scpi', occurred_on: '2024-04-10', kind: 'contribution', amount: eur(5000) });
+  holding_movements.push({ id: 'hm-scpi-buy', holding: 'h-scpi', occurred_on: '2024-04-10', kind: 'allocation_in', units: '20', unit_price: '250', amount: eur(5000), envelope_flow: 'fl-scpi-buy' });
+  for (const [y, m] of months(2024, 6).filter(([, m]) => m % 3 === 0)) {
+    const as_of = endOfMonth(y, m) > LAST ? LAST : endOfMonth(y, m);
+    holding_snapshots.push({ id: `hs-scpi-${as_of.slice(0, 7)}`, item: 'env-scpi', as_of, lines: [{ holding: 'h-scpi', units: '20', unit_price: '225', value: eur(4500) }] });
+    valuations.push({ id: `val-scpi-${as_of.slice(0, 7)}`, item: 'env-scpi', as_of, amount: eur(4500) });
+    // Shares earn from 1 August 2024: the first quarter paid is the third.
+    if (as_of >= '2024-09-30') flows.push({ id: `fl-scpi-dist-${as_of.slice(0, 7)}`, item: 'env-scpi', occurred_on: as_of, kind: 'income', category: 'distribution', amount: eur(50) });
+  }
+
   // Real estate: the family home (both adults, two loans) and Alice's let studio (one loan, an early repayment).
   const properties = [
     {

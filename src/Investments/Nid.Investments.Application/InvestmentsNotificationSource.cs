@@ -7,7 +7,7 @@ using UnambitiousFx.Functional;
 namespace Nid.Investments.Application;
 
 /// <summary>
-/// Notifications design §2.3: the maturities of the reader's own holdings, and the overview's « value to update » and
+/// Notifications design §2.3: the maturities of the reader's own holdings and the day their SCPI shares start earning (issue #180), and the overview's « value to update » and
 /// « units of account under the floor » watch, as signals. No amount travels: a notification says what and when, the screen has the figures.
 /// </summary>
 public sealed class InvestmentsNotificationSource(InvestmentsUpcoming upcoming, InvestmentsOverviewReader overview) : INotificationSource
@@ -19,6 +19,7 @@ public sealed class InvestmentsNotificationSource(InvestmentsUpcoming upcoming, 
     public IReadOnlyList<NotificationKind> Kinds { get; } =
     [
         new(UpcomingKinds.HoldingMaturity, "due_date", NotificationLevel.Action, "investments", 30),
+        new(UpcomingKinds.HoldingEntitlement, "due_date", NotificationLevel.Info, "investments", 30),
         new(OverviewCodes.StaleValue, "finding", NotificationLevel.Info, "investments", null),
         new(HoldingWarnings.UcShareBelowFloor, "finding", NotificationLevel.Info, "investments", null),
     ];

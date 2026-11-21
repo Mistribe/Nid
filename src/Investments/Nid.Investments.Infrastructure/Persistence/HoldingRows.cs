@@ -23,6 +23,7 @@ public sealed class HoldingRow : IImportMarked
     public string? AssetClass { get; set; }
     public string? Issuer { get; set; }
     public int? RiskIndicator { get; set; }
+    public int? EntitlementDelayMonths { get; set; }
     public LocalDate? OpenedOn { get; set; }
     public LocalDate? MaturesOn { get; set; }
     public decimal? EntryCostPct { get; set; }

@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
@@ -82,6 +83,10 @@ export function FlowForm({ envelope, editing, opening, titleId, onDone }: {
   });
 
   const kind = form.watch('kind');
+  // Issue #180: what an SCPI pays out is a distribution; its withdrawals (shares sold) stay ordinary.
+  useEffect(() => {
+    if (!editing && envelope.kind === 'scpi') form.setValue('nature', kind === 'income' ? 'distribution' : '');
+  }, [editing, envelope.kind, form, kind]);
   // #183: an employee plan's contribution says whose money it is.
   const employer = kind === 'contribution' && isEmployeePlan(envelope.kind);
   const showNature = employer || ((kind === 'withdrawal' || kind === 'income') && envelope.kind !== 'savings');

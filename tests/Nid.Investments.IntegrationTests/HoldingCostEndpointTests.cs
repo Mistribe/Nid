@@ -149,4 +149,27 @@ public class HoldingCostEndpointTests(PostgresFixture fixture) : IClassFixture<P
 
         Assert.Equal(["2025-12-14 holding_maturity Assurance-vie Autocall Europe"], events);
     }
+
+    [Fact]
+    public async Task Scpi_shares_starting_to_earn_within_60_days_are_an_upcoming_event()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await app.NewEnvelopeAsync("SCPI", app.AdultA, Visibility.Shared);
+        async Task<Guid> Scpi(string name, string? closedOn = null)
+            => (await SendAsync(app, HttpMethod.Post, $"{Url(id)}/holdings", new { name, kind = "scpi", entitlementDelayMonths = 3, closedOn }, HttpStatusCode.Created))
+                .GetProperty("id").GetGuid();
+        async Task Buy(Guid holding, string on)
+            => await SendAsync(app, HttpMethod.Post, $"{Url(id)}/holdings/{holding}/movements",
+                new { occurredOn = on, kind = "allocation_in", amount = new { amount = "1000.00", currency = "EUR" }, units = "4", unitPrice = "250" }, HttpStatusCode.Created);
+        await Buy(await Scpi("SCPI A"), "2025-08-20"); // earns from 2025-12-01: in
+        await Buy(await Scpi("SCPI B"), "2025-01-10"); // earned from 2025-05-01: past
+        await Scpi("SCPI C"); // no purchase, no opening date: nothing
+        await Buy(await Scpi("SCPI D", closedOn: "2025-09-30"), "2025-08-20"); // closed: out
+
+        var events = JsonDocument.Parse(await app.GetRawAsync(app.AdultA, "/api/v1/dashboard?scope=household")).RootElement
+            .GetProperty("upcoming").EnumerateArray().Where(e => e.GetProperty("module").GetString() == "investments")
+            .Select(e => $"{e.GetProperty("on").GetString()} {e.GetProperty("kind").GetString()} {e.GetProperty("name").GetString()} {e.GetProperty("label").GetString()}");
+
+        Assert.Equal(["2025-12-01 holding_entitlement SCPI SCPI A"], events);
+    }
 }
