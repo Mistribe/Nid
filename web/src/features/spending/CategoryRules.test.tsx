@@ -6,7 +6,7 @@ import { pick } from '@/test/controls';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import type { BankCategory, BankTransaction, CategoryRule } from '@/api/banking';
-import { account, CARD, CHECKING, JOINT } from './testData';
+import { account, CARD, CHECKING, JOINT } from '@/features/settings/banks/testData';
 
 const category = (over: Partial<BankCategory>): BankCategory => ({ id: 'c', parentId: null, key: null, name: '', kind: 'expense', archived: false, mergedIntoId: null, defaultName: null, lines: 0, ...over });
 const categories = [
@@ -65,7 +65,7 @@ function serve() {
 }
 
 async function open() {
-  const app = await renderApp('/settings/banks?tab=categories');
+  const app = await renderApp('/spending?tab=categories');
   await screen.findByRole('table', { name: 'Règles de catégorie' });
   return app;
 }
@@ -75,8 +75,8 @@ const menu = async (user: Awaited<ReturnType<typeof renderApp>>['user'], pattern
   await user.click(await screen.findByRole('menuitem', { name: item }));
 };
 
-describe('Réglages › Banques › Catégories › Règles de catégorie', () => {
-  beforeAll(async () => { await import('./BanksPage'); await import('./CategoriesTab'); }, 30_000);
+describe('Dépenses › Catégories › Règles de catégorie', () => {
+  beforeAll(async () => { await import('./SpendingPage'); await import('./CategoriesTab'); }, 30_000);
 
   it('lists the rules with their account, conditions, category and use; one the person cannot change offers only « Appliquer »', async () => {
     serve();

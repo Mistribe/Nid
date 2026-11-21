@@ -8,7 +8,7 @@ import { reduceMotion } from '@/test/motion';
 import { month, spendingServer, year } from './testData';
 
 describe('« Dépenses »', () => {
-  beforeAll(async () => { await import('./SpendingPage'); }, 30_000);
+  beforeAll(async () => { await import('./SpendingPage'); await import('./SpendingOverview'); }, 30_000);
   beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date(2026, 10, 19, 12)); });
   afterEach(() => vi.useRealTimers());
 
@@ -56,6 +56,44 @@ describe('« Dépenses »', () => {
       expect(rows[0]).toHaveTextContent(/décembre 2025\s*1\s500,00\s€/);
       expect(rows[11]).toHaveTextContent(/novembre 2026\s*1\s172,73\s€/);
     });
+  });
+
+  it('opens « Non classées » in the Opérations tab, over the period', async () => {
+    spendingServer();
+    const { user, router } = await renderApp('/spending?month=2026-02');
+    await screen.findByRole('table', { name: 'Par catégorie' });
+
+    const figure = screen.getByText('Non classées', { selector: 'dt' }).closest('div')!;
+    await user.click(within(figure).getByRole('link', { name: 'Voir dans Opérations' }));
+    // The answer's months (testData: 2026-11), as the server read them.
+    await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'operations', from: '2026-11-01', to: '2026-11-30', uncategorised: true, direction: 'out' }));
+    expect(screen.getByRole('tab', { name: 'Opérations', selected: true })).toBeInTheDocument();
+  });
+
+  it('keeps each tab’s filters to itself, Foyer / Moi carried over', async () => {
+    server.use(
+      http.get('*/api/v1/banking/operations', () => HttpResponse.json({ items: [], total: 0, totals: { out: '0.00', in: '0.00', net: '0.00', currency: 'EUR', incomplete: false },
+        facets: { accounts: [], owners: [], categories: [] }, accountOwners: [] })),
+      http.get('*/api/v1/banking/categories', () => HttpResponse.json([])),
+      http.get('*/api/v1/banking/category-rules', () => HttpResponse.json([])),
+    );
+    const { user, router } = await renderApp('/spending?scope=me&tab=operations&category=c1&month=2026-10');
+    expect(await screen.findByRole('heading', { level: 1, name: 'Dépenses' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Opérations', selected: true })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Importer un relevé' })).toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Mois' })).toBeNull();
+
+    await user.click(screen.getByRole('tab', { name: 'Catégories' }));
+    await waitFor(() => expect(router.state.location.search).toEqual({ scope: 'me', tab: 'categories' }));
+    await user.click(screen.getByRole('tab', { name: 'Vue d’ensemble' }));
+    await waitFor(() => expect(router.state.location.search).toEqual({ scope: 'me' }));
+    expect(await screen.findByRole('group', { name: 'Mois' })).toBeInTheDocument();
+  });
+
+  it('sends the old addresses to their tab, filters kept', async () => {
+    const { router } = await renderApp('/operations?state=unlinked&category=c1&scope=me');
+    await waitFor(() => expect(router.state.location.pathname).toBe('/spending'));
+    expect(router.state.location.search).toEqual({ scope: 'me', tab: 'operations', state: 'unlinked', category: ['c1'] });
   });
 
   it('reads the scope from the address', async () => {

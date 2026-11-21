@@ -54,7 +54,7 @@ function serve() {
   return writes;
 }
 
-async function open(path = '/settings/banks?tab=categories', region = 'Dépenses') {
+async function open(path = '/spending?tab=categories', region = 'Dépenses') {
   const app = await renderApp(path);
   await screen.findByRole('region', { name: region });
   return app;
@@ -68,15 +68,15 @@ const menu = async (user: Awaited<ReturnType<typeof renderApp>>['user'], name: s
   await user.click(await screen.findByRole('menuitem', { name: item }));
 };
 
-describe('Réglages › Banques › Catégories', () => {
-  beforeAll(async () => { await import('./BanksPage'); await import('./CategoriesTab'); }, 30_000);
+describe('Dépenses › Catégories', () => {
+  beforeAll(async () => { await import('./SpendingPage'); await import('./CategoriesTab'); }, 30_000);
 
   it('says what categories are for, and lists one kind by use, children folded, the unused and the archived folded', async () => {
     serve();
     const { container, user } = await open();
 
     expect(screen.getByText(/Elles sont communes au foyer/)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Voir les dépenses' })).toHaveAttribute('href', '/spending');
+    expect(screen.getByRole('link', { name: 'Voir la vue d’ensemble' })).toHaveAttribute('href', '/spending');
     const expenses = within(screen.getByRole('region', { name: 'Dépenses' }));
     const table = expenses.getByRole('table', { name: 'Dépenses' });
     const names = () => within(table).getAllByRole('row').slice(1).map((r) => within(r).getAllByRole('cell')[0]!.textContent);
@@ -109,7 +109,7 @@ describe('Réglages › Banques › Catégories', () => {
   it('says so under a kind without any category', async () => {
     serve();
     server.use(http.get('*/api/v1/banking/categories', () => HttpResponse.json(seed().filter((c) => c.kind !== 'income'))));
-    await open('/settings/banks?tab=categories&kind=income', 'Revenus');
+    await open('/spending?tab=categories&kind=income', 'Revenus');
 
     const income = screen.getByRole('region', { name: 'Revenus' });
     expect(income).toHaveTextContent('Aucune catégorie.');
