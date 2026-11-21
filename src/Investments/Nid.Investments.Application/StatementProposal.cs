@@ -14,10 +14,12 @@ using UnambitiousFx.Synapse.Abstractions;
 namespace Nid.Investments.Application;
 
 /// <summary>
-/// Spec 4D1 §2: `{ asOf, value?, movements[{ on, kind, amount, label?, ref?, category? }], note?, excluded? }` on an envelope; subject
+/// Spec 4D1 §2: `{ asOf, value?, movements[{ on, kind, amount, label?, ref?, category? }], availability?[{ availableOn, amount }], note?,
+/// excluded? }` on an envelope; subject
 /// key: the date. A movement Nid already holds (same reference, or without one the same date, kind and amount) is warned
 /// and, unless an edit's `excluded` says otherwise, left out when applied. `excluded` is an approval's edit only (D5): a
-/// submitter's is dropped. Nothing left to write and the value already recorded on `asOf` (or none given): « conforme ».
+/// submitter's is dropped. #185: `availability`, a plan keeper's tranches, replaces the plan's as the envelope's edit does. Nothing
+/// left to write, the value already recorded on `asOf` (or none given) and the same tranches (or none given): « conforme ».
 /// </summary>
 public sealed partial class StatementProposal(
     IEnvelopeStore envelopes, IItemRegistry items, IHouseholdCalendar calendar, IValuations valuations, IFlows flows, IInvoker invoker)
@@ -30,7 +32,9 @@ public sealed partial class StatementProposal(
     public string Kind => "investments.record_statement";
     public int PayloadVersion => 1;
 
-    private sealed record Body(string? AsOf, AmountBody? Value, List<MovementBody?>? Movements, string? Note, List<int>? Excluded);
+    private sealed record Body(string? AsOf, AmountBody? Value, List<MovementBody?>? Movements, List<TrancheBody?>? Availability, string? Note, List<int>? Excluded);
+
+    private sealed record TrancheBody(string? AvailableOn, string? Amount);
 
     private sealed record AmountBody(string? Amount, string? Currency);
 
@@ -39,7 +43,8 @@ public sealed partial class StatementProposal(
     /// <summary><see cref="Category"/>: issue #278, a dividend, interest or distribution (<see cref="FlowCategories.Income"/>).</summary>
     private sealed record Movement(LocalDate On, string Kind, decimal Amount, string? Label, string? Ref, string? Category);
 
-    private sealed record Parsed(LocalDate AsOf, Money? Value, IReadOnlyList<Movement> Movements, string? Note, IReadOnlyList<int>? Excluded);
+    private sealed record Parsed(
+        LocalDate AsOf, Money? Value, IReadOnlyList<Movement> Movements, IReadOnlyList<AvailabilityTranche>? Availability, string? Note, IReadOnlyList<int>? Excluded);
 
     private sealed record ExpectedSide(AmountView? Value, int Recorded);
 
@@ -49,7 +54,9 @@ public sealed partial class StatementProposal(
 
     private sealed record MovementPreview(int Index, string On, string Kind, AmountView Amount, string? Label, string? Category, bool Recorded);
 
-    private sealed record Preview(ValuationComparison? Value, IReadOnlyList<MovementPreview> Movements);
+    private sealed record TranchePreview(string AvailableOn, AmountView Amount);
+
+    private sealed record Preview(ValuationComparison? Value, IReadOnlyList<MovementPreview> Movements, IReadOnlyList<TranchePreview>? Availability = null);
 
     [JsonSourceGenerationOptions(JsonSerializerDefaults.Web)]
     [JsonSerializable(typeof(Body))]
@@ -84,6 +91,9 @@ public sealed partial class StatementProposal(
             if (EnvelopeWire.TryFlowKind(m.Kind, out var kind) && FlowCategories.Refusal(envelope.Envelope.Kind, kind, m.Category) is { } refused)
                 return Field(InvestmentsCodes.InvalidIncomeCategory, refused, $"payload.movements[{i}].category");
         }
+        // #185: the rule the envelope's edit keeps (#184), told at submission.
+        if (EnvelopeRules.Availability(p.Availability, envelope.Envelope.Kind).TryGetFailure(out var tranches))
+            return Field(InvestmentsCodes.InvalidEnvelope, tranches!.Message, "payload.availability");
 
         var marked = await RecordedAsync(target, p.Movements, p.Excluded, ct);
         if (!marked.TryGetValue(out var marks))
@@ -96,7 +106,8 @@ public sealed partial class StatementProposal(
         var warnings = Enumerable.Range(0, p.Movements.Count).Where(i => marks![i] != Mark.None)
             .Select(i => new ProposalWarning(ProposalCodes.AlreadyRecorded, "info", $"Movement {i + 1} is already recorded.", $"payload.movements[{i}]"))
             .ToList();
-        var conforme = Enumerable.Range(0, p.Movements.Count).Any(i => Writes(p, marks!, i)) ? null : await ConformeAsync(target, p, marks!, ct);
+        var conforme = Enumerable.Range(0, p.Movements.Count).Any(i => Writes(p, marks!, i)) || !SameTranches(p, envelope.Envelope)
+            ? null : await ConformeAsync(target, p, marks!, ct);
         return Result.Success(new ProposalCheck(Iso(p.AsOf), warnings, Normalized(p), conforme));
     }
 
@@ -116,6 +127,11 @@ public sealed partial class StatementProposal(
             new GivenSide(AmountView.From(p.Value), p.Movements.Count)), StatementJson.Default.Conforme);
     }
 
+    /// <summary>No tranches given, or the plan's own, whatever their order.</summary>
+    private static bool SameTranches(Parsed p, Envelope envelope)
+        => p.Availability is not { } given
+            || (envelope.Availability ?? []).OrderBy(t => t.AvailableOn).SequenceEqual(given.OrderBy(t => t.AvailableOn));
+
     /// <summary>Whether applying writes movement <paramref name="i"/>: the edit's choice, else whatever Nid does not hold yet.</summary>
     private static bool Writes(Parsed p, Mark[] marks, int i) => p.Excluded is { } excluded ? !excluded.Contains(i) : marks[i] == Mark.None;
 
@@ -127,7 +143,8 @@ public sealed partial class StatementProposal(
         var marks = (await RecordedAsync(target, p!.Movements, p.Excluded, ct)).TryGetValue(out var m) ? m! : new Mark[p.Movements.Count];
         return JsonSerializer.SerializeToElement(new Preview(
             p.Value is { } v ? await ValuationProposal.CompareAsync(valuations, target, p.AsOf, v, ct) : null,
-            [.. p.Movements.Select((x, i) => new MovementPreview(i, Iso(x.On), x.Kind, new AmountView(Text(x.Amount), currency), x.Label, x.Category, marks[i] != Mark.None))]),
+            [.. p.Movements.Select((x, i) => new MovementPreview(i, Iso(x.On), x.Kind, new AmountView(Text(x.Amount), currency), x.Label, x.Category, marks[i] != Mark.None))],
+            p.Availability?.OrderBy(t => t.AvailableOn).Select(t => new TranchePreview(Iso(t.AvailableOn), new AmountView(Text(t.Amount), currency))).ToList()),
             StatementJson.Default.Preview);
     }
 
@@ -176,6 +193,13 @@ public sealed partial class StatementProposal(
                 return Result.Failure<IReadOnlyList<Guid>>(FieldErrors.At(FailureOf(valued), "payload.value"));
             applied.Add(valuationId);
         }
+        // #185: the envelope's own edit, as entering the tranches by hand; an attribute, not a fact: no id to stamp.
+        if (p.Availability is { } tranches && (await envelopes.FindAsync(target, ct)) is { } envelope && !SameTranches(p, envelope))
+        {
+            var edited = await invoker.InvokeAsync(new EditEnvelopeCommand(target, null, null, new EnvelopeChange(Availability: tranches), null), ct);
+            if (edited.TryGetFailure(out var refused))
+                return Result.Failure<IReadOnlyList<Guid>>(FieldErrors.At(refused!, "payload.availability"));
+        }
         return Result.Success<IReadOnlyList<Guid>>(applied);
     }
 
@@ -220,6 +244,9 @@ public sealed partial class StatementProposal(
             if (m.Category is not null) line["category"] = m.Category;
             return (JsonNode?)line;
         }).ToArray());
+        if (p.Availability is { } tranches)
+            body["availability"] = new JsonArray(tranches.Select(t =>
+                (JsonNode?)new JsonObject { ["availableOn"] = Iso(t.AvailableOn), ["amount"] = Text(t.Amount) }).ToArray());
         if (p.Note is not null)
             body["note"] = p.Note;
         if (p.Excluded is { } excluded)
@@ -289,13 +316,27 @@ public sealed partial class StatementProposal(
                 else if (reference is not null && movements.Any(x => x.Ref == reference))
                     Error($"{at}.ref", "Each reference appears once in a statement.");
                 var category = Clean(m?.Category);
-                if (category is not null && !FlowCategories.IsIncome(category))
-                    Error($"{at}.category", $"One of {string.Join(", ", FlowCategories.Income)}, or none.");
+                if (category is not null && !FlowCategories.IsIncome(category) && !FlowCategories.IsEmployer(category))
+                    Error($"{at}.category", $"One of {string.Join(", ", FlowCategories.Income.Concat(FlowCategories.Employer))}, or none.");
                 movements.Add(new Movement(on, m?.Kind ?? "", amount, label, reference, category));
             }
 
-        if (value is null && body?.Value is null && raw.Count == 0)
-            Error("payload.movements", "A value or at least one movement is required.");
+        // #185: an empty list says nothing; clearing the tranches is the envelope's edit.
+        List<AvailabilityTranche>? tranches = body?.Availability is { Count: > 0 } ? [] : null;
+        for (var i = 0; tranches is not null && i < body!.Availability!.Count; i++)
+        {
+            var t = body.Availability[i];
+            var at = $"payload.availability[{i}]";
+            if (t?.AvailableOn is not { } day || LocalDatePattern.Iso.Parse(day) is not { Success: true } parsedDay)
+                Error($"{at}.availableOn", "An ISO date (yyyy-mm-dd) is required.");
+            else if (!decimal.TryParse(t.Amount, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var amount))
+                Error($"{at}.amount", "A positive decimal amount with a point (e.g. '1234.56').");
+            else
+                tranches.Add(new AvailabilityTranche(parsedDay.Value, amount));
+        }
+
+        if (value is null && body?.Value is null && raw.Count == 0 && tranches is null)
+            Error("payload.movements", "A value, a movement or an availability date is required.");
         if (body?.Note is { Length: > 500 })
             Error("payload.note", "500 characters at most.");
         var excluded = readExcluded ? body?.Excluded?.Distinct().Order().ToList() : null;
@@ -303,7 +344,7 @@ public sealed partial class StatementProposal(
             Error("payload.excluded", "The indexes of the statement's movements.");
         return errors.Count > 0
             ? Result.Failure<Parsed>(FieldErrors.Shape(errors))
-            : Result.Success(new Parsed(asOf, value, movements, body!.Note, excluded));
+            : Result.Success(new Parsed(asOf, value, movements, tranches, body!.Note, excluded));
     }
 
     /// <summary>The Core's own refused field under the movement, by the payload's name (`external_ref` is `ref`, `note` is `label`), else the movement.</summary>

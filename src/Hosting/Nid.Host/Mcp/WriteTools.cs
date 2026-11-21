@@ -20,7 +20,13 @@ public sealed record StatementMovement(
     [property: Description("The bank's reference for the line, if printed, 100 characters at most.")] string? Ref,
     [property: Description("'dividend', 'interest' or 'distribution' for money the envelope paid out directly (a brokerage account's "
         + "dividend, a coupon), on a 'withdrawal' or an 'income' only, never on a savings account (livret). A plain withdrawal from a "
-        + "PEA stays a withdrawal: leave it empty.")] string? Category = null);
+        + "PEA stays a withdrawal: leave it empty. On an employee savings plan (PEE, collective PER), a 'contribution' the employer paid: "
+        + "'employer_match' (abondement), 'profit_sharing' (intéressement) or 'participation'; the employee's own payment stays empty.")] string? Category = null);
+
+/// <summary>#185: a tranche of an employee savings plan, as the plan keeper's statement prints it.</summary>
+public sealed record StatementTranche(
+    [property: Description("The date the tranche becomes available, ISO (yyyy-mm-dd).")] string? AvailableOn,
+    [property: Description("The tranche's amount on the statement, a positive decimal string with a point.")] string? Amount);
 
 /// <summary>One line of a holdings statement, as printed (issue #34 §6).</summary>
 public sealed record HoldingsLine(
@@ -62,7 +68,7 @@ public sealed record AmortizationRow(
 [McpServerToolType]
 public sealed partial class WriteTools
 {
-    private sealed record StatementArguments(string AsOf, MoneyArgument? Value, StatementMovement[]? Movements);
+    private sealed record StatementArguments(string AsOf, MoneyArgument? Value, StatementMovement[]? Movements, StatementTranche[]? Availability);
 
     private sealed record HoldingsSnapshotArguments(
         string AsOf, string? SourceLabel, HoldingsLine[] Lines, HoldingsMovement[]? Movements, bool RecordValuation);
@@ -100,6 +106,7 @@ public sealed partial class WriteTools
     [JsonSerializable(typeof(Guid?))]
     [JsonSerializable(typeof(MoneyArgument))]
     [JsonSerializable(typeof(StatementMovement[]))]
+    [JsonSerializable(typeof(StatementTranche[]))]
     [JsonSerializable(typeof(HoldingsLine[]))]
     [JsonSerializable(typeof(HoldingsMovement[]))]
     [JsonSerializable(typeof(BreakdownShare[]))]
@@ -124,17 +131,21 @@ public sealed partial class WriteTools
 
     [McpServerTool(Name = "propose_statement", ReadOnly = false, Destructive = false, Idempotent = true)]
     [Description("An account statement for one envelope: its value on the statement's date and the movements it lists. One call per "
-        + "envelope; the envelopes of one statement share a sourceLabel. Movements already in Nid are flagged and left out. " + Rules)]
+        + "envelope; the envelopes of one statement share a sourceLabel. Movements already in Nid are flagged and left out. A plan "
+        + "keeper's statement of an employee savings plan also gives each contribution's category and "
+        + "the plan's availability dates, which replace the plan's own. " + Rules)]
     public static Task<CallToolResult> ProposeStatement(IServiceProvider services,
         [Description("The envelope's id (list_envelopes).")] Guid envelopeId,
         [Description("The statement's date, ISO (yyyy-mm-dd).")] string asOf,
         [Description("The envelope's value on asOf, in its currency.")] MoneyArgument? value = null,
         [Description("The statement's movements for this envelope, at most 200.")] StatementMovement[]? movements = null,
+        [Description("An employee savings plan (PEE) only: every tranche the statement prints by availability date (each date once, "
+            + "at most 120), the amounts as printed.")] StatementTranche[]? availability = null,
         [Description("The document's name, e.g. 'Relevé PEA septembre 2025', 200 characters at most.")] string? sourceLabel = null,
         [Description(DocumentArgument)] Guid? documentId = null,
         [Description("true: write directly instead of proposing.")] bool apply = false,
         CancellationToken ct = default)
-        => McpCalls.ProposeAsync(services, "investments.record_statement", envelopeId, JsonSerializer.SerializeToElement(new StatementArguments(asOf, value, movements), ArgumentsJson.Default.StatementArguments), sourceLabel, apply, documentId, ct);
+        => McpCalls.ProposeAsync(services, "investments.record_statement", envelopeId, JsonSerializer.SerializeToElement(new StatementArguments(asOf, value, movements, availability), ArgumentsJson.Default.StatementArguments), sourceLabel, apply, documentId, ct);
 
     [McpServerTool(Name = "propose_holdings_snapshot", ReadOnly = false, Destructive = false, Idempotent = true)]
     [Description("A statement's holdings for one envelope: each holding's line on the statement's date and the movements it lists per "

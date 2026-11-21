@@ -22,6 +22,12 @@
       "keep_legend": "Mouvements à enregistrer",
       "keep": "Mouvement {{n}} : {{date}}, {{kind}}, {{amount}}"
     },
+    "availability": {
+      "title": "Dates de disponibilité du relevé",
+      "hint": "Elles remplacent celles du plan.",
+      "on": "Disponible le",
+      "amount": "Montant"
+    },
     "holdings": {
       "valuation": "Valeur de l’enveloppe, enregistrée aussi",
       "lines": "Supports du relevé",

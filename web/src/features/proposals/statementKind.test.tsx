@@ -63,6 +63,16 @@ describe('Un relevé proposé', () => {
     expect(within(table).getAllByRole('row')[1]).toHaveTextContent('Dividende');
   });
 
+  it('shows a plan keeper\'s availability dates', async () => {
+    const p = statement();
+    const availability = [{ availableOn: '2030-06-01', amount: { amount: '1500.00', currency: 'EUR' } }];
+    serve([p], { preview: { ...statementPreview, availability } });
+    await renderApp(`/proposals/${p.id}`);
+
+    const table = await screen.findByRole('table', { name: /Dates de disponibilité du relevé/ });
+    expect(within(table).getAllByRole('row')[1]).toHaveTextContent(/1\s500,00\s€/);
+  });
+
   it('sends no edit when nothing changed', async () => {
     const p = statement();
     const sent = serve([p], { preview: statementPreview });
