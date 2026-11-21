@@ -177,6 +177,82 @@ public class ReconciliationTests(PostgresFixture fixture) : IClassFixture<Postgr
         Assert.Equal(TransactionLinkState.Unlinked, (await LineAsync(app, bread)).LinkState);
     }
 
+    /// <summary>« Courant A » and « Carte A » attached to it, of the given debit.</summary>
+    private static async Task<(Guid Courant, Guid Card)> CardOfCourantAsync(NidApp app, CardDebit? debit)
+    {
+        var courant = await CourantAsync(app, BankingApi.Account("uid-2", "hash-2", null, "Carte A", "CARD", debit: debit));
+        var card = await AccountAsync(app, app.AdultA, "Carte A");
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{BankingApi.Root}/accounts/{card}", new { cardOfAccountId = courant })).StatusCode);
+        return (courant, card);
+    }
+
+    [Fact]
+    public async Task An_immediate_card_echo_is_internal()
+    {
+        await using var app = await StartAsync(fixture);
+        var (courant, card) = await CardOfCourantAsync(app, CardDebit.Immediate);
+        var purchase = await AddAsync(app, card, "c1", D(10, 12), -42m, "CARTE 12/10/26 SHOP");
+        var echo = await AddAsync(app, courant, "e1", D(10, 13), -42m, "CARTE 12/10/26 SHOP CB*0000");
+
+        var counts = await PassAsync(app);
+
+        Assert.Equal(1, counts.Internal);
+        var link = (await LinkOfAsync(app, echo))!;
+        Assert.Equal((LinkOutcome.CardSettlement, card, $"line:{purchase:N}"), (link.Outcome, link.CounterpartAccount, link.TargetKey));
+        var echoed = await LineAsync(app, echo);
+        Assert.Equal((TransactionLinkState.Internal, CategorySeed.Find("internal.card")!.Id), (echoed.LinkState, echoed.Category));
+        Assert.Equal(TransactionLinkState.Unlinked, (await LineAsync(app, purchase)).LinkState);
+    }
+
+    [Fact]
+    public async Task Two_identical_purchases_the_same_day_link_no_echo()
+    {
+        await using var app = await StartAsync(fixture);
+        var (courant, card) = await CardOfCourantAsync(app, CardDebit.Immediate);
+        await AddAsync(app, card, "c1", D(10, 12), -42m, "CARTE SHOP");
+        await AddAsync(app, card, "c2", D(10, 12), -42m, "CARTE SHOP");
+        var first = await AddAsync(app, courant, "e1", D(10, 13), -42m, "CARTE SHOP CB*0000");
+        var second = await AddAsync(app, courant, "e2", D(10, 13), -42m, "CARTE SHOP CB*0000");
+
+        Assert.Equal(0, (await PassAsync(app)).Internal);
+        Assert.Equal((TransactionLinkState.Unlinked, TransactionLinkState.Unlinked), ((await LineAsync(app, first)).LinkState, (await LineAsync(app, second)).LinkState));
+    }
+
+    [Fact]
+    public async Task A_card_line_read_later_takes_its_echo_and_its_hand_category()
+    {
+        await using var app = await StartAsync(fixture);
+        var (courant, card) = await CardOfCourantAsync(app, null);
+        var echo = await AddAsync(app, courant, "e1", D(10, 13), -42m, "CARTE 12/10/26 SHOP CB*0000");
+        await PassAsync(app);
+        var groceries = CategorySeed.Find("food.groceries")!.Id;
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Put, $"{BankingApi.Root}/transactions/{echo}/category", new { categoryId = groceries })).StatusCode);
+        var purchase = await AddAsync(app, card, "c1", D(10, 12), -42m, "CARTE 12/10/26 SHOP");
+
+        Assert.Equal(1, (await PassAsync(app)).Internal);
+
+        var (echoed, bought) = (await LineAsync(app, echo), await LineAsync(app, purchase));
+        Assert.Equal((TransactionLinkState.Internal, CategorySeed.Find("internal.card")!.Id, CategorySource.Link), (echoed.LinkState, echoed.Category, echoed.CategorySource));
+        Assert.Equal((TransactionLinkState.Unlinked, groceries, CategorySource.Hand), (bought.LinkState, bought.Category, bought.CategorySource));
+    }
+
+    [Fact]
+    public async Task A_deferred_card_settles_and_never_echoes()
+    {
+        await using var app = await StartAsync(fixture);
+        var (courant, card) = await CardOfCourantAsync(app, CardDebit.Deferred);
+        await AddAsync(app, card, "c1", D(9, 10), -30m, "CB BOULANGERIE");
+        await AddAsync(app, card, "c2", D(9, 20), -20.5m, "CB LIBRAIRIE");
+        var lookalike = await AddAsync(app, courant, "x", D(9, 9), -30m, "CB AUTRE");
+        var settlement = await AddAsync(app, courant, "s", D(10, 1), -50.5m, "CB DIFFERE");
+
+        Assert.Equal(1, (await PassAsync(app)).Internal);
+
+        var link = (await LinkOfAsync(app, settlement))!;
+        Assert.Equal((LinkOutcome.CardSettlement, card, null), (link.Outcome, link.CounterpartAccount, link.TargetKey));
+        Assert.Equal(TransactionLinkState.Unlinked, (await LineAsync(app, lookalike)).LinkState);
+    }
+
     [Fact]
     public async Task A_rule_links_the_next_month_without_proposal()
     {
@@ -648,5 +724,7 @@ public class ReconciliationTests(PostgresFixture fixture) : IClassFixture<Postgr
             => inner.OperationsAsync(readable, filter, categories, skip, take, ct);
 
         public Task<IReadOnlyList<Guid>> OperationCategoriesAsync(IReadOnlyList<Guid> accounts, CancellationToken ct) => inner.OperationCategoriesAsync(accounts, ct);
+
+        public Task<IReadOnlyList<CategoryUse>> CategoryUseAsync(IReadOnlyList<Guid> accounts, LocalDate from, CancellationToken ct) => inner.CategoryUseAsync(accounts, from, ct);
     }
 }

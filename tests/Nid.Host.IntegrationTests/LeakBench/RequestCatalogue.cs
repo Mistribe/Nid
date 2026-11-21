@@ -672,6 +672,8 @@ public static class RequestCatalogue
         new(typeof(DeleteCategoryRuleCommand), false, (_, _) => new DeleteCategoryRuleCommand(Guid.NewGuid())),
         new(typeof(PreviewCategoryRuleQuery), false, (d, _) => new PreviewCategoryRuleQuery(d.PrivateRule.Rule, 1)),
         new(typeof(ApplyCategoryRuleCommand), false, (_, _) => new ApplyCategoryRuleCommand(Guid.NewGuid())),
+        // #418: a draft on the private label previews only lines the actor writes, and names only rules they see.
+        new(typeof(PreviewCategoryRuleDraftQuery), false, (_, _) => new PreviewCategoryRuleDraftQuery(MixedDataset.PrivateLabelA, null, null, null, null, Nid.Banking.Domain.CategorySeed.Find("food.groceries")!.Id)),
         // #85: the household's budgets, on its categories: no item, no person's data.
         new(typeof(Nid.Banking.Application.Spending.ListBudgetsQuery), false, (_, _) => new Nid.Banking.Application.Spending.ListBudgetsQuery()),
         new(typeof(Nid.Banking.Application.Spending.SetBudgetCommand), false, (_, _) => new Nid.Banking.Application.Spending.SetBudgetCommand(Guid.NewGuid(), "100", "month")),

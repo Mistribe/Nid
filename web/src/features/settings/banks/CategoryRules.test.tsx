@@ -8,7 +8,7 @@ import { server } from '@/test/server';
 import type { BankCategory, BankTransaction, CategoryRule } from '@/api/banking';
 import { account, CARD, CHECKING, JOINT } from './testData';
 
-const category = (over: Partial<BankCategory>): BankCategory => ({ id: 'c', parentId: null, key: null, name: '', kind: 'expense', archived: false, mergedIntoId: null, defaultName: null, ...over });
+const category = (over: Partial<BankCategory>): BankCategory => ({ id: 'c', parentId: null, key: null, name: '', kind: 'expense', archived: false, mergedIntoId: null, defaultName: null, lines: 0, ...over });
 const categories = [
   category({ id: 'food', key: 'food', name: 'Alimentation' }),
   category({ id: 'groceries', parentId: 'food', key: 'food.groceries', name: 'Courses' }),

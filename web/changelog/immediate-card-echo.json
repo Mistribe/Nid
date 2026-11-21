@@ -1,0 +1,4 @@
+{
+  "en": "A payment with an immediate-debit card shows once in Operations: its echo on the account the card is attached to is an internal movement, and a category you set on it moves to the card's line.",
+  "fr": "Un paiement par carte à débit immédiat n'apparaît plus qu'une fois dans Opérations : son reflet sur le compte de la carte devient un mouvement interne, et la catégorie que vous lui aviez donnée passe sur la ligne de la carte."
+}

@@ -4,7 +4,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { pick } from '@/test/controls';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
-import type { BankCategory, BankTransaction } from '@/api/banking';
+import type { BankCategory, BankTransaction, CategoryRuleDraftPreview } from '@/api/banking';
 import { detail, PEA } from '../testData';
 
 const line: BankTransaction = {
@@ -12,7 +12,7 @@ const line: BankTransaction = {
   fromCard: true, cardName: null, fetchedVia: 'file', linkState: 'unlinked', link: null, accountName: 'Compte', category: null, categorySource: null,
   accountId: 'acc-1', suggestedPattern: 'CARREFOUR CITY', sharedAccount: false,
 };
-const category = (over: Partial<BankCategory>): BankCategory => ({ id: 'c', parentId: null, key: null, name: '', kind: 'expense', archived: false, mergedIntoId: null, defaultName: null, ...over });
+const category = (over: Partial<BankCategory>): BankCategory => ({ id: 'c', parentId: null, key: null, name: '', kind: 'expense', archived: false, mergedIntoId: null, defaultName: null, lines: 0, ...over });
 const categories = [
   category({ id: 'food', key: 'food', name: 'Alimentation' }),
   category({ id: 'groceries', parentId: 'food', key: 'food.groceries', name: 'Courses' }),
@@ -23,9 +23,17 @@ const categories = [
 
 const courses = { id: 'groceries', name: 'Courses', parentId: 'food', parentName: 'Alimentation', kind: 'expense' };
 
-/** The line (`over` on top), the categories, and every write to a line's category as `[method, line id, body]`. */
-function serve(over: Partial<BankTransaction> = {}) {
+const nothing: CategoryRuleDraftPreview = { total: 0, items: [], conflicts: [], tooBroad: false };
+/** Every draft rule the dialog asked a preview for. */
+let previews: unknown[] = [];
+
+/**
+ * The line (`over` on top), the categories, a draft rule's `preview`, and every write to a line's category or a rule as
+ * `[method, line or rule id, body]`.
+ */
+function serve(over: Partial<BankTransaction> = {}, preview: CategoryRuleDraftPreview = nothing) {
   const writes: [string, unknown, unknown][] = [];
+  previews = [];
   server.use(
     http.get('*/api/v1/investments/envelopes/:id', () => HttpResponse.json(detail({ kind: 'checking' }))),
     http.get('*/api/v1/banking/status', () => HttpResponse.json({ enabled: true, configured: false })),
@@ -33,7 +41,9 @@ function serve(over: Partial<BankTransaction> = {}) {
     http.get('*/api/v1/banking/categories', () => HttpResponse.json(categories)),
     http.put('*/api/v1/banking/transactions/:id/category', async ({ request, params }) => { writes.push(['PUT', params.id, await request.json()]); return HttpResponse.json(line); }),
     http.delete('*/api/v1/banking/transactions/:id/category', ({ params }) => { writes.push(['DELETE', params.id, null]); return HttpResponse.json(line); }),
-    http.post('*/api/v1/banking/category-rules', async ({ request }) => { writes.push(['RULE', null, await request.json()]); return HttpResponse.json({}, { status: 201 }); }),
+    http.post('*/api/v1/banking/category-rules', async ({ request }) => { writes.push(['RULE', null, await request.json()]); return HttpResponse.json({ id: 'r1' }, { status: 201 }); }),
+    http.post('*/api/v1/banking/category-rules/preview', async ({ request }) => { previews.push(await request.json()); return HttpResponse.json(preview); }),
+    http.post('*/api/v1/banking/category-rules/:id/apply', ({ params }) => { writes.push(['APPLY', params.id, null]); return HttpResponse.json({ changed: 2 }); }),
   );
   return writes;
 }
@@ -153,6 +163,52 @@ describe('« Catégoriser… »', () => {
     await user.click(await screen.findByRole('button', { name: 'Créer la règle' }));
 
     expect(await screen.findByText('Vous ne pouvez pas créer de règle sur ce compte.')).toBeInTheDocument();
+  });
+
+  it('previews the rule as its pattern is typed: the past lines it would change, those it would not by reason, a too broad pattern', async () => {
+    serve({}, {
+      total: 2,
+      items: [{ ...line, id: 'p1', bookedOn: '2026-09-14', label: 'CARREFOUR MARKET', amount: '-18.00', category: null }],
+      conflicts: [
+        { reason: 'hand', rulePattern: null, categoryId: 'income', categoryName: 'Revenus', lines: 3 },
+        { reason: 'rule', rulePattern: 'CARREFOUR CITY', categoryId: 'food', categoryName: 'Alimentation', lines: 1 },
+        { reason: 'link', rulePattern: null, categoryId: null, categoryName: null, lines: 2 },
+      ],
+      tooBroad: true,
+    });
+    const user = await open();
+    await pick(user, 'Catégorie', 'Alimentation › Courses');
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+    const offer = await screen.findByRole('form', { name: /Toujours classer/ });
+    await user.clear(within(offer).getByRole('textbox', { name: 'Motif' }));
+    await user.type(within(offer).getByRole('textbox', { name: 'Motif' }), 'CARREFOUR');
+
+    expect(await within(offer).findByText('2 opérations passées passeraient en Alimentation › Courses.')).toBeInTheDocument();
+    expect(within(within(offer).getByRole('list', { name: 'Les plus récentes' })).getByRole('listitem')).toHaveTextContent('CARREFOUR MARKET · Sans catégorie');
+    expect(within(offer).getByText('3 classées à la main en Revenus')).toBeInTheDocument();
+    expect(within(offer).getByText('1 gardée par la règle « CARREFOUR CITY » (Alimentation)')).toBeInTheDocument();
+    expect(within(offer).getByText('2 classées par leur lien en Sans catégorie')).toBeInTheDocument();
+    expect(within(offer).getByText(/Ce motif est très large/)).toBeInTheDocument();
+    // Asked for the pattern once typed, not for each key.
+    await waitFor(() => expect(previews.at(-1)).toEqual({ pattern: 'CARREFOUR', categoryId: 'groceries', accountId: 'acc-1' }));
+    expect(previews).not.toContainEqual(expect.objectContaining({ pattern: 'CARRE' }));
+  });
+
+  it('applies the new rule to the past lines when asked', async () => {
+    const writes = serve({}, { ...nothing, total: 2 });
+    const user = await open();
+    await pick(user, 'Catégorie', 'Alimentation › Courses');
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+    await user.click(await screen.findByRole('checkbox', { name: 'Appliquer aussi aux 2 opérations passées' }));
+    await user.click(screen.getByRole('button', { name: 'Créer la règle' }));
+
+    await waitFor(() => expect(writes).toEqual([
+      ['PUT', 't1', { categoryId: 'groceries' }],
+      ['RULE', null, { pattern: 'CARREFOUR CITY', categoryId: 'groceries', accountId: 'acc-1' }],
+      ['APPLY', 'r1', null],
+    ]));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });
 
   it('offers no rule for a line without a suggested pattern', async () => {

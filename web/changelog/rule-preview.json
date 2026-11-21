@@ -1,0 +1,4 @@
+{
+  "en": "When a rule is offered after classifying a line, you see as you type which past lines it would change, which it would leave and why, and whether the pattern is too broad; the rule can be applied to past lines right away.",
+  "fr": "Quand une règle est proposée après le classement d’une opération, vous voyez en tapant quelles opérations passées elle changerait, celles qu’elle laisserait et pourquoi, et si le motif est trop large ; la règle peut aussitôt s’appliquer aux opérations passées."
+}

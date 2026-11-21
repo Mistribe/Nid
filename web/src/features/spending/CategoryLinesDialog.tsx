@@ -14,8 +14,8 @@ import { LINES_PAGE, SPENDING_LINES, type SpendingLines, type SpendingQuery } fr
 import '@/locales/spending';
 
 /** The lines behind one figure of the page (a category and its children, or « Non classées »), newest first; the total is the server's. */
-export function CategoryLinesDialog({ target, query, period, currency, onClose }: {
-  target: { categoryId?: string; name: string }; query: SpendingQuery; period: string; currency: string; onClose: () => void;
+export function CategoryLinesDialog({ target, query, period, onClose }: {
+  target: { categoryId?: string; name: string }; query: SpendingQuery; period: string; onClose: () => void;
 }) {
   const { t } = useTranslation();
   const { $api } = useApi();
@@ -39,7 +39,7 @@ export function CategoryLinesDialog({ target, query, period, currency, onClose }
           {first ? (
             <p className="flex flex-wrap items-baseline gap-x-3">
               <span className="text-muted-foreground">{t('spending.lines.total')}</span>
-              <span className="text-figure">{formatCurrency(first.total, currency)}</span>
+              <span className="text-figure">{formatCurrency(first.total, first.currency)}</span>
               <span className="text-sm text-muted-foreground">{t('spending.lines.count', { count: first.count })}</span>
             </p>
           ) : null}

@@ -38,6 +38,7 @@ namespace Nid.Host.Api.Json;
 [JsonSerializable(typeof(CategoryRuleView))]
 [JsonSerializable(typeof(IReadOnlyList<CategoryRuleView>))]
 [JsonSerializable(typeof(CategoryRulePreview))]
+[JsonSerializable(typeof(CategoryRuleDraftPreview))]
 [JsonSerializable(typeof(BankingEndpoints.CategoryRuleBody))]
 [JsonSerializable(typeof(BankingEndpoints.CategoryRuleApplied))]
 [JsonSerializable(typeof(BankingEndpoints.ConnectBody))]
