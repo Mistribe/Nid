@@ -229,10 +229,12 @@ function Figures({ data, period, year, household, onOpen, onBudget, categories, 
       </span>
     );
   };
-  // #423: « Non classées » opens its lines in the Opérations tab, the period kept.
-  const toOperations = (
-    <Link to="/spending" search={operationsSearch(data)} className="font-medium text-foreground underline underline-offset-4">{t('spending.see_operations')}</Link>
-  );
+  // #423: « Non classées » opens its lines in the Opérations tab, the period kept; #426: saying how many are left to classify.
+  const toOperations = data.uncategorised.count > 0 ? (
+    <Link to="/spending" search={operationsSearch(data)} className="font-medium text-foreground underline underline-offset-4">
+      {t('spending.to_classify', { count: data.uncategorised.count })}
+    </Link>
+  ) : undefined;
   // A child under a parent's typed budget has none of its own to set (one budget per branch).
   const underTyped = new Set(data.categories.filter((c) => c.budget?.source === 'typed').flatMap((c) => c.children.map((child) => child.id)));
   // #415: a category is renamed or merged where it is noticed; merging needs another of its kind to go into.

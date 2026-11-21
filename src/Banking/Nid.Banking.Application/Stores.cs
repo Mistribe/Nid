@@ -289,8 +289,8 @@ public interface ITransactionStore
 /// <summary>#415: how many lines a category has and when its latest one was booked.</summary>
 public sealed record CategoryUse(Guid Category, int Lines, LocalDate LastOn);
 
-/// <summary>One month's lines of a category (null: none) in one currency: <paramref name="Debits"/> negative or zero, <paramref name="Credits"/> positive or zero.</summary>
-public sealed record SpendingSum(Guid? Category, Currency Currency, YearMonth Month, decimal Debits, decimal Credits);
+/// <summary>One month's lines of a category (null: none) in one currency: <paramref name="Debits"/> negative or zero, <paramref name="Credits"/> positive or zero; <paramref name="DebitLines"/> how many debits (#426: lines to classify).</summary>
+public sealed record SpendingSum(Guid? Category, Currency Currency, YearMonth Month, decimal Debits, decimal Credits, int DebitLines = 0);
 
 /// <summary>Links between bank lines and the household's records (spec §2.6).</summary>
 public interface ILinkStore

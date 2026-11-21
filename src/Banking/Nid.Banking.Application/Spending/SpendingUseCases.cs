@@ -54,8 +54,8 @@ public sealed record SpendingCategoryView(
 /// </summary>
 public sealed record SpendingBudgetView(string Planned, string? Committed, string Source, string Period, string Left, string? ExpectedSoFar, string? State);
 
-/// <summary>« Non classées »: the debits of lines with no category; their credits never count.</summary>
-public sealed record SpendingUncategorisedView(string Amount, string? Average);
+/// <summary>« Non classées »: the debits of lines with no category; their credits never count. <paramref name="Count"/>: how many of those debits the period has (#426).</summary>
+public sealed record SpendingUncategorisedView(string Amount, string? Average, int Count);
 
 /// <summary>
 /// #85: the lines behind one figure of <see cref="GetSpendingQuery"/> (same scope, same period): those of the category and its children, or,
@@ -122,7 +122,7 @@ public sealed class GetSpendingHandler(
     /// </summary>
     public sealed record Spent(
         YearMonth From, YearMonth To, IReadOnlyList<Guid> Accounts, Currency Reference, Dictionary<Guid, (decimal Range, decimal Before)> ByCategory,
-        Dictionary<YearMonth, decimal> ByMonth, HashSet<Guid> Incomplete, bool AverageMissing, int Covered, LocalDate Today, RateTable Rates);
+        Dictionary<YearMonth, decimal> ByMonth, HashSet<Guid> Incomplete, bool AverageMissing, int Covered, LocalDate Today, RateTable Rates, int ToClassify);
 
     public async ValueTask<Result<Spent>> SpentAsync(GetSpendingQuery query, CancellationToken ct)
     {
@@ -186,7 +186,9 @@ public sealed class GetSpendingHandler(
                 byMonth[sum.Month] = byMonth.GetValueOrDefault(sum.Month) + converted;
         }
 
-        return Result.Success(new Spent(from, to, accounts, reference, spent, byMonth, incomplete, averageMissing, covered, today, rates));
+        // #426: counted from the same rows as « Non classées », a line without a rate included: it is still to classify.
+        var toClassify = sums.Where(s => s.Category is null && Index(s.Month) >= Index(from)).Sum(s => s.DebitLines);
+        return Result.Success(new Spent(from, to, accounts, reference, spent, byMonth, incomplete, averageMissing, covered, today, rates, toClassify));
     }
 
     public async ValueTask<Result<SpendingView>> HandleAsync(GetSpendingQuery query, CancellationToken ct = default)
@@ -244,7 +246,7 @@ public sealed class GetSpendingHandler(
         return Result.Success(new SpendingView(
             reference.Code, Money(spent.Values.Sum(s => s.Range)), sums.Incomplete.Count > 0, Average(spent.Values.Sum(s => s.Before)),
             [.. tops.OrderByDescending(t => t.Range).ThenBy(t => t.View.Name, ByName).Select(t => t.View)],
-            new SpendingUncategorisedView(Money(none.Range), Average(none.Before)),
+            new SpendingUncategorisedView(Money(none.Range), Average(none.Before), sums.ToClassify),
             YearMonthPattern.Iso.Format(from), YearMonthPattern.Iso.Format(to), months, uncommitted,
             Amount(month?.Income), Amount(month?.Committed), Amount(month?.Everyday), Amount(month?.Left), Amount(estimate)));
     }

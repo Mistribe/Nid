@@ -27,6 +27,8 @@ namespace Nid.Host.Api.Json;
 [JsonSerializable(typeof(IReadOnlyList<BankRuleView>))]
 [JsonSerializable(typeof(BankingEndpoints.LinkBody))]
 [JsonSerializable(typeof(BankingEndpoints.LineCategoryBody))]
+[JsonSerializable(typeof(BankingEndpoints.LinesCategoryBody))]
+[JsonSerializable(typeof(LinesCategorised))]
 [JsonSerializable(typeof(BankingEndpoints.LineNoteBody))]
 [JsonSerializable(typeof(BankingEndpoints.LineSplitBody))]
 [JsonSerializable(typeof(BankingEndpoints.LinePartBody))]

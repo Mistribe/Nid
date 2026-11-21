@@ -44,6 +44,17 @@ public sealed record IgnoreTransactionCommand(Guid TransactionId) : ICommand<Ban
 /// <summary>A person's category for a line of an account they write; null is « Sans catégorie », kept over any link or rule alike.</summary>
 public sealed record SetTransactionCategoryCommand(Guid TransactionId, Guid? CategoryId) : ICommand<BankTransactionView>, ITransactional;
 
+/// <summary>
+/// #426: one category for several lines, each checked as one line is (<see cref="BankLines.CategorisableAsync"/>), in one transaction; a
+/// refused line does not stop the others. 1 to <see cref="SetTransactionsCategoryHandler.Most"/> distinct lines.
+/// </summary>
+public sealed record SetTransactionsCategoryCommand(IReadOnlyList<Guid> TransactionIds, Guid? CategoryId) : ICommand<LinesCategorised>, ITransactional;
+
+/// <summary>The lines that took the category, and the others with the code one line alone would have been refused with.</summary>
+public sealed record LinesCategorised(IReadOnlyList<Guid> Changed, IReadOnlyList<LineRefusal> Refused);
+
+public sealed record LineRefusal(Guid Id, string Code);
+
 /// <summary>« Laisser Nid décider »: the line's category cleared, then its link's again when it is linked, in one transaction.</summary>
 public sealed record ResetTransactionCategoryCommand(Guid TransactionId) : ICommand<BankTransactionView>, ITransactional;
 
@@ -115,6 +126,19 @@ public sealed class BankLines(
     }
 
     public static Result<T> NotFound<T>(Guid line) where T : notnull => Result.Failure<T>(new NotFoundFailure("bank transaction", line.ToString()));
+
+    /// <summary>A line the actor may categorise by hand: one of an account they write, neither split (its parts are) nor ignored (it counts nowhere).</summary>
+    public async Task<Result<BankTransaction>> CategorisableAsync(Guid id, CancellationToken ct)
+    {
+        var found = await FindAsync(id, AccessKind.Write, ct);
+        if (!found.TryGetValue(out var line))
+            return found;
+        if (line!.CategorySource == CategorySource.Split)
+            return Result.Failure<BankTransaction>(SplitUseCases.Split());
+        return line.LinkState == TransactionLinkState.Ignored
+            ? Result.Failure<BankTransaction>(new ConflictFailure("An ignored line takes no category: un-ignore it first.") { Code = BankingCodes.LineIgnored })
+            : found;
+    }
 
     /// <summary>A page of the accounts' lines (null: every account the actor reads) in a <c>link_state</c>, or <c>all</c>.</summary>
     public async Task<BankTransactionPage> PageAsync(IReadOnlyList<Guid>? of, string state, LocalDate? from, LocalDate? to, int page, CancellationToken ct, bool uncategorised = false)
@@ -380,25 +404,69 @@ public sealed class SetTransactionCategoryHandler(BankingAccess access, BankLine
         var enabled = await access.EnabledAsync(ct);
         if (!enabled.IsSuccess)
             return BankingAccess.Failed<BankTransactionView>(enabled);
-        var found = await lines.FindAsync(command.TransactionId, AccessKind.Write, ct);
+        var found = await lines.CategorisableAsync(command.TransactionId, ct);
         if (!found.TryGetValue(out var line))
             return BankingAccess.Failed<BankTransactionView, BankTransaction>(found);
-        if (line!.CategorySource == CategorySource.Split)
-            return Result.Failure<BankTransactionView>(SplitUseCases.Split());
-        if (command.CategoryId is { } id)
-        {
-            if (await categories.FindAsync(id, ct) is not { } category)
-                return Result.Failure<BankTransactionView>(new NotFoundFailure("bank category", id.ToString()));
-            // A merged category is archived too: its lines went to its target.
-            if (category.ArchivedAt is not null)
-                return Result.Failure<BankTransactionView>(FieldErrors.At(
-                    new Failure(BankingCodes.CategoryArchived, "A line takes only a category in use.", null), "categoryId"));
-        }
+        var inUse = await InUseAsync(categories, command.CategoryId, ct);
+        if (!inUse.IsSuccess)
+            return BankingAccess.Failed<BankTransactionView>(inUse);
 
         await categories.SetForLinesAsync([line!.Id], command.CategoryId, CategorySource.Hand, $"person:{access.Person.Value:D}",
             clock.GetCurrentInstant(), byPerson: true, ct);
         await savingsFlows.RunForLineAsync(line.Id, access.Person, ct);
         return Result.Success(await lines.ViewAsync(line.Id, ct));
+    }
+
+    /// <summary>A category a line may take by hand: none, or one in use.</summary>
+    internal static async Task<Result> InUseAsync(ICategoryStore categories, Guid? categoryId, CancellationToken ct)
+    {
+        if (categoryId is not { } id)
+            return Result.Success();
+        if (await categories.FindAsync(id, ct) is not { } category)
+            return Result.Failure(new NotFoundFailure("bank category", id.ToString()));
+        // A merged category is archived too: its lines went to its target.
+        return category.ArchivedAt is null ? Result.Success()
+            : Result.Failure(FieldErrors.At(new Failure(BankingCodes.CategoryArchived, "A line takes only a category in use.", null), "categoryId"));
+    }
+}
+
+[RequestHandler<SetTransactionsCategoryCommand, LinesCategorised>]
+public sealed class SetTransactionsCategoryHandler(BankingAccess access, BankLines lines, ICategoryStore categories, SavingsFlows savingsFlows, IClock clock)
+    : IRequestHandler<SetTransactionsCategoryCommand, LinesCategorised>
+{
+    /// <summary>Four pages of the operations list: a selection, never the whole history.</summary>
+    public const int Most = 200;
+
+    public async ValueTask<Result<LinesCategorised>> HandleAsync(SetTransactionsCategoryCommand command, CancellationToken ct = default)
+    {
+        var enabled = await access.EnabledAsync(ct);
+        if (!enabled.IsSuccess)
+            return BankingAccess.Failed<LinesCategorised>(enabled);
+        var ids = command.TransactionIds.Distinct().ToList();
+        if (ids.Count is 0 or > Most)
+            return Result.Failure<LinesCategorised>(FieldErrors.At(
+                new Failure(BankingCodes.CategoriseLines, $"Name 1 to {Most} lines.", null), "transactionIds"));
+        var inUse = await SetTransactionCategoryHandler.InUseAsync(categories, command.CategoryId, ct);
+        if (!inUse.IsSuccess)
+            return BankingAccess.Failed<LinesCategorised>(inUse);
+
+        var changed = new List<BankTransaction>();
+        var refused = new List<LineRefusal>();
+        foreach (var id in ids)
+        {
+            var found = await lines.CategorisableAsync(id, ct);
+            if (found.TryGetValue(out var line))
+                changed.Add(line!);
+            else if (found.TryGetFailure(out var failure))
+                refused.Add(new LineRefusal(id, failure!.Code));
+        }
+        if (changed.Count > 0)
+        {
+            await categories.SetForLinesAsync([.. changed.Select(l => l.Id)], command.CategoryId, CategorySource.Hand, $"person:{access.Person.Value:D}",
+                clock.GetCurrentInstant(), byPerson: true, ct);
+            await savingsFlows.RunAsync([.. changed.Select(l => l.Account).Distinct()], access.Person, ct);
+        }
+        return Result.Success(new LinesCategorised([.. changed.Select(l => l.Id)], refused));
     }
 }
 

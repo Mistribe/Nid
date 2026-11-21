@@ -254,6 +254,11 @@ public static class BankingEndpoints
             => (await invoker.InvokeAsync(new SetTransactionCategoryCommand(id, body.CategoryId), ct)).ToHttp(line => line))
             .Returns<BankTransactionView>();
 
+        // #426: one category for the lines selected in « Opérations »; each line refused as it would be alone is listed, not fatal.
+        api.MapPost("/transactions/category", async (LinesCategoryBody body, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new SetTransactionsCategoryCommand(body.TransactionIds ?? [], body.CategoryId), ct)).ToHttp(result => result))
+            .Returns<LinesCategorised>();
+
         api.MapDelete("/transactions/{id:guid}/category", async (Guid id, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new ResetTransactionCategoryCommand(id), ct)).ToHttp(line => line))
             .Returns<BankTransactionView>();
@@ -465,6 +470,10 @@ public static class BankingEndpoints
     /// <summary>A line's category chosen by hand; an absent or null <c>categoryId</c> is « Sans catégorie », chosen by hand all the same.</summary>
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
     public sealed record LineCategoryBody(Guid? CategoryId);
+
+    /// <summary>One category (null: « Sans catégorie ») for 1 to 200 lines.</summary>
+    [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+    public sealed record LinesCategoryBody(IReadOnlyList<Guid>? TransactionIds, Guid? CategoryId);
 
     /// <summary>A line's note; empty or null clears it, 500 characters at most.</summary>
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]

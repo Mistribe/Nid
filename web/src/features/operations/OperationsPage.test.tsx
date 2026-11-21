@@ -282,3 +282,109 @@ describe('« Opérations » receipts', () => {
     expect(within(await rowOf()).queryByRole('button', { name: /Actions/ })).not.toBeInTheDocument();
   });
 });
+
+describe('« Opérations », several lines at once (#426)', () => {
+  beforeAll(async () => {
+    await import('@/features/spending/SpendingPage'); await import('./OperationsPage'); await import('../investments/operations/CategoryDialog');
+  }, 30_000);
+
+  const shop = (id: string, label = 'CB CARREFOUR CITY 12') => ({ ...netflix, id, label, amount: '-20.00', suggestedPattern: 'CARREFOUR CITY', categorySource: null });
+  const split = { ...shop('t5', 'CB DIVERS'), categorySource: 'split', parts: [{ id: 'p1', amount: '-10.00', category: null, note: null }, { id: 'p2', amount: '-10.00', category: null, note: null }] };
+  const ignored = { ...shop('t6', 'CB IGNOREE'), linkState: 'ignored' };
+  // The table's; the phone list has its own.
+  const table = () => screen.getByRole('table', { name: 'Opérations' });
+  const box = (label: string) => within(table()).getByRole('checkbox', { name: `Sélectionner « ${label} »` });
+  const all = () => within(table()).getByRole('checkbox', { name: 'Sélectionner les opérations de la page' });
+
+  /** The page's lines, the categories, and every bulk write. */
+  function serve(items: unknown[], answerWith: (ids: string[]) => { changed: unknown[]; refused: unknown[] }, total = items.length) {
+    const writes: unknown[] = [];
+    server.use(
+      http.get('*/api/v1/banking/operations', () => HttpResponse.json(answer(items, total))),
+      http.get('*/api/v1/banking/categories', () => HttpResponse.json([
+        { id: 'food', parentId: null, key: 'food', name: 'Alimentation', kind: 'expense', archived: false, mergedIntoId: null, defaultName: null, lines: 0 },
+      ])),
+      http.post('*/api/v1/banking/transactions/category', async ({ request }) => {
+        const body = await request.json() as { transactionIds: string[] };
+        writes.push(body);
+        return HttpResponse.json(answerWith(body.transactionIds));
+      }),
+      http.post('*/api/v1/banking/category-rules/preview', () => HttpResponse.json({ total: 0, items: [], conflicts: [], tooBroad: false })),
+    );
+    return writes;
+  }
+
+  async function categoriseAll(count: number) {
+    const { user } = await renderApp('/spending?tab=operations');
+    await screen.findByRole('table', { name: 'Opérations' });
+    await user.click(all());
+    await user.click(screen.getByRole('button', { name: `Catégoriser… (${count})` }));
+    return { user, dialog: await screen.findByRole('dialog', { name: `Catégoriser ${count} opérations` }) };
+  }
+
+  it('selects the lines a person may categorise, the page at once, and starts again on another page', async () => {
+    serve([shop('t3'), split, ignored, shop('t4', 'CB MONOPRIX')], () => ({ changed: [], refused: [] }), 120);
+    const { user } = await renderApp('/spending?tab=operations');
+    await screen.findByRole('table', { name: 'Opérations' });
+
+    // A split line and an ignored one take no category of their own.
+    expect(box('CB DIVERS')).toBeDisabled();
+    expect(box('CB IGNOREE')).toBeDisabled();
+    expect(screen.queryByRole('button', { name: /^Catégoriser…/ })).toBeNull();
+    await user.click(box('CB CARREFOUR CITY 12'));
+    expect(all()).toHaveAttribute('data-state', 'indeterminate');
+    expect(screen.getByRole('button', { name: 'Catégoriser… (1)' })).toBeInTheDocument();
+    await user.click(all());
+    expect(box('CB MONOPRIX')).toBeChecked();
+    expect(all()).toBeChecked();
+    expect(screen.getByRole('button', { name: 'Catégoriser… (2)' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Suivant' }));
+    await waitFor(() => expect(screen.queryByRole('button', { name: /^Catégoriser…/ })).toBeNull());
+    expect(box('CB MONOPRIX')).not.toBeChecked();
+  });
+
+  it('categorises the selected lines in one call, and names the refused ones in the message', async () => {
+    const writes = serve([shop('t3'), shop('t4', 'CB MONOPRIX')], (ids) => ({ changed: [ids[0]], refused: [{ id: ids[1], code: 'banking.line_split' }] }));
+    const { user, dialog } = await categoriseAll(2);
+    await pick(user, 'Catégorie', 'Sans catégorie');
+    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
+
+    await waitFor(() => expect(writes).toEqual([{ transactionIds: ['t3', 't4'], categoryId: null }]));
+    expect(await screen.findByText(
+      '1 opération classée. 1 opération non classée : « CB MONOPRIX » : Cette opération est découpée : classez ses parties, ou annulez le découpage.',
+    )).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Catégoriser…/ })).toBeNull();
+  });
+
+  it('offers no « Laisser Nid décider » for several lines', async () => {
+    serve([shop('t3'), shop('t4', 'CB MONOPRIX')], () => ({ changed: [], refused: [] }));
+    const { user, dialog } = await categoriseAll(2);
+    await user.click(within(dialog).getByRole('combobox', { name: 'Catégorie' }));
+    expect(await screen.findByRole('option', { name: 'Sans catégorie' })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'Laisser Nid décider' })).toBeNull();
+  });
+
+  it('offers the rule when the changed lines share their suggested pattern', async () => {
+    serve([shop('t3'), shop('t4', 'CB CARREFOUR CITY 34')], (ids) => ({ changed: ids, refused: [] }));
+    const { user } = await categoriseAll(2);
+    await pick(user, 'Catégorie', 'Alimentation');
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+    const offer = await screen.findByRole('form', { name: 'Toujours classer « CARREFOUR CITY » en Alimentation ?' });
+    expect(within(offer).getByRole('textbox', { name: 'Motif' })).toHaveValue('CARREFOUR CITY');
+    await user.click(within(offer).getByRole('button', { name: 'Non merci' }));
+    expect(await screen.findByText('Catégorie enregistrée.')).toBeInTheDocument();
+  });
+
+  it('closes without a rule when the lines suggest different patterns', async () => {
+    serve([shop('t3'), { ...shop('t4', 'CB MONOPRIX'), suggestedPattern: 'MONOPRIX' }], (ids) => ({ changed: ids, refused: [] }));
+    const { user } = await categoriseAll(2);
+    await pick(user, 'Catégorie', 'Alimentation');
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+    expect(await screen.findByText('2 opérations classées.')).toBeInTheDocument();
+    expect(screen.queryByRole('form', { name: /Toujours classer/ })).toBeNull();
+  });
+});
