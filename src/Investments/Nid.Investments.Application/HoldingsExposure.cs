@@ -33,7 +33,7 @@ internal static class HoldingsExposureMath
         {
             var value = decimal.Parse(row.ValueConverted!.Amount, CultureInfo.InvariantCulture);
             total += value;
-            if (row.Kind is "euro_fund" or "cash") { outside += value; continue; }
+            if (!HoldingWire.IsMarket(row.Kind)) { outside += value; continue; }
             if (row.Isin is null || !latest.TryGetValue(row.Isin, out var breakdown)) { unknown += value; continue; }
             Split(value, breakdown.Regions, regions);
             if (breakdown.Sectors is null) unclassified += value; else Split(value, breakdown.Sectors, sectors);

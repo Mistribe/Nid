@@ -167,13 +167,15 @@ public static class Units6
 public sealed record HoldingView(
     Guid Id, string Name, string? Isin, string Kind, string? AssetClass, string? Issuer, int? RiskIndicator,
     LocalDate? OpenedOn, LocalDate? MaturesOn, decimal? EntryCostPct, LocalDate? ClosedOn, string? Note, uint Version, LineView? Line,
-    HoldingFiguresView? Figures, bool AutoPrice, PriceView? Price, RealPercentView? RealReturn = null)
+    HoldingFiguresView? Figures, bool AutoPrice, PriceView? Price, RealPercentView? RealReturn = null,
+    int? EntitlementDelayMonths = null, LocalDate? EntitledFrom = null)
 {
-    public static HoldingView Of(StoredHolding s, LineView? line, HoldingFigures? figures, PriceView? price, RealPercentView? realReturn = null)
+    public static HoldingView Of(StoredHolding s, LineView? line, HoldingFigures? figures, PriceView? price, RealPercentView? realReturn = null,
+        LocalDate? entitledFrom = null)
     {
         var h = s.Holding;
         return new(h.Id, h.Name, h.Isin, h.Kind, h.AssetClass, h.Issuer, h.RiskIndicator, h.OpenedOn, h.MaturesOn, h.EntryCostPct, h.ClosedOn, h.Note,
-            s.Version, line, HoldingFiguresView.Of(figures), h.AutoPrice, price, realReturn);
+            s.Version, line, HoldingFiguresView.Of(figures), h.AutoPrice, price, realReturn, h.EntitlementDelayMonths, entitledFrom);
     }
 }
 

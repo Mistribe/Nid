@@ -47,7 +47,7 @@ public sealed class BreakdownsImportSection(
         var held = new Dictionary<string, bool>(StringComparer.Ordinal);
         foreach (var entity in staged.Section(HoldingsImportSection.HoldingsSection))
             if (NidDataJson.TryRead(entity.Value, InvestmentsFileJson.Records.HoldingRecord, "", [], out var holding) && holding.Isin is { } rawIsin && Normalise(rawIsin) is var isin)
-                held[isin] = held.GetValueOrDefault(isin) || holding.Kind is not ("euro_fund" or "cash");
+                held[isin] = held.GetValueOrDefault(isin) || HoldingWire.IsMarket(holding.Kind);
 
         var rows = new List<(string Path, SecurityBreakdown Row)>();
         var seen = new HashSet<(string, LocalDate)>();
@@ -65,7 +65,7 @@ public sealed class BreakdownsImportSection(
             if (!held.TryGetValue(isin, out var market))
                 issues.Add(ImportIssue.Error(FieldErrors.ShapeCode, "No holding of this file holds this ISIN.", path + ".isin"));
             else if (!market)
-                issues.Add(ImportIssue.Error(BreakdownCodes.NotMarket, "A euro fund or cash has no market exposure to break down.", path + ".isin"));
+                issues.Add(ImportIssue.Error(BreakdownCodes.NotMarket, "A euro fund, cash or an SCPI has no market exposure to break down.", path + ".isin"));
             else if (!seen.Add((isin, asOf)))
                 issues.Add(ImportIssue.Error(ImportCodes.DuplicateFact, $"This file already has a breakdown of {isin} on {record.AsOf}.", path + ".as_of"));
             else if (errors.Count == 0)

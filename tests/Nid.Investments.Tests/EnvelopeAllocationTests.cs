@@ -34,6 +34,14 @@ public class EnvelopeAllocationTests
     }
 
     [Fact]
+    public void An_scpi_holding_line_is_real_estate_exactly()
+    {
+        var scpi = Holding("scpi");
+        Assert.Equal([new AllocationSlice("real_estate", "locked", 2000m, false)],
+            EnvelopeAllocation.Of(EnvelopeKind.Scpi, 2000m, Snapshot(new LocalDate(2026, 6, 30), (scpi, 2000m)), Of(scpi)));
+    }
+
+    [Fact]
     public void A_snapshot_splits_the_envelopes_value_pro_rata_by_class_the_slices_summing_to_it_exactly()
     {
         var euro = Holding("euro_fund");

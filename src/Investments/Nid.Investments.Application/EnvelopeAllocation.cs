@@ -77,6 +77,7 @@ internal static class EnvelopeAllocation
         return holding?.Kind switch
         {
             "euro_fund" => (AllocationClasses.CapitalGuaranteed, false),
+            "scpi" => (AllocationClasses.RealEstate, false),
             "cash" => (AllocationClasses.Cash, false),
             "equity" => (AllocationClasses.Equity, false),
             "bond" => (AllocationClasses.Bond, false),

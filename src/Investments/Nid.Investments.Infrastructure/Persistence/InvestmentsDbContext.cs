@@ -59,10 +59,11 @@ public sealed class InvestmentsDbContext(DbContextOptions<InvestmentsDbContext> 
         {
             e.ToTable("holding", t =>
             {
-                t.HasCheckConstraint("ck_holding_kind", "kind in ('euro_fund','fund','etf','equity','bond','structured','cash','other')");
+                t.HasCheckConstraint("ck_holding_kind", "kind in ('euro_fund','fund','etf','equity','bond','structured','cash','scpi','other')");
                 t.HasCheckConstraint("ck_holding_asset_class",
                     "asset_class is null or asset_class in ('equity','bond','money_market','mixed','real_estate','capital_guaranteed','other')");
                 t.HasCheckConstraint("ck_holding_risk_indicator", "risk_indicator is null or risk_indicator between 1 and 7");
+                t.HasCheckConstraint("ck_holding_entitlement_delay", "entitlement_delay_months is null or entitlement_delay_months between 0 and 12");
                 t.HasCheckConstraint("ck_holding_entry_cost_pct", "entry_cost_pct is null or entry_cost_pct between 0 and 100");
                 t.HasCheckConstraint("ck_holding_dates", "closed_on is null or opened_on is null or closed_on >= opened_on");
             });

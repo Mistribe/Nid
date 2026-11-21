@@ -6,12 +6,15 @@ namespace Nid.Investments.Contracts;
 /// <summary>Holdings spec §2.1: the wire values of a holding's kind and asset class.</summary>
 public static class HoldingWire
 {
-    public static readonly IReadOnlyList<string> Kinds = ["euro_fund", "fund", "etf", "equity", "bond", "structured", "cash", "other"];
+    public static readonly IReadOnlyList<string> Kinds = ["euro_fund", "fund", "etf", "equity", "bond", "structured", "cash", "scpi", "other"];
 
     public static readonly IReadOnlyList<string> AssetClasses = ["equity", "bond", "money_market", "mixed", "real_estate", "capital_guaranteed", "other"];
 
     /// <summary>A euro fund and cash are a capital: no units, no unit price.</summary>
     public static bool HasUnits(string kind) => kind is not ("euro_fund" or "cash");
+
+    /// <summary>Issue #180: a euro fund, cash and an SCPI's buildings have no market exposure to break down by region and sector.</summary>
+    public static bool IsMarket(string kind) => kind is not ("euro_fund" or "cash" or "scpi");
 }
 
 /// <summary>Issue #34 §2.3: a movement's kind, its direction, and whether it is money in or out of the holding.</summary>
@@ -41,7 +44,8 @@ public static class MovementKinds
 /// <summary>One line of an envelope (holdings spec §2.1): a fund, a share, the euro fund, a structured product, cash.</summary>
 public sealed record EnvelopeHolding(
     Guid Id, ItemId Envelope, string Name, string? Isin, string Kind, string? AssetClass, string? Issuer, int? RiskIndicator,
-    LocalDate? OpenedOn, LocalDate? MaturesOn, decimal? EntryCostPct, LocalDate? ClosedOn, string? Note, bool AutoPrice = true);
+    LocalDate? OpenedOn, LocalDate? MaturesOn, decimal? EntryCostPct, LocalDate? ClosedOn, string? Note, bool AutoPrice = true,
+    int? EntitlementDelayMonths = null);
 
 public sealed record StoredHolding(EnvelopeHolding Holding, uint Version);
 
