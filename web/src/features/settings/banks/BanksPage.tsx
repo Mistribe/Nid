@@ -13,7 +13,6 @@ import { formatLocalDate } from '@/components/LocalDate';
 import { formatCurrency } from '@/components/Money';
 import { OwnerChips } from '@/components/OwnerChips';
 import { ProblemMessage } from '@/components/ProblemMessage';
-import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
 import { RowActions } from '@/components/page/RowActions';
 import { Section } from '@/components/page/Section';
 import { SortableTable } from '@/components/page/SortableTable';
@@ -27,12 +26,10 @@ import { ImportStatement } from '../../investments/operations/ImportStatement';
 import { SettingsFrame } from '../SettingsFrame';
 import { AccountDialog } from './AccountDialog';
 import { ConnectBankDialog } from './ConnectBankDialog';
-import { accountKind, accountLabel, ACCOUNTS, bankErrorText, maskedIban, CONNECTION, CONNECTIONS, RENEW, RULE, RULES, SYNC, useBankAccounts, useBankingStatus, type BankAccount, type BankRule, type Connection } from '@/api/banking';
+import { accountKind, accountLabel, ACCOUNTS, APPLICATION, bankErrorText, maskedIban, CONNECTION, CONNECTIONS, RENEW, RULE, RULES, SYNC, useBankAccounts, useBankingStatus, type BankAccount, type BankRule, type Connection } from '@/api/banking';
 import '@/locales/banks';
 
 const ApplicationTab = lazy(() => import('./ApplicationTab'));
-
-const TABS = ['accounts', 'application'] as const;
 
 const PROPOSALS = '/api/v1/core/proposals' as const;
 const day = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'short' });
@@ -70,22 +67,29 @@ export function BanksPage() {
       {status.error ? <ProblemMessage problem={present(toProblem(status.error))} />
         : !status.data ? <Skeleton aria-busy="true" className="h-32"><span className="sr-only">{t('banks.loading')}</span></Skeleton>
         : !status.data.enabled ? <p>{t('banks.disabled')}</p>
-        : <BanksTabs configured={status.data.configured} />}
+        : <BanksSections configured={status.data.configured} />}
     </SettingsFrame>
   );
 }
 
-/** « Comptes » (connections, accounts, rules) first, then « Mon application » (`?tab=application`), reachable whenever banking is on, configured or not; the categories are in Dépenses (#423). */
-function BanksTabs({ configured }: { configured: boolean }) {
+/**
+ * One page of sections (#413): the connections, their accounts and the rules, then « Mon application »; it comes first while the
+ * person has neither an application nor a connection, since it is then the first step. `?tab=application` leads to it.
+ */
+function BanksSections({ configured }: { configured: boolean }) {
   const { t } = useTranslation();
-  const [tab, setTab] = useDetailTab(TABS);
-  const loading = <Skeleton aria-busy="true" className="h-32"><span className="sr-only">{t('banks.category_list.loading')}</span></Skeleton>;
-  return (
-    <DetailTabs value={tab} onChange={setTab} tabs={[
-      { id: 'accounts', label: t('banks.tabs.accounts'), content: <div className="space-y-8"><Connections configured={configured} /><Rules /></div> },
-      { id: 'application', label: t('banks.tabs.application'), content: <Suspense fallback={loading}><ApplicationTab /></Suspense> },
-    ]} />
-  );
+  const { $api } = useApi();
+  const search: BanksSearch = useSearch({ strict: false });
+  const mine = $api.useQuery('get', APPLICATION);
+  const connections = $api.useQuery('get', CONNECTIONS, undefined, { enabled: configured });
+  // Decided once, when both are known: declaring the application does not move its section under the person's eyes.
+  const [first, setFirst] = useState<boolean | null>(null);
+  if (first === null && mine.isSuccess && (!configured || connections.isSuccess)) setFirst(!mine.data && !connections.data?.length);
+  const loading = <Skeleton aria-busy="true" className="h-32"><span className="sr-only">{t('banks.application.loading')}</span></Skeleton>;
+  // Keyed, so the sections move rather than remount once the order is decided.
+  const application = <Suspense key="application" fallback={loading}><ApplicationTab focus={search.tab === 'application'} /></Suspense>;
+  const accounts = [<Connections key="connections" configured={configured} />, <Rules key="rules" />];
+  return <div className="space-y-8">{first ? [application, ...accounts] : [...accounts, application]}</div>;
 }
 
 /** « Synchroniser tout » (D6), once the person has a connection. */

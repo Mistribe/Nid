@@ -37,6 +37,10 @@ test('alice turns bank sync on, names the application, finds Réglages › Banqu
   const { configured } = (await (await page.request.get('/api/v1/banking/status')).json()) as { configured: boolean };
   await expect(configured ? page.getByRole('heading', { name: 'Aucune banque reliée' }) : page.getByText(/n'a pas chargé la clé privée/)).toBeVisible();
   if (!configured) await expect(page.getByRole('link', { name: 'Voir Administration › Banque' })).toHaveAttribute('href', '/admin/banking');
+  // #413: one page, no second tab row; `?tab=application` leads to « Mon application ».
+  await expect(page.getByRole('tab')).toHaveCount(0);
+  await page.goto('/settings/banks?tab=application');
+  await expect(page.getByRole('heading', { name: 'Mon application Enable Banking' })).toBeFocused();
 
   await page.goto('/admin/banking');
   await page.getByRole('switch', { name: 'Synchronisation bancaire' }).click();

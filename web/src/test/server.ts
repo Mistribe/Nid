@@ -43,6 +43,8 @@ export const handlers = [
   http.get('*/api/v1/banking/accounts', () => HttpResponse.json([])),
   // ... and the rules they kept (none).
   http.get('*/api/v1/banking/rules', () => HttpResponse.json([])),
+  // Réglages › Banques shows « Mon application » (#413): none declared.
+  http.get('*/api/v1/banking/application', () => new HttpResponse(null, { status: 204 })),
   // ... and the household's budgets (none: Dépenses then offers to propose some, #427).
   http.get('*/api/v1/banking/budgets', () => HttpResponse.json([])),
   http.get('*/api/v1/dashboard', () => HttpResponse.json(emptyDashboard)),
