@@ -18,7 +18,8 @@ import '@/locales/forms';
 type Movement = { on: string; kind: string; amount: string; label?: string | null; ref?: string | null; category?: string | null };
 type StatementPayload = { asOf: string; value?: Money | null; movements: Movement[]; note?: string | null; excluded?: number[] | null };
 type MovementPreview = { index: number; on: string; kind: string; amount: Money; label?: string | null; category?: string | null; recorded: boolean };
-type StatementPreview = { value?: unknown; movements: MovementPreview[] };
+type TranchePreview = { availableOn: string; amount: Money };
+type StatementPreview = { value?: unknown; movements: MovementPreview[]; availability?: TranchePreview[] | null };
 type StatementForm = { asOf: string; amount: string; keep: boolean[] };
 
 const asStatement = (payload: unknown) => payload as StatementPayload;
@@ -54,6 +55,27 @@ function StatementPreviewView({ preview }: { preview: unknown }) {
                 <TableCell>{m.label ?? ''}</TableCell>
                 <TableCell className="text-right">{formatMoney(m.amount)}</TableCell>
                 <TableCell>{m.recorded ? t('proposal.movements.recorded') : ''}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      ) : null}
+      {p.availability?.length ? (
+        <Table>
+          <caption className="text-left font-semibold">
+            {t('proposal.availability.title')} <span className="font-normal text-muted-foreground">{t('proposal.availability.hint')}</span>
+          </caption>
+          <TableHeader>
+            <TableRow>
+              <TableHead scope="col">{t('proposal.availability.on')}</TableHead>
+              <TableHead scope="col" className="text-right">{t('proposal.availability.amount')}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {p.availability.map((tranche) => (
+              <TableRow key={tranche.availableOn}>
+                <TableCell>{formatLocalDate(tranche.availableOn)}</TableCell>
+                <TableCell className="text-right">{formatMoney(tranche.amount)}</TableCell>
               </TableRow>
             ))}
           </TableBody>

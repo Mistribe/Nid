@@ -90,6 +90,72 @@ public class StatementProposalTests(PostgresFixture fixture) : IClassFixture<Pos
         }
     }
 
+    /// <summary>#185: a plan keeper's statement gives what entering it by hand gives: the employer's contribution and the plan's tranches.</summary>
+    [Fact]
+    public async Task A_plan_keeper_s_statement_records_its_categories_and_availability_as_entering_them_by_hand()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var byStatement = (await app.NewEnvelopeAsync("PEE", app.AdultA, Visibility.Shared, kind: "employee_savings")).Value;
+        var byHand = (await app.NewEnvelopeAsync("PEE bis", app.AdultA, Visibility.Shared, kind: "employee_savings")).Value;
+        var tranches = new[] { new { availableOn = "2030-06-01", amount = "1500.00" }, new { availableOn = "2026-06-01", amount = "500.00" } };
+        object Body(Guid envelope) => new
+        {
+            kind = Kind, targetItemId = envelope, sourceLabel = "Relevé PEE",
+            payload = new
+            {
+                asOf = "2025-09-30", value = new { amount = "2000.00", currency = "EUR" }, availability = tranches,
+                movements = new[] { Movement(amount: "400.00", label: "Abondement", category: "employer_match"), Movement(amount: "100.00") },
+            },
+        };
+
+        var proposal = await SubmitAsync(app, Body(byStatement));
+        var preview = (await ReadAsync(app, proposal)).GetProperty("preview");
+        Assert.Equal("employer_match", preview.GetProperty("movements")[0].GetProperty("category").GetString());
+        Assert.Equal(["2026-06-01:500.00", "2030-06-01:1500.00"], preview.GetProperty("availability").EnumerateArray()
+            .Select(t => $"{t.GetProperty("availableOn").GetString()}:{t.GetProperty("amount").GetProperty("amount").GetString()}"));
+        Assert.Equal(HttpStatusCode.OK, (await ApproveAsync(app, proposal)).StatusCode);
+
+        const string url = "/api/v1/investments/envelopes";
+        foreach (var flow in new object[]
+                 {
+                     new { occurredOn = "2025-09-05", kind = "contribution", amount = new { amount = "400.00", currency = "EUR" }, category = "employer_match", note = "Abondement" },
+                     new { occurredOn = "2025-09-05", kind = "contribution", amount = new { amount = "100.00", currency = "EUR" }, note = "Versement" },
+                 })
+            (await app.RawAsync(app.AdultA, HttpMethod.Post, $"{url}/{byHand}/flows", flow)).EnsureSuccessStatusCode();
+        (await app.RawAsync(app.AdultA, HttpMethod.Post, $"{url}/{byHand}/valuations",
+            new { asOf = "2025-09-30", amount = new { amount = "2000.00", currency = "EUR" } })).EnsureSuccessStatusCode();
+        (await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{url}/{byHand}", new { availability = tranches })).EnsureSuccessStatusCode();
+
+        var (statement, hand) = (await EnvelopeAsync(app, byStatement), await EnvelopeAsync(app, byHand));
+        Assert.Equal(hand.GetProperty("availability").GetRawText(), statement.GetProperty("availability").GetRawText());
+        static string[] Flows(JsonElement detail) => [.. detail.GetProperty("flows").EnumerateArray()
+            .Select(f => $"{f.GetProperty("kind").GetString()}:{f.GetProperty("amount").GetProperty("amount").GetString()}:{f.GetProperty("category")}").Order()];
+        Assert.Equal(Flows(hand), Flows(statement));
+
+        // The same statement again is « conforme »; other tranches are a change to propose.
+        Assert.Equal(HttpStatusCode.NoContent, (await app.RawAsync(app.AdultA, HttpMethod.Post, ProposalKindHelpers.Proposals, Body(byStatement))).StatusCode);
+        Assert.Equal(HttpStatusCode.Created, (await app.RawAsync(app.AdultA, HttpMethod.Post, ProposalKindHelpers.Proposals, new
+        {
+            kind = Kind, targetItemId = byStatement,
+            payload = new { asOf = "2025-09-30", availability = new[] { new { availableOn = "2026-06-01", amount = "2000.00" } } },
+        })).StatusCode);
+    }
+
+    [Fact]
+    public async Task Availability_dates_off_an_employee_savings_plan_are_refused_at_their_path()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var pea = await McpSeed.EnvelopeAsync(app, app.AdultA);
+
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Post, ProposalKindHelpers.Proposals, new
+        {
+            kind = Kind, targetItemId = pea,
+            payload = new { asOf = "2025-09-30", availability = new[] { new { availableOn = "2026-06-01", amount = "1.00" } } },
+        });
+        var error = (await JsonOf(response)).GetProperty("errors")[0];
+        Assert.Equal(("payload.availability", "investments.invalid_envelope"), (error.FieldPath(), error.GetProperty("code").GetString()));
+    }
+
     [Fact]
     public async Task Without_an_edit_the_recorded_movements_are_left_out()
     {
