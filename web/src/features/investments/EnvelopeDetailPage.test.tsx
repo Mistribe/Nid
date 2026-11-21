@@ -164,6 +164,16 @@ describe('EnvelopeDetailPage', () => {
     expect(block).not.toHaveTextContent('Revenus perçus');
   });
 
+  it('splits an employee plan\'s paid-in between the employee and the employer (#183)', async () => {
+    serve(detail({ kind: 'employee_savings', figures: figures({ ownContributions: eur('15000.0000'), employerContributions: eur('7000.0000') }) }));
+    await renderApp(`/investments/${PEA}`);
+
+    const block = await screen.findByRole('region', { name: 'Valeur et gain' });
+    expect(block).toHaveTextContent('Vos versements15 000,00 €');
+    expect(block).toHaveTextContent('Part de l’employeur');
+    expect(block).toHaveTextContent('7 000,00 €');
+  });
+
   it('labels a transfer leg as a transfer', async () => {
     serve(detail({ flows: [{ id: 'f9', occurredOn: '2025-06-15', kind: 'withdrawal', amount: eur('100.0000'), category: 'transfer', externalRef: 'transfer:x', note: null }] }));
     await renderApp(`/investments/${PEA}?tab=flows`);

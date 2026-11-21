@@ -11,9 +11,20 @@ public static class EnvelopeMath
     public static EnvelopeFigures At(EnvelopeKind kind, IReadOnlyList<Valuation> values, IReadOnlyList<Flow> flows, Currency currency,
         ValuationCadence cadence, int? staleAfterDays, LocalDate d)
     {
-        var figures = Figures(kind, values, flows, currency, cadence, staleAfterDays, d);
+        var figures = Split(kind, flows, currency, Figures(kind, values, flows, currency, cadence, staleAfterDays, d), d);
         return figures.Value is null || HasPerformance(kind, values, flows) ? figures
             : figures with { Gain = null, GainPct = null, AnnualReturnPct = null, GainAfterFees = null, MissingOpening = false };
+    }
+
+    /// <summary>#183: an employee plan's paid-in split between the employee and the employer, when the employer put something in.</summary>
+    private static EnvelopeFigures Split(EnvelopeKind kind, IReadOnlyList<Flow> flows, Currency currency, EnvelopeFigures figures, LocalDate d)
+    {
+        var until = figures.AsOf ?? d;
+        var employer = Total(flows, f => f.OccurredOn <= until && f.Kind == FlowKind.Contribution && FlowCategories.IsEmployer(f.Category));
+        if (!EnvelopeKinds.IsEmployeePlan(kind) || employer == 0)
+            return figures;
+        var paidIn = Total(flows, f => f.OccurredOn <= until && f.Kind is FlowKind.Opening or FlowKind.Contribution);
+        return figures with { OwnContributions = M(paidIn - employer, currency), EmployerContributions = M(employer, currency) };
     }
 
     /// <summary>

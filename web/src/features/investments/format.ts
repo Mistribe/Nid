@@ -12,6 +12,8 @@ export const REGULATED = ['none', 'livret_a', 'ldds', 'lep', 'livret_jeune'] as 
 export const regulatedOptions = (t: TFunction) => REGULATED.map((r) => ({ value: r, label: t(`investments.regulated.${r}`) }));
 /** The categories that classify a withdrawal or an income as passive income (the server's own list). */
 export const INCOME_CATEGORIES = ['dividend', 'interest', 'distribution'] as const;
+/** #183: the employer's share of an employee plan's contribution (the server's own list); none is the employee's own payment. */
+export const CONTRIBUTION_CATEGORIES = ['employer_match', 'profit_sharing', 'participation'] as const;
 export const FLOW_KINDS = ['contribution', 'withdrawal', 'expense', 'income', 'opening'] as const;
 /** The currencies a response could not convert, from its `core.fx_rate_missing` findings (reference `USD:2025-10-15`). */
 export const missingRateCodes = (findings: { code: string; reference?: string | null }[]) =>
@@ -30,7 +32,7 @@ export const isBankFlow = (flow: { externalRef?: string | null }) => flow.extern
 /** A transfer leg reads as « Virement »; a flow kind the server added later reads as its raw name, as kindText. */
 export function flowKindText(t: TFunction, flow: { kind: string; category?: string | null }): string {
   if (isTransferLeg(flow)) return t('investments.flow_kind.transfer');
-  const nature = INCOME_CATEGORIES.find((c) => c === flow.category);
+  const nature = [...INCOME_CATEGORIES, ...CONTRIBUTION_CATEGORIES].find((c) => c === flow.category);
   if (nature) return t(`investments.flow_nature.${nature}`);
   const known = FLOW_KINDS.find((k) => k === flow.kind);
   return known ? t(`investments.flow_kind.${known}`) : flow.kind;
