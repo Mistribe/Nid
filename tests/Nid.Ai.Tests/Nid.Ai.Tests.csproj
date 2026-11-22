@@ -11,6 +11,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Ai\Nid.Ai.Protocol\Nid.Ai.Protocol.csproj" />
+    <ProjectReference Include="..\..\src\Ai\Nid.Ai.Domain\Nid.Ai.Domain.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\vectors\rfc9180\**\*" LinkBase="vectors\rfc9180" CopyToOutputDirectory="PreserveNewest" />

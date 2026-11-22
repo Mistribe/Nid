@@ -1,0 +1,73 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Design;
+using Nid.Platform.Infrastructure.Audit;
+using Nid.Platform.Infrastructure.Persistence;
+
+namespace Nid.Ai.Infrastructure.Persistence;
+
+/// <summary>The <c>ai</c> schema (<c>docs/ai/README.md</c> §13): the worker registry and Nid's keys towards workers.</summary>
+public sealed class AiDbContext(DbContextOptions<AiDbContext> options) : DbContext(options)
+{
+    public const string Schema = "ai";
+
+    public DbSet<ModelWorkerRow> Workers => Set<ModelWorkerRow>();
+
+    public DbSet<AiKeyRow> Keys => Set<AiKeyRow>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.HasDefaultSchema(Schema);
+
+        modelBuilder.Entity<ModelWorkerRow>(e =>
+        {
+            e.ToTable("model_worker", t =>
+            {
+                t.HasCheckConstraint("ck_model_worker_placement", "placement in ('local', 'remote')");
+                t.HasCheckConstraint("ck_model_worker_status", "status in ('pending', 'active', 'disabled', 'revoked')");
+                t.HasCheckConstraint("ck_model_worker_port", "port between 1 and 65535");
+                t.HasCheckConstraint("ck_model_worker_revoked", "(status = 'revoked') = (revoked_at is not null)");
+            });
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Name).HasMaxLength(60);
+            e.Property(x => x.WorkerKeyFingerprint).HasColumnType("char(64)");
+            e.Property(x => x.TlsCertificateSha256).HasColumnType("char(64)");
+            e.Property(x => x.LastDeclaration).HasColumnType("jsonb");
+            e.HasIndex(x => new { x.Host, x.Port }).IsUnique().HasFilter("status <> 'revoked'");
+            e.HasOne<AiKeyRow>().WithMany().HasForeignKey(x => x.NidKeyId).OnDelete(DeleteBehavior.Restrict);
+            e.Property(x => x.Version).HasColumnName("xmin").HasColumnType("xid").ValueGeneratedOnAddOrUpdate().IsConcurrencyToken();
+        });
+
+        modelBuilder.Entity<AiKeyRow>(e =>
+        {
+            e.ToTable("ai_key", t => t.HasCheckConstraint("ck_ai_key_status", "status in ('active', 'retiring')"));
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Fingerprint).HasColumnType("char(64)");
+            e.HasIndex(x => x.Status).IsUnique().HasFilter("status = 'active'");
+        });
+
+        modelBuilder.MapAuditLog(ownedHere: false);
+        ModelNaming.Apply(modelBuilder);
+    }
+}
+
+public static class AiDbContextConfiguration
+{
+    public static DbContextOptionsBuilder<AiDbContext> Configure(this DbContextOptionsBuilder<AiDbContext> builder, string connectionString)
+    {
+        builder.UseNpgsql(connectionString, npgsql =>
+        {
+            npgsql.UseNodaTime();
+            npgsql.MigrationsHistoryTable("__ef_migrations_history", AiDbContext.Schema);
+        });
+        return builder;
+    }
+}
+
+/// <summary>Used by <c>dotnet ef</c> only; the connection string is never opened when adding a migration.</summary>
+public sealed class AiDbContextFactory : IDesignTimeDbContextFactory<AiDbContext>
+{
+    public AiDbContext CreateDbContext(string[] args)
+        => new(new DbContextOptionsBuilder<AiDbContext>().Configure("Host=localhost;Database=nid_design").Options);
+}

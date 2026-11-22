@@ -69,6 +69,7 @@ public class AuditSchemaTests(PostgresFixture fixture) : IClassFixture<PostgresF
         await using var documents = PostgresFixture.NewDocumentsContext(connection);
         await using var banking = PostgresFixture.NewBankingContext(connection);
         await using var childcare = PostgresFixture.NewChildcareContext(connection);
+        await using var ai = PostgresFixture.NewAiContext(connection);
 
         Assert.False(estate.Database.HasPendingModelChanges());
         Assert.False(income.Database.HasPendingModelChanges());
@@ -80,5 +81,6 @@ public class AuditSchemaTests(PostgresFixture fixture) : IClassFixture<PostgresF
         Assert.False(documents.Database.HasPendingModelChanges());
         Assert.False(banking.Database.HasPendingModelChanges());
         Assert.False(childcare.Database.HasPendingModelChanges());
+        Assert.False(ai.Database.HasPendingModelChanges());
     }
 }

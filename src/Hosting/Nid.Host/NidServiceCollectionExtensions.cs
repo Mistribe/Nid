@@ -78,6 +78,7 @@ public static class NidServiceCollectionExtensions
         services.AddSingleton<IAuditMap, InvestmentsAuditMap>();
         services.AddSingleton<IAuditMap, IncomeAuditMap>();
         services.AddSingleton<IAuditMap, GoalsAuditMap>();
+        services.AddSingleton<IAuditMap, Nid.Ai.Infrastructure.Persistence.AiAuditMap>();
         services.AddSingleton<IAuditMap, Nid.Childcare.Infrastructure.Persistence.ChildcareAuditMap>();
         services.AddSingleton<IAuditMap, DocumentsAuditMap>();
         services.AddSingleton<IAuditMap, RealEstateAuditMap>();
@@ -272,6 +273,13 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<Nid.Goals.Contracts.IEmergencyBuffer, GoalsEmergencyBuffer>();
         services.AddScoped<IGoalsReview, GoalsReview>();
         services.AddScoped<ISeriesContribution, GoalSeries>();
+
+        services.AddDbContext<Nid.Ai.Infrastructure.Persistence.AiDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
+        {
+            npgsql.UseNodaTime();
+            npgsql.MigrationsHistoryTable("__ef_migrations_history", Nid.Ai.Infrastructure.Persistence.AiDbContext.Schema);
+        }).AddInterceptors(sp.GetRequiredService<AuditInterceptor>()));
+        services.AddScoped<ITransactionParticipant, DbContextParticipant<Nid.Ai.Infrastructure.Persistence.AiDbContext>>();
 
         services.AddDbContext<BankingDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
         {

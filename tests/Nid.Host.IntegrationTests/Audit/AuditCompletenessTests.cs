@@ -33,6 +33,7 @@ public partial class AuditCompletenessTests(PostgresFixture fixture) : IClassFix
             scope.ServiceProvider.GetRequiredService<RealEstateDbContext>(),
             scope.ServiceProvider.GetRequiredService<BankingDbContext>(),
             scope.ServiceProvider.GetRequiredService<PlatformDbContext>(),
+            scope.ServiceProvider.GetRequiredService<Nid.Ai.Infrastructure.Persistence.AiDbContext>(),
         ];
         var unknown = contexts.SelectMany(c => c.Model.GetEntityTypes()).Select(t => t.ClrType).Distinct()
             .Where(t => !known.Contains(t)).ToList();
@@ -43,7 +44,7 @@ public partial class AuditCompletenessTests(PostgresFixture fixture) : IClassFix
     [Fact]
     public void No_module_context_exposes_the_log()
     {
-        foreach (var context in new[] { typeof(CoreDbContext), typeof(SubscriptionsDbContext), typeof(InvestmentsDbContext), typeof(IncomeDbContext), typeof(RealEstateDbContext), typeof(BankingDbContext) })
+        foreach (var context in new[] { typeof(CoreDbContext), typeof(SubscriptionsDbContext), typeof(InvestmentsDbContext), typeof(IncomeDbContext), typeof(RealEstateDbContext), typeof(BankingDbContext), typeof(Nid.Ai.Infrastructure.Persistence.AiDbContext) })
             Assert.DoesNotContain(context.GetProperties(), p => p.PropertyType == typeof(DbSet<AuditEntryRow>));
     }
 

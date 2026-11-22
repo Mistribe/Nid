@@ -16,6 +16,7 @@
     <ProjectReference Include="..\..\src\Income\Nid.Income.Infrastructure\Nid.Income.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\RealEstate\Nid.RealEstate.Infrastructure\Nid.RealEstate.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Platform\Nid.Platform.Infrastructure\Nid.Platform.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Ai\Nid.Ai.Infrastructure\Nid.Ai.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Documents\Nid.Documents.Application\Nid.Documents.Application.csproj" />
     <ProjectReference Include="..\..\src\Documents\Nid.Documents.Infrastructure\Nid.Documents.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Hosting\Nid.Host\Nid.Host.csproj" />
