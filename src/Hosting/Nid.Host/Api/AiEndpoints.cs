@@ -70,6 +70,12 @@ public static class AiEndpoints
                     : Missing("safe"))
             .Returns<WorkerView>();
 
+        routes.MapGroup("/api/v1/ai/capabilities").RequireAuthorization()
+            .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>()
+            .MapGet("", async (IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new GetModelCapabilitiesQuery(), ct)).ToHttp(view => view))
+            .Returns<ModelCapabilities>();
+
         var settings = routes.MapGroup("/api/v1/ai/settings").RequireAuthorization()
             .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>();
         settings.MapGet("", async (IInvoker invoker, CancellationToken ct)

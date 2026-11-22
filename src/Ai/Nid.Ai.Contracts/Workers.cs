@@ -90,3 +90,12 @@ public static class DataClasses
 
     public static bool IsKnown(string dataClass) => All.Contains(dataClass);
 }
+
+/// <summary>What model-backed features can run now (decision D, <c>docs/ai/README.md</c> §11): for <c>echo</c> and each
+/// capability a worker declares, the destinations online, or why none.</summary>
+public sealed record ModelCapabilities(bool RemoteWorkersAllowed, IReadOnlyList<CapabilityView> Capabilities);
+
+/// <summary>Online workers serving a capability: <see cref="Local"/>, <see cref="Remote"/> (counted only with the household's
+/// opt-in) and among them <see cref="Safe"/>; <see cref="Reason"/> when none: <c>no_worker</c>, <c>remote_not_allowed</c>,
+/// <c>all_offline</c>.</summary>
+public sealed record CapabilityView(string Capability, int Local, int Remote, int Safe, string? Reason);
