@@ -52,7 +52,9 @@ public sealed class JobTable(IEnumerable<IJobHandler> handlers, IEnumerable<IReq
             _jobs[job.Id] = job;
         }
 
-        _ = Task.Run(() => RunAsync(job, handler, input.Clone(), file));
+        // Always started: the job's own token (linked to the worker stopping) cancels it, and RunAsync records that as
+        // « cancelled ». A token here could leave it queued forever, never run.
+        _ = Task.Run(() => RunAsync(job, handler, input.Clone(), file), CancellationToken.None);
         return (job.Id, null);
     }
 
