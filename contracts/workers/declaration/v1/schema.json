@@ -119,6 +119,10 @@
     },
     "nidKeyFingerprint": {
       "type": "string"
+    },
+    "load": {
+      "type": "integer",
+      "default": 0
     }
   },
   "required": [

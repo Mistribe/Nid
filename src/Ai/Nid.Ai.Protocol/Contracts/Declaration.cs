@@ -8,11 +8,12 @@ public sealed record WorkerDeclaration(
     IReadOnlyList<ContractVersion> Requests,
     int MaxConcurrentRequests,
     IReadOnlyList<DeclaredModel> Models,
-    string NidKeyFingerprint) : IContract
+    string NidKeyFingerprint,
+    int Load = 0) : IContract
 {
     public bool IsValid()
         => SoftwareVersion.Length is > 0 and <= 64
-           && MaxConcurrentRequests is >= 1 and <= 1024
+           && MaxConcurrentRequests is >= 1 and <= 1024 && Load is >= 0 and <= 1_000_000
            && Jobs.Count <= 100 && Requests.Count <= 100 && Models.Count <= 100
            && NidKeyFingerprint.Length == 64 && NidKeyFingerprint.All(char.IsAsciiHexDigitLower)
            && Jobs.All(c => c?.IsValid() == true)
