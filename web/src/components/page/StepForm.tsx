@@ -7,16 +7,21 @@ import { FormActions } from './FormPage';
 import '@/locales/forms';
 
 /** A form in steps: « Continuer » validates the step's fields and stays, focusing the first invalid one, when they are not valid. */
-export function StepForm({ steps, trigger, onSubmit, submitLabel, pending, reveal, onAdvance }: {
+export function StepForm({ steps, trigger, onSubmit, submitLabel, pending, reveal, onAdvance, step: kept, onStep }: {
   steps: { id: string; title: string; fields: string[]; content: ReactNode }[];
   trigger: (fields: string[]) => Promise<boolean>; onSubmit: () => void; submitLabel: string; pending?: boolean;
   /** A refusal that lands after the last step (the server's) on an earlier one: goes back to that step and focuses the first invalid field. */
   reveal?: { step: string } | null;
   /** Called with the step's id once it is valid, just before the next one shows (a wizard that derives values from a step). */
   onAdvance?: (id: string) => void;
+  /** The step shown (from 0), when the page keeps it (in its address, #414); else the form keeps it. */
+  step?: number;
+  onStep?: (index: number) => void;
 }) {
   const { t } = useTranslation();
-  const [index, setIndex] = useState(0);
+  const [own, setOwn] = useState(0);
+  const index = Math.min(Math.max(kept ?? own, 0), steps.length - 1);
+  const setIndex = (at: number) => { setOwn(at); onStep?.(at); };
   const [refused, setRefused] = useState(0);
   const body = useRef<HTMLDivElement>(null);
   const step = steps[index]!;

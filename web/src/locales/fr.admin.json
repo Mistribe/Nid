@@ -200,7 +200,19 @@
       "retention": "Conserver les opérations",
       "retention_hint": "Chaque nuit, les opérations bancaires plus anciennes que cette durée sont effacées. L'historique des dépenses part avec les opérations.",
       "retention_none": "Sans limite",
-      "retention_months": "{{months}} mois"
+      "retention_months": "{{months}} mois",
+      "deprecated": "L’application d’installation est dépréciée",
+      "deprecated_body": "Chaque adulte relie désormais sa banque avec sa propre application Enable Banking. Transférez celle de l’installation à l’adulte dont elle lit la banque : ses banques continuent de se synchroniser sans rien refaire. Les banques que les autres adultes ont reliées avec elle s’arrêtent (leurs comptes et leur historique restent) ; chacun crée ensuite sa propre application, Nid le lui rappelle. Nid ne peut pas retirer leurs comptes du portail Enable Banking où l’application a été créée : faites-le dans ce portail.",
+      "transfer": "Transférer à un adulte",
+      "transfer_to": "Adulte",
+      "transfer_option_one": "{{name}} — {{count}} banque reliée avec elle",
+      "transfer_option_other": "{{name}} — {{count}} banques reliées avec elle",
+      "transfer_confirm": "L’application de l’installation devient celle de {{name}}, et le foyer n’en a plus.",
+      "transfer_confirm_others": "Les banques reliées avec elle par {{names}} s’arrêtent : leurs comptes et leur historique restent, et il leur faudra créer leur propre application puis relier à nouveau leur banque.",
+      "transferred": "Application transférée.",
+      "key_unused": "La clé privée de l’ancienne application d’installation est encore déposée sur le serveur, mais Nid ne s’en sert plus : retirez le secret EnableBanking__PrivateKey (deploy/README.md §12).",
+      "setup_own": "Chaque adulte crée sa propre application Enable Banking puis relie sa banque, depuis Réglages › Banques › Mon application.",
+      "setup_own_open": "Ouvrir Mon application"
     },
     "prices": {
       "title": "Cours",

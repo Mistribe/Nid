@@ -17331,6 +17331,97 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/banking/transfer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ApplicationTransferBody"];
+                };
+            };
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/childcare": {
         parameters: {
             query?: never;
@@ -35864,6 +35955,10 @@ export interface components {
             applicationId?: null | string;
             privateKey?: null | string;
         };
+        ApplicationTransferBody: {
+            /** Format: uuid */
+            personId?: null | string;
+        };
         ApproveProposalBody: {
             /** Format: uint32 */
             version: number;
@@ -36054,12 +36149,14 @@ export interface components {
             bankLinked: boolean;
             reads?: null | components["schemas"]["BankReadsView"];
             ownApplications?: null | components["schemas"]["OwnApplicationView"][];
+            transferCandidates?: null | components["schemas"]["TransferCandidateView"][];
         };
         BankingStatusView: {
             enabled: boolean;
             configured: boolean;
             appIdSaved?: null | boolean;
             keyStatus?: null | string;
+            redirectUrl?: null | string;
         };
         BankReadsView: {
             /** Format: int32 */
@@ -42939,6 +43036,13 @@ export interface components {
             occurredOn: string;
             amount?: null | components["schemas"]["MoneyBody"];
             note?: null | string;
+        };
+        TransferCandidateView: {
+            /** Format: uuid */
+            personId: string;
+            name: string;
+            /** Format: int32 */
+            connections: number;
         };
         UndetailedEnvelopeView: {
             /** Format: uuid */

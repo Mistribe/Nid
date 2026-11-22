@@ -15,6 +15,7 @@
     "subject_rebound": "Identité rattachée",
     "token_created": "Jeton créé",
     "token_revoked": "Jeton révoqué",
+    "banking_application_transferred": "Application bancaire de l’installation transférée",
     "token_auth_failed": "Jeton refusé",
     "mcp_tool_called": "Lecture par l’assistant",
     "bank_statement_imported": "Relevé bancaire importé",

@@ -22,6 +22,8 @@ import { Pager, useListPage, useStepBack } from '@/components/page/Pager';
 import { Section } from '@/components/page/Section';
 import { SortableTable } from '@/components/page/SortableTable';
 import { StatLine } from '@/components/page/StatLine';
+import { PORTAL_URL, PRIVACY_URL, TERMS_URL } from '@/api/banking';
+import { ConfirmAction } from '@/components/ConfirmAction';
 import { ConnectionTestResult } from '../settings/banks/ConnectionTestResult';
 import { AdminFrame } from './AdminFrame';
 import { formatInstant, formatInstantDate, formatInstantTime } from '@/lib/format';
@@ -32,14 +34,12 @@ const HOUSEHOLD = '/api/v1/admin/household';
 const RUNS = '/api/v1/admin/banking/runs';
 const DIAGNOSTICS = '/api/v1/admin/banking/diagnostics';
 const TEST = '/api/v1/admin/banking/test';
-/** What the portal asks besides the redirect URL (deploy/README.md §12): it does not check them for a restricted application. */
-const PRIVACY_URL = 'https://github.com/Mistribe/Nid/blob/main/PRIVACY.md';
-const TERMS_URL = 'https://github.com/Mistribe/Nid/blob/main/LICENSE';
-const PORTAL_URL = 'https://enablebanking.com/cp/applications';
+const TRANSFER = '/api/v1/admin/banking/transfer';
 
 type Diagnostics = components['schemas']['BankingDiagnosticsView'];
 type ConnectionTest = components['schemas']['BankingConnectionTestView'];
 type Run = components['schemas']['BankSyncRunView'];
+type Candidate = components['schemas']['TransferCandidateView'];
 type State = 'disabled' | 'setup' | 'ready' | 'error';
 
 /** « Conserver les opérations » (D3): the choices offered, in months; « Sans limite » clears the setting. */
@@ -64,12 +64,12 @@ const KEY = {
 const testOk = (test: ConnectionTest | null) => test?.outcome === 'accepted' && test.active !== false && test.redirectUrlAllowed !== false;
 
 /**
- * The page's state (#344): off; a setup step left (the key, the id, the portal, a bank); Enable Banking refusing or the last run failed;
- * else ready. A test this visit counts as much as the last run.
+ * The page's state (#344): off; a setup step left (the installation's key, the portal, an adult's own application (#414), a bank);
+ * Enable Banking refusing or the last run failed; else ready. A test this visit counts as much as the last run.
  */
 function stateOf(enabled: boolean, diagnostics: Diagnostics, test: ConnectionTest | null): State {
   if (!enabled) return 'disabled';
-  if (diagnostics.keyStatus !== 'loaded' || !diagnostics.appIdSaved) return 'setup';
+  if (diagnostics.appIdSaved ? diagnostics.keyStatus !== 'loaded' : !diagnostics.ownApplications?.length) return 'setup';
   if (test?.outcome === 'rejected' || test?.outcome === 'unreachable' || (!test && diagnostics.lastRun?.outcome === 'failed')) return 'error';
   if ((test && !testOk(test)) || !diagnostics.bankLinked) return 'setup';
   return 'ready';
@@ -120,15 +120,17 @@ export function BankingPage() {
   const d = diagnostics.data;
   const state = stateOf(settings.bankingEnabled, d, tested);
   const canTest = d.keyStatus === 'loaded' && d.appIdSaved;
+  // #414: the installation application is deprecated; a household that never set one up is not offered it any more.
+  const legacy = d.appIdSaved;
   const retention = settings.bankRetentionMonths;
 
   return (
     <AdminFrame title={title}
-      actions={(
+      actions={legacy ? (
         <Button type="button" variant="outline" disabled={!canTest || test.isPending} onClick={() => test.mutate({})}>
           {t('admin.banking.test')}
         </Button>
-      )}
+      ) : null}
       header={(
         <section aria-label={t('admin.banking.figures')} className="space-y-2">
           <StatLine items={[
@@ -155,24 +157,33 @@ export function BankingPage() {
           </div>
         </section>
       )}>
+      {d.transferCandidates?.length ? <Transfer candidates={d.transferCandidates} /> : null}
       {problem ? <ProblemMessage problem={problem} /> : null}
 
       <Section title={t('admin.banking.own_apps')}>
         <p className="text-sm">{d.ownApplications?.length ? d.ownApplications.map((a) => a.name).join(', ') : t('admin.banking.own_apps_none')}</p>
       </Section>
 
-      {state === 'ready' ? null : (
+      {state === 'ready' ? null : legacy ? (
         <Section title={t('admin.banking.setup_title')}>
           <p className="text-sm text-muted-foreground">{t('admin.banking.setup_intro')}</p>
           <Checklist enabled={settings.bankingEnabled} diagnostics={d} test={tested} />
         </Section>
-      )}
+      ) : state === 'setup' ? (
+        <Section title={t('admin.banking.setup_title')}>
+          <p className="max-w-prose text-sm">
+            {t('admin.banking.setup_own')}{' '}
+            <Link to="/settings/banks" search={{ tab: 'application' }} className="underline underline-offset-4">{t('admin.banking.setup_own_open')}</Link>
+          </p>
+        </Section>
+      ) : null}
 
       <Section title={t('admin.banking.settings_title')}>
         <div className="max-w-prose space-y-4">
           <SwitchField label={t('admin.banking.enabled')} hint={t('admin.banking.hint')} checked={settings.bankingEnabled}
             onCheckedChange={(bankingEnabled) => { save.mutate({ body: { bankingEnabled } }); }} />
           <p className="text-sm text-muted-foreground">{t('admin.banking.provider')}</p>
+          {legacy ? (
           <form noValidate className="flex flex-wrap items-end gap-2" onSubmit={(event) => {
             event.preventDefault();
             save.mutate({ body: { enableBankingAppId: appId ?? settings.enableBankingAppId ?? '' } });
@@ -184,6 +195,8 @@ export function BankingPage() {
             </div>
             <Button type="submit" variant="outline" disabled={save.isPending}>{t('admin.banking.save_app_id')}</Button>
           </form>
+          ) : d.keyStatus === 'loaded' ? <p className="text-sm text-muted-foreground">{t('admin.banking.key_unused')}</p> : null}
+          {legacy ? (
           <div className="flex flex-wrap items-end gap-2">
             <div className="min-w-0 flex-1 basis-64">
               <Field label={t('admin.banking.redirect_url')} tip={<InfoTip label={t('admin.banking.redirect_url')}>{t('admin.banking.redirect_url_tip')}</InfoTip>}>
@@ -196,6 +209,7 @@ export function BankingPage() {
               <Copy aria-hidden="true" />{t('admin.banking.copy')}
             </Button>
           </div>
+          ) : null}
           <div className="max-w-64">
             <Field label={t('admin.banking.retention')} hint={t('admin.banking.retention_hint')}>
               {(c) => (
@@ -251,6 +265,49 @@ export function BankingPage() {
         ) : null}
       </Section>
     </AdminFrame>
+  );
+}
+
+/**
+ * #414: the deprecated installation application, handed to the adult whose bank it reads (those with connections made with it first).
+ * The others' connections made with it end; the confirmation says so.
+ */
+function Transfer({ candidates }: { candidates: Candidate[] }) {
+  const { t } = useTranslation();
+  const { $api } = useApi();
+  const queryClient = useQueryClient();
+  const [person, setPerson] = useState(candidates[0]!.personId);
+  const [problem, setProblem] = useState<Presentation | null>(null);
+  const transfer = $api.useMutation('post', TRANSFER, {
+    onSuccess: () => {
+      setProblem(null);
+      toast.success(t('admin.banking.transferred'));
+      for (const url of [DIAGNOSTICS, HOUSEHOLD, '/api/v1/banking/status', '/api/v1/banking/application']) void queryClient.invalidateQueries({ queryKey: ['get', url] });
+    },
+    onError: (error) => { setProblem(present(toProblem(error))); },
+  });
+  const chosen = candidates.find((c) => c.personId === person) ?? candidates[0]!;
+  const others = candidates.filter((c) => c.personId !== chosen.personId && c.connections > 0).map((c) => c.name);
+  return (
+    <section aria-label={t('admin.banking.transfer')} className="space-y-3 rounded-md border border-status-warning/60 bg-status-warning/10 p-3 text-sm">
+      <p className="font-medium">{t('admin.banking.deprecated')}</p>
+      <p>{t('admin.banking.deprecated_body')}</p>
+      <div className="flex flex-wrap items-end gap-2">
+        <div className="min-w-0 basis-64">
+          <Field label={t('admin.banking.transfer_to')}>
+            {(c) => (
+              <SelectField {...c} value={person} disabled={transfer.isPending} onValueChange={setPerson}
+                options={candidates.map((p) => ({ value: p.personId, label: t('admin.banking.transfer_option', { name: p.name, count: p.connections }) }))} />
+            )}
+          </Field>
+        </div>
+        <ConfirmAction label={t('admin.banking.transfer')} pending={transfer.isPending}
+          confirmation={[t('admin.banking.transfer_confirm', { name: chosen.name }),
+            others.length ? t('admin.banking.transfer_confirm_others', { names: others.join(', ') }) : ''].join(' ').trim()}
+          onConfirm={() => transfer.mutate({ body: { personId: chosen.personId } })} />
+      </div>
+      {problem ? <ProblemMessage problem={problem} /> : null}
+    </section>
   );
 }
 

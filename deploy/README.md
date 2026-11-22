@@ -397,7 +397,7 @@ maximale d'un fichier que l'outil MCP `read_document` envoie ; au-delà, il n'en
 | `oidc_client_secret` | Secret du client de Nid dans Pocket ID | Dans Pocket ID, ajoutez un secret au client (l'ancien reste valable), passez-le à `setup.sh --oidc-client-secret`, redémarrez `nid`, puis supprimez l'ancien secret dans Pocket ID. |
 | `csrf_key` | Jetons anti-CSRF | Supprimez le fichier, relancez `setup.sh`, puis redémarrez `nid`. Les pages ouvertes devront être rechargées. |
 | `pocket_id_encryption_key` | Chiffre les clés de signature de Pocket ID dans sa base | **Ne la changez pas à la main : sa base deviendrait illisible.** Pour la renouveler, utilisez la commande `encryption-key-rotate` de Pocket ID (sa documentation), puis remplacez le fichier. |
-| `enable_banking_private_key` | Clé privée (PEM) de l'application Enable Banking **de l'installation seulement** ; n'existe que si vous l'avez activée (§12), `setup.sh` ne la crée pas. Les clés des adultes (§12) ne sont pas des secrets Docker : elles sont dans la base, chiffrées par Data Protection, donc dans la sauvegarde de la base, et lisibles seulement avec les clés Data Protection, elles aussi dans la sauvegarde | Remplacez la clé de l'application dans le portail d'Enable Banking, copiez la nouvelle clé privée dans le fichier, puis recréez `nid` (§12, étape 3). |
+| `enable_banking_private_key` | Clé privée (PEM) de l'application Enable Banking **de l'installation seulement**, dépréciée (§12) : n'existe que sur une installation qui l'avait activée, `setup.sh` ne la crée pas ; à retirer une fois l'application transférée à un adulte. Les clés des adultes (§12) ne sont pas des secrets Docker : elles sont dans la base, chiffrées par Data Protection, donc dans la sauvegarde de la base, et lisibles seulement avec les clés Data Protection, elles aussi dans la sauvegarde | Transférez plutôt l'application à un adulte (§12), puis retirez le secret ; l'adulte remplace ensuite sa clé dans « Mon application ». |
 | `backup-secrets/restic_password` | Ouvre la sauvegarde ; hors de la sauvegarde | Jamais en supprimant le fichier : `restic key add` puis `restic key remove` (§6). |
 | `backup-secrets/remote_repository`, `remote_password`, `remote_credentials` | Dépôt distant | Changez le fichier, puis `backup-now`. |
 
@@ -525,65 +525,55 @@ bancaires passent par Enable Banking ; la session de chaque banque est chiffrée
 **Une application Enable Banking par adulte.** En mode restreint, une application ne lit que les comptes reliés dans son
 propre portail : avec une seule application pour le foyer, les comptes personnels du second adulte ne remontent jamais, et
 les relier dans le portail du premier adulte romprait la confidentialité entre adultes. Chaque adulte crée donc sa propre
-application restreinte dans son propre portail (ci-dessous) et la déclare dans Nid. L'application de l'installation
-(étapes 1 à 4) est **facultative** : elle sert les adultes qui n'ont pas la leur.
+application restreinte dans son propre portail et la déclare dans Nid. Il n'y a rien à monter sur le serveur.
 
-**Désactivée par défaut**, et sans rien à faire dans le compose : sans application, Nid dit la synchronisation « non configurée ».
+**Désactivée par défaut**, et sans rien à faire dans le compose : un administrateur l'active dans Administration › Banque.
 
-**Chaque adulte** :
+**Chaque adulte** suit l'assistant de Réglages › Banques › « Mon application » (une étape par écran, l'étape atteinte gardée
+dans l'adresse pour y revenir depuis le portail) :
 
-1. Dans son portail d'Enable Banking, crée une application **de production en mode restreint** (même réglage que
-   l'étape 1 ci-dessous : même adresse de retour, mêmes « Privacy URL » et « Terms URL »), génère la paire de clés et
-   **garde la clé privée** (fichier `.pem`), ne relie que **ses** comptes, et note l'identifiant de l'application.
-2. Dans Nid, Réglages › Banques, onglet « Mon application » : saisit l'identifiant et envoie le `.pem` (ou le colle). Nid
-   vérifie que c'est une clé RSA privée en PEM (16 Kio au plus), la chiffre avec Data Protection (but
-   `Nid.Banking.ApplicationKey`) dans `banking.application`, ne la réaffiche plus jamais, ne la renvoie jamais par l'API
-   et l'exclut de l'audit et des journaux. « Tester la connexion » vaut pour l'application de l'adulte.
-3. Relie ses banques (étape 5). Chaque connexion garde l'application avec laquelle elle a été faite : les connexions
-   existantes restent sur celle de l'installation.
+1. Crée un compte sur le [portail d'Enable Banking](https://enablebanking.com/cp/applications) avec **sa propre** adresse
+   e-mail, puis une application **de production en mode restreint** (gratuit, réservé à l'usage personnel : seuls les
+   comptes reliés dans son portail sont lisibles).
+2. Y renseigne les adresses que l'assistant donne à copier : l'adresse de retour (« redirect URL »)
+   `https://nid.<domaine>/api/v1/banking/callback`, exactement, et pour « Privacy URL » et « Terms URL », que le portail
+   exige sans les vérifier en mode restreint, `https://github.com/Mistribe/Nid/blob/main/PRIVACY.md` et
+   `https://github.com/Mistribe/Nid/blob/main/LICENSE`.
+3. Laisse le portail générer la paire de clés, **garde la clé privée** (fichier `.pem`) et ne relie dans le portail que
+   **ses** comptes.
+4. Déclare dans Nid l'identifiant de l'application et le `.pem` (envoyé ou collé). Nid vérifie que c'est une clé RSA
+   privée en PEM (16 Kio au plus), la chiffre avec Data Protection (but `Nid.Banking.ApplicationKey`) dans
+   `banking.application`, ne la réaffiche plus jamais, ne la renvoie jamais par l'API et l'exclut de l'audit et des
+   journaux.
+5. « Tester la connexion » : chaque échec (clé refusée, application pas encore active, adresse de retour absente) renvoie
+   à l'étape qui le corrige.
+6. Relie ses banques (« Relier une banque » ; l'authentification se fait chez la banque, dans le navigateur), puis associe
+   chaque compte à une enveloppe courante, d'épargne ou autre de même devise.
 
 Retirer son application est refusé tant qu'une connexion l'utilise ; remplacer la clé est toujours permis. Une clé que
 Data Protection ne sait plus déchiffrer (clés perdues, `docs/security/bank-sync-review.md` M4) s'affiche « Clé
 illisible » : il faut la renvoyer ; ses connexions échouent en `banking.not_configured` d'ici là (la synchronisation de
 nuit les signale, et les adultes sont prévenus après 2 nuits en échec).
 
-**Application de l'installation (facultative).** Pour l'activer :
+**Application de l'installation (dépréciée, #414).** Une installation antérieure a pu configurer une application pour tout
+le foyer : un identifiant dans Administration › Banque et sa clé privée montée en secret `EnableBanking__PrivateKey`. Elle
+sera retirée dans une version prochaine. Tant qu'elle est configurée, Administration › Banque l'annonce et propose
+« Transférer à un adulte » : choisissez l'adulte dont elle lit la banque (ceux qui ont des banques reliées avec elle
+viennent en premier). En une fois, Nid :
 
-1. Dans le portail d'Enable Banking, créez une application **de production en mode restreint** (gratuit, réservé à l'usage
-   personnel : seuls les comptes reliés dans le portail sont lisibles) :
-   - adresse de retour (« redirect URL ») : `https://nid.<domaine>/api/v1/banking/callback`, exactement ;
-   - « Privacy URL » et « Terms URL » : le portail les exige mais ne les vérifie pas en mode restreint. Donnez
-     `https://github.com/Mistribe/Nid/blob/main/PRIVACY.md` et `https://github.com/Mistribe/Nid/blob/main/LICENSE`,
-     plutôt que l'adresse de votre instance ;
-   - générez la paire de clés de l'application et **gardez la clé privée** (fichier `.pem`) hors du portail ;
-   - reliez les comptes que cette application doit lire, comme le portail le demande ;
-   - notez l'**identifiant de l'application**.
-2. Copiez la clé privée dans `deploy/secrets/enable_banking_private_key` (droits `0644` comme les autres fichiers du
-   dossier, qui reste en `0700` ; elle entre ainsi dans la sauvegarde), puis déclarez-la à `nid` dans
-   `deploy/compose.override.yaml` :
+- en fait l'application de cet adulte (identifiant et clé, la clé chiffrée comme ci-dessus) : ses banques continuent de se
+  synchroniser sans rien refaire ;
+- arrête les banques que les **autres** adultes ont reliées avec elle (« Terminée », session supprimée chez Enable
+  Banking) : leurs comptes, soldes, opérations, liens et règles restent. Chacun est prévenu (« Reliez à nouveau votre
+  banque ») jusqu'à ce qu'il ait déclaré sa propre application et relié sa banque avec elle ; ses comptes sont alors
+  retrouvés par leur IBAN ;
+- efface l'identifiant de l'installation. La clé reste montée mais n'est plus lue : retirez `EnableBanking__PrivateKey`
+  de `deploy/compose.override.yaml` et `deploy/secrets/enable_banking_private_key`, puis recréez `nid`
+  (`docker compose -f deploy/compose.yaml -f deploy/compose.override.yaml up -d --force-recreate nid`).
 
-   ```yaml
-   services:
-     nid:
-       secrets: [{ source: enable_banking_private_key, target: EnableBanking__PrivateKey }]
-   secrets:
-     enable_banking_private_key: { file: ./secrets/enable_banking_private_key }
-   ```
-
-3. Recréez `nid` pour qu'il lise la clé (elle n'est lue qu'au démarrage) :
-   `docker compose -f deploy/compose.yaml -f deploy/compose.override.yaml up -d --force-recreate nid`. Dès lors, passez
-   toujours les deux fichiers (§11), y compris à la restauration : `deploy/restore.sh --compose-file
-   "$PWD/deploy/compose.override.yaml"` (chemin absolu). Une sauvegarde prise avant la clé ne la contient pas : restaurez-la
-   sans ce fichier, puis refaites l'étape 2.
-4. Dans Nid, Administration › Banque : collez l'identifiant de l'application, puis activez la synchronisation. La page
-   rappelle l'adresse de retour à déclarer, dit si Nid a chargé la clé (absente, dossier à sa place, illisible, pas une
-   clé RSA privée en PEM) et « Tester la connexion » la soumet à Enable Banking avec l'identifiant. Si
-   `deploy/secrets/enable_banking_private_key` est un **dossier**, Docker l'a créé faute de fichier à l'étape 2 :
-   supprimez-le, copiez la clé à sa place, puis recréez `nid` (`docker compose logs nid` le signale aussi au démarrage).
-   Changer ici l'identifiant est refusé (`banking.application_in_use`) tant qu'une connexion utilise l'application de
-   l'installation.
-5. Chaque adulte relie **ses** banques dans Réglages › Banques (« Relier une banque » ; l'authentification se fait chez la
-   banque, dans le navigateur), puis associe chaque compte à une enveloppe courante, d'épargne ou autre de même devise.
+En mode restreint, les comptes que les autres adultes avaient reliés dans le portail de l'application de l'installation y
+restent liés : Nid ne peut pas les en retirer, faites-le dans ce portail. Le transfert est refusé
+(`banking.application_in_use`) si l'adulte choisi a déjà une application à lui qu'une connexion utilise.
 
 Nid n'a pas besoin d'être joignable depuis Internet : le retour de la banque passe par le navigateur. Seul `nid` sort,
 vers `api.enablebanking.com`. Le consentement dure ce que la banque permet (souvent 180 jours) : Nid prévient 14 puis 3 jours

@@ -15,7 +15,7 @@ async function bankSync(page: Page, settings: { bankingEnabled: boolean; enableB
  * fake Enable Banking and the dev stack holds no credentials; the server's integration tests cover the connection with
  * `FakeEnableBanking`.
  */
-test('alice turns bank sync on, names the application, finds Réglages › Banques, and loses it once off', async ({ page }) => {
+test('alice turns bank sync on, is sent to her own application, finds Réglages › Banques, and loses it once off', async ({ page }) => {
   await signIn(page, 'alice', '/admin/banking');
   await bankSync(page, { bankingEnabled: false, enableBankingAppId: '' });
   await page.reload();
@@ -24,23 +24,20 @@ test('alice turns bank sync on, names the application, finds Réglages › Banqu
   await expect(toggle).not.toBeChecked();
   await toggle.click();
   await expect(toggle).toBeChecked();
-  // `exact`: the field's InfoTip is named « À propos de … » after it.
-  await page.getByLabel('Identifiant de l’application Enable Banking', { exact: true }).fill('e2e-application');
-  await page.getByRole('button', { name: 'Enregistrer l’identifiant' }).click();
-  await expect(toasts(page)).toContainText('Enregistré');
-  await expect(page.getByLabel('Adresse de retour', { exact: true })).toHaveValue('https://nid.localtest.me/api/v1/banking/callback');
+  // #414: no installation application for a new setup: each adult declares their own.
+  await expect(page.getByLabel('Identifiant de l’application Enable Banking', { exact: true })).toHaveCount(0);
+  await page.getByRole('link', { name: 'Ouvrir Mon application' }).click();
 
-  await page.goto('/settings/banks');
   await expect(page.getByRole('link', { name: 'Banques', exact: true })).toHaveAttribute('aria-current', 'page');
-  // The dev stack has no private key, so bank sync is on but not configured: alice, an administrator, is told the key is the
-  // missing part and where to fix it; a stack with one shows her empty list.
-  const { configured } = (await (await page.request.get('/api/v1/banking/status')).json()) as { configured: boolean };
-  await expect(configured ? page.getByRole('heading', { name: 'Aucune banque reliée' }) : page.getByText(/n'a pas chargé la clé privée/)).toBeVisible();
-  if (!configured) await expect(page.getByRole('link', { name: 'Voir Administration › Banque' })).toHaveAttribute('href', '/admin/banking');
-  // #413: one page, no second tab row; `?tab=application` leads to « Mon application ».
-  await expect(page.getByRole('tab')).toHaveCount(0);
-  await page.goto('/settings/banks?tab=application');
   await expect(page.getByRole('heading', { name: 'Mon application Enable Banking' })).toBeFocused();
+  // Without an application of her own, the wizard; « Relier une banque » gives way to it.
+  await expect(page.getByText('Étape 1 sur 9')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Créer mon application' })).toBeVisible();
+  // #413: one page, no second tab row.
+  await expect(page.getByRole('tab')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Continuer' }).click();
+  await expect(page).toHaveURL(/step=2/);
+  await expect(page.getByRole('link', { name: 'Ouvrir le portail Enable Banking' })).toBeVisible();
 
   await page.goto('/admin/banking');
   await page.getByRole('switch', { name: 'Synchronisation bancaire' }).click();

@@ -9,13 +9,14 @@ import { formatInstantDate } from '@/lib/format';
 const loadedAt = '2026-11-02T10:00:00+00:00';
 const declared = { applicationId: 'app-alice', keyStatus: 'loaded', keyLoadedAt: loadedAt, inUse: false };
 const PEM = '-----BEGIN PRIVATE KEY-----\nQUJD\n-----END PRIVATE KEY-----';
+const REDIRECT = 'https://nid.example/api/v1/banking/callback';
 
 /** Banking on but not configured for the installation: the very case where an adult needs their own application. */
 function serve(initial: object | null, over: { remove?: () => Response; test?: object } = {}) {
   let mine = initial;
   const writes: [string, unknown][] = [];
   server.use(
-    http.get('*/api/v1/banking/status', () => HttpResponse.json({ enabled: true, configured: false })),
+    http.get('*/api/v1/banking/status', () => HttpResponse.json({ enabled: true, configured: false, redirectUrl: REDIRECT })),
     http.get('*/api/v1/banking/accounts', () => HttpResponse.json([])),
     http.get('*/api/v1/banking/category-rules', () => HttpResponse.json([])),
     http.get('*/api/v1/banking/application', () => (mine ? HttpResponse.json(mine) : new HttpResponse(null, { status: 204 }))),
@@ -34,51 +35,88 @@ function serve(initial: object | null, over: { remove?: () => Response; test?: o
   return writes;
 }
 
-const open = () => renderApp('/settings/banks?tab=application');
+const open = (step?: number) => renderApp(`/settings/banks?tab=application${step ? `&step=${step}` : ''}`);
+const region = () => screen.findByRole('region', { name: 'Mon application Enable Banking' });
 
 describe('Réglages › Banques › Mon application', () => {
   beforeAll(async () => { await import('./BanksPage'); await import('./ApplicationTab'); }, 30_000);
 
-  it('offers to declare an application when there is none, even with banking not configured', async () => {
+  it('opens the wizard at its first step when there is no application, even with banking not configured', async () => {
     serve(null);
     const { container } = await open();
 
-    expect(await screen.findByRole('button', { name: 'Déclarer mon application' })).toBeInTheDocument();
-    expect(screen.getByText(/Sans application à vous, Nid utilise celle de l’installation/)).toBeInTheDocument();
+    expect(await screen.findByText(/Nid lit vos soldes et vos opérations, en lecture seule/)).toBeInTheDocument();
+    expect(screen.getByText('Étape 1 sur 9')).toBeInTheDocument();
     await expectNoAxeViolations(container);
   });
 
-  it('declares the application with its identifier and key, then shows the key as loaded', async () => {
-    const writes = serve(null);
-    const { user } = await open();
+  it('keeps the step reached in the address, so the adult comes back to it from the portal', async () => {
+    serve(null);
+    const { user, router } = await open();
 
-    await user.click(await screen.findByRole('button', { name: 'Déclarer mon application' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Déclarer mon application' });
-    await user.type(within(dialog).getByRole('textbox', { name: /Identifiant/ }), 'app-alice');
-    await user.click(within(dialog).getByRole('textbox', { name: /Clé privée/ }));
+    await user.click(await screen.findByRole('button', { name: 'Continuer' }));
+
+    expect(await screen.findByRole('link', { name: 'Ouvrir le portail Enable Banking' })).toHaveAttribute('href', 'https://enablebanking.com/cp/applications');
+    await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'application', step: 2 }));
+  });
+
+  it('gives the redirect, privacy and terms addresses to copy', async () => {
+    serve(null);
+    await open(4);
+
+    expect(await screen.findByRole('textbox', { name: /Adresse de retour/ })).toHaveValue(REDIRECT);
+    expect(screen.getByRole('textbox', { name: /Politique de confidentialité/ })).toHaveValue('https://github.com/Mistribe/Nid/blob/main/PRIVACY.md');
+    expect(screen.getByRole('textbox', { name: /Conditions d’utilisation/ })).toHaveValue('https://github.com/Mistribe/Nid/blob/main/LICENSE');
+    expect(screen.getAllByRole('button', { name: /^Copier/ })).toHaveLength(3);
+  });
+
+  it('declares the application at its step, then goes on to the test', async () => {
+    const writes = serve(null);
+    const { user } = await open(7);
+
+    await user.type(await screen.findByRole('textbox', { name: /Identifiant/ }), 'app-alice');
+    await user.click(screen.getByRole('textbox', { name: /Clé privée/ }));
     await user.paste(PEM);
-    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
+    await user.click(screen.getByRole('button', { name: 'Continuer' }));
 
     await waitFor(() => expect(writes).toEqual([['PUT', { applicationId: 'app-alice', privateKey: PEM }]]));
-    expect(await screen.findByText('app-alice')).toBeInTheDocument();
-    expect(screen.getByText(`Clé chargée le ${formatInstantDate(loadedAt)}`)).toBeInTheDocument();
+    expect(await screen.findByText('Étape 8 sur 9')).toBeInTheDocument();
     expect(screen.queryByText(PEM)).toBeNull();
   });
 
-  it('says a refused key under its field', async () => {
+  it('says a refused key under its field and stays on the step', async () => {
     serve(null);
     server.use(http.put('*/api/v1/banking/application', () => HttpResponse.json(
       { status: 422, code: 'banking.key_invalid', detail: 'Bad.', errors: [{ path: 'privateKey', code: 'banking.key_invalid', message: 'Bad.' }] }, { status: 422 })));
-    const { user } = await open();
+    const { user } = await open(7);
 
-    await user.click(await screen.findByRole('button', { name: 'Déclarer mon application' }));
-    const dialog = await screen.findByRole('dialog');
-    await user.type(within(dialog).getByRole('textbox', { name: /Identifiant/ }), 'app-alice');
-    await user.click(within(dialog).getByRole('textbox', { name: /Clé privée/ }));
+    await user.type(await screen.findByRole('textbox', { name: /Identifiant/ }), 'app-alice');
+    await user.click(screen.getByRole('textbox', { name: /Clé privée/ }));
     await user.paste('nope');
-    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
+    await user.click(screen.getByRole('button', { name: 'Continuer' }));
 
-    expect(await within(dialog).findByText(/clé n’est pas une clé privée valide/)).toBeInTheDocument();
+    expect(await screen.findByText(/clé n’est pas une clé privée valide/)).toBeInTheDocument();
+    expect(screen.getByText('Étape 7 sur 9')).toBeInTheDocument();
+  });
+
+  it('sends back to the step that fixes what the test found', async () => {
+    serve(declared, { test: { outcome: 'accepted', active: true, redirectUrlAllowed: false } });
+    const { user } = await open(8);
+
+    await user.click(await screen.findByRole('button', { name: 'Tester la connexion' }));
+    await user.click(await screen.findByRole('button', { name: 'Revenir à l’étape 4 : Renseigner les adresses' }));
+
+    expect(await screen.findByRole('textbox', { name: /Adresse de retour/ })).toHaveValue(REDIRECT);
+  });
+
+  it('ends on the summary once the bank step is done', async () => {
+    serve(declared);
+    const { user } = await open(9);
+
+    expect(await screen.findByRole('button', { name: 'Relier une banque' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Terminer' }));
+
+    expect(await screen.findByText(`Clé chargée le ${formatInstantDate(loadedAt)}`)).toBeInTheDocument();
   });
 
   it('warns about an unreadable key', async () => {
@@ -113,7 +151,7 @@ describe('Réglages › Banques › Mon application', () => {
     await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
 
     await waitFor(() => expect(writes).toEqual([['DELETE', null]]));
-    expect(await screen.findByRole('button', { name: 'Déclarer mon application' })).toBeInTheDocument();
+    expect(await screen.findByText('Étape 1 sur 9')).toBeInTheDocument();
   });
 
   it('tells to remove the linked banks first when the application is in use', async () => {
@@ -140,10 +178,9 @@ describe('Réglages › Banques › Mon application', () => {
 
   it('refuses a key file over 16 KiB before sending it', async () => {
     const writes = serve(null);
-    const { user } = await open();
+    const { user } = await open(7);
 
-    await user.click(await screen.findByRole('button', { name: 'Déclarer mon application' }));
-    const dialog = await screen.findByRole('dialog');
+    const dialog = await region();
     await user.upload(within(dialog).getByLabelText('Choisir le fichier de la clé'), new File(['x'.repeat(16 * 1024 + 1)], 'big.pem'));
 
     expect(await within(dialog).findByText('Le fichier dépasse 16 Kio : ce n’est pas une clé privée.')).toBeInTheDocument();
@@ -153,10 +190,9 @@ describe('Réglages › Banques › Mon application', () => {
 
   it('reads a key file into the field', async () => {
     serve(null);
-    const { user } = await open();
+    const { user } = await open(7);
 
-    await user.click(await screen.findByRole('button', { name: 'Déclarer mon application' }));
-    const dialog = await screen.findByRole('dialog');
+    const dialog = await region();
     await user.upload(within(dialog).getByLabelText('Choisir le fichier de la clé'), new File([PEM], 'key.pem'));
 
     await waitFor(() => expect(within(dialog).getByRole('textbox', { name: /Clé privée/ })).toHaveValue(PEM));
@@ -165,16 +201,15 @@ describe('Réglages › Banques › Mon application', () => {
   it('words a 413 and a 415 from the server', async () => {
     serve(null);
     server.use(http.put('*/api/v1/banking/application', () => HttpResponse.json({ status: 413 }, { status: 413 })));
-    const { user } = await open();
+    const { user } = await open(7);
 
-    await user.click(await screen.findByRole('button', { name: 'Déclarer mon application' }));
-    const dialog = await screen.findByRole('dialog');
+    const dialog = await region();
     await user.type(within(dialog).getByRole('textbox', { name: /Identifiant/ }), 'app-alice');
-    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Continuer' }));
     expect(await within(dialog).findByText('Le fichier dépasse 16 Kio : ce n’est pas une clé privée.')).toBeInTheDocument();
 
     server.use(http.put('*/api/v1/banking/application', () => HttpResponse.json({ status: 415 }, { status: 415 })));
-    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Continuer' }));
     expect(await within(dialog).findByText('Envoi invalide, réessayez.')).toBeInTheDocument();
   });
 });

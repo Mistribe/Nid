@@ -18,6 +18,10 @@ export const ACCOUNT = '/api/v1/banking/accounts/{id}' as const;
 export const ACCOUNT_ENVELOPE = '/api/v1/banking/accounts/{id}/envelope' as const;
 export const SYNC = '/api/v1/banking/sync' as const;
 export const APPLICATION = '/api/v1/banking/application' as const;
+/** The Enable Banking portal, and what it asks besides the redirect URL: it does not check them for a restricted application. */
+export const PORTAL_URL = 'https://enablebanking.com/cp/applications';
+export const PRIVACY_URL = 'https://github.com/Mistribe/Nid/blob/main/PRIVACY.md';
+export const TERMS_URL = 'https://github.com/Mistribe/Nid/blob/main/LICENSE';
 export const RULES = '/api/v1/banking/rules' as const;
 export const RULE = '/api/v1/banking/rules/{id}' as const;
 

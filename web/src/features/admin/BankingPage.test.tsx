@@ -82,26 +82,54 @@ describe('Administration › Banque', () => {
     expect(await navigator.clipboard.readText()).toBe(redirectUrl);
   });
 
-  it('guides a first setup: what is done, what is left, and what Nid cannot check', async () => {
-    serve({ bankingEnabled: false, enableBankingAppId: null }, [], 0, [],
-      { keyStatus: 'directory', appIdSaved: false, redirectUrl, lastRun: null, nextRunAt, bankLinked: false });
+  it('sends a new household to « Mon application »: no installation id, checklist or test any more (#414)', async () => {
+    serve({ bankingEnabled: true, enableBankingAppId: null }, [], 0, [],
+      { keyStatus: 'missing', appIdSaved: false, redirectUrl, lastRun: null, nextRunAt, bankLinked: false, ownApplications: [] });
     const { container } = await renderApp('/admin/banking', { capabilities: adminCapabilities });
 
-    expect(await screen.findByRole('region', { name: 'Mise en route' })).toBeInTheDocument();
-    expect(figures()).toHaveTextContent('ÉtatDésactivée');
-    expect(figures()).toHaveTextContent('Rien n\'est lu tant que la synchronisation est désactivée.');
-    expect(step('Créer l’application')).toHaveTextContent('(Nid ne peut pas le vérifier)');
-    expect(step('Créer l’application')).toHaveTextContent('https://github.com/Mistribe/Nid/blob/main/PRIVACY.md');
-    expect(within(step('Créer l’application')).getByRole('link', { name: 'Ouvrir le portail Enable Banking' }))
-      .toHaveAttribute('href', 'https://enablebanking.com/cp/applications');
-    expect(step('Déposer la clé privée')).toHaveTextContent('Un dossier se trouve à la place de la clé privée');
-    expect(step('Déposer la clé privée')).toHaveTextContent('(À faire)');
-    expect(step('Enregistrer l’identifiant')).toHaveTextContent('(À faire)');
-    expect(step('Activer la synchronisation')).toHaveTextContent('(À faire)');
-    expect(within(step('Relier au moins une banque')).getByRole('link', { name: 'Ouvrir Réglages › Banques' })).toHaveAttribute('href', '/settings/banks');
-    expect(within(step('Relier au moins une banque')).getByRole('button', { name: 'À propos : Consentement' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Tester la connexion' })).toBeDisabled();
+    const region = await screen.findByRole('region', { name: 'Mise en route' });
+    expect(figures()).toHaveTextContent('ÉtatÀ configurer');
+    expect(region).toHaveTextContent('Chaque adulte crée sa propre application Enable Banking');
+    expect(within(region).getByRole('link', { name: 'Ouvrir Mon application' })).toHaveAttribute('href', '/settings/banks?tab=application');
+    expect(within(region).queryByRole('listitem')).toBeNull();
+    expect(screen.queryByLabelText('Identifiant de l’application')).toBeNull();
+    expect(screen.queryByLabelText('Adresse de retour')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Tester la connexion' })).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Transférer à un adulte' })).toBeNull();
     await expectNoAxeViolations(container);
+  });
+
+  it('warns that the installation application is deprecated and transfers it to the chosen adult after a confirmation', async () => {
+    const alice = '01926b9e-0000-7000-8000-00000000000a';
+    const bob = '01926b9e-0000-7000-8000-00000000000b';
+    serve(on, [], 0, [], { ...ready, transferCandidates: [
+      { personId: alice, name: 'Alice', connections: 2 }, { personId: bob, name: 'Bob', connections: 1 }] });
+    const sent: unknown[] = [];
+    server.use(http.post('*/api/v1/admin/banking/transfer', async ({ request }) => { sent.push(await request.json()); return new HttpResponse(null, { status: 204 }); }));
+    const { container, user } = await renderApp('/admin/banking', { capabilities: adminCapabilities });
+
+    const banner = await screen.findByRole('region', { name: 'Transférer à un adulte' });
+    expect(banner).toHaveTextContent('L’application d’installation est dépréciée');
+    expect(banner).toHaveTextContent('Nid ne peut pas retirer leurs comptes du portail Enable Banking');
+    await pick(user, 'Adulte', 'Bob — 1 banque reliée avec elle');
+    await user.click(within(banner).getByRole('button', { name: 'Transférer à un adulte' }));
+    const dialog = await screen.findByRole('alertdialog');
+    expect(dialog).toHaveTextContent('L’application de l’installation devient celle de Bob');
+    expect(dialog).toHaveTextContent('Les banques reliées avec elle par Alice s’arrêtent');
+    await user.click(within(dialog).getByRole('button', { name: 'Confirmer' }));
+
+    await waitFor(() => expect(sent).toEqual([{ personId: bob }]));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Application transférée.'));
+    await expectNoAxeViolations(container);
+  });
+
+  it('says the key secret is no longer used once the application is transferred', async () => {
+    serve({ bankingEnabled: true, enableBankingAppId: null }, [run], 1, [],
+      { ...ready, appIdSaved: false, ownApplications: [{ personId: '01926b9e-0000-7000-8000-00000000000a', name: 'Alice' }] });
+    await renderApp('/admin/banking', { capabilities: adminCapabilities });
+
+    expect(await screen.findByText(/retirez le secret EnableBanking__PrivateKey/)).toBeInTheDocument();
+    expect(figures()).toHaveTextContent('ÉtatPrête');
   });
 
   it('is « À configurer » while no bank is linked, the other steps ticked', async () => {

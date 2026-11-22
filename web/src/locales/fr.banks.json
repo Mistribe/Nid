@@ -3,15 +3,83 @@
     "title": "Banques",
     "loading": "Chargement des banques",
     "disabled": "La synchronisation bancaire n'est pas activée pour ce foyer : un administrateur peut l'activer dans Administration › Banque.",
-    "not_configured": "La synchronisation bancaire est activée mais pas encore configurée : l'administrateur doit renseigner l'application Enable Banking.",
-    "not_configured_app_id": "La synchronisation bancaire est activée, mais l'identifiant de l'application Enable Banking n'est pas enregistré.",
     "not_configured_key": "La synchronisation bancaire est activée, mais Nid n'a pas chargé la clé privée de l'application Enable Banking.",
-    "not_configured_both": "La synchronisation bancaire est activée, mais il manque l'identifiant de l'application Enable Banking et sa clé privée.",
     "open_admin_banking": "Voir Administration › Banque",
     "connect": "Relier une banque",
     "empty_title": "Aucune banque reliée",
     "empty_body": "Reliez une banque : les soldes de vos comptes arrivent alors d'eux-mêmes dans vos enveloppes.",
-    "status": { "active": "Active", "expired": "Expirée", "revoked": "Révoquée", "error": "En erreur" },
+    "status": { "active": "Active", "expired": "Expirée", "revoked": "Révoquée", "error": "En erreur", "ended": "Terminée" },
+    "ended_hint": "Reliée avec l’ancienne application du foyer : reliez à nouveau cette banque avec votre propre application.",
+    "no_application": "Pour relier une banque, créez d’abord votre propre application Enable Banking.",
+    "no_application_open": "Créer mon application",
+    "wizard": {
+      "finish": "Terminer",
+      "finished": "Votre application est prête.",
+      "open_portal": "Ouvrir le portail Enable Banking",
+      "copy": "Copier",
+      "copy_label": "Copier : {{label}}",
+      "copied": "Copié.",
+      "enable_banking": "Enable Banking",
+      "enable_banking_tip": "Un prestataire agréé (Finlande) qui donne accès aux comptes bancaires européens, avec votre accord, à la place de votre banque elle-même.",
+      "psd2": "DSP2",
+      "psd2_tip": "La directive européenne sur les services de paiement : elle oblige les banques à ouvrir l’accès aux comptes, en lecture, aux prestataires agréés que vous autorisez.",
+      "restricted": "Mode restreint",
+      "restricted_tip": "Gratuit, pour un usage personnel : Enable Banking ne lit que les comptes que vous reliez vous-même dans son portail. L’application devient active dès le premier compte relié.",
+      "production": "Production",
+      "production_tip": "L’environnement qui parle aux vraies banques ; « Sandbox » ne sert qu’aux essais avec des banques fictives.",
+      "consent": "Consentement",
+      "consent_tip": "L’accord que vous donnez sur le site de votre banque pour que Nid lise vos comptes. Il dure quelques mois ; Nid vous prévient avant qu’il expire.",
+      "need": {
+        "title": "Ce dont vous avez besoin",
+        "what": "Nid lit vos comptes par Enable Banking, un prestataire agréé.",
+        "reads": "Nid lit vos soldes et vos opérations, en lecture seule : aucun paiement, aucun virement n’est possible.",
+        "free": "C’est gratuit pour un usage personnel, en mode restreint.",
+        "time": "Comptez environ 15 minutes. Gardez à portée de main vos identifiants de banque en ligne : votre banque vous les demandera."
+      },
+      "account": {
+        "title": "Créer un compte Enable Banking",
+        "body": "Ouvrez le portail Enable Banking et créez-y un compte avec votre propre adresse e-mail, pas celle de l’autre adulte : chacun a son propre portail. Revenez ensuite ici, cette page garde l’étape où vous en êtes."
+      },
+      "application": {
+        "title": "Créer l’application",
+        "environment": "Dans le portail, créez une application dans l’environnement « Production ».",
+        "restricted": "Choisissez le mode restreint : seuls les comptes que vous reliez dans votre portail seront lisibles.",
+        "name": "Donnez-lui le nom de votre choix, par exemple « Nid »."
+      },
+      "urls": {
+        "title": "Renseigner les adresses",
+        "body": "Le portail demande trois adresses. Copiez-les telles quelles :",
+        "redirect": "Adresse de retour (redirect URL)",
+        "redirect_tip": "L’adresse où votre banque vous renvoie vers Nid après votre accord. Elle doit être exactement celle-ci, sinon la banque refuse de vous renvoyer.",
+        "privacy": "Politique de confidentialité (privacy URL)",
+        "terms": "Conditions d’utilisation (terms URL)",
+        "why": "Le portail exige ces deux dernières adresses pour toute application, mais ne les vérifie pas en mode restreint : celles de Nid conviennent."
+      },
+      "key": {
+        "title": "Générer la clé",
+        "body": "Laissez le portail générer la paire de clés, puis téléchargez la clé privée (un fichier .pem).",
+        "tip": "Un fichier qui prouve à Enable Banking que les demandes viennent bien de votre application. Ne la partagez avec personne.",
+        "keep": "Gardez ce fichier : vous le donnerez à Nid à l’étape 7. Nid le conserve chiffré et ne l’affiche plus jamais."
+      },
+      "portal": {
+        "title": "Relier vos comptes dans le portail",
+        "body": "En mode restreint, reliez dans le portail les comptes bancaires que Nid lira.",
+        "own": "Reliez seulement les vôtres, jamais ceux de l’autre adulte : il les reliera avec sa propre application."
+      },
+      "declare": {
+        "title": "Déclarer l’application dans Nid"
+      },
+      "test": {
+        "title": "Tester la connexion",
+        "body": "Nid demande à Enable Banking s’il reconnaît votre application, et si elle est prête.",
+        "ready": "Tout est prêt : il ne reste qu’à relier votre banque.",
+        "fix": "Revenir à l’étape {{n}} : {{step}}"
+      },
+      "bank": {
+        "title": "Relier votre banque dans Nid",
+        "body": "Choisissez votre banque : elle vous demande votre accord sur son site, puis vous renvoie ici. Nid vous demande alors à quelle enveloppe rattacher chaque compte."
+      }
+    },
     "expires": "Expire le {{date}}",
     "last_sync": "Dernière synchronisation : {{date}}",
     "never_synced": "Jamais synchronisée",
@@ -273,7 +341,7 @@
     },
     "application": {
       "title": "Mon application Enable Banking",
-      "intro": "Sans application à vous, Nid utilise celle de l’installation. Si vous avez créé la vôtre sur le portail Enable Banking, déclarez-la ici : vos banques seront reliées avec elle.",
+      "intro": "Nid relie vos banques avec votre propre application Enable Banking : chaque adulte a la sienne. Sans application, le guide ci-dessous vous accompagne pas à pas.",
       "loading": "Chargement de votre application",
       "declare": "Déclarer mon application",
       "id": "Identifiant de l’application",
@@ -290,7 +358,7 @@
       "actions": "Actions sur mon application",
       "replace": "Remplacer la clé",
       "remove": "Retirer",
-      "remove_confirm": "Nid n’utilisera plus votre application, mais celle de l’installation. Les banques reliées avec la vôtre doivent d’abord être supprimées.",
+      "remove_confirm": "Nid ne pourra plus relier vos banques tant que vous n’aurez pas déclaré une autre application. Les banques reliées avec celle-ci doivent d’abord être supprimées.",
       "declared": "Application déclarée.",
       "replaced": "Application mise à jour.",
       "removed": "Application retirée.",
