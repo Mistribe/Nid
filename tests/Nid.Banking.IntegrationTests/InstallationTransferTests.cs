@@ -47,7 +47,7 @@ public class InstallationTransferTests(PostgresFixture fixture) : IClassFixture<
     }
 
     private static async Task<JsonElement> DiagnosticsAsync(NidApp app)
-        => JsonDocument.Parse(await app.GetRawAsync(app.AdultA, "/api/v1/admin/banking/diagnostics")).RootElement;
+        => JsonElement.Parse(await app.GetRawAsync(app.AdultA, "/api/v1/admin/banking/diagnostics"));
 
     [Fact]
     public async Task The_chosen_adult_reads_on_and_the_other_adult_connection_ends()
@@ -70,7 +70,7 @@ public class InstallationTransferTests(PostgresFixture fixture) : IClassFixture<
 
         Assert.Equal(HttpStatusCode.NoContent, (await TransferAsync(app, app.AdultA)).StatusCode);
 
-        var mine = JsonDocument.Parse(await app.GetRawAsync(app.AdultA, $"{BankingApi.Root}/application")).RootElement;
+        var mine = JsonElement.Parse(await app.GetRawAsync(app.AdultA, $"{BankingApi.Root}/application"));
         Assert.Equal(("app-1", "loaded", true), (mine.GetProperty("applicationId").GetString(), mine.GetProperty("keyStatus").GetString(), mine.GetProperty("inUse").GetBoolean()));
         var diagnostics = await DiagnosticsAsync(app);
         Assert.False(diagnostics.GetProperty("appIdSaved").GetBoolean());
