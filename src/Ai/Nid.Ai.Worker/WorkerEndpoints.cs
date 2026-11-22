@@ -87,7 +87,6 @@ public static class WorkerEndpoints
             return Results.StatusCode(StatusCodes.Status403Forbidden);
 
         var now = store.Time.GetUtcNow();
-        var accepted = false;
         var state = store.Update(s =>
         {
             if (s.IsPaired || s.PairingCode is null || s.PairingCodeUntil <= now || s.PairingAttemptsLeft <= 0)
@@ -96,11 +95,11 @@ public static class WorkerEndpoints
                     System.Text.Encoding.ASCII.GetBytes(request.Code)))
                 return s with { PairingAttemptsLeft = s.PairingAttemptsLeft - 1 };
 
-            accepted = true;
             return s with { NidKey = request.NidPublicKey, PairingCode = null, PairingCodeUntil = null, PairingAttemptsLeft = 0 };
         });
 
-        if (!accepted)
+        // Paired by this request: its key is the one pinned now (OpenPairing refused a worker paired before).
+        if (state.NidKey != request.NidPublicKey)
             return Results.StatusCode(StatusCodes.Status403Forbidden);
 
         using var certificate = SelfSignedCertificate.Load(state.TlsCertificate);
