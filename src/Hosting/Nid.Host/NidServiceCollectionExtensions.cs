@@ -280,6 +280,27 @@ public static class NidServiceCollectionExtensions
             npgsql.MigrationsHistoryTable("__ef_migrations_history", Nid.Ai.Infrastructure.Persistence.AiDbContext.Schema);
         }).AddInterceptors(sp.GetRequiredService<AuditInterceptor>()));
         services.AddScoped<ITransactionParticipant, DbContextParticipant<Nid.Ai.Infrastructure.Persistence.AiDbContext>>();
+        services.AddScoped<Nid.Ai.Application.INidKeys, Nid.Ai.Infrastructure.Persistence.NidKeyStore>();
+        services.AddScoped<Nid.Ai.Application.IWorkerStore, Nid.Ai.Infrastructure.Persistence.WorkerStore>();
+        services.TryAddSingleton(TimeProvider.System);
+        services.AddSingleton<Nid.Ai.Infrastructure.Workers.WorkerDirectory>();
+        services.AddSingleton<UnambitiousFx.Myelin.IRegisteredEndpoints>(sp => sp.GetRequiredService<Nid.Ai.Infrastructure.Workers.WorkerDirectory>());
+        services.AddSingleton<Nid.Ai.Application.IWorkerDirectory>(sp => sp.GetRequiredService<Nid.Ai.Infrastructure.Workers.WorkerDirectory>());
+        // Workers are reached on the household's network: Myelin lets exactly the registered host and port pairs resolve
+        // to private addresses, any public host stays allowed (a declared proxy), and the TLS check is the directory's.
+        services.AddHttpClient<Nid.Ai.Application.IWorkerClient, Nid.Ai.Infrastructure.Workers.WorkerClient>(http => http.Timeout = TimeSpan.FromSeconds(30))
+            .UseMyelin(o =>
+            {
+                NidOutbound.Apply(o);
+                o.AllowedHosts = [];
+                o.AllowRegisteredEndpoints(sp => sp.GetRequiredService<Nid.Ai.Infrastructure.Workers.WorkerDirectory>());
+            })
+            .ConfigurePrimaryHttpMessageHandler((handler, sp) =>
+            {
+                var directory = sp.GetRequiredService<Nid.Ai.Infrastructure.Workers.WorkerDirectory>();
+                ((SocketsHttpHandler)handler).SslOptions.RemoteCertificateValidationCallback = (sender, certificate, _, errors)
+                    => directory.ValidateCertificate(((System.Net.Security.SslStream)sender).TargetHostName, certificate, errors);
+            });
 
         services.AddDbContext<BankingDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
         {

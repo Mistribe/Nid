@@ -3,6 +3,7 @@
     <PackageReference Include="UnambitiousFx.Synapse" />
     <ProjectReference Include="..\Nid.Ai.Contracts\Nid.Ai.Contracts.csproj" />
     <ProjectReference Include="..\Nid.Ai.Domain\Nid.Ai.Domain.csproj" />
+    <ProjectReference Include="..\Nid.Ai.Protocol\Nid.Ai.Protocol.csproj" />
     <ProjectReference Include="..\..\Platform\Nid.Platform.Contracts\Nid.Platform.Contracts.csproj" />
     <ProjectReference Include="..\..\Core\Nid.Core.Contracts\Nid.Core.Contracts.csproj" />
     <PackageReference Include="UnambitiousFx.Synapse.Generator">
