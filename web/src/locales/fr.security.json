@@ -32,6 +32,13 @@
     "totp_reset": "Validation en deux étapes désactivée par un administrateur",
     "recovery_code_used": "Connexion avec un code de secours",
     "recovery_codes_regenerated": "Nouveaux codes de secours",
+    "model_worker_registered": "Worker ajouté",
+    "model_worker_paired": "Worker appairé",
+    "model_worker_changed": "Worker modifié",
+    "model_worker_revoked": "Worker révoqué",
+    "model_worker_key_rotated": "Clé d’un worker renouvelée",
+    "nid_worker_key_rotated": "Clé de Nid renouvelée",
+    "ai_remote_workers_changed": "Workers distants autorisés ou refusés",
     "unknown": "Événement {{name}}"
   },
   "mcp_help": {
