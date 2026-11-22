@@ -678,6 +678,17 @@ suivant. Pas de budget par fournisseur. Les modèles des workers n'ont pas de bu
 5. Les coûts restent des **estimations**, pas la facture. Un profil dont les prix ont plus de 90 jours est signalé. Les
    plafonds de dépense chez le fournisseur restent conseillés (`../ingestion/llm-providers.md` §10).
 
+**Livré (#488)** : `ai_settings.monthly_budget_eur` (0 € par défaut : aucun appel payant), réglé par tout adulte au
+centime, les deux adultes prévenus (`ai.budget_changed`). Les compteurs vivent par mois civil UTC dans `budget_month`
+(`spent`, `reserved`) et les réservations ouvertes dans `budget_reservation` (expiration 15 min). Un profil payant réserve
+la borne haute du tour (chaque octet UTF-8 de l'entrée compté comme un jeton au prix d'entrée, plus `max_tokens` au prix
+de sortie, convertis en euros par les taux de Nid ; sans taux, l'appel payant est bloqué) en une instruction qui vérifie le
+plafond ; au-delà, un profil gratuit peut encore servir, sinon l'appel échoue `ai.budget_blocked` (`llm_call` :
+`blocked_budget`). Le règlement se fait sur les jetons rapportés ; un échec avant toute réponse se règle à zéro, un flux
+coupé au montant réservé, et un balayage chaque minute règle les réservations expirées. Alerte aux deux adultes à 80 %
+(`ai.budget_alert`), puis au plafond (`ai.budget_reached`), une fois chacune par mois. `llm_call` porte `reserved_eur` et
+`cost_estimate_eur`. Les workers ne sont jamais budgétés.
+
 ### 10.3 Ce que montre chaque usage bloqué
 
 | Usage | Effet du blocage |

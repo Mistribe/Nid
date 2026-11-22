@@ -28,6 +28,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { formatInstant } from '@/lib/format';
 import { SettingsFrame } from '../SettingsFrame';
 import '@/locales/ai';
+import { BudgetSection } from './BudgetSection';
 import { CloudSection } from './CloudSection';
 import { ModelsSection } from './ModelsSection';
 import { RegisterWorkerDialog } from './RegisterWorkerDialog';
@@ -60,6 +61,7 @@ export function AiSettingsPage() {
       <WorkersSection admin={admin} headingRef={workersHeading} onPair={(worker) => setAdding({ pending: worker })} onAdd={() => setAdding({})} />
       <ModelsSection admin={admin} />
       <CloudSection admin={admin} />
+      <BudgetSection />
       {admin ? <NidKeySection /> : null}
       {adding ? <RegisterWorkerDialog pending={adding.pending} onClose={() => setAdding(null)} onDone={announce} /> : null}
     </SettingsFrame>

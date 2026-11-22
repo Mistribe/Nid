@@ -24,6 +24,8 @@ namespace Nid.Host.Api.Json;
 [JsonSerializable(typeof(AiEndpoints.EnableProfileBody))]
 [JsonSerializable(typeof(AiEndpoints.ProviderKeyBody))]
 [JsonSerializable(typeof(CloudSettingsView))]
+[JsonSerializable(typeof(AiEndpoints.AiBudgetBody))]
+[JsonSerializable(typeof(AiBudgetView))]
 [JsonSerializable(typeof(Nid.Ai.Application.ModelJobView))]
 [JsonSerializable(typeof(AiEndpoints.RegisterWorkerBody))]
 [JsonSerializable(typeof(AiEndpoints.PairWorkerBody))]

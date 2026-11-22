@@ -191,6 +191,8 @@ public static class RequestCatalogue
         new(typeof(Nid.Ai.Application.SetUseModelCommand), false, (_, _) => new Nid.Ai.Application.SetUseModelCommand("chat", null)),
         new(typeof(Nid.Ai.Application.ListDeclaredModelsQuery), false, (_, _) => new Nid.Ai.Application.ListDeclaredModelsQuery()),
         new(typeof(Nid.Ai.Application.GetCloudSettingsQuery), false, (_, _) => new Nid.Ai.Application.GetCloudSettingsQuery()),
+        new(typeof(Nid.Ai.Application.GetBudgetQuery), false, (_, _) => new Nid.Ai.Application.GetBudgetQuery()),
+        new(typeof(Nid.Ai.Application.SetMonthlyBudgetCommand), false, (_, _) => new Nid.Ai.Application.SetMonthlyBudgetCommand(0m)),
         new(typeof(Nid.Ai.Application.SetCloudRegionCommand), false, (_, _) => new Nid.Ai.Application.SetCloudRegionCommand("eea_ch_uk")),
         new(typeof(Nid.Ai.Application.EnableCloudProfileCommand), false, (_, _) => new Nid.Ai.Application.EnableCloudProfileCommand("anthropic-claude", new NodaTime.LocalDate(2026, 11, 22))),
         new(typeof(Nid.Ai.Application.DisableCloudProfileCommand), false, (_, _) => new Nid.Ai.Application.DisableCloudProfileCommand("anthropic-claude")),

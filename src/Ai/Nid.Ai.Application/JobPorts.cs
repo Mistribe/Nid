@@ -193,4 +193,8 @@ public static class JobCodes
     public const string NoCloudProfile = "ai.no_cloud_profile";
     public const string CloudFailed = "ai.cloud_failed";
     public const string CloudRefused = "ai.cloud_refused";
+
+    /// <summary>#488: a paid call over the month's ceiling (or with no rate to price it), and a ceiling out of range.</summary>
+    public const string BudgetBlocked = "ai.budget_blocked";
+    public const string InvalidBudget = "ai.invalid_budget";
 }

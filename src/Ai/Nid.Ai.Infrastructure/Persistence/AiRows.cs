@@ -146,6 +146,9 @@ public sealed class AiSettingsRow
     /// <summary>#487: <c>eea_ch_uk</c> or <c>other</c>, confirmed by an admin; none until then.</summary>
     public string? Region { get; set; }
 
+    /// <summary>#488: the household's monthly ceiling for paid providers, in euros; 0 by default (no paid call).</summary>
+    public decimal MonthlyBudgetEur { get; set; }
+
     public uint Version { get; set; }
 }
 
@@ -201,6 +204,33 @@ public sealed class LlmCallRow
     public string? Provider { get; set; }
 
     public string? Tier { get; set; }
+
+    /// <summary>#488: what the call held back on the budget, and its estimated cost, in euros.</summary>
+    public decimal? ReservedEur { get; set; }
+
+    public decimal? CostEstimateEur { get; set; }
+}
+
+/// <summary>One month of the budget (#488): spent, and held back by the calls under way, in euros.</summary>
+public sealed class BudgetMonthRow
+{
+    public LocalDate Month { get; set; }
+
+    public decimal Spent { get; set; }
+
+    public decimal Reserved { get; set; }
+}
+
+/// <summary>A paid call's hold on its month, until it is settled (or the sweep settles it at its amount).</summary>
+public sealed class BudgetReservationRow
+{
+    public Guid Id { get; set; }
+
+    public LocalDate Month { get; set; }
+
+    public decimal Amount { get; set; }
+
+    public Instant ExpiresAt { get; set; }
 }
 
 /// <summary>A provider's API key (<c>docs/ingestion/llm-providers.md</c> §10): encrypted by Data Protection, its last four

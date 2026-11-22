@@ -176,7 +176,9 @@
       "profile_not_eligible": "Dans cette région, les conditions de ce fournisseur lui permettent de s'entraîner sur vos données.",
       "terms_changed": "Les conditions ont été relues depuis : rechargez la page et lisez-les de nouveau.",
       "no_key": "Enregistrez d'abord la clé du fournisseur.",
-      "invalid_key": "Cette clé n'est pas valable."
+      "invalid_key": "Cette clé n'est pas valable.",
+      "budget_blocked": "Le budget du mois des fournisseurs payants est atteint, ou aucun plafond n'est fixé.",
+      "invalid_budget": "Le plafond va de 0 à 100 000 €, au centime."
     },
     "job_type": {
       "echo": "Test d'un worker"
@@ -259,6 +261,19 @@
       "disable": "Désactiver",
       "disable_confirm": "Nid n'enverra plus rien à {{name}}. Chaque adulte en sera prévenu.",
       "disabled": "Fournisseur désactivé."
+    },
+    "budget": {
+      "title": "Budget du cloud",
+      "tip": "Le plafond mensuel des fournisseurs cloud payants, pour tout le foyer. Avant chaque appel payant, Nid réserve ce qu'il pourrait coûter ; au-delà du plafond, les appels payants s'arrêtent jusqu'au 1er du mois suivant. Les workers du foyer ne sont jamais limités.",
+      "off": "Aucun plafond : aucun appel payant n'est fait.",
+      "spent": "Ce mois-ci : {{spent}} dépensés sur {{cap}} ; il reste {{remaining}}.",
+      "alert": "80 % du budget du mois est dépensé. Chaque adulte en a été prévenu.",
+      "reached": "Le budget du mois est atteint : les appels payants sont arrêtés jusqu'au 1er du mois prochain.",
+      "cap": "Plafond mensuel (€)",
+      "cap_hint": "0 pour n'autoriser aucun appel payant. Chaque adulte est prévenu d'un changement.",
+      "required": "Indiquez un montant, 0 compris.",
+      "save": "Enregistrer",
+      "saved": "Budget enregistré."
     }
   }
 }

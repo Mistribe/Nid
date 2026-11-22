@@ -19,5 +19,9 @@ public sealed class AiAuditMap : IAuditMap
     /// <summary>A job's progress is operational state (sent, polled, retried), not a decision: its submission and the admin's
     /// actions are what is audited.</summary>
     /// <summary><c>llm_call</c> is itself the journal of model calls (§11).</summary>
-    public IReadOnlySet<Type> Excluded { get; } = new HashSet<Type> { typeof(AuditEntryRow), typeof(JobRow), typeof(LlmCallRow) };
+    /// <summary>The budget's counters move with every paid call, as the jobs do; its ceiling (ai_settings) is audited.</summary>
+    public IReadOnlySet<Type> Excluded { get; } = new HashSet<Type>
+    {
+        typeof(AuditEntryRow), typeof(JobRow), typeof(LlmCallRow), typeof(BudgetMonthRow), typeof(BudgetReservationRow),
+    };
 }

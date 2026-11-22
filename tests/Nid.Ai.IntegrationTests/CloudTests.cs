@@ -218,7 +218,7 @@ public sealed class CloudTests(PostgresFixture fixture) : IClassFixture<Postgres
             {"id":"{{{id}}}","provider":"anthropic","tier":"paid","host":"{{{host}}}","model":"claude-opus-5-5","capabilities":["chat"],
              "dataTerms":{"trainsOnData":{"eea_ch_uk":false,"other":false},"humanReview":true,"retentionDays":30,"retentionSwitches":[],
              "termsUrl":"https://www.anthropic.com/legal/commercial-terms","reviewedOn":"2026-11-22"},
-             "pricing":{"inputPerMillion":4,"outputPerMillion":20,"currency":"USD"}}
+             "pricing":{"inputPerMillion":4,"outputPerMillion":20,"currency":"EUR"}}
             """)!;
 
     private Task<NidApp> StartAsync(FakeAnthropic anthropic, IReadOnlyList<LlmProfile>? profiles = null)
@@ -238,6 +238,8 @@ public sealed class CloudTests(PostgresFixture fixture) : IClassFixture<Postgres
 
     private static async Task EnableAsync(NidApp app, string profile = "anthropic-claude")
     {
+        // A paid profile needs a ceiling (#488).
+        await app.RawAsync(app.AdultB, HttpMethod.Put, "/api/v1/ai/budget", new { monthlyBudgetEur = "10" });
         await app.RawAsync(app.AdultA, HttpMethod.Put, "/api/v1/ai/cloud/region", new { region = "eea_ch_uk" });
         await app.RawAsync(app.AdultA, HttpMethod.Put, "/api/v1/ai/cloud/keys/anthropic", new { key = Key });
         Assert.Equal(HttpStatusCode.OK,
