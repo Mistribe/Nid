@@ -211,6 +211,15 @@ public static class NotificationTemplates
         _ => "/",
     };
 
+    private static string Use(IReadOnlyDictionary<string, string> p) => p.GetValueOrDefault("use") switch
+    {
+        "chat" => "assistant",
+        "embed" => "recherche par le sens",
+        "decide" => "suggestions",
+        "extract" => "lecture des documents",
+        var other => other ?? "",
+    };
+
     private static string DataPolicyChange(IReadOnlyDictionary<string, string> p)
     {
         var worker = p.GetValueOrDefault("worker") is { Length: > 0 } name ? $"« {name} »" : "Un worker";
@@ -220,6 +229,8 @@ public static class NotificationTemplates
             "remote_off" => "Les workers distants ne reçoivent plus les données du foyer.",
             "safe_on" => $"{worker} peut désormais recevoir les documents « local seulement ».",
             "safe_off" => $"{worker} ne reçoit plus les documents « local seulement ».",
+            "cloud_on" => $"L'usage « {Use(p)} » peut désormais passer par un fournisseur cloud activé.",
+            "cloud_off" => $"L'usage « {Use(p)} » ne passe plus que par les workers du foyer.",
             _ => "",
         };
     }

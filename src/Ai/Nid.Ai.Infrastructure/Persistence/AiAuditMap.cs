@@ -15,5 +15,6 @@ public sealed class AiAuditMap : IAuditMap
 
     /// <summary>A job's progress is operational state (sent, polled, retried), not a decision: its submission and the admin's
     /// actions are what is audited.</summary>
-    public IReadOnlySet<Type> Excluded { get; } = new HashSet<Type> { typeof(AuditEntryRow), typeof(JobRow) };
+    /// <summary><c>llm_call</c> is itself the journal of model calls (§11).</summary>
+    public IReadOnlySet<Type> Excluded { get; } = new HashSet<Type> { typeof(AuditEntryRow), typeof(JobRow), typeof(LlmCallRow) };
 }

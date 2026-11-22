@@ -17,7 +17,7 @@ partial class AiDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261122163505_AddJobListIndex";
+    public override string LastMigrationId => "20261122183338_AddModelGateway";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -79,6 +79,10 @@ partial class AiDbContextModelSnapshot : ModelSnapshot
                     .HasColumnType("integer")
                     .HasColumnName("id");
 
+                b.Property<string>("Models")
+                    .HasColumnType("jsonb")
+                    .HasColumnName("models");
+
                 b.Property<Guid?>("RemoteConsentId")
                     .HasColumnType("uuid")
                     .HasColumnName("remote_consent_id");
@@ -86,6 +90,10 @@ partial class AiDbContextModelSnapshot : ModelSnapshot
                 b.Property<bool>("RemoteWorkersAllowed")
                     .HasColumnType("boolean")
                     .HasColumnName("remote_workers_allowed");
+
+                b.Property<string>("Uses")
+                    .HasColumnType("jsonb")
+                    .HasColumnName("uses");
 
                 b.Property<uint>("Version")
                     .IsConcurrencyToken()
@@ -266,6 +274,83 @@ partial class AiDbContextModelSnapshot : ModelSnapshot
                         t.HasCheckConstraint("ck_job_attempts", "attempts >= 0");
 
                         t.HasCheckConstraint("ck_job_status", "status in ('queued', 'running', 'succeeded', 'failed', 'dead')");
+                    });
+            });
+
+        modelBuilder.Entity("Nid.Ai.Infrastructure.Persistence.LlmCallRow", b =>
+            {
+                b.Property<Guid>("Id")
+                    .HasColumnType("uuid")
+                    .HasColumnName("id");
+
+                b.Property<string>("Code")
+                    .HasMaxLength(64)
+                    .HasColumnType("character varying(64)")
+                    .HasColumnName("code");
+
+                b.Property<Guid?>("ConversationId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("conversation_id");
+
+                b.Property<Instant>("CreatedAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("created_at");
+
+                b.Property<Guid?>("JobId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("job_id");
+
+                b.Property<string>("Model")
+                    .HasMaxLength(200)
+                    .HasColumnType("character varying(200)")
+                    .HasColumnName("model");
+
+                b.Property<Guid?>("PersonId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("person_id");
+
+                b.Property<string>("Status")
+                    .IsRequired()
+                    .HasMaxLength(16)
+                    .HasColumnType("character varying(16)")
+                    .HasColumnName("status");
+
+                b.Property<string>("Task")
+                    .IsRequired()
+                    .HasMaxLength(16)
+                    .HasColumnType("character varying(16)")
+                    .HasColumnName("task");
+
+                b.Property<int>("TokensIn")
+                    .HasColumnType("integer")
+                    .HasColumnName("tokens_in");
+
+                b.Property<int>("TokensOut")
+                    .HasColumnType("integer")
+                    .HasColumnName("tokens_out");
+
+                b.Property<string>("Use")
+                    .IsRequired()
+                    .HasMaxLength(16)
+                    .HasColumnType("character varying(16)")
+                    .HasColumnName("use");
+
+                b.Property<Guid?>("WorkerId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("worker_id");
+
+                b.HasKey("Id")
+                    .HasName("pk_llm_call");
+
+                b.HasIndex("CreatedAt")
+                    .HasDatabaseName("ix_llm_call_created_at");
+
+                b.HasIndex("PersonId", "CreatedAt")
+                    .HasDatabaseName("ix_llm_call_person_id_created_at");
+
+                b.ToTable("llm_call", "ai", t =>
+                    {
+                        t.HasCheckConstraint("ck_llm_call_status", "status in ('succeeded', 'refused', 'error', 'no_destination', 'blocked_budget')");
                     });
             });
 

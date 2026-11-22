@@ -194,7 +194,7 @@ Table `llm_call` (le **contenu n'est jamais stocké**) :
 | `pages`, `tokens_in`, `tokens_out`, `cost_estimate_eur` | Volume et coût estimé |
 | `consent_id` | Décision de consentement |
 | `redaction` | Résumé du masquage (nombre d'éléments masqués par type, `not_masked`) |
-| `status` | `succeeded`, `refused`, `quota`, `error`, `blocked_budget` |
+| `status`, `code` | `succeeded`, `refused`, `quota`, `error`, `no_destination` (nulle part où envoyer l'appel : usage désactivé, pas de modèle choisi, aucun worker éligible), `blocked_budget` ; le code `ai.*` d'un appel qui n'a pas abouti |
 
 Une page « Utilisation IA » présente les appels récents, le coût du mois et l'état des quotas. Chaque lecteur n'y voit que ses propres appels, et un appel de fond seulement s'il lit son élément ou son document ; les autres ne comptent que dans le total du mois, visible des deux adultes, sans compteur par élément (`../ai/README.md` §13, `../identity-and-access/authorization.md` §8).
 
