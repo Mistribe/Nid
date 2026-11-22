@@ -27,12 +27,21 @@ public sealed class WorkerStore(AiDbContext db) : IWorkerStore
         await db.SaveChangesAsync(ct);
     }
 
-    public async Task UpdateAsync(WorkerRecord worker, CancellationToken ct)
+    public async Task<bool> UpdateAsync(WorkerRecord worker, CancellationToken ct)
     {
         var row = await db.Workers.SingleAsync(w => w.Id == worker.Id, ct);
         db.Entry(row).Property(w => w.Version).OriginalValue = worker.Version;
         Copy(worker, row);
-        await db.SaveChangesAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+            return true;
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            db.ChangeTracker.Clear();
+            return false;
+        }
     }
 
     public async Task DropPendingCreatedBeforeAsync(Instant before, CancellationToken ct)

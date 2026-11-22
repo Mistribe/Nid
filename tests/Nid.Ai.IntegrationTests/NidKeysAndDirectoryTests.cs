@@ -6,6 +6,7 @@ using Nid.Ai.Infrastructure.Workers;
 using Nid.Platform.Contracts;
 using Nid.TestSupport;
 using NodaTime;
+using NodaTime.Extensions;
 using UnambitiousFx.Myelin;
 
 namespace Nid.Ai.IntegrationTests;
@@ -82,6 +83,29 @@ public sealed class NidKeysAndDirectoryTests(PostgresFixture fixture) : IClassFi
         app.Services.GetRequiredService<IWorkerDirectory>().Invalidate();
 
         Assert.False(await registered.IsRegisteredAsync("box", 8443, TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task A_pending_registration_older_than_an_hour_is_no_longer_reachable()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await using (var scope = app.Services.CreateAsyncScope())
+        {
+            scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
+            var db = scope.ServiceProvider.GetRequiredService<AiDbContext>();
+            var now = scope.ServiceProvider.GetRequiredService<IClock>().GetCurrentInstant();
+            var stale = Row("old", 8443, "pending");
+            stale.CreatedAt = now - Duration.FromHours(2);
+            var fresh = Row("new", 8443, "pending");
+            fresh.CreatedAt = now;
+            db.Workers.AddRange(stale, fresh);
+            await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+        app.Services.GetRequiredService<IWorkerDirectory>().Invalidate();
+        var registered = app.Services.GetRequiredService<IRegisteredEndpoints>();
+
+        Assert.False(await registered.IsRegisteredAsync("old", 8443, TestContext.Current.CancellationToken));
+        Assert.True(await registered.IsRegisteredAsync("new", 8443, TestContext.Current.CancellationToken));
     }
 
     private static ModelWorkerRow Row(string host, int port, string status) => new()

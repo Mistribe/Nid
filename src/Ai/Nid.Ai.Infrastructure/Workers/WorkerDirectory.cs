@@ -16,9 +16,9 @@ internal sealed record WorkerEndpoint(string Host, int Port, WorkerStatus Status
 /// <summary>The workers Nid may connect to: Myelin's registered endpoints (private addresses allowed for exactly these
 /// host and port pairs, <c>docs/ai/README.md</c> §3.5) and the TLS pins. A snapshot of the registry, reloaded after any
 /// change (<see cref="Invalidate"/>) and at least every minute; a disabled or revoked worker leaves it at once.</summary>
-public sealed class WorkerDirectory(IServiceScopeFactory scopes, TimeProvider time) : IRegisteredEndpoints, IWorkerDirectory
+public sealed class WorkerDirectory(IServiceScopeFactory scopes, NodaTime.IClock clock) : IRegisteredEndpoints, IWorkerDirectory
 {
-    private static readonly TimeSpan MaxAge = TimeSpan.FromMinutes(1);
+    private static readonly NodaTime.Duration MaxAge = NodaTime.Duration.FromMinutes(1);
 
     private volatile Snapshot? _snapshot;
 
@@ -26,7 +26,7 @@ public sealed class WorkerDirectory(IServiceScopeFactory scopes, TimeProvider ti
 
     public async ValueTask<bool> IsRegisteredAsync(string host, int port, CancellationToken cancellationToken)
         => (await CurrentAsync(cancellationToken)).Endpoints
-            .Any(e => e.Port == port && string.Equals(e.Host, host, StringComparison.OrdinalIgnoreCase));
+            .Any(e => e.Port == port && Domain.WorkerRules.SameHost(e.Host, host));
 
     /// <summary>The TLS check of every connection to a worker (<see cref="WorkerTlsPins"/>).</summary>
     public bool ValidateCertificate(string host, X509Certificate? certificate, SslPolicyErrors errors)
@@ -40,22 +40,25 @@ public sealed class WorkerDirectory(IServiceScopeFactory scopes, TimeProvider ti
 
     private async Task<Snapshot> CurrentAsync(CancellationToken ct)
     {
-        if (_snapshot is { } current && time.GetUtcNow() - current.At < MaxAge)
+        if (_snapshot is { } current && clock.GetCurrentInstant() - current.At < MaxAge)
             return current;
 
         await using var scope = scopes.CreateAsyncScope();
+        // A registration never paired stops being reachable after an hour (and stops unpinning its host's TLS).
+        var now = clock.GetCurrentInstant();
+        var pendingSince = now - NodaTime.Duration.FromTimeSpan(Domain.WorkerRules.PendingLifetime);
         var rows = await scope.ServiceProvider.GetRequiredService<AiDbContext>().Workers.AsNoTracking()
-            .Where(w => w.Status == "pending" || w.Status == "active")
+            .Where(w => (w.Status == "pending" && w.CreatedAt >= pendingSince) || w.Status == "active")
             .Select(w => new { w.Host, w.Port, w.Status, w.ProxyDeclared, w.TlsCertificateSha256 })
             .ToListAsync(ct);
-        var loaded = new Snapshot(time.GetUtcNow(), rows
+        var loaded = new Snapshot(now, rows
             .Select(r => new WorkerEndpoint(r.Host, r.Port, Enum.Parse<WorkerStatus>(r.Status, ignoreCase: true), r.ProxyDeclared, r.TlsCertificateSha256))
             .ToList());
         _snapshot = loaded;
         return loaded;
     }
 
-    private sealed record Snapshot(DateTimeOffset At, IReadOnlyList<WorkerEndpoint> Endpoints);
+    private sealed record Snapshot(NodaTime.Instant At, IReadOnlyList<WorkerEndpoint> Endpoints);
 }
 
 /// <summary>Which certificate a worker may present. Reaching it directly: the certificate pinned at pairing (any pin of
@@ -66,7 +69,7 @@ internal static class WorkerTlsPins
 {
     public static bool Validate(IReadOnlyList<WorkerEndpoint> endpoints, string host, string certificateSha256, SslPolicyErrors errors)
     {
-        var onHost = endpoints.Where(e => string.Equals(e.Host, host, StringComparison.OrdinalIgnoreCase)).ToList();
+        var onHost = endpoints.Where(e => Domain.WorkerRules.SameHost(e.Host, host)).ToList();
         return onHost.Any(e => e.Status == WorkerStatus.Pending)
                || onHost.Any(e => e.ProxyDeclared && errors == SslPolicyErrors.None)
                || onHost.Any(e => !e.ProxyDeclared && e.TlsCertificateSha256 == certificateSha256);

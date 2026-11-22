@@ -50,21 +50,28 @@ public static class Cli
     private static int ConfirmRotation(StateStore state, string fingerprint, TextWriter output)
     {
         var expected = fingerprint.Replace(" ", "", StringComparison.Ordinal).ToLowerInvariant();
-        var current = state.Load();
-        if (current.PendingNidKey is not { } pending
-            || KeyFingerprint.Compact(Convert.FromBase64String(pending)) != expected)
+        var confirmed = false;
+        state.Update(s =>
+        {
+            // Checked on the key that gets pinned, in the same update: a rotation arriving meanwhile is not pinned unseen.
+            if (s.PendingNidKey is not { } pending || KeyFingerprint.Compact(Convert.FromBase64String(pending)) != expected)
+                return s;
+
+            confirmed = true;
+            return s with
+            {
+                PreviousNidKey = s.NidKey,
+                PreviousNidKeyUntil = state.Time.GetUtcNow() + StateStore.Overlap,
+                NidKey = pending,
+                PendingNidKey = null,
+            };
+        });
+        if (!confirmed)
         {
             output.WriteLine("No pending Nid key with this fingerprint. Nothing changed.");
             return 1;
         }
 
-        state.Update(s => s with
-        {
-            PreviousNidKey = s.NidKey,
-            PreviousNidKeyUntil = state.Time.GetUtcNow() + StateStore.Overlap,
-            NidKey = s.PendingNidKey,
-            PendingNidKey = null,
-        });
         output.WriteLine("Nid's new key is pinned. The previous one stays valid for 24 hours.");
         return 0;
     }

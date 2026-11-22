@@ -90,6 +90,18 @@ public sealed class ManagementTests(PostgresFixture fixture) : IClassFixture<Pos
     }
 
     [Fact]
+    public async Task A_nid_rotation_names_the_disabled_workers_it_could_not_tell()
+    {
+        await using var world = await PairedWorld.StartAsync(fixture);
+        var worker = await world.PairAsync();
+        await Send<WorkerView>(world, HttpMethod.Post, $"/api/v1/ai/workers/{worker.Id}/disable");
+
+        var rotation = await Send<NidKeyRotation>(world, HttpMethod.Post, "/api/v1/ai/key/rotate");
+
+        Assert.Equal([worker.Id], rotation.Unreached);
+    }
+
+    [Fact]
     public async Task An_unconfirmed_nid_rotation_is_flagged_after_seven_days()
     {
         await using var world = await PairedWorld.StartAsync(fixture);

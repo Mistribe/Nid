@@ -43,10 +43,21 @@ public static class WorkerRules
                  && uri.Scheme == Uri.UriSchemeHttps
                  && uri.UserInfo.Length == 0
                  && uri.AbsolutePath == "/" && uri.Query.Length == 0 && uri.Fragment.Length == 0
-            ? new Uri($"https://{uri.IdnHost}:{uri.Port}")
+            ? ToUrl(Host(uri), uri.Port)
             : null;
         return parsed is null ? AiCodes.InvalidUrl : null;
     }
+
+    /// <summary>The host as the registry keeps it: IDN form, lower case, an IPv6 address without its brackets.</summary>
+    public static string Host(Uri url) => url.IdnHost.Trim('[', ']').ToLowerInvariant();
+
+    /// <summary>Back to an address: an IPv6 host gets its brackets again (a ULA one, a Tailscale one).</summary>
+    public static Uri ToUrl(string host, int port)
+        => new UriBuilder(Uri.UriSchemeHttps, host.Contains(':') ? $"[{host}]" : host, port).Uri;
+
+    /// <summary>Two spellings of one host: brackets around an IPv6 address, case.</summary>
+    public static bool SameHost(string a, string b)
+        => string.Equals(a.Trim('[', ']'), b.Trim('[', ']'), StringComparison.OrdinalIgnoreCase);
 
     private static string? Active(WorkerStatus status)
         => status is WorkerStatus.Active ? null : Settled(status, AiCodes.WorkerNotActive);

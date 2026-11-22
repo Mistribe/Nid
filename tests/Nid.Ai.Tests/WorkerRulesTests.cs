@@ -57,6 +57,18 @@ public sealed class WorkerRulesTests
     public void A_worker_url_is_https_host_and_port_only(string url, string? refusal)
         => Assert.Equal(refusal, WorkerRules.Url(url, out _));
 
+    [Theory]
+    [InlineData("https://[fd00::1]:8443", "fd00::1", 8443)]
+    [InlineData("https://[fd7a:115c:a1e0::1]", "fd7a:115c:a1e0::1", 443)]
+    [InlineData("https://Worker:8443", "worker", 8443)]
+    public void A_worker_url_keeps_its_host_and_port(string url, string host, int port)
+    {
+        Assert.Null(WorkerRules.Url(url, out var parsed));
+        Assert.Equal(host, WorkerRules.Host(parsed!));
+        Assert.Equal(port, parsed!.Port);
+        Assert.Equal(parsed, WorkerRules.ToUrl(host, port));
+    }
+
     [Fact]
     public void A_rotation_keeps_the_previous_key_for_a_day()
         => Assert.Equal(TimeSpan.FromHours(24), WorkerRules.KeyOverlap);

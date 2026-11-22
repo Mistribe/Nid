@@ -48,8 +48,14 @@ public static class WorkerEndpoints
     public static async Task OpenPairing(HttpContext context, Func<Task> next)
     {
         var store = context.RequestServices.GetRequiredService<StateStore>();
+        if (store.Load().IsPaired)
+        {
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            return;
+        }
+
         var body = await ReadBody(context);
-        if (store.Load().IsPaired || body is null || !TryOpen(store, body, out var plaintext, out var secret))
+        if (body is null || !TryOpen(store, body, out var plaintext, out var secret))
         {
             context.Response.StatusCode = StatusCodes.Status403Forbidden;
             return;

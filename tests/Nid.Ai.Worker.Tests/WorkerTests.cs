@@ -182,6 +182,49 @@ public sealed class WorkerTests
     }
 
     [Fact]
+    public async Task Two_processes_updating_the_state_lose_nothing()
+    {
+        await using var worker = new WorkerHarness();
+        var options = Microsoft.Extensions.Options.Options.Create(new WorkerOptions { DataPath = worker.DataPath });
+        var server = worker.State;
+        var console = new StateStore(options, worker.Clock); // another process: its own lock, its own cache
+        server.Update(s => s with { PairingAttemptsLeft = 0 });
+
+        await Task.WhenAll(Enumerable.Range(0, 40).Select(i => Task.Run(() =>
+            (i % 2 == 0 ? server : console).Update(s => s with { PairingAttemptsLeft = s.PairingAttemptsLeft + 1 }))));
+
+        Assert.Equal(40, console.Load().PairingAttemptsLeft);
+        Assert.Equal(40, server.Load().PairingAttemptsLeft);
+    }
+
+    [Fact]
+    public async Task An_expired_previous_key_is_erased_from_the_state()
+    {
+        await using var worker = new WorkerHarness();
+        using var nid = new TestNid(worker.CreateClient());
+        await nid.FetchWorkerKeyAsync();
+        await nid.PairAsync(worker.PairingCode());
+        await nid.RotateWorkerKeyAsync();
+        Assert.NotNull(worker.State.Load().PreviousWorkerKey);
+
+        worker.Clock.Now += TimeSpan.FromHours(25);
+        Cli.Run(["pairing-code"], worker.State, TextWriter.Null);
+
+        Assert.Null(worker.State.Load().PreviousWorkerKey);
+        Assert.Null(worker.State.Load().PreviousWorkerKeyUntil);
+    }
+
+    [Fact]
+    public async Task The_state_file_is_readable_by_its_owner_only()
+    {
+        await using var worker = new WorkerHarness();
+        worker.State.Load();
+
+        if (!OperatingSystem.IsWindows())
+            Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite, File.GetUnixFileMode(Path.Combine(worker.DataPath, "state.json")));
+    }
+
+    [Fact]
     public async Task Pairing_code_command_keeps_a_code_that_is_still_valid()
     {
         await using var worker = new WorkerHarness();

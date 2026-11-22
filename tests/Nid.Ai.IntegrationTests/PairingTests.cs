@@ -96,6 +96,23 @@ public sealed class PairingTests(PostgresFixture fixture) : IClassFixture<Postgr
     }
 
     [Fact]
+    public async Task A_registration_whose_key_was_never_read_cannot_be_paired()
+    {
+        await using var nid = await NidApp.StartAsync(fixture);
+        await nid.RawAsync(nid.AdultA, HttpMethod.Post, "/api/v1/ai/workers",
+            new { name = "Nowhere", url = "https://nowhere.invalid:8443", placement = "local", proxyDeclared = false });
+        var list = await nid.RawAsync(nid.AdultA, HttpMethod.Get, "/api/v1/ai/workers");
+        var pending = Assert.Single((await list.Content.ReadFromJsonAsync<WorkerList>(PairedWorld.NidJson, TestContext.Current.CancellationToken))!.Workers);
+        Assert.Equal("", pending.KeyFingerprint);
+
+        var paired = await nid.RawAsync(nid.AdultA, HttpMethod.Post, $"/api/v1/ai/workers/{pending.Id}/pair",
+            new { fingerprint = new string('0', 64), code = "ABCDEFGH" });
+
+        Assert.NotEqual(HttpStatusCode.InternalServerError, paired.StatusCode);
+        Assert.Contains(AiCodes.WorkerUnreachable, await paired.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
     public async Task An_unreachable_worker_is_reported_and_stays_pending()
     {
         await using var nid = await NidApp.StartAsync(fixture);

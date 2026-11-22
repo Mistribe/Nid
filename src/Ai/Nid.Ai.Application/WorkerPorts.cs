@@ -29,7 +29,12 @@ public sealed record WorkerRecord(
     Instant? RevokedAt,
     uint Version)
 {
-    public Uri Url => new($"https://{Host}:{Port}");
+    public Uri Url => Domain.WorkerRules.ToUrl(Host, Port);
+
+    /// <summary>False while registration could not read the worker's key: nothing to compare or seal to yet.</summary>
+    public bool KeyRead => WorkerKeyFingerprint != NoKeyFingerprint;
+
+    public static readonly string NoKeyFingerprint = new('0', 64);
 }
 
 public interface IWorkerStore
@@ -43,8 +48,8 @@ public interface IWorkerStore
 
     Task AddAsync(WorkerRecord worker, CancellationToken ct);
 
-    /// <summary>Saves a change; a concurrent change since <see cref="WorkerRecord.Version"/> was read fails.</summary>
-    Task UpdateAsync(WorkerRecord worker, CancellationToken ct);
+    /// <summary>Saves a change; false when the worker changed since <see cref="WorkerRecord.Version"/> was read.</summary>
+    Task<bool> UpdateAsync(WorkerRecord worker, CancellationToken ct);
 
     Task DropPendingCreatedBeforeAsync(Instant before, CancellationToken ct);
 }

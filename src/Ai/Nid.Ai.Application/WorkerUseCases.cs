@@ -50,7 +50,7 @@ internal static class WorkerFailures
     public static Result<T> Refused<T>(string code) where T : notnull => code switch
     {
         AiCodes.WorkerNotFound => Result.Failure<T>(new NotFoundFailure("worker", "") { Code = code }),
-        AiCodes.WorkerExists or AiCodes.WorkerNotPending or AiCodes.WorkerNotActive or AiCodes.WorkerNotDisabled or AiCodes.WorkerRevoked
+        AiCodes.WorkerExists or AiCodes.WorkerChanged or AiCodes.WorkerNotPending or AiCodes.WorkerNotActive or AiCodes.WorkerNotDisabled or AiCodes.WorkerRevoked
             => Result.Failure<T>(new ConflictFailure(Messages.GetValueOrDefault(code, code)) { Code = code }),
         _ => Result.Failure<T>(new Failure(code, Messages.GetValueOrDefault(code, code), null)),
     };
@@ -68,6 +68,7 @@ internal static class WorkerFailures
         [AiCodes.FingerprintMismatch] = "The fingerprint does not match the worker's key.",
         [AiCodes.PairingRefused] = "The worker refused the pairing: check the code, or get a new one on its console.",
         [AiCodes.WorkerRefused] = "The worker refused the request.",
+        [AiCodes.WorkerChanged] = "The worker changed meanwhile: read it again. After a key rotation, retry within a day.",
     };
 }
 
@@ -76,7 +77,7 @@ public static class WorkerViews
     public static WorkerView From(WorkerRecord worker, NidKey? workerKey, NidKey? activeKey, Instant now) => new(
         worker.Id, worker.Name, worker.Url.ToString().TrimEnd('/'),
         worker.Placement == WorkerPlacement.Local ? "local" : "remote", worker.ProxyDeclared, worker.Safe,
-        worker.Status.ToString().ToLowerInvariant(), KeyFingerprint.Of(worker.WorkerPublicKey), workerKey?.Fingerprint,
+        worker.Status.ToString().ToLowerInvariant(), worker.KeyRead ? KeyFingerprint.Of(worker.WorkerPublicKey) : "", workerKey?.Fingerprint,
         NidKeyRotationOverdue: workerKey is { Active: false } && activeKey is not null
                                && now - activeKey.CreatedAt > Duration.FromTimeSpan(WorkerRules.RotationOverdue),
         worker.SoftwareVersion, worker.LastSeenAt, worker.CreatedAt, worker.PairedAt);
@@ -98,13 +99,14 @@ public sealed class RegisterWorkerHandler(IWorkerStore store, IWorkerClient clie
         var now = clock.GetCurrentInstant();
         await store.DropPendingCreatedBeforeAsync(now - Duration.FromTimeSpan(WorkerRules.PendingLifetime), ct);
 
-        var existing = await store.FindByEndpointAsync(url!.IdnHost, url.Port, ct);
+        var host = WorkerRules.Host(url!);
+        var existing = await store.FindByEndpointAsync(host, url!.Port, ct);
         if (existing is { Status: not WorkerStatus.Pending })
             return WorkerFailures.Refused<RegisteredWorker>(AiCodes.WorkerExists);
 
         // Registered first, so Myelin lets the address through when it is a private one; its key comes after.
-        var worker = existing ?? new WorkerRecord(Guid.CreateVersion7(), command.Name.Trim(), url.IdnHost, url.Port, command.ProxyDeclared,
-            command.Placement, Safe: false, WorkerStatus.Pending, new byte[65], new string('0', 64), null, null, null, null, null, null,
+        var worker = existing ?? new WorkerRecord(Guid.CreateVersion7(), command.Name.Trim(), host, url.Port, command.ProxyDeclared,
+            command.Placement, Safe: false, WorkerStatus.Pending, new byte[65], WorkerRecord.NoKeyFingerprint, null, null, null, null, null, null,
             null, now, null, null, 0);
         if (existing is null)
             await store.AddAsync(worker, ct);
@@ -120,7 +122,7 @@ public sealed class RegisterWorkerHandler(IWorkerStore store, IWorkerClient clie
             return WorkerFailures.Refused<RegisteredWorker>(e.Code);
         }
 
-        await store.UpdateAsync((await store.FindAsync(worker.Id, ct))! with
+        var saved = await store.UpdateAsync((await store.FindAsync(worker.Id, ct))! with
         {
             Name = command.Name.Trim(),
             ProxyDeclared = command.ProxyDeclared,
@@ -128,7 +130,7 @@ public sealed class RegisterWorkerHandler(IWorkerStore store, IWorkerClient clie
             WorkerPublicKey = key.PublicKey,
             WorkerKeyFingerprint = KeyFingerprint.Compact(key.PublicKey),
         }, ct);
-        return Result.Success(new RegisteredWorker(worker.Id, key.Fingerprint));
+        return saved ? Result.Success(new RegisteredWorker(worker.Id, key.Fingerprint)) : WorkerFailures.Refused<RegisteredWorker>(AiCodes.WorkerChanged);
     }
 }
 
@@ -142,6 +144,8 @@ public sealed class PairWorkerHandler(IWorkerStore store, IWorkerClient client, 
             return WorkerFailures.Refused<WorkerView>(AiCodes.WorkerNotFound);
         if (WorkerRules.Pair(worker.Status) is { } refusal)
             return WorkerFailures.Refused<WorkerView>(refusal);
+        if (!worker.KeyRead)
+            return WorkerFailures.Refused<WorkerView>(AiCodes.WorkerUnreachable);
         if (Compact(command.Fingerprint) != worker.WorkerKeyFingerprint)
             return WorkerFailures.Refused<WorkerView>(AiCodes.FingerprintMismatch);
 
@@ -170,7 +174,8 @@ public sealed class PairWorkerHandler(IWorkerStore store, IWorkerClient client, 
             LastDeclaration = JsonSerializer.Serialize(response.Declaration, ContractJson.Strict),
             SoftwareVersion = response.Declaration.SoftwareVersion,
         };
-        await store.UpdateAsync(paired, ct);
+        if (!await store.UpdateAsync(paired, ct))
+            return WorkerFailures.Refused<WorkerView>(AiCodes.WorkerChanged);
         directory.Invalidate();
         return Result.Success(await WorkerViews.FromAsync(paired, keys, clock, ct));
     }

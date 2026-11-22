@@ -70,7 +70,8 @@ internal static class WorkerManagement
             return WorkerFailures.Refused<WorkerView>(refusal);
 
         var changed = change(worker);
-        await store.UpdateAsync(changed, ct);
+        if (!await store.UpdateAsync(changed, ct))
+            return WorkerFailures.Refused<WorkerView>(AiCodes.WorkerChanged);
         directory.Invalidate();
         return Result.Success(await WorkerViews.FromAsync(changed, keys, clock, ct));
     }
@@ -142,7 +143,8 @@ public sealed class RotateWorkerKeyHandler(IWorkerStore store, IWorkerClient cli
             WorkerKeyFingerprint = KeyFingerprint.Compact(next),
             LastSeenAt = now,
         };
-        await store.UpdateAsync(rotated, ct);
+        if (!await store.UpdateAsync(rotated, ct))
+            return WorkerFailures.Refused<WorkerView>(AiCodes.WorkerChanged);
         directory.Invalidate();
         return Result.Success(await WorkerViews.FromAsync(rotated, keys, clock, ct));
     }
@@ -191,7 +193,8 @@ public sealed class RefreshWorkerHandler(IWorkerStore store, IWorkerClient clien
             SoftwareVersion = declaration.SoftwareVersion,
             LastSeenAt = now,
         };
-        await store.UpdateAsync(refreshed, ct);
+        if (!await store.UpdateAsync(refreshed, ct))
+            return WorkerFailures.Refused<WorkerView>(AiCodes.WorkerChanged);
         await keys.RetireUnusedAsync(ct);
         return Result.Success(await WorkerViews.FromAsync(refreshed, keys, clock, ct));
     }
@@ -205,8 +208,15 @@ public sealed class RotateNidKeyHandler(IWorkerStore store, IWorkerClient client
     {
         var next = await keys.RotateAsync(ct);
         var unreached = new List<Guid>();
-        foreach (var worker in (await store.ListAsync(ct)).Where(w => w.Status == WorkerStatus.Active))
+        foreach (var worker in (await store.ListAsync(ct)).Where(w => w.Status is WorkerStatus.Active or WorkerStatus.Disabled))
         {
+            // A disabled worker is not called: it keeps the old key, and the admin is told so.
+            if (worker.Status == WorkerStatus.Disabled)
+            {
+                unreached.Add(worker.Id);
+                continue;
+            }
+
             try
             {
                 var pinned = await keys.FindAsync(worker.NidKeyId!.Value, ct);

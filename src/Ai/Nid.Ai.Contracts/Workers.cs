@@ -16,6 +16,7 @@ public static class AiCodes
     public const string FingerprintMismatch = "ai.fingerprint_mismatch";
     public const string PairingRefused = "ai.pairing_refused";
     public const string WorkerRefused = "ai.worker_refused";
+    public const string WorkerChanged = "ai.worker_changed";
 }
 
 /// <summary>Where a worker runs, set by the admin who registers it, never by the worker: <c>local</c> (this machine or

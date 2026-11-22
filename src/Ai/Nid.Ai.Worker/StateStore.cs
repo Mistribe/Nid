@@ -7,9 +7,10 @@ using Nid.Ai.Protocol.Sealing;
 
 namespace Nid.Ai.Worker;
 
-/// <summary>Reads and writes <c>state.json</c>. A write goes to <c>state.json.tmp</c> first, then replaces the file, so a
-/// crash mid-write leaves the previous state. The file is re-read when it changed on disk: the console commands
-/// (<see cref="Cli"/>) run in another process.</summary>
+/// <summary>Reads and writes <c>state.json</c>. The console commands (<see cref="Cli"/>) run in another process, so every
+/// change holds <c>state.lock</c> (an exclusive lock, across processes) while it reads the file and writes it back. A write
+/// goes to a temporary file of its own, created readable by the owner only, then replaces the file: a crash mid-write
+/// leaves the previous state. A previous key past its overlap is erased at the next change.</summary>
 public sealed class StateStore(IOptions<WorkerOptions> options, TimeProvider time)
 {
     public static readonly TimeSpan CodeLifetime = TimeSpan.FromMinutes(15);
@@ -36,9 +37,41 @@ public sealed class StateStore(IOptions<WorkerOptions> options, TimeProvider tim
     {
         lock (_lock)
         {
-            var next = change(LoadLocked());
-            Save(next);
+            LoadLocked(); // creates the state first when there is none (it takes the file lock itself)
+            using var _ = AcquireFileLock();
+            _cached = null; // another process may have written since: read the file under the lock
+            var current = LoadLocked();
+            var next = Prune(change(current));
+            if (next != current)
+                Save(next);
             return next;
+        }
+    }
+
+    private WorkerState Prune(WorkerState state)
+    {
+        var now = time.GetUtcNow();
+        if (state.PreviousWorkerKeyUntil <= now)
+            state = state with { PreviousWorkerKey = null, PreviousWorkerKeyUntil = null };
+        if (state.PreviousNidKeyUntil <= now)
+            state = state with { PreviousNidKey = null, PreviousNidKeyUntil = null };
+        return state;
+    }
+
+    private FileStream AcquireFileLock()
+    {
+        Directory.CreateDirectory(options.Value.DataPath);
+        var path = Path.Combine(options.Value.DataPath, "state.lock");
+        for (var attempt = 0; ; attempt++)
+        {
+            try
+            {
+                return new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+            }
+            catch (IOException) when (attempt < 1000)
+            {
+                Thread.Sleep(10);
+            }
         }
     }
 
@@ -73,10 +106,13 @@ public sealed class StateStore(IOptions<WorkerOptions> options, TimeProvider tim
     {
         if (!File.Exists(FilePath))
         {
-            Directory.CreateDirectory(options.Value.DataPath);
-            var created = Initial();
-            Save(created);
-            return created;
+            using var _ = AcquireFileLock();
+            if (!File.Exists(FilePath))
+            {
+                var created = Initial();
+                Save(created);
+                return created;
+            }
         }
 
         var writtenAt = File.GetLastWriteTimeUtc(FilePath);
@@ -92,15 +128,16 @@ public sealed class StateStore(IOptions<WorkerOptions> options, TimeProvider tim
 
     private void Save(WorkerState state)
     {
-        var temporary = FilePath + ".tmp";
-        using (var file = new FileStream(temporary, FileMode.Create, FileAccess.Write, FileShare.None))
+        var temporary = $"{FilePath}.{Guid.NewGuid():N}.tmp";
+        var create = new FileStreamOptions { Mode = FileMode.CreateNew, Access = FileAccess.Write, Share = FileShare.None };
+        if (!OperatingSystem.IsWindows())
+            create.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+        using (var file = new FileStream(temporary, create))
         {
             JsonSerializer.Serialize(file, state, Json);
             file.Flush(flushToDisk: true);
         }
 
-        if (!OperatingSystem.IsWindows())
-            File.SetUnixFileMode(temporary, UnixFileMode.UserRead | UnixFileMode.UserWrite);
         File.Move(temporary, FilePath, overwrite: true);
 
         _cached = state;

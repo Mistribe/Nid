@@ -68,6 +68,15 @@ public sealed class ContractSchemaTests
             Assert.Throws<ProtocolException>(() => ContractJson.Read<WorkerDeclaration>(Declaration(Model(capability, extra)))).Code);
 
     [Fact]
+    public void A_declaration_with_an_overlong_text_is_refused()
+    {
+        var json = Encoding.UTF8.GetString(Declaration(Model("chat", ""))).Replace("\"0.1.0\"", $"\"{new string('9', 65)}\"");
+
+        Assert.Equal("contract_invalid",
+            Assert.Throws<ProtocolException>(() => ContractJson.Read<WorkerDeclaration>(Encoding.UTF8.GetBytes(json))).Code);
+    }
+
+    [Fact]
     public void A_null_list_element_is_refused()
     {
         var json = Encoding.UTF8.GetString(Declaration(Model("chat", ""))).Replace("[{\"type\": \"echo\", \"version\": 1}]", "[null]");

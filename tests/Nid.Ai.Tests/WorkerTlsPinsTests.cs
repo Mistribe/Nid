@@ -37,7 +37,18 @@ public sealed class WorkerTlsPinsTests
     }
 
     [Fact]
-    public void Two_workers_on_one_host_each_keep_their_own_pin()
+    public void An_ipv6_host_matches_with_or_without_brackets()
+    {
+        WorkerEndpoint[] endpoints = [new("fd00::1", 8443, WorkerStatus.Active, ProxyDeclared: false, Pin)];
+
+        Assert.True(WorkerTlsPins.Validate(endpoints, "[fd00::1]", Pin, SslPolicyErrors.RemoteCertificateChainErrors));
+        Assert.True(WorkerTlsPins.Validate(endpoints, "fd00::1", Pin, SslPolicyErrors.RemoteCertificateChainErrors));
+    }
+
+    /// <summary>The TLS callback sees the host, not the port: on a host with two workers, either pin is accepted for
+    /// both (the worker's identity is its pinned HPKE key either way).</summary>
+    [Fact]
+    public void Two_workers_on_one_host_are_reached_with_either_pin_and_no_other()
     {
         WorkerEndpoint[] endpoints =
         [

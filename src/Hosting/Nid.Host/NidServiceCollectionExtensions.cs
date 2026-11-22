@@ -286,8 +286,6 @@ public static class NidServiceCollectionExtensions
         services.AddSingleton<Nid.Ai.Infrastructure.Workers.WorkerDirectory>();
         services.AddSingleton<UnambitiousFx.Myelin.IRegisteredEndpoints>(sp => sp.GetRequiredService<Nid.Ai.Infrastructure.Workers.WorkerDirectory>());
         services.AddSingleton<Nid.Ai.Application.IWorkerDirectory>(sp => sp.GetRequiredService<Nid.Ai.Infrastructure.Workers.WorkerDirectory>());
-        // Workers are reached on the household's network: Myelin lets exactly the registered host and port pairs resolve
-        // to private addresses, any public host stays allowed (a declared proxy), and the TLS check is the directory's.
         // Workers are reached on the household's network: Myelin's handler lets exactly the registered host and port pairs
         // resolve to private addresses, and the TLS check is the directory's. One client for the host's life, as
         // SafeHttpClient: an IHttpClientFactory client keeps every disposed host alive (HostLifetimeTests).
