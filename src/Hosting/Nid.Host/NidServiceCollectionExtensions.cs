@@ -299,6 +299,22 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<Nid.Ai.Application.ILlmCalls, Nid.Ai.Infrastructure.Persistence.LlmCallStore>();
         services.AddScoped<Nid.Ai.Application.ILlmProvider, Nid.Ai.Application.WorkerProvider>();
         services.AddScoped<Nid.Ai.Application.ILlmGateway, Nid.Ai.Application.LlmGateway>();
+        // #487: the cloud profiles Nid ships, their keys and settings, after the workers in the chain. The client reaches
+        // nothing but the loaded profiles' hosts, on Myelin's address checks.
+        services.TryAddSingleton<Nid.Ai.Application.ILlmProfiles, Nid.Ai.Infrastructure.Cloud.LlmProfileLoader>();
+        services.AddScoped<Nid.Ai.Application.ICloudSettings, Nid.Ai.Infrastructure.Persistence.CloudSettingsStore>();
+        services.AddSingleton<Nid.Ai.Application.CloudBreaker>();
+        services.TryAddSingleton(sp =>
+        {
+            var hosts = sp.GetRequiredService<Nid.Ai.Application.ILlmProfiles>().All.Select(p => p.Host);
+            var handler = UnambitiousFx.Myelin.MyelinHandler.Create(null);
+            handler.ConnectTimeout = TimeSpan.FromSeconds(10);
+            var http = new HttpClient(Nid.Ai.Infrastructure.Cloud.CloudHttp.Handler(hosts, handler)) { Timeout = TimeSpan.FromMinutes(10) };
+            http.DefaultRequestHeaders.UserAgent.ParseAdd(NidOutbound.UserAgent);
+            return new Nid.Ai.Infrastructure.Cloud.CloudHttp(http);
+        });
+        services.AddSingleton<Nid.Ai.Application.ICloudAdapter, Nid.Ai.Infrastructure.Cloud.AnthropicAdapter>();
+        services.AddScoped<Nid.Ai.Application.ILlmProvider, Nid.Ai.Application.CloudProvider>();
         services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<Nid.Ai.Infrastructure.Workers.WorkerDirectory>();
         services.AddSingleton<UnambitiousFx.Myelin.IRegisteredEndpoints>(sp => sp.GetRequiredService<Nid.Ai.Infrastructure.Workers.WorkerDirectory>());

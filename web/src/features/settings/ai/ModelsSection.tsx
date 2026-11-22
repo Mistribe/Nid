@@ -2,7 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
-import { AI_SETTINGS, aiProblem, CAPABILITIES, DECLARED_MODELS, USE_MODE, USE_MODEL, type UseSetting } from '@/api/ai';
+import { AI_SETTINGS, aiProblem, CAPABILITIES, CLOUD, DECLARED_MODELS, USE_MODE, USE_MODEL, type UseSetting } from '@/api/ai';
 import { Field } from '@/components/form/Field';
 import { SelectField } from '@/components/form/SelectField';
 import { InfoTip } from '@/components/InfoTip';
@@ -15,7 +15,7 @@ const CAPABILITY: Record<string, string> = { chat: 'chat', extract: 'chat', embe
 
 /**
  * « Modèles » (#486, decision H): for each use, how far it may go (any adult) and the model it runs on (an admin, among the
- * models the paired workers declare). Self-hosted is the default; going on to a cloud provider comes with them (#487).
+ * models the paired workers declare). Self-hosted is the default; going on to a cloud provider is offered once one is enabled.
  */
 export function ModelsSection({ admin }: { admin: boolean }) {
   const { t } = useTranslation();
@@ -23,6 +23,8 @@ export function ModelsSection({ admin }: { admin: boolean }) {
   const queryClient = useQueryClient();
   const settings = $api.useQuery('get', AI_SETTINGS);
   const models = $api.useQuery('get', DECLARED_MODELS);
+  const cloud = $api.useQuery('get', CLOUD);
+  const cloudOn = cloud.data?.profiles.some((p) => p.enabled) === true;
   const refresh = () => Promise.all([AI_SETTINGS, CAPABILITIES].map((path) => queryClient.invalidateQueries({ queryKey: ['get', path] })));
   const saved = { onSuccess: () => { toast.success(t('ai.models.saved')); void refresh(); } };
   const mode = $api.useMutation('put', USE_MODE, saved);
@@ -45,8 +47,8 @@ export function ModelsSection({ admin }: { admin: boolean }) {
               <SelectField {...c} value={use.mode} onValueChange={(value) => mode.mutate({ ...path, body: { mode: value } })} options={[
                 { value: 'self_hosted', label: t('ai.models.mode_self_hosted') },
                 { value: 'off', label: t('ai.models.mode_off') },
-                // Shown only once set: there is no cloud provider to go on to before #487.
-                ...(use.mode === 'self_hosted_then_cloud' ? [{ value: 'self_hosted_then_cloud', label: t('ai.models.mode_cloud') }] : []),
+                // Offered once a cloud profile is enabled (#487), or while set.
+                ...(cloudOn || use.mode === 'self_hosted_then_cloud' ? [{ value: 'self_hosted_then_cloud', label: t('ai.models.mode_cloud') }] : []),
               ]} />
             )}
           </Field>

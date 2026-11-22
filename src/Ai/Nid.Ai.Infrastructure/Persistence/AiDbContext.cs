@@ -22,6 +22,10 @@ public sealed class AiDbContext(DbContextOptions<AiDbContext> options) : DbConte
 
     public DbSet<LlmCallRow> LlmCalls => Set<LlmCallRow>();
 
+    public DbSet<LlmCredentialRow> Credentials => Set<LlmCredentialRow>();
+
+    public DbSet<CloudProfileRow> CloudProfiles => Set<CloudProfileRow>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schema);
@@ -88,8 +92,29 @@ public sealed class AiDbContext(DbContextOptions<AiDbContext> options) : DbConte
             e.Property(x => x.Model).HasMaxLength(200);
             e.Property(x => x.Status).HasMaxLength(16);
             e.Property(x => x.Code).HasMaxLength(64);
+            e.Property(x => x.ProfileId).HasMaxLength(64);
+            e.Property(x => x.Provider).HasMaxLength(32);
+            e.Property(x => x.Tier).HasMaxLength(8);
             e.HasIndex(x => x.CreatedAt);
             e.HasIndex(x => new { x.PersonId, x.CreatedAt });
+        });
+
+        modelBuilder.Entity<LlmCredentialRow>(e =>
+        {
+            e.ToTable("llm_provider_credential");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Provider).HasMaxLength(32);
+            e.Property(x => x.Hint).HasMaxLength(8);
+            // One active key per provider.
+            e.HasIndex(x => x.Provider).IsUnique().HasFilter("revoked_at is null");
+        });
+
+        modelBuilder.Entity<CloudProfileRow>(e =>
+        {
+            e.ToTable("cloud_profile");
+            e.HasKey(x => x.ProfileId);
+            e.Property(x => x.ProfileId).HasMaxLength(64);
         });
 
         modelBuilder.Entity<AiSettingsRow>(e =>
@@ -100,6 +125,7 @@ public sealed class AiDbContext(DbContextOptions<AiDbContext> options) : DbConte
             e.HasOne<ConsentRow>().WithMany().HasForeignKey(x => x.RemoteConsentId).OnDelete(DeleteBehavior.Restrict);
             e.Property(x => x.Uses).HasColumnType("jsonb");
             e.Property(x => x.Models).HasColumnType("jsonb");
+            e.Property(x => x.Region).HasMaxLength(16);
             e.Property(x => x.Version).HasColumnName("xmin").HasColumnType("xid").ValueGeneratedOnAddOrUpdate().IsConcurrencyToken();
         });
 

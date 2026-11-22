@@ -23,6 +23,7 @@ const JOURNAL_EVENTS = [
   'token_auth_failed', 'login_failed', 'login_locked', 'password_reset', 'credential_link_issued', 'credential_link_revoked',
   'account_enrolled', 'account_unlocked', 'setup_completed', 'totp_reset',
   'model_worker_registered', 'model_worker_paired', 'model_worker_changed', 'model_worker_revoked', 'model_worker_key_rotated', 'nid_worker_key_rotated', 'ai_remote_workers_changed',
+  'ai_cloud_region_set', 'ai_cloud_profile_enabled', 'ai_cloud_profile_disabled', 'ai_provider_key_set', 'ai_provider_key_revoked',
 ] as const;
 
 type JournalEntry = components['schemas']['SecurityEventView'];

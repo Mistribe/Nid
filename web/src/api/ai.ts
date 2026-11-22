@@ -29,6 +29,13 @@ export const USE_MODE = '/api/v1/ai/settings/uses/{use}' as const;
 export const USE_MODEL = '/api/v1/ai/settings/uses/{use}/model' as const;
 export const DECLARED_MODELS = '/api/v1/ai/models' as const;
 export type UseSetting = components['schemas']['UseSettingView'];
+/** #487: the cloud profiles, the region, the providers' keys (the key is sent once, never read back). */
+export const CLOUD = '/api/v1/ai/cloud' as const;
+export const CLOUD_REGION = '/api/v1/ai/cloud/region' as const;
+export const CLOUD_ENABLE = '/api/v1/ai/cloud/profiles/{id}/enable' as const;
+export const CLOUD_DISABLE = '/api/v1/ai/cloud/profiles/{id}/disable' as const;
+export const CLOUD_KEY = '/api/v1/ai/cloud/keys/{provider}' as const;
+export type CloudProfile = components['schemas']['CloudProfileView'];
 
 /** The statuses the jobs page filters on (the server refuses any other). */
 export const JOB_STATUSES = ['queued', 'running', 'succeeded', 'failed', 'dead'] as const;

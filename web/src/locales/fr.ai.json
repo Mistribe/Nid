@@ -165,7 +165,18 @@
       "task_not_allowed": "Cet usage ne permet pas cette demande.",
       "cut": "La réponse a été coupée avant la fin.",
       "unknown_use": "Cet usage n'existe pas.",
-      "unknown_mode": "Ce réglage n'existe pas."
+      "unknown_mode": "Ce réglage n'existe pas.",
+      "cloud_not_allowed": "Ces données ne peuvent pas partir vers un fournisseur cloud.",
+      "no_cloud_profile": "Aucun fournisseur cloud activé ne peut prendre la demande.",
+      "cloud_failed": "Le fournisseur cloud n'a pas répondu ; réessayez plus tard.",
+      "cloud_refused": "Le fournisseur cloud a refusé la demande.",
+      "unknown_profile": "Ce fournisseur n'existe pas.",
+      "unknown_region": "Cette région n'existe pas.",
+      "region_unset": "Confirmez d'abord la région du foyer.",
+      "profile_not_eligible": "Dans cette région, les conditions de ce fournisseur lui permettent de s'entraîner sur vos données.",
+      "terms_changed": "Les conditions ont été relues depuis : rechargez la page et lisez-les de nouveau.",
+      "no_key": "Enregistrez d'abord la clé du fournisseur.",
+      "invalid_key": "Cette clé n'est pas valable."
     },
     "job_type": {
       "echo": "Test d'un worker"
@@ -196,6 +207,58 @@
         "embed": "Nid range vos documents par sens, pour les retrouver par une question plutôt que par un mot exact.",
         "decide": "Nid propose une catégorie pour une opération bancaire, parmi celles du foyer."
       }
+    },
+    "cloud": {
+      "title": "Fournisseurs cloud",
+      "tip": "Un fournisseur cloud fait tourner un modèle chez lui (Anthropic, par exemple). Nid ne lui envoie rien tant qu'un administrateur ne l'a pas activé, et seulement pour les usages réglés sur « puis le cloud ».",
+      "region": "Région du foyer",
+      "region_hint": "Les conditions d'un fournisseur dépendent de l'endroit où vous vivez.",
+      "region_unset": "Région à confirmer",
+      "region_is": "Région du foyer : {{region}}",
+      "region_eea_ch_uk": "Union européenne, Suisse ou Royaume-Uni",
+      "region_other": "Ailleurs",
+      "region_saved": "Région enregistrée.",
+      "profile_name": "{{provider}} · {{model}}",
+      "provider": {
+        "anthropic": "Anthropic",
+        "openai": "OpenAI",
+        "gemini": "Google Gemini",
+        "mistral": "Mistral"
+      },
+      "tier_free": "Gratuit",
+      "tier_paid": "Payant",
+      "on": "Activé",
+      "suspended": "En pause après des échecs",
+      "no_training": "N'entraîne pas ses modèles sur vos données",
+      "trains": "Ses conditions lui permettent de s’entraîner sur vos données : Nid ne l’utilise pas",
+      "human_review": "Une personne du fournisseur peut relire une demande",
+      "no_human_review": "Aucune relecture humaine annoncée",
+      "human_review_label": "Relecture humaine",
+      "human_review_tip": "Pour vérifier le respect de leurs règles d'usage, certains fournisseurs peuvent faire relire des demandes par leurs équipes.",
+      "retention_one": "Demandes conservées {{count}} jour chez le fournisseur",
+      "retention_other": "Demandes conservées {{count}} jours chez le fournisseur",
+      "reviewed": "Conditions relues le {{date}}.",
+      "terms": "Lire les conditions",
+      "review_due": "Ces conditions ont été relues il y a plus de 90 jours : elles ont peut-être changé.",
+      "no_key": "Aucune clé enregistrée.",
+      "key_hint": "Clé enregistrée : •••• {{hint}}",
+      "add_key": "Ajouter la clé",
+      "replace_key": "Remplacer la clé",
+      "revoke_key": "Retirer la clé",
+      "revoke_key_confirm": "La clé est oubliée et {{name}} est désactivé.",
+      "key_revoked": "Clé retirée.",
+      "key_title": "Clé {{provider}}",
+      "key": "Clé d'API",
+      "key_hint_text": "Créée dans la console du fournisseur. Elle est chiffrée et ne sera plus jamais affichée.",
+      "key_required": "Collez la clé d'API.",
+      "save_key": "Enregistrer la clé",
+      "key_saved": "Clé enregistrée.",
+      "enable": "Activer",
+      "enable_confirm": "Nid pourra envoyer à {{name}} les demandes des usages réglés sur « puis le cloud », sous ses conditions relues le {{date}}. Chaque adulte en sera prévenu.",
+      "enabled": "Fournisseur activé.",
+      "disable": "Désactiver",
+      "disable_confirm": "Nid n'enverra plus rien à {{name}}. Chaque adulte en sera prévenu.",
+      "disabled": "Fournisseur désactivé."
     }
   }
 }
