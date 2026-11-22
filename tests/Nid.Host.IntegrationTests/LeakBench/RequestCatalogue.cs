@@ -649,6 +649,8 @@ public static class RequestCatalogue
         new(typeof(Nid.Banking.Application.Sync.GetBankSyncRunsQuery), false, (_, _) => new Nid.Banking.Application.Sync.GetBankSyncRunsQuery(null)),
         new(typeof(GetBankingDiagnosticsQuery), false, (_, _) => new GetBankingDiagnosticsQuery("https://test.localhost/api/v1/banking/callback")),
         new(typeof(TestBankingConnectionCommand), false, (_, _) => new TestBankingConnectionCommand("https://test.localhost/api/v1/banking/callback")),
+        // #414: answers nothing to read; the bench has no installation application, so it is refused.
+        new(typeof(Nid.Banking.Application.TransferInstallationApplicationCommand), false, (_, _) => new Nid.Banking.Application.TransferInstallationApplicationCommand(Guid.NewGuid())),
         // An envelope's bank lines (and its card's): read by whoever reads the envelope, A's two on her private envelope never reach B.
         new(typeof(ListBankTransactionsQuery), true, (_, item) => new ListBankTransactionsQuery(item, null, null, 1, "all")),
         // #84: the operations page, unfiltered then filtered, over every readable account.

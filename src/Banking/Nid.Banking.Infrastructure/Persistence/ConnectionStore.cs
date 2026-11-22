@@ -39,6 +39,19 @@ public sealed class ConnectionStore(BankingDbContext db, IDataProtectionProvider
             c => c.ApplicationId != null && c.ApplicationId != installationId && c.Status != "pending"
                 && !db.Applications.Any(a => a.PersonId == c.PersonId && a.ApplicationId == c.ApplicationId), ct);
 
+    public async Task<IReadOnlyList<BankConnection>> UsingAsync(string applicationId, CancellationToken ct)
+        => (await db.Connections.AsNoTracking().Where(c => (c.ApplicationId == applicationId || c.ApplicationId == null) && c.Source != FileSource)
+                .OrderBy(c => c.CreatedAt).ToListAsync(ct))
+            .Select(ToConnection).ToList();
+
+    public async Task StampLegacyAsync(string applicationId, CancellationToken ct)
+    {
+        // Loaded, as DeleteAsync, so the log records each one changed.
+        foreach (var row in await db.Connections.Where(c => c.ApplicationId == null && c.Source != FileSource).ToListAsync(ct))
+            row.ApplicationId = applicationId;
+        await db.SaveChangesAsync(ct);
+    }
+
     public async Task<BankConnection?> FindByStateAsync(byte[] stateHash, CancellationToken ct)
     {
         var row = await db.Connections.SingleOrDefaultAsync(c => c.StateHash == stateHash, ct);

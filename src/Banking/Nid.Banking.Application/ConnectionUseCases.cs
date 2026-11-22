@@ -11,7 +11,8 @@ using Duration = NodaTime.Duration;
 
 namespace Nid.Banking.Application;
 
-public sealed record GetBankingStatusQuery : IQuery<BankingStatusView>;
+/// <summary><paramref name="RedirectUrl"/>: the callback an adult's own application must declare (#414's wizard), set by the route.</summary>
+public sealed record GetBankingStatusQuery(string? RedirectUrl = null) : IQuery<BankingStatusView>;
 
 public sealed record ListAspspsQuery : IQuery<IReadOnlyList<AspspView>>;
 
@@ -57,7 +58,7 @@ public sealed class GetBankingStatusHandler(IHouseholdSettings settings, Banking
     {
         var household = await settings.ReadAsync(ct);
         var status = new BankingStatusView(
-            household.BankingEnabled, actor.Current?.PersonId is { } person && await access.ConfiguredAsync(person, ct));
+            household.BankingEnabled, actor.Current?.PersonId is { } person && await access.ConfiguredAsync(person, ct), RedirectUrl: query.RedirectUrl);
         // Issue #343: the administrator is told which part is missing; the others only that it is.
         return Result.Success(actor.Current?.IsAdmin == true
             ? status with { AppIdSaved = !string.IsNullOrWhiteSpace(household.EnableBankingAppId), KeyStatus = key.Status }

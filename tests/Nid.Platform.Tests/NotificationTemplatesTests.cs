@@ -200,6 +200,7 @@ public class NotificationTemplatesTests
             (Published("banking.consent_expiring", "banking.consent_expiring:abc:2027-03-31:14", new() { ["bank"] = "Banque Alpha" }), "Le consentement d'une banque expire bientôt", "/settings/banks"),
             (Published("banking.consent_expired", "banking.consent_expired:abc:2027-03-31"), "Le consentement d'une banque a expiré", "/settings/banks"),
             (Published("banking.sync_failing", "banking.sync_failing:abc:2027-03-01"), "La synchronisation d'une banque échoue", "/settings/banks"),
+            (Published("banking.application_needed", "banking.application_needed:abc"), "Reliez à nouveau votre banque", "/settings/banks?tab=application"),
             (Published("proposal_pending", $"proposal_pending:{proposal}", withItem: true), "Une proposition attend votre décision", $"/proposals/{proposal}"),
             (Published("private_request_refused", $"private_request_refused:{proposal}", withItem: true), "Votre demande de passage en privé a été refusée", $"/proposals/{proposal}"),
             (Published("backup_failed", "backup_failed:never"), "La sauvegarde a échoué", "/admin/system"),

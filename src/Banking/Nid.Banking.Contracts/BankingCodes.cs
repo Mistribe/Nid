@@ -17,6 +17,12 @@ public static class BankingCodes
     /// <summary>An Enable Banking application that connections still use cannot be removed.</summary>
     public const string ApplicationInUse = Nid.Core.Contracts.BankingApplicationCodes.InUse;
 
+    /// <summary>
+    /// #414: the last error of a connection the transfer of the installation application ended (status <c>revoked</c>): it was made with
+    /// an application that is now another adult's, so its creator must declare their own and link the bank again.
+    /// </summary>
+    public const string ApplicationTransferred = "banking.application_transferred";
+
     /// <summary>An application id that is empty or longer than 100 characters.</summary>
     public const string ApplicationIdInvalid = "banking.application_id_invalid";
 
