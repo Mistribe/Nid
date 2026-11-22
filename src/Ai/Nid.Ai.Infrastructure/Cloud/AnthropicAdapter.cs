@@ -134,10 +134,7 @@ public sealed class AnthropicAdapter(CloudHttp cloud) : ICloudAdapter
     }
 
     /// <summary>A status worth another profile (quota, rate, overload, outage) or not (the request itself, the key).</summary>
-    private static CloudCallException Failure(HttpStatusCode status)
-        => (int)status is 408 or 409 or 429 or >= 500
-            ? new CloudCallException(CloudFailure.Transient, JobCodes.CloudFailed)
-            : new CloudCallException(CloudFailure.Refused, (int)status is 401 or 403 ? CloudCodes.InvalidKey : JobCodes.CloudRefused);
+    private static CloudCallException Failure(HttpStatusCode status) => CloudFailures.Of(status);
 }
 
 internal sealed record AnthropicRequest(

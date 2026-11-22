@@ -46,3 +46,18 @@ public static class BudgetStatus
     public const string Alert = "alert";
     public const string Reached = "reached";
 }
+
+/// <summary>One of the reader's model calls (#489): when, for what, where (a worker's name or a provider), its tokens and
+/// cost (decimal string in euros, paid calls only), how it ended. Never its content.</summary>
+public sealed record LlmCallView(
+    Guid Id, Instant CreatedAt, string Use, string? Model, string? Destination, string? DestinationKind, int TokensIn, int TokensOut,
+    string? CostEur, string Status, string? Code);
+
+/// <summary>The household's month, for both adults: calls, tokens, cost of the paid ones.</summary>
+public sealed record LlmMonthView(int Calls, long TokensIn, long TokensOut, string CostEur);
+
+/// <summary>« Utilisation IA »: the reader's own calls, a page of them, and the household's month.</summary>
+public sealed record LlmUsageView(IReadOnlyList<LlmCallView> Items, int Total, int Page, LocalDate Month, LlmMonthView Totals)
+{
+    public const int PageSize = 50;
+}

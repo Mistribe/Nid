@@ -1,4 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
+import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -36,7 +37,8 @@ export function BudgetSection() {
   const view = budget.data;
 
   return (
-    <Section title={t('ai.budget.title')} tip={<InfoTip label={t('ai.budget.title')}>{t('ai.budget.tip')}</InfoTip>}>
+    <Section title={t('ai.budget.title')} tip={<InfoTip label={t('ai.budget.title')}>{t('ai.budget.tip')}</InfoTip>}
+      actions={<Link to="/settings/ai/usage" className="text-sm font-medium underline underline-offset-4">{t('ai.usage.link')}</Link>}>
       {budget.error ? <ProblemMessage problem={aiProblem(t, budget.error)} /> : null}
       {save.error && !amountError ? <ProblemMessage problem={aiProblem(t, save.error)} /> : null}
       {view ? (

@@ -38,6 +38,9 @@ export const CLOUD_KEY = '/api/v1/ai/cloud/keys/{provider}' as const;
 export type CloudProfile = components['schemas']['CloudProfileView'];
 /** #488: the household's monthly budget for paid providers; amounts are the server's decimal strings. */
 export const BUDGET = '/api/v1/ai/budget' as const;
+/** #489: the reader's own model calls and the household's month. */
+export const USAGE = '/api/v1/ai/usage' as const;
+export type LlmCall = components['schemas']['LlmCallView'];
 
 /** The statuses the jobs page filters on (the server refuses any other). */
 export const JOB_STATUSES = ['queued', 'running', 'succeeded', 'failed', 'dead'] as const;
