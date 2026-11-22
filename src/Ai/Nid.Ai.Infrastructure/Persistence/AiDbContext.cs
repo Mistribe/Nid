@@ -14,6 +14,8 @@ public sealed class AiDbContext(DbContextOptions<AiDbContext> options) : DbConte
 
     public DbSet<AiKeyRow> Keys => Set<AiKeyRow>();
 
+    public DbSet<JobRow> Jobs => Set<JobRow>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schema);
@@ -45,6 +47,26 @@ public sealed class AiDbContext(DbContextOptions<AiDbContext> options) : DbConte
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.Fingerprint).HasColumnType("char(64)");
             e.HasIndex(x => x.Status).IsUnique().HasFilter("status = 'active'");
+        });
+
+        modelBuilder.Entity<JobRow>(e =>
+        {
+            e.ToTable("job", t =>
+            {
+                t.HasCheckConstraint("ck_job_status", "status in ('queued', 'running', 'succeeded', 'failed', 'dead')");
+                t.HasCheckConstraint("ck_job_attempts", "attempts >= 0");
+            });
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Type).HasMaxLength(64);
+            e.Property(x => x.Input).HasColumnType("jsonb");
+            e.Property(x => x.InputHash).HasColumnType("char(64)");
+            e.Property(x => x.DataClass).HasMaxLength(32);
+            e.Property(x => x.Result).HasColumnType("jsonb");
+            e.HasIndex(x => new { x.Type, x.InputHash }).IsUnique().HasFilter("status in ('queued', 'running')");
+            e.HasIndex(x => new { x.Status, x.RunAfter });
+            e.HasOne<ModelWorkerRow>().WithMany().HasForeignKey(x => x.WorkerId).OnDelete(DeleteBehavior.SetNull);
+            e.Property(x => x.RowVersion).HasColumnName("xmin").HasColumnType("xid").ValueGeneratedOnAddOrUpdate().IsConcurrencyToken();
         });
 
         modelBuilder.MapAuditLog(ownedHere: false);

@@ -19,6 +19,10 @@ public sealed class ContractSchemaTests
         { nameof(PairResponse), "contracts/workers/pair-response/v1/schema.json" },
         { nameof(RotateWorkerKeyResponse), "contracts/workers/rotate-worker-key-response/v1/schema.json" },
         { nameof(RotateNidKeyRequest), "contracts/workers/rotate-nid-key-request/v1/schema.json" },
+        { nameof(JobSubmission), "contracts/workers/job-submission/v1/schema.json" },
+        { nameof(JobAccepted), "contracts/workers/job-accepted/v1/schema.json" },
+        { nameof(JobPoll), "contracts/workers/job-poll/v1/schema.json" },
+        { nameof(JobStatus), "contracts/workers/job-status/v1/schema.json" },
     };
 
     [Theory]
@@ -74,6 +78,47 @@ public sealed class ContractSchemaTests
 
         Assert.Equal("contract_invalid",
             Assert.Throws<ProtocolException>(() => ContractJson.Read<WorkerDeclaration>(Encoding.UTF8.GetBytes(json))).Code);
+    }
+
+    [Theory]
+    [InlineData("""{"type": "echo", "version": 1, "input": {"text": "hi"}, "file": null}""", true)]
+    [InlineData("""{"type": "echo", "version": 0, "input": {}, "file": null}""", false)]
+    [InlineData("""{"type": "", "version": 1, "input": {}, "file": null}""", false)]
+    [InlineData("""{"type": "echo", "version": 1, "input": {}, "file": "not base64!"}""", false)]
+    public void A_job_submission_is_read_strictly(string json, bool valid)
+    {
+        if (valid)
+            Assert.Equal("echo", ContractJson.Read<JobSubmission>(Encoding.UTF8.GetBytes(json)).Type);
+        else
+            Assert.Equal("contract_invalid", Assert.Throws<ProtocolException>(() => ContractJson.Read<JobSubmission>(Encoding.UTF8.GetBytes(json))).Code);
+    }
+
+    [Theory]
+    [InlineData("""{"status": "succeeded", "error": null, "resultLength": 120}""", true)]
+    [InlineData("""{"status": "running", "error": null, "resultLength": null}""", true)]
+    [InlineData("""{"status": "done", "error": null, "resultLength": null}""", false)]
+    [InlineData("""{"status": "succeeded", "error": null, "resultLength": null}""", false)]
+    [InlineData("""{"status": "succeeded", "error": null, "resultLength": 25165825}""", false)]
+    public void A_job_status_is_read_strictly(string json, bool valid)
+    {
+        if (valid)
+            Assert.NotNull(ContractJson.Read<JobStatus>(Encoding.UTF8.GetBytes(json)));
+        else
+            Assert.Equal("contract_invalid", Assert.Throws<ProtocolException>(() => ContractJson.Read<JobStatus>(Encoding.UTF8.GetBytes(json))).Code);
+    }
+
+    [Fact]
+    public void A_declaration_may_report_its_load()
+        => Assert.Equal(3, ContractJson.Read<WorkerDeclaration>(Encoding.UTF8.GetBytes(
+            Encoding.UTF8.GetString(Declaration(Model("chat", ""))).Replace("\"maxConcurrentRequests\": 2,", "\"maxConcurrentRequests\": 2, \"load\": 3,"))).Load);
+
+    [Fact]
+    public void An_output_with_a_nul_character_is_not_kept()
+    {
+        var contract = new Nid.Ai.Application.EchoJobContract();
+
+        Assert.Null(contract.ReadOutput("""{"text": "a\u0000b"}"""u8));
+        Assert.NotNull(contract.ReadOutput("""{"text": "ab"}"""u8));
     }
 
     [Fact]

@@ -17,7 +17,7 @@ partial class AiDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261122101731_AddModelWorkers";
+    public override string LastMigrationId => "20261122122429_AddJobs";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -70,6 +70,131 @@ partial class AiDbContextModelSnapshot : ModelSnapshot
                 b.ToTable("ai_key", "ai", t =>
                     {
                         t.HasCheckConstraint("ck_ai_key_status", "status in ('active', 'retiring')");
+                    });
+            });
+
+        modelBuilder.Entity("Nid.Ai.Infrastructure.Persistence.JobRow", b =>
+            {
+                b.Property<Guid>("Id")
+                    .HasColumnType("uuid")
+                    .HasColumnName("id");
+
+                b.Property<int>("Attempts")
+                    .HasColumnType("integer")
+                    .HasColumnName("attempts");
+
+                b.Property<Instant>("CreatedAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("created_at");
+
+                b.Property<string>("DataClass")
+                    .IsRequired()
+                    .HasMaxLength(32)
+                    .HasColumnType("character varying(32)")
+                    .HasColumnName("data_class");
+
+                b.Property<string>("Error")
+                    .HasColumnType("text")
+                    .HasColumnName("error");
+
+                b.Property<string>("FileRef")
+                    .HasColumnType("text")
+                    .HasColumnName("file_ref");
+
+                b.Property<Instant?>("FinishedAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("finished_at");
+
+                b.Property<string>("Input")
+                    .IsRequired()
+                    .HasColumnType("jsonb")
+                    .HasColumnName("input");
+
+                b.Property<string>("InputHash")
+                    .IsRequired()
+                    .HasColumnType("char(64)")
+                    .HasColumnName("input_hash");
+
+                b.Property<Instant?>("LeaseUntil")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("lease_until");
+
+                b.Property<Instant?>("NextPollAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("next_poll_at");
+
+                b.Property<byte[]>("ResponseSecret")
+                    .HasColumnType("bytea")
+                    .HasColumnName("response_secret");
+
+                b.Property<string>("Result")
+                    .HasColumnType("jsonb")
+                    .HasColumnName("result");
+
+                b.Property<uint>("RowVersion")
+                    .IsConcurrencyToken()
+                    .ValueGeneratedOnAddOrUpdate()
+                    .HasColumnType("xid")
+                    .HasColumnName("xmin");
+
+                b.Property<Instant>("RunAfter")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("run_after");
+
+                b.Property<Instant?>("SentAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("sent_at");
+
+                b.Property<string>("Status")
+                    .IsRequired()
+                    .HasColumnType("text")
+                    .HasColumnName("status");
+
+                b.Property<Guid?>("TargetWorkerId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("target_worker_id");
+
+                b.Property<string>("Type")
+                    .IsRequired()
+                    .HasMaxLength(64)
+                    .HasColumnType("character varying(64)")
+                    .HasColumnName("type");
+
+                b.Property<int>("Version")
+                    .HasColumnType("integer")
+                    .HasColumnName("version");
+
+                b.Property<string>("WaitingReason")
+                    .HasColumnType("text")
+                    .HasColumnName("waiting_reason");
+
+                b.Property<Guid?>("WorkerId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("worker_id");
+
+                b.Property<string>("WorkerJobId")
+                    .HasColumnType("text")
+                    .HasColumnName("worker_job_id");
+
+                b.HasKey("Id")
+                    .HasName("pk_job");
+
+                b.HasIndex("WorkerId")
+                    .HasDatabaseName("ix_job_worker_id");
+
+                b.HasIndex("Status", "RunAfter")
+                    .HasDatabaseName("ix_job_status_run_after");
+
+                b.HasIndex("Type", "InputHash")
+                    .IsUnique()
+                    .HasDatabaseName("ix_job_type_input_hash")
+                    .HasFilter("status in ('queued', 'running')");
+
+                b.ToTable("job", "ai", t =>
+                    {
+                        t.HasCheckConstraint("ck_job_attempts", "attempts >= 0");
+
+                        t.HasCheckConstraint("ck_job_status", "status in ('queued', 'running', 'succeeded', 'failed', 'dead')");
                     });
             });
 
@@ -294,6 +419,15 @@ partial class AiDbContextModelSnapshot : ModelSnapshot
 
                         t.HasCheckConstraint("ck_audit_log_category", "category in ('write','security','import')");
                     });
+            });
+
+        modelBuilder.Entity("Nid.Ai.Infrastructure.Persistence.JobRow", b =>
+            {
+                b.HasOne("Nid.Ai.Infrastructure.Persistence.ModelWorkerRow", null)
+                    .WithMany()
+                    .HasForeignKey("WorkerId")
+                    .OnDelete(DeleteBehavior.SetNull)
+                    .HasConstraintName("fk_job_model_worker_worker_id");
             });
 
         modelBuilder.Entity("Nid.Ai.Infrastructure.Persistence.ModelWorkerRow", b =>

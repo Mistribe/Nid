@@ -54,6 +54,16 @@ public static class AiEndpoints
         MapAction(api, "rotate-key", id => new RotateWorkerKeyCommand(id));
         MapAction(api, "refresh", id => new RefreshWorkerCommand(id));
 
+        api.MapPost("/{id:guid}/test", async (Guid id, IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new TestWorkerCommand(id), ct)).ToHttp(result => result))
+            .Returns<WorkerTestResult>();
+
+        var jobs = routes.MapGroup("/api/v1/ai/jobs").RequireAuthorization()
+            .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>();
+        jobs.MapGet("/{id:guid}", async (Guid id, IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new GetModelJobQuery(id), ct)).ToHttp(view => view))
+            .Returns<ModelJobView>();
+
         var key = routes.MapGroup("/api/v1/ai/key").RequireAuthorization()
             .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>();
         key.MapPost("/rotate", async (IInvoker invoker, CancellationToken ct)

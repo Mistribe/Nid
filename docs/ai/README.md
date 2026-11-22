@@ -729,6 +729,11 @@ et §3, `authorization.md`), `../security/` (`infrastructure.md`, `README.md`, `
   redonné à chaque redémarrage du worker ; enregistrement en attente abandonné après 1 heure ; rotation de la clé d'un
   worker avec 24 heures de recouvrement ; rotation de la clé de Nid confirmée sur chaque console, l'ancienne clé valable
   24 heures après la confirmation, une rotation non confirmée signalée après 7 jours ; worker en HTTPS sur le port 8443.
+- **Valeurs fixées par #474** : un job interrogé toutes les 5 s sa première minute puis toutes les 30 s ; bail de 10 min ;
+  5 essais (30 s, 2 min, 10 min, 1 h), puis `dead` et la notice `job_failed` ; déclaration relue chaque minute, un worker
+  est « en ligne » 3 min après sa dernière déclaration ; requête : 1 Mio d'entrée, 10 min, 10 000 trames, 16 Mio ; fichier
+  d'un job : 50 Mio ; côté worker : 32 jobs en attente, 4 à la fois, un résultat gardé 15 min. Un résultat voyage en
+  trames de données scellées sous le contexte de la soumission, avant le statut qui en donne la longueur.
 - **Valeurs** : étapes, jetons et durée par tour et plafond par personne (#173), bornes des requêtes et fréquence
   d'interrogation des workers (#166), fenêtre de recouvrement d'une rotation.
 - **Chiffrement au repos** des conversations au-delà de celui des sauvegardes.

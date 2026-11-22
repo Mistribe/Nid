@@ -151,52 +151,18 @@ public sealed class RotateWorkerKeyHandler(IWorkerStore store, IWorkerClient cli
 }
 
 [RequestHandler<RefreshWorkerCommand, WorkerView>]
-public sealed class RefreshWorkerHandler(IWorkerStore store, IWorkerClient client, INidKeys keys, IClock clock)
+public sealed class RefreshWorkerHandler(IWorkerStore store, WorkerRefresher refresher, INidKeys keys, IClock clock)
     : IRequestHandler<RefreshWorkerCommand, WorkerView>
 {
     public async ValueTask<Result<WorkerView>> HandleAsync(RefreshWorkerCommand command, CancellationToken ct = default)
     {
         if (await store.FindAsync(command.Id, ct) is not { } worker)
             return WorkerFailures.Refused<WorkerView>(AiCodes.WorkerNotFound);
-        if (WorkerRules.Call(worker.Status) is { } refusal)
-            return WorkerFailures.Refused<WorkerView>(refusal);
 
-        var active = await keys.ActiveAsync(ct);
-        var pinned = worker.NidKeyId is { } id ? await keys.FindAsync(id, ct) : null;
-
-        // Nid's newest key first: it works once the operator confirmed it on the worker's console.
-        WorkerDeclaration? declaration = null;
-        NidKey? used = null;
-        string? failure = null;
-        foreach (var key in new[] { active, pinned }.OfType<NidKey>().DistinctBy(k => k.Id))
-        {
-            try
-            {
-                declaration = await client.DeclarationAsync(worker, key, ct);
-                used = key;
-                break;
-            }
-            catch (WorkerCallException e)
-            {
-                failure = e.Code;
-            }
-        }
-
-        if (declaration is null || used is null)
-            return WorkerFailures.Refused<WorkerView>(failure ?? AiCodes.WorkerRefused);
-
-        var now = clock.GetCurrentInstant();
-        var refreshed = worker with
-        {
-            NidKeyId = declaration.NidKeyFingerprint == used.Fingerprint ? used.Id : worker.NidKeyId,
-            LastDeclaration = JsonSerializer.Serialize(declaration, ContractJson.Strict),
-            SoftwareVersion = declaration.SoftwareVersion,
-            LastSeenAt = now,
-        };
-        if (!await store.UpdateAsync(refreshed, ct))
-            return WorkerFailures.Refused<WorkerView>(AiCodes.WorkerChanged);
-        await keys.RetireUnusedAsync(ct);
-        return Result.Success(await WorkerViews.FromAsync(refreshed, keys, clock, ct));
+        var (refreshed, refusal) = await refresher.RefreshAsync(worker, ct);
+        return refreshed is null
+            ? WorkerFailures.Refused<WorkerView>(refusal!)
+            : Result.Success(await WorkerViews.FromAsync(refreshed, keys, clock, ct));
     }
 }
 

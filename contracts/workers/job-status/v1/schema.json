@@ -1,0 +1,26 @@
+{
+  "type": "object",
+  "properties": {
+    "status": {
+      "type": "string"
+    },
+    "error": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "resultLength": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "status",
+    "error",
+    "resultLength"
+  ],
+  "additionalProperties": false
+}

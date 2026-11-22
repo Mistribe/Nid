@@ -17,6 +17,9 @@ public static class WorkerEndpoints
     public const string PairKeyItem = "nid.pair-key";
     private const int MaxRequestBytes = 1024 * 1024;
 
+    /// <summary>A job's body: its file (50 MiB, base64) and its input.</summary>
+    public const int MaxJobBytes = 70 * 1024 * 1024;
+
     public static readonly string SoftwareVersion =
         typeof(WorkerEndpoints).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0]
         ?? "0.0.0";
@@ -35,8 +38,21 @@ public static class WorkerEndpoints
         });
 
         app.MapPost(PairPath, Pair);
-        app.MapPost("/v1/declaration", (HttpContext context, StateStore store) =>
-            Signed(context, store, (_, secret) => Respond(context, secret, Declaration(store.Load()))));
+        app.MapPost("/v1/declaration", (HttpContext context, StateStore store, JobTable jobs) =>
+            Signed(context, store, (_, secret) => Respond(context, secret, Declaration(store.Load(), jobs))));
+        app.MapPost("/v1/jobs", (HttpContext context, StateStore store, JobTable jobs) =>
+            Signed(context, store, (plaintext, secret) => SubmitJob(context, jobs, plaintext, secret), MaxJobBytes));
+        app.MapPost("/v1/jobs/{id}", (string id, HttpContext context, StateStore store, JobTable jobs) =>
+            Signed(context, store, (_, secret) => JobStatusOf(context, jobs, id, secret)));
+        app.MapPost("/v1/jobs/{id}/cancel", (string id, HttpContext context, StateStore store, JobTable jobs) =>
+            Signed(context, store, (_, secret) =>
+            {
+                jobs.Cancel(id);
+                return new ResponseWriter(secret, context.Response.Body).WriteAsync(FrameType.End, ReadOnlyMemory<byte>.Empty, context.RequestAborted);
+            }));
+        app.MapPost("/v1/requests/{type}/{version:int}",
+            (string type, int version, HttpContext context, StateStore store, JobTable jobs, IEnumerable<IRequestHandler> handlers) =>
+                Signed(context, store, (plaintext, secret) => AnswerAsync(context, jobs, handlers, type, version, plaintext, secret)));
         app.MapPost("/v1/rotate-worker-key", (HttpContext context, StateStore store) =>
             Signed(context, store, (_, secret) => RotateWorkerKey(context, store, secret)));
         app.MapPost("/v1/rotate", (HttpContext context, StateStore store) =>
@@ -103,13 +119,99 @@ public static class WorkerEndpoints
             return Results.StatusCode(StatusCodes.Status403Forbidden);
 
         using var certificate = SelfSignedCertificate.Load(state.TlsCertificate);
-        await Respond(context, secret, new PairResponse(SelfSignedCertificate.Sha256(certificate), Declaration(state)));
+        await Respond(context, secret, new PairResponse(SelfSignedCertificate.Sha256(certificate), Declaration(state, context.RequestServices.GetRequiredService<JobTable>())));
         return Results.Empty;
     }
 
-    private static async Task<IResult> Signed(HttpContext context, StateStore store, Func<byte[], ResponseSecret, Task> handle)
+    private static async Task SubmitJob(HttpContext context, JobTable jobs, byte[] plaintext, ResponseSecret secret)
     {
-        var body = await ReadBody(context);
+        JobSubmission submission;
+        byte[]? file;
+        try
+        {
+            submission = ContractJson.Read<JobSubmission>(plaintext);
+            file = submission.File is null ? null : Convert.FromBase64String(submission.File);
+        }
+        catch (Exception e) when (e is ProtocolException or FormatException)
+        {
+            await Refuse(context, secret, "input_invalid");
+            return;
+        }
+
+        var (id, refusal) = jobs.Submit(submission.Type, submission.Version, submission.Input, file, secret);
+        if (id is null)
+            await Refuse(context, secret, refusal!);
+        else
+            await Respond(context, secret, new JobAccepted(id));
+    }
+
+    private static async Task JobStatusOf(HttpContext context, JobTable jobs, string id, ResponseSecret secret)
+    {
+        context.Response.ContentType = "application/octet-stream";
+        var writer = new ResponseWriter(secret, context.Response.Body);
+        var job = jobs.Find(id);
+        var succeeded = job is { Status: "succeeded", Result: { } result } ? result : null;
+        if (succeeded is not null)
+            for (var at = 0; at < succeeded.Length; at += JobStatus.ResultChunk)
+                await writer.WriteAsync(FrameType.Data, succeeded.AsMemory(at, Math.Min(JobStatus.ResultChunk, succeeded.Length - at)), context.RequestAborted);
+
+        var status = job is null
+            ? new JobStatus("unknown", null, null)
+            : new JobStatus(succeeded is null && job.Status == "succeeded" ? "running" : job.Status, job.Error, succeeded?.Length);
+        await writer.WriteAsync(FrameType.End, ContractJson.Write(status), context.RequestAborted);
+    }
+
+    /// <summary>A request's answer, in data frames as the handler yields them, then <c>end</c>; an <c>error</c> frame when the
+    /// type is unknown, its input does not follow its contract, or the handler fails. Closing the request cancels it.</summary>
+    private static async Task AnswerAsync(
+        HttpContext context, JobTable jobs, IEnumerable<IRequestHandler> handlers, string type, int version, byte[] input,
+        ResponseSecret secret)
+    {
+        context.Response.ContentType = "application/octet-stream";
+        var writer = new ResponseWriter(secret, context.Response.Body);
+        var ct = context.RequestAborted;
+        if (handlers.LastOrDefault(h => h.Type == type && h.Version == version) is not { } handler)
+        {
+            await writer.WriteAsync(FrameType.Error, "unsupported"u8.ToArray(), ct);
+            return;
+        }
+
+        using var _ = jobs.Answering();
+        string? failure = null;
+        try
+        {
+            await foreach (var frame in handler.RunAsync(input, ct).WithCancellation(ct))
+                await writer.WriteAsync(FrameType.Data, frame, ct);
+        }
+        catch (InputInvalidException)
+        {
+            failure = "input_invalid";
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            return; // the caller is gone: nothing to end
+        }
+        catch (Exception)
+        {
+            failure = "handler_failed";
+        }
+
+        if (failure is null)
+            await writer.WriteAsync(FrameType.End, ReadOnlyMemory<byte>.Empty, ct);
+        else
+            await writer.WriteAsync(FrameType.Error, System.Text.Encoding.UTF8.GetBytes(failure), ct);
+    }
+
+    private static Task Refuse(HttpContext context, ResponseSecret secret, string reason)
+    {
+        context.Response.ContentType = "application/octet-stream";
+        return new ResponseWriter(secret, context.Response.Body).WriteAsync(FrameType.Error, System.Text.Encoding.UTF8.GetBytes(reason), context.RequestAborted);
+    }
+
+    private static async Task<IResult> Signed(
+        HttpContext context, StateStore store, Func<byte[], ResponseSecret, Task> handle, int maxBytes = MaxRequestBytes)
+    {
+        var body = await ReadBody(context, maxBytes);
         if (body is null || !TryOpen(store, body, out var plaintext, out var secret))
             return Results.StatusCode(StatusCodes.Status401Unauthorized);
 
@@ -171,9 +273,13 @@ public static class WorkerEndpoints
         return null;
     }
 
-    private static WorkerDeclaration Declaration(WorkerState state)
-        => new(SoftwareVersion, [], [], MaxConcurrentRequests: 4, [],
-            state.NidKey is null ? new string('0', 64) : KeyFingerprint.Compact(Convert.FromBase64String(state.NidKey)));
+    private static WorkerDeclaration Declaration(WorkerState state, JobTable jobs)
+        => new(SoftwareVersion,
+            [.. jobs.Types.Select(t => new ContractVersion(t.Type, t.Version))],
+            [.. jobs.RequestTypes.Select(t => new ContractVersion(t.Type, t.Version))],
+            MaxConcurrentRequests: JobTable.MaxConcurrent, [],
+            state.NidKey is null ? new string('0', 64) : KeyFingerprint.Compact(Convert.FromBase64String(state.NidKey)),
+            jobs.Load);
 
     private static bool TryOpen(StateStore store, byte[] message, out byte[] plaintext, out ResponseSecret secret)
     {
@@ -201,14 +307,14 @@ public static class WorkerEndpoints
         return false;
     }
 
-    private static async Task<byte[]?> ReadBody(HttpContext context)
+    private static async Task<byte[]?> ReadBody(HttpContext context, int maxBytes = MaxRequestBytes)
     {
         using var buffer = new MemoryStream();
         var chunk = new byte[16 * 1024];
         int read;
         while ((read = await context.Request.Body.ReadAsync(chunk, context.RequestAborted)) > 0)
         {
-            if (buffer.Length + read > MaxRequestBytes)
+            if (buffer.Length + read > maxBytes)
                 return null;
             buffer.Write(chunk, 0, read);
         }

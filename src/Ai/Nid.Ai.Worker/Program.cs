@@ -11,6 +11,9 @@ var builder = WebApplication.CreateSlimBuilder(args);
 builder.Services.Configure<WorkerOptions>(builder.Configuration.GetSection("Worker"));
 builder.Services.TryAddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<StateStore>();
+builder.Services.AddSingleton<IJobHandler, EchoJob>();
+builder.Services.AddSingleton<IRequestHandler, EchoRequest>();
+builder.Services.AddSingleton<JobTable>();
 builder.Services.AddSingleton(sp => new NonceCache(sp.GetRequiredService<TimeProvider>()));
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddContentDigestVerification();
@@ -27,6 +30,8 @@ builder.WebHost.ConfigureKestrel((context, kestrel) =>
 {
     var worker = context.Configuration.GetSection("Worker").Get<WorkerOptions>() ?? new WorkerOptions();
     kestrel.AddServerHeader = false;
+    // 2 MiB for every route; /v1/jobs raises it for itself (a job's file), before anything reads a body.
+    kestrel.Limits.MaxRequestBodySize = 2 * 1024 * 1024;
     var certificate = new Lazy<System.Security.Cryptography.X509Certificates.X509Certificate2>(() =>
         SelfSignedCertificate.Load(kestrel.ApplicationServices.GetRequiredService<StateStore>().Load().TlsCertificate));
     kestrel.ListenAnyIP(worker.Port, listen => listen.UseHttps(https => https.ServerCertificateSelector = (_, _) => certificate.Value));
@@ -37,6 +42,13 @@ var app = builder.Build();
 var state = app.Services.GetRequiredService<StateStore>().Start();
 app.Logger.LogInformation("{Status}", StateStore.Describe(state));
 
+app.Use((context, next) =>
+{
+    if (context.Request.Path == "/v1/jobs"
+        && context.Features.Get<Microsoft.AspNetCore.Http.Features.IHttpMaxRequestBodySizeFeature>() is { IsReadOnly: false } limit)
+        limit.MaxRequestBodySize = WorkerEndpoints.MaxJobBytes;
+    return next(context);
+});
 app.UseWhen(context => context.Request.Path == WorkerEndpoints.PairPath, pairing =>
 {
     pairing.Use(WorkerEndpoints.OpenPairing);

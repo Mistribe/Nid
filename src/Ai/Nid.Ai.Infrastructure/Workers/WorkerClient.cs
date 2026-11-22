@@ -18,6 +18,10 @@ public sealed class WorkerClient(HttpClient http) : IWorkerClient, IDisposable
 {
     public void Dispose() => http.Dispose();
 
+    /// <summary>A call's time: 30 s; sending a job's file, up to 10 min.</summary>
+    public static readonly TimeSpan CallTimeout = TimeSpan.FromSeconds(30);
+    public static readonly TimeSpan SubmitTimeout = TimeSpan.FromMinutes(10);
+
     private static readonly FrameLimits Limits = new(MaxFramePlaintext: 64 * 1024, MaxFrames: 4, MaxTotalPlaintext: 256 * 1024);
 
     public async Task<WorkerKey> GetKeyAsync(Uri url, CancellationToken ct)
@@ -64,17 +68,35 @@ public sealed class WorkerClient(HttpClient http) : IWorkerClient, IDisposable
         await ActiveCallAsync<Acknowledged>(worker, "/v1/rotate", ContractJson.Write(request), key, ct);
     }
 
-    private Task<T> ActiveCallAsync<T>(WorkerRecord worker, string path, byte[] plaintext, NidKey key, CancellationToken ct)
-        where T : IContract
-        => WorkerRules.Call(worker.Status) is { } refusal
-            ? throw new WorkerCallException(refusal)
-            : CallAsync<T>(worker, path, plaintext, key, AiCodes.WorkerRefused, ct);
-
-    private async Task<T> CallAsync<T>(WorkerRecord worker, string path, byte[] plaintext, NidKey key, string refused, CancellationToken ct)
-        where T : IContract
+    public async Task<SubmittedJob> SubmitJobAsync(WorkerRecord worker, NidKey key, JobSubmission submission, CancellationToken ct)
     {
-        var (message, secret) = SealedRequest.Seal(worker.WorkerPublicKey, plaintext);
-        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(worker.Url, path)) { Content = new ByteArrayContent(message) };
+        Active(worker);
+        var (frames, secret) = await ExchangeAsync(worker, "/v1/jobs", ContractJson.Write(submission), key, AiCodes.WorkerRefused, Limits, ct,
+            submission.File is null ? CallTimeout : SubmitTimeout);
+        return new SubmittedJob(Read<JobAccepted>(frames[^1], AiCodes.WorkerRefused).Id, secret.ToBytes());
+    }
+
+    public async Task<PolledJob> PollJobAsync(WorkerRecord worker, NidKey key, string workerJobId, CancellationToken ct)
+    {
+        Active(worker);
+        var limits = new FrameLimits(64 * 1024, JobStatus.MaxResultBytes / JobStatus.ResultChunk + 2, JobStatus.MaxResultBytes + 64 * 1024);
+        var (frames, _) = await ExchangeAsync(worker, $"/v1/jobs/{Uri.EscapeDataString(workerJobId)}",
+            ContractJson.Write(new JobPoll(workerJobId)), key, AiCodes.WorkerRefused, limits, ct);
+        var status = Read<JobStatus>(frames[^1], AiCodes.WorkerRefused);
+        var result = frames.Take(frames.Count - 1).SelectMany(f => f.Content.ToArray()).ToArray();
+        if (result.Length != (status.ResultLength ?? 0))
+            throw new WorkerCallException(AiCodes.WorkerRefused);
+        return new PolledJob(status, status.ResultLength is null ? null : result);
+    }
+
+    public async IAsyncEnumerable<Frame> StreamAsync(
+        WorkerRecord worker, NidKey key, string type, int version, byte[] input, FrameLimits limits,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct)
+    {
+        Active(worker);
+        var (message, secret) = SealedRequest.Seal(worker.WorkerPublicKey, input);
+        using var request = new HttpRequestMessage(HttpMethod.Post,
+            new Uri(worker.Url, $"/v1/requests/{Uri.EscapeDataString(type)}/{version}")) { Content = new ByteArrayContent(message) };
         await WorkerRequestSigning.SignAsync(request, key.Key, ct);
 
         HttpResponseMessage response;
@@ -90,21 +112,112 @@ public sealed class WorkerClient(HttpClient http) : IWorkerClient, IDisposable
         using (response)
         {
             if (!response.IsSuccessStatusCode)
+                throw new WorkerCallException(AiCodes.WorkerRefused);
+
+            await using var frames = ResponseReader.ReadAsync(secret, await response.Content.ReadAsStreamAsync(ct), limits, ct).GetAsyncEnumerator(ct);
+            while (true)
+            {
+                try
+                {
+                    if (!await frames.MoveNextAsync())
+                        yield break;
+                }
+                catch (ProtocolException)
+                {
+                    throw new WorkerCallException(AiCodes.WorkerRefused);
+                }
+                catch (Exception e) when (e is HttpRequestException or IOException && !ct.IsCancellationRequested)
+                {
+                    throw new WorkerCallException(AiCodes.WorkerUnreachable);
+                }
+
+                yield return frames.Current;
+            }
+        }
+    }
+
+    public async Task CancelJobAsync(WorkerRecord worker, NidKey key, string workerJobId, CancellationToken ct)
+    {
+        Active(worker);
+        await ExchangeAsync(worker, $"/v1/jobs/{Uri.EscapeDataString(workerJobId)}/cancel", "{}"u8.ToArray(), key, AiCodes.WorkerRefused, Limits, ct);
+    }
+
+    private static void Active(WorkerRecord worker)
+    {
+        if (WorkerRules.Call(worker.Status) is { } refusal)
+            throw new WorkerCallException(refusal);
+    }
+
+    private static T Read<T>(Frame frame, string refused) where T : IContract
+    {
+        if (frame.Type != FrameType.End)
+            throw new WorkerCallException(frame.Type == FrameType.Error ? $"{refused}:{System.Text.Encoding.UTF8.GetString(frame.Content.Span)}" : refused);
+        try
+        {
+            return ContractJson.Read<T>(frame.Content.Span);
+        }
+        catch (ProtocolException)
+        {
+            throw new WorkerCallException(refused);
+        }
+    }
+
+    private Task<T> ActiveCallAsync<T>(WorkerRecord worker, string path, byte[] plaintext, NidKey key, CancellationToken ct)
+        where T : IContract
+        => WorkerRules.Call(worker.Status) is { } refusal
+            ? throw new WorkerCallException(refusal)
+            : CallAsync<T>(worker, path, plaintext, key, AiCodes.WorkerRefused, ct);
+
+    private async Task<T> CallAsync<T>(WorkerRecord worker, string path, byte[] plaintext, NidKey key, string refused, CancellationToken ct)
+        where T : IContract
+    {
+        var (frames, _) = await ExchangeAsync(worker, path, plaintext, key, refused, Limits, ct);
+        var last = frames[^1];
+        return last is { Type: FrameType.End } && typeof(T) == typeof(Acknowledged) ? (T)(object)Acknowledged.Instance : Read<T>(last, refused);
+    }
+
+    /// <summary>One call: sealed, signed, sent; every frame of the answer, which must end with <c>end</c> or <c>error</c>.</summary>
+    private async Task<(List<Frame> Frames, ResponseSecret Secret)> ExchangeAsync(
+        WorkerRecord worker, string path, byte[] plaintext, NidKey key, string refused, FrameLimits limits, CancellationToken outer,
+        TimeSpan? timeout = null)
+    {
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(outer);
+        deadline.CancelAfter(timeout ?? CallTimeout);
+        var ct = deadline.Token;
+        var (message, secret) = SealedRequest.Seal(worker.WorkerPublicKey, plaintext);
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(worker.Url, path)) { Content = new ByteArrayContent(message) };
+        await WorkerRequestSigning.SignAsync(request, key.Key, ct);
+
+        HttpResponseMessage response;
+        try
+        {
+            response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+        }
+        catch (Exception e) when (e is HttpRequestException or OperationCanceledException or UnambitiousFx.Myelin.OutboundRefusedException
+                                  && !outer.IsCancellationRequested)
+        {
+            throw new WorkerCallException(AiCodes.WorkerUnreachable);
+        }
+
+        using (response)
+        {
+            if (!response.IsSuccessStatusCode)
                 throw new WorkerCallException(refused);
 
             try
             {
-                Frame? last = null;
-                await foreach (var frame in ResponseReader.ReadAsync(secret, await response.Content.ReadAsStreamAsync(ct), Limits, ct))
-                    last = frame;
-
-                return last is { Type: FrameType.End }
-                    ? typeof(T) == typeof(Acknowledged) ? (T)(object)Acknowledged.Instance : ContractJson.Read<T>(last.Content.Span)
-                    : throw new WorkerCallException(refused);
+                var frames = new List<Frame>();
+                await foreach (var frame in ResponseReader.ReadAsync(secret, await response.Content.ReadAsStreamAsync(ct), limits, ct))
+                    frames.Add(frame);
+                return (frames, secret);
             }
             catch (ProtocolException)
             {
                 throw new WorkerCallException(refused);
+            }
+            catch (Exception e) when (e is HttpRequestException or IOException or OperationCanceledException && !outer.IsCancellationRequested)
+            {
+                throw new WorkerCallException(AiCodes.WorkerUnreachable);
             }
         }
     }

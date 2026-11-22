@@ -73,3 +73,56 @@ public sealed class AiKeyRow
 
     public Instant CreatedAt { get; set; }
 }
+
+/// <summary>A job sent to the workers (<c>ai.job</c>, <c>docs/architecture.md</c> §9.3). <see cref="ResponseSecret"/> is
+/// encrypted by Data Protection and erased once the result is fetched; the row is operational state, not a household
+/// decision, and stays out of the audit log.</summary>
+public sealed class JobRow
+{
+    public Guid Id { get; set; }
+
+    public required string Type { get; set; }
+
+    public int Version { get; set; }
+
+    public required string Input { get; set; }
+
+    public required string InputHash { get; set; }
+
+    public string? FileRef { get; set; }
+
+    public required string DataClass { get; set; }
+
+    public Guid? TargetWorkerId { get; set; }
+
+    /// <summary><c>queued</c>, <c>running</c>, <c>succeeded</c>, <c>failed</c> or <c>dead</c>.</summary>
+    public required string Status { get; set; }
+
+    public int Attempts { get; set; }
+
+    public Instant RunAfter { get; set; }
+
+    public Instant? NextPollAt { get; set; }
+
+    public Instant? LeaseUntil { get; set; }
+
+    public Guid? WorkerId { get; set; }
+
+    public string? WorkerJobId { get; set; }
+
+    public byte[]? ResponseSecret { get; set; }
+
+    public string? Result { get; set; }
+
+    public string? Error { get; set; }
+
+    public string? WaitingReason { get; set; }
+
+    public Instant CreatedAt { get; set; }
+
+    public Instant? SentAt { get; set; }
+
+    public Instant? FinishedAt { get; set; }
+
+    public uint RowVersion { get; set; }
+}
