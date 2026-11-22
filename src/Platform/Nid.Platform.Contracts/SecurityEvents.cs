@@ -100,6 +100,9 @@ public static class SecurityEventNames
         AdminGranted, AdminRevoked, SessionRevoked, HouseholdSettingsChanged, AdminCommand, SubjectRebound, TokenAuthFailed,
         // Issue 215: what an admin needs to act on. login_failed only without a person (unknown_login, #292): the reader drops an adult's own.
         LoginFailed, LoginLocked, PasswordReset, CredentialLinkIssued, CredentialLinkRevoked, AccountEnrolled, AccountUnlocked, SetupCompleted, TotpReset,
+        // #476: the model workers and what they may see (docs/ai/README.md §12).
+        ModelWorkerRegistered, ModelWorkerPaired, ModelWorkerChanged, ModelWorkerRevoked, ModelWorkerKeyRotated, NidWorkerKeyRotated,
+        AiRemoteWorkersChanged,
     };
 }
 

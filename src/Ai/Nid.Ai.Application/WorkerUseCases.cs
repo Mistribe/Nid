@@ -80,7 +80,7 @@ public static class WorkerViews
         worker.Status.ToString().ToLowerInvariant(), worker.KeyRead ? KeyFingerprint.Of(worker.WorkerPublicKey) : "", workerKey?.Fingerprint,
         NidKeyRotationOverdue: workerKey is { Active: false } && activeKey is not null
                                && now - activeKey.CreatedAt > Duration.FromTimeSpan(WorkerRules.RotationOverdue),
-        worker.SoftwareVersion, worker.LastSeenAt, worker.CreatedAt, worker.PairedAt);
+        worker.SoftwareVersion, worker.LastSeenAt, worker.CreatedAt, worker.PairedAt, WorkerRouter.DeclarationOf(worker)?.Load ?? 0);
 
     public static async Task<WorkerView> FromAsync(WorkerRecord worker, INidKeys keys, IClock clock, CancellationToken ct)
         => From(worker, worker.NidKeyId is { } id ? await keys.FindAsync(id, ct) : null, await keys.ActiveAsync(ct), clock.GetCurrentInstant());

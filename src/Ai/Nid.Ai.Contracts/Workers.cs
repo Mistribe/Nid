@@ -51,7 +51,8 @@ public sealed record WorkerView(
     string? SoftwareVersion,
     Instant? LastSeenAt,
     Instant CreatedAt,
-    Instant? PairedAt);
+    Instant? PairedAt,
+    int Load);
 
 public sealed record WorkerList(IReadOnlyList<WorkerView> Workers);
 
@@ -99,3 +100,16 @@ public sealed record ModelCapabilities(bool RemoteWorkersAllowed, IReadOnlyList<
 /// opt-in) and among them <see cref="Safe"/>; <see cref="Reason"/> when none, with the router's codes: <c>ai.no_worker</c>,
 /// <c>ai.remote_not_allowed</c>, <c>ai.all_offline</c>.</summary>
 public sealed record CapabilityView(string Capability, int Local, int Remote, int Safe, string? Reason);
+
+/// <summary>A job as the jobs page lists it: what it is, where it stands and why it waits; never its input or its result.</summary>
+public sealed record ModelJobListItem(
+    Guid Id, string Type, string Status, int Attempts, string? WaitingReason, string? Error, string? WorkerName, Instant CreatedAt,
+    Instant? FinishedAt);
+
+/// <summary>One page of jobs, newest first, with the types the table can filter on.</summary>
+public sealed record ModelJobPage(IReadOnlyList<ModelJobListItem> Items, int Total, int Page, IReadOnlyList<string> Types)
+{
+    public const int PageSize = 50;
+
+    public static readonly IReadOnlySet<string> Statuses = new HashSet<string> { "queued", "running", "succeeded", "failed", "dead" };
+}

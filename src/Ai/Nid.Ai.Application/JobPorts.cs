@@ -53,6 +53,10 @@ public interface IJobStore
     /// <summary>Running jobs to poll now, or whose lease ran out.</summary>
     Task<IReadOnlyList<JobRecord>> RunningDueAsync(Instant now, int limit, CancellationToken ct);
 
+    /// <summary>One page of jobs, newest first, with the total and every type in the table.</summary>
+    Task<(IReadOnlyList<JobRecord> Items, int Total, IReadOnlyList<string> Types)> PageAsync(
+        string? status, string? type, int skip, int take, CancellationToken ct);
+
     /// <summary>Saves a change; false when another pass changed the job since it was read.</summary>
     Task<bool> TryUpdateAsync(JobRecord job, CancellationToken ct);
 }
