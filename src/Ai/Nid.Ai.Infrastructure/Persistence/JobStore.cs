@@ -44,8 +44,10 @@ public sealed class JobStore(AiDbContext db, IDataProtectionProvider protection)
     public async Task<bool> TryUpdateAsync(JobRecord job, CancellationToken ct)
     {
         var row = await db.Jobs.SingleAsync(j => j.Id == job.Id, ct);
-        db.Entry(row).Property(j => j.RowVersion).OriginalValue = job.RowVersion;
         ToRow(job, row);
+        db.Entry(row).Property(j => j.RowVersion).OriginalValue = job.RowVersion;
+        // Always written: a change that leaves every column as it is would send no UPDATE, and so check no version.
+        db.Entry(row).Property(j => j.Status).IsModified = true;
         try
         {
             await db.SaveChangesAsync(ct);

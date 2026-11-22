@@ -30,8 +30,10 @@ public sealed class WorkerStore(AiDbContext db) : IWorkerStore
     public async Task<bool> UpdateAsync(WorkerRecord worker, CancellationToken ct)
     {
         var row = await db.Workers.SingleAsync(w => w.Id == worker.Id, ct);
-        db.Entry(row).Property(w => w.Version).OriginalValue = worker.Version;
         Copy(worker, row);
+        db.Entry(row).Property(w => w.Version).OriginalValue = worker.Version;
+        // Always written: a change that leaves every column as it is would send no UPDATE, and so check no version.
+        db.Entry(row).Property(w => w.Status).IsModified = true;
         try
         {
             await db.SaveChangesAsync(ct);
