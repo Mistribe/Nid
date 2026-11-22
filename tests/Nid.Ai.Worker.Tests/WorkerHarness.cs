@@ -17,10 +17,13 @@ namespace Nid.Ai.Worker.Tests;
 /// directory is the same worker restarted.</summary>
 public sealed class WorkerHarness : WebApplicationFactory<Program>
 {
-    public WorkerHarness(string? dataPath = null, TestClock? clock = null)
+    private readonly Action<IServiceCollection>? _services;
+
+    public WorkerHarness(string? dataPath = null, TestClock? clock = null, Action<IServiceCollection>? services = null)
     {
         DataPath = dataPath ?? Directory.CreateTempSubdirectory("nid-worker-").FullName;
         Clock = clock ?? new TestClock();
+        _services = services;
     }
 
     public string DataPath { get; }
@@ -32,7 +35,11 @@ public sealed class WorkerHarness : WebApplicationFactory<Program>
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseSetting("Worker:DataPath", DataPath);
-        builder.ConfigureServices(services => services.Replace(ServiceDescriptor.Singleton<TimeProvider>(Clock)));
+        builder.ConfigureServices(services =>
+        {
+            services.Replace(ServiceDescriptor.Singleton<TimeProvider>(Clock));
+            _services?.Invoke(services);
+        });
     }
 
     public string PairingCode() => State.Load().PairingCode!;
@@ -78,20 +85,68 @@ public sealed class TestNid(HttpClient worker) : IDisposable
     public async Task<(HttpStatusCode Status, T? Body)> CallAsync<T>(string path, byte[] plaintext, ECDsa signer, byte[]? sealTo = null)
         where T : class, IContract
     {
+        var (status, frames, _) = await CallFramesAsync(path, plaintext, signer, sealTo);
+        if (status != HttpStatusCode.OK)
+            return (status, null);
+
+        var last = frames[^1];
+        Assert.Equal(FrameType.End, last.Type);
+        return (status, typeof(T) == typeof(Empty) ? null : ContractJson.Read<T>(last.Content.Span) as T);
+    }
+
+    /// <summary>Every frame of the answer, and the secret of the call (a job's result opens with its submission's).</summary>
+    public async Task<(HttpStatusCode Status, List<Frame> Frames, ResponseSecret Secret)> CallFramesAsync(
+        string path, byte[] plaintext, ECDsa? signer = null, byte[]? sealTo = null, CancellationToken ct = default)
+    {
+        ct = ct == default ? TestContext.Current.CancellationToken : ct;
         var (message, secret) = SealedRequest.Seal(sealTo ?? WorkerKey, plaintext);
         using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(worker.BaseAddress!, path)) { Content = new ByteArrayContent(message) };
-        await WorkerRequestSigning.SignAsync(request, signer, TestContext.Current.CancellationToken);
-        using var response = await worker.SendAsync(request, TestContext.Current.CancellationToken);
+        await WorkerRequestSigning.SignAsync(request, signer ?? Key, ct);
+        using var response = await worker.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+        var frames = new List<Frame>();
         if (response.StatusCode != HttpStatusCode.OK)
-            return (response.StatusCode, null);
+            return (response.StatusCode, frames, secret);
 
-        Frame? last = null;
-        await foreach (var frame in ResponseReader.ReadAsync(secret, await response.Content.ReadAsStreamAsync(TestContext.Current.CancellationToken),
+        await foreach (var frame in ResponseReader.ReadAsync(secret, await response.Content.ReadAsStreamAsync(ct), FrameLimits.Default, ct))
+            frames.Add(frame);
+        return (response.StatusCode, frames, secret);
+    }
+
+    public async Task<(string? Id, string? Error, ResponseSecret Secret)> SubmitAsync(string type, int version, object input)
+    {
+        var submission = new JobSubmission(type, version, System.Text.Json.JsonSerializer.SerializeToElement(input, ContractJson.Strict), null);
+        var (status, frames, secret) = await CallFramesAsync("/v1/jobs", ContractJson.Write(submission));
+        Assert.Equal(HttpStatusCode.OK, status);
+        var last = frames[^1];
+        return last.Type == FrameType.End
+            ? (ContractJson.Read<JobAccepted>(last.Content.Span).Id, null, secret)
+            : (null, System.Text.Encoding.UTF8.GetString(last.Content.Span), secret);
+    }
+
+    public async Task<JobStatus> PollAsync(string id)
+        => (await CallAsync<JobStatus>($"/v1/jobs/{id}", ContractJson.Write(new JobPoll(id)), Key)).Body!;
+
+    /// <summary>Polls until the job leaves queued and running (in memory, a few milliseconds).</summary>
+    public async Task<JobStatus> WaitAsync(string id)
+    {
+        for (var i = 0; i < 200; i++)
+        {
+            var status = await PollAsync(id);
+            if (status.Status is not ("queued" or "running"))
+                return status;
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+        }
+
+        throw new TimeoutException($"Job {id} did not finish.");
+    }
+
+    public static async Task<List<Frame>> OpenResultAsync(string result, ResponseSecret submission)
+    {
+        var frames = new List<Frame>();
+        await foreach (var frame in ResponseReader.ReadAsync(submission, new MemoryStream(Convert.FromBase64String(result)),
                            FrameLimits.Default, TestContext.Current.CancellationToken))
-            last = frame;
-
-        Assert.Equal(FrameType.End, last!.Type);
-        return (response.StatusCode, typeof(T) == typeof(Empty) ? null : ContractJson.Read<T>(last.Content.Span) as T);
+            frames.Add(frame);
+        return frames;
     }
 
     public void Dispose() => Key.Dispose();

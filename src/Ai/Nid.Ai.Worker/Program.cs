@@ -11,6 +11,9 @@ var builder = WebApplication.CreateSlimBuilder(args);
 builder.Services.Configure<WorkerOptions>(builder.Configuration.GetSection("Worker"));
 builder.Services.TryAddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<StateStore>();
+builder.Services.AddSingleton<IJobHandler, EchoJob>();
+builder.Services.AddSingleton<IRequestHandler, EchoRequest>();
+builder.Services.AddSingleton<JobTable>();
 builder.Services.AddSingleton(sp => new NonceCache(sp.GetRequiredService<TimeProvider>()));
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddContentDigestVerification();
@@ -27,6 +30,7 @@ builder.WebHost.ConfigureKestrel((context, kestrel) =>
 {
     var worker = context.Configuration.GetSection("Worker").Get<WorkerOptions>() ?? new WorkerOptions();
     kestrel.AddServerHeader = false;
+    kestrel.Limits.MaxRequestBodySize = WorkerEndpoints.MaxJobBytes;
     var certificate = new Lazy<System.Security.Cryptography.X509Certificates.X509Certificate2>(() =>
         SelfSignedCertificate.Load(kestrel.ApplicationServices.GetRequiredService<StateStore>().Load().TlsCertificate));
     kestrel.ListenAnyIP(worker.Port, listen => listen.UseHttps(https => https.ServerCertificateSelector = (_, _) => certificate.Value));
