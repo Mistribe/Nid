@@ -45,8 +45,9 @@ public sealed class EnvelopeStore(InvestmentsDbContext db) : IEnvelopeStore
         row.PremiumsBefore2017 = envelope.PremiumsBefore2017;
         // The file carries no regulated livret: the one set in Nid stays, unless the envelope is no longer a savings account.
         if (envelope.Kind != EnvelopeKind.Savings) row.Regulated = null;
-        // #184: nor any availability date, kept unless the envelope is no longer an employee savings plan.
+        // #462: a file's tranches replace the plan's; a file without them keeps them, unless the envelope is no longer an employee savings plan.
         if (envelope.Kind != EnvelopeKind.EmployeeSavings) row.Availability = null;
+        else if (envelope.Availability is { } tranches) row.Availability = AvailabilityJson.Write(tranches);
         Mark(row, import);
         await db.SaveChangesAsync(ct);
     }
