@@ -9,7 +9,7 @@ using NodaTime;
 namespace Nid.Ai.Application;
 
 /// <summary>A contract read through <see cref="ContractJson"/>: input <typeparamref name="TIn"/>, output <typeparamref name="TOut"/>.</summary>
-public abstract class ModelContract<TIn, TOut>(ModelCallKind kind, string type, int version) : IModelContract
+public abstract class ModelContract<TIn, TOut>(ModelCallKind kind, string type, int version, bool allowsNoData = false) : IModelContract
     where TIn : IContract
     where TOut : IContract
 {
@@ -18,6 +18,8 @@ public abstract class ModelContract<TIn, TOut>(ModelCallKind kind, string type, 
     public string Type { get; } = type;
 
     public int Version { get; } = version;
+
+    public bool AllowsNoData { get; } = allowsNoData;
 
     public bool ValidInput(ReadOnlySpan<byte> input) => TryRead<TIn>(input, out _);
 
@@ -44,10 +46,10 @@ public abstract class ModelContract<TIn, TOut>(ModelCallKind kind, string type, 
 }
 
 /// <summary><c>contracts/jobs/echo/v1</c>: the test job « Tester » sends.</summary>
-public sealed class EchoJobContract() : ModelContract<EchoJobInput, EchoJobOutput>(ModelCallKind.Job, "echo", 1);
+public sealed class EchoJobContract() : ModelContract<EchoJobInput, EchoJobOutput>(ModelCallKind.Job, "echo", 1, allowsNoData: true);
 
 /// <summary><c>contracts/requests/echo/v1</c>: the test request « Tester » streams.</summary>
-public sealed class EchoRequestContract() : ModelContract<EchoRequestInput, EchoRequestOutput>(ModelCallKind.Request, "echo", 1);
+public sealed class EchoRequestContract() : ModelContract<EchoRequestInput, EchoRequestOutput>(ModelCallKind.Request, "echo", 1, allowsNoData: true);
 
 /// <summary>The contracts Nid knows, by kind, type and version.</summary>
 public sealed class ModelContracts(IEnumerable<IModelContract> contracts)
@@ -62,6 +64,8 @@ public sealed class ModelJobs(IJobStore store, ModelContracts contracts, IClock 
     {
         var contract = contracts.Find(ModelCallKind.Job, request.Type, request.Version)
                        ?? throw new ModelCallException(JobCodes.UnknownType);
+        if (!DataClasses.IsKnown(request.DataClass) || (request.DataClass == DataClasses.None && !contract.AllowsNoData))
+            throw new ModelCallException(JobCodes.UnknownDataClass);
         var input = JsonSerializer.SerializeToUtf8Bytes(request.Input);
         if (!contract.ValidInput(input))
             throw new ModelCallException(JobCodes.InvalidInput);
@@ -89,13 +93,15 @@ public sealed class ModelJobs(IJobStore store, ModelContracts contracts, IClock 
 
 /// <summary>Eligible workers (<c>docs/ai/README.md</c> §4.1): active, seen in the last 3 minutes, declaring the type and
 /// version; local first, then the least loaded, then the most recently seen. A target worker is the only route.</summary>
-public sealed class WorkerRouter(IWorkerStore workers, IClock clock) : IWorkerRouter
+public sealed class WorkerRouter(IWorkerStore workers, IAiSettings settings, IClock clock) : IWorkerRouter
 {
     public static readonly Duration OnlineFor = Duration.FromMinutes(3);
 
     public async Task<Route> RouteAsync(string type, int version, ModelCallKind kind, string dataClass, Guid? target, CancellationToken ct)
     {
         var now = clock.GetCurrentInstant();
+        var remoteAllowed = await settings.RemoteWorkersAllowedAsync(ct);
+        var refusals = new List<string>();
         var eligible = new List<(WorkerRecord Worker, WorkerDeclaration Declaration)>();
         foreach (var worker in await workers.ListAsync(ct))
         {
@@ -106,7 +112,11 @@ public sealed class WorkerRouter(IWorkerStore workers, IClock clock) : IWorkerRo
             if (Declaration(worker) is not { } declaration)
                 continue;
             var served = kind == ModelCallKind.Job ? declaration.Jobs : declaration.Requests;
-            if (served.Any(c => c.Type == type && c.Version == version))
+            if (!served.Any(c => c.Type == type && c.Version == version))
+                continue;
+            if (Domain.DataPolicy.Refusal(worker.Placement, worker.Safe, dataClass, remoteAllowed) is { } refusal)
+                refusals.Add(refusal);
+            else
                 eligible.Add((worker, declaration));
         }
 
@@ -116,7 +126,7 @@ public sealed class WorkerRouter(IWorkerStore workers, IClock clock) : IWorkerRo
             .ThenByDescending(e => e.Worker.LastSeenAt)
             .Select(e => e.Worker)
             .ToList();
-        return new Route(ordered, ordered.Count == 0 ? JobCodes.NoWorker : null);
+        return new Route(ordered, ordered.Count == 0 ? Domain.DataPolicy.Reason(refusals) ?? JobCodes.NoWorker : null);
     }
 
     public static WorkerDeclaration? DeclarationOf(WorkerRecord worker) => Declaration(worker);

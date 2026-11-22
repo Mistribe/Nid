@@ -27,6 +27,8 @@ public sealed class ModelRequests(IWorkerRouter router, IWorkerClient client, IN
         string type, int version, byte[] input, string dataClass, Guid? target, [EnumeratorCancellation] CancellationToken ct)
     {
         var contract = contracts.Find(ModelCallKind.Request, type, version) ?? throw new ModelCallException(JobCodes.UnknownType);
+        if (!DataClasses.IsKnown(dataClass) || (dataClass == DataClasses.None && !contract.AllowsNoData))
+            throw new ModelCallException(JobCodes.UnknownDataClass);
         if (input.Length > MaxInputBytes)
             throw new ModelCallException(JobCodes.TooLarge);
         if (!contract.ValidInput(input))

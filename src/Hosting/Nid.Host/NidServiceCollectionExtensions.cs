@@ -283,6 +283,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<Nid.Ai.Application.INidKeys, Nid.Ai.Infrastructure.Persistence.NidKeyStore>();
         services.AddScoped<Nid.Ai.Application.IWorkerStore, Nid.Ai.Infrastructure.Persistence.WorkerStore>();
         services.AddScoped<Nid.Ai.Application.IJobStore, Nid.Ai.Infrastructure.Persistence.JobStore>();
+        services.AddScoped<Nid.Ai.Application.IAiSettings, Nid.Ai.Infrastructure.Persistence.AiSettingsStore>();
         services.AddSingleton<Nid.Ai.Application.IModelContract, Nid.Ai.Application.EchoJobContract>();
         services.AddSingleton<Nid.Ai.Application.IModelContract, Nid.Ai.Application.EchoRequestContract>();
         services.AddSingleton<Nid.Ai.Application.ModelContracts>();

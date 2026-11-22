@@ -16,6 +16,10 @@ public sealed class AiDbContext(DbContextOptions<AiDbContext> options) : DbConte
 
     public DbSet<JobRow> Jobs => Set<JobRow>();
 
+    public DbSet<AiSettingsRow> Settings => Set<AiSettingsRow>();
+
+    public DbSet<ConsentRow> Consents => Set<ConsentRow>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schema);
@@ -67,6 +71,24 @@ public sealed class AiDbContext(DbContextOptions<AiDbContext> options) : DbConte
             e.HasIndex(x => new { x.Status, x.RunAfter });
             e.HasOne<ModelWorkerRow>().WithMany().HasForeignKey(x => x.WorkerId).OnDelete(DeleteBehavior.SetNull);
             e.Property(x => x.RowVersion).HasColumnName("xmin").HasColumnType("xid").ValueGeneratedOnAddOrUpdate().IsConcurrencyToken();
+        });
+
+        modelBuilder.Entity<AiSettingsRow>(e =>
+        {
+            e.ToTable("ai_settings", t => t.HasCheckConstraint("ck_ai_settings_single", "id = 1"));
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.HasOne<ConsentRow>().WithMany().HasForeignKey(x => x.RemoteConsentId).OnDelete(DeleteBehavior.Restrict);
+            e.Property(x => x.Version).HasColumnName("xmin").HasColumnType("xid").ValueGeneratedOnAddOrUpdate().IsConcurrencyToken();
+        });
+
+        modelBuilder.Entity<ConsentRow>(e =>
+        {
+            e.ToTable("consent", t => t.HasCheckConstraint("ck_consent_subject", "subject in ('remote_workers')"));
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Subject).HasMaxLength(32);
+            e.HasIndex(x => new { x.Subject, x.At });
         });
 
         modelBuilder.MapAuditLog(ownedHere: false);

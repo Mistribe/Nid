@@ -42,7 +42,7 @@
 | Mesure | Détail |
 |---|---|
 | Conteneur | Non-root, système de fichiers en lecture seule plus `tmpfs`, `cap_drop: ALL`, `no-new-privileges`, limites CPU et mémoire |
-| **Réseau** | Worker local : réseau interne **sans Internet**. `nid` appelle le worker (push), le worker ne joint rien de `nid` ; un worker distant compte comme une sortie des lieux (opt-in du foyer et de chaque adulte pour ses données privées, `../ai/README.md` §6) |
+| **Réseau** | Worker local : réseau interne **sans Internet**. `nid` appelle le worker (push), le worker ne joint rien de `nid` ; un worker distant compte comme une sortie des lieux (opt-in du foyer et de chaque adulte pour ses données privées, `../ai/README.md` §6) : chaque job et requête porte sa classe de données, et le routage n'envoie rien du foyer à un worker distant avant l'opt-in, rien de « local seulement » à un worker qui n'est pas `safe` (#475) |
 | Secrets | Sa clé privée d'appairage, qui ne le quitte pas (`../identity-and-access/tokens-and-credentials.md` §3). **Aucune clé d'API de fournisseur**, rien qui ouvre `nid` |
 | Base de données | Aucun accès ; il ne voit que les documents des jobs que `nid` lui envoie, chiffrés pour lui (HPKE) |
 | Blast radius | Un worker compromis peut soumettre de fausses propositions (validées par un humain) et lire les documents de ses jobs ; il ne peut pas lire d'autres données. Un worker local ne sort pas vers Internet ; un worker distant compromis emporte ce qu'on lui envoie (WRK-7). Risques des workers : `ai-assistant-review.md` §3 |

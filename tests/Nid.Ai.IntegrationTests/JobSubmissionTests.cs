@@ -100,6 +100,61 @@ public sealed class JobSubmissionTests(PostgresFixture fixture) : IClassFixture<
         Assert.Equal(["target"], route.Workers.Select(w => w.Host));
     }
 
+    [Fact]
+    public async Task A_remote_worker_sees_household_data_only_after_the_opt_in()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await using var scope = Scope(app);
+        var db = scope.ServiceProvider.GetRequiredService<AiDbContext>();
+        db.Workers.Add(Row("remote", "remote"));
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var router = scope.ServiceProvider.GetRequiredService<IWorkerRouter>();
+
+        var closed = await router.RouteAsync("echo", 1, ModelCallKind.Job, "documents", null, TestContext.Current.CancellationToken);
+        var test = await router.RouteAsync("echo", 1, ModelCallKind.Job, "none", null, TestContext.Current.CancellationToken);
+        await scope.ServiceProvider.GetRequiredService<IAiSettings>()
+            .SetRemoteWorkersAllowedAsync(true, app.AdultA.Value, Now, TestContext.Current.CancellationToken);
+        var open = await router.RouteAsync("echo", 1, ModelCallKind.Job, "documents", null, TestContext.Current.CancellationToken);
+
+        Assert.Empty(closed.Workers);
+        Assert.Equal("ai.remote_not_allowed", closed.Reason);
+        Assert.Single(test.Workers);
+        Assert.Single(open.Workers);
+    }
+
+    [Fact]
+    public async Task Local_only_data_goes_to_a_safe_worker_only()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await using var scope = Scope(app);
+        var db = scope.ServiceProvider.GetRequiredService<AiDbContext>();
+        var safe = Row("safe", "local");
+        safe.Safe = true;
+        db.Workers.AddRange(Row("plain", "local"), safe);
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var router = scope.ServiceProvider.GetRequiredService<IWorkerRouter>();
+
+        var route = await router.RouteAsync("echo", 1, ModelCallKind.Job, "local_only", null, TestContext.Current.CancellationToken);
+
+        Assert.Equal(["safe"], route.Workers.Select(w => w.Host));
+        db.Workers.Remove(safe);
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        Assert.Equal("ai.no_safe_worker",
+            (await router.RouteAsync("echo", 1, ModelCallKind.Job, "local_only", null, TestContext.Current.CancellationToken)).Reason);
+    }
+
+    [Fact]
+    public async Task An_unknown_data_class_is_refused()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await using var scope = Scope(app);
+
+        var refused = await Assert.ThrowsAsync<ModelCallException>(() => scope.ServiceProvider.GetRequiredService<IModelJobs>().SubmitAsync(
+            Echo("hi") with { DataClass = "payslips" }, TestContext.Current.CancellationToken));
+
+        Assert.Equal("ai.unknown_data_class", refused.Code);
+    }
+
     private static AsyncServiceScope Scope(NidApp app)
     {
         var scope = app.Services.CreateAsyncScope();

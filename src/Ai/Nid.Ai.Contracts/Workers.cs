@@ -58,9 +58,44 @@ public sealed record WorkerList(IReadOnlyList<WorkerView> Workers);
 /// <summary>A registration waiting for its pairing: the fingerprint the admin compares with the worker's console.</summary>
 public sealed record RegisteredWorker(Guid Id, string Fingerprint);
 
+/// <summary>The household's AI settings as any adult reads them.</summary>
+public sealed record AiSettingsView(bool RemoteWorkersAllowed);
+
 /// <summary>« Tester »: how many frames the streamed echo answered, and the echo job queued for the worker.</summary>
 public sealed record WorkerTestResult(int Frames, Guid JobId);
 
 /// <summary>Nid's new signing key after a rotation, to confirm on each worker's console, and the workers that could not
 /// be told.</summary>
 public sealed record NidKeyRotation(string Fingerprint, IReadOnlyList<Guid> Unreached);
+
+/// <summary>What a job or request carries (<c>docs/ai/README.md</c> §6.1): its class decides which workers may see it.</summary>
+public static class DataClasses
+{
+    /// <summary>No household data (an admin's « Tester »).</summary>
+    public const string None = "none";
+
+    /// <summary>The content of a statement, an amortization table, an invoice, a contract.</summary>
+    public const string Documents = "documents";
+
+    /// <summary>A « local seulement » document; payslips by default (§6.6).</summary>
+    public const string LocalOnly = "local_only";
+
+    /// <summary>Structured figures: amounts, income, lines, taxes.</summary>
+    public const string Figures = "figures";
+
+    /// <summary>Masked bank label patterns (#450).</summary>
+    public const string BankLabels = "bank_labels";
+
+    public static readonly IReadOnlySet<string> All = new HashSet<string> { None, Documents, LocalOnly, Figures, BankLabels };
+
+    public static bool IsKnown(string dataClass) => All.Contains(dataClass);
+}
+
+/// <summary>What model-backed features can run now (decision D, <c>docs/ai/README.md</c> §11): for <c>echo</c> and each
+/// capability a worker declares, the destinations online, or why none.</summary>
+public sealed record ModelCapabilities(bool RemoteWorkersAllowed, IReadOnlyList<CapabilityView> Capabilities);
+
+/// <summary>Online workers serving a capability: <see cref="Local"/>, <see cref="Remote"/> (counted only with the household's
+/// opt-in) and among them <see cref="Safe"/>; <see cref="Reason"/> when none, with the router's codes: <c>ai.no_worker</c>,
+/// <c>ai.remote_not_allowed</c>, <c>ai.all_offline</c>.</summary>
+public sealed record CapabilityView(string Capability, int Local, int Remote, int Safe, string? Reason);

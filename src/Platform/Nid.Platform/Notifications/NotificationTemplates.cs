@@ -62,6 +62,7 @@ public static class NotificationTemplates
         ["private_request_refused"] = "Votre demande de passage en privé a été refusée",
         ["backup_failed"] = "La sauvegarde a échoué",
         ["job_failed"] = "Une tâche planifiée a échoué",
+        ["ai.data_policy_changed"] = "Ce que voient les modèles a changé",
         ["sync_failed"] = "Une synchronisation a échoué",
         ["banking.consent_expiring"] = "Le consentement d'une banque expire bientôt",
         ["banking.consent_expired"] = "Le consentement d'une banque a expiré",
@@ -152,7 +153,7 @@ public static class NotificationTemplates
     }
 
     /// <summary>The notices published by code (security, pending actions, health): they carry no name and no amount.</summary>
-    private static readonly HashSet<string> Notices = [.. AccountNotices.Kinds.Select(k => k.Kind), "access_violation", "token_expiring", "proposal_pending", "private_request_refused", "backup_failed", "job_failed", "sync_failed", "banking.consent_expiring", "banking.consent_expired", "banking.sync_failing"];
+    private static readonly HashSet<string> Notices = [.. AccountNotices.Kinds.Select(k => k.Kind), "access_violation", "token_expiring", "proposal_pending", "private_request_refused", "backup_failed", "job_failed", "ai.data_policy_changed", "sync_failed", "banking.consent_expiring", "banking.consent_expired", "banking.sync_failing"];
 
     private static string NoticeBody(NotificationRecord n) => n.Kind switch
     {
@@ -162,6 +163,7 @@ public static class NotificationTemplates
         "private_request_refused" => "L'autre adulte n'a pas accepté : l'élément reste partagé.",
         "backup_failed" => BackupReason(n.Params),
         "job_failed" => n.Params.TryGetValue("job", out var job) && job.Length > 0 ? $"Tâche : {job}" : "",
+        "ai.data_policy_changed" => DataPolicyChange(n.Params),
         "sync_failed" => n.Params.TryGetValue("source", out var source) && source.Length > 0 ? $"Source : {source}" : "",
         "banking.consent_expiring" => n.DueOn is { } on ? $"{Bank(n)} — expire le {Day(on)}" : Bank(n),
         "banking.consent_expired" => n.DueOn is { } on ? $"{Bank(n)} — expiré le {Day(on)}" : Bank(n),
@@ -202,9 +204,23 @@ public static class NotificationTemplates
         "proposal_pending" or "private_request_refused" => $"/proposals/{n.Key[(n.Key.LastIndexOf(':') + 1)..]}",
         "backup_failed" => "/admin/system",
         "job_failed" => n.Params.GetValueOrDefault("job") is { Length: > 0 } job ? $"/admin/jobs/{job}" : "/admin/jobs",
+        "ai.data_policy_changed" => "/settings",
         "sync_failed" => n.Params.GetValueOrDefault("source") is "fx" or "catalog" or "prices" or "irl" or "inflation" ? $"/admin/{n.Params["source"]}" : "/admin/system",
         _ => "/",
     };
+
+    private static string DataPolicyChange(IReadOnlyDictionary<string, string> p)
+    {
+        var worker = p.GetValueOrDefault("worker") is { Length: > 0 } name ? $"« {name} »" : "Un worker";
+        return p.GetValueOrDefault("change") switch
+        {
+            "remote_on" => "Les workers distants peuvent désormais recevoir les données du foyer.",
+            "remote_off" => "Les workers distants ne reçoivent plus les données du foyer.",
+            "safe_on" => $"{worker} peut désormais recevoir les documents « local seulement ».",
+            "safe_off" => $"{worker} ne reçoit plus les documents « local seulement ».",
+            _ => "",
+        };
+    }
 
     /// <summary>What a row about no item says: a currency code is not an amount, and there is no name to give.</summary>
     private static string HouseholdBody(NotificationRecord n) => n.Kind switch

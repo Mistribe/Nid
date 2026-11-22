@@ -88,7 +88,7 @@ public sealed class WorkerMonitor(IWorkerStore store, WorkerRefresher refresher)
 /// never both send or both finish a job.</summary>
 public sealed class JobDispatcher(
     IJobStore jobs, IWorkerStore workers, IWorkerRouter router, IWorkerClient client, INidKeys keys, ModelContracts contracts,
-    IEnumerable<IJobFileSource> files, INotifier notifier, IClock clock) : IJobDispatcher
+    IEnumerable<IJobFileSource> files, INotifier notifier, IAiSettings settings, IClock clock) : IJobDispatcher
 {
     public const int MaxAttempts = 5;
 
@@ -249,6 +249,19 @@ public sealed class JobDispatcher(
             || worker.NidKeyId is not { } keyId || await keys.FindAsync(keyId, ct) is not { } key)
         {
             await RetryAsync(job, JobCodes.WorkerFailed, now, ct);
+            return;
+        }
+
+        // The household withdrew what let it go there (the opt-in, the safe tag): taken back, sent again where it may go,
+        // no attempt counted (docs/ai/README.md §6.1).
+        if (Domain.DataPolicy.Refusal(worker.Placement, worker.Safe, job.DataClass, await settings.RemoteWorkersAllowedAsync(ct)) is { } refusal)
+        {
+            await CancelAsync(job, ct);
+            await jobs.TryUpdateAsync(job with
+            {
+                Status = JobState.Queued, LeaseUntil = null, NextPollAt = null, WorkerId = null, WorkerJobId = null, SentAt = null,
+                ResponseSecret = null, RunAfter = now, WaitingReason = refusal,
+            }, ct);
             return;
         }
 

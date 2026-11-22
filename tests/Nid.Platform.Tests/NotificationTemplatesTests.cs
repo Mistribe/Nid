@@ -30,6 +30,27 @@ public class NotificationTemplatesTests
 
     private static NotificationKind KindOf(string kind, string module) => new(kind, "test", NotificationLevel.Info, module, null);
 
+    [Theory]
+    [InlineData("remote_on", null, "Les workers distants peuvent désormais recevoir les données du foyer.")]
+    [InlineData("remote_off", null, "Les workers distants ne reçoivent plus les données du foyer.")]
+    [InlineData("safe_on", "GPU box", "« GPU box » peut désormais recevoir les documents « local seulement ».")]
+    [InlineData("safe_off", "GPU box", "« GPU box » ne reçoit plus les documents « local seulement ».")]
+    [InlineData("safe_on", null, "Un worker peut désormais recevoir les documents « local seulement ».")]
+    public void A_change_of_what_models_see_says_which_and_links_to_the_settings(string change, string? worker, string body)
+    {
+        var parameters = new Dictionary<string, string> { ["change"] = change };
+        if (worker is not null)
+            parameters["worker"] = worker;
+        var record = Record("ai.data_policy_changed") with { ItemIds = [], Params = parameters };
+
+        var rendered = NotificationTemplates.Render(record, new NotificationKind("ai.data_policy_changed", "security", NotificationLevel.Critical, "ai", null),
+            new Dictionary<ItemId, string>());
+
+        Assert.Equal("Ce que voient les modèles a changé", rendered.Title);
+        Assert.Equal(body, rendered.Body);
+        Assert.Equal("/settings", rendered.Link);
+    }
+
     [Fact]
     public void Every_kind_has_a_title_and_a_link()
     {

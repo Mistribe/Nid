@@ -64,6 +64,29 @@ public static class AiEndpoints
                 => (await invoker.InvokeAsync(new GetModelJobQuery(id), ct)).ToHttp(view => view))
             .Returns<ModelJobView>();
 
+        api.MapPut("/{id:guid}/safe", async (Guid id, SafeBody body, IInvoker invoker, CancellationToken ct) =>
+                body.Safe is { } safe
+                    ? (await invoker.InvokeAsync(new SetWorkerSafeCommand(id, safe), ct)).ToHttp(change => change.View)
+                    : Missing("safe"))
+            .Returns<WorkerView>();
+
+        routes.MapGroup("/api/v1/ai/capabilities").RequireAuthorization()
+            .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>()
+            .MapGet("", async (IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new GetModelCapabilitiesQuery(), ct)).ToHttp(view => view))
+            .Returns<ModelCapabilities>();
+
+        var settings = routes.MapGroup("/api/v1/ai/settings").RequireAuthorization()
+            .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>();
+        settings.MapGet("", async (IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new GetAiSettingsQuery(), ct)).ToHttp(view => view))
+            .Returns<AiSettingsView>();
+        settings.MapPut("/remote-workers", async (RemoteWorkersBody body, IInvoker invoker, CancellationToken ct) =>
+                body.Allowed is { } allowed
+                    ? (await invoker.InvokeAsync(new SetRemoteWorkersAllowedCommand(allowed), ct)).ToHttp(change => change.View)
+                    : Missing("allowed"))
+            .Returns<AiSettingsView>();
+
         var key = routes.MapGroup("/api/v1/ai/key").RequireAuthorization()
             .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>();
         key.MapPost("/rotate", async (IInvoker invoker, CancellationToken ct)
@@ -78,6 +101,17 @@ public static class AiEndpoints
             .Returns<WorkerView>();
 
     public sealed record RenameWorkerBody(string? Name);
+
+    public sealed record SafeBody(bool? Safe);
+
+    public sealed record RemoteWorkersBody(bool? Allowed);
+
+    private static IResult Missing(string field)
+    {
+        var reader = new FieldReader();
+        reader.Add(field, "required", "Required.");
+        return reader.Problem();
+    }
 
     public sealed record RegisterWorkerBody(string? Name, string? Url, string? Placement, bool? ProxyDeclared)
     {
