@@ -694,3 +694,33 @@ worker en donne un autre. Un worker apparié refuse tout nouvel appairage.
 Ses clés, son certificat et la clé de Nid qu'il a épinglée vivent sur le volume `worker-data`. Le perdre oblige à
 apparier de nouveau ; il ne contient rien du foyer.
 
+### Un modèle derrière le worker
+
+Le worker sert les modèles d'un moteur à l'API compatible OpenAI (Ollama, llama.cpp, vLLM, LM Studio) qui tourne sur son
+réseau (`../docs/ai/README.md` §3.7). Nid ne voit jamais le moteur. Par exemple, un Ollama à côté du worker, dans un
+`compose.override.yaml` :
+
+```yaml
+services:
+  ollama:
+    image: ollama/ollama   # épinglez une version
+    volumes: [ollama-data:/root/.ollama]
+    networks: [models]
+  worker:
+    environment:
+      Engine__Url: http://ollama:11434
+volumes:
+  ollama-data: {}
+```
+
+Le réseau `models` n'a pas de sortie : le moteur sert les modèles déjà présents sur son volume. Téléchargez-les avant
+(`ollama pull llama3.2` sur un moteur qui a accès au réseau, dont vous reprenez le volume), puis, dans Nid,
+« Rafraîchir » sur le worker.
+
+| Réglage (`Engine__…`) | Effet |
+|---|---|
+| `Url` | L'adresse du moteur ; sans elle, le worker ne sert aucun modèle |
+| `Models` | Les modèles à servir, séparés par des virgules ; vide : tous ceux du moteur |
+| `ContextTokens`, `MaxOutputTokens` | Le contexte et la sortie que le moteur accepte (8192 et 4096 par défaut) |
+| `Tools` | Le modèle sait appeler des outils (`true` par défaut) |
+

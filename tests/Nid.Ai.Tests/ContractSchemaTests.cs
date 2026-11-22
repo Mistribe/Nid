@@ -15,6 +15,8 @@ public sealed class ContractSchemaTests
         { nameof(EchoJobOutput), "contracts/jobs/echo/v1/output.schema.json" },
         { nameof(EchoRequestInput), "contracts/requests/echo/v1/input.schema.json" },
         { nameof(EchoRequestOutput), "contracts/requests/echo/v1/output.schema.json" },
+        { nameof(ChatRequestInput), "contracts/requests/chat/v1/input.schema.json" },
+        { nameof(ChatRequestOutput), "contracts/requests/chat/v1/output.schema.json" },
         { nameof(PairRequest), "contracts/workers/pair-request/v1/schema.json" },
         { nameof(PairResponse), "contracts/workers/pair-response/v1/schema.json" },
         { nameof(RotateWorkerKeyResponse), "contracts/workers/rotate-worker-key-response/v1/schema.json" },

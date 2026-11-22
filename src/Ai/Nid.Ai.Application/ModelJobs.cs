@@ -51,6 +51,9 @@ public sealed class EchoJobContract() : ModelContract<EchoJobInput, EchoJobOutpu
 /// <summary><c>contracts/requests/echo/v1</c>: the test request « Tester » streams.</summary>
 public sealed class EchoRequestContract() : ModelContract<EchoRequestInput, EchoRequestOutput>(ModelCallKind.Request, "echo", 1, allowsNoData: true);
 
+/// <summary><c>contracts/requests/chat/v1</c> (#485): a chat turn through a worker's engine; its data class is the caller's.</summary>
+public sealed class ChatRequestContract() : ModelContract<ChatRequestInput, ChatRequestOutput>(ModelCallKind.Request, "chat", 1);
+
 /// <summary>The contracts Nid knows, by kind, type and version.</summary>
 public sealed class ModelContracts(IEnumerable<IModelContract> contracts)
 {

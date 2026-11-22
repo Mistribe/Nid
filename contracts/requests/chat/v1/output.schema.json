@@ -1,0 +1,70 @@
+{
+  "type": "object",
+  "properties": {
+    "text": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
+    },
+    "toolCall": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "arguments": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "arguments"
+      ],
+      "additionalProperties": false,
+      "default": null
+    },
+    "usage": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "tokensIn": {
+          "type": "integer"
+        },
+        "tokensOut": {
+          "type": "integer"
+        },
+        "stop": {
+          "enum": [
+            "end",
+            "length",
+            "tool-calls",
+            "refused"
+          ]
+        },
+        "model": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "tokensIn",
+        "tokensOut",
+        "stop",
+        "model"
+      ],
+      "additionalProperties": false,
+      "default": null
+    }
+  },
+  "additionalProperties": false
+}

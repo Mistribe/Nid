@@ -11,5 +11,7 @@
     <ProjectReference Include="..\Nid.TestSupport\Nid.TestSupport.csproj" />
     <!-- Its Program would clash with the host's: reached as worker::Program. -->
     <ProjectReference Include="..\..\src\Ai\Nid.Ai.Worker\Nid.Ai.Worker.csproj" Aliases="worker" />
+    <!-- The fake OpenAI-compatible engine of the worker tests (#485). -->
+    <Compile Include="..\Nid.Ai.Worker.Tests\FakeEngine.cs" Link="FakeEngine.cs" />
   </ItemGroup>
 </Project>
