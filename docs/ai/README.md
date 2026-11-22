@@ -427,6 +427,16 @@ La passerelle est le seul chemin vers un modèle, worker ou cloud. Avant chaque 
 éligible pour chaque classe de données (§6), consentements, budget (§10), taille, modèle imposé par le réglage. Chaque
 appel est tracé dans `llm_call` (§13), sans son contenu.
 
+**Livré (#486)** : `ILlmGateway` dans `Nid.Ai.Application`, la tâche `chat` (contrat `contracts/requests/chat/v1`, #485).
+Avant tout envoi : usage connu et qui peut tenir une conversation (`chat`, `extract` ; outils pour `chat` seulement),
+usage non désactivé, modèle choisi. La chaîne passe ensuite par les fournisseurs (`ILlmProvider`) dans l'ordre ; les
+workers d'abord (`WorkerProvider`), qui ne retiennent que ceux qui déclarent le modèle de l'usage et respectent §6. Un
+fournisseur qui n'a nulle part où envoyer l'appel passe la main au suivant ; sans suite, l'appel échoue avec la raison
+(`ai.use_off`, `ai.no_model`, `ai.no_worker`, `ai.model_unavailable`, `ai.remote_not_allowed`…). Chaque appel écrit une
+ligne `llm_call`, réussi ou non. Le réglage de chaque usage (`ai_settings.uses`) se change par tout adulte ; le modèle
+(`ai_settings.models`) par un admin, parmi ceux que les workers actifs déclarent. La classe de politique d'une
+conversation viendra avec les conversations (#173, #174).
+
 ### 5.2 Module (décision J)
 
 Nouveau module **`Ai`** (`src/Ai`, projets `Nid.Ai.*`, schéma `ai`) : passerelle, profils cloud, registre et appairage

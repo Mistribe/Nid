@@ -295,6 +295,10 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<Nid.Ai.Application.IJobDispatcher, Nid.Ai.Application.JobDispatcher>();
         services.AddScoped<Nid.Ai.Application.IJobPurge, Nid.Ai.Application.JobPurge>();
         services.AddScoped<Nid.Ai.Application.IModelRequests, Nid.Ai.Application.ModelRequests>();
+        // #486: the one way to a model; workers are the first link of the chain.
+        services.AddScoped<Nid.Ai.Application.ILlmCalls, Nid.Ai.Infrastructure.Persistence.LlmCallStore>();
+        services.AddScoped<Nid.Ai.Application.ILlmProvider, Nid.Ai.Application.WorkerProvider>();
+        services.AddScoped<Nid.Ai.Application.ILlmGateway, Nid.Ai.Application.LlmGateway>();
         services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<Nid.Ai.Infrastructure.Workers.WorkerDirectory>();
         services.AddSingleton<UnambitiousFx.Myelin.IRegisteredEndpoints>(sp => sp.GetRequiredService<Nid.Ai.Infrastructure.Workers.WorkerDirectory>());

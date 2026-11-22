@@ -38,9 +38,10 @@ internal static class DataPolicyNotices
     public const string Kind = "ai.data_policy_changed";
 
     /// <summary>Every adult is told of a change to what may leave the premises or reach which worker (§12).</summary>
-    public static Task TellAsync(INotifier notifier, string change, string? worker, Instant at, CancellationToken ct)
+    public static Task TellAsync(
+        INotifier notifier, string change, string? worker, Instant at, CancellationToken ct, IReadOnlyDictionary<string, string>? more = null)
     {
-        var data = new Dictionary<string, string> { ["change"] = change };
+        var data = new Dictionary<string, string>(more ?? new Dictionary<string, string>()) { ["change"] = change };
         if (worker is not null)
             data["worker"] = worker;
         return notifier.PublishAsync(new Notice(Kind, new Recipients.AllAdults(), $"{Kind}:{change}:{at.ToUnixTimeTicks()}", [], data), ct);
@@ -56,16 +57,15 @@ public sealed class SetRemoteWorkersAllowedHandler(IAiSettings settings, IActorA
         if (actors.Current?.PersonId is not { } person)
             return Result.Failure<PolicyChange<AiSettingsView>>(new UnauthorizedFailure("An adult decides the household's opt-in.", null));
 
-        var view = new AiSettingsView(command.Allowed);
         if (await settings.RemoteWorkersAllowedAsync(ct) == command.Allowed)
-            return Result.Success(new PolicyChange<AiSettingsView>(view, Changed: false));
+            return Result.Success(new PolicyChange<AiSettingsView>(await AiSettingsViews.ReadAsync(settings, ct), Changed: false));
 
         var now = clock.GetCurrentInstant();
         if (!await settings.SetRemoteWorkersAllowedAsync(command.Allowed, person.Value, now, ct))
             return Result.Failure<PolicyChange<AiSettingsView>>(
                 new ConflictFailure("Another adult changed it at the same moment: read it again.") { Code = JobCodes.SettingsChanged });
         await DataPolicyNotices.TellAsync(notifier, command.Allowed ? "remote_on" : "remote_off", null, now, ct);
-        return Result.Success(new PolicyChange<AiSettingsView>(view, Changed: true));
+        return Result.Success(new PolicyChange<AiSettingsView>(await AiSettingsViews.ReadAsync(settings, ct), Changed: true));
     }
 }
 
@@ -92,5 +92,5 @@ public sealed class SetWorkerSafeHandler(IWorkerStore store, INidKeys keys, IWor
 public sealed class GetAiSettingsHandler(IAiSettings settings) : IRequestHandler<GetAiSettingsQuery, AiSettingsView>
 {
     public async ValueTask<Result<AiSettingsView>> HandleAsync(GetAiSettingsQuery query, CancellationToken ct = default)
-        => Result.Success(new AiSettingsView(await settings.RemoteWorkersAllowedAsync(ct)));
+        => Result.Success(await AiSettingsViews.ReadAsync(settings, ct));
 }

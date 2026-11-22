@@ -158,10 +158,44 @@
       "worker_not_pending": "Ce worker est déjà appairé.",
       "worker_refused": "Le worker a refusé la demande.",
       "worker_revoked": "Ce worker est révoqué.",
-      "worker_unreachable": "Nid n'arrive pas à joindre le worker à cette adresse."
+      "worker_unreachable": "Nid n'arrive pas à joindre le worker à cette adresse.",
+      "use_off": "Cet usage est désactivé dans les réglages.",
+      "no_model": "Aucun modèle n'est choisi pour cet usage : un administrateur le choisit dans Réglages › IA.",
+      "model_unavailable": "Aucun worker actif ne propose le modèle choisi.",
+      "task_not_allowed": "Cet usage ne permet pas cette demande.",
+      "cut": "La réponse a été coupée avant la fin.",
+      "unknown_use": "Cet usage n'existe pas.",
+      "unknown_mode": "Ce réglage n'existe pas."
     },
     "job_type": {
       "echo": "Test d'un worker"
+    },
+    "models": {
+      "title": "Modèles",
+      "tip": "Chaque usage de l'IA se règle à part : jusqu'où il peut aller, et le modèle qui le fait tourner. Par défaut, rien ne quitte les workers du foyer.",
+      "mode": "Réglage",
+      "mode_self_hosted": "Workers du foyer",
+      "mode_off": "Désactivé",
+      "mode_cloud": "Workers du foyer, puis le cloud",
+      "model": "Modèle",
+      "no_model": "Aucun modèle choisi",
+      "none_declared": "Aucun worker ne propose de modèle pour cet usage.",
+      "served_by_one": "{{name}} (1 worker)",
+      "served_by_other": "{{name}} ({{count}} workers)",
+      "gone": "{{name}} (plus proposé par aucun worker)",
+      "saved": "Réglage enregistré.",
+      "use": {
+        "chat": "Assistant",
+        "extract": "Lecture des documents",
+        "embed": "Recherche par le sens",
+        "decide": "Suggestions de catégories"
+      },
+      "use_tip": {
+        "chat": "L'assistant de Nid répond à vos questions sur vos comptes, en lisant vos données.",
+        "extract": "Nid lit un document déposé (facture, avis d'impôt) pour en proposer les montants et les dates.",
+        "embed": "Nid range vos documents par sens, pour les retrouver par une question plutôt que par un mot exact.",
+        "decide": "Nid propose une catégorie pour une opération bancaire, parmi celles du foyer."
+      }
     }
   }
 }

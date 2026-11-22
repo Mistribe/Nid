@@ -99,6 +99,21 @@ public static class AiEndpoints
                     : Missing("allowed"))
             .Returns<AiSettingsView>();
 
+        settings.MapPut("/uses/{use}", async (string use, UseModeBody body, IInvoker invoker, CancellationToken ct) =>
+                body.Mode is { } mode
+                    ? (await invoker.InvokeAsync(new SetUseModeCommand(use, mode), ct)).ToHttp(change => change.View)
+                    : Missing("mode"))
+            .Returns<AiSettingsView>();
+        settings.MapPut("/uses/{use}/model", async (string use, UseModelBody body, IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new SetUseModelCommand(use, string.IsNullOrWhiteSpace(body.Model) ? null : body.Model.Trim()), ct)).ToHttp(view => view))
+            .Returns<AiSettingsView>();
+
+        routes.MapGroup("/api/v1/ai/models").RequireAuthorization()
+            .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>()
+            .MapGet("", async (IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new ListDeclaredModelsQuery(), ct)).ToHttp(models => models))
+            .Returns<DeclaredModels>();
+
         var key = routes.MapGroup("/api/v1/ai/key").RequireAuthorization()
             .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>();
         key.MapPost("/rotate", async (IInvoker invoker, CancellationToken ct)
@@ -117,6 +132,10 @@ public static class AiEndpoints
     public sealed record SafeBody(bool? Safe);
 
     public sealed record RemoteWorkersBody(bool? Allowed);
+
+    public sealed record UseModeBody(string? Mode);
+
+    public sealed record UseModelBody(string? Model);
 
     private static IResult Missing(string field)
     {

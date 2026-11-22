@@ -17,10 +17,13 @@ const worker = (over: Record<string, unknown> = {}) => ({
   lastSeenAt: '2026-11-22T08:00:00+00:00', createdAt: '2026-11-20T08:00:00+00:00', pairedAt: '2026-11-20T08:05:00+00:00', load: 2, ...over,
 });
 
-function serve(workers: unknown[], allowed = false) {
+const USES = ['chat', 'extract', 'embed', 'decide'].map((use) => ({ use, mode: 'self_hosted', model: null as string | null }));
+
+function serve(workers: unknown[], allowed = false, uses = USES) {
   server.use(
     http.get('*/api/v1/ai/workers', () => HttpResponse.json({ workers })),
-    http.get('*/api/v1/ai/settings', () => HttpResponse.json({ remoteWorkersAllowed: allowed })),
+    http.get('*/api/v1/ai/settings', () => HttpResponse.json({ remoteWorkersAllowed: allowed, uses })),
+    http.get('*/api/v1/ai/models', () => HttpResponse.json({ models: [{ name: 'llama3.2', capability: 'chat', workers: 1 }] })),
   );
 }
 
@@ -137,7 +140,7 @@ describe('Réglages › IA', () => {
     const remote: unknown[] = [];
     server.use(
       http.put('*/api/v1/ai/workers/w1/safe', async ({ request }) => { safe.push(await request.json()); return HttpResponse.json(worker({ safe: true })); }),
-      http.put('*/api/v1/ai/settings/remote-workers', async ({ request }) => { remote.push(await request.json()); return HttpResponse.json({ remoteWorkersAllowed: true }); }),
+      http.put('*/api/v1/ai/settings/remote-workers', async ({ request }) => { remote.push(await request.json()); return HttpResponse.json({ remoteWorkersAllowed: true, uses: USES }); }),
     );
     const { user } = await renderApp('/settings/ai');
 
@@ -195,6 +198,41 @@ describe('Réglages › IA', () => {
     await user.click(await screen.findByRole('menuitem', { name: 'Révoquer' }));
 
     expect(await screen.findByRole('alertdialog')).not.toHaveTextContent('unpair');
+  });
+
+  it('lets an admin pick the model of a use among those the workers declare', async () => {
+    serve([worker()]);
+    const sent: unknown[] = [];
+    server.use(http.put('*/api/v1/ai/settings/uses/chat/model', async ({ request }) => {
+      sent.push(await request.json());
+      return HttpResponse.json({ remoteWorkersAllowed: false, uses: USES });
+    }));
+    const { user } = await renderApp('/settings/ai', { capabilities: adminCapabilities });
+
+    const assistant = (await screen.findByRole('heading', { name: 'Assistant' })).parentElement!;
+    await user.click(within(assistant).getByRole('combobox', { name: 'Modèle' }));
+    await user.click(await screen.findByRole('option', { name: 'llama3.2 (1 worker)' }));
+
+    await waitFor(() => expect(sent).toEqual([{ model: 'llama3.2' }]));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Réglage enregistré.'));
+  });
+
+  it('lets any adult turn a use off, and shows them the model without choosing it', async () => {
+    serve([worker()], false, USES.map((u) => (u.use === 'chat' ? { ...u, model: 'llama3.2' } : u)));
+    const sent: unknown[] = [];
+    server.use(http.put('*/api/v1/ai/settings/uses/chat', async ({ request }) => {
+      sent.push(await request.json());
+      return HttpResponse.json({ remoteWorkersAllowed: false, uses: USES });
+    }));
+    const { user } = await renderApp('/settings/ai');
+
+    const assistant = (await screen.findByRole('heading', { name: 'Assistant' })).parentElement!;
+    expect(within(assistant).queryByRole('combobox', { name: 'Modèle' })).not.toBeInTheDocument();
+    expect(assistant).toHaveTextContent('llama3.2');
+    await user.click(within(assistant).getByRole('combobox', { name: 'Réglage' }));
+    await user.click(await screen.findByRole('option', { name: 'Désactivé' }));
+
+    await waitFor(() => expect(sent).toEqual([{ mode: 'off' }]));
   });
 
   it("rotates Nid's key and says what each worker needs", async () => {

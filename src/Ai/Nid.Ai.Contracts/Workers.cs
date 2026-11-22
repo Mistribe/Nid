@@ -60,7 +60,8 @@ public sealed record WorkerList(IReadOnlyList<WorkerView> Workers);
 public sealed record RegisteredWorker(Guid Id, string Fingerprint);
 
 /// <summary>The household's AI settings as any adult reads them.</summary>
-public sealed record AiSettingsView(bool RemoteWorkersAllowed);
+/// <summary>The household's AI settings: the remote opt-in and each use (#486).</summary>
+public sealed record AiSettingsView(bool RemoteWorkersAllowed, IReadOnlyList<UseSettingView> Uses);
 
 /// <summary>« Tester »: how many frames the streamed echo answered, and the echo job queued for the worker.</summary>
 public sealed record WorkerTestResult(int Frames, Guid JobId);

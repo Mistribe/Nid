@@ -20,6 +20,8 @@ public sealed class AiDbContext(DbContextOptions<AiDbContext> options) : DbConte
 
     public DbSet<ConsentRow> Consents => Set<ConsentRow>();
 
+    public DbSet<LlmCallRow> LlmCalls => Set<LlmCallRow>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schema);
@@ -75,12 +77,29 @@ public sealed class AiDbContext(DbContextOptions<AiDbContext> options) : DbConte
             e.Property(x => x.RowVersion).HasColumnName("xmin").HasColumnType("xid").ValueGeneratedOnAddOrUpdate().IsConcurrencyToken();
         });
 
+        modelBuilder.Entity<LlmCallRow>(e =>
+        {
+            e.ToTable("llm_call", t => t.HasCheckConstraint("ck_llm_call_status",
+                "status in ('succeeded', 'refused', 'error', 'no_destination', 'blocked_budget')"));
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Task).HasMaxLength(16);
+            e.Property(x => x.Use).HasMaxLength(16);
+            e.Property(x => x.Model).HasMaxLength(200);
+            e.Property(x => x.Status).HasMaxLength(16);
+            e.Property(x => x.Code).HasMaxLength(64);
+            e.HasIndex(x => x.CreatedAt);
+            e.HasIndex(x => new { x.PersonId, x.CreatedAt });
+        });
+
         modelBuilder.Entity<AiSettingsRow>(e =>
         {
             e.ToTable("ai_settings", t => t.HasCheckConstraint("ck_ai_settings_single", "id = 1"));
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             e.HasOne<ConsentRow>().WithMany().HasForeignKey(x => x.RemoteConsentId).OnDelete(DeleteBehavior.Restrict);
+            e.Property(x => x.Uses).HasColumnType("jsonb");
+            e.Property(x => x.Models).HasColumnType("jsonb");
             e.Property(x => x.Version).HasColumnName("xmin").HasColumnType("xid").ValueGeneratedOnAddOrUpdate().IsConcurrencyToken();
         });
 

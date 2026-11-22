@@ -137,6 +137,12 @@ public sealed class AiSettingsRow
     /// <summary>The consent that set <see cref="RemoteWorkersAllowed"/> last.</summary>
     public Guid? RemoteConsentId { get; set; }
 
+    /// <summary>#486: each use's mode (<c>{"chat": "self_hosted"}</c>), jsonb; a use left out is at its default.</summary>
+    public string? Uses { get; set; }
+
+    /// <summary>#486: each use's model, set by an admin among the declared ones, jsonb.</summary>
+    public string? Models { get; set; }
+
     public uint Version { get; set; }
 }
 
@@ -153,4 +159,36 @@ public sealed class ConsentRow
     public bool Value { get; set; }
 
     public Instant At { get; set; }
+}
+
+/// <summary>One model call (#486, <c>docs/ingestion/llm-providers.md</c> §11): who, for what, where, how much; never its content.</summary>
+public sealed class LlmCallRow
+{
+    public Guid Id { get; set; }
+
+    public Instant CreatedAt { get; set; }
+
+    public Guid? PersonId { get; set; }
+
+    public required string Task { get; set; }
+
+    public required string Use { get; set; }
+
+    public Guid? WorkerId { get; set; }
+
+    public Guid? ConversationId { get; set; }
+
+    public Guid? JobId { get; set; }
+
+    public string? Model { get; set; }
+
+    public int TokensIn { get; set; }
+
+    public int TokensOut { get; set; }
+
+    /// <summary><c>succeeded</c>, <c>refused</c>, <c>error</c>, <c>no_destination</c> or <c>blocked_budget</c>.</summary>
+    public required string Status { get; set; }
+
+    /// <summary>The <c>ai.*</c> code of a call that did not succeed.</summary>
+    public string? Code { get; set; }
 }

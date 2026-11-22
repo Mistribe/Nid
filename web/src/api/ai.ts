@@ -23,6 +23,12 @@ export const NID_KEY_ROTATE = '/api/v1/ai/key/rotate' as const;
 export const AI_SETTINGS = '/api/v1/ai/settings' as const;
 export const REMOTE_WORKERS = '/api/v1/ai/settings/remote-workers' as const;
 export const JOBS = '/api/v1/ai/jobs' as const;
+export const CAPABILITIES = '/api/v1/ai/capabilities' as const;
+/** #486: each use's mode (any adult) and model (an admin), and the models the workers declare. */
+export const USE_MODE = '/api/v1/ai/settings/uses/{use}' as const;
+export const USE_MODEL = '/api/v1/ai/settings/uses/{use}/model' as const;
+export const DECLARED_MODELS = '/api/v1/ai/models' as const;
+export type UseSetting = components['schemas']['UseSettingView'];
 
 /** The statuses the jobs page filters on (the server refuses any other). */
 export const JOB_STATUSES = ['queued', 'running', 'succeeded', 'failed', 'dead'] as const;
