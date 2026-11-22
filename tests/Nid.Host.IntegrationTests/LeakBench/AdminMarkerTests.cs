@@ -70,6 +70,17 @@ public class AdminMarkerTests
         Assert.DoesNotContain(irl, t => !typeof(IAdminOnly).IsAssignableFrom(t));
     }
 
+    /// <summary>docs/ai/README.md §12: only an admin registers and manages a model worker, in the browser; any adult reads the list.</summary>
+    [Fact]
+    public void Managing_model_workers_is_admin_only_and_browser_only()
+    {
+        var commands = typeof(Nid.Ai.Application.RegisterWorkerCommand).Assembly.GetTypes()
+            .Where(t => t.Name.EndsWith("Command", StringComparison.Ordinal) && !t.IsAbstract).ToList();
+        Assert.NotEmpty(commands);
+        Assert.All(commands, t => Assert.True(typeof(IAdminOnly).IsAssignableFrom(t) && typeof(Nid.Platform.Contracts.IBrowserOnly).IsAssignableFrom(t), t.Name));
+        Assert.False(typeof(IAdminOnly).IsAssignableFrom(typeof(Nid.Ai.Application.ListWorkersQuery)));
+    }
+
     /// <summary>The CPI collection, its trigger, its journal and the manual entry are the admin's; the read of the inflation is not.</summary>
     [Fact]
     public void The_cpi_collection_is_admin_only()

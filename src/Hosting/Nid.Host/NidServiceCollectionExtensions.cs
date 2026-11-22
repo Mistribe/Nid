@@ -78,6 +78,7 @@ public static class NidServiceCollectionExtensions
         services.AddSingleton<IAuditMap, InvestmentsAuditMap>();
         services.AddSingleton<IAuditMap, IncomeAuditMap>();
         services.AddSingleton<IAuditMap, GoalsAuditMap>();
+        services.AddSingleton<IAuditMap, Nid.Ai.Infrastructure.Persistence.AiAuditMap>();
         services.AddSingleton<IAuditMap, Nid.Childcare.Infrastructure.Persistence.ChildcareAuditMap>();
         services.AddSingleton<IAuditMap, DocumentsAuditMap>();
         services.AddSingleton<IAuditMap, RealEstateAuditMap>();
@@ -272,6 +273,32 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<Nid.Goals.Contracts.IEmergencyBuffer, GoalsEmergencyBuffer>();
         services.AddScoped<IGoalsReview, GoalsReview>();
         services.AddScoped<ISeriesContribution, GoalSeries>();
+
+        services.AddDbContext<Nid.Ai.Infrastructure.Persistence.AiDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
+        {
+            npgsql.UseNodaTime();
+            npgsql.MigrationsHistoryTable("__ef_migrations_history", Nid.Ai.Infrastructure.Persistence.AiDbContext.Schema);
+        }).AddInterceptors(sp.GetRequiredService<AuditInterceptor>()));
+        services.AddScoped<ITransactionParticipant, DbContextParticipant<Nid.Ai.Infrastructure.Persistence.AiDbContext>>();
+        services.AddScoped<Nid.Ai.Application.INidKeys, Nid.Ai.Infrastructure.Persistence.NidKeyStore>();
+        services.AddScoped<Nid.Ai.Application.IWorkerStore, Nid.Ai.Infrastructure.Persistence.WorkerStore>();
+        services.TryAddSingleton(TimeProvider.System);
+        services.AddSingleton<Nid.Ai.Infrastructure.Workers.WorkerDirectory>();
+        services.AddSingleton<UnambitiousFx.Myelin.IRegisteredEndpoints>(sp => sp.GetRequiredService<Nid.Ai.Infrastructure.Workers.WorkerDirectory>());
+        services.AddSingleton<Nid.Ai.Application.IWorkerDirectory>(sp => sp.GetRequiredService<Nid.Ai.Infrastructure.Workers.WorkerDirectory>());
+        // Workers are reached on the household's network: Myelin's handler lets exactly the registered host and port pairs
+        // resolve to private addresses, and the TLS check is the directory's. One client for the host's life, as
+        // SafeHttpClient: an IHttpClientFactory client keeps every disposed host alive (HostLifetimeTests).
+        services.AddSingleton<Nid.Ai.Application.IWorkerClient>(sp =>
+        {
+            var directory = sp.GetRequiredService<Nid.Ai.Infrastructure.Workers.WorkerDirectory>();
+            var handler = UnambitiousFx.Myelin.MyelinHandler.Create(null, directory);
+            handler.SslOptions.RemoteCertificateValidationCallback = (sender, certificate, _, errors)
+                => directory.ValidateCertificate(((System.Net.Security.SslStream)sender).TargetHostName, certificate, errors);
+            var http = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(30) };
+            http.DefaultRequestHeaders.UserAgent.ParseAdd(NidOutbound.UserAgent);
+            return new Nid.Ai.Infrastructure.Workers.WorkerClient(http);
+        });
 
         services.AddDbContext<BankingDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
         {
@@ -477,6 +504,7 @@ public static class NidServiceCollectionExtensions
             cfg.AddRegisterGroup(new Nid.Investments.Application.RegisterGroup());
             cfg.AddRegisterGroup(new Nid.Income.Application.RegisterGroup());
             cfg.AddRegisterGroup(new Nid.Goals.Application.RegisterGroup());
+            cfg.AddRegisterGroup(new Nid.Ai.Application.RegisterGroup());
             cfg.AddRegisterGroup(new Nid.Childcare.Application.RegisterGroup());
             cfg.AddRegisterGroup(new Nid.Documents.Application.RegisterGroup());
             cfg.AddRegisterGroup(new Nid.RealEstate.Application.RegisterGroup());

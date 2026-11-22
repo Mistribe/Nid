@@ -11,8 +11,9 @@ public sealed record WorkerDeclaration(
     string NidKeyFingerprint) : IContract
 {
     public bool IsValid()
-        => SoftwareVersion.Length > 0
-           && MaxConcurrentRequests >= 1
+        => SoftwareVersion.Length is > 0 and <= 64
+           && MaxConcurrentRequests is >= 1 and <= 1024
+           && Jobs.Count <= 100 && Requests.Count <= 100 && Models.Count <= 100
            && NidKeyFingerprint.Length == 64 && NidKeyFingerprint.All(char.IsAsciiHexDigitLower)
            && Jobs.All(c => c?.IsValid() == true)
            && Requests.All(c => c?.IsValid() == true)
@@ -22,7 +23,7 @@ public sealed record WorkerDeclaration(
 /// <summary>A job or request type and the contract version served: <c>contracts/{jobs,requests}/{type}/v{version}</c>.</summary>
 public sealed record ContractVersion(string Type, int Version) : IContract
 {
-    public bool IsValid() => Type.Length > 0 && Version >= 1;
+    public bool IsValid() => Type.Length is > 0 and <= 64 && Version >= 1;
 }
 
 public enum DeclaredCapability
@@ -47,7 +48,7 @@ public sealed record DeclaredModel(
     DecideImplementation? Decide = null) : IContract
 {
     public bool IsValid()
-        => Name.Length > 0 && Digest.Length > 0 && ContextTokens > 0 && MaxOutputTokens > 0
+        => Name.Length is > 0 and <= 200 && Digest.Length is > 0 and <= 200 && ContextTokens > 0 && MaxOutputTokens > 0
            && (Capability != DeclaredCapability.Embed || Dimension > 0)
            && (Capability != DeclaredCapability.Decide || Decide?.IsValid() == true);
 }
@@ -62,5 +63,5 @@ public enum DecideScores
 /// <summary>How a worker implements <c>decide</c> (prompt included in its version) and the scores it returns.</summary>
 public sealed record DecideImplementation(string Name, string Version, DecideScores Scores) : IContract
 {
-    public bool IsValid() => Name.Length > 0 && Version.Length > 0;
+    public bool IsValid() => Name.Length is > 0 and <= 100 && Version.Length is > 0 and <= 100;
 }

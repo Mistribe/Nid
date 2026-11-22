@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Nid.TestSupport\Nid.TestSupport.csproj" />
+    <!-- Its Program would clash with the host's: reached as worker::Program. -->
+    <ProjectReference Include="..\..\src\Ai\Nid.Ai.Worker\Nid.Ai.Worker.csproj" Aliases="worker" />
+  </ItemGroup>
+</Project>

@@ -3,6 +3,7 @@ using Nid.Banking.Infrastructure.Persistence;
 using Nid.Childcare.Infrastructure.Persistence;
 using Nid.Core.Infrastructure.Persistence;
 using Nid.Documents.Infrastructure.Persistence;
+using Nid.Ai.Infrastructure.Persistence;
 using Nid.Goals.Infrastructure.Persistence;
 using Nid.Income.Infrastructure.Persistence;
 using Nid.Investments.Infrastructure.Persistence;
@@ -83,6 +84,8 @@ public sealed class PostgresFixture : IAsyncLifetime
             await banking.Database.MigrateAsync();
         await using (var childcare = NewChildcareContext(connectionString))
             await childcare.Database.MigrateAsync();
+        await using (var ai = NewAiContext(connectionString))
+            await ai.Database.MigrateAsync();
     }
 
     private static async Task<string> NewDatabaseAsync(string? template)
@@ -124,6 +127,9 @@ public sealed class PostgresFixture : IAsyncLifetime
 
     public static PlatformDbContext NewPlatformContext(string connectionString)
         => new(new DbContextOptionsBuilder<PlatformDbContext>().Configure(connectionString).Options);
+
+    public static Nid.Ai.Infrastructure.Persistence.AiDbContext NewAiContext(string connectionString)
+        => new(new DbContextOptionsBuilder<Nid.Ai.Infrastructure.Persistence.AiDbContext>().Configure(connectionString).Options);
 
     public static GoalsDbContext NewGoalsContext(string connectionString)
         => new(new DbContextOptionsBuilder<GoalsDbContext>().Configure(connectionString).Options);

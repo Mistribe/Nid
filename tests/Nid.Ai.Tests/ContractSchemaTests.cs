@@ -15,6 +15,10 @@ public sealed class ContractSchemaTests
         { nameof(EchoJobOutput), "contracts/jobs/echo/v1/output.schema.json" },
         { nameof(EchoRequestInput), "contracts/requests/echo/v1/input.schema.json" },
         { nameof(EchoRequestOutput), "contracts/requests/echo/v1/output.schema.json" },
+        { nameof(PairRequest), "contracts/workers/pair-request/v1/schema.json" },
+        { nameof(PairResponse), "contracts/workers/pair-response/v1/schema.json" },
+        { nameof(RotateWorkerKeyResponse), "contracts/workers/rotate-worker-key-response/v1/schema.json" },
+        { nameof(RotateNidKeyRequest), "contracts/workers/rotate-nid-key-request/v1/schema.json" },
     };
 
     [Theory]
@@ -64,6 +68,15 @@ public sealed class ContractSchemaTests
             Assert.Throws<ProtocolException>(() => ContractJson.Read<WorkerDeclaration>(Declaration(Model(capability, extra)))).Code);
 
     [Fact]
+    public void A_declaration_with_an_overlong_text_is_refused()
+    {
+        var json = Encoding.UTF8.GetString(Declaration(Model("chat", ""))).Replace("\"0.1.0\"", $"\"{new string('9', 65)}\"");
+
+        Assert.Equal("contract_invalid",
+            Assert.Throws<ProtocolException>(() => ContractJson.Read<WorkerDeclaration>(Encoding.UTF8.GetBytes(json))).Code);
+    }
+
+    [Fact]
     public void A_null_list_element_is_refused()
     {
         var json = Encoding.UTF8.GetString(Declaration(Model("chat", ""))).Replace("[{\"type\": \"echo\", \"version\": 1}]", "[null]");
@@ -71,6 +84,26 @@ public sealed class ContractSchemaTests
         Assert.Equal("contract_invalid",
             Assert.Throws<ProtocolException>(() => ContractJson.Read<WorkerDeclaration>(Encoding.UTF8.GetBytes(json))).Code);
     }
+
+    [Theory]
+    [InlineData("ABCD-EFGH")] // the separator is display only
+    [InlineData("ABCDEFG")] // too short
+    [InlineData("ABCDEFGI")] // I is not in the alphabet
+    public void A_bad_pairing_code_is_refused(string code)
+        => Assert.Equal("contract_invalid", Assert.Throws<ProtocolException>(() =>
+            ContractJson.Read<PairRequest>(Encoding.UTF8.GetBytes($$"""{"nidPublicKey": "{{Spki}}", "code": "{{code}}"}"""))).Code);
+
+    [Fact]
+    public void A_pairing_request_carries_a_P256_key()
+    {
+        Assert.Equal("ABCDEFGH", ContractJson.Read<PairRequest>(
+            Encoding.UTF8.GetBytes($$"""{"nidPublicKey": "{{Spki}}", "code": "ABCDEFGH"}""")).Code);
+        Assert.Equal("contract_invalid", Assert.Throws<ProtocolException>(() => ContractJson.Read<PairRequest>(
+            Encoding.UTF8.GetBytes("""{"nidPublicKey": "AAAA", "code": "ABCDEFGH"}"""))).Code);
+    }
+
+    private static readonly string Spki = Convert.ToBase64String(
+        System.Security.Cryptography.ECDsa.Create(System.Security.Cryptography.ECCurve.NamedCurves.nistP256).ExportSubjectPublicKeyInfo());
 
     private static string Model(string capability, string extra)
         => $$"""{"capability": "{{capability}}", "name": "m", "digest": "sha256:ab", "contextTokens": 8192, "maxOutputTokens": 1024{{extra}}}""";

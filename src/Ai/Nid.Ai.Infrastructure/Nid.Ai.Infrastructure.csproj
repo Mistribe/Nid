@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL.NodaTime" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <ProjectReference Include="..\Nid.Ai.Application\Nid.Ai.Application.csproj" />
+    <ProjectReference Include="..\Nid.Ai.Contracts\Nid.Ai.Contracts.csproj" />
+    <ProjectReference Include="..\Nid.Ai.Protocol\Nid.Ai.Protocol.csproj" />
+    <ProjectReference Include="..\..\Core\Nid.Core.Contracts\Nid.Core.Contracts.csproj" />
+    <ProjectReference Include="..\..\Platform\Nid.Platform\Nid.Platform.csproj" />
+    <ProjectReference Include="..\..\Platform\Nid.Platform.Infrastructure\Nid.Platform.Infrastructure.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Nid.Ai.IntegrationTests" />
+    <InternalsVisibleTo Include="Nid.Ai.Tests" />
+  </ItemGroup>
+</Project>
