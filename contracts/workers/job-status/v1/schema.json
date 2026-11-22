@@ -10,9 +10,9 @@
         "null"
       ]
     },
-    "result": {
+    "resultLength": {
       "type": [
-        "string",
+        "integer",
         "null"
       ]
     }
@@ -20,7 +20,7 @@
   "required": [
     "status",
     "error",
-    "result"
+    "resultLength"
   ],
   "additionalProperties": false
 }

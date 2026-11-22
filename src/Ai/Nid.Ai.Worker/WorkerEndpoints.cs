@@ -145,10 +145,21 @@ public static class WorkerEndpoints
             await Respond(context, secret, new JobAccepted(id));
     }
 
-    private static Task JobStatusOf(HttpContext context, JobTable jobs, string id, ResponseSecret secret)
-        => Respond(context, secret, jobs.Find(id) is not { } job
+    private static async Task JobStatusOf(HttpContext context, JobTable jobs, string id, ResponseSecret secret)
+    {
+        context.Response.ContentType = "application/octet-stream";
+        var writer = new ResponseWriter(secret, context.Response.Body);
+        var job = jobs.Find(id);
+        var succeeded = job is { Status: "succeeded", Result: { } result } ? result : null;
+        if (succeeded is not null)
+            for (var at = 0; at < succeeded.Length; at += JobStatus.ResultChunk)
+                await writer.WriteAsync(FrameType.Data, succeeded.AsMemory(at, Math.Min(JobStatus.ResultChunk, succeeded.Length - at)), context.RequestAborted);
+
+        var status = job is null
             ? new JobStatus("unknown", null, null)
-            : new JobStatus(job.Status, job.Error, job.Status == "succeeded" ? Convert.ToBase64String(job.Result!) : null));
+            : new JobStatus(succeeded is null && job.Status == "succeeded" ? "running" : job.Status, job.Error, succeeded?.Length);
+        await writer.WriteAsync(FrameType.End, ContractJson.Write(status), context.RequestAborted);
+    }
 
     /// <summary>A request's answer, in data frames as the handler yields them, then <c>end</c>; an <c>error</c> frame when the
     /// type is unknown, its input does not follow its contract, or the handler fails. Closing the request cancels it.</summary>

@@ -123,30 +123,43 @@ public sealed class TestNid(HttpClient worker) : IDisposable
             : (null, System.Text.Encoding.UTF8.GetString(last.Content.Span), secret);
     }
 
-    public async Task<JobStatus> PollAsync(string id)
-        => (await CallAsync<JobStatus>($"/v1/jobs/{id}", ContractJson.Write(new JobPoll(id)), Key)).Body!;
+    public async Task<(JobStatus Status, byte[]? Result)> PollAsync(string id)
+    {
+        var (_, frames, _) = await CallFramesAsync($"/v1/jobs/{id}", ContractJson.Write(new JobPoll(id)));
+        var status = ContractJson.Read<JobStatus>(frames[^1].Content.Span);
+        byte[]? result = status.ResultLength is null ? null : [.. frames.SkipLast(1).SelectMany(f => f.Content.ToArray())];
+        Assert.Equal(status.ResultLength, result?.Length);
+        return (status, result);
+    }
 
     /// <summary>Polls until the job leaves queued and running (in memory, a few milliseconds).</summary>
-    public async Task<JobStatus> WaitAsync(string id)
+    public async Task<(JobStatus Status, byte[]? Result)> WaitAsync(string id)
     {
         for (var i = 0; i < 200; i++)
         {
-            var status = await PollAsync(id);
-            if (status.Status is not ("queued" or "running"))
-                return status;
+            var polled = await PollAsync(id);
+            if (polled.Status.Status is not ("queued" or "running"))
+                return polled;
             await Task.Delay(10, TestContext.Current.CancellationToken);
         }
 
         throw new TimeoutException($"Job {id} did not finish.");
     }
 
-    public static async Task<List<Frame>> OpenResultAsync(string result, ResponseSecret submission)
+    /// <summary>A job's output: its data frames, opened with the submission's secret, end to end.</summary>
+    public static async Task<byte[]> OpenResultAsync(byte[] result, ResponseSecret submission)
     {
-        var frames = new List<Frame>();
-        await foreach (var frame in ResponseReader.ReadAsync(submission, new MemoryStream(Convert.FromBase64String(result)),
-                           FrameLimits.Default, TestContext.Current.CancellationToken))
-            frames.Add(frame);
-        return frames;
+        var output = new MemoryStream();
+        var ended = false;
+        await foreach (var frame in ResponseReader.ReadAsync(submission, new MemoryStream(result), FrameLimits.Default, TestContext.Current.CancellationToken))
+        {
+            if (frame.Type == FrameType.Data)
+                output.Write(frame.Content.Span);
+            ended = frame.Type == FrameType.End;
+        }
+
+        Assert.True(ended);
+        return output.ToArray();
     }
 
     public void Dispose() => Key.Dispose();

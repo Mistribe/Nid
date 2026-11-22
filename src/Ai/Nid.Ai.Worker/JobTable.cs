@@ -89,8 +89,12 @@ public sealed class JobTable(IEnumerable<IJobHandler> handlers, IEnumerable<IReq
             {
                 job.Status = "running";
                 var output = await handler.RunAsync(input, file, ct);
+                // The output in data frames, then an empty end: a frame holds 64 KiB at most.
                 using var sealedResult = new MemoryStream();
-                await new ResponseWriter(job.Submission, sealedResult).WriteAsync(FrameType.End, output, ct);
+                var writer = new ResponseWriter(job.Submission, sealedResult);
+                for (var at = 0; at < output.Length; at += Protocol.Contracts.JobStatus.ResultChunk)
+                    await writer.WriteAsync(FrameType.Data, output.AsMemory(at, Math.Min(Protocol.Contracts.JobStatus.ResultChunk, output.Length - at)), ct);
+                await writer.WriteAsync(FrameType.End, ReadOnlyMemory<byte>.Empty, ct);
                 job.Result = sealedResult.ToArray();
                 Finish(job, "succeeded", null);
             }

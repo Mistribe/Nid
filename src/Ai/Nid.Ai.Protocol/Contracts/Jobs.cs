@@ -34,18 +34,22 @@ public sealed record JobPoll(string Id) : IContract
     public bool IsValid() => Id.Length is > 0 and <= 64;
 }
 
-/// <summary>A job's status. Once <c>succeeded</c>, <see cref="Result"/> is the result's frames sealed under the
-/// <b>submission's</b> context (base64), which only Nid, keeping that secret, opens (<c>docs/ai/README.md</c> §4.2).
-/// <c>unknown</c>: the worker no longer has the job (restarted, or the result expired).</summary>
-public sealed record JobStatus(string Status, string? Error, string? Result) : IContract
+/// <summary>A job's status, the <c>end</c> frame of a poll's answer. Once <c>succeeded</c>, the data frames before it carry
+/// the result, <see cref="ResultLength"/> bytes of frames sealed under the <b>submission's</b> context, which only Nid,
+/// keeping that secret, opens (<c>docs/ai/README.md</c> §4.2). <c>unknown</c>: the worker no longer has the job
+/// (restarted, or the result expired).</summary>
+public sealed record JobStatus(string Status, string? Error, long? ResultLength) : IContract
 {
     public static readonly string[] Statuses = ["queued", "running", "succeeded", "failed", "unknown"];
 
     public const int MaxResultBytes = 24 * 1024 * 1024;
 
+    /// <summary>The result's bytes per data frame of a poll's answer.</summary>
+    public const int ResultChunk = 60 * 1024;
+
     public bool IsValid()
         => Statuses.Contains(Status)
-           && (Status == "succeeded") == (Result is not null)
-           && (Result is null || (Result.Length <= JobSubmission.Base64Length(MaxResultBytes) && JobSubmission.IsBase64(Result)))
+           && (Status == "succeeded") == (ResultLength is not null)
+           && ResultLength is null or (> 0 and <= MaxResultBytes)
            && (Error is null || Error.Length <= 200);
 }

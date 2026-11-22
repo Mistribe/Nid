@@ -20,15 +20,28 @@ public sealed class JobTests
 
         var (id, error, submission) = await nid.SubmitAsync("echo", 1, new EchoJobInput("hello"));
         Assert.Null(error);
-        var status = await nid.WaitAsync(id!);
+        var (status, result) = await nid.WaitAsync(id!);
 
         Assert.Equal("succeeded", status.Status);
-        var frames = await TestNid.OpenResultAsync(status.Result!, submission);
-        Assert.Equal("hello", ContractJson.Read<EchoJobOutput>(Assert.Single(frames).Content.Span).Text);
+        Assert.Equal("hello", ContractJson.Read<EchoJobOutput>(await TestNid.OpenResultAsync(result!, submission)).Text);
 
         using var stranger = WorkerKeyPair.Generate();
         var other = SealedRequest.Seal(stranger.PublicKey, "x"u8).Secret;
-        await Assert.ThrowsAsync<ProtocolException>(() => TestNid.OpenResultAsync(status.Result!, other));
+        await Assert.ThrowsAsync<ProtocolException>(() => TestNid.OpenResultAsync(result!, other));
+    }
+
+    [Fact]
+    public async Task A_large_result_comes_back_whole_across_frames()
+    {
+        await using var worker = new WorkerHarness(services: s => s.AddSingleton<IJobHandler>(new BigJob()));
+        using var nid = await PairedAsync(worker);
+
+        var (id, _, submission) = await nid.SubmitAsync(BigJob.Name, 1, new { n = 1 });
+        var (status, result) = await nid.WaitAsync(id!);
+
+        Assert.Equal("succeeded", status.Status);
+        Assert.True(result!.Length > 3 * JobStatus.ResultChunk);
+        Assert.Equal(BigJob.Output, await TestNid.OpenResultAsync(result, submission));
     }
 
     [Theory]
@@ -53,7 +66,7 @@ public sealed class JobTests
 
         var (id, _, _) = await nid.SubmitAsync("echo", 1, new { words = "hello" });
 
-        var status = await nid.WaitAsync(id!);
+        var (status, _) = await nid.WaitAsync(id!);
         Assert.Equal("failed", status.Status);
         Assert.Equal("input_invalid", status.Error);
     }
@@ -82,7 +95,7 @@ public sealed class JobTests
 
         worker.Clock.Now += TimeSpan.FromMinutes(16);
 
-        Assert.Equal("unknown", (await nid.PollAsync(id!)).Status);
+        Assert.Equal("unknown", (await nid.PollAsync(id!)).Status.Status);
     }
 
     [Fact]
@@ -96,7 +109,7 @@ public sealed class JobTests
         var (status, _, _) = await nid.CallFramesAsync($"/v1/jobs/{id}/cancel", "{}"u8.ToArray(), ct: TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, status);
-        var after = await nid.WaitAsync(id!);
+        var (after, _) = await nid.WaitAsync(id!);
         Assert.Equal("failed", after.Status);
         Assert.Equal("cancelled", after.Error);
     }
@@ -163,6 +176,18 @@ public sealed class JobTests
         await nid.FetchWorkerKeyAsync();
         await nid.PairAsync(worker.PairingCode());
         return nid;
+    }
+
+    private sealed class BigJob : IJobHandler
+    {
+        public const string Name = "test-big";
+        public static readonly byte[] Output = Encoding.UTF8.GetBytes($$"""{"text": "{{new string('x', 200_000)}}"}""");
+
+        public string Type => Name;
+
+        public int Version => 1;
+
+        public Task<byte[]> RunAsync(JsonElement input, byte[]? file, CancellationToken ct) => Task.FromResult(Output);
     }
 
     private sealed class BlockingJob : IJobHandler

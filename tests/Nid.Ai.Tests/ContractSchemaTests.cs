@@ -94,10 +94,11 @@ public sealed class ContractSchemaTests
     }
 
     [Theory]
-    [InlineData("""{"status": "succeeded", "error": null, "result": "AAAA"}""", true)]
-    [InlineData("""{"status": "running", "error": null, "result": null}""", true)]
-    [InlineData("""{"status": "done", "error": null, "result": null}""", false)]
-    [InlineData("""{"status": "succeeded", "error": null, "result": null}""", false)]
+    [InlineData("""{"status": "succeeded", "error": null, "resultLength": 120}""", true)]
+    [InlineData("""{"status": "running", "error": null, "resultLength": null}""", true)]
+    [InlineData("""{"status": "done", "error": null, "resultLength": null}""", false)]
+    [InlineData("""{"status": "succeeded", "error": null, "resultLength": null}""", false)]
+    [InlineData("""{"status": "succeeded", "error": null, "resultLength": 25165825}""", false)]
     public void A_job_status_is_read_strictly(string json, bool valid)
     {
         if (valid)
