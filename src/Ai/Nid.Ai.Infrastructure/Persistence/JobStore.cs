@@ -68,6 +68,11 @@ public sealed class JobStore(AiDbContext db, IDataProtectionProvider protection)
         return (rows.Select(r => ToRecord(r, withSecret: false)).ToList(), total, types);
     }
 
+    public Task<int> PurgeFinishedAsync(Instant succeededBefore, Instant failedBefore, CancellationToken ct)
+        => db.Jobs.Where(j => (j.Status == "succeeded" && j.FinishedAt < succeededBefore)
+                              || ((j.Status == "failed" || j.Status == "dead") && j.FinishedAt < failedBefore))
+            .ExecuteDeleteAsync(ct);
+
     public async Task<bool> TryUpdateAsync(JobRecord job, CancellationToken ct)
     {
         var row = await db.Jobs.SingleAsync(j => j.Id == job.Id, ct);
