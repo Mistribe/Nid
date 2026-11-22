@@ -7,7 +7,9 @@ import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { toasts } from '@/test/toasts';
 
-const FINGERPRINT = 'ab12'.repeat(16);
+// As the server and the worker's console give it: groups of four.
+const FINGERPRINT = Array.from({ length: 16 }, (_, i) => `a${i.toString(16)}12`).join(' ');
+const ROTATED = 'ef56 '.repeat(16).trim();
 
 const worker = (over: Record<string, unknown> = {}) => ({
   id: 'w1', name: 'Serveur du salon', url: 'https://worker:8443', placement: 'local', proxyDeclared: false, safe: false, status: 'active',
@@ -70,7 +72,7 @@ describe('Réglages › IA', () => {
     await user.type(within(dialog).getByLabelText('Nom'), 'Grenier');
     await user.click(within(dialog).getByRole('button', { name: 'Continuer' }));
 
-    expect(await within(dialog).findByText(/ab12 ab12 ab12/)).toBeInTheDocument();
+    expect(await within(dialog).findByText(FINGERPRINT)).toBeInTheDocument();
     await user.type(within(dialog).getByLabelText("Code d'appairage"), 'abcd-efgh');
     await user.click(within(dialog).getByRole('button', { name: 'Appairer' }));
 
@@ -100,7 +102,7 @@ describe('Réglages › IA', () => {
     await user.click(await screen.findByRole('menuitem', { name: 'Appairer' }));
 
     const dialog = await screen.findByRole('dialog');
-    expect(within(dialog).getByText(/ab12 ab12/)).toBeInTheDocument();
+    expect(within(dialog).getByText(FINGERPRINT)).toBeInTheDocument();
     expect(within(dialog).getByLabelText("Code d'appairage")).toBeInTheDocument();
   });
 
@@ -155,7 +157,7 @@ describe('Réglages › IA', () => {
 
   it("rotates Nid's key and says what each worker needs", async () => {
     serve([worker(), worker({ id: 'w2', name: 'Box' })]);
-    server.use(http.post('*/api/v1/ai/key/rotate', () => HttpResponse.json({ fingerprint: 'ef56'.repeat(16), unreached: ['w2'] })));
+    server.use(http.post('*/api/v1/ai/key/rotate', () => HttpResponse.json({ fingerprint: ROTATED, unreached: ['w2'] })));
     const { user } = await renderApp('/settings/ai', { capabilities: adminCapabilities });
 
     await user.click(await screen.findByRole('button', { name: 'Faire tourner la clé de Nid' }));

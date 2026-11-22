@@ -2,7 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
-import { aiProblem, groupedFingerprint, WORKER_PAIR, WORKERS, type Worker } from '@/api/ai';
+import { aiProblem, WORKER_PAIR, WORKERS, type Worker } from '@/api/ai';
 import { FormDialog } from '@/components/FormDialog';
 import { Field } from '@/components/form/Field';
 import { Folded } from '@/components/form/Folded';
@@ -50,13 +50,13 @@ export function RegisterWorkerDialog({ pending, onClose, onDone }: { pending?: W
           <p className="text-sm text-muted-foreground">{t('ai.register.step_pair')}</p>
           {failure ? <ProblemMessage problem={aiProblem(t, failure)} /> : null}
           <p className="text-sm">{t('ai.register.console')}</p>
-          <pre className="overflow-x-auto rounded-md bg-muted px-3 py-2 text-xs">{CONSOLE}</pre>
+          <pre className="rounded-md bg-muted px-3 py-2 text-xs break-all whitespace-pre-wrap">{CONSOLE}</pre>
           <div className="space-y-1">
             <div className="flex items-center gap-1.5 text-sm">
               {t('ai.register.fingerprint')}
               <InfoTip label={t('ai.register.fingerprint')}>{t('ai.register.fingerprint_tip')}</InfoTip>
             </div>
-            <p className="font-mono text-sm break-all" data-testid="worker-fingerprint">{groupedFingerprint(registered.fingerprint)}</p>
+            <p className="font-mono text-sm break-all" data-testid="worker-fingerprint">{registered.fingerprint}</p>
             <p className="text-sm text-muted-foreground">{t('ai.register.mismatch')}</p>
           </div>
           <Field label={t('ai.register.code')} hint={t('ai.register.code_hint')}>

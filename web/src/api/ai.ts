@@ -37,6 +37,3 @@ export function aiProblem(t: TFunction, error: unknown): Presentation {
   const presented = present(problem);
   return problem.code?.startsWith('ai.') ? { ...presented, detail: aiReason(t, problem.code) ?? presented.detail } : presented;
 }
-
-/** A key fingerprint as the worker's console prints it, in groups of four to compare by eye. */
-export const groupedFingerprint = (fingerprint: string) => fingerprint.match(/.{1,4}/g)?.join(' ') ?? fingerprint;

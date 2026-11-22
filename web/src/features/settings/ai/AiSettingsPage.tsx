@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
 import {
-  AI_SETTINGS, aiProblem, groupedFingerprint, NID_KEY_ROTATE, REMOTE_WORKERS, WORKER, WORKER_ACTIONS, WORKER_SAFE, WORKER_TEST, WORKERS,
+  AI_SETTINGS, aiProblem, NID_KEY_ROTATE, REMOTE_WORKERS, WORKER, WORKER_ACTIONS, WORKER_SAFE, WORKER_TEST, WORKERS,
   type Worker,
 } from '@/api/ai';
 import { useSession } from '@/app/Providers';
@@ -31,8 +31,8 @@ import '@/locales/ai';
 import { RegisterWorkerDialog } from './RegisterWorkerDialog';
 
 const WORKER_CLI = 'docker compose exec worker dotnet Nid.Ai.Worker.dll';
-/** What an admin runs on each worker to adopt Nid's new key. */
-const confirmCommand = (fingerprint: string) => `${WORKER_CLI} confirm-rotation ${fingerprint}`;
+/** What an admin runs on each worker to adopt Nid's new key: the fingerprint as one argument, without its spaces. */
+const confirmCommand = (fingerprint: string) => `${WORKER_CLI} confirm-rotation ${fingerprint.replaceAll(' ', '')}`;
 
 /** A refused action in one line: the server's `ai.*` code in words, else the kind of failure. */
 const failure = (t: TFunction, error: unknown) => {
@@ -105,7 +105,13 @@ function WorkersSection({ admin, onPair, onAdd }: { admin: boolean; onPair: (wor
   const actions = (w: Worker) => <WorkerActions worker={w} admin={admin} onPair={onPair} />;
 
   return (
-    <Section title={t('ai.workers.title')} tip={<InfoTip label={t('ai.workers.title')}>{t('ai.worker_tip')}</InfoTip>} actions={jobs}>
+    <Section title={t('ai.workers.title')} actions={jobs} tip={(
+      <InfoTip label={t('ai.workers.title')}>
+        <span className="block">{t('ai.worker_tip')}</span>
+        <span className="mt-2 block">{t('ai.workers.safe_tip')}</span>
+        <span className="mt-2 block">{t('ai.workers.load_tip')}</span>
+      </InfoTip>
+    )}>
       {workers.error ? <ProblemMessage problem={aiProblem(t, workers.error)} /> : null}
       {!workers.data && !workers.error ? <Skeleton aria-busy="true" className="h-32"><span className="sr-only">{t('ai.loading')}</span></Skeleton> : null}
       {workers.data?.workers.length === 0 ? (
@@ -255,9 +261,9 @@ function NidKeySection() {
           {() => (
             <div className="space-y-3">
               <p className="text-sm">{t('ai.key.fingerprint')}</p>
-              <p className="font-mono text-sm break-all">{groupedFingerprint(result.fingerprint)}</p>
+              <p className="font-mono text-sm break-all">{result.fingerprint}</p>
               <p className="text-sm">{t('ai.key.command')}</p>
-              <pre className="overflow-x-auto rounded-md bg-muted px-3 py-2 text-xs">{confirmCommand(result.fingerprint)}</pre>
+              <pre className="rounded-md bg-muted px-3 py-2 text-xs break-all whitespace-pre-wrap">{confirmCommand(result.fingerprint)}</pre>
               {result.unreached.length > 0 ? (
                 <p role="status" className="rounded-md bg-status-warning/10 px-3 py-2 text-sm text-status-warning-text">
                   {t('ai.key.unreached', { names: result.unreached.map(nameOf).join(', ') })}

@@ -82,7 +82,6 @@
       "console": "Sur la machine du worker, lancez :",
       "fingerprint": "Empreinte de la clé du worker",
       "fingerprint_tip": "L'empreinte résume la clé du worker. Si celle affichée par le worker est la même, c'est bien lui qui répond, et personne entre les deux.",
-      "same": "C'est la même empreinte que sur le worker",
       "code": "Code d'appairage",
       "code_hint": "Huit caractères, par exemple ABCD-EFGH. Il vaut 15 minutes et 5 essais.",
       "submit": "Appairer",
