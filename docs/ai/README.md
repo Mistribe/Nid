@@ -725,6 +725,10 @@ et §3, `authorization.md`), `../security/` (`infrastructure.md`, `README.md`, `
 - **Données de tiers** dans le chat (coordonnées d'une assistante maternelle, personnes à charge) : les retenir aussi
   vers le cloud est à décider avec #173.
 - **Arrêt des tâches de fond à 80 %** du budget, pour garder le reste au chat : à décider avec #172.
+- **Valeurs fixées par #473** : code d'appairage de 8 caractères (sans 0, O, 1, I, L), valable 15 minutes et 5 essais,
+  redonné à chaque redémarrage du worker ; enregistrement en attente abandonné après 1 heure ; rotation de la clé d'un
+  worker avec 24 heures de recouvrement ; rotation de la clé de Nid confirmée sur chaque console, l'ancienne clé valable
+  24 heures après la confirmation, une rotation non confirmée signalée après 7 jours ; worker en HTTPS sur le port 8443.
 - **Valeurs** : étapes, jetons et durée par tour et plafond par personne (#173), bornes des requêtes et fréquence
   d'interrogation des workers (#166), fenêtre de recouvrement d'une rotation.
 - **Chiffrement au repos** des conversations au-delà de celui des sauvegardes.

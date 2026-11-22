@@ -182,6 +182,20 @@ public sealed class WorkerTests
     }
 
     [Fact]
+    public async Task Pairing_code_command_keeps_a_code_that_is_still_valid()
+    {
+        await using var worker = new WorkerHarness();
+        var shown = worker.PairingCode();
+
+        Cli.Run(["pairing-code"], worker.State, TextWriter.Null);
+        Assert.Equal(shown, worker.PairingCode());
+
+        worker.Clock.Now += TimeSpan.FromMinutes(16);
+        Cli.Run(["pairing-code"], worker.State, TextWriter.Null);
+        Assert.NotEqual(shown, worker.PairingCode());
+    }
+
+    [Fact]
     public async Task Pairing_code_command_prints_the_code_or_says_it_is_paired()
     {
         await using var worker = new WorkerHarness();

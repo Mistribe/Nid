@@ -26,7 +26,7 @@ public static class Cli
         switch (args)
         {
             case ["pairing-code"]:
-                output.WriteLine(StateStore.Describe(state.Start()));
+                output.WriteLine(StateStore.Describe(state.CurrentCode()));
                 return 0;
 
             case ["unpair"]:

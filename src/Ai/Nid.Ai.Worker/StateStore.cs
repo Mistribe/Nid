@@ -46,6 +46,13 @@ public sealed class StateStore(IOptions<WorkerOptions> options, TimeProvider tim
     public WorkerState Start()
         => Update(state => state.IsPaired ? state : WithNewCode(state));
 
+    /// <summary>For the console: the code the operator was shown stays while it can still be used.</summary>
+    public WorkerState CurrentCode()
+        => Update(state => state.IsPaired
+                           || (state.PairingCode is not null && state.PairingCodeUntil > time.GetUtcNow() && state.PairingAttemptsLeft > 0)
+            ? state
+            : WithNewCode(state));
+
     public WorkerState WithNewCode(WorkerState state) => state with
     {
         PairingCode = RandomNumberGenerator.GetString(PairRequest.CodeAlphabet, PairRequest.CodeLength),

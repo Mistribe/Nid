@@ -666,3 +666,31 @@ docker run -d --name nid-demo -p 8080:8080 \
 Pour une démo qui repart de zéro, donnez-lui un Postgres **sans volume persistant**, dans le même groupe de conteneurs :
 redémarrer les deux (par exemple chaque nuit) donne une base vide, que Nid remplit de nouveau. Le reverse proxy TLS reste
 nécessaire, comme pour toute installation : le cookie de session ne circule qu'en HTTPS.
+
+## 15. Un worker de modèles (facultatif)
+
+Le worker fait tourner, à côté de Nid ou sur une autre machine, ce qui demande un modèle : texte des documents et OCR,
+recherche par le sens, modèle local (`../docs/ai/README.md` §3). Nid l'appelle ; lui n'ouvre jamais Nid et ne publie aucun
+port. Sans worker, Nid fonctionne : chaque fonctionnalité qui en a besoin le dit.
+
+À côté de Nid, avec le compose de ce dossier ou celui de `standalone/` :
+
+```bash
+docker compose --profile worker up -d worker
+docker compose exec worker dotnet Nid.Ai.Worker.dll pairing-code
+# Pairing code: ABCD-EFGH  Key fingerprint: 1a2b 3c4d …
+```
+
+Puis, en administrateur, dans Nid : enregistrer l'adresse `https://worker:8443` (placement « local »), comparer l'empreinte
+affichée à celle du worker, saisir le code. C'est la seule étape. Le code vaut 15 minutes et 5 essais ; redémarrer le
+worker en donne un autre. Un worker apparié refuse tout nouvel appairage.
+
+| Commande (`docker compose exec worker dotnet Nid.Ai.Worker.dll …`) | Effet |
+|---|---|
+| `pairing-code` | Le code en cours (ou « Paired ») et l'empreinte de la clé du worker |
+| `unpair` | Oublie la clé de Nid et donne un nouveau code : après une révocation, ou un trousseau Data Protection perdu (§6) |
+| `confirm-rotation <empreinte>` | Adopte la nouvelle clé de Nid après sa rotation, si l'empreinte est celle que Nid affiche ; l'ancienne reste valable 24 h |
+
+Ses clés, son certificat et la clé de Nid qu'il a épinglée vivent sur le volume `worker-data`. Le perdre oblige à
+apparier de nouveau ; il ne contient rien du foyer.
+

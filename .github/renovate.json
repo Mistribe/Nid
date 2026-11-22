@@ -17,7 +17,7 @@
     { "matchManagers": ["dockerfile", "docker-compose"], "groupName": "images", "addLabels": ["infra"] },
     {
       "description": "Nid's own images are published on every merge to main: a pinned digest would freeze the standalone compose on an old release, one that may lack what its README describes (issue 215). They follow `latest` unpinned.",
-      "matchPackageNames": ["ghcr.io/mistribe/nid", "ghcr.io/mistribe/nid-backup"], "enabled": false
+      "matchPackageNames": ["ghcr.io/mistribe/nid", "ghcr.io/mistribe/nid-backup", "ghcr.io/mistribe/nid-worker"], "enabled": false
     },
     {
       "description": "openapi-typescript and typescript-eslint use the TypeScript JS API, which TypeScript 7 no longer has; the type check already runs TypeScript 7 as typescript-native. Lift once both support it.",

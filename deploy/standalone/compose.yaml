@@ -2,6 +2,9 @@
 #
 #   nid                 always: the application (the API and the web app, one image)
 #   postgres            --profile postgres    skip it when a Postgres (16 or later) already runs elsewhere
+#   worker              --profile worker      optional: a model worker next to Nid (OCR, embeddings, local models); pair it
+#                                             once in Nid with its code (docker compose exec worker dotnet Nid.Ai.Worker.dll
+#                                             pairing-code), address https://worker:8443
 #   pocket-id           --profile pocket-id   optional: only to sign in through Pocket ID (passkeys) rather than with a
 #                                             password kept by Nid; skip it too when your Pocket ID already runs elsewhere
 #
@@ -53,7 +56,7 @@ services:
     tmpfs: [/tmp]
     # egress: catalog, rates, icons, Pocket ID's public URL (when used), and a Postgres that runs elsewhere; a normal network, so the
     # port above can be published. data: the one of this file.
-    networks: [egress, data]
+    networks: [egress, data, models]
     # Waits for the Postgres of this file when it runs (--profile postgres), for nothing otherwise.
     depends_on: { postgres: { condition: service_healthy, required: false } }
     deploy: { resources: { limits: { cpus: "2.0", memory: 1g } } }
@@ -117,12 +120,29 @@ services:
     depends_on: { pocket-id-volume: { condition: service_completed_successfully } }
     deploy: { resources: { limits: { cpus: "0.5", memory: 256m } } }
 
+  # A model worker next to Nid (docs/ai/README.md §3), with --profile worker. Nid calls it, never the reverse: it publishes no
+  # port, has no way out and holds nothing that opens Nid. Pair it once in Nid (Settings > AI) with the code of
+  #   docker compose exec worker dotnet Nid.Ai.Worker.dll pairing-code
+  # and the address https://worker:8443, placement local. Its keys stay on worker-data.
+  worker:
+    <<: *hardened
+    profiles: [worker]
+    # Follows Nid's releases, as nid's image: set NID_WORKER_IMAGE to ghcr.io/mistribe/nid-worker:X.Y.Z to stay on one.
+    image: ${NID_WORKER_IMAGE:-ghcr.io/mistribe/nid-worker:latest}
+    volumes:
+      - worker-data:/data
+    tmpfs: [/tmp]
+    networks: [models]
+    deploy: { resources: { limits: { cpus: "1.0", memory: 512m } } }
+
 networks:
   # nid <-> the Postgres of this file; no way out.
   data: { internal: true }
   # Pocket ID's: a normal network, as a port cannot be published from an internal one.
   published: {}
   egress: {}
+  # nid -> the model worker of this file (--profile worker); no way out.
+  models: { internal: true }
 
 volumes:
   dataprotection-keys: {}
@@ -131,3 +151,4 @@ volumes:
   logs: {}
   pgdata: {}
   pocket-id: {}
+  worker-data: {}

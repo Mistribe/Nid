@@ -196,10 +196,10 @@ jobs:
           echo "Results: $RESULTS"
           case " $RESULTS " in *" failure "*|*" cancelled "*) exit 1 ;; esac
 
-  # Release, on a push to main: the two images (nid, nid-backup) for amd64 and arm64, published on ghcr.io with their provenance,
+  # Release, on a push to main: the three images (nid, nid-backup, nid-worker) for amd64 and arm64, published on ghcr.io with their provenance,
   # then the vX.Y.Z tag. No test: the pull request already ran them on the tree being merged. Each architecture builds on a
   # runner of its own (ubuntu-24.04-arm is a standard runner, free for a public repository): no QEMU, so the ReadyToRun publish
-  # of the .NET host runs natively. The public pulls them anonymously: ghcr.io/mistribe/nid, ghcr.io/mistribe/nid-backup.
+  # of the .NET host runs natively. The public pulls them anonymously: ghcr.io/mistribe/nid, ghcr.io/mistribe/nid-backup, ghcr.io/mistribe/nid-worker.
   version:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
@@ -234,7 +234,7 @@ jobs:
     strategy:
       fail-fast: true # one architecture missing is no release
       matrix:
-        image: [nid, nid-backup]
+        image: [nid, nid-backup, nid-worker]
         arch: [amd64, arm64]
         include:
           - arch: amd64
@@ -247,6 +247,9 @@ jobs:
           - image: nid-backup
             context: deploy/backup
             file: deploy/backup/Dockerfile
+          - image: nid-worker
+            context: .
+            file: src/Ai/Nid.Ai.Worker/Dockerfile
     name: build (${{ matrix.image }}, ${{ matrix.arch }})
     env:
       IMAGE: ghcr.io/mistribe/${{ matrix.image }}
@@ -314,7 +317,7 @@ jobs:
       attestations: write # the attestation, stored by GitHub
     strategy:
       matrix:
-        image: [nid, nid-backup]
+        image: [nid, nid-backup, nid-worker]
     name: publish (${{ matrix.image }})
     env:
       IMAGE: ghcr.io/mistribe/${{ matrix.image }}
@@ -382,7 +385,7 @@ jobs:
           {
             node web/scripts/changelog.mjs "$VERSION" \
               | jq -r --arg v "$VERSION" '.[] | select(.version == $v) | .changes[] | "- " + .en'
-            printf '\n## Images\n\n```sh\ndocker pull ghcr.io/mistribe/nid:%s\ndocker pull ghcr.io/mistribe/nid-backup:%s\n```\n' "$VERSION" "$VERSION"
+            printf '\n## Images\n\n```sh\ndocker pull ghcr.io/mistribe/nid:%s\ndocker pull ghcr.io/mistribe/nid-backup:%s\ndocker pull ghcr.io/mistribe/nid-worker:%s\n```\n' "$VERSION" "$VERSION" "$VERSION"
           } > "$notes"
           gh release create "v$VERSION" --target "$GITHUB_SHA" --title "v$VERSION" --notes-file "$notes" --generate-notes
 

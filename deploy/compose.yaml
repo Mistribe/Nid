@@ -104,8 +104,24 @@ services:
       edge: { aliases: [nid-web] }
       data: {}
       egress: {}
+      models: {}
     depends_on: { postgres: { condition: service_healthy } }
     deploy: { resources: { limits: { cpus: "2.0", memory: 1g } } }
+
+  # A model worker next to Nid (docs/ai/README.md §3), with --profile worker. Nid calls it, never the reverse: it publishes no
+  # port, has no way out and holds nothing that opens Nid. Pair it once in Nid (Settings > AI) with the code of
+  #   docker compose exec worker dotnet Nid.Ai.Worker.dll pairing-code
+  # and the address https://worker:8443, placement local. Its keys stay on worker-data.
+  worker:
+    <<: *hardened
+    profiles: [worker]
+    build: { context: .., dockerfile: src/Ai/Nid.Ai.Worker/Dockerfile }
+    image: ${NID_WORKER_IMAGE:-nid-worker:local}
+    volumes:
+      - worker-data:/data
+    tmpfs: [/tmp]
+    networks: [models]
+    deploy: { resources: { limits: { cpus: "1.0", memory: 512m } } }
 
   # Nightly restic backup (1F2 design §3). Root with three capabilities: it reads files of four owners (keys, assets and documents
   # 1654, Pocket ID 65532, deploy/secrets/ the host user), all mounted read-only; it writes the local repository, a folder
@@ -188,6 +204,8 @@ networks:
   edge: { internal: true }
   data: { internal: true }
   egress: {}
+  # nid -> the model worker of this file (--profile worker); no way out.
+  models: { internal: true }
 
 volumes:
   pgdata: {}
@@ -197,6 +215,7 @@ volumes:
   documents: {}
   logs: {}
   backup-state: {}
+  worker-data: {}
 
 # Plain files (compose outside Swarm bind-mounts them): deploy/secrets/ is 0700, so only its owner and the daemon read them.
 secrets:
