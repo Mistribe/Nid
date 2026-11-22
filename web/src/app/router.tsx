@@ -760,6 +760,16 @@ const banksSettingsRoute = createRoute({
   component: lazyRouteComponent(() => import('@/features/settings/banks/BanksPage'), 'BanksPage'),
 });
 const notificationSettingsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/settings/notifications', component: lazyRouteComponent(() => import('@/features/settings/NotificationSettingsPage'), 'NotificationSettingsPage') });
+/** Réglages › IA (#476): the workers and what they may see; the jobs page keeps its filters and page in the URL. */
+const aiSettingsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/settings/ai', component: lazyRouteComponent(() => import('@/features/settings/ai/AiSettingsPage'), 'AiSettingsPage') });
+// The statuses the server filters on (api/ai.ts JOB_STATUSES); not imported, so the AI strings stay out of the initial bundle.
+const AI_JOB_STATUSES = new Set(['queued', 'running', 'succeeded', 'failed', 'dead']);
+const aiJobsSearch = (search: Record<string, unknown>): { status?: string; type?: string; page?: number } => ({
+  ...(typeof search.status === 'string' && AI_JOB_STATUSES.has(search.status) ? { status: search.status } : {}),
+  ...(typeof search.type === 'string' && search.type !== '' ? { type: search.type } : {}),
+  ...pageSearch(search),
+});
+const aiJobsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/settings/ai/jobs', validateSearch: aiJobsSearch, component: lazyRouteComponent(() => import('@/features/settings/ai/AiJobsPage'), 'AiJobsPage') });
 const calendarSettingsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/settings/calendar', component: lazyRouteComponent(() => import('@/features/settings/CalendarSettingsPage'), 'CalendarSettingsPage') });
 
 const securityRoute = createRoute({ getParentRoute: () => rootRoute, path: '/security', validateSearch: securityPageSearch, component: lazyRouteComponent(() => import('@/features/security/SecurityPage'), 'SecurityPage') });
@@ -814,7 +824,7 @@ const adminSecurityRoute = createRoute({ getParentRoute: () => rootRoute, valida
 export const routeTree = rootRoute.addChildren([
   indexRoute, dashboardRoute, calendarRoute, yearReviewRoute, subscriptionsRoute, subscriptionNewRoute, subscriptionDetailRoute, investmentsRoute, investmentNewRoute, investmentDetailRoute, holdingDetailRoute,
   goalsRoute, goalNewRoute, goalDetailRoute, childcareRoute, childcareNewRoute, childcareDetailRoute, childcareEndRoute, childcareSettlementRoute, childcareStatementRoute, nannyNewRoute, nannyDetailRoute, documentsRoute, documentDetailRoute, seriesRoute, incomeRoute, incomeNewRoute, incomeDetailRoute, spendingRoute, taxRoute, taxAssessmentNewRoute, taxAssessmentEditRoute, retirementRoute, scenariosRoute, scenarioNewRoute, projectionScenarioRoute, saleScenarioRoute, scenarioCompareRoute, scenarioDetailRoute, propertiesRoute, propertyNewRoute, propertyDetailRoute, loansRoute, loanNewRoute, loanDetailRoute, loanContractRoute, propertyReceiptRoute, propertyArrearsLetterRoute, notificationsRoute, routineRoute, proposalsRoute, proposalDetailRoute,
-  importRoute.addChildren([importHomeRoute, importSessionRoute]), exportRoute, settingsRoute, appearanceRoute, notificationSettingsRoute, projectionSettingsRoute, personsSettingsRoute, calendarSettingsRoute, banksSettingsRoute,
+  importRoute.addChildren([importHomeRoute, importSessionRoute]), exportRoute, settingsRoute, appearanceRoute, notificationSettingsRoute, projectionSettingsRoute, personsSettingsRoute, calendarSettingsRoute, banksSettingsRoute, aiSettingsRoute, aiJobsRoute,
   securityRoute, operationsRoute, moreRoute, changelogRoute, forbiddenRoute, adminRoute, adminUsersRoute, adminHouseholdRoute, adminFxRoute, adminPricesRoute, adminIrlRoute, adminInflationRoute, adminBankingRoute, adminCatalogRoute, adminJobsRoute, adminJobRoute, adminJobRunRoute,
   adminSystemRoute, adminNotificationsRoute, adminSecurityRoute,
 ]);

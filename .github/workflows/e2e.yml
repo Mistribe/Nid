@@ -36,7 +36,7 @@ jobs:
       - name: Compose logs
         if: failure()
         run: |
-          docker compose -f deploy/compose.yaml -f deploy/compose.local.yaml logs --no-color --timestamps | tail -300
+          docker compose -f deploy/compose.yaml -f deploy/compose.local.yaml --profile worker logs --no-color --timestamps | tail -300
       # Traces and screenshots of the failed journeys (`trace: 'retain-on-failure'`), only invented demo data. A week is enough
       # to open them (`pnpm --dir web exec playwright show-trace <trace.zip>`).
       - name: Playwright results

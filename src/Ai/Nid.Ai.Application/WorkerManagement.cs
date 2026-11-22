@@ -57,7 +57,7 @@ public sealed record RotateNidKeyCommand : ICommand<NidKeyRotation>, IWorkerAdmi
 internal static class WorkerManagement
 {
     public static SecurityEvent? Event(string name, object response, string? change = null)
-        => response is WorkerView view ? WorkerEvents.Of(name, view.Id, view.Name, change) : null;
+        => response is WorkerView view ? WorkerEvents.Of(name, view.Id, change) : null;
 
     /// <summary>Loads the worker, applies a rule and a change, saves, refreshes the outbound directory.</summary>
     public static async Task<Result<WorkerView>> ChangeAsync(

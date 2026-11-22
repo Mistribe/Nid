@@ -671,7 +671,7 @@ docker compose exec worker dotnet Nid.Ai.Worker.dll pairing-code
 # Pairing code: ABCD-EFGH  Key fingerprint: 1a2b 3c4d …
 ```
 
-Puis, en administrateur, dans Nid : enregistrer l'adresse `https://worker:8443` (placement « local »), comparer l'empreinte
+Puis, en administrateur, dans Nid (Réglages › IA › « Ajouter un worker ») : enregistrer l'adresse `https://worker:8443` (placement « local »), comparer l'empreinte
 affichée à celle du worker, saisir le code. C'est la seule étape. Le code vaut 15 minutes et 5 essais ; redémarrer le
 worker en donne un autre. Un worker apparié refuse tout nouvel appairage.
 

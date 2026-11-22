@@ -206,8 +206,10 @@ public static class NotificationTemplates
         "banking.application_needed" => "/settings/banks?tab=application",
         "proposal_pending" or "private_request_refused" => $"/proposals/{n.Key[(n.Key.LastIndexOf(':') + 1)..]}",
         "backup_failed" => "/admin/system",
-        "job_failed" => n.Params.GetValueOrDefault("job") is { Length: > 0 } job ? $"/admin/jobs/{job}" : "/admin/jobs",
-        "ai.data_policy_changed" => "/settings",
+        "job_failed" => n.Params.GetValueOrDefault("job") is { Length: > 0 } job
+            ? job.StartsWith("ai.", StringComparison.Ordinal) ? "/settings/ai/jobs?status=dead" : $"/admin/jobs/{job}"
+            : "/admin/jobs",
+        "ai.data_policy_changed" => "/settings/ai",
         "sync_failed" => n.Params.GetValueOrDefault("source") is "fx" or "catalog" or "prices" or "irl" or "inflation" ? $"/admin/{n.Params["source"]}" : "/admin/system",
         _ => "/",
     };

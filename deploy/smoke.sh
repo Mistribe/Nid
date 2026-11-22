@@ -48,6 +48,15 @@ echo "ok: nid runs with a read-only root, no capability and user 1654"
 [ "$(curl -sk -o /dev/null -w '%{content_type}' "$URL/mcp")" != "text/html; charset=utf-8" ]
 echo "ok: a missing asset is a 404 and /mcp is not the SPA"
 
+# #476: a model worker next to Nid for the « Réglages › IA » journey, which pairs it with the code and fingerprint of its console
+# (« Pairing code: ABCD-EFGH  Key fingerprint: <hex> »).
+"${COMPOSE[@]}" --profile worker up -d --build --wait --wait-timeout 300 worker
+# `unpair` rather than `pairing-code`: a worker-data volume left by an earlier run holds a pairing; its last line is the new code.
+read -r _ _ code _ _ fingerprint < <("${COMPOSE[@]}" --profile worker exec -T worker dotnet Nid.Ai.Worker.dll unpair | tail -1) || true
+[[ $code =~ ^[A-Z0-9]{4}-[A-Z0-9]{4}$ && -n $fingerprint ]] || { echo "FAIL: the worker gave no pairing code (unpair: $code $fingerprint)" >&2; exit 1; }
+export NID_WORKER_PAIRING="$code $fingerprint"
+echo "ok: a model worker is up, waiting for its pairing"
+
 # NID_JOURNEYS=sample runs only the subscriptions journeys, which sign alice and bob in (the persons check below needs both): a quick local run. CI (ci.yml) runs them all.
 if [ "${NID_JOURNEYS:-all}" = "all" ]; then playwright; else playwright e2e/subscriptions.spec.ts; fi
 echo "ok: journeys (${NID_JOURNEYS:-all})"

@@ -11777,6 +11777,99 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/ai/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    status?: string;
+                    type?: string;
+                    page?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ModelJobPage"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/ai/jobs/{id}": {
         parameters: {
             query?: never;
@@ -39763,6 +39856,29 @@ export interface components {
             remoteWorkersAllowed: boolean;
             capabilities: components["schemas"]["CapabilityView"][];
         };
+        ModelJobListItem: {
+            /** Format: uuid */
+            id: string;
+            type: string;
+            status: string;
+            /** Format: int32 */
+            attempts: number;
+            waitingReason?: null | string;
+            error?: null | string;
+            workerName?: null | string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            finishedAt?: null | string;
+        };
+        ModelJobPage: {
+            items: components["schemas"]["ModelJobListItem"][];
+            /** Format: int32 */
+            total: number;
+            /** Format: int32 */
+            page: number;
+            types: string[];
+        };
         ModelJobView: {
             /** Format: uuid */
             id: string;
@@ -43226,6 +43342,8 @@ export interface components {
             createdAt: string;
             /** Format: date-time */
             pairedAt?: null | string;
+            /** Format: int32 */
+            load: number;
         };
         YearLabelView: {
             key: string;
