@@ -14,6 +14,12 @@ const fingerprint = groups.join(' ');
 test('alice pairs the worker, tests it and finds its job', async ({ page }) => {
   test.skip(!code || !fingerprint, 'needs NID_WORKER_PAIRING (deploy/smoke.sh)');
   await signIn(page, 'alice', '/settings/ai');
+  // A run that stopped before its revoke left the worker registered here; smoke.sh's `unpair` already reset the worker's side.
+  const { csrf } = (await (await page.request.get('/auth/session')).json()) as { csrf: string };
+  const { workers } = (await (await page.request.get('/api/v1/ai/workers')).json()) as { workers: { id: string; url: string; status: string }[] };
+  for (const left of workers.filter((w) => w.url === 'https://worker:8443' && w.status !== 'revoked'))
+    expect((await page.request.post(`/api/v1/ai/workers/${left.id}/revoke`, { headers: { 'X-Nid-Csrf': csrf } })).ok()).toBe(true);
+  await page.reload();
 
   await page.getByRole('button', { name: 'Ajouter un worker' }).first().click();
   const dialog = page.getByRole('dialog', { name: 'Ajouter un worker' });
@@ -33,7 +39,7 @@ test('alice pairs the worker, tests it and finds its job', async ({ page }) => {
   await expect(toasts(page)).toContainText('Test réussi');
 
   await page.goto('/settings/ai/jobs?type=echo');
-  await expect(page.getByRole('row', { name: /echo/ }).first()).toBeVisible();
+  await expect(page.getByRole('row', { name: /Test d'un worker/ }).first()).toBeVisible();
 
   await page.goto('/settings/ai');
   await page.getByRole('row', { name: /Worker e2e/ }).getByRole('button', { name: 'Actions pour Worker e2e' }).click();

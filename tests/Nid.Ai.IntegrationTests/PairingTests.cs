@@ -31,9 +31,11 @@ public sealed class PairingTests(PostgresFixture fixture) : IClassFixture<Postgr
             ? Protocol.Keys.KeyFingerprint.Compact(Convert.FromBase64String(spki)) : null);
 
         var events = await scope.ServiceProvider.GetRequiredService<PlatformDbContext>().AuditLog.AsNoTracking()
-            .Where(e => e.Category == "security").Select(e => e.Action).ToListAsync(TestContext.Current.CancellationToken);
-        Assert.Contains("model_worker_registered", events);
-        Assert.Contains("model_worker_paired", events);
+            .Where(e => e.Category == "security").Select(e => new { e.Action, e.Data }).ToListAsync(TestContext.Current.CancellationToken);
+        Assert.Contains(events, e => e.Action == "model_worker_registered");
+        Assert.Contains(events, e => e.Action == "model_worker_paired");
+        // A security event holds identifiers only (SecurityEvent): the worker's id, never the name an admin gave it.
+        Assert.All(events, e => Assert.DoesNotContain(view.Name, e.Data, StringComparison.Ordinal));
     }
 
     [Fact]

@@ -1,7 +1,7 @@
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
-import { aiProblem, aiReason, JOB_STATUSES, JOBS, type ModelJob } from '@/api/ai';
+import { aiProblem, aiReason, JOB_STATUSES, JOBS, jobType, type ModelJob } from '@/api/ai';
 import { EmptyState } from '@/components/EmptyState';
 import { FilterField, FilterRow } from '@/components/page/FilterRow';
 import { Pager, useListPage, useStepBack } from '@/components/page/Pager';
@@ -46,7 +46,7 @@ export function AiJobsPage() {
           {(labelId, controlId) => (
             <div className="min-w-0 flex-1 sm:w-56 sm:flex-none">
               <SelectField id={controlId} aria-labelledby={labelId} value={type} onValueChange={(v) => filter('type', v)}
-                options={[{ value: '', label: t('ai.jobs.all_types') }, ...types.map((name) => ({ value: name, label: name }))]} />
+                options={[{ value: '', label: t('ai.jobs.all_types') }, ...types.map((name) => ({ value: name, label: jobType(t, name) }))]} />
             </div>
           )}
         </FilterField>
@@ -60,18 +60,18 @@ export function AiJobsPage() {
         </FilterField>
       </FilterRow>
       {jobs.error ? <ProblemMessage problem={aiProblem(t, jobs.error)} /> : !jobs.data ? (
-        <Loading label={t('ai.loading')}><TableSkeleton columns={5} /></Loading>
+        <Loading label={t('ai.loading')}><TableSkeleton columns={7} /></Loading>
       ) : jobs.data.total === 0 ? (
         filtered ? <p className="text-sm text-muted-foreground">{t('ai.jobs.none_match')}</p>
           : <EmptyState module="/settings/appearance" title={t('ai.jobs.empty')} body={t('ai.jobs.empty_body')} />
-      ) : jobs.data.items.length === 0 ? <Loading label={t('ai.loading')}><TableSkeleton columns={5} /></Loading> : (
+      ) : jobs.data.items.length === 0 ? <Loading label={t('ai.loading')}><TableSkeleton columns={7} /></Loading> : (
         <>
           <SortableTable<ModelJob>
             caption={title}
             rows={jobs.data.items}
             rowKey={(job) => job.id}
             columns={[
-              { id: 'type', header: t('ai.jobs.type'), cell: (job) => job.type },
+              { id: 'type', header: t('ai.jobs.type'), cell: (job) => jobType(t, job.type) },
               { id: 'status', header: t('ai.jobs.status'), cell: (job) => statusLabel(job.status) },
               { id: 'reason', header: t('ai.jobs.reason'), wrap: true, cell: (job) => reason(job) ?? '—' },
               { id: 'attempts', header: t('ai.jobs.attempts'), align: 'end', cell: (job) => job.attempts },
@@ -81,7 +81,7 @@ export function AiJobsPage() {
             ]}
             mobile={(job) => (
               <div className="space-y-1">
-                <div className="flex items-center justify-between gap-2"><span>{job.type}</span><span className="text-sm text-muted-foreground">{formatInstant(job.createdAt)}</span></div>
+                <div className="flex items-center justify-between gap-2"><span>{jobType(t, job.type)}</span><span className="text-sm text-muted-foreground">{formatInstant(job.createdAt)}</span></div>
                 <p className="text-sm text-muted-foreground">{[statusLabel(job.status), job.workerName].filter(Boolean).join(' · ')}</p>
                 {reason(job) ? <p className="text-sm">{reason(job)}</p> : null}
               </div>

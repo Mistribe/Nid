@@ -14,16 +14,22 @@ const job = (over: Record<string, unknown> = {}) => ({
 describe('Réglages › IA › Tâches', () => {
   it('says in words why a job waits or failed', async () => {
     server.use(http.get('*/api/v1/ai/jobs', () => HttpResponse.json({
-      items: [job(), job({ id: 'j2', type: 'echo', status: 'dead', attempts: 3, waitingReason: null, error: 'ai.timed_out', workerName: 'Box', finishedAt: '2026-11-22T09:00:00+00:00' })],
-      total: 2, page: 1, types: ['document-text', 'echo'],
+      items: [
+        job(),
+        job({ id: 'j2', type: 'echo', status: 'dead', attempts: 3, waitingReason: null, error: 'ai.timed_out', workerName: 'Box', finishedAt: '2026-11-22T09:00:00+00:00' }),
+        // A worker's own failure comes after the code (JobDispatcher): the words are those of the code.
+        job({ id: 'j3', type: 'document-text', status: 'queued', attempts: 1, waitingReason: 'ai.worker_failed:oom' }),
+      ],
+      total: 3, page: 1, types: ['document-text', 'echo'],
     })));
     const { container } = await renderApp('/settings/ai/jobs');
 
-    expect(await screen.findByRole('row', { name: /document-text/ })).toHaveTextContent('Aucun worker ne sait faire ce travail.');
-    const dead = screen.getByRole('row', { name: /echo/ });
+    expect(await screen.findByRole('row', { name: /Aucun worker ne sait faire ce travail/ })).toHaveTextContent('document-text');
+    const dead = screen.getByRole('row', { name: /Test d'un worker/ });
     expect(dead).toHaveTextContent('Abandonnée');
     expect(dead).toHaveTextContent('Le worker a mis trop de temps.');
     expect(dead).toHaveTextContent('Box');
+    expect(screen.getByRole('row', { name: /réessaiera/ })).toHaveTextContent('Le worker a échoué ; Nid réessaiera.');
     expect(screen.queryByText(/ai\./)).not.toBeInTheDocument();
     await expectNoAxeViolations(container);
   });
@@ -40,7 +46,7 @@ describe('Réglages › IA › Tâches', () => {
     await user.click(within(pages).getByRole('button', { name: 'Suivant' }));
     await waitFor(() => expect(seen.at(-1)).toBe('?status=queued&page=2'));
 
-    await pick(user, 'Type', 'echo');
+    await pick(user, 'Type', "Test d'un worker");
     await waitFor(() => expect(router.state.location.search).toEqual({ status: 'queued', type: 'echo' }));
     await waitFor(() => expect(seen.at(-1)).toBe('?status=queued&type=echo&page=1'));
   });

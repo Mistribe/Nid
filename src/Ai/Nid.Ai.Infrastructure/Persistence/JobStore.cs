@@ -55,9 +55,16 @@ public sealed class JobStore(AiDbContext db, IDataProtectionProvider protection)
             query = query.Where(j => j.Type == type);
 
         var total = await query.CountAsync(ct);
-        var rows = await query.OrderByDescending(j => j.CreatedAt).ThenByDescending(j => j.Id).Skip(skip).Take(take).ToListAsync(ct);
+        // Only the listed columns: a job's input and result (a whole document's text) are never read for a page, nor its secret.
+        var rows = await query.OrderByDescending(j => j.CreatedAt).ThenByDescending(j => j.Id).Skip(skip).Take(take)
+            .Select(j => new JobRow
+            {
+                Id = j.Id, Type = j.Type, Version = j.Version, Input = "", InputHash = "", DataClass = j.DataClass, Status = j.Status,
+                Attempts = j.Attempts, WorkerId = j.WorkerId, Error = j.Error, WaitingReason = j.WaitingReason, CreatedAt = j.CreatedAt,
+                FinishedAt = j.FinishedAt,
+            })
+            .ToListAsync(ct);
         var types = await db.Jobs.AsNoTracking().Select(j => j.Type).Distinct().OrderBy(t => t).ToListAsync(ct);
-        // A page shows no secret: it is not read (Data Protection) for a list.
         return (rows.Select(r => ToRecord(r, withSecret: false)).ToList(), total, types);
     }
 

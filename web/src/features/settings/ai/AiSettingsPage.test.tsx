@@ -61,7 +61,7 @@ describe('Réglages › IA', () => {
       }),
       http.post('*/api/v1/ai/workers/w9/pair', async ({ request }) => {
         paired.push(await request.json());
-        return HttpResponse.json(worker({ id: 'w9', name: 'Grenier' }));
+        return HttpResponse.json(worker({ id: 'w9', name: 'worker' }));
       }),
     );
     const { user } = await renderApp('/settings/ai', { capabilities: adminCapabilities });
@@ -69,15 +69,14 @@ describe('Réglages › IA', () => {
     await user.click((await screen.findAllByRole('button', { name: 'Ajouter un worker' }))[0]!);
     const dialog = await screen.findByRole('dialog', { name: 'Ajouter un worker' });
     expect(within(dialog).getByLabelText('Adresse du worker')).toHaveValue('https://worker:8443');
-    await user.type(within(dialog).getByLabelText('Nom'), 'Grenier');
     await user.click(within(dialog).getByRole('button', { name: 'Continuer' }));
 
     expect(await within(dialog).findByText(FINGERPRINT)).toBeInTheDocument();
     await user.type(within(dialog).getByLabelText("Code d'appairage"), 'abcd-efgh');
     await user.click(within(dialog).getByRole('button', { name: 'Appairer' }));
 
-    await waitFor(() => expect(toasts()).toHaveTextContent('Grenier est appairé.'));
-    expect(registered).toEqual([{ url: 'https://worker:8443', name: 'Grenier', placement: 'local', proxyDeclared: false }]);
+    await waitFor(() => expect(toasts()).toHaveTextContent('worker est appairé.'));
+    expect(registered).toEqual([{ url: 'https://worker:8443', name: 'worker', placement: 'local', proxyDeclared: false }]);
     expect(paired).toEqual([{ fingerprint: FINGERPRINT, code: 'abcd-efgh' }]);
   });
 
@@ -92,6 +91,32 @@ describe('Réglages › IA', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Continuer' }));
 
     expect(await within(dialog).findByRole('alert')).toHaveTextContent("Nid n'arrive pas à joindre le worker à cette adresse.");
+  });
+
+  it('says which field is missing', async () => {
+    serve([]);
+    server.use(http.post('*/api/v1/ai/workers', () => HttpResponse.json(
+      { status: 422, detail: 'Invalid.', errors: [{ detail: 'This field is required.', pointer: '#/url', code: 'request.required' }] }, { status: 422 })));
+    const { user } = await renderApp('/settings/ai', { capabilities: adminCapabilities });
+
+    await user.click((await screen.findAllByRole('button', { name: 'Ajouter un worker' }))[0]!);
+    const dialog = await screen.findByRole('dialog');
+    await user.clear(within(dialog).getByLabelText('Adresse du worker'));
+    await user.click(within(dialog).getByRole('button', { name: 'Continuer' }));
+
+    await waitFor(() => expect(within(dialog).getByLabelText('Adresse du worker')).toHaveAccessibleDescription(/Indiquez l'adresse du worker/));
+  });
+
+  it('asks the address again for a worker whose key Nid never read', async () => {
+    serve([worker({ status: 'pending', keyFingerprint: '', url: 'https://grenier:8443', name: 'Grenier' })]);
+    const { user } = await renderApp('/settings/ai', { capabilities: adminCapabilities });
+
+    await user.click(within(await screen.findByRole('row', { name: /Grenier/ })).getByRole('button', { name: 'Actions pour Grenier' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Appairer' }));
+
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByLabelText('Adresse du worker')).toHaveValue('https://grenier:8443');
+    expect(within(dialog).getByLabelText('Nom')).toHaveValue('Grenier');
   });
 
   it('resumes a worker left before its code', async () => {
@@ -120,9 +145,16 @@ describe('Réglages › IA', () => {
     const menu = await screen.findByRole('menu');
     expect(within(menu).getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['Marquer sûr']);
     await user.click(within(menu).getByRole('menuitem', { name: 'Marquer sûr' }));
+    const safeConfirm = await screen.findByRole('alertdialog');
+    expect(safeConfirm).toHaveTextContent('libellés bancaires');
+    expect(safe).toEqual([]);
+    await user.click(within(safeConfirm).getByRole('button', { name: 'Confirmer' }));
     await waitFor(() => expect(safe).toEqual([{ safe: true }]));
 
     await user.click(screen.getByRole('switch', { name: 'Autoriser les workers distants' }));
+    const remoteConfirm = await screen.findByRole('alertdialog');
+    expect(remote).toEqual([]);
+    await user.click(within(remoteConfirm).getByRole('button', { name: 'Confirmer' }));
     await waitFor(() => expect(remote).toEqual([{ allowed: true }]));
     expect(screen.queryByRole('button', { name: 'Ajouter un worker' })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Clé de Nid' })).not.toBeInTheDocument();
@@ -130,13 +162,13 @@ describe('Réglages › IA', () => {
 
   it('tests a worker and points to its job', async () => {
     serve([worker()]);
-    server.use(http.post('*/api/v1/ai/workers/w1/test', () => HttpResponse.json({ frames: 3, jobId: 'j1' })));
+    server.use(http.post('*/api/v1/ai/workers/w1/test', () => HttpResponse.json({ frames: 1, jobId: 'j1' })));
     const { user } = await renderApp('/settings/ai', { capabilities: adminCapabilities });
 
     await user.click(within(await screen.findByRole('row', { name: /Serveur du salon/ })).getByRole('button', { name: 'Actions pour Serveur du salon' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Tester' }));
 
-    await waitFor(() => expect(toasts()).toHaveTextContent('Test réussi : 3 morceaux reçus.'));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Test réussi : 1 morceau reçu.'));
     expect(within(toasts()).getByRole('button', { name: 'Voir les tâches' })).toBeInTheDocument();
   });
 
@@ -153,6 +185,16 @@ describe('Réglages › IA', () => {
     await user.click(within(confirm).getByRole('button', { name: 'Confirmer' }));
 
     await waitFor(() => expect(revoked).toBe(1));
+  });
+
+  it('revokes a worker never paired without asking to unpair it', async () => {
+    serve([worker({ status: 'pending' })]);
+    const { user } = await renderApp('/settings/ai', { capabilities: adminCapabilities });
+
+    await user.click(within(await screen.findByRole('row', { name: /Serveur du salon/ })).getByRole('button', { name: 'Actions pour Serveur du salon' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Révoquer' }));
+
+    expect(await screen.findByRole('alertdialog')).not.toHaveTextContent('unpair');
   });
 
   it("rotates Nid's key and says what each worker needs", async () => {

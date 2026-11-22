@@ -1,12 +1,12 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
 import type { TFunction } from 'i18next';
-import { useRef, useState } from 'react';
+import { useRef, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
 import {
-  AI_SETTINGS, aiProblem, NID_KEY_ROTATE, REMOTE_WORKERS, WORKER, WORKER_ACTIONS, WORKER_SAFE, WORKER_TEST, WORKERS,
+  AI_SETTINGS, aiProblem, fieldError, NID_KEY_ROTATE, REMOTE_WORKERS, WORKER, WORKER_ACTIONS, WORKER_SAFE, WORKER_TEST, WORKERS,
   type Worker,
 } from '@/api/ai';
 import { useSession } from '@/app/Providers';
@@ -49,12 +49,13 @@ export function AiSettingsPage() {
   const { capabilities } = useSession();
   const admin = capabilities.admin;
   const [adding, setAdding] = useState<{ pending?: Worker } | null>(null);
-  const announce = (message: string) => { setAdding(null); toast.success(message); };
+  const workersHeading = useRef<HTMLHeadingElement>(null);
+  const announce = (message: string) => { setAdding(null); toast.success(message); workersHeading.current?.focus(); };
 
   return (
     <SettingsFrame title={t('ai.title')} actions={admin ? <Button type="button" onClick={() => setAdding({})}>{t('ai.workers.add')}</Button> : null}>
       <DataSection />
-      <WorkersSection admin={admin} onPair={(worker) => setAdding({ pending: worker })} onAdd={() => setAdding({})} />
+      <WorkersSection admin={admin} headingRef={workersHeading} onPair={(worker) => setAdding({ pending: worker })} onAdd={() => setAdding({})} />
       {admin ? <NidKeySection /> : null}
       {adding ? <RegisterWorkerDialog pending={adding.pending} onClose={() => setAdding(null)} onDone={announce} /> : null}
     </SettingsFrame>
@@ -73,20 +74,30 @@ function DataSection() {
       void queryClient.invalidateQueries({ queryKey: ['get', AI_SETTINGS] });
     },
   });
+  const [asking, setAsking] = useState<boolean | null>(null);
+  const wrapper = useRef<HTMLDivElement>(null);
   const error = settings.error ?? change.error;
   return (
     <Section title={t('ai.data.title')}>
       {error ? <ProblemMessage problem={aiProblem(t, error)} /> : null}
       {settings.data ? (
-        <SwitchField label={t('ai.data.remote')} hint={t('ai.data.remote_hint')} checked={settings.data.remoteWorkersAllowed}
-          tip={<InfoTip label={t('ai.data.remote')}>{t('ai.data.remote_tip')}</InfoTip>}
-          onCheckedChange={(allowed) => change.mutate({ body: { allowed } })} />
+        <div ref={wrapper}>
+          <SwitchField label={t('ai.data.remote')} hint={t('ai.data.remote_hint')} checked={settings.data.remoteWorkersAllowed}
+            tip={<InfoTip label={t('ai.data.remote')}>{t('ai.data.remote_tip')}</InfoTip>} onCheckedChange={setAsking} />
+        </div>
       ) : settings.error ? null : <Skeleton aria-busy="true" className="h-12"><span className="sr-only">{t('ai.loading')}</span></Skeleton>}
+      {asking !== null ? (
+        <ConfirmFromMenu label={t('ai.data.remote')} confirmation={t(asking ? 'ai.data.allow_confirm' : 'ai.data.refuse_confirm')} pending={change.isPending}
+          returnFocus={{ current: wrapper.current?.querySelector<HTMLElement>('[role="switch"]') ?? null }}
+          onClose={() => setAsking(null)} onConfirm={() => change.mutate({ body: { allowed: asking } })} />
+      ) : null}
     </Section>
   );
 }
 
-function WorkersSection({ admin, onPair, onAdd }: { admin: boolean; onPair: (worker: Worker) => void; onAdd: () => void }) {
+function WorkersSection({ admin, headingRef, onPair, onAdd }: {
+  admin: boolean; headingRef: RefObject<HTMLHeadingElement | null>; onPair: (worker: Worker) => void; onAdd: () => void;
+}) {
   const { t } = useTranslation();
   const { $api } = useApi();
   const workers = $api.useQuery('get', WORKERS);
@@ -102,10 +113,10 @@ function WorkersSection({ admin, onPair, onAdd }: { admin: boolean; onPair: (wor
       {w.nidKeyRotationOverdue ? <Badge variant="outline">{t('ai.workers.overdue')}</Badge> : null}
     </span>
   );
-  const actions = (w: Worker) => <WorkerActions worker={w} admin={admin} onPair={onPair} />;
+  const actions = (w: Worker) => <WorkerActions worker={w} admin={admin} onPair={onPair} onGone={() => headingRef.current?.focus()} />;
 
   return (
-    <Section title={t('ai.workers.title')} actions={jobs} tip={(
+    <Section title={t('ai.workers.title')} headingRef={headingRef} actions={jobs} tip={(
       <InfoTip label={t('ai.workers.title')}>
         <span className="block">{t('ai.worker_tip')}</span>
         <span className="mt-2 block">{t('ai.workers.safe_tip')}</span>
@@ -148,10 +159,10 @@ function WorkersSection({ admin, onPair, onAdd }: { admin: boolean; onPair: (wor
   );
 }
 
-type Asking = 'disable' | 'rotate' | 'revoke' | 'rename';
+type Asking = 'disable' | 'rotate' | 'revoke' | 'rename' | 'safe';
 
 /** A worker's `⋯`: « sûr » for any adult; pairing, test and management for an admin, each answered by a toast. */
-function WorkerActions({ worker, admin, onPair }: { worker: Worker; admin: boolean; onPair: (worker: Worker) => void }) {
+function WorkerActions({ worker, admin, onPair, onGone }: { worker: Worker; admin: boolean; onPair: (worker: Worker) => void; onGone: () => void }) {
   const { t } = useTranslation();
   const { $api } = useApi();
   const navigate = useNavigate();
@@ -168,7 +179,9 @@ function WorkerActions({ worker, admin, onPair }: { worker: Worker; admin: boole
   const disable = $api.useMutation('post', WORKER_ACTIONS.disable, done(t('ai.workers.disabled', named)));
   const enable = $api.useMutation('post', WORKER_ACTIONS.enable, done(t('ai.workers.enabled', named)));
   const rotate = $api.useMutation('post', WORKER_ACTIONS.rotate, done(t('ai.workers.rotated', named)));
-  const revoke = $api.useMutation('post', WORKER_ACTIONS.revoke, done(t('ai.workers.revoked', named)));
+  // A revoked worker keeps no menu: the focus goes back to the list's heading.
+  const revoked = done(t('ai.workers.revoked', named));
+  const revoke = $api.useMutation('post', WORKER_ACTIONS.revoke, { ...revoked, onSuccess: () => { revoked.onSuccess(); onGone(); } });
   const safe = $api.useMutation('put', WORKER_SAFE, done(t(worker.safe ? 'ai.workers.safe_off' : 'ai.workers.safe_on', named)));
   const test = $api.useMutation('post', WORKER_TEST, {
     onSuccess: (result) => toast.success(t('ai.workers.tested', { count: result.frames }), {
@@ -184,7 +197,7 @@ function WorkerActions({ worker, admin, onPair }: { worker: Worker; admin: boole
       { label: t('ai.workers.test'), onSelect: () => test.mutate(path) },
       { label: t('ai.workers.refresh'), onSelect: () => refresh.mutate(path) },
     ] : []),
-    ...(live ? [{ label: t(worker.safe ? 'ai.workers.unmark_safe' : 'ai.workers.mark_safe'), onSelect: () => safe.mutate({ ...path, body: { safe: !worker.safe } }) }] : []),
+    ...(live ? [{ label: t(worker.safe ? 'ai.workers.unmark_safe' : 'ai.workers.mark_safe'), onSelect: () => setAsking('safe') }] : []),
     ...(admin && live ? [{ label: t('ai.workers.rename'), onSelect: () => setAsking('rename') }] : []),
     ...(admin && worker.status === 'active' ? [
       { label: t('ai.workers.disable'), onSelect: () => setAsking('disable') },
@@ -197,7 +210,15 @@ function WorkerActions({ worker, admin, onPair }: { worker: Worker; admin: boole
 
   const confirm = asking === 'disable' ? { label: t('ai.workers.disable'), confirmation: t('ai.workers.disable_confirm', named), run: () => disable.mutate(path), pending: disable.isPending }
     : asking === 'rotate' ? { label: t('ai.workers.rotate'), confirmation: t('ai.workers.rotate_confirm'), run: () => rotate.mutate(path), pending: rotate.isPending }
-    : asking === 'revoke' ? { label: t('ai.workers.revoke'), confirmation: t('ai.workers.revoke_confirm', named), run: () => revoke.mutate(path), pending: revoke.isPending }
+    : asking === 'revoke' ? {
+      label: t('ai.workers.revoke'), confirmation: t(worker.status === 'pending' ? 'ai.workers.revoke_pending_confirm' : 'ai.workers.revoke_confirm', named),
+      run: () => revoke.mutate(path), pending: revoke.isPending,
+    }
+    // « Sûr » decides what this worker may see (screens.md §10): confirmed both ways.
+    : asking === 'safe' ? {
+      label: t(worker.safe ? 'ai.workers.unmark_safe' : 'ai.workers.mark_safe'), confirmation: t(worker.safe ? 'ai.workers.unsafe_confirm' : 'ai.workers.safe_confirm', named),
+      run: () => safe.mutate({ ...path, body: { safe: !worker.safe } }), pending: safe.isPending,
+    }
     : null;
 
   return (
@@ -207,19 +228,20 @@ function WorkerActions({ worker, admin, onPair }: { worker: Worker; admin: boole
         <ConfirmFromMenu label={confirm.label} confirmation={confirm.confirmation} pending={confirm.pending} returnFocus={menu}
           onClose={() => setAsking(null)} onConfirm={confirm.run} />
       ) : null}
-      {asking === 'rename' ? <RenameDialog worker={worker} onClose={() => setAsking(null)} /> : null}
+      {asking === 'rename' ? <RenameDialog worker={worker} onClose={() => setAsking(null)} onDone={() => menu.current?.focus()} /> : null}
     </>
   );
 }
 
-function RenameDialog({ worker, onClose }: { worker: Worker; onClose: () => void }) {
+function RenameDialog({ worker, onClose, onDone }: { worker: Worker; onClose: () => void; onDone: () => void }) {
   const { t } = useTranslation();
   const { $api } = useApi();
   const queryClient = useQueryClient();
   const [name, setName] = useState(worker.name);
   const rename = $api.useMutation('patch', WORKER);
+  const nameError = fieldError(t, rename.error, 'name', t('ai.workers.name_required'));
   return (
-    <FormDialog title={t('ai.workers.rename_title', { name: worker.name })} onClose={onClose} onDone={(message) => { onClose(); toast.success(message); }}>
+    <FormDialog title={t('ai.workers.rename_title', { name: worker.name })} onClose={onClose} onDone={(message) => { onClose(); toast.success(message); onDone(); }}>
       {({ titleId, done }) => (
         <form aria-labelledby={titleId} noValidate className="space-y-3" onSubmit={(event) => {
           event.preventDefault();
@@ -228,8 +250,8 @@ function RenameDialog({ worker, onClose }: { worker: Worker; onClose: () => void
             onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ['get', WORKERS] }); done(t('ai.workers.renamed')); },
           });
         }}>
-          {rename.error ? <ProblemMessage problem={aiProblem(t, rename.error)} /> : null}
-          <Field label={t('ai.workers.name')}>{(c) => <Input {...c} value={name} onChange={(e) => setName(e.target.value)} maxLength={60} />}</Field>
+          {rename.error && !nameError ? <ProblemMessage problem={aiProblem(t, rename.error)} /> : null}
+          <Field label={t('ai.workers.name')} error={nameError}>{(c) => <Input {...c} value={name} onChange={(e) => setName(e.target.value)} maxLength={60} />}</Field>
           <div className="flex flex-wrap justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => done()}>{t('common.cancel')}</Button>
             <Button type="submit" disabled={rename.isPending}>{t('ai.workers.save')}</Button>
@@ -250,14 +272,17 @@ function NidKeySection() {
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['get', WORKERS] }),
   });
   const result = rotate.data;
+  // The page owns the focus once the result is read (FormDialog): back to the section's heading.
+  const heading = useRef<HTMLHeadingElement>(null);
+  const close = () => { rotate.reset(); heading.current?.focus(); };
   const nameOf = (id: string) => workers.data?.workers.find((w) => w.id === id)?.name ?? id;
   return (
-    <Section title={t('ai.key.title')} tip={<InfoTip label={t('ai.key.title')}>{t('ai.key.tip')}</InfoTip>}>
+    <Section title={t('ai.key.title')} headingRef={heading} tip={<InfoTip label={t('ai.key.title')}>{t('ai.key.tip')}</InfoTip>}>
       <p className="max-w-prose text-sm text-muted-foreground">{t('ai.key.body')}</p>
       {rotate.error ? <ProblemMessage problem={aiProblem(t, rotate.error)} /> : null}
       <ConfirmAction label={t('ai.key.rotate')} confirmation={t('ai.key.confirm')} pending={rotate.isPending} onConfirm={() => rotate.mutate({})} />
       {result ? (
-        <ModalDialog title={t('ai.key.done_title')} onClose={() => rotate.reset()}>
+        <ModalDialog title={t('ai.key.done_title')} onClose={close}>
           {() => (
             <div className="space-y-3">
               <p className="text-sm">{t('ai.key.fingerprint')}</p>
@@ -269,7 +294,7 @@ function NidKeySection() {
                   {t('ai.key.unreached', { names: result.unreached.map(nameOf).join(', ') })}
                 </p>
               ) : null}
-              <div className="flex justify-end"><Button type="button" onClick={() => rotate.reset()}>{t('ai.key.close')}</Button></div>
+              <div className="flex justify-end"><Button type="button" onClick={close}>{t('ai.key.close')}</Button></div>
             </div>
           )}
         </ModalDialog>

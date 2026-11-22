@@ -21,14 +21,14 @@ public sealed record RegisterWorkerCommand(string Name, string Url, WorkerPlacem
     : ICommand<RegisteredWorker>, IWorkerAdminCommand
 {
     public SecurityEvent? EventFor(object response)
-        => response is RegisteredWorker registered ? WorkerEvents.Of(SecurityEventNames.ModelWorkerRegistered, registered.Id, Name) : null;
+        => response is RegisteredWorker registered ? WorkerEvents.Of(SecurityEventNames.ModelWorkerRegistered, registered.Id) : null;
 }
 
 /// <summary>Pairs a registered worker: the fingerprint the admin confirmed, the code read off its console.</summary>
 public sealed record PairWorkerCommand(Guid Id, string Fingerprint, string Code) : ICommand<WorkerView>, IWorkerAdminCommand
 {
     public SecurityEvent? EventFor(object response)
-        => response is WorkerView view ? WorkerEvents.Of(SecurityEventNames.ModelWorkerPaired, view.Id, view.Name) : null;
+        => response is WorkerView view ? WorkerEvents.Of(SecurityEventNames.ModelWorkerPaired, view.Id) : null;
 }
 
 /// <summary>Every worker, for any adult; fingerprints only.</summary>
@@ -36,9 +36,10 @@ public sealed record ListWorkersQuery : IQuery<WorkerList>;
 
 internal static class WorkerEvents
 {
-    public static SecurityEvent Of(string name, Guid worker, string workerName, string? change = null)
+    /// <summary>The worker's id only: a security event never holds a name (<see cref="SecurityEvent"/>), even one an admin chose.</summary>
+    public static SecurityEvent Of(string name, Guid worker, string? change = null)
     {
-        var data = new Dictionary<string, string> { ["worker"] = worker.ToString(), ["name"] = workerName };
+        var data = new Dictionary<string, string> { ["worker"] = worker.ToString() };
         if (change is not null)
             data["change"] = change;
         return new SecurityEvent(name, null, [], data);

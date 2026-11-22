@@ -52,7 +52,8 @@ echo "ok: a missing asset is a 404 and /mcp is not the SPA"
 # (« Pairing code: ABCD-EFGH  Key fingerprint: <hex> »).
 "${COMPOSE[@]}" --profile worker up -d --build --wait --wait-timeout 300 worker
 # `unpair` rather than `pairing-code`: a worker-data volume left by an earlier run holds a pairing; its last line is the new code.
-read -r _ _ code _ _ fingerprint < <("${COMPOSE[@]}" --profile worker exec -T worker dotnet Nid.Ai.Worker.dll unpair | tail -1)
+read -r _ _ code _ _ fingerprint < <("${COMPOSE[@]}" --profile worker exec -T worker dotnet Nid.Ai.Worker.dll unpair | tail -1) || true
+[[ $code =~ ^[A-Z0-9]{4}-[A-Z0-9]{4}$ && -n $fingerprint ]] || { echo "FAIL: the worker gave no pairing code (unpair: $code $fingerprint)" >&2; exit 1; }
 export NID_WORKER_PAIRING="$code $fingerprint"
 echo "ok: a model worker is up, waiting for its pairing"
 
