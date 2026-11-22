@@ -60,6 +60,18 @@ public static class AiEndpoints
 
         var jobs = routes.MapGroup("/api/v1/ai/jobs").RequireAuthorization()
             .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>();
+        jobs.MapGet("", async (string? status, string? type, int? page, IInvoker invoker, CancellationToken ct) =>
+            {
+                if (status is not null && !ModelJobPage.Statuses.Contains(status))
+                {
+                    var reader = new FieldReader();
+                    reader.Add("status", "invalid", "queued, running, succeeded, failed or dead.");
+                    return reader.Problem();
+                }
+
+                return (await invoker.InvokeAsync(new ListModelJobsQuery(status, string.IsNullOrEmpty(type) ? null : type, page), ct)).ToHttp(p => p);
+            })
+            .Returns<ModelJobPage>();
         jobs.MapGet("/{id:guid}", async (Guid id, IInvoker invoker, CancellationToken ct)
                 => (await invoker.InvokeAsync(new GetModelJobQuery(id), ct)).ToHttp(view => view))
             .Returns<ModelJobView>();

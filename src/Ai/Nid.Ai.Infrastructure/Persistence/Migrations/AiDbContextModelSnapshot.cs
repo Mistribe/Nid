@@ -17,7 +17,7 @@ partial class AiDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261122141938_AddSettings";
+    public override string LastMigrationId => "20261122163505_AddJobListIndex";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -249,6 +249,9 @@ partial class AiDbContextModelSnapshot : ModelSnapshot
 
                 b.HasIndex("WorkerId")
                     .HasDatabaseName("ix_job_worker_id");
+
+                b.HasIndex("CreatedAt", "Id")
+                    .HasDatabaseName("ix_job_created_at_id");
 
                 b.HasIndex("Status", "RunAfter")
                     .HasDatabaseName("ix_job_status_run_after");

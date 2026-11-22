@@ -14,6 +14,7 @@ const SECTIONS = [
   { to: '/settings/projection', label: 'settings_frame.nav.projection' },
   { to: '/settings/persons', label: 'settings_frame.nav.persons' },
   { to: '/settings/calendar', label: 'settings_frame.nav.calendar' },
+  { to: '/settings/ai', label: 'settings_frame.nav.ai' },
 ] as const;
 /** Shown only while the household has bank sync on. */
 const BANKS = { to: '/settings/banks', label: 'settings_frame.nav.banks' } as const;

@@ -33,7 +33,7 @@ public static class SecurityEventNames
     /// <summary>5B: a bank statement file written to an account (bank sync spec §10); counts only, never a label, an amount or an IBAN.</summary>
     public const string BankStatementImported = "bank_statement_imported";
 
-    /// <summary>#473: an admin registered, paired or changed a model worker, or rotated a key; the worker's id and name, never a key.</summary>
+    /// <summary>#473: an admin registered, paired or changed a model worker, or rotated a key; the worker's id only, never its name or a key.</summary>
     public const string ModelWorkerRegistered = "model_worker_registered";
 
     public const string ModelWorkerPaired = "model_worker_paired";
@@ -100,6 +100,9 @@ public static class SecurityEventNames
         AdminGranted, AdminRevoked, SessionRevoked, HouseholdSettingsChanged, AdminCommand, SubjectRebound, TokenAuthFailed,
         // Issue 215: what an admin needs to act on. login_failed only without a person (unknown_login, #292): the reader drops an adult's own.
         LoginFailed, LoginLocked, PasswordReset, CredentialLinkIssued, CredentialLinkRevoked, AccountEnrolled, AccountUnlocked, SetupCompleted, TotpReset,
+        // #476: the model workers and what they may see (docs/ai/README.md §12).
+        ModelWorkerRegistered, ModelWorkerPaired, ModelWorkerChanged, ModelWorkerRevoked, ModelWorkerKeyRotated, NidWorkerKeyRotated,
+        AiRemoteWorkersChanged,
     };
 }
 

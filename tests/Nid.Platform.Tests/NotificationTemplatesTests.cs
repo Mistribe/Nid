@@ -48,7 +48,20 @@ public class NotificationTemplatesTests
 
         Assert.Equal("Ce que voient les modèles a changé", rendered.Title);
         Assert.Equal(body, rendered.Body);
-        Assert.Equal("/settings", rendered.Link);
+        Assert.Equal("/settings/ai", rendered.Link);
+    }
+
+    [Theory]
+    [InlineData("ai.echo", "/settings/ai/jobs?status=dead")]
+    [InlineData("fx-daily", "/admin/jobs/fx-daily")]
+    public void A_failed_job_links_to_its_own_page(string job, string link)
+    {
+        var record = Record("job_failed") with { ItemIds = [], Params = new Dictionary<string, string> { ["job"] = job } };
+
+        var rendered = NotificationTemplates.Render(record, new NotificationKind("job_failed", "health", NotificationLevel.Action, "platform", null),
+            new Dictionary<ItemId, string>());
+
+        Assert.Equal(link, rendered.Link);
     }
 
     [Fact]

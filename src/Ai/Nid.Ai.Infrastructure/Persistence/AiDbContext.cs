@@ -69,6 +69,8 @@ public sealed class AiDbContext(DbContextOptions<AiDbContext> options) : DbConte
             e.Property(x => x.Result).HasColumnType("jsonb");
             e.HasIndex(x => new { x.Type, x.InputHash }).IsUnique().HasFilter("status in ('queued', 'running')");
             e.HasIndex(x => new { x.Status, x.RunAfter });
+            // The jobs page, newest first (#476).
+            e.HasIndex(x => new { x.CreatedAt, x.Id });
             e.HasOne<ModelWorkerRow>().WithMany().HasForeignKey(x => x.WorkerId).OnDelete(DeleteBehavior.SetNull);
             e.Property(x => x.RowVersion).HasColumnName("xmin").HasColumnType("xid").ValueGeneratedOnAddOrUpdate().IsConcurrencyToken();
         });

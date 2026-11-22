@@ -186,6 +186,7 @@ public static class RequestCatalogue
         new(typeof(Nid.Ai.Application.SetRemoteWorkersAllowedCommand), false, (_, _) => new Nid.Ai.Application.SetRemoteWorkersAllowedCommand(false)),
         new(typeof(Nid.Ai.Application.SetWorkerSafeCommand), false, (_, _) => new Nid.Ai.Application.SetWorkerSafeCommand(Guid.CreateVersion7(), true)),
         new(typeof(Nid.Ai.Application.GetAiSettingsQuery), false, (_, _) => new Nid.Ai.Application.GetAiSettingsQuery()),
+        new(typeof(Nid.Ai.Application.ListModelJobsQuery), false, (_, _) => new Nid.Ai.Application.ListModelJobsQuery(null, null, null)),
         new(typeof(Nid.Ai.Application.GetModelCapabilitiesQuery), false, (_, _) => new Nid.Ai.Application.GetModelCapabilitiesQuery()),
         new(typeof(Nid.Ai.Application.TestWorkerCommand), false, (_, _) => new Nid.Ai.Application.TestWorkerCommand(Guid.CreateVersion7())),
         new(typeof(Nid.Ai.Application.GetModelJobQuery), false, (_, _) => new Nid.Ai.Application.GetModelJobQuery(Guid.CreateVersion7())),

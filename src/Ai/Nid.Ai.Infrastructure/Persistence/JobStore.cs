@@ -45,6 +45,29 @@ public sealed class JobStore(AiDbContext db, IDataProtectionProvider protection)
         => (await db.Jobs.AsNoTracking().Where(j => j.Status == "running" && (j.NextPollAt <= now || j.LeaseUntil <= now))
             .OrderBy(j => j.NextPollAt).Take(limit).ToListAsync(ct)).Select(ToRecord).ToList();
 
+    public async Task<(IReadOnlyList<JobRecord> Items, int Total, IReadOnlyList<string> Types)> PageAsync(
+        string? status, string? type, int skip, int take, CancellationToken ct)
+    {
+        var query = db.Jobs.AsNoTracking();
+        if (status is not null)
+            query = query.Where(j => j.Status == status);
+        if (type is not null)
+            query = query.Where(j => j.Type == type);
+
+        var total = await query.CountAsync(ct);
+        // Only the listed columns: a job's input and result (a whole document's text) are never read for a page, nor its secret.
+        var rows = await query.OrderByDescending(j => j.CreatedAt).ThenByDescending(j => j.Id).Skip(skip).Take(take)
+            .Select(j => new JobRow
+            {
+                Id = j.Id, Type = j.Type, Version = j.Version, Input = "", InputHash = "", DataClass = j.DataClass, Status = j.Status,
+                Attempts = j.Attempts, WorkerId = j.WorkerId, Error = j.Error, WaitingReason = j.WaitingReason, CreatedAt = j.CreatedAt,
+                FinishedAt = j.FinishedAt,
+            })
+            .ToListAsync(ct);
+        var types = await db.Jobs.AsNoTracking().Select(j => j.Type).Distinct().OrderBy(t => t).ToListAsync(ct);
+        return (rows.Select(r => ToRecord(r, withSecret: false)).ToList(), total, types);
+    }
+
     public async Task<bool> TryUpdateAsync(JobRecord job, CancellationToken ct)
     {
         var row = await db.Jobs.SingleAsync(j => j.Id == job.Id, ct);
@@ -119,9 +142,11 @@ public sealed class JobStore(AiDbContext db, IDataProtectionProvider protection)
         }
     }
 
-    private JobRecord ToRecord(JobRow row) => new(
+    private JobRecord ToRecord(JobRow row) => ToRecord(row, withSecret: true);
+
+    private JobRecord ToRecord(JobRow row, bool withSecret) => new(
         row.Id, row.Type, row.Version, row.Input, row.InputHash, row.FileRef, row.DataClass, row.TargetWorkerId,
         Enum.Parse<JobState>(row.Status, ignoreCase: true), row.Attempts, row.RunAfter, row.NextPollAt, row.LeaseUntil, row.WorkerId,
-        row.WorkerJobId, Unprotect(row.ResponseSecret), row.Result, row.Error,
+        row.WorkerJobId, withSecret ? Unprotect(row.ResponseSecret) : null, row.Result, row.Error,
         row.WaitingReason, row.CreatedAt, row.SentAt, row.FinishedAt, row.RowVersion);
 }

@@ -27,7 +27,7 @@ public sealed record SetWorkerSafeCommand(Guid Id, bool Safe) : ICommand<PolicyC
 {
     public SecurityEvent? EventFor(object response)
         => response is PolicyChange<WorkerView> { Changed: true, View: var view }
-            ? WorkerEvents.Of(SecurityEventNames.ModelWorkerChanged, view.Id, view.Name, Safe ? "safe_on" : "safe_off")
+            ? WorkerEvents.Of(SecurityEventNames.ModelWorkerChanged, view.Id, Safe ? "safe_on" : "safe_off")
             : null;
 }
 
