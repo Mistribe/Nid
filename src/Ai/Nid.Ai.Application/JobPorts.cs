@@ -53,6 +53,10 @@ public interface IJobStore
     /// <summary>Running jobs to poll now, or whose lease ran out.</summary>
     Task<IReadOnlyList<JobRecord>> RunningDueAsync(Instant now, int limit, CancellationToken ct);
 
+    /// <summary>Deletes the jobs that succeeded before <paramref name="succeededBefore"/> and those that failed or died before
+    /// <paramref name="failedBefore"/>, input and result with them; queued and running jobs are never touched. The count deleted.</summary>
+    Task<int> PurgeFinishedAsync(Instant succeededBefore, Instant failedBefore, CancellationToken ct);
+
     /// <summary>One page of jobs, newest first, with the total and every type in the table.</summary>
     Task<(IReadOnlyList<JobRecord> Items, int Total, IReadOnlyList<string> Types)> PageAsync(
         string? status, string? type, int skip, int take, CancellationToken ct);

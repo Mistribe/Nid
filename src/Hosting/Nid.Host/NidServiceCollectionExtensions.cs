@@ -292,6 +292,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<Nid.Ai.Application.WorkerRefresher>();
         services.AddScoped<Nid.Ai.Application.IWorkerMonitor, Nid.Ai.Application.WorkerMonitor>();
         services.AddScoped<Nid.Ai.Application.IJobDispatcher, Nid.Ai.Application.JobDispatcher>();
+        services.AddScoped<Nid.Ai.Application.IJobPurge, Nid.Ai.Application.JobPurge>();
         services.AddScoped<Nid.Ai.Application.IModelRequests, Nid.Ai.Application.ModelRequests>();
         services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<Nid.Ai.Infrastructure.Workers.WorkerDirectory>();

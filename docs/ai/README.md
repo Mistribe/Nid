@@ -686,6 +686,7 @@ admin (`../identity-and-access/authorization.md`).
 | `ai_settings` (une ligne) | `uses` (réglage par usage, §5.3), `models` (modèle par usage, choisi par l'admin), `allowed_kinds` (types de documents et `bank_labels`), `region`, `monthly_budget_eur`, `budget_month` (`spent`, `reserved`), `remote_workers_allowed` (avec son `consent_id`), `conversation_retention_days`, `redaction_enabled` |
 | `model_worker` | Nom, point d'accès (hôte et port), proxy déclaré, empreintes de ses clés (avec la précédente pendant une rotation), placement, `safe`, état (en ligne, vu pour la dernière fois, version, charge), dernière déclaration, `revoked_at`. Remplace `worker_credential` |
 | `ai_key` | Clé privée de Nid face aux workers, chiffrée par Data Protection comme les clés d'API |
+| `job` | Les tâches de modèle (§4.1) : type, entrée, classe de données, état, essais, raison d'attente, résultat. Une tâche finie est supprimée avec son entrée et son résultat, 7 jours après sa réussite, 30 jours après son échec ou son abandon (#483) ; une tâche en attente ou en cours n'est jamais supprimée |
 | `llm_provider_credential` | `../ingestion/llm-providers.md` §10 |
 | `llm_call` | `../ingestion/llm-providers.md` §11, plus `task`, `use`, `worker_id`, `conversation_id`, `reserved_eur` |
 | `budget_reservation` | Réservations en cours, avec leur expiration (§10.2) |
