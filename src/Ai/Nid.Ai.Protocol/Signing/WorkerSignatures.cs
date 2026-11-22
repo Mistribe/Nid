@@ -28,7 +28,12 @@ public static class WorkerSignatures
     /// <summary>The worker's verifier for the Nid key it pinned. A nonce is used up only once its signature verified,
     /// so a forged request leaves nothing in <paramref name="nonces"/>.</summary>
     public static IVerifier Verifier(ECDsa publicKey, NonceCache nonces)
-        => new NonceConsumingVerifier(new ECDsaP256Sha256SignatureProvider(null, publicKey, KeyId(publicKey)), nonces);
+        => Verifier(id => id == KeyId(publicKey) ? publicKey : null, nonces);
+
+    /// <summary>A verifier over the Nid keys a worker accepts, found by <c>keyid</c>: the pinned one and, during a Nid key
+    /// rotation, the previous one. An unknown <c>keyid</c> is <see cref="VerificationResult.NoMatchingVerifierFound"/>.</summary>
+    public static IVerifier Verifier(Func<string, ECDsa?> keyById, NonceCache nonces)
+        => new NonceConsumingVerifier(new KeyRingVerifier(keyById), nonces);
 
     public static string KeyId(ECDsa key) => KeyFingerprint.Compact(key.ExportSubjectPublicKeyInfo());
 
@@ -68,6 +73,16 @@ public static class WorkerSignatures
     // 16 random bytes in base64url are 22 characters; the bounds keep a forged request from storing much.
     private const int MinNonceLength = 16;
     private const int MaxNonceLength = 64;
+
+    private sealed class KeyRingVerifier(Func<string, ECDsa?> keyById) : IVerifier
+    {
+        public Task<VerificationResult> VerifyAsync(
+            SignatureParamsComponent signatureParams, ReadOnlyMemory<byte> input, ReadOnlyMemory<byte> expectedSignature,
+            CancellationToken cancellationToken)
+            => signatureParams.KeyId is { } id && keyById(id) is { } key
+                ? new ECDsaP256Sha256SignatureProvider(null, key, id).VerifyAsync(signatureParams, input, expectedSignature, cancellationToken)
+                : Task.FromResult(VerificationResult.NoMatchingVerifierFound);
+    }
 
     private sealed class NonceConsumingVerifier(IVerifier inner, NonceCache nonces) : IVerifier
     {

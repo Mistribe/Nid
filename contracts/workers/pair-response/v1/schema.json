@@ -1,0 +1,146 @@
+{
+  "type": "object",
+  "properties": {
+    "tlsCertificateSha256": {
+      "type": "string"
+    },
+    "declaration": {
+      "type": "object",
+      "properties": {
+        "softwareVersion": {
+          "type": "string"
+        },
+        "jobs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string"
+              },
+              "version": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "type",
+              "version"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "requests": {
+          "type": "array",
+          "items": {
+            "$ref": "#/properties/declaration/properties/jobs/items"
+          }
+        },
+        "maxConcurrentRequests": {
+          "type": "integer"
+        },
+        "models": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "capability": {
+                "enum": [
+                  "document-text",
+                  "embed",
+                  "decide",
+                  "chat"
+                ]
+              },
+              "name": {
+                "type": "string"
+              },
+              "digest": {
+                "type": "string"
+              },
+              "contextTokens": {
+                "type": "integer"
+              },
+              "maxOutputTokens": {
+                "type": "integer"
+              },
+              "dimension": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "default": null
+              },
+              "tools": {
+                "type": [
+                  "boolean",
+                  "null"
+                ],
+                "default": null
+              },
+              "structuredOutput": {
+                "type": [
+                  "boolean",
+                  "null"
+                ],
+                "default": null
+              },
+              "decide": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "version": {
+                    "type": "string"
+                  },
+                  "scores": {
+                    "enum": [
+                      "logprobs",
+                      "native",
+                      "none"
+                    ]
+                  }
+                },
+                "required": [
+                  "name",
+                  "version",
+                  "scores"
+                ],
+                "additionalProperties": false,
+                "default": null
+              }
+            },
+            "required": [
+              "capability",
+              "name",
+              "digest",
+              "contextTokens",
+              "maxOutputTokens"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "nidKeyFingerprint": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "softwareVersion",
+        "jobs",
+        "requests",
+        "maxConcurrentRequests",
+        "models",
+        "nidKeyFingerprint"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "tlsCertificateSha256",
+    "declaration"
+  ],
+  "additionalProperties": false
+}

@@ -1,0 +1,16 @@
+{
+  "type": "object",
+  "properties": {
+    "nidPublicKey": {
+      "type": "string"
+    },
+    "code": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "nidPublicKey",
+    "code"
+  ],
+  "additionalProperties": false
+}

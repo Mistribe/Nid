@@ -46,6 +46,29 @@ public sealed class SignaturePipelineTests : IAsyncLifetime
         => Assert.Equal(HttpStatusCode.OK, await Send(Client(_nidKey)));
 
     [Fact]
+    public async Task A_request_signed_per_call_passes()
+    {
+        using var client = _worker.GetTestClient();
+        using var request = new HttpRequestMessage(HttpMethod.Post, "http://worker.test/v1/echo") { Content = Body() };
+        await WorkerRequestSigning.SignAsync(request, _nidKey, TestContext.Current.CancellationToken);
+        using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task A_request_signed_per_call_with_another_key_is_refused()
+    {
+        using var other = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        using var client = _worker.GetTestClient();
+        using var request = new HttpRequestMessage(HttpMethod.Post, "http://worker.test/v1/echo") { Content = Body() };
+        await WorkerRequestSigning.SignAsync(request, other, TestContext.Current.CancellationToken);
+        using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+
+        AssertRefused(response.StatusCode);
+    }
+
+    [Fact]
     public async Task An_unsigned_request_is_refused()
     {
         using var client = _worker.GetTestClient();
