@@ -1,0 +1,16 @@
+{
+  "type": "object",
+  "properties": {
+    "text": {
+      "type": "string"
+    },
+    "frames": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "text",
+    "frames"
+  ],
+  "additionalProperties": false
+}
