@@ -84,6 +84,53 @@ public sealed class WorkerClient(HttpClient http) : IWorkerClient, IDisposable
         return new PolledJob(status, status.ResultLength is null ? null : result);
     }
 
+    public async IAsyncEnumerable<Frame> StreamAsync(
+        WorkerRecord worker, NidKey key, string type, int version, byte[] input, FrameLimits limits,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct)
+    {
+        Active(worker);
+        var (message, secret) = SealedRequest.Seal(worker.WorkerPublicKey, input);
+        using var request = new HttpRequestMessage(HttpMethod.Post,
+            new Uri(worker.Url, $"/v1/requests/{Uri.EscapeDataString(type)}/{version}")) { Content = new ByteArrayContent(message) };
+        await WorkerRequestSigning.SignAsync(request, key.Key, ct);
+
+        HttpResponseMessage response;
+        try
+        {
+            response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+        }
+        catch (Exception e) when (e is HttpRequestException or TaskCanceledException or UnambitiousFx.Myelin.OutboundRefusedException && !ct.IsCancellationRequested)
+        {
+            throw new WorkerCallException(AiCodes.WorkerUnreachable);
+        }
+
+        using (response)
+        {
+            if (!response.IsSuccessStatusCode)
+                throw new WorkerCallException(AiCodes.WorkerRefused);
+
+            await using var frames = ResponseReader.ReadAsync(secret, await response.Content.ReadAsStreamAsync(ct), limits, ct).GetAsyncEnumerator(ct);
+            while (true)
+            {
+                try
+                {
+                    if (!await frames.MoveNextAsync())
+                        yield break;
+                }
+                catch (ProtocolException)
+                {
+                    throw new WorkerCallException(AiCodes.WorkerRefused);
+                }
+                catch (Exception e) when (e is HttpRequestException or IOException && !ct.IsCancellationRequested)
+                {
+                    throw new WorkerCallException(AiCodes.WorkerUnreachable);
+                }
+
+                yield return frames.Current;
+            }
+        }
+    }
+
     private static void Active(WorkerRecord worker)
     {
         if (WorkerRules.Call(worker.Status) is { } refusal)

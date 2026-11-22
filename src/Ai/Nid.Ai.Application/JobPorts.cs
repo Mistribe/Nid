@@ -63,7 +63,7 @@ public interface IJobStore
 public sealed record JobRequest(string Type, int Version, JsonElement Input, string DataClass, string? FileRef = null, Guid? TargetWorkerId = null);
 
 /// <summary>A job's state for the people who look at it: never its input, its file or its secret.</summary>
-public sealed record JobView(
+public sealed record ModelJobView(
     Guid Id, string Type, int Version, string Status, int Attempts, string? WaitingReason, string? Error, Guid? WorkerId,
     Instant CreatedAt, Instant? FinishedAt, string? Result);
 
@@ -73,7 +73,7 @@ public interface IModelJobs
     /// <summary>Queues a job; the same type and input not finished yet give the same job.</summary>
     Task<Guid> SubmitAsync(JobRequest request, CancellationToken ct);
 
-    Task<JobView?> GetAsync(Guid id, CancellationToken ct);
+    Task<ModelJobView?> GetAsync(Guid id, CancellationToken ct);
 }
 
 /// <summary>Reads a job's file when it is sent: the module that owns it implements it (Documents for #167).</summary>

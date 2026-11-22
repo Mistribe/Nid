@@ -539,7 +539,9 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         }
     }
 
-    private static readonly HashSet<Type> JobsOffNotFound = [typeof(Nid.Platform.Admin.GetJobQuery), typeof(Nid.Platform.Admin.GetJobRunQuery)];
+    // A model job (#474) is found by its id only: the bench's sample id names none.
+    private static readonly HashSet<Type> JobsOffNotFound =
+        [typeof(Nid.Platform.Admin.GetJobQuery), typeof(Nid.Platform.Admin.GetJobRunQuery), typeof(Nid.Ai.Application.GetModelJobQuery)];
 
     /// <summary>Truthful where the guard looks (Me), generous where the handler looks (Household).</summary>
     private sealed class GenerousInTheHouseholdScope(CoreDbContext db) : IVisibleItems

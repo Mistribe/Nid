@@ -70,10 +70,10 @@ public sealed class ModelJobs(IJobStore store, ModelContracts contracts, IClock 
         return job.Id;
     }
 
-    public async Task<JobView?> GetAsync(Guid id, CancellationToken ct)
+    public async Task<ModelJobView?> GetAsync(Guid id, CancellationToken ct)
         => await store.FindAsync(id, ct) is { } job ? View(job) : null;
 
-    public static JobView View(JobRecord job) => new(
+    public static ModelJobView View(JobRecord job) => new(
         job.Id, job.Type, job.Version, job.Status.ToString().ToLowerInvariant(), job.Attempts, job.WaitingReason, job.Error, job.WorkerId,
         job.CreatedAt, job.FinishedAt, job.Result);
 

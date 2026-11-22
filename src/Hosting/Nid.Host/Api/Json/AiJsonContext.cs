@@ -11,6 +11,8 @@ namespace Nid.Host.Api.Json;
 [JsonSerializable(typeof(WorkerView))]
 [JsonSerializable(typeof(RegisteredWorker))]
 [JsonSerializable(typeof(NidKeyRotation))]
+[JsonSerializable(typeof(WorkerTestResult))]
+[JsonSerializable(typeof(Nid.Ai.Application.ModelJobView))]
 [JsonSerializable(typeof(AiEndpoints.RegisterWorkerBody))]
 [JsonSerializable(typeof(AiEndpoints.PairWorkerBody))]
 [JsonSerializable(typeof(AiEndpoints.RenameWorkerBody))]

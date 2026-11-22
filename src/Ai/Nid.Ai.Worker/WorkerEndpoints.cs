@@ -170,7 +170,7 @@ public static class WorkerEndpoints
         context.Response.ContentType = "application/octet-stream";
         var writer = new ResponseWriter(secret, context.Response.Body);
         var ct = context.RequestAborted;
-        if (handlers.FirstOrDefault(h => h.Type == type && h.Version == version) is not { } handler)
+        if (handlers.LastOrDefault(h => h.Type == type && h.Version == version) is not { } handler)
         {
             await writer.WriteAsync(FrameType.Error, "unsupported"u8.ToArray(), ct);
             return;

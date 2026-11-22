@@ -180,7 +180,7 @@ public sealed class DispatcherTests(PostgresFixture fixture) : IClassFixture<Pos
         return await scope.ServiceProvider.GetRequiredService<IModelJobs>().SubmitAsync(request, TestContext.Current.CancellationToken);
     }
 
-    private static async Task<JobView> ViewAsync(PairedWorld world, Guid id)
+    private static async Task<ModelJobView> ViewAsync(PairedWorld world, Guid id)
     {
         await using var scope = Scope(world);
         return (await scope.ServiceProvider.GetRequiredService<IModelJobs>().GetAsync(id, TestContext.Current.CancellationToken))!;
@@ -200,7 +200,7 @@ public sealed class DispatcherTests(PostgresFixture fixture) : IClassFixture<Pos
 
     /// <summary>Monitor and dispatcher passes, as the scheduler runs them, the clock moving <paramref name="step"/> (31 s by
     /// default) between them, until the job reaches what the test waits for.</summary>
-    private static async Task<JobView> RunUntilAsync(PairedWorld world, Guid id, Func<JobView, bool> until, Duration? step = null)
+    private static async Task<ModelJobView> RunUntilAsync(PairedWorld world, Guid id, Func<ModelJobView, bool> until, Duration? step = null)
     {
         for (var i = 0; i < 80; i++)
         {

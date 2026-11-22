@@ -104,6 +104,11 @@ public interface IWorkerClient
     Task<SubmittedJob> SubmitJobAsync(WorkerRecord worker, NidKey key, Protocol.Contracts.JobSubmission submission, CancellationToken ct);
 
     Task<PolledJob> PollJobAsync(WorkerRecord worker, NidKey key, string workerJobId, CancellationToken ct);
+
+    /// <summary>A request's answer, frame by frame as the worker sends it; a call that cannot start, or a stream that breaks,
+    /// throws <see cref="WorkerCallException"/>.</summary>
+    IAsyncEnumerable<Protocol.Framing.Frame> StreamAsync(
+        WorkerRecord worker, NidKey key, string type, int version, byte[] input, Protocol.Framing.FrameLimits limits, CancellationToken ct);
 }
 
 public sealed record SubmittedJob(string WorkerJobId, byte[] ResponseSecret);
