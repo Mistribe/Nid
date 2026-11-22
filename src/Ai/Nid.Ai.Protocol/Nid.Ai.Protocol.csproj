@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="NSign.AspNetCore" />
+    <PackageReference Include="NSign.Client" />
+    <PackageReference Include="NSign.SignatureProviders" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Nid.Ai.Tests" />
+  </ItemGroup>
+</Project>

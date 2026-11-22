@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/src/Ai/">
+    <Project Path="src/Ai/Nid.Ai.Protocol/Nid.Ai.Protocol.csproj" />
+  </Folder>
   <Folder Name="/src/Banking/">
     <Project Path="src/Banking/Nid.Banking.Application/Nid.Banking.Application.csproj" />
     <Project Path="src/Banking/Nid.Banking.Contracts/Nid.Banking.Contracts.csproj" />
@@ -64,6 +67,7 @@
     <Project Path="src/Subscriptions/Nid.Subscriptions.Infrastructure/Nid.Subscriptions.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Nid.Ai.Tests/Nid.Ai.Tests.csproj" />
     <Project Path="tests/Nid.Banking.IntegrationTests/Nid.Banking.IntegrationTests.csproj" />
     <Project Path="tests/Nid.Banking.Tests/Nid.Banking.Tests.csproj" />
     <Project Path="tests/Nid.Childcare.IntegrationTests/Nid.Childcare.IntegrationTests.csproj" />
