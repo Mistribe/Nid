@@ -50,6 +50,7 @@ public sealed class ContractSchemaTests
     [InlineData("{\"text\": \"hi\", \"frames\": 101}")]
     [InlineData("{\"text\": null, \"frames\": 2}")] // null where none is allowed
     [InlineData("not json")]
+    [InlineData("{\"text\": \"hi\", \"frames\": 200, \"frames\": 2}")] // duplicate key: two readers could disagree
     public void A_bad_echo_request_is_refused(string json)
         => Assert.Equal("contract_invalid",
             Assert.Throws<ProtocolException>(() => ContractJson.Read<EchoRequestInput>(Encoding.UTF8.GetBytes(json))).Code);
@@ -61,6 +62,15 @@ public sealed class ContractSchemaTests
     public void A_bad_model_is_refused(string capability, string extra)
         => Assert.Equal("contract_invalid",
             Assert.Throws<ProtocolException>(() => ContractJson.Read<WorkerDeclaration>(Declaration(Model(capability, extra)))).Code);
+
+    [Fact]
+    public void A_null_list_element_is_refused()
+    {
+        var json = Encoding.UTF8.GetString(Declaration(Model("chat", ""))).Replace("[{\"type\": \"echo\", \"version\": 1}]", "[null]");
+
+        Assert.Equal("contract_invalid",
+            Assert.Throws<ProtocolException>(() => ContractJson.Read<WorkerDeclaration>(Encoding.UTF8.GetBytes(json))).Code);
+    }
 
     private static string Model(string capability, string extra)
         => $$"""{"capability": "{{capability}}", "name": "m", "digest": "sha256:ab", "contextTokens": 8192, "maxOutputTokens": 1024{{extra}}}""";

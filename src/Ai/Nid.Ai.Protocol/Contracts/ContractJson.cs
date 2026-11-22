@@ -4,7 +4,8 @@ using System.Text.Json.Serialization;
 
 namespace Nid.Ai.Protocol.Contracts;
 
-/// <summary>A contract checked by more than its shape (ranges, fields one capability needs).</summary>
+/// <summary>A contract checked by more than its shape (ranges, fields one capability needs). List elements may be
+/// <c>null</c> here: the serializer does not check them.</summary>
 public interface IContract
 {
     bool IsValid();
@@ -17,6 +18,7 @@ public static class ContractJson
     public static JsonSerializerOptions Strict { get; } = new(JsonSerializerDefaults.Web)
     {
         UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
+        AllowDuplicateProperties = false,
         RespectRequiredConstructorParameters = true,
         RespectNullableAnnotations = true,
         NumberHandling = JsonNumberHandling.Strict,

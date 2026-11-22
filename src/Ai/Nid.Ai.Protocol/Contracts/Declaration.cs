@@ -14,9 +14,9 @@ public sealed record WorkerDeclaration(
         => SoftwareVersion.Length > 0
            && MaxConcurrentRequests >= 1
            && NidKeyFingerprint.Length == 64 && NidKeyFingerprint.All(char.IsAsciiHexDigitLower)
-           && Jobs.All(c => c.IsValid())
-           && Requests.All(c => c.IsValid())
-           && Models.All(m => m.IsValid());
+           && Jobs.All(c => c?.IsValid() == true)
+           && Requests.All(c => c?.IsValid() == true)
+           && Models.All(m => m?.IsValid() == true);
 }
 
 /// <summary>A job or request type and the contract version served: <c>contracts/{jobs,requests}/{type}/v{version}</c>.</summary>

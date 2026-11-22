@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using NSign;
 using NSign.AspNetCore;
 using NSign.Client;
+using NSign.Signatures;
 using Nid.Ai.Protocol.Signing;
 
 namespace Nid.Ai.Tests;
@@ -23,10 +24,9 @@ public sealed class SignaturePipelineTests : IAsyncLifetime
         var builder = WebApplication.CreateSlimBuilder();
         builder.WebHost.UseTestServer();
         builder.Services.AddContentDigestVerification();
-        builder.Services.AddSignatureVerification(WorkerSignatures.Verifier(_nidKey));
-        var nonces = new NonceCache(TimeProvider.System);
+        builder.Services.AddSignatureVerification(WorkerSignatures.Verifier(_nidKey, new NonceCache(TimeProvider.System)));
         builder.Services.Configure<RequestSignatureVerificationOptions>(o =>
-            WorkerSignatures.ConfigureVerification(o, nonces, TimeProvider.System));
+            WorkerSignatures.ConfigureVerification(o, TimeProvider.System));
 
         _worker = builder.Build();
         _worker.UseContentDigestVerification();
@@ -59,16 +59,16 @@ public sealed class SignaturePipelineTests : IAsyncLifetime
         => Assert.Equal(HttpStatusCode.BadRequest, await Send(Client(_nidKey, last: new SwapBody())));
 
     [Theory]
-    [InlineData(-61)]
-    [InlineData(61)]
+    [InlineData(-65)]
+    [InlineData(65)] // past 60 s by more than the whole second `created` is rounded down to
     public async Task A_signature_outside_the_window_is_refused(int seconds)
-        => AssertRefused(await Send(Client(_nidKey, created: DateTimeOffset.UtcNow.AddSeconds(seconds))));
+        => AssertRefused(await Send(Client(_nidKey, p => p.WithCreated(DateTimeOffset.UtcNow.AddSeconds(seconds)))));
 
     [Theory]
     [InlineData(-30)]
     [InlineData(30)]
     public async Task A_signature_inside_the_window_passes(int seconds)
-        => Assert.Equal(HttpStatusCode.OK, await Send(Client(_nidKey, created: DateTimeOffset.UtcNow.AddSeconds(seconds))));
+        => Assert.Equal(HttpStatusCode.OK, await Send(Client(_nidKey, p => p.WithCreated(DateTimeOffset.UtcNow.AddSeconds(seconds)))));
 
     [Fact]
     public async Task A_replayed_request_is_refused()
@@ -83,12 +83,33 @@ public sealed class SignaturePipelineTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Another_keyid_is_refused()
+    public async Task Another_key_is_refused()
     {
         using var other = ECDsa.Create(ECCurve.NamedCurves.nistP256);
 
         AssertRefused(await Send(Client(other)));
     }
+
+    [Fact]
+    public async Task The_right_key_under_another_keyid_is_refused()
+        => AssertRefused(await Send(Client(_nidKey, p => p.WithKeyId(new string('0', 64)), signerSetsParams: false)));
+
+    [Fact]
+    public async Task A_forged_request_does_not_use_up_its_nonce()
+    {
+        // A request whose signature fails must leave no trace: the nonce cache only remembers verified requests.
+        using var other = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var nonce = "forged-nonce-0123456789";
+
+        AssertRefused(await Send(Client(other, p => p.Nonce = nonce)));
+        Assert.Equal(HttpStatusCode.OK, await Send(Client(_nidKey, p => p.Nonce = nonce)));
+    }
+
+    [Theory]
+    [InlineData("short")]
+    [InlineData("a nonce far longer than any signer of this protocol would ever send, padded out to 80 chars")]
+    public async Task A_nonce_of_the_wrong_shape_is_refused(string nonce)
+        => AssertRefused(await Send(Client(_nidKey, p => p.Nonce = nonce)));
 
     /// <summary>NSign answers 401 when a signature does not verify and 400 when its parameters are refused (nonce,
     /// <c>created</c> ahead): both are a refusal, and the endpoint never ran.</summary>
@@ -107,7 +128,8 @@ public sealed class SignaturePipelineTests : IAsyncLifetime
         return response.StatusCode;
     }
 
-    private HttpClient Client(ECDsa key, DateTimeOffset? created = null, DelegatingHandler? last = null)
+    private HttpClient Client(
+        ECDsa key, Action<SignatureParamsComponent>? tweak = null, DelegatingHandler? last = null, bool signerSetsParams = true)
     {
         var services = new ServiceCollection();
         services.AddLogging();
@@ -116,13 +138,14 @@ public sealed class SignaturePipelineTests : IAsyncLifetime
         services.ConfigureMessageSigningOptions(o =>
         {
             WorkerSignatures.ConfigureSigning(o);
-            if (created is { } at)
+            o.UseUpdateSignatureParams = signerSetsParams;
+            if (tweak is not null)
             {
                 var set = o.SetParameters!;
                 o.SetParameters = p =>
                 {
                     set(p);
-                    p.WithCreated(at);
+                    tweak(p);
                 };
             }
         });
