@@ -177,8 +177,11 @@ public sealed class JobTests
         using var nid = await PairedAsync(worker);
         using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(300));
 
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+        // The test server reports the abort as a cancellation or as an IOException, depending on timing: either way the
+        // call does not end normally, and the handler stops.
+        var stopped = await Record.ExceptionAsync(() =>
             nid.CallFramesAsync($"/v1/requests/{EndlessRequest.Name}/1", "{}"u8.ToArray(), ct: cts.Token));
+        Assert.True(stopped is OperationCanceledException or IOException, stopped?.GetType().Name ?? "completed normally");
 
         Assert.True(await endless.Stopped.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
     }
