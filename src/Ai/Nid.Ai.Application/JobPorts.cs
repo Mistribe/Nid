@@ -187,4 +187,10 @@ public static class JobCodes
     public const string UnknownMode = "ai.unknown_mode";
     public const string RemoteNotAllowed = Domain.DataPolicy.RemoteNotAllowed;
     public const string NoSafeWorker = Domain.DataPolicy.NoSafeWorker;
+
+    /// <summary>#487: data a cloud provider may not see, no enabled and eligible profile left, a provider that failed or refused.</summary>
+    public const string CloudNotAllowed = "ai.cloud_not_allowed";
+    public const string NoCloudProfile = "ai.no_cloud_profile";
+    public const string CloudFailed = "ai.cloud_failed";
+    public const string CloudRefused = "ai.cloud_refused";
 }

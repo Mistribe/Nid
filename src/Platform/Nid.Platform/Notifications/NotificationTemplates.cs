@@ -231,6 +231,8 @@ public static class NotificationTemplates
             "safe_off" => $"{worker} ne reçoit plus les documents « local seulement ».",
             "cloud_on" => $"L'usage « {Use(p)} » peut désormais passer par un fournisseur cloud activé.",
             "cloud_off" => $"L'usage « {Use(p)} » ne passe plus que par les workers du foyer.",
+            "cloud_profile_on" => $"Le fournisseur cloud « {p.GetValueOrDefault("profile")} » est activé : il peut recevoir les demandes des usages ouverts au cloud.",
+            "cloud_profile_off" => $"Le fournisseur cloud « {p.GetValueOrDefault("profile")} » est désactivé.",
             _ => "",
         };
     }

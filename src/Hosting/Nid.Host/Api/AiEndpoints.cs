@@ -114,6 +114,34 @@ public static class AiEndpoints
                 => (await invoker.InvokeAsync(new ListDeclaredModelsQuery(), ct)).ToHttp(models => models))
             .Returns<DeclaredModels>();
 
+        // #487: the cloud profiles, the region, the providers' keys.
+        var cloud = routes.MapGroup("/api/v1/ai/cloud").RequireAuthorization()
+            .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>();
+        cloud.MapGet("", async (IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new GetCloudSettingsQuery(), ct)).ToHttp(view => view))
+            .Returns<CloudSettingsView>();
+        cloud.MapPut("/region", async (CloudRegionBody body, IInvoker invoker, CancellationToken ct) =>
+                body.Region is { } region
+                    ? (await invoker.InvokeAsync(new SetCloudRegionCommand(region), ct)).ToHttp(view => view)
+                    : Missing("region"))
+            .Returns<CloudSettingsView>();
+        cloud.MapPost("/profiles/{id}/enable", async (string id, EnableProfileBody body, IInvoker invoker, CancellationToken ct) =>
+                body.TermsReviewedOn is { } reviewed
+                    ? (await invoker.InvokeAsync(new EnableCloudProfileCommand(id, reviewed), ct)).ToHttp(view => view)
+                    : Missing("termsReviewedOn"))
+            .Returns<CloudSettingsView>();
+        cloud.MapPost("/profiles/{id}/disable", async (string id, IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new DisableCloudProfileCommand(id), ct)).ToHttp(view => view))
+            .Returns<CloudSettingsView>();
+        cloud.MapPut("/keys/{provider}", async (string provider, ProviderKeyBody body, IInvoker invoker, CancellationToken ct) =>
+                body.Key is { Length: > 0 } secret
+                    ? (await invoker.InvokeAsync(new SetProviderKeyCommand(provider, secret), ct)).ToHttp(view => view)
+                    : Missing("key"))
+            .Returns<CloudSettingsView>();
+        cloud.MapDelete("/keys/{provider}", async (string provider, IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new RevokeProviderKeyCommand(provider), ct)).ToHttp(view => view))
+            .Returns<CloudSettingsView>();
+
         var key = routes.MapGroup("/api/v1/ai/key").RequireAuthorization()
             .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>();
         key.MapPost("/rotate", async (IInvoker invoker, CancellationToken ct)
@@ -136,6 +164,13 @@ public static class AiEndpoints
     public sealed record UseModeBody(string? Mode);
 
     public sealed record UseModelBody(string? Model);
+
+    public sealed record CloudRegionBody(string? Region);
+
+    public sealed record EnableProfileBody(NodaTime.LocalDate? TermsReviewedOn);
+
+    /// <summary>The key is read once, stored encrypted, and never sent back.</summary>
+    public sealed record ProviderKeyBody(string? Key);
 
     private static IResult Missing(string field)
     {

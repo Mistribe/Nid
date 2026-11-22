@@ -474,6 +474,18 @@ les données. Chaque profil liste aussi ses **interrupteurs de rétention** et l
 U ; par exemple `store` des Responses d'OpenAI, vrai par défaut, mis à faux). Jev (TypeSafe AI) reste un candidat pour
 `decide`, aux conditions de #450 ; son accord de traitement des données n'est pas lu (§15).
 
+**Livré (#487)** : les profils sont des fichiers de `deploy/llm-profiles/`, embarqués dans le module `Ai` et relus au
+démarrage. Un profil mal formé, dont un fournisseur est inconnu, l'hôte invalide, les conditions sans adresse HTTPS ou
+qui laissent le fournisseur s'entraîner sur les données dans une région n'est pas chargé (journalisé). L'admin confirme la
+région du foyer, entre la clé du fournisseur (`llm_provider_credential`, chiffrée par Data Protection, indice des quatre
+derniers caractères, jamais renvoyée), puis active le profil en acceptant ses conditions datées (`cloud_profile`) ; les
+deux adultes sont prévenus (`ai.data_policy_changed`). Un usage réglé sur `self_hosted_then_cloud` passe aux profils
+activés et éligibles après les workers. Seules les classes `none` et `figures` peuvent partir vers le cloud ; `documents`
+et `bank_labels` attendent `allowed_kinds`, `local_only` jamais (§6.1) ; le consentement de chaque adulte (§6.3) vient avec
+#167 et #174. Échec passager (429, 5xx, réseau) : profil suivant ; trois échecs de suite : profil en pause 15 min ; refus
+de la demande : pas d'autre essai. Premier adaptateur : Anthropic (Messages API, `anthropic-version: 2026-10-21`, qui
+refuse la température) ; OpenAI, Gemini et Mistral suivent (#489).
+
 ### 5.5 Outils
 
 Appels d'outils **désactivés pour toutes les tâches sauf `chat`**, où seuls les outils de l'assistant (§8.2) sont

@@ -44,12 +44,19 @@ public interface ILlmProvider
 public sealed class LlmCallTrace
 {
     public Guid? WorkerId { get; set; }
+
+    /// <summary>#487: the cloud profile that served the call.</summary>
+    public string? ProfileId { get; set; }
+
+    public string? Provider { get; set; }
+
+    public string? Tier { get; set; }
 }
 
 /// <summary>One model call as <c>llm_call</c> keeps it (§11): never its content.</summary>
 public sealed record LlmCallRecord(
     Guid Id, Instant CreatedAt, Guid? PersonId, string Task, string Use, Guid? WorkerId, Guid? ConversationId, Guid? JobId, string? Model,
-    int TokensIn, int TokensOut, string Status, string? Code);
+    int TokensIn, int TokensOut, string Status, string? Code, string? ProfileId = null, string? Provider = null, string? Tier = null);
 
 public interface ILlmCalls
 {
@@ -71,7 +78,8 @@ public sealed class LlmGateway(
 {
     /// <summary>A link that refuses with one of these had nowhere to send the call: the next link may.</summary>
     private static readonly HashSet<string> NoDestination =
-        [JobCodes.NoWorker, JobCodes.AllOffline, JobCodes.RemoteNotAllowed, JobCodes.NoSafeWorker, JobCodes.ModelUnavailable];
+        [JobCodes.NoWorker, JobCodes.AllOffline, JobCodes.RemoteNotAllowed, JobCodes.NoSafeWorker, JobCodes.ModelUnavailable,
+            JobCodes.CloudNotAllowed, JobCodes.NoCloudProfile];
 
     public async IAsyncEnumerable<ChatRequestOutput> ChatAsync(LlmChatRequest request, [EnumeratorCancellation] CancellationToken ct)
     {
@@ -116,6 +124,8 @@ public sealed class LlmGateway(
                 }
 
                 ChatUsage? usage = null;
+                if (trace.ProfileId is not null)
+                    outcome.Model = null; // the profile's model: the usage frame says which
                 while (any)
                 {
                     usage = outputs.Current.Usage ?? usage;
@@ -123,6 +133,7 @@ public sealed class LlmGateway(
                     any = await NextAsync(outputs, outcome);
                 }
 
+                outcome.Model ??= usage?.Model;
                 outcome.End(usage);
                 yield break;
             }
@@ -135,7 +146,7 @@ public sealed class LlmGateway(
             // The caller may have gone: the row is written all the same.
             await calls.RecordAsync(new LlmCallRecord(Guid.CreateVersion7(), started, actors.Current?.PersonId?.Value, "chat", request.Use,
                 trace.WorkerId, request.ConversationId, request.JobId, outcome.Model, outcome.TokensIn, outcome.TokensOut, outcome.Status,
-                outcome.Code), CancellationToken.None);
+                outcome.Code, trace.ProfileId, trace.Provider, trace.Tier), CancellationToken.None);
         }
     }
 

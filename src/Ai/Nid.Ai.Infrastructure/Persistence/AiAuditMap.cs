@@ -11,6 +11,9 @@ public sealed class AiAuditMap : IAuditMap
         [typeof(AiSettingsRow)] = AuditRule.NoItem,
         [typeof(ConsentRow)] = AuditRule.NoItem,
         [typeof(AiKeyRow)] = AuditRule.NoItem with { Secret = new HashSet<string> { "private_key" } },
+        // #487: a provider's key is audited without the key (llm-providers.md §10).
+        [typeof(LlmCredentialRow)] = AuditRule.NoItem with { Secret = new HashSet<string> { "secret_encrypted" } },
+        [typeof(CloudProfileRow)] = AuditRule.NoItem,
     };
 
     /// <summary>A job's progress is operational state (sent, polled, retried), not a decision: its submission and the admin's

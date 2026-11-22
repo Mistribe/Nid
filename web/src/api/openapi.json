@@ -13228,6 +13228,548 @@
         }
       }
     },
+    "/api/v1/ai/cloud": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CloudSettingsView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ai/cloud/region": {
+      "put": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CloudRegionBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CloudSettingsView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ai/cloud/profiles/{id}/enable": {
+      "post": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnableProfileBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CloudSettingsView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ai/cloud/profiles/{id}/disable": {
+      "post": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CloudSettingsView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ai/cloud/keys/{provider}": {
+      "put": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProviderKeyBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CloudSettingsView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CloudSettingsView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/ai/key/rotate": {
       "post": {
         "tags": [
@@ -42043,6 +42585,110 @@
           }
         }
       },
+      "CloudProfileView": {
+        "required": [
+          "id",
+          "provider",
+          "tier",
+          "host",
+          "model",
+          "trainsOnData",
+          "humanReview",
+          "termsUrl",
+          "reviewedOn",
+          "reviewDue",
+          "eligible",
+          "enabled",
+          "suspended"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "tier": {
+            "type": "string"
+          },
+          "host": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "trainsOnData": {
+            "type": "boolean"
+          },
+          "humanReview": {
+            "type": "boolean"
+          },
+          "retentionDays": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "termsUrl": {
+            "type": "string"
+          },
+          "reviewedOn": {
+            "type": "string",
+            "format": "date"
+          },
+          "reviewDue": {
+            "type": "boolean"
+          },
+          "eligible": {
+            "type": "boolean"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "keyHint": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "suspended": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CloudRegionBody": {
+        "type": "object",
+        "properties": {
+          "region": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "CloudSettingsView": {
+        "required": [
+          "profiles"
+        ],
+        "type": "object",
+        "properties": {
+          "region": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "profiles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CloudProfileView"
+            }
+          }
+        }
+      },
       "ComparedScenarioView": {
         "required": [
           "id",
@@ -45844,6 +46490,18 @@
             "items": {
               "type": "string"
             }
+          }
+        }
+      },
+      "EnableProfileBody": {
+        "type": "object",
+        "properties": {
+          "termsReviewedOn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
           }
         }
       },
@@ -61270,6 +61928,17 @@
             "type": "string"
           },
           "field": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "ProviderKeyBody": {
+        "type": "object",
+        "properties": {
+          "key": {
             "type": [
               "null",
               "string"

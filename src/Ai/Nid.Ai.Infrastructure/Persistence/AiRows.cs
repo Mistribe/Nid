@@ -143,6 +143,9 @@ public sealed class AiSettingsRow
     /// <summary>#486: each use's model, set by an admin among the declared ones, jsonb.</summary>
     public string? Models { get; set; }
 
+    /// <summary>#487: <c>eea_ch_uk</c> or <c>other</c>, confirmed by an admin; none until then.</summary>
+    public string? Region { get; set; }
+
     public uint Version { get; set; }
 }
 
@@ -191,4 +194,44 @@ public sealed class LlmCallRow
 
     /// <summary>The <c>ai.*</c> code of a call that did not succeed.</summary>
     public string? Code { get; set; }
+
+    /// <summary>#487: the cloud profile that served the call, its provider and tier.</summary>
+    public string? ProfileId { get; set; }
+
+    public string? Provider { get; set; }
+
+    public string? Tier { get; set; }
+}
+
+/// <summary>A provider's API key (<c>docs/ingestion/llm-providers.md</c> §10): encrypted by Data Protection, its last four
+/// characters as a hint. One active key per provider; a replaced one is revoked.</summary>
+public sealed class LlmCredentialRow
+{
+    public Guid Id { get; set; }
+
+    public required string Provider { get; set; }
+
+    public required byte[] SecretEncrypted { get; set; }
+
+    public required string Hint { get; set; }
+
+    public Guid CreatedByPersonId { get; set; }
+
+    public Instant CreatedAt { get; set; }
+
+    public Instant? LastUsedAt { get; set; }
+
+    public Instant? RevokedAt { get; set; }
+}
+
+/// <summary>A cloud profile the household enabled: the terms accepted (their review date), who and when.</summary>
+public sealed class CloudProfileRow
+{
+    public required string ProfileId { get; set; }
+
+    public LocalDate AcceptedReviewedOn { get; set; }
+
+    public Guid EnabledByPersonId { get; set; }
+
+    public Instant EnabledAt { get; set; }
 }

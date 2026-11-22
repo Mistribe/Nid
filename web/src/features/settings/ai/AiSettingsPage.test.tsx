@@ -19,8 +19,15 @@ const worker = (over: Record<string, unknown> = {}) => ({
 
 const USES = ['chat', 'extract', 'embed', 'decide'].map((use) => ({ use, mode: 'self_hosted', model: null as string | null }));
 
-function serve(workers: unknown[], allowed = false, uses = USES) {
+const PROFILE = {
+  id: 'anthropic-claude', provider: 'anthropic', tier: 'paid', host: 'api.anthropic.com', model: 'claude-opus-5-5', trainsOnData: false,
+  humanReview: true, retentionDays: 30, termsUrl: 'https://www.anthropic.com/legal/commercial-terms', reviewedOn: '2026-11-22', reviewDue: false,
+  eligible: true, enabled: false, keyHint: null as string | null, suspended: false,
+};
+
+function serve(workers: unknown[], allowed = false, uses = USES, profile = PROFILE) {
   server.use(
+    http.get('*/api/v1/ai/cloud', () => HttpResponse.json({ region: 'eea_ch_uk', profiles: [profile] })),
     http.get('*/api/v1/ai/workers', () => HttpResponse.json({ workers })),
     http.get('*/api/v1/ai/settings', () => HttpResponse.json({ remoteWorkersAllowed: allowed, uses })),
     http.get('*/api/v1/ai/models', () => HttpResponse.json({ models: [{ name: 'llama3.2', capability: 'chat', workers: 1 }] })),
@@ -233,6 +240,56 @@ describe('Réglages › IA', () => {
     await user.click(await screen.findByRole('option', { name: 'Désactivé' }));
 
     await waitFor(() => expect(sent).toEqual([{ mode: 'off' }]));
+  });
+
+  it("lets an admin enter a provider's key, which never comes back", async () => {
+    serve([worker()]);
+    const sent: unknown[] = [];
+    server.use(http.put('*/api/v1/ai/cloud/keys/anthropic', async ({ request }) => {
+      sent.push(await request.json());
+      return HttpResponse.json({ region: 'eea_ch_uk', profiles: [{ ...PROFILE, keyHint: 'WXYZ' }] });
+    }));
+    const { user } = await renderApp('/settings/ai', { capabilities: adminCapabilities });
+
+    await user.click(await screen.findByRole('button', { name: 'Ajouter la clé' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Clé Anthropic' });
+    await user.type(within(dialog).getByLabelText("Clé d'API"), 'sk-ant-0123456789abcdef-WXYZ');
+    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer la clé' }));
+
+    await waitFor(() => expect(sent).toEqual([{ key: 'sk-ant-0123456789abcdef-WXYZ' }]));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Clé enregistrée.'));
+  });
+
+  it('enables a profile on its current terms after a confirmation, and offers the cloud to the uses', async () => {
+    serve([worker()], false, USES, { ...PROFILE, keyHint: 'WXYZ' });
+    const sent: unknown[] = [];
+    server.use(http.post('*/api/v1/ai/cloud/profiles/anthropic-claude/enable', async ({ request }) => {
+      sent.push(await request.json());
+      serve([worker()], false, USES, { ...PROFILE, keyHint: 'WXYZ', enabled: true });
+      return HttpResponse.json({ region: 'eea_ch_uk', profiles: [{ ...PROFILE, keyHint: 'WXYZ', enabled: true }] });
+    }));
+    const { user } = await renderApp('/settings/ai', { capabilities: adminCapabilities });
+
+    await user.click(await screen.findByRole('button', { name: 'Activer' }));
+    const confirm = await screen.findByRole('alertdialog');
+    expect(confirm).toHaveTextContent('Chaque adulte en sera prévenu.');
+    await user.click(within(confirm).getByRole('button', { name: 'Confirmer' }));
+
+    await waitFor(() => expect(sent).toEqual([{ termsReviewedOn: '2026-11-22' }]));
+    const assistant = (await screen.findByRole('heading', { name: 'Assistant' })).parentElement!;
+    await user.click(within(assistant).getByRole('combobox', { name: 'Réglage' }));
+    expect(await screen.findByRole('option', { name: 'Workers du foyer, puis le cloud' })).toBeInTheDocument();
+  });
+
+  it('shows every adult what a provider may do with the data, and lets only an admin act', async () => {
+    serve([worker()]);
+    await renderApp('/settings/ai');
+
+    const section = (await screen.findByRole('heading', { name: 'Fournisseurs cloud' })).closest('section')!;
+    expect(await within(section).findByText("N'entraîne pas ses modèles sur vos données")).toBeInTheDocument();
+    expect(section).toHaveTextContent('Demandes conservées 30 jours chez le fournisseur');
+    expect(within(section).queryByRole('button', { name: 'Activer' })).not.toBeInTheDocument();
+    expect(within(section).queryByRole('button', { name: 'Ajouter la clé' })).not.toBeInTheDocument();
   });
 
   it("rotates Nid's key and says what each worker needs", async () => {

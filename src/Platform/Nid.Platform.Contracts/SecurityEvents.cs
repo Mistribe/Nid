@@ -48,6 +48,18 @@ public static class SecurityEventNames
     /// <summary>#475: an adult opened or closed remote workers to the household's data (<c>allowed</c>).</summary>
     public const string AiRemoteWorkersChanged = "ai_remote_workers_changed";
 
+    /// <summary>#487: an admin confirmed the region, enabled or disabled a cloud profile, entered or revoked a provider's key
+    /// (never the key: the provider's name).</summary>
+    public const string AiCloudRegionSet = "ai_cloud_region_set";
+
+    public const string AiCloudProfileEnabled = "ai_cloud_profile_enabled";
+
+    public const string AiCloudProfileDisabled = "ai_cloud_profile_disabled";
+
+    public const string AiProviderKeySet = "ai_provider_key_set";
+
+    public const string AiProviderKeyRevoked = "ai_provider_key_revoked";
+
     /// <summary>Nid's own signing key towards workers was replaced.</summary>
     public const string NidWorkerKeyRotated = "nid_worker_key_rotated";
 
@@ -102,7 +114,7 @@ public static class SecurityEventNames
         LoginFailed, LoginLocked, PasswordReset, CredentialLinkIssued, CredentialLinkRevoked, AccountEnrolled, AccountUnlocked, SetupCompleted, TotpReset,
         // #476: the model workers and what they may see (docs/ai/README.md §12).
         ModelWorkerRegistered, ModelWorkerPaired, ModelWorkerChanged, ModelWorkerRevoked, ModelWorkerKeyRotated, NidWorkerKeyRotated,
-        AiRemoteWorkersChanged,
+        AiRemoteWorkersChanged, AiCloudRegionSet, AiCloudProfileEnabled, AiCloudProfileDisabled, AiProviderKeySet, AiProviderKeyRevoked,
     };
 }
 

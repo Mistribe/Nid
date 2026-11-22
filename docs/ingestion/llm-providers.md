@@ -44,7 +44,7 @@ Un **profil** décrit un fournisseur pour une offre donnée. Les profils sont **
 |---|---|
 | `id` | ex. `gemini-free`, `gemini-paid`, `openai-paid`, `anthropic-paid` |
 | `provider`, `tier` | Fournisseur ; offre : `free` ou `paid`. Les modèles des workers appariés ne sont pas des profils : ils viennent de la déclaration du worker (`../ai/README.md` §3.4) |
-| `host` | Hôte autorisé pour le `SafeHttpClient` |
+| `host` | Le seul hôte que l'adaptateur du profil peut joindre (§9) |
 | `model` | Modèle utilisé ; configurable, non figé dans le code |
 | `capabilities` | `vision`, `pdf_input`, `structured_output`, `max_pages`, `max_input_mb` |
 | `data_terms` | `trains_on_data` (par région), `human_review`, `retention_days?`, `retention_switches` (interrupteurs de rétention du fournisseur et valeur imposée par l'adaptateur, par exemple `store: false` pour les Responses d'OpenAI, `../ai/README.md` §5.4), `terms_url`, `reviewed_on` |
@@ -155,14 +155,17 @@ usage (nid : extraction, chat, index, decide)
 passerelle LLM (nid)
    ├─ politique : usage activé, éligibilité, consentement, budget
    ├─ HPKE ──> worker apparié ──> moteur LLM (réseau du worker, jamais exposé)
-   └─ SafeHttpClient ──> Gemini / OpenAI / Anthropic / Mistral (hôtes des profils activés)
+   └─ client Myelin en flux ──> Gemini / OpenAI / Anthropic / Mistral (hôtes des profils activés)
 ```
 
 - **Adaptateurs** derrière une interface `ILlmProvider` : `WorkerProvider` (modèles des workers appariés), `GeminiProvider`, `OpenAiProvider`, `AnthropicProvider`. Appels HTTP avec JSON source-généré ; le recours aux SDK officiels reste à évaluer.
 - **Entrée** : usage, `task` (`extract`, `ocr`, `chat`, `embed`, `decide`), contenu (texte et/ou images), identifiant de schéma, rapport de masquage ; `job_id` ou `conversation_id`.
 - **Contrôles avant tout appel** : l'usage est activé, la tâche est autorisée pour cet usage, taille bornée, quotas, éligibilité, budget, consentement du document. Le **modèle est imposé par le profil**.
 - **Aucun outil**, sauf pour la tâche `chat` de l'assistant, qui ne déclare que ses outils (`../ai/README.md` §5.5 et §8.2) : function calling désactivé pour toutes les autres tâches. Sortie structurée quand le fournisseur la propose, et **toujours validée par schéma côté serveur**.
-- **Sortie du réseau** : seul `nid` sort, par le `SafeHttpClient`, vers les hôtes des profils activés.
+- **Sortie du réseau** : seul `nid` sort, vers les hôtes des profils activés. Le `SafeHttpClient` lit des réponses
+  entières ; un tour de chat arrive en flux. Les adaptateurs passent donc par un `HttpClient` qui n'accepte que HTTPS vers
+  l'hôte d'un profil chargé, posé sur les contrôles d'adresse de Myelin (`MyelinHandler`, ni adresse privée ni rebinding
+  DNS), comme les workers (`../ai/README.md` §3.5). #487.
 - **Modèles auto-hébergés** : servis par un worker apparié, jamais joints directement (Ollama, vLLM et llama.cpp tournent derrière le worker, `../ai/README.md` §3) ; « Ollama joint par la passerelle sur le réseau `workers` » est abandonné (#171).
 - **OCR** : local par défaut (Tesseract dans le worker). La vision d'un fournisseur suit exactement les mêmes règles.
 

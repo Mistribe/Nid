@@ -9,6 +9,7 @@ const KNOWN = new Set([
   'credential_link_revoked', 'account_enrolled', 'account_unlocked', 'setup_completed', 'totp_enabled', 'totp_disabled', 'totp_reset',
   'recovery_code_used', 'recovery_codes_regenerated',
   'model_worker_registered', 'model_worker_paired', 'model_worker_changed', 'model_worker_revoked', 'model_worker_key_rotated', 'nid_worker_key_rotated', 'ai_remote_workers_changed',
+  'ai_cloud_region_set', 'ai_cloud_profile_enabled', 'ai_cloud_profile_disabled', 'ai_provider_key_set', 'ai_provider_key_revoked',
 ]);
 
 /** The one place an event gets its name for people (1F3a spec §7). */
