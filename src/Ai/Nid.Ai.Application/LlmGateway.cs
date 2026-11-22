@@ -51,12 +51,18 @@ public sealed class LlmCallTrace
     public string? Provider { get; set; }
 
     public string? Tier { get; set; }
+
+    /// <summary>#488: what the call held back on the budget, and what it was settled at.</summary>
+    public decimal? ReservedEur { get; set; }
+
+    public decimal? CostEur { get; set; }
 }
 
 /// <summary>One model call as <c>llm_call</c> keeps it (§11): never its content.</summary>
 public sealed record LlmCallRecord(
     Guid Id, Instant CreatedAt, Guid? PersonId, string Task, string Use, Guid? WorkerId, Guid? ConversationId, Guid? JobId, string? Model,
-    int TokensIn, int TokensOut, string Status, string? Code, string? ProfileId = null, string? Provider = null, string? Tier = null);
+    int TokensIn, int TokensOut, string Status, string? Code, string? ProfileId = null, string? Provider = null, string? Tier = null,
+    decimal? ReservedEur = null, decimal? CostEur = null);
 
 public interface ILlmCalls
 {
@@ -146,7 +152,7 @@ public sealed class LlmGateway(
             // The caller may have gone: the row is written all the same.
             await calls.RecordAsync(new LlmCallRecord(Guid.CreateVersion7(), started, actors.Current?.PersonId?.Value, "chat", request.Use,
                 trace.WorkerId, request.ConversationId, request.JobId, outcome.Model, outcome.TokensIn, outcome.TokensOut, outcome.Status,
-                outcome.Code, trace.ProfileId, trace.Provider, trace.Tier), CancellationToken.None);
+                outcome.Code, trace.ProfileId, trace.Provider, trace.Tier, trace.ReservedEur, trace.CostEur), CancellationToken.None);
         }
     }
 
@@ -192,7 +198,9 @@ public sealed class LlmGateway(
         public int TokensOut { get; private set; }
 
         public void Fail(string code)
-            => (Status, Code) = (code is JobCodes.UseOff or JobCodes.NoModel || NoDestination.Contains(code) ? LlmCallStatus.NoDestination : LlmCallStatus.Error, code);
+            => (Status, Code) = (code == JobCodes.BudgetBlocked ? LlmCallStatus.BlockedBudget
+                : code is JobCodes.UseOff or JobCodes.NoModel || NoDestination.Contains(code) ? LlmCallStatus.NoDestination
+                : LlmCallStatus.Error, code);
 
         public void End(ChatUsage? usage)
         {

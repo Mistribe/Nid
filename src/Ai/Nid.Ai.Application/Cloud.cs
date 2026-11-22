@@ -118,9 +118,12 @@ public sealed class CloudBreaker(IClock clock)
 /// The enabled cloud profiles, after the workers (§5.3), for a use set to <c>self_hosted_then_cloud</c>: eligible in the
 /// household's region, with a key, not suspended. A transient failure before any output moves to the next profile; a
 /// refusal does not. Local-only data never goes there; documents and bank labels wait for <c>allowed_kinds</c> (§6.1).
+/// A paid profile first reserves the turn's upper bound on the month's budget (#488): over the ceiling, or without an
+/// exchange rate, it is skipped, and with nothing else left the call is blocked.
 /// </summary>
 public sealed class CloudProvider(
-    ILlmProfiles profiles, ICloudSettings settings, IEnumerable<ICloudAdapter> adapters, CloudBreaker breaker, IClock clock) : ILlmProvider
+    ILlmProfiles profiles, ICloudSettings settings, IEnumerable<ICloudAdapter> adapters, CloudBreaker breaker, IClock clock,
+    IBudget budget, BudgetPrices prices, BudgetNotices notices) : ILlmProvider
 {
     /// <summary>The classes that may reach a cloud provider today: nothing, or figures in the chat (§6.1).</summary>
     private static readonly HashSet<string> CloudClasses = [DataClasses.None, DataClasses.Figures];
@@ -138,45 +141,87 @@ public sealed class CloudProvider(
         // A profile is used under the terms it was enabled on: terms reviewed since must be accepted again.
         var enabled = (await settings.EnabledAsync(ct)).ToDictionary(e => e.ProfileId, e => e.AcceptedReviewedOn, StringComparer.Ordinal);
         var candidates = profiles.All
-            .Where(p => enabled.TryGetValue(p.Id, out var accepted) && accepted == p.DataTerms.ReviewedOn && region is not null && p.EligibleIn(region) && p.Capabilities.Contains(ModelUses.Chat)
-                        && !breaker.IsSuspended(p.Id))
+            .Where(p => enabled.TryGetValue(p.Id, out var accepted) && accepted == p.DataTerms.ReviewedOn && region is not null && p.EligibleIn(region)
+                        && p.Capabilities.Contains(ModelUses.Chat) && !breaker.IsSuspended(p.Id))
             .ToList();
 
+        var blocked = false;
         foreach (var profile in candidates)
         {
             if (adapters.FirstOrDefault(a => a.Provider == profile.Provider) is not { } adapter
                 || await settings.KeyAsync(profile.Provider, clock.GetCurrentInstant(), ct) is not { } key)
                 continue;
 
-            await using var outputs = adapter.ChatAsync(profile, key, input with { Model = profile.Model }, ct).GetAsyncEnumerator(ct);
-            bool any;
+            var turn = input with { Model = profile.Model };
+            var hold = await ReserveAsync(profile, turn, ct);
+            if (hold is { Blocked: true })
+            {
+                blocked = true; // over the month's ceiling, or no rate to price it: a free profile may still take it
+                continue;
+            }
+
+            var spent = (decimal?)null; // what the turn is settled at, once known
             try
             {
-                any = await outputs.MoveNextAsync();
-            }
-            catch (CloudCallException e) when (e.Kind == CloudFailure.Transient)
-            {
-                breaker.Failed(profile.Id);
-                continue; // quota, 429, 5xx: the next profile (§5.3)
-            }
-            catch (CloudCallException e)
-            {
-                throw new ModelCallException(e.Code);
-            }
+                await using var outputs = adapter.ChatAsync(profile, key, turn, ct).GetAsyncEnumerator(ct);
+                bool any;
+                try
+                {
+                    any = await outputs.MoveNextAsync();
+                }
+                catch (CloudCallException e) when (e.Kind == CloudFailure.Transient)
+                {
+                    spent = 0; // refused before answering: nothing billed
+                    breaker.Failed(profile.Id);
+                    continue; // quota, 429, 5xx: the next profile (§5.3)
+                }
+                catch (CloudCallException e)
+                {
+                    spent = 0;
+                    throw new ModelCallException(e.Code);
+                }
 
-            (trace.ProfileId, trace.Provider, trace.Tier) = (profile.Id, profile.Provider, profile.Tier);
-            while (any)
-            {
-                yield return outputs.Current;
-                any = await NextAsync(outputs);
-            }
+                (trace.ProfileId, trace.Provider, trace.Tier, trace.ReservedEur) = (profile.Id, profile.Provider, profile.Tier, hold?.Amount);
+                ChatUsage? usage = null;
+                while (any)
+                {
+                    usage = outputs.Current.Usage ?? usage;
+                    yield return outputs.Current;
+                    any = await NextAsync(outputs);
+                }
 
-            breaker.Succeeded(profile.Id);
-            yield break;
+                breaker.Succeeded(profile.Id);
+                if (usage is not null && profile.Pricing is { } pricing)
+                    spent = await prices.EurAsync(pricing, usage.TokensIn, usage.TokensOut, ct);
+                trace.CostEur = spent ?? hold?.Amount;
+                yield break;
+            }
+            finally
+            {
+                // A turn cut without its usage is settled at what it held back (§7).
+                if (hold is { Reservation: { } reservation, Amount: var amount }
+                    && await budget.SettleAsync(reservation, spent ?? amount, CancellationToken.None) is { } settled)
+                    await notices.AfterAsync(settled, CancellationToken.None);
+            }
         }
 
-        throw new ModelCallException(JobCodes.NoCloudProfile);
+        throw new ModelCallException(blocked ? JobCodes.BudgetBlocked : JobCodes.NoCloudProfile);
     }
+
+    /// <summary>A paid profile's hold on the month's budget; null for a free one.</summary>
+    private async Task<Hold?> ReserveAsync(LlmProfile profile, ChatRequestInput turn, CancellationToken ct)
+    {
+        if (profile.Tier != "paid" || profile.Pricing is not { } pricing)
+            return null;
+        var bound = await prices.UpperBoundAsync(pricing, new ChatRequestInputSize(ContractJson.Write(turn).Length, turn.MaxTokens), ct);
+        if (bound is not { } amount)
+            return new Hold(null, 0, Blocked: true); // with no rate, a paid call is blocked (§7)
+        var now = clock.GetCurrentInstant();
+        var reservation = await budget.ReserveAsync(BudgetMonths.Of(now), amount, now + BudgetMonths.ReservationFor, ct);
+        return reservation is null ? new Hold(null, amount, Blocked: true) : new Hold(reservation, amount, Blocked: false);
+    }
+
+    private sealed record Hold(Guid? Reservation, decimal Amount, bool Blocked);
 
     private static async Task<bool> NextAsync(IAsyncEnumerator<ChatRequestOutput> outputs)
     {
@@ -188,5 +233,20 @@ public sealed class CloudProvider(
         {
             throw new ModelCallException(e.Code); // after output: no other profile can take the rest
         }
+    }
+}
+
+/// <summary>Settles the reservations no answer settled (a crash, a lost stream), at what they held back.</summary>
+public interface IBudgetSweep
+{
+    Task RunOnceAsync(CancellationToken ct);
+}
+
+public sealed class BudgetSweep(IBudget budget, BudgetNotices notices, IClock clock) : IBudgetSweep
+{
+    public async Task RunOnceAsync(CancellationToken ct)
+    {
+        foreach (var settled in await budget.SettleExpiredAsync(clock.GetCurrentInstant(), ct))
+            await notices.AfterAsync(settled, ct);
     }
 }

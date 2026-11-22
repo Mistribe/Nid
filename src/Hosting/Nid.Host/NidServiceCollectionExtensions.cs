@@ -304,6 +304,11 @@ public static class NidServiceCollectionExtensions
         services.TryAddSingleton<Nid.Ai.Application.ILlmProfiles, Nid.Ai.Infrastructure.Cloud.LlmProfileLoader>();
         services.AddScoped<Nid.Ai.Application.ICloudSettings, Nid.Ai.Infrastructure.Persistence.CloudSettingsStore>();
         services.AddSingleton<Nid.Ai.Application.CloudBreaker>();
+        // #488: the household's monthly budget for paid providers.
+        services.AddScoped<Nid.Ai.Application.IBudget, Nid.Ai.Infrastructure.Persistence.BudgetStore>();
+        services.AddScoped<Nid.Ai.Application.BudgetPrices>();
+        services.AddScoped<Nid.Ai.Application.BudgetNotices>();
+        services.AddScoped<Nid.Ai.Application.IBudgetSweep, Nid.Ai.Application.BudgetSweep>();
         services.TryAddSingleton(sp =>
         {
             var hosts = sp.GetRequiredService<Nid.Ai.Application.ILlmProfiles>().All.Select(p => p.Host);

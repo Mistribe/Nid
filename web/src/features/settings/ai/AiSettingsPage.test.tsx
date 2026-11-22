@@ -25,8 +25,11 @@ const PROFILE = {
   eligible: true, enabled: false, keyHint: null as string | null, suspended: false,
 };
 
+const BUDGET = { monthlyBudgetEur: '20.00', month: '2026-11-01', spentEur: '16.50', reservedEur: '0.40', remainingEur: '3.10', status: 'alert' };
+
 function serve(workers: unknown[], allowed = false, uses = USES, profile = PROFILE) {
   server.use(
+    http.get('*/api/v1/ai/budget', () => HttpResponse.json(BUDGET)),
     http.get('*/api/v1/ai/cloud', () => HttpResponse.json({ region: 'eea_ch_uk', profiles: [profile] })),
     http.get('*/api/v1/ai/workers', () => HttpResponse.json({ workers })),
     http.get('*/api/v1/ai/settings', () => HttpResponse.json({ remoteWorkersAllowed: allowed, uses })),
@@ -290,6 +293,33 @@ describe('Réglages › IA', () => {
     expect(section).toHaveTextContent('Demandes conservées 30 jours chez le fournisseur');
     expect(within(section).queryByRole('button', { name: 'Activer' })).not.toBeInTheDocument();
     expect(within(section).queryByRole('button', { name: 'Ajouter la clé' })).not.toBeInTheDocument();
+  });
+
+  it("shows the month's spend as the server counts it, and its alert", async () => {
+    serve([worker()]);
+    await renderApp('/settings/ai');
+
+    const section = (await screen.findByRole('heading', { name: 'Budget du cloud' })).closest('section')!;
+    expect(await within(section).findByText(/16,50\s€ dépensés sur 20,00\s€ ; il reste 3,10\s€/)).toBeInTheDocument();
+    expect(within(section).getByRole('status')).toHaveTextContent('80 % du budget du mois est dépensé.');
+  });
+
+  it('lets any adult set the ceiling, sent as the decimal they typed', async () => {
+    serve([worker()]);
+    const sent: unknown[] = [];
+    server.use(http.put('*/api/v1/ai/budget', async ({ request }) => {
+      sent.push(await request.json());
+      return HttpResponse.json({ ...BUDGET, monthlyBudgetEur: '30.00', status: 'ok' });
+    }));
+    const { user } = await renderApp('/settings/ai');
+
+    const field = await screen.findByLabelText('Plafond mensuel (€)');
+    await user.clear(field);
+    await user.type(field, '30,00');
+    await user.click(within(field.closest('form')!).getByRole('button', { name: 'Enregistrer' }));
+
+    await waitFor(() => expect(sent).toEqual([{ monthlyBudgetEur: '30.00' }]));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Budget enregistré.'));
   });
 
   it("rotates Nid's key and says what each worker needs", async () => {

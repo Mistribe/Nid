@@ -25,6 +25,7 @@ public sealed partial class ModelWorkLoop(IServiceScopeFactory scopes, ILogger<M
             {
                 nextWorkers = DateTimeOffset.UtcNow + WorkersEvery;
                 await PassAsync<IWorkerMonitor>((m, ct) => m.RunOnceAsync(ct), stoppingToken);
+                await PassAsync<IBudgetSweep>((s, ct) => s.RunOnceAsync(ct), stoppingToken); // #488: holds no answer settled
             }
 
             await PassAsync<IJobDispatcher>((d, ct) => d.RunOnceAsync(ct), stoppingToken);

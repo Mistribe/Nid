@@ -142,6 +142,22 @@ public static class AiEndpoints
                 => (await invoker.InvokeAsync(new RevokeProviderKeyCommand(provider), ct)).ToHttp(view => view))
             .Returns<CloudSettingsView>();
 
+        // #488: the household's monthly budget for paid providers.
+        var budget = routes.MapGroup("/api/v1/ai/budget").RequireAuthorization()
+            .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>();
+        budget.MapGet("", async (IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new GetBudgetQuery(), ct)).ToHttp(view => view))
+            .Returns<AiBudgetView>();
+        budget.MapPut("", async (AiBudgetBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var amount = reader.Decimal(body.MonthlyBudgetEur, "monthlyBudgetEur");
+                return amount is { } eur
+                    ? (await invoker.InvokeAsync(new SetMonthlyBudgetCommand(eur), ct)).ToHttp(view => view)
+                    : body.MonthlyBudgetEur is null ? Missing("monthlyBudgetEur") : reader.Problem();
+            })
+            .Returns<AiBudgetView>();
+
         var key = routes.MapGroup("/api/v1/ai/key").RequireAuthorization()
             .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>();
         key.MapPost("/rotate", async (IInvoker invoker, CancellationToken ct)
@@ -166,6 +182,9 @@ public static class AiEndpoints
     public sealed record UseModelBody(string? Model);
 
     public sealed record CloudRegionBody(string? Region);
+
+    /// <summary>A decimal string in euros, such as <c>"12.50"</c>.</summary>
+    public sealed record AiBudgetBody(string? MonthlyBudgetEur);
 
     public sealed record EnableProfileBody(NodaTime.LocalDate? TermsReviewedOn);
 

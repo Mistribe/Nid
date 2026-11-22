@@ -16,6 +16,10 @@ public static class PlatformNotificationKinds
         new("job_failed", NotificationFamilies.Health, NotificationLevel.Action, "platform", null),
         // #475: what may reach a remote or a safe model worker changed; every adult is told (docs/ai/README.md §12).
         new("ai.data_policy_changed", NotificationFamilies.Security, NotificationLevel.Critical, "ai", null),
+        // #488: the budget for paid model providers: changed, 80 % spent, reached (blocked until the 1st).
+        new("ai.budget_changed", NotificationFamilies.Security, NotificationLevel.Info, "ai", null),
+        new("ai.budget_alert", NotificationFamilies.Action, NotificationLevel.Action, "ai", null),
+        new("ai.budget_reached", NotificationFamilies.Action, NotificationLevel.Critical, "ai", null),
         .. AccountNotices.Kinds,
     ];
 }
