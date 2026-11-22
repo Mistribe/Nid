@@ -382,6 +382,17 @@ enregistrés** de Myelin 1.2.0 (`AllowRegisteredEndpoints`, `IRegisteredEndpoint
   ligne `job`, supprimé avec le résultat. S'il est perdu (redémarrage sans lui, trousseau perdu), Nid renvoie le job.
 - Nid ouvre chaque trame, vérifie les bornes (octets, durée, nombre de trames), puis émet ses **propres** événements vers
   le navigateur (sur la session, même origine) : jamais les octets du worker.
+- **Format retenu** (#472, `src/Ai/Nid.Ai.Protocol`, partagé par Nid et le worker) :
+  - requête : `enc || texte chiffré`, `info` = `nid-worker request v1` ; secret exporté de 16 octets, contexte
+    `nid-worker response v1` ;
+  - réponse : un nonce de réponse de 16 octets, puis chaque trame en `longueur (4 octets, gros-boutien) || trame scellée` ;
+    clé et nonce selon RFC 9458 §4.4 (`sel = enc || nonce de réponse`, étiquettes `key` et `nonce`), nonce de la trame
+    *i* = nonce de base XOR *i* ;
+  - bornes par défaut côté Nid : 64 Kio par trame, 10 000 trames, 16 Mio par réponse ;
+  - signatures RFC 9421 par NSign, étiquette `nid-worker`, vérifiée d'abord contre l'exemple §B.2.4 de la RFC ; un
+    nonce est gardé 5 minutes ;
+  - contrats : des types C# lus strictement (aucun champ inconnu, chaque champ présent, puis les bornes) ; les schémas de
+    `contracts/` en sont générés, et un test échoue s'ils divergent.
 
 ### 4.3 Annulation et bornes
 
@@ -707,7 +718,8 @@ et §3, `authorization.md`), `../security/` (`infrastructure.md`, `README.md`, `
 ## 15. Ce qui reste ouvert
 
 - **HPKE** : l'API de .NET 11 est encore expérimentale ; la revoir à chaque version majeure de .NET (elle peut changer
-  de forme en devenant stable). Côté worker, la même suite, testée contre les mêmes vecteurs (#166).
+  de forme en devenant stable). Le worker est en .NET et partage `Nid.Ai.Protocol` avec Nid : une seule implémentation,
+  rejouée contre les vecteurs de l'annexe A à chaque build (#472).
 - **Jev** : accord de traitement des données à lire ; rétention, relecture humaine et région non documentées
   (`../ingestion/llm-providers.md` §14.1).
 - **Données de tiers** dans le chat (coordonnées d'une assistante maternelle, personnes à charge) : les retenir aussi
