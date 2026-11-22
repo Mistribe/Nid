@@ -13,4 +13,5 @@ namespace Nid.Host.Api.Json;
 [JsonSerializable(typeof(NidKeyRotation))]
 [JsonSerializable(typeof(AiEndpoints.RegisterWorkerBody))]
 [JsonSerializable(typeof(AiEndpoints.PairWorkerBody))]
+[JsonSerializable(typeof(AiEndpoints.RenameWorkerBody))]
 public sealed partial class AiJsonContext : JsonSerializerContext;

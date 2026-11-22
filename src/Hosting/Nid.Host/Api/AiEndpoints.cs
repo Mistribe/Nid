@@ -37,7 +37,37 @@ public static class AiEndpoints
                     : reader.Problem();
             })
             .Returns<WorkerView>();
+
+        api.MapPatch("/{id:guid}", async (Guid id, RenameWorkerBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var name = reader.Text(body.Name, "name");
+                return reader.Ok
+                    ? (await invoker.InvokeAsync(new RenameWorkerCommand(id, name!), ct)).ToHttp(view => view)
+                    : reader.Problem();
+            })
+            .Returns<WorkerView>();
+
+        MapAction(api, "disable", id => new DisableWorkerCommand(id));
+        MapAction(api, "enable", id => new EnableWorkerCommand(id));
+        MapAction(api, "revoke", id => new RevokeWorkerCommand(id));
+        MapAction(api, "rotate-key", id => new RotateWorkerKeyCommand(id));
+        MapAction(api, "refresh", id => new RefreshWorkerCommand(id));
+
+        var key = routes.MapGroup("/api/v1/ai/key").RequireAuthorization()
+            .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>();
+        key.MapPost("/rotate", async (IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new RotateNidKeyCommand(), ct)).ToHttp(rotation => rotation))
+            .Returns<NidKeyRotation>();
     }
+
+    private static void MapAction<TCommand>(RouteGroupBuilder api, string action, Func<Guid, TCommand> command)
+        where TCommand : ICommand<WorkerView>
+        => api.MapPost($"/{{id:guid}}/{action}", async (Guid id, IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(command(id), ct)).ToHttp(view => view))
+            .Returns<WorkerView>();
+
+    public sealed record RenameWorkerBody(string? Name);
 
     public sealed record RegisterWorkerBody(string? Name, string? Url, string? Placement, bool? ProxyDeclared)
     {
