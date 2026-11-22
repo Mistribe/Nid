@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Ai\Nid.Ai.Protocol\Nid.Ai.Protocol.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\vectors\rfc9180\**\*" LinkBase="vectors\rfc9180" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

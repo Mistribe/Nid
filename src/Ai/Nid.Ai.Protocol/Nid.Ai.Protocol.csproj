@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <InternalsVisibleTo Include="Nid.Ai.Tests" />
+  </ItemGroup>
+</Project>
