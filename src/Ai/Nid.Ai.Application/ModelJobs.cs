@@ -21,8 +21,12 @@ public abstract class ModelContract<TIn, TOut>(ModelCallKind kind, string type, 
 
     public bool ValidInput(ReadOnlySpan<byte> input) => TryRead<TIn>(input, out _);
 
+    /// <summary>The output as Nid keeps it; null when it does not follow the contract or holds a NUL character, which
+    /// Postgres cannot store.</summary>
     public string? ReadOutput(ReadOnlySpan<byte> output)
-        => TryRead<TOut>(output, out var read) ? Encoding.UTF8.GetString(ContractJson.Write(read!)) : null;
+        => TryRead<TOut>(output, out var read) && Encoding.UTF8.GetString(ContractJson.Write(read!)) is var json && !json.Contains("\\u0000", StringComparison.Ordinal)
+            ? json
+            : null;
 
     private static bool TryRead<T>(ReadOnlySpan<byte> json, out T? value) where T : IContract
     {
@@ -114,6 +118,8 @@ public sealed class WorkerRouter(IWorkerStore workers, IClock clock) : IWorkerRo
             .ToList();
         return new Route(ordered, ordered.Count == 0 ? JobCodes.NoWorker : null);
     }
+
+    public static WorkerDeclaration? DeclarationOf(WorkerRecord worker) => Declaration(worker);
 
     private static WorkerDeclaration? Declaration(WorkerRecord worker)
     {

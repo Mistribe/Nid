@@ -18,6 +18,10 @@ public sealed class WorkerClient(HttpClient http) : IWorkerClient, IDisposable
 {
     public void Dispose() => http.Dispose();
 
+    /// <summary>A call's time: 30 s; sending a job's file, up to 10 min.</summary>
+    public static readonly TimeSpan CallTimeout = TimeSpan.FromSeconds(30);
+    public static readonly TimeSpan SubmitTimeout = TimeSpan.FromMinutes(10);
+
     private static readonly FrameLimits Limits = new(MaxFramePlaintext: 64 * 1024, MaxFrames: 4, MaxTotalPlaintext: 256 * 1024);
 
     public async Task<WorkerKey> GetKeyAsync(Uri url, CancellationToken ct)
@@ -67,7 +71,8 @@ public sealed class WorkerClient(HttpClient http) : IWorkerClient, IDisposable
     public async Task<SubmittedJob> SubmitJobAsync(WorkerRecord worker, NidKey key, JobSubmission submission, CancellationToken ct)
     {
         Active(worker);
-        var (frames, secret) = await ExchangeAsync(worker, "/v1/jobs", ContractJson.Write(submission), key, AiCodes.WorkerRefused, Limits, ct);
+        var (frames, secret) = await ExchangeAsync(worker, "/v1/jobs", ContractJson.Write(submission), key, AiCodes.WorkerRefused, Limits, ct,
+            submission.File is null ? CallTimeout : SubmitTimeout);
         return new SubmittedJob(Read<JobAccepted>(frames[^1], AiCodes.WorkerRefused).Id, secret.ToBytes());
     }
 
@@ -131,6 +136,12 @@ public sealed class WorkerClient(HttpClient http) : IWorkerClient, IDisposable
         }
     }
 
+    public async Task CancelJobAsync(WorkerRecord worker, NidKey key, string workerJobId, CancellationToken ct)
+    {
+        Active(worker);
+        await ExchangeAsync(worker, $"/v1/jobs/{Uri.EscapeDataString(workerJobId)}/cancel", "{}"u8.ToArray(), key, AiCodes.WorkerRefused, Limits, ct);
+    }
+
     private static void Active(WorkerRecord worker)
     {
         if (WorkerRules.Call(worker.Status) is { } refusal)
@@ -167,8 +178,12 @@ public sealed class WorkerClient(HttpClient http) : IWorkerClient, IDisposable
 
     /// <summary>One call: sealed, signed, sent; every frame of the answer, which must end with <c>end</c> or <c>error</c>.</summary>
     private async Task<(List<Frame> Frames, ResponseSecret Secret)> ExchangeAsync(
-        WorkerRecord worker, string path, byte[] plaintext, NidKey key, string refused, FrameLimits limits, CancellationToken ct)
+        WorkerRecord worker, string path, byte[] plaintext, NidKey key, string refused, FrameLimits limits, CancellationToken outer,
+        TimeSpan? timeout = null)
     {
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(outer);
+        deadline.CancelAfter(timeout ?? CallTimeout);
+        var ct = deadline.Token;
         var (message, secret) = SealedRequest.Seal(worker.WorkerPublicKey, plaintext);
         using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(worker.Url, path)) { Content = new ByteArrayContent(message) };
         await WorkerRequestSigning.SignAsync(request, key.Key, ct);
@@ -178,7 +193,8 @@ public sealed class WorkerClient(HttpClient http) : IWorkerClient, IDisposable
         {
             response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
         }
-        catch (Exception e) when (e is HttpRequestException or TaskCanceledException or UnambitiousFx.Myelin.OutboundRefusedException && !ct.IsCancellationRequested)
+        catch (Exception e) when (e is HttpRequestException or OperationCanceledException or UnambitiousFx.Myelin.OutboundRefusedException
+                                  && !outer.IsCancellationRequested)
         {
             throw new WorkerCallException(AiCodes.WorkerUnreachable);
         }
@@ -199,7 +215,7 @@ public sealed class WorkerClient(HttpClient http) : IWorkerClient, IDisposable
             {
                 throw new WorkerCallException(refused);
             }
-            catch (Exception e) when (e is HttpRequestException or IOException && !ct.IsCancellationRequested)
+            catch (Exception e) when (e is HttpRequestException or IOException or OperationCanceledException && !outer.IsCancellationRequested)
             {
                 throw new WorkerCallException(AiCodes.WorkerUnreachable);
             }

@@ -116,6 +116,10 @@ public interface IWorkerRouter
 }
 
 /// <summary>A job or request refused, or a model call that failed (<see cref="JobCodes"/>).</summary>
+/// <summary>A job change the database refused for its content (not a concurrent change): the dispatcher fails that job
+/// alone.</summary>
+public sealed class JobWriteException(Exception inner) : Exception("A job change could not be stored.", inner);
+
 public sealed class ModelCallException(string code) : Exception($"Model call failed: {code}.")
 {
     public string Code { get; } = code;

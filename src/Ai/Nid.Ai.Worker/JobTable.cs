@@ -14,6 +14,9 @@ public sealed class JobTable(IEnumerable<IJobHandler> handlers, IEnumerable<IReq
 {
     public const int MaxJobs = 32;
     public const int MaxConcurrent = 4;
+
+    /// <summary>Results kept, all together: past it, the worker takes no new job until some are fetched or expire.</summary>
+    public const long MaxResultBytes = 256L * 1024 * 1024;
     public static readonly TimeSpan ResultLifetime = TimeSpan.FromMinutes(15);
 
     // The last registered handler of a type wins: a later registration replaces a built-in one.
@@ -21,6 +24,7 @@ public sealed class JobTable(IEnumerable<IJobHandler> handlers, IEnumerable<IReq
     private readonly ConcurrentDictionary<string, Job> _jobs = new(StringComparer.Ordinal);
     private readonly SemaphoreSlim _slots = new(MaxConcurrent);
     private readonly CancellationTokenSource _stopping = new();
+    private readonly Lock _admission = new();
     private int _requests;
 
     public IEnumerable<(string Type, int Version)> Types => _handlers.Keys;
@@ -36,11 +40,18 @@ public sealed class JobTable(IEnumerable<IJobHandler> handlers, IEnumerable<IReq
         Sweep();
         if (!_handlers.TryGetValue((type, version), out var handler))
             return (null, "unsupported");
-        if (_jobs.Values.Count(j => j.Status is "queued" or "running") >= MaxJobs)
-            return (null, "busy");
 
-        var job = new Job(Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(16)), submission, CancellationTokenSource.CreateLinkedTokenSource(_stopping.Token));
-        _jobs[job.Id] = job;
+        Job job;
+        lock (_admission)
+        {
+            if (_jobs.Values.Count(j => j.Status is "queued" or "running") >= MaxJobs
+                || _jobs.Values.Sum(j => (long)(j.Result?.Length ?? 0)) >= MaxResultBytes)
+                return (null, "busy");
+
+            job = new Job(Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(16)), submission, CancellationTokenSource.CreateLinkedTokenSource(_stopping.Token));
+            _jobs[job.Id] = job;
+        }
+
         _ = Task.Run(() => RunAsync(job, handler, input.Clone(), file));
         return (job.Id, null);
     }

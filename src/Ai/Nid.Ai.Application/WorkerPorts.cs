@@ -105,6 +105,8 @@ public interface IWorkerClient
 
     Task<PolledJob> PollJobAsync(WorkerRecord worker, NidKey key, string workerJobId, CancellationToken ct);
 
+    Task CancelJobAsync(WorkerRecord worker, NidKey key, string workerJobId, CancellationToken ct);
+
     /// <summary>A request's answer, frame by frame as the worker sends it; a call that cannot start, or a stream that breaks,
     /// throws <see cref="WorkerCallException"/>.</summary>
     IAsyncEnumerable<Protocol.Framing.Frame> StreamAsync(

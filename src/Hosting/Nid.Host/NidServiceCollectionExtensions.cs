@@ -303,9 +303,11 @@ public static class NidServiceCollectionExtensions
         {
             var directory = sp.GetRequiredService<Nid.Ai.Infrastructure.Workers.WorkerDirectory>();
             var handler = UnambitiousFx.Myelin.MyelinHandler.Create(null, directory);
+            handler.ConnectTimeout = TimeSpan.FromSeconds(5); // a worker that is off: known in 5 s, not at the call's end
             handler.SslOptions.RemoteCertificateValidationCallback = (sender, certificate, _, errors)
                 => directory.ValidateCertificate(((System.Net.Security.SslStream)sender).TargetHostName, certificate, errors);
-            var http = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(30) };
+            // Each call sets its own deadline (WorkerClient); a streamed request may last 10 minutes.
+            var http = new HttpClient(handler) { Timeout = TimeSpan.FromMinutes(15) };
             http.DefaultRequestHeaders.UserAgent.ParseAdd(NidOutbound.UserAgent);
             return new Nid.Ai.Infrastructure.Workers.WorkerClient(http);
         });

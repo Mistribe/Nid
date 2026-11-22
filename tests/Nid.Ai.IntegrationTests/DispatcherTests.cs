@@ -1,6 +1,7 @@
 extern alias worker;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Nid.Ai.Application;
@@ -73,6 +74,171 @@ public sealed class DispatcherTests(PostgresFixture fixture) : IClassFixture<Pos
         Assert.Equal("queued", view.Status);
         Assert.Equal(1, view.Attempts);
         Assert.Equal(JobCodes.LeaseExpired, view.Error);
+        // The copy Nid gave up on is cancelled on the worker: it does not keep one of its slots.
+        await gate.Cancelled.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task A_job_waiting_in_the_workers_queue_keeps_its_lease()
+    {
+        var gate = new Gate();
+        await using var world = await PairedWorld.StartAsync(fixture,
+            nidServices: s => s.AddSingleton<IModelContract>(new AnyContract("test-gate")),
+            workerServices: s => s.AddSingleton<WorkerJobHandler>(gate));
+        await world.PairAsync();
+        // Four run, the fifth waits in the worker's queue.
+        var ids = new List<Guid>();
+        for (var i = 0; i < 5; i++)
+            ids.Add(await SubmitAsync(world, new JobRequest("test-gate", 1, JsonSerializer.SerializeToElement(new { n = i }), "none")));
+        await PassAsync(world);
+        for (var minute = 0; minute < 12; minute++)
+        {
+            await Task.Delay(20, TestContext.Current.CancellationToken);
+            world.Clock.Now += Duration.FromMinutes(1);
+            await PassAsync(world);
+        }
+
+        var views = await Task.WhenAll(ids.Select(id => ViewAsync(world, id)));
+        Assert.Equal(4, views.Count(v => v is { Status: "queued", Error: JobCodes.LeaseExpired }));
+        Assert.Single(views, v => v is { Status: "running", Attempts: 0 });
+    }
+
+    [Fact]
+    public async Task A_row_that_cannot_be_stored_does_not_stop_the_other_jobs()
+    {
+        await using var world = await PairedWorld.StartAsync(fixture,
+            nidServices: s => s.AddSingleton<IModelContract>(new AnyContract("test-nul")),
+            workerServices: s => s.AddSingleton<WorkerJobHandler>(new Answering("test-nul", """{"text": "a\u0000b"}""")));
+        await world.PairAsync();
+        var broken = await SubmitAsync(world, new JobRequest("test-nul", 1, JsonSerializer.SerializeToElement(new { n = 1 }), "none"));
+        var fine = await SubmitAsync(world, Echo("hello"));
+
+        var done = await RunUntilAsync(world, fine, j => j.Status is "succeeded" or "dead");
+
+        Assert.Equal("succeeded", done.Status);
+        var stuck = await ViewAsync(world, broken);
+        Assert.Equal(JobCodes.ResultInvalid, stuck.Error);
+        Assert.Null(stuck.Result);
+    }
+
+    [Fact]
+    public async Task A_secret_Nid_can_no_longer_read_sends_the_job_again_without_an_attempt()
+    {
+        var gate = new Gate();
+        await using var world = await PairedWorld.StartAsync(fixture,
+            nidServices: s => s.AddSingleton<IModelContract>(new AnyContract("test-gate")),
+            workerServices: s => s.AddSingleton<WorkerJobHandler>(gate));
+        await world.PairAsync();
+        var id = await SubmitAsync(world, new JobRequest("test-gate", 1, JsonSerializer.SerializeToElement(new { n = 1 }), "none"));
+        await PassAsync(world);
+        var first = (await StoredAsync(world, id)).WorkerJobId;
+        await using (var scope = Scope(world))
+        {
+            var db = scope.ServiceProvider.GetRequiredService<Infrastructure.Persistence.AiDbContext>();
+            await db.Jobs.Where(j => j.Id == id).ExecuteUpdateAsync(s => s.SetProperty(j => j.ResponseSecret, new byte[] { 1, 2, 3 }), TestContext.Current.CancellationToken);
+        }
+
+        world.Clock.Now += Duration.FromSeconds(6);
+        await PassAsync(world);
+
+        // Sent again in the same pass, under a new id on the worker; the copy it gave up on is cancelled.
+        var again = await StoredAsync(world, id);
+        Assert.Equal(JobState.Running, again.Status);
+        Assert.NotEqual(first, again.WorkerJobId);
+        Assert.Equal(0, again.Attempts);
+        Assert.Equal("running", (await ViewAsync(world, id)).Status);
+        await gate.Cancelled.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task A_result_sealed_for_another_submission_is_refused()
+    {
+        await using var world = await PairedWorld.StartAsync(fixture);
+        await world.PairAsync();
+        var id = await SubmitAsync(world, Echo("hello"));
+        await PassAsync(world);
+        using var stranger = Protocol.Sealing.WorkerKeyPair.Generate();
+        var other = Protocol.Sealing.SealedRequest.Seal(stranger.PublicKey, "x"u8).Secret.ToBytes();
+        await using (var scope = Scope(world))
+        {
+            var store = scope.ServiceProvider.GetRequiredService<IJobStore>();
+            var job = (await store.FindAsync(id, TestContext.Current.CancellationToken))!;
+            Assert.True(await store.TryUpdateAsync(job with { ResponseSecret = other }, TestContext.Current.CancellationToken));
+        }
+
+        await Task.Delay(50, TestContext.Current.CancellationToken);
+        world.Clock.Now += Duration.FromSeconds(6);
+        await PassAsync(world);
+
+        var view = await ViewAsync(world, id);
+        Assert.Equal(JobCodes.ResultInvalid, view.Error);
+        Assert.Null(view.Result);
+    }
+
+    [Fact]
+    public async Task A_job_the_worker_no_longer_knows_is_sent_again()
+    {
+        var gate = new Gate();
+        await using var world = await PairedWorld.StartAsync(fixture,
+            nidServices: s => s.AddSingleton<IModelContract>(new AnyContract("test-gate")),
+            workerServices: s => s.AddSingleton<WorkerJobHandler>(gate));
+        await world.PairAsync();
+        var id = await SubmitAsync(world, new JobRequest("test-gate", 1, JsonSerializer.SerializeToElement(new { n = 1 }), "none"));
+        await PassAsync(world);
+        gate.Open();
+        await Task.Delay(50, TestContext.Current.CancellationToken);
+        world.Worker.Clock.Now += TimeSpan.FromMinutes(16); // the worker forgot the result
+
+        world.Clock.Now += Duration.FromSeconds(6);
+        await PassAsync(world);
+
+        var view = await ViewAsync(world, id);
+        Assert.Equal("queued", view.Status);
+        Assert.Equal(1, view.Attempts);
+    }
+
+    [Fact]
+    public async Task A_job_no_worker_can_reach_counts_its_attempts_and_dies()
+    {
+        var notices = new RecordingNotifier();
+        await using var world = await PairedWorld.StartAsync(fixture,
+            nidServices: s => s.Replace(ServiceDescriptor.Scoped<INotifier>(_ => notices)));
+        await world.PairAsync();
+        world.Routes.Down(new Uri(PairedWorld.UrlOf(0)).Host);
+        var id = await SubmitAsync(world, Echo("hello"));
+
+        for (var i = 0; i < 6; i++)
+        {
+            await using (var scope = Scope(world))
+            {
+                // Seen by the monitor as online (its last declaration is recent), yet nothing answers.
+                var db = scope.ServiceProvider.GetRequiredService<Infrastructure.Persistence.AiDbContext>();
+                await db.Workers.ExecuteUpdateAsync(s => s.SetProperty(w => w.LastSeenAt, world.Clock.Now), TestContext.Current.CancellationToken);
+            }
+            await PassAsync(world);
+            world.Clock.Now += Duration.FromHours(2);
+        }
+
+        var view = await ViewAsync(world, id);
+        Assert.Equal("dead", view.Status);
+        Assert.Single(notices.Published);
+    }
+
+    [Fact]
+    public async Task A_job_refused_for_its_input_fails_at_once()
+    {
+        await using var world = await PairedWorld.StartAsync(fixture,
+            nidServices: s => s.AddSingleton<IModelContract>(new AnyContract("test-picky")),
+            workerServices: s => s.AddSingleton<WorkerJobHandler>(new Answering("test-picky")));
+        await world.PairAsync();
+        // The worker reads the submission strictly: an input that is not an object is refused before the job exists.
+        var id = await SubmitAsync(world, new JobRequest("test-picky", 1, JsonSerializer.SerializeToElement(new[] { 1, 2 }), "none"));
+
+        await PassAsync(world);
+
+        var view = await ViewAsync(world, id);
+        Assert.Equal("failed", view.Status);
+        Assert.Equal(JobCodes.InvalidInput, view.Error);
     }
 
     [Fact]
@@ -239,11 +405,22 @@ public sealed class DispatcherTests(PostgresFixture fixture) : IClassFixture<Pos
 
         public int Version => 1;
 
+        public TaskCompletionSource Cancelled { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
         public void Open() => _open.TrySetResult();
 
         public async Task<byte[]> RunAsync(JsonElement input, byte[]? file, CancellationToken ct)
         {
-            await _open.Task.WaitAsync(ct);
+            try
+            {
+                await _open.Task.WaitAsync(ct);
+            }
+            catch (OperationCanceledException)
+            {
+                Cancelled.TrySetResult();
+                throw;
+            }
+
             return """{"done": true}"""u8.ToArray();
         }
     }
@@ -257,7 +434,7 @@ public sealed class DispatcherTests(PostgresFixture fixture) : IClassFixture<Pos
         public Task<byte[]> RunAsync(JsonElement input, byte[]? file, CancellationToken ct) => throw new InvalidOperationException("fails");
     }
 
-    private sealed class Answering(string type) : WorkerJobHandler
+    private sealed class Answering(string type, string output = """{"done": true}""") : WorkerJobHandler
     {
         private int _runs;
 
@@ -270,7 +447,7 @@ public sealed class DispatcherTests(PostgresFixture fixture) : IClassFixture<Pos
         public Task<byte[]> RunAsync(JsonElement input, byte[]? file, CancellationToken ct)
         {
             Interlocked.Increment(ref _runs);
-            return Task.FromResult("""{"done": true}"""u8.ToArray());
+            return Task.FromResult(System.Text.Encoding.UTF8.GetBytes(output));
         }
     }
 

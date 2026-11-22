@@ -86,6 +86,19 @@ public sealed class JobTests
     }
 
     [Fact]
+    public async Task Concurrent_submissions_never_queue_more_than_the_limit()
+    {
+        var gate = new BlockingJob();
+        await using var worker = new WorkerHarness(services: s => s.AddSingleton<IJobHandler>(gate));
+        using var nid = await PairedAsync(worker);
+
+        var results = await Task.WhenAll(Enumerable.Range(0, JobTable.MaxJobs + 16).Select(i => nid.SubmitAsync(BlockingJob.Name, 1, new { n = i })));
+
+        Assert.Equal(JobTable.MaxJobs, results.Count(r => r.Id is not null));
+        gate.Release();
+    }
+
+    [Fact]
     public async Task A_finished_job_is_forgotten_after_fifteen_minutes()
     {
         await using var worker = new WorkerHarness();

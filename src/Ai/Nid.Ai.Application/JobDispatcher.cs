@@ -91,26 +91,58 @@ public sealed class JobDispatcher(
     IEnumerable<IJobFileSource> files, INotifier notifier, IClock clock) : IJobDispatcher
 {
     public const int MaxAttempts = 5;
+
+    /// <summary>How long a job may run on a worker once it left the worker's queue (it is renewed while it waits there).</summary>
     public static readonly Duration Lease = Duration.FromMinutes(10);
     public static readonly Duration WaitWhenNowhere = Duration.FromSeconds(30);
     private static readonly Duration[] Backoff = [Duration.FromSeconds(30), Duration.FromMinutes(2), Duration.FromMinutes(10), Duration.FromHours(1)];
     private const int Batch = 20;
 
+    // One pass: a worker out of reach is not tried again, and no worker is sent more than it runs at once.
+    private readonly HashSet<Guid> _unreachable = [];
+    private readonly Dictionary<Guid, int> _sent = [];
+
     public async Task RunOnceAsync(CancellationToken ct)
     {
         var now = clock.GetCurrentInstant();
         foreach (var job in await jobs.RunningDueAsync(now, Batch, ct))
-            await PollAsync(job, now, ct);
+            await OneAsync(job, now, PollAsync, ct);
         foreach (var job in await jobs.DueAsync(now, Batch, ct))
-            await SendAsync(job, now, ct);
+            await OneAsync(job, now, SendAsync, ct);
+    }
+
+    /// <summary>One job's step; anything that goes wrong with it fails that job's attempt, never the pass.</summary>
+    private async Task OneAsync(JobRecord job, Instant now, Func<JobRecord, Instant, CancellationToken, Task> step, CancellationToken ct)
+    {
+        try
+        {
+            await step(job, now, ct);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception)
+        {
+            try
+            {
+                if (await jobs.FindAsync(job.Id, CancellationToken.None) is { Status: JobState.Queued or JobState.Running } current)
+                    await RetryAsync(current with { Result = null }, JobCodes.ResultInvalid, now, CancellationToken.None);
+            }
+            catch (Exception)
+            {
+                // the next pass tries again
+            }
+        }
     }
 
     private async Task SendAsync(JobRecord job, Instant now, CancellationToken ct)
     {
         var route = await router.RouteAsync(job.Type, job.Version, ModelCallKind.Job, job.DataClass, job.TargetWorkerId, ct);
-        if (route.Workers.Count == 0)
+        var candidates = route.Workers.Where(w => !_unreachable.Contains(w.Id) && _sent.GetValueOrDefault(w.Id) < Slots(w)).ToList();
+        if (candidates.Count == 0)
         {
-            await jobs.TryUpdateAsync(job with { WaitingReason = route.Reason, RunAfter = now + WaitWhenNowhere }, ct);
+            await jobs.TryUpdateAsync(job with { WaitingReason = route.Reason ?? JobCodes.WorkerFailed, RunAfter = now + WaitWhenNowhere }, ct);
             return;
         }
 
@@ -119,10 +151,25 @@ public sealed class JobDispatcher(
             return;
         var claimed = (await jobs.FindAsync(job.Id, ct))!;
 
+        try
+        {
+            await SendClaimedAsync(claimed, candidates, now, ct);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            // Stopping: the job goes back to the queue as it was, rather than waiting out its lease.
+            if (await jobs.FindAsync(job.Id, CancellationToken.None) is { Status: JobState.Running, WorkerJobId: null } current)
+                await jobs.TryUpdateAsync(current with { Status = JobState.Queued, LeaseUntil = null, NextPollAt = null }, CancellationToken.None);
+            throw;
+        }
+    }
+
+    private async Task SendClaimedAsync(JobRecord claimed, IReadOnlyList<WorkerRecord> candidates, Instant now, CancellationToken ct)
+    {
         JobSubmission submission;
         try
         {
-            submission = new JobSubmission(job.Type, job.Version, JsonDocument.Parse(job.Input).RootElement.Clone(), await FileAsync(job, ct));
+            submission = new JobSubmission(claimed.Type, claimed.Version, JsonDocument.Parse(claimed.Input).RootElement.Clone(), await FileAsync(claimed, ct));
         }
         catch (ModelCallException e)
         {
@@ -130,13 +177,15 @@ public sealed class JobDispatcher(
             return;
         }
 
-        foreach (var worker in route.Workers)
+        var busy = false;
+        foreach (var worker in candidates)
         {
             if (worker.NidKeyId is not { } keyId || await keys.FindAsync(keyId, ct) is not { } key)
                 continue;
             try
             {
                 var sent = await client.SubmitJobAsync(worker, key, submission, ct);
+                _sent[worker.Id] = _sent.GetValueOrDefault(worker.Id) + 1;
                 await jobs.TryUpdateAsync(claimed with
                 {
                     WorkerId = worker.Id,
@@ -147,17 +196,33 @@ public sealed class JobDispatcher(
                 }, ct);
                 return;
             }
+            catch (WorkerCallException e) when (e.Code.EndsWith(":input_invalid", StringComparison.Ordinal))
+            {
+                await FinishAsync(claimed, JobState.Failed, JobCodes.InvalidInput, now, ct);
+                return;
+            }
+            catch (WorkerCallException e) when (e.Code == AiCodes.WorkerUnreachable)
+            {
+                _unreachable.Add(worker.Id);
+            }
             catch (WorkerCallException)
             {
-                // the next worker
+                busy = true; // refused (busy, unsupported): the next worker
             }
         }
 
-        // Every worker refused or was out of reach: not the job's fault, no attempt counted.
-        await jobs.TryUpdateAsync(claimed with
+        if (busy)
         {
-            Status = JobState.Queued, LeaseUntil = null, NextPollAt = null, RunAfter = now + WaitWhenNowhere, WaitingReason = JobCodes.WorkerFailed,
-        }, ct);
+            // A worker that answered but could not take it now: not the job's fault, no attempt counted.
+            await jobs.TryUpdateAsync(claimed with
+            {
+                Status = JobState.Queued, LeaseUntil = null, NextPollAt = null, RunAfter = now + WaitWhenNowhere, WaitingReason = JobCodes.WorkerFailed,
+            }, ct);
+            return;
+        }
+
+        // No worker that should take it can be reached: an attempt, so a job does not wait forever on a dead network.
+        await RetryAsync(claimed, AiCodes.WorkerUnreachable, now, ct);
     }
 
     private async Task PollAsync(JobRecord job, Instant now, CancellationToken ct)
@@ -165,6 +230,18 @@ public sealed class JobDispatcher(
         if (job.LeaseUntil <= now)
         {
             await RetryAsync(job, JobCodes.LeaseExpired, now, ct);
+            return;
+        }
+
+        if (job.SentAt is not null && job.ResponseSecret is null)
+        {
+            // Nid can no longer read the secret its result is bound to (lost key ring): sent again, no attempt counted.
+            await CancelAsync(job, ct);
+            await jobs.TryUpdateAsync(job with
+            {
+                Status = JobState.Queued, LeaseUntil = null, NextPollAt = null, WorkerId = null, WorkerJobId = null, SentAt = null,
+                RunAfter = now, WaitingReason = "ai.secret_lost",
+            }, ct);
             return;
         }
 
@@ -190,7 +267,12 @@ public sealed class JobDispatcher(
         {
             case "queued" or "running":
                 var sentFor = now - (job.SentAt ?? now);
-                await jobs.TryUpdateAsync(job with { NextPollAt = now + (sentFor < Duration.FromMinutes(1) ? Duration.FromSeconds(5) : Duration.FromSeconds(30)) }, ct);
+                await jobs.TryUpdateAsync(job with
+                {
+                    NextPollAt = now + (sentFor < Duration.FromMinutes(1) ? Duration.FromSeconds(5) : Duration.FromSeconds(30)),
+                    // Waiting in the worker's queue does not use the lease: it starts when the job does.
+                    LeaseUntil = polled.Status.Status == "queued" ? now + Lease : job.LeaseUntil,
+                }, ct);
                 break;
             case "succeeded" when Open(job, polled.SealedResult!) is { } result:
                 await FinishAsync(job with { Result = result }, JobState.Succeeded, null, now, ct);
@@ -202,7 +284,7 @@ public sealed class JobDispatcher(
                 await FinishAsync(job, JobState.Failed, JobCodes.InvalidInput, now, ct);
                 break;
             default:
-                await RetryAsync(job, polled.Status.Error is { } error ? $"{JobCodes.WorkerFailed}:{error}" : JobCodes.WorkerFailed, now, ct);
+                await RetryAsync(job, polled.Status.Error is { } error ? $"{JobCodes.WorkerFailed}:{Code(error)}" : JobCodes.WorkerFailed, now, ct);
                 break;
         }
     }
@@ -235,6 +317,7 @@ public sealed class JobDispatcher(
 
     private async Task RetryAsync(JobRecord job, string code, Instant now, CancellationToken ct)
     {
+        await CancelAsync(job, ct);
         var attempts = job.Attempts + 1;
         if (attempts >= MaxAttempts)
         {
@@ -251,11 +334,33 @@ public sealed class JobDispatcher(
         }, ct);
     }
 
+    /// <summary>Best effort: a copy Nid gives up on should not keep one of the worker's slots.</summary>
+    private async Task CancelAsync(JobRecord job, CancellationToken ct)
+    {
+        if (job.WorkerId is not { } workerId || job.WorkerJobId is not { } workerJobId || _unreachable.Contains(workerId))
+            return;
+        try
+        {
+            if (await workers.FindAsync(workerId, ct) is { } worker && worker.NidKeyId is { } keyId && await keys.FindAsync(keyId, ct) is { } key)
+                await client.CancelJobAsync(worker, key, workerJobId, ct);
+        }
+        catch (WorkerCallException)
+        {
+            // gone already
+        }
+    }
+
     private Task<bool> FinishAsync(JobRecord job, JobState state, string? error, Instant now, CancellationToken ct)
         => jobs.TryUpdateAsync(job with
         {
             Status = state, Error = error, FinishedAt = now, ResponseSecret = null, LeaseUntil = null, NextPollAt = null, WaitingReason = null,
         }, ct);
+
+    private static int Slots(WorkerRecord worker) => WorkerRouter.DeclarationOf(worker)?.MaxConcurrentRequests ?? 1;
+
+    /// <summary>A worker's error as Nid keeps it: a short code, nothing else.</summary>
+    private static string Code(string error)
+        => new string(error.Where(c => char.IsAsciiLetterOrDigit(c) || c is '_' or '.' or '-').Take(64).ToArray()) is { Length: > 0 } code ? code : "unknown";
 
     private async Task<string?> FileAsync(JobRecord job, CancellationToken ct)
     {

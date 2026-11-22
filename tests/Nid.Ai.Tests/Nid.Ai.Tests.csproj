@@ -13,6 +13,7 @@
     <ProjectReference Include="..\..\src\Ai\Nid.Ai.Protocol\Nid.Ai.Protocol.csproj" />
     <ProjectReference Include="..\..\src\Ai\Nid.Ai.Domain\Nid.Ai.Domain.csproj" />
     <ProjectReference Include="..\..\src\Ai\Nid.Ai.Infrastructure\Nid.Ai.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Ai\Nid.Ai.Application\Nid.Ai.Application.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\vectors\rfc9180\**\*" LinkBase="vectors\rfc9180" CopyToOutputDirectory="PreserveNewest" />

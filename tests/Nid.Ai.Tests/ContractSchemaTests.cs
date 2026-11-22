@@ -113,6 +113,15 @@ public sealed class ContractSchemaTests
             Encoding.UTF8.GetString(Declaration(Model("chat", ""))).Replace("\"maxConcurrentRequests\": 2,", "\"maxConcurrentRequests\": 2, \"load\": 3,"))).Load);
 
     [Fact]
+    public void An_output_with_a_nul_character_is_not_kept()
+    {
+        var contract = new Nid.Ai.Application.EchoJobContract();
+
+        Assert.Null(contract.ReadOutput("""{"text": "a\u0000b"}"""u8));
+        Assert.NotNull(contract.ReadOutput("""{"text": "ab"}"""u8));
+    }
+
+    [Fact]
     public void A_null_list_element_is_refused()
     {
         var json = Encoding.UTF8.GetString(Declaration(Model("chat", ""))).Replace("[{\"type\": \"echo\", \"version\": 1}]", "[null]");

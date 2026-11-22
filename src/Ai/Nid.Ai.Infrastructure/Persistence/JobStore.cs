@@ -14,19 +14,23 @@ public sealed class JobStore(AiDbContext db, IDataProtectionProvider protection)
 
     public async Task<JobRecord> AddOrFindAsync(JobRecord job, CancellationToken ct)
     {
-        if (await PendingAsync(job.Type, job.InputHash, ct) is { } existing)
-            return existing;
+        // A lost race on the unique index means another one queued it: that one, or, finished meanwhile, a new one.
+        // Not for a transaction already open: the violation would abort it (no producer submits inside one).
+        for (var attempt = 0; ; attempt++)
+        {
+            if (await PendingAsync(job.Type, job.InputHash, ct) is { } existing)
+                return existing;
 
-        db.Jobs.Add(ToRow(job, new JobRow { Type = job.Type, Input = job.Input, InputHash = job.InputHash, DataClass = job.DataClass, Status = "" }));
-        try
-        {
-            await db.SaveChangesAsync(ct);
-            return (await FindAsync(job.Id, ct))!;
-        }
-        catch (DbUpdateException e) when (e.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
-        {
-            db.ChangeTracker.Clear();
-            return (await PendingAsync(job.Type, job.InputHash, ct))!;
+            db.Jobs.Add(ToRow(job, new JobRow { Type = job.Type, Input = job.Input, InputHash = job.InputHash, DataClass = job.DataClass, Status = "" }));
+            try
+            {
+                await db.SaveChangesAsync(ct);
+                return (await FindAsync(job.Id, ct))!;
+            }
+            catch (DbUpdateException e) when (e.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation } && attempt < 3)
+            {
+                db.ChangeTracker.Clear();
+            }
         }
     }
 
@@ -57,6 +61,13 @@ public sealed class JobStore(AiDbContext db, IDataProtectionProvider protection)
         {
             db.ChangeTracker.Clear();
             return false;
+        }
+        catch (DbUpdateException e)
+        {
+            // Refused for what it holds (a NUL character, a value out of range): the context forgets it, so the next
+            // change in this pass is not refused with it.
+            db.ChangeTracker.Clear();
+            throw new JobWriteException(e);
         }
     }
 
@@ -92,9 +103,25 @@ public sealed class JobStore(AiDbContext db, IDataProtectionProvider protection)
         return row;
     }
 
+    /// <summary>Null when the key ring that protected it is gone: the dispatcher then sends the job again
+    /// (<c>docs/ai/README.md</c> §4.2).</summary>
+    private byte[]? Unprotect(byte[]? secret)
+    {
+        if (secret is null)
+            return null;
+        try
+        {
+            return _protector.Unprotect(secret);
+        }
+        catch (System.Security.Cryptography.CryptographicException)
+        {
+            return null;
+        }
+    }
+
     private JobRecord ToRecord(JobRow row) => new(
         row.Id, row.Type, row.Version, row.Input, row.InputHash, row.FileRef, row.DataClass, row.TargetWorkerId,
         Enum.Parse<JobState>(row.Status, ignoreCase: true), row.Attempts, row.RunAfter, row.NextPollAt, row.LeaseUntil, row.WorkerId,
-        row.WorkerJobId, row.ResponseSecret is null ? null : _protector.Unprotect(row.ResponseSecret), row.Result, row.Error,
+        row.WorkerJobId, Unprotect(row.ResponseSecret), row.Result, row.Error,
         row.WaitingReason, row.CreatedAt, row.SentAt, row.FinishedAt, row.RowVersion);
 }
