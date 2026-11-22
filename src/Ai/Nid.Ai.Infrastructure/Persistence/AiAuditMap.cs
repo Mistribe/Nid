@@ -11,5 +11,7 @@ public sealed class AiAuditMap : IAuditMap
         [typeof(AiKeyRow)] = AuditRule.NoItem with { Secret = new HashSet<string> { "private_key" } },
     };
 
-    public IReadOnlySet<Type> Excluded { get; } = new HashSet<Type> { typeof(AuditEntryRow) };
+    /// <summary>A job's progress is operational state (sent, polled, retried), not a decision: its submission and the admin's
+    /// actions are what is audited.</summary>
+    public IReadOnlySet<Type> Excluded { get; } = new HashSet<Type> { typeof(AuditEntryRow), typeof(JobRow) };
 }

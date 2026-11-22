@@ -1,0 +1,98 @@
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.EntityFrameworkCore;
+using Nid.Ai.Application;
+using Npgsql;
+using NodaTime;
+
+namespace Nid.Ai.Infrastructure.Persistence;
+
+/// <summary>The <c>ai.job</c> table. A job's response secret is encrypted by Data Protection (<c>Nid.Ai.JobSecret</c>); a
+/// change is saved against the row's <c>xmin</c>, so two dispatcher passes never both send or both finish a job.</summary>
+public sealed class JobStore(AiDbContext db, IDataProtectionProvider protection) : IJobStore
+{
+    private readonly IDataProtector _protector = protection.CreateProtector("Nid.Ai.JobSecret");
+
+    public async Task<JobRecord> AddOrFindAsync(JobRecord job, CancellationToken ct)
+    {
+        if (await PendingAsync(job.Type, job.InputHash, ct) is { } existing)
+            return existing;
+
+        db.Jobs.Add(ToRow(job, new JobRow { Type = job.Type, Input = job.Input, InputHash = job.InputHash, DataClass = job.DataClass, Status = "" }));
+        try
+        {
+            await db.SaveChangesAsync(ct);
+            return (await FindAsync(job.Id, ct))!;
+        }
+        catch (DbUpdateException e) when (e.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        {
+            db.ChangeTracker.Clear();
+            return (await PendingAsync(job.Type, job.InputHash, ct))!;
+        }
+    }
+
+    public async Task<JobRecord?> FindAsync(Guid id, CancellationToken ct)
+        => await db.Jobs.AsNoTracking().SingleOrDefaultAsync(j => j.Id == id, ct) is { } row ? ToRecord(row) : null;
+
+    public async Task<IReadOnlyList<JobRecord>> DueAsync(Instant now, int limit, CancellationToken ct)
+        => (await db.Jobs.AsNoTracking().Where(j => j.Status == "queued" && j.RunAfter <= now)
+            .OrderBy(j => j.RunAfter).ThenBy(j => j.CreatedAt).Take(limit).ToListAsync(ct)).Select(ToRecord).ToList();
+
+    public async Task<IReadOnlyList<JobRecord>> RunningDueAsync(Instant now, int limit, CancellationToken ct)
+        => (await db.Jobs.AsNoTracking().Where(j => j.Status == "running" && (j.NextPollAt <= now || j.LeaseUntil <= now))
+            .OrderBy(j => j.NextPollAt).Take(limit).ToListAsync(ct)).Select(ToRecord).ToList();
+
+    public async Task<bool> TryUpdateAsync(JobRecord job, CancellationToken ct)
+    {
+        var row = await db.Jobs.SingleAsync(j => j.Id == job.Id, ct);
+        db.Entry(row).Property(j => j.RowVersion).OriginalValue = job.RowVersion;
+        ToRow(job, row);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+            return true;
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            db.ChangeTracker.Clear();
+            return false;
+        }
+    }
+
+    private async Task<JobRecord?> PendingAsync(string type, string inputHash, CancellationToken ct)
+        => await db.Jobs.AsNoTracking()
+            .SingleOrDefaultAsync(j => j.Type == type && j.InputHash == inputHash && (j.Status == "queued" || j.Status == "running"), ct)
+            is { } row ? ToRecord(row) : null;
+
+    private JobRow ToRow(JobRecord job, JobRow row)
+    {
+        row.Id = job.Id;
+        row.Type = job.Type;
+        row.Version = job.Version;
+        row.Input = job.Input;
+        row.InputHash = job.InputHash;
+        row.FileRef = job.FileRef;
+        row.DataClass = job.DataClass;
+        row.TargetWorkerId = job.TargetWorkerId;
+        row.Status = job.Status.ToString().ToLowerInvariant();
+        row.Attempts = job.Attempts;
+        row.RunAfter = job.RunAfter;
+        row.NextPollAt = job.NextPollAt;
+        row.LeaseUntil = job.LeaseUntil;
+        row.WorkerId = job.WorkerId;
+        row.WorkerJobId = job.WorkerJobId;
+        row.ResponseSecret = job.ResponseSecret is null ? null : _protector.Protect(job.ResponseSecret);
+        row.Result = job.Result;
+        row.Error = job.Error;
+        row.WaitingReason = job.WaitingReason;
+        row.CreatedAt = job.CreatedAt;
+        row.SentAt = job.SentAt;
+        row.FinishedAt = job.FinishedAt;
+        return row;
+    }
+
+    private JobRecord ToRecord(JobRow row) => new(
+        row.Id, row.Type, row.Version, row.Input, row.InputHash, row.FileRef, row.DataClass, row.TargetWorkerId,
+        Enum.Parse<JobState>(row.Status, ignoreCase: true), row.Attempts, row.RunAfter, row.NextPollAt, row.LeaseUntil, row.WorkerId,
+        row.WorkerJobId, row.ResponseSecret is null ? null : _protector.Unprotect(row.ResponseSecret), row.Result, row.Error,
+        row.WaitingReason, row.CreatedAt, row.SentAt, row.FinishedAt, row.RowVersion);
+}

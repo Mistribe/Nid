@@ -282,6 +282,12 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ITransactionParticipant, DbContextParticipant<Nid.Ai.Infrastructure.Persistence.AiDbContext>>();
         services.AddScoped<Nid.Ai.Application.INidKeys, Nid.Ai.Infrastructure.Persistence.NidKeyStore>();
         services.AddScoped<Nid.Ai.Application.IWorkerStore, Nid.Ai.Infrastructure.Persistence.WorkerStore>();
+        services.AddScoped<Nid.Ai.Application.IJobStore, Nid.Ai.Infrastructure.Persistence.JobStore>();
+        services.AddSingleton<Nid.Ai.Application.IModelContract, Nid.Ai.Application.EchoJobContract>();
+        services.AddSingleton<Nid.Ai.Application.IModelContract, Nid.Ai.Application.EchoRequestContract>();
+        services.AddSingleton<Nid.Ai.Application.ModelContracts>();
+        services.AddScoped<Nid.Ai.Application.IModelJobs, Nid.Ai.Application.ModelJobs>();
+        services.AddScoped<Nid.Ai.Application.IWorkerRouter, Nid.Ai.Application.WorkerRouter>();
         services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<Nid.Ai.Infrastructure.Workers.WorkerDirectory>();
         services.AddSingleton<UnambitiousFx.Myelin.IRegisteredEndpoints>(sp => sp.GetRequiredService<Nid.Ai.Infrastructure.Workers.WorkerDirectory>());
