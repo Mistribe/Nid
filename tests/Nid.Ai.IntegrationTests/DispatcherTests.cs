@@ -108,6 +108,8 @@ public sealed class DispatcherTests(PostgresFixture fixture) : IClassFixture<Pos
         var id = await SubmitAsync(world, new JobRequest("test-bad", 1, JsonSerializer.SerializeToElement(new { n = 1 }), "none"));
 
         await PassAsync(world);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
+        world.Clock.Now += Duration.FromSeconds(6);
         await PassAsync(world);
         var view = await ViewAsync(world, id);
 
@@ -196,12 +198,14 @@ public sealed class DispatcherTests(PostgresFixture fixture) : IClassFixture<Pos
         await scope.ServiceProvider.GetRequiredService<IJobDispatcher>().RunOnceAsync(TestContext.Current.CancellationToken);
     }
 
-    /// <summary>Dispatcher passes, the clock moving <paramref name="step"/> (5 s by default) between them, until the job
-    /// reaches what the test waits for.</summary>
+    /// <summary>Monitor and dispatcher passes, as the scheduler runs them, the clock moving <paramref name="step"/> (31 s by
+    /// default) between them, until the job reaches what the test waits for.</summary>
     private static async Task<JobView> RunUntilAsync(PairedWorld world, Guid id, Func<JobView, bool> until, Duration? step = null)
     {
         for (var i = 0; i < 80; i++)
         {
+            await using (var scope = Scope(world))
+                await scope.ServiceProvider.GetRequiredService<IWorkerMonitor>().RunOnceAsync(TestContext.Current.CancellationToken);
             await PassAsync(world);
             var view = await ViewAsync(world, id);
             if (until(view))

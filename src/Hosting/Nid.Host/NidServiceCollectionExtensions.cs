@@ -288,6 +288,9 @@ public static class NidServiceCollectionExtensions
         services.AddSingleton<Nid.Ai.Application.ModelContracts>();
         services.AddScoped<Nid.Ai.Application.IModelJobs, Nid.Ai.Application.ModelJobs>();
         services.AddScoped<Nid.Ai.Application.IWorkerRouter, Nid.Ai.Application.WorkerRouter>();
+        services.AddScoped<Nid.Ai.Application.WorkerRefresher>();
+        services.AddScoped<Nid.Ai.Application.IWorkerMonitor, Nid.Ai.Application.WorkerMonitor>();
+        services.AddScoped<Nid.Ai.Application.IJobDispatcher, Nid.Ai.Application.JobDispatcher>();
         services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<Nid.Ai.Infrastructure.Workers.WorkerDirectory>();
         services.AddSingleton<UnambitiousFx.Myelin.IRegisteredEndpoints>(sp => sp.GetRequiredService<Nid.Ai.Infrastructure.Workers.WorkerDirectory>());

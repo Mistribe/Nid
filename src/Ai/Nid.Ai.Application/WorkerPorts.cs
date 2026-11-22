@@ -99,4 +99,14 @@ public interface IWorkerClient
     Task<byte[]> RotateWorkerKeyAsync(WorkerRecord worker, NidKey key, CancellationToken ct);
 
     Task SendNidRotationAsync(WorkerRecord worker, NidKey key, NidKey next, CancellationToken ct);
+
+    /// <summary>Sends a job; the answer is the worker's id for it and the secret its result will be bound to.</summary>
+    Task<SubmittedJob> SubmitJobAsync(WorkerRecord worker, NidKey key, Protocol.Contracts.JobSubmission submission, CancellationToken ct);
+
+    Task<PolledJob> PollJobAsync(WorkerRecord worker, NidKey key, string workerJobId, CancellationToken ct);
 }
+
+public sealed record SubmittedJob(string WorkerJobId, byte[] ResponseSecret);
+
+/// <summary>A job's status, and once it succeeded the result still sealed under the submission's secret.</summary>
+public sealed record PolledJob(Protocol.Contracts.JobStatus Status, byte[]? SealedResult);

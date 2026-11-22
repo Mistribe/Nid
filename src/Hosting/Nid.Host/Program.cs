@@ -127,6 +127,8 @@ if (!generatingOpenApi && !adminMode && builder.Configuration.GetValue("Jobs:Ena
     builder.Services.AddNidJobs(connectionString, fxOptions, priceOptions, irlOptions, inflationOptions, bankingOptions, builder.Configuration.GetValue("Jobs:SchedulerName", "nid")!);
     // Startup work, not a job: it must not show on the admin Jobs screen.
     builder.Services.AddHostedService<Nid.Host.Jobs.CategoryBackfillStartup>();
+    // Model jobs and worker declarations (docs/ai/README.md §4): a loop of its own, not on the Jobs screen.
+    builder.Services.AddHostedService<Nid.Host.Jobs.ModelWorkLoop>();
 }
 
 builder.Services.AddNidAuthentication(builder.Configuration, demo.Enabled);
