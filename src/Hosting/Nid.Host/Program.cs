@@ -227,6 +227,7 @@ app.MapSubscriptionEndpoints();
 app.MapInvestmentEndpoints();
 app.MapIncomeEndpoints();
 app.MapGoalEndpoints();
+app.MapAiEndpoints();
 app.MapBankingEndpoints();
 app.MapChildcareEndpoints();
 app.MapDocumentEndpoints();

@@ -14,8 +14,10 @@ namespace Nid.Ai.Infrastructure.Workers;
 /// <summary>Nid's side of the worker protocol (<c>docs/ai/README.md</c> §4): every call sealed to the worker's pinned key
 /// and signed with the Nid key it pinned, its answer read from frames bound to the call. Its <see cref="HttpClient"/> goes
 /// through Myelin's registered endpoints and the TLS pins of <see cref="WorkerDirectory"/>.</summary>
-public sealed class WorkerClient(HttpClient http) : IWorkerClient
+public sealed class WorkerClient(HttpClient http) : IWorkerClient, IDisposable
 {
+    public void Dispose() => http.Dispose();
+
     private static readonly FrameLimits Limits = new(MaxFramePlaintext: 64 * 1024, MaxFrames: 4, MaxTotalPlaintext: 256 * 1024);
 
     public async Task<WorkerKey> GetKeyAsync(Uri url, CancellationToken ct)

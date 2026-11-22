@@ -34,15 +34,16 @@ public enum WorkerStatus
     Revoked,
 }
 
-/// <summary>A worker as the settings show it: fingerprints, never keys.</summary>
+/// <summary>A worker as the settings show it: fingerprints, never keys. <c>placement</c> is <c>local</c> or <c>remote</c>,
+/// <c>status</c> <c>pending</c>, <c>active</c>, <c>disabled</c> or <c>revoked</c>.</summary>
 public sealed record WorkerView(
     Guid Id,
     string Name,
     string Url,
-    WorkerPlacement Placement,
+    string Placement,
     bool ProxyDeclared,
     bool Safe,
-    WorkerStatus Status,
+    string Status,
     string KeyFingerprint,
     string? NidKeyFingerprint,
     bool NidKeyRotationOverdue,

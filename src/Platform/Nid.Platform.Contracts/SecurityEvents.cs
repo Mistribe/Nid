@@ -33,6 +33,21 @@ public static class SecurityEventNames
     /// <summary>5B: a bank statement file written to an account (bank sync spec §10); counts only, never a label, an amount or an IBAN.</summary>
     public const string BankStatementImported = "bank_statement_imported";
 
+    /// <summary>#473: an admin registered, paired or changed a model worker, or rotated a key; the worker's id and name, never a key.</summary>
+    public const string ModelWorkerRegistered = "model_worker_registered";
+
+    public const string ModelWorkerPaired = "model_worker_paired";
+
+    /// <summary>Renamed, disabled or enabled (<c>change</c>).</summary>
+    public const string ModelWorkerChanged = "model_worker_changed";
+
+    public const string ModelWorkerRevoked = "model_worker_revoked";
+
+    public const string ModelWorkerKeyRotated = "model_worker_key_rotated";
+
+    /// <summary>Nid's own signing key towards workers was replaced.</summary>
+    public const string NidWorkerKeyRotated = "nid_worker_key_rotated";
+
     /// <summary>
     /// Issue 215, local-accounts.md §16: a wrong password or code, a locked account, an unknown identifier (never its text);
     /// at most one a minute per account or address, with <c>count</c>. Data <c>reason</c>, <c>count</c>, <c>address</c>.

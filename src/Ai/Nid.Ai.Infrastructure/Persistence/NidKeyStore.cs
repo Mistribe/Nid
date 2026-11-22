@@ -36,7 +36,9 @@ public sealed class NidKeyStore(AiDbContext db, IDataProtectionProvider protecti
     public async Task<NidKey> RotateAsync(CancellationToken ct)
     {
         await ActiveAsync(ct);
-        await db.Keys.Where(k => k.Status == "active").ExecuteUpdateAsync(set => set.SetProperty(k => k.Status, "retiring"), ct);
+        foreach (var active in await db.Keys.Where(k => k.Status == "active").ToListAsync(ct))
+            active.Status = "retiring";
+        await db.SaveChangesAsync(ct);
         return await CreateAsync(ct);
     }
 

@@ -288,19 +288,19 @@ public static class NidServiceCollectionExtensions
         services.AddSingleton<Nid.Ai.Application.IWorkerDirectory>(sp => sp.GetRequiredService<Nid.Ai.Infrastructure.Workers.WorkerDirectory>());
         // Workers are reached on the household's network: Myelin lets exactly the registered host and port pairs resolve
         // to private addresses, any public host stays allowed (a declared proxy), and the TLS check is the directory's.
-        services.AddHttpClient<Nid.Ai.Application.IWorkerClient, Nid.Ai.Infrastructure.Workers.WorkerClient>(http => http.Timeout = TimeSpan.FromSeconds(30))
-            .UseMyelin(o =>
-            {
-                NidOutbound.Apply(o);
-                o.AllowedHosts = [];
-                o.AllowRegisteredEndpoints(sp => sp.GetRequiredService<Nid.Ai.Infrastructure.Workers.WorkerDirectory>());
-            })
-            .ConfigurePrimaryHttpMessageHandler((handler, sp) =>
-            {
-                var directory = sp.GetRequiredService<Nid.Ai.Infrastructure.Workers.WorkerDirectory>();
-                ((SocketsHttpHandler)handler).SslOptions.RemoteCertificateValidationCallback = (sender, certificate, _, errors)
-                    => directory.ValidateCertificate(((System.Net.Security.SslStream)sender).TargetHostName, certificate, errors);
-            });
+        // Workers are reached on the household's network: Myelin's handler lets exactly the registered host and port pairs
+        // resolve to private addresses, and the TLS check is the directory's. One client for the host's life, as
+        // SafeHttpClient: an IHttpClientFactory client keeps every disposed host alive (HostLifetimeTests).
+        services.AddSingleton<Nid.Ai.Application.IWorkerClient>(sp =>
+        {
+            var directory = sp.GetRequiredService<Nid.Ai.Infrastructure.Workers.WorkerDirectory>();
+            var handler = UnambitiousFx.Myelin.MyelinHandler.Create(null, directory);
+            handler.SslOptions.RemoteCertificateValidationCallback = (sender, certificate, _, errors)
+                => directory.ValidateCertificate(((System.Net.Security.SslStream)sender).TargetHostName, certificate, errors);
+            var http = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(30) };
+            http.DefaultRequestHeaders.UserAgent.ParseAdd(NidOutbound.UserAgent);
+            return new Nid.Ai.Infrastructure.Workers.WorkerClient(http);
+        });
 
         services.AddDbContext<BankingDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
         {
@@ -506,6 +506,7 @@ public static class NidServiceCollectionExtensions
             cfg.AddRegisterGroup(new Nid.Investments.Application.RegisterGroup());
             cfg.AddRegisterGroup(new Nid.Income.Application.RegisterGroup());
             cfg.AddRegisterGroup(new Nid.Goals.Application.RegisterGroup());
+            cfg.AddRegisterGroup(new Nid.Ai.Application.RegisterGroup());
             cfg.AddRegisterGroup(new Nid.Childcare.Application.RegisterGroup());
             cfg.AddRegisterGroup(new Nid.Documents.Application.RegisterGroup());
             cfg.AddRegisterGroup(new Nid.RealEstate.Application.RegisterGroup());

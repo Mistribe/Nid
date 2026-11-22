@@ -109,6 +109,12 @@ public static partial class SecurityEventViews
         [SecurityEventNames.TokenAuthFailed] = ["prefix"],
         [SecurityEventNames.McpToolCalled] = ["tool"],
         [SecurityEventNames.BankStatementImported] = ["account", "source", "new", "known", "probably_known", "kept"],
+        [SecurityEventNames.ModelWorkerRegistered] = ["worker", "name"],
+        [SecurityEventNames.ModelWorkerPaired] = ["worker", "name"],
+        [SecurityEventNames.ModelWorkerChanged] = ["worker", "name", "change"],
+        [SecurityEventNames.ModelWorkerRevoked] = ["worker", "name"],
+        [SecurityEventNames.ModelWorkerKeyRotated] = ["worker", "name"],
+        [SecurityEventNames.NidWorkerKeyRotated] = ["fingerprint"],
     };
 
     [JsonSerializable(typeof(Dictionary<string, JsonElement>))]
