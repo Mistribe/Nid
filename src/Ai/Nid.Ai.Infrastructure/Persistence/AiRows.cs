@@ -126,3 +126,31 @@ public sealed class JobRow
 
     public uint RowVersion { get; set; }
 }
+
+/// <summary>The household's AI settings: one row (<c>id</c> = 1).</summary>
+public sealed class AiSettingsRow
+{
+    public int Id { get; set; }
+
+    public bool RemoteWorkersAllowed { get; set; }
+
+    /// <summary>The consent that set <see cref="RemoteWorkersAllowed"/> last.</summary>
+    public Guid? RemoteConsentId { get; set; }
+
+    public uint Version { get; set; }
+}
+
+/// <summary>One adult's decision on a data policy (<c>docs/ai/README.md</c> §6.2): who, about what, which way, when.</summary>
+public sealed class ConsentRow
+{
+    public Guid Id { get; set; }
+
+    public Guid PersonId { get; set; }
+
+    /// <summary><c>remote_workers</c>.</summary>
+    public required string Subject { get; set; }
+
+    public bool Value { get; set; }
+
+    public Instant At { get; set; }
+}

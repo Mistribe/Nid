@@ -17,7 +17,7 @@ partial class AiDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261122122429_AddJobs";
+    public override string LastMigrationId => "20261122141938_AddSettings";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -70,6 +70,74 @@ partial class AiDbContextModelSnapshot : ModelSnapshot
                 b.ToTable("ai_key", "ai", t =>
                     {
                         t.HasCheckConstraint("ck_ai_key_status", "status in ('active', 'retiring')");
+                    });
+            });
+
+        modelBuilder.Entity("Nid.Ai.Infrastructure.Persistence.AiSettingsRow", b =>
+            {
+                b.Property<int>("Id")
+                    .HasColumnType("integer")
+                    .HasColumnName("id");
+
+                b.Property<Guid?>("RemoteConsentId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("remote_consent_id");
+
+                b.Property<bool>("RemoteWorkersAllowed")
+                    .HasColumnType("boolean")
+                    .HasColumnName("remote_workers_allowed");
+
+                b.Property<uint>("Version")
+                    .IsConcurrencyToken()
+                    .ValueGeneratedOnAddOrUpdate()
+                    .HasColumnType("xid")
+                    .HasColumnName("xmin");
+
+                b.HasKey("Id")
+                    .HasName("pk_ai_settings");
+
+                b.HasIndex("RemoteConsentId")
+                    .HasDatabaseName("ix_ai_settings_remote_consent_id");
+
+                b.ToTable("ai_settings", "ai", t =>
+                    {
+                        t.HasCheckConstraint("ck_ai_settings_single", "id = 1");
+                    });
+            });
+
+        modelBuilder.Entity("Nid.Ai.Infrastructure.Persistence.ConsentRow", b =>
+            {
+                b.Property<Guid>("Id")
+                    .HasColumnType("uuid")
+                    .HasColumnName("id");
+
+                b.Property<Instant>("At")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("at");
+
+                b.Property<Guid>("PersonId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("person_id");
+
+                b.Property<string>("Subject")
+                    .IsRequired()
+                    .HasMaxLength(32)
+                    .HasColumnType("character varying(32)")
+                    .HasColumnName("subject");
+
+                b.Property<bool>("Value")
+                    .HasColumnType("boolean")
+                    .HasColumnName("value");
+
+                b.HasKey("Id")
+                    .HasName("pk_consent");
+
+                b.HasIndex("Subject", "At")
+                    .HasDatabaseName("ix_consent_subject_at");
+
+                b.ToTable("consent", "ai", t =>
+                    {
+                        t.HasCheckConstraint("ck_consent_subject", "subject in ('remote_workers')");
                     });
             });
 
@@ -419,6 +487,15 @@ partial class AiDbContextModelSnapshot : ModelSnapshot
 
                         t.HasCheckConstraint("ck_audit_log_category", "category in ('write','security','import')");
                     });
+            });
+
+        modelBuilder.Entity("Nid.Ai.Infrastructure.Persistence.AiSettingsRow", b =>
+            {
+                b.HasOne("Nid.Ai.Infrastructure.Persistence.ConsentRow", null)
+                    .WithMany()
+                    .HasForeignKey("RemoteConsentId")
+                    .OnDelete(DeleteBehavior.Restrict)
+                    .HasConstraintName("fk_ai_settings_consent_remote_consent_id");
             });
 
         modelBuilder.Entity("Nid.Ai.Infrastructure.Persistence.JobRow", b =>

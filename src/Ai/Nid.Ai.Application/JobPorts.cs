@@ -125,8 +125,19 @@ public sealed class ModelCallException(string code) : Exception($"Model call fai
     public string Code { get; } = code;
 }
 
+/// <summary>The household's AI settings (<c>ai.ai_settings</c>, <c>docs/ai/README.md</c> §13); for now, the opt-in for
+/// remote workers, each change kept as a consent (<c>ai.consent</c>).</summary>
+public interface IAiSettings
+{
+    Task<bool> RemoteWorkersAllowedAsync(CancellationToken ct);
+
+    /// <summary>Records the adult's decision and applies it.</summary>
+    Task SetRemoteWorkersAllowedAsync(bool allowed, Guid person, NodaTime.Instant at, CancellationToken ct);
+}
+
 public static class JobCodes
 {
+    public const string UnknownDataClass = "ai.unknown_data_class";
     public const string UnknownType = "ai.unknown_type";
     public const string InvalidInput = "ai.invalid_input";
     public const string NoWorker = "ai.no_worker";

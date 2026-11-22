@@ -64,3 +64,26 @@ public sealed record WorkerTestResult(int Frames, Guid JobId);
 /// <summary>Nid's new signing key after a rotation, to confirm on each worker's console, and the workers that could not
 /// be told.</summary>
 public sealed record NidKeyRotation(string Fingerprint, IReadOnlyList<Guid> Unreached);
+
+/// <summary>What a job or request carries (<c>docs/ai/README.md</c> §6.1): its class decides which workers may see it.</summary>
+public static class DataClasses
+{
+    /// <summary>No household data (an admin's « Tester »).</summary>
+    public const string None = "none";
+
+    /// <summary>The content of a statement, an amortization table, an invoice, a contract.</summary>
+    public const string Documents = "documents";
+
+    /// <summary>A « local seulement » document; payslips by default (§6.6).</summary>
+    public const string LocalOnly = "local_only";
+
+    /// <summary>Structured figures: amounts, income, lines, taxes.</summary>
+    public const string Figures = "figures";
+
+    /// <summary>Masked bank label patterns (#450).</summary>
+    public const string BankLabels = "bank_labels";
+
+    public static readonly IReadOnlySet<string> All = new HashSet<string> { None, Documents, LocalOnly, Figures, BankLabels };
+
+    public static bool IsKnown(string dataClass) => All.Contains(dataClass);
+}

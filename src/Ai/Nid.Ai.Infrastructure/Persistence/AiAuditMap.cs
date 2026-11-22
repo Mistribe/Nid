@@ -8,6 +8,8 @@ public sealed class AiAuditMap : IAuditMap
     public IReadOnlyDictionary<Type, AuditRule> Audited { get; } = new Dictionary<Type, AuditRule>
     {
         [typeof(ModelWorkerRow)] = AuditRule.NoItem,
+        [typeof(AiSettingsRow)] = AuditRule.NoItem,
+        [typeof(ConsentRow)] = AuditRule.NoItem,
         [typeof(AiKeyRow)] = AuditRule.NoItem with { Secret = new HashSet<string> { "private_key" } },
     };
 
