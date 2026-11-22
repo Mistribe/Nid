@@ -5,12 +5,15 @@
   </PropertyGroup>
   <ItemGroup>
     <Using Include="Xunit" />
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <PackageReference Include="xunit.v3" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Ai\Nid.Ai.Protocol\Nid.Ai.Protocol.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\vectors\rfc9180\**\*" LinkBase="vectors\rfc9180" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\vectors\rfc9421\**\*" LinkBase="vectors\rfc9421" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
