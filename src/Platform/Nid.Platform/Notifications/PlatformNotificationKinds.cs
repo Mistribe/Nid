@@ -14,6 +14,8 @@ public static class PlatformNotificationKinds
         // #384: the other adult refused to make an item private; told to the owner who asked.
         new("private_request_refused", NotificationFamilies.Action, NotificationLevel.Info, "core", null),
         new("job_failed", NotificationFamilies.Health, NotificationLevel.Action, "platform", null),
+        // #475: what may reach a remote or a safe model worker changed; every adult is told (docs/ai/README.md §12).
+        new("ai.data_policy_changed", NotificationFamilies.Security, NotificationLevel.Critical, "ai", null),
         .. AccountNotices.Kinds,
     ];
 }

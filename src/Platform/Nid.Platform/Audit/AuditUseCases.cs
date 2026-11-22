@@ -115,6 +115,7 @@ public static partial class SecurityEventViews
         [SecurityEventNames.ModelWorkerRevoked] = ["worker", "name"],
         [SecurityEventNames.ModelWorkerKeyRotated] = ["worker", "name"],
         [SecurityEventNames.NidWorkerKeyRotated] = ["fingerprint"],
+        [SecurityEventNames.AiRemoteWorkersChanged] = ["allowed"],
     };
 
     [JsonSerializable(typeof(Dictionary<string, JsonElement>))]

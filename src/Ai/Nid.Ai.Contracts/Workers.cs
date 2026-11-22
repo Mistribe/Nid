@@ -58,6 +58,9 @@ public sealed record WorkerList(IReadOnlyList<WorkerView> Workers);
 /// <summary>A registration waiting for its pairing: the fingerprint the admin compares with the worker's console.</summary>
 public sealed record RegisteredWorker(Guid Id, string Fingerprint);
 
+/// <summary>The household's AI settings as any adult reads them.</summary>
+public sealed record AiSettingsView(bool RemoteWorkersAllowed);
+
 /// <summary>« Tester »: how many frames the streamed echo answered, and the echo job queued for the worker.</summary>
 public sealed record WorkerTestResult(int Frames, Guid JobId);
 

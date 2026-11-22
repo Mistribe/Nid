@@ -45,6 +45,9 @@ public static class SecurityEventNames
 
     public const string ModelWorkerKeyRotated = "model_worker_key_rotated";
 
+    /// <summary>#475: an adult opened or closed remote workers to the household's data (<c>allowed</c>).</summary>
+    public const string AiRemoteWorkersChanged = "ai_remote_workers_changed";
+
     /// <summary>Nid's own signing key towards workers was replaced.</summary>
     public const string NidWorkerKeyRotated = "nid_worker_key_rotated";
 

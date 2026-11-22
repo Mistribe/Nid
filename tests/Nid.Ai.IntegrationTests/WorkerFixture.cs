@@ -60,13 +60,13 @@ public sealed class PairedWorld : IAsyncDisposable
         return new PairedWorld(hosts, nid, routes, clock);
     }
 
-    public Task<HttpResponseMessage> RegisterAsync(Guid? asPerson = null, string url = WorkerUrl)
+    public Task<HttpResponseMessage> RegisterAsync(Guid? asPerson = null, string url = WorkerUrl, string placement = "local")
         => Nid.RawAsync(asPerson is null ? Nid.AdultA : new Core.Contracts.PersonId(asPerson.Value), HttpMethod.Post, "/api/v1/ai/workers",
-            new { name = "GPU box", url, placement = "local", proxyDeclared = false });
+            new { name = "GPU box", url, placement, proxyDeclared = false });
 
-    public async Task<WorkerView> PairAsync(int index = 0)
+    public async Task<WorkerView> PairAsync(int index = 0, string placement = "local")
     {
-        var registered = await (await RegisterAsync(url: UrlOf(index))).Content.ReadFromJsonAsync<RegisteredWorker>(NidJson);
+        var registered = await (await RegisterAsync(url: UrlOf(index), placement: placement)).Content.ReadFromJsonAsync<RegisteredWorker>(NidJson);
         var paired = await Nid.RawAsync(Nid.AdultA, HttpMethod.Post, $"/api/v1/ai/workers/{registered!.Id}/pair",
             new { fingerprint = registered.Fingerprint, code = Workers[index].PairingCode() });
         paired.EnsureSuccessStatusCode();

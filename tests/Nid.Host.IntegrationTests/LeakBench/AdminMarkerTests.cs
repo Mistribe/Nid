@@ -70,14 +70,19 @@ public class AdminMarkerTests
         Assert.DoesNotContain(irl, t => !typeof(IAdminOnly).IsAssignableFrom(t));
     }
 
-    /// <summary>docs/ai/README.md §12: only an admin registers and manages a model worker, in the browser; any adult reads the list.</summary>
+    /// <summary>docs/ai/README.md §12: only an admin registers and manages a model worker; any adult decides the data policy
+    /// (the opt-in for remote workers, a worker's <c>safe</c> tag) and reads the list. Every one of these commands is the
+    /// browser's: a token never changes them.</summary>
     [Fact]
-    public void Managing_model_workers_is_admin_only_and_browser_only()
+    public void Managing_model_workers_is_admin_only_and_the_data_policy_any_adults_in_the_browser()
     {
+        Type[] adults = [typeof(Nid.Ai.Application.SetRemoteWorkersAllowedCommand), typeof(Nid.Ai.Application.SetWorkerSafeCommand)];
         var commands = typeof(Nid.Ai.Application.RegisterWorkerCommand).Assembly.GetTypes()
             .Where(t => t.Name.EndsWith("Command", StringComparison.Ordinal) && !t.IsAbstract).ToList();
         Assert.NotEmpty(commands);
-        Assert.All(commands, t => Assert.True(typeof(IAdminOnly).IsAssignableFrom(t) && typeof(Nid.Platform.Contracts.IBrowserOnly).IsAssignableFrom(t), t.Name));
+        Assert.All(commands, t => Assert.True(typeof(Nid.Platform.Contracts.IBrowserOnly).IsAssignableFrom(t), t.Name));
+        Assert.All(commands.Except(adults), t => Assert.True(typeof(IAdminOnly).IsAssignableFrom(t), t.Name));
+        Assert.All(adults, t => Assert.False(typeof(IAdminOnly).IsAssignableFrom(t), t.Name));
         Assert.False(typeof(IAdminOnly).IsAssignableFrom(typeof(Nid.Ai.Application.ListWorkersQuery)));
     }
 
