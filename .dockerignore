@@ -9,6 +9,8 @@
 !web/
 # The demo household's invented files, embedded in the host for demo mode (issue 203).
 !deploy/local/demo/*.nid.json
+# The cloud profiles, embedded in the Ai module (#487).
+!deploy/llm-profiles/*.json
 
 # Inside what is allowed: build outputs and local files.
 **/bin/
