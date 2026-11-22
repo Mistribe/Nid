@@ -96,6 +96,6 @@ public static class DataClasses
 public sealed record ModelCapabilities(bool RemoteWorkersAllowed, IReadOnlyList<CapabilityView> Capabilities);
 
 /// <summary>Online workers serving a capability: <see cref="Local"/>, <see cref="Remote"/> (counted only with the household's
-/// opt-in) and among them <see cref="Safe"/>; <see cref="Reason"/> when none: <c>no_worker</c>, <c>remote_not_allowed</c>,
-/// <c>all_offline</c>.</summary>
+/// opt-in) and among them <see cref="Safe"/>; <see cref="Reason"/> when none, with the router's codes: <c>ai.no_worker</c>,
+/// <c>ai.remote_not_allowed</c>, <c>ai.all_offline</c>.</summary>
 public sealed record CapabilityView(string Capability, int Local, int Remote, int Safe, string? Reason);

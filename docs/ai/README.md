@@ -738,7 +738,9 @@ et §3, `authorization.md`), `../security/` (`infrastructure.md`, `README.md`, `
   `figures`, `bank_labels` ; une classe inconnue est refusée. Sans le consentement de chaque adulte (§6.3, #167) : un
   worker distant reçoit tout sauf `none` seulement après l'opt-in du foyer, `local_only` seulement un worker `safe`. Sans
   worker éligible, la raison : `ai.no_safe_worker`, puis `ai.remote_not_allowed`, sinon `ai.no_worker`. Tout adulte
-  pose l'opt-in et l'étiquette `safe` ; chaque changement est un événement de sécurité et prévient tous les adultes.
+  pose l'opt-in et l'étiquette `safe` ; chaque changement (un réglage qui ne change rien n'est ni gardé ni annoncé) est
+  un événement de sécurité et prévient tous les adultes. Un retrait reprend aussi le travail déjà confié : un job est
+  annulé sur le worker à sa prochaine interrogation et renvoyé là où il peut aller ; une requête déjà en cours se termine.
 - **Valeurs** : étapes, jetons et durée par tour et plafond par personne (#173), bornes des requêtes et fréquence
   d'interrogation des workers (#166), fenêtre de recouvrement d'une rotation.
 - **Chiffrement au repos** des conversations au-delà de celui des sauvegardes.

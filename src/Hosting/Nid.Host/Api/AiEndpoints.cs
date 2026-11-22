@@ -66,7 +66,7 @@ public static class AiEndpoints
 
         api.MapPut("/{id:guid}/safe", async (Guid id, SafeBody body, IInvoker invoker, CancellationToken ct) =>
                 body.Safe is { } safe
-                    ? (await invoker.InvokeAsync(new SetWorkerSafeCommand(id, safe), ct)).ToHttp(view => view)
+                    ? (await invoker.InvokeAsync(new SetWorkerSafeCommand(id, safe), ct)).ToHttp(change => change.View)
                     : Missing("safe"))
             .Returns<WorkerView>();
 
@@ -83,7 +83,7 @@ public static class AiEndpoints
             .Returns<AiSettingsView>();
         settings.MapPut("/remote-workers", async (RemoteWorkersBody body, IInvoker invoker, CancellationToken ct) =>
                 body.Allowed is { } allowed
-                    ? (await invoker.InvokeAsync(new SetRemoteWorkersAllowedCommand(allowed), ct)).ToHttp(view => view)
+                    ? (await invoker.InvokeAsync(new SetRemoteWorkersAllowedCommand(allowed), ct)).ToHttp(change => change.View)
                     : Missing("allowed"))
             .Returns<AiSettingsView>();
 

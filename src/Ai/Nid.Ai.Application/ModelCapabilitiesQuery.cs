@@ -41,12 +41,12 @@ public sealed class GetModelCapabilitiesHandler(IWorkerStore store, IAiSettings 
 
     private static CapabilityView View(string name, IReadOnlyList<(WorkerRecord Worker, WorkerDeclaration Declaration, bool Online)> serving, bool remoteAllowed)
     {
-        var online = serving.Where(s => s.Online).Select(s => s.Worker).ToList();
-        var reachable = online.Where(w => w.Placement == WorkerPlacement.Local || remoteAllowed).ToList();
+        var allowed = serving.Where(s => s.Worker.Placement == WorkerPlacement.Local || remoteAllowed).ToList();
+        var reachable = allowed.Where(s => s.Online).Select(s => s.Worker).ToList();
         var reason = reachable.Count > 0 ? null
-            : serving.Count == 0 ? "no_worker"
-            : online.Count == 0 ? "all_offline"
-            : "remote_not_allowed";
+            : serving.Count == 0 ? JobCodes.NoWorker
+            : allowed.Count == 0 ? Domain.DataPolicy.RemoteNotAllowed
+            : JobCodes.AllOffline;
         return new CapabilityView(name,
             reachable.Count(w => w.Placement == WorkerPlacement.Local),
             reachable.Count(w => w.Placement == WorkerPlacement.Remote),

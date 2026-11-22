@@ -90,6 +90,10 @@ public interface IModelContract
 {
     ModelCallKind Kind { get; }
 
+    /// <summary>True only for a type that never carries household data (« Tester »'s echo): the class <c>none</c>, which
+    /// any worker may receive, is accepted for it alone.</summary>
+    bool AllowsNoData => false;
+
     string Type { get; }
 
     int Version { get; }
@@ -132,12 +136,15 @@ public interface IAiSettings
     Task<bool> RemoteWorkersAllowedAsync(CancellationToken ct);
 
     /// <summary>Records the adult's decision and applies it.</summary>
-    Task SetRemoteWorkersAllowedAsync(bool allowed, Guid person, NodaTime.Instant at, CancellationToken ct);
+    /// <summary>False when another adult changed it at the same moment: nothing was written.</summary>
+    Task<bool> SetRemoteWorkersAllowedAsync(bool allowed, Guid person, NodaTime.Instant at, CancellationToken ct);
 }
 
 public static class JobCodes
 {
     public const string UnknownDataClass = "ai.unknown_data_class";
+    public const string AllOffline = "ai.all_offline";
+    public const string SettingsChanged = "ai.settings_changed";
     public const string UnknownType = "ai.unknown_type";
     public const string InvalidInput = "ai.invalid_input";
     public const string NoWorker = "ai.no_worker";

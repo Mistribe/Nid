@@ -25,7 +25,7 @@ public sealed class CapabilitiesTests(PostgresFixture fixture) : IClassFixture<P
 
         Assert.False(capabilities.RemoteWorkersAllowed);
         var echo = Assert.Single(capabilities.Capabilities);
-        Assert.Equal(("echo", 0, 0, 0, "no_worker"), (echo.Capability, echo.Local, echo.Remote, echo.Safe, echo.Reason));
+        Assert.Equal(("echo", 0, 0, 0, "ai.no_worker"), (echo.Capability, echo.Local, echo.Remote, echo.Safe, echo.Reason));
     }
 
     [Fact]
@@ -46,10 +46,19 @@ public sealed class CapabilitiesTests(PostgresFixture fixture) : IClassFixture<P
         await using var app = await NidApp.StartAsync(fixture);
         await AddAsync(app, Row("far", "remote"));
 
-        Assert.Equal(("echo", 0, 0, 0, "remote_not_allowed"), Find(await ReadAsync(app), "echo"));
+        Assert.Equal(("echo", 0, 0, 0, "ai.remote_not_allowed"), Find(await ReadAsync(app), "echo"));
 
         await app.RawAsync(app.AdultA, HttpMethod.Put, "/api/v1/ai/settings/remote-workers", new { allowed = true });
         Assert.Equal(("echo", 0, 1, 0, (string?)null), Find(await ReadAsync(app), "echo"));
+    }
+
+    [Fact]
+    public async Task Offline_remote_workers_without_the_opt_in_say_the_opt_in_is_missing()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await AddAsync(app, Row("far", "remote", seen: Now - Duration.FromMinutes(5)));
+
+        Assert.Equal(("echo", 0, 0, 0, "ai.remote_not_allowed"), Find(await ReadAsync(app), "echo"));
     }
 
     [Fact]
@@ -60,8 +69,8 @@ public sealed class CapabilitiesTests(PostgresFixture fixture) : IClassFixture<P
 
         var capabilities = await ReadAsync(app);
 
-        Assert.Equal(("echo", 0, 0, 0, "all_offline"), Find(capabilities, "echo"));
-        Assert.Equal(("chat", 0, 0, 0, "all_offline"), Find(capabilities, "chat"));
+        Assert.Equal(("echo", 0, 0, 0, "ai.all_offline"), Find(capabilities, "echo"));
+        Assert.Equal(("chat", 0, 0, 0, "ai.all_offline"), Find(capabilities, "chat"));
     }
 
     private static (string, int, int, int, string?) Find(ModelCapabilities capabilities, string name)

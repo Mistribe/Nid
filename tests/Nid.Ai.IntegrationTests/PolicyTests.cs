@@ -1,3 +1,4 @@
+extern alias worker;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -13,6 +14,7 @@ using Nid.Platform.Contracts;
 using Nid.Platform.Infrastructure.Persistence;
 using Nid.TestSupport;
 using NodaTime;
+using WorkerJobHandler = worker::Nid.Ai.Worker.IJobHandler;
 
 namespace Nid.Ai.IntegrationTests;
 
@@ -73,6 +75,71 @@ public sealed class PolicyTests(PostgresFixture fixture) : IClassFixture<Postgre
     }
 
     [Fact]
+    public async Task A_change_that_changes_nothing_records_and_tells_nothing()
+    {
+        var notices = new Notices();
+        await using var world = await PairedWorld.StartAsync(fixture, nidServices: s => s.Replace(ServiceDescriptor.Scoped<INotifier>(_ => notices)));
+        var worker = await world.PairAsync();
+
+        for (var i = 0; i < 2; i++)
+        {
+            Assert.Equal(HttpStatusCode.OK, (await world.Nid.RawAsync(world.Nid.AdultA, HttpMethod.Put, "/api/v1/ai/settings/remote-workers", new { allowed = true })).StatusCode);
+            Assert.Equal(HttpStatusCode.OK, (await world.Nid.RawAsync(world.Nid.AdultA, HttpMethod.Put, $"/api/v1/ai/workers/{worker.Id}/safe", new { safe = true })).StatusCode);
+        }
+
+        await using var scope = Scope(world);
+        Assert.Equal(1, await scope.ServiceProvider.GetRequiredService<AiDbContext>().Consents.CountAsync(TestContext.Current.CancellationToken));
+        Assert.Equal(2, notices.Published.Count);
+        var events = await SecurityEventsAsync(world);
+        Assert.Single(events, e => e == "ai_remote_workers_changed");
+        Assert.Single(events, e => e == "model_worker_changed");
+    }
+
+    [Fact]
+    public async Task Adults_toggling_at_once_never_get_an_error()
+    {
+        await using var world = await PairedWorld.StartAsync(fixture);
+
+        var answers = await Task.WhenAll(Enumerable.Range(0, 8).Select(i => world.Nid.RawAsync(
+            i % 2 == 0 ? world.Nid.AdultA : world.Nid.AdultB, HttpMethod.Put, "/api/v1/ai/settings/remote-workers", new { allowed = i % 4 < 2 })));
+
+        Assert.All(answers, a => Assert.Contains(a.StatusCode, new[] { HttpStatusCode.OK, HttpStatusCode.Conflict }));
+    }
+
+    [Fact]
+    public async Task Withdrawing_safe_takes_back_local_only_work_already_sent()
+    {
+        var gate = new Gate();
+        await using var world = await PairedWorld.StartAsync(fixture, workerServices: s => s.AddSingleton<WorkerJobHandler>(gate),
+            nidServices: s => s.AddSingleton<IModelContract>(new TestContract("test-gate", allowsNoData: false)));
+        var worker = await world.PairAsync();
+        await world.Nid.RawAsync(world.Nid.AdultA, HttpMethod.Put, $"/api/v1/ai/workers/{worker.Id}/safe", new { safe = true });
+        var id = await SubmitAsync(world, "local_only", "test-gate", new { n = 1 }, allowsNoData: false, contract: true);
+        await PassAsync(world);
+        Assert.Equal("running", (await ViewAsync(world, id)).Status);
+
+        await world.Nid.RawAsync(world.Nid.AdultA, HttpMethod.Put, $"/api/v1/ai/workers/{worker.Id}/safe", new { safe = false });
+        world.Clock.Now += Duration.FromSeconds(6);
+        await PassAsync(world);
+
+        var view = await ViewAsync(world, id);
+        Assert.Equal("queued", view.Status);
+        Assert.Equal(DataPolicy.NoSafeWorker, view.WaitingReason);
+        Assert.Equal(0, view.Attempts);
+        await gate.Cancelled.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task No_data_is_only_for_a_contract_that_carries_none()
+    {
+        await using var world = await PairedWorld.StartAsync(fixture);
+
+        var refused = await Assert.ThrowsAsync<ModelCallException>(() => SubmitAsync(world, "none", "test-gate", new { n = 1 }, allowsNoData: false, contract: true));
+
+        Assert.Equal(JobCodes.UnknownDataClass, refused.Code);
+    }
+
+    [Fact]
     public async Task The_settings_are_read_by_any_adult()
     {
         await using var world = await PairedWorld.StartAsync(fixture);
@@ -98,6 +165,16 @@ public sealed class PolicyTests(PostgresFixture fixture) : IClassFixture<Postgre
             TestContext.Current.CancellationToken);
     }
 
+    /// <summary>A job of a test type, through a contract registered for this call only.</summary>
+    private static async Task<Guid> SubmitAsync(PairedWorld world, string dataClass, string type, object input, bool allowsNoData, bool contract)
+    {
+        await using var scope = Scope(world);
+        var jobs = new ModelJobs(scope.ServiceProvider.GetRequiredService<IJobStore>(),
+            new ModelContracts(contract ? [new TestContract(type, allowsNoData)] : []),
+            scope.ServiceProvider.GetRequiredService<NodaTime.IClock>());
+        return await jobs.SubmitAsync(new JobRequest(type, 1, JsonSerializer.SerializeToElement(input), dataClass), TestContext.Current.CancellationToken);
+    }
+
     private static async Task<ModelJobView> ViewAsync(PairedWorld world, Guid id)
     {
         await using var scope = Scope(world);
@@ -115,6 +192,47 @@ public sealed class PolicyTests(PostgresFixture fixture) : IClassFixture<Postgre
         await using var scope = Scope(world);
         return await scope.ServiceProvider.GetRequiredService<PlatformDbContext>().AuditLog.AsNoTracking()
             .Where(e => e.Category == "security").Select(e => e.Action).ToListAsync(TestContext.Current.CancellationToken);
+    }
+
+    private sealed class TestContract(string type, bool allowsNoData) : IModelContract
+    {
+        public ModelCallKind Kind => ModelCallKind.Job;
+
+        public string Type => type;
+
+        public int Version => 1;
+
+        public bool AllowsNoData => allowsNoData;
+
+        public bool ValidInput(ReadOnlySpan<byte> input) => true;
+
+        public string? ReadOutput(ReadOnlySpan<byte> output) => System.Text.Encoding.UTF8.GetString(output);
+    }
+
+    private sealed class Gate : WorkerJobHandler
+    {
+        private readonly TaskCompletionSource _open = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public TaskCompletionSource Cancelled { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public string Type => "test-gate";
+
+        public int Version => 1;
+
+        public async Task<byte[]> RunAsync(JsonElement input, byte[]? file, CancellationToken ct)
+        {
+            try
+            {
+                await _open.Task.WaitAsync(ct);
+            }
+            catch (OperationCanceledException)
+            {
+                Cancelled.TrySetResult();
+                throw;
+            }
+
+            return """{"done": true}"""u8.ToArray();
+        }
     }
 
     private sealed class Notices : INotifier

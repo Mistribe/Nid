@@ -392,6 +392,8 @@ public sealed class DispatcherTests(PostgresFixture fixture) : IClassFixture<Pos
 
         public int Version => 1;
 
+        public bool AllowsNoData => true;
+
         public bool ValidInput(ReadOnlySpan<byte> input) => true;
 
         public string? ReadOutput(ReadOnlySpan<byte> output) => acceptsOutput ? System.Text.Encoding.UTF8.GetString(output) : null;
