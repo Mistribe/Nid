@@ -340,6 +340,25 @@ enregistrés** de Myelin 1.2.0 (`AllowRegisteredEndpoints`, `IRegisteredEndpoint
 - **Trousseau Data Protection perdu** : la clé de Nid est illisible ; chaque worker doit être ré-apparié. La procédure
   de restauration le dit (`../security/infrastructure.md`).
 
+### 3.7 Le moteur derrière le worker (#485)
+
+Le worker ne fait tourner aucun modèle lui-même : il parle à un moteur sur son propre réseau par l'API compatible OpenAI
+(décidé le 2026-11-22), que proposent Ollama, llama.cpp, vLLM et LM Studio. Nid ne connaît ni l'adresse ni l'existence
+du moteur.
+
+- `GET /v1/models` donne les modèles servis. La liste est relue au plus toutes les 30 s ; `Engine:Models` la restreint.
+  Chaque modèle est déclaré `chat`. Son empreinte (`digest`) est le SHA-256 de ce que le moteur dit de lui : un modèle
+  retéléchargé ou remplacé sous le même nom se lit comme un changement (§3.3). Le moteur ne dit ni le contexte, ni la
+  sortie maximale, ni l'appel d'outils : `Engine:ContextTokens` (8192), `Engine:MaxOutputTokens` (4096) et
+  `Engine:Tools` (oui) les fixent.
+- `POST /v1/chat/completions` en flux sert la requête `contracts/requests/chat/v1` : le texte au fil de l'eau, chaque
+  appel d'outil une fois entier, puis une trame d'usage (jetons d'entrée et de sortie, raison de l'arrêt, modèle) qui
+  clôt le tour. Un tour sans trame d'usage a été coupé.
+- Un moteur injoignable, qui refuse ou qui échoue termine la requête par une trame d'erreur : `engine_unreachable`,
+  `engine_refused` (4xx), `engine_failed` (5xx), `engine_invalid` (réponse illisible). Un moteur muet retire ses modèles
+  de la déclaration jusqu'à ce qu'il réponde.
+- Sans `Engine:Url`, le worker ne déclare ni modèle ni `chat`.
+
 ## 4. Deux modes (question 2)
 
 ### 4.1 Jobs, requêtes et transport

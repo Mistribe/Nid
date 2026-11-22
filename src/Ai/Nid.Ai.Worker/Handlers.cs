@@ -22,6 +22,9 @@ public interface IRequestHandler
 
     int Version { get; }
 
+    /// <summary>False: the worker does not declare it and answers <c>unsupported</c> (chat without an engine).</summary>
+    bool Available => true;
+
     IAsyncEnumerable<byte[]> RunAsync(byte[] input, CancellationToken ct);
 }
 
