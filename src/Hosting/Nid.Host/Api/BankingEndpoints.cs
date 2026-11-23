@@ -202,16 +202,17 @@ public static class BankingEndpoints
             .Returns<OperationPage>();
 
         // #85: what the scope's accounts spent by category over a month (default: the current one) or a period of whole months.
-        api.MapGet("/spending", async (string? scope, string? month, string? from, string? to, IInvoker invoker, CancellationToken ct)
-                => (await invoker.InvokeAsync(new GetSpendingQuery(ParseScope(scope), OptionalMonth(month), OptionalMonth(from), OptionalMonth(to)), ct))
+        // `account` (repeated) keeps only those of the scope's accounts.
+        api.MapGet("/spending", async (string? scope, string? month, string? from, string? to, IInvoker invoker, CancellationToken ct, [FromQuery] Guid[]? account = null)
+                => (await invoker.InvokeAsync(new GetSpendingQuery(ParseScope(scope), OptionalMonth(month), OptionalMonth(from), OptionalMonth(to), account), ct))
                     .ToHttp(spending => spending))
             .Returns<SpendingView>();
 
         // #85: the lines behind one figure of /spending: a category's (children included) or « Non classées », 50 a page.
         api.MapGet("/spending/lines", async (string? scope, Guid? categoryId, bool? uncategorised, string? month, string? from, string? to, int? page,
-                    IInvoker invoker, CancellationToken ct)
+                    IInvoker invoker, CancellationToken ct, [FromQuery] Guid[]? account = null)
                 => (await invoker.InvokeAsync(new ListSpendingLinesQuery(
-                        ParseScope(scope), categoryId, uncategorised ?? false, OptionalMonth(month), OptionalMonth(from), OptionalMonth(to), page ?? 1), ct))
+                        ParseScope(scope), categoryId, uncategorised ?? false, OptionalMonth(month), OptionalMonth(from), OptionalMonth(to), page ?? 1, account), ct))
                     .ToHttp(spending => spending))
             .Returns<SpendingLines>();
 

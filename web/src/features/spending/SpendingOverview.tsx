@@ -1,6 +1,6 @@
 import { keepPreviousData } from '@tanstack/react-query';
 import { Link, useNavigate, useSearch } from '@tanstack/react-router';
-import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
+import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
 import { Fragment, lazy, Suspense, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -21,6 +21,7 @@ import { StatLine } from '@/components/page/StatLine';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
 import { shiftMonth } from '@/features/calendar/calendarDates';
 import { mergeTargets } from './categoryTargets';
@@ -107,8 +108,11 @@ export function SpendingControls() {
 export function SpendingOverview() {
   const { t } = useTranslation();
   const { $api } = useApi();
-  const { search, month, year } = useMonth();
-  const query: SpendingQuery = { scope: search.scope === 'me' ? 'me' : 'household', ...(year ? { from: shiftMonth(month, -11), to: month } : { month }) };
+  const { search, month, year, set } = useMonth();
+  const query: SpendingQuery = {
+    scope: search.scope === 'me' ? 'me' : 'household', ...(search.account ? { account: search.account } : {}),
+    ...(year ? { from: shiftMonth(month, -11), to: month } : { month }),
+  };
   const status = useBankingStatus();
   const accounts = useBankAccounts();
   const spending = $api.useQuery('get', SPENDING, { params: { query } }, { enabled: (accounts?.length ?? 0) > 0, placeholderData: keepPreviousData });
@@ -140,8 +144,14 @@ export function SpendingOverview() {
       );
     if (spending.error) return <ProblemMessage problem={present(toProblem(spending.error))} />;
     if (!spending.data) return <Loading label={t('spending.loading')}><TableSkeleton columns={4} /></Loading>;
-    return <Figures data={spending.data} period={period(spending.data)} year={year} household={query.scope === 'household'} onOpen={setOpen} onBudget={setBudget}
-      onSuggest={held.data?.length === 0 ? () => setSuggest(true) : undefined} categories={categories.data ?? []} onEdit={setEdit} />;
+    const picked = !!search.account;
+    return (
+      <>
+        <AccountFilter offered={spending.data.accounts} picked={search.account ?? []} onChange={(ids) => set({ account: ids.length > 0 ? ids : undefined })} />
+        <Figures data={spending.data} period={period(spending.data)} year={year} household={query.scope === 'household'} picked={picked} onOpen={setOpen} onBudget={setBudget}
+          onSuggest={held.data?.length === 0 ? () => setSuggest(true) : undefined} categories={categories.data ?? []} onEdit={setEdit} />
+      </>
+    );
   };
   const period = (data: Spending) => (year ? t('spending.range', { from: monthText(data.from), to: monthText(data.to) }) : monthText(data.to));
 
@@ -166,8 +176,38 @@ export function SpendingOverview() {
   );
 }
 
-function Figures({ data, period, year, household, onOpen, onBudget, onSuggest, categories, onEdit }: {
-  data: Spending; period: string; year: boolean; household: boolean; onOpen: (target: { categoryId?: string; name: string }) => void;
+/** The accounts the figures count, ticked in a menu (`?account=`, none ticked: every account of the scope); the server applies them. */
+function AccountFilter({ offered, picked, onChange }: { offered: Spending['accounts']; picked: string[]; onChange: (ids: string[]) => void }) {
+  const { t } = useTranslation();
+  if (offered.length < 2 && picked.length === 0) return null;
+  const toggle = (id: string) => onChange(picked.includes(id) ? picked.filter((p) => p !== id) : [...picked, id]);
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center gap-2">
+        <DropdownMenu modal={false}>
+          <DropdownMenuTrigger asChild>
+            <Button type="button" variant="outline">
+              {picked.length > 0 ? t('spending.accounts_picked', { count: picked.length }) : t('spending.accounts')}
+              <ChevronDownIcon aria-hidden="true" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            {offered.map((a) => (
+              <DropdownMenuCheckboxItem key={a.id} checked={picked.includes(a.id)} onCheckedChange={() => toggle(a.id)} onSelect={(e) => e.preventDefault()}>
+                {a.name}
+              </DropdownMenuCheckboxItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+        {picked.length > 0 ? <Button type="button" size="sm" variant="ghost" onClick={() => onChange([])}>{t('spending.accounts_clear')}</Button> : null}
+      </div>
+      {picked.length > 0 ? <p className="text-sm text-muted-foreground">{t('spending.accounts_note')}</p> : null}
+    </div>
+  );
+}
+
+function Figures({ data, period, year, household, picked, onOpen, onBudget, onSuggest, categories, onEdit }: {
+  data: Spending; period: string; year: boolean; household: boolean; picked: boolean; onOpen: (target: { categoryId?: string; name: string }) => void;
   onBudget: (target: BudgetTarget | 'pick') => void; onSuggest?: () => void; categories: BankCategory[]; onEdit: (edit: Edit) => void;
 }) {
   const { t } = useTranslation();
@@ -192,8 +232,8 @@ function Figures({ data, period, year, household, onOpen, onBudget, onSuggest, c
     </span>
   );
   const average = (r: Row) => (r.average ? money(r.average) : '—');
-  // The budget is the household's, for one month: Foyer's month view only.
-  const budgets = household && !year;
+  // The budget is the household's, for one month: Foyer's month view only, on every account.
+  const budgets = household && !year && !picked;
   // What qualifies a budget's amount, each word with its tip: where it comes from, and how much of a typed one is already committed.
   const notes = (r: Row, b: SpendingBudget) => {
     const mark = b.source === 'committed' ? 'committed' : b.period === 'year' ? 'yearly' : null;
@@ -264,7 +304,7 @@ function Figures({ data, period, year, household, onOpen, onBudget, onSuggest, c
 
   return (
     <>
-      <MonthLeft data={data} year={year} />
+      {picked ? null : <MonthLeft data={data} year={year} />}
       {year ? (
         <Suspense fallback={<Loading label={t('spending.loading')}><Skeleton className="h-48 w-full" /></Loading>}>
           <MonthsChart months={data.months} currency={data.currency} />
@@ -330,7 +370,7 @@ function Figures({ data, period, year, household, onOpen, onBudget, onSuggest, c
             )} />
         ) : null}
         {/* Moi: the budget is the household's, never shown against one person's accounts. */}
-        {!household && !year ? (
+        {!household && !year && !picked ? (
           <p className="pt-3 text-sm text-muted-foreground">
             {t('spending.budget.household_only')}{' '}
             <Link from="/spending" to="/spending" search={(prev: RootSearch & SpendingSearch) => ({ ...prev, scope: undefined })}

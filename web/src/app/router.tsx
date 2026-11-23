@@ -423,6 +423,8 @@ const spendingRoute = createRoute({
   beforeLoad: requireModule('banking'),
   validateSearch: (search: Record<string, unknown>): SpendingSearch => ({
     ...operationsSearch(search),
+    // The overview ticks several accounts (Opérations keeps one).
+    account: ids(search.account),
     ...(typeof search.month === 'string' && /^\d{4}-(0[1-9]|1[0-2])$/.test(search.month) ? { month: search.month } : {}),
     ...(search.period === '12m' ? { period: '12m' as const } : {}),
     tab: search.tab === 'operations' || search.tab === 'categories' ? search.tab : undefined,

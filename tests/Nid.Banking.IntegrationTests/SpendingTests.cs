@@ -133,6 +133,17 @@ public class SpendingTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
         var bob = await SpendingAsync(app, app.AdultB, "?scope=me");
         Assert.Equal("1155.00", bob.GetProperty("total").GetString());
         Assert.Equal("1060.00", Category(Category(bob, "Alimentation"), "Courses").GetProperty("amount").GetString());
+
+        // The account filter offers the scope's accounts and counts only the picked ones; an account outside the scope counts nothing.
+        Assert.Equal(["Carte commune", "Commun", "Perso A"], Names(mine.GetProperty("accounts")));
+        var picked = await SpendingAsync(app, app.AdultA, $"?scope=me&account={a["Perso A"]}&account={a["Carte commune"]}");
+        Assert.Equal("50.00", picked.GetProperty("total").GetString());
+        Assert.Equal(["Carte commune", "Commun", "Perso A"], Names(picked.GetProperty("accounts")));
+        Assert.Null(Text(picked, "committed"));
+        Assert.Equal("0.00", (await SpendingAsync(app, app.AdultA, $"?scope=me&account={b["Perso B"]}")).GetProperty("total").GetString());
+        var lines = await BankingApi.JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get,
+            $"{Spending}/lines?scope=me&categoryId={Seed("food")}&account={a["Carte commune"]}"));
+        Assert.Equal(("40.00", 1), (lines.GetProperty("total").GetString(), lines.GetProperty("count").GetInt32()));
     }
 
     [Fact]
