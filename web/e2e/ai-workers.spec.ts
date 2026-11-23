@@ -57,16 +57,19 @@ test('alice pairs the worker, tests it, finds its job and asks the assistant', a
     },
   })).status()).toBe(201);
 
-  await page.goto('/settings/ai/assistant');
-  await page.getByRole('textbox', { name: 'Votre question' }).fill('Quelles enveloppes ?');
-  await page.getByRole('button', { name: 'Demander' }).click();
-  const answer = page.getByText(/D'après Nid, votre enveloppe « .+ » est suivie/);
+  // #534: from any page, through the top bar's panel.
+  await page.goto('/dashboard');
+  await page.getByRole('button', { name: 'Assistant' }).click();
+  const panel = page.getByRole('dialog', { name: 'Assistant' });
+  await panel.getByRole('textbox', { name: 'Votre question' }).fill('Quelles enveloppes ?');
+  await panel.getByRole('button', { name: 'Demander' }).click();
+  const answer = panel.getByText(/D'après Nid, votre enveloppe « .+ » est suivie/);
   await expect(answer).toBeVisible();
-  await expect(page.getByText('Consulté : list_envelopes')).toBeVisible();
-  await expect(page.getByText('Répondu par Worker e2e, modèle nid-test-model.')).toBeVisible();
+  await expect(panel.getByText('Consulté : list_envelopes')).toBeVisible();
+  await expect(panel.getByText('Répondu par Worker e2e, modèle nid-test-model.')).toBeVisible();
   const named = /« (.+) »/.exec((await answer.textContent()) ?? '')![1];
-  await expect(page.getByRole('list', { name: 'Pages citées' }).getByRole('link', { name: named })).toBeVisible();
-  await expect(page.getByRole('link', { name: /example\.test/ })).toHaveCount(0); // the model's URL stays text
+  await expect(panel.getByRole('list', { name: 'Pages citées' }).getByRole('link', { name: named })).toBeVisible();
+  await expect(panel.getByRole('link', { name: /example\.test/ })).toHaveCount(0); // the model's URL stays text
   expect((await page.request.put('/api/v1/ai/settings/uses/chat/model', { headers, data: { model: null } })).ok()).toBe(true);
 
   await page.goto('/settings/ai');
