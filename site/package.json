@@ -10,7 +10,7 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "check": "astro build && node scripts/check-dist.mjs && node --test scripts/",
+    "check": "astro build && node scripts/check-dist.mjs && node scripts/check-install.mjs && node --test scripts/",
     "capture": "node scripts/capture.mjs"
   },
   "dependencies": {
