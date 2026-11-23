@@ -16,7 +16,7 @@ Les images sont publiques sur `ghcr.io/mistribe/nid`, pour amd64 et arm64, sans 
 | Fichiers | un compose et un `.env` | un compose, un script de préparation, des secrets |
 | Connexion | identifiant et mot de passe gardés par Nid, validation en deux étapes en option | passkeys, par Pocket ID |
 | Noms d'hôte | un | deux (Nid et Pocket ID) |
-| Sauvegarde | à votre charge (export JSON depuis l'application) | chiffrée chaque nuit, avec restauration vérifiée |
+| Sauvegarde | à votre charge : copie des volumes Docker, et l'export JSON de vos chiffres | chiffrée chaque nuit, avec un test de restauration (`restore.sh --verify`) |
 
 **Commencez par le standalone** si vous hésitez : il se lance en quatre commandes. La forme de référence ajoute les passkeys et la sauvegarde automatique.
 

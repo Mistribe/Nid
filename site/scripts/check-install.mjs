@@ -1,24 +1,25 @@
 // Keeps the install guide in step with deploy/README.md, the full reference: every shell block of an install page must
-// appear there verbatim (lines compared trimmed). Run by `pnpm --dir site check`: node scripts/check-install.mjs
+// appear there verbatim, as whole lines (compared trimmed). Untagged blocks (a Caddyfile) count too; YAML and nginx do not. Run by `pnpm --dir site check`: node scripts/check-install.mjs
 import { readdir, readFile } from 'node:fs/promises';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const FENCE = /^[ \t]*```([\w-]*)[^\n]*\n([\s\S]*?)^[ \t]*```/gm;
-const SHELL = new Set(['sh', 'bash', 'shell']);
+const CHECKED = new Set(['', 'sh', 'bash', 'shell']);
 
 const normalise = (text) => text.split('\n').map((line) => line.trim()).filter((line) => line !== '').join('\n');
 
 /** @param {Array<{ path: string, text: string }>} pages @param {string} readme @returns {string[]} */
 export function staleBlocks(pages, readme) {
-  const reference = normalise(readme);
+  // Framed by newlines so a block only matches whole lines, not the end of one and the start of another.
+  const reference = `\n${normalise(readme)}\n`;
   const problems = [];
   for (const { path, text } of pages) {
     let index = 0;
     for (const [, lang, body] of text.matchAll(FENCE)) {
-      if (!SHELL.has(lang)) continue;
+      if (!CHECKED.has(lang)) continue;
       index += 1;
-      if (!reference.includes(normalise(body))) problems.push(`${path}: block ${index} not in deploy/README.md`);
+      if (!reference.includes(`\n${normalise(body)}\n`)) problems.push(`${path}: block ${index} not in deploy/README.md`);
     }
   }
   return problems;

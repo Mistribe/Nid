@@ -5,16 +5,19 @@ sidebar:
   order: 3
 ---
 
-Le compose ne publie aucun port. Votre proxy rejoint ses cibles sur le réseau Docker `nid_edge` :
+## Où trouver Nid
+
+- **Standalone** : Nid est publié sur l'hôte, à `127.0.0.1:8080` (`NID_WEB_BIND` et `NID_WEB_PORT` dans `.env`). Votre proxy, sur l'hôte, le vise à cette adresse : l'exemple nginx ci-dessous s'applique tel quel, et Caddy ou Traefik visent `127.0.0.1:8080` au lieu de `nid:8080`.
+- **Référence** : le compose ne publie aucun port. Votre proxy rejoint ses cibles sur le réseau Docker `nid_edge` :
 
 | Nom public | Cible |
 |---|---|
 | `nid.<domaine>` | `nid:8080` (HTTP) |
-| `auth.<domaine>` | `pocket-id:1411` (HTTP), forme de référence |
+| `auth.<domaine>` | `pocket-id:1411` (HTTP) |
 
 Le proxy doit **fixer lui-même** `X-Forwarded-Proto`, `X-Forwarded-Host` et `X-Forwarded-For`, en écrasant ce que le client envoie. Caddy et Traefik le font par défaut ; nginx non. Nid sert l'interface et l'API sur la même origine : rien à router par préfixe.
 
-## Caddy
+## Caddy, forme de référence
 
 ```
 nid.example.org {
@@ -25,7 +28,7 @@ auth.example.org {
 }
 ```
 
-## Traefik
+## Traefik, forme de référence
 
 ```yaml
 http:
@@ -37,7 +40,7 @@ http:
     auth: { loadBalancer: { servers: [{ url: "http://pocket-id:1411" }] } }
 ```
 
-## Un proxy dans un autre projet compose
+## Un proxy dans un autre projet compose, forme de référence
 
 Déclarez le réseau comme externe dans ce projet-là :
 
@@ -51,7 +54,7 @@ networks:
 
 ## nginx sur l'hôte
 
-Publiez d'abord les cibles sur l'adresse locale (voir le détail), puis :
+Avec le standalone, Nid est déjà sur `127.0.0.1:8080`. Avec la forme de référence, publiez d'abord les cibles sur l'adresse locale (voir le détail). Puis :
 
 ```nginx
 location / {

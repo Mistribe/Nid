@@ -18,7 +18,7 @@ The interface is in French for now; English is coming soon. The reference docume
 | Files | one compose file and one `.env` | a compose file, a setup script, secrets |
 | Sign-in | identifier and password kept by Nid, optional two-step verification | passkeys, through Pocket ID |
 | Host names | one | two (Nid and Pocket ID) |
-| Backup | up to you (JSON export from the app) | encrypted every night, with a verified restore |
+| Backup | up to you: a copy of the Docker volumes, and the JSON export of your figures | encrypted every night, with a restore test (`restore.sh --verify`) |
 
 **Start with the standalone** if in doubt: it runs with four commands. The reference setup adds passkeys and automatic backups.
 

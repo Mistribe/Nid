@@ -24,3 +24,13 @@ test('lines that are each in the README but not together are reported', () => {
 test('non-shell blocks are ignored', () => {
   assert.deepEqual(staleBlocks([{ path: 'a.md', text: '```yaml\nk: v\n```' }], ''), []);
 });
+
+test('a block whose line the README has since extended is reported', () => {
+  const readme = '```bash\ndocker compose -f deploy/compose.yaml up -d --build --wait\n```';
+  assert.equal(staleBlocks([{ path: 'a.md', text: '```bash\ndocker compose -f deploy/compose.yaml up -d --build\n```' }], readme).length, 1);
+  assert.equal(staleBlocks([{ path: 'a.md', text: '```bash\nup -d --build --wait\n```' }], readme).length, 1);
+});
+
+test('untagged blocks, like a Caddyfile, are compared too', () => {
+  assert.deepEqual(staleBlocks([{ path: 'proxy.md', text: '```\nnid.example.org {\n\treverse_proxy nid:9090\n}\n```' }], '```\nnid.example.org {\n\treverse_proxy nid:8080\n}\n```'), ['proxy.md: block 1 not in deploy/README.md']);
+});
