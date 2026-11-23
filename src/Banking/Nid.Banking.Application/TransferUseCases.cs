@@ -20,11 +20,14 @@ public sealed record TransferInstallationApplicationCommand(Guid PersonId)
 }
 
 [RequestHandler<TransferInstallationApplicationCommand, bool>]
-public sealed class TransferInstallationApplicationHandler(
+public sealed partial class TransferInstallationApplicationHandler(
     IHouseholdSettings settings, BankingOptions options, IPersonRegistry persons, IApplicationStore applications, IConnectionStore connections,
     IEnableBankingClient client, IUnitOfWork unitOfWork, ILogger<TransferInstallationApplicationHandler> log)
     : IRequestHandler<TransferInstallationApplicationCommand, bool>
 {
+    [LoggerMessage(Level = LogLevel.Warning, Message = "A bank session ended by the transfer could not be deleted at Enable Banking.")]
+    private partial void LogSessionNotDeleted(Exception exception);
+
     public async ValueTask<Result<bool>> HandleAsync(TransferInstallationApplicationCommand command, CancellationToken ct = default)
     {
         if ((await settings.ReadAsync(ct)).EnableBankingAppId is not { Length: > 0 } appId || string.IsNullOrWhiteSpace(options.PrivateKey))
@@ -67,7 +70,7 @@ public sealed class TransferInstallationApplicationHandler(
                 }
                 catch (Exception e)
                 {
-                    log.LogWarning(e, "A bank session ended by the transfer could not be deleted at Enable Banking.");
+                    LogSessionNotDeleted(e);
                 }
         });
         return Result.Success(true);

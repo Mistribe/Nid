@@ -16,11 +16,14 @@ namespace Nid.Banking.Application.Reconciliation;
 /// line the approver writes and whose category was not chosen by a person (hand, assistant) takes its category as `assistant`; the others are
 /// skipped. Not editable: a wrong guess is rejected and the lines categorised by hand.
 /// </summary>
-public sealed class CategoriseProposal(
+public sealed partial class CategoriseProposal(
     BankingAccess access, IAccountStore accounts, ITransactionStore transactions, ICategoryStore categories, IApprovingProposal approving,
     IClock clock, ILogger<CategoriseProposal> logger)
     : IProposalHandler
 {
+    [LoggerMessage(Level = LogLevel.Information, Message = "Categorise proposal: {Applied} lines applied, {Skipped} skipped")]
+    private partial void LogApplied(int applied, int skipped);
+
     public const string KindName = "banking.categorise_transactions";
     public const int Most = 100;
 
@@ -104,7 +107,7 @@ public sealed class CategoriseProposal(
             applied += await categories.SetForLinesAsync([.. group.Select(e => e.Transaction)], group.Key, CategorySource.Assistant, by, now, byPerson: false, ct);
         // Fewer written than chosen: a person categorised some meanwhile. Read back, in this transaction, which ones the write took.
         var written = applied == applying.Count ? applying.Select(e => e.Transaction).ToList() : await WrittenAsync(applying, ct);
-        logger.LogInformation("Categorise proposal: {Applied} lines applied, {Skipped} skipped", written.Count, entries!.Count - written.Count);
+        LogApplied(written.Count, entries!.Count - written.Count);
         return Result.Success<IReadOnlyList<Guid>>(written);
     }
 

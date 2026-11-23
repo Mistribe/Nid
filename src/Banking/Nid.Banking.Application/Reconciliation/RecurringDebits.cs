@@ -14,10 +14,16 @@ namespace Nid.Banking.Application.Reconciliation;
 /// <c>banking.create_subscription</c> proposal, once per (account, stem) ever, deposited by a reader of the account (D22). A failure is
 /// logged with its code, never a label or an amount, and never fails the job.
 /// </summary>
-public sealed class RecurringDebits(
+public sealed partial class RecurringDebits(
     BankingAccess access, ITransactionStore transactions, IAccountStore accounts, IRuleStore rules, ExpectedChargeReader charges,
     IItemRegistry items, IProposalSubmitter proposals, IActorAccessor actor, IClock clock, ILogger<RecurringDebits> log)
 {
+    [LoggerMessage(Level = LogLevel.Error, Message = "Proposing the recurring debits threw {Exception}")]
+    private partial void LogPassThrew(string exception);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "A recurring debit proposal was refused {Code}")]
+    private partial void LogRefused(string? code);
+
     private const int Months = 13;
 
     /// <summary>The widest tolerance of a charge: the charges read around a group.</summary>
@@ -32,7 +38,7 @@ public sealed class RecurringDebits(
         }
         catch (Exception e) when (!ct.IsCancellationRequested)
         {
-            log.LogError("Proposing the recurring debits threw {Exception}", e.GetType().Name);
+            LogPassThrew(e.GetType().Name);
             return 0;
         }
     }
@@ -123,7 +129,7 @@ public sealed class RecurringDebits(
             if (submitted.TryGetValue(out var created))
                 return created;
             // The group stays remembered: a refused proposal is not retried every night.
-            log.LogWarning("A recurring debit proposal was refused {Code}", submitted.TryGetFailure(out var failure) ? failure!.Code : null);
+            LogRefused(submitted.TryGetFailure(out var failure) ? failure!.Code : null);
             return false;
         }
         finally

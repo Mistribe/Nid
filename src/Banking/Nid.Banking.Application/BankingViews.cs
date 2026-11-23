@@ -18,7 +18,7 @@ public sealed record BankingStatusView(bool Enabled, bool Configured, bool? AppI
 /// </summary>
 /// <param name="Reads">#365: the installation's busiest account and latest refusal, counts only (no bank, no account named).</param>
 public sealed record BankingDiagnosticsView(
-    string KeyStatus, bool AppIdSaved, string RedirectUrl, BankSyncRunView? LastRun = null, DateTimeOffset? NextRunAt = null, bool BankLinked = false,
+    string KeyStatus, bool AppIdSaved, string RedirectUrl, BankSyncRunView? LastRun = null, Instant? NextRunAt = null, bool BankLinked = false,
     BankReadsView? Reads = null, IReadOnlyList<OwnApplicationView>? OwnApplications = null,
     IReadOnlyList<TransferCandidateView>? TransferCandidates = null);
 
@@ -32,7 +32,7 @@ public sealed record TransferCandidateView(Guid PersonId, string Name, int Conne
 public sealed record OwnApplicationView(Guid PersonId, string Name);
 
 /// <summary>#382: the actor's own application: <paramref name="KeyStatus"/> is <c>loaded</c> or <c>unreadable</c> (the key ring lost it), never the key.</summary>
-public sealed record MyApplicationView(string ApplicationId, string KeyStatus, DateTimeOffset KeyLoadedAt, bool InUse);
+public sealed record MyApplicationView(string ApplicationId, string KeyStatus, Instant KeyLoadedAt, bool InUse);
 
 /// <summary>
 /// #365: Nid's own count of an account's reads at its bank, an estimate (<see cref="BankReads"/>): <paramref name="Unattended"/> of
@@ -41,10 +41,10 @@ public sealed record MyApplicationView(string ApplicationId, string KeyStatus, D
 /// </summary>
 /// <paramref name="Warn"/>: « Synchroniser » says the bank refused within the last 24 hours, or Nid's count reached the limit (it never blocks).
 public sealed record BankReadsView(
-    int Unattended, int Attended, int Limit, DateTimeOffset? FreesAt, DateTimeOffset? LimitedAt, bool LimitedAttended, bool Warn)
+    int Unattended, int Attended, int Limit, Instant? FreesAt, Instant? LimitedAt, bool LimitedAttended, bool Warn)
 {
     public static BankReadsView From(ReadCount c, Instant now)
-        => new(c.Unattended, c.Attended, BankReads.UnattendedLimit, c.FreesAt?.ToDateTimeOffset(), c.LimitedAt?.ToDateTimeOffset(), c.LimitedAttended,
+        => new(c.Unattended, c.Attended, BankReads.UnattendedLimit, c.FreesAt, c.LimitedAt, c.LimitedAttended,
             c.LimitedAt > now - BankReads.Window || c.Unattended >= BankReads.UnattendedLimit);
 }
 
@@ -63,7 +63,7 @@ public sealed record ConnectionStarted(Guid Id, string RedirectUrl);
 /// <summary><paramref name="Status"/> is <c>active</c>, <c>expired</c>, <c>revoked</c> or <c>error</c>.</summary>
 /// <param name="Reads">#365: its busiest account's reads and its latest refusal (<see cref="BankReads.Worst"/>).</param>
 public sealed record ConnectionView(
-    Guid Id, string AspspName, string Status, DateTimeOffset? ValidUntil, DateTimeOffset? LastSyncedAt, string? LastErrorCode,
+    Guid Id, string AspspName, string Status, Instant? ValidUntil, Instant? LastSyncedAt, string? LastErrorCode,
     IReadOnlyList<BankAccountView> Accounts, BankReadsView Reads);
 
 /// <summary>

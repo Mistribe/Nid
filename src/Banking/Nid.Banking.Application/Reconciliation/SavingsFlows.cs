@@ -17,11 +17,17 @@ public sealed record SavingsFlowCounts(int Recorded, int Superseded, int Voided,
 /// idempotent pass: what is missing is recorded, what changed superseded, what is no longer wanted voided. Only flows with a <c>bank:</c> ref
 /// of a line read in this pass are ever touched. A failing account is logged, never a label or an amount, skipped, and the others go on.
 /// </summary>
-public sealed class SavingsFlows(
+public sealed partial class SavingsFlows(
     IAccountStore accountStore, IConnectionStore connections, ITransactionStore transactions, ISplitStore splits, ICategoryStore categories, IEnvelopeStore envelopes,
     IItemRegistry items, IAccessPolicy policy, IFlows flows, CategoryRuleApplier categoryRules, IHouseholdCalendar calendar, IActorAccessor actor,
     ILogger<SavingsFlows> log)
 {
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The savings flows of bank account {Account} were refused {Code}")]
+    private partial void LogRefused(Guid account, string code);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "The savings flows of bank account {Account} threw {Exception}")]
+    private partial void LogThrew(Guid account, string exception);
+
     private const int Page = 500;
 
     private static readonly DateRange Everything = DateRange.Create(LocalDate.MinIsoValue, null).TryGetValue(out var r) ? r : throw new InvalidOperationException();
@@ -48,14 +54,14 @@ public sealed class SavingsFlows(
             {
                 if (await AccountAsync(account, reader, active, interest, today, tally, ct) is { } code)
                 {
-                    log.LogWarning("The savings flows of bank account {Account} were refused {Code}", account.Id, code);
+                    LogRefused(account.Id, code);
                     tally.Skipped++;
                 }
             }
             catch (Exception e) when (!ct.IsCancellationRequested)
             {
                 // The type only, as the rest of Banking: a message may carry a label or an amount.
-                log.LogError("The savings flows of bank account {Account} threw {Exception}", account.Id, e.GetType().Name);
+                LogThrew(account.Id, e.GetType().Name);
                 tally.Skipped++;
             }
         return new SavingsFlowCounts(tally.Recorded, tally.Superseded, tally.Voided, tally.Skipped);

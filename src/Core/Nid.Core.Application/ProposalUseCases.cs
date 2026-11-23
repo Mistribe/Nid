@@ -5,6 +5,7 @@ using Nid.Platform.Contracts;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Functional.Failures;
 using UnambitiousFx.Synapse.Abstractions;
+using NodaTime;
 
 namespace Nid.Core.Application;
 
@@ -18,14 +19,14 @@ public sealed class ProposalHandlers(IEnumerable<IProposalHandler> handlers)
 
 public sealed record ProposalView(
     Guid Id, string Kind, Guid? TargetItemId, string Status, JsonElement Payload, JsonElement? EditedPayload, int PayloadVersion,
-    IReadOnlyList<ProposalWarning> Warnings, string? SubjectKey, string? SourceLabel, string CreatedVia, DateTimeOffset CreatedAt,
-    Guid CreatedByPersonId, Guid? SupersededById, DateTimeOffset? DecidedAt, Guid? DecidedByPersonId, string? DecisionNote,
+    IReadOnlyList<ProposalWarning> Warnings, string? SubjectKey, string? SourceLabel, string CreatedVia, Instant CreatedAt,
+    Guid CreatedByPersonId, Guid? SupersededById, Instant? DecidedAt, Guid? DecidedByPersonId, string? DecisionNote,
     IReadOnlyList<Guid> AppliedRefs, uint Version, string? TargetName, Guid? DocumentId)
 {
     public static ProposalView From(StoredProposal p, string? targetName, IReadOnlyList<ProposalWarning>? extra = null) => new(
         p.Id, p.Kind, p.Target?.Value, p.Status.ToString().ToLowerInvariant(), p.Payload, p.EditedPayload, p.PayloadVersion,
         extra is null ? p.Warnings : [.. p.Warnings, .. extra], p.SubjectKey, p.SourceLabel, p.CreatedVia,
-        p.CreatedAt.ToDateTimeOffset(), p.CreatedBy.Value, p.SupersededById, p.DecidedAt?.ToDateTimeOffset(), p.DecidedBy?.Value,
+        p.CreatedAt, p.CreatedBy.Value, p.SupersededById, p.DecidedAt, p.DecidedBy?.Value,
         p.DecisionNote, p.AppliedRefs, p.Version, targetName, p.DocumentId);
 }
 
@@ -281,11 +282,14 @@ public sealed class GetProposalHandler(
 }
 
 [RequestHandler<ApproveProposalCommand, ProposalView>]
-public sealed class ApproveProposalHandler(
+public sealed partial class ApproveProposalHandler(
     IProposalStore store, IAccessPolicy policy, IActorAccessor accessor, IAccessDenials denials, ProposalHandlers handlers, IUnitOfWork unitOfWork,
     IItemRegistry items, INotifier notifier, IApprovingProposal approving, ILogger<ApproveProposalHandler> logger)
     : IRequestHandler<ApproveProposalCommand, ProposalView>
 {
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Could not add apply_failed to proposal {ProposalId}")]
+    private partial void LogWarnFailed(Guid proposalId, Exception exception);
+
     public async ValueTask<Result<ProposalView>> HandleAsync(ApproveProposalCommand command, CancellationToken ct = default)
     {
         var loaded = await ProposalAccess.LoadAsync(store, policy, accessor, denials, command.Id, AccessKind.Write, ct);
@@ -348,7 +352,7 @@ public sealed class ApproveProposalHandler(
             catch (Exception warnFailed) when (warnFailed is not OperationCanceledException)
             {
                 // The original exception is the one to surface.
-                logger.LogWarning(warnFailed, "Could not add apply_failed to proposal {ProposalId}", proposal.Id);
+                LogWarnFailed(proposal.Id, warnFailed);
             }
             throw;
         }

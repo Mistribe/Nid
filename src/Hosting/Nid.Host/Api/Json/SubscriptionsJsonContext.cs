@@ -7,7 +7,7 @@ namespace Nid.Host.Api.Json;
 
 /// <summary>The Subscriptions module's request and response bodies, for NidJsonContexts.</summary>
 [JsonSourceGenerationOptions(JsonSerializerDefaults.Web, NumberHandling = JsonNumberHandling.Strict,
-    Converters = [typeof(ItemIdJsonConverter), typeof(LocalDateJsonConverter)])]
+    Converters = [typeof(ItemIdJsonConverter), typeof(LocalDateJsonConverter), typeof(InstantJsonConverter)])]
 [JsonSerializable(typeof(IReadOnlyList<LabelView>))]
 [JsonSerializable(typeof(IReadOnlyList<ProviderView>))]
 [JsonSerializable(typeof(List<Nid.Host.Mcp.ProviderKeyView>))]

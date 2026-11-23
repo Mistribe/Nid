@@ -59,7 +59,7 @@ public sealed class IrlCollector(
 
         var finished = run with
         {
-            FinishedAt = clock.GetCurrentInstant().ToDateTimeOffset(),
+            FinishedAt = clock.GetCurrentInstant(),
             Status = failed ? "failed" : "succeeded",
             Added = added,
             Replaced = replaced,

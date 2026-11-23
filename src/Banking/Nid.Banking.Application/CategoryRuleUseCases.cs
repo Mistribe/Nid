@@ -66,7 +66,7 @@ public sealed record CategoryRuleConflict(string Reason, string? RulePattern, Gu
 /// </summary>
 public sealed record CategoryRuleView(
     Guid Id, string Pattern, Guid? AccountId, string? AccountName, string? Direction, string? MinAmount, string? MaxAmount, Guid CategoryId,
-    string CategoryName, bool CanEdit, int Lines, DateTimeOffset? LastUsedAt, bool CategoryArchived);
+    string CategoryName, bool CanEdit, int Lines, Instant? LastUsedAt, bool CategoryArchived);
 
 /// <summary>Spec §Rules, decision 7: who sees and edits a rule, what a rule says, and the lines it would change for the actor.</summary>
 public sealed class CategoryRuleScope(BankingAccess access, IAccountStore accounts, ICategoryRuleStore rules, ICategoryStore categories)
@@ -170,7 +170,7 @@ public sealed class CategoryRuleScope(BankingAccess access, IAccountStore accoun
             r.Id, r.Pattern, r.Account, r.Account is { } a && readable.TryGetValue(a, out var account) ? account.Account.Name : null,
             r.Direction is { } d ? BankLines.Wire(d) : null, r.MinAmount is { } min ? TransactionLinker.Amount(min) : null,
             r.MaxAmount is { } max ? TransactionLinker.Amount(max) : null, r.Category, all.TryGetValue(r.Category, out var category) ? category.Name : "", Edits(r, readable),
-            usage.GetValueOrDefault(r.Id).Lines, usage.GetValueOrDefault(r.Id).LastUsed?.ToDateTimeOffset(), category?.ArchivedAt is not null))];
+            usage.GetValueOrDefault(r.Id).Lines, usage.GetValueOrDefault(r.Id).LastUsed, category?.ArchivedAt is not null))];
     }
 }
 

@@ -7,7 +7,7 @@ namespace Nid.Host.Api.Json;
 
 /// <summary>The Investments module's request and response bodies, for NidJsonContexts.</summary>
 [JsonSourceGenerationOptions(JsonSerializerDefaults.Web, NumberHandling = JsonNumberHandling.Strict,
-    Converters = [typeof(ItemIdJsonConverter), typeof(LocalDateJsonConverter), typeof(OneOrManyJsonConverter<InvestmentEndpoints.SwitchLegBody>)])]
+    Converters = [typeof(ItemIdJsonConverter), typeof(LocalDateJsonConverter), typeof(InstantJsonConverter), typeof(OneOrManyJsonConverter<InvestmentEndpoints.SwitchLegBody>)])]
 [JsonSerializable(typeof(PriceRunPage))]
 [JsonSerializable(typeof(InvestmentEndpoints.AcceptPriceBody))]
 [JsonSerializable(typeof(List<InvestmentEndpoints.SwitchLegBody>))]

@@ -1,4 +1,5 @@
 using Nid.Platform.Admin;
+using NodaTime;
 using Quartz;
 
 namespace Nid.Host.Jobs;
@@ -50,7 +51,7 @@ public sealed partial class JobRunListener(IServiceScopeFactory scopes, RunLogFo
 
     public async ValueTask JobToBeExecuted(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
-        var id = Guid.NewGuid();
+        var id = Guid.CreateVersion7();
         context.MergedJobDataMap[JobRun.IdKey] = id;
         if (logs.Open(context.JobDetail.Key.Name, id) is { } writer)
             context.MergedJobDataMap[RunLogs.WriterKey] = writer;
@@ -59,7 +60,7 @@ public sealed partial class JobRunListener(IServiceScopeFactory scopes, RunLogFo
             await using var scope = scopes.CreateAsyncScope();
             // The schedules are cron triggers; TriggerJob (startup, « Synchroniser ») fires a one-shot simple trigger.
             var trigger = context.Trigger is ICronTrigger ? JobTriggers.Scheduled : JobTriggers.OnDemand;
-            await scope.ServiceProvider.GetRequiredService<IJobRunStore>().StartAsync(id, context.JobDetail.Key.Name, trigger, context.FireTimeUtc, cancellationToken);
+            await scope.ServiceProvider.GetRequiredService<IJobRunStore>().StartAsync(id, context.JobDetail.Key.Name, trigger, Instant.FromDateTimeOffset(context.FireTimeUtc), cancellationToken);
         }
         catch (Exception e)
         {
@@ -81,7 +82,7 @@ public sealed partial class JobRunListener(IServiceScopeFactory scopes, RunLogFo
             var store = scope.ServiceProvider.GetRequiredService<IJobRunStore>();
             var (outcome, summary) = JobRun.Outcome(context, jobException);
             // Not the run's token: a run interrupted by a shutdown must still be closed.
-            await store.FinishAsync(id, outcome, summary, writer?.HadLines ?? false, context.FireTimeUtc + context.JobRunTime, CancellationToken.None);
+            await store.FinishAsync(id, outcome, summary, writer?.HadLines ?? false, Instant.FromDateTimeOffset(context.FireTimeUtc + context.JobRunTime), CancellationToken.None);
             logs.Delete(key, await store.PurgeAsync(key, JobRunsKept.Count, CancellationToken.None));
         }
         catch (Exception e)

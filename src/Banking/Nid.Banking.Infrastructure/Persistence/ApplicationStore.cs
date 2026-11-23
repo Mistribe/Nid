@@ -12,9 +12,12 @@ using NodaTime;
 namespace Nid.Banking.Infrastructure.Persistence;
 
 /// <summary>Adults' applications on <see cref="BankingDbContext"/>; the private key is encrypted with Data Protection, as <see cref="ConnectionStore"/>'s session id.</summary>
-public sealed class ApplicationStore(BankingDbContext db, IDataProtectionProvider protection, IClock clock, ILogger<ApplicationStore> log)
+public sealed partial class ApplicationStore(BankingDbContext db, IDataProtectionProvider protection, IClock clock, ILogger<ApplicationStore> log)
     : IApplicationStore
 {
+    [LoggerMessage(Level = LogLevel.Warning, Message = "An application's private key cannot be decrypted; it must be loaded again.")]
+    private partial void LogKeyUndecryptable();
+
     private readonly IDataProtector _protector = protection.CreateProtector("Nid.Banking.ApplicationKey");
 
     public async Task<StoredApplication?> FindAsync(PersonId person, CancellationToken ct)
@@ -98,7 +101,7 @@ public sealed class ApplicationStore(BankingDbContext db, IDataProtectionProvide
         {
             // The key ring was lost or rotated: the adult must load the key again.
             if (!quiet)
-                log.LogWarning("An application's private key cannot be decrypted; it must be loaded again.");
+                LogKeyUndecryptable();
             return null;
         }
     }

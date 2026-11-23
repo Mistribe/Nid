@@ -21,13 +21,13 @@ public sealed record FxRateView(LocalDate OnDate, string Quote, string Rate, str
 public sealed record FxRejectionView(LocalDate OnDate, string Quote, string Rate, string? Previous, string Reason);
 
 public sealed record FxSyncRunView(
-    Guid Id, string Kind, DateTimeOffset StartedAt, DateTimeOffset? FinishedAt, string Status,
+    Guid Id, string Kind, Instant StartedAt, Instant? FinishedAt, string Status,
     int FilesRead, int RowsWritten, string? FailureCode, IReadOnlyList<FxRejectionView> Rejected)
 {
     public static FxSyncRunView From(FxSyncRun run)
         => new(run.Id,
             run.Kind == FxRunKind.Daily ? "daily" : "backfill",
-            run.StartedAt.ToDateTimeOffset(), run.FinishedAt?.ToDateTimeOffset(),
+            run.StartedAt, run.FinishedAt,
             run.Status.ToString().ToLowerInvariant(),
             run.FilesRead, run.RowsWritten, run.FailureCode,
             run.Rejected.Select(r => new FxRejectionView(r.OnDate, r.Quote,

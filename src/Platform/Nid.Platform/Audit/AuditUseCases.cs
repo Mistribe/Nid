@@ -6,13 +6,14 @@ using Nid.Platform.Contracts;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Functional.Failures;
 using UnambitiousFx.Synapse.Abstractions;
+using NodaTime;
 
 namespace Nid.Platform.Audit;
 
 public sealed record AuditActorView(string Kind, Guid? PersonId, string Via, Guid? TokenId);
 
 public sealed record ItemHistoryEntry(
-    long Seq, DateTimeOffset At, string Action, string Entity, string EntityKey, AuditActorView Actor, string? Request,
+    long Seq, Instant At, string Action, string Entity, string EntityKey, AuditActorView Actor, string? Request,
     JsonElement? Before, JsonElement? After, IReadOnlyList<Guid> ItemIds);
 
 /// <summary>
@@ -77,7 +78,7 @@ public sealed record SecurityEventItem(Guid Id, string? Kind, string? Name);
 /// withheld for items outside the visible set (#28); no other view carries an item id (spec §5.1).
 /// </summary>
 public sealed record SecurityEventView(
-    long Seq, DateTimeOffset At, string Event, AuditActorView Actor, Guid? SubjectPersonId, IReadOnlyDictionary<string, string> Details,
+    long Seq, Instant At, string Event, AuditActorView Actor, Guid? SubjectPersonId, IReadOnlyDictionary<string, string> Details,
     IReadOnlyList<SecurityEventItem> Items);
 
 public sealed record SecurityEventPage(IReadOnlyList<SecurityEventView> Entries, long? Next);
@@ -129,7 +130,7 @@ public static partial class SecurityEventViews
         var details = Shown.GetValueOrDefault(r.Action, [])
             .Where(k => data.TryGetValue(k, out var v) && v.ValueKind == JsonValueKind.String)
             .ToDictionary(k => k, k => data[k].GetString()!);
-        return new SecurityEventView(r.Seq, r.At.ToDateTimeOffset(), r.Action, new AuditActorView(r.ActorKind, r.PersonId, r.Via, r.TokenId), r.SubjectPersonId, details, []);
+        return new SecurityEventView(r.Seq, r.At, r.Action, new AuditActorView(r.ActorKind, r.PersonId, r.Via, r.TokenId), r.SubjectPersonId, details, []);
     }
 
     public static SecurityEventPage Page(IReadOnlyList<AuditRecord> records, int limit)
@@ -154,7 +155,7 @@ public sealed class ItemHistoryHandler(IAuditLog log, IVisibleItems visible, IAc
     {
         using var data = JsonDocument.Parse(r.Data);
         JsonElement? Side(string name) => data.RootElement.TryGetProperty(name, out var v) && v.ValueKind != JsonValueKind.Null ? v.Clone() : null;
-        return new ItemHistoryEntry(r.Seq, r.At.ToDateTimeOffset(), r.Action, r.Entity!, r.EntityKey!,
+        return new ItemHistoryEntry(r.Seq, r.At, r.Action, r.Entity!, r.EntityKey!,
             new AuditActorView(r.ActorKind, r.PersonId, r.Via, r.TokenId), r.Request, Side("before"), Side("after"), r.ItemIds);
     }
 }

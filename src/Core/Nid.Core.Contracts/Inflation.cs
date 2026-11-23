@@ -165,7 +165,7 @@ public sealed record CpiRunPage(IReadOnlyList<CpiRunView> Items, int Total, int 
 public sealed record CpiSyncRequested(bool Requested);
 
 /// <summary>One collection of the CPI series, <c>core.cpi_run</c>; <c>Status</c> is <c>running</c>, <c>succeeded</c> or <c>failed</c>.</summary>
-public sealed record CpiRunView(Guid Id, DateTimeOffset StartedAt, DateTimeOffset? FinishedAt, string Status, int Added, int Replaced, int Rejected, string? Message);
+public sealed record CpiRunView(Guid Id, Instant StartedAt, Instant? FinishedAt, string Status, int Added, int Replaced, int Rejected, string? Message);
 
 public interface ICpiRunLog
 {

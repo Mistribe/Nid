@@ -173,7 +173,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<FxCollector>();
 
         // Admin area (1G): the job list is Quartz's when AddNidJobs runs, empty otherwise.
-        services.AddSingleton(new ProcessStart());
+        services.AddSingleton(new ProcessStart(SystemClock.Instance.GetCurrentInstant()));
         services.TryAddSingleton<IJobStatusReader, NoJobStatusReader>();
         // File logs off (no FileLogs:Path, or it cannot be written): runs are recorded without logs.
         services.TryAddSingleton(new Nid.Host.Jobs.RunLogFolder(null));

@@ -22,12 +22,18 @@ namespace Nid.Banking.Application;
 /// opt-in, whose figures only the centre shows. Issue #362: a card under its minimum usage a few days before the month ends, opt-in,
 /// for whoever sets the card. Issue #305: a category whose month runs away, opt-in, over « Foyer »'s lines the reader reads.
 /// </summary>
-public sealed class BankingNotificationSource(
+public sealed partial class BankingNotificationSource(
     IConnectionStore connections, IHouseholdSettings settings, IHouseholdCalendar calendar, ILinkStore links, ExpectedChargeReader charges,
     IAccessPolicy policy, IAccountStore accounts, BankingAccess access, IBalanceStore balances, IExpectedIncome income, ISignalSettings signalSettings,
     IEmergencyBuffer buffers, ISavingsRoom savings, ITransactionStore transactions, IAccountReadLog reads, IClock clock,
     GetSpendingHandler spending, SpendingAccounts scopes, ILogger<BankingNotificationSource> logger) : INotificationSource
 {
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The spending of {Person} could not be read: {Code}")]
+    private partial void LogSpendingUnread(Guid person, string code);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The emergency buffer of {Person} could not be read: {Code}")]
+    private partial void LogBufferUnread(Guid person, string code);
+
     public const string ConsentExpiring = "banking.consent_expiring";
     public const string ConsentExpired = "banking.consent_expired";
     public const string SyncFailing = "banking.sync_failing";
@@ -161,7 +167,7 @@ public sealed class BankingNotificationSource(
         var read = await spending.HandleAsync(new GetSpendingQuery(VisibilityScope.Household, month, null, null), ct);
         if (!read.TryGetValue(out var view))
         {
-            logger.LogWarning("The spending of {Person} could not be read: {Code}", reader.Value, read.TryGetFailure(out var f) ? f!.Code : "banking.unknown");
+            LogSpendingUnread(reader.Value, read.TryGetFailure(out var f) ? f!.Code : "banking.unknown");
             return;
         }
         static decimal? Amount(string? text) => text is null ? null : decimal.Parse(text, CultureInfo.InvariantCulture);
@@ -363,7 +369,7 @@ public sealed class BankingNotificationSource(
         var read = await buffers.ReadAsync(reader, (int)Math.Round(months, MidpointRounding.AwayFromZero), ct);
         if (!read.TryGetValue(out var buffer))
         {
-            logger.LogWarning("The emergency buffer of {Person} could not be read: {Code}", reader.Value, read.TryGetFailure(out var f) ? f!.Code : "goals.unknown");
+            LogBufferUnread(reader.Value, read.TryGetFailure(out var f) ? f!.Code : "goals.unknown");
             return null;
         }
         if (buffer!.Amount is not { } amount)

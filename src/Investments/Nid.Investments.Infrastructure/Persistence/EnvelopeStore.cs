@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using Nid.Core.Contracts;
 using Nid.Investments.Contracts;
@@ -124,19 +126,21 @@ public sealed class EnvelopeStore(InvestmentsDbContext db) : IEnvelopeStore
 }
 
 /// <summary>#184: the tranches as stored, dates in ISO and amounts as invariant strings so no precision is lost.</summary>
-internal static class AvailabilityJson
+internal static partial class AvailabilityJson
 {
     private sealed record Tranche(string AvailableOn, string Amount);
 
-    private static readonly System.Text.Json.JsonSerializerOptions Options = new(System.Text.Json.JsonSerializerDefaults.Web);
+    [JsonSourceGenerationOptions(JsonSerializerDefaults.Web)]
+    [JsonSerializable(typeof(List<Tranche>))]
+    private sealed partial class TrancheJson : JsonSerializerContext;
 
     // An empty list is stored as none: the plan is then locked as a whole.
     public static string? Write(IReadOnlyList<AvailabilityTranche>? tranches)
         => tranches is not { Count: > 0 } ? null : System.Text.Json.JsonSerializer.Serialize(
             tranches.OrderBy(t => t.AvailableOn).Select(t => new Tranche(
-                NodaTime.Text.LocalDatePattern.Iso.Format(t.AvailableOn), t.Amount.ToString(System.Globalization.CultureInfo.InvariantCulture))).ToList(), Options);
+                NodaTime.Text.LocalDatePattern.Iso.Format(t.AvailableOn), t.Amount.ToString(System.Globalization.CultureInfo.InvariantCulture))).ToList(), TrancheJson.Default.ListTranche);
 
     public static IReadOnlyList<AvailabilityTranche>? Read(string? json)
-        => json is null ? null : System.Text.Json.JsonSerializer.Deserialize<List<Tranche>>(json, Options)!.Select(t => new AvailabilityTranche(
+        => json is null ? null : System.Text.Json.JsonSerializer.Deserialize(json, TrancheJson.Default.ListTranche)!.Select(t => new AvailabilityTranche(
             NodaTime.Text.LocalDatePattern.Iso.Parse(t.AvailableOn).Value, decimal.Parse(t.Amount, System.Globalization.CultureInfo.InvariantCulture))).ToList();
 }
