@@ -19,14 +19,40 @@ public static class BankingApi
     public static readonly Instant Now = NidApp.GoldenCaseToday.AtMidnight().InUtc().ToInstant();
     public static readonly Instant ValidUntil = Instant.FromUtc(2026, 1, 13, 0, 0);
 
+    /// <summary>
+    /// With <paramref name="enable"/>, banking on and each adult holding their own application « app-1 » (#414: there is no other), so a
+    /// connection's application is its creator's.
+    /// </summary>
     public static async Task<NidApp> StartAsync(PostgresFixture fixture, bool enable = true, Action<IServiceCollection>? overrides = null)
     {
-        var app = await NidApp.StartAsync(fixture, overrides, new Dictionary<string, string> { ["EnableBanking:PrivateKey"] = "test-key" });
+        var app = await NidApp.StartAsync(fixture, overrides);
         app.Banks.FailWith = null;
         app.Banks.Aspsps.AddRange([Alpha, Beta, new Aspsp("Bank Elsewhere", "DE", null, null)]);
         if (enable)
-            await SettingsAsync(app, new { bankingEnabled = true, enableBankingAppId = "app-1" });
+        {
+            await SettingsAsync(app, new { bankingEnabled = true });
+            await ApplicationAsync(app, app.AdultA);
+            await ApplicationAsync(app, app.AdultB);
+        }
         return app;
+    }
+
+    /// <summary>Takes both adults' applications away: no Enable Banking application left in the household.</summary>
+    public static async Task NoApplicationAsync(NidApp app)
+    {
+        await using var scope = app.Services.CreateAsyncScope();
+        scope.ServiceProvider.GetRequiredService<Nid.Platform.Contracts.IActorAccessor>().Current = Nid.Platform.Contracts.Actor.System;
+        var store = scope.ServiceProvider.GetRequiredService<Nid.Banking.Application.IApplicationStore>();
+        foreach (var person in new[] { app.AdultA, app.AdultB })
+            Assert.True(await store.DeleteAsync(person, default));
+    }
+
+    /// <summary>Gives <paramref name="person"/> their own application, as « Mon application » stores it.</summary>
+    public static async Task ApplicationAsync(NidApp app, PersonId person, string id = "app-1")
+    {
+        await using var scope = app.Services.CreateAsyncScope();
+        scope.ServiceProvider.GetRequiredService<Nid.Platform.Contracts.IActorAccessor>().Current = Nid.Platform.Contracts.Actor.System;
+        Assert.True(await scope.ServiceProvider.GetRequiredService<Nid.Banking.Application.IApplicationStore>().SaveAsync(person, id, "test-key", default));
     }
 
     public static async Task SettingsAsync(NidApp app, object body)

@@ -54,23 +54,15 @@ public class HouseholdSettingsTests(PostgresFixture postgres)
     }
 
     [Fact]
-    public async Task Banking_is_off_by_default_and_keeps_its_application_id()
+    public async Task Banking_is_off_by_default()
     {
         await using var db = await postgres.NewDatabaseAsync();
         var settings = new HouseholdSettings(db);
 
-        var initial = await settings.ReadAsync(TestContext.Current.CancellationToken);
-        Assert.Equal((false, null), (initial.BankingEnabled, initial.EnableBankingAppId));
-
-        Assert.True((await settings.UpdateAsync(new HouseholdSettingsChange(null, null, BankingEnabled: true, EnableBankingAppId: " 0a1b-app "), TestContext.Current.CancellationToken))
+        Assert.False((await settings.ReadAsync(TestContext.Current.CancellationToken)).BankingEnabled);
+        Assert.True((await settings.UpdateAsync(new HouseholdSettingsChange(null, null, BankingEnabled: true), TestContext.Current.CancellationToken))
             .TryGetValue(out var on));
-        Assert.Equal((true, "0a1b-app"), (on.BankingEnabled, on.EnableBankingAppId));
-
-        // A field left out is left unchanged; an empty id clears it.
-        Assert.True((await settings.UpdateAsync(new HouseholdSettingsChange(null, null, BankingEnabled: false), TestContext.Current.CancellationToken)).TryGetValue(out var off));
-        Assert.Equal((false, "0a1b-app"), (off.BankingEnabled, off.EnableBankingAppId));
-        Assert.True((await settings.UpdateAsync(new HouseholdSettingsChange(null, null, EnableBankingAppId: ""), TestContext.Current.CancellationToken)).TryGetValue(out var cleared));
-        Assert.Null(cleared.EnableBankingAppId);
+        Assert.True(on.BankingEnabled);
     }
 
     [Fact]

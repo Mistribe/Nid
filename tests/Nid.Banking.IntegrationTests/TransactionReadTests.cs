@@ -223,7 +223,7 @@ public class TransactionReadTests(PostgresFixture fixture) : IClassFixture<Postg
         scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
         // Statement files alone need no Enable Banking application: the night has no bank to read, and still purges.
         if (withoutApplication)
-            await BankingApi.SettingsAsync(app, new { enableBankingAppId = "" });
+            await BankingApi.NoApplicationAsync(app);
         // #382: a connection whose application is gone fails on its own; the night still runs, and purges.
         var night = await scope.ServiceProvider.GetRequiredService<IInvoker>().InvokeAsync(new SyncAllCommand());
         Assert.True(night.IsSuccess);

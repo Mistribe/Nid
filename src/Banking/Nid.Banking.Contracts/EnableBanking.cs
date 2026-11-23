@@ -9,11 +9,9 @@ public sealed record EnableBankingApp(string Id, string PrivateKeyPem)
     public override string ToString() => $"EnableBankingApp {{ Id = {Id} }}";
 }
 
-/// <summary>Banking settings (stage 5A): bound from configuration section <c>EnableBanking</c>; the PEM arrives from the Docker secret file.</summary>
+/// <summary>Banking settings (stage 5A): bound from configuration section <c>EnableBanking</c>. #414: no key here, each adult brings theirs.</summary>
 public sealed class BankingOptions
 {
-    public string? PrivateKey { get; set; }
-
     public string NightlyCron { get; set; } = "0 30 4 * * ?";
 
     /// <summary>How long the <c>state</c> of a started authorisation stays valid.</summary>

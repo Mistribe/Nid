@@ -198,8 +198,8 @@ public sealed class MixedDataset
 
     public static async Task<MixedDataset> CreateAsync(PostgresFixture fixture)
     {
-        // Banking on (a key for the host, an application id below), so the bench's banking requests run rather than meet banking.disabled.
-        var app = await NidApp.StartAsync(fixture, settings: new Dictionary<string, string> { ["EnableBanking:PrivateKey"] = "test-key" });
+        // Banking on, each adult with their own application (below), so the bench's banking requests run rather than meet banking.disabled.
+        var app = await NidApp.StartAsync(fixture);
 
         var items = new Dictionary<string, ItemId>();
         var envelopes = new Dictionary<string, ItemId>();
@@ -425,7 +425,9 @@ public sealed class MixedDataset
         // to B would put the label in the textual scan.
         app.Banks.FailWith = null;
         app.Banks.Aspsps.Add(BankingApi.Alpha);
-        await BankingApi.SettingsAsync(app, new { bankingEnabled = true, enableBankingAppId = "app-1" });
+        await BankingApi.SettingsAsync(app, new { bankingEnabled = true });
+        await BankingApi.ApplicationAsync(app, app.AdultA);
+        await BankingApi.ApplicationAsync(app, app.AdultB);
         // Her card too, attached to it: its lines are read through the checking account's envelope.
         // And a joint account, on the joint envelope twin, that both adults read and write.
         await BankingApi.ConnectAsync(app, app.AdultA, "bench", BankingApi.Account("uid-bench", "hash-bench", null, PrivateLabelA + " compte"),

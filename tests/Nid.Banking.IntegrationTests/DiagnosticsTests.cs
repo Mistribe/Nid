@@ -1,5 +1,4 @@
 using System.Net;
-using System.Security.Cryptography;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Nid.Banking.Contracts;
@@ -8,28 +7,14 @@ using Nid.TestSupport;
 
 namespace Nid.Banking.IntegrationTests;
 
-/// <summary>Issue #343: Administration › Banque says why bank sync is not configured, and tests the id and the key against the fake Enable Banking.</summary>
+/// <summary>
+/// Administration › Banque: where bank sync stands (#344), the adults with their own application (#382); « Tester la connexion » with an
+/// adult's own application against the fake Enable Banking (#414: there is no installation application to test any more).
+/// </summary>
 public class DiagnosticsTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private const string Diagnostics = "/api/v1/admin/banking/diagnostics";
-    private const string Test = "/api/v1/admin/banking/test";
-
-    /// <summary>A host whose secrets folder is empty, so the key is only what <paramref name="key"/> says.</summary>
-    private static async Task<NidApp> StartAsync(PostgresFixture fixture, string? key)
-    {
-        var settings = new Dictionary<string, string> { ["Secrets:Path"] = Directory.CreateTempSubdirectory("nid-secrets-").FullName };
-        if (key is not null)
-            settings["EnableBanking:PrivateKey"] = key;
-        var app = await NidApp.StartAsync(fixture, settings: settings);
-        app.Banks.FailWith = null;
-        return app;
-    }
-
-    private static string RsaPem()
-    {
-        using var rsa = RSA.Create(2048);
-        return rsa.ExportPkcs8PrivateKeyPem();
-    }
+    private const string Test = $"{BankingApi.Root}/application/test";
 
     private static bool? OptionalBool(JsonElement element, string name)
         => element.TryGetProperty(name, out var value) && value.ValueKind != JsonValueKind.Null ? value.GetBoolean() : null;
@@ -38,43 +23,35 @@ public class DiagnosticsTests(PostgresFixture fixture) : IClassFixture<PostgresF
         => element.TryGetProperty(name, out var value) && value.ValueKind != JsonValueKind.Null ? value.GetString() : null;
 
     [Fact]
-    public async Task Diagnostics_say_which_part_is_missing_to_the_administrator_only()
+    public async Task Diagnostics_are_the_administrator_s_and_name_the_adults_with_their_own_application()
     {
-        await using var app = await StartAsync(fixture, null);
+        await using var app = await BankingApi.StartAsync(fixture, enable: false);
+        await BankingApi.ApplicationAsync(app, app.AdultB);
 
-        var diagnostics = JsonDocument.Parse(await app.GetRawAsync(app.AdultA, Diagnostics)).RootElement;
-        Assert.Equal((BankingKeyStatus.Missing, false, BankingApi.Callback),
-            (diagnostics.GetProperty("keyStatus").GetString(), diagnostics.GetProperty("appIdSaved").GetBoolean(), diagnostics.GetProperty("redirectUrl").GetString()));
+        var diagnostics = JsonElement.Parse(await app.GetRawAsync(app.AdultA, Diagnostics));
+        Assert.Equal([app.AdultB.Value], diagnostics.GetProperty("ownApplications").EnumerateArray().Select(a => a.GetProperty("personId").GetGuid()));
+        Assert.False(diagnostics.TryGetProperty("keyStatus", out _));
         Assert.Equal(HttpStatusCode.Forbidden, (await app.RawAsync(app.AdultB, HttpMethod.Get, Diagnostics)).StatusCode);
-
-        await BankingApi.SettingsAsync(app, new { bankingEnabled = true, enableBankingAppId = "app-1" });
-        var admin = JsonDocument.Parse(await app.GetRawAsync(app.AdultA, $"{BankingApi.Root}/status")).RootElement;
-        Assert.Equal((false, true, BankingKeyStatus.Missing),
-            (admin.GetProperty("configured").GetBoolean(), OptionalBool(admin, "appIdSaved"), OptionalString(admin, "keyStatus")));
-        // The other adult only learns it is not configured.
-        var adult = JsonDocument.Parse(await app.GetRawAsync(app.AdultB, $"{BankingApi.Root}/status")).RootElement;
-        Assert.Equal((false, null, null), (adult.GetProperty("configured").GetBoolean(), OptionalBool(adult, "appIdSaved"), OptionalString(adult, "keyStatus")));
     }
 
     [Fact]
-    public async Task Diagnostics_never_return_the_key()
+    public async Task The_status_says_whether_the_person_has_an_application_and_gives_the_redirect_url()
     {
-        var pem = RsaPem();
-        await using var app = await StartAsync(fixture, pem);
-        await BankingApi.SettingsAsync(app, new { enableBankingAppId = "app-1" });
+        await using var app = await BankingApi.StartAsync(fixture, enable: false);
+        await BankingApi.SettingsAsync(app, new { bankingEnabled = true });
+        await BankingApi.ApplicationAsync(app, app.AdultB);
 
-        var body = await app.GetRawAsync(app.AdultA, Diagnostics);
-
-        Assert.Equal(BankingKeyStatus.Loaded, JsonDocument.Parse(body).RootElement.GetProperty("keyStatus").GetString());
-        Assert.DoesNotContain("PRIVATE KEY", body, StringComparison.Ordinal);
-        Assert.DoesNotContain(pem.Split('\n')[1], body, StringComparison.Ordinal);
+        var alice = JsonElement.Parse(await app.GetRawAsync(app.AdultA, $"{BankingApi.Root}/status"));
+        var bob = JsonElement.Parse(await app.GetRawAsync(app.AdultB, $"{BankingApi.Root}/status"));
+        Assert.Equal((false, BankingApi.Callback), (alice.GetProperty("configured").GetBoolean(), OptionalString(alice, "redirectUrl")));
+        Assert.True(bob.GetProperty("configured").GetBoolean());
+        Assert.False(alice.TryGetProperty("appIdSaved", out _));
     }
 
     [Fact]
     public async Task The_test_reports_an_accepted_application_its_activation_and_its_redirect_urls()
     {
-        await using var app = await StartAsync(fixture, RsaPem());
-        await BankingApi.SettingsAsync(app, new { enableBankingAppId = "app-1" });
+        await using var app = await BankingApi.StartAsync(fixture);
 
         app.Banks.Application = new EnableBankingApplication(false, ["https://elsewhere.example/callback", BankingApi.Callback]);
         var accepted = await BankingApi.JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, Test));
@@ -90,8 +67,7 @@ public class DiagnosticsTests(PostgresFixture fixture) : IClassFixture<PostgresF
     [Fact]
     public async Task The_test_reports_a_refusal_with_its_code_and_an_unreachable_api()
     {
-        await using var app = await StartAsync(fixture, RsaPem());
-        await BankingApi.SettingsAsync(app, new { enableBankingAppId = "app-1" });
+        await using var app = await BankingApi.StartAsync(fixture);
 
         var rejected = await BankingApi.JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, Test));
         Assert.Equal(("rejected", "enablebanking.UNAUTHORIZED_ACCESS", null),
@@ -100,6 +76,16 @@ public class DiagnosticsTests(PostgresFixture fixture) : IClassFixture<PostgresF
         app.Banks.FailWith = BankingCodes.ProviderError;
         var unreachable = await BankingApi.JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, Test));
         Assert.Equal(("unreachable", null), (unreachable.GetProperty("outcome").GetString(), OptionalString(unreachable, "code")));
+    }
+
+    [Fact]
+    public async Task There_is_no_installation_test_or_transfer_any_more()
+    {
+        await using var app = await BankingApi.StartAsync(fixture);
+
+        Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/admin/banking/test")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/admin/banking/transfer", new { personId = app.AdultB.Value })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await app.RawAsync(app.AdultA, HttpMethod.Patch, "/api/v1/admin/household", new { enableBankingAppId = "app-1" })).StatusCode);
     }
 
     private sealed class Scheduled(DateTimeOffset next) : IJobStatusReader
@@ -126,20 +112,4 @@ public class DiagnosticsTests(PostgresFixture fixture) : IClassFixture<PostgresF
         Assert.Equal("manual", after.GetProperty("lastRun").GetProperty("trigger").GetString());
     }
 
-    [Fact]
-    public async Task The_test_needs_an_id_and_a_usable_key_and_an_administrator()
-    {
-        await using (var keyless = await StartAsync(fixture, null))
-        {
-            await BankingApi.SettingsAsync(keyless, new { enableBankingAppId = "app-1" });
-            await BankingApi.AssertRefusedAsync(await keyless.RawAsync(keyless.AdultA, HttpMethod.Post, Test), HttpStatusCode.Conflict, BankingCodes.NotConfigured);
-        }
-
-        await using var app = await StartAsync(fixture, "not a key");
-        await BankingApi.SettingsAsync(app, new { enableBankingAppId = "app-1" });
-        Assert.Equal(BankingKeyStatus.Invalid, JsonDocument.Parse(await app.GetRawAsync(app.AdultA, Diagnostics)).RootElement.GetProperty("keyStatus").GetString());
-        await BankingApi.AssertRefusedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, Test), HttpStatusCode.Conflict, BankingCodes.NotConfigured);
-        Assert.Equal(HttpStatusCode.Forbidden, (await app.RawAsync(app.AdultB, HttpMethod.Post, Test)).StatusCode);
-        Assert.Empty(app.Banks.ApplicationCalls);
-    }
 }

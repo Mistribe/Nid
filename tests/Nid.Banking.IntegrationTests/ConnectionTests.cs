@@ -84,13 +84,9 @@ public class ConnectionTests(PostgresFixture fixture) : IClassFixture<PostgresFi
             Assert.Equal((true, false), await StatusAsync(off));
             // Listing calls no Enable Banking API: it needs banking on, not configured.
             Assert.Equal(0, (await BankingApi.ConnectionsAsync(off, off.AdultA)).GetArrayLength());
+            // On, but no application of her own: nothing to call Enable Banking with (#414).
+            await BankingApi.AssertRefusedAsync(await off.RawAsync(off.AdultA, HttpMethod.Get, $"{BankingApi.Root}/aspsps"), HttpStatusCode.Conflict, BankingCodes.NotConfigured);
         }
-
-        // An application id without the private key is not configured either.
-        await using var keyless = await NidApp.StartAsync(fixture);
-        await BankingApi.SettingsAsync(keyless, new { bankingEnabled = true, enableBankingAppId = "app-1" });
-        Assert.Equal((true, false), await StatusAsync(keyless));
-        await BankingApi.AssertRefusedAsync(await keyless.RawAsync(keyless.AdultA, HttpMethod.Get, $"{BankingApi.Root}/aspsps"), HttpStatusCode.Conflict, BankingCodes.NotConfigured);
 
         await using var on = await BankingApi.StartAsync(fixture);
         Assert.Equal((true, true), await StatusAsync(on));

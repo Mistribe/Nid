@@ -55,6 +55,30 @@ public class BankingNotificationTests(PostgresFixture fixture) : IClassFixture<P
     }
 
     [Fact]
+    public async Task A_connection_ended_with_the_installation_application_asks_its_creator_for_their_own_until_a_bank_is_linked_with_it()
+    {
+        await using var app = await BankingApi.StartAsync(fixture, enable: false);
+        await BankingApi.SettingsAsync(app, new { bankingEnabled = true });
+        var ended = await ConnectionAsync(app, app.AdultA, Duration.FromDays(10));
+        await using (var scope = app.Services.CreateAsyncScope())
+        {
+            scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
+            await scope.ServiceProvider.GetRequiredService<IConnectionStore>()
+                .SetStatusAsync(ended, ConnectionStatus.Revoked, BankingCodes.ApplicationTransferred, TestContext.Current.CancellationToken);
+        }
+
+        // Told once, not as an expired consent; only to its creator.
+        var signal = Assert.Single(await SignalsAsync(app, app.AdultA));
+        Assert.Equal(($"banking.application_needed:{ended:D}", "banking.application_needed"), (signal.Key, signal.Kind));
+        Assert.Empty(await SignalsAsync(app, app.AdultB));
+
+        await BankingApi.ApplicationAsync(app, app.AdultA, "app-home");
+        Assert.Single(await SignalsAsync(app, app.AdultA)); // an application, no bank linked with it yet
+        await ConnectionAsync(app, app.AdultA, Duration.FromDays(60));
+        Assert.Empty(await SignalsAsync(app, app.AdultA));
+    }
+
+    [Fact]
     public async Task A_consent_far_from_its_end_says_nothing()
     {
         await using var app = await BankingApi.StartAsync(fixture);

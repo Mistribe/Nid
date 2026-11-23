@@ -15,11 +15,11 @@ public static class BankingCodes
     public const string ProviderError = "banking.provider_error";
 
     /// <summary>An Enable Banking application that connections still use cannot be removed.</summary>
-    public const string ApplicationInUse = Nid.Core.Contracts.BankingApplicationCodes.InUse;
+    public const string ApplicationInUse = "banking.application_in_use";
 
     /// <summary>
-    /// #414: the last error of a connection the transfer of the installation application ended (status <c>revoked</c>): it was made with
-    /// an application that is now another adult's, so its creator must declare their own and link the bank again.
+    /// #414: the last error of a connection the installation application's transfer, or its removal, ended (status <c>revoked</c>): it was
+    /// made with an application that is not its creator's, so they must declare their own and link the bank again.
     /// </summary>
     public const string ApplicationTransferred = "banking.application_transferred";
 

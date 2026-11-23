@@ -58,7 +58,7 @@ public sealed class GetMyApplicationHandler(BankingAccess access, IApplicationSt
 }
 
 [RequestHandler<SaveMyApplicationCommand, MyApplicationView>]
-public sealed class SaveMyApplicationHandler(BankingAccess access, IApplicationStore applications, IConnectionStore connections, IHouseholdSettings settings)
+public sealed class SaveMyApplicationHandler(BankingAccess access, IApplicationStore applications, IConnectionStore connections)
     : IRequestHandler<SaveMyApplicationCommand, MyApplicationView>
 {
     public async ValueTask<Result<MyApplicationView>> HandleAsync(SaveMyApplicationCommand command, CancellationToken ct = default)
@@ -66,8 +66,6 @@ public sealed class SaveMyApplicationHandler(BankingAccess access, IApplicationS
         var id = command.ApplicationId.Trim();
         if (id.Length is 0 or > MyApplication.MaxIdLength)
             return Refused(BankingCodes.ApplicationIdInvalid, "The application id is 1 to 100 characters.", "applicationId");
-        if (id == (await settings.ReadAsync(ct)).EnableBankingAppId)
-            return Refused(BankingCodes.ApplicationIdInvalid, "This is the installation's application: use another id.", "applicationId");
         if (command.PrivateKey is { } pem && (pem.Length > MyApplication.MaxKeyLength || !BankingKey.IsRsaPrivateKey(pem)))
             return Refused(BankingCodes.KeyInvalid, "The private key must be an RSA private key in PEM.", "privateKey");
 

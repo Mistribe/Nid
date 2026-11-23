@@ -16,10 +16,9 @@ const run = {
   trigger: 'schedule', outcome: 'succeeded', connections: 2, accounts: 5, balances: 9, proposals: 3, written: 4, skipped: 1, failureCode: null, rateLimited: 2,
 };
 const failed = { ...run, id: '01926b9e-0000-7000-8000-0000000000f4', trigger: 'manual', outcome: 'failed', failureCode: 'enablebanking.EXPIRED_SESSION' };
-const redirectUrl = 'https://nid.example/api/v1/banking/callback';
 const nextRunAt = '2026-10-30T04:30:00+00:00';
-/** Everything set up: the key loaded, the id saved, a bank linked, the last night a success. */
-const ready = { keyStatus: 'loaded', appIdSaved: true, redirectUrl, lastRun: run, nextRunAt, bankLinked: true };
+/** Everything set up: an adult with their own application, a bank linked, the last night a success. */
+const ready = { lastRun: run, nextRunAt, bankLinked: true, ownApplications: [{ personId: '01926b9e-0000-7000-8000-00000000000a', name: 'Alice' }] };
 
 function serve(household: object, runs: unknown[] = [], total = runs.length, seen: string[] = [], diagnostics: object = ready) {
   const sent: unknown[] = [];
@@ -39,11 +38,9 @@ function serve(household: object, runs: unknown[] = [], total = runs.length, see
   return sent;
 }
 
-const on = { bankingEnabled: true, enableBankingAppId: 'app-1' };
+const on = { bankingEnabled: true };
 const figures = () => screen.getByRole('region', { name: 'État de la synchronisation bancaire' });
 const setup = () => screen.queryByRole('region', { name: 'Mise en route' });
-/** A checklist step by its title, with its state read out after it. */
-const step = (title: string) => within(setup()!).getAllByRole('listitem').find((li) => li.textContent?.includes(title))!;
 
 describe('Administration › Banque', () => {
   it('shows a ready sync: its state, the last and next runs, no checklist, and the journal with readable outcomes', async () => {
@@ -71,20 +68,8 @@ describe('Administration › Banque', () => {
     await expectNoAxeViolations(container);
   });
 
-  it('copies the redirect URL in one click', async () => {
-    serve(on);
-    const { user } = await renderApp('/admin/banking', { capabilities: adminCapabilities });
-
-    expect(await screen.findByLabelText('Adresse de retour')).toHaveValue(redirectUrl);
-    await user.click(screen.getByRole('button', { name: 'Copier l’adresse de retour' }));
-
-    await waitFor(() => expect(toasts()).toHaveTextContent('Adresse de retour copiée'));
-    expect(await navigator.clipboard.readText()).toBe(redirectUrl);
-  });
-
-  it('sends a new household to « Mon application »: no installation id, checklist or test any more (#414)', async () => {
-    serve({ bankingEnabled: true, enableBankingAppId: null }, [], 0, [],
-      { keyStatus: 'missing', appIdSaved: false, redirectUrl, lastRun: null, nextRunAt, bankLinked: false, ownApplications: [] });
+  it('sends the household to « Mon application » while no adult has one: no installation id, checklist or test (#414)', async () => {
+    serve(on, [], 0, [], { lastRun: null, nextRunAt, bankLinked: false, ownApplications: [] });
     const { container } = await renderApp('/admin/banking', { capabilities: adminCapabilities });
 
     const region = await screen.findByRole('region', { name: 'Mise en route' });
@@ -95,54 +80,17 @@ describe('Administration › Banque', () => {
     expect(screen.queryByLabelText('Identifiant de l’application')).toBeNull();
     expect(screen.queryByLabelText('Adresse de retour')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Tester la connexion' })).toBeNull();
-    expect(screen.queryByRole('region', { name: 'Transférer à un adulte' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Transférer/ })).toBeNull();
     await expectNoAxeViolations(container);
   });
 
-  it('warns that the installation application is deprecated and transfers it to the chosen adult after a confirmation', async () => {
-    const alice = '01926b9e-0000-7000-8000-00000000000a';
-    const bob = '01926b9e-0000-7000-8000-00000000000b';
-    serve(on, [], 0, [], { ...ready, transferCandidates: [
-      { personId: alice, name: 'Alice', connections: 2 }, { personId: bob, name: 'Bob', connections: 1 }] });
-    const sent: unknown[] = [];
-    server.use(http.post('*/api/v1/admin/banking/transfer', async ({ request }) => { sent.push(await request.json()); return new HttpResponse(null, { status: 204 }); }));
-    const { container, user } = await renderApp('/admin/banking', { capabilities: adminCapabilities });
-
-    const banner = await screen.findByRole('region', { name: 'Transférer à un adulte' });
-    expect(banner).toHaveTextContent('L’application d’installation est dépréciée');
-    expect(banner).toHaveTextContent('Nid ne peut pas retirer leurs comptes du portail Enable Banking');
-    await pick(user, 'Adulte', 'Bob — 1 banque reliée avec elle');
-    await user.click(within(banner).getByRole('button', { name: 'Transférer à un adulte' }));
-    const dialog = await screen.findByRole('alertdialog');
-    expect(dialog).toHaveTextContent('L’application de l’installation devient celle de Bob');
-    expect(dialog).toHaveTextContent('Les banques reliées avec elle par Alice s’arrêtent');
-    await user.click(within(dialog).getByRole('button', { name: 'Confirmer' }));
-
-    await waitFor(() => expect(sent).toEqual([{ personId: bob }]));
-    await waitFor(() => expect(toasts()).toHaveTextContent('Application transférée.'));
-    await expectNoAxeViolations(container);
-  });
-
-  it('says the key secret is no longer used once the application is transferred', async () => {
-    serve({ bankingEnabled: true, enableBankingAppId: null }, [run], 1, [],
-      { ...ready, appIdSaved: false, ownApplications: [{ personId: '01926b9e-0000-7000-8000-00000000000a', name: 'Alice' }] });
-    await renderApp('/admin/banking', { capabilities: adminCapabilities });
-
-    expect(await screen.findByText(/retirez le secret EnableBanking__PrivateKey/)).toBeInTheDocument();
-    expect(figures()).toHaveTextContent('ÉtatPrête');
-  });
-
-  it('is « À configurer » while no bank is linked, the other steps ticked', async () => {
+  it('is « À configurer » while no bank is linked', async () => {
     serve(on, [], 0, [], { ...ready, lastRun: null, bankLinked: false });
     await renderApp('/admin/banking', { capabilities: adminCapabilities });
 
     expect(await screen.findByRole('region', { name: 'Mise en route' })).toBeInTheDocument();
     expect(figures()).toHaveTextContent('ÉtatÀ configurer');
     expect(figures()).toHaveTextContent('Dernière synchronisationAucune');
-    expect(step('Déposer la clé privée')).toHaveTextContent('(Fait)');
-    expect(step('Enregistrer l’identifiant')).toHaveTextContent('(Fait)');
-    expect(step('Activer la synchronisation')).toHaveTextContent('(Fait)');
-    expect(step('Relier au moins une banque')).toHaveTextContent('(À faire)');
   });
 
   it('is « En erreur » when the last run failed', async () => {
@@ -151,49 +99,6 @@ describe('Administration › Banque', () => {
 
     expect(await screen.findByRole('region', { name: 'État de la synchronisation bancaire' })).toHaveTextContent('ÉtatEn erreur');
     expect(figures()).toHaveTextContent(`Dernière synchronisation${formatInstantDate(failed.startedAt)}à ${formatInstantTime(failed.startedAt)} · Échouée`);
-  });
-
-  it('tests the connection: an inactive application or a missing redirect URL leaves the portal step to do', async () => {
-    serve(on, [], 0, [], { ...ready, lastRun: null });
-    server.use(http.post('*/api/v1/admin/banking/test', () => HttpResponse.json({ outcome: 'accepted', active: false, redirectUrlAllowed: false })));
-    const { user } = await renderApp('/admin/banking', { capabilities: adminCapabilities });
-
-    await user.click(await screen.findByRole('button', { name: 'Tester la connexion' }));
-
-    expect(await within(figures()).findByText('Enable Banking accepte l’identifiant et la clé.')).toBeInTheDocument();
-    expect(within(figures()).getByText(/L’application n’est pas encore active/)).toBeInTheDocument();
-    expect(within(figures()).getByText(new RegExp(`ne déclare pas l’adresse de retour ${redirectUrl}`))).toBeInTheDocument();
-    expect(figures()).toHaveTextContent('ÉtatÀ configurer');
-    expect(step('Créer l’application')).toHaveTextContent('(À faire)');
-  });
-
-  it('tests the connection: a refusal shows the API code and the state turns « En erreur », an unreachable API says where to look', async () => {
-    serve(on, [], 0, [], { ...ready, lastRun: null });
-    let answer: object = { outcome: 'rejected', code: 'enablebanking.UNAUTHORIZED_ACCESS' };
-    server.use(http.post('*/api/v1/admin/banking/test', () => HttpResponse.json(answer)));
-    const { user } = await renderApp('/admin/banking', { capabilities: adminCapabilities });
-
-    await user.click(await screen.findByRole('button', { name: 'Tester la connexion' }));
-    expect(await screen.findByText(/Enable Banking refuse l’identifiant et la clé/)).toHaveTextContent('enablebanking.UNAUTHORIZED_ACCESS');
-    expect(figures()).toHaveTextContent('ÉtatEn erreur');
-
-    answer = { outcome: 'unreachable' };
-    await user.click(screen.getByRole('button', { name: 'Tester la connexion' }));
-    expect(await screen.findByText(/Nid n’a pas pu joindre api.enablebanking.com/)).toBeInTheDocument();
-    expect(screen.queryByText(/Enable Banking refuse/)).toBeNull();
-  });
-
-  it('a successful test ticks the portal and test steps', async () => {
-    serve(on, [], 0, [], { ...ready, lastRun: null, bankLinked: false });
-    server.use(http.post('*/api/v1/admin/banking/test', () => HttpResponse.json({ outcome: 'accepted', active: true, redirectUrlAllowed: true })));
-    const { user } = await renderApp('/admin/banking', { capabilities: adminCapabilities });
-
-    expect(await screen.findByRole('region', { name: 'Mise en route' })).toBeInTheDocument();
-    expect(step('Créer l’application')).toHaveTextContent('(Nid ne peut pas le vérifier)');
-    await user.click(screen.getByRole('button', { name: 'Tester la connexion' }));
-
-    await waitFor(() => expect(step('Créer l’application')).toHaveTextContent('(Fait)'));
-    expect(step('Tester la connexion')).toHaveTextContent('(Fait)');
   });
 
   it('says when the first sync runs, and where to start one now', async () => {
@@ -227,7 +132,7 @@ describe('Administration › Banque', () => {
   });
 
   it('turns bank sync on from the switch', async () => {
-    const sent = serve({ bankingEnabled: false, enableBankingAppId: null });
+    const sent = serve({ bankingEnabled: false });
     const { user } = await renderApp('/admin/banking', { capabilities: adminCapabilities });
 
     const toggle = await screen.findByRole('switch', { name: 'Synchronisation bancaire' });
@@ -238,18 +143,8 @@ describe('Administration › Banque', () => {
     await waitFor(() => expect(toasts()).toHaveTextContent('Enregistré'));
   });
 
-  it('saves the Enable Banking application id', async () => {
-    const sent = serve({ bankingEnabled: true, enableBankingAppId: null });
-    const { user } = await renderApp('/admin/banking', { capabilities: adminCapabilities });
-
-    await user.type(await screen.findByLabelText('Identifiant de l’application Enable Banking'), '4f1c-app');
-    await user.click(screen.getByRole('button', { name: 'Enregistrer l’identifiant' }));
-
-    await waitFor(() => expect(sent).toEqual([{ enableBankingAppId: '4f1c-app' }]));
-  });
-
   it('keeps the operations for a chosen number of months, or without limit', async () => {
-    const sent = serve({ bankingEnabled: true, enableBankingAppId: null, bankRetentionMonths: 36 });
+    const sent = serve({ bankingEnabled: true, bankRetentionMonths: 36 });
     const { user } = await renderApp('/admin/banking', { capabilities: adminCapabilities });
 
     expect(await screen.findByRole('combobox', { name: 'Conserver les opérations' })).toHaveTextContent('36 mois');

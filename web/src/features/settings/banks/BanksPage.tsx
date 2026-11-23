@@ -376,25 +376,13 @@ function RuleActions({ rule, menuId }: { rule: BankRule; menuId: string }) {
   );
 }
 
-/**
- * #414: without a readable application of their own, « Relier une banque » gives way to the wizard. Issue #343: while the deprecated
- * installation application is half set up, the administrator is told which part is missing and the way to their page.
- */
+/** #414: without a readable application of their own, « Relier une banque » gives way to the wizard. */
 function NotConfigured() {
   const { t } = useTranslation();
-  const status = useBankingStatus().data;
-  if (!status?.appIdSaved) {
-    return (
-      <div className="space-y-2">
-        <p>{t('banks.no_application')}</p>
-        <Link to="/settings/banks" search={{ tab: 'application', step: 1 }} className={buttonVariants()}>{t('banks.no_application_open')}</Link>
-      </div>
-    );
-  }
   return (
-    <p>
-      {t('banks.not_configured_key')}{' '}
-      <Link to="/admin/banking" className="underline underline-offset-4">{t('banks.open_admin_banking')}</Link>
-    </p>
+    <div className="space-y-2">
+      <p>{t('banks.no_application')}</p>
+      <Link to="/settings/banks" search={{ tab: 'application', step: 1 }} className={buttonVariants()}>{t('banks.no_application_open')}</Link>
+    </div>
   );
 }

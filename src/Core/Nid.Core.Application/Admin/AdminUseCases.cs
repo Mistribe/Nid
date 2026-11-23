@@ -31,11 +31,11 @@ public sealed record AdultView(
 }
 
 public sealed record HouseholdSettingsView(
-    int MaxAdults, string ReferenceCurrency, int AdultCount, bool PricesEnabled, bool IrlEnabled, bool BankingEnabled, string? EnableBankingAppId, int? BankRetentionMonths, bool InflationEnabled)
+    int MaxAdults, string ReferenceCurrency, int AdultCount, bool PricesEnabled, bool IrlEnabled, bool BankingEnabled, int? BankRetentionMonths, bool InflationEnabled)
 {
     public static HouseholdSettingsView From(HouseholdSettingsInfo settings)
         => new(settings.MaxAdults, settings.ReferenceCurrency.Code, settings.AdultCount, settings.PricesEnabled, settings.IrlEnabled,
-            settings.BankingEnabled, settings.EnableBankingAppId, settings.BankRetentionMonths, settings.InflationEnabled);
+            settings.BankingEnabled, settings.BankRetentionMonths, settings.InflationEnabled);
 }
 
 public sealed record ListAdultsQuery : IQuery<IReadOnlyList<AdultView>>, IAdminOnly;
@@ -69,14 +69,14 @@ public sealed record RevokeTokensCommand(PersonId Person) : ICommand<TokensRevok
 public sealed record GetHouseholdSettingsQuery : IQuery<HouseholdSettingsView>, IAdminOnly;
 
 public sealed record UpdateHouseholdSettingsCommand(
-    int? MaxAdults, string? ReferenceCurrency, bool? PricesEnabled, bool? IrlEnabled = null, bool? BankingEnabled = null, string? EnableBankingAppId = null,
+    int? MaxAdults, string? ReferenceCurrency, bool? PricesEnabled, bool? IrlEnabled = null, bool? BankingEnabled = null,
     int? BankRetentionMonths = null, bool ClearBankRetention = false, bool? InflationEnabled = null)
     : ICommand<HouseholdSettingsView>, IAdminOnly, IRecordsSecurityEvent
 {
     public SecurityEvent? EventFor(object response)
     {
         var fields = new[] { MaxAdults is null ? null : "max_adults", ReferenceCurrency is null ? null : "reference_currency", PricesEnabled is null ? null : "prices_enabled", IrlEnabled is null ? null : "irl_enabled",
-            BankingEnabled is null ? null : "banking_enabled", EnableBankingAppId is null ? null : "enable_banking_app_id",
+            BankingEnabled is null ? null : "banking_enabled",
             BankRetentionMonths is null && !ClearBankRetention ? null : "bank_retention_months",
             InflationEnabled is null ? null : "inflation_enabled" };
         var joined = string.Join(",", fields.OfType<string>());
@@ -142,23 +142,14 @@ public sealed class GetHouseholdSettingsHandler(IHouseholdSettings settings) : I
 }
 
 [RequestHandler<UpdateHouseholdSettingsCommand, HouseholdSettingsView>]
-public sealed class UpdateHouseholdSettingsHandler(IHouseholdSettings settings, IEnumerable<IBankingApplicationUse> applicationUse)
+public sealed class UpdateHouseholdSettingsHandler(IHouseholdSettings settings)
     : IRequestHandler<UpdateHouseholdSettingsCommand, HouseholdSettingsView>
 {
     public async ValueTask<Result<HouseholdSettingsView>> HandleAsync(UpdateHouseholdSettingsCommand command, CancellationToken ct = default)
-    {
-        // #382: a new installation id would orphan the connections made with a previous one; clearing it stays allowed.
-        if (command.EnableBankingAppId?.Trim() is { Length: > 0 } wanted && (await settings.ReadAsync(ct)).EnableBankingAppId != wanted)
-            foreach (var use in applicationUse)
-                if (await use.WouldOrphanAsync(wanted, ct))
-                    return Result.Failure<HouseholdSettingsView>(
-                        new ConflictFailure("Bank connections still use another Enable Banking application.") { Code = BankingApplicationCodes.InUse });
-
-        return (await settings.UpdateAsync(new HouseholdSettingsChange(
-                command.MaxAdults, command.ReferenceCurrency, command.PricesEnabled, command.IrlEnabled, command.BankingEnabled, command.EnableBankingAppId,
+        => (await settings.UpdateAsync(new HouseholdSettingsChange(
+                command.MaxAdults, command.ReferenceCurrency, command.PricesEnabled, command.IrlEnabled, command.BankingEnabled,
                 command.BankRetentionMonths, command.ClearBankRetention, command.InflationEnabled), ct))
             .Map(HouseholdSettingsView.From);
-    }
 }
 
 /// <summary>

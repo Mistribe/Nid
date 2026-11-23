@@ -1,7 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { CheckCircle2, Circle, CircleHelp, Copy } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -15,16 +14,12 @@ import { InfoTip } from '@/components/InfoTip';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { SwitchField } from '@/components/page/SwitchField';
 import { Badge } from '@/components/ui/badge';
-import { Button, buttonVariants } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { buttonVariants } from '@/components/ui/button';
 import { Loading, SectionSkeleton, StatLineSkeleton, TableSkeleton } from '@/components/page/skeletons';
 import { Pager, useListPage, useStepBack } from '@/components/page/Pager';
 import { Section } from '@/components/page/Section';
 import { SortableTable } from '@/components/page/SortableTable';
 import { StatLine } from '@/components/page/StatLine';
-import { PORTAL_URL, PRIVACY_URL, TERMS_URL } from '@/api/banking';
-import { ConfirmAction } from '@/components/ConfirmAction';
-import { ConnectionTestResult } from '../settings/banks/ConnectionTestResult';
 import { AdminFrame } from './AdminFrame';
 import { formatInstant, formatInstantDate, formatInstantTime } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -33,13 +28,9 @@ import '@/locales/admin';
 const HOUSEHOLD = '/api/v1/admin/household';
 const RUNS = '/api/v1/admin/banking/runs';
 const DIAGNOSTICS = '/api/v1/admin/banking/diagnostics';
-const TEST = '/api/v1/admin/banking/test';
-const TRANSFER = '/api/v1/admin/banking/transfer';
 
 type Diagnostics = components['schemas']['BankingDiagnosticsView'];
-type ConnectionTest = components['schemas']['BankingConnectionTestView'];
 type Run = components['schemas']['BankSyncRunView'];
-type Candidate = components['schemas']['TransferCandidateView'];
 type State = 'disabled' | 'setup' | 'ready' | 'error';
 
 /** « Conserver les opérations » (D3): the choices offered, in months; « Sans limite » clears the setting. */
@@ -55,24 +46,12 @@ const OUTCOME_TONE: Record<string, string> = {
 const STATE = {
   disabled: 'admin.banking.state_disabled', setup: 'admin.banking.state_setup', ready: 'admin.banking.state_ready', error: 'admin.banking.state_error',
 } as const;
-const KEY = {
-  missing: 'admin.banking.key_missing', directory: 'admin.banking.key_directory', unreadable: 'admin.banking.key_unreadable',
-  invalid: 'admin.banking.key_invalid', loaded: 'admin.banking.key_loaded',
-} as const;
-
-/** A test that leaves nothing to do in the portal: the application answers, is active and declares Nid's redirect URL. */
-const testOk = (test: ConnectionTest | null) => test?.outcome === 'accepted' && test.active !== false && test.redirectUrlAllowed !== false;
-
-/**
- * The page's state (#344): off; a setup step left (the installation's key, the portal, an adult's own application (#414), a bank);
- * Enable Banking refusing or the last run failed; else ready. A test this visit counts as much as the last run.
- */
-function stateOf(enabled: boolean, diagnostics: Diagnostics, test: ConnectionTest | null): State {
+/** The page's state (#344): off; no adult with an application of their own (#414) or no bank linked yet; the last run failed; else ready. */
+function stateOf(enabled: boolean, diagnostics: Diagnostics): State {
   if (!enabled) return 'disabled';
-  if (diagnostics.appIdSaved ? diagnostics.keyStatus !== 'loaded' : !diagnostics.ownApplications?.length) return 'setup';
-  if (test?.outcome === 'rejected' || test?.outcome === 'unreachable' || (!test && diagnostics.lastRun?.outcome === 'failed')) return 'error';
-  if ((test && !testOk(test)) || !diagnostics.bankLinked) return 'setup';
-  return 'ready';
+  if (!diagnostics.ownApplications?.length) return 'setup';
+  if (diagnostics.lastRun?.outcome === 'failed') return 'error';
+  return diagnostics.bankLinked ? 'ready' : 'setup';
 }
 
 /** Administration › Banque: where bank sync stands, what is left to set it up, its settings, and the journal of the syncs (counts only). */
@@ -81,9 +60,6 @@ export function BankingPage() {
   const { $api } = useApi();
   const queryClient = useQueryClient();
   const [problem, setProblem] = useState<Presentation | null>(null);
-  const [appId, setAppId] = useState<string | null>(null);
-  const [tested, setTested] = useState<ConnectionTest | null>(null);
-  const [testProblem, setTestProblem] = useState<Presentation | null>(null);
   const household = $api.useQuery('get', HOUSEHOLD);
   const diagnostics = $api.useQuery('get', DIAGNOSTICS);
   const [page, toPage] = useListPage();
@@ -93,9 +69,6 @@ export function BankingPage() {
     onSuccess: () => {
       setProblem(null);
       toast.success(t('admin.banking.saved'));
-      setAppId(null);
-      // Another id makes the last test say nothing about it.
-      setTested(null);
       void queryClient.invalidateQueries({ queryKey: ['get', HOUSEHOLD] });
       void queryClient.invalidateQueries({ queryKey: ['get', DIAGNOSTICS] });
       // The settings tabs and the envelope pages ask whether bank sync is on.
@@ -103,12 +76,6 @@ export function BankingPage() {
     },
     onError: (error) => { setProblem(present(toProblem(error))); },
   });
-  const test = $api.useMutation('post', TEST, {
-    onMutate: () => { setTested(null); setTestProblem(null); },
-    onSuccess: setTested,
-    onError: (error) => { setTestProblem(present(toProblem(error))); },
-  });
-
   const title = t('admin.banking.title');
   if (household.error ?? diagnostics.error) {
     return <AdminFrame title={title}><ProblemMessage problem={present(toProblem(household.error ?? diagnostics.error))} /></AdminFrame>;
@@ -118,19 +85,11 @@ export function BankingPage() {
   }
   const settings = household.data;
   const d = diagnostics.data;
-  const state = stateOf(settings.bankingEnabled, d, tested);
-  const canTest = d.keyStatus === 'loaded' && d.appIdSaved;
-  // #414: the installation application is deprecated; a household that never set one up is not offered it any more.
-  const legacy = d.appIdSaved;
+  const state = stateOf(settings.bankingEnabled, d);
   const retention = settings.bankRetentionMonths;
 
   return (
     <AdminFrame title={title}
-      actions={legacy ? (
-        <Button type="button" variant="outline" disabled={!canTest || test.isPending} onClick={() => test.mutate({})}>
-          {t('admin.banking.test')}
-        </Button>
-      ) : null}
       header={(
         <section aria-label={t('admin.banking.figures')} className="space-y-2">
           <StatLine items={[
@@ -151,25 +110,15 @@ export function BankingPage() {
                 : d.reads.freesAt ? t('admin.banking.reads_frees', { time: formatInstantTime(d.reads.freesAt) }) : t('admin.banking.reads_estimate'),
             }] : []),
           ]} />
-          <div aria-live="polite" className="space-y-1">
-            {testProblem ? <ProblemMessage problem={testProblem} /> : null}
-            {tested ? <ConnectionTestResult result={tested} redirectUrl={d.redirectUrl} /> : null}
-          </div>
         </section>
       )}>
-      {d.transferCandidates?.length ? <Transfer candidates={d.transferCandidates} /> : null}
       {problem ? <ProblemMessage problem={problem} /> : null}
 
       <Section title={t('admin.banking.own_apps')}>
         <p className="text-sm">{d.ownApplications?.length ? d.ownApplications.map((a) => a.name).join(', ') : t('admin.banking.own_apps_none')}</p>
       </Section>
 
-      {state === 'ready' ? null : legacy ? (
-        <Section title={t('admin.banking.setup_title')}>
-          <p className="text-sm text-muted-foreground">{t('admin.banking.setup_intro')}</p>
-          <Checklist enabled={settings.bankingEnabled} diagnostics={d} test={tested} />
-        </Section>
-      ) : state === 'setup' ? (
+      {state === 'setup' ? (
         <Section title={t('admin.banking.setup_title')}>
           <p className="max-w-prose text-sm">
             {t('admin.banking.setup_own')}{' '}
@@ -183,33 +132,6 @@ export function BankingPage() {
           <SwitchField label={t('admin.banking.enabled')} hint={t('admin.banking.hint')} checked={settings.bankingEnabled}
             onCheckedChange={(bankingEnabled) => { save.mutate({ body: { bankingEnabled } }); }} />
           <p className="text-sm text-muted-foreground">{t('admin.banking.provider')}</p>
-          {legacy ? (
-          <form noValidate className="flex flex-wrap items-end gap-2" onSubmit={(event) => {
-            event.preventDefault();
-            save.mutate({ body: { enableBankingAppId: appId ?? settings.enableBankingAppId ?? '' } });
-          }}>
-            <div className="min-w-0 flex-1 basis-64">
-              <Field label={t('admin.banking.app_id')} tip={<InfoTip label={t('admin.banking.app_id')}>{t('admin.banking.app_id_tip')}</InfoTip>}>
-                {(c) => <Input {...c} value={appId ?? settings.enableBankingAppId ?? ''} onChange={(e) => setAppId(e.target.value)} />}
-              </Field>
-            </div>
-            <Button type="submit" variant="outline" disabled={save.isPending}>{t('admin.banking.save_app_id')}</Button>
-          </form>
-          ) : d.keyStatus === 'loaded' ? <p className="text-sm text-muted-foreground">{t('admin.banking.key_unused')}</p> : null}
-          {legacy ? (
-          <div className="flex flex-wrap items-end gap-2">
-            <div className="min-w-0 flex-1 basis-64">
-              <Field label={t('admin.banking.redirect_url')} tip={<InfoTip label={t('admin.banking.redirect_url')}>{t('admin.banking.redirect_url_tip')}</InfoTip>}>
-                {(c) => <Input {...c} readOnly value={d.redirectUrl} className="font-mono text-sm" onFocus={(e) => e.currentTarget.select()} />}
-              </Field>
-            </div>
-            <Button type="button" variant="outline" aria-label={t('admin.banking.copy_label')} onClick={() => {
-              void navigator.clipboard?.writeText(d.redirectUrl).then(() => toast.success(t('admin.banking.copied')));
-            }}>
-              <Copy aria-hidden="true" />{t('admin.banking.copy')}
-            </Button>
-          </div>
-          ) : null}
           <div className="max-w-64">
             <Field label={t('admin.banking.retention')} hint={t('admin.banking.retention_hint')}>
               {(c) => (
@@ -268,49 +190,6 @@ export function BankingPage() {
   );
 }
 
-/**
- * #414: the deprecated installation application, handed to the adult whose bank it reads (those with connections made with it first).
- * The others' connections made with it end; the confirmation says so.
- */
-function Transfer({ candidates }: { candidates: Candidate[] }) {
-  const { t } = useTranslation();
-  const { $api } = useApi();
-  const queryClient = useQueryClient();
-  const [person, setPerson] = useState(candidates[0]!.personId);
-  const [problem, setProblem] = useState<Presentation | null>(null);
-  const transfer = $api.useMutation('post', TRANSFER, {
-    onSuccess: () => {
-      setProblem(null);
-      toast.success(t('admin.banking.transferred'));
-      for (const url of [DIAGNOSTICS, HOUSEHOLD, '/api/v1/banking/status', '/api/v1/banking/application']) void queryClient.invalidateQueries({ queryKey: ['get', url] });
-    },
-    onError: (error) => { setProblem(present(toProblem(error))); },
-  });
-  const chosen = candidates.find((c) => c.personId === person) ?? candidates[0]!;
-  const others = candidates.filter((c) => c.personId !== chosen.personId && c.connections > 0).map((c) => c.name);
-  return (
-    <section aria-label={t('admin.banking.transfer')} className="space-y-3 rounded-md border border-status-warning/60 bg-status-warning/10 p-3 text-sm">
-      <p className="font-medium">{t('admin.banking.deprecated')}</p>
-      <p>{t('admin.banking.deprecated_body')}</p>
-      <div className="flex flex-wrap items-end gap-2">
-        <div className="min-w-0 basis-64">
-          <Field label={t('admin.banking.transfer_to')}>
-            {(c) => (
-              <SelectField {...c} value={person} disabled={transfer.isPending} onValueChange={setPerson}
-                options={candidates.map((p) => ({ value: p.personId, label: t('admin.banking.transfer_option', { name: p.name, count: p.connections }) }))} />
-            )}
-          </Field>
-        </div>
-        <ConfirmAction label={t('admin.banking.transfer')} pending={transfer.isPending}
-          confirmation={[t('admin.banking.transfer_confirm', { name: chosen.name }),
-            others.length ? t('admin.banking.transfer_confirm_others', { names: others.join(', ') }) : ''].join(' ').trim()}
-          onConfirm={() => transfer.mutate({ body: { personId: chosen.personId } })} />
-      </div>
-      {problem ? <ProblemMessage problem={problem} /> : null}
-    </section>
-  );
-}
-
 // The wire carries plain strings; an unknown value is shown as it came rather than hidden.
 const triggerText = (t: TFunction, trigger: string): string => (trigger in TRIGGER ? t(TRIGGER[trigger as keyof typeof TRIGGER]) : trigger);
 const outcomeText = (t: TFunction, outcome: string): string => (outcome in OUTCOME ? t(OUTCOME[outcome as keyof typeof OUTCOME]) : outcome);
@@ -333,57 +212,5 @@ function Failure({ run }: { run: Run }) {
       {failureText(t, run.failureCode)}{' '}
       <InfoTip label={t('admin.banking.failure')}>{t('admin.banking.failure_code', { code: run.failureCode })}</InfoTip>
     </span>
-  );
-}
-
-type Done = boolean | 'unknown';
-
-/**
- * The setup steps (#344), in order: each ticked or not by what the server reports. The portal is out of Nid's sight: a test or a
- * successful run proves it, else the step says Nid cannot check it.
- */
-function Checklist({ enabled, diagnostics: d, test }: { enabled: boolean; diagnostics: Diagnostics; test: ConnectionTest | null }) {
-  const { t } = useTranslation();
-  const proven = testOk(test) || d.lastRun?.outcome === 'succeeded';
-  const keyText = d.keyStatus in KEY ? t(KEY[d.keyStatus as keyof typeof KEY]) : d.keyStatus;
-  return (
-    <ol className="space-y-4">
-      <Step done={proven ? true : test?.outcome === 'accepted' ? false : 'unknown'}
-        title={<>{t('admin.banking.step_portal')} <InfoTip label={t('admin.banking.restricted_mode')}>{t('admin.banking.restricted_mode_tip')}</InfoTip></>}>
-        <p>{t('admin.banking.step_portal_body')}</p>
-        <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1">
-          <dt>{t('admin.banking.step_portal_privacy')}</dt><dd className="break-all font-mono text-xs">{PRIVACY_URL}</dd>
-          <dt>{t('admin.banking.step_portal_terms')}</dt><dd className="break-all font-mono text-xs">{TERMS_URL}</dd>
-        </dl>
-        {proven ? null : <p>{t('admin.banking.step_portal_unknown')}</p>}
-        <a href={PORTAL_URL} target="_blank" rel="noreferrer" className="inline-block text-foreground underline underline-offset-4">{t('admin.banking.step_portal_open')}</a>
-      </Step>
-      <Step done={d.keyStatus === 'loaded'} title={t('admin.banking.step_key')}>
-        <p className={d.keyStatus === 'loaded' ? undefined : 'text-status-warning-text'}>{keyText}</p>
-      </Step>
-      <Step done={d.appIdSaved} title={t('admin.banking.step_id')}><p>{t('admin.banking.step_id_body')}</p></Step>
-      <Step done={proven} title={t('admin.banking.step_test')}><p>{t('admin.banking.step_test_body')}</p></Step>
-      <Step done={enabled} title={t('admin.banking.step_enable')}><p>{t('admin.banking.step_enable_body')}</p></Step>
-      <Step done={d.bankLinked}
-        title={<>{t('admin.banking.step_bank')} <InfoTip label={t('admin.banking.consent')}>{t('admin.banking.consent_tip')}</InfoTip></>}>
-        <p>{t('admin.banking.step_bank_body')}</p>
-        <Link to="/settings/banks" className="inline-block text-foreground underline underline-offset-4">{t('admin.banking.step_bank_open')}</Link>
-      </Step>
-    </ol>
-  );
-}
-
-function Step({ done, title, children }: { done: Done; title: ReactNode; children: ReactNode }) {
-  const { t } = useTranslation();
-  const Icon = done === true ? CheckCircle2 : done === 'unknown' ? CircleHelp : Circle;
-  const status = done === true ? t('admin.banking.step_done') : done === 'unknown' ? t('admin.banking.step_unknown') : t('admin.banking.step_todo');
-  return (
-    <li className="flex gap-3">
-      <Icon aria-hidden="true" className={cn('mt-0.5 size-5 shrink-0', done === true ? 'text-status-good' : 'text-muted-foreground')} />
-      <div className="min-w-0 space-y-1">
-        <p className="flex flex-wrap items-center gap-1 font-medium">{title}<span className="sr-only"> ({status})</span></p>
-        <div className="space-y-1 text-sm text-muted-foreground">{children}</div>
-      </div>
-    </li>
   );
 }

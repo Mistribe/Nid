@@ -15,7 +15,7 @@ using UnambitiousFx.Synapse.Abstractions;
 
 namespace Nid.Banking.IntegrationTests;
 
-/// <summary>#382: every Enable Banking call for a connection uses the application the connection was made with.</summary>
+/// <summary>#382: every Enable Banking call for a connection uses the application the connection was made with, its creator's own (#414).</summary>
 public class ApplicationPerAdultTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private const string Iban = "FR76 3000 6000 0112 3456 7890 189";
@@ -24,11 +24,20 @@ public class ApplicationPerAdultTests(PostgresFixture fixture) : IClassFixture<P
 
     private static BankingDbContext Db(NidApp app) => new(new DbContextOptionsBuilder<BankingDbContext>().Configure(app.ConnectionString).Options);
 
+    /// <summary>Both adults on « app-home », their own; a test replaces Alice's with <see cref="SaveAsync"/>.</summary>
     private static async Task<NidApp> StartAsync(PostgresFixture fixture)
     {
         var app = await BankingApi.StartAsync(fixture);
-        await BankingApi.SettingsAsync(app, new { enableBankingAppId = "app-home" });
+        await BankingApi.ApplicationAsync(app, app.AdultA, "app-home");
+        await BankingApi.ApplicationAsync(app, app.AdultB, "app-home");
         return app;
+    }
+
+    private static async Task DeleteAsync(NidApp app, PersonId person)
+    {
+        await using var scope = app.Services.CreateAsyncScope();
+        scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
+        Assert.True(await scope.ServiceProvider.GetRequiredService<IApplicationStore>().DeleteAsync(person, Ct));
     }
 
     private static async Task SaveAsync(NidApp app, PersonId person, string id)
@@ -94,29 +103,27 @@ public class ApplicationPerAdultTests(PostgresFixture fixture) : IClassFixture<P
     }
 
     [Fact]
-    public async Task Bob_without_one_uses_the_installation()
+    public async Task Bob_without_one_cannot_link_a_bank()
     {
         await using var app = await StartAsync(fixture);
-        await SaveAsync(app, app.AdultA, "app-alice");
+        await DeleteAsync(app, app.AdultB);
 
-        await BankingApi.StartConnectionAsync(app, app.AdultB);
-
-        Assert.Equal("app-home", app.Banks.StartAuths[^1].AppId);
+        await BankingApi.AssertRefusedAsync(await app.RawAsync(app.AdultB, HttpMethod.Post, $"{BankingApi.Root}/connections", new { aspspName = "Banque Alpha" }),
+            HttpStatusCode.Conflict, BankingCodes.NotConfigured);
+        Assert.Empty(app.Banks.StartAuths);
     }
 
     [Fact]
-    public async Task A_connection_keeps_its_application()
+    public async Task A_connection_made_with_an_application_she_replaced_is_no_longer_renewed()
     {
         await using var app = await StartAsync(fixture);
         var id = await BankingApi.ConnectAsync(app, app.AdultA, "code-a", BankingApi.Account("uid-1", "hash-1", null, "Courant"));
         await SaveAsync(app, app.AdultA, "app-alice");
 
-        var renew = await app.RawAsync(app.AdultA, HttpMethod.Post, $"{BankingApi.Root}/connections/{id}/renew");
-        Assert.Equal(HttpStatusCode.OK, renew.StatusCode);
-        Assert.Equal("app-home", app.Banks.StartAuths[^1].AppId);
+        await BankingApi.AssertRefusedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{BankingApi.Root}/connections/{id}/renew"),
+            HttpStatusCode.Conflict, BankingCodes.NotConfigured);
         Assert.Equal(HttpStatusCode.NoContent, (await app.RawAsync(app.AdultA, HttpMethod.Delete, $"{BankingApi.Root}/connections/{id}")).StatusCode);
-
-        Assert.Equal(["app-home"], app.Banks.DeleteApps);
+        Assert.Empty(app.Banks.DeleteApps); // no key left to revoke its session with: it lapses at the bank
     }
 
     [Fact]
@@ -130,7 +137,7 @@ public class ApplicationPerAdultTests(PostgresFixture fixture) : IClassFixture<P
 
         Assert.NotEqual(old, renewed);
         Assert.Equal(["app-home", "app-alice"], app.Banks.SessionApps);
-        Assert.Equal(["app-home"], app.Banks.DeleteApps); // the superseded session was opened with the installation's application
+        Assert.Empty(app.Banks.DeleteApps); // the superseded session's application is not hers any more: it lapses at the bank
     }
 
     [Fact]
@@ -141,9 +148,11 @@ public class ApplicationPerAdultTests(PostgresFixture fixture) : IClassFixture<P
         var (_, state) = await BankingApi.StartConnectionAsync(app, app.AdultA);
         await SaveAsync(app, app.AdultA, "app-alice");
 
-        await CallbackOkAsync(app, app.AdultA, state, "code-a");
+        // Started with « app-home », which is no longer hers: the code is not exchanged with another application.
+        var callback = await CallbackOkAsync(app, app.AdultA, state, "code-a");
 
-        Assert.Equal(["app-home"], app.Banks.SessionApps);
+        Assert.Contains("error=banking.not_configured", callback.Headers.Location!.OriginalString);
+        Assert.Empty(app.Banks.SessionApps);
     }
 
     [Fact]
@@ -172,9 +181,9 @@ public class ApplicationPerAdultTests(PostgresFixture fixture) : IClassFixture<P
         await SaveAsync(app, app.AdultA, "app-alice");
         var id = await BankingApi.ConnectAsync(app, app.AdultA, "code-a", BankingApi.Account("uid-a", "hash-a", null, "Courant A"));
         await using var db = Db(app);
-        var key = await db.Applications.AsNoTracking().Select(a => a.PrivateKey).SingleAsync(Ct);
+        var key = await db.Applications.AsNoTracking().Where(a => a.PersonId == app.AdultA.Value).Select(a => a.PrivateKey).SingleAsync(Ct);
         key[^1] ^= 0xFF;
-        await db.Database.ExecuteSqlAsync($"update banking.application set private_key = {key}", Ct);
+        await db.Database.ExecuteSqlAsync($"update banking.application set private_key = {key} where person_id = {app.AdultA.Value}", Ct);
 
         var response = await app.RawAsync(app.AdultA, HttpMethod.Post, $"{BankingApi.Root}/sync", new { connectionId = id });
 
@@ -193,9 +202,9 @@ public class ApplicationPerAdultTests(PostgresFixture fixture) : IClassFixture<P
         var bob = await BankingApi.ConnectAsync(app, app.AdultB, "code-b", BankingApi.Account("uid-b", "hash-b", null, "Courant B"));
         app.Banks.Balances[("session-code-b", "uid-b")] = [new ProviderBalance("CLBD", 10m, "EUR", new LocalDate(2026, 1, 1))];
         await using var db = Db(app);
-        var key = await db.Applications.AsNoTracking().Select(a => a.PrivateKey).SingleAsync(Ct);
+        var key = await db.Applications.AsNoTracking().Where(a => a.PersonId == app.AdultA.Value).Select(a => a.PrivateKey).SingleAsync(Ct);
         key[^1] ^= 0xFF;
-        await db.Database.ExecuteSqlAsync($"update banking.application set private_key = {key}", Ct);
+        await db.Database.ExecuteSqlAsync($"update banking.application set private_key = {key} where person_id = {app.AdultA.Value}", Ct);
 
         await NightAsync(app);
 
@@ -209,8 +218,7 @@ public class ApplicationPerAdultTests(PostgresFixture fixture) : IClassFixture<P
     public async Task Banking_is_configured_for_an_adult_with_only_their_own_application()
     {
         await using var app = await StartAsync(fixture);
-        await BankingApi.SettingsAsync(app, new { enableBankingAppId = "" });
-        await SaveAsync(app, app.AdultA, "app-alice");
+        await DeleteAsync(app, app.AdultB);
 
         async Task<bool> ConfiguredAsync(PersonId person)
             => JsonDocument.Parse(await app.GetRawAsync(person, $"{BankingApi.Root}/status")).RootElement.GetProperty("configured").GetBoolean();

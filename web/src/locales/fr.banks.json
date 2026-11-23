@@ -3,8 +3,6 @@
     "title": "Banques",
     "loading": "Chargement des banques",
     "disabled": "La synchronisation bancaire n'est pas activée pour ce foyer : un administrateur peut l'activer dans Administration › Banque.",
-    "not_configured_key": "La synchronisation bancaire est activée, mais Nid n'a pas chargé la clé privée de l'application Enable Banking.",
-    "open_admin_banking": "Voir Administration › Banque",
     "connect": "Relier une banque",
     "empty_title": "Aucune banque reliée",
     "empty_body": "Reliez une banque : les soldes de vos comptes arrivent alors d'eux-mêmes dans vos enveloppes.",

@@ -352,7 +352,6 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ITransactionParticipant, DbContextParticipant<BankingDbContext>>();
         services.AddScoped<IItemDeletionPart, Nid.Banking.Infrastructure.Persistence.BankingDeletionPart>();
         services.AddScoped<IApplicationStore, ApplicationStore>();
-        services.AddScoped<IBankingApplicationUse, BankingApplicationUse>();
         services.AddScoped<IConnectionStore, ConnectionStore>();
         services.AddScoped<IAccountStore, AccountStore>();
         services.AddScoped<IBalanceStore, BalanceStore>();

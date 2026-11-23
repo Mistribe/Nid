@@ -92,7 +92,7 @@ public class SyncTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
     {
         var (app, clock) = await StartAsync(fixture);
         await using var _ = app;
-        await BankingApi.SettingsAsync(app, new { enableBankingAppId = "" });
+        await BankingApi.NoApplicationAsync(app);
 
         var result = await NightlyAsync(app, clock, new LocalDate(2026, 1, 5));
 

@@ -27,9 +27,8 @@ public static class HostingSetup
     }
 
     /// <summary>
-    /// The secrets folder, less the Enable Banking key when Nid may not read it (issue #343): bank sync is optional, so that key leaves it
-    /// « not configured », said at startup and in Administration › Banque, instead of stopping Nid. Key-per-file reads every file before its
-    /// ignore rule, so the file is left out of the listing.
+    /// The secrets folder, less the files Nid may not read (issue #343): key-per-file reads every file before its ignore rule, so one left
+    /// unreadable (the Enable Banking key Nid no longer uses, #414) would stop Nid; it is left out of the listing.
     /// </summary>
     private sealed class SecretFolder(string path) : IFileProvider
     {
@@ -46,9 +45,22 @@ public static class HostingSetup
             public bool Exists => contents.Exists;
 
             public IEnumerator<IFileInfo> GetEnumerator()
-                => contents.Where(f => f.IsDirectory || f.Name != BankingKey.FileName || f.PhysicalPath is not { } p || BankingKey.CanRead(p)).GetEnumerator();
+                => contents.Where(f => f.IsDirectory || f.PhysicalPath is not { } p || CanRead(p)).GetEnumerator();
 
             System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+        }
+    }
+
+    private static bool CanRead(string path)
+    {
+        try
+        {
+            using var _ = File.OpenRead(path);
+            return true;
+        }
+        catch (Exception e) when (e is UnauthorizedAccessException or IOException)
+        {
+            return false;
         }
     }
 

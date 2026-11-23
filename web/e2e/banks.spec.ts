@@ -4,7 +4,7 @@ import { pick, toasts } from './controls';
 import { signIn } from './session';
 
 /** The household's bank sync settings, set through the API: the journey starts from them and leaves them as it found them. */
-async function bankSync(page: Page, settings: { bankingEnabled: boolean; enableBankingAppId: string }) {
+async function bankSync(page: Page, settings: { bankingEnabled: boolean }) {
   const { csrf } = (await (await page.request.get('/auth/session')).json()) as { csrf: string };
   const response = await page.request.patch('/api/v1/admin/household', { headers: { 'X-Nid-Csrf': csrf }, data: settings });
   expect(response.ok()).toBe(true);
@@ -17,7 +17,7 @@ async function bankSync(page: Page, settings: { bankingEnabled: boolean; enableB
  */
 test('alice turns bank sync on, is sent to her own application, finds Réglages › Banques, and loses it once off', async ({ page }) => {
   await signIn(page, 'alice', '/admin/banking');
-  await bankSync(page, { bankingEnabled: false, enableBankingAppId: '' });
+  await bankSync(page, { bankingEnabled: false });
   await page.reload();
 
   const toggle = page.getByRole('switch', { name: 'Synchronisation bancaire' });
@@ -46,12 +46,12 @@ test('alice turns bank sync on, is sent to her own application, finds Réglages 
   await expect(page.getByText(/La synchronisation bancaire n'est pas activée/)).toBeVisible();
   await expect(page.getByRole('link', { name: 'Banques', exact: true })).toHaveCount(0);
 
-  await bankSync(page, { bankingEnabled: false, enableBankingAppId: '' });
+  await bankSync(page, { bankingEnabled: false });
 });
 
 test('alice keeps the operations 24 months, then without limit', async ({ page }) => {
   await signIn(page, 'alice', '/admin/banking');
-  await bankSync(page, { bankingEnabled: true, enableBankingAppId: '' });
+  await bankSync(page, { bankingEnabled: true });
   await page.reload();
 
   await pick(page, 'Conserver les opérations', '24 mois');
@@ -63,13 +63,13 @@ test('alice keeps the operations 24 months, then without limit', async ({ page }
   await page.reload();
   await expect(page.getByRole('combobox', { name: 'Conserver les opérations' })).toHaveText('Sans limite');
 
-  await bankSync(page, { bankingEnabled: false, enableBankingAppId: '' });
+  await bankSync(page, { bankingEnabled: false });
 });
 
 /** 5C, #84: bank sync on without Enable Banking, alice reaches the Opérations tab of Dépenses filtered on the lines to link from « À valider » and keeps no rule yet. */
 test('alice opens the lines to link in « Opérations » and finds « Règles mémorisées » empty', async ({ page }) => {
   await signIn(page, 'alice', '/admin/banking');
-  await bankSync(page, { bankingEnabled: true, enableBankingAppId: '' });
+  await bankSync(page, { bankingEnabled: true });
 
   await page.goto('/proposals');
   await page.getByRole('link', { name: 'Opérations à relier' }).click();
@@ -85,7 +85,7 @@ test('alice opens the lines to link in « Opérations » and finds « Règles m�
   // No journey links a line by hand, so alice's rules stay empty.
   await expect(page.getByRole('region', { name: 'Règles mémorisées' }).getByText('Aucune règle mémorisée.')).toBeVisible();
 
-  await bankSync(page, { bankingEnabled: false, enableBankingAppId: '' });
+  await bankSync(page, { bankingEnabled: false });
 });
 
 /** Bank sync on without Enable Banking: a statement file needs nothing else. The vector's account id is made this run's own, so its lines are all new. */
@@ -93,7 +93,7 @@ test('alice imports an OFX statement on a checking envelope, previews it, confir
   const stamp = Date.now();
   const envelope = `Compte ${stamp}`;
   await signIn(page, 'alice', '/admin/banking');
-  await bankSync(page, { bankingEnabled: true, enableBankingAppId: '' });
+  await bankSync(page, { bankingEnabled: true });
   const session = (await (await page.request.get('/auth/session')).json()) as { csrf: string; person: { id: string } };
   const created = await page.request.post('/api/v1/investments/envelopes', {
     headers: { 'X-Nid-Csrf': session.csrf },
@@ -124,7 +124,7 @@ test('alice imports an OFX statement on a checking envelope, previews it, confir
   await expect(row).toContainText('2 450,00 €');
   await expect(row).toContainText('27 oct. 2026');
 
-  await bankSync(page, { bankingEnabled: false, enableBankingAppId: '' });
+  await bankSync(page, { bankingEnabled: false });
 });
 
 /**
@@ -135,7 +135,7 @@ test('alice categorises two lines by hand, sees the suggestion for the third and
   const stamp = Date.now();
   const shop = `FOURNIL ${String(stamp).replace(/\d/g, (d) => 'ABCDEFGHIJ'[Number(d)])}`;
   await signIn(page, 'alice', '/admin/banking');
-  await bankSync(page, { bankingEnabled: true, enableBankingAppId: '' });
+  await bankSync(page, { bankingEnabled: true });
   const session = (await (await page.request.get('/auth/session')).json()) as { csrf: string; person: { id: string } };
   const created = await page.request.post('/api/v1/investments/envelopes', {
     headers: { 'X-Nid-Csrf': session.csrf },
@@ -179,5 +179,5 @@ test('alice categorises two lines by hand, sees the suggestion for the third and
   await expect(page.getByRole('listitem').filter({ hasText: `${shop} → Courses` })).toHaveCount(0);
   await expect(table.getByRole('row').filter({ hasText: `CB ${shop} 26/10` })).toContainText('Courses');
 
-  await bankSync(page, { bankingEnabled: false, enableBankingAppId: '' });
+  await bankSync(page, { bankingEnabled: false });
 });

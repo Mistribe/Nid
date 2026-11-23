@@ -56,7 +56,7 @@ public class AdminMarkerTests
         Type[] journal =
         [
             typeof(Nid.Banking.Application.Sync.SyncAllCommand), typeof(Nid.Banking.Application.Sync.GetBankSyncRunsQuery),
-            typeof(Nid.Banking.Application.GetBankingDiagnosticsQuery), typeof(Nid.Banking.Application.TestBankingConnectionCommand),
+            typeof(Nid.Banking.Application.GetBankingDiagnosticsQuery),
         ];
         Assert.DoesNotContain(journal, t => !typeof(IAdminOnly).IsAssignableFrom(t));
         Assert.False(typeof(IAdminOnly).IsAssignableFrom(typeof(Nid.Banking.Application.Sync.SyncMineCommand)));

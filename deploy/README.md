@@ -397,7 +397,6 @@ maximale d'un fichier que l'outil MCP `read_document` envoie ; au-delà, il n'en
 | `oidc_client_secret` | Secret du client de Nid dans Pocket ID | Dans Pocket ID, ajoutez un secret au client (l'ancien reste valable), passez-le à `setup.sh --oidc-client-secret`, redémarrez `nid`, puis supprimez l'ancien secret dans Pocket ID. |
 | `csrf_key` | Jetons anti-CSRF | Supprimez le fichier, relancez `setup.sh`, puis redémarrez `nid`. Les pages ouvertes devront être rechargées. |
 | `pocket_id_encryption_key` | Chiffre les clés de signature de Pocket ID dans sa base | **Ne la changez pas à la main : sa base deviendrait illisible.** Pour la renouveler, utilisez la commande `encryption-key-rotate` de Pocket ID (sa documentation), puis remplacez le fichier. |
-| `enable_banking_private_key` | Clé privée (PEM) de l'application Enable Banking **de l'installation seulement**, dépréciée (§12) : n'existe que sur une installation qui l'avait activée, `setup.sh` ne la crée pas ; à retirer une fois l'application transférée à un adulte. Les clés des adultes (§12) ne sont pas des secrets Docker : elles sont dans la base, chiffrées par Data Protection, donc dans la sauvegarde de la base, et lisibles seulement avec les clés Data Protection, elles aussi dans la sauvegarde | Transférez plutôt l'application à un adulte (§12), puis retirez le secret ; l'adulte remplace ensuite sa clé dans « Mon application ». |
 | `backup-secrets/restic_password` | Ouvre la sauvegarde ; hors de la sauvegarde | Jamais en supprimant le fichier : `restic key add` puis `restic key remove` (§6). |
 | `backup-secrets/remote_repository`, `remote_password`, `remote_credentials` | Dépôt distant | Changez le fichier, puis `backup-now`. |
 
@@ -555,25 +554,16 @@ Data Protection ne sait plus déchiffrer (clés perdues, `docs/security/bank-syn
 illisible » : il faut la renvoyer ; ses connexions échouent en `banking.not_configured` d'ici là (la synchronisation de
 nuit les signale, et les adultes sont prévenus après 2 nuits en échec).
 
-**Application de l'installation (dépréciée, #414).** Une installation antérieure a pu configurer une application pour tout
-le foyer : un identifiant dans Administration › Banque et sa clé privée montée en secret `EnableBanking__PrivateKey`. Elle
-sera retirée dans une version prochaine. Tant qu'elle est configurée, Administration › Banque l'annonce et propose
-« Transférer à un adulte » : choisissez l'adulte dont elle lit la banque (ceux qui ont des banques reliées avec elle
-viennent en premier). En une fois, Nid :
-
-- en fait l'application de cet adulte (identifiant et clé, la clé chiffrée comme ci-dessus) : ses banques continuent de se
-  synchroniser sans rien refaire ;
-- arrête les banques que les **autres** adultes ont reliées avec elle (« Terminée », session supprimée chez Enable
-  Banking) : leurs comptes, soldes, opérations, liens et règles restent. Chacun est prévenu (« Reliez à nouveau votre
-  banque ») jusqu'à ce qu'il ait déclaré sa propre application et relié sa banque avec elle ; ses comptes sont alors
-  retrouvés par leur IBAN ;
-- efface l'identifiant de l'installation. La clé reste montée mais n'est plus lue : retirez `EnableBanking__PrivateKey`
-  de `deploy/compose.override.yaml` et `deploy/secrets/enable_banking_private_key`, puis recréez `nid`
-  (`docker compose -f deploy/compose.yaml -f deploy/compose.override.yaml up -d --force-recreate nid`).
-
-En mode restreint, les comptes que les autres adultes avaient reliés dans le portail de l'application de l'installation y
-restent liés : Nid ne peut pas les en retirer, faites-le dans ce portail. Le transfert est refusé
-(`banking.application_in_use`) si l'adulte choisi a déjà une application à lui qu'une connexion utilise.
+**Ancienne application de l'installation (retirée, #414).** Une installation antérieure a pu configurer une application pour
+tout le foyer : un identifiant dans Administration › Banque et sa clé privée montée en secret `EnableBanking__PrivateKey`.
+Nid ne la lit plus. À la mise à jour, les banques reliées avec elle par un adulte qui ne l'a pas reçue comme sienne (la
+version précédente proposait « Transférer à un adulte ») s'arrêtent (« Terminée ») : leurs comptes, soldes, opérations, liens
+et règles restent, et chacun est prévenu (« Reliez à nouveau votre banque ») jusqu'à ce qu'il ait déclaré sa propre
+application et relié sa banque avec elle ; ses comptes sont alors retrouvés par leur IBAN. Leurs sessions expirent d'elles-mêmes
+chez Enable Banking. Si le secret est encore monté, `docker compose logs nid` le signale au démarrage : retirez
+`EnableBanking__PrivateKey` de `deploy/compose.override.yaml` et `deploy/secrets/enable_banking_private_key`, puis recréez
+`nid` (`docker compose -f deploy/compose.yaml -f deploy/compose.override.yaml up -d --force-recreate nid`). En mode restreint,
+les comptes reliés dans le portail de cette ancienne application y restent liés : retirez-les dans ce portail.
 
 Nid n'a pas besoin d'être joignable depuis Internet : le retour de la banque passe par le navigateur. Seul `nid` sort,
 vers `api.enablebanking.com`. Le consentement dure ce que la banque permet (souvent 180 jours) : Nid prévient 14 puis 3 jours
@@ -584,16 +574,6 @@ journal des synchronisations (compteurs et codes d'erreur, sans nom de compte ni
 livrets sont exposés. Limite connue : un compte sans IBAN (une carte) vu par deux applications n'est fusionné que si
 Enable Banking lui donne la même empreinte d'identification sous les deux, non vérifié ; sinon il apparaît deux fois. Une banque absente reste
 saisie à la main (l'import de relevés OFX et CAMT.053 arrive avec l'étape 5B).
-
-Avec [`standalone/`](standalone/compose.yaml), même chose dans son `compose.override.yaml`, avec le chemin de votre fichier :
-
-```yaml
-services:
-  nid:
-    secrets: [{ source: enable_banking_private_key, target: EnableBanking__PrivateKey }]
-secrets:
-  enable_banking_private_key: { file: ./enable_banking_private_key.pem }
-```
 
 ## 13. Journaux
 

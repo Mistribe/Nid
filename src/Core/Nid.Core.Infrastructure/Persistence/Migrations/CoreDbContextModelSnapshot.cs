@@ -17,7 +17,7 @@ partial class CoreDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261123073823_AllowAssistantOrigin";
+    public override string LastMigrationId => "20261123104711_RemoveInstallationApplication414";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -438,10 +438,6 @@ partial class CoreDbContextModelSnapshot : ModelSnapshot
                     .HasColumnType("boolean")
                     .HasDefaultValue(false)
                     .HasColumnName("banking_enabled");
-
-                b.Property<string>("EnableBankingAppId")
-                    .HasColumnType("text")
-                    .HasColumnName("enable_banking_app_id");
 
                 b.Property<string>("FeeReferences")
                     .HasColumnType("jsonb")

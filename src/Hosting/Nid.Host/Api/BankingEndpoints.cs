@@ -455,26 +455,13 @@ public static class BankingEndpoints
             => (await invoker.InvokeAsync(new GetBankSyncRunsQuery(page), ct)).ToHttp(runs => runs))
             .Returns<BankSyncRunPage>();
 
-        // Issue #343: why bank sync is not configured, and Enable Banking's answer to the saved id and key.
-        admin.MapGet("/diagnostics", async (IOptions<NidAuthOptions> auth, IJobStatusReader jobs, IInvoker invoker, CancellationToken ct) =>
+        // Issue #344: where bank sync stands; the scheduler is the host's, with no next run when this instance runs no job.
+        admin.MapGet("/diagnostics", async (IJobStatusReader jobs, IInvoker invoker, CancellationToken ct) =>
             {
-                // Issue #344: the scheduler is the host's; none when this instance runs no job.
                 var next = (await jobs.ListAsync(ct)).FirstOrDefault(j => j.Key == Nid.Host.Jobs.BankingJobs.NightlyKey.Name)?.NextRunAt;
-                return (await invoker.InvokeAsync(new GetBankingDiagnosticsQuery(Callback(auth), next), ct)).ToHttp(diagnostics => diagnostics);
+                return (await invoker.InvokeAsync(new GetBankingDiagnosticsQuery(next), ct)).ToHttp(diagnostics => diagnostics);
             })
             .Returns<BankingDiagnosticsView>();
-
-        admin.MapPost("/test", async (IOptions<NidAuthOptions> auth, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new TestBankingConnectionCommand(Callback(auth)), ct)).ToHttp(test => test))
-            .Returns<BankingConnectionTestView>();
-
-        // #414: the deprecated installation application, handed to one adult.
-        admin.MapPost("/transfer", async (ApplicationTransferBody body, IInvoker invoker, CancellationToken ct) =>
-            {
-                var result = await invoker.InvokeAsync(new TransferInstallationApplicationCommand(body.PersonId ?? Guid.Empty), ct);
-                return result.TryGetValue(out _) ? Results.NoContent() : result.ToHttp(v => v);
-            })
-            .ReturnsNoContent();
 
         return routes;
     }
@@ -488,10 +475,6 @@ public static class BankingEndpoints
     private static string Callback(IOptions<NidAuthOptions> auth) => auth.Value.PublicUrl.TrimEnd('/') + CallbackPath;
 
     public sealed record ConnectBody(string? AspspName);
-
-    /// <summary>The adult the installation application goes to.</summary>
-    [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
-    public sealed record ApplicationTransferBody(Guid? PersonId);
 
     /// <summary>The adult's application; the key is optional once one is stored.</summary>
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]

@@ -15,6 +15,14 @@ public class ApplicationRouteTests(PostgresFixture fixture) : IClassFixture<Post
 
     private static string Pem() => RSA.Create(2048).ExportRSAPrivateKeyPem();
 
+    /// <summary>Banking on, no adult with an application yet: each test declares the one it needs.</summary>
+    private async Task<NidApp> StartAsync()
+    {
+        var app = await BankingApi.StartAsync(fixture, enable: false);
+        await BankingApi.SettingsAsync(app, new { bankingEnabled = true });
+        return app;
+    }
+
     private static Task<HttpResponseMessage> PutAsync(NidApp app, PersonId person, string id, string? key)
         => app.RawAsync(person, HttpMethod.Put, Route, new { applicationId = id, privateKey = key });
 
@@ -28,7 +36,7 @@ public class ApplicationRouteTests(PostgresFixture fixture) : IClassFixture<Post
     [Fact]
     public async Task Saving_and_deleting_leave_security_events_without_the_key_or_the_id()
     {
-        await using var app = await BankingApi.StartAsync(fixture);
+        await using var app = await StartAsync();
         await PutAsync(app, app.AdultA, "app-alice", Pem());
         await PutAsync(app, app.AdultA, "app-alice", null);
         await PutAsync(app, app.AdultA, "app-alice", Pem());
@@ -48,7 +56,7 @@ public class ApplicationRouteTests(PostgresFixture fixture) : IClassFixture<Post
     [Fact]
     public async Task A_body_over_the_cap_is_refused()
     {
-        await using var app = await BankingApi.StartAsync(fixture);
+        await using var app = await StartAsync();
 
         var response = await app.RawContentAsync(app.AdultA, HttpMethod.Put, Route, new StringContent(
             JsonSerializer.Serialize(new { applicationId = "app-alice", privateKey = Pem() }) + new string(' ', 40 * 1024), System.Text.Encoding.UTF8, "application/json"));
@@ -60,7 +68,7 @@ public class ApplicationRouteTests(PostgresFixture fixture) : IClassFixture<Post
     [Fact]
     public async Task Alice_declares_her_application_and_the_key_never_comes_back()
     {
-        await using var app = await BankingApi.StartAsync(fixture);
+        await using var app = await StartAsync();
         var pem = Pem();
         var body = pem.Split('\n')[1];
 
@@ -82,7 +90,7 @@ public class ApplicationRouteTests(PostgresFixture fixture) : IClassFixture<Post
     [Fact]
     public async Task A_public_key_is_refused_and_nothing_is_stored()
     {
-        await using var app = await BankingApi.StartAsync(fixture);
+        await using var app = await StartAsync();
         using var rsa = RSA.Create(2048);
 
         var pem = rsa.ExportRSAPublicKeyPem();
@@ -96,7 +104,7 @@ public class ApplicationRouteTests(PostgresFixture fixture) : IClassFixture<Post
     [Fact]
     public async Task Creating_without_a_key_or_an_id_is_refused()
     {
-        await using var app = await BankingApi.StartAsync(fixture);
+        await using var app = await StartAsync();
 
         await AssertFieldAsync(await PutAsync(app, app.AdultA, "app-alice", null), BankingCodes.KeyRequired, "privateKey");
         await AssertFieldAsync(await PutAsync(app, app.AdultA, "  ", Pem()), BankingCodes.ApplicationIdInvalid, "applicationId");
@@ -106,7 +114,7 @@ public class ApplicationRouteTests(PostgresFixture fixture) : IClassFixture<Post
     [Fact]
     public async Task While_a_connection_uses_it_the_id_stays_but_the_key_can_change()
     {
-        await using var app = await BankingApi.StartAsync(fixture);
+        await using var app = await StartAsync();
         Assert.Equal(HttpStatusCode.OK, (await PutAsync(app, app.AdultA, "app-alice", Pem())).StatusCode);
         await BankingApi.ConnectAsync(app, app.AdultA, "code-a", BankingApi.Account("uid-1", "hash-1", null, "Courant"));
 
@@ -120,7 +128,7 @@ public class ApplicationRouteTests(PostgresFixture fixture) : IClassFixture<Post
     [Fact]
     public async Task Deleting_removes_the_pending_connections_on_it()
     {
-        await using var app = await BankingApi.StartAsync(fixture);
+        await using var app = await StartAsync();
         await PutAsync(app, app.AdultA, "app-alice", Pem());
         var (_, state) = await BankingApi.StartConnectionAsync(app, app.AdultA);
 
@@ -134,7 +142,7 @@ public class ApplicationRouteTests(PostgresFixture fixture) : IClassFixture<Post
     [Fact]
     public async Task The_test_uses_the_actor_credential()
     {
-        await using var app = await BankingApi.StartAsync(fixture);
+        await using var app = await StartAsync();
         var test = $"{Route}/test";
         await BankingApi.AssertRefusedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, test), HttpStatusCode.Conflict, BankingCodes.NotConfigured);
 
@@ -149,7 +157,7 @@ public class ApplicationRouteTests(PostgresFixture fixture) : IClassFixture<Post
     [Fact]
     public async Task Diagnostics_list_who_has_an_application_without_its_id()
     {
-        await using var app = await BankingApi.StartAsync(fixture);
+        await using var app = await StartAsync();
         await PutAsync(app, app.AdultA, "app-alice", Pem());
 
         var raw = await app.GetRawAsync(app.AdultA, "/api/v1/admin/banking/diagnostics");
@@ -162,18 +170,10 @@ public class ApplicationRouteTests(PostgresFixture fixture) : IClassFixture<Post
     [Fact]
     public async Task A_non_json_body_is_a_415()
     {
-        await using var app = await BankingApi.StartAsync(fixture);
+        await using var app = await StartAsync();
 
         var response = await app.RawContentAsync(app.AdultA, HttpMethod.Put, Route, new StringContent("applicationId=x", System.Text.Encoding.UTF8, "text/plain"));
 
         Assert.Equal(HttpStatusCode.UnsupportedMediaType, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task An_adult_cannot_declare_the_installation_application_as_theirs()
-    {
-        await using var app = await BankingApi.StartAsync(fixture); // installation id: app-1
-
-        await AssertFieldAsync(await PutAsync(app, app.AdultB, "app-1", Pem()), BankingCodes.ApplicationIdInvalid, "applicationId");
     }
 }

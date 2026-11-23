@@ -65,23 +65,26 @@ public class HostingTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
         Assert.Equal("from-a-secret-file", catalog.Commit);
     }
 
-    /// <summary>Issue #343: bank sync is optional, so its key Docker made a folder, or one Nid may not read, does not stop the host.</summary>
+    /// <summary>
+    /// Issue #343: a secret Docker made a folder, or one Nid may not read (the Enable Banking key it no longer uses, #414), does not stop the
+    /// host nor the other secrets.
+    /// </summary>
     [Theory]
-    [InlineData(Nid.Banking.Contracts.BankingKeyStatus.Directory)]
-    [InlineData(Nid.Banking.Contracts.BankingKeyStatus.Unreadable)]
+    [InlineData(true)]
+    [InlineData(false)]
     [System.Runtime.Versioning.UnsupportedOSPlatform("windows")]
-    public async Task A_bank_key_nid_cannot_read_leaves_the_other_secrets_and_says_why(string status)
+    public async Task A_secret_nid_cannot_read_leaves_the_other_secrets(bool folder)
     {
         var secrets = Directory.CreateTempSubdirectory("nid-secrets-").FullName;
-        var key = Path.Combine(secrets, Nid.Banking.Contracts.BankingKey.FileName);
+        var key = Path.Combine(secrets, "EnableBanking__PrivateKey");
         await File.WriteAllTextAsync(Path.Combine(secrets, "Catalog__Commit"), "from-a-secret-file", TestContext.Current.CancellationToken);
-        if (status == Nid.Banking.Contracts.BankingKeyStatus.Directory)
+        if (folder)
             Directory.CreateDirectory(key);
         else
         {
             await File.WriteAllTextAsync(key, "-----BEGIN PRIVATE KEY-----", TestContext.Current.CancellationToken);
             File.SetUnixFileMode(key, UnixFileMode.None);
-            Assert.SkipWhen(Nid.Banking.Contracts.BankingKey.CanRead(key), "root reads every file");
+            Assert.SkipWhen(Readable(key), "root reads every file");
         }
 
         try
@@ -89,13 +92,24 @@ public class HostingTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
             await using var app = await NidApp.StartAsync(fixture, settings: new Dictionary<string, string> { ["Secrets:Path"] = secrets });
 
             Assert.Equal("from-a-secret-file", app.Services.GetRequiredService<Nid.Subscriptions.Contracts.CatalogOptions>().Commit);
-            Assert.Equal(status, app.Services.GetRequiredService<Nid.Banking.Contracts.BankingKey>().Status);
-            Assert.True(string.IsNullOrEmpty(app.Services.GetRequiredService<Nid.Banking.Contracts.BankingOptions>().PrivateKey));
         }
         finally
         {
             if (File.Exists(key))
                 File.SetUnixFileMode(key, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+        }
+    }
+
+    private static bool Readable(string path)
+    {
+        try
+        {
+            using var _ = File.OpenRead(path);
+            return true;
+        }
+        catch (Exception e) when (e is UnauthorizedAccessException or IOException)
+        {
+            return false;
         }
     }
 

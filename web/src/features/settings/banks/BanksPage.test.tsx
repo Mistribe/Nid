@@ -129,22 +129,6 @@ describe('Réglages › Banques', () => {
     expect(within(screen.getByRole('navigation', { name: 'Réglages' })).getByRole('link', { name: 'Banques' })).toBeInTheDocument();
   });
 
-  it('tells the administrator which part is missing and links to Administration › Banque', async () => {
-    server.use(http.get('*/api/v1/banking/status', () => HttpResponse.json({ enabled: true, configured: false, appIdSaved: true, keyStatus: 'directory' })));
-    await renderApp('/settings/banks');
-
-    expect(await screen.findByText(/Nid n'a pas chargé la clé privée/)).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Créer mon application' })).toBeNull();
-    expect(screen.getByRole('link', { name: 'Voir Administration › Banque' })).toHaveAttribute('href', '/admin/banking');
-  });
-
-  it('offers the administrator the wizard too once the installation has no application (#414)', async () => {
-    server.use(http.get('*/api/v1/banking/status', () => HttpResponse.json({ enabled: true, configured: false, appIdSaved: false, keyStatus: 'loaded' })));
-    await renderApp('/settings/banks');
-
-    expect(await screen.findByRole('link', { name: 'Créer mon application' })).toBeInTheDocument();
-  });
-
   it('without Enable Banking, still lists the imported accounts and offers « Importer un relevé », not « Relier une banque »', async () => {
     server.use(
       http.get('*/api/v1/banking/status', () => HttpResponse.json({ enabled: true, configured: false })),
