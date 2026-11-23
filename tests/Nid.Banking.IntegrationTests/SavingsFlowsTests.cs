@@ -421,4 +421,30 @@ public class SavingsFlowsTests(PostgresFixture fixture) : IClassFixture<Postgres
 
         Assert.Empty(await FlowsAsync(s));
     }
+
+    [Fact]
+    public async Task A_closed_envelope_takes_no_flows_until_it_is_reopened()
+    {
+        await using var s = await AssociatedAsync();
+        var first = await LineAsync(s, s.Day, 100m, "VIR LIVRET");
+        Assert.Equal(new SavingsFlowCounts(1, 0, 0, 0), await RunAsync(s, s.App.AdultA));
+        LocalDate today;
+        await using (var scope = s.App.Services.CreateAsyncScope())
+            today = await scope.ServiceProvider.GetRequiredService<IHouseholdCalendar>().TodayAsync(Ct);
+        var envelopeUrl = $"/api/v1/investments/envelopes/{s.Envelope.Value}";
+        Assert.Equal(HttpStatusCode.OK, (await s.App.RawAsync(s.App.AdultA, HttpMethod.Post, $"{envelopeUrl}/close",
+            new { closedOn = today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) })).StatusCode);
+        var second = await LineAsync(s, s.Day, 50m, "VIR LIVRET 2");
+
+        // #505: Investments refuses a flow on a closed envelope, and so does the bank; what it holds stays as it is.
+        Assert.Equal(new SavingsFlowCounts(0, 0, 0, 0), await RunAsync(s, s.App.AdultA));
+        Assert.Equal([SavingsFlowPlan.MovementRef(first)], (await FlowsAsync(s)).Select(f => f.ExternalRef!));
+
+        Assert.Equal(HttpStatusCode.OK, (await s.App.RawAsync(s.App.AdultA, HttpMethod.Post, $"{envelopeUrl}/reopen", new { })).StatusCode);
+
+        Assert.Equal(new SavingsFlowCounts(1, 0, 0, 0), await RunAsync(s, s.App.AdultA));
+        Assert.Equal(
+            new[] { SavingsFlowPlan.MovementRef(first), SavingsFlowPlan.MovementRef(second) }.Order(StringComparer.Ordinal),
+            (await FlowsAsync(s)).Select(f => f.ExternalRef!).Order(StringComparer.Ordinal));
+    }
 }
