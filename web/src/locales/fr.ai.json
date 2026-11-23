@@ -148,6 +148,7 @@
       "lease_expired": "Le worker n'a pas répondu à temps ; la tâche repart.",
       "no_safe_worker": "Aucun worker marqué « sûr » ne peut recevoir ces données.",
       "no_worker": "Aucun worker ne sait faire ce travail.",
+      "offsite_not_allowed": "Seuls des workers distants pourraient le faire, et un adulte concerné n'a pas autorisé que ses données sortent.",
       "pairing_refused": "Le worker a refusé l'appairage : code faux ou expiré, ou worker déjà appairé.",
       "remote_not_allowed": "Seuls des workers distants pourraient le faire, et le foyer ne les a pas autorisés.",
       "result_invalid": "Le worker a rendu un résultat illisible.",

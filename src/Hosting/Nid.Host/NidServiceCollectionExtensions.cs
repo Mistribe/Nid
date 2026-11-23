@@ -285,6 +285,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<Nid.Ai.Application.IJobStore, Nid.Ai.Infrastructure.Persistence.JobStore>();
         services.AddScoped<Nid.Ai.Application.IAiSettings, Nid.Ai.Infrastructure.Persistence.AiSettingsStore>();
         services.AddSingleton<Nid.Ai.Application.IModelContract, Nid.Ai.Application.EchoJobContract>();
+        services.AddSingleton<Nid.Ai.Application.IModelContract, Nid.Ai.Application.DocumentTextJobContract>();
         services.AddSingleton<Nid.Ai.Application.IModelContract, Nid.Ai.Application.EchoRequestContract>();
         services.AddSingleton<Nid.Ai.Application.IModelContract, Nid.Ai.Application.ChatRequestContract>();
         services.AddSingleton<Nid.Ai.Application.ModelContracts>();
@@ -423,6 +424,12 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IItemDeletionPart, Nid.Documents.Infrastructure.Persistence.DocumentsDeletionPart>();
         services.AddScoped<IPersonUsePart, Nid.Documents.Infrastructure.Persistence.DocumentsPersonUsePart>();
         services.AddScoped<IDocumentStore, DocumentStore>();
+        // #167: a document's text, a model job whose file and result are Documents'.
+        services.AddScoped<IDocumentTextStore, Nid.Documents.Infrastructure.Persistence.DocumentTextStore>();
+        services.AddScoped<DocumentTexts>();
+        services.AddScoped<DocumentTextBackfill>();
+        services.AddScoped<Nid.Ai.Contracts.IJobResultSink, DocumentTextSink>();
+        services.AddScoped<Nid.Ai.Contracts.IJobFileSource, DocumentFileSource>();
         services.AddScoped<Nid.Documents.Contracts.IDocumentLinks, DocumentLinks>();
         services.AddScoped<Nid.Documents.Contracts.IDocumentTargets, CoreDocumentTargets>();
         services.AddScoped<Nid.Documents.Contracts.IDocumentTargets, Nid.Income.Application.IncomeDocumentTargets>();

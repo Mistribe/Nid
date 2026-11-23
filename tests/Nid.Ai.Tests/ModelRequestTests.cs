@@ -106,7 +106,7 @@ public sealed class ModelRequestTests
 
     private sealed class OneWorker : IWorkerRouter
     {
-        public Task<Route> RouteAsync(string type, int version, ModelCallKind kind, string dataClass, Guid? target, CancellationToken ct)
+        public Task<Route> RouteAsync(string type, int version, ModelCallKind kind, string dataClass, Guid? target, CancellationToken ct, bool offsite = true)
             => Task.FromResult(new Route([Salon], null));
     }
 
