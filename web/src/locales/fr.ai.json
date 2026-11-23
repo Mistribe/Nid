@@ -131,6 +131,7 @@
       "none_match": "Aucune tâche ne correspond à ces filtres."
     },
     "reason": {
+      "assistant_turn_limit": "Vous avez posé beaucoup de questions cette heure-ci : réessayez un peu plus tard.",
       "all_offline": "Aucun worker ne répond en ce moment.",
       "file_missing": "Le fichier de la tâche n'existe plus.",
       "fingerprint_mismatch": "L'empreinte ne correspond plus à celle du worker : recommencez l'ajout.",
@@ -275,6 +276,25 @@
       "required": "Indiquez un montant, 0 compris.",
       "save": "Enregistrer",
       "saved": "Budget enregistré."
+    },
+    "assistant": {
+      "title": "Assistant",
+      "link": "Essayer l'assistant",
+      "intro": "Posez une question sur les finances du foyer : l'assistant lit ce que vous pouvez lire et répond avec les chiffres de Nid. Il ne change rien : ce que vous lui demandez de modifier devient une proposition à valider. Rien n'est conservé quand vous quittez la page.",
+      "question": "Votre question",
+      "question_hint": "Par exemple : combien me reste-t-il ce mois-ci ?",
+      "ask": "Demander",
+      "asking": "L'assistant répond…",
+      "tools": "Consulté : {{tools}}",
+      "links": "Pages citées",
+      "held_back_one": "{{count}} résultat gardé hors de {{destination}} par les règles du foyer.",
+      "held_back_other": "{{count}} résultats gardés hors de {{destination}} par les règles du foyer.",
+      "rules": "Voir les réglages",
+      "answered_by": "Répondu par {{provider}}, modèle {{model}}.",
+      "stop_length": "La réponse a atteint sa longueur maximale.",
+      "stop_refused": "Le modèle a refusé de répondre.",
+      "stop_max_steps": "L'assistant s'est arrêté après trop d'étapes : posez une question plus précise.",
+      "stop_timed_out": "L'assistant a mis trop de temps à répondre : réessayez ou posez une question plus précise."
     },
     "usage": {
       "title": "Utilisation",

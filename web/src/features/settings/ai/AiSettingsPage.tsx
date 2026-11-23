@@ -56,7 +56,12 @@ export function AiSettingsPage() {
   const announce = (message: string) => { setAdding(null); toast.success(message); workersHeading.current?.focus(); };
 
   return (
-    <SettingsFrame title={t('ai.title')} actions={admin ? <Button type="button" onClick={() => setAdding({})}>{t('ai.workers.add')}</Button> : null}>
+    <SettingsFrame title={t('ai.title')} actions={(
+      <>
+        <Button asChild variant="outline"><Link to="/settings/ai/assistant">{t('ai.assistant.link')}</Link></Button>
+        {admin ? <Button type="button" onClick={() => setAdding({})}>{t('ai.workers.add')}</Button> : null}
+      </>
+    )}>
       <DataSection />
       <WorkersSection admin={admin} headingRef={workersHeading} onPair={(worker) => setAdding({ pending: worker })} onAdd={() => setAdding({})} />
       <ModelsSection admin={admin} />
