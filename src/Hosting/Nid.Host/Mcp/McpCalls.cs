@@ -182,8 +182,7 @@ public static partial class McpCalls
         if (outcome!.Proposal is null)
             return Answer(services, Conforme(outcome.Conforme!.Value), limited: false);
         var sourceLinked = await LinkSourceAsync();
-        var shown = (await ProposalEndpoints.HideDocumentsAsync(invoker, [outcome.Proposal], ct))[0];
-        return Answer(services, new ProposedAnswer("proposed", outcome.Created, shown, outcome.Summary, sourceLinked), limited: false);
+        return Answer(services, new ProposedAnswer("proposed", outcome.Created, outcome.Proposal, outcome.Summary, sourceLinked), limited: false);
     }
 
     private static ItemId? Item(Guid? target) => target is { } id ? new ItemId(id) : null;

@@ -21,7 +21,7 @@ public sealed record OperationFilter(
     bool Uncategorised, string? State, string? Direction, decimal? Min, decimal? Max, string? Search, VisibilityScope? Scope = null);
 
 /// <summary>One page (<see cref="BankLines.PageSize"/>, newest booked first, <paramref name="Page"/> from 1) of the lines the actor reads, whatever their account.</summary>
-public sealed record ListOperationsQuery(OperationFilter Filter, int Page) : IQuery<OperationPage>;
+public sealed record ListOperationsQuery(OperationFilter Filter, int Page) : IQuery<OperationPage>, IRequiresBanking;
 
 /// <summary><paramref name="Total"/> counts every line the filter keeps, not only the page's; <paramref name="Totals"/> and <paramref name="Facets"/> are the filter's.</summary>
 public sealed record OperationPage(IReadOnlyList<BankTransactionView> Items, int Total, OperationTotals Totals, OperationFacets Facets,
@@ -50,9 +50,6 @@ public sealed class ListOperationsHandler(
 {
     public async ValueTask<Result<OperationPage>> HandleAsync(ListOperationsQuery query, CancellationToken ct = default)
     {
-        var enabled = await access.EnabledAsync(ct);
-        if (!enabled.IsSuccess)
-            return BankingAccess.Failed<OperationPage>(enabled);
         // « all » is no state at all, as for the other lists.
         var filter = query.Filter with { State = query.Filter.State == "all" ? null : query.Filter.State };
         if (Invalid(filter) is { Count: > 0 } errors)

@@ -11,13 +11,22 @@ using UnambitiousFx.Synapse.Abstractions;
 namespace Nid.Banking.Application.Operations;
 
 /// <summary>#84: a person's note on a line of an account they write; empty or null clears it, 500 characters at most.</summary>
-public sealed record SetTransactionNoteCommand(Guid TransactionId, string? Note) : ICommand<BankTransactionView>;
+public sealed record SetTransactionNoteCommand(Guid TransactionId, string? Note) : ICommand<BankTransactionView>, IBankLineScoped
+{
+    public AccessKind Access => AccessKind.Write;
+}
 
 /// <summary>#84: cuts a line of an account the actor writes into parts that add up to it (<see cref="SplitRules"/>), replacing earlier parts.</summary>
-public sealed record SplitTransactionCommand(Guid TransactionId, IReadOnlyList<PartInput> Parts) : ICommand<BankTransactionView>, ITransactional;
+public sealed record SplitTransactionCommand(Guid TransactionId, IReadOnlyList<PartInput> Parts) : ICommand<BankTransactionView>, ITransactional, IBankLineScoped
+{
+    public AccessKind Access => AccessKind.Write;
+}
 
 /// <summary>#84: puts a split line back whole; its category passes run again, as for « Laisser Nid décider ».</summary>
-public sealed record UnsplitTransactionCommand(Guid TransactionId) : ICommand<BankTransactionView>, ITransactional;
+public sealed record UnsplitTransactionCommand(Guid TransactionId) : ICommand<BankTransactionView>, ITransactional, IBankLineScoped
+{
+    public AccessKind Access => AccessKind.Write;
+}
 
 internal static class SplitUseCases
 {
@@ -25,17 +34,12 @@ internal static class SplitUseCases
 }
 
 [RequestHandler<SetTransactionNoteCommand, BankTransactionView>]
-public sealed class SetTransactionNoteHandler(BankingAccess access, BankLines lines, ISplitStore splits)
+public sealed class SetTransactionNoteHandler(IContextAccessor context, BankLines lines, ISplitStore splits)
     : IRequestHandler<SetTransactionNoteCommand, BankTransactionView>
 {
     public async ValueTask<Result<BankTransactionView>> HandleAsync(SetTransactionNoteCommand command, CancellationToken ct = default)
     {
-        var enabled = await access.EnabledAsync(ct);
-        if (!enabled.IsSuccess)
-            return BankingAccess.Failed<BankTransactionView>(enabled);
-        var found = await lines.FindAsync(command.TransactionId, AccessKind.Write, ct);
-        if (!found.TryGetValue(out var line))
-            return BankingAccess.Failed<BankTransactionView, BankTransaction>(found);
+        var line = CheckedResources.Of<BankTransaction>(context, command);
         if ((command.Note?.Trim().Length ?? 0) > SplitRules.MaxNote)
             return Result.Failure<BankTransactionView>(FieldErrors.Shape(
                 [new FieldError("note", FieldErrors.ShapeCode, $"A note is {SplitRules.MaxNote} characters at most.")]));
@@ -47,17 +51,12 @@ public sealed class SetTransactionNoteHandler(BankingAccess access, BankLines li
 
 [RequestHandler<SplitTransactionCommand, BankTransactionView>]
 public sealed class SplitTransactionHandler(
-    BankingAccess access, BankLines lines, ICategoryStore categories, ISplitStore splits, SavingsFlows savingsFlows, IClock clock)
+    IContextAccessor context, BankingAccess access, BankLines lines, ICategoryStore categories, ISplitStore splits, SavingsFlows savingsFlows, IClock clock)
     : IRequestHandler<SplitTransactionCommand, BankTransactionView>
 {
     public async ValueTask<Result<BankTransactionView>> HandleAsync(SplitTransactionCommand command, CancellationToken ct = default)
     {
-        var enabled = await access.EnabledAsync(ct);
-        if (!enabled.IsSuccess)
-            return BankingAccess.Failed<BankTransactionView>(enabled);
-        var found = await lines.FindAsync(command.TransactionId, AccessKind.Write, ct);
-        if (!found.TryGetValue(out var line))
-            return BankingAccess.Failed<BankTransactionView, BankTransaction>(found);
+        var line = CheckedResources.Of<BankTransaction>(context, command);
         var valid = SplitRules.Validate(line!.Amount, command.Parts);
         if (valid.TryGetFailure(out var invalid))
             // A sum refusal carries both sums as they are (a located field error would drop them).
@@ -80,17 +79,12 @@ public sealed class SplitTransactionHandler(
 
 [RequestHandler<UnsplitTransactionCommand, BankTransactionView>]
 public sealed class UnsplitTransactionHandler(
-    BankingAccess access, BankLines lines, ISplitStore splits, LineRecategoriser recategoriser, SavingsFlows savingsFlows)
+    IContextAccessor context, BankingAccess access, BankLines lines, ISplitStore splits, LineRecategoriser recategoriser, SavingsFlows savingsFlows)
     : IRequestHandler<UnsplitTransactionCommand, BankTransactionView>
 {
     public async ValueTask<Result<BankTransactionView>> HandleAsync(UnsplitTransactionCommand command, CancellationToken ct = default)
     {
-        var enabled = await access.EnabledAsync(ct);
-        if (!enabled.IsSuccess)
-            return BankingAccess.Failed<BankTransactionView>(enabled);
-        var found = await lines.FindAsync(command.TransactionId, AccessKind.Write, ct);
-        if (!found.TryGetValue(out var line))
-            return BankingAccess.Failed<BankTransactionView, BankTransaction>(found);
+        var line = CheckedResources.Of<BankTransaction>(context, command);
 
         if (await splits.UnsplitAsync(line!.Id, ct))
         {
