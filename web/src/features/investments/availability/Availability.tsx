@@ -12,10 +12,11 @@ import { ENVELOPE, invalidateInvestments, type EnvelopeDetail } from '@/api/inve
 import { FormDialog } from '@/components/FormDialog';
 import { DateField } from '@/components/form/DateField';
 import { Field } from '@/components/form/Field';
+import { SelectField } from '@/components/form/SelectField';
 import { useSubmitErrors } from '@/components/form/useSubmitErrors';
 import { InfoTip } from '@/components/InfoTip';
-import { LocalDate } from '@/components/LocalDate';
-import { Money } from '@/components/Money';
+import { formatLocalDate, LocalDate } from '@/components/LocalDate';
+import { formatMoney, Money } from '@/components/Money';
 import { Section } from '@/components/page/Section';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
@@ -47,17 +48,31 @@ const schema = (t: TFunction) => z.object({
  */
 export function AvailabilitySection({ envelope, writable }: { envelope: EnvelopeDetail; writable: boolean }) {
   const { t } = useTranslation();
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState<'dates' | 'early' | null>(null);
   const availability = envelope.availability;
+  const early = availability?.earlyRelease;
   return (
     <Section title={t('envelope.availability.title')} tip={<InfoTip label={t('envelope.availability.title')}>{t('envelope.availability.tip')}</InfoTip>}
       actions={writable ? (
-        <Button type="button" variant="outline" size="sm" onClick={() => setEditing(true)}>
-          {availability ? t('envelope.availability.edit') : t('envelope.availability.enter')}
-        </Button>
+        <div className="flex gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={() => setEditing('dates')}>
+            {availability?.tranches.length ? t('envelope.availability.edit') : t('envelope.availability.enter')}
+          </Button>
+          <Button type="button" variant="outline" size="sm" onClick={() => setEditing('early')}>{t('envelope.early_release.action')}</Button>
+        </div>
       ) : null}>
+      {early ? (
+        <p className="mb-2 text-sm">
+          {t(early.released ? 'envelope.early_release.stated' : 'envelope.early_release.stated_no_value', {
+            case: t(`envelope.early_release.case.${early.case}`, { defaultValue: early.case }), date: formatLocalDate(early.on, 'short'),
+            amount: early.released ? formatMoney(early.released) : null,
+          })}
+          {' '}<InfoTip label={t('envelope.early_release.title')}>{t('envelope.early_release.tip')}</InfoTip>
+        </p>
+      ) : null}
+      {availability?.locked ? <p className="mb-2 text-sm">{t('envelope.early_release.locked', { amount: formatMoney(availability.locked) })}</p> : null}
       {!availability ? <p className="text-sm text-muted-foreground">{t('envelope.availability.none')}</p>
-        : availability.releases.length === 0 ? <p className="text-sm">{t('envelope.availability.all_available')}</p> : (
+        : availability.releases.length === 0 ? (availability.locked ? null : <p className="text-sm">{t('envelope.availability.all_available')}</p>) : (
           <Table aria-label={t('envelope.availability.releases')}>
             <TableHeader>
               <TableRow>
@@ -75,9 +90,14 @@ export function AvailabilitySection({ envelope, writable }: { envelope: Envelope
             </TableBody>
           </Table>
         )}
-      {editing ? (
-        <FormDialog title={t('envelope.availability.dialog')} onClose={() => setEditing(false)} onDone={(message) => { setEditing(false); toast.success(message); }}>
+      {editing === 'dates' ? (
+        <FormDialog title={t('envelope.availability.dialog')} onClose={() => setEditing(null)} onDone={(message) => { setEditing(null); toast.success(message); }}>
           {({ titleId, done }) => <AvailabilityForm envelope={envelope} titleId={titleId} onDone={done} />}
+        </FormDialog>
+      ) : null}
+      {editing === 'early' ? (
+        <FormDialog title={t('envelope.early_release.title')} onClose={() => setEditing(null)} onDone={(message) => { setEditing(null); toast.success(message); }}>
+          {({ titleId, done }) => <EarlyReleaseForm envelope={envelope} titleId={titleId} onDone={done} />}
         </FormDialog>
       ) : null}
     </Section>
@@ -138,6 +158,76 @@ function AvailabilityForm({ envelope, titleId, onDone }: { envelope: EnvelopeDet
         <Plus aria-hidden="true" />{t('envelope.availability.add')}
       </Button>
       <div className="flex justify-end gap-2">
+        <Button type="button" variant="outline" onClick={() => onDone()}>{t('envelope.cancel')}</Button>
+        <Button type="submit" disabled={save.isPending}>{t('envelope.save')}</Button>
+      </div>
+    </form>
+  );
+}
+
+/** #466: the legal cases, in the order the household reads them; the server keeps the same list. */
+const CASES = ['home_purchase', 'energy_renovation', 'marriage', 'third_child', 'divorce', 'domestic_violence', 'end_of_contract',
+  'business_creation', 'disability', 'death', 'over_indebtedness', 'other'] as const;
+
+const earlySchema = (t: TFunction) => z.object({
+  case: z.string().min(1, t('envelope.early_release.case_required')),
+  on: z.string().regex(ISO, t('envelope.availability.date_format')),
+  // Empty: the whole plan.
+  amount: z.string().refine((v) => v === '' || POSITIVE_AMOUNT.test(v), t('investments_form.positive_amount_format')),
+});
+
+/** #466: an early-release case and its date; the amount it allows, or the whole plan. Eligibility is the household's to state. */
+function EarlyReleaseForm({ envelope, titleId, onDone }: { envelope: EnvelopeDetail; titleId: string; onDone: (message?: string) => void }) {
+  const { t } = useTranslation();
+  const { $api } = useApi();
+  const queryClient = useQueryClient();
+  const stated = envelope.availability?.earlyRelease;
+  const form = useForm({
+    resolver: zodResolver(earlySchema(t)),
+    defaultValues: { case: stated?.case ?? '', on: stated?.on ?? '', amount: stated?.amount ? toFieldAmount(trimAmount(stated.amount.amount)) : '' },
+  });
+  const errors = useSubmitErrors(form.setError, (path) => {
+    const m = /^earlyRelease\.(case|on|amount)$/.exec(path);
+    return m ? (m[1] as 'case' | 'on' | 'amount') : undefined;
+  });
+  const save = $api.useMutation('patch', ENVELOPE, {
+    onSuccess: (_, sent) => {
+      errors.clear(); void invalidateInvestments(queryClient);
+      onDone(t(sent.body.clearEarlyRelease ? 'envelope.early_release.removed' : 'envelope.early_release.saved'));
+    },
+    onError: errors.onError,
+  });
+  const submit = form.handleSubmit((values) => save.mutate({
+    params: { path: { id: envelope.id } },
+    body: { ...KEEP, earlyRelease: { case: values.case, on: values.on, amount: values.amount === '' ? null : toWireAmount(values.amount) } },
+  }));
+  const e = form.formState.errors;
+
+  return (
+    <form aria-labelledby={titleId} onSubmit={(ev) => { ev.stopPropagation(); void submit(ev); }} className="space-y-3" noValidate>
+      <p className="text-sm text-muted-foreground">{t('envelope.early_release.tip')}</p>
+      {errors.problem ? <ProblemMessage problem={errors.problem} /> : null}
+      <Controller control={form.control} name="case" render={({ field }) => (
+        <Field label={t('envelope.early_release.case_label')} error={e.case?.message}>
+          {(c) => <SelectField {...c} value={field.value} onValueChange={field.onChange} placeholder={t('envelope.early_release.case_placeholder')}
+            options={CASES.map((value) => ({ value, label: t(`envelope.early_release.case.${value}`) }))} />}
+        </Field>
+      )} />
+      <Controller control={form.control} name="on" render={({ field }) => (
+        <Field label={t('envelope.early_release.on')} error={e.on?.message}>
+          {(c) => <DateField {...c} value={field.value} onChange={field.onChange} />}
+        </Field>
+      )} />
+      <Field label={t('envelope.availability.amount', { currency: envelope.currency })} hint={t('envelope.early_release.amount_hint')} error={e.amount?.message}>
+        {(c) => <Input inputMode="decimal" {...c} {...form.register('amount')} />}
+      </Field>
+      <div className="flex justify-end gap-2">
+        {stated ? (
+          <Button type="button" variant="outline" disabled={save.isPending} className="mr-auto"
+            onClick={() => save.mutate({ params: { path: { id: envelope.id } }, body: { ...KEEP, clearEarlyRelease: true } })}>
+            {t('envelope.early_release.remove')}
+          </Button>
+        ) : null}
         <Button type="button" variant="outline" onClick={() => onDone()}>{t('envelope.cancel')}</Button>
         <Button type="submit" disabled={save.isPending}>{t('envelope.save')}</Button>
       </div>
