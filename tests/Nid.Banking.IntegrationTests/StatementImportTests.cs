@@ -518,6 +518,8 @@ public class StatementImportTests(PostgresFixture fixture) : IClassFixture<Postg
 
         public Task<BankAccount?> FindAsync(Guid id, CancellationToken ct) => inner.FindAsync(id, ct);
 
+        public Task<IReadOnlyList<BankAccount>> FindManyAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct) => inner.FindManyAsync(ids, ct);
+
         public Task<BankAccount> UpsertFromFileAsync(
             Guid fileConnection, string? iban, string accountId, string currency, string name, CancellationToken ct,
             BankAccountKind kind = BankAccountKind.Checking, string? ibanLast4 = null)
@@ -532,6 +534,8 @@ public class StatementImportTests(PostgresFixture fixture) : IClassFixture<Postg
         public Task<IReadOnlyList<BankAccount>> AllAsync(CancellationToken ct) => inner.AllAsync(ct);
 
         public Task<IReadOnlyList<BankAccountSource>> SourcesAsync(Guid account, CancellationToken ct) => inner.SourcesAsync(account, ct);
+
+        public Task<IReadOnlyList<BankAccountSource>> SourcesAsync(IReadOnlyCollection<Guid> accounts, CancellationToken ct) => inner.SourcesAsync(accounts, ct);
 
         public Task ResolveCurrencyAsync(Guid account, Currency currency, CancellationToken ct) => inner.ResolveCurrencyAsync(account, currency, ct);
 

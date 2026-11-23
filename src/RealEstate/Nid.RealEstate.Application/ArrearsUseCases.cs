@@ -103,14 +103,16 @@ public sealed class GetRentArrearsHandler(
         var today = await calendar.TodayAsync(ct);
         var found = await properties.FindManyAsync(ids.ToList(), ct);
         var accesses = await items.FindManyAsync(found.Select(p => p.ItemId).ToList(), ct);
+        var rented = found.Where(p => accesses.ContainsKey(p.ItemId) && p.Tenancies.Count > 0).ToList();
+        // One read for every property, refused as a block as each read alone would be (architecture §5.3.2).
+        var listed = await flows.ListManyAsync([.. rented.Select(p => p.ItemId)], PropertyReading.Everything, null, ct);
+        if (listed.TryGetFailure(out var failure))
+            return Result.Failure<RentArrearsList>(failure!);
+        listed.TryGetValue(out var all);
         var result = new List<RentArrearsItem>();
-        foreach (var p in found.Where(p => accesses.ContainsKey(p.ItemId) && p.Tenancies.Count > 0))
+        foreach (var p in rented)
         {
-            var listed = await flows.ListAsync(p.ItemId, PropertyReading.Everything, null, ct);
-            if (listed.TryGetFailure(out var failure))
-                return Result.Failure<RentArrearsList>(failure!);
-            listed.TryGetValue(out var all);
-            var months = RentArrears.Of(p.Tenancies.Select(t => (t.Id, t.RevisedFrom, t.Tenancy)).ToList(), all!, today);
+            var months = RentArrears.Of(p.Tenancies.Select(t => (t.Id, t.RevisedFrom, t.Tenancy)).ToList(), all![p.ItemId], today);
             if (months.Count == 0)
                 continue;
             var item = accesses[p.ItemId];

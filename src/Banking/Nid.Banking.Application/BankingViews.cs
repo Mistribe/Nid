@@ -93,16 +93,18 @@ public sealed class BankAccountReader(
     {
         var readable = await access.ReadableAsync(list, ct);
         var active = (await connections.ActiveAsync(ct)).Select(c => c.Id).ToHashSet();
-        var counts = await CountsAsync([.. readable.Select(r => r.Account.Id)], ct);
+        var ids = readable.Select(r => r.Account.Id).ToList();
+        var counts = await CountsAsync(ids, ct);
+        var latests = await balances.LatestManyAsync(ids, ct);
+        var synced = (await accounts.SourcesAsync(ids, ct)).Where(s => active.Contains(s.Connection)).Select(s => s.Account).ToHashSet();
         var views = new List<BankAccountView>(readable.Count);
         foreach (var (account, canWrite) in readable)
         {
-            var latest = await balances.LatestAsync(account.Id, ct);
-            var synced = (await accounts.SourcesAsync(account.Id, ct)).Any(s => active.Contains(s.Connection));
+            var latest = latests.GetValueOrDefault(account.Id);
             views.Add(new BankAccountView(
                 account.Id, account.Name, account.IbanMasked, account.Kind.ToString().ToLowerInvariant(), account.Currency.Code, account.Envelope?.Value,
                 account.CardOf, account.AutoApplyBalance, account.Ignored, account.BalanceConflictOn,
-                latest?.Amount.ToString("0.00", CultureInfo.InvariantCulture), latest?.AsOf, synced, canWrite, account.BankName ?? account.Name,
+                latest?.Amount.ToString("0.00", CultureInfo.InvariantCulture), latest?.AsOf, synced.Contains(account.Id), canWrite, account.BankName ?? account.Name,
                 account.HouseholdName is not null, account.Debit?.ToString().ToLowerInvariant(), account.Holder, account.Product,
                 BankReadsView.From(counts.GetValueOrDefault(account.Id, ReadCount.None), clock.GetCurrentInstant()), account.MinPayments, account.CountWithdrawals));
         }
