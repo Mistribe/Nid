@@ -149,12 +149,16 @@ public sealed class EditEnvelopeHandler(
         // #184: likewise, off an employee savings plan its tranches go.
         if (finalKind != EnvelopeKind.EmployeeSavings && change.Availability is null)
             change = change with { ClearAvailability = true };
+        // #466: and its early release.
+        if (finalKind != EnvelopeKind.EmployeeSavings && change.EarlyRelease is null)
+            change = change with { ClearEarlyRelease = true };
         if (EnvelopeRules.Check(change.Institution, change.AccountHint, change.StaleAfterDays, change.Note).TryGetFailure(out failure)
             || EnvelopeRules.UcShareFloor(change.UcShareFloorPct).TryGetFailure(out failure)
             || EnvelopeRules.PremiumsBefore2017(
                 change.ClearPremiumsBefore2017 ? null : change.PremiumsBefore2017 ?? envelope.Envelope.PremiumsBefore2017,
                 change.Kind ?? envelope.Envelope.Kind).TryGetFailure(out failure)
-            || EnvelopeRules.Availability(change.Availability, finalKind).TryGetFailure(out failure))
+            || EnvelopeRules.Availability(change.Availability, finalKind).TryGetFailure(out failure)
+            || EnvelopeRules.EarlyRelease(change.EarlyRelease, finalKind).TryGetFailure(out failure))
             return Result.Failure<ItemId>(failure!);
 
         var item = envelope.Item;
@@ -214,7 +218,7 @@ public sealed class GetEnvelopeHandler(
             open ? EnvelopeInsights.Interest(f, today) : null,
             open && EnvelopeInsights.Milestone(f, await persons.ListAsync(ct), today) is { } m ? new TaxMilestoneView(m.Code, m.On) : null,
             real,
-            AvailabilityView.Of(e.Availability, figures.Value, f.Currency, today)));
+            AvailabilityView.Of(e.Availability, e.EarlyRelease, figures.Value, f.Currency, today)));
     }
 }
 

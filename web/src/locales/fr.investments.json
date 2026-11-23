@@ -211,6 +211,36 @@
       "duplicate": "Cette date figure déjà plus haut.",
       "saved": "Dates de disponibilité enregistrées."
     },
+    "early_release": {
+      "title": "Déblocage anticipé",
+      "action": "Déblocage anticipé",
+      "tip": "La loi permet de débloquer un PEE avant ses dates dans certains cas : achat de la résidence principale, mariage ou PACS, naissance d’un troisième enfant, divorce avec la garde d’un enfant, fin du contrat de travail, invalidité, surendettement… La demande se fait auprès du gestionnaire du plan, en général dans les six mois qui suivent l’événement. Nid ne vérifie pas que le cas s’applique : indiquez-le, et le montant qu’il permet de débloquer, ou laissez le montant vide pour tout le plan.",
+      "stated": "{{case}}, à partir du {{date}} : {{amount}} débloqués avant leurs dates.",
+      "stated_no_value": "{{case}}, à partir du {{date}}.",
+      "locked": "{{amount}} restent bloqués sans date connue.",
+      "case_label": "Cas de déblocage",
+      "case_placeholder": "Choisir un cas",
+      "case_required": "Choisissez un cas.",
+      "on": "Date de l’événement",
+      "amount_hint": "Laissez vide pour débloquer tout le plan.",
+      "remove": "Retirer le cas",
+      "saved": "Déblocage anticipé enregistré.",
+      "removed": "Déblocage anticipé retiré.",
+      "case": {
+        "home_purchase": "Achat ou agrandissement de la résidence principale",
+        "energy_renovation": "Rénovation énergétique de la résidence principale",
+        "marriage": "Mariage ou PACS",
+        "third_child": "Naissance ou adoption d’un troisième enfant",
+        "divorce": "Divorce ou séparation avec la garde d’un enfant",
+        "domestic_violence": "Violences conjugales",
+        "end_of_contract": "Fin du contrat de travail",
+        "business_creation": "Création ou reprise d’entreprise",
+        "disability": "Invalidité",
+        "death": "Décès",
+        "over_indebtedness": "Surendettement",
+        "other": "Autre cas prévu par la loi"
+      }
+    },
     "milestone": {
       "life_insurance_8y": "8 ans le {{date}}",
       "pea_5y": "5 ans le {{date}}",
