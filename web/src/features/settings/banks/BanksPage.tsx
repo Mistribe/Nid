@@ -118,7 +118,10 @@ function Connections({ configured }: { configured: boolean }) {
   const [connecting, setConnecting] = useState(false);
   const [editing, setEditing] = useState<BankAccount | null>(null);
   const connections = $api.useQuery('get', CONNECTIONS, undefined, { enabled: configured });
-  const envelopes = $api.useQuery('get', ENVELOPES);
+  // An account's own envelope is often private (#383), which `household` leaves out, and `me` leaves out a child's: both, once each.
+  const mine = $api.useQuery('get', ENVELOPES, { params: { query: { scope: 'me' } } }).data?.items ?? [];
+  const household = $api.useQuery('get', ENVELOPES).data?.items ?? [];
+  const envelopes = [...mine, ...household.filter((e) => !mine.some((m) => m.id === e.id))];
   const readable = useBankAccounts();
 
   useEffect(() => {
@@ -163,19 +166,19 @@ function Connections({ configured }: { configured: boolean }) {
         <>
           <div>{connect}</div>
           {connections.data.map((c) => (
-            <ConnectionSection key={c.id} connection={c} all={all} envelopes={envelopes.data?.items ?? []} onEdit={edit} />
+            <ConnectionSection key={c.id} connection={c} all={all} envelopes={envelopes} onEdit={edit} />
           ))}
         </>
       ) : null}
       {unsynced.length > 0 ? (
         <Section title={t('banks.unsynced')}>
           <p className="text-sm text-muted-foreground">{t('banks.unsynced_hint')}</p>
-          <AccountTable caption={t('banks.unsynced')} accounts={unsynced} all={all} envelopes={envelopes.data?.items ?? []} onEdit={edit} />
+          <AccountTable caption={t('banks.unsynced')} accounts={unsynced} all={all} envelopes={envelopes} onEdit={edit} />
         </Section>
       ) : null}
       {connecting ? <ConnectBankDialog onClose={() => setConnecting(false)} /> : null}
       {editing ? (
-        <AccountDialog account={editing} envelopes={envelopes.data?.items ?? []}
+        <AccountDialog account={editing} envelopes={envelopes}
           taken={all.flatMap((a) => (a.envelopeId && a.id !== editing.id ? [a.envelopeId] : []))}
           bank={connections.data?.find((c) => c.accounts.some((a) => a.id === editing.id))?.aspspName}
           parents={all.filter((a) => a.kind === 'checking' && a.canWrite)} onClose={() => setEditing(null)} onDone={announce} />
