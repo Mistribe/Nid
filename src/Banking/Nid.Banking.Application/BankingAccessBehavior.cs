@@ -29,14 +29,15 @@ public sealed class BankingAccessBehavior<TRequest, TResponse>(IServiceProvider 
         if ((await access.EnabledAsync(cancellationToken)).TryGetFailure(out var off))
             return Result.Failure<TResponse>(off!);
 
-        if (request is IBankAccountScoped or IBankLineScoped)
+        Result<object>? found = null;
+        if (request is IBankAccountScoped account)
+            found = (await access.AccountAsync(account.BankAccountId, account.Access, cancellationToken)).Map(a => (object)a);
+        else if (request is IBankLineScoped line)
+            found = (await services.GetRequiredService<BankLines>().FindAsync(line.TransactionId, line.Access, cancellationToken)).Map(l => (object)l);
+        if (found is { } scoped)
         {
-            var found = request is IBankAccountScoped account
-                ? (await access.AccountAsync(account.BankAccountId, account.Access, cancellationToken)).Map(a => (object)a)
-                : (await services.GetRequiredService<BankLines>().FindAsync(((IBankLineScoped)request).TransactionId, ((IBankLineScoped)request).Access,
-                    cancellationToken)).Map(l => (object)l);
-            if (!found.TryGetValue(out var resource))
-                return Result.Failure<TResponse>(found.TryGetFailure(out var refused) ? refused! : throw new InvalidOperationException());
+            if (!scoped.TryGetValue(out var resource))
+                return Result.Failure<TResponse>(scoped.TryGetFailure(out var refused) ? refused! : throw new InvalidOperationException());
             CheckedResources.Hand(context, request, resource!);
         }
         return await next(request, cancellationToken);
