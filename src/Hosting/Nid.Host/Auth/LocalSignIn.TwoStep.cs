@@ -1,4 +1,3 @@
-using System.Globalization;
 using Nid.Core.Application;
 using Nid.Core.Contracts;
 using Nid.Host.Api;
@@ -23,7 +22,7 @@ public sealed record RecoveryCodesView(IReadOnlyList<string> Codes);
 /// <summary>Issue 215, local-accounts.md §10: the second factor, at sign-in and on the Security page.</summary>
 public sealed partial class LocalSignIn
 {
-    public const string InvalidCode = "auth.invalid_code";
+    public const string InvalidCode = LocalAccountCodes.InvalidCode;
     public const string MfaExpired = "auth.mfa_expired";
 
     /// <summary>A secret drawn and not confirmed within this time is abandoned.</summary>
@@ -35,6 +34,8 @@ public sealed partial class LocalSignIn
     /// </summary>
     public async Task<IResult> TotpAsync(HttpContext http, TotpLoginBody body)
     {
+        // As at the password step: no session exists yet.
+        actor.Current = Actor.System;
         if (Refused(http) is { } refused) return refused;
         var ct = http.RequestAborted;
         var now = clock.GetCurrentInstant();
@@ -46,36 +47,20 @@ public sealed partial class LocalSignIn
             || person.SessionEpoch != ticket.Epoch || credential.LockedUntil is { } until && until > now)
             return Expired(http, ticket);
 
-        var method = "password+totp";
-        var passed = false;
-        if (RecoveryCodes.Normalize(body.RecoveryCode) is { } recovery)
-        {
-            if (await accounts.UseRecoveryCodeAsync(person.Id, RecoveryCodes.Hash(recovery), now, ct) is { } left)
-            {
-                passed = true;
-                await events.RecordAsync(new SecurityEvent(SecurityEventNames.RecoveryCodeUsed, person.Id, [],
-                    new Dictionary<string, string> { ["left"] = left.ToString(CultureInfo.InvariantCulture) }), Actor.System, ct);
-            }
-        }
-        else if (secrets.Unprotect(credential.TotpSecret) is { } secret && Totp.Match(secret, body.Code, now) is { } step)
-        {
-            // The same code twice, or an older one, is a replay: refused like a wrong one.
-            passed = await accounts.AcceptTotpStepAsync(person.Id, step, ct);
-        }
-
-        if (!passed)
+        // The same code twice, or an older one, is a replay: refused like a wrong one.
+        var (step, recovery) = SecondFactor(body.RecoveryCode, body.Code, credential.TotpSecret, now);
+        if (!(await invoker.InvokeAsync(new CompleteTwoStepCommand(person.Id, step, recovery), ct)).TryGetValue(out _))
         {
             gate.Fail(TokenAuthentication.ClientAddress(http));
-            var lockedNow = await CountAccountFailureAsync(person.Id, now, ct);
+            var lockedNow = await CountAccountFailureAsync(person.Id, ct);
             await RecordFailureAsync(person.Id, "bad_code", TokenAuthentication.ClientAddress(http), ct);
             if (mfa.Fail(ticket) || lockedNow)
                 return Expired(http, ticket);
             return Problem(StatusCodes.Status401Unauthorized, InvalidCode, "This code is not the right one: check the app's current code.");
         }
 
-        await accounts.RecordSuccessAsync(person.Id, now, null, ct);
         mfa.Clear(http, ticket);
-        await OpenSessionAsync(http, person, "pwd+otp", method, ct);
+        await OpenSessionAsync(http, person, "pwd+otp", "password+totp", ct);
         return ResultHttp.Json(new PasswordLoginResult("done", ticket.ReturnUrl));
     }
 
@@ -115,17 +100,8 @@ public sealed partial class LocalSignIn
             return ResultHttp.Problem(new NotFoundFailure("totp", "me"));
         if (await CheckMyPasswordAsync(http, mine, body.Password, "password") is { } wrong)
             return wrong;
-        var now = clock.GetCurrentInstant();
-        var ct = http.RequestAborted;
-        var passed = RecoveryCodes.Normalize(body.Code) is { } recovery
-            ? await accounts.UseRecoveryCodeAsync(mine.Person, RecoveryCodes.Hash(recovery), now, ct) is not null
-            : secrets.Unprotect(mine.TotpSecret) is { } secret && Totp.Match(secret, body.Code, now) is { } step
-              && await accounts.AcceptTotpStepAsync(mine.Person, step, ct);
-        if (!passed)
-            return ResultHttp.Problem(new Failure(InvalidCode, "This code is not the right one: check the app's current code.",
-                new Dictionary<string, object?> { ["field"] = "code" }));
-
-        var disabled = await invoker.InvokeAsync(new DisableMyTotpCommand(), ct);
+        var (step, recovery) = SecondFactor(body.Code, body.Code, mine.TotpSecret, clock.GetCurrentInstant());
+        var disabled = await invoker.InvokeAsync(new DisableMyTotpCommand(step, recovery), http.RequestAborted);
         return disabled.TryGetValue(out _) ? Results.NoContent() : Failed(disabled);
     }
 
@@ -141,6 +117,15 @@ public sealed partial class LocalSignIn
         var replaced = await invoker.InvokeAsync(new RegenerateMyRecoveryCodesCommand(Hashes(codes)), http.RequestAborted);
         return replaced.TryGetValue(out _) ? ResultHttp.Json(new RecoveryCodesView(codes)) : Failed(replaced);
     }
+
+    /// <summary>
+    /// What a typed code is: a recovery code (its hash) when it has the shape of one, else the TOTP step it matches, if any.
+    /// The Core command decides whether it passes.
+    /// </summary>
+    private (long? Step, string? RecoveryCodeHash) SecondFactor(string? recoveryCode, string? totpCode, string? protectedSecret, NodaTime.Instant now)
+        => RecoveryCodes.Normalize(recoveryCode) is { } recovery
+            ? (null, RecoveryCodes.Hash(recovery))
+            : (secrets.Unprotect(protectedSecret) is { } secret ? Totp.Match(secret, totpCode, now) : null, null);
 
     private static string[] Hashes(IEnumerable<string> codes) => codes.Select(c => RecoveryCodes.Hash(RecoveryCodes.Normalize(c)!)).ToArray();
 
