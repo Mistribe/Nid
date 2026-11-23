@@ -17,7 +17,7 @@ public sealed class BankingAccessBehavior<TRequest, TResponse>(IServiceProvider 
     where TRequest : IRequest<TResponse>
     where TResponse : notnull
 {
-    public uint Order => ModuleBehaviorOrder.ResourceAccess;
+    public uint Order => ModuleBehaviorOrder.Banking;
 
     public async ValueTask<Result<TResponse>> HandleAsync(
         TRequest request, RequestHandlerDelegate<TRequest, TResponse> next, CancellationToken cancellationToken = default)

@@ -55,6 +55,12 @@ public interface IOptionalItemScoped : SynapseOptionallyResourceScoped
 public static class ModuleBehaviorOrder
 {
     public const uint ResourceAccess = AuthorizationBehaviorOrder.Resource + 600;
+
+    // A request carries one family at most; distinct values only keep the chain's order fixed.
+    public const uint Banking = ResourceAccess;
+    public const uint Documents = ResourceAccess + 10;
+    public const uint Proposals = ResourceAccess + 20;
+    public const uint Scenarios = ResourceAccess + 30;
 }
 
 public static class AccessKindWire

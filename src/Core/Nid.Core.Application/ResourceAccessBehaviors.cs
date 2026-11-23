@@ -18,7 +18,7 @@ public sealed class ProposalAccessBehavior<TRequest, TResponse>(IServiceProvider
     where TRequest : IRequest<TResponse>
     where TResponse : notnull
 {
-    public uint Order => ModuleBehaviorOrder.ResourceAccess;
+    public uint Order => ModuleBehaviorOrder.Proposals;
 
     public async ValueTask<Result<TResponse>> HandleAsync(
         TRequest request, RequestHandlerDelegate<TRequest, TResponse> next, CancellationToken cancellationToken = default)
@@ -46,7 +46,7 @@ public sealed class ScenarioAccessBehavior<TRequest, TResponse>(IServiceProvider
     where TRequest : IRequest<TResponse>
     where TResponse : notnull
 {
-    public uint Order => ModuleBehaviorOrder.ResourceAccess;
+    public uint Order => ModuleBehaviorOrder.Scenarios;
 
     public async ValueTask<Result<TResponse>> HandleAsync(
         TRequest request, RequestHandlerDelegate<TRequest, TResponse> next, CancellationToken cancellationToken = default)
