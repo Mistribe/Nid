@@ -218,7 +218,6 @@ public sealed class ProjectionScenarioReader(
         var today = based!.Inputs.Today;
         doc = ProjectionScenarios.WithoutPastYears(doc, today); // a stored past year is neither used nor echoed
         var months = based.Inputs.Months;
-        var thisMonth = today.ToYearMonth();
         var assumptions = doc.Assumptions.Apply(await household.ProjectionAssumptionsAsync(ct));
 
         var targets = await TargetsAsync(doc, scope, ct);
@@ -226,14 +225,11 @@ public sealed class ProjectionScenarioReader(
         var people = targets.People;
         int Month(LocalDate on) => (on.Year - today.Year) * 12 + on.Month - today.Month;
 
-        var adjustments = new decimal[months + 1];
-        var cashFlows = new decimal[months + 1];
         var changes = new List<ScheduledChange>();
-        var withdrawals = new List<SliceWithdrawal>();
         var repayments = new List<ProjectedRepayment>();
         var penalties = new Dictionary<Guid, decimal>();
         var sales = new List<ProjectedSale>();
-        var bought = new List<(PropertyPurchase Document, IReadOnlyList<SimulatedLoan> Loans, int Month)>();
+        var bought = new List<ScenarioPurchase>();
         var milestones = new List<ProjectionMilestone>();
         var kept = new List<ProjectionEvent>();
         int hidden = 0, past = 0, undated = 0;
@@ -265,8 +261,7 @@ public sealed class ProjectionScenarioReader(
                 }
                 if (purchaseOn > based.HorizonOn) continue;
                 taxUnavailable |= reading.TaxUnavailable;
-                bought.Add((reading.Document, reading.Facts.Loans, Month(purchaseOn)));
-                AddPurchase(reading, Month(purchaseOn));
+                bought.Add(new ScenarioPurchase(Month(purchaseOn), reading.Document, reading.Facts.Loans, reading.Facts.MonthlyTaxIncrease));
                 milestones.Add(Milestone(purchaseOn, e.Scenario));
                 continue;
             }
@@ -309,49 +304,6 @@ public sealed class ProjectionScenarioReader(
         scenarioRead.TryGetValue(out var scenario);
         var realEstate = scenario!.RealEstate;
 
-        // Spec §4.2: what the loans took and the penalty leave the savings in the repayment's month; nothing when no loan took any.
-        foreach (var repayment in realEstate.Repayments.Where(r => r.Applied > 0m))
-            cashFlows[repayment.Month] -= repayment.Applied + penalties.GetValueOrDefault(repayment.Event);
-        // Spec §4.3: the proceeds enter in the sale's month; its charges less its rent are saved from the month after.
-        foreach (var sale in realEstate.Sales)
-        {
-            cashFlows[sale.Month] += sale.Proceeds;
-            for (var k = sale.Month + 1; k <= months; k++) adjustments[k] += sale.MonthlyNet;
-        }
-        // Retirement spec §3: the sold property's rent leaves the passive income and its costs the expenses, from the month after the sale.
-        var passive = scenario.Inputs.PassiveIncome?.ToArray();
-        var expenseAdjustments = new decimal[months + 1];
-        if (passive is not null && scenario.Inputs.Rates is { } resolvedRates)
-            foreach (var sale in realEstate.Sales)
-                for (var k = sale.Month + 1; k <= months; k++)
-                {
-                    passive[k] -= sale.MonthlyRent * resolvedRates.Income[k];
-                    expenseAdjustments[k] -= sale.MonthlyCosts * resolvedRates.Inflation[k];
-                }
-
-        // Spec §4.4: the purchased homes and their loans' balances join the real estate (value and debt; their payments are in the
-        // monthly cost, so they are not freed payments).
-        var growth = (double)assumptions.ClassRates.GetValueOrDefault(AllocationClasses.RealEstate);
-        var grid = scenario.Inputs.RealEstate.Count == 0
-            ? Enumerable.Range(0, months + 1).Select(k => new RealEstateMonth(thisMonth.PlusMonths(k), 0m, 0m, 0m)).ToList()
-            : scenario.Inputs.RealEstate.ToList();
-        var property = grid.Select((m, k) =>
-        {
-            var value = 0m;
-            var debt = 0m;
-            var end = m.Month.ToDateInterval().End;
-            foreach (var (document, loans, from) in bought.Where(b => b.Month <= k))
-            {
-                value += document.Price * Decimals.FromDouble(Math.Pow(1 + growth, (k - from) / 12.0));
-                debt += document.Loans.Zip(loans, (l, s) => s.Rows.LastOrDefault(r => r.DueDate <= end) is { } row ? row.Balance : l.Amount).Sum();
-            }
-            return m with { PropertyValue = m.PropertyValue + value, Debt = m.Debt + debt };
-        }).ToList();
-        // Spec §3.3: the payments freed are counted from today's, before any event. RealEstate applies an event of this month (or
-        // taken today) to month 0, so the scenario's own month 0 may already be without a sold loan's payment or with a reduced one.
-        if (based.Inputs.RealEstate.Count > 0)
-            property[0] = property[0] with { LoanPayments = based.Inputs.RealEstate[0].LoanPayments };
-
         var warnings = new List<ProjectionWarningView>();
         void Count(string code, int count)
         {
@@ -364,30 +316,14 @@ public sealed class ProjectionScenarioReader(
         Count("retirement_undated", departed.Undated);
         if (taxUnavailable) warnings.Add(new ProjectionWarningView("tax_estimate_unavailable", null));
 
-        // Retirement spec §2: from the person's switch month the scenario's pension replaces the person's own (added when none). A pension
-        // co-owned by several adults has no holder: it is not in PensionsByHolder, so the scenario's is added on top of it.
-        var income = scenario.Inputs.Income.ToArray();
-        var pensions = scenario.Inputs.Pensions?.ToArray();
-        if (scenario.Inputs.Rates is { } rates)
-            foreach (var (person, k0) in Departures.SwitchMonths(departed.People, today))
-                if (departed.Kept.FirstOrDefault(r => r.Person == person) is { MonthlyPension: { } pension })
-                {
-                    var own = scenario.PensionsByHolder.GetValueOrDefault(person);
-                    for (var k = Math.Max(k0, 1); k <= months; k++)
-                    {
-                        var delta = pension * rates.Income[k] - (own?[k] ?? 0m);
-                        income[k] += delta;
-                        if (pensions is not null) pensions[k] += delta;
-                    }
-                }
-
-        var inputs = scenario.Inputs with
-        {
-            Income = income, Pensions = pensions,
-            RealEstate = property, MonthlyAdjustments = adjustments, CashFlows = cashFlows, Withdrawals = withdrawals, Changes = changes,
-            PassiveIncome = passive, ExpenseAdjustments = expenseAdjustments,
-            Milestones = [.. scenario.Inputs.Milestones, .. milestones],
-        };
+        // Retirement spec §2: the scenario's pension of each adult who has one, from their switch month, in place of their own.
+        var pensions = Departures.SwitchMonths(departed.People, today)
+            .Select(x => (Switch: x, Kept: departed.Kept.FirstOrDefault(r => r.Person == x.Key)))
+            .Where(x => x.Kept is { MonthlyPension: not null })
+            .Select(x => new ScenarioPension(x.Switch.Value, x.Kept!.MonthlyPension!.Value, scenario.PensionsByHolder.GetValueOrDefault(x.Switch.Key)))
+            .ToList();
+        var inputs = ScenarioEvents.Apply(scenario.Inputs, today, months, based.Inputs.RealEstate, realEstate, penalties, bought,
+            assumptions.ClassRates.GetValueOrDefault(AllocationClasses.RealEstate), pensions, changes, milestones);
         return Result.Success(new ProjectionScenarioReading(
             based, inputs, doc with { Events = kept, Retirements = departed.Kept }, warnings, milestones,
             doc.Assumptions.MonthlySavings is null ? based.SavingsOrigin : ScenarioSavings)
@@ -396,21 +332,5 @@ public sealed class ProjectionScenarioReader(
         });
 
         PersonInfo? Person(PersonId id) => people.GetValueOrDefault(id);
-
-        // Spec §4.4, as ScenarioCalculator.Project: the down payment leaves its envelopes in the purchase's month; from then each month
-        // costs its loans' due payments and insurance, the charges and the tax increase, less the rent it brings or saves.
-        void AddPurchase(ScenarioReading reading, int month)
-        {
-            var purchase = reading.Document;
-            withdrawals.AddRange(purchase.Funding.Select(f => new SliceWithdrawal(month, f.Item, f.Amount)));
-            var rent = purchase.Use == PurchaseUse.Rental ? purchase.ExpectedRent * (12 - purchase.VacancyMonths) / 12 : purchase.CurrentRent;
-            var monthlyCost = purchase.MonthlyCharges - rent + reading.Facts.MonthlyTaxIncrease;
-            var rows = reading.Facts.Loans.SelectMany(l => l.Rows).ToList();
-            for (var k = month; k <= months; k++)
-            {
-                var due = thisMonth.PlusMonths(k);
-                adjustments[k] -= rows.Where(r => r.DueDate.ToYearMonth() == due).Sum(r => r.Payment + r.Insurance) + monthlyCost;
-            }
-        }
     }
 }

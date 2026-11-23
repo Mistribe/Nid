@@ -1,6 +1,7 @@
 using System.Globalization;
 using Nid.Core.Application.Reports;
 using Nid.Core.Contracts;
+using Nid.Core.Domain.Reports;
 using NodaTime;
 
 namespace Nid.Core.Tests;
@@ -20,7 +21,7 @@ public class YearReviewMathTests
     {
         // Investments: 1 000 paid in, 300 of gain. Real estate: a 250 000 home bought with a 200 000 loan, 2 000 of capital repaid,
         // and its estimate 5 000 down.
-        var split = YearReviewMath.Split(
+        var split = YearReviewSections.NetWorth(
             [
                 ("investments", new NetWorthPoint(Start, Eur(10_000m), Eur(8_000m), 1), new NetWorthPoint(End, Eur(11_300m), Eur(9_000m), 1)),
                 ("real_estate", new NetWorthPoint(Start, Eur(0m), Eur(0m), 0, Eur(0m)),
@@ -47,7 +48,7 @@ public class YearReviewMathTests
             [new FxRate(Start, Currency.Eur, 0.8m, FxRateSource.Ecb), new FxRate(End, Currency.Eur, 0.9m, FxRateSource.Ecb)], End, maxGapDays: 7);
         var usd = (decimal amount) => new Dictionary<Currency, decimal> { [Currency.Usd] = amount };
 
-        var split = YearReviewMath.Split(
+        var split = YearReviewSections.NetWorth(
             [("investments", new NetWorthPoint(Start, usd(1_000m), usd(500m), 1), new NetWorthPoint(End, usd(1_200m), usd(600m), 1))],
             Currency.Eur, rates, Start, End, out _)!;
 
@@ -58,7 +59,7 @@ public class YearReviewMathTests
 
     [Fact]
     public void Nothing_before_and_after_is_no_section()
-        => Assert.Null(YearReviewMath.Split(
+        => Assert.Null(YearReviewSections.NetWorth(
             [("investments", new NetWorthPoint(Start, Eur(0m), Eur(0m), 0), new NetWorthPoint(End, Eur(0m), Eur(0m), 0))],
             Currency.Eur, RateTable.Empty(End, 7), Start, End, out _));
 
@@ -70,7 +71,7 @@ public class YearReviewMathTests
             [new FxRate(Start, Currency.Eur, 0.333m, FxRateSource.Ecb), new FxRate(End, Currency.Eur, 0.333m, FxRateSource.Ecb)], End, maxGapDays: 7);
         var usd = (decimal amount) => new Dictionary<Currency, decimal> { [Currency.Usd] = amount };
 
-        var split = YearReviewMath.Split(
+        var split = YearReviewSections.NetWorth(
             [
                 ("investments", new NetWorthPoint(Start, usd(1_000.01m), usd(500.02m), 1), new NetWorthPoint(End, usd(1_234.56m), usd(700.07m), 1)),
                 ("real_estate", new NetWorthPoint(Start, usd(1_000m), usd(100m), 1, usd(0m)),
@@ -88,7 +89,7 @@ public class YearReviewMathTests
     [Fact]
     public void A_missing_rate_is_no_section_and_names_its_currency()
     {
-        var split = YearReviewMath.Split(
+        var split = YearReviewSections.NetWorth(
             [("investments", new NetWorthPoint(Start, new Dictionary<Currency, decimal> { [Currency.Usd] = 10m }, Eur(0m), 1),
                 new NetWorthPoint(End, Eur(10m), Eur(0m), 1))],
             Currency.Eur, RateTable.Empty(End, 7), Start, End, out var missing);
@@ -149,7 +150,7 @@ public class YearReviewMathTests
         var engagements = YearReviewMath.Engagements(Months(10, _ => [Cash(CommitmentSources.Loans, Eur(100m))]), 0m, Currency.Eur, RateTable.Empty(End, 7));
         var before = YearReviewMath.Engagements(Months(10, _ => [Cash(CommitmentSources.Loans, Eur(50m))]), 0m, Currency.Eur, RateTable.Empty(End, 7));
 
-        var view = YearReviewMath.Income(Earned(24_000m), engagements, Earned(20_000m), before, Currency.Eur)!;
+        var view = YearReviewSections.Income(Earned(24_000m), engagements, Earned(20_000m), before, Currency.Eur)!;
 
         Assert.Equal(("24000.00", "1000.00", "23000.00"), (view.Income!.Amount, view.Engagements!.Amount, view.Margin!.Amount));
         Assert.Equal(("20000.00", "500.00", "19500.00"), (view.PreviousIncome!.Amount, view.PreviousEngagements!.Amount, view.PreviousMargin!.Amount));
@@ -157,12 +158,12 @@ public class YearReviewMathTests
         Assert.Equal([(CommitmentSources.Loans, "1000.00", false)], view.EngagementSources.Select(s => (s.Source, s.Amount!.Amount, s.Estimated)));
         // Nothing earned nor committed is no section.
         var none = YearReviewMath.Engagements(Months(10, _ => []), 0m, Currency.Eur, RateTable.Empty(End, 7));
-        Assert.Null(YearReviewMath.Income(new IncomeReviewPart(0m, [], []), none, null, null, Currency.Eur));
+        Assert.Null(YearReviewSections.Income(new IncomeReviewPart(0m, [], []), none, null, null, Currency.Eur));
         // A loan counted before its first payment commits nothing: no row, no section.
         var notYet = YearReviewMath.Engagements(Months(10, _ => [Cash(CommitmentSources.Loans, Eur(0m))]), 0m, Currency.Eur, RateTable.Empty(End, 7));
         Assert.Empty(notYet.Sources);
-        Assert.Null(YearReviewMath.Income(new IncomeReviewPart(0m, [], []), notYet, null, null, Currency.Eur));
-        Assert.Null(YearReviewMath.Income(Earned(24_000m), engagements, new IncomeReviewPart(0m, [], []), notYet, Currency.Eur)!.PreviousEngagements);
+        Assert.Null(YearReviewSections.Income(new IncomeReviewPart(0m, [], []), notYet, null, null, Currency.Eur));
+        Assert.Null(YearReviewSections.Income(Earned(24_000m), engagements, new IncomeReviewPart(0m, [], []), notYet, Currency.Eur)!.PreviousEngagements);
     }
 
     [Fact]
@@ -170,12 +171,12 @@ public class YearReviewMathTests
     {
         var engagements = YearReviewMath.Engagements(Months(1, _ => [Cash(CommitmentSources.Subscriptions, Usd(10m))]), 0m, Currency.Eur, RateTable.Empty(End, 7));
 
-        var view = YearReviewMath.Income(Earned(24_000m), engagements, null, null, Currency.Eur)!;
+        var view = YearReviewSections.Income(Earned(24_000m), engagements, null, null, Currency.Eur)!;
 
         Assert.Equal(("USD", (decimal?)null), (engagements.Missing, engagements.Total));
         Assert.Null(Assert.Single(view.EngagementSources).Amount);
         Assert.Equal((null, null), (view.Engagements, view.Margin));
-        Assert.Null(YearReviewMath.Income(Earned(null), engagements, null, null, Currency.Eur)!.Margin);
+        Assert.Null(YearReviewSections.Income(Earned(null), engagements, null, null, Currency.Eur)!.Margin);
     }
 
     [Fact]
@@ -202,14 +203,14 @@ public class YearReviewMathTests
             [new LoanReviewRow(id, "Prêt", 100.004m, 30m, 0m, 1_000m, 5_000m, 4_000m, null)], []);
         PropertiesReviewPart noProperty = new(0m, 0m, [], []);
 
-        Assert.Null(YearReviewMath.Subscriptions(noCharge, unrated, Currency.Eur));
-        var subscriptions = YearReviewMath.Subscriptions(unrated, noCharge, Currency.Eur)!;
+        Assert.Null(YearReviewSections.Subscriptions(noCharge, unrated, Currency.Eur));
+        var subscriptions = YearReviewSections.Subscriptions(unrated, noCharge, Currency.Eur)!;
         Assert.Equal((null, null), (subscriptions.Cost, subscriptions.PreviousCost));
-        Assert.Null(YearReviewMath.Loans(noLoan, loan, Currency.Eur));
-        Assert.Null(YearReviewMath.Loans(loan, noLoan, Currency.Eur)!.PreviousInterestAndInsurance);
+        Assert.Null(YearReviewSections.Loans(noLoan, loan, Currency.Eur));
+        Assert.Null(YearReviewSections.Loans(loan, noLoan, Currency.Eur)!.PreviousInterestAndInsurance);
         // The previous cost of credit is the sum of the figures shown, each to the cent.
-        Assert.Equal("130.00", YearReviewMath.Loans(loan, loan, Currency.Eur)!.PreviousInterestAndInsurance!.Amount);
-        Assert.Null(YearReviewMath.Properties(noProperty, noProperty, Currency.Eur));
+        Assert.Equal("130.00", YearReviewSections.Loans(loan, loan, Currency.Eur)!.PreviousInterestAndInsurance!.Amount);
+        Assert.Null(YearReviewSections.Properties(noProperty, noProperty, Currency.Eur));
     }
 
     /// <summary>A year's estimate as the tax module gives it: invented round figures, the income tax and social levies its parts.</summary>
@@ -224,19 +225,19 @@ public class YearReviewMathTests
         var rates = new RateTable([new FxRate(End, Currency.Eur, 0.8m, FxRateSource.Ecb)], End, maxGapDays: 7);
 
         static decimal InDollars(decimal eur) => Math.Round(eur * 1.25m, 2, MidpointRounding.AwayFromZero);
-        var tax = YearReviewMath.Tax(now, Estimate(2_500m), Currency.Usd, rates, End, out var missing)!;
+        var tax = YearReviewSections.Tax(now, Estimate(2_500m), Currency.Usd, rates, End, out var missing)!;
 
         Assert.Null(missing);
         Assert.Equal((InDollars(now.TotalTax), InDollars(now.IncomeTax), InDollars(now.SocialLevies)),
             (D(tax.TotalTax!.Amount), D(tax.IncomeTax!.Amount), D(tax.SocialLevies!.Amount)));
         Assert.Equal("USD", tax.TotalTax.Currency);
         Assert.NotNull(tax.PreviousTotalTax);
-        Assert.Null(YearReviewMath.Tax(now, Estimate(2_500m, hasData: false), Currency.Eur, rates, End, out _)!.PreviousTotalTax);
-        Assert.Null(YearReviewMath.Tax(now, null, Currency.Eur, rates, End, out _)!.PreviousTotalTax);
-        Assert.Null(YearReviewMath.Tax(Estimate(0m, hasData: false), null, Currency.Eur, rates, End, out _));
-        Assert.Null(YearReviewMath.Tax(null, null, Currency.Eur, rates, End, out _));
+        Assert.Null(YearReviewSections.Tax(now, Estimate(2_500m, hasData: false), Currency.Eur, rates, End, out _)!.PreviousTotalTax);
+        Assert.Null(YearReviewSections.Tax(now, null, Currency.Eur, rates, End, out _)!.PreviousTotalTax);
+        Assert.Null(YearReviewSections.Tax(Estimate(0m, hasData: false), null, Currency.Eur, rates, End, out _));
+        Assert.Null(YearReviewSections.Tax(null, null, Currency.Eur, rates, End, out _));
 
-        var unconverted = YearReviewMath.Tax(now, null, Currency.Usd, RateTable.Empty(End, 7), End, out missing)!;
+        var unconverted = YearReviewSections.Tax(now, null, Currency.Usd, RateTable.Empty(End, 7), End, out missing)!;
         Assert.Equal((null, "EUR"), (unconverted.TotalTax, missing));
     }
 }

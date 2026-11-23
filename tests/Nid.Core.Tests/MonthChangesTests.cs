@@ -1,5 +1,6 @@
 using Nid.Core.Application.Dashboard;
 using Nid.Core.Contracts;
+using Nid.Core.Domain.Dashboard;
 using NodaTime;
 
 namespace Nid.Core.Tests;

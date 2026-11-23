@@ -1,4 +1,5 @@
 using Nid.Core.Contracts;
+using Nid.Core.Domain.Dashboard;
 using Nid.Platform.Contracts;
 using NodaTime;
 using UnambitiousFx.Functional;
@@ -26,9 +27,6 @@ public sealed record MonthChangesView(string Currency, LocalDate Since, MonthFig
 }
 
 public sealed record GetMonthChangesQuery(VisibilityScope Scope) : IQuery<MonthChangesView>;
-
-/// <summary>Issue #415: a part of a figure under its cause's key, a month ago and today, per currency.</summary>
-public sealed record MonthPart(string Key, IReadOnlyDictionary<Currency, decimal> Before, IReadOnlyDictionary<Currency, decimal> Now);
 
 public static class MonthChanges
 {
