@@ -136,11 +136,22 @@ public static class LoanCodes
     public const string InvalidEnvelope = "realestate.invalid_envelope";
 }
 
-/// <summary>#180: what a loan may finance besides a property, answered by Investments (RealEstate does not reference it).</summary>
+/// <summary>
+/// #180: what a loan may finance besides a property. An extension point RealEstate declares and Investments implements, as
+/// Documents does with <c>IDocumentTargets</c>: RealEstate references nothing of Investments, so the only compile-time
+/// direction between the two stays Investments → <c>RealEstate.Contracts</c> (#510).
+/// </summary>
 public interface IFinancedEnvelopes
 {
     /// <summary>True when the item is an envelope of kind <c>scpi</c>, open or closed; access is the caller's to check.</summary>
     Task<bool> IsScpiAsync(ItemId item, CancellationToken ct);
+}
+
+/// <summary>#510: whether loans finance an envelope, read by Investments: an SCPI a loan finances keeps its kind.</summary>
+public interface ILoanFinancing
+{
+    /// <summary>True when at least one loan finances the envelope, whoever may read the loan: the caller filters.</summary>
+    Task<bool> IsFinancedAsync(ItemId envelope, CancellationToken ct);
 }
 
 public static class LoanWarnings
