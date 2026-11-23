@@ -37,7 +37,7 @@ export const areas = [
     en: { title: 'Childcare', line: 'The childminder’s contract, statements ready for Pajemploi, the childcare tax credit.' },
   },
   {
-    slug: 'projets', icon: 'target', route: '/scenarios',
+    slug: 'projets', icon: 'target', route: '/goals',
     fr: { title: 'Projets', line: 'Objectifs d’épargne, projection du patrimoine et scénarios comme l’achat d’un bien.' },
     en: { title: 'Planning', line: 'Savings goals, a net worth projection and scenarios such as buying a property.' },
   },
@@ -47,12 +47,12 @@ export const areas = [
     en: { title: 'Documents', line: 'The household’s files, linked to the items they concern.' },
   },
   {
-    slug: 'synchro-bancaire', icon: 'landmark', route: '/settings/banks',
+    slug: 'synchro-bancaire', icon: 'landmark', route: '/operations',
     fr: { title: 'Synchro bancaire', line: 'Soldes et opérations depuis la banque, ou par fichiers de relevés OFX et CAMT.053.' },
     en: { title: 'Bank sync', line: 'Balances and transactions from the bank, or from OFX and CAMT.053 statement files.' },
   },
   {
-    slug: 'assistant', icon: 'sparkles', route: '/proposals',
+    slug: 'assistant', icon: 'sparkles', route: '/settings/ai/assistant',
     fr: { title: 'Assistant', line: 'Votre assistant IA lit vos chiffres et propose ; une personne valide chaque changement.' },
     en: { title: 'Assistant', line: 'Your AI assistant reads your figures and proposes; a person approves every change.' },
   },
