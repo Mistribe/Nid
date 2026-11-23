@@ -16,7 +16,7 @@ public interface IModelRequests
     /// <see cref="ModelCallException"/> otherwise (no worker, the worker failed, the stream was cut, a bound passed).
     /// <paramref name="model"/>: only the workers that declare it (#486); <paramref name="served"/> learns which worker answered.</summary>
     IAsyncEnumerable<ReadOnlyMemory<byte>> StreamAsync(
-        string type, int version, byte[] input, string dataClass, Guid? target, CancellationToken ct, string? model = null, Action<WorkerRecord>? served = null);
+        string type, int version, byte[] input, string dataClass, Guid? target, CancellationToken ct, string? model = null, Action<WorkerRecord>? served = null, Func<WorkerRecord, bool>? only = null);
 }
 
 public sealed class ModelRequests(IWorkerRouter router, IWorkerClient client, INidKeys keys, ModelContracts contracts) : IModelRequests
@@ -27,7 +27,7 @@ public sealed class ModelRequests(IWorkerRouter router, IWorkerClient client, IN
 
     public async IAsyncEnumerable<ReadOnlyMemory<byte>> StreamAsync(
         string type, int version, byte[] input, string dataClass, Guid? target, [EnumeratorCancellation] CancellationToken ct,
-        string? model = null, Action<WorkerRecord>? served = null)
+        string? model = null, Action<WorkerRecord>? served = null, Func<WorkerRecord, bool>? only = null)
     {
         var contract = contracts.Find(ModelCallKind.Request, type, version) ?? throw new ModelCallException(JobCodes.UnknownType);
         if (!DataClasses.IsKnown(dataClass) || (dataClass == DataClasses.None && !contract.AllowsNoData))
@@ -40,8 +40,9 @@ public sealed class ModelRequests(IWorkerRouter router, IWorkerClient client, IN
         var route = await router.RouteAsync(type, version, ModelCallKind.Request, dataClass, target, ct);
         if (route.Workers.Count == 0)
             throw new ModelCallException(route.Reason ?? JobCodes.NoWorker);
-        IReadOnlyList<WorkerRecord> workers = model is null ? route.Workers
-            : [.. route.Workers.Where(w => WorkerRouter.DeclarationOf(w)?.Models.Any(m => m.Name == model) == true)];
+        // #532: only the workers of a pinned class.
+        IReadOnlyList<WorkerRecord> workers = [.. route.Workers.Where(w => only?.Invoke(w) != false
+            && (model is null || WorkerRouter.DeclarationOf(w)?.Models.Any(m => m.Name == model) == true))];
         if (workers.Count == 0)
             throw new ModelCallException(JobCodes.ModelUnavailable);
 

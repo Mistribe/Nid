@@ -39,6 +39,8 @@ public sealed class AssistantConversationTests(PostgresFixture fixture) : IClass
         var first = await AskAsync(app, app.AdultA, "Mes enveloppes ?");
         await AskAsync(app, app.AdultA, "Et ensuite ?", first);
 
+        // #532: the next turn is pinned to the class of the first from its first step.
+        Assert.Equal([null, "local", "local"], model.Requests.Select(r => r.Pin));
         var resumed = model.Requests[^1].Messages;
         Assert.Equal([ChatRole.System, ChatRole.User, ChatRole.Assistant, ChatRole.User], resumed.Select(m => m.Role));
         Assert.Equal(["Mes enveloppes ?", "Vous avez une enveloppe.", "Et ensuite ?"], resumed.Skip(1).Select(m => m.Content));

@@ -63,14 +63,16 @@ public static class AssistantEndpoints
                     if (!reader.Ok)
                         return reader.Problem();
                     IReadOnlyList<ChatMessage> history = [];
+                    string? pinned = null;
                     if (body.ConversationId is { } id)
                     {
                         if (await conversations.FindAsync(id, person, ct) is not { } conversation)
                             return Result.Failure<object>(new NotFoundFailure("conversation", id.ToString())).ToHttp(x => x);
+                        pinned = conversation.PolicyClass; // #532: the class of its first turn, never another
                         history = [.. conversation.Messages.Where(m => m.Content.Length > 0)
                             .Select(m => new ChatMessage(m.Role == "user" ? ChatRole.User : ChatRole.Assistant, m.Content))];
                     }
-                    return TypedResults.ServerSentEvents(StreamAsync(loop, conversations, items, policy, clock, person, history, question!, body.ConversationId, ct));
+                    return TypedResults.ServerSentEvents(StreamAsync(loop, conversations, items, policy, clock, person, history, question!, body.ConversationId, pinned, ct));
                 })
             .RequireAuthorization()
             .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>()
@@ -107,12 +109,12 @@ public static class AssistantEndpoints
 
     private static async IAsyncEnumerable<SseItem<string>> StreamAsync(AssistantLoop loop, IConversations conversations, IItemRegistry items,
         IAccessPolicy policy, IClock clock, PersonId person, IReadOnlyList<ChatMessage> history, string question, Guid? conversationId,
-        [EnumeratorCancellation] CancellationToken ct)
+        string? pinned, [EnumeratorCancellation] CancellationToken ct)
     {
         var id = conversationId ?? Guid.CreateVersion7(); // known before the turn, so every llm_call of it names it
         var answer = new StringBuilder();
         var called = new List<string>();
-        await foreach (var e in loop.RunAsync(person, history, question, ct, id))
+        await foreach (var e in loop.RunAsync(person, history, question, ct, id, pinned))
         {
             switch (e)
             {
@@ -129,8 +131,8 @@ public static class AssistantEndpoints
                         new AssistantHeldBackEvent(held.Count, held.Destination, Placement(loop)), AiJsonContext.Default.AssistantHeldBackEvent));
                     break;
                 case AssistantDone done:
-                    var kept = await KeepAsync(conversations, clock, person, id, conversationId is null, question, answer.ToString(), called, loop.Seen,
-                        done.Provider, done.Model, ct);
+                    var kept = await KeepAsync(conversations, clock, person, id, conversationId is null, loop.Destination?.Class, question,
+                        answer.ToString(), called, loop.Seen, done.Provider, done.Model, ct);
                     var links = await LinksAsync(items, policy, person, loop.Seen, answer.ToString(), ct);
                     yield return Item("done", JsonSerializer.Serialize(
                         new AssistantDoneEvent(done.Provider, Placement(loop), done.Model, done.Reason, links, kept ? id : conversationId),
@@ -145,8 +147,8 @@ public static class AssistantEndpoints
 
     /// <summary>The exchange, once answered: the question, then the answer with the tools it called and the items they returned.
     /// A turn that wrote nothing keeps nothing.</summary>
-    private static async Task<bool> KeepAsync(IConversations conversations, IClock clock, PersonId person, Guid id, bool first, string question,
-        string answer, IReadOnlyList<string> tools, IReadOnlyList<Guid> items, string provider, string model, CancellationToken ct)
+    private static async Task<bool> KeepAsync(IConversations conversations, IClock clock, PersonId person, Guid id, bool first, string? policyClass,
+        string question, string answer, IReadOnlyList<string> tools, IReadOnlyList<Guid> items, string provider, string model, CancellationToken ct)
     {
         if (answer.Length == 0)
             return false;
@@ -154,7 +156,7 @@ public static class AssistantEndpoints
         var at = clock.GetCurrentInstant();
         if (first)
         {
-            await conversations.StartAsync(id, person, question, exchange, Blank(provider), Blank(model), at, ct);
+            await conversations.StartAsync(id, person, question, policyClass, exchange, Blank(provider), Blank(model), at, ct);
             return true;
         }
         return await conversations.AppendAsync(id, person, exchange, Blank(provider), Blank(model), at, ct);

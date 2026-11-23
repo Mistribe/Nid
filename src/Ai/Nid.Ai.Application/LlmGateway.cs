@@ -19,21 +19,41 @@ public sealed record LlmChatRequest(
     Guid? ConversationId = null,
     Guid? JobId = null,
     double? Temperature = null,
-    LlmDestination? Pin = null,
+    string? Pin = null,
     Action<LlmDestination>? Served = null);
 
 /// <summary>
 /// Where a call went (#500): a household worker, local or remote, or a cloud provider. The assistant's first step fixes what
-/// its turn may read (decision C, <c>docs/ai/README.md</c> §6.4); its later steps are pinned to that same destination
-/// (<see cref="LlmChatRequest.Pin"/>), so what was read for one never reaches another. <see cref="LlmChatRequest.Served"/>
-/// learns it once the call answers.
+/// its turn may read (decision C, <c>docs/ai/README.md</c> §6.4); its later steps, and a conversation's later turns (#532), are
+/// pinned to that destination's <see cref="Class"/> (<see cref="LlmChatRequest.Pin"/>), so what was read for one never
+/// reaches a less safe one. <see cref="LlmChatRequest.Served"/> learns it once the call answers.
 /// </summary>
 /// <remarks><see cref="ContextTokens"/> (#527): how much the model that answered reads, as its worker declares it or its profile
 /// says; null when unknown.</remarks>
-public sealed record LlmDestination(LlmPlacement Placement, string Name, Guid? WorkerId = null, string? ProfileId = null, int? ContextTokens = null)
+public sealed record LlmDestination(
+    LlmPlacement Placement, string Name, Guid? WorkerId = null, string? ProfileId = null, int? ContextTokens = null, bool Safe = false)
 {
     /// <summary>Out of the household's premises: a remote worker or the cloud.</summary>
     public bool Offsite => Placement != LlmPlacement.Local;
+
+    /// <summary>The policy class (§5.3): <c>local+safe</c>, <c>local</c>, <c>remote+safe</c>, <c>remote</c> or <c>cloud:&lt;profile&gt;</c>.</summary>
+    public string Class => Placement switch
+    {
+        LlmPlacement.Cloud => LlmClasses.Cloud + ProfileId,
+        LlmPlacement.Remote => Safe ? "remote+safe" : "remote",
+        _ => Safe ? "local+safe" : "local",
+    };
+}
+
+public static class LlmClasses
+{
+    public const string Cloud = "cloud:";
+
+    public static bool IsCloud(string pin) => pin.StartsWith(Cloud, StringComparison.Ordinal);
+
+    /// <summary>A worker's class, as <see cref="LlmDestination.Class"/> words it.</summary>
+    public static string Of(WorkerRecord worker)
+        => (worker.Placement == WorkerPlacement.Remote ? "remote" : "local") + (worker.Safe ? "+safe" : "");
 }
 
 public enum LlmPlacement
@@ -80,8 +100,9 @@ public sealed class LlmCallTrace
 
     public decimal? CostEur { get; set; }
 
-    /// <summary>#500: the destination the call must go to, if pinned; the one that served it.</summary>
-    public LlmDestination? Pin { get; init; }
+    /// <summary>#500, #532: the class the call must go to, if pinned (<see cref="LlmDestination.Class"/>); the destination that
+    /// served it.</summary>
+    public string? Pin { get; init; }
 
     public LlmDestination? Destination { get; set; }
 }
@@ -174,6 +195,9 @@ public sealed class LlmGateway(
                 yield break;
             }
 
+            // #532: pinned, there is no other class to try: the conversation needs its own, or a new one.
+            if (request.Pin is not null)
+                reason = JobCodes.DestinationClassUnavailable;
             outcome.Fail(reason);
             throw new ModelCallException(reason);
         }
@@ -229,7 +253,7 @@ public sealed class LlmGateway(
 
         public void Fail(string code)
             => (Status, Code) = (code == JobCodes.BudgetBlocked ? LlmCallStatus.BlockedBudget
-                : code is JobCodes.UseOff or JobCodes.NoModel || NoDestination.Contains(code) ? LlmCallStatus.NoDestination
+                : code is JobCodes.UseOff or JobCodes.NoModel or JobCodes.DestinationClassUnavailable || NoDestination.Contains(code) ? LlmCallStatus.NoDestination
                 : LlmCallStatus.Error, code);
 
         public void End(ChatUsage? usage)
@@ -255,12 +279,14 @@ public sealed class WorkerProvider(IModelRequests requests) : ILlmProvider
     public async IAsyncEnumerable<ChatRequestOutput> ChatAsync(
         ChatRequestInput input, string dataClass, LlmCallTrace trace, [EnumeratorCancellation] CancellationToken ct)
     {
-        if (trace.Pin is { Placement: LlmPlacement.Cloud })
+        if (trace.Pin is { } cloud && LlmClasses.IsCloud(cloud))
             throw new ModelCallException(JobCodes.NoWorker); // pinned to a cloud provider: no worker may see this turn
-        await foreach (var frame in requests.StreamAsync("chat", 1, ContractJson.Write(input), dataClass, trace.Pin?.WorkerId, ct,
+        await foreach (var frame in requests.StreamAsync("chat", 1, ContractJson.Write(input), dataClass, null, ct,
                            model: input.Model, served: worker => (trace.WorkerId, trace.Destination) = (worker.Id, new LlmDestination(
                                worker.Placement == WorkerPlacement.Remote ? LlmPlacement.Remote : LlmPlacement.Local, worker.Name, WorkerId: worker.Id,
-                               ContextTokens: WorkerRouter.DeclarationOf(worker)?.Models.FirstOrDefault(m => m.Name == input.Model)?.ContextTokens))))
+                               ContextTokens: WorkerRouter.DeclarationOf(worker)?.Models.FirstOrDefault(m => m.Name == input.Model)?.ContextTokens,
+                               Safe: worker.Safe)),
+                           only: trace.Pin is { } pin ? worker => LlmClasses.Of(worker) == pin : null))
             yield return ContractJson.Read<ChatRequestOutput>(frame.Span);
     }
 }

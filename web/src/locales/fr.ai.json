@@ -136,6 +136,7 @@
     },
     "reason": {
       "assistant_turn_limit": "Vous avez posé beaucoup de questions cette heure-ci : réessayez un peu plus tard.",
+      "destination_class_unavailable": "Ce qui a répondu au début de cette conversation ne répond plus, et elle ne peut pas passer ailleurs : commencez une nouvelle conversation.",
       "all_offline": "Aucun worker ne répond en ce moment.",
       "file_missing": "Le fichier de la tâche n'existe plus.",
       "fingerprint_mismatch": "L'empreinte ne correspond plus à celle du worker : recommencez l'ajout.",

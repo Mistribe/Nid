@@ -17,7 +17,7 @@ partial class AiDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261123105501_AssistantConversations";
+    public override string LastMigrationId => "20261123110813_ConversationPolicyClass";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -311,6 +311,11 @@ partial class AiDbContextModelSnapshot : ModelSnapshot
                 b.Property<Guid>("PersonId")
                     .HasColumnType("uuid")
                     .HasColumnName("person_id");
+
+                b.Property<string>("PolicyClass")
+                    .HasMaxLength(80)
+                    .HasColumnType("character varying(80)")
+                    .HasColumnName("policy_class");
 
                 b.Property<string>("Provider")
                     .HasMaxLength(200)
