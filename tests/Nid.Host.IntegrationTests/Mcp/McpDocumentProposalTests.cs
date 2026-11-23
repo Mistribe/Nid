@@ -1,7 +1,13 @@
 using System.Net;
+using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using ModelContextProtocol;
 using ModelContextProtocol.Client;
+using Nid.Documents.Application;
+using Nid.Documents.Infrastructure.Persistence;
 using Nid.Core.Contracts;
 using Nid.Documents.Contracts;
 using Nid.Host.IntegrationTests.Admin;
@@ -164,6 +170,64 @@ public class McpDocumentProposalTests(PostgresFixture fixture) : IClassFixture<P
         var answer = JsonDocument.Parse(text).RootElement;
         Assert.Equal(("applied", true), (answer.GetProperty("outcome").GetString(), answer.GetProperty("sourceLinked").GetBoolean()));
         Assert.Equal(envelope, Assert.Single(await LinksAsync(app, app.AdultA, document)).GetProperty("targetId").GetGuid());
+    }
+
+    /// <summary>#508: a direct write whose source's link throws is rolled back with it, so the retry writes and links, instead of « conforme ».</summary>
+    [Fact]
+    public async Task A_direct_write_whose_link_throws_writes_nothing_and_the_retry_writes_and_links()
+    {
+        var failing = new StrongBox<bool>(true);
+        await using var app = await NidApp.StartAsync(fixture, services =>
+            services.AddScoped(sp => FailingLinks.Wrap(ActivatorUtilities.CreateInstance<DocumentStore>(sp), failing)));
+        var envelope = await McpSeed.EnvelopeAsync(app, app.AdultA);
+        var document = await UploadedAsync(app, app.AdultA, Pdf);
+        await using var direct = await ClientAsync(app, TokenPresets.Direct);
+        var statement = new { envelopeId = envelope, asOf = "2025-09-30", value = new { amount = "23500.00", currency = "EUR" }, documentId = document, apply = true };
+
+        var refused = await Record.ExceptionAsync(async () => Assert.True((await CallAsync(direct, "propose_statement", statement)).Error));
+
+        Assert.True(refused is null or McpException, refused?.ToString());
+        await using (var core = PostgresFixture.NewCoreContext(app.ConnectionString))
+            Assert.Equal(0, await core.Valuations.CountAsync(v => v.ItemId == envelope && v.AsOf == new NodaTime.LocalDate(2025, 9, 30),
+                TestContext.Current.CancellationToken));
+        Assert.Empty(await LinksAsync(app, app.AdultA, document));
+
+        failing.Value = false;
+        var (error, text) = await CallAsync(direct, "propose_statement", statement);
+
+        Assert.False(error, text);
+        var answer = JsonDocument.Parse(text).RootElement;
+        Assert.Equal(("applied", true), (answer.GetProperty("outcome").GetString(), answer.GetProperty("sourceLinked").GetBoolean()));
+        Assert.Equal(envelope, Assert.Single(await LinksAsync(app, app.AdultA, document)).GetProperty("targetId").GetGuid());
+    }
+
+    /// <summary>The real store, but adding a link throws while <c>Failing</c> holds: a database lost between the write and the link.</summary>
+    public class FailingLinks : DispatchProxy
+    {
+        private IDocumentStore inner = null!;
+        private StrongBox<bool> failing = null!;
+
+        public static IDocumentStore Wrap(IDocumentStore inner, StrongBox<bool> failing)
+        {
+            var proxy = Create<IDocumentStore, FailingLinks>();
+            ((FailingLinks)(object)proxy).inner = inner;
+            ((FailingLinks)(object)proxy).failing = failing;
+            return proxy;
+        }
+
+        protected override object? Invoke(MethodInfo? method, object?[]? args)
+        {
+            if (method!.Name == nameof(IDocumentStore.AddLinkAsync) && failing.Value)
+                return Task.FromException<bool>(new InvalidOperationException("The link store is down."));
+            try
+            {
+                return method.Invoke(inner, args);
+            }
+            catch (TargetInvocationException e)
+            {
+                throw e.InnerException!;
+            }
+        }
     }
 
     // Review Focus 2: the document unlinked, the other adult no longer reads it, and every view they get hides it.

@@ -160,13 +160,21 @@ public static partial class McpCalls
 
         if (apply)
         {
+            // #508: the write and its source's link land together. A link that throws rolls the write back with it: committed alone,
+            // a retry would answer « conforme » and never link. A link refused (no right, already linked) still lets the write commit.
+            await using var transaction = await services.GetRequiredService<IUnitOfWork>().BeginAsync(ct);
             var written = await invoker.InvokeAsync(new ApplyDirectCommand(kind, Item(target), body, documentId), ct);
             if (!written.TryGetValue(out var write))
                 return Refuse(services, written.TryGetFailure(out var refused) ? refused! : throw new InvalidOperationException());
             if (write!.Conforme is { } same)
                 return Answer(services, Conforme(same), limited: false);
-            return Answer(services, Applied(write, await LinkSourceAsync()), limited: false);
+            var linked = await LinkSourceAsync();
+            await transaction.CommitAsync(ct);
+            return Answer(services, Applied(write, linked), limited: false);
         }
+
+        // A proposal stays outside one: its notice is published on its own connection as it is stored, and a link that throws after it
+        // heals on a retry, which finds the same proposal by its fingerprint and links again.
 
         var submitted = await invoker.InvokeAsync(new SubmitProposalCommand(kind, Item(target), body, sourceLabel, documentId), ct);
         if (!submitted.TryGetValue(out var outcome))
