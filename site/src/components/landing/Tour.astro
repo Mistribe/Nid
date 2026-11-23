@@ -9,9 +9,19 @@ const copy = {
 }[Astro.props.lang];
 ---
 <Section title={copy.title} lead={copy.lead}>
-  <img class="tour" src="/media/demo.gif" alt={copy.alt} width="1045" height="682" loading="lazy" decoding="async" />
+  <!-- docs/frontend/screens/demo.gif as a video: a tenth of the weight. Paused for visitors who ask for reduced motion. -->
+  <video class="tour" autoplay muted loop playsinline controls preload="metadata" poster="/media/demo-poster.jpg" width="1044" height="682" aria-label={copy.alt}>
+    <source src="/media/demo.webm" type="video/webm" />
+    <source src="/media/demo.mp4" type="video/mp4" />
+  </video>
   <p class="cta"><a href="https://demo.nid.mistribe.com">{copy.cta} →</a></p>
 </Section>
+
+<script>
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    for (const video of document.querySelectorAll<HTMLVideoElement>('video.tour')) { video.autoplay = false; video.pause(); }
+  }
+</script>
 
 <style>
   .tour { display: block; width: 100%; height: auto; border: 1px solid var(--sl-color-hairline); border-radius: 0.75rem; }

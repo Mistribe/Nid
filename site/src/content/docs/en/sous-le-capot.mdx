@@ -23,8 +23,8 @@ The detail: [the technical architecture](https://github.com/Mistribe/Nid/blob/ma
 
 ## Quality
 
-- **Every pull request** runs the whole test suite: the server's unit and integration tests, the web app's tests, end-to-end journeys in a real browser.
-- **A SonarQube quality gate** and a CodeQL analysis block code that fails them.
+- **Every pull request** runs the tests of what it changes: the server's unit and integration tests, the web app's tests, end-to-end journeys in a real browser.
+- **A SonarQube quality gate** blocks the merge of code that fails it, and CodeQL analyses every pull request.
 - **Every merge is a release**: public images for amd64 and arm64, with a signed provenance attestation.
 
 ## Security
@@ -39,7 +39,7 @@ The detail: [the technical architecture](https://github.com/Mistribe/Nid/blob/ma
 Nid is self-hosted software, not a service. The project runs no server for it, receives no data from any installation, and has no account, analytics or telemetry.
 
 - **Your data stays at home**: the database, the documents and the backups are on your machine.
-- **You choose what leaves**: the provider catalogue and exchange rates (no household data), and, if you turn them on, bank sync or a cloud language model.
-- **A full export** of your figures in one documented JSON file, and encrypted backups every night.
+- **Little leaves**: the provider catalogue and exchange rates, which carry no household data; bank sync or a cloud language model, only if you turn them on.
+- **An export** of your figures in one documented JSON file (documents, tax notices and scenarios are not in it yet), and encrypted backups every night in the reference setup.
 
 This site measures nothing either: no tracker, no font or script from anywhere else. The detail: [the privacy note](https://github.com/Mistribe/Nid/blob/main/PRIVACY.md).

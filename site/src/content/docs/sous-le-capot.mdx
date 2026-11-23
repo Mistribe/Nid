@@ -23,8 +23,8 @@ Le détail : [l'architecture technique](https://github.com/Mistribe/Nid/blob/mai
 
 ## Qualité
 
-- **Chaque pull request** passe toute la suite de tests : tests unitaires et d'intégration du serveur, tests de l'application web, parcours de bout en bout dans un vrai navigateur.
-- **Une barrière qualité SonarQube** et une analyse CodeQL bloquent le code qui ne la passe pas.
+- **Chaque pull request** passe les tests de ce qu'elle change : tests unitaires et d'intégration du serveur, tests de l'application web, parcours de bout en bout dans un vrai navigateur.
+- **Une barrière qualité SonarQube** bloque la fusion du code qui ne la passe pas, et CodeQL analyse chaque pull request.
 - **Chaque fusion est une version** : images publiques pour amd64 et arm64, avec une attestation de provenance signée.
 
 ## Sécurité
@@ -39,7 +39,7 @@ Le détail : [l'architecture technique](https://github.com/Mistribe/Nid/blob/mai
 Nid est un logiciel auto-hébergé, pas un service. Le projet ne fait tourner aucun serveur pour lui, ne reçoit aucune donnée des installations et n'a ni compte, ni mesure d'audience, ni télémétrie.
 
 - **Vos données restent chez vous** : la base, les documents et les sauvegardes sont sur votre machine.
-- **Ce qui sort, vous le choisissez** : le catalogue des fournisseurs et les taux de change (sans donnée du foyer), et, si vous l'activez, la synchro bancaire ou un modèle de langage dans le cloud.
-- **Un export complet** de vos chiffres en un fichier JSON documenté, et des sauvegardes chiffrées chaque nuit.
+- **Ce qui sort est limité** : le catalogue des fournisseurs et les taux de change, qui n'emportent aucune donnée du foyer ; la synchro bancaire ou un modèle de langage dans le cloud, seulement si vous les activez.
+- **Un export** de vos chiffres en un fichier JSON documenté (les documents, les avis d'imposition et les scénarios n'y sont pas encore), et des sauvegardes chiffrées chaque nuit dans l'installation de référence.
 
 Ce site non plus ne mesure rien : pas de traceur, pas de police ni de script venus d'ailleurs. Le détail : [la note de confidentialité](https://github.com/Mistribe/Nid/blob/main/PRIVACY.md).

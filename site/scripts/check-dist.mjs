@@ -7,28 +7,49 @@ import { fileURLToPath } from 'node:url';
 const OWN_HOST = 'nid.mistribe.com';
 const isForeign = (url) => /^(https?:)?\/\//i.test(url) && new URL(url, `https://${OWN_HOST}/`).host !== OWN_HOST;
 
-// Only what the browser loads by itself counts: <a href> and rel=canonical/alternate/sitemap are not requests.
-const LOADS = [
-  /<script\b[^>]*\bsrc="([^"]+)"/gi,
-  /<link\b(?=[^>]*\brel="(?:stylesheet|preload|modulepreload|icon|apple-touch-icon|manifest)")[^>]*\bhref="([^"]+)"/gi,
-  /<(?:img|source|iframe|video|audio|embed)\b[^>]*\bsrc="([^"]+)"/gi,
-  /\bsrcset="([^"]+)"/gi,
-  /url\(\s*['"]?([^'")\s]+)/gi,
+// Only what the browser loads by itself counts: <a href> and rel=canonical/alternate/sitemap are not requests, nor is a url()
+// in a code sample. Stylesheets (dist/_astro/*.css) are checked for url() and @import.
+const LINK_LOADS = new Set(['stylesheet', 'preload', 'modulepreload', 'prefetch', 'preconnect', 'dns-prefetch', 'icon', 'apple-touch-icon', 'manifest']);
+const SOURCE_ATTRIBUTES = { script: ['src'], img: ['src', 'srcset'], source: ['src', 'srcset'], iframe: ['src'], video: ['src', 'poster'], audio: ['src'], track: ['src'], embed: ['src'], object: ['data'] };
+
+const attributesOf = (tag) =>
+  Object.fromEntries([...tag.matchAll(/([\w:-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/g)].map(([, name, a, b, c]) => [name.toLowerCase(), a ?? b ?? c]));
+
+const cssUrls = (css) => [
+  ...[...css.matchAll(/url\(\s*['"]?([^'")\s]+)/gi)].map((m) => m[1]),
+  ...[...css.matchAll(/@import\s+['"]([^'"]+)['"]/gi)].map((m) => m[1]),
 ];
 
-/** @param {Array<{ path: string, html: string }>} files @param {string[]} contentPaths @returns {string[]} */
+function loadedUrls(path, text) {
+  if (path.endsWith('.css')) return cssUrls(text);
+  const urls = [];
+  for (const [tag, name] of text.matchAll(/<([a-z]+)\b[^>]*>/gi)) {
+    const attributes = attributesOf(tag);
+    const element = name.toLowerCase();
+    if (attributes.style) urls.push(...cssUrls(attributes.style));
+    if (element === 'link') {
+      const rel = (attributes.rel ?? '').toLowerCase().split(/\s+/);
+      if (rel.some((r) => LINK_LOADS.has(r)) && attributes.href) urls.push(attributes.href);
+      continue;
+    }
+    for (const attribute of SOURCE_ATTRIBUTES[element] ?? []) {
+      const value = attributes[attribute];
+      if (!value) continue;
+      urls.push(...(attribute === 'srcset' ? value.split(',').map((part) => part.trim().split(/\s+/)[0]) : [value]));
+    }
+  }
+  for (const [, css] of text.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)) urls.push(...cssUrls(css));
+  return urls;
+}
+
+/** @param {Array<{ path: string, html: string }>} files HTML pages and stylesheets (.css) @param {string[]} contentPaths @returns {string[]} */
 export function findProblems(files, contentPaths) {
   const problems = [];
   for (const { path, html } of files) {
-    for (const pattern of LOADS) {
-      for (const [, value] of html.matchAll(pattern)) {
-        for (const url of value.split(',').map((part) => part.trim().split(/\s+/)[0])) {
-          if (url && isForeign(url)) problems.push(`${path}: loads ${url}`);
-        }
-      }
-    }
+    for (const url of loadedUrls(path, html)) if (url && isForeign(url)) problems.push(`${path}: loads ${url}`);
+    if (path.endsWith('.css')) continue;
     for (const [img] of html.matchAll(/<img\b[^>]*>/gi)) {
-      if (!/\balt="[^"]*\S[^"]*"/i.test(img)) problems.push(`${path}: image without alt text: ${img.slice(0, 80)}`);
+      if (!/\balt=(?:"[^"]*\S[^"]*"|'[^']*\S[^']*')/i.test(img)) problems.push(`${path}: image without alt text: ${img.slice(0, 80)}`);
     }
   }
   const french = new Set(contentPaths.filter((p) => !p.startsWith('en/')));
@@ -47,11 +68,11 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const root = fileURLToPath(new URL('..', import.meta.url));
   const dist = join(root, 'dist');
   const docs = join(root, 'src/content/docs');
-  const htmlFiles = (await walk(dist)).filter((f) => f.endsWith('.html'));
+  const htmlFiles = (await walk(dist)).filter((f) => f.endsWith('.html') || f.endsWith('.css'));
   const files = await Promise.all(htmlFiles.map(async (f) => ({ path: relative(dist, f), html: await readFile(f, 'utf8') })));
   const contentPaths = (await walk(docs)).filter((f) => /\.mdx?$/.test(f)).map((f) => relative(docs, f));
   const problems = findProblems(files, contentPaths);
   for (const problem of problems) console.error(problem);
   if (problems.length > 0) process.exit(1);
-  console.log(`check-dist: ${files.length} pages, ${contentPaths.length} sources, no problem`);
+  console.log(`check-dist: ${files.length} pages and stylesheets, ${contentPaths.length} sources, no problem`);
 }
