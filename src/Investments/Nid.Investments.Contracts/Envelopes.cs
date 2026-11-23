@@ -88,10 +88,25 @@ public static class EnvelopeWire
 public sealed record Envelope(
     ItemId ItemId, EnvelopeKind Kind, string? Institution, string? AccountHint, LocalDate? OpenedOn,
     ValuationCadence Cadence, int? StaleAfterDays, string? Note, LocalDate? ClosedOn = null, decimal? UcShareFloorPct = null, decimal? PremiumsBefore2017 = null,
-    RegulatedKind? Regulated = null, IReadOnlyList<AvailabilityTranche>? Availability = null);
+    RegulatedKind? Regulated = null, IReadOnlyList<AvailabilityTranche>? Availability = null, EarlyRelease? EarlyRelease = null);
 
 /// <summary>#184: a part of an employee savings plan released on a date, as its statement prints it on the statement's date.</summary>
 public sealed record AvailabilityTranche(LocalDate AvailableOn, decimal Amount);
+
+/// <summary>
+/// #466: a legal case that releases an employee savings plan before its dates (<see cref="EarlyReleaseCases"/>), from <c>On</c>:
+/// <c>Amount</c> of it, or the whole plan when null. Eligibility is the household's to state, not checked.
+/// </summary>
+public sealed record EarlyRelease(string Case, LocalDate On, decimal? Amount);
+
+public static class EarlyReleaseCases
+{
+    public static readonly IReadOnlyList<string> All =
+    [
+        "home_purchase", "energy_renovation", "marriage", "third_child", "divorce", "domestic_violence", "end_of_contract",
+        "business_creation", "disability", "death", "over_indebtedness", "other",
+    ];
+}
 
 public sealed record ImportedEnvelope(ItemId Item, string Hash, PersonId ImportedBy);
 public sealed record StoredEnvelope(Envelope Envelope, ImportMark? Import);
@@ -103,7 +118,8 @@ public sealed record EnvelopeChange(
     ValuationCadence? Cadence = null, int? StaleAfterDays = null, bool ClearStaleAfterDays = false,
     string? Note = null, bool ClearNote = false, decimal? UcShareFloorPct = null, bool ClearUcShareFloorPct = false,
     decimal? PremiumsBefore2017 = null, bool ClearPremiumsBefore2017 = false, RegulatedKind? Regulated = null, bool ClearRegulated = false,
-    IReadOnlyList<AvailabilityTranche>? Availability = null, bool ClearAvailability = false);
+    IReadOnlyList<AvailabilityTranche>? Availability = null, bool ClearAvailability = false,
+    EarlyRelease? EarlyRelease = null, bool ClearEarlyRelease = false);
 
 public interface IEnvelopeStore
 {

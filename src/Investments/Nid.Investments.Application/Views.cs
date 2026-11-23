@@ -63,20 +63,28 @@ public sealed record TrancheView(LocalDate AvailableOn, AmountView Amount);
 
 public sealed record ReleaseView(LocalDate On, AmountView Amount);
 
+/// <summary>#466: the plan's early-release case as stated (<c>Amount</c> null: the whole plan), and what it frees of the latest value.</summary>
+public sealed record EarlyReleaseView(string Case, LocalDate On, AmountView? Amount, AmountView? Released);
+
 /// <summary>
 /// #184: an employee savings plan with tranches: the amount available today and the releases to come, shares of the latest value
-/// (null without one), and the tranches as printed, to edit them.
+/// (null without one), and the tranches as printed, to edit them. #466: <c>Locked</c>, what stays locked with no date; its early release.
 /// </summary>
-public sealed record AvailabilityView(AmountView? AvailableToday, IReadOnlyList<ReleaseView> Releases, IReadOnlyList<TrancheView> Tranches)
+public sealed record AvailabilityView(
+    AmountView? AvailableToday, IReadOnlyList<ReleaseView> Releases, IReadOnlyList<TrancheView> Tranches,
+    AmountView? Locked = null, EarlyReleaseView? EarlyRelease = null)
 {
-    public static AvailabilityView? Of(IReadOnlyList<AvailabilityTranche>? tranches, Money? value, Currency currency, LocalDate today)
+    public static AvailabilityView? Of(IReadOnlyList<AvailabilityTranche>? tranches, EarlyRelease? early, Money? value, Currency currency, LocalDate today)
     {
-        if (tranches is not { Count: > 0 }) return null;
+        if (tranches is not { Count: > 0 } && early is null) return null;
         AmountView Amount(decimal amount) => new(Money.Create(amount, currency).TryGetValue(out var m) ? m.AmountText : amount.ToString(System.Globalization.CultureInfo.InvariantCulture), currency.Code);
-        var printed = tranches.OrderBy(t => t.AvailableOn).Select(t => new TrancheView(t.AvailableOn, Amount(t.Amount))).ToList();
-        if (value is not { } v || EnvelopeAvailability.At(tranches, v.Amount, today) is not { } at)
-            return new AvailabilityView(null, [], printed);
-        return new AvailabilityView(Amount(at.AvailableToday), at.Releases.Select(r => new ReleaseView(r.On, Amount(r.Amount))).ToList(), printed);
+        var printed = (tranches ?? []).OrderBy(t => t.AvailableOn).Select(t => new TrancheView(t.AvailableOn, Amount(t.Amount))).ToList();
+        var at = value is { } v ? EnvelopeAvailability.At(tranches, v.Amount, today, early) : null;
+        var stated = early is null ? null
+            : new EarlyReleaseView(early.Case, early.On, early.Amount is { } a ? Amount(a) : null, at is null ? null : Amount(at.EarlyReleased));
+        if (at is null) return new AvailabilityView(null, [], printed, EarlyRelease: stated);
+        return new AvailabilityView(Amount(at.AvailableToday), at.Releases.Select(r => new ReleaseView(r.On, Amount(r.Amount))).ToList(), printed,
+            at.Locked != 0m ? Amount(at.Locked) : null, stated);
     }
 }
 

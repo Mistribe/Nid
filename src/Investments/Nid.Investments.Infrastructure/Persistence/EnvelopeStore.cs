@@ -27,6 +27,9 @@ public sealed class EnvelopeStore(InvestmentsDbContext db) : IEnvelopeStore
             PremiumsBefore2017 = envelope.PremiumsBefore2017,
             Regulated = envelope.Regulated is { } regulated ? EnvelopeWire.Of(regulated) : null,
             Availability = AvailabilityJson.Write(envelope.Availability),
+            EarlyReleaseCase = envelope.EarlyRelease?.Case,
+            EarlyReleaseOn = envelope.EarlyRelease?.On,
+            EarlyReleaseAmount = envelope.EarlyRelease?.Amount,
         };
         Mark(row, import);
         db.Envelopes.Add(row);
@@ -50,6 +53,8 @@ public sealed class EnvelopeStore(InvestmentsDbContext db) : IEnvelopeStore
         // #462: a file's tranches replace the plan's; a file without them keeps them, unless the envelope is no longer an employee savings plan.
         if (envelope.Kind != EnvelopeKind.EmployeeSavings) row.Availability = null;
         else if (envelope.Availability is { } tranches) row.Availability = AvailabilityJson.Write(tranches);
+        // #466: the file carries no early release: the one set in Nid stays, unless the envelope is no longer an employee savings plan.
+        if (envelope.Kind != EnvelopeKind.EmployeeSavings) SetEarlyRelease(row, null);
         Mark(row, import);
         await db.SaveChangesAsync(ct);
     }
@@ -113,7 +118,15 @@ public sealed class EnvelopeStore(InvestmentsDbContext db) : IEnvelopeStore
         if (change.ClearPremiumsBefore2017) row.PremiumsBefore2017 = null; else if (change.PremiumsBefore2017 is { } premiums) row.PremiumsBefore2017 = premiums;
         if (change.ClearRegulated) row.Regulated = null; else if (change.Regulated is { } regulated) row.Regulated = EnvelopeWire.Of(regulated);
         if (change.ClearAvailability) row.Availability = null; else if (change.Availability is { } tranches) row.Availability = AvailabilityJson.Write(tranches);
+        if (change.ClearEarlyRelease) SetEarlyRelease(row, null); else if (change.EarlyRelease is { } early) SetEarlyRelease(row, early);
         await db.SaveChangesAsync(ct);
+    }
+
+    private static void SetEarlyRelease(EnvelopeRow row, EarlyRelease? early)
+    {
+        row.EarlyReleaseCase = early?.Case;
+        row.EarlyReleaseOn = early?.On;
+        row.EarlyReleaseAmount = early?.Amount;
     }
 
     private static Envelope ToEnvelope(EnvelopeRow row)
@@ -121,7 +134,8 @@ public sealed class EnvelopeStore(InvestmentsDbContext db) : IEnvelopeStore
         if (!EnvelopeWire.TryKind(row.Kind, out var kind) || !EnvelopeWire.TryCadence(row.ValuationCadence, out var cadence))
             throw new InvalidOperationException($"Envelope {row.ItemId} has a stored kind or cadence this code does not know.");
         return new Envelope(new ItemId(row.ItemId), kind, row.Institution, row.AccountHint, row.OpenedOn, cadence, row.StaleAfterDays, row.Note, row.ClosedOn, row.UcShareFloorPct, row.PremiumsBefore2017,
-            EnvelopeWire.TryRegulated(row.Regulated, out var regulated) ? regulated : (RegulatedKind?)null, AvailabilityJson.Read(row.Availability));
+            EnvelopeWire.TryRegulated(row.Regulated, out var regulated) ? regulated : (RegulatedKind?)null, AvailabilityJson.Read(row.Availability),
+            row.EarlyReleaseCase is { } early ? new EarlyRelease(early, row.EarlyReleaseOn!.Value, row.EarlyReleaseAmount) : null);
     }
 }
 

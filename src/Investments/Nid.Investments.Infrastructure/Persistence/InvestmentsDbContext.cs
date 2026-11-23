@@ -45,6 +45,9 @@ public sealed class InvestmentsDbContext(DbContextOptions<InvestmentsDbContext> 
                 t.HasCheckConstraint("ck_envelope_premiums_before_2017", "premiums_before_2017 is null or premiums_before_2017 >= 0");
                 t.HasCheckConstraint("ck_envelope_regulated", "regulated is null or (kind = 'savings' and regulated in ('livret_a','ldds','lep','livret_jeune'))");
                 t.HasCheckConstraint("ck_envelope_availability", "availability is null or kind = 'employee_savings'");
+                t.HasCheckConstraint("ck_envelope_early_release",
+                    "(early_release_case is null) = (early_release_on is null) and (early_release_case is not null or early_release_amount is null) "
+                    + "and (early_release_case is null or kind = 'employee_savings') and (early_release_amount is null or early_release_amount > 0)");
                 t.HasCheckConstraint("ck_envelope_import", "(import_ref is null) = (import_hash is null) and (import_ref is null) = (imported_by is null)");
             });
             e.HasKey(x => x.ItemId);
@@ -53,6 +56,7 @@ public sealed class InvestmentsDbContext(DbContextOptions<InvestmentsDbContext> 
             e.Property(x => x.UcShareFloorPct).HasColumnType("numeric(9,4)");
             e.Property(x => x.PremiumsBefore2017).HasColumnType("numeric(19,4)");
             e.Property(x => x.Availability).HasColumnType("jsonb");
+            e.Property(x => x.EarlyReleaseAmount).HasColumnType("numeric(19,4)");
             // Per importer, never instance-wide (import-format.md §8); no foreign key to core.person across contexts (2B1a §3.2).
             e.HasIndex(x => new { x.ImportedBy, x.ImportRef }).IsUnique().HasFilter("import_ref is not null");
             MapXmin(e.Property(x => x.Version));

@@ -69,7 +69,7 @@ public sealed class EnvelopesNetWorth(
             holdings.Add(new Holding(envelope.ItemId, "investments", name, value, asOf, figures.StaleDays is not null, owners,
                 EnvelopeAllocation.Release(
                     EnvelopeAllocation.Of(f.Envelope.Kind, value.Amount, EnvelopeAllocation.Latest(export.Snapshots, envelope.ItemId, today), holdingsOf, lines),
-                    f.Envelope.Availability, today),
+                    f.Envelope.Availability, today, f.Envelope.EarlyRelease),
                 estimated, figures.AsOf, EnvelopeKinds.IsRetirement(f.Envelope.Kind)));
 
             if (SinceJanuary(f, today) is { StartValue: { } start, NetContributions: { } net, Performance: { } gain })
