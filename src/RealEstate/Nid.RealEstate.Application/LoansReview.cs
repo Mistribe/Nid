@@ -26,7 +26,7 @@ public sealed class LoansReview(
         var zone = await calendar.ZoneAsync(ct);
         var reference = await household.ReferenceCurrencyAsync(ct);
         var read = found.Where(l => accesses.ContainsKey(l.ItemId)).Select(l => (Loan: l, Item: accesses[l.ItemId])).ToList();
-        var foreign = read.Select(x => LoanViews.CurrencyOf(x.Item)).Where(c => c != reference).Distinct().ToList();
+        var foreign = read.Select(x => LoanReading.CurrencyOf(x.Item)).Where(c => c != reference).Distinct().ToList();
         // The reference's own quote is needed too: rates are per USD. Without a foreign loan the table is never looked up
         // (Convert returns a reference amount as is), so an empty one is safe.
         var rates = foreign.Count == 0 ? RateTable.Empty(end, 0) : await fx.LoadAsync([.. foreign, reference], start, end, ct);
@@ -50,7 +50,7 @@ public sealed class LoansReview(
             // Archived on or before Start: off the books on Start, left out. Archived on 1 January: on the books on Start (its start
             // balance, as the net worth), then off them (end 0).
             if (last < start) continue;
-            var currency = LoanViews.CurrencyOf(item);
+            var currency = LoanReading.CurrencyOf(item);
             var terms = LoanReading.Terms(currency, loan.Contract, loan.Fees, loan.Repayments);
             var schedule = LoanReading.Schedule(terms, loan);
             var a = LoanMath.At(terms, schedule, start);

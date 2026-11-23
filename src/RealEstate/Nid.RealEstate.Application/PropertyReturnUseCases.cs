@@ -7,7 +7,7 @@ using Nid.RealEstate.Domain;
 using NodaTime;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Synapse.Abstractions;
-using static Nid.RealEstate.Application.LoanReading;
+using static Nid.RealEstate.Domain.LoanReading;
 
 namespace Nid.RealEstate.Application;
 

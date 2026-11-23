@@ -1,3 +1,4 @@
+using Nid.RealEstate.Domain;
 using Nid.Tax.Application;
 using Nid.Tax.Contracts;
 using Nid.Banking.Application;

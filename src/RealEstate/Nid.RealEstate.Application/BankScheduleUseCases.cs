@@ -105,7 +105,7 @@ public sealed class PreviewBankScheduleHandler(ILoanStore loans, IItemRegistry i
         if (loaded.TryGetFailure(out var failure))
             return Result.Failure<BankSchedulePreview>(failure!);
         loaded.TryGetValue(out var found);
-        var terms = LoanReading.Terms(LoanViews.CurrencyOf(found.Item), found.Loan.Contract, found.Loan.Fees, found.Loan.Repayments);
+        var terms = LoanReading.Terms(LoanReading.CurrencyOf(found.Item), found.Loan.Contract, found.Loan.Fees, found.Loan.Repayments);
         var computed = LoanReading.Computed(terms);
         var read = BankCheck.Read(query.Text, terms, computed);
         if (read.TryGetFailure(out failure))
@@ -135,7 +135,7 @@ internal static class BankWrite
         if (version is { } expected && found.Loan.Version != expected)
             return Result.Failure<ItemId>(LoanCheck.Conflict(LoanCodes.LoanConflict, "loan"));
 
-        var terms = LoanReading.Terms(LoanViews.CurrencyOf(found.Item), found.Loan.Contract, found.Loan.Fees, found.Loan.Repayments);
+        var terms = LoanReading.Terms(LoanReading.CurrencyOf(found.Item), found.Loan.Contract, found.Loan.Fees, found.Loan.Repayments);
         var checkedRows = read(terms, LoanReading.Computed(terms));
         if (checkedRows.TryGetFailure(out failure))
             return Result.Failure<ItemId>(failure!);

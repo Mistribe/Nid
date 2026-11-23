@@ -7,7 +7,7 @@ using NodaTime;
 using NodaTime.Text;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Synapse.Abstractions;
-using static Nid.RealEstate.Application.LoanReading;
+using static Nid.RealEstate.Domain.LoanReading;
 using static Nid.RealEstate.Application.Sums;
 
 namespace Nid.RealEstate.Application;
@@ -92,7 +92,7 @@ public sealed class PropertiesOverviewReader(
         var set = found!;
 
         var grid = PropertiesOverviewMath.Grid(span, today);
-        var currencies = set.Select(p => LoanViews.CurrencyOf(p.Item)).Concat(set.SelectMany(p => p.Loans).Select(l => LoanViews.CurrencyOf(l.Item))).ToHashSet();
+        var currencies = set.Select(p => LoanReading.CurrencyOf(p.Item)).Concat(set.SelectMany(p => p.Loans).Select(l => LoanReading.CurrencyOf(l.Item))).ToHashSet();
         // The reference's own quote is needed too: rates are per USD. The loader reaches back MaxGapDays before the first date.
         var rates = currencies.All(c => c == reference) ? RateTable.Empty(today, 0) : await fx.LoadAsync([.. currencies, reference], grid[0], today, ct);
         return Result.Success(PropertiesOverviewMath.Build(set, reference, rates, today, grid, span, await persons.ListAsync(ct),
@@ -196,7 +196,7 @@ internal static class PropertiesOverviewMath
         var convert = new Converter(reference, rates);
         var read = set.Select(p =>
         {
-            var currency = LoanViews.CurrencyOf(p.Item);
+            var currency = LoanReading.CurrencyOf(p.Item);
             var figures = FiguresOf(p, rates, today);
             return new Read(p, currency, figures,
                 figures.Value is { } v ? convert.Of(v, currency, today) : null,
@@ -204,7 +204,7 @@ internal static class PropertiesOverviewMath
         }).ToList();
         var owed = set.SelectMany(p => p.Loans).Select(l =>
         {
-            var currency = LoanViews.CurrencyOf(l.Item);
+            var currency = LoanReading.CurrencyOf(l.Item);
             var terms = Terms(currency, l.Loan.Contract, l.Loan.Fees, l.Loan.Repayments);
             var schedule = Schedule(terms, l.Loan);
             var balance = LoanMath.At(terms, schedule, today).Balance;
@@ -255,7 +255,7 @@ internal static class PropertiesOverviewMath
     /// </summary>
     internal static PropertyFigures FiguresOf(OverviewProperty p, RateTable rates, LocalDate today)
     {
-        var currency = LoanViews.CurrencyOf(p.Item);
+        var currency = LoanReading.CurrencyOf(p.Item);
         var shared = p.Item.Visibility == Visibility.Shared;
         var figures = PropertyMath.At(p.Property.Details, shared, p.Values, p.Flows,
             p.Loans.Select(l => PropertyReading.Linked(l.Loan, l.Item, currency, rates, today)).ToList(),
@@ -372,7 +372,7 @@ internal static class PropertiesOverviewMath
                 .Select(p => (p, Value: p.Values.LastOrDefault(v => v.AsOf <= date)?.Value.Amount
                     ?? (date >= p.Property.Details.PurchaseDate ? p.Property.Details.PurchasePrice : (decimal?)null)))
                 .Where(x => x.Value is not null)
-                .Select(x => convert.Of(x.Value!.Value, LoanViews.CurrencyOf(x.p.Item), date)).ToList();
+                .Select(x => convert.Of(x.Value!.Value, LoanReading.CurrencyOf(x.p.Item), date)).ToList();
             var balances = owed.Where(o => date >= o.Terms.DisbursedOn)
                 .Select(o => convert.Of(LoanMath.At(o.Terms, o.Schedule, date).Balance, o.Currency, date)).ToList();
             if (estimates.Count == 0 && balances.Count == 0)

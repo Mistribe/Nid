@@ -4,7 +4,7 @@ using Nid.RealEstate.Contracts;
 using Nid.RealEstate.Domain;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Synapse.Abstractions;
-using static Nid.RealEstate.Application.LoanReading;
+using static Nid.RealEstate.Domain.LoanReading;
 
 namespace Nid.RealEstate.Application;
 
@@ -72,7 +72,7 @@ public sealed class GetPropertyArrearsHandler(IPropertyStore properties, IItemRe
         }
 
         return Result.Success(new PropertyArrearsView(
-            found.Property.ItemId, found.Item.DisplayName, LoanViews.CurrencyOf(found.Item).Code, Amount(months.Sum(m => m.Remaining)),
+            found.Property.ItemId, found.Item.DisplayName, LoanReading.CurrencyOf(found.Item).Code, Amount(months.Sum(m => m.Remaining)),
             Amount(overdue.Sum(m => m.Remaining)),
             months.Select(m => new ArrearsMonthView(ReceiptMonths.Wire(m.Month), Amount(m.Due), Amount(m.Imputed), Amount(m.Remaining), m.Overdue,
                 m.Overdue && m.Chain == chain)).ToList(), letter));
@@ -116,7 +116,7 @@ public sealed class GetRentArrearsHandler(
             if (months.Count == 0)
                 continue;
             var item = accesses[p.ItemId];
-            result.Add(new RentArrearsItem(p.ItemId, item.DisplayName, LoanViews.CurrencyOf(item).Code, Amount(months.Sum(m => m.Remaining)),
+            result.Add(new RentArrearsItem(p.ItemId, item.DisplayName, LoanReading.CurrencyOf(item).Code, Amount(months.Sum(m => m.Remaining)),
                 Amount(months.Where(m => m.Overdue).Sum(m => m.Remaining)),
                 months.Select(m => new RentArrearsMonthView(ReceiptMonths.Wire(m.Month), Amount(m.Due), Amount(m.Imputed), Amount(m.Remaining), m.Overdue)).ToList()));
         }

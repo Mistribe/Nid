@@ -316,7 +316,7 @@ public sealed class MixedDataset
             // And its rental (3C2): a planned cost noted with the label and a tenancy labelled with it, after the twin's purchase (2020-01-15).
             // 3E1: the tax falls due today (2025-10-15) and the tenancy ends on 2025-11-30, so both reach « À venir » and its scan.
             var (_, costRefused) = await app.InvokeAsync(writer, new Nid.RealEstate.Application.AddPropertyRecurringCostCommand(
-                properties[row.Name], new Nid.RealEstate.Application.RecurringCostDraft(
+                properties[row.Name], new Nid.RealEstate.Domain.RecurringCostDraft(
                     "property_tax", 800m, 1, DurationUnit.Year, new LocalDate(2020, 10, 15), null, row.Label)));
             var (_, tenancyRefused) = await app.InvokeAsync(writer, new Nid.RealEstate.Application.AddPropertyTenancyCommand(
                 properties[row.Name], new Nid.RealEstate.Contracts.Tenancy(row.Label, new LocalDate(2020, 2, 1), new LocalDate(2025, 11, 30), 500m, 0m, null, null)));

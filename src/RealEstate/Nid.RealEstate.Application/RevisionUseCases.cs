@@ -7,7 +7,7 @@ using NodaTime.Text;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Functional.Failures;
 using UnambitiousFx.Synapse.Abstractions;
-using static Nid.RealEstate.Application.LoanReading;
+using static Nid.RealEstate.Domain.LoanReading;
 
 namespace Nid.RealEstate.Application;
 
@@ -251,7 +251,7 @@ public sealed class GetRentRevisionsHandler(
                   let d = (RevisionDue)c.State
                   let item = accesses[p.ItemId]
                   orderby d.Anniversary, item.DisplayName, c.Last.Id
-                  select new RentRevisionDueView(p.ItemId, item.DisplayName, LoanViews.CurrencyOf(item).Code, c.Last.Id, d.Anniversary,
+                  select new RentRevisionDueView(p.ItemId, item.DisplayName, LoanReading.CurrencyOf(item).Code, c.Last.Id, d.Anniversary,
                       d.From.Quarter.ToString(), Amount(d.From.Value), d.To.Quarter.ToString(), Amount(d.To.Value),
                       Amount(c.Last.Tenancy.RentMonthly), Amount(d.NewRent), d.DefaultEffectiveOn);
         return Result.Success(new RentRevisionList(due.ToList()));

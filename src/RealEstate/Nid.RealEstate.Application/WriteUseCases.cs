@@ -124,7 +124,7 @@ public sealed class ReplaceLoanContractHandler(IItemRegistry items, ILoanStore l
 
         // Rebuilt with the stored fees, repayments and bank table (spec §4, 3F2 precision 4): a repayment or a table the new contract makes impossible refuses it.
         var built = LoanReading.Build(
-            LoanReading.Terms(LoanViews.CurrencyOf(found.Item), command.Contract, found.Loan.Fees, found.Loan.Repayments), LoanReading.BankRows(found.Loan));
+            LoanReading.Terms(LoanReading.CurrencyOf(found.Item), command.Contract, found.Loan.Fees, found.Loan.Repayments), LoanReading.BankRows(found.Loan));
         if (built.TryGetFailure(out failure))
             return Result.Failure<ItemId>(LoanPaths.ForContract(failure!));
 

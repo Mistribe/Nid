@@ -1,6 +1,7 @@
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
 using Nid.RealEstate.Contracts;
+using Nid.RealEstate.Domain;
 using NodaTime;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Functional.Failures;
@@ -8,17 +9,6 @@ using UnambitiousFx.Synapse.Abstractions;
 using Duration = Nid.Core.Contracts.Duration;
 
 namespace Nid.RealEstate.Application;
-
-/// <summary>A planned cost as a body sends it (spec 3C2 §3): its category and its period are checked by the rules, at the body's fields.</summary>
-public sealed record RecurringCostDraft(
-    string? Category, decimal Amount, int EveryCount, DurationUnit EveryUnit, LocalDate StartsOn, LocalDate? EndsOn, string? Note)
-{
-    /// <summary>Once checked: a count of 1 to 120 always makes the Core's period.</summary>
-    public RecurringCost ToCost()
-        => new(Category!, Amount,
-            Duration.Create(EveryCount, EveryUnit).TryGetValue(out var every) ? every : throw new InvalidOperationException("A checked cost has a positive count."),
-            StartsOn, EndsOn, Note);
-}
 
 public sealed record AddPropertyRecurringCostCommand(ItemId ItemId, RecurringCostDraft Cost) : ICommand<Guid>, IItemScoped, ITransactional
 {

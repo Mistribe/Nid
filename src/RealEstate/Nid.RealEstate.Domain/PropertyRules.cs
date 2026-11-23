@@ -2,14 +2,26 @@ using Nid.Core.Contracts;
 using Nid.RealEstate.Contracts;
 using NodaTime;
 using UnambitiousFx.Functional.Failures;
+using Duration = Nid.Core.Contracts.Duration;
 
-namespace Nid.RealEstate.Application;
+namespace Nid.RealEstate.Domain;
+
+/// <summary>A planned cost as a body sends it (spec 3C2 §3): its category and its period are checked by the rules, at the body's fields.</summary>
+public sealed record RecurringCostDraft(
+    string? Category, decimal Amount, int EveryCount, DurationUnit EveryUnit, LocalDate StartsOn, LocalDate? EndsOn, string? Note)
+{
+    /// <summary>Once checked: a count of 1 to 120 always makes the Core's period.</summary>
+    public RecurringCost ToCost()
+        => new(Category!, Amount,
+            Duration.Create(EveryCount, EveryUnit).TryGetValue(out var every) ? every : throw new InvalidOperationException("A checked cost has a positive count."),
+            StartsOn, EndsOn, Note);
+}
 
 /// <summary>
 /// Spec 3C1 §2–§3: the bounds of a property's fields and of its flows. The first refusal wins; null when there is none.
 /// Fields are the body's.
 /// </summary>
-internal static class PropertyRules
+public static class PropertyRules
 {
     public const int LocationLabelMax = 100;
     public const int StaleAfterDaysMax = 3650;

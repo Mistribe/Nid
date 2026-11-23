@@ -1,6 +1,7 @@
 using System.Globalization;
 using Nid.RealEstate.Application;
 using Nid.RealEstate.Contracts;
+using Nid.RealEstate.Domain;
 using NodaTime;
 
 namespace Nid.RealEstate.Tests;
