@@ -430,6 +430,9 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IDocumentTextStore, Nid.Documents.Infrastructure.Persistence.DocumentTextStore>();
         services.AddScoped<DocumentTexts>();
         services.AddScoped<DocumentTextBackfill>();
+        // #559: chunks, full-text and embeddings, indexed in the background (ModelWorkLoop).
+        services.AddScoped<IDocumentIndexStore, Nid.Documents.Infrastructure.Persistence.DocumentIndexStore>();
+        services.AddScoped<DocumentIndexer>();
         services.AddScoped<Nid.Ai.Contracts.IJobResultSink, DocumentTextSink>();
         services.AddScoped<Nid.Ai.Contracts.IJobFileSource, DocumentFileSource>();
         services.AddScoped<Nid.Documents.Contracts.IDocumentLinks, DocumentLinks>();

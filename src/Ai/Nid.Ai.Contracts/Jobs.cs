@@ -125,6 +125,9 @@ public sealed record LlmEmbeddings(string Model, int Dimension, IReadOnlyList<IR
 /// <summary>How a module embeds text (#558): through the gateway, on the household's workers (cloud providers: #556).</summary>
 public interface IEmbeddings
 {
+    /// <summary>The model the <c>embed</c> use runs on now; null while the use is off or has none (#559: what to embed for).</summary>
+    Task<string?> ModelAsync(CancellationToken ct);
+
     /// <summary>A refusal carries its <see cref="JobCodes"/> code: the use off or without a model, nowhere to send it, the
     /// worker failed.</summary>
     Task<Result<LlmEmbeddings>> EmbedAsync(LlmEmbedRequest request, CancellationToken ct);

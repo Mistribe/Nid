@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Nid.Documents.Infrastructure.Persistence;
 using NodaTime;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
+using NpgsqlTypes;
 
 #nullable disable
 
@@ -17,7 +18,7 @@ partial class DocumentsDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261123160513_VectorExtension";
+    public override string LastMigrationId => "20261123163458_DocumentChunks";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -29,6 +30,55 @@ partial class DocumentsDbContextModelSnapshot : ModelSnapshot
 
         NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "vector");
         NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+
+        modelBuilder.Entity("Nid.Documents.Infrastructure.Persistence.DocumentChunkRow", b =>
+            {
+                b.Property<Guid>("Id")
+                    .HasColumnType("uuid")
+                    .HasColumnName("id");
+
+                b.Property<Guid>("DocumentId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("document_id");
+
+                b.Property<int>("Ordinal")
+                    .HasColumnType("integer")
+                    .HasColumnName("ordinal");
+
+                b.Property<int>("Page")
+                    .HasColumnType("integer")
+                    .HasColumnName("page");
+
+                b.Property<NpgsqlTsVector>("Search")
+                    .IsRequired()
+                    .ValueGeneratedOnAddOrUpdate()
+                    .HasColumnType("tsvector")
+                    .HasColumnName("search")
+                    .HasAnnotation("Npgsql:TsVectorConfig", "french")
+                    .HasAnnotation("Npgsql:TsVectorProperties", new[] { "Text" });
+
+                b.Property<string>("Text")
+                    .IsRequired()
+                    .HasColumnType("text")
+                    .HasColumnName("text");
+
+                b.HasKey("Id")
+                    .HasName("pk_document_chunk");
+
+                var index = b.HasIndex("Search")
+                    .HasDatabaseName("ix_document_chunk_search");
+
+                NpgsqlIndexBuilderExtensions.HasMethod(index, "GIN");
+
+                b.HasIndex("DocumentId", "Ordinal")
+                    .IsUnique()
+                    .HasDatabaseName("ix_document_chunk_document_id_ordinal");
+
+                b.ToTable("document_chunk", "documents", t =>
+                    {
+                        t.HasCheckConstraint("ck_document_chunk_page", "page >= 1");
+                    });
+            });
 
         modelBuilder.Entity("Nid.Documents.Infrastructure.Persistence.DocumentLinkRow", b =>
             {
@@ -401,6 +451,16 @@ partial class DocumentsDbContextModelSnapshot : ModelSnapshot
 
                         t.HasCheckConstraint("ck_audit_log_category", "category in ('write','security','import')");
                     });
+            });
+
+        modelBuilder.Entity("Nid.Documents.Infrastructure.Persistence.DocumentChunkRow", b =>
+            {
+                b.HasOne("Nid.Documents.Infrastructure.Persistence.DocumentRow", null)
+                    .WithMany()
+                    .HasForeignKey("DocumentId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired()
+                    .HasConstraintName("fk_document_chunk_document_document_id");
             });
 
         modelBuilder.Entity("Nid.Documents.Infrastructure.Persistence.DocumentLinkRow", b =>

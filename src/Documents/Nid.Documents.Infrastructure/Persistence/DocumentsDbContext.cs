@@ -24,6 +24,8 @@ public sealed class DocumentsDbContext(DbContextOptions<DocumentsDbContext> opti
 
     public DbSet<DocumentTextJobRow> TextJobs => Set<DocumentTextJobRow>();
 
+    public DbSet<DocumentChunkRow> Chunks => Set<DocumentChunkRow>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schema);
@@ -84,6 +86,16 @@ public sealed class DocumentsDbContext(DbContextOptions<DocumentsDbContext> opti
             e.ToTable("document_text_job");
             e.HasKey(x => x.DocumentId);
             e.HasOne<DocumentRow>().WithMany().HasForeignKey(x => x.DocumentId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<DocumentChunkRow>(e =>
+        {
+            e.ToTable("document_chunk", t => t.HasCheckConstraint("ck_document_chunk_page", "page >= 1"));
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.HasIndex(x => new { x.DocumentId, x.Ordinal }).IsUnique();
+            e.HasOne<DocumentRow>().WithMany().HasForeignKey(x => x.DocumentId).OnDelete(DeleteBehavior.Cascade);
+            e.HasGeneratedTsVectorColumn(x => x.Search, "french", x => new { x.Text }).HasIndex(x => x.Search).HasMethod("GIN");
         });
 
         modelBuilder.MapAuditLog(ownedHere: false);

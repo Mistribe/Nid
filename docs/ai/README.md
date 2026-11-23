@@ -386,6 +386,15 @@ du moteur.
   - au démarrage, un rattrapage le demande pour les documents qui ne l'ont jamais eu (`documents.document_text_job`) ;
   - Ai remet le résultat, lu par le contrat, à Documents (`IJobResultSink`) avant de clore le job ;
   - les pages vont dans `documents.document_text`, supprimées avec leur document.
+- **Index (#559) :** toutes les 30 s, dans la boucle des jobs, `DocumentIndexer` fait deux choses.
+  - Il coupe en morceaux chaque nouveau texte (`documents.document_chunk`, avec un `tsvector` français).
+  - Il plonge, par lots de 32 et par `IEmbeddings` (#558), les morceaux qui n'ont pas de vecteur du modèle `embed`
+    courant : 20 documents au plus par passage.
+  - Un bulletin de paie (rôle `payslip`) est `local_only` ; les adultes concernés sont ceux du texte.
+  - Un refus propre au document (`ai.offsite_not_allowed`, `ai.no_safe_worker`, entrée ou résultat invalide) le
+    laisse de côté pour ce passage. Tout autre refus (usage éteint, pas de worker) arrête le passage.
+  - Changer de modèle replonge tout. Les anciens vecteurs d'un document partent dès qu'il a tous les nouveaux, si bien
+    que la recherche (#170) en a toujours un jeu.
 
 ## 4. Deux modes (question 2)
 

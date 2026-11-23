@@ -11,6 +11,9 @@ namespace Nid.Ai.Application;
 public sealed class LlmEmbedder(
     IAiSettings settings, IModelRequests requests, IAssistantPeople people, ILlmCalls calls, IActorAccessor actors, IClock clock) : IEmbeddings
 {
+    public async Task<string?> ModelAsync(CancellationToken ct)
+        => await settings.UseAsync(ModelUses.Embed, ct) is { Mode: not UseModes.Off, Model: { } model } ? model : null;
+
     /// <summary>#558: the <c>embed</c> use's model on the household's workers, local ones only without <c>allow</c> from each
     /// adult concerned. A mode that would open the cloud stays on the workers until #556.</summary>
     public async Task<Result<LlmEmbeddings>> EmbedAsync(LlmEmbedRequest request, CancellationToken ct)
