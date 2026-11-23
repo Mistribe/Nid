@@ -36,7 +36,7 @@ public sealed class ChatRequestTests(PostgresFixture fixture) : IClassFixture<Po
             var input = new ChatRequestInput("llama3.2", [new ChatMessage(ChatRole.User, "Bonjour")], [], 128);
             await foreach (var frame in scope.ServiceProvider.GetRequiredService<IModelRequests>()
                                .StreamAsync("chat", 1, ContractJson.Write(input), "documents", null, TestContext.Current.CancellationToken))
-                outputs.Add(ContractJson.Read<ChatRequestOutput>(frame.Span));
+                outputs.Add(ContractJson.Read<ChatRequestOutput>(frame.OrThrow().Span));
         }
 
         Assert.Equal("Bonjour Alice.", string.Concat(outputs.Select(o => o.Text)));

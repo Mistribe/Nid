@@ -134,7 +134,7 @@ public sealed class PolicyTests(PostgresFixture fixture) : IClassFixture<Postgre
     {
         await using var world = await PairedWorld.StartAsync(fixture);
 
-        var refused = await Assert.ThrowsAsync<ModelCallException>(() => SubmitAsync(world, "none", "test-gate", new { n = 1 }, allowsNoData: false, contract: true));
+        var refused = await Assert.ThrowsAsync<ModelRefused>(() => SubmitAsync(world, "none", "test-gate", new { n = 1 }, allowsNoData: false, contract: true));
 
         Assert.Equal(JobCodes.UnknownDataClass, refused.Code);
     }
@@ -162,7 +162,7 @@ public sealed class PolicyTests(PostgresFixture fixture) : IClassFixture<Postgre
         await using var scope = Scope(world);
         return await scope.ServiceProvider.GetRequiredService<IModelJobs>().SubmitAsync(
             new JobRequest("echo", 1, JsonSerializer.SerializeToElement(new EchoJobInput("hello"), ContractJson.Strict), dataClass),
-            TestContext.Current.CancellationToken);
+            TestContext.Current.CancellationToken).OrThrow();
     }
 
     /// <summary>A job of a test type, through a contract registered for this call only.</summary>
@@ -172,7 +172,7 @@ public sealed class PolicyTests(PostgresFixture fixture) : IClassFixture<Postgre
         var jobs = new ModelJobs(scope.ServiceProvider.GetRequiredService<IJobStore>(),
             new ModelContracts(contract ? [new TestContract(type, allowsNoData)] : []),
             scope.ServiceProvider.GetRequiredService<NodaTime.IClock>());
-        return await jobs.SubmitAsync(new JobRequest(type, 1, JsonSerializer.SerializeToElement(input), dataClass), TestContext.Current.CancellationToken);
+        return await jobs.SubmitAsync(new JobRequest(type, 1, JsonSerializer.SerializeToElement(input), dataClass), TestContext.Current.CancellationToken).OrThrow();
     }
 
     private static async Task<ModelJobView> ViewAsync(PairedWorld world, Guid id)

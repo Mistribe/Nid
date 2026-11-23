@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
 using Nid.Ai.Application;
 using Nid.Ai.Protocol.Contracts;
+using UnambitiousFx.Functional;
 
 namespace Nid.Host.IntegrationTests.Mcp;
 
@@ -11,12 +12,20 @@ internal sealed class ScriptedGateway(LlmDestination destination, params Func<Ll
 
     public TimeSpan Delay { get; init; }
 
-    public async IAsyncEnumerable<ChatRequestOutput> ChatAsync(LlmChatRequest request, [EnumeratorCancellation] CancellationToken ct)
+    /// <summary>The code every call is refused with, before any output.</summary>
+    public string? Refuses { get; init; }
+
+    public async IAsyncEnumerable<Result<ChatRequestOutput>> ChatAsync(LlmChatRequest request, [EnumeratorCancellation] CancellationToken ct)
     {
         var step = steps[Math.Min(Requests.Count, steps.Length - 1)];
         Requests.Add(request with { Messages = [.. request.Messages] });
         if (Delay > TimeSpan.Zero)
             await Task.Delay(Delay, ct);
+        if (Refuses is not null)
+        {
+            yield return ModelFailures.Of(Refuses);
+            yield break;
+        }
         var outputs = step(request);
         request.Served?.Invoke(destination);
         foreach (var output in outputs)

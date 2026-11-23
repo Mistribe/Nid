@@ -135,15 +135,14 @@ public sealed partial class AssistantLoop(
             {
                 while (true)
                 {
-                    var (more, failure) = await NextAsync(outputs, ct);
+                    var (output, failure) = await NextAsync(outputs, ct);
                     if (failure is not null)
                     {
                         yield return failure is AssistantDone done ? done with { Provider = destination?.Name ?? "" } : failure;
                         yield break;
                     }
-                    if (!more)
+                    if (output is null)
                         break;
-                    var output = outputs.Current;
                     if (output.Text is { } piece)
                     {
                         text.Append(piece);
@@ -295,21 +294,20 @@ public sealed partial class AssistantLoop(
         }
     }
 
-    /// <summary>The next output, or how the turn ends instead: a refused call, or the turn's time spent.</summary>
-    private static async Task<(bool More, AssistantEvent? Failure)> NextAsync(IAsyncEnumerator<ChatRequestOutput> outputs, CancellationToken caller)
+    /// <summary>The next output (null at the end), or how the turn ends instead: a refused call, or the turn's time spent.</summary>
+    private static async Task<(ChatRequestOutput? Output, AssistantEvent? Failure)> NextAsync(
+        IAsyncEnumerator<UnambitiousFx.Functional.Result<ChatRequestOutput>> outputs, CancellationToken caller)
     {
         try
         {
-            return (await outputs.MoveNextAsync(), null);
-        }
-        catch (ModelCallException e)
-        {
-            return (false, new AssistantFailed(e.Code));
+            if (!await outputs.MoveNextAsync())
+                return (null, null);
         }
         catch (OperationCanceledException) when (!caller.IsCancellationRequested)
         {
-            return (false, new AssistantDone("", "", AssistantStops.TimedOut));
+            return (null, new AssistantDone("", "", AssistantStops.TimedOut));
         }
+        return outputs.Current.TryGet(out var output, out var failure) ? (output, null) : (null, new AssistantFailed(failure!.Code));
     }
 }
 

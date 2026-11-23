@@ -3,6 +3,7 @@ using Nid.Ai.Contracts;
 using Nid.Ai.Protocol.Contracts;
 using Nid.Platform.Contracts;
 using NodaTime;
+using UnambitiousFx.Functional;
 
 namespace Nid.Ai.Application;
 
@@ -52,7 +53,7 @@ public static class LlmClasses
     public static bool IsCloud(string pin) => pin.StartsWith(Cloud, StringComparison.Ordinal);
 
     /// <summary>A worker's class, as <see cref="LlmDestination.Class"/> words it.</summary>
-    public static string Of(WorkerRecord worker)
+    public static string Of(ServingWorker worker)
         => (worker.Placement == WorkerPlacement.Remote ? "remote" : "local") + (worker.Safe ? "+safe" : "");
 }
 
@@ -66,8 +67,8 @@ public enum LlmPlacement
 /// <summary>The one way to a model: every call is checked, routed along the household's chain and recorded.</summary>
 public interface ILlmGateway
 {
-    /// <summary>The turn as it streams; a call that cannot go anywhere throws <see cref="ModelCallException"/> with its reason.</summary>
-    IAsyncEnumerable<ChatRequestOutput> ChatAsync(LlmChatRequest request, CancellationToken ct);
+    /// <summary>The turn as it streams; a call that cannot go anywhere, or fails, ends on a failure with its <see cref="JobCodes"/> code.</summary>
+    IAsyncEnumerable<Result<ChatRequestOutput>> ChatAsync(LlmChatRequest request, CancellationToken ct);
 }
 
 /// <summary>One link of the chain (§5.3): the household's workers first, then the enabled cloud profiles (#487).</summary>
@@ -79,8 +80,8 @@ public interface ILlmProvider
     /// <summary>Whether a use in <paramref name="mode"/> may reach this link at all.</summary>
     bool Allows(string mode);
 
-    /// <summary>The turn; <see cref="ModelCallException"/> before any output when this link has nowhere to send it.</summary>
-    IAsyncEnumerable<ChatRequestOutput> ChatAsync(ChatRequestInput input, string dataClass, LlmCallTrace trace, CancellationToken ct);
+    /// <summary>The turn; a failure first when this link has nowhere to send it, last when it failed on the way.</summary>
+    IAsyncEnumerable<Result<ChatRequestOutput>> ChatAsync(ChatRequestInput input, string dataClass, LlmCallTrace trace, CancellationToken ct);
 }
 
 /// <summary>What a provider learns while it serves a call, for its <c>llm_call</c> row.</summary>
@@ -136,46 +137,38 @@ public sealed class LlmGateway(
         [JobCodes.NoWorker, JobCodes.AllOffline, JobCodes.RemoteNotAllowed, JobCodes.NoSafeWorker, JobCodes.ModelUnavailable,
             JobCodes.CloudNotAllowed, JobCodes.NoCloudProfile];
 
-    public async IAsyncEnumerable<ChatRequestOutput> ChatAsync(LlmChatRequest request, [EnumeratorCancellation] CancellationToken ct)
+    public async IAsyncEnumerable<Result<ChatRequestOutput>> ChatAsync(LlmChatRequest request, [EnumeratorCancellation] CancellationToken ct)
     {
         var started = clock.GetCurrentInstant();
         var trace = new LlmCallTrace { Pin = request.Pin };
         var outcome = new Outcome();
         try
         {
-            ChatRequestInput input;
-            List<ILlmProvider> chain;
-            try
+            var use = await settings.UseAsync(request.Use, ct);
+            outcome.Model = use.Model;
+            if (!Check(request, use).TryGet(out var input, out var refused))
             {
-                var use = await settings.UseAsync(request.Use, ct);
-                outcome.Model = use.Model;
-                input = Check(request, use);
-                chain = [.. providers.Where(p => p.Allows(use.Mode)).OrderBy(p => p.Order)];
-            }
-            catch (ModelCallException e)
-            {
-                outcome.Fail(e.Code);
-                throw;
+                outcome.Fail(refused!.Code);
+                yield return Result.Failure<ChatRequestOutput>(refused);
+                yield break;
             }
 
             var reason = JobCodes.NoWorker;
-            foreach (var provider in chain)
+            foreach (var provider in providers.Where(p => p.Allows(use.Mode)).OrderBy(p => p.Order))
             {
                 await using var outputs = provider.ChatAsync(input, request.DataClass, trace, ct).GetAsyncEnumerator(ct);
-                bool any;
-                try
+                var any = await outputs.MoveNextAsync();
+                if (any && outputs.Current.TryGetFailure(out var first))
                 {
-                    any = await outputs.MoveNextAsync();
-                }
-                catch (ModelCallException e) when (NoDestination.Contains(e.Code))
-                {
-                    reason = e.Code; // nowhere here: the next link may take it
-                    continue;
-                }
-                catch (ModelCallException e)
-                {
-                    outcome.Fail(e.Code);
-                    throw;
+                    if (NoDestination.Contains(first!.Code))
+                    {
+                        reason = first.Code; // nowhere here: the next link may take it
+                        continue;
+                    }
+
+                    outcome.Fail(first.Code);
+                    yield return outputs.Current;
+                    yield break;
                 }
 
                 if (trace.Destination is { } served)
@@ -185,9 +178,16 @@ public sealed class LlmGateway(
                     outcome.Model = null; // the profile's model: the usage frame says which
                 while (any)
                 {
-                    usage = outputs.Current.Usage ?? usage;
-                    yield return outputs.Current;
-                    any = await NextAsync(outputs, outcome);
+                    if (!outputs.Current.TryGet(out var output, out var failed))
+                    {
+                        outcome.Fail(failed!.Code);
+                        yield return outputs.Current;
+                        yield break;
+                    }
+
+                    usage = output.Usage ?? usage;
+                    yield return output;
+                    any = await outputs.MoveNextAsync();
                 }
 
                 outcome.Model ??= usage?.Model;
@@ -199,7 +199,7 @@ public sealed class LlmGateway(
             if (request.Pin is not null)
                 reason = JobCodes.DestinationClassUnavailable;
             outcome.Fail(reason);
-            throw new ModelCallException(reason);
+            yield return ModelFailures.Of(reason);
         }
         finally
         {
@@ -210,32 +210,19 @@ public sealed class LlmGateway(
         }
     }
 
-    private static async Task<bool> NextAsync(IAsyncEnumerator<ChatRequestOutput> outputs, Outcome outcome)
-    {
-        try
-        {
-            return await outputs.MoveNextAsync();
-        }
-        catch (ModelCallException e)
-        {
-            outcome.Fail(e.Code);
-            throw;
-        }
-    }
-
     /// <summary>What the gateway checks before anything leaves (§9): the use is on and may chat, a model is set, the turn holds.</summary>
-    private static ChatRequestInput Check(LlmChatRequest request, UseSetting use)
+    private static Result<ChatRequestInput> Check(LlmChatRequest request, UseSetting use)
     {
         if (!ModelUses.All.Contains(request.Use) || !ModelUses.TakesChat(request.Use))
-            throw new ModelCallException(JobCodes.TaskNotAllowed);
+            return ModelFailures.Of(JobCodes.TaskNotAllowed);
         if (request.Tools.Count > 0 && request.Use != ModelUses.Chat)
-            throw new ModelCallException(JobCodes.TaskNotAllowed); // tools only for the chat (§9)
+            return ModelFailures.Of(JobCodes.TaskNotAllowed); // tools only for the chat (§9)
         if (use.Mode == UseModes.Off)
-            throw new ModelCallException(JobCodes.UseOff);
+            return ModelFailures.Of(JobCodes.UseOff);
         if (use.Model is not { } model)
-            throw new ModelCallException(JobCodes.NoModel);
+            return ModelFailures.Of(JobCodes.NoModel);
         var input = new ChatRequestInput(model, request.Messages, request.Tools, request.MaxTokens, request.Temperature);
-        return input.IsValid() ? input : throw new ModelCallException(JobCodes.InvalidInput);
+        return input.IsValid() ? input : ModelFailures.Of(JobCodes.InvalidInput);
     }
 
     /// <summary>How the call ended, for its row: an error with no code until it says otherwise (a caller that left).</summary>
@@ -276,17 +263,22 @@ public sealed class WorkerProvider(IModelRequests requests) : ILlmProvider
 
     public bool Allows(string mode) => mode is UseModes.SelfHosted or UseModes.SelfHostedThenCloud;
 
-    public async IAsyncEnumerable<ChatRequestOutput> ChatAsync(
+    public async IAsyncEnumerable<Result<ChatRequestOutput>> ChatAsync(
         ChatRequestInput input, string dataClass, LlmCallTrace trace, [EnumeratorCancellation] CancellationToken ct)
     {
         if (trace.Pin is { } cloud && LlmClasses.IsCloud(cloud))
-            throw new ModelCallException(JobCodes.NoWorker); // pinned to a cloud provider: no worker may see this turn
+        {
+            yield return ModelFailures.Of(JobCodes.NoWorker); // pinned to a cloud provider: no worker may see this turn
+            yield break;
+        }
+
         await foreach (var frame in requests.StreamAsync("chat", 1, ContractJson.Write(input), dataClass, null, ct,
                            model: input.Model, served: worker => (trace.WorkerId, trace.Destination) = (worker.Id, new LlmDestination(
                                worker.Placement == WorkerPlacement.Remote ? LlmPlacement.Remote : LlmPlacement.Local, worker.Name, WorkerId: worker.Id,
-                               ContextTokens: WorkerRouter.DeclarationOf(worker)?.Models.FirstOrDefault(m => m.Name == input.Model)?.ContextTokens,
-                               Safe: worker.Safe)),
+                               ContextTokens: worker.ContextTokens, Safe: worker.Safe)),
                            only: trace.Pin is { } pin ? worker => LlmClasses.Of(worker) == pin : null))
-            yield return ContractJson.Read<ChatRequestOutput>(frame.Span);
+            yield return frame.TryGet(out var data, out var failed)
+                ? ContractJson.Read<ChatRequestOutput>(data.Span)
+                : Result.Failure<ChatRequestOutput>(failed!);
     }
 }

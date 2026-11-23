@@ -288,7 +288,7 @@ public static class NidServiceCollectionExtensions
         services.AddSingleton<Nid.Ai.Application.IModelContract, Nid.Ai.Application.EchoRequestContract>();
         services.AddSingleton<Nid.Ai.Application.IModelContract, Nid.Ai.Application.ChatRequestContract>();
         services.AddSingleton<Nid.Ai.Application.ModelContracts>();
-        services.AddScoped<Nid.Ai.Application.IModelJobs, Nid.Ai.Application.ModelJobs>();
+        services.AddScoped<Nid.Ai.Contracts.IModelJobs, Nid.Ai.Application.ModelJobs>();
         services.AddScoped<Nid.Ai.Application.IWorkerRouter, Nid.Ai.Application.WorkerRouter>();
         services.AddScoped<Nid.Ai.Application.WorkerRefresher>();
         services.AddScoped<Nid.Ai.Application.IWorkerMonitor, Nid.Ai.Application.WorkerMonitor>();
@@ -297,7 +297,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<Nid.Ai.Application.IConversations, Nid.Ai.Infrastructure.Persistence.ConversationStore>();
         services.AddScoped<Nid.Ai.Application.IAssistantPeople, Nid.Ai.Infrastructure.Persistence.AssistantPeopleStore>();
         services.AddScoped<Nid.Ai.Application.IConversationPurge, Nid.Ai.Application.ConversationPurge>();
-        services.AddScoped<Nid.Ai.Application.IModelRequests, Nid.Ai.Application.ModelRequests>();
+        services.AddScoped<Nid.Ai.Contracts.IModelRequests, Nid.Ai.Application.ModelRequests>();
         // #486: the one way to a model; workers are the first link of the chain.
         services.AddScoped<Nid.Ai.Application.ILlmCalls, Nid.Ai.Infrastructure.Persistence.LlmCallStore>();
         services.AddScoped<Nid.Ai.Application.ILlmCallReads, Nid.Ai.Infrastructure.Persistence.LlmCallReads>();
