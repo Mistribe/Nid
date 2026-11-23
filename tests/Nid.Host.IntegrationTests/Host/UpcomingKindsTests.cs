@@ -1,4 +1,6 @@
+using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Application.Calendar;
+using Nid.Core.Application.Dashboard;
 using Nid.Core.Contracts;
 using Nid.TestSupport;
 using NodaTime;
@@ -6,10 +8,10 @@ using NodaTime;
 namespace Nid.Host.IntegrationTests.Host;
 
 /// <summary>
-/// Issue #514: every event kind of « À venir », with its cadence and its words in the calendar feed over a fixed set of labels, reads as
-/// <c>Snapshots/upcoming-kinds.txt</c>. <c>NID_UPDATE_SNAPSHOTS=1</c> rewrites it.
+/// Issue #514: every event kind of « À venir » the modules declare, with its cadence and its words in the calendar feed over a fixed set of
+/// labels, reads as <c>Snapshots/upcoming-kinds.txt</c>. <c>NID_UPDATE_SNAPSHOTS=1</c> rewrites it.
 /// </summary>
-public class UpcomingKindsTests
+public class UpcomingKindsTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static readonly string?[] Labels =
     [
@@ -18,17 +20,20 @@ public class UpcomingKindsTests
     ];
 
     [Fact]
-    public void Every_kind_reads_as_its_snapshot()
+    public async Task Every_kind_reads_as_its_snapshot()
     {
+        await using var app = await NidApp.StartAsync(fixture);
+        var kinds = app.Services.GetRequiredService<UpcomingCatalog>();
+
         var lines = new List<string>();
-        foreach (var (kind, cadence) in UpcomingKinds.Cadence.OrderBy(k => k.Key, StringComparer.Ordinal))
+        foreach (var (kind, declared) in kinds.Kinds.OrderBy(k => k.Key, StringComparer.Ordinal))
         {
-            lines.Add($"{kind} — {cadence}, milestone: {UpcomingKinds.IsMilestone(kind)}");
+            lines.Add($"{kind} — {declared.Cadence}, milestone: {kinds.IsMilestone(kind)}");
             foreach (var label in Labels)
             {
                 var item = new DashboardEventView(new LocalDate(2027, 3, 1), kind, new ItemId(Guid.Empty), "subscriptions", "Maison", label, null);
                 var household = item with { Id = null, Name = "Alice" };
-                lines.Add($"  {label ?? "(none)"} | {CalendarIcs.Summary(item)} | {CalendarIcs.Summary(household)}");
+                lines.Add($"  {label ?? "(none)"} | {CalendarIcs.Summary(item, kinds)} | {CalendarIcs.Summary(household, kinds)}");
             }
         }
 

@@ -264,7 +264,7 @@ public sealed class GetCalendarHandler(
 }
 
 /// <summary>
-/// Issue #240: the calendar's timeline, the milestones (<see cref="UpcomingKinds.IsMilestone"/>) of <c>Modules</c> (null: every module)
+/// Issue #240: the calendar's timeline, the milestones (<see cref="UpcomingCatalog.IsMilestone"/>) of <c>Modules</c> (null: every module)
 /// from today over <c>HorizonYears</c> (one of <see cref="GetCalendarTimelineHandler.Horizons"/>).
 /// </summary>
 public sealed record GetCalendarTimelineQuery(VisibilityScope Scope, int HorizonYears, IReadOnlyList<string>? Modules) : IQuery<CalendarView>;

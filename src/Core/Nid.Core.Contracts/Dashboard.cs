@@ -259,40 +259,23 @@ public static class UpcomingKinds
     public const string TaxNewRate = "tax_new_rate";
     public const string TaxBalanceDue = "tax_balance_due";
     public const string PropertyTaxDue = "property_tax_due";
-
-    /// <summary>
-    /// Issue #240: whether each kind comes back every period (<see cref="UpcomingCadence.Recurring"/>) or marks a date that happens once
-    /// (<see cref="UpcomingCadence.Milestone"/>); the calendar's timeline lists the milestones only. Every kind declares one.
-    /// </summary>
-    public static readonly IReadOnlyDictionary<string, string> Cadence = new Dictionary<string, string>
-    {
-        [SubscriptionRenewal] = UpcomingCadence.Recurring,
-        [SubscriptionExpiry] = UpcomingCadence.Milestone,
-        [SubscriptionCancelDeadline] = UpcomingCadence.Milestone,
-        [SubscriptionTrialEnd] = UpcomingCadence.Milestone,
-        [SubscriptionPriceIncrease] = UpcomingCadence.Milestone,
-        [IncomePhaseEnd] = UpcomingCadence.Milestone,
-        [IncomeGapSoon] = UpcomingCadence.Milestone,
-        [LoanPhaseEnd] = UpcomingCadence.Milestone,
-        [LoanEnd] = UpcomingCadence.Milestone,
-        [ValuationDue] = UpcomingCadence.Recurring,
-        [PropertyCostDue] = UpcomingCadence.Recurring,
-        [TenancyEnd] = UpcomingCadence.Milestone,
-        [HoldingMaturity] = UpcomingCadence.Milestone,
-        [HoldingEntitlement] = UpcomingCadence.Milestone,
-        [TaxMilestone] = UpcomingCadence.Milestone,
-        [PerDeadline] = UpcomingCadence.Recurring,
-        [PerCeilingExpiring] = UpcomingCadence.Recurring,
-        [TaxFilingDeadline] = UpcomingCadence.Recurring,
-        [TaxNewRate] = UpcomingCadence.Recurring,
-        [TaxBalanceDue] = UpcomingCadence.Recurring,
-        [PropertyTaxDue] = UpcomingCadence.Recurring,
-    };
-
-    public static bool IsMilestone(string kind) => Cadence.TryGetValue(kind, out var cadence) && cadence == UpcomingCadence.Milestone;
 }
 
-/// <summary>Issue #240: an event kind's cadence (<see cref="UpcomingKinds.Cadence"/>).</summary>
+/// <summary>
+/// Issue #514: an event kind of « À venir », declared by the module that dates it (<see cref="IUpcomingKinds"/>). Issue #240: whether it
+/// comes back every period (<see cref="UpcomingCadence.Recurring"/>) or marks a date that happens once (<see cref="UpcomingCadence.Milestone"/>);
+/// the calendar's timeline lists the milestones only. Issue #80: <paramref name="Summary"/> is what the calendar feed says of an event from its
+/// label, in the dashboard's French; null leaves the event out of the feed.
+/// </summary>
+public sealed record UpcomingKind(string Kind, string Cadence, Func<string?, string?> Summary);
+
+/// <summary>Issue #514: the event kinds a module dates; Core reads every one the host registers, so a new module adds kinds without touching Core.</summary>
+public interface IUpcomingKinds
+{
+    IReadOnlyList<UpcomingKind> Kinds { get; }
+}
+
+/// <summary>Issue #240: an event kind's cadence (<see cref="UpcomingKind.Cadence"/>).</summary>
 public static class UpcomingCadence
 {
     public const string Recurring = "recurring";
