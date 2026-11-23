@@ -92,6 +92,18 @@ describe('Réglages › Banques', () => {
     expect(screen.getByRole('region', { name: 'Crédit Agricole' })).toHaveTextContent('En erreur');
   });
 
+  it('says a connection the transfer of the installation application ended, and offers only to delete it (#414)', async () => {
+    serveBanks([connection({ status: 'revoked', lastErrorCode: 'banking.application_transferred' })]);
+    const { user } = await renderApp('/settings/banks');
+
+    const region = await screen.findByRole('region', { name: 'BNP Paribas' });
+    expect(region).toHaveTextContent('Terminée');
+    expect(region).toHaveTextContent('reliez à nouveau cette banque avec votre propre application');
+    await user.click(within(region).getByRole('button', { name: 'Actions sur BNP Paribas' }));
+    expect(screen.queryByRole('menuitem', { name: 'Renouveler' })).toBeNull();
+    expect(screen.getByRole('menuitem', { name: 'Supprimer' })).toBeInTheDocument();
+  });
+
   it('invites to connect a bank when there is none', async () => {
     serveBanks([]);
     await renderApp('/settings/banks');
@@ -108,11 +120,12 @@ describe('Réglages › Banques', () => {
     expect(within(screen.getByRole('navigation', { name: 'Réglages' })).getByRole('link', { name: 'Apparence' })).toBeInTheDocument();
   });
 
-  it('says the administrator has yet to configure it when it is on without its application', async () => {
+  it('offers the wizard instead of « Relier une banque » while the adult has no application of their own', async () => {
     server.use(http.get('*/api/v1/banking/status', () => HttpResponse.json({ enabled: true, configured: false })));
     await renderApp('/settings/banks');
 
-    expect(await screen.findByText(/pas encore configurée/)).toBeInTheDocument();
+    expect(await screen.findByText('Pour relier une banque, créez d’abord votre propre application Enable Banking.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Créer mon application' })).toHaveAttribute('href', '/settings/banks?tab=application&step=1');
     expect(within(screen.getByRole('navigation', { name: 'Réglages' })).getByRole('link', { name: 'Banques' })).toBeInTheDocument();
   });
 
@@ -121,15 +134,15 @@ describe('Réglages › Banques', () => {
     await renderApp('/settings/banks');
 
     expect(await screen.findByText(/Nid n'a pas chargé la clé privée/)).toBeInTheDocument();
-    expect(screen.queryByText(/pas encore configurée/)).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Créer mon application' })).toBeNull();
     expect(screen.getByRole('link', { name: 'Voir Administration › Banque' })).toHaveAttribute('href', '/admin/banking');
   });
 
-  it('names both parts when neither the id nor the key is there', async () => {
-    server.use(http.get('*/api/v1/banking/status', () => HttpResponse.json({ enabled: true, configured: false, appIdSaved: false, keyStatus: 'missing' })));
+  it('offers the administrator the wizard too once the installation has no application (#414)', async () => {
+    server.use(http.get('*/api/v1/banking/status', () => HttpResponse.json({ enabled: true, configured: false, appIdSaved: false, keyStatus: 'loaded' })));
     await renderApp('/settings/banks');
 
-    expect(await screen.findByText(/il manque l'identifiant de l'application Enable Banking et sa clé privée/)).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: 'Créer mon application' })).toBeInTheDocument();
   });
 
   it('without Enable Banking, still lists the imported accounts and offers « Importer un relevé », not « Relier une banque »', async () => {
@@ -139,7 +152,7 @@ describe('Réglages › Banques', () => {
     );
     await renderApp('/settings/banks');
 
-    expect(await screen.findByText(/pas encore configurée/)).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: 'Créer mon application' })).toBeInTheDocument();
     expect(within(await screen.findByRole('region', { name: 'Comptes non synchronisés' })).getByRole('table')).toHaveTextContent('Relevé ·8901');
     expect(screen.getByRole('button', { name: 'Importer un relevé' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Relier une banque' })).toBeNull();
@@ -323,7 +336,7 @@ describe('Réglages › Banques', () => {
     serveBanks([]);
     await renderApp('/settings/banks');
 
-    await screen.findByRole('button', { name: 'Déclarer mon application' });
+    await screen.findByText('Étape 1 sur 9');
     expect(headings()[0]).toBe('Mon application Enable Banking');
   });
 

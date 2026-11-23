@@ -33,8 +33,8 @@ public static class BankingEndpoints
         var api = routes.MapGroup("/api/v1/banking").RequireAuthorization()
             .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>();
 
-        api.MapGet("/status", async (IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new GetBankingStatusQuery(), ct)).ToHttp(status => status))
+        api.MapGet("/status", async (IOptions<NidAuthOptions> auth, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new GetBankingStatusQuery(Callback(auth)), ct)).ToHttp(status => status))
             .Returns<BankingStatusView>();
 
         api.MapGet("/aspsps", async (IInvoker invoker, CancellationToken ct)
@@ -468,6 +468,14 @@ public static class BankingEndpoints
             => (await invoker.InvokeAsync(new TestBankingConnectionCommand(Callback(auth)), ct)).ToHttp(test => test))
             .Returns<BankingConnectionTestView>();
 
+        // #414: the deprecated installation application, handed to one adult.
+        admin.MapPost("/transfer", async (ApplicationTransferBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var result = await invoker.InvokeAsync(new TransferInstallationApplicationCommand(body.PersonId ?? Guid.Empty), ct);
+                return result.TryGetValue(out _) ? Results.NoContent() : result.ToHttp(v => v);
+            })
+            .ReturnsNoContent();
+
         return routes;
     }
 
@@ -480,6 +488,10 @@ public static class BankingEndpoints
     private static string Callback(IOptions<NidAuthOptions> auth) => auth.Value.PublicUrl.TrimEnd('/') + CallbackPath;
 
     public sealed record ConnectBody(string? AspspName);
+
+    /// <summary>The adult the installation application goes to.</summary>
+    [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+    public sealed record ApplicationTransferBody(Guid? PersonId);
 
     /// <summary>The adult's application; the key is optional once one is stored.</summary>
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]

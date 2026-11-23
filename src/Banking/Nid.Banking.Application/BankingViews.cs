@@ -9,7 +9,7 @@ namespace Nid.Banking.Application;
 /// Whether bank sync is on, and whether the administrator gave it an application id and the server a private key. For an administrator
 /// only (issue #343), <paramref name="AppIdSaved"/> and <paramref name="KeyStatus"/> (<see cref="BankingKeyStatus"/>) say which is missing.
 /// </summary>
-public sealed record BankingStatusView(bool Enabled, bool Configured, bool? AppIdSaved = null, string? KeyStatus = null);
+public sealed record BankingStatusView(bool Enabled, bool Configured, bool? AppIdSaved = null, string? KeyStatus = null, string? RedirectUrl = null);
 
 /// <summary>
 /// Issue #343, Administration › Banque: the key's <see cref="BankingKeyStatus"/> (never the key), whether an application id is saved, and
@@ -19,7 +19,14 @@ public sealed record BankingStatusView(bool Enabled, bool Configured, bool? AppI
 /// <param name="Reads">#365: the installation's busiest account and latest refusal, counts only (no bank, no account named).</param>
 public sealed record BankingDiagnosticsView(
     string KeyStatus, bool AppIdSaved, string RedirectUrl, BankSyncRunView? LastRun = null, DateTimeOffset? NextRunAt = null, bool BankLinked = false,
-    BankReadsView? Reads = null, IReadOnlyList<OwnApplicationView>? OwnApplications = null);
+    BankReadsView? Reads = null, IReadOnlyList<OwnApplicationView>? OwnApplications = null,
+    IReadOnlyList<TransferCandidateView>? TransferCandidates = null);
+
+/// <summary>
+/// #414: a signed-up adult the installation application can be handed to, with the number of their connections made with it; listed
+/// only while that application is configured, those with connections first.
+/// </summary>
+public sealed record TransferCandidateView(Guid PersonId, string Name, int Connections);
 
 /// <summary>#382: an adult who declared their own Enable Banking application; neither its id nor its key.</summary>
 public sealed record OwnApplicationView(Guid PersonId, string Name);

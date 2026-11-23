@@ -7,7 +7,7 @@ const KNOWN = new Set([
   'admin_command', 'subject_rebound', 'token_created', 'token_revoked', 'token_auth_failed', 'mcp_tool_called',
   'bank_statement_imported', 'login_failed', 'login_locked', 'password_changed', 'password_reset', 'credential_link_issued',
   'credential_link_revoked', 'account_enrolled', 'account_unlocked', 'setup_completed', 'totp_enabled', 'totp_disabled', 'totp_reset',
-  'recovery_code_used', 'recovery_codes_regenerated',
+  'recovery_code_used', 'recovery_codes_regenerated', 'banking_application_transferred',
   'model_worker_registered', 'model_worker_paired', 'model_worker_changed', 'model_worker_revoked', 'model_worker_key_rotated', 'nid_worker_key_rotated', 'ai_remote_workers_changed',
   'ai_cloud_region_set', 'ai_cloud_profile_enabled', 'ai_cloud_profile_disabled', 'ai_provider_key_set', 'ai_provider_key_revoked',
 ]);

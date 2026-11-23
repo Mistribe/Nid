@@ -19421,6 +19421,88 @@
         }
       }
     },
+    "/api/v1/admin/banking/transfer": {
+      "post": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApplicationTransferBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/childcare": {
       "get": {
         "tags": [
@@ -39508,6 +39590,19 @@
         },
         "additionalProperties": false
       },
+      "ApplicationTransferBody": {
+        "type": "object",
+        "properties": {
+          "personId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false
+      },
       "ApproveProposalBody": {
         "required": [
           "version"
@@ -40340,6 +40435,15 @@
             "items": {
               "$ref": "#/components/schemas/OwnApplicationView"
             }
+          },
+          "transferCandidates": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/TransferCandidateView"
+            }
           }
         }
       },
@@ -40363,6 +40467,12 @@
             ]
           },
           "keyStatus": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "redirectUrl": {
             "type": [
               "null",
               "string"
@@ -70488,6 +70598,27 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "TransferCandidateView": {
+        "required": [
+          "personId",
+          "name",
+          "connections"
+        ],
+        "type": "object",
+        "properties": {
+          "personId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "connections": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },

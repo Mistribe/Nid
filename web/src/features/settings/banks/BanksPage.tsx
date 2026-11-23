@@ -16,7 +16,7 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { RowActions } from '@/components/page/RowActions';
 import { Section } from '@/components/page/Section';
 import { SortableTable } from '@/components/page/SortableTable';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatInstant, formatInstantDay, formatInstantTime } from '@/lib/format';
 import { ENVELOPES, invalidateInvestments, type EnvelopeSummary } from '@/api/investments';
@@ -197,16 +197,19 @@ function ConnectionSection({ connection, all, envelopes, onEdit }: {
   const renew = $api.useMutation('post', RENEW, { onSuccess: (started) => goTo(started.redirectUrl) });
   const remove = $api.useMutation('delete', CONNECTION);
   const failed = [sync, renew].find((m) => m.error && toProblem(m.error).code !== 'banking.sync_running')?.error;
+  // #414: made with the installation application, now another adult's: nothing to sync or renew, only to link again.
+  const ended = connection.lastErrorCode === 'banking.application_transferred';
+  const status = ended ? 'ended' : connection.status;
 
   return (
     <Section title={bank}>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-        <span className="font-medium text-foreground">{t(`banks.status.${connection.status}`, { defaultValue: connection.status })}</span>
+        <span className="font-medium text-foreground">{t(`banks.status.${status}`, { defaultValue: status })}</span>
         {connection.validUntil ? <span>{t('banks.expires', { date: day.format(new Date(connection.validUntil)) })}</span> : null}
         <span>{connection.lastSyncedAt ? t('banks.last_sync', { date: formatInstant(connection.lastSyncedAt) }) : t('banks.never_synced')}</span>
         <Reads reads={connection.reads} />
         <RowActions menuId={`bank-${connection.id}`} menuLabel={t('banks.actions_of', { bank })}
-          items={[
+          items={ended ? [] : [
             { label: t('banks.sync'), onSelect: () => sync.mutate({ body: { connectionId: connection.id } }) },
             { label: t('banks.renew'), onSelect: () => renew.mutate(path) },
           ]}
@@ -214,6 +217,7 @@ function ConnectionSection({ connection, all, envelopes, onEdit }: {
           onConfirm={() => remove.mutate(path, { onSuccess: () => { toast.success(t('banks.deleted', { bank })); void refresh(queryClient); } })}
           present={(_, error) => present(toProblem(error))} invalidate={refresh} />
       </div>
+      {ended ? <p className="text-sm text-status-warning-text">{t('banks.ended_hint')}</p> : null}
       {failed ? <ProblemMessage problem={present(toProblem(failed))} /> : null}
       <ReadsWarning reads={connection.reads} />
       {connection.accounts.length > 0 ? (
@@ -372,16 +376,24 @@ function RuleActions({ rule, menuId }: { rule: BankRule; menuId: string }) {
   );
 }
 
-/** Issue #343: the administrator, whom the server tells what is missing, gets which part and the way to their page; the others the plain sentence. */
+/**
+ * #414: without a readable application of their own, « Relier une banque » gives way to the wizard. Issue #343: while the deprecated
+ * installation application is half set up, the administrator is told which part is missing and the way to their page.
+ */
 function NotConfigured() {
   const { t } = useTranslation();
   const status = useBankingStatus().data;
-  if (status?.appIdSaved == null) return <p>{t('banks.not_configured')}</p>;
-  const sentence = status.appIdSaved ? t('banks.not_configured_key')
-    : status.keyStatus === 'loaded' ? t('banks.not_configured_app_id') : t('banks.not_configured_both');
+  if (!status?.appIdSaved) {
+    return (
+      <div className="space-y-2">
+        <p>{t('banks.no_application')}</p>
+        <Link to="/settings/banks" search={{ tab: 'application', step: 1 }} className={buttonVariants()}>{t('banks.no_application_open')}</Link>
+      </div>
+    );
+  }
   return (
     <p>
-      {sentence}{' '}
+      {t('banks.not_configured_key')}{' '}
       <Link to="/admin/banking" className="underline underline-offset-4">{t('banks.open_admin_banking')}</Link>
     </p>
   );

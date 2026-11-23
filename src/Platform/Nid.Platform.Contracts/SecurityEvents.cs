@@ -27,6 +27,9 @@ public static class SecurityEventNames
 
     public const string BankingApplicationDeleted = "banking_application_deleted";
 
+    /// <summary>#414: an admin handed the installation's Enable Banking application to an adult (the subject); never the key or the id.</summary>
+    public const string BankingApplicationTransferred = "banking_application_transferred";
+
     /// <summary>4B: one per MCP tool call (spec §4); not in the admin journal — an adult's own reads.</summary>
     public const string McpToolCalled = "mcp_tool_called";
 

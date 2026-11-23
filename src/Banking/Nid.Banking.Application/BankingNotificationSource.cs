@@ -31,6 +31,8 @@ public sealed class BankingNotificationSource(
     public const string ConsentExpiring = "banking.consent_expiring";
     public const string ConsentExpired = "banking.consent_expired";
     public const string SyncFailing = "banking.sync_failing";
+    /// <summary>#414: a connection the transfer of the installation application ended, while its creator has no application and live connection of their own.</summary>
+    public const string ApplicationNeeded = "banking.application_needed";
     public const string AmountDiffers = "banking.amount_differs";
     public const string ChargeMissing = "banking.charge_missing";
     /// <summary>Not prefixed: the settings screen keys its copy by kind (<c>notification_settings.signal.&lt;kind&gt;</c>).</summary>
@@ -49,6 +51,7 @@ public sealed class BankingNotificationSource(
         new(ConsentExpiring, NotificationFamilies.Security, NotificationLevel.Action, "banking", 14),
         new(ConsentExpired, "finding", NotificationLevel.Action, "banking", null),
         new(SyncFailing, "finding", NotificationLevel.Action, "banking", null),
+        new(ApplicationNeeded, "finding", NotificationLevel.Action, "banking", null),
         new(AmountDiffers, "finding", NotificationLevel.Action, "banking", null),
         new(ChargeMissing, "finding", NotificationLevel.Action, "banking", null),
         // Issue #81: the margin, in the account's currency.
@@ -69,10 +72,13 @@ public sealed class BankingNotificationSource(
 
         // The day is the household's, like today: the same day in the key and the title.
         var zone = await calendar.ZoneAsync(ct);
-        foreach (var c in await connections.MineAsync(reader, ct))
+        var mine = await connections.MineAsync(reader, ct);
+        foreach (var c in mine)
         {
             var bank = new Dictionary<string, string> { ["bank"] = c.AspspName };
             var live = c.Status is ConnectionStatus.Active or ConnectionStatus.Error;
+            if (c.LastErrorCode == BankingCodes.ApplicationTransferred)
+                continue; // told once below, not as an expired consent
             if (c.ValidUntil is { } until)
             {
                 var on = until.InZone(zone).Date;
@@ -90,6 +96,11 @@ public sealed class BankingNotificationSource(
                 signals.Add(new Signal($"{SyncFailing}:{c.Id:D}:{since:yyyy-MM-dd}", SyncFailing, [], null, bank));
             }
         }
+
+        // Derived from state: gone once the reader has a readable application of their own and a bank linked through it.
+        if (mine.FirstOrDefault(c => c.LastErrorCode == BankingCodes.ApplicationTransferred) is { } ended
+            && !(mine.Any(c => c.Status is ConnectionStatus.Active or ConnectionStatus.Error) && await access.ConfiguredAsync(reader, ct)))
+            signals.Add(new Signal($"{ApplicationNeeded}:{ended.Id:D}", ApplicationNeeded, [], null, new Dictionary<string, string>()));
 
         await AddAmountDiffersAsync(signals, reader, today, ct);
         await AddChargeMissingAsync(signals, reader, today, zone, ct);

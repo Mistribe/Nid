@@ -45,7 +45,8 @@ public sealed partial class HouseholdSettings(CoreDbContext db) : IHouseholdSett
             return Result.Failure<HouseholdSettingsInfo>(FieldErrors.At(
                 new Failure(PersonCodes.InvalidBankRetention, "Bank transactions are kept between 1 and 600 months.", null), "bankRetentionMonths"));
 
-        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        // Its own transaction, or the caller's (#414: the transfer of the installation application clears the id in its own).
+        await using var transaction = db.Database.CurrentTransaction is null ? await db.Database.BeginTransactionAsync(ct) : null;
         // The same lock as pre-registration: a cap lowered while an adult is being added must see that adult.
         await db.Database.ExecuteSqlAsync($"select pg_advisory_xact_lock({PersonRegistry.ProvisioningLockKey})", ct);
 
@@ -88,7 +89,8 @@ public sealed partial class HouseholdSettings(CoreDbContext db) : IHouseholdSett
             row.BankRetentionMonths = months;
 
         await db.SaveChangesAsync(ct);
-        await transaction.CommitAsync(ct);
+        if (transaction is not null)
+            await transaction.CommitAsync(ct);
         return Result.Success(await ReadAsync(ct));
     }
 
