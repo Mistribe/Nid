@@ -137,12 +137,15 @@ public sealed class CloudProvider(
     {
         if (!CloudClasses.Contains(dataClass))
             throw new ModelCallException(JobCodes.CloudNotAllowed);
+        if (trace.Pin is { Placement: not LlmPlacement.Cloud })
+            throw new ModelCallException(JobCodes.NoCloudProfile); // pinned to a worker: no provider may see this turn
         var region = await settings.RegionAsync(ct);
         // A profile is used under the terms it was enabled on: terms reviewed since must be accepted again.
         var enabled = (await settings.EnabledAsync(ct)).ToDictionary(e => e.ProfileId, e => e.AcceptedReviewedOn, StringComparer.Ordinal);
         var candidates = profiles.All
             .Where(p => enabled.TryGetValue(p.Id, out var accepted) && accepted == p.DataTerms.ReviewedOn && region is not null && p.EligibleIn(region)
-                        && p.Capabilities.Contains(ModelUses.Chat) && !breaker.IsSuspended(p.Id))
+                        && p.Capabilities.Contains(ModelUses.Chat) && !breaker.IsSuspended(p.Id)
+                        && (trace.Pin?.ProfileId is null || p.Id == trace.Pin.ProfileId))
             .ToList();
 
         var blocked = false;
@@ -182,6 +185,7 @@ public sealed class CloudProvider(
                 }
 
                 (trace.ProfileId, trace.Provider, trace.Tier, trace.ReservedEur) = (profile.Id, profile.Provider, profile.Tier, hold?.Amount);
+                trace.Destination = new LlmDestination(LlmPlacement.Cloud, profile.Provider, ProfileId: profile.Id);
                 ChatUsage? usage = null;
                 while (any)
                 {

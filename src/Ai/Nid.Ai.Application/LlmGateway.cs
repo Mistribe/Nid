@@ -18,7 +18,28 @@ public sealed record LlmChatRequest(
     string DataClass,
     Guid? ConversationId = null,
     Guid? JobId = null,
-    double? Temperature = null);
+    double? Temperature = null,
+    LlmDestination? Pin = null,
+    Action<LlmDestination>? Served = null);
+
+/// <summary>
+/// Where a call went (#500): a household worker, local or remote, or a cloud provider. The assistant's first step fixes what
+/// its turn may read (decision C, <c>docs/ai/README.md</c> §6.4); its later steps are pinned to that same destination
+/// (<see cref="LlmChatRequest.Pin"/>), so what was read for one never reaches another. <see cref="LlmChatRequest.Served"/>
+/// learns it once the call answers.
+/// </summary>
+public sealed record LlmDestination(LlmPlacement Placement, string Name, Guid? WorkerId = null, string? ProfileId = null)
+{
+    /// <summary>Out of the household's premises: a remote worker or the cloud.</summary>
+    public bool Offsite => Placement != LlmPlacement.Local;
+}
+
+public enum LlmPlacement
+{
+    Local,
+    Remote,
+    Cloud,
+}
 
 /// <summary>The one way to a model: every call is checked, routed along the household's chain and recorded.</summary>
 public interface ILlmGateway
@@ -56,6 +77,11 @@ public sealed class LlmCallTrace
     public decimal? ReservedEur { get; set; }
 
     public decimal? CostEur { get; set; }
+
+    /// <summary>#500: the destination the call must go to, if pinned; the one that served it.</summary>
+    public LlmDestination? Pin { get; init; }
+
+    public LlmDestination? Destination { get; set; }
 }
 
 /// <summary>One model call as <c>llm_call</c> keeps it (§11): never its content.</summary>
@@ -90,7 +116,7 @@ public sealed class LlmGateway(
     public async IAsyncEnumerable<ChatRequestOutput> ChatAsync(LlmChatRequest request, [EnumeratorCancellation] CancellationToken ct)
     {
         var started = clock.GetCurrentInstant();
-        var trace = new LlmCallTrace();
+        var trace = new LlmCallTrace { Pin = request.Pin };
         var outcome = new Outcome();
         try
         {
@@ -129,6 +155,8 @@ public sealed class LlmGateway(
                     throw;
                 }
 
+                if (trace.Destination is { } served)
+                    request.Served?.Invoke(served);
                 ChatUsage? usage = null;
                 if (trace.ProfileId is not null)
                     outcome.Model = null; // the profile's model: the usage frame says which
@@ -225,8 +253,11 @@ public sealed class WorkerProvider(IModelRequests requests) : ILlmProvider
     public async IAsyncEnumerable<ChatRequestOutput> ChatAsync(
         ChatRequestInput input, string dataClass, LlmCallTrace trace, [EnumeratorCancellation] CancellationToken ct)
     {
-        await foreach (var frame in requests.StreamAsync("chat", 1, ContractJson.Write(input), dataClass, null, ct,
-                           model: input.Model, served: worker => trace.WorkerId = worker))
+        if (trace.Pin is { Placement: LlmPlacement.Cloud })
+            throw new ModelCallException(JobCodes.NoWorker); // pinned to a cloud provider: no worker may see this turn
+        await foreach (var frame in requests.StreamAsync("chat", 1, ContractJson.Write(input), dataClass, trace.Pin?.WorkerId, ct,
+                           model: input.Model, served: worker => (trace.WorkerId, trace.Destination) = (worker.Id, new LlmDestination(
+                               worker.Placement == WorkerPlacement.Remote ? LlmPlacement.Remote : LlmPlacement.Local, worker.Name, WorkerId: worker.Id))))
             yield return ContractJson.Read<ChatRequestOutput>(frame.Span);
     }
 }

@@ -73,8 +73,8 @@ public sealed class AssistantToolTests(PostgresFixture fixture) : IClassFixture<
         var tools = app.Services.GetRequiredService<IAssistantTools>();
         var ct = TestContext.Current.CancellationToken;
 
-        var list = await tools.CallAsync(app.AdultA, "list_income_sources", Args(new { }), 100_000, ct);
-        var bobs = await tools.CallAsync(app.AdultA, "get_income_source", Args(new { id = bobsPrivate }), 100_000, ct);
+        var list = await tools.CallAsync(app.AdultA, false, "list_income_sources", Args(new { }), 100_000, ct);
+        var bobs = await tools.CallAsync(app.AdultA, false, "get_income_source", Args(new { id = bobsPrivate }), 100_000, ct);
 
         Assert.False(list.Error, list.Text);
         Assert.Contains(alices.ToString(), list.Text);
@@ -89,7 +89,7 @@ public sealed class AssistantToolTests(PostgresFixture fixture) : IClassFixture<
         await using var app = await NidApp.StartAsync(fixture);
 
         var result = await app.Services.GetRequiredService<IAssistantTools>()
-            .CallAsync(app.AdultA, "delete_proposal", Args(new { id = Guid.NewGuid(), version = 1 }), 100_000, TestContext.Current.CancellationToken);
+            .CallAsync(app.AdultA, false, "delete_proposal", Args(new { id = Guid.NewGuid(), version = 1 }), 100_000, TestContext.Current.CancellationToken);
 
         Assert.True(result.Error);
         Assert.Empty(await CallsAsync(app));
@@ -101,7 +101,7 @@ public sealed class AssistantToolTests(PostgresFixture fixture) : IClassFixture<
         await using var app = await NidApp.StartAsync(fixture);
 
         var result = await app.Services.GetRequiredService<IAssistantTools>()
-            .CallAsync(app.AdultA, "get_income_source", Args(new { id = "not-a-uuid" }), 100_000, TestContext.Current.CancellationToken);
+            .CallAsync(app.AdultA, false, "get_income_source", Args(new { id = "not-a-uuid" }), 100_000, TestContext.Current.CancellationToken);
 
         Assert.True(result.Error);
     }
@@ -113,7 +113,7 @@ public sealed class AssistantToolTests(PostgresFixture fixture) : IClassFixture<
         await McpSeed.IncomeSourceAsync(app, app.AdultA);
 
         var result = await app.Services.GetRequiredService<IAssistantTools>()
-            .CallAsync(app.AdultA, "list_income_sources", Args(new { }), 20, TestContext.Current.CancellationToken);
+            .CallAsync(app.AdultA, false, "list_income_sources", Args(new { }), 20, TestContext.Current.CancellationToken);
 
         Assert.True(result.Error);
         Assert.Contains("narrow the request", result.Text);
@@ -127,7 +127,7 @@ public sealed class AssistantToolTests(PostgresFixture fixture) : IClassFixture<
         var source = await McpSeed.IncomeSourceAsync(app, app.AdultA);
 
         await app.Services.GetRequiredService<IAssistantTools>()
-            .CallAsync(app.AdultA, "get_income_source", Args(new { id = source, from = "2025-01-01" }), 100_000, TestContext.Current.CancellationToken);
+            .CallAsync(app.AdultA, false, "get_income_source", Args(new { id = source, from = "2025-01-01" }), 100_000, TestContext.Current.CancellationToken);
 
         var call = Assert.Single(await CallsAsync(app));
         Assert.Equal(("assistant", app.AdultA.Value), (call.Via, call.PersonId!.Value));

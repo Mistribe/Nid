@@ -48,6 +48,9 @@ public static class McpSetup
         });
         services.AddScoped<RouteReplay>();
         services.AddSingleton<Nid.Ai.Application.IAssistantTools, Assistant.AssistantToolInvoker>();
+        services.AddOptions<Assistant.AssistantOptions>().BindConfiguration(Assistant.AssistantOptions.Section);
+        services.AddSingleton<Assistant.AssistantTurns>();
+        services.AddScoped<Assistant.AssistantLoop>();
         foreach (var action in RouteActions.All)
             services.AddScoped<Nid.Core.Contracts.IProposalHandler>(sp => ActivatorUtilities.CreateInstance<RouteProposal>(sp, action));
 

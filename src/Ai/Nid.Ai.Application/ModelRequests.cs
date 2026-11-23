@@ -16,7 +16,7 @@ public interface IModelRequests
     /// <see cref="ModelCallException"/> otherwise (no worker, the worker failed, the stream was cut, a bound passed).
     /// <paramref name="model"/>: only the workers that declare it (#486); <paramref name="served"/> learns which worker answered.</summary>
     IAsyncEnumerable<ReadOnlyMemory<byte>> StreamAsync(
-        string type, int version, byte[] input, string dataClass, Guid? target, CancellationToken ct, string? model = null, Action<Guid>? served = null);
+        string type, int version, byte[] input, string dataClass, Guid? target, CancellationToken ct, string? model = null, Action<WorkerRecord>? served = null);
 }
 
 public sealed class ModelRequests(IWorkerRouter router, IWorkerClient client, INidKeys keys, ModelContracts contracts) : IModelRequests
@@ -27,7 +27,7 @@ public sealed class ModelRequests(IWorkerRouter router, IWorkerClient client, IN
 
     public async IAsyncEnumerable<ReadOnlyMemory<byte>> StreamAsync(
         string type, int version, byte[] input, string dataClass, Guid? target, [EnumeratorCancellation] CancellationToken ct,
-        string? model = null, Action<Guid>? served = null)
+        string? model = null, Action<WorkerRecord>? served = null)
     {
         var contract = contracts.Find(ModelCallKind.Request, type, version) ?? throw new ModelCallException(JobCodes.UnknownType);
         if (!DataClasses.IsKnown(dataClass) || (dataClass == DataClasses.None && !contract.AllowsNoData))
@@ -78,7 +78,7 @@ public sealed class ModelRequests(IWorkerRouter router, IWorkerClient client, IN
                 }
 
                 if (!started && frame.Type is FrameType.Data or FrameType.End)
-                    served?.Invoke(worker.Id);
+                    served?.Invoke(worker);
                 switch (frame.Type)
                 {
                     case FrameType.Data:
