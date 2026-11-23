@@ -96,7 +96,7 @@ public sealed class CreateEnvelopeHandler(
 [RequestHandler<EditEnvelopeCommand, ItemId>]
 public sealed class EditEnvelopeHandler(
     IItemRegistry items, IEnvelopeStore envelopes, IItemRules rules, IActorAccessor actor, IPersonRegistry persons,
-    Nid.RealEstate.Contracts.ILoanStore loans)
+    Nid.RealEstate.Contracts.ILoanFinancing financing)
     : IRequestHandler<EditEnvelopeCommand, ItemId>
 {
     public async ValueTask<Result<ItemId>> HandleAsync(EditEnvelopeCommand command, CancellationToken ct = default)
@@ -135,7 +135,7 @@ public sealed class EditEnvelopeHandler(
         // Issue #399: likewise, off a savings envelope its regulated livret goes.
         var finalKind = kind ?? envelope.Envelope.Kind;
         // #180: a loan finances this SCPI; it stays one until the loan's link goes.
-        if (envelope.Envelope.Kind == EnvelopeKind.Scpi && finalKind != EnvelopeKind.Scpi && (await loans.FinancingAsync(command.ItemId, ct)).Count > 0)
+        if (envelope.Envelope.Kind == EnvelopeKind.Scpi && finalKind != EnvelopeKind.Scpi && await financing.IsFinancedAsync(command.ItemId, ct))
             return Result.Failure<ItemId>(new Failure(InvestmentsCodes.EnvelopeFinanced, "A loan finances this SCPI: unlink the loan before changing its kind.",
                 new Dictionary<string, object?> { ["field"] = "kind" }));
         if (command.Regulated is not null)

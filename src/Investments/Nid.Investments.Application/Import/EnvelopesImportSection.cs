@@ -16,7 +16,7 @@ namespace Nid.Investments.Application.Import;
 /// </summary>
 public sealed class EnvelopesImportSection(
     IItemRegistry items, IEnvelopeStore envelopes, IAccessPolicy policy, IItemRules rules, IHouseholdCalendar calendar,
-    IVisibleItems visible, IPersonRegistry persons, IFactImports facts, IClock clock, Nid.RealEstate.Contracts.ILoanStore loans) : IImportSection
+    IVisibleItems visible, IPersonRegistry persons, IFactImports facts, IClock clock, Nid.RealEstate.Contracts.ILoanFinancing financing) : IImportSection
 {
     public const string Section = "envelopes";
 
@@ -324,7 +324,7 @@ public sealed class EnvelopesImportSection(
     /// adult, nor changes its currency. The first refusal, or null.
     /// </summary>
     private async Task<bool> FinancedScpiAsync(ItemId id, CancellationToken ct)
-        => await envelopes.ReadAllAsync([id], ct) is [{ Envelope.Kind: EnvelopeKind.Scpi }] && (await loans.FinancingAsync(id, ct)).Count > 0;
+        => await envelopes.ReadAllAsync([id], ct) is [{ Envelope.Kind: EnvelopeKind.Scpi }] && await financing.IsFinancedAsync(id, ct);
 
     private Task<ImportIssue?> ReplaceRefusalAsync(
         PersonId actor, ItemId id, ItemAccess current, ParsedEnvelope parsed, string path,
