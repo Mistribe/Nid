@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using Nid.Core.Application.Dashboard;
 using Nid.Core.Contracts;
+using Nid.Core.Domain.Dashboard;
 using Nid.Platform.Contracts;
 using NodaTime;
 using UnambitiousFx.Functional;

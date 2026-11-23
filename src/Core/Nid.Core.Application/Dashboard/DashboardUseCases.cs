@@ -1,4 +1,5 @@
 using Nid.Core.Contracts;
+using Nid.Core.Domain.Dashboard;
 using Nid.Platform.Contracts;
 using NodaTime;
 using UnambitiousFx.Functional;
@@ -60,7 +61,7 @@ public sealed class DashboardReader(
             : await fx.LoadAsync(foreign.Append(reference).ToList(), today, today, ct);
         var people = await persons.ListAsync(ct);
         var target = await household.AllocationTargetAsync(ct);
-        return Result.Success(DashboardMath.Compose(w!, c!, e!, s!, d!.SelectMany(x => x).ToList(), people, reference, rates, today, target, [.. p!, .. taxDates]));
+        return Result.Success(DashboardComposition.Compose(w!, c!, e!, s!, d!.SelectMany(x => x).ToList(), people, reference, rates, today, target, [.. p!, .. taxDates]));
     }
 
     /// <summary>Issue #425: the parts <see cref="ReadAsync"/> reads, through the same <see cref="DashboardMath.Budget"/>.</summary>
