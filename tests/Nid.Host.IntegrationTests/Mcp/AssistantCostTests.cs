@@ -3,6 +3,7 @@ using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Nid.Ai.Application;
+using Nid.Ai.Contracts;
 using Nid.Ai.Infrastructure.Persistence;
 using Nid.Ai.Protocol.Contracts;
 using Nid.TestSupport;
@@ -48,7 +49,7 @@ public sealed class AssistantCostTests(PostgresFixture fixture) : IClassFixture<
     [Fact]
     public async Task A_budget_block_says_when_paid_calls_come_back()
     {
-        var model = new ScriptedGateway(Salon, _ => throw new ModelCallException(JobCodes.BudgetBlocked));
+        var model = new ScriptedGateway(Salon, _ => []) { Refuses = JobCodes.BudgetBlocked };
         await using var app = await NidApp.StartAsync(fixture, s => s.Replace(ServiceDescriptor.Scoped<ILlmGateway>(_ => model)));
         await AssistantMe.EnableAsync(app, app.AdultA);
         LocalDate today;
