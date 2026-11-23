@@ -140,6 +140,7 @@
     "en": {
       "title": "Assistant",
       "line": "Your AI assistant reads your figures and proposes; a person approves every change."
-    }
+    },
+    "preview": true
   }
 ]

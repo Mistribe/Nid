@@ -5,6 +5,8 @@ sidebar:
   order: 7
 ---
 
+import { Badge } from '@astrojs/starlight/components';
+
 ## Bank sync
 
 Nid reads balances and transactions through [Enable Banking](https://enablebanking.com), read-only: no payment call. It is **off by default**; an administrator turns it on in Administration › Banque, with nothing to change in the compose file.
@@ -15,7 +17,7 @@ The detail (in French): [`deploy/README.md` §12](https://github.com/Mistribe/Ni
 
 ## Model worker
 
-The worker runs what needs a model: document text and OCR, search by meaning, a local model. Without it, Nid works.
+The worker runs what needs a model: document text and OCR, a local model, and soon search by meaning inside documents <Badge text="Preview" variant="caution" />, still being built. Without it, Nid works.
 
 ```bash
 docker compose --profile worker up -d worker

@@ -22,7 +22,7 @@ Pull requests use `.github/pull_request_template.md`.
 - `gh issue create` and `gh pr create` do not apply templates on their own: read the template file and pass its filled-in content as `--body`.
 - Link the issue a PR resolves with `Closes #N` in the Summary.
 - Keep the PR to one concern; list follow-ups in « Notes for the reviewer » instead of folding them in.
-- CI runs every test on a pull request: `.github/workflows/ci.yml` calls `backend.yml` (build, unit and integration tests), `web.yml` (`pnpm --dir web check`) and `e2e.yml` (every Playwright journey, image scan) for the areas the PR touches; CodeQL in `codeql.yml`. `ci-ok` is the required check (it includes `sonarqube`, the SonarQube Cloud quality gate): never put `paths:` on a workflow whose check is required (a skipped workflow reports nothing and blocks the merge). Still run the tests of the areas a PR changes before opening it, `dotnet test --solution Nid.slnx --configuration Release --max-parallel-test-modules 1` for `src/` or `tests/`, `pnpm --dir web check` for `web/`: CI confirms, it does not replace them. A PR that only changes docs has nothing to run.
+- CI runs every test on a pull request: `.github/workflows/ci.yml` calls `backend.yml` (build, unit and integration tests), `web.yml` (`pnpm --dir web check`) and `e2e.yml` (every Playwright journey, image scan) and `site.yml` (`pnpm --dir site check`) for the areas the PR touches; CodeQL in `codeql.yml`. `ci-ok` is the required check (it includes `sonarqube`, the SonarQube Cloud quality gate): never put `paths:` on a workflow whose check is required (a skipped workflow reports nothing and blocks the merge). Still run the tests of the areas a PR changes before opening it, `dotnet test --solution Nid.slnx --configuration Release --max-parallel-test-modules 1` for `src/` or `tests/`, `pnpm --dir web check` for `web/`, `pnpm --dir site check` for `site/`: CI confirms, it does not replace them. A PR that only changes docs has nothing to run.
 - Open a pull request as soon as a branch is pushed, without waiting to be asked.
 - A PR the household would notice adds one `web/changelog/<slug>.json` (`{ "en": …, "fr": … }`, see its README): the
   version list behind the version number. The French lives there only, never in a commit message or a PR. A PR the
@@ -71,6 +71,22 @@ Open issues live in the public project [Nid roadmap](https://github.com/orgs/Mis
   (`gh api graphql` with `addBlockedBy(input: {issueId, blockingIssueId})`, node ids from `gh api repos/Mistribe/Nid/issues/N -q .node_id`).
   The steps of one large issue are its sub-issues, linked to each other the same way.
 - Do not start an issue that is still blocked by an open one: say which one blocks it.
+
+## Project site
+
+`site/` is the public presentation at `nid.mistribe.com` (Astro Starlight, French at the root, English under `/en/`, every
+page in both). It must stay true to the app:
+
+- A PR that adds, changes or removes something the household would notice updates the matching feature page
+  (`site/src/content/docs/fonctionnalites/<area>.mdx` and its `en/` twin) in the same PR. A new area goes in
+  `site/src/data/areas.json` with both pages.
+- A feature still being built is marked « Preview »: `"preview": true` in `areas.json`, `sidebar.badge` and an aside on its
+  page, or an inline `<Badge>` for one line. The PR that finishes it removes the mark.
+- The site never claims what the app does not do yet; its figures, names and captures come from the demo household only.
+- A PR that changes a command in `deploy/README.md` updates `site/src/content/docs/installer/` too: `pnpm --dir site check`
+  fails when the guide's commands drift.
+- When a screen changes visibly, refresh its captures once the release reaches the demo (`pnpm --dir site capture`), in a
+  PR of its own.
 
 ## Web UI
 
