@@ -27,6 +27,9 @@ public sealed class DocumentsDbContext(DbContextOptions<DocumentsDbContext> opti
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schema);
+        // #557: the vectors of the documents' chunks (#559). Not a trusted extension: the bundled database's owner creates it;
+        // on a shared server, an admin does first (deploy/README.md §11).
+        modelBuilder.HasPostgresExtension("vector");
 
         modelBuilder.Entity<DocumentRow>(e =>
         {

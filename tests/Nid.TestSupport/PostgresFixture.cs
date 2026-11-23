@@ -24,7 +24,9 @@ public sealed class PostgresFixture : IAsyncLifetime
     // One database per test and a connection pool per database: the default limit of 100 clients is reached
     // well before the suite is, and the tests that happen to run last fail with "sorry, too many clients
     // already" rather than on their own merits.
-    private static readonly PostgreSqlContainer Container = new PostgreSqlBuilder("postgres:17")
+    // #557: the image deploy/ runs, Postgres 18 with pgvector.
+    private static readonly PostgreSqlContainer Container = new PostgreSqlBuilder(
+            "pgvector/pgvector:0.8.7-pg18-trixie@sha256:ab49524d18df7200b74ac9a475e1db6297fc1eb57da4c214c63d10ecc4b754fa")
         .WithCommand("-c", "max_connections=500")
         .Build();
     private static readonly Lazy<Task> Started = new(() => Container.StartAsync());

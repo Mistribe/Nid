@@ -9,8 +9,12 @@ var postgresPassword = builder.AddParameter("postgres-password", "nid-dev-postgr
 // The repository root: this project sits in src/Hosting/Nid.AppHost.
 var root = Path.GetFullPath(Path.Combine(builder.AppHostDirectory, "..", "..", ".."));
 
+// #557: Postgres 18 with pgvector, as deploy/ runs it. From 18 on the data lives under /var/lib/postgresql/18/docker, so
+// the volume holds /var/lib/postgresql (a new one: the old nid-dev-pgdata held an older major version's).
 var postgres = builder.AddPostgres("postgres", password: postgresPassword)
-    .WithDataVolume("nid-dev-pgdata");
+    .WithImage("pgvector/pgvector", "0.8.7-pg18-trixie")
+    .WithImageSHA256("ab49524d18df7200b74ac9a475e1db6297fc1eb57da4c214c63d10ecc4b754fa")
+    .WithVolume("nid-dev-pgdata18", "/var/lib/postgresql");
 var nidDb = postgres.AddDatabase("nid");
 
 // The identity provider. Its API key is a throwaway one: the bootstrap below and the end-to-end journeys use it to create

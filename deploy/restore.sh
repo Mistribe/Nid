@@ -64,8 +64,9 @@ tool() { c run --rm --no-deps -T backup-restore "$@"; }
 
 HAS_DATA=0
 if [ "$VERIFY" = 0 ]; then
-  if docker volume inspect nid_pgdata >/dev/null 2>&1 || [ -n "$(ls -A secrets 2>/dev/null)" ]; then HAS_DATA=1; fi
-  [ "$HAS_DATA" = 0 ] || [ "$FORCE" = 1 ] || die "Cette installation contient déjà des données (volume nid_pgdata ou deploy/secrets/).
+  if docker volume inspect nid_pgdata18 >/dev/null 2>&1 || docker volume inspect nid_pgdata >/dev/null 2>&1 \
+    || [ -n "$(ls -A secrets 2>/dev/null)" ]; then HAS_DATA=1; fi
+  [ "$HAS_DATA" = 0 ] || [ "$FORCE" = 1 ] || die "Cette installation contient déjà des données (volume nid_pgdata18 ou nid_pgdata, ou deploy/secrets/).
 Pour tout remplacer par la sauvegarde : deploy/restore.sh --force. Pour l'essayer sans risque : deploy/restore.sh --verify."
   # A remote-only restore on a new machine: the local repository folder the compose file mounts must exist.
   [ "$FROM" = local ] || mkdir -p "$NID_BACKUP_DIR"
