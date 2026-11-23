@@ -819,7 +819,7 @@
     "badge": "{{count}} en attente",
     "line_one": "1 proposition à valider",
     "line_other": "{{count}} propositions à valider",
-    "origin": { "ui": "dans Nid", "api": "par l’API", "mcp": "par l’assistant (MCP)", "job": "par la synchronisation" },
+    "origin": { "ui": "dans Nid", "api": "par l’API", "mcp": "par l’assistant (MCP)", "job": "par la synchronisation", "assistant": "par l’assistant de Nid" },
     "proposed_on": "Proposée {{origin}} le {{date}}",
     "decided": { "approved": "Approuvée le {{date}}", "rejected": "Rejetée le {{date}}" },
     "kind": { "valuation": "Valeur d’une enveloppe", "statement": "Relevé d’une enveloppe", "holdings": "Relevé des supports d’une enveloppe", "breakdown": "Répartition d’un support", "payslip": "Bulletin de paie", "invoice": "Facture d’un abonnement", "amortization": "Tableau d’amortissement", "link": "Opération bancaire à relier", "recurring": "Prélèvement récurrent", "categorise": "Catégories d’opérations bancaires", "make_private": "Passage en privé" },
@@ -854,7 +854,8 @@
       "job": "Tâche planifiée",
       "import": "Import",
       "mcp": "Assistant (MCP)",
-      "admin-cli": "Ligne de commande"
+      "admin-cli": "Ligne de commande",
+      "assistant": "Assistant de Nid"
     },
     "sessions_title": "Mes sessions",
     "revoke": "Déconnecter partout",

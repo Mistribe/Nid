@@ -71,7 +71,9 @@ public sealed class BrowserOnlyBehavior<TRequest, TResponse>(IActorAccessor acce
         TRequest request, RequestHandlerDelegate<TRequest, TResponse> next, CancellationToken cancellationToken = default)
     {
         var actor = accessor.Current!;
-        return (request is IBrowserOnly || (request is IConfirmedInBrowser && !actor.Has(ScopeNames.DryRun))) && actor.TokenId is not null
+        // #497: the assistant is refused as a token is, its dry run kept (AST-7); testing Via != Ui would break the dry run.
+        return (request is IBrowserOnly || (request is IConfirmedInBrowser && !actor.Has(ScopeNames.DryRun)))
+               && (actor.TokenId is not null || actor.Via == ActorOrigin.Assistant)
             ? ValueTask.FromResult(Result.Failure<TResponse>(
                 new Failure(BrowserOnlyCodes.Required, "This action is only available from a browser session.", null)))
             : next(request, cancellationToken);

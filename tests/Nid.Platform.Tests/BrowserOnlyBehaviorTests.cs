@@ -36,4 +36,28 @@ public class BrowserOnlyBehaviorTests
     [Fact]
     public async Task Browser_session_runs_it()
         => Assert.Equal((true, null), await RunAsync(Actor.Browser(PersonId.New())));
+
+    /// <summary>#497: the assistant acts as its person, never as the browser itself (AST-7).</summary>
+    [Fact]
+    public async Task The_assistant_is_refused_a_confirmed_in_browser_command()
+        => Assert.Equal((false, BrowserOnlyCodes.Required), await RunAsync(Actor.Assistant(PersonId.New())));
+
+    [Fact]
+    public async Task The_assistant_in_a_dry_run_runs_it()
+    {
+        var assistant = Actor.Assistant(PersonId.New());
+
+        Assert.Equal((true, null), await RunAsync(assistant with { Scopes = new HashSet<string>(assistant.Scopes) { ScopeNames.DryRun } }));
+    }
+
+    [Fact]
+    public void The_assistant_reads_and_proposes_as_its_person_never_more()
+    {
+        var person = PersonId.New();
+        var assistant = Actor.Assistant(person);
+
+        Assert.Equal((ActorKind.Person, person, "assistant", false), (assistant.Kind, assistant.PersonId, assistant.Via.ToWire(), assistant.IsAdmin));
+        Assert.Equal(new HashSet<string> { ScopeNames.Read, ScopeNames.Write }, assistant.Scopes);
+        Assert.Null(assistant.TokenId);
+    }
 }

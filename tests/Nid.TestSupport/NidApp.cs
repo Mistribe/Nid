@@ -511,12 +511,19 @@ public sealed class NidApp : IAsyncDisposable
     public async Task<(object? Response, Failure? Failure)> InvokeAsync(
         PersonId actor, object request, CancellationToken ct = default)
     {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var person = await scope.ServiceProvider.GetRequiredService<IPersonRegistry>().FindAsync(actor, ct);
+        return await InvokeAsync(Actor.Browser(actor, person?.IsAdmin == true), request, ct);
+    }
+
+    /// <summary>The request run by <paramref name="actor"/> as it is (a token, the assistant…), through the whole pipeline.</summary>
+    public async Task<(object? Response, Failure? Failure)> InvokeAsync(Actor actor, object request, CancellationToken ct = default)
+    {
         var contract = request.GetType().GetInterfaces().Single(
             i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IRequest<>));
 
         await using var scope = factory.Services.CreateAsyncScope();
-        var person = await scope.ServiceProvider.GetRequiredService<IPersonRegistry>().FindAsync(actor, ct);
-        scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.Browser(actor, person?.IsAdmin == true);
+        scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = actor;
 
         var invoke = typeof(NidApp)
             .GetMethod(nameof(InvokeCoreAsync), BindingFlags.NonPublic | BindingFlags.Static)!
