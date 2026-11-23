@@ -17,7 +17,7 @@ partial class AiDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261123110813_ConversationPolicyClass";
+    public override string LastMigrationId => "20261123111406_AssistantPeople";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -124,6 +124,35 @@ partial class AiDbContextModelSnapshot : ModelSnapshot
                 b.ToTable("ai_settings", "ai", t =>
                     {
                         t.HasCheckConstraint("ck_ai_settings_single", "id = 1");
+                    });
+            });
+
+        modelBuilder.Entity("Nid.Ai.Infrastructure.Persistence.AssistantPersonRow", b =>
+            {
+                b.Property<Guid>("PersonId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("person_id");
+
+                b.Property<Instant>("ChangedAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("changed_at");
+
+                b.Property<bool>("Enabled")
+                    .HasColumnType("boolean")
+                    .HasColumnName("enabled");
+
+                b.Property<string>("OffsiteDefault")
+                    .IsRequired()
+                    .HasMaxLength(8)
+                    .HasColumnType("character varying(8)")
+                    .HasColumnName("offsite_default");
+
+                b.HasKey("PersonId")
+                    .HasName("pk_assistant_person");
+
+                b.ToTable("assistant_person", "ai", t =>
+                    {
+                        t.HasCheckConstraint("ck_assistant_person_offsite", "offsite_default in ('ask', 'allow', 'never')");
                     });
             });
 

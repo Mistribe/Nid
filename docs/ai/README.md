@@ -546,6 +546,13 @@ cet adulte (§6.3). Chaque décision est enregistrée (`consent_id`) et liée au
   et chaque propriétaire de chaque élément lié. Un document ne sort des lieux en tâche de fond (texte et OCR sur un
   worker distant, plongements vers un worker distant ou le cloud) qu'avec `allow` de **chacun** d'eux ; le réglage
   `embed` du foyer est nécessaire, jamais suffisant.
+- **Livré (#533), pour le chat** : chaque adulte active l'assistant pour lui (`assistant_person`, éteint par défaut ; un
+  tour est refusé avec `ai.assistant_off` avant). Quand l'usage `chat` peut aller au cloud, l'activation dit ce qui part
+  et les deux adultes sont prévenus (`ai.data_policy_changed`, `assistant_cloud_on`). Sa préférence `ai_offsite_default`
+  est gardée au même endroit, pas dans `core.person.preferences`, qui sont des réglages d'affichage : c'est une décision,
+  auditée, avec un événement de sécurité. Hors des lieux, l'acteur assistant porte `Actor.Offsite` : ses éléments à lui
+  partent, un élément dont **un** propriétaire a choisi `never` est retenu (`VisibleItems`, `AccessPolicy`), et la lecture
+  « partagé seulement » de #500 disparaît.
 
 ### 6.4 Filtrage des résultats d'outils (décision C)
 
@@ -676,6 +683,13 @@ livrée par défaut.
   ne tiendrait plus n'est pas envoyée et le tour s'arrête sur `context_full`. Un tour s'arrête sur la
   réponse du modèle (`end`, `length`, `refused`) ou une limite (`max_steps`, `timed_out`) ; un refus de la passerelle rend
   son code `ai.*`, le plafond de tours `ai.assistant_turn_limit`.
+- **Livré (#534)** : le chat est un panneau (`AssistantPanel`, chargé à la demande) ouvert par le bouton « Assistant » de
+  la barre du haut, sur toutes les pages. Il montre la conversation en cours, les outils consultés, les liens de Nid, la
+  ligne des résultats gardés, le fournisseur et le modèle ; il liste les conversations de la personne (page par page,
+  côté serveur), les rouvre et les supprime. Quand il ne peut pas répondre, il dit pourquoi : assistant non activé pour
+  soi, ou aucun modèle choisi (lien vers Réglages › IA pour un admin, « demandez à un administrateur » sinon). La page
+  d'essai de Réglages › IA (#501) est retirée. Une conversation rouverte montre ses outils, pas ses liens : ils sont
+  construits au moment du tour.
 
 ### 8.4 Audit
 
@@ -751,6 +765,10 @@ coupé au montant réservé, et un balayage chaque minute règle les réservatio
 
 Le chat affiche les jetons et le coût par conversation (#175) ; une conversation avec un modèle de worker montre ses
 jetons, sans coût. Pas de dialogue d'estimation avant chaque message.
+
+**Livré (#175)** : une conversation et chaque ligne de la liste portent la somme des jetons et du coût estimé de ses appels
+(`llm_call.conversation_id`), calculée par le serveur ; sans appel chiffré, pas de coût (un modèle de worker). Un tour
+bloqué par le budget rend `ai.budget_blocked` avec la date de reprise (le 1er du mois suivant), que le panneau affiche.
 
 ## 11. Nid sans worker ni cloud (question 5, décision D)
 

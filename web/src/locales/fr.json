@@ -114,6 +114,7 @@
   },
   "command": {
     "open": "Rechercher ou aller à…",
+    "assistant": "Assistant",
     "shortcut_mac": "⌘ K",
     "shortcut": "Ctrl K"
   },

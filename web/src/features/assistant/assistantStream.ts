@@ -9,7 +9,7 @@ export type AssistantEvent =
   | { type: 'tool'; tool: string }
   | { type: 'held_back'; count: number; destination: string; placement: string }
   | { type: 'done'; provider: string; placement: string; model: string; reason: string; links: AssistantLink[]; conversationId: string | null }
-  | { type: 'error'; code: string };
+  | { type: 'error'; code: string; availableOn?: string | null };
 
 /**
  * One turn of `POST /api/v1/ai/assistant/turn` (#501): its server-sent events, in order. #531: in `conversation`, whose

@@ -199,6 +199,10 @@ public static class RequestCatalogue
         new(typeof(Nid.Ai.Application.GetConversationQuery), false, (_, _) => new Nid.Ai.Application.GetConversationQuery(Guid.CreateVersion7())),
         new(typeof(Nid.Ai.Application.DeleteConversationCommand), false, (_, _) => new Nid.Ai.Application.DeleteConversationCommand(Guid.CreateVersion7())),
         new(typeof(Nid.Ai.Application.SetConversationRetentionCommand), false, (_, _) => new Nid.Ai.Application.SetConversationRetentionCommand(30)),
+        // #533: one's own assistant, no item.
+        new(typeof(Nid.Ai.Application.GetAssistantMeQuery), false, (_, _) => new Nid.Ai.Application.GetAssistantMeQuery()),
+        new(typeof(Nid.Ai.Application.SetAssistantEnabledCommand), false, (_, _) => new Nid.Ai.Application.SetAssistantEnabledCommand(true)),
+        new(typeof(Nid.Ai.Application.SetAssistantOffsiteCommand), false, (_, _) => new Nid.Ai.Application.SetAssistantOffsiteCommand("never")),
         new(typeof(Nid.Ai.Application.SetCloudRegionCommand), false, (_, _) => new Nid.Ai.Application.SetCloudRegionCommand("eea_ch_uk")),
         new(typeof(Nid.Ai.Application.EnableCloudProfileCommand), false, (_, _) => new Nid.Ai.Application.EnableCloudProfileCommand("anthropic-claude", new NodaTime.LocalDate(2026, 11, 22))),
         new(typeof(Nid.Ai.Application.DisableCloudProfileCommand), false, (_, _) => new Nid.Ai.Application.DisableCloudProfileCommand("anthropic-claude")),

@@ -310,3 +310,15 @@ public sealed class CloudProfileRow
 
     public Instant EnabledAt { get; set; }
 }
+
+/// <summary>#533: one adult's assistant: on or off, and their preference for their data off the premises (§6.3).</summary>
+public sealed class AssistantPersonRow
+{
+    public Guid PersonId { get; set; }
+
+    public bool Enabled { get; set; }
+
+    public string OffsiteDefault { get; set; } = "ask";
+
+    public Instant ChangedAt { get; set; }
+}
