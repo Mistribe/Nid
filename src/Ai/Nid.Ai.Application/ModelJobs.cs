@@ -52,6 +52,9 @@ public sealed class EchoJobContract() : ModelContract<EchoJobInput, EchoJobOutpu
 /// <summary><c>contracts/requests/echo/v1</c>: the test request « Tester » streams.</summary>
 public sealed class EchoRequestContract() : ModelContract<EchoRequestInput, EchoRequestOutput>(ModelCallKind.Request, "echo", 1, allowsNoData: true);
 
+/// <summary><c>contracts/jobs/document-text/v1</c> (#167): a document's text, page by page, from its text layer or OCR.</summary>
+public sealed class DocumentTextJobContract() : ModelContract<DocumentTextInput, DocumentTextOutput>(ModelCallKind.Job, "document-text", 1);
+
 /// <summary><c>contracts/requests/chat/v1</c> (#485): a chat turn through a worker's engine; its data class is the caller's.</summary>
 public sealed class ChatRequestContract() : ModelContract<ChatRequestInput, ChatRequestOutput>(ModelCallKind.Request, "chat", 1);
 
@@ -78,7 +81,7 @@ public sealed class ModelJobs(IJobStore store, ModelContracts contracts, IClock 
         var job = await store.AddOrFindAsync(new JobRecord(
             Guid.CreateVersion7(), request.Type, request.Version, Encoding.UTF8.GetString(input), Hash(request, input), request.FileRef,
             request.DataClass, request.TargetWorkerId, JobState.Queued, 0, now, null, null, null, null, null, null, null, null, now, null,
-            null, 0), ct);
+            null, 0) { Concerned = request.Concerned ?? [] }, ct);
         return job.Id;
     }
 
@@ -101,10 +104,11 @@ public sealed class WorkerRouter(IWorkerStore workers, IAiSettings settings, ICl
 {
     public static readonly Duration OnlineFor = Duration.FromMinutes(3);
 
-    public async Task<Route> RouteAsync(string type, int version, ModelCallKind kind, string dataClass, Guid? target, CancellationToken ct)
+    public async Task<Route> RouteAsync(string type, int version, ModelCallKind kind, string dataClass, Guid? target, CancellationToken ct, bool offsite = true)
     {
         var now = clock.GetCurrentInstant();
-        var remoteAllowed = await settings.RemoteWorkersAllowedAsync(ct);
+        var householdAllows = await settings.RemoteWorkersAllowedAsync(ct);
+        var remoteAllowed = householdAllows && offsite;
         var refusals = new List<string>();
         var eligible = new List<(WorkerRecord Worker, WorkerDeclaration Declaration)>();
         foreach (var worker in await workers.ListAsync(ct))
@@ -130,7 +134,10 @@ public sealed class WorkerRouter(IWorkerStore workers, IAiSettings settings, ICl
             .ThenByDescending(e => e.Worker.LastSeenAt)
             .Select(e => e.Worker)
             .ToList();
-        return new Route(ordered, ordered.Count == 0 ? Domain.DataPolicy.Reason(refusals) ?? JobCodes.NoWorker : null);
+        var reason = Domain.DataPolicy.Reason(refusals);
+        if (reason == Domain.DataPolicy.RemoteNotAllowed && householdAllows)
+            reason = JobCodes.OffsiteNotAllowed;
+        return new Route(ordered, ordered.Count == 0 ? reason ?? JobCodes.NoWorker : null);
     }
 
     public static WorkerDeclaration? DeclarationOf(WorkerRecord worker) => Declaration(worker);

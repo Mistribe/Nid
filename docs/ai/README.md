@@ -359,6 +359,24 @@ du moteur.
   de la déclaration jusqu'à ce qu'il réponde.
 - Sans `Engine:Url`, le worker ne déclare ni modèle ni `chat`.
 
+### 3.8 Le texte des documents (#167)
+
+- Le job `contracts/jobs/document-text/v1` reçoit le document comme fichier du job et son type de média lu par Nid. Il
+  rend le texte page par page, chaque page avec sa source : `text-layer`, `ocr`, `email` ou `none`.
+- Le worker lit la couche texte d'un PDF avec `pdftotext` (poppler). Une page qui n'a pas 20 lettres ou chiffres est
+  rendue en image à 200 dpi (`pdftoppm`), puis lue par Tesseract (`fra+eng`). Une image passe directement par Tesseract.
+  Un `.eml` donne son objet et son corps, le HTML réduit à son texte.
+- **Bornes :** 50 pages en OCR par document, les suivantes restent `none` (le job doit finir dans son bail de 10 min).
+  200 000 caractères par page, 8 millions en tout, 2 000 pages. Un outil qui échoue ou dépasse 2 min fait échouer le job
+  en `ai.invalid_input`, sans nouvel essai.
+- **Image :** l'image du worker part de l'image aspnet Ubuntu, plus la version chiseled, pour embarquer poppler et
+  Tesseract. Un worker lancé sans ces outils ne déclare pas `document-text`.
+- **Côté Nid :**
+  - un dépôt demande le texte une fois le document enregistré ;
+  - au démarrage, un rattrapage le demande pour les documents qui ne l'ont jamais eu (`documents.document_text_job`) ;
+  - Ai remet le résultat, lu par le contrat, à Documents (`IJobResultSink`) avant de clore le job ;
+  - les pages vont dans `documents.document_text`, supprimées avec leur document.
+
 ## 4. Deux modes (question 2)
 
 ### 4.1 Jobs, requêtes et transport
@@ -553,6 +571,12 @@ cet adulte (§6.3). Chaque décision est enregistrée (`consent_id`) et liée au
   auditée, avec un événement de sécurité. Hors des lieux, l'acteur assistant porte `Actor.Offsite` : ses éléments à lui
   partent, un élément dont **un** propriétaire a choisi `never` est retenu (`VisibleItems`, `AccessPolicy`), et la lecture
   « partagé seulement » de #500 disparaît.
+- **Livré (#167), pour les tâches de fond :**
+  - un job porte les adultes concernés (`ai.job.concerned`). Pour un document, ce sont son déposant, les propriétaires
+    des éléments liés, la personne liée, ou les deux adultes pour un lien au foyer, lus quand le job est mis en file ;
+  - le dispatcher ne l'envoie à un worker distant que si chacun d'eux a choisi `allow`, en plus de l'opt-in du foyer.
+    Il relit ce choix à chaque envoi et à chaque interrogation, si bien qu'un retrait reprend le job ;
+  - sinon, la raison est `ai.offsite_not_allowed`. Un lien ajouté plus tard ne remet pas le job en file.
 
 ### 6.4 Filtrage des résultats d'outils (décision C)
 
@@ -859,7 +883,8 @@ et §3, `authorization.md`), `../security/` (`infrastructure.md`, `README.md`, `
 - **Classes de données fixées par #475** : `none` (aucune donnée du foyer : « Tester »), `documents`, `local_only`,
   `figures`, `bank_labels` ; une classe inconnue est refusée. Sans le consentement de chaque adulte (§6.3, #167) : un
   worker distant reçoit tout sauf `none` seulement après l'opt-in du foyer, `local_only` seulement un worker `safe`. Sans
-  worker éligible, la raison : `ai.no_safe_worker`, puis `ai.remote_not_allowed`, sinon `ai.no_worker`. Tout adulte
+  worker éligible, la raison : `ai.no_safe_worker`, puis `ai.remote_not_allowed` (`ai.offsite_not_allowed` quand le foyer
+  les autorise mais qu'un adulte concerné n'a pas choisi `allow`, #167), sinon `ai.no_worker`. Tout adulte
   pose l'opt-in et l'étiquette `safe` ; chaque changement (un réglage qui ne change rien n'est ni gardé ni annoncé) est
   un événement de sécurité et prévient tous les adultes. Un retrait reprend aussi le travail déjà confié : un job est
   annulé sur le worker à sa prochaine interrogation et renvoyé là où il peut aller ; une requête déjà en cours se termine.

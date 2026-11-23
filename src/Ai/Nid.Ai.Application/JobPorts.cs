@@ -38,7 +38,11 @@ public sealed record JobRecord(
     Instant CreatedAt,
     Instant? SentAt,
     Instant? FinishedAt,
-    uint RowVersion);
+    uint RowVersion)
+{
+    /// <summary>The adults whose <c>allow</c> the job needs to leave the premises (<see cref="JobRequest.Concerned"/>).</summary>
+    public IReadOnlyList<Guid> Concerned { get; init; } = [];
+}
 
 public interface IJobStore
 {
@@ -97,7 +101,9 @@ public enum ModelCallKind
 /// <summary>Where a job or request goes: eligible workers, best first.</summary>
 public interface IWorkerRouter
 {
-    Task<Route> RouteAsync(string type, int version, ModelCallKind kind, string dataClass, Guid? target, CancellationToken ct);
+    /// <summary><paramref name="offsite"/> false: an adult the job concerns has not allowed it off the premises, so only a
+    /// local worker may take it (<see cref="JobCodes.OffsiteNotAllowed"/> when none can).</summary>
+    Task<Route> RouteAsync(string type, int version, ModelCallKind kind, string dataClass, Guid? target, CancellationToken ct, bool offsite = true);
 }
 
 /// <summary>A job change the database refused for its content (not a concurrent change): the dispatcher fails that job
