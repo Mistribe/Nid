@@ -2,7 +2,8 @@
 // The feature areas as a grid of cards, each linking to its page (src/data/areas.ts).
 import { Baby, FileText, House, Landmark, LayoutDashboard, Receipt, Repeat, Sparkles, Target, TrendingUp, Wallet } from '@lucide/astro';
 import Section from './Section.astro';
-import { areas } from '../../data/areas';
+// The feature areas, in the order of this grid and the sidebar; `route` is the app screen scripts/capture.mjs photographs.
+import areas from '../../data/areas.json';
 import { localePath, type Lang } from '../../data/locale';
 
 interface Props { lang: Lang; heading?: boolean }

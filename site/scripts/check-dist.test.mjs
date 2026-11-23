@@ -48,3 +48,7 @@ test('a stylesheet that imports or points to another site is a problem', () => {
   const css = "@import url(https://fonts.googleapis.com/css2?family=X);@import 'https://x.org/a.css';.a{background:url(/ok.png)}";
   assert.equal(findProblems([{ path: '_astro/common.css', html: css }], []).length, 2);
 });
+
+test('an alt made of spaces is as good as none', () => {
+  assert.equal(findProblems([{ path: 'a.html', html: '<img src="/a.png" alt="  ">' }], []).length, 1);
+});

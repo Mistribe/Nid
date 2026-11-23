@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { shots } from './capture.mjs';
-import { areas } from '../src/data/areas.ts';
+import areas from '../src/data/areas.json' with { type: 'json' };
 
 test('two captures per area, light then dark, named after its slug', () => {
   const list = shots('https://demo.example');
@@ -14,4 +14,8 @@ test('two captures per area, light then dark, named after its slug', () => {
 
 test('a trailing slash on the base does not double the slash', () => {
   assert.equal(shots('https://demo.example/')[0].url, 'https://demo.example/dashboard');
+});
+
+test('several trailing slashes are all dropped', () => {
+  assert.equal(shots('https://demo.example///')[0].url, 'https://demo.example/dashboard');
 });

@@ -13,7 +13,7 @@ const LINK_LOADS = new Set(['stylesheet', 'preload', 'modulepreload', 'prefetch'
 const SOURCE_ATTRIBUTES = { script: ['src'], img: ['src', 'srcset'], source: ['src', 'srcset'], iframe: ['src'], video: ['src', 'poster'], audio: ['src'], track: ['src'], embed: ['src'], object: ['data'] };
 
 const attributesOf = (tag) =>
-  Object.fromEntries([...tag.matchAll(/([\w:-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/g)].map(([, name, a, b, c]) => [name.toLowerCase(), a ?? b ?? c]));
+  Object.fromEntries([...tag.matchAll(/([\w:-]+)=(?:"([^"]*)"|'([^']*)'|([^\s>"']+))/g)].map(([, name, a, b, c]) => [name.toLowerCase(), a ?? b ?? c]));
 
 const cssUrls = (css) => [
   ...[...css.matchAll(/url\(\s*['"]?([^'")\s]+)/gi)].map((m) => m[1]),
@@ -49,7 +49,7 @@ export function findProblems(files, contentPaths) {
     for (const url of loadedUrls(path, html)) if (url && isForeign(url)) problems.push(`${path}: loads ${url}`);
     if (path.endsWith('.css')) continue;
     for (const [img] of html.matchAll(/<img\b[^>]*>/gi)) {
-      if (!/\balt=(?:"[^"]*\S[^"]*"|'[^']*\S[^']*')/i.test(img)) problems.push(`${path}: image without alt text: ${img.slice(0, 80)}`);
+      if (!attributesOf(img).alt?.trim()) problems.push(`${path}: image without alt text: ${img.slice(0, 80)}`);
     }
   }
   const french = new Set(contentPaths.filter((p) => !p.startsWith('en/')));

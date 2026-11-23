@@ -2,13 +2,19 @@
 // (src/assets/screens/<slug>-{light,dark}.png, 1372×870 like docs/frontend/screens.md §13). Signs in as Alice, the demo's
 // invented adult, so no real household ever appears. Usage: pnpm --dir site capture [--base https://demo.nid.mistribe.com]
 import { fileURLToPath } from 'node:url';
-import { areas } from '../src/data/areas.ts';
+import areas from '../src/data/areas.json' with { type: 'json' };
 
 const VIEWPORT = { width: 1372, height: 870 };
 
+const withoutTrailingSlashes = (url) => {
+  let end = url.length;
+  while (end > 0 && url[end - 1] === '/') end -= 1;
+  return url.slice(0, end);
+};
+
 /** @param {string} base @returns {Array<{ url: string, file: string, colorScheme: 'light' | 'dark' }>} */
 export function shots(base) {
-  const origin = base.replace(/\/+$/, '');
+  const origin = withoutTrailingSlashes(base);
   return ['light', 'dark'].flatMap((colorScheme) =>
     areas.map(({ slug, route }) => ({ url: `${origin}${route}`, file: `src/assets/screens/${slug}-${colorScheme}.png`, colorScheme })),
   );
@@ -17,7 +23,7 @@ export function shots(base) {
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const { chromium } = await import('playwright');
   const at = process.argv.indexOf('--base');
-  const base = (at > 0 ? process.argv[at + 1] : 'https://demo.nid.mistribe.com').replace(/\/+$/, '');
+  const base = withoutTrailingSlashes(at > 0 ? process.argv[at + 1] : 'https://demo.nid.mistribe.com');
   const root = fileURLToPath(new URL('..', import.meta.url));
   const browser = await chromium.launch();
   try {

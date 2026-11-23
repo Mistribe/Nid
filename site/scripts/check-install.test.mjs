@@ -34,3 +34,9 @@ test('a block whose line the README has since extended is reported', () => {
 test('untagged blocks, like a Caddyfile, are compared too', () => {
   assert.deepEqual(staleBlocks([{ path: 'proxy.md', text: '```\nnid.example.org {\n\treverse_proxy nid:9090\n}\n```' }], '```\nnid.example.org {\n\treverse_proxy nid:8080\n}\n```'), ['proxy.md: block 1 not in deploy/README.md']);
 });
+
+test('a fence indented under a list item, or with a title after its language, is read', () => {
+  const text = '1. Start:\n   ```bash title="x"\n   docker compose up -d\n   ```\n';
+  assert.deepEqual(staleBlocks([{ path: 'a.md', text }], 'docker compose up -d'), []);
+  assert.equal(staleBlocks([{ path: 'a.md', text }], 'nothing').length, 1);
+});

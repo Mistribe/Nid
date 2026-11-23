@@ -4,8 +4,25 @@ import { readdir, readFile } from 'node:fs/promises';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const FENCE = /^[ \t]*```([\w-]*)[^\n]*\n([\s\S]*?)^[ \t]*```/gm;
 const CHECKED = new Set(['', 'sh', 'bash', 'shell']);
+
+/** The fenced blocks of a page, read line by line: its language (the first word after the fence) and its body. */
+function* fences(text) {
+  let open = null;
+  for (const line of text.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith('```')) {
+      open?.lines.push(line);
+      continue;
+    }
+    if (open) {
+      yield { lang: open.lang, body: open.lines.join('\n') };
+      open = null;
+    } else {
+      open = { lang: trimmed.slice(3).split(' ')[0], lines: [] };
+    }
+  }
+}
 
 const normalise = (text) => text.split('\n').map((line) => line.trim()).filter((line) => line !== '').join('\n');
 
@@ -16,7 +33,7 @@ export function staleBlocks(pages, readme) {
   const problems = [];
   for (const { path, text } of pages) {
     let index = 0;
-    for (const [, lang, body] of text.matchAll(FENCE)) {
+    for (const { lang, body } of fences(text)) {
       if (!CHECKED.has(lang)) continue;
       index += 1;
       if (!reference.includes(`\n${normalise(body)}\n`)) problems.push(`${path}: block ${index} not in deploy/README.md`);
