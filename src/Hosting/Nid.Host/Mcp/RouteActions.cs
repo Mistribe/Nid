@@ -149,7 +149,9 @@ public static class RouteActions
             "Create an investment envelope (PEA, life insurance, savings account), with its opening and first valuation when known. A savings "
             + "account that is a regulated livret says which in 'regulated': 'livret_a', 'ldds', 'lep' or 'livret_jeune'. " + Owners + Amounts),
         new("edit_envelope", "PATCH", "/api/v1/investments/envelopes/{id:guid}", typeof(EditEnvelopeBody),
-            "Edit an envelope's details; only the fields given change ('regulated' for a savings account's livret, 'clearRegulated' to remove it). " + Ids),
+            "Edit an envelope's details; only the fields given change ('regulated' for a savings account's livret, 'clearRegulated' to remove it). "
+            + "An employee savings plan (PEE) the household says qualifies for an early release takes 'earlyRelease' { case, on, amount? }: case one of "
+            + string.Join(", ", Nid.Investments.Contracts.EarlyReleaseCases.All) + "; without an amount, the whole plan; 'clearEarlyRelease' to remove it. " + Ids),
         new("add_valuation", "POST", "/api/v1/investments/envelopes/{id:guid}/valuations", typeof(ValuationBody),
             "Record an envelope's value on a date. " + Ids + Amounts),
         new("delete_valuation", "DELETE", "/api/v1/investments/envelopes/{id:guid}/valuations/{valuationId:guid}", null,

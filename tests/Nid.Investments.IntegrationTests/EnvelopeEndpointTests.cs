@@ -445,6 +445,44 @@ public class EnvelopeEndpointTests(PostgresFixture fixture, SharedNidApp shared)
         Assert.Equal("availability", (await JsonAsync(refused)).GetProperty("errors")[0].FieldPath());
     }
 
+    /// <summary>#466: an early-release case frees its amount (the whole plan without one) from its date.</summary>
+    [Fact]
+    public async Task An_early_release_case_frees_its_amount_from_its_date()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        const string url = "/api/v1/investments/envelopes";
+        var created = await app.RawAsync(app.AdultA, HttpMethod.Post, url, new
+        {
+            displayName = "PEE", kind = "employee_savings", currency = "EUR", visibility = "shared", valuationCadence = "monthly",
+            owners = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } },
+            firstValuation = new { asOf = "2025-01-31", amount = new { amount = "10000.00", currency = "EUR" } },
+        });
+        var id = (await JsonAsync(created)).GetProperty("id").GetGuid();
+        static decimal Amount(JsonElement e, string name) => decimal.Parse(e.GetProperty(name).GetProperty("amount").GetString()!, System.Globalization.CultureInfo.InvariantCulture);
+
+        var edited = await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{url}/{id}",
+            new { earlyRelease = new { @case = "home_purchase", on = "2001-01-01", amount = "4000.00" } });
+        Assert.Equal(HttpStatusCode.OK, edited.StatusCode);
+        var availability = (await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{url}/{id}"))).GetProperty("availability");
+        Assert.Equal((4000m, 6000m), (Amount(availability, "availableToday"), Amount(availability, "locked")));
+        var early = availability.GetProperty("earlyRelease");
+        Assert.Equal(("home_purchase", "2001-01-01", 4000m), (early.GetProperty("case").GetString(), early.GetProperty("on").GetString(), Amount(early, "released")));
+
+        // Without an amount, the whole plan.
+        await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{url}/{id}", new { earlyRelease = new { @case = "marriage", on = "2001-01-01" } });
+        availability = (await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{url}/{id}"))).GetProperty("availability");
+        Assert.Equal(10_000m, Amount(availability, "availableToday"));
+
+        var unknown = await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{url}/{id}", new { earlyRelease = new { @case = "lottery", on = "2001-01-01" } });
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, unknown.StatusCode);
+        Assert.Equal("earlyRelease.case", (await JsonAsync(unknown)).GetProperty("errors")[0].FieldPath());
+
+        // Off an employee savings plan, the case goes.
+        await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{url}/{id}", new { kind = "collective_per" });
+        var moved = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{url}/{id}"));
+        Assert.True(!moved.TryGetProperty("availability", out var gone) || gone.ValueKind == JsonValueKind.Null);
+    }
+
     private static object Plan(NidApp app, string kind, params PersonId[] owners)
         => new
         {

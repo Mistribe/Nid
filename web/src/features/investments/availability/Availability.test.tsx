@@ -44,6 +44,27 @@ describe('a PEE\'s availability (#184)', () => {
     await waitFor(() => expect(body).toMatchObject({ availability: [{ availableOn: '2030-03-01', amount: '1500.50' }] }));
   });
 
+  it('shows an early-release case with what it frees, and sends one typed in (#466)', async () => {
+    serve(detail({
+      kind: 'employee_savings',
+      availability: {
+        availableToday: eur('2000.00'), releases: [], tranches: [], locked: eur('8000.00'),
+        earlyRelease: { case: 'marriage', on: '2026-03-01', amount: eur('2000.00'), released: eur('2000.00') },
+      },
+    }));
+    let body: unknown;
+    server.use(http.patch('*/api/v1/investments/envelopes/:id', async ({ request }) => { body = await request.json(); return HttpResponse.json({}); }));
+    const { user } = await renderApp(`/investments/${PEA}`);
+    expect(await screen.findByText(/^Mariage ou PACS, à partir du .* : 2\s000,00\s€ débloqués avant leurs dates\./)).toBeInTheDocument();
+    expect(screen.getByText(/^8\s000,00\s€ restent bloqués sans date connue\./)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Déblocage anticipé' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Déblocage anticipé' });
+    await user.clear(within(dialog).getByLabelText(/^Montant/));
+    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
+    await waitFor(() => expect(body).toMatchObject({ earlyRelease: { case: 'marriage', on: '2026-03-01', amount: null } }));
+  });
+
   it('is not shown on other kinds', async () => {
     serve(detail());
     await renderApp(`/investments/${PEA}`);
