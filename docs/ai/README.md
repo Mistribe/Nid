@@ -658,6 +658,17 @@ livrée par défaut.
 - **Rendu en texte brut**, sans image ni balisage interprété. Les liens sont construits par Nid à partir des
   identifiants rendus par les outils ; une URL écrite par le modèle n'est jamais rendue cliquable.
 - Chaque réponse nomme son fournisseur et son modèle.
+- **Livré (#500)** : `AssistantLoop` (dans `Nid.Host`) fait passer chaque étape par la passerelle avec les outils de
+  l'assistant. La destination de la première étape (worker local, worker distant ou fournisseur cloud) est exposée par la
+  passerelle et fige le tour : les étapes suivantes y sont épinglées (`LlmChatRequest.Pin`), jamais ailleurs. Hors des
+  lieux, et tant que le consentement de chaque adulte n'existe pas (#167), l'acteur assistant lit **les éléments partagés
+  seulement** (`Actor.SharedOnly`, respecté par `VisibleItems` et `AccessPolicy`) : ses propres éléments privés n'existent
+  pas pour lui, totaux compris. Le cloud ne reçoit jamais de `bank_labels` (`allowed_kinds` n'existe pas encore) : l'outil
+  n'est pas appelé. Ce qui est retenu est compté dans une ligne générique, sans dire quoi ni à qui. Limites, section
+  `Assistant` de la configuration : 8 étapes, 2 048 jetons de sortie par étape, 90 s par tour, 30 tours par personne et par
+  heure (en mémoire : un redémarrage les oublie), réponse d'outil de 24 000 caractères au plus. Un tour s'arrête sur la
+  réponse du modèle (`end`, `length`, `refused`) ou une limite (`max_steps`, `timed_out`) ; un refus de la passerelle rend
+  son code `ai.*`, le plafond de tours `ai.assistant_turn_limit`.
 
 ### 8.4 Audit
 
