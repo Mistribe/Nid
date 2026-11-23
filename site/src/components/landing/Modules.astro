@@ -1,5 +1,6 @@
 ---
 // The feature areas as a grid of cards, each linking to its page (src/data/areas.ts).
+import { Badge } from '@astrojs/starlight/components';
 import { Baby, FileText, House, Landmark, LayoutDashboard, Receipt, Repeat, Sparkles, Target, TrendingUp, Wallet } from '@lucide/astro';
 import Section from './Section.astro';
 // The feature areas, in the order of this grid and the sidebar; `route` is the app screen scripts/capture.mjs photographs.
@@ -16,15 +17,16 @@ const copy = {
   fr: { title: 'Tout le foyer, module par module', lead: 'Pensé pour les ménages français : impôt sur le revenu, PEA, PER, Livret A, assurance vie et Pajemploi fonctionnent d’emblée.' },
   en: { title: 'The whole household, module by module', lead: 'Made for French households: income tax, PEA, PER, Livret A, life insurance and Pajemploi work out of the box.' },
 }[lang];
-const cards = areas.map((area) => ({ ...area[lang], href: localePath(lang, `/fonctionnalites/${area.slug}/`), Icon: icons[area.icon as keyof typeof icons] }));
+// An area still being built carries a « Preview » badge (`preview` in areas.json), here and in the sidebar.
+const cards = areas.map((area) => ({ ...area[lang], preview: 'preview' in area && area.preview === true, href: localePath(lang, `/fonctionnalites/${area.slug}/`), Icon: icons[area.icon as keyof typeof icons] }));
 ---
 {heading ? (
-  <Section title={copy.title} lead={copy.lead}><div class="modules">{cards.map(({ title, line, href, Icon }) => (
-    <a class="module" href={href}><Icon size={22} aria-hidden="true" /><strong>{title}</strong><span>{line}</span></a>
+  <Section title={copy.title} lead={copy.lead}><div class="modules">{cards.map(({ title, line, href, Icon, preview }) => (
+    <a class="module" href={href}><Icon size={22} aria-hidden="true" /><strong>{title}{preview && <Badge text="Preview" variant="caution" class="preview" />}</strong><span>{line}</span></a>
   ))}</div></Section>
 ) : (
-  <div class="modules not-content">{cards.map(({ title, line, href, Icon }) => (
-    <a class="module" href={href}><Icon size={22} aria-hidden="true" /><strong>{title}</strong><span>{line}</span></a>
+  <div class="modules not-content">{cards.map(({ title, line, href, Icon, preview }) => (
+    <a class="module" href={href}><Icon size={22} aria-hidden="true" /><strong>{title}{preview && <Badge text="Preview" variant="caution" class="preview" />}</strong><span>{line}</span></a>
   ))}</div>
 )}
 
@@ -33,6 +35,6 @@ const cards = areas.map((area) => ({ ...area[lang], href: localePath(lang, `/fon
   .module { display: flex; flex-direction: column; gap: 0.4rem; padding: 1.1rem 1.2rem; border: 1px solid var(--sl-color-hairline); border-radius: 0.75rem; background: var(--sl-color-bg-nav); text-decoration: none; color: var(--sl-color-gray-2); transition: border-color 0.15s, transform 0.15s; }
   .module:hover, .module:focus-visible { border-color: var(--sl-color-accent); transform: translateY(-2px); }
   .module :global(svg) { color: var(--sl-color-accent); }
-  .module strong { color: var(--sl-color-white); font-size: 1.05rem; }
+  .module strong { color: var(--sl-color-white); font-size: 1.05rem; display: flex; align-items: center; gap: 0.5rem; }
   @media (prefers-reduced-motion: reduce) { .module { transition: none; } .module:hover, .module:focus-visible { transform: none; } }
 </style>

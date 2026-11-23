@@ -3,9 +3,17 @@ title: "Assistant"
 description: "Un assistant IA qui lit vos chiffres et propose, sans jamais décider à votre place."
 sidebar:
   order: 11
+  badge:
+    text: Preview
+    variant: caution
 ---
 
 import Screen from '../../../components/Screen.astro';
+import { Aside, Badge } from '@astrojs/starlight/components';
+
+<Aside type="caution" title="Preview">
+L'assistant dans l'application est encore en développement : il peut changer d'une version à l'autre. Le serveur MCP et « À valider » sont disponibles et stables.
+</Aside>
 
 Nid se branche sur votre assistant IA (Claude Desktop ou tout assistant compatible MCP), et en a un dans l'application. L'assistant lit vos chiffres et répond à vos questions ; il peut proposer un changement, mais rien n'est enregistré avant qu'une personne le valide.
 
@@ -21,7 +29,7 @@ Nid se branche sur votre assistant IA (Claude Desktop ou tout assistant compatib
 
 - **Un serveur MCP** : votre assistant y trouve des outils de lecture, et des outils d'écriture qui ne font que proposer.
 - **« À valider »** : chaque proposition montre ce qu'elle changerait à côté de l'état actuel ; vous l'approuvez, la modifiez ou la rejetez.
-- **L'assistant dans l'application**, avec un modèle local ou dans le cloud, et des conversations gardées pour leur seul auteur.
+- <Badge text="Preview" variant="caution" /> **L'assistant dans l'application**, avec un modèle local ou dans le cloud, et des conversations gardées pour leur seul auteur.
 - **Des jetons d'accès** personnels, avec leur portée, révocables à tout moment.
 - **L'IA ne calcule jamais** : un gain, un rendement, un échéancier ou un impôt vient toujours du serveur.
 
