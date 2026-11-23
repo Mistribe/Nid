@@ -1,16 +1,15 @@
 using Nid.Core.Contracts;
 using Nid.Investments.Contracts;
-using Nid.Investments.Domain;
 using NodaTime;
 
-namespace Nid.Investments.Application;
+namespace Nid.Investments.Domain;
 
 /// <summary>
 /// Issue #104: an envelope's value by asset class and liquidity. Pro rata of its latest snapshot's lines when it has one, each
 /// line classed by its holding's asset class, else by its kind; without a snapshot, by the envelope's kind. Guessed classes are approximate.
 /// Holding prices spec §5.4: an estimated value is split by the estimate's lines (their estimated values) instead of the snapshot's.
 /// </summary>
-internal static class EnvelopeAllocation
+public static class EnvelopeAllocation
 {
     public static IReadOnlyList<AllocationSlice> Of(
         EnvelopeKind kind, decimal value, HoldingSnapshot? snapshot, IReadOnlyDictionary<Guid, EnvelopeHolding> holdings,
@@ -68,7 +67,7 @@ internal static class EnvelopeAllocation
     /// Current and savings accounts can be spent now; a PER (individual or collective) waits for retirement, a tontine for its term, a PEE
     /// five years (#184: until the dates of its tranches, <see cref="Release"/>), SCPI shares for a buyer; the rest takes a sale or a withdrawal.
     /// </summary>
-    internal static string Liquidity(EnvelopeKind kind) => kind switch
+    public static string Liquidity(EnvelopeKind kind) => kind switch
     {
         EnvelopeKind.Checking or EnvelopeKind.Savings => AllocationLiquidity.Available,
         EnvelopeKind.Per or EnvelopeKind.CollectivePer or EnvelopeKind.Tontine or EnvelopeKind.EmployeeSavings or EnvelopeKind.Scpi => AllocationLiquidity.Locked,
@@ -79,7 +78,7 @@ internal static class EnvelopeAllocation
     /// Issue #356: a checking account or a livret is money available today, not an investment: « Comptes et placements » shows it under
     /// « Disponible », and the investment figures (paid in, gain, returns, performance, exposure, fees) leave it out.
     /// </summary>
-    internal static bool IsAvailable(EnvelopeKind kind) => Liquidity(kind) == AllocationLiquidity.Available;
+    public static bool IsAvailable(EnvelopeKind kind) => Liquidity(kind) == AllocationLiquidity.Available;
 
     private static (string Class, bool Approximate) ClassOf(EnvelopeKind kind) => kind switch
     {

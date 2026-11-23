@@ -22,7 +22,7 @@ public class HoldingsExposureTests
     private static IReadOnlyDictionary<string, SecurityBreakdown> By(params SecurityBreakdown[] b) => b.ToDictionary(x => x.Isin);
 
     private static HoldingsExposureView Build(IReadOnlyList<HoldingOverviewRow> rows, IReadOnlyDictionary<string, SecurityBreakdown> latest)
-        => HoldingsExposureMath.Build(rows, latest, "EUR", Today)!;
+        => HoldingsExposureViews.Build(rows, latest, "EUR", Today)!;
 
     private static (string?, decimal?) V(ExposureShareView s) => (s.Value?.Amount, s.SharePct);
 
@@ -94,7 +94,7 @@ public class HoldingsExposureTests
 
     [Fact]
     public void A_missing_converted_value_makes_the_exposure_null()
-        => Assert.Null(HoldingsExposureMath.Build([Row("etf", null, "100.00"), Row("etf", null, null)], By(), "EUR", Today));
+        => Assert.Null(HoldingsExposureViews.Build([Row("etf", null, "100.00"), Row("etf", null, null)], By(), "EUR", Today));
 
     [Fact]
     public void An_old_breakdown_counts_in_the_stale_value_and_an_equity_never_does()
