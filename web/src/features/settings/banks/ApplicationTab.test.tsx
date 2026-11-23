@@ -46,7 +46,7 @@ describe('Réglages › Banques › Mon application', () => {
     const { container } = await open();
 
     expect(await screen.findByText(/Nid lit vos soldes et vos opérations, en lecture seule/)).toBeInTheDocument();
-    expect(screen.getByText('Étape 1 sur 9')).toBeInTheDocument();
+    expect(screen.getByText('Étape 1 sur 8')).toBeInTheDocument();
     await expectNoAxeViolations(container);
   });
 
@@ -60,19 +60,22 @@ describe('Réglages › Banques › Mon application', () => {
     await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'application', step: 2 }));
   });
 
-  it('gives the redirect, privacy and terms addresses to copy', async () => {
+  it('gives every value of the portal form to copy, and says which email to give', async () => {
     serve(null);
     await open(4);
 
-    expect(await screen.findByRole('textbox', { name: /Adresse de retour/ })).toHaveValue(REDIRECT);
+    expect(await screen.findByRole('textbox', { name: /Nom de l’application/ })).toHaveValue('Nid');
+    expect(screen.getByRole('textbox', { name: /Adresse de retour/ })).toHaveValue(REDIRECT);
+    expect(screen.getByRole('textbox', { name: /Description de l’application/ })).toHaveDisplayValue(/lecture seule/);
+    expect(screen.getByText(/E-mail pour la protection des données/)).toBeInTheDocument();
     expect(screen.getByRole('textbox', { name: /Politique de confidentialité/ })).toHaveValue('https://github.com/Mistribe/Nid/blob/main/PRIVACY.md');
     expect(screen.getByRole('textbox', { name: /Conditions d’utilisation/ })).toHaveValue('https://github.com/Mistribe/Nid/blob/main/LICENSE');
-    expect(screen.getAllByRole('button', { name: /^Copier/ })).toHaveLength(3);
+    expect(screen.getAllByRole('button', { name: /^Copier/ })).toHaveLength(5);
   });
 
   it('declares the application at its step, then goes on to the test', async () => {
     const writes = serve(null);
-    const { user } = await open(7);
+    const { user } = await open(6);
 
     await user.type(await screen.findByRole('textbox', { name: /Identifiant/ }), 'app-alice');
     await user.click(screen.getByRole('textbox', { name: /Clé privée/ }));
@@ -80,7 +83,7 @@ describe('Réglages › Banques › Mon application', () => {
     await user.click(screen.getByRole('button', { name: 'Continuer' }));
 
     await waitFor(() => expect(writes).toEqual([['PUT', { applicationId: 'app-alice', privateKey: PEM }]]));
-    expect(await screen.findByText('Étape 8 sur 9')).toBeInTheDocument();
+    expect(await screen.findByText('Étape 7 sur 8')).toBeInTheDocument();
     expect(screen.queryByText(PEM)).toBeNull();
   });
 
@@ -88,7 +91,7 @@ describe('Réglages › Banques › Mon application', () => {
     serve(null);
     server.use(http.put('*/api/v1/banking/application', () => HttpResponse.json(
       { status: 422, code: 'banking.key_invalid', detail: 'Bad.', errors: [{ path: 'privateKey', code: 'banking.key_invalid', message: 'Bad.' }] }, { status: 422 })));
-    const { user } = await open(7);
+    const { user } = await open(6);
 
     await user.type(await screen.findByRole('textbox', { name: /Identifiant/ }), 'app-alice');
     await user.click(screen.getByRole('textbox', { name: /Clé privée/ }));
@@ -96,22 +99,22 @@ describe('Réglages › Banques › Mon application', () => {
     await user.click(screen.getByRole('button', { name: 'Continuer' }));
 
     expect(await screen.findByText(/clé n’est pas une clé privée valide/)).toBeInTheDocument();
-    expect(screen.getByText('Étape 7 sur 9')).toBeInTheDocument();
+    expect(screen.getByText('Étape 6 sur 8')).toBeInTheDocument();
   });
 
   it('sends back to the step that fixes what the test found', async () => {
     serve(declared, { test: { outcome: 'accepted', active: true, redirectUrlAllowed: false } });
-    const { user } = await open(8);
+    const { user } = await open(7);
 
     await user.click(await screen.findByRole('button', { name: 'Tester la connexion' }));
-    await user.click(await screen.findByRole('button', { name: 'Revenir à l’étape 4 : Renseigner les adresses' }));
+    await user.click(await screen.findByRole('button', { name: 'Revenir à l’étape 4 : Remplir le formulaire' }));
 
     expect(await screen.findByRole('textbox', { name: /Adresse de retour/ })).toHaveValue(REDIRECT);
   });
 
   it('ends on the summary once the bank step is done', async () => {
     serve(declared);
-    const { user } = await open(9);
+    const { user } = await open(8);
 
     expect(await screen.findByRole('button', { name: 'Relier une banque' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Terminer' }));
@@ -151,7 +154,7 @@ describe('Réglages › Banques › Mon application', () => {
     await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
 
     await waitFor(() => expect(writes).toEqual([['DELETE', null]]));
-    expect(await screen.findByText('Étape 1 sur 9')).toBeInTheDocument();
+    expect(await screen.findByText('Étape 1 sur 8')).toBeInTheDocument();
   });
 
   it('tells to remove the linked banks first when the application is in use', async () => {
@@ -178,7 +181,7 @@ describe('Réglages › Banques › Mon application', () => {
 
   it('refuses a key file over 16 KiB before sending it', async () => {
     const writes = serve(null);
-    const { user } = await open(7);
+    const { user } = await open(6);
 
     const dialog = await region();
     await user.upload(within(dialog).getByLabelText('Choisir le fichier de la clé'), new File(['x'.repeat(16 * 1024 + 1)], 'big.pem'));
@@ -190,7 +193,7 @@ describe('Réglages › Banques › Mon application', () => {
 
   it('reads a key file into the field', async () => {
     serve(null);
-    const { user } = await open(7);
+    const { user } = await open(6);
 
     const dialog = await region();
     await user.upload(within(dialog).getByLabelText('Choisir le fichier de la clé'), new File([PEM], 'key.pem'));
@@ -201,7 +204,7 @@ describe('Réglages › Banques › Mon application', () => {
   it('words a 413 and a 415 from the server', async () => {
     serve(null);
     server.use(http.put('*/api/v1/banking/application', () => HttpResponse.json({ status: 413 }, { status: 413 })));
-    const { user } = await open(7);
+    const { user } = await open(6);
 
     const dialog = await region();
     await user.type(within(dialog).getByRole('textbox', { name: /Identifiant/ }), 'app-alice');

@@ -336,7 +336,7 @@ describe('Réglages › Banques', () => {
     serveBanks([]);
     await renderApp('/settings/banks');
 
-    await screen.findByText('Étape 1 sur 9');
+    await screen.findByText('Étape 1 sur 8');
     expect(headings()[0]).toBe('Mon application Enable Banking');
   });
 
