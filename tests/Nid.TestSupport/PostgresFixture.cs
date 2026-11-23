@@ -10,6 +10,7 @@ using Nid.Investments.Infrastructure.Persistence;
 using Nid.Platform.Infrastructure.Persistence;
 using Nid.RealEstate.Infrastructure.Persistence;
 using Nid.Subscriptions.Infrastructure.Persistence;
+using Nid.Tax.Infrastructure.Persistence;
 using NodaTime;
 using Testcontainers.PostgreSql;
 
@@ -66,6 +67,9 @@ public sealed class PostgresFixture : IAsyncLifetime
     {
         await using (var core = NewCoreContext(connectionString))
             await core.Database.MigrateAsync();
+        // #512: after Core's, as the host runs them: the tax module moves the tables Core's earlier migrations created.
+        await using (var tax = NewTaxContext(connectionString))
+            await tax.Database.MigrateAsync();
         await using (var subs = NewSubscriptionsContext(connectionString))
             await subs.Database.MigrateAsync();
         await using (var investments = NewInvestmentsContext(connectionString))
@@ -133,6 +137,9 @@ public sealed class PostgresFixture : IAsyncLifetime
 
     public static GoalsDbContext NewGoalsContext(string connectionString)
         => new(new DbContextOptionsBuilder<GoalsDbContext>().Configure(connectionString).Options);
+
+    public static Nid.Tax.Infrastructure.Persistence.TaxDbContext NewTaxContext(string connectionString)
+        => new(new DbContextOptionsBuilder<Nid.Tax.Infrastructure.Persistence.TaxDbContext>().Configure(connectionString).Options);
 
     public static DocumentsDbContext NewDocumentsContext(string connectionString)
         => new(new DbContextOptionsBuilder<DocumentsDbContext>().Configure(connectionString).Options);

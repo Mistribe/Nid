@@ -17,7 +17,7 @@ partial class CoreDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261123073823_AllowAssistantOrigin";
+    public override string LastMigrationId => "20261123164438_TaxModule512";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -1040,90 +1040,6 @@ partial class CoreDbContextModelSnapshot : ModelSnapshot
                     });
             });
 
-        modelBuilder.Entity("Nid.Core.Infrastructure.Persistence.TaxAssessmentDeclarantRow", b =>
-            {
-                b.Property<Guid>("AssessmentId")
-                    .HasColumnType("uuid")
-                    .HasColumnName("assessment_id");
-
-                b.Property<Guid>("PersonId")
-                    .HasColumnType("uuid")
-                    .HasColumnName("person_id");
-
-                b.Property<int>("Rank")
-                    .HasColumnType("integer")
-                    .HasColumnName("rank");
-
-                b.Property<int>("Year")
-                    .HasColumnType("integer")
-                    .HasColumnName("year");
-
-                b.HasKey("AssessmentId", "PersonId")
-                    .HasName("pk_tax_assessment_declarant");
-
-                b.HasIndex("PersonId")
-                    .HasDatabaseName("ix_tax_assessment_declarant_person_id");
-
-                b.HasIndex("Year", "PersonId")
-                    .IsUnique()
-                    .HasDatabaseName("ix_tax_assessment_declarant_year_person_id");
-
-                b.ToTable("tax_assessment_declarant", "core", t =>
-                    {
-                        t.HasCheckConstraint("ck_tax_assessment_declarant_rank", "rank in (1,2)");
-                    });
-            });
-
-        modelBuilder.Entity("Nid.Core.Infrastructure.Persistence.TaxAssessmentRow", b =>
-            {
-                b.Property<Guid>("Id")
-                    .HasColumnType("uuid")
-                    .HasColumnName("id");
-
-                b.Property<string>("Data")
-                    .IsRequired()
-                    .HasColumnType("jsonb")
-                    .HasColumnName("data");
-
-                b.Property<uint>("Version")
-                    .IsConcurrencyToken()
-                    .ValueGeneratedOnAddOrUpdate()
-                    .HasColumnType("xid")
-                    .HasColumnName("xmin");
-
-                b.Property<int>("Year")
-                    .HasColumnType("integer")
-                    .HasColumnName("year");
-
-                b.HasKey("Id")
-                    .HasName("pk_tax_assessment");
-
-                b.ToTable("tax_assessment", "core", t =>
-                    {
-                        t.HasCheckConstraint("ck_tax_assessment_year", "year between 2000 and 2100");
-                    });
-            });
-
-        modelBuilder.Entity("Nid.Core.Infrastructure.Persistence.TaxProfileRow", b =>
-            {
-                b.Property<int>("Year")
-                    .HasColumnType("integer")
-                    .HasColumnName("year");
-
-                b.Property<string>("Data")
-                    .IsRequired()
-                    .HasColumnType("jsonb")
-                    .HasColumnName("data");
-
-                b.HasKey("Year")
-                    .HasName("pk_tax_profile");
-
-                b.ToTable("tax_profile", "core", t =>
-                    {
-                        t.HasCheckConstraint("ck_tax_profile_year", "year between 2025 and 2100");
-                    });
-            });
-
         modelBuilder.Entity("Nid.Core.Infrastructure.Persistence.ValuationRow", b =>
             {
                 b.Property<Guid>("Id")
@@ -1437,23 +1353,6 @@ partial class CoreDbContextModelSnapshot : ModelSnapshot
                     .OnDelete(DeleteBehavior.Cascade)
                     .IsRequired()
                     .HasConstraintName("fk_scenario_item_item_id");
-            });
-
-        modelBuilder.Entity("Nid.Core.Infrastructure.Persistence.TaxAssessmentDeclarantRow", b =>
-            {
-                b.HasOne("Nid.Core.Infrastructure.Persistence.TaxAssessmentRow", null)
-                    .WithMany()
-                    .HasForeignKey("AssessmentId")
-                    .OnDelete(DeleteBehavior.Cascade)
-                    .IsRequired()
-                    .HasConstraintName("fk_tax_assessment_declarant_tax_assessment_assessment_id");
-
-                b.HasOne("Nid.Core.Infrastructure.Persistence.PersonRow", null)
-                    .WithMany()
-                    .HasForeignKey("PersonId")
-                    .OnDelete(DeleteBehavior.Restrict)
-                    .IsRequired()
-                    .HasConstraintName("fk_tax_assessment_declarant_person_person_id");
             });
 
         modelBuilder.Entity("Nid.Core.Infrastructure.Persistence.ValuationRow", b =>

@@ -25,9 +25,6 @@ public sealed class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbC
     public DbSet<CredentialLinkRow> CredentialLinks => Set<CredentialLinkRow>();
     public DbSet<RecoveryCodeRow> RecoveryCodes => Set<RecoveryCodeRow>();
     public DbSet<ProposalRow> Proposals => Set<ProposalRow>();
-    public DbSet<TaxProfileRow> TaxProfiles => Set<TaxProfileRow>();
-    public DbSet<TaxAssessmentRow> TaxAssessments => Set<TaxAssessmentRow>();
-    public DbSet<TaxAssessmentDeclarantRow> TaxAssessmentDeclarants => Set<TaxAssessmentDeclarantRow>();
     public DbSet<ScenarioRow> Scenarios => Set<ScenarioRow>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -53,34 +50,6 @@ public sealed class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbC
             e.Property(x => x.IrlEnabled).HasDefaultValue(false);
             e.Property(x => x.InflationEnabled).HasDefaultValue(true);
             e.Property(x => x.BankingEnabled).HasDefaultValue(false);
-        });
-
-        // Tax estimate spec §7: one household document per revenue year.
-        modelBuilder.Entity<TaxProfileRow>(e =>
-        {
-            e.ToTable("tax_profile", t => t.HasCheckConstraint("ck_tax_profile_year", "year between 2025 and 2100"));
-            e.HasKey(x => x.Year);
-            e.Property(x => x.Year).ValueGeneratedNever();
-            e.Property(x => x.Data).HasColumnType("jsonb");
-        });
-
-        // Tax assessments spec §3: a notice and its declarants; a person is in one notice per year.
-        modelBuilder.Entity<TaxAssessmentRow>(e =>
-        {
-            e.ToTable("tax_assessment", t => t.HasCheckConstraint("ck_tax_assessment_year", "year between 2000 and 2100"));
-            e.HasKey(x => x.Id);
-            e.Property(x => x.Id).ValueGeneratedNever();
-            e.Property(x => x.Data).HasColumnType("jsonb");
-            MapXmin(e.Property(x => x.Version));
-        });
-
-        modelBuilder.Entity<TaxAssessmentDeclarantRow>(e =>
-        {
-            e.ToTable("tax_assessment_declarant", t => t.HasCheckConstraint("ck_tax_assessment_declarant_rank", "rank in (1,2)"));
-            e.HasKey(x => new { x.AssessmentId, x.PersonId });
-            e.HasIndex(x => new { x.Year, x.PersonId }).IsUnique();
-            e.HasOne<TaxAssessmentRow>().WithMany().HasForeignKey(x => x.AssessmentId).OnDelete(DeleteBehavior.Cascade);
-            e.HasOne<PersonRow>().WithMany().HasForeignKey(x => x.PersonId).OnDelete(DeleteBehavior.Restrict);
         });
 
         // Property purchase scenario spec §5: the document of a registry item.

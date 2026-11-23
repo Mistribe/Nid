@@ -5,6 +5,7 @@
     <ProjectReference Include="..\Nid.Documents.Domain\Nid.Documents.Domain.csproj" />
     <ProjectReference Include="..\..\Platform\Nid.Platform.Contracts\Nid.Platform.Contracts.csproj" />
     <ProjectReference Include="..\..\Core\Nid.Core.Contracts\Nid.Core.Contracts.csproj" />
+    <ProjectReference Include="..\..\Tax\Nid.Tax.Contracts\Nid.Tax.Contracts.csproj" />
     <!-- #167: a document's text, a model job (IModelJobs, IJobResultSink, IJobFileSource). -->
     <ProjectReference Include="..\..\Ai\Nid.Ai.Contracts\Nid.Ai.Contracts.csproj" />
     <!-- Issue #414: a life insurance expects its yearly statement; the kind is the envelope's (IEnvelopeStore). -->

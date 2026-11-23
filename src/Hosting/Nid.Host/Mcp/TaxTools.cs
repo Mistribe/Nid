@@ -1,7 +1,8 @@
 using System.ComponentModel;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
-using Nid.Core.Application.Tax;
+using Nid.Tax.Application;
+using Nid.Tax.Contracts;
 using Nid.Core.Contracts;
 using Nid.Host.Api;
 

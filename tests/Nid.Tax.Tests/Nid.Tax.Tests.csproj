@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Tax\Nid.Tax.Application\Nid.Tax.Application.csproj" />
+    <ProjectReference Include="..\..\src\Tax\Nid.Tax.Contracts\Nid.Tax.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Tax\Nid.Tax.Domain\Nid.Tax.Domain.csproj" />
+  </ItemGroup>
+</Project>

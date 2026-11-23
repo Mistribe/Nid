@@ -1,5 +1,6 @@
 using System.Globalization;
 using Nid.Core.Contracts;
+using Nid.Tax.Contracts;
 using Nid.RealEstate.Contracts;
 using Nid.RealEstate.Domain;
 using NodaTime;

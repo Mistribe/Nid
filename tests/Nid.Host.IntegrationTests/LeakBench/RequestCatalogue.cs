@@ -1,8 +1,9 @@
-using Nid.Core.Application.Tax;
+using Nid.Tax.Application;
+using Nid.Tax.Contracts;
 using Nid.Banking.Application;
 using Nid.Banking.Application.Operations;
 using Nid.Banking.Contracts;
-using Nid.Core.Domain.Tax;
+using Nid.Tax.Domain;
 using System.Reflection;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;

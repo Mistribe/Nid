@@ -216,6 +216,12 @@ public sealed record IncomeTimeline(IReadOnlyList<IReadOnlyDictionary<Currency, 
 /// <summary>2D2a spec §4: a dated event of « À venir » (or, for <see cref="UpcomingKinds.IncomeGapSoon"/>, of « À faire »). <c>Amount</c> stays in its own currency.</summary>
 public sealed record UpcomingEvent(LocalDate On, string Kind, ItemId Item, string Module, string Name, string? Label, Money? Amount);
 
+/// <summary>An amount as the views give it: invariant text to the cent, and its currency's code.</summary>
+public sealed record DashboardMoneyView(string Amount, string Currency);
+
+/// <summary>2D2a spec §4: an event of « À venir »; the amount in its own currency. <c>Id</c> null for an event about no item (the PER deadline).</summary>
+public sealed record DashboardEventView(LocalDate On, string Kind, ItemId? Id, string Module, string Name, string? Label, DashboardMoneyView? Amount);
+
 public static class UpcomingKinds
 {
     public const string SubscriptionRenewal = "subscription_renewal";

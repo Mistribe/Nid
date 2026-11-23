@@ -71,6 +71,12 @@
     <Project Path="src/Subscriptions/Nid.Subscriptions.Domain/Nid.Subscriptions.Domain.csproj" />
     <Project Path="src/Subscriptions/Nid.Subscriptions.Infrastructure/Nid.Subscriptions.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/src/Tax/">
+    <Project Path="src/Tax/Nid.Tax.Application/Nid.Tax.Application.csproj" />
+    <Project Path="src/Tax/Nid.Tax.Contracts/Nid.Tax.Contracts.csproj" />
+    <Project Path="src/Tax/Nid.Tax.Domain/Nid.Tax.Domain.csproj" />
+    <Project Path="src/Tax/Nid.Tax.Infrastructure/Nid.Tax.Infrastructure.csproj" />
+  </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Nid.Ai.IntegrationTests/Nid.Ai.IntegrationTests.csproj" />
     <Project Path="tests/Nid.Ai.Tests/Nid.Ai.Tests.csproj" />
@@ -96,6 +102,8 @@
     <Project Path="tests/Nid.Platform.Tests/Nid.Platform.Tests.csproj" />
     <Project Path="tests/Nid.Subscriptions.IntegrationTests/Nid.Subscriptions.IntegrationTests.csproj" />
     <Project Path="tests/Nid.Subscriptions.Tests/Nid.Subscriptions.Tests.csproj" />
+    <Project Path="tests/Nid.Tax.IntegrationTests/Nid.Tax.IntegrationTests.csproj" />
+    <Project Path="tests/Nid.Tax.Tests/Nid.Tax.Tests.csproj" />
     <Project Path="tests/Nid.TestSupport/Nid.TestSupport.csproj" />
   </Folder>
 </Solution>

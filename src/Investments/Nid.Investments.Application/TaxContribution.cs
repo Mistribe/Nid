@@ -1,4 +1,5 @@
 using Nid.Core.Contracts;
+using Nid.Tax.Contracts;
 using Nid.Investments.Contracts;
 using NodaTime;
 using UnambitiousFx.Functional;

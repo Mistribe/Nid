@@ -4,8 +4,6 @@ using NodaTime;
 
 namespace Nid.Core.Application.Dashboard;
 
-public sealed record DashboardMoneyView(string Amount, string Currency);
-
 /// <summary>A figure's per-currency sums and their total in the household currency: null with nothing to sum, or when a rate is missing (then <c>MissingCurrency</c> names it).</summary>
 public sealed record DashboardFigure(IReadOnlyList<DashboardMoneyView> PerCurrency, DashboardMoneyView? Total, string? MissingCurrency);
 
@@ -17,9 +15,6 @@ public sealed record DashboardFigure(IReadOnlyList<DashboardMoneyView> PerCurren
 public sealed record DashboardEnvelopeView(
     ItemId Id, string Module, string Name, DashboardMoneyView? Value, DashboardMoneyView? Converted, string? MissingCurrency,
     LocalDate? AsOf, bool Stale, bool Estimated, LocalDate? ValuedOn);
-
-/// <summary>2D2a spec §4: an event of « À venir »; the amount in its own currency. <c>Id</c> null for an event about no item (the PER deadline).</summary>
-public sealed record DashboardEventView(LocalDate On, string Kind, ItemId? Id, string Module, string Name, string? Label, DashboardMoneyView? Amount);
 
 /// <summary>2D2a spec §4: a line of « À faire »: <c>stale_value</c> (dated by the latest valuation, not the estimate), <c>no_value</c>, <c>income_gap_soon</c> (dated by the end).</summary>
 public sealed record DashboardTodoView(string Kind, ItemId Id, string Module, string Name, LocalDate? On, string? Label);

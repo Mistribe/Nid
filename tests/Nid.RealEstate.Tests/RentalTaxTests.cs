@@ -1,4 +1,5 @@
 using Nid.Core.Contracts;
+using Nid.Tax.Contracts;
 using Nid.RealEstate.Application;
 using Nid.RealEstate.Contracts;
 
