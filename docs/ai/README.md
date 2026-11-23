@@ -634,6 +634,11 @@ livrée par défaut.
 - « Approuver » dans le chat appelle la route de décision du navigateur, avec ses contrôles.
 - La passerelle réduit la liste et borne la taille d'un résultat selon `context_tokens` du modèle ; un résultat trop
   grand répond « réduisez la demande », jamais tronqué.
+- **Livré (#498)** : une proposition `created_via = assistant` en attente n'existe pas pour un autre adulte (liste,
+  compteurs, `list_proposals`, détail et décision répondent « introuvable ») ; son avis `proposal_pending` ne va qu'à son
+  auteur. Son empreinte de dédoublonnage porte son auteur, et le remplacement par sujet ne se fait qu'entre propositions
+  de l'assistant du même auteur ; une proposition d'une autre origine ne remplace jamais une proposition de l'assistant.
+  Une fois décidée, elle suit les règles de son élément.
 
 ### 8.3 Boucle, rendu et limites (décisions P et Q)
 

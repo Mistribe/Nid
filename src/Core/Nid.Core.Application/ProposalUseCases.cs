@@ -147,7 +147,8 @@ internal static class ProposalAccess
         if (accessor.Current?.PersonId is not { } me)
             return Result.Failure<(StoredProposal, PersonId)>(new UnauthorizedFailure("A person decides proposals.", null));
         var proposal = await store.FindAsync(id, ct);
-        if (proposal is null)
+        // #498, decision N: another adult's pending assistant proposal does not exist for me.
+        if (proposal is null || AssistantProposals.HiddenFrom(proposal, me))
             return Result.Failure<(StoredProposal, PersonId)>(new NotFoundFailure("proposal", id.ToString()));
         // Without a target, the submitter alone reads and decides it; what it creates is checked when it is applied.
         if (proposal.Target is not { } target)
@@ -218,7 +219,10 @@ public sealed class SubmitProposalHandler(
 
         // Before the submit commits: a lookup that fails then fails the request with nothing stored, so a retry is not deduplicated
         // into a proposal whose notice was never published.
-        var deciders = await ProposalAccess.DecidersAsync(persons, policy, handler.Kind, command.ItemId, me, ct);
+        // Decision N: an assistant proposal is told to its author alone, who decides it or not.
+        IReadOnlyList<PersonId> deciders = actor.Via == ActorOrigin.Assistant
+            ? [me]
+            : await ProposalAccess.DecidersAsync(persons, policy, handler.Kind, command.ItemId, me, ct);
         var outcome = await store.SubmitAsync(new NewProposal(handler.Module, handler.Kind, command.ItemId, me, check.SubjectKey,
             check.Payload, handler.PayloadVersion, check.Warnings, actor.Via.ToWire(), actor.TokenId, command.SourceLabel?.Trim(), command.DocumentId), ct);
         if (outcome.Created)
@@ -245,8 +249,8 @@ public sealed class ListProposalsHandler(IProposalStore store, IVisibleItems vis
             return Result.Failure<ProposalList>(FieldErrors.At(new Failure("request.invalid", "pending, approved, rejected or superseded.", null), "status"));
         var targets = await visible.ForAsync(me, VisibilityScope.Me, includeArchived: true, ct);
         var stored = query.Target is { } target
-            ? await store.ListAsync(targets.Contains(target) ? new HashSet<ItemId> { target } : new HashSet<ItemId>(), null, status, ct)
-            : await store.ListAsync(targets, me, status, ct);
+            ? await store.ListAsync(targets.Contains(target) ? new HashSet<ItemId> { target } : new HashSet<ItemId>(), null, status, ct, viewer: me)
+            : await store.ListAsync(targets, me, status, ct, viewer: me);
         var names = await ProposalAccess.NamesAsync(items, stored.Select(p => p.Target), ct);
         return Result.Success(new ProposalList(stored.Select(p => ProposalView.From(p, names(p.Target))).ToList()));
     }

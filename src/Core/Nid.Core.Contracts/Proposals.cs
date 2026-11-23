@@ -79,7 +79,10 @@ public interface IProposalStore
     /// The proposals on <paramref name="targets"/>, and those without a target <paramref name="person"/> submitted (none when null), in
     /// <paramref name="status"/>, newest first.
     /// </summary>
-    Task<IReadOnlyList<StoredProposal>> ListAsync(IReadOnlySet<ItemId> targets, PersonId? person, ProposalStatus status, CancellationToken ct);
+    /// <summary>The proposals on <paramref name="targets"/> (and <paramref name="person"/>'s untargeted ones). With a
+    /// <paramref name="viewer"/>, another adult's pending assistant proposals are left out (#498, decision N).</summary>
+    Task<IReadOnlyList<StoredProposal>> ListAsync(
+        IReadOnlySet<ItemId> targets, PersonId? person, ProposalStatus status, CancellationToken ct, PersonId? viewer = null);
 
     /// <summary>`pending` → approved or rejected; <see cref="ProposalCodes.Conflict"/> on a stale version, <see cref="ProposalCodes.Decided"/> when not pending.</summary>
     Task<Result<StoredProposal>> DecideAsync(Guid id, uint version, ProposalStatus to, PersonId by, JsonElement? editedPayload,
@@ -132,4 +135,17 @@ public interface IProposalHandler
 
     /// <summary>Sends the module's command as the current actor; the ids of what it created.</summary>
     Task<Result<IReadOnlyList<Guid>>> ApplyAsync(ItemId target, JsonElement payload, CancellationToken ct);
+}
+
+/// <summary>
+/// Decision N (<c>docs/ai/README.md</c> §8.2, #498): a proposal the assistant made for a person stays that person's until it
+/// is decided, even on a shared item; it merges with and replaces only that person's own pending assistant proposals.
+/// </summary>
+public static class AssistantProposals
+{
+    public const string Via = "assistant";
+
+    /// <summary>Hidden from <paramref name="viewer"/>: pending, made by the assistant, for someone else.</summary>
+    public static bool HiddenFrom(StoredProposal proposal, PersonId viewer)
+        => proposal.Status == ProposalStatus.Pending && proposal.CreatedVia == Via && proposal.CreatedBy != viewer;
 }
