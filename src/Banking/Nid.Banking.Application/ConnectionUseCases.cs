@@ -14,25 +14,25 @@ namespace Nid.Banking.Application;
 /// <summary><paramref name="RedirectUrl"/>: the callback an adult's own application must declare (#414's wizard), set by the route.</summary>
 public sealed record GetBankingStatusQuery(string? RedirectUrl = null) : IQuery<BankingStatusView>;
 
-public sealed record ListAspspsQuery : IQuery<IReadOnlyList<AspspView>>;
+public sealed record ListAspspsQuery : IQuery<IReadOnlyList<AspspView>>, IRequiresBanking;
 
 /// <summary>
 /// Spec §3.1: asks the bank for the actor's consent. <paramref name="RedirectUrl"/> is the callback the administrator registered at
 /// Enable Banking (<c>{Auth:PublicUrl}/api/v1/banking/callback</c>), set by the route.
 /// </summary>
-public sealed record StartConnectionCommand(string AspspName, string RedirectUrl) : ICommand<ConnectionStarted>, IBrowserOnly;
+public sealed record StartConnectionCommand(string AspspName, string RedirectUrl) : ICommand<ConnectionStarted>, IBrowserOnly, IRequiresBanking;
 
 /// <summary>Spec §3.3: the consent asked again for the same connection; its accounts are found again by their identification hash.</summary>
-public sealed record RenewConnectionCommand(Guid Id, string RedirectUrl) : ICommand<ConnectionStarted>, IBrowserOnly;
+public sealed record RenewConnectionCommand(Guid Id, string RedirectUrl) : ICommand<ConnectionStarted>, IBrowserOnly, IRequiresBanking;
 
 /// <summary>The bank's callback: <paramref name="Error"/> when the person refused or cancelled, else the code to exchange for a session.</summary>
-public sealed record CompleteConnectionCommand(string State, string? Code, string? Error) : ICommand<Guid>, IBrowserOnly;
+public sealed record CompleteConnectionCommand(string State, string? Code, string? Error) : ICommand<Guid>, IBrowserOnly, IRequiresBanking;
 
 /// <summary>The actor's connections, without those still waiting for their first callback.</summary>
-public sealed record ListMyConnectionsQuery : IQuery<IReadOnlyList<ConnectionView>>;
+public sealed record ListMyConnectionsQuery : IQuery<IReadOnlyList<ConnectionView>>, IRequiresBanking;
 
 /// <summary>Spec §8: revokes the session at the bank and forgets the connection; its accounts stay, no longer synchronised.</summary>
-public sealed record DeleteConnectionCommand(Guid Id) : ICommand<Guid>, IBrowserOnly;
+public sealed record DeleteConnectionCommand(Guid Id) : ICommand<Guid>, IBrowserOnly, IRequiresBanking;
 
 /// <summary>A started authorisation: the state the bank sends back is 32 random bytes, of which only the SHA-256 is kept.</summary>
 internal static class BankAuthorization
@@ -113,9 +113,6 @@ public sealed class RenewConnectionHandler(
 {
     public async ValueTask<Result<ConnectionStarted>> HandleAsync(RenewConnectionCommand command, CancellationToken ct = default)
     {
-        var enabled = await access.EnabledAsync(ct);
-        if (enabled.TryGetFailure(out var off))
-            return Result.Failure<ConnectionStarted>(off!);
         var mine = await access.MyConnectionAsync(command.Id, ct);
         if (!mine.TryGetValue(out var connection))
             return BankingAccess.Failed<ConnectionStarted, BankConnection>(mine);
@@ -149,9 +146,6 @@ public sealed class CompleteConnectionHandler(
 {
     public async ValueTask<Result<Guid>> HandleAsync(CompleteConnectionCommand command, CancellationToken ct = default)
     {
-        var enabled = await access.EnabledAsync(ct);
-        if (enabled.TryGetFailure(out var off))
-            return Result.Failure<Guid>(off!);
         var connection = await connections.FindByStateAsync(BankAuthorization.Hash(command.State), ct);
         if (connection is null || connection.Person != access.Person)
             return BankingAccess.Fail<Guid>(BankingCodes.StateInvalid, "This bank callback is unknown, used, expired or someone else's.");
@@ -224,9 +218,6 @@ public sealed class ListMyConnectionsHandler(BankingAccess access, IConnectionSt
 {
     public async ValueTask<Result<IReadOnlyList<ConnectionView>>> HandleAsync(ListMyConnectionsQuery query, CancellationToken ct = default)
     {
-        var enabled = await access.EnabledAsync(ct);
-        if (enabled.TryGetFailure(out var off))
-            return Result.Failure<IReadOnlyList<ConnectionView>>(off!);
 
         var views = new List<ConnectionView>();
         foreach (var c in (await connections.MineAsync(access.Person, ct)).Where(c => c.Status != ConnectionStatus.Pending))
@@ -247,9 +238,6 @@ public sealed class DeleteConnectionHandler(BankingAccess access, IConnectionSto
 {
     public async ValueTask<Result<Guid>> HandleAsync(DeleteConnectionCommand command, CancellationToken ct = default)
     {
-        var enabled = await access.EnabledAsync(ct);
-        if (enabled.TryGetFailure(out var off))
-            return Result.Failure<Guid>(off!);
         var mine = await access.MyConnectionAsync(command.Id, ct);
         if (!mine.TryGetValue(out var connection))
             return BankingAccess.Failed<Guid, BankConnection>(mine);

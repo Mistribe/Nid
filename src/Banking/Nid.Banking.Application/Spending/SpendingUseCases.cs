@@ -14,7 +14,7 @@ namespace Nid.Banking.Application.Spending;
 /// #85: what the scope's bank accounts spent by category, over <paramref name="Month"/> (default: the household's current month) or over
 /// [<paramref name="From"/>, <paramref name="To"/>], both given and 24 months at most.
 /// </summary>
-public sealed record GetSpendingQuery(VisibilityScope Scope, YearMonth? Month, YearMonth? From, YearMonth? To) : IQuery<SpendingView>;
+public sealed record GetSpendingQuery(VisibilityScope Scope, YearMonth? Month, YearMonth? From, YearMonth? To) : IQuery<SpendingView>, IRequiresBanking;
 
 /// <summary>
 /// Amounts in <paramref name="Currency"/> (the household's reference), positive for money spent. <paramref name="Incomplete"/>: a line in
@@ -68,7 +68,7 @@ public sealed record SpendingUncategorisedView(string Amount, string? Average, i
 /// with <paramref name="Uncategorised"/>, the uncategorised debits; newest first, 50 a page (<paramref name="Page"/> from 1).
 /// </summary>
 public sealed record ListSpendingLinesQuery(
-    VisibilityScope Scope, Guid? CategoryId, bool Uncategorised, YearMonth? Month, YearMonth? From, YearMonth? To, int Page) : IQuery<SpendingLines>;
+    VisibilityScope Scope, Guid? CategoryId, bool Uncategorised, YearMonth? Month, YearMonth? From, YearMonth? To, int Page) : IQuery<SpendingLines>, IRequiresBanking;
 
 /// <summary>
 /// One page of lines (each in its own currency); <paramref name="Total"/> is the figure the spending view shows for them, in its reference
@@ -113,7 +113,7 @@ public sealed class ListSpendingLinesHandler(
 
 [RequestHandler<GetSpendingQuery, SpendingView>]
 public sealed class GetSpendingHandler(
-    BankingAccess access, SpendingAccounts scopes, ITransactionStore lines, ICategoryStore categories, IHouseholdSettings household,
+    SpendingAccounts scopes, ITransactionStore lines, ICategoryStore categories, IHouseholdSettings household,
     IHouseholdCalendar calendar, IFxRates fx, ICategoryBudgetStore budgets, CommittedByCategory committed, IMonthBudget monthBudget,
     IActorAccessor actor)
     : IRequestHandler<GetSpendingQuery, SpendingView>
@@ -134,9 +134,6 @@ public sealed class GetSpendingHandler(
 
     public async ValueTask<Result<Spent>> SpentAsync(GetSpendingQuery query, CancellationToken ct)
     {
-        var enabled = await access.EnabledAsync(ct);
-        if (!enabled.IsSuccess)
-            return BankingAccess.Failed<Spent>(enabled);
         var today = await calendar.TodayAsync(ct);
         YearMonth from, to;
         if (query is { From: null, To: null })

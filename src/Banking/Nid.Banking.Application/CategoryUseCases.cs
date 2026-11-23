@@ -16,16 +16,16 @@ namespace Nid.Banking.Application;
 public sealed record ListBankCategoriesQuery : IQuery<IReadOnlyList<BankCategoryView>>;
 
 /// <summary><paramref name="Kind"/> (<c>expense</c>, <c>income</c> or <c>transfer</c>) is required for a top-level category; a child takes its parent's.</summary>
-public sealed record CreateBankCategoryCommand(Guid? ParentId, string Name, string? Kind) : ICommand<BankCategoryView>;
+public sealed record CreateBankCategoryCommand(Guid? ParentId, string Name, string? Kind) : ICommand<BankCategoryView>, IRequiresBanking;
 
 /// <summary>
 /// A field left out stays; <paramref name="MoveParent"/> says <paramref name="ParentId"/> (null: top-level) is meant;
 /// <paramref name="ResetName"/> puts back the starter name of a seeded category, and excludes <paramref name="Name"/>.
 /// </summary>
-public sealed record UpdateBankCategoryCommand(Guid Id, string? Name, Guid? ParentId, bool MoveParent, bool? Archived, bool ResetName) : ICommand<BankCategoryView>;
+public sealed record UpdateBankCategoryCommand(Guid Id, string? Name, Guid? ParentId, bool MoveParent, bool? Archived, bool ResetName) : ICommand<BankCategoryView>, IRequiresBanking;
 
 /// <summary>Moves the lines and children of <paramref name="Id"/> into <paramref name="Into"/>, which is returned.</summary>
-public sealed record MergeBankCategoryCommand(Guid Id, Guid Into) : ICommand<BankCategoryView>;
+public sealed record MergeBankCategoryCommand(Guid Id, Guid Into) : ICommand<BankCategoryView>, IRequiresBanking;
 
 /// <summary>
 /// <paramref name="DefaultName"/> is the starter name of a seeded category, null for the household's own. <paramref name="Lines"/> and
@@ -62,13 +62,10 @@ public sealed class ListBankCategoriesHandler(
 }
 
 [RequestHandler<CreateBankCategoryCommand, BankCategoryView>]
-public sealed class CreateBankCategoryHandler(BankingAccess access, ICategoryStore categories) : IRequestHandler<CreateBankCategoryCommand, BankCategoryView>
+public sealed class CreateBankCategoryHandler(ICategoryStore categories) : IRequestHandler<CreateBankCategoryCommand, BankCategoryView>
 {
     public async ValueTask<Result<BankCategoryView>> HandleAsync(CreateBankCategoryCommand command, CancellationToken ct = default)
     {
-        var enabled = await access.EnabledAsync(ct);
-        if (!enabled.IsSuccess)
-            return BankingAccess.Failed<BankCategoryView>(enabled);
         // A child takes its parent's kind; only a top-level one needs a wire kind, exactly as written.
         var kind = Enum.GetValues<CategoryKind>().Cast<CategoryKind?>().FirstOrDefault(k => BankLines.Wire(k!.Value) == command.Kind);
         if (command.ParentId is null && kind is null)
@@ -79,13 +76,10 @@ public sealed class CreateBankCategoryHandler(BankingAccess access, ICategorySto
 }
 
 [RequestHandler<UpdateBankCategoryCommand, BankCategoryView>]
-public sealed class UpdateBankCategoryHandler(BankingAccess access, ICategoryStore categories) : IRequestHandler<UpdateBankCategoryCommand, BankCategoryView>
+public sealed class UpdateBankCategoryHandler(ICategoryStore categories) : IRequestHandler<UpdateBankCategoryCommand, BankCategoryView>
 {
     public async ValueTask<Result<BankCategoryView>> HandleAsync(UpdateBankCategoryCommand command, CancellationToken ct = default)
     {
-        var enabled = await access.EnabledAsync(ct);
-        if (!enabled.IsSuccess)
-            return BankingAccess.Failed<BankCategoryView>(enabled);
         var name = command.Name;
         if (command.ResetName)
         {
@@ -104,13 +98,10 @@ public sealed class UpdateBankCategoryHandler(BankingAccess access, ICategorySto
 }
 
 [RequestHandler<MergeBankCategoryCommand, BankCategoryView>]
-public sealed class MergeBankCategoryHandler(BankingAccess access, ICategoryStore categories) : IRequestHandler<MergeBankCategoryCommand, BankCategoryView>
+public sealed class MergeBankCategoryHandler(ICategoryStore categories) : IRequestHandler<MergeBankCategoryCommand, BankCategoryView>
 {
     public async ValueTask<Result<BankCategoryView>> HandleAsync(MergeBankCategoryCommand command, CancellationToken ct = default)
     {
-        var enabled = await access.EnabledAsync(ct);
-        if (!enabled.IsSuccess)
-            return BankingAccess.Failed<BankCategoryView>(enabled);
         var merged = await categories.MergeAsync(command.Id, command.Into, ct);
         // The store answers with the source; the caller wants the target, as it now stands.
         return merged.TryGetFailure(out var failure)

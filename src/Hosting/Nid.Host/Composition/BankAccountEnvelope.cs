@@ -19,20 +19,21 @@ namespace Nid.Host.Composition;
 /// </summary>
 public sealed record CreateBankAccountEnvelopeCommand(
     Guid AccountId, string DisplayName, string Kind, bool Joint, Guid? DependentId = null, Visibility Visibility = Visibility.Shared)
-    : ICommand<ItemId>, ITransactional;
+    : ICommand<ItemId>, ITransactional, IBankAccountScoped
+{
+    Guid IBankAccountScoped.BankAccountId => AccountId;
+
+    public AccessKind Access => AccessKind.Write;
+}
 
 [RequestHandler<CreateBankAccountEnvelopeCommand, ItemId>]
-public sealed class CreateBankAccountEnvelopeHandler(BankingAccess access, IPersonRegistry persons, IInvoker invoker)
+public sealed class CreateBankAccountEnvelopeHandler(IContextAccessor context, BankingAccess access, IPersonRegistry persons, IInvoker invoker)
     : IRequestHandler<CreateBankAccountEnvelopeCommand, ItemId>
 {
     public async ValueTask<Result<ItemId>> HandleAsync(CreateBankAccountEnvelopeCommand command, CancellationToken ct = default)
     {
-        if ((await access.EnabledAsync(ct)).TryGetFailure(out var off))
-            return Result.Failure<ItemId>(off!);
-        // Read first: an account the actor does not write is refused before anything is created.
-        var found = await access.AccountAsync(command.AccountId, AccessKind.Write, ct);
-        if (!found.TryGetValue(out var account))
-            return Result.Failure<ItemId>(found.TryGetFailure(out var missing) ? missing! : throw new InvalidOperationException());
+        // Checked by the banking behavior: an account the actor does not write is refused before anything is created.
+        var account = CheckedResources.Of<BankAccount>(context, command);
 
         IReadOnlyList<OwnerShare> owners;
         if (command.DependentId is { } dependent)

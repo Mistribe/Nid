@@ -149,3 +149,15 @@ public static class AssistantProposals
     public static bool HiddenFrom(StoredProposal proposal, PersonId viewer)
         => proposal.Status == ProposalStatus.Pending && proposal.CreatedVia == Via && proposal.CreatedBy != viewer;
 }
+
+/// <summary>
+/// #516: aimed at one proposal, through its target's rights (authorization.md §6). The proposal behavior answers « not found » for one the
+/// actor does not read (a refusal by the target's rights is recorded, spec 4D1 D9), forbidden for one they read but may not decide when
+/// <see cref="Access"/> is <c>Write</c>, and hands the proposal to the handler.
+/// </summary>
+public interface IProposalScoped
+{
+    Guid ProposalId { get; }
+
+    AccessKind Access { get; }
+}

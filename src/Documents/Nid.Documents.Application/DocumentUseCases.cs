@@ -42,10 +42,16 @@ public sealed record UploadedDocument(Guid Id, bool Existing, DocumentSummary? D
 }
 
 /// <summary>Replaces the title, the date and the note. <paramref name="Version"/>: the one read with the document (#506).</summary>
-public sealed record EditDocumentCommand(Guid Id, string Title, LocalDate? DocumentDate, string? Note, uint Version) : ICommand<Guid>;
+public sealed record EditDocumentCommand(Guid Id, string Title, LocalDate? DocumentDate, string? Note, uint Version) : ICommand<Guid>, IEditsDocument
+{
+    Guid IReadsDocument.DocumentId => Id;
+}
 
 /// <summary><paramref name="Version"/>: the one read with the document (#506).</summary>
-public sealed record SetDocumentArchivedCommand(Guid Id, bool Archived, uint Version) : ICommand<Guid>;
+public sealed record SetDocumentArchivedCommand(Guid Id, bool Archived, uint Version) : ICommand<Guid>, IEditsDocument
+{
+    Guid IReadsDocument.DocumentId => Id;
+}
 
 /// <summary>
 /// #305: one document of a filing round: only what is given changes (an empty note removes it). <paramref name="Version"/>: the one read
@@ -175,16 +181,14 @@ public sealed class UploadDocumentHandler(
 }
 
 [RequestHandler<EditDocumentCommand, Guid>]
-public sealed class EditDocumentHandler(IDocumentStore store, DocumentAccess access, IHouseholdCalendar calendar, IActorAccessor actor)
+public sealed class EditDocumentHandler(IDocumentStore store, IHouseholdCalendar calendar, IContextAccessor context)
     : IRequestHandler<EditDocumentCommand, Guid>
 {
     public async ValueTask<Result<Guid>> HandleAsync(EditDocumentCommand command, CancellationToken ct = default)
     {
-        var editable = await access.EditableAsync(command.Id, actor.Current!.PersonId!.Value, ct);
-        if (!editable.TryGetValue(out var found))
-            return Result.Failure<Guid>(editable.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
+        var found = CheckedResources.Of<ReadableDocument>(context, command);
         // Checked here too: an edit that leaves the row as it is writes nothing, so the store's token would not see it.
-        if (found!.Document.Version != command.Version)
+        if (found.Document.Version != command.Version)
             return Result.Failure<Guid>(DocumentConflict.Failure());
         if (DocumentFields.Check(command.Title, command.DocumentDate, command.Note, await calendar.TodayAsync(ct)) is { } invalid)
             return Result.Failure<Guid>(invalid);
@@ -229,15 +233,13 @@ public sealed class FileDocumentsHandler(IInvoker invoker, IDocumentStore store)
 
 /// <summary>Design §7: an archived document stays readable by the same persons; it leaves the default lists.</summary>
 [RequestHandler<SetDocumentArchivedCommand, Guid>]
-public sealed class SetDocumentArchivedHandler(IDocumentStore store, DocumentAccess access, IActorAccessor actor, IClock clock)
+public sealed class SetDocumentArchivedHandler(IDocumentStore store, IContextAccessor context, IClock clock)
     : IRequestHandler<SetDocumentArchivedCommand, Guid>
 {
     public async ValueTask<Result<Guid>> HandleAsync(SetDocumentArchivedCommand command, CancellationToken ct = default)
     {
-        var editable = await access.EditableAsync(command.Id, actor.Current!.PersonId!.Value, ct);
-        if (!editable.TryGetValue(out var found))
-            return Result.Failure<Guid>(editable.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
-        if (found!.Document.Version != command.Version)
+        var found = CheckedResources.Of<ReadableDocument>(context, command);
+        if (found.Document.Version != command.Version)
             return Result.Failure<Guid>(DocumentConflict.Failure());
 
         if ((found.Document.ArchivedAt is not null) == command.Archived)
@@ -252,8 +254,10 @@ public sealed class SetDocumentArchivedHandler(IDocumentStore store, DocumentAcc
 /// proposal's own `write` scope instead of `write:direct`, with the same rights.
 /// </summary>
 public sealed record LinkDocumentCommand(Guid Id, DocumentTarget Target, string Role, bool ProposalSource = false)
-    : ICommand<LinkAdded>, IOptionalItemScoped, IRequiresScope
+    : ICommand<LinkAdded>, IOptionalItemScoped, IRequiresScope, IReadsDocument
 {
+    Guid IReadsDocument.DocumentId => Id;
+
     public ItemId? ItemId => Target.Kind == TargetKinds.CoreItem ? new ItemId(Target.Id) : null;
 
     public AccessKind Access => AccessKind.Write;
@@ -281,16 +285,14 @@ public sealed record UnlinkDocumentCommand(Guid Id, DocumentTarget Target) : ICo
 }
 
 [RequestHandler<LinkDocumentCommand, LinkAdded>]
-public sealed class LinkDocumentHandler(DocumentAccess access, IActorAccessor actor) : IRequestHandler<LinkDocumentCommand, LinkAdded>
+public sealed class LinkDocumentHandler(DocumentAccess access, IActorAccessor actor, IContextAccessor context) : IRequestHandler<LinkDocumentCommand, LinkAdded>
 {
     public async ValueTask<Result<LinkAdded>> HandleAsync(LinkDocumentCommand command, CancellationToken ct = default)
     {
         var person = actor.Current!.PersonId!.Value;
-        var read = await access.ReadAsync(command.Id, person, ct);
-        if (!read.TryGetValue(out var found))
-            return Result.Failure<LinkAdded>(read.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
+        var found = CheckedResources.Of<ReadableDocument>(context, command);
 
-        var d = found!.Document;
+        var d = found.Document;
         var linked = await access.LinkAsync(d.Id, d.UploadedBy, found.Links, command.Target, command.Role, person, ct);
         if (!linked.TryGetValue(out var link))
             return Result.Failure<LinkAdded>(linked.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());

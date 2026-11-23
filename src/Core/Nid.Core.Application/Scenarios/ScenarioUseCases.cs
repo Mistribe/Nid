@@ -26,8 +26,10 @@ public sealed record CreateScenarioCommand(
 
 /// <summary>Spec §6: name, visibility, scope and document replaced whole; the owners are kept.</summary>
 public sealed record ReplaceScenarioCommand(ItemId ItemId, string Name, Visibility Visibility, VisibilityScope Scope, PropertyPurchase Document)
-    : ICommand<ScenarioView>, IItemScoped
+    : ICommand<ScenarioView>, IItemScoped, IReplacesScenario
 {
+    string IReplacesScenario.ScenarioKind => ScenarioKinds.PropertyPurchase;
+
     public AccessKind Access => AccessKind.Write;
 }
 
@@ -209,17 +211,14 @@ public sealed class CreateScenarioHandler(IItemRegistry items, IScenarioStore st
 
 [RequestHandler<ReplaceScenarioCommand, ScenarioView>]
 public sealed class ReplaceScenarioHandler(
-    IItemRegistry items, IItemRules rules, IScenarioStore store, ScenarioFactsReader facts, IAccessPolicy policy, IActorAccessor actor, IUnitOfWork unitOfWork)
+    IContextAccessor context, IItemRegistry items, IScenarioStore store, ScenarioFactsReader facts, IAccessPolicy policy, IActorAccessor actor, IUnitOfWork unitOfWork)
     : IRequestHandler<ReplaceScenarioCommand, ScenarioView>
 {
     public async ValueTask<Result<ScenarioView>> HandleAsync(ReplaceScenarioCommand command, CancellationToken ct = default)
     {
-        var loaded = await ScenarioResults.LoadAsync(items, store, command.ItemId, ct);
-        if (loaded.TryGetFailure(out var failure)) return Result.Failure<ScenarioView>(failure!);
-        loaded.TryGetValue(out var found);
-        // #294: an adult who may edit the scenario does not own it: its visibility stays with its owners.
-        if (command.Visibility != found.Item.Visibility && !rules.CanCreate(actor.Current!.PersonId!.Value, found.Item.Owners))
-            return Result.Failure<ScenarioView>(new UnauthorizedFailure("Only the scenario's owners change its visibility.", null));
+        // Loaded, and a change of visibility refused to a non-owner (#294), by the scenario behavior.
+        var found = CheckedResources.Of<LoadedScenario>(context, command);
+        Failure? failure;
         if (ScenarioResults.Name(command.Name) is { } unnamed) return Result.Failure<ScenarioView>(unnamed);
         var (refused, visible) = await facts.RefusalAsync(command.Document, command.Scope, ct);
         if (refused is not null) return Result.Failure<ScenarioView>(refused);
