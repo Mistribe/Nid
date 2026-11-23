@@ -19,40 +19,21 @@ public sealed record HoldingsExposureView(
     IReadOnlyList<ExposureShareView> Regions, IReadOnlyList<ExposureShareView> Sectors, ExposureRestView OutsideMarkets, ExposureRestView Unknown,
     ExposureRestView UnclassifiedSectors, AmountView? StaleValue);
 
-internal static class HoldingsExposureMath
+/// <summary>The exposure in the household currency, from the holdings overview's converted values.</summary>
+internal static class HoldingsExposureViews
 {
     /// <summary>Null when a row has no converted value (C3).</summary>
     public static HoldingsExposureView? Build(
         IReadOnlyList<HoldingOverviewRow> rows, IReadOnlyDictionary<string, SecurityBreakdown> latest, string currency, LocalDate today)
     {
         if (rows.Any(r => r.ValueConverted is null)) return null;
-        var regions = BreakdownRegions.All.ToDictionary(c => c, _ => 0m);
-        var sectors = BreakdownSectors.All.ToDictionary(c => c, _ => 0m);
-        decimal total = 0m, outside = 0m, unknown = 0m, unclassified = 0m, stale = 0m;
-        foreach (var row in rows)
-        {
-            var value = decimal.Parse(row.ValueConverted!.Amount, CultureInfo.InvariantCulture);
-            total += value;
-            if (!HoldingWire.IsMarket(row.Kind)) { outside += value; continue; }
-            if (row.Isin is null || !latest.TryGetValue(row.Isin, out var breakdown)) { unknown += value; continue; }
-            Split(value, breakdown.Regions, regions);
-            if (breakdown.Sectors is null) unclassified += value; else Split(value, breakdown.Sectors, sectors);
-            if (BreakdownRules.IsStale(breakdown.AsOf, row.Kind, today)) stale += value;
-        }
+        var exposure = HoldingsExposure.Of(
+            [.. rows.Select(r => new ExposureHolding(decimal.Parse(r.ValueConverted!.Amount, CultureInfo.InvariantCulture), r.Kind, r.Isin))], latest, today);
 
         AmountView Amount(decimal v) => new(v.ToString("0.00", CultureInfo.InvariantCulture), currency);
-        decimal? Share(decimal v) => total > 0m ? EnvelopeMath.RoundPercent(v / total * 100m) : null;
-        List<ExposureShareView> Shares(Dictionary<string, decimal> by) => [.. by.Select(p => new ExposureShareView(p.Key, Amount(p.Value), Share(p.Value)))];
-        ExposureRestView Rest(decimal v) => new(Amount(v), Share(v));
-        return new HoldingsExposureView(Shares(regions), Shares(sectors), Rest(outside), Rest(unknown), Rest(unclassified), Amount(stale));
-    }
-
-    /// <summary>Each part to the cent; the holding's rounding remainder goes to its largest part (the first on a tie).</summary>
-    private static void Split(decimal value, IReadOnlyList<BreakdownPart> parts, Dictionary<string, decimal> into)
-    {
-        var pieces = parts.Select(p => Math.Round(value * p.Pct / 100m, 2, MidpointRounding.AwayFromZero)).ToList();
-        var largest = parts.Select((p, i) => (p.Pct, i)).MaxBy(x => x.Pct).i;
-        pieces[largest] += value - pieces.Sum();
-        for (var i = 0; i < parts.Count; i++) into[parts[i].Code] += pieces[i];
+        List<ExposureShareView> Shares(IReadOnlyList<ExposureShare> by) => [.. by.Select(p => new ExposureShareView(p.Code, Amount(p.Value), p.SharePct))];
+        ExposureRestView Rest(ExposureShare v) => new(Amount(v.Value), v.SharePct);
+        return new HoldingsExposureView(Shares(exposure.Regions), Shares(exposure.Sectors), Rest(exposure.OutsideMarkets), Rest(exposure.Unknown),
+            Rest(exposure.UnclassifiedSectors), Amount(exposure.StaleValue));
     }
 }

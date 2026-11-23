@@ -122,7 +122,7 @@ public sealed class GetInvestmentsHoldingsHandler(
         var overview = InvestmentsHoldingsMath.Build(facts, export, reports, reference, rates, today, references, estimates);
         var isins = overview.Holdings.Select(h => h.Isin).OfType<string>().Distinct().ToList();
         var latest = await breakdowns.LatestAsync(isins, ct);
-        return Result.Success(overview with { Exposure = HoldingsExposureMath.Build(overview.Holdings, latest, reference.Code, today) });
+        return Result.Success(overview with { Exposure = HoldingsExposureViews.Build(overview.Holdings, latest, reference.Code, today) });
     }
 }
 
