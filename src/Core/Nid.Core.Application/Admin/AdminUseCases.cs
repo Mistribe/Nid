@@ -110,7 +110,8 @@ public sealed class DeletePendingAdultHandler(IPersonRegistry persons, IHousehol
 {
     public async ValueTask<Result<PersonId>> HandleAsync(DeletePendingAdultCommand command, CancellationToken ct = default)
     {
-        // The notices live in the tax module's schema: asked before the registry's own checks (ownerships, a sign-in), under no lock.
+        // The notices are the tax module's: asked before the registry's own checks (ownerships, a sign-in), under no lock. Until #568
+        // moves their tables, the declarants' foreign key to the person still refuses a delete that races a new notice.
         if (await tax.DeclaresAsync(command.Person, ct))
             return Result.Failure<PersonId>(new Failure(PersonCodes.PersonActive, "This adult declares a tax assessment: they cannot be removed.", null));
         var deleted = await persons.DeletePendingAdultAsync(command.Person, ct);

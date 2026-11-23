@@ -166,7 +166,7 @@ Deux tables du schéma `core`, détaillées dans `identity-and-access/tokens-and
 
 ### 4.6 Avis d'imposition (`tax_assessment`)
 
-Ces tables, avec `tax_profile`, appartiennent au module Tax depuis la #512 (schéma `tax`, `architecture.md` §5.2) : créées dans `core`, elles y ont été déplacées par la première migration du module.
+Ces tables, avec `tax_profile`, appartiennent au module Tax depuis la #512 (`TaxDbContext`, `architecture.md` §5.2) ; elles restent dans le schéma `core` jusqu'à leur passage dans `tax` (#568).
 
 Un avis d'imposition sur les revenus d'une année passée, saisi à la main ou proposé par un assistant (`superpowers/specs/2026-10-27-tax-assessments-design.md`). Les montants vivent dans un document JSON ; une table de jointure porte ce qu'il faut pour les droits et l'unicité.
 
@@ -184,7 +184,7 @@ Un avis d'imposition sur les revenus d'une année passée, saisi à la main ou p
 | Champ | Type | Remarques |
 |---|---|---|
 | `assessment_id` | uuid | Clé étrangère vers `tax_assessment`, `ON DELETE CASCADE` ; clé primaire composite avec `person_id` |
-| `person_id` | uuid | La personne (`core.person`), sans clé étrangère entre schémas depuis la #512 ; indexé |
+| `person_id` | uuid | Clé étrangère vers `person`, `ON DELETE RESTRICT` (`fk_tax_assessment_declarant_person_person_id`, retirée par #568) ; indexé |
 | `year` | int | Recopie de l'année de l'avis |
 | `rank` | int | 1 ou 2 (`ck_tax_assessment_declarant_rank`) |
 

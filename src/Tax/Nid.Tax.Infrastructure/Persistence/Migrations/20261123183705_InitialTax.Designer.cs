@@ -13,7 +13,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Nid.Tax.Infrastructure.Persistence.Migrations;
 
 [DbContext(typeof(TaxDbContext))]
-[Migration("20261123164457_InitialTax")]
+[Migration("20261123183705_InitialTax")]
 partial class InitialTax
 {
     /// <inheritdoc />
@@ -160,7 +160,7 @@ partial class InitialTax
                     .IsUnique()
                     .HasDatabaseName("ix_tax_assessment_declarant_year_person_id");
 
-                b.ToTable("tax_assessment_declarant", "tax", t =>
+                b.ToTable("tax_assessment_declarant", "core", t =>
                     {
                         t.HasCheckConstraint("ck_tax_assessment_declarant_rank", "rank in (1,2)");
                     });
@@ -190,7 +190,7 @@ partial class InitialTax
                 b.HasKey("Id")
                     .HasName("pk_tax_assessment");
 
-                b.ToTable("tax_assessment", "tax", t =>
+                b.ToTable("tax_assessment", "core", t =>
                     {
                         t.HasCheckConstraint("ck_tax_assessment_year", "year between 2000 and 2100");
                     });
@@ -210,7 +210,7 @@ partial class InitialTax
                 b.HasKey("Year")
                     .HasName("pk_tax_profile");
 
-                b.ToTable("tax_profile", "tax", t =>
+                b.ToTable("tax_profile", "core", t =>
                     {
                         t.HasCheckConstraint("ck_tax_profile_year", "year between 2025 and 2100");
                     });
