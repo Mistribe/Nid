@@ -16,6 +16,9 @@ public sealed class DocumentRow
     public Instant UploadedAt { get; set; }
     public Instant? ArchivedAt { get; set; }
     public string? SourceRef { get; set; }
+
+    /// <summary>#506: the row's <c>xmin</c>, the version an edit or an archive must name.</summary>
+    public uint Version { get; set; }
 }
 
 public sealed class DocumentLinkRow

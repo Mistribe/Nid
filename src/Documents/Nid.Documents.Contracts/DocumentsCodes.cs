@@ -12,6 +12,9 @@ public static class DocumentsCodes
     public const string AlreadyLinked = "documents.already_linked";
     public const string SourceRefTaken = "documents.source_ref_taken";
     public const string Duplicate = "documents.duplicate";
+
+    /// <summary>#506: the document changed since the version the request names was read.</summary>
+    public const string Conflict = "documents.conflict";
 }
 
 public static class DocumentRoles

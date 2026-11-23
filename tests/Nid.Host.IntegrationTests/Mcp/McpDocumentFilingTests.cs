@@ -63,7 +63,7 @@ public class McpDocumentFilingTests(PostgresFixture fixture) : IClassFixture<Pos
         var document = await LinkedAsync(app, item);
         await using var client = await ClientAsync(app);
 
-        var edit = await AnswerAsync(client, "propose_edit_document", new { id = document, body = new { title = "Relevé mars", documentDate = "2024-03-31", note = "Gardée" } });
+        var edit = await AnswerAsync(client, "propose_edit_document", new { id = document, body = new { title = "Relevé mars", documentDate = "2024-03-31", note = "Gardée", version = await VersionAsync(app, app.AdultA, document) } });
         var role = await AnswerAsync(client, "propose_set_document_role", new { id = document, targetKind = TargetKinds.CoreItem, targetId = item.Value, body = new { role = DocumentRoles.Statement } });
 
         Assert.Equal("documents.edit_document", edit.GetProperty("proposal").GetProperty("kind").GetString());
@@ -91,7 +91,7 @@ public class McpDocumentFilingTests(PostgresFixture fixture) : IClassFixture<Pos
             sourceLabel = "Classement PEA",
             body = new
             {
-                edits = documents.Select((id, i) => new { id, documentDate = $"2024-0{i + 1}-28" }),
+                edits = await Task.WhenAll(documents.Select(async (id, i) => new { id, documentDate = $"2024-0{i + 1}-28", version = await VersionAsync(app, app.AdultA, id) })),
                 roles = documents.Select(id => new { id, targetKind = TargetKinds.CoreItem, targetId = item.Value, role = DocumentRoles.Statement }),
             },
         });
@@ -127,9 +127,14 @@ public class McpDocumentFilingTests(PostgresFixture fixture) : IClassFixture<Pos
             Assert.Contains(named, text);
         }
 
-        await RefusedAsync(new { edits = new object[] { new { id = document, documentDate = "2024-01-31" }, new { id = document, documentDate = "31/01/2024" } } }, "payload.body.edits[1].documentDate");
-        await RefusedAsync(new { edits = new object[] { new { id = document, documentDate = "2999-01-31" } } }, "payload.body.edits[0].documentDate");
-        await RefusedAsync(new { edits = new object[] { new { id = document, title = "A" }, new { id = unreadable, title = "B" } } }, "NOT_FOUND: The requested item was not found.");
+        var version = await VersionAsync(app, app.AdultA, document);
+        var other = await VersionAsync(app, app.AdultB, unreadable);
+        await RefusedAsync(new { edits = new object[] { new { id = document, documentDate = "2024-01-31", version }, new { id = document, documentDate = "31/01/2024", version } } }, "payload.body.edits[1].documentDate");
+        await RefusedAsync(new { edits = new object[] { new { id = document, documentDate = "2999-01-31", version } } }, "payload.body.edits[0].documentDate");
+        await RefusedAsync(new { edits = new object[] { new { id = document, title = "A", version }, new { id = unreadable, title = "B", version = other } } }, "NOT_FOUND: The requested item was not found.");
+        // #506: a line names the version its document had when the round was prepared.
+        await RefusedAsync(new { edits = new object[] { new { id = document, title = "A" } } }, "payload.body.edits[0].version");
+        await RefusedAsync(new { edits = new object[] { new { id = document, title = "A", version = version + 1 } } }, DocumentsCodes.Conflict);
         await RefusedAsync(new { roles = new object[] { new { id = document, targetKind = TargetKinds.CoreItem, targetId = item.Value, role = "nope" } } }, "payload.body.roles[0].role");
         await RefusedAsync(new { }, "documents.invalid_field");
 
@@ -147,7 +152,7 @@ public class McpDocumentFilingTests(PostgresFixture fixture) : IClassFixture<Pos
 
         var (error, _) = await CallAsync(client, "propose_file_documents", new
         {
-            apply = true, body = new { edits = new object[] { new { id = document, title = "Écrit" }, new { id = Guid.NewGuid(), title = "Absent" } } },
+            apply = true, body = new { edits = new object[] { new { id = document, title = "Écrit", version = await VersionAsync(app, app.AdultA, document) }, new { id = Guid.NewGuid(), title = "Absent", version = 0 } } },
         });
 
         Assert.True(error);

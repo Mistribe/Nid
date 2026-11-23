@@ -75,7 +75,10 @@ public class DocumentDuplicateTests(PostgresFixture fixture) : IClassFixture<Pos
     {
         await using var app = await NidApp.StartAsync(fixture);
         var first = await InvokedAsync(app, app.AdultA, Upload());
-        var (_, archived) = await app.InvokeAsync(app.AdultA, new SetDocumentArchivedCommand(first.Id, true), TestContext.Current.CancellationToken);
+        uint version;
+        await using (var scope = app.Services.CreateAsyncScope())
+            version = (await scope.ServiceProvider.GetRequiredService<IDocumentStore>().FindAsync(first.Id, TestContext.Current.CancellationToken))!.Version;
+        var (_, archived) = await app.InvokeAsync(app.AdultA, new SetDocumentArchivedCommand(first.Id, true, version), TestContext.Current.CancellationToken);
         Assert.Null(archived);
 
         var second = await InvokedAsync(app, app.AdultA, Upload());

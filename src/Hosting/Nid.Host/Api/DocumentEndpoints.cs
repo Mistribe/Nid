@@ -196,9 +196,10 @@ public static class DocumentEndpoints
             {
                 var reader = new FieldReader();
                 var documentDate = reader.Date(body.DocumentDate, "documentDate", required: false);
+                var version = RequiredVersion(reader, body.Version, "version");
                 return !reader.Ok
                     ? reader.Problem()
-                    : (await invoker.InvokeAsync(new EditDocumentCommand(id, body.Title ?? "", documentDate, body.Note), ct)).ToHttp(x => new IdResponse(x));
+                    : (await invoker.InvokeAsync(new EditDocumentCommand(id, body.Title ?? "", documentDate, body.Note, version), ct)).ToHttp(x => new IdResponse(x));
             })
             .Returns<IdResponse>();
 
@@ -207,19 +208,20 @@ public static class DocumentEndpoints
             {
                 var reader = new FieldReader();
                 var edits = (body.Edits ?? []).OfType<DocumentEditBody>()
-                    .Select((e, i) => new DocumentEdit(e.Id, e.Title, reader.Date(e.DocumentDate, $"edits[{i}].documentDate", required: false), e.Note)).ToList();
+                    .Select((e, i) => new DocumentEdit(e.Id, e.Title, reader.Date(e.DocumentDate, $"edits[{i}].documentDate", required: false), e.Note,
+                        RequiredVersion(reader, e.Version, $"edits[{i}].version"))).ToList();
                 var roles = (body.Roles ?? []).OfType<DocumentRoleBody>()
                     .Select(r => new DocumentRoleChange(r.Id, new DocumentTarget(r.TargetKind ?? "", r.TargetId ?? TargetKinds.Household), r.Role ?? "")).ToList();
                 return !reader.Ok ? reader.Problem() : (await invoker.InvokeAsync(new FileDocumentsCommand(edits, roles), ct)).ToHttp(filed => filed);
             })
             .Returns<FiledDocuments>();
 
-        api.MapPost("/{id:guid}/archive", async (Guid id, IInvoker invoker, CancellationToken ct)
-                => (await invoker.InvokeAsync(new SetDocumentArchivedCommand(id, true), ct)).ToHttp(x => new IdResponse(x)))
+        api.MapPost("/{id:guid}/archive", async (Guid id, DocumentVersionBody? body, IInvoker invoker, CancellationToken ct)
+                => await ArchiveAsync(id, true, body, invoker, ct))
             .Returns<IdResponse>();
 
-        api.MapPost("/{id:guid}/unarchive", async (Guid id, IInvoker invoker, CancellationToken ct)
-                => (await invoker.InvokeAsync(new SetDocumentArchivedCommand(id, false), ct)).ToHttp(x => new IdResponse(x)))
+        api.MapPost("/{id:guid}/unarchive", async (Guid id, DocumentVersionBody? body, IInvoker invoker, CancellationToken ct)
+                => await ArchiveAsync(id, false, body, invoker, ct))
             .Returns<IdResponse>();
 
         // targetKind=core.household needs no targetId.
@@ -284,14 +286,32 @@ public static class DocumentEndpoints
     /// <summary>Issue #414: a line of the expected documents; <c>period</c> 0 for a document expected once.</summary>
     public sealed record DismissExpectedBody(string? TargetKind, Guid TargetId, string? Role, int Period);
 
-    /// <summary>Replaces the title, the date and the note; a missing title is refused by the handler.</summary>
-    public sealed record EditDocumentBody(string? Title, string? DocumentDate, string? Note);
+    private static async Task<Microsoft.AspNetCore.Http.IResult> ArchiveAsync(Guid id, bool archived, DocumentVersionBody? body, IInvoker invoker, CancellationToken ct)
+    {
+        var reader = new FieldReader();
+        var version = RequiredVersion(reader, body?.Version, "version");
+        return !reader.Ok ? reader.Problem() : (await invoker.InvokeAsync(new SetDocumentArchivedCommand(id, archived, version), ct)).ToHttp(x => new IdResponse(x));
+    }
+
+    /// <summary>#506: a missing version answers 422 at its field: it would otherwise bind to 0 and pass for a conflict.</summary>
+    private static uint RequiredVersion(FieldReader reader, uint? version, string field)
+    {
+        if (version is null)
+            reader.Add(field, "request.required", "The version read with the document is required.");
+        return version ?? 0;
+    }
+
+    /// <summary>Replaces the title, the date and the note; a missing title is refused by the handler. <c>version</c>: the one read with the document.</summary>
+    public sealed record EditDocumentBody(string? Title, string? DocumentDate, string? Note, uint? Version = null);
+
+    /// <summary>#506: the version read with the document.</summary>
+    public sealed record DocumentVersionBody(uint? Version);
 
     /// <summary>A filing round (#305): the documents to change and the links whose role changes.</summary>
     public sealed record FileDocumentsBody(IReadOnlyList<DocumentEditBody>? Edits = null, IReadOnlyList<DocumentRoleBody>? Roles = null);
 
     /// <summary>Only what is given changes.</summary>
-    public sealed record DocumentEditBody(Guid Id, string? Title = null, string? DocumentDate = null, string? Note = null);
+    public sealed record DocumentEditBody(Guid Id, string? Title = null, string? DocumentDate = null, string? Note = null, uint? Version = null);
 
     /// <summary>targetKind=core.household needs no targetId.</summary>
     public sealed record DocumentRoleBody(Guid Id, string? TargetKind, string? Role, Guid? TargetId = null);

@@ -52,5 +52,13 @@ public static class DocumentApi
     public static Task<HttpResponseMessage> GetAsync(NidApp app, PersonId actor, Guid id, string suffix = "")
         => app.RawAsync(actor, HttpMethod.Get, $"{Documents}/{id}{suffix}");
 
+    /// <summary>#506: the version an edit or an archive of the document must name, as <paramref name="actor"/> reads it now.</summary>
+    public static async Task<uint> VersionAsync(NidApp app, PersonId actor, Guid id)
+        => (await JsonAsync(await GetAsync(app, actor, id))).GetProperty("document").GetProperty("version").GetUInt32();
+
+    /// <summary>#506: archives (or unarchives) the document at the version <paramref name="actor"/> reads now.</summary>
+    public static async Task<HttpResponseMessage> ArchiveAsync(NidApp app, PersonId actor, Guid id, bool archived = true)
+        => await app.RawAsync(actor, HttpMethod.Post, $"{Documents}/{id}/{(archived ? "archive" : "unarchive")}", new { version = await VersionAsync(app, actor, id) });
+
     public const string UploadInstant = "2025-10-15T00:00:00Z";
 }

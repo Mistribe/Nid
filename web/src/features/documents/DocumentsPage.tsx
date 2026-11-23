@@ -206,7 +206,8 @@ function Actions({ doc }: { doc: DocumentSummary }) {
   const error = archive.error ?? unarchive.error;
   // A second click while a write is in flight would send it twice.
   const pending = archive.isPending || unarchive.isPending;
-  const path = { params: { path: { id: doc.id } } };
+  // #506: the version read with the list; a change made since answers a conflict instead of being undone.
+  const path = { params: { path: { id: doc.id } }, body: { version: doc.version } };
   const writes = doc.canEdit ? [
     // The edit dialog lives on the detail page.
     { label: t('documents_page.edit'), onSelect: () => void navigate({ to: '/documents/$id', params: { id: doc.id } }) },

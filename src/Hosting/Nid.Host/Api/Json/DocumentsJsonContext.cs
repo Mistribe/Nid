@@ -16,6 +16,7 @@ namespace Nid.Host.Api.Json;
 [JsonSerializable(typeof(UploadedDocument))]
 [JsonSerializable(typeof(FiledDocuments))]
 [JsonSerializable(typeof(DocumentEndpoints.EditDocumentBody))]
+[JsonSerializable(typeof(DocumentEndpoints.DocumentVersionBody))]
 [JsonSerializable(typeof(DocumentEndpoints.FileDocumentsBody))]
 [JsonSerializable(typeof(DocumentEndpoints.LinkDocumentBody))]
 [JsonSerializable(typeof(DocumentEndpoints.SetLinkRoleBody))]

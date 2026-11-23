@@ -2,12 +2,20 @@ using Nid.Core.Contracts;
 using Nid.Documents.Contracts;
 using Nid.Documents.Domain;
 using NodaTime;
+using UnambitiousFx.Functional;
+using UnambitiousFx.Functional.Failures;
 
 namespace Nid.Documents.Application;
 
 public sealed record DocumentRecord(
     Guid Id, string Sha256, long SizeBytes, string MediaType, string OriginalFilename, string Title,
-    LocalDate? DocumentDate, string? Note, Guid UploadedBy, Instant UploadedAt, Instant? ArchivedAt, string? SourceRef = null);
+    LocalDate? DocumentDate, string? Note, Guid UploadedBy, Instant UploadedAt, Instant? ArchivedAt, string? SourceRef = null, uint Version = 0);
+
+/// <summary>#506: the answer to a request naming a version the document no longer has (409).</summary>
+public static class DocumentConflict
+{
+    public static ConflictFailure Failure() => new("The document changed since it was read.") { Code = DocumentsCodes.Conflict };
+}
 
 /// <summary>Syndic documents design §2.1: a concurrent upload stored the same source reference first.</summary>
 public sealed class DuplicateSourceRefException(Exception inner) : Exception("The source reference is already taken.", inner);
@@ -65,11 +73,11 @@ public interface IDocumentStore
     /// <summary>#84: sets the anchor of the links to these targets.</summary>
     Task ReanchorLinksAsync(string kind, IReadOnlyCollection<Guid> targets, Guid? anchor, CancellationToken ct);
 
-    /// <summary>Writes the title, date and note only: a concurrent archive is not undone.</summary>
-    Task EditAsync(Guid id, string title, LocalDate? documentDate, string? note, CancellationToken ct);
+    /// <summary>Writes the title, date and note, if the row is still at <paramref name="version"/> (#506); else <c>documents.conflict</c>.</summary>
+    Task<Result> EditAsync(Guid id, string title, LocalDate? documentDate, string? note, uint version, CancellationToken ct);
 
-    /// <summary>Writes <c>archived_at</c> only: a concurrent edit is not undone.</summary>
-    Task SetArchivedAsync(Guid id, Instant? archivedAt, CancellationToken ct);
+    /// <summary>Writes <c>archived_at</c>, if the row is still at <paramref name="version"/> (#506); else <c>documents.conflict</c>.</summary>
+    Task<Result> SetArchivedAsync(Guid id, Instant? archivedAt, uint version, CancellationToken ct);
 
     /// <summary>False when the document is already linked to the target.</summary>
     Task<bool> AddLinkAsync(LinkRecord link, CancellationToken ct);

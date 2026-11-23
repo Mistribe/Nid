@@ -355,13 +355,13 @@ public static class RouteActions
         // #305: filing: one document or link replays the web's route; a round is one proposal, approved at once.
         new("edit_document", "PUT", "/api/v1/documents/{id:guid}", typeof(EditDocumentBody),
             "Replace a document's title, date (documentDate) and note: send all three, read_document gives them; what is left out is removed. id is the "
-            + "document's id (list_documents). Several documents, or only a date: propose_file_documents. " + Ids, Destructive: true, OnItem: false),
+            + "document's id and version its version (list_documents). Several documents, or only a date: propose_file_documents. " + Ids, Destructive: true, OnItem: false),
         new("set_document_role", "PUT", "/api/v1/documents/{id:guid}/links/{targetKind}/{targetId:guid}", typeof(SetLinkRoleBody),
             "Change the role of a document's link: id, targetKind and targetId are the document's and its link's (list_documents; the household's targetId "
             + "is all zeros). Role: " + Roles + ". " + Ids, OnItem: false),
         new("file_documents", "POST", "/api/v1/documents/filing", typeof(FileDocumentsBody),
-            "A filing round, up to 200 lines, one proposal approved in one action, applied whole or not at all. edits: { id, and any of title, "
-            + "documentDate, note }, only what is given changes. roles: { id, targetKind, targetId, role }, the link as list_documents gives it (no "
+            "A filing round, up to 200 lines, one proposal approved in one action, applied whole or not at all. edits: { id, version (list_documents), "
+            + "and any of title, documentDate, note }, only what is given changes. roles: { id, targetKind, targetId, role }, the link as list_documents gives it (no "
             + "targetId for the household); role: " + Roles + ". A refusal names its line, e.g. payload.body.edits[3].documentDate. " + Ids, OnItem: false),
 
         // Tax notices (issue #182): the route links the source PDF, so an approved proposal does too.
