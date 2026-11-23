@@ -40,7 +40,7 @@ public class ExpectedChargesTests(PostgresFixture fixture) : IClassFixture<Postg
         var charges = await ChargesAsync(app, app.AdultA, new LocalDate(2026, 3, 1), new LocalDate(2026, 4, 30));
 
         Assert.Equal(["2026-03-05", "2026-04-05"], charges.Select(c => c.Key));
-        Assert.All(charges, c => Assert.Equal(("subscriptions", ChargeKind.Subscription, 12.99m, false, 5), (c.Module, c.Kind, c.Amount.Amount, c.Credit, c.ToleranceDays)));
+        Assert.All(charges, c => Assert.Equal(("subscriptions", ChargeKinds.Subscription, "subscriptions", 12.99m, false, 5), (c.Module, c.Kind.Name, c.Kind.Page, c.Amount.Amount, c.Credit, c.ToleranceDays)));
         Assert.All(charges, c => Assert.Contains("Netflix", c.LabelHints));
     }
 

@@ -288,7 +288,7 @@ public sealed partial class BankingNotificationSource(
                 {
                     ["amount"] = charge.Amount.AmountText,
                     ["currency"] = charge.Amount.Currency.Code,
-                    ["module"] = ChargeKinds.ModuleOf(charge.Kind),
+                    ["module"] = charge.Kind.Page,
                 }));
         }
     }

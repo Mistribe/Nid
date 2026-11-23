@@ -24,7 +24,7 @@ public sealed class CommittedByCategory(
         if (due.Count == 0)
             return (committed, false);
 
-        var subscriptions = due.Where(c => c.Kind == ChargeKind.Subscription).Select(c => c.Item).Distinct().ToList();
+        var subscriptions = due.Where(c => c.Kind.Name == ChargeKinds.Subscription).Select(c => c.Item).Distinct().ToList();
         IReadOnlyDictionary<ItemId, IReadOnlyList<string>> labelKeys = subscriptions.Count == 0
             ? new Dictionary<ItemId, IReadOnlyList<string>>()
             : await labels.LabelKeysAsync(subscriptions, ct);
@@ -38,7 +38,7 @@ public sealed class CommittedByCategory(
         foreach (var charge in due)
         {
             // The charge's kind decides the key, so the item's kind is never needed.
-            if (LinkCategory.KeyFor(LinkOutcome.AsExpected, charge.Kind, charge.Module, null, false, labelKeys.GetValueOrDefault(charge.Item) ?? []) is not { } key)
+            if (LinkCategory.KeyFor(LinkOutcome.AsExpected, charge.Kind.Name, charge.Module, null, false, labelKeys.GetValueOrDefault(charge.Item) ?? []) is not { } key)
                 continue;
             if (!resolved.TryGetValue(key, out var category))
                 resolved[key] = category = await categories.ResolveKeyAsync(key, ct);
