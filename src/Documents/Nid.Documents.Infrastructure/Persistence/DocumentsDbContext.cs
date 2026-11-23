@@ -20,6 +20,10 @@ public sealed class DocumentsDbContext(DbContextOptions<DocumentsDbContext> opti
 
     public DbSet<ExpectedDismissalRow> ExpectedDismissals => Set<ExpectedDismissalRow>();
 
+    public DbSet<DocumentTextRow> Texts => Set<DocumentTextRow>();
+
+    public DbSet<DocumentTextJobRow> TextJobs => Set<DocumentTextJobRow>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schema);
@@ -59,6 +63,24 @@ public sealed class DocumentsDbContext(DbContextOptions<DocumentsDbContext> opti
         {
             e.ToTable("expected_dismissal");
             e.HasKey(x => new { x.TargetKind, x.TargetId, x.Role, x.Period });
+        });
+
+        modelBuilder.Entity<DocumentTextRow>(e =>
+        {
+            e.ToTable("document_text", t =>
+            {
+                t.HasCheckConstraint("ck_document_text_page", "page >= 1");
+                t.HasCheckConstraint("ck_document_text_source", "source in ('text-layer', 'ocr', 'email', 'none')");
+            });
+            e.HasKey(x => new { x.DocumentId, x.Page });
+            e.HasOne<DocumentRow>().WithMany().HasForeignKey(x => x.DocumentId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<DocumentTextJobRow>(e =>
+        {
+            e.ToTable("document_text_job");
+            e.HasKey(x => x.DocumentId);
+            e.HasOne<DocumentRow>().WithMany().HasForeignKey(x => x.DocumentId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.MapAuditLog(ownedHere: false);

@@ -88,7 +88,8 @@ public sealed class WorkerMonitor(IWorkerStore store, WorkerRefresher refresher)
 /// never both send or both finish a job.</summary>
 public sealed class JobDispatcher(
     IJobStore jobs, IWorkerStore workers, IWorkerRouter router, IWorkerClient client, INidKeys keys, ModelContracts contracts,
-    IEnumerable<IJobFileSource> files, INotifier notifier, IAiSettings settings, IClock clock) : IJobDispatcher
+    IEnumerable<IJobFileSource> files, IEnumerable<IJobResultSink> sinks, IAssistantPeople people, INotifier notifier, IAiSettings settings,
+    IClock clock) : IJobDispatcher
 {
     public const int MaxAttempts = 5;
 
@@ -138,7 +139,7 @@ public sealed class JobDispatcher(
 
     private async Task SendAsync(JobRecord job, Instant now, CancellationToken ct)
     {
-        var route = await router.RouteAsync(job.Type, job.Version, ModelCallKind.Job, job.DataClass, job.TargetWorkerId, ct);
+        var route = await router.RouteAsync(job.Type, job.Version, ModelCallKind.Job, job.DataClass, job.TargetWorkerId, ct, await OffsiteAsync(job, ct));
         var candidates = route.Workers.Where(w => !_unreachable.Contains(w.Id) && _sent.GetValueOrDefault(w.Id) < Slots(w)).ToList();
         if (candidates.Count == 0)
         {
@@ -252,7 +253,8 @@ public sealed class JobDispatcher(
 
         // The household withdrew what let it go there (the opt-in, the safe tag): taken back, sent again where it may go,
         // no attempt counted (docs/ai/README.md §6.1).
-        if (Domain.DataPolicy.Refusal(worker.Placement, worker.Safe, job.DataClass, await settings.RemoteWorkersAllowedAsync(ct)) is { } refusal)
+        if (Domain.DataPolicy.Refusal(worker.Placement, worker.Safe, job.DataClass,
+                await settings.RemoteWorkersAllowedAsync(ct) && await OffsiteAsync(job, ct)) is { } refusal)
         {
             await CancelAsync(job, ct);
             await jobs.TryUpdateAsync(job with
@@ -286,6 +288,8 @@ public sealed class JobDispatcher(
                 }, ct);
                 break;
             case "succeeded" when Open(job, polled.SealedResult!) is { } result:
+                if (sinks.FirstOrDefault(s => s.Type == job.Type) is { } sink)
+                    await sink.AcceptAsync(job.FileRef, result, ct);
                 await FinishAsync(job with { Result = result }, JobState.Succeeded, null, now, ct);
                 break;
             case "succeeded":
@@ -366,6 +370,16 @@ public sealed class JobDispatcher(
         {
             Status = state, Error = error, FinishedAt = now, ResponseSecret = null, LeaseUntil = null, NextPollAt = null, WaitingReason = null,
         }, ct);
+
+    /// <summary>Decision M (§6.3): a job that concerns adults leaves the premises only with <c>allow</c> from each, read at each
+    /// send and poll, so a change of mind takes it back.</summary>
+    private async Task<bool> OffsiteAsync(JobRecord job, CancellationToken ct)
+    {
+        foreach (var person in job.Concerned)
+            if ((await people.GetAsync(new Nid.Core.Contracts.PersonId(person), ct)).OffsiteDefault != OffsitePreferences.Allow)
+                return false;
+        return true;
+    }
 
     private static int Slots(WorkerRecord worker) => WorkerRouter.DeclarationOf(worker)?.MaxConcurrentRequests ?? 1;
 

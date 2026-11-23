@@ -113,6 +113,7 @@ public sealed class JobStore(AiDbContext db, IDataProtectionProvider protection)
         row.InputHash = job.InputHash;
         row.FileRef = job.FileRef;
         row.DataClass = job.DataClass;
+        row.Concerned = [.. job.Concerned];
         row.TargetWorkerId = job.TargetWorkerId;
         row.Status = job.Status.ToString().ToLowerInvariant();
         row.Attempts = job.Attempts;
@@ -153,5 +154,5 @@ public sealed class JobStore(AiDbContext db, IDataProtectionProvider protection)
         row.Id, row.Type, row.Version, row.Input, row.InputHash, row.FileRef, row.DataClass, row.TargetWorkerId,
         Enum.Parse<JobState>(row.Status, ignoreCase: true), row.Attempts, row.RunAfter, row.NextPollAt, row.LeaseUntil, row.WorkerId,
         row.WorkerJobId, withSecret ? Unprotect(row.ResponseSecret) : null, row.Result, row.Error,
-        row.WaitingReason, row.CreatedAt, row.SentAt, row.FinishedAt, row.RowVersion);
+        row.WaitingReason, row.CreatedAt, row.SentAt, row.FinishedAt, row.RowVersion) { Concerned = row.Concerned };
 }

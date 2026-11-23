@@ -6,8 +6,11 @@ namespace Nid.Ai.Contracts;
 
 /// <summary>What a job carries: its type and version, its input as its contract reads it, an optional file reference
 /// (<c>module:reference</c>, read by that module's <see cref="IJobFileSource"/> when the job is sent), its data class
-/// (<c>docs/ai/README.md</c> §6.1) and, for an admin's test, the one worker it must run on.</summary>
-public sealed record JobRequest(string Type, int Version, JsonElement Input, string DataClass, string? FileRef = null, Guid? TargetWorkerId = null);
+/// (<c>docs/ai/README.md</c> §6.1) and, for an admin's test, the one worker it must run on. <see cref="Concerned"/>: the
+/// adults whose <c>allow</c> it needs to leave the premises (decision M, §6.3); without each one's, only a local worker gets it.</summary>
+public sealed record JobRequest(
+    string Type, int Version, JsonElement Input, string DataClass, string? FileRef = null, Guid? TargetWorkerId = null,
+    IReadOnlyList<Guid>? Concerned = null);
 
 /// <summary>A job's state for the people who look at it: never its input, its file or its secret.</summary>
 public sealed record ModelJobView(
@@ -22,6 +25,15 @@ public interface IModelJobs
     Task<Result<Guid>> SubmitAsync(JobRequest request, CancellationToken ct);
 
     Task<ModelJobView?> GetAsync(Guid id, CancellationToken ct);
+}
+
+/// <summary>The module a job type's result is for (#167): told once the job succeeded, before Nid records it so; a sink that
+/// throws leaves the job to be run again. Two passes finishing one job at once tell it twice: it keeps the last.</summary>
+public interface IJobResultSink
+{
+    string Type { get; }
+
+    Task AcceptAsync(string? fileRef, string result, CancellationToken ct);
 }
 
 /// <summary>Reads a job's file when it is sent: the module that owns it implements it (Documents for #167).</summary>

@@ -1,0 +1,37 @@
+{
+  "type": "object",
+  "properties": {
+    "pages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "number": {
+            "type": "integer"
+          },
+          "text": {
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "text-layer",
+              "ocr",
+              "email",
+              "none"
+            ]
+          }
+        },
+        "required": [
+          "number",
+          "text",
+          "source"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "pages"
+  ],
+  "additionalProperties": false
+}

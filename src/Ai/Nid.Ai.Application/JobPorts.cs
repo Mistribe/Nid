@@ -38,7 +38,11 @@ public sealed record JobRecord(
     Instant CreatedAt,
     Instant? SentAt,
     Instant? FinishedAt,
-    uint RowVersion);
+    uint RowVersion)
+{
+    /// <summary>The adults whose <c>allow</c> the job needs to leave the premises (<see cref="JobRequest.Concerned"/>).</summary>
+    public IReadOnlyList<Guid> Concerned { get; init; } = [];
+}
 
 public interface IJobStore
 {
@@ -97,7 +101,9 @@ public enum ModelCallKind
 /// <summary>Where a job or request goes: eligible workers, best first.</summary>
 public interface IWorkerRouter
 {
-    Task<Route> RouteAsync(string type, int version, ModelCallKind kind, string dataClass, Guid? target, CancellationToken ct);
+    /// <summary><paramref name="offsite"/> false: an adult the job concerns has not allowed it off the premises, so only a
+    /// local worker may take it (<see cref="JobCodes.OffsiteNotAllowed"/> when none can).</summary>
+    Task<Route> RouteAsync(string type, int version, ModelCallKind kind, string dataClass, Guid? target, CancellationToken ct, bool offsite = true);
 }
 
 /// <summary>A job or request refused, or a model call that failed (<see cref="JobCodes"/>).</summary>
@@ -154,6 +160,10 @@ public static class JobCodes
     public const string TooLarge = "ai.too_large";
     public const string TimedOut = "ai.timed_out";
     public const string FileMissing = "ai.file_missing";
+
+    /// <summary>#167: only a remote worker could take it, the household allows them, but an adult the job concerns has not
+    /// chosen <c>allow</c>.</summary>
+    public const string OffsiteNotAllowed = "ai.offsite_not_allowed";
 
     /// <summary>#486: a use turned off, a use with no model set, a task a use may not run, no worker serving the use's model,
     /// a turn that ended without its usage, a use or mode that does not exist.</summary>
