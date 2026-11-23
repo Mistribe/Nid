@@ -49,7 +49,8 @@ public static class AssistantEndpoints
     public sealed record AssistantDoneEvent(string Provider, string Placement, string Model, string Reason, IReadOnlyList<AssistantLinkView> Links,
         Guid? ConversationId);
 
-    public sealed record AssistantErrorEvent(string Code);
+    /// <summary><see cref="AvailableOn"/> (#175): when paid calls come back, for a budget block (the 1st of next month).</summary>
+    public sealed record AssistantErrorEvent(string Code, LocalDate? AvailableOn = null);
 
     public static void MapAssistantEndpoints(this IEndpointRouteBuilder routes)
     {
@@ -171,7 +172,10 @@ public static class AssistantEndpoints
                         AiJsonContext.Default.AssistantDoneEvent));
                     break;
                 case AssistantFailed failed:
-                    yield return Item("error", JsonSerializer.Serialize(new AssistantErrorEvent(failed.Code), AiJsonContext.Default.AssistantErrorEvent));
+                    LocalDate? back = failed.Code == JobCodes.BudgetBlocked
+                        ? clock.GetCurrentInstant().InUtc().Date.With(DateAdjusters.StartOfMonth).PlusMonths(1)
+                        : null;
+                    yield return Item("error", JsonSerializer.Serialize(new AssistantErrorEvent(failed.Code, back), AiJsonContext.Default.AssistantErrorEvent));
                     break;
             }
         }

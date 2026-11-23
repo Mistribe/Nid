@@ -44168,6 +44168,8 @@
         "required": [
           "id",
           "title",
+          "tokensOut",
+          "tokensIn",
           "createdAt",
           "updatedAt"
         ],
@@ -44199,6 +44201,22 @@
           "updatedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "tokensIn": {
+            "type": "integer",
+            "format": "int32",
+            "default": 0
+          },
+          "tokensOut": {
+            "type": "integer",
+            "format": "int32",
+            "default": 0
+          },
+          "costEur": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -44206,6 +44224,8 @@
         "required": [
           "id",
           "title",
+          "tokensOut",
+          "tokensIn",
           "createdAt",
           "messages"
         ],
@@ -44241,6 +44261,22 @@
             }
           },
           "policyClass": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tokensIn": {
+            "type": "integer",
+            "format": "int32",
+            "default": 0
+          },
+          "tokensOut": {
+            "type": "integer",
+            "format": "int32",
+            "default": 0
+          },
+          "costEur": {
             "type": [
               "null",
               "string"

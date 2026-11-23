@@ -55,6 +55,29 @@ describe('The assistant panel', () => {
     await expectNoAxeViolations(container);
   });
 
+  it("shows the conversation's tokens and cost, a worker's without cost, and when paid calls come back after a budget block", async () => {
+    serve();
+    let turn = 0;
+    server.use(
+      http.post('*/api/v1/ai/assistant/turn', () => (++turn === 1
+        ? sse(['text', { text: 'Bonjour.' }], ['done', { provider: 'anthropic', placement: 'cloud', model: 'claude-opus-5-5', reason: 'end', links: [], conversationId: 'c1' }])
+        : sse(['error', { code: 'ai.budget_blocked', availableOn: '2026-12-01' }]))),
+      http.get('*/api/v1/ai/assistant/conversations/c1', () => HttpResponse.json({
+        id: 'c1', title: 'Un ?', createdAt: '2026-11-20T08:00:00Z', messages: [], tokensIn: 1200, tokensOut: 300, costEur: '0.0108',
+      })),
+    );
+    const { user } = await renderApp('/dashboard');
+    const panel = await openPanel(user);
+
+    await user.type(within(panel).getByRole('textbox', { name: 'Votre question' }), 'Un ?');
+    await user.click(within(panel).getByRole('button', { name: 'Demander' }));
+    expect(await within(panel).findByText(/1\s500 jetons · environ 0,0108\s€/)).toBeInTheDocument();
+    await user.type(within(panel).getByRole('textbox', { name: 'Votre question' }), 'Deux ?');
+    await user.click(within(panel).getByRole('button', { name: 'Demander' }));
+
+    expect(await within(panel).findByRole('alert')).toHaveTextContent('Les appels payants reprennent le 1 décembre 2026.');
+  });
+
   it('says why it cannot answer and who can fix it', async () => {
     serve({ enabled: false });
     const off = await renderApp('/dashboard');
@@ -83,7 +106,7 @@ describe('The assistant panel', () => {
       http.get('*/api/v1/ai/assistant/conversations', () => HttpResponse.json({
         items: [
           { id: 'c1', title: 'Mon PEA ?', provider: 'salon', model: 'llama3.2', createdAt: '2026-11-20T08:00:00Z', updatedAt: '2026-11-20T08:00:00Z' },
-          { id: 'c2', title: 'Mes crédits ?', provider: 'salon', model: 'llama3.2', createdAt: '2026-11-19T08:00:00Z', updatedAt: '2026-11-19T08:00:00Z' },
+          { id: 'c2', title: 'Mes crédits ?', provider: 'salon', model: 'llama3.2', createdAt: '2026-11-19T08:00:00Z', updatedAt: '2026-11-19T08:00:00Z', tokensIn: 400, tokensOut: 100, costEur: null },
         ],
         total: 2, page: 1,
       })),
@@ -102,6 +125,7 @@ describe('The assistant panel', () => {
     await user.click(within(panel).getByRole('button', { name: 'Conversations' }));
     const list = await within(panel).findByRole('list', { name: 'Conversations' });
     const second = within(list).getAllByRole('listitem')[1]!;
+    expect(second).toHaveTextContent('500 jetons, sans coût'); // a worker's model: no cost
     await user.click(within(second).getByRole('button', { name: 'Supprimer' }));
     await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Confirmer' }));
     await waitFor(() => expect(deleted).toEqual(['c2']));

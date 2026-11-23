@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { useRef, useState, type FormEvent } from 'react';
+import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { AI_SETTINGS, aiProblem, aiReason, ASSISTANT_ME } from '@/api/ai';
@@ -12,6 +13,8 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Textarea } from '@/components/ui/textarea';
+import { formatCurrency } from '@/components/Money';
+import { formatLocalDate } from '@/components/LocalDate';
 import { formatInstant } from '@/lib/format';
 import { assistantTurn, type AssistantLink } from './assistantStream';
 import '@/locales/ai';
@@ -26,8 +29,11 @@ type Turn = {
   heldBack?: { count: number; destination: string; placement: string };
   done?: { provider: string; placement: string; model: string; reason: string; links: AssistantLink[] };
   code?: string;
+  availableOn?: string | null;
   problem?: unknown;
 };
+
+type Totals = { tokensIn: number; tokensOut: number; costEur?: string | null };
 
 /**
  * The assistant, from every page (#534, docs/ai/README.md §8.3, §11): the current conversation streamed as plain text, with
@@ -39,8 +45,9 @@ export function AssistantPanel({ open, onOpenChange }: { open: boolean; onOpenCh
   const [listing, setListing] = useState(false);
   const [conversation, setConversation] = useState<string | null>(null);
   const [turns, setTurns] = useState<Turn[]>([]);
+  const [session, setSession] = useState(0);
 
-  const start = (id: string | null, kept: Turn[]) => { setConversation(id); setTurns(kept); setListing(false); };
+  const start = (id: string | null, kept: Turn[]) => { setConversation(id); setTurns(kept); setListing(false); setSession((n) => n + 1); };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -55,7 +62,7 @@ export function AssistantPanel({ open, onOpenChange }: { open: boolean; onOpenCh
         </SheetHeader>
         <div className="flex-1 overflow-y-auto p-4">
           {listing ? <ConversationList current={conversation} onOpen={start} />
-            : <Conversation key={conversation ?? 'new'} id={conversation} turns={turns} setTurns={setTurns} onKept={setConversation} />}
+            : <Conversation key={session} id={conversation} turns={turns} setTurns={setTurns} onKept={setConversation} />}
         </div>
       </SheetContent>
     </Sheet>
@@ -86,6 +93,7 @@ function Conversation({ id, turns, setTurns, onKept }: {
   const [running, setRunning] = useState(false);
   const field = useRef<HTMLTextAreaElement>(null);
   const kept = useRef(id);
+  const totals = api.$api.useQuery('get', CONVERSATION, { params: { path: { id: id ?? '' } } }, { enabled: id !== null });
 
   const update = (change: (turn: Turn) => Turn) => setTurns((all) => [...all.slice(0, -1), change(all[all.length - 1]!)]);
 
@@ -107,8 +115,9 @@ function Conversation({ id, turns, setTurns, onKept }: {
             kept.current = e.conversationId;
             onKept(e.conversationId);
             void queryClient.invalidateQueries({ queryKey: ['get', CONVERSATIONS] });
+            void queryClient.invalidateQueries({ queryKey: ['get', CONVERSATION] });
           }
-        } else update((turn) => ({ ...turn, code: e.code }));
+        } else update((turn) => ({ ...turn, code: e.code, availableOn: e.availableOn }));
       }
     } catch (problem) {
       update((turn) => ({ ...turn, problem }));
@@ -126,6 +135,7 @@ function Conversation({ id, turns, setTurns, onKept }: {
           {blocked.link ? <Link to="/settings/ai" className="underline underline-offset-4">{t('ai.panel.settings')}</Link> : null}
         </p>
       ) : null}
+      {totals.data ? <p className="text-xs text-muted-foreground">{usageOf(t, totals.data)}</p> : null}
       <ol className="space-y-6" aria-live="polite">
         {turns.map((turn, i) => <TurnView key={i} turn={turn} />)}
       </ol>
@@ -166,7 +176,12 @@ function TurnView({ turn }: { turn: Turn }) {
       {turn.done && turn.done.model ? (
         <p className="text-xs text-muted-foreground">{t('ai.assistant.answered_by', { provider: destination(turn.done.placement, turn.done.provider), model: turn.done.model })}</p>
       ) : null}
-      {turn.code ? <p role="alert" className="text-sm text-destructive">{aiReason(t, turn.code)}</p> : null}
+      {turn.code ? (
+        <p role="alert" className="text-sm text-destructive">
+          {aiReason(t, turn.code)}
+          {turn.availableOn ? ` ${t('ai.panel.budget_back', { date: formatLocalDate(turn.availableOn) })}` : ''}
+        </p>
+      ) : null}
       {turn.problem ? <ProblemMessage problem={aiProblem(t, turn.problem)} /> : null}
     </li>
   );
@@ -205,7 +220,7 @@ function ConversationList({ current, onOpen }: { current: string | null; onOpen:
           <li key={item.id} className="flex items-center gap-2 py-2">
             <button type="button" className="min-w-0 flex-1 text-left hover:underline" onClick={() => void read(item.id)}>
               <span className="block truncate">{item.title}</span>
-              <span className="block text-xs text-muted-foreground">{formatInstant(item.updatedAt)}</span>
+              <span className="block text-xs text-muted-foreground">{formatInstant(item.updatedAt)} · {usageOf(t, item)}</span>
             </button>
             <ConfirmAction label={t('ai.panel.delete')} title={t('ai.panel.delete_title', { title: item.title })} confirmation={t('ai.panel.delete_confirm')} pending={remove.isPending}
               onConfirm={() => remove.mutate({ params: { path: { id: item.id } } })} />
@@ -215,6 +230,14 @@ function ConversationList({ current, onOpen }: { current: string | null; onOpen:
       {list.data.total > page * 30 ? <Button type="button" variant="outline" size="sm" onClick={() => setPage(page + 1)}>{t('ai.panel.older')}</Button> : null}
     </div>
   );
+}
+
+/** #175: a conversation's tokens, and its estimated cost when a paid provider served it; a worker's has none. */
+function usageOf(t: TFunction, totals: Totals) {
+  const tokens = (totals.tokensIn + totals.tokensOut).toLocaleString('fr-FR');
+  return totals.costEur
+    ? t('ai.panel.usage_cost', { tokens, cost: formatCurrency(totals.costEur, 'EUR', { maximumFractionDigits: 4 }) })
+    : t('ai.panel.usage', { tokens });
 }
 
 /** A nanny has her own page; every other item goes by its module (`itemRoute`). */

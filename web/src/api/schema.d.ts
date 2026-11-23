@@ -38797,6 +38797,17 @@ export interface components {
             createdAt: string;
             /** Format: date-time */
             updatedAt: string;
+            /**
+             * Format: int32
+             * @default 0
+             */
+            tokensIn: number;
+            /**
+             * Format: int32
+             * @default 0
+             */
+            tokensOut: number;
+            costEur?: null | string;
         };
         ConversationView: {
             /** Format: uuid */
@@ -38808,6 +38819,17 @@ export interface components {
             createdAt: string;
             messages: components["schemas"]["ConversationMessageView"][];
             policyClass?: null | string;
+            /**
+             * Format: int32
+             * @default 0
+             */
+            tokensIn: number;
+            /**
+             * Format: int32
+             * @default 0
+             */
+            tokensOut: number;
+            costEur?: null | string;
         };
         CorrectTaxAssessmentBody: {
             /** Format: int32 */

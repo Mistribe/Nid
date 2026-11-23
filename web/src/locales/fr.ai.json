@@ -297,7 +297,10 @@
       "off": "L'assistant n'est pas activé pour vous.",
       "no_model_admin": "Aucun modèle n'est choisi pour l'assistant.",
       "no_model": "Aucun modèle n'est choisi pour l'assistant : demandez à un administrateur de Nid.",
-      "settings": "Ouvrir Réglages › IA"
+      "settings": "Ouvrir Réglages › IA",
+      "usage": "{{tokens}} jetons, sans coût",
+      "usage_cost": "{{tokens}} jetons · environ {{cost}}",
+      "budget_back": "Les appels payants reprennent le {{date}}."
     },
     "me": {
       "title": "L'assistant, pour vous",

@@ -766,6 +766,10 @@ coupé au montant réservé, et un balayage chaque minute règle les réservatio
 Le chat affiche les jetons et le coût par conversation (#175) ; une conversation avec un modèle de worker montre ses
 jetons, sans coût. Pas de dialogue d'estimation avant chaque message.
 
+**Livré (#175)** : une conversation et chaque ligne de la liste portent la somme des jetons et du coût estimé de ses appels
+(`llm_call.conversation_id`), calculée par le serveur ; sans appel chiffré, pas de coût (un modèle de worker). Un tour
+bloqué par le budget rend `ai.budget_blocked` avec la date de reprise (le 1er du mois suivant), que le panneau affiche.
+
 ## 11. Nid sans worker ni cloud (question 5, décision D)
 
 Une seule réponse de capacités du serveur (usages actifs, destinations disponibles, raison de chaque absence) pilote
