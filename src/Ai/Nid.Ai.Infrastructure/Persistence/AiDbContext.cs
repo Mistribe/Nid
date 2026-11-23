@@ -32,6 +32,8 @@ public sealed class AiDbContext(DbContextOptions<AiDbContext> options) : DbConte
 
     public DbSet<ConversationRow> Conversations => Set<ConversationRow>();
 
+    public DbSet<AssistantPersonRow> AssistantPeople => Set<AssistantPersonRow>();
+
     public DbSet<ConversationMessageRow> ConversationMessages => Set<ConversationMessageRow>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -156,6 +158,14 @@ public sealed class AiDbContext(DbContextOptions<AiDbContext> options) : DbConte
             e.Property(x => x.MonthlyBudgetEur).HasPrecision(10, 2);
             e.Property(x => x.ConversationRetentionDays);
             e.Property(x => x.Version).HasColumnName("xmin").HasColumnType("xid").ValueGeneratedOnAddOrUpdate().IsConcurrencyToken();
+        });
+
+        modelBuilder.Entity<AssistantPersonRow>(e =>
+        {
+            e.ToTable("assistant_person", t => t.HasCheckConstraint("ck_assistant_person_offsite", "offsite_default in ('ask', 'allow', 'never')"));
+            e.HasKey(x => x.PersonId);
+            e.Property(x => x.PersonId).ValueGeneratedNever();
+            e.Property(x => x.OffsiteDefault).HasMaxLength(8);
         });
 
         modelBuilder.Entity<ConversationRow>(e =>

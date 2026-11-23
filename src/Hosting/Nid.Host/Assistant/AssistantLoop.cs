@@ -6,6 +6,7 @@ using Nid.Ai.Application;
 using Nid.Ai.Contracts;
 using Nid.Ai.Protocol.Contracts;
 using Nid.Core.Contracts;
+using Nid.Platform.Contracts;
 using NodaTime;
 
 namespace Nid.Host.Assistant;
@@ -64,10 +65,13 @@ public static class AssistantCodes
 /// <summary>
 /// #500, decision Q (§8.3): a question becomes an answer built from tool results. Each step goes through the gateway with the
 /// assistant's tools; the first step's destination fixes what the turn may read and the later steps are pinned to it (decision
-/// C, §6.4). Off the premises the tools read shared items only, and the cloud never gets bank labels (no <c>allowed_kinds</c>
-/// yet); what is kept out is counted, never named. The turn stops at the model's answer or at a limit.
+/// C, §6.4). Off the premises (#533) an item one of whose owners chose <c>never</c> is held back, the person's own consent being
+/// their turning the assistant on, and the cloud never gets bank labels (no <c>allowed_kinds</c> yet); what is kept out is
+/// counted, never named. The turn stops at the model's answer or at a limit.
 /// </summary>
-public sealed partial class AssistantLoop(ILlmGateway gateway, IAssistantTools tools, IVisibleItems visible, AssistantTurns turns, IOptions<AssistantOptions> options)
+public sealed partial class AssistantLoop(
+    ILlmGateway gateway, IAssistantTools tools, IVisibleItems visible, IItemRegistry items, IAssistantPeople people, AssistantTurns turns,
+    IOptions<AssistantOptions> options)
 {
     /// <summary>Fixed and without a secret (§8.3, <c>docs/security/ai-ingestion.md</c> §2).</summary>
     public const string SystemPrompt =
@@ -108,7 +112,7 @@ public sealed partial class AssistantLoop(ILlmGateway gateway, IAssistantTools t
         LlmDestination? destination = null;
         var dataClass = DataClasses.Figures;
         var heldBack = 0;
-        int? privateKept = null;
+        OffsiteReading? offsite = null; // read once, at the first tool call off the premises
         var toolChars = offered.Values.Sum(t => t.Schema.Name.Length + t.Schema.Description.Length + t.Schema.Parameters.GetRawText().Length);
         var model = "";
 
@@ -186,18 +190,19 @@ public sealed partial class AssistantLoop(ILlmGateway gateway, IAssistantTools t
                 }
                 else
                 {
-                    var offsite = destination?.Offsite != false; // unknown counts as off the premises
-                    var answered = await CallAsync(person, offsite, call, bound, turn.Token, ct);
-                    if (offsite && privateKept is null && answered is not null)
+                    var kept = 0;
+                    var timedOut = false;
+                    if (destination?.Offsite != false && offsite is null) // unknown counts as off the premises
                     {
-                        privateKept = await PrivateKeptAsync(person, turn.Token, ct);
-                        if (privateKept > 0)
-                        {
-                            heldBack += privateKept.Value;
-                            answered += "\n" + KeptOut(privateKept.Value, provider);
-                        }
+                        (offsite, kept) = await OffsiteAsync(person, turn.Token, ct);
+                        heldBack += kept;
+                        timedOut = offsite is null;
                     }
-                    if (answered is null || privateKept is -1)
+                    var answered = timedOut ? null
+                        : await CallAsync(person, destination?.Offsite == false ? null : offsite, call, bound, turn.Token, ct);
+                    if (answered is not null && kept > 0)
+                        answered += "\n" + KeptOut(kept, provider);
+                    if (answered is null)
                     {
                         yield return new AssistantDone(provider, usage.Model, AssistantStops.TimedOut);
                         yield break;
@@ -247,22 +252,29 @@ public sealed partial class AssistantLoop(ILlmGateway gateway, IAssistantTools t
     public static string KeptOut(int count, string destination)
         => $"{count} result(s) kept out of {destination} by the household's rules (Réglages › IA).";
 
-    /// <summary>The person's own private items, which the shared reading left out: told once, as a count; -1 when the turn's
-    /// time ran out.</summary>
-    private async Task<int> PrivateKeptAsync(PersonId person, CancellationToken ct, CancellationToken caller)
+    /// <summary>
+    /// #533: how the turn reads off the premises: the adults who chose <c>never</c>, and how many of the items the person reads
+    /// they hold back, told once as a count. Null when the turn's time ran out.
+    /// </summary>
+    private async Task<(OffsiteReading? Reading, int Kept)> OffsiteAsync(PersonId person, CancellationToken ct, CancellationToken caller)
     {
         try
         {
-            return (await visible.ForAsync(person, VisibilityScope.Me, ct)).Count - (await visible.ForAsync(person, VisibilityScope.Household, ct)).Count;
+            var never = await people.NeverAsync(ct);
+            if (never.Count == 0)
+                return (new OffsiteReading(never), 0);
+            var readable = await items.FindManyAsync([.. await visible.ForAsync(person, VisibilityScope.Me, ct)], ct);
+            var reading = new OffsiteReading(never);
+            return (reading, readable.Values.Count(item => reading.Holds(item.Owners.Select(o => o.PersonId))));
         }
         catch (OperationCanceledException) when (!caller.IsCancellationRequested)
         {
-            return -1;
+            return (null, 0);
         }
     }
 
     /// <summary>The tool's answer as the model reads it; null when the turn's time ran out.</summary>
-    private async Task<string?> CallAsync(PersonId person, bool sharedOnly, ChatToolCall call, int maxLength, CancellationToken ct, CancellationToken caller)
+    private async Task<string?> CallAsync(PersonId person, OffsiteReading? offsite, ChatToolCall call, int maxLength, CancellationToken ct, CancellationToken caller)
     {
         JsonElement arguments;
         try
@@ -275,7 +287,7 @@ public sealed partial class AssistantLoop(ILlmGateway gateway, IAssistantTools t
         }
         try
         {
-            return (await tools.CallAsync(person, sharedOnly, call.Name, arguments, maxLength, ct)).Text;
+            return (await tools.CallAsync(person, offsite, call.Name, arguments, maxLength, ct)).Text;
         }
         catch (OperationCanceledException) when (!caller.IsCancellationRequested)
         {

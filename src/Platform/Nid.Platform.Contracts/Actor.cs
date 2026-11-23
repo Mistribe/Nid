@@ -62,10 +62,11 @@ public sealed record Actor(ActorKind Kind, PersonId? PersonId, ActorOrigin Via, 
     public Guid? TokenId { get; init; }
 
     /// <summary>
-    /// #500: reads shared items only, its person's own private ones included in what it does not see: the assistant whose turn
-    /// goes off the premises (decision C, <c>docs/ai/README.md</c> §6.4) until each adult's consent exists (#167).
+    /// #533: the assistant whose turn goes off the premises (decision C, <c>docs/ai/README.md</c> §6.3, §6.4): its person
+    /// consented for their own items by turning it on, but an item one of whose owners chose <c>never</c> is held back. Null on
+    /// the premises.
     /// </summary>
-    public bool SharedOnly { get; init; }
+    public OffsiteReading? Offsite { get; init; }
 
     /// <summary>A bearer token (tokens-and-credentials.md §1.4): its person, restricted to its scopes, never admin.</summary>
     public static Actor Token(PersonId person, Guid tokenId, IReadOnlySet<string> scopes, ActorOrigin via)
@@ -80,10 +81,10 @@ public sealed record Actor(ActorKind Kind, PersonId? PersonId, ActorOrigin Via, 
     /// <summary>
     /// The in-app assistant for <paramref name="person"/> (#497, decision L): it reads what its person reads and proposes,
     /// never applies (<c>write</c>, not <c>write:direct</c>), never admin, and never runs a browser-only command.
-    /// <paramref name="sharedOnly"/>: see <see cref="SharedOnly"/>.
+    /// <paramref name="offsite"/>: see <see cref="Offsite"/>.
     /// </summary>
-    public static Actor Assistant(PersonId person, bool sharedOnly = false)
-        => new(ActorKind.Person, person, ActorOrigin.Assistant, new HashSet<string> { ScopeNames.Read, ScopeNames.Write }) { SharedOnly = sharedOnly };
+    public static Actor Assistant(PersonId person, OffsiteReading? offsite = null)
+        => new(ActorKind.Person, person, ActorOrigin.Assistant, new HashSet<string> { ScopeNames.Read, ScopeNames.Write }) { Offsite = offsite };
 
     /// <summary>The notification evaluation reading as that adult: read only, via the job.</summary>
     public static Actor Notifier(PersonId person) => new(ActorKind.Person, person, ActorOrigin.Job, new HashSet<string> { ScopeNames.Read });
@@ -115,4 +116,11 @@ public interface IActorAccessor
 public sealed class ActorAccessor : IActorAccessor
 {
     public Actor? Current { get; set; }
+}
+
+/// <summary>#533: who chose <c>never</c> for their data off the premises (§6.3): every item one of them owns is held back.</summary>
+public sealed record OffsiteReading(IReadOnlySet<PersonId> Never)
+{
+    /// <summary>Whether an item with these owners is held back off the premises.</summary>
+    public bool Holds(IEnumerable<PersonId> owners) => owners.Any(Never.Contains);
 }

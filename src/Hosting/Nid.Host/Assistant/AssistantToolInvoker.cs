@@ -37,7 +37,7 @@ public sealed class AssistantToolInvoker : IAssistantTools, IAsyncDisposable
 
     public IReadOnlyList<AssistantTool> Offered { get; }
 
-    public async Task<AssistantToolResult> CallAsync(PersonId person, bool sharedOnly, string tool, JsonElement arguments, int maxLength, CancellationToken ct)
+    public async Task<AssistantToolResult> CallAsync(PersonId person, OffsiteReading? offsite, string tool, JsonElement arguments, int maxLength, CancellationToken ct)
     {
         if (!tools.TryGetValue(tool, out var mcp))
             return new(true, $"UNKNOWN_TOOL: '{tool}' is not one of your tools.");
@@ -45,7 +45,7 @@ public sealed class AssistantToolInvoker : IAssistantTools, IAsyncDisposable
 
         await using var scope = scopes.CreateAsyncScope();
         var services = scope.ServiceProvider;
-        services.GetRequiredService<IActorAccessor>().Current = Actor.Assistant(person, sharedOnly);
+        services.GetRequiredService<IActorAccessor>().Current = Actor.Assistant(person, offsite);
         // Before the tool runs, as for MCP: the tool and the ids it was given, never the question or the answer (§8.4).
         await services.GetRequiredService<ISecurityEvents>().RecordAsync(
             new SecurityEvent(SecurityEventNames.McpToolCalled, person, Ids(args), new Dictionary<string, string> { ["tool"] = tool }), ct);

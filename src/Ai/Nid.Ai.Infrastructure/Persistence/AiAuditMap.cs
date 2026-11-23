@@ -14,6 +14,8 @@ public sealed class AiAuditMap : IAuditMap
         // #487: a provider's key is audited without the key (llm-providers.md §10).
         [typeof(LlmCredentialRow)] = AuditRule.NoItem with { Secret = new HashSet<string> { "secret_encrypted" } },
         [typeof(CloudProfileRow)] = AuditRule.NoItem,
+        // #533: an adult's own consent and preference: a decision, audited.
+        [typeof(AssistantPersonRow)] = AuditRule.NoItem,
     };
 
     /// <summary>A job's progress is operational state (sent, polled, retried), not a decision: its submission and the admin's

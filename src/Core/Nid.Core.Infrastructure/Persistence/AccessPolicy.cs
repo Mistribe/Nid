@@ -6,12 +6,12 @@ using UnambitiousFx.Functional.Failures;
 
 namespace Nid.Core.Infrastructure.Persistence;
 
-/// <summary>The rules of <see cref="AccessRules"/>; an actor that reads shared items only (<c>Actor.SharedOnly</c>, #500) finds
-/// no private item, its own included, as <c>VisibleItems</c> does.</summary>
+/// <summary>The rules of <see cref="AccessRules"/>; off the premises (<c>Actor.Offsite</c>, #533) an item one of whose owners
+/// chose <c>never</c> is not found, as <c>VisibleItems</c> leaves it out.</summary>
 public sealed class AccessPolicy(IItemRegistry items, IPersonRegistry persons, IActorAccessor? actors = null) : IAccessPolicy
 {
-    private bool Hidden(PersonId actor, Visibility visibility)
-        => visibility == Visibility.Private && actors?.Current is { SharedOnly: true, PersonId: { } reader } && reader == actor;
+    private bool Hidden(PersonId actor, ItemAccess item)
+        => actors?.Current is { Offsite: { } offsite, PersonId: { } reader } && reader == actor && offsite.Holds(item.Owners.Select(o => o.PersonId));
 
     public async Task<Result> CheckAsync(PersonId actor, ItemId item, AccessKind kind, CancellationToken ct)
     {
@@ -20,7 +20,7 @@ public sealed class AccessPolicy(IItemRegistry items, IPersonRegistry persons, I
             return NotFound(item);
 
         var adults = await persons.AdultIdsAsync(ct);
-        if (!AccessRules.Readers(access.Visibility, access.Owners, adults).Contains(actor) || Hidden(actor, access.Visibility))
+        if (!AccessRules.Readers(access.Visibility, access.Owners, adults).Contains(actor) || Hidden(actor, access))
             return NotFound(item); // existence is not disclosed
 
         if (kind == AccessKind.Read)
@@ -45,7 +45,7 @@ public sealed class AccessPolicy(IItemRegistry items, IPersonRegistry persons, I
         var adults = await persons.AdultIdsAsync(ct);
         // CheckAsync's rule: a reader, and for a write a writer too; an unknown item is nobody's.
         return found.Values
-            .Where(a => AccessRules.Readers(a.Visibility, a.Owners, adults).Contains(actor) && !Hidden(actor, a.Visibility)
+            .Where(a => AccessRules.Readers(a.Visibility, a.Owners, adults).Contains(actor) && !Hidden(actor, a)
                 && kind switch
                 {
                     AccessKind.Read => true,

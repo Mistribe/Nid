@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { adminCapabilities } from '@/test/fixtures';
 import { renderApp } from '@/test/renderApp';
+import { pick } from '@/test/controls';
 import { server } from '@/test/server';
 import { toasts } from '@/test/toasts';
 
@@ -34,6 +35,7 @@ function serve(workers: unknown[], allowed = false, uses = USES, profile = PROFI
     http.get('*/api/v1/ai/workers', () => HttpResponse.json({ workers })),
     http.get('*/api/v1/ai/settings', () => HttpResponse.json({ remoteWorkersAllowed: allowed, uses, conversationRetentionDays: 30 })),
     http.get('*/api/v1/ai/models', () => HttpResponse.json({ models: [{ name: 'llama3.2', capability: 'chat', workers: 1 }] })),
+    http.get('*/api/v1/ai/assistant/me', () => HttpResponse.json({ enabled: false, offsiteDefault: 'ask', cloudPossible: false })),
   );
 }
 
@@ -142,6 +144,34 @@ describe('Réglages › IA', () => {
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByText(FINGERPRINT)).toBeInTheDocument();
     expect(within(dialog).getByLabelText("Code d'appairage")).toBeInTheDocument();
+  });
+
+  it('turns the assistant on for oneself, after saying what may leave when it can reach the cloud, and sets the preference', async () => {
+    serve([worker()]);
+    const enabled: unknown[] = [];
+    const offsite: unknown[] = [];
+    server.use(
+      http.get('*/api/v1/ai/assistant/me', () => HttpResponse.json({ enabled: false, offsiteDefault: 'ask', cloudPossible: true })),
+      http.put('*/api/v1/ai/assistant/me/enabled', async ({ request }) => {
+        enabled.push(await request.json());
+        return HttpResponse.json({ enabled: true, offsiteDefault: 'ask', cloudPossible: true });
+      }),
+      http.put('*/api/v1/ai/assistant/me/offsite', async ({ request }) => {
+        offsite.push(await request.json());
+        return HttpResponse.json({ enabled: false, offsiteDefault: 'never', cloudPossible: true });
+      }),
+    );
+    const { user } = await renderApp('/settings/ai');
+
+    await user.click(await screen.findByRole('switch', { name: "Activer l'assistant pour moi" }));
+    const confirm = await screen.findByRole('alertdialog');
+    expect(confirm).toHaveTextContent('jamais les éléments privés de l\'autre adulte');
+    expect(enabled).toEqual([]);
+    await user.click(within(confirm).getByRole('button', { name: 'Confirmer' }));
+    await waitFor(() => expect(enabled).toEqual([{ enabled: true }]));
+
+    await pick(user, 'Vos données hors de chez vous', 'Jamais');
+    await waitFor(() => expect(offsite).toEqual([{ preference: 'never' }]));
   });
 
   it("sets how long the assistant's conversations are kept, 1 to 365 days", async () => {
