@@ -281,6 +281,23 @@ describe('Réglages › Banques', () => {
     expect(await screen.findByRole('dialog', { name: 'Régler Livret ancien' })).toBeInTheDocument();
   });
 
+  it('names the person’s private envelope and a child’s, and offers both in « Régler »', async () => {
+    const own = summary({ id: 'e-own', displayName: 'Compte perso', kind: 'checking', visibility: 'private' });
+    const child = summary({ id: 'e-child', displayName: 'Compte de Léa', kind: 'checking' });
+    const savings = account({ id: 'b2', name: 'Compte Léa', ibanMasked: '5678', envelopeId: 'e-child' });
+    serveBanks([connection({ accounts: [account({ envelopeId: 'e-own' }), savings] })]);
+    // `household` leaves a private envelope out, `me` an envelope only a child owns.
+    server.use(http.get('*/api/v1/investments/envelopes', ({ request }) =>
+      HttpResponse.json({ items: new URL(request.url).searchParams.get('scope') === 'me' ? [own] : [child] })));
+    const { user } = await renderApp('/settings/banks');
+
+    const rows = within(await screen.findByRole('table', { name: 'Comptes de BNP Paribas' })).getAllByRole('row').slice(1);
+    await waitFor(() => expect(rows[0]).toHaveTextContent('Compte perso'));
+    expect(rows[1]).toHaveTextContent('Compte de Léa');
+    await user.click(within(rows[0]!).getByRole('button', { name: 'Régler Compte courant' }));
+    expect(within(await screen.findByRole('dialog', { name: 'Régler Compte courant' })).getByRole('combobox')).toHaveTextContent('Compte perso');
+  });
+
   it('lists an account under its connection only, even when that connection no longer reads it', async () => {
     const expired = connection({ status: 'expired', accounts: [account({ synced: false })] });
     serveBanks([expired]);
