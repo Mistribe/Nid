@@ -423,8 +423,6 @@ const spendingRoute = createRoute({
   beforeLoad: requireModule('banking'),
   validateSearch: (search: Record<string, unknown>): SpendingSearch => ({
     ...operationsSearch(search),
-    // The overview ticks several accounts (Opérations keeps one).
-    account: ids(search.account),
     ...(typeof search.month === 'string' && /^\d{4}-(0[1-9]|1[0-2])$/.test(search.month) ? { month: search.month } : {}),
     ...(search.period === '12m' ? { period: '12m' as const } : {}),
     tab: search.tab === 'operations' || search.tab === 'categories' ? search.tab : undefined,
@@ -548,8 +546,8 @@ const STATES = ['unlinked', 'linked', 'internal', 'ignored', 'counted'] as const
 // Every key is answered, undefined when invalid: a key left out would keep its raw URL value for a `strict: false` reader.
 const operationsSearch = (search: Record<string, unknown>): OperationsSearch => ({
   q: typeof search.q === 'string' && search.q !== '' ? search.q : undefined,
-  // The page picks one account, owner and category: a longer list in the URL keeps its first.
-  account: ids(search.account)?.slice(0, 1),
+  // The page ticks several accounts, and picks one owner and category: a longer list of those keeps its first.
+  account: ids(search.account),
   owner: ids(search.owner)?.slice(0, 1),
   category: ids(search.category)?.slice(0, 1),
   from: isoDate(search.from),
