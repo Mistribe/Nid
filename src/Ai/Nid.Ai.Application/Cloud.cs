@@ -3,6 +3,7 @@ using System.Runtime.CompilerServices;
 using Nid.Ai.Contracts;
 using Nid.Ai.Protocol.Contracts;
 using NodaTime;
+using UnambitiousFx.Functional;
 
 namespace Nid.Ai.Application;
 
@@ -133,13 +134,19 @@ public sealed class CloudProvider(
 
     public bool Allows(string mode) => mode == UseModes.SelfHostedThenCloud;
 
-    public async IAsyncEnumerable<ChatRequestOutput> ChatAsync(
+    public async IAsyncEnumerable<Result<ChatRequestOutput>> ChatAsync(
         ChatRequestInput input, string dataClass, LlmCallTrace trace, [EnumeratorCancellation] CancellationToken ct)
     {
         if (!CloudClasses.Contains(dataClass))
-            throw new ModelCallException(JobCodes.CloudNotAllowed);
+        {
+            yield return ModelFailures.Of(JobCodes.CloudNotAllowed);
+            yield break;
+        }
         if (trace.Pin is { } pinned && !LlmClasses.IsCloud(pinned))
-            throw new ModelCallException(JobCodes.NoCloudProfile); // pinned to a worker class: no provider may see this turn
+        {
+            yield return ModelFailures.Of(JobCodes.NoCloudProfile); // pinned to a worker class: no provider may see this turn
+            yield break;
+        }
         var region = await settings.RegionAsync(ct);
         // A profile is used under the terms it was enabled on: terms reviewed since must be accepted again.
         var enabled = (await settings.EnabledAsync(ct)).ToDictionary(e => e.ProfileId, e => e.AcceptedReviewedOn, StringComparer.Ordinal);
@@ -169,6 +176,7 @@ public sealed class CloudProvider(
             {
                 await using var outputs = adapter.ChatAsync(profile, key, turn, ct).GetAsyncEnumerator(ct);
                 bool any;
+                string? refused = null;
                 try
                 {
                     any = await outputs.MoveNextAsync();
@@ -181,8 +189,13 @@ public sealed class CloudProvider(
                 }
                 catch (CloudCallException e)
                 {
-                    spent = 0;
-                    throw new ModelCallException(e.Code);
+                    (spent, refused, any) = (0, e.Code, false);
+                }
+
+                if (refused is not null)
+                {
+                    yield return ModelFailures.Of(refused);
+                    yield break;
                 }
 
                 (trace.ProfileId, trace.Provider, trace.Tier, trace.ReservedEur) = (profile.Id, profile.Provider, profile.Tier, hold?.Amount);
@@ -192,7 +205,12 @@ public sealed class CloudProvider(
                 {
                     usage = outputs.Current.Usage ?? usage;
                     yield return outputs.Current;
-                    any = await NextAsync(outputs);
+                    (any, var cut) = await NextAsync(outputs);
+                    if (cut is not null)
+                    {
+                        yield return ModelFailures.Of(cut); // after output: no other profile can take the rest
+                        yield break;
+                    }
                 }
 
                 breaker.Succeeded(profile.Id);
@@ -210,7 +228,7 @@ public sealed class CloudProvider(
             }
         }
 
-        throw new ModelCallException(blocked ? JobCodes.BudgetBlocked : JobCodes.NoCloudProfile);
+        yield return ModelFailures.Of(blocked ? JobCodes.BudgetBlocked : JobCodes.NoCloudProfile);
     }
 
     /// <summary>A paid profile's hold on the month's budget; null for a free one.</summary>
@@ -228,15 +246,16 @@ public sealed class CloudProvider(
 
     private sealed record Hold(Guid? Reservation, decimal Amount, bool Blocked);
 
-    private static async Task<bool> NextAsync(IAsyncEnumerator<ChatRequestOutput> outputs)
+    /// <summary>The next output, or the provider's failure code.</summary>
+    private static async Task<(bool More, string? Failure)> NextAsync(IAsyncEnumerator<ChatRequestOutput> outputs)
     {
         try
         {
-            return await outputs.MoveNextAsync();
+            return (await outputs.MoveNextAsync(), null);
         }
         catch (CloudCallException e)
         {
-            throw new ModelCallException(e.Code); // after output: no other profile can take the rest
+            return (false, e.Code);
         }
     }
 }

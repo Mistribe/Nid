@@ -141,13 +141,10 @@ public sealed class ProviderTests(PostgresFixture fixture) : IClassFixture<Postg
 
     private static async Task<List<ChatRequestOutput>> ChatAsync(NidApp app, IReadOnlyList<ChatMessage> messages, IReadOnlyList<ChatTool> tools)
     {
-        var outputs = new List<ChatRequestOutput>();
         await using var scope = app.Services.CreateAsyncScope();
         scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
-        await foreach (var output in scope.ServiceProvider.GetRequiredService<ILlmGateway>()
-                           .ChatAsync(new LlmChatRequest(ModelUses.Chat, messages, tools, 256, "figures"), TestContext.Current.CancellationToken))
-            outputs.Add(output);
-        return outputs;
+        return await scope.ServiceProvider.GetRequiredService<ILlmGateway>()
+            .ChatAsync(new LlmChatRequest(ModelUses.Chat, messages, tools, 256, "figures"), TestContext.Current.CancellationToken).ReadAllAsync();
     }
 
     /// <summary>The Gemini API over HTTP: each call answers the queued chunks as server-sent events.</summary>

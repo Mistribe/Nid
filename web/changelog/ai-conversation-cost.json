@@ -1,0 +1,4 @@
+{
+  "en": "Each conversation with the assistant shows its tokens and, when a paid provider answered, its estimated cost; a conversation with a worker of the household shows no cost. When the month's budget for paid providers is reached, the assistant says so and when it comes back.",
+  "fr": "Chaque conversation avec l’assistant affiche ses jetons et, quand un fournisseur payant a répondu, son coût estimé ; une conversation avec un worker du foyer n’a pas de coût. Quand le budget du mois des fournisseurs payants est atteint, l’assistant le dit, et quand il reprend."
+}

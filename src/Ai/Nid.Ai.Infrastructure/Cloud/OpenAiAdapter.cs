@@ -6,6 +6,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Nid.Ai.Application;
+using Nid.Ai.Contracts;
 using Nid.Ai.Protocol.Contracts;
 
 namespace Nid.Ai.Infrastructure.Cloud;

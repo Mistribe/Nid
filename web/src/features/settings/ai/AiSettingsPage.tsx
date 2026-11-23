@@ -28,6 +28,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { formatInstant } from '@/lib/format';
 import { SettingsFrame } from '../SettingsFrame';
 import '@/locales/ai';
+import { AssistantMeSection } from './AssistantMeSection';
 import { BudgetSection } from './BudgetSection';
 import { CloudSection } from './CloudSection';
 import { ModelsSection } from './ModelsSection';
@@ -58,10 +59,10 @@ export function AiSettingsPage() {
   return (
     <SettingsFrame title={t('ai.title')} actions={(
       <>
-        <Button asChild variant="outline"><Link to="/settings/ai/assistant">{t('ai.assistant.link')}</Link></Button>
         {admin ? <Button type="button" onClick={() => setAdding({})}>{t('ai.workers.add')}</Button> : null}
       </>
     )}>
+      <AssistantMeSection />
       <DataSection />
       <WorkersSection admin={admin} headingRef={workersHeading} onPair={(worker) => setAdding({ pending: worker })} onAdd={() => setAdding({})} />
       <ModelsSection admin={admin} />

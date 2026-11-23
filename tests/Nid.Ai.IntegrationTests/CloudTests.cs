@@ -28,7 +28,7 @@ public sealed class CloudTests(PostgresFixture fixture) : IClassFixture<Postgres
         await using var app = await StartAsync(anthropic);
         await SetCloudModeAsync(app);
 
-        var failed = await Assert.ThrowsAsync<ModelCallException>(() => ChatAsync(app, "figures"));
+        var failed = await Assert.ThrowsAsync<ModelRefused>(() => ChatAsync(app, "figures"));
 
         Assert.Equal(JobCodes.NoCloudProfile, failed.Code);
         Assert.Empty(anthropic.Requests);
@@ -76,7 +76,7 @@ public sealed class CloudTests(PostgresFixture fixture) : IClassFixture<Postgres
         LlmDestination? served = null;
 
         await ChatAsync(app, new LlmChatRequest(ModelUses.Chat, Hello, [], 256, "figures", Served: d => served = d));
-        var pinned = await Assert.ThrowsAsync<ModelCallException>(() => ChatAsync(app,
+        var pinned = await Assert.ThrowsAsync<ModelRefused>(() => ChatAsync(app,
             new LlmChatRequest(ModelUses.Chat, Hello, [], 256, "figures", Pin: "local")));
 
         Assert.Equal(new LlmDestination(LlmPlacement.Cloud, "anthropic", ProfileId: "anthropic-claude", ContextTokens: 200_000), served);
@@ -98,7 +98,7 @@ public sealed class CloudTests(PostgresFixture fixture) : IClassFixture<Postgres
             await scope.ServiceProvider.GetRequiredService<ICloudSettings>().EnableAsync("anthropic-claude", new NodaTime.LocalDate(2026, 1, 1),
                 Guid.CreateVersion7(), NodaTime.SystemClock.Instance.GetCurrentInstant(), TestContext.Current.CancellationToken);
 
-        var failed = await Assert.ThrowsAsync<ModelCallException>(() => ChatAsync(app, "figures"));
+        var failed = await Assert.ThrowsAsync<ModelRefused>(() => ChatAsync(app, "figures"));
 
         Assert.Equal(JobCodes.NoCloudProfile, failed.Code);
         Assert.Empty(anthropic.Requests);
@@ -114,7 +114,7 @@ public sealed class CloudTests(PostgresFixture fixture) : IClassFixture<Postgres
         await EnableAsync(app);
         await SetCloudModeAsync(app);
 
-        var failed = await Assert.ThrowsAsync<ModelCallException>(() => ChatAsync(app, "local_only"));
+        var failed = await Assert.ThrowsAsync<ModelRefused>(() => ChatAsync(app, "local_only"));
 
         Assert.Equal(JobCodes.CloudNotAllowed, failed.Code);
         Assert.Empty(anthropic.Requests);
@@ -151,10 +151,46 @@ public sealed class CloudTests(PostgresFixture fixture) : IClassFixture<Postgres
         await EnableAsync(app, "anthropic-second");
         await SetCloudModeAsync(app);
 
-        var failed = await Assert.ThrowsAsync<ModelCallException>(() => ChatAsync(app, "figures"));
+        var failed = await Assert.ThrowsAsync<ModelRefused>(() => ChatAsync(app, "figures"));
 
         Assert.Equal(JobCodes.CloudRefused, failed.Code);
         Assert.Single(anthropic.Requests);
+    }
+
+    [Fact]
+    public async Task A_cut_after_the_first_words_keeps_its_code_and_tries_no_other_profile()
+    {
+        var anthropic = new FakeAnthropic();
+        anthropic.Cut(["Je commence"], "overloaded_error"); // before any output, this one would hand over
+        anthropic.Turn(["jamais"]);
+        await using var app = await StartAsync(anthropic, profiles: [Profile("anthropic-claude", "api.anthropic.com"), Profile("anthropic-second", "second.anthropic.test")]);
+        await EnableAsync(app, "anthropic-claude");
+        await EnableAsync(app, "anthropic-second");
+        await SetCloudModeAsync(app);
+
+        var failed = await Assert.ThrowsAsync<ModelRefused>(() => ChatAsync(app, "figures"));
+
+        Assert.Equal(JobCodes.CloudFailed, failed.Code);
+        Assert.Equal("Je commence", Assert.IsType<ChatRequestOutput>(Assert.Single(failed.Before)).Text);
+        Assert.Single(anthropic.Requests);
+    }
+
+    [Fact]
+    public async Task The_cloud_link_answers_only_its_refusal_for_data_or_a_pin_it_may_not_take()
+    {
+        await using var app = await StartAsync(new FakeAnthropic());
+        await EnableAsync(app);
+        await using var scope = Scope(app);
+        var cloud = scope.ServiceProvider.GetServices<ILlmProvider>().OfType<CloudProvider>().Single();
+        var turn = new ChatRequestInput("claude-opus-5-5", Hello, [], 256);
+
+        var localOnly = await Assert.ThrowsAsync<ModelRefused>(() =>
+            cloud.ChatAsync(turn, DataClasses.LocalOnly, new LlmCallTrace(), TestContext.Current.CancellationToken).ReadAllAsync());
+        var pinned = await Assert.ThrowsAsync<ModelRefused>(() =>
+            cloud.ChatAsync(turn, DataClasses.Figures, new LlmCallTrace { Pin = "local" }, TestContext.Current.CancellationToken).ReadAllAsync());
+
+        Assert.Equal((JobCodes.CloudNotAllowed, JobCodes.NoCloudProfile), (localOnly.Code, pinned.Code));
+        Assert.Empty(localOnly.Before.Concat(pinned.Before));
     }
 
     [Fact]
@@ -292,10 +328,7 @@ public sealed class CloudTests(PostgresFixture fixture) : IClassFixture<Postgres
 
     private static async Task<List<ChatRequestOutput>> ChatAsync(NidApp app, LlmChatRequest request)
     {
-        var outputs = new List<ChatRequestOutput>();
         await using var scope = Scope(app);
-        await foreach (var output in scope.ServiceProvider.GetRequiredService<ILlmGateway>().ChatAsync(request, TestContext.Current.CancellationToken))
-            outputs.Add(output);
-        return outputs;
+        return await scope.ServiceProvider.GetRequiredService<ILlmGateway>().ChatAsync(request, TestContext.Current.CancellationToken).ReadAllAsync();
     }
 }

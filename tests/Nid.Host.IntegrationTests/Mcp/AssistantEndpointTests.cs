@@ -3,6 +3,7 @@ using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Nid.Ai.Application;
+using Nid.Ai.Contracts;
 using Nid.Ai.Protocol.Contracts;
 using Nid.Core.Contracts;
 using Nid.Host.IntegrationTests.Admin;
@@ -25,6 +26,7 @@ public sealed class AssistantEndpointTests(PostgresFixture fixture) : IClassFixt
         await using var app = await NidApp.StartAsync(fixture, s => s.Replace(ServiceDescriptor.Scoped<ILlmGateway>(_ => model)));
         var pea = await McpSeed.EnvelopeAsync(app, app.AdultA);
         var named = await McpSeed.IncomeSourceAsync(app, app.AdultA); // returned by no tool of this turn: no link
+        await AssistantMe.EnableAsync(app, app.AdultA);
 
         var response = await app.RawAsync(app.AdultA, HttpMethod.Post, Turn, new { question = "Mon PEA ?" });
 
@@ -45,8 +47,9 @@ public sealed class AssistantEndpointTests(PostgresFixture fixture) : IClassFixt
     [Fact]
     public async Task A_refusal_streams_its_code()
     {
-        var model = new ScriptedGateway(Salon, _ => throw new ModelCallException(JobCodes.NoWorker));
+        var model = new ScriptedGateway(Salon, _ => []) { Refuses = JobCodes.NoWorker };
         await using var app = await NidApp.StartAsync(fixture, s => s.Replace(ServiceDescriptor.Scoped<ILlmGateway>(_ => model)));
+        await AssistantMe.EnableAsync(app, app.AdultA);
 
         var response = await app.RawAsync(app.AdultA, HttpMethod.Post, Turn, new { question = "Allô ?" });
 
@@ -59,6 +62,7 @@ public sealed class AssistantEndpointTests(PostgresFixture fixture) : IClassFixt
     {
         await using var app = await NidApp.StartAsync(fixture);
         var token = await TokenApi.CreateAsync(app, app.AdultA, TokenPresets.Direct);
+        await AssistantMe.EnableAsync(app, app.AdultA);
 
         var bearer = await app.BearerAsync(token.Secret, HttpMethod.Post, Turn, new { question = "Mon PEA ?" });
         var empty = await app.RawAsync(app.AdultA, HttpMethod.Post, Turn, new { question = "" });

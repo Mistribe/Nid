@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useState, type CSSProperties } from 'react';
 import { Link, Outlet, useRouterState } from '@tanstack/react-router';
-import { ChevronDown, Ellipsis, PanelLeftClose, PanelLeftOpen, Search } from 'lucide-react';
+import { ChevronDown, Ellipsis, MessageCircle, PanelLeftClose, PanelLeftOpen, Search } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ModuleTile } from '@/components/ModuleTile';
 import { Wordmark } from '@/components/Logo';
@@ -26,6 +26,10 @@ const RailTip = lazy(() => import('./RailTip').then((m) => ({ default: m.RailTip
 // sonner loads after the shell (initial bundle budget); a toast fired before it mounts is replayed when it does.
 const Toaster = lazy(() => import('@/components/ui/sonner').then((m) => ({ default: m.Toaster })));
 const CommandMenu = lazy(() => import('./CommandMenu').then((m) => ({ default: m.CommandMenu })));
+// #534: the assistant's panel, a lazy part of the app (pnpm budget).
+/** The event « Plus » sends to open the assistant's panel on a phone. */
+export const OPEN_ASSISTANT = 'nid:open-assistant';
+const AssistantPanel = lazy(() => import('@/features/assistant/AssistantPanel').then((m) => ({ default: m.AssistantPanel })));
 const MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
 
 // Sized for a mouse; a finger (coarse pointer, a tablet) keeps 44 px.
@@ -53,6 +57,13 @@ export function Shell() {
   const [adminOpen, setAdminOpen] = useAdminGroup(pathname === '/admin' || pathname.startsWith('/admin/'));
   // null until first opened: the palette's code is not fetched before it is wanted.
   const [palette, setPalette] = useState<boolean | null>(null);
+  const [assistant, setAssistant] = useState<boolean | null>(null); // null until first opened: nothing loads before
+  // « Plus » on a phone opens it too (MorePage): the top bar has no room for its button there.
+  useEffect(() => {
+    const open = () => setAssistant(true);
+    window.addEventListener(OPEN_ASSISTANT, open);
+    return () => window.removeEventListener(OPEN_ASSISTANT, open);
+  }, []);
   useEffect(() => {
     const shortcut = (event: KeyboardEvent) => {
       if (!(event.metaKey || event.ctrlKey)) return;
@@ -166,6 +177,10 @@ export function Shell() {
               </button>
               {/* A 320 px phone: the person menu and « Foyer / Moi » fit on the row with 2 px between the icons (issue 374). */}
               <div className="ml-auto flex shrink-0 items-center gap-1 max-[22rem]:gap-0.5 md:gap-2">
+                <button type="button" onClick={() => setAssistant(true)} aria-label={t('command.assistant')}
+                  className="hidden size-9 items-center justify-center rounded-md md:flex text-muted-foreground transition-colors outline-none hover:bg-accent hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50">
+                  <MessageCircle aria-hidden="true" className="size-5" />
+                </button>
                 <NotificationBell /><ScopeSwitch /><Guides />
                 <Suspense fallback={<p className="flex size-9 items-center justify-center"><span aria-hidden="true" className={AVATAR}>{initials(session.person.name)}</span><span className="sr-only">{session.person.name}</span></p>}>
                   <PersonMenu />
@@ -175,6 +190,7 @@ export function Shell() {
           </div>
         </header>
         {palette !== null ? <Suspense fallback={null}><CommandMenu open={palette} onOpenChange={setPalette} /></Suspense> : null}
+        {assistant !== null ? <Suspense fallback={null}><AssistantPanel open={assistant} onOpenChange={setAssistant} /></Suspense> : null}
         {session.demo ? <DemoBanner /> : null}
         <TokenBanner />
         {/* The page is one frosted window, like the panes around it: text never sits on the bare halo. */}

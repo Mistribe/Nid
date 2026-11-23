@@ -78,7 +78,9 @@ public class AdminMarkerTests
     {
         Type[] adults = [typeof(Nid.Ai.Application.SetRemoteWorkersAllowedCommand), typeof(Nid.Ai.Application.SetWorkerSafeCommand), typeof(Nid.Ai.Application.SetUseModeCommand), typeof(Nid.Ai.Application.SetMonthlyBudgetCommand),
             // #531: any adult deletes their own conversation and sets how long conversations are kept.
-            typeof(Nid.Ai.Application.DeleteConversationCommand), typeof(Nid.Ai.Application.SetConversationRetentionCommand)];
+            typeof(Nid.Ai.Application.DeleteConversationCommand), typeof(Nid.Ai.Application.SetConversationRetentionCommand),
+            // #533: each adult turns the assistant on and sets their preference, for themselves.
+            typeof(Nid.Ai.Application.SetAssistantEnabledCommand), typeof(Nid.Ai.Application.SetAssistantOffsiteCommand)];
         var commands = typeof(Nid.Ai.Application.RegisterWorkerCommand).Assembly.GetTypes()
             .Where(t => t.Name.EndsWith("Command", StringComparison.Ordinal) && !t.IsAbstract).ToList();
         Assert.NotEmpty(commands);

@@ -5,6 +5,7 @@ using Nid.Ai.Contracts;
 using Nid.Ai.Protocol;
 using Nid.Ai.Protocol.Contracts;
 using NodaTime;
+using UnambitiousFx.Functional;
 
 namespace Nid.Ai.Application;
 
@@ -63,15 +64,15 @@ public sealed class ModelContracts(IEnumerable<IModelContract> contracts)
 
 public sealed class ModelJobs(IJobStore store, ModelContracts contracts, IClock clock) : IModelJobs
 {
-    public async Task<Guid> SubmitAsync(JobRequest request, CancellationToken ct)
+    public async Task<Result<Guid>> SubmitAsync(JobRequest request, CancellationToken ct)
     {
-        var contract = contracts.Find(ModelCallKind.Job, request.Type, request.Version)
-                       ?? throw new ModelCallException(JobCodes.UnknownType);
+        if (contracts.Find(ModelCallKind.Job, request.Type, request.Version) is not { } contract)
+            return ModelFailures.Of(JobCodes.UnknownType);
         if (!DataClasses.IsKnown(request.DataClass) || (request.DataClass == DataClasses.None && !contract.AllowsNoData))
-            throw new ModelCallException(JobCodes.UnknownDataClass);
+            return ModelFailures.Of(JobCodes.UnknownDataClass);
         var input = JsonSerializer.SerializeToUtf8Bytes(request.Input);
         if (!contract.ValidInput(input))
-            throw new ModelCallException(JobCodes.InvalidInput);
+            return ModelFailures.Of(JobCodes.InvalidInput);
 
         var now = clock.GetCurrentInstant();
         var job = await store.AddOrFindAsync(new JobRecord(

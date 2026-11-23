@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Nid.Ai.Application;
+using Nid.Ai.Contracts;
 using Nid.Ai.Protocol.Contracts;
 using Nid.Core.Contracts;
 using Nid.Host.Assistant;
@@ -129,7 +130,7 @@ public sealed class AssistantLoopTests(PostgresFixture fixture) : IClassFixture<
     [Fact]
     public async Task A_call_the_gateway_refuses_ends_the_turn_with_its_code()
     {
-        await using var app = await StartAsync(new ScriptedGateway(Salon, _ => throw new ModelCallException(JobCodes.NoWorker)));
+        await using var app = await StartAsync(new ScriptedGateway(Salon, _ => []) { Refuses = JobCodes.NoWorker });
 
         var events = await TurnAsync(app, "Allô ?");
 
@@ -137,21 +138,22 @@ public sealed class AssistantLoopTests(PostgresFixture fixture) : IClassFixture<
     }
 
     [Fact]
-    public async Task Off_the_premises_bank_lines_and_the_persons_private_items_are_kept_out_and_counted()
+    public async Task Off_the_premises_bank_lines_and_items_an_owner_set_to_never_are_kept_out_and_counted()
     {
         var model = new ScriptedGateway(Cloud,
             _ => Calls(("list_bank_transactions", """{"state":"all"}"""), ("list_income_sources", """{"scope":"me"}""")),
             _ => Says("Voilà."));
         await using var app = await StartAsync(model);
-        var shared = await McpSeed.IncomeSourceAsync(app, app.AdultA);
+        var bobs = await McpSeed.IncomeSourceAsync(app, app.AdultB);
         var mine = await McpSeed.IncomeSourceAsync(app, app.AdultA, "private");
+        await AssistantMe.OffsiteAsync(app, app.AdultB, "never");
 
         var events = await TurnAsync(app, "Mes comptes et revenus ?");
 
         var results = model.Requests[1].Messages.Where(m => m.Role == ChatRole.Tool).Select(m => m.Content!).ToList();
         Assert.Equal(AssistantLoop.KeptOut(1, "anthropic"), results[0]);
-        Assert.Contains(shared.ToString(), results[1]);
-        Assert.DoesNotContain(mine.ToString(), results[1]);
+        Assert.Contains(mine.ToString(), results[1]); // #533: Alice turned it on, her own items go
+        Assert.DoesNotContain(bobs.ToString(), results[1]); // shared, but Bob chose never
         Assert.EndsWith(AssistantLoop.KeptOut(1, "anthropic"), results[1]);
         Assert.Equal(["list_income_sources"], await AuditedToolsAsync(app));
         Assert.Equal(new AssistantHeldBack(2, "anthropic"), events[^2]);

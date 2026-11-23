@@ -135,6 +135,8 @@
       "none_match": "Aucune tâche ne correspond à ces filtres."
     },
     "reason": {
+      "assistant_off": "Activez d'abord l'assistant pour vous dans Réglages › IA.",
+      "invalid_offsite_preference": "Choisissez « Me demander », « Autoriser » ou « Jamais ».",
       "assistant_turn_limit": "Vous avez posé beaucoup de questions cette heure-ci : réessayez un peu plus tard.",
       "destination_class_unavailable": "Ce qui a répondu au début de cette conversation ne répond plus, et elle ne peut pas passer ailleurs : commencez une nouvelle conversation.",
       "all_offline": "Aucun worker ne répond en ce moment.",
@@ -281,6 +283,39 @@
       "required": "Indiquez un montant, 0 compris.",
       "save": "Enregistrer",
       "saved": "Budget enregistré."
+    },
+    "panel": {
+      "title": "Assistant",
+      "description": "Il lit ce que vous lisez et répond avec les chiffres de Nid ; il ne change rien sans votre accord.",
+      "new": "Nouvelle conversation",
+      "history": "Conversations",
+      "empty": "Aucune conversation pour l'instant.",
+      "older": "Plus anciennes",
+      "delete": "Supprimer",
+      "delete_title": "Supprimer « {{title}} »",
+      "delete_confirm": "La conversation est supprimée tout de suite, pour de bon.",
+      "off": "L'assistant n'est pas activé pour vous.",
+      "no_model_admin": "Aucun modèle n'est choisi pour l'assistant.",
+      "no_model": "Aucun modèle n'est choisi pour l'assistant : demandez à un administrateur de Nid.",
+      "settings": "Ouvrir Réglages › IA",
+      "usage": "{{tokens}} jetons, sans coût",
+      "usage_cost": "{{tokens}} jetons · environ {{cost}}",
+      "budget_back": "Les appels payants reprennent le {{date}}."
+    },
+    "me": {
+      "title": "L'assistant, pour vous",
+      "enable": "Activer l'assistant pour moi",
+      "enable_hint": "Il lit ce que vous lisez et répond avec les chiffres de Nid ; il ne change rien sans votre accord. L'activer vaut accord pour vos propres données.",
+      "enable_cloud_confirm": "L'assistant du foyer peut passer par un fournisseur cloud. Si vous l'activez, vos chiffres et vos éléments privés peuvent partir chez ce fournisseur, jamais les éléments privés de l'autre adulte ni ce qu'un propriétaire a gardé à la maison. Les deux adultes sont prévenus par email.",
+      "enabled": "Assistant activé pour vous.",
+      "disabled": "Assistant désactivé pour vous.",
+      "offsite": "Vos données hors de chez vous",
+      "offsite_hint": "Pour ce qui part vers un worker distant ou un fournisseur cloud.",
+      "offsite_tip": "« Jamais » garde à la maison tout ce que vous possédez, même les éléments partagés avec l'autre adulte : l'assistant ne les lit pas quand il passe ailleurs, et dit seulement que des résultats ont été gardés.",
+      "offsite_ask": "Me demander",
+      "offsite_allow": "Autoriser",
+      "offsite_never": "Jamais",
+      "offsite_saved": "Préférence enregistrée."
     },
     "assistant": {
       "title": "Assistant",

@@ -15,11 +15,11 @@ public interface IAssistantTools
     IReadOnlyList<AssistantTool> Offered { get; }
 
     /// <summary>
-    /// Calls <paramref name="tool"/> for <paramref name="person"/>, audited <c>via: assistant</c>; <paramref name="sharedOnly"/>
-    /// for a turn that goes off the premises (<see cref="Actor.SharedOnly"/>). A tool not offered is refused; an answer longer
-    /// than <paramref name="maxLength"/> characters is refused whole, never cut.
+    /// Calls <paramref name="tool"/> for <paramref name="person"/>, audited <c>via: assistant</c>; <paramref name="offsite"/> for a
+    /// turn that goes off the premises (<see cref="Actor.Offsite"/>). A tool not offered is refused; an answer longer than
+    /// <paramref name="maxLength"/> characters is refused whole, never cut.
     /// </summary>
-    Task<AssistantToolResult> CallAsync(PersonId person, bool sharedOnly, string tool, JsonElement arguments, int maxLength, CancellationToken ct);
+    Task<AssistantToolResult> CallAsync(PersonId person, OffsiteReading? offsite, string tool, JsonElement arguments, int maxLength, CancellationToken ct);
 }
 
 /// <summary>A tool offered to the model and the data classes (<see cref="Nid.Ai.Contracts.DataClasses"/>) it returns.</summary>

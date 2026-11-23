@@ -27,8 +27,13 @@ public sealed class AssistantConversationTests(PostgresFixture fixture) : IClass
             ? [new(Text: "Vous avez une enveloppe."), new(Usage: new ChatUsage(9, 4, ChatStop.End, "llama3.2"))]
             : [new(ToolCall: new ChatToolCall("c1", "list_envelopes", "{}")), new(Usage: new ChatUsage(5, 1, ChatStop.ToolCalls, "llama3.2"))]);
 
-    private Task<NidApp> StartAsync(ScriptedGateway model)
-        => NidApp.StartAsync(fixture, s => s.Replace(ServiceDescriptor.Scoped<ILlmGateway>(_ => model)));
+    private async Task<NidApp> StartAsync(ScriptedGateway model)
+    {
+        var app = await NidApp.StartAsync(fixture, s => s.Replace(ServiceDescriptor.Scoped<ILlmGateway>(_ => model)));
+        await AssistantMe.EnableAsync(app, app.AdultA);
+        await AssistantMe.EnableAsync(app, app.AdultB);
+        return app;
+    }
 
     [Fact]
     public async Task A_conversation_keeps_its_exchanges_and_rebuilds_the_context_from_words_only()
