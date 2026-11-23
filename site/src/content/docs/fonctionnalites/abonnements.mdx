@@ -1,7 +1,35 @@
 ---
-title: Abonnements
+title: "Abonnements"
+description: "Le vrai coût des abonnements, essais et offres groupées du foyer."
 sidebar:
   order: 2
 ---
 
-Page en cours de rédaction.
+import Screen from '../../../components/Screen.astro';
+
+Les abonnements coûtent rarement ce que dit leur prix : un mois offert, un prix de lancement, un forfait payé d'avance pour un an. Nid les suit tels qu'ils sont vendus, et en tire le coût réel, par mois et par an.
+
+## Les questions auxquelles il répond
+
+- Combien nous coûtent vraiment nos abonnements, par mois et par an ?
+- Quand se termine l'essai gratuit, et à quel prix passe-t-on ensuite ?
+- Jusqu'à quand peut-on résilier ?
+- Qu'est-ce qui sera prélevé dans les douze prochains mois ?
+
+<Screen name="abonnements" alt="La liste des abonnements du foyer de démo : coût par mois et par an, calendrier des douze prochains mois." />
+
+## Ce que fait Nid
+
+- **Chaque type d'offre a son assistant** : abonnement récurrent, prépayé avec mois offerts, offre groupée avec un achat, carte cadeau, essai ou prix de lancement, puis ce qui se passe ensuite.
+- **Le coût réel et le coût amorti** : un achat qui couvre plusieurs mois est réparti sur ces mois.
+- **Toutes les devises**, converties au taux de la Banque centrale européenne.
+- **Un catalogue de fournisseurs** qui préremplit le nom et l'icône.
+- **Le contrat** : date anniversaire, préavis, fin d'engagement, et le dernier jour pour résilier.
+- **L'assurance** : ce qui est assuré, les garanties, le numéro de contrat et le contact de l'assureur.
+- **Les prélèvements bancaires** sont rapprochés de l'abonnement, et un prélèvement récurrent inconnu devient une proposition d'abonnement.
+
+## Les termes
+
+- **Coût amorti** : le prix d'un achat réparti sur les mois qu'il couvre : un an payé d'avance compte pour un douzième chaque mois.
+- **Préavis** : le délai à respecter avant la date anniversaire pour résilier ; Nid en déduit le dernier jour pour le faire.
+- **Taux BCE** : le taux de change de référence publié chaque jour par la Banque centrale européenne.

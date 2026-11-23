@@ -1,7 +1,32 @@
 ---
-title: Assistant
+title: "Assistant"
+description: "Un assistant IA qui lit vos chiffres et propose, sans jamais décider à votre place."
 sidebar:
   order: 11
 ---
 
-Page en cours de rédaction.
+import Screen from '../../../components/Screen.astro';
+
+Nid se branche sur votre assistant IA (Claude Desktop ou tout assistant compatible MCP), et en a un dans l'application. L'assistant lit vos chiffres et répond à vos questions ; il peut proposer un changement, mais rien n'est enregistré avant qu'une personne le valide.
+
+## Les questions auxquelles il répond
+
+- Combien nous reste-t-il ce mois-ci ?
+- Peux-tu enregistrer ce relevé d'assurance vie ?
+- Quel abonnement augmente le plus cette année ?
+
+<Screen name="assistant" alt="La page Assistant de Nid : une question posée sur les finances du foyer." />
+
+## Ce que fait Nid
+
+- **Un serveur MCP** : votre assistant y trouve des outils de lecture, et des outils d'écriture qui ne font que proposer.
+- **« À valider »** : chaque proposition montre ce qu'elle changerait à côté de l'état actuel ; vous l'approuvez, la modifiez ou la rejetez.
+- **L'assistant dans l'application**, avec un modèle local ou dans le cloud, et des conversations gardées pour leur seul auteur.
+- **Des jetons d'accès** personnels, avec leur portée, révocables à tout moment.
+- **L'IA ne calcule jamais** : un gain, un rendement, un échéancier ou un impôt vient toujours du serveur.
+
+## Les termes
+
+- **MCP** : Model Context Protocol, le standard qui permet à un assistant IA d'utiliser des outils extérieurs, ici ceux de Nid.
+- **Proposition** : un changement suggéré par un assistant, un document ou la banque, qui attend dans « À valider ».
+- **Jeton d'accès** : une clé personnelle donnée à un assistant, limitée à ce que vous autorisez.
