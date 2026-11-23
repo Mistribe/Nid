@@ -27,7 +27,7 @@ public class ApplicationPerAdultTests(PostgresFixture fixture) : IClassFixture<P
     private static async Task<NidApp> StartAsync(PostgresFixture fixture)
     {
         var app = await BankingApi.StartAsync(fixture);
-        await BankingApi.SettingsAsync(app, new { enableBankingAppId = "app-home" });
+        await BankingApi.InstallationAsync(app, "app-home");
         return app;
     }
 

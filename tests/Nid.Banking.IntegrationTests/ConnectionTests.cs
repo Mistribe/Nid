@@ -88,7 +88,8 @@ public class ConnectionTests(PostgresFixture fixture) : IClassFixture<PostgresFi
 
         // An application id without the private key is not configured either.
         await using var keyless = await NidApp.StartAsync(fixture);
-        await BankingApi.SettingsAsync(keyless, new { bankingEnabled = true, enableBankingAppId = "app-1" });
+        await BankingApi.SettingsAsync(keyless, new { bankingEnabled = true });
+        await BankingApi.InstallationAsync(keyless, "app-1");
         Assert.Equal((true, false), await StatusAsync(keyless));
         await BankingApi.AssertRefusedAsync(await keyless.RawAsync(keyless.AdultA, HttpMethod.Get, $"{BankingApi.Root}/aspsps"), HttpStatusCode.Conflict, BankingCodes.NotConfigured);
 

@@ -47,7 +47,8 @@ public class DiagnosticsTests(PostgresFixture fixture) : IClassFixture<PostgresF
             (diagnostics.GetProperty("keyStatus").GetString(), diagnostics.GetProperty("appIdSaved").GetBoolean(), diagnostics.GetProperty("redirectUrl").GetString()));
         Assert.Equal(HttpStatusCode.Forbidden, (await app.RawAsync(app.AdultB, HttpMethod.Get, Diagnostics)).StatusCode);
 
-        await BankingApi.SettingsAsync(app, new { bankingEnabled = true, enableBankingAppId = "app-1" });
+        await BankingApi.SettingsAsync(app, new { bankingEnabled = true });
+        await BankingApi.InstallationAsync(app, "app-1");
         var admin = JsonDocument.Parse(await app.GetRawAsync(app.AdultA, $"{BankingApi.Root}/status")).RootElement;
         Assert.Equal((false, true, BankingKeyStatus.Missing),
             (admin.GetProperty("configured").GetBoolean(), OptionalBool(admin, "appIdSaved"), OptionalString(admin, "keyStatus")));
@@ -61,7 +62,7 @@ public class DiagnosticsTests(PostgresFixture fixture) : IClassFixture<PostgresF
     {
         var pem = RsaPem();
         await using var app = await StartAsync(fixture, pem);
-        await BankingApi.SettingsAsync(app, new { enableBankingAppId = "app-1" });
+        await BankingApi.InstallationAsync(app, "app-1");
 
         var body = await app.GetRawAsync(app.AdultA, Diagnostics);
 
@@ -74,7 +75,7 @@ public class DiagnosticsTests(PostgresFixture fixture) : IClassFixture<PostgresF
     public async Task The_test_reports_an_accepted_application_its_activation_and_its_redirect_urls()
     {
         await using var app = await StartAsync(fixture, RsaPem());
-        await BankingApi.SettingsAsync(app, new { enableBankingAppId = "app-1" });
+        await BankingApi.InstallationAsync(app, "app-1");
 
         app.Banks.Application = new EnableBankingApplication(false, ["https://elsewhere.example/callback", BankingApi.Callback]);
         var accepted = await BankingApi.JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, Test));
@@ -91,7 +92,7 @@ public class DiagnosticsTests(PostgresFixture fixture) : IClassFixture<PostgresF
     public async Task The_test_reports_a_refusal_with_its_code_and_an_unreachable_api()
     {
         await using var app = await StartAsync(fixture, RsaPem());
-        await BankingApi.SettingsAsync(app, new { enableBankingAppId = "app-1" });
+        await BankingApi.InstallationAsync(app, "app-1");
 
         var rejected = await BankingApi.JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, Test));
         Assert.Equal(("rejected", "enablebanking.UNAUTHORIZED_ACCESS", null),
@@ -131,12 +132,12 @@ public class DiagnosticsTests(PostgresFixture fixture) : IClassFixture<PostgresF
     {
         await using (var keyless = await StartAsync(fixture, null))
         {
-            await BankingApi.SettingsAsync(keyless, new { enableBankingAppId = "app-1" });
+            await BankingApi.InstallationAsync(keyless, "app-1");
             await BankingApi.AssertRefusedAsync(await keyless.RawAsync(keyless.AdultA, HttpMethod.Post, Test), HttpStatusCode.Conflict, BankingCodes.NotConfigured);
         }
 
         await using var app = await StartAsync(fixture, "not a key");
-        await BankingApi.SettingsAsync(app, new { enableBankingAppId = "app-1" });
+        await BankingApi.InstallationAsync(app, "app-1");
         Assert.Equal(BankingKeyStatus.Invalid, JsonDocument.Parse(await app.GetRawAsync(app.AdultA, Diagnostics)).RootElement.GetProperty("keyStatus").GetString());
         await BankingApi.AssertRefusedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, Test), HttpStatusCode.Conflict, BankingCodes.NotConfigured);
         Assert.Equal(HttpStatusCode.Forbidden, (await app.RawAsync(app.AdultB, HttpMethod.Post, Test)).StatusCode);

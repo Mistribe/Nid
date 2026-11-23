@@ -22,13 +22,14 @@ import { Pager, useListPage, useStepBack } from '@/components/page/Pager';
 import { Section } from '@/components/page/Section';
 import { SortableTable } from '@/components/page/SortableTable';
 import { StatLine } from '@/components/page/StatLine';
-import { PORTAL_URL, PRIVACY_URL, TERMS_URL } from '@/api/banking';
+import { PORTAL_URL, PRIVACY_URL, TERMS_URL, presentBankError } from '@/api/banking';
 import { ConfirmAction } from '@/components/ConfirmAction';
 import { ConnectionTestResult } from '../settings/banks/ConnectionTestResult';
 import { AdminFrame } from './AdminFrame';
 import { formatInstant, formatInstantDate, formatInstantTime } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import '@/locales/admin';
+import '@/locales/banks';
 
 const HOUSEHOLD = '/api/v1/admin/household';
 const RUNS = '/api/v1/admin/banking/runs';
@@ -101,7 +102,7 @@ export function BankingPage() {
       // The settings tabs and the envelope pages ask whether bank sync is on.
       void queryClient.invalidateQueries({ queryKey: ['get', '/api/v1/banking/status'] });
     },
-    onError: (error) => { setProblem(present(toProblem(error))); },
+    onError: (error) => { setProblem(presentBankError(t, error)); },
   });
   const test = $api.useMutation('post', TEST, {
     onMutate: () => { setTested(null); setTestProblem(null); },
