@@ -8,42 +8,36 @@ using UnambitiousFx.Synapse.Abstractions;
 
 namespace Nid.Ai.Application;
 
-/// <summary>How Nid asks a worker for a synchronous answer (<c>docs/ai/README.md</c> §4.1): a chat turn, a search query's
-/// embedding, one <c>decide</c>. The answer streams; each piece has been read through the request's contract.</summary>
-public interface IModelRequests
-{
-    /// <summary>The answer's data, piece by piece. Ends normally only after the worker's <c>end</c>; throws
-    /// <see cref="ModelCallException"/> otherwise (no worker, the worker failed, the stream was cut, a bound passed).
-    /// <paramref name="model"/>: only the workers that declare it (#486); <paramref name="served"/> learns which worker answered.</summary>
-    IAsyncEnumerable<ReadOnlyMemory<byte>> StreamAsync(
-        string type, int version, byte[] input, string dataClass, Guid? target, CancellationToken ct, string? model = null, Action<WorkerRecord>? served = null);
-}
-
 public sealed class ModelRequests(IWorkerRouter router, IWorkerClient client, INidKeys keys, ModelContracts contracts) : IModelRequests
 {
     public const int MaxInputBytes = 1024 * 1024;
     public static readonly TimeSpan MaxDuration = TimeSpan.FromMinutes(10);
     public static readonly FrameLimits Limits = new(64 * 1024, 10_000, 16L * 1024 * 1024);
 
-    public async IAsyncEnumerable<ReadOnlyMemory<byte>> StreamAsync(
+    public async IAsyncEnumerable<Result<ReadOnlyMemory<byte>>> StreamAsync(
         string type, int version, byte[] input, string dataClass, Guid? target, [EnumeratorCancellation] CancellationToken ct,
-        string? model = null, Action<WorkerRecord>? served = null)
+        string? model = null, Action<ServingWorker>? served = null)
     {
-        var contract = contracts.Find(ModelCallKind.Request, type, version) ?? throw new ModelCallException(JobCodes.UnknownType);
-        if (!DataClasses.IsKnown(dataClass) || (dataClass == DataClasses.None && !contract.AllowsNoData))
-            throw new ModelCallException(JobCodes.UnknownDataClass);
-        if (input.Length > MaxInputBytes)
-            throw new ModelCallException(JobCodes.TooLarge);
-        if (!contract.ValidInput(input))
-            throw new ModelCallException(JobCodes.InvalidInput);
+        var contract = contracts.Find(ModelCallKind.Request, type, version);
+        var refused = contract is null ? JobCodes.UnknownType
+            : !DataClasses.IsKnown(dataClass) || (dataClass == DataClasses.None && !contract.AllowsNoData) ? JobCodes.UnknownDataClass
+            : input.Length > MaxInputBytes ? JobCodes.TooLarge
+            : !contract.ValidInput(input) ? JobCodes.InvalidInput
+            : null;
+        if (refused is not null)
+        {
+            yield return ModelFailures.Of(refused);
+            yield break;
+        }
 
         var route = await router.RouteAsync(type, version, ModelCallKind.Request, dataClass, target, ct);
-        if (route.Workers.Count == 0)
-            throw new ModelCallException(route.Reason ?? JobCodes.NoWorker);
         IReadOnlyList<WorkerRecord> workers = model is null ? route.Workers
             : [.. route.Workers.Where(w => WorkerRouter.DeclarationOf(w)?.Models.Any(m => m.Name == model) == true)];
         if (workers.Count == 0)
-            throw new ModelCallException(JobCodes.ModelUnavailable);
+        {
+            yield return ModelFailures.Of(route.Workers.Count == 0 ? route.Reason ?? JobCodes.NoWorker : JobCodes.ModelUnavailable);
+            yield break;
+        }
 
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeout.CancelAfter(MaxDuration);
@@ -57,12 +51,14 @@ public sealed class ModelRequests(IWorkerRouter router, IWorkerClient client, IN
             var started = false;
             while (true)
             {
-                Frame frame;
+                Frame? frame = null;
+                string? cut = null;
                 try
                 {
-                    if (!await frames.MoveNextAsync())
-                        throw new ModelCallException(JobCodes.WorkerFailed);
-                    frame = frames.Current;
+                    if (await frames.MoveNextAsync())
+                        frame = frames.Current;
+                    else
+                        cut = JobCodes.WorkerFailed;
                 }
                 catch (WorkerCallException) when (!started)
                 {
@@ -70,28 +66,42 @@ public sealed class ModelRequests(IWorkerRouter router, IWorkerClient client, IN
                 }
                 catch (WorkerCallException)
                 {
-                    throw new ModelCallException(JobCodes.WorkerFailed);
+                    cut = JobCodes.WorkerFailed;
                 }
                 catch (OperationCanceledException) when (!ct.IsCancellationRequested)
                 {
-                    throw new ModelCallException(JobCodes.TimedOut);
+                    cut = JobCodes.TimedOut;
+                }
+
+                if (frame is null)
+                {
+                    yield return ModelFailures.Of(cut!);
+                    yield break;
                 }
 
                 if (!started && frame.Type is FrameType.Data or FrameType.End)
-                    served?.Invoke(worker);
+                    served?.Invoke(new ServingWorker(worker.Id, worker.Name, worker.Placement,
+                        model is null ? null : WorkerRouter.DeclarationOf(worker)?.Models.FirstOrDefault(m => m.Name == model)?.ContextTokens));
                 switch (frame.Type)
                 {
                     case FrameType.Data:
                         started = true;
-                        yield return System.Text.Encoding.UTF8.GetBytes(contract.ReadOutput(frame.Content.Span)
-                                                                       ?? throw new ModelCallException(JobCodes.ResultInvalid));
+                        if (contract!.ReadOutput(frame.Content.Span) is not { } output)
+                        {
+                            yield return ModelFailures.Of(JobCodes.ResultInvalid);
+                            yield break;
+                        }
+                        yield return new ReadOnlyMemory<byte>(System.Text.Encoding.UTF8.GetBytes(output));
                         continue;
                     case FrameType.End:
                         yield break;
                     default:
                         failure = $"{JobCodes.WorkerFailed}:{System.Text.Encoding.UTF8.GetString(frame.Content.Span)}";
                         if (started)
-                            throw new ModelCallException(failure);
+                        {
+                            yield return ModelFailures.Of(failure);
+                            yield break;
+                        }
                         break; // refused before answering (its engine is down): the next worker may answer
                 }
 
@@ -100,7 +110,7 @@ public sealed class ModelRequests(IWorkerRouter router, IWorkerClient client, IN
             }
         }
 
-        throw new ModelCallException(failure ?? JobCodes.WorkerFailed);
+        yield return ModelFailures.Of(failure ?? JobCodes.WorkerFailed);
     }
 }
 
@@ -125,20 +135,19 @@ public sealed class TestWorkerHandler(IWorkerStore workers, IModelRequests reque
             return WorkerFailures.Refused<WorkerTestResult>(refusal);
 
         var frames = 0;
-        try
+        await foreach (var frame in requests.StreamAsync("echo", 1, ContractJson.Write(new EchoRequestInput("Nid", 3)), "none", worker.Id, ct))
         {
-            await foreach (var _ in requests.StreamAsync("echo", 1, ContractJson.Write(new EchoRequestInput("Nid", 3)), "none", worker.Id, ct))
-                frames++;
-        }
-        catch (ModelCallException e)
-        {
-            return WorkerFailures.Refused<WorkerTestResult>(e.Code);
+            if (frame.TryGetFailure(out var failed))
+                return WorkerFailures.Refused<WorkerTestResult>(failed!.Code);
+            frames++;
         }
 
         var job = await jobs.SubmitAsync(new JobRequest("echo", 1,
             System.Text.Json.JsonSerializer.SerializeToElement(new EchoJobInput($"Nid {Guid.CreateVersion7():N}"), ContractJson.Strict),
             "none", TargetWorkerId: worker.Id), ct);
-        return Result.Success(new WorkerTestResult(frames, job));
+        return job.TryGet(out var id, out var refused)
+            ? Result.Success(new WorkerTestResult(frames, id))
+            : WorkerFailures.Refused<WorkerTestResult>(refused!.Code);
     }
 }
 

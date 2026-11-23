@@ -28,7 +28,7 @@ public sealed class CloudTests(PostgresFixture fixture) : IClassFixture<Postgres
         await using var app = await StartAsync(anthropic);
         await SetCloudModeAsync(app);
 
-        var failed = await Assert.ThrowsAsync<ModelCallException>(() => ChatAsync(app, "figures"));
+        var failed = await Assert.ThrowsAsync<ModelRefused>(() => ChatAsync(app, "figures"));
 
         Assert.Equal(JobCodes.NoCloudProfile, failed.Code);
         Assert.Empty(anthropic.Requests);
@@ -76,7 +76,7 @@ public sealed class CloudTests(PostgresFixture fixture) : IClassFixture<Postgres
         LlmDestination? served = null;
 
         await ChatAsync(app, new LlmChatRequest(ModelUses.Chat, Hello, [], 256, "figures", Served: d => served = d));
-        var pinned = await Assert.ThrowsAsync<ModelCallException>(() => ChatAsync(app,
+        var pinned = await Assert.ThrowsAsync<ModelRefused>(() => ChatAsync(app,
             new LlmChatRequest(ModelUses.Chat, Hello, [], 256, "figures", Pin: new LlmDestination(LlmPlacement.Local, "salon", WorkerId: Guid.NewGuid()))));
 
         Assert.Equal(new LlmDestination(LlmPlacement.Cloud, "anthropic", ProfileId: "anthropic-claude", ContextTokens: 200_000), served);
@@ -96,7 +96,7 @@ public sealed class CloudTests(PostgresFixture fixture) : IClassFixture<Postgres
             await scope.ServiceProvider.GetRequiredService<ICloudSettings>().EnableAsync("anthropic-claude", new NodaTime.LocalDate(2026, 1, 1),
                 Guid.CreateVersion7(), NodaTime.SystemClock.Instance.GetCurrentInstant(), TestContext.Current.CancellationToken);
 
-        var failed = await Assert.ThrowsAsync<ModelCallException>(() => ChatAsync(app, "figures"));
+        var failed = await Assert.ThrowsAsync<ModelRefused>(() => ChatAsync(app, "figures"));
 
         Assert.Equal(JobCodes.NoCloudProfile, failed.Code);
         Assert.Empty(anthropic.Requests);
@@ -112,7 +112,7 @@ public sealed class CloudTests(PostgresFixture fixture) : IClassFixture<Postgres
         await EnableAsync(app);
         await SetCloudModeAsync(app);
 
-        var failed = await Assert.ThrowsAsync<ModelCallException>(() => ChatAsync(app, "local_only"));
+        var failed = await Assert.ThrowsAsync<ModelRefused>(() => ChatAsync(app, "local_only"));
 
         Assert.Equal(JobCodes.CloudNotAllowed, failed.Code);
         Assert.Empty(anthropic.Requests);
@@ -149,7 +149,7 @@ public sealed class CloudTests(PostgresFixture fixture) : IClassFixture<Postgres
         await EnableAsync(app, "anthropic-second");
         await SetCloudModeAsync(app);
 
-        var failed = await Assert.ThrowsAsync<ModelCallException>(() => ChatAsync(app, "figures"));
+        var failed = await Assert.ThrowsAsync<ModelRefused>(() => ChatAsync(app, "figures"));
 
         Assert.Equal(JobCodes.CloudRefused, failed.Code);
         Assert.Single(anthropic.Requests);
@@ -293,7 +293,7 @@ public sealed class CloudTests(PostgresFixture fixture) : IClassFixture<Postgres
         var outputs = new List<ChatRequestOutput>();
         await using var scope = Scope(app);
         await foreach (var output in scope.ServiceProvider.GetRequiredService<ILlmGateway>().ChatAsync(request, TestContext.Current.CancellationToken))
-            outputs.Add(output);
+            outputs.Add(output.OrThrow());
         return outputs;
     }
 }

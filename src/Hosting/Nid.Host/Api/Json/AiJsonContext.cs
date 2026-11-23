@@ -27,7 +27,7 @@ namespace Nid.Host.Api.Json;
 [JsonSerializable(typeof(AiEndpoints.AiBudgetBody))]
 [JsonSerializable(typeof(AiBudgetView))]
 [JsonSerializable(typeof(LlmUsageView))]
-[JsonSerializable(typeof(Nid.Ai.Application.ModelJobView))]
+[JsonSerializable(typeof(Nid.Ai.Contracts.ModelJobView))]
 [JsonSerializable(typeof(AiEndpoints.RegisterWorkerBody))]
 [JsonSerializable(typeof(AiEndpoints.PairWorkerBody))]
 [JsonSerializable(typeof(AiEndpoints.RenameWorkerBody))]

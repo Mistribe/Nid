@@ -35,12 +35,15 @@ public sealed class RequestTests(PostgresFixture fixture) : IClassFixture<Postgr
         await world.PairAsync();
         var seen = 0;
 
-        var failed = await Assert.ThrowsAsync<ModelCallException>(async () =>
+        var failed = await Assert.ThrowsAsync<ModelRefused>(async () =>
         {
             await using var scope = Scope(world);
-            await foreach (var _ in scope.ServiceProvider.GetRequiredService<IModelRequests>()
+            await foreach (var frame in scope.ServiceProvider.GetRequiredService<IModelRequests>()
                                .StreamAsync("echo", 1, ContractJson.Write(new EchoRequestInput("x", 5)), "none", null, TestContext.Current.CancellationToken))
+            {
+                frame.OrThrow();
                 seen++;
+            }
         });
 
         Assert.Equal(1, seen);
@@ -52,7 +55,7 @@ public sealed class RequestTests(PostgresFixture fixture) : IClassFixture<Postgr
     {
         await using var world = await PairedWorld.StartAsync(fixture);
 
-        var failed = await Assert.ThrowsAsync<ModelCallException>(() => StreamAsync(world, new EchoRequestInput("x", 1)));
+        var failed = await Assert.ThrowsAsync<ModelRefused>(() => StreamAsync(world, new EchoRequestInput("x", 1)));
 
         Assert.Equal(JobCodes.NoWorker, failed.Code);
     }
@@ -65,7 +68,7 @@ public sealed class RequestTests(PostgresFixture fixture) : IClassFixture<Postgr
         await world.PairAsync(1);
         world.Routes.Down(new Uri(PairedWorld.UrlOf(0)).Host);
         world.Routes.Down(new Uri(PairedWorld.UrlOf(1)).Host);
-        var failed = await Assert.ThrowsAsync<ModelCallException>(() => StreamAsync(world, new EchoRequestInput("x", 1)));
+        var failed = await Assert.ThrowsAsync<ModelRefused>(() => StreamAsync(world, new EchoRequestInput("x", 1)));
         Assert.Equal(JobCodes.WorkerFailed, failed.Code);
 
         await using var other = await PairedWorld.StartAsync(fixture, workers: 2);
@@ -81,7 +84,7 @@ public sealed class RequestTests(PostgresFixture fixture) : IClassFixture<Postgr
         await using var world = await PairedWorld.StartAsync(fixture);
         await world.PairAsync();
 
-        var bad = await Assert.ThrowsAsync<ModelCallException>(() => StreamAsync(world, new { text = "x" }));
+        var bad = await Assert.ThrowsAsync<ModelRefused>(() => StreamAsync(world, new { text = "x" }));
 
         Assert.Equal(JobCodes.InvalidInput, bad.Code);
     }
@@ -128,7 +131,7 @@ public sealed class RequestTests(PostgresFixture fixture) : IClassFixture<Postgr
         await foreach (var frame in scope.ServiceProvider.GetRequiredService<IModelRequests>()
                            .StreamAsync("echo", 1, System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(input, ContractJson.Strict), "none", null,
                                TestContext.Current.CancellationToken))
-            frames.Add(frame.ToArray());
+            frames.Add(frame.OrThrow().ToArray());
         return frames;
     }
 

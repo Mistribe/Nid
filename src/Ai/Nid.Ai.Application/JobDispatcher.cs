@@ -8,6 +8,7 @@ using Nid.Ai.Protocol.Framing;
 using Nid.Ai.Protocol.Sealing;
 using Nid.Platform.Contracts;
 using NodaTime;
+using UnambitiousFx.Functional;
 
 namespace Nid.Ai.Application;
 
@@ -166,14 +167,9 @@ public sealed class JobDispatcher(
 
     private async Task SendClaimedAsync(JobRecord claimed, IReadOnlyList<WorkerRecord> candidates, Instant now, CancellationToken ct)
     {
-        JobSubmission submission;
-        try
+        if (!(await SubmissionAsync(claimed, ct)).TryGet(out var submission, out var refused))
         {
-            submission = new JobSubmission(claimed.Type, claimed.Version, JsonDocument.Parse(claimed.Input).RootElement.Clone(), await FileAsync(claimed, ct));
-        }
-        catch (ModelCallException e)
-        {
-            await FinishAsync(claimed, JobState.Failed, e.Code, now, ct);
+            await FinishAsync(claimed, JobState.Failed, refused!.Code, now, ct);
             return;
         }
 
@@ -375,17 +371,19 @@ public sealed class JobDispatcher(
     private static string Code(string error)
         => new string(error.Where(c => char.IsAsciiLetterOrDigit(c) || c is '_' or '.' or '-').Take(64).ToArray()) is { Length: > 0 } code ? code : "unknown";
 
-    private async Task<string?> FileAsync(JobRecord job, CancellationToken ct)
+    /// <summary>What the worker receives: the job's input and, read from the module that owns it, its file.</summary>
+    private async Task<Result<JobSubmission>> SubmissionAsync(JobRecord job, CancellationToken ct)
     {
+        var input = JsonDocument.Parse(job.Input).RootElement.Clone();
         if (job.FileRef is null)
-            return null;
+            return new JobSubmission(job.Type, job.Version, input, null);
         var (module, reference) = job.FileRef.Split(':', 2) is [var m, var r] ? (m, r) : (job.FileRef, "");
         var file = files.FirstOrDefault(f => f.Module == module) is { } source ? await source.ReadAsync(reference, ct) : null;
         return file switch
         {
-            null => throw new ModelCallException("ai.file_missing"),
-            { Length: > JobSubmission.MaxFileBytes } => throw new ModelCallException(JobCodes.TooLarge),
-            _ => Convert.ToBase64String(file),
+            null => ModelFailures.Of(JobCodes.FileMissing),
+            { Length: > JobSubmission.MaxFileBytes } => ModelFailures.Of(JobCodes.TooLarge),
+            _ => new JobSubmission(job.Type, job.Version, input, Convert.ToBase64String(file)),
         };
     }
 }

@@ -343,7 +343,7 @@ public sealed class DispatcherTests(PostgresFixture fixture) : IClassFixture<Pos
     private static async Task<Guid> SubmitAsync(PairedWorld world, JobRequest request)
     {
         await using var scope = Scope(world);
-        return await scope.ServiceProvider.GetRequiredService<IModelJobs>().SubmitAsync(request, TestContext.Current.CancellationToken);
+        return await scope.ServiceProvider.GetRequiredService<IModelJobs>().SubmitAsync(request, TestContext.Current.CancellationToken).OrThrow();
     }
 
     private static async Task<ModelJobView> ViewAsync(PairedWorld world, Guid id)

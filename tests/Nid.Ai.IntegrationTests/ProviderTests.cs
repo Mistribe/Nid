@@ -146,7 +146,7 @@ public sealed class ProviderTests(PostgresFixture fixture) : IClassFixture<Postg
         scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
         await foreach (var output in scope.ServiceProvider.GetRequiredService<ILlmGateway>()
                            .ChatAsync(new LlmChatRequest(ModelUses.Chat, messages, tools, 256, "figures"), TestContext.Current.CancellationToken))
-            outputs.Add(output);
+            outputs.Add(output.OrThrow());
         return outputs;
     }
 

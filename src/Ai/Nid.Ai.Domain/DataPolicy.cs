@@ -7,8 +7,8 @@ namespace Nid.Ai.Domain;
 /// household's opt-in. Local-only data goes to a <c>safe</c> worker only, whatever its placement.</summary>
 public static class DataPolicy
 {
-    public const string RemoteNotAllowed = "ai.remote_not_allowed";
-    public const string NoSafeWorker = "ai.no_safe_worker";
+    public const string RemoteNotAllowed = JobCodes.RemoteNotAllowed;
+    public const string NoSafeWorker = JobCodes.NoSafeWorker;
 
     /// <summary>Null when the worker may see this class; otherwise why not.</summary>
     public static string? Refusal(WorkerPlacement placement, bool safe, string dataClass, bool remoteAllowed)

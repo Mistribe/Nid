@@ -46,7 +46,7 @@ public sealed class GatewayTests(PostgresFixture fixture) : IClassFixture<Postgr
         await using var world = await StartAsync(Engine());
         await world.PairAsync();
 
-        var failed = await Assert.ThrowsAsync<ModelCallException>(() => ChatAsync(world, new LlmChatRequest(ModelUses.Chat, Hello, [], 128, "documents")));
+        var failed = await Assert.ThrowsAsync<ModelRefused>(() => ChatAsync(world, new LlmChatRequest(ModelUses.Chat, Hello, [], 128, "documents")));
 
         Assert.Equal(JobCodes.NoModel, failed.Code);
         var call = Assert.Single(await CallsAsync(world));
@@ -62,7 +62,7 @@ public sealed class GatewayTests(PostgresFixture fixture) : IClassFixture<Postgr
         await SetModelAsync(world, "llama3.2");
         Assert.Equal(HttpStatusCode.OK, (await world.Nid.RawAsync(world.Nid.AdultB, HttpMethod.Put, "/api/v1/ai/settings/uses/chat", new { mode = "off" })).StatusCode);
 
-        var failed = await Assert.ThrowsAsync<ModelCallException>(() => ChatAsync(world, new LlmChatRequest(ModelUses.Chat, Hello, [], 128, "documents")));
+        var failed = await Assert.ThrowsAsync<ModelRefused>(() => ChatAsync(world, new LlmChatRequest(ModelUses.Chat, Hello, [], 128, "documents")));
 
         Assert.Equal(JobCodes.UseOff, failed.Code);
         Assert.Empty(engine.ChatRequests);
@@ -75,7 +75,7 @@ public sealed class GatewayTests(PostgresFixture fixture) : IClassFixture<Postgr
         await using (var scope = Scope(world))
             await scope.ServiceProvider.GetRequiredService<IAiSettings>().SetUseModelAsync(ModelUses.Chat, "llama3.2", TestContext.Current.CancellationToken);
 
-        var failed = await Assert.ThrowsAsync<ModelCallException>(() => ChatAsync(world, new LlmChatRequest(ModelUses.Chat, Hello, [], 128, "documents")));
+        var failed = await Assert.ThrowsAsync<ModelRefused>(() => ChatAsync(world, new LlmChatRequest(ModelUses.Chat, Hello, [], 128, "documents")));
 
         Assert.Equal(JobCodes.NoWorker, failed.Code);
         Assert.Equal(HttpStatusCode.OK, (await world.Nid.RawAsync(world.Nid.AdultB, HttpMethod.Get, "/api/v1/ai/settings")).StatusCode);
@@ -91,7 +91,7 @@ public sealed class GatewayTests(PostgresFixture fixture) : IClassFixture<Postgr
         await using (var scope = Scope(world))
             await scope.ServiceProvider.GetRequiredService<IAiSettings>().SetUseModelAsync(ModelUses.Chat, "mistral-small", TestContext.Current.CancellationToken);
 
-        var failed = await Assert.ThrowsAsync<ModelCallException>(() => ChatAsync(world, new LlmChatRequest(ModelUses.Chat, Hello, [], 128, "documents")));
+        var failed = await Assert.ThrowsAsync<ModelRefused>(() => ChatAsync(world, new LlmChatRequest(ModelUses.Chat, Hello, [], 128, "documents")));
 
         Assert.Equal(JobCodes.ModelUnavailable, failed.Code);
         Assert.Empty(engine.ChatRequests);
@@ -105,7 +105,7 @@ public sealed class GatewayTests(PostgresFixture fixture) : IClassFixture<Postgr
         await world.PairAsync(placement: "remote");
         await SetModelAsync(world, "llama3.2");
 
-        var failed = await Assert.ThrowsAsync<ModelCallException>(() => ChatAsync(world, new LlmChatRequest(ModelUses.Chat, Hello, [], 128, "documents")));
+        var failed = await Assert.ThrowsAsync<ModelRefused>(() => ChatAsync(world, new LlmChatRequest(ModelUses.Chat, Hello, [], 128, "documents")));
 
         Assert.Equal(JobCodes.RemoteNotAllowed, failed.Code);
         Assert.Empty(engine.ChatRequests);
@@ -135,7 +135,7 @@ public sealed class GatewayTests(PostgresFixture fixture) : IClassFixture<Postgr
         await SetModelAsync(world, "llama3.2");
         var elsewhere = new LlmDestination(LlmPlacement.Cloud, "anthropic", ProfileId: "anthropic-claude");
 
-        var failed = await Assert.ThrowsAsync<ModelCallException>(() => ChatAsync(world, new LlmChatRequest(ModelUses.Chat, Hello, [], 128, "figures", Pin: elsewhere)));
+        var failed = await Assert.ThrowsAsync<ModelRefused>(() => ChatAsync(world, new LlmChatRequest(ModelUses.Chat, Hello, [], 128, "figures", Pin: elsewhere)));
 
         Assert.Equal(JobCodes.NoWorker, failed.Code);
         Assert.Empty(engine.ChatRequests);
@@ -148,7 +148,7 @@ public sealed class GatewayTests(PostgresFixture fixture) : IClassFixture<Postgr
         await world.PairAsync();
         var tool = new ChatTool("list_envelopes", "", System.Text.Json.JsonDocument.Parse("{}").RootElement);
 
-        var failed = await Assert.ThrowsAsync<ModelCallException>(() => ChatAsync(world, new LlmChatRequest(ModelUses.Extract, Hello, [tool], 128, "documents")));
+        var failed = await Assert.ThrowsAsync<ModelRefused>(() => ChatAsync(world, new LlmChatRequest(ModelUses.Extract, Hello, [tool], 128, "documents")));
 
         Assert.Equal(JobCodes.TaskNotAllowed, failed.Code);
     }
@@ -229,7 +229,7 @@ public sealed class GatewayTests(PostgresFixture fixture) : IClassFixture<Postgr
         await using var scope = world.Nid.Services.CreateAsyncScope();
         scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = person is { } p ? Actor.Browser(p) : Actor.System;
         await foreach (var output in scope.ServiceProvider.GetRequiredService<ILlmGateway>().ChatAsync(request, TestContext.Current.CancellationToken))
-            outputs.Add(output);
+            outputs.Add(output.OrThrow());
         return outputs;
     }
 

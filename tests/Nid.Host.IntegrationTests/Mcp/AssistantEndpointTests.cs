@@ -3,6 +3,7 @@ using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Nid.Ai.Application;
+using Nid.Ai.Contracts;
 using Nid.Ai.Protocol.Contracts;
 using Nid.Core.Contracts;
 using Nid.Host.IntegrationTests.Admin;
@@ -45,7 +46,7 @@ public sealed class AssistantEndpointTests(PostgresFixture fixture) : IClassFixt
     [Fact]
     public async Task A_refusal_streams_its_code()
     {
-        var model = new ScriptedGateway(Salon, _ => throw new ModelCallException(JobCodes.NoWorker));
+        var model = new ScriptedGateway(Salon, _ => []) { Refuses = JobCodes.NoWorker };
         await using var app = await NidApp.StartAsync(fixture, s => s.Replace(ServiceDescriptor.Scoped<ILlmGateway>(_ => model)));
 
         var response = await app.RawAsync(app.AdultA, HttpMethod.Post, Turn, new { question = "Allô ?" });

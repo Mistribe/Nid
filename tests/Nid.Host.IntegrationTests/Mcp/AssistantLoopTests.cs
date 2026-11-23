@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Nid.Ai.Application;
+using Nid.Ai.Contracts;
 using Nid.Ai.Protocol.Contracts;
 using Nid.Core.Contracts;
 using Nid.Host.Assistant;
@@ -129,7 +130,7 @@ public sealed class AssistantLoopTests(PostgresFixture fixture) : IClassFixture<
     [Fact]
     public async Task A_call_the_gateway_refuses_ends_the_turn_with_its_code()
     {
-        await using var app = await StartAsync(new ScriptedGateway(Salon, _ => throw new ModelCallException(JobCodes.NoWorker)));
+        await using var app = await StartAsync(new ScriptedGateway(Salon, _ => []) { Refuses = JobCodes.NoWorker });
 
         var events = await TurnAsync(app, "Allô ?");
 
