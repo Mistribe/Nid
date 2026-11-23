@@ -14,4 +14,6 @@ public sealed record ConversationPage(IReadOnlyList<ConversationSummary> Items, 
 /// returned, for display. Never a tool result (decision E).</summary>
 public sealed record ConversationMessageView(string Role, string Content, IReadOnlyList<string> Tools, IReadOnlyList<Guid> Items, Instant CreatedAt);
 
-public sealed record ConversationView(Guid Id, string Title, string? Provider, string? Model, Instant CreatedAt, IReadOnlyList<ConversationMessageView> Messages);
+/// <remarks><see cref="PolicyClass"/> (#532): the class of its first turn's destination, which every later turn keeps (§5.3).</remarks>
+public sealed record ConversationView(Guid Id, string Title, string? Provider, string? Model, Instant CreatedAt, IReadOnlyList<ConversationMessageView> Messages,
+    string? PolicyClass = null);

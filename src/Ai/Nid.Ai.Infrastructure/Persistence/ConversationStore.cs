@@ -17,7 +17,7 @@ public sealed class ConversationStore(AiDbContext db) : IConversations
             return null;
         var messages = await db.ConversationMessages.AsNoTracking().Where(m => m.ConversationId == id).OrderBy(m => m.Seq).ToListAsync(ct);
         return new ConversationView(conversation.Id, conversation.Title, conversation.Provider, conversation.Model, conversation.CreatedAt,
-            [.. messages.Select(m => new ConversationMessageView(m.Role, m.Content, m.Tools, m.Items, m.CreatedAt))]);
+            [.. messages.Select(m => new ConversationMessageView(m.Role, m.Content, m.Tools, m.Items, m.CreatedAt))], conversation.PolicyClass);
     }
 
     public async Task<(IReadOnlyList<ConversationSummary> Items, int Total)> PageAsync(PersonId author, int skip, int take, CancellationToken ct)
@@ -28,12 +28,12 @@ public sealed class ConversationStore(AiDbContext db) : IConversations
         return (items, await mine.CountAsync(ct));
     }
 
-    public async Task StartAsync(Guid id, PersonId author, string title, IReadOnlyList<NewConversationMessage> messages, string? provider, string? model,
+    public async Task StartAsync(Guid id, PersonId author, string title, string? policyClass, IReadOnlyList<NewConversationMessage> messages, string? provider, string? model,
         Instant at, CancellationToken ct)
     {
         var conversation = new ConversationRow
         {
-            Id = id, PersonId = author.Value, Title = ConversationRules.Title(title), Provider = provider, Model = model,
+            Id = id, PersonId = author.Value, Title = ConversationRules.Title(title), PolicyClass = policyClass, Provider = provider, Model = model,
             CreatedAt = at, UpdatedAt = at,
         };
         db.Conversations.Add(conversation);

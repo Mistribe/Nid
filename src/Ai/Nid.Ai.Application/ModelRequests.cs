@@ -16,7 +16,7 @@ public sealed class ModelRequests(IWorkerRouter router, IWorkerClient client, IN
 
     public async IAsyncEnumerable<Result<ReadOnlyMemory<byte>>> StreamAsync(
         string type, int version, byte[] input, string dataClass, Guid? target, [EnumeratorCancellation] CancellationToken ct,
-        string? model = null, Action<ServingWorker>? served = null)
+        string? model = null, Action<ServingWorker>? served = null, Func<ServingWorker, bool>? only = null)
     {
         var contract = contracts.Find(ModelCallKind.Request, type, version);
         var refused = contract is null ? JobCodes.UnknownType
@@ -31,8 +31,9 @@ public sealed class ModelRequests(IWorkerRouter router, IWorkerClient client, IN
         }
 
         var route = await router.RouteAsync(type, version, ModelCallKind.Request, dataClass, target, ct);
-        IReadOnlyList<WorkerRecord> workers = model is null ? route.Workers
-            : [.. route.Workers.Where(w => WorkerRouter.DeclarationOf(w)?.Models.Any(m => m.Name == model) == true)];
+        // #532: only the workers of a pinned class.
+        IReadOnlyList<WorkerRecord> workers = [.. route.Workers.Where(w => only?.Invoke(Serving(w, model)) != false
+            && (model is null || WorkerRouter.DeclarationOf(w)?.Models.Any(m => m.Name == model) == true))];
         if (workers.Count == 0)
         {
             yield return ModelFailures.Of(route.Workers.Count == 0 ? route.Reason ?? JobCodes.NoWorker : JobCodes.ModelUnavailable);
@@ -80,8 +81,7 @@ public sealed class ModelRequests(IWorkerRouter router, IWorkerClient client, IN
                 }
 
                 if (!started && frame.Type is FrameType.Data or FrameType.End)
-                    served?.Invoke(new ServingWorker(worker.Id, worker.Name, worker.Placement,
-                        model is null ? null : WorkerRouter.DeclarationOf(worker)?.Models.FirstOrDefault(m => m.Name == model)?.ContextTokens));
+                    served?.Invoke(Serving(worker, model));
                 switch (frame.Type)
                 {
                     case FrameType.Data:
@@ -112,6 +112,11 @@ public sealed class ModelRequests(IWorkerRouter router, IWorkerClient client, IN
 
         yield return ModelFailures.Of(failure ?? JobCodes.WorkerFailed);
     }
+
+    /// <summary>A worker as a request's caller sees it, with what <paramref name="model"/> reads on it.</summary>
+    private static ServingWorker Serving(WorkerRecord worker, string? model)
+        => new(worker.Id, worker.Name, worker.Placement, worker.Safe,
+            model is null ? null : WorkerRouter.DeclarationOf(worker)?.Models.FirstOrDefault(m => m.Name == model)?.ContextTokens);
 }
 
 /// <summary>« Tester » on a worker: a streamed <c>echo</c> through it, and an <c>echo</c> job queued for it.</summary>

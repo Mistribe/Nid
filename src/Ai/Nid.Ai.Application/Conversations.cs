@@ -23,7 +23,7 @@ public interface IConversations
     Task<(IReadOnlyList<ConversationSummary> Items, int Total)> PageAsync(PersonId author, int skip, int take, CancellationToken ct);
 
     /// <summary>A new conversation, titled after its first question, with its first exchange.</summary>
-    Task StartAsync(Guid id, PersonId author, string title, IReadOnlyList<NewConversationMessage> messages, string? provider, string? model,
+    Task StartAsync(Guid id, PersonId author, string title, string? policyClass, IReadOnlyList<NewConversationMessage> messages, string? provider, string? model,
         Instant at, CancellationToken ct);
 
     /// <summary>An exchange appended to the author's conversation; false when it is not theirs or no longer exists.</summary>

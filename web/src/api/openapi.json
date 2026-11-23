@@ -43941,6 +43941,12 @@
             "items": {
               "$ref": "#/components/schemas/ConversationMessageView"
             }
+          },
+          "policyClass": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },

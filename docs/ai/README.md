@@ -464,6 +464,9 @@ avec les outils MCP qu'elle appelle. Les usages restent chez leurs modules : Doc
   tours suivants ne vont qu'à cette classe ; si elle n'est plus disponible, le tour échoue avec la raison, sans repli,
   comme pour le cloud. « Auto-hébergé » ne suffit pas : passer d'un worker `local+safe` à un worker `remote` renverrait
   les messages vers une destination moins sûre (H1). Changer de classe, c'est ouvrir une nouvelle conversation.
+  **Livré (#532)** : la classe est gardée sur la conversation à son premier tour ; ses tours et leurs étapes suivantes sont
+  épinglés sur elle (`LlmChatRequest.Pin`) : n'importe quel worker de la classe peut servir, un profil cloud reste le sien.
+  Sans destination de la classe, le tour échoue sur `ai.destination_class_unavailable`, sans repli.
 - Repli des jobs, disjoncteur et refus de contenu : `../ingestion/llm-providers.md` §5.3 ; jamais de repli vers une
   destination non éligible.
 

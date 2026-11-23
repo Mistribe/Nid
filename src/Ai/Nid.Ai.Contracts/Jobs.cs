@@ -33,8 +33,9 @@ public interface IJobFileSource
     Task<byte[]?> ReadAsync(string reference, CancellationToken ct);
 }
 
-/// <summary>The worker that answered a request: where it runs and, for the model asked, how much it reads (null when unknown).</summary>
-public sealed record ServingWorker(Guid Id, string Name, WorkerPlacement Placement, int? ContextTokens);
+/// <summary>A worker a request may go to: where it runs, whether it is safe and, for the model asked, how much it reads (null
+/// when unknown).</summary>
+public sealed record ServingWorker(Guid Id, string Name, WorkerPlacement Placement, bool Safe, int? ContextTokens);
 
 /// <summary>How Nid asks a worker for a synchronous answer (<c>docs/ai/README.md</c> §4.1): a chat turn, a search query's
 /// embedding, one <c>decide</c>. The answer streams; each piece has been read through the request's contract.</summary>
@@ -43,9 +44,11 @@ public interface IModelRequests
     /// <summary>The answer's data, piece by piece, then nothing more after the worker's <c>end</c>. A refusal or a failure (no
     /// worker, the worker failed, the stream was cut, a bound passed) is the last item, with its <see cref="JobCodes"/> code.
     /// <paramref name="input"/> is the request contract's JSON (<c>contracts/requests</c>).
-    /// <paramref name="model"/>: only the workers that declare it (#486); <paramref name="served"/> learns which worker answered.</summary>
+    /// <paramref name="model"/>: only the workers that declare it (#486); <paramref name="only"/>: only the workers it accepts (#532);
+    /// <paramref name="served"/> learns which worker answered.</summary>
     IAsyncEnumerable<Result<ReadOnlyMemory<byte>>> StreamAsync(
-        string type, int version, byte[] input, string dataClass, Guid? target, CancellationToken ct, string? model = null, Action<ServingWorker>? served = null);
+        string type, int version, byte[] input, string dataClass, Guid? target, CancellationToken ct, string? model = null,
+        Action<ServingWorker>? served = null, Func<ServingWorker, bool>? only = null);
 }
 
 /// <summary>Why a job or request was refused, or a model call failed.</summary>
@@ -82,6 +85,9 @@ public static class JobCodes
     /// <summary>#487: data a cloud provider may not see, no enabled and eligible profile left, a provider that failed or refused.</summary>
     public const string CloudNotAllowed = "ai.cloud_not_allowed";
     public const string NoCloudProfile = "ai.no_cloud_profile";
+
+    /// <summary>#532: no destination of the conversation's class answers; another class would be a new conversation.</summary>
+    public const string DestinationClassUnavailable = "ai.destination_class_unavailable";
     public const string CloudFailed = "ai.cloud_failed";
     public const string CloudRefused = "ai.cloud_refused";
 

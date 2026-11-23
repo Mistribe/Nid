@@ -142,9 +142,9 @@ public sealed class CloudProvider(
             yield return ModelFailures.Of(JobCodes.CloudNotAllowed);
             yield break;
         }
-        if (trace.Pin is { Placement: not LlmPlacement.Cloud })
+        if (trace.Pin is { } pinned && !LlmClasses.IsCloud(pinned))
         {
-            yield return ModelFailures.Of(JobCodes.NoCloudProfile); // pinned to a worker: no provider may see this turn
+            yield return ModelFailures.Of(JobCodes.NoCloudProfile); // pinned to a worker class: no provider may see this turn
             yield break;
         }
         var region = await settings.RegionAsync(ct);
@@ -153,7 +153,7 @@ public sealed class CloudProvider(
         var candidates = profiles.All
             .Where(p => enabled.TryGetValue(p.Id, out var accepted) && accepted == p.DataTerms.ReviewedOn && region is not null && p.EligibleIn(region)
                         && p.Capabilities.Contains(ModelUses.Chat) && !breaker.IsSuspended(p.Id)
-                        && (trace.Pin?.ProfileId is null || p.Id == trace.Pin.ProfileId))
+                        && (trace.Pin is null || LlmClasses.Cloud + p.Id == trace.Pin))
             .ToList();
 
         var blocked = false;

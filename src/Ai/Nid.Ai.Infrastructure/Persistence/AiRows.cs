@@ -164,6 +164,9 @@ public sealed class ConversationRow
 
     public required string Title { get; set; }
 
+    /// <summary>#532: the class of its first turn's destination (§5.3), every later turn's pin.</summary>
+    public string? PolicyClass { get; set; }
+
     public string? Provider { get; set; }
 
     public string? Model { get; set; }
