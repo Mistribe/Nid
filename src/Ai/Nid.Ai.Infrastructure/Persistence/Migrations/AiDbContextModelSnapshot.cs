@@ -17,7 +17,7 @@ partial class AiDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261122185757_AddBudget";
+    public override string LastMigrationId => "20261123105501_AssistantConversations";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -78,6 +78,10 @@ partial class AiDbContextModelSnapshot : ModelSnapshot
                 b.Property<int>("Id")
                     .HasColumnType("integer")
                     .HasColumnName("id");
+
+                b.Property<int?>("ConversationRetentionDays")
+                    .HasColumnType("integer")
+                    .HasColumnName("conversation_retention_days");
 
                 b.Property<string>("Models")
                     .HasColumnType("jsonb")
@@ -235,6 +239,104 @@ partial class AiDbContextModelSnapshot : ModelSnapshot
                     {
                         t.HasCheckConstraint("ck_consent_subject", "subject in ('remote_workers')");
                     });
+            });
+
+        modelBuilder.Entity("Nid.Ai.Infrastructure.Persistence.ConversationMessageRow", b =>
+            {
+                b.Property<Guid>("Id")
+                    .HasColumnType("uuid")
+                    .HasColumnName("id");
+
+                b.Property<string>("Content")
+                    .IsRequired()
+                    .HasColumnType("text")
+                    .HasColumnName("content");
+
+                b.Property<Guid>("ConversationId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("conversation_id");
+
+                b.Property<Instant>("CreatedAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("created_at");
+
+                b.PrimitiveCollection<Guid[]>("Items")
+                    .IsRequired()
+                    .HasColumnType("uuid[]")
+                    .HasColumnName("items");
+
+                b.Property<string>("Role")
+                    .IsRequired()
+                    .HasMaxLength(16)
+                    .HasColumnType("character varying(16)")
+                    .HasColumnName("role");
+
+                b.Property<int>("Seq")
+                    .HasColumnType("integer")
+                    .HasColumnName("seq");
+
+                b.PrimitiveCollection<string[]>("Tools")
+                    .IsRequired()
+                    .HasColumnType("text[]")
+                    .HasColumnName("tools");
+
+                b.HasKey("Id")
+                    .HasName("pk_conversation_message");
+
+                b.HasIndex("ConversationId", "Seq")
+                    .IsUnique()
+                    .HasDatabaseName("ix_conversation_message_conversation_id_seq");
+
+                b.ToTable("conversation_message", "ai", t =>
+                    {
+                        t.HasCheckConstraint("ck_conversation_message_role", "role in ('user', 'assistant')");
+                    });
+            });
+
+        modelBuilder.Entity("Nid.Ai.Infrastructure.Persistence.ConversationRow", b =>
+            {
+                b.Property<Guid>("Id")
+                    .HasColumnType("uuid")
+                    .HasColumnName("id");
+
+                b.Property<Instant>("CreatedAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("created_at");
+
+                b.Property<string>("Model")
+                    .HasMaxLength(200)
+                    .HasColumnType("character varying(200)")
+                    .HasColumnName("model");
+
+                b.Property<Guid>("PersonId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("person_id");
+
+                b.Property<string>("Provider")
+                    .HasMaxLength(200)
+                    .HasColumnType("character varying(200)")
+                    .HasColumnName("provider");
+
+                b.Property<string>("Title")
+                    .IsRequired()
+                    .HasMaxLength(120)
+                    .HasColumnType("character varying(120)")
+                    .HasColumnName("title");
+
+                b.Property<Instant>("UpdatedAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("updated_at");
+
+                b.HasKey("Id")
+                    .HasName("pk_conversation");
+
+                b.HasIndex("UpdatedAt")
+                    .HasDatabaseName("ix_conversation_updated_at");
+
+                b.HasIndex("PersonId", "UpdatedAt")
+                    .HasDatabaseName("ix_conversation_person_id_updated_at");
+
+                b.ToTable("conversation", "ai");
             });
 
         modelBuilder.Entity("Nid.Ai.Infrastructure.Persistence.JobRow", b =>
@@ -747,6 +849,16 @@ partial class AiDbContextModelSnapshot : ModelSnapshot
                     .HasForeignKey("RemoteConsentId")
                     .OnDelete(DeleteBehavior.Restrict)
                     .HasConstraintName("fk_ai_settings_consent_remote_consent_id");
+            });
+
+        modelBuilder.Entity("Nid.Ai.Infrastructure.Persistence.ConversationMessageRow", b =>
+            {
+                b.HasOne("Nid.Ai.Infrastructure.Persistence.ConversationRow", null)
+                    .WithMany()
+                    .HasForeignKey("ConversationId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired()
+                    .HasConstraintName("fk_conversation_message_conversation_conversation_id");
             });
 
         modelBuilder.Entity("Nid.Ai.Infrastructure.Persistence.JobRow", b =>

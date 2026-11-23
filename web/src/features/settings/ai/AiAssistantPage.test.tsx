@@ -35,7 +35,7 @@ describe('Réglages › IA › Assistant', () => {
     expect(screen.getByText('Consulté : list_envelopes')).toBeInTheDocument();
     expect(screen.getByText(/2 résultats gardés hors de Anthropic par les règles du foyer\./)).toBeInTheDocument();
     expect(screen.getByText('Répondu par Anthropic, modèle claude-opus-5-5.')).toBeInTheDocument();
-    expect(bodies).toEqual([{ question: 'Mon PEA ?', history: [] }]);
+    expect(bodies).toEqual([{ question: 'Mon PEA ?', conversationId: null }]);
     await expectNoAxeViolations(container);
   });
 
@@ -49,11 +49,11 @@ describe('Réglages › IA › Assistant', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Vous avez posé beaucoup de questions cette heure-ci');
   });
 
-  it('sends the earlier answered turns as history', async () => {
+  it('goes on in the same conversation', async () => {
     const bodies: unknown[] = [];
     server.use(http.post('*/api/v1/ai/assistant/turn', async ({ request }) => {
       bodies.push(await request.json());
-      return sse(['text', { text: 'Oui.' }], ['done', { provider: 'salon', placement: 'local', model: 'llama3.2', reason: 'max_steps', links: [] }]);
+      return sse(['text', { text: 'Oui.' }], ['done', { provider: 'salon', placement: 'local', model: 'llama3.2', reason: 'max_steps', links: [], conversationId: 'c1' }]);
     }));
     const { user } = await renderApp('/settings/ai/assistant');
     const field = await screen.findByRole('textbox', { name: 'Votre question' });
@@ -65,7 +65,7 @@ describe('Réglages › IA › Assistant', () => {
     await user.click(screen.getByRole('button', { name: 'Demander' }));
 
     await screen.findAllByText('Oui.');
-    expect(bodies[1]).toEqual({ question: 'Deux', history: [{ role: 'user', content: 'Un' }, { role: 'assistant', content: 'Oui.' }] });
+    expect(bodies).toEqual([{ question: 'Un', conversationId: null }, { question: 'Deux', conversationId: 'c1' }]);
   });
 
   it('skips what is not one of its events', () => {

@@ -26,6 +26,13 @@ public sealed class AiSettingsStore(AiDbContext db) : IAiSettings
     public Task<bool> SetUseModelAsync(string use, string? model, CancellationToken ct)
         => ChangeAsync(s => s.Models = With(s.Models, use, model), ct);
 
+    public async Task<int> ConversationRetentionDaysAsync(CancellationToken ct)
+        => await db.Settings.AsNoTracking().Where(s => s.Id == 1).Select(s => s.ConversationRetentionDays).SingleOrDefaultAsync(ct)
+           ?? ConversationRules.DefaultRetentionDays;
+
+    public Task SetConversationRetentionDaysAsync(int days, CancellationToken ct)
+        => ChangeAsync(s => s.ConversationRetentionDays = days, ct);
+
     private async Task<bool> ChangeAsync(Action<AiSettingsRow> change, CancellationToken ct)
     {
         var settings = await db.Settings.SingleOrDefaultAsync(s => s.Id == 1, ct);

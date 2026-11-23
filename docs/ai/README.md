@@ -694,6 +694,13 @@ voudrait rien dire, l'audit étant gardé sans limite.
 - **Export et sauvegarde** : hors de `nid.data`. Les sauvegardes restic gardent les conversations au-delà de la
   conservation, selon leur propre rétention ; Réglages › IA le dit.
 - `llm_call` ne stocke toujours aucun contenu : les conversations sont un magasin séparé.
+- **Livré (#531)** : tables `conversation` et `conversation_message` du module `Ai`, hors de l'audit (le texte de la
+  personne, purgé avec sa conservation) et de l'export. Un tour (`POST /api/v1/ai/assistant/turn`) prend
+  `conversationId` au lieu de l'historique ; le serveur relit les messages de la conversation, de son auteur seul, et ajoute
+  l'échange une fois la réponse écrite (la question, puis la réponse avec les outils appelés et les éléments qu'ils ont
+  rendus). L'identifiant est connu avant le tour, donc chaque `llm_call` le porte. Liste, lecture et suppression : l'auteur
+  seul, « introuvable » pour tout autre, admin compris. Conservation : `ai_settings.conversation_retention_days`, 1 à
+  365 jours, posée par tout adulte dans Réglages › IA ; la purge passe toutes les heures avec celle des jobs.
 
 ## 10. Jetons, coût et budget (question 8, décision F)
 

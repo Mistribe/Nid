@@ -26,7 +26,7 @@ public sealed class AssistantEndpointTests(PostgresFixture fixture) : IClassFixt
         var pea = await McpSeed.EnvelopeAsync(app, app.AdultA);
         var named = await McpSeed.IncomeSourceAsync(app, app.AdultA); // returned by no tool of this turn: no link
 
-        var response = await app.RawAsync(app.AdultA, HttpMethod.Post, Turn, new { question = "Mon PEA ?", history = new[] { new { role = "user", content = "Bonjour" } } });
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Post, Turn, new { question = "Mon PEA ?" });
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("text/event-stream", response.Content.Headers.ContentType?.MediaType);
@@ -39,7 +39,7 @@ public sealed class AssistantEndpointTests(PostgresFixture fixture) : IClassFixt
         var link = Assert.Single(done.GetProperty("links").EnumerateArray());
         Assert.Equal((pea, "investments", "PEA"), (link.GetProperty("id").GetGuid(), link.GetProperty("module").GetString(), link.GetProperty("name").GetString()));
         Assert.DoesNotContain(named.ToString(), done.GetRawText());
-        Assert.Equal([ChatRole.System, ChatRole.User, ChatRole.User], model.Requests[0].Messages.Select(m => m.Role));
+        Assert.Equal([ChatRole.System, ChatRole.User], model.Requests[0].Messages.Select(m => m.Role));
     }
 
     [Fact]
@@ -61,13 +61,12 @@ public sealed class AssistantEndpointTests(PostgresFixture fixture) : IClassFixt
         var token = await TokenApi.CreateAsync(app, app.AdultA, TokenPresets.Direct);
 
         var bearer = await app.BearerAsync(token.Secret, HttpMethod.Post, Turn, new { question = "Mon PEA ?" });
-        var empty = await app.RawAsync(app.AdultA, HttpMethod.Post, Turn, new { question = "", history = new[] { new { role = "tool", content = "x" } } });
+        var empty = await app.RawAsync(app.AdultA, HttpMethod.Post, Turn, new { question = "" });
 
         Assert.Contains(bearer.StatusCode, new[] { HttpStatusCode.Forbidden, HttpStatusCode.Unauthorized });
         Assert.Equal(HttpStatusCode.UnprocessableEntity, empty.StatusCode);
         var problem = await empty.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Contains("#/question", problem);
-        Assert.True(problem.Contains("#/history/0", StringComparison.Ordinal), problem);
     }
 
     private static List<(string Type, JsonElement Data)> Parse(string stream)

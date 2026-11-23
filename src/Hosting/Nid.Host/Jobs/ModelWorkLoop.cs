@@ -34,6 +34,7 @@ public sealed partial class ModelWorkLoop(IServiceScopeFactory scopes, ILogger<M
             {
                 nextPurge = DateTimeOffset.UtcNow + PurgeEvery;
                 await PassAsync<IJobPurge>((p, ct) => p.RunOnceAsync(ct), stoppingToken);
+                await PassAsync<IConversationPurge>((p, ct) => p.RunOnceAsync(ct), stoppingToken); // #531: past their retention
             }
         }
     }

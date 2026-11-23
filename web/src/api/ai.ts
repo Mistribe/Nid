@@ -22,6 +22,7 @@ export const WORKER_ACTIONS = {
 export const NID_KEY_ROTATE = '/api/v1/ai/key/rotate' as const;
 export const AI_SETTINGS = '/api/v1/ai/settings' as const;
 export const REMOTE_WORKERS = '/api/v1/ai/settings/remote-workers' as const;
+export const CONVERSATION_RETENTION = '/api/v1/ai/settings/conversation-retention' as const;
 export const JOBS = '/api/v1/ai/jobs' as const;
 export const CAPABILITIES = '/api/v1/ai/capabilities' as const;
 /** #486: each use's mode (any adult) and model (an admin), and the models the workers declare. */

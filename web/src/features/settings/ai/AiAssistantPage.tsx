@@ -9,7 +9,7 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { SettingsFrame } from '../SettingsFrame';
-import { assistantTurn, type AssistantLink, type AssistantMessage } from './assistantStream';
+import { assistantTurn, type AssistantLink } from './assistantStream';
 import '@/locales/ai';
 
 type Turn = {
@@ -25,13 +25,15 @@ type Turn = {
 /**
  * Réglages › IA › Assistant (#501): a question, the answer streamed as plain text, the tools called, what the household's rules
  * kept out, and the provider and model. The links are Nid's, built from the ids its tools returned; a URL in the answer stays
- * text (decision P). Nothing is stored: a reload starts over (#174 brings conversations).
+ * text (decision P). The turns of the page are one conversation, kept for its author (#531); a reload starts a new one, and
+ * the panel (#534) will list them.
  */
 export function AiAssistantPage() {
   const { t } = useTranslation();
   const api = useApi();
   const [question, setQuestion] = useState('');
   const [turns, setTurns] = useState<Turn[]>([]);
+  const [conversation, setConversation] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
   const field = useRef<HTMLTextAreaElement>(null);
 
@@ -41,18 +43,18 @@ export function AiAssistantPage() {
     event.preventDefault();
     const asked = question.trim();
     if (!asked || running) return;
-    // Decision O: the person's and the assistant's words only, from the turns that ended with an answer.
-    const history: AssistantMessage[] = turns.filter((turn) => turn.done && turn.answer)
-      .flatMap((turn) => [{ role: 'user' as const, content: turn.question }, { role: 'assistant' as const, content: turn.answer }]);
     setTurns((all) => [...all, { question: asked, answer: '', tools: [] }]);
     setQuestion('');
     setRunning(true);
     try {
-      for await (const e of assistantTurn(api, asked, history)) {
+      for await (const e of assistantTurn(api, asked, conversation)) {
         if (e.type === 'text') update((turn) => ({ ...turn, answer: turn.answer + e.text }));
         else if (e.type === 'tool') update((turn) => ({ ...turn, tools: [...turn.tools, e.tool] }));
         else if (e.type === 'held_back') update((turn) => ({ ...turn, heldBack: e }));
-        else if (e.type === 'done') update((turn) => ({ ...turn, done: e }));
+        else if (e.type === 'done') {
+          update((turn) => ({ ...turn, done: e }));
+          if (e.conversationId) setConversation(e.conversationId);
+        }
         else update((turn) => ({ ...turn, code: e.code }));
       }
     } catch (problem) {

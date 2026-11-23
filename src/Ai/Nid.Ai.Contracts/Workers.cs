@@ -61,7 +61,8 @@ public sealed record RegisteredWorker(Guid Id, string Fingerprint);
 
 /// <summary>The household's AI settings as any adult reads them.</summary>
 /// <summary>The household's AI settings: the remote opt-in and each use (#486).</summary>
-public sealed record AiSettingsView(bool RemoteWorkersAllowed, IReadOnlyList<UseSettingView> Uses);
+/// <remarks><see cref="ConversationRetentionDays"/> (#531): how long the assistant's conversations are kept.</remarks>
+public sealed record AiSettingsView(bool RemoteWorkersAllowed, IReadOnlyList<UseSettingView> Uses, int ConversationRetentionDays = 30);
 
 /// <summary>« Tester »: how many frames the streamed echo answered, and the echo job queued for the worker.</summary>
 public sealed record WorkerTestResult(int Frames, Guid JobId);

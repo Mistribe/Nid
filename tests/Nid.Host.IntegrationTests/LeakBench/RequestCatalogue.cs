@@ -194,6 +194,11 @@ public static class RequestCatalogue
         new(typeof(Nid.Ai.Application.GetBudgetQuery), false, (_, _) => new Nid.Ai.Application.GetBudgetQuery()),
         new(typeof(Nid.Ai.Application.GetLlmUsageQuery), false, (_, _) => new Nid.Ai.Application.GetLlmUsageQuery(null)),
         new(typeof(Nid.Ai.Application.SetMonthlyBudgetCommand), false, (_, _) => new Nid.Ai.Application.SetMonthlyBudgetCommand(0m)),
+        // #531: a conversation is no item; its author alone reaches it (AssistantConversationTests).
+        new(typeof(Nid.Ai.Application.ListConversationsQuery), false, (_, _) => new Nid.Ai.Application.ListConversationsQuery(null)),
+        new(typeof(Nid.Ai.Application.GetConversationQuery), false, (_, _) => new Nid.Ai.Application.GetConversationQuery(Guid.CreateVersion7())),
+        new(typeof(Nid.Ai.Application.DeleteConversationCommand), false, (_, _) => new Nid.Ai.Application.DeleteConversationCommand(Guid.CreateVersion7())),
+        new(typeof(Nid.Ai.Application.SetConversationRetentionCommand), false, (_, _) => new Nid.Ai.Application.SetConversationRetentionCommand(30)),
         new(typeof(Nid.Ai.Application.SetCloudRegionCommand), false, (_, _) => new Nid.Ai.Application.SetCloudRegionCommand("eea_ch_uk")),
         new(typeof(Nid.Ai.Application.EnableCloudProfileCommand), false, (_, _) => new Nid.Ai.Application.EnableCloudProfileCommand("anthropic-claude", new NodaTime.LocalDate(2026, 11, 22))),
         new(typeof(Nid.Ai.Application.DisableCloudProfileCommand), false, (_, _) => new Nid.Ai.Application.DisableCloudProfileCommand("anthropic-claude")),

@@ -2,32 +2,35 @@ using System.Net.ServerSentEvents;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
+using Nid.Ai.Application;
+using Nid.Ai.Contracts;
 using Nid.Ai.Protocol.Contracts;
 using Nid.Core.Contracts;
 using Nid.Host.Api.Json;
 using Nid.Host.Assistant;
 using Nid.Platform.Contracts;
+using NodaTime;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Functional.Failures;
+using UnambitiousFx.Synapse.Abstractions;
 
 namespace Nid.Host.Api;
 
 /// <summary>
-/// #501: one assistant turn as server-sent events, for the signed-in person in the browser only. The turn is stateless: the
-/// question and the person's and the assistant's earlier words (decision O), never a tool result. Events: <c>text</c>,
-/// <c>tool</c> (its name, never its result), <c>held_back</c>, <c>done</c> (provider, model, why it stopped, and the links Nid
-/// built from the ids the tools returned, decision P) and <c>error</c> (an <c>ai.*</c> code).
+/// #501: one assistant turn as server-sent events, for the signed-in person in the browser only. #531: a turn belongs to a
+/// conversation, its author's alone: the context is rebuilt from its stored messages, the person's and the assistant's words
+/// only (decision O), never a tool result. Events: <c>text</c>, <c>tool</c> (its name, never its result), <c>held_back</c>,
+/// <c>done</c> (provider, model, why it stopped, the conversation, and the links Nid built from the ids the tools returned,
+/// decision P) and <c>error</c> (an <c>ai.*</c> code).
 /// </summary>
 public static class AssistantEndpoints
 {
     public const int MaxQuestion = 4_000;
-    public const int MaxHistory = 40;
-    public const int MaxMessage = 16_000;
     public const int MaxLinks = 10;
 
-    public sealed record AssistantMessageBody(string? Role, string? Content);
+    public sealed record AssistantTurnBody(string? Question, Guid? ConversationId);
 
-    public sealed record AssistantTurnBody(string? Question, IReadOnlyList<AssistantMessageBody>? History);
+    public sealed record ConversationRetentionBody(int? Days);
 
     public sealed record AssistantTextEvent(string Text);
 
@@ -38,14 +41,16 @@ public static class AssistantEndpoints
     /// <summary>A page of Nid the answer names: <see cref="Module"/> in the web app's terms (<c>loans</c>, <c>goals</c>…).</summary>
     public sealed record AssistantLinkView(Guid Id, string Module, string Name);
 
-    public sealed record AssistantDoneEvent(string Provider, string Placement, string Model, string Reason, IReadOnlyList<AssistantLinkView> Links);
+    /// <summary><see cref="ConversationId"/>: the conversation the exchange was kept in; null when nothing was answered.</summary>
+    public sealed record AssistantDoneEvent(string Provider, string Placement, string Model, string Reason, IReadOnlyList<AssistantLinkView> Links,
+        Guid? ConversationId);
 
     public sealed record AssistantErrorEvent(string Code);
 
     public static void MapAssistantEndpoints(this IEndpointRouteBuilder routes)
     {
-        routes.MapPost("/api/v1/ai/assistant/turn", (AssistantTurnBody body, IActorAccessor actors, AssistantLoop loop, IItemRegistry items,
-                    IAccessPolicy policy, CancellationToken ct) =>
+        routes.MapPost("/api/v1/ai/assistant/turn", async (AssistantTurnBody body, IActorAccessor actors, AssistantLoop loop, IConversations conversations,
+                    IItemRegistry items, IAccessPolicy policy, IClock clock, CancellationToken ct) =>
                 {
                     // Browser-only, as IBrowserOnly: a token never asks the assistant (§8.1).
                     if (actors.Current is not { PersonId: { } person, TokenId: null, Via: ActorOrigin.Ui })
@@ -55,32 +60,59 @@ public static class AssistantEndpoints
                     var question = reader.Text(body.Question, "question");
                     if (question is { Length: > MaxQuestion })
                         reader.Add("question", "too_long", $"{MaxQuestion} characters at most.");
-                    var history = new List<ChatMessage>();
-                    if (body.History is { Count: > MaxHistory })
-                        reader.Add("history", "too_long", $"{MaxHistory} messages at most.");
-                    foreach (var (message, i) in (body.History ?? []).Select((m, i) => (m, i)))
+                    if (!reader.Ok)
+                        return reader.Problem();
+                    IReadOnlyList<ChatMessage> history = [];
+                    if (body.ConversationId is { } id)
                     {
-                        var role = message.Role switch { "user" => ChatRole.User, "assistant" => ChatRole.Assistant, _ => (ChatRole?)null };
-                        if (role is null || message.Content is not { Length: > 0 and <= MaxMessage })
-                            reader.Add($"history[{i}]", "invalid", $"A role (user or assistant) and a content of 1 to {MaxMessage} characters.");
-                        else
-                            history.Add(new ChatMessage(role.Value, message.Content));
+                        if (await conversations.FindAsync(id, person, ct) is not { } conversation)
+                            return Result.Failure<object>(new NotFoundFailure("conversation", id.ToString())).ToHttp(x => x);
+                        history = [.. conversation.Messages.Where(m => m.Content.Length > 0)
+                            .Select(m => new ChatMessage(m.Role == "user" ? ChatRole.User : ChatRole.Assistant, m.Content))];
                     }
-                    return reader.Ok
-                        ? TypedResults.ServerSentEvents(StreamAsync(loop, items, policy, person, history, question!, ct))
-                        : reader.Problem();
+                    return TypedResults.ServerSentEvents(StreamAsync(loop, conversations, items, policy, clock, person, history, question!, body.ConversationId, ct));
                 })
             .RequireAuthorization()
             .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>()
             // The stream's text: its events are described above, read by the web app's own parser.
             .Produces<string>(StatusCodes.Status200OK, contentType: "text/event-stream");
+
+        var conversations = routes.MapGroup("/api/v1/ai/assistant/conversations").RequireAuthorization()
+            .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>();
+        conversations.MapGet("", async (int? page, IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new ListConversationsQuery(page), ct)).ToHttp(p => p))
+            .Returns<ConversationPage>();
+        conversations.MapGet("/{id:guid}", async (Guid id, IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new GetConversationQuery(id), ct)).ToHttp(c => c))
+            .Returns<ConversationView>();
+        conversations.MapDelete("/{id:guid}", async (Guid id, IInvoker invoker, CancellationToken ct) =>
+            {
+                var deleted = await invoker.InvokeAsync(new DeleteConversationCommand(id), ct);
+                return deleted.TryGetValue(out _) ? Results.NoContent() : deleted.ToHttp(v => v);
+            })
+            .ReturnsNoContent();
+
+        routes.MapPut("/api/v1/ai/settings/conversation-retention", async (ConversationRetentionBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                if (body.Days is { } days)
+                    return (await invoker.InvokeAsync(new SetConversationRetentionCommand(days), ct)).ToHttp(view => view);
+                var reader = new FieldReader();
+                reader.Add("days", "request.required", "This field is required.");
+                return reader.Problem();
+            })
+            .RequireAuthorization()
+            .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>()
+            .Returns<AiSettingsView>();
     }
 
-    private static async IAsyncEnumerable<SseItem<string>> StreamAsync(AssistantLoop loop, IItemRegistry items, IAccessPolicy policy, PersonId person,
-        IReadOnlyList<ChatMessage> history, string question, [EnumeratorCancellation] CancellationToken ct)
+    private static async IAsyncEnumerable<SseItem<string>> StreamAsync(AssistantLoop loop, IConversations conversations, IItemRegistry items,
+        IAccessPolicy policy, IClock clock, PersonId person, IReadOnlyList<ChatMessage> history, string question, Guid? conversationId,
+        [EnumeratorCancellation] CancellationToken ct)
     {
+        var id = conversationId ?? Guid.CreateVersion7(); // known before the turn, so every llm_call of it names it
         var answer = new StringBuilder();
-        await foreach (var e in loop.RunAsync(person, history, question, ct))
+        var called = new List<string>();
+        await foreach (var e in loop.RunAsync(person, history, question, ct, id))
         {
             switch (e)
             {
@@ -89,6 +121,7 @@ public static class AssistantEndpoints
                     yield return Item("text", JsonSerializer.Serialize(new AssistantTextEvent(text.Text), AiJsonContext.Default.AssistantTextEvent));
                     break;
                 case AssistantToolCalled tool:
+                    called.Add(tool.Tool);
                     yield return Item("tool", JsonSerializer.Serialize(new AssistantToolEvent(tool.Tool), AiJsonContext.Default.AssistantToolEvent));
                     break;
                 case AssistantHeldBack held:
@@ -96,9 +129,12 @@ public static class AssistantEndpoints
                         new AssistantHeldBackEvent(held.Count, held.Destination, Placement(loop)), AiJsonContext.Default.AssistantHeldBackEvent));
                     break;
                 case AssistantDone done:
+                    var kept = await KeepAsync(conversations, clock, person, id, conversationId is null, question, answer.ToString(), called, loop.Seen,
+                        done.Provider, done.Model, ct);
                     var links = await LinksAsync(items, policy, person, loop.Seen, answer.ToString(), ct);
                     yield return Item("done", JsonSerializer.Serialize(
-                        new AssistantDoneEvent(done.Provider, Placement(loop), done.Model, done.Reason, links), AiJsonContext.Default.AssistantDoneEvent));
+                        new AssistantDoneEvent(done.Provider, Placement(loop), done.Model, done.Reason, links, kept ? id : conversationId),
+                        AiJsonContext.Default.AssistantDoneEvent));
                     break;
                 case AssistantFailed failed:
                     yield return Item("error", JsonSerializer.Serialize(new AssistantErrorEvent(failed.Code), AiJsonContext.Default.AssistantErrorEvent));
@@ -106,6 +142,25 @@ public static class AssistantEndpoints
             }
         }
     }
+
+    /// <summary>The exchange, once answered: the question, then the answer with the tools it called and the items they returned.
+    /// A turn that wrote nothing keeps nothing.</summary>
+    private static async Task<bool> KeepAsync(IConversations conversations, IClock clock, PersonId person, Guid id, bool first, string question,
+        string answer, IReadOnlyList<string> tools, IReadOnlyList<Guid> items, string provider, string model, CancellationToken ct)
+    {
+        if (answer.Length == 0)
+            return false;
+        IReadOnlyList<NewConversationMessage> exchange = [new("user", question, [], []), new("assistant", answer, tools, items)];
+        var at = clock.GetCurrentInstant();
+        if (first)
+        {
+            await conversations.StartAsync(id, person, question, exchange, Blank(provider), Blank(model), at, ct);
+            return true;
+        }
+        return await conversations.AppendAsync(id, person, exchange, Blank(provider), Blank(model), at, ct);
+    }
+
+    private static string? Blank(string value) => value.Length == 0 ? null : value;
 
     private static SseItem<string> Item(string type, string json) => new(json, type);
 

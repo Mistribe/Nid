@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
 import {
-  AI_SETTINGS, aiProblem, fieldError, NID_KEY_ROTATE, REMOTE_WORKERS, WORKER, WORKER_ACTIONS, WORKER_SAFE, WORKER_TEST, WORKERS,
+  AI_SETTINGS, aiProblem, fieldError, NID_KEY_ROTATE, REMOTE_WORKERS, CONVERSATION_RETENTION, WORKER, WORKER_ACTIONS, WORKER_SAFE, WORKER_TEST, WORKERS,
   type Worker,
 } from '@/api/ai';
 import { useSession } from '@/app/Providers';
@@ -102,7 +102,32 @@ function DataSection() {
           returnFocus={{ current: wrapper.current?.querySelector<HTMLElement>('[role="switch"]') ?? null }}
           onClose={() => setAsking(null)} onConfirm={() => change.mutate({ body: { allowed: asking } })} />
       ) : null}
+      {settings.data ? <RetentionField days={settings.data.conversationRetentionDays} /> : null}
     </Section>
+  );
+}
+
+/** #531: how long the assistant's conversations are kept, any adult, 1 to 365 days. */
+function RetentionField({ days }: { days: number }) {
+  const { t } = useTranslation();
+  const { $api } = useApi();
+  const queryClient = useQueryClient();
+  const [value, setValue] = useState(String(days));
+  const save = $api.useMutation('put', CONVERSATION_RETENTION, {
+    onSuccess: () => {
+      toast.success(t('ai.data.retention_saved'));
+      void queryClient.invalidateQueries({ queryKey: ['get', AI_SETTINGS] });
+    },
+  });
+  const parsed = Number(value);
+  const valid = Number.isInteger(parsed) && parsed >= 1 && parsed <= 365;
+  return (
+    <form className="flex flex-wrap items-end gap-3" onSubmit={(e) => { e.preventDefault(); if (valid) save.mutate({ body: { days: parsed } }); }}>
+      <Field label={t('ai.data.retention')} hint={t('ai.data.retention_hint')} error={save.error ? aiProblem(t, save.error).detail : undefined}>
+        {(c) => <Input {...c} className="w-28" inputMode="numeric" value={value} onChange={(e) => setValue(e.target.value)} />}
+      </Field>
+      <Button type="submit" variant="outline" disabled={!valid || parsed === days || save.isPending}>{t('ai.data.retention_save')}</Button>
+    </form>
   );
 }
 
