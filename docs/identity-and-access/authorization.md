@@ -32,9 +32,8 @@ Ordre d'exécution des comportements (par `IOrderedPipelineBehavior.Order`, vale
 | 2 bis. Admin | Une requête `IAdminOnly` d'un acteur non admin est refusée : `403 platform.admin_required` |
 | 3. Portée | Voir §3 ; un jeton est d'abord refusé sur une requête `IBrowserOnly` (`403 platform.browser_only`). Avec l'assistant dans l'application, la règle de `IBrowserOnly` et `IConfirmedInBrowser` devient : refuser quand `TokenId is not null` **ou** `Via == Assistant`, en gardant l'exemption de la simulation des `propose_delete_*` pour `IConfirmedInBrowser` (`../ai/README.md` §8.1) |
 | 4. Accès | Contrôle sur l'élément visé (§4 et §5) |
-| 5. Idempotence | `Idempotency-Key` |
-| 6. Validation, transaction, handler | |
-| 7. Garde de sortie | Voir §7 |
+| 5. Validation, transaction, handler | Pas d'étape d'idempotence : aucun client n'envoie `Idempotency-Key` (`../architecture.md` §7, #507) |
+| 6. Garde de sortie | Voir §7 |
 
 Les étapes 2, 2 bis, 3 et 4 sont les contrôles de `UnambitiousFx.Synapse.Authorization` (`NidAuthorization.AddNidAuthorization`) : `ActorPrincipal` leur présente l'`Actor` (la hiérarchie des portées de `Actor.Has`, le rôle `admin` pour `is_admin`), `ItemAccessPolicy` répond pour l'élément visé (illisible ou absent : masqué, `404` ; lisible sans le droit demandé : refusé, `403`), `ItemAccessDenials` consigne le refus, `DenialFailure` garde les codes et les phrases de Nid. Les comportements propres à Nid (audit, `BrowserOnlyBehavior`, `ItemCreationBehavior` pour les propriétaires d'une création, masquage des documents, garde de sortie) se placent dans les intervalles de `AuthorizationBehaviorOrder` (`PipelineOrder`).
 

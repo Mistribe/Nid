@@ -61,7 +61,7 @@ Exception : `/signed-out`, où mène la déconnexion, s'affiche sans redirection
 - Types et client **générés** ; aucun appel HTTP écrit à la main.
 - Intercepteur `onRequest` : ajoute l'en-tête CSRF sur les méthodes non sûres, `credentials: same-origin`.
 - Intercepteur `onResponse` : `401` → nettoyage (`queryClient.clear()`, persister) puis redirection vers le login ; les autres erreurs sont converties (§5).
-- Idempotence : les écritures rejouables portent `Idempotency-Key` (`../architecture.md` §7).
+- Idempotence : pas d'en-tête `Idempotency-Key` ; une écriture rejouée sur une version déjà changée reçoit un `409` (`../architecture.md` §7).
 
 ## 5. Erreurs
 

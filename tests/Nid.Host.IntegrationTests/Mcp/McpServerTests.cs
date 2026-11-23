@@ -55,11 +55,19 @@ public class McpServerTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         Assert.All(writes, t =>
         {
             var hints = t.ProtocolTool.Annotations!;
-            var destructive = t.Name == "propose_amortization" || Nid.Host.Mcp.RouteActions.All.Any(a => a.Tool == t.Name && a.Destructive);
-            Assert.Equal<(bool?, bool?, bool?)>((false, destructive, true), (hints.ReadOnlyHint, hints.DestructiveHint, hints.IdempotentHint));
+            var route = Nid.Host.Mcp.RouteActions.All.SingleOrDefault(a => a.Tool == t.Name);
+            var destructive = t.Name == "propose_amortization" || route is { Destructive: true };
+            // #507: a document tool applied twice finds its document already conforming; a route that creates writes again.
+            var idempotent = route?.Idempotent ?? true;
+            Assert.Equal<(bool?, bool?, bool?)>((false, destructive, idempotent), (hints.ReadOnlyHint, hints.DestructiveHint, hints.IdempotentHint));
             Assert.Contains("invent nothing", t.Description);
             Assert.DoesNotContain(McpServerSentence, t.Description);
         });
+        Assert.Equal<(bool?, bool?, bool?, bool?)>((false, false, true, true), (
+            writes.Single(t => t.Name == "propose_create_subscription").ProtocolTool.Annotations!.IdempotentHint,
+            writes.Single(t => t.Name == "propose_add_flow").ProtocolTool.Annotations!.IdempotentHint,
+            writes.Single(t => t.Name == "propose_close_envelope").ProtocolTool.Annotations!.IdempotentHint,
+            writes.Single(t => t.Name == "propose_edit_subscription").ProtocolTool.Annotations!.IdempotentHint));
     }
 
     [Fact]
