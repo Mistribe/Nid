@@ -51,6 +51,9 @@ public static class AssistantStops
     public const string Refused = "refused";
     public const string MaxSteps = "max_steps";
     public const string TimedOut = "timed_out";
+
+    /// <summary>#527: the conversation no longer fits what the model reads.</summary>
+    public const string ContextFull = "context_full";
 }
 
 public static class AssistantCodes
@@ -105,9 +108,19 @@ public sealed partial class AssistantLoop(ILlmGateway gateway, IAssistantTools t
         var dataClass = DataClasses.Figures;
         var heldBack = 0;
         int? privateKept = null;
+        var toolChars = offered.Values.Sum(t => t.Schema.Name.Length + t.Schema.Description.Length + t.Schema.Parameters.GetRawText().Length);
+        var model = "";
 
         for (var step = 0; step < limits.MaxSteps; step++)
         {
+            // #527: a step the model could not read whole is not sent.
+            if (!Fits(destination?.ContextTokens, limits.MaxTokensPerStep, Used(messages, toolChars)))
+            {
+                if (heldBack > 0)
+                    yield return new AssistantHeldBack(heldBack, destination?.Name ?? "");
+                yield return new AssistantDone(destination?.Name ?? "", model, AssistantStops.ContextFull);
+                yield break;
+            }
             var request = new LlmChatRequest(ModelUses.Chat, messages, [.. offered.Values.Select(t => t.Schema)], limits.MaxTokensPerStep, dataClass,
                 Pin: destination, Served: served => Destination = destination ??= served);
             var text = new System.Text.StringBuilder();
@@ -144,6 +157,7 @@ public sealed partial class AssistantLoop(ILlmGateway gateway, IAssistantTools t
                 yield return new AssistantFailed(JobCodes.Cut);
                 yield break;
             }
+            model = usage.Model;
             messages.Add(new ChatMessage(ChatRole.Assistant, text.Length > 0 ? text.ToString() : null, calls.Count > 0 ? calls : null));
             if (usage.Stop != ChatStop.ToolCalls || calls.Count == 0)
             {
@@ -158,6 +172,7 @@ public sealed partial class AssistantLoop(ILlmGateway gateway, IAssistantTools t
                 yield break;
             }
 
+            var bound = ResultBound(destination?.ContextTokens, limits.MaxTokensPerStep, Used(messages, toolChars), calls.Count, limits.MaxResultLength);
             foreach (var call in calls)
             {
                 yield return new AssistantToolCalled(call.Name);
@@ -171,7 +186,7 @@ public sealed partial class AssistantLoop(ILlmGateway gateway, IAssistantTools t
                 else
                 {
                     var offsite = destination?.Offsite != false; // unknown counts as off the premises
-                    var answered = await CallAsync(person, offsite, call, limits.MaxResultLength, turn.Token, ct);
+                    var answered = await CallAsync(person, offsite, call, bound, turn.Token, ct);
                     if (offsite && privateKept is null && answered is not null)
                     {
                         privateKept = await PrivateKeptAsync(person, turn.Token, ct);
@@ -204,6 +219,26 @@ public sealed partial class AssistantLoop(ILlmGateway gateway, IAssistantTools t
 
     /// <summary>The generic line (§6.4): a count and the destination, never the preference nor the person behind it.</summary>
     private const int MaxSeen = 500;
+
+    // ponytail: an estimate, not each model's tokenizer; it errs toward refusing a little early.
+    private const int CharsPerToken = 4;
+
+    /// <summary>
+    /// #527: what each of a step's <paramref name="calls"/> may answer, in characters: its share of what the model can still
+    /// read once <paramref name="usedChars"/> and its answer (<paramref name="maxTokensPerStep"/>) are counted, never above
+    /// <paramref name="ceiling"/>; the ceiling when the model's context is unknown.
+    /// </summary>
+    public static int ResultBound(int? contextTokens, int maxTokensPerStep, int usedChars, int calls, int ceiling)
+        => contextTokens is not { } context
+            ? ceiling
+            : Math.Clamp(((context - maxTokensPerStep) * CharsPerToken - usedChars) / Math.Max(1, calls), 0, ceiling);
+
+    /// <summary>Whether a step of <paramref name="usedChars"/> still leaves the model room for its answer.</summary>
+    public static bool Fits(int? contextTokens, int maxTokensPerStep, int usedChars)
+        => contextTokens is not { } context || usedChars <= (context - maxTokensPerStep) * CharsPerToken;
+
+    private static int Used(List<ChatMessage> messages, int toolChars)
+        => toolChars + messages.Sum(m => (m.Content?.Length ?? 0) + (m.ToolCalls?.Sum(c => c.Name.Length + c.Arguments.Length) ?? 0));
 
     [System.Text.RegularExpressions.GeneratedRegex("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")]
     private static partial System.Text.RegularExpressions.Regex Uuid();

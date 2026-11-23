@@ -4,6 +4,7 @@
   "tier": "paid",
   "host": "api.mistral.ai",
   "model": "mistral-large-4-0",
+  "contextTokens": 128000,
   "capabilities": [
     "chat"
   ],
