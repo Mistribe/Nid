@@ -149,3 +149,17 @@ public interface IScenarioStore
 
     Task SaveAsync(StoredScenario scenario, CancellationToken ct);
 }
+
+/// <summary>
+/// #516, #294: a scenario replaced whole, its visibility included. An adult who may edit the scenario does not own it: the scenario
+/// behavior refuses a change of visibility to anyone but its owners, after loading the scenario of <see cref="ScenarioKind"/> it hands
+/// to the handler.
+/// </summary>
+public interface IReplacesScenario
+{
+    ItemId ItemId { get; }
+
+    Visibility Visibility { get; }
+
+    string ScenarioKind { get; }
+}

@@ -61,8 +61,10 @@ public sealed record CreateSaleScenarioCommand(
 
 /// <summary>Name, visibility, scope and document replaced whole; the owners are kept.</summary>
 public sealed record ReplaceSaleScenarioCommand(ItemId ItemId, string Name, Visibility Visibility, VisibilityScope Scope, SaleScenario Document)
-    : ICommand<SaleScenarioView>, IItemScoped
+    : ICommand<SaleScenarioView>, IItemScoped, IReplacesScenario
 {
+    string IReplacesScenario.ScenarioKind => ScenarioKinds.PropertySale;
+
     public AccessKind Access => AccessKind.Write;
 }
 
@@ -215,18 +217,15 @@ public sealed class CreateSaleScenarioHandler(IItemRegistry items, IScenarioStor
 
 [RequestHandler<ReplaceSaleScenarioCommand, SaleScenarioView>]
 public sealed class ReplaceSaleScenarioHandler(
-    IItemRegistry items, IItemRules rules, IScenarioStore store, SaleScenarioReader reader, IAccessPolicy policy, IActorAccessor actor,
+    IContextAccessor context, IItemRegistry items, IScenarioStore store, SaleScenarioReader reader, IAccessPolicy policy,
     IUnitOfWork unitOfWork)
     : IRequestHandler<ReplaceSaleScenarioCommand, SaleScenarioView>
 {
     public async ValueTask<Result<SaleScenarioView>> HandleAsync(ReplaceSaleScenarioCommand command, CancellationToken ct = default)
     {
-        var loaded = await ScenarioResults.LoadAsync(items, store, command.ItemId, ct, ScenarioKinds.PropertySale);
-        if (loaded.TryGetFailure(out var failure)) return Result.Failure<SaleScenarioView>(failure!);
-        loaded.TryGetValue(out var found);
-        // #294: an adult who may edit the scenario does not own it: its visibility stays with its owners.
-        if (command.Visibility != found.Item.Visibility && !rules.CanCreate(actor.Current!.PersonId!.Value, found.Item.Owners))
-            return Result.Failure<SaleScenarioView>(new UnauthorizedFailure("Only the scenario's owners change its visibility.", null));
+        // Loaded, and a change of visibility refused to a non-owner (#294), by the scenario behavior.
+        var found = CheckedResources.Of<LoadedScenario>(context, command);
+        Failure? failure;
         if ((ScenarioResults.Name(command.Name) ?? await reader.RefusalAsync(command.Document, command.Scope, ct)) is { } refused)
             return Result.Failure<SaleScenarioView>(refused);
 

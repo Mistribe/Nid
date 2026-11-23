@@ -12,7 +12,7 @@ namespace Nid.Banking.Application;
 /// #449: one page (<see cref="ListCategorySuggestionsHandler.PageSize"/>, <paramref name="Page"/> from 1) of the categories the household's
 /// own choices suggest for the actor's uncategorised lines, the group covering the most lines first. Computed on every read; nothing applies.
 /// </summary>
-public sealed record ListCategorySuggestionsQuery(int Page) : IQuery<CategorySuggestionPage>;
+public sealed record ListCategorySuggestionsQuery(int Page) : IQuery<CategorySuggestionPage>, IRequiresBanking;
 
 public sealed record CategorySuggestionPage(IReadOnlyList<CategorySuggestionView> Items, int Total);
 
@@ -27,13 +27,13 @@ public sealed record CategorySuggestionView(
     IReadOnlyList<BankTransactionView> Lines);
 
 /// <summary>The dismissals the actor made, or whose pattern a line they read has (a dismissal names a pattern, which may be a label's).</summary>
-public sealed record ListSuggestionDismissalsQuery : IQuery<IReadOnlyList<SuggestionDismissalView>>;
+public sealed record ListSuggestionDismissalsQuery : IQuery<IReadOnlyList<SuggestionDismissalView>>, IRequiresBanking;
 
 /// <summary>« Ignorer » a suggestion, for the whole household: <paramref name="Pattern"/>, of <paramref name="Direction"/>, never again into the category.</summary>
-public sealed record DismissCategorySuggestionCommand(string Pattern, string? Direction, Guid CategoryId) : ICommand<SuggestionDismissalView>;
+public sealed record DismissCategorySuggestionCommand(string Pattern, string? Direction, Guid CategoryId) : ICommand<SuggestionDismissalView>, IRequiresBanking;
 
 /// <summary>Brings a dismissed suggestion back: one the actor sees in <see cref="ListSuggestionDismissalsQuery"/>.</summary>
-public sealed record WithdrawSuggestionDismissalCommand(Guid Id) : ICommand<Guid>;
+public sealed record WithdrawSuggestionDismissalCommand(Guid Id) : ICommand<Guid>, IRequiresBanking;
 
 public sealed record SuggestionDismissalView(Guid Id, string Pattern, string Direction, Guid CategoryId, string CategoryName, Instant CreatedAt);
 
@@ -46,9 +46,6 @@ public sealed class ListCategorySuggestionsHandler(
 
     public async ValueTask<Result<CategorySuggestionPage>> HandleAsync(ListCategorySuggestionsQuery query, CancellationToken ct = default)
     {
-        var enabled = await access.EnabledAsync(ct);
-        if (!enabled.IsSuccess)
-            return BankingAccess.Failed<CategorySuggestionPage>(enabled);
         var rights = await access.ReadableAsync(await accounts.AllAsync(ct), ct);
         var writable = rights.Where(r => r.CanWrite).Select(r => r.Account.Id).ToList();
         if (writable.Count == 0)
@@ -83,9 +80,6 @@ public sealed class ListSuggestionDismissalsHandler(BankingAccess access, IAccou
 {
     public async ValueTask<Result<IReadOnlyList<SuggestionDismissalView>>> HandleAsync(ListSuggestionDismissalsQuery query, CancellationToken ct = default)
     {
-        var enabled = await access.EnabledAsync(ct);
-        if (!enabled.IsSuccess)
-            return BankingAccess.Failed<IReadOnlyList<SuggestionDismissalView>>(enabled);
         var names = (await categories.AllAsync(ct)).ToDictionary(c => c.Id, c => c.Name);
         return Result.Success<IReadOnlyList<SuggestionDismissalView>>(
             [.. (await VisibleAsync(access, accounts, suggestions, ct)).Select(d => View(d, names[d.Category]))]);
@@ -105,9 +99,6 @@ public sealed class DismissCategorySuggestionHandler(BankingAccess access, ICate
 {
     public async ValueTask<Result<SuggestionDismissalView>> HandleAsync(DismissCategorySuggestionCommand command, CancellationToken ct = default)
     {
-        var enabled = await access.EnabledAsync(ct);
-        if (!enabled.IsSuccess)
-            return BankingAccess.Failed<SuggestionDismissalView>(enabled);
         var normalized = CategoryRules.NormalizePattern(command.Pattern);
         if (!normalized.TryGetValue(out var pattern) && normalized.TryGetFailure(out var refused))
             return Result.Failure<SuggestionDismissalView>(FieldErrors.At(refused!, "pattern"));
@@ -129,9 +120,6 @@ public sealed class WithdrawSuggestionDismissalHandler(BankingAccess access, IAc
 {
     public async ValueTask<Result<Guid>> HandleAsync(WithdrawSuggestionDismissalCommand command, CancellationToken ct = default)
     {
-        var enabled = await access.EnabledAsync(ct);
-        if (!enabled.IsSuccess)
-            return BankingAccess.Failed<Guid>(enabled);
         return (await ListSuggestionDismissalsHandler.VisibleAsync(access, accounts, suggestions, ct)).Any(d => d.Id == command.Id)
             && await suggestions.WithdrawAsync(command.Id, ct)
             ? Result.Success(command.Id)

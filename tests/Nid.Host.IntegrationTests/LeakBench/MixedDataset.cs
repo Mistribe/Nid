@@ -170,6 +170,15 @@ public sealed class MixedDataset
     /// <summary>A category rule restricted to A's private account: B never lists, previews or edits it.</summary>
     public (Guid Rule, Guid Account) PrivateRule { get; private init; }
 
+    /// <summary>
+    /// #516: the bank accounts, each with the §2 row whose envelope twin rules it: A's private account and her card attached to it (P-A), the
+    /// joint account (J-AB, both write), and A's account on her shared envelope twin (S-A, which B reads but does not write).
+    /// </summary>
+    public IReadOnlyDictionary<Guid, string> BankAccounts { get; private init; } = new Dictionary<Guid, string>();
+
+    /// <summary>#516: an unlinked line of A's private account, of her card and of her account on S-A, with the row that rules each.</summary>
+    public IReadOnlyDictionary<Guid, string> BankLines { get; private init; } = new Dictionary<Guid, string>();
+
     /// <summary>As <see cref="PrivatePhases"/> for each private source's one-off income, by the source's row name.</summary>
     public IReadOnlyDictionary<string, Guid> PrivateOneOffs { get; private init; } = new Dictionary<string, Guid>();
 
@@ -406,7 +415,8 @@ public sealed class MixedDataset
         // Through the store, as SeedPurchaseGrantingToAsync bypasses the pipeline: the subscription twins have no phase, so an
         // invoice would not validate. The pending rows are what the bench reads.
         var proposals = new Dictionary<string, IReadOnlyList<Guid>>();
-        foreach (var (name, owner, label) in new[] { ("P-A", app.AdultA, PrivateLabelA), ("P-B", app.AdultB, PrivateLabelB) })
+        // S-A's (#516): proposals B reads through the shared twins but may not decide.
+        foreach (var (name, owner, label) in new[] { ("P-A", app.AdultA, PrivateLabelA), ("P-B", app.AdultB, PrivateLabelB), ("S-A", app.AdultA, "shared-a") })
             proposals[name] = await SeedProposalsAsync(app, owner, label, envelopes[name], incomeSources[name], items[name], loans[name]);
 
         // Net worth projection spec §6: B saves the joint projection twin with an event on B's private loan twin (B sees it in « me »).
@@ -440,18 +450,23 @@ public sealed class MixedDataset
         // And a joint account, on the joint envelope twin, that both adults read and write.
         await BankingApi.ConnectAsync(app, app.AdultA, "bench", BankingApi.Account("uid-bench", "hash-bench", null, PrivateLabelA + " compte"),
             BankingApi.Account("uid-bench-card", "hash-bench-card", null, PrivateLabelA + " carte", "CARD"),
-            BankingApi.Account("uid-bench-joint", "hash-bench-joint", null, "joint-ab compte"));
+            BankingApi.Account("uid-bench-joint", "hash-bench-joint", null, "joint-ab compte"),
+            BankingApi.Account("uid-bench-shared", "hash-bench-shared", null, "shared-a compte"));
         var bankAccounts = (await BankingApi.AccountsAsync(app, app.AdultA)).EnumerateArray()
             .ToDictionary(a => a.GetProperty("name").GetString()!, a => a.GetProperty("id").GetGuid());
         var bankAccount = bankAccounts[PrivateLabelA + " compte"];
         var bankCard = bankAccounts[PrivateLabelA + " carte"];
         var jointAccount = bankAccounts["joint-ab compte"];
+        var sharedAccount = bankAccounts["shared-a compte"];
         var associated = await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{BankingApi.Root}/accounts/{bankAccount}", new { envelopeId = envelopes["P-A"].Value });
         var attached = await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{BankingApi.Root}/accounts/{bankCard}", new { cardOfAccountId = bankAccount });
         var joint = await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{BankingApi.Root}/accounts/{jointAccount}", new { envelopeId = envelopes["J-AB"].Value });
-        if (associated.StatusCode != System.Net.HttpStatusCode.OK || attached.StatusCode != System.Net.HttpStatusCode.OK || joint.StatusCode != System.Net.HttpStatusCode.OK)
-            throw new InvalidOperationException($"Seeding A's bank accounts failed: {associated.StatusCode}, {attached.StatusCode}, {joint.StatusCode}");
+        var onShared = await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{BankingApi.Root}/accounts/{sharedAccount}", new { envelopeId = envelopes["S-A"].Value });
+        if (associated.StatusCode != System.Net.HttpStatusCode.OK || attached.StatusCode != System.Net.HttpStatusCode.OK || joint.StatusCode != System.Net.HttpStatusCode.OK
+            || onShared.StatusCode != System.Net.HttpStatusCode.OK)
+            throw new InvalidOperationException($"Seeding A's bank accounts failed: {associated.StatusCode}, {attached.StatusCode}, {joint.StatusCode}, {onShared.StatusCode}");
         Guid jointLine;
+        var lines = new Dictionary<Guid, string>();
         // Two booked lines of it, labelled with A's private label, for the transactions read.
         await using (var scope = app.Services.CreateAsyncScope())
         {
@@ -477,6 +492,10 @@ public sealed class MixedDataset
             await scope.ServiceProvider.GetRequiredService<ILinkStore>().SetAsync(new BankLink(privateLine, "subscriptions", items["J-AB"], "2025-01-03", null,
                 LinkOutcome.AsExpected, null, $"person:{app.AdultA.Value:D}", Instant.FromUtc(2025, 1, 3, 10, 0)), TransactionLinkState.Linked, default);
             await scope.ServiceProvider.GetRequiredService<IRuleStore>().UpsertAsync(bankAccount, PrivateLabelA + " LIGNE", "subscriptions", items["J-AB"], app.AdultA, default);
+            await store.AddAsync(sharedAccount,
+                [new NewBankTransaction("bench-shared-1", new LocalDate(2025, 1, 7), null, -3.5m, Currency.Eur, "shared-a ligne", null, null, "api")], default);
+            foreach (var (account, row) in new[] { (bankAccount, "P-A"), (bankCard, "P-A"), (sharedAccount, "S-A") })
+                lines[(await store.ListAsync([account], null, null, 0, 10, default)).First(t => t.ProviderRef != "bench-1").Id] = row;
         }
 
         // A category rule restricted to A's private account, its pattern her private label: B sees neither the rule, its usage nor its preview.
@@ -490,6 +509,8 @@ public sealed class MixedDataset
         {
             NoticeB = (notice, noticeDocument),
             JointLine = jointLine,
+            BankAccounts = new Dictionary<Guid, string> { [bankAccount] = "P-A", [bankCard] = "P-A", [jointAccount] = "J-AB", [sharedAccount] = "S-A" },
+            BankLines = lines,
             PrivateRule = (privateRule, bankAccount),
             PrivatePhases = privatePhases,
             PrivateOneOffs = privateOneOffs,

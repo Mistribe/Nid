@@ -30,18 +30,13 @@ public sealed class BankingAccess(
         => Configured(await settings.ReadAsync(ct), options) || (await applications.OwnersAsync(ct)).Count > 0;
 
     /// <summary>
-    /// The application the actor's next call uses (list banks, start, status): banking on, then their own application when they
-    /// declared one (an unreadable key is not configured), else the installation's.
+    /// The application the actor's next call uses (list banks, start): their own application when they declared one (an unreadable key
+    /// is not configured), else the installation's. Banking being on is the banking behavior's (<see cref="IRequiresBanking"/>).
     /// </summary>
     public async Task<Result<EnableBankingApp>> MyAppAsync(CancellationToken ct)
-    {
-        var household = await settings.ReadAsync(ct);
-        if (!household.BankingEnabled)
-            return Result.Failure<EnableBankingApp>(new ConflictFailure("Bank sync is turned off for this household.") { Code = BankingCodes.Disabled });
-        return await applications.FindAsync(Person, ct) is not null
+        => await applications.FindAsync(Person, ct) is not null
             ? await OwnAsync(Person, ct)
-            : Installation(household);
-    }
+            : Installation(await settings.ReadAsync(ct));
 
     /// <summary>
     /// The application a connection was made with, whoever asks: its creator's own when the id is theirs, else the installation's
@@ -66,7 +61,10 @@ public sealed class BankingAccess(
     private static Result<EnableBankingApp> NotConfigured()
         => Result.Failure<EnableBankingApp>(new ConflictFailure("Bank sync has no usable Enable Banking application.") { Code = BankingCodes.NotConfigured });
 
-    /// <summary>Banking on, whatever Enable Banking's configuration: what file imports and the accounts they make need (ruling R-d).</summary>
+    /// <summary>
+    /// Banking on, whatever Enable Banking's configuration: what file imports and the accounts they make need (ruling R-d). A request asks it
+    /// through <see cref="IRequiresBanking"/>; jobs and contributions, which are no requests, ask it here.
+    /// </summary>
     public async Task<Result> EnabledAsync(CancellationToken ct)
         => (await settings.ReadAsync(ct)).BankingEnabled
             ? Result.Success()

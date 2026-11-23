@@ -130,12 +130,6 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
     }
 
     /// <summary>
-    /// A proposal view carries its <c>documentId</c> to the endpoints, which hide it from a non-reader (<c>ProposalEndpoints.HideDocumentsAsync</c>,
-    /// for REST and MCP alike): masked, just not by the pipeline. Exempt as a leaf, so anything else a proposal response holds is still walked.
-    /// </summary>
-    private static readonly Type MaskedAtTheEndpoint = typeof(Nid.Core.Application.ProposalView);
-
-    /// <summary>
     /// Review Focus 2 of #108: a response that holds a document id, directly or in a list, implements <see cref="IExposesDocuments"/>, or the
     /// document mask has nothing to null and the id of a document the reader cannot read goes out.
     /// </summary>
@@ -155,7 +149,7 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
     /// <summary>The walk of <see cref="CarriesItemIds"/>, looking for a record with a <c>Guid? DocumentId</c>.</summary>
     private static bool CarriesDocumentIds(Type type, HashSet<Type> seen)
     {
-        if (type == MaskedAtTheEndpoint || !seen.Add(type))
+        if (!seen.Add(type))
             return false;
 
         IEnumerable<Type> elements = type.IsArray
@@ -313,31 +307,39 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
     }
 
     /// <summary>
-    /// Spec §7: a row's document is edited and archived by its uploader and by whoever writes the row; one who only reads the row is
-    /// forbidden, and anyone else meets « not found ». Every <see cref="CatalogueEntry.OnEveryRow"/> command, on every row, as A and as B.
+    /// Spec §7: a row's document is read by its uploader and by whoever reads the row, edited and archived by its uploader and by whoever
+    /// writes the row; one who only reads the row is forbidden an edit, and anyone else meets « not found ». Every request carrying a document
+    /// marker (#516: <see cref="Nid.Documents.Contracts.IReadsDocument"/>, <see cref="Nid.Documents.Contracts.IEditsDocument"/>) and every
+    /// <see cref="CatalogueEntry.OnEveryRow"/> one, on every row, as A and as B.
     /// </summary>
     [Fact]
-    public async Task Every_document_write_is_refused_exactly_as_the_rules_say()
+    public async Task Every_document_scoped_request_is_refused_exactly_as_the_rules_say()
     {
         var data = await MixedDataset.CreateAsync(fixture);
         await using var app = data.App;
-        var commands = RequestCatalogue.Entries.Where(e => e.OnEveryRow && RequestCatalogue.IsCommand(e.RequestType)).ToList();
-        Assert.Equal(3, commands.Count);
+        var entries = RequestCatalogue.Entries.Where(e => e.OnEveryRow || typeof(Nid.Documents.Contracts.IReadsDocument).IsAssignableFrom(e.RequestType)).ToList();
+        Assert.All(RequestCatalogue.Discover().Where(typeof(Nid.Documents.Contracts.IReadsDocument).IsAssignableFrom),
+            t => Assert.Contains(entries, e => e.RequestType == t));
 
-        foreach (var entry in commands)
+        foreach (var entry in entries)
         foreach (var (name, item) in data.Items)
         foreach (var actor in new[] { app.AdultA, app.AdultB })
         {
             var (_, failure) = await app.InvokeAsync(actor, entry.Build(data, item), TestContext.Current.CancellationToken);
             var uploader = data.UploaderOf(item) == actor;
+            var edits = typeof(Nid.Documents.Contracts.IEditsDocument).IsAssignableFrom(entry.RequestType)
+                || (entry.OnEveryRow && RequestCatalogue.IsCommand(entry.RequestType));
             var where = $"{entry.RequestType.Name} on {name}'s document by {data.NameOf(actor)}";
 
             if (!uploader && !data.ExpectedReadable(actor).Contains(item))
                 Assert.True(failure is NotFoundFailure, $"{where}: expected not found, got {Describe(failure)}");
-            else if (!uploader && !data.ExpectedWritable(name, actor))
+            else if (edits && !uploader && !data.ExpectedWritable(name, actor))
                 Assert.True(failure is UnauthorizedFailure, $"{where}: expected forbidden, got {Describe(failure)}");
-            else
+            else if (edits)
                 Assert.True(failure is null, $"{where}: expected success, got {Describe(failure)}");
+            else
+                // A link may still be refused on its target's merits (an item the actor only reads, a link already there): never hidden.
+                Assert.True(failure is not NotFoundFailure, $"{where}: the actor reads this document, yet it was hidden — {Describe(failure)}");
         }
     }
 
@@ -1266,6 +1268,126 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
             // Refused, and nothing was written on the way out: the value B tried to set is still what A left.
             var detail = await app.GetRawAsync(app.AdultA, $"/api/v1/subscriptions/{data["S-A"].Value}");
             Assert.Contains("\"autoRenew\":true", detail, StringComparison.Ordinal);
+        }
+    }
+
+    /// <summary>#516: the resources that are no registry items, and the « banking on » switch, as their behaviors check them.</summary>
+    public class Resources(PostgresFixture fixture) : IClassFixture<PostgresFixture>
+    {
+        /// <summary>
+        /// Every request carrying a bank account, bank line or proposal marker, on every such resource of the dataset, as A and as B: one the
+        /// actor does not read is « not found » (its existence is not disclosed), one they read but may not change is forbidden, and the
+        /// rest is never turned away by access. Each resource follows the rights of its §2 row: an account or a line its envelope twin's, a
+        /// proposal its target's.
+        /// </summary>
+        [Fact]
+        public async Task Every_resource_scoped_request_is_refused_exactly_as_the_rules_say()
+        {
+            var data = await MixedDataset.CreateAsync(fixture);
+            await using var app = data.App;
+            var proposals = data.Proposals.SelectMany(kv => kv.Value.Select(id => KeyValuePair.Create(id, kv.Key))).ToDictionary();
+
+            var mismatches = new List<string>();
+            foreach (var entry in RequestCatalogue.Entries.Where(e => e.BuildOn is not null))
+            {
+                var (resources, kind, hidden) = entry.RequestType switch
+                {
+                    var t when typeof(Nid.Banking.Contracts.IBankAccountScoped).IsAssignableFrom(t)
+                        => (data.BankAccounts, "account", (Func<Failure?, bool>)(f => f?.Code == Nid.Banking.Contracts.BankingCodes.AccountNotFound)),
+                    var t when typeof(Nid.Banking.Contracts.IBankLineScoped).IsAssignableFrom(t)
+                        => (data.BankLines, "line", f => f is NotFoundFailure { Resource: "bank transaction" }),
+                    _ => (proposals, "proposal", f => f is NotFoundFailure { Resource: "proposal" }),
+                };
+                foreach (var (id, row) in resources)
+                foreach (var actor in new[] { app.AdultA, app.AdultB })
+                {
+                    var request = entry.BuildOn!(data, id);
+                    var access = request switch
+                    {
+                        Nid.Banking.Contracts.IBankAccountScoped a => a.Access,
+                        Nid.Banking.Contracts.IBankLineScoped l => l.Access,
+                        IProposalScoped p => p.Access,
+                        _ => throw new Xunit.Sdk.XunitException($"{entry.RequestType.Name} has a BuildOn but no resource marker."),
+                    };
+                    var (_, failure) = await app.InvokeAsync(actor, request, TestContext.Current.CancellationToken);
+                    var where = $"{entry.RequestType.Name} on {row}'s {kind} by {data.NameOf(actor)}";
+
+                    if (!data.ExpectedReadable(actor).Contains(data[row]))
+                    {
+                        if (!hidden(failure))
+                            mismatches.Add($"{where}: the rules hide it, so it must be « not found », but the pipeline answered {Describe(failure)}");
+                    }
+                    else if (access == AccessKind.Write && !data.ExpectedWritable(row, actor))
+                    {
+                        if (failure is not UnauthorizedFailure)
+                            mismatches.Add($"{where}: the rules let this actor read it but not change it, so it must be forbidden, but the pipeline answered {Describe(failure)}");
+                    }
+                    else if (hidden(failure) || failure is UnauthorizedFailure)
+                        mismatches.Add($"{where}: refused although the rules allow it — {Describe(failure)}");
+                }
+            }
+
+            Assert.True(mismatches.Count == 0, string.Join("\n", mismatches));
+        }
+
+        /// <summary>#516: with bank sync off, every request asking for it (<see cref="Nid.Banking.Contracts.IRequiresBanking"/>) meets the switch, whoever asks.</summary>
+        [Fact]
+        public async Task Every_banking_request_meets_the_switch_when_banking_is_off()
+        {
+            var data = await MixedDataset.CreateAsync(fixture);
+            await using var app = data.App;
+            await BankingApi.SettingsAsync(app, new { bankingEnabled = false });
+
+            var entries = RequestCatalogue.Entries.Where(e => typeof(Nid.Banking.Contracts.IRequiresBanking).IsAssignableFrom(e.RequestType)).ToList();
+            Assert.NotEmpty(entries);
+            var mismatches = new List<string>();
+            foreach (var entry in entries)
+            foreach (var actor in new[] { app.AdultA, app.AdultB })
+            {
+                // An account or a line A reads and writes (the switch comes first); otherwise S-A, an item both adults read.
+                var request = entry.BuildOn is { } on
+                    ? on(data, typeof(Nid.Banking.Contracts.IBankLineScoped).IsAssignableFrom(entry.RequestType) ? data.BankLines.Keys.First() : data.BankAccounts.Keys.First())
+                    : entry.Build(data, entry.RequestType == typeof(Nid.Banking.Application.ListBankTransactionsQuery) ? data.Envelopes["S-A"] : data["S-A"]);
+                var (_, failure) = await app.InvokeAsync(actor, request, TestContext.Current.CancellationToken);
+                if (failure?.Code != Nid.Banking.Contracts.BankingCodes.Disabled)
+                    mismatches.Add($"{entry.RequestType.Name} by {data.NameOf(actor)}: expected banking.disabled, got {Describe(failure)}");
+            }
+
+            Assert.True(mismatches.Count == 0, string.Join("\n", mismatches));
+        }
+
+        /// <summary>
+        /// #294, #516: an adult who writes a scenario without owning it (B on E-A's and M-AD's twins) is refused a change of its visibility by
+        /// the scenario behavior; its owners and the managers of a dependent's are the item matrix's and the scenario tests' to check.
+        /// </summary>
+        [Fact]
+        public async Task A_scenario_writer_who_does_not_own_it_cannot_change_its_visibility()
+        {
+            var data = await MixedDataset.CreateAsync(fixture);
+            await using var app = data.App;
+
+            var entries = RequestCatalogue.Entries.Where(e => typeof(IReplacesScenario).IsAssignableFrom(e.RequestType)).ToList();
+            Assert.Equal(3, entries.Count);
+            var refused = 0;
+            foreach (var entry in entries)
+            foreach (var (name, twin) in data.ItemsFor(entry.RequestType))
+            foreach (var actor in new[] { app.AdultA, app.AdultB })
+            {
+                if (!data.ExpectedWritable(name, actor) || data.ExpectedOwned(name, actor))
+                    continue;
+                var request = entry.Build(data, twin);
+                var flipped = typeof(object).GetMethod("MemberwiseClone", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+                    .Invoke(request, null)!;
+                var visibility = ((IReplacesScenario)request).Visibility == Visibility.Shared ? Visibility.Private : Visibility.Shared;
+                request.GetType().GetProperty(nameof(IReplacesScenario.Visibility))!.SetValue(flipped, visibility);
+
+                var (_, failure) = await app.InvokeAsync(actor, flipped, TestContext.Current.CancellationToken);
+                Assert.True(failure is UnauthorizedFailure { Message: "Only the scenario's owners change its visibility." },
+                    $"{entry.RequestType.Name} on {name} by {data.NameOf(actor)}: expected forbidden, got {Describe(failure)}");
+                refused++;
+            }
+
+            Assert.Equal(6, refused); // B on E-A and on M-AD, for each of the three kinds
         }
     }
 }

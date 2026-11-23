@@ -17,16 +17,16 @@ public sealed record ListBudgetsQuery : IQuery<IReadOnlyList<CategoryBudgetView>
 /// Creates or replaces the budget of an expense category in use. <paramref name="Amount"/>: an invariant decimal of zero or more, or null
 /// to follow what is committed; <paramref name="Period"/>: <c>month</c> or <c>year</c>. One budget per branch: a parent's excludes its children's.
 /// </summary>
-public sealed record SetBudgetCommand(Guid CategoryId, string? Amount, string Period) : ICommand<CategoryBudgetView>, ITransactional;
+public sealed record SetBudgetCommand(Guid CategoryId, string? Amount, string Period) : ICommand<CategoryBudgetView>, ITransactional, IRequiresBanking;
 
-public sealed record DeleteBudgetCommand(Guid CategoryId) : ICommand<Guid>, ITransactional;
+public sealed record DeleteBudgetCommand(Guid CategoryId) : ICommand<Guid>, ITransactional, IRequiresBanking;
 
 /// <summary>
 /// #427: several budgets created at once, all or none. Each as <see cref="SetBudgetCommand"/>, with <see cref="NewBudget.Source"/> saying
 /// which: <c>typed</c> with an amount, <c>committed</c> without. A category whose branch already holds a budget, or one asked twice, is
 /// refused: nothing here replaces a budget.
 /// </summary>
-public sealed record CreateBudgetsCommand(IReadOnlyList<NewBudget> Budgets) : ICommand<IReadOnlyList<CategoryBudgetView>>, ITransactional;
+public sealed record CreateBudgetsCommand(IReadOnlyList<NewBudget> Budgets) : ICommand<IReadOnlyList<CategoryBudgetView>>, ITransactional, IRequiresBanking;
 
 public sealed record NewBudget(Guid CategoryId, string? Amount, string? Source, string? Period);
 
@@ -35,7 +35,7 @@ public sealed record NewBudget(Guid CategoryId, string? Amount, string? Source, 
 /// top-level expense categories whose branch holds none and whose Mois habituel (<see cref="SpendingView.Average"/>) is above zero, most
 /// spent first; none without that average.
 /// </summary>
-public sealed record SuggestBudgetsQuery : IQuery<IReadOnlyList<BudgetSuggestionView>>;
+public sealed record SuggestBudgetsQuery : IQuery<IReadOnlyList<BudgetSuggestionView>>, IRequiresBanking;
 
 /// <summary>
 /// <paramref name="Average"/>: the Mois habituel; <paramref name="Proposed"/>: it rounded up to the next 10, in the reference currency;
@@ -60,14 +60,11 @@ public sealed class ListBudgetsHandler(ICategoryStore categories, ICategoryBudge
 }
 
 [RequestHandler<SetBudgetCommand, CategoryBudgetView>]
-public sealed class SetBudgetHandler(BankingAccess access, ICategoryStore categories, ICategoryBudgetStore budgets)
+public sealed class SetBudgetHandler(ICategoryStore categories, ICategoryBudgetStore budgets)
     : IRequestHandler<SetBudgetCommand, CategoryBudgetView>
 {
     public async ValueTask<Result<CategoryBudgetView>> HandleAsync(SetBudgetCommand command, CancellationToken ct = default)
     {
-        var enabled = await access.EnabledAsync(ct);
-        if (!enabled.IsSuccess)
-            return BankingAccess.Failed<CategoryBudgetView>(enabled);
         var all = await categories.AllAsync(ct);
         var checkedBudget = Check(command.CategoryId, command.Amount, command.Period, "", all, (await budgets.AllAsync(ct)).Select(b => b.Category), replace: true);
         if (!checkedBudget.TryGetValue(out var budget))
@@ -118,13 +115,10 @@ public sealed class SetBudgetHandler(BankingAccess access, ICategoryStore catego
 }
 
 [RequestHandler<DeleteBudgetCommand, Guid>]
-public sealed class DeleteBudgetHandler(BankingAccess access, ICategoryBudgetStore budgets) : IRequestHandler<DeleteBudgetCommand, Guid>
+public sealed class DeleteBudgetHandler(ICategoryBudgetStore budgets) : IRequestHandler<DeleteBudgetCommand, Guid>
 {
     public async ValueTask<Result<Guid>> HandleAsync(DeleteBudgetCommand command, CancellationToken ct = default)
     {
-        var enabled = await access.EnabledAsync(ct);
-        if (!enabled.IsSuccess)
-            return BankingAccess.Failed<Guid>(enabled);
         return await budgets.DeleteAsync(command.CategoryId, ct)
             ? Result.Success(command.CategoryId)
             : Result.Failure<Guid>(new NotFoundFailure("budget", command.CategoryId.ToString()));
@@ -132,7 +126,7 @@ public sealed class DeleteBudgetHandler(BankingAccess access, ICategoryBudgetSto
 }
 
 [RequestHandler<CreateBudgetsCommand, IReadOnlyList<CategoryBudgetView>>]
-public sealed class CreateBudgetsHandler(BankingAccess access, ICategoryStore categories, ICategoryBudgetStore budgets)
+public sealed class CreateBudgetsHandler(ICategoryStore categories, ICategoryBudgetStore budgets)
     : IRequestHandler<CreateBudgetsCommand, IReadOnlyList<CategoryBudgetView>>
 {
     /// <summary>More than a household's top-level categories ever are.</summary>
@@ -140,9 +134,6 @@ public sealed class CreateBudgetsHandler(BankingAccess access, ICategoryStore ca
 
     public async ValueTask<Result<IReadOnlyList<CategoryBudgetView>>> HandleAsync(CreateBudgetsCommand command, CancellationToken ct = default)
     {
-        var enabled = await access.EnabledAsync(ct);
-        if (!enabled.IsSuccess)
-            return BankingAccess.Failed<IReadOnlyList<CategoryBudgetView>>(enabled);
         if (command.Budgets is not { Count: > 0 and <= Max })
             return Shape("budgets", $"Send 1 to {Max} budgets.");
 

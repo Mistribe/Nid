@@ -39,6 +39,11 @@ using UnambitiousFx.Synapse.Abstractions;
 [assembly: SynapseGlobalBehavior(typeof(Nid.Platform.Audit.AuditBehavior<,>))]
 [assembly: SynapseGlobalBehavior(typeof(BrowserOnlyBehavior<,>))]
 [assembly: SynapseGlobalBehavior(typeof(ItemCreationBehavior<,>))]
+// #516: the modules' own resources that are no registry items, at PipelineOrder.ResourceAccess.
+[assembly: SynapseGlobalBehavior(typeof(Nid.Banking.Application.BankingAccessBehavior<,>))]
+[assembly: SynapseGlobalBehavior(typeof(Nid.Documents.Application.DocumentAccessBehavior<,>))]
+[assembly: SynapseGlobalBehavior(typeof(Nid.Core.Application.ProposalAccessBehavior<,>))]
+[assembly: SynapseGlobalBehavior(typeof(Nid.Core.Application.ScenarioAccessBehavior<,>))]
 [assembly: SynapseGlobalBehavior(typeof(DocumentMaskBehavior<,>))]
 [assembly: SynapseGlobalBehavior(typeof(OutputGuardBehavior<,>))]
 

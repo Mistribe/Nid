@@ -17,8 +17,10 @@ public sealed record CreateProjectionScenarioCommand(
 
 /// <summary>Spec §6: name, visibility, scope and document replaced whole; the owners are kept, and so are the events the writer cannot see.</summary>
 public sealed record ReplaceProjectionScenarioCommand(ItemId ItemId, string Name, Visibility Visibility, VisibilityScope Scope, ProjectionScenario Document)
-    : ICommand<ProjectionScenarioView>, IItemScoped
+    : ICommand<ProjectionScenarioView>, IItemScoped, IReplacesScenario
 {
+    string IReplacesScenario.ScenarioKind => ScenarioKinds.Projection;
+
     public AccessKind Access => AccessKind.Write;
 }
 
@@ -116,18 +118,15 @@ public sealed class CreateProjectionScenarioHandler(
 
 [RequestHandler<ReplaceProjectionScenarioCommand, ProjectionScenarioView>]
 public sealed class ReplaceProjectionScenarioHandler(
-    IItemRegistry items, IItemRules rules, IScenarioStore store, ProjectionScenarioReader reader, IAccessPolicy policy, IActorAccessor actor,
+    IContextAccessor context, IItemRegistry items, IScenarioStore store, ProjectionScenarioReader reader, IAccessPolicy policy, IActorAccessor actor,
     IHouseholdSettings household, IHouseholdCalendar calendar, IUnitOfWork unitOfWork)
     : IRequestHandler<ReplaceProjectionScenarioCommand, ProjectionScenarioView>
 {
     public async ValueTask<Result<ProjectionScenarioView>> HandleAsync(ReplaceProjectionScenarioCommand command, CancellationToken ct = default)
     {
-        var loaded = await ScenarioResults.LoadAsync(items, store, command.ItemId, ct, ScenarioKinds.Projection);
-        if (loaded.TryGetFailure(out var failure)) return Result.Failure<ProjectionScenarioView>(failure!);
-        loaded.TryGetValue(out var found);
-        // #294: an adult who may edit the scenario does not own it: its visibility stays with its owners.
-        if (command.Visibility != found.Item.Visibility && !rules.CanCreate(actor.Current!.PersonId!.Value, found.Item.Owners))
-            return Result.Failure<ProjectionScenarioView>(new UnauthorizedFailure("Only the scenario's owners change its visibility.", null));
+        // Loaded, and a change of visibility refused to a non-owner (#294), by the scenario behavior.
+        var found = CheckedResources.Of<LoadedScenario>(context, command);
+        Failure? failure;
         if ((ScenarioResults.Name(command.Name) ?? await reader.RefusalAsync(command.Document, command.Scope, ct)) is { } refused)
             return Result.Failure<ProjectionScenarioView>(refused);
 

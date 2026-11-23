@@ -83,6 +83,14 @@ public sealed record CatalogueEntry(Type RequestType, bool IsItemScoped, Func<Mi
     /// than on S-A alone, and the bench checks each refusal against the row.
     /// </summary>
     public bool OnEveryRow { get; init; }
+
+    /// <summary>
+    /// #516: the request aimed at one resource of the dataset that is no registry item, for a request carrying its marker: a bank account
+    /// (<see cref="MixedDataset.BankAccounts"/>), a bank line (<see cref="MixedDataset.BankLines"/>) or a proposal (<see cref="MixedDataset.Proposals"/>).
+    /// Required of every such request, which <c>LeakBenchTests</c> checks by reflection; an allowed actor meets the request's own refusal
+    /// (a stale version, an unknown dependent), never a write that would change who reads what.
+    /// </summary>
+    public Func<MixedDataset, Guid, object>? BuildOn { get; init; }
 }
 
 /// <summary>
@@ -274,10 +282,10 @@ public static class RequestCatalogue
         new(typeof(SubmitProposalCommand), true, (_, item) => new SubmitProposalCommand("nope", item, System.Text.Json.JsonDocument.Parse("{}").RootElement, null)),
         new(typeof(ApplyDirectCommand), true, (_, item) => new ApplyDirectCommand("nope", item, System.Text.Json.JsonDocument.Parse("{}").RootElement)),
         new(typeof(ListProposalsQuery), false, (_, _) => new ListProposalsQuery(null)),
-        new(typeof(GetProposalQuery), false, (data, _) => new GetProposalQuery(data.Proposals["P-B"][2])),
-        new(typeof(ApproveProposalCommand), false, (data, _) => new ApproveProposalCommand(data.Proposals["P-B"][0], 0, null)),
-        new(typeof(RejectProposalCommand), false, (data, _) => new RejectProposalCommand(data.Proposals["P-B"][0], 0, null)),
-        new(typeof(DeleteProposalCommand), false, (data, _) => new DeleteProposalCommand(data.Proposals["P-B"][0], 0)),
+        new(typeof(GetProposalQuery), false, (data, _) => new GetProposalQuery(data.Proposals["P-B"][2])) { BuildOn = (_, id) => new GetProposalQuery(id) },
+        new(typeof(ApproveProposalCommand), false, (data, _) => new ApproveProposalCommand(data.Proposals["P-B"][0], 0, null)) { BuildOn = (_, id) => new ApproveProposalCommand(id, uint.MaxValue, null) },
+        new(typeof(RejectProposalCommand), false, (data, _) => new RejectProposalCommand(data.Proposals["P-B"][0], 0, null)) { BuildOn = (_, id) => new RejectProposalCommand(id, uint.MaxValue, null) },
+        new(typeof(DeleteProposalCommand), false, (data, _) => new DeleteProposalCommand(data.Proposals["P-B"][0], 0)) { BuildOn = (_, id) => new DeleteProposalCommand(id, uint.MaxValue) },
         new(typeof(GetHouseholdSettingsQuery), false, (_, _) => new GetHouseholdSettingsQuery()),
         new(typeof(UpdateHouseholdSettingsCommand), false, (_, _) => new UpdateHouseholdSettingsCommand(null, null, null)),
         new(typeof(ListJobsQuery), false, (_, _) => new ListJobsQuery()),
@@ -668,11 +676,11 @@ public static class RequestCatalogue
         new(typeof(DeleteConnectionCommand), false, (_, _) => new DeleteConnectionCommand(Guid.NewGuid())),
         // Every account the actor reads: A's, on A's private envelope twin, must never reach B (MixedDataset seeds it).
         new(typeof(ListBankAccountsQuery), false, (_, _) => new ListBankAccountsQuery(null)),
-        new(typeof(UpdateBankAccountCommand), false, (_, item) => new UpdateBankAccountCommand(Guid.NewGuid(), item.Value, false, null, false, null, null)),
+        new(typeof(UpdateBankAccountCommand), false, (_, item) => new UpdateBankAccountCommand(Guid.NewGuid(), item.Value, false, null, false, null, null)) { BuildOn = (_, id) => new UpdateBankAccountCommand(id, null, false, null, false, null, null) },
         // #353: an account's latest lines and a card's likely account, for its readers only (« not found » otherwise).
-        new(typeof(BankAccountOverviewQuery), false, (_, _) => new BankAccountOverviewQuery(Guid.NewGuid())),
+        new(typeof(BankAccountOverviewQuery), false, (_, _) => new BankAccountOverviewQuery(Guid.NewGuid())) { BuildOn = (_, id) => new BankAccountOverviewQuery(id) },
         new(typeof(Nid.Host.Composition.CreateBankAccountEnvelopeCommand), false,
-            (_, _) => new Nid.Host.Composition.CreateBankAccountEnvelopeCommand(Guid.NewGuid(), "bench", "checking", false)),
+            (_, _) => new Nid.Host.Composition.CreateBankAccountEnvelopeCommand(Guid.NewGuid(), "bench", "checking", false)) { BuildOn = (_, id) => new Nid.Host.Composition.CreateBankAccountEnvelopeCommand(id, "bench", "checking", false, Guid.NewGuid()) },
         new(typeof(Nid.Banking.Application.Sync.SyncAllCommand), false, (_, _) => new Nid.Banking.Application.Sync.SyncAllCommand()),
         new(typeof(Nid.Banking.Application.Sync.SyncMineCommand), false, (_, _) => new Nid.Banking.Application.Sync.SyncMineCommand(Guid.NewGuid(), new PsuHeaders(null, null))),
         new(typeof(Nid.Banking.Application.Sync.GetBankSyncRunsQuery), false, (_, _) => new Nid.Banking.Application.Sync.GetBankSyncRunsQuery(null)),
@@ -700,17 +708,17 @@ public static class RequestCatalogue
         new(typeof(Nid.Banking.Application.Spending.ListSpendingLinesQuery), false, (_, _) => new Nid.Banking.Application.Spending.ListSpendingLinesQuery(VisibilityScope.Mine, null, true, new YearMonth(2025, 1), null, null, 1)),
         new(typeof(Nid.Banking.Application.Spending.ListSpendingLinesQuery), false, (_, _) => new Nid.Banking.Application.Spending.ListSpendingLinesQuery(VisibilityScope.Household, Nid.Banking.Domain.CategorySeed.Find("food.groceries")!.Id, false, new YearMonth(2025, 1), null, null, 1)),
         new(typeof(Nid.Banking.Application.Spending.ListSpendingLinesQuery), false, (_, _) => new Nid.Banking.Application.Spending.ListSpendingLinesQuery(VisibilityScope.Mine, Nid.Banking.Domain.CategorySeed.Find("food.groceries")!.Id, false, new YearMonth(2025, 1), null, null, 1)),
-        new(typeof(LinkCandidatesQuery), false, (d, _) => new LinkCandidatesQuery(d.JointLine)),
+        new(typeof(LinkCandidatesQuery), false, (d, _) => new LinkCandidatesQuery(d.JointLine)) { BuildOn = (_, id) => new LinkCandidatesQuery(id) },
         new(typeof(ListExpectedChargesQuery), false, (_, _) => new ListExpectedChargesQuery(new LocalDate(2025, 1, 1), new LocalDate(2025, 3, 31))),
-        new(typeof(LinkTransactionCommand), false, (d, item) => new LinkTransactionCommand(d.JointLine, "subscriptions", item.Value, null)),
-        new(typeof(UnlinkTransactionCommand), false, (d, _) => new UnlinkTransactionCommand(d.JointLine)),
-        new(typeof(IgnoreTransactionCommand), false, (d, _) => new IgnoreTransactionCommand(d.JointLine)),
-        new(typeof(SetTransactionCategoryCommand), false, (d, _) => new SetTransactionCategoryCommand(d.JointLine, null)),
-        new(typeof(ResetTransactionCategoryCommand), false, (d, _) => new ResetTransactionCategoryCommand(d.JointLine)),
+        new(typeof(LinkTransactionCommand), false, (d, item) => new LinkTransactionCommand(d.JointLine, "subscriptions", item.Value, null)) { BuildOn = (_, id) => new LinkTransactionCommand(id, "subscriptions", Guid.NewGuid(), null) },
+        new(typeof(UnlinkTransactionCommand), false, (d, _) => new UnlinkTransactionCommand(d.JointLine)) { BuildOn = (_, id) => new UnlinkTransactionCommand(id) },
+        new(typeof(IgnoreTransactionCommand), false, (d, _) => new IgnoreTransactionCommand(d.JointLine)) { BuildOn = (_, id) => new IgnoreTransactionCommand(id) },
+        new(typeof(SetTransactionCategoryCommand), false, (d, _) => new SetTransactionCategoryCommand(d.JointLine, null)) { BuildOn = (_, id) => new SetTransactionCategoryCommand(id, null) },
+        new(typeof(ResetTransactionCategoryCommand), false, (d, _) => new ResetTransactionCategoryCommand(d.JointLine)) { BuildOn = (_, id) => new ResetTransactionCategoryCommand(id) },
         new(typeof(SetTransactionsCategoryCommand), false, (d, _) => new SetTransactionsCategoryCommand([d.JointLine], null)),
-        new(typeof(SetTransactionNoteCommand), false, (d, _) => new SetTransactionNoteCommand(d.JointLine, null)),
-        new(typeof(SplitTransactionCommand), false, (d, _) => new SplitTransactionCommand(d.JointLine, [])),
-        new(typeof(UnsplitTransactionCommand), false, (d, _) => new UnsplitTransactionCommand(d.JointLine)),
+        new(typeof(SetTransactionNoteCommand), false, (d, _) => new SetTransactionNoteCommand(d.JointLine, null)) { BuildOn = (_, id) => new SetTransactionNoteCommand(id, null) },
+        new(typeof(SplitTransactionCommand), false, (d, _) => new SplitTransactionCommand(d.JointLine, [])) { BuildOn = (_, id) => new SplitTransactionCommand(id, []) },
+        new(typeof(UnsplitTransactionCommand), false, (d, _) => new UnsplitTransactionCommand(d.JointLine)) { BuildOn = (_, id) => new UnsplitTransactionCommand(id) },
         // The household's categories: no item, no person's data.
         new(typeof(ListBankCategoriesQuery), false, (_, _) => new ListBankCategoriesQuery()),
         new(typeof(CreateBankCategoryCommand), false, (_, _) => new CreateBankCategoryCommand(null, $"bench-{Guid.NewGuid():N}", "expense")),

@@ -11,7 +11,7 @@ using UnambitiousFx.Synapse.Abstractions;
 namespace Nid.Banking.Application;
 
 /// <summary>The bank accounts the actor reads (D7, D22); with <paramref name="Envelope"/>, the one associated with it, if any.</summary>
-public sealed record ListBankAccountsQuery(ItemId? Envelope) : IQuery<IReadOnlyList<BankAccountView>>;
+public sealed record ListBankAccountsQuery(ItemId? Envelope) : IQuery<IReadOnlyList<BankAccountView>>, IRequiresBanking;
 
 /// <summary>
 /// An account's settings; a null field is left as it is. <paramref name="EnvelopeId"/> associates the account (write on a checking,
@@ -24,20 +24,30 @@ public sealed record ListBankAccountsQuery(ItemId? Envelope) : IQuery<IReadOnlyL
 /// </summary>
 public sealed record UpdateBankAccountCommand(
     Guid Id, Guid? EnvelopeId, bool ClearEnvelope, Guid? CardOfAccountId, bool ClearCard, bool? AutoApplyBalance, bool? Ignored, string? Name = null,
-    bool ClearName = false, int? MinPayments = null, bool ClearMinPayments = false, bool? CountWithdrawals = null) : ICommand<Guid>, ITransactional;
+    bool ClearName = false, int? MinPayments = null, bool ClearMinPayments = false, bool? CountWithdrawals = null) : ICommand<Guid>, ITransactional, IBankAccountScoped
+{
+    Guid IBankAccountScoped.BankAccountId => Id;
+
+    public AccessKind Access => AccessKind.Write;
+}
 
 /// <summary>
 /// #353: what « Régler » shows to recognise an account: its latest lines, and for a card not yet attached, the checking account it most
 /// likely belongs to (<see cref="CardParents"/>), among those the actor may attach it to.
 /// </summary>
-public sealed record BankAccountOverviewQuery(Guid Id) : IQuery<BankAccountOverview>;
+public sealed record BankAccountOverviewQuery(Guid Id) : IQuery<BankAccountOverview>, IBankAccountScoped
+{
+    Guid IBankAccountScoped.BankAccountId => Id;
+
+    public AccessKind Access => AccessKind.Read;
+}
 
 /// <param name="Recent">The <see cref="BankAccountOverviewHandler.Recent"/> latest lines, newest first.</param>
 public sealed record BankAccountOverview(IReadOnlyList<BankTransactionView> Recent, Guid? SuggestedCardOf);
 
 [RequestHandler<BankAccountOverviewQuery, BankAccountOverview>]
 public sealed class BankAccountOverviewHandler(
-    BankingAccess access, IAccountStore accounts, ITransactionStore transactions, BankLines lines, IHouseholdCalendar calendar)
+    IContextAccessor context, BankingAccess access, IAccountStore accounts, ITransactionStore transactions, BankLines lines, IHouseholdCalendar calendar)
     : IRequestHandler<BankAccountOverviewQuery, BankAccountOverview>
 {
     public const int Recent = 3;
@@ -47,12 +57,7 @@ public sealed class BankAccountOverviewHandler(
 
     public async ValueTask<Result<BankAccountOverview>> HandleAsync(BankAccountOverviewQuery query, CancellationToken ct = default)
     {
-        var enabled = await access.EnabledAsync(ct);
-        if (!enabled.IsSuccess)
-            return BankingAccess.Failed<BankAccountOverview>(enabled);
-        var found = await access.AccountAsync(query.Id, AccessKind.Read, ct);
-        if (!found.TryGetValue(out var account))
-            return BankingAccess.Failed<BankAccountOverview, BankAccount>(found);
+        var account = CheckedResources.Of<BankAccount>(context, query);
 
         var recent = (await lines.PageAsync([account!.Id], "all", null, null, 1, ct)).Items.Take(Recent).ToList();
         return Result.Success(new BankAccountOverview(recent, account.Kind == BankAccountKind.Card && account.CardOf is null ? await SuggestAsync(account, ct) : null));
@@ -74,14 +79,11 @@ public sealed class BankAccountOverviewHandler(
 }
 
 [RequestHandler<ListBankAccountsQuery, IReadOnlyList<BankAccountView>>]
-public sealed class ListBankAccountsHandler(BankingAccess access, IAccountStore accounts, BankAccountReader reader)
+public sealed class ListBankAccountsHandler(IAccountStore accounts, BankAccountReader reader)
     : IRequestHandler<ListBankAccountsQuery, IReadOnlyList<BankAccountView>>
 {
     public async ValueTask<Result<IReadOnlyList<BankAccountView>>> HandleAsync(ListBankAccountsQuery query, CancellationToken ct = default)
     {
-        var enabled = await access.EnabledAsync(ct);
-        if (!enabled.IsSuccess)
-            return BankingAccess.Failed<IReadOnlyList<BankAccountView>>(enabled);
         var all = await accounts.AllAsync(ct);
         return Result.Success(await reader.ReadAsync(query.Envelope is { } envelope ? all.Where(a => a.Envelope == envelope).ToList() : all, ct));
     }
@@ -89,18 +91,13 @@ public sealed class ListBankAccountsHandler(BankingAccess access, IAccountStore 
 
 [RequestHandler<UpdateBankAccountCommand, Guid>]
 public sealed class UpdateBankAccountHandler(
-    BankingAccess access, IAccountStore accounts, IAccessPolicy policy, IEnvelopeStore envelopes, IItemRegistry items, IHouseholdCalendar calendar,
+    IContextAccessor context, BankingAccess access, IAccountStore accounts, IAccessPolicy policy, IEnvelopeStore envelopes, IItemRegistry items, IHouseholdCalendar calendar,
     Operations.ReceiptAnchors receipts, SavingsFlows savingsFlows)
     : IRequestHandler<UpdateBankAccountCommand, Guid>
 {
     public async ValueTask<Result<Guid>> HandleAsync(UpdateBankAccountCommand command, CancellationToken ct = default)
     {
-        var enabled = await access.EnabledAsync(ct);
-        if (!enabled.IsSuccess)
-            return BankingAccess.Failed<Guid>(enabled);
-        var found = await access.AccountAsync(command.Id, AccessKind.Write, ct);
-        if (!found.TryGetValue(out var account))
-            return BankingAccess.Failed<Guid, BankAccount>(found);
+        var account = CheckedResources.Of<BankAccount>(context, command);
 
         var changed = account! with
         {

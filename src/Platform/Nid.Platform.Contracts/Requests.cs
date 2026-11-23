@@ -3,6 +3,7 @@ using SynapseRequiresRole = UnambitiousFx.Synapse.Authorization.IRequiresRole;
 using SynapseRequiresScope = UnambitiousFx.Synapse.Authorization.IRequiresScope;
 using SynapseResourceScoped = UnambitiousFx.Synapse.Authorization.IResourceScoped;
 using SynapseOptionallyResourceScoped = UnambitiousFx.Synapse.Authorization.IOptionallyResourceScoped;
+using AuthorizationBehaviorOrder = UnambitiousFx.Synapse.Authorization.AuthorizationBehaviorOrder;
 
 namespace Nid.Platform.Contracts;
 
@@ -45,6 +46,21 @@ public interface IOptionalItemScoped : SynapseOptionallyResourceScoped
     string? SynapseOptionallyResourceScoped.OptionalResourceId => ItemId?.Value.ToString();
 
     string SynapseResourceScoped.Access => Access.ToWire();
+}
+
+/// <summary>
+/// #516: the position of the behaviors a module declares for its own resources (<c>PipelineOrder.ResourceAccess</c>), here because
+/// modules see Platform's contracts, not Platform: after Synapse's item checks, before the handler.
+/// </summary>
+public static class ModuleBehaviorOrder
+{
+    public const uint ResourceAccess = AuthorizationBehaviorOrder.Resource + 600;
+
+    // A request carries one family at most; distinct values only keep the chain's order fixed.
+    public const uint Banking = ResourceAccess;
+    public const uint Documents = ResourceAccess + 10;
+    public const uint Proposals = ResourceAccess + 20;
+    public const uint Scenarios = ResourceAccess + 30;
 }
 
 public static class AccessKindWire

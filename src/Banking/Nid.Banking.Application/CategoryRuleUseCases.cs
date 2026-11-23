@@ -13,30 +13,30 @@ using Readable = System.Collections.Generic.IReadOnlyDictionary<System.Guid, (Ni
 namespace Nid.Banking.Application;
 
 /// <summary>Decision 7: the unrestricted rules and those restricted to an account the actor reads, oldest first.</summary>
-public sealed record ListCategoryRulesQuery : IQuery<IReadOnlyList<CategoryRuleView>>;
+public sealed record ListCategoryRulesQuery : IQuery<IReadOnlyList<CategoryRuleView>>, IRequiresBanking;
 
 /// <summary>
 /// <paramref name="Direction"/> is <c>debit</c>, <c>credit</c> or null for both; the bounds are absolute amounts, inclusive, as strings.
 /// With <paramref name="AccountId"/>, the actor writes that account.
 /// </summary>
 public sealed record CreateCategoryRuleCommand(
-    string Pattern, Guid? AccountId, string? Direction, string? MinAmount, string? MaxAmount, Guid CategoryId) : ICommand<CategoryRuleView>;
+    string Pattern, Guid? AccountId, string? Direction, string? MinAmount, string? MaxAmount, Guid CategoryId) : ICommand<CategoryRuleView>, IRequiresBanking;
 
 /// <summary>
 /// The rule as a whole, as on creation: a field left out is cleared. Its author, or an adult who writes its account; only the author
 /// changes its account.
 /// </summary>
 public sealed record UpdateCategoryRuleCommand(
-    Guid Id, string Pattern, Guid? AccountId, string? Direction, string? MinAmount, string? MaxAmount, Guid CategoryId) : ICommand<CategoryRuleView>;
+    Guid Id, string Pattern, Guid? AccountId, string? Direction, string? MinAmount, string? MaxAmount, Guid CategoryId) : ICommand<CategoryRuleView>, IRequiresBanking;
 
 /// <summary>Its author, or an adult who writes its account; the lines it categorised keep their category.</summary>
-public sealed record DeleteCategoryRuleCommand(Guid Id) : ICommand<Guid>;
+public sealed record DeleteCategoryRuleCommand(Guid Id) : ICommand<Guid>, IRequiresBanking;
 
 /// <summary>The lines « Appliquer aux opérations passées » would change, newest first, 50 a page (<paramref name="Page"/> counts from 1).</summary>
-public sealed record PreviewCategoryRuleQuery(Guid Id, int Page) : IQuery<CategoryRulePreview>;
+public sealed record PreviewCategoryRuleQuery(Guid Id, int Page) : IQuery<CategoryRulePreview>, IRequiresBanking;
 
 /// <summary>The preview's lines, every page, take the rule's category; how many changed.</summary>
-public sealed record ApplyCategoryRuleCommand(Guid Id) : ICommand<int>, ITransactional;
+public sealed record ApplyCategoryRuleCommand(Guid Id) : ICommand<int>, ITransactional, IRequiresBanking;
 
 public sealed record CategoryRulePreview(int Total, IReadOnlyList<BankTransactionView> Items);
 
@@ -45,7 +45,7 @@ public sealed record CategoryRulePreview(int Total, IReadOnlyList<BankTransactio
 /// and the rights of <see cref="CreateCategoryRuleCommand"/>.
 /// </summary>
 public sealed record PreviewCategoryRuleDraftQuery(
-    string Pattern, Guid? AccountId, string? Direction, string? MinAmount, string? MaxAmount, Guid CategoryId) : IQuery<CategoryRuleDraftPreview>;
+    string Pattern, Guid? AccountId, string? Direction, string? MinAmount, string? MaxAmount, Guid CategoryId) : IQuery<CategoryRuleDraftPreview>, IRequiresBanking;
 
 /// <summary>
 /// <paramref name="Total"/> lines it would change, the most recent of them in <paramref name="Items"/>; <paramref name="Conflicts"/>, the
@@ -175,28 +175,22 @@ public sealed class CategoryRuleScope(BankingAccess access, IAccountStore accoun
 }
 
 [RequestHandler<ListCategoryRulesQuery, IReadOnlyList<CategoryRuleView>>]
-public sealed class ListCategoryRulesHandler(BankingAccess access, ICategoryRuleStore rules, CategoryRuleScope scope)
+public sealed class ListCategoryRulesHandler(ICategoryRuleStore rules, CategoryRuleScope scope)
     : IRequestHandler<ListCategoryRulesQuery, IReadOnlyList<CategoryRuleView>>
 {
     public async ValueTask<Result<IReadOnlyList<CategoryRuleView>>> HandleAsync(ListCategoryRulesQuery query, CancellationToken ct = default)
     {
-        var enabled = await access.EnabledAsync(ct);
-        if (!enabled.IsSuccess)
-            return BankingAccess.Failed<IReadOnlyList<CategoryRuleView>>(enabled);
         var readable = await scope.ReadableAsync(ct);
         return Result.Success(await scope.ViewsAsync([.. (await rules.AllAsync(ct)).Where(r => CategoryRuleScope.Sees(r, readable))], readable, ct));
     }
 }
 
 [RequestHandler<CreateCategoryRuleCommand, CategoryRuleView>]
-public sealed class CreateCategoryRuleHandler(BankingAccess access, ICategoryRuleStore rules, CategoryRuleScope scope)
+public sealed class CreateCategoryRuleHandler(ICategoryRuleStore rules, CategoryRuleScope scope)
     : IRequestHandler<CreateCategoryRuleCommand, CategoryRuleView>
 {
     public async ValueTask<Result<CategoryRuleView>> HandleAsync(CreateCategoryRuleCommand command, CancellationToken ct = default)
     {
-        var enabled = await access.EnabledAsync(ct);
-        if (!enabled.IsSuccess)
-            return BankingAccess.Failed<CategoryRuleView>(enabled);
         var draft = await scope.DraftAsync(
             Guid.Empty, command.Pattern, command.AccountId, command.Direction, command.MinAmount, command.MaxAmount, command.CategoryId, ct);
         if (!draft.TryGetValue(out var rule))
@@ -212,9 +206,6 @@ public sealed class UpdateCategoryRuleHandler(BankingAccess access, ICategoryRul
 {
     public async ValueTask<Result<CategoryRuleView>> HandleAsync(UpdateCategoryRuleCommand command, CancellationToken ct = default)
     {
-        var enabled = await access.EnabledAsync(ct);
-        if (!enabled.IsSuccess)
-            return BankingAccess.Failed<CategoryRuleView>(enabled);
         var readable = await scope.ReadableAsync(ct);
         var found = await scope.FindAsync(command.Id, edit: true, readable, ct);
         if (!found.TryGetValue(out var current))
@@ -234,14 +225,11 @@ public sealed class UpdateCategoryRuleHandler(BankingAccess access, ICategoryRul
 }
 
 [RequestHandler<DeleteCategoryRuleCommand, Guid>]
-public sealed class DeleteCategoryRuleHandler(BankingAccess access, ICategoryRuleStore rules, CategoryRuleScope scope)
+public sealed class DeleteCategoryRuleHandler(ICategoryRuleStore rules, CategoryRuleScope scope)
     : IRequestHandler<DeleteCategoryRuleCommand, Guid>
 {
     public async ValueTask<Result<Guid>> HandleAsync(DeleteCategoryRuleCommand command, CancellationToken ct = default)
     {
-        var enabled = await access.EnabledAsync(ct);
-        if (!enabled.IsSuccess)
-            return BankingAccess.Failed<Guid>(enabled);
         var found = await scope.FindAsync(command.Id, edit: true, await scope.ReadableAsync(ct), ct);
         if (!found.IsSuccess)
             return BankingAccess.Failed<Guid, CategoryRule>(found);
@@ -252,14 +240,11 @@ public sealed class DeleteCategoryRuleHandler(BankingAccess access, ICategoryRul
 }
 
 [RequestHandler<PreviewCategoryRuleQuery, CategoryRulePreview>]
-public sealed class PreviewCategoryRuleHandler(BankingAccess access, CategoryRuleScope scope, BankLines lines)
+public sealed class PreviewCategoryRuleHandler(CategoryRuleScope scope, BankLines lines)
     : IRequestHandler<PreviewCategoryRuleQuery, CategoryRulePreview>
 {
     public async ValueTask<Result<CategoryRulePreview>> HandleAsync(PreviewCategoryRuleQuery query, CancellationToken ct = default)
     {
-        var enabled = await access.EnabledAsync(ct);
-        if (!enabled.IsSuccess)
-            return BankingAccess.Failed<CategoryRulePreview>(enabled);
         var readable = await scope.ReadableAsync(ct);
         var found = await scope.FindAsync(query.Id, edit: false, readable, ct);
         if (!found.TryGetValue(out var rule))
@@ -272,7 +257,7 @@ public sealed class PreviewCategoryRuleHandler(BankingAccess access, CategoryRul
 }
 
 [RequestHandler<PreviewCategoryRuleDraftQuery, CategoryRuleDraftPreview>]
-public sealed class PreviewCategoryRuleDraftHandler(BankingAccess access, CategoryRuleScope scope, ICategoryStore categories, BankLines lines, IClock clock)
+public sealed class PreviewCategoryRuleDraftHandler(CategoryRuleScope scope, ICategoryStore categories, BankLines lines, IClock clock)
     : IRequestHandler<PreviewCategoryRuleDraftQuery, CategoryRuleDraftPreview>
 {
     /// <summary>How many of the lines it would change the dialog lists.</summary>
@@ -283,9 +268,6 @@ public sealed class PreviewCategoryRuleDraftHandler(BankingAccess access, Catego
 
     public async ValueTask<Result<CategoryRuleDraftPreview>> HandleAsync(PreviewCategoryRuleDraftQuery query, CancellationToken ct = default)
     {
-        var enabled = await access.EnabledAsync(ct);
-        if (!enabled.IsSuccess)
-            return BankingAccess.Failed<CategoryRuleDraftPreview>(enabled);
         var draft = await scope.DraftAsync(
             Guid.Empty, query.Pattern, query.AccountId, query.Direction, query.MinAmount, query.MaxAmount, query.CategoryId, ct);
         if (!draft.TryGetValue(out var rule))
@@ -316,14 +298,11 @@ public sealed class PreviewCategoryRuleDraftHandler(BankingAccess access, Catego
 }
 
 [RequestHandler<ApplyCategoryRuleCommand, int>]
-public sealed class ApplyCategoryRuleHandler(BankingAccess access, CategoryRuleScope scope, ICategoryRuleStore rules, ICategoryStore categories, IClock clock)
+public sealed class ApplyCategoryRuleHandler(CategoryRuleScope scope, ICategoryRuleStore rules, ICategoryStore categories, IClock clock)
     : IRequestHandler<ApplyCategoryRuleCommand, int>
 {
     public async ValueTask<Result<int>> HandleAsync(ApplyCategoryRuleCommand command, CancellationToken ct = default)
     {
-        var enabled = await access.EnabledAsync(ct);
-        if (!enabled.IsSuccess)
-            return BankingAccess.Failed<int>(enabled);
         var readable = await scope.ReadableAsync(ct);
         var found = await scope.FindAsync(command.Id, edit: false, readable, ct);
         if (!found.TryGetValue(out var rule))
