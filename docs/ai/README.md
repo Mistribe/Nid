@@ -340,6 +340,25 @@ enregistrés** de Myelin 1.2.0 (`AllowRegisteredEndpoints`, `IRegisteredEndpoint
 - **Trousseau Data Protection perdu** : la clé de Nid est illisible ; chaque worker doit être ré-apparié. La procédure
   de restauration le dit (`../security/infrastructure.md`).
 
+### 3.7 Le moteur derrière le worker (#485)
+
+Le worker ne fait tourner aucun modèle lui-même : il parle à un moteur sur son propre réseau par l'API compatible OpenAI
+(décidé le 2026-11-22), que proposent Ollama, llama.cpp, vLLM et LM Studio. Nid ne connaît ni l'adresse ni l'existence
+du moteur.
+
+- `GET /v1/models` donne les modèles servis. La liste est relue au plus toutes les 30 s ; `Engine:Models` la restreint.
+  Chaque modèle est déclaré `chat`. Son empreinte (`digest`) est le SHA-256 de ce que le moteur dit de lui : un modèle
+  retéléchargé ou remplacé sous le même nom se lit comme un changement (§3.3). Le moteur ne dit ni le contexte, ni la
+  sortie maximale, ni l'appel d'outils : `Engine:ContextTokens` (8192), `Engine:MaxOutputTokens` (4096) et
+  `Engine:Tools` (oui) les fixent.
+- `POST /v1/chat/completions` en flux sert la requête `contracts/requests/chat/v1` : le texte au fil de l'eau, chaque
+  appel d'outil une fois entier, puis une trame d'usage (jetons d'entrée et de sortie, raison de l'arrêt, modèle) qui
+  clôt le tour. Un tour sans trame d'usage a été coupé.
+- Un moteur injoignable, qui refuse ou qui échoue termine la requête par une trame d'erreur : `engine_unreachable`,
+  `engine_refused` (4xx), `engine_failed` (5xx), `engine_invalid` (réponse illisible). Un moteur muet retire ses modèles
+  de la déclaration jusqu'à ce qu'il réponde.
+- Sans `Engine:Url`, le worker ne déclare ni modèle ni `chat`.
+
 ## 4. Deux modes (question 2)
 
 ### 4.1 Jobs, requêtes et transport
@@ -408,6 +427,16 @@ La passerelle est le seul chemin vers un modèle, worker ou cloud. Avant chaque 
 éligible pour chaque classe de données (§6), consentements, budget (§10), taille, modèle imposé par le réglage. Chaque
 appel est tracé dans `llm_call` (§13), sans son contenu.
 
+**Livré (#486)** : `ILlmGateway` dans `Nid.Ai.Application`, la tâche `chat` (contrat `contracts/requests/chat/v1`, #485).
+Avant tout envoi : usage connu et qui peut tenir une conversation (`chat`, `extract` ; outils pour `chat` seulement),
+usage non désactivé, modèle choisi. La chaîne passe ensuite par les fournisseurs (`ILlmProvider`) dans l'ordre ; les
+workers d'abord (`WorkerProvider`), qui ne retiennent que ceux qui déclarent le modèle de l'usage et respectent §6. Un
+fournisseur qui n'a nulle part où envoyer l'appel passe la main au suivant ; sans suite, l'appel échoue avec la raison
+(`ai.use_off`, `ai.no_model`, `ai.no_worker`, `ai.model_unavailable`, `ai.remote_not_allowed`…). Chaque appel écrit une
+ligne `llm_call`, réussi ou non. Le réglage de chaque usage (`ai_settings.uses`) se change par tout adulte ; le modèle
+(`ai_settings.models`) par un admin, parmi ceux que les workers actifs déclarent. La classe de politique d'une
+conversation viendra avec les conversations (#173, #174).
+
 ### 5.2 Module (décision J)
 
 Nouveau module **`Ai`** (`src/Ai`, projets `Nid.Ai.*`, schéma `ai`) : passerelle, profils cloud, registre et appairage
@@ -444,6 +473,18 @@ avec les outils MCP qu'elle appelle. Les usages restent chez leurs modules : Doc
 les données. Chaque profil liste aussi ses **interrupteurs de rétention** et la valeur imposée par l'adaptateur (décision
 U ; par exemple `store` des Responses d'OpenAI, vrai par défaut, mis à faux). Jev (TypeSafe AI) reste un candidat pour
 `decide`, aux conditions de #450 ; son accord de traitement des données n'est pas lu (§15).
+
+**Livré (#487)** : les profils sont des fichiers de `deploy/llm-profiles/`, embarqués dans le module `Ai` et relus au
+démarrage. Un profil mal formé, dont un fournisseur est inconnu, l'hôte invalide, les conditions sans adresse HTTPS ou
+qui laissent le fournisseur s'entraîner sur les données dans une région n'est pas chargé (journalisé). L'admin confirme la
+région du foyer, entre la clé du fournisseur (`llm_provider_credential`, chiffrée par Data Protection, indice des quatre
+derniers caractères, jamais renvoyée), puis active le profil en acceptant ses conditions datées (`cloud_profile`) ; les
+deux adultes sont prévenus (`ai.data_policy_changed`). Un usage réglé sur `self_hosted_then_cloud` passe aux profils
+activés et éligibles après les workers. Seules les classes `none` et `figures` peuvent partir vers le cloud ; `documents`
+et `bank_labels` attendent `allowed_kinds`, `local_only` jamais (§6.1) ; le consentement de chaque adulte (§6.3) vient avec
+#167 et #174. Échec passager (429, 5xx, réseau) : profil suivant ; trois échecs de suite : profil en pause 15 min ; refus
+de la demande : pas d'autre essai. Premier adaptateur : Anthropic (Messages API, `anthropic-version: 2026-10-21`, qui
+refuse la température) ; OpenAI, Gemini et Mistral suivent (#489).
 
 ### 5.5 Outils
 
@@ -637,6 +678,17 @@ suivant. Pas de budget par fournisseur. Les modèles des workers n'ont pas de bu
 5. Les coûts restent des **estimations**, pas la facture. Un profil dont les prix ont plus de 90 jours est signalé. Les
    plafonds de dépense chez le fournisseur restent conseillés (`../ingestion/llm-providers.md` §10).
 
+**Livré (#488)** : `ai_settings.monthly_budget_eur` (0 € par défaut : aucun appel payant), réglé par tout adulte au
+centime, les deux adultes prévenus (`ai.budget_changed`). Les compteurs vivent par mois civil UTC dans `budget_month`
+(`spent`, `reserved`) et les réservations ouvertes dans `budget_reservation` (expiration 15 min). Un profil payant réserve
+la borne haute du tour (chaque octet UTF-8 de l'entrée compté comme un jeton au prix d'entrée, plus `max_tokens` au prix
+de sortie, convertis en euros par les taux de Nid ; sans taux, l'appel payant est bloqué) en une instruction qui vérifie le
+plafond ; au-delà, un profil gratuit peut encore servir, sinon l'appel échoue `ai.budget_blocked` (`llm_call` :
+`blocked_budget`). Le règlement se fait sur les jetons rapportés ; un échec avant toute réponse se règle à zéro, un flux
+coupé au montant réservé, et un balayage chaque minute règle les réservations expirées. Alerte aux deux adultes à 80 %
+(`ai.budget_alert`), puis au plafond (`ai.budget_reached`), une fois chacune par mois. `llm_call` porte `reserved_eur` et
+`cost_estimate_eur`. Les workers ne sont jamais budgétés.
+
 ### 10.3 Ce que montre chaque usage bloqué
 
 | Usage | Effet du blocage |
@@ -686,6 +738,7 @@ admin (`../identity-and-access/authorization.md`).
 | `ai_settings` (une ligne) | `uses` (réglage par usage, §5.3), `models` (modèle par usage, choisi par l'admin), `allowed_kinds` (types de documents et `bank_labels`), `region`, `monthly_budget_eur`, `budget_month` (`spent`, `reserved`), `remote_workers_allowed` (avec son `consent_id`), `conversation_retention_days`, `redaction_enabled` |
 | `model_worker` | Nom, point d'accès (hôte et port), proxy déclaré, empreintes de ses clés (avec la précédente pendant une rotation), placement, `safe`, état (en ligne, vu pour la dernière fois, version, charge), dernière déclaration, `revoked_at`. Remplace `worker_credential` |
 | `ai_key` | Clé privée de Nid face aux workers, chiffrée par Data Protection comme les clés d'API |
+| `job` | Les tâches de modèle (§4.1) : type, entrée, classe de données, état, essais, raison d'attente, résultat. Une tâche finie est supprimée avec son entrée et son résultat, 7 jours après sa réussite, 30 jours après son échec ou son abandon (#483) ; une tâche en attente ou en cours n'est jamais supprimée |
 | `llm_provider_credential` | `../ingestion/llm-providers.md` §10 |
 | `llm_call` | `../ingestion/llm-providers.md` §11, plus `task`, `use`, `worker_id`, `conversation_id`, `reserved_eur` |
 | `budget_reservation` | Réservations en cours, avec leur expiration (§10.2) |

@@ -53,6 +53,10 @@ public interface IJobStore
     /// <summary>Running jobs to poll now, or whose lease ran out.</summary>
     Task<IReadOnlyList<JobRecord>> RunningDueAsync(Instant now, int limit, CancellationToken ct);
 
+    /// <summary>Deletes the jobs that succeeded before <paramref name="succeededBefore"/> and those that failed or died before
+    /// <paramref name="failedBefore"/>, input and result with them; queued and running jobs are never touched. The count deleted.</summary>
+    Task<int> PurgeFinishedAsync(Instant succeededBefore, Instant failedBefore, CancellationToken ct);
+
     /// <summary>One page of jobs, newest first, with the total and every type in the table.</summary>
     Task<(IReadOnlyList<JobRecord> Items, int Total, IReadOnlyList<string> Types)> PageAsync(
         string? status, string? type, int skip, int take, CancellationToken ct);
@@ -135,9 +139,23 @@ public sealed class ModelCallException(string code) : Exception($"Model call fai
 
 /// <summary>The household's AI settings (<c>ai.ai_settings</c>, <c>docs/ai/README.md</c> §13); for now, the opt-in for
 /// remote workers, each change kept as a consent (<c>ai.consent</c>).</summary>
+/// <summary>One use as the household set it: how far it may go and its model (none until an admin picks one).</summary>
+public sealed record UseSetting(string Mode, string? Model);
+
 public interface IAiSettings
 {
     Task<bool> RemoteWorkersAllowedAsync(CancellationToken ct);
+
+    /// <summary>Every use, each at its default (<see cref="UseModes.DefaultFor"/>, no model) until set.</summary>
+    Task<IReadOnlyDictionary<string, UseSetting>> UsesAsync(CancellationToken ct);
+
+    async Task<UseSetting> UseAsync(string use, CancellationToken ct)
+        => (await UsesAsync(ct)).GetValueOrDefault(use) ?? new UseSetting(UseModes.DefaultFor(use), null);
+
+    /// <summary>False when another adult changed the settings at the same moment: nothing was written.</summary>
+    Task<bool> SetUseModeAsync(string use, string mode, CancellationToken ct);
+
+    Task<bool> SetUseModelAsync(string use, string? model, CancellationToken ct);
 
     /// <summary>Records the adult's decision and applies it.</summary>
     /// <summary>False when another adult changed it at the same moment: nothing was written.</summary>
@@ -157,4 +175,26 @@ public static class JobCodes
     public const string LeaseExpired = "ai.lease_expired";
     public const string TooLarge = "ai.too_large";
     public const string TimedOut = "ai.timed_out";
+
+    /// <summary>#486: a use turned off, a use with no model set, a task a use may not run, no worker serving the use's model,
+    /// a turn that ended without its usage, a use or mode that does not exist.</summary>
+    public const string UseOff = "ai.use_off";
+    public const string NoModel = "ai.no_model";
+    public const string TaskNotAllowed = "ai.task_not_allowed";
+    public const string ModelUnavailable = "ai.model_unavailable";
+    public const string Cut = "ai.cut";
+    public const string UnknownUse = "ai.unknown_use";
+    public const string UnknownMode = "ai.unknown_mode";
+    public const string RemoteNotAllowed = Domain.DataPolicy.RemoteNotAllowed;
+    public const string NoSafeWorker = Domain.DataPolicy.NoSafeWorker;
+
+    /// <summary>#487: data a cloud provider may not see, no enabled and eligible profile left, a provider that failed or refused.</summary>
+    public const string CloudNotAllowed = "ai.cloud_not_allowed";
+    public const string NoCloudProfile = "ai.no_cloud_profile";
+    public const string CloudFailed = "ai.cloud_failed";
+    public const string CloudRefused = "ai.cloud_refused";
+
+    /// <summary>#488: a paid call over the month's ceiling (or with no rate to price it), and a ceiling out of range.</summary>
+    public const string BudgetBlocked = "ai.budget_blocked";
+    public const string InvalidBudget = "ai.invalid_budget";
 }

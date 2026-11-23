@@ -36,6 +36,19 @@ public sealed class GetModelCapabilitiesHandler(IWorkerStore store, IAiSettings 
 
         var views = new List<CapabilityView> { View(Echo, workers.Where(w => Serves(w.Declaration, Echo)).ToList(), remoteAllowed) };
         views.AddRange(names.Select(name => View(name, workers.Where(w => w.Declaration.Models.Any(m => Name(m.Capability) == name)).ToList(), remoteAllowed)));
+
+        // #486: the chat is always answered for, and says first what the household's settings stop.
+        if (views.All(v => v.Capability != ModelUses.Chat))
+            views.Add(View(ModelUses.Chat, [], remoteAllowed));
+        var chat = await settings.UseAsync(ModelUses.Chat, ct);
+        var index = views.FindIndex(v => v.Capability == ModelUses.Chat);
+        views[index] = views[index] with
+        {
+            Reason = chat.Mode == UseModes.Off ? JobCodes.UseOff
+                : views[index].Reason is null && chat.Model is null ? JobCodes.NoModel
+                : views[index].Reason is null && !workers.Any(w => w.Online && w.Declaration.Models.Any(m => m.Name == chat.Model)) ? JobCodes.ModelUnavailable
+                : views[index].Reason,
+        };
         return Result.Success(new ModelCapabilities(remoteAllowed, views));
     }
 

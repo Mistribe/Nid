@@ -22,6 +22,8 @@ public static class ContractJson
         RespectRequiredConstructorParameters = true,
         RespectNullableAnnotations = true,
         NumberHandling = JsonNumberHandling.Strict,
+        // Set, not left to the first serialization: the schema exporter reads it before any (the schemas test alone).
+        TypeInfoResolver = new System.Text.Json.Serialization.Metadata.DefaultJsonTypeInfoResolver(),
         Converters = { new JsonStringEnumConverter(JsonNamingPolicy.KebabCaseLower, allowIntegerValues: false) },
     };
 

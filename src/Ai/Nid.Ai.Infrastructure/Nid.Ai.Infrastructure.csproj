@@ -18,4 +18,8 @@
     <InternalsVisibleTo Include="Nid.Ai.IntegrationTests" />
     <InternalsVisibleTo Include="Nid.Ai.Tests" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- #487: the cloud profiles Nid ships, reviewed and versioned with it (llm-providers.md §4). -->
+    <EmbeddedResource Include="..\..\..\deploy\llm-profiles\*.json" LogicalName="llm-profiles.%(Filename)%(Extension)" />
+  </ItemGroup>
 </Project>

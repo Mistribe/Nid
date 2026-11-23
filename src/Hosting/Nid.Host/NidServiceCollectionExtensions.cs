@@ -286,13 +286,40 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<Nid.Ai.Application.IAiSettings, Nid.Ai.Infrastructure.Persistence.AiSettingsStore>();
         services.AddSingleton<Nid.Ai.Application.IModelContract, Nid.Ai.Application.EchoJobContract>();
         services.AddSingleton<Nid.Ai.Application.IModelContract, Nid.Ai.Application.EchoRequestContract>();
+        services.AddSingleton<Nid.Ai.Application.IModelContract, Nid.Ai.Application.ChatRequestContract>();
         services.AddSingleton<Nid.Ai.Application.ModelContracts>();
         services.AddScoped<Nid.Ai.Application.IModelJobs, Nid.Ai.Application.ModelJobs>();
         services.AddScoped<Nid.Ai.Application.IWorkerRouter, Nid.Ai.Application.WorkerRouter>();
         services.AddScoped<Nid.Ai.Application.WorkerRefresher>();
         services.AddScoped<Nid.Ai.Application.IWorkerMonitor, Nid.Ai.Application.WorkerMonitor>();
         services.AddScoped<Nid.Ai.Application.IJobDispatcher, Nid.Ai.Application.JobDispatcher>();
+        services.AddScoped<Nid.Ai.Application.IJobPurge, Nid.Ai.Application.JobPurge>();
         services.AddScoped<Nid.Ai.Application.IModelRequests, Nid.Ai.Application.ModelRequests>();
+        // #486: the one way to a model; workers are the first link of the chain.
+        services.AddScoped<Nid.Ai.Application.ILlmCalls, Nid.Ai.Infrastructure.Persistence.LlmCallStore>();
+        services.AddScoped<Nid.Ai.Application.ILlmProvider, Nid.Ai.Application.WorkerProvider>();
+        services.AddScoped<Nid.Ai.Application.ILlmGateway, Nid.Ai.Application.LlmGateway>();
+        // #487: the cloud profiles Nid ships, their keys and settings, after the workers in the chain. The client reaches
+        // nothing but the loaded profiles' hosts, on Myelin's address checks.
+        services.TryAddSingleton<Nid.Ai.Application.ILlmProfiles, Nid.Ai.Infrastructure.Cloud.LlmProfileLoader>();
+        services.AddScoped<Nid.Ai.Application.ICloudSettings, Nid.Ai.Infrastructure.Persistence.CloudSettingsStore>();
+        services.AddSingleton<Nid.Ai.Application.CloudBreaker>();
+        // #488: the household's monthly budget for paid providers.
+        services.AddScoped<Nid.Ai.Application.IBudget, Nid.Ai.Infrastructure.Persistence.BudgetStore>();
+        services.AddScoped<Nid.Ai.Application.BudgetPrices>();
+        services.AddScoped<Nid.Ai.Application.BudgetNotices>();
+        services.AddScoped<Nid.Ai.Application.IBudgetSweep, Nid.Ai.Application.BudgetSweep>();
+        services.TryAddSingleton(sp =>
+        {
+            var hosts = sp.GetRequiredService<Nid.Ai.Application.ILlmProfiles>().All.Select(p => p.Host);
+            var handler = UnambitiousFx.Myelin.MyelinHandler.Create(null);
+            handler.ConnectTimeout = TimeSpan.FromSeconds(10);
+            var http = new HttpClient(Nid.Ai.Infrastructure.Cloud.CloudHttp.Handler(hosts, handler)) { Timeout = TimeSpan.FromMinutes(10) };
+            http.DefaultRequestHeaders.UserAgent.ParseAdd(NidOutbound.UserAgent);
+            return new Nid.Ai.Infrastructure.Cloud.CloudHttp(http);
+        });
+        services.AddSingleton<Nid.Ai.Application.ICloudAdapter, Nid.Ai.Infrastructure.Cloud.AnthropicAdapter>();
+        services.AddScoped<Nid.Ai.Application.ILlmProvider, Nid.Ai.Application.CloudProvider>();
         services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<Nid.Ai.Infrastructure.Workers.WorkerDirectory>();
         services.AddSingleton<UnambitiousFx.Myelin.IRegisteredEndpoints>(sp => sp.GetRequiredService<Nid.Ai.Infrastructure.Workers.WorkerDirectory>());

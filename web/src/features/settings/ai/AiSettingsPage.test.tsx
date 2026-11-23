@@ -17,10 +17,23 @@ const worker = (over: Record<string, unknown> = {}) => ({
   lastSeenAt: '2026-11-22T08:00:00+00:00', createdAt: '2026-11-20T08:00:00+00:00', pairedAt: '2026-11-20T08:05:00+00:00', load: 2, ...over,
 });
 
-function serve(workers: unknown[], allowed = false) {
+const USES = ['chat', 'extract', 'embed', 'decide'].map((use) => ({ use, mode: 'self_hosted', model: null as string | null }));
+
+const PROFILE = {
+  id: 'anthropic-claude', provider: 'anthropic', tier: 'paid', host: 'api.anthropic.com', model: 'claude-opus-5-5', trainsOnData: false,
+  humanReview: true, retentionDays: 30, termsUrl: 'https://www.anthropic.com/legal/commercial-terms', reviewedOn: '2026-11-22', reviewDue: false,
+  eligible: true, enabled: false, keyHint: null as string | null, suspended: false,
+};
+
+const BUDGET = { monthlyBudgetEur: '20.00', month: '2026-11-01', spentEur: '16.50', reservedEur: '0.40', remainingEur: '3.10', status: 'alert' };
+
+function serve(workers: unknown[], allowed = false, uses = USES, profile = PROFILE) {
   server.use(
+    http.get('*/api/v1/ai/budget', () => HttpResponse.json(BUDGET)),
+    http.get('*/api/v1/ai/cloud', () => HttpResponse.json({ region: 'eea_ch_uk', profiles: [profile] })),
     http.get('*/api/v1/ai/workers', () => HttpResponse.json({ workers })),
-    http.get('*/api/v1/ai/settings', () => HttpResponse.json({ remoteWorkersAllowed: allowed })),
+    http.get('*/api/v1/ai/settings', () => HttpResponse.json({ remoteWorkersAllowed: allowed, uses })),
+    http.get('*/api/v1/ai/models', () => HttpResponse.json({ models: [{ name: 'llama3.2', capability: 'chat', workers: 1 }] })),
   );
 }
 
@@ -137,7 +150,7 @@ describe('Réglages › IA', () => {
     const remote: unknown[] = [];
     server.use(
       http.put('*/api/v1/ai/workers/w1/safe', async ({ request }) => { safe.push(await request.json()); return HttpResponse.json(worker({ safe: true })); }),
-      http.put('*/api/v1/ai/settings/remote-workers', async ({ request }) => { remote.push(await request.json()); return HttpResponse.json({ remoteWorkersAllowed: true }); }),
+      http.put('*/api/v1/ai/settings/remote-workers', async ({ request }) => { remote.push(await request.json()); return HttpResponse.json({ remoteWorkersAllowed: true, uses: USES }); }),
     );
     const { user } = await renderApp('/settings/ai');
 
@@ -195,6 +208,118 @@ describe('Réglages › IA', () => {
     await user.click(await screen.findByRole('menuitem', { name: 'Révoquer' }));
 
     expect(await screen.findByRole('alertdialog')).not.toHaveTextContent('unpair');
+  });
+
+  it('lets an admin pick the model of a use among those the workers declare', async () => {
+    serve([worker()]);
+    const sent: unknown[] = [];
+    server.use(http.put('*/api/v1/ai/settings/uses/chat/model', async ({ request }) => {
+      sent.push(await request.json());
+      return HttpResponse.json({ remoteWorkersAllowed: false, uses: USES });
+    }));
+    const { user } = await renderApp('/settings/ai', { capabilities: adminCapabilities });
+
+    const assistant = (await screen.findByRole('heading', { name: 'Assistant' })).parentElement!;
+    await user.click(within(assistant).getByRole('combobox', { name: 'Modèle' }));
+    await user.click(await screen.findByRole('option', { name: 'llama3.2 (1 worker)' }));
+
+    await waitFor(() => expect(sent).toEqual([{ model: 'llama3.2' }]));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Réglage enregistré.'));
+  });
+
+  it('lets any adult turn a use off, and shows them the model without choosing it', async () => {
+    serve([worker()], false, USES.map((u) => (u.use === 'chat' ? { ...u, model: 'llama3.2' } : u)));
+    const sent: unknown[] = [];
+    server.use(http.put('*/api/v1/ai/settings/uses/chat', async ({ request }) => {
+      sent.push(await request.json());
+      return HttpResponse.json({ remoteWorkersAllowed: false, uses: USES });
+    }));
+    const { user } = await renderApp('/settings/ai');
+
+    const assistant = (await screen.findByRole('heading', { name: 'Assistant' })).parentElement!;
+    expect(within(assistant).queryByRole('combobox', { name: 'Modèle' })).not.toBeInTheDocument();
+    expect(assistant).toHaveTextContent('llama3.2');
+    await user.click(within(assistant).getByRole('combobox', { name: 'Réglage' }));
+    await user.click(await screen.findByRole('option', { name: 'Désactivé' }));
+
+    await waitFor(() => expect(sent).toEqual([{ mode: 'off' }]));
+  });
+
+  it("lets an admin enter a provider's key, which never comes back", async () => {
+    serve([worker()]);
+    const sent: unknown[] = [];
+    server.use(http.put('*/api/v1/ai/cloud/keys/anthropic', async ({ request }) => {
+      sent.push(await request.json());
+      return HttpResponse.json({ region: 'eea_ch_uk', profiles: [{ ...PROFILE, keyHint: 'WXYZ' }] });
+    }));
+    const { user } = await renderApp('/settings/ai', { capabilities: adminCapabilities });
+
+    await user.click(await screen.findByRole('button', { name: 'Ajouter la clé' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Clé Anthropic' });
+    await user.type(within(dialog).getByLabelText("Clé d'API"), 'sk-ant-0123456789abcdef-WXYZ');
+    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer la clé' }));
+
+    await waitFor(() => expect(sent).toEqual([{ key: 'sk-ant-0123456789abcdef-WXYZ' }]));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Clé enregistrée.'));
+  });
+
+  it('enables a profile on its current terms after a confirmation, and offers the cloud to the uses', async () => {
+    serve([worker()], false, USES, { ...PROFILE, keyHint: 'WXYZ' });
+    const sent: unknown[] = [];
+    server.use(http.post('*/api/v1/ai/cloud/profiles/anthropic-claude/enable', async ({ request }) => {
+      sent.push(await request.json());
+      serve([worker()], false, USES, { ...PROFILE, keyHint: 'WXYZ', enabled: true });
+      return HttpResponse.json({ region: 'eea_ch_uk', profiles: [{ ...PROFILE, keyHint: 'WXYZ', enabled: true }] });
+    }));
+    const { user } = await renderApp('/settings/ai', { capabilities: adminCapabilities });
+
+    await user.click(await screen.findByRole('button', { name: 'Activer' }));
+    const confirm = await screen.findByRole('alertdialog');
+    expect(confirm).toHaveTextContent('Chaque adulte en sera prévenu.');
+    await user.click(within(confirm).getByRole('button', { name: 'Confirmer' }));
+
+    await waitFor(() => expect(sent).toEqual([{ termsReviewedOn: '2026-11-22' }]));
+    const assistant = (await screen.findByRole('heading', { name: 'Assistant' })).parentElement!;
+    await user.click(within(assistant).getByRole('combobox', { name: 'Réglage' }));
+    expect(await screen.findByRole('option', { name: 'Workers du foyer, puis le cloud' })).toBeInTheDocument();
+  });
+
+  it('shows every adult what a provider may do with the data, and lets only an admin act', async () => {
+    serve([worker()]);
+    await renderApp('/settings/ai');
+
+    const section = (await screen.findByRole('heading', { name: 'Fournisseurs cloud' })).closest('section')!;
+    expect(await within(section).findByText("N'entraîne pas ses modèles sur vos données")).toBeInTheDocument();
+    expect(section).toHaveTextContent('Demandes conservées 30 jours chez le fournisseur');
+    expect(within(section).queryByRole('button', { name: 'Activer' })).not.toBeInTheDocument();
+    expect(within(section).queryByRole('button', { name: 'Ajouter la clé' })).not.toBeInTheDocument();
+  });
+
+  it("shows the month's spend as the server counts it, and its alert", async () => {
+    serve([worker()]);
+    await renderApp('/settings/ai');
+
+    const section = (await screen.findByRole('heading', { name: 'Budget du cloud' })).closest('section')!;
+    expect(await within(section).findByText(/16,50\s€ dépensés sur 20,00\s€ ; il reste 3,10\s€/)).toBeInTheDocument();
+    expect(within(section).getByRole('status')).toHaveTextContent('80 % du budget du mois est dépensé.');
+  });
+
+  it('lets any adult set the ceiling, sent as the decimal they typed', async () => {
+    serve([worker()]);
+    const sent: unknown[] = [];
+    server.use(http.put('*/api/v1/ai/budget', async ({ request }) => {
+      sent.push(await request.json());
+      return HttpResponse.json({ ...BUDGET, monthlyBudgetEur: '30.00', status: 'ok' });
+    }));
+    const { user } = await renderApp('/settings/ai');
+
+    const field = await screen.findByLabelText('Plafond mensuel (€)');
+    await user.clear(field);
+    await user.type(field, '30,00');
+    await user.click(within(field.closest('form')!).getByRole('button', { name: 'Enregistrer' }));
+
+    await waitFor(() => expect(sent).toEqual([{ monthlyBudgetEur: '30.00' }]));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Budget enregistré.'));
   });
 
   it("rotates Nid's key and says what each worker needs", async () => {

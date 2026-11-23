@@ -137,6 +137,18 @@ public sealed class AiSettingsRow
     /// <summary>The consent that set <see cref="RemoteWorkersAllowed"/> last.</summary>
     public Guid? RemoteConsentId { get; set; }
 
+    /// <summary>#486: each use's mode (<c>{"chat": "self_hosted"}</c>), jsonb; a use left out is at its default.</summary>
+    public string? Uses { get; set; }
+
+    /// <summary>#486: each use's model, set by an admin among the declared ones, jsonb.</summary>
+    public string? Models { get; set; }
+
+    /// <summary>#487: <c>eea_ch_uk</c> or <c>other</c>, confirmed by an admin; none until then.</summary>
+    public string? Region { get; set; }
+
+    /// <summary>#488: the household's monthly ceiling for paid providers, in euros; 0 by default (no paid call).</summary>
+    public decimal MonthlyBudgetEur { get; set; }
+
     public uint Version { get; set; }
 }
 
@@ -153,4 +165,103 @@ public sealed class ConsentRow
     public bool Value { get; set; }
 
     public Instant At { get; set; }
+}
+
+/// <summary>One model call (#486, <c>docs/ingestion/llm-providers.md</c> §11): who, for what, where, how much; never its content.</summary>
+public sealed class LlmCallRow
+{
+    public Guid Id { get; set; }
+
+    public Instant CreatedAt { get; set; }
+
+    public Guid? PersonId { get; set; }
+
+    public required string Task { get; set; }
+
+    public required string Use { get; set; }
+
+    public Guid? WorkerId { get; set; }
+
+    public Guid? ConversationId { get; set; }
+
+    public Guid? JobId { get; set; }
+
+    public string? Model { get; set; }
+
+    public int TokensIn { get; set; }
+
+    public int TokensOut { get; set; }
+
+    /// <summary><c>succeeded</c>, <c>refused</c>, <c>error</c>, <c>no_destination</c> or <c>blocked_budget</c>.</summary>
+    public required string Status { get; set; }
+
+    /// <summary>The <c>ai.*</c> code of a call that did not succeed.</summary>
+    public string? Code { get; set; }
+
+    /// <summary>#487: the cloud profile that served the call, its provider and tier.</summary>
+    public string? ProfileId { get; set; }
+
+    public string? Provider { get; set; }
+
+    public string? Tier { get; set; }
+
+    /// <summary>#488: what the call held back on the budget, and its estimated cost, in euros.</summary>
+    public decimal? ReservedEur { get; set; }
+
+    public decimal? CostEstimateEur { get; set; }
+}
+
+/// <summary>One month of the budget (#488): spent, and held back by the calls under way, in euros.</summary>
+public sealed class BudgetMonthRow
+{
+    public LocalDate Month { get; set; }
+
+    public decimal Spent { get; set; }
+
+    public decimal Reserved { get; set; }
+}
+
+/// <summary>A paid call's hold on its month, until it is settled (or the sweep settles it at its amount).</summary>
+public sealed class BudgetReservationRow
+{
+    public Guid Id { get; set; }
+
+    public LocalDate Month { get; set; }
+
+    public decimal Amount { get; set; }
+
+    public Instant ExpiresAt { get; set; }
+}
+
+/// <summary>A provider's API key (<c>docs/ingestion/llm-providers.md</c> §10): encrypted by Data Protection, its last four
+/// characters as a hint. One active key per provider; a replaced one is revoked.</summary>
+public sealed class LlmCredentialRow
+{
+    public Guid Id { get; set; }
+
+    public required string Provider { get; set; }
+
+    public required byte[] SecretEncrypted { get; set; }
+
+    public required string Hint { get; set; }
+
+    public Guid CreatedByPersonId { get; set; }
+
+    public Instant CreatedAt { get; set; }
+
+    public Instant? LastUsedAt { get; set; }
+
+    public Instant? RevokedAt { get; set; }
+}
+
+/// <summary>A cloud profile the household enabled: the terms accepted (their review date), who and when.</summary>
+public sealed class CloudProfileRow
+{
+    public required string ProfileId { get; set; }
+
+    public LocalDate AcceptedReviewedOn { get; set; }
+
+    public Guid EnabledByPersonId { get; set; }
+
+    public Instant EnabledAt { get; set; }
 }

@@ -39,7 +39,7 @@ public static class WorkerEndpoints
 
         app.MapPost(PairPath, Pair);
         app.MapPost("/v1/declaration", (HttpContext context, StateStore store, JobTable jobs) =>
-            Signed(context, store, (_, secret) => Respond(context, secret, Declaration(store.Load(), jobs))));
+            Signed(context, store, async (_, secret) => await Respond(context, secret, await DeclarationAsync(context, store.Load(), jobs))));
         app.MapPost("/v1/jobs", (HttpContext context, StateStore store, JobTable jobs) =>
             Signed(context, store, (plaintext, secret) => SubmitJob(context, jobs, plaintext, secret), MaxJobBytes));
         app.MapPost("/v1/jobs/{id}", (string id, HttpContext context, StateStore store, JobTable jobs) =>
@@ -119,7 +119,7 @@ public static class WorkerEndpoints
             return Results.StatusCode(StatusCodes.Status403Forbidden);
 
         using var certificate = SelfSignedCertificate.Load(state.TlsCertificate);
-        await Respond(context, secret, new PairResponse(SelfSignedCertificate.Sha256(certificate), Declaration(state, context.RequestServices.GetRequiredService<JobTable>())));
+        await Respond(context, secret, new PairResponse(SelfSignedCertificate.Sha256(certificate), await DeclarationAsync(context, state, context.RequestServices.GetRequiredService<JobTable>())));
         return Results.Empty;
     }
 
@@ -170,7 +170,7 @@ public static class WorkerEndpoints
         context.Response.ContentType = "application/octet-stream";
         var writer = new ResponseWriter(secret, context.Response.Body);
         var ct = context.RequestAborted;
-        if (handlers.LastOrDefault(h => h.Type == type && h.Version == version) is not { } handler)
+        if (handlers.LastOrDefault(h => h.Type == type && h.Version == version && h.Available) is not { } handler)
         {
             await writer.WriteAsync(FrameType.Error, "unsupported"u8.ToArray(), ct);
             return;
@@ -186,6 +186,10 @@ public static class WorkerEndpoints
         catch (InputInvalidException)
         {
             failure = "input_invalid";
+        }
+        catch (EngineException e)
+        {
+            failure = e.Code;
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -273,11 +277,12 @@ public static class WorkerEndpoints
         return null;
     }
 
-    private static WorkerDeclaration Declaration(WorkerState state, JobTable jobs)
+    private static async Task<WorkerDeclaration> DeclarationAsync(HttpContext context, WorkerState state, JobTable jobs)
         => new(SoftwareVersion,
             [.. jobs.Types.Select(t => new ContractVersion(t.Type, t.Version))],
             [.. jobs.RequestTypes.Select(t => new ContractVersion(t.Type, t.Version))],
-            MaxConcurrentRequests: JobTable.MaxConcurrent, [],
+            MaxConcurrentRequests: JobTable.MaxConcurrent,
+            await context.RequestServices.GetRequiredService<EngineClient>().ModelsAsync(context.RequestAborted),
             state.NidKey is null ? new string('0', 64) : KeyFingerprint.Compact(Convert.FromBase64String(state.NidKey)),
             jobs.Load);
 

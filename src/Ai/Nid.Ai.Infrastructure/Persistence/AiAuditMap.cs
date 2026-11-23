@@ -11,9 +11,17 @@ public sealed class AiAuditMap : IAuditMap
         [typeof(AiSettingsRow)] = AuditRule.NoItem,
         [typeof(ConsentRow)] = AuditRule.NoItem,
         [typeof(AiKeyRow)] = AuditRule.NoItem with { Secret = new HashSet<string> { "private_key" } },
+        // #487: a provider's key is audited without the key (llm-providers.md §10).
+        [typeof(LlmCredentialRow)] = AuditRule.NoItem with { Secret = new HashSet<string> { "secret_encrypted" } },
+        [typeof(CloudProfileRow)] = AuditRule.NoItem,
     };
 
     /// <summary>A job's progress is operational state (sent, polled, retried), not a decision: its submission and the admin's
     /// actions are what is audited.</summary>
-    public IReadOnlySet<Type> Excluded { get; } = new HashSet<Type> { typeof(AuditEntryRow), typeof(JobRow) };
+    /// <summary><c>llm_call</c> is itself the journal of model calls (§11).</summary>
+    /// <summary>The budget's counters move with every paid call, as the jobs do; its ceiling (ai_settings) is audited.</summary>
+    public IReadOnlySet<Type> Excluded { get; } = new HashSet<Type>
+    {
+        typeof(AuditEntryRow), typeof(JobRow), typeof(LlmCallRow), typeof(BudgetMonthRow), typeof(BudgetReservationRow),
+    };
 }

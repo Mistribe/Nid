@@ -29,7 +29,7 @@ public sealed class JobTable(IEnumerable<IJobHandler> handlers, IEnumerable<IReq
 
     public IEnumerable<(string Type, int Version)> Types => _handlers.Keys;
 
-    public IEnumerable<(string Type, int Version)> RequestTypes => requests.Select(r => (r.Type, r.Version)).Distinct();
+    public IEnumerable<(string Type, int Version)> RequestTypes => requests.Where(r => r.Available).Select(r => (r.Type, r.Version)).Distinct();
 
     /// <summary>Jobs running and requests being answered now.</summary>
     public int Load => _jobs.Values.Count(j => j.Status == "running") + Volatile.Read(ref _requests);

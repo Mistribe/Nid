@@ -63,6 +63,9 @@ public static class NotificationTemplates
         ["backup_failed"] = "La sauvegarde a échoué",
         ["job_failed"] = "Une tâche planifiée a échoué",
         ["ai.data_policy_changed"] = "Ce que voient les modèles a changé",
+        ["ai.budget_changed"] = "Le budget des fournisseurs d'IA payants a changé",
+        ["ai.budget_alert"] = "80 % du budget d'IA du mois est dépensé",
+        ["ai.budget_reached"] = "Le budget d'IA du mois est atteint",
         ["sync_failed"] = "Une synchronisation a échoué",
         ["banking.consent_expiring"] = "Le consentement d'une banque expire bientôt",
         ["banking.consent_expired"] = "Le consentement d'une banque a expiré",
@@ -154,7 +157,7 @@ public static class NotificationTemplates
     }
 
     /// <summary>The notices published by code (security, pending actions, health): they carry no name and no amount.</summary>
-    private static readonly HashSet<string> Notices = [.. AccountNotices.Kinds.Select(k => k.Kind), "access_violation", "token_expiring", "proposal_pending", "private_request_refused", "backup_failed", "job_failed", "ai.data_policy_changed", "sync_failed", "banking.consent_expiring", "banking.consent_expired", "banking.sync_failing", "banking.application_needed"];
+    private static readonly HashSet<string> Notices = [.. AccountNotices.Kinds.Select(k => k.Kind), "access_violation", "token_expiring", "proposal_pending", "private_request_refused", "backup_failed", "job_failed", "ai.data_policy_changed", "ai.budget_changed", "ai.budget_alert", "ai.budget_reached", "sync_failed", "banking.consent_expiring", "banking.consent_expired", "banking.sync_failing", "banking.application_needed"];
 
     private static string NoticeBody(NotificationRecord n) => n.Kind switch
     {
@@ -165,6 +168,9 @@ public static class NotificationTemplates
         "backup_failed" => BackupReason(n.Params),
         "job_failed" => n.Params.TryGetValue("job", out var job) && job.Length > 0 ? $"Tâche : {job}" : "",
         "ai.data_policy_changed" => DataPolicyChange(n.Params),
+        "ai.budget_changed" => "Un adulte a changé le plafond mensuel des fournisseurs d'IA payants.",
+        "ai.budget_alert" => "Au-delà du plafond, les appels payants s'arrêtent jusqu'au 1er du mois prochain.",
+        "ai.budget_reached" => "Les appels payants sont arrêtés jusqu'au 1er du mois prochain ; les workers du foyer continuent.",
         "sync_failed" => n.Params.TryGetValue("source", out var source) && source.Length > 0 ? $"Source : {source}" : "",
         "banking.consent_expiring" => n.DueOn is { } on ? $"{Bank(n)} — expire le {Day(on)}" : Bank(n),
         "banking.consent_expired" => n.DueOn is { } on ? $"{Bank(n)} — expiré le {Day(on)}" : Bank(n),
@@ -210,8 +216,18 @@ public static class NotificationTemplates
             ? job.StartsWith("ai.", StringComparison.Ordinal) ? "/settings/ai/jobs?status=dead" : $"/admin/jobs/{job}"
             : "/admin/jobs",
         "ai.data_policy_changed" => "/settings/ai",
+        "ai.budget_changed" or "ai.budget_alert" or "ai.budget_reached" => "/settings/ai",
         "sync_failed" => n.Params.GetValueOrDefault("source") is "fx" or "catalog" or "prices" or "irl" or "inflation" ? $"/admin/{n.Params["source"]}" : "/admin/system",
         _ => "/",
+    };
+
+    private static string Use(IReadOnlyDictionary<string, string> p) => p.GetValueOrDefault("use") switch
+    {
+        "chat" => "assistant",
+        "embed" => "recherche par le sens",
+        "decide" => "suggestions",
+        "extract" => "lecture des documents",
+        var other => other ?? "",
     };
 
     private static string DataPolicyChange(IReadOnlyDictionary<string, string> p)
@@ -223,6 +239,10 @@ public static class NotificationTemplates
             "remote_off" => "Les workers distants ne reçoivent plus les données du foyer.",
             "safe_on" => $"{worker} peut désormais recevoir les documents « local seulement ».",
             "safe_off" => $"{worker} ne reçoit plus les documents « local seulement ».",
+            "cloud_on" => $"L'usage « {Use(p)} » peut désormais passer par un fournisseur cloud activé.",
+            "cloud_off" => $"L'usage « {Use(p)} » ne passe plus que par les workers du foyer.",
+            "cloud_profile_on" => $"Le fournisseur cloud « {p.GetValueOrDefault("profile")} » est activé : il peut recevoir les demandes des usages ouverts au cloud.",
+            "cloud_profile_off" => $"Le fournisseur cloud « {p.GetValueOrDefault("profile")} » est désactivé.",
             _ => "",
         };
     }

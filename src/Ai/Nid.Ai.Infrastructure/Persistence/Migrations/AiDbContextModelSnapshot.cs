@@ -17,7 +17,7 @@ partial class AiDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261122163505_AddJobListIndex";
+    public override string LastMigrationId => "20261122185757_AddBudget";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -79,6 +79,20 @@ partial class AiDbContextModelSnapshot : ModelSnapshot
                     .HasColumnType("integer")
                     .HasColumnName("id");
 
+                b.Property<string>("Models")
+                    .HasColumnType("jsonb")
+                    .HasColumnName("models");
+
+                b.Property<decimal>("MonthlyBudgetEur")
+                    .HasPrecision(10, 2)
+                    .HasColumnType("numeric(10,2)")
+                    .HasColumnName("monthly_budget_eur");
+
+                b.Property<string>("Region")
+                    .HasMaxLength(16)
+                    .HasColumnType("character varying(16)")
+                    .HasColumnName("region");
+
                 b.Property<Guid?>("RemoteConsentId")
                     .HasColumnType("uuid")
                     .HasColumnName("remote_consent_id");
@@ -86,6 +100,10 @@ partial class AiDbContextModelSnapshot : ModelSnapshot
                 b.Property<bool>("RemoteWorkersAllowed")
                     .HasColumnType("boolean")
                     .HasColumnName("remote_workers_allowed");
+
+                b.Property<string>("Uses")
+                    .HasColumnType("jsonb")
+                    .HasColumnName("uses");
 
                 b.Property<uint>("Version")
                     .IsConcurrencyToken()
@@ -103,6 +121,84 @@ partial class AiDbContextModelSnapshot : ModelSnapshot
                     {
                         t.HasCheckConstraint("ck_ai_settings_single", "id = 1");
                     });
+            });
+
+        modelBuilder.Entity("Nid.Ai.Infrastructure.Persistence.BudgetMonthRow", b =>
+            {
+                b.Property<LocalDate>("Month")
+                    .HasColumnType("date")
+                    .HasColumnName("month");
+
+                b.Property<decimal>("Reserved")
+                    .HasPrecision(12, 6)
+                    .HasColumnType("numeric(12,6)")
+                    .HasColumnName("reserved");
+
+                b.Property<decimal>("Spent")
+                    .HasPrecision(12, 6)
+                    .HasColumnType("numeric(12,6)")
+                    .HasColumnName("spent");
+
+                b.HasKey("Month")
+                    .HasName("pk_budget_month");
+
+                b.ToTable("budget_month", "ai", t =>
+                    {
+                        t.HasCheckConstraint("ck_budget_month_amounts", "spent >= 0 and reserved >= 0");
+                    });
+            });
+
+        modelBuilder.Entity("Nid.Ai.Infrastructure.Persistence.BudgetReservationRow", b =>
+            {
+                b.Property<Guid>("Id")
+                    .HasColumnType("uuid")
+                    .HasColumnName("id");
+
+                b.Property<decimal>("Amount")
+                    .HasPrecision(12, 6)
+                    .HasColumnType("numeric(12,6)")
+                    .HasColumnName("amount");
+
+                b.Property<Instant>("ExpiresAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("expires_at");
+
+                b.Property<LocalDate>("Month")
+                    .HasColumnType("date")
+                    .HasColumnName("month");
+
+                b.HasKey("Id")
+                    .HasName("pk_budget_reservation");
+
+                b.HasIndex("ExpiresAt")
+                    .HasDatabaseName("ix_budget_reservation_expires_at");
+
+                b.ToTable("budget_reservation", "ai");
+            });
+
+        modelBuilder.Entity("Nid.Ai.Infrastructure.Persistence.CloudProfileRow", b =>
+            {
+                b.Property<string>("ProfileId")
+                    .HasMaxLength(64)
+                    .HasColumnType("character varying(64)")
+                    .HasColumnName("profile_id");
+
+                b.Property<LocalDate>("AcceptedReviewedOn")
+                    .HasColumnType("date")
+                    .HasColumnName("accepted_reviewed_on");
+
+                b.Property<Instant>("EnabledAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("enabled_at");
+
+                b.Property<Guid>("EnabledByPersonId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("enabled_by_person_id");
+
+                b.HasKey("ProfileId")
+                    .HasName("pk_cloud_profile");
+
+                b.ToTable("cloud_profile", "ai");
             });
 
         modelBuilder.Entity("Nid.Ai.Infrastructure.Persistence.ConsentRow", b =>
@@ -267,6 +363,158 @@ partial class AiDbContextModelSnapshot : ModelSnapshot
 
                         t.HasCheckConstraint("ck_job_status", "status in ('queued', 'running', 'succeeded', 'failed', 'dead')");
                     });
+            });
+
+        modelBuilder.Entity("Nid.Ai.Infrastructure.Persistence.LlmCallRow", b =>
+            {
+                b.Property<Guid>("Id")
+                    .HasColumnType("uuid")
+                    .HasColumnName("id");
+
+                b.Property<string>("Code")
+                    .HasMaxLength(64)
+                    .HasColumnType("character varying(64)")
+                    .HasColumnName("code");
+
+                b.Property<Guid?>("ConversationId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("conversation_id");
+
+                b.Property<decimal?>("CostEstimateEur")
+                    .HasPrecision(12, 6)
+                    .HasColumnType("numeric(12,6)")
+                    .HasColumnName("cost_estimate_eur");
+
+                b.Property<Instant>("CreatedAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("created_at");
+
+                b.Property<Guid?>("JobId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("job_id");
+
+                b.Property<string>("Model")
+                    .HasMaxLength(200)
+                    .HasColumnType("character varying(200)")
+                    .HasColumnName("model");
+
+                b.Property<Guid?>("PersonId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("person_id");
+
+                b.Property<string>("ProfileId")
+                    .HasMaxLength(64)
+                    .HasColumnType("character varying(64)")
+                    .HasColumnName("profile_id");
+
+                b.Property<string>("Provider")
+                    .HasMaxLength(32)
+                    .HasColumnType("character varying(32)")
+                    .HasColumnName("provider");
+
+                b.Property<decimal?>("ReservedEur")
+                    .HasPrecision(12, 6)
+                    .HasColumnType("numeric(12,6)")
+                    .HasColumnName("reserved_eur");
+
+                b.Property<string>("Status")
+                    .IsRequired()
+                    .HasMaxLength(16)
+                    .HasColumnType("character varying(16)")
+                    .HasColumnName("status");
+
+                b.Property<string>("Task")
+                    .IsRequired()
+                    .HasMaxLength(16)
+                    .HasColumnType("character varying(16)")
+                    .HasColumnName("task");
+
+                b.Property<string>("Tier")
+                    .HasMaxLength(8)
+                    .HasColumnType("character varying(8)")
+                    .HasColumnName("tier");
+
+                b.Property<int>("TokensIn")
+                    .HasColumnType("integer")
+                    .HasColumnName("tokens_in");
+
+                b.Property<int>("TokensOut")
+                    .HasColumnType("integer")
+                    .HasColumnName("tokens_out");
+
+                b.Property<string>("Use")
+                    .IsRequired()
+                    .HasMaxLength(16)
+                    .HasColumnType("character varying(16)")
+                    .HasColumnName("use");
+
+                b.Property<Guid?>("WorkerId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("worker_id");
+
+                b.HasKey("Id")
+                    .HasName("pk_llm_call");
+
+                b.HasIndex("CreatedAt")
+                    .HasDatabaseName("ix_llm_call_created_at");
+
+                b.HasIndex("PersonId", "CreatedAt")
+                    .HasDatabaseName("ix_llm_call_person_id_created_at");
+
+                b.ToTable("llm_call", "ai", t =>
+                    {
+                        t.HasCheckConstraint("ck_llm_call_status", "status in ('succeeded', 'refused', 'error', 'no_destination', 'blocked_budget')");
+                    });
+            });
+
+        modelBuilder.Entity("Nid.Ai.Infrastructure.Persistence.LlmCredentialRow", b =>
+            {
+                b.Property<Guid>("Id")
+                    .HasColumnType("uuid")
+                    .HasColumnName("id");
+
+                b.Property<Instant>("CreatedAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("created_at");
+
+                b.Property<Guid>("CreatedByPersonId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("created_by_person_id");
+
+                b.Property<string>("Hint")
+                    .IsRequired()
+                    .HasMaxLength(8)
+                    .HasColumnType("character varying(8)")
+                    .HasColumnName("hint");
+
+                b.Property<Instant?>("LastUsedAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("last_used_at");
+
+                b.Property<string>("Provider")
+                    .IsRequired()
+                    .HasMaxLength(32)
+                    .HasColumnType("character varying(32)")
+                    .HasColumnName("provider");
+
+                b.Property<Instant?>("RevokedAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("revoked_at");
+
+                b.Property<byte[]>("SecretEncrypted")
+                    .IsRequired()
+                    .HasColumnType("bytea")
+                    .HasColumnName("secret_encrypted");
+
+                b.HasKey("Id")
+                    .HasName("pk_llm_provider_credential");
+
+                b.HasIndex("Provider")
+                    .IsUnique()
+                    .HasDatabaseName("ix_llm_provider_credential_provider")
+                    .HasFilter("revoked_at is null");
+
+                b.ToTable("llm_provider_credential", "ai");
             });
 
         modelBuilder.Entity("Nid.Ai.Infrastructure.Persistence.ModelWorkerRow", b =>

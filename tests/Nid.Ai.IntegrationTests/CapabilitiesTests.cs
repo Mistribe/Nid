@@ -17,15 +17,16 @@ public sealed class CapabilitiesTests(PostgresFixture fixture) : IClassFixture<P
     private static readonly Instant Now = NidApp.GoldenCaseToday.AtMidnight().InUtc().ToInstant();
 
     [Fact]
-    public async Task Without_a_worker_echo_says_so()
+    public async Task Without_a_worker_echo_and_the_chat_say_so()
     {
         await using var app = await NidApp.StartAsync(fixture);
 
         var capabilities = await ReadAsync(app);
 
         Assert.False(capabilities.RemoteWorkersAllowed);
-        var echo = Assert.Single(capabilities.Capabilities);
-        Assert.Equal(("echo", 0, 0, 0, "ai.no_worker"), (echo.Capability, echo.Local, echo.Remote, echo.Safe, echo.Reason));
+        Assert.Equal(
+            [("echo", 0, 0, 0, "ai.no_worker"), ("chat", 0, 0, 0, "ai.no_worker")],
+            capabilities.Capabilities.Select(c => (c.Capability, c.Local, c.Remote, c.Safe, c.Reason)));
     }
 
     [Fact]

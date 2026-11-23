@@ -20,6 +20,16 @@ public sealed class AiDbContext(DbContextOptions<AiDbContext> options) : DbConte
 
     public DbSet<ConsentRow> Consents => Set<ConsentRow>();
 
+    public DbSet<LlmCallRow> LlmCalls => Set<LlmCallRow>();
+
+    public DbSet<LlmCredentialRow> Credentials => Set<LlmCredentialRow>();
+
+    public DbSet<CloudProfileRow> CloudProfiles => Set<CloudProfileRow>();
+
+    public DbSet<BudgetMonthRow> BudgetMonths => Set<BudgetMonthRow>();
+
+    public DbSet<BudgetReservationRow> BudgetReservations => Set<BudgetReservationRow>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schema);
@@ -75,12 +85,71 @@ public sealed class AiDbContext(DbContextOptions<AiDbContext> options) : DbConte
             e.Property(x => x.RowVersion).HasColumnName("xmin").HasColumnType("xid").ValueGeneratedOnAddOrUpdate().IsConcurrencyToken();
         });
 
+        modelBuilder.Entity<LlmCallRow>(e =>
+        {
+            e.ToTable("llm_call", t => t.HasCheckConstraint("ck_llm_call_status",
+                "status in ('succeeded', 'refused', 'error', 'no_destination', 'blocked_budget')"));
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Task).HasMaxLength(16);
+            e.Property(x => x.Use).HasMaxLength(16);
+            e.Property(x => x.Model).HasMaxLength(200);
+            e.Property(x => x.Status).HasMaxLength(16);
+            e.Property(x => x.Code).HasMaxLength(64);
+            e.Property(x => x.ProfileId).HasMaxLength(64);
+            e.Property(x => x.Provider).HasMaxLength(32);
+            e.Property(x => x.Tier).HasMaxLength(8);
+            e.Property(x => x.ReservedEur).HasPrecision(12, 6);
+            e.Property(x => x.CostEstimateEur).HasPrecision(12, 6);
+            e.HasIndex(x => x.CreatedAt);
+            e.HasIndex(x => new { x.PersonId, x.CreatedAt });
+        });
+
+        modelBuilder.Entity<LlmCredentialRow>(e =>
+        {
+            e.ToTable("llm_provider_credential");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Provider).HasMaxLength(32);
+            e.Property(x => x.Hint).HasMaxLength(8);
+            // One active key per provider.
+            e.HasIndex(x => x.Provider).IsUnique().HasFilter("revoked_at is null");
+        });
+
+        modelBuilder.Entity<BudgetMonthRow>(e =>
+        {
+            e.ToTable("budget_month", t => t.HasCheckConstraint("ck_budget_month_amounts", "spent >= 0 and reserved >= 0"));
+            e.HasKey(x => x.Month);
+            e.Property(x => x.Spent).HasPrecision(12, 6);
+            e.Property(x => x.Reserved).HasPrecision(12, 6);
+        });
+
+        modelBuilder.Entity<BudgetReservationRow>(e =>
+        {
+            e.ToTable("budget_reservation");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Amount).HasPrecision(12, 6);
+            e.HasIndex(x => x.ExpiresAt);
+        });
+
+        modelBuilder.Entity<CloudProfileRow>(e =>
+        {
+            e.ToTable("cloud_profile");
+            e.HasKey(x => x.ProfileId);
+            e.Property(x => x.ProfileId).HasMaxLength(64);
+        });
+
         modelBuilder.Entity<AiSettingsRow>(e =>
         {
             e.ToTable("ai_settings", t => t.HasCheckConstraint("ck_ai_settings_single", "id = 1"));
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             e.HasOne<ConsentRow>().WithMany().HasForeignKey(x => x.RemoteConsentId).OnDelete(DeleteBehavior.Restrict);
+            e.Property(x => x.Uses).HasColumnType("jsonb");
+            e.Property(x => x.Models).HasColumnType("jsonb");
+            e.Property(x => x.Region).HasMaxLength(16);
+            e.Property(x => x.MonthlyBudgetEur).HasPrecision(10, 2);
             e.Property(x => x.Version).HasColumnName("xmin").HasColumnType("xid").ValueGeneratedOnAddOrUpdate().IsConcurrencyToken();
         });
 

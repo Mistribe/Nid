@@ -76,7 +76,7 @@ public class AdminMarkerTests
     [Fact]
     public void Managing_model_workers_is_admin_only_and_the_data_policy_any_adults_in_the_browser()
     {
-        Type[] adults = [typeof(Nid.Ai.Application.SetRemoteWorkersAllowedCommand), typeof(Nid.Ai.Application.SetWorkerSafeCommand)];
+        Type[] adults = [typeof(Nid.Ai.Application.SetRemoteWorkersAllowedCommand), typeof(Nid.Ai.Application.SetWorkerSafeCommand), typeof(Nid.Ai.Application.SetUseModeCommand), typeof(Nid.Ai.Application.SetMonthlyBudgetCommand)];
         var commands = typeof(Nid.Ai.Application.RegisterWorkerCommand).Assembly.GetTypes()
             .Where(t => t.Name.EndsWith("Command", StringComparison.Ordinal) && !t.IsAbstract).ToList();
         Assert.NotEmpty(commands);

@@ -40,6 +40,11 @@
     "model_worker_key_rotated": "Clé d’un worker renouvelée",
     "nid_worker_key_rotated": "Clé de Nid renouvelée",
     "ai_remote_workers_changed": "Workers distants autorisés ou refusés",
+    "ai_cloud_region_set": "Région des fournisseurs cloud confirmée",
+    "ai_cloud_profile_enabled": "Fournisseur cloud activé",
+    "ai_cloud_profile_disabled": "Fournisseur cloud désactivé",
+    "ai_provider_key_set": "Clé d’un fournisseur cloud enregistrée",
+    "ai_provider_key_revoked": "Clé d’un fournisseur cloud retirée",
     "unknown": "Événement {{name}}"
   },
   "mcp_help": {
