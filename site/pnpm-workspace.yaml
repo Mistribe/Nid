@@ -1,0 +1,2 @@
+minimumReleaseAgeExclude:
+  - '@lucide/astro@1.78.0'

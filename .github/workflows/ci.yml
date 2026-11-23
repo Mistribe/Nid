@@ -4,7 +4,7 @@ name: ci
 # pull request gets the full verdict here. Larger runners are paid: none is used.
 #  - a pull request into `main` calls, in parallel, the workflows its files concern: backend.yml (build, openapi.json, unit and
 #    integration tests), web.yml (API client, types, lint, vitest, build, budget), e2e.yml (every Playwright journey, images
-#    scanned by Trivy); and reviews its new dependencies;
+#    scanned by Trivy), site.yml (the project site: build, links, checks); and reviews its new dependencies;
 #  - `sonarqube` analyses the whole repository on SonarQube Cloud with the coverage backend.yml and web.yml report, and fails a
 #    pull request whose new code fails the quality gate;
 #  - `ci-ok` sums them up: it is the one check the `main` ruleset requires (with `changelog`);
@@ -14,7 +14,8 @@ name: ci
 #    has its coverage;
 #  - every Monday, every check runs on `main` whatever changed: base images, the identity provider and the browsers move without
 #    a push;
-#  - a push that only touches docs releases nothing; a pull request that only touches docs runs only `changes` and `ci-ok`.
+#  - a push that only touches docs or the project site releases nothing (pages.yml publishes the site); a pull request that only
+#    touches docs runs only `changes` and `ci-ok`, one that only touches the site adds `site`.
 #
 # Why the area filter is a job here and not `paths:` in each workflow: a workflow skipped by `paths:` reports no status, so a
 # required check would wait for it forever and block the merge. GitHub's advice is not to require a workflow that can be
@@ -27,7 +28,7 @@ name: ci
 on:
   push:
     branches: [main]
-    paths-ignore: ['docs/**', '**/*.md']
+    paths-ignore: ['docs/**', '**/*.md', 'site/**', '.github/workflows/site.yml', '.github/workflows/pages.yml']
   # No paths-ignore here: a docs-only pull request must still get `ci-ok` (see above); `changes` skips every area instead.
   pull_request:
     branches: [main]
@@ -60,6 +61,7 @@ jobs:
       backend: ${{ steps.files.outputs.backend }}
       web: ${{ steps.files.outputs.web }}
       e2e: ${{ steps.files.outputs.e2e }}
+      site: ${{ steps.files.outputs.site }}
     steps:
       - id: files
         env:
@@ -68,18 +70,21 @@ jobs:
           EVENT: ${{ github.event_name }}
         run: |
           if [ "$EVENT" = push ]; then
-            { echo "backend=true"; echo "web=true"; echo "e2e=false"; } >> "$GITHUB_OUTPUT"
+            { echo "backend=true"; echo "web=true"; echo "e2e=false"; echo "site=false"; } >> "$GITHUB_OUTPUT"
             exit 0
           fi
           if [ -z "$PR" ]; then
-            { echo "backend=true"; echo "web=true"; echo "e2e=true"; } >> "$GITHUB_OUTPUT"
+            { echo "backend=true"; echo "web=true"; echo "e2e=true"; echo "site=true"; } >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          # Docs (docs/, any .md) never start an area: a docs-only pull request runs nothing but `ci-ok`.
           files=$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR/files" --jq '.[] | .filename, .previous_filename // empty')
-          files=$(grep -vE '^docs/|\.md$' <<< "$files" || true) # grep exits 1 when nothing is left, which is not an error
+          # The project site: site/ (its .md pages included), its workflows, and deploy/README.md, whose commands its install
+          # guide copies (site.yml checks they still match).
+          if grep -qE '^(site/|deploy/README\.md$|\.github/workflows/(ci|site|pages)\.yml$)' <<< "$files"; then site=true; else site=false; fi
+          # Docs (docs/, any .md) and the site never start the app's areas: a docs-only pull request runs nothing but `ci-ok`.
+          files=$(grep -vE '^(docs/|site/|\.github/workflows/(site|pages)\.yml$)|\.md$' <<< "$files" || true) # grep exits 1 when nothing is left, which is not an error
           if [ -z "$files" ]; then
-            { echo "backend=false"; echo "web=false"; echo "e2e=false"; } >> "$GITHUB_OUTPUT"
+            { echo "backend=false"; echo "web=false"; echo "e2e=false"; echo "site=$site"; } >> "$GITHUB_OUTPUT"
             exit 0
           fi
           # The solution: anything outside web/, and openapi.json, which its build compares with the server's.
@@ -87,7 +92,7 @@ jobs:
           if grep -qE '^(web/|\.github/workflows/(ci|web)\.yml$)' <<< "$files"; then web=true; else web=false; fi
           # The running app: the server, the web app, the compose and the build files.
           if grep -qE '^(src/|web/|deploy/|Directory\.(Build|Packages)\.props$|global\.json$|\.github/workflows/(ci|e2e)\.yml$)' <<< "$files"; then e2e=true; else e2e=false; fi
-          { echo "backend=$backend"; echo "web=$web"; echo "e2e=$e2e"; } >> "$GITHUB_OUTPUT"
+          { echo "backend=$backend"; echo "web=$web"; echo "e2e=$e2e"; echo "site=$site"; } >> "$GITHUB_OUTPUT"
 
   backend:
     needs: changes
@@ -107,6 +112,11 @@ jobs:
     needs: changes
     if: needs.changes.outputs.e2e == 'true'
     uses: ./.github/workflows/e2e.yml
+
+  site:
+    needs: changes
+    if: needs.changes.outputs.site == 'true'
+    uses: ./.github/workflows/site.yml
 
   # A pull request that adds a dependency with a known high or critical vulnerability fails.
   dependencies:
@@ -159,9 +169,10 @@ jobs:
       # dotnet-sonarscanner, pinned in .config/dotnet-tools.json (Renovate updates it).
       - run: dotnet tool restore
       # Excluded: what is generated (EF migrations, the OpenAPI document and the types made from it) and the captured pages and
-      # generators of tests/vectors. Out of the coverage: the scripts of deploy/ and the Playwright journeys, which no unit test
-      # runs. Rules ignored where they are wrong by design: the import parsers' `&` evaluates every check so that one answer
-      # lists every error (S2178); `[` rather than `[[` in the shell scripts is style only (S7688).
+      # generators of tests/vectors. Out of the coverage: the scripts of deploy/, the project site (site/, checked by site.yml)
+      # and the Playwright journeys, which no unit test runs. Rules ignored where they are wrong by design: the import parsers'
+      # `&` evaluates every check so that one answer lists every error (S2178); `[` rather than `[[` in the shell scripts is style
+      # only (S7688).
       - name: Build and analyse
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -178,7 +189,7 @@ jobs:
             /d:sonar.issue.ignore.multicriteria.parsers.resourceKey="src/**/Import/**" \
             /d:sonar.issue.ignore.multicriteria.shell.ruleKey="shell:S7688" \
             /d:sonar.issue.ignore.multicriteria.shell.resourceKey="**/*.sh" \
-            /d:sonar.coverage.exclusions="deploy/**,web/e2e/**" \
+            /d:sonar.coverage.exclusions="deploy/**,site/**,web/e2e/**" \
             /d:sonar.cs.vscoveragexml.reportsPaths="coverage/*.coverage.xml" \
             /d:sonar.javascript.lcov.reportPaths="coverage/lcov.info"
           dotnet build Nid.slnx --configuration Release
@@ -187,7 +198,7 @@ jobs:
   # The required check: fails if any part failed or was cancelled; a skipped part is a pass.
   ci-ok:
     if: always() && github.event_name != 'push'
-    needs: [changes, backend, web, e2e, dependencies, sonarqube]
+    needs: [changes, backend, web, e2e, site, dependencies, sonarqube]
     runs-on: ubuntu-latest
     steps:
       - env:

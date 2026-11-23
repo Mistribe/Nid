@@ -1,0 +1,38 @@
+---
+title: "Investments"
+description: "PEA, life insurance, PER, savings accounts: what each envelope earns, and what it costs."
+sidebar:
+  order: 3
+---
+
+import Screen from '../../../../components/Screen.astro';
+
+Nid tracks each of the household's savings and investment envelopes: its value, what went in, what it gained and what its fees cost. Returns account for the dates of each contribution, and gains are shown before tax.
+
+## The questions it answers
+
+- What are our investments worth today, and how much did we put in?
+- What really earns, once the fees are paid?
+- What do the fees cost over 10 or 20 years?
+- How much room is left under the Livret A ceiling?
+
+<Screen name="placements" alt="The demo household's accounts and investments overview: value, net contributions, gain and annual return." />
+
+## What Nid does
+
+- **Envelopes**: PEA, life insurance, PER, regulated savings accounts, brokerage accounts, current accounts.
+- **Values and movements**: contributions, withdrawals, valuations, and a curve of the value next to the contributions.
+- **The holdings of each envelope** and the switches between funds.
+- **The annual return** of each envelope, which accounts for the date of every contribution.
+- **The fees** and their cumulative cost over 10 and 20 years.
+- **The ceilings** of regulated savings accounts, and what can still go in.
+- **Statements** can be proposed by an assistant or from the bank, then approved line by line.
+
+## The terms
+
+- **Envelope**: the container of a saving: a PEA, a life insurance contract, a savings account. Each has its own rules and tax treatment.
+- **PEA**: French equity savings plan, to invest in European shares with lighter tax after 5 years.
+- **PER**: French retirement savings plan: contributions can lower income tax, the money is in principle locked until retirement.
+- **Livret A, LDDS**: French regulated savings accounts, tax-free, with a contribution ceiling.
+- **Annual return**: the rate that would have produced the same gain, accounting for when each sum went in (the XIRR method).
+- **Switch**: money moved from one fund to another inside the same envelope.

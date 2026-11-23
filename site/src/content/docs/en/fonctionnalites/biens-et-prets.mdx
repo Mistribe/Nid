@@ -1,0 +1,36 @@
+---
+title: "Property and loans"
+description: "The household's property, its loans, and rentals."
+sidebar:
+  order: 4
+---
+
+import Screen from '../../../../components/Screen.astro';
+
+Nid tracks the household's property and the loans that finance it. Each loan's schedule is computed by the server and checked against 3,000 reference loans; you can compare it with your bank's table.
+
+## The questions it answers
+
+- How much is left to repay, and until when?
+- What would an early repayment change: a lower payment or a shorter term?
+- What is our property worth, once the loan is deducted?
+- How much does the rental earn, charges and vacancy included?
+
+<Screen name="biens-et-prets" alt="The demo household's loans overview: principal left, monthly payments, debt ratio and the curve of principal left." />
+
+## What Nid does
+
+- **The property's page**: net value, unrealised capital gain, real cost in detail, rental yield.
+- **The loan schedule**: interest and principal in each payment, principal left, phases (deferral, zero-rate loan), total cost.
+- **The bank's table** side by side with Nid's computation.
+- **Early repayment and renegotiation**, simulated before you decide.
+- **The household's debt ratio**, and the end date of each loan.
+- **Rentals**: leases, rent revision by the IRL, receipts and a reminder letter for unpaid rent.
+
+## The terms
+
+- **Principal left**: the part of the loan still to repay, without the interest to come.
+- **Schedule**: the table of each monthly payment, split into interest, principal and insurance; also called the amortization table.
+- **Debt ratio**: the share of income spent on loans; French banks often look at a 35 % limit.
+- **PTZ**: French zero-rate loan, state-backed, for buying a main home.
+- **IRL**: French rent reference index, published by INSEE every quarter, which caps the yearly revision of a rent.

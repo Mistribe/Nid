@@ -1,0 +1,71 @@
+---
+title: "Brancher le proxy"
+description: "Relier votre reverse proxy à Nid et à Pocket ID."
+sidebar:
+  order: 3
+---
+
+## Où trouver Nid
+
+- **Standalone** : Nid est publié sur l'hôte, à `127.0.0.1:8080` (`NID_WEB_BIND` et `NID_WEB_PORT` dans `.env`). Votre proxy, sur l'hôte, le vise à cette adresse : l'exemple nginx ci-dessous s'applique tel quel, et Caddy ou Traefik visent `127.0.0.1:8080` au lieu de `nid:8080`.
+- **Référence** : le compose ne publie aucun port. Votre proxy rejoint ses cibles sur le réseau Docker `nid_edge` :
+
+| Nom public | Cible |
+|---|---|
+| `nid.<domaine>` | `nid:8080` (HTTP) |
+| `auth.<domaine>` | `pocket-id:1411` (HTTP) |
+
+Le proxy doit **fixer lui-même** `X-Forwarded-Proto`, `X-Forwarded-Host` et `X-Forwarded-For`, en écrasant ce que le client envoie. Caddy et Traefik le font par défaut ; nginx non. Nid sert l'interface et l'API sur la même origine : rien à router par préfixe.
+
+## Caddy, forme de référence
+
+```
+nid.example.org {
+	reverse_proxy nid:8080
+}
+auth.example.org {
+	reverse_proxy pocket-id:1411
+}
+```
+
+## Traefik, forme de référence
+
+```yaml
+http:
+  routers:
+    nid: { rule: "Host(`nid.example.org`)", service: nid, tls: {} }
+    auth: { rule: "Host(`auth.example.org`)", service: auth, tls: {} }
+  services:
+    nid: { loadBalancer: { servers: [{ url: "http://nid:8080" }] } }
+    auth: { loadBalancer: { servers: [{ url: "http://pocket-id:1411" }] } }
+```
+
+## Un proxy dans un autre projet compose, forme de référence
+
+Déclarez le réseau comme externe dans ce projet-là :
+
+```yaml
+services:
+  proxy:
+    networks: [default, nid_edge]
+networks:
+  nid_edge: { external: true }
+```
+
+## nginx sur l'hôte
+
+Avec le standalone, Nid est déjà sur `127.0.0.1:8080`. Avec la forme de référence, publiez d'abord les cibles sur l'adresse locale (voir le détail). Puis :
+
+```nginx
+location / {
+    proxy_pass http://127.0.0.1:8080;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Host $host;
+    proxy_set_header X-Forwarded-For $remote_addr;
+}
+```
+
+Nid compresse déjà ses réponses : votre proxy n'a rien à ajouter.
+
+Le détail, dont le proxy installé hors Docker et les réseaux de confiance : [`deploy/README.md` §3](https://github.com/Mistribe/Nid/blob/main/deploy/README.md#3-brancher-le-proxy).

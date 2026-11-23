@@ -1,0 +1,34 @@
+---
+import Section from './Section.astro';
+import { localePath, type Lang } from '../../data/locale';
+
+interface Props { lang: Lang }
+const { lang } = Astro.props;
+const copy = {
+  fr: {
+    title: 'Installer chez soi',
+    lead: 'Vous avez un serveur avec Docker et un nom de domaine ? Nid s’installe en trois étapes, images publiques pour amd64 et arm64.',
+    steps: [['Récupérer', 'le fichier Compose et son .env d’exemple.'], ['Renseigner', 'l’adresse de Nid et deux secrets.'], ['Lancer', 'docker compose, puis créer le premier compte.']],
+    cta: 'Le guide d’installation',
+  },
+  en: {
+    title: 'Install it at home',
+    lead: 'Got a server with Docker and a domain name? Nid installs in three steps, public images for amd64 and arm64.',
+    steps: [['Fetch', 'the Compose file and its example .env.'], ['Fill in', 'Nid’s address and two secrets.'], ['Start', 'docker compose, then create the first account.']],
+    cta: 'The install guide',
+  },
+}[lang];
+---
+<Section title={copy.title} lead={copy.lead}>
+  <ol class="steps">{copy.steps.map(([verb, rest]) => <li><strong>{verb}</strong> {rest}</li>)}</ol>
+  <p class="cta"><a class="button" href={localePath(lang, '/installer/')}>{copy.cta} →</a></p>
+</Section>
+
+<style>
+  .steps { counter-reset: step; list-style: none; padding: 0; margin: 0; display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); }
+  .steps li { counter-increment: step; padding: 1.1rem 1.2rem; border: 1px solid var(--sl-color-hairline); border-radius: 0.75rem; background: var(--sl-color-bg-nav); color: var(--sl-color-gray-2); }
+  .steps li::before { content: counter(step); display: inline-grid; place-items: center; width: 1.8rem; height: 1.8rem; margin-right: 0.6rem; border-radius: 999px; background: var(--sl-color-accent); color: var(--sl-color-black); font-weight: 700; }
+  .steps strong { color: var(--sl-color-white); }
+  .cta { margin-top: 1.4rem; }
+  .button { display: inline-block; padding: 0.6rem 1.1rem; border-radius: 0.5rem; background: var(--sl-color-accent); color: var(--sl-color-black); font-weight: 600; text-decoration: none; }
+</style>

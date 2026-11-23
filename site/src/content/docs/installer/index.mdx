@@ -1,0 +1,32 @@
+---
+title: "Installer Nid"
+description: "Installer Nid chez soi : pour qui, et quelle forme choisir."
+sidebar:
+  order: 0
+---
+
+Ce guide s'adresse à qui a déjà **un serveur avec Docker**, **un nom de domaine** et **un reverse proxy** qui termine le TLS (Caddy, Traefik, nginx…). Pour essayer Nid sur votre propre ordinateur d'abord, `http://localhost:8080` suffit, sans proxy ni domaine.
+
+Les images sont publiques sur `ghcr.io/mistribe/nid`, pour amd64 et arm64, sans compte : `latest`, `X.Y.Z`, ou `X.Y` pour le dernier correctif. Chacune porte une attestation de provenance signée.
+
+## Deux formes
+
+| | Standalone | Référence |
+|---|---|---|
+| Fichiers | un compose et un `.env` | un compose, un script de préparation, des secrets |
+| Connexion | identifiant et mot de passe gardés par Nid, validation en deux étapes en option | passkeys, par Pocket ID |
+| Noms d'hôte | un | deux (Nid et Pocket ID) |
+| Sauvegarde | à votre charge : copie des volumes Docker, et l'export JSON de vos chiffres | chiffrée chaque nuit, avec un test de restauration (`restore.sh --verify`) |
+
+**Commencez par le standalone** si vous hésitez : il se lance en quatre commandes. La forme de référence ajoute les passkeys et la sauvegarde automatique.
+
+## Les étapes
+
+1. [Prérequis](/installer/prerequis/) : ce qu'il vous faut déjà.
+2. [Installer](/installer/installer/) : le standalone ou la référence.
+3. [Brancher le proxy](/installer/proxy/) : les cibles et des exemples.
+4. [Première connexion](/installer/premiere-connexion/) : le premier administrateur, puis le second adulte.
+5. [Mettre à jour](/installer/mettre-a-jour/) et [sauvegarder](/installer/sauvegarder/).
+6. [Options](/installer/options/) : synchro bancaire, worker de modèles.
+
+La référence technique complète reste [`deploy/README.md`](https://github.com/Mistribe/Nid/blob/main/deploy/README.md) : chaque page de ce guide renvoie à sa section.
