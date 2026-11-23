@@ -47,6 +47,7 @@ public static class McpSetup
             o.SerializerOptions = json.Value.SerializerOptions; // the same JSON as REST
         });
         services.AddScoped<RouteReplay>();
+        services.AddSingleton<Nid.Ai.Application.IAssistantTools, Assistant.AssistantToolInvoker>();
         foreach (var action in RouteActions.All)
             services.AddScoped<Nid.Core.Contracts.IProposalHandler>(sp => ActivatorUtilities.CreateInstance<RouteProposal>(sp, action));
 

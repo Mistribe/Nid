@@ -623,7 +623,7 @@ livrée par défaut.
 
 - **Liste autorisée explicite** : une vingtaine d'outils de lecture et quelques `propose_*`, fixée par #173 ; le reste
   est écarté, et un test échoue si un outil n'est ni autorisé ni écarté. Écartés d'office : `upload_document`,
-  `request_document_upload`, `delete_proposal`.
+  `request_document_upload`, `read_document`, `delete_proposal`.
 - `apply` est retiré des schémas d'outils de l'assistant ; ses `propose_*` n'ont pas de `documentId`, donc ne lient aucun
   document.
 - **Une proposition soumise par l'assistant n'est visible que de son auteur** tant qu'elle n'est pas décidée, même sur
@@ -639,6 +639,14 @@ livrée par défaut.
   auteur. Son empreinte de dédoublonnage porte son auteur, et le remplacement par sujet ne se fait qu'entre propositions
   de l'assistant du même auteur ; une proposition d'une autre origine ne remplace jamais une proposition de l'assistant.
   Une fois décidée, elle suit les règles de son élément.
+- **Livré (#499)** : `AssistantCatalogue` autorise 27 outils, chacun avec ses classes de données (`figures`, et
+  `bank_labels` pour les lignes bancaires et les deux propositions qui en partent : `propose_bank_link`,
+  `propose_bank_categories`) ; tous les autres sont écartés, dont les outils de documents, les `propose_*` copiés d'un
+  document, les simulations et tous les outils d'écriture directe (`RouteActions`). Les schémas offerts au modèle n'ont ni
+  `apply` ni `documentId`, retirés aussi des arguments reçus. L'appel passe par l'outil MCP lui-même, dans une portée à
+  lui, sous `Actor.Assistant` de la personne : il ne lit que ce qu'elle lit. Il est audité `mcp_tool_called` avec
+  `via: assistant`, le nom de l'outil et les identifiants des arguments. Une réponse plus longue que la borne donnée par
+  l'appelant est refusée entière (« narrow the request »).
 
 ### 8.3 Boucle, rendu et limites (décisions P et Q)
 
