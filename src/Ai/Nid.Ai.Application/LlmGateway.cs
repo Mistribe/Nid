@@ -28,7 +28,9 @@ public sealed record LlmChatRequest(
 /// (<see cref="LlmChatRequest.Pin"/>), so what was read for one never reaches another. <see cref="LlmChatRequest.Served"/>
 /// learns it once the call answers.
 /// </summary>
-public sealed record LlmDestination(LlmPlacement Placement, string Name, Guid? WorkerId = null, string? ProfileId = null)
+/// <remarks><see cref="ContextTokens"/> (#527): how much the model that answered reads, as its worker declares it or its profile
+/// says; null when unknown.</remarks>
+public sealed record LlmDestination(LlmPlacement Placement, string Name, Guid? WorkerId = null, string? ProfileId = null, int? ContextTokens = null)
 {
     /// <summary>Out of the household's premises: a remote worker or the cloud.</summary>
     public bool Offsite => Placement != LlmPlacement.Local;
@@ -257,7 +259,8 @@ public sealed class WorkerProvider(IModelRequests requests) : ILlmProvider
             throw new ModelCallException(JobCodes.NoWorker); // pinned to a cloud provider: no worker may see this turn
         await foreach (var frame in requests.StreamAsync("chat", 1, ContractJson.Write(input), dataClass, trace.Pin?.WorkerId, ct,
                            model: input.Model, served: worker => (trace.WorkerId, trace.Destination) = (worker.Id, new LlmDestination(
-                               worker.Placement == WorkerPlacement.Remote ? LlmPlacement.Remote : LlmPlacement.Local, worker.Name, WorkerId: worker.Id))))
+                               worker.Placement == WorkerPlacement.Remote ? LlmPlacement.Remote : LlmPlacement.Local, worker.Name, WorkerId: worker.Id,
+                               ContextTokens: WorkerRouter.DeclarationOf(worker)?.Models.FirstOrDefault(m => m.Name == input.Model)?.ContextTokens))))
             yield return ContractJson.Read<ChatRequestOutput>(frame.Span);
     }
 }

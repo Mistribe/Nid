@@ -37,7 +37,7 @@ export function EditDocumentDialog({ detail, onClose, onDone }: { detail: Docume
     setErrors(dateError ? { documentDate: dateError } : {});
     setProblem(null);
     if (dateError) return;
-    edit.mutate({ params: { path: { id: doc.id } }, body: { title: values.title, documentDate: date || null, note: values.note || null } }, {
+    edit.mutate({ params: { path: { id: doc.id } }, body: { title: values.title, documentDate: date || null, note: values.note || null, version: doc.version } }, {
       onSuccess: () => done(t('documents_page.edit_dialog.saved')),
       onError: (error) => {
         const placed = (toProblem(error).errors ?? []).flatMap((e) => FIELDS.find((f) => f === e.path) ?? []);

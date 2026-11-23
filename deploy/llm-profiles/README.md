@@ -12,6 +12,7 @@ Réglages › IA, après avoir confirmé la région du foyer, entré la clé du 
 | `host` | Le seul hôte que l'adaptateur peut joindre, en HTTPS |
 | `model` | Le modèle imposé par le profil |
 | `capabilities` | Ce qu'il sert : `chat` |
+| `contextTokens` | Ce que le modèle lit, en jetons (1 024 au moins), obligatoire : l'assistant en borne ce qu'il envoie (#527). Mieux vaut une valeur prudente : trop basse, elle ne fait que demander des questions plus précises |
 | `dataTerms.trainsOnData` | Par région (`eea_ch_uk`, `other`) : `true` refuse le profil au chargement |
 | `dataTerms.humanReview`, `retentionDays`, `retentionSwitches` | Ce que le fournisseur fait des demandes |
 | `dataTerms.termsUrl`, `reviewedOn` | Les conditions lues et leur date ; au-delà de 90 jours, Réglages › IA prévient |

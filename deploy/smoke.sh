@@ -49,8 +49,8 @@ echo "ok: nid runs with a read-only root, no capability and user 1654"
 echo "ok: a missing asset is a 404 and /mcp is not the SPA"
 
 # #476: a model worker next to Nid for the « Réglages › IA » journey, which pairs it with the code and fingerprint of its console
-# (« Pairing code: ABCD-EFGH  Key fingerprint: <hex> »).
-"${COMPOSE[@]}" --profile worker up -d --build --wait --wait-timeout 300 worker
+# (« Pairing code: ABCD-EFGH  Key fingerprint: <hex> »). #528: with the scripted engine of compose.local.yaml, for the assistant.
+"${COMPOSE[@]}" --profile worker up -d --build --wait --wait-timeout 300 worker engine
 # `unpair` rather than `pairing-code`: a worker-data volume left by an earlier run holds a pairing; its last line is the new code.
 read -r _ _ code _ _ fingerprint < <("${COMPOSE[@]}" --profile worker exec -T worker dotnet Nid.Ai.Worker.dll unpair | tail -1) || true
 [[ $code =~ ^[A-Z0-9]{4}-[A-Z0-9]{4}$ && -n $fingerprint ]] || { echo "FAIL: the worker gave no pairing code (unpair: $code $fingerprint)" >&2; exit 1; }

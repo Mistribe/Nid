@@ -56,12 +56,13 @@ public sealed partial class LlmProfileLoader : ILlmProfiles
             || !CloudRegions.All.All(terms.TrainsOnData.ContainsKey) || terms.TrainsOnData.Values.Any(trains => trains)
             || !Uri.TryCreate(terms.TermsUrl, UriKind.Absolute, out var url) || url.Scheme != Uri.UriSchemeHttps
             || LocalDatePattern.Iso.Parse(terms.ReviewedOn) is not { Success: true } reviewed
-            || (file.Tier == "paid" && file.Pricing is null))
+            || (file.Tier == "paid" && file.Pricing is null)
+            || file.ContextTokens is not (>= 1024 and <= 10_000_000))
             return null;
 
         return new LlmProfile(file.Id, file.Provider, file.Tier, file.Host, file.Model, file.Capabilities,
             new DataTerms(terms.TrainsOnData, terms.HumanReview, terms.RetentionDays, terms.RetentionSwitches ?? [], terms.TermsUrl, reviewed.Value),
-            file.Quotas, file.Pricing);
+            file.Quotas, file.Pricing, file.ContextTokens.Value);
     }
 
     private static IEnumerable<(string Name, string Json)> Embedded()
@@ -81,7 +82,7 @@ public sealed partial class LlmProfileLoader : ILlmProfiles
 
 internal sealed record ProfileFile(
     string Id, string Provider, string Tier, string Host, string Model, IReadOnlyList<string> Capabilities, TermsFile? DataTerms,
-    Quotas? Quotas = null, Pricing? Pricing = null);
+    Quotas? Quotas = null, Pricing? Pricing = null, int? ContextTokens = null);
 
 internal sealed record TermsFile(
     IReadOnlyDictionary<string, bool> TrainsOnData, bool HumanReview, string TermsUrl, string ReviewedOn, int? RetentionDays = null,

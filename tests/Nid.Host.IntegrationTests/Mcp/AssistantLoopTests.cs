@@ -80,6 +80,27 @@ public sealed class AssistantLoopTests(PostgresFixture fixture) : IClassFixture<
         Assert.Equal(3, model.Requests.Count);
     }
 
+    [Theory]
+    [InlineData(null, 24_000)] // the model's context unknown: the configured ceiling
+    [InlineData(10_000, 5_904)] // ((10 000 − 2 048) × 4 − 20 000) / 2 calls
+    [InlineData(1_000_000, 24_000)] // a large context: still the ceiling
+    [InlineData(5_000, 0)] // nothing left: any answer asks for a narrower request
+    public void A_tool_answer_gets_its_share_of_what_the_model_can_still_read(int? context, int bound)
+        => Assert.Equal(bound, AssistantLoop.ResultBound(context, maxTokensPerStep: 2048, usedChars: 20_000, calls: 2, ceiling: 24_000));
+
+    [Fact]
+    public async Task A_turn_that_no_longer_fits_the_models_context_stops_before_the_call()
+    {
+        var small = Salon with { ContextTokens = 3_000 };
+        var model = new ScriptedGateway(small, _ => Calls(("list_persons", "{}")), _ => Says("Jamais lu."));
+        await using var app = await StartAsync(model);
+
+        var events = await TurnAsync(app, "Qui ?");
+
+        Assert.Equal(new AssistantDone("salon", "llama3.2", AssistantStops.ContextFull), events[^1]);
+        Assert.Single(model.Requests);
+    }
+
     [Fact]
     public async Task The_loop_stops_when_the_turn_takes_too_long()
     {

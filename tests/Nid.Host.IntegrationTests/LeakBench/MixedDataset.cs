@@ -146,6 +146,15 @@ public sealed class MixedDataset
     /// </summary>
     public IReadOnlyDictionary<ItemId, Guid> Documents { get; }
 
+    /// <summary>#506: the version a document's edit or archive must name, read now (a write moves it), so an allowed writer succeeds.</summary>
+    public uint DocumentVersion(Guid document) => DocumentVersionAsync(document).GetAwaiter().GetResult();
+
+    private async Task<uint> DocumentVersionAsync(Guid document)
+    {
+        await using var scope = App.Services.CreateAsyncScope();
+        return (await scope.ServiceProvider.GetRequiredService<IDocumentStore>().FindAsync(document, CancellationToken.None))?.Version ?? 0;
+    }
+
     /// <summary>
     /// The phase of P-A's and P-B's income twins, keyed by row. Each owner's document is linked (<c>income.phase</c>, <c>payslip</c>)
     /// to that phase alone, and its title carries the private label, so the scans catch it if it is ever shown to the other adult.

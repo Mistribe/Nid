@@ -36,5 +36,21 @@ services:
       Nid__Smtp__From: nid@localtest.me
       Nid__Smtp__Security: None
 
+  # #528: a scripted engine for the Compose worker (local/fake-engine.mjs), so the « Assistant » journey runs end to end
+  # without a model. Never on a real deployment: there, the worker's engine is the household's Ollama or llama.cpp.
+  engine:
+    profiles: [worker]
+    image: node:26-alpine@sha256:6bd9ab43c0ec0190ca7b2d193906cb8b7edf6e7f4afa43ddeccd6452710bffb5
+    command: [node, /engine/fake-engine.mjs]
+    read_only: true
+    user: node
+    volumes: [./local/fake-engine.mjs:/engine/fake-engine.mjs:ro]
+    networks: [models]
+
+  worker:
+    environment:
+      Engine__Url: http://engine:11434
+      Engine__Models: nid-test-model
+
 networks:
   outside: {}

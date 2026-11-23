@@ -4,6 +4,7 @@
   "tier": "paid",
   "host": "api.openai.com",
   "model": "gpt-5.4-mini",
+  "contextTokens": 128000,
   "capabilities": [
     "chat"
   ],

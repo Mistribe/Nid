@@ -121,7 +121,8 @@ public sealed class GatewayTests(PostgresFixture fixture) : IClassFixture<Postgr
 
         await ChatAsync(world, new LlmChatRequest(ModelUses.Chat, Hello, [], 128, "figures", Served: d => served = d));
 
-        Assert.Equal(new LlmDestination(LlmPlacement.Local, paired.Name, WorkerId: paired.Id), served);
+        // #527: the context the worker declares for the model that answered.
+        Assert.Equal(new LlmDestination(LlmPlacement.Local, paired.Name, WorkerId: paired.Id, ContextTokens: 8192), served);
         Assert.False(served!.Offsite);
     }
 

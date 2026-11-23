@@ -79,7 +79,7 @@ public sealed class CloudTests(PostgresFixture fixture) : IClassFixture<Postgres
         var pinned = await Assert.ThrowsAsync<ModelCallException>(() => ChatAsync(app,
             new LlmChatRequest(ModelUses.Chat, Hello, [], 256, "figures", Pin: new LlmDestination(LlmPlacement.Local, "salon", WorkerId: Guid.NewGuid()))));
 
-        Assert.Equal(new LlmDestination(LlmPlacement.Cloud, "anthropic", ProfileId: "anthropic-claude"), served);
+        Assert.Equal(new LlmDestination(LlmPlacement.Cloud, "anthropic", ProfileId: "anthropic-claude", ContextTokens: 200_000), served);
         Assert.True(served!.Offsite);
         Assert.Equal(JobCodes.NoCloudProfile, pinned.Code);
         Assert.Single(anthropic.Requests);
@@ -224,18 +224,21 @@ public sealed class CloudTests(PostgresFixture fixture) : IClassFixture<Postgres
         Assert.Contains(shipped.All, p => p.Id == "anthropic-claude" && p.Host == "api.anthropic.com");
 
         const string trains = """
-            {"id":"x","provider":"anthropic","tier":"paid","host":"api.anthropic.com","model":"m","capabilities":["chat"],
+            {"id":"x","provider":"anthropic","tier":"paid","host":"api.anthropic.com","model":"m","capabilities":["chat"],"contextTokens":200000,
              "dataTerms":{"trainsOnData":{"eea_ch_uk":false,"other":true},"humanReview":false,"retentionDays":null,"retentionSwitches":[],
              "termsUrl":"https://example.test/terms","reviewedOn":"2026-11-22"},"pricing":{"inputPerMillion":1,"outputPerMillion":1,"currency":"USD"}}
             """;
         Assert.Null(LlmProfileLoader.Read(trains));
         Assert.Null(LlmProfileLoader.Read(trains.Replace("\"other\":true", "\"other\":false").Replace("\"tier\"", "\"tierr\"")));
         Assert.NotNull(LlmProfileLoader.Read(trains.Replace("\"other\":true", "\"other\":false")));
+        // #527: a profile says how much its model reads, or the assistant could not bound what it sends.
+        Assert.Null(LlmProfileLoader.Read(trains.Replace("\"other\":true", "\"other\":false").Replace("\"contextTokens\":200000,", "")));
+        Assert.All(shipped.All, p => Assert.True(p.ContextTokens >= 1024, p.Id));
     }
 
     private static LlmProfile Profile(string id, string host)
         => LlmProfileLoader.Read($$$"""
-            {"id":"{{{id}}}","provider":"anthropic","tier":"paid","host":"{{{host}}}","model":"claude-opus-5-5","capabilities":["chat"],
+            {"id":"{{{id}}}","provider":"anthropic","tier":"paid","host":"{{{host}}}","model":"claude-opus-5-5","capabilities":["chat"],"contextTokens":200000,
              "dataTerms":{"trainsOnData":{"eea_ch_uk":false,"other":false},"humanReview":true,"retentionDays":30,"retentionSwitches":[],
              "termsUrl":"https://www.anthropic.com/legal/commercial-terms","reviewedOn":"2026-11-22"},
              "pricing":{"inputPerMillion":4,"outputPerMillion":20,"currency":"EUR"}}
