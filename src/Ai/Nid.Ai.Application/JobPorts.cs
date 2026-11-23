@@ -160,6 +160,11 @@ public interface IAiSettings
     /// <summary>Records the adult's decision and applies it.</summary>
     /// <summary>False when another adult changed it at the same moment: nothing was written.</summary>
     Task<bool> SetRemoteWorkersAllowedAsync(bool allowed, Guid person, NodaTime.Instant at, CancellationToken ct);
+
+    /// <summary>#531: how long the assistant's conversations are kept, 30 days until set.</summary>
+    Task<int> ConversationRetentionDaysAsync(CancellationToken ct);
+
+    Task SetConversationRetentionDaysAsync(int days, CancellationToken ct);
 }
 
 public static class JobCodes

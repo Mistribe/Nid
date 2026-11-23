@@ -24,7 +24,7 @@ internal static class AiSettingsViews
     {
         var uses = await settings.UsesAsync(ct);
         return new AiSettingsView(await settings.RemoteWorkersAllowedAsync(ct),
-            [.. ModelUses.All.Select(u => new UseSettingView(u, uses[u].Mode, uses[u].Model))]);
+            [.. ModelUses.All.Select(u => new UseSettingView(u, uses[u].Mode, uses[u].Model))], await settings.ConversationRetentionDaysAsync(ct));
     }
 }
 

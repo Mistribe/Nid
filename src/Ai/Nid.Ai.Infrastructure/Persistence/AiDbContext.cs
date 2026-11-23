@@ -30,6 +30,10 @@ public sealed class AiDbContext(DbContextOptions<AiDbContext> options) : DbConte
 
     public DbSet<BudgetReservationRow> BudgetReservations => Set<BudgetReservationRow>();
 
+    public DbSet<ConversationRow> Conversations => Set<ConversationRow>();
+
+    public DbSet<ConversationMessageRow> ConversationMessages => Set<ConversationMessageRow>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schema);
@@ -150,7 +154,30 @@ public sealed class AiDbContext(DbContextOptions<AiDbContext> options) : DbConte
             e.Property(x => x.Models).HasColumnType("jsonb");
             e.Property(x => x.Region).HasMaxLength(16);
             e.Property(x => x.MonthlyBudgetEur).HasPrecision(10, 2);
+            e.Property(x => x.ConversationRetentionDays);
             e.Property(x => x.Version).HasColumnName("xmin").HasColumnType("xid").ValueGeneratedOnAddOrUpdate().IsConcurrencyToken();
+        });
+
+        modelBuilder.Entity<ConversationRow>(e =>
+        {
+            e.ToTable("conversation");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Title).HasMaxLength(Nid.Ai.Application.ConversationRules.MaxTitle);
+            e.Property(x => x.Provider).HasMaxLength(200);
+            e.Property(x => x.Model).HasMaxLength(200);
+            e.HasIndex(x => new { x.PersonId, x.UpdatedAt });
+            e.HasIndex(x => x.UpdatedAt);
+        });
+
+        modelBuilder.Entity<ConversationMessageRow>(e =>
+        {
+            e.ToTable("conversation_message", t => t.HasCheckConstraint("ck_conversation_message_role", "role in ('user', 'assistant')"));
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Role).HasMaxLength(16);
+            e.HasOne<ConversationRow>().WithMany().HasForeignKey(x => x.ConversationId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => new { x.ConversationId, x.Seq }).IsUnique();
         });
 
         modelBuilder.Entity<ConsentRow>(e =>

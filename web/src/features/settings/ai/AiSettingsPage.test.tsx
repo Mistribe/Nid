@@ -32,7 +32,7 @@ function serve(workers: unknown[], allowed = false, uses = USES, profile = PROFI
     http.get('*/api/v1/ai/budget', () => HttpResponse.json(BUDGET)),
     http.get('*/api/v1/ai/cloud', () => HttpResponse.json({ region: 'eea_ch_uk', profiles: [profile] })),
     http.get('*/api/v1/ai/workers', () => HttpResponse.json({ workers })),
-    http.get('*/api/v1/ai/settings', () => HttpResponse.json({ remoteWorkersAllowed: allowed, uses })),
+    http.get('*/api/v1/ai/settings', () => HttpResponse.json({ remoteWorkersAllowed: allowed, uses, conversationRetentionDays: 30 })),
     http.get('*/api/v1/ai/models', () => HttpResponse.json({ models: [{ name: 'llama3.2', capability: 'chat', workers: 1 }] })),
   );
 }
@@ -142,6 +142,29 @@ describe('Réglages › IA', () => {
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByText(FINGERPRINT)).toBeInTheDocument();
     expect(within(dialog).getByLabelText("Code d'appairage")).toBeInTheDocument();
+  });
+
+  it("sets how long the assistant's conversations are kept, 1 to 365 days", async () => {
+    serve([worker()]);
+    const saved: unknown[] = [];
+    server.use(http.put('*/api/v1/ai/settings/conversation-retention', async ({ request }) => {
+      saved.push(await request.json());
+      return HttpResponse.json({ remoteWorkersAllowed: false, uses: USES, conversationRetentionDays: 7 });
+    }));
+    const { user } = await renderApp('/settings/ai');
+
+    const field = await screen.findByRole('textbox', { name: "Conserver les conversations de l'assistant (jours)" });
+    const save = screen.getByRole('button', { name: 'Enregistrer la durée' });
+    expect(field).toHaveValue('30');
+    expect(save).toBeDisabled();
+    await user.clear(field);
+    await user.type(field, '400');
+    expect(save).toBeDisabled();
+    await user.clear(field);
+    await user.type(field, '7');
+    await user.click(save);
+
+    await waitFor(() => expect(saved).toEqual([{ days: 7 }]));
   });
 
   it('lets an adult who is not admin mark a worker safe and open remote workers, nothing else', async () => {

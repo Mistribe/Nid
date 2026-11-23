@@ -8,17 +8,16 @@ export type AssistantEvent =
   | { type: 'text'; text: string }
   | { type: 'tool'; tool: string }
   | { type: 'held_back'; count: number; destination: string; placement: string }
-  | { type: 'done'; provider: string; placement: string; model: string; reason: string; links: AssistantLink[] }
+  | { type: 'done'; provider: string; placement: string; model: string; reason: string; links: AssistantLink[]; conversationId: string | null }
   | { type: 'error'; code: string };
 
-export type AssistantMessage = { role: 'user' | 'assistant'; content: string };
-
 /**
- * One turn of `POST /api/v1/ai/assistant/turn` (#501): its server-sent events, in order. A refused request (a field, the
- * session) rejects with the server's problem, as a query would.
+ * One turn of `POST /api/v1/ai/assistant/turn` (#501): its server-sent events, in order. #531: in `conversation`, whose
+ * earlier words the server reads back itself; a new one without. A refused request (a field, the session) rejects with the
+ * server's problem, as a query would.
  */
-export async function* assistantTurn(api: Api, question: string, history: AssistantMessage[], signal?: AbortSignal): AsyncGenerator<AssistantEvent> {
-  const { response, error } = await api.fetchClient.POST('/api/v1/ai/assistant/turn', { body: { question, history }, parseAs: 'stream', signal });
+export async function* assistantTurn(api: Api, question: string, conversation: string | null, signal?: AbortSignal): AsyncGenerator<AssistantEvent> {
+  const { response, error } = await api.fetchClient.POST('/api/v1/ai/assistant/turn', { body: { question, conversationId: conversation }, parseAs: 'stream', signal });
   if (error !== undefined || !response.ok || !response.body) throw new ProblemError(error !== undefined ? toProblem(error) : { status: response.status });
   const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
   let buffer = '';

@@ -88,7 +88,7 @@ public sealed partial class AssistantLoop(ILlmGateway gateway, IAssistantTools t
     public IReadOnlyList<Guid> Seen => seen;
 
     public async IAsyncEnumerable<AssistantEvent> RunAsync(
-        PersonId person, IReadOnlyList<ChatMessage> history, string question, [EnumeratorCancellation] CancellationToken ct)
+        PersonId person, IReadOnlyList<ChatMessage> history, string question, [EnumeratorCancellation] CancellationToken ct, Guid? conversation = null)
     {
         var limits = options.Value;
         if (!turns.TryTake(person, limits.TurnsPerHour))
@@ -122,7 +122,7 @@ public sealed partial class AssistantLoop(ILlmGateway gateway, IAssistantTools t
                 yield break;
             }
             var request = new LlmChatRequest(ModelUses.Chat, messages, [.. offered.Values.Select(t => t.Schema)], limits.MaxTokensPerStep, dataClass,
-                Pin: destination, Served: served => Destination = destination ??= served);
+                ConversationId: conversation, Pin: destination, Served: served => Destination = destination ??= served);
             var text = new System.Text.StringBuilder();
             var calls = new List<ChatToolCall>();
             ChatUsage? usage = null;

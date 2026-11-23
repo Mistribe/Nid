@@ -149,7 +149,49 @@ public sealed class AiSettingsRow
     /// <summary>#488: the household's monthly ceiling for paid providers, in euros; 0 by default (no paid call).</summary>
     public decimal MonthlyBudgetEur { get; set; }
 
+    /// <summary>#531: how long the assistant's conversations are kept; null: 30 days.</summary>
+    public int? ConversationRetentionDays { get; set; }
+
     public uint Version { get; set; }
+}
+
+/// <summary>#531: an assistant conversation, its author's alone (§9). Its title is the first question, cut.</summary>
+public sealed class ConversationRow
+{
+    public Guid Id { get; set; }
+
+    public Guid PersonId { get; set; }
+
+    public required string Title { get; set; }
+
+    public string? Provider { get; set; }
+
+    public string? Model { get; set; }
+
+    public Instant CreatedAt { get; set; }
+
+    public Instant UpdatedAt { get; set; }
+}
+
+/// <summary>One message of a conversation: never a tool result (decision E); for an answer, the tools it called and the item
+/// ids they returned, for display.</summary>
+public sealed class ConversationMessageRow
+{
+    public Guid Id { get; set; }
+
+    public Guid ConversationId { get; set; }
+
+    public int Seq { get; set; }
+
+    public required string Role { get; set; }
+
+    public required string Content { get; set; }
+
+    public string[] Tools { get; set; } = [];
+
+    public Guid[] Items { get; set; } = [];
+
+    public Instant CreatedAt { get; set; }
 }
 
 /// <summary>One adult's decision on a data policy (<c>docs/ai/README.md</c> §6.2): who, about what, which way, when.</summary>

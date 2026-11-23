@@ -294,6 +294,8 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<Nid.Ai.Application.IWorkerMonitor, Nid.Ai.Application.WorkerMonitor>();
         services.AddScoped<Nid.Ai.Application.IJobDispatcher, Nid.Ai.Application.JobDispatcher>();
         services.AddScoped<Nid.Ai.Application.IJobPurge, Nid.Ai.Application.JobPurge>();
+        services.AddScoped<Nid.Ai.Application.IConversations, Nid.Ai.Infrastructure.Persistence.ConversationStore>();
+        services.AddScoped<Nid.Ai.Application.IConversationPurge, Nid.Ai.Application.ConversationPurge>();
         services.AddScoped<Nid.Ai.Application.IModelRequests, Nid.Ai.Application.ModelRequests>();
         // #486: the one way to a model; workers are the first link of the chain.
         services.AddScoped<Nid.Ai.Application.ILlmCalls, Nid.Ai.Infrastructure.Persistence.LlmCallStore>();

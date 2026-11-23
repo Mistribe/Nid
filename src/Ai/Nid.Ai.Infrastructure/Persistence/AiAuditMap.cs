@@ -23,5 +23,8 @@ public sealed class AiAuditMap : IAuditMap
     public IReadOnlySet<Type> Excluded { get; } = new HashSet<Type>
     {
         typeof(AuditEntryRow), typeof(JobRow), typeof(LlmCallRow), typeof(BudgetMonthRow), typeof(BudgetReservationRow),
+        // #531: a conversation is the person's words, purged with its retention; the audit is kept forever and never holds the
+        // question nor the answer (§8.4).
+        typeof(ConversationRow), typeof(ConversationMessageRow),
     };
 }
