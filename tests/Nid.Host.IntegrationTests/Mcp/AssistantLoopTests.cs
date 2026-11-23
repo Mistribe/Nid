@@ -42,7 +42,7 @@ public sealed class AssistantLoopTests(PostgresFixture fixture) : IClassFixture<
         Assert.Equal("Quels revenus ?", first.Messages[^1].Content);
         Assert.Equal(AssistantCatalogue.Allowed.Keys.Order(), first.Tools.Select(t => t.Name).Order());
         Assert.Null(first.Pin);
-        Assert.Equal(Salon, second.Pin);
+        Assert.Equal("local", second.Pin);
         var answer = second.Messages[^1];
         Assert.Equal((ChatRole.Tool, "call_0"), (answer.Role, answer.ToolCallId));
         Assert.Contains(source.ToString(), answer.Content);

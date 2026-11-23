@@ -127,18 +127,37 @@ public sealed class GatewayTests(PostgresFixture fixture) : IClassFixture<Postgr
     }
 
     [Fact]
-    public async Task A_turn_pinned_to_another_destination_reaches_no_worker()
+    public async Task A_turn_pinned_to_another_class_reaches_no_worker_and_says_why()
     {
         var engine = Engine();
         await using var world = await StartAsync(engine);
         await world.PairAsync();
         await SetModelAsync(world, "llama3.2");
-        var elsewhere = new LlmDestination(LlmPlacement.Cloud, "anthropic", ProfileId: "anthropic-claude");
 
-        var failed = await Assert.ThrowsAsync<ModelCallException>(() => ChatAsync(world, new LlmChatRequest(ModelUses.Chat, Hello, [], 128, "figures", Pin: elsewhere)));
+        var cloud = await Assert.ThrowsAsync<ModelCallException>(() => ChatAsync(world, new LlmChatRequest(ModelUses.Chat, Hello, [], 128, "figures", Pin: "cloud:anthropic-claude")));
+        var safe = await Assert.ThrowsAsync<ModelCallException>(() => ChatAsync(world, new LlmChatRequest(ModelUses.Chat, Hello, [], 128, "figures", Pin: "local+safe")));
 
-        Assert.Equal(JobCodes.NoWorker, failed.Code);
+        Assert.Equal((JobCodes.DestinationClassUnavailable, JobCodes.DestinationClassUnavailable), (cloud.Code, safe.Code));
         Assert.Empty(engine.ChatRequests);
+    }
+
+    [Fact]
+    public async Task A_turn_pinned_to_a_class_goes_to_any_worker_of_it()
+    {
+        await using var world = await PairedWorld.StartAsync(fixture, workers: 2, workerServices: s =>
+        {
+            s.Replace(ServiceDescriptor.Singleton(new EngineTransport(Engine())));
+            s.Configure<EngineOptions>(o => o.Url = "http://engine:11434");
+        });
+        await world.PairAsync();
+        var second = await world.PairAsync(index: 1);
+        await SetModelAsync(world, "llama3.2");
+        world.Routes.Down(new Uri(PairedWorld.UrlOf(0)).Host);
+        LlmDestination? served = null;
+
+        await ChatAsync(world, new LlmChatRequest(ModelUses.Chat, Hello, [], 128, "figures", Pin: "local", Served: d => served = d));
+
+        Assert.Equal((second.Id, "local"), (served!.WorkerId!.Value, served.Class));
     }
 
     [Fact]

@@ -38521,6 +38521,7 @@ export interface components {
             /** Format: date-time */
             createdAt: string;
             messages: components["schemas"]["ConversationMessageView"][];
+            policyClass?: null | string;
         };
         CorrectTaxAssessmentBody: {
             /** Format: int32 */

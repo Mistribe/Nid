@@ -164,6 +164,7 @@ public sealed class AiDbContext(DbContextOptions<AiDbContext> options) : DbConte
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.Title).HasMaxLength(Nid.Ai.Application.ConversationRules.MaxTitle);
+            e.Property(x => x.PolicyClass).HasMaxLength(80);
             e.Property(x => x.Provider).HasMaxLength(200);
             e.Property(x => x.Model).HasMaxLength(200);
             e.HasIndex(x => new { x.PersonId, x.UpdatedAt });
