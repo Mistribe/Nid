@@ -1,0 +1,23 @@
+{
+  "name": "nid-site",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.21.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview"
+  },
+  "dependencies": {
+    "@astrojs/starlight": "0.43.1",
+    "@astrojs/starlight-tailwind": "5.0.0",
+    "@lucide/astro": "1.78.0",
+    "@tailwindcss/vite": "4.3.5",
+    "astro": "7.4.13",
+    "starlight-links-validator": "0.27.0",
+    "tailwindcss": "4.3.5"
+  }
+}
