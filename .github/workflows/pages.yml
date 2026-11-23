@@ -1,0 +1,54 @@
+name: pages
+
+# Publishes the project site (site/, issue #545) on GitHub Pages at nid.mistribe.com: the custom domain comes from
+# site/public/CNAME, the repository's Pages source is « GitHub Actions ». Not a required check, so `paths:` is allowed here
+# (ci.yml explains why the required ones have none); pull requests build the site through site.yml instead. deploy/README.md is
+# a trigger because the install guide copies its commands.
+on:
+  push:
+    branches: [main]
+    paths: ['site/**', 'deploy/README.md']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One publication at a time; a newer one waits rather than cancelling one already deploying.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: site/package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26
+          cache: pnpm
+          cache-dependency-path: site/pnpm-lock.yaml
+      - run: pnpm --dir site install --frozen-lockfile
+      - run: pnpm --dir site build
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: site/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      pages: write # publish the artifact
+      id-token: write # the token Pages checks the deployment with
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
