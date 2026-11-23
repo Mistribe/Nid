@@ -1,0 +1,28 @@
+---
+title: "Options"
+description: "La synchro bancaire et le worker de modèles, à activer si vous le souhaitez."
+sidebar:
+  order: 7
+---
+
+## Synchro bancaire
+
+Nid lit les soldes et les opérations par [Enable Banking](https://enablebanking.com), en lecture seule : aucun appel de paiement. Elle est **désactivée par défaut** ; un administrateur l'active dans Administration › Banque, sans rien changer au compose.
+
+**Une application Enable Banking par adulte**, pour que chacun ne relie que ses propres comptes. Chaque adulte suit l'assistant de Réglages › Banques › « Mon application » : créer une application de production en mode restreint (gratuite, à usage personnel), y renseigner l'adresse de retour que l'assistant donne, déclarer la clé privée dans Nid, tester, puis relier ses banques.
+
+Le détail : [`deploy/README.md` §12](https://github.com/Mistribe/Nid/blob/main/deploy/README.md#12-synchronisation-bancaire-facultative).
+
+## Worker de modèles
+
+Le worker fait tourner ce qui demande un modèle : texte et OCR des documents, recherche par le sens, modèle local. Sans lui, Nid fonctionne.
+
+```bash
+docker compose --profile worker up -d worker
+docker compose exec worker dotnet Nid.Ai.Worker.dll pairing-code
+# Pairing code: ABCD-EFGH  Key fingerprint: 1a2b 3c4d …
+```
+
+Puis, en administrateur, dans Réglages › IA › « Ajouter un worker » : l'adresse `https://worker:8443`, l'empreinte à comparer, et le code d'appairage.
+
+Le détail, dont un modèle local avec Ollama : [`deploy/README.md` §15](https://github.com/Mistribe/Nid/blob/main/deploy/README.md#15-un-worker-de-modèles-facultatif).

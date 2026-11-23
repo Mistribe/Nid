@@ -1,0 +1,47 @@
+---
+title: "Sauvegarder"
+description: "Sauvegarder Nid, vérifier qu'on sait restaurer, et repartir après un sinistre."
+sidebar:
+  order: 6
+---
+
+## Standalone
+
+Le standalone n'a pas de service de sauvegarde. Sauvegardez ses volumes Docker avec vos outils : la base et les documents y sont. L'export JSON de l'application ne suffit pas seul, il ne contient pas encore les documents, les avis d'imposition ni les scénarios. Ou passez à la forme de référence.
+
+## Référence : chaque nuit, chiffré
+
+Chaque nuit à 03:30, le service `backup` fait un instantané **restic chiffré** de tout ce qu'il faut pour repartir : la base, celle de Pocket ID, les documents, les secrets et `.env`. Il en garde 7 quotidiens, 4 hebdomadaires et 12 mensuels, et vérifie le dépôt chaque dimanche.
+
+**Le mot de passe de la sauvegarde n'est pas dans la sauvegarde** : c'est lui qui l'ouvre. Gardez-en une copie hors de cette machine.
+
+Sauvegarder maintenant :
+
+```bash
+docker compose -f deploy/compose.yaml exec backup nid-backup backup-now
+```
+
+Savoir où en est la sauvegarde :
+
+```bash
+docker compose -f deploy/compose.yaml exec backup nid-backup status
+```
+
+## Une copie hors du domicile
+
+Pour la règle 3-2-1, ajoutez un dépôt distant (S3 ou `rest-server`) dans `deploy/backup-secrets/`, puis la surcouche à toutes vos commandes compose :
+
+```bash
+docker compose -f deploy/compose.yaml -f deploy/compose.backup-remote.yaml up -d
+```
+
+## Essayer une restauration, chaque trimestre
+
+```bash
+deploy/restore.sh --verify                  # depuis le dépôt local
+deploy/restore.sh --verify --from remote    # depuis le dépôt distant
+```
+
+Le script restaure dans un projet jetable, vérifie chaque table, puis supprime tout. Il ne touche pas votre installation.
+
+Le détail, dont la reprise après un sinistre : [`deploy/README.md` §6](https://github.com/Mistribe/Nid/blob/main/deploy/README.md#6-sauvegarder-et-restaurer).

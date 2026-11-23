@@ -1,0 +1,28 @@
+---
+title: "Options"
+description: "Bank sync and the model worker, to turn on if you wish."
+sidebar:
+  order: 7
+---
+
+## Bank sync
+
+Nid reads balances and transactions through [Enable Banking](https://enablebanking.com), read-only: no payment call. It is **off by default**; an administrator turns it on in Administration › Banque, with nothing to change in the compose file.
+
+**One Enable Banking application per adult**, so that each links only their own accounts. Each adult follows the guide in Réglages › Banques › « Mon application »: create a production application in restricted mode (free, for personal use), enter the return address the guide gives, declare the private key in Nid, test, then link their banks.
+
+The detail (in French): [`deploy/README.md` §12](https://github.com/Mistribe/Nid/blob/main/deploy/README.md#12-synchronisation-bancaire-facultative).
+
+## Model worker
+
+The worker runs what needs a model: document text and OCR, search by meaning, a local model. Without it, Nid works.
+
+```bash
+docker compose --profile worker up -d worker
+docker compose exec worker dotnet Nid.Ai.Worker.dll pairing-code
+# Pairing code: ABCD-EFGH  Key fingerprint: 1a2b 3c4d …
+```
+
+Then, as an administrator, in Réglages › IA › « Ajouter un worker »: the address `https://worker:8443`, the fingerprint to compare, and the pairing code.
+
+The detail, including a local model with Ollama (in French): [`deploy/README.md` §15](https://github.com/Mistribe/Nid/blob/main/deploy/README.md#15-un-worker-de-modèles-facultatif).

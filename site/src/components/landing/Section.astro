@@ -1,0 +1,16 @@
+---
+// A titled band of the landing page.
+interface Props { title: string; lead?: string }
+const { title, lead } = Astro.props;
+---
+<section class="band not-content">
+  <h2>{title}</h2>
+  {lead && <p class="lead">{lead}</p>}
+  <slot />
+</section>
+
+<style>
+  .band { margin-block: 4.5rem; }
+  .band h2 { font-size: clamp(1.6rem, 3vw, 2.1rem); line-height: 1.2; font-weight: 700; color: var(--sl-color-white); margin: 0; }
+  .lead { margin: 0.6rem 0 1.6rem; max-width: 46rem; color: var(--sl-color-gray-2); font-size: 1.1rem; }
+</style>

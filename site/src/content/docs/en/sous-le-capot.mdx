@@ -1,0 +1,45 @@
+---
+title: Under the hood
+description: How Nid is built, tested and secured, and what it does with your data.
+---
+
+Nid holds a household's finances: its figures must be right, and its data must stay at home. Here is how.
+
+## Architecture
+
+- **A modular monolith in C# / .NET**: one module per area (banking, investments, property, income, childcare, documents…), with strict boundaries between them.
+- **A React web app**, installable as an app (PWA), in light and dark.
+- **PostgreSQL** for the data, **Docker Compose** for hosting, on a home server or a mini PC.
+- **An MCP server** (`/mcp`) so your AI assistant can read your figures and propose changes.
+
+The detail: [the technical architecture](https://github.com/Mistribe/Nid/blob/main/docs/architecture.md) on GitHub (in French).
+
+## Figures you can rely on
+
+- **The server computes, never the AI.** Gains, returns, schedules and tax are deterministic, tested computations. An assistant may read, search and propose; it does not compute.
+- **The AI proposes, a person approves.** Every change from an assistant or a document waits in « À valider » (to review).
+- **Every figure keeps its source**: entered by hand, imported, read from a bank, or proposed from a document.
+- **The loan schedule engine** is checked against 3,000 reference loans.
+
+## Quality
+
+- **Every pull request** runs the tests of what it changes: the server's unit and integration tests, the web app's tests, end-to-end journeys in a real browser.
+- **A SonarQube quality gate** blocks the merge of code that fails it, and CodeQL analyses every pull request.
+- **Every merge is a release**: public images for amd64 and arm64, with a signed provenance attestation.
+
+## Security
+
+- Sign in with an identifier and a password kept by Nid (at least 12 characters, checked against common passwords), with two-step verification, or with passkeys through Pocket ID.
+- Private items are seen by their owner only, everywhere: the app, the dashboard and the MCP.
+- An audit log of every change and of security events.
+- Report a vulnerability privately: [the security policy](https://github.com/Mistribe/Nid/blob/main/SECURITY.md).
+
+## Privacy
+
+Nid is self-hosted software, not a service. The project runs no server for it, receives no data from any installation, and has no account, analytics or telemetry.
+
+- **Your data stays at home**: the database, the documents and the backups are on your machine.
+- **Little leaves**: the provider catalogue and exchange rates, which carry no household data; bank sync or a cloud language model, only if you turn them on.
+- **An export** of your figures in one documented JSON file (documents, tax notices and scenarios are not in it yet), and encrypted backups every night in the reference setup.
+
+This site measures nothing either: no tracker, no font or script from anywhere else. The detail: [the privacy note](https://github.com/Mistribe/Nid/blob/main/PRIVACY.md).

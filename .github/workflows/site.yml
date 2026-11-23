@@ -1,0 +1,31 @@
+name: site
+
+# The project site (site/, issue #545): Astro build, internal links, then scripts/check-dist.mjs (nothing fetched from another
+# site, alt text, every page in French and English) and its tests. Called by ci.yml when a pull request touches site/ or
+# deploy/README.md, which the install guide copies its commands from (ci.yml says why the filter lives there and not in a
+# `paths:` here); `gh workflow run site.yml` runs it alone. pages.yml publishes it on main.
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: site/package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26
+          cache: pnpm
+          cache-dependency-path: site/pnpm-lock.yaml
+      - run: pnpm --dir site install --frozen-lockfile
+      - run: pnpm --dir site check

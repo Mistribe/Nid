@@ -1,0 +1,23 @@
+---
+// Starlight's footer, then the project's links: GitHub, the licence, the release notes. No version number: it would go stale
+// with the next release of the app, and fetching it would leave the site.
+import Default from '@astrojs/starlight/components/Footer.astro';
+
+const copy = {
+  fr: { licence: 'Licence MIT', notes: 'Notes de version', demo: 'Démo' },
+  en: { licence: 'MIT licence', notes: 'Release notes', demo: 'Demo' },
+}[Astro.locals.starlightRoute.lang === 'en' ? 'en' : 'fr'];
+---
+<Default><slot /></Default>
+<nav class="project-links" aria-label="Nid">
+  <a href="https://demo.nid.mistribe.com">{copy.demo}</a>
+  <a href="https://github.com/Mistribe/Nid">GitHub</a>
+  <a href="https://github.com/Mistribe/Nid/blob/main/LICENSE">{copy.licence}</a>
+  <a href="https://github.com/Mistribe/Nid/releases">{copy.notes}</a>
+</nav>
+
+<style>
+  .project-links { display: flex; flex-wrap: wrap; gap: 0.5rem 1.25rem; justify-content: center; margin-top: 2rem; padding-top: 1.25rem; border-top: 1px solid var(--sl-color-hairline); font-size: var(--sl-text-sm); }
+  .project-links a { color: var(--sl-color-gray-3); text-decoration: none; }
+  .project-links a:hover { color: var(--sl-color-white); }
+</style>

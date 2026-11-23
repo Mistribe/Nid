@@ -1,0 +1,25 @@
+---
+title: "Prérequis"
+description: "Ce qu'il faut avoir avant d'installer Nid."
+sidebar:
+  order: 1
+---
+
+## Pour le standalone
+
+- **Docker** avec Compose v2.
+- **Un nom d'hôte**, par exemple `nid.example.org`.
+- **Un reverse proxy TLS** (Caddy, Traefik, nginx…) : Nid ne termine pas le TLS lui-même. Sur votre propre ordinateur, `http://localhost:8080` n'en demande pas.
+
+## Pour la forme de référence, en plus
+
+- `openssl` et `bash` sur l'hôte.
+- **Deux noms d'hôte**, par exemple `nid.example.org` et `auth.example.org`.
+- **Des passkeys** : Pocket ID n'authentifie que par passkey (empreinte, clé de sécurité, gestionnaire de mots de passe). Chaque adulte doit pouvoir en créer une.
+- **`nid` doit joindre `https://auth.<domaine>` depuis l'intérieur.** Si votre routeur ne renvoie pas vers lui-même le trafic destiné à votre adresse publique, faites résoudre ce nom vers votre proxy depuis `nid`.
+
+## Accès sortant
+
+`nid` est le seul service qui sort, en HTTPS : catalogue des fournisseurs, taux de change, et Enable Banking si la synchro bancaire est activée. Sans cet accès, Nid fonctionne, mais fournisseurs et taux se saisissent à la main.
+
+Le détail : [`deploy/README.md` §1](https://github.com/Mistribe/Nid/blob/main/deploy/README.md#1-prérequis).

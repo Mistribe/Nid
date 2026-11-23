@@ -1,0 +1,37 @@
+---
+title: "Tableau de bord"
+description: "L'accueil de Nid : où en est le foyer, ce qui a changé et ce qui arrive."
+sidebar:
+  order: 1
+---
+
+import Screen from '../../../components/Screen.astro';
+
+La page d'accueil répond en moins d'une minute aux questions du foyer. Tous les chiffres viennent du serveur, avec leur date : une valeur qu'on ne connaît pas est dite « inconnue », jamais zéro.
+
+## Les questions auxquelles il répond
+
+- Où en est-on, en tout et par personne ?
+- Combien nous reste-t-il ce mois-ci, une fois les engagements payés ?
+- Qu'est-ce qui a changé depuis le mois dernier ?
+- Qu'est-ce qui arrive dans les prochaines semaines ?
+
+<Screen name="tableau-de-bord" alt="Le tableau de bord du foyer de démo : patrimoine net, revenus du mois, engagements, reste à vivre et répartition des revenus." />
+
+## Ce que fait Nid
+
+- **Quatre chiffres clés** : patrimoine net, revenus nets par mois, engagements par mois et reste à vivre.
+- **Où part le revenu du mois** : un diagramme qui suit chaque revenu jusqu'aux abonnements, aux crédits, aux charges des biens et à ce qui reste.
+- **La courbe du patrimoine** sur 12 mois, 3 ans ou depuis le début, avec les versements cumulés à côté de la valeur.
+- **Une projection du patrimoine** à 5, 10, 20 ou 30 ans, ou jusqu'à la retraite, avec une fourchette de « 9 cas sur 10 ».
+- **Depuis le mois dernier** : ce qui a bougé, et pourquoi (valeur des placements, capital remboursé, versements).
+- **À venir et À faire** : renouvellements, échéances, fins de contrat, valeurs à mettre à jour, propositions à valider, avec un calendrier du mois.
+- **La routine mensuelle** : moins de dix minutes pour mettre les valeurs à jour, la valeur du mois précédent proposée à chaque ligne.
+- **Le bilan annuel**, imprimable : l'année du foyer en une page.
+
+## Les termes
+
+- **Patrimoine net** : ce que le foyer possède (comptes, placements, biens) moins ce qu'il doit (capital restant des crédits).
+- **Engagements** : les dépenses prévues chaque mois : abonnements, échéances de crédit, charges des biens, garde d'enfants.
+- **Reste à vivre** : les revenus du mois moins les engagements, avant les dépenses du quotidien.
+- **Valeur à mettre à jour** : une valeur de placement plus ancienne que le rythme prévu pour son enveloppe ; Nid la signale plutôt que de la croire à jour.

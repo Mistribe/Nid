@@ -8,7 +8,11 @@
   "labels": ["technical", "no-changelog", "Small"],
   "packageRules": [
     { "matchManagers": ["nuget"], "groupName": "NuGet", "addLabels": ["backend"] },
-    { "matchManagers": ["npm"], "groupName": "web", "addLabels": ["web"] },
+    { "matchManagers": ["npm"], "matchFileNames": ["!site/**"], "groupName": "web", "addLabels": ["web"] },
+    {
+      "description": "The project site (site/, issue #545) has its own pnpm project: its own group and labels, not the web app's.",
+      "matchManagers": ["npm"], "matchFileNames": ["site/**"], "groupName": "site", "addLabels": ["infra"]
+    },
     {
       "description": "Claude Desktop's extension (#309): its bridge, vendored into the image, and the version the manual setup of the Sécurité page pins (web/src/features/security/mcpSnippets.ts), bumped together.",
       "matchFileNames": ["src/Hosting/Nid.Host/mcpb/**", "web/src/features/security/mcpSnippets.ts"], "groupName": "MCP extension", "addLabels": ["mcp", "infra"]

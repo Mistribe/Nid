@@ -1,0 +1,33 @@
+---
+title: "Income"
+description: "The household's salaries and other income, smoothed over the year."
+sidebar:
+  order: 5
+---
+
+import Screen from '../../../../components/Screen.astro';
+
+Nid tracks each adult's income: salaries and their changes, bonuses, rents. It works out a monthly income smoothed over the year, the one behind what is left to live on and the debt ratio.
+
+## The questions it answers
+
+- How much does the household earn per month, bonuses included?
+- How has our income changed over three years?
+- Is our withholding rate the right one?
+
+<Screen name="revenus" alt="The demo household's income overview: net income per month, the year's total and month by month." />
+
+## What Nid does
+
+- **Salaries and their phases**: a raise, part-time work, a contract end.
+- **Payslips**: the expected net and gross compared with the payslip's.
+- **One-off income**: a bonus, profit-sharing, a sale.
+- **Rents** of the current leases, counted without charges.
+- **The withholding rate** compared with the real rate the Tax module estimates.
+- **Visibility**: each adult chooses whether their income is visible to the other.
+
+## The terms
+
+- **Smoothed income**: the year's income brought back to an average month, bonuses included.
+- **Net and gross**: gross is the salary before social contributions, net what is paid before the income tax withheld at source.
+- **Withholding at source**: French income tax taken from the salary each month, at a rate the administration sets and you can adjust.
