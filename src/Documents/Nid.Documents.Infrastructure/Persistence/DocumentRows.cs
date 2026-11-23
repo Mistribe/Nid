@@ -59,3 +59,22 @@ public sealed class UploadTicketRow
     public string? SourceRef { get; set; }
     public Instant ExpiresAt { get; set; }
 }
+
+/// <summary>#167: one page of a document's text, as a worker read it; derived from the file, so not audited. Deleted with its
+/// document.</summary>
+public sealed class DocumentTextRow
+{
+    public Guid DocumentId { get; set; }
+    public int Page { get; set; }
+    public string Text { get; set; } = "";
+    public string Source { get; set; } = "";
+    public Instant ExtractedAt { get; set; }
+}
+
+/// <summary>#167: the job that asked for a document's text; the backfill asks only for documents without one.</summary>
+public sealed class DocumentTextJobRow
+{
+    public Guid DocumentId { get; set; }
+    public Guid JobId { get; set; }
+    public Instant QueuedAt { get; set; }
+}

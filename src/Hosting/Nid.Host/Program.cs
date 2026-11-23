@@ -129,6 +129,8 @@ if (!generatingOpenApi && !adminMode && builder.Configuration.GetValue("Jobs:Ena
     builder.Services.AddHostedService<Nid.Host.Jobs.CategoryBackfillStartup>();
     // Model jobs and worker declarations (docs/ai/README.md §4): a loop of its own, not on the Jobs screen.
     builder.Services.AddHostedService<Nid.Host.Jobs.ModelWorkLoop>();
+    // #167: the text of the documents stored before it, asked once.
+    builder.Services.AddHostedService<Nid.Host.Jobs.DocumentTextBackfillStartup>();
 }
 
 builder.Services.AddNidAuthentication(builder.Configuration, demo.Enabled);

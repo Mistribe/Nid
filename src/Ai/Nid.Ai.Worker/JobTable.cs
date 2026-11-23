@@ -20,7 +20,7 @@ public sealed class JobTable(IEnumerable<IJobHandler> handlers, IEnumerable<IReq
     public static readonly TimeSpan ResultLifetime = TimeSpan.FromMinutes(15);
 
     // The last registered handler of a type wins: a later registration replaces a built-in one.
-    private readonly Dictionary<(string, int), IJobHandler> _handlers = handlers.GroupBy(h => (h.Type, h.Version)).ToDictionary(g => g.Key, g => g.Last());
+    private readonly Dictionary<(string, int), IJobHandler> _handlers = handlers.Where(h => h.Available).GroupBy(h => (h.Type, h.Version)).ToDictionary(g => g.Key, g => g.Last());
     private readonly ConcurrentDictionary<string, Job> _jobs = new(StringComparer.Ordinal);
     private readonly SemaphoreSlim _slots = new(MaxConcurrent);
     private readonly CancellationTokenSource _stopping = new();

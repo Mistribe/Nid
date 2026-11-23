@@ -12,6 +12,9 @@ public interface IJobHandler
 
     int Version { get; }
 
+    /// <summary>False: the worker does not declare it and answers <c>unsupported</c> (document text without its tools).</summary>
+    bool Available => true;
+
     Task<byte[]> RunAsync(JsonElement input, byte[]? file, CancellationToken ct);
 }
 

@@ -12,6 +12,7 @@ builder.Services.Configure<WorkerOptions>(builder.Configuration.GetSection("Work
 builder.Services.TryAddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<StateStore>();
 builder.Services.AddSingleton<IJobHandler, EchoJob>();
+builder.Services.AddSingleton<IJobHandler, DocumentTextJob>();
 builder.Services.AddSingleton<IRequestHandler, EchoRequest>();
 builder.Services.Configure<EngineOptions>(builder.Configuration.GetSection("Engine"));
 builder.Services.TryAddSingleton(new EngineTransport(new SocketsHttpHandler { ConnectTimeout = TimeSpan.FromSeconds(5) }));

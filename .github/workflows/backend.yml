@@ -30,6 +30,9 @@ jobs:
           global-json-file: global.json
       - run: dotnet build Nid.slnx --configuration Release
       - run: git diff --exit-code -- web/src/api/openapi.json
+      # The worker's document text (#167) runs these tools; its tests skip where they are missing, never here.
+      - name: OCR tools
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends poppler-utils tesseract-ocr tesseract-ocr-eng tesseract-ocr-fra
       - name: Unit tests
         env:
           COVERAGE: ${{ inputs.coverage }}

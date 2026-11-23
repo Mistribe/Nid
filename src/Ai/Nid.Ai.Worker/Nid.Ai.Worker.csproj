@@ -2,10 +2,11 @@
   <PropertyGroup>
     <!-- A few requests at a time on a small box: the workstation GC keeps less memory. -->
     <ServerGarbageCollection>false</ServerGarbageCollection>
-    <!-- The image is the plain chiseled one, without ICU: nothing the worker writes depends on a culture. -->
+    <!-- No ICU: nothing the worker writes depends on a culture. -->
     <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="MimeKit" />
     <ProjectReference Include="..\Nid.Ai.Protocol\Nid.Ai.Protocol.csproj" />
   </ItemGroup>
 </Project>

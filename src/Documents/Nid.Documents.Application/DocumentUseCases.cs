@@ -99,7 +99,7 @@ internal static class DocumentFields
 [RequestHandler<UploadDocumentCommand, UploadedDocument>]
 public sealed class UploadDocumentHandler(
     IDocumentStore store, IDocumentStorage storage, DocumentAccess access, DocumentsOptions options, IHouseholdCalendar calendar,
-    IActorAccessor actor, IUnitOfWork unitOfWork, IClock clock)
+    IActorAccessor actor, IUnitOfWork unitOfWork, IClock clock, DocumentTexts texts)
     : IRequestHandler<UploadDocumentCommand, UploadedDocument>
 {
     public async ValueTask<Result<UploadedDocument>> HandleAsync(UploadDocumentCommand command, CancellationToken ct = default)
@@ -133,11 +133,12 @@ public sealed class UploadDocumentHandler(
 
         // Stored before the row: a row never points at missing bytes; bytes left by a failed insert are only unreferenced.
         var sha256 = await storage.PutAsync(command.Content, ct);
+        var document = new DocumentRecord(id, sha256, command.Content.Length, mediaType, fileName, title.Trim(), command.DocumentDate,
+            DocumentFields.Note(command.Note), person.Value, clock.GetCurrentInstant(), null, sourceRef);
         try
         {
             await using var transaction = await unitOfWork.BeginAsync(ct);
-            await store.CreateAsync(new DocumentRecord(id, sha256, command.Content.Length, mediaType, fileName, title.Trim(), command.DocumentDate,
-                DocumentFields.Note(command.Note), person.Value, clock.GetCurrentInstant(), null, sourceRef), ct);
+            await store.CreateAsync(document, ct);
             if (link is not null)
                 await store.AddLinkAsync(link, ct);
             await transaction.CommitAsync(ct);
@@ -147,6 +148,9 @@ public sealed class UploadDocumentHandler(
             // A concurrent upload stored the reference first: answered as if it had come before this one.
             return await ExistingAsync(sourceRef!, person, ct) ?? throw new InvalidOperationException("The source reference vanished.");
         }
+
+        // #167: its text, once stored. An upload never fails for it: the backfill of the next start asks again.
+        await texts.TryQueueAsync(document, link is null ? [] : [link], ct);
         return Result.Success(new UploadedDocument(id, false));
     }
 

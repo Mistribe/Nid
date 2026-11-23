@@ -93,6 +93,9 @@ public sealed class JobRow
 
     public required string DataClass { get; set; }
 
+    /// <summary>#167: the adults whose <c>allow</c> the job needs to leave the premises.</summary>
+    public Guid[] Concerned { get; set; } = [];
+
     public Guid? TargetWorkerId { get; set; }
 
     /// <summary><c>queued</c>, <c>running</c>, <c>succeeded</c>, <c>failed</c> or <c>dead</c>.</summary>

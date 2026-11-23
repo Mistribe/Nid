@@ -1,0 +1,12 @@
+{
+  "type": "object",
+  "properties": {
+    "mediaType": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "mediaType"
+  ],
+  "additionalProperties": false
+}
