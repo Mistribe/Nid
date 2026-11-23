@@ -224,7 +224,7 @@ public class CoreSourceTests(PostgresFixture fixture) : IClassFixture<PostgresFi
             new NotificationKind("tax_balance_due", "due_date", NotificationLevel.Info, "core", 7),
             new NotificationKind("net_worth_milestone", "finding", NotificationLevel.Info, "core", null, new SignalThreshold(50_000m, 1_000m, 10_000_000m, "eur")),
             new NotificationKind("savings_pace", "finding", NotificationLevel.Info, "core", null, new SignalThreshold(30m, 5m, 95m, "pct")),
-        ], source.Kinds);
+        ], source.Kinds.Select(k => k with { Template = null, Personal = false })); // the copy: NotificationCopyTests
     }
 
     [Fact]
