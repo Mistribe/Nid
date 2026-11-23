@@ -1,7 +1,30 @@
 ---
-title: Documents
+title: "Documents"
+description: "The household's papers, filed with what they concern."
 sidebar:
   order: 9
 ---
 
-Page being written.
+import Screen from '../../../../components/Screen.astro';
+
+Tax notices, deeds, amortization tables, yearly statements: Nid keeps the household's documents and links them to the item they concern. It also knows which ones are missing.
+
+## The questions it answers
+
+- Where is the flat's deed?
+- Which documents are we missing for this year?
+- Where is this loan's amortization table?
+
+<Screen name="documents" alt="The demo household's documents: the drop zone and the list of expected documents." />
+
+## What Nid does
+
+- **Upload** PDFs, images or e-mails, up to 25 MB.
+- **Each document is linked** to the property, loan, envelope or person it concerns.
+- **Expected documents**: what is missing for each item, and a button to upload it.
+- **« À classer »** (to file) for what is not linked yet, and filters by type, year and item.
+- **An assistant** can read a statement, a payslip or an amortization table and propose the values, which you approve.
+
+## The terms
+
+- **To file**: uploaded documents linked to no item of the household yet.

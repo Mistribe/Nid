@@ -1,7 +1,37 @@
 ---
-title: Dashboard
+title: "Dashboard"
+description: "Nid's home page: where the household stands, what changed and what is coming."
 sidebar:
   order: 1
 ---
 
-Page being written.
+import Screen from '../../../../components/Screen.astro';
+
+The home page answers the household's questions in under a minute. Every figure comes from the server, with its date: a value nobody knows is shown as « unknown », never as zero.
+
+## The questions it answers
+
+- Where do we stand, in total and per person?
+- What is left this month, once the commitments are paid?
+- What changed since last month?
+- What is coming in the next few weeks?
+
+<Screen name="tableau-de-bord" alt="The demo household's dashboard: net worth, the month's income, commitments, what is left and where the income goes." />
+
+## What Nid does
+
+- **Four key figures**: net worth, net income per month, commitments per month and what is left to live on.
+- **Where the month's income goes**: a diagram that follows each income to subscriptions, loans, property charges and what remains.
+- **The net worth curve** over 12 months, 3 years or since the start, with cumulative contributions next to the value.
+- **A net worth projection** over 5, 10, 20 or 30 years, or to retirement, with a « 9 cases out of 10 » range.
+- **Since last month**: what moved, and why (investment value, principal repaid, contributions).
+- **Coming up and To do**: renewals, payments, contract ends, values to update, proposals to review, with a monthly calendar.
+- **The monthly routine**: under ten minutes to update the values, last month's value offered on each line.
+- **The yearly review**, printable: the household's year on one page.
+
+## The terms
+
+- **Net worth**: what the household owns (accounts, investments, property) minus what it owes (loan principal left).
+- **Commitments**: the spending planned each month: subscriptions, loan payments, property charges, childcare.
+- **What is left**: the month's income minus the commitments, before everyday spending.
+- **Value to update**: an investment value older than its envelope's usual rhythm; Nid flags it rather than trust it.

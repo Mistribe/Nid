@@ -1,7 +1,35 @@
 ---
-title: Tax
+title: "Tax"
+description: "An estimate of the household's French income tax, and ways to lower it."
 sidebar:
   order: 6
 ---
 
-Page being written.
+import Screen from '../../../../components/Screen.astro';
+
+Nid estimates the household's French income tax from what it already knows: income, rents, investments, children, childcare costs. It compares the estimate with your tax notices and lets you simulate a change before you make it.
+
+## The questions it answers
+
+- How much income tax will we pay this year?
+- Is our withholding too high or too low?
+- How much would a PER contribution save?
+- Which tax bracket are we in?
+
+<Screen name="impot" alt="The demo household's tax overview: estimated tax, what is left per month, bracket, withholding rate and suggestions." />
+
+## What Nid does
+
+- **The year's estimate**, on the current scale, with the computation in detail.
+- **Withholding at source** compared with the real rate, and what to adjust.
+- **The tax notices** of each year, compared with the estimate.
+- **Simulations**: a PER contribution, the real-expenses regime for rents, one more child.
+- **Suggestions** with figures, to pay less, and what each one saves.
+- **The household's tax profile** and help with the return.
+
+## The terms
+
+- **Parts**: the household's number of shares in the French family quotient: 2 for a married or PACS couple, plus half a share for each of the first two children.
+- **Marginal bracket**: the rate applied to the last euro earned; it does not apply to the whole income.
+- **Average rate**: the tax divided by taxable income: what the tax really represents.
+- **Micro-foncier and réel**: two ways to declare rents in France: a flat 30 % allowance, or the real charges deducted.
