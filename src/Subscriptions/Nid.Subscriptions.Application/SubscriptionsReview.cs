@@ -1,4 +1,5 @@
 using Nid.Core.Contracts;
+using Nid.Subscriptions.Domain;
 using NodaTime;
 using UnambitiousFx.Functional;
 

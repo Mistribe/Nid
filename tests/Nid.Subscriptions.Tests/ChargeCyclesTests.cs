@@ -19,7 +19,7 @@ public class ChargeCyclesTests
     [InlineData(32, DurationUnit.Day, true)]
     [InlineData(31, DurationUnit.Day, false)]
     public void Longer_than_a_month(int count, DurationUnit unit, bool expected)
-        => Assert.Equal(expected, ChargeCycles.LongerThanAMonth(Duration.Create(count, unit).Ok()));
+        => Assert.Equal(expected, ChargeRules.LongerThanAMonth(Duration.Create(count, unit).Ok()));
 
     private static readonly LocalDate Today = new(2026, 1, 1);
 

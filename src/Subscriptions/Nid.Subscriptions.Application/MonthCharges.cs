@@ -29,7 +29,7 @@ public static class MonthCharges
         IReadOnlyList<BuiltSubscription> set, YearMonth month, Currency reference, RateTable rates, bool beyondHorizon, bool truncated = false)
     {
         var label = month.ToString("yyyy-MM", CultureInfo.InvariantCulture);
-        var inMonth = ChargeCycles.HouseholdCharges(beyondHorizon ? [] : set).Where(x => InMonth(x.Charge, month))
+        var inMonth = ChargeRules.HouseholdCharges(beyondHorizon ? [] : set).Where(x => InMonth(x.Charge, month))
             .OrderBy(x => x.Charge.Date).ThenBy(x => x.Sub.DisplayName, StringComparer.Ordinal).ToList();
         var converted = FxConversion.Convert(inMonth.Select(x => SpendingHistory.Piece(x.Charge)), rates, reference);
         var lines = inMonth.Select(x =>
@@ -47,11 +47,11 @@ public static class MonthCharges
 
     /// <summary>Every piece <see cref="Build"/> converts, for one rate query.</summary>
     public static IEnumerable<CostPiece> RatePieces(IReadOnlyList<BuiltSubscription> set, YearMonth month)
-        => ChargeCycles.HouseholdCharges(set).Where(x => InMonth(x.Charge, month)).Select(x => SpendingHistory.Piece(x.Charge));
+        => ChargeRules.HouseholdCharges(set).Where(x => InMonth(x.Charge, month)).Select(x => SpendingHistory.Piece(x.Charge));
 
     // The set always holds the whole history (the timelines start at each subscription's first phase), even beyond the horizon.
     private static string? FirstMonth(IReadOnlyList<BuiltSubscription> set)
-        => ChargeCycles.HouseholdCharges(set).Min(x => (LocalDate?)x.Charge.Date)?.ToString("yyyy-MM", CultureInfo.InvariantCulture);
+        => ChargeRules.HouseholdCharges(set).Min(x => (LocalDate?)x.Charge.Date)?.ToString("yyyy-MM", CultureInfo.InvariantCulture);
 
     private static bool InMonth(Charge charge, YearMonth month) => new YearMonth(charge.Date.Year, charge.Date.Month) == month;
 }
