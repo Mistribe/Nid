@@ -15608,6 +15608,7 @@ export interface paths {
                     month?: string;
                     from?: string;
                     to?: string;
+                    account?: string[];
                 };
                 header?: never;
                 path?: never;
@@ -15705,6 +15706,7 @@ export interface paths {
                     from?: string;
                     to?: string;
                     page?: number;
+                    account?: string[];
                 };
                 header?: never;
                 path?: never;
@@ -44117,6 +44119,7 @@ export interface components {
             leftEstimate?: null | string;
             /** Format: double */
             savingsRate?: null | number;
+            accounts: components["schemas"]["OptionView"][];
         };
         SpentView: {
             /** Format: date */

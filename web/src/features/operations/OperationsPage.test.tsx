@@ -107,15 +107,18 @@ describe('« Opérations »', () => {
     await user.click(filters());
     await pick(user, 'État', 'À relier');
     await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'operations', state: 'unlinked' }));
-    await pick(user, 'Compte', 'Compte courant');
+    await user.click(screen.getByRole('button', { name: 'Compte Tous les comptes' }));
+    await user.click(await screen.findByRole('menuitemcheckbox', { name: 'Compte courant' }));
+    await user.click(screen.getByRole('menuitemcheckbox', { name: 'Livret' }));
+    await user.keyboard('{Escape}');
     await pick(user, 'Catégorie', 'Sans catégorie');
     await user.click(screen.getByRole('radio', { name: 'Sorties' }));
     fireEvent.change(screen.getByRole('searchbox', { name: 'Rechercher' }), { target: { value: 'netflix' } });
 
-    await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'operations', state: 'unlinked', account: ['a1'], uncategorised: true, direction: 'out', q: 'netflix' }));
+    await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'operations', state: 'unlinked', account: ['a1', 'a2'], uncategorised: true, direction: 'out', q: 'netflix' }));
     await waitFor(() => {
       const last = new URLSearchParams(asked.at(-1));
-      expect(last.getAll('account')).toEqual(['a1']);
+      expect(last.getAll('account')).toEqual(['a1', 'a2']);
       expect(last.get('uncategorised')).toBe('true');
       expect(last.get('direction')).toBe('out');
       expect(last.get('q')).toBe('netflix');

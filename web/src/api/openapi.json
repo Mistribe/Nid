@@ -16399,6 +16399,17 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "account",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
           }
         ],
         "responses": {
@@ -16530,6 +16541,17 @@
             "schema": {
               "type": "integer",
               "format": "int32"
+            }
+          },
+          {
+            "name": "account",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
             }
           }
         ],
@@ -67263,7 +67285,8 @@
           "from",
           "to",
           "months",
-          "budgetIncomplete"
+          "budgetIncomplete",
+          "accounts"
         ],
         "type": "object",
         "properties": {
@@ -67342,6 +67365,12 @@
               "number"
             ],
             "format": "double"
+          },
+          "accounts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OptionView"
+            }
           }
         }
       },

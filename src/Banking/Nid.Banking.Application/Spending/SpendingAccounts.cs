@@ -1,3 +1,4 @@
+using Nid.Banking.Contracts;
 using Nid.Core.Contracts;
 
 namespace Nid.Banking.Application.Spending;
@@ -10,6 +11,9 @@ namespace Nid.Banking.Application.Spending;
 public sealed class SpendingAccounts(BankingAccess access, IAccountStore accounts, IVisibleItems visible)
 {
     public async Task<IReadOnlyList<Guid>> ForAsync(VisibilityScope scope, CancellationToken ct)
+        => [.. (await AccountsAsync(scope, ct)).Select(a => a.Id)];
+
+    public async Task<IReadOnlyList<BankAccount>> AccountsAsync(VisibilityScope scope, CancellationToken ct)
     {
         var readable = (await access.ReadableAsync(await accounts.AllAsync(ct), ct)).Select(r => r.Account).Where(a => !a.Ignored).ToList();
         // Archived envelopes too: their accounts' past months still count.
@@ -21,6 +25,6 @@ public sealed class SpendingAccounts(BankingAccess access, IAccountStore account
                     ? envelopes.Contains(envelope)
                     : scope != VisibilityScope.Household || await access.SharedAsync(account, adults, ct))
                 kept.Add(account.Id);
-        return [.. readable.Where(a => kept.Contains(a.CardOf ?? a.Id)).Select(a => a.Id)];
+        return [.. readable.Where(a => kept.Contains(a.CardOf ?? a.Id))];
     }
 }

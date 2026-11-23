@@ -317,7 +317,7 @@
       "pages": "Pages des opérations",
       "filter": {
         "search": "Rechercher", "search_placeholder": "Rechercher un libellé, un tiers…",
-        "account": "Compte", "account_all": "Tous les comptes",
+        "account": "Compte", "account_all": "Tous les comptes", "account_picked_one": "{{count}} compte", "account_picked_other": "{{count}} comptes",
         "owner": "Titulaire", "owner_all": "Tous les titulaires",
         "category": "Catégorie", "category_all": "Toutes les catégories", "category_none": "Sans catégorie",
         "category_search": "Rechercher une catégorie",

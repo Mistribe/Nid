@@ -191,6 +191,28 @@ describe('« Dépenses »', () => {
     expect(asked[0]).toContain('scope=me');
   });
 
+  it('counts the ticked accounts only, leaving out the household’s figures, and keeps them in the address', async () => {
+    const accounts = [{ id: 'a1', name: 'Compte joint' }, { id: 'a2', name: 'Livret' }];
+    const asked = spendingServer({ ...month, accounts });
+    const { user, router } = await renderApp('/spending');
+    await screen.findByRole('table', { name: 'Par catégorie' });
+    expect(screen.getByText('Reste ce mois-ci')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Comptes' }));
+    await user.click(await screen.findByRole('menuitemcheckbox', { name: 'Livret' }));
+    await waitFor(() => expect(new URLSearchParams(asked.at(-1)).getAll('account')).toEqual(['a2']));
+    await user.click(screen.getByRole('menuitemcheckbox', { name: 'Compte joint' }));
+    await waitFor(() => expect(new URLSearchParams(asked.at(-1)).getAll('account')).toEqual(['a2', 'a1']));
+    expect(router.state.location.search).toMatchObject({ account: ['a2', 'a1'] });
+    await user.keyboard('{Escape}');
+    expect(screen.getByRole('button', { name: 'Comptes (2)' })).toBeInTheDocument();
+    expect(screen.queryByText('Reste ce mois-ci')).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Tous les comptes' }));
+    await waitFor(() => expect(router.state.location.search).not.toHaveProperty('account'));
+    expect(await screen.findByText('Reste ce mois-ci')).toBeInTheDocument();
+  });
+
   it('steps through the months and the 12 months up to one', async () => {
     const asked = spendingServer();
     const { user, router } = await renderApp('/spending');
