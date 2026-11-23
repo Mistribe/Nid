@@ -63,6 +63,12 @@ public static class SecurityEventNames
 
     public const string AiProviderKeyRevoked = "ai_provider_key_revoked";
 
+    /// <summary>#533: an adult turned the assistant on or off for themselves (<c>enabled</c>), or changed their preference for
+    /// their data off the premises (<c>preference</c>).</summary>
+    public const string AiAssistantChanged = "ai_assistant_changed";
+
+    public const string AiOffsiteDefaultChanged = "ai_offsite_default_changed";
+
     /// <summary>Nid's own signing key towards workers was replaced.</summary>
     public const string NidWorkerKeyRotated = "nid_worker_key_rotated";
 

@@ -32,6 +32,10 @@ public static class AssistantEndpoints
 
     public sealed record ConversationRetentionBody(int? Days);
 
+    public sealed record AssistantEnabledBody(bool? Enabled);
+
+    public sealed record AssistantOffsiteBody(string? Preference);
+
     public sealed record AssistantTextEvent(string Text);
 
     public sealed record AssistantToolEvent(string Tool);
@@ -50,11 +54,15 @@ public static class AssistantEndpoints
     public static void MapAssistantEndpoints(this IEndpointRouteBuilder routes)
     {
         routes.MapPost("/api/v1/ai/assistant/turn", async (AssistantTurnBody body, IActorAccessor actors, AssistantLoop loop, IConversations conversations,
-                    IItemRegistry items, IAccessPolicy policy, IClock clock, CancellationToken ct) =>
+                    IAssistantPeople people, IItemRegistry items, IAccessPolicy policy, IClock clock, CancellationToken ct) =>
                 {
                     // Browser-only, as IBrowserOnly: a token never asks the assistant (§8.1).
                     if (actors.Current is not { PersonId: { } person, TokenId: null, Via: ActorOrigin.Ui })
                         return Result.Failure<object>(new Failure(BrowserOnlyCodes.Required, "The assistant is only available from a browser session.", null))
+                            .ToHttp(x => x);
+                    // #533: each adult turns it on for themselves (§6.2): that is their consent for their own data.
+                    if (!(await people.GetAsync(person, ct)).Enabled)
+                        return Result.Failure<object>(new Failure(AssistantPersonCodes.Off, "Turn the assistant on for yourself in Settings > AI first.", null))
                             .ToHttp(x => x);
                     var reader = new FieldReader();
                     var question = reader.Text(body.Question, "question");
@@ -93,6 +101,30 @@ public static class AssistantEndpoints
                 return deleted.TryGetValue(out _) ? Results.NoContent() : deleted.ToHttp(v => v);
             })
             .ReturnsNoContent();
+
+        var me = routes.MapGroup("/api/v1/ai/assistant/me").RequireAuthorization()
+            .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>();
+        me.MapGet("", async (IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new GetAssistantMeQuery(), ct)).ToHttp(view => view))
+            .Returns<AssistantMeView>();
+        me.MapPut("/enabled", async (AssistantEnabledBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                if (body.Enabled is { } enabled)
+                    return (await invoker.InvokeAsync(new SetAssistantEnabledCommand(enabled), ct)).ToHttp(change => change.View);
+                var reader = new FieldReader();
+                reader.Add("enabled", "request.required", "This field is required.");
+                return reader.Problem();
+            })
+            .Returns<AssistantMeView>();
+        me.MapPut("/offsite", async (AssistantOffsiteBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var preference = reader.Text(body.Preference, "preference");
+                return reader.Ok
+                    ? (await invoker.InvokeAsync(new SetAssistantOffsiteCommand(preference!), ct)).ToHttp(change => change.View)
+                    : reader.Problem();
+            })
+            .Returns<AssistantMeView>();
 
         routes.MapPut("/api/v1/ai/settings/conversation-retention", async (ConversationRetentionBody body, IInvoker invoker, CancellationToken ct) =>
             {

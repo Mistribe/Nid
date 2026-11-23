@@ -7,8 +7,7 @@ namespace Nid.Core.Infrastructure.Persistence;
 /// <summary>
 /// One query: shared items, plus — in the <c>Me</c> and <c>Mine</c> scopes — the private items the actor owns; <c>Mine</c> leaves out
 /// the items only dependents own (#360). A private item of the other adult is unreachable in every scope, which is the invariant the
-/// leak bench proves. An actor that reads shared items only (<c>Actor.SharedOnly</c>, #500) gets the <c>Household</c> set in
-/// every scope.
+/// leak bench proves. Off the premises (<c>Actor.Offsite</c>, #533), an item one of whose owners chose <c>never</c> is left out.
 /// </summary>
 public sealed class VisibleItems(CoreDbContext db, IActorAccessor? actors = null) : IVisibleItems
 {
@@ -20,8 +19,6 @@ public sealed class VisibleItems(CoreDbContext db, IActorAccessor? actors = null
 
     public async Task<IReadOnlySet<ItemId>> ForAsync(PersonId actor, VisibilityScope scope, bool includeArchived, CancellationToken ct)
     {
-        if (actors?.Current is { SharedOnly: true, PersonId: { } reader } && reader == actor)
-            scope = VisibilityScope.Household;
         var shared = VisibilityName(Visibility.Shared);
         var query = db.Items.AsNoTracking();
 
@@ -31,6 +28,11 @@ public sealed class VisibleItems(CoreDbContext db, IActorAccessor? actors = null
         query = scope == VisibilityScope.Household
             ? query.Where(i => i.Visibility == shared)
             : query.Where(i => i.Visibility == shared || i.Owners.Any(o => o.PersonId == actor.Value));
+        if (actors?.Current is { Offsite: { Never.Count: > 0 } offsite, PersonId: { } reader } && reader == actor)
+        {
+            var never = offsite.Never.Select(p => p.Value).ToArray();
+            query = query.Where(i => !i.Owners.Any(o => never.Contains(o.PersonId)));
+        }
         if (scope == VisibilityScope.Mine)
             query = query.Where(i => i.Owners.Any(o => db.Persons.Any(p => p.Id == o.PersonId && p.Kind == "adult")));
 

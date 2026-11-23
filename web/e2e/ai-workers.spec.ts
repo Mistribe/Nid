@@ -46,6 +46,8 @@ test('alice pairs the worker, tests it, finds its job and asks the assistant', a
   const headers = { 'X-Nid-Csrf': csrf };
   await expect.poll(async () => JSON.stringify(await (await page.request.get('/api/v1/ai/models')).json())).toContain('nid-test-model');
   expect((await page.request.put('/api/v1/ai/settings/uses/chat/model', { headers, data: { model: 'nid-test-model' } })).ok()).toBe(true);
+  // #533: each adult turns the assistant on for themselves.
+  expect((await page.request.put('/api/v1/ai/assistant/me/enabled', { headers, data: { enabled: true } })).ok()).toBe(true);
   const session = (await (await page.request.get('/auth/session')).json()) as { person: { id: string } };
   expect((await page.request.post('/api/v1/investments/envelopes', {
     headers,

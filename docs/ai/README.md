@@ -546,6 +546,13 @@ cet adulte (§6.3). Chaque décision est enregistrée (`consent_id`) et liée au
   et chaque propriétaire de chaque élément lié. Un document ne sort des lieux en tâche de fond (texte et OCR sur un
   worker distant, plongements vers un worker distant ou le cloud) qu'avec `allow` de **chacun** d'eux ; le réglage
   `embed` du foyer est nécessaire, jamais suffisant.
+- **Livré (#533), pour le chat** : chaque adulte active l'assistant pour lui (`assistant_person`, éteint par défaut ; un
+  tour est refusé avec `ai.assistant_off` avant). Quand l'usage `chat` peut aller au cloud, l'activation dit ce qui part
+  et les deux adultes sont prévenus (`ai.data_policy_changed`, `assistant_cloud_on`). Sa préférence `ai_offsite_default`
+  est gardée au même endroit, pas dans `core.person.preferences`, qui sont des réglages d'affichage : c'est une décision,
+  auditée, avec un événement de sécurité. Hors des lieux, l'acteur assistant porte `Actor.Offsite` : ses éléments à lui
+  partent, un élément dont **un** propriétaire a choisi `never` est retenu (`VisibleItems`, `AccessPolicy`), et la lecture
+  « partagé seulement » de #500 disparaît.
 
 ### 6.4 Filtrage des résultats d'outils (décision C)
 

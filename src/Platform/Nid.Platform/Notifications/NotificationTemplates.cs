@@ -243,6 +243,7 @@ public static class NotificationTemplates
             "cloud_off" => $"L'usage « {Use(p)} » ne passe plus que par les workers du foyer.",
             "cloud_profile_on" => $"Le fournisseur cloud « {p.GetValueOrDefault("profile")} » est activé : il peut recevoir les demandes des usages ouverts au cloud.",
             "cloud_profile_off" => $"Le fournisseur cloud « {p.GetValueOrDefault("profile")} » est désactivé.",
+            "assistant_cloud_on" => "Un adulte a activé l'assistant pour lui alors qu'il peut passer par un fournisseur cloud : ses propres chiffres peuvent y partir, jamais les éléments privés de l'autre adulte.",
             _ => "",
         };
     }
