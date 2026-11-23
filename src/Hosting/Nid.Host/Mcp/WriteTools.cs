@@ -123,7 +123,10 @@ public sealed partial class WriteTools
 
     /// <summary>What every write tool's description ends with (spec 4D1 §5): no « Untrusted » sentence, a rule on copying.</summary>
     public const string Rules = "Copy the document as written and invent nothing: leave out what it does not show. "
-        + "By default this creates a proposal that an adult approves in Nid; apply=true writes directly and needs the 'write:direct' scope.";
+        + "By default this creates a proposal that an adult approves in Nid" + ApplyClause;
+
+    /// <summary>Left out of the assistant's descriptions, which never apply (#499).</summary>
+    public const string ApplyClause = "; apply=true writes directly and needs the 'write:direct' scope.";
 
     /// <summary>Tranche 3 design §4.2: the source document, which the hand-written tools alone take.</summary>
     private const string DocumentArgument = "The id of the document this was read from, if it is in Nid (list_documents): it is linked to the element, "
