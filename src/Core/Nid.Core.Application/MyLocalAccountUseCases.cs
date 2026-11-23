@@ -61,8 +61,12 @@ public sealed record ConfirmMyTotpCommand(long Step, [property: JsonIgnore] IRea
     public SecurityEvent EventFor(object response) => SecurityEvent.Of(SecurityEventNames.TotpEnabled, (PersonId)response);
 }
 
-/// <summary>The adult turns their second factor off; the host has checked their password and a code.</summary>
-public sealed record DisableMyTotpCommand : ICommand<PersonInfo>, IBrowserOnly, IRecordsSecurityEvent
+/// <summary>
+/// The adult turns their second factor off; the host has checked their password and matched the code to a TOTP
+/// <paramref name="Step"/>, or hashed a recovery code. A step used already, a recovery code that matches none, or neither is
+/// <see cref="LocalAccountCodes.InvalidCode"/>.
+/// </summary>
+public sealed record DisableMyTotpCommand(long? Step, [property: JsonIgnore] string? RecoveryCodeHash) : ICommand<PersonInfo>, IBrowserOnly, IRecordsSecurityEvent
 {
     public SecurityEvent EventFor(object response) => SecurityEvent.Of(SecurityEventNames.TotpDisabled, ((PersonInfo)response).Id);
 }
@@ -98,12 +102,15 @@ public sealed class ConfirmMyTotpHandler(ILocalAccountStore accounts, IActorAcce
 }
 
 [RequestHandler<DisableMyTotpCommand, PersonInfo>]
-public sealed class DisableMyTotpHandler(ILocalAccountStore accounts, IActorAccessor actor) : IRequestHandler<DisableMyTotpCommand, PersonInfo>
+public sealed class DisableMyTotpHandler(ILocalAccountStore accounts, IActorAccessor actor, IClock clock) : IRequestHandler<DisableMyTotpCommand, PersonInfo>
 {
     public async ValueTask<Result<PersonInfo>> HandleAsync(DisableMyTotpCommand command, CancellationToken ct = default)
-        => actor.Current?.PersonId is { } me
-            ? await accounts.DisableTotpAsync(me, false, ct)
-            : Result.Failure<PersonInfo>(new NotFoundFailure("account", "me"));
+    {
+        if (actor.Current?.PersonId is not { } me)
+            return Result.Failure<PersonInfo>(new NotFoundFailure("account", "me"));
+        var (passed, _) = await SignInActor.PassAsync(accounts, me, command.Step, command.RecoveryCodeHash, clock.GetCurrentInstant(), ct);
+        return passed ? await accounts.DisableTotpAsync(me, false, ct) : SignInActor.InvalidCode<PersonInfo>();
+    }
 }
 
 [RequestHandler<RegenerateMyRecoveryCodesCommand, PersonId>]

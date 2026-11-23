@@ -59,6 +59,9 @@ public static class LocalAccountCodes
     /// <summary>The setup is closed: an adult exists. HTTP 404.</summary>
     public const string SetupClosed = "auth.setup_closed";
 
+    /// <summary>A TOTP or recovery code that is wrong, used already, or a replay. HTTP 400 on the Security page, 401 at sign-in.</summary>
+    public const string InvalidCode = "auth.invalid_code";
+
     /// <summary>Two-step verification is already on: turn it off first. HTTP 409.</summary>
     public const string TotpAlreadyEnabled = "auth.totp_already_enabled";
 }
