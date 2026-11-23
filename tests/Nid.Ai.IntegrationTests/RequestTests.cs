@@ -33,21 +33,26 @@ public sealed class RequestTests(PostgresFixture fixture) : IClassFixture<Postgr
         await using var world = await PairedWorld.StartAsync(fixture,
             workerServices: s => s.AddSingleton<WorkerRequestHandler>(new FailsAfterOne()));
         await world.PairAsync();
-        var seen = 0;
 
-        var failed = await Assert.ThrowsAsync<ModelRefused>(async () =>
-        {
-            await using var scope = Scope(world);
-            await foreach (var frame in scope.ServiceProvider.GetRequiredService<IModelRequests>()
-                               .StreamAsync("echo", 1, ContractJson.Write(new EchoRequestInput("x", 5)), "none", null, TestContext.Current.CancellationToken))
-            {
-                frame.OrThrow();
-                seen++;
-            }
-        });
+        var failed = await Assert.ThrowsAsync<ModelRefused>(() => StreamAsync(world, new EchoRequestInput("x", 5)));
 
-        Assert.Equal(1, seen);
+        Assert.Single(failed.Before);
         Assert.StartsWith(JobCodes.WorkerFailed, failed.Code);
+    }
+
+    [Fact]
+    public async Task Tester_reports_why_the_echo_failed_and_queues_no_job()
+    {
+        await using var world = await PairedWorld.StartAsync(fixture,
+            workerServices: s => s.AddSingleton<WorkerRequestHandler>(new FailsAfterOne()));
+        var worker = await world.PairAsync();
+
+        var response = await world.Nid.RawAsync(world.Nid.AdultA, HttpMethod.Post, $"/api/v1/ai/workers/{worker.Id}/test");
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+        Assert.Contains(JobCodes.WorkerFailed, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        var jobs = await world.Nid.RawAsync(world.Nid.AdultA, HttpMethod.Get, "/api/v1/ai/jobs");
+        Assert.Empty((await jobs.Content.ReadFromJsonAsync<ModelJobPage>(PairedWorld.NidJson, TestContext.Current.CancellationToken))!.Items);
     }
 
     [Fact]
@@ -127,12 +132,10 @@ public sealed class RequestTests(PostgresFixture fixture) : IClassFixture<Postgr
     private static async Task<List<byte[]>> StreamAsync(PairedWorld world, object input)
     {
         await using var scope = Scope(world);
-        var frames = new List<byte[]>();
-        await foreach (var frame in scope.ServiceProvider.GetRequiredService<IModelRequests>()
-                           .StreamAsync("echo", 1, System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(input, ContractJson.Strict), "none", null,
-                               TestContext.Current.CancellationToken))
-            frames.Add(frame.OrThrow().ToArray());
-        return frames;
+        var frames = await scope.ServiceProvider.GetRequiredService<IModelRequests>()
+            .StreamAsync("echo", 1, System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(input, ContractJson.Strict), "none", null,
+                TestContext.Current.CancellationToken).ReadAllAsync();
+        return [.. frames.Select(f => f.ToArray())];
     }
 
     private sealed class FailsAfterOne : WorkerRequestHandler

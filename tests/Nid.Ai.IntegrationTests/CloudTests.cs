@@ -158,6 +158,42 @@ public sealed class CloudTests(PostgresFixture fixture) : IClassFixture<Postgres
     }
 
     [Fact]
+    public async Task A_cut_after_the_first_words_keeps_its_code_and_tries_no_other_profile()
+    {
+        var anthropic = new FakeAnthropic();
+        anthropic.Cut(["Je commence"], "overloaded_error"); // before any output, this one would hand over
+        anthropic.Turn(["jamais"]);
+        await using var app = await StartAsync(anthropic, profiles: [Profile("anthropic-claude", "api.anthropic.com"), Profile("anthropic-second", "second.anthropic.test")]);
+        await EnableAsync(app, "anthropic-claude");
+        await EnableAsync(app, "anthropic-second");
+        await SetCloudModeAsync(app);
+
+        var failed = await Assert.ThrowsAsync<ModelRefused>(() => ChatAsync(app, "figures"));
+
+        Assert.Equal(JobCodes.CloudFailed, failed.Code);
+        Assert.Equal("Je commence", Assert.IsType<ChatRequestOutput>(Assert.Single(failed.Before)).Text);
+        Assert.Single(anthropic.Requests);
+    }
+
+    [Fact]
+    public async Task The_cloud_link_answers_only_its_refusal_for_data_or_a_pin_it_may_not_take()
+    {
+        await using var app = await StartAsync(new FakeAnthropic());
+        await EnableAsync(app);
+        await using var scope = Scope(app);
+        var cloud = scope.ServiceProvider.GetServices<ILlmProvider>().OfType<CloudProvider>().Single();
+        var turn = new ChatRequestInput("claude-opus-5-5", Hello, [], 256);
+
+        var localOnly = await Assert.ThrowsAsync<ModelRefused>(() =>
+            cloud.ChatAsync(turn, DataClasses.LocalOnly, new LlmCallTrace(), TestContext.Current.CancellationToken).ReadAllAsync());
+        var pinned = await Assert.ThrowsAsync<ModelRefused>(() =>
+            cloud.ChatAsync(turn, DataClasses.Figures, new LlmCallTrace { Pin = "local" }, TestContext.Current.CancellationToken).ReadAllAsync());
+
+        Assert.Equal((JobCodes.CloudNotAllowed, JobCodes.NoCloudProfile), (localOnly.Code, pinned.Code));
+        Assert.Empty(localOnly.Before.Concat(pinned.Before));
+    }
+
+    [Fact]
     public async Task The_key_is_kept_encrypted_and_never_comes_back()
     {
         await using var app = await StartAsync(new FakeAnthropic());
@@ -292,10 +328,7 @@ public sealed class CloudTests(PostgresFixture fixture) : IClassFixture<Postgres
 
     private static async Task<List<ChatRequestOutput>> ChatAsync(NidApp app, LlmChatRequest request)
     {
-        var outputs = new List<ChatRequestOutput>();
         await using var scope = Scope(app);
-        await foreach (var output in scope.ServiceProvider.GetRequiredService<ILlmGateway>().ChatAsync(request, TestContext.Current.CancellationToken))
-            outputs.Add(output.OrThrow());
-        return outputs;
+        return await scope.ServiceProvider.GetRequiredService<ILlmGateway>().ChatAsync(request, TestContext.Current.CancellationToken).ReadAllAsync();
     }
 }

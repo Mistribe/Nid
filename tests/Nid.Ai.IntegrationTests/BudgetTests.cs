@@ -186,9 +186,8 @@ public sealed class BudgetTests(PostgresFixture fixture) : IClassFixture<Postgre
     private static async Task ChatAsync(NidApp app)
     {
         await using var scope = Scope(app);
-        await foreach (var output in scope.ServiceProvider.GetRequiredService<ILlmGateway>()
-                           .ChatAsync(new LlmChatRequest(ModelUses.Chat, Hello, [], 256, "figures"), TestContext.Current.CancellationToken))
-            output.OrThrow();
+        await scope.ServiceProvider.GetRequiredService<ILlmGateway>()
+            .ChatAsync(new LlmChatRequest(ModelUses.Chat, Hello, [], 256, "figures"), TestContext.Current.CancellationToken).ReadAllAsync();
     }
 
     private static async Task<LlmCallRow> SingleCallAsync(NidApp app)

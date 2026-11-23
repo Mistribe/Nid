@@ -45,6 +45,23 @@ public sealed class FakeAnthropic : HttpMessageHandler
 
         events.Add($$$"""{"type":"message_delta","delta":{"stop_reason":"{{{stop}}}"},"usage":{"output_tokens":{{{tokensOut}}}}}""");
         events.Add("""{"type":"message_stop"}""");
+        Stream(events);
+    }
+
+    /// <summary>A turn cut by an error event (<paramref name="error"/>) after its first pieces of text.</summary>
+    public void Cut(string[] text, string error)
+        => Stream([
+            """{"type":"message_start","message":{"id":"msg_1","model":"claude-opus-5-5","usage":{"input_tokens":20,"output_tokens":1}}}""",
+            """{"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}""",
+            .. text.Select(t => new JsonObject
+            {
+                ["type"] = "content_block_delta", ["index"] = 0, ["delta"] = new JsonObject { ["type"] = "text_delta", ["text"] = t },
+            }.ToJsonString()),
+            new JsonObject { ["type"] = "error", ["error"] = new JsonObject { ["type"] = error, ["message"] = "Overloaded" } }.ToJsonString(),
+        ]);
+
+    private void Stream(IEnumerable<string> events)
+    {
         var body = string.Concat(events.Select(e => $"event: {JsonNode.Parse(e)!["type"]}\ndata: {e}\n\n"));
         _answers.Enqueue(() => new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(body, Encoding.UTF8, "text/event-stream") });
     }

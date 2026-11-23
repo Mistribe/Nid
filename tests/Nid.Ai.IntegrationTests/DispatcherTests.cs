@@ -32,6 +32,24 @@ public sealed class DispatcherTests(PostgresFixture fixture) : IClassFixture<Pos
     }
 
     [Fact]
+    public async Task A_job_whose_file_cannot_be_sent_fails_with_its_reason_and_reaches_no_worker()
+    {
+        await using var world = await PairedWorld.StartAsync(fixture, nidServices: s => s.AddSingleton<IJobFileSource>(new Files()));
+        await world.PairAsync();
+        var gone = await SubmitAsync(world, Echo("gone") with { FileRef = "test:gone" });
+        var large = await SubmitAsync(world, Echo("large") with { FileRef = "test:large" });
+        var nobody = await SubmitAsync(world, Echo("nobody") with { FileRef = "elsewhere:a" });
+
+        var views = new List<ModelJobView>();
+        foreach (var id in new[] { gone, large, nobody })
+            views.Add(await RunUntilAsync(world, id, j => j.Status is not ("queued" or "running")));
+
+        Assert.All(views, v => Assert.Equal("failed", v.Status));
+        Assert.All(views, v => Assert.Null(v.WorkerId));
+        Assert.Equal([JobCodes.FileMissing, JobCodes.TooLarge, JobCodes.FileMissing], views.Select(v => v.Error));
+    }
+
+    [Fact]
     public async Task A_job_moves_to_the_other_worker_when_its_worker_disappears()
     {
         var gate = new Gate();
@@ -474,5 +492,14 @@ public sealed class DispatcherTests(PostgresFixture fixture) : IClassFixture<Pos
         }
 
         public Task ResolveAsync(string key, CancellationToken ct) => Task.CompletedTask;
+    }
+
+    /// <summary>The files of the module <c>test</c>: <c>large</c> is over what a job may carry, any other is missing.</summary>
+    private sealed class Files : IJobFileSource
+    {
+        public string Module => "test";
+
+        public Task<byte[]?> ReadAsync(string reference, CancellationToken ct)
+            => Task.FromResult(reference == "large" ? new byte[JobSubmission.MaxFileBytes + 1] : null);
     }
 }

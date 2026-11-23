@@ -244,12 +244,9 @@ public sealed class GatewayTests(PostgresFixture fixture) : IClassFixture<Postgr
 
     private static async Task<List<ChatRequestOutput>> ChatAsync(PairedWorld world, LlmChatRequest request, Core.Contracts.PersonId? person = null)
     {
-        var outputs = new List<ChatRequestOutput>();
         await using var scope = world.Nid.Services.CreateAsyncScope();
         scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = person is { } p ? Actor.Browser(p) : Actor.System;
-        await foreach (var output in scope.ServiceProvider.GetRequiredService<ILlmGateway>().ChatAsync(request, TestContext.Current.CancellationToken))
-            outputs.Add(output.OrThrow());
-        return outputs;
+        return await scope.ServiceProvider.GetRequiredService<ILlmGateway>().ChatAsync(request, TestContext.Current.CancellationToken).ReadAllAsync();
     }
 
     private static async Task<List<LlmCallRow>> CallsAsync(PairedWorld world)
