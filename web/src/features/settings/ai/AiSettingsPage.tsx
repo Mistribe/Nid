@@ -59,7 +59,6 @@ export function AiSettingsPage() {
   return (
     <SettingsFrame title={t('ai.title')} actions={(
       <>
-        <Button asChild variant="outline"><Link to="/settings/ai/assistant">{t('ai.assistant.link')}</Link></Button>
         {admin ? <Button type="button" onClick={() => setAdding({})}>{t('ai.workers.add')}</Button> : null}
       </>
     )}>

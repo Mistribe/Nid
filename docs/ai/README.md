@@ -683,6 +683,13 @@ livrée par défaut.
   ne tiendrait plus n'est pas envoyée et le tour s'arrête sur `context_full`. Un tour s'arrête sur la
   réponse du modèle (`end`, `length`, `refused`) ou une limite (`max_steps`, `timed_out`) ; un refus de la passerelle rend
   son code `ai.*`, le plafond de tours `ai.assistant_turn_limit`.
+- **Livré (#534)** : le chat est un panneau (`AssistantPanel`, chargé à la demande) ouvert par le bouton « Assistant » de
+  la barre du haut, sur toutes les pages. Il montre la conversation en cours, les outils consultés, les liens de Nid, la
+  ligne des résultats gardés, le fournisseur et le modèle ; il liste les conversations de la personne (page par page,
+  côté serveur), les rouvre et les supprime. Quand il ne peut pas répondre, il dit pourquoi : assistant non activé pour
+  soi, ou aucun modèle choisi (lien vers Réglages › IA pour un admin, « demandez à un administrateur » sinon). La page
+  d'essai de Réglages › IA (#501) est retirée. Une conversation rouverte montre ses outils, pas ses liens : ils sont
+  construits au moment du tour.
 
 ### 8.4 Audit
 
