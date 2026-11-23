@@ -16,6 +16,9 @@ public enum ActorOrigin
     Job,
     Import,
     AdminCli,
+
+    /// <summary>#497: the in-app assistant, acting for the signed-in person (<c>docs/ai/README.md</c> §8.1, decision L).</summary>
+    Assistant,
 }
 
 public static class ActorOriginWire
@@ -29,6 +32,7 @@ public static class ActorOriginWire
         ActorOrigin.Job => "job",
         ActorOrigin.Import => "import",
         ActorOrigin.AdminCli => "admin-cli",
+        ActorOrigin.Assistant => "assistant",
         _ => throw new ArgumentOutOfRangeException(nameof(origin), origin, null),
     };
 }
@@ -68,6 +72,13 @@ public sealed record Actor(ActorKind Kind, PersonId? PersonId, ActorOrigin Via, 
         => new(ActorKind.Person, person, ActorOrigin.Ui, AllScopes) { IsAdmin = isAdmin };
 
     /// <summary>The notification evaluation reading as that adult: read only, via the job.</summary>
+    /// <summary>
+    /// The in-app assistant for <paramref name="person"/> (#497, decision L): it reads what its person reads and proposes,
+    /// never applies (<c>write</c>, not <c>write:direct</c>), never admin, and never runs a browser-only command.
+    /// </summary>
+    public static Actor Assistant(PersonId person)
+        => new(ActorKind.Person, person, ActorOrigin.Assistant, new HashSet<string> { ScopeNames.Read, ScopeNames.Write });
+
     public static Actor Notifier(PersonId person) => new(ActorKind.Person, person, ActorOrigin.Job, new HashSet<string> { ScopeNames.Read });
 
     /// <summary>Bank sync (D22): the job proposing or writing a bank balance as the creator of the connection that read it.</summary>

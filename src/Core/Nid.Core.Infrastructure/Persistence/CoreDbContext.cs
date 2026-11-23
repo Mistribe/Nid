@@ -187,7 +187,7 @@ public sealed class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbC
             e.ToTable("proposal", t =>
             {
                 t.HasCheckConstraint("ck_proposal_status", "status in ('pending','approved','rejected','superseded')");
-                t.HasCheckConstraint("ck_proposal_created_via", "created_via in ('ui','api','mcp','job')");
+                t.HasCheckConstraint("ck_proposal_created_via", "created_via in ('ui','api','mcp','job','assistant')");
             });
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
@@ -282,7 +282,7 @@ public sealed class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbC
             e.HasIndex(x => x.StartedAt);
         });
 
-        const string createdVia = "created_via in ('ui','api','mcp','job','import','admin-cli')";
+        const string createdVia = "created_via in ('ui','api','mcp','job','import','admin-cli','assistant')";
 
         modelBuilder.Entity<ValuationRow>(e =>
         {

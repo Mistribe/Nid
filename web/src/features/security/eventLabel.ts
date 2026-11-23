@@ -17,7 +17,7 @@ export function eventLabel(t: TFunction, name: string): string {
   return KNOWN.has(name) ? t(`audit_event.${name}` as 'audit_event.login') : t('audit_event.unknown', { name });
 }
 
-const KNOWN_VIA = new Set(['ui', 'api', 'job', 'import', 'mcp', 'admin-cli']);
+const KNOWN_VIA = new Set(['ui', 'api', 'job', 'import', 'mcp', 'admin-cli', 'assistant']);
 
 /** French label for an event's `via` (Minor #6); an origin not yet named here shows as the server sent it. */
 export function viaLabel(t: TFunction, via: string): string {

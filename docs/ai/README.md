@@ -605,6 +605,9 @@ livrée par défaut.
 - Lectures et propositions passent par les mêmes requêtes Synapse que REST et le MCP (`../architecture.md` §8).
 - Le modèle d'un worker est déclaré par le worker (décision V) : sa sortie est une entrée non fiable, comme celle d'un
   modèle cloud.
+- **Livré (#497)** : `Actor.Assistant(person)` ; `via: assistant` admis par `ck_proposal_created_via`,
+  `ck_valuation_created_via` et `ck_flow_created_via` ; la règle de refus ci-dessus dans `BrowserOnlyBehavior` ; « Assistant
+  de Nid » dans le journal de sécurité et comme origine d'une proposition.
 
 ### 8.2 Outils et propositions (décisions I et N)
 
