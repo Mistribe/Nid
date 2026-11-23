@@ -61,6 +61,7 @@ public static class ModuleBehaviorOrder
     public const uint Documents = ResourceAccess + 10;
     public const uint Proposals = ResourceAccess + 20;
     public const uint Scenarios = ResourceAccess + 30;
+    public const uint TaxAssessments = ResourceAccess + 40;
 }
 
 public static class AccessKindWire

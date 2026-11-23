@@ -31,7 +31,7 @@ public class PipelineTests(PostgresFixture postgres)
         typeof(ResourceAuthorizationBehavior<,>), typeof(ItemCreationBehavior<,>),
         // #516: the modules' resources that are no registry items.
         typeof(Nid.Banking.Application.BankingAccessBehavior<,>), typeof(Nid.Documents.Application.DocumentAccessBehavior<,>),
-        typeof(ProposalAccessBehavior<,>), typeof(ScenarioAccessBehavior<,>),
+        typeof(ProposalAccessBehavior<,>), typeof(ScenarioAccessBehavior<,>), typeof(Nid.Tax.Application.TaxAssessmentAccessBehavior<,>),
         typeof(DocumentMaskBehavior<,>), typeof(OutputGuardBehavior<,>),
     ];
 

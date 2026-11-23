@@ -517,10 +517,15 @@ public static class RequestCatalogue
         new(typeof(SaveTaxProfileCommand), false, (_, _) => new SaveTaxProfileCommand(2025, TaxProfile.Empty, VisibilityScope.Me)),
         // Tax assessments spec §6: the notices are the declarants' own, no item involved.
         new(typeof(ListTaxAssessmentsQuery), false, (_, _) => new ListTaxAssessmentsQuery(VisibilityScope.Me, null)),
-        new(typeof(GetTaxAssessmentQuery), false, (_, _) => new GetTaxAssessmentQuery(Guid.NewGuid())),
+        new(typeof(GetTaxAssessmentQuery), false, (_, _) => new GetTaxAssessmentQuery(Guid.NewGuid())) { BuildOn = (_, id) => new GetTaxAssessmentQuery(id) },
         new(typeof(AddTaxAssessmentCommand), false, (d, _) => new AddTaxAssessmentCommand(BenchAssessment(d.App.AdultA))),
-        new(typeof(CorrectTaxAssessmentCommand), false, (d, _) => new CorrectTaxAssessmentCommand(Guid.NewGuid(), BenchAssessment(d.App.AdultA), 0)),
-        new(typeof(DeleteTaxAssessmentCommand), false, (_, _) => new DeleteTaxAssessmentCommand(Guid.NewGuid())),
+        // A stale version: a declarant meets the conflict, never a write.
+        new(typeof(CorrectTaxAssessmentCommand), false, (d, _) => new CorrectTaxAssessmentCommand(Guid.NewGuid(), BenchAssessment(d.App.AdultA), 0))
+        {
+            BuildOn = (d, id) => new CorrectTaxAssessmentCommand(id, BenchAssessment(d.App.AdultA), uint.MaxValue),
+        },
+        // Deletes the notice for a declarant: last of the notice's entries on the resource axis.
+        new(typeof(DeleteTaxAssessmentCommand), false, (_, _) => new DeleteTaxAssessmentCommand(Guid.NewGuid())) { BuildOn = (_, id) => new DeleteTaxAssessmentCommand(id) },
         new(typeof(SimulateTaxQuery), false, (_, _) => new SimulateTaxQuery(new TaxInputs(
             2025, [new TaxDeclarant("bench", 1m, EmploymentStatus.NonExecutive, 0m, 0m)], 0, 0, 0m, 0m, 0m, null, 0m, 0m, 0m, 0m, 0m, 0m, 0m))),
         // Scenario spec §5: the scenario requests run against the scenario twins; a replace may name a funding envelope, which the

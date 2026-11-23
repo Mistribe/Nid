@@ -12,13 +12,16 @@ using UnambitiousFx.Synapse.Abstractions;
 namespace Nid.Host.IntegrationTests.LeakBench;
 
 /// <summary>
-/// #516, architecture.md §5.4: access to a bank account, a bank line, a document or a proposal is checked by a pipeline behavior that
+/// #516, architecture.md §5.4: access to a bank account, a bank line, a document, a proposal or a tax assessment is checked by a pipeline behavior that
 /// reads the request's marker, not by hand in each handler. Reflection only, no database: a handler that checks again (or a request that
 /// forgets its marker and so its check) fails here.
 /// </summary>
 public class ResourceMarkerTests
 {
     private static readonly Type ProposalAccess = typeof(Nid.Core.Application.ProposalView).Assembly.GetType("Nid.Core.Application.ProposalAccess", true)!;
+
+    private static readonly Type TaxAssessmentAccess =
+        typeof(Nid.Tax.Application.TaxAssessmentView).Assembly.GetType("Nid.Tax.Application.TaxAssessmentAccess", true)!;
 
     /// <summary>The checks the behaviors make, which a handler no longer calls.</summary>
     private static readonly MethodInfo[] BehaviorChecks =
@@ -29,6 +32,7 @@ public class ResourceMarkerTests
         typeof(DocumentAccess).GetMethod(nameof(DocumentAccess.ReadAsync))!,
         typeof(DocumentAccess).GetMethod(nameof(DocumentAccess.EditableAsync))!,
         ProposalAccess.GetMethod("LoadAsync")!,
+        TaxAssessmentAccess.GetMethod("OwnAsync")!,
     ];
 
     /// <summary>The handlers that still call one, each for a resource its request does not name: the reason is the entry's.</summary>
@@ -39,9 +43,10 @@ public class ResourceMarkerTests
         [(nameof(ImportStatementHandler), nameof(BankingAccess.AccountAsync))] = "the account the file names, found by its IBAN",
         [(nameof(SyncAllHandler), nameof(BankingAccess.EnabledAsync))] = "the nightly job runs its retention with banking off too",
         [(nameof(UploadDocumentHandler), nameof(DocumentAccess.ReadAsync))] = "a copy found by its hash or its source reference",
-        // Tax assessments spec §5: the declarants are checked first (« tax assessment » not found); moves with #512's Nid.Tax.
-        [(nameof(LinkTaxNoticeHandler), nameof(DocumentAccess.ReadAsync))] = "the declarants come first; follows #512",
-        [(nameof(PreviewTaxNoticeLinkHandler), nameof(DocumentAccess.ReadAsync))] = "the declarants come first; follows #512",
+        // Tax assessments spec §5: the declarants are checked first (« tax assessment » not found), so a document behavior before them would
+        // tell a non-declarant whether the document exists.
+        [(nameof(LinkTaxNoticeHandler), nameof(DocumentAccess.ReadAsync))] = "the declarants come first",
+        [(nameof(PreviewTaxNoticeLinkHandler), nameof(DocumentAccess.ReadAsync))] = "the declarants come first",
     };
 
     [Fact]
@@ -57,7 +62,7 @@ public class ResourceMarkerTests
         var unexplained = calls.Where(c => !Kept.ContainsKey(c)).Select(c => $"{c.Handler} calls {c.Check}").ToList();
         Assert.True(unexplained.Count == 0,
             "These handlers check by hand what a resource behavior checks (#516): mark the request instead (IRequiresBanking, IBankAccountScoped, "
-            + "IBankLineScoped, IReadsDocument, IEditsDocument, IProposalScoped) and read what the behavior hands on (CheckedResources):\n  "
+            + "IBankLineScoped, IReadsDocument, IEditsDocument, IProposalScoped, ITaxAssessmentScoped) and read what the behavior hands on (CheckedResources):\n  "
             + string.Join("\n  ", unexplained));
         // An entry nobody needs any more goes too, so the list stays the list of exceptions.
         Assert.Empty(Kept.Keys.Except(calls));
@@ -88,12 +93,13 @@ public class ResourceMarkerTests
         Assert.True(typeof(IRequiresBanking).IsAssignableFrom(typeof(Nid.Host.Composition.CreateBankAccountEnvelopeCommand)));
     }
 
-    /// <summary>The resource axis of the bench reaches every request carrying a bank account, bank line or proposal marker.</summary>
+    /// <summary>The resource axis of the bench reaches every request carrying a bank account, bank line, proposal or tax assessment marker.</summary>
     [Fact]
     public void Every_resource_scoped_request_is_on_the_resource_axis()
     {
         var scoped = RequestCatalogue.Discover()
-            .Where(t => typeof(IBankAccountScoped).IsAssignableFrom(t) || typeof(IBankLineScoped).IsAssignableFrom(t) || typeof(IProposalScoped).IsAssignableFrom(t))
+            .Where(t => typeof(IBankAccountScoped).IsAssignableFrom(t) || typeof(IBankLineScoped).IsAssignableFrom(t) || typeof(IProposalScoped).IsAssignableFrom(t)
+                        || typeof(Nid.Tax.Contracts.ITaxAssessmentScoped).IsAssignableFrom(t))
             .ToList();
         Assert.NotEmpty(scoped);
         var missing = scoped.Where(t => !RequestCatalogue.Entries.Any(e => e.RequestType == t && e.BuildOn is not null)).Select(t => t.FullName).ToList();

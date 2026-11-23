@@ -80,3 +80,13 @@ public static class TaxAssessmentCodes
     /// <summary>The store's answer to the unique (year, person) index: a person already declares another notice of that year (answered as <see cref="DeclarantTaken"/>).</summary>
     public const string Taken = "tax.assessment_taken";
 }
+
+/// <summary>
+/// #516: aimed at one stored notice. The tax assessment behavior answers « not found » (« tax assessment ») for one the actor does not
+/// declare, whatever the access (tax assessments spec §4: its declarants read and change it, nobody else sees it), and hands the notice
+/// to the handler.
+/// </summary>
+public interface ITaxAssessmentScoped
+{
+    Guid TaxAssessmentId { get; }
+}

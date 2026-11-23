@@ -14,15 +14,24 @@ namespace Nid.Tax.Application;
 /// </summary>
 public sealed record ListTaxAssessmentsQuery(VisibilityScope Scope, int? Year) : IQuery<TaxAssessmentList>;
 
-public sealed record GetTaxAssessmentQuery(Guid Id) : IQuery<TaxAssessmentView>;
+public sealed record GetTaxAssessmentQuery(Guid Id) : IQuery<TaxAssessmentView>, ITaxAssessmentScoped
+{
+    Guid ITaxAssessmentScoped.TaxAssessmentId => Id;
+}
 
 /// <summary>Tax assessments spec §4: the actor must be one of the declarants.</summary>
 public sealed record AddTaxAssessmentCommand(TaxAssessment Assessment) : ICommand<TaxAssessmentView>;
 
 /// <summary>Tax assessments spec §4: replaces the notice; <c>Version</c> is the one read with it.</summary>
-public sealed record CorrectTaxAssessmentCommand(Guid Id, TaxAssessment Assessment, uint Version) : ICommand<TaxAssessmentView>;
+public sealed record CorrectTaxAssessmentCommand(Guid Id, TaxAssessment Assessment, uint Version) : ICommand<TaxAssessmentView>, ITaxAssessmentScoped
+{
+    Guid ITaxAssessmentScoped.TaxAssessmentId => Id;
+}
 
-public sealed record DeleteTaxAssessmentCommand(Guid Id) : ICommand<Guid>;
+public sealed record DeleteTaxAssessmentCommand(Guid Id) : ICommand<Guid>, ITaxAssessmentScoped
+{
+    Guid ITaxAssessmentScoped.TaxAssessmentId => Id;
+}
 
 [RequestHandler<ListTaxAssessmentsQuery, TaxAssessmentList>]
 public sealed class ListTaxAssessmentsHandler(ITaxAssessmentStore store, IPersonRegistry persons, IActorAccessor actor)
@@ -42,12 +51,11 @@ public sealed class ListTaxAssessmentsHandler(ITaxAssessmentStore store, IPerson
 }
 
 [RequestHandler<GetTaxAssessmentQuery, TaxAssessmentView>]
-public sealed class GetTaxAssessmentHandler(ITaxAssessmentStore store, IActorAccessor actor) : IRequestHandler<GetTaxAssessmentQuery, TaxAssessmentView>
+public sealed class GetTaxAssessmentHandler(IContextAccessor context) : IRequestHandler<GetTaxAssessmentQuery, TaxAssessmentView>
 {
-    public async ValueTask<Result<TaxAssessmentView>> HandleAsync(GetTaxAssessmentQuery query, CancellationToken ct = default)
-        => await TaxAssessmentAccess.OwnAsync(store, actor, query.Id, ct) is { } own
-            ? Result.Success(TaxAssessmentView.Of(own))
-            : Result.Failure<TaxAssessmentView>(TaxAssessmentAccess.NotFound(query.Id));
+    // Found among the actor's own notices by the tax assessment behavior.
+    public ValueTask<Result<TaxAssessmentView>> HandleAsync(GetTaxAssessmentQuery query, CancellationToken ct = default)
+        => ValueTask.FromResult(Result.Success(TaxAssessmentView.Of(CheckedResources.Of<StoredTaxAssessment>(context, query))));
 }
 
 [RequestHandler<AddTaxAssessmentCommand, TaxAssessmentView>]
@@ -69,13 +77,14 @@ public sealed class AddTaxAssessmentHandler(ITaxAssessmentStore store, IPersonRe
 }
 
 [RequestHandler<CorrectTaxAssessmentCommand, TaxAssessmentView>]
-public sealed class CorrectTaxAssessmentHandler(ITaxAssessmentStore store, IPersonRegistry persons, IHouseholdCalendar calendar, IActorAccessor actor)
+public sealed class CorrectTaxAssessmentHandler(
+    ITaxAssessmentStore store, IPersonRegistry persons, IHouseholdCalendar calendar, IActorAccessor actor, IContextAccessor context)
     : IRequestHandler<CorrectTaxAssessmentCommand, TaxAssessmentView>
 {
     public async ValueTask<Result<TaxAssessmentView>> HandleAsync(CorrectTaxAssessmentCommand command, CancellationToken ct = default)
     {
-        if (await TaxAssessmentAccess.OwnAsync(store, actor, command.Id, ct) is not { } own)
-            return Result.Failure<TaxAssessmentView>(TaxAssessmentAccess.NotFound(command.Id));
+        // Found among the actor's own notices by the tax assessment behavior.
+        var own = CheckedResources.Of<StoredTaxAssessment>(context, command);
         if (own.Version != command.Version)
             return Result.Failure<TaxAssessmentView>(TaxAssessmentAccess.Changed);
         // A correction without a source keeps the stored one.
@@ -90,12 +99,11 @@ public sealed class CorrectTaxAssessmentHandler(ITaxAssessmentStore store, IPers
 }
 
 [RequestHandler<DeleteTaxAssessmentCommand, Guid>]
-public sealed class DeleteTaxAssessmentHandler(ITaxAssessmentStore store, IActorAccessor actor) : IRequestHandler<DeleteTaxAssessmentCommand, Guid>
+public sealed class DeleteTaxAssessmentHandler(ITaxAssessmentStore store) : IRequestHandler<DeleteTaxAssessmentCommand, Guid>
 {
+    // Only a notice the actor declares reaches here: the tax assessment behavior answers « not found » for any other.
     public async ValueTask<Result<Guid>> HandleAsync(DeleteTaxAssessmentCommand command, CancellationToken ct = default)
     {
-        if (await TaxAssessmentAccess.OwnAsync(store, actor, command.Id, ct) is null)
-            return Result.Failure<Guid>(TaxAssessmentAccess.NotFound(command.Id));
         await store.DeleteAsync(command.Id, ct);
         return Result.Success(command.Id);
     }

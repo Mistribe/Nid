@@ -44,6 +44,7 @@ using UnambitiousFx.Synapse.Abstractions;
 [assembly: SynapseGlobalBehavior(typeof(Nid.Documents.Application.DocumentAccessBehavior<,>))]
 [assembly: SynapseGlobalBehavior(typeof(Nid.Core.Application.ProposalAccessBehavior<,>))]
 [assembly: SynapseGlobalBehavior(typeof(Nid.Core.Application.ScenarioAccessBehavior<,>))]
+[assembly: SynapseGlobalBehavior(typeof(Nid.Tax.Application.TaxAssessmentAccessBehavior<,>))]
 [assembly: SynapseGlobalBehavior(typeof(DocumentMaskBehavior<,>))]
 [assembly: SynapseGlobalBehavior(typeof(OutputGuardBehavior<,>))]
 
