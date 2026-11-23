@@ -1,0 +1,378 @@
+holding_entitlement — milestone, milestone: True
+  (none) | Début de jouissance de «  » : premiers revenus à venir · Maison | Début de jouissance de «  » : premiers revenus à venir · Alice
+  Phase 2 | Début de jouissance de « Phase 2 » : premiers revenus à venir · Maison | Début de jouissance de « Phase 2 » : premiers revenus à venir · Alice
+  household | Début de jouissance de « household » : premiers revenus à venir · Maison | Début de jouissance de « household » : premiers revenus à venir · Foyer (plafonds mutualisés)
+  department_unknown | Début de jouissance de « department_unknown » : premiers revenus à venir · Maison | Début de jouissance de « department_unknown » : premiers revenus à venir · Date la plus tôt : renseignez le département dans le profil fiscal
+  life_insurance_8y | Début de jouissance de « life_insurance_8y » : premiers revenus à venir · Maison | Début de jouissance de « life_insurance_8y » : premiers revenus à venir · Alice
+  pea_5y | Début de jouissance de « pea_5y » : premiers revenus à venir · Maison | Début de jouissance de « pea_5y » : premiers revenus à venir · Alice
+  per_retirement | Début de jouissance de « per_retirement » : premiers revenus à venir · Maison | Début de jouissance de « per_retirement » : premiers revenus à venir · Alice
+  works | Début de jouissance de « works » : premiers revenus à venir · Maison | Début de jouissance de « works » : premiers revenus à venir · Alice
+  construction_works | Début de jouissance de « construction_works » : premiers revenus à venir · Maison | Début de jouissance de « construction_works » : premiers revenus à venir · Alice
+  property_tax | Début de jouissance de « property_tax » : premiers revenus à venir · Maison | Début de jouissance de « property_tax » : premiers revenus à venir · Alice
+  condo_fees | Début de jouissance de « condo_fees » : premiers revenus à venir · Maison | Début de jouissance de « condo_fees » : premiers revenus à venir · Alice
+  insurance | Début de jouissance de « insurance » : premiers revenus à venir · Maison | Début de jouissance de « insurance » : premiers revenus à venir · Alice
+  energy | Début de jouissance de « energy » : premiers revenus à venir · Maison | Début de jouissance de « energy » : premiers revenus à venir · Alice
+  maintenance | Début de jouissance de « maintenance » : premiers revenus à venir · Maison | Début de jouissance de « maintenance » : premiers revenus à venir · Alice
+  management_fees | Début de jouissance de « management_fees » : premiers revenus à venir · Maison | Début de jouissance de « management_fees » : premiers revenus à venir · Alice
+  other | Début de jouissance de « other » : premiers revenus à venir · Maison | Début de jouissance de « other » : premiers revenus à venir · Alice
+  unknown | Début de jouissance de « unknown » : premiers revenus à venir · Maison | Début de jouissance de « unknown » : premiers revenus à venir · Alice
+holding_maturity — milestone, milestone: True
+  (none) | Échéance de «  » : vérifier où ira le capital · Maison | Échéance de «  » : vérifier où ira le capital · Alice
+  Phase 2 | Échéance de « Phase 2 » : vérifier où ira le capital · Maison | Échéance de « Phase 2 » : vérifier où ira le capital · Alice
+  household | Échéance de « household » : vérifier où ira le capital · Maison | Échéance de « household » : vérifier où ira le capital · Foyer (plafonds mutualisés)
+  department_unknown | Échéance de « department_unknown » : vérifier où ira le capital · Maison | Échéance de « department_unknown » : vérifier où ira le capital · Date la plus tôt : renseignez le département dans le profil fiscal
+  life_insurance_8y | Échéance de « life_insurance_8y » : vérifier où ira le capital · Maison | Échéance de « life_insurance_8y » : vérifier où ira le capital · Alice
+  pea_5y | Échéance de « pea_5y » : vérifier où ira le capital · Maison | Échéance de « pea_5y » : vérifier où ira le capital · Alice
+  per_retirement | Échéance de « per_retirement » : vérifier où ira le capital · Maison | Échéance de « per_retirement » : vérifier où ira le capital · Alice
+  works | Échéance de « works » : vérifier où ira le capital · Maison | Échéance de « works » : vérifier où ira le capital · Alice
+  construction_works | Échéance de « construction_works » : vérifier où ira le capital · Maison | Échéance de « construction_works » : vérifier où ira le capital · Alice
+  property_tax | Échéance de « property_tax » : vérifier où ira le capital · Maison | Échéance de « property_tax » : vérifier où ira le capital · Alice
+  condo_fees | Échéance de « condo_fees » : vérifier où ira le capital · Maison | Échéance de « condo_fees » : vérifier où ira le capital · Alice
+  insurance | Échéance de « insurance » : vérifier où ira le capital · Maison | Échéance de « insurance » : vérifier où ira le capital · Alice
+  energy | Échéance de « energy » : vérifier où ira le capital · Maison | Échéance de « energy » : vérifier où ira le capital · Alice
+  maintenance | Échéance de « maintenance » : vérifier où ira le capital · Maison | Échéance de « maintenance » : vérifier où ira le capital · Alice
+  management_fees | Échéance de « management_fees » : vérifier où ira le capital · Maison | Échéance de « management_fees » : vérifier où ira le capital · Alice
+  other | Échéance de « other » : vérifier où ira le capital · Maison | Échéance de « other » : vérifier où ira le capital · Alice
+  unknown | Échéance de « unknown » : vérifier où ira le capital · Maison | Échéance de « unknown » : vérifier où ira le capital · Alice
+income_gap_soon — milestone, milestone: True
+  (none) |  | 
+  Phase 2 |  | 
+  household |  | 
+  department_unknown |  | 
+  life_insurance_8y |  | 
+  pea_5y |  | 
+  per_retirement |  | 
+  works |  | 
+  construction_works |  | 
+  property_tax |  | 
+  condo_fees |  | 
+  insurance |  | 
+  energy |  | 
+  maintenance |  | 
+  management_fees |  | 
+  other |  | 
+  unknown |  | 
+income_phase_end — milestone, milestone: True
+  (none) | Fin de «  » · Maison | Fin de «  » · Alice
+  Phase 2 | Fin de « Phase 2 » · Maison | Fin de « Phase 2 » · Alice
+  household | Fin de « household » · Maison | Fin de « household » · Foyer (plafonds mutualisés)
+  department_unknown | Fin de « department_unknown » · Maison | Fin de « department_unknown » · Date la plus tôt : renseignez le département dans le profil fiscal
+  life_insurance_8y | Fin de « life_insurance_8y » · Maison | Fin de « life_insurance_8y » · Alice
+  pea_5y | Fin de « pea_5y » · Maison | Fin de « pea_5y » · Alice
+  per_retirement | Fin de « per_retirement » · Maison | Fin de « per_retirement » · Alice
+  works | Fin de « works » · Maison | Fin de « works » · Alice
+  construction_works | Fin de « construction_works » · Maison | Fin de « construction_works » · Alice
+  property_tax | Fin de « property_tax » · Maison | Fin de « property_tax » · Alice
+  condo_fees | Fin de « condo_fees » · Maison | Fin de « condo_fees » · Alice
+  insurance | Fin de « insurance » · Maison | Fin de « insurance » · Alice
+  energy | Fin de « energy » · Maison | Fin de « energy » · Alice
+  maintenance | Fin de « maintenance » · Maison | Fin de « maintenance » · Alice
+  management_fees | Fin de « management_fees » · Maison | Fin de « management_fees » · Alice
+  other | Fin de « other » · Maison | Fin de « other » · Alice
+  unknown | Fin de « unknown » · Maison | Fin de « unknown » · Alice
+loan_end — milestone, milestone: True
+  (none) | Dernière échéance · Maison | Dernière échéance · Alice
+  Phase 2 | Dernière échéance · Maison | Dernière échéance · Alice
+  household | Dernière échéance · Maison | Dernière échéance · Foyer (plafonds mutualisés)
+  department_unknown | Dernière échéance · Maison | Dernière échéance · Date la plus tôt : renseignez le département dans le profil fiscal
+  life_insurance_8y | Dernière échéance · Maison | Dernière échéance · Alice
+  pea_5y | Dernière échéance · Maison | Dernière échéance · Alice
+  per_retirement | Dernière échéance · Maison | Dernière échéance · Alice
+  works | Dernière échéance · Maison | Dernière échéance · Alice
+  construction_works | Dernière échéance · Maison | Dernière échéance · Alice
+  property_tax | Dernière échéance · Maison | Dernière échéance · Alice
+  condo_fees | Dernière échéance · Maison | Dernière échéance · Alice
+  insurance | Dernière échéance · Maison | Dernière échéance · Alice
+  energy | Dernière échéance · Maison | Dernière échéance · Alice
+  maintenance | Dernière échéance · Maison | Dernière échéance · Alice
+  management_fees | Dernière échéance · Maison | Dernière échéance · Alice
+  other | Dernière échéance · Maison | Dernière échéance · Alice
+  unknown | Dernière échéance · Maison | Dernière échéance · Alice
+loan_phase_end — milestone, milestone: True
+  (none) | Fin de la phase  : taux ou différé qui change · Maison | Fin de la phase  : taux ou différé qui change · Alice
+  Phase 2 | Fin de la phase Phase 2 : taux ou différé qui change · Maison | Fin de la phase Phase 2 : taux ou différé qui change · Alice
+  household | Fin de la phase household : taux ou différé qui change · Maison | Fin de la phase household : taux ou différé qui change · Foyer (plafonds mutualisés)
+  department_unknown | Fin de la phase department_unknown : taux ou différé qui change · Maison | Fin de la phase department_unknown : taux ou différé qui change · Date la plus tôt : renseignez le département dans le profil fiscal
+  life_insurance_8y | Fin de la phase life_insurance_8y : taux ou différé qui change · Maison | Fin de la phase life_insurance_8y : taux ou différé qui change · Alice
+  pea_5y | Fin de la phase pea_5y : taux ou différé qui change · Maison | Fin de la phase pea_5y : taux ou différé qui change · Alice
+  per_retirement | Fin de la phase per_retirement : taux ou différé qui change · Maison | Fin de la phase per_retirement : taux ou différé qui change · Alice
+  works | Fin de la phase works : taux ou différé qui change · Maison | Fin de la phase works : taux ou différé qui change · Alice
+  construction_works | Fin de la phase construction_works : taux ou différé qui change · Maison | Fin de la phase construction_works : taux ou différé qui change · Alice
+  property_tax | Fin de la phase property_tax : taux ou différé qui change · Maison | Fin de la phase property_tax : taux ou différé qui change · Alice
+  condo_fees | Fin de la phase condo_fees : taux ou différé qui change · Maison | Fin de la phase condo_fees : taux ou différé qui change · Alice
+  insurance | Fin de la phase insurance : taux ou différé qui change · Maison | Fin de la phase insurance : taux ou différé qui change · Alice
+  energy | Fin de la phase energy : taux ou différé qui change · Maison | Fin de la phase energy : taux ou différé qui change · Alice
+  maintenance | Fin de la phase maintenance : taux ou différé qui change · Maison | Fin de la phase maintenance : taux ou différé qui change · Alice
+  management_fees | Fin de la phase management_fees : taux ou différé qui change · Maison | Fin de la phase management_fees : taux ou différé qui change · Alice
+  other | Fin de la phase other : taux ou différé qui change · Maison | Fin de la phase other : taux ou différé qui change · Alice
+  unknown | Fin de la phase unknown : taux ou différé qui change · Maison | Fin de la phase unknown : taux ou différé qui change · Alice
+per_ceiling_expiring — recurring, milestone: False
+  (none) | PER : minimum à verser avant le 31 décembre pour ne rien perdre · Maison | PER : minimum à verser avant le 31 décembre pour ne rien perdre · Alice
+  Phase 2 | PER : minimum à verser avant le 31 décembre pour ne rien perdre · Maison | PER : minimum à verser avant le 31 décembre pour ne rien perdre · Alice
+  household | PER : minimum à verser avant le 31 décembre pour ne rien perdre · Maison | PER : minimum à verser avant le 31 décembre pour ne rien perdre · Foyer (plafonds mutualisés)
+  department_unknown | PER : minimum à verser avant le 31 décembre pour ne rien perdre · Maison | PER : minimum à verser avant le 31 décembre pour ne rien perdre · Date la plus tôt : renseignez le département dans le profil fiscal
+  life_insurance_8y | PER : minimum à verser avant le 31 décembre pour ne rien perdre · Maison | PER : minimum à verser avant le 31 décembre pour ne rien perdre · Alice
+  pea_5y | PER : minimum à verser avant le 31 décembre pour ne rien perdre · Maison | PER : minimum à verser avant le 31 décembre pour ne rien perdre · Alice
+  per_retirement | PER : minimum à verser avant le 31 décembre pour ne rien perdre · Maison | PER : minimum à verser avant le 31 décembre pour ne rien perdre · Alice
+  works | PER : minimum à verser avant le 31 décembre pour ne rien perdre · Maison | PER : minimum à verser avant le 31 décembre pour ne rien perdre · Alice
+  construction_works | PER : minimum à verser avant le 31 décembre pour ne rien perdre · Maison | PER : minimum à verser avant le 31 décembre pour ne rien perdre · Alice
+  property_tax | PER : minimum à verser avant le 31 décembre pour ne rien perdre · Maison | PER : minimum à verser avant le 31 décembre pour ne rien perdre · Alice
+  condo_fees | PER : minimum à verser avant le 31 décembre pour ne rien perdre · Maison | PER : minimum à verser avant le 31 décembre pour ne rien perdre · Alice
+  insurance | PER : minimum à verser avant le 31 décembre pour ne rien perdre · Maison | PER : minimum à verser avant le 31 décembre pour ne rien perdre · Alice
+  energy | PER : minimum à verser avant le 31 décembre pour ne rien perdre · Maison | PER : minimum à verser avant le 31 décembre pour ne rien perdre · Alice
+  maintenance | PER : minimum à verser avant le 31 décembre pour ne rien perdre · Maison | PER : minimum à verser avant le 31 décembre pour ne rien perdre · Alice
+  management_fees | PER : minimum à verser avant le 31 décembre pour ne rien perdre · Maison | PER : minimum à verser avant le 31 décembre pour ne rien perdre · Alice
+  other | PER : minimum à verser avant le 31 décembre pour ne rien perdre · Maison | PER : minimum à verser avant le 31 décembre pour ne rien perdre · Alice
+  unknown | PER : minimum à verser avant le 31 décembre pour ne rien perdre · Maison | PER : minimum à verser avant le 31 décembre pour ne rien perdre · Alice
+per_deadline — recurring, milestone: False
+  (none) | PER : reste à verser avant le 31 décembre pour utiliser le plafond · Maison | PER : reste à verser avant le 31 décembre pour utiliser le plafond · Alice
+  Phase 2 | PER : reste à verser avant le 31 décembre pour utiliser le plafond · Maison | PER : reste à verser avant le 31 décembre pour utiliser le plafond · Alice
+  household | PER : reste à verser avant le 31 décembre pour utiliser le plafond · Maison | PER : reste à verser avant le 31 décembre pour utiliser le plafond · Foyer (plafonds mutualisés)
+  department_unknown | PER : reste à verser avant le 31 décembre pour utiliser le plafond · Maison | PER : reste à verser avant le 31 décembre pour utiliser le plafond · Date la plus tôt : renseignez le département dans le profil fiscal
+  life_insurance_8y | PER : reste à verser avant le 31 décembre pour utiliser le plafond · Maison | PER : reste à verser avant le 31 décembre pour utiliser le plafond · Alice
+  pea_5y | PER : reste à verser avant le 31 décembre pour utiliser le plafond · Maison | PER : reste à verser avant le 31 décembre pour utiliser le plafond · Alice
+  per_retirement | PER : reste à verser avant le 31 décembre pour utiliser le plafond · Maison | PER : reste à verser avant le 31 décembre pour utiliser le plafond · Alice
+  works | PER : reste à verser avant le 31 décembre pour utiliser le plafond · Maison | PER : reste à verser avant le 31 décembre pour utiliser le plafond · Alice
+  construction_works | PER : reste à verser avant le 31 décembre pour utiliser le plafond · Maison | PER : reste à verser avant le 31 décembre pour utiliser le plafond · Alice
+  property_tax | PER : reste à verser avant le 31 décembre pour utiliser le plafond · Maison | PER : reste à verser avant le 31 décembre pour utiliser le plafond · Alice
+  condo_fees | PER : reste à verser avant le 31 décembre pour utiliser le plafond · Maison | PER : reste à verser avant le 31 décembre pour utiliser le plafond · Alice
+  insurance | PER : reste à verser avant le 31 décembre pour utiliser le plafond · Maison | PER : reste à verser avant le 31 décembre pour utiliser le plafond · Alice
+  energy | PER : reste à verser avant le 31 décembre pour utiliser le plafond · Maison | PER : reste à verser avant le 31 décembre pour utiliser le plafond · Alice
+  maintenance | PER : reste à verser avant le 31 décembre pour utiliser le plafond · Maison | PER : reste à verser avant le 31 décembre pour utiliser le plafond · Alice
+  management_fees | PER : reste à verser avant le 31 décembre pour utiliser le plafond · Maison | PER : reste à verser avant le 31 décembre pour utiliser le plafond · Alice
+  other | PER : reste à verser avant le 31 décembre pour utiliser le plafond · Maison | PER : reste à verser avant le 31 décembre pour utiliser le plafond · Alice
+  unknown | PER : reste à verser avant le 31 décembre pour utiliser le plafond · Maison | PER : reste à verser avant le 31 décembre pour utiliser le plafond · Alice
+property_cost_due — recurring, milestone: False
+  (none) |  · Maison |  · Alice
+  Phase 2 | Phase 2 · Maison | Phase 2 · Alice
+  household | household · Maison | household · Foyer (plafonds mutualisés)
+  department_unknown | department_unknown · Maison | department_unknown · Date la plus tôt : renseignez le département dans le profil fiscal
+  life_insurance_8y | life_insurance_8y · Maison | life_insurance_8y · Alice
+  pea_5y | pea_5y · Maison | pea_5y · Alice
+  per_retirement | per_retirement · Maison | per_retirement · Alice
+  works | Travaux · Maison | Travaux · Alice
+  construction_works | Construction, agrandissement · Maison | Construction, agrandissement · Alice
+  property_tax | Taxe foncière · Maison | Taxe foncière · Alice
+  condo_fees | Charges de copropriété · Maison | Charges de copropriété · Alice
+  insurance | Assurance · Maison | Assurance · Alice
+  energy | Énergie · Maison | Énergie · Alice
+  maintenance | Entretien · Maison | Entretien · Alice
+  management_fees | Frais de gestion · Maison | Frais de gestion · Alice
+  other | Autre · Maison | Autre · Alice
+  unknown | unknown · Maison | unknown · Alice
+property_tax_due — recurring, milestone: False
+  (none) | Taxe foncière à payer · Maison | Taxe foncière à payer · Alice
+  Phase 2 | Taxe foncière à payer · Maison | Taxe foncière à payer · Alice
+  household | Taxe foncière à payer · Maison | Taxe foncière à payer · Foyer (plafonds mutualisés)
+  department_unknown | Taxe foncière à payer · Maison | Taxe foncière à payer · Date la plus tôt : renseignez le département dans le profil fiscal
+  life_insurance_8y | Taxe foncière à payer · Maison | Taxe foncière à payer · Alice
+  pea_5y | Taxe foncière à payer · Maison | Taxe foncière à payer · Alice
+  per_retirement | Taxe foncière à payer · Maison | Taxe foncière à payer · Alice
+  works | Taxe foncière à payer · Maison | Taxe foncière à payer · Alice
+  construction_works | Taxe foncière à payer · Maison | Taxe foncière à payer · Alice
+  property_tax | Taxe foncière à payer · Maison | Taxe foncière à payer · Alice
+  condo_fees | Taxe foncière à payer · Maison | Taxe foncière à payer · Alice
+  insurance | Taxe foncière à payer · Maison | Taxe foncière à payer · Alice
+  energy | Taxe foncière à payer · Maison | Taxe foncière à payer · Alice
+  maintenance | Taxe foncière à payer · Maison | Taxe foncière à payer · Alice
+  management_fees | Taxe foncière à payer · Maison | Taxe foncière à payer · Alice
+  other | Taxe foncière à payer · Maison | Taxe foncière à payer · Alice
+  unknown | Taxe foncière à payer · Maison | Taxe foncière à payer · Alice
+subscription_cancel_deadline — milestone, milestone: True
+  (none) | Dernier jour pour résilier · Maison | Dernier jour pour résilier · Alice
+  Phase 2 | Dernier jour pour résilier · Maison | Dernier jour pour résilier · Alice
+  household | Dernier jour pour résilier · Maison | Dernier jour pour résilier · Foyer (plafonds mutualisés)
+  department_unknown | Dernier jour pour résilier · Maison | Dernier jour pour résilier · Date la plus tôt : renseignez le département dans le profil fiscal
+  life_insurance_8y | Dernier jour pour résilier · Maison | Dernier jour pour résilier · Alice
+  pea_5y | Dernier jour pour résilier · Maison | Dernier jour pour résilier · Alice
+  per_retirement | Dernier jour pour résilier · Maison | Dernier jour pour résilier · Alice
+  works | Dernier jour pour résilier · Maison | Dernier jour pour résilier · Alice
+  construction_works | Dernier jour pour résilier · Maison | Dernier jour pour résilier · Alice
+  property_tax | Dernier jour pour résilier · Maison | Dernier jour pour résilier · Alice
+  condo_fees | Dernier jour pour résilier · Maison | Dernier jour pour résilier · Alice
+  insurance | Dernier jour pour résilier · Maison | Dernier jour pour résilier · Alice
+  energy | Dernier jour pour résilier · Maison | Dernier jour pour résilier · Alice
+  maintenance | Dernier jour pour résilier · Maison | Dernier jour pour résilier · Alice
+  management_fees | Dernier jour pour résilier · Maison | Dernier jour pour résilier · Alice
+  other | Dernier jour pour résilier · Maison | Dernier jour pour résilier · Alice
+  unknown | Dernier jour pour résilier · Maison | Dernier jour pour résilier · Alice
+subscription_expiry — milestone, milestone: True
+  (none) | Expire · Maison | Expire · Alice
+  Phase 2 | Expire · Maison | Expire · Alice
+  household | Expire · Maison | Expire · Foyer (plafonds mutualisés)
+  department_unknown | Expire · Maison | Expire · Date la plus tôt : renseignez le département dans le profil fiscal
+  life_insurance_8y | Expire · Maison | Expire · Alice
+  pea_5y | Expire · Maison | Expire · Alice
+  per_retirement | Expire · Maison | Expire · Alice
+  works | Expire · Maison | Expire · Alice
+  construction_works | Expire · Maison | Expire · Alice
+  property_tax | Expire · Maison | Expire · Alice
+  condo_fees | Expire · Maison | Expire · Alice
+  insurance | Expire · Maison | Expire · Alice
+  energy | Expire · Maison | Expire · Alice
+  maintenance | Expire · Maison | Expire · Alice
+  management_fees | Expire · Maison | Expire · Alice
+  other | Expire · Maison | Expire · Alice
+  unknown | Expire · Maison | Expire · Alice
+subscription_price_increase — milestone, milestone: True
+  (none) | Hausse de prix · Maison | Hausse de prix · Alice
+  Phase 2 | Hausse de prix · Maison | Hausse de prix · Alice
+  household | Hausse de prix · Maison | Hausse de prix · Foyer (plafonds mutualisés)
+  department_unknown | Hausse de prix · Maison | Hausse de prix · Date la plus tôt : renseignez le département dans le profil fiscal
+  life_insurance_8y | Hausse de prix · Maison | Hausse de prix · Alice
+  pea_5y | Hausse de prix · Maison | Hausse de prix · Alice
+  per_retirement | Hausse de prix · Maison | Hausse de prix · Alice
+  works | Hausse de prix · Maison | Hausse de prix · Alice
+  construction_works | Hausse de prix · Maison | Hausse de prix · Alice
+  property_tax | Hausse de prix · Maison | Hausse de prix · Alice
+  condo_fees | Hausse de prix · Maison | Hausse de prix · Alice
+  insurance | Hausse de prix · Maison | Hausse de prix · Alice
+  energy | Hausse de prix · Maison | Hausse de prix · Alice
+  maintenance | Hausse de prix · Maison | Hausse de prix · Alice
+  management_fees | Hausse de prix · Maison | Hausse de prix · Alice
+  other | Hausse de prix · Maison | Hausse de prix · Alice
+  unknown | Hausse de prix · Maison | Hausse de prix · Alice
+subscription_renewal — recurring, milestone: False
+  (none) | Renouvellement · Maison | Renouvellement · Alice
+  Phase 2 | Renouvellement · Maison | Renouvellement · Alice
+  household | Renouvellement · Maison | Renouvellement · Foyer (plafonds mutualisés)
+  department_unknown | Renouvellement · Maison | Renouvellement · Date la plus tôt : renseignez le département dans le profil fiscal
+  life_insurance_8y | Renouvellement · Maison | Renouvellement · Alice
+  pea_5y | Renouvellement · Maison | Renouvellement · Alice
+  per_retirement | Renouvellement · Maison | Renouvellement · Alice
+  works | Renouvellement · Maison | Renouvellement · Alice
+  construction_works | Renouvellement · Maison | Renouvellement · Alice
+  property_tax | Renouvellement · Maison | Renouvellement · Alice
+  condo_fees | Renouvellement · Maison | Renouvellement · Alice
+  insurance | Renouvellement · Maison | Renouvellement · Alice
+  energy | Renouvellement · Maison | Renouvellement · Alice
+  maintenance | Renouvellement · Maison | Renouvellement · Alice
+  management_fees | Renouvellement · Maison | Renouvellement · Alice
+  other | Renouvellement · Maison | Renouvellement · Alice
+  unknown | Renouvellement · Maison | Renouvellement · Alice
+subscription_trial_end — milestone, milestone: True
+  (none) | Fin de l'essai gratuit · Maison | Fin de l'essai gratuit · Alice
+  Phase 2 | Fin de l'essai gratuit · Maison | Fin de l'essai gratuit · Alice
+  household | Fin de l'essai gratuit · Maison | Fin de l'essai gratuit · Foyer (plafonds mutualisés)
+  department_unknown | Fin de l'essai gratuit · Maison | Fin de l'essai gratuit · Date la plus tôt : renseignez le département dans le profil fiscal
+  life_insurance_8y | Fin de l'essai gratuit · Maison | Fin de l'essai gratuit · Alice
+  pea_5y | Fin de l'essai gratuit · Maison | Fin de l'essai gratuit · Alice
+  per_retirement | Fin de l'essai gratuit · Maison | Fin de l'essai gratuit · Alice
+  works | Fin de l'essai gratuit · Maison | Fin de l'essai gratuit · Alice
+  construction_works | Fin de l'essai gratuit · Maison | Fin de l'essai gratuit · Alice
+  property_tax | Fin de l'essai gratuit · Maison | Fin de l'essai gratuit · Alice
+  condo_fees | Fin de l'essai gratuit · Maison | Fin de l'essai gratuit · Alice
+  insurance | Fin de l'essai gratuit · Maison | Fin de l'essai gratuit · Alice
+  energy | Fin de l'essai gratuit · Maison | Fin de l'essai gratuit · Alice
+  maintenance | Fin de l'essai gratuit · Maison | Fin de l'essai gratuit · Alice
+  management_fees | Fin de l'essai gratuit · Maison | Fin de l'essai gratuit · Alice
+  other | Fin de l'essai gratuit · Maison | Fin de l'essai gratuit · Alice
+  unknown | Fin de l'essai gratuit · Maison | Fin de l'essai gratuit · Alice
+tax_balance_due — recurring, milestone: False
+  (none) | Impôt : prélèvement du solde · Maison | Impôt : prélèvement du solde · Alice
+  Phase 2 | Impôt : prélèvement du solde · Maison | Impôt : prélèvement du solde · Alice
+  household | Impôt : prélèvement du solde · Maison | Impôt : prélèvement du solde · Foyer (plafonds mutualisés)
+  department_unknown | Impôt : prélèvement du solde · Maison | Impôt : prélèvement du solde · Date la plus tôt : renseignez le département dans le profil fiscal
+  life_insurance_8y | Impôt : prélèvement du solde · Maison | Impôt : prélèvement du solde · Alice
+  pea_5y | Impôt : prélèvement du solde · Maison | Impôt : prélèvement du solde · Alice
+  per_retirement | Impôt : prélèvement du solde · Maison | Impôt : prélèvement du solde · Alice
+  works | Impôt : prélèvement du solde · Maison | Impôt : prélèvement du solde · Alice
+  construction_works | Impôt : prélèvement du solde · Maison | Impôt : prélèvement du solde · Alice
+  property_tax | Impôt : prélèvement du solde · Maison | Impôt : prélèvement du solde · Alice
+  condo_fees | Impôt : prélèvement du solde · Maison | Impôt : prélèvement du solde · Alice
+  insurance | Impôt : prélèvement du solde · Maison | Impôt : prélèvement du solde · Alice
+  energy | Impôt : prélèvement du solde · Maison | Impôt : prélèvement du solde · Alice
+  maintenance | Impôt : prélèvement du solde · Maison | Impôt : prélèvement du solde · Alice
+  management_fees | Impôt : prélèvement du solde · Maison | Impôt : prélèvement du solde · Alice
+  other | Impôt : prélèvement du solde · Maison | Impôt : prélèvement du solde · Alice
+  unknown | Impôt : prélèvement du solde · Maison | Impôt : prélèvement du solde · Alice
+tax_filing_deadline — recurring, milestone: False
+  (none) | Impôt : date limite de la déclaration en ligne · Maison | Impôt : date limite de la déclaration en ligne · Alice
+  Phase 2 | Impôt : date limite de la déclaration en ligne · Maison | Impôt : date limite de la déclaration en ligne · Alice
+  household | Impôt : date limite de la déclaration en ligne · Maison | Impôt : date limite de la déclaration en ligne · Foyer (plafonds mutualisés)
+  department_unknown | Impôt : date limite de la déclaration en ligne · Maison | Impôt : date limite de la déclaration en ligne · Date la plus tôt : renseignez le département dans le profil fiscal
+  life_insurance_8y | Impôt : date limite de la déclaration en ligne · Maison | Impôt : date limite de la déclaration en ligne · Alice
+  pea_5y | Impôt : date limite de la déclaration en ligne · Maison | Impôt : date limite de la déclaration en ligne · Alice
+  per_retirement | Impôt : date limite de la déclaration en ligne · Maison | Impôt : date limite de la déclaration en ligne · Alice
+  works | Impôt : date limite de la déclaration en ligne · Maison | Impôt : date limite de la déclaration en ligne · Alice
+  construction_works | Impôt : date limite de la déclaration en ligne · Maison | Impôt : date limite de la déclaration en ligne · Alice
+  property_tax | Impôt : date limite de la déclaration en ligne · Maison | Impôt : date limite de la déclaration en ligne · Alice
+  condo_fees | Impôt : date limite de la déclaration en ligne · Maison | Impôt : date limite de la déclaration en ligne · Alice
+  insurance | Impôt : date limite de la déclaration en ligne · Maison | Impôt : date limite de la déclaration en ligne · Alice
+  energy | Impôt : date limite de la déclaration en ligne · Maison | Impôt : date limite de la déclaration en ligne · Alice
+  maintenance | Impôt : date limite de la déclaration en ligne · Maison | Impôt : date limite de la déclaration en ligne · Alice
+  management_fees | Impôt : date limite de la déclaration en ligne · Maison | Impôt : date limite de la déclaration en ligne · Alice
+  other | Impôt : date limite de la déclaration en ligne · Maison | Impôt : date limite de la déclaration en ligne · Alice
+  unknown | Impôt : date limite de la déclaration en ligne · Maison | Impôt : date limite de la déclaration en ligne · Alice
+tax_milestone — milestone, milestone: True
+  (none) |  | 
+  Phase 2 |  | 
+  household |  | 
+  department_unknown |  | 
+  life_insurance_8y | 8 ans du contrat : la fiscalité des retraits change · Maison | 8 ans du contrat : la fiscalité des retraits change · Alice
+  pea_5y | 5 ans du PEA : la fiscalité des retraits change · Maison | 5 ans du PEA : la fiscalité des retraits change · Alice
+  per_retirement | Âge de la retraite : le PER peut être débloqué · Maison | Âge de la retraite : le PER peut être débloqué · Alice
+  works |  | 
+  construction_works |  | 
+  property_tax |  | 
+  condo_fees |  | 
+  insurance |  | 
+  energy |  | 
+  maintenance |  | 
+  management_fees |  | 
+  other |  | 
+  unknown |  | 
+tax_new_rate — recurring, milestone: False
+  (none) | Impôt : le nouveau taux de prélèvement s’applique · Maison | Impôt : le nouveau taux de prélèvement s’applique · Alice
+  Phase 2 | Impôt : le nouveau taux de prélèvement s’applique · Maison | Impôt : le nouveau taux de prélèvement s’applique · Alice
+  household | Impôt : le nouveau taux de prélèvement s’applique · Maison | Impôt : le nouveau taux de prélèvement s’applique · Foyer (plafonds mutualisés)
+  department_unknown | Impôt : le nouveau taux de prélèvement s’applique · Maison | Impôt : le nouveau taux de prélèvement s’applique · Date la plus tôt : renseignez le département dans le profil fiscal
+  life_insurance_8y | Impôt : le nouveau taux de prélèvement s’applique · Maison | Impôt : le nouveau taux de prélèvement s’applique · Alice
+  pea_5y | Impôt : le nouveau taux de prélèvement s’applique · Maison | Impôt : le nouveau taux de prélèvement s’applique · Alice
+  per_retirement | Impôt : le nouveau taux de prélèvement s’applique · Maison | Impôt : le nouveau taux de prélèvement s’applique · Alice
+  works | Impôt : le nouveau taux de prélèvement s’applique · Maison | Impôt : le nouveau taux de prélèvement s’applique · Alice
+  construction_works | Impôt : le nouveau taux de prélèvement s’applique · Maison | Impôt : le nouveau taux de prélèvement s’applique · Alice
+  property_tax | Impôt : le nouveau taux de prélèvement s’applique · Maison | Impôt : le nouveau taux de prélèvement s’applique · Alice
+  condo_fees | Impôt : le nouveau taux de prélèvement s’applique · Maison | Impôt : le nouveau taux de prélèvement s’applique · Alice
+  insurance | Impôt : le nouveau taux de prélèvement s’applique · Maison | Impôt : le nouveau taux de prélèvement s’applique · Alice
+  energy | Impôt : le nouveau taux de prélèvement s’applique · Maison | Impôt : le nouveau taux de prélèvement s’applique · Alice
+  maintenance | Impôt : le nouveau taux de prélèvement s’applique · Maison | Impôt : le nouveau taux de prélèvement s’applique · Alice
+  management_fees | Impôt : le nouveau taux de prélèvement s’applique · Maison | Impôt : le nouveau taux de prélèvement s’applique · Alice
+  other | Impôt : le nouveau taux de prélèvement s’applique · Maison | Impôt : le nouveau taux de prélèvement s’applique · Alice
+  unknown | Impôt : le nouveau taux de prélèvement s’applique · Maison | Impôt : le nouveau taux de prélèvement s’applique · Alice
+tenancy_end — milestone, milestone: True
+  (none) | Fin du bail «  » · Maison | Fin du bail «  » · Alice
+  Phase 2 | Fin du bail « Phase 2 » · Maison | Fin du bail « Phase 2 » · Alice
+  household | Fin du bail « household » · Maison | Fin du bail « household » · Foyer (plafonds mutualisés)
+  department_unknown | Fin du bail « department_unknown » · Maison | Fin du bail « department_unknown » · Date la plus tôt : renseignez le département dans le profil fiscal
+  life_insurance_8y | Fin du bail « life_insurance_8y » · Maison | Fin du bail « life_insurance_8y » · Alice
+  pea_5y | Fin du bail « pea_5y » · Maison | Fin du bail « pea_5y » · Alice
+  per_retirement | Fin du bail « per_retirement » · Maison | Fin du bail « per_retirement » · Alice
+  works | Fin du bail « works » · Maison | Fin du bail « works » · Alice
+  construction_works | Fin du bail « construction_works » · Maison | Fin du bail « construction_works » · Alice
+  property_tax | Fin du bail « property_tax » · Maison | Fin du bail « property_tax » · Alice
+  condo_fees | Fin du bail « condo_fees » · Maison | Fin du bail « condo_fees » · Alice
+  insurance | Fin du bail « insurance » · Maison | Fin du bail « insurance » · Alice
+  energy | Fin du bail « energy » · Maison | Fin du bail « energy » · Alice
+  maintenance | Fin du bail « maintenance » · Maison | Fin du bail « maintenance » · Alice
+  management_fees | Fin du bail « management_fees » · Maison | Fin du bail « management_fees » · Alice
+  other | Fin du bail « other » · Maison | Fin du bail « other » · Alice
+  unknown | Fin du bail « unknown » · Maison | Fin du bail « unknown » · Alice
+valuation_due — recurring, milestone: False
+  (none) | Estimation à refaire · Maison | Estimation à refaire · Alice
+  Phase 2 | Estimation à refaire · Maison | Estimation à refaire · Alice
+  household | Estimation à refaire · Maison | Estimation à refaire · Foyer (plafonds mutualisés)
+  department_unknown | Estimation à refaire · Maison | Estimation à refaire · Date la plus tôt : renseignez le département dans le profil fiscal
+  life_insurance_8y | Estimation à refaire · Maison | Estimation à refaire · Alice
+  pea_5y | Estimation à refaire · Maison | Estimation à refaire · Alice
+  per_retirement | Estimation à refaire · Maison | Estimation à refaire · Alice
+  works | Estimation à refaire · Maison | Estimation à refaire · Alice
+  construction_works | Estimation à refaire · Maison | Estimation à refaire · Alice
+  property_tax | Estimation à refaire · Maison | Estimation à refaire · Alice
+  condo_fees | Estimation à refaire · Maison | Estimation à refaire · Alice
+  insurance | Estimation à refaire · Maison | Estimation à refaire · Alice
+  energy | Estimation à refaire · Maison | Estimation à refaire · Alice
+  maintenance | Estimation à refaire · Maison | Estimation à refaire · Alice
+  management_fees | Estimation à refaire · Maison | Estimation à refaire · Alice
+  other | Estimation à refaire · Maison | Estimation à refaire · Alice
+  unknown | Estimation à refaire · Maison | Estimation à refaire · Alice

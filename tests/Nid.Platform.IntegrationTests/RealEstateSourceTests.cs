@@ -189,6 +189,6 @@ public class RealEstateSourceTests(PostgresFixture fixture) : IClassFixture<Post
             new NotificationKind("revision_lost", "finding", NotificationLevel.Action, "properties", null),
             new NotificationKind("irl_missing", "finding", NotificationLevel.Info, "properties", null),
             new NotificationKind("valuation_stale", "finding", NotificationLevel.Info, "properties", null),
-        ], source.Kinds);
+        ], source.Kinds.Select(k => k with { Template = null, Personal = false })); // the copy: NotificationCopyTests
     }
 }

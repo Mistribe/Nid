@@ -19,16 +19,29 @@ public static class AccountNotices
     /// <summary>The recovery codes left at which the holder is told to make new ones; the Security page warns at the same count.</summary>
     public const string CodesLeftWarning = "2";
 
-    /// <summary>Critical ones go out at once and end when read; the low codes stay until new ones are made.</summary>
+    /// <summary>Critical ones go out at once and end when read; the low codes stay until new ones are made. Each opens the Security page.</summary>
     public static readonly IReadOnlyList<NotificationKind> Kinds =
     [
-        new(LoginLocked, NotificationFamilies.Security, NotificationLevel.Critical, "core", null),
-        new(PasswordLinkIssued, NotificationFamilies.Security, NotificationLevel.Critical, "core", null),
-        new(PasswordReset, NotificationFamilies.Security, NotificationLevel.Critical, "core", null),
-        new(PasswordChanged, NotificationFamilies.Security, NotificationLevel.Critical, "core", null),
-        new(TotpReset, NotificationFamilies.Security, NotificationLevel.Critical, "core", null),
-        new(RecoveryCodesLow, NotificationFamilies.Security, NotificationLevel.Action, "core", null),
+        Declared(LoginLocked, NotificationLevel.Critical, "Votre compte a été verrouillé",
+            "Après plusieurs essais de mot de passe incorrects. Si ce n'était pas vous, prévenez un administrateur."),
+        Declared(PasswordLinkIssued, NotificationLevel.Critical, "Un lien de réinitialisation a été créé pour vous",
+            "Un administrateur peut ainsi choisir un nouveau mot de passe pour votre compte. Si vous ne l'avez pas demandé, parlez-en avec lui."),
+        Declared(PasswordReset, NotificationLevel.Critical, "Votre mot de passe a été réinitialisé",
+            "Vos autres sessions sont fermées. Si ce n'était pas vous, prévenez un administrateur."),
+        Declared(PasswordChanged, NotificationLevel.Critical, "Votre mot de passe a changé",
+            "Vos autres sessions sont fermées. Si ce n'était pas vous, prévenez un administrateur."),
+        Declared(TotpReset, NotificationLevel.Critical, "Votre validation en deux étapes a été désactivée",
+            "Un administrateur l'a désactivée depuis le serveur. Réactivez-la depuis la page Sécurité."),
+        Declared(RecoveryCodesLow, NotificationLevel.Action, "Il vous reste 2 codes de secours",
+            "Créez-en de nouveaux depuis la page Sécurité avant d'en manquer."),
     ];
+
+    private static NotificationKind Declared(string kind, NotificationLevel level, string title, string body)
+        => new(kind, NotificationFamilies.Security, level, "core", null)
+        {
+            Personal = true,
+            Template = new(title) { Notice = true, Body = _ => body, Link = _ => "/security" },
+        };
 
     /// <summary>The notice an event gives its subject, if any; <paramref name="eventId"/> makes each occurrence its own.</summary>
     public static Notice? For(SecurityEvent e, Guid eventId)

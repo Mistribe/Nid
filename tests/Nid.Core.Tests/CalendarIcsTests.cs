@@ -10,6 +10,18 @@ namespace Nid.Core.Tests;
 public class CalendarIcsTests
 {
     private static readonly Instant Stamp = Instant.FromUtc(2025, 10, 15, 8, 30);
+
+    // Issue #514: the words are the modules' own (every real kind: UpcomingKindsTests in the host's tests).
+    private sealed class Declared : IUpcomingKinds
+    {
+        public IReadOnlyList<UpcomingKind> Kinds { get; } =
+        [
+            new(UpcomingKinds.SubscriptionRenewal, UpcomingCadence.Recurring, _ => "Renouvellement"),
+            new(UpcomingKinds.PerDeadline, UpcomingCadence.Recurring, _ => "PER : reste à verser avant le 31 décembre pour utiliser le plafond"),
+        ];
+    }
+
+    private static readonly UpcomingCatalog Kinds = new([new Declared()]);
     private static readonly ItemId Netflix = new(Guid.Parse("0192f0a0-0000-7000-8000-000000000001"));
 
     private static DashboardEventView Renewal(LocalDate on, string name = "Netflix") => new(
@@ -18,7 +30,7 @@ public class CalendarIcsTests
     [Fact]
     public void An_event_is_one_all_day_vevent_with_the_dashboard_words_and_a_link_back()
     {
-        var ics = CalendarIcs.Write([Renewal(new LocalDate(2025, 10, 20))], amounts: false, "https://nid.example/", Stamp);
+        var ics = CalendarIcs.Write([Renewal(new LocalDate(2025, 10, 20))], amounts: false, "https://nid.example/", Stamp, Kinds);
 
         Assert.StartsWith("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:", ics);
         Assert.EndsWith("END:VCALENDAR\r\n", ics);
@@ -35,7 +47,7 @@ public class CalendarIcsTests
     [Fact]
     public void Amounts_appear_only_when_the_feed_shows_them()
     {
-        var ics = CalendarIcs.Write([Renewal(new LocalDate(2025, 10, 20))], amounts: true, "https://nid.example", Stamp);
+        var ics = CalendarIcs.Write([Renewal(new LocalDate(2025, 10, 20))], amounts: true, "https://nid.example", Stamp, Kinds);
 
         Assert.Contains("SUMMARY:Renouvellement · Netflix · 1 234\\,50 €", ics);
     }
@@ -58,7 +70,7 @@ public class CalendarIcsTests
             new DashboardEventView(new LocalDate(2025, 12, 31), "some_future_kind", null, "tax", "Alice", null, null),
         };
 
-        var ics = CalendarIcs.Write(events, amounts: false, "https://nid.example", Stamp);
+        var ics = CalendarIcs.Write(events, amounts: false, "https://nid.example", Stamp, Kinds);
 
         Assert.Contains("SUMMARY:PER : reste à verser avant le 31 décembre pour utiliser le plafond · Foyer (plafonds mutualisés)", Unfold(ics));
         Assert.Contains("URL:https://nid.example/tax\r\n", ics);
@@ -69,7 +81,7 @@ public class CalendarIcsTests
     public void Text_is_escaped_and_long_lines_fold_at_75_octets_without_splitting_a_character()
     {
         var name = "Assurance; habitation, " + new string('é', 60);
-        var ics = CalendarIcs.Write([Renewal(new LocalDate(2025, 10, 20), name)], amounts: false, "https://nid.example", Stamp);
+        var ics = CalendarIcs.Write([Renewal(new LocalDate(2025, 10, 20), name)], amounts: false, "https://nid.example", Stamp, Kinds);
 
         Assert.All(ics.Split("\r\n"), line => Assert.True(System.Text.Encoding.UTF8.GetByteCount(line) <= 75, line));
         Assert.Contains("SUMMARY:Renouvellement · Assurance\\; habitation\\, " + new string('é', 60), Unfold(ics));

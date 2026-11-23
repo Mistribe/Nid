@@ -112,6 +112,8 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IHouseholdCalendar, HouseholdCalendar>();
         services.AddScoped<Nid.Core.Application.Dashboard.DashboardReader>();
         services.AddScoped<IMonthBudget>(sp => sp.GetRequiredService<Nid.Core.Application.Dashboard.DashboardReader>());
+        // Issue #514: every module's event kinds; each module registers its IUpcomingKinds below.
+        services.AddSingleton<Nid.Core.Application.Dashboard.UpcomingCatalog>();
         services.AddScoped<Nid.Core.Application.Dashboard.MonthChangesReader>();
         services.AddSingleton<Nid.Core.Application.Dashboard.MonthChangeWords>();
         services.AddScoped<Nid.Platform.Contracts.INotificationSource, Nid.Core.Application.Dashboard.CoreNotificationSource>();
@@ -178,6 +180,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<Nid.Tax.Application.PerDeadline>();
         services.AddScoped<Nid.Tax.Application.TaxCalendarEvents>();
         services.AddScoped<IHouseholdTax, Nid.Tax.Application.HouseholdTax>();
+        services.AddSingleton<IUpcomingKinds, Nid.Tax.Application.TaxUpcomingKinds>();
         services.AddScoped<Nid.Core.Application.Scenarios.ScenarioFactsReader>();
         services.AddScoped<Nid.Core.Application.Projection.ProjectionFactsReader>();
         services.AddScoped<Nid.Core.Application.Projection.ProjectionScenarioReader>();
@@ -209,6 +212,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ISubscriptionsReview, Nid.Subscriptions.Application.SubscriptionsReview>();
         services.AddScoped<Nid.Subscriptions.Application.SubscriptionsUpcoming>();
         services.AddScoped<IUpcomingEvents>(sp => sp.GetRequiredService<Nid.Subscriptions.Application.SubscriptionsUpcoming>());
+        services.AddSingleton<IUpcomingKinds, Nid.Subscriptions.Application.SubscriptionsUpcomingKinds>();
         services.AddScoped<Nid.Subscriptions.Application.SubscriptionsOverviewReader>();
         services.AddScoped<Nid.Platform.Contracts.INotificationSource, Nid.Subscriptions.Application.SubscriptionsNotificationSource>();
         services.AddScoped<IProposalHandler, Nid.Subscriptions.Application.InvoiceProposal>();
@@ -241,6 +245,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<Nid.RealEstate.Contracts.IFinancedEnvelopes, Nid.Investments.Application.FinancedEnvelopes>();
         services.AddScoped<Nid.Investments.Application.InvestmentsUpcoming>();
         services.AddScoped<IUpcomingEvents>(sp => sp.GetRequiredService<Nid.Investments.Application.InvestmentsUpcoming>());
+        services.AddSingleton<IUpcomingKinds, Nid.Investments.Application.InvestmentsUpcomingKinds>();
         services.AddScoped<Nid.Investments.Application.InvestmentsOverviewReader>();
         services.AddScoped<Nid.Investments.Application.InvestmentsPeriodReader>();
         services.AddScoped<IInvestmentsReview, Nid.Investments.Application.InvestmentsReview>();
@@ -268,6 +273,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IIncomeReview, Nid.Income.Application.IncomeReview>();
         services.AddScoped<Nid.Income.Application.IncomeSourcesUpcoming>();
         services.AddScoped<IUpcomingEvents>(sp => sp.GetRequiredService<Nid.Income.Application.IncomeSourcesUpcoming>());
+        services.AddSingleton<IUpcomingKinds, Nid.Income.Application.IncomeUpcomingKinds>();
         services.AddScoped<Nid.Platform.Contracts.INotificationSource, Nid.Income.Application.IncomeNotificationSource>();
         services.AddScoped<IExpectedIncome, Nid.Income.Application.IncomeSourcesNext>();
         services.AddScoped<ITaxContribution, Nid.Income.Application.IncomeSourcesTax>();
@@ -487,6 +493,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IExpectedCharges, Nid.RealEstate.Application.RealEstateExpectedCharges>();
         services.AddScoped<Nid.RealEstate.Application.RealEstateUpcoming>();
         services.AddScoped<IUpcomingEvents>(sp => sp.GetRequiredService<Nid.RealEstate.Application.RealEstateUpcoming>());
+        services.AddSingleton<IUpcomingKinds, Nid.RealEstate.Application.RealEstateUpcomingKinds>();
         services.AddScoped<Nid.RealEstate.Application.PropertiesOverviewReader>();
         services.AddScoped<Nid.Platform.Contracts.INotificationSource, Nid.RealEstate.Application.RealEstateNotificationSource>();
         services.AddScoped<ITaxContribution, Nid.RealEstate.Application.RentalTax>();

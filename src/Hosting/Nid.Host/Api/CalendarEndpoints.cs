@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Options;
 using Nid.Core.Application.Calendar;
+using Nid.Core.Application.Dashboard;
 using Nid.Core.Contracts;
 using Nid.Core.Domain;
 using Nid.Host.Auth;
@@ -30,7 +31,7 @@ public static class CalendarEndpoints
         // A calendar app sends no header: the URL is the right. Unknown, forged, revoked and expired answer the same 404, and an adult
         // no longer active too. The feed's person reads with `read` only, through the same pipeline (and output guard) as any read.
         routes.MapGet(FeedPath + "/{secret}.ics", async (string secret, HttpContext http, IPersonalAccessTokens tokens, IPersonRegistry persons,
-                IActorAccessor actor, IInvoker invoker, IOptions<NidAuthOptions> auth, IClock clock, CancellationToken ct) =>
+                IActorAccessor actor, IInvoker invoker, IOptions<NidAuthOptions> auth, IClock clock, UpcomingCatalog kinds, CancellationToken ct) =>
             {
                 var gone = Results.NotFound();
                 if (!TokenFormat.TryReadCalendarPrefix(secret, out var prefix)
@@ -44,7 +45,7 @@ public static class CalendarEndpoints
                 var read = await invoker.InvokeAsync(new GetCalendarFeedQuery(feed.Options), ct);
                 if (!read.TryGetValue(out var events))
                     return read.ToHttp(v => v);
-                var body = CalendarIcs.Write(events!.Events, feed.Options.Amounts, PublicUrl(auth, http.Request), clock.GetCurrentInstant());
+                var body = CalendarIcs.Write(events!.Events, feed.Options.Amounts, PublicUrl(auth, http.Request), clock.GetCurrentInstant(), kinds);
                 http.Response.Headers.CacheControl = "private, no-store";
                 http.Response.Headers["Referrer-Policy"] = "no-referrer";
                 return Results.Text(body, "text/calendar; charset=utf-8");

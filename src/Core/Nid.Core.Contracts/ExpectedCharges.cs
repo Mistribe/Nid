@@ -3,7 +3,24 @@ using UnambitiousFx.Functional;
 
 namespace Nid.Core.Contracts;
 
-public enum ChargeKind { Subscription, LoanInstalment, PropertyCost, Rent, Childcare }
+/// <summary>
+/// Issue #514: a kind of expected charge, declared by the module that expects it and carried by each of its charges: <c>Name</c> as the
+/// wire names it, <c>Page</c> the calendar's module (<see cref="CalendarModules"/>) and the item page a charge opens.
+/// </summary>
+public sealed record ChargeKind(string Name, string Page);
+
+/// <summary>
+/// The names of the existing modules' charge kinds, which the bank reconciliation reads (a rent is a credit, a subscription's price may
+/// change, each its category). A new module declares its own <see cref="ChargeKind"/>; its lines are linked, left uncategorised.
+/// </summary>
+public static class ChargeKinds
+{
+    public const string Subscription = "subscription";
+    public const string LoanInstalment = "loan_instalment";
+    public const string PropertyCost = "property_cost";
+    public const string Rent = "rent";
+    public const string Childcare = "childcare";
+}
 
 /// <summary>
 /// 5C spec §6.1: a debit (a credit for a rent) a module expects on an item. <c>Key</c> is stable and unique per item and kind;
@@ -20,30 +37,6 @@ public interface IExpectedCharges
     /// projected: the bank reconciliation reads <see cref="VisibilityScope.Me"/>, the calendar's amounts (#241) the page's scope.
     /// </summary>
     Task<Result<IReadOnlyList<ExpectedCharge>>> ChargesAsync(PersonId reader, VisibilityScope scope, LocalDate from, LocalDate to, CancellationToken ct);
-}
-
-public static class ChargeKinds
-{
-    /// <summary>The page a charge belongs to, as the calendar's modules (<see cref="CalendarModules"/>) and the notification templates name it.</summary>
-    public static string ModuleOf(ChargeKind kind) => kind switch
-    {
-        ChargeKind.Subscription => CalendarModules.Subscriptions,
-        ChargeKind.LoanInstalment => CalendarModules.Loans,
-        ChargeKind.PropertyCost or ChargeKind.Rent => CalendarModules.Properties,
-        ChargeKind.Childcare => CalendarModules.Childcare,
-        _ => throw new InvalidOperationException($"No page for the charge kind {kind}."),
-    };
-
-    /// <summary>A kind as the wire names it.</summary>
-    public static string Wire(ChargeKind kind) => kind switch
-    {
-        ChargeKind.Subscription => "subscription",
-        ChargeKind.LoanInstalment => "loan_instalment",
-        ChargeKind.PropertyCost => "property_cost",
-        ChargeKind.Rent => "rent",
-        ChargeKind.Childcare => "childcare",
-        _ => throw new InvalidOperationException($"No wire name for the charge kind {kind}."),
-    };
 }
 
 /// <summary>Issue #81: when the reader's next income is expected, for the shortfall ahead.</summary>

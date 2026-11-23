@@ -13,6 +13,11 @@ namespace Nid.RealEstate.Application;
 /// </summary>
 public sealed class RealEstateExpectedCharges(IVisibleItems visible, IItemRegistry items, IPropertyStore properties, ILoanStore loans) : IExpectedCharges
 {
+    /// <summary>Issue #514: the kinds of charge of the loans and properties, each on its page.</summary>
+    public static readonly ChargeKind LoanInstalment = new(ChargeKinds.LoanInstalment, CalendarModules.Loans);
+    public static readonly ChargeKind PropertyCost = new(ChargeKinds.PropertyCost, CalendarModules.Properties);
+    public static readonly ChargeKind Rent = new(ChargeKinds.Rent, CalendarModules.Properties);
+
     private static string Day(LocalDate on) => on.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
     public async Task<Result<IReadOnlyList<ExpectedCharge>>> ChargesAsync(PersonId reader, VisibilityScope scope, LocalDate from, LocalDate to, CancellationToken ct)
@@ -29,7 +34,7 @@ public sealed class RealEstateExpectedCharges(IVisibleItems visible, IItemRegist
                 continue;
             var terms = LoanReading.Terms(LoanReading.CurrencyOf(item), loan.Contract, loan.Fees, loan.Repayments);
             foreach (var row in LoanReading.Schedule(terms, loan).Rows.Where(r => r.DueDate >= from && r.DueDate <= to && r.Payment + r.Insurance != 0m))
-                charges.Add(new ExpectedCharge("realestate", loan.ItemId, item.DisplayName, ChargeKind.LoanInstalment, Day(row.DueDate), row.DueDate,
+                charges.Add(new ExpectedCharge("realestate", loan.ItemId, item.DisplayName, LoanInstalment, Day(row.DueDate), row.DueDate,
                     PropertyFacts.MoneyOf(row.Payment + row.Insurance, terms.Currency), false, 5, loan.Lender is { } lender ? [lender] : []));
         }
 
@@ -40,7 +45,7 @@ public sealed class RealEstateExpectedCharges(IVisibleItems visible, IItemRegist
             var currency = LoanReading.CurrencyOf(item);
             foreach (var (id, cost, _) in property.Costs.Where(c => c.Cost.Amount != 0m))
                 foreach (var on in PropertyMath.DueBetween(cost, from, to.PlusDays(1)))
-                    charges.Add(new ExpectedCharge("realestate", property.ItemId, item.DisplayName, ChargeKind.PropertyCost, $"cost:{id:N}:{Day(on)}", on,
+                    charges.Add(new ExpectedCharge("realestate", property.ItemId, item.DisplayName, PropertyCost, $"cost:{id:N}:{Day(on)}", on,
                         PropertyFacts.MoneyOf(cost.Amount, currency), false, 5, [cost.Category]));
 
             // A revised lease is two tenancies in the month it changes: their parts add up to the month's rent.
@@ -53,7 +58,7 @@ public sealed class RealEstateExpectedCharges(IVisibleItems visible, IItemRegist
                     continue;
                 var due = rents.Min(r => r.Rent!.Value.From);
                 if (due >= from && due <= to)
-                    charges.Add(new ExpectedCharge("realestate", property.ItemId, item.DisplayName, ChargeKind.Rent,
+                    charges.Add(new ExpectedCharge("realestate", property.ItemId, item.DisplayName, Rent,
                         $"rent:{month.ToString("yyyy-MM", CultureInfo.InvariantCulture)}", due,
                         PropertyFacts.MoneyOf(rents.Sum(r => r.Rent!.Value.Amount), currency), true, 10, [rents[0].Label]));
             }

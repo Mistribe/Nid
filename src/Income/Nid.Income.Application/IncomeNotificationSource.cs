@@ -18,8 +18,14 @@ public sealed class IncomeNotificationSource(IncomeSourcesUpcoming upcoming) : I
 
     public IReadOnlyList<NotificationKind> Kinds { get; } =
     [
-        new(UpcomingKinds.IncomePhaseEnd, "due_date", NotificationLevel.Action, "income", 30),
-        new(UpcomingKinds.IncomeGapSoon, "due_date", NotificationLevel.Action, "income", 30),
+        new(UpcomingKinds.IncomePhaseEnd, "due_date", NotificationLevel.Action, "income", 30)
+        {
+            Template = new("Une phase de revenu se termine") { Link = f => f.ItemPage("income") },
+        },
+        new(UpcomingKinds.IncomeGapSoon, "due_date", NotificationLevel.Action, "income", 30)
+        {
+            Template = new("Un trou de revenus approche") { Link = f => f.ItemPage("income") },
+        },
     ];
 
     public async Task<Result<IReadOnlyList<Signal>>> SignalsAsync(PersonId reader, LocalDate today, LocalDate horizon, CancellationToken ct)

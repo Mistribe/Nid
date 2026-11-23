@@ -27,7 +27,7 @@ public sealed class GetDashboardHandler(DashboardReader dashboard, IActorAccesso
 public sealed class DashboardReader(
     IEnumerable<INetWorthContribution> netWorth, IEnumerable<ICommitmentsContribution> commitments,
     IEnumerable<IIncomeContribution> income, IEnumerable<ISpendingContribution> spending, IEnumerable<IUpcomingEvents> upcoming, IHouseholdTax tax,
-    IHouseholdSettings household, IFxRates fx, IPersonRegistry persons) : IMonthBudget
+    IHouseholdSettings household, IFxRates fx, IPersonRegistry persons, UpcomingCatalog kinds) : IMonthBudget
 {
     /// <summary><paramref name="withSpending"/> false leaves the everyday spending out (null), as the notifications never use it.</summary>
     public async Task<Result<DashboardView>> ReadAsync(PersonId reader, VisibilityScope scope, LocalDate today, CancellationToken ct, bool withSpending = true)
@@ -88,7 +88,7 @@ public sealed class DashboardReader(
     /// Issue #80: « À venir » alone over [<paramref name="today"/>, <paramref name="until"/>], for the calendar feed: the modules' events
     /// (not the income gap, which is « À faire »), the PER deadline and the tax calendar, by date then name, each amount in its own currency.
     /// Issue #243: only the events of <paramref name="modules"/> (<see cref="CalendarModules"/>), every module when null.
-    /// Issue #240: <paramref name="milestonesOnly"/> keeps the kinds that happen once (<see cref="UpcomingKinds.IsMilestone"/>).
+    /// Issue #240: <paramref name="milestonesOnly"/> keeps the kinds that happen once (<see cref="UpcomingCatalog.IsMilestone"/>).
     /// </summary>
     public async Task<Result<IReadOnlyList<DashboardEventView>>> UpcomingAsync(PersonId reader, VisibilityScope scope, LocalDate today, LocalDate until,
         IReadOnlyCollection<string>? modules, CancellationToken ct, bool milestonesOnly = false)
@@ -109,7 +109,7 @@ public sealed class DashboardReader(
             taxDates = await tax.CalendarAsync(reader, scope, today, until, ct);
         }
         return Result.Success<IReadOnlyList<DashboardEventView>>(d!.SelectMany(x => x)
-            .Where(e => e.Kind != UpcomingKinds.IncomeGapSoon && Lists(e.Module) && (!milestonesOnly || UpcomingKinds.IsMilestone(e.Kind)))
+            .Where(e => e.Kind != UpcomingKinds.IncomeGapSoon && Lists(e.Module) && (!milestonesOnly || kinds.IsMilestone(e.Kind)))
             .Select(e => new DashboardEventView(e.On, e.Kind, e.Item, e.Module, e.Name, e.Label,
                 e.Amount is { } a ? DashboardMath.Money(a.Amount, a.Currency) : null))
             .Concat(p).Concat(taxDates)

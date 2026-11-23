@@ -1,12 +1,14 @@
+using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
 using Nid.Platform.Notifications;
+using Nid.TestSupport;
 using NodaTime;
 
-namespace Nid.Platform.Tests;
+namespace Nid.Platform.IntegrationTests;
 
 /// <summary>Notifications design §4: a notification names the item and the date, never an amount.</summary>
-public class NotificationTemplatesTests
+public class NotificationTemplatesTests(SharedNidApp shared) : IClassFixture<SharedNidApp>
 {
     private static readonly ItemId Item = new(Guid.Parse("11111111-1111-1111-1111-111111111111"));
 
@@ -28,7 +30,19 @@ public class NotificationTemplatesTests
         => new(Guid.NewGuid(), new PersonId(Guid.NewGuid()), kind, key, NotificationLevel.Info, [Item], dueOn, new LocalDate(2027, 3, 1),
             new Dictionary<string, string>(), NotificationStates.Open, null, null, Instant.FromUtc(2027, 3, 1, 0, 0), null, null);
 
-    private static NotificationKind KindOf(string kind, string module) => new(kind, "test", NotificationLevel.Info, module, null);
+    // Issue #514: each kind reads as its module declares it.
+    private NotificationKind KindOf(string kind)
+    {
+        var scope = shared.App.Services.CreateAsyncScope();
+        try
+        {
+            return scope.ServiceProvider.GetRequiredService<NotificationCatalog>().Find(kind) ?? throw new InvalidOperationException($"No kind {kind}.");
+        }
+        finally
+        {
+            scope.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        }
+    }
 
     [Theory]
     [InlineData("remote_on", null, "Les workers distants peuvent désormais recevoir les données du foyer.")]
@@ -43,7 +57,7 @@ public class NotificationTemplatesTests
             parameters["worker"] = worker;
         var record = Record("ai.data_policy_changed") with { ItemIds = [], Params = parameters };
 
-        var rendered = NotificationTemplates.Render(record, new NotificationKind("ai.data_policy_changed", "security", NotificationLevel.Critical, "ai", null),
+        var rendered = NotificationTemplates.Render(record, KindOf("ai.data_policy_changed"),
             new Dictionary<ItemId, string>());
 
         Assert.Equal("Ce que voient les modèles a changé", rendered.Title);
@@ -58,7 +72,7 @@ public class NotificationTemplatesTests
     {
         var record = Record("job_failed") with { ItemIds = [], Params = new Dictionary<string, string> { ["job"] = job } };
 
-        var rendered = NotificationTemplates.Render(record, new NotificationKind("job_failed", "health", NotificationLevel.Action, "platform", null),
+        var rendered = NotificationTemplates.Render(record, KindOf("job_failed"),
             new Dictionary<ItemId, string>());
 
         Assert.Equal(link, rendered.Link);
@@ -67,9 +81,9 @@ public class NotificationTemplatesTests
     [Fact]
     public void Every_kind_has_a_title_and_a_link()
     {
-        foreach (var (kind, module) in Kinds)
+        foreach (var (kind, _) in Kinds)
         {
-            var rendered = NotificationTemplates.Render(Record(kind), KindOf(kind, module), new Dictionary<ItemId, string> { [Item] = "Maison" });
+            var rendered = NotificationTemplates.Render(Record(kind), KindOf(kind), new Dictionary<ItemId, string> { [Item] = "Maison" });
             Assert.False(string.IsNullOrWhiteSpace(rendered.Title), kind);
             Assert.StartsWith("/", rendered.Link);
             Assert.Contains(Item.Value.ToString("D"), rendered.Link);
@@ -80,7 +94,7 @@ public class NotificationTemplatesTests
     [Fact]
     public void Body_has_the_name_and_the_date_never_an_amount()
     {
-        var rendered = NotificationTemplates.Render(Record("tenancy_end", new LocalDate(2027, 3, 31)), KindOf("tenancy_end", "properties"),
+        var rendered = NotificationTemplates.Render(Record("tenancy_end", new LocalDate(2027, 3, 31)), KindOf("tenancy_end"),
             new Dictionary<ItemId, string> { [Item] = "Maison" });
 
         Assert.Equal("Maison — le 31 mars 2027", rendered.Body);
@@ -92,14 +106,14 @@ public class NotificationTemplatesTests
     public void Findings_name_their_month_or_date_and_a_missing_name_is_an_element()
     {
         var none = new Dictionary<ItemId, string>();
-        var arrears = NotificationTemplates.Render(Record("rent_arrears", key: $"rent_arrears:{Item.Value:D}:2027-02"), KindOf("rent_arrears", "properties"),
+        var arrears = NotificationTemplates.Render(Record("rent_arrears", key: $"rent_arrears:{Item.Value:D}:2027-02"), KindOf("rent_arrears"),
             new Dictionary<ItemId, string> { [Item] = "Studio" });
-        var stale = NotificationTemplates.Render(Record("valuation_stale", key: $"valuation_stale:{Item.Value:D}:2025-06-15"), KindOf("valuation_stale", "properties"), none);
-        var loan = NotificationTemplates.Render(Record("loan_end", new LocalDate(2027, 12, 1)), KindOf("loan_end", "loans"), none);
+        var stale = NotificationTemplates.Render(Record("valuation_stale", key: $"valuation_stale:{Item.Value:D}:2025-06-15"), KindOf("valuation_stale"), none);
+        var loan = NotificationTemplates.Render(Record("loan_end", new LocalDate(2027, 12, 1)), KindOf("loan_end"), none);
 
         Assert.Equal("Studio — depuis février 2027", arrears.Body);
         var statement = NotificationTemplates.Render(Record("childcare_statement_due", new LocalDate(2025, 9, 30), $"childcare_statement_due:{Item.Value:D}:2025-09"),
-            KindOf("childcare_statement_due", "childcare"), new Dictionary<ItemId, string> { [Item] = "Garde de Léa" });
+            KindOf("childcare_statement_due"), new Dictionary<ItemId, string> { [Item] = "Garde de Léa" });
         Assert.Equal("Garde de Léa — relevé de septembre 2025", statement.Body);
         Assert.Equal("Élément — estimée le 15 juin 2025", stale.Body);
         Assert.Equal($"/properties/{Item.Value:D}?tab=valuations", stale.Link);
@@ -112,9 +126,9 @@ public class NotificationTemplatesTests
     {
         NotificationRecord Household(string kind, string key, Dictionary<string, string> parameters)
             => Record(kind, key: key) with { ItemIds = [], Params = parameters };
-        var rate = NotificationTemplates.Render(Household("fx_rate_missing", "fx_rate_missing:USD", new() { ["currency"] = "USD" }), KindOf("fx_rate_missing", "core"),
+        var rate = NotificationTemplates.Render(Household("fx_rate_missing", "fx_rate_missing:USD", new() { ["currency"] = "USD" }), KindOf("fx_rate_missing"),
             new Dictionary<ItemId, string> { [Item] = "Maison" });
-        var routine = NotificationTemplates.Render(Household("routine_due", "routine_due:2027-03", []), KindOf("routine_due", "core"), new Dictionary<ItemId, string>());
+        var routine = NotificationTemplates.Render(Household("routine_due", "routine_due:2027-03", []), KindOf("routine_due"), new Dictionary<ItemId, string>());
 
         Assert.Equal(("Un taux de change manque", "Devise USD", "/dashboard"), (rate.Title, rate.Body, rate.Link));
         Assert.Equal(("La routine du mois est à faire", "Des valeurs sont à mettre à jour", "/routine"), (routine.Title, routine.Body, routine.Link));
@@ -129,7 +143,7 @@ public class NotificationTemplatesTests
             Params = new Dictionary<string, string> { ["income"] = "down", ["net_worth"] = "up|investments.value+|real_estate.paid_in+", ["commitments"] = "up|subscriptions+|unknown-" },
         };
 
-        var rendered = NotificationTemplates.Render(record, KindOf("month_changes", "core"), new Dictionary<ItemId, string>());
+        var rendered = NotificationTemplates.Render(record, KindOf("month_changes"), new Dictionary<ItemId, string>());
 
         Assert.Equal(("Ce qui a changé depuis le mois dernier",
             "Patrimoine en hausse — valeur des placements ↑, capital remboursé ↑ · Engagements en hausse — abonnements ↑, autres ↓ · Revenus en baisse",
@@ -140,7 +154,7 @@ public class NotificationTemplatesTests
     public void The_tax_calendar_opens_the_tax_page_and_names_the_day()
     {
         RenderedNotification Tax(string kind, Dictionary<string, string> parameters) => NotificationTemplates.Render(
-            Record(kind, new LocalDate(2026, 5, 21), $"{kind}:2026-05-21") with { ItemIds = [], Params = parameters }, KindOf(kind, "core"), new Dictionary<ItemId, string>());
+            Record(kind, new LocalDate(2026, 5, 21), $"{kind}:2026-05-21") with { ItemIds = [], Params = parameters }, KindOf(kind), new Dictionary<ItemId, string>());
 
         Assert.Equal(("La déclaration de revenus est à faire", "En ligne avant le 21 mai 2026", "/tax"),
             (Tax("tax_filing_deadline", []).Title, Tax("tax_filing_deadline", []).Body, Tax("tax_filing_deadline", []).Link));
@@ -155,19 +169,19 @@ public class NotificationTemplatesTests
     {
         NotificationRecord Job(Dictionary<string, string> parameters) => Record("job_failed", key: "job_failed:fx-daily") with { ItemIds = [], Params = parameters };
 
-        Assert.Equal("/admin/jobs/fx-daily", NotificationTemplates.Render(Job(new() { ["job"] = "fx-daily" }), KindOf("job_failed", "platform"), new Dictionary<ItemId, string>()).Link);
-        Assert.Equal("/admin/jobs", NotificationTemplates.Render(Job([]), KindOf("job_failed", "platform"), new Dictionary<ItemId, string>()).Link);
+        Assert.Equal("/admin/jobs/fx-daily", NotificationTemplates.Render(Job(new() { ["job"] = "fx-daily" }), KindOf("job_failed"), new Dictionary<ItemId, string>()).Link);
+        Assert.Equal("/admin/jobs", NotificationTemplates.Render(Job([]), KindOf("job_failed"), new Dictionary<ItemId, string>()).Link);
     }
 
     [Fact]
     public void Investments_and_income_open_their_screens_and_name_the_date()
     {
         var names = new Dictionary<ItemId, string> { [Item] = "Assurance-vie" };
-        var maturity = NotificationTemplates.Render(Record("holding_maturity", new LocalDate(2027, 12, 1)), KindOf("holding_maturity", "investments"), names);
-        var stale = NotificationTemplates.Render(Record("stale_value", key: $"stale_value:{Item.Value:D}:2025-06-15"), KindOf("stale_value", "investments"), names);
-        var floor = NotificationTemplates.Render(Record("uc_share_below_floor", key: $"uc_share_below_floor:{Item.Value:D}:2024-12-31"), KindOf("uc_share_below_floor", "investments"), names);
-        var phase = NotificationTemplates.Render(Record("income_phase_end", new LocalDate(2027, 3, 31)), KindOf("income_phase_end", "income"), names);
-        var gap = NotificationTemplates.Render(Record("income_gap_soon", new LocalDate(2027, 3, 31)), KindOf("income_gap_soon", "income"), names);
+        var maturity = NotificationTemplates.Render(Record("holding_maturity", new LocalDate(2027, 12, 1)), KindOf("holding_maturity"), names);
+        var stale = NotificationTemplates.Render(Record("stale_value", key: $"stale_value:{Item.Value:D}:2025-06-15"), KindOf("stale_value"), names);
+        var floor = NotificationTemplates.Render(Record("uc_share_below_floor", key: $"uc_share_below_floor:{Item.Value:D}:2024-12-31"), KindOf("uc_share_below_floor"), names);
+        var phase = NotificationTemplates.Render(Record("income_phase_end", new LocalDate(2027, 3, 31)), KindOf("income_phase_end"), names);
+        var gap = NotificationTemplates.Render(Record("income_gap_soon", new LocalDate(2027, 3, 31)), KindOf("income_gap_soon"), names);
 
         Assert.Equal(("Un support arrive à échéance", "Assurance-vie — le 1er décembre 2027", $"/investments/{Item.Value:D}?tab=holdings"),
             (maturity.Title, maturity.Body, maturity.Link));
@@ -191,7 +205,7 @@ public class NotificationTemplatesTests
         {
             var record = Record(kind, new LocalDate(2027, 3, 5)) with { Params = new Dictionary<string, string> { ["module"] = module } };
 
-            var rendered = NotificationTemplates.Render(record, KindOf(kind, "banking"), new Dictionary<ItemId, string> { [Item] = "Maison" });
+            var rendered = NotificationTemplates.Render(record, KindOf(kind), new Dictionary<ItemId, string> { [Item] = "Maison" });
 
             Assert.Equal((title, link + Item.Value.ToString("D"), "Maison — le 5 mars 2027"), (rendered.Title, rendered.Link, rendered.Body));
         }
@@ -229,14 +243,14 @@ public class NotificationTemplatesTests
         };
         foreach (var (record, title, link) in cases)
         {
-            var rendered = NotificationTemplates.Render(record, KindOf(record.Kind, "platform"), names);
+            var rendered = NotificationTemplates.Render(record, KindOf(record.Kind), names);
             Assert.Equal((title, link), (rendered.Title, rendered.Link));
             if (link == "/security" && record.Kind != "token_expiring") Assert.NotEmpty(rendered.Body);
             Assert.DoesNotContain("Maison", rendered.Body);
             Assert.DoesNotMatch(@"\d+\s?(€|EUR)", rendered.Body);
         }
 
-        Assert.Equal("Requête : GetEnvelope", NotificationTemplates.Render(cases[0].Item1, KindOf("access_violation", "platform"), names).Body);
+        Assert.Equal("Requête : GetEnvelope", NotificationTemplates.Render(cases[0].Item1, KindOf("access_violation"), names).Body);
     }
 
     [Theory]
@@ -253,7 +267,7 @@ public class NotificationTemplatesTests
             parameters["hours"] = hours;
         var record = Record("backup_failed", key: "backup_failed:never") with { ItemIds = [], Params = parameters };
 
-        Assert.Equal(body, NotificationTemplates.Render(record, KindOf("backup_failed", "platform"), new Dictionary<ItemId, string>()).Body);
+        Assert.Equal(body, NotificationTemplates.Render(record, KindOf("backup_failed"), new Dictionary<ItemId, string>()).Body);
     }
 
     [Fact]
@@ -264,7 +278,7 @@ public class NotificationTemplatesTests
             ItemIds = [],
             Params = new Dictionary<string, string> { ["net_worth_amount"] = "302140.40", ["step_amount"] = "300000" },
         };
-        var kind = KindOf("net_worth_milestone", "core");
+        var kind = KindOf("net_worth_milestone");
 
         var centre = NotificationTemplates.Render(record, kind, new Dictionary<ItemId, string>(), withFigures: true);
         var plain = NotificationTemplates.Render(record, kind, new Dictionary<ItemId, string>());
@@ -287,7 +301,7 @@ public class NotificationTemplatesTests
             ["charges"] = "Loyer, Netflix", ["module"] = "investments",
         };
         var record = Record("shortfall_ahead", new LocalDate(2027, 3, 5)) with { Params = figures };
-        var kind = KindOf("shortfall_ahead", "banking");
+        var kind = KindOf("shortfall_ahead");
         var names = new Dictionary<ItemId, string> { [Item] = "Compte joint" };
 
         var centre = NotificationTemplates.Render(record, kind, names, withFigures: true);
@@ -311,7 +325,7 @@ public class NotificationTemplatesTests
             ItemIds = [], DueOn = new LocalDate(2027, 3, 31),
             Params = new Dictionary<string, string> { ["card"] = "Carte Visa", ["number"] = "4321", ["count"] = "0", ["min"] = "1" },
         };
-        var kind = KindOf("card_unused", "banking");
+        var kind = KindOf("card_unused");
 
         var rendered = NotificationTemplates.Render(record, kind, new Dictionary<ItemId, string>());
 
@@ -333,7 +347,7 @@ public class NotificationTemplatesTests
                 ["above_amount"] = "4200.40", ["buffer_amount"] = "6000.00", ["room_amount"] = "2000", ["currency"] = "EUR", ["reason"] = "room_goal_behind",
             },
         };
-        var kind = KindOf("idle_cash", "banking");
+        var kind = KindOf("idle_cash");
 
         var centre = NotificationTemplates.Render(record, kind, new Dictionary<ItemId, string>(), withFigures: true);
         var plain = NotificationTemplates.Render(record, kind, new Dictionary<ItemId, string>());
@@ -359,7 +373,7 @@ public class NotificationTemplatesTests
                 ["spent_amount"] = "420.00", ["usual_amount"] = "250.00", ["currency"] = "EUR", ["lines"] = "CB MARCHE 120,00, CB EPICERIE",
             },
         };
-        var kind = KindOf("unusual_spending", "banking");
+        var kind = KindOf("unusual_spending");
 
         var centre = NotificationTemplates.Render(record, kind, new Dictionary<ItemId, string>(), withFigures: true);
         var plain = NotificationTemplates.Render(record, kind, new Dictionary<ItemId, string>());

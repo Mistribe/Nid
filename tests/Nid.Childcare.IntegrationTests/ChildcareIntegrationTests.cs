@@ -237,7 +237,7 @@ public class ChildcareIntegrationTests(PostgresFixture fixture) : IClassFixture<
         var september = await ValidateAsync(app, arrangement, "2025-09");
         var charge = Assert.Single(await ChargesAsync(app, app.AdultA));
         Assert.Equal("statement:2025-09", charge.Key);
-        Assert.Equal(ChargeKind.Childcare, charge.Kind);
+        Assert.Equal(ChargeKinds.Childcare, charge.Kind.Name);
         Assert.Equal(new LocalDate(2025, 10, 17), charge.DueOn); // validated on 2025-10-15, the test clock
         Assert.Equal(september.GetProperty("figures").GetProperty("cost").GetProperty("amount").GetString(), charge.Amount.AmountText);
         Assert.False(charge.Credit);
@@ -270,12 +270,12 @@ public class ChildcareIntegrationTests(PostgresFixture fixture) : IClassFixture<
         await using var app = await NidApp.StartAsync(fixture);
         var arrangement = await CreateAsync(app);
         await ValidateAsync(app, arrangement, "2025-09");
-        Assert.Contains(await ChargesAsync(app, app.AdultA, writable: true), c => c.Kind == ChargeKind.Childcare);
-        Assert.DoesNotContain(await ChargesAsync(app, app.AdultB, writable: true), c => c.Kind == ChargeKind.Childcare);
+        Assert.Contains(await ChargesAsync(app, app.AdultA, writable: true), c => c.Kind.Name == ChargeKinds.Childcare);
+        Assert.DoesNotContain(await ChargesAsync(app, app.AdultB, writable: true), c => c.Kind.Name == ChargeKinds.Childcare);
     }
 
     [Fact]
-    public void A_childcare_charge_opens_the_arrangement() => Assert.Equal("childcare", ChargeKinds.ModuleOf(ChargeKind.Childcare));
+    public void A_childcare_charge_opens_the_arrangement() => Assert.Equal("childcare", Nid.Childcare.Application.ChildcareCharges.Childcare.Page);
 
     [Fact]
     public async Task A_Pajemploi_line_links_to_the_statement()

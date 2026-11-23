@@ -54,20 +54,27 @@ public sealed partial class BankingNotificationSource(
 
     public IReadOnlyList<NotificationKind> Kinds { get; } =
     [
-        new(ConsentExpiring, NotificationFamilies.Security, NotificationLevel.Action, "banking", 14),
-        new(ConsentExpired, "finding", NotificationLevel.Action, "banking", null),
-        new(SyncFailing, "finding", NotificationLevel.Action, "banking", null),
-        new(ApplicationNeeded, "finding", NotificationLevel.Action, "banking", null),
-        new(AmountDiffers, "finding", NotificationLevel.Action, "banking", null),
-        new(ChargeMissing, "finding", NotificationLevel.Action, "banking", null),
+        // A connection is its creator's business: never for the household.
+        new(ConsentExpiring, NotificationFamilies.Security, NotificationLevel.Action, "banking", 14) { Personal = true, Template = BankingNotificationCopy.ConsentExpiring },
+        new(ConsentExpired, "finding", NotificationLevel.Action, "banking", null) { Personal = true, Template = BankingNotificationCopy.ConsentExpired },
+        new(SyncFailing, "finding", NotificationLevel.Action, "banking", null) { Personal = true, Template = BankingNotificationCopy.SyncFailing },
+        new(ApplicationNeeded, "finding", NotificationLevel.Action, "banking", null) { Personal = true, Template = BankingNotificationCopy.ApplicationNeeded },
+        new(AmountDiffers, "finding", NotificationLevel.Action, "banking", null) { Template = BankingNotificationCopy.AmountDiffers },
+        new(ChargeMissing, "finding", NotificationLevel.Action, "banking", null) { Template = BankingNotificationCopy.ChargeMissing },
         // Issue #81: the margin, in the account's currency.
-        new(ShortfallAhead, "finding", NotificationLevel.Action, "banking", null, new SignalThreshold(0m, 0m, 1_000_000m, "eur")),
+        new(ShortfallAhead, "finding", NotificationLevel.Action, "banking", null, new SignalThreshold(0m, 0m, 1_000_000m, "eur"))
+        {
+            Template = BankingNotificationCopy.ShortfallAhead,
+        },
         // The buffer in months of commitments, when no emergency fund says it.
-        new(IdleCash, "finding", NotificationLevel.Info, "banking", null, new SignalThreshold(3m, 1m, 24m, "months")),
+        new(IdleCash, "finding", NotificationLevel.Info, "banking", null, new SignalThreshold(3m, 1m, 24m, "months")) { Template = BankingNotificationCopy.IdleCash },
         // Issue #362: how many days before the month's end.
-        new(CardUnused, "finding", NotificationLevel.Action, "banking", null, new SignalThreshold(5m, 1m, 20m, "days")),
+        new(CardUnused, "finding", NotificationLevel.Action, "banking", null, new SignalThreshold(5m, 1m, 20m, "days")) { Template = BankingNotificationCopy.CardUnused },
         // Issue #305: how far above the usual month, in percent.
-        new(UnusualSpending, "finding", NotificationLevel.Info, "banking", null, new SignalThreshold(50m, 10m, 500m, "pct")),
+        new(UnusualSpending, "finding", NotificationLevel.Info, "banking", null, new SignalThreshold(50m, 10m, 500m, "pct"))
+        {
+            Template = BankingNotificationCopy.UnusualSpending,
+        },
     ];
 
     public async Task<Result<IReadOnlyList<Signal>>> SignalsAsync(PersonId reader, LocalDate today, LocalDate horizon, CancellationToken ct)
@@ -281,7 +288,7 @@ public sealed partial class BankingNotificationSource(
                 {
                     ["amount"] = charge.Amount.AmountText,
                     ["currency"] = charge.Amount.Currency.Code,
-                    ["module"] = ChargeKinds.ModuleOf(charge.Kind),
+                    ["module"] = charge.Kind.Page,
                 }));
         }
     }

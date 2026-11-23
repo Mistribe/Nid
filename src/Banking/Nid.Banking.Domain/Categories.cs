@@ -108,7 +108,7 @@ public static class LinkCategory
 
     /// <summary>The category key a link gives its line; null when nothing maps (the line stays uncategorised).</summary>
     public static string? KeyFor(
-        LinkOutcome outcome, ChargeKind? charge, string? module, string? itemKind, bool credit, IReadOnlyList<string> subscriptionLabels)
+        LinkOutcome outcome, string? charge, string? module, string? itemKind, bool credit, IReadOnlyList<string> subscriptionLabels)
     {
         switch (outcome)
         {
@@ -118,11 +118,11 @@ public static class LinkCategory
         }
         return charge switch
         {
-            ChargeKind.LoanInstalment => "home.rent_loan",
-            ChargeKind.PropertyCost => "home.utilities",
-            ChargeKind.Rent => "income.rent",
-            ChargeKind.Childcare => "children.childcare",
-            ChargeKind.Subscription => ForSubscription(subscriptionLabels),
+            ChargeKinds.LoanInstalment => "home.rent_loan",
+            ChargeKinds.PropertyCost => "home.utilities",
+            ChargeKinds.Rent => "income.rent",
+            ChargeKinds.Childcare => "children.childcare",
+            ChargeKinds.Subscription => ForSubscription(subscriptionLabels),
             _ => module switch
             {
                 "realestate" when itemKind == "loan" => "home.rent_loan",

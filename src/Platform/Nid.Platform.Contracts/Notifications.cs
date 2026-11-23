@@ -1,5 +1,7 @@
+using System.Globalization;
 using Nid.Core.Contracts;
 using NodaTime;
+using NodaTime.Text;
 using UnambitiousFx.Functional;
 
 namespace Nid.Platform.Contracts;
@@ -20,6 +22,59 @@ public enum NotificationLevel
 public sealed record NotificationKind(string Kind, string Family, NotificationLevel Level, string Module, int? LeadDays, SignalThreshold? Threshold = null)
 {
     public bool OptIn => Threshold is not null;
+
+    /// <summary>Issue #514: how a notification of the kind reads, declared with it by its module; none reads as the kind's name, with no body.</summary>
+    public NotificationTemplate? Template { get; init; }
+
+    /// <summary>The kind tells one person's business (a token, a decision of theirs): never for the household, with or without an item.</summary>
+    public bool Personal { get; init; }
+}
+
+/// <summary>
+/// Issue #514: the French copy of a kind (notifications design §4), next to the kind in its module. The title names the kind; a row about an
+/// item reads its name then <see cref="Suffix"/>, a row about none (or a <see cref="Notice"/>) reads <see cref="Body"/>. No amount: the
+/// figures a signal was raised on are added by the centre.
+/// </summary>
+public sealed record NotificationTemplate(string Title)
+{
+    /// <summary>A notice says what happened, not about what: never an item's name, its <see cref="Body"/> whatever its items.</summary>
+    public bool Notice { get; init; }
+
+    /// <summary>The text of a row about no item or of a notice; empty when not given.</summary>
+    public Func<NotificationFacts, string>? Body { get; init; }
+
+    /// <summary>What follows the item's name; by default the due date (<see cref="NotificationFacts.OnDueDate"/>).</summary>
+    public Func<NotificationFacts, string>? Suffix { get; init; }
+
+    /// <summary>The screen the notification opens, a path; « / » when not given.</summary>
+    public Func<NotificationFacts, string>? Link { get; init; }
+}
+
+/// <summary>Issue #514: what a template reads of a notification; <paramref name="Item"/> its first item, null for a row about none.</summary>
+public sealed record NotificationFacts(string Kind, string Key, ItemId? Item, LocalDate? DueOn, IReadOnlyDictionary<string, string> Params)
+{
+    public static readonly CultureInfo French = CultureInfo.GetCultureInfo("fr-FR");
+
+    /// <summary>« 1er décembre 2027 », « 31 mars 2027 ».</summary>
+    public static string Day(LocalDate date)
+        => (date.Day == 1 ? "1er" : date.Day.ToString(French)) + " " + date.ToString("MMMM yyyy", French);
+
+    /// <summary>« — le 1er mars 2027 » with a due date, nothing without: the suffix of a kind that says none.</summary>
+    public string OnDueDate => DueOn is { } on ? $" — le {Day(on)}" : "";
+
+    /// <summary>The date the key ends with (<see cref="SignalKeys"/>): the month of arrears, the day of a valuation.</summary>
+    public LocalDate? KeyDate(string format)
+    {
+        var last = Key[(Key.LastIndexOf(':') + 1)..];
+        return LocalDatePattern.CreateWithInvariantCulture(format).Parse(last) is { Success: true } parsed ? parsed.Value : null;
+    }
+
+    /// <summary><paramref name="path"/> for a row about no item, « / » for one about an item.</summary>
+    public string HouseholdPage(string path) => Item is null ? path : "/";
+
+    /// <summary>The item's page, <c>/{page}/{id}</c> with its tab when given; « / » for a row about no item.</summary>
+    public string ItemPage(string page, string? tab = null)
+        => Item is { } item ? $"/{page}/{item.Value:D}{(tab is null ? "" : $"?tab={tab}")}" : "/";
 }
 
 /// <summary>Issue #81: an opt-in kind's threshold, its default and bounds, in <paramref name="Unit"/> (<c>eur</c>, <c>pct</c>, <c>months</c>).</summary>

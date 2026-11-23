@@ -1,5 +1,7 @@
 using System.Net;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
+using Nid.Core.Application.Dashboard;
 using Nid.Core.Contracts;
 using Nid.TestSupport;
 using static Nid.TestSupport.LoanApi;
@@ -38,7 +40,8 @@ public class CalendarTimelineTests(PostgresFixture fixture) : IClassFixture<Post
         Assert.Equal(("2025-10-15", "2035-10-15"), (ten.From, ten.To));
         Assert.Contains(ten.Events, e => (e.On, e.Kind, e.Name) == ("2034-10-15", UpcomingKinds.LoanEnd, "Prêt maison"));
         Assert.Contains(ten.Events, e => (e.On, e.Kind, e.Label) == ("2028-03-01", UpcomingKinds.TaxMilestone, "pea_5y"));
-        Assert.All(ten.Events, e => Assert.True(UpcomingKinds.IsMilestone(e.Kind), e.Kind));
+        var kinds = app.Services.GetRequiredService<UpcomingCatalog>();
+        Assert.All(ten.Events, e => Assert.True(kinds.IsMilestone(e.Kind), e.Kind));
         Assert.DoesNotContain(ten.Events, e => e.Kind == UpcomingKinds.SubscriptionRenewal);
 
         var five = await app.GetAsync<Calendar>(app.AdultA, $"{Timeline}?horizon=5&modules=loans");

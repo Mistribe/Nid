@@ -107,6 +107,6 @@ public class IncomeSourceTests(PostgresFixture fixture) : IClassFixture<Postgres
         [
             new NotificationKind("income_phase_end", "due_date", NotificationLevel.Action, "income", 30),
             new NotificationKind("income_gap_soon", "due_date", NotificationLevel.Action, "income", 30),
-        ], source.Kinds);
+        ], source.Kinds.Select(k => k with { Template = null, Personal = false })); // the copy: NotificationCopyTests
     }
 }

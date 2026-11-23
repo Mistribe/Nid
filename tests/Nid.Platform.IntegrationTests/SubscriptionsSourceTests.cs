@@ -141,7 +141,7 @@ public class SubscriptionsSourceTests(PostgresFixture fixture) : IClassFixture<P
             new NotificationKind("subscription_trial_end", "due_date", NotificationLevel.Action, "subscriptions", 7),
             new NotificationKind("subscription_price_increase", "due_date", NotificationLevel.Action, "subscriptions", 7),
             new NotificationKind("subscriptions.ends_without_renewal", "finding", NotificationLevel.Info, "subscriptions", null),
-        ], source.Kinds);
+        ], source.Kinds.Select(k => k with { Template = null, Personal = false })); // the copy: NotificationCopyTests
     }
 
     [Fact]

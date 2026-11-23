@@ -114,7 +114,7 @@ public sealed class TransactionLinker(
         LinkOutcome outcome;
         if (charge is null)
             outcome = line.Amount > 0 && (await items.FindAsync(item, ct))?.Kind == "property" ? LinkOutcome.Income : LinkOutcome.AsExpected;
-        else if (charge.Kind == ChargeKind.Rent)
+        else if (charge.Kind.Name == ChargeKinds.Rent)
         {
             // D20: a rent already recorded (by hand, by the routine) is only linked; else its cash-in is proposed.
             outcome = LinkOutcome.Income;
@@ -137,7 +137,7 @@ public sealed class TransactionLinker(
             // No rate: the person's link stands, without a follow-up a guess would make.
             var agrees = ChargeMatch.Agrees(LineOf(line), DueOf(charge, 0), converted);
             outcome = agrees == true ? LinkOutcome.AsExpected : LinkOutcome.PriceDiffers;
-            if (agrees == false && ask && charge.Kind == ChargeKind.Subscription && charge.Amount.Currency == line.Currency)
+            if (agrees == false && ask && charge.Kind.Name == ChargeKinds.Subscription && charge.Amount.Currency == line.Currency)
                 (followUpKind, followUp) = ("subscriptions.change_price", Element(new JsonObject
                 {
                     ["chargedOn"] = Day(charge.DueOn),
@@ -146,7 +146,7 @@ public sealed class TransactionLinker(
         }
 
         var link = new BankLink(line.Id, module, item, key, null, outcome, charge?.Amount, decidedBy, clock.GetCurrentInstant());
-        await links.SetAsync(link, TransactionLinkState.Linked, ct, await categories.KeyAsync(link, charge?.Kind, line.Amount > 0, ct));
+        await links.SetAsync(link, TransactionLinkState.Linked, ct, await categories.KeyAsync(link, charge?.Kind.Name, line.Amount > 0, ct));
         // A refused follow-up (a price change the subscription's phases refuse) leaves the link as it is. §0 n°1: a follow-up carries the
         // line's amount to every reader of the item, so only when they all read its account; else the account-filtered findings speak.
         if (followUp is { } payload && await access.ItemReadersReadAsync(line.Account, item, ct))

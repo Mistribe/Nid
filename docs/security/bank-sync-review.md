@@ -69,7 +69,7 @@ une proposition de valorisation, une notification, le journal des synchronisatio
   `LeakBenchTests.No_read_returns_an_item_outside_the_actors_visible_set`,
   `LeakBenchTests.Every_catalogued_item_scoped_request_is_refused_exactly_as_the_rules_say`,
   `AdminMarkerTests.The_bank_sync_journal_is_admin_only`.
-- `Nid.Platform.Tests` : `NotificationTemplatesTests.Published_kinds_have_a_title_a_body_without_name_or_amount_and_their_link`.
+- `Nid.Platform.IntegrationTests` : `NotificationTemplatesTests.Published_kinds_have_a_title_a_body_without_name_or_amount_and_their_link`.
 
 ### 2.2 Échec n° 3 : une valorisation écrite sans que la personne l'ait demandé
 

@@ -305,7 +305,7 @@ public sealed class LinkCandidatesHandler(IContextAccessor context, BankingAcces
 internal static class ExpectedChargeViews
 {
     public static ExpectedChargeView Of(ExpectedCharge c, decimal? gap) => new(
-        c.Module, c.Item.Value, c.ItemName, BankLines.Wire(c.Kind), c.Key, c.DueOn, TransactionLinker.Amount(c.Amount.Amount), c.Amount.Currency.Code,
+        c.Module, c.Item.Value, c.ItemName, c.Kind.Name, c.Key, c.DueOn, TransactionLinker.Amount(c.Amount.Amount), c.Amount.Currency.Code,
         c.Credit, gap is { } g ? TransactionLinker.Amount(g) : null);
 }
 
