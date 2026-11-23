@@ -1,7 +1,25 @@
 ---
-title: Update
+title: "Update"
+description: "Move to the latest version of Nid."
 sidebar:
   order: 5
 ---
 
-Page being written.
+Every merge into Nid is a release. Database migrations apply when `nid` starts.
+
+## Standalone
+
+In the `deploy/standalone` folder, with the same profiles as at install: `docker compose pull && docker compose up -d --remove-orphans`.
+
+## Reference
+
+1. **Back up**:
+
+```bash
+docker compose -f deploy/compose.yaml exec backup nid-backup backup-now
+```
+
+2. `git pull`.
+3. `docker compose -f deploy/compose.yaml up -d --build` (with `-f deploy/compose.override.yaml` if you have one).
+
+The detail, including the move from the former `nid-api` and `nid-web` images (in French): [`deploy/README.md` §5](https://github.com/Mistribe/Nid/blob/main/deploy/README.md#5-mettre-à-jour).

@@ -1,7 +1,24 @@
 ---
-title: Première connexion
+title: "Première connexion"
+description: "Créer le premier administrateur, puis faire entrer le second adulte."
 sidebar:
   order: 4
 ---
 
-Page en cours de rédaction.
+## Standalone : comptes gardés par Nid
+
+- **Le premier administrateur** : au premier démarrage, Nid écrit dans son journal une adresse à usage unique (`docker compose logs nid | grep setup`) qui crée son compte.
+- **Le second adulte** : l'administrateur l'ajoute dans Administration › Utilisateurs, puis crée son lien d'accès depuis le menu de sa ligne. Le lien vaut 72 heures, une seule fois ; l'adulte y choisit son identifiant et son mot de passe (12 caractères au moins).
+- **La validation en deux étapes** se règle par chaque adulte sur sa page Sécurité, avec une application d'authentification et 10 codes de secours.
+
+## Référence : Pocket ID
+
+Pocket ID décide par les groupes : `nid-users` donne l'accès, `nid-admins` l'administration de Nid. Nid crée l'adulte à sa première connexion, dans la limite du foyer (2 adultes par défaut). Le rôle d'administrateur ne donne aucun droit sur les éléments privés des autres.
+
+## Ensuite, dans Nid
+
+- Renseignez les personnes du foyer (Réglages › Personnes) : dates de naissance, enfants.
+- Ajoutez vos comptes et placements, un crédit, vos abonnements, ou importez un fichier.
+- Chaque mois, la routine met les valeurs à jour en quelques minutes.
+
+Le détail : [`deploy/README.md` §4](https://github.com/Mistribe/Nid/blob/main/deploy/README.md#4-qui-entre-dans-nid-et-qui-ladministre).

@@ -1,7 +1,47 @@
 ---
-title: Back up
+title: "Back up"
+description: "Back up Nid, check you can restore, and recover after a disaster."
 sidebar:
   order: 6
 ---
 
-Page being written.
+## Standalone
+
+The standalone has no backup service. Export your figures from the app (one documented JSON file) and back up the Docker volumes with your own tools, or move to the reference setup.
+
+## Reference: every night, encrypted
+
+Every night at 03:30, the `backup` service takes an **encrypted restic snapshot** of everything needed to start again: the database, Pocket ID's, the documents, the secrets and `.env`. It keeps 7 daily, 4 weekly and 12 monthly snapshots, and checks the repository every Sunday.
+
+**The backup password is not in the backup**: it is what opens it. Keep a copy away from this machine.
+
+Back up now:
+
+```bash
+docker compose -f deploy/compose.yaml exec backup nid-backup backup-now
+```
+
+See how the backup is doing:
+
+```bash
+docker compose -f deploy/compose.yaml exec backup nid-backup status
+```
+
+## A copy away from home
+
+For the 3-2-1 rule, add a remote repository (S3 or `rest-server`) in `deploy/backup-secrets/`, then the overlay to all your compose commands:
+
+```bash
+docker compose -f deploy/compose.yaml -f deploy/compose.backup-remote.yaml up -d
+```
+
+## Try a restore, every quarter
+
+```bash
+deploy/restore.sh --verify                  # depuis le dépôt local
+deploy/restore.sh --verify --from remote    # depuis le dépôt distant
+```
+
+The script restores into a throwaway project, checks every table, then removes it all. It does not touch your install.
+
+The detail, including recovery after a disaster (in French): [`deploy/README.md` §6](https://github.com/Mistribe/Nid/blob/main/deploy/README.md#6-sauvegarder-et-restaurer).

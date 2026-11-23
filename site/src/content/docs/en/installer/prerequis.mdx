@@ -1,7 +1,25 @@
 ---
-title: Prerequisites
+title: "Prerequisites"
+description: "What you need before installing Nid."
 sidebar:
   order: 1
 ---
 
-Page being written.
+## For the standalone
+
+- **Docker** with Compose v2.
+- **A host name**, for example `nid.example.org`.
+- **A TLS reverse proxy** (Caddy, Traefik, nginx…): Nid does not terminate TLS itself. On your own computer, `http://localhost:8080` needs none.
+
+## For the reference setup, also
+
+- `openssl` and `bash` on the host.
+- **Two host names**, for example `nid.example.org` and `auth.example.org`.
+- **Passkeys**: Pocket ID only signs in with passkeys (fingerprint, security key, password manager). Each adult must be able to create one.
+- **`nid` must reach `https://auth.<domain>` from inside.** If your router does not send traffic for your public address back to itself, make that name resolve to your proxy from `nid`.
+
+## Outbound access
+
+`nid` is the only service that goes out, over HTTPS: the provider catalog, exchange rates, and Enable Banking when bank sync is on. Without it, Nid works, but providers and rates are entered by hand.
+
+The detail (in French): [`deploy/README.md` §1](https://github.com/Mistribe/Nid/blob/main/deploy/README.md#1-prérequis).

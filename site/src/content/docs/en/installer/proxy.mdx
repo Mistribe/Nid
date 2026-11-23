@@ -1,7 +1,68 @@
 ---
-title: Connect the proxy
+title: "Connect the proxy"
+description: "Connect your reverse proxy to Nid and Pocket ID."
 sidebar:
   order: 3
 ---
 
-Page being written.
+The compose file publishes no port. Your proxy reaches its targets on the Docker network `nid_edge`:
+
+| Public name | Target |
+|---|---|
+| `nid.<domain>` | `nid:8080` (HTTP) |
+| `auth.<domain>` | `pocket-id:1411` (HTTP), reference setup |
+
+The proxy must **set** `X-Forwarded-Proto`, `X-Forwarded-Host` and `X-Forwarded-For` itself, overwriting what the client sends. Caddy and Traefik do by default; nginx does not. Nid serves the interface and the API on the same origin: nothing to route by prefix.
+
+## Caddy
+
+```
+nid.example.org {
+	reverse_proxy nid:8080
+}
+auth.example.org {
+	reverse_proxy pocket-id:1411
+}
+```
+
+## Traefik
+
+```yaml
+http:
+  routers:
+    nid: { rule: "Host(`nid.example.org`)", service: nid, tls: {} }
+    auth: { rule: "Host(`auth.example.org`)", service: auth, tls: {} }
+  services:
+    nid: { loadBalancer: { servers: [{ url: "http://nid:8080" }] } }
+    auth: { loadBalancer: { servers: [{ url: "http://pocket-id:1411" }] } }
+```
+
+## A proxy in another compose project
+
+Declare the network as external in that project:
+
+```yaml
+services:
+  proxy:
+    networks: [default, nid_edge]
+networks:
+  nid_edge: { external: true }
+```
+
+## nginx on the host
+
+First publish the targets on the local address (see the detail), then:
+
+```nginx
+location / {
+    proxy_pass http://127.0.0.1:8080;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Host $host;
+    proxy_set_header X-Forwarded-For $remote_addr;
+}
+```
+
+Nid already compresses its responses: your proxy has nothing to add.
+
+The detail, including a proxy outside Docker and trusted networks (in French): [`deploy/README.md` §3](https://github.com/Mistribe/Nid/blob/main/deploy/README.md#3-brancher-le-proxy).

@@ -1,7 +1,34 @@
 ---
-title: Install Nid
+title: "Install Nid"
+description: "Install Nid at home: who this is for, and which setup to pick."
 sidebar:
   order: 0
 ---
 
-Page being written.
+This guide is for someone who already has **a server with Docker**, **a domain name** and **a reverse proxy** that terminates TLS (Caddy, Traefik, nginx…). To try Nid on your own computer first, `http://localhost:8080` is enough, with no proxy and no domain.
+
+The images are public on `ghcr.io/mistribe/nid`, for amd64 and arm64, no account needed: `latest`, `X.Y.Z`, or `X.Y` for its latest patch. Each carries a signed provenance attestation.
+
+The interface is in French for now; English is coming soon. The reference documentation, [`deploy/README.md`](https://github.com/Mistribe/Nid/blob/main/deploy/README.md), is in French too.
+
+## Two setups
+
+| | Standalone | Reference |
+|---|---|---|
+| Files | one compose file and one `.env` | a compose file, a setup script, secrets |
+| Sign-in | identifier and password kept by Nid, optional two-step verification | passkeys, through Pocket ID |
+| Host names | one | two (Nid and Pocket ID) |
+| Backup | up to you (JSON export from the app) | encrypted every night, with a verified restore |
+
+**Start with the standalone** if in doubt: it runs with four commands. The reference setup adds passkeys and automatic backups.
+
+## The steps
+
+1. [Prerequisites](/en/installer/prerequis/): what you need already.
+2. [Install](/en/installer/installer/): the standalone or the reference.
+3. [Connect the proxy](/en/installer/proxy/): the targets and examples.
+4. [First sign-in](/en/installer/premiere-connexion/): the first administrator, then the second adult.
+5. [Update](/en/installer/mettre-a-jour/) and [back up](/en/installer/sauvegarder/).
+6. [Options](/en/installer/options/): bank sync, model worker.
+
+Each page links to its section of [`deploy/README.md`](https://github.com/Mistribe/Nid/blob/main/deploy/README.md), the full technical reference.

@@ -1,7 +1,49 @@
 ---
-title: Install
+title: "Install"
+description: "Start Nid: the standalone in four commands, or the reference setup in two stages."
 sidebar:
   order: 2
 ---
 
-Page being written.
+## Standalone
+
+One compose file and one `.env`. Postgres is a profile, which you leave out if you already run one (16 or later).
+
+```bash
+git clone --depth 1 https://github.com/Mistribe/Nid.git && cd Nid/deploy/standalone
+cp .env.example .env                    # NID_URL, NID_CSRF_KEY (openssl rand -hex 32), NID_DB_PASSWORD
+docker compose --profile postgres up -d
+docker compose logs nid | grep setup    # l'adresse à usage unique qui crée le premier administrateur
+```
+
+In `.env`, set Nid's address (`NID_URL`), a CSRF key and the database password. The last command prints a one-time address: open it to create the administrator's account.
+
+## Reference
+
+The install has two stages, because Pocket ID picks the secret of Nid's client itself and shows it only once.
+
+**1. Prepare, and start Pocket ID alone.**
+
+```bash
+deploy/setup.sh                                          # noms d'hôte, secrets, .env
+docker compose -f deploy/compose.yaml up -d pocket-id    # d'abord Pocket ID seul
+```
+
+**2. Connect the proxy** ([next page](/en/installer/proxy/)), then open `https://auth.<domain>/setup` straight away: the first person to get there creates Pocket ID's administrator. Do not publish the address before.
+
+**3. In Pocket ID**:
+
+- create two groups, `nid-users` (who may enter Nid) and `nid-admins` (who administers it);
+- create an OIDC client « Nid »: redirect `https://nid.<domain>/auth/callback`, sign-out `https://nid.<domain>/signed-out`, PKCE on, consent skipped, restricted to the `nid-users` group;
+- create the household's adults in `nid-users`, and Nid's administrator in `nid-admins` too.
+
+**4. Give Nid the client's identifier and secret, and start everything.**
+
+```bash
+deploy/setup.sh --oidc-client-id <identifiant> --oidc-client-secret <secret>
+docker compose -f deploy/compose.yaml up -d --build
+```
+
+`setup.sh` generates every secret and the backup password, which it shows only once: **write it down away from this machine**. You can run it again; it never replaces an existing secret.
+
+The detail (in French): [`deploy/README.md` §2](https://github.com/Mistribe/Nid/blob/main/deploy/README.md#2-installer).

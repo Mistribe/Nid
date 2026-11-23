@@ -1,7 +1,49 @@
 ---
-title: Installer
+title: "Installer"
+description: "Lancer Nid : le standalone en quatre commandes, ou la forme de référence en deux temps."
 sidebar:
   order: 2
 ---
 
-Page en cours de rédaction.
+## Standalone
+
+Un seul fichier compose et un `.env`. Postgres est un profil, que vous laissez de côté si vous en avez déjà un (16 ou plus).
+
+```bash
+git clone --depth 1 https://github.com/Mistribe/Nid.git && cd Nid/deploy/standalone
+cp .env.example .env                    # NID_URL, NID_CSRF_KEY (openssl rand -hex 32), NID_DB_PASSWORD
+docker compose --profile postgres up -d
+docker compose logs nid | grep setup    # l'adresse à usage unique qui crée le premier administrateur
+```
+
+Dans `.env`, renseignez l'adresse de Nid (`NID_URL`), une clé CSRF et le mot de passe de la base. La dernière commande affiche une adresse à usage unique : ouvrez-la pour créer le compte de l'administrateur.
+
+## Référence
+
+L'installation se fait en deux temps, parce que Pocket ID choisit lui-même le secret du client de Nid et ne le montre qu'une fois.
+
+**1. Préparer et lancer Pocket ID seul.**
+
+```bash
+deploy/setup.sh                                          # noms d'hôte, secrets, .env
+docker compose -f deploy/compose.yaml up -d pocket-id    # d'abord Pocket ID seul
+```
+
+**2. Brancher le proxy** ([page suivante](/installer/proxy/)), puis ouvrir tout de suite `https://auth.<domaine>/setup` : la première personne qui y arrive crée l'administrateur de Pocket ID. Ne publiez pas l'adresse avant.
+
+**3. Dans Pocket ID** :
+
+- créez deux groupes, `nid-users` (qui peut entrer dans Nid) et `nid-admins` (qui l'administre) ;
+- créez un client OIDC « Nid » : redirection `https://nid.<domaine>/auth/callback`, déconnexion `https://nid.<domaine>/signed-out`, PKCE activé, consentement ignoré, réservé au groupe `nid-users` ;
+- créez les adultes du foyer dans `nid-users`, et l'administrateur de Nid aussi dans `nid-admins`.
+
+**4. Rendre à Nid l'identifiant et le secret du client, et tout lancer.**
+
+```bash
+deploy/setup.sh --oidc-client-id <identifiant> --oidc-client-secret <secret>
+docker compose -f deploy/compose.yaml up -d --build
+```
+
+`setup.sh` génère tous les secrets et le mot de passe de la sauvegarde, qu'il n'affiche qu'une fois : **notez-le hors de cette machine**. Vous pouvez le relancer, il ne remplace jamais un secret existant.
+
+Le détail : [`deploy/README.md` §2](https://github.com/Mistribe/Nid/blob/main/deploy/README.md#2-installer).
