@@ -76,15 +76,9 @@ public sealed class ImportStatementHandler(
         if (!enabled.IsSuccess)
             return BankingAccess.Failed<StatementImportView>(enabled);
         var latest = (await calendar.TodayAsync(ct)).PlusDays(StatementReader.AheadDays);
-        StatementFile file;
-        try
-        {
-            file = StatementReader.Read(command.File, latest);
-        }
-        catch (StatementFileException e)
-        {
-            return Result.Failure<StatementImportView>(new Failure(e.Code, e.Message, e.Line is { } line ? new Dictionary<string, object?> { ["line"] = line } : null));
-        }
+        var read = StatementReader.Read(command.File, latest);
+        if (!read.TryGetValue(out var file))
+            return BankingAccess.Failed<StatementImportView, StatementFile>(read);
         if (!Currency.TryCreate(file.Currency.ToUpperInvariant(), out var currency))
             return BankingAccess.Fail<StatementImportView>(BankingCodes.FileMalformed, "The statement's currency is no ISO code.");
         // Whether the envelope has an account is told only to whoever writes it.

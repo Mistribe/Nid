@@ -11,7 +11,7 @@ public class Camt053ReaderTests
     [Fact]
     public void Reads_a_camt_053_001_02_statement()
     {
-        var file = StatementReader.Read(Vectors.Read("camt053-001-02.xml"));
+        var file = StatementReader.Parse(Vectors.Read("camt053-001-02.xml"));
 
         Assert.Equal("camt053", file.Format);
         Assert.Equal(Iban, file.Iban);
@@ -34,7 +34,7 @@ public class Camt053ReaderTests
     [Fact]
     public void Reads_a_camt_053_001_08_statement()
     {
-        var file = StatementReader.Read(Vectors.Read("camt053-001-08.xml"));
+        var file = StatementReader.Parse(Vectors.Read("camt053-001-08.xml"));
 
         Assert.Equal(Iban, file.Iban);
         Assert.Equal("EUR", file.Currency);
@@ -53,7 +53,7 @@ public class Camt053ReaderTests
     [Fact]
     public void Pending_entries_are_skipped_and_an_empty_statement_is_valid()
     {
-        var file = StatementReader.Read(Vectors.Read("camt-pending.xml"));
+        var file = StatementReader.Parse(Vectors.Read("camt-pending.xml"));
 
         Assert.Empty(file.Lines);
         Assert.Null(file.Iban);
@@ -65,7 +65,7 @@ public class Camt053ReaderTests
     [Fact]
     public void An_entity_is_refused()
     {
-        var e = Assert.Throws<StatementFileException>(() => StatementReader.Read(Vectors.Read("camt-entity.xml")));
+        var e = Assert.Throws<StatementFileException>(() => StatementReader.Parse(Vectors.Read("camt-entity.xml")));
         Assert.Equal(BankingCodes.FileMalformed, e.Code);
         Assert.DoesNotContain("ENTITY-EXPANDED", e.Message);
         Assert.DoesNotContain("localhost", e.Message);
@@ -75,7 +75,7 @@ public class Camt053ReaderTests
     public void An_entry_without_an_amount_is_refused_with_its_line()
     {
         var text = System.Text.Encoding.UTF8.GetString(Vectors.Read("camt053-001-02.xml")).Replace("<Amt Ccy=\"EUR\">84.20</Amt>", "");
-        var e = Assert.Throws<StatementFileException>(() => StatementReader.Read(System.Text.Encoding.UTF8.GetBytes(text)));
+        var e = Assert.Throws<StatementFileException>(() => StatementReader.Parse(System.Text.Encoding.UTF8.GetBytes(text)));
         Assert.Equal(BankingCodes.FileMalformed, e.Code);
         Assert.Equal(31, e.Line);
     }
@@ -99,7 +99,7 @@ public class Camt053ReaderTests
     [Fact]
     public void Statements_of_one_account_are_read_as_one()
     {
-        var file = StatementReader.Read(Statements((Iban, 20, "200.00", 1), (Iban, 10, "100.00", 1)));
+        var file = StatementReader.Parse(Statements((Iban, 20, "200.00", 1), (Iban, 10, "100.00", 1)));
 
         Assert.Equal(["20-0", "10-0"], file.Lines.Select(l => l.ProviderRef));
         Assert.Equal(200m, file.ClosingBalance);
@@ -111,21 +111,21 @@ public class Camt053ReaderTests
     [Fact]
     public void Statements_of_two_accounts_are_refused()
     {
-        var e = Assert.Throws<StatementFileException>(() => StatementReader.Read(Statements((Iban, 20, "200.00", 1), ("FR7630004008200001234567K82", 10, "100.00", 1))));
+        var e = Assert.Throws<StatementFileException>(() => StatementReader.Parse(Statements((Iban, 20, "200.00", 1), ("FR7630004008200001234567K82", 10, "100.00", 1))));
         Assert.Equal(BankingCodes.FileSeveralAccounts, e.Code);
     }
 
     [Fact]
     public void The_line_cap_counts_the_whole_file()
     {
-        var e = Assert.Throws<StatementFileException>(() => StatementReader.Read(Statements((Iban, 20, "200.00", 10_001), (Iban, 10, "100.00", 10_000))));
+        var e = Assert.Throws<StatementFileException>(() => StatementReader.Parse(Statements((Iban, 20, "200.00", 10_001), (Iban, 10, "100.00", 10_000))));
         Assert.Equal(BankingCodes.FileMalformed, e.Code);
     }
 
     [Fact]
     public void A_booked_date_past_the_latest_allowed_is_refused_with_its_line()
     {
-        var e = Assert.Throws<StatementFileException>(() => StatementReader.Read(Vectors.Read("camt053-001-02.xml"), latest: new LocalDate(2026, 10, 20)));
+        var e = Assert.Throws<StatementFileException>(() => StatementReader.Parse(Vectors.Read("camt053-001-02.xml"), latest: new LocalDate(2026, 10, 20)));
         Assert.Equal(BankingCodes.FileMalformed, e.Code);
         Assert.NotNull(e.Line);
     }
@@ -135,7 +135,7 @@ public class Camt053ReaderTests
         => Assert.Equal(BankingCodes.FileMalformed, Assert.Throws<StatementFileException>(() => Read(t => t.Replace("<BookgDt><Dt>2026-10-15</Dt>", "<BookgDt><Dt>0000-01-01</Dt>"))).Code);
 
     private static StatementFile Read(Func<string, string> edit)
-        => StatementReader.Read(System.Text.Encoding.UTF8.GetBytes(edit(System.Text.Encoding.UTF8.GetString(Vectors.Read("camt053-001-02.xml")))));
+        => StatementReader.Parse(System.Text.Encoding.UTF8.GetBytes(edit(System.Text.Encoding.UTF8.GetString(Vectors.Read("camt053-001-02.xml")))));
 
     private static byte[] Statements(params (string Iban, int Day, string Closing, int Lines)[] statements)
     {
@@ -158,7 +158,7 @@ public class Camt053ReaderTests
     public void Broken_xml_is_refused_with_its_line()
     {
         var text = System.Text.Encoding.UTF8.GetString(Vectors.Read("camt053-001-02.xml")).Replace("</AcctSvcrRef>\n        <BkTxCd>", "\n        <BkTxCd>");
-        var e = Assert.Throws<StatementFileException>(() => StatementReader.Read(System.Text.Encoding.UTF8.GetBytes(text)));
+        var e = Assert.Throws<StatementFileException>(() => StatementReader.Parse(System.Text.Encoding.UTF8.GetBytes(text)));
         Assert.Equal(BankingCodes.FileMalformed, e.Code);
         Assert.NotNull(e.Line);
     }
