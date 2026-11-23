@@ -65,7 +65,7 @@ public sealed class ListSubscriptionsHandler(
             b.Input, b.Timeline, b.DisplayName, b.Provider, window,
             Conversion.Of(b.Timeline.CashCostPieces(window), b.Timeline.AmortizedCostPieces(window), reference, rates), b.Owners,
             FxConversion.Convert(b.Timeline.AmortizedCostPieces(year), rates, reference),
-            SpendingHistory.Spent(b.Timeline, reference, rates, today))).ToList();
+            SpendingViews.Spent(b.Timeline, reference, rates, today))).ToList();
 
         var (cash, amortized, shared) = HouseholdCost.Combine(timelines, window);
         var householdConverted = Conversion.Of(householdCash, householdAmortized, reference, rates);
@@ -74,7 +74,7 @@ public sealed class ListSubscriptionsHandler(
             summaries, cash, amortized,
             householdConverted.CashView, householdConverted.AmortizedView, householdConverted.IsEstimate,
             shared,
-            ListGrouping.Group(query.Group, summaries, SpendingHistory.SpentOf(built, reference, rates)),
+            ListGrouping.Group(query.Group, summaries, SpendingViews.SpentOf(built, reference, rates)),
             HouseholdCost.Divergences(shared).Select(FindingView.From).Concat(SubscriptionViews.FxFindings(householdConverted, annual)).ToList(),
             annual.Total is { } t ? MoneyView.From(t) : null));
     }
@@ -199,7 +199,7 @@ public sealed class GetSubscriptionHandler(
             : null;
         return Result.Success(SubscriptionViews.Detail(
             input, timeline, item.DisplayName, provider, window, Conversion.Of(cashPieces, amortizedPieces, reference, rates), editing, today,
-            insurance, SpendingHistory.Spent(timeline, reference, rates, today), SpendingHistory.Saved(self, others, reference, rates, today)));
+            insurance, SpendingViews.Spent(timeline, reference, rates, today), SpendingViews.Saved(self, others, reference, rates, today)));
     }
 
     private async Task<InsuredPropertyView?> InsuredPropertyAsync(ItemId? property, IReadOnlySet<ItemId> visibleItems, CancellationToken ct)

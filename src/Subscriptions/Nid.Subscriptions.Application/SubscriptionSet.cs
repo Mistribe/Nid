@@ -9,7 +9,12 @@ namespace Nid.Subscriptions.Application;
 
 public sealed record BuiltSubscription(
     SubscriptionInput Input, Timeline Timeline, string DisplayName, IReadOnlyList<ItemOwnerView> Owners, ProviderSummaryView? Provider)
+    : IBuiltSubscription
 {
+    string? IBuiltSubscription.ProviderKey => Provider?.Key;
+
+    string? IBuiltSubscription.ProviderName => Provider?.Name;
+
     /// <summary>Issue #12: the household day it was archived on; its timeline then ends before that day (<see cref="ArchivedAt"/>).</summary>
     public LocalDate? ArchivedOn { get; private init; }
 
@@ -59,29 +64,6 @@ public sealed class SubscriptionSet(IVisibleItems visible, ISubscriptionStore st
 
 public static class ChargeCycles
 {
-    /// <summary>At least two months, any number of years, more than 31 days or more than 4 weeks.</summary>
-    public static bool LongerThanAMonth(Duration every) => every.Unit switch
-    {
-        DurationUnit.Year => true,
-        DurationUnit.Month => every.Count >= 2,
-        DurationUnit.Week => every.Count > 4,
-        _ => every.Count > 31,
-    };
-
-    // Each charge of the set once: a purchase granting to several subscriptions left the account once (D5).
-    internal static IEnumerable<(BuiltSubscription Sub, Charge Charge)> HouseholdCharges(IEnumerable<BuiltSubscription> set)
-    {
-        var seen = new HashSet<PurchaseId>();
-        foreach (var b in set)
-        foreach (var charge in b.Timeline.Charges)
-            if (charge.Origin is not ChargeOrigin.FromPurchase p || seen.Add(p.PurchaseId))
-                yield return (b, charge);
-    }
-
-    /// <summary>The phase a charge comes from; null for a purchase.</summary>
-    public static BillingPhase? PhaseOf(SubscriptionInput input, Charge charge)
-        => charge.Origin is ChargeOrigin.FromPhase from ? input.Phases.FirstOrDefault(p => p.Id == from.PhaseId) : null;
-
     /// <summary>
     /// The first charge in <c>[from, until]</c> of each phase longer than a month: a monthly phase charging first must not hide a
     /// yearly one after it.
@@ -89,8 +71,8 @@ public static class ChargeCycles
     public static IEnumerable<Charge> FirstLongCycleCharges(SubscriptionInput input, Timeline timeline, LocalDate from, LocalDate until)
         => timeline.Charges
             .Where(c => c.Date >= from && c.Date <= until)
-            .Select(c => (Charge: c, Phase: PhaseOf(input, c)))
-            .Where(x => x.Phase is not null && LongerThanAMonth(x.Phase.Every))
+            .Select(c => (Charge: c, Phase: ChargeRules.PhaseOf(input, c)))
+            .Where(x => x.Phase is not null && ChargeRules.LongerThanAMonth(x.Phase.Every))
             .GroupBy(x => x.Phase!.Id)
             .Select(g => g.MinBy(x => x.Charge.Date).Charge);
 
@@ -103,7 +85,7 @@ public static class ChargeCycles
     {
         foreach (var charge in timeline.Charges.Where(c => c.Date >= from && c.Date <= until && c.Price.Amount > 0m))
         {
-            if (PhaseOf(input, charge) is not { } phase
+            if (ChargeRules.PhaseOf(input, charge) is not { } phase
                 || timeline.Coverage.Where(p => p.Start < charge.Date).MaxBy(p => p.Start) is not { } before)
                 continue;
             var previous = before.Origin is CoverageOrigin.FromPhase f ? input.Phases.FirstOrDefault(p => p.Id == f.PhaseId) : null;

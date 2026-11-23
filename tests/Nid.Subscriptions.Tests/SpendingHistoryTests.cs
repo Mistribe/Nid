@@ -40,7 +40,7 @@ public class SpendingHistoryTests
     {
         var sub = Built([Phase(new LocalDate(2024, 1, 5), null, 10m)]);
 
-        var (spent, missing) = SpendingHistory.Spent(sub.Timeline, Currency.Eur, NoRates, Today);
+        var (spent, missing) = SpendingViews.Spent(sub.Timeline, Currency.Eur, NoRates, Today);
 
         // 5 Jan 2024 to 5 Oct 2025: 22 charges; after 15 Oct 2024: 5 Nov 2024 to 5 Oct 2025, 12 charges.
         Assert.Equal((new LocalDate(2024, 1, 5), 220m, 120m, false), (spent!.Since, Amount(spent.Total), Amount(spent.Last12Months), spent.Partial));
@@ -49,14 +49,14 @@ public class SpendingHistoryTests
 
     [Fact]
     public void Spent_is_none_before_the_first_charge()
-        => Assert.Null(SpendingHistory.Spent(Built([Phase(Today.PlusDays(3), null, 10m)]).Timeline, Currency.Eur, NoRates, Today).View);
+        => Assert.Null(SpendingViews.Spent(Built([Phase(Today.PlusDays(3), null, 10m)]).Timeline, Currency.Eur, NoRates, Today).View);
 
     [Fact]
     public void A_missing_rate_leaves_a_partial_total_and_names_the_rate()
     {
         var sub = Built([Phase(new LocalDate(2025, 7, 1), new LocalDate(2025, 9, 1), 10m), Usd(new LocalDate(2025, 9, 1), 20m)]);
 
-        var (spent, missing) = SpendingHistory.Spent(sub.Timeline, Currency.Eur, NoRates, Today);
+        var (spent, missing) = SpendingViews.Spent(sub.Timeline, Currency.Eur, NoRates, Today);
 
         Assert.True(spent!.Partial);
         Assert.Equal(20m, Amount(spent.Total)); // July and August in euros; September and October have no USD rate
@@ -71,7 +71,7 @@ public class SpendingHistoryTests
         var rates = new RateTable([new FxRate(new LocalDate(2025, 9, 1), Currency.Eur, 0.5m, FxRateSource.Ecb),
             new FxRate(new LocalDate(2025, 10, 1), Currency.Eur, 0.8m, FxRateSource.Ecb)], Today, 7);
 
-        var (spent, _) = SpendingHistory.Spent(sub.Timeline, Currency.Eur, rates, Today);
+        var (spent, _) = SpendingViews.Spent(sub.Timeline, Currency.Eur, rates, Today);
 
         Assert.Equal((26m, false), (Amount(spent!.Total), spent.Partial)); // 10 + 16
     }
@@ -82,7 +82,7 @@ public class SpendingHistoryTests
     [Fact]
     public void An_ended_subscription_saves_its_last_price_at_each_cycle_since_its_end()
     {
-        var saved = SpendingHistory.Saved(Ended(), [], Currency.Eur, NoRates, Today)!;
+        var saved = SpendingViews.Saved(Ended(), [], Currency.Eur, NoRates, Today)!;
 
         // Ended 1 June: 1 June, July, August, September and October would have charged 10.
         Assert.Equal((new LocalDate(2025, 6, 1), 50m, "10", 1, "month"),
@@ -95,16 +95,16 @@ public class SpendingHistoryTests
         var netflix = Provider("netflix");
         var ended = Ended(netflix);
 
-        Assert.Null(SpendingHistory.Saved(ended, [ended, Built([Phase(new LocalDate(2025, 6, 1), null, 12m)], netflix)], Currency.Eur, NoRates, Today));
-        Assert.NotNull(SpendingHistory.Saved(ended, [ended, Built([Phase(new LocalDate(2025, 6, 1), null, 12m)], Provider("disney"))],
+        Assert.Null(SpendingViews.Saved(ended, [ended, Built([Phase(new LocalDate(2025, 6, 1), null, 12m)], netflix)], Currency.Eur, NoRates, Today));
+        Assert.NotNull(SpendingViews.Saved(ended, [ended, Built([Phase(new LocalDate(2025, 6, 1), null, 12m)], Provider("disney"))],
             Currency.Eur, NoRates, Today));
     }
 
     [Fact]
     public void A_running_or_free_subscription_saves_nothing()
     {
-        Assert.Null(SpendingHistory.Saved(Built([Phase(new LocalDate(2025, 1, 1), null, 10m)]), [], Currency.Eur, NoRates, Today));
-        Assert.Null(SpendingHistory.Saved(Ended(price: 0m), [], Currency.Eur, NoRates, Today));
+        Assert.Null(SpendingViews.Saved(Built([Phase(new LocalDate(2025, 1, 1), null, 10m)]), [], Currency.Eur, NoRates, Today));
+        Assert.Null(SpendingViews.Saved(Ended(price: 0m), [], Currency.Eur, NoRates, Today));
     }
 
     [Fact]
@@ -206,7 +206,7 @@ public class SpendingHistoryTests
         var overview = Overview(set);
 
         // Each subscription did cost the purchase; the provider and the year count it once.
-        Assert.All(set, s => Assert.Equal(120m, Amount(SpendingHistory.Spent(s.Timeline, Currency.Eur, NoRates, Today).View!.Total)));
+        Assert.All(set, s => Assert.Equal(120m, Amount(SpendingViews.Spent(s.Timeline, Currency.Eur, NoRates, Today).View!.Total)));
         Assert.Equal(120m, Amount(Assert.Single(overview.TopProviders).Spent));
         Assert.Equal(120m, Amount(Assert.Single(overview.Years).Paid));
     }

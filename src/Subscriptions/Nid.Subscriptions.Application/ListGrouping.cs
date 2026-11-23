@@ -23,7 +23,7 @@ public static class ListGrouping
 {
     public const string NoneKey = "none";
 
-    /// <param name="spentOf">A whole group's spent total from its members' distinct charges (<see cref="SpendingHistory.SpentOf"/>);
+    /// <param name="spentOf">A whole group's spent total from its members' distinct charges (<see cref="SpendingViews.SpentOf"/>);
     /// without it, or under a person group (shares), the members' totals are summed.</param>
     public static IReadOnlyList<GroupView> Group(ListGroup by, IReadOnlyList<SubscriptionSummary> items,
         Func<IReadOnlyList<ItemId>, (MoneyView? Total, bool Partial)>? spentOf = null)
