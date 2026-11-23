@@ -230,6 +230,7 @@ app.MapInvestmentEndpoints();
 app.MapIncomeEndpoints();
 app.MapGoalEndpoints();
 app.MapAiEndpoints();
+app.MapAssistantEndpoints();
 app.MapBankingEndpoints();
 app.MapChildcareEndpoints();
 app.MapDocumentEndpoints();

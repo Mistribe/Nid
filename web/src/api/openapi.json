@@ -281,6 +281,28 @@
         }
       }
     },
+    "/api/v1/ai/assistant/turn": {
+      "post": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssistantTurnBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/v1/documents/uploads/{token}": {
       "post": {
         "tags": [
@@ -39603,6 +39625,43 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "AssistantMessageBody": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "content": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "AssistantTurnBody": {
+        "type": "object",
+        "properties": {
+          "question": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "history": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/AssistantMessageBody"
+            }
           }
         }
       },

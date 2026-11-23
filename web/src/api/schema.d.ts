@@ -357,6 +357,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/ai/assistant/turn": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AssistantTurnBody"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/documents/uploads/{token}": {
         parameters: {
             query?: never;
@@ -37071,6 +37108,14 @@ export interface components {
         AspspView: {
             name: string;
             logo?: null | string;
+        };
+        AssistantMessageBody: {
+            role?: null | string;
+            content?: null | string;
+        };
+        AssistantTurnBody: {
+            question?: null | string;
+            history?: null | components["schemas"]["AssistantMessageBody"][];
         };
         AssumptionsBody: {
             classRates?: null | {

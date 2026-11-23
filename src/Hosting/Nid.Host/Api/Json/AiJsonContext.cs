@@ -31,4 +31,10 @@ namespace Nid.Host.Api.Json;
 [JsonSerializable(typeof(AiEndpoints.RegisterWorkerBody))]
 [JsonSerializable(typeof(AiEndpoints.PairWorkerBody))]
 [JsonSerializable(typeof(AiEndpoints.RenameWorkerBody))]
+[JsonSerializable(typeof(AssistantEndpoints.AssistantTurnBody))]
+[JsonSerializable(typeof(AssistantEndpoints.AssistantTextEvent))]
+[JsonSerializable(typeof(AssistantEndpoints.AssistantToolEvent))]
+[JsonSerializable(typeof(AssistantEndpoints.AssistantHeldBackEvent))]
+[JsonSerializable(typeof(AssistantEndpoints.AssistantDoneEvent))]
+[JsonSerializable(typeof(AssistantEndpoints.AssistantErrorEvent))]
 public sealed partial class AiJsonContext : JsonSerializerContext;

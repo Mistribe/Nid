@@ -64,7 +64,7 @@ public static class AssistantCodes
 /// C, §6.4). Off the premises the tools read shared items only, and the cloud never gets bank labels (no <c>allowed_kinds</c>
 /// yet); what is kept out is counted, never named. The turn stops at the model's answer or at a limit.
 /// </summary>
-public sealed class AssistantLoop(ILlmGateway gateway, IAssistantTools tools, IVisibleItems visible, AssistantTurns turns, IOptions<AssistantOptions> options)
+public sealed partial class AssistantLoop(ILlmGateway gateway, IAssistantTools tools, IVisibleItems visible, AssistantTurns turns, IOptions<AssistantOptions> options)
 {
     /// <summary>Fixed and without a secret (§8.3, <c>docs/security/ai-ingestion.md</c> §2).</summary>
     public const string SystemPrompt =
@@ -75,6 +75,14 @@ public sealed class AssistantLoop(ILlmGateway gateway, IAssistantTools tools, IV
         + "that they approve in « À valider ». Never write a link or a URL: Nid adds the links to its pages. "
         + "When a tool says results were kept out by the household's rules, say so and do not guess what they hold. "
         + "Answer in the person's language, in plain text.";
+
+    private readonly List<Guid> seen = [];
+
+    /// <summary>Where the turn went, once its first step answered.</summary>
+    public LlmDestination? Destination { get; private set; }
+
+    /// <summary>The ids the turn's tool results carried, first seen first: what Nid builds its links from (decision P, #501).</summary>
+    public IReadOnlyList<Guid> Seen => seen;
 
     public async IAsyncEnumerable<AssistantEvent> RunAsync(
         PersonId person, IReadOnlyList<ChatMessage> history, string question, [EnumeratorCancellation] CancellationToken ct)
@@ -101,7 +109,7 @@ public sealed class AssistantLoop(ILlmGateway gateway, IAssistantTools tools, IV
         for (var step = 0; step < limits.MaxSteps; step++)
         {
             var request = new LlmChatRequest(ModelUses.Chat, messages, [.. offered.Values.Select(t => t.Schema)], limits.MaxTokensPerStep, dataClass,
-                Pin: destination, Served: served => destination ??= served);
+                Pin: destination, Served: served => Destination = destination ??= served);
             var text = new System.Text.StringBuilder();
             var calls = new List<ChatToolCall>();
             ChatUsage? usage = null;
@@ -179,6 +187,9 @@ public sealed class AssistantLoop(ILlmGateway gateway, IAssistantTools tools, IV
                         yield break;
                     }
                     content = answered;
+                    foreach (System.Text.RegularExpressions.Match id in Uuid().Matches(answered))
+                        if (seen.Count < MaxSeen && Guid.TryParse(id.Value, out var found) && !seen.Contains(found))
+                            seen.Add(found);
                     if (offered.TryGetValue(call.Name, out var called) && called.DataClasses.Contains(DataClasses.BankLabels))
                         dataClass = DataClasses.BankLabels;
                 }
@@ -192,6 +203,11 @@ public sealed class AssistantLoop(ILlmGateway gateway, IAssistantTools tools, IV
     }
 
     /// <summary>The generic line (§6.4): a count and the destination, never the preference nor the person behind it.</summary>
+    private const int MaxSeen = 500;
+
+    [System.Text.RegularExpressions.GeneratedRegex("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")]
+    private static partial System.Text.RegularExpressions.Regex Uuid();
+
     public static string KeptOut(int count, string destination)
         => $"{count} result(s) kept out of {destination} by the household's rules (Réglages › IA).";
 
