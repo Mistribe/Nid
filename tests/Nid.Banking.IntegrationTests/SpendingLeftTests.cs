@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Contracts;
+using Nid.Tax.Contracts;
 using Nid.Platform.Contracts;
 using Nid.TestSupport;
 using NodaTime;

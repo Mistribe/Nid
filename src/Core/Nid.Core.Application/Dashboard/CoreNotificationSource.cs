@@ -1,7 +1,6 @@
 using System.Collections.Concurrent;
 using System.Globalization;
 using Microsoft.Extensions.Logging;
-using Nid.Core.Application.Tax;
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
 using NodaTime;
@@ -17,7 +16,7 @@ namespace Nid.Core.Application.Dashboard;
 /// </summary>
 public sealed partial class CoreNotificationSource(
     DashboardReader dashboard, MonthChangesReader changes, MonthChangeWords monthWords, IPersonalAccessTokens tokens,
-    IHouseholdCalendar calendar, IClock clock, TaxCalendarEvents taxCalendar, ISignalSettings settings,
+    IHouseholdCalendar calendar, IClock clock, IHouseholdTax tax, ISignalSettings settings,
     IEnumerable<INetWorthContribution> netWorth, IHouseholdSettings household, IFxRates fx, ILogger<CoreNotificationSource> logger) : INotificationSource
 {
     [LoggerMessage(Level = LogLevel.Warning, Message = "The net worth history of {Person} could not be read: {Code}")]
@@ -92,7 +91,7 @@ public sealed partial class CoreNotificationSource(
         // Issue #409: the dashboard read has the tax dates of its window; only a lead time beyond it reads them again.
         var taxDates = horizon <= today.PlusDays(DashboardMath.UpcomingDays)
             ? view.Upcoming.Where(e => e.Id is null && e.On <= horizon && TaxKinds.Contains(e.Kind)).ToList()
-            : await taxCalendar.EventsAsync(reader, VisibilityScope.Me, today, horizon, ct);
+            : await tax.CalendarAsync(reader, VisibilityScope.Me, today, horizon, ct);
         foreach (var e in taxDates)
             signals.Add(new Signal(SignalKeys.Household(e.Kind, $"{e.On:yyyy-MM-dd}"), e.Kind, [], e.On,
                 e.Label is { } note ? new Dictionary<string, string> { ["note"] = note } : NoParams));

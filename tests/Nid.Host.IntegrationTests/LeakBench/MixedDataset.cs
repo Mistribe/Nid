@@ -189,7 +189,7 @@ public sealed class MixedDataset
     /// twins for the sale tax estimate, the subscriptions for every other one.
     /// </summary>
     public IReadOnlyDictionary<string, ItemId> ItemsFor(Type requestType)
-        => requestType == typeof(Nid.Core.Application.Tax.GetSaleTaxQuery) ? SaleItems
+        => requestType == typeof(Nid.Tax.Application.GetSaleTaxQuery) ? SaleItems
             : requestType == typeof(ListBankTransactionsQuery) ? Envelopes
             : requestType.Assembly == typeof(Nid.Investments.Application.ListEnvelopesQuery).Assembly ? Envelopes
             : requestType.Assembly == typeof(Nid.Income.Application.ListIncomeSourcesQuery).Assembly ? IncomeSources

@@ -148,9 +148,9 @@ public class PropertiesImportTests(PostgresFixture fixture) : IClassFixture<Post
             Flat.Replace("prop-flat", "p3").Replace("\"rental_starts_on\":\"2021-04-01\"", "\"rental_starts_on\":\"2021-02-01\""),
             Home.Replace("prop-home", "p4").Replace("\"amount\":\"250000.00\",\"currency\":\"EUR\"", "\"amount\":\"250000.00\",\"currency\":\"USD\"")));
         var costs = await client.PutAsync(app.AdultA, session.Id, "property_recurring_costs", 0, List(
-            Tax.Replace("\"unit\":\"year\"", "\"unit\":\"week\""),
-            Tax.Replace("cost-tax", "c1").Replace("property_tax", "works"),
-            Tax.Replace("cost-tax", "c2").Replace("\"unit\":\"year\"", "\"unit\":\"fortnight\"")));
+            EstateFile.Tax.Replace("\"unit\":\"year\"", "\"unit\":\"week\""),
+            EstateFile.Tax.Replace("cost-tax", "c1").Replace("property_tax", "works"),
+            EstateFile.Tax.Replace("cost-tax", "c2").Replace("\"unit\":\"year\"", "\"unit\":\"fortnight\"")));
         var tenancies = await client.PutAsync(app.AdultA, session.Id, "tenancies", 0, List(
             Lease2.Replace("\"amount\":\"700.00\"", "\"amount\":\"0\""),
             Lease1.Replace("ten-1", "t1").Replace("\"ends_on\":\"2024-03-31\"", "\"ends_on\":\"2021-03-01\"")));
@@ -183,7 +183,7 @@ public class PropertiesImportTests(PostgresFixture fixture) : IClassFixture<Post
         // Rules that need the household's today or the other entities: the validation reports them.
         var validated = await ValidateAsync(client, app, app.AdultA, Properties(
             List(Home.Replace("2020-06-15", "2026-01-01"), Flat),
-            List(Condo.Replace("\"currency\":\"EUR\"", "\"currency\":\"USD\""), Tax.Replace("cost-tax", "cost-x").Replace("prop-home", "prop-nobody")),
+            List(Condo.Replace("\"currency\":\"EUR\"", "\"currency\":\"USD\""), EstateFile.Tax.Replace("cost-tax", "cost-x").Replace("prop-home", "prop-nobody")),
             List(Lease1, Lease2.Replace("\"starts_on\":\"2024-04-01\"", "\"starts_on\":\"2024-03-01\""),
                 Lease1.Replace("ten-1", "ten-3").Replace("\"starts_on\":\"2021-04-01\",\"ends_on\":\"2024-03-31\"", "\"starts_on\":\"2021-01-01\",\"ends_on\":\"2021-02-01\""))));
 

@@ -1,7 +1,6 @@
 using System.Globalization;
 using Nid.Core.Application.Dashboard;
 using Nid.Core.Application.Projection;
-using Nid.Core.Application.Tax;
 using Nid.Core.Contracts;
 using Nid.Core.Domain.Scenarios;
 using Nid.Platform.Contracts;
@@ -72,7 +71,7 @@ public sealed record ReplaceSaleScenarioCommand(ItemId ItemId, string Name, Visi
 /// fees, tax and penalties; its loans settled at their balance), which is also how « Comparer » reads it.
 /// </summary>
 public sealed class SaleScenarioReader(
-    ProjectionScenarioReader projections, SaleTaxEstimates tax, IVisibleItems visible, IItemRegistry items, IActorAccessor actor,
+    ProjectionScenarioReader projections, IHouseholdTax tax, IVisibleItems visible, IItemRegistry items, IActorAccessor actor,
     IHouseholdCalendar calendar)
 {
     public const string PropertyNotFound = "scenario.property_not_found";
@@ -109,7 +108,7 @@ public sealed class SaleScenarioReader(
     {
         if (!await SeesAsync(doc.Property, scope, ct)) return new(false, null, 0m);
         var on = doc.SaleOn < today ? today : doc.SaleOn;
-        if (!(await tax.PropertyAsync(Reader, doc.Property, today, on, doc.Price - doc.AgencyFees, ct)).TryGetValue(out var page))
+        if (!(await tax.PropertySaleAsync(Reader, doc.Property, today, on, doc.Price - doc.AgencyFees, ct)).TryGetValue(out var page))
             return new(true, null, 0m);
         static decimal D(string? amount) => amount is null ? 0m : decimal.Parse(amount, CultureInfo.InvariantCulture);
         return new(true, page, D(page!.IncomeTax) + D(page.SocialTax) + D(page.Surtax));

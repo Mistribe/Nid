@@ -120,6 +120,7 @@ public class CommandCountTests(PostgresFixture fixture) : IClassFixture<Postgres
         services.ConfigureDbContext<InvestmentsDbContext>(o => o.AddInterceptors(counter));
         services.ConfigureDbContext<IncomeDbContext>(o => o.AddInterceptors(counter));
         services.ConfigureDbContext<GoalsDbContext>(o => o.AddInterceptors(counter));
+        services.ConfigureDbContext<Nid.Tax.Infrastructure.Persistence.TaxDbContext>(o => o.AddInterceptors(counter));
         services.ConfigureDbContext<RealEstateDbContext>(o => o.AddInterceptors(counter));
         services.ConfigureDbContext<PlatformDbContext>(o => o.AddInterceptors(counter));
         services.ConfigureDbContext<BankingDbContext>(o => o.AddInterceptors(counter));

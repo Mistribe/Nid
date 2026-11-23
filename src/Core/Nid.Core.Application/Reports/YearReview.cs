@@ -1,8 +1,6 @@
 using System.Globalization;
 using Nid.Core.Application.Dashboard;
-using Nid.Core.Application.Tax;
 using Nid.Core.Contracts;
-using Nid.Core.Domain.Tax;
 using Nid.Platform.Contracts;
 using NodaTime;
 using UnambitiousFx.Functional;
@@ -181,7 +179,7 @@ public static class YearReviewMath
     /// The tax section: null when the year has no estimate (before the rules) or nothing to estimate from; the previous total null
     /// likewise. Every figure is in euros, converted at <paramref name="on"/>'s rate; <paramref name="missing"/> names a currency without one.
     /// </summary>
-    public static TaxReviewView? Tax(TaxComputation? now, TaxComputation? before, Currency reference, RateTable rates, LocalDate on, out string? missing)
+    public static TaxReviewView? Tax(TaxYearFigures? now, TaxYearFigures? before, Currency reference, RateTable rates, LocalDate on, out string? missing)
     {
         string? miss = null;
         DashboardMoneyView? Eur(decimal amount)
@@ -192,8 +190,8 @@ public static class YearReviewMath
         }
 
         var view = now is { HasData: true }
-            ? new TaxReviewView(Eur(now.Result.TotalTax), Eur(now.Result.IncomeTax), Eur(now.Result.SocialLevies), Eur(now.Result.CapitalFlatTax),
-                before is { HasData: true } ? Eur(before.Result.TotalTax) : null)
+            ? new TaxReviewView(Eur(now.TotalTax), Eur(now.IncomeTax), Eur(now.SocialLevies), Eur(now.CapitalFlatTax),
+                before is { HasData: true } ? Eur(before.TotalTax) : null)
             : null;
         missing = miss;
         return view;
@@ -206,7 +204,7 @@ public static class YearReviewMath
 public sealed class GetYearReviewHandler(
     IEnumerable<INetWorthContribution> netWorth, IEnumerable<IInvestmentsReview> investments, IActorAccessor actor, IHouseholdCalendar calendar,
     IHouseholdSettings household, IFxRates fx, IEnumerable<IIncomeReview> incomes, IEnumerable<ICommitmentsContribution> commitments,
-    TaxEstimates taxes, IEnumerable<ISubscriptionsReview> subscriptions, IEnumerable<ILoansReview> loans, IEnumerable<IPropertiesReview> properties,
+    IHouseholdTax taxes, IEnumerable<ISubscriptionsReview> subscriptions, IEnumerable<ILoansReview> loans, IEnumerable<IPropertiesReview> properties,
     IEnumerable<IGoalsReview> goals)
     : IRequestHandler<GetYearReviewQuery, YearReviewView>
 {
@@ -335,18 +333,14 @@ public sealed class GetYearReviewHandler(
     private async Task<Result<(TaxReviewView? View, bool Missing)>> TaxAsync(
         int year, VisibilityScope scope, LocalDate start, LocalDate end, LocalDate today, Currency reference, CancellationToken ct)
     {
-        if (year < TaxRules.FirstYear) return Result.Success<(TaxReviewView?, bool)>((null, false));
-        var now = await taxes.ComputeWithDataAsync(year, scope, today, ct);
+        var now = await taxes.YearAsync(year, scope, today, ct);
         if (now.TryGetFailure(out var failure)) return Result.Failure<(TaxReviewView?, bool)>(failure!);
         now.TryGetValue(out var n);
+        // None before the rules, nor for a year with nothing to estimate from.
         if (!n!.HasData) return Result.Success<(TaxReviewView?, bool)>((null, false));
-        TaxComputation? b = null;
-        if (year - 1 >= TaxRules.FirstYear)
-        {
-            var before = await taxes.ComputeWithDataAsync(year - 1, scope, today, ct);
-            if (before.TryGetFailure(out failure)) return Result.Failure<(TaxReviewView?, bool)>(failure!);
-            before.TryGetValue(out b);
-        }
+        var before = await taxes.YearAsync(year - 1, scope, today, ct);
+        if (before.TryGetFailure(out failure)) return Result.Failure<(TaxReviewView?, bool)>(failure!);
+        before.TryGetValue(out var b);
         // The reference's own quote too: rates are per USD.
         var rates = reference == Currency.Eur ? RateTable.Empty(today, 0) : await fx.LoadAsync([Currency.Eur, reference], start, end, ct);
         var view = YearReviewMath.Tax(n, b, reference, rates, end, out var missing);
@@ -381,7 +375,7 @@ public sealed class GetYearReviewHandler(
         PersonId reader, VisibilityScope scope, LocalDate end, LocalDate today, Currency reference, CancellationToken ct)
     {
         // The tax part has no cash, and would estimate the year again for each month: its estimate is read once below.
-        var cash = commitments.Where(c => c is not TaxCommitments).ToList();
+        var cash = commitments.Where(c => c is not IEstimatedCommitments).ToList();
         var months = new List<(LocalDate On, IReadOnlyList<CommitmentsPart> Parts)>();
         for (var month = 1; month <= end.Month; month++)
         {
@@ -392,14 +386,10 @@ public sealed class GetYearReviewHandler(
             months.Add((on, read!));
         }
 
-        var tax = 0m;
-        if (end.Year >= TaxRules.FirstYear)
-        {
-            var estimate = await taxes.ComputeAsync(end.Year, scope, today, ct);
-            if (estimate.TryGetFailure(out var failure)) return Result.Failure<EngagementsSum>(failure!);
-            estimate.TryGetValue(out var r);
-            tax = r!.TotalTax;
-        }
+        var estimate = await taxes.YearAsync(end.Year, scope, today, ct);
+        if (estimate.TryGetFailure(out var taxFailure)) return Result.Failure<EngagementsSum>(taxFailure!);
+        estimate.TryGetValue(out var r);
+        var tax = r!.TotalTax;
 
         var foreign = months.SelectMany(m => m.Parts).SelectMany(p => p.Cash.Keys).Concat(tax > 0m ? [Currency.Eur] : []).Where(x => x != reference).Distinct().ToList();
         // The reference's own quote too: rates are per USD.

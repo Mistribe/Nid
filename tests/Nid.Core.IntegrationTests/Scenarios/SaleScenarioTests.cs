@@ -3,7 +3,7 @@ using System.Net;
 using System.Text.Json;
 using Nid.Core.Application.Scenarios;
 using Nid.Core.Contracts;
-using Nid.Core.Domain.Tax;
+using Nid.Tax.Domain;
 using Nid.TestSupport;
 using NodaTime;
 using static Nid.TestSupport.LoanApi;

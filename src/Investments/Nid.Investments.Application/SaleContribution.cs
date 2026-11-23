@@ -1,4 +1,5 @@
 using Nid.Core.Contracts;
+using Nid.Tax.Contracts;
 using Nid.Investments.Application.Prices;
 using Nid.Investments.Contracts;
 using Nid.Investments.Domain;

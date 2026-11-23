@@ -38,6 +38,8 @@ using Nid.RealEstate.Infrastructure.Persistence;
 using Nid.Subscriptions.Application.Catalog;
 using Nid.Subscriptions.Application.Import;
 using Nid.Subscriptions.Contracts;
+using Nid.Tax.Contracts;
+using Nid.Tax.Infrastructure.Persistence;
 using Nid.Subscriptions.Infrastructure.Catalog;
 using Nid.Subscriptions.Infrastructure.Persistence;
 using NodaTime;
@@ -78,6 +80,7 @@ public static class NidServiceCollectionExtensions
         services.AddSingleton<IAuditMap, InvestmentsAuditMap>();
         services.AddSingleton<IAuditMap, IncomeAuditMap>();
         services.AddSingleton<IAuditMap, GoalsAuditMap>();
+        services.AddSingleton<IAuditMap, TaxAuditMap>();
         services.AddSingleton<IAuditMap, Nid.Ai.Infrastructure.Persistence.AiAuditMap>();
         services.AddSingleton<IAuditMap, Nid.Childcare.Infrastructure.Persistence.ChildcareAuditMap>();
         services.AddSingleton<IAuditMap, DocumentsAuditMap>();
@@ -154,18 +157,27 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IFxRates, FxRates>();
         services.AddScoped<ISeriesContribution, Nid.Core.Application.Series.FxSeries>();
         services.AddScoped<IHouseholdSettings, HouseholdSettings>();
+        services.AddScoped<IScenarioStore, ScenarioStore>();
+        // #512: the tax module, here where Core hosted it, so the contributions keep their order.
+        services.AddDbContext<TaxDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
+        {
+            npgsql.UseNodaTime();
+            npgsql.MigrationsHistoryTable("__ef_migrations_history", TaxDbContext.Schema);
+        }).AddInterceptors(sp.GetRequiredService<AuditInterceptor>()));
+        services.AddScoped<ITransactionParticipant, DbContextParticipant<TaxDbContext>>();
+        services.AddScoped<IPersonUsePart, TaxPersonUsePart>();
         services.AddScoped<ITaxProfileStore, TaxProfileStore>();
         services.AddScoped<TaxAssessmentStore>();
         services.AddScoped<ITaxAssessmentStore>(sp => sp.GetRequiredService<TaxAssessmentStore>());
         services.AddScoped<ITaxAssessmentDeclarants>(sp => sp.GetRequiredService<TaxAssessmentStore>());
-        services.AddScoped<IScenarioStore, ScenarioStore>();
-        services.AddScoped<Nid.Core.Application.Tax.TaxEstimates>();
-        services.AddScoped<Nid.Core.Application.Tax.SaleTaxEstimates>();
-        services.AddScoped<IRentalTaxOutlook, Nid.Core.Application.Tax.RentalTaxOutlookService>();
-        services.AddScoped<ITaxWithholdingRates, Nid.Core.Application.Tax.TaxWithholdingRates>();
-        services.AddScoped<ICommitmentsContribution, Nid.Core.Application.Tax.TaxCommitments>();
-        services.AddScoped<Nid.Core.Application.Tax.PerDeadline>();
-        services.AddScoped<Nid.Core.Application.Tax.TaxCalendarEvents>();
+        services.AddScoped<Nid.Tax.Application.TaxEstimates>();
+        services.AddScoped<Nid.Tax.Application.SaleTaxEstimates>();
+        services.AddScoped<IRentalTaxOutlook, Nid.Tax.Application.RentalTaxOutlookService>();
+        services.AddScoped<ITaxWithholdingRates, Nid.Tax.Application.TaxWithholdingRates>();
+        services.AddScoped<ICommitmentsContribution, Nid.Tax.Application.TaxCommitments>();
+        services.AddScoped<Nid.Tax.Application.PerDeadline>();
+        services.AddScoped<Nid.Tax.Application.TaxCalendarEvents>();
+        services.AddScoped<IHouseholdTax, Nid.Tax.Application.HouseholdTax>();
         services.AddScoped<Nid.Core.Application.Scenarios.ScenarioFactsReader>();
         services.AddScoped<Nid.Core.Application.Projection.ProjectionFactsReader>();
         services.AddScoped<Nid.Core.Application.Projection.ProjectionScenarioReader>();
@@ -459,7 +471,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ISeriesContribution, Nid.Core.Application.Series.CpiSeries>();
         services.AddScoped<ISeriesContribution, Nid.Core.Application.Series.ProjectionRateSeries>();
         services.AddScoped<ISeriesContribution, Nid.Core.Application.Series.NetWorthSeries>();
-        services.AddScoped<ISeriesContribution, Nid.Core.Application.Series.TaxSeries>();
+        services.AddScoped<ISeriesContribution, Nid.Tax.Application.TaxSeries>();
         services.AddScoped<CpiCollector>();
         services.AddScoped<Nid.Platform.Contracts.ISyncHealth, Nid.Core.Infrastructure.Persistence.CpiSyncHealth>();
         services.AddScoped<Nid.RealEstate.Application.Irl.IrlCollector>();
@@ -554,6 +566,7 @@ public static class NidServiceCollectionExtensions
             cfg.AddRegisterGroup(new RegisterGroup());                    // this assembly: carries the global behaviors
             cfg.AddRegisterGroup(new Nid.Platform.RegisterGroup());
             cfg.AddRegisterGroup(new Nid.Core.Application.RegisterGroup());
+            cfg.AddRegisterGroup(new Nid.Tax.Application.RegisterGroup());
             cfg.AddRegisterGroup(new Nid.Subscriptions.Application.RegisterGroup());
             cfg.AddRegisterGroup(new Nid.Investments.Application.RegisterGroup());
             cfg.AddRegisterGroup(new Nid.Income.Application.RegisterGroup());

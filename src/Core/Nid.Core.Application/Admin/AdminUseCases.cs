@@ -106,10 +106,13 @@ public sealed class PreRegisterAdultHandler(IPersonRegistry persons) : IRequestH
 }
 
 [RequestHandler<DeletePendingAdultCommand, PersonId>]
-public sealed class DeletePendingAdultHandler(IPersonRegistry persons) : IRequestHandler<DeletePendingAdultCommand, PersonId>
+public sealed class DeletePendingAdultHandler(IPersonRegistry persons, IHouseholdTax tax) : IRequestHandler<DeletePendingAdultCommand, PersonId>
 {
     public async ValueTask<Result<PersonId>> HandleAsync(DeletePendingAdultCommand command, CancellationToken ct = default)
     {
+        // The notices live in the tax module's schema: asked before the registry's own checks (ownerships, a sign-in), under no lock.
+        if (await tax.DeclaresAsync(command.Person, ct))
+            return Result.Failure<PersonId>(new Failure(PersonCodes.PersonActive, "This adult declares a tax assessment: they cannot be removed.", null));
         var deleted = await persons.DeletePendingAdultAsync(command.Person, ct);
         return deleted.TryGetFailure(out var failure) ? Result.Failure<PersonId>(failure!) : Result.Success(command.Person);
     }

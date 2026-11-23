@@ -177,6 +177,8 @@ if (!generatingOpenApi && !builder.Configuration.GetValue<bool>("Health:SkipMigr
 {
     await using var scope = app.Services.CreateAsyncScope();
     await scope.ServiceProvider.GetRequiredService<CoreDbContext>().Database.MigrateAsync();
+    // #512: after Core's, whose earlier migrations created the tax tables this one moves to the tax schema.
+    await scope.ServiceProvider.GetRequiredService<Nid.Tax.Infrastructure.Persistence.TaxDbContext>().Database.MigrateAsync();
     await scope.ServiceProvider.GetRequiredService<SubscriptionsDbContext>().Database.MigrateAsync();
     await scope.ServiceProvider.GetRequiredService<InvestmentsDbContext>().Database.MigrateAsync();
     await scope.ServiceProvider.GetRequiredService<IncomeDbContext>().Database.MigrateAsync();

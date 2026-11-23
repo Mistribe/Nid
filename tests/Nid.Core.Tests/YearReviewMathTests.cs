@@ -1,8 +1,6 @@
 using System.Globalization;
 using Nid.Core.Application.Reports;
-using Nid.Core.Application.Tax;
 using Nid.Core.Contracts;
-using Nid.Core.Domain.Tax;
 using NodaTime;
 
 namespace Nid.Core.Tests;
@@ -214,29 +212,28 @@ public class YearReviewMathTests
         Assert.Null(YearReviewMath.Properties(noProperty, noProperty, Currency.Eur));
     }
 
-    private static TaxComputation Estimate(int year, decimal salary, bool hasData = true) => new(TaxCalculator.Compute(new TaxInputs(
-        year, [new("A", 0m, EmploymentStatus.NonExecutive, 0m, 0m, SalaryTaxable: salary)], 0, 0, 0m, 0m, 0m, null, 0m, 0m, 0m,
-        0m, 0m, 0m, 0m)), hasData);
+    /// <summary>A year's estimate as the tax module gives it: invented round figures, the income tax and social levies its parts.</summary>
+    private static TaxYearFigures Estimate(decimal total, bool hasData = true) => new(hasData, total, total * 0.9m, total * 0.1m, 0m);
 
     [Fact]
     public void The_tax_section_converts_at_the_end_and_needs_data()
     {
-        var now = Estimate(2025, 50_000m);
-        Assert.True(now.Result.TotalTax > 0m);
+        var now = Estimate(4_000m);
+        Assert.True(now.TotalTax > 0m);
         // 0.8 € per $ on the end: a household in dollars reads each euro as 1.25 $.
         var rates = new RateTable([new FxRate(End, Currency.Eur, 0.8m, FxRateSource.Ecb)], End, maxGapDays: 7);
 
         static decimal InDollars(decimal eur) => Math.Round(eur * 1.25m, 2, MidpointRounding.AwayFromZero);
-        var tax = YearReviewMath.Tax(now, Estimate(2025, 40_000m), Currency.Usd, rates, End, out var missing)!;
+        var tax = YearReviewMath.Tax(now, Estimate(2_500m), Currency.Usd, rates, End, out var missing)!;
 
         Assert.Null(missing);
-        Assert.Equal((InDollars(now.Result.TotalTax), InDollars(now.Result.IncomeTax), InDollars(now.Result.SocialLevies)),
+        Assert.Equal((InDollars(now.TotalTax), InDollars(now.IncomeTax), InDollars(now.SocialLevies)),
             (D(tax.TotalTax!.Amount), D(tax.IncomeTax!.Amount), D(tax.SocialLevies!.Amount)));
         Assert.Equal("USD", tax.TotalTax.Currency);
         Assert.NotNull(tax.PreviousTotalTax);
-        Assert.Null(YearReviewMath.Tax(now, Estimate(2025, 40_000m, hasData: false), Currency.Eur, rates, End, out _)!.PreviousTotalTax);
+        Assert.Null(YearReviewMath.Tax(now, Estimate(2_500m, hasData: false), Currency.Eur, rates, End, out _)!.PreviousTotalTax);
         Assert.Null(YearReviewMath.Tax(now, null, Currency.Eur, rates, End, out _)!.PreviousTotalTax);
-        Assert.Null(YearReviewMath.Tax(Estimate(2025, 0m, hasData: false), null, Currency.Eur, rates, End, out _));
+        Assert.Null(YearReviewMath.Tax(Estimate(0m, hasData: false), null, Currency.Eur, rates, End, out _));
         Assert.Null(YearReviewMath.Tax(null, null, Currency.Eur, rates, End, out _));
 
         var unconverted = YearReviewMath.Tax(now, null, Currency.Usd, RateTable.Empty(End, 7), End, out missing)!;
