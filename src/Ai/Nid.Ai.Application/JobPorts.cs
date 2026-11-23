@@ -196,6 +196,9 @@ public static class JobCodes
     /// <summary>#487: data a cloud provider may not see, no enabled and eligible profile left, a provider that failed or refused.</summary>
     public const string CloudNotAllowed = "ai.cloud_not_allowed";
     public const string NoCloudProfile = "ai.no_cloud_profile";
+
+    /// <summary>#532: no destination of the conversation's class answers; another class would be a new conversation.</summary>
+    public const string DestinationClassUnavailable = "ai.destination_class_unavailable";
     public const string CloudFailed = "ai.cloud_failed";
     public const string CloudRefused = "ai.cloud_refused";
 

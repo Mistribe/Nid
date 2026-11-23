@@ -77,11 +77,13 @@ public sealed class CloudTests(PostgresFixture fixture) : IClassFixture<Postgres
 
         await ChatAsync(app, new LlmChatRequest(ModelUses.Chat, Hello, [], 256, "figures", Served: d => served = d));
         var pinned = await Assert.ThrowsAsync<ModelCallException>(() => ChatAsync(app,
-            new LlmChatRequest(ModelUses.Chat, Hello, [], 256, "figures", Pin: new LlmDestination(LlmPlacement.Local, "salon", WorkerId: Guid.NewGuid()))));
+            new LlmChatRequest(ModelUses.Chat, Hello, [], 256, "figures", Pin: "local")));
 
         Assert.Equal(new LlmDestination(LlmPlacement.Cloud, "anthropic", ProfileId: "anthropic-claude", ContextTokens: 200_000), served);
         Assert.True(served!.Offsite);
-        Assert.Equal(JobCodes.NoCloudProfile, pinned.Code);
+        // #532: a local conversation never falls back to the cloud, even with no worker left.
+        Assert.Equal(JobCodes.DestinationClassUnavailable, pinned.Code);
+        Assert.Equal("cloud:anthropic-claude", served.Class);
         Assert.Single(anthropic.Requests);
     }
 
