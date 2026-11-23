@@ -1,6 +1,7 @@
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
 using Nid.RealEstate.Contracts;
+using Nid.RealEstate.Domain;
 using NodaTime;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Synapse.Abstractions;
@@ -42,7 +43,7 @@ internal static class PropertyFacts
     {
         var loaded = await PropertyCheck.LoadAsync(properties, items, id, ct);
         return loaded.TryGetValue(out var found)
-            ? Result.Success(LoanViews.CurrencyOf(found.Item))
+            ? Result.Success(LoanReading.CurrencyOf(found.Item))
             : Result.Failure<Currency>(loaded.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
     }
 

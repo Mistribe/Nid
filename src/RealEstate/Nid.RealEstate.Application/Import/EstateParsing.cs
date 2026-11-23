@@ -2,6 +2,7 @@ using System.Text.Json;
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
 using Nid.RealEstate.Contracts;
+using Nid.RealEstate.Domain;
 using NodaTime;
 using NodaTime.Text;
 using UnambitiousFx.Functional.Failures;

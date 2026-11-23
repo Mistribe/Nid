@@ -27,7 +27,7 @@ public sealed class RealEstateExpectedCharges(IVisibleItems visible, IItemRegist
         {
             if (!accesses.TryGetValue(loan.ItemId, out var item))
                 continue;
-            var terms = LoanReading.Terms(LoanViews.CurrencyOf(item), loan.Contract, loan.Fees, loan.Repayments);
+            var terms = LoanReading.Terms(LoanReading.CurrencyOf(item), loan.Contract, loan.Fees, loan.Repayments);
             foreach (var row in LoanReading.Schedule(terms, loan).Rows.Where(r => r.DueDate >= from && r.DueDate <= to && r.Payment + r.Insurance != 0m))
                 charges.Add(new ExpectedCharge("realestate", loan.ItemId, item.DisplayName, ChargeKind.LoanInstalment, Day(row.DueDate), row.DueDate,
                     PropertyFacts.MoneyOf(row.Payment + row.Insurance, terms.Currency), false, 5, loan.Lender is { } lender ? [lender] : []));
@@ -37,7 +37,7 @@ public sealed class RealEstateExpectedCharges(IVisibleItems visible, IItemRegist
         {
             if (!accesses.TryGetValue(property.ItemId, out var item))
                 continue;
-            var currency = LoanViews.CurrencyOf(item);
+            var currency = LoanReading.CurrencyOf(item);
             foreach (var (id, cost, _) in property.Costs.Where(c => c.Cost.Amount != 0m))
                 foreach (var on in PropertyMath.DueBetween(cost, from, to.PlusDays(1)))
                     charges.Add(new ExpectedCharge("realestate", property.ItemId, item.DisplayName, ChargeKind.PropertyCost, $"cost:{id:N}:{Day(on)}", on,

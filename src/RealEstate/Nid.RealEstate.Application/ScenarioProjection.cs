@@ -8,7 +8,7 @@ namespace Nid.RealEstate.Application;
 
 /// <summary>
 /// Scenario spec §4.2 step 3: the visible properties at today's value as <see cref="RealEstateNetWorth"/> reads it, grown by
-/// (1 + g)^(k/12), and the visible loans as the simulation reads them (<see cref="LoansOverviewMath.ProjectWithEvents"/>). An item
+/// (1 + g)^(k/12), and the visible loans as the simulation reads them (<see cref="LoanProjection.ProjectWithEvents"/>). An item
 /// in another currency is converted at today's rate; without one it is left out and its currency named. Projection spec §5.2 adds
 /// the loans' ends, the properties they free, and the scenario's early repayments and sales (§4.2, §4.3).
 /// </summary>
@@ -26,7 +26,7 @@ public sealed class RealEstateScenarioProjection(
         var estimated = await DashboardParts.EstimatesAsync(valuations, found, accesses, ct);
 
         var reference = await household.ReferenceCurrencyAsync(ct);
-        var foreign = accesses.Values.Select(LoanViews.CurrencyOf).Where(c => c != reference).Distinct().ToList();
+        var foreign = accesses.Values.Select(LoanReading.CurrencyOf).Where(c => c != reference).Distinct().ToList();
         var rates = foreign.Count == 0 ? RateTable.Empty(today, 0) : await fx.LoadAsync([.. foreign, reference], today, today, ct);
         var missing = foreign.Where(c => !rates.TryConvert(1m, c, reference, today, projected: false, out _, out _)).ToHashSet();
 
@@ -34,10 +34,10 @@ public sealed class RealEstateScenarioProjection(
         var values = new Dictionary<ItemId, decimal>();
         var value = 0m;
         foreach (var property in found)
-            if (accesses.TryGetValue(property.ItemId, out var item) && !missing.Contains(LoanViews.CurrencyOf(item))
+            if (accesses.TryGetValue(property.ItemId, out var item) && !missing.Contains(LoanReading.CurrencyOf(item))
                 && estimated?.GetValueOrDefault(property.ItemId) is { } estimates
                 && PropertyMath.At(property.Details, false, estimates, [], [], [], today)?.Value is { } now
-                && rates.TryConvert(now, LoanViews.CurrencyOf(item), reference, today, projected: false, out var converted, out _))
+                && rates.TryConvert(now, LoanReading.CurrencyOf(item), reference, today, projected: false, out var converted, out _))
             {
                 values[property.ItemId] = converted;
                 value += converted;
@@ -65,7 +65,7 @@ public sealed class RealEstateScenarioProjection(
                 && sales.All(s => s.Property.ItemId != property.ItemId))
                 sales.Add((e, new LoanSaleEvent(e.Event, k, Dated(e.On), property.ItemId), property));
 
-        var loanMonths = LoansOverviewMath.ProjectWithEvents(
+        var loanMonths = LoanProjection.ProjectWithEvents(
             owing.Where(l => accesses.ContainsKey(l.ItemId)).Select(l => new OverviewLoan(accesses[l.ItemId], l, null)).ToList(),
             missing, reference, rates, today, months, repayments, sales.Select(s => s.Event).ToList());
 
@@ -82,7 +82,7 @@ public sealed class RealEstateScenarioProjection(
         var outcomes = sales.Select(s =>
         {
             var price = s.Sale.Price ?? Grown(values.GetValueOrDefault(s.Property.ItemId), s.Event.Month);
-            var currency = LoanViews.CurrencyOf(accesses[s.Property.ItemId]);
+            var currency = LoanReading.CurrencyOf(accesses[s.Property.ItemId]);
             var costs = PropertyCostCommitments.MonthlyCosts(s.Property, today);
             var rent = PropertyMath.MonthlyRentAt(s.Property.Tenancies.Select(t => t.Tenancy), today);
             decimal Reference(decimal amount)

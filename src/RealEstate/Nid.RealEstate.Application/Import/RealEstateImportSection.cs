@@ -4,6 +4,7 @@ using System.Text.Json.Serialization.Metadata;
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
 using Nid.RealEstate.Contracts;
+using Nid.RealEstate.Domain;
 using NodaTime;
 using NodaTime.Text;
 using UnambitiousFx.Functional;
@@ -175,7 +176,7 @@ public sealed partial class RealEstateImportSection(
             if (row.Hash == plan.Entity.Hash)
             {
                 plan.Mode = Mode.Unchanged;
-                plan.Currency = current is null ? currency : LoanViews.CurrencyOf(current);
+                plan.Currency = current is null ? currency : LoanReading.CurrencyOf(current);
                 return true;
             }
             if (!context.Replace)

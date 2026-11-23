@@ -42,7 +42,7 @@ public sealed class RealEstateNetWorth(
             if (!accesses.TryGetValue(property.ItemId, out var item))
                 continue;
             count++;
-            var currency = LoanViews.CurrencyOf(item);
+            var currency = LoanReading.CurrencyOf(item);
             var estimates = estimated?.GetValueOrDefault(property.ItemId);
             var now = estimates is null ? null : PropertyMath.At(property.Details, false, estimates, [], [], [], today);
             if (estimates is null || now?.Value is not { } value)
@@ -75,7 +75,7 @@ public sealed class RealEstateNetWorth(
         {
             if (!accesses.TryGetValue(loan.ItemId, out var item))
                 continue;
-            var terms = LoanReading.Terms(LoanViews.CurrencyOf(item), loan.Contract, loan.Fees, loan.Repayments);
+            var terms = LoanReading.Terms(LoanReading.CurrencyOf(item), loan.Contract, loan.Fees, loan.Repayments);
             var schedule = LoanReading.Schedule(terms, loan);
             var now = LoanMath.At(terms, schedule, today);
             if (now.Balance == 0m)
@@ -129,12 +129,12 @@ public sealed class RealEstateNetWorth(
         var estimated = new List<(Currency Currency, IReadOnlyList<Valuation> Series, PropertyDetails Details, LocalDate? Archived)>();
         foreach (var property in found)
             if (accesses.TryGetValue(property.ItemId, out var item) && estimates?.GetValueOrDefault(property.ItemId) is { Count: > 0 } series)
-                estimated.Add((LoanViews.CurrencyOf(item), series, property.Details, DashboardParts.ArchiveDay(item, zone)));
+                estimated.Add((LoanReading.CurrencyOf(item), series, property.Details, DashboardParts.ArchiveDay(item, zone)));
         var owed = new List<(LoanTerms Terms, LoanSchedule Schedule, LocalDate? Archived)>();
         foreach (var loan in owing)
             if (accesses.TryGetValue(loan.ItemId, out var item))
             {
-                var terms = LoanReading.Terms(LoanViews.CurrencyOf(item), loan.Contract, loan.Fees, loan.Repayments);
+                var terms = LoanReading.Terms(LoanReading.CurrencyOf(item), loan.Contract, loan.Fees, loan.Repayments);
                 owed.Add((terms, LoanReading.Schedule(terms, loan), DashboardParts.ArchiveDay(item, zone)));
             }
 
@@ -233,7 +233,7 @@ public sealed class LoanCommitments(IVisibleItems visible, IItemRegistry items, 
         {
             if (!accesses.TryGetValue(loan.ItemId, out var item))
                 continue;
-            var terms = LoanReading.Terms(LoanViews.CurrencyOf(item), loan.Contract, loan.Fees, loan.Repayments);
+            var terms = LoanReading.Terms(LoanReading.CurrencyOf(item), loan.Contract, loan.Fees, loan.Repayments);
             var schedule = LoanReading.Schedule(terms, loan);
             var archived = zone is null ? null : item.ArchivedAt?.InZone(zone).Date;
             if (LoanReading.EndOf(terms, schedule) < first || archived is { } gone && gone <= first)
@@ -275,7 +275,7 @@ public sealed class PropertyCostCommitments(IVisibleItems visible, IItemRegistry
                 continue; // archived before this month: counts nowhere
             // Amortized: the costs running on its last counted day, the day before its archive day when that falls this month.
             var held = archived is { } sold && sold <= today ? sold.PlusDays(-1) : today;
-            var currency = LoanViews.CurrencyOf(item);
+            var currency = LoanReading.CurrencyOf(item);
             foreach (var cost in property.Costs.Select(c => c.Cost))
             {
                 if (Running(cost, held))
@@ -318,7 +318,7 @@ public sealed class RealEstateUpcoming(IVisibleItems visible, IItemRegistry item
         {
             if (!accesses.TryGetValue(loan.ItemId, out var item))
                 continue;
-            var terms = LoanReading.Terms(LoanViews.CurrencyOf(item), loan.Contract, loan.Fees, loan.Repayments);
+            var terms = LoanReading.Terms(LoanReading.CurrencyOf(item), loan.Contract, loan.Fees, loan.Repayments);
             foreach (var change in LoanReading.Changes(LoanReading.Schedule(terms, loan).Rows).Where(c => Within(c.On)))
                 events.Add(change.EndingPhase is { } phase
                     ? new UpcomingEvent(change.On, UpcomingKinds.LoanPhaseEnd, loan.ItemId, "loans", item.DisplayName,
@@ -333,7 +333,7 @@ public sealed class RealEstateUpcoming(IVisibleItems visible, IItemRegistry item
         {
             if (!accesses.TryGetValue(property.ItemId, out var item))
                 continue;
-            var currency = LoanViews.CurrencyOf(item);
+            var currency = LoanReading.CurrencyOf(item);
             if (PropertyMath.StaleThreshold(property.Details.Cadence, property.Details.StaleAfterDays) is { } days
                 && estimates?.GetValueOrDefault(property.ItemId)?.LastOrDefault(v => v.AsOf <= today) is { } estimate)
             {

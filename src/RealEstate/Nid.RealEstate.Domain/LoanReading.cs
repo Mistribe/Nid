@@ -1,18 +1,23 @@
 using System.Globalization;
 using Nid.Core.Contracts;
 using Nid.RealEstate.Contracts;
-using Nid.RealEstate.Domain;
 using NodaTime;
 using UnambitiousFx.Functional;
 
-namespace Nid.RealEstate.Application;
+namespace Nid.RealEstate.Domain;
 
 /// <summary>A change of <see cref="LoanReading.Changes"/>: <c>EndingPhase</c> is the phase that ends, null for the last payment.</summary>
-internal sealed record LoanChange(LocalDate On, int? EndingPhase);
+public sealed record LoanChange(LocalDate On, int? EndingPhase);
 
 /// <summary>Spec 3A2 §3: what the engine is handed, and what is read off its schedule.</summary>
-internal static class LoanReading
+public static class LoanReading
 {
+    /// <summary>A loan's item always has a currency (it is created with one); its absence is a broken invariant.</summary>
+    public static Currency CurrencyOf(ItemAccess item)
+        => Currency.TryCreate(item.Currency ?? "", out var currency)
+            ? currency
+            : throw new InvalidOperationException($"Loan {item.Id} has no currency.");
+
     /// <summary>The stored contract, fees and repayments as the engine's terms; repayments by date, then id (spec §3).</summary>
     public static LoanTerms Terms(Currency currency, LoanContract contract, IEnumerable<StoredFee> fees, IEnumerable<StoredRepayment> repayments)
         => new(currency, contract.Principal, contract.DisbursedOn, contract.FirstPaymentDate, contract.TotalPayments, contract.Rounding,

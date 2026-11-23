@@ -2,13 +2,13 @@ using Nid.RealEstate.Contracts;
 using NodaTime;
 using UnambitiousFx.Functional.Failures;
 
-namespace Nid.RealEstate.Application;
+namespace Nid.RealEstate.Domain;
 
 /// <summary>
 /// Spec 3A2 §3's rules beyond the engine's, and the bounds of the text fields (precisions 2–4). The first refusal wins;
 /// null when there is none. Fields are the body's.
 /// </summary>
-internal static class LoanRules
+public static class LoanRules
 {
     public const int NameMax = 100;
     public const int LenderMax = 100;
@@ -92,6 +92,6 @@ internal static class LoanRules
     public static Failure? InYears(LocalDate? date, string field)
         => date is { Year: < FirstYear or > LastYear } ? Invalid(field, $"A date lies in years {FirstYear} to {LastYear}.") : null;
 
-    public static Failure Invalid(string field, string message)
-        => new(LoanCodes.InvalidLoan, message, new Dictionary<string, object?> { ["field"] = field });
+    public static Failure Invalid(string field, string message, string code = LoanCodes.InvalidLoan)
+        => new(code, message, new Dictionary<string, object?> { ["field"] = field });
 }

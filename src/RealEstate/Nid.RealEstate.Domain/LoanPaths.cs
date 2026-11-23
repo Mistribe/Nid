@@ -1,13 +1,13 @@
 using System.Globalization;
 using UnambitiousFx.Functional.Failures;
 
-namespace Nid.RealEstate.Application;
+namespace Nid.RealEstate.Domain;
 
 /// <summary>
 /// Spec 3A2 §4: every 422 names its field in the body's own path. The engine names its fields after <c>LoanTerms</c>
 /// (<c>principal</c>, <c>phases[i].x</c>, <c>insurances[i].x</c>, <c>fees[i].x</c>, <c>events[i].x</c>).
 /// </summary>
-internal static class LoanPaths
+public static class LoanPaths
 {
     public static string? FieldOf(Failure failure)
         => failure.Metadata is { } metadata && metadata.TryGetValue("field", out var field) ? field as string : null;

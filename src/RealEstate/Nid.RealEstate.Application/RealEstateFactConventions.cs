@@ -1,5 +1,6 @@
 using Nid.Core.Contracts;
 using Nid.RealEstate.Contracts;
+using Nid.RealEstate.Domain;
 
 namespace Nid.RealEstate.Application;
 

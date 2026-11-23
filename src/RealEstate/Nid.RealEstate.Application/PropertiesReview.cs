@@ -31,7 +31,7 @@ public sealed class PropertiesReview(
         listed.TryGetValue(out var flowLists);
         var zone = await calendar.ZoneAsync(ct);
         var reference = await household.ReferenceCurrencyAsync(ct);
-        var foreign = read.Select(x => LoanViews.CurrencyOf(x.Item)).Where(c => c != reference).Distinct().ToList();
+        var foreign = read.Select(x => LoanReading.CurrencyOf(x.Item)).Where(c => c != reference).Distinct().ToList();
         // The reference's own quote is needed too: rates are per USD. Without a foreign property the table is never looked up.
         var rates = foreign.Count == 0 ? RateTable.Empty(end, 0) : await fx.LoadAsync([.. foreign, reference], end, end, ct);
 
@@ -52,7 +52,7 @@ public sealed class PropertiesReview(
             var last = DashboardParts.ArchiveDay(item, zone) is { } day && day <= end ? day.PlusDays(-1) : end;
             var details = property.Details;
             if (last <= start || details.PurchaseDate > last) continue;
-            var currency = LoanViews.CurrencyOf(item);
+            var currency = LoanReading.CurrencyOf(item);
             var own = flowLists![property.ItemId];
             var byCategory = PropertiesCostsMath.PaidByCategory(own, start, last, a => Convert(a, currency))
                 .Select(c => new PropertyCostCategory(c.Category, c.Amount)).ToList();
