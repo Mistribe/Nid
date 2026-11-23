@@ -5,6 +5,8 @@ sidebar:
   order: 7
 ---
 
+import { Badge } from '@astrojs/starlight/components';
+
 ## Synchro bancaire
 
 Nid lit les soldes et les opérations par [Enable Banking](https://enablebanking.com), en lecture seule : aucun appel de paiement. Elle est **désactivée par défaut** ; un administrateur l'active dans Administration › Banque, sans rien changer au compose.
@@ -15,7 +17,7 @@ Le détail : [`deploy/README.md` §12](https://github.com/Mistribe/Nid/blob/main
 
 ## Worker de modèles
 
-Le worker fait tourner ce qui demande un modèle : texte et OCR des documents, recherche par le sens, modèle local. Sans lui, Nid fonctionne.
+Le worker fait tourner ce qui demande un modèle : texte et OCR des documents, modèle local, et bientôt la recherche par le sens dans les documents <Badge text="Preview" variant="caution" />, encore en développement. Sans lui, Nid fonctionne.
 
 ```bash
 docker compose --profile worker up -d worker
