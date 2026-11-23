@@ -23,6 +23,11 @@ public sealed class BalanceStore(BankingDbContext db) : IBalanceStore
             ? new BankBalance(b.AccountId, b.AsOf, b.Amount, b.BalanceType, b.FetchedAt)
             : null;
 
+    public async Task<IReadOnlyDictionary<Guid, BankBalance>> LatestManyAsync(IReadOnlyCollection<Guid> accounts, CancellationToken ct)
+        => (await db.Balances.AsNoTracking().Where(b => accounts.Contains(b.AccountId))
+                .GroupBy(b => b.AccountId).Select(g => g.OrderByDescending(b => b.AsOf).First()).ToListAsync(ct))
+            .ToDictionary(b => b.AccountId, b => new BankBalance(b.AccountId, b.AsOf, b.Amount, b.BalanceType, b.FetchedAt));
+
     public async Task<IReadOnlyList<BankBalance>> SinceAsync(Guid account, LocalDate from, CancellationToken ct)
     {
         var start = await db.Balances.AsNoTracking().Where(b => b.AccountId == account && b.AsOf <= from).MaxAsync(b => (LocalDate?)b.AsOf, ct) ?? from;

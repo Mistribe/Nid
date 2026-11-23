@@ -78,15 +78,11 @@ public sealed class BankingAccess(
             ? Result.Success(found)
             : Fail<BankConnection>(BankingCodes.ConnectionNotFound, "No such bank connection.");
 
-    /// <summary>The accounts the actor reads, in order, each with whether they may write it.</summary>
+    /// <summary>The accounts the actor reads, in order, each with whether they may write it, in a fixed number of queries.</summary>
     public async Task<IReadOnlyList<(BankAccount Account, bool CanWrite)>> ReadableAsync(IReadOnlyList<BankAccount> list, CancellationToken ct)
     {
-        var mine = (await connections.MineAsync(Person, ct)).Select(c => c.Id).ToHashSet();
-        var readable = new List<(BankAccount, bool)>();
-        foreach (var account in list)
-            if (await CanWriteAsync(Person, account, mine, ct) is { } canWrite)
-                readable.Add((account, canWrite));
-        return readable;
+        var rights = await RightsAsync(Person, await MineAsync(Person, ct), list, ct);
+        return [.. list.Where(a => rights.ContainsKey(a.Id)).Select(a => (a, rights[a.Id]))];
     }
 
     /// <summary>
@@ -97,7 +93,7 @@ public sealed class BankingAccess(
     {
         var readers = new List<PersonId>();
         foreach (var adult in (await AdultsAsync(ct)).OrderBy(a => a != account.CreatedBy))
-            if (await CanWriteAsync(adult, account, (await connections.MineAsync(adult, ct)).Select(c => c.Id).ToHashSet(), ct) is { } canWrite
+            if ((await RightsAsync(adult, await MineAsync(adult, ct), [account], ct)).TryGetValue(account.Id, out var canWrite)
                 && (canWrite || kind == AccessKind.Read))
                 readers.Add(adult);
         return readers;
@@ -107,18 +103,12 @@ public sealed class BankingAccess(
     public async Task<IReadOnlyDictionary<Guid, IReadOnlyList<PersonId>>> ReadersAsync(IReadOnlyList<BankAccount> list, CancellationToken ct)
     {
         var adults = (await AdultsAsync(ct)).ToList();
-        var mine = new Dictionary<PersonId, IReadOnlySet<Guid>>();
+        var rights = new Dictionary<PersonId, IReadOnlyDictionary<Guid, bool>>();
         foreach (var adult in adults)
-            mine[adult] = (await connections.MineAsync(adult, ct)).Select(c => c.Id).ToHashSet();
+            rights[adult] = await RightsAsync(adult, await MineAsync(adult, ct), list, ct);
         var readers = new Dictionary<Guid, IReadOnlyList<PersonId>>();
         foreach (var account in list)
-        {
-            var found = new List<PersonId>();
-            foreach (var adult in adults.OrderBy(a => a != account.CreatedBy))
-                if (await CanWriteAsync(adult, account, mine[adult], ct) is not null)
-                    found.Add(adult);
-            readers[account.Id] = found;
-        }
+            readers[account.Id] = [.. adults.OrderBy(a => a != account.CreatedBy).Where(a => rights[a].ContainsKey(account.Id))];
         return readers;
     }
 
@@ -156,26 +146,53 @@ public sealed class BankingAccess(
     public async Task<Result<BankAccount>> AccountAsync(Guid id, AccessKind access, CancellationToken ct)
     {
         var account = await accounts.FindAsync(id, ct);
-        var mine = (await connections.MineAsync(Person, ct)).Select(c => c.Id).ToHashSet();
-        return account is null || await CanWriteAsync(Person, account, mine, ct) is not { } canWrite
+        var mine = await MineAsync(Person, ct);
+        return account is null || !(await RightsAsync(Person, mine, [account], ct)).TryGetValue(account.Id, out var canWrite)
             ? Fail<BankAccount>(BankingCodes.AccountNotFound, "No such bank account.")
             : access == AccessKind.Write && !canWrite
                 ? Result.Failure<BankAccount>(new UnauthorizedFailure("You can read this bank account but not change it.", null))
                 : Result.Success(account);
     }
 
-    /// <summary><c>null</c> when <paramref name="person"/> cannot read the account, else whether they may write it.</summary>
-    private async Task<bool?> CanWriteAsync(PersonId person, BankAccount account, IReadOnlySet<Guid> mine, CancellationToken ct)
-    {
-        var ruling = account.CardOf is { } parent && await accounts.FindAsync(parent, ct) is { } found ? found : account;
-        if (ruling.Envelope is { } envelope)
-        {
-            // Write answers « not found » to a non-reader and « unauthorized » to a reader who does not write.
-            var write = await policy.CheckAsync(person, envelope, AccessKind.Write, ct);
-            return write.TryGetFailure(out var failure) ? failure is UnauthorizedFailure ? false : null : true;
-        }
+    private async Task<IReadOnlySet<Guid>> MineAsync(PersonId person, CancellationToken ct)
+        => (await connections.MineAsync(person, ct)).Select(c => c.Id).ToHashSet();
 
-        return await OwnsAsync(person, ruling, mine, ct) ? true : null;
+    /// <summary>
+    /// The accounts of <paramref name="list"/> <paramref name="person"/> reads, each with whether they may write it (an absent one is
+    /// not read), in a fixed number of queries whatever the number of accounts (architecture §5.3.2).
+    /// </summary>
+    private async Task<IReadOnlyDictionary<Guid, bool>> RightsAsync(
+        PersonId person, IReadOnlySet<Guid> mine, IReadOnlyList<BankAccount> list, CancellationToken ct)
+    {
+        // A card follows its account; one whose account is gone rules itself.
+        var parents = list.Select(a => a.CardOf).OfType<Guid>().Distinct().ToList();
+        var found = parents.Count == 0 ? [] : (await accounts.FindManyAsync(parents, ct)).ToDictionary(a => a.Id);
+        var ruling = list.DistinctBy(a => a.Id)
+            .ToDictionary(a => a.Id, a => a.CardOf is { } parent && found.TryGetValue(parent, out var account) ? account : a);
+
+        // On an envelope: its writers write the account, its other readers read it.
+        var envelopes = ruling.Values.Select(r => r.Envelope).OfType<ItemId>().Distinct().ToList();
+        var writes = await policy.CheckManyAsync(person, envelopes, AccessKind.Write, ct);
+        var reads = await policy.CheckManyAsync(person, [.. envelopes.Where(e => !writes.Contains(e))], AccessKind.Read, ct);
+
+        // Off an envelope: its creator and the creators of the connections that see it own it (#354's managing adult needs an envelope).
+        var others = ruling.Values.Where(r => r.Envelope is null && r.CreatedBy != person).Select(r => r.Id).Distinct().ToList();
+        var seen = others.Count == 0
+            ? []
+            : (await accounts.SourcesAsync(others, ct)).Where(s => mine.Contains(s.Connection)).Select(s => s.Account).ToHashSet();
+
+        var rights = new Dictionary<Guid, bool>();
+        foreach (var (id, r) in ruling)
+            if (r.Envelope is { } envelope)
+            {
+                if (writes.Contains(envelope))
+                    rights[id] = true;
+                else if (reads.Contains(envelope))
+                    rights[id] = false;
+            }
+            else if (r.CreatedBy == person || seen.Contains(r.Id))
+                rights[id] = true;
+        return rights;
     }
 
     /// <summary>
@@ -183,11 +200,11 @@ public sealed class BankingAccess(
     /// envelope or account, which would take it from the other adult's sight.
     /// </summary>
     public async Task<bool> OwnsAsync(BankAccount account, CancellationToken ct)
-        => await OwnsAsync(Person, account, (await connections.MineAsync(Person, ct)).Select(c => c.Id).ToHashSet(), ct);
-
-    private async Task<bool> OwnsAsync(PersonId person, BankAccount account, IReadOnlySet<Guid> mine, CancellationToken ct)
-        => account.CreatedBy == person || (await accounts.SourcesAsync(account.Id, ct)).Any(s => mine.Contains(s.Connection))
-            || await ManagesAsync(person, account, ct);
+    {
+        var mine = await MineAsync(Person, ct);
+        return account.CreatedBy == Person || (await accounts.SourcesAsync(account.Id, ct)).Any(s => mine.Contains(s.Connection))
+            || await ManagesAsync(Person, account, ct);
+    }
 
     /// <summary>
     /// #354: an account on an envelope only dependents own (a card: its account's) is the child's, not its connector's: whoever writes that
