@@ -286,6 +286,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<Nid.Ai.Application.IAiSettings, Nid.Ai.Infrastructure.Persistence.AiSettingsStore>();
         services.AddSingleton<Nid.Ai.Application.IModelContract, Nid.Ai.Application.EchoJobContract>();
         services.AddSingleton<Nid.Ai.Application.IModelContract, Nid.Ai.Application.DocumentTextJobContract>();
+        services.AddSingleton<Nid.Ai.Application.IModelContract, Nid.Ai.Application.EmbedRequestContract>();
         services.AddSingleton<Nid.Ai.Application.IModelContract, Nid.Ai.Application.EchoRequestContract>();
         services.AddSingleton<Nid.Ai.Application.IModelContract, Nid.Ai.Application.ChatRequestContract>();
         services.AddSingleton<Nid.Ai.Application.ModelContracts>();
@@ -304,6 +305,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<Nid.Ai.Application.ILlmCallReads, Nid.Ai.Infrastructure.Persistence.LlmCallReads>();
         services.AddScoped<Nid.Ai.Application.ILlmProvider, Nid.Ai.Application.WorkerProvider>();
         services.AddScoped<Nid.Ai.Application.ILlmGateway, Nid.Ai.Application.LlmGateway>();
+        services.AddScoped<Nid.Ai.Contracts.IEmbeddings, Nid.Ai.Application.LlmEmbedder>();
         // #487: the cloud profiles Nid ships, their keys and settings, after the workers in the chain. The client reaches
         // nothing but the loaded profiles' hosts, on Myelin's address checks.
         services.TryAddSingleton<Nid.Ai.Application.ILlmProfiles, Nid.Ai.Infrastructure.Cloud.LlmProfileLoader>();

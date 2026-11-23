@@ -335,6 +335,13 @@ describe('Réglages › IA', () => {
     const assistant = (await screen.findByRole('heading', { name: 'Assistant' })).parentElement!;
     await user.click(within(assistant).getByRole('combobox', { name: 'Réglage' }));
     expect(await screen.findByRole('option', { name: 'Workers du foyer, puis le cloud' })).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+
+    // #558: no cloud provider embeds yet (#556).
+    const search = screen.getByRole('heading', { name: 'Recherche par le sens' }).parentElement!;
+    await user.click(within(search).getByRole('combobox', { name: 'Réglage' }));
+    expect(await screen.findByRole('option', { name: 'Workers du foyer' })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'Workers du foyer, puis le cloud' })).not.toBeInTheDocument();
   });
 
   it('shows every adult what a provider may do with the data, and lets only an admin act', async () => {

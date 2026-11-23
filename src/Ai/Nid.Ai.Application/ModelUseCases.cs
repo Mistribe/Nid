@@ -38,6 +38,8 @@ public sealed class SetUseModeHandler(IAiSettings settings, INotifier notifier, 
             return Result.Failure<PolicyChange<AiSettingsView>>(new Failure(JobCodes.UnknownUse, "No such use.", null));
         if (!UseModes.All.Contains(command.Mode))
             return Result.Failure<PolicyChange<AiSettingsView>>(new Failure(JobCodes.UnknownMode, "No such mode.", null));
+        if (command.Use == ModelUses.Embed && command.Mode == UseModes.SelfHostedThenCloud)
+            return Result.Failure<PolicyChange<AiSettingsView>>(new Failure(JobCodes.CloudNotAvailable, "No cloud provider embeds yet (#556).", null));
 
         var before = (await settings.UseAsync(command.Use, ct)).Mode;
         if (before == command.Mode)

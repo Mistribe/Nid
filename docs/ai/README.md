@@ -358,6 +358,16 @@ du moteur.
   `engine_refused` (4xx), `engine_failed` (5xx), `engine_invalid` (réponse illisible). Un moteur muet retire ses modèles
   de la déclaration jusqu'à ce qu'il réponde.
 - Sans `Engine:Url`, le worker ne déclare ni modèle ni `chat`.
+- **`embed` (#558) :** `Engine:EmbedModels` (`nom=dimension`, séparés par des virgules) nomme les modèles du moteur qui
+  plongent du texte. Ils sont déclarés pour `embed` avec leur dimension, jamais pour `chat`.
+  - La requête `contracts/requests/embed/v1` envoie un lot de 64 textes au plus (32 000 caractères chacun). Le worker
+    appelle `POST /v1/embeddings` et rend une trame par vecteur.
+  - Un vecteur d'une autre longueur que la dimension déclarée finit en `engine_invalid`.
+  - Côté Nid, `IEmbeddings` (`Ai.Contracts`, `LlmEmbedder`) prend le modèle et le mode de l'usage `embed`. Il applique
+    la classe de données et, pour une tâche de fond, le `allow` de chaque adulte concerné. Sans ce `allow`, seuls les
+    workers locaux servent : `ai.offsite_not_allowed` si seul un worker distant l'aurait pu.
+  - Chaque appel est noté dans `llm_call` (tâche `embed`). Le mode `self_hosted_then_cloud` est refusé pour `embed`
+    (`ai.cloud_not_available`) jusqu'aux fournisseurs cloud (#556).
 
 ### 3.8 Le texte des documents (#167)
 

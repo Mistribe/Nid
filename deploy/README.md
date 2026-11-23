@@ -749,4 +749,5 @@ Le réseau `models` n'a pas de sortie : le moteur sert les modèles déjà prés
 | `Models` | Les modèles à servir, séparés par des virgules ; vide : tous ceux du moteur |
 | `ContextTokens`, `MaxOutputTokens` | Le contexte et la sortie que le moteur accepte (8192 et 4096 par défaut) |
 | `Tools` | Le modèle sait appeler des outils (`true` par défaut) |
+| `EmbedModels` | Les modèles de plongement et la longueur de leurs vecteurs, que le moteur ne dit pas : `nomic-embed-text=768,bge-m3=1024`. Ils servent la recherche dans les documents (`embed`), jamais le chat |
 

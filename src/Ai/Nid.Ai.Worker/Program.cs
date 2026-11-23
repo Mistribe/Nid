@@ -18,6 +18,7 @@ builder.Services.Configure<EngineOptions>(builder.Configuration.GetSection("Engi
 builder.Services.TryAddSingleton(new EngineTransport(new SocketsHttpHandler { ConnectTimeout = TimeSpan.FromSeconds(5) }));
 builder.Services.AddSingleton<EngineClient>();
 builder.Services.AddSingleton<IRequestHandler, ChatRequest>();
+builder.Services.AddSingleton<IRequestHandler, EmbedRequest>();
 builder.Services.AddSingleton<JobTable>();
 builder.Services.AddSingleton(sp => new NonceCache(sp.GetRequiredService<TimeProvider>()));
 builder.Services.AddHttpContextAccessor();

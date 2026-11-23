@@ -176,6 +176,7 @@
       "unknown_use": "Cet usage n'existe pas.",
       "unknown_mode": "Ce réglage n'existe pas.",
       "cloud_not_allowed": "Ces données ne peuvent pas partir vers un fournisseur cloud.",
+      "cloud_not_available": "Aucun fournisseur cloud ne fait encore ce travail : il reste sur les workers du foyer.",
       "no_cloud_profile": "Aucun fournisseur cloud activé ne peut prendre la demande.",
       "cloud_failed": "Le fournisseur cloud n'a pas répondu ; réessayez plus tard.",
       "cloud_refused": "Le fournisseur cloud a refusé la demande.",

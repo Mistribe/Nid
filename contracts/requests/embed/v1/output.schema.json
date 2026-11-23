@@ -1,0 +1,19 @@
+{
+  "type": "object",
+  "properties": {
+    "index": {
+      "type": "integer"
+    },
+    "vector": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      }
+    }
+  },
+  "required": [
+    "index",
+    "vector"
+  ],
+  "additionalProperties": false
+}

@@ -24,6 +24,12 @@ public sealed class FakeEngine : HttpMessageHandler
 
     public List<JsonObject> ChatRequests { get; } = [];
 
+    /// <summary>#558: the bodies of <c>/v1/embeddings</c>, and the length of each vector it answers (the first value is the
+    /// text's length, the others the text's place in the batch plus a tenth per position).</summary>
+    public List<JsonObject> EmbedRequests { get; } = [];
+
+    public int EmbedDimension { get; set; } = 4;
+
     /// <summary>The <c>Authorization</c> header of each chat request (a cloud provider's key; none for an engine).</summary>
     public List<string?> Authorizations { get; } = [];
 
@@ -62,6 +68,21 @@ public sealed class FakeEngine : HttpMessageHandler
         {
             case "/v1/models":
                 return Json(new JsonObject { ["object"] = "list", ["data"] = new JsonArray([.. Models.Select(m => m.DeepClone())]) });
+            case "/v1/embeddings":
+                var embed = JsonNode.Parse(await request.Content!.ReadAsStringAsync(cancellationToken))!.AsObject();
+                EmbedRequests.Add(embed);
+                var texts = embed["input"]!.AsArray().Select(t => t!.GetValue<string>()).ToList();
+                return Json(new JsonObject
+                {
+                    ["object"] = "list",
+                    ["model"] = embed["model"]!.GetValue<string>(),
+                    ["data"] = new JsonArray([.. texts.Select((text, i) => (JsonNode)new JsonObject
+                    {
+                        ["object"] = "embedding", ["index"] = i,
+                        ["embedding"] = new JsonArray([.. Enumerable.Range(0, EmbedDimension).Select(d => (JsonNode)JsonValue.Create(d == 0 ? text.Length : i + d / 10.0)!)]),
+                    })]),
+                    ["usage"] = new JsonObject { ["prompt_tokens"] = texts.Sum(t => t.Length), ["total_tokens"] = texts.Sum(t => t.Length) },
+                });
             case "/v1/chat/completions":
                 ChatRequests.Add(JsonNode.Parse(await request.Content!.ReadAsStringAsync(cancellationToken))!.AsObject());
                 Authorizations.Add(request.Headers.Authorization?.ToString());
