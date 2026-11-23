@@ -14,6 +14,7 @@ using Nid.Platform.Contracts;
 using Nid.Platform.Infrastructure.Persistence;
 using Nid.TestSupport;
 using NodaTime;
+using UnambitiousFx.Functional;
 using WorkerJobHandler = worker::Nid.Ai.Worker.IJobHandler;
 
 namespace Nid.Ai.IntegrationTests;
@@ -114,7 +115,7 @@ public sealed class PolicyTests(PostgresFixture fixture) : IClassFixture<Postgre
             nidServices: s => s.AddSingleton<IModelContract>(new TestContract("test-gate", allowsNoData: false)));
         var worker = await world.PairAsync();
         await world.Nid.RawAsync(world.Nid.AdultA, HttpMethod.Put, $"/api/v1/ai/workers/{worker.Id}/safe", new { safe = true });
-        var id = await SubmitAsync(world, "local_only", "test-gate", new { n = 1 }, allowsNoData: false, contract: true);
+        var id = await SubmitAsync(world, "local_only", "test-gate", new { n = 1 }, allowsNoData: false, contract: true).Accepted();
         await PassAsync(world);
         Assert.Equal("running", (await ViewAsync(world, id)).Status);
 
@@ -134,9 +135,9 @@ public sealed class PolicyTests(PostgresFixture fixture) : IClassFixture<Postgre
     {
         await using var world = await PairedWorld.StartAsync(fixture);
 
-        var refused = await Assert.ThrowsAsync<ModelCallException>(() => SubmitAsync(world, "none", "test-gate", new { n = 1 }, allowsNoData: false, contract: true));
+        var refused = await SubmitAsync(world, "none", "test-gate", new { n = 1 }, allowsNoData: false, contract: true).Refused();
 
-        Assert.Equal(JobCodes.UnknownDataClass, refused.Code);
+        Assert.Equal(JobCodes.UnknownDataClass, refused);
     }
 
     [Fact]
@@ -162,11 +163,11 @@ public sealed class PolicyTests(PostgresFixture fixture) : IClassFixture<Postgre
         await using var scope = Scope(world);
         return await scope.ServiceProvider.GetRequiredService<IModelJobs>().SubmitAsync(
             new JobRequest("echo", 1, JsonSerializer.SerializeToElement(new EchoJobInput("hello"), ContractJson.Strict), dataClass),
-            TestContext.Current.CancellationToken);
+            TestContext.Current.CancellationToken).Accepted();
     }
 
     /// <summary>A job of a test type, through a contract registered for this call only.</summary>
-    private static async Task<Guid> SubmitAsync(PairedWorld world, string dataClass, string type, object input, bool allowsNoData, bool contract)
+    private static async Task<Result<Guid>> SubmitAsync(PairedWorld world, string dataClass, string type, object input, bool allowsNoData, bool contract)
     {
         await using var scope = Scope(world);
         var jobs = new ModelJobs(scope.ServiceProvider.GetRequiredService<IJobStore>(),

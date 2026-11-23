@@ -139,7 +139,7 @@ public sealed class TestWorkerHandler(IWorkerStore workers, IModelRequests reque
         var job = await jobs.SubmitAsync(new JobRequest("echo", 1,
             System.Text.Json.JsonSerializer.SerializeToElement(new EchoJobInput($"Nid {Guid.CreateVersion7():N}"), ContractJson.Strict),
             "none", TargetWorkerId: worker.Id), ct);
-        return Result.Success(new WorkerTestResult(frames, job));
+        return job.Map(id => new WorkerTestResult(frames, id));
     }
 }
 

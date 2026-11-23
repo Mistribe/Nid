@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Nid.Ai.Application;
+using Nid.Ai.Contracts;
 using Nid.Ai.Protocol.Contracts;
 using Nid.Platform.Contracts;
 using Nid.TestSupport;
@@ -17,7 +18,7 @@ public sealed class JobStoreConcurrencyTests(PostgresFixture fixture) : IClassFi
         await using (var scope = Scope(app))
             id = await scope.ServiceProvider.GetRequiredService<IModelJobs>().SubmitAsync(
                 new JobRequest("echo", 1, JsonSerializer.SerializeToElement(new EchoJobInput("hi"), ContractJson.Strict), "none"),
-                TestContext.Current.CancellationToken);
+                TestContext.Current.CancellationToken).Accepted();
 
         JobRecord stale;
         await using (var scope = Scope(app))
@@ -39,7 +40,7 @@ public sealed class JobStoreConcurrencyTests(PostgresFixture fixture) : IClassFi
         await using (var scope = Scope(app))
             id = await scope.ServiceProvider.GetRequiredService<IModelJobs>().SubmitAsync(
                 new JobRequest("echo", 1, JsonSerializer.SerializeToElement(new EchoJobInput("hi"), ContractJson.Strict), "none"),
-                TestContext.Current.CancellationToken);
+                TestContext.Current.CancellationToken).Accepted();
         JobRecord stale;
         await using (var scope = Scope(app))
             stale = (await scope.ServiceProvider.GetRequiredService<IJobStore>().FindAsync(id, TestContext.Current.CancellationToken))!;

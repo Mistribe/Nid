@@ -5,6 +5,8 @@ using Nid.Ai.Contracts;
 using Nid.Ai.Protocol;
 using Nid.Ai.Protocol.Contracts;
 using NodaTime;
+using UnambitiousFx.Functional;
+using UnambitiousFx.Functional.Failures;
 
 namespace Nid.Ai.Application;
 
@@ -63,23 +65,25 @@ public sealed class ModelContracts(IEnumerable<IModelContract> contracts)
 
 public sealed class ModelJobs(IJobStore store, ModelContracts contracts, IClock clock) : IModelJobs
 {
-    public async Task<Guid> SubmitAsync(JobRequest request, CancellationToken ct)
+    public async Task<Result<Guid>> SubmitAsync(JobRequest request, CancellationToken ct)
     {
-        var contract = contracts.Find(ModelCallKind.Job, request.Type, request.Version)
-                       ?? throw new ModelCallException(JobCodes.UnknownType);
+        if (contracts.Find(ModelCallKind.Job, request.Type, request.Version) is not { } contract)
+            return Refused(JobCodes.UnknownType, "No such job type and version.");
         if (!DataClasses.IsKnown(request.DataClass) || (request.DataClass == DataClasses.None && !contract.AllowsNoData))
-            throw new ModelCallException(JobCodes.UnknownDataClass);
+            return Refused(JobCodes.UnknownDataClass, "No such data class for this job.");
         var input = JsonSerializer.SerializeToUtf8Bytes(request.Input);
         if (!contract.ValidInput(input))
-            throw new ModelCallException(JobCodes.InvalidInput);
+            return Refused(JobCodes.InvalidInput, "The input does not follow the job's contract.");
 
         var now = clock.GetCurrentInstant();
         var job = await store.AddOrFindAsync(new JobRecord(
             Guid.CreateVersion7(), request.Type, request.Version, Encoding.UTF8.GetString(input), Hash(request, input), request.FileRef,
             request.DataClass, request.TargetWorkerId, JobState.Queued, 0, now, null, null, null, null, null, null, null, null, now, null,
             null, 0), ct);
-        return job.Id;
+        return Result.Success(job.Id);
     }
+
+    private static Result<Guid> Refused(string code, string message) => Result.Failure<Guid>(new Failure(code, message, null));
 
     public async Task<ModelJobView?> GetAsync(Guid id, CancellationToken ct)
         => await store.FindAsync(id, ct) is { } job ? View(job) : null;

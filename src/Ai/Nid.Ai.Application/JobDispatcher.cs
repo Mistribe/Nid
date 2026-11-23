@@ -166,16 +166,14 @@ public sealed class JobDispatcher(
 
     private async Task SendClaimedAsync(JobRecord claimed, IReadOnlyList<WorkerRecord> candidates, Instant now, CancellationToken ct)
     {
-        JobSubmission submission;
-        try
+        var (file, missing) = await FileAsync(claimed, ct);
+        if (missing is not null)
         {
-            submission = new JobSubmission(claimed.Type, claimed.Version, JsonDocument.Parse(claimed.Input).RootElement.Clone(), await FileAsync(claimed, ct));
-        }
-        catch (ModelCallException e)
-        {
-            await FinishAsync(claimed, JobState.Failed, e.Code, now, ct);
+            await FinishAsync(claimed, JobState.Failed, missing, now, ct);
             return;
         }
+
+        var submission = new JobSubmission(claimed.Type, claimed.Version, JsonDocument.Parse(claimed.Input).RootElement.Clone(), file);
 
         var busy = false;
         foreach (var worker in candidates)
@@ -375,17 +373,18 @@ public sealed class JobDispatcher(
     private static string Code(string error)
         => new string(error.Where(c => char.IsAsciiLetterOrDigit(c) || c is '_' or '.' or '-').Take(64).ToArray()) is { Length: > 0 } code ? code : "unknown";
 
-    private async Task<string?> FileAsync(JobRecord job, CancellationToken ct)
+    /// <summary>The job's file in base 64, or the code it fails with: gone, or over the protocol's bound.</summary>
+    private async Task<(string? File, string? Error)> FileAsync(JobRecord job, CancellationToken ct)
     {
         if (job.FileRef is null)
-            return null;
+            return (null, null);
         var (module, reference) = job.FileRef.Split(':', 2) is [var m, var r] ? (m, r) : (job.FileRef, "");
         var file = files.FirstOrDefault(f => f.Module == module) is { } source ? await source.ReadAsync(reference, ct) : null;
         return file switch
         {
-            null => throw new ModelCallException("ai.file_missing"),
-            { Length: > JobSubmission.MaxFileBytes } => throw new ModelCallException(JobCodes.TooLarge),
-            _ => Convert.ToBase64String(file),
+            null => (null, JobCodes.FileMissing),
+            { Length: > JobSubmission.MaxFileBytes } => (null, JobCodes.TooLarge),
+            _ => (Convert.ToBase64String(file), null),
         };
     }
 }

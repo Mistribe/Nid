@@ -98,7 +98,7 @@ public sealed class JobListTests(PostgresFixture fixture) : IClassFixture<Postgr
         await using var scope = Scope(app);
         await scope.ServiceProvider.GetRequiredService<IModelJobs>().SubmitAsync(
             new JobRequest("echo", 1, JsonSerializer.SerializeToElement(new EchoJobInput(text), ContractJson.Strict), "none"),
-            TestContext.Current.CancellationToken);
+            TestContext.Current.CancellationToken).Accepted();
     }
 
     private static async Task<ModelJobPage> ListAsync(NidApp app, string query)

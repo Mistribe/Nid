@@ -288,7 +288,7 @@ public static class NidServiceCollectionExtensions
         services.AddSingleton<Nid.Ai.Application.IModelContract, Nid.Ai.Application.EchoRequestContract>();
         services.AddSingleton<Nid.Ai.Application.IModelContract, Nid.Ai.Application.ChatRequestContract>();
         services.AddSingleton<Nid.Ai.Application.ModelContracts>();
-        services.AddScoped<Nid.Ai.Application.IModelJobs, Nid.Ai.Application.ModelJobs>();
+        services.AddScoped<Nid.Ai.Contracts.IModelJobs, Nid.Ai.Application.ModelJobs>();
         services.AddScoped<Nid.Ai.Application.IWorkerRouter, Nid.Ai.Application.WorkerRouter>();
         services.AddScoped<Nid.Ai.Application.WorkerRefresher>();
         services.AddScoped<Nid.Ai.Application.IWorkerMonitor, Nid.Ai.Application.WorkerMonitor>();

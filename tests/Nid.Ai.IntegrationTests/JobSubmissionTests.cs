@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Nid.Ai.Application;
+using Nid.Ai.Contracts;
 using Nid.Ai.Infrastructure.Persistence;
 using Nid.Ai.Protocol.Contracts;
 using Nid.Platform.Contracts;
@@ -20,9 +21,9 @@ public sealed class JobSubmissionTests(PostgresFixture fixture) : IClassFixture<
         await using var scope = Scope(app);
         var jobs = scope.ServiceProvider.GetRequiredService<IModelJobs>();
 
-        var first = await jobs.SubmitAsync(Echo("hello"), TestContext.Current.CancellationToken);
-        var again = await jobs.SubmitAsync(Echo("hello"), TestContext.Current.CancellationToken);
-        var other = await jobs.SubmitAsync(Echo("bye"), TestContext.Current.CancellationToken);
+        var first = await jobs.SubmitAsync(Echo("hello"), TestContext.Current.CancellationToken).Accepted();
+        var again = await jobs.SubmitAsync(Echo("hello"), TestContext.Current.CancellationToken).Accepted();
+        var other = await jobs.SubmitAsync(Echo("bye"), TestContext.Current.CancellationToken).Accepted();
 
         Assert.Equal(first, again);
         Assert.NotEqual(first, other);
@@ -37,13 +38,13 @@ public sealed class JobSubmissionTests(PostgresFixture fixture) : IClassFixture<
         await using var scope = Scope(app);
         var jobs = scope.ServiceProvider.GetRequiredService<IModelJobs>();
 
-        var unknown = await Assert.ThrowsAsync<ModelCallException>(() => jobs.SubmitAsync(
-            new JobRequest("speak", 1, JsonSerializer.SerializeToElement(new { text = "hi" }), "none"), TestContext.Current.CancellationToken));
-        var bad = await Assert.ThrowsAsync<ModelCallException>(() => jobs.SubmitAsync(
-            new JobRequest("echo", 1, JsonSerializer.SerializeToElement(new { words = "hi" }), "none"), TestContext.Current.CancellationToken));
+        var unknown = await jobs.SubmitAsync(
+            new JobRequest("speak", 1, JsonSerializer.SerializeToElement(new { text = "hi" }), "none"), TestContext.Current.CancellationToken).Refused();
+        var bad = await jobs.SubmitAsync(
+            new JobRequest("echo", 1, JsonSerializer.SerializeToElement(new { words = "hi" }), "none"), TestContext.Current.CancellationToken).Refused();
 
-        Assert.Equal(JobCodes.UnknownType, unknown.Code);
-        Assert.Equal(JobCodes.InvalidInput, bad.Code);
+        Assert.Equal(JobCodes.UnknownType, unknown);
+        Assert.Equal(JobCodes.InvalidInput, bad);
     }
 
     [Fact]
@@ -149,10 +150,10 @@ public sealed class JobSubmissionTests(PostgresFixture fixture) : IClassFixture<
         await using var app = await NidApp.StartAsync(fixture);
         await using var scope = Scope(app);
 
-        var refused = await Assert.ThrowsAsync<ModelCallException>(() => scope.ServiceProvider.GetRequiredService<IModelJobs>().SubmitAsync(
-            Echo("hi") with { DataClass = "payslips" }, TestContext.Current.CancellationToken));
+        var refused = await scope.ServiceProvider.GetRequiredService<IModelJobs>().SubmitAsync(
+            Echo("hi") with { DataClass = "payslips" }, TestContext.Current.CancellationToken).Refused();
 
-        Assert.Equal("ai.unknown_data_class", refused.Code);
+        Assert.Equal("ai.unknown_data_class", refused);
     }
 
     private static AsyncServiceScope Scope(NidApp app)

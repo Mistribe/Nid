@@ -65,33 +65,6 @@ public interface IJobStore
     Task<bool> TryUpdateAsync(JobRecord job, CancellationToken ct);
 }
 
-/// <summary>What a job carries: its type and version, its input as its contract reads it, an optional file reference
-/// (<c>module:reference</c>, read by that module's <see cref="IJobFileSource"/> when the job is sent), its data class
-/// (<c>docs/ai/README.md</c> §6.1) and, for an admin's test, the one worker it must run on.</summary>
-public sealed record JobRequest(string Type, int Version, JsonElement Input, string DataClass, string? FileRef = null, Guid? TargetWorkerId = null);
-
-/// <summary>A job's state for the people who look at it: never its input, its file or its secret.</summary>
-public sealed record ModelJobView(
-    Guid Id, string Type, int Version, string Status, int Attempts, string? WaitingReason, string? Error, Guid? WorkerId,
-    Instant CreatedAt, Instant? FinishedAt, string? Result);
-
-/// <summary>How a module sends work to the workers.</summary>
-public interface IModelJobs
-{
-    /// <summary>Queues a job; the same type and input not finished yet give the same job.</summary>
-    Task<Guid> SubmitAsync(JobRequest request, CancellationToken ct);
-
-    Task<ModelJobView?> GetAsync(Guid id, CancellationToken ct);
-}
-
-/// <summary>Reads a job's file when it is sent: the module that owns it implements it (Documents for #167).</summary>
-public interface IJobFileSource
-{
-    string Module { get; }
-
-    Task<byte[]?> ReadAsync(string reference, CancellationToken ct);
-}
-
 /// <summary>A job or request type Nid knows: how its input and its output are read (<c>contracts/jobs</c>,
 /// <c>contracts/requests</c>). A worker's output is stored or used only through this.</summary>
 public interface IModelContract
@@ -180,6 +153,7 @@ public static class JobCodes
     public const string LeaseExpired = "ai.lease_expired";
     public const string TooLarge = "ai.too_large";
     public const string TimedOut = "ai.timed_out";
+    public const string FileMissing = "ai.file_missing";
 
     /// <summary>#486: a use turned off, a use with no model set, a task a use may not run, no worker serving the use's model,
     /// a turn that ended without its usage, a use or mode that does not exist.</summary>
