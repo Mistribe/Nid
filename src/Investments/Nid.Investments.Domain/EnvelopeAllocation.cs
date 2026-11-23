@@ -45,15 +45,23 @@ public static class EnvelopeAllocation
 
     /// <summary>
     /// #184: an employee savings plan's locked slices split by its tranches: what is released is a withdrawal away (days), the rest locked
-    /// until its date. Without tranches, unchanged.
+    /// until its date. Without tranches, unchanged. #466: an early release's amount is shared among the slices pro rata of their amounts.
     /// </summary>
-    public static IReadOnlyList<AllocationSlice> Release(IReadOnlyList<AllocationSlice> slices, IReadOnlyList<AvailabilityTranche>? tranches, LocalDate today)
-        => tranches is not { Count: > 0 } ? slices : slices.SelectMany(s =>
-            s.Liquidity != AllocationLiquidity.Locked || EnvelopeAvailability.At(tranches, s.Amount, today) is not { } availability
+    public static IReadOnlyList<AllocationSlice> Release(
+        IReadOnlyList<AllocationSlice> slices, IReadOnlyList<AvailabilityTranche>? tranches, LocalDate today, EarlyRelease? early = null)
+    {
+        if (tranches is not { Count: > 0 } && early is null) return slices;
+        var total = slices.Sum(s => s.Amount);
+        return slices.SelectMany(s =>
+            s.Liquidity != AllocationLiquidity.Locked
+            || EnvelopeAvailability.At(tranches, s.Amount, today,
+                early is { Amount: { } a } && total != 0m ? early with { Amount = a * s.Amount / total } : early) is not { } availability
                 ? [s]
                 : availability.Releases.Select(r => s with { Amount = r.Amount, AvailableOn = r.On })
                     .Prepend(s with { Liquidity = AllocationLiquidity.Days, Amount = availability.AvailableToday })
+                    .Append(s with { Amount = availability.Locked })
                     .Where(x => x.Amount != 0m)).ToList();
+    }
 
     /// <summary>
     /// Current and savings accounts can be spent now; a PER (individual or collective) waits for retirement, a tontine for its term, a PEE
