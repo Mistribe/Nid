@@ -5,9 +5,12 @@ using NodaTime;
 namespace Nid.Banking.Application.Reconciliation;
 
 /// <summary>5C spec §6.1: every module's expected charges for a person, and their amounts in a line's currency (D25).</summary>
-public sealed class ExpectedChargeReader(
+public sealed partial class ExpectedChargeReader(
     IEnumerable<IExpectedCharges> sources, IAccessPolicy policy, IFxRates fx, IAccountStore accounts, ILogger<ExpectedChargeReader> logger)
 {
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Expected charges from {Source} ({Scope}) failed with {Code}; its charges are left out.")]
+    private partial void LogSourceFailed(string source, VisibilityScope scope, string? code);
+
     public Task<IReadOnlyList<ExpectedCharge>> ReadableAsync(PersonId person, LocalDate from, LocalDate to, CancellationToken ct)
         => InScopeAsync(person, VisibilityScope.Me, from, to, ct);
 
@@ -21,8 +24,7 @@ public sealed class ExpectedChargeReader(
             if (result.TryGetValue(out var found))
                 charges.AddRange(found);
             else if (result.TryGetFailure(out var failure))
-                logger.LogWarning("Expected charges from {Source} ({Scope}) failed with {Code}; its charges are left out.",
-                    source.GetType().Name, scope, failure?.Code);
+                LogSourceFailed(source.GetType().Name, scope, failure?.Code);
         }
         return charges;
     }

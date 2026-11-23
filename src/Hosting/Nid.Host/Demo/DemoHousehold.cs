@@ -24,6 +24,15 @@ public sealed record DemoAdult(string Key, string Subject, string Name, string E
 /// </summary>
 public static partial class DemoHousehold
 {
+    [LoggerMessage(Level = LogLevel.Information, Message = "Demo mode: the database already holds the demo household, nothing to load.")]
+    private static partial void LogAlreadyLoaded(ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Demo mode: the demo household is incomplete (a load was cut short), finishing it: {Files}.")]
+    private static partial void LogIncomplete(ILogger logger, string files);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Demo mode: the demo household is loaded, its dates up to {Anchor}.")]
+    private static partial void LogLoaded(ILogger logger, string anchor);
+
     /// <summary>Bob first: Alice's file shares items with him, so he must exist when it is imported.</summary>
     public static IReadOnlyList<DemoAdult> Adults { get; } =
     [
@@ -77,12 +86,11 @@ public static partial class DemoHousehold
                 pending.Add(adult);
         if (pending.Count == 0)
         {
-            logger.LogInformation("Demo mode: the database already holds the demo household, nothing to load.");
+            LogAlreadyLoaded(logger);
             return;
         }
         if (ids.Count > 0)
-            logger.LogWarning("Demo mode: the demo household is incomplete (a load was cut short), finishing it: {Files}.",
-                string.Join(", ", pending.Select(a => a.File)));
+            LogIncomplete(logger, string.Join(", ", pending.Select(a => a.File)));
 
         var today = provider.GetRequiredService<IClock>().GetCurrentInstant().InUtc().Date;
         var anchor = new YearMonth(today.Year, today.Month).PlusMonths(-1);
@@ -108,7 +116,7 @@ public static partial class DemoHousehold
         foreach (var person in ids.Values)
             Expect(await persons.UpdatePreferencesAsync(person.Id, new PreferencesChange(null, null, null, Guides.ToDictionary(g => g, _ => 999)), ct), "mark the guides seen");
 
-        logger.LogInformation("Demo mode: the demo household is loaded, its dates up to {Anchor}.", anchor.ToString("yyyy-MM", CultureInfo.InvariantCulture));
+        LogLoaded(logger, anchor.ToString("yyyy-MM", CultureInfo.InvariantCulture));
     }
 
     private static async Task<bool> HasCommittedImportAsync(IInvoker invoker, IActorAccessor accessor, PersonInfo person, CancellationToken ct)

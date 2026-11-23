@@ -64,7 +64,7 @@ public sealed class CompareScenariosHandler(
                 : stored.Kind == ScenarioKinds.PropertySale ? await sales.ProjectionAsync(stored.Sale!, query.Scope, horizon, ct)
                 : new ProjectionScenario(1, horizon, new ProjectionOverrides(null, null, null, null, null),
                 [
-                    new ProjectionEvent(Guid.NewGuid(), ProjectionEventKinds.PropertyPurchase, new EventDate(today, null, null), null, null, null,
+                    new ProjectionEvent(Guid.CreateVersion7(), ProjectionEventKinds.PropertyPurchase, new EventDate(today, null, null), null, null, null,
                         null, null, null, null, null, null, null, null, item.Id),
                 ]);
             var read = await reader.ReadAsync(document, query.Scope, true, ct);

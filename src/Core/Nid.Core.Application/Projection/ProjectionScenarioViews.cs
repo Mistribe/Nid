@@ -130,7 +130,7 @@ public sealed record ProjectionDocumentView(int Version, string? Horizon, Projec
                 continue;
             }
             events.Add(new ProjectionEvent(
-                e.Id ?? Guid.NewGuid(), e.Kind ?? "", Date(e.Start, $"{at}.start")!, Date(e.Until, $"{at}.until"), e.Label,
+                e.Id ?? Guid.CreateVersion7(), e.Kind ?? "", Date(e.Start, $"{at}.start")!, Date(e.Until, $"{at}.until"), e.Label,
                 Decimal(e.MonthlyAmount, $"{at}.monthlyAmount"), Decimal(e.Amount, $"{at}.amount"), e.Split,
                 e.Loan is { } loan ? new ItemId(loan) : null, e.Effect, Decimal(e.Penalty, $"{at}.penalty"),
                 e.Property is { } property ? new ItemId(property) : null, Decimal(e.Price, $"{at}.price"), Decimal(e.Costs, $"{at}.costs"),

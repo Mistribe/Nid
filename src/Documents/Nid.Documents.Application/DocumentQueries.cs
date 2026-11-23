@@ -121,10 +121,13 @@ public sealed class FilterReadableDocumentsHandler(IDocumentStore store, Documen
 
 /// <summary>Design §5: the only way to the bytes, after the same check as the detail.</summary>
 [RequestHandler<GetDocumentContentQuery, DocumentContent>]
-public sealed class GetDocumentContentHandler(
+public sealed partial class GetDocumentContentHandler(
     DocumentAccess access, IDocumentStorage storage, IActorAccessor actor, ILogger<GetDocumentContentHandler> logger)
     : IRequestHandler<GetDocumentContentQuery, DocumentContent>
 {
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Document {DocumentId}: its stored file {Sha256} is missing.")]
+    private partial void LogFileMissing(Guid documentId, string sha256);
+
     public async ValueTask<Result<DocumentContent>> HandleAsync(GetDocumentContentQuery query, CancellationToken ct = default)
     {
         var read = await access.ReadAsync(query.Id, actor.Current!.PersonId!.Value, ct);
@@ -135,7 +138,7 @@ public sealed class GetDocumentContentHandler(
         if (await storage.OpenAsync(d.Sha256, ct) is not { } content)
         {
             // Review Focus 4: a database restored without its volume.
-            logger.LogWarning("Document {DocumentId}: its stored file {Sha256} is missing.", d.Id, d.Sha256);
+            LogFileMissing(d.Id, d.Sha256);
             return Result.Failure<DocumentContent>(new Failure(DocumentsCodes.ContentMissing, "The document's file is missing from the storage.", null));
         }
 

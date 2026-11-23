@@ -15,11 +15,20 @@ namespace Nid.Core.Application.Dashboard;
 /// the month's routine when a value is to update. Neither is about one item, so neither carries an item id or an amount. Issue #81:
 /// the net worth milestone and the savings pace, opt-in, whose figures only the centre shows.
 /// </summary>
-public sealed class CoreNotificationSource(
+public sealed partial class CoreNotificationSource(
     DashboardReader dashboard, MonthChangesReader changes, MonthChangeWords monthWords, IPersonalAccessTokens tokens,
     IHouseholdCalendar calendar, IClock clock, TaxCalendarEvents taxCalendar, ISignalSettings settings,
     IEnumerable<INetWorthContribution> netWorth, IHouseholdSettings household, IFxRates fx, ILogger<CoreNotificationSource> logger) : INotificationSource
 {
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The net worth history of {Person} could not be read: {Code}")]
+    private partial void LogNetWorthUnread(Guid person, string code);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The net contributions of {Person} could not be read: {Code}")]
+    private partial void LogContributionsUnread(Guid person, string code);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The month's changes of {Person} could not be read: {Code}")]
+    private partial void LogChangesUnread(Guid person, string code);
+
     public const string FxRateMissing = "fx_rate_missing";
     public const string RoutineDue = "routine_due";
     public const string TokenExpiring = "token_expiring";
@@ -101,7 +110,7 @@ public sealed class CoreNotificationSource(
         var read = await Contributions.CollectAsync(netWorth, c => c.NetWorthHistoryAsync(reader, VisibilityScope.Mine, [monthEnd], ct));
         if (!read.TryGetValue(out var parts))
         {
-            logger.LogWarning("The net worth history of {Person} could not be read: {Code}", reader.Value, read.TryGetFailure(out var f) ? f!.Code : "core.unknown");
+            LogNetWorthUnread(reader.Value, read.TryGetFailure(out var f) ? f!.Code : "core.unknown");
             return null;
         }
         var points = parts!.SelectMany(p => p).ToList();
@@ -130,7 +139,7 @@ public sealed class CoreNotificationSource(
             var read = await Contributions.CollectAsync(netWorth, c => c.NetContributionsAsync(reader, VisibilityScope.Mine, from, today, ct));
             if (read.TryGetValue(out var parts))
                 return (await ConvertedAsync(parts!, today, today, ct)).Total;
-            logger.LogWarning("The net contributions of {Person} could not be read: {Code}", reader.Value, read.TryGetFailure(out var f) ? f!.Code : "core.unknown");
+            LogContributionsUnread(reader.Value, read.TryGetFailure(out var f) ? f!.Code : "core.unknown");
             return null;
         }
 
@@ -173,7 +182,7 @@ public sealed class CoreNotificationSource(
         var read = await changes.ReadAsync(reader, VisibilityScope.Me, today, ct);
         if (!read.TryGetValue(out var moved))
         {
-            logger.LogWarning("The month's changes of {Person} could not be read: {Code}", reader.Value, read.TryGetFailure(out var f) ? f!.Code : "core.unknown");
+            LogChangesUnread(reader.Value, read.TryGetFailure(out var f) ? f!.Code : "core.unknown");
             return NoParams;
         }
         var words = MonthChangeParams(moved!);

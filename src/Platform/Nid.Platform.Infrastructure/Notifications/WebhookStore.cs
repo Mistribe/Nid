@@ -11,8 +11,11 @@ using System.Text;
 namespace Nid.Platform.Infrastructure.Notifications;
 
 /// <summary>Discord webhooks on <see cref="PlatformDbContext"/>; the URL is a secret, encrypted with Data Protection.</summary>
-public sealed class WebhookStore(PlatformDbContext db, IDataProtectionProvider protection, IClock clock, ILogger<WebhookStore> log) : IWebhookStore
+public sealed partial class WebhookStore(PlatformDbContext db, IDataProtectionProvider protection, IClock clock, ILogger<WebhookStore> log) : IWebhookStore
 {
+    [LoggerMessage(Level = LogLevel.Warning, Message = "A {Owner} Discord webhook cannot be decrypted; treating it as broken.")]
+    private partial void LogUndecryptable(string owner);
+
     private readonly IDataProtector _protector = protection.CreateProtector("Nid.Notifications.Webhook");
 
     public async Task<StoredWebhook?> FindAsync(PersonId? owner, CancellationToken ct)
@@ -28,7 +31,7 @@ public sealed class WebhookStore(PlatformDbContext db, IDataProtectionProvider p
         catch (CryptographicException)
         {
             // The key ring was lost or rotated: shown as broken so the page still loads and the webhook can be replaced.
-            log.LogWarning("A {Owner} Discord webhook cannot be decrypted; treating it as broken.", owner is null ? "household" : "person");
+            LogUndecryptable(owner is null ? "household" : "person");
             return new StoredWebhook("", WebhookStates.Broken);
         }
     }
@@ -41,7 +44,7 @@ public sealed class WebhookStore(PlatformDbContext db, IDataProtectionProvider p
         {
             var row = await db.Webhooks.FirstOrDefaultAsync(w => w.PersonId == id, ct);
             if (row is null)
-                db.Webhooks.Add(row = new NotificationWebhookRow { Id = Guid.NewGuid(), PersonId = id });
+                db.Webhooks.Add(row = new NotificationWebhookRow { Id = Guid.CreateVersion7(), PersonId = id });
             row.Url = bytes;
             row.Status = WebhookStates.Ok;
             row.UpdatedAt = clock.GetCurrentInstant();

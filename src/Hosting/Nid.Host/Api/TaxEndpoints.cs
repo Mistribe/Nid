@@ -9,8 +9,11 @@ using static Nid.Host.Api.SubscriptionEndpoints;
 
 namespace Nid.Host.Api;
 
-public static class TaxEndpoints
+public static partial class TaxEndpoints
 {
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Linking the source of tax assessment {Assessment} failed")]
+    private static partial void LogLinkFailed(ILogger logger, Guid assessment, Exception exception);
+
     /// <summary>Tax estimate spec §8.</summary>
     public static IEndpointRouteBuilder MapTaxEndpoints(this IEndpointRouteBuilder routes)
     {
@@ -139,7 +142,7 @@ public static class TaxEndpoints
         catch (Exception e) when (e is not OperationCanceledException)
         {
             // A link failure never fails the write: the notice is saved with its source.
-            logs.CreateLogger("Nid.Host.Api.TaxEndpoints").LogWarning(e, "Linking the source of tax assessment {Assessment} failed", assessmentId);
+            LogLinkFailed(logs.CreateLogger("Nid.Host.Api.TaxEndpoints"), assessmentId, e);
         }
     }
 

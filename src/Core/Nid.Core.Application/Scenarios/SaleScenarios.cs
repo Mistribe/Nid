@@ -119,7 +119,7 @@ public sealed class SaleScenarioReader(
     private static ProjectionScenario Projection(SaleScenario doc, decimal tax, ScenarioHorizon horizon) => new(
         1, horizon, new ProjectionOverrides(null, null, null, null, null),
         [
-            new ProjectionEvent(Guid.NewGuid(), ProjectionEventKinds.PropertySale, new EventDate(doc.SaleOn, null, null), null, null, null,
+            new ProjectionEvent(Guid.CreateVersion7(), ProjectionEventKinds.PropertySale, new EventDate(doc.SaleOn, null, null), null, null, null,
                 null, null, null, null, null, doc.Property, doc.Price, ScenarioCalculator.SaleCosts(doc, tax), null),
         ]);
 
