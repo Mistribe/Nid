@@ -59,7 +59,7 @@ public sealed class CpiCollector(
 
         var finished = run with
         {
-            FinishedAt = clock.GetCurrentInstant().ToDateTimeOffset(),
+            FinishedAt = clock.GetCurrentInstant(),
             Status = failed ? "failed" : "succeeded",
             Added = added,
             Replaced = replaced,

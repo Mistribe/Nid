@@ -1,5 +1,7 @@
 using System.Text;
 using System.Text.RegularExpressions;
+using NodaTime;
+using NodaTime.Text;
 using Quartz;
 
 namespace Nid.Host.Jobs;
@@ -113,11 +115,16 @@ public sealed class RunLogWriter(string path) : IDisposable
 /// authorization.md §8): the jobs' own lines in full; every other category at Warning and above only, as its message template
 /// with the placeholders left unfilled, so no id, label or amount reaches the page.
 /// </summary>
-public sealed class RunLogProvider(Func<RunLogWriter?> current) : ILoggerProvider
+public sealed class RunLogProvider(Func<RunLogWriter?> current, IClock clock) : ILoggerProvider
 {
     public const string JobsCategory = "Nid.Host.Jobs.";
 
-    public ILogger CreateLogger(string categoryName) => new RunLogger(categoryName, current);
+    /// <summary>The time as <c>nid-*.log</c> writes it: the server's local time with its offset.</summary>
+    private static readonly OffsetDateTimePattern Stamp = OffsetDateTimePattern.CreateWithInvariantCulture("uuuu-MM-dd'T'HH:mm:ss.fffo<+HH:mm>");
+
+    private static readonly DateTimeZone Local = DateTimeZoneProviders.Bcl.GetSystemDefault();
+
+    public ILogger CreateLogger(string categoryName) => new RunLogger(categoryName, current, clock);
 
     public void Dispose() { }
 
@@ -138,7 +145,7 @@ public sealed class RunLogProvider(Func<RunLogWriter?> current) : ILoggerProvide
         };
     }
 
-    private sealed class RunLogger(string category, Func<RunLogWriter?> current) : ILogger
+    private sealed class RunLogger(string category, Func<RunLogWriter?> current, IClock clock) : ILogger
     {
         // The listener closes the run's file then may log about recording it: those lines would reopen nothing, but say nothing either.
         private readonly bool _own = category.StartsWith(JobsCategory, StringComparison.Ordinal) && category != typeof(JobRunListener).FullName;
@@ -152,7 +159,8 @@ public sealed class RunLogProvider(Func<RunLogWriter?> current) : ILoggerProvide
         {
             if (!IsEnabled(logLevel) || current() is not { } writer) return;
             var message = _own ? formatter(state, exception) : Template(state);
-            var line = $"{DateTimeOffset.Now:yyyy-MM-ddTHH:mm:ss.fffzzz} [{Level(logLevel)}] {category}: {message}";
+            var now = clock.GetCurrentInstant();
+            var line = $"{Stamp.Format(now.WithOffset(Local.GetUtcOffset(now)))} [{Level(logLevel)}] {category}: {message}";
             if (exception is not null)
                 line += $" {exception.GetType().Name}: {exception.Message}";
             writer.Write(line);

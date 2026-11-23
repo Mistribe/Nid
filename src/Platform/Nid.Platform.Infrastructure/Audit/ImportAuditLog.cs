@@ -63,7 +63,7 @@ public sealed class ImportAuditLog(PlatformDbContext db, IActorAccessor actors, 
             return null;
         using var data = JsonDocument.Parse(row.Data);
         var root = data.RootElement;
-        return new ImportAuditView(row.At.ToDateTimeOffset(), root.GetProperty("content_hash").GetString()!,
+        return new ImportAuditView(row.At, root.GetProperty("content_hash").GetString()!,
             root.GetProperty("format").GetString()!, root.GetProperty("version").GetInt32(), root.GetProperty("replace").GetBoolean());
     }
 }

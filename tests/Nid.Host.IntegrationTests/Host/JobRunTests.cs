@@ -6,6 +6,7 @@ using Nid.Platform.Contracts;
 using Nid.Platform.Infrastructure.Persistence;
 using Nid.TestSupport;
 using Quartz;
+using NodaTime;
 
 namespace Nid.Host.IntegrationTests.Host;
 
@@ -99,8 +100,8 @@ public class JobRunTests(PostgresFixture fixture) : IClassFixture<PostgresFixtur
             for (var i = 0; i < 100; i++)
             {
                 var id = Guid.NewGuid();
-                await store.StartAsync(id, "irl-weekly", JobTriggers.Scheduled, old.AddDays(i), TestContext.Current.CancellationToken);
-                await store.FinishAsync(id, JobOutcomes.Succeeded, null, false, old.AddDays(i).AddSeconds(1), TestContext.Current.CancellationToken);
+                await store.StartAsync(id, "irl-weekly", JobTriggers.Scheduled, Instant.FromDateTimeOffset(old.AddDays(i)), TestContext.Current.CancellationToken);
+                await store.FinishAsync(id, JobOutcomes.Succeeded, null, false, Instant.FromDateTimeOffset(old.AddDays(i).AddSeconds(1)), TestContext.Current.CancellationToken);
                 seeded.Add(id);
             }
         }
@@ -130,8 +131,8 @@ public class JobRunTests(PostgresFixture fixture) : IClassFixture<PostgresFixtur
             for (var i = 0; i < 100; i++)
             {
                 var id = i == 0 ? oldest : Guid.NewGuid();
-                await store.StartAsync(id, "irl-weekly", JobTriggers.Scheduled, old.AddDays(i), TestContext.Current.CancellationToken);
-                await store.FinishAsync(id, JobOutcomes.Succeeded, null, true, old.AddDays(i), TestContext.Current.CancellationToken);
+                await store.StartAsync(id, "irl-weekly", JobTriggers.Scheduled, Instant.FromDateTimeOffset(old.AddDays(i)), TestContext.Current.CancellationToken);
+                await store.FinishAsync(id, JobOutcomes.Succeeded, null, true, Instant.FromDateTimeOffset(old.AddDays(i)), TestContext.Current.CancellationToken);
             }
         }
         var oldestFile = Path.Combine(logs, "jobs", "irl-weekly", $"{oldest}.log");

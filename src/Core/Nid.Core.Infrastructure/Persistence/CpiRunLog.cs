@@ -41,7 +41,7 @@ public sealed class CpiRunLog(CoreDbContext db, IClock clock) : ICpiRunLog
 
     public async Task FinishAsync(CpiRunView run, CancellationToken ct)
     {
-        Instant? finishedAt = run.FinishedAt is { } f ? Instant.FromDateTimeOffset(f) : null;
+        var finishedAt = run.FinishedAt;
         await db.CpiRuns.Where(r => r.Id == run.Id).ExecuteUpdateAsync(s => s
             .SetProperty(r => r.Status, run.Status)
             .SetProperty(r => r.FinishedAt, finishedAt)
@@ -65,5 +65,5 @@ public sealed class CpiRunLog(CoreDbContext db, IClock clock) : ICpiRunLog
     public async Task<int> PurgeBeforeAsync(Instant before, CancellationToken ct)
         => await db.CpiRuns.Where(r => r.StartedAt < before && r.Status != "running").ExecuteDeleteAsync(ct);
 
-    private static CpiRunView ToView(CpiRunRow r) => new(r.Id, r.StartedAt.ToDateTimeOffset(), r.FinishedAt?.ToDateTimeOffset(), r.Status, r.Added, r.Replaced, r.Rejected, r.Message);
+    private static CpiRunView ToView(CpiRunRow r) => new(r.Id, r.StartedAt, r.FinishedAt, r.Status, r.Added, r.Replaced, r.Rejected, r.Message);
 }

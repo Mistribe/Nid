@@ -2,6 +2,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Nid.Host.Jobs;
+using NodaTime;
 
 namespace Nid.Host.IntegrationTests.Host;
 
@@ -9,12 +10,18 @@ namespace Nid.Host.IntegrationTests.Host;
 public class RunLogsTests
 {
     private static readonly AsyncLocal<RunLogWriter?> Current = new();
+    private static readonly Instant Now = Instant.FromUtc(2026, 3, 4, 5, 6, 7) + Duration.FromMilliseconds(89);
+
+    private sealed class FixedClock : IClock
+    {
+        public Instant GetCurrentInstant() => Now;
+    }
     private readonly string _root = Directory.CreateTempSubdirectory("nid-runlogs-").FullName;
 
     private ILoggerFactory Loggers() => LoggerFactory.Create(b =>
     {
         b.SetMinimumLevel(LogLevel.Trace);
-        b.AddProvider(new RunLogProvider(() => Current.Value));
+        b.AddProvider(new RunLogProvider(() => Current.Value, new FixedClock()));
     });
 
     private (RunLogFolder Folder, Guid Id, RunLogWriter Writer) Run(string job = "fx-daily")
@@ -37,6 +44,8 @@ public class RunLogsTests
 
         var line = Assert.Single(folder.Read("fx-daily", id)!);
         Assert.EndsWith("[INF] Nid.Host.Jobs.FxDailyJob: done x", line);
+        // The clock's time, local with its offset, as nid-*.log writes it.
+        Assert.StartsWith(Now.ToDateTimeOffset().ToLocalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffzzz", System.Globalization.CultureInfo.InvariantCulture) + " ", line);
         Assert.True(writer.HadLines);
     }
 

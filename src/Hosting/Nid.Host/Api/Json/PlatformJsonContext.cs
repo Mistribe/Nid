@@ -12,7 +12,7 @@ namespace Nid.Host.Api.Json;
 
 /// <summary>The Platform module's request and response bodies, for NidJsonContexts.</summary>
 [JsonSourceGenerationOptions(JsonSerializerDefaults.Web, NumberHandling = JsonNumberHandling.Strict,
-    Converters = [typeof(ItemIdJsonConverter), typeof(LocalDateJsonConverter)])]
+    Converters = [typeof(ItemIdJsonConverter), typeof(LocalDateJsonConverter), typeof(InstantJsonConverter)])]
 [JsonSerializable(typeof(IReadOnlyList<JobView>))]
 [JsonSerializable(typeof(JobDetailView))]
 [JsonSerializable(typeof(JobRunPage))]

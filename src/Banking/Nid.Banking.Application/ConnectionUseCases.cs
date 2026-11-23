@@ -234,7 +234,7 @@ public sealed class ListMyConnectionsHandler(BankingAccess access, IConnectionSt
             var seen = await accounts.ForConnectionAsync(c.Id, ct);
             var counts = await reader.CountsAsync([.. seen.Select(a => a.Id)], ct);
             views.Add(new ConnectionView(
-                c.Id, c.AspspName, c.Status.ToString().ToLowerInvariant(), c.ValidUntil?.ToDateTimeOffset(), c.LastSyncedAt?.ToDateTimeOffset(),
+                c.Id, c.AspspName, c.Status.ToString().ToLowerInvariant(), c.ValidUntil, c.LastSyncedAt,
                 c.LastErrorCode, await reader.ReadAsync(seen, ct), BankReadsView.From(BankReads.Worst(counts.Values), clock.GetCurrentInstant())));
         }
         return Result.Success<IReadOnlyList<ConnectionView>>(views);

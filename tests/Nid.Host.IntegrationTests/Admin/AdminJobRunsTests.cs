@@ -2,6 +2,7 @@ using System.Net;
 using Microsoft.Extensions.DependencyInjection;
 using Nid.Platform.Admin;
 using Nid.TestSupport;
+using NodaTime;
 
 namespace Nid.Host.IntegrationTests.Admin;
 
@@ -26,8 +27,8 @@ public class AdminJobRunsTests(PostgresFixture fixture) : IClassFixture<Postgres
         await using var scope = app.Services.CreateAsyncScope();
         var store = scope.ServiceProvider.GetRequiredService<IJobRunStore>();
         var id = Guid.NewGuid();
-        await store.StartAsync(id, job, JobTriggers.Scheduled, at, default);
-        await store.FinishAsync(id, outcome, summary, hasLogs, at.AddMilliseconds(1200), default);
+        await store.StartAsync(id, job, JobTriggers.Scheduled, Instant.FromDateTimeOffset(at), default);
+        await store.FinishAsync(id, outcome, summary, hasLogs, Instant.FromDateTimeOffset(at.AddMilliseconds(1200)), default);
         return id;
     }
 
@@ -131,7 +132,7 @@ public class AdminJobRunsTests(PostgresFixture fixture) : IClassFixture<Postgres
         await using var app = await StartAsync();
         var id = Guid.NewGuid();
         await using (var scope = app.Services.CreateAsyncScope())
-            await scope.ServiceProvider.GetRequiredService<IJobRunStore>().StartAsync(id, "irl-weekly", JobTriggers.Scheduled, T0, TestContext.Current.CancellationToken);
+            await scope.ServiceProvider.GetRequiredService<IJobRunStore>().StartAsync(id, "irl-weekly", JobTriggers.Scheduled, Instant.FromDateTimeOffset(T0), TestContext.Current.CancellationToken);
         var folder = app.Services.GetRequiredService<Nid.Host.Jobs.RunLogFolder>();
         using var writer = folder.Open("irl-weekly", id)!;
         writer.Write("still going");

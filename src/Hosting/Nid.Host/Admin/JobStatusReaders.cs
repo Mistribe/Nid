@@ -1,4 +1,5 @@
 using Nid.Platform.Admin;
+using NodaTime;
 using Quartz;
 
 namespace Nid.Host.Admin;
@@ -26,7 +27,7 @@ public sealed class QuartzJobStatusReader(ISchedulerFactory schedulers) : IJobSt
                 key.Name,
                 triggers.OfType<ICronTrigger>().Select(t => t.CronExpressionString).FirstOrDefault(),
                 // Quartz 4.1.1: a property on ITrigger, not a method.
-                triggers.Select(t => t.NextFireTimeUtc).Min()));
+                triggers.Select(t => t.NextFireTimeUtc).Min() is { } next ? Instant.FromDateTimeOffset(next) : null));
         }
 
         return jobs;

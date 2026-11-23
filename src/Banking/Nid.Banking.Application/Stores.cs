@@ -162,7 +162,7 @@ public interface IBalanceStore
 /// </summary>
 /// <param name="RateLimited">#365: the accounts a bank refused for its read limit, apart from <paramref name="Skipped"/>.</param>
 public sealed record BankSyncRunView(
-    Guid Id, DateTimeOffset StartedAt, DateTimeOffset? FinishedAt, string Trigger, string Outcome, int Connections, int Accounts, int Balances,
+    Guid Id, Instant StartedAt, Instant? FinishedAt, string Trigger, string Outcome, int Connections, int Accounts, int Balances,
     int Proposals, int Written, int Skipped, string? FailureCode, int Transactions = 0, int RateLimited = 0);
 
 /// <summary>#365: the reads the sync made of each account, kept <see cref="Nid.Banking.Domain.BankReads.Kept"/>.</summary>

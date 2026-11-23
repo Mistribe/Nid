@@ -40,7 +40,7 @@ public static partial class McpCalls
 
     /// <summary>The write tools' answers, with the HTTP options (NidJsonContexts).</summary>
     [JsonSourceGenerationOptions(JsonSerializerDefaults.Web, NumberHandling = JsonNumberHandling.Strict,
-        Converters = [typeof(ItemIdJsonConverter), typeof(LocalDateJsonConverter)])]
+        Converters = [typeof(ItemIdJsonConverter), typeof(LocalDateJsonConverter), typeof(InstantJsonConverter)])]
     [JsonSerializable(typeof(object))]
     [JsonSerializable(typeof(ConformeAnswer))]
     [JsonSerializable(typeof(AppliedAnswer))]

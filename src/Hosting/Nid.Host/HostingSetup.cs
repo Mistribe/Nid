@@ -98,7 +98,7 @@ public static class HostingSetup
         logging.Services.AddSingleton<ILoggerProvider>(_ => new SerilogLoggerProvider(logger, dispose: true));
         // A run's own file, under the same root: what the admin's run page shows (admin jobs design §3.3).
         logging.Services.AddSingleton(new Nid.Host.Jobs.RunLogFolder(path));
-        logging.Services.AddSingleton<ILoggerProvider>(sp => new Nid.Host.Jobs.RunLogProvider(Nid.Host.Jobs.RunLogProvider.FromQuartz(sp)));
+        logging.Services.AddSingleton<ILoggerProvider>(sp => new Nid.Host.Jobs.RunLogProvider(Nid.Host.Jobs.RunLogProvider.FromQuartz(sp), sp.GetRequiredService<NodaTime.IClock>()));
     }
 
     public static void AddNidHealth(this IServiceCollection services)

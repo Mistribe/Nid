@@ -2,6 +2,7 @@ using Nid.Platform.Contracts;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Functional.Failures;
 using UnambitiousFx.Synapse.Abstractions;
+using NodaTime;
 
 namespace Nid.Platform.Admin;
 
@@ -23,13 +24,13 @@ public static class JobTriggers
 }
 
 /// <summary>One run; <see cref="DurationMs"/> is the server's, the browser computes nothing.</summary>
-public sealed record JobRunView(Guid Id, string Trigger, DateTimeOffset StartedAt, DateTimeOffset? FinishedAt, long? DurationMs, string Outcome, string? Summary);
+public sealed record JobRunView(Guid Id, string Trigger, Instant StartedAt, Instant? FinishedAt, long? DurationMs, string Outcome, string? Summary);
 
 /// <summary>The runs journal (<c>platform.job_run</c>). Times come from Quartz, not from the clock: they are the run's real times.</summary>
 public interface IJobRunStore
 {
-    Task StartAsync(Guid id, string jobKey, string trigger, DateTimeOffset startedAt, CancellationToken ct);
-    Task FinishAsync(Guid id, string outcome, string? summary, bool hasLogs, DateTimeOffset finishedAt, CancellationToken ct);
+    Task StartAsync(Guid id, string jobKey, string trigger, Instant startedAt, CancellationToken ct);
+    Task FinishAsync(Guid id, string outcome, string? summary, bool hasLogs, Instant finishedAt, CancellationToken ct);
     Task<IReadOnlyDictionary<string, JobRunView>> LastRunsAsync(CancellationToken ct);
     Task<IReadOnlyList<JobRunView>> ListAsync(string jobKey, int limit, CancellationToken ct);
 
@@ -46,12 +47,12 @@ public interface IJobRunStore
 }
 
 /// <summary>A job as the scheduler knows it: <see cref="Cron"/> is its own cron trigger (UTC), null for a job fired on demand.</summary>
-public sealed record JobSchedule(string Key, string? Cron, DateTimeOffset? NextRunAt);
+public sealed record JobSchedule(string Key, string? Cron, Instant? NextRunAt);
 
 /// <summary>A row of Administration › Tâches.</summary>
-public sealed record JobView(string Key, string? Cron, DateTimeOffset? NextRunAt, JobRunView? LastRun);
+public sealed record JobView(string Key, string? Cron, Instant? NextRunAt, JobRunView? LastRun);
 
-public sealed record JobDetailView(string Key, string? Cron, DateTimeOffset? NextRunAt, JobRunView? LastRun, JobRunPage Runs);
+public sealed record JobDetailView(string Key, string? Cron, Instant? NextRunAt, JobRunView? LastRun, JobRunPage Runs);
 
 public sealed record JobRunPage(IReadOnlyList<JobRunView> Items, int Total, int Page)
 {
@@ -63,7 +64,7 @@ public sealed record JobRunPage(IReadOnlyList<JobRunView> Items, int Total, int 
 /// logs are off on this instance, so the page can tell the two apart.
 /// </summary>
 public sealed record JobRunDetailView(
-    Guid Id, string Trigger, DateTimeOffset StartedAt, DateTimeOffset? FinishedAt, long? DurationMs, string Outcome, string? Summary,
+    Guid Id, string Trigger, Instant StartedAt, Instant? FinishedAt, long? DurationMs, string Outcome, string? Summary,
     IReadOnlyList<string>? Logs, bool LogsAvailable);
 
 /// <summary>The scheduler's jobs; empty when jobs are disabled on this instance. Implemented by the host (Quartz).</summary>

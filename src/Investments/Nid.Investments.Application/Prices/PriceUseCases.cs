@@ -17,11 +17,11 @@ public sealed record GetPriceRunsQuery(int? Page) : IQuery<PriceRunPage>, IAdmin
 
 /// <summary>A run as the admin page shows it: counts only, never an ISIN (spec D12).</summary>
 public sealed record PriceRunView(
-    Guid Id, DateTimeOffset StartedAt, DateTimeOffset? FinishedAt, string Status, int Queried, int Accepted, int Rejected, int NotFound, int SourceErrors,
+    Guid Id, Instant StartedAt, Instant? FinishedAt, string Status, int Queried, int Accepted, int Rejected, int NotFound, int SourceErrors,
     string? FailureCode)
 {
     public static PriceRunView From(PriceRun run)
-        => new(run.Id, run.StartedAt.ToDateTimeOffset(), run.FinishedAt?.ToDateTimeOffset(), run.Status.ToString().ToLowerInvariant(),
+        => new(run.Id, run.StartedAt, run.FinishedAt, run.Status.ToString().ToLowerInvariant(),
             run.Queried, run.Accepted, run.Rejected, run.NotFound, run.SourceErrors, run.FailureCode);
 }
 
