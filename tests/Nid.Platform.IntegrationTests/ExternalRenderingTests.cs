@@ -1,12 +1,14 @@
+using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
 using Nid.Platform.Notifications;
+using Nid.TestSupport;
 using NodaTime;
 
-namespace Nid.Platform.Tests;
+namespace Nid.Platform.IntegrationTests;
 
 /// <summary>Notifications design §5.3: the wording for the outside carries no amount and an absolute link.</summary>
-public class ExternalRenderingTests
+public class ExternalRenderingTests(SharedNidApp shared) : IClassFixture<SharedNidApp>
 {
     private const string Base = "https://nid.example/";
 
@@ -29,8 +31,21 @@ public class ExternalRenderingTests
         => new(Guid.NewGuid(), new PersonId(Guid.NewGuid()), kind, "k", level, items ?? [Item], dueOn, new LocalDate(2027, 3, 1),
             parameters ?? new Dictionary<string, string>(), NotificationStates.Open, null, null, Instant.FromUtc(2027, 3, 1, 0, 0), null, null);
 
-    private static NotificationKind KindOf(string kind, string module, NotificationLevel level = NotificationLevel.Action)
-        => new(kind, "test", level, module, null);
+    // Issue #514: each kind reads as its module declares it; the level is the case's.
+    private NotificationKind KindOf(string kind, string module, NotificationLevel level = NotificationLevel.Action)
+    {
+        var scope = shared.App.Services.CreateAsyncScope();
+        try
+        {
+            var declared = scope.ServiceProvider.GetRequiredService<NotificationCatalog>().Find(kind) ?? throw new InvalidOperationException($"No kind {kind}.");
+            Assert.Equal(module, declared.Module);
+            return declared with { Level = level };
+        }
+        finally
+        {
+            scope.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        }
+    }
 
     private static IReadOnlyDictionary<ItemId, string> Names(string name) => new Dictionary<ItemId, string> { [Item] = name };
 
