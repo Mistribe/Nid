@@ -5,6 +5,7 @@
   "host": "api.anthropic.com",
   "model": "claude-opus-5-5",
   "capabilities": ["chat"],
+  "contextTokens": 200000,
   "dataTerms": {
     "trainsOnData": { "eea_ch_uk": false, "other": false },
     "humanReview": true,

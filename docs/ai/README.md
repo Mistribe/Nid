@@ -666,7 +666,11 @@ livrée par défaut.
   pas pour lui, totaux compris. Le cloud ne reçoit jamais de `bank_labels` (`allowed_kinds` n'existe pas encore) : l'outil
   n'est pas appelé. Ce qui est retenu est compté dans une ligne générique, sans dire quoi ni à qui. Limites, section
   `Assistant` de la configuration : 8 étapes, 2 048 jetons de sortie par étape, 90 s par tour, 30 tours par personne et par
-  heure (en mémoire : un redémarrage les oublie), réponse d'outil de 24 000 caractères au plus. Un tour s'arrête sur la
+  heure (en mémoire : un redémarrage les oublie), réponse d'outil de 24 000 caractères au plus.
+  **#527** : la destination servie porte la taille de contexte du modèle (celle que son worker déclare, ou
+  `contextTokens` de son profil cloud, obligatoire). Chaque réponse d'outil reçoit sa part de ce que le modèle peut encore
+  lire (estimé à 4 caractères par jeton, réponse du modèle comprise), sous le plafond de 24 000 caractères ; une étape qui
+  ne tiendrait plus n'est pas envoyée et le tour s'arrête sur `context_full`. Un tour s'arrête sur la
   réponse du modèle (`end`, `length`, `refused`) ou une limite (`max_steps`, `timed_out`) ; un refus de la passerelle rend
   son code `ai.*`, le plafond de tours `ai.assistant_turn_limit`.
 

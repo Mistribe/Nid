@@ -108,7 +108,7 @@ public sealed class ProviderTests(PostgresFixture fixture) : IClassFixture<Postg
 
     private static LlmProfile Profile(string provider, string host, string model)
         => LlmProfileLoader.Read($$$"""
-            {"id":"{{{provider}}}-test","provider":"{{{provider}}}","tier":"paid","host":"{{{host}}}","model":"{{{model}}}","capabilities":["chat"],
+            {"id":"{{{provider}}}-test","provider":"{{{provider}}}","tier":"paid","host":"{{{host}}}","model":"{{{model}}}","capabilities":["chat"],"contextTokens":200000,
              "dataTerms":{"trainsOnData":{"eea_ch_uk":false,"other":false},"humanReview":true,"retentionSwitches":[],
              "termsUrl":"https://example.test/terms","reviewedOn":"2026-11-22"},
              "pricing":{"inputPerMillion":1,"outputPerMillion":2,"currency":"EUR"}}

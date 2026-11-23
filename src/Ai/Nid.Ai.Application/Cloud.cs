@@ -19,7 +19,8 @@ public sealed record LlmProfile(
     IReadOnlyList<string> Capabilities,
     DataTerms DataTerms,
     Quotas? Quotas = null,
-    Pricing? Pricing = null)
+    Pricing? Pricing = null,
+    int ContextTokens = 0)
 {
     /// <summary>Its terms never let the provider train on the data in <paramref name="region"/>.</summary>
     public bool EligibleIn(string region) => DataTerms.TrainsOnData.TryGetValue(region, out var trains) && !trains;
@@ -185,7 +186,7 @@ public sealed class CloudProvider(
                 }
 
                 (trace.ProfileId, trace.Provider, trace.Tier, trace.ReservedEur) = (profile.Id, profile.Provider, profile.Tier, hold?.Amount);
-                trace.Destination = new LlmDestination(LlmPlacement.Cloud, profile.Provider, ProfileId: profile.Id);
+                trace.Destination = new LlmDestination(LlmPlacement.Cloud, profile.Provider, ProfileId: profile.Id, ContextTokens: profile.ContextTokens);
                 ChatUsage? usage = null;
                 while (any)
                 {

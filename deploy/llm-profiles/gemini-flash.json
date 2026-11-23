@@ -4,6 +4,7 @@
   "tier": "paid",
   "host": "generativelanguage.googleapis.com",
   "model": "gemini-3.8-flash",
+  "contextTokens": 128000,
   "capabilities": [
     "chat"
   ],

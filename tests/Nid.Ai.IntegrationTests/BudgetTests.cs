@@ -138,7 +138,7 @@ public sealed class BudgetTests(PostgresFixture fixture) : IClassFixture<Postgre
 
     private static LlmProfile Profile(string currency)
         => LlmProfileLoader.Read($$$"""
-            {"id":"anthropic-claude","provider":"anthropic","tier":"paid","host":"api.anthropic.com","model":"claude-opus-5-5","capabilities":["chat"],
+            {"id":"anthropic-claude","provider":"anthropic","tier":"paid","host":"api.anthropic.com","model":"claude-opus-5-5","capabilities":["chat"],"contextTokens":200000,
              "dataTerms":{"trainsOnData":{"eea_ch_uk":false,"other":false},"humanReview":true,"retentionDays":30,"retentionSwitches":[],
              "termsUrl":"https://www.anthropic.com/legal/commercial-terms","reviewedOn":"2026-11-22"},
              "pricing":{"inputPerMillion":4,"outputPerMillion":20,"currency":"{{{currency}}}"}}
