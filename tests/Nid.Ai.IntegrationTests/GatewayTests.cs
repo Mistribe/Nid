@@ -112,6 +112,35 @@ public sealed class GatewayTests(PostgresFixture fixture) : IClassFixture<Postgr
     }
 
     [Fact]
+    public async Task A_served_turn_names_its_destination()
+    {
+        await using var world = await StartAsync(Engine());
+        var paired = await world.PairAsync();
+        await SetModelAsync(world, "llama3.2");
+        LlmDestination? served = null;
+
+        await ChatAsync(world, new LlmChatRequest(ModelUses.Chat, Hello, [], 128, "figures", Served: d => served = d));
+
+        Assert.Equal(new LlmDestination(LlmPlacement.Local, paired.Name, WorkerId: paired.Id), served);
+        Assert.False(served!.Offsite);
+    }
+
+    [Fact]
+    public async Task A_turn_pinned_to_another_destination_reaches_no_worker()
+    {
+        var engine = Engine();
+        await using var world = await StartAsync(engine);
+        await world.PairAsync();
+        await SetModelAsync(world, "llama3.2");
+        var elsewhere = new LlmDestination(LlmPlacement.Cloud, "anthropic", ProfileId: "anthropic-claude");
+
+        var failed = await Assert.ThrowsAsync<ModelCallException>(() => ChatAsync(world, new LlmChatRequest(ModelUses.Chat, Hello, [], 128, "figures", Pin: elsewhere)));
+
+        Assert.Equal(JobCodes.NoWorker, failed.Code);
+        Assert.Empty(engine.ChatRequests);
+    }
+
+    [Fact]
     public async Task Tools_are_for_the_chat_only()
     {
         await using var world = await StartAsync(Engine());

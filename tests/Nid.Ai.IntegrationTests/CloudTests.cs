@@ -66,6 +66,26 @@ public sealed class CloudTests(PostgresFixture fixture) : IClassFixture<Postgres
     }
 
     [Fact]
+    public async Task A_cloud_turn_names_its_provider_and_a_turn_pinned_to_a_worker_never_reaches_it()
+    {
+        var anthropic = new FakeAnthropic();
+        anthropic.Turn(["Bonjour."], stop: "end_turn", tokensIn: 5, tokensOut: 2);
+        await using var app = await StartAsync(anthropic);
+        await EnableAsync(app);
+        await SetCloudModeAsync(app);
+        LlmDestination? served = null;
+
+        await ChatAsync(app, new LlmChatRequest(ModelUses.Chat, Hello, [], 256, "figures", Served: d => served = d));
+        var pinned = await Assert.ThrowsAsync<ModelCallException>(() => ChatAsync(app,
+            new LlmChatRequest(ModelUses.Chat, Hello, [], 256, "figures", Pin: new LlmDestination(LlmPlacement.Local, "salon", WorkerId: Guid.NewGuid()))));
+
+        Assert.Equal(new LlmDestination(LlmPlacement.Cloud, "anthropic", ProfileId: "anthropic-claude"), served);
+        Assert.True(served!.Offsite);
+        Assert.Equal(JobCodes.NoCloudProfile, pinned.Code);
+        Assert.Single(anthropic.Requests);
+    }
+
+    [Fact]
     public async Task Terms_reviewed_since_a_profile_was_enabled_must_be_accepted_again()
     {
         var anthropic = new FakeAnthropic();
@@ -262,12 +282,14 @@ public sealed class CloudTests(PostgresFixture fixture) : IClassFixture<Postgres
         return scope;
     }
 
-    private static async Task<List<ChatRequestOutput>> ChatAsync(NidApp app, string dataClass, IReadOnlyList<ChatTool>? tools = null)
+    private static Task<List<ChatRequestOutput>> ChatAsync(NidApp app, string dataClass, IReadOnlyList<ChatTool>? tools = null)
+        => ChatAsync(app, new LlmChatRequest(ModelUses.Chat, Hello, tools ?? [], 256, dataClass));
+
+    private static async Task<List<ChatRequestOutput>> ChatAsync(NidApp app, LlmChatRequest request)
     {
         var outputs = new List<ChatRequestOutput>();
         await using var scope = Scope(app);
-        await foreach (var output in scope.ServiceProvider.GetRequiredService<ILlmGateway>()
-                           .ChatAsync(new LlmChatRequest(ModelUses.Chat, Hello, tools ?? [], 256, dataClass), TestContext.Current.CancellationToken))
+        await foreach (var output in scope.ServiceProvider.GetRequiredService<ILlmGateway>().ChatAsync(request, TestContext.Current.CancellationToken))
             outputs.Add(output);
         return outputs;
     }

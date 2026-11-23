@@ -1,14 +1,16 @@
 using Microsoft.EntityFrameworkCore;
 using Nid.Core.Contracts;
+using Nid.Platform.Contracts;
 
 namespace Nid.Core.Infrastructure.Persistence;
 
 /// <summary>
 /// One query: shared items, plus — in the <c>Me</c> and <c>Mine</c> scopes — the private items the actor owns; <c>Mine</c> leaves out
 /// the items only dependents own (#360). A private item of the other adult is unreachable in every scope, which is the invariant the
-/// leak bench proves.
+/// leak bench proves. An actor that reads shared items only (<c>Actor.SharedOnly</c>, #500) gets the <c>Household</c> set in
+/// every scope.
 /// </summary>
-public sealed class VisibleItems(CoreDbContext db) : IVisibleItems
+public sealed class VisibleItems(CoreDbContext db, IActorAccessor? actors = null) : IVisibleItems
 {
     public Task<IReadOnlySet<ItemId>> ForAsync(PersonId actor, VisibilityScope scope, CancellationToken ct)
         => ForAsync(actor, scope, includeArchived: false, ct);
@@ -18,6 +20,8 @@ public sealed class VisibleItems(CoreDbContext db) : IVisibleItems
 
     public async Task<IReadOnlySet<ItemId>> ForAsync(PersonId actor, VisibilityScope scope, bool includeArchived, CancellationToken ct)
     {
+        if (actors?.Current is { SharedOnly: true, PersonId: { } reader } && reader == actor)
+            scope = VisibilityScope.Household;
         var shared = VisibilityName(Visibility.Shared);
         var query = db.Items.AsNoTracking();
 

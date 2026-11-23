@@ -61,6 +61,12 @@ public sealed record Actor(ActorKind Kind, PersonId? PersonId, ActorOrigin Via, 
     /// <summary>4A: the personal access token this actor authenticated with; null for a session, the system and the CLI.</summary>
     public Guid? TokenId { get; init; }
 
+    /// <summary>
+    /// #500: reads shared items only, its person's own private ones included in what it does not see: the assistant whose turn
+    /// goes off the premises (decision C, <c>docs/ai/README.md</c> §6.4) until each adult's consent exists (#167).
+    /// </summary>
+    public bool SharedOnly { get; init; }
+
     /// <summary>A bearer token (tokens-and-credentials.md §1.4): its person, restricted to its scopes, never admin.</summary>
     public static Actor Token(PersonId person, Guid tokenId, IReadOnlySet<string> scopes, ActorOrigin via)
         => new(ActorKind.Person, person, via, scopes) { TokenId = tokenId };
@@ -71,14 +77,15 @@ public sealed record Actor(ActorKind Kind, PersonId? PersonId, ActorOrigin Via, 
     public static Actor Browser(PersonId person, bool isAdmin = false)
         => new(ActorKind.Person, person, ActorOrigin.Ui, AllScopes) { IsAdmin = isAdmin };
 
-    /// <summary>The notification evaluation reading as that adult: read only, via the job.</summary>
     /// <summary>
     /// The in-app assistant for <paramref name="person"/> (#497, decision L): it reads what its person reads and proposes,
     /// never applies (<c>write</c>, not <c>write:direct</c>), never admin, and never runs a browser-only command.
+    /// <paramref name="sharedOnly"/>: see <see cref="SharedOnly"/>.
     /// </summary>
-    public static Actor Assistant(PersonId person)
-        => new(ActorKind.Person, person, ActorOrigin.Assistant, new HashSet<string> { ScopeNames.Read, ScopeNames.Write });
+    public static Actor Assistant(PersonId person, bool sharedOnly = false)
+        => new(ActorKind.Person, person, ActorOrigin.Assistant, new HashSet<string> { ScopeNames.Read, ScopeNames.Write }) { SharedOnly = sharedOnly };
 
+    /// <summary>The notification evaluation reading as that adult: read only, via the job.</summary>
     public static Actor Notifier(PersonId person) => new(ActorKind.Person, person, ActorOrigin.Job, new HashSet<string> { ScopeNames.Read });
 
     /// <summary>Bank sync (D22): the job proposing or writing a bank balance as the creator of the connection that read it.</summary>

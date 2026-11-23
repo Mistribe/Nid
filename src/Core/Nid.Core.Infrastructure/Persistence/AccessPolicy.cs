@@ -1,12 +1,18 @@
 using Nid.Core.Contracts;
 using Nid.Core.Domain;
+using Nid.Platform.Contracts;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Functional.Failures;
 
 namespace Nid.Core.Infrastructure.Persistence;
 
-public sealed class AccessPolicy(IItemRegistry items, IPersonRegistry persons) : IAccessPolicy
+/// <summary>The rules of <see cref="AccessRules"/>; an actor that reads shared items only (<c>Actor.SharedOnly</c>, #500) finds
+/// no private item, its own included, as <c>VisibleItems</c> does.</summary>
+public sealed class AccessPolicy(IItemRegistry items, IPersonRegistry persons, IActorAccessor? actors = null) : IAccessPolicy
 {
+    private bool Hidden(PersonId actor, Visibility visibility)
+        => visibility == Visibility.Private && actors?.Current is { SharedOnly: true, PersonId: { } reader } && reader == actor;
+
     public async Task<Result> CheckAsync(PersonId actor, ItemId item, AccessKind kind, CancellationToken ct)
     {
         var access = await items.FindAsync(item, ct);
@@ -14,7 +20,7 @@ public sealed class AccessPolicy(IItemRegistry items, IPersonRegistry persons) :
             return NotFound(item);
 
         var adults = await persons.AdultIdsAsync(ct);
-        if (!AccessRules.Readers(access.Visibility, access.Owners, adults).Contains(actor))
+        if (!AccessRules.Readers(access.Visibility, access.Owners, adults).Contains(actor) || Hidden(actor, access.Visibility))
             return NotFound(item); // existence is not disclosed
 
         if (kind == AccessKind.Read)
@@ -39,7 +45,7 @@ public sealed class AccessPolicy(IItemRegistry items, IPersonRegistry persons) :
         var adults = await persons.AdultIdsAsync(ct);
         // CheckAsync's rule: a reader, and for a write a writer too; an unknown item is nobody's.
         return found.Values
-            .Where(a => AccessRules.Readers(a.Visibility, a.Owners, adults).Contains(actor)
+            .Where(a => AccessRules.Readers(a.Visibility, a.Owners, adults).Contains(actor) && !Hidden(actor, a.Visibility)
                 && kind switch
                 {
                     AccessKind.Read => true,
