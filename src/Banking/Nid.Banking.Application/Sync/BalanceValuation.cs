@@ -39,8 +39,10 @@ public sealed class BalanceValuation
         IServiceProvider services, PersonId reader, BankAccount account, LocalDate today, bool manual, Tally progress, CancellationToken ct)
     {
         var envelope = account.Envelope!.Value;
-        // A registry read: the currency only, whoever reads the envelope.
-        if ((await services.GetRequiredService<IItemRegistry>().FindAsync(envelope, ct))?.Currency != account.Currency.Code)
+        // A registry read: the currency only, whoever reads the envelope. A closed envelope takes no value (#505), as Investments refuses one;
+        // nothing is recorded as done, so a reopened envelope catches up.
+        if (await services.GetRequiredService<IItemRegistry>().FindAsync(envelope, ct) is not { ArchivedAt: null } item
+            || item.Currency != account.Currency.Code)
         {
             progress.Skipped++;
             return;

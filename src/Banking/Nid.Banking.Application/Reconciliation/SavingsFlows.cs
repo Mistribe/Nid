@@ -71,7 +71,10 @@ public sealed class SavingsFlows(
             await categoryRules.HintAsync(await LinesAsync(account, ct), ct);
     }
 
-    /// <summary>The accounts (all when null) whose lines are kept as flows: associated with a Savings envelope in their own currency.</summary>
+    /// <summary>
+    /// The accounts (all when null) whose lines are kept as flows: associated with a Savings envelope in their own currency, still open (#505:
+    /// a closed envelope takes no flow, as Investments refuses one; its flows stay as they are, and a reopened envelope catches up).
+    /// </summary>
     private async Task<List<BankAccount>> SavingsAccountsAsync(IReadOnlyCollection<Guid>? accounts, CancellationToken ct)
     {
         var list = new List<BankAccount>();
@@ -85,7 +88,8 @@ public sealed class SavingsFlows(
         foreach (var account in list)
             if (account is { Envelope: { } envelope, AssociatedOn: not null }
                 && (await envelopes.FindAsync(envelope, ct))?.Kind == EnvelopeKind.Savings
-                && (await items.FindAsync(envelope, ct))?.Currency == account.Currency.Code)
+                && await items.FindAsync(envelope, ct) is { ArchivedAt: null } item
+                && item.Currency == account.Currency.Code)
                 kept.Add(account);
         return kept;
     }

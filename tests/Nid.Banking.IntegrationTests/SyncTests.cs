@@ -499,6 +499,36 @@ public class SyncTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
     }
 
     [Fact]
+    public async Task A_closed_envelope_takes_no_bank_value_until_it_is_reopened()
+    {
+        var (app, clock) = await StartAsync(fixture);
+        await using var _app = app;
+        var envelope = await app.NewEnvelopeAsync("Livret", app.AdultA, Visibility.Private);
+        await BankingApi.ConnectAsync(app, app.AdultA, "code-a", BankingApi.Account("uid-1", "hash-1", null, "Livret A", "SVGS"));
+        var account = await AccountAsync(app, app.AdultA, "Livret A");
+        await AssociateAsync(app, app.AdultA, account, envelope, auto: true);
+        Serve(app, "session-code-a", "uid-1", D(8, 31), 1000m);
+        Assert.Equal(1, (await NightAsync(app, clock, D(9, 1))).Written);
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Post,
+            $"/api/v1/investments/envelopes/{envelope.Value}/close", new { closedOn = "2026-09-01" })).StatusCode);
+        Serve(app, "session-code-a", "uid-1", D(9, 30), 1100m);
+
+        // #505: Investments refuses a value on a closed envelope, and so does the bank; the close's zero stays the last value.
+        var run = await NightAsync(app, clock, D(10, 1));
+
+        Assert.Equal((0, 1), (run.Written, run.Skipped));
+        await using (var core = PostgresFixture.NewCoreContext(app.ConnectionString))
+            Assert.Equal([(D(8, 31), 1000m), (D(9, 1), 0m)], (await core.Valuations
+                .Where(v => v.ItemId == envelope.Value && v.RetiredAt == null).OrderBy(v => v.AsOf)
+                .ToListAsync(TestContext.Current.CancellationToken)).Select(v => (v.AsOf, v.Amount)));
+
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/investments/envelopes/{envelope.Value}/reopen", new { })).StatusCode);
+
+        // Nothing was recorded as done: the reopened envelope catches up.
+        Assert.Equal(1, (await NightAsync(app, clock, D(10, 2))).Written);
+    }
+
+    [Fact]
     public async Task A_pair_in_two_currencies_is_skipped()
     {
         var (app, clock) = await StartAsync(fixture);
