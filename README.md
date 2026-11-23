@@ -12,6 +12,9 @@ French tax. With an MCP server, so your AI assistant can read your figures and p
 Made for French households: income tax, PEA, PER, Livret A, life insurance and Pajemploi work out of the box. The
 interface is in French.
 
+**[nid.mistribe.com](https://nid.mistribe.com)**: what Nid does, module by module, and how to install it, in French and
+English.
+
 **[Try the live demo →](https://demo.nid.mistribe.com)** Enter as Alice or Bob, an invented couple, without an account.
 Change anything you like: the demo starts again every night.
 
