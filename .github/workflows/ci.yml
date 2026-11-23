@@ -28,7 +28,7 @@ name: ci
 on:
   push:
     branches: [main]
-    paths-ignore: ['docs/**', '**/*.md', 'site/**']
+    paths-ignore: ['docs/**', '**/*.md', 'site/**', '.github/workflows/site.yml', '.github/workflows/pages.yml']
   # No paths-ignore here: a docs-only pull request must still get `ci-ok` (see above); `changes` skips every area instead.
   pull_request:
     branches: [main]
@@ -169,9 +169,10 @@ jobs:
       # dotnet-sonarscanner, pinned in .config/dotnet-tools.json (Renovate updates it).
       - run: dotnet tool restore
       # Excluded: what is generated (EF migrations, the OpenAPI document and the types made from it) and the captured pages and
-      # generators of tests/vectors. Out of the coverage: the scripts of deploy/ and the Playwright journeys, which no unit test
-      # runs. Rules ignored where they are wrong by design: the import parsers' `&` evaluates every check so that one answer
-      # lists every error (S2178); `[` rather than `[[` in the shell scripts is style only (S7688).
+      # generators of tests/vectors. Out of the coverage: the scripts of deploy/, the project site (site/, checked by site.yml)
+      # and the Playwright journeys, which no unit test runs. Rules ignored where they are wrong by design: the import parsers'
+      # `&` evaluates every check so that one answer lists every error (S2178); `[` rather than `[[` in the shell scripts is style
+      # only (S7688).
       - name: Build and analyse
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -188,7 +189,7 @@ jobs:
             /d:sonar.issue.ignore.multicriteria.parsers.resourceKey="src/**/Import/**" \
             /d:sonar.issue.ignore.multicriteria.shell.ruleKey="shell:S7688" \
             /d:sonar.issue.ignore.multicriteria.shell.resourceKey="**/*.sh" \
-            /d:sonar.coverage.exclusions="deploy/**,web/e2e/**" \
+            /d:sonar.coverage.exclusions="deploy/**,site/**,web/e2e/**" \
             /d:sonar.cs.vscoveragexml.reportsPaths="coverage/*.coverage.xml" \
             /d:sonar.javascript.lcov.reportPaths="coverage/lcov.info"
           dotnet build Nid.slnx --configuration Release

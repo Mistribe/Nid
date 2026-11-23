@@ -27,3 +27,24 @@ test('a French page without its English twin is a problem, and the reverse', () 
   const problems = findProblems([], ['installer/proxy.md', 'en/installer/proxy.md', 'impot.mdx', 'en/garde.mdx']);
   assert.deepEqual(problems.sort(), ['missing en/impot.mdx', 'missing garde.mdx']);
 });
+
+test('connection hints and shortcut icons to another site are problems', () => {
+  const html =
+    '<link rel="preconnect" href="https://fonts.gstatic.com"><link rel="dns-prefetch" href="//cdn.example.com"><link rel="shortcut icon" href="https://x.org/i.ico">';
+  assert.equal(findProblems([{ path: 'index.html', html }], []).length, 3);
+});
+
+test('single-quoted sources, video posters and objects are checked too', () => {
+  const html = "<img src='https://x.org/a.png' alt='a'><video poster=\"https://x.org/p.jpg\"></video><object data=\"https://x.org/o.svg\"></object>";
+  assert.equal(findProblems([{ path: 'index.html', html }], []).length, 3);
+});
+
+test('a url() in a code sample is text, not a request; in a style attribute it is', () => {
+  assert.deepEqual(findProblems([{ path: 'a.html', html: '<pre><code>background: url(https://x.org/bg.png)</code></pre>' }], []), []);
+  assert.equal(findProblems([{ path: 'a.html', html: '<div style="background:url(https://x.org/bg.png)"></div>' }], []).length, 1);
+});
+
+test('a stylesheet that imports or points to another site is a problem', () => {
+  const css = "@import url(https://fonts.googleapis.com/css2?family=X);@import 'https://x.org/a.css';.a{background:url(/ok.png)}";
+  assert.equal(findProblems([{ path: '_astro/common.css', html: css }], []).length, 2);
+});

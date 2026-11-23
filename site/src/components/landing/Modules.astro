@@ -33,5 +33,5 @@ const cards = areas.map((area) => ({ ...area[lang], href: localePath(lang, `/fon
   .module:hover, .module:focus-visible { border-color: var(--sl-color-accent); transform: translateY(-2px); }
   .module :global(svg) { color: var(--sl-color-accent); }
   .module strong { color: var(--sl-color-white); font-size: 1.05rem; }
-  @media (prefers-reduced-motion: reduce) { .module { transition: none; } .module:hover { transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .module { transition: none; } .module:hover, .module:focus-visible { transform: none; } }
 </style>
