@@ -78,6 +78,16 @@ describe('The assistant panel', () => {
     expect(await within(panel).findByRole('alert')).toHaveTextContent('Les appels payants reprennent le 1 décembre 2026.');
   });
 
+  it('opens from « Plus » on a phone, where the top bar has no room for its button', async () => {
+    serve();
+    const { user } = await renderApp('/more');
+
+    // The list's entry (the top bar's button is the other one, hidden on a phone by CSS).
+    await user.click(within(await screen.findByRole('list', { name: 'Autres sections' })).getByRole('button', { name: 'Assistant' }));
+
+    expect(await screen.findByRole('dialog', { name: 'Assistant' })).toBeInTheDocument();
+  });
+
   it('says why it cannot answer and who can fix it', async () => {
     serve({ enabled: false });
     const off = await renderApp('/dashboard');

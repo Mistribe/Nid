@@ -1,11 +1,12 @@
 import { Link } from '@tanstack/react-router';
-import { Sparkles } from 'lucide-react';
+import { MessageCircle, Sparkles } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/page/PageHeader';
 import { Button } from '@/components/ui/button';
 import { PendingBadge } from '@/features/proposals/PendingBadge';
 import { visibleNav } from '@/components/nav';
 import { useSession } from './Providers';
+import { OPEN_ASSISTANT } from './Shell';
 
 /** screens.md §1: the sections that do not fit the phone's tab bar. */
 export function MorePage() {
@@ -24,6 +25,13 @@ export function MorePage() {
             </Link>
           </li>
         ))}
+        <li className="md:hidden">
+          <button type="button" onClick={() => window.dispatchEvent(new Event(OPEN_ASSISTANT))}
+            className="flex min-h-11 w-full items-center gap-3 px-4 py-3 text-left hover:bg-accent">
+            <MessageCircle aria-hidden="true" className="size-5" />
+            <span>{t('command.assistant')}</span>
+          </button>
+        </li>
         <li>
           <Link to="/changelog" className="flex min-h-11 items-center gap-3 px-4 py-3 hover:bg-accent">
             <Sparkles aria-hidden="true" className="size-5" />
