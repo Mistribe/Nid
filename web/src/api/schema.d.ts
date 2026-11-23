@@ -21065,7 +21065,11 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody?: {
+                content: {
+                    "application/json": null | components["schemas"]["DocumentVersionBody"];
+                };
+            };
             responses: {
                 /** @description OK */
                 200: {
@@ -21156,7 +21160,11 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody?: {
+                content: {
+                    "application/json": null | components["schemas"]["DocumentVersionBody"];
+                };
+            };
             responses: {
                 /** @description OK */
                 200: {
@@ -37329,6 +37337,8 @@ export interface components {
             title?: null | string;
             documentDate?: null | string;
             note?: null | string;
+            /** Format: uint32 */
+            version?: null | number;
         };
         DocumentFacets: {
             roles: string[];
@@ -37384,6 +37394,8 @@ export interface components {
             canEdit: boolean;
             links: components["schemas"]["DocumentLinkView"][];
             sourceRef?: null | string;
+            /** Format: uint32 */
+            version: number;
         };
         DocumentTargetList: {
             items: components["schemas"]["DocumentTargetView"][];
@@ -37396,6 +37408,10 @@ export interface components {
             module?: null | string;
             itemKind?: null | string;
             canWrite: boolean;
+        };
+        DocumentVersionBody: {
+            /** Format: uint32 */
+            version?: null | number;
         };
         DurationBody: {
             /** Format: int32 */
@@ -37420,6 +37436,8 @@ export interface components {
             title?: null | string;
             documentDate?: null | string;
             note?: null | string;
+            /** Format: uint32 */
+            version?: null | number;
         };
         EditEnvelopeBody: {
             displayName?: null | string;

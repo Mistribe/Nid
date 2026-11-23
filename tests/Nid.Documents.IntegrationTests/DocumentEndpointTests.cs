@@ -120,10 +120,10 @@ public class DocumentEndpointTests(PostgresFixture fixture) : IClassFixture<Post
     {
         await using var app = await NidApp.StartAsync(fixture);
         var id = await UploadedAsync(app, app.AdultA, Pdf);
-        await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Documents}/{id}/archive");
+        Assert.Equal(HttpStatusCode.OK, (await ArchiveAsync(app, app.AdultA, id)).StatusCode);
 
         var edit = await app.RawContentAsync(app.AdultA, HttpMethod.Put, $"{Documents}/{id}",
-            new StringContent("""{"title":"Nouveau"}""", Encoding.UTF8, "application/json"));
+            new StringContent($$"""{"title":"Nouveau","version":{{await VersionAsync(app, app.AdultA, id)}}}""", Encoding.UTF8, "application/json"));
 
         Assert.Equal(HttpStatusCode.OK, edit.StatusCode);
         var document = (await JsonAsync(await GetAsync(app, app.AdultA, id))).GetProperty("document");
@@ -286,7 +286,7 @@ public class DocumentEndpointTests(PostgresFixture fixture) : IClassFixture<Post
         await using var app = await NidApp.StartAsync(fixture);
         var shared = await app.NewSubscriptionAsync("Box", app.AdultA, Visibility.Shared);
         var id = await UploadedAsync(app, app.AdultA, Pdf, $"fileName=a.pdf&targetKind=core.item&targetId={shared.Value}&role=invoice");
-        var edit = new { title = "Facture box", documentDate = "2025-10-01", note = "Octobre" };
+        var edit = new { title = "Facture box", documentDate = "2025-10-01", note = "Octobre", version = await VersionAsync(app, app.AdultA, id) };
 
         var refused = await app.RawAsync(app.AdultB, HttpMethod.Put, $"{Documents}/{id}", edit);
         Assert.Equal(HttpStatusCode.Forbidden, refused.StatusCode);
@@ -298,10 +298,49 @@ public class DocumentEndpointTests(PostgresFixture fixture) : IClassFixture<Post
             (detail.GetProperty("document").GetProperty("title").GetString(), detail.GetProperty("document").GetProperty("documentDate").GetString(),
                 detail.GetProperty("note").GetString()));
 
-        await AssertRefusedAsync(await app.RawAsync(app.AdultA, HttpMethod.Put, $"{Documents}/{id}", new { title = " " }),
+        var version = await VersionAsync(app, app.AdultA, id);
+        await AssertRefusedAsync(await app.RawAsync(app.AdultA, HttpMethod.Put, $"{Documents}/{id}", new { title = " ", version }),
             HttpStatusCode.BadRequest, DocumentsCodes.InvalidField);
-        await AssertRefusedAsync(await app.RawAsync(app.AdultA, HttpMethod.Put, $"{Documents}/{id}", new { title = "x", documentDate = "2099-01-01" }),
+        await AssertRefusedAsync(await app.RawAsync(app.AdultA, HttpMethod.Put, $"{Documents}/{id}", new { title = "x", documentDate = "2099-01-01", version }),
             HttpStatusCode.BadRequest, DocumentsCodes.InvalidField);
+    }
+
+    [Fact]
+    public async Task A_stale_version_answers_a_conflict_and_changes_nothing()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await UploadedAsync(app, app.AdultA, Pdf);
+        var read = await VersionAsync(app, app.AdultA, id);
+        // Someone else's edit lands first.
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Put, $"{Documents}/{id}", new { title = "Premier", version = read })).StatusCode);
+
+        // #506: the second edit, and an archive, both read before it, are refused instead of undoing it.
+        await AssertRefusedAsync(await app.RawAsync(app.AdultA, HttpMethod.Put, $"{Documents}/{id}", new { title = "Second", version = read }),
+            HttpStatusCode.Conflict, DocumentsCodes.Conflict);
+        await AssertRefusedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Documents}/{id}/archive", new { version = read }),
+            HttpStatusCode.Conflict, DocumentsCodes.Conflict);
+
+        var document = (await JsonAsync(await GetAsync(app, app.AdultA, id))).GetProperty("document");
+        Assert.Equal(("Premier", false), (document.GetProperty("title").GetString(), document.GetProperty("archived").GetBoolean()));
+        Assert.NotEqual(read, document.GetProperty("version").GetUInt32());
+    }
+
+    [Fact]
+    public async Task A_missing_version_answers_422()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await UploadedAsync(app, app.AdultA, Pdf);
+
+        foreach (var response in new[]
+        {
+            await app.RawAsync(app.AdultA, HttpMethod.Put, $"{Documents}/{id}", new { title = "Sans version" }),
+            await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Documents}/{id}/archive"),
+            await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Documents}/{id}/unarchive", new { }),
+        })
+        {
+            Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+            Assert.Equal("version", (await JsonAsync(response)).GetProperty("errors")[0].FieldPath());
+        }
     }
 
     [Fact]
@@ -310,11 +349,12 @@ public class DocumentEndpointTests(PostgresFixture fixture) : IClassFixture<Post
         await using var app = await NidApp.StartAsync(fixture);
         var id = await UploadedAsync(app, app.AdultA, Pdf);
 
-        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Documents}/{id}/archive")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await ArchiveAsync(app, app.AdultA, id)).StatusCode);
         Assert.True((await JsonAsync(await GetAsync(app, app.AdultA, id))).GetProperty("document").GetProperty("archived").GetBoolean());
-        Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultB, HttpMethod.Post, $"{Documents}/{id}/archive")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultB, HttpMethod.Post, $"{Documents}/{id}/archive",
+            new { version = await VersionAsync(app, app.AdultA, id) })).StatusCode);
 
-        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Documents}/{id}/unarchive")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await ArchiveAsync(app, app.AdultA, id, archived: false)).StatusCode);
         Assert.False((await JsonAsync(await GetAsync(app, app.AdultA, id))).GetProperty("document").GetProperty("archived").GetBoolean());
     }
 

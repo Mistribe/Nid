@@ -22291,6 +22291,22 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/DocumentVersionBody"
+                  }
+                ]
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "OK",
@@ -22381,6 +22397,22 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/DocumentVersionBody"
+                  }
+                ]
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "OK",
@@ -44456,6 +44488,13 @@
               "null",
               "string"
             ]
+          },
+          "version": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "uint32"
           }
         }
       },
@@ -44614,7 +44653,8 @@
           "uploadedBy",
           "archived",
           "canEdit",
-          "links"
+          "links",
+          "version"
         ],
         "type": "object",
         "properties": {
@@ -44664,6 +44704,10 @@
               "null",
               "string"
             ]
+          },
+          "version": {
+            "type": "integer",
+            "format": "uint32"
           }
         }
       },
@@ -44714,6 +44758,18 @@
           },
           "canWrite": {
             "type": "boolean"
+          }
+        }
+      },
+      "DocumentVersionBody": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "uint32"
           }
         }
       },
@@ -44814,6 +44870,13 @@
               "null",
               "string"
             ]
+          },
+          "version": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "uint32"
           }
         }
       },

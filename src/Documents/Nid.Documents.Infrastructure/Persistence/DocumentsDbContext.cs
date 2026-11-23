@@ -32,6 +32,7 @@ public sealed class DocumentsDbContext(DbContextOptions<DocumentsDbContext> opti
             e.Property(x => x.Sha256).HasColumnType("char(64)");
             e.Property(x => x.SourceRef).HasMaxLength(200);
             e.HasIndex(x => x.SourceRef).IsUnique().HasFilter("source_ref is not null").HasDatabaseName(SourceRefIndex);
+            e.Property(x => x.Version).HasColumnName("xmin").HasColumnType("xid").ValueGeneratedOnAddOrUpdate().IsConcurrencyToken();
         });
 
         modelBuilder.Entity<DocumentLinkRow>(e =>

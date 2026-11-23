@@ -3,6 +3,8 @@ using Nid.Documents.Application;
 using Nid.Documents.Contracts;
 using NodaTime;
 using Npgsql;
+using UnambitiousFx.Functional;
+using UnambitiousFx.Functional.Failures;
 
 namespace Nid.Documents.Infrastructure.Persistence;
 
@@ -189,18 +191,34 @@ public sealed class DocumentStore(DocumentsDbContext db) : IDocumentStore
             row.TargetKind, row.TargetId, row.Role, row.SourceRef, row.ExpiresAt);
     }
 
-    public async Task EditAsync(Guid id, string title, LocalDate? documentDate, string? note, CancellationToken ct)
+    public async Task<Result> EditAsync(Guid id, string title, LocalDate? documentDate, string? note, uint version, CancellationToken ct)
     {
         var row = await db.Documents.SingleAsync(d => d.Id == id, ct);
         (row.Title, row.DocumentDate, row.Note) = (title, documentDate, note);
-        await db.SaveChangesAsync(ct);
+        return await SaveAtAsync(row, version, ct);
     }
 
-    public async Task SetArchivedAsync(Guid id, Instant? archivedAt, CancellationToken ct)
+    public async Task<Result> SetArchivedAsync(Guid id, Instant? archivedAt, uint version, CancellationToken ct)
     {
         var row = await db.Documents.SingleAsync(d => d.Id == id, ct);
         row.ArchivedAt = archivedAt;
-        await db.SaveChangesAsync(ct);
+        return await SaveAtAsync(row, version, ct);
+    }
+
+    /// <summary>#506: the update names the version the caller read, so a change made in between answers a conflict instead of being lost.</summary>
+    private async Task<Result> SaveAtAsync(DocumentRow row, uint version, CancellationToken ct)
+    {
+        db.Entry(row).Property(r => r.Version).OriginalValue = version;
+        try
+        {
+            await db.SaveChangesAsync(ct);
+            return Result.Success();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            db.ChangeTracker.Clear();
+            return Result.Failure(DocumentConflict.Failure());
+        }
     }
 
     public async Task<bool> AddLinkAsync(LinkRecord link, CancellationToken ct)
@@ -287,5 +305,5 @@ public sealed class DocumentStore(DocumentsDbContext db) : IDocumentStore
 
     private static DocumentRecord ToRecord(DocumentRow r)
         => new(r.Id, r.Sha256.Trim(), r.SizeBytes, r.MediaType, r.OriginalFilename, r.Title, r.DocumentDate, r.Note,
-            r.UploadedByPersonId, r.UploadedAt, r.ArchivedAt, r.SourceRef);
+            r.UploadedByPersonId, r.UploadedAt, r.ArchivedAt, r.SourceRef, r.Version);
 }

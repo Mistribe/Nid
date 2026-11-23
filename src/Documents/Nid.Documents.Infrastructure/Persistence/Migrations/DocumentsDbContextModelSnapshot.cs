@@ -125,6 +125,12 @@ namespace Nid.Documents.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("uploaded_by_person_id");
 
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.HasKey("Id")
                         .HasName("pk_document");
 

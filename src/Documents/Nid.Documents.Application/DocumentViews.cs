@@ -14,7 +14,7 @@ public sealed record DocumentLinkView(string TargetKind, Guid TargetId, Guid? An
 /// </summary>
 public sealed record DocumentSummary(
     Guid Id, string Title, string MediaType, long SizeBytes, LocalDate? DocumentDate, Instant UploadedAt, Guid UploadedBy, bool Archived, bool CanEdit,
-    IReadOnlyList<DocumentLinkView> Links, string? SourceRef)
+    IReadOnlyList<DocumentLinkView> Links, string? SourceRef, uint Version)
 {
     /// <summary>The label of a link whose target the resolvers no longer return; the link still counts through its anchor.</summary>
     public const string DeletedTargetLabel = "Élément supprimé";
@@ -28,7 +28,7 @@ public sealed record DocumentSummary(
             .Select(l => new DocumentLinkView(l.TargetKind, l.TargetId, l.AnchorItemId, l.Role, labels.GetValueOrDefault((l.TargetKind, l.TargetId), DeletedTargetLabel),
                 DocumentRules.CanWriteLink(DocumentAccess.Facts(l, d.UploadedBy), read.Actor)))
             .ToList();
-        return new DocumentSummary(d.Id, d.Title, d.MediaType, d.SizeBytes, d.DocumentDate, d.UploadedAt, d.UploadedBy, d.ArchivedAt is not null, read.CanEdit, links, d.SourceRef);
+        return new DocumentSummary(d.Id, d.Title, d.MediaType, d.SizeBytes, d.DocumentDate, d.UploadedAt, d.UploadedBy, d.ArchivedAt is not null, read.CanEdit, links, d.SourceRef, d.Version);
     }
 
     /// <summary>Every item id the links name: a <c>core.item</c> target and every anchor.</summary>

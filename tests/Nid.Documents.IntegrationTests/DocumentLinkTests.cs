@@ -251,7 +251,7 @@ public class DocumentLinkTests(PostgresFixture fixture) : IClassFixture<Postgres
         var old = await UploadedAsync(app, app.AdultA, Pdf, "fileName=a.pdf&date=2024-01-01");
         var recent = await UploadedAsync(app, app.AdultA, Pdf, "fileName=a.pdf&date=2025-06-01");
         var archived = await UploadedAsync(app, app.AdultA, Pdf, "fileName=a.pdf&date=2025-01-01");
-        await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Root}/{archived}/archive");
+        Assert.Equal(HttpStatusCode.OK, (await ArchiveAsync(app, app.AdultA, archived)).StatusCode);
 
         Assert.Equal([recent, old, undated], await ListedAsync(app, app.AdultA, "scope=me"));
         Assert.Equal([recent, archived, old, undated], await ListedAsync(app, app.AdultA, "scope=me&archived=true"));

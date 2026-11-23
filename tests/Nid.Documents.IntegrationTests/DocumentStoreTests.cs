@@ -36,7 +36,10 @@ public class DocumentStoreTests(PostgresFixture fixture) : IClassFixture<Postgre
 
         await store.CreateAsync(doc, TestContext.Current.CancellationToken);
 
-        Assert.Equal(doc, await store.FindAsync(doc.Id, TestContext.Current.CancellationToken));
+        var found = await store.FindAsync(doc.Id, TestContext.Current.CancellationToken);
+        // The version is the row's xmin, set by the database.
+        Assert.Equal(doc, found! with { Version = 0 });
+        Assert.NotEqual(0u, found.Version);
         Assert.Null(await store.FindAsync(Guid.NewGuid(), TestContext.Current.CancellationToken));
     }
 

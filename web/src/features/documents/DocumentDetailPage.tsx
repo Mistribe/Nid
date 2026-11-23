@@ -53,7 +53,7 @@ export function DocumentDetailPage() {
   if (answer.error && toProblem(answer.error).status === 404) return <Navigate to="/documents" replace />;
   const detail = answer.data;
   const doc = detail.document;
-  const path = { params: { path: { id: doc.id } } };
+  const path = { params: { path: { id: doc.id } }, body: { version: doc.version } };
   const uploader = targets.data?.items.find((x) => x.kind === 'core.person' && x.id === detail.uploadedBy)?.label;
   // The dialog handed itself back: the page says what happened and puts the focus back on the button that opened it.
   const done = (ref: typeof editRef) => (message: string) => { setDialog(null); toast.success(message); shownOr(ref.current, moreRef.current)?.focus(); };

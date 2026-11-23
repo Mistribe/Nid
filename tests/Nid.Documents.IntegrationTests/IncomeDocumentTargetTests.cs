@@ -295,7 +295,7 @@ public class IncomeDocumentTargetTests(PostgresFixture fixture) : IClassFixture<
         var id = await LinkedAsync(app, app.AdultA, "core.item", source.Value);
         Assert.Equal([id], await ListedAsync(app, app.AdultA, $"anchor={source.Value}"));
 
-        await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Root}/{id}/archive");
+        Assert.Equal(HttpStatusCode.OK, (await ArchiveAsync(app, app.AdultA, id)).StatusCode);
 
         Assert.Empty(await ListedAsync(app, app.AdultA, $"anchor={source.Value}"));
     }

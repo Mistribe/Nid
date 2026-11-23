@@ -118,7 +118,7 @@ public class ReceiptTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
         var mine = await UploadedAsync(app, app.AdultB, Pdf, "fileName=b.pdf");
         Assert.Equal(HttpStatusCode.Forbidden, (await LinkAsync(app, app.AdultB, mine, line)).StatusCode);
         // An archived receipt leaves the line's list, as it leaves the documents list.
-        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Post, $"{DocumentApi.Documents}/{receipt}/archive")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await DocumentApi.ArchiveAsync(app, app.AdultA, receipt)).StatusCode);
         Assert.Empty(await ListedAsync(app, app.AdultA, line));
     }
 

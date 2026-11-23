@@ -41,13 +41,17 @@ public sealed record UploadedDocument(Guid Id, bool Existing, DocumentSummary? D
     public IEnumerable<ItemId> ExposedItems() => Duplicate?.Items() ?? [];
 }
 
-/// <summary>Replaces the title, the date and the note.</summary>
-public sealed record EditDocumentCommand(Guid Id, string Title, LocalDate? DocumentDate, string? Note) : ICommand<Guid>;
+/// <summary>Replaces the title, the date and the note. <paramref name="Version"/>: the one read with the document (#506).</summary>
+public sealed record EditDocumentCommand(Guid Id, string Title, LocalDate? DocumentDate, string? Note, uint Version) : ICommand<Guid>;
 
-public sealed record SetDocumentArchivedCommand(Guid Id, bool Archived) : ICommand<Guid>;
+/// <summary><paramref name="Version"/>: the one read with the document (#506).</summary>
+public sealed record SetDocumentArchivedCommand(Guid Id, bool Archived, uint Version) : ICommand<Guid>;
 
-/// <summary>#305: one document of a filing round: only what is given changes (an empty note removes it).</summary>
-public sealed record DocumentEdit(Guid Id, string? Title, LocalDate? DocumentDate, string? Note);
+/// <summary>
+/// #305: one document of a filing round: only what is given changes (an empty note removes it). <paramref name="Version"/>: the one read
+/// with the document (#506), so a round prepared before someone else's change does not undo it.
+/// </summary>
+public sealed record DocumentEdit(Guid Id, string? Title, LocalDate? DocumentDate, string? Note, uint Version);
 
 /// <summary>#305: the role of one link in a filing round.</summary>
 public sealed record DocumentRoleChange(Guid Id, DocumentTarget Target, string Role);
@@ -173,13 +177,16 @@ public sealed class EditDocumentHandler(IDocumentStore store, DocumentAccess acc
     public async ValueTask<Result<Guid>> HandleAsync(EditDocumentCommand command, CancellationToken ct = default)
     {
         var editable = await access.EditableAsync(command.Id, actor.Current!.PersonId!.Value, ct);
-        if (!editable.TryGetValue(out _))
+        if (!editable.TryGetValue(out var found))
             return Result.Failure<Guid>(editable.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
+        // Checked here too: an edit that leaves the row as it is writes nothing, so the store's token would not see it.
+        if (found!.Document.Version != command.Version)
+            return Result.Failure<Guid>(DocumentConflict.Failure());
         if (DocumentFields.Check(command.Title, command.DocumentDate, command.Note, await calendar.TodayAsync(ct)) is { } invalid)
             return Result.Failure<Guid>(invalid);
 
-        await store.EditAsync(command.Id, command.Title.Trim(), command.DocumentDate, DocumentFields.Note(command.Note), ct);
-        return Result.Success(command.Id);
+        return (await store.EditAsync(command.Id, command.Title.Trim(), command.DocumentDate, DocumentFields.Note(command.Note), command.Version, ct))
+            .Map(() => command.Id);
     }
 }
 
@@ -198,7 +205,7 @@ public sealed class FileDocumentsHandler(IInvoker invoker, IDocumentStore store)
             // Unreadable answers as missing: the edit's own access check refuses before anything read here is used.
             var current = await store.FindAsync(edit.Id, ct);
             var edited = await invoker.InvokeAsync(new EditDocumentCommand(edit.Id, edit.Title ?? current?.Title ?? "",
-                edit.DocumentDate ?? current?.DocumentDate, edit.Note ?? current?.Note), ct);
+                edit.DocumentDate ?? current?.DocumentDate, edit.Note ?? current?.Note, edit.Version), ct);
             if (edited.TryGetFailure(out var refused))
                 return Result.Failure<FiledDocuments>(Located(refused!, $"edits[{i}]"));
         }
@@ -226,10 +233,12 @@ public sealed class SetDocumentArchivedHandler(IDocumentStore store, DocumentAcc
         var editable = await access.EditableAsync(command.Id, actor.Current!.PersonId!.Value, ct);
         if (!editable.TryGetValue(out var found))
             return Result.Failure<Guid>(editable.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
+        if (found!.Document.Version != command.Version)
+            return Result.Failure<Guid>(DocumentConflict.Failure());
 
-        if ((found!.Document.ArchivedAt is not null) != command.Archived)
-            await store.SetArchivedAsync(command.Id, command.Archived ? clock.GetCurrentInstant() : null, ct);
-        return Result.Success(command.Id);
+        if ((found.Document.ArchivedAt is not null) == command.Archived)
+            return Result.Success(command.Id);
+        return (await store.SetArchivedAsync(command.Id, command.Archived ? clock.GetCurrentInstant() : null, command.Version, ct)).Map(() => command.Id);
     }
 }
 
