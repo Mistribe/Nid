@@ -29,7 +29,7 @@ public sealed class RouteTool(RouteAction action) : McpServerTool
         InputSchema = Schema(action),
         Annotations = new ToolAnnotations
         {
-            ReadOnlyHint = false, DestructiveHint = action.Destructive, IdempotentHint = true, OpenWorldHint = false,
+            ReadOnlyHint = false, DestructiveHint = action.Destructive, IdempotentHint = action.Idempotent, OpenWorldHint = false,
         },
     };
 

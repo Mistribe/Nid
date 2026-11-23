@@ -34,6 +34,13 @@ public sealed record RouteAction(
 
     public bool Targeted => OnItem && RouteParameters.Contains("id");
 
+    /// <summary>
+    /// #507: the tool's <c>idempotentHint</c>. A proposal is deduplicated by its fingerprint, but with <c>apply</c> the route runs: a POST that
+    /// creates or adds (`create_subscription`, `add_flow`) writes again on a second call. A replace, a delete, or a POST that sets a state
+    /// (close, reopen, link, unlink, ignore, a filing round naming its versions) changes nothing more, or is refused, the second time.
+    /// </summary>
+    public bool Idempotent => Method != "POST" || Name.Split('_')[0] is "close" or "reopen" or "link" or "unlink" or "ignore" or "file";
+
     /// <summary>`{year:int}` is an integer; `{on}` an ISO date (a goal's progress entry); `{month}` a month; `{targetKind}` a word (a document link's); every other route parameter a UUID.</summary>
     public bool IsInteger(string parameter) => Route.Contains($"{{{parameter}:int}}", StringComparison.Ordinal);
 
