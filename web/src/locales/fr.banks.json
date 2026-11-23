@@ -127,6 +127,7 @@
       "banking_key_invalid": "Cette clé n’est pas une clé privée valide : envoyez le fichier .pem de votre application.",
       "invalid_upload": "Envoi invalide, réessayez.",
       "banking_application_in_use": "Supprimez d’abord les banques reliées avec cette application.",
+      "banking_installation_application_deprecated": "L’application de l’installation est dépréciée : elle ne peut plus être définie ni remplacée, seulement transférée à un adulte ou effacée. Chaque adulte déclare la sienne dans Réglages › Banques.",
       "banking_application_changed": "Votre application a changé entre-temps, rechargez la page.",
       "generic": "La banque n'a pas pu être reliée.",
       "banking_auth_refused": "La banque a refusé ou annulé l'autorisation.",

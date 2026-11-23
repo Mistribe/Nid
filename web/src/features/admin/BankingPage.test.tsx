@@ -248,6 +248,22 @@ describe('Administration › Banque', () => {
     await waitFor(() => expect(sent).toEqual([{ enableBankingAppId: '4f1c-app' }]));
   });
 
+  it('says in French that a new installation id is refused (#414)', async () => {
+    serve(on);
+    server.use(http.patch('*/api/v1/admin/household', () => HttpResponse.json({
+      status: 422, code: 'banking.installation_application_deprecated', detail: 'Deprecated.',
+      errors: [{ path: 'enableBankingAppId', code: 'banking.installation_application_deprecated', message: 'Deprecated.' }],
+    }, { status: 422 })));
+    const { user } = await renderApp('/admin/banking', { capabilities: adminCapabilities });
+
+    const field = await screen.findByLabelText('Identifiant de l’application Enable Banking');
+    await user.clear(field);
+    await user.type(field, 'app-new');
+    await user.click(screen.getByRole('button', { name: 'Enregistrer l’identifiant' }));
+
+    expect(await screen.findByText(/elle ne peut plus être définie ni remplacée/)).toBeInTheDocument();
+  });
+
   it('keeps the operations for a chosen number of months, or without limit', async () => {
     const sent = serve({ bankingEnabled: true, enableBankingAppId: null, bankRetentionMonths: 36 });
     const { user } = await renderApp('/admin/banking', { capabilities: adminCapabilities });

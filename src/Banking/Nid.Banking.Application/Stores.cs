@@ -38,12 +38,6 @@ public interface IConnectionStore
     Task<bool> InUseAsync(string applicationId, PersonId? person, CancellationToken ct);
 
     /// <summary>
-    /// Whether a connection past its pending state was made with an application id that is neither <paramref name="installationId"/> nor
-    /// its creator's own declared one: a previous installation application, which a new installation id would orphan.
-    /// </summary>
-    Task<bool> HasOtherApplicationThanAsync(string installationId, CancellationToken ct);
-
-    /// <summary>
     /// #414: the connections made with this application, whoever made them and whatever their status, oldest first; the legacy ones
     /// without an application id count as made with it (the installation's, as <see cref="BankingAccess.AppForAsync"/> reads them).
     /// </summary>

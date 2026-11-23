@@ -157,6 +157,8 @@ public class SecurityEventTests(PostgresFixture fixture) : IClassFixture<Postgre
     public async Task Switching_banking_records_its_fields_never_the_application_id()
     {
         await using var app = await NidApp.StartAsync(fixture);
+        // Saved before #414, then sent again unchanged: the route no longer sets a new one.
+        await BankingApi.InstallationAsync(app, "app-0a1b");
 
         (await app.RawAsync(app.AdultA, HttpMethod.Patch, "/api/v1/admin/household", new { bankingEnabled = true, enableBankingAppId = "app-0a1b" }))
             .EnsureSuccessStatusCode();

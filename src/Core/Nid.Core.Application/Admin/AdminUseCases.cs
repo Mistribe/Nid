@@ -142,17 +142,16 @@ public sealed class GetHouseholdSettingsHandler(IHouseholdSettings settings) : I
 }
 
 [RequestHandler<UpdateHouseholdSettingsCommand, HouseholdSettingsView>]
-public sealed class UpdateHouseholdSettingsHandler(IHouseholdSettings settings, IEnumerable<IBankingApplicationUse> applicationUse)
+public sealed class UpdateHouseholdSettingsHandler(IHouseholdSettings settings)
     : IRequestHandler<UpdateHouseholdSettingsCommand, HouseholdSettingsView>
 {
     public async ValueTask<Result<HouseholdSettingsView>> HandleAsync(UpdateHouseholdSettingsCommand command, CancellationToken ct = default)
     {
-        // #382: a new installation id would orphan the connections made with a previous one; clearing it stays allowed.
+        // #414: the installation-wide application is deprecated; one already saved is kept (sent again unchanged) or cleared, never set anew.
         if (command.EnableBankingAppId?.Trim() is { Length: > 0 } wanted && (await settings.ReadAsync(ct)).EnableBankingAppId != wanted)
-            foreach (var use in applicationUse)
-                if (await use.WouldOrphanAsync(wanted, ct))
-                    return Result.Failure<HouseholdSettingsView>(
-                        new ConflictFailure("Bank connections still use another Enable Banking application.") { Code = BankingApplicationCodes.InUse });
+            return Result.Failure<HouseholdSettingsView>(FieldErrors.At(new Failure(BankingApplicationCodes.InstallationDeprecated,
+                "The installation-wide Enable Banking application is deprecated: each adult declares their own in Settings › Banks.", null),
+                "enableBankingAppId"));
 
         return (await settings.UpdateAsync(new HouseholdSettingsChange(
                 command.MaxAdults, command.ReferenceCurrency, command.PricesEnabled, command.IrlEnabled, command.BankingEnabled, command.EnableBankingAppId,

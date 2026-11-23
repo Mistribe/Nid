@@ -575,6 +575,10 @@ En mode restreint, les comptes que les autres adultes avaient reliés dans le po
 restent liés : Nid ne peut pas les en retirer, faites-le dans ce portail. Le transfert est refusé
 (`banking.application_in_use`) si l'adulte choisi a déjà une application à lui qu'une connexion utilise.
 
+Aucune nouvelle application d'installation ne peut être définie : `PATCH /api/v1/admin/household` refuse un
+`enableBankingAppId` nouveau ou différent de celui enregistré (`banking.installation_application_deprecated`, 422). Celui déjà
+enregistré peut être renvoyé tel quel ou effacé (`""`), et une fois effacé il ne revient plus.
+
 Nid n'a pas besoin d'être joignable depuis Internet : le retour de la banque passe par le navigateur. Seul `nid` sort,
 vers `api.enablebanking.com`. Le consentement dure ce que la banque permet (souvent 180 jours) : Nid prévient 14 puis 3 jours
 avant la fin, puis à l'expiration ; « Renouveler » le prolonge en gardant les comptes. Administration › Banque montre le

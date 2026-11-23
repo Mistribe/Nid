@@ -25,8 +25,23 @@ public static class BankingApi
         app.Banks.FailWith = null;
         app.Banks.Aspsps.AddRange([Alpha, Beta, new Aspsp("Bank Elsewhere", "DE", null, null)]);
         if (enable)
-            await SettingsAsync(app, new { bankingEnabled = true, enableBankingAppId = "app-1" });
+        {
+            await SettingsAsync(app, new { bankingEnabled = true });
+            await InstallationAsync(app, "app-1");
+        }
         return app;
+    }
+
+    /// <summary>
+    /// The installation-wide application id of an installation set up before #414, written to the store: the admin route no longer sets
+    /// a new one.
+    /// </summary>
+    public static async Task InstallationAsync(NidApp app, string id)
+    {
+        await using var scope = app.Services.CreateAsyncScope();
+        scope.ServiceProvider.GetRequiredService<Nid.Platform.Contracts.IActorAccessor>().Current = Nid.Platform.Contracts.Actor.System;
+        var settings = scope.ServiceProvider.GetRequiredService<IHouseholdSettings>();
+        Assert.True((await settings.UpdateAsync(new HouseholdSettingsChange(null, null, EnableBankingAppId: id), default)).IsSuccess);
     }
 
     public static async Task SettingsAsync(NidApp app, object body)

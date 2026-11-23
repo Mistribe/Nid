@@ -434,7 +434,8 @@ public sealed class MixedDataset
         // to B would put the label in the textual scan.
         app.Banks.FailWith = null;
         app.Banks.Aspsps.Add(BankingApi.Alpha);
-        await BankingApi.SettingsAsync(app, new { bankingEnabled = true, enableBankingAppId = "app-1" });
+        await BankingApi.SettingsAsync(app, new { bankingEnabled = true });
+        await BankingApi.InstallationAsync(app, "app-1");
         // Her card too, attached to it: its lines are read through the checking account's envelope.
         // And a joint account, on the joint envelope twin, that both adults read and write.
         await BankingApi.ConnectAsync(app, app.AdultA, "bench", BankingApi.Account("uid-bench", "hash-bench", null, PrivateLabelA + " compte"),
