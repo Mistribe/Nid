@@ -72,7 +72,8 @@ public static class AssistantEndpoints
                 })
             .RequireAuthorization()
             .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>()
-            .Produces(StatusCodes.Status200OK, contentType: "text/event-stream");
+            // The stream's text: its events are described above, read by the web app's own parser.
+            .Produces<string>(StatusCodes.Status200OK, contentType: "text/event-stream");
     }
 
     private static async IAsyncEnumerable<SseItem<string>> StreamAsync(AssistantLoop loop, IItemRegistry items, IAccessPolicy policy, PersonId person,
