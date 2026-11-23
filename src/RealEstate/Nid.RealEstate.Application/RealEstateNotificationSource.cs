@@ -19,17 +19,57 @@ public sealed class RealEstateNotificationSource(RealEstateUpcoming upcoming, Pr
 
     public IReadOnlyList<NotificationKind> Kinds { get; } =
     [
-        new(UpcomingKinds.TenancyEnd, "due_date", NotificationLevel.Action, "properties", 90),
-        new(UpcomingKinds.PropertyCostDue, "due_date", NotificationLevel.Info, "properties", 7),
-        new(UpcomingKinds.PropertyTaxDue, "due_date", NotificationLevel.Action, "properties", 14),
-        new(UpcomingKinds.LoanPhaseEnd, "due_date", NotificationLevel.Info, "loans", 30),
-        new(UpcomingKinds.LoanEnd, "due_date", NotificationLevel.Info, "loans", 30),
-        new(PropertyOverviewCodes.RentArrears, "finding", NotificationLevel.Action, "properties", null),
-        new(PropertyOverviewCodes.RevisionDue, "finding", NotificationLevel.Action, "properties", null),
-        new(PropertyOverviewCodes.RevisionLost, "finding", NotificationLevel.Action, "properties", null),
-        new(PropertyOverviewCodes.IrlMissing, "finding", NotificationLevel.Info, "properties", null),
-        new(PropertyWarnings.ValuationStale, "finding", NotificationLevel.Info, "properties", null),
+        new(UpcomingKinds.TenancyEnd, "due_date", NotificationLevel.Action, "properties", 90)
+        {
+            Template = new("Un bail arrive à échéance") { Link = f => f.ItemPage("properties", "rental") },
+        },
+        new(UpcomingKinds.PropertyCostDue, "due_date", NotificationLevel.Info, "properties", 7)
+        {
+            Template = new("Une charge prévue arrive") { Link = f => f.ItemPage("properties", "expenses") },
+        },
+        new(UpcomingKinds.PropertyTaxDue, "due_date", NotificationLevel.Action, "properties", 14)
+        {
+            Template = new("La taxe foncière est à payer") { Link = f => f.ItemPage("properties", "expenses") },
+        },
+        new(UpcomingKinds.LoanPhaseEnd, "due_date", NotificationLevel.Info, "loans", 30)
+        {
+            Template = new("Une phase de crédit se termine") { Link = f => f.ItemPage("loans") },
+        },
+        new(UpcomingKinds.LoanEnd, "due_date", NotificationLevel.Info, "loans", 30)
+        {
+            Template = new("Un crédit se termine") { Link = f => f.ItemPage("loans") },
+        },
+        new(PropertyOverviewCodes.RentArrears, "finding", NotificationLevel.Action, "properties", null)
+        {
+            Template = new("Des loyers sont impayés")
+            {
+                Suffix = f => f.KeyDate("yyyy-MM") is { } month ? $" — depuis {month.ToString("MMMM yyyy", NotificationFacts.French)}" : f.OnDueDate,
+                Link = f => f.ItemPage("properties", "rental"),
+            },
+        },
+        Revision(PropertyOverviewCodes.RevisionDue, NotificationLevel.Action, "Un loyer peut être révisé"),
+        Revision(PropertyOverviewCodes.RevisionLost, NotificationLevel.Action, "Une révision de loyer a été perdue"),
+        Revision(PropertyOverviewCodes.IrlMissing, NotificationLevel.Info, "L'IRL d'une révision manque"),
+        new(PropertyWarnings.ValuationStale, "finding", NotificationLevel.Info, "properties", null)
+        {
+            Template = new("Une estimation est à refaire")
+            {
+                Suffix = f => (f.DueOn ?? f.KeyDate("yyyy-MM-dd")) is { } on ? $" — estimée le {NotificationFacts.Day(on)}" : "",
+                Link = f => f.ItemPage("properties", "valuations"),
+            },
+        },
     ];
+
+    /// <summary>A finding of the rental tab dated by its key: « — le 1er mars 2027 ».</summary>
+    private static NotificationKind Revision(string kind, NotificationLevel level, string title)
+        => new(kind, "finding", level, "properties", null)
+        {
+            Template = new(title)
+            {
+                Suffix = f => (f.DueOn ?? f.KeyDate("yyyy-MM-dd")) is { } on ? $" — le {NotificationFacts.Day(on)}" : "",
+                Link = f => f.ItemPage("properties", "rental"),
+            },
+        };
 
     public async Task<Result<IReadOnlyList<Signal>>> SignalsAsync(PersonId reader, LocalDate today, LocalDate horizon, CancellationToken ct)
     {

@@ -18,13 +18,26 @@ public sealed class SubscriptionsNotificationSource(SubscriptionsUpcoming upcomi
 
     public IReadOnlyList<NotificationKind> Kinds { get; } =
     [
-        new(UpcomingKinds.SubscriptionRenewal, "due_date", NotificationLevel.Action, "subscriptions", 7),
-        new(UpcomingKinds.SubscriptionExpiry, "due_date", NotificationLevel.Action, "subscriptions", 14),
-        new(UpcomingKinds.SubscriptionCancelDeadline, "due_date", NotificationLevel.Action, "subscriptions", 30),
-        new(UpcomingKinds.SubscriptionTrialEnd, "due_date", NotificationLevel.Action, "subscriptions", 7),
-        new(UpcomingKinds.SubscriptionPriceIncrease, "due_date", NotificationLevel.Action, "subscriptions", 7),
-        new(OverviewCodes.EndsWithoutRenewal, "finding", NotificationLevel.Info, "subscriptions", null),
+        Due(UpcomingKinds.SubscriptionRenewal, 7, "Un abonnement se renouvelle"),
+        Due(UpcomingKinds.SubscriptionExpiry, 14, "Un abonnement prend fin"),
+        Due(UpcomingKinds.SubscriptionCancelDeadline, 30, "Dernier jour pour résilier un contrat"),
+        Due(UpcomingKinds.SubscriptionTrialEnd, 7, "Une période gratuite se termine"),
+        Due(UpcomingKinds.SubscriptionPriceIncrease, 7, "Le prix d'un abonnement augmente"),
+        new(OverviewCodes.EndsWithoutRenewal, "finding", NotificationLevel.Info, "subscriptions", null)
+        {
+            Template = new("Un abonnement s'arrête sans renouvellement")
+            {
+                // The watch's date is in its key.
+                Suffix = f => (f.DueOn ?? f.KeyDate("yyyy-MM-dd")) is { } on ? $" — le {NotificationFacts.Day(on)}" : "",
+                Link = Page,
+            },
+        },
     ];
+
+    private static NotificationKind Due(string kind, int leadDays, string title)
+        => new(kind, "due_date", NotificationLevel.Action, "subscriptions", leadDays) { Template = new(title) { Link = Page } };
+
+    private static string Page(NotificationFacts f) => f.ItemPage("subscriptions");
 
     public async Task<Result<IReadOnlyList<Signal>>> SignalsAsync(PersonId reader, LocalDate today, LocalDate horizon, CancellationToken ct)
     {

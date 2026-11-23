@@ -58,7 +58,7 @@ public class NotificationCopyTests(PostgresFixture fixture) : IClassFixture<Post
         var lines = new List<string>();
         foreach (var kind in catalog.Kinds.Values.OrderBy(k => k.Kind, StringComparer.Ordinal))
         {
-            lines.Add($"{kind.Kind} — {NotificationTemplates.TitleOf(kind.Kind)}");
+            lines.Add($"{kind.Kind} — {NotificationTemplates.TitleOf(kind)}");
             foreach (var (name, row) in Rows(kind.Kind))
             foreach (var figures in new[] { false, true })
             {

@@ -19,9 +19,27 @@ public sealed class ChildcareNotificationSource(IVisibleItems visible, IChildcar
     public string Name => "childcare";
 
     public IReadOnlyList<NotificationKind> Kinds { get; } = [
-        new(StatementDue, "due_date", NotificationLevel.Action, "childcare", 0),
-        new(BelowMinimum, "finding", NotificationLevel.Action, "childcare", null),
+        new(StatementDue, "due_date", NotificationLevel.Action, "childcare", 0)
+        {
+            Template = new("Un relevé de garde est à valider")
+            {
+                Suffix = f => f.KeyDate("yyyy-MM") is { } month ? $" — relevé de {month.ToString("MMMM yyyy", NotificationFacts.French)}" : f.OnDueDate,
+                Link = Page,
+            },
+        },
+        new(BelowMinimum, "finding", NotificationLevel.Action, "childcare", null)
+        {
+            Template = new("Un contrat de garde est sous un minimum légal")
+            {
+                Suffix = f => (f.DueOn ?? f.KeyDate("yyyy-MM-dd")) is { } on ? $" — minimum en vigueur depuis le {NotificationFacts.Day(on)}" : "",
+                Link = Page,
+            },
+        },
     ];
+
+    /// <summary>The arrangement, or its statement of the month in <c>Params["month"]</c>.</summary>
+    private static string Page(NotificationFacts f)
+        => f.Item is not null && f.Params.TryGetValue("month", out var month) ? $"{f.ItemPage("childcare")}/statements/{month}" : f.ItemPage("childcare");
 
     public async Task<Result<IReadOnlyList<Signal>>> SignalsAsync(PersonId reader, LocalDate today, LocalDate horizon, CancellationToken ct)
     {
