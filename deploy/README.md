@@ -533,14 +533,20 @@ application restreinte dans son propre portail et la déclare dans Nid. Il n'y a
 dans l'adresse pour y revenir depuis le portail) :
 
 1. Crée un compte sur le [portail d'Enable Banking](https://enablebanking.com/cp/applications) avec **sa propre** adresse
-   e-mail, puis une application **de production en mode restreint** (gratuit, réservé à l'usage personnel : seuls les
-   comptes reliés dans son portail sont lisibles).
-2. Y renseigne les adresses que l'assistant donne à copier : l'adresse de retour (« redirect URL »)
-   `https://nid.<domaine>/api/v1/banking/callback`, exactement, et pour « Privacy URL » et « Terms URL », que le portail
-   exige sans les vérifier en mode restreint, `https://github.com/Mistribe/Nid/blob/main/PRIVACY.md` et
-   `https://github.com/Mistribe/Nid/blob/main/LICENSE`.
-3. Laisse le portail générer la paire de clés, **garde la clé privée** (fichier `.pem`) et ne relie dans le portail que
-   **ses** comptes.
+   e-mail, puis y ajoute une application : environnement « Production », clé générée par le navigateur (le choix par
+   défaut).
+2. Remplit le formulaire de l'application avec les valeurs que l'assistant donne à copier, dans l'ordre du portail :
+   - « Application name » : au choix, `Nid` par défaut (la banque l'affiche à l'accord) ;
+   - « Redirect URL » : `https://nid.<domaine>/api/v1/banking/callback`, exactement ;
+   - « Application description » : une phrase libre, montrée à l'accord ; l'assistant en propose une ;
+   - « Email for data protection matters » : sa propre adresse (pour un usage personnel, l'adulte est responsable de ses
+     données) ;
+   - « Privacy URL » et « Terms URL », exigées sans être vérifiées en mode restreint :
+     `https://github.com/Mistribe/Nid/blob/main/PRIVACY.md` et `https://github.com/Mistribe/Nid/blob/main/LICENSE`.
+
+   « Register » télécharge la clé privée (`<identifiant>.pem`) : **il la garde**.
+3. Active l'application par « Activate by linking accounts » (gratuit, réservé à l'usage personnel : c'est le mode
+   restreint, seuls les comptes reliés dans son portail sont lisibles) et n'y relie que **ses** comptes.
 4. Déclare dans Nid l'identifiant de l'application et le `.pem` (envoyé ou collé). Nid vérifie que c'est une clé RSA
    privée en PEM (16 Kio au plus), la chiffre avec Data Protection (but `Nid.Banking.ApplicationKey`) dans
    `banking.application`, ne la réaffiche plus jamais, ne la renvoie jamais par l'API et l'exclut de l'audit et des

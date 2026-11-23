@@ -31,7 +31,7 @@ test('alice turns bank sync on, is sent to her own application, finds Réglages 
   await expect(page.getByRole('link', { name: 'Banques', exact: true })).toHaveAttribute('aria-current', 'page');
   await expect(page.getByRole('heading', { name: 'Mon application Enable Banking' })).toBeFocused();
   // Without an application of her own, the wizard; « Relier une banque » gives way to it.
-  await expect(page.getByText('Étape 1 sur 9')).toBeVisible();
+  await expect(page.getByText('Étape 1 sur 8')).toBeVisible();
   await expect(page.getByRole('link', { name: 'Créer mon application' })).toBeVisible();
   // #413: one page, no second tab row.
   await expect(page.getByRole('tab')).toHaveCount(0);
