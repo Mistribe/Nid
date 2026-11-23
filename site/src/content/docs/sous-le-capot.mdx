@@ -1,0 +1,45 @@
+---
+title: Sous le capot
+description: Comment Nid est construit, testé et sécurisé, et ce qu'il fait de vos données.
+---
+
+Nid tient les finances d'un foyer : ses chiffres doivent être justes, et ses données rester chez lui. Voici comment il s'y prend.
+
+## Architecture
+
+- **Un monolithe modulaire en C# / .NET** : un module par domaine (banque, placements, immobilier, revenus, garde d'enfants, documents…), avec des frontières strictes entre eux.
+- **Une application web React**, installable comme une appli (PWA), en clair et en sombre.
+- **PostgreSQL** pour les données, **Docker Compose** pour l'hébergement, sur un serveur maison ou un mini PC.
+- **Un serveur MCP** (`/mcp`) pour que votre assistant IA lise vos chiffres et propose des changements.
+
+Le détail : [l'architecture technique](https://github.com/Mistribe/Nid/blob/main/docs/architecture.md) sur GitHub.
+
+## Des chiffres justes
+
+- **Le serveur calcule, jamais l'IA.** Gains, rendements, échéanciers et impôt sont des calculs déterministes, testés. Un assistant peut lire, chercher et proposer ; il ne calcule pas.
+- **L'IA propose, une personne valide.** Tout changement venu d'un assistant ou d'un document attend dans « À valider ».
+- **Chaque chiffre garde sa source** : saisi, importé, lu à la banque ou proposé depuis un document.
+- **Le moteur d'échéancier de prêt** est confronté à 3 000 prêts de référence.
+
+## Qualité
+
+- **Chaque pull request** passe toute la suite de tests : tests unitaires et d'intégration du serveur, tests de l'application web, parcours de bout en bout dans un vrai navigateur.
+- **Une barrière qualité SonarQube** et une analyse CodeQL bloquent le code qui ne la passe pas.
+- **Chaque fusion est une version** : images publiques pour amd64 et arm64, avec une attestation de provenance signée.
+
+## Sécurité
+
+- Connexion par identifiant et mot de passe gardés par Nid (au moins 12 caractères, vérifiés contre les mots de passe courants), avec vérification en deux étapes, ou par clés d'accès (passkeys) via Pocket ID.
+- Éléments privés visibles de leur seul propriétaire, partout : l'application, le tableau de bord et le MCP.
+- Un journal d'audit de chaque changement et des événements de sécurité.
+- Une faille se signale en privé : [la politique de sécurité](https://github.com/Mistribe/Nid/blob/main/SECURITY.md).
+
+## Vie privée
+
+Nid est un logiciel auto-hébergé, pas un service. Le projet ne fait tourner aucun serveur pour lui, ne reçoit aucune donnée des installations et n'a ni compte, ni mesure d'audience, ni télémétrie.
+
+- **Vos données restent chez vous** : la base, les documents et les sauvegardes sont sur votre machine.
+- **Ce qui sort, vous le choisissez** : le catalogue des fournisseurs et les taux de change (sans donnée du foyer), et, si vous l'activez, la synchro bancaire ou un modèle de langage dans le cloud.
+- **Un export complet** de vos chiffres en un fichier JSON documenté, et des sauvegardes chiffrées chaque nuit.
+
+Ce site non plus ne mesure rien : pas de traceur, pas de police ni de script venus d'ailleurs. Le détail : [la note de confidentialité](https://github.com/Mistribe/Nid/blob/main/PRIVACY.md).

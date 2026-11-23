@@ -27,3 +27,6 @@
   --sl-color-accent-high: oklch(0.35 0.14 258);
   --sl-color-text-accent: oklch(0.5 0.2 256);
 }
+
+/* The wordmark fills its box: keep it at the height of the header text. */
+.site-title img { height: 1.6rem; width: auto; }

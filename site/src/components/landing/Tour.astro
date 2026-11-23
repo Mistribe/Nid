@@ -1,0 +1,19 @@
+---
+import Section from './Section.astro';
+import type { Lang } from '../../data/locale';
+
+interface Props { lang: Lang }
+const copy = {
+  fr: { title: 'La visite', lead: 'Le tableau de bord, les placements, un prêt et un remboursement anticipé simulé, puis les scénarios enregistrés.', alt: 'Une visite de la démo : le tableau de bord avec le patrimoine et la répartition des revenus du mois, les placements, les prêts et un remboursement anticipé simulé, puis les scénarios enregistrés.', cta: 'Essayer la démo vous-même' },
+  en: { title: 'The tour', lead: 'The dashboard, the investments, a loan and a simulated early repayment, then the saved scenarios.', alt: 'A tour of the demo: the dashboard with net worth and where the month’s income goes, the investments, the loans and an early repayment simulated, then the saved scenarios.', cta: 'Try the demo yourself' },
+}[Astro.props.lang];
+---
+<Section title={copy.title} lead={copy.lead}>
+  <img class="tour" src="/media/demo.gif" alt={copy.alt} width="1045" height="682" loading="lazy" decoding="async" />
+  <p class="cta"><a href="https://demo.nid.mistribe.com">{copy.cta} →</a></p>
+</Section>
+
+<style>
+  .tour { display: block; width: 100%; height: auto; border: 1px solid var(--sl-color-hairline); border-radius: 0.75rem; }
+  .cta { margin-top: 1rem; font-weight: 600; }
+</style>

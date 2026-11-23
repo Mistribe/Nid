@@ -11,6 +11,8 @@ export default defineConfig({
     starlight({
       title: 'Nid',
       favicon: '/favicon.svg',
+      // The app's wordmark (web/public/wordmark.svg), filled for each theme.
+      logo: { light: './src/assets/wordmark-light.svg', dark: './src/assets/wordmark-dark.svg', alt: 'Nid', replacesTitle: true },
       defaultLocale: 'root',
       locales: {
         root: { label: 'Français', lang: 'fr' },
@@ -18,6 +20,12 @@ export default defineConfig({
       },
       social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/Mistribe/Nid' }],
       customCss: ['./src/styles/global.css'],
+      components: { Footer: './src/components/Footer.astro' },
+      sidebar: [
+        { label: 'Fonctionnalités', translations: { en: 'Features' }, items: [{ autogenerate: { directory: 'fonctionnalites' } }] },
+        { label: 'Installer', translations: { en: 'Install' }, items: [{ autogenerate: { directory: 'installer' } }] },
+        { label: 'Sous le capot', translations: { en: 'Under the hood' }, link: '/sous-le-capot/' },
+      ],
       plugins: [starlightLinksValidator()],
     }),
   ],

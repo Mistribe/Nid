@@ -1,0 +1,37 @@
+---
+// The feature areas as a grid of cards, each linking to its page (src/data/areas.ts).
+import { Baby, FileText, House, Landmark, LayoutDashboard, Receipt, Repeat, Sparkles, Target, TrendingUp, Wallet } from '@lucide/astro';
+import Section from './Section.astro';
+import { areas } from '../../data/areas';
+import { localePath, type Lang } from '../../data/locale';
+
+interface Props { lang: Lang; heading?: boolean }
+const { lang, heading = true } = Astro.props;
+const icons = {
+  'layout-dashboard': LayoutDashboard, repeat: Repeat, 'trending-up': TrendingUp, house: House, wallet: Wallet, receipt: Receipt,
+  baby: Baby, target: Target, 'file-text': FileText, landmark: Landmark, sparkles: Sparkles,
+};
+const copy = {
+  fr: { title: 'Tout le foyer, module par module', lead: 'Pensé pour les ménages français : impôt sur le revenu, PEA, PER, Livret A, assurance vie et Pajemploi fonctionnent d’emblée.' },
+  en: { title: 'The whole household, module by module', lead: 'Made for French households: income tax, PEA, PER, Livret A, life insurance and Pajemploi work out of the box.' },
+}[lang];
+const cards = areas.map((area) => ({ ...area[lang], href: localePath(lang, `/fonctionnalites/${area.slug}/`), Icon: icons[area.icon as keyof typeof icons] }));
+---
+{heading ? (
+  <Section title={copy.title} lead={copy.lead}><div class="modules">{cards.map(({ title, line, href, Icon }) => (
+    <a class="module" href={href}><Icon size={22} aria-hidden="true" /><strong>{title}</strong><span>{line}</span></a>
+  ))}</div></Section>
+) : (
+  <div class="modules not-content">{cards.map(({ title, line, href, Icon }) => (
+    <a class="module" href={href}><Icon size={22} aria-hidden="true" /><strong>{title}</strong><span>{line}</span></a>
+  ))}</div>
+)}
+
+<style>
+  .modules { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); }
+  .module { display: flex; flex-direction: column; gap: 0.4rem; padding: 1.1rem 1.2rem; border: 1px solid var(--sl-color-hairline); border-radius: 0.75rem; background: var(--sl-color-bg-nav); text-decoration: none; color: var(--sl-color-gray-2); transition: border-color 0.15s, transform 0.15s; }
+  .module:hover, .module:focus-visible { border-color: var(--sl-color-accent); transform: translateY(-2px); }
+  .module :global(svg) { color: var(--sl-color-accent); }
+  .module strong { color: var(--sl-color-white); font-size: 1.05rem; }
+  @media (prefers-reduced-motion: reduce) { .module { transition: none; } .module:hover { transform: none; } }
+</style>

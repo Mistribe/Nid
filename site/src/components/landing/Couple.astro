@@ -1,0 +1,27 @@
+---
+import Section from './Section.astro';
+import type { Lang } from '../../data/locale';
+
+interface Props { lang: Lang }
+const copy = {
+  fr: {
+    title: 'Pensé pour le couple',
+    lead: 'Deux adultes partagent un foyer, les enfants y sont à charge. Chaque élément a ses propriétaires, et il est partagé ou privé.',
+    chips: [['Le mien', 'ce qui est à moi seul'], ['Le tien', 'ce qui est à l’autre'], ['Le commun', 'ce qui est à nous deux'], ['Privé', 'visible de son seul propriétaire']],
+  },
+  en: {
+    title: 'Built for couples',
+    lead: 'Two adults share one household, with children as dependents. Every item has owners, and is either shared or private.',
+    chips: [['Mine', 'mine alone'], ['Yours', 'the other’s'], ['Joint', 'both of ours'], ['Private', 'seen by its owner only']],
+  },
+}[Astro.props.lang];
+---
+<Section title={copy.title} lead={copy.lead}>
+  <ul class="chips">{copy.chips.map(([name, meaning]) => <li><strong>{name}</strong> {meaning}</li>)}</ul>
+</Section>
+
+<style>
+  .chips { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 0.6rem; }
+  .chips li { padding: 0.5rem 0.9rem; border-radius: 999px; border: 1px solid var(--sl-color-hairline); background: var(--sl-color-bg-nav); color: var(--sl-color-gray-2); }
+  .chips strong { color: var(--sl-color-text-accent); margin-right: 0.25rem; }
+</style>

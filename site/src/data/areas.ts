@@ -1,0 +1,59 @@
+// The feature areas the site presents, in the order of the landing grid and the sidebar. `route` is the app screen the
+// capture script (scripts/capture.mjs) photographs for the area. Plain data only: Node imports this file as it stands.
+export const areas = [
+  {
+    slug: 'tableau-de-bord', icon: 'layout-dashboard', route: '/dashboard',
+    fr: { title: 'Tableau de bord', line: 'Le patrimoine et sa tendance, les revenus du mois, ce qui est engagé et ce qui reste.' },
+    en: { title: 'Dashboard', line: 'Net worth and its trend, the month’s income, what is committed and what is left.' },
+  },
+  {
+    slug: 'abonnements', icon: 'repeat', route: '/subscriptions',
+    fr: { title: 'Abonnements', line: 'Essais gratuits, prix de lancement, offres groupées : le vrai coût mensuel et annuel.' },
+    en: { title: 'Subscriptions', line: 'Free trials, launch prices, bundles: the real monthly and yearly cost.' },
+  },
+  {
+    slug: 'placements', icon: 'trending-up', route: '/investments',
+    fr: { title: 'Placements', line: 'PEA, assurance vie, PER, livrets : rendement annuel, frais et plafonds.' },
+    en: { title: 'Investments', line: 'Equity plans, life insurance, retirement plans, savings accounts: return, fees and ceilings.' },
+  },
+  {
+    slug: 'biens-et-prets', icon: 'house', route: '/loans',
+    fr: { title: 'Biens et prêts', line: 'Valeur nette des biens, échéancier du prêt, remboursement anticipé, loyers et quittances.' },
+    en: { title: 'Property and loans', line: 'Net property value, the loan schedule, early repayment, rents and receipts.' },
+  },
+  {
+    slug: 'revenus', icon: 'wallet', route: '/income',
+    fr: { title: 'Revenus', line: 'Salaires et leurs étapes, bulletins de paie, revenus ponctuels, taux de prélèvement.' },
+    en: { title: 'Income', line: 'Salaries and their phases, payslips, one-off income, the withholding rate.' },
+  },
+  {
+    slug: 'impot', icon: 'receipt', route: '/tax',
+    fr: { title: 'Impôt', line: 'Une estimation de l’impôt sur le revenu du foyer, les avis d’imposition et des simulations.' },
+    en: { title: 'Tax', line: 'An estimate of the household’s French income tax, the tax notices and what-if simulations.' },
+  },
+  {
+    slug: 'garde-d-enfants', icon: 'baby', route: '/childcare',
+    fr: { title: 'Garde d’enfants', line: 'Le contrat de l’assistante maternelle, les relevés pour Pajemploi, le crédit d’impôt.' },
+    en: { title: 'Childcare', line: 'The childminder’s contract, statements ready for Pajemploi, the childcare tax credit.' },
+  },
+  {
+    slug: 'projets', icon: 'target', route: '/scenarios',
+    fr: { title: 'Projets', line: 'Objectifs d’épargne, projection du patrimoine et scénarios comme l’achat d’un bien.' },
+    en: { title: 'Planning', line: 'Savings goals, a net worth projection and scenarios such as buying a property.' },
+  },
+  {
+    slug: 'documents', icon: 'file-text', route: '/documents',
+    fr: { title: 'Documents', line: 'Les fichiers du foyer, rattachés à ce qu’ils concernent.' },
+    en: { title: 'Documents', line: 'The household’s files, linked to the items they concern.' },
+  },
+  {
+    slug: 'synchro-bancaire', icon: 'landmark', route: '/settings/banks',
+    fr: { title: 'Synchro bancaire', line: 'Soldes et opérations depuis la banque, ou par fichiers de relevés OFX et CAMT.053.' },
+    en: { title: 'Bank sync', line: 'Balances and transactions from the bank, or from OFX and CAMT.053 statement files.' },
+  },
+  {
+    slug: 'assistant', icon: 'sparkles', route: '/proposals',
+    fr: { title: 'Assistant', line: 'Votre assistant IA lit vos chiffres et propose ; une personne valide chaque changement.' },
+    en: { title: 'Assistant', line: 'Your AI assistant reads your figures and proposes; a person approves every change.' },
+  },
+];

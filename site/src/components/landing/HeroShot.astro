@@ -1,0 +1,26 @@
+---
+// The app's overview right under the hero, in the visitor's theme, with the soft blue halo of the approved direction.
+import Screen from '../Screen.astro';
+import type { Lang } from '../../data/locale';
+
+interface Props { lang: Lang }
+const alt = {
+  fr: 'La vue d’ensemble de Nid pour le foyer de démo : patrimoine, revenus du mois, engagements et ce qui reste.',
+  en: 'Nid’s overview for the demo household: net worth, the month’s income, commitments and what is left.',
+}[Astro.props.lang];
+---
+<div class="hero-shot not-content">
+  <Screen name="overview" alt={alt} eager />
+</div>
+
+<style>
+  .hero-shot { position: relative; margin-block: 1rem 2rem; }
+  :global(:root:not([data-theme='light'])) .hero-shot::before {
+    content: '';
+    position: absolute;
+    inset: -20% 0 auto;
+    height: 80%;
+    z-index: -1;
+    background: radial-gradient(60% 60% at 60% 30%, oklch(0.3 0.1 256), transparent 70%);
+  }
+</style>
