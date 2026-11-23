@@ -1275,10 +1275,11 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
     public class Resources(PostgresFixture fixture) : IClassFixture<PostgresFixture>
     {
         /// <summary>
-        /// Every request carrying a bank account, bank line or proposal marker, on every such resource of the dataset, as A and as B: one the
-        /// actor does not read is « not found » (its existence is not disclosed), one they read but may not change is forbidden, and the
-        /// rest is never turned away by access. Each resource follows the rights of its §2 row: an account or a line its envelope twin's, a
-        /// proposal its target's.
+        /// Every request carrying a bank account, bank line, proposal or tax assessment marker, on every such resource of the dataset, as A
+        /// and as B: one the actor does not read is « not found » (its existence is not disclosed), one they read but may not change is
+        /// forbidden, and the rest is never turned away by access. Each resource follows the rights of its §2 row: an account or a line its
+        /// envelope twin's, a proposal its target's. A notice follows its declarants (tax assessments spec §4): they read and change it, nobody
+        /// else sees it.
         /// </summary>
         [Fact]
         public async Task Every_resource_scoped_request_is_refused_exactly_as_the_rules_say()
@@ -1286,6 +1287,8 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
             var data = await MixedDataset.CreateAsync(fixture);
             await using var app = data.App;
             var proposals = data.Proposals.SelectMany(kv => kv.Value.Select(id => KeyValuePair.Create(id, kv.Key))).ToDictionary();
+            // A notice's « row » is its declarant.
+            var notices = new Dictionary<Guid, string> { [data.NoticeB.Notice] = data.NameOf(app.AdultB) };
 
             var mismatches = new List<string>();
             foreach (var entry in RequestCatalogue.Entries.Where(e => e.BuildOn is not null))
@@ -1296,6 +1299,8 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
                         => (data.BankAccounts, "account", (Func<Failure?, bool>)(f => f?.Code == Nid.Banking.Contracts.BankingCodes.AccountNotFound)),
                     var t when typeof(Nid.Banking.Contracts.IBankLineScoped).IsAssignableFrom(t)
                         => (data.BankLines, "line", f => f is NotFoundFailure { Resource: "bank transaction" }),
+                    var t when typeof(Nid.Tax.Contracts.ITaxAssessmentScoped).IsAssignableFrom(t)
+                        => (notices, "notice", f => f is NotFoundFailure { Resource: "tax assessment" }),
                     _ => (proposals, "proposal", f => f is NotFoundFailure { Resource: "proposal" }),
                 };
                 foreach (var (id, row) in resources)
@@ -1307,12 +1312,16 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
                         Nid.Banking.Contracts.IBankAccountScoped a => a.Access,
                         Nid.Banking.Contracts.IBankLineScoped l => l.Access,
                         IProposalScoped p => p.Access,
+                        Nid.Tax.Contracts.ITaxAssessmentScoped => AccessKind.Read, // a declarant changes what they read
                         _ => throw new Xunit.Sdk.XunitException($"{entry.RequestType.Name} has a BuildOn but no resource marker."),
                     };
                     var (_, failure) = await app.InvokeAsync(actor, request, TestContext.Current.CancellationToken);
                     var where = $"{entry.RequestType.Name} on {row}'s {kind} by {data.NameOf(actor)}";
 
-                    if (!data.ExpectedReadable(actor).Contains(data[row]))
+                    var readable = request is Nid.Tax.Contracts.ITaxAssessmentScoped
+                        ? row == data.NameOf(actor)
+                        : data.ExpectedReadable(actor).Contains(data[row]);
+                    if (!readable)
                     {
                         if (!hidden(failure))
                             mismatches.Add($"{where}: the rules hide it, so it must be « not found », but the pipeline answered {Describe(failure)}");

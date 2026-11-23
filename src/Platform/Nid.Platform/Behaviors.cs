@@ -30,7 +30,7 @@ public static class PipelineOrder
 
     /// <summary>
     /// #516: after the item checks, before the handler: a module's own resource that is no registry item (a bank account or line, a
-    /// document, a proposal, a scenario's visibility) and the « banking on » switch. A request carries one family at most.
+    /// document, a proposal, a scenario's visibility, a tax assessment) and the « banking on » switch. A request carries one family at most.
     /// </summary>
     public const uint ResourceAccess = ModuleBehaviorOrder.ResourceAccess;
 
