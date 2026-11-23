@@ -13770,6 +13770,95 @@
         }
       }
     },
+    "/api/v1/ai/usage": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LlmUsageView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/ai/budget": {
       "get": {
         "tags": [
@@ -53913,6 +54002,130 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "LlmCallView": {
+        "required": [
+          "id",
+          "createdAt",
+          "use",
+          "tokensIn",
+          "tokensOut",
+          "status"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "use": {
+            "type": "string"
+          },
+          "model": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "destination": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "destinationKind": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tokensIn": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "tokensOut": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "costEur": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "type": "string"
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "LlmMonthView": {
+        "required": [
+          "calls",
+          "tokensIn",
+          "tokensOut",
+          "costEur"
+        ],
+        "type": "object",
+        "properties": {
+          "calls": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "tokensIn": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "tokensOut": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "costEur": {
+            "type": "string"
+          }
+        }
+      },
+      "LlmUsageView": {
+        "required": [
+          "items",
+          "total",
+          "page",
+          "month",
+          "totals"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LlmCallView"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "page": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "month": {
+            "type": "string",
+            "format": "date"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/LlmMonthView"
           }
         }
       },

@@ -767,6 +767,7 @@ const aiJobsSearch = (search: Record<string, unknown>): { status?: string; type?
   ...(typeof search.type === 'string' && search.type !== '' ? { type: search.type } : {}),
   ...pageSearch(search),
 });
+const aiUsageRoute = createRoute({ getParentRoute: () => rootRoute, path: '/settings/ai/usage', validateSearch: pageSearch, component: lazyRouteComponent(() => import('@/features/settings/ai/AiUsagePage'), 'AiUsagePage') });
 const aiJobsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/settings/ai/jobs', validateSearch: aiJobsSearch, component: lazyRouteComponent(() => import('@/features/settings/ai/AiJobsPage'), 'AiJobsPage') });
 const calendarSettingsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/settings/calendar', component: lazyRouteComponent(() => import('@/features/settings/CalendarSettingsPage'), 'CalendarSettingsPage') });
 
@@ -822,7 +823,7 @@ const adminSecurityRoute = createRoute({ getParentRoute: () => rootRoute, valida
 export const routeTree = rootRoute.addChildren([
   indexRoute, dashboardRoute, calendarRoute, yearReviewRoute, subscriptionsRoute, subscriptionNewRoute, subscriptionDetailRoute, investmentsRoute, investmentNewRoute, investmentDetailRoute, holdingDetailRoute,
   goalsRoute, goalNewRoute, goalDetailRoute, childcareRoute, childcareNewRoute, childcareDetailRoute, childcareEndRoute, childcareSettlementRoute, childcareStatementRoute, nannyNewRoute, nannyDetailRoute, documentsRoute, documentDetailRoute, seriesRoute, incomeRoute, incomeNewRoute, incomeDetailRoute, spendingRoute, taxRoute, taxAssessmentNewRoute, taxAssessmentEditRoute, retirementRoute, scenariosRoute, scenarioNewRoute, projectionScenarioRoute, saleScenarioRoute, scenarioCompareRoute, scenarioDetailRoute, propertiesRoute, propertyNewRoute, propertyDetailRoute, loansRoute, loanNewRoute, loanDetailRoute, loanContractRoute, propertyReceiptRoute, propertyArrearsLetterRoute, notificationsRoute, routineRoute, proposalsRoute, proposalDetailRoute,
-  importRoute.addChildren([importHomeRoute, importSessionRoute]), exportRoute, settingsRoute, appearanceRoute, notificationSettingsRoute, projectionSettingsRoute, personsSettingsRoute, calendarSettingsRoute, banksSettingsRoute, aiSettingsRoute, aiJobsRoute,
+  importRoute.addChildren([importHomeRoute, importSessionRoute]), exportRoute, settingsRoute, appearanceRoute, notificationSettingsRoute, projectionSettingsRoute, personsSettingsRoute, calendarSettingsRoute, banksSettingsRoute, aiSettingsRoute, aiJobsRoute, aiUsageRoute,
   securityRoute, operationsRoute, moreRoute, changelogRoute, forbiddenRoute, adminRoute, adminUsersRoute, adminHouseholdRoute, adminFxRoute, adminPricesRoute, adminIrlRoute, adminInflationRoute, adminBankingRoute, adminCatalogRoute, adminJobsRoute, adminJobRoute, adminJobRunRoute,
   adminSystemRoute, adminNotificationsRoute, adminSecurityRoute,
 ]);

@@ -62,6 +62,7 @@ export function CloudSection({ admin }: { admin: boolean }) {
           </li>
           {p.reviewDue ? <li className="text-status-warning-text">{t('ai.cloud.review_due')}</li> : null}
         </ul>
+        {p.provider === 'gemini' ? <p className="text-sm text-muted-foreground">{t('ai.cloud.gemini_paid')}</p> : null}
         <p className="text-sm">{p.keyHint ? t('ai.cloud.key_hint', { hint: p.keyHint }) : t('ai.cloud.no_key')}</p>
         {admin ? (
           <div className="flex flex-wrap gap-2">

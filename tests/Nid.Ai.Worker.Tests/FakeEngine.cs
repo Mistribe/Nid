@@ -24,6 +24,9 @@ public sealed class FakeEngine : HttpMessageHandler
 
     public List<JsonObject> ChatRequests { get; } = [];
 
+    /// <summary>The <c>Authorization</c> header of each chat request (a cloud provider's key; none for an engine).</summary>
+    public List<string?> Authorizations { get; } = [];
+
     public static string TextChunk(string text) => $$$"""{"choices":[{"index":0,"delta":{"content":{{{JsonValue.Create(text).ToJsonString()}}}}}]}""";
 
     public static string ToolChunk(int index, string? id, string? name, string arguments)
@@ -61,6 +64,7 @@ public sealed class FakeEngine : HttpMessageHandler
                 return Json(new JsonObject { ["object"] = "list", ["data"] = new JsonArray([.. Models.Select(m => m.DeepClone())]) });
             case "/v1/chat/completions":
                 ChatRequests.Add(JsonNode.Parse(await request.Content!.ReadAsStringAsync(cancellationToken))!.AsObject());
+                Authorizations.Add(request.Headers.Authorization?.ToString());
                 var body = string.Concat(Chunks.Select(c => $"data: {c}\n\n")) + "data: [DONE]\n\n";
                 return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(body, Encoding.UTF8, "text/event-stream") };
             default:

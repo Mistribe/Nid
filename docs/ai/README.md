@@ -486,6 +486,16 @@ et `bank_labels` attendent `allowed_kinds`, `local_only` jamais (§6.1) ; le con
 de la demande : pas d'autre essai. Premier adaptateur : Anthropic (Messages API, `anthropic-version: 2026-10-21`, qui
 refuse la température) ; OpenAI, Gemini et Mistral suivent (#489).
 
+**Livré (#489)** : trois adaptateurs de plus. OpenAI et Mistral partagent le format Chat Completions (`/v1/chat/completions`
+en flux) : OpenAI avec `store: false` imposé (décision U), `max_completion_tokens` et la trame d'usage demandée ; Mistral
+avec `max_tokens`, l'usage arrivant avec le dernier morceau. Gemini passe par `streamGenerateContent?alt=sse` : messages
+système dans `systemInstruction`, l'assistant en `model`, la réponse d'un outil en `functionResponse` nommée d'après son
+appel, et la `thoughtSignature` de chaque appel rendue au tour suivant (champ `signature` du contrat de chat). Les profils
+livrés : `openai-gpt` (`gpt-5.4-mini`), `gemini-flash` (`gemini-3.8-flash`, offre payante seulement : l'offre gratuite
+entraîne sur les données et n'est permise ni dans l'EEE, ni en Suisse, ni au Royaume-Uni), `mistral-large`
+(`mistral-large-4-0`). La page « Utilisation IA » (`/settings/ai/usage`) montre à chaque adulte ses propres appels, et à
+tous le total du mois du foyer (décision S).
+
 ### 5.5 Outils
 
 Appels d'outils **désactivés pour toutes les tâches sauf `chat`**, où seuls les outils de l'assistant (§8.2) sont

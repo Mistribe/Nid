@@ -39,6 +39,13 @@
                 },
                 "arguments": {
                   "type": "string"
+                },
+                "signature": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "default": null
                 }
               },
               "required": [

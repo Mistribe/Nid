@@ -297,6 +297,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<Nid.Ai.Application.IModelRequests, Nid.Ai.Application.ModelRequests>();
         // #486: the one way to a model; workers are the first link of the chain.
         services.AddScoped<Nid.Ai.Application.ILlmCalls, Nid.Ai.Infrastructure.Persistence.LlmCallStore>();
+        services.AddScoped<Nid.Ai.Application.ILlmCallReads, Nid.Ai.Infrastructure.Persistence.LlmCallReads>();
         services.AddScoped<Nid.Ai.Application.ILlmProvider, Nid.Ai.Application.WorkerProvider>();
         services.AddScoped<Nid.Ai.Application.ILlmGateway, Nid.Ai.Application.LlmGateway>();
         // #487: the cloud profiles Nid ships, their keys and settings, after the workers in the chain. The client reaches
@@ -319,6 +320,9 @@ public static class NidServiceCollectionExtensions
             return new Nid.Ai.Infrastructure.Cloud.CloudHttp(http);
         });
         services.AddSingleton<Nid.Ai.Application.ICloudAdapter, Nid.Ai.Infrastructure.Cloud.AnthropicAdapter>();
+        services.AddSingleton<Nid.Ai.Application.ICloudAdapter, Nid.Ai.Infrastructure.Cloud.OpenAiAdapter>();
+        services.AddSingleton<Nid.Ai.Application.ICloudAdapter, Nid.Ai.Infrastructure.Cloud.MistralAdapter>();
+        services.AddSingleton<Nid.Ai.Application.ICloudAdapter, Nid.Ai.Infrastructure.Cloud.GeminiAdapter>();
         services.AddScoped<Nid.Ai.Application.ILlmProvider, Nid.Ai.Application.CloudProvider>();
         services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<Nid.Ai.Infrastructure.Workers.WorkerDirectory>();

@@ -142,6 +142,13 @@ public static class AiEndpoints
                 => (await invoker.InvokeAsync(new RevokeProviderKeyCommand(provider), ct)).ToHttp(view => view))
             .Returns<CloudSettingsView>();
 
+        // #489: « Utilisation IA »: the reader's own calls and the household's month.
+        routes.MapGroup("/api/v1/ai/usage").RequireAuthorization()
+            .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>()
+            .MapGet("", async (int? page, IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new GetLlmUsageQuery(page), ct)).ToHttp(view => view))
+            .Returns<LlmUsageView>();
+
         // #488: the household's monthly budget for paid providers.
         var budget = routes.MapGroup("/api/v1/ai/budget").RequireAuthorization()
             .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>();

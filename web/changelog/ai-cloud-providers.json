@@ -1,0 +1,4 @@
+{
+  "en": "Settings › AI: choose each AI use's model among those your workers offer, and, if you wish, let a use go on to a cloud provider (Anthropic, OpenAI, Gemini or Mistral) once an administrator has accepted its terms and entered its key. A monthly budget caps paid providers, and « Utilisation » lists your calls and what they cost.",
+  "fr": "Réglages › IA : choisissez le modèle de chaque usage de l’IA parmi ceux de vos workers et, si vous le voulez, laissez un usage passer à un fournisseur cloud (Anthropic, OpenAI, Gemini ou Mistral) une fois que l’administrateur a accepté ses conditions et saisi sa clé. Un budget mensuel plafonne les fournisseurs payants, et « Utilisation » liste vos appels et ce qu’ils coûtent."
+}

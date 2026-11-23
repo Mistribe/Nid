@@ -13049,6 +13049,97 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/ai/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    page?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LlmUsageView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/ai/budget": {
         parameters: {
             query?: never;
@@ -40311,6 +40402,42 @@ export interface components {
             counterpartName?: null | string;
             expectedAmount?: null | string;
             expectedCurrency?: null | string;
+        };
+        LlmCallView: {
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            createdAt: string;
+            use: string;
+            model?: null | string;
+            destination?: null | string;
+            destinationKind?: null | string;
+            /** Format: int32 */
+            tokensIn: number;
+            /** Format: int32 */
+            tokensOut: number;
+            costEur?: null | string;
+            status: string;
+            code?: null | string;
+        };
+        LlmMonthView: {
+            /** Format: int32 */
+            calls: number;
+            /** Format: int64 */
+            tokensIn: number;
+            /** Format: int64 */
+            tokensOut: number;
+            costEur: string;
+        };
+        LlmUsageView: {
+            items: components["schemas"]["LlmCallView"][];
+            /** Format: int32 */
+            total: number;
+            /** Format: int32 */
+            page: number;
+            /** Format: date */
+            month: string;
+            totals: components["schemas"]["LlmMonthView"];
         };
         LoanBalanceView: {
             /** Format: uuid */

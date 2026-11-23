@@ -1,0 +1,25 @@
+{
+  "id": "gemini-flash",
+  "provider": "gemini",
+  "tier": "paid",
+  "host": "generativelanguage.googleapis.com",
+  "model": "gemini-3.8-flash",
+  "capabilities": [
+    "chat"
+  ],
+  "dataTerms": {
+    "trainsOnData": {
+      "eea_ch_uk": false,
+      "other": false
+    },
+    "humanReview": true,
+    "retentionSwitches": [],
+    "termsUrl": "https://aistudio.google.com/docs/terms",
+    "reviewedOn": "2026-11-22"
+  },
+  "pricing": {
+    "inputPerMillion": 1.5,
+    "outputPerMillion": 7.5,
+    "currency": "USD"
+  }
+}

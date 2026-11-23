@@ -1,0 +1,28 @@
+{
+  "id": "openai-gpt",
+  "provider": "openai",
+  "tier": "paid",
+  "host": "api.openai.com",
+  "model": "gpt-5.4-mini",
+  "capabilities": [
+    "chat"
+  ],
+  "dataTerms": {
+    "trainsOnData": {
+      "eea_ch_uk": false,
+      "other": false
+    },
+    "humanReview": true,
+    "retentionDays": 30,
+    "retentionSwitches": [
+      "store=false"
+    ],
+    "termsUrl": "https://developers.openai.com/api/docs/guides/your-data",
+    "reviewedOn": "2026-11-22"
+  },
+  "pricing": {
+    "inputPerMillion": 0.75,
+    "outputPerMillion": 4.5,
+    "currency": "USD"
+  }
+}

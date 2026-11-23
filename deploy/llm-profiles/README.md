@@ -19,3 +19,12 @@ Réglages › IA, après avoir confirmé la région du foyer, entré la clé du 
 
 Relire les conditions d'un fournisseur, c'est changer `reviewedOn` : un profil déjà activé doit alors être accepté de
 nouveau.
+
+Profils livrés (conditions relues le 2026-11-22) :
+
+| Profil | Modèle | À savoir |
+|---|---|---|
+| `anthropic-claude` | `claude-opus-5-5` | API commerciale : pas d'entraînement ; demandes gardées 30 jours |
+| `openai-gpt` | `gpt-5.4-mini` | Pas d'entraînement par défaut ; journaux d'abus gardés 30 jours ; Nid impose `store: false` |
+| `gemini-flash` | `gemini-3.8-flash` | Offre **payante** seulement : la clé doit venir d'un projet Google avec la facturation activée. L'offre gratuite entraîne sur les données et n'est pas permise dans l'EEE, en Suisse et au Royaume-Uni |
+| `mistral-large` | `mistral-large-4-0` | Pas d'entraînement, sauf sur les modèles en préversion : sa fiche le dit disponible (GA) au 2026-11-22 |

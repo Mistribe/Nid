@@ -1,0 +1,25 @@
+{
+  "id": "mistral-large",
+  "provider": "mistral",
+  "tier": "paid",
+  "host": "api.mistral.ai",
+  "model": "mistral-large-4-0",
+  "capabilities": [
+    "chat"
+  ],
+  "dataTerms": {
+    "trainsOnData": {
+      "eea_ch_uk": false,
+      "other": false
+    },
+    "humanReview": true,
+    "retentionSwitches": [],
+    "termsUrl": "https://legal.mistral.ai/terms/commercial-terms-of-service",
+    "reviewedOn": "2026-11-22"
+  },
+  "pricing": {
+    "inputPerMillion": 0.7,
+    "outputPerMillion": 2.1,
+    "currency": "USD"
+  }
+}

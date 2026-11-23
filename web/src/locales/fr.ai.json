@@ -260,7 +260,8 @@
       "enabled": "Fournisseur activé.",
       "disable": "Désactiver",
       "disable_confirm": "Nid n'enverra plus rien à {{name}}. Chaque adulte en sera prévenu.",
-      "disabled": "Fournisseur désactivé."
+      "disabled": "Fournisseur désactivé.",
+      "gemini_paid": "Utilisez une clé d'un projet Google avec la facturation activée : l'offre gratuite de Gemini laisse Google s'entraîner sur vos données."
     },
     "budget": {
       "title": "Budget du cloud",
@@ -274,6 +275,28 @@
       "required": "Indiquez un montant, 0 compris.",
       "save": "Enregistrer",
       "saved": "Budget enregistré."
+    },
+    "usage": {
+      "title": "Utilisation",
+      "link": "Voir l'utilisation",
+      "intro": "Vos appels aux modèles, les plus récents d'abord : pour quel usage, où, combien de jetons et ce qu'ils ont coûté. Jamais leur contenu. Le total du mois compte tout le foyer.",
+      "month_one": "Ce mois-ci, pour le foyer : {{count}} appel, {{tokens}} jetons, {{cost}}.",
+      "month_other": "Ce mois-ci, pour le foyer : {{count}} appels, {{tokens}} jetons, {{cost}}.",
+      "empty": "Aucun appel",
+      "empty_body": "Vos appels aux modèles apparaîtront ici dès que vous utiliserez une fonctionnalité qui en demande un.",
+      "when": "Quand",
+      "use": "Usage",
+      "where": "Où",
+      "model": "Modèle",
+      "tokens": "Jetons",
+      "tokens_value": "{{in}} / {{out}}",
+      "cost": "Coût",
+      "outcome": "Résultat",
+      "status_succeeded": "Réussi",
+      "status_refused": "Refusé par le modèle",
+      "status_error": "Échec",
+      "status_no_destination": "Aucun modèle disponible",
+      "status_blocked_budget": "Bloqué par le budget"
     }
   }
 }

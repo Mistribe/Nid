@@ -60,10 +60,11 @@ public sealed partial record ChatTool(string Name, string Description, JsonEleme
 }
 
 /// <summary>A call the model asks for: its id, the tool, the arguments as the JSON text the model wrote (checked by the
-/// tool loop, not here).</summary>
-public sealed record ChatToolCall(string Id, string Name, string Arguments) : IContract
+/// tool loop, not here). <c>signature</c>: what a provider needs back with the call on the next turn (Gemini's
+/// <c>thoughtSignature</c>), opaque to Nid (#489).</summary>
+public sealed record ChatToolCall(string Id, string Name, string Arguments, string? Signature = null) : IContract
 {
-    public bool IsValid() => Id.Length is > 0 and <= 200 && ChatTool.ToolName().IsMatch(Name) && Arguments.Length <= 100_000;
+    public bool IsValid() => Id.Length is > 0 and <= 200 && ChatTool.ToolName().IsMatch(Name) && Arguments.Length <= 100_000 && Signature is null or { Length: <= 16_384 };
 }
 
 /// <summary>
