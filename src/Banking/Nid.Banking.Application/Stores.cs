@@ -5,6 +5,26 @@ using UnambitiousFx.Functional;
 
 namespace Nid.Banking.Application;
 
+/// <summary>
+/// #513: the settings Banking keeps in its own schema, set by the admin: the deprecated installation-wide application (D14, #414) and
+/// how long unlinked and ignored transactions are kept, in months (D3; null keeps them all).
+/// </summary>
+public sealed record BankingSettingsView(string? EnableBankingAppId, int? BankRetentionMonths);
+
+/// <summary>
+/// A field left <c>null</c> is left unchanged; an empty <paramref name="EnableBankingAppId"/> clears it;
+/// <paramref name="ClearBankRetention"/> clears <paramref name="BankRetentionMonths"/> (1 to 600; none keeps every transaction).
+/// </summary>
+public sealed record BankingSettingsChange(string? EnableBankingAppId = null, int? BankRetentionMonths = null, bool ClearBankRetention = false);
+
+public interface IBankingSettings
+{
+    Task<BankingSettingsView> ReadAsync(CancellationToken ct);
+
+    /// <summary>The retention is 1 to 600 months (<see cref="BankingCodes.InvalidBankRetention"/>).</summary>
+    Task<Result<BankingSettingsView>> UpdateAsync(BankingSettingsChange change, CancellationToken ct);
+}
+
 /// <summary>What an adult's own application is, without its key.</summary>
 public sealed record StoredApplication(PersonId Person, string ApplicationId, Instant KeyLoadedAt, bool KeyReadable);
 

@@ -14,8 +14,14 @@ public static class BankingCodes
     public const string SyncRunning = "banking.sync_running";
     public const string ProviderError = "banking.provider_error";
 
-    /// <summary>An Enable Banking application that connections still use cannot be removed.</summary>
-    public const string ApplicationInUse = Nid.Core.Contracts.BankingApplicationCodes.InUse;
+    /// <summary>An Enable Banking application that connections still use cannot be removed or replaced.</summary>
+    public const string ApplicationInUse = "banking.application_in_use";
+
+    /// <summary>#414: the installation-wide application can no longer be set, nor replaced by another id; only kept or cleared.</summary>
+    public const string InstallationDeprecated = "banking.installation_application_deprecated";
+
+    /// <summary>Bank transactions are kept 1 to 600 months (D3). Its value is Core's, where the setting lived before #513.</summary>
+    public const string InvalidBankRetention = "core.invalid_bank_retention";
 
     /// <summary>
     /// #414: the last error of a connection the transfer of the installation application ended (status <c>revoked</c>): it was made with

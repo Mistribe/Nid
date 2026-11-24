@@ -25,7 +25,7 @@ public sealed record BankSyncRequested(Guid RunId);
 
 [RequestHandler<SyncAllCommand, BankSyncRunView>]
 public sealed class SyncAllHandler(
-    BankingAccess access, IConnectionStore connections, BankSyncCollector collector, IHouseholdSettings settings, IHouseholdCalendar calendar,
+    BankingAccess access, IConnectionStore connections, BankSyncCollector collector, IBankingSettings settings, IHouseholdCalendar calendar,
     ITransactionStore transactions, BankReconciliation reconciliation, RecurringDebits recurring, IDocumentLinks documents)
     : IRequestHandler<SyncAllCommand, BankSyncRunView>
 {

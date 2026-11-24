@@ -38,10 +38,3 @@ public interface IExpectedCharges
     /// </summary>
     Task<Result<IReadOnlyList<ExpectedCharge>>> ChargesAsync(PersonId reader, VisibilityScope scope, LocalDate from, LocalDate to, CancellationToken ct);
 }
-
-/// <summary>Issue #81: when the reader's next income is expected, for the shortfall ahead.</summary>
-public interface IExpectedIncome
-{
-    /// <summary>The earliest next payment date, after <paramref name="today"/>, of the active income sources the reader sees (<see cref="VisibilityScope.Me"/>); null when none pays.</summary>
-    Task<LocalDate?> NextAsync(PersonId reader, LocalDate today, CancellationToken ct);
-}

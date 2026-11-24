@@ -9,6 +9,8 @@ public sealed class BankingDbContext(DbContextOptions<BankingDbContext> options)
 {
     public const string Schema = "banking";
 
+    public DbSet<SettingsRow> Settings => Set<SettingsRow>();
+
     public DbSet<ApplicationRow> Applications => Set<ApplicationRow>();
 
     public DbSet<ConnectionRow> Connections => Set<ConnectionRow>();
@@ -45,6 +47,17 @@ public sealed class BankingDbContext(DbContextOptions<BankingDbContext> options)
         modelBuilder.HasDefaultSchema(Schema);
         // #84: the operations search ignores accents.
         modelBuilder.HasPostgresExtension("unaccent");
+
+        modelBuilder.Entity<SettingsRow>(e =>
+        {
+            e.ToTable("settings", t =>
+            {
+                t.HasCheckConstraint("ck_settings_single_row", "id = 1");
+                t.HasCheckConstraint("ck_settings_bank_retention", "bank_retention_months between 1 and 600");
+            });
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+        });
 
         modelBuilder.Entity<ApplicationRow>(e =>
         {

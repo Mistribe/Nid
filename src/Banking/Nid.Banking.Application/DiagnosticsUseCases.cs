@@ -20,7 +20,7 @@ public sealed record TestBankingConnectionCommand(string RedirectUrl) : ICommand
 
 [RequestHandler<GetBankingDiagnosticsQuery, BankingDiagnosticsView>]
 public sealed class GetBankingDiagnosticsHandler(
-    IHouseholdSettings settings, BankingKey key, IBankSyncRunLog runs, IConnectionStore connections, BankAccountReader reader, IClock clock,
+    IBankingSettings settings, BankingKey key, IBankSyncRunLog runs, IConnectionStore connections, BankAccountReader reader, IClock clock,
     IApplicationStore applications, IPersonRegistry persons, BankingOptions options)
     : IRequestHandler<GetBankingDiagnosticsQuery, BankingDiagnosticsView>
 {
@@ -48,7 +48,7 @@ public sealed class GetBankingDiagnosticsHandler(
 }
 
 [RequestHandler<TestBankingConnectionCommand, BankingConnectionTestView>]
-public sealed class TestBankingConnectionHandler(IHouseholdSettings settings, BankingKey key, BankingOptions options, IEnableBankingClient client)
+public sealed class TestBankingConnectionHandler(IBankingSettings settings, BankingKey key, BankingOptions options, IEnableBankingClient client)
     : IRequestHandler<TestBankingConnectionCommand, BankingConnectionTestView>
 {
     public async ValueTask<Result<BankingConnectionTestView>> HandleAsync(TestBankingConnectionCommand command, CancellationToken ct = default)

@@ -21,7 +21,7 @@ public sealed record TransferInstallationApplicationCommand(Guid PersonId)
 
 [RequestHandler<TransferInstallationApplicationCommand, bool>]
 public sealed partial class TransferInstallationApplicationHandler(
-    IHouseholdSettings settings, BankingOptions options, IPersonRegistry persons, IApplicationStore applications, IConnectionStore connections,
+    IBankingSettings settings, BankingOptions options, IPersonRegistry persons, IApplicationStore applications, IConnectionStore connections,
     IEnableBankingClient client, IUnitOfWork unitOfWork, ILogger<TransferInstallationApplicationHandler> log)
     : IRequestHandler<TransferInstallationApplicationCommand, bool>
 {
@@ -55,7 +55,7 @@ public sealed partial class TransferInstallationApplicationHandler(
         await connections.StampLegacyAsync(appId, ct);
         if (!await applications.SaveAsync(person, appId, options.PrivateKey, ct))
             return MyApplication.Changed<bool>();
-        var cleared = await settings.UpdateAsync(new HouseholdSettingsChange(null, null, EnableBankingAppId: ""), ct);
+        var cleared = await settings.UpdateAsync(new BankingSettingsChange(EnableBankingAppId: ""), ct);
         if (cleared.TryGetFailure(out var failure))
             return Result.Failure<bool>(failure!);
 

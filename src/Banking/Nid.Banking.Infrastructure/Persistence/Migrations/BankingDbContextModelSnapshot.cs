@@ -676,6 +676,31 @@ namespace Nid.Banking.Infrastructure.Persistence.Migrations
                     b.ToTable("rule", "banking");
                 });
 
+            modelBuilder.Entity("Nid.Banking.Infrastructure.Persistence.SettingsRow", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    b.Property<int?>("BankRetentionMonths")
+                        .HasColumnType("integer")
+                        .HasColumnName("bank_retention_months");
+
+                    b.Property<string>("EnableBankingAppId")
+                        .HasColumnType("text")
+                        .HasColumnName("enable_banking_app_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_settings");
+
+                    b.ToTable("settings", "banking", t =>
+                        {
+                            t.HasCheckConstraint("ck_settings_bank_retention", "bank_retention_months between 1 and 600");
+
+                            t.HasCheckConstraint("ck_settings_single_row", "id = 1");
+                        });
+                });
+
             modelBuilder.Entity("Nid.Banking.Infrastructure.Persistence.SuggestionDismissalRow", b =>
                 {
                     b.Property<Guid>("Id")

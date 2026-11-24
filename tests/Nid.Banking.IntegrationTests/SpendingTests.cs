@@ -274,8 +274,8 @@ public class SpendingTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
     {
         await using var scope = app.Services.CreateAsyncScope();
         scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
-        Assert.True((await scope.ServiceProvider.GetRequiredService<IHouseholdSettings>()
-            .UpdateAsync(new HouseholdSettingsChange(null, null, BankRetentionMonths: months), Ct)).IsSuccess);
+        Assert.True((await scope.ServiceProvider.GetRequiredService<IBankingSettings>()
+            .UpdateAsync(new BankingSettingsChange(BankRetentionMonths: months), Ct)).IsSuccess);
     }
 
     private static (string, string)[] Months(JsonElement view)

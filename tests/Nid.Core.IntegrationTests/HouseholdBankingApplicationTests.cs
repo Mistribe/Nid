@@ -17,7 +17,7 @@ public class HouseholdBankingApplicationTests(PostgresFixture postgres)
 
     private static async Task AssertDeprecatedAsync(HttpResponseMessage response)
     {
-        await BankingApi.AssertRefusedAsync(response, HttpStatusCode.UnprocessableEntity, BankingApplicationCodes.InstallationDeprecated);
+        await BankingApi.AssertRefusedAsync(response, HttpStatusCode.UnprocessableEntity, BankingCodes.InstallationDeprecated);
         var errors = (await BankingApi.JsonAsync(response)).GetProperty("errors").EnumerateArray().Select(e => e.FieldPath()).ToList();
         Assert.Contains("enableBankingAppId", errors);
     }
@@ -46,7 +46,4 @@ public class HouseholdBankingApplicationTests(PostgresFixture postgres)
         Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Patch, Household, new { enableBankingAppId = "" })).StatusCode);
         await AssertDeprecatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Patch, Household, new { enableBankingAppId = "app-1" }));
     }
-
-    [Fact]
-    public void The_shared_code_is_the_banking_one() => Assert.Equal(BankingApplicationCodes.InUse, BankingCodes.ApplicationInUse);
 }

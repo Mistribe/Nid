@@ -163,9 +163,11 @@ public class SecurityEventTests(PostgresFixture fixture) : IClassFixture<Postgre
         (await app.RawAsync(app.AdultA, HttpMethod.Patch, "/api/v1/admin/household", new { bankingEnabled = true, enableBankingAppId = "app-0a1b" }))
             .EnsureSuccessStatusCode();
 
-        var settings = Assert.Single(await EventsAsync(app, "household_settings_changed"));
-        Assert.Equal("banking_enabled,enable_banking_app_id", JsonDocument.Parse(settings.Data).RootElement.GetProperty("fields").GetString());
-        Assert.DoesNotContain("app-0a1b", settings.Data);
+        // #513: the switch is the household's, the application Banking's: one event each.
+        var events = await EventsAsync(app, "household_settings_changed");
+        Assert.Equal(["banking_enabled", "enable_banking_app_id"],
+            events.Select(e => JsonDocument.Parse(e.Data).RootElement.GetProperty("fields").GetString()).Order(StringComparer.Ordinal));
+        Assert.All(events, e => Assert.DoesNotContain("app-0a1b", e.Data));
     }
 
     [Fact]

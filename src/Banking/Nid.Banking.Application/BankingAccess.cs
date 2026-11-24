@@ -13,13 +13,13 @@ namespace Nid.Banking.Application;
 /// see it now. An account on a dependent's envelope is that child's, which every adult who writes the envelope manages (#354).
 /// </summary>
 public sealed class BankingAccess(
-    IHouseholdSettings settings, BankingOptions options, IAccessPolicy policy, IConnectionStore connections, IAccountStore accounts,
+    IHouseholdSettings household, IBankingSettings settings, BankingOptions options, IAccessPolicy policy, IConnectionStore connections, IAccountStore accounts,
     IActorAccessor actor, IPersonRegistry persons, IItemRegistry items, IApplicationStore applications)
 {
     public PersonId Person => actor.Current!.PersonId!.Value;
 
-    private static bool Configured(HouseholdSettingsInfo household, BankingOptions options)
-        => !string.IsNullOrWhiteSpace(household.EnableBankingAppId) && !string.IsNullOrWhiteSpace(options.PrivateKey);
+    private static bool Configured(BankingSettingsView banking, BankingOptions options)
+        => !string.IsNullOrWhiteSpace(banking.EnableBankingAppId) && !string.IsNullOrWhiteSpace(options.PrivateKey);
 
     /// <summary>Whether the person can reach Enable Banking: their own application with a readable key, else the installation's.</summary>
     public async Task<bool> ConfiguredAsync(PersonId person, CancellationToken ct)
@@ -46,17 +46,17 @@ public sealed class BankingAccess(
     {
         if (await applications.CredentialAsync(connection.Person, ct) is { } own && own.Id == connection.ApplicationId)
             return Result.Success(own);
-        var household = await settings.ReadAsync(ct);
-        return connection.ApplicationId is null || connection.ApplicationId == household.EnableBankingAppId
-            ? Installation(household)
+        var banking = await settings.ReadAsync(ct);
+        return connection.ApplicationId is null || connection.ApplicationId == banking.EnableBankingAppId
+            ? Installation(banking)
             : NotConfigured();
     }
 
     private async Task<Result<EnableBankingApp>> OwnAsync(PersonId person, CancellationToken ct)
         => await applications.CredentialAsync(person, ct) is { } credential ? Result.Success(credential) : NotConfigured();
 
-    private Result<EnableBankingApp> Installation(HouseholdSettingsInfo household)
-        => Configured(household, options) ? Result.Success(new EnableBankingApp(household.EnableBankingAppId!, options.PrivateKey!)) : NotConfigured();
+    private Result<EnableBankingApp> Installation(BankingSettingsView banking)
+        => Configured(banking, options) ? Result.Success(new EnableBankingApp(banking.EnableBankingAppId!, options.PrivateKey!)) : NotConfigured();
 
     private static Result<EnableBankingApp> NotConfigured()
         => Result.Failure<EnableBankingApp>(new ConflictFailure("Bank sync has no usable Enable Banking application.") { Code = BankingCodes.NotConfigured });
@@ -66,7 +66,7 @@ public sealed class BankingAccess(
     /// through <see cref="IRequiresBanking"/>; jobs and contributions, which are no requests, ask it here.
     /// </summary>
     public async Task<Result> EnabledAsync(CancellationToken ct)
-        => (await settings.ReadAsync(ct)).BankingEnabled
+        => (await household.ReadAsync(ct)).BankingEnabled
             ? Result.Success()
             : Result.Failure(new ConflictFailure("Bank sync is turned off for this household.") { Code = BankingCodes.Disabled });
 

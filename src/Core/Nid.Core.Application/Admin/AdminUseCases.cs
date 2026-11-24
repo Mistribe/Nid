@@ -30,14 +30,6 @@ public sealed record AdultView(
     }
 }
 
-public sealed record HouseholdSettingsView(
-    int MaxAdults, string ReferenceCurrency, int AdultCount, bool PricesEnabled, bool IrlEnabled, bool BankingEnabled, string? EnableBankingAppId, int? BankRetentionMonths, bool InflationEnabled)
-{
-    public static HouseholdSettingsView From(HouseholdSettingsInfo settings)
-        => new(settings.MaxAdults, settings.ReferenceCurrency.Code, settings.AdultCount, settings.PricesEnabled, settings.IrlEnabled,
-            settings.BankingEnabled, settings.EnableBankingAppId, settings.BankRetentionMonths, settings.InflationEnabled);
-}
-
 public sealed record ListAdultsQuery : IQuery<IReadOnlyList<AdultView>>, IAdminOnly;
 
 public sealed record PreRegisterAdultCommand(string DisplayName, string? Email, bool EmailOptional = false) : ICommand<AdultView>, IAdminOnly, IRecordsSecurityEvent
@@ -66,19 +58,17 @@ public sealed record RevokeTokensCommand(PersonId Person) : ICommand<TokensRevok
             new Dictionary<string, string> { ["count"] = ((TokensRevokedView)response).Count.ToString(System.Globalization.CultureInfo.InvariantCulture) });
 }
 
-public sealed record GetHouseholdSettingsQuery : IQuery<HouseholdSettingsView>, IAdminOnly;
+/// <summary>The household-wide settings; the admin household route adds Banking's own (#513).</summary>
+public sealed record GetHouseholdSettingsQuery : IQuery<HouseholdSettingsInfo>, IAdminOnly;
 
 public sealed record UpdateHouseholdSettingsCommand(
-    int? MaxAdults, string? ReferenceCurrency, bool? PricesEnabled, bool? IrlEnabled = null, bool? BankingEnabled = null, string? EnableBankingAppId = null,
-    int? BankRetentionMonths = null, bool ClearBankRetention = false, bool? InflationEnabled = null)
-    : ICommand<HouseholdSettingsView>, IAdminOnly, IRecordsSecurityEvent
+    int? MaxAdults, string? ReferenceCurrency, bool? PricesEnabled, bool? IrlEnabled = null, bool? BankingEnabled = null, bool? InflationEnabled = null)
+    : ICommand<HouseholdSettingsInfo>, IAdminOnly, IRecordsSecurityEvent
 {
     public SecurityEvent? EventFor(object response)
     {
         var fields = new[] { MaxAdults is null ? null : "max_adults", ReferenceCurrency is null ? null : "reference_currency", PricesEnabled is null ? null : "prices_enabled", IrlEnabled is null ? null : "irl_enabled",
-            BankingEnabled is null ? null : "banking_enabled", EnableBankingAppId is null ? null : "enable_banking_app_id",
-            BankRetentionMonths is null && !ClearBankRetention ? null : "bank_retention_months",
-            InflationEnabled is null ? null : "inflation_enabled" };
+            BankingEnabled is null ? null : "banking_enabled", InflationEnabled is null ? null : "inflation_enabled" };
         var joined = string.Join(",", fields.OfType<string>());
         // No field was given (Minor #4): nothing changed, so nothing is worth an event.
         return joined.Length == 0 ? null : new SecurityEvent(SecurityEventNames.HouseholdSettingsChanged, null, [],
@@ -138,30 +128,20 @@ public sealed class RevokeTokensHandler(IPersonRegistry persons, IPersonalAccess
     }
 }
 
-[RequestHandler<GetHouseholdSettingsQuery, HouseholdSettingsView>]
-public sealed class GetHouseholdSettingsHandler(IHouseholdSettings settings) : IRequestHandler<GetHouseholdSettingsQuery, HouseholdSettingsView>
+[RequestHandler<GetHouseholdSettingsQuery, HouseholdSettingsInfo>]
+public sealed class GetHouseholdSettingsHandler(IHouseholdSettings settings) : IRequestHandler<GetHouseholdSettingsQuery, HouseholdSettingsInfo>
 {
-    public async ValueTask<Result<HouseholdSettingsView>> HandleAsync(GetHouseholdSettingsQuery query, CancellationToken ct = default)
-        => Result.Success(HouseholdSettingsView.From(await settings.ReadAsync(ct)));
+    public async ValueTask<Result<HouseholdSettingsInfo>> HandleAsync(GetHouseholdSettingsQuery query, CancellationToken ct = default)
+        => Result.Success(await settings.ReadAsync(ct));
 }
 
-[RequestHandler<UpdateHouseholdSettingsCommand, HouseholdSettingsView>]
+[RequestHandler<UpdateHouseholdSettingsCommand, HouseholdSettingsInfo>]
 public sealed class UpdateHouseholdSettingsHandler(IHouseholdSettings settings)
-    : IRequestHandler<UpdateHouseholdSettingsCommand, HouseholdSettingsView>
+    : IRequestHandler<UpdateHouseholdSettingsCommand, HouseholdSettingsInfo>
 {
-    public async ValueTask<Result<HouseholdSettingsView>> HandleAsync(UpdateHouseholdSettingsCommand command, CancellationToken ct = default)
-    {
-        // #414: the installation-wide application is deprecated; one already saved is kept (sent again unchanged) or cleared, never set anew.
-        if (command.EnableBankingAppId?.Trim() is { Length: > 0 } wanted && (await settings.ReadAsync(ct)).EnableBankingAppId != wanted)
-            return Result.Failure<HouseholdSettingsView>(FieldErrors.At(new Failure(BankingApplicationCodes.InstallationDeprecated,
-                "The installation-wide Enable Banking application is deprecated: each adult declares their own in Settings › Banks.", null),
-                "enableBankingAppId"));
-
-        return (await settings.UpdateAsync(new HouseholdSettingsChange(
-                command.MaxAdults, command.ReferenceCurrency, command.PricesEnabled, command.IrlEnabled, command.BankingEnabled, command.EnableBankingAppId,
-                command.BankRetentionMonths, command.ClearBankRetention, command.InflationEnabled), ct))
-            .Map(HouseholdSettingsView.From);
-    }
+    public async ValueTask<Result<HouseholdSettingsInfo>> HandleAsync(UpdateHouseholdSettingsCommand command, CancellationToken ct = default)
+        => await settings.UpdateAsync(new HouseholdSettingsChange(
+            command.MaxAdults, command.ReferenceCurrency, command.PricesEnabled, command.IrlEnabled, command.BankingEnabled, command.InflationEnabled), ct);
 }
 
 /// <summary>

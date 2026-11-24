@@ -126,7 +126,7 @@ public sealed partial class BankSyncCollector(
         }
 
         // Retention (D3): a read never reaches back to what the night purges again.
-        var floor = await services.GetRequiredService<IHouseholdSettings>().ReadAsync(ct) is { BankRetentionMonths: { } months } ? today.PlusMonths(-months) : (LocalDate?)null;
+        var floor = await services.GetRequiredService<IBankingSettings>().ReadAsync(ct) is { BankRetentionMonths: { } months } ? today.PlusMonths(-months) : (LocalDate?)null;
         string? error = null;
         foreach (var listed in await accounts.ForConnectionAsync(connection.Id, ct))
         {
