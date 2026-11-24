@@ -1,10 +1,12 @@
 using Microsoft.Extensions.Options;
 using Nid.Host.Auth;
 using System.Text.Json.Serialization;
+using Nid.Banking.Application;
 using Nid.Core.Application.Admin;
 using Nid.Core.Contracts;
 using Nid.Platform.Admin;
 using Nid.Platform.Audit;
+using Nid.Platform.Contracts;
 using Nid.Platform.Notifications;
 using UnambitiousFx.Synapse.Abstractions;
 
@@ -29,6 +31,16 @@ public static class AdminEndpoints
     public sealed record HouseholdBody(
         int? MaxAdults, string? ReferenceCurrency, bool? PricesEnabled, bool? IrlEnabled, bool? BankingEnabled, string? EnableBankingAppId,
         int? BankRetentionMonths, bool? ClearBankRetention, bool? InflationEnabled = null);
+
+    /// <summary>The household's settings with Banking's own (#513), as the admin area reads them.</summary>
+    public sealed record HouseholdSettingsView(
+        int MaxAdults, string ReferenceCurrency, int AdultCount, bool PricesEnabled, bool IrlEnabled, bool BankingEnabled, string? EnableBankingAppId,
+        int? BankRetentionMonths, bool InflationEnabled)
+    {
+        public static HouseholdSettingsView From(HouseholdSettingsInfo settings, BankingSettingsView banking)
+            => new(settings.MaxAdults, settings.ReferenceCurrency.Code, settings.AdultCount, settings.PricesEnabled, settings.IrlEnabled,
+                settings.BankingEnabled, banking.EnableBankingAppId, banking.BankRetentionMonths, settings.InflationEnabled);
+    }
 
     public sealed record PersonIdResponse(Guid Id);
 
@@ -87,15 +99,30 @@ public static class AdminEndpoints
             .Returns<AdultView>()
             .ProducesProblem(StatusCodes.Status409Conflict);
 
-        api.MapGet("/household", async (IInvoker invoker, CancellationToken ct)
-                => (await invoker.InvokeAsync(new GetHouseholdSettingsQuery(), ct)).ToHttp(settings => settings))
+        api.MapGet("/household", async (IInvoker invoker, CancellationToken ct) =>
+            {
+                var household = await invoker.InvokeAsync(new GetHouseholdSettingsQuery(), ct);
+                if (!household.TryGetValue(out var settings))
+                    return household.ToHttp(s => s);
+                return (await invoker.InvokeAsync(new GetBankingSettingsQuery(), ct)).ToHttp(banking => HouseholdSettingsView.From(settings, banking));
+            })
             .Returns<HouseholdSettingsView>();
 
-        api.MapPatch("/household", async (HouseholdBody body, IInvoker invoker, CancellationToken ct)
-                => (await invoker.InvokeAsync(new UpdateHouseholdSettingsCommand(
-                        body.MaxAdults, body.ReferenceCurrency, body.PricesEnabled, body.IrlEnabled, body.BankingEnabled, body.EnableBankingAppId,
-                        body.BankRetentionMonths, body.ClearBankRetention ?? false, body.InflationEnabled), ct))
-                    .ToHttp(settings => settings))
+        // #513: Banking's fields are Banking's command, Core's the household's; one unit of work, so a body refused in either part
+        // changes nothing.
+        api.MapPatch("/household", async (HouseholdBody body, IInvoker invoker, IUnitOfWork unitOfWork, CancellationToken ct) =>
+            {
+                await using var transaction = await unitOfWork.BeginAsync(ct);
+                var banking = await invoker.InvokeAsync(
+                    new UpdateBankingSettingsCommand(body.EnableBankingAppId, body.BankRetentionMonths, body.ClearBankRetention ?? false), ct);
+                if (!banking.TryGetValue(out var saved))
+                    return banking.ToHttp(b => b);
+                var household = await invoker.InvokeAsync(new UpdateHouseholdSettingsCommand(
+                    body.MaxAdults, body.ReferenceCurrency, body.PricesEnabled, body.IrlEnabled, body.BankingEnabled, body.InflationEnabled), ct);
+                if (household.TryGetValue(out _))
+                    await transaction.CommitAsync(ct);
+                return household.ToHttp(settings => HouseholdSettingsView.From(settings, saved));
+            })
             .Returns<HouseholdSettingsView>();
 
         api.MapGet("/jobs", async (IInvoker invoker, CancellationToken ct)

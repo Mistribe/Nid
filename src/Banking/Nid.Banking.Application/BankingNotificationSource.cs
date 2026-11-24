@@ -6,6 +6,7 @@ using Nid.Banking.Contracts;
 using Nid.Banking.Domain;
 using Nid.Core.Contracts;
 using Nid.Goals.Contracts;
+using Nid.Income.Contracts;
 using Nid.Investments.Contracts;
 using Nid.Platform.Contracts;
 using NodaTime;

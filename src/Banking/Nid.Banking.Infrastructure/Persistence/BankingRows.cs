@@ -2,6 +2,18 @@ using NodaTime;
 
 namespace Nid.Banking.Infrastructure.Persistence;
 
+/// <summary>#513: Banking's single settings row, moved from <c>core.household_settings</c>.</summary>
+public sealed class SettingsRow
+{
+    public int Id { get; set; } = 1;
+
+    /// <summary>Bank sync spec D14: the installation's Enable Banking application, deprecated by #414.</summary>
+    public string? EnableBankingAppId { get; set; }
+
+    /// <summary>Bank sync D3: how long unlinked and ignored transactions are kept, in months; null keeps them all.</summary>
+    public int? BankRetentionMonths { get; set; }
+}
+
 public sealed class ApplicationRow
 {
     public Guid PersonId { get; set; }

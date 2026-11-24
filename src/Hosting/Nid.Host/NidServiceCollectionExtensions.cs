@@ -236,6 +236,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IHoldingStore, HoldingStore>();
         services.AddScoped<ISecurityPriceStore, SecurityPriceStore>();
         services.AddScoped<ISecurityBreakdownStore, SecurityBreakdownStore>();
+        services.AddScoped<IInvestmentsSettings, Nid.Investments.Infrastructure.Persistence.SettingsStore>();
         services.AddScoped<IAppliedDocumentStamp, Nid.Investments.Application.BreakdownDocumentStamp>();
         services.AddScoped<IPriceRunLog, PriceRunLog>();
         services.AddScoped<Nid.Platform.Contracts.ISyncHealth, Nid.Investments.Infrastructure.Persistence.PriceSyncHealth>();
@@ -382,6 +383,7 @@ public static class NidServiceCollectionExtensions
         }).AddInterceptors(sp.GetRequiredService<AuditInterceptor>()));
         services.AddScoped<ITransactionParticipant, DbContextParticipant<BankingDbContext>>();
         services.AddScoped<IItemDeletionPart, Nid.Banking.Infrastructure.Persistence.BankingDeletionPart>();
+        services.AddScoped<IBankingSettings, BankingSettingsStore>();
         services.AddScoped<IApplicationStore, ApplicationStore>();
         services.AddScoped<IConnectionStore, ConnectionStore>();
         services.AddScoped<IAccountStore, AccountStore>();

@@ -17,7 +17,7 @@ public class HouseholdBankingApplicationTests(PostgresFixture postgres)
 
     private static async Task AssertDeprecatedAsync(HttpResponseMessage response)
     {
-        await BankingApi.AssertRefusedAsync(response, HttpStatusCode.UnprocessableEntity, BankingApplicationCodes.InstallationDeprecated);
+        await BankingApi.AssertRefusedAsync(response, HttpStatusCode.UnprocessableEntity, BankingCodes.InstallationDeprecated);
         var errors = (await BankingApi.JsonAsync(response)).GetProperty("errors").EnumerateArray().Select(e => e.FieldPath()).ToList();
         Assert.Contains("enableBankingAppId", errors);
     }
@@ -47,6 +47,17 @@ public class HouseholdBankingApplicationTests(PostgresFixture postgres)
         await AssertDeprecatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Patch, Household, new { enableBankingAppId = "app-1" }));
     }
 
+    /// <summary>#513: Banking's fields and the household's are two commands in one unit of work: a body refused in the household's part
+    /// leaves Banking's settings as they were.</summary>
     [Fact]
-    public void The_shared_code_is_the_banking_one() => Assert.Equal(BankingApplicationCodes.InUse, BankingCodes.ApplicationInUse);
+    public async Task A_body_refused_in_its_household_part_changes_no_banking_setting()
+    {
+        await using var app = await BankingApi.StartAsync(postgres);
+
+        var refused = await app.RawAsync(app.AdultA, HttpMethod.Patch, Household, new { bankRetentionMonths = 12, maxAdults = 0 });
+
+        await BankingApi.AssertRefusedAsync(refused, HttpStatusCode.UnprocessableEntity, PersonCodes.CapBelowCount);
+        var settings = JsonElement.Parse(await app.GetRawAsync(app.AdultA, Household));
+        Assert.Equal(JsonValueKind.Null, settings.GetProperty("bankRetentionMonths").ValueKind);
+    }
 }

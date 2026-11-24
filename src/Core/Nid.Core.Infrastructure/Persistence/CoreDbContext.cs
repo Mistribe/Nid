@@ -37,14 +37,12 @@ public sealed class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbC
             {
                 t.HasCheckConstraint("ck_household_settings_single_row", "id = 1");
                 t.HasCheckConstraint("ck_household_settings_max_adults", "max_adults >= 1");
-                t.HasCheckConstraint("ck_household_settings_bank_retention", "bank_retention_months between 1 and 600");
             });
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.ReferenceCurrency).HasColumnType("char(3)");
             e.Property(x => x.AllocationTarget).HasColumnType("jsonb");
             e.Property(x => x.ProjectionAssumptions).HasColumnType("jsonb");
-            e.Property(x => x.FeeReferences).HasColumnType("jsonb");
             e.Property(x => x.MaxAdults).HasDefaultValue(2);
             e.Property(x => x.PricesEnabled).HasDefaultValue(false);
             e.Property(x => x.IrlEnabled).HasDefaultValue(false);

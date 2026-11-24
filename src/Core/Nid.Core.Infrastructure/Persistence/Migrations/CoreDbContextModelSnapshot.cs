@@ -17,7 +17,7 @@ partial class CoreDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261123164438_TaxModule512";
+    public override string LastMigrationId => "20261124121650_FeeReferences513";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -429,23 +429,11 @@ partial class CoreDbContextModelSnapshot : ModelSnapshot
                     .HasColumnType("jsonb")
                     .HasColumnName("allocation_target");
 
-                b.Property<int?>("BankRetentionMonths")
-                    .HasColumnType("integer")
-                    .HasColumnName("bank_retention_months");
-
                 b.Property<bool>("BankingEnabled")
                     .ValueGeneratedOnAdd()
                     .HasColumnType("boolean")
                     .HasDefaultValue(false)
                     .HasColumnName("banking_enabled");
-
-                b.Property<string>("EnableBankingAppId")
-                    .HasColumnType("text")
-                    .HasColumnName("enable_banking_app_id");
-
-                b.Property<string>("FeeReferences")
-                    .HasColumnType("jsonb")
-                    .HasColumnName("fee_references");
 
                 b.Property<bool>("InflationEnabled")
                     .ValueGeneratedOnAdd()
@@ -500,8 +488,6 @@ partial class CoreDbContextModelSnapshot : ModelSnapshot
 
                 b.ToTable("household_settings", "core", t =>
                     {
-                        t.HasCheckConstraint("ck_household_settings_bank_retention", "bank_retention_months between 1 and 600");
-
                         t.HasCheckConstraint("ck_household_settings_max_adults", "max_adults >= 1");
 
                         t.HasCheckConstraint("ck_household_settings_single_row", "id = 1");

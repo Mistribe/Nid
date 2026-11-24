@@ -290,6 +290,8 @@ public static class RequestCatalogue
         new(typeof(DeleteProposalCommand), false, (data, _) => new DeleteProposalCommand(data.Proposals["P-B"][0], 0)) { BuildOn = (_, id) => new DeleteProposalCommand(id, uint.MaxValue) },
         new(typeof(GetHouseholdSettingsQuery), false, (_, _) => new GetHouseholdSettingsQuery()),
         new(typeof(UpdateHouseholdSettingsCommand), false, (_, _) => new UpdateHouseholdSettingsCommand(null, null, null)),
+        new(typeof(GetBankingSettingsQuery), false, (_, _) => new GetBankingSettingsQuery()),
+        new(typeof(UpdateBankingSettingsCommand), false, (_, _) => new UpdateBankingSettingsCommand()),
         new(typeof(ListJobsQuery), false, (_, _) => new ListJobsQuery()),
         new(typeof(GetJobQuery), false, (_, _) => new GetJobQuery("fx-daily", null)),
         new(typeof(GetJobRunQuery), false, (_, _) => new GetJobRunQuery("fx-daily", Guid.NewGuid())),

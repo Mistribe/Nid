@@ -74,7 +74,8 @@ public class ResourceMarkerTests
 
     /// <summary>
     /// Every Banking request asks for banking on, but those that make sense with it off: the status, the person's own application, the
-    /// administrator's diagnostics and journal, the household's categories and budgets (no account, no line). A new one has to pick a side.
+    /// administrator's diagnostics, journal and settings (#513), the household's categories and budgets (no account, no line). A new one has to
+    /// pick a side.
     /// </summary>
     [Fact]
     public void Every_banking_request_asks_for_banking_on_or_is_named_here()
@@ -84,7 +85,7 @@ public class ResourceMarkerTests
             typeof(GetBankingStatusQuery), typeof(GetMyApplicationQuery), typeof(SaveMyApplicationCommand), typeof(DeleteMyApplicationCommand),
             typeof(TestMyApplicationCommand), typeof(SyncAllCommand), typeof(GetBankSyncRunsQuery), typeof(GetBankingDiagnosticsQuery),
             typeof(TestBankingConnectionCommand), typeof(TransferInstallationApplicationCommand), typeof(ListBankCategoriesQuery),
-            typeof(Nid.Banking.Application.Spending.ListBudgetsQuery),
+            typeof(Nid.Banking.Application.Spending.ListBudgetsQuery), typeof(GetBankingSettingsQuery), typeof(UpdateBankingSettingsCommand),
         ];
         var banking = RequestCatalogue.Discover().Where(t => t.Assembly == typeof(BankingAccess).Assembly).ToList();
         Assert.NotEmpty(banking);

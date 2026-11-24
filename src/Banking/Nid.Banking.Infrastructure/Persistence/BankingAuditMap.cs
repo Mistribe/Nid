@@ -10,7 +10,9 @@ public sealed class BankingAuditMap : IAuditMap
 {
     public IReadOnlyDictionary<Type, AuditRule> Audited { get; } = new Dictionary<Type, AuditRule>
     {
-        [typeof(ApplicationRow)] = new(_ => [], new HashSet<string> { "private_key", "application_id" }),
+        // #513: audited as household_settings was, where these settings lived.
+        [typeof(SettingsRow)] = AuditRule.NoItem,
+        [typeof(ApplicationRow)] =new(_ => [], new HashSet<string> { "private_key", "application_id" }),
         [typeof(ConnectionRow)] = new(_ => [], new HashSet<string> { "session_id", "state_hash" }),
         [typeof(AccountRow)] = new(e => AuditItems.Of(e, nameof(AccountRow.EnvelopeItemId))),
         [typeof(AccountSourceRow)] = AuditRule.NoItem,

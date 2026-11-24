@@ -14,18 +14,13 @@ public sealed class HouseholdSettingsRow
     public string? AllocationTarget { get; set; }
     /// <summary>Net worth projection spec §2.1: the household's assumptions as JSON (fractions); null until it chose some.</summary>
     public string? ProjectionAssumptions { get; set; }
-    /// <summary>Issue #209: the fee references as JSON (%); null until the household saved some.</summary>
-    public string? FeeReferences { get; set; }
     /// <summary>The admin switch of the nightly price collection (holding prices spec §2.1).</summary>
     public bool PricesEnabled { get; set; }
     public bool IrlEnabled { get; set; }
     /// <summary>Inflation spec: the admin switch of the CPI collection; on by default (the series is public and light).</summary>
     public bool InflationEnabled { get; set; } = true;
-    /// <summary>Bank sync spec D14: the admin switch and the installation's Enable Banking application.</summary>
+    /// <summary>Bank sync spec D14: the admin switch; Banking keeps its own settings (#513).</summary>
     public bool BankingEnabled { get; set; }
-    public string? EnableBankingAppId { get; set; }
-    /// <summary>Bank sync D3: how long unlinked and ignored transactions are kept, in months; null keeps them all.</summary>
-    public int? BankRetentionMonths { get; set; }
 }
 
 public sealed class ScenarioRow

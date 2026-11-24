@@ -40,8 +40,8 @@ public static class BankingApi
     {
         await using var scope = app.Services.CreateAsyncScope();
         scope.ServiceProvider.GetRequiredService<Nid.Platform.Contracts.IActorAccessor>().Current = Nid.Platform.Contracts.Actor.System;
-        var settings = scope.ServiceProvider.GetRequiredService<IHouseholdSettings>();
-        Assert.True((await settings.UpdateAsync(new HouseholdSettingsChange(null, null, EnableBankingAppId: id), default)).IsSuccess);
+        var settings = scope.ServiceProvider.GetRequiredService<Nid.Banking.Application.IBankingSettings>();
+        Assert.True((await settings.UpdateAsync(new Nid.Banking.Application.BankingSettingsChange(EnableBankingAppId: id), default)).IsSuccess);
     }
 
     public static async Task SettingsAsync(NidApp app, object body)

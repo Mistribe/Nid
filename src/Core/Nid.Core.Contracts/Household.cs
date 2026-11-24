@@ -5,21 +5,12 @@ namespace Nid.Core.Contracts;
 /// <summary><paramref name="AdultCount"/> counts active and pending adults: both count against the cap.</summary>
 public sealed record HouseholdSettingsInfo(
     int MaxAdults, Currency ReferenceCurrency, int AdultCount, bool PricesEnabled, bool IrlEnabled = false, bool BankingEnabled = false,
-    string? EnableBankingAppId = null, int? BankRetentionMonths = null, bool InflationEnabled = true);
+    bool InflationEnabled = true);
 
-/// <summary>
-/// A field left <c>null</c> is left unchanged; an empty <paramref name="EnableBankingAppId"/> clears it;
-/// <paramref name="ClearBankRetention"/> clears <paramref name="BankRetentionMonths"/> (1 to 600; none keeps every transaction).
-/// </summary>
+/// <summary>A field left <c>null</c> is left unchanged.</summary>
 public sealed record HouseholdSettingsChange(
     int? MaxAdults, string? ReferenceCurrency, bool? PricesEnabled = null, bool? IrlEnabled = null, bool? BankingEnabled = null,
-    string? EnableBankingAppId = null, int? BankRetentionMonths = null, bool ClearBankRetention = false, bool? InflationEnabled = null);
-
-/// <summary>
-/// Issue #209: the household's fee references, in %: contract fees by envelope kind, support fees by holding kind (wire values), and
-/// the assumed gross return their cost is projected at.
-/// </summary>
-public sealed record FeeReferences(decimal AssumedReturnPct, IReadOnlyDictionary<string, decimal> Envelopes, IReadOnlyDictionary<string, decimal> Holdings);
+    bool? InflationEnabled = null);
 
 public interface IHouseholdSettings
 {
@@ -51,10 +42,4 @@ public interface IHouseholdSettings
     /// so two partial updates at once never lose one another; a failure stores nothing.
     /// </summary>
     Task<Result<ProjectionAssumptions>> UpdateProjectionAssumptionsAsync(Func<ProjectionAssumptions, Result<ProjectionAssumptions>> change, CancellationToken ct);
-
-    /// <summary>Issue #209: the fee references the household saved; null until it saved some (Investments holds the defaults).</summary>
-    Task<FeeReferences?> FeeReferencesAsync(CancellationToken ct);
-
-    /// <summary>Replaces the fee references; checked by the caller.</summary>
-    Task SaveFeeReferencesAsync(FeeReferences references, CancellationToken ct);
 }

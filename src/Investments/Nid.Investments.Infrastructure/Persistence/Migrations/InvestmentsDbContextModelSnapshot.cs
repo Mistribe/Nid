@@ -17,7 +17,7 @@ partial class InvestmentsDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261123113747_EmployeeSavingsEarlyRelease";
+    public override string LastMigrationId => "20261124121653_FeeReferences513";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -691,6 +691,25 @@ partial class InvestmentsDbContextModelSnapshot : ModelSnapshot
                         t.HasCheckConstraint("ck_security_price_price", "price > 0");
 
                         t.HasCheckConstraint("ck_security_price_status", "status in ('accepted','rejected')");
+                    });
+            });
+
+        modelBuilder.Entity("Nid.Investments.Infrastructure.Persistence.SettingsRow", b =>
+            {
+                b.Property<int>("Id")
+                    .HasColumnType("integer")
+                    .HasColumnName("id");
+
+                b.Property<string>("FeeReferences")
+                    .HasColumnType("jsonb")
+                    .HasColumnName("fee_references");
+
+                b.HasKey("Id")
+                    .HasName("pk_settings");
+
+                b.ToTable("settings", "investments", t =>
+                    {
+                        t.HasCheckConstraint("ck_settings_single_row", "id = 1");
                     });
             });
 

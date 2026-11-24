@@ -12,12 +12,6 @@ public class HouseholdSettingsTests(PostgresFixture postgres)
     private static string? Code(UnambitiousFx.Functional.Result<HouseholdSettingsInfo> result)
         => result.TryGetFailure(out var failure) ? failure!.Code : null;
 
-    private static int? Months(UnambitiousFx.Functional.Result<HouseholdSettingsInfo> result)
-    {
-        Assert.True(result.TryGetValue(out var info));
-        return info!.BankRetentionMonths;
-    }
-
     [Fact]
     public async Task Reads_the_cap_the_currency_and_the_number_of_adults()
     {
@@ -54,39 +48,18 @@ public class HouseholdSettingsTests(PostgresFixture postgres)
     }
 
     [Fact]
-    public async Task Banking_is_off_by_default_and_keeps_its_application_id()
+    public async Task Banking_is_off_by_default_and_switched_by_the_admin()
     {
         await using var db = await postgres.NewDatabaseAsync();
         var settings = new HouseholdSettings(db);
 
-        var initial = await settings.ReadAsync(TestContext.Current.CancellationToken);
-        Assert.Equal((false, null), (initial.BankingEnabled, initial.EnableBankingAppId));
-
-        Assert.True((await settings.UpdateAsync(new HouseholdSettingsChange(null, null, BankingEnabled: true, EnableBankingAppId: " 0a1b-app "), TestContext.Current.CancellationToken))
+        Assert.False((await settings.ReadAsync(TestContext.Current.CancellationToken)).BankingEnabled);
+        Assert.True((await settings.UpdateAsync(new HouseholdSettingsChange(null, null, BankingEnabled: true), TestContext.Current.CancellationToken))
             .TryGetValue(out var on));
-        Assert.Equal((true, "0a1b-app"), (on.BankingEnabled, on.EnableBankingAppId));
-
-        // A field left out is left unchanged; an empty id clears it.
-        Assert.True((await settings.UpdateAsync(new HouseholdSettingsChange(null, null, BankingEnabled: false), TestContext.Current.CancellationToken)).TryGetValue(out var off));
-        Assert.Equal((false, "0a1b-app"), (off.BankingEnabled, off.EnableBankingAppId));
-        Assert.True((await settings.UpdateAsync(new HouseholdSettingsChange(null, null, EnableBankingAppId: ""), TestContext.Current.CancellationToken)).TryGetValue(out var cleared));
-        Assert.Null(cleared.EnableBankingAppId);
-    }
-
-    [Fact]
-    public async Task Bank_retention_is_unlimited_by_default_between_1_and_600_months_and_can_be_cleared()
-    {
-        await using var db = await postgres.NewDatabaseAsync();
-        var settings = new HouseholdSettings(db);
-        Assert.Null((await settings.ReadAsync(TestContext.Current.CancellationToken)).BankRetentionMonths);
-
-        Assert.Equal(12, Months(await settings.UpdateAsync(new HouseholdSettingsChange(null, null, BankRetentionMonths: 12), TestContext.Current.CancellationToken)));
+        Assert.True(on.BankingEnabled);
         // A field left out is left unchanged.
-        Assert.Equal(12, Months(await settings.UpdateAsync(new HouseholdSettingsChange(null, null, BankingEnabled: true), TestContext.Current.CancellationToken)));
-        Assert.Equal(PersonCodes.InvalidBankRetention, Code(await settings.UpdateAsync(new HouseholdSettingsChange(null, null, BankRetentionMonths: 0), TestContext.Current.CancellationToken)));
-        Assert.Equal(PersonCodes.InvalidBankRetention, Code(await settings.UpdateAsync(new HouseholdSettingsChange(null, null, BankRetentionMonths: 601), TestContext.Current.CancellationToken)));
-        Assert.Equal(600, Months(await settings.UpdateAsync(new HouseholdSettingsChange(null, null, BankRetentionMonths: 600), TestContext.Current.CancellationToken)));
-        Assert.Null(Months(await settings.UpdateAsync(new HouseholdSettingsChange(null, null, ClearBankRetention: true), TestContext.Current.CancellationToken)));
+        Assert.True((await settings.UpdateAsync(new HouseholdSettingsChange(null, null, IrlEnabled: true), TestContext.Current.CancellationToken)).TryGetValue(out var kept));
+        Assert.True(kept.BankingEnabled);
     }
 
     [Fact]

@@ -2,7 +2,6 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using Nid.Core.Contracts;
-using Nid.Platform.Contracts;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Functional.Failures;
 
@@ -13,7 +12,6 @@ public sealed partial class HouseholdSettings(CoreDbContext db) : IHouseholdSett
     [JsonSerializable(typeof(Dictionary<string, decimal>))]
     [JsonSerializable(typeof(IReadOnlyDictionary<string, decimal>))]
     [JsonSerializable(typeof(ProjectionAssumptions))]
-    [JsonSerializable(typeof(FeeReferences))]
     private sealed partial class HouseholdJson : JsonSerializerContext;
 
     public async Task<Currency> ReferenceCurrencyAsync(CancellationToken ct)
@@ -28,7 +26,7 @@ public sealed partial class HouseholdSettings(CoreDbContext db) : IHouseholdSett
         var adults = await db.Persons.CountAsync(p => p.Kind == "adult", ct);
         return new HouseholdSettingsInfo(
             row.MaxAdults, Currency.TryCreate(row.ReferenceCurrency.Trim(), out var currency) ? currency : Currency.Eur, adults, row.PricesEnabled, row.IrlEnabled,
-            row.BankingEnabled, row.EnableBankingAppId, row.BankRetentionMonths, row.InflationEnabled);
+            row.BankingEnabled, row.InflationEnabled);
     }
 
     public async Task<Result<HouseholdSettingsInfo>> UpdateAsync(HouseholdSettingsChange change, CancellationToken ct)
@@ -41,11 +39,7 @@ public sealed partial class HouseholdSettings(CoreDbContext db) : IHouseholdSett
             currency = parsed;
         }
 
-        if (change.BankRetentionMonths is < 1 or > 600)
-            return Result.Failure<HouseholdSettingsInfo>(FieldErrors.At(
-                new Failure(PersonCodes.InvalidBankRetention, "Bank transactions are kept between 1 and 600 months.", null), "bankRetentionMonths"));
-
-        // Its own transaction, or the caller's (#414: the transfer of the installation application clears the id in its own).
+        // Its own transaction, or the caller's.
         await using var transaction = db.Database.CurrentTransaction is null ? await db.Database.BeginTransactionAsync(ct) : null;
         // The same lock as pre-registration: a cap lowered while an adult is being added must see that adult.
         await db.Database.ExecuteSqlAsync($"select pg_advisory_xact_lock({PersonRegistry.ProvisioningLockKey})", ct);
@@ -79,14 +73,6 @@ public sealed partial class HouseholdSettings(CoreDbContext db) : IHouseholdSett
 
         if (change.BankingEnabled is { } banking)
             row.BankingEnabled = banking;
-
-        if (change.EnableBankingAppId is { } appId)
-            row.EnableBankingAppId = string.IsNullOrWhiteSpace(appId) ? null : appId.Trim();
-
-        if (change.ClearBankRetention)
-            row.BankRetentionMonths = null;
-        else if (change.BankRetentionMonths is { } months)
-            row.BankRetentionMonths = months;
 
         await db.SaveChangesAsync(ct);
         if (transaction is not null)
@@ -146,21 +132,6 @@ public sealed partial class HouseholdSettings(CoreDbContext db) : IHouseholdSett
     // Under the same lock: a whole replace never lands between a partial update's read and its write.
     public Task SaveProjectionAssumptionsAsync(ProjectionAssumptions assumptions, CancellationToken ct)
         => UpdateProjectionAssumptionsAsync(_ => Result.Success(assumptions), ct);
-
-    public async Task<FeeReferences?> FeeReferencesAsync(CancellationToken ct)
-    {
-        var json = await db.HouseholdSettings.AsNoTracking().Select(s => s.FeeReferences).FirstOrDefaultAsync(ct);
-        return json is null ? null : JsonSerializer.Deserialize(json, HouseholdJson.Default.FeeReferences);
-    }
-
-    public async Task SaveFeeReferencesAsync(FeeReferences references, CancellationToken ct)
-    {
-        var row = await db.HouseholdSettings.FirstOrDefaultAsync(ct);
-        if (row is null)
-            db.HouseholdSettings.Add(row = new HouseholdSettingsRow());
-        row.FeeReferences = JsonSerializer.Serialize(references, HouseholdJson.Default.FeeReferences);
-        await db.SaveChangesAsync(ct);
-    }
 
     private static Result<HouseholdSettingsInfo> Fail(string code, string message)
         => Result.Failure<HouseholdSettingsInfo>(new Failure(code, message, null));

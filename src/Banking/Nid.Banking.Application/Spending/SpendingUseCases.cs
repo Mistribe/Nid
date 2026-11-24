@@ -118,7 +118,7 @@ public sealed class ListSpendingLinesHandler(
 
 [RequestHandler<GetSpendingQuery, SpendingView>]
 public sealed class GetSpendingHandler(
-    SpendingAccounts scopes, ITransactionStore lines, ICategoryStore categories, IHouseholdSettings household,
+    SpendingAccounts scopes, ITransactionStore lines, ICategoryStore categories, IHouseholdSettings household, IBankingSettings banking,
     IHouseholdCalendar calendar, IFxRates fx, ICategoryBudgetStore budgets, CommittedByCategory committed, IMonthBudget monthBudget,
     IActorAccessor actor)
     : IRequestHandler<GetSpendingQuery, SpendingView>
@@ -161,7 +161,7 @@ public sealed class GetSpendingHandler(
         if (await lines.EarliestBookedOnAsync(accounts, ct) is { } earliest)
         {
             var start = Whole(earliest);
-            if ((await household.ReadAsync(ct)).BankRetentionMonths is { } retention && Whole(today.PlusMonths(-retention)) is var kept && kept > start)
+            if ((await banking.ReadAsync(ct)).BankRetentionMonths is { } retention && Whole(today.PlusMonths(-retention)) is var kept && kept > start)
                 start = kept;
             covered = Math.Clamp(Index(from) - Index(start), 0, AverageMonths);
         }

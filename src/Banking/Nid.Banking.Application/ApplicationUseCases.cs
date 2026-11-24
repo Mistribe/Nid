@@ -58,7 +58,7 @@ public sealed class GetMyApplicationHandler(BankingAccess access, IApplicationSt
 }
 
 [RequestHandler<SaveMyApplicationCommand, MyApplicationView>]
-public sealed class SaveMyApplicationHandler(BankingAccess access, IApplicationStore applications, IConnectionStore connections, IHouseholdSettings settings)
+public sealed class SaveMyApplicationHandler(BankingAccess access, IApplicationStore applications, IConnectionStore connections, IBankingSettings settings)
     : IRequestHandler<SaveMyApplicationCommand, MyApplicationView>
 {
     public async ValueTask<Result<MyApplicationView>> HandleAsync(SaveMyApplicationCommand command, CancellationToken ct = default)
