@@ -35,6 +35,9 @@ public interface IModelJobs
     Task ForgetAsync(string fileRef, CancellationToken ct);
 
     Task<ModelJobView?> GetAsync(Guid id, CancellationToken ct);
+
+    /// <summary>#625: those of <paramref name="ids"/> still waiting, running or succeeded; a failed, dead or purged one is not.</summary>
+    Task<IReadOnlySet<Guid>> LiveAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct);
 }
 
 /// <summary>The module a job type's result is for (#167): told once the job succeeded, before Nid records it so; a sink that

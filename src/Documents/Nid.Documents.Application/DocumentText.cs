@@ -22,6 +22,10 @@ public interface IDocumentTextStore
     /// <summary>Documents whose text was never asked for, oldest first.</summary>
     Task<IReadOnlyList<DocumentRecord>> NeverQueuedAsync(int limit, CancellationToken ct);
 
+    /// <summary>#625: documents asked for and still without text, with the job that was asked, by id; asking again changes the job,
+    /// not the list, so <paramref name="skip"/> pages through it.</summary>
+    Task<IReadOnlyList<(Guid Document, Guid Job)>> WithoutTextAsync(int skip, int limit, CancellationToken ct);
+
     /// <summary>Replaces the document's pages; nothing when the document is gone.</summary>
     Task SaveAsync(Guid document, IReadOnlyList<DocumentTextPage> pages, Instant at, CancellationToken ct);
 
@@ -102,8 +106,10 @@ public sealed partial class DocumentTexts(
     }
 }
 
-/// <summary>#167: asks for the text of every document stored before it, once (a document with a job is skipped), in batches.</summary>
-public sealed class DocumentTextBackfill(IDocumentTextStore texts, IDocumentStore documents, DocumentTexts queue)
+/// <summary>#167: asks for the text of every document stored before it, once (a document with a job is skipped), in batches; #625:
+/// and again for a document still without text whose job failed, died or was purged, so a worker that was down or full is
+/// not the end of it.</summary>
+public sealed class DocumentTextBackfill(IDocumentTextStore texts, IDocumentStore documents, DocumentTexts queue, IModelJobs jobs)
 {
     private const int Batch = 100;
 
@@ -115,6 +121,23 @@ public sealed class DocumentTextBackfill(IDocumentTextStore texts, IDocumentStor
         {
             var links = (await documents.LinksOfAsync([.. batch.Select(d => d.Id)], ct)).ToLookup(l => l.DocumentId);
             foreach (var document in batch)
+            {
+                if (!await queue.QueueAsync(document, [.. links[document.Id]], ct))
+                    return queued;
+                queued++;
+            }
+        }
+
+        var skip = 0;
+        while (await texts.WithoutTextAsync(skip, Batch, ct) is { Count: > 0 } asked)
+        {
+            skip += asked.Count;
+            var live = await jobs.LiveAsync([.. asked.Select(a => a.Job)], ct);
+            var lost = asked.Where(a => !live.Contains(a.Job)).Select(a => a.Document).ToList();
+            if (lost.Count == 0)
+                continue;
+            var links = (await documents.LinksOfAsync(lost, ct)).ToLookup(l => l.DocumentId);
+            foreach (var document in await documents.FindManyAsync(lost, ct))
             {
                 if (!await queue.QueueAsync(document, [.. links[document.Id]], ct))
                     return queued;

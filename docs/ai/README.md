@@ -392,14 +392,16 @@ du moteur.
 - Le worker lit la couche texte d'un PDF avec `pdftotext` (poppler). Une page qui n'a pas 20 lettres ou chiffres est
   rendue en image à 200 dpi (`pdftoppm`), puis lue par Tesseract (`fra+eng`). Une image passe directement par Tesseract.
   Un `.eml` donne son objet et son corps, le HTML réduit à son texte.
-- **Bornes :** 50 pages en OCR par document, les suivantes restent `none` (le job doit finir dans son bail de 10 min).
+- **Bornes :** 50 pages en OCR par document, les suivantes restent `none` (le job doit finir dans l'heure qui suit son envoi :
+  son bail de 10 min est renouvelé à chaque suivi qui le trouve en attente ou en cours, jusqu'à 1 h après l'envoi, #625).
   200 000 caractères par page, 8 millions en tout, 2 000 pages. Un outil qui échoue ou dépasse 2 min fait échouer le job
   en `ai.invalid_input`, sans nouvel essai.
 - **Image :** l'image du worker part de l'image aspnet Ubuntu, plus la version chiseled, pour embarquer poppler et
   Tesseract. Un worker lancé sans ces outils ne déclare pas `document-text`.
 - **Côté Nid :**
   - un dépôt demande le texte une fois le document enregistré ;
-  - au démarrage, un rattrapage le demande pour les documents qui ne l'ont jamais eu (`documents.document_text_job`) ;
+  - au démarrage, un rattrapage le demande pour les documents qui ne l'ont jamais eu (`documents.document_text_job`), et à
+    nouveau pour ceux encore sans texte dont le job a échoué, est mort ou a été purgé (#625) ;
   - Ai remet le résultat, lu par le contrat, à Documents (`IJobResultSink`) avant de clore le job ;
   - les pages vont dans `documents.document_text`, supprimées avec leur document.
 - **Index (#559) :** toutes les 30 s, dans la boucle des jobs, `DocumentIndexer` fait deux choses.
@@ -922,7 +924,8 @@ et §3, `authorization.md`), `../security/` (`infrastructure.md`, `README.md`, `
 - **Valeurs fixées par #474** : un job interrogé toutes les 5 s sa première minute puis toutes les 30 s ; bail de 10 min ;
   5 essais (30 s, 2 min, 10 min, 1 h), puis `dead` et la notice `job_failed` ; déclaration relue chaque minute, un worker
   est « en ligne » 3 min après sa dernière déclaration ; requête : 1 Mio d'entrée, 10 min, 10 000 trames, 16 Mio ; fichier
-  d'un job : 50 Mio ; côté worker : 32 jobs en attente, 4 à la fois, un résultat gardé 15 min. Un résultat voyage en
+  d'un job : 50 Mio ; côté worker : 32 jobs en attente, 4 à la fois, 128 Mio de fichiers gardés en mémoire en tout (au-delà,
+  `busy`, sans compter d'essai, #625), un résultat gardé 15 min. Un résultat voyage en
   trames de données scellées sous le contexte de la soumission, avant le statut qui en donne la longueur.
 - **Classes de données fixées par #475** : `none` (aucune donnée du foyer : « Tester »), `documents`, `local_only`,
   `figures`, `bank_labels` ; une classe inconnue est refusée. Sans le consentement de chaque adulte (§6.3, #167) : un

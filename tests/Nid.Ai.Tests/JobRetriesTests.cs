@@ -34,11 +34,16 @@ public sealed class JobRetriesTests
         => Assert.Equal(Duration.FromSeconds(every), JobRetries.PollEvery(Duration.FromSeconds(sentForSeconds)));
 
     [Fact]
-    public void The_lease_is_renewed_only_while_the_job_waits_in_the_worker_queue()
+    public void The_lease_is_renewed_while_the_job_waits_and_while_it_runs_up_to_an_hour_from_its_send()
     {
         var lease = Now + Duration.FromMinutes(3);
-        Assert.Equal(Now + JobRetries.Lease, JobRetries.LeaseAfterPoll(queued: true, Now, lease));
-        Assert.Equal(lease, JobRetries.LeaseAfterPoll(queued: false, Now, lease));
+        var sent = Now - Duration.FromMinutes(20);
+        Assert.Equal(Now + JobRetries.Lease, JobRetries.LeaseAfterPoll(queued: true, Now, sent, lease));
+        // #625: a long OCR keeps its lease while its worker says it runs.
+        Assert.Equal(Now + JobRetries.Lease, JobRetries.LeaseAfterPoll(queued: false, Now, sent, lease));
+        var late = Now - Duration.FromMinutes(55);
+        Assert.Equal(late + JobRetries.MaxRun, JobRetries.LeaseAfterPoll(queued: false, Now, late, lease));
+        Assert.Equal(lease, JobRetries.LeaseAfterPoll(queued: false, Now, Now - Duration.FromHours(2), lease)); // past the cap: never renewed
     }
 
     [Theory]

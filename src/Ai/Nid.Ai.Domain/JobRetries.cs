@@ -8,8 +8,11 @@ public static class JobRetries
 {
     public const int MaxAttempts = 5;
 
-    /// <summary>How long a job may run on a worker once it left the worker's queue (it is renewed while it waits there).</summary>
+    /// <summary>How long a job may go without a poll that finds it on its worker: renewed by each one (<see cref="LeaseAfterPoll"/>).</summary>
     public static readonly Duration Lease = Duration.FromMinutes(10);
+
+    /// <summary>#625: how long a job may run on a worker from its send, whatever its polls say (a long OCR on a shared CPU).</summary>
+    public static readonly Duration MaxRun = Duration.FromHours(1);
 
     /// <summary>How long a job waits when no worker can take it now (none eligible, or all busy).</summary>
     public static readonly Duration WaitWhenNowhere = Duration.FromSeconds(30);
@@ -25,8 +28,17 @@ public static class JobRetries
     /// <summary>5 seconds apart for a job's first minute on the worker, 30 seconds after that.</summary>
     public static Duration PollEvery(Duration sentFor) => sentFor < Duration.FromMinutes(1) ? FirstPoll : Duration.FromSeconds(30);
 
-    /// <summary>The lease after a poll: renewed while the job waits in the worker's queue, which does not use it.</summary>
-    public static Instant? LeaseAfterPoll(bool queued, Instant now, Instant? lease) => queued ? now + Lease : lease;
+    /// <summary>The lease after a poll: renewed while the job waits in the worker's queue, which does not use it; renewed while it
+    /// runs (#625) up to <see cref="MaxRun"/> after it was sent, never shortened.</summary>
+    public static Instant? LeaseAfterPoll(bool queued, Instant now, Instant? sentAt, Instant? lease)
+    {
+        if (queued)
+            return now + Lease;
+        if (sentAt is not { } sent)
+            return lease;
+        var renewed = Instant.Min(now + Lease, sent + MaxRun);
+        return lease is { } current && current > renewed ? current : renewed;
+    }
 
     /// <summary>A worker's error as Nid keeps it: a short code, nothing else.</summary>
     public static string ErrorCode(string error)

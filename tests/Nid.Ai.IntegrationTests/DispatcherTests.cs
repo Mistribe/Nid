@@ -124,7 +124,7 @@ public sealed class DispatcherTests(PostgresFixture fixture) : IClassFixture<Pos
     }
 
     [Fact]
-    public async Task A_job_waiting_in_the_workers_queue_keeps_its_lease()
+    public async Task A_job_keeps_its_lease_while_its_worker_says_it_waits_or_runs()
     {
         var gate = new Gate();
         await using var world = await PairedWorld.StartAsync(fixture,
@@ -143,9 +143,10 @@ public sealed class DispatcherTests(PostgresFixture fixture) : IClassFixture<Pos
             await PassAsync(world);
         }
 
+        // #625: past the 10-minute lease, the four running (a long OCR) and the one waiting are still on the worker, no attempt
+        // counted; the hour from the send that caps them is JobRetriesTests'.
         var views = await Task.WhenAll(ids.Select(id => ViewAsync(world, id)));
-        Assert.Equal(4, views.Count(v => v is { Status: "queued", Error: JobCodes.LeaseExpired }));
-        Assert.Single(views, v => v is { Status: "running", Attempts: 0 });
+        Assert.All(views, v => Assert.Equal(("running", 0, (string?)null), (v.Status, v.Attempts, v.Error)));
     }
 
     [Fact]

@@ -23,6 +23,11 @@ public sealed class DocumentTextStore(DocumentsDbContext db, IDocumentStore docu
         return ids.Count == 0 ? [] : (await documents.FindManyAsync(ids, ct)).OrderBy(d => d.UploadedAt).ThenBy(d => d.Id).ToList();
     }
 
+    public async Task<IReadOnlyList<(Guid Document, Guid Job)>> WithoutTextAsync(int skip, int limit, CancellationToken ct)
+        => (await db.TextJobs.AsNoTracking().Where(j => !db.Texts.Any(t => t.DocumentId == j.DocumentId))
+                .OrderBy(j => j.DocumentId).Skip(skip).Take(limit).Select(j => new { j.DocumentId, j.JobId }).ToListAsync(ct))
+            .Select(j => (j.DocumentId, j.JobId)).ToList();
+
     public async Task SaveAsync(Guid document, IReadOnlyList<DocumentTextPage> pages, Instant at, CancellationToken ct)
     {
         if (!await db.Documents.AnyAsync(d => d.Id == document, ct))

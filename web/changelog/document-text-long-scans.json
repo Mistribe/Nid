@@ -1,0 +1,4 @@
+{
+  "en": "Long scanned documents get their text extracted: a long OCR is no longer restarted, and a document whose extraction failed is tried again at the next start.",
+  "fr": "Les longs documents scannés obtiennent leur texte : une longue lecture OCR n'est plus relancée, et un document dont l'extraction a échoué est retenté au démarrage suivant."
+}

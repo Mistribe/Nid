@@ -55,6 +55,9 @@ public interface IJobStore
 
     Task<JobRecord?> FindAsync(Guid id, CancellationToken ct);
 
+    /// <summary>#625: those of <paramref name="ids"/> queued, running or succeeded.</summary>
+    Task<IReadOnlySet<Guid>> LiveAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct);
+
     /// <summary>#599: sets the class and the adults of the queued jobs of <paramref name="fileRef"/>, in one statement, so a
     /// dispatcher pass that read one before loses its claim on the row's version. True when one was queued.</summary>
     /// <remarks>ponytail: the input hash keeps the class it was submitted with; only a new submission of the same file under
