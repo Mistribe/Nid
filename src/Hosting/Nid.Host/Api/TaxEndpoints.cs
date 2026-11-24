@@ -328,37 +328,15 @@ public static partial class TaxEndpoints
             Amount(reader, body.CapitalDividends, "capitalDividends"), body.CapitalScale, Amount(reader, body.DeductibleCsg, "deductibleCsg"),
             AlimonyPaid: Amount(reader, body.AlimonyPaid, "alimonyPaid"), AlimonyAdultChildren: Amount(reader, body.AlimonyAdultChildren, "alimonyAdultChildren"),
             AlimonyAdultChildrenCount: body.AlimonyAdultChildrenCount,
-            RealisedGains: body.RealisedGains is null ? 0m : SignedAmount(reader, body.RealisedGains, "realisedGains"),
+            RealisedGains: Amount(reader, body.RealisedGains, "realisedGains"),
             CapitalLossesCarried: Amount(reader, body.CapitalLossesCarried, "capitalLossesCarried"),
             AlternateCustody: body.AlternateCustody, SingleParent: body.SingleParent, DisabledDependents: body.DisabledDependents, AlternateUnder6: body.AlternateUnder6);
         return reader.Ok ? inputs : null;
     }
 
-    /// <summary>A percent string (<c>"23.5"</c>) between 0 and 60, as a fraction.</summary>
-    private static decimal Rate(FieldReader reader, string value, string path)
-    {
-        var percent = reader.Decimal(value, path);
-        if (percent is { } p && TaxChecks.RateOk(p / 100)) return p / 100;
-        if (percent is not null) reader.Add(path, "request.rate", "A contribution rate is a percent between 0 and 60.");
-        return 0m;
-    }
+    /// <summary>A percent string (<c>"23.5"</c>) as a fraction; the command's validator holds its bounds (#515).</summary>
+    private static decimal Rate(FieldReader reader, string value, string path) => reader.Decimal(value, path) / 100 ?? 0m;
 
-    /// <summary>Absent is 0; an amount is a non-negative decimal string below ten million.</summary>
-    private static decimal Amount(FieldReader reader, string? value, string path)
-    {
-        if (value is null) return 0m;
-        var amount = reader.Decimal(value, path);
-        if (amount is >= 0 and < 10_000_000m) return amount.Value;
-        if (amount is not null) reader.Add(path, "request.amount", "An amount is not negative and below 10 000 000.");
-        return 0m;
-    }
-
-    /// <summary>A gain or a loss (#234): a decimal string within ten million either way.</summary>
-    private static decimal SignedAmount(FieldReader reader, string value, string path)
-    {
-        var amount = reader.Decimal(value, path);
-        if (amount is > -10_000_000m and < 10_000_000m) return amount.Value;
-        if (amount is not null) reader.Add(path, "request.amount", "A gain or a loss is below 10 000 000 either way.");
-        return 0m;
-    }
+    /// <summary>Absent is 0, a decimal string otherwise; the command's validator holds its bounds (#515).</summary>
+    private static decimal Amount(FieldReader reader, string? value, string path) => value is null ? 0m : reader.Decimal(value, path) ?? 0m;
 }

@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Net;
+using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Nid.Tax.Application;
@@ -638,6 +639,51 @@ public class TaxEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresF
         Assert.Contains("tax.invalid_profile", await above.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         Assert.Equal(HttpStatusCode.UnprocessableEntity, orphan.StatusCode);
         Assert.Contains("tax.invalid_profile", await orphan.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+    }
+
+    /// <summary>#515: a profile's figures out of bounds are refused each at its field by the command's validator, nothing saved.</summary>
+    [Fact]
+    public async Task A_profile_out_of_bounds_is_refused_at_each_field_and_not_saved()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var adult = app.AdultA.Value.ToString();
+
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Put, "/api/v1/tax/profile/2025", new
+        {
+            pinel = Array.Empty<object>(), contributionRates = new Dictionary<string, string> { [adult] = "61" },
+            perCeilings = new Dictionary<string, string> { [adult] = "-1" }, donations = "10000000",
+        });
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+        var errors = (await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: TestContext.Current.CancellationToken)).GetProperty("errors")
+            .EnumerateArray().Select(e => (e.FieldPath(), e.GetProperty("code").GetString())).ToList();
+        Assert.Equal([($"contributionRates.{adult}", "request.rate"), ($"perCeilings.{adult}", "request.amount"), ("donations", "request.amount")], errors);
+        Assert.Equal("0.00", (await EstimateAsync(app, app.AdultA, 2025)).GetProperty("profile").GetProperty("donations").GetString());
+    }
+
+    /// <summary>#515: a simulation's figures out of bounds are refused each at its field; a loss is allowed below ten million.</summary>
+    [Fact]
+    public async Task A_simulation_out_of_bounds_is_refused_at_each_field()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/tax/simulate", new
+        {
+            year = 2025, rentalGross = "10000000", realisedGains = "-10000000",
+            declarants = new[] { new { name = "A", salaryGross = "-1", status = "non_executive", otherTaxable = "0", perContributions = "0", contributionRate = "61" } },
+        });
+        var loss = await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/tax/simulate", new
+        {
+            year = 2025, realisedGains = "-9999999.99",
+            declarants = new[] { new { name = "A", salaryGross = "0", status = "non_executive", otherTaxable = "0", perContributions = "0" } },
+        });
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+        var errors = (await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: TestContext.Current.CancellationToken)).GetProperty("errors")
+            .EnumerateArray().Select(e => (e.FieldPath(), e.GetProperty("code").GetString())).ToList();
+        Assert.Equal([("declarants[0].salaryGross", "request.amount"), ("declarants[0].contributionRate", "request.rate"), ("rentalGross", "request.amount"),
+            ("realisedGains", "request.amount")], errors);
+        Assert.Equal(HttpStatusCode.OK, loss.StatusCode);
     }
 
     [Fact]
