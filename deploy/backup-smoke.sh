@@ -44,13 +44,13 @@ SMOKE_DOC=00000000-0000-4000-8000-000000000601
 SMOKE_CHUNK=00000000-0000-4000-8000-000000000602
 psql_nid "begin;
   insert into documents.document (id, title, original_filename, media_type, sha256, size_bytes, uploaded_at, uploaded_by_person_id)
-    values ('$SMOKE_DOC', 'Avis', 'avis.pdf', 'application/pdf', repeat('0', 64), 1, now(), gen_random_uuid());
+    values ('$SMOKE_DOC', 'Avis', 'avis.pdf', 'application/pdf', repeat('0', 64), 1, now(), gen_random_uuid()) on conflict do nothing;
   insert into documents.document_text (document_id, page, text, source, extracted_at)
-    values ('$SMOKE_DOC', 1, 'Échéances payées en mars', 'text-layer', now());
+    values ('$SMOKE_DOC', 1, 'Échéances payées en mars', 'text-layer', now()) on conflict do nothing;
   insert into documents.document_chunk (id, document_id, ordinal, page, text)
-    values ('$SMOKE_CHUNK', '$SMOKE_DOC', 0, 1, 'Échéances payées en mars');
+    values ('$SMOKE_CHUNK', '$SMOKE_DOC', 0, 1, 'Échéances payées en mars') on conflict do nothing;
   insert into documents.chunk_embedding (chunk_id, model, dimension, embedding, created_at)
-    values ('$SMOKE_CHUNK', 'smoke-model', 3, '[1,0,0]', now());
+    values ('$SMOKE_CHUNK', 'smoke-model', 3, '[1,0,0]', now()) on conflict do nothing;
   select documents.ensure_embedding_index('smoke-model', 3);
   commit;" >/dev/null
 
@@ -124,7 +124,8 @@ health=$(backup status || true)
 [[ $health == *"dépôt distant : unreachable"* ]] || fail "status: $health"
 echo "ok: an unreachable remote is reported, the local backup still happens"
 
-NID_BACKUP_REMOTE_FORGET=false "${REMOTE[@]}" up -d --wait --wait-timeout 120 backup
+# Not --wait: a restart keeps the unreachable remote of the run above (kept_remote), so the service is unhealthy until it runs.
+NID_BACKUP_REMOTE_FORGET=false "${REMOTE[@]}" up -d backup
 backup backup-now
 backup status >/dev/null || fail "unhealthy with a reachable remote: $(backup status)"
 [ "$("${REMOTE[@]}" exec -T backup sh -c "$RR snapshots --json | jq length")" -ge 1 ] || fail "no remote snapshot"
