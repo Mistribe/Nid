@@ -6,6 +6,7 @@ using Nid.Core.Application.Admin;
 using Nid.Core.Contracts;
 using Nid.Platform.Admin;
 using Nid.Platform.Audit;
+using Nid.Platform.Contracts;
 using Nid.Platform.Notifications;
 using UnambitiousFx.Synapse.Abstractions;
 
@@ -107,16 +108,20 @@ public static class AdminEndpoints
             })
             .Returns<HouseholdSettingsView>();
 
-        // #513: Banking's fields are Banking's command, run first, so a refused one changes nothing of the household's.
-        api.MapPatch("/household", async (HouseholdBody body, IInvoker invoker, CancellationToken ct) =>
+        // #513: Banking's fields are Banking's command, Core's the household's; one unit of work, so a body refused in either part
+        // changes nothing.
+        api.MapPatch("/household", async (HouseholdBody body, IInvoker invoker, IUnitOfWork unitOfWork, CancellationToken ct) =>
             {
+                await using var transaction = await unitOfWork.BeginAsync(ct);
                 var banking = await invoker.InvokeAsync(
                     new UpdateBankingSettingsCommand(body.EnableBankingAppId, body.BankRetentionMonths, body.ClearBankRetention ?? false), ct);
                 if (!banking.TryGetValue(out var saved))
                     return banking.ToHttp(b => b);
-                return (await invoker.InvokeAsync(new UpdateHouseholdSettingsCommand(
-                        body.MaxAdults, body.ReferenceCurrency, body.PricesEnabled, body.IrlEnabled, body.BankingEnabled, body.InflationEnabled), ct))
-                    .ToHttp(settings => HouseholdSettingsView.From(settings, saved));
+                var household = await invoker.InvokeAsync(new UpdateHouseholdSettingsCommand(
+                    body.MaxAdults, body.ReferenceCurrency, body.PricesEnabled, body.IrlEnabled, body.BankingEnabled, body.InflationEnabled), ct);
+                if (household.TryGetValue(out _))
+                    await transaction.CommitAsync(ct);
+                return household.ToHttp(settings => HouseholdSettingsView.From(settings, saved));
             })
             .Returns<HouseholdSettingsView>();
 

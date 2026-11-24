@@ -46,4 +46,18 @@ public class HouseholdBankingApplicationTests(PostgresFixture postgres)
         Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Patch, Household, new { enableBankingAppId = "" })).StatusCode);
         await AssertDeprecatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Patch, Household, new { enableBankingAppId = "app-1" }));
     }
+
+    /// <summary>#513: Banking's fields and the household's are two commands in one unit of work: a body refused in the household's part
+    /// leaves Banking's settings as they were.</summary>
+    [Fact]
+    public async Task A_body_refused_in_its_household_part_changes_no_banking_setting()
+    {
+        await using var app = await BankingApi.StartAsync(postgres);
+
+        var refused = await app.RawAsync(app.AdultA, HttpMethod.Patch, Household, new { bankRetentionMonths = 12, maxAdults = 0 });
+
+        await BankingApi.AssertRefusedAsync(refused, HttpStatusCode.UnprocessableEntity, PersonCodes.CapBelowCount);
+        var settings = JsonElement.Parse(await app.GetRawAsync(app.AdultA, Household));
+        Assert.Equal(JsonValueKind.Null, settings.GetProperty("bankRetentionMonths").ValueKind);
+    }
 }
