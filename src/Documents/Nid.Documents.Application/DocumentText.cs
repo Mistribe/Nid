@@ -55,13 +55,20 @@ public sealed partial class DocumentTexts(
     public async Task<bool> QueueAsync(DocumentRecord document, IReadOnlyList<LinkRecord> links, CancellationToken ct)
     {
         var submitted = await jobs.SubmitAsync(new JobRequest(
-            JobType, 1, JsonSerializer.SerializeToElement(new { mediaType = document.MediaType }), DataClasses.Documents,
+            JobType, 1, JsonSerializer.SerializeToElement(new { mediaType = document.MediaType }), DataClassOf(links),
             $"{FileModule}:{document.Id}", Concerned: await ConcernedAsync(document.UploadedBy, links, ct)), ct);
         if (!submitted.TryGetValue(out var job))
             return false;
         await texts.QueuedAsync(document.Id, job, clock.GetCurrentInstant(), ct);
         return true;
     }
+
+    /// <summary>
+    /// What a model may see of a document (#598, <c>llm-providers.md</c> §2.7): a payslip stays on the premises, so only a <c>safe</c>
+    /// worker reads its file or embeds its text; any other document is the household's.
+    /// </summary>
+    public static string DataClassOf(IReadOnlyList<LinkRecord> links)
+        => links.Any(l => l.Role == DocumentRoles.Payslip) ? DataClasses.LocalOnly : DataClasses.Documents;
 
     /// <summary>The adults a document concerns (decision M): its uploader, whoever owns what it is linked to, a linked person, both adults for the household.</summary>
     public async Task<IReadOnlyList<Guid>> ConcernedAsync(Guid uploadedBy, IReadOnlyList<LinkRecord> links, CancellationToken ct)

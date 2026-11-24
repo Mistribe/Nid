@@ -73,7 +73,7 @@ public sealed class DocumentIndexer(
         if (await documents.FindAsync(id, ct) is not { } document)
             return Step.Skip;
         var links = await documents.LinksOfAsync([id], ct);
-        var dataClass = links.Any(l => l.Role == DocumentRoles.Payslip) ? DataClasses.LocalOnly : DataClasses.Documents;
+        var dataClass = DocumentTexts.DataClassOf(links);
         var concerned = await adults.ConcernedAsync(document.UploadedBy, links, ct);
         while (await index.UnembeddedChunksAsync(id, model, ChunkBatch, ct) is { Count: > 0 } chunks)
         {
