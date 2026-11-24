@@ -53,7 +53,7 @@ export function useProfileDraft(estimate: TaxEstimate | undefined, scope: 'me' |
   const errors = draftErrors(value);
   const submit = () => {
     if (Object.keys(errors).length) return false;
-    save.mutate({ params: { path: { year: estimate.year }, query: { scope } }, body: profileBody(value) }, {
+    save.mutate({ params: { path: { year: estimate.year }, query: { scope } }, body: { ...profileBody(value), version: estimate.profileVersion ?? null } }, {
       onSuccess: () => {
         // Every read the profile feeds: the estimate, the 2044 (regime, carried deficit), the dashboard's and the goals' tax commitment.
         for (const path of [TAX, TAX_2044, DASHBOARD]) void queryClient.invalidateQueries({ queryKey: ['get', path] });

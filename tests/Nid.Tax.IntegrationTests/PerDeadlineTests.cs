@@ -27,7 +27,7 @@ public class PerDeadlineTests(PostgresFixture fixture) : IClassFixture<PostgresF
             return inner.FindAsync(year, ct);
         }
 
-        public Task SaveAsync(int year, TaxProfile profile, CancellationToken ct) => inner.SaveAsync(year, profile, ct);
+        public Task<bool> SaveAsync(int year, TaxProfile profile, uint? version, CancellationToken ct) => inner.SaveAsync(year, profile, version, ct);
     }
 
     private static Task<NidApp> StartAsync(PostgresFixture fixture, List<int>? reads = null)

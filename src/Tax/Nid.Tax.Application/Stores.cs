@@ -4,15 +4,19 @@ using UnambitiousFx.Functional;
 
 namespace Nid.Tax.Application;
 
-/// <summary>A stored profile and the revenue year it was saved for (an earlier one when the year has none yet).</summary>
-public sealed record StoredTaxProfile(int Year, TaxProfile Profile);
+/// <summary>A stored profile, the revenue year it was saved for (an earlier one when the year has none yet) and its version (<c>xmin</c>).</summary>
+public sealed record StoredTaxProfile(int Year, TaxProfile Profile, uint Version = 0);
 
 public interface ITaxProfileStore
 {
     /// <summary>The profile of <paramref name="year"/>, or of the latest year before it; null when none is stored.</summary>
     Task<StoredTaxProfile?> FindAsync(int year, CancellationToken ct);
 
-    Task SaveAsync(int year, TaxProfile profile, CancellationToken ct);
+    /// <summary>
+    /// #630: false when the year's row is no longer at <paramref name="version"/> — null is « the year had no profile of its own », so a row
+    /// saved meanwhile is a conflict too.
+    /// </summary>
+    Task<bool> SaveAsync(int year, TaxProfile profile, uint? version, CancellationToken ct);
 }
 
 /// <summary>A stored notice: its id and its version (optimistic concurrency).</summary>

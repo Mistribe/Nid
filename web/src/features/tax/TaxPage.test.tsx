@@ -330,6 +330,19 @@ describe('TaxPage', () => {
     });
   });
 
+  it('sends back the version of the profile it read', async () => {
+    const sent: unknown[] = [];
+    server.use(
+      http.get('*/api/v1/tax', () => HttpResponse.json({ ...estimate(), profileVersion: 7 })),
+      http.put('*/api/v1/tax/profile/:year', async ({ request }) => { sent.push(await request.json()); return HttpResponse.json(estimate()); }),
+    );
+    const { user } = await renderApp('/tax?tab=profile');
+
+    await user.click(await screen.findByRole('button', { name: 'Enregistrer le profil' }));
+    await screen.findByText('Profil enregistré.');
+    expect(sent[0]).toMatchObject({ version: 7 });
+  });
+
   it('saves the profile for the year', async () => {
     const sent: unknown[] = [];
     server.use(

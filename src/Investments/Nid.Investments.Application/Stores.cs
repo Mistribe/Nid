@@ -97,10 +97,11 @@ public interface IHoldingStore
     /// <summary>Several holdings in one save.</summary>
     Task AddManyAsync(IReadOnlyList<EnvelopeHolding> holdings, CancellationToken ct);
 
-    /// <summary>Every field of <paramref name="holding"/>, in place.</summary>
-    Task ReplaceAsync(EnvelopeHolding holding, CancellationToken ct);
+    /// <summary>Every field of <paramref name="holding"/>, in place; false when the row is no longer at <paramref name="version"/> (null: unchecked, the import).</summary>
+    Task<bool> ReplaceAsync(EnvelopeHolding holding, uint? version, CancellationToken ct);
 
-    Task DeleteAsync(Guid holding, CancellationToken ct);
+    /// <summary>False when the row is no longer at <paramref name="version"/>.</summary>
+    Task<bool> DeleteAsync(Guid holding, uint version, CancellationToken ct);
 
     /// <summary>True when a snapshot line or a movement names the holding.</summary>
     Task<bool> InUseAsync(Guid holding, CancellationToken ct);

@@ -24,6 +24,7 @@ public sealed class TaxDbContext(DbContextOptions<TaxDbContext> options) : DbCon
             e.HasKey(x => x.Year);
             e.Property(x => x.Year).ValueGeneratedNever();
             e.Property(x => x.Data).HasColumnType("jsonb");
+            MapXmin(e.Property(x => x.Version));
         });
 
         // Tax assessments spec §3: a notice and its declarants; a person is in one notice per year.
