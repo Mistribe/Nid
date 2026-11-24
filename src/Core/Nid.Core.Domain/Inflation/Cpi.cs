@@ -51,22 +51,3 @@ public static class CpiPlausibility
     public static bool Plausible(decimal value, decimal? previousMonth)
         => previousMonth is not { } last || (value >= last * 0.97m && value <= last * 1.03m);
 }
-
-/// <summary>The stored CPI series, <c>core.cpi</c>, one value per month.</summary>
-public interface ICpiStore
-{
-    /// <summary>Every stored value, by month.</summary>
-    Task<IReadOnlyList<CpiValue>> ListAsync(CancellationToken ct);
-
-    /// <summary>One page of values, newest month first, and the total number of values.</summary>
-    Task<(IReadOnlyList<CpiValue> Items, int Total)> PageAsync(int skip, int take, CancellationToken ct);
-
-    /// <summary>Stores the month's value, replacing the one stored (the collector decides what may replace what).</summary>
-    Task UpsertAsync(CpiValue value, CancellationToken ct);
-
-    /// <summary>Stores the values in one transaction, replacing the ones stored: a whole collection lands or none of it does.</summary>
-    Task UpsertManyAsync(IReadOnlyList<CpiValue> values, CancellationToken ct);
-
-    /// <summary>Stores a manual value in one statement unless the month holds an <c>insee</c> one; false when it did not write.</summary>
-    Task<bool> UpsertManualAsync(CpiValue value, CancellationToken ct);
-}

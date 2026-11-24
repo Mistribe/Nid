@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
+using Nid.Core.Application;
 using Nid.Core.Contracts;
 using NodaTime;
 using UnambitiousFx.Functional;
