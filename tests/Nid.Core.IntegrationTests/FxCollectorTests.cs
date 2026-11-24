@@ -110,6 +110,28 @@ public class FxCollectorTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task A_level_refused_one_day_and_confirmed_the_next_is_written()
+    {
+        // #633: GBP moves from 0.7 to 2 and stays there; the next day's run reads the refusal from the journal.
+        await using var db = await postgres.NewDatabaseAsync();
+        var sources = new FakeFxSources();
+        var dayBefore = Today.PlusDays(-1);
+        sources.Days[dayBefore] = FxFixtures.SubTrackerDay(("EUR", 0.8m), ("GBP", 2m));
+        var (collector, store, _) = Build(db, sources);
+        var gbp = Currency.TryCreate("GBP", out var c) ? c : default;
+        await store.WriteAsync([new FxRate(Start, gbp, 0.7m, FxRateSource.SubTrackerData)], TestContext.Current.CancellationToken);
+
+        var first = (await collector.CollectDailyAsync(TestContext.Current.CancellationToken)).Ok();
+        Assert.Equal(("GBP", 2m), (Assert.Single(first.Rejected).Quote, first.Rejected[0].Rate));
+
+        sources.Days[Today] = FxFixtures.SubTrackerDay(("EUR", 0.8m), ("GBP", 2.05m));
+        var second = (await collector.CollectDailyAsync(TestContext.Current.CancellationToken)).Ok();
+
+        Assert.Empty(second.Rejected);
+        Assert.Equal(2.05m, await RateAsync(store, "GBP", Today));
+    }
+
+    [Fact]
     public async Task A_source_failure_ends_the_run_failed_and_recorded()
     {
         await using var db = await postgres.NewDatabaseAsync();
