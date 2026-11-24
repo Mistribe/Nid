@@ -96,6 +96,49 @@ public sealed class AssistantConversationTests(PostgresFixture fixture) : IClass
     }
 
     [Fact]
+    public async Task Deleting_a_document_removes_the_answers_that_read_it_in_everyones_conversations()
+    {
+        // #617, decision R (§6.6): an answer whose tools returned the document goes with it; the question and other answers stay.
+        await using var app = await StartAsync(Model());
+        var document = await DocumentApi.UploadedAsync(app, app.AdultA, DocumentApi.Pdf, "fileName=bail.pdf&targetKind=core.household&role=other");
+        var alices = await KeptAsync(app, app.AdultA, ("Mon bail ?", "Le bail dit 900 euros.", [document]), ("Mes enveloppes ?", "Une enveloppe.", []));
+        var bobs = await KeptAsync(app, app.AdultB, ("Le bail ?", "Loyer de 900 euros.", [document, Guid.NewGuid()]));
+
+        await DocumentApi.DeletedAsync(app, app.AdultA, document);
+
+        var alice = await MessagesAsync(app, app.AdultA, alices);
+        Assert.Equal(["Mon bail ?", "", "Mes enveloppes ?", "Une enveloppe."], alice.Select(m => m.GetProperty("content").GetString()));
+        Assert.Equal([false, true, false, false], alice.Select(m => m.GetProperty("removed").GetBoolean()));
+        Assert.Empty(alice[1].GetProperty("items").EnumerateArray());
+        var bob = await MessagesAsync(app, app.AdultB, bobs);
+        Assert.Equal(["Le bail ?", ""], bob.Select(m => m.GetProperty("content").GetString()));
+        Assert.True(bob[1].GetProperty("removed").GetBoolean());
+    }
+
+    /// <summary>A conversation kept as the assistant keeps one: each answer with the ids its tools returned.</summary>
+    private static async Task<Guid> KeptAsync(NidApp app, Core.Contracts.PersonId author, params (string Question, string Answer, Guid[] Items)[] exchanges)
+    {
+        var id = Guid.NewGuid();
+        await using var scope = app.Services.CreateAsyncScope();
+        var conversations = scope.ServiceProvider.GetRequiredService<IConversations>();
+        var at = scope.ServiceProvider.GetRequiredService<IClock>().GetCurrentInstant();
+        foreach (var (question, answer, items) in exchanges)
+        {
+            IReadOnlyList<NewConversationMessage> exchange = [new("user", question, [], []), new("assistant", answer, ["get_subscription"], items)];
+            if (!await conversations.AppendAsync(id, author, exchange, "salon", "llama3.2", at, TestContext.Current.CancellationToken))
+                await conversations.StartAsync(id, author, question, "local", exchange, "salon", "llama3.2", at, TestContext.Current.CancellationToken);
+        }
+        return id;
+    }
+
+    private static async Task<JsonElement[]> MessagesAsync(NidApp app, Core.Contracts.PersonId author, Guid conversation)
+    {
+        var response = await app.RawAsync(author, HttpMethod.Get, $"{Conversations}/{conversation}");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        return [.. (await response.Content.ReadFromJsonAsync<JsonElement>(TestContext.Current.CancellationToken)).GetProperty("messages").EnumerateArray()];
+    }
+
+    [Fact]
     public async Task The_export_carries_no_conversation()
     {
         await using var app = await StartAsync(Model());

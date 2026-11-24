@@ -74,6 +74,31 @@ describe('DocumentUpload', () => {
     await waitFor(() => expect(api.gets()).toBeGreaterThan(before));
   });
 
+  it('shows a file dropped while the list is still loading its first answer', async () => {
+    // The list's first answer, sent before the upload, arrives after it: the upload must not settle for it.
+    let release: () => void = () => {};
+    const held = new Promise<void>((resolve) => { release = resolve; });
+    let gets = 0;
+    server.use(
+      http.get('*/api/v1/documents', async () => {
+        gets += 1;
+        if (gets === 1) {
+          await held;
+          return HttpResponse.json(list([]));
+        }
+        return HttpResponse.json(list([summary({ title: 'Bail déposé' })]));
+      }),
+      http.post('*/api/v1/documents', () => HttpResponse.json({ id: crypto.randomUUID() }, { status: 201 })),
+    );
+    await renderApp('/documents');
+
+    await drop(pdf('bail.pdf'));
+    expect(await screen.findByText('Déposé')).toBeInTheDocument();
+    release();
+
+    expect(await within(await screen.findByRole('table', { name: 'Liste des documents' })).findByText('Bail déposé')).toBeInTheDocument();
+  });
+
   it('shows a refused file by name and still uploads the others', async () => {
     const api = serve({ 'notes.txt': [415, 'documents.unsupported_type'], 'scan.pdf': [413, 'documents.too_large'] });
     await renderApp('/documents');

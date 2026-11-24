@@ -322,7 +322,9 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<Nid.Ai.Application.IWorkerMonitor, Nid.Ai.Application.WorkerMonitor>();
         services.AddScoped<Nid.Ai.Application.IJobDispatcher, Nid.Ai.Application.JobDispatcher>();
         services.AddScoped<Nid.Ai.Application.IJobPurge, Nid.Ai.Application.JobPurge>();
-        services.AddScoped<Nid.Ai.Application.IConversations, Nid.Ai.Infrastructure.Persistence.ConversationStore>();
+        services.AddScoped<Nid.Ai.Infrastructure.Persistence.ConversationStore>();
+        services.AddScoped<Nid.Ai.Application.IConversations>(sp => sp.GetRequiredService<Nid.Ai.Infrastructure.Persistence.ConversationStore>());
+        services.AddScoped<Nid.Ai.Contracts.IConversationForgetting>(sp => sp.GetRequiredService<Nid.Ai.Infrastructure.Persistence.ConversationStore>());
         services.AddScoped<Nid.Ai.Application.IAssistantPeople, Nid.Ai.Infrastructure.Persistence.AssistantPeopleStore>();
         services.AddScoped<Nid.Ai.Application.IConversationPurge, Nid.Ai.Application.ConversationPurge>();
         services.AddScoped<Nid.Ai.Contracts.IModelRequests, Nid.Ai.Application.ModelRequests>();

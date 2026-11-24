@@ -125,6 +125,8 @@ describe('The assistant panel', () => {
         messages: [
           { role: 'user', content: 'Mon PEA ?', tools: [], items: [], createdAt: '2026-11-20T08:00:00Z' },
           { role: 'assistant', content: 'Il vaut 21 000 €.', tools: ['list_envelopes'], items: [], createdAt: '2026-11-20T08:00:00Z' },
+          { role: 'user', content: 'Et mon bail ?', tools: [], items: [], createdAt: '2026-11-20T08:01:00Z' },
+          { role: 'assistant', content: '', tools: [], items: [], createdAt: '2026-11-20T08:01:00Z', removed: true },
         ],
       })),
       http.delete('*/api/v1/ai/assistant/conversations/:id', ({ params }) => { deleted.push(String(params.id)); return new HttpResponse(null, { status: 204 }); }),
@@ -143,5 +145,8 @@ describe('The assistant panel', () => {
     await user.click(within(list).getByRole('button', { name: /Mon PEA \?/ }));
     expect(await within(panel).findByText('Il vaut 21 000 €.')).toBeInTheDocument();
     expect(within(panel).getByText('Consulté : list_envelopes')).toBeInTheDocument();
+    // #617: an answer taken out with the document it had read.
+    expect(within(panel).getByText('Et mon bail ?')).toBeInTheDocument();
+    expect(within(panel).getByText("Réponse retirée : un document qu'elle avait lu a été supprimé.")).toBeInTheDocument();
   });
 });

@@ -263,12 +263,13 @@ public sealed class SetDocumentArchivedHandler(IDocumentStore store, IContextAcc
 
 /// <summary>
 /// #600: whoever edits the document deletes it: the row, its links, text, chunks and embeddings (<see cref="IDocumentStore.DeleteAsync"/>),
-/// its text job with its result, then, once committed, its file if no other document has the same bytes. Backups keep it until they expire.
+/// its text job with its result, the assistant's answers that read it (#617), then, once committed, its file if no other document has the
+/// same bytes. Backups keep it until they expire.
 /// </summary>
 [RequestHandler<DeleteDocumentCommand, Guid>]
 public sealed partial class DeleteDocumentHandler(
-    IDocumentStore store, IDocumentStorage storage, IModelJobs jobs, IUnitOfWork unitOfWork, IContextAccessor context, IServiceScopeFactory scopes,
-    ILogger<DeleteDocumentHandler> logger)
+    IDocumentStore store, IDocumentStorage storage, IModelJobs jobs, IConversationForgetting conversations, IUnitOfWork unitOfWork,
+    IContextAccessor context, IServiceScopeFactory scopes, ILogger<DeleteDocumentHandler> logger)
     : IRequestHandler<DeleteDocumentCommand, Guid>
 {
     public async ValueTask<Result<Guid>> HandleAsync(DeleteDocumentCommand command, CancellationToken ct = default)
@@ -278,6 +279,7 @@ public sealed partial class DeleteDocumentHandler(
         if ((await store.DeleteAsync(command.Id, command.Version, ct)).TryGetFailure(out var conflict))
             return Result.Failure<Guid>(conflict!);
         await jobs.ForgetAsync(DocumentTexts.FileRef(command.Id), ct);
+        await conversations.ForgetAsync(command.Id, ct);
         // The bytes go only after the commit, so a rollback never leaves a row without them.
         unitOfWork.AfterCommit(() => DeleteFileIfUnusedAsync(sha256));
         await transaction.CommitAsync(ct);

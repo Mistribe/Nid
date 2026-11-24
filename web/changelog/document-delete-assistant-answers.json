@@ -1,0 +1,4 @@
+{
+  "en": "Deleting a document also takes out the assistant's answers that had read it, in every conversation: the question stays, marked « Réponse retirée ».",
+  "fr": "Supprimer un document retire aussi les réponses de l'assistant qui l'avaient lu, dans toutes les conversations : la question reste, avec la mention « Réponse retirée »."
+}

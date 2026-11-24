@@ -8,7 +8,7 @@ namespace Nid.Ai.Infrastructure.Persistence;
 
 /// <summary><see cref="IConversations"/>: every query filters on the author in SQL, so another person's conversation is never
 /// loaded, admin included (§9).</summary>
-public sealed class ConversationStore(AiDbContext db) : IConversations
+public sealed class ConversationStore(AiDbContext db) : IConversations, IConversationForgetting
 {
     public async Task<ConversationView?> FindAsync(Guid id, PersonId author, CancellationToken ct)
     {
@@ -18,7 +18,8 @@ public sealed class ConversationStore(AiDbContext db) : IConversations
         var messages = await db.ConversationMessages.AsNoTracking().Where(m => m.ConversationId == id).OrderBy(m => m.Seq).ToListAsync(ct);
         var totals = (await TotalsAsync([id], ct)).GetValueOrDefault(id);
         return new ConversationView(conversation.Id, conversation.Title, conversation.Provider, conversation.Model, conversation.CreatedAt,
-            [.. messages.Select(m => new ConversationMessageView(m.Role, m.Content, m.Tools, m.Items, m.CreatedAt))], conversation.PolicyClass,
+            [.. messages.Select(m => new ConversationMessageView(m.Role, m.Content, m.Tools, m.Items, m.CreatedAt, m.Role == "assistant" && m.Content.Length == 0))],
+            conversation.PolicyClass,
             totals.TokensIn, totals.TokensOut, Eur(totals.Cost));
     }
 
@@ -63,6 +64,11 @@ public sealed class ConversationStore(AiDbContext db) : IConversations
 
     public Task<int> PurgeAsync(Instant before, CancellationToken ct)
         => db.Conversations.Where(c => c.UpdatedAt < before).ExecuteDeleteAsync(ct);
+
+    /// <summary>#617: an empty answer marks one taken out (a turn that wrote nothing is never kept), and the context skips it.</summary>
+    public Task<int> ForgetAsync(Guid id, CancellationToken ct)
+        => db.ConversationMessages.Where(m => m.Role == "assistant" && m.Items.Contains(id))
+            .ExecuteUpdateAsync(s => s.SetProperty(m => m.Content, "").SetProperty(m => m.Tools, Array.Empty<string>()).SetProperty(m => m.Items, Array.Empty<Guid>()), ct);
 
     /// <summary>#175: the gateway's records of each conversation's calls (<c>llm_call</c>), summed in one query; a cost only
     /// when a call was priced.</summary>
