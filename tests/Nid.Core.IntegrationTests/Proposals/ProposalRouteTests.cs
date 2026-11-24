@@ -71,6 +71,43 @@ public class ProposalRouteTests(PostgresFixture fixture) : IClassFixture<Postgre
         Assert.Equal(changed.GetProperty("id").GetGuid(), old.GetProperty("proposal").GetProperty("supersededById").GetGuid());
     }
 
+    /// <summary>#629: without a target, the same proposal from two adults is two pending proposals, and neither replaces the other's.</summary>
+    [Fact]
+    public async Task The_same_untargeted_proposal_from_two_adults_stays_two_proposals()
+    {
+        await using var app = await NidApp.StartAsync(fixture, services => services.AddScoped<IProposalHandler, FreeHandler>());
+        async Task<(HttpStatusCode Status, Guid Id)> SubmitAsync(PersonId person, string note)
+        {
+            var response = await app.RawAsync(person, HttpMethod.Post, Proposals, new { kind = FreeHandler.KindName, payload = new { subject = "s1", note } });
+            return (response.StatusCode, (await JsonOf(response)).GetProperty("id").GetGuid());
+        }
+        async Task<string?> StatusAsync(PersonId person, Guid id)
+            => (await JsonOf(await app.RawAsync(person, HttpMethod.Get, $"{Proposals}/{id}"))).GetProperty("proposal").GetProperty("status").GetString();
+
+        var alice = await SubmitAsync(app.AdultA, "same");
+        var bob = await SubmitAsync(app.AdultB, "same");
+        var bobAgain = await SubmitAsync(app.AdultB, "other");
+
+        Assert.Equal(new[] { HttpStatusCode.Created, HttpStatusCode.Created, HttpStatusCode.Created }, new[] { alice.Status, bob.Status, bobAgain.Status });
+        Assert.NotEqual(alice.Id, bob.Id);
+        Assert.Equal("pending", await StatusAsync(app.AdultA, alice.Id));
+        Assert.Equal("superseded", await StatusAsync(app.AdultB, bob.Id));
+    }
+
+    /// <summary>The echo kind without a target.</summary>
+    private sealed class FreeHandler : IProposalHandler
+    {
+        public const string KindName = "test.free";
+        private readonly EchoProposalHandler echo = new();
+        public string Module => echo.Module;
+        public string Kind => KindName;
+        public int PayloadVersion => 1;
+        public bool NeedsTarget => false;
+        public Task<UnambitiousFx.Functional.Result<ProposalCheck>> ValidateAsync(ItemId target, JsonElement payload, bool edited, CancellationToken ct) => echo.ValidateAsync(target, payload, edited, ct);
+        public Task<JsonElement> PreviewAsync(ItemId target, JsonElement payload, CancellationToken ct) => echo.PreviewAsync(target, payload, ct);
+        public Task<UnambitiousFx.Functional.Result<IReadOnlyList<Guid>>> ApplyAsync(ItemId target, JsonElement payload, CancellationToken ct) => echo.ApplyAsync(target, payload, ct);
+    }
+
     [Fact]
     public async Task Refused_submissions_answer_their_code()
     {

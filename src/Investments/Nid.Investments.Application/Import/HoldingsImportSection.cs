@@ -284,7 +284,7 @@ public sealed partial class HoldingsImportSection(
             if (plan.Mode == Mode.Created)
                 await store.AddAsync(holding, ct);
             else
-                await store.ReplaceAsync(holding, ct);
+                await store.ReplaceAsync(holding, null, ct);
             await store.MarkAsync(HoldingTable.Holding, holding.Id, plan.Mark, ct);
         }
 

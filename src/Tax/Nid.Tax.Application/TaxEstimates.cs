@@ -64,7 +64,7 @@ public sealed partial class TaxEstimates(
             adults.Select(a => (a.Id.Value, Rate: ObservedRate.Of(lines, a.Id))).Where(x => x.Rate is not null)
                 .ToDictionary(x => x.Value, x => Percent(x.Rate!.Value)),
             r.Carry is { } carry ? TaxCarryView.Of(carry) : null, GapsOf(r.YearNotices, result, adults.Select(a => a.Id.Value).ToList()), deficitEstimated,
-            declaration, previousYear, history));
+            declaration, previousYear, history, stored is { } own && own.Year == year ? own.Version : null));
     }
 
     /// <summary>

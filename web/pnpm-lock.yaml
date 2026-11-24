@@ -210,9 +210,6 @@ importers:
       '@hookform/resolvers':
         specifier: 7.0.7
         version: 7.0.7(@standard-schema/spec@1.1.0)(react-hook-form@7.92.0(@types/react@19.3.0)(react@19.3.1))(zod@4.6.7)
-      '@radix-ui/react-slot':
-        specifier: 1.5.0
-        version: 1.5.0(@types/react@19.3.0)(react@19.3.1)
       '@tanstack/react-query':
         specifier: 5.108.0
         version: 5.108.0(@types/react@19.3.0)(react@19.3.1)

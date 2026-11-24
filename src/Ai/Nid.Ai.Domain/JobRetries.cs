@@ -43,4 +43,9 @@ public static class JobRetries
     /// <summary>A worker's error as Nid keeps it: a short code, nothing else.</summary>
     public static string ErrorCode(string error)
         => new string(error.Where(c => char.IsAsciiLetterOrDigit(c) || c is '_' or '.' or '-').Take(64).ToArray()) is { Length: > 0 } code ? code : "unknown";
+
+    /// <summary>#626: a worker's failure as a code Nid keeps and shows: <c>ai.worker_failed:</c> and its <see cref="ErrorCode"/>,
+    /// 64 characters at most, the width of a code column (<c>llm_call.code</c>).</summary>
+    public static string WorkerFailed(string error)
+        => $"{Contracts.JobCodes.WorkerFailed}:{ErrorCode(error)}" is var code && code.Length > 64 ? code[..64] : code;
 }

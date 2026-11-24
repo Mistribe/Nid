@@ -60,16 +60,34 @@ public sealed class HoldingStore(InvestmentsDbContext db) : IHoldingStore
         await db.SaveChangesAsync(ct);
     }
 
-    public async Task ReplaceAsync(EnvelopeHolding holding, CancellationToken ct)
+    public async Task<bool> ReplaceAsync(EnvelopeHolding holding, uint? version, CancellationToken ct)
     {
-        Copy(holding, await db.Holdings.SingleAsync(h => h.Id == holding.Id, ct));
-        await db.SaveChangesAsync(ct);
+        var row = await db.Holdings.SingleAsync(h => h.Id == holding.Id, ct);
+        Copy(holding, row);
+        return await SaveAtAsync(row, version, ct);
     }
 
-    public async Task DeleteAsync(Guid holding, CancellationToken ct)
+    public async Task<bool> DeleteAsync(Guid holding, uint version, CancellationToken ct)
     {
-        db.Holdings.Remove(await db.Holdings.SingleAsync(h => h.Id == holding, ct));
-        await db.SaveChangesAsync(ct);
+        var row = await db.Holdings.SingleAsync(h => h.Id == holding, ct);
+        db.Holdings.Remove(row);
+        return await SaveAtAsync(row, version, ct);
+    }
+
+    /// <summary>#630: xmin checked against the client's version, not the row just reloaded — a write in between is a conflict.</summary>
+    private async Task<bool> SaveAtAsync(HoldingRow row, uint? version, CancellationToken ct)
+    {
+        if (version is { } v)
+            db.Entry(row).Property(r => r.Version).OriginalValue = v;
+        try
+        {
+            await db.SaveChangesAsync(ct);
+            return true;
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return false;
+        }
     }
 
     public async Task<bool> InUseAsync(Guid holding, CancellationToken ct)

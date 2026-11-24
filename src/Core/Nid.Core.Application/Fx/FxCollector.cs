@@ -57,6 +57,9 @@ public sealed class FxCollector(IFxSourceClient sources, IFxRateStore rates, IFx
 
     private async Task<Failure?> CollectSubTrackerAsync(IEnumerable<LocalDate> days, Progress progress, CancellationToken ct)
     {
+        // #633: the refusals a day's rates may confirm — the earlier runs' (the day before the first one fetched here) and this run's.
+        // ponytail: the last 5 runs only; a refusal older than a few manual runs back is not confirmed by the next day.
+        var refusals = (await runs.RecentAsync(5, ct)).SelectMany(r => r.Rejected).ToList();
         foreach (var day in days)
         {
             var fetched = await sources.SubTrackerDayAsync(day, ct);
@@ -73,7 +76,11 @@ public sealed class FxCollector(IFxSourceClient sources, IFxRateStore rates, IFx
             reading.TryGetValue(out var parsed);
 
             var previous = await rates.PreviousAsync(parsed!.Rates.Select(r => r.Quote).ToList(), day, ct);
-            var checkedRates = FxPlausibility.Check(parsed.Rates, previous, options.MaxDailyChange);
+            var dayBefore = day.PlusDays(-1);
+            var refused = refusals.Where(r => r.OnDate == dayBefore && r.Reason == FxCodes.ImplausibleChange)
+                .GroupBy(r => r.Quote).ToDictionary(g => g.Key, g => g.Last().Rate);
+            var checkedRates = FxPlausibility.Check(parsed.Rates, previous, refused, options.MaxDailyChange);
+            refusals.AddRange(checkedRates.Rejected);
             progress.RowsWritten += await rates.WriteAsync(checkedRates.Rates, ct);
             progress.Rejected.AddRange(parsed.Rejected);
             progress.Rejected.AddRange(checkedRates.Rejected);

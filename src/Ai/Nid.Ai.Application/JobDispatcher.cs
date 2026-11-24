@@ -290,7 +290,7 @@ public sealed class JobDispatcher(
                 await FinishAsync(job, JobState.Failed, JobCodes.InvalidInput, now, ct);
                 break;
             default:
-                await RetryAsync(job, polled.Status.Error is { } error ? $"{JobCodes.WorkerFailed}:{JobRetries.ErrorCode(error)}" : JobCodes.WorkerFailed, now, ct);
+                await RetryAsync(job, polled.Status.Error is { } error ? JobRetries.WorkerFailed(error) : JobCodes.WorkerFailed, now, ct);
                 break;
         }
     }

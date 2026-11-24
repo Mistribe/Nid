@@ -141,6 +141,27 @@ describe('The assistant panel', () => {
     expect(within(adminPanel).getByRole('link', { name: "Ouvrir les réglages de l'IA" })).toHaveAttribute('href', '/admin/ai');
   });
 
+  it('« Plus anciennes » adds the older conversations below the newer ones (#642)', async () => {
+    serve();
+    const item = (n: number) => ({ id: `c${n}`, title: `Question ${n}`, provider: 'salon', model: 'llama3.2', createdAt: '2026-11-20T08:00:00Z', updatedAt: '2026-11-20T08:00:00Z' });
+    server.use(http.get('*/api/v1/ai/assistant/conversations', ({ request }) => {
+      const page = Number(new URL(request.url).searchParams.get('page') ?? '1');
+      const items = page === 1 ? Array.from({ length: 30 }, (_, i) => item(i + 1)) : [item(31)];
+      return HttpResponse.json({ items, total: 31, page });
+    }));
+    const { user } = await renderApp('/dashboard');
+    const panel = await openPanel(user);
+
+    await user.click(within(panel).getByRole('button', { name: 'Conversations' }));
+    const list = await within(panel).findByRole('list', { name: 'Conversations' });
+    await user.click(within(panel).getByRole('button', { name: 'Plus anciennes' }));
+
+    await waitFor(() => expect(within(list).getAllByRole('listitem')).toHaveLength(31));
+    expect(within(list).getAllByRole('listitem')[0]).toHaveTextContent('Question 1');
+    expect(within(list).getAllByRole('listitem')[30]).toHaveTextContent('Question 31');
+    expect(within(panel).queryByRole('button', { name: 'Plus anciennes' })).not.toBeInTheDocument();
+  });
+
   it('lists the earlier conversations, reopens one and deletes another', async () => {
     serve();
     const deleted: string[] = [];

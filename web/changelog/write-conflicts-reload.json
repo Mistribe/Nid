@@ -1,0 +1,4 @@
+{
+  "en": "Two people saving the same thing at once no longer get an error or silently overwrite each other: the second one is asked to reload, for the tax profile and the holdings too.",
+  "fr": "Deux personnes qui enregistrent la même chose en même temps n’ont plus d’erreur et ne s’écrasent plus sans le savoir : la seconde est invitée à recharger, y compris pour le profil fiscal et les lignes d’un placement."
+}

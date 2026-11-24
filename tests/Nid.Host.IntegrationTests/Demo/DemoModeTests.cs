@@ -92,7 +92,7 @@ public class DemoModeTests(PostgresFixture postgres) : IClassFixture<PostgresFix
     }
 
     [Fact]
-    public async Task The_demo_creates_no_access_token_and_no_webhook()
+    public async Task The_demo_creates_no_access_token_no_webhook_no_model_worker_and_no_cloud_key()
     {
         var connectionString = await postgres.NewConnectionStringAsync();
         await using var factory = DemoFactory(connectionString);
@@ -105,6 +105,11 @@ public class DemoModeTests(PostgresFixture postgres) : IClassFixture<PostgresFix
                      (HttpMethod.Post, "/api/v1/core/me/tokens", (object)new { name = "assistant", scopes = new[] { "read" } }),
                      (HttpMethod.Put, "/api/v1/platform/notifications/discord", new { url = "https://discord.com/api/webhooks/1/x" }),
                      (HttpMethod.Put, "/api/v1/admin/notifications/discord", new { url = "https://discord.com/api/webhooks/1/x" }),
+                     (HttpMethod.Post, "/api/v1/ai/workers", new { name = "box", url = "https://worker.example:8443", placement = "local" }),
+                     (HttpMethod.Post, $"/api/v1/ai/workers/{Guid.NewGuid()}/pair", new { fingerprint = "f", code = "ABCDEFGH" }),
+                     (HttpMethod.Put, $"/api/v1/ai/workers/{Guid.NewGuid()}/safe/", new { safe = true }),
+                     (HttpMethod.Put, "/api/v1/ai/cloud/keys/anthropic", new { key = "sk-x" }),
+                     (HttpMethod.Delete, "/api/v1/ai/cloud/keys/anthropic", new { }),
                  })
         {
             using var request = new HttpRequestMessage(method, path) { Content = JsonContent.Create(body) };

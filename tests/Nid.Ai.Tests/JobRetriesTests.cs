@@ -53,6 +53,15 @@ public sealed class JobRetriesTests
     public void A_worker_error_is_kept_as_a_short_code(string error, string code)
         => Assert.Equal(code, JobRetries.ErrorCode(error));
 
+    [Fact]
+    public void A_worker_failure_fits_a_code_column_whatever_the_worker_sends()
+    {
+        Assert.Equal("ai.worker_failed:model_crashed", JobRetries.WorkerFailed("model_crashed"));
+        var long_ = JobRetries.WorkerFailed(new string('x', 4096) + " <raw text>");
+        Assert.Equal(64, long_.Length);
+        Assert.StartsWith("ai.worker_failed:xxx", long_);
+    }
+
     private static RouteCandidate Worker(
         WorkerPlacement placement = WorkerPlacement.Local, bool safe = false, int load = 0, int max = 1, int seenSecondsAgo = 10,
         WorkerStatus status = WorkerStatus.Active, bool serves = true, Guid? id = null)
