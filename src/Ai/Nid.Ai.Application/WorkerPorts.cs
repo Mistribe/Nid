@@ -103,7 +103,8 @@ public interface IWorkerClient
     /// <summary>Sends a job; the answer is the worker's id for it and the secret its result will be bound to.</summary>
     Task<SubmittedJob> SubmitJobAsync(WorkerRecord worker, NidKey key, Protocol.Contracts.JobSubmission submission, CancellationToken ct);
 
-    Task<PolledJob> PollJobAsync(WorkerRecord worker, NidKey key, string workerJobId, CancellationToken ct);
+    /// <summary>A job's status; once it succeeded, its result opened with the secret of its submission.</summary>
+    Task<PolledJob> PollJobAsync(WorkerRecord worker, NidKey key, string workerJobId, byte[] responseSecret, CancellationToken ct);
 
     Task CancelJobAsync(WorkerRecord worker, NidKey key, string workerJobId, CancellationToken ct);
 
@@ -115,5 +116,6 @@ public interface IWorkerClient
 
 public sealed record SubmittedJob(string WorkerJobId, byte[] ResponseSecret);
 
-/// <summary>A job's status, and once it succeeded the result still sealed under the submission's secret.</summary>
-public sealed record PolledJob(Protocol.Contracts.JobStatus Status, byte[]? SealedResult);
+/// <summary>A job's status, and once it succeeded its result, opened; null when there is none or it could not be opened
+/// (frames that do not read under the submission's secret, or a stream cut before its end).</summary>
+public sealed record PolledJob(Protocol.Contracts.JobStatus Status, byte[]? Result);

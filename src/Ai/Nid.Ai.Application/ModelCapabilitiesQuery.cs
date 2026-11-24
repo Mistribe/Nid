@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using Nid.Ai.Contracts;
+using Nid.Ai.Domain;
 using Nid.Ai.Protocol;
 using Nid.Ai.Protocol.Contracts;
 using NodaTime;
@@ -26,7 +27,7 @@ public sealed class GetModelCapabilitiesHandler(IWorkerStore store, IAiSettings 
             .Where(w => w.Status == WorkerStatus.Active)
             .Select(w => (Worker: w, Declaration: WorkerRouter.DeclarationOf(w)))
             .Where(w => w.Declaration is not null)
-            .Select(w => (w.Worker, Declaration: w.Declaration!, Online: w.Worker.LastSeenAt is { } seen && now - seen <= WorkerRouter.OnlineFor))
+            .Select(w => (w.Worker, Declaration: w.Declaration!, Online: WorkerRouting.Online(w.Worker.LastSeenAt, now)))
             .ToList();
 
         var names = new SortedSet<string>(StringComparer.Ordinal);

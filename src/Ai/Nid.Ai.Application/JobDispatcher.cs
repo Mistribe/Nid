@@ -4,8 +4,6 @@ using Nid.Ai.Contracts;
 using Nid.Ai.Domain;
 using Nid.Ai.Protocol;
 using Nid.Ai.Protocol.Contracts;
-using Nid.Ai.Protocol.Framing;
-using Nid.Ai.Protocol.Sealing;
 using Nid.Platform.Contracts;
 using NodaTime;
 using UnambitiousFx.Functional;
@@ -92,12 +90,6 @@ public sealed class JobDispatcher(
     IEnumerable<IJobFileSource> files, IEnumerable<IJobResultSink> sinks, IAssistantPeople people, INotifier notifier, IAiSettings settings,
     IClock clock) : IJobDispatcher
 {
-    public const int MaxAttempts = 5;
-
-    /// <summary>How long a job may run on a worker once it left the worker's queue (it is renewed while it waits there).</summary>
-    public static readonly Duration Lease = Duration.FromMinutes(10);
-    public static readonly Duration WaitWhenNowhere = Duration.FromSeconds(30);
-    private static readonly Duration[] Backoff = [Duration.FromSeconds(30), Duration.FromMinutes(2), Duration.FromMinutes(10), Duration.FromHours(1)];
     private const int Batch = 20;
 
     // One pass: a worker out of reach is not tried again, and no worker is sent more than it runs at once.
@@ -144,12 +136,12 @@ public sealed class JobDispatcher(
         var candidates = route.Workers.Where(w => !_unreachable.Contains(w.Id) && _sent.GetValueOrDefault(w.Id) < Slots(w)).ToList();
         if (candidates.Count == 0)
         {
-            await jobs.TryUpdateAsync(job with { WaitingReason = route.Reason ?? JobCodes.WorkerFailed, RunAfter = now + WaitWhenNowhere }, ct);
+            await jobs.TryUpdateAsync(job with { WaitingReason = route.Reason ?? JobCodes.WorkerFailed, RunAfter = now + JobRetries.WaitWhenNowhere }, ct);
             return;
         }
 
         // Claimed first: another pass that read the same row loses on its version and sends nothing.
-        if (!await jobs.TryUpdateAsync(job with { Status = JobState.Running, LeaseUntil = now + Lease, NextPollAt = now + Lease, WaitingReason = null }, ct))
+        if (!await jobs.TryUpdateAsync(job with { Status = JobState.Running, LeaseUntil = now + JobRetries.Lease, NextPollAt = now + JobRetries.Lease, WaitingReason = null }, ct))
             return;
         var claimed = (await jobs.FindAsync(job.Id, ct))!;
 
@@ -189,7 +181,7 @@ public sealed class JobDispatcher(
                     WorkerJobId = sent.WorkerJobId,
                     ResponseSecret = sent.ResponseSecret,
                     SentAt = now,
-                    NextPollAt = now + Duration.FromSeconds(5),
+                    NextPollAt = now + JobRetries.FirstPoll,
                 }, ct);
                 return;
             }
@@ -213,7 +205,7 @@ public sealed class JobDispatcher(
             // A worker that answered but could not take it now: not the job's fault, no attempt counted.
             await jobs.TryUpdateAsync(claimed with
             {
-                Status = JobState.Queued, LeaseUntil = null, NextPollAt = null, RunAfter = now + WaitWhenNowhere, WaitingReason = JobCodes.WorkerFailed,
+                Status = JobState.Queued, LeaseUntil = null, NextPollAt = null, RunAfter = now + JobRetries.WaitWhenNowhere, WaitingReason = JobCodes.WorkerFailed,
             }, ct);
             return;
         }
@@ -266,7 +258,7 @@ public sealed class JobDispatcher(
         PolledJob polled;
         try
         {
-            polled = await client.PollJobAsync(worker, key, job.WorkerJobId, ct);
+            polled = await client.PollJobAsync(worker, key, job.WorkerJobId, job.ResponseSecret!, ct);
         }
         catch (WorkerCallException)
         {
@@ -277,15 +269,13 @@ public sealed class JobDispatcher(
         switch (polled.Status.Status)
         {
             case "queued" or "running":
-                var sentFor = now - (job.SentAt ?? now);
                 await jobs.TryUpdateAsync(job with
                 {
-                    NextPollAt = now + (sentFor < Duration.FromMinutes(1) ? Duration.FromSeconds(5) : Duration.FromSeconds(30)),
-                    // Waiting in the worker's queue does not use the lease: it starts when the job does.
-                    LeaseUntil = polled.Status.Status == "queued" ? now + Lease : job.LeaseUntil,
+                    NextPollAt = now + JobRetries.PollEvery(now - (job.SentAt ?? now)),
+                    LeaseUntil = JobRetries.LeaseAfterPoll(polled.Status.Status == "queued", now, job.LeaseUntil),
                 }, ct);
                 break;
-            case "succeeded" when Open(job, polled.SealedResult!) is { } result:
+            case "succeeded" when Read(job, polled.Result) is { } result:
                 if (sinks.FirstOrDefault(s => s.Type == job.Type) is { } sink)
                     await sink.AcceptAsync(job.FileRef, result, ct);
                 await FinishAsync(job with { Result = result }, JobState.Succeeded, null, now, ct);
@@ -297,30 +287,19 @@ public sealed class JobDispatcher(
                 await FinishAsync(job, JobState.Failed, JobCodes.InvalidInput, now, ct);
                 break;
             default:
-                await RetryAsync(job, polled.Status.Error is { } error ? $"{JobCodes.WorkerFailed}:{Code(error)}" : JobCodes.WorkerFailed, now, ct);
+                await RetryAsync(job, polled.Status.Error is { } error ? $"{JobCodes.WorkerFailed}:{JobRetries.ErrorCode(error)}" : JobCodes.WorkerFailed, now, ct);
                 break;
         }
     }
 
-    /// <summary>The result, opened with the submission's secret and read through the job's contract; null when either fails.</summary>
-    private string? Open(JobRecord job, byte[] sealedResult)
+    /// <summary>The opened result read through the job's contract; null when there is none or it does not read.</summary>
+    private string? Read(JobRecord job, byte[]? output)
     {
-        if (job.ResponseSecret is null || contracts.Find(ModelCallKind.Job, job.Type, job.Version) is not { } contract)
+        if (output is null || contracts.Find(ModelCallKind.Job, job.Type, job.Version) is not { } contract)
             return null;
         try
         {
-            var output = new MemoryStream();
-            var frames = ResponseReader.ReadAsync(ResponseSecret.FromBytes(job.ResponseSecret), new MemoryStream(sealedResult),
-                new FrameLimits(64 * 1024, JobStatus.MaxResultBytes / JobStatus.ResultChunk + 2, JobStatus.MaxResultBytes), CancellationToken.None);
-            var ended = false;
-            foreach (var frame in frames.ToBlockingEnumerable())
-            {
-                if (frame.Type == FrameType.Data)
-                    output.Write(frame.Content.Span);
-                ended = frame.Type == FrameType.End;
-            }
-
-            return ended ? contract.ReadOutput(output.ToArray()) : null;
+            return contract.ReadOutput(output);
         }
         catch (ProtocolException)
         {
@@ -332,7 +311,7 @@ public sealed class JobDispatcher(
     {
         await CancelAsync(job, ct);
         var attempts = job.Attempts + 1;
-        if (attempts >= MaxAttempts)
+        if (JobRetries.Backoff(attempts) is not { } backoff)
         {
             if (await FinishAsync(job with { Attempts = attempts }, JobState.Dead, code, now, ct))
                 await notifier.PublishAsync(new Notice("job_failed", new Recipients.Admins(), $"job_failed:ai.{job.Type}", [],
@@ -342,7 +321,7 @@ public sealed class JobDispatcher(
 
         await jobs.TryUpdateAsync(job with
         {
-            Status = JobState.Queued, Attempts = attempts, Error = code, RunAfter = now + Backoff[attempts - 1], LeaseUntil = null,
+            Status = JobState.Queued, Attempts = attempts, Error = code, RunAfter = now + backoff, LeaseUntil = null,
             NextPollAt = null, WorkerId = null, WorkerJobId = null, ResponseSecret = null, SentAt = null,
         }, ct);
     }
@@ -374,10 +353,6 @@ public sealed class JobDispatcher(
     private Task<bool> OffsiteAsync(JobRecord job, CancellationToken ct) => OffsiteConsent.AllowedAsync(people, job.Concerned, ct);
 
     private static int Slots(WorkerRecord worker) => WorkerRouter.DeclarationOf(worker)?.MaxConcurrentRequests ?? 1;
-
-    /// <summary>A worker's error as Nid keeps it: a short code, nothing else.</summary>
-    private static string Code(string error)
-        => new string(error.Where(c => char.IsAsciiLetterOrDigit(c) || c is '_' or '.' or '-').Take(64).ToArray()) is { Length: > 0 } code ? code : "unknown";
 
     /// <summary>What the worker receives: the job's input and, read from the module that owns it, its file.</summary>
     private async Task<Result<JobSubmission>> SubmissionAsync(JobRecord job, CancellationToken ct)
