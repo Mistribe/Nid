@@ -118,7 +118,10 @@ public class ValidateCommitTests(PostgresFixture fixture) : IClassFixture<Postgr
             Assert.False(await core.Persons.AnyAsync(p => p.DisplayName == "Léa", cancellationToken: TestContext.Current.CancellationToken));
         var after = await client.GetAsync(app.AdultA, session.Id);
         Assert.Equal("validated", after.State);
-        Assert.Contains(after.Report!.Issues, i => i.Code == ImportCodes.ApplyFailed);
+        // #637: the type at most, never the exception's message (database names, key values): that stays in the server log.
+        var failed = Assert.Single(after.Report!.Issues, i => i.Code == ImportCodes.ApplyFailed);
+        Assert.Contains(nameof(InvalidOperationException), failed.Message);
+        Assert.DoesNotContain("on purpose", failed.Message);
     }
 
     [Fact]
