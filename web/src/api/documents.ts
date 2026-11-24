@@ -27,6 +27,10 @@ export const EXPECTED_DISMISSALS = '/api/v1/documents/expected/dismissals' as co
 export const contentUrl = (id: string) => DOCUMENT_CONTENT.replace('{id}', encodeURIComponent(id));
 
 /** Every write invalidates the list, every document (a link changes both) and the expected documents (#414). */
-export function invalidateDocuments(queryClient: QueryClient): Promise<void> {
-  return Promise.all([DOCUMENTS, DOCUMENT, EXPECTED].map((path) => queryClient.invalidateQueries({ queryKey: ['get', path] }))).then(() => undefined);
+export async function invalidateDocuments(queryClient: QueryClient): Promise<void> {
+  const keys = [DOCUMENTS, DOCUMENT, EXPECTED].map((path) => ['get', path]);
+  // A query still waiting for its first answer would keep it (TanStack joins that fetch instead of starting one): an upload
+  // dropped as the page opens then never showed. Cancelled first, it is fetched again after the write.
+  await Promise.all(keys.map((queryKey) => queryClient.cancelQueries({ queryKey })));
+  await Promise.all(keys.map((queryKey) => queryClient.invalidateQueries({ queryKey })));
 }
