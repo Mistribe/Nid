@@ -1,6 +1,8 @@
 using System.Net;
+using System.Security.Cryptography;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Nid.Documents.Application;
 using Nid.Documents.Infrastructure.Persistence;
 using Nid.Platform.Contracts;
 using Nid.TestSupport;
@@ -56,6 +58,32 @@ public sealed class DocumentDeleteTests(PostgresFixture fixture) : IClassFixture
 
         await DeletedAsync(app, app.AdultA, second);
         Assert.Empty(Directory.EnumerateFiles(app.DocumentsRoot, "*", SearchOption.AllDirectories));
+    }
+
+    [Fact]
+    public async Task An_upload_of_the_same_bytes_waits_while_a_delete_holds_the_file_then_stores_them_again()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var sha256 = Convert.ToHexStringLower(SHA256.HashData(Pdf));
+        await using var scope = app.Services.CreateAsyncScope();
+        var work = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+        var storage = scope.ServiceProvider.GetRequiredService<IDocumentStorage>();
+        await storage.PutAsync(Pdf, TestContext.Current.CancellationToken); // a document's bytes, its last row just deleted
+
+        // The delete's last step: the file's lock, no row left, the bytes removed.
+        var transaction = await work.BeginAsync(TestContext.Current.CancellationToken);
+        await scope.ServiceProvider.GetRequiredService<IDocumentStore>().LockFileAsync(sha256, TestContext.Current.CancellationToken);
+        var upload = UploadedAsync(app, app.AdultA, Pdf);
+        await Task.Delay(500, TestContext.Current.CancellationToken);
+        Assert.False(upload.IsCompleted); // its bytes would be found there, then removed under it
+        await storage.DeleteAsync(sha256, TestContext.Current.CancellationToken);
+        await transaction.CommitAsync(TestContext.Current.CancellationToken);
+        await transaction.DisposeAsync();
+
+        var id = await upload;
+        var content = await GetAsync(app, app.AdultA, id, "/content");
+        Assert.Equal(HttpStatusCode.OK, content.StatusCode);
+        Assert.Equal(Pdf, await content.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken));
     }
 
     private static async Task<int> CountAsync(NidApp app, string sql)

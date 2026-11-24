@@ -46,7 +46,7 @@ Port `IDocumentStorage` : écrire un contenu sous son sha256 s'il n'existe pas, 
 | `s3` | `ServiceUrl`, `Bucket`, `AccessKey`, `SecretKey` (tous requis), `Region` (`us-east-1`), `ForcePathStyle` (`true`) | Même clé d'objet ; `AWSSDK.S3`, testé contre MinIO (Testcontainers) |
 
 - **Pas de chiffrement applicatif** : le chiffrement au repos est celui du disque de l'hôte, ou le chiffrement côté serveur du bucket.
-- **Dédoublonnage** : deux dépôts du même contenu donnent deux lignes `document` et un seul fichier. Pas de compteur de références : supprimer un document (#600) retire son fichier après la validation de la transaction, seulement si aucun autre document n'a le même sha256 (un dépôt des mêmes octets au même instant peut le perdre, risque accepté).
+- **Dédoublonnage** : deux dépôts du même contenu donnent deux lignes `document` et un seul fichier. Pas de compteur de références : supprimer un document (#600) retire son fichier après la validation de la transaction, seulement si aucun autre document n'a le même sha256, vérifié sous un verrou consultatif propre au fichier (`pg_advisory_xact_lock`) que le dépôt tient aussi de l'écriture des octets à la validation de sa ligne : un dépôt des mêmes octets au même instant attend la suppression puis réécrit le fichier, ou la suppression voit sa ligne et garde le fichier.
 - **Image** : l'image `nid` crée `/var/lib/nid/documents` (propriétaire 1654, `0750`), pour qu'un volume neuf soit inscriptible.
 
 ## 4. Dépôt et lecture

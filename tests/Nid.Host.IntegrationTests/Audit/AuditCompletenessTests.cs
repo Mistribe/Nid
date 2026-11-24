@@ -79,7 +79,7 @@ public partial class AuditCompletenessTests(PostgresFixture fixture) : IClassFix
         ["src/Subscriptions/Nid.Subscriptions.Infrastructure/Persistence/ProviderStore.cs"] = 3, // lock; archived_at and icons (catalog run)
         ["src/Investments/Nid.Investments.Infrastructure/Persistence/PriceRunLog.cs"] = 3, // price_run: excluded
         ["src/Documents/Nid.Documents.Infrastructure/Persistence/DocumentIndexStore.cs"] = 3, // #559: chunk_embedding, derived from the text (pgvector's type, in SQL): the insert, the old model's vectors, the HNSW index
-        ["src/Documents/Nid.Documents.Infrastructure/Persistence/DocumentStore.cs"] = 2, // upload_ticket: excluded (a one-use right, gone once used; the upload is audited)
+        ["src/Documents/Nid.Documents.Infrastructure/Persistence/DocumentStore.cs"] = 3, // upload_ticket: excluded (a one-use right, gone once used; the upload is audited); a file's advisory lock (#600)
         ["src/Investments/Nid.Investments.Infrastructure/Persistence/SecurityBreakdownStore.cs"] = 1, // security_breakdown: excluded from the item audit
         ["src/Investments/Nid.Investments.Infrastructure/Persistence/SecurityPriceStore.cs"] = 3, // security_price: excluded
         ["src/Platform/Nid.Platform.Infrastructure/Notifications/NotificationStore.cs"] = 8, // notification, notification_run: excluded (+1: the ExecuteUpdateAsync of ResolveKeyAsync)

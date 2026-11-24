@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Nid.Ai.Contracts;
 using Nid.Core.Contracts;
@@ -145,13 +146,17 @@ public sealed class UploadDocumentHandler(
         if (command.WarnDuplicate && await DuplicateAsync(command.Content, person, ct) is { } duplicate)
             return Result.Success(new UploadedDocument(duplicate.Id, true, duplicate));
 
-        // Stored before the row: a row never points at missing bytes; bytes left by a failed insert are only unreferenced.
-        var sha256 = await storage.PutAsync(command.Content, ct);
+        var sha256 = Convert.ToHexStringLower(SHA256.HashData(command.Content.Span));
         var document = new DocumentRecord(id, sha256, command.Content.Length, mediaType, fileName, title.Trim(), command.DocumentDate,
             DocumentFields.Note(command.Note), person.Value, clock.GetCurrentInstant(), null, sourceRef);
         try
         {
             await using var transaction = await unitOfWork.BeginAsync(ct);
+            // #600: held until the row is committed, so a delete of the last document with these bytes either removed them
+            // before (they are stored again here) or sees this row and keeps them.
+            await store.LockFileAsync(sha256, ct);
+            // Stored before the row: a row never points at missing bytes; bytes left by a failed insert are only unreferenced.
+            await storage.PutAsync(command.Content, ct);
             await store.CreateAsync(document, ct);
             if (link is not null)
                 await store.AddLinkAsync(link, ct);
@@ -262,7 +267,8 @@ public sealed class SetDocumentArchivedHandler(IDocumentStore store, IContextAcc
 /// </summary>
 [RequestHandler<DeleteDocumentCommand, Guid>]
 public sealed partial class DeleteDocumentHandler(
-    IDocumentStore store, IDocumentStorage storage, IModelJobs jobs, IUnitOfWork unitOfWork, IContextAccessor context, ILogger<DeleteDocumentHandler> logger)
+    IDocumentStore store, IDocumentStorage storage, IModelJobs jobs, IUnitOfWork unitOfWork, IContextAccessor context, IServiceScopeFactory scopes,
+    ILogger<DeleteDocumentHandler> logger)
     : IRequestHandler<DeleteDocumentCommand, Guid>
 {
     public async ValueTask<Result<Guid>> HandleAsync(DeleteDocumentCommand command, CancellationToken ct = default)
@@ -273,19 +279,28 @@ public sealed partial class DeleteDocumentHandler(
             return Result.Failure<Guid>(conflict!);
         await jobs.ForgetAsync(DocumentTexts.FileRef(command.Id), ct);
         // The bytes go only after the commit, so a rollback never leaves a row without them.
-        // ponytail: an upload of the same bytes committed between this check and the delete would lose them; a reference count or a
-        // sweep of unreferenced files would close it, if uploads of the same file at the same moment ever become usual.
-        if ((await store.FindBySha256Async(sha256, ct)).Count == 0)
-            unitOfWork.AfterCommit(() => DeleteFileAsync(sha256));
+        unitOfWork.AfterCommit(() => DeleteFileIfUnusedAsync(sha256));
         await transaction.CommitAsync(ct);
         return Result.Success(command.Id);
     }
 
-    private async Task DeleteFileAsync(string sha256)
+    /// <summary>
+    /// In a transaction of its own (the request's has just committed), under the file's lock that an upload holds from storing the bytes
+    /// to committing its row: no document left with these bytes means none can appear before they are gone. A failure leaves an
+    /// unreferenced file, never a row without its bytes.
+    /// </summary>
+    private async Task DeleteFileIfUnusedAsync(string sha256)
     {
         try
         {
-            await storage.DeleteAsync(sha256, CancellationToken.None);
+            await using var scope = scopes.CreateAsyncScope();
+            var work = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var files = scope.ServiceProvider.GetRequiredService<IDocumentStore>();
+            await using var transaction = await work.BeginAsync(CancellationToken.None);
+            await files.LockFileAsync(sha256, CancellationToken.None);
+            if ((await files.FindBySha256Async(sha256, CancellationToken.None)).Count == 0)
+                await storage.DeleteAsync(sha256, CancellationToken.None);
+            await transaction.CommitAsync(CancellationToken.None);
         }
         catch (Exception e)
         {

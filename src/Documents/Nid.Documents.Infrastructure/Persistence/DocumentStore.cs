@@ -314,6 +314,9 @@ public sealed class DocumentStore(DocumentsDbContext db) : IDocumentStore
         return await SaveAtAsync(row, version, ct);
     }
 
+    public Task LockFileAsync(string sha256, CancellationToken ct)
+        => db.Database.ExecuteSqlAsync($"select pg_advisory_xact_lock(hashtextextended({"document-file:" + sha256}, 0))", ct);
+
     /// <summary>#506: the update names the version the caller read, so a change made in between answers a conflict instead of being lost.</summary>
     private async Task<Result> SaveAtAsync(DocumentRow row, uint version, CancellationToken ct)
     {
