@@ -80,6 +80,26 @@ public class CreateWithPhaseTests(PostgresFixture fixture) : IClassFixture<Postg
         Assert.False(await subs.Subscriptions.AnyAsync(cancellationToken: TestContext.Current.CancellationToken));
     }
 
+    /// <summary>#515: a phase's bounds are the module's validator's, checked before anything is written, every field at once.</summary>
+    [Fact]
+    public async Task A_negative_price_and_a_zero_cycle_limit_are_refused_together_by_path()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/subscriptions", Body(app, new
+        {
+            startsOn = "2025-01-01", price = new { amount = "-1.00", currency = "EUR" }, every = new { count = 1, unit = "month" },
+            maxCycles = 0, payer = new { type = "household" },
+        }));
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+        var problem = await ProblemOf(response);
+        Assert.Equal("request.invalid", problem.GetProperty("code").GetString());
+        Assert.Equal([("phases[0].price.amount", "subscriptions.price_negative"), ("phases[0].maxCycles", "subscriptions.max_cycles")], ErrorsOf(problem));
+        await using var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
+        Assert.False(await subs.Subscriptions.AnyAsync(cancellationToken: TestContext.Current.CancellationToken));
+    }
+
     [Fact]
     public async Task A_rule_refusal_keeps_its_own_code_and_gains_its_path()
     {

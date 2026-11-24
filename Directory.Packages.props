@@ -21,11 +21,11 @@
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="11.0.0" />
     <PackageVersion Include="Testcontainers.PostgreSql" Version="4.17.0" />
     <PackageVersion Include="AWSSDK.S3" Version="4.1.2" />
-    <PackageVersion Include="UnambitiousFx.Synapse" Version="3.6.0" />
-    <PackageVersion Include="UnambitiousFx.Synapse.Abstractions" Version="3.6.0" />
-    <PackageVersion Include="UnambitiousFx.Synapse.Authorization" Version="3.6.0" />
-    <PackageVersion Include="UnambitiousFx.Synapse.Generator" Version="3.6.0" />
-    <PackageVersion Include="UnambitiousFx.Synapse.ModelContextProtocol" Version="3.6.0" />
+    <PackageVersion Include="UnambitiousFx.Synapse" Version="3.6.1" />
+    <PackageVersion Include="UnambitiousFx.Synapse.Abstractions" Version="3.6.1" />
+    <PackageVersion Include="UnambitiousFx.Synapse.Authorization" Version="3.6.1" />
+    <PackageVersion Include="UnambitiousFx.Synapse.Generator" Version="3.6.1" />
+    <PackageVersion Include="UnambitiousFx.Synapse.ModelContextProtocol" Version="3.6.1" />
     <PackageVersion Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="11.0.0" />
     <PackageVersion Include="Microsoft.AspNetCore.DataProtection.Abstractions" Version="11.0.0" />
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="11.0.0" />

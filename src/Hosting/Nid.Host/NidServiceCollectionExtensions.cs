@@ -600,6 +600,9 @@ public static class NidServiceCollectionExtensions
             cfg.AddRegisterGroup(new Nid.RealEstate.Application.RegisterGroup());
             cfg.AddRegisterGroup(new Nid.Banking.Application.RegisterGroup());
             cfg.AddTransactions<UnitOfWorkTransactions>();                 // an ITransactional command runs in the request's unit of work
+            // #515: a module's [Validator] runs after the access checks and before the transaction (Synapse defaults it to innermost).
+            cfg.ConfigureBehaviorOrdering(typeof(UnambitiousFx.Synapse.Pipelines.RequestValidationBehavior<,>), UnambitiousFx.Synapse.Abstractions.PipelineStage.Validation);
+            cfg.ConfigureBehaviorOrdering(typeof(UnambitiousFx.Synapse.Pipelines.RequestValidationBehavior<>), UnambitiousFx.Synapse.Abstractions.PipelineStage.Validation);
             cfg.ValidateOnStart();                                         // a handler or behavior that cannot resolve fails the start, not the first request
         });
         return services;

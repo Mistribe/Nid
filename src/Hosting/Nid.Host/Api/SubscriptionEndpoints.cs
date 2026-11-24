@@ -320,14 +320,10 @@ public static class SubscriptionEndpoints
             var startsOn = reader.Date(StartsOn, path + ".startsOn");
             var endsOn = reader.Date(EndsOn, path + ".endsOn", required: false);
             var price = reader.Money(Price, path + ".price");
-            if (price is { Amount: < 0 })
-                reader.Add(path + ".price.amount", "subscriptions.price_negative", "A phase has a price of zero or more.");
             var every = reader.Duration(Every, path + ".every");
             var covers = reader.Duration(Covers, path + ".covers", required: false);
-            if (MaxCycles is <= 0)
-                reader.Add(path + ".maxCycles", "subscriptions.max_cycles", "A cycle limit is positive.");
             var payer = reader.Payer(Payer, path + ".payer");
-            return startsOn is { } s && price is { Amount: >= 0 } p && every is { } e && payer is { } y && MaxCycles is not <= 0 && reader.Ok
+            return startsOn is { } s && price is { } p && every is { } e && payer is { } y && reader.Ok
                 ? new BillingPhase(BillingPhaseId.New(), s, endsOn, p, e, covers, MaxCycles, y)
                 : null;
         }
@@ -340,12 +336,8 @@ public static class SubscriptionEndpoints
         {
             var startsOn = reader.Date(StartsOn, "startsOn");
             var price = reader.Money(Price, "price");
-            if (price is { Amount: < 0 })
-                reader.Add("price.amount", "subscriptions.price_negative", "A phase has a price of zero or more.");
             var every = reader.Duration(Every, "every", required: false);
             var covers = reader.Duration(Covers, "covers", required: false);
-            if (MaxCycles is <= 0)
-                reader.Add("maxCycles", "subscriptions.max_cycles", "A cycle limit is positive.");
             var payer = Payer is null ? null : reader.Payer(Payer, "payer");
             return reader.Ok ? new ChangePriceCommand(id, startsOn!.Value, price!.Value, every, covers, MaxCycles, payer) : null;
         }
