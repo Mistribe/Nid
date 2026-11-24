@@ -27,6 +27,7 @@ import { ConnectionTestResult } from './ConnectionTestResult';
 import { APPLICATION, BANKING_STATUS, PORTAL_URL, PRIVACY_URL, TERMS_URL, bankErrorText, presentBankError, useBankingStatus } from '@/api/banking';
 import { formatInstantDate } from '@/lib/format';
 import '@/locales/banks';
+import { useCopy } from '@/lib/clipboard';
 
 const TEST = '/api/v1/banking/application/test' as const;
 
@@ -245,6 +246,7 @@ function Wizard({ current, step, onFinish }: { current: MyApplication | null; st
 /** A value the adult pastes into the portal, exactly: read-only, selected on focus, with a copy button. */
 function CopyField({ label, value, tip, hint, mono = true }: { label: string; value: string; tip?: ReactNode; hint?: string; mono?: boolean }) {
   const { t } = useTranslation();
+  const copy = useCopy();
   return (
     <div className="flex flex-wrap items-end gap-2">
       <div className="min-w-0 flex-1 basis-64">
@@ -252,9 +254,7 @@ function CopyField({ label, value, tip, hint, mono = true }: { label: string; va
           {(c) => <Input {...c} readOnly value={value} className={mono ? 'font-mono text-sm' : undefined} onFocus={(e) => e.currentTarget.select()} />}
         </Field>
       </div>
-      <Button type="button" variant="outline" aria-label={t('banks.wizard.copy_label', { label })} onClick={() => {
-        void navigator.clipboard?.writeText(value).then(() => toast.success(t('banks.wizard.copied')));
-      }}>
+      <Button type="button" variant="outline" aria-label={t('banks.wizard.copy_label', { label })} onClick={() => copy(value, () => toast.success(t('banks.wizard.copied')))}>
         <Copy aria-hidden="true" />{t('banks.wizard.copy')}
       </Button>
     </div>

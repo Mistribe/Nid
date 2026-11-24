@@ -53,6 +53,7 @@ public partial class ClockAndIdConventionTests
         ["Core/Nid.Core.Application/Fx/FxCollector.cs"] = "ECB rates are dated in UTC",
         ["Investments/Nid.Investments.Application/Prices/PriceCollector.cs"] = "market quotes, dated like the rates",
         ["Platform/Nid.Platform/OutputGuardBehavior.cs"] = "the fallback when the calendar cannot be read",
+        ["Platform/Nid.Platform.Infrastructure/Notifications/Notifier.cs"] = "the fallback when the calendar cannot be read",
         ["Hosting/Nid.Host/Demo/DemoHousehold.cs"] = "the demo's seed dates",
         ["Hosting/Nid.Host/Api/AssistantEndpoints.cs"] = "the AI budget's month is a UTC month",
         ["Ai/"] = "the AI budget's month is a UTC month",
