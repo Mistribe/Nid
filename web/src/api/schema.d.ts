@@ -39430,6 +39430,14 @@ export interface components {
             /** Format: int32 */
             total: number;
             facets: components["schemas"]["DocumentFacets"];
+            meaningSearch?: null | string;
+        };
+        DocumentMatch: {
+            snippet: string;
+            /** Format: int32 */
+            page: number;
+            ocr: boolean;
+            byMeaning: boolean;
         };
         DocumentRoleBody: {
             /** Format: uuid */
@@ -39458,6 +39466,7 @@ export interface components {
             sourceRef?: null | string;
             /** Format: uint32 */
             version: number;
+            match?: null | components["schemas"]["DocumentMatch"];
         };
         DocumentTargetList: {
             items: components["schemas"]["DocumentTargetView"][];

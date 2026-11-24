@@ -25,6 +25,7 @@ import { DocumentFilters, keepOffered, type Filters } from './DocumentFilters';
 import { FileDocumentsDialog, type Filed } from './FileDocumentsDialog';
 import { UploadList, UploadPicker, UploadZone, useUploads } from './DocumentUpload';
 import { fileSize, roleText, shownDate } from './format';
+import { Match } from './Match';
 import '@/locales/documents';
 import { Loading, TableSkeleton } from '@/components/page/skeletons';
 
@@ -129,6 +130,8 @@ function List({ scope, inbox, archived, onArchivedChange }: { scope: Scope; inbo
         : (
           <>
             <p className="text-sm text-muted-foreground">{t('documents_page.count', { count: total })}</p>
+            {answer.data.meaningSearch === 'unavailable'
+              ? <p role="status" className="text-sm text-muted-foreground">{t('documents_page.match.meaning_unavailable')}</p> : null}
             <Table rows={shown} selection={inbox ? { selected, onChange: setSelected, allLabel: t('documents_page.file.select_all'),
               label: (d) => t('documents_page.file.select', { title: d.title }), disabled: (d) => !d.canEdit } : undefined} />
             <Pager page={page} total={total} label={t('documents_page.pages')} onPage={toPage} />
@@ -151,7 +154,7 @@ function Table({ rows, selection }: { rows: DocumentSummary[]; selection?: Selec
     <TooltipProvider>
     <SortableTable<DocumentSummary> caption={t('documents_page.list')} rows={rows} rowKey={(d) => d.id} selection={selection}
       columns={[
-        { id: 'title', header: t('documents_page.col_title'), sort: (d) => d.title, cell: (d) => <Title doc={d} /> },
+        { id: 'title', header: t('documents_page.col_title'), sort: (d) => d.title, wrap: true, cell: (d) => <Title doc={d} /> },
         { id: 'owner', header: t('documents_page.col_owner'), cell: owner },
         { id: 'types', header: t('documents_page.col_types'), sort: types, cell: types },
         { id: 'links', header: t('documents_page.col_links'), sort: linked, cell: (d) => <Linked labels={labels(d)} /> },
@@ -186,9 +189,12 @@ function Linked({ labels }: { labels: string[] }) {
 function Title({ doc }: { doc: DocumentSummary }) {
   const { t } = useTranslation();
   return (
-    <span className="inline-flex items-center gap-2">
-      <Link to="/documents/$id" params={{ id: doc.id }} className="font-medium underline-offset-4 hover:underline">{doc.title}</Link>
-      {doc.archived ? <Badge variant="secondary">{t('documents_page.archived')}</Badge> : null}
+    <span className="inline-flex flex-col gap-1">
+      <span className="inline-flex items-center gap-2">
+        <Link to="/documents/$id" params={{ id: doc.id }} className="font-medium underline-offset-4 hover:underline">{doc.title}</Link>
+        {doc.archived ? <Badge variant="secondary">{t('documents_page.archived')}</Badge> : null}
+      </span>
+      {doc.match ? <Match match={doc.match} /> : null}
     </span>
   );
 }

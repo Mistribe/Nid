@@ -1,5 +1,6 @@
 using System.Globalization;
 using Microsoft.Extensions.Logging;
+using Nid.Ai.Contracts;
 using Nid.Core.Contracts;
 using Nid.Documents.Contracts;
 using Nid.Documents.Domain;
@@ -31,7 +32,7 @@ public sealed record GetDocumentContentQuery(Guid Id) : IQuery<DocumentContent>,
 /// <summary>
 /// <paramref name="SourceRefPrefix"/>: syndic documents design §2.1, the documents whose source reference starts with it. Issue #420, on top of those: <paramref name="Role"/> a link role, <paramref name="Year"/> the year of the shown date (the document's
 /// own, else its upload day in the household's zone), <paramref name="Linked"/> a visible link's target id, <paramref name="Search"/>
-/// part of the title, whatever the case. <paramref name="Page"/> (from 1) answers <see cref="PageSize"/> documents; null answers them all.
+/// part of the title, whatever the case, or (#169) words or a meaning in the documents' text, the most relevant first. <paramref name="Page"/> (from 1) answers <see cref="PageSize"/> documents; null answers them all.
 /// </summary>
 public sealed record ListDocumentsQuery(VisibilityScope Scope, bool Archived, bool Inbox, DocumentTarget? Target = null, Guid? Anchor = null,
     string? SourceRefPrefix = null, string? Role = null, int? Year = null, Guid? Linked = null, string? Search = null, int? Page = null,
@@ -70,9 +71,12 @@ public sealed class GetDocumentHandler(DocumentAccess access, IContextAccessor c
 
 [RequestHandler<ListDocumentsQuery, DocumentList>]
 public sealed class ListDocumentsHandler(
-    IDocumentStore store, DocumentAccess access, IVisibleItems visible, IHouseholdCalendar calendar, IActorAccessor actor)
+    IDocumentStore store, DocumentAccess access, IVisibleItems visible, IHouseholdCalendar calendar, IActorAccessor actor, IEmbeddings embeddings)
     : IRequestHandler<ListDocumentsQuery, DocumentList>
 {
+    /// <summary>#169: how long the search waits for its text's vector before it answers by the words alone.</summary>
+    public static readonly TimeSpan MeaningWait = TimeSpan.FromSeconds(2);
+
     public async ValueTask<Result<DocumentList>> HandleAsync(ListDocumentsQuery query, CancellationToken ct = default)
     {
         var person = actor.Current!.PersonId!.Value;
@@ -85,14 +89,16 @@ public sealed class ListDocumentsHandler(
             ? (await visible.ForAsync(person, VisibilityScope.Household, includeArchived: true, ct)).Select(i => i.Value).ToList()
             : null;
         var size = Math.Max(query.PageSize, 1);
+        var search = string.IsNullOrWhiteSpace(query.Search) ? null : query.Search.Trim();
+        var (meaning, meaningState) = search is null ? (null, null) : await MeaningAsync(search, person.Value, ct);
         var found = await store.PageAsync(new DocumentPageQuery(
             person.Value, facts.ReadableItems, [facts.Person, .. facts.Dependents], facts.Dependents, query.Archived,
             // Read as a reference is stored: trimmed, blank meaning no filter.
             DocumentFields.SourceRef(query.SourceRefPrefix), query.Inbox, query.Target, query.Anchor, shared,
             string.IsNullOrEmpty(query.Role) ? null : query.Role, query.Year, query.Linked,
-            string.IsNullOrWhiteSpace(query.Search) ? null : query.Search.Trim(), await calendar.ZoneAsync(ct),
+            search, await calendar.ZoneAsync(ct),
             query.Page is { } page ? (Math.Max(page, 1) - 1) * size : 0, query.Page is null ? null : size,
-            facts.WritableUnanchored), ct);
+            facts.WritableUnanchored, meaning), ct);
 
         // The facets' targets hold every readable link of the page: one label lookup serves both.
         var labels = await access.LabelsAsync(found.Links.Select(l => (l.TargetKind, l.TargetId)), ct);
@@ -101,7 +107,32 @@ public sealed class ListDocumentsHandler(
             .Select(l => new DocumentLinkOption(l.TargetKind, l.TargetId, l.AnchorItemId, labels.GetValueOrDefault((l.TargetKind, l.TargetId), DocumentSummary.DeletedTargetLabel)))
             .ToList());
         return Result.Success(new DocumentList(
-            found.Items.Select(d => DocumentSummary.Of(new ReadableDocument(d, links[d.Id].ToList(), facts), labels)).ToList(), found.Total, facets));
+            found.Items.Select(d => DocumentSummary.Of(new ReadableDocument(d, links[d.Id].ToList(), facts), labels, found.Matches?.GetValueOrDefault(d.Id)))
+                .ToList(), found.Total, facets, meaningState));
+    }
+
+    /// <summary>
+    /// #169: the search text's vector, through the gateway as the indexer's (#559): the reader is the one concerned, so their own
+    /// preference decides whether a remote worker may see it. No model, a refusal or no answer within <see cref="MeaningWait"/>:
+    /// the search answers by the words alone, and says so.
+    /// </summary>
+    private async Task<(SearchMeaning?, string)> MeaningAsync(string search, Guid reader, CancellationToken ct)
+    {
+        if (await embeddings.ModelAsync(ct) is not { } model)
+            return (null, MeaningSearchStates.Off);
+        using var wait = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        wait.CancelAfter(MeaningWait);
+        try
+        {
+            var embedded = await embeddings.EmbedAsync(new LlmEmbedRequest([search], DataClasses.Documents, [reader]), wait.Token);
+            return embedded.TryGetValue(out var result) && result.Model == model && result.Vectors is [var vector]
+                ? (new SearchMeaning(model, result.Dimension, vector), MeaningSearchStates.Used)
+                : (null, MeaningSearchStates.Unavailable);
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            return (null, MeaningSearchStates.Unavailable);
+        }
     }
 }
 

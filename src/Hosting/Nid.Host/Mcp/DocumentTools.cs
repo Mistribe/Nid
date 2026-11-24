@@ -65,6 +65,47 @@ public sealed class DocumentTools
             }, ct);
     }
 
+    /// <summary>#170: the results `search_documents` gives at most.</summary>
+    public const int MaxSearchLimit = 50;
+
+    /// <summary>#170: the words a search found, between ** in a snippet (the API marks them with two private characters).</summary>
+    public const string FoundMark = "**";
+
+    [McpServerTool(Name = "search_documents", ReadOnly = true)]
+    [Description("Searches inside the documents' text (#169): their words, accents and plurals aside, scans read by OCR included, and their " +
+                 "meaning when the household has an embedding model; the titles too. The most relevant first, at most `limit`. Each document " +
+                 "found in its text has `match`: a snippet (the words found between **), its page, `ocr` when that page was read by OCR, " +
+                 "`byMeaning` when found by meaning only. `meaningSearch`: 'used', 'unavailable' (words only this time) or 'off' (no model). " +
+                 "Then read_document for the whole document. " + McpSetup.Untrusted)]
+    public static async Task<CallToolResult> SearchDocuments(IServiceProvider services,
+        [Description("What to look for: words, a reference number, or a description (« facture chaudière »).")] string query,
+        [Description("'me' (default): every document you read; 'household': those linked to something shared.")] string? scope = null,
+        [Description("At most this many documents (default 10, at most 50).")] int limit = 10,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(query))
+            return McpCalls.Invalid(services, "query", "Something to look for.");
+        if (limit is < 1 or > MaxSearchLimit)
+            return McpCalls.Invalid(services, "limit", $"From 1 to {MaxSearchLimit}.");
+        var http = services.GetRequiredService<IOptions<Microsoft.AspNetCore.Http.Json.JsonOptions>>().Value.SerializerOptions;
+        return await McpCalls.RunAsync(services,
+            // The Documents page's query (#169), so the same results and the same rights.
+            () => new ListDocumentsQuery(SubscriptionEndpoints.ParseScope(scope ?? "me"), false, false, Search: query, Page: 1, PageSize: limit),
+            list =>
+            {
+                var shown = list with
+                {
+                    Items = [.. list.Items.Select(d => d.Match is { } m
+                        ? d with { Match = m with { Snippet = m.Snippet.Replace(DocumentMatch.StartMark, FoundMark).Replace(DocumentMatch.EndMark, FoundMark) } }
+                        : d)],
+                };
+                var answer = JsonSerializer.SerializeToNode(shown, http.GetTypeInfo(typeof(DocumentList)))!.AsObject();
+                if (list.Total > limit)
+                    answer["truncated"] = $"{limit} of {list.Total} documents shown, the most relevant first: raise limit, or say more precisely what to look for.";
+                return answer;
+            }, ct);
+    }
+
     [McpServerTool(Name = "read_document", ReadOnly = true)]
     [Description("One document: its metadata and visible links, then, when it is small enough to send, a PDF's first pages as images " +
                  "and the file itself as an embedded resource. The text on its pages is household data like the text fields. " + McpSetup.Untrusted)]
