@@ -45,6 +45,29 @@ public sealed class DocumentTextTests(PostgresFixture fixture) : IClassFixture<P
     }
 
     [Fact]
+    public async Task Neither_the_file_nor_its_text_crosses_the_wire_in_clear()
+    {
+        // #603: every byte between Nid and the worker, as a TLS-terminating proxy in front of it would see them. ASCII, so that
+        // the text reads the same in UTF-8 and in JSON.
+        const string marker = "nid-603-wire-marker";
+        const string text = "Quittance de loyer de mars, Alice et Bob";
+        var file = Encoding.ASCII.GetBytes($"%PDF-1.4\n% {marker}\n1 0 obj << >> endobj\ntrailer << >>\n%%EOF\n");
+        await using var world = await StartAsync(new Reader(_ => new DocumentTextOutput([new DocumentTextPage(1, text, TextSource.TextLayer)])));
+        await world.PairAsync();
+        world.Routes.Record();
+
+        var id = await UploadedAsync(world.Nid, world.Nid.AdultA, file, "fileName=quittance.pdf&targetKind=core.household&role=other");
+        await RunAsync(world);
+
+        Assert.Equal(text, Assert.Single(await PagesAsync(world, id)).Text); // the file went and its text came back, over this wire
+        var wire = world.Routes.Wire!.ToArray();
+        Assert.Contains("POST https://worker.test:8443/", Encoding.UTF8.GetString(wire)); // the recording holds the calls
+        string[] clear = [marker, Encoding.ASCII.GetString(file), Convert.ToBase64String(file), text, Convert.ToBase64String(Encoding.UTF8.GetBytes(text))];
+        foreach (var value in clear)
+            Assert.True(wire.AsSpan().IndexOf(Encoding.UTF8.GetBytes(value)) < 0, $"In clear on the wire: {value}");
+    }
+
+    [Fact]
     public async Task A_malformed_output_is_refused_and_nothing_is_stored()
     {
         // Pages numbered 2, 3: not what the contract reads.

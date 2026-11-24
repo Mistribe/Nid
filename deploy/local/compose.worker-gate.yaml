@@ -1,0 +1,25 @@
+# #603: in the smoke test (deploy/smoke.sh), the worker has no route to nid. A compose network goes both ways, so nid reaches
+# the worker through a gate (worker-gate.mjs) that only forwards nid's connections: the worker and its engine sit on a network
+# of their own, which nid is not on. Never on a real deployment, where the worker shares only the internal `models` with nid.
+services:
+  worker:
+    networks: !override
+      isolated: { aliases: [worker-isolated] }
+
+  engine:
+    networks: !override [isolated]
+
+  worker-gate:
+    profiles: [worker]
+    image: node:26-alpine@sha256:6bd9ab43c0ec0190ca7b2d193906cb8b7edf6e7f4afa43ddeccd6452710bffb5
+    command: [node, /gate/worker-gate.mjs]
+    read_only: true
+    user: node
+    volumes: [./local/worker-gate.mjs:/gate/worker-gate.mjs:ro]
+    networks:
+      # nid calls https://worker:8443, as on a real deployment: here that name is the gate's.
+      models: { aliases: [worker] }
+      isolated: {}
+
+networks:
+  isolated: { internal: true }

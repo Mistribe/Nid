@@ -105,7 +105,36 @@ public sealed class RoutingHandler(IReadOnlyList<(string Host, WorkerHost Worker
             _down.Add(host);
     }
 
-    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    /// <summary>#603: what a TLS-terminating proxy in front of the workers would see, once <see cref="Record"/> is called: each
+    /// request's line, headers and body, each response's status, headers and body.</summary>
+    public MemoryStream? Wire { get; private set; }
+
+    public void Record()
+    {
+        lock (_lock)
+            Wire = new MemoryStream();
+    }
+
+    protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        if (Wire is not { } wire)
+            return await RouteAsync(request, cancellationToken);
+        // Read into a buffer, which the server and the caller then read again.
+        var sent = request.Content is null ? [] : await request.Content.ReadAsByteArrayAsync(cancellationToken);
+        var response = await RouteAsync(request, cancellationToken);
+        var received = await response.Content.ReadAsByteArrayAsync(cancellationToken);
+        lock (_lock)
+        {
+            wire.Write(System.Text.Encoding.UTF8.GetBytes($"{request.Method} {request.RequestUri}\n{request.Headers}{request.Content?.Headers}\n"));
+            wire.Write(sent);
+            wire.Write(System.Text.Encoding.UTF8.GetBytes($"\n{(int)response.StatusCode}\n{response.Headers}{response.Content.Headers}\n"));
+            wire.Write(received);
+        }
+
+        return response;
+    }
+
+    private Task<HttpResponseMessage> RouteAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         HttpMessageInvoker invoker;
         lock (_lock)

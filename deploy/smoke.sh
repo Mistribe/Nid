@@ -3,7 +3,7 @@
 # Throwaway: uses localtest.me names and a Pocket ID with a static API key (compose.local.yaml). Never run it on a real deployment.
 set -euo pipefail
 cd "$(dirname "$0")"
-COMPOSE=(docker compose -f compose.yaml -f compose.local.yaml)
+COMPOSE=(docker compose -f compose.yaml -f compose.local.yaml -f local/compose.worker-gate.yaml)
 # The volumes' prefix: COMPOSE_PROJECT_NAME runs the test next to another installation, whose nid_* volumes it leaves alone.
 P=${COMPOSE_PROJECT_NAME:-nid}
 URL=https://nid.localtest.me
@@ -52,16 +52,29 @@ echo "ok: a missing asset is a 404 and /mcp is not the SPA"
 
 # #476: a model worker next to Nid for the « Réglages › IA » journey, which pairs it with the code and fingerprint of its console
 # (« Pairing code: ABCD-EFGH  Key fingerprint: <hex> »). #528: with the scripted engine of compose.local.yaml, for the assistant.
-"${COMPOSE[@]}" --profile worker up -d --build --wait --wait-timeout 300 worker engine
+# #603: behind local/compose.worker-gate.yaml's gate, the worker has no route to nid.
+"${COMPOSE[@]}" --profile worker up -d --build --wait --wait-timeout 300 worker engine worker-gate
 # `unpair` rather than `pairing-code`: a worker-data volume left by an earlier run holds a pairing; its last line is the new code.
 read -r _ _ code _ _ fingerprint < <("${COMPOSE[@]}" --profile worker exec -T worker dotnet Nid.Ai.Worker.dll unpair | tail -1) || true
 [[ $code =~ ^[A-Z0-9]{4}-[A-Z0-9]{4}$ && -n $fingerprint ]] || { echo "FAIL: the worker gave no pairing code (unpair: $code $fingerprint)" >&2; exit 1; }
 export NID_WORKER_PAIRING="$code $fingerprint"
 echo "ok: a model worker is up, waiting for its pairing"
 
-# NID_JOURNEYS=sample runs only the subscriptions journeys, which sign alice and bob in (the persons check below needs both): a quick local run. CI (ci.yml) runs them all.
-if [ "${NID_JOURNEYS:-all}" = "all" ]; then playwright; else playwright e2e/subscriptions.spec.ts; fi
+# NID_JOURNEYS=sample runs only the subscriptions journeys, which sign alice and bob in (the persons check below needs both), and
+# the worker's, which runs a job on it: a quick local run. CI (ci.yml) runs them all.
+if [ "${NID_JOURNEYS:-all}" = "all" ]; then playwright; else playwright e2e/subscriptions.spec.ts e2e/ai-workers.spec.ts; fi
 echo "ok: journeys (${NID_JOURNEYS:-all})"
+
+# #603: the worker ran the journey's job (its « Tester ») with no route to nid. From the worker's network, none of nid's
+# addresses answers; from the gate's, the same probe reaches nid, so a refusal is the network's, not the probe's.
+nid_ips=$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}} {{end}}' "$nid_container")
+reaches_nid() {
+  docker run --rm --network "container:$("${COMPOSE[@]}" --profile worker ps -q "$1")" busybox:1.37 \
+    sh -c "for ip in $nid_ips; do nc -z -w 3 \$ip 8080 && exit 0; done; exit 1"
+}
+reaches_nid worker-gate || { echo "FAIL: the probe does not reach nid from the gate ($nid_ips)" >&2; exit 1; }
+if reaches_nid worker; then echo "FAIL: the worker has a route to nid" >&2; exit 1; fi
+echo "ok: the worker runs jobs with no route to nid"
 
 # 1F4: the recovery CLI runs inside the chiseled image through its `nid` link. The journeys signed alice and bob in, which
 # is what creates them (the identity provider's groups let them through).
