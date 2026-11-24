@@ -23,6 +23,16 @@ public class TaxChecksTests
     public void A_contribution_rate_is_a_fraction_up_to_sixty_percent()
         => Assert.Equal([true, true, false, false], new[] { 0m, 0.60m, 0.61m, -0.01m }.Select(TaxChecks.RateOk));
 
+    /// <summary>#515: one bound for every amount, ten million itself refused, as the API always answered.</summary>
+    [Fact]
+    public void An_amount_is_not_negative_and_below_ten_million()
+    {
+        Assert.Equal([true, true, false, false], new[] { 0m, 9_999_999.99m, 10_000_000m, -0.01m }.Select(TaxChecks.AmountOk));
+        Assert.Equal([true, true, false, false], new[] { -9_999_999.99m, 9_999_999.99m, 10_000_000m, -10_000_000m }.Select(TaxChecks.SignedAmountOk));
+        Assert.True(TaxChecks.ProfileOk(TaxProfile.Empty with { Donations = 9_999_999.99m }));
+        Assert.False(TaxChecks.ProfileOk(TaxProfile.Empty with { Donations = 10_000_000m }));
+    }
+
     [Fact]
     public void The_simulation_wants_one_or_two_declarants_and_the_children_among_the_dependents()
     {
