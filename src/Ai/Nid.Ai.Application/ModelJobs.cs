@@ -93,7 +93,7 @@ public sealed class ModelJobs(IJobStore store, ModelContracts contracts, IClock 
     {
         if (!DataClasses.IsKnown(dataClass) || dataClass == DataClasses.None)
             return ModelFailures.Of(JobCodes.UnknownDataClass);
-        return await store.ReclassQueuedAsync(fileRef, dataClass, concerned, ct);
+        return await store.ReclassUnfinishedAsync(fileRef, dataClass, concerned, ct);
     }
 
     public Task ForgetAsync(string fileRef, CancellationToken ct) => store.DeleteOfFileAsync(fileRef, ct);

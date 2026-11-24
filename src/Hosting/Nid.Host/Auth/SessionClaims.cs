@@ -47,9 +47,10 @@ public static class SessionClaims
 public static class ReturnUrl
 {
     /// <summary>Only a relative path of this application is accepted: anything else is an open redirect.</summary>
+    /// <remarks>Browsers drop tabs and newlines and read <c>\</c> as <c>/</c>, so <c>/\t/host</c> or <c>/\host</c> would leave the site.</remarks>
     public static bool IsSafe(string? url)
         => !string.IsNullOrEmpty(url)
            && url[0] == '/'
-           && (url.Length == 1 || (url[1] != '/' && url[1] != '\\'))
-           && !url.Contains('\n') && !url.Contains('\r');
+           && (url.Length == 1 || url[1] != '/')
+           && !url.Any(c => c < ' ' || c == '\\');
 }

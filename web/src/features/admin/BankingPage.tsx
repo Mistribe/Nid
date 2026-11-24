@@ -30,6 +30,7 @@ import { formatInstant, formatInstantDate, formatInstantTime } from '@/lib/forma
 import { cn } from '@/lib/utils';
 import '@/locales/admin';
 import '@/locales/banks';
+import { useCopy } from '@/lib/clipboard';
 
 const HOUSEHOLD = '/api/v1/admin/household';
 const RUNS = '/api/v1/admin/banking/runs';
@@ -79,6 +80,7 @@ function stateOf(enabled: boolean, diagnostics: Diagnostics, test: ConnectionTes
 /** Administration › Banque: where bank sync stands, what is left to set it up, its settings, and the journal of the syncs (counts only). */
 export function BankingPage() {
   const { t } = useTranslation();
+  const copy = useCopy();
   const { $api } = useApi();
   const queryClient = useQueryClient();
   const [problem, setProblem] = useState<Presentation | null>(null);
@@ -204,9 +206,7 @@ export function BankingPage() {
                 {(c) => <Input {...c} readOnly value={d.redirectUrl} className="font-mono text-sm" onFocus={(e) => e.currentTarget.select()} />}
               </Field>
             </div>
-            <Button type="button" variant="outline" aria-label={t('admin.banking.copy_label')} onClick={() => {
-              void navigator.clipboard?.writeText(d.redirectUrl).then(() => toast.success(t('admin.banking.copied')));
-            }}>
+            <Button type="button" variant="outline" aria-label={t('admin.banking.copy_label')} onClick={() => copy(d.redirectUrl, () => toast.success(t('admin.banking.copied')))}>
               <Copy aria-hidden="true" />{t('admin.banking.copy')}
             </Button>
           </div>

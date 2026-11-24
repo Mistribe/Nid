@@ -221,7 +221,8 @@ public static class RequestCatalogue
         new(typeof(Nid.Ai.Application.RevokeProviderKeyCommand), false, (_, _) => new Nid.Ai.Application.RevokeProviderKeyCommand("anthropic")),
         new(typeof(Nid.Ai.Application.GetModelCapabilitiesQuery), false, (_, _) => new Nid.Ai.Application.GetModelCapabilitiesQuery()),
         new(typeof(Nid.Ai.Application.TestWorkerCommand), false, (_, _) => new Nid.Ai.Application.TestWorkerCommand(Guid.CreateVersion7())),
-        new(typeof(Nid.Ai.Application.GetModelJobQuery), false, (_, _) => new Nid.Ai.Application.GetModelJobQuery(Guid.CreateVersion7())),
+        // #622: the text job of B's private document, its text carrying B's label: A, admin, never reads it there.
+        new(typeof(Nid.Ai.Application.GetModelJobQuery), false, (d, _) => new Nid.Ai.Application.GetModelJobQuery(d.PrivateJobB())),
         new(typeof(Nid.Ai.Application.RenameWorkerCommand), false, (_, _) => new Nid.Ai.Application.RenameWorkerCommand(Guid.CreateVersion7(), "Box")),
         new(typeof(Nid.Ai.Application.DisableWorkerCommand), false, (_, _) => new Nid.Ai.Application.DisableWorkerCommand(Guid.CreateVersion7())),
         new(typeof(Nid.Ai.Application.EnableWorkerCommand), false, (_, _) => new Nid.Ai.Application.EnableWorkerCommand(Guid.CreateVersion7())),
