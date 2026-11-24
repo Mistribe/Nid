@@ -8,8 +8,6 @@
     <ProjectReference Include="..\..\Tax\Nid.Tax.Contracts\Nid.Tax.Contracts.csproj" />
     <!-- #167: a document's text, a model job (IModelJobs, IJobResultSink, IJobFileSource). -->
     <ProjectReference Include="..\..\Ai\Nid.Ai.Contracts\Nid.Ai.Contracts.csproj" />
-    <!-- Issue #414: a life insurance expects its yearly statement; the kind is the envelope's (IEnvelopeStore). -->
-    <ProjectReference Include="..\..\Investments\Nid.Investments.Contracts\Nid.Investments.Contracts.csproj" />
     <PackageReference Include="UnambitiousFx.Synapse.Generator">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

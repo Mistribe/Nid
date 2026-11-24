@@ -91,7 +91,7 @@ public sealed class ListBankAccountsHandler(IAccountStore accounts, BankAccountR
 
 [RequestHandler<UpdateBankAccountCommand, Guid>]
 public sealed class UpdateBankAccountHandler(
-    IContextAccessor context, BankingAccess access, IAccountStore accounts, IAccessPolicy policy, IEnvelopeStore envelopes, IItemRegistry items, IHouseholdCalendar calendar,
+    IContextAccessor context, BankingAccess access, IAccountStore accounts, IAccessPolicy policy, IEnvelopes envelopes, IItemRegistry items, IHouseholdCalendar calendar,
     Operations.ReceiptAnchors receipts, SavingsFlows savingsFlows)
     : IRequestHandler<UpdateBankAccountCommand, Guid>
 {

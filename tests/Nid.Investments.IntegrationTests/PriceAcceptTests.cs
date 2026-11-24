@@ -3,6 +3,7 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Contracts;
+using Nid.Investments.Application;
 using Nid.Investments.Contracts;
 using Nid.Investments.Infrastructure.Persistence;
 using Nid.Platform.Contracts;

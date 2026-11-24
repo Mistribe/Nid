@@ -1,4 +1,5 @@
 using Nid.Investments.Application.Prices;
+using Nid.Investments.Application;
 using Nid.Investments.Contracts;
 using Nid.Platform.Contracts;
 using Quartz;

@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
+using Nid.Investments.Application;
 using Nid.Investments.Contracts;
 using Nid.Investments.Infrastructure.Persistence;
 using Nid.TestSupport;

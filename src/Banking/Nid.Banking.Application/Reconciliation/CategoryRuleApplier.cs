@@ -11,7 +11,7 @@ namespace Nid.Banking.Application.Reconciliation;
 /// and <c>mayApply</c> allows on its account. A line no rule matches keeps its category: a pass never retracts a rule's.
 /// </summary>
 public sealed class CategoryRuleApplier(
-    ICategoryRuleStore rules, ICategoryStore categories, ITransactionStore transactions, IAccountStore accounts, IEnvelopeStore envelopes, BankingAccess access,
+    ICategoryRuleStore rules, ICategoryStore categories, ITransactionStore transactions, IAccountStore accounts, IEnvelopes envelopes, BankingAccess access,
     IClock clock)
 {
     /// <summary>On one line, as the pass would (its authors write its account): after an unlink or « Laisser Nid décider ».</summary>

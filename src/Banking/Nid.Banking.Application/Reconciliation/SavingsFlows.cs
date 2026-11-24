@@ -18,7 +18,7 @@ public sealed record SavingsFlowCounts(int Recorded, int Superseded, int Voided,
 /// of a line read in this pass are ever touched. A failing account is logged, never a label or an amount, skipped, and the others go on.
 /// </summary>
 public sealed partial class SavingsFlows(
-    IAccountStore accountStore, IConnectionStore connections, ITransactionStore transactions, ISplitStore splits, ICategoryStore categories, IEnvelopeStore envelopes,
+    IAccountStore accountStore, IConnectionStore connections, ITransactionStore transactions, ISplitStore splits, ICategoryStore categories, IEnvelopes envelopes,
     IItemRegistry items, IAccessPolicy policy, IFlows flows, CategoryRuleApplier categoryRules, IHouseholdCalendar calendar, IActorAccessor actor,
     ILogger<SavingsFlows> log)
 {

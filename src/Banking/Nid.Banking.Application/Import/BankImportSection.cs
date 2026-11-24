@@ -23,7 +23,7 @@ namespace Nid.Banking.Application.Import;
 /// unchanged; the others are the importer's decisions. Runs after the investments sections: an envelope id resolves through <see cref="ImportContext.Items"/>.
 /// </summary>
 public sealed class BankImportSection(
-    BankingAccess access, IAccountStore accounts, IConnectionStore connections, ITransactionStore transactions, IEnvelopeStore envelopes,
+    BankingAccess access, IAccountStore accounts, IConnectionStore connections, ITransactionStore transactions, IEnvelopes envelopes,
     IAccessPolicy policy, IHouseholdCalendar calendar, ILinkStore links, IRuleStore rules,
     LinkCategoryReader categories) : IImportSection
 {

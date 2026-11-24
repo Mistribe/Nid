@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Application.Admin;
 using Nid.Core.Contracts;
 using Nid.Investments.Application.Prices;
+using Nid.Investments.Application;
 using Nid.Investments.Contracts;
 using Nid.Investments.Infrastructure.Persistence;
 using Nid.Platform.Contracts;

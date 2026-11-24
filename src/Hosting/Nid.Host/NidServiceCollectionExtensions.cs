@@ -20,6 +20,7 @@ using Nid.Income.Application.Import;
 using Nid.Income.Contracts;
 using Nid.Income.Infrastructure.Persistence;
 using Nid.Investments.Application.Import;
+using Nid.Investments.Application;
 using Nid.Investments.Contracts;
 using Nid.Investments.Infrastructure.Persistence;
 using Nid.Platform;
@@ -225,6 +226,8 @@ public static class NidServiceCollectionExtensions
         }).AddInterceptors(sp.GetRequiredService<AuditInterceptor>()));
         services.AddScoped<ITransactionParticipant, DbContextParticipant<InvestmentsDbContext>>();
         services.AddScoped<IEnvelopeStore, EnvelopeStore>();
+        services.AddScoped<Nid.Investments.Contracts.IEnvelopes>(sp => sp.GetRequiredService<IEnvelopeStore>());
+        services.AddScoped<Nid.Documents.Contracts.IExpectedDocumentSubjects, Nid.Investments.Application.EnvelopeExpectedDocuments>();
         services.AddScoped<IItemDeletionPart, InvestmentsDeletionPart>();
         services.AddScoped<IHoldingStore, HoldingStore>();
         services.AddScoped<ISecurityPriceStore, SecurityPriceStore>();
@@ -467,6 +470,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<Nid.RealEstate.Domain.IIrlStore, IrlStore>();
         services.AddScoped<ISeriesContribution, Nid.RealEstate.Application.Irl.IrlSeries>();
         services.AddScoped<ISeriesContribution, Nid.RealEstate.Application.LoanSeries>();
+        services.AddScoped<Nid.Documents.Contracts.IExpectedDocumentSubjects, Nid.RealEstate.Application.RealEstateExpectedDocuments>();
         services.AddScoped<ISeriesContribution, Nid.RealEstate.Application.PropertySeries>();
         services.AddScoped<ISeriesContribution, Nid.RealEstate.Application.TenancySeries>();
         services.AddScoped<IIrlRunLog, IrlRunLog>();
