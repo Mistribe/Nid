@@ -34,6 +34,5 @@ function useWrite() {
 
 export const useCreateNanny = () => useApi().$api.useMutation('post', NANNIES, useWrite());
 export const usePutNannyMonth = () => useApi().$api.useMutation('put', NANNY_MONTH, useWrite());
-export const useDeleteNannyMonth = () => useApi().$api.useMutation('delete', NANNY_MONTH, useWrite());
 export const useCloseNanny = () => useApi().$api.useMutation('post', '/api/v1/childcare/nannies/{id}/close', useWrite());
 export const useReopenNanny = () => useApi().$api.useMutation('post', '/api/v1/childcare/nannies/{id}/reopen', useWrite());

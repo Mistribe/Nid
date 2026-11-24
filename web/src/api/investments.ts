@@ -28,7 +28,6 @@ export type HouseholdHoldings = components['schemas']['InvestmentsHoldings'];
 export type HoldingOverviewRow = components['schemas']['HoldingOverviewRow'];
 export type FeesCost = components['schemas']['FeesCostView'];
 export type HoldingBreakdown = components['schemas']['HoldingBreakdownView'];
-export type HoldingBreakdownBody = components['schemas']['BreakdownBody'];
 export type HoldingsExposure = components['schemas']['HoldingsExposureView'];
 export type FeeReferences = components['schemas']['FeeReferences'];
 
