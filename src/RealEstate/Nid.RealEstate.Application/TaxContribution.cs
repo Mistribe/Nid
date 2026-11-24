@@ -99,7 +99,7 @@ public sealed class RentalTax(IVisibleItems visible, IItemRegistry items, IPrope
             {
                 var next = month.PlusMonths(1);
                 if (month > thisMonth || (month == thisMonth && !rents.Any(f => f.OccurredOn >= month && f.OccurredOn < next)))
-                    expected += tenancies.Where(t => PropertyMath.Covers(t, month)).Sum(t => t.RentMonthly);
+                    expected += tenancies.Sum(t => PropertyMath.RentIn(t, month, charges: false)?.Amount ?? 0m); // prorated, as the ledger (#632)
             }
 
             var amounts = new Dictionary<string, decimal> { [TaxLineCodes.Rental211] = received + expected };
