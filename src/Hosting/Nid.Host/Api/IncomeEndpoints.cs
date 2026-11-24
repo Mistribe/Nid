@@ -18,11 +18,11 @@ public static class IncomeEndpoints
             .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>();
 
         api.MapGet("/sources", async (string? scope, bool? archived, string? kind, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new ListIncomeSourcesQuery(ParseScope(scope), archived ?? false, kind), ct)).ToHttp(list => list))
+            => await FieldReader.Run(invoker, r => new ListIncomeSourcesQuery(r.Scope(scope), archived ?? false, kind), list => list, ct))
             .Returns<IncomeSourceList>();
 
         api.MapGet("/sources/{id:guid}", async (Guid id, string? from, string? to, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new GetIncomeSourceQuery(new ItemId(id), OptionalDate(from), OptionalDate(to)), ct)).ToHttp(detail => detail))
+            => await FieldReader.Run(invoker, r => new GetIncomeSourceQuery(new ItemId(id), r.OptionalDate(from, "from"), r.OptionalDate(to, "to")), detail => detail, ct))
             .Returns<IncomeSourceDetail>();
 
         api.MapPost("/sources", async (CreateIncomeSourceBody body, IInvoker invoker, CancellationToken ct) =>
@@ -109,7 +109,7 @@ public static class IncomeEndpoints
             .Returns<IdResponse>(StatusCodes.Status201Created);
 
         api.MapGet("/sources/{id:guid}/expected", async (Guid id, string from, string to, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new GetIncomeExpectedQuery(new ItemId(id), RequireDate(from), RequireDate(to)), ct)).ToHttp(e => e))
+            => await FieldReader.Run(invoker, r => new GetIncomeExpectedQuery(new ItemId(id), r.RequiredDate(from, "from"), r.RequiredDate(to, "to")), e => e, ct))
             .Returns<IncomeExpected>();
 
         api.MapGet("/sources/{id:guid}/overview", async (Guid id, string? period, IInvoker invoker, CancellationToken ct)
@@ -123,7 +123,11 @@ public static class IncomeEndpoints
                     return Result.Failure<IncomeOverview>(new BadRequestFailure("A period is year, 12m or 3y.") { Code = IncomeCodes.InvalidPeriod }).ToHttp(o => o);
                 if (kind is not null && kind != GetIncomeOverviewHandler.RentKind && !IncomeWire.TryKind(kind, out _))
                     return Result.Failure<IncomeOverview>(new Failure(IncomeCodes.UnknownKind, $"'{kind}' is not an income kind.", null)).ToHttp(o => o);
-                var query = new GetIncomeOverviewQuery(ParseScope(scope), p, person, kind, source is { } s ? new ItemId(s) : null, ended ?? false, year);
+                var reader = new FieldReader();
+                var visibility = reader.Scope(scope);
+                if (!reader.Ok)
+                    return reader.Malformed();
+                var query = new GetIncomeOverviewQuery(visibility, p, person, kind, source is { } s ? new ItemId(s) : null, ended ?? false, year);
                 return (await invoker.InvokeAsync(query, ct)).ToHttp(o => o);
             })
             .Returns<IncomeOverview>();

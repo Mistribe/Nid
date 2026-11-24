@@ -22,8 +22,8 @@ public sealed class SubscriptionTools
     public static Task<CallToolResult> ListSubscriptions(IServiceProvider services,
         [Description("'household' (default) or 'me'.")] string? scope = null, [Description(Window)] string? from = null,
         [Description(Window)] string? to = null, [Description(Window)] string? horizon = null, CancellationToken ct = default)
-        => McpCalls.RunAsync(services, () => new ListSubscriptionsQuery(SubscriptionEndpoints.ParseScope(scope),
-            SubscriptionEndpoints.OptionalDate(from), SubscriptionEndpoints.OptionalDate(to), SubscriptionEndpoints.OptionalDate(horizon)), ct);
+        => McpCalls.RunAsync(services, r => new ListSubscriptionsQuery(r.Scope(scope),
+            r.OptionalDate(from, "from"), r.OptionalDate(to, "to"), r.OptionalDate(horizon, "horizon")), ct);
 
     /// <summary>Issue #284: the providers of <c>GET /api/v1/subscriptions/providers</c> that a subscription can name, so without the archived ones.</summary>
     [McpServerTool(Name = "list_providers", ReadOnly = true)]
@@ -31,7 +31,7 @@ public sealed class SubscriptionTools
                  "providers, with name and origin ('catalog' or 'custom'). A provider missing here is not in this instance's catalog. " + McpSetup.Untrusted)]
     public static Task<CallToolResult> ListProviders(IServiceProvider services,
         [Description("Part of the provider's name.")] string? q = null, CancellationToken ct = default)
-        => McpCalls.RunAsync(services, () => new ListProvidersQuery(CatalogEndpoints.RequireSearch(q)),
+        => McpCalls.RunAsync(services, r => new ListProvidersQuery(CatalogEndpoints.RequireSearch(q, r)),
             list => list.Where(p => !p.Archived).Select(p => new ProviderKeyView(p.Key, p.Name, p.Origin)).ToList(), ct);
 
     [McpServerTool(Name = "get_subscription", ReadOnly = true)]
@@ -45,6 +45,6 @@ public sealed class SubscriptionTools
     public static Task<CallToolResult> GetSubscription(IServiceProvider services, [Description("The subscription's id.")] Guid id,
         [Description(Window)] string? from = null, [Description(Window)] string? to = null, [Description(Window)] string? horizon = null,
         CancellationToken ct = default)
-        => McpCalls.RunAsync(services, () => new GetSubscriptionQuery(new ItemId(id),
-            SubscriptionEndpoints.OptionalDate(from), SubscriptionEndpoints.OptionalDate(to), SubscriptionEndpoints.OptionalDate(horizon)), ct);
+        => McpCalls.RunAsync(services, r => new GetSubscriptionQuery(new ItemId(id),
+            r.OptionalDate(from, "from"), r.OptionalDate(to, "to"), r.OptionalDate(horizon, "horizon")), ct);
 }

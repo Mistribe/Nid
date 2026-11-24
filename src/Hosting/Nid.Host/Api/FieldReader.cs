@@ -4,6 +4,7 @@ using Nid.Subscriptions.Contracts;
 using NodaTime;
 using NodaTime.Text;
 using UnambitiousFx.Functional;
+using UnambitiousFx.Synapse.Abstractions;
 using static Nid.Host.Api.SubscriptionEndpoints;
 using Duration = Nid.Core.Contracts.Duration;
 using IResult = Microsoft.AspNetCore.Http.IResult;
@@ -123,4 +124,64 @@ internal sealed class FieldReader
     }
 
     public IResult Problem() => Result.Failure<bool>(FieldErrors.Shape(errors)).ToHttp(_ => new { });
+
+    /// <summary>The 400 a value nobody can read answers (<see cref="MalformedInputFilter.Code"/>), naming every refused field.</summary>
+    public IResult Malformed()
+        => ResultHttp.Problem(FieldErrors.Many(MalformedInputFilter.Code, errors.Count == 1 ? errors[0].Message : "Some fields are not valid.", errors));
+
+    /// <summary>
+    /// A request built from query parameters this reader checks: a refused one answers <see cref="Malformed"/> and nothing runs
+    /// (the placeholder a refused parameter leaves in the request is never used).
+    /// </summary>
+    public static async Task<IResult> Run<T, TOut>(
+        IInvoker invoker, Func<FieldReader, IRequest<T>> build, Func<T, TOut> map, CancellationToken ct, int successStatus = StatusCodes.Status200OK)
+        where T : notnull
+    {
+        var reader = new FieldReader();
+        var request = build(reader);
+        return reader.Ok ? (await invoker.InvokeAsync(request, ct)).ToHttp(map, successStatus) : reader.Malformed();
+    }
+
+    /// <summary>
+    /// Household is the default, matching the header selector of frontend/screens.md §13 — but only when the
+    /// caller asked for no scope at all. A scope nobody can read is refused: answering the household
+    /// question to someone who asked a different one, with a 200, is how a wrong number looks right.
+    /// </summary>
+    public VisibilityScope Scope(string? value, string path = "scope")
+    {
+        if (value is null || string.Equals(value, "household", StringComparison.OrdinalIgnoreCase)) return VisibilityScope.Household;
+        // #360: the « Moi » the person picks leaves a child's items out.
+        if (string.Equals(value, "me", StringComparison.OrdinalIgnoreCase)) return VisibilityScope.Mine;
+        Add(path, "request.scope", $"'{value}' is not a scope: send 'household' or 'me'.");
+        return VisibilityScope.Household;
+    }
+
+    /// <summary>
+    /// Absent stays absent, and keeps the documented default. Present-but-unreadable is refused, never a silent fallback to
+    /// that same default: the caller would be handed a different window or horizon and told it worked.
+    /// </summary>
+    public LocalDate? OptionalDate(string? value, string path) => Date(value, path, required: false);
+
+    /// <summary>A required amount, as <see cref="Money(MoneyBody?, string)"/>; the placeholder of a refused one is never used.</summary>
+    public Money RequiredMoney(MoneyBody? body, string path) => Money(body, path) ?? default;
+
+    public Money? OptionalMoney(MoneyBody? body, string path) => body is null ? null : Money(body, path);
+
+    /// <summary>A required date, as <see cref="Date"/>; the placeholder of a refused one is never used.</summary>
+    public LocalDate RequiredDate(string? value, string path) => Date(value, path) ?? default;
+
+    public YearMonth? Month(string? value, string path)
+    {
+        if (value is null) return null;
+        if (YearMonthPattern.Iso.Parse(value) is { Success: true } parsed) return parsed.Value;
+        Add(path, "request.month", $"'{value}' is not a month (yyyy-mm).");
+        return null;
+    }
+
+    /// <summary>A wire value and its <c>clearX</c> flag set together: one tri-state sent two ways, refused at the flag.</summary>
+    public void Contradiction(bool contradicts, string field, string flag)
+    {
+        if (contradicts)
+            Add(flag, "request.contradiction", $"{field} and {flag} contradict each other: send one or the other.");
+    }
 }

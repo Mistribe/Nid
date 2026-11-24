@@ -18,13 +18,13 @@ public static class CatalogEndpoints
             .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>();
 
         api.MapGet("/providers", async (string? q, IInvoker invoker, CancellationToken ct)
-                => (await invoker.InvokeAsync(new ListProvidersQuery(RequireSearch(q)), ct)).ToHttp(r => r))
+                => await FieldReader.Run(invoker, r => new ListProvidersQuery(RequireSearch(q, r)), view => view, ct))
             .Returns<IReadOnlyList<ProviderView>>();
 
         api.MapPost("/providers", async (CreateProviderBody body, IInvoker invoker, CancellationToken ct)
-                => (await invoker.InvokeAsync(
-                        new CreateProviderCommand(body.Name, body.Website, body.PricingPage, RequireLabelKeys(body.LabelKeys)), ct))
-                    .ToHttp(r => r, StatusCodes.Status201Created))
+                => await FieldReader.Run(invoker,
+                    r => new CreateProviderCommand(body.Name, body.Website, body.PricingPage, RequireLabelKeys(body.LabelKeys, r)),
+                    view => view, ct, StatusCodes.Status201Created))
             .Returns<ProviderView>(StatusCodes.Status201Created);
 
         api.MapGet("/labels", async (IInvoker invoker, CancellationToken ct)
@@ -66,10 +66,12 @@ public static class CatalogEndpoints
     }
 
     /// <summary>Blank stays blank (no filter); nothing longer than a provider name could ever match one, so longer is refused, not searched.</summary>
-    internal static string? RequireSearch(string? q)
-        => q is { Length: > CatalogLimits.MaxNameLength }
-            ? throw new BadHttpRequestException($"'q' is at most {CatalogLimits.MaxNameLength} characters.")
-            : q;
+    internal static string? RequireSearch(string? q, FieldReader reader)
+    {
+        if (q is { Length: > CatalogLimits.MaxNameLength })
+            reader.Add("q", "request.too_long", $"'q' is at most {CatalogLimits.MaxNameLength} characters.");
+        return q;
+    }
 
     /// <summary>
     /// Absent is an empty list, which <see cref="CreateProviderCommand"/> already refuses as "no label" (422
@@ -77,12 +79,13 @@ public static class CatalogEndpoints
     /// otherwise reach the store as a null element of a text[] column (a 500) — refused here as malformed
     /// input (400 request.malformed) before the command ever runs (Task 6 review).
     /// </summary>
-    private static IReadOnlyList<string> RequireLabelKeys(IReadOnlyList<string>? labelKeys)
-        => labelKeys is null
-            ? []
-            : labelKeys.Any(key => key is null)
-                ? throw new BadHttpRequestException("A label key is required for each entry of 'labelKeys'.")
-                : labelKeys;
+    private static IReadOnlyList<string> RequireLabelKeys(IReadOnlyList<string>? labelKeys, FieldReader reader)
+    {
+        for (var i = 0; i < (labelKeys?.Count ?? 0); i++)
+            if (labelKeys![i] is null)
+                reader.Add($"labelKeys[{i}]", "request.required", "A label key is required for each entry of 'labelKeys'.");
+        return labelKeys ?? [];
+    }
 
     /// <summary>RFC 9110 §13.1.2: <c>If-None-Match</c> is compared weakly; <c>*</c> matches any current version.</summary>
     private static bool Names(StringValues ifNoneMatch, string hash)

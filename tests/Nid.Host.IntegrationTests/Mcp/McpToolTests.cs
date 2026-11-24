@@ -257,8 +257,16 @@ public class McpToolTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
             }, cancellationToken: TestContext.Current.CancellationToken);
 
             Assert.True(result.IsError);
-            foreach (var field in new[] { "on (", "amount (", "loanId (", "effect (" })
+            foreach (var field in new[] { "on (", "amount (", "effect (" })
                 Assert.Contains(field, McpHarness.TextOf(result));
+
+            // #515: the missing loan is the query's validator's, answered once the fields read.
+            var chosen = await client.CallToolAsync("simulate_household_early_repayment", new Dictionary<string, object?>
+            {
+                ["on"] = "2026-01-15", ["amount"] = "1000", ["split"] = "chosen", ["effect"] = "reduce_term",
+            }, cancellationToken: TestContext.Current.CancellationToken);
+            Assert.True(chosen.IsError);
+            Assert.Contains("request.invalid: The loan is required to put everything on it.", McpHarness.TextOf(chosen));
         }
     }
 }

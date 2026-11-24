@@ -53,6 +53,25 @@ public class PipelineTests(PostgresFixture postgres)
         Assert.Equal(FullChain, ChainOf<ListPersonsQuery, IReadOnlyList<PersonInfo>>(scope));
     }
 
+    /// <summary>
+    /// #515: a module's validator runs where architecture.md §5.4 puts it, after every access check and before the transaction,
+    /// whatever Synapse's default (innermost). Sorting by <c>Order</c> alone would not show it: its stage places it.
+    /// </summary>
+    [Fact]
+    public async Task A_validated_command_is_validated_after_the_access_checks_and_before_the_transaction()
+    {
+        await using var provider = await ProviderAsync();
+
+        var behaviors = provider.GetRequiredService<IPipelineDescriber>()
+            .Describe<Nid.Subscriptions.Application.CreateSubscriptionCommand, ItemId>()!.Behaviors
+            .Select(b => b.Type.GetGenericTypeDefinition()).ToList();
+
+        var validation = behaviors.IndexOf(typeof(UnambitiousFx.Synapse.Pipelines.RequestValidationBehavior<,>));
+        Assert.True(validation > behaviors.IndexOf(typeof(ItemCreationBehavior<,>)), string.Join(", ", behaviors.Select(b => b.Name)));
+        Assert.True(validation > behaviors.IndexOf(typeof(Nid.Tax.Application.TaxAssessmentAccessBehavior<,>)));
+        Assert.True(validation < behaviors.IndexOf(typeof(UnambitiousFx.Synapse.Pipelines.TransactionBehavior<,>)));
+    }
+
     private static async Task<UnambitiousFx.Functional.Failures.Failure?> RunAsync(IServiceScope scope, Actor actor, object request)
     {
         scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = actor;

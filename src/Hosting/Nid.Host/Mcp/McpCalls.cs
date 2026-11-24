@@ -53,18 +53,29 @@ public static partial class McpCalls
     /// <summary>A JSON object built by hand (a payload, a schema), as an element.</summary>
     internal static JsonElement Element(System.Text.Json.Nodes.JsonObject node) => JsonSerializer.SerializeToElement(node, AnswersJson.Default.JsonObject);
 
-    public static async Task<CallToolResult> RunAsync<T>(IServiceProvider services, Func<IQuery<T>> build, CancellationToken ct)
+    public static Task<CallToolResult> RunAsync<T>(IServiceProvider services, Func<IQuery<T>> build, CancellationToken ct)
+        where T : notnull
+        => RunAsync(services, _ => build(), ct);
+
+    /// <summary>
+    /// A query built from arguments the reader checks (a scope, a date): a refused one answers <c>request.invalid</c> naming it,
+    /// and nothing runs.
+    /// </summary>
+    internal static async Task<CallToolResult> RunAsync<T>(IServiceProvider services, Func<FieldReader, IQuery<T>> build, CancellationToken ct)
         where T : notnull
     {
         IQuery<T> request;
+        var reader = new FieldReader();
         try
         {
-            request = build();
+            request = build(reader);
         }
         catch (BadHttpRequestException unreadable)
         {
             return Refuse(services, new Failure(FieldErrors.ShapeCode, unreadable.Message, null));
         }
+        if (!reader.Ok)
+            return Refuse(services, FieldErrors.Shape(reader.Errors));
 
         return await services.GetRequiredService<IMcpInvoker>().InvokeAsync(request, ct);
     }
@@ -72,21 +83,34 @@ public static partial class McpCalls
     public static Task<CallToolResult> RunAsync<T, TOut>(
         IServiceProvider services, Func<IQuery<T>> build, Func<T, TOut> map, CancellationToken ct)
         where T : notnull
+        => RunAsync<T, TOut>(services, _ => build(), view => Task.FromResult(map(view)), ct);
+
+    internal static Task<CallToolResult> RunAsync<T, TOut>(
+        IServiceProvider services, Func<FieldReader, IQuery<T>> build, Func<T, TOut> map, CancellationToken ct)
+        where T : notnull
         => RunAsync<T, TOut>(services, build, view => Task.FromResult(map(view)), ct);
 
-    public static async Task<CallToolResult> RunAsync<T, TOut>(
+    public static Task<CallToolResult> RunAsync<T, TOut>(
         IServiceProvider services, Func<IQuery<T>> build, Func<T, Task<TOut>> map, CancellationToken ct)
+        where T : notnull
+        => RunAsync(services, _ => build(), map, ct);
+
+    internal static async Task<CallToolResult> RunAsync<T, TOut>(
+        IServiceProvider services, Func<FieldReader, IQuery<T>> build, Func<T, Task<TOut>> map, CancellationToken ct)
         where T : notnull
     {
         IQuery<T> request;
+        var reader = new FieldReader();
         try
         {
-            request = build();
+            request = build(reader);
         }
         catch (BadHttpRequestException unreadable)
         {
             return Refuse(services, new Failure(FieldErrors.ShapeCode, unreadable.Message, null));
         }
+        if (!reader.Ok)
+            return Refuse(services, FieldErrors.Shape(reader.Errors));
 
         var result = await services.GetRequiredService<IInvoker>().InvokeAsync(request, ct);
         if (result.TryGetFailure(out var failure))

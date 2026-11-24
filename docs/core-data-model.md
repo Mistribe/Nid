@@ -445,7 +445,7 @@ Toutes les opérations passent par `IAccessPolicy`. Côté application, les écr
 | `IFlows` | `Record`, `Supersede`, `Void`, `List(item, range, kinds?)`, `FindManyAsync(ids)` (flux actifs par id, sans contrôle d'accès : l'appelant décide qui voit), `CounterpartsAsync(item)` (flux actifs d'autres éléments partageant un `external_ref` avec un flux actif de l'élément, même règle : l'autre côté d'un virement, #23), `Sum(item, kinds, range)` (somme déterministe pour les modules) |
 | `IDocuments` | Retiré de Core : `IDocumentTargets` et `IDocumentLinks` sont dans `Documents.Contracts` (`documents-data-model.md` §5) |
 | `IProposalStore` | Livré en 4C1 : `Submit`, `Find`, `List`, `Decide`, `AddWarning`. Pas d’`Edit` séparé avant 4C2 : la modification se fait à l’approbation (`editedPayload`) |
-| `IProposalHandler` | Non générique, implémenté par chaque module : `Validate`, `Preview`, `Apply` |
+| `IProposalHandler` | Non générique : `Validate`, `Preview`, `Apply`. Implémenté par chaque module pour ses propositions de documents, et par `RouteProposal` (host) pour les écritures du web, qui rejouent leur route (`architecture.md` §5.3.3) |
 | `IFx` | `Convert(money, to, on)` |
 
 ## 10. Contraintes et index (récapitulatif)

@@ -13,7 +13,7 @@ public static class ReportEndpoints
             .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>();
 
         api.MapGet("/year", async (int? year, string? scope, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new GetYearReviewQuery(year, ParseScope(scope)), ct)).ToHttp(view => view))
+            => await FieldReader.Run(invoker, r => new GetYearReviewQuery(year, r.Scope(scope)), view => view, ct))
             .Returns<YearReviewView>();
 
         return routes;

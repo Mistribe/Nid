@@ -22,27 +22,27 @@ public static partial class TaxEndpoints
             .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>();
 
         api.MapGet("", async (int? year, string? scope, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new GetTaxEstimateQuery(year, ParseScope(scope)), ct)).ToHttp(view => view))
+            => await FieldReader.Run(invoker, r => new GetTaxEstimateQuery(year, r.Scope(scope)), view => view, ct))
             .Returns<TaxEstimateView>();
 
         // Issue #410.
         api.MapGet("/changes", async (int? year, string? scope, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new GetTaxChangesQuery(year, ParseScope(scope)), ct)).ToHttp(view => view))
+            => await FieldReader.Run(invoker, r => new GetTaxChangesQuery(year, r.Scope(scope)), view => view, ct))
             .Returns<TaxChangesView>();
 
         // Issue #307.
         api.MapGet("/history", async (string? scope, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new GetTaxHistoryQuery(ParseScope(scope)), ct)).ToHttp(view => view))
+            => await FieldReader.Run(invoker, r => new GetTaxHistoryQuery(r.Scope(scope)), view => view, ct))
             .Returns<TaxHistoryView>();
 
         // Rental 2044 spec §5.
         api.MapGet("/2044", async (int? year, string? scope, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new GetRental2044Query(year, ParseScope(scope)), ct)).ToHttp(view => view))
+            => await FieldReader.Run(invoker, r => new GetRental2044Query(year, r.Scope(scope)), view => view, ct))
             .Returns<Rental2044View>();
 
         // Sale tax spec §6.
         api.MapGet("/sale", async (string? scope, Guid? item, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new GetSaleTaxQuery(ParseScope(scope), item is { } g ? new ItemId(g) : null), ct)).ToHttp(view => view))
+            => await FieldReader.Run(invoker, r => new GetSaleTaxQuery(r.Scope(scope), item is { } g ? new ItemId(g) : null), view => view, ct))
             .Returns<SaleTaxView>();
 
         api.MapPut("/profile/{year:int}", async (int year, string? scope, TaxProfileBody body, IInvoker invoker, CancellationToken ct) =>
@@ -51,7 +51,7 @@ public static partial class TaxEndpoints
                 var profile = body.Read(reader);
                 return profile is null
                     ? reader.Problem()
-                    : (await invoker.InvokeAsync(new SaveTaxProfileCommand(year, profile, ParseScope(scope)), ct)).ToHttp(view => view);
+                    : await FieldReader.Run(invoker, r => new SaveTaxProfileCommand(year, profile, r.Scope(scope)), view => view, ct);
             })
             .Returns<TaxEstimateView>();
 
@@ -61,13 +61,13 @@ public static partial class TaxEndpoints
                 var inputs = Read(body, reader);
                 return inputs is null
                     ? reader.Problem()
-                    : (await invoker.InvokeAsync(new SimulateTaxQuery(inputs, scope is null ? null : ParseScope(scope)), ct)).ToHttp(view => view);
+                    : await FieldReader.Run(invoker, r => new SimulateTaxQuery(inputs, scope is null ? null : r.Scope(scope)), view => view, ct);
             })
             .Returns<TaxResultView>();
 
         // Tax assessments spec §6.
         api.MapGet("/assessments", async (string? scope, int? year, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new ListTaxAssessmentsQuery(ParseScope(scope), year), ct)).ToHttp(list => list))
+            => await FieldReader.Run(invoker, r => new ListTaxAssessmentsQuery(r.Scope(scope), year), list => list, ct))
             .Returns<TaxAssessmentList>();
 
         // The « 10 % » deduction of a notice's declared salaries, for the form to prefill: no figure is computed in the browser.
@@ -328,37 +328,15 @@ public static partial class TaxEndpoints
             Amount(reader, body.CapitalDividends, "capitalDividends"), body.CapitalScale, Amount(reader, body.DeductibleCsg, "deductibleCsg"),
             AlimonyPaid: Amount(reader, body.AlimonyPaid, "alimonyPaid"), AlimonyAdultChildren: Amount(reader, body.AlimonyAdultChildren, "alimonyAdultChildren"),
             AlimonyAdultChildrenCount: body.AlimonyAdultChildrenCount,
-            RealisedGains: body.RealisedGains is null ? 0m : SignedAmount(reader, body.RealisedGains, "realisedGains"),
+            RealisedGains: Amount(reader, body.RealisedGains, "realisedGains"),
             CapitalLossesCarried: Amount(reader, body.CapitalLossesCarried, "capitalLossesCarried"),
             AlternateCustody: body.AlternateCustody, SingleParent: body.SingleParent, DisabledDependents: body.DisabledDependents, AlternateUnder6: body.AlternateUnder6);
         return reader.Ok ? inputs : null;
     }
 
-    /// <summary>A percent string (<c>"23.5"</c>) between 0 and 60, as a fraction.</summary>
-    private static decimal Rate(FieldReader reader, string value, string path)
-    {
-        var percent = reader.Decimal(value, path);
-        if (percent is { } p && TaxChecks.RateOk(p / 100)) return p / 100;
-        if (percent is not null) reader.Add(path, "request.rate", "A contribution rate is a percent between 0 and 60.");
-        return 0m;
-    }
+    /// <summary>A percent string (<c>"23.5"</c>) as a fraction; the command's validator holds its bounds (#515).</summary>
+    private static decimal Rate(FieldReader reader, string value, string path) => reader.Decimal(value, path) / 100 ?? 0m;
 
-    /// <summary>Absent is 0; an amount is a non-negative decimal string below ten million.</summary>
-    private static decimal Amount(FieldReader reader, string? value, string path)
-    {
-        if (value is null) return 0m;
-        var amount = reader.Decimal(value, path);
-        if (amount is >= 0 and < 10_000_000m) return amount.Value;
-        if (amount is not null) reader.Add(path, "request.amount", "An amount is not negative and below 10 000 000.");
-        return 0m;
-    }
-
-    /// <summary>A gain or a loss (#234): a decimal string within ten million either way.</summary>
-    private static decimal SignedAmount(FieldReader reader, string value, string path)
-    {
-        var amount = reader.Decimal(value, path);
-        if (amount is > -10_000_000m and < 10_000_000m) return amount.Value;
-        if (amount is not null) reader.Add(path, "request.amount", "A gain or a loss is below 10 000 000 either way.");
-        return 0m;
-    }
+    /// <summary>Absent is 0, a decimal string otherwise; the command's validator holds its bounds (#515).</summary>
+    private static decimal Amount(FieldReader reader, string? value, string path) => value is null ? 0m : reader.Decimal(value, path) ?? 0m;
 }

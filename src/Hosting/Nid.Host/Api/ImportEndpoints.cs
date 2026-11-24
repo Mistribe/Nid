@@ -46,7 +46,9 @@ public static class ImportEndpoints
         api.MapPut("/{id:guid}/batches/{section}/{n:int}", async (
                 Guid id, string section, int n, HttpRequest request, [FromServices] ImportOptions options, IInvoker invoker, CancellationToken ct) =>
             {
-                var body = await BatchBody.ReadAsync(request, options, ct);
+                var reader = new FieldReader();
+                if (await BatchBody.ReadAsync(request, options, reader, ct) is not { } body)
+                    return reader.Malformed();
                 return (await invoker.InvokeAsync(new PutBatchCommand(id, section, n, body.Hash, body.Entities), ct)).ToHttp(v => v);
             })
             .Returns<BatchView>()
@@ -66,7 +68,8 @@ public static class ImportEndpoints
 
     internal sealed record BatchBody(string Hash, JsonElement Entities)
     {
-        public static async Task<BatchBody> ReadAsync(HttpRequest request, ImportOptions options, CancellationToken ct)
+        /// <summary>A batch nobody can read is refused at <c>body</c>, or at the member it lacks; null then.</summary>
+        public static async Task<BatchBody?> ReadAsync(HttpRequest request, ImportOptions options, FieldReader reader, CancellationToken ct)
         {
             using var buffer = new MemoryStream();
             var chunk = new byte[81_920];
@@ -74,7 +77,10 @@ public static class ImportEndpoints
             while ((read = await request.Body.ReadAsync(chunk, ct)) > 0)
             {
                 if (buffer.Length + read > options.MaxBatchBytes)
-                    throw new BadHttpRequestException($"A batch is at most {options.MaxBatchBytes} bytes.");
+                {
+                    reader.Add("body", "request.too_large", $"A batch is at most {options.MaxBatchBytes} bytes.");
+                    return null;
+                }
                 buffer.Write(chunk, 0, read);
             }
 
@@ -85,18 +91,24 @@ public static class ImportEndpoints
             }
             catch (JsonException e)
             {
-                throw new BadHttpRequestException($"The batch is not JSON of at most {options.MaxDepth} levels: {e.Message}");
+                reader.Add("body", "request.json", $"The batch is not JSON of at most {options.MaxDepth} levels: {e.Message}");
+                return null;
             }
 
             using (document)
             {
+                const string shape = "A batch is { \"hash\": \"<sha-256>\", \"entities\": [ ... ] }.";
                 var root = document.RootElement;
-                if (root.ValueKind != JsonValueKind.Object
-                    || !root.TryGetProperty("hash", out var hash) || hash.ValueKind != JsonValueKind.String
-                    || !root.TryGetProperty("entities", out var entities))
-                    throw new BadHttpRequestException("A batch is { \"hash\": \"<sha-256>\", \"entities\": [ ... ] }.");
-
-                return new BatchBody(hash.GetString()!, entities.Clone());
+                if (root.ValueKind != JsonValueKind.Object)
+                {
+                    reader.Add("body", "request.invalid", shape);
+                    return null;
+                }
+                if (!root.TryGetProperty("hash", out var hash) || hash.ValueKind != JsonValueKind.String)
+                    reader.Add("hash", "request.required", shape);
+                if (!root.TryGetProperty("entities", out var entities))
+                    reader.Add("entities", "request.required", shape);
+                return reader.Ok ? new BatchBody(hash.GetString()!, entities.Clone()) : null;
             }
         }
     }

@@ -17,19 +17,18 @@ public static class SubscriptionEndpoints
 
         api.MapGet("", async (string? scope, string? from, string? to, string? horizon, string? q, string? status, string? label, string? group,
                 string? provider, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(
+            => await FieldReader.Run(invoker, r =>
                     new ListSubscriptionsQuery(
-                        ParseScope(scope), OptionalDate(from), OptionalDate(to), OptionalDate(horizon),
-                        new ListFilter(q, ParseStatus(status), ParseLabels(label), provider), ParseGroup(group)), ct))
-                .ToHttp(list => list))
+                        r.Scope(scope), r.OptionalDate(from, "from"), r.OptionalDate(to, "to"), r.OptionalDate(horizon, "horizon"),
+                        new ListFilter(q, ParseStatus(status), ParseLabels(label), provider), ParseGroup(group)), list => list, ct))
             .Returns<SubscriptionList>();
 
         api.MapGet("/overview", async (string? scope, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new GetSubscriptionsOverviewQuery(ParseScope(scope)), ct)).ToHttp(overview => overview))
+            => await FieldReader.Run(invoker, r => new GetSubscriptionsOverviewQuery(r.Scope(scope)), overview => overview, ct))
             .Returns<SubscriptionsOverview>();
 
         api.MapGet("/charges", async (string? scope, string? month, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new GetSubscriptionChargesQuery(ParseScope(scope), OptionalMonth(month)), ct)).ToHttp(c => c))
+            => await FieldReader.Run(invoker, r => new GetSubscriptionChargesQuery(r.Scope(scope), r.Month(month, "month")), c => c, ct))
             .Returns<SubscriptionCharges>();
 
         api.MapGet("/{id:guid}/deletion", async (Guid id, IInvoker invoker, CancellationToken ct)
@@ -52,10 +51,9 @@ public static class SubscriptionEndpoints
             .ReturnsNoContent();
 
         api.MapGet("/{id:guid}", async (Guid id, string? from, string? to, string? horizon, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(
+            => await FieldReader.Run(invoker, r =>
                     new GetSubscriptionQuery(
-                        new ItemId(id), OptionalDate(from), OptionalDate(to), OptionalDate(horizon)), ct))
-                .ToHttp(detail => detail))
+                        new ItemId(id), r.OptionalDate(from, "from"), r.OptionalDate(to, "to"), r.OptionalDate(horizon, "horizon")), detail => detail, ct))
             .Returns<SubscriptionDetail>();
 
         // Create / open phase / add purchase were implemented early because Task 4's own acceptance test
@@ -70,15 +68,22 @@ public static class SubscriptionEndpoints
             })
             .Returns<IdResponse>(StatusCodes.Status201Created);
 
-        api.MapPatch("/{id:guid}", async (Guid id, EditSubscriptionBody body, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(body.ToCommand(new ItemId(id)), ct)).ToHttp(x => new IdResponse(x.Value)))
+        api.MapPatch("/{id:guid}", async (Guid id, EditSubscriptionBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var command = body.ToCommand(new ItemId(id), reader);
+                return command is null
+                    ? reader.Malformed()
+                    : (await invoker.InvokeAsync(command, ct)).ToHttp(x => new IdResponse(x.Value));
+            })
             .Returns<IdResponse>();
 
         api.MapPut("/{id:guid}/insurance", async (Guid id, InsuranceBody body, IInvoker invoker, CancellationToken ct) =>
             {
-                if (body.KeepProperty && body.PropertyId is not null)
-                    throw new BadHttpRequestException("propertyId and keepProperty contradict each other: send one or the other.");
                 var reader = new FieldReader();
+                reader.Contradiction(body.KeepProperty && body.PropertyId is not null, "propertyId", "keepProperty");
+                if (!reader.Ok)
+                    return reader.Malformed();
                 var details = body.Read(reader);
                 return details is null
                     ? reader.Problem()
@@ -90,15 +95,20 @@ public static class SubscriptionEndpoints
             => (await invoker.InvokeAsync(new DeleteInsuranceCommand(new ItemId(id)), ct)).ToHttp(x => new IdResponse(x.Value)))
             .Returns<IdResponse>();
 
-        api.MapPost("/{id:guid}/phases", async (Guid id, PhaseBody body, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(body.ToOpenCommand(new ItemId(id)), ct))
-                .ToHttp(phase => new IdResponse(phase.Value), StatusCodes.Status201Created))
+        api.MapPost("/{id:guid}/phases", async (Guid id, PhaseBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var phase = body.Read(reader, "");
+                return phase is null
+                    ? reader.Malformed()
+                    : (await invoker.InvokeAsync(new OpenPhaseCommand(new ItemId(id), phase), ct))
+                        .ToHttp(opened => new IdResponse(opened.Value), StatusCodes.Status201Created);
+            })
             .Returns<IdResponse>(StatusCodes.Status201Created);
 
         api.MapPatch("/{id:guid}/phases/{phaseId:guid}", async (Guid id, Guid phaseId, ClosePhaseBody body, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(
-                    new ClosePhaseCommand(new ItemId(id), new BillingPhaseId(phaseId), RequireDate(body.EndsOn)), ct))
-                .ToHttp(phase => new IdResponse(phase.Value)))
+            => await FieldReader.Run(invoker, r =>
+                    new ClosePhaseCommand(new ItemId(id), new BillingPhaseId(phaseId), r.RequiredDate(body.EndsOn, "endsOn")), phase => new IdResponse(phase.Value), ct))
             .Returns<IdResponse>();
 
         api.MapPost("/{id:guid}/price-changes", async (Guid id, PriceChangeBody body, IInvoker invoker, CancellationToken ct) =>
@@ -130,20 +140,6 @@ public static class SubscriptionEndpoints
         return routes;
     }
 
-    /// <summary>
-    /// Household is the default, matching the header selector of frontend/screens.md §13 — but only when the
-    /// caller asked for no scope at all. A scope nobody can read is a bad request: answering the household
-    /// question to someone who asked a different one, with a 200, is how a wrong number looks right.
-    /// </summary>
-    internal static VisibilityScope ParseScope(string? scope) => scope switch
-    {
-        null => VisibilityScope.Household,
-        // #360: the « Moi » the person picks leaves a child's items out.
-        _ when string.Equals(scope, "me", StringComparison.OrdinalIgnoreCase) => VisibilityScope.Mine,
-        _ when string.Equals(scope, "household", StringComparison.OrdinalIgnoreCase) => VisibilityScope.Household,
-        _ => throw new BadHttpRequestException($"'{scope}' is not a scope: send 'household' or 'me'."),
-    };
-
     /// <summary>An absent or unknown status is "all", like the web's missing <c>status</c>.</summary>
     internal static ListStatus ParseStatus(string? status) => status?.ToLowerInvariant() switch
     {
@@ -165,52 +161,13 @@ public static class SubscriptionEndpoints
     internal static IReadOnlyList<string> ParseLabels(string? label)
         => (label ?? "").Split(',').Select(k => k.Trim()).Where(k => k != "").Distinct().ToList();
 
-    /// <summary>
-    /// Absent stays absent, and keeps the documented default. Present-but-unreadable is a bad request, never
-    /// a silent fallback to that same default: the caller would be handed a different window, a different
-    /// horizon or a dropped cancellation and told it worked.
-    /// </summary>
-    internal static LocalDate? OptionalDate(string? value)
-        => value is null ? null : RequireDate(value);
-
-    internal static YearMonth? OptionalMonth(string? value)
-        => value is null ? null
-            : YearMonthPattern.Iso.Parse(value) is { Success: true } parsed
-                ? parsed.Value
-                : throw new BadHttpRequestException($"'{value}' is not a month (yyyy-mm).");
-
-    internal static LocalDate RequireDate(string value)
-        => LocalDatePattern.Iso.Parse(value) is { Success: true } parsed
-            ? parsed.Value
-            : throw new BadHttpRequestException($"'{value}' is not an ISO date (yyyy-mm-dd).");
-
     public sealed record IdResponse(Guid Id);
 
-    public sealed record MoneyBody(string Amount, string Currency)
-    {
-        public Money ToMoney()
-            => Money.TryParse(Amount, Currency, out var money)
-                ? money
-                : throw new BadHttpRequestException(
-                    "An amount is a decimal string such as \"12.99\" (at most four decimals) with a valid ISO 4217 currency.");
-    }
+    public sealed record MoneyBody(string Amount, string Currency);
 
-    public sealed record DurationBody(int Count, string Unit)
-    {
-        public Duration ToDuration()
-            => Enum.TryParse<DurationUnit>(Unit, ignoreCase: true, out var unit)
-               && Duration.Create(Count, unit).TryGetValue(out var duration)
-                ? duration
-                : throw new BadHttpRequestException("A positive count and a unit of day, week, month or year are required.");
-    }
+    public sealed record DurationBody(int Count, string Unit);
 
-    public sealed record PayerBody(string Type, Guid? PersonId)
-    {
-        public Payer ToPayer()
-            => Enum.TryParse<PayerType>(Type, ignoreCase: true, out var type)
-                ? new Payer(type, PersonId is { } p ? new Core.Contracts.PersonId(p) : null)
-                : throw new BadHttpRequestException("A payer type of person, household or external is required.");
-    }
+    public sealed record PayerBody(string Type, Guid? PersonId);
 
     public sealed record OwnerBody(Guid PersonId, int ShareBp);
 
@@ -242,29 +199,32 @@ public static class SubscriptionEndpoints
         string? CommitmentEndsOn = null, bool ClearCommitmentEndsOn = false, string? CancellableFrom = null, bool ClearCancellableFrom = false,
         string? DisplayName = null)
     {
-        public EditSubscriptionCommand ToCommand(ItemId id)
+        /// <summary>A value and its <c>clearX</c> flag are one tri-state sent two ways: both at once is refused at the flag.</summary>
+        internal EditSubscriptionCommand? ToCommand(ItemId id, FieldReader reader)
         {
-            Refuse(ClearCancelledAt && CancelledAt is not null, "cancelledAt");
-            Refuse(ClearProviderKey && ProviderKey is not null, "providerKey");
-            Refuse(ClearAnniversaryOn && AnniversaryOn is not null, "anniversaryOn");
-            Refuse(ClearNotice && Notice is not null, "notice");
-            Refuse(ClearCommitmentEndsOn && CommitmentEndsOn is not null, "commitmentEndsOn");
-            Refuse(ClearCancellableFrom && CancellableFrom is not null, "cancellableFrom");
+            reader.Contradiction(ClearCancelledAt && CancelledAt is not null, "cancelledAt", "clearCancelledAt");
+            reader.Contradiction(ClearProviderKey && ProviderKey is not null, "providerKey", "clearProviderKey");
+            reader.Contradiction(ClearAnniversaryOn && AnniversaryOn is not null, "anniversaryOn", "clearAnniversaryOn");
+            reader.Contradiction(ClearNotice && Notice is not null, "notice", "clearNotice");
+            reader.Contradiction(ClearCommitmentEndsOn && CommitmentEndsOn is not null, "commitmentEndsOn", "clearCommitmentEndsOn");
+            reader.Contradiction(ClearCancellableFrom && CancellableFrom is not null, "cancellableFrom", "clearCancellableFrom");
+
+            var anniversaryOn = reader.OptionalDate(AnniversaryOn, "anniversaryOn");
+            var notice = reader.Duration(Notice, "notice", required: false);
+            var commitmentEndsOn = reader.OptionalDate(CommitmentEndsOn, "commitmentEndsOn");
+            var cancellableFrom = reader.OptionalDate(CancellableFrom, "cancellableFrom");
+            var cancelledAt = reader.OptionalDate(CancelledAt, "cancelledAt");
+            if (!reader.Ok)
+                return null;
 
             var touched = AnniversaryOn is not null || ClearAnniversaryOn || Notice is not null || ClearNotice
                           || CommitmentEndsOn is not null || ClearCommitmentEndsOn || CancellableFrom is not null || ClearCancellableFrom;
             var terms = touched
                 ? new ContractTermsChange(
-                    OptionalDate(AnniversaryOn), ClearAnniversaryOn, Notice?.ToDuration(), ClearNotice,
-                    OptionalDate(CommitmentEndsOn), ClearCommitmentEndsOn, OptionalDate(CancellableFrom), ClearCancellableFrom)
+                    anniversaryOn, ClearAnniversaryOn, notice, ClearNotice,
+                    commitmentEndsOn, ClearCommitmentEndsOn, cancellableFrom, ClearCancellableFrom)
                 : null;
-            return new(id, AutoRenew, OptionalDate(CancelledAt), ClearCancelledAt, Note, ProviderKey, ClearProviderKey, terms, DisplayName);
-        }
-
-        private static void Refuse(bool contradiction, string field)
-        {
-            if (contradiction)
-                throw new BadHttpRequestException($"{field} and clear{char.ToUpperInvariant(field[0])}{field[1..]} contradict each other: send one or the other.");
+            return new(id, AutoRenew, cancelledAt, ClearCancelledAt, Note, ProviderKey, ClearProviderKey, terms, DisplayName);
         }
     }
 
@@ -304,11 +264,8 @@ public static class SubscriptionEndpoints
         string StartsOn, string? EndsOn, MoneyBody Price, DurationBody Every, DurationBody? Covers,
         int? MaxCycles, PayerBody Payer, string? Note)
     {
-        public OpenPhaseCommand ToOpenCommand(ItemId id) => new(id, new BillingPhase(
-            BillingPhaseId.New(),
-            RequireDate(StartsOn),
-            OptionalDate(EndsOn),
-            Price.ToMoney(), Every.ToDuration(), Covers?.ToDuration(), MaxCycles, Payer.ToPayer()));
+        internal BillingPhase? Read(FieldReader reader, string path)
+            => new PhaseInput(StartsOn, EndsOn, Price, Every, Covers, MaxCycles, Payer).Read(reader, path);
     }
 
     /// <summary>A phase as the creation and the price change read it: every refusal located (1E2a design §2.1).</summary>
@@ -317,17 +274,14 @@ public static class SubscriptionEndpoints
     {
         internal BillingPhase? Read(FieldReader reader, string path)
         {
-            var startsOn = reader.Date(StartsOn, path + ".startsOn");
-            var endsOn = reader.Date(EndsOn, path + ".endsOn", required: false);
-            var price = reader.Money(Price, path + ".price");
-            if (price is { Amount: < 0 })
-                reader.Add(path + ".price.amount", "subscriptions.price_negative", "A phase has a price of zero or more.");
-            var every = reader.Duration(Every, path + ".every");
-            var covers = reader.Duration(Covers, path + ".covers", required: false);
-            if (MaxCycles is <= 0)
-                reader.Add(path + ".maxCycles", "subscriptions.max_cycles", "A cycle limit is positive.");
-            var payer = reader.Payer(Payer, path + ".payer");
-            return startsOn is { } s && price is { Amount: >= 0 } p && every is { } e && payer is { } y && MaxCycles is not <= 0 && reader.Ok
+            string At(string field) => path == "" ? field : $"{path}.{field}";
+            var startsOn = reader.Date(StartsOn, At("startsOn"));
+            var endsOn = reader.Date(EndsOn, At("endsOn"), required: false);
+            var price = reader.Money(Price, At("price"));
+            var every = reader.Duration(Every, At("every"));
+            var covers = reader.Duration(Covers, At("covers"), required: false);
+            var payer = reader.Payer(Payer, At("payer"));
+            return startsOn is { } s && price is { } p && every is { } e && payer is { } y && reader.Ok
                 ? new BillingPhase(BillingPhaseId.New(), s, endsOn, p, e, covers, MaxCycles, y)
                 : null;
         }
@@ -340,12 +294,8 @@ public static class SubscriptionEndpoints
         {
             var startsOn = reader.Date(StartsOn, "startsOn");
             var price = reader.Money(Price, "price");
-            if (price is { Amount: < 0 })
-                reader.Add("price.amount", "subscriptions.price_negative", "A phase has a price of zero or more.");
             var every = reader.Duration(Every, "every", required: false);
             var covers = reader.Duration(Covers, "covers", required: false);
-            if (MaxCycles is <= 0)
-                reader.Add("maxCycles", "subscriptions.max_cycles", "A cycle limit is positive.");
             var payer = Payer is null ? null : reader.Payer(Payer, "payer");
             return reader.Ok ? new ChangePriceCommand(id, startsOn!.Value, price!.Value, every, covers, MaxCycles, payer) : null;
         }

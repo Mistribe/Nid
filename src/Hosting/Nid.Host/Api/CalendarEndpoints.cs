@@ -58,15 +58,15 @@ public static class CalendarEndpoints
         // Issue #239: the calendar page, « À venir » over [from, to] across the modules (comma-joined, absent: every one).
         // Issue #241: `amounts=true` adds the money expected in and out, by day and in all.
         routes.MapGet(FeedPath, async (string? scope, string from, string to, string? modules, bool? amounts, IInvoker invoker, CancellationToken ct)
-                => (await invoker.InvokeAsync(new GetCalendarQuery(ParseScope(scope), RequireDate(from), RequireDate(to),
-                    modules is null ? null : ParseLabels(modules), amounts == true), ct)).ToHttp(v => v))
+                => await FieldReader.Run(invoker, r => new GetCalendarQuery(r.Scope(scope), r.RequiredDate(from, "from"), r.RequiredDate(to, "to"),
+                    modules is null ? null : ParseLabels(modules), amounts == true), v => v, ct))
             .RequireAuthorization().AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>()
             .Returns<CalendarView>();
 
         // Issue #240: the timeline, the milestones from today over `horizon` years (1, 3, 5 or 10).
         routes.MapGet(TimelinePath, async (string? scope, int horizon, string? modules, IInvoker invoker, CancellationToken ct)
-                => (await invoker.InvokeAsync(new GetCalendarTimelineQuery(ParseScope(scope), horizon,
-                    modules is null ? null : ParseLabels(modules)), ct)).ToHttp(v => v))
+                => await FieldReader.Run(invoker, r => new GetCalendarTimelineQuery(r.Scope(scope), horizon,
+                    modules is null ? null : ParseLabels(modules)), v => v, ct))
             .RequireAuthorization().AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>()
             .Returns<CalendarView>();
 

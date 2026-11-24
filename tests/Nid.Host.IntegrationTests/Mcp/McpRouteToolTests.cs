@@ -330,6 +330,10 @@ public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
         var (badDate, dateText) = await CallAsync(client, "simulate_property_sale", new { property = home, saleOn = "soon", price = "1" });
         Assert.True(badDate);
         Assert.Contains("saleOn", dateText);
+        // #515: a negative amount reads (wire) and is refused by the sale validator, as the route refuses it (a lone field: code and sentence).
+        var (negative, negativeText) = await CallAsync(client, "simulate_property_sale", new { property = home, saleOn = "2026-06-01", price = "300000", agencyFees = "-1" });
+        Assert.True(negative);
+        Assert.Contains("An amount is not negative and below 10^12.", negativeText);
     }
 
     /// <summary>« À valider » names each action from <c>proposals.action</c> of the web's locale.</summary>

@@ -113,6 +113,10 @@ public class ContractTermsTests(PostgresFixture fixture) : IClassFixture<Postgre
                                           new Dictionary<string, object> { [field] = "2026-03-01", [clear] = true });
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var problem = await Body(response);
+        Assert.Equal("request.malformed", problem.GetProperty("code").GetString());
+        var error = Assert.Single(problem.GetProperty("errors").EnumerateArray());
+        Assert.Equal((clear, "request.contradiction"), (error.FieldPath(), error.GetProperty("code").GetString()));
     }
 
     [Fact]

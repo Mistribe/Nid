@@ -44,6 +44,28 @@ public class PriceChangeTests(PostgresFixture fixture) : IClassFixture<PostgresF
         Assert.Equal(("startsOn", code), (error.FieldPath(), error.GetProperty("code").GetString()));
     }
 
+    /// <summary>#515: the same phase bounds on a price change and on a phase opened alone, which had none before.</summary>
+    [Theory]
+    [InlineData("price-changes")]
+    [InlineData("phases")]
+    public async Task A_negative_price_is_refused_at_its_amount(string route)
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await app.NewMonthlyAsync(app.AdultA, 10m);
+
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/subscriptions/{id.Value}/{route}", new
+        {
+            startsOn = "2025-06-01", price = new { amount = "-1.00", currency = "EUR" }, every = new { count = 1, unit = "month" },
+            payer = new { type = "household" },
+        });
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+        var error = Assert.Single((await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: TestContext.Current.CancellationToken)).GetProperty("errors").EnumerateArray());
+        Assert.Equal(("price.amount", "subscriptions.price_negative"), (error.FieldPath(), error.GetProperty("code").GetString()));
+        await using var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
+        Assert.Single(await subs.Phases.Where(p => p.ItemId == id.Value).ToListAsync(cancellationToken: TestContext.Current.CancellationToken));
+    }
+
     [Fact]
     public async Task A_refused_new_phase_leaves_the_open_one_open()
     {

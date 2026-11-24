@@ -17,7 +17,7 @@ public static class ChildcareEndpoints
             .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>();
 
         api.MapGet("", async (string? scope, bool? closed, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new ListChildcareQuery(ParseScope(scope), closed ?? false), ct)).ToHttp(list => list))
+            => await FieldReader.Run(invoker, r => new ListChildcareQuery(r.Scope(scope), closed ?? false), list => list, ct))
             .Returns<ChildcareList>();
 
         api.MapGet("/{id:guid}", async (Guid id, IInvoker invoker, CancellationToken ct)
@@ -27,7 +27,7 @@ public static class ChildcareEndpoints
         // #94: a nanny at home, its months typed as paid.
         var nannies = api.MapGroup("/nannies");
         nannies.MapGet("", async (string? scope, bool? closed, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new ListNanniesQuery(ParseScope(scope), closed ?? false), ct)).ToHttp(list => list))
+            => await FieldReader.Run(invoker, r => new ListNanniesQuery(r.Scope(scope), closed ?? false), list => list, ct))
             .Returns<NannyList>();
 
         nannies.MapGet("/{id:guid}", async (Guid id, int? year, IInvoker invoker, CancellationToken ct) =>

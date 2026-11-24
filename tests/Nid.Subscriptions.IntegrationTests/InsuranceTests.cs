@@ -179,6 +179,10 @@ public class InsuranceTests(PostgresFixture fixture) : IClassFixture<PostgresFix
                                           new { kind = "home", propertyId = property.Value, keepProperty = true, guarantees = Array.Empty<object>() });
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var problem = await Body(response);
+        Assert.Equal("request.malformed", problem.GetProperty("code").GetString());
+        var error = Assert.Single(problem.GetProperty("errors").EnumerateArray());
+        Assert.Equal(("keepProperty", "request.contradiction"), (error.FieldPath(), error.GetProperty("code").GetString()));
         Assert.Equal(JsonValueKind.Null, (await InsuranceOf(app, app.AdultA, id)).ValueKind);
     }
 
