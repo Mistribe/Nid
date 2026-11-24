@@ -104,6 +104,25 @@ describe('Mes jetons', () => {
     await waitFor(() => expect(within(createdDialog).getByRole('status')).toHaveTextContent('Jeton copié.'));
   });
 
+  it('over plain HTTP, says to copy the secret by hand when the browser refuses the copy (#641)', async () => {
+    server.use(
+      http.get('*/api/v1/platform/audit/me/security', () => HttpResponse.json({ entries: [], next: null })),
+      http.post('*/api/v1/core/me/tokens', () => HttpResponse.json({ token: token(), secret: SECRET }, { status: 201 })),
+    );
+    const { user } = await renderApp('/security?tab=tokens');
+    // No clipboard outside a secure context; the copy command refused too.
+    Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true });
+    Object.defineProperty(document, 'execCommand', { value: () => false, configurable: true });
+
+    await user.click(await screen.findByRole('button', { name: 'Créer un jeton' }));
+    await user.type(screen.getByLabelText('Nom'), 'x');
+    await user.click(screen.getByRole('button', { name: 'Créer' }));
+    await user.click(await screen.findByRole('button', { name: 'Copier' }));
+
+    expect(await screen.findByText('Copie impossible ici : sélectionnez le texte et copiez-le à la main.')).toBeInTheDocument();
+    expect(within(screen.getByRole('dialog', { name: 'Votre nouveau jeton' })).getByRole('status')).toHaveTextContent('');
+  });
+
   it('warns only when « Écriture directe » is chosen', async () => {
     server.use(http.get('*/api/v1/platform/audit/me/security', () => HttpResponse.json({ entries: [], next: null })));
     const { user } = await renderApp('/security?tab=tokens');

@@ -1,0 +1,4 @@
+{
+  "en": "Copy buttons also work when Nid is served over plain HTTP, and say so when the browser refuses the copy.",
+  "fr": "Les boutons « Copier » fonctionnent aussi quand Nid est servi en HTTP simple, et le disent quand le navigateur refuse la copie."
+}
