@@ -78,6 +78,38 @@ describe('The assistant panel', () => {
     expect(await within(panel).findByRole('alert')).toHaveTextContent('Les appels payants reprennent le 1 décembre 2026.');
   });
 
+  it('stops the streamed answer when a new conversation starts, and the new one starts empty (#639)', async () => {
+    serve();
+    const encoder = new TextEncoder();
+    let send: (type: string, data: unknown) => void = () => {};
+    let aborted = false;
+    server.use(http.post('*/api/v1/ai/assistant/turn', ({ request }) => {
+      request.signal.addEventListener('abort', () => { aborted = true; });
+      return new HttpResponse(new ReadableStream<Uint8Array>({
+        start(controller) {
+          send = (type, data) => {
+            try { controller.enqueue(encoder.encode(`event: ${type}\ndata: ${JSON.stringify(data)}\n\n`)); } catch { /* the reader has gone */ }
+          };
+          send('text', { text: 'Votre PEA' });
+        },
+      }), { headers: { 'content-type': 'text/event-stream' } });
+    }));
+    const { user } = await renderApp('/dashboard');
+    const panel = await openPanel(user);
+
+    await user.type(within(panel).getByRole('textbox', { name: 'Votre question' }), 'Mon PEA ?');
+    await user.click(within(panel).getByRole('button', { name: 'Demander' }));
+    await within(panel).findByText('Votre PEA');
+    await user.click(within(panel).getByRole('button', { name: 'Nouvelle conversation' }));
+    send('text', { text: ' vaut 21 000 €.' });
+    send('done', { provider: 'salon', placement: 'local', model: 'llama3.2', reason: 'end', links: [], conversationId: 'c1' });
+
+    await waitFor(() => expect(aborted).toBe(true));
+    expect(within(panel).queryByText('Mon PEA ?')).not.toBeInTheDocument();
+    expect(within(panel).queryByText(/vaut 21 000/)).not.toBeInTheDocument();
+    expect(within(panel).getByRole('button', { name: 'Demander' })).toBeInTheDocument();
+  });
+
   it('opens from « Plus » on a phone, where the top bar has no room for its button', async () => {
     serve();
     const { user } = await renderApp('/more');
