@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Contracts;
 using Nid.Investments.Infrastructure.Persistence;
+using Nid.Investments.Application;
 using Nid.Investments.Contracts;
 using Nid.Platform.Contracts;
 using Nid.TestSupport;

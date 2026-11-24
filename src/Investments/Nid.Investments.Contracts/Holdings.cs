@@ -47,8 +47,6 @@ public sealed record EnvelopeHolding(
     LocalDate? OpenedOn, LocalDate? MaturesOn, decimal? EntryCostPct, LocalDate? ClosedOn, string? Note, bool AutoPrice = true,
     int? EntitlementDelayMonths = null);
 
-public sealed record StoredHolding(EnvelopeHolding Holding, uint Version);
-
 /// <summary>A holding in a snapshot: <see cref="Value"/> as printed, in the envelope's currency; units and prices with 6 decimals.</summary>
 public sealed record SnapshotLine(Guid HoldingId, decimal? Units, decimal? UnitPrice, decimal Value, decimal? CostBasisPerUnit);
 
@@ -93,91 +91,3 @@ public sealed record HoldingWarning(string Code, Guid? HoldingId = null, LocalDa
 public sealed record CostReport(
     Guid HoldingId, int Year, decimal GrossReturnPct, decimal TotalFeesPct, decimal NetReturnPct, decimal? ContractFeesPct, decimal? SupportFeesPct,
     decimal? RetrocessionPct, decimal? NetAnnualized5yPct, string? SourceLabel);
-
-/// <summary>A holding with a maturity date, for the upcoming events.</summary>
-public sealed record MaturingHolding(ItemId Envelope, Guid HoldingId, string Name, LocalDate MaturesOn);
-
-/// <summary>Issue #180: an open SCPI with an entitlement delay, the days it bought shares (its allocations in) and the day it was opened.</summary>
-public sealed record ScpiHolding(ItemId Envelope, Guid HoldingId, string Name, int DelayMonths, LocalDate? OpenedOn, IReadOnlyList<LocalDate> Bought);
-
-/// <summary>import-format.md §8: the holdings tables an import marks with the file id a row came from.</summary>
-public enum HoldingTable { Holding, Snapshot, Movement }
-
-/// <summary>A row imported under a file id: its id, its envelope, the entity's hash, and who imported it.</summary>
-public sealed record ImportedHoldingRow(Guid Id, ItemId Envelope, string Hash, PersonId ImportedBy);
-
-/// <summary>What the export writes of some envelopes: their holdings, snapshots and movements, and the marks of those imported.</summary>
-public sealed record HoldingsExport(
-    IReadOnlyList<EnvelopeHolding> Holdings, IReadOnlyList<HoldingSnapshot> Snapshots, IReadOnlyList<HoldingMovement> Movements,
-    IReadOnlyDictionary<Guid, ImportMark> Marks);
-
-public interface IHoldingStore
-{
-    /// <summary>
-    /// The distinct ISINs to price: holdings with an ISIN and <c>auto_price</c>, neither <c>euro_fund</c> nor <c>cash</c>, not closed,
-    /// in envelopes that are not closed.
-    /// </summary>
-    Task<IReadOnlyList<string>> PricedIsinsAsync(CancellationToken ct);
-
-    /// <summary>Per ISIN, the unit price of its latest snapshot line that has a positive one, with its envelope.</summary>
-    Task<IReadOnlyList<SnapshotPrice>> SnapshotUnitPricesAsync(IReadOnlyCollection<string> isins, CancellationToken ct);
-
-    Task<IReadOnlyList<StoredHolding>> HoldingsAsync(ItemId envelope, CancellationToken ct);
-
-    /// <summary>
-    /// The holdings of these envelopes that have units (<see cref="HoldingWire.HasUnits"/>), closed ones included, whose name contains
-    /// <paramref name="nameContains"/> (typed text, case-insensitive; <c>%</c> and <c>_</c> match themselves), every one when null; by name.
-    /// A registry-free read: the caller passes the envelopes the reader can see.
-    /// </summary>
-    Task<IReadOnlyList<EnvelopeHolding>> PricedAsync(IReadOnlyCollection<ItemId> envelopes, string? nameContains, CancellationToken ct);
-
-    Task AddAsync(EnvelopeHolding holding, CancellationToken ct);
-
-    /// <summary>Several holdings in one save.</summary>
-    Task AddManyAsync(IReadOnlyList<EnvelopeHolding> holdings, CancellationToken ct);
-
-    /// <summary>Every field of <paramref name="holding"/>, in place.</summary>
-    Task ReplaceAsync(EnvelopeHolding holding, CancellationToken ct);
-
-    Task DeleteAsync(Guid holding, CancellationToken ct);
-
-    /// <summary>True when a snapshot line or a movement names the holding.</summary>
-    Task<bool> InUseAsync(Guid holding, CancellationToken ct);
-
-    /// <summary>The envelope's snapshots, latest first.</summary>
-    Task<IReadOnlyList<HoldingSnapshot>> SnapshotsAsync(ItemId envelope, CancellationToken ct);
-
-    /// <summary>Creates the snapshot, or replaces the one of that id, lines included.</summary>
-    Task SaveSnapshotAsync(HoldingSnapshot snapshot, CancellationToken ct);
-
-    Task DeleteSnapshotAsync(Guid snapshot, CancellationToken ct);
-
-    /// <summary>The envelope's movements, by date then id.</summary>
-    Task<IReadOnlyList<HoldingMovement>> MovementsAsync(ItemId envelope, CancellationToken ct);
-
-    Task AddMovementsAsync(IReadOnlyList<HoldingMovement> movements, CancellationToken ct);
-
-    /// <summary>An import's replacement: every field of the movement, in place.</summary>
-    Task ReplaceMovementAsync(HoldingMovement movement, CancellationToken ct);
-
-    /// <summary>Every importer's rows of <paramref name="table"/> under these file ids: the import section decides which one the importer may see.</summary>
-    Task<IReadOnlyDictionary<string, IReadOnlyList<ImportedHoldingRow>>> FindImportedAsync(HoldingTable table, IReadOnlyCollection<string> refs, CancellationToken ct);
-
-    /// <summary>The rows of these envelopes, in as many queries whatever their number.</summary>
-    Task<HoldingsExport> ExportAsync(IReadOnlyCollection<ItemId> envelopes, CancellationToken ct);
-
-    /// <summary>Marks a row just written, in the import's transaction.</summary>
-    Task MarkAsync(HoldingTable table, Guid id, ImportMark mark, CancellationToken ct);
-
-    /// <summary>The envelope's cost reports, by holding then year.</summary>
-    Task<IReadOnlyList<CostReport>> CostReportsAsync(ItemId envelope, CancellationToken ct);
-
-    /// <summary>Creates the holding's report of that year, or replaces it in place.</summary>
-    Task SaveCostReportAsync(ItemId envelope, CostReport report, CancellationToken ct);
-
-    /// <summary>The open holdings of these envelopes maturing in [<paramref name="from"/>, <paramref name="until"/>].</summary>
-    Task<IReadOnlyList<MaturingHolding>> MaturingAsync(IReadOnlyCollection<ItemId> envelopes, LocalDate from, LocalDate until, CancellationToken ct);
-
-    /// <summary>The open SCPI holdings of these envelopes that have an entitlement delay, with their purchases.</summary>
-    Task<IReadOnlyList<ScpiHolding>> ScpisAsync(IReadOnlyCollection<ItemId> envelopes, CancellationToken ct);
-}

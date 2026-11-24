@@ -25,11 +25,11 @@ public class ExpectedDocumentTests(PostgresFixture fixture) : IClassFixture<Post
     private static Task<HttpResponseMessage> DismissAsync(NidApp app, PersonId actor, string kind, Guid target, string role, int period)
         => app.RawAsync(actor, HttpMethod.Post, $"{Root}/dismissals", new { targetKind = kind, targetId = target, role, period });
 
-    private static async Task<ItemId> LifeInsuranceAsync(NidApp app, PersonId owner)
+    private static async Task<ItemId> LifeInsuranceAsync(NidApp app, PersonId owner, string? openedOn = null)
     {
         var response = await app.RawAsync(owner, HttpMethod.Post, "/api/v1/investments/envelopes", new
         {
-            displayName = "Assurance vie", kind = "life_insurance", currency = "EUR", visibility = "shared",
+            displayName = "Assurance vie", kind = "life_insurance", currency = "EUR", visibility = "shared", openedOn,
             owners = new[] { new { personId = owner.Value, shareBp = 10_000 } },
         });
         response.EnsureSuccessStatusCode();
@@ -66,6 +66,18 @@ public class ExpectedDocumentTests(PostgresFixture fixture) : IClassFixture<Post
 
         Assert.Equal(HttpStatusCode.OK, (await DismissAsync(app, app.AdultA, TargetKinds.CorePerson, app.AdultA.Value, DocumentRoles.TaxNotice, 2025)).StatusCode);
         Assert.Equal([(ExpectedDocumentRules.LifeInsurance, insurance.Value, DocumentRoles.Statement, 2024)], await ExpectedAsync(app, app.AdultA));
+    }
+
+    [Fact]
+    public async Task A_life_insurance_expects_no_statement_of_a_year_due_before_it_opened()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var older = await LifeInsuranceAsync(app, app.AdultA, "2020-03-01");
+        await LifeInsuranceAsync(app, app.AdultA, "2025-02-01"); // the 2024 statement was due before it opened
+
+        Assert.Equal(
+            [(ExpectedDocumentRules.LifeInsurance, older.Value, DocumentRoles.Statement, 2024)],
+            (await ExpectedAsync(app, app.AdultA)).Where(e => e.Subject == ExpectedDocumentRules.LifeInsurance));
     }
 
     [Fact]

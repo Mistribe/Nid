@@ -2,7 +2,6 @@ using Nid.Core.Contracts;
 using Nid.Tax.Contracts;
 using Nid.Documents.Contracts;
 using Nid.Documents.Domain;
-using Nid.Investments.Contracts;
 using Nid.Platform.Contracts;
 using NodaTime;
 using UnambitiousFx.Functional;
@@ -45,7 +44,7 @@ public sealed record ExpectedDismissal(string TargetKind, Guid TargetId, string 
 
 /// <summary>Issue #414: applies <see cref="ExpectedDocumentRules"/> to the actor's subjects.</summary>
 public sealed class ExpectedDocuments(
-    IVisibleItems visible, IItemRegistry items, IAccessPolicy policy, IEnvelopeStore envelopes, IPersonRegistry persons,
+    IVisibleItems visible, IItemRegistry items, IAccessPolicy policy, IEnumerable<IExpectedDocumentSubjects> modules, IPersonRegistry persons,
     ITaxAssessmentStore assessments, IDocumentStore store, IHouseholdCalendar calendar)
 {
     private sealed record Subject(string Kind, DocumentTarget Target, string Label, string? Module, LocalDate? Since);
@@ -55,23 +54,16 @@ public sealed class ExpectedDocuments(
         var ids = item is { } one ? [new ItemId(one)] : (await visible.ForAsync(person, VisibilityScope.Me, ct)).ToList();
         var writable = await policy.CheckManyAsync(person, ids, AccessKind.Write, ct);
         var found = (await items.FindManyAsync(writable.ToList(), ct)).Values.Where(i => i.ArchivedAt is null).ToList();
-        var lifeInsurances = (await envelopes.FindManyAsync(found.Where(i => i.Module == "investments").Select(i => i.Id).ToList(), ct))
-            .Where(e => e is { Kind: EnvelopeKind.LifeInsurance, ClosedOn: null }).ToDictionary(e => e.ItemId);
+        // #511: each module names its own items' subjects (Investments its open life insurances, RealEstate its loans and properties).
+        var expectedOf = new Dictionary<ItemId, ExpectedSubject>();
+        foreach (var module in modules)
+            foreach (var (id, subject) in await module.SubjectsAsync(found, ct))
+                expectedOf[id] = subject;
 
         var subjects = new List<Subject>();
         foreach (var i in found)
-        {
-            var target = new DocumentTarget(TargetKinds.CoreItem, i.Id.Value);
-            var kind = (i.Module, i.Kind) switch
-            {
-                ("realestate", "loan") => ExpectedDocumentRules.Loan,
-                ("realestate", "property") => ExpectedDocumentRules.Property,
-                ("investments", _) when lifeInsurances.ContainsKey(i.Id) => ExpectedDocumentRules.LifeInsurance,
-                _ => null,
-            };
-            if (kind is not null)
-                subjects.Add(new Subject(kind, target, i.DisplayName, i.Module, lifeInsurances.GetValueOrDefault(i.Id)?.OpenedOn));
-        }
+            if (expectedOf.TryGetValue(i.Id, out var s))
+                subjects.Add(new Subject(s.Kind, new DocumentTarget(TargetKinds.CoreItem, i.Id.Value), i.DisplayName, i.Module, s.Since));
         if (item is null && await persons.FindAsync(person, ct) is { } me)
             subjects.Add(new Subject(ExpectedDocumentRules.TaxYear, new DocumentTarget(TargetKinds.CorePerson, person.Value), me.DisplayName, null, null));
         if (subjects.Count == 0)

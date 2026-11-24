@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Contracts;
+using Nid.Investments.Application;
 using Nid.Investments.Contracts;
 using Nid.TestSupport;
 using NodaTime;

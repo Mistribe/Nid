@@ -13,6 +13,7 @@ using Nid.Core.Application;
 using Nid.Core.Contracts;
 using Nid.Core.Infrastructure.Persistence;
 using Nid.Host.Auth;
+using Nid.Investments.Application;
 using Nid.Investments.Contracts;
 using Nid.Platform.Contracts;
 using Nid.Subscriptions.Application;

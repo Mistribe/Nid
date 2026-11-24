@@ -108,39 +108,12 @@ public static class EarlyReleaseCases
     ];
 }
 
-public sealed record ImportedEnvelope(ItemId Item, string Hash, PersonId ImportedBy);
-public sealed record StoredEnvelope(Envelope Envelope, ImportMark? Import);
-
-/// <summary>A change: a null field is left as it is; <c>Clear*</c> empties an optional one.</summary>
-public sealed record EnvelopeChange(
-    EnvelopeKind? Kind = null, string? Institution = null, bool ClearInstitution = false,
-    string? AccountHint = null, bool ClearAccountHint = false, LocalDate? OpenedOn = null, bool ClearOpenedOn = false,
-    ValuationCadence? Cadence = null, int? StaleAfterDays = null, bool ClearStaleAfterDays = false,
-    string? Note = null, bool ClearNote = false, decimal? UcShareFloorPct = null, bool ClearUcShareFloorPct = false,
-    decimal? PremiumsBefore2017 = null, bool ClearPremiumsBefore2017 = false, RegulatedKind? Regulated = null, bool ClearRegulated = false,
-    IReadOnlyList<AvailabilityTranche>? Availability = null, bool ClearAvailability = false,
-    EarlyRelease? EarlyRelease = null, bool ClearEarlyRelease = false);
-
-public interface IEnvelopeStore
+/// <summary>#511: what other modules read of envelopes (Banking: the kind of an account's envelope); never a write.</summary>
+public interface IEnvelopes
 {
-    Task CreateAsync(Envelope envelope, CancellationToken ct);
-
-    Task CreateAsync(Envelope envelope, ImportMark? import, CancellationToken ct);
-
-    /// <summary>2B1b: an import's replacement: every attribute, the closing date and the mark, in place.</summary>
-    Task ReplaceAsync(Envelope envelope, ImportMark import, CancellationToken ct);
-
-    Task SetClosedOnAsync(ItemId item, LocalDate? closedOn, CancellationToken ct);
-
-    Task<IReadOnlyDictionary<string, IReadOnlyList<ImportedEnvelope>>> FindImportedAsync(IReadOnlyCollection<string> refs, CancellationToken ct);
-
-    Task<IReadOnlyList<StoredEnvelope>> ReadAllAsync(IReadOnlyCollection<ItemId> items, CancellationToken ct);
-
     /// <summary>Null when the item is not an envelope (or does not exist).</summary>
     Task<Envelope?> FindAsync(ItemId item, CancellationToken ct);
 
     /// <summary>#180: <paramref name="kind"/>, only the envelopes of that kind (the query filters).</summary>
     Task<IReadOnlyList<Envelope>> FindManyAsync(IReadOnlyCollection<ItemId> items, CancellationToken ct, EnvelopeKind? kind = null);
-
-    Task UpdateAsync(ItemId item, EnvelopeChange change, CancellationToken ct);
 }

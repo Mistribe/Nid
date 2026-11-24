@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Nid.Core.Contracts;
+using Nid.Investments.Application;
 using Nid.Investments.Contracts;
 using NodaTime;
 

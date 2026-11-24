@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Nid.Core.Application;
 using Nid.Core.Application.Fx;
 using Nid.Core.Contracts;
+using Nid.Investments.Application;
 using Nid.Investments.Contracts;
 using Nid.Host.Admin;
 using Nid.Platform.Admin;
