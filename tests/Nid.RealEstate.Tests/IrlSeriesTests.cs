@@ -1,6 +1,7 @@
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
 using Nid.RealEstate.Application.Irl;
+using Nid.RealEstate.Application;
 using Nid.RealEstate.Domain;
 using NodaTime;
 

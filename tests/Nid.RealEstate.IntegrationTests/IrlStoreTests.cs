@@ -1,6 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Nid.Platform.Contracts;
-using Nid.RealEstate.Contracts;
+using Nid.RealEstate.Application;
 using Nid.RealEstate.Domain;
 using Nid.TestSupport;
 using NodaTime;

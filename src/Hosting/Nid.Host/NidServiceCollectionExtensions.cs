@@ -35,6 +35,7 @@ using Nid.Platform.Infrastructure.Audit;
 using Nid.Platform.Infrastructure.Persistence;
 using Nid.Platform.Notifications;
 using UnambitiousFx.Myelin;
+using Nid.RealEstate.Application;
 using Nid.RealEstate.Contracts;
 using Nid.RealEstate.Infrastructure.Persistence;
 using Nid.Subscriptions.Application.Catalog;
@@ -472,7 +473,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ILoanStore, LoanStore>();
         services.AddScoped<IPropertyStore, PropertyStore>();
         services.AddScoped<IItemDeletionPart, RealEstateDeletionPart>();
-        services.AddScoped<Nid.RealEstate.Domain.IIrlStore, IrlStore>();
+        services.AddScoped<IIrlStore, IrlStore>();
         services.AddScoped<ISeriesContribution, Nid.RealEstate.Application.Irl.IrlSeries>();
         services.AddScoped<ISeriesContribution, Nid.RealEstate.Application.LoanSeries>();
         services.AddScoped<ISeriesContribution, Nid.RealEstate.Application.PropertySeries>();

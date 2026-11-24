@@ -6,6 +6,7 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <ProjectReference Include="..\Nid.RealEstate.Application\Nid.RealEstate.Application.csproj" />
     <ProjectReference Include="..\Nid.RealEstate.Contracts\Nid.RealEstate.Contracts.csproj" />
     <ProjectReference Include="..\Nid.RealEstate.Domain\Nid.RealEstate.Domain.csproj" />
     <ProjectReference Include="..\..\Core\Nid.Core.Contracts\Nid.Core.Contracts.csproj" />

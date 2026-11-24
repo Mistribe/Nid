@@ -7,6 +7,7 @@ using Nid.Host.Admin;
 using Nid.Platform.Admin;
 using Nid.Platform.Contracts;
 using Nid.Platform.Notifications;
+using Nid.RealEstate.Application;
 using Nid.RealEstate.Contracts;
 using Nid.Subscriptions.Application;
 using Nid.Subscriptions.Contracts;

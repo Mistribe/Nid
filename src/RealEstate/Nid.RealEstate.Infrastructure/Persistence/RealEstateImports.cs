@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Nid.Core.Contracts;
+using Nid.RealEstate.Application;
 using Nid.RealEstate.Contracts;
 
 namespace Nid.RealEstate.Infrastructure.Persistence;
