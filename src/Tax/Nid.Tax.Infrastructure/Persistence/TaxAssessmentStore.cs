@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using Nid.Core.Contracts;
+using Nid.Tax.Application;
 using Nid.Tax.Contracts;
 using Npgsql;
 using UnambitiousFx.Functional;
@@ -78,6 +79,9 @@ public sealed partial class TaxAssessmentStore(TaxDbContext db) : ITaxAssessment
         var persons = await db.TaxAssessmentDeclarants.AsNoTracking().Where(d => d.AssessmentId == assessmentId).Select(d => d.PersonId).ToListAsync(ct);
         return persons.Count == 0 ? null : persons.ToHashSet();
     }
+
+    public async Task<IReadOnlySet<int>> IssuedYearsWithDocumentAsync(PersonId declarant, CancellationToken ct)
+        => (await ListForAsync(declarant, null, ct)).Where(a => a.Assessment.DocumentId is not null).Select(a => a.Assessment.IssuedYear).ToHashSet();
 
     /// <summary>The expected conflicts as failures: a stale version, the unique (year, person) index.</summary>
     private async Task<Result> SaveAsync(CancellationToken ct)

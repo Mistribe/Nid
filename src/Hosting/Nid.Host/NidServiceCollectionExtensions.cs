@@ -144,7 +144,7 @@ public static class NidServiceCollectionExtensions
         services.TryAddSingleton(new PriceOptions());
         services.TryAddSingleton<IPriceSourceClient, Nid.Investments.Infrastructure.Prices.PriceSourceClient>();
         services.TryAddSingleton(new Nid.Banking.Contracts.BankingOptions());
-        services.TryAddSingleton<Nid.Banking.Contracts.IEnableBankingClient, Nid.Banking.Infrastructure.EnableBanking.EnableBankingClient>();
+        services.TryAddSingleton<Nid.Banking.Application.IEnableBankingClient, Nid.Banking.Infrastructure.EnableBanking.EnableBankingClient>();
         services.TryAddSingleton(new IrlOptions());
         services.TryAddSingleton<IIrlSourceClient, Nid.RealEstate.Infrastructure.Irl.IrlSourceClient>();
         services.TryAddSingleton<IIrlJobTrigger, JobsDisabledIrlTrigger>();
@@ -168,9 +168,9 @@ public static class NidServiceCollectionExtensions
         }).AddInterceptors(sp.GetRequiredService<AuditInterceptor>()));
         services.AddScoped<ITransactionParticipant, DbContextParticipant<TaxDbContext>>();
         services.AddScoped<IPersonUsePart, TaxPersonUsePart>();
-        services.AddScoped<ITaxProfileStore, TaxProfileStore>();
+        services.AddScoped<Nid.Tax.Application.ITaxProfileStore, TaxProfileStore>();
         services.AddScoped<TaxAssessmentStore>();
-        services.AddScoped<ITaxAssessmentStore>(sp => sp.GetRequiredService<TaxAssessmentStore>());
+        services.AddScoped<Nid.Tax.Application.ITaxAssessmentStore>(sp => sp.GetRequiredService<TaxAssessmentStore>());
         services.AddScoped<ITaxAssessmentDeclarants>(sp => sp.GetRequiredService<TaxAssessmentStore>());
         services.AddScoped<Nid.Tax.Application.TaxEstimates>();
         services.AddScoped<Nid.Tax.Application.SaleTaxEstimates>();

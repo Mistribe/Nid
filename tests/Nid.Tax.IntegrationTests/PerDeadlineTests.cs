@@ -2,6 +2,7 @@ using System.Net;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Contracts;
+using Nid.Tax.Application;
 using Nid.Tax.Contracts;
 using Nid.Core.Infrastructure.Persistence;
 using Nid.TestSupport;

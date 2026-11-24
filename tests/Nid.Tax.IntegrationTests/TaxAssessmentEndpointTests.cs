@@ -3,6 +3,7 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Contracts;
+using Nid.Tax.Application;
 using Nid.Tax.Contracts;
 using Nid.Platform.Contracts;
 using Nid.TestSupport;

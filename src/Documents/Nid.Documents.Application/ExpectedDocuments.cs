@@ -46,7 +46,7 @@ public sealed record ExpectedDismissal(string TargetKind, Guid TargetId, string 
 /// <summary>Issue #414: applies <see cref="ExpectedDocumentRules"/> to the actor's subjects.</summary>
 public sealed class ExpectedDocuments(
     IVisibleItems visible, IItemRegistry items, IAccessPolicy policy, IEnvelopeStore envelopes, IPersonRegistry persons,
-    ITaxAssessmentStore assessments, IDocumentStore store, IHouseholdCalendar calendar)
+    ITaxAssessmentDeclarants assessments, IDocumentStore store, IHouseholdCalendar calendar)
 {
     private sealed record Subject(string Kind, DocumentTarget Target, string Label, string? Module, LocalDate? Since);
 
@@ -82,8 +82,7 @@ public sealed class ExpectedDocuments(
         var links = await store.LinksOfAsync(documents.Keys.ToList(), ct);
         var dismissed = (await store.DismissalsAsync(ct)).ToLookup(d => (d.TargetKind, d.TargetId, d.Role), d => d.Period);
         // A saved notice with its PDF covers the year it was issued, whatever the PDF's date.
-        var notices = (await assessments.ListForAsync(person, null, ct)).Where(a => a.Assessment.DocumentId is not null)
-            .Select(a => a.Assessment.IssuedYear).ToHashSet();
+        var notices = await assessments.IssuedYearsWithDocumentAsync(person, ct);
         var today = await calendar.TodayAsync(ct);
 
         var expected = new List<ExpectedDocumentView>();

@@ -1,5 +1,4 @@
 using Nid.Core.Contracts;
-using UnambitiousFx.Functional;
 
 namespace Nid.Tax.Contracts;
 
@@ -32,38 +31,14 @@ public sealed record TaxAssessment(
     decimal? CapitalIncomeAlreadyLevied = null, decimal? FlatRatePrepaidCredit = null, decimal? RentalDeficitOnRentalIncome = null,
     decimal? RentalDeficitOnGlobalIncome = null, decimal? PinelReduction = null, decimal? ChildcareExpenses = null);
 
-/// <summary>A stored notice: its id and its version (optimistic concurrency).</summary>
-public sealed record StoredTaxAssessment(Guid Id, uint Version, TaxAssessment Assessment);
-
-public interface ITaxAssessmentStore
-{
-    /// <summary>The notices where <paramref name="reader"/> is a declarant, optionally of one <paramref name="year"/>.</summary>
-    Task<IReadOnlyList<StoredTaxAssessment>> ListForAsync(PersonId reader, int? year, CancellationToken ct);
-
-    Task<StoredTaxAssessment?> FindAsync(Guid id, CancellationToken ct);
-
-    /// <summary>Whether one of <paramref name="persons"/> is already a declarant of a notice of <paramref name="year"/>, other than <paramref name="except"/>.</summary>
-    Task<bool> PersonTakenAsync(int year, IReadOnlyCollection<PersonId> persons, Guid? except, CancellationToken ct);
-
-    /// <summary>Whether <paramref name="person"/> declares any notice.</summary>
-    Task<bool> DeclaresAsync(PersonId person, CancellationToken ct);
-
-    /// <summary>The new notice's id; <see cref="TaxAssessmentCodes.Taken"/> when the unique (year, person) index refuses it.</summary>
-    Task<Result<Guid>> AddAsync(TaxAssessment a, CancellationToken ct);
-
-    /// <summary>
-    /// Writes <paramref name="a"/> if the stored version is still <paramref name="version"/>: <see cref="TaxAssessmentCodes.Changed"/>
-    /// otherwise, <see cref="TaxAssessmentCodes.Taken"/> when the unique (year, person) index refuses it.
-    /// </summary>
-    Task<Result> UpdateAsync(Guid id, TaxAssessment a, uint version, CancellationToken ct);
-
-    Task DeleteAsync(Guid id, CancellationToken ct);
-}
-
-/// <summary>Tax assessments spec §5: the declarants of a notice, for the Documents module's link check. Null: no such notice.</summary>
+/// <summary>What the Documents module reads of the notices, never writes.</summary>
 public interface ITaxAssessmentDeclarants
 {
+    /// <summary>Tax assessments spec §5: the declarants of a notice, for the link check. Null: no such notice.</summary>
     Task<IReadOnlySet<Guid>?> DeclarantsAsync(Guid assessmentId, CancellationToken ct);
+
+    /// <summary>Issue #414: the years in which the notices <paramref name="declarant"/> declares were issued, those saved with their PDF only.</summary>
+    Task<IReadOnlySet<int>> IssuedYearsWithDocumentAsync(PersonId declarant, CancellationToken ct);
 }
 
 /// <summary>Tax assessments spec §4: the codes of the notice's refusals.</summary>

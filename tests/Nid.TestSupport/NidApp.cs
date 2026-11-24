@@ -84,7 +84,7 @@ public sealed class NidApp : IAsyncDisposable
     /// <summary>The offline <see cref="IPriceSourceClient"/> this host runs against; every request fails unless a test serves pages.</summary>
     public FakePriceSources Prices { get; }
 
-    /// <summary>The offline <see cref="Nid.Banking.Contracts.IEnableBankingClient"/> this host runs against; every call fails unless a test scripts it.</summary>
+    /// <summary>The offline <see cref="Nid.Banking.Application.IEnableBankingClient"/> this host runs against; every call fails unless a test scripts it.</summary>
     public FakeEnableBanking Banks { get; }
 
     /// <summary>The offline <see cref="IIrlSourceClient"/> this host runs against; every request fails unless a test serves the series.</summary>
@@ -158,7 +158,7 @@ public sealed class NidApp : IAsyncDisposable
                     services.AddSingleton<IClock>(new FixedClock(GoldenCaseToday.AtMidnight().InUtc().ToInstant()));
                     services.AddSingleton<IFxSourceClient>(sources);
                     services.AddSingleton<IPriceSourceClient>(prices);
-                    services.AddSingleton<Nid.Banking.Contracts.IEnableBankingClient>(banks);
+                    services.AddSingleton<Nid.Banking.Application.IEnableBankingClient>(banks);
                     services.AddSingleton<IIrlSourceClient>(irl);
                     services.AddSingleton<ICpiSourceClient>(cpi);
                     services.AddSingleton<ICatalogSourceClient>(catalog);
