@@ -717,7 +717,8 @@ livrée par défaut.
   Une fois décidée, elle suit les règles de son élément.
 - **Livré (#499)** : `AssistantCatalogue` autorise 27 outils, chacun avec ses classes de données (`figures`, et
   `bank_labels` pour les lignes bancaires et les deux propositions qui en partent : `propose_bank_link`,
-  `propose_bank_categories`) ; tous les autres sont écartés, dont les outils de documents, les `propose_*` copiés d'un
+  `propose_bank_categories`) ; `list_proposals` porte aussi `documents` et `local_only` (#624) : ses propositions recopient
+  des libellés de lignes et le texte de documents, bulletins compris ; tous les autres sont écartés, dont les outils de documents, les `propose_*` copiés d'un
   document, les simulations et tous les outils d'écriture directe (`RouteActions`). Les schémas offerts au modèle n'ont ni
   `apply` ni `documentId`, retirés aussi des arguments reçus. L'appel passe par l'outil MCP lui-même, dans une portée à
   lui, sous `Actor.Assistant` de la personne : il ne lit que ce qu'elle lit. Il est audité `mcp_tool_called` avec
@@ -740,7 +741,8 @@ livrée par défaut.
   lieux, et tant que le consentement de chaque adulte n'existe pas (#167), l'acteur assistant lit **les éléments partagés
   seulement** (`Actor.SharedOnly`, respecté par `VisibleItems` et `AccessPolicy`) : ses propres éléments privés n'existent
   pas pour lui, totaux compris. Le cloud ne reçoit jamais de `bank_labels` (`allowed_kinds` ne les couvre pas encore) : l'outil
-  n'est pas appelé. Ce qui est retenu est compté dans une ligne générique, sans dire quoi ni à qui. Limites, section
+  n'est pas appelé, ni aucun outil qui répond plus que des chiffres (#624). Ailleurs, la réponse d'un tel outil fixe la classe
+  des étapes suivantes : `local_only` (un worker `safe` seulement) avant `bank_labels`. Ce qui est retenu est compté dans une ligne générique, sans dire quoi ni à qui. Limites, section
   `Assistant` de la configuration : 8 étapes, 2 048 jetons de sortie par étape, 90 s par tour, 30 tours par personne et par
   heure (en mémoire : un redémarrage les oublie), réponse d'outil de 24 000 caractères au plus.
   **#527** : la destination servie porte la taille de contexte du modèle (celle que son worker déclare, ou
