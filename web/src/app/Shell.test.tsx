@@ -169,7 +169,7 @@ describe('the shell', () => {
   it('shows the Administration group in the sidebar for an admin', async () => {
     await renderApp('/admin', { capabilities: adminCapabilities });
     const links = within(within(sidebar()).getByRole('list', { name: 'Administration' })).getAllByRole('link').map((l) => l.textContent);
-    expect(links).toEqual(['Vue d\'ensemble', 'Taux de change', 'Cours', 'IRL', 'Inflation', 'Tâches', 'Banque', 'Catalogue', 'Utilisateurs', 'Foyer', 'Sécurité', 'Système', 'Notifications']);
+    expect(links).toEqual(['Vue d\'ensemble', 'Taux de change', 'Cours', 'IRL', 'Inflation', 'Tâches', 'Banque', 'Catalogue', 'Utilisateurs', 'Foyer', 'Sécurité', 'Système', 'IA', 'Notifications']);
   });
 
   describe('the Administration group', () => {

@@ -80,6 +80,8 @@ public sealed class AssistantConversationTests(PostgresFixture fixture) : IClass
         await using var app = await StartAsync(Model());
         var old = await AskAsync(app, app.AdultA, "Mes enveloppes ?");
         var recent = await AskAsync(app, app.AdultA, "Et aujourd'hui ?");
+        // #585: the retention is the administration's.
+        Assert.Equal(HttpStatusCode.Forbidden, (await app.RawAsync(app.AdultB, HttpMethod.Put, "/api/v1/ai/settings/conversation-retention", new { days = 7 })).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Put, "/api/v1/ai/settings/conversation-retention", new { days = 7 })).StatusCode);
         Assert.Equal(HttpStatusCode.UnprocessableEntity, (await app.RawAsync(app.AdultA, HttpMethod.Put, "/api/v1/ai/settings/conversation-retention", new { days = 0 })).StatusCode);
         await using var scope = app.Services.CreateAsyncScope();

@@ -110,13 +110,15 @@ public sealed class BudgetTests(PostgresFixture fixture) : IClassFixture<Postgre
     }
 
     [Fact]
-    public async Task Any_adult_sets_the_ceiling_in_cents_and_both_are_told()
+    public async Task An_admin_sets_the_ceiling_in_cents_and_both_are_told()
     {
         await using var app = await StartAsync(new FakeAnthropic());
 
+        // #585: the budget is the administration's; another adult reads it only.
+        Assert.Equal(HttpStatusCode.Forbidden, (await app.RawAsync(app.AdultB, HttpMethod.Put, "/api/v1/ai/budget", new { monthlyBudgetEur = "12.50" })).StatusCode);
         Assert.Equal(HttpStatusCode.UnprocessableEntity,
-            (await app.RawAsync(app.AdultB, HttpMethod.Put, "/api/v1/ai/budget", new { monthlyBudgetEur = "10.005" })).StatusCode);
-        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultB, HttpMethod.Put, "/api/v1/ai/budget", new { monthlyBudgetEur = "12.50" })).StatusCode);
+            (await app.RawAsync(app.AdultA, HttpMethod.Put, "/api/v1/ai/budget", new { monthlyBudgetEur = "10.005" })).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Put, "/api/v1/ai/budget", new { monthlyBudgetEur = "12.50" })).StatusCode);
 
         Assert.Equal("12.50", (await ViewAsync(app)).MonthlyBudgetEur);
         Assert.Equal(2, await NoticesAsync(app, "ai.budget_changed"));
@@ -166,13 +168,13 @@ public sealed class BudgetTests(PostgresFixture fixture) : IClassFixture<Postgre
         Assert.Equal(HttpStatusCode.OK,
             (await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/ai/cloud/profiles/anthropic-claude/enable", new { termsReviewedOn = "2026-11-22" })).StatusCode);
         Assert.Equal(HttpStatusCode.OK,
-            (await app.RawAsync(app.AdultB, HttpMethod.Put, "/api/v1/ai/settings/uses/chat", new { mode = "self_hosted_then_cloud" })).StatusCode);
+            (await app.RawAsync(app.AdultA, HttpMethod.Put, "/api/v1/ai/settings/uses/chat", new { mode = "self_hosted_then_cloud" })).StatusCode);
         await using var scope = Scope(app);
         await scope.ServiceProvider.GetRequiredService<IAiSettings>().SetUseModelAsync(ModelUses.Chat, "llama3.2", TestContext.Current.CancellationToken);
     }
 
     private static async Task SetBudgetAsync(NidApp app, decimal amount)
-        => Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultB, HttpMethod.Put, "/api/v1/ai/budget", new { monthlyBudgetEur = amount.ToString(System.Globalization.CultureInfo.InvariantCulture) })).StatusCode);
+        => Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Put, "/api/v1/ai/budget", new { monthlyBudgetEur = amount.ToString(System.Globalization.CultureInfo.InvariantCulture) })).StatusCode);
 
     private static Instant Now(NidApp app) => app.Services.GetRequiredService<IClock>().GetCurrentInstant();
 

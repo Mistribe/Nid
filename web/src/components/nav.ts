@@ -1,4 +1,4 @@
-import { ArrowLeftRight, Baby, Bell, Building, Building2, Calculator, CalendarCheck, CalendarDays, ChartCandlestick, FileText, FlaskConical, Download, House, HousePlus, Inbox, KeyRound, Landmark, LayoutGrid, Library, Mail, PiggyBank, Repeat, Server, ShieldCheck, Settings, ShoppingBasket, Sunset, Target, Timer, TrendingUp, Upload, Users, Wallet } from 'lucide-react';
+import { ArrowLeftRight, Baby, Bell, Bot, Building, Building2, Calculator, CalendarCheck, CalendarDays, ChartCandlestick, FileText, FlaskConical, Download, House, HousePlus, Inbox, KeyRound, Landmark, LayoutGrid, Library, Mail, PiggyBank, Repeat, Server, ShieldCheck, Settings, ShoppingBasket, Sunset, Target, Timer, TrendingUp, Upload, Users, Wallet } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { components } from '@/api/schema';
 import type { Tile } from '@/components/ModuleTile';
@@ -42,6 +42,7 @@ export const NAV = [
   { group: 'admin', module: null, admin: true, mobile: 'none', to: '/admin/household', icon: HousePlus, tile: 'neutral', label: 'nav.admin_household' },
   { group: 'admin', module: null, admin: true, mobile: 'none', to: '/admin/security', icon: ShieldCheck, tile: 'neutral', label: 'nav.admin_security', sideLabel: 'nav.admin_security_side' },
   { group: 'admin', module: null, admin: true, mobile: 'none', to: '/admin/system', icon: Server, tile: 'neutral', label: 'nav.admin_system' },
+  { group: 'admin', module: null, admin: true, mobile: 'none', to: '/admin/ai', icon: Bot, tile: 'neutral', label: 'nav.admin_ai' },
   { group: 'admin', module: null, admin: true, mobile: 'none', to: '/admin/notifications', icon: Mail, tile: 'neutral', label: 'nav.admin_notifications' },
 ] as const satisfies readonly ({ tile: Tile } & Record<string, unknown>)[];
 

@@ -66,7 +66,7 @@ public class NotificationTemplatesTests(SharedNidApp shared) : IClassFixture<Sha
     }
 
     [Theory]
-    [InlineData("ai.echo", "/settings/ai/jobs?status=dead")]
+    [InlineData("ai.echo", "/admin/ai/jobs?status=dead")]
     [InlineData("fx-daily", "/admin/jobs/fx-daily")]
     public void A_failed_job_links_to_its_own_page(string job, string link)
     {

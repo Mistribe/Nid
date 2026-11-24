@@ -3,6 +3,7 @@ import { http, HttpResponse } from 'msw/http';
 import { describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { pick } from '@/test/controls';
+import { adminCapabilities } from '@/test/fixtures';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 
@@ -22,7 +23,7 @@ describe('Réglages › IA › Tâches', () => {
       ],
       total: 3, page: 1, types: ['document-text', 'echo'],
     })));
-    const { container } = await renderApp('/settings/ai/jobs');
+    const { container } = await renderApp('/admin/ai/jobs', { capabilities: adminCapabilities });
 
     expect(await screen.findByRole('row', { name: /Aucun worker ne sait faire ce travail/ })).toHaveTextContent('document-text');
     const dead = screen.getByRole('row', { name: /Test d'un worker/ });
@@ -40,7 +41,7 @@ describe('Réglages › IA › Tâches', () => {
       seen.push(new URL(request.url).search);
       return HttpResponse.json({ items: [job()], total: 51, page: 1, types: ['document-text', 'echo'] });
     }));
-    const { user, router } = await renderApp('/settings/ai/jobs?status=queued');
+    const { user, router } = await renderApp('/admin/ai/jobs?status=queued', { capabilities: adminCapabilities });
 
     const pages = await screen.findByRole('navigation', { name: 'Pages' });
     await user.click(within(pages).getByRole('button', { name: 'Suivant' }));
@@ -53,11 +54,11 @@ describe('Réglages › IA › Tâches', () => {
 
   it('tells an empty list from one its filters empty', async () => {
     server.use(http.get('*/api/v1/ai/jobs', () => HttpResponse.json({ items: [], total: 0, page: 1, types: [] })));
-    const { unmount } = await renderApp('/settings/ai/jobs');
+    const { unmount } = await renderApp('/admin/ai/jobs', { capabilities: adminCapabilities });
     expect(await screen.findByRole('heading', { name: 'Aucune tâche' })).toBeInTheDocument();
     unmount();
 
-    await renderApp('/settings/ai/jobs?type=echo');
+    await renderApp('/admin/ai/jobs?type=echo', { capabilities: adminCapabilities });
     expect(await screen.findByText('Aucune tâche ne correspond à ces filtres.')).toBeInTheDocument();
   });
 
@@ -67,8 +68,16 @@ describe('Réglages › IA › Tâches', () => {
       seen.push(new URL(request.url).search);
       return HttpResponse.json({ items: [], total: 0, page: 1, types: [] });
     }));
-    await renderApp('/settings/ai/jobs?status=done');
+    await renderApp('/admin/ai/jobs?status=done', { capabilities: adminCapabilities });
 
     await waitFor(() => expect(seen.at(-1)).toBe('?page=1'));
+  });
+
+  it('takes an old link under Réglages › IA to Administration › IA with its filters (#585)', async () => {
+    server.use(http.get('*/api/v1/ai/jobs', () => HttpResponse.json({ items: [], total: 0, page: 1, types: ['echo'] })));
+    const { router } = await renderApp('/settings/ai/jobs?type=echo', { capabilities: adminCapabilities });
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/admin/ai/jobs'));
+    expect(router.state.location.search).toEqual({ type: 'echo' });
   });
 });
