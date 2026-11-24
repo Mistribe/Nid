@@ -25,6 +25,11 @@ public interface IModelJobs
     /// <see cref="JobCodes"/> code: <c>ai.unknown_type</c>, <c>ai.unknown_data_class</c>, <c>ai.invalid_input</c>.</summary>
     Task<Result<Guid>> SubmitAsync(JobRequest request, CancellationToken ct);
 
+    /// <summary>#599: the jobs of <paramref name="fileRef"/> no worker has now (queued) take this data class and these adults, as
+    /// the file's owner sees it now; a job running or finished is left as it is. True when one was. The class is checked as
+    /// <see cref="SubmitAsync"/> does (<c>ai.unknown_data_class</c>), <c>none</c> refused: a job never loosens to no data.</summary>
+    Task<Result<bool>> ReclassAsync(string fileRef, string dataClass, IReadOnlyList<Guid> concerned, CancellationToken ct);
+
     Task<ModelJobView?> GetAsync(Guid id, CancellationToken ct);
 }
 

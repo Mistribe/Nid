@@ -24,7 +24,7 @@ public sealed class DocumentIndexTests(PostgresFixture fixture) : IClassFixture<
     {
         var model = new FakeEmbeddings();
         await using var app = await StartAsync(model);
-        var id = await UploadedAsync(app, app.AdultA, Pdf);
+        var id = await UploadedAsync(app, app.AdultA, Pdf, $"fileName=bail.pdf&targetKind=core.person&targetId={app.AdultA.Value}&role=other");
         await TextAsync(app, id, "Quittance de loyer de janvier", "Montant réglé : 900 euros");
 
         await IndexAsync(app);

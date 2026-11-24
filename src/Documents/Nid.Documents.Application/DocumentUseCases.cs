@@ -285,7 +285,7 @@ public sealed record UnlinkDocumentCommand(Guid Id, DocumentTarget Target) : ICo
 }
 
 [RequestHandler<LinkDocumentCommand, LinkAdded>]
-public sealed class LinkDocumentHandler(DocumentAccess access, IActorAccessor actor, IContextAccessor context) : IRequestHandler<LinkDocumentCommand, LinkAdded>
+public sealed class LinkDocumentHandler(DocumentAccess access, IActorAccessor actor, IContextAccessor context, DocumentTexts texts) : IRequestHandler<LinkDocumentCommand, LinkAdded>
 {
     public async ValueTask<Result<LinkAdded>> HandleAsync(LinkDocumentCommand command, CancellationToken ct = default)
     {
@@ -296,6 +296,7 @@ public sealed class LinkDocumentHandler(DocumentAccess access, IActorAccessor ac
         var linked = await access.LinkAsync(d.Id, d.UploadedBy, found.Links, command.Target, command.Role, person, ct);
         if (!linked.TryGetValue(out var link))
             return Result.Failure<LinkAdded>(linked.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
+        await texts.ReclassAsync(d.Id, ct);
 
         var before = await access.ReadersAsync(d.UploadedBy, found.Links.Select(DocumentAccess.Facts).ToList(), ct);
         var after = await access.ReadersAsync(d.UploadedBy, found.Links.Append(link!).Select(DocumentAccess.Facts).ToList(), ct);
@@ -304,7 +305,7 @@ public sealed class LinkDocumentHandler(DocumentAccess access, IActorAccessor ac
 }
 
 [RequestHandler<SetLinkRoleCommand, Guid>]
-public sealed class SetLinkRoleHandler(IDocumentStore store, DocumentAccess access, IActorAccessor actor) : IRequestHandler<SetLinkRoleCommand, Guid>
+public sealed class SetLinkRoleHandler(IDocumentStore store, DocumentAccess access, IActorAccessor actor, DocumentTexts texts) : IRequestHandler<SetLinkRoleCommand, Guid>
 {
     public async ValueTask<Result<Guid>> HandleAsync(SetLinkRoleCommand command, CancellationToken ct = default)
     {
@@ -317,12 +318,13 @@ public sealed class SetLinkRoleHandler(IDocumentStore store, DocumentAccess acce
             return Result.Failure<Guid>(link.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
 
         await store.SetRoleAsync(command.Id, command.Target, command.Role, ct);
+        await texts.ReclassAsync(command.Id, ct);
         return Result.Success(command.Id);
     }
 }
 
 [RequestHandler<UnlinkDocumentCommand, Guid>]
-public sealed class UnlinkDocumentHandler(IDocumentStore store, DocumentAccess access, IActorAccessor actor) : IRequestHandler<UnlinkDocumentCommand, Guid>
+public sealed class UnlinkDocumentHandler(IDocumentStore store, DocumentAccess access, IActorAccessor actor, DocumentTexts texts) : IRequestHandler<UnlinkDocumentCommand, Guid>
 {
     public async ValueTask<Result<Guid>> HandleAsync(UnlinkDocumentCommand command, CancellationToken ct = default)
     {
@@ -331,6 +333,7 @@ public sealed class UnlinkDocumentHandler(IDocumentStore store, DocumentAccess a
             return Result.Failure<Guid>(link.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
 
         await store.RemoveLinkAsync(command.Id, command.Target, ct);
+        await texts.ReclassAsync(command.Id, ct);
         return Result.Success(command.Id);
     }
 }

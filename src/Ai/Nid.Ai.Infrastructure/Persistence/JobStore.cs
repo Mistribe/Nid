@@ -37,6 +37,13 @@ public sealed class JobStore(AiDbContext db, IDataProtectionProvider protection)
     public async Task<JobRecord?> FindAsync(Guid id, CancellationToken ct)
         => await db.Jobs.AsNoTracking().SingleOrDefaultAsync(j => j.Id == id, ct) is { } row ? ToRecord(row) : null;
 
+    public async Task<bool> ReclassQueuedAsync(string fileRef, string dataClass, IReadOnlyList<Guid> concerned, CancellationToken ct)
+    {
+        var adults = concerned.ToArray();
+        return await db.Jobs.Where(j => j.FileRef == fileRef && j.Status == "queued")
+            .ExecuteUpdateAsync(s => s.SetProperty(j => j.DataClass, dataClass).SetProperty(j => j.Concerned, adults), ct) > 0;
+    }
+
     public async Task<IReadOnlyList<JobRecord>> DueAsync(Instant now, int limit, CancellationToken ct)
         => (await db.Jobs.AsNoTracking().Where(j => j.Status == "queued" && j.RunAfter <= now)
             .OrderBy(j => j.RunAfter).ThenBy(j => j.CreatedAt).Take(limit).ToListAsync(ct)).Select(ToRecord).ToList();

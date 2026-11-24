@@ -18,7 +18,7 @@ L'ingestion (étape 4 de la feuille de route) transforme un document déposé pa
 4. **L'IA propose, les humains valident** : rien ne change dans les propositions ni dans la file de validation.
 5. **Les workers n'ont ni clé d'API ni rien qui ouvre `nid`** ; toute sortie vers un fournisseur cloud passe par la **passerelle LLM** de `nid`. Un modèle auto-hébergé est servi par un **worker apparié** que `nid` appelle, seule route vers lui (`../ai/README.md` §3).
 6. **Les conditions des fournisseurs sont revues par un humain**, datées, et jamais présumées par le code.
-7. **Les bulletins de paie ne vont jamais au cloud** ; seulement à un worker étiqueté `safe`, comme les documents « local seulement » (voir §5.2, `../ai/README.md` §6.1).
+7. **Les bulletins de paie ne vont jamais au cloud** ; seulement à un worker étiqueté `safe`, comme les documents « local seulement » (voir §5.2, `../ai/README.md` §6.1). Un document « À classer » (sans lien) est traité comme tel jusqu'à son classement : il peut être un bulletin (#599).
 
 ## 3. Conditions des fournisseurs (vérifiées le 19/09/2026)
 
@@ -93,7 +93,7 @@ Un profil est éligible seulement si **tout** est vrai :
 
 1. il est activé et une clé valide est enregistrée (profils cloud) ;
 2. `trains_on_data` est faux pour la région confirmée ;
-3. le type de document (`statement`, `amortization`, `invoice`, `contract`) est autorisé au cloud (§6). Le type **`payslip`** (bulletin de paie) **n'est jamais éligible au cloud en v1**, ni à un worker qui n'est pas `safe` : un document lié comme bulletin de paie est « local seulement » par défaut (`../ai/README.md` §6.6), même avec le consentement par dépôt : il contient nom, employeur et numéro de sécurité sociale, et le masquage n'est pas une garantie suffisante ;
+3. le type de document (`statement`, `amortization`, `invoice`, `contract`) est autorisé au cloud (§6). Le type **`payslip`** (bulletin de paie) **n'est jamais éligible au cloud en v1**, ni à un worker qui n'est pas `safe` : un document lié comme bulletin de paie, ou pas encore classé, est « local seulement » par défaut (`../ai/README.md` §6.6), même avec le consentement par dépôt : il contient nom, employeur et numéro de sécurité sociale, et le masquage n'est pas une garantie suffisante ;
 4. le déposant a consenti pour ce document (§6) ;
 5. les capacités couvrent le document (pages, taille, vision) ;
 6. le quota du fournisseur n'est pas épuisé ;

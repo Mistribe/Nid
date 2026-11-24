@@ -34,7 +34,7 @@ public sealed class DocumentTextTests(PostgresFixture fixture) : IClassFixture<P
         await using var world = await StartAsync(reader);
         await world.PairAsync();
 
-        var id = await UploadedAsync(world.Nid, world.Nid.AdultA, Pdf);
+        var id = await UploadedAsync(world.Nid, world.Nid.AdultA, Pdf, Filed);
         await RunAsync(world);
 
         var pages = await PagesAsync(world, id);
@@ -52,7 +52,7 @@ public sealed class DocumentTextTests(PostgresFixture fixture) : IClassFixture<P
             new DocumentTextPage(2, "deux", TextSource.Ocr), new DocumentTextPage(3, "trois", TextSource.Ocr)])));
         await world.PairAsync();
 
-        var id = await UploadedAsync(world.Nid, world.Nid.AdultA, Pdf);
+        var id = await UploadedAsync(world.Nid, world.Nid.AdultA, Pdf, Filed);
         await RunAsync(world);
 
         Assert.Empty(await PagesAsync(world, id));
@@ -108,6 +108,74 @@ public sealed class DocumentTextTests(PostgresFixture fixture) : IClassFixture<P
     }
 
     [Fact]
+    public async Task An_unfiled_documents_text_waits_for_a_safe_worker_until_it_is_filed()
+    {
+        // #599: « À classer » may be a payslip until it is filed; filed as another document, the waiting job becomes the household's.
+        await using var world = await StartAsync(new Reader(_ => new DocumentTextOutput([new DocumentTextPage(1, "Facture d'eau", TextSource.Ocr)])));
+        await world.PairAsync();
+
+        var id = await UploadedAsync(world.Nid, world.Nid.AdultA, Pdf, "fileName=scan.pdf");
+        await PassAsync(world);
+        var job = await JobOfAsync(world, id);
+        Assert.Equal(DataClasses.LocalOnly, job.DataClass);
+        Assert.Equal(JobCodes.NoSafeWorker, job.WaitingReason);
+
+        await LinkAsync(world, id, "other");
+        job = await JobOfAsync(world, id);
+        Assert.Equal(DataClasses.Documents, job.DataClass);
+        Assert.Equal(new[] { world.Nid.AdultA.Value, world.Nid.AdultB.Value }.Order(), job.Concerned.Order()); // the household's link
+
+        world.Clock.Now += Duration.FromSeconds(31);
+        await RunAsync(world);
+        Assert.Equal("Facture d'eau", Assert.Single(await PagesAsync(world, id)).Text);
+    }
+
+    [Fact]
+    public async Task An_unfiled_document_filed_as_a_payslip_stays_on_a_safe_worker()
+    {
+        await using var world = await StartAsync(new Reader(_ => new DocumentTextOutput([new DocumentTextPage(1, "Salaire net", TextSource.Ocr)])));
+        await world.PairAsync();
+        var id = await UploadedAsync(world.Nid, world.Nid.AdultA, Pdf, "fileName=scan.pdf");
+
+        await LinkAsync(world, id, "payslip");
+        Assert.Equal(DataClasses.LocalOnly, (await JobOfAsync(world, id)).DataClass);
+
+        // Filed first as another document, then as a payslip in a filing round: the waiting job follows both.
+        var other = await UploadedAsync(world.Nid, world.Nid.AdultA, Encoding.ASCII.GetBytes("%PDF-1.4\n% b\n%%EOF\n"), "fileName=b.pdf");
+        await LinkAsync(world, other, "other");
+        Assert.Equal(DataClasses.Documents, (await JobOfAsync(world, other)).DataClass);
+        Assert.Equal(HttpStatusCode.OK, (await world.Nid.RawAsync(world.Nid.AdultA, HttpMethod.Post, $"{DocumentApi.Documents}/filing",
+            new { roles = new[] { new { id = other, targetKind = "core.household", role = "payslip" } } })).StatusCode);
+        Assert.Equal(DataClasses.LocalOnly, (await JobOfAsync(world, other)).DataClass);
+
+        await RunAsync(world);
+        Assert.Empty(await PagesAsync(world, id));
+        Assert.Empty(await PagesAsync(world, other));
+        Assert.Equal(JobCodes.NoSafeWorker, (await JobOfAsync(world, other)).WaitingReason);
+    }
+
+    [Fact]
+    public async Task A_finished_job_keeps_its_class()
+    {
+        await using var world = await StartAsync(new Reader(_ => new DocumentTextOutput([new DocumentTextPage(1, "Quittance", TextSource.Ocr)])));
+        await world.PairAsync();
+        var id = await UploadedAsync(world.Nid, world.Nid.AdultA, Pdf, Filed);
+        await RunAsync(world);
+
+        Assert.Equal(HttpStatusCode.OK, (await world.Nid.RawAsync(world.Nid.AdultA, HttpMethod.Put, $"{DocumentApi.Documents}/{id}/links/core.household/{Guid.Empty}",
+            new { role = "payslip" })).StatusCode);
+
+        var job = await JobOfAsync(world, id);
+        Assert.Equal(JobState.Succeeded, job.Status);
+        Assert.Equal(DataClasses.Documents, job.DataClass);
+        await using var scope = Scope(world);
+        var jobs = scope.ServiceProvider.GetRequiredService<IModelJobs>();
+        Assert.False(await jobs.ReclassAsync($"documents:{id}", DataClasses.LocalOnly, [], TestContext.Current.CancellationToken).OrThrow());
+        var refused = await Assert.ThrowsAsync<ModelRefused>(() => jobs.ReclassAsync($"documents:{id}", DataClasses.None, [], TestContext.Current.CancellationToken).OrThrow());
+        Assert.Equal(JobCodes.UnknownDataClass, refused.Code);
+    }
+
+    [Fact]
     public async Task The_backfill_asks_once_for_the_documents_stored_before_it()
     {
         await using var world = await StartAsync(new Reader(_ => new DocumentTextOutput([new DocumentTextPage(1, "x", TextSource.Ocr)])));
@@ -132,7 +200,7 @@ public sealed class DocumentTextTests(PostgresFixture fixture) : IClassFixture<P
     {
         await using var world = await StartAsync(new Reader(_ => new DocumentTextOutput([new DocumentTextPage(1, "Bail", TextSource.TextLayer)])));
         await world.PairAsync();
-        var id = await UploadedAsync(world.Nid, world.Nid.AdultA, Pdf);
+        var id = await UploadedAsync(world.Nid, world.Nid.AdultA, Pdf, Filed);
         await RunAsync(world);
         Assert.Single(await PagesAsync(world, id));
 
@@ -144,6 +212,13 @@ public sealed class DocumentTextTests(PostgresFixture fixture) : IClassFixture<P
         await using var check = Scope(world);
         Assert.False(await check.ServiceProvider.GetRequiredService<DocumentsDbContext>().TextJobs.AnyAsync(j => j.DocumentId == id, TestContext.Current.CancellationToken));
     }
+
+    /// <summary>Filed with the household (any role but a payslip): the household's <c>documents</c>.</summary>
+    private const string Filed = "fileName=bail.pdf&targetKind=core.household&role=other";
+
+    private static async Task LinkAsync(PairedWorld world, Guid document, string role)
+        => Assert.Equal(HttpStatusCode.OK, (await world.Nid.RawAsync(world.Nid.AdultA, HttpMethod.Post, $"{DocumentApi.Documents}/{document}/links",
+            new { targetKind = "core.household", role })).StatusCode);
 
     private Task<PairedWorld> StartAsync(Reader reader)
         => PairedWorld.StartAsync(fixture, workerServices: s => s.AddSingleton<WorkerJobHandler>(reader));

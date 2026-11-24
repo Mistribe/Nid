@@ -628,6 +628,9 @@ cet adulte (§6.3). Chaque décision est enregistrée (`consent_id`) et liée au
 
 - « Local seulement » est un drapeau du document, posé par le déposant ; il est **activé par défaut** quand le document
   est lié avec le rôle bulletin de paie, sur n'importe quel lien. Il ne se retire que par le déposant.
+- Un document « À classer » (sans lien) est « local seulement » jusqu'à son classement : il peut être un bulletin (#599).
+  Quand ses liens changent, l'extraction de son texte, si aucun worker ne l'a encore prise, prend la classe et les adultes
+  concernés de ses nouveaux liens ; ses plongements suivent les liens à chaque passage de l'index.
 - Supprimer un document purge ses copies : texte extrait, morceaux, vecteurs, et les tours de conversation qui l'ont lu
   (repérés par les identifiants dans les appels d'outils, §9).
 

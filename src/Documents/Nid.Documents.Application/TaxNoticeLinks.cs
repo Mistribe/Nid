@@ -17,7 +17,7 @@ public sealed record LinkTaxNoticeCommand(Guid DocumentId, Guid AssessmentId) : 
 
 [RequestHandler<LinkTaxNoticeCommand, LinkAdded>]
 public sealed class LinkTaxNoticeHandler(
-    DocumentAccess access, IDocumentStore store, ITaxAssessmentDeclarants declarants, IActorAccessor actor, IClock clock)
+    DocumentAccess access, IDocumentStore store, ITaxAssessmentDeclarants declarants, IActorAccessor actor, IClock clock, DocumentTexts texts)
     : IRequestHandler<LinkTaxNoticeCommand, LinkAdded>
 {
     public async ValueTask<Result<LinkAdded>> HandleAsync(LinkTaxNoticeCommand command, CancellationToken ct = default)
@@ -40,6 +40,7 @@ public sealed class LinkTaxNoticeHandler(
             if (await store.AddLinkAsync(link, ct))
                 links.Add(link);
         }
+        await texts.ReclassAsync(command.DocumentId, ct);
 
         var uploadedBy = found.Document.UploadedBy;
         var before = await access.ReadersAsync(uploadedBy, found.Links.Select(DocumentAccess.Facts).ToList(), ct);

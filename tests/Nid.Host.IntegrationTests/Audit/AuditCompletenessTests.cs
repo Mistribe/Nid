@@ -58,7 +58,7 @@ public partial class AuditCompletenessTests(PostgresFixture fixture) : IClassFix
         ["src/Ai/Nid.Ai.Infrastructure/Persistence/BudgetStore.cs"] = 3, // budget_month: excluded (counters), the month row, the atomic hold and the settlement
         ["src/Ai/Nid.Ai.Infrastructure/Persistence/ConversationStore.cs"] = 2, // #531: conversation, excluded (the person's words): a deletion, the purge
         ["src/Ai/Nid.Ai.Infrastructure/Persistence/CloudSettingsStore.cs"] = 1, // llm_provider_credential.last_used_at: when a key served, not a decision (as last_used_at)
-        ["src/Ai/Nid.Ai.Infrastructure/Persistence/JobStore.cs"] = 1, // job: excluded (operational state, AiAuditMap), the purge of finished jobs (#483)
+        ["src/Ai/Nid.Ai.Infrastructure/Persistence/JobStore.cs"] = 2, // job: excluded (operational state, AiAuditMap), the purge of finished jobs (#483), a queued job re-classed (#599)
         ["src/Banking/Nid.Banking.Infrastructure/Persistence/AccountReadLog.cs"] = 1, // account_read: excluded (fetched data), the week's purge
         ["src/Banking/Nid.Banking.Infrastructure/Persistence/AccountStore.cs"] = 1,  // last_valued_on, balance_conflict_on: the sync's bookkeeping, not a decision (as last_used_at)
         ["src/Banking/Nid.Banking.Infrastructure/Persistence/ConnectionStore.cs"] = 1, // a person's file-import advisory lock: no row written

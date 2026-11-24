@@ -51,6 +51,12 @@ public interface IJobStore
 
     Task<JobRecord?> FindAsync(Guid id, CancellationToken ct);
 
+    /// <summary>#599: sets the class and the adults of the queued jobs of <paramref name="fileRef"/>, in one statement, so a
+    /// dispatcher pass that read one before loses its claim on the row's version. True when one was queued.</summary>
+    /// <remarks>ponytail: the input hash keeps the class it was submitted with; only a new submission of the same file under
+    /// the new class (none today: the backfill skips a queued document) would not find it.</remarks>
+    Task<bool> ReclassQueuedAsync(string fileRef, string dataClass, IReadOnlyList<Guid> concerned, CancellationToken ct);
+
     /// <summary>Queued jobs whose time has come, oldest first.</summary>
     Task<IReadOnlyList<JobRecord>> DueAsync(Instant now, int limit, CancellationToken ct);
 
