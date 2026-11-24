@@ -196,21 +196,22 @@ public sealed class DocumentTextTests(PostgresFixture fixture) : IClassFixture<P
     }
 
     [Fact]
-    public async Task Deleting_a_document_deletes_its_text()
+    public async Task Deleting_a_document_deletes_its_text_and_its_jobs_result()
     {
         await using var world = await StartAsync(new Reader(_ => new DocumentTextOutput([new DocumentTextPage(1, "Bail", TextSource.TextLayer)])));
         await world.PairAsync();
         var id = await UploadedAsync(world.Nid, world.Nid.AdultA, Pdf, Filed);
         await RunAsync(world);
         Assert.Single(await PagesAsync(world, id));
+        Assert.Equal("Bail", JsonDocument.Parse((await JobOfAsync(world, id)).Result!).RootElement.GetProperty("pages")[0].GetProperty("text").GetString());
 
-        await using (var scope = Scope(world))
-            await scope.ServiceProvider.GetRequiredService<DocumentsDbContext>().Documents.Where(d => d.Id == id)
-                .ExecuteDeleteAsync(TestContext.Current.CancellationToken);
+        await DeletedAsync(world.Nid, world.Nid.AdultA, id);
 
         Assert.Empty(await PagesAsync(world, id));
         await using var check = Scope(world);
         Assert.False(await check.ServiceProvider.GetRequiredService<DocumentsDbContext>().TextJobs.AnyAsync(j => j.DocumentId == id, TestContext.Current.CancellationToken));
+        // #600: the job's result (the text itself) goes at once, not at the purge.
+        Assert.False(await check.ServiceProvider.GetRequiredService<AiDbContext>().Jobs.AnyAsync(j => j.FileRef == $"documents:{id}", TestContext.Current.CancellationToken));
     }
 
     /// <summary>Filed with the household (any role but a payslip): the household's <c>documents</c>.</summary>

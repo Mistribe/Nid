@@ -44,6 +44,8 @@ public sealed class JobStore(AiDbContext db, IDataProtectionProvider protection)
             .ExecuteUpdateAsync(s => s.SetProperty(j => j.DataClass, dataClass).SetProperty(j => j.Concerned, adults), ct) > 0;
     }
 
+    public Task DeleteOfFileAsync(string fileRef, CancellationToken ct) => db.Jobs.Where(j => j.FileRef == fileRef).ExecuteDeleteAsync(ct);
+
     public async Task<IReadOnlyList<JobRecord>> DueAsync(Instant now, int limit, CancellationToken ct)
         => (await db.Jobs.AsNoTracking().Where(j => j.Status == "queued" && j.RunAfter <= now)
             .OrderBy(j => j.RunAfter).ThenBy(j => j.CreatedAt).Take(limit).ToListAsync(ct)).Select(ToRecord).ToList();

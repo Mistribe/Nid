@@ -11,6 +11,9 @@ public interface IDocumentStorage
 
     /// <summary><c>null</c> for a malformed hash or a missing key. The caller disposes the stream.</summary>
     Task<Stream?> OpenAsync(string sha256, CancellationToken ct);
+
+    /// <summary>#600: removes the bytes; nothing for a malformed hash or a missing key. The caller checks no document still uses them.</summary>
+    Task DeleteAsync(string sha256, CancellationToken ct);
 }
 
 /// <summary>Bound from <c>Documents:Storage</c>: <c>Kind</c> is <c>filesystem</c> or <c>s3</c>.</summary>

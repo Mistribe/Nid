@@ -65,5 +65,19 @@ public sealed class FileDocumentStorage(DocumentStorageOptions options) : IDocum
         }
     }
 
+    public Task DeleteAsync(string sha256, CancellationToken ct)
+    {
+        try
+        {
+            if (AssetHash.IsValid(sha256))
+                File.Delete(PathOf(sha256));
+        }
+        catch (DirectoryNotFoundException)
+        {
+            // never stored
+        }
+        return Task.CompletedTask;
+    }
+
     private string PathOf(string hash) => Path.Combine(root, hash[..2], hash);
 }

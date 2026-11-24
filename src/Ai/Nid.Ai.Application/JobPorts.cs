@@ -57,6 +57,9 @@ public interface IJobStore
     /// the new class (none today: the backfill skips a queued document) would not find it.</remarks>
     Task<bool> ReclassQueuedAsync(string fileRef, string dataClass, IReadOnlyList<Guid> concerned, CancellationToken ct);
 
+    /// <summary>#600: deletes every job of <paramref name="fileRef"/>; a pass running one finds it gone and leaves it.</summary>
+    Task DeleteOfFileAsync(string fileRef, CancellationToken ct);
+
     /// <summary>Queued jobs whose time has come, oldest first.</summary>
     Task<IReadOnlyList<JobRecord>> DueAsync(Instant now, int limit, CancellationToken ct);
 

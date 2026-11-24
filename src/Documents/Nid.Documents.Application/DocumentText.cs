@@ -82,7 +82,7 @@ public sealed partial class DocumentTexts(
     public static string DataClassOf(IReadOnlyList<LinkRecord> links)
         => links.Count == 0 || links.Any(l => l.Role == DocumentRoles.Payslip) ? DataClasses.LocalOnly : DataClasses.Documents;
 
-    private static string FileRef(Guid document) => $"{FileModule}:{document}";
+    internal static string FileRef(Guid document) => $"{FileModule}:{document}";
 
     /// <summary>The adults a document concerns (decision M): its uploader, whoever owns what it is linked to, a linked person, both adults for the household.</summary>
     public async Task<IReadOnlyList<Guid>> ConcernedAsync(Guid uploadedBy, IReadOnlyList<LinkRecord> links, CancellationToken ct)

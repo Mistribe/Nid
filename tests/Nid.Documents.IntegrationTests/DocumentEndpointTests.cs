@@ -319,6 +319,7 @@ public class DocumentEndpointTests(PostgresFixture fixture) : IClassFixture<Post
             HttpStatusCode.Conflict, DocumentsCodes.Conflict);
         await AssertRefusedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Documents}/{id}/archive", new { version = read }),
             HttpStatusCode.Conflict, DocumentsCodes.Conflict);
+        await AssertRefusedAsync(await DeleteAsync(app, app.AdultA, id, read), HttpStatusCode.Conflict, DocumentsCodes.Conflict);
 
         var document = (await JsonAsync(await GetAsync(app, app.AdultA, id))).GetProperty("document");
         Assert.Equal(("Premier", false), (document.GetProperty("title").GetString(), document.GetProperty("archived").GetBoolean()));
@@ -336,6 +337,7 @@ public class DocumentEndpointTests(PostgresFixture fixture) : IClassFixture<Post
             await app.RawAsync(app.AdultA, HttpMethod.Put, $"{Documents}/{id}", new { title = "Sans version" }),
             await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Documents}/{id}/archive"),
             await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Documents}/{id}/unarchive", new { }),
+            await app.RawAsync(app.AdultA, HttpMethod.Delete, $"{Documents}/{id}"),
         })
         {
             Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);

@@ -75,6 +75,12 @@ export function useUnarchiveDocument() {
   return $api.useMutation('post', UNARCHIVE, useWrite());
 }
 
+/** #600: the version read with the document goes as `?version=`: a DELETE has no body. */
+export function useDeleteDocument() {
+  const { $api } = useApi();
+  return $api.useMutation('delete', DOCUMENT, useWrite());
+}
+
 export function useEditDocument() {
   const { $api } = useApi();
   return $api.useMutation('put', DOCUMENT, useWrite());

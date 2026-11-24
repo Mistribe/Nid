@@ -156,6 +156,28 @@ public sealed class MixedDataset
         return (await scope.ServiceProvider.GetRequiredService<IDocumentStore>().FindAsync(document, CancellationToken.None))?.Version ?? 0;
     }
 
+    /// <summary>#600: a new copy of the row's document (same uploader, same bytes, same links), for one delete to remove; with its version.</summary>
+    public (Guid Id, uint Version) DocumentCopy(ItemId item) => DocumentCopyAsync(Documents[item]).GetAwaiter().GetResult();
+
+    private async Task<(Guid, uint)> DocumentCopyAsync(Guid document)
+    {
+        await using var scope = App.Services.CreateAsyncScope();
+        scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
+        var db = scope.ServiceProvider.GetRequiredService<Nid.Documents.Infrastructure.Persistence.DocumentsDbContext>();
+        var row = await db.Documents.AsNoTracking().SingleAsync(d => d.Id == document);
+        var links = await db.Links.AsNoTracking().Where(l => l.DocumentId == document).ToListAsync();
+        var id = Guid.CreateVersion7();
+        row.Id = id;
+        db.Documents.Add(row);
+        foreach (var link in links)
+        {
+            link.DocumentId = id;
+            db.Links.Add(link);
+        }
+        await db.SaveChangesAsync();
+        return (id, await DocumentVersionAsync(id));
+    }
+
     /// <summary>
     /// The phase of P-A's and P-B's income twins, keyed by row. Each owner's document is linked (<c>income.phase</c>, <c>payslip</c>)
     /// to that phase alone, and its title carries the private label, so the scans catch it if it is ever shown to the other adult.

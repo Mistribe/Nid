@@ -117,8 +117,7 @@ public sealed class DocumentIndexTests(PostgresFixture fixture) : IClassFixture<
         Assert.Equal(["Seconde lecture"], await ScalarsAsync<string>(app, $"select text as \"Value\" from documents.document_chunk where document_id = '{id}'"));
         Assert.Equal(1, await EmbeddedAsync(app, id));
 
-        await using (var scope = Scope(app))
-            await scope.ServiceProvider.GetRequiredService<DocumentsDbContext>().Documents.Where(d => d.Id == id).ExecuteDeleteAsync(TestContext.Current.CancellationToken);
+        await DeletedAsync(app, app.AdultA, id);
         Assert.Equal(0, await CountAsync(app, $"select count(*) as \"Value\" from documents.document_chunk where document_id = '{id}'"));
         Assert.Equal(0, await CountAsync(app, "select count(*) as \"Value\" from documents.chunk_embedding"));
     }

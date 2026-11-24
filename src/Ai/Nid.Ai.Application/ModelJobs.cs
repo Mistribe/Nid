@@ -95,6 +95,8 @@ public sealed class ModelJobs(IJobStore store, ModelContracts contracts, IClock 
         return await store.ReclassQueuedAsync(fileRef, dataClass, concerned, ct);
     }
 
+    public Task ForgetAsync(string fileRef, CancellationToken ct) => store.DeleteOfFileAsync(fileRef, ct);
+
     public async Task<ModelJobView?> GetAsync(Guid id, CancellationToken ct)
         => await store.FindAsync(id, ct) is { } job ? View(job) : null;
 

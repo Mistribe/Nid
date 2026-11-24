@@ -306,6 +306,14 @@ public sealed class DocumentStore(DocumentsDbContext db) : IDocumentStore
         return await SaveAtAsync(row, version, ct);
     }
 
+    public async Task<Result> DeleteAsync(Guid id, uint version, CancellationToken ct)
+    {
+        var row = await db.Documents.SingleAsync(d => d.Id == id, ct);
+        db.Links.RemoveRange(await db.Links.Where(l => l.DocumentId == id).ToListAsync(ct));
+        db.Documents.Remove(row);
+        return await SaveAtAsync(row, version, ct);
+    }
+
     /// <summary>#506: the update names the version the caller read, so a change made in between answers a conflict instead of being lost.</summary>
     private async Task<Result> SaveAtAsync(DocumentRow row, uint version, CancellationToken ct)
     {

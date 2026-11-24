@@ -18,7 +18,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { contentUrl, type DocumentSummary } from '@/api/documents';
-import { PAGE_SIZE, useArchiveDocument, useDocuments, useUnarchiveDocument, type Scope } from './api';
+import { PAGE_SIZE, useArchiveDocument, useDeleteDocument, useDocuments, useUnarchiveDocument, type Scope } from './api';
 import { previewable, usePreview } from './preview';
 import { ExpectedDocuments } from './ExpectedDocuments';
 import { DocumentFilters, keepOffered, type Filters } from './DocumentFilters';
@@ -205,13 +205,14 @@ const focusTabs = () => document.querySelector<HTMLElement>('[role="tab"][data-s
 function Actions({ doc }: { doc: DocumentSummary }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const [asking, setAsking] = useState(false);
+  const [asking, setAsking] = useState<'archive' | 'delete' | null>(null);
   const preview = usePreview();
   const archive = useArchiveDocument();
   const unarchive = useUnarchiveDocument();
-  const error = archive.error ?? unarchive.error;
+  const remove = useDeleteDocument();
+  const error = archive.error ?? unarchive.error ?? remove.error;
   // A second click while a write is in flight would send it twice.
-  const pending = archive.isPending || unarchive.isPending;
+  const pending = archive.isPending || unarchive.isPending || remove.isPending;
   // #506: the version read with the list; a change made since answers a conflict instead of being undone.
   const path = { params: { path: { id: doc.id } }, body: { version: doc.version } };
   const writes = doc.canEdit ? [
@@ -219,7 +220,8 @@ function Actions({ doc }: { doc: DocumentSummary }) {
     { label: t('documents_page.edit'), onSelect: () => void navigate({ to: '/documents/$id', params: { id: doc.id } }) },
     doc.archived
       ? { label: t('documents_page.unarchive'), onSelect: () => { if (!pending) unarchive.mutate(path); } }
-      : { label: t('documents_page.archive'), onSelect: () => { if (!pending) setAsking(true); } },
+      : { label: t('documents_page.archive'), onSelect: () => { if (!pending) setAsking('archive'); } },
+    { label: t('documents_page.delete'), destructive: true, onSelect: () => { if (!pending) setAsking('delete'); } },
   ] : [];
   return (
     <span className="flex flex-wrap items-center justify-end gap-2">
@@ -227,10 +229,19 @@ function Actions({ doc }: { doc: DocumentSummary }) {
         items={[...(previewable(doc.mediaType) ? [{ label: t('documents_page.preview'), onSelect: () => preview.show(doc) }] : []),
           { label: t('documents_page.download'), href: contentUrl(doc.id) }, ...writes]} />
       {preview.dialog}
-      {asking ? (
+      {asking === 'archive' ? (
         <Suspense fallback={null}>
           <ConfirmDialog label={t('documents_page.archive')} confirmation={t('documents_page.archive_confirmation', { title: doc.title })} pending={archive.isPending}
-            onClose={() => setAsking(false)} onConfirm={() => { setAsking(false); archive.mutate(path, { onSuccess: focusTabs }); }} />
+            onClose={() => setAsking(null)} onConfirm={() => { setAsking(null); archive.mutate(path, { onSuccess: focusTabs }); }} />
+        </Suspense>
+      ) : null}
+      {asking === 'delete' ? (
+        <Suspense fallback={null}>
+          <ConfirmDialog label={t('documents_page.delete')} confirmation={t('documents_page.delete_confirmation', { title: doc.title })} pending={remove.isPending}
+            onClose={() => setAsking(null)} onConfirm={() => {
+              setAsking(null);
+              remove.mutate({ params: { path: { id: doc.id }, query: { version: doc.version } } }, { onSuccess: () => { toast.success(t('documents_page.deleted')); focusTabs(); } });
+            }} />
         </Suspense>
       ) : null}
       {error ? <ProblemMessage problem={present(toProblem(error))} /> : null}

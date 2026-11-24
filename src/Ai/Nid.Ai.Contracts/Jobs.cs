@@ -30,6 +30,10 @@ public interface IModelJobs
     /// <see cref="SubmitAsync"/> does (<c>ai.unknown_data_class</c>), <c>none</c> refused: a job never loosens to no data.</summary>
     Task<Result<bool>> ReclassAsync(string fileRef, string dataClass, IReadOnlyList<Guid> concerned, CancellationToken ct);
 
+    /// <summary>#600: the file is gone: its jobs go too, whatever their state, with their input and result (a document's text),
+    /// at once rather than at the purge. In the caller's transaction.</summary>
+    Task ForgetAsync(string fileRef, CancellationToken ct);
+
     Task<ModelJobView?> GetAsync(Guid id, CancellationToken ct);
 }
 

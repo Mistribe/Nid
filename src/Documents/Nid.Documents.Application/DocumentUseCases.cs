@@ -1,4 +1,6 @@
 using System.Security.Cryptography;
+using Microsoft.Extensions.Logging;
+using Nid.Ai.Contracts;
 using Nid.Core.Contracts;
 using Nid.Documents.Contracts;
 using Nid.Documents.Domain;
@@ -49,6 +51,12 @@ public sealed record EditDocumentCommand(Guid Id, string Title, LocalDate? Docum
 
 /// <summary><paramref name="Version"/>: the one read with the document (#506).</summary>
 public sealed record SetDocumentArchivedCommand(Guid Id, bool Archived, uint Version) : ICommand<Guid>, IEditsDocument
+{
+    Guid IReadsDocument.DocumentId => Id;
+}
+
+/// <summary>#600: <paramref name="Version"/>: the one read with the document (#506).</summary>
+public sealed record DeleteDocumentCommand(Guid Id, uint Version) : ICommand<Guid>, IEditsDocument
 {
     Guid IReadsDocument.DocumentId => Id;
 }
@@ -246,6 +254,47 @@ public sealed class SetDocumentArchivedHandler(IDocumentStore store, IContextAcc
             return Result.Success(command.Id);
         return (await store.SetArchivedAsync(command.Id, command.Archived ? clock.GetCurrentInstant() : null, command.Version, ct)).Map(() => command.Id);
     }
+}
+
+/// <summary>
+/// #600: whoever edits the document deletes it: the row, its links, text, chunks and embeddings (<see cref="IDocumentStore.DeleteAsync"/>),
+/// its text job with its result, then, once committed, its file if no other document has the same bytes. Backups keep it until they expire.
+/// </summary>
+[RequestHandler<DeleteDocumentCommand, Guid>]
+public sealed partial class DeleteDocumentHandler(
+    IDocumentStore store, IDocumentStorage storage, IModelJobs jobs, IUnitOfWork unitOfWork, IContextAccessor context, ILogger<DeleteDocumentHandler> logger)
+    : IRequestHandler<DeleteDocumentCommand, Guid>
+{
+    public async ValueTask<Result<Guid>> HandleAsync(DeleteDocumentCommand command, CancellationToken ct = default)
+    {
+        var sha256 = CheckedResources.Of<ReadableDocument>(context, command).Document.Sha256;
+        await using var transaction = await unitOfWork.BeginAsync(ct);
+        if ((await store.DeleteAsync(command.Id, command.Version, ct)).TryGetFailure(out var conflict))
+            return Result.Failure<Guid>(conflict!);
+        await jobs.ForgetAsync(DocumentTexts.FileRef(command.Id), ct);
+        // The bytes go only after the commit, so a rollback never leaves a row without them.
+        // ponytail: an upload of the same bytes committed between this check and the delete would lose them; a reference count or a
+        // sweep of unreferenced files would close it, if uploads of the same file at the same moment ever become usual.
+        if ((await store.FindBySha256Async(sha256, ct)).Count == 0)
+            unitOfWork.AfterCommit(() => DeleteFileAsync(sha256));
+        await transaction.CommitAsync(ct);
+        return Result.Success(command.Id);
+    }
+
+    private async Task DeleteFileAsync(string sha256)
+    {
+        try
+        {
+            await storage.DeleteAsync(sha256, CancellationToken.None);
+        }
+        catch (Exception e)
+        {
+            FileLeft(logger, e, sha256);
+        }
+    }
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The file {Sha256} of a deleted document was not removed; it is no longer referenced")]
+    private static partial void FileLeft(ILogger logger, Exception error, string sha256);
 }
 
 /// <summary>
