@@ -125,18 +125,19 @@ function Connections({ configured }: { configured: boolean }) {
   const readable = useBankAccounts();
 
   useEffect(() => {
-    // The id keeps it one toast when the effect runs twice (React's strict mode).
-    if (arrival.connected) toast.success(t('banks.connected'), { id: 'banks-connected' });
     if (arrival.connected || arrival.error) void navigate({ to: '/settings/banks', search: {}, replace: true });
-  }, [arrival, navigate, t]);
-  // Back from the bank: its first account not placed yet opens, so the person says where it goes.
+  }, [arrival, navigate]);
+  // Back from the bank: its first account not placed yet opens, so the person says where it goes; none read is said, not hailed.
   useEffect(() => {
     if (offered.current || !arrival.connected || !connections.data) return;
     offered.current = true;
-    const fresh = connections.data.find((c) => c.id === arrival.connected)?.accounts
-      .find((a) => a.canWrite && !a.envelopeId && !a.cardOfAccountId && !a.ignored);
+    const accounts = connections.data.find((c) => c.id === arrival.connected)?.accounts ?? [];
+    // The id keeps it one toast when the effect runs twice (React's strict mode).
+    if (accounts.length > 0) toast.success(t('banks.connected'), { id: 'banks-connected' });
+    else toast.warning(t('banks.no_accounts'), { id: 'banks-connected' });
+    const fresh = accounts.find((a) => a.canWrite && !a.envelopeId && !a.cardOfAccountId && !a.ignored);
     if (fresh) setEditing(fresh);
-  }, [arrival, connections.data]);
+  }, [arrival, connections.data, t]);
 
   const listed = connections.data?.flatMap((c) => c.accounts) ?? [];
   // #373: from an envelope's page, its account's « Régler » opens, once.
@@ -225,7 +226,7 @@ function ConnectionSection({ connection, all, envelopes, onEdit }: {
       <ReadsWarning reads={connection.reads} />
       {connection.accounts.length > 0 ? (
         <AccountTable caption={t('banks.accounts', { bank })} accounts={connection.accounts} all={all} envelopes={envelopes} onEdit={onEdit} />
-      ) : null}
+      ) : <p className="text-sm text-status-warning-text">{t('banks.no_accounts')}</p>}
     </Section>
   );
 }

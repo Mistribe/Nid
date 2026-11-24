@@ -98,6 +98,7 @@
     "synced": "Synchronisation terminée.",
     "deleted": "Connexion à {{bank}} supprimée.",
     "connected": "Banque reliée.",
+    "no_accounts": "Nid ne lit aucun compte de cette banque. En mode restreint, Enable Banking ne donne que les comptes reliés dans votre portail : reliez-les-y, puis renouvelez la connexion.",
     "accounts": "Comptes de {{bank}}",
     "account": "Compte",
     "kind_label": "Type",
@@ -173,7 +174,8 @@
       "hint": "Votre banque vous demande ensuite d'autoriser la lecture de vos comptes : lecture seule, aucun paiement possible.",
       "submit": "Continuer vers la banque",
       "existing": "Vous avez déjà relié {{bank}}. Renouvelez cette connexion pour donner à nouveau votre accord sur les mêmes comptes, ou reliez un autre accès si vous avez un second identifiant client dans cette banque.",
-      "another": "Relier un autre accès"
+      "another": "Relier un autre accès",
+      "portal": "En mode restreint, Enable Banking ne lit que les comptes reliés dans votre portail : reliez-y d'abord un nouveau compte, puis revenez ici."
     },
     "account_dialog": {
       "name": "Nom",
