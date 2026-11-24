@@ -47,8 +47,9 @@ export function ModelsSection({ admin }: { admin: boolean }) {
               <SelectField {...c} value={use.mode} onValueChange={(value) => mode.mutate({ ...path, body: { mode: value } })} options={[
                 { value: 'self_hosted', label: t('ai.models.mode_self_hosted') },
                 { value: 'off', label: t('ai.models.mode_off') },
-                // Offered once a cloud profile is enabled (#487), or while set.
-                ...(cloudOn || use.mode === 'self_hosted_then_cloud' ? [{ value: 'self_hosted_then_cloud', label: t('ai.models.mode_cloud') }] : []),
+                // Offered once a cloud profile is enabled (#487), or while set; never for embed, which no provider serves yet (#556).
+                ...((cloudOn && use.use !== 'embed') || use.mode === 'self_hosted_then_cloud'
+                  ? [{ value: 'self_hosted_then_cloud', label: t('ai.models.mode_cloud') }] : []),
               ]} />
             )}
           </Field>

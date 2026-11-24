@@ -19,7 +19,8 @@ docker compose logs nid | grep setup    # l'adresse à usage unique qui crée le
 Pour essayer sur votre propre ordinateur, `NID_URL=http://localhost:8080` suffit, sans proxy. Pas de sauvegarde ni de
 `restore.sh` dans le standalone : le reste de ce document décrit la forme de référence.
 
-Les images sont publiques sur `ghcr.io/mistribe/nid` et `ghcr.io/mistribe/nid-backup`, pour amd64 et arm64, sans compte :
+Les images sont publiques sur `ghcr.io/mistribe/nid`, `ghcr.io/mistribe/nid-backup`, `ghcr.io/mistribe/nid-worker` et
+`ghcr.io/mistribe/nid-postgres` (le Postgres de Nid), pour amd64 et arm64, sans compte :
 `latest`, `X.Y.Z` ou `X.Y` (le dernier correctif). Chacune porte une attestation de provenance signée :
 `gh attestation verify oci://ghcr.io/mistribe/nid:latest --repo Mistribe/Nid` vérifie qu'elle sort de ce dépôt.
 
@@ -237,6 +238,34 @@ secrets, puis l'étape 3. Sans `deploy/backup-secrets/`, `up` s'arrête avec un 
 
 Les migrations de la base s'appliquent au démarrage de `nid`. Les images de base sont épinglées par empreinte ; une
 mise à jour de Nid les fait évoluer.
+
+### Vers Postgres 18 avec pgvector
+
+La recherche dans les documents a besoin de vecteurs et d'un dictionnaire français. La base passe donc de
+`postgres:16-alpine` à `nid-postgres`, l'image de Nid : Postgres 18 avec pgvector, plus ce dictionnaire. Elle vit dans
+un nouveau volume, `pgdata18`. Une base 16 ne s'ouvre pas en 18 : elle passe par la sauvegarde, une fois.
+
+1. **Sauvegardez** (étape 1 ci-dessus), avec l'ancien `compose.yaml`, et attendez la fin.
+2. `git pull`.
+3. `deploy/restore.sh --force`, puis tapez `RESTAURER`. Le script vérifie d'abord que la sauvegarde s'ouvre. Il supprime
+   ensuite les volumes, l'ancien `pgdata` compris, recharge la base dans Postgres 18 et redémarre tout.
+
+Tant que l'ancien volume `pgdata` contient la base 16, le service `postgres-upgrade-check` refuse de démarrer
+`postgres`. Nid ne repart donc jamais sur une base vide à côté de vos données. Si vous avez rechargé la base autrement,
+supprimez ce volume vous-même (`docker volume rm nid_pgdata`) une fois Nid vérifié.
+
+Avec le `standalone/` et son profil `postgres`, dans son dossier (remplacez `nid` par vos `NID_DB_USER` et
+`NID_DB_NAME` si vous les avez changés) :
+
+1. Avant de prendre le nouveau `compose.yaml` : `docker compose exec -T postgres pg_dump -U nid -Fc nid > nid.pgdump`, puis
+   `docker compose run --rm -T --no-deps -v "$PWD/nid.pgdump:/d:ro" --entrypoint pg_restore postgres --list /d | head`.
+   La liste doit nommer vos tables. Gardez ce fichier.
+2. `docker compose down`, puis supprimez l'ancien volume : `docker volume ls` le montre sous le nom `<dossier>_pgdata`.
+3. Prenez le nouveau `compose.yaml`, puis `docker compose --profile postgres up -d postgres`.
+4. Rechargez la base : `docker compose exec -T postgres pg_restore -U nid -d nid --no-owner --exit-on-error < nid.pgdump`.
+5. `docker compose up -d`, avec vos profils habituels.
+
+Avec un Postgres extérieur, voyez §11.
 
 ### Depuis `nid-api` et `nid-web` (une seule image `nid`)
 
@@ -490,6 +519,22 @@ anciens mais pas plus récents. Créez-y une base `nid` et un rôle `nid` (`LOGI
 passe est celui de `deploy/secrets/postgres_password`, puis faites pointer `deploy/secrets/nid_connection_string` dessus
 (`setup.sh` ne la remplace jamais).
 
+Le serveur doit aussi avoir **pgvector** (0.8 ou plus). Comme le rôle `nid` n'est pas superuser, un administrateur
+crée l'extension dans la base avant le premier démarrage de Nid : `CREATE EXTENSION IF NOT EXISTS vector;`. Sans elle, les
+migrations s'arrêtent sur `permission denied to create extension "vector"`. Nid crée lui-même `unaccent`, une extension
+que le propriétaire de la base peut créer.
+
+La recherche dans les documents se sert aussi d'un **dictionnaire français**, celui de l'image `nid-postgres`. Sans lui,
+elle marche quand même, avec un français plus approximatif (« loyers » ne trouve pas « loyer »). Pour l'avoir, copiez ses
+deux fichiers dans le dossier `tsearch_data` du serveur (`pg_config --sharedir` le donne) **avant le premier démarrage
+de Nid** : Nid choisit le dictionnaire une seule fois, à sa première migration.
+
+```bash
+for f in nid_fr.dict nid_fr.affix; do
+  docker run --rm --entrypoint cat ghcr.io/mistribe/nid-postgres:latest /usr/share/postgresql/18/tsearch_data/$f > $f
+done
+```
+
 ```yaml
 services:
   postgres: { profiles: [bundled] }
@@ -723,4 +768,5 @@ Le réseau `models` n'a pas de sortie : le moteur sert les modèles déjà prés
 | `Models` | Les modèles à servir, séparés par des virgules ; vide : tous ceux du moteur |
 | `ContextTokens`, `MaxOutputTokens` | Le contexte et la sortie que le moteur accepte (8192 et 4096 par défaut) |
 | `Tools` | Le modèle sait appeler des outils (`true` par défaut) |
+| `EmbedModels` | Les modèles de plongement et la longueur de leurs vecteurs, que le moteur ne dit pas : `nomic-embed-text=768,bge-m3=1024`. Ils servent la recherche dans les documents (`embed`), jamais le chat |
 

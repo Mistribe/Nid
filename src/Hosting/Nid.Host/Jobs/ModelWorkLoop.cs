@@ -5,7 +5,7 @@ namespace Nid.Host.Jobs;
 
 /// <summary>
 /// Moves model jobs every 5 seconds, reads every worker's declaration every minute (<c>docs/ai/README.md</c> §4) and deletes
-/// finished jobs every hour (#483). A loop of its own rather than Quartz jobs: the job runs journal and Quartz's store would write a row every 5 seconds for what
+/// finished jobs every hour (#483), and indexes documents every 30 seconds (#559). A loop of its own rather than Quartz jobs: the job runs journal and Quartz's store would write a row every 5 seconds for what
 /// usually finds nothing to do. Each pass runs as the system actor; a pass that fails is logged and the next one runs.
 /// </summary>
 public sealed partial class ModelWorkLoop(IServiceScopeFactory scopes, ILogger<ModelWorkLoop> logger) : BackgroundService
@@ -14,11 +14,15 @@ public sealed partial class ModelWorkLoop(IServiceScopeFactory scopes, ILogger<M
     public static readonly TimeSpan WorkersEvery = TimeSpan.FromMinutes(1);
     public static readonly TimeSpan PurgeEvery = TimeSpan.FromHours(1);
 
+    /// <summary>#559: documents' chunks and embeddings, a few documents a pass.</summary>
+    public static readonly TimeSpan IndexEvery = TimeSpan.FromSeconds(30);
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         using var timer = new PeriodicTimer(JobsEvery);
         var nextWorkers = DateTimeOffset.MinValue;
         var nextPurge = DateTimeOffset.MinValue;
+        var nextIndex = DateTimeOffset.MinValue;
         while (await timer.WaitForNextTickAsync(stoppingToken))
         {
             if (DateTimeOffset.UtcNow >= nextWorkers)
@@ -29,6 +33,12 @@ public sealed partial class ModelWorkLoop(IServiceScopeFactory scopes, ILogger<M
             }
 
             await PassAsync<IJobDispatcher>((d, ct) => d.RunOnceAsync(ct), stoppingToken);
+
+            if (DateTimeOffset.UtcNow >= nextIndex)
+            {
+                nextIndex = DateTimeOffset.UtcNow + IndexEvery;
+                await PassAsync<Nid.Documents.Application.DocumentIndexer>((i, ct) => i.RunOnceAsync(ct), stoppingToken);
+            }
 
             if (DateTimeOffset.UtcNow >= nextPurge)
             {

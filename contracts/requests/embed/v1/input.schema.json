@@ -1,0 +1,19 @@
+{
+  "type": "object",
+  "properties": {
+    "model": {
+      "type": "string"
+    },
+    "texts": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "model",
+    "texts"
+  ],
+  "additionalProperties": false
+}

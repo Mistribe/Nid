@@ -55,6 +55,9 @@ public sealed class EchoRequestContract() : ModelContract<EchoRequestInput, Echo
 /// <summary><c>contracts/jobs/document-text/v1</c> (#167): a document's text, page by page, from its text layer or OCR.</summary>
 public sealed class DocumentTextJobContract() : ModelContract<DocumentTextInput, DocumentTextOutput>(ModelCallKind.Job, "document-text", 1);
 
+/// <summary><c>contracts/requests/embed/v1</c> (#558): a batch of texts to vectors; its data class is the caller's.</summary>
+public sealed class EmbedRequestContract() : ModelContract<EmbedRequestInput, EmbedRequestOutput>(ModelCallKind.Request, "embed", 1);
+
 /// <summary><c>contracts/requests/chat/v1</c> (#485): a chat turn through a worker's engine; its data class is the caller's.</summary>
 public sealed class ChatRequestContract() : ModelContract<ChatRequestInput, ChatRequestOutput>(ModelCallKind.Request, "chat", 1);
 

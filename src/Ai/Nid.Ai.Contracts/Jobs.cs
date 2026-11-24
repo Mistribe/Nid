@@ -83,6 +83,9 @@ public static class JobCodes
     /// chosen <c>allow</c>.</summary>
     public const string OffsiteNotAllowed = "ai.offsite_not_allowed";
 
+    /// <summary>#558: no cloud provider serves this use yet (<c>embed</c>, until #556).</summary>
+    public const string CloudNotAvailable = "ai.cloud_not_available";
+
     /// <summary>#486: a use turned off, a use with no model set, a task a use may not run, no worker serving the use's model,
     /// a turn that ended without its usage, a use or mode that does not exist.</summary>
     public const string UseOff = "ai.use_off";
@@ -110,4 +113,22 @@ public static class JobCodes
     /// <summary>#488: a paid call over the month's ceiling (or with no rate to price it), and a ceiling out of range.</summary>
     public const string BudgetBlocked = "ai.budget_blocked";
     public const string InvalidBudget = "ai.invalid_budget";
+}
+
+/// <summary>A batch of texts to embed (#558): the class of their data and, for background work, the adults whose <c>allow</c>
+/// they need to leave the premises (decision M, <c>docs/ai/README.md</c> §6.3). The model is the <c>embed</c> use's.</summary>
+public sealed record LlmEmbedRequest(IReadOnlyList<string> Texts, string DataClass, IReadOnlyList<Guid>? Concerned = null, Guid? JobId = null);
+
+/// <summary>One vector per text, in the texts' order, with the model that made them and their length.</summary>
+public sealed record LlmEmbeddings(string Model, int Dimension, IReadOnlyList<IReadOnlyList<float>> Vectors);
+
+/// <summary>How a module embeds text (#558): through the gateway, on the household's workers (cloud providers: #556).</summary>
+public interface IEmbeddings
+{
+    /// <summary>The model the <c>embed</c> use runs on now; null while the use is off or has none (#559: what to embed for).</summary>
+    Task<string?> ModelAsync(CancellationToken ct);
+
+    /// <summary>A refusal carries its <see cref="JobCodes"/> code: the use off or without a model, nowhere to send it, the
+    /// worker failed.</summary>
+    Task<Result<LlmEmbeddings>> EmbedAsync(LlmEmbedRequest request, CancellationToken ct);
 }

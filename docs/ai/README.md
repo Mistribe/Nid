@@ -358,6 +358,16 @@ du moteur.
   `engine_refused` (4xx), `engine_failed` (5xx), `engine_invalid` (réponse illisible). Un moteur muet retire ses modèles
   de la déclaration jusqu'à ce qu'il réponde.
 - Sans `Engine:Url`, le worker ne déclare ni modèle ni `chat`.
+- **`embed` (#558) :** `Engine:EmbedModels` (`nom=dimension`, séparés par des virgules) nomme les modèles du moteur qui
+  plongent du texte. Ils sont déclarés pour `embed` avec leur dimension, jamais pour `chat`.
+  - La requête `contracts/requests/embed/v1` envoie un lot de 64 textes au plus (32 000 caractères chacun). Le worker
+    appelle `POST /v1/embeddings` et rend une trame par vecteur.
+  - Un vecteur d'une autre longueur que la dimension déclarée finit en `engine_invalid`.
+  - Côté Nid, `IEmbeddings` (`Ai.Contracts`, `LlmEmbedder`) prend le modèle et le mode de l'usage `embed`. Il applique
+    la classe de données et, pour une tâche de fond, le `allow` de chaque adulte concerné. Sans ce `allow`, seuls les
+    workers locaux servent : `ai.offsite_not_allowed` si seul un worker distant l'aurait pu.
+  - Chaque appel est noté dans `llm_call` (tâche `embed`). Le mode `self_hosted_then_cloud` est refusé pour `embed`
+    (`ai.cloud_not_available`) jusqu'aux fournisseurs cloud (#556).
 
 ### 3.8 Le texte des documents (#167)
 
@@ -376,6 +386,15 @@ du moteur.
   - au démarrage, un rattrapage le demande pour les documents qui ne l'ont jamais eu (`documents.document_text_job`) ;
   - Ai remet le résultat, lu par le contrat, à Documents (`IJobResultSink`) avant de clore le job ;
   - les pages vont dans `documents.document_text`, supprimées avec leur document.
+- **Index (#559) :** toutes les 30 s, dans la boucle des jobs, `DocumentIndexer` fait deux choses.
+  - Il coupe en morceaux chaque nouveau texte (`documents.document_chunk`, avec un `tsvector` français).
+  - Il plonge, par lots de 32 et par `IEmbeddings` (#558), les morceaux qui n'ont pas de vecteur du modèle `embed`
+    courant : 20 documents au plus par passage.
+  - Un bulletin de paie (rôle `payslip`) est `local_only` ; les adultes concernés sont ceux du texte.
+  - Un refus propre au document (`ai.offsite_not_allowed`, `ai.no_safe_worker`, entrée ou résultat invalide) le
+    laisse de côté pour ce passage. Tout autre refus (usage éteint, pas de worker) arrête le passage.
+  - Changer de modèle replonge tout. Les anciens vecteurs d'un document partent dès qu'il a tous les nouveaux, si bien
+    que la recherche (#170) en a toujours un jeu.
 
 ## 4. Deux modes (question 2)
 

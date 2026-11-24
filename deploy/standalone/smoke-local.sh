@@ -4,6 +4,7 @@
 # every check passed. Throwaway: its own compose project, volumes removed before and after. Never on a real deployment.
 #
 #   NID_IMAGE   the image to try (default nid:local, built from this checkout: docker build -f src/Hosting/Nid.Host/Dockerfile -t nid:local .)
+#   NID_POSTGRES_IMAGE  its Postgres (default nid-postgres:local: docker build -t nid-postgres:local deploy/postgres)
 #   NID_PORT    where it listens on this machine (default 8080)
 #   KEEP=1      leaves the stack running at the end, to look at it
 set -euo pipefail
@@ -28,6 +29,7 @@ sed -i \
   -e "s|^NID_DB_PASSWORD=.*|NID_DB_PASSWORD=$(openssl rand -hex 16)|" \
   -e "s|^NID_WEB_PORT=.*|NID_WEB_PORT=$PORT|" \
   -e "s|^# NID_IMAGE=.*|NID_IMAGE=${NID_IMAGE:-nid:local}|" \
+  -e "s|^# NID_POSTGRES_IMAGE=.*|NID_POSTGRES_IMAGE=${NID_POSTGRES_IMAGE:-nid-postgres:local}|" \
   "$WORK/.env"
 "${COMPOSE[@]}" down -v --remove-orphans >/dev/null 2>&1 || true
 "${COMPOSE[@]}" up -d --wait --wait-timeout 180

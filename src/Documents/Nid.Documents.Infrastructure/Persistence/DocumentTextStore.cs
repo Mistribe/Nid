@@ -28,6 +28,7 @@ public sealed class DocumentTextStore(DocumentsDbContext db, IDocumentStore docu
         if (!await db.Documents.AnyAsync(d => d.Id == document, ct))
             return;
         db.Texts.RemoveRange(await db.Texts.Where(t => t.DocumentId == document).ToListAsync(ct));
+        db.Chunks.RemoveRange(await db.Chunks.Where(c => c.DocumentId == document).ToListAsync(ct)); // #559: cut again by the indexer
         db.Texts.AddRange(pages.Select(p => new DocumentTextRow { DocumentId = document, Page = p.Number, Text = p.Text, Source = p.Source, ExtractedAt = at }));
         await db.SaveChangesAsync(ct);
     }

@@ -226,7 +226,7 @@ public sealed class LlmGateway(
     }
 
     /// <summary>How the call ended, for its row: an error with no code until it says otherwise (a caller that left).</summary>
-    private sealed class Outcome
+    internal sealed class Outcome
     {
         public string? Model { get; set; }
 

@@ -371,13 +371,7 @@ public sealed class JobDispatcher(
 
     /// <summary>Decision M (§6.3): a job that concerns adults leaves the premises only with <c>allow</c> from each, read at each
     /// send and poll, so a change of mind takes it back.</summary>
-    private async Task<bool> OffsiteAsync(JobRecord job, CancellationToken ct)
-    {
-        foreach (var person in job.Concerned)
-            if ((await people.GetAsync(new Nid.Core.Contracts.PersonId(person), ct)).OffsiteDefault != OffsitePreferences.Allow)
-                return false;
-        return true;
-    }
+    private Task<bool> OffsiteAsync(JobRecord job, CancellationToken ct) => OffsiteConsent.AllowedAsync(people, job.Concerned, ct);
 
     private static int Slots(WorkerRecord worker) => WorkerRouter.DeclarationOf(worker)?.MaxConcurrentRequests ?? 1;
 

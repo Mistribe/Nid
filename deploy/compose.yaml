@@ -9,25 +9,47 @@ x-hardened: &hardened
   restart: unless-stopped
 
 services:
+  # #557: Postgres 18 keeps its data in pgdata18. An install from before it still holds Postgres 16's in pgdata (owned by
+  # 70, the Alpine image's user): postgres then does not start on an empty base, until the backup is restored into the new
+  # one (README, « Mise à jour »), which removes the old volume.
+  postgres-upgrade-check:
+    image: busybox:1.38@sha256:a46257e06c82ad85242d0d38077d0a52d9896389ca60a1a59d3463db586e5fa4
+    command:
+      - sh
+      - -c
+      - >-
+        [ "$$(stat -c %u /old)" != 70 ] || { echo "Postgres 16 data found in the pgdata volume: restore the backup into
+        Postgres 18 (deploy/README.md, Mise à jour)." >&2; exit 1; }
+    volumes: [pgdata:/old:ro]
+    network_mode: none
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+
+  # Postgres 18 with pgvector (#557): the vectors of the documents' chunks. Nid's own image (#582): pgvector's, plus the
+  # French dictionary of the documents' full-text search.
   postgres:
     <<: *hardened
-    image: postgres:16-alpine@sha256:f2f98726820d0342055351c6e9d36e705f5bfffb3dd53ff556325114b08afb6d
+    build: { context: ./postgres }
+    image: ${NID_POSTGRES_IMAGE:-nid-postgres:local}
     # The image's own postgres user: its data folder is already owned by it, so a fresh volume is too, and the entrypoint
     # needs no capability to change owners.
-    user: "70:70"
+    user: "999:999"
     environment:
       POSTGRES_DB: nid
       POSTGRES_USER: nid
       POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
     secrets: [postgres_password]
-    volumes: [pgdata:/var/lib/postgresql/data]
-    tmpfs: ["/tmp", "/var/run/postgresql:uid=70,gid=70"]
+    # From 18 on, the image keeps its data under /var/lib/postgresql/18/docker: the volume holds the folder above it.
+    volumes: [pgdata18:/var/lib/postgresql]
+    tmpfs: ["/tmp", "/var/run/postgresql:uid=999,gid=999"]
     networks: [data]
     healthcheck:
       test: [CMD-SHELL, pg_isready -U nid -d nid]
       interval: 10s
       timeout: 3s
       retries: 10
+    depends_on: { postgres-upgrade-check: { condition: service_completed_successfully } }
     deploy: { resources: { limits: { cpus: "1.0", memory: 1g } } }
 
   # Pocket ID's distroless image runs as 65532, and a named volume starts out root's: this one-shot owns it first.
@@ -208,7 +230,9 @@ networks:
   models: { internal: true }
 
 volumes:
+  # Postgres 16's, before #557: read only by postgres-upgrade-check, and removed by the restore of the upgrade.
   pgdata: {}
+  pgdata18: {}
   pocket-id: {}
   dataprotection-keys: {}
   assets: {}
