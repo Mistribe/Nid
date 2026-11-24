@@ -98,7 +98,7 @@ public sealed class GetLoanScheduleHandler(ILoanStore loans, IItemRegistry items
         if (loaded.TryGetFailure(out var failure))
             return Result.Failure<LoanScheduleView>(failure!);
         loaded.TryGetValue(out var found);
-        var terms = LoanReading.Terms(LoanViews.CurrencyOf(found.Item), found.Loan.Contract, found.Loan.Fees, found.Loan.Repayments);
+        var terms = LoanReading.Terms(LoanReading.CurrencyOf(found.Item), found.Loan.Contract, found.Loan.Fees, found.Loan.Repayments);
         return Result.Success(LoanViews.ScheduleOf(terms, LoanReading.Schedule(terms, found.Loan)));
     }
 }
@@ -117,7 +117,7 @@ public sealed class SimulateLoanRepaymentHandler(ILoanStore loans, IItemRegistry
             return Result.Failure<LoanSimulationView>(failure!);
         loaded.TryGetValue(out var found);
 
-        var terms = LoanReading.Terms(LoanViews.CurrencyOf(found.Item), found.Loan.Contract, found.Loan.Fees, found.Loan.Repayments);
+        var terms = LoanReading.Terms(LoanReading.CurrencyOf(found.Item), found.Loan.Contract, found.Loan.Fees, found.Loan.Repayments);
         var simulated = LoanMath.SimulateEarlyRepayment(terms, query.On, query.Amount, query.Effect, query.Penalty);
         if (simulated.TryGetFailure(out failure))
             return Result.Failure<LoanSimulationView>(failure!); // the engine answers at on, amount, effect or penalty

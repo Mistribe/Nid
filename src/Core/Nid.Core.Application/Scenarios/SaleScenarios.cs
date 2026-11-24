@@ -1,7 +1,6 @@
 using System.Globalization;
 using Nid.Core.Application.Dashboard;
 using Nid.Core.Application.Projection;
-using Nid.Core.Application.Tax;
 using Nid.Core.Contracts;
 using Nid.Core.Domain.Scenarios;
 using Nid.Platform.Contracts;
@@ -61,8 +60,10 @@ public sealed record CreateSaleScenarioCommand(
 
 /// <summary>Name, visibility, scope and document replaced whole; the owners are kept.</summary>
 public sealed record ReplaceSaleScenarioCommand(ItemId ItemId, string Name, Visibility Visibility, VisibilityScope Scope, SaleScenario Document)
-    : ICommand<SaleScenarioView>, IItemScoped
+    : ICommand<SaleScenarioView>, IItemScoped, IReplacesScenario
 {
+    string IReplacesScenario.ScenarioKind => ScenarioKinds.PropertySale;
+
     public AccessKind Access => AccessKind.Write;
 }
 
@@ -72,7 +73,7 @@ public sealed record ReplaceSaleScenarioCommand(ItemId ItemId, string Name, Visi
 /// fees, tax and penalties; its loans settled at their balance), which is also how « Comparer » reads it.
 /// </summary>
 public sealed class SaleScenarioReader(
-    ProjectionScenarioReader projections, SaleTaxEstimates tax, IVisibleItems visible, IItemRegistry items, IActorAccessor actor,
+    ProjectionScenarioReader projections, IHouseholdTax tax, IVisibleItems visible, IItemRegistry items, IActorAccessor actor,
     IHouseholdCalendar calendar)
 {
     public const string PropertyNotFound = "scenario.property_not_found";
@@ -109,7 +110,7 @@ public sealed class SaleScenarioReader(
     {
         if (!await SeesAsync(doc.Property, scope, ct)) return new(false, null, 0m);
         var on = doc.SaleOn < today ? today : doc.SaleOn;
-        if (!(await tax.PropertyAsync(Reader, doc.Property, today, on, doc.Price - doc.AgencyFees, ct)).TryGetValue(out var page))
+        if (!(await tax.PropertySaleAsync(Reader, doc.Property, today, on, doc.Price - doc.AgencyFees, ct)).TryGetValue(out var page))
             return new(true, null, 0m);
         static decimal D(string? amount) => amount is null ? 0m : decimal.Parse(amount, CultureInfo.InvariantCulture);
         return new(true, page, D(page!.IncomeTax) + D(page.SocialTax) + D(page.Surtax));
@@ -119,7 +120,7 @@ public sealed class SaleScenarioReader(
     private static ProjectionScenario Projection(SaleScenario doc, decimal tax, ScenarioHorizon horizon) => new(
         1, horizon, new ProjectionOverrides(null, null, null, null, null),
         [
-            new ProjectionEvent(Guid.NewGuid(), ProjectionEventKinds.PropertySale, new EventDate(doc.SaleOn, null, null), null, null, null,
+            new ProjectionEvent(Guid.CreateVersion7(), ProjectionEventKinds.PropertySale, new EventDate(doc.SaleOn, null, null), null, null, null,
                 null, null, null, null, null, doc.Property, doc.Price, ScenarioCalculator.SaleCosts(doc, tax), null),
         ]);
 
@@ -215,18 +216,15 @@ public sealed class CreateSaleScenarioHandler(IItemRegistry items, IScenarioStor
 
 [RequestHandler<ReplaceSaleScenarioCommand, SaleScenarioView>]
 public sealed class ReplaceSaleScenarioHandler(
-    IItemRegistry items, IItemRules rules, IScenarioStore store, SaleScenarioReader reader, IAccessPolicy policy, IActorAccessor actor,
+    IContextAccessor context, IItemRegistry items, IScenarioStore store, SaleScenarioReader reader, IAccessPolicy policy,
     IUnitOfWork unitOfWork)
     : IRequestHandler<ReplaceSaleScenarioCommand, SaleScenarioView>
 {
     public async ValueTask<Result<SaleScenarioView>> HandleAsync(ReplaceSaleScenarioCommand command, CancellationToken ct = default)
     {
-        var loaded = await ScenarioResults.LoadAsync(items, store, command.ItemId, ct, ScenarioKinds.PropertySale);
-        if (loaded.TryGetFailure(out var failure)) return Result.Failure<SaleScenarioView>(failure!);
-        loaded.TryGetValue(out var found);
-        // #294: an adult who may edit the scenario does not own it: its visibility stays with its owners.
-        if (command.Visibility != found.Item.Visibility && !rules.CanCreate(actor.Current!.PersonId!.Value, found.Item.Owners))
-            return Result.Failure<SaleScenarioView>(new UnauthorizedFailure("Only the scenario's owners change its visibility.", null));
+        // Loaded, and a change of visibility refused to a non-owner (#294), by the scenario behavior.
+        var found = CheckedResources.Of<LoadedScenario>(context, command);
+        Failure? failure;
         if ((ScenarioResults.Name(command.Name) ?? await reader.RefusalAsync(command.Document, command.Scope, ct)) is { } refused)
             return Result.Failure<SaleScenarioView>(refused);
 

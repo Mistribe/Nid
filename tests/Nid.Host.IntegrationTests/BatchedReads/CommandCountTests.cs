@@ -1,12 +1,14 @@
 using System.Net;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Nid.Banking.Infrastructure.Persistence;
 using Nid.Core.Contracts;
 using Nid.Core.Infrastructure.Persistence;
 using Nid.Goals.Infrastructure.Persistence;
 using Nid.Income.Infrastructure.Persistence;
 using Nid.Investments.Infrastructure.Persistence;
 using Nid.Platform.Infrastructure.Persistence;
+using Nid.RealEstate.Application;
 using Nid.RealEstate.Contracts;
 using Nid.RealEstate.Infrastructure.Persistence;
 using Nid.Subscriptions.Infrastructure.Persistence;
@@ -47,12 +49,65 @@ public class CommandCountTests(PostgresFixture fixture) : IClassFixture<Postgres
         await using (var scope = app.Services.CreateAsyncScope())
             await scope.ServiceProvider.GetRequiredService<IFxRateStore>()
                 .WriteAsync([new FxRate(NidApp.GoldenCaseToday, Currency.Eur, 0.9m, FxRateSource.Ecb)], TestContext.Current.CancellationToken); // 1 USD = 0.90 EUR
+        await AssertFixedAsync(counter, i => RoundAsync(app, i),
+            async () => Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Get, route)).StatusCode));
+    }
+
+    /// <summary>#518: the assistant's rent arrears (no route of their own) read every rented property's flows at once.</summary>
+    [Fact]
+    public async Task Rent_arrears_issue_as_many_commands_for_2N_properties_as_for_N()
+    {
+        var counter = new CommandCounter();
+        await using var app = await NidApp.StartAsync(fixture, services => Count(services, counter));
+        var rented = 0;
+        await AssertFixedAsync(counter, async i =>
+        {
+            var property = await NewPropertyAsync(app, Home(app, $"Maison {i}"));
+            await PostAsync(app, $"{Properties}/{property}/tenancies", new { label = "T2", startsOn = "2025-01-01", rentMonthly = "900" });
+            rented++;
+        }, async () =>
+        {
+            var (response, failure) = await app.InvokeAsync(app.AdultA, new GetRentArrearsQuery(VisibilityScope.Me), TestContext.Current.CancellationToken);
+            Assert.Null(failure);
+            Assert.Equal(rented, ((RentArrearsList)response!).Items.Count); // every month since January is due
+        });
+    }
+
+    /// <summary>
+    /// #518: the bank account list reads its rights, balances and sources at once. Each round, B's account A's connection sees too (A
+    /// owns it by its source), an account only B sees, and A's own account on a shared envelope with a card attached to it.
+    /// </summary>
+    [Fact]
+    public async Task The_bank_account_list_issues_as_many_commands_for_2N_accounts_as_for_N()
+    {
+        var counter = new CommandCounter();
+        await using var app = await BankingApi.StartAsync(fixture, overrides: services => Count(services, counter));
+        var readable = 0;
+        await AssertFixedAsync(counter, async i =>
+        {
+            await BankingApi.ConnectAsync(app, app.AdultB, $"b-{i}", BankingApi.Account($"uid-b{i}", $"hash-j{i}", null, $"Joint {i}"),
+                BankingApi.Account($"uid-p{i}", $"hash-p{i}", null, $"Privé {i}"));
+            await BankingApi.ConnectAsync(app, app.AdultA, $"a-{i}", BankingApi.Account($"uid-j{i}", $"hash-j{i}", null, $"Joint {i}"),
+                BankingApi.Account($"uid-a{i}", $"hash-a{i}", null, $"Courant {i}"),
+                BankingApi.Account($"uid-c{i}", $"hash-c{i}", null, $"Carte {i}", "CARD"));
+            var ids = (await BankingApi.AccountsAsync(app, app.AdultA)).EnumerateArray()
+                .ToDictionary(a => a.GetProperty("name").GetString()!, a => a.GetProperty("id").GetGuid());
+            var envelope = await app.NewEnvelopeAsync($"Courant {i}", app.AdultA, Visibility.Shared);
+            await PatchAccountAsync(app, ids[$"Courant {i}"], new { envelopeId = envelope.Value });
+            await PatchAccountAsync(app, ids[$"Carte {i}"], new { cardOfAccountId = ids[$"Courant {i}"] });
+            readable += 3;
+        }, async () => Assert.Equal(readable, (await BankingApi.AccountsAsync(app, app.AdultA)).GetArrayLength()));
+    }
+
+    /// <summary>The read counted after <see cref="N"/> rounds and after <c>2N</c>: as many commands each time.</summary>
+    private static async Task AssertFixedAsync(CommandCounter counter, Func<int, Task> round, Func<Task> read)
+    {
         for (var i = 0; i < N; i++)
-            await RoundAsync(app, i);
-        var once = await CommandsAsync(app, counter, route);
+            await round(i);
+        var once = await CommandsAsync(counter, read);
         for (var i = N; i < 2 * N; i++)
-            await RoundAsync(app, i);
-        var twice = await CommandsAsync(app, counter, route);
+            await round(i);
+        var twice = await CommandsAsync(counter, read);
 
         Assert.True(once > 0, "the counter saw no command: it is not registered");
         Assert.Equal(once, twice);
@@ -65,16 +120,18 @@ public class CommandCountTests(PostgresFixture fixture) : IClassFixture<Postgres
         services.ConfigureDbContext<InvestmentsDbContext>(o => o.AddInterceptors(counter));
         services.ConfigureDbContext<IncomeDbContext>(o => o.AddInterceptors(counter));
         services.ConfigureDbContext<GoalsDbContext>(o => o.AddInterceptors(counter));
+        services.ConfigureDbContext<Nid.Tax.Infrastructure.Persistence.TaxDbContext>(o => o.AddInterceptors(counter));
         services.ConfigureDbContext<RealEstateDbContext>(o => o.AddInterceptors(counter));
         services.ConfigureDbContext<PlatformDbContext>(o => o.AddInterceptors(counter));
+        services.ConfigureDbContext<BankingDbContext>(o => o.AddInterceptors(counter));
     }
 
-    /// <summary>The route read once to warm it (query compilation, first-request work), then counted on a second read.</summary>
-    private static async Task<int> CommandsAsync(NidApp app, CommandCounter counter, string route)
+    /// <summary>The read made once to warm it (query compilation, first-request work), then counted on a second read.</summary>
+    private static async Task<int> CommandsAsync(CommandCounter counter, Func<Task> read)
     {
-        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Get, route)).StatusCode);
+        await read();
         counter.Reset();
-        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Get, route)).StatusCode);
+        await read();
         return counter.Count;
     }
 
@@ -120,6 +177,9 @@ public class CommandCountTests(PostgresFixture fixture) : IClassFixture<Postgres
         await app.NewMonthlyAsync(app.AdultA, 10m + i);
         await app.NewIncomeSourceAsync($"Salaire {i}", Visibility.Shared, (app.AdultA, 10_000));
     }
+
+    private static async Task PatchAccountAsync(NidApp app, Guid account, object body)
+        => Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{BankingApi.Root}/accounts/{account}", body)).StatusCode);
 
     private static object Eur(string amount) => new { amount, currency = "EUR" };
 

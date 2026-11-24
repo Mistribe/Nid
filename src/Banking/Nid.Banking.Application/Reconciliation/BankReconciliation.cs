@@ -18,11 +18,23 @@ public sealed record ReconciliationCounts(int Internal, int Linked, int Proposed
 /// then the category rules of the authors who write each line's account (transaction categories spec §Rules), then the bank-code hints. The
 /// counts and codes of a failure are logged, never a label or an amount; a failed line stays for the next pass.
 /// </summary>
-public sealed class BankReconciliation(
+public sealed partial class BankReconciliation(
     BankingAccess access, ITransactionStore transactions, IAccountStore accountStore, ILinkStore links, IRuleStore rules,
     ExpectedChargeReader charges, TransactionLinker linker, CategoryRuleApplier categoryRules, ICategoryStore categories, IAccessPolicy policy, IProposalSubmitter proposals,
     SavingsFlows savingsFlows, IActorAccessor actor, IUnitOfWork unitOfWork, IClock clock, ILogger<BankReconciliation> log)
 {
+    [LoggerMessage(Level = LogLevel.Error, Message = "The reconciliation pass threw {Exception}")]
+    private partial void LogPassThrew(string exception);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "The savings flows pass threw {Exception}")]
+    private partial void LogSavingsPassThrew(string exception);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Reconciling a bank line threw {Exception}")]
+    private partial void LogLineThrew(string exception);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "A bank link proposal was refused {Code}")]
+    private partial void LogLinkRefused(string? code);
+
     /// <summary>The widest tolerance of a charge (a rent's): the charges read around the batch.</summary>
     private const int ChargeMarginDays = 10;
 
@@ -41,7 +53,7 @@ public sealed class BankReconciliation(
         catch (Exception e) when (!ct.IsCancellationRequested)
         {
             // Never fails the sync or the import: the lines stay unreconciled for the next pass.
-            log.LogError("The reconciliation pass threw {Exception}", e.GetType().Name);
+            LogPassThrew(e.GetType().Name);
             return None;
         }
 
@@ -53,7 +65,7 @@ public sealed class BankReconciliation(
         }
         catch (Exception e) when (!ct.IsCancellationRequested)
         {
-            log.LogError("The savings flows pass threw {Exception}", e.GetType().Name);
+            LogSavingsPassThrew(e.GetType().Name);
         }
         return counts;
     }
@@ -79,7 +91,7 @@ public sealed class BankReconciliation(
             }
             catch (Exception e) when (!ct.IsCancellationRequested)
             {
-                log.LogError("Reconciling a bank line threw {Exception}", e.GetType().Name);
+                LogLineThrew(e.GetType().Name);
                 failed.UnionWith(ids);
                 open.ExceptWith(ids);
             }
@@ -286,7 +298,7 @@ public sealed class BankReconciliation(
             var submitted = await proposals.SubmitAsync("banking.link_transaction", charge.Item, payload, BankSyncCollector.SourceLabel, ct);
             if (submitted.TryGetValue(out var created))
                 return created;
-            log.LogWarning("A bank link proposal was refused {Code}", submitted.TryGetFailure(out var failure) ? failure!.Code : null);
+            LogLinkRefused(submitted.TryGetFailure(out var failure) ? failure!.Code : null);
             return false;
         }
         finally

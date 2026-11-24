@@ -15,7 +15,7 @@ public sealed record ExportPageQuery(string Section, string? Cursor, int? Limit)
 public sealed record ExportSectionCount(string Name, int Count);
 
 /// <summary>Exposes every item of the model: the output guard then proves the whole export is the reader's to see.</summary>
-public sealed record ExportManifestView(string Format, int Version, DateTimeOffset ExportedAt, string Revision, IReadOnlyList<ExportSectionCount> Sections)
+public sealed record ExportManifestView(string Format, int Version, Instant ExportedAt, string Revision, IReadOnlyList<ExportSectionCount> Sections)
     : IExposesItems
 {
     internal IReadOnlyCollection<ItemId> Items { get; init; } = [];
@@ -49,7 +49,7 @@ public sealed class ExportManifestHandler(ExportBuilder builder, IClock clock) :
         if (!(await builder.BuildAsync(ct)).TryGetValue(out var model))
             return Result.Failure<ExportManifestView>(new UnauthorizedFailure("An export is read by a person.", null));
         return Result.Success(new ExportManifestView(
-            "nid.data", 1, clock.GetCurrentInstant().ToDateTimeOffset(), model!.Revision,
+            "nid.data", 1, clock.GetCurrentInstant(), model!.Revision,
             model.Sections.Select(s => new ExportSectionCount(s.Name, s.Entities.Count)).ToList()) { Items = model.Items });
     }
 }

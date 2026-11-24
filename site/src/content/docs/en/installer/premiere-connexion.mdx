@@ -1,0 +1,24 @@
+---
+title: "First sign-in"
+description: "Create the first administrator, then let the second adult in."
+sidebar:
+  order: 4
+---
+
+## Standalone: accounts kept by Nid
+
+- **The first administrator**: on first start, Nid writes a one-time address in its log (`docker compose logs nid | grep setup`) that creates their account.
+- **The second adult**: the administrator adds them in Administration › Utilisateurs, then creates their access link from the row's menu. The link works once, for 72 hours; the adult picks their identifier and password there (at least 12 characters).
+- **Two-step verification** is set by each adult on their Sécurité page, with an authenticator app and 10 recovery codes.
+
+## Reference: Pocket ID
+
+Pocket ID decides through groups: `nid-users` grants access, `nid-admins` the administration of Nid. Nid creates the adult on their first sign-in, within the household's limit (2 adults by default). The administrator role gives no right over the other adult's private items.
+
+## Then, in Nid
+
+- Fill in the household's people (Réglages › Personnes): birth dates, children.
+- Add your accounts and investments, a loan, your subscriptions, or import a file.
+- Each month, the routine updates the values in a few minutes.
+
+The detail (in French): [`deploy/README.md` §4](https://github.com/Mistribe/Nid/blob/main/deploy/README.md#4-qui-entre-dans-nid-et-qui-ladministre).

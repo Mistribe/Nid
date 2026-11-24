@@ -40,9 +40,12 @@ public static class SeriesText
 }
 
 [RequestHandler<ListSeriesQuery, SeriesCatalogView>]
-public sealed class ListSeriesHandler(IEnumerable<ISeriesContribution> contributions, IActorAccessor actor, ILogger<ListSeriesHandler> logger)
+public sealed partial class ListSeriesHandler(IEnumerable<ISeriesContribution> contributions, IActorAccessor actor, ILogger<ListSeriesHandler> logger)
     : IRequestHandler<ListSeriesQuery, SeriesCatalogView>
 {
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The series of module {Module} could not be listed")]
+    private partial void LogModuleFailed(string module, Exception exception);
+
     private static readonly StringComparer Names = StringComparer.Create(CultureInfo.GetCultureInfo("fr-FR"), ignoreCase: true);
 
     public async ValueTask<Result<SeriesCatalogView>> HandleAsync(ListSeriesQuery query, CancellationToken ct = default)
@@ -57,7 +60,7 @@ public sealed class ListSeriesHandler(IEnumerable<ISeriesContribution> contribut
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {
-                logger.LogWarning(e, "The series of module {Module} could not be listed", contribution.Module);
+                LogModuleFailed(contribution.Module, e);
             }
         }
 

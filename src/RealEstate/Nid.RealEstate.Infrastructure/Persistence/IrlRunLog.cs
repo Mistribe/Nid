@@ -41,7 +41,7 @@ public sealed class IrlRunLog(RealEstateDbContext db, IClock clock) : IIrlRunLog
 
     public async Task FinishAsync(IrlRunView run, CancellationToken ct)
     {
-        Instant? finishedAt = run.FinishedAt is { } f ? Instant.FromDateTimeOffset(f) : null;
+        var finishedAt = run.FinishedAt;
         await db.IrlRuns.Where(r => r.Id == run.Id).ExecuteUpdateAsync(s => s
             .SetProperty(r => r.Status, run.Status)
             .SetProperty(r => r.FinishedAt, finishedAt)
@@ -65,5 +65,5 @@ public sealed class IrlRunLog(RealEstateDbContext db, IClock clock) : IIrlRunLog
     public async Task<int> PurgeBeforeAsync(Instant before, CancellationToken ct)
         => await db.IrlRuns.Where(r => r.StartedAt < before && r.Status != "running").ExecuteDeleteAsync(ct);
 
-    private static IrlRunView ToView(IrlRunRow r) => new(r.Id, r.StartedAt.ToDateTimeOffset(), r.FinishedAt?.ToDateTimeOffset(), r.Status, r.Added, r.Replaced, r.Rejected, r.Message);
+    private static IrlRunView ToView(IrlRunRow r) => new(r.Id, r.StartedAt, r.FinishedAt, r.Status, r.Added, r.Replaced, r.Rejected, r.Message);
 }

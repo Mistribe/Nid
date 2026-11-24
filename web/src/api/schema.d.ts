@@ -15608,6 +15608,7 @@ export interface paths {
                     month?: string;
                     from?: string;
                     to?: string;
+                    account?: string[];
                 };
                 header?: never;
                 path?: never;
@@ -15705,6 +15706,7 @@ export interface paths {
                     from?: string;
                     to?: string;
                     page?: number;
+                    account?: string[];
                 };
                 header?: never;
                 path?: never;
@@ -37917,6 +37919,8 @@ export interface components {
             availableToday?: null | components["schemas"]["AmountView"];
             releases: components["schemas"]["ReleaseView"][];
             tranches: components["schemas"]["TrancheView"][];
+            locked?: null | components["schemas"]["AmountView"];
+            earlyRelease?: null | components["schemas"]["EarlyReleaseView"];
         };
         BalanceMonthView: {
             month: string;
@@ -39481,6 +39485,18 @@ export interface components {
             count: number;
             unit: string;
         };
+        EarlyReleaseBody: {
+            case?: null | string;
+            on?: null | string;
+            amount?: null | string;
+        };
+        EarlyReleaseView: {
+            case: string;
+            /** Format: date */
+            on: string;
+            amount?: null | components["schemas"]["AmountView"];
+            released?: null | components["schemas"]["AmountView"];
+        };
         EditChildcareBody: {
             name?: null | string;
             carer?: null | components["schemas"]["CarerBody"];
@@ -39524,6 +39540,8 @@ export interface components {
             owners?: null | components["schemas"]["OwnerBody"][];
             availability?: null | components["schemas"]["TrancheBody"][];
             clearAvailability?: null | boolean;
+            earlyRelease?: null | components["schemas"]["EarlyReleaseBody"];
+            clearEarlyRelease?: null | boolean;
         };
         EditGoalBody: {
             name?: null | string;
@@ -44101,6 +44119,7 @@ export interface components {
             leftEstimate?: null | string;
             /** Format: double */
             savingsRate?: null | number;
+            accounts: components["schemas"]["OptionView"][];
         };
         SpentView: {
             /** Format: date */

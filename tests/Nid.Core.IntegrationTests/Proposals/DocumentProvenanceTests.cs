@@ -36,6 +36,16 @@ public class DocumentProvenanceTests(PostgresFixture fixture) : IClassFixture<Po
     private static Task<ProposalView> ApproveAsync(NidApp app, ProposalView proposal)
         => OkAsync<ProposalView>(app.InvokeAsync(app.AdultA, new ApproveProposalCommand(proposal.Id, proposal.Version, null)));
 
+    /// <summary>
+    /// The proposal's stored source document. A response masks an id its reader cannot open (#516: the pipeline's document mask), and
+    /// <see cref="DocA"/> and <see cref="DocB"/> name no document, so the store says what was kept.
+    /// </summary>
+    private static async Task<Guid?> KeptDocumentAsync(NidApp app, Guid proposal)
+    {
+        await using var scope = app.Services.CreateAsyncScope();
+        return (await scope.ServiceProvider.GetRequiredService<IProposalStore>().FindAsync(proposal, TestContext.Current.CancellationToken))!.DocumentId;
+    }
+
     /// <summary>The <c>document_id</c> of every valuation and flow row among <paramref name="ids"/>, by id.</summary>
     private static async Task<Dictionary<Guid, Guid?>> StampsAsync(NidApp app, IReadOnlyCollection<Guid> ids)
     {
@@ -54,9 +64,11 @@ public class DocumentProvenanceTests(PostgresFixture fixture) : IClassFixture<Po
         var first = await SubmitAsync(app, "investments.record_statement", envelope, Statement(), DocA);
         var stored = first.Proposal!;
         Assert.True(first.Created);
-        Assert.Equal(DocA, stored.DocumentId);
+        Assert.Equal(DocA, await KeptDocumentAsync(app, stored.Id));
+        // Shown to no one: no adult reads a document that does not exist.
+        Assert.Null(stored.DocumentId);
         var detail = await OkAsync<ProposalDetail>(app.InvokeAsync(app.AdultA, new GetProposalQuery(stored.Id), TestContext.Current.CancellationToken));
-        Assert.Equal(DocA, detail.Proposal.DocumentId);
+        Assert.Null(detail.Proposal.DocumentId);
 
         var same = await SubmitAsync(app, "investments.record_statement", envelope, Statement(), DocA);
         Assert.False(same.Created);
@@ -64,7 +76,7 @@ public class DocumentProvenanceTests(PostgresFixture fixture) : IClassFixture<Po
 
         var other = await SubmitAsync(app, "investments.record_statement", envelope, Statement(), DocB);
         Assert.True(other.Created);
-        Assert.Equal(DocB, other.Proposal!.DocumentId);
+        Assert.Equal(DocB, await KeptDocumentAsync(app, other.Proposal!.Id));
         Assert.NotEqual(stored.Id, other.Proposal!.Id);
 
         var none = await SubmitAsync(app, "investments.record_statement", envelope, Statement(), null);
@@ -201,7 +213,7 @@ public class DocumentProvenanceTests(PostgresFixture fixture) : IClassFixture<Po
         Assert.Equal("approved", approved.Status);
         Assert.NotEmpty(approved.AppliedRefs);
         Assert.Empty(await StampsAsync(app, approved.AppliedRefs));
-        Assert.Equal(DocA, approved.DocumentId);
+        Assert.Equal(DocA, await KeptDocumentAsync(app, approved.Id));
     }
 
     [Fact]

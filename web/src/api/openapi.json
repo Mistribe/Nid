@@ -16399,6 +16399,17 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "account",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
           }
         ],
         "responses": {
@@ -16530,6 +16541,17 @@
             "schema": {
               "type": "integer",
               "format": "int32"
+            }
+          },
+          {
+            "name": "account",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
             }
           }
         ],
@@ -40668,6 +40690,26 @@
             "items": {
               "$ref": "#/components/schemas/TrancheView"
             }
+          },
+          "locked": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AmountView"
+              }
+            ]
+          },
+          "earlyRelease": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/EarlyReleaseView"
+              }
+            ]
           }
         }
       },
@@ -47171,6 +47213,65 @@
           }
         }
       },
+      "EarlyReleaseBody": {
+        "type": "object",
+        "properties": {
+          "case": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "on": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "amount": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "EarlyReleaseView": {
+        "required": [
+          "case",
+          "on"
+        ],
+        "type": "object",
+        "properties": {
+          "case": {
+            "type": "string"
+          },
+          "on": {
+            "type": "string",
+            "format": "date"
+          },
+          "amount": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AmountView"
+              }
+            ]
+          },
+          "released": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AmountView"
+              }
+            ]
+          }
+        }
+      },
       "EditChildcareBody": {
         "type": "object",
         "properties": {
@@ -47388,6 +47489,22 @@
             }
           },
           "clearAvailability": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "earlyRelease": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/EarlyReleaseBody"
+              }
+            ]
+          },
+          "clearEarlyRelease": {
             "type": [
               "null",
               "boolean"
@@ -67168,7 +67285,8 @@
           "from",
           "to",
           "months",
-          "budgetIncomplete"
+          "budgetIncomplete",
+          "accounts"
         ],
         "type": "object",
         "properties": {
@@ -67247,6 +67365,12 @@
               "number"
             ],
             "format": "double"
+          },
+          "accounts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OptionView"
+            }
           }
         }
       },

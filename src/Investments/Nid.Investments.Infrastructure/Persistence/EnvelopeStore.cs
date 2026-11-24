@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using Nid.Core.Contracts;
 using Nid.Investments.Contracts;
@@ -25,6 +27,9 @@ public sealed class EnvelopeStore(InvestmentsDbContext db) : IEnvelopeStore
             PremiumsBefore2017 = envelope.PremiumsBefore2017,
             Regulated = envelope.Regulated is { } regulated ? EnvelopeWire.Of(regulated) : null,
             Availability = AvailabilityJson.Write(envelope.Availability),
+            EarlyReleaseCase = envelope.EarlyRelease?.Case,
+            EarlyReleaseOn = envelope.EarlyRelease?.On,
+            EarlyReleaseAmount = envelope.EarlyRelease?.Amount,
         };
         Mark(row, import);
         db.Envelopes.Add(row);
@@ -48,6 +53,8 @@ public sealed class EnvelopeStore(InvestmentsDbContext db) : IEnvelopeStore
         // #462: a file's tranches replace the plan's; a file without them keeps them, unless the envelope is no longer an employee savings plan.
         if (envelope.Kind != EnvelopeKind.EmployeeSavings) row.Availability = null;
         else if (envelope.Availability is { } tranches) row.Availability = AvailabilityJson.Write(tranches);
+        // #466: the file carries no early release: the one set in Nid stays, unless the envelope is no longer an employee savings plan.
+        if (envelope.Kind != EnvelopeKind.EmployeeSavings) SetEarlyRelease(row, null);
         Mark(row, import);
         await db.SaveChangesAsync(ct);
     }
@@ -111,7 +118,15 @@ public sealed class EnvelopeStore(InvestmentsDbContext db) : IEnvelopeStore
         if (change.ClearPremiumsBefore2017) row.PremiumsBefore2017 = null; else if (change.PremiumsBefore2017 is { } premiums) row.PremiumsBefore2017 = premiums;
         if (change.ClearRegulated) row.Regulated = null; else if (change.Regulated is { } regulated) row.Regulated = EnvelopeWire.Of(regulated);
         if (change.ClearAvailability) row.Availability = null; else if (change.Availability is { } tranches) row.Availability = AvailabilityJson.Write(tranches);
+        if (change.ClearEarlyRelease) SetEarlyRelease(row, null); else if (change.EarlyRelease is { } early) SetEarlyRelease(row, early);
         await db.SaveChangesAsync(ct);
+    }
+
+    private static void SetEarlyRelease(EnvelopeRow row, EarlyRelease? early)
+    {
+        row.EarlyReleaseCase = early?.Case;
+        row.EarlyReleaseOn = early?.On;
+        row.EarlyReleaseAmount = early?.Amount;
     }
 
     private static Envelope ToEnvelope(EnvelopeRow row)
@@ -119,24 +134,27 @@ public sealed class EnvelopeStore(InvestmentsDbContext db) : IEnvelopeStore
         if (!EnvelopeWire.TryKind(row.Kind, out var kind) || !EnvelopeWire.TryCadence(row.ValuationCadence, out var cadence))
             throw new InvalidOperationException($"Envelope {row.ItemId} has a stored kind or cadence this code does not know.");
         return new Envelope(new ItemId(row.ItemId), kind, row.Institution, row.AccountHint, row.OpenedOn, cadence, row.StaleAfterDays, row.Note, row.ClosedOn, row.UcShareFloorPct, row.PremiumsBefore2017,
-            EnvelopeWire.TryRegulated(row.Regulated, out var regulated) ? regulated : (RegulatedKind?)null, AvailabilityJson.Read(row.Availability));
+            EnvelopeWire.TryRegulated(row.Regulated, out var regulated) ? regulated : (RegulatedKind?)null, AvailabilityJson.Read(row.Availability),
+            row.EarlyReleaseCase is { } early ? new EarlyRelease(early, row.EarlyReleaseOn!.Value, row.EarlyReleaseAmount) : null);
     }
 }
 
 /// <summary>#184: the tranches as stored, dates in ISO and amounts as invariant strings so no precision is lost.</summary>
-internal static class AvailabilityJson
+internal static partial class AvailabilityJson
 {
     private sealed record Tranche(string AvailableOn, string Amount);
 
-    private static readonly System.Text.Json.JsonSerializerOptions Options = new(System.Text.Json.JsonSerializerDefaults.Web);
+    [JsonSourceGenerationOptions(JsonSerializerDefaults.Web)]
+    [JsonSerializable(typeof(List<Tranche>))]
+    private sealed partial class TrancheJson : JsonSerializerContext;
 
     // An empty list is stored as none: the plan is then locked as a whole.
     public static string? Write(IReadOnlyList<AvailabilityTranche>? tranches)
         => tranches is not { Count: > 0 } ? null : System.Text.Json.JsonSerializer.Serialize(
             tranches.OrderBy(t => t.AvailableOn).Select(t => new Tranche(
-                NodaTime.Text.LocalDatePattern.Iso.Format(t.AvailableOn), t.Amount.ToString(System.Globalization.CultureInfo.InvariantCulture))).ToList(), Options);
+                NodaTime.Text.LocalDatePattern.Iso.Format(t.AvailableOn), t.Amount.ToString(System.Globalization.CultureInfo.InvariantCulture))).ToList(), TrancheJson.Default.ListTranche);
 
     public static IReadOnlyList<AvailabilityTranche>? Read(string? json)
-        => json is null ? null : System.Text.Json.JsonSerializer.Deserialize<List<Tranche>>(json, Options)!.Select(t => new AvailabilityTranche(
+        => json is null ? null : System.Text.Json.JsonSerializer.Deserialize(json, TrancheJson.Default.ListTranche)!.Select(t => new AvailabilityTranche(
             NodaTime.Text.LocalDatePattern.Iso.Parse(t.AvailableOn).Value, decimal.Parse(t.Amount, System.Globalization.CultureInfo.InvariantCulture))).ToList();
 }

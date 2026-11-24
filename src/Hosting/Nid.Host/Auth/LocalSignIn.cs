@@ -6,6 +6,7 @@ using System.Text;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.Extensions.Options;
+using Nid.Core.Application;
 using Nid.Core.Contracts;
 using Nid.Host.Api;
 using Nid.Platform.Contracts;
@@ -95,7 +96,8 @@ public sealed class LoginFailureLog(IClock clock)
 
 /// <summary>
 /// Issue 215: what the local-account routes do (local-accounts.md §5, §7, §9, §11, §12). One route opens a local
-/// session, <see cref="PasswordAsync"/>; the setup and the links never do.
+/// session, <see cref="PasswordAsync"/>; the setup and the links never do. Issue 517: the host checks the password and
+/// the codes, and keeps the cookies; every write to an account is a Core command (<c>LocalSignInUseCases</c>).
 /// </summary>
 public sealed partial class LocalSignIn(
     ILocalAccountStore accounts, IPersonRegistry persons, LocalPasswordHasher hasher, PasswordRules rules, TokenFailureGate gate,
@@ -110,6 +112,8 @@ public sealed partial class LocalSignIn(
 
     public async Task<IResult> PasswordAsync(HttpContext http, PasswordLoginBody body)
     {
+        // No session exists yet: the writes are the system's, as a link's or an OIDC first sign-in's are.
+        actor.Current = Actor.System;
         // An unsafe return URL is replaced, not refused: the sign-in never depends on it (no open redirect either way).
         var target = ReturnUrl.IsSafe(body.ReturnUrl) ? body.ReturnUrl! : "/";
         if (Refused(http) is { } refused) return refused;
@@ -131,7 +135,7 @@ public sealed partial class LocalSignIn(
             gate.Fail(address);
             var reason = credential is null ? "unknown_login" : locked ? "locked" : "bad_password";
             if (credential is not null && !locked)
-                await CountAccountFailureAsync(credential.Person, now, ct);
+                await CountAccountFailureAsync(credential.Person, ct);
             await RecordFailureAsync(credential?.Person, reason, address, ct);
             return Problem(StatusCodes.Status401Unauthorized, InvalidCredentials,
                 "Wrong identifier or password, or too many attempts: try again in a few minutes.");
@@ -144,11 +148,11 @@ public sealed partial class LocalSignIn(
         if (credential.TotpEnabled)
         {
             // The failures are not cleared yet: wrong codes keep counting towards the lock (spec §10).
-            if (rehash is not null) await accounts.RehashAsync(person.Id, rehash, ct);
+            if (rehash is not null) await invoker.InvokeAsync(new RehashPasswordCommand(person.Id, rehash), ct);
             mfa.Issue(http, person, target);
             return ResultHttp.Json(new PasswordLoginResult("totp", null));
         }
-        await accounts.RecordSuccessAsync(person.Id, now, rehash, ct);
+        await invoker.InvokeAsync(new RecordLoginSuccessCommand(person.Id, rehash), ct);
         await OpenSessionAsync(http, person, "pwd", "password", ct);
         return ResultHttp.Json(new PasswordLoginResult("done", target));
     }
@@ -164,17 +168,12 @@ public sealed partial class LocalSignIn(
     }
 
     /// <summary>A wrong password or code counts towards the account's lock (spec §9); the lock itself is an event.</summary>
-    private async Task<bool> CountAccountFailureAsync(PersonId person, Instant now, CancellationToken ct)
+    private async Task<bool> CountAccountFailureAsync(PersonId person, CancellationToken ct)
     {
         var local = options.Value.Local.Bounded();
-        var outcome = await accounts.RecordFailureAsync(person, now, local.LockThreshold,
-            NodaTime.Duration.FromMinutes(1), NodaTime.Duration.FromMinutes(local.LockMaxMinutes), ct);
-        if (outcome.LockedNow)
-            await events.RecordAsync(new SecurityEvent(SecurityEventNames.LoginLocked, person, [], new Dictionary<string, string>
-            {
-                ["level"] = outcome.Level.ToString(CultureInfo.InvariantCulture), ["until"] = InstantPattern(outcome.Until!.Value),
-            }), Actor.System, ct);
-        return outcome.LockedNow;
+        var counted = await invoker.InvokeAsync(
+            new RecordLoginFailureCommand(person, local.LockThreshold, NodaTime.Duration.FromMinutes(local.LockMaxMinutes)), ct);
+        return counted.TryGetValue(out var outcome) && outcome!.LockedNow;
     }
 
     public async Task<IResult> SetupAsync(HttpContext http, LocalSetupBody body)
@@ -201,11 +200,10 @@ public sealed partial class LocalSignIn(
         var hash = await hasher.HashAsync(normalized!, http.RequestAborted);
         if (hash is null) return Busy();
 
-        var created = await accounts.CreateFirstAdminAsync(name, login!, hash, http.RequestAborted);
+        var created = await invoker.InvokeAsync(new CompleteSetupCommand(name, login!, hash), http.RequestAborted);
         setup.Close();
-        if (!created.TryGetValue(out var person))
+        if (!created.TryGetValue(out _))
             return Failed(created);
-        await events.RecordAsync(SecurityEvent.Of(SecurityEventNames.SetupCompleted, person!.Id), Actor.System, http.RequestAborted);
         logger.LogInformation("The first administrator of this instance was created on the setup page.");
         return ResultHttp.Json(new LocalLoginView(login!), StatusCodes.Status201Created);
     }
@@ -252,12 +250,9 @@ public sealed partial class LocalSignIn(
         var hash = await hasher.HashAsync(normalized!, ct);
         if (hash is null) return Busy();
 
-        var completed = await accounts.CompleteLinkAsync(body.Token!, login, hash, clock.GetCurrentInstant(), ct);
-        if (!completed.TryGetValue(out var done))
+        var completed = await invoker.InvokeAsync(new CompletePasswordLinkCommand(body.Token!, login, hash), ct);
+        if (!completed.TryGetValue(out _))
             return completed.TryGetFailure(out var failure) && failure is NotFoundFailure ? UnusableLink() : Failed(completed);
-        var name = done!.Purpose == CredentialLinkPurposes.Enroll ? SecurityEventNames.AccountEnrolled : SecurityEventNames.PasswordReset;
-        await events.RecordAsync(new SecurityEvent(name, done.Person.Id, [], new Dictionary<string, string> { ["link_id"] = done.LinkId.ToString() }),
-            Actor.System, ct);
         return ResultHttp.Json(new LocalLoginView(current!));
     }
 
@@ -285,7 +280,7 @@ public sealed partial class LocalSignIn(
             return Failed(password);
         var hash = await hasher.HashAsync(normalized!, ct);
         if (hash is null) return Busy();
-        var changed = await invoker.InvokeAsync(new Nid.Core.Application.SetMyPasswordCommand(hash), ct);
+        var changed = await invoker.InvokeAsync(new SetMyPasswordCommand(hash), ct);
         if (!changed.TryGetValue(out var updated))
             return Failed(changed);
         await ReissueAsync(http, updated!);
@@ -313,7 +308,7 @@ public sealed partial class LocalSignIn(
         if (!locked && check != PasswordCheck.Failed)
             return null;
         if (!locked)
-            await CountAccountFailureAsync(credential.Person, now, ct);
+            await CountAccountFailureAsync(credential.Person, ct);
         await RecordFailureAsync(credential.Person, locked ? "locked" : "bad_password", TokenAuthentication.ClientAddress(http), ct);
         return ResultHttp.Problem(new Failure(CurrentPasswordWrong, "The current password is wrong, or the account is locked for a few minutes.",
             new Dictionary<string, object?> { ["field"] = field }));
@@ -344,8 +339,6 @@ public sealed partial class LocalSignIn(
 
     private static bool IsLoopback(string host)
         => host.Equals("localhost", StringComparison.OrdinalIgnoreCase) || (IPAddress.TryParse(host.Trim('[', ']'), out var ip) && IPAddress.IsLoopback(ip));
-
-    private static string InstantPattern(Instant at) => NodaTime.Text.InstantPattern.ExtendedIso.Format(at);
 
     private static IResult Failed<T>(UnambitiousFx.Functional.Result<T> result) where T : notnull
         => ResultHttp.Problem(result.TryGetFailure(out var failure) ? failure! : new Failure("ERROR", "Unknown failure.", null));

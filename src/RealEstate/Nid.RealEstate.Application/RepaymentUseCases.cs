@@ -108,7 +108,7 @@ public sealed class AddLoanRepaymentHandler(IItemRegistry items, ILoanStore loan
 
         var written = RepaymentCheck.Repayment(Guid.CreateVersion7(), draft, draft.Penalty is null ? null : Guid.CreateVersion7());
         var penalty = RepaymentCheck.Penalty(written, draft);
-        if (RepaymentCheck.Build(LoanViews.CurrencyOf(found.Item), found.Loan, written, penalty) is { } impossible)
+        if (RepaymentCheck.Build(LoanReading.CurrencyOf(found.Item), found.Loan, written, penalty) is { } impossible)
             return Result.Failure<Guid>(impossible);
 
         if (penalty is not null)
@@ -139,7 +139,7 @@ public sealed class EditLoanRepaymentHandler(IItemRegistry items, ILoanStore loa
         // The penalty keeps its fee id while it exists, so its fee row is updated in place.
         var written = RepaymentCheck.Repayment(old.Id, draft, draft.Penalty is null ? null : old.FeeId ?? Guid.CreateVersion7());
         var penalty = RepaymentCheck.Penalty(written, draft);
-        if (RepaymentCheck.Build(LoanViews.CurrencyOf(found.Item), found.Loan, written, penalty) is { } impossible)
+        if (RepaymentCheck.Build(LoanReading.CurrencyOf(found.Item), found.Loan, written, penalty) is { } impossible)
             return Result.Failure<Guid>(impossible);
 
         await loans.UpdateRepaymentAsync(command.ItemId, written.Id, written.Repayment, written.FeeId, written.Note, ct);
@@ -167,7 +167,7 @@ public sealed class DeleteLoanRepaymentHandler(IItemRegistry items, ILoanStore l
         if (old is null || unwritable is not null)
             return Result.Failure<bool>(unwritable!);
 
-        if (RepaymentCheck.Removable(LoanViews.CurrencyOf(found.Item), found.Loan, old) is { } impossible)
+        if (RepaymentCheck.Removable(LoanReading.CurrencyOf(found.Item), found.Loan, old) is { } impossible)
             return Result.Failure<bool>(impossible);
         var (id, penaltyId) = (old.Id, old.FeeId);
 

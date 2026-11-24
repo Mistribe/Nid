@@ -53,7 +53,7 @@ public sealed record IrlRunPage(IReadOnlyList<IrlRunView> Items, int Total, int 
 public sealed record IrlSyncRequested(bool Requested);
 
 /// <summary>Rental spec §3: one collection of the IRL series, <c>realestate.irl_run</c>; <c>Status</c> is <c>running</c>, <c>succeeded</c> or <c>failed</c>.</summary>
-public sealed record IrlRunView(Guid Id, DateTimeOffset StartedAt, DateTimeOffset? FinishedAt, string Status, int Added, int Replaced, int Rejected, string? Message);
+public sealed record IrlRunView(Guid Id, Instant StartedAt, Instant? FinishedAt, string Status, int Added, int Replaced, int Rejected, string? Message);
 
 public interface IIrlRunLog
 {

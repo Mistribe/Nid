@@ -1,0 +1,47 @@
+---
+import Section from './Section.astro';
+import { localePath, type Lang } from '../../data/locale';
+
+interface Props { lang: Lang }
+const { lang } = Astro.props;
+const copy = {
+  fr: {
+    title: 'Sous le capot',
+    lead: 'Des chiffres sur lesquels on peut compter, et un code ouvert que chacun peut relire.',
+    items: [
+      ['Le serveur calcule', 'Gains, rendements, échéanciers, impôt : calculés par le serveur, de façon déterministe. Jamais par une IA.'],
+      ['L’IA propose, vous validez', 'Un assistant peut lire vos chiffres et proposer ; chaque changement attend qu’une personne le valide.'],
+      ['Des prêts vérifiés', 'Le moteur d’échéancier est confronté à 3 000 prêts de référence.'],
+      ['Chaque chiffre garde sa source', 'Saisi, importé, lu à la banque ou proposé depuis un document.'],
+      ['Testé à chaque changement', 'Chaque pull request passe les tests de ce qu’elle change, et une barrière qualité SonarQube bloque la fusion.'],
+      ['Open source, MIT', 'Auto-hébergé, un export de vos chiffres en JSON, des sauvegardes chiffrées chaque nuit dans l’installation de référence.'],
+    ],
+    more: 'Architecture, qualité, sécurité et vie privée',
+  },
+  en: {
+    title: 'Under the hood',
+    lead: 'Figures you can rely on, and open code anyone can read.',
+    items: [
+      ['The server computes', 'Gains, returns, schedules, tax: computed by the server, deterministically. Never by an AI.'],
+      ['The AI proposes, you approve', 'An assistant may read your figures and propose; every change waits for a person to approve it.'],
+      ['Loans checked', 'The schedule engine is checked against 3,000 reference loans.'],
+      ['Every figure keeps its source', 'Entered by hand, imported, read from a bank, or proposed from a document.'],
+      ['Tested on every change', 'Every pull request runs the tests of what it changes, and a SonarQube quality gate blocks the merge.'],
+      ['Open source, MIT', 'Self-hosted, a JSON export of your figures, encrypted backups every night in the reference setup.'],
+    ],
+    more: 'Architecture, quality, security and privacy',
+  },
+}[lang];
+---
+<Section title={copy.title} lead={copy.lead}>
+  <dl class="facts">{copy.items.map(([fact, detail]) => <div><dt>{fact}</dt><dd>{detail}</dd></div>)}</dl>
+  <p class="more"><a href={localePath(lang, '/sous-le-capot/')}>{copy.more} →</a></p>
+</Section>
+
+<style>
+  .facts { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); margin: 0; }
+  .facts div { padding: 1.1rem 1.2rem; border-left: 3px solid var(--sl-color-accent); background: var(--sl-color-bg-nav); border-radius: 0 0.75rem 0.75rem 0; }
+  .facts dt { color: var(--sl-color-white); font-weight: 700; }
+  .facts dd { margin: 0.3rem 0 0; color: var(--sl-color-gray-2); }
+  .more { margin-top: 1.2rem; font-weight: 600; }
+</style>

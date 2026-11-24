@@ -16,7 +16,7 @@ public sealed record SyncAllCommand : ICommand<BankSyncRunView>, IAdminOnly;
 /// The « Synchroniser » button (D6): the actor's connections, or the one given, read now with their browser's address and agent, and today
 /// valued as well as the month-ends due.
 /// </summary>
-public sealed record SyncMineCommand(Guid? ConnectionId, PsuHeaders Psu) : ICommand<BankSyncRequested>, IBrowserOnly;
+public sealed record SyncMineCommand(Guid? ConnectionId, PsuHeaders Psu) : ICommand<BankSyncRequested>, IBrowserOnly, IRequiresBanking;
 
 public sealed record GetBankSyncRunsQuery(int? Page) : IQuery<BankSyncRunPage>, IAdminOnly;
 
@@ -64,9 +64,6 @@ public sealed class SyncMineHandler(
 {
     public async ValueTask<Result<BankSyncRequested>> HandleAsync(SyncMineCommand command, CancellationToken ct = default)
     {
-        var enabled = await access.EnabledAsync(ct);
-        if (enabled.TryGetFailure(out var off))
-            return Result.Failure<BankSyncRequested>(off!);
 
         IReadOnlyList<BankConnection> mine;
         if (command.ConnectionId is { } id)

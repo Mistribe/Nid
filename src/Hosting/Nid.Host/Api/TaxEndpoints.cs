@@ -1,6 +1,7 @@
-using Nid.Core.Application.Tax;
+using Nid.Tax.Application;
+using Nid.Tax.Contracts;
 using Nid.Core.Contracts;
-using Nid.Core.Domain.Tax;
+using Nid.Tax.Domain;
 using Nid.Documents.Application;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Functional.Failures;
@@ -9,8 +10,11 @@ using static Nid.Host.Api.SubscriptionEndpoints;
 
 namespace Nid.Host.Api;
 
-public static class TaxEndpoints
+public static partial class TaxEndpoints
 {
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Linking the source of tax assessment {Assessment} failed")]
+    private static partial void LogLinkFailed(ILogger logger, Guid assessment, Exception exception);
+
     /// <summary>Tax estimate spec §8.</summary>
     public static IEndpointRouteBuilder MapTaxEndpoints(this IEndpointRouteBuilder routes)
     {
@@ -139,7 +143,7 @@ public static class TaxEndpoints
         catch (Exception e) when (e is not OperationCanceledException)
         {
             // A link failure never fails the write: the notice is saved with its source.
-            logs.CreateLogger("Nid.Host.Api.TaxEndpoints").LogWarning(e, "Linking the source of tax assessment {Assessment} failed", assessmentId);
+            LogLinkFailed(logs.CreateLogger("Nid.Host.Api.TaxEndpoints"), assessmentId, e);
         }
     }
 
@@ -293,7 +297,7 @@ public static class TaxEndpoints
         for (var i = 0; i < (body.Declarants?.Count ?? 0); i++)
         {
             var d = body.Declarants![i];
-            if (!TaxEstimates.TryStatus(d.Status, out var status))
+            if (!TaxWire.TryStatus(d.Status, out var status))
                 reader.Add($"declarants[{i}].status", "request.status", "A status is non_executive, executive or public.");
             declarants.Add(new TaxDeclarant(d.Name ?? "", Amount(reader, d.SalaryGross, $"declarants[{i}].salaryGross"), status,
                 Amount(reader, d.OtherTaxable, $"declarants[{i}].otherTaxable"), Amount(reader, d.PerContributions, $"declarants[{i}].perContributions"),
@@ -309,7 +313,7 @@ public static class TaxEndpoints
         RentalRegime? regime = null;
         if (body.RentalRegime is not null)
         {
-            if (TaxEstimates.TryRegime(body.RentalRegime, out var r)) regime = r;
+            if (TaxWire.TryRegime(body.RentalRegime, out var r)) regime = r;
             else reader.Add("rentalRegime", "request.regime", "A rental regime is micro or real.");
         }
         var inputs = new TaxInputs(
@@ -334,7 +338,7 @@ public static class TaxEndpoints
     private static decimal Rate(FieldReader reader, string value, string path)
     {
         var percent = reader.Decimal(value, path);
-        if (percent is { } p && TaxEstimates.RateOk(p / 100)) return p / 100;
+        if (percent is { } p && TaxChecks.RateOk(p / 100)) return p / 100;
         if (percent is not null) reader.Add(path, "request.rate", "A contribution rate is a percent between 0 and 60.");
         return 0m;
     }

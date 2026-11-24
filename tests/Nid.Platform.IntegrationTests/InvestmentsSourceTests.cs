@@ -147,6 +147,6 @@ public class InvestmentsSourceTests(PostgresFixture fixture) : IClassFixture<Pos
             new NotificationKind("holding_entitlement", "due_date", NotificationLevel.Info, "investments", 30),
             new NotificationKind("stale_value", "finding", NotificationLevel.Info, "investments", null),
             new NotificationKind("uc_share_below_floor", "finding", NotificationLevel.Info, "investments", null),
-        ], source.Kinds);
+        ], source.Kinds.Select(k => k with { Template = null, Personal = false })); // the copy: NotificationCopyTests
     }
 }

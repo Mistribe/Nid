@@ -13,7 +13,7 @@ namespace Nid.Banking.Application;
 /// Issue #343: why bank sync is or is not configured. <paramref name="RedirectUrl"/> is the callback and <paramref name="NextRunAt"/> the
 /// scheduler's next nightly run, both set by the route.
 /// </summary>
-public sealed record GetBankingDiagnosticsQuery(string RedirectUrl, DateTimeOffset? NextRunAt = null) : IQuery<BankingDiagnosticsView>, IAdminOnly;
+public sealed record GetBankingDiagnosticsQuery(string RedirectUrl, Instant? NextRunAt = null) : IQuery<BankingDiagnosticsView>, IAdminOnly;
 
 /// <summary>Issue #343: one read-only call to Enable Banking with the saved id and the server's key, whether bank sync is on or not.</summary>
 public sealed record TestBankingConnectionCommand(string RedirectUrl) : ICommand<BankingConnectionTestView>, IAdminOnly;

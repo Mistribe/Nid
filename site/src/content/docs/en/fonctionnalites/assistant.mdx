@@ -1,0 +1,40 @@
+---
+title: "Assistant"
+description: "An AI assistant that reads your figures and proposes, never deciding for you."
+sidebar:
+  order: 11
+  badge:
+    text: Preview
+    variant: caution
+---
+
+import Screen from '../../../../components/Screen.astro';
+import { Aside, Badge } from '@astrojs/starlight/components';
+
+<Aside type="caution" title="Preview">
+The assistant inside the app is still being built: it may change from one version to the next. The MCP server and « À valider » (to review) are available and stable.
+</Aside>
+
+Nid plugs into your AI assistant (Claude Desktop or any MCP-compatible assistant), and has one inside the app. The assistant reads your figures and answers your questions; it can propose a change, but nothing is saved until a person approves it.
+
+## The questions it answers
+
+- How much is left this month?
+- Can you record this life insurance statement?
+- Which subscription went up the most this year?
+
+<Screen name="assistant" alt="Nid's Assistant page: the field to ask a question about the household's finances." />
+
+## What Nid does
+
+- **An MCP server**: your assistant finds read tools there, and write tools that only propose.
+- **« À valider »** (to review): each proposal shows what it would change next to the current state; you approve, edit or reject it.
+- <Badge text="Preview" variant="caution" /> **The assistant inside the app**, with a local or a cloud model, and conversations kept for their author only.
+- **Personal access tokens**, with their scope, revocable at any time.
+- **The AI never computes**: a gain, a return, a schedule or a tax always comes from the server.
+
+## The terms
+
+- **MCP**: Model Context Protocol, the standard that lets an AI assistant use outside tools, here Nid's.
+- **Proposal**: a change suggested by an assistant, a document or the bank, waiting in « À valider ».
+- **Access token**: a personal key given to an assistant, limited to what you allow.

@@ -13,7 +13,7 @@ namespace Nid.Platform.Notifications;
 /// </summary>
 public sealed record NotificationView(
     Guid Id, string Kind, string Level, string Title, string Body, string? Link, IReadOnlyList<Guid> ItemIds, LocalDate? DueOn,
-    DateTimeOffset ArrivedAt, bool Read, string State, LocalDate? SnoozedUntil, bool Critical);
+    Instant ArrivedAt, bool Read, string State, LocalDate? SnoozedUntil, bool Critical);
 
 /// <summary>Carries item ids, so the output guard checks every one (spec §6).</summary>
 public sealed record NotificationPage(IReadOnlyList<NotificationView> Entries, Guid? Next) : IExposesItems
@@ -97,7 +97,7 @@ public sealed class ListNotificationsHandler(
         var text = NotificationTemplates.Render(row, kind, names, withFigures: true);
         return new NotificationView(
             row.Id, row.Kind, row.Level.ToString().ToLowerInvariant(), text.Title, text.Body, text.Link, row.ItemIds.Select(i => i.Value).ToList(),
-            row.DueOn, (row.OpenedAt ?? row.CreatedAt).ToDateTimeOffset(), row.ReadAt is not null, row.State, row.SnoozedUntil, row.Level == NotificationLevel.Critical);
+            row.DueOn, (row.OpenedAt ?? row.CreatedAt), row.ReadAt is not null, row.State, row.SnoozedUntil, row.Level == NotificationLevel.Critical);
     }
 }
 

@@ -10,7 +10,6 @@ using Nid.Core.Application.Projection;
 using Nid.Core.Application.Reports;
 using Nid.Core.Application.Scenarios;
 using Nid.Core.Application.Series;
-using Nid.Core.Application.Tax;
 using Nid.Core.Contracts;
 using Nid.Host.Auth;
 
@@ -18,7 +17,7 @@ namespace Nid.Host.Api.Json;
 
 /// <summary>The Core module's request and response bodies and MCP answers, for NidJsonContexts.</summary>
 [JsonSourceGenerationOptions(JsonSerializerDefaults.Web, NumberHandling = JsonNumberHandling.Strict,
-    Converters = [typeof(ItemIdJsonConverter), typeof(LocalDateJsonConverter)])]
+    Converters = [typeof(ItemIdJsonConverter), typeof(LocalDateJsonConverter), typeof(InstantJsonConverter)])]
 [JsonSerializable(typeof(IEnumerable<PersonEndpoints.PersonDto>))]
 [JsonSerializable(typeof(List<PersonEndpoints.PersonDto>))]
 [JsonSerializable(typeof(IReadOnlyList<AdultView>))]
@@ -59,13 +58,6 @@ namespace Nid.Host.Api.Json;
 [JsonSerializable(typeof(ScenarioView))]
 [JsonSerializable(typeof(SaleScenarioView))]
 [JsonSerializable(typeof(SaleResultView))]
-[JsonSerializable(typeof(Rental2044View))]
-[JsonSerializable(typeof(SaleTaxView))]
-[JsonSerializable(typeof(TaxEstimateView))]
-[JsonSerializable(typeof(TaxChangesView))]
-[JsonSerializable(typeof(TaxHistoryView))]
-[JsonSerializable(typeof(TaxInputsView))]
-[JsonSerializable(typeof(TaxResultView))]
 [JsonSerializable(typeof(Preferences))]
 [JsonSerializable(typeof(AdminEndpoints.HouseholdBody))]
 [JsonSerializable(typeof(AdminEndpoints.PersonIdResponse))]
@@ -90,12 +82,6 @@ namespace Nid.Host.Api.Json;
 [JsonSerializable(typeof(ScenarioEndpoints.SimulateBody))]
 [JsonSerializable(typeof(ScenarioEndpoints.SaleScenarioBody))]
 [JsonSerializable(typeof(ScenarioEndpoints.SimulateSaleBody))]
-[JsonSerializable(typeof(TaxEndpoints.TaxProfileBody))]
-[JsonSerializable(typeof(TaxEndpoints.AddTaxAssessmentBody))]
-[JsonSerializable(typeof(TaxEndpoints.CorrectTaxAssessmentBody))]
-[JsonSerializable(typeof(TaxAssessmentView))]
-[JsonSerializable(typeof(TaxAssessmentList))]
-[JsonSerializable(typeof(SalaryAllowanceView))]
 [JsonSerializable(typeof(SessionResponse))]
 // Issue 215: local accounts.
 [JsonSerializable(typeof(PasswordLoginBody))]

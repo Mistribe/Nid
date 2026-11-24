@@ -4,7 +4,7 @@ using Nid.RealEstate.Contracts;
 using Nid.RealEstate.Domain;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Synapse.Abstractions;
-using static Nid.RealEstate.Application.LoanReading;
+using static Nid.RealEstate.Domain.LoanReading;
 
 namespace Nid.RealEstate.Application;
 
@@ -72,7 +72,7 @@ public sealed class GetPropertyArrearsHandler(IPropertyStore properties, IItemRe
         }
 
         return Result.Success(new PropertyArrearsView(
-            found.Property.ItemId, found.Item.DisplayName, LoanViews.CurrencyOf(found.Item).Code, Amount(months.Sum(m => m.Remaining)),
+            found.Property.ItemId, found.Item.DisplayName, LoanReading.CurrencyOf(found.Item).Code, Amount(months.Sum(m => m.Remaining)),
             Amount(overdue.Sum(m => m.Remaining)),
             months.Select(m => new ArrearsMonthView(ReceiptMonths.Wire(m.Month), Amount(m.Due), Amount(m.Imputed), Amount(m.Remaining), m.Overdue,
                 m.Overdue && m.Chain == chain)).ToList(), letter));
@@ -103,18 +103,20 @@ public sealed class GetRentArrearsHandler(
         var today = await calendar.TodayAsync(ct);
         var found = await properties.FindManyAsync(ids.ToList(), ct);
         var accesses = await items.FindManyAsync(found.Select(p => p.ItemId).ToList(), ct);
+        var rented = found.Where(p => accesses.ContainsKey(p.ItemId) && p.Tenancies.Count > 0).ToList();
+        // One read for every property, refused as a block as each read alone would be (architecture §5.3.2).
+        var listed = await flows.ListManyAsync([.. rented.Select(p => p.ItemId)], PropertyReading.Everything, null, ct);
+        if (listed.TryGetFailure(out var failure))
+            return Result.Failure<RentArrearsList>(failure!);
+        listed.TryGetValue(out var all);
         var result = new List<RentArrearsItem>();
-        foreach (var p in found.Where(p => accesses.ContainsKey(p.ItemId) && p.Tenancies.Count > 0))
+        foreach (var p in rented)
         {
-            var listed = await flows.ListAsync(p.ItemId, PropertyReading.Everything, null, ct);
-            if (listed.TryGetFailure(out var failure))
-                return Result.Failure<RentArrearsList>(failure!);
-            listed.TryGetValue(out var all);
-            var months = RentArrears.Of(p.Tenancies.Select(t => (t.Id, t.RevisedFrom, t.Tenancy)).ToList(), all!, today);
+            var months = RentArrears.Of(p.Tenancies.Select(t => (t.Id, t.RevisedFrom, t.Tenancy)).ToList(), all![p.ItemId], today);
             if (months.Count == 0)
                 continue;
             var item = accesses[p.ItemId];
-            result.Add(new RentArrearsItem(p.ItemId, item.DisplayName, LoanViews.CurrencyOf(item).Code, Amount(months.Sum(m => m.Remaining)),
+            result.Add(new RentArrearsItem(p.ItemId, item.DisplayName, LoanReading.CurrencyOf(item).Code, Amount(months.Sum(m => m.Remaining)),
                 Amount(months.Where(m => m.Overdue).Sum(m => m.Remaining)),
                 months.Select(m => new RentArrearsMonthView(ReceiptMonths.Wire(m.Month), Amount(m.Due), Amount(m.Imputed), Amount(m.Remaining), m.Overdue)).ToList()));
         }

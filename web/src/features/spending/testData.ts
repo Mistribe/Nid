@@ -18,6 +18,7 @@ export const month: Spending = {
   months: [{ month: '2026-11', total: '1234.56', income: '3200.00', committed: '1500.00', everyday: '900.00', left: '800.00' }],
   // #425: Accueil's month, and how it would end as usual.
   income: '3200.00', committed: '1500.00', everyday: '900.00', left: '800.00', leftEstimate: '600.00', savingsRate: 25,
+  accounts: [],
 };
 
 /**

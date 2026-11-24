@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
+using NodaTime;
 
 namespace Nid.Platform.Import;
 
@@ -17,7 +18,7 @@ public sealed record ImportCommitRecord(
     Guid Session, PersonId Importer, string ContentHash, bool Replace, IReadOnlyDictionary<string, SectionCounts> Counts);
 
 /// <summary>1F3b spec §4.2: the entry as the importer reads it on the session.</summary>
-public sealed record ImportAuditView(DateTimeOffset CommittedAt, string ContentHash, string Format, int Version, bool Replace);
+public sealed record ImportAuditView(Instant CommittedAt, string ContentHash, string Format, int Version, bool Replace);
 
 /// <summary>The journal's <c>import</c> category (1F3a U3): written in the commit's transaction, read by the session's owner.</summary>
 public interface IImportAudit

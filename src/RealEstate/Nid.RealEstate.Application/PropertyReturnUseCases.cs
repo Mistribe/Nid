@@ -1,12 +1,13 @@
 using System.Globalization;
 using Nid.Core.Contracts;
+using Nid.Tax.Contracts;
 using Nid.Platform.Contracts;
 using Nid.RealEstate.Contracts;
 using Nid.RealEstate.Domain;
 using NodaTime;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Synapse.Abstractions;
-using static Nid.RealEstate.Application.LoanReading;
+using static Nid.RealEstate.Domain.LoanReading;
 
 namespace Nid.RealEstate.Application;
 

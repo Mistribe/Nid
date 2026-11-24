@@ -7,18 +7,13 @@ using NodaTime;
 using NodaTime.Text;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Synapse.Abstractions;
-using static Nid.RealEstate.Application.LoanReading;
+using static Nid.RealEstate.Domain.LoanProjection;
+using static Nid.RealEstate.Domain.LoanReading;
 
 namespace Nid.RealEstate.Application;
 
 /// <summary>Loans dashboard spec §3.2: the household's loans at a glance, in the Foyer / Moi scope (D6).</summary>
 public sealed record GetLoansOverviewQuery(VisibilityScope Scope) : IQuery<LoansOverview>;
-
-/// <summary>An amount of the household in the reference currency, as the other modules' overviews send it.</summary>
-public sealed record LoanMoneyView(string Amount, string Currency);
-
-/// <summary>D4: a figure the overview could not give (<c>core.fx_rate_missing</c>), with what it lacked.</summary>
-public sealed record LoanFindingView(string Code, string Message, string? Reference);
 
 /// <summary>
 /// A running loan (spec §3.2): its own amounts in its currency, today's balance and this month's payment (D3, null without a
@@ -100,9 +95,6 @@ public static class LoanOverviewCodes
     public const string PhaseEnds = "realestate.phase_ends";
 }
 
-/// <summary>A visible loan as the overview reads it; <c>PropertyName</c> as <see cref="LoanSummary"/>'s.</summary>
-internal sealed record OverviewLoan(ItemAccess Item, StoredLoan Loan, string? PropertyName);
-
 [RequestHandler<GetLoansOverviewQuery, LoansOverview>]
 public sealed class GetLoansOverviewHandler(
     IVisibleItems visible, IItemRegistry items, ILoanStore loans, IHouseholdCalendar calendar, IAccessPolicy policy, IActorAccessor actor,
@@ -141,7 +133,7 @@ public sealed class GetLoansOverviewHandler(
         }
 
         var reference = await household.ReferenceCurrencyAsync(ct);
-        var foreign = set.Select(l => LoanViews.CurrencyOf(l.Item)).Concat(monthly.Keys).Where(c => c != reference).Distinct().ToList();
+        var foreign = set.Select(l => LoanReading.CurrencyOf(l.Item)).Concat(monthly.Keys).Where(c => c != reference).Distinct().ToList();
         // The reference's own quote is needed too: rates are per USD. D4: every figure at today's rate.
         var rates = foreign.Count == 0 ? RateTable.Empty(today, 0) : await fx.LoadAsync([.. foreign, reference], today, today, ct);
         return Result.Success(LoansOverviewMath.Build(set, reference, rates, today, await persons.ListAsync(ct),
@@ -154,61 +146,13 @@ internal static partial class LoansOverviewMath
 {
     private static readonly StringComparer French = StringComparer.Create(new CultureInfo("fr-FR"), true);
 
-    /// <summary>A loan read once: its schedule (D2), its figures today, and its payment of each month (D3: the first one due in it).</summary>
-    private sealed class Reading
-    {
-        public Reading(OverviewLoan source, LocalDate today, LoanSchedule? schedule = null)
-        {
-            Source = source;
-            Currency = LoanViews.CurrencyOf(source.Item);
-            Terms = LoanReading.Terms(Currency, source.Loan.Contract, source.Loan.Fees, source.Loan.Repayments);
-            Schedule = schedule ?? LoanReading.Schedule(Terms, source.Loan);
-            Figures = LoanMath.At(Terms, Schedule, today);
-            Ended = LoanReading.Ended(Terms, Schedule, today);
-            foreach (var row in Schedule.Rows)
-                Payments.TryAdd(row.DueDate.ToYearMonth(), row.Payment + row.Insurance);
-        }
-
-        public OverviewLoan Source { get; }
-        public Currency Currency { get; }
-        public LoanTerms Terms { get; }
-        public LoanSchedule Schedule { get; }
-        public LoanFigures Figures { get; }
-        public bool Ended { get; }
-        public Dictionary<YearMonth, decimal> Payments { get; } = [];
-
-        /// <summary>The month of its last payment; today's for a loan without one (never stored: a loan has at least one payment).</summary>
-        public YearMonth LastMonth(LocalDate today) => (Figures.EndDate ?? today).ToYearMonth();
-    }
-
-    /// <summary>Each amount converted alone and rounded to the cent, so a total is the sum of the lines shown.</summary>
-    private sealed class Converter(Currency reference, RateTable rates, LocalDate today)
-    {
-        private readonly SortedDictionary<string, LoanFindingView> missing = new(StringComparer.Ordinal);
-
-        public IReadOnlyList<LoanFindingView> Missing => missing.Values.ToList();
-
-        public decimal? Of(decimal amount, Currency from)
-        {
-            if (from == reference || amount == 0m) return amount; // zero converts to zero at any rate
-            if (rates.TryConvert(amount, from, reference, today, projected: false, out var converted, out var miss))
-                return Math.Round(converted, 2, MidpointRounding.AwayFromZero);
-            var key = $"{miss.Currency.Code}:{LocalDatePattern.Iso.Format(miss.Date)}";
-            missing.TryAdd(key, new LoanFindingView(FxCodes.RateMissing,
-                $"No {miss.Currency.Code} rate within {rates.MaxGapDays} days before {LocalDatePattern.Iso.Format(miss.Date)}.", key));
-            return null;
-        }
-
-        public LoanMoneyView? View(decimal? amount) => amount is { } a ? new LoanMoneyView(Amount(a), reference.Code) : null;
-    }
-
     /// <param name="persons">The household in creation order (the registry's), for the order of <c>ByPerson</c>.</param>
     public static LoansOverview Build(
         IReadOnlyList<OverviewLoan> set, Currency reference, RateTable rates, LocalDate today, IReadOnlyList<PersonInfo>? persons = null,
         OverviewIncome? income = null)
     {
-        var convert = new Converter(reference, rates, today);
-        var read = set.Select(l => new Reading(l, today)).ToList();
+        var convert = new LoanConverter(reference, rates, today);
+        var read = set.Select(l => new ScheduledLoan(l, today)).ToList();
         // D7: an ended loan is in no figure; spec §3.2: the rows by balance, largest first (converted, an unknown one last).
         var running = read.Where(r => !r.Ended)
             .Select(r => (Reading: r, Balance: convert.Of(r.Figures.Balance, r.Currency)))
@@ -217,7 +161,7 @@ internal static partial class LoansOverviewMath
             .Select(x => x.Reading)
             .ToList();
 
-        decimal? Household(Func<Reading, decimal> amount) => SumOrNull(running.Select(r => convert.Of(amount(r), r.Currency)));
+        decimal? Household(Func<ScheduledLoan, decimal> amount) => SumOrNull(running.Select(r => convert.Of(amount(r), r.Currency)));
         decimal? PaymentOf(YearMonth month) => Household(r => r.Payments.GetValueOrDefault(month));
 
         var thisMonth = today.ToYearMonth();
@@ -278,7 +222,7 @@ internal static partial class LoansOverviewMath
     /// Issue #402: this month's payments (D3, insurance included) over the income, by <see cref="DebtRatio"/>. In « Moi », the
     /// reader's part of each loan's payment as <see cref="People"/> splits it, over their part of the income.
     /// </summary>
-    private static LoanDebtRatioView Ratio(IReadOnlyList<Reading> running, OverviewIncome income, YearMonth month, Converter convert)
+    private static LoanDebtRatioView Ratio(IReadOnlyList<ScheduledLoan> running, OverviewIncome income, YearMonth month, LoanConverter convert)
     {
         var mine = income.Scope is VisibilityScope.Me or VisibilityScope.Mine;
         var payments = SumOrNull(running.Select(r =>
@@ -303,7 +247,7 @@ internal static partial class LoansOverviewMath
     }
 
     /// <summary>Spec §4.1: the loan's phases as its rows run through them; a phase's mode is the contract's (annuity past the last one, the engine's projection).</summary>
-    private static LoanSpanView Span(Reading r)
+    private static LoanSpanView Span(ScheduledLoan r)
     {
         var rows = r.Schedule.Rows;
         var modes = r.Terms.Phases.ToDictionary(p => p.Seq, p => p.Mode);
@@ -326,10 +270,10 @@ internal static partial class LoansOverviewMath
     /// leaves the person's total unknown. Adults first, then dependents, each in the household's order.
     /// </summary>
     private static List<PersonLoanShareView> People(
-        IReadOnlyList<Reading> running, IReadOnlyList<PersonInfo>? persons, Func<Reading, decimal?> balanceOf, Func<Reading, decimal?> paymentOf,
-        Converter convert)
+        IReadOnlyList<ScheduledLoan> running, IReadOnlyList<PersonInfo>? persons, Func<ScheduledLoan, decimal?> balanceOf, Func<ScheduledLoan, decimal?> paymentOf,
+        LoanConverter convert)
     {
-        var parts = new Dictionary<PersonId, List<(Reading Loan, int Bp, decimal? Balance, decimal? Payment)>>();
+        var parts = new Dictionary<PersonId, List<(ScheduledLoan Loan, int Bp, decimal? Balance, decimal? Payment)>>();
         foreach (var r in running)
         {
             var owners = r.Source.Item.Owners;
@@ -367,24 +311,13 @@ internal static partial class LoansOverviewMath
         return parts;
     }
 
-    private static decimal? SumOrNull(IEnumerable<decimal?> amounts)
-    {
-        var total = 0m;
-        foreach (var a in amounts)
-        {
-            if (a is not { } value) return null;
-            total += value;
-        }
-        return total;
-    }
-
     /// <summary>
     /// D8 and spec §3.2: one point a month, from this month to the month of the last payment. This month's point is today's
     /// balance; a later month's is the balance after the last payment due by its last day (an early repayment applied after
     /// that payment included), the principal before the first payment. A loan settled before a month is not in it.
     /// </summary>
     private static List<BalanceMonthView> Months(
-        IReadOnlyList<Reading> running, Currency reference, LocalDate today, LocalDate? freeOn, Converter convert, out bool estimate)
+        IReadOnlyList<ScheduledLoan> running, Currency reference, LocalDate today, LocalDate? freeOn, LoanConverter convert, out bool estimate)
     {
         estimate = false;
         if (freeOn is not { } last) return [];
@@ -409,23 +342,6 @@ internal static partial class LoansOverviewMath
             months.Add(new BalanceMonthView(month.ToString("yyyy-MM", CultureInfo.InvariantCulture), convert.View(total), byLoan));
         }
         return months;
-    }
-
-    /// <summary>A loan's balance at each month of <paramref name="from"/>..<paramref name="to"/>, the rows walked once.</summary>
-    private static List<decimal> Balances(Reading r, YearMonth from, YearMonth to)
-    {
-        var rows = r.Schedule.Rows;
-        var balances = new List<decimal> { r.Figures.Balance };
-        var next = 0;
-        ScheduleRow? paid = null;
-        for (var month = from.PlusMonths(1); month <= to; month = month.PlusMonths(1))
-        {
-            var end = month.ToDateInterval().End;
-            while (next < rows.Count && rows[next].DueDate <= end)
-                paid = rows[next++];
-            balances.Add(paid?.Balance ?? LoanMath.At(r.Terms, r.Schedule, end).Balance);
-        }
-        return balances;
     }
 
     /// <summary>Spec §3.2: a share as a fraction of four decimals, to the nearest; the screen writes it as a percent.</summary>

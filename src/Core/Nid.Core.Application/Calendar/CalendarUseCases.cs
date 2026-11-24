@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using Nid.Core.Application.Dashboard;
 using Nid.Core.Contracts;
+using Nid.Core.Domain.Dashboard;
 using Nid.Platform.Contracts;
 using NodaTime;
 using UnambitiousFx.Functional;
@@ -167,7 +168,7 @@ public sealed record CalendarView(LocalDate From, LocalDate To, IReadOnlyList<Da
 
 /// <summary>
 /// Issue #241: a debit (a credit: <c>Credit</c>, a rent) expected on an item, in its own currency and in the household's (<c>Converted</c>,
-/// null with <c>MissingCurrency</c> when a rate is missing). <c>Kind</c> is one of <see cref="ChargeKinds.Wire"/>.
+/// null with <c>MissingCurrency</c> when a rate is missing). <c>Kind</c> is its <see cref="ChargeKind.Name"/>.
 /// </summary>
 public sealed record CalendarChargeView(
     LocalDate On, string Module, ItemId Id, string Name, string Kind, DashboardMoneyView Amount, DashboardMoneyView? Converted,
@@ -209,7 +210,7 @@ public static class CalendarAmounts
                 .Select(c =>
                 {
                     var (converted, missing) = DashboardMath.Convert(c.Amount, reference, rates, today);
-                    return new CalendarChargeView(c.DueOn, ChargeKinds.ModuleOf(c.Kind), c.Item, c.ItemName, ChargeKinds.Wire(c.Kind),
+                    return new CalendarChargeView(c.DueOn, c.Kind.Page, c.Item, c.ItemName, c.Kind.Name,
                         DashboardMath.Money(c.Amount.Amount, c.Amount.Currency), converted is { } v ? DashboardMath.Money(v, reference) : null, missing, c.Credit);
                 })
                 .ToList());
@@ -250,7 +251,7 @@ public sealed class GetCalendarHandler(
             if (found.TryGetFailure(out var failure))
                 return Result.Failure<CalendarView>(failure!);
             found.TryGetValue(out var some);
-            charges.AddRange(some!.Where(c => chosen is null || chosen.Contains(ChargeKinds.ModuleOf(c.Kind))));
+            charges.AddRange(some!.Where(c => chosen is null || chosen.Contains(c.Kind.Page)));
         }
         var reference = await household.ReferenceCurrencyAsync(ct);
         var foreign = charges.Select(c => c.Amount.Currency).Where(c => c != reference).Distinct().ToList();
@@ -264,7 +265,7 @@ public sealed class GetCalendarHandler(
 }
 
 /// <summary>
-/// Issue #240: the calendar's timeline, the milestones (<see cref="UpcomingKinds.IsMilestone"/>) of <c>Modules</c> (null: every module)
+/// Issue #240: the calendar's timeline, the milestones (<see cref="UpcomingCatalog.IsMilestone"/>) of <c>Modules</c> (null: every module)
 /// from today over <c>HorizonYears</c> (one of <see cref="GetCalendarTimelineHandler.Horizons"/>).
 /// </summary>
 public sealed record GetCalendarTimelineQuery(VisibilityScope Scope, int HorizonYears, IReadOnlyList<string>? Modules) : IQuery<CalendarView>;

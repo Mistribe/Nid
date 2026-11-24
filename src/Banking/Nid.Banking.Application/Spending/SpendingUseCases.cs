@@ -12,9 +12,11 @@ namespace Nid.Banking.Application.Spending;
 
 /// <summary>
 /// #85: what the scope's bank accounts spent by category, over <paramref name="Month"/> (default: the household's current month) or over
-/// [<paramref name="From"/>, <paramref name="To"/>], both given and 24 months at most.
+/// [<paramref name="From"/>, <paramref name="To"/>], both given and 24 months at most. <paramref name="Accounts"/>, when not empty, keeps only
+/// those of the scope's accounts; an id outside the scope counts nothing.
 /// </summary>
-public sealed record GetSpendingQuery(VisibilityScope Scope, YearMonth? Month, YearMonth? From, YearMonth? To) : IQuery<SpendingView>;
+public sealed record GetSpendingQuery(VisibilityScope Scope, YearMonth? Month, YearMonth? From, YearMonth? To, IReadOnlyList<Guid>? Accounts = null)
+    : IQuery<SpendingView>, IRequiresBanking;
 
 /// <summary>
 /// Amounts in <paramref name="Currency"/> (the household's reference), positive for money spent. <paramref name="Incomplete"/>: a line in
@@ -30,11 +32,13 @@ public sealed record GetSpendingQuery(VisibilityScope Scope, YearMonth? Month, Y
 /// Issue #428, over a period: <paramref name="Income"/>, <paramref name="Committed"/>, <paramref name="Everyday"/> and <paramref name="Left"/>
 /// are its months' sums, each null when one month's is; <paramref name="SavingsRate"/>, <paramref name="Left"/> ÷ <paramref name="Income"/> in
 /// percent to 0.1, null without an income above 0.
+/// <paramref name="Accounts"/>: the scope's accounts, what the account filter offers. With some picked, the figures count only theirs, and the
+/// household's own figures (budgets, income, committed, what is left) are left out: they are no account's.
 /// </summary>
 public sealed record SpendingView(
     string Currency, string Total, bool Incomplete, string? Average, IReadOnlyList<SpendingCategoryView> Categories,
     SpendingUncategorisedView Uncategorised, string From, string To, IReadOnlyList<SpendingMonthView> Months, bool BudgetIncomplete,
-    string? Income, string? Committed, string? Everyday, string? Left, string? LeftEstimate, decimal? SavingsRate);
+    string? Income, string? Committed, string? Everyday, string? Left, string? LeftEstimate, decimal? SavingsRate, IReadOnlyList<Operations.OptionView> Accounts);
 
 /// <summary>
 /// One month of a <see cref="SpendingView"/>: <paramref name="Month"/> is <c>yyyy-MM</c>. Issue #428: <paramref name="Income"/>,
@@ -68,7 +72,8 @@ public sealed record SpendingUncategorisedView(string Amount, string? Average, i
 /// with <paramref name="Uncategorised"/>, the uncategorised debits; newest first, 50 a page (<paramref name="Page"/> from 1).
 /// </summary>
 public sealed record ListSpendingLinesQuery(
-    VisibilityScope Scope, Guid? CategoryId, bool Uncategorised, YearMonth? Month, YearMonth? From, YearMonth? To, int Page) : IQuery<SpendingLines>;
+    VisibilityScope Scope, Guid? CategoryId, bool Uncategorised, YearMonth? Month, YearMonth? From, YearMonth? To, int Page, IReadOnlyList<Guid>? Accounts = null)
+    : IQuery<SpendingLines>, IRequiresBanking;
 
 /// <summary>
 /// One page of lines (each in its own currency); <paramref name="Total"/> is the figure the spending view shows for them, in its reference
@@ -87,7 +92,7 @@ public sealed class ListSpendingLinesHandler(
         if (query.Uncategorised == (query.CategoryId is not null))
             return BankingAccess.Fail<SpendingLines>(BankingCodes.SpendingTarget, "Send a categoryId, or uncategorised=true.");
         // The total is the figure itself, so the two never differ: same rows, same conversion, same flag.
-        var figures = await spending.SpentAsync(new GetSpendingQuery(query.Scope, query.Month, query.From, query.To), ct);
+        var figures = await spending.SpentAsync(new GetSpendingQuery(query.Scope, query.Month, query.From, query.To, query.Accounts), ct);
         if (!figures.TryGetValue(out var sums))
             return BankingAccess.Failed<SpendingLines, GetSpendingHandler.Spent>(figures);
 
@@ -113,7 +118,7 @@ public sealed class ListSpendingLinesHandler(
 
 [RequestHandler<GetSpendingQuery, SpendingView>]
 public sealed class GetSpendingHandler(
-    BankingAccess access, SpendingAccounts scopes, ITransactionStore lines, ICategoryStore categories, IHouseholdSettings household,
+    SpendingAccounts scopes, ITransactionStore lines, ICategoryStore categories, IHouseholdSettings household,
     IHouseholdCalendar calendar, IFxRates fx, ICategoryBudgetStore budgets, CommittedByCategory committed, IMonthBudget monthBudget,
     IActorAccessor actor)
     : IRequestHandler<GetSpendingQuery, SpendingView>
@@ -130,13 +135,11 @@ public sealed class GetSpendingHandler(
     /// </summary>
     public sealed record Spent(
         YearMonth From, YearMonth To, IReadOnlyList<Guid> Accounts, Currency Reference, Dictionary<Guid, (decimal Range, decimal Before)> ByCategory,
-        Dictionary<YearMonth, decimal> ByMonth, HashSet<Guid> Incomplete, bool AverageMissing, int Covered, LocalDate Today, RateTable Rates, int ToClassify);
+        Dictionary<YearMonth, decimal> ByMonth, HashSet<Guid> Incomplete, bool AverageMissing, int Covered, LocalDate Today, RateTable Rates, int ToClassify,
+        IReadOnlyList<BankAccount> Offered);
 
     public async ValueTask<Result<Spent>> SpentAsync(GetSpendingQuery query, CancellationToken ct)
     {
-        var enabled = await access.EnabledAsync(ct);
-        if (!enabled.IsSuccess)
-            return BankingAccess.Failed<Spent>(enabled);
         var today = await calendar.TodayAsync(ct);
         YearMonth from, to;
         if (query is { From: null, To: null })
@@ -147,7 +150,9 @@ public sealed class GetSpendingHandler(
             return Result.Failure<Spent>(new Failure(BankingCodes.SpendingPeriod,
                 $"A period names a first and a last month (yyyy-mm), the first not after the last, {MaxMonths} months at most; or send one month.", null));
 
-        var accounts = await scopes.ForAsync(query.Scope, ct);
+        var offered = await scopes.AccountsAsync(query.Scope, ct);
+        // Picked ids only narrow the scope's: one it leaves out never counts.
+        IReadOnlyList<Guid> accounts = [.. offered.Select(a => a.Id).Where(id => query.Accounts is not { Count: > 0 } picked || picked.Contains(id))];
         var averageFrom = from.PlusMonths(-AverageMonths);
         // Decision 6: the window's whole months from the accounts' first line on, and not before the retention, whose purge keeps linked
         // lines older than it (so the first line can lie). A month is whole when its first day is in.
@@ -196,7 +201,7 @@ public sealed class GetSpendingHandler(
 
         // #426: counted from the same rows as « Non classées », a line without a rate included: it is still to classify.
         var toClassify = sums.Where(s => s.Category is null && Index(s.Month) >= Index(from)).Sum(s => s.DebitLines);
-        return Result.Success(new Spent(from, to, accounts, reference, spent, byMonth, incomplete, averageMissing, covered, today, rates, toClassify));
+        return Result.Success(new Spent(from, to, accounts, reference, spent, byMonth, incomplete, averageMissing, covered, today, rates, toClassify, offered));
     }
 
     public async ValueTask<Result<SpendingView>> HandleAsync(GetSpendingQuery query, CancellationToken ct = default)
@@ -207,8 +212,9 @@ public sealed class GetSpendingHandler(
         var (from, to, reference, spent, covered, today) = (sums.From, sums.To, sums.Reference, sums.ByCategory, sums.Covered, sums.Today);
         var span = Enumerable.Range(0, Index(to) - Index(from) + 1).Select(i => from.PlusMonths(i)).ToList();
         var byId = (await categories.AllAsync(ct)).ToDictionary(c => c.Id);
-        // Decision 7: the budget is the household's, set against « Foyer » one month at a time.
-        var (plans, uncommitted) = query is { Scope: VisibilityScope.Household, From: null, To: null }
+        var picked = query.Accounts is { Count: > 0 };
+        // Decision 7: the budget is the household's, set against « Foyer » one month at a time, never against some accounts.
+        var (plans, uncommitted) = query is { Scope: VisibilityScope.Household, From: null, To: null } && !picked
             ? await PlansAsync(from, reference, today, byId, ct)
             : ([], false);
         SpendingBudgetView? Budget(Guid id, decimal range) => plans.TryGetValue(id, out var plan) ? Pace(plan, Round(range), from, today) : null;
@@ -239,7 +245,7 @@ public sealed class GetSpendingHandler(
         var perMonth = new List<MonthBudget>();
         MonthBudget? month = null;
         decimal? estimate = null;
-        if (actor.Current?.PersonId is { } reader)
+        if (!picked && actor.Current?.PersonId is { } reader)
         {
             foreach (var m in span)
             {
@@ -268,7 +274,8 @@ public sealed class GetSpendingHandler(
             [.. tops.OrderByDescending(t => t.Range).ThenBy(t => t.View.Name, ByName).Select(t => t.View)],
             new SpendingUncategorisedView(Money(none.Range), Average(none.Before), sums.ToClassify),
             YearMonthPattern.Iso.Format(from), YearMonthPattern.Iso.Format(to), months, uncommitted,
-            Amount(month?.Income), Amount(month?.Committed), Amount(month?.Everyday), Amount(month?.Left), Amount(estimate), month?.SavingsRate));
+            Amount(month?.Income), Amount(month?.Committed), Amount(month?.Everyday), Amount(month?.Left), Amount(estimate), month?.SavingsRate,
+            [.. sums.Offered.Select(a => new Operations.OptionView(a.Id, a.Name)).OrderBy(o => o.Name, ByName)]));
     }
 
     /// <summary>

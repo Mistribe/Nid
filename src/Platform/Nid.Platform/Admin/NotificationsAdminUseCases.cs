@@ -8,7 +8,7 @@ using UnambitiousFx.Synapse.Abstractions;
 namespace Nid.Platform.Admin;
 
 /// <summary>A message that ended <c>failed</c>: no content and no person, only where, what and why (notifications design §6.4).</summary>
-public sealed record FailedDeliveryView(Guid Id, string Channel, string Kind, DateTimeOffset At, string Error);
+public sealed record FailedDeliveryView(Guid Id, string Channel, string Kind, Instant At, string Error);
 
 /// <summary>One page of the failed messages, newest first, and how many there are in all.</summary>
 public sealed record FailedDeliveryPage(IReadOnlyList<FailedDeliveryView> Items, int Total, int Page)
@@ -37,7 +37,7 @@ public sealed class GetAdminNotificationsHandler(IEmailAvailability email, IDeli
         var (items, total) = await deliveries.FailedSincePageAsync(since, skip, FailedDeliveryPage.PageSize, ct);
         return Result.Success(new AdminNotificationsView(
             email.IsConfigured, email.IsConfigured ? email.Host : null,
-            new FailedDeliveryPage(items.Select(f => new FailedDeliveryView(f.Id, f.Channel, f.Kind, f.At.ToDateTimeOffset(), f.Error)).ToList(), total, page),
+            new FailedDeliveryPage(items.Select(f => new FailedDeliveryView(f.Id, f.Channel, f.Kind, f.At, f.Error)).ToList(), total, page),
             WebhookUrls.ViewOf(await webhooks.FindAsync(null, ct))));
     }
 }

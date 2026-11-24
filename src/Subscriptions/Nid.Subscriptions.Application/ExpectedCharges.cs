@@ -9,6 +9,9 @@ namespace Nid.Subscriptions.Application;
 /// <summary>5C spec §6.1: the phase charges of the subscriptions the reader sees in the scope; a purchase is a one-off, not a debit to expect.</summary>
 public sealed class SubscriptionExpectedCharges(SubscriptionSet set, IClock clock) : IExpectedCharges
 {
+    /// <summary>Issue #514: a subscription's charge, on the subscriptions' page.</summary>
+    public static readonly ChargeKind Subscription = new(ChargeKinds.Subscription, CalendarModules.Subscriptions);
+
     public async Task<Result<IReadOnlyList<ExpectedCharge>>> ChargesAsync(PersonId reader, VisibilityScope scope, LocalDate from, LocalDate to, CancellationToken ct)
     {
         var today = clock.GetCurrentInstant().InUtc().Date;
@@ -16,7 +19,7 @@ public sealed class SubscriptionExpectedCharges(SubscriptionSet set, IClock cloc
         foreach (var (input, timeline, name, _, provider) in await set.LoadAsync(reader, scope, today, to > today ? to : today, ct))
         foreach (var charge in timeline.Charges)
             if (charge.Origin is ChargeOrigin.FromPhase && charge.Date >= from && charge.Date <= to && charge.Price.Amount != 0m)
-                charges.Add(new ExpectedCharge("subscriptions", input.Subscription.Id, name, ChargeKind.Subscription,
+                charges.Add(new ExpectedCharge("subscriptions", input.Subscription.Id, name, Subscription,
                     charge.Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), charge.Date, charge.Price, false, 5,
                     provider is null ? [name] : [name, provider.Name]));
         return Result.Success<IReadOnlyList<ExpectedCharge>>(charges);

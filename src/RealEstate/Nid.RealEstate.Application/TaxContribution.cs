@@ -1,4 +1,5 @@
 using Nid.Core.Contracts;
+using Nid.Tax.Contracts;
 using Nid.RealEstate.Contracts;
 using Nid.RealEstate.Domain;
 using NodaTime;
@@ -46,7 +47,7 @@ public sealed class RentalTax(IVisibleItems visible, IItemRegistry items, IPrope
         {
             if (!accesses.TryGetValue(loan.ItemId, out var item) || !TaxLineCodes.InEuros(item, lines, TaxLineCodes.Rental2044))
                 continue;
-            var terms = LoanReading.Terms(LoanViews.CurrencyOf(item), loan.Contract, loan.Fees, loan.Repayments);
+            var terms = LoanReading.Terms(LoanReading.CurrencyOf(item), loan.Contract, loan.Fees, loan.Repayments);
             var paid = LoanReading.Schedule(terms, loan).Rows.Where(r => range.Contains(r.DueDate)).Sum(r => r.Interest + r.Insurance);
             var fees = loan.Fees.Select(f => f.Fee).Where(f => range.Contains(f.OnDate)).ToList();
             paid += fees.Where(f => f.Kind is FeeKind.File or FeeKind.Guarantee or FeeKind.Renegotiation).Sum(f => f.Amount);

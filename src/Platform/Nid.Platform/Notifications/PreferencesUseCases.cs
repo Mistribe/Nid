@@ -37,10 +37,10 @@ internal static class PreferencesViews
         var hasEmail = !string.IsNullOrWhiteSpace(person?.Email);
         var available = email.IsConfigured && hasEmail;
         var leads = catalog.Kinds.Values.Where(k => k.LeadDays is not null).OrderBy(k => k.Kind, StringComparer.Ordinal)
-            .Select(k => new LeadDayView(k.Kind, NotificationTemplates.TitleOf(k.Kind), prefs.Apply(k).LeadDays!.Value, k.LeadDays!.Value))
+            .Select(k => new LeadDayView(k.Kind, NotificationTemplates.TitleOf(k), prefs.Apply(k).LeadDays!.Value, k.LeadDays!.Value))
             .ToList();
         var signals = catalog.Kinds.Values.Where(k => k.OptIn).OrderBy(k => k.Kind, StringComparer.Ordinal)
-            .Select(k => new SignalView(k.Kind, NotificationTemplates.TitleOf(k.Kind), prefs.Signals.ContainsKey(k.Kind),
+            .Select(k => new SignalView(k.Kind, NotificationTemplates.TitleOf(k), prefs.Signals.ContainsKey(k.Kind),
                 prefs.Signals.GetValueOrDefault(k.Kind, k.Threshold!.Default), k.Threshold.Default, k.Threshold.Min, k.Threshold.Max, k.Threshold.Unit))
             .ToList();
         return new PreferencesView(

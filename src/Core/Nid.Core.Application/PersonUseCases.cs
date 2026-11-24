@@ -118,7 +118,7 @@ public sealed record GetMyPrivateItemsQuery : IQuery<PrivateItemsView>;
 public sealed record PrivateItemsView(bool Owns);
 
 [RequestHandler<GetMyPrivateItemsQuery, PrivateItemsView>]
-public sealed class GetMyPrivateItemsHandler(IVisibleItems visible, IActorAccessor accessor, ITaxAssessmentStore assessments) : IRequestHandler<GetMyPrivateItemsQuery, PrivateItemsView>
+public sealed class GetMyPrivateItemsHandler(IVisibleItems visible, IActorAccessor accessor, IHouseholdTax tax) : IRequestHandler<GetMyPrivateItemsQuery, PrivateItemsView>
 {
     public async ValueTask<Result<PrivateItemsView>> HandleAsync(GetMyPrivateItemsQuery query, CancellationToken ct = default)
     {
@@ -130,8 +130,7 @@ public sealed class GetMyPrivateItemsHandler(IVisibleItems visible, IActorAccess
         if (mine.Count > household.Count)
             return Result.Success(new PrivateItemsView(true));
         // A solo tax notice is private too: without this the selector would hide it from a household that has no other private item.
-        var notices = await assessments.ListForAsync(me, null, ct);
-        return Result.Success(new PrivateItemsView(notices.Any(n => n.Assessment.Declarants.Count == 1)));
+        return Result.Success(new PrivateItemsView(await tax.DeclaresAloneAsync(me, ct)));
     }
 }
 

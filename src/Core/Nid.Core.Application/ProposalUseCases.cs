@@ -5,6 +5,7 @@ using Nid.Platform.Contracts;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Functional.Failures;
 using UnambitiousFx.Synapse.Abstractions;
+using NodaTime;
 
 namespace Nid.Core.Application;
 
@@ -18,14 +19,21 @@ public sealed class ProposalHandlers(IEnumerable<IProposalHandler> handlers)
 
 public sealed record ProposalView(
     Guid Id, string Kind, Guid? TargetItemId, string Status, JsonElement Payload, JsonElement? EditedPayload, int PayloadVersion,
-    IReadOnlyList<ProposalWarning> Warnings, string? SubjectKey, string? SourceLabel, string CreatedVia, DateTimeOffset CreatedAt,
-    Guid CreatedByPersonId, Guid? SupersededById, DateTimeOffset? DecidedAt, Guid? DecidedByPersonId, string? DecisionNote,
-    IReadOnlyList<Guid> AppliedRefs, uint Version, string? TargetName, Guid? DocumentId)
+    IReadOnlyList<ProposalWarning> Warnings, string? SubjectKey, string? SourceLabel, string CreatedVia, Instant CreatedAt,
+    Guid CreatedByPersonId, Guid? SupersededById, Instant? DecidedAt, Guid? DecidedByPersonId, string? DecisionNote,
+    IReadOnlyList<Guid> AppliedRefs, uint Version, string? TargetName, Guid? DocumentId) : IExposesDocuments
 {
+    /// <summary>Tranche 3 design §4.1: the source document's id leaves (REST and MCP) for a reader of that document only (#516: the pipeline's mask).</summary>
+    public IEnumerable<Guid> ExposedDocuments() => DocumentId is { } d ? [d] : [];
+
+    public object WithReadableDocuments(IReadOnlySet<Guid> readable) => Masked(readable);
+
+    internal ProposalView Masked(IReadOnlySet<Guid> readable) => this with { DocumentId = readable.Keep(DocumentId) };
+
     public static ProposalView From(StoredProposal p, string? targetName, IReadOnlyList<ProposalWarning>? extra = null) => new(
         p.Id, p.Kind, p.Target?.Value, p.Status.ToString().ToLowerInvariant(), p.Payload, p.EditedPayload, p.PayloadVersion,
         extra is null ? p.Warnings : [.. p.Warnings, .. extra], p.SubjectKey, p.SourceLabel, p.CreatedVia,
-        p.CreatedAt.ToDateTimeOffset(), p.CreatedBy.Value, p.SupersededById, p.DecidedAt?.ToDateTimeOffset(), p.DecidedBy?.Value,
+        p.CreatedAt, p.CreatedBy.Value, p.SupersededById, p.DecidedAt, p.DecidedBy?.Value,
         p.DecisionNote, p.AppliedRefs, p.Version, targetName, p.DocumentId);
 }
 
@@ -33,19 +41,32 @@ public sealed record ProposalView(
 /// <see cref="Proposal"/> is null when the document matches what Nid expects (<see cref="Conforme"/>, spec 4D1 D3): nothing was stored.
 /// <see cref="Summary"/> is the kind's own addition to the assistant's answer (spec 4D2 §2), or null.
 /// </summary>
-public sealed record SubmittedProposal(ProposalView? Proposal, bool Created, JsonElement? Conforme = null, JsonElement? Summary = null) : IExposesItems
+public sealed record SubmittedProposal(ProposalView? Proposal, bool Created, JsonElement? Conforme = null, JsonElement? Summary = null)
+    : IExposesItems, IExposesDocuments
 {
     public IEnumerable<ItemId> ExposedItems() => Proposal?.TargetItemId is { } target ? [new ItemId(target)] : [];
+
+    public IEnumerable<Guid> ExposedDocuments() => Proposal?.ExposedDocuments() ?? [];
+
+    public object WithReadableDocuments(IReadOnlySet<Guid> readable) => this with { Proposal = Proposal?.Masked(readable) };
 }
 
-public sealed record ProposalList(IReadOnlyList<ProposalView> Items) : IExposesItems
+public sealed record ProposalList(IReadOnlyList<ProposalView> Items) : IExposesItems, IExposesDocuments
 {
     public IEnumerable<ItemId> ExposedItems() => Items.Where(p => p.TargetItemId is not null).Select(p => new ItemId(p.TargetItemId!.Value)).Distinct();
+
+    public IEnumerable<Guid> ExposedDocuments() => Items.SelectMany(p => p.ExposedDocuments());
+
+    public object WithReadableDocuments(IReadOnlySet<Guid> readable) => this with { Items = [.. Items.Select(p => p.Masked(readable))] };
 }
 
-public sealed record ProposalDetail(ProposalView Proposal, JsonElement? Preview, bool CanDecide) : IExposesItems
+public sealed record ProposalDetail(ProposalView Proposal, JsonElement? Preview, bool CanDecide) : IExposesItems, IExposesDocuments
 {
     public IEnumerable<ItemId> ExposedItems() => Proposal.TargetItemId is { } target ? [new ItemId(target)] : [];
+
+    public IEnumerable<Guid> ExposedDocuments() => Proposal.ExposedDocuments();
+
+    public object WithReadableDocuments(IReadOnlySet<Guid> readable) => this with { Proposal = Proposal.Masked(readable) };
 }
 
 /// <summary>
@@ -62,18 +83,37 @@ public sealed record SubmitProposalCommand(string Kind, ItemId? ItemId, JsonElem
 /// <summary>Issue #373: <paramref name="Target"/> narrows the list to the proposals on that item, when the actor can read it.</summary>
 public sealed record ListProposalsQuery(string? Status, ItemId? Target = null) : IQuery<ProposalList>;
 
-public sealed record GetProposalQuery(Guid Id) : IQuery<ProposalDetail>;
+public sealed record GetProposalQuery(Guid Id) : IQuery<ProposalDetail>, IProposalScoped
+{
+    Guid IProposalScoped.ProposalId => Id;
 
-public sealed record ApproveProposalCommand(Guid Id, uint Version, JsonElement? EditedPayload) : ICommand<ProposalView>, IBrowserOnly;
+    public AccessKind Access => AccessKind.Read;
+}
 
-public sealed record RejectProposalCommand(Guid Id, uint Version, string? Note) : ICommand<ProposalView>, IBrowserOnly;
+public sealed record ApproveProposalCommand(Guid Id, uint Version, JsonElement? EditedPayload) : ICommand<ProposalView>, IBrowserOnly, IProposalScoped
+{
+    Guid IProposalScoped.ProposalId => Id;
+
+    public AccessKind Access => AccessKind.Write;
+}
+
+public sealed record RejectProposalCommand(Guid Id, uint Version, string? Note) : ICommand<ProposalView>, IBrowserOnly, IProposalScoped
+{
+    Guid IProposalScoped.ProposalId => Id;
+
+    public AccessKind Access => AccessKind.Write;
+}
 
 /// <summary>
 /// A token takes back what a token of its person submitted, while it waits: no decision, and nothing of another person's, of the
 /// browser's or of a job's. The answer is the deleted id.
 /// </summary>
-public sealed record DeleteProposalCommand(Guid Id, uint Version) : ICommand<Guid>, IRequiresScope
+public sealed record DeleteProposalCommand(Guid Id, uint Version) : ICommand<Guid>, IRequiresScope, IProposalScoped
 {
+    Guid IProposalScoped.ProposalId => Id;
+
+    public AccessKind Access => AccessKind.Read;
+
     public string RequiredScope => ScopeNames.Write;
 }
 
@@ -258,15 +298,12 @@ public sealed class ListProposalsHandler(IProposalStore store, IVisibleItems vis
 
 [RequestHandler<GetProposalQuery, ProposalDetail>]
 public sealed class GetProposalHandler(
-    IProposalStore store, IAccessPolicy policy, IActorAccessor accessor, IAccessDenials denials, ProposalHandlers handlers, IItemRegistry items)
+    IContextAccessor context, IAccessPolicy policy, IActorAccessor accessor, ProposalHandlers handlers, IItemRegistry items)
     : IRequestHandler<GetProposalQuery, ProposalDetail>
 {
     public async ValueTask<Result<ProposalDetail>> HandleAsync(GetProposalQuery query, CancellationToken ct = default)
     {
-        var loaded = await ProposalAccess.LoadAsync(store, policy, accessor, denials, query.Id, AccessKind.Read, ct);
-        if (!loaded.TryGetValue(out var found))
-            return Result.Failure<ProposalDetail>(loaded.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
-        var (proposal, me) = found;
+        var (proposal, me) = (CheckedResources.Of<StoredProposal>(context, query), accessor.Current!.PersonId!.Value);
         var canDecide = await ProposalAccess.CanDecideAsync(policy, proposal, me, ct)
             && accessor.Current?.TokenId is null; // deciding is browser-only
         var names = await ProposalAccess.NamesAsync(items, [proposal.Target], ct);
@@ -281,17 +318,17 @@ public sealed class GetProposalHandler(
 }
 
 [RequestHandler<ApproveProposalCommand, ProposalView>]
-public sealed class ApproveProposalHandler(
-    IProposalStore store, IAccessPolicy policy, IActorAccessor accessor, IAccessDenials denials, ProposalHandlers handlers, IUnitOfWork unitOfWork,
+public sealed partial class ApproveProposalHandler(
+    IProposalStore store, IContextAccessor context, IActorAccessor accessor, ProposalHandlers handlers, IUnitOfWork unitOfWork,
     IItemRegistry items, INotifier notifier, IApprovingProposal approving, ILogger<ApproveProposalHandler> logger)
     : IRequestHandler<ApproveProposalCommand, ProposalView>
 {
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Could not add apply_failed to proposal {ProposalId}")]
+    private partial void LogWarnFailed(Guid proposalId, Exception exception);
+
     public async ValueTask<Result<ProposalView>> HandleAsync(ApproveProposalCommand command, CancellationToken ct = default)
     {
-        var loaded = await ProposalAccess.LoadAsync(store, policy, accessor, denials, command.Id, AccessKind.Write, ct);
-        if (!loaded.TryGetValue(out var found))
-            return Result.Failure<ProposalView>(loaded.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
-        var (proposal, me) = found;
+        var (proposal, me) = (CheckedResources.Of<StoredProposal>(context, command), accessor.Current!.PersonId!.Value);
         if (proposal.Status != ProposalStatus.Pending)
             return Result.Failure<ProposalView>(new ConflictFailure("This proposal was already decided or replaced.") { Code = ProposalCodes.Decided });
         if (proposal.Version != command.Version)
@@ -348,7 +385,7 @@ public sealed class ApproveProposalHandler(
             catch (Exception warnFailed) when (warnFailed is not OperationCanceledException)
             {
                 // The original exception is the one to surface.
-                logger.LogWarning(warnFailed, "Could not add apply_failed to proposal {ProposalId}", proposal.Id);
+                LogWarnFailed(proposal.Id, warnFailed);
             }
             throw;
         }
@@ -366,7 +403,7 @@ public sealed class ApproveProposalHandler(
 
 [RequestHandler<RejectProposalCommand, ProposalView>]
 public sealed class RejectProposalHandler(
-    IProposalStore store, IAccessPolicy policy, IActorAccessor accessor, IAccessDenials denials, IItemRegistry items, INotifier notifier)
+    IProposalStore store, IContextAccessor context, IActorAccessor accessor, IItemRegistry items, INotifier notifier)
     : IRequestHandler<RejectProposalCommand, ProposalView>
 {
     public async ValueTask<Result<ProposalView>> HandleAsync(RejectProposalCommand command, CancellationToken ct = default)
@@ -374,9 +411,7 @@ public sealed class RejectProposalHandler(
         var note = string.IsNullOrWhiteSpace(command.Note) ? null : command.Note.Trim();
         if (ProposalAccess.Text(note, 500, "note").TryGetFailure(out var invalid))
             return Result.Failure<ProposalView>(invalid!);
-        var loaded = await ProposalAccess.LoadAsync(store, policy, accessor, denials, command.Id, AccessKind.Write, ct);
-        if (!loaded.TryGetValue(out var found))
-            return Result.Failure<ProposalView>(loaded.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
+        var found = (Proposal: CheckedResources.Of<StoredProposal>(context, command), Me: accessor.Current!.PersonId!.Value);
         // Read before the decision is written: a failing read then leaves no decision behind.
         var names = await ProposalAccess.NamesAsync(items, [found.Proposal.Target], ct);
         var decided = await store.DecideAsync(found.Proposal.Id, command.Version, ProposalStatus.Rejected, found.Me, null, note, [], ct);
@@ -392,15 +427,13 @@ public sealed class RejectProposalHandler(
 }
 
 [RequestHandler<DeleteProposalCommand, Guid>]
-public sealed class DeleteProposalHandler(IProposalStore store, IAccessPolicy policy, IActorAccessor accessor, IAccessDenials denials, INotifier notifier)
+public sealed class DeleteProposalHandler(IProposalStore store, IContextAccessor context, IActorAccessor accessor, INotifier notifier)
     : IRequestHandler<DeleteProposalCommand, Guid>
 {
     public async ValueTask<Result<Guid>> HandleAsync(DeleteProposalCommand command, CancellationToken ct = default)
     {
-        var loaded = await ProposalAccess.LoadAsync(store, policy, accessor, denials, command.Id, AccessKind.Read, ct);
-        if (!loaded.TryGetValue(out var found))
-            return Result.Failure<Guid>(loaded.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
-        if (found.Proposal.CreatedBy != found.Me || found.Proposal.TokenId is null)
+        var proposal = CheckedResources.Of<StoredProposal>(context, command);
+        if (proposal.CreatedBy != accessor.Current!.PersonId!.Value || proposal.TokenId is null)
             return Result.Failure<Guid>(new Failure(ProposalCodes.NotSubmitter, "Only a proposal your own token submitted can be deleted.", null));
         var deleted = await store.DeleteAsync(command.Id, command.Version, ct);
         if (deleted.IsSuccess)

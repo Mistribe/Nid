@@ -6,7 +6,7 @@ using NodaTime;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Functional.Failures;
 using UnambitiousFx.Synapse.Abstractions;
-using static Nid.RealEstate.Application.LoanReading;
+using static Nid.RealEstate.Domain.LoanReading;
 
 namespace Nid.RealEstate.Application;
 
@@ -62,7 +62,7 @@ public sealed class SimulateLoanRenegotiationHandler(ILoanStore loans, IItemRegi
         loaded.TryGetValue(out var found);
 
         var loan = found.Loan;
-        var terms = Terms(LoanViews.CurrencyOf(found.Item), loan.Contract, loan.Fees, loan.Repayments);
+        var terms = Terms(LoanReading.CurrencyOf(found.Item), loan.Contract, loan.Fees, loan.Repayments);
         var fees = query.BankFees + query.GuaranteeFees + query.Penalty;
         var simulated = LoanSimulations.Renegotiate(terms, query.On, query.AnnualRate, query.Payments, fees);
         if (simulated.TryGetFailure(out failure))
@@ -105,7 +105,7 @@ public sealed class CompareLoanInsuranceHandler(ILoanStore loans, IItemRegistry 
         loaded.TryGetValue(out var found);
 
         var loan = found.Loan;
-        var terms = Terms(LoanViews.CurrencyOf(found.Item), loan.Contract, loan.Fees, loan.Repayments);
+        var terms = Terms(LoanReading.CurrencyOf(found.Item), loan.Contract, loan.Fees, loan.Repayments);
         // The quote's dates are the comparison's: it takes the line over from the first payment after the date, until the line's end.
         var quotes = query.Quotes.Select(q => (q.Insurance, new LoanInsurance(q.Mode, q.MonthlyAmount, q.AnnualRate, query.On))).ToList();
         var compared = LoanSimulations.CompareInsurance(terms, query.On, quotes);

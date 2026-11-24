@@ -2,6 +2,7 @@ using System.Globalization;
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
 using Nid.RealEstate.Contracts;
+using Nid.RealEstate.Domain;
 using NodaTime;
 
 namespace Nid.RealEstate.Application;
@@ -41,7 +42,7 @@ public sealed class PropertySeries(
 
         if (await items.FindAsync(id, ct) is not { } item) return null;
         var today = await calendar.TodayAsync(ct);
-        var currency = LoanViews.CurrencyOf(item);
+        var currency = LoanReading.CurrencyOf(item);
         IEnumerable<SeriesPoint> points;
         if (suffix == Net)
         {

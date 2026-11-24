@@ -5,6 +5,8 @@ using System.Xml.Linq;
 using Nid.Banking.Contracts;
 using NodaTime;
 using NodaTime.Text;
+using UnambitiousFx.Functional;
+using UnambitiousFx.Functional.Failures;
 
 namespace Nid.Banking.Domain.Files;
 
@@ -29,9 +31,24 @@ public static class StatementReader
     /// <summary>
     /// Sniffs the format (OFX header <c>OFXHEADER:</c>/<c>&lt;OFX&gt;</c>/<c>&lt;?OFX</c>, or a camt.053 <c>Document</c> root) and reads it.
     /// No date is before 1900; no booking or closing balance after <paramref name="latest"/>, when given.
+    /// A file too large, of an unknown format or malformed is refused with its <c>banking.file_*</c> code and, when known, the file's
+    /// <c>line</c> at fault.
     /// </summary>
+    public static Result<StatementFile> Read(ReadOnlySpan<byte> file, LocalDate? latest = null)
+    {
+        try
+        {
+            return Result.Success(Parse(file, latest));
+        }
+        catch (StatementFileException e)
+        {
+            return Result.Failure<StatementFile>(new Failure(e.Code, e.Message, e.Line is { } line ? new Dictionary<string, object?> { ["line"] = line } : null));
+        }
+    }
+
+    /// <summary>The readers stop at a file's first fault, deep in it: thrown there, it becomes <see cref="Read"/>'s failure.</summary>
     /// <exception cref="StatementFileException">Too large, of an unknown format, or malformed.</exception>
-    public static StatementFile Read(ReadOnlySpan<byte> file, LocalDate? latest = null)
+    internal static StatementFile Parse(ReadOnlySpan<byte> file, LocalDate? latest = null)
     {
         if (file.Length > MaxBytes)
             throw new StatementFileException(BankingCodes.FileTooLarge, null, "The file is over 5 MiB.");

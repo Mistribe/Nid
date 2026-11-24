@@ -29,6 +29,7 @@
       "production_tip": "L’environnement qui parle aux vraies banques ; « Sandbox » ne sert qu’aux essais avec des banques fictives.",
       "consent": "Consentement",
       "consent_tip": "L’accord que vous donnez sur le site de votre banque pour que Nid lise vos comptes. Il dure quelques mois ; Nid vous prévient avant qu’il expire.",
+      "key_tip": "Un fichier qui prouve à Enable Banking que les demandes viennent bien de votre application. Ne la partagez avec personne.",
       "need": {
         "title": "Ce dont vous avez besoin",
         "what": "Nid lit vos comptes par Enable Banking, un prestataire agréé.",
@@ -42,28 +43,31 @@
       },
       "application": {
         "title": "Créer l’application",
-        "environment": "Dans le portail, créez une application dans l’environnement « Production ».",
-        "restricted": "Choisissez le mode restreint : seuls les comptes que vous reliez dans votre portail seront lisibles.",
-        "name": "Donnez-lui le nom de votre choix, par exemple « Nid »."
+        "body": "Dans le portail, ouvrez « API applications » et ajoutez une application. Le portail pose d’abord deux questions :",
+        "environment": "Environnement : choisissez « Production ».",
+        "key": "Clé : laissez le portail la générer dans votre navigateur (le choix par défaut)."
       },
-      "urls": {
-        "title": "Renseigner les adresses",
-        "body": "Le portail demande trois adresses. Copiez-les telles quelles :",
+      "details": {
+        "title": "Remplir le formulaire",
+        "body": "Le portail demande ensuite ces informations, dans cet ordre. Copiez-les telles quelles :",
+        "name": "Nom de l’application (application name)",
+        "name_value": "Nid",
+        "name_hint": "Le nom de votre choix : votre banque l’affiche quand elle vous demande votre accord.",
         "redirect": "Adresse de retour (redirect URL)",
         "redirect_tip": "L’adresse où votre banque vous renvoie vers Nid après votre accord. Elle doit être exactement celle-ci, sinon la banque refuse de vous renvoyer.",
+        "description": "Description de l’application (application description)",
+        "description_value": "Application personnelle de suivi des finances du foyer, en lecture seule.",
+        "description_hint": "Une phrase libre, montrée sur la page d’accord de votre banque. Celle-ci convient.",
+        "email": "E-mail pour la protection des données (email for data protection matters)",
+        "email_hint": "Votre propre adresse e-mail, celle de votre compte Enable Banking : pour un usage personnel, c’est vous qui êtes responsable de vos données.",
         "privacy": "Politique de confidentialité (privacy URL)",
         "terms": "Conditions d’utilisation (terms URL)",
-        "why": "Le portail exige ces deux dernières adresses pour toute application, mais ne les vérifie pas en mode restreint : celles de Nid conviennent."
-      },
-      "key": {
-        "title": "Générer la clé",
-        "body": "Laissez le portail générer la paire de clés, puis téléchargez la clé privée (un fichier .pem).",
-        "tip": "Un fichier qui prouve à Enable Banking que les demandes viennent bien de votre application. Ne la partagez avec personne.",
-        "keep": "Gardez ce fichier : vous le donnerez à Nid à l’étape 7. Nid le conserve chiffré et ne l’affiche plus jamais."
+        "urls_hint": "Le portail exige ces deux adresses pour toute application de production, mais ne les vérifie pas en mode restreint : celles de Nid conviennent.",
+        "register": "Cliquez sur « Register ». Le portail télécharge la clé privée (un fichier .pem nommé d’après l’identifiant de l’application) : gardez-la, vous la donnerez à Nid à l’étape 6. Nid la conserve chiffrée et ne l’affiche plus jamais."
       },
       "portal": {
-        "title": "Relier vos comptes dans le portail",
-        "body": "En mode restreint, reliez dans le portail les comptes bancaires que Nid lira.",
+        "title": "Activer l’application",
+        "body": "La nouvelle application est « Inactive ». Dans son menu, choisissez « Activate by linking accounts » et reliez les comptes bancaires que Nid lira : l’application passe alors en mode restreint et devient active.",
         "own": "Reliez seulement les vôtres, jamais ceux de l’autre adulte : il les reliera avec sa propre application."
       },
       "declare": {
@@ -313,7 +317,7 @@
       "pages": "Pages des opérations",
       "filter": {
         "search": "Rechercher", "search_placeholder": "Rechercher un libellé, un tiers…",
-        "account": "Compte", "account_all": "Tous les comptes",
+        "account": "Compte", "account_all": "Tous les comptes", "account_picked_one": "{{count}} compte", "account_picked_other": "{{count}} comptes",
         "owner": "Titulaire", "owner_all": "Tous les titulaires",
         "category": "Catégorie", "category_all": "Toutes les catégories", "category_none": "Sans catégorie",
         "category_search": "Rechercher une catégorie",

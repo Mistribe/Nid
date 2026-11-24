@@ -3,7 +3,7 @@ using Nid.Core.Contracts;
 using Nid.RealEstate.Contracts;
 using Nid.RealEstate.Domain;
 using NodaTime;
-using static Nid.RealEstate.Application.LoanReading;
+using static Nid.RealEstate.Domain.LoanReading;
 
 namespace Nid.RealEstate.Application;
 
@@ -82,7 +82,7 @@ public sealed record PropertyDetail(
 internal static class PropertyViews
 {
     public static PropertySummary Summary(ItemAccess item, StoredProperty property, PropertyFigures f, bool canWrite)
-        => new(property.ItemId, item.DisplayName, LoanWire.Of(property.Details.Type), LoanViews.CurrencyOf(item).Code,
+        => new(property.ItemId, item.DisplayName, LoanWire.Of(property.Details.Type), LoanReading.CurrencyOf(item).Code,
             LoanViews.Wire(item.Visibility), Amount(f.Value), f.ValueOn, f.Stale, Amount(f.NetValue), Fraction(f.Rental.GrossYield),
             Fraction(f.Rental.VacancyRate), canWrite, item.OwnerViews());
 
@@ -93,7 +93,7 @@ internal static class PropertyViews
         var revisions = RentRevisions.Of(property, irl, today).ToDictionary(c => c.Last.Id, c => RentRevisions.View(c, inflation));
         var d = property.Details;
         var f = read.Figures;
-        return new PropertyDetail(property.ItemId, item.DisplayName, LoanWire.Of(d.Type), LoanViews.CurrencyOf(item).Code,
+        return new PropertyDetail(property.ItemId, item.DisplayName, LoanWire.Of(d.Type), LoanReading.CurrencyOf(item).Code,
             LoanViews.Wire(item.Visibility), item.Owners.Select(o => new PropertyOwnerView(o.PersonId.Value, o.ShareBp)).ToList(),
             d.PurchaseDate, Amount(d.PurchasePrice), Amount(d.NotaryFees), Amount(d.AgencyFees), Amount(d.OtherAcquisitionCosts),
             Amount(d.SurfaceM2), d.LocationLabel, LoanWire.Of(d.Cadence), d.StaleAfterDays, d.RentalStartsOn, d.Note, d.EnergyClass, d.PostalAddress,
@@ -116,7 +116,7 @@ internal static class PropertyViews
                 PropertyMath.Covers(t.Tenancy, today), t.Tenancy.Indexed, t.Tenancy.IrlReferenceQuarter, t.RevisedFrom,
                 revisions.GetValueOrDefault(t.Id), t.Tenancy.TenantNames, t.Tenancy.LandlordName, t.Tenancy.LandlordAddress,
                 t.Tenancy.RentsTrackedFrom is { } m ? $"{m.Year:0000}-{m.Month:00}" : null)).ToList(),
-            read.Loans.Zip(f.Loans, (l, b) => new PropertyLoanView(l.Id, l.DisplayName, LoanViews.CurrencyOf(l).Code, Amount(b.Balance), Amount(b.Converted))).ToList(),
+            read.Loans.Zip(f.Loans, (l, b) => new PropertyLoanView(l.Id, l.DisplayName, LoanReading.CurrencyOf(l).Code, Amount(b.Balance), Amount(b.Converted))).ToList(),
             canWrite, item.Visibility == Visibility.Shared && item.ShareLevel == ShareLevel.Edit ? "edit" : "view", canChangeOwners);
     }
 

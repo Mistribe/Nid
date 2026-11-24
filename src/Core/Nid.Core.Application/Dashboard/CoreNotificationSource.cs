@@ -1,8 +1,8 @@
 using System.Collections.Concurrent;
 using System.Globalization;
 using Microsoft.Extensions.Logging;
-using Nid.Core.Application.Tax;
 using Nid.Core.Contracts;
+using Nid.Core.Domain.Dashboard;
 using Nid.Platform.Contracts;
 using NodaTime;
 using UnambitiousFx.Functional;
@@ -15,11 +15,20 @@ namespace Nid.Core.Application.Dashboard;
 /// the month's routine when a value is to update. Neither is about one item, so neither carries an item id or an amount. Issue #81:
 /// the net worth milestone and the savings pace, opt-in, whose figures only the centre shows.
 /// </summary>
-public sealed class CoreNotificationSource(
+public sealed partial class CoreNotificationSource(
     DashboardReader dashboard, MonthChangesReader changes, MonthChangeWords monthWords, IPersonalAccessTokens tokens,
-    IHouseholdCalendar calendar, IClock clock, TaxCalendarEvents taxCalendar, ISignalSettings settings,
+    IHouseholdCalendar calendar, IClock clock, IHouseholdTax tax, ISignalSettings settings,
     IEnumerable<INetWorthContribution> netWorth, IHouseholdSettings household, IFxRates fx, ILogger<CoreNotificationSource> logger) : INotificationSource
 {
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The net worth history of {Person} could not be read: {Code}")]
+    private partial void LogNetWorthUnread(Guid person, string code);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The net contributions of {Person} could not be read: {Code}")]
+    private partial void LogContributionsUnread(Guid person, string code);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The month's changes of {Person} could not be read: {Code}")]
+    private partial void LogChangesUnread(Guid person, string code);
+
     public const string FxRateMissing = "fx_rate_missing";
     public const string RoutineDue = "routine_due";
     public const string TokenExpiring = "token_expiring";
@@ -34,19 +43,99 @@ public sealed class CoreNotificationSource(
 
     public IReadOnlyList<NotificationKind> Kinds { get; } =
     [
-        new(FxRateMissing, "finding", NotificationLevel.Info, "core", null),
-        new(RoutineDue, "finding", NotificationLevel.Action, "core", null),
-        new(TokenExpiring, NotificationFamilies.Security, NotificationLevel.Action, "core", 7),
-        new(MonthChanges, "finding", NotificationLevel.Info, "core", null),
+        new(FxRateMissing, "finding", NotificationLevel.Info, "core", null)
+        {
+            Template = new("Un taux de change manque")
+            {
+                Body = f => f.Params.TryGetValue("currency", out var currency) && currency.Length > 0 ? $"Devise {currency}" : "",
+                Link = f => f.HouseholdPage("/dashboard"),
+            },
+        },
+        new(RoutineDue, "finding", NotificationLevel.Action, "core", null)
+        {
+            Template = new("La routine du mois est à faire") { Body = _ => "Des valeurs sont à mettre à jour", Link = f => f.HouseholdPage("/routine") },
+        },
+        new(TokenExpiring, NotificationFamilies.Security, NotificationLevel.Action, "core", 7)
+        {
+            Personal = true,
+            Template = new("Un jeton d'accès expire bientôt")
+            {
+                Notice = true,
+                Body = f => f.KeyDate("yyyy-MM-dd") is { } on ? $"Expire le {NotificationFacts.Day(on)}" : "",
+                Link = _ => "/security",
+            },
+        },
+        new(MonthChanges, "finding", NotificationLevel.Info, "core", null)
+        {
+            Template = new("Ce qui a changé depuis le mois dernier") { Body = f => MonthChangesText(f.Params), Link = f => f.HouseholdPage("/dashboard") },
+        },
         // Issue #409: the household's tax dates, the reader's own (Moi) notice giving the balance.
-        new(UpcomingKinds.TaxFilingDeadline, "due_date", NotificationLevel.Action, "core", 14),
-        new(UpcomingKinds.TaxNewRate, "due_date", NotificationLevel.Info, "core", 7),
-        new(UpcomingKinds.TaxBalanceDue, "due_date", NotificationLevel.Info, "core", 7),
+        new(UpcomingKinds.TaxFilingDeadline, "due_date", NotificationLevel.Action, "core", 14)
+        {
+            Template = new("La déclaration de revenus est à faire")
+            {
+                Body = f => f.DueOn is not { } on ? ""
+                    : f.Params.GetValueOrDefault("note") == "department_unknown"
+                        ? $"En ligne avant le {NotificationFacts.Day(on)}, la date la plus tôt : département non renseigné"
+                        : $"En ligne avant le {NotificationFacts.Day(on)}",
+                Link = f => f.HouseholdPage("/tax"),
+            },
+        },
+        new(UpcomingKinds.TaxNewRate, "due_date", NotificationLevel.Info, "core", 7)
+        {
+            Template = new("Le nouveau taux de prélèvement s'applique") { Body = FromDueDate, Link = f => f.HouseholdPage("/tax") },
+        },
+        new(UpcomingKinds.TaxBalanceDue, "due_date", NotificationLevel.Info, "core", 7)
+        {
+            Template = new("Le solde de l'impôt est prélevé") { Body = FromDueDate, Link = f => f.HouseholdPage("/tax?tab=withholding") },
+        },
         // Issue #81: the step, in the household currency.
-        new(NetWorthMilestone, "finding", NotificationLevel.Info, "core", null, new SignalThreshold(50_000m, 1_000m, 10_000_000m, "eur")),
+        new(NetWorthMilestone, "finding", NotificationLevel.Info, "core", null, new SignalThreshold(50_000m, 1_000m, 10_000_000m, "eur"))
+        {
+            Template = new("Votre patrimoine a franchi un palier") { Link = f => f.HouseholdPage("/dashboard") },
+        },
         // Issue #81: the drop, in points of percent.
-        new(SavingsPace, "finding", NotificationLevel.Info, "core", null, new SignalThreshold(30m, 5m, 95m, "pct")),
+        new(SavingsPace, "finding", NotificationLevel.Info, "core", null, new SignalThreshold(30m, 5m, 95m, "pct"))
+        {
+            Template = new("Votre rythme d'épargne a ralenti") { Link = f => f.HouseholdPage("/dashboard") },
+        },
     ];
+
+    private static string FromDueDate(NotificationFacts f) => f.DueOn is { } on ? $"À partir du {NotificationFacts.Day(on)}" : "";
+
+    private static readonly (string Param, string Name)[] MonthFigures = [("net_worth", "Patrimoine"), ("commitments", "Engagements"), ("income", "Revenus")];
+
+    /// <summary>Issue #415: the causes of a month's change, named as on the dashboard (web/src/locales/fr.json, dashboard.changes.cause).</summary>
+    private static readonly Dictionary<string, string> MonthCauses = new()
+    {
+        ["investments.paid_in"] = "versements sur les placements",
+        ["investments.value"] = "valeur des placements",
+        ["real_estate.paid_in"] = "capital remboursé",
+        ["real_estate.value"] = "valeur de l'immobilier",
+        ["real_estate.moved"] = "achats et ventes immobiliers",
+        ["subscriptions"] = "abonnements",
+        ["loans"] = "crédits",
+        ["property_costs"] = "charges des biens",
+        ["tax"] = "impôts",
+        ["childcare"] = "garde d'enfants",
+        ["income"] = "sources de revenu",
+        ["rents"] = "loyers",
+    };
+
+    /// <summary>
+    /// Issue #415: « Patrimoine en hausse — valeur des placements ↑, capital remboursé ↑ · Engagements en baisse — abonnements ↓ »; the
+    /// figures stay on the dashboard (N6). Params: « up|key+|key- » per figure that moved.
+    /// </summary>
+    private static string MonthChangesText(IReadOnlyDictionary<string, string> p)
+        => string.Join(" · ", MonthFigures.Where(f => p.ContainsKey(f.Param)).Select(f =>
+        {
+            var parts = p[f.Param].Split('|');
+            var causes = parts.Skip(1).Where(c => c.Length > 1)
+                .Select(c => $"{MonthCauses.GetValueOrDefault(c[..^1], "autres")} {(c[^1] == '+' ? "↑" : "↓")}")
+                .ToList();
+            var line = $"{f.Name} en {(parts[0] == "up" ? "hausse" : "baisse")}";
+            return causes.Count == 0 ? line : $"{line} — {string.Join(", ", causes)}";
+        }));
 
     public async Task<Result<IReadOnlyList<Signal>>> SignalsAsync(PersonId reader, LocalDate today, LocalDate horizon, CancellationToken ct)
     {
@@ -83,7 +172,7 @@ public sealed class CoreNotificationSource(
         // Issue #409: the dashboard read has the tax dates of its window; only a lead time beyond it reads them again.
         var taxDates = horizon <= today.PlusDays(DashboardMath.UpcomingDays)
             ? view.Upcoming.Where(e => e.Id is null && e.On <= horizon && TaxKinds.Contains(e.Kind)).ToList()
-            : await taxCalendar.EventsAsync(reader, VisibilityScope.Me, today, horizon, ct);
+            : await tax.CalendarAsync(reader, VisibilityScope.Me, today, horizon, ct);
         foreach (var e in taxDates)
             signals.Add(new Signal(SignalKeys.Household(e.Kind, $"{e.On:yyyy-MM-dd}"), e.Kind, [], e.On,
                 e.Label is { } note ? new Dictionary<string, string> { ["note"] = note } : NoParams));
@@ -101,7 +190,7 @@ public sealed class CoreNotificationSource(
         var read = await Contributions.CollectAsync(netWorth, c => c.NetWorthHistoryAsync(reader, VisibilityScope.Mine, [monthEnd], ct));
         if (!read.TryGetValue(out var parts))
         {
-            logger.LogWarning("The net worth history of {Person} could not be read: {Code}", reader.Value, read.TryGetFailure(out var f) ? f!.Code : "core.unknown");
+            LogNetWorthUnread(reader.Value, read.TryGetFailure(out var f) ? f!.Code : "core.unknown");
             return null;
         }
         var points = parts!.SelectMany(p => p).ToList();
@@ -130,7 +219,7 @@ public sealed class CoreNotificationSource(
             var read = await Contributions.CollectAsync(netWorth, c => c.NetContributionsAsync(reader, VisibilityScope.Mine, from, today, ct));
             if (read.TryGetValue(out var parts))
                 return (await ConvertedAsync(parts!, today, today, ct)).Total;
-            logger.LogWarning("The net contributions of {Person} could not be read: {Code}", reader.Value, read.TryGetFailure(out var f) ? f!.Code : "core.unknown");
+            LogContributionsUnread(reader.Value, read.TryGetFailure(out var f) ? f!.Code : "core.unknown");
             return null;
         }
 
@@ -173,7 +262,7 @@ public sealed class CoreNotificationSource(
         var read = await changes.ReadAsync(reader, VisibilityScope.Me, today, ct);
         if (!read.TryGetValue(out var moved))
         {
-            logger.LogWarning("The month's changes of {Person} could not be read: {Code}", reader.Value, read.TryGetFailure(out var f) ? f!.Code : "core.unknown");
+            LogChangesUnread(reader.Value, read.TryGetFailure(out var f) ? f!.Code : "core.unknown");
             return NoParams;
         }
         var words = MonthChangeParams(moved!);

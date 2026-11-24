@@ -31,7 +31,7 @@ public sealed class RealEstateRents(IVisibleItems visible, IItemRegistry items, 
                     if (PropertyMath.RentIn(tenancy, month, charges: false) is var (amount, from))
                         if (from >= range.Start && from < last)
                             dues.Add(new RentDue(from, amount));
-            sources.Add(new RentSource(property.ItemId, item.DisplayName, LoanViews.CurrencyOf(item),
+            sources.Add(new RentSource(property.ItemId, item.DisplayName, LoanReading.CurrencyOf(item),
                 item.Visibility == Visibility.Private ? "private" : "shared", DashboardParts.OwnersOf(item), item.ArchivedAt is not null,
                 dues.OrderBy(d => d.On).ToList(), at.Distinct().ToDictionary(d => d, d => PropertyMath.MonthlyRentAt(tenancies, d)),
                 NextDue(tenancies, today), EndOf(tenancies, today)));
@@ -58,7 +58,7 @@ public sealed class RealEstateRents(IVisibleItems visible, IItemRegistry items, 
             if (!tenancies.Any(t => t.StartsOn > today || PropertyMath.Covers(t, today)) || !accesses.TryGetValue(property.ItemId, out var item))
                 continue;
             count++;
-            var currency = LoanViews.CurrencyOf(item);
+            var currency = LoanReading.CurrencyOf(item);
             var amount = PropertyMath.MonthlyRentAt(tenancies, today);
             sums[currency] = sums.GetValueOrDefault(currency) + amount;
             mine[currency] = mine.GetValueOrDefault(currency) + amount * item.ShareOf(reader) / 10_000m;

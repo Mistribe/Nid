@@ -13,8 +13,8 @@ public sealed record StatementFile(
     string Format, string? Iban, string AccountId, string Currency,
     decimal? ClosingBalance, LocalDate? ClosingBalanceOn, LocalDate? From, LocalDate? To, IReadOnlyList<StatementLine> Lines, bool Card = false);
 
-/// <summary>A file refused whole: <see cref="Line"/> is the file's line at fault, when known.</summary>
-public sealed class StatementFileException(string code, int? line, string message) : Exception(message)
+/// <summary>A file refused whole, inside the readers only (<see cref="StatementReader.Read"/> answers a failure): <see cref="Line"/> is the file's line at fault, when known.</summary>
+internal sealed class StatementFileException(string code, int? line, string message) : Exception(message)
 {
     public string Code => code;
     public int? Line => line;

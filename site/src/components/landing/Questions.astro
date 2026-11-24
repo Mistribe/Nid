@@ -1,0 +1,42 @@
+---
+import Section from './Section.astro';
+import type { Lang } from '../../data/locale';
+
+interface Props { lang: Lang }
+const copy = {
+  fr: {
+    title: 'Les questions que les applis bancaires laissent ouvertes',
+    lead: 'Pas de saisie quotidienne : les opérations arrivent de la banque et sont rapprochées de ce que Nid attend. Quelques minutes par mois suffisent.',
+    items: [
+      ['Où en est-on ?', 'Le patrimoine, par enveloppe et par personne : le mien, le tien, le commun.'],
+      ['Qu’est-ce qui est engagé chaque mois ?', 'Abonnements, prêts, assurances, garde d’enfants, et ce qui arrive ensuite.'],
+      ['Qu’est-ce qui rapporte ?', 'Le gain et le rendement annuel de chaque placement, avant et après frais.'],
+      ['Comment marche notre prêt ?', 'Intérêts et capital de chaque échéance, capital restant, coût total, remboursement anticipé.'],
+      ['Que nous reste-t-il ?', 'Les revenus, la part engagée, et la marge avant les dépenses du quotidien.'],
+    ],
+  },
+  en: {
+    title: 'The questions banking apps leave open',
+    lead: 'No daily bookkeeping: transactions arrive from the bank and are matched to what Nid expects. A few minutes a month keep it current.',
+    items: [
+      ['Where do we stand?', 'Net worth, by envelope and by owner: mine, yours, joint.'],
+      ['What is committed each month?', 'Subscriptions, loans, insurance, childcare, and what is coming up next.'],
+      ['What earns, what does not?', 'The gain and annual return of each investment, before and after fees.'],
+      ['How does our loan work?', 'Interest and principal in each payment, balance left, total cost, early repayment.'],
+      ['What is left each month?', 'Income, the committed share, and the margin before everyday spending.'],
+    ],
+  },
+}[Astro.props.lang];
+---
+<Section title={copy.title} lead={copy.lead}>
+  <ul class="questions">
+    {copy.items.map(([question, answer]) => <li><strong>{question}</strong><span>{answer}</span></li>)}
+  </ul>
+</Section>
+
+<style>
+  .questions { list-style: none; padding: 0; margin: 0; display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); }
+  .questions li { display: flex; flex-direction: column; gap: 0.35rem; padding: 1.1rem 1.2rem; border: 1px solid var(--sl-color-hairline); border-radius: 0.75rem; background: var(--sl-color-bg-nav); }
+  .questions strong { color: var(--sl-color-white); font-size: 1.05rem; }
+  .questions span { color: var(--sl-color-gray-2); }
+</style>

@@ -11,7 +11,7 @@ public class OfxReaderTests
     [Fact]
     public void Reads_an_ofx_1_sgml_statement_in_latin_1()
     {
-        var file = StatementReader.Read(Vectors.Read("ofx1-sgml.ofx"));
+        var file = StatementReader.Parse(Vectors.Read("ofx1-sgml.ofx"));
 
         Assert.Equal("ofx", file.Format);
         Assert.Equal("FR7630006000011234567890189", file.Iban);
@@ -33,8 +33,8 @@ public class OfxReaderTests
     [Fact]
     public void Reads_the_same_account_from_an_ofx_2_xml_statement()
     {
-        var sgml = StatementReader.Read(Vectors.Read("ofx1-sgml.ofx"));
-        var xml = StatementReader.Read(Vectors.Read("ofx2-xml.ofx"));
+        var sgml = StatementReader.Parse(Vectors.Read("ofx1-sgml.ofx"));
+        var xml = StatementReader.Parse(Vectors.Read("ofx2-xml.ofx"));
 
         Assert.Equal(sgml with { Lines = NoLines }, xml with { Lines = NoLines });
         Assert.Equal(sgml.Lines, xml.Lines);
@@ -45,7 +45,7 @@ public class OfxReaderTests
     {
         var text = System.Text.Encoding.Latin1.GetString(Vectors.Read("ofx1-sgml.ofx"))
             .Replace("<BANKID>30006\n", "").Replace("<BRANCHID>00001\n", "").Replace("<ACCTID>12345678901", "<ACCTID>FR7630006000011234567890189");
-        var file = StatementReader.Read(System.Text.Encoding.Latin1.GetBytes(text));
+        var file = StatementReader.Parse(System.Text.Encoding.Latin1.GetBytes(text));
 
         Assert.Equal("FR7630006000011234567890189", file.Iban);
         Assert.Equal("FR7630006000011234567890189", file.AccountId);
@@ -55,7 +55,7 @@ public class OfxReaderTests
     public void An_encoding_header_of_utf_8_is_followed()
     {
         var text = System.Text.Encoding.Latin1.GetString(Vectors.Read("ofx1-sgml.ofx")).Replace("ENCODING:USASCII", "ENCODING:UTF-8");
-        var file = StatementReader.Read(System.Text.Encoding.UTF8.GetBytes(text));
+        var file = StatementReader.Parse(System.Text.Encoding.UTF8.GetBytes(text));
         Assert.Equal("PRLV SEPA EDF CLIENTS PARTICULIE Échéance électricité octobre", file.Lines[1].Label);
     }
 
@@ -113,7 +113,7 @@ public class OfxReaderTests
         Assert.True(file.Length <= StatementReader.MaxBytes);
 
         var watch = System.Diagnostics.Stopwatch.StartNew();
-        Assert.Single(StatementReader.Read(file).Lines);
+        Assert.Single(StatementReader.Parse(file).Lines);
         // Generous: a slow CI runner, never the minutes a quadratic scan takes.
         Assert.True(watch.Elapsed < TimeSpan.FromSeconds(10), $"Read took {watch.Elapsed}.");
     }
@@ -123,7 +123,7 @@ public class OfxReaderTests
     {
         var text = System.Text.Encoding.Latin1.GetString(Ofx(1));
         var statement = text[text.IndexOf("<STMTTRNRS>", StringComparison.Ordinal)..(text.IndexOf("</STMTTRNRS>", StringComparison.Ordinal) + "</STMTTRNRS>".Length)];
-        var e = Assert.Throws<StatementFileException>(() => StatementReader.Read(System.Text.Encoding.Latin1.GetBytes(
+        var e = Assert.Throws<StatementFileException>(() => StatementReader.Parse(System.Text.Encoding.Latin1.GetBytes(
             text.Replace(statement, statement + statement.Replace("12345678901", "10987654321")))));
         Assert.Equal(BankingCodes.FileSeveralAccounts, e.Code);
     }
@@ -131,7 +131,7 @@ public class OfxReaderTests
     [Fact]
     public void A_malformed_amount_is_refused_with_its_line()
     {
-        var e = Assert.Throws<StatementFileException>(() => StatementReader.Read(Vectors.Read("ofx-malformed.ofx")));
+        var e = Assert.Throws<StatementFileException>(() => StatementReader.Parse(Vectors.Read("ofx-malformed.ofx")));
         Assert.Equal(BankingCodes.FileMalformed, e.Code);
         Assert.Equal(51, e.Line);
     }
@@ -140,14 +140,14 @@ public class OfxReaderTests
     public void An_unclosed_aggregate_is_refused()
     {
         var text = System.Text.Encoding.Latin1.GetString(Vectors.Read("ofx1-sgml.ofx")).Replace("</OFX>", "");
-        var e = Assert.Throws<StatementFileException>(() => StatementReader.Read(System.Text.Encoding.Latin1.GetBytes(text)));
+        var e = Assert.Throws<StatementFileException>(() => StatementReader.Parse(System.Text.Encoding.Latin1.GetBytes(text)));
         Assert.Equal(BankingCodes.FileMalformed, e.Code);
     }
 
     [Fact]
     public void An_entity_is_refused()
     {
-        var e = Assert.Throws<StatementFileException>(() => StatementReader.Read(Vectors.Read("ofx-entity.ofx")));
+        var e = Assert.Throws<StatementFileException>(() => StatementReader.Parse(Vectors.Read("ofx-entity.ofx")));
         Assert.Equal(BankingCodes.FileMalformed, e.Code);
         Assert.DoesNotContain("ENTITY-EXPANDED", e.Message);
         Assert.DoesNotContain("localhost", e.Message);
@@ -156,17 +156,17 @@ public class OfxReaderTests
     [Fact]
     public void More_than_20_000_lines_are_refused()
     {
-        var e = Assert.Throws<StatementFileException>(() => StatementReader.Read(Ofx(StatementReader.MaxLines + 1)));
+        var e = Assert.Throws<StatementFileException>(() => StatementReader.Parse(Ofx(StatementReader.MaxLines + 1)));
         Assert.Equal(BankingCodes.FileMalformed, e.Code);
     }
 
     [Fact]
-    public void Exactly_20_000_lines_are_read() => Assert.Equal(StatementReader.MaxLines, StatementReader.Read(Ofx(StatementReader.MaxLines)).Lines.Count);
+    public void Exactly_20_000_lines_are_read() => Assert.Equal(StatementReader.MaxLines, StatementReader.Parse(Ofx(StatementReader.MaxLines)).Lines.Count);
 
     [Fact]
     public void An_empty_statement_is_valid()
     {
-        var file = StatementReader.Read(Ofx(0));
+        var file = StatementReader.Parse(Ofx(0));
         Assert.Empty(file.Lines);
         Assert.Equal("EUR", file.Currency);
     }
@@ -175,10 +175,10 @@ public class OfxReaderTests
     public void A_booked_date_past_the_latest_allowed_is_refused_with_its_line()
     {
         var text = System.Text.Encoding.Latin1.GetString(Vectors.Read("ofx1-sgml.ofx"));
-        var e = Assert.Throws<StatementFileException>(() => StatementReader.Read(System.Text.Encoding.Latin1.GetBytes(text), latest: new LocalDate(2026, 10, 20)));
+        var e = Assert.Throws<StatementFileException>(() => StatementReader.Parse(System.Text.Encoding.Latin1.GetBytes(text), latest: new LocalDate(2026, 10, 20)));
         Assert.Equal(BankingCodes.FileMalformed, e.Code);
         Assert.Equal(text.Split('\n').ToList().FindIndex(l => l.StartsWith("<DTPOSTED>20261027", StringComparison.Ordinal)) + 1, e.Line);
-        Assert.Equal(3, StatementReader.Read(System.Text.Encoding.Latin1.GetBytes(text), latest: new LocalDate(2026, 10, 28)).Lines.Count);
+        Assert.Equal(3, StatementReader.Parse(System.Text.Encoding.Latin1.GetBytes(text), latest: new LocalDate(2026, 10, 28)).Lines.Count);
     }
 
     [Theory]
@@ -191,11 +191,11 @@ public class OfxReaderTests
     [Fact]
     public void A_credit_card_statement_is_a_card_s()
     {
-        var card = StatementReader.Read(Vectors.Read("ofx-card.ofx"));
+        var card = StatementReader.Parse(Vectors.Read("ofx-card.ofx"));
 
         Assert.True(card.Card);
         Assert.Equal(("4970XXXXXXXX1234", null, -42.30m), (card.AccountId, card.Iban, Assert.Single(card.Lines).Amount));
-        Assert.False(StatementReader.Read(Vectors.Read("ofx1-sgml.ofx")).Card);
+        Assert.False(StatementReader.Parse(Vectors.Read("ofx1-sgml.ofx")).Card);
     }
 
     [Theory]
@@ -209,7 +209,7 @@ public class OfxReaderTests
     }
 
     private static StatementFile Read(Func<string, string> edit)
-        => StatementReader.Read(System.Text.Encoding.Latin1.GetBytes(edit(System.Text.Encoding.Latin1.GetString(Vectors.Read("ofx1-sgml.ofx")))));
+        => StatementReader.Parse(System.Text.Encoding.Latin1.GetBytes(edit(System.Text.Encoding.Latin1.GetString(Vectors.Read("ofx1-sgml.ofx")))));
 
     private static byte[] Ofx(int lines)
     {

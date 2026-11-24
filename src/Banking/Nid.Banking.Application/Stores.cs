@@ -95,6 +95,9 @@ public interface IAccountStore
 
     Task<BankAccount?> FindAsync(Guid id, CancellationToken ct);
 
+    /// <summary>The accounts of these ids, in one query (unknown ids are absent).</summary>
+    Task<IReadOnlyList<BankAccount>> FindManyAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct);
+
     /// <summary>
     /// The account of a statement file: by its IBAN, else by the hash of its account id (upper-cased, without spaces) as a file source
     /// recorded it; <c>null</c> when none.
@@ -126,6 +129,9 @@ public interface IAccountStore
     /// <summary>The connections that see the account, with its uid in each.</summary>
     Task<IReadOnlyList<BankAccountSource>> SourcesAsync(Guid account, CancellationToken ct);
 
+    /// <summary><see cref="SourcesAsync(Guid, CancellationToken)"/> of many accounts, in one query.</summary>
+    Task<IReadOnlyList<BankAccountSource>> SourcesAsync(IReadOnlyCollection<Guid> accounts, CancellationToken ct);
+
     /// <summary>#355: the currency a read learned for an account stored in <see cref="Currency.None"/>; any other account is left as it is.</summary>
     Task ResolveCurrencyAsync(Guid account, Currency currency, CancellationToken ct);
 
@@ -149,6 +155,9 @@ public interface IBalanceStore
 
     Task<BankBalance?> LatestAsync(Guid account, CancellationToken ct);
 
+    /// <summary><see cref="LatestAsync"/> of many accounts, in one query: an account without a balance is absent.</summary>
+    Task<IReadOnlyDictionary<Guid, BankBalance>> LatestManyAsync(IReadOnlyCollection<Guid> accounts, CancellationToken ct);
+
     /// <summary>The account's balances in the month of <paramref name="monthEnd"/>, by date.</summary>
     Task<IReadOnlyList<BankBalance>> InMonthAsync(Guid account, LocalDate monthEnd, CancellationToken ct);
 
@@ -162,7 +171,7 @@ public interface IBalanceStore
 /// </summary>
 /// <param name="RateLimited">#365: the accounts a bank refused for its read limit, apart from <paramref name="Skipped"/>.</param>
 public sealed record BankSyncRunView(
-    Guid Id, DateTimeOffset StartedAt, DateTimeOffset? FinishedAt, string Trigger, string Outcome, int Connections, int Accounts, int Balances,
+    Guid Id, Instant StartedAt, Instant? FinishedAt, string Trigger, string Outcome, int Connections, int Accounts, int Balances,
     int Proposals, int Written, int Skipped, string? FailureCode, int Transactions = 0, int RateLimited = 0);
 
 /// <summary>#365: the reads the sync made of each account, kept <see cref="Nid.Banking.Domain.BankReads.Kept"/>.</summary>

@@ -11,9 +11,15 @@ using UnambitiousFx.Synapse.Abstractions;
 
 namespace Nid.Documents.Application;
 
-public sealed record GetDocumentQuery(Guid Id) : IQuery<DocumentDetail>;
+public sealed record GetDocumentQuery(Guid Id) : IQuery<DocumentDetail>, IReadsDocument
+{
+    Guid IReadsDocument.DocumentId => Id;
+}
 
-public sealed record GetDocumentContentQuery(Guid Id) : IQuery<DocumentContent>;
+public sealed record GetDocumentContentQuery(Guid Id) : IQuery<DocumentContent>, IReadsDocument
+{
+    Guid IReadsDocument.DocumentId => Id;
+}
 
 /// <summary>
 /// Design §7: the documents the actor reads. <c>Household</c> keeps those with a visible link to a shared item, a dependent or the
@@ -41,23 +47,22 @@ public sealed record FilterReadableDocumentsQuery(IReadOnlyCollection<Guid> Ids)
 public sealed record ListDocumentTargetsQuery() : IQuery<DocumentTargetList>;
 
 /// <summary>Tranche 2 design §2.1: the readers a link would add, after the same checks and refusals as the link; writes nothing.</summary>
-public sealed record PreviewDocumentLinkQuery(Guid Id, DocumentTarget Target) : IQuery<LinkPreview>, IOptionalItemScoped
+public sealed record PreviewDocumentLinkQuery(Guid Id, DocumentTarget Target) : IQuery<LinkPreview>, IOptionalItemScoped, IReadsDocument
 {
+    Guid IReadsDocument.DocumentId => Id;
+
     public ItemId? ItemId => Target.Kind == TargetKinds.CoreItem ? new ItemId(Target.Id) : null;
 
     public AccessKind Access => AccessKind.Write;
 }
 
 [RequestHandler<GetDocumentQuery, DocumentDetail>]
-public sealed class GetDocumentHandler(DocumentAccess access, IActorAccessor actor) : IRequestHandler<GetDocumentQuery, DocumentDetail>
+public sealed class GetDocumentHandler(DocumentAccess access, IContextAccessor context) : IRequestHandler<GetDocumentQuery, DocumentDetail>
 {
     public async ValueTask<Result<DocumentDetail>> HandleAsync(GetDocumentQuery query, CancellationToken ct = default)
     {
-        var read = await access.ReadAsync(query.Id, actor.Current!.PersonId!.Value, ct);
-        if (!read.TryGetValue(out var found))
-            return Result.Failure<DocumentDetail>(read.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
-
-        var d = found!.Document;
+        var found = CheckedResources.Of<ReadableDocument>(context, query);
+        var d = found.Document;
         return Result.Success(new DocumentDetail(
             DocumentSummary.Of(found, await access.LabelsAsync(found.Links, ct)), d.OriginalFilename, d.Note, d.UploadedBy));
     }
@@ -121,21 +126,20 @@ public sealed class FilterReadableDocumentsHandler(IDocumentStore store, Documen
 
 /// <summary>Design §5: the only way to the bytes, after the same check as the detail.</summary>
 [RequestHandler<GetDocumentContentQuery, DocumentContent>]
-public sealed class GetDocumentContentHandler(
-    DocumentAccess access, IDocumentStorage storage, IActorAccessor actor, ILogger<GetDocumentContentHandler> logger)
+public sealed partial class GetDocumentContentHandler(
+    IContextAccessor context, IDocumentStorage storage, ILogger<GetDocumentContentHandler> logger)
     : IRequestHandler<GetDocumentContentQuery, DocumentContent>
 {
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Document {DocumentId}: its stored file {Sha256} is missing.")]
+    private partial void LogFileMissing(Guid documentId, string sha256);
+
     public async ValueTask<Result<DocumentContent>> HandleAsync(GetDocumentContentQuery query, CancellationToken ct = default)
     {
-        var read = await access.ReadAsync(query.Id, actor.Current!.PersonId!.Value, ct);
-        if (!read.TryGetValue(out var found))
-            return Result.Failure<DocumentContent>(read.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
-
-        var d = found!.Document;
+        var d = CheckedResources.Of<ReadableDocument>(context, query).Document;
         if (await storage.OpenAsync(d.Sha256, ct) is not { } content)
         {
             // Review Focus 4: a database restored without its volume.
-            logger.LogWarning("Document {DocumentId}: its stored file {Sha256} is missing.", d.Id, d.Sha256);
+            LogFileMissing(d.Id, d.Sha256);
             return Result.Failure<DocumentContent>(new Failure(DocumentsCodes.ContentMissing, "The document's file is missing from the storage.", null));
         }
 
@@ -172,18 +176,16 @@ public sealed class ListDocumentTargetsHandler(
 }
 
 [RequestHandler<PreviewDocumentLinkQuery, LinkPreview>]
-public sealed class PreviewDocumentLinkHandler(DocumentAccess access, IPersonRegistry persons, IActorAccessor actor)
+public sealed class PreviewDocumentLinkHandler(DocumentAccess access, IPersonRegistry persons, IActorAccessor actor, IContextAccessor context)
     : IRequestHandler<PreviewDocumentLinkQuery, LinkPreview>
 {
     public async ValueTask<Result<LinkPreview>> HandleAsync(PreviewDocumentLinkQuery query, CancellationToken ct = default)
     {
         var person = actor.Current!.PersonId!.Value;
-        var read = await access.ReadAsync(query.Id, person, ct);
-        if (!read.TryGetValue(out var found))
-            return Result.Failure<LinkPreview>(read.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
+        var found = CheckedResources.Of<ReadableDocument>(context, query);
 
         // The link's own checks, role aside: the preview names none, and any known role passes them alike.
-        var d = found!.Document;
+        var d = found.Document;
         var checkedLink = await access.CheckLinkAsync(d.Id, d.UploadedBy, found.Links, query.Target, DocumentRoles.Other, person, ct);
         if (!checkedLink.TryGetValue(out var link))
             return Result.Failure<LinkPreview>(checkedLink.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());

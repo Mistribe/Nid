@@ -1,8 +1,7 @@
 using Nid.Core.Application.Dashboard;
-using Nid.Core.Application.Tax;
 using Nid.Core.Contracts;
+using Nid.Core.Domain.Dashboard;
 using Nid.Core.Domain.Scenarios;
-using Nid.Core.Domain.Tax;
 using Nid.Platform.Contracts;
 using NodaTime;
 using UnambitiousFx.Functional;
@@ -35,7 +34,7 @@ public sealed record ScenarioReading(
 /// <summary>Property purchase scenario spec §4 and §5: gathers the household's figures as the dashboard and the tax estimate read them.</summary>
 public sealed class ScenarioFactsReader(
     IEnumerable<INetWorthContribution> netWorth, IEnumerable<IIncomeContribution> income, IEnumerable<ICommitmentsContribution> commitments,
-    IRealEstateProjection realEstate, ILoanSimulator loans, TaxEstimates tax, IActorAccessor actor, IHouseholdCalendar calendar,
+    IRealEstateProjection realEstate, ILoanSimulator loans, IHouseholdTax tax, IActorAccessor actor, IHouseholdCalendar calendar,
     IHouseholdSettings household, IFxRates fx)
 {
     private PersonId Reader => actor.Current!.PersonId!.Value;
@@ -182,18 +181,10 @@ public sealed class ScenarioFactsReader(
         PropertyPurchase doc, VisibilityScope scope, LocalDate today, IReadOnlyList<SimulatedLoan> scenarioLoans, CancellationToken ct)
     {
         if (doc.Use != PurchaseUse.Rental) return (0m, false);
-        var read = await tax.InputsAsync(today.Year, scope, today, ct);
-        if (!read.TryGetValue(out var inputs)) return (0m, true);
-        var regime = TaxEstimates.TryRegime(doc.RentalRegime, out var chosen) ? chosen : inputs.RentalRegime;
-        var real = regime == RentalRegime.Real;
-        var replayed = inputs with
-        {
-            RentalGross = inputs.RentalGross + doc.ExpectedRent * (12 - doc.VacancyMonths),
-            RentalCharges = inputs.RentalCharges + (real ? doc.MonthlyCharges * 12 + 20m : 0m),   // + the engine's flat charge per rental (TaxUseCases)
-            RentalInterest = inputs.RentalInterest + (real ? scenarioLoans.Sum(l => l.Rows.Take(12).Sum(r => r.Interest + r.Insurance)) : 0m),
-            RentalRegime = regime,
-        };
-        return ((TaxCalculator.Compute(replayed).TotalTax - TaxCalculator.Compute(inputs).TotalTax) / 12m, false);
+        var increase = await tax.RentalPurchaseAsync(scope, today, new RentalPurchaseTax(
+            doc.RentalRegime, doc.ExpectedRent * (12 - doc.VacancyMonths), doc.MonthlyCharges * 12,
+            scenarioLoans.Sum(l => l.Rows.Take(12).Sum(r => r.Interest + r.Insurance))), ct);
+        return increase.TryGetValue(out var monthly) ? (monthly, false) : (0m, true);
     }
 
     /// <summary>#184: the first projection month after the one a locked part is released in, as a departure (<see cref="Departures.SwitchMonths"/>).</summary>

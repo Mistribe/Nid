@@ -77,6 +77,9 @@ public sealed class AccountStore(BankingDbContext db) : IAccountStore
     public async Task<BankAccount?> FindAsync(Guid id, CancellationToken ct)
         => await db.Accounts.AsNoTracking().SingleOrDefaultAsync(a => a.Id == id, ct) is { } row ? ToAccount(row) : null;
 
+    public async Task<IReadOnlyList<BankAccount>> FindManyAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct)
+        => (await db.Accounts.AsNoTracking().Where(a => ids.Contains(a.Id)).ToListAsync(ct)).Select(ToAccount).ToList();
+
     public async Task<BankAccount?> FindFromFileAsync(string? iban, string accountId, CancellationToken ct)
     {
         var (ibanHash, identification) = FileKeys(iban, accountId);
@@ -137,6 +140,10 @@ public sealed class AccountStore(BankingDbContext db) : IAccountStore
 
     public async Task<IReadOnlyList<BankAccountSource>> SourcesAsync(Guid account, CancellationToken ct)
         => (await db.Sources.AsNoTracking().Where(s => s.AccountId == account).ToListAsync(ct))
+            .Select(s => new BankAccountSource(s.AccountId, s.ConnectionId, s.ProviderUid, s.IdentificationHash)).ToList();
+
+    public async Task<IReadOnlyList<BankAccountSource>> SourcesAsync(IReadOnlyCollection<Guid> accounts, CancellationToken ct)
+        => (await db.Sources.AsNoTracking().Where(s => accounts.Contains(s.AccountId)).ToListAsync(ct))
             .Select(s => new BankAccountSource(s.AccountId, s.ConnectionId, s.ProviderUid, s.IdentificationHash)).ToList();
 
     public async Task ResolveCurrencyAsync(Guid account, Currency currency, CancellationToken ct)

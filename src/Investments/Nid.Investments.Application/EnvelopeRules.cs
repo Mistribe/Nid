@@ -97,6 +97,14 @@ internal static class EnvelopeRules
             : tranches.Select(t => t.AvailableOn).Distinct().Count() != tranches.Count ? Invalid("availability", "Each availability date appears once.")
             : Result.Success();
 
+    /// <summary>#466: an employee savings plan's early-release case: one of <see cref="EarlyReleaseCases"/>, a positive amount with 4 decimals at most.</summary>
+    public static Result EarlyRelease(EarlyRelease? early, EnvelopeKind kind)
+        => early is null ? Result.Success()
+            : kind != EnvelopeKind.EmployeeSavings ? Invalid("earlyRelease", "An early release only applies to an employee savings plan.")
+            : !EarlyReleaseCases.All.Contains(early.Case) ? Invalid("earlyRelease.case", $"'{early.Case}' is not an early-release case.")
+            : early.Amount is { } a && (a <= 0 || Math.Round(a, 4) != a) ? Invalid("earlyRelease.amount", "The amount released is positive, with 4 decimals at most.")
+            : Result.Success();
+
     private static Result Invalid(string field, string message)
         => Result.Failure(new Failure(InvestmentsCodes.InvalidEnvelope, message, new Dictionary<string, object?> { ["field"] = field }));
 }

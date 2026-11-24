@@ -1,6 +1,7 @@
 using Nid.Core.Application.Dashboard;
 using Nid.Core.Application.Scenarios;
 using Nid.Core.Contracts;
+using Nid.Core.Domain.Dashboard;
 using Nid.Core.Domain.Projection;
 using Nid.Platform.Contracts;
 using NodaTime;

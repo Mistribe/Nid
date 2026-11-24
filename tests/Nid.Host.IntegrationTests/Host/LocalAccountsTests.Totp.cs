@@ -78,6 +78,8 @@ public partial class LocalAccountsTests
         Assert.Equal(HttpStatusCode.OK, (await first.PostAsync("/auth/login/totp", new { recoveryCode = codes[0].ToLowerInvariant() })).StatusCode);
         var left = (await host.EventsAsync(SecurityEventNames.RecoveryCodeUsed)).Single();
         Assert.Equal("9", JsonSerializer.Deserialize<Dictionary<string, string>>(left.Data)!["left"]);
+        // Issue 517: the code step runs through the pipeline, as the system: no session exists yet.
+        Assert.Equal(("system", nameof(Nid.Core.Application.CompleteTwoStepCommand)), (left.ActorKind, left.Request));
 
         var second = host.Browser();
         Assert.Equal("totp", await NextAsync(second, "bob", BobPassword));

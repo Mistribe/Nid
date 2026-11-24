@@ -5,7 +5,7 @@ using Nid.RealEstate.Domain;
 using NodaTime;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Synapse.Abstractions;
-using static Nid.RealEstate.Application.LoanReading;
+using static Nid.RealEstate.Domain.LoanReading;
 
 namespace Nid.RealEstate.Application;
 
@@ -81,7 +81,7 @@ public sealed class GetRentReceiptHandler(IPropertyStore properties, IItemRegist
         if (lease.LandlordAddress is null) missing.Add("landlord_address");
 
         return Result.Success(new RentReceiptView(
-            found.Property.ItemId, found.Item.DisplayName, LoanViews.CurrencyOf(found.Item).Code, ReceiptMonths.Wire(month), receipt.Kind, Amount(receipt.Rent),
+            found.Property.ItemId, found.Item.DisplayName, LoanReading.CurrencyOf(found.Item).Code, ReceiptMonths.Wire(month), receipt.Kind, Amount(receipt.Rent),
             Amount(receipt.Charges), Amount(receipt.Total), Amount(receipt.Paid), receipt.PaidOn, postal, lease.TenantNames, lease.LandlordName,
             lease.LandlordAddress, missing, months.Select(ReceiptMonths.Wire).ToList()));
     }

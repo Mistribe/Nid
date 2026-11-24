@@ -18,37 +18,52 @@ namespace Nid.Banking.Application;
 /// (<paramref name="Page"/> counts from 1); whoever reads the envelope reads them, the pipeline checks it. <paramref name="State"/>: a
 /// <c>link_state</c>, or <c>all</c> (the default).
 /// </summary>
-public sealed record ListBankTransactionsQuery(ItemId ItemId, LocalDate? From, LocalDate? To, int Page, string? State = null) : IQuery<BankTransactionPage>, IItemScoped
+public sealed record ListBankTransactionsQuery(ItemId ItemId, LocalDate? From, LocalDate? To, int Page, string? State = null) : IQuery<BankTransactionPage>, IItemScoped, IRequiresBanking
 {
     public AccessKind Access => AccessKind.Read;
 }
 
 /// <summary>5C spec §8: the lines of every account the actor reads, cards included, newest first; <paramref name="State"/> defaults to <c>unlinked</c>. <paramref name="Uncategorised"/>: only the lines with no category and no category source that are not ignored.</summary>
-public sealed record ListBankLinesQuery(string? State, LocalDate? From, LocalDate? To, int Page, bool Uncategorised = false) : IQuery<BankTransactionPage>;
+public sealed record ListBankLinesQuery(string? State, LocalDate? From, LocalDate? To, int Page, bool Uncategorised = false) : IQuery<BankTransactionPage>, IRequiresBanking;
 
 /// <summary>The charges within ±30 days of a line the actor reads that they may link it to, nearest amount first, 20 at most.</summary>
-public sealed record LinkCandidatesQuery(Guid TransactionId) : IQuery<IReadOnlyList<ExpectedChargeView>>;
+public sealed record LinkCandidatesQuery(Guid TransactionId) : IQuery<IReadOnlyList<ExpectedChargeView>>, IBankLineScoped
+{
+    public AccessKind Access => AccessKind.Read;
+}
 
 /// <summary>The charges the actor reads due in [<paramref name="From"/>, <paramref name="To"/>], 92 days at most.</summary>
-public sealed record ListExpectedChargesQuery(LocalDate From, LocalDate To) : IQuery<IReadOnlyList<ExpectedChargeView>>;
+public sealed record ListExpectedChargesQuery(LocalDate From, LocalDate To) : IQuery<IReadOnlyList<ExpectedChargeView>>, IRequiresBanking;
 
 /// <summary>A line of an account the actor writes linked by hand to a charge of an item they write, with its rule (<see cref="TransactionLinker.LinkAsync"/>).</summary>
-public sealed record LinkTransactionCommand(Guid TransactionId, string Module, Guid ItemId, string? Key) : ICommand<BankTransactionView>;
+public sealed record LinkTransactionCommand(Guid TransactionId, string Module, Guid ItemId, string? Key) : ICommand<BankTransactionView>, IBankLineScoped
+{
+    public AccessKind Access => AccessKind.Write;
+}
 
 /// <summary>A linked, internal or ignored line back to unlinked: write on its account, and on its link's target or read of its counterpart.</summary>
-public sealed record UnlinkTransactionCommand(Guid TransactionId) : ICommand<BankTransactionView>, ITransactional;
+public sealed record UnlinkTransactionCommand(Guid TransactionId) : ICommand<BankTransactionView>, ITransactional, IBankLineScoped
+{
+    public AccessKind Access => AccessKind.Write;
+}
 
 /// <summary>An unlinked line no charge is expected for.</summary>
-public sealed record IgnoreTransactionCommand(Guid TransactionId) : ICommand<BankTransactionView>;
+public sealed record IgnoreTransactionCommand(Guid TransactionId) : ICommand<BankTransactionView>, IBankLineScoped
+{
+    public AccessKind Access => AccessKind.Write;
+}
 
 /// <summary>A person's category for a line of an account they write; null is « Sans catégorie », kept over any link or rule alike.</summary>
-public sealed record SetTransactionCategoryCommand(Guid TransactionId, Guid? CategoryId) : ICommand<BankTransactionView>, ITransactional;
+public sealed record SetTransactionCategoryCommand(Guid TransactionId, Guid? CategoryId) : ICommand<BankTransactionView>, ITransactional, IBankLineScoped
+{
+    public AccessKind Access => AccessKind.Write;
+}
 
 /// <summary>
 /// #426: one category for several lines, each checked as one line is (<see cref="BankLines.CategorisableAsync"/>), in one transaction; a
 /// refused line does not stop the others. 1 to <see cref="SetTransactionsCategoryHandler.Most"/> distinct lines.
 /// </summary>
-public sealed record SetTransactionsCategoryCommand(IReadOnlyList<Guid> TransactionIds, Guid? CategoryId) : ICommand<LinesCategorised>, ITransactional;
+public sealed record SetTransactionsCategoryCommand(IReadOnlyList<Guid> TransactionIds, Guid? CategoryId) : ICommand<LinesCategorised>, ITransactional, IRequiresBanking;
 
 /// <summary>The lines that took the category, and the others with the code one line alone would have been refused with.</summary>
 public sealed record LinesCategorised(IReadOnlyList<Guid> Changed, IReadOnlyList<LineRefusal> Refused);
@@ -56,12 +71,15 @@ public sealed record LinesCategorised(IReadOnlyList<Guid> Changed, IReadOnlyList
 public sealed record LineRefusal(Guid Id, string Code);
 
 /// <summary>« Laisser Nid décider »: the line's category cleared, then its link's again when it is linked, in one transaction.</summary>
-public sealed record ResetTransactionCategoryCommand(Guid TransactionId) : ICommand<BankTransactionView>, ITransactional;
+public sealed record ResetTransactionCategoryCommand(Guid TransactionId) : ICommand<BankTransactionView>, ITransactional, IBankLineScoped
+{
+    public AccessKind Access => AccessKind.Write;
+}
 
 /// <summary>The actor's own rules.</summary>
-public sealed record ListBankRulesQuery : IQuery<IReadOnlyList<BankRuleView>>;
+public sealed record ListBankRulesQuery : IQuery<IReadOnlyList<BankRuleView>>, IRequiresBanking;
 
-public sealed record DeleteBankRuleCommand(Guid Id) : ICommand<Guid>;
+public sealed record DeleteBankRuleCommand(Guid Id) : ICommand<Guid>, IRequiresBanking;
 
 public sealed record BankTransactionPage(IReadOnlyList<BankTransactionView> Items, bool HasMore);
 
@@ -132,13 +150,17 @@ public sealed class BankLines(
     public async Task<Result<BankTransaction>> CategorisableAsync(Guid id, CancellationToken ct)
     {
         var found = await FindAsync(id, AccessKind.Write, ct);
-        if (!found.TryGetValue(out var line))
-            return found;
-        if (line!.CategorySource == CategorySource.Split)
+        return found.TryGetValue(out var line) ? Categorisable(line!) : found;
+    }
+
+    /// <summary>As <see cref="CategorisableAsync"/>, for a line already checked writable.</summary>
+    public static Result<BankTransaction> Categorisable(BankTransaction line)
+    {
+        if (line.CategorySource == CategorySource.Split)
             return Result.Failure<BankTransaction>(SplitUseCases.Split());
         return line.LinkState == TransactionLinkState.Ignored
             ? Result.Failure<BankTransaction>(new ConflictFailure("An ignored line takes no category: un-ignore it first.") { Code = BankingCodes.LineIgnored })
-            : found;
+            : Result.Success(line);
     }
 
     /// <summary>A page of the accounts' lines (null: every account the actor reads) in a <c>link_state</c>, or <c>all</c>.</summary>
@@ -223,14 +245,11 @@ public sealed class BankLines(
 }
 
 [RequestHandler<ListBankTransactionsQuery, BankTransactionPage>]
-public sealed class ListBankTransactionsHandler(BankingAccess access, IAccountStore accounts, BankLines lines)
+public sealed class ListBankTransactionsHandler(IAccountStore accounts, BankLines lines)
     : IRequestHandler<ListBankTransactionsQuery, BankTransactionPage>
 {
     public async ValueTask<Result<BankTransactionPage>> HandleAsync(ListBankTransactionsQuery query, CancellationToken ct = default)
     {
-        var enabled = await access.EnabledAsync(ct);
-        if (!enabled.IsSuccess)
-            return BankingAccess.Failed<BankTransactionPage>(enabled);
         var parsed = BankLines.State(query.State, "all");
         if (!parsed.TryGetValue(out var state))
             return BankingAccess.Failed<BankTransactionPage, string>(parsed);
@@ -243,14 +262,11 @@ public sealed class ListBankTransactionsHandler(BankingAccess access, IAccountSt
 }
 
 [RequestHandler<ListBankLinesQuery, BankTransactionPage>]
-public sealed class ListBankLinesHandler(BankingAccess access, BankLines lines)
+public sealed class ListBankLinesHandler(BankLines lines)
     : IRequestHandler<ListBankLinesQuery, BankTransactionPage>
 {
     public async ValueTask<Result<BankTransactionPage>> HandleAsync(ListBankLinesQuery query, CancellationToken ct = default)
     {
-        var enabled = await access.EnabledAsync(ct);
-        if (!enabled.IsSuccess)
-            return BankingAccess.Failed<BankTransactionPage>(enabled);
         var parsed = BankLines.State(query.State, "unlinked");
         if (!parsed.TryGetValue(out var state))
             return BankingAccess.Failed<BankTransactionPage, string>(parsed);
@@ -260,7 +276,7 @@ public sealed class ListBankLinesHandler(BankingAccess access, BankLines lines)
 }
 
 [RequestHandler<LinkCandidatesQuery, IReadOnlyList<ExpectedChargeView>>]
-public sealed class LinkCandidatesHandler(BankingAccess access, BankLines lines, ExpectedChargeReader charges)
+public sealed class LinkCandidatesHandler(IContextAccessor context, BankingAccess access, ExpectedChargeReader charges)
     : IRequestHandler<LinkCandidatesQuery, IReadOnlyList<ExpectedChargeView>>
 {
     public const int Days = 30;
@@ -268,12 +284,7 @@ public sealed class LinkCandidatesHandler(BankingAccess access, BankLines lines,
 
     public async ValueTask<Result<IReadOnlyList<ExpectedChargeView>>> HandleAsync(LinkCandidatesQuery query, CancellationToken ct = default)
     {
-        var enabled = await access.EnabledAsync(ct);
-        if (!enabled.IsSuccess)
-            return BankingAccess.Failed<IReadOnlyList<ExpectedChargeView>>(enabled);
-        var found = await lines.FindAsync(query.TransactionId, AccessKind.Read, ct);
-        if (!found.TryGetValue(out var line))
-            return BankingAccess.Failed<IReadOnlyList<ExpectedChargeView>, BankTransaction>(found);
+        var line = CheckedResources.Of<BankTransaction>(context, query);
 
         var (from, to) = (line!.BookedOn.PlusDays(-Days), line.BookedOn.PlusDays(Days));
         var own = (await charges.WritableAsync(access.Person, from, to, ct)).Where(c => c.Credit == line.Amount > 0).ToList();
@@ -294,7 +305,7 @@ public sealed class LinkCandidatesHandler(BankingAccess access, BankLines lines,
 internal static class ExpectedChargeViews
 {
     public static ExpectedChargeView Of(ExpectedCharge c, decimal? gap) => new(
-        c.Module, c.Item.Value, c.ItemName, BankLines.Wire(c.Kind), c.Key, c.DueOn, TransactionLinker.Amount(c.Amount.Amount), c.Amount.Currency.Code,
+        c.Module, c.Item.Value, c.ItemName, c.Kind.Name, c.Key, c.DueOn, TransactionLinker.Amount(c.Amount.Amount), c.Amount.Currency.Code,
         c.Credit, gap is { } g ? TransactionLinker.Amount(g) : null);
 }
 
@@ -306,9 +317,6 @@ public sealed class ListExpectedChargesHandler(BankingAccess access, ExpectedCha
 
     public async ValueTask<Result<IReadOnlyList<ExpectedChargeView>>> HandleAsync(ListExpectedChargesQuery query, CancellationToken ct = default)
     {
-        var enabled = await access.EnabledAsync(ct);
-        if (!enabled.IsSuccess)
-            return BankingAccess.Failed<IReadOnlyList<ExpectedChargeView>>(enabled);
         if (query.To < query.From || Period.DaysBetween(query.From, query.To) > MaxDays)
             return Result.Failure<IReadOnlyList<ExpectedChargeView>>(FieldErrors.Shape(
                 [new FieldError("to", FieldErrors.ShapeCode, $"A window starts on or before its end and spans {MaxDays} days at most.")]));
@@ -324,12 +332,6 @@ public sealed class LinkTransactionHandler(BankingAccess access, BankLines lines
 {
     public async ValueTask<Result<BankTransactionView>> HandleAsync(LinkTransactionCommand command, CancellationToken ct = default)
     {
-        var enabled = await access.EnabledAsync(ct);
-        if (!enabled.IsSuccess)
-            return BankingAccess.Failed<BankTransactionView>(enabled);
-        var writable = await lines.FindAsync(command.TransactionId, AccessKind.Write, ct);
-        if (!writable.IsSuccess)
-            return BankingAccess.Failed<BankTransactionView, BankTransaction>(writable);
         var item = new ItemId(command.ItemId);
         var checkedLine = await linker.CheckAsync(command.TransactionId, command.Module, item, ct);
         if (!checkedLine.TryGetValue(out var line))
@@ -344,17 +346,12 @@ public sealed class LinkTransactionHandler(BankingAccess access, BankLines lines
 
 [RequestHandler<UnlinkTransactionCommand, BankTransactionView>]
 public sealed class UnlinkTransactionHandler(
-    BankingAccess access, BankLines lines, ILinkStore links, IAccessPolicy policy, IItemRegistry items, CategoryRuleApplier categoryRules)
+    IContextAccessor context, BankingAccess access, BankLines lines, ILinkStore links, IAccessPolicy policy, IItemRegistry items, CategoryRuleApplier categoryRules)
     : IRequestHandler<UnlinkTransactionCommand, BankTransactionView>
 {
     public async ValueTask<Result<BankTransactionView>> HandleAsync(UnlinkTransactionCommand command, CancellationToken ct = default)
     {
-        var enabled = await access.EnabledAsync(ct);
-        if (!enabled.IsSuccess)
-            return BankingAccess.Failed<BankTransactionView>(enabled);
-        var found = await lines.FindAsync(command.TransactionId, AccessKind.Write, ct);
-        if (!found.TryGetValue(out var line))
-            return BankingAccess.Failed<BankTransactionView, BankTransaction>(found);
+        var line = CheckedResources.Of<BankTransaction>(context, command);
 
         // D19: a link the actor cannot see is not found, never named.
         switch ((await links.ForTransactionsAsync([line!.Id], ct)).GetValueOrDefault(line.Id))
@@ -377,17 +374,12 @@ public sealed class UnlinkTransactionHandler(
 }
 
 [RequestHandler<IgnoreTransactionCommand, BankTransactionView>]
-public sealed class IgnoreTransactionHandler(BankingAccess access, BankLines lines, ILinkStore links)
+public sealed class IgnoreTransactionHandler(IContextAccessor context, BankLines lines, ILinkStore links)
     : IRequestHandler<IgnoreTransactionCommand, BankTransactionView>
 {
     public async ValueTask<Result<BankTransactionView>> HandleAsync(IgnoreTransactionCommand command, CancellationToken ct = default)
     {
-        var enabled = await access.EnabledAsync(ct);
-        if (!enabled.IsSuccess)
-            return BankingAccess.Failed<BankTransactionView>(enabled);
-        var found = await lines.FindAsync(command.TransactionId, AccessKind.Write, ct);
-        if (!found.TryGetValue(out var line))
-            return BankingAccess.Failed<BankTransactionView, BankTransaction>(found);
+        var line = CheckedResources.Of<BankTransaction>(context, command);
         if (line!.LinkState != TransactionLinkState.Unlinked)
             return Result.Failure<BankTransactionView>(new ConflictFailure("This line is already linked or ignored.") { Code = BankingCodes.TransactionLinked });
 
@@ -397,15 +389,12 @@ public sealed class IgnoreTransactionHandler(BankingAccess access, BankLines lin
 }
 
 [RequestHandler<SetTransactionCategoryCommand, BankTransactionView>]
-public sealed class SetTransactionCategoryHandler(BankingAccess access, BankLines lines, ICategoryStore categories, SavingsFlows savingsFlows, IClock clock)
+public sealed class SetTransactionCategoryHandler(IContextAccessor context, BankingAccess access, BankLines lines, ICategoryStore categories, SavingsFlows savingsFlows, IClock clock)
     : IRequestHandler<SetTransactionCategoryCommand, BankTransactionView>
 {
     public async ValueTask<Result<BankTransactionView>> HandleAsync(SetTransactionCategoryCommand command, CancellationToken ct = default)
     {
-        var enabled = await access.EnabledAsync(ct);
-        if (!enabled.IsSuccess)
-            return BankingAccess.Failed<BankTransactionView>(enabled);
-        var found = await lines.CategorisableAsync(command.TransactionId, ct);
+        var found = BankLines.Categorisable(CheckedResources.Of<BankTransaction>(context, command));
         if (!found.TryGetValue(out var line))
             return BankingAccess.Failed<BankTransactionView, BankTransaction>(found);
         var inUse = await InUseAsync(categories, command.CategoryId, ct);
@@ -440,9 +429,6 @@ public sealed class SetTransactionsCategoryHandler(BankingAccess access, BankLin
 
     public async ValueTask<Result<LinesCategorised>> HandleAsync(SetTransactionsCategoryCommand command, CancellationToken ct = default)
     {
-        var enabled = await access.EnabledAsync(ct);
-        if (!enabled.IsSuccess)
-            return BankingAccess.Failed<LinesCategorised>(enabled);
         var ids = command.TransactionIds.Distinct().ToList();
         if (ids.Count is 0 or > Most)
             return Result.Failure<LinesCategorised>(FieldErrors.At(
@@ -473,17 +459,12 @@ public sealed class SetTransactionsCategoryHandler(BankingAccess access, BankLin
 
 [RequestHandler<ResetTransactionCategoryCommand, BankTransactionView>]
 public sealed class ResetTransactionCategoryHandler(
-    BankingAccess access, BankLines lines, ICategoryStore categories, LineRecategoriser recategoriser, SavingsFlows savingsFlows, IClock clock)
+    IContextAccessor context, BankingAccess access, BankLines lines, ICategoryStore categories, LineRecategoriser recategoriser, SavingsFlows savingsFlows, IClock clock)
     : IRequestHandler<ResetTransactionCategoryCommand, BankTransactionView>
 {
     public async ValueTask<Result<BankTransactionView>> HandleAsync(ResetTransactionCategoryCommand command, CancellationToken ct = default)
     {
-        var enabled = await access.EnabledAsync(ct);
-        if (!enabled.IsSuccess)
-            return BankingAccess.Failed<BankTransactionView>(enabled);
-        var found = await lines.FindAsync(command.TransactionId, AccessKind.Write, ct);
-        if (!found.TryGetValue(out var line))
-            return BankingAccess.Failed<BankTransactionView, BankTransaction>(found);
+        var line = CheckedResources.Of<BankTransaction>(context, command);
         if (line!.CategorySource == CategorySource.Split)
             return Result.Failure<BankTransactionView>(SplitUseCases.Split());
 
@@ -500,9 +481,6 @@ public sealed class ListBankRulesHandler(BankingAccess access, IAccountStore acc
 {
     public async ValueTask<Result<IReadOnlyList<BankRuleView>>> HandleAsync(ListBankRulesQuery query, CancellationToken ct = default)
     {
-        var enabled = await access.EnabledAsync(ct);
-        if (!enabled.IsSuccess)
-            return BankingAccess.Failed<IReadOnlyList<BankRuleView>>(enabled);
 
         var mine = await rules.ByAsync(access.Person, ct);
         var readable = (await access.ReadableAsync(await accounts.AllAsync(ct), ct)).ToDictionary(r => r.Account.Id, r => r.Account.Name);
@@ -519,9 +497,6 @@ public sealed class DeleteBankRuleHandler(BankingAccess access, IRuleStore rules
 {
     public async ValueTask<Result<Guid>> HandleAsync(DeleteBankRuleCommand command, CancellationToken ct = default)
     {
-        var enabled = await access.EnabledAsync(ct);
-        if (!enabled.IsSuccess)
-            return BankingAccess.Failed<Guid>(enabled);
         return await rules.DeleteAsync(command.Id, access.Person, ct)
             ? Result.Success(command.Id)
             : Result.Failure<Guid>(new NotFoundFailure("bank rule", command.Id.ToString()));

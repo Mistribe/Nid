@@ -64,14 +64,14 @@ public class CategoriesTests
     [InlineData(LinkOutcome.InternalTransfer, null, null, null, false, "", "internal.transfer")]
     [InlineData(LinkOutcome.CardSettlement, null, null, null, false, "", "internal.card")]
     [InlineData(LinkOutcome.Contribution, null, null, null, false, "", "internal.savings")]
-    [InlineData(LinkOutcome.AsExpected, ChargeKind.LoanInstalment, null, null, false, "", "home.rent_loan")]
-    [InlineData(LinkOutcome.AsExpected, ChargeKind.PropertyCost, null, null, false, "", "home.utilities")]
-    [InlineData(LinkOutcome.Income, ChargeKind.Rent, null, null, true, "", "income.rent")]
-    [InlineData(LinkOutcome.AsExpected, ChargeKind.Childcare, null, null, false, "", "children.childcare")]
-    [InlineData(LinkOutcome.AsExpected, ChargeKind.Subscription, null, null, false, "streaming", "leisure.subscriptions")]
-    [InlineData(LinkOutcome.PriceDiffers, ChargeKind.Subscription, null, null, false, "telecom", "home.telecom")]
-    [InlineData(LinkOutcome.AsExpected, ChargeKind.Subscription, null, null, false, "unknown,insurance", "insurance")]
-    [InlineData(LinkOutcome.AsExpected, ChargeKind.Subscription, null, null, false, "", "leisure.subscriptions")]
+    [InlineData(LinkOutcome.AsExpected, ChargeKinds.LoanInstalment, null, null, false, "", "home.rent_loan")]
+    [InlineData(LinkOutcome.AsExpected, ChargeKinds.PropertyCost, null, null, false, "", "home.utilities")]
+    [InlineData(LinkOutcome.Income, ChargeKinds.Rent, null, null, true, "", "income.rent")]
+    [InlineData(LinkOutcome.AsExpected, ChargeKinds.Childcare, null, null, false, "", "children.childcare")]
+    [InlineData(LinkOutcome.AsExpected, ChargeKinds.Subscription, null, null, false, "streaming", "leisure.subscriptions")]
+    [InlineData(LinkOutcome.PriceDiffers, ChargeKinds.Subscription, null, null, false, "telecom", "home.telecom")]
+    [InlineData(LinkOutcome.AsExpected, ChargeKinds.Subscription, null, null, false, "unknown,insurance", "insurance")]
+    [InlineData(LinkOutcome.AsExpected, ChargeKinds.Subscription, null, null, false, "", "leisure.subscriptions")]
     [InlineData(LinkOutcome.AsExpected, null, "realestate", "loan", false, "", "home.rent_loan")]
     [InlineData(LinkOutcome.AsExpected, null, "realestate", "property", false, "", "home.utilities")]
     [InlineData(LinkOutcome.Income, null, "realestate", "property", true, "", "income.rent")]
@@ -79,7 +79,7 @@ public class CategoriesTests
     [InlineData(LinkOutcome.AsExpected, null, "subscriptions", "x", false, "music", "leisure.subscriptions")]
     [InlineData(LinkOutcome.AsExpected, null, "other", "x", false, "", null)]
     public void KeyFor_maps_a_link_to_a_category(
-        LinkOutcome outcome, ChargeKind? charge, string? module, string? itemKind, bool credit, string labels, string? expected)
+        LinkOutcome outcome, string? charge, string? module, string? itemKind, bool credit, string labels, string? expected)
         => Assert.Equal(
             expected,
             LinkCategory.KeyFor(outcome, charge, module, itemKind, credit, labels.Split(',', StringSplitOptions.RemoveEmptyEntries)));

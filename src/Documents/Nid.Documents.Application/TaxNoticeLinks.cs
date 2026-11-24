@@ -1,4 +1,5 @@
 using Nid.Core.Contracts;
+using Nid.Tax.Contracts;
 using Nid.Documents.Contracts;
 using Nid.Platform.Contracts;
 using NodaTime;

@@ -148,7 +148,7 @@ public sealed class GetPropertyRoutineHandler(
         foreach (var property in listed)
         {
             var item = accesses[property.ItemId];
-            var currency = LoanViews.CurrencyOf(item).Code;
+            var currency = LoanReading.CurrencyOf(item).Code;
             // « À faire »'s rule (PropertyMath.At): due without an estimate on or before `on`, or when that one is stale at `on`.
             var at = PropertyMath.At(property.Details, false, values![property.ItemId], [], [], [], on);
             estimates.Add(new(property.ItemId, item.DisplayName, currency, LoanReading.Amount(at.Value), at.ValueOn, at.Value is null || at.Stale));
@@ -245,7 +245,7 @@ public sealed class RecordPropertyRoutineHandler(
                 return Fail(PropertyRoutine.Field(PropertyCodes.RoutineValueExists,
                     "This property already has an estimate at this date: correct it from its page.", $"estimates[{i}].amount"));
 
-        Currency CurrencyOf(ItemId id) => LoanViews.CurrencyOf(accesses![id]);
+        Currency CurrencyOf(ItemId id) => LoanReading.CurrencyOf(accesses![id]);
         var valuationIds = new Dictionary<ItemId, Guid>();
         var recorded = new List<Flow>();
         await using (var transaction = await unitOfWork.BeginAsync(ct))
@@ -270,7 +270,7 @@ public sealed class RecordPropertyRoutineHandler(
         }
 
         var lines = accesses!.Values
-            .Select(item => new PropertyRoutineRecapLine(item.Id, item.DisplayName, LoanViews.CurrencyOf(item).Code,
+            .Select(item => new PropertyRoutineRecapLine(item.Id, item.DisplayName, LoanReading.CurrencyOf(item).Code,
                 valuationIds.TryGetValue(item.Id, out var valuationId) ? valuationId : (Guid?)null,
                 command.Estimates.FirstOrDefault(e => e.Property == item.Id) is { } sent ? LoanReading.Amount(sent.Amount) : null,
                 recorded.Where(f => f.Item == item.Id)

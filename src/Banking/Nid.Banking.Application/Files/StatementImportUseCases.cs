@@ -21,7 +21,7 @@ namespace Nid.Banking.Application.Files;
 /// sets aside.
 /// </summary>
 public sealed record ImportStatementCommand(byte[] File, ItemId? Envelope, bool Confirm, bool KeepProbablyKnown)
-    : ICommand<StatementImportView>, IBrowserOnly, IRecordsSecurityEvent
+    : ICommand<StatementImportView>, IBrowserOnly, IRecordsSecurityEvent, IRequiresBanking
 {
     /// <summary>Spec §10: a written import, under the account's envelope when it has one; counts only, never a label, an amount or an IBAN.</summary>
     public SecurityEvent? EventFor(object response)
@@ -72,19 +72,10 @@ public sealed class ImportStatementHandler(
     private async Task<Result<StatementImportView>> ImportAsync(ImportStatementCommand command, CancellationToken ct)
     {
         // A file needs no Enable Banking application: banking on is enough (ruling R-d).
-        var enabled = await access.EnabledAsync(ct);
-        if (!enabled.IsSuccess)
-            return BankingAccess.Failed<StatementImportView>(enabled);
         var latest = (await calendar.TodayAsync(ct)).PlusDays(StatementReader.AheadDays);
-        StatementFile file;
-        try
-        {
-            file = StatementReader.Read(command.File, latest);
-        }
-        catch (StatementFileException e)
-        {
-            return Result.Failure<StatementImportView>(new Failure(e.Code, e.Message, e.Line is { } line ? new Dictionary<string, object?> { ["line"] = line } : null));
-        }
+        var read = StatementReader.Read(command.File, latest);
+        if (!read.TryGetValue(out var file))
+            return BankingAccess.Failed<StatementImportView, StatementFile>(read);
         if (!Currency.TryCreate(file.Currency.ToUpperInvariant(), out var currency))
             return BankingAccess.Fail<StatementImportView>(BankingCodes.FileMalformed, "The statement's currency is no ISO code.");
         // Whether the envelope has an account is told only to whoever writes it.

@@ -13,6 +13,9 @@ namespace Nid.Childcare.Application;
 public sealed class ChildcareCharges(IVisibleItems visible, IItemRegistry items, IChildcareStore store, IHouseholdSettings household, IHouseholdCalendar calendar)
     : IExpectedCharges
 {
+    /// <summary>Issue #514: a month's pay, on the arrangement's page; childcare has amounts on the calendar, never events (#241).</summary>
+    public static readonly ChargeKind Childcare = new(ChargeKinds.Childcare, CalendarModules.Childcare);
+
     private static readonly IReadOnlyList<string> Hints = ["PAJEMPLOI", "URSSAF"];
 
     public async Task<Result<IReadOnlyList<ExpectedCharge>>> ChargesAsync(PersonId reader, VisibilityScope scope, LocalDate from, LocalDate to, CancellationToken ct)
@@ -36,7 +39,7 @@ public sealed class ChildcareCharges(IVisibleItems visible, IItemRegistry items,
                 var paidBy = statement.Month.PlusMonths(1).ToDateInterval().End;
                 var due = LocalDate.Min(at.InZone(zone).Date.PlusDays(2), paidBy);
                 if (due >= from && due <= to && Money.Create(Math.Round(figures.Cost, 2, MidpointRounding.AwayFromZero), currency).TryGetValue(out var amount))
-                    charges.Add(new ExpectedCharge("childcare", arrangement.ItemId, item.DisplayName, ChargeKind.Childcare,
+                    charges.Add(new ExpectedCharge("childcare", arrangement.ItemId, item.DisplayName, Childcare,
                         $"statement:{StatementAssembly.Format(statement.Month)}", due, amount, false, 5, Hints));
             }
         }

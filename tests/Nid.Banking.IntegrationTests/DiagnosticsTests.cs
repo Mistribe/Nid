@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Nid.Banking.Contracts;
 using Nid.Platform.Admin;
 using Nid.TestSupport;
+using NodaTime;
 
 namespace Nid.Banking.IntegrationTests;
 
@@ -106,7 +107,7 @@ public class DiagnosticsTests(PostgresFixture fixture) : IClassFixture<PostgresF
     private sealed class Scheduled(DateTimeOffset next) : IJobStatusReader
     {
         public Task<IReadOnlyList<JobSchedule>> ListAsync(CancellationToken ct)
-            => Task.FromResult<IReadOnlyList<JobSchedule>>([new("fx-daily", "0 0 6 * * ?", next.AddHours(2)), new("bank-sync-nightly", "0 30 4 * * ?", next)]);
+            => Task.FromResult<IReadOnlyList<JobSchedule>>([new("fx-daily", "0 0 6 * * ?", Instant.FromDateTimeOffset(next.AddHours(2))), new("bank-sync-nightly", "0 30 4 * * ?", Instant.FromDateTimeOffset(next))]);
     }
 
     [Fact]

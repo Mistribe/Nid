@@ -1,18 +1,13 @@
 using Microsoft.EntityFrameworkCore;
 using Nid.Core.Contracts;
+using Nid.Goals.Domain;
+using static Nid.Goals.Domain.GoalDeletion;
 
 namespace Nid.Goals.Infrastructure.Persistence;
 
-/// <summary>
-/// #23: Goals' share of an item delete: the goal, its funding links and its progress entries; for an envelope, the open goals it funds
-/// block (edit their funding), the closed ones' funding lines go with it (a closed goal cannot be edited).
-/// </summary>
+/// <summary>#23: Goals' share of an item delete, by <see cref="GoalDeletion"/>'s rule.</summary>
 public sealed class GoalsDeletionPart(GoalsDbContext db, IItemRegistry items) : IItemDeletionPart
 {
-    private static bool IsGoal(ItemAccess item) => item.Module == "goals";
-
-    private static bool IsEnvelope(ItemAccess item) => item is { Module: "investments", Kind: "envelope" };
-
     /// <summary>The goals the envelope funds.</summary>
     private async Task<IReadOnlyList<ItemAccess>> FundedAsync(ItemAccess envelope, CancellationToken ct)
     {
@@ -24,7 +19,7 @@ public sealed class GoalsDeletionPart(GoalsDbContext db, IItemRegistry items) : 
     {
         if (IsEnvelope(item))
             // (goal, envelope) is the funding key: one line per goal, so goals counted are lines counted.
-            return [new("goal_funding_closed", (await FundedAsync(item, ct)).Count(g => g.ArchivedAt is not null))];
+            return [new("goal_funding_closed", Released(await FundedAsync(item, ct)).Count)];
         return !IsGoal(item) ? []
         :
         [
@@ -37,7 +32,7 @@ public sealed class GoalsDeletionPart(GoalsDbContext db, IItemRegistry items) : 
     {
         if (!IsEnvelope(item))
             return [];
-        var open = (await FundedAsync(item, ct)).Where(g => g.ArchivedAt is null).ToList();
+        var open = Blocking(await FundedAsync(item, ct));
         return open.Count == 0 ? [] : [new("goal_funding", open.Count, open.Select(g => new DeletionBlockerItem(g.Id.Value, g.DisplayName)).ToList())];
     }
 
@@ -50,7 +45,7 @@ public sealed class GoalsDeletionPart(GoalsDbContext db, IItemRegistry items) : 
         if (IsEnvelope(item))
         {
             // Only closed goals' lines: a line an open goal added since the blocker check stays (and blocks the next attempt).
-            var closed = (await FundedAsync(item, ct)).Where(g => g.ArchivedAt is not null).Select(g => g.Id.Value).ToList();
+            var closed = Released(await FundedAsync(item, ct)).Select(g => g.Id.Value).ToList();
             db.Funding.RemoveRange(await db.Funding.Where(f => f.EnvelopeId == id && closed.Contains(f.GoalId)).ToListAsync(ct));
             await db.SaveChangesAsync(ct);
             return;

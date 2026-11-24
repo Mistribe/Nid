@@ -125,7 +125,7 @@ public sealed partial class AmortizationProposal(ILoanStore loans, IItemRegistry
 
     private static (LoanTerms Terms, LoanSchedule Schedule) Computed((StoredLoan Loan, ItemAccess Item) found)
     {
-        var terms = LoanReading.Terms(LoanViews.CurrencyOf(found.Item), found.Loan.Contract, found.Loan.Fees, found.Loan.Repayments);
+        var terms = LoanReading.Terms(LoanReading.CurrencyOf(found.Item), found.Loan.Contract, found.Loan.Fees, found.Loan.Repayments);
         return (terms, LoanReading.Computed(terms));
     }
 

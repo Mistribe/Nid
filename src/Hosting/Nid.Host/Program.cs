@@ -39,6 +39,12 @@ using UnambitiousFx.Synapse.Abstractions;
 [assembly: SynapseGlobalBehavior(typeof(Nid.Platform.Audit.AuditBehavior<,>))]
 [assembly: SynapseGlobalBehavior(typeof(BrowserOnlyBehavior<,>))]
 [assembly: SynapseGlobalBehavior(typeof(ItemCreationBehavior<,>))]
+// #516: the modules' own resources that are no registry items, at PipelineOrder.ResourceAccess.
+[assembly: SynapseGlobalBehavior(typeof(Nid.Banking.Application.BankingAccessBehavior<,>))]
+[assembly: SynapseGlobalBehavior(typeof(Nid.Documents.Application.DocumentAccessBehavior<,>))]
+[assembly: SynapseGlobalBehavior(typeof(Nid.Core.Application.ProposalAccessBehavior<,>))]
+[assembly: SynapseGlobalBehavior(typeof(Nid.Core.Application.ScenarioAccessBehavior<,>))]
+[assembly: SynapseGlobalBehavior(typeof(Nid.Tax.Application.TaxAssessmentAccessBehavior<,>))]
 [assembly: SynapseGlobalBehavior(typeof(DocumentMaskBehavior<,>))]
 [assembly: SynapseGlobalBehavior(typeof(OutputGuardBehavior<,>))]
 
@@ -158,7 +164,7 @@ builder.Services.ConfigureHttpJsonOptions(o =>
 
 var app = builder.Build();
 if (documentsOptions.Storage.Kind == "s3")
-    app.Logger.LogInformation("Documents are stored in S3: they are outside the restic snapshot and rely on the bucket's versioning or replication.");
+    StartupLog.DocumentsInS3(app.Logger);
 
 // 1F4: `nid admin …` runs one use case and stops; it never migrates and never serves.
 if (adminMode)
@@ -177,6 +183,8 @@ if (!generatingOpenApi && !builder.Configuration.GetValue<bool>("Health:SkipMigr
 {
     await using var scope = app.Services.CreateAsyncScope();
     await scope.ServiceProvider.GetRequiredService<CoreDbContext>().Database.MigrateAsync();
+    // #512: after Core's, whose earlier migrations created the tax tables this one moves to the tax schema.
+    await scope.ServiceProvider.GetRequiredService<Nid.Tax.Infrastructure.Persistence.TaxDbContext>().Database.MigrateAsync();
     await scope.ServiceProvider.GetRequiredService<SubscriptionsDbContext>().Database.MigrateAsync();
     await scope.ServiceProvider.GetRequiredService<InvestmentsDbContext>().Database.MigrateAsync();
     await scope.ServiceProvider.GetRequiredService<IncomeDbContext>().Database.MigrateAsync();
@@ -190,18 +198,18 @@ if (!generatingOpenApi && !builder.Configuration.GetValue<bool>("Health:SkipMigr
 }
 // Issue #343: a key Docker turned into a folder, or one Nid may not read, would otherwise leave bank sync « not configured » without a word.
 if (!generatingOpenApi && bankingKey.Status is Nid.Banking.Contracts.BankingKeyStatus.Directory or Nid.Banking.Contracts.BankingKeyStatus.Unreadable)
-    app.Logger.LogWarning("The Enable Banking private key at {Path} is {Status}: bank sync stays not configured. See deploy/README.md §12.",
+    StartupLog.BankingKeyUnusable(app.Logger,
         Path.Combine(builder.Configuration.SecretsPath(), Nid.Banking.Contracts.BankingKey.FileName),
         bankingKey.Status == Nid.Banking.Contracts.BankingKeyStatus.Directory ? "a directory, not a file" : "not readable by Nid's user");
 // Issue 215: plain HTTP is the hoster's explicit choice, said again at every start (local-accounts spec §12).
 if (!generatingOpenApi && app.Services.GetRequiredService<AuthSettings>().AllowInsecureHttp)
-    app.Logger.LogWarning("Plain HTTP is allowed (Auth__AllowInsecureHttp): passwords and the session cookie can travel unencrypted. Put Nid behind an HTTPS reverse proxy unless this network is trusted.");
+    StartupLog.InsecureHttp(app.Logger);
 // Issue 215: a fresh instance with local accounts waits for its first administrator; the log gives the setup address.
 if (!generatingOpenApi && !demo.Enabled && app.Services.GetRequiredService<AuthSettings>().Local)
     await SetupToken.AnnounceAsync(app.Services, app.Logger, CancellationToken.None);
 if (!generatingOpenApi && demo.Enabled)
 {
-    app.Logger.LogWarning("Demo mode is on (Nid__Demo__Enabled): anyone can sign in as the demo household, without a password.");
+    StartupLog.DemoOn(app.Logger);
     await DemoHousehold.SeedAsync(app.Services, app.Logger, CancellationToken.None);
 }
 

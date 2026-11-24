@@ -42,7 +42,7 @@ public sealed class SyncRunLog(BankingDbContext db, IClock clock) : IBankSyncRun
 
     public async Task FinishAsync(BankSyncRunView run, CancellationToken ct)
     {
-        Instant? finishedAt = run.FinishedAt is { } f ? Instant.FromDateTimeOffset(f) : null;
+        var finishedAt = run.FinishedAt;
         await db.SyncRuns.Where(r => r.Id == run.Id).ExecuteUpdateAsync(s => s
             .SetProperty(r => r.Outcome, run.Outcome)
             .SetProperty(r => r.FinishedAt, finishedAt)
@@ -73,6 +73,6 @@ public sealed class SyncRunLog(BankingDbContext db, IClock clock) : IBankSyncRun
         => await db.SyncRuns.Where(r => r.StartedAt < before && r.Outcome != "running").ExecuteDeleteAsync(ct);
 
     private static BankSyncRunView ToView(SyncRunRow r)
-        => new(r.Id, r.StartedAt.ToDateTimeOffset(), r.FinishedAt?.ToDateTimeOffset(), r.Trigger, r.Outcome, r.Connections, r.Accounts, r.Balances,
+        => new(r.Id, r.StartedAt, r.FinishedAt, r.Trigger, r.Outcome, r.Connections, r.Accounts, r.Balances,
             r.Proposals, r.Written, r.Skipped, r.FailureCode, r.Transactions, r.RateLimited);
 }

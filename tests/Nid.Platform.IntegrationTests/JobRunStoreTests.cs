@@ -1,13 +1,14 @@
 using Microsoft.Extensions.DependencyInjection;
 using Nid.Platform.Admin;
 using Nid.TestSupport;
+using NodaTime;
 
 namespace Nid.Platform.IntegrationTests;
 
 /// <summary>Admin jobs design §2: the runs journal.</summary>
 public class JobRunStoreTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
-    private static readonly DateTimeOffset T0 = new(2026, 11, 2, 4, 30, 0, TimeSpan.Zero);
+    private static readonly Instant T0 = Instant.FromUtc(2026, 11, 2, 4, 30);
 
     private static async Task<T> WithStoreAsync<T>(NidApp app, Func<IJobRunStore, Task<T>> action)
     {
@@ -15,12 +16,12 @@ public class JobRunStoreTests(PostgresFixture fixture) : IClassFixture<PostgresF
         return await action(scope.ServiceProvider.GetRequiredService<IJobRunStore>());
     }
 
-    private static Task<Guid> RunAsync(NidApp app, string job, DateTimeOffset at, string outcome = JobOutcomes.Succeeded)
+    private static Task<Guid> RunAsync(NidApp app, string job, Instant at, string outcome = JobOutcomes.Succeeded)
         => WithStoreAsync(app, async store =>
         {
             var id = Guid.NewGuid();
             await store.StartAsync(id, job, JobTriggers.Scheduled, at, default);
-            await store.FinishAsync(id, outcome, null, false, at.AddSeconds(2), default);
+            await store.FinishAsync(id, outcome, null, false, at + Duration.FromSeconds(2), default);
             return id;
         });
 
@@ -40,12 +41,12 @@ public class JobRunStoreTests(PostgresFixture fixture) : IClassFixture<PostgresF
 
         var runs = await WithStoreAsync(app, async store =>
         {
-            await store.FinishAsync(id, JobOutcomes.Failed, "InvalidOperationException: boom", true, T0.AddMilliseconds(1500), default);
+            await store.FinishAsync(id, JobOutcomes.Failed, "InvalidOperationException: boom", true, T0 + Duration.FromMilliseconds(1500), default);
             return await store.ListAsync("fx-daily", 100, default);
         });
         var run = Assert.Single(runs);
         Assert.Equal((JobOutcomes.Failed, "InvalidOperationException: boom", JobTriggers.OnDemand, 1500L), (run.Outcome, run.Summary, run.Trigger, run.DurationMs));
-        Assert.Equal(T0.AddMilliseconds(1500), run.FinishedAt);
+        Assert.Equal(T0 + Duration.FromMilliseconds(1500), run.FinishedAt);
         Assert.True((await WithStoreAsync(app, s => s.FindAsync("fx-daily", id, default)))!.Value.HasLogs);
     }
 
@@ -54,7 +55,7 @@ public class JobRunStoreTests(PostgresFixture fixture) : IClassFixture<PostgresF
     {
         await using var app = await NidApp.StartAsync(fixture);
         await RunAsync(app, "a", T0);
-        var later = await RunAsync(app, "a", T0.AddHours(1), JobOutcomes.Failed);
+        var later = await RunAsync(app, "a", T0 + Duration.FromHours(1), JobOutcomes.Failed);
         var b = await RunAsync(app, "b", T0);
 
         var last = await WithStoreAsync(app, s => s.LastRunsAsync(default));
@@ -69,8 +70,8 @@ public class JobRunStoreTests(PostgresFixture fixture) : IClassFixture<PostgresF
     {
         await using var app = await NidApp.StartAsync(fixture);
         var a = new List<Guid>();
-        for (var i = 0; i < 5; i++) a.Add(await RunAsync(app, "a", T0.AddMinutes(i)));
-        for (var i = 0; i < 2; i++) await RunAsync(app, "b", T0.AddMinutes(i));
+        for (var i = 0; i < 5; i++) a.Add(await RunAsync(app, "a", T0 + Duration.FromMinutes(i)));
+        for (var i = 0; i < 2; i++) await RunAsync(app, "b", T0 + Duration.FromMinutes(i));
 
         var purged = await WithStoreAsync(app, s => s.PurgeAsync("a", 3, default));
 
@@ -84,7 +85,7 @@ public class JobRunStoreTests(PostgresFixture fixture) : IClassFixture<PostgresF
     {
         await using var app = await NidApp.StartAsync(fixture);
         var a = new List<Guid>();
-        for (var i = 0; i < 5; i++) a.Add(await RunAsync(app, "a", T0.AddMinutes(i)));
+        for (var i = 0; i < 5; i++) a.Add(await RunAsync(app, "a", T0 + Duration.FromMinutes(i)));
         await RunAsync(app, "b", T0);
 
         var (items, total) = await WithStoreAsync(app, s => s.PageAsync("a", 1, 2, default));
@@ -103,7 +104,7 @@ public class JobRunStoreTests(PostgresFixture fixture) : IClassFixture<PostgresF
         Assert.Equal(1, await WithStoreAsync(app, s => s.CloseStaleAsync(default)));
 
         var run = Assert.Single(await WithStoreAsync(app, s => s.ListAsync("a", 100, default)));
-        Assert.Equal((JobOutcomes.Interrupted, T0, 0L), (run.Outcome, run.FinishedAt, run.DurationMs));
+        Assert.Equal((JobOutcomes.Interrupted, (Instant?)T0, (long?)0L), (run.Outcome, run.FinishedAt, run.DurationMs));
     }
 
     [Fact]

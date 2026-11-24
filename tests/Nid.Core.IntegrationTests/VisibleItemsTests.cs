@@ -151,7 +151,7 @@ public class VisibleItemsTests(PostgresFixture fixture)
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         async Task<bool> OwnsAsync(Guid person) => (await new GetMyPrivateItemsHandler(new VisibleItems(db),
-            new ActorAccessor { Current = Actor.Browser(new PersonId(person)) }, new TaxAssessmentStore(db)).HandleAsync(new GetMyPrivateItemsQuery())).Ok().Owns;
+            new ActorAccessor { Current = Actor.Browser(new PersonId(person)) }, new NoNotices()).HandleAsync(new GetMyPrivateItemsQuery())).Ok().Owns;
 
         Assert.True(await OwnsAsync(a));
         Assert.False(await OwnsAsync(d));
@@ -181,5 +181,30 @@ public class VisibleItemsTests(PostgresFixture fixture)
         Assert.Equal(new HashSet<ItemId> { new(shared), new(privateA), new(joint), new(withChild) }, mine);
         Assert.Equal(new HashSet<ItemId> { new(shared), new(privateA), new(joint), new(withChild), new(childItem) }, me);
         Assert.DoesNotContain(new ItemId(privateB), mine);
+    }
+
+    /// <summary>A household with no tax notice: the private items alone decide (a solo notice is TaxAssessmentEndpointTests').</summary>
+    private sealed class NoNotices : IHouseholdTax
+    {
+        public Task<bool> DeclaresAloneAsync(PersonId person, CancellationToken ct) => Task.FromResult(false);
+
+        public Task<bool> DeclaresAsync(PersonId person, CancellationToken ct) => Task.FromResult(false);
+
+        public Task<UnambitiousFx.Functional.Result<TaxYearFigures>> YearAsync(int year, VisibilityScope scope, LocalDate today, CancellationToken ct)
+            => throw new NotSupportedException();
+
+        public Task<UnambitiousFx.Functional.Result<decimal>> RentalPurchaseAsync(VisibilityScope scope, LocalDate today, RentalPurchaseTax purchase, CancellationToken ct)
+            => throw new NotSupportedException();
+
+        public Task<UnambitiousFx.Functional.Result<SaleItemView>> PropertySaleAsync(
+            PersonId reader, ItemId property, LocalDate today, LocalDate on, decimal netPrice, CancellationToken ct)
+            => throw new NotSupportedException();
+
+        public Task<UnambitiousFx.Functional.Result<IReadOnlyList<DashboardEventView>>> PerDeadlineAsync(
+            PersonId reader, VisibilityScope scope, LocalDate today, LocalDate until, CancellationToken ct)
+            => throw new NotSupportedException();
+
+        public Task<IReadOnlyList<DashboardEventView>> CalendarAsync(PersonId reader, VisibilityScope scope, LocalDate today, LocalDate until, CancellationToken ct)
+            => throw new NotSupportedException();
     }
 }

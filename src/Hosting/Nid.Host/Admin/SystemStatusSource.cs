@@ -2,14 +2,15 @@ using System.Reflection;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.Extensions.Options;
 using Nid.Platform.Admin;
+using NodaTime;
 using Npgsql;
 
 namespace Nid.Host.Admin;
 
 /// <summary>Registered as an instance when the services are built, so <see cref="At"/> is the process start.</summary>
-public sealed class ProcessStart
+public sealed class ProcessStart(Instant at)
 {
-    public DateTimeOffset At { get; } = DateTimeOffset.UtcNow;
+    public Instant At => at;
 }
 
 public interface IIdentityProviderProbe

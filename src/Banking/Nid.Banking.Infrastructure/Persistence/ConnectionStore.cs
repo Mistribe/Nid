@@ -11,9 +11,12 @@ using NodaTime;
 namespace Nid.Banking.Infrastructure.Persistence;
 
 /// <summary>Connections on <see cref="BankingDbContext"/>; the session id is a secret, encrypted with Data Protection as a Discord webhook.</summary>
-public sealed class ConnectionStore(BankingDbContext db, IDataProtectionProvider protection, IClock clock, ILogger<ConnectionStore> log)
+public sealed partial class ConnectionStore(BankingDbContext db, IDataProtectionProvider protection, IClock clock, ILogger<ConnectionStore> log)
     : IConnectionStore
 {
+    [LoggerMessage(Level = LogLevel.Warning, Message = "A bank session cannot be decrypted; the connection needs renewing.")]
+    private partial void LogSessionUndecryptable();
+
     private const string FileSource = "file";
 
     private readonly IDataProtector _protector = protection.CreateProtector("Nid.Banking.Session");
@@ -127,7 +130,7 @@ public sealed class ConnectionStore(BankingDbContext db, IDataProtectionProvider
         catch (CryptographicException)
         {
             // The key ring was lost or rotated: the connection must be renewed.
-            log.LogWarning("A bank session cannot be decrypted; the connection needs renewing.");
+            LogSessionUndecryptable();
             return null;
         }
     }

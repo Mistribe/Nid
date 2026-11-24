@@ -38,6 +38,8 @@ using Nid.RealEstate.Infrastructure.Persistence;
 using Nid.Subscriptions.Application.Catalog;
 using Nid.Subscriptions.Application.Import;
 using Nid.Subscriptions.Contracts;
+using Nid.Tax.Contracts;
+using Nid.Tax.Infrastructure.Persistence;
 using Nid.Subscriptions.Infrastructure.Catalog;
 using Nid.Subscriptions.Infrastructure.Persistence;
 using NodaTime;
@@ -78,6 +80,7 @@ public static class NidServiceCollectionExtensions
         services.AddSingleton<IAuditMap, InvestmentsAuditMap>();
         services.AddSingleton<IAuditMap, IncomeAuditMap>();
         services.AddSingleton<IAuditMap, GoalsAuditMap>();
+        services.AddSingleton<IAuditMap, TaxAuditMap>();
         services.AddSingleton<IAuditMap, Nid.Ai.Infrastructure.Persistence.AiAuditMap>();
         services.AddSingleton<IAuditMap, Nid.Childcare.Infrastructure.Persistence.ChildcareAuditMap>();
         services.AddSingleton<IAuditMap, DocumentsAuditMap>();
@@ -109,6 +112,8 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IHouseholdCalendar, HouseholdCalendar>();
         services.AddScoped<Nid.Core.Application.Dashboard.DashboardReader>();
         services.AddScoped<IMonthBudget>(sp => sp.GetRequiredService<Nid.Core.Application.Dashboard.DashboardReader>());
+        // Issue #514: every module's event kinds; each module registers its IUpcomingKinds below.
+        services.AddSingleton<Nid.Core.Application.Dashboard.UpcomingCatalog>();
         services.AddScoped<Nid.Core.Application.Dashboard.MonthChangesReader>();
         services.AddSingleton<Nid.Core.Application.Dashboard.MonthChangeWords>();
         services.AddScoped<Nid.Platform.Contracts.INotificationSource, Nid.Core.Application.Dashboard.CoreNotificationSource>();
@@ -154,18 +159,28 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IFxRates, FxRates>();
         services.AddScoped<ISeriesContribution, Nid.Core.Application.Series.FxSeries>();
         services.AddScoped<IHouseholdSettings, HouseholdSettings>();
+        services.AddScoped<IScenarioStore, ScenarioStore>();
+        // #512: the tax module, here where Core hosted it, so the contributions keep their order.
+        services.AddDbContext<TaxDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
+        {
+            npgsql.UseNodaTime();
+            npgsql.MigrationsHistoryTable("__ef_migrations_history", TaxDbContext.Schema);
+        }).AddInterceptors(sp.GetRequiredService<AuditInterceptor>()));
+        services.AddScoped<ITransactionParticipant, DbContextParticipant<TaxDbContext>>();
+        services.AddScoped<IPersonUsePart, TaxPersonUsePart>();
         services.AddScoped<ITaxProfileStore, TaxProfileStore>();
         services.AddScoped<TaxAssessmentStore>();
         services.AddScoped<ITaxAssessmentStore>(sp => sp.GetRequiredService<TaxAssessmentStore>());
         services.AddScoped<ITaxAssessmentDeclarants>(sp => sp.GetRequiredService<TaxAssessmentStore>());
-        services.AddScoped<IScenarioStore, ScenarioStore>();
-        services.AddScoped<Nid.Core.Application.Tax.TaxEstimates>();
-        services.AddScoped<Nid.Core.Application.Tax.SaleTaxEstimates>();
-        services.AddScoped<IRentalTaxOutlook, Nid.Core.Application.Tax.RentalTaxOutlookService>();
-        services.AddScoped<ITaxWithholdingRates, Nid.Core.Application.Tax.TaxWithholdingRates>();
-        services.AddScoped<ICommitmentsContribution, Nid.Core.Application.Tax.TaxCommitments>();
-        services.AddScoped<Nid.Core.Application.Tax.PerDeadline>();
-        services.AddScoped<Nid.Core.Application.Tax.TaxCalendarEvents>();
+        services.AddScoped<Nid.Tax.Application.TaxEstimates>();
+        services.AddScoped<Nid.Tax.Application.SaleTaxEstimates>();
+        services.AddScoped<IRentalTaxOutlook, Nid.Tax.Application.RentalTaxOutlookService>();
+        services.AddScoped<ITaxWithholdingRates, Nid.Tax.Application.TaxWithholdingRates>();
+        services.AddScoped<ICommitmentsContribution, Nid.Tax.Application.TaxCommitments>();
+        services.AddScoped<Nid.Tax.Application.PerDeadline>();
+        services.AddScoped<Nid.Tax.Application.TaxCalendarEvents>();
+        services.AddScoped<IHouseholdTax, Nid.Tax.Application.HouseholdTax>();
+        services.AddSingleton<IUpcomingKinds, Nid.Tax.Application.TaxUpcomingKinds>();
         services.AddScoped<Nid.Core.Application.Scenarios.ScenarioFactsReader>();
         services.AddScoped<Nid.Core.Application.Projection.ProjectionFactsReader>();
         services.AddScoped<Nid.Core.Application.Projection.ProjectionScenarioReader>();
@@ -173,7 +188,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<FxCollector>();
 
         // Admin area (1G): the job list is Quartz's when AddNidJobs runs, empty otherwise.
-        services.AddSingleton(new ProcessStart());
+        services.AddSingleton(new ProcessStart(SystemClock.Instance.GetCurrentInstant()));
         services.TryAddSingleton<IJobStatusReader, NoJobStatusReader>();
         // File logs off (no FileLogs:Path, or it cannot be written): runs are recorded without logs.
         services.TryAddSingleton(new Nid.Host.Jobs.RunLogFolder(null));
@@ -197,6 +212,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ISubscriptionsReview, Nid.Subscriptions.Application.SubscriptionsReview>();
         services.AddScoped<Nid.Subscriptions.Application.SubscriptionsUpcoming>();
         services.AddScoped<IUpcomingEvents>(sp => sp.GetRequiredService<Nid.Subscriptions.Application.SubscriptionsUpcoming>());
+        services.AddSingleton<IUpcomingKinds, Nid.Subscriptions.Application.SubscriptionsUpcomingKinds>();
         services.AddScoped<Nid.Subscriptions.Application.SubscriptionsOverviewReader>();
         services.AddScoped<Nid.Platform.Contracts.INotificationSource, Nid.Subscriptions.Application.SubscriptionsNotificationSource>();
         services.AddScoped<IProposalHandler, Nid.Subscriptions.Application.InvoiceProposal>();
@@ -229,6 +245,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<Nid.RealEstate.Contracts.IFinancedEnvelopes, Nid.Investments.Application.FinancedEnvelopes>();
         services.AddScoped<Nid.Investments.Application.InvestmentsUpcoming>();
         services.AddScoped<IUpcomingEvents>(sp => sp.GetRequiredService<Nid.Investments.Application.InvestmentsUpcoming>());
+        services.AddSingleton<IUpcomingKinds, Nid.Investments.Application.InvestmentsUpcomingKinds>();
         services.AddScoped<Nid.Investments.Application.InvestmentsOverviewReader>();
         services.AddScoped<Nid.Investments.Application.InvestmentsPeriodReader>();
         services.AddScoped<IInvestmentsReview, Nid.Investments.Application.InvestmentsReview>();
@@ -256,6 +273,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IIncomeReview, Nid.Income.Application.IncomeReview>();
         services.AddScoped<Nid.Income.Application.IncomeSourcesUpcoming>();
         services.AddScoped<IUpcomingEvents>(sp => sp.GetRequiredService<Nid.Income.Application.IncomeSourcesUpcoming>());
+        services.AddSingleton<IUpcomingKinds, Nid.Income.Application.IncomeUpcomingKinds>();
         services.AddScoped<Nid.Platform.Contracts.INotificationSource, Nid.Income.Application.IncomeNotificationSource>();
         services.AddScoped<IExpectedIncome, Nid.Income.Application.IncomeSourcesNext>();
         services.AddScoped<ITaxContribution, Nid.Income.Application.IncomeSourcesTax>();
@@ -464,7 +482,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ISeriesContribution, Nid.Core.Application.Series.CpiSeries>();
         services.AddScoped<ISeriesContribution, Nid.Core.Application.Series.ProjectionRateSeries>();
         services.AddScoped<ISeriesContribution, Nid.Core.Application.Series.NetWorthSeries>();
-        services.AddScoped<ISeriesContribution, Nid.Core.Application.Series.TaxSeries>();
+        services.AddScoped<ISeriesContribution, Nid.Tax.Application.TaxSeries>();
         services.AddScoped<CpiCollector>();
         services.AddScoped<Nid.Platform.Contracts.ISyncHealth, Nid.Core.Infrastructure.Persistence.CpiSyncHealth>();
         services.AddScoped<Nid.RealEstate.Application.Irl.IrlCollector>();
@@ -480,6 +498,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IExpectedCharges, Nid.RealEstate.Application.RealEstateExpectedCharges>();
         services.AddScoped<Nid.RealEstate.Application.RealEstateUpcoming>();
         services.AddScoped<IUpcomingEvents>(sp => sp.GetRequiredService<Nid.RealEstate.Application.RealEstateUpcoming>());
+        services.AddSingleton<IUpcomingKinds, Nid.RealEstate.Application.RealEstateUpcomingKinds>();
         services.AddScoped<Nid.RealEstate.Application.PropertiesOverviewReader>();
         services.AddScoped<Nid.Platform.Contracts.INotificationSource, Nid.RealEstate.Application.RealEstateNotificationSource>();
         services.AddScoped<ITaxContribution, Nid.RealEstate.Application.RentalTax>();
@@ -559,6 +578,7 @@ public static class NidServiceCollectionExtensions
             cfg.AddRegisterGroup(new RegisterGroup());                    // this assembly: carries the global behaviors
             cfg.AddRegisterGroup(new Nid.Platform.RegisterGroup());
             cfg.AddRegisterGroup(new Nid.Core.Application.RegisterGroup());
+            cfg.AddRegisterGroup(new Nid.Tax.Application.RegisterGroup());
             cfg.AddRegisterGroup(new Nid.Subscriptions.Application.RegisterGroup());
             cfg.AddRegisterGroup(new Nid.Investments.Application.RegisterGroup());
             cfg.AddRegisterGroup(new Nid.Income.Application.RegisterGroup());

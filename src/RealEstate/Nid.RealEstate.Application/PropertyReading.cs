@@ -42,7 +42,7 @@ public sealed class PropertyReading(
             if ((await policy.CheckAsync(reader, loan.ItemId, AccessKind.Read, ct)).IsSuccess && await items.FindAsync(loan.ItemId, ct) is { } loanItem)
                 readable.Add((loan, loanItem));
 
-        var currency = LoanViews.CurrencyOf(item);
+        var currency = LoanReading.CurrencyOf(item);
         var foreign = Foreign(readable, currency);
         // Rates are per USD: the property's own quote is needed too (as the dashboard's reference).
         var rates = foreign.Count == 0 ? RateTable.Empty(today, 0) : await fx.LoadAsync([.. foreign, currency], today, today, ct);
@@ -78,7 +78,7 @@ public sealed class PropertyReading(
         var quotes = new HashSet<Currency>();
         foreach (var (property, item) in properties)
         {
-            var currency = LoanViews.CurrencyOf(item);
+            var currency = LoanReading.CurrencyOf(item);
             var foreign = Foreign(byProperty[property.ItemId], currency);
             if (foreign.Count > 0)
                 quotes.UnionWith([.. foreign, currency]);
@@ -92,14 +92,14 @@ public sealed class PropertyReading(
 
     /// <summary>The loans' currencies other than the property's: what its conversions need, besides its own quote.</summary>
     private static IReadOnlyList<Currency> Foreign(IEnumerable<(StoredLoan Loan, ItemAccess Item)> loans, Currency currency)
-        => loans.Select(l => LoanViews.CurrencyOf(l.Item)).Where(c => c != currency).Distinct().ToList();
+        => loans.Select(l => LoanReading.CurrencyOf(l.Item)).Where(c => c != currency).Distinct().ToList();
 
     /// <summary>One property's read from its facts, its readable linked loans and the rates: the detail's and the list's.</summary>
     private static PropertyRead Compose(
         StoredProperty property, ItemAccess item, IReadOnlyList<Valuation> values, IReadOnlyList<Flow> flowList,
         IEnumerable<(StoredLoan Loan, ItemAccess Item)> loans, RateTable rates, LocalDate today)
     {
-        var currency = LoanViews.CurrencyOf(item);
+        var currency = LoanReading.CurrencyOf(item);
         var readable = loans.OrderBy(l => l.Item.DisplayName, French).ThenBy(l => l.Item.Id.Value).ToList();
         var sources = readable.Select(l => Source(l.Loan, l.Item, currency, rates, today)).ToList();
         var linked = sources.Select(s => Linked(s, today)).ToList();
@@ -118,7 +118,7 @@ public sealed class PropertyReading(
 
     private static LoanSource Source(StoredLoan loan, ItemAccess item, Currency currency, RateTable rates, LocalDate today)
     {
-        var loanCurrency = LoanViews.CurrencyOf(item);
+        var loanCurrency = LoanReading.CurrencyOf(item);
         var terms = LoanReading.Terms(loanCurrency, loan.Contract, loan.Fees, loan.Repayments);
         decimal? rate = rates.TryConvert(1m, loanCurrency, currency, today, projected: false, out var converted, out _) ? converted : null;
         return new LoanSource(item, terms, LoanReading.Schedule(terms, loan), loanCurrency != currency, rate);

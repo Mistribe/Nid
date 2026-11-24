@@ -8,7 +8,7 @@ using NodaTime.Text;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Functional.Failures;
 using UnambitiousFx.Synapse.Abstractions;
-using static Nid.RealEstate.Application.LoanReading;
+using static Nid.RealEstate.Domain.LoanReading;
 using static Nid.RealEstate.Application.Sums;
 
 namespace Nid.RealEstate.Application;
@@ -83,7 +83,7 @@ public sealed class GetPropertiesCostsHandler(
         }
 
         var reference = await household.ReferenceCurrencyAsync(ct);
-        var currencies = set.Select(p => LoanViews.CurrencyOf(p.Item)).Concat(set.SelectMany(p => p.Loans).Select(l => LoanViews.CurrencyOf(l.Item))).ToHashSet();
+        var currencies = set.Select(p => LoanReading.CurrencyOf(p.Item)).Concat(set.SelectMany(p => p.Loans).Select(l => LoanReading.CurrencyOf(l.Item))).ToHashSet();
         // The reference's own quote is needed too: rates are per USD. D4: today's rate, for the period and the year ahead alike.
         var rates = currencies.All(c => c == reference) ? RateTable.Empty(today, 0) : await fx.LoadAsync([.. currencies, reference], today, today, ct);
         return Result.Success(PropertiesCostsMath.Build(set, reference, rates, today, query.Property is null ? await ArchivedAsync(reader, query.Scope, ids, ct) : []));
@@ -129,7 +129,7 @@ internal static class PropertiesCostsMath
         }
         LoanMoneyView? View(decimal? amount) => amount is { } a ? new LoanMoneyView(Amount(a), reference.Code) : null;
 
-        var read = set.Select(p => (Source: p, Currency: LoanViews.CurrencyOf(p.Item), Figures: PropertiesOverviewMath.FiguresOf(p, rates, today))).ToList();
+        var read = set.Select(p => (Source: p, Currency: LoanReading.CurrencyOf(p.Item), Figures: PropertiesOverviewMath.FiguresOf(p, rates, today))).ToList();
         // D14: paid is the flows of the period; planned, each running cost's occurrences in the next 12 months.
         var paid = read.SelectMany(r => Expenses(r.Source.Flows, first.PlusDays(-1), today)
             .Select(e => (e.Category, Amount: Convert(e.Flow.Amount.Amount, r.Currency)))).ToList();
@@ -196,7 +196,7 @@ internal static class PropertiesCostsMath
                 && !archived.Any(a => a.Bought.Year <= y && a.Archived.Year >= y)))
             .ToList();
         var paid = set.SelectMany(p => Expenses(p.Flows, new LocalDate(years[0].Year - 1, 12, 31), today)
-                .Select(e => (e.Category, e.Flow.OccurredOn.Year, Amount: convert(e.Flow.Amount.Amount, LoanViews.CurrencyOf(p.Item)))))
+                .Select(e => (e.Category, e.Flow.OccurredOn.Year, Amount: convert(e.Flow.Amount.Amount, LoanReading.CurrencyOf(p.Item)))))
             .ToList();
         var categories = paid.GroupBy(p => p.Category)
             .Select(g => (Category: g.Key, Sums: years.Select(y => SumOrNull(g.Where(p => p.Year == y.Year).Select(p => p.Amount))).ToList(),
@@ -236,7 +236,7 @@ internal static class PropertiesCostsMath
         decimal? total = 0m;
         foreach (var (loan, item) in p.Loans)
         {
-            var loanCurrency = LoanViews.CurrencyOf(item);
+            var loanCurrency = LoanReading.CurrencyOf(item);
             var terms = Terms(loanCurrency, loan.Contract, loan.Fees, loan.Repayments);
             if (Schedule(terms, loan).Rows.FirstOrDefault(r => r.DueDate.ToYearMonth() == month) is not { } row)
                 continue;

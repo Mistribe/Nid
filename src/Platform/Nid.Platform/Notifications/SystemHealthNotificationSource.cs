@@ -21,9 +21,32 @@ public sealed partial class SystemHealthNotificationSource(
 
     public IReadOnlyList<NotificationKind> Kinds { get; } =
     [
-        new(BackupFailed, NotificationFamilies.Health, NotificationLevel.Critical, "platform", null),
-        new(SyncFailed, NotificationFamilies.Health, NotificationLevel.Info, "platform", null),
+        new(BackupFailed, NotificationFamilies.Health, NotificationLevel.Critical, "platform", null)
+        {
+            Template = new("La sauvegarde a échoué") { Notice = true, Body = f => BackupReason(f.Params), Link = _ => "/admin/system" },
+        },
+        new(SyncFailed, NotificationFamilies.Health, NotificationLevel.Info, "platform", null)
+        {
+            Template = new("Une synchronisation a échoué")
+            {
+                Notice = true,
+                Body = f => f.Params.TryGetValue("source", out var source) && source.Length > 0 ? $"Source : {source}" : "",
+                Link = f => f.Params.GetValueOrDefault("source") is "fx" or "catalog" or "prices" or "irl" or "inflation" ? $"/admin/{f.Params["source"]}" : "/admin/system",
+            },
+        },
     ];
+
+    /// <summary>Why the backup is unhealthy (<see cref="BackupState.Reason"/>): a failed step is named as the script names it.</summary>
+    private static string BackupReason(IReadOnlyDictionary<string, string> p) => p.GetValueOrDefault("reason") switch
+    {
+        null or "" => "Consultez l'état du système",
+        "too_old" => p.TryGetValue("hours", out var hours) && hours.Length > 0
+            ? $"Aucune sauvegarde réussie depuis plus de {hours} h" : "Aucune sauvegarde réussie depuis trop longtemps",
+        "remote" => "La copie distante a échoué",
+        "unreadable" => "L'état de la sauvegarde est illisible",
+        "configuration" => "La configuration de la sauvegarde est invalide",
+        var step => $"Étape en échec : {step}",
+    };
 
     public async Task<Result<IReadOnlyList<Signal>>> SignalsAsync(PersonId reader, LocalDate today, LocalDate horizon, CancellationToken ct)
     {

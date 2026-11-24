@@ -1,0 +1,767 @@
+access_violation — Une réponse a été bloquée par la garde d'accès
+  item, due, month key | Une réponse a été bloquée par la garde d'accès | Requête : GetEnvelope | /admin/security
+  item, due, month key, figures | Une réponse a été bloquée par la garde d'accès | Requête : GetEnvelope — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /admin/security
+  item, day key | Une réponse a été bloquée par la garde d'accès |  | /
+  item, day key, figures | Une réponse a été bloquée par la garde d'accès | Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /
+  item, bare | Une réponse a été bloquée par la garde d'accès |  | /
+  item, bare, figures | Une réponse a été bloquée par la garde d'accès |  | /
+  household, due | Une réponse a été bloquée par la garde d'accès | Requête : GetEnvelope | /admin/security
+  household, due, figures | Une réponse a été bloquée par la garde d'accès | Requête : GetEnvelope — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /admin/security
+  household, alt | Une réponse a été bloquée par la garde d'accès |  | /
+  household, alt, figures | Une réponse a été bloquée par la garde d'accès | Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /
+  household, bare | Une réponse a été bloquée par la garde d'accès |  | /
+  household, bare, figures | Une réponse a été bloquée par la garde d'accès |  | /
+ai.budget_alert — 80 % du budget d'IA du mois est dépensé
+  item, due, month key | 80 % du budget d'IA du mois est dépensé | Au-delà du plafond, les appels payants s'arrêtent jusqu'au 1er du mois prochain. | /settings/ai
+  item, due, month key, figures | 80 % du budget d'IA du mois est dépensé | Au-delà du plafond, les appels payants s'arrêtent jusqu'au 1er du mois prochain. — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /settings/ai
+  item, day key | 80 % du budget d'IA du mois est dépensé | Au-delà du plafond, les appels payants s'arrêtent jusqu'au 1er du mois prochain. | /settings/ai
+  item, day key, figures | 80 % du budget d'IA du mois est dépensé | Au-delà du plafond, les appels payants s'arrêtent jusqu'au 1er du mois prochain. — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /settings/ai
+  item, bare | 80 % du budget d'IA du mois est dépensé | Au-delà du plafond, les appels payants s'arrêtent jusqu'au 1er du mois prochain. | /settings/ai
+  item, bare, figures | 80 % du budget d'IA du mois est dépensé | Au-delà du plafond, les appels payants s'arrêtent jusqu'au 1er du mois prochain. | /settings/ai
+  household, due | 80 % du budget d'IA du mois est dépensé | Au-delà du plafond, les appels payants s'arrêtent jusqu'au 1er du mois prochain. | /settings/ai
+  household, due, figures | 80 % du budget d'IA du mois est dépensé | Au-delà du plafond, les appels payants s'arrêtent jusqu'au 1er du mois prochain. — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /settings/ai
+  household, alt | 80 % du budget d'IA du mois est dépensé | Au-delà du plafond, les appels payants s'arrêtent jusqu'au 1er du mois prochain. | /settings/ai
+  household, alt, figures | 80 % du budget d'IA du mois est dépensé | Au-delà du plafond, les appels payants s'arrêtent jusqu'au 1er du mois prochain. — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /settings/ai
+  household, bare | 80 % du budget d'IA du mois est dépensé | Au-delà du plafond, les appels payants s'arrêtent jusqu'au 1er du mois prochain. | /settings/ai
+  household, bare, figures | 80 % du budget d'IA du mois est dépensé | Au-delà du plafond, les appels payants s'arrêtent jusqu'au 1er du mois prochain. | /settings/ai
+ai.budget_changed — Le budget des fournisseurs d'IA payants a changé
+  item, due, month key | Le budget des fournisseurs d'IA payants a changé | Un adulte a changé le plafond mensuel des fournisseurs d'IA payants. | /settings/ai
+  item, due, month key, figures | Le budget des fournisseurs d'IA payants a changé | Un adulte a changé le plafond mensuel des fournisseurs d'IA payants. — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /settings/ai
+  item, day key | Le budget des fournisseurs d'IA payants a changé | Un adulte a changé le plafond mensuel des fournisseurs d'IA payants. | /settings/ai
+  item, day key, figures | Le budget des fournisseurs d'IA payants a changé | Un adulte a changé le plafond mensuel des fournisseurs d'IA payants. — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /settings/ai
+  item, bare | Le budget des fournisseurs d'IA payants a changé | Un adulte a changé le plafond mensuel des fournisseurs d'IA payants. | /settings/ai
+  item, bare, figures | Le budget des fournisseurs d'IA payants a changé | Un adulte a changé le plafond mensuel des fournisseurs d'IA payants. | /settings/ai
+  household, due | Le budget des fournisseurs d'IA payants a changé | Un adulte a changé le plafond mensuel des fournisseurs d'IA payants. | /settings/ai
+  household, due, figures | Le budget des fournisseurs d'IA payants a changé | Un adulte a changé le plafond mensuel des fournisseurs d'IA payants. — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /settings/ai
+  household, alt | Le budget des fournisseurs d'IA payants a changé | Un adulte a changé le plafond mensuel des fournisseurs d'IA payants. | /settings/ai
+  household, alt, figures | Le budget des fournisseurs d'IA payants a changé | Un adulte a changé le plafond mensuel des fournisseurs d'IA payants. — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /settings/ai
+  household, bare | Le budget des fournisseurs d'IA payants a changé | Un adulte a changé le plafond mensuel des fournisseurs d'IA payants. | /settings/ai
+  household, bare, figures | Le budget des fournisseurs d'IA payants a changé | Un adulte a changé le plafond mensuel des fournisseurs d'IA payants. | /settings/ai
+ai.budget_reached — Le budget d'IA du mois est atteint
+  item, due, month key | Le budget d'IA du mois est atteint | Les appels payants sont arrêtés jusqu'au 1er du mois prochain ; les workers du foyer continuent. | /settings/ai
+  item, due, month key, figures | Le budget d'IA du mois est atteint | Les appels payants sont arrêtés jusqu'au 1er du mois prochain ; les workers du foyer continuent. — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /settings/ai
+  item, day key | Le budget d'IA du mois est atteint | Les appels payants sont arrêtés jusqu'au 1er du mois prochain ; les workers du foyer continuent. | /settings/ai
+  item, day key, figures | Le budget d'IA du mois est atteint | Les appels payants sont arrêtés jusqu'au 1er du mois prochain ; les workers du foyer continuent. — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /settings/ai
+  item, bare | Le budget d'IA du mois est atteint | Les appels payants sont arrêtés jusqu'au 1er du mois prochain ; les workers du foyer continuent. | /settings/ai
+  item, bare, figures | Le budget d'IA du mois est atteint | Les appels payants sont arrêtés jusqu'au 1er du mois prochain ; les workers du foyer continuent. | /settings/ai
+  household, due | Le budget d'IA du mois est atteint | Les appels payants sont arrêtés jusqu'au 1er du mois prochain ; les workers du foyer continuent. | /settings/ai
+  household, due, figures | Le budget d'IA du mois est atteint | Les appels payants sont arrêtés jusqu'au 1er du mois prochain ; les workers du foyer continuent. — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /settings/ai
+  household, alt | Le budget d'IA du mois est atteint | Les appels payants sont arrêtés jusqu'au 1er du mois prochain ; les workers du foyer continuent. | /settings/ai
+  household, alt, figures | Le budget d'IA du mois est atteint | Les appels payants sont arrêtés jusqu'au 1er du mois prochain ; les workers du foyer continuent. — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /settings/ai
+  household, bare | Le budget d'IA du mois est atteint | Les appels payants sont arrêtés jusqu'au 1er du mois prochain ; les workers du foyer continuent. | /settings/ai
+  household, bare, figures | Le budget d'IA du mois est atteint | Les appels payants sont arrêtés jusqu'au 1er du mois prochain ; les workers du foyer continuent. | /settings/ai
+ai.data_policy_changed — Ce que voient les modèles a changé
+  item, due, month key | Ce que voient les modèles a changé | L'usage « assistant » peut désormais passer par un fournisseur cloud activé. | /settings/ai
+  item, due, month key, figures | Ce que voient les modèles a changé | L'usage « assistant » peut désormais passer par un fournisseur cloud activé. — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /settings/ai
+  item, day key | Ce que voient les modèles a changé | Un adulte a activé l'assistant pour lui alors qu'il peut passer par un fournisseur cloud : ses propres chiffres peuvent y partir, jamais les éléments privés de l'autre adulte. | /settings/ai
+  item, day key, figures | Ce que voient les modèles a changé | Un adulte a activé l'assistant pour lui alors qu'il peut passer par un fournisseur cloud : ses propres chiffres peuvent y partir, jamais les éléments privés de l'autre adulte. — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /settings/ai
+  item, bare | Ce que voient les modèles a changé |  | /settings/ai
+  item, bare, figures | Ce que voient les modèles a changé |  | /settings/ai
+  household, due | Ce que voient les modèles a changé | L'usage « assistant » peut désormais passer par un fournisseur cloud activé. | /settings/ai
+  household, due, figures | Ce que voient les modèles a changé | L'usage « assistant » peut désormais passer par un fournisseur cloud activé. — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /settings/ai
+  household, alt | Ce que voient les modèles a changé | Un adulte a activé l'assistant pour lui alors qu'il peut passer par un fournisseur cloud : ses propres chiffres peuvent y partir, jamais les éléments privés de l'autre adulte. | /settings/ai
+  household, alt, figures | Ce que voient les modèles a changé | Un adulte a activé l'assistant pour lui alors qu'il peut passer par un fournisseur cloud : ses propres chiffres peuvent y partir, jamais les éléments privés de l'autre adulte. — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /settings/ai
+  household, bare | Ce que voient les modèles a changé |  | /settings/ai
+  household, bare, figures | Ce que voient les modèles a changé |  | /settings/ai
+backup_failed — La sauvegarde a échoué
+  item, due, month key | La sauvegarde a échoué | Étape en échec : room | /admin/system
+  item, due, month key, figures | La sauvegarde a échoué | Étape en échec : room — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /admin/system
+  item, day key | La sauvegarde a échoué | Aucune sauvegarde réussie depuis plus de 26 h | /admin/system
+  item, day key, figures | La sauvegarde a échoué | Aucune sauvegarde réussie depuis plus de 26 h — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /admin/system
+  item, bare | La sauvegarde a échoué | Consultez l'état du système | /admin/system
+  item, bare, figures | La sauvegarde a échoué | Consultez l'état du système | /admin/system
+  household, due | La sauvegarde a échoué | Étape en échec : room | /admin/system
+  household, due, figures | La sauvegarde a échoué | Étape en échec : room — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /admin/system
+  household, alt | La sauvegarde a échoué | Aucune sauvegarde réussie depuis plus de 26 h | /admin/system
+  household, alt, figures | La sauvegarde a échoué | Aucune sauvegarde réussie depuis plus de 26 h — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /admin/system
+  household, bare | La sauvegarde a échoué | Consultez l'état du système | /admin/system
+  household, bare, figures | La sauvegarde a échoué | Consultez l'état du système | /admin/system
+banking.amount_differs — Montant différent du prévu
+  item, due, month key | Montant différent du prévu | Maison — le 15 mars 2027 | /childcare/11111111-1111-1111-1111-111111111111/statements/2027-02
+  item, due, month key, figures | Montant différent du prévu | Maison — le 15 mars 2027 — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /childcare/11111111-1111-1111-1111-111111111111/statements/2027-02
+  item, day key | Montant différent du prévu | Maison | /properties/11111111-1111-1111-1111-111111111111
+  item, day key, figures | Montant différent du prévu | Maison — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /properties/11111111-1111-1111-1111-111111111111
+  item, bare | Montant différent du prévu | Maison | /
+  item, bare, figures | Montant différent du prévu | Maison | /
+  household, due | Montant différent du prévu |  | /
+  household, due, figures | Montant différent du prévu | Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /
+  household, alt | Montant différent du prévu |  | /
+  household, alt, figures | Montant différent du prévu | Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /
+  household, bare | Montant différent du prévu |  | /
+  household, bare, figures | Montant différent du prévu |  | /
+banking.application_needed — Reliez à nouveau votre banque
+  item, due, month key | Reliez à nouveau votre banque | La configuration bancaire du foyer a changé : créez votre propre application Enable Banking puis reliez à nouveau votre banque. | /settings/banks?tab=application
+  item, due, month key, figures | Reliez à nouveau votre banque | La configuration bancaire du foyer a changé : créez votre propre application Enable Banking puis reliez à nouveau votre banque. — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /settings/banks?tab=application
+  item, day key | Reliez à nouveau votre banque | La configuration bancaire du foyer a changé : créez votre propre application Enable Banking puis reliez à nouveau votre banque. | /settings/banks?tab=application
+  item, day key, figures | Reliez à nouveau votre banque | La configuration bancaire du foyer a changé : créez votre propre application Enable Banking puis reliez à nouveau votre banque. — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /settings/banks?tab=application
+  item, bare | Reliez à nouveau votre banque | La configuration bancaire du foyer a changé : créez votre propre application Enable Banking puis reliez à nouveau votre banque. | /settings/banks?tab=application
+  item, bare, figures | Reliez à nouveau votre banque | La configuration bancaire du foyer a changé : créez votre propre application Enable Banking puis reliez à nouveau votre banque. | /settings/banks?tab=application
+  household, due | Reliez à nouveau votre banque | La configuration bancaire du foyer a changé : créez votre propre application Enable Banking puis reliez à nouveau votre banque. | /settings/banks?tab=application
+  household, due, figures | Reliez à nouveau votre banque | La configuration bancaire du foyer a changé : créez votre propre application Enable Banking puis reliez à nouveau votre banque. — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /settings/banks?tab=application
+  household, alt | Reliez à nouveau votre banque | La configuration bancaire du foyer a changé : créez votre propre application Enable Banking puis reliez à nouveau votre banque. | /settings/banks?tab=application
+  household, alt, figures | Reliez à nouveau votre banque | La configuration bancaire du foyer a changé : créez votre propre application Enable Banking puis reliez à nouveau votre banque. — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /settings/banks?tab=application
+  household, bare | Reliez à nouveau votre banque | La configuration bancaire du foyer a changé : créez votre propre application Enable Banking puis reliez à nouveau votre banque. | /settings/banks?tab=application
+  household, bare, figures | Reliez à nouveau votre banque | La configuration bancaire du foyer a changé : créez votre propre application Enable Banking puis reliez à nouveau votre banque. | /settings/banks?tab=application
+banking.charge_missing — Charge attendue non prélevée
+  item, due, month key | Charge attendue non prélevée | Maison — le 15 mars 2027 | /childcare/11111111-1111-1111-1111-111111111111/statements/2027-02
+  item, due, month key, figures | Charge attendue non prélevée | Maison — le 15 mars 2027 — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /childcare/11111111-1111-1111-1111-111111111111/statements/2027-02
+  item, day key | Charge attendue non prélevée | Maison | /properties/11111111-1111-1111-1111-111111111111
+  item, day key, figures | Charge attendue non prélevée | Maison — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /properties/11111111-1111-1111-1111-111111111111
+  item, bare | Charge attendue non prélevée | Maison | /
+  item, bare, figures | Charge attendue non prélevée | Maison | /
+  household, due | Charge attendue non prélevée |  | /
+  household, due, figures | Charge attendue non prélevée | Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /
+  household, alt | Charge attendue non prélevée |  | /
+  household, alt, figures | Charge attendue non prélevée | Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /
+  household, bare | Charge attendue non prélevée |  | /
+  household, bare, figures | Charge attendue non prélevée |  | /
+banking.consent_expired — Le consentement d'une banque a expiré
+  item, due, month key | Le consentement d'une banque a expiré | Banque A — expiré le 15 mars 2027 | /settings/banks
+  item, due, month key, figures | Le consentement d'une banque a expiré | Banque A — expiré le 15 mars 2027 — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /settings/banks
+  item, day key | Le consentement d'une banque a expiré |  | /settings/banks
+  item, day key, figures | Le consentement d'une banque a expiré | Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /settings/banks
+  item, bare | Le consentement d'une banque a expiré |  | /settings/banks
+  item, bare, figures | Le consentement d'une banque a expiré |  | /settings/banks
+  household, due | Le consentement d'une banque a expiré | Banque A — expiré le 1er mai 2027 | /settings/banks
+  household, due, figures | Le consentement d'une banque a expiré | Banque A — expiré le 1er mai 2027 — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /settings/banks
+  household, alt | Le consentement d'une banque a expiré |  — expiré le 1er janvier 2027 | /settings/banks
+  household, alt, figures | Le consentement d'une banque a expiré |  — expiré le 1er janvier 2027 — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /settings/banks
+  household, bare | Le consentement d'une banque a expiré |  | /settings/banks
+  household, bare, figures | Le consentement d'une banque a expiré |  | /settings/banks
+banking.consent_expiring — Le consentement d'une banque expire bientôt
+  item, due, month key | Le consentement d'une banque expire bientôt | Banque A — expire le 15 mars 2027 | /settings/banks
+  item, due, month key, figures | Le consentement d'une banque expire bientôt | Banque A — expire le 15 mars 2027 — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /settings/banks
+  item, day key | Le consentement d'une banque expire bientôt |  | /settings/banks
+  item, day key, figures | Le consentement d'une banque expire bientôt | Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /settings/banks
+  item, bare | Le consentement d'une banque expire bientôt |  | /settings/banks
+  item, bare, figures | Le consentement d'une banque expire bientôt |  | /settings/banks
+  household, due | Le consentement d'une banque expire bientôt | Banque A — expire le 1er mai 2027 | /settings/banks
+  household, due, figures | Le consentement d'une banque expire bientôt | Banque A — expire le 1er mai 2027 — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /settings/banks
+  household, alt | Le consentement d'une banque expire bientôt |  — expire le 1er janvier 2027 | /settings/banks
+  household, alt, figures | Le consentement d'une banque expire bientôt |  — expire le 1er janvier 2027 — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /settings/banks
+  household, bare | Le consentement d'une banque expire bientôt |  | /settings/banks
+  household, bare, figures | Le consentement d'une banque expire bientôt |  | /settings/banks
+banking.sync_failing — La synchronisation d'une banque échoue
+  item, due, month key | La synchronisation d'une banque échoue | Banque A | /settings/banks
+  item, due, month key, figures | La synchronisation d'une banque échoue | Banque A — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /settings/banks
+  item, day key | La synchronisation d'une banque échoue |  | /settings/banks
+  item, day key, figures | La synchronisation d'une banque échoue | Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /settings/banks
+  item, bare | La synchronisation d'une banque échoue |  | /settings/banks
+  item, bare, figures | La synchronisation d'une banque échoue |  | /settings/banks
+  household, due | La synchronisation d'une banque échoue | Banque A | /settings/banks
+  household, due, figures | La synchronisation d'une banque échoue | Banque A — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /settings/banks
+  household, alt | La synchronisation d'une banque échoue |  | /settings/banks
+  household, alt, figures | La synchronisation d'une banque échoue | Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /settings/banks
+  household, bare | La synchronisation d'une banque échoue |  | /settings/banks
+  household, bare, figures | La synchronisation d'une banque échoue |  | /settings/banks
+card_unused — Une carte n'a pas assez servi ce mois-ci
+  item, due, month key | Une carte n'a pas assez servi ce mois-ci | Maison — le 15 mars 2027 | /childcare/11111111-1111-1111-1111-111111111111/statements/2027-02
+  item, due, month key, figures | Une carte n'a pas assez servi ce mois-ci | Maison — le 15 mars 2027 — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /childcare/11111111-1111-1111-1111-111111111111/statements/2027-02
+  item, day key | Une carte n'a pas assez servi ce mois-ci | Maison | /properties/11111111-1111-1111-1111-111111111111
+  item, day key, figures | Une carte n'a pas assez servi ce mois-ci | Maison — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /properties/11111111-1111-1111-1111-111111111111
+  item, bare | Une carte n'a pas assez servi ce mois-ci | Maison | /
+  item, bare, figures | Une carte n'a pas assez servi ce mois-ci | Maison | /
+  household, due | Une carte n'a pas assez servi ce mois-ci | Carte Visa •••• 1234 : 2 paiements ce mois-ci, 3 attendus. Utilisez-la avant le 1er mai 2027. | /settings/banks
+  household, due, figures | Une carte n'a pas assez servi ce mois-ci | Carte Visa •••• 1234 : 2 paiements ce mois-ci, 3 attendus. Utilisez-la avant le 1er mai 2027. — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /settings/banks
+  household, alt | Une carte n'a pas assez servi ce mois-ci | Une carte : aucun paiement ce mois-ci, 1 attendu. Utilisez-la avant le 1er janvier 2027. | /settings/banks
+  household, alt, figures | Une carte n'a pas assez servi ce mois-ci | Une carte : aucun paiement ce mois-ci, 1 attendu. Utilisez-la avant le 1er janvier 2027. — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /settings/banks
+  household, bare | Une carte n'a pas assez servi ce mois-ci |  | /settings/banks
+  household, bare, figures | Une carte n'a pas assez servi ce mois-ci |  | /settings/banks
+childcare_below_minimum — Un contrat de garde est sous un minimum légal
+  item, due, month key | Un contrat de garde est sous un minimum légal | Maison — minimum en vigueur depuis le 15 mars 2027 | /childcare/11111111-1111-1111-1111-111111111111/statements/2027-02
+  item, due, month key, figures | Un contrat de garde est sous un minimum légal | Maison — minimum en vigueur depuis le 15 mars 2027 — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /childcare/11111111-1111-1111-1111-111111111111/statements/2027-02
+  item, day key | Un contrat de garde est sous un minimum légal | Maison — minimum en vigueur depuis le 1er juin 2025 | /childcare/11111111-1111-1111-1111-111111111111
+  item, day key, figures | Un contrat de garde est sous un minimum légal | Maison — minimum en vigueur depuis le 1er juin 2025 — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /childcare/11111111-1111-1111-1111-111111111111
+  item, bare | Un contrat de garde est sous un minimum légal | Maison | /childcare/11111111-1111-1111-1111-111111111111
+  item, bare, figures | Un contrat de garde est sous un minimum légal | Maison | /childcare/11111111-1111-1111-1111-111111111111
+  household, due | Un contrat de garde est sous un minimum légal |  | /
+  household, due, figures | Un contrat de garde est sous un minimum légal | Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /
+  household, alt | Un contrat de garde est sous un minimum légal |  | /
+  household, alt, figures | Un contrat de garde est sous un minimum légal | Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /
+  household, bare | Un contrat de garde est sous un minimum légal |  | /
+  household, bare, figures | Un contrat de garde est sous un minimum légal |  | /
+childcare_statement_due — Un relevé de garde est à valider
+  item, due, month key | Un relevé de garde est à valider | Maison — relevé de février 2027 | /childcare/11111111-1111-1111-1111-111111111111/statements/2027-02
+  item, due, month key, figures | Un relevé de garde est à valider | Maison — relevé de février 2027 — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /childcare/11111111-1111-1111-1111-111111111111/statements/2027-02
+  item, day key | Un relevé de garde est à valider | Maison | /childcare/11111111-1111-1111-1111-111111111111
+  item, day key, figures | Un relevé de garde est à valider | Maison — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /childcare/11111111-1111-1111-1111-111111111111
+  item, bare | Un relevé de garde est à valider | Maison | /childcare/11111111-1111-1111-1111-111111111111
+  item, bare, figures | Un relevé de garde est à valider | Maison | /childcare/11111111-1111-1111-1111-111111111111
+  household, due | Un relevé de garde est à valider |  | /
+  household, due, figures | Un relevé de garde est à valider | Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /
+  household, alt | Un relevé de garde est à valider |  | /
+  household, alt, figures | Un relevé de garde est à valider | Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /
+  household, bare | Un relevé de garde est à valider |  | /
+  household, bare, figures | Un relevé de garde est à valider |  | /
+fx_rate_missing — Un taux de change manque
+  item, due, month key | Un taux de change manque | Maison — le 15 mars 2027 | /
+  item, due, month key, figures | Un taux de change manque | Maison — le 15 mars 2027 — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /
+  item, day key | Un taux de change manque | Maison | /
+  item, day key, figures | Un taux de change manque | Maison — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /
+  item, bare | Un taux de change manque | Maison | /
+  item, bare, figures | Un taux de change manque | Maison | /
+  household, due | Un taux de change manque | Devise USD | /dashboard
+  household, due, figures | Un taux de change manque | Devise USD — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /dashboard
+  household, alt | Un taux de change manque | Devise EUR | /dashboard
+  household, alt, figures | Un taux de change manque | Devise EUR — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /dashboard
+  household, bare | Un taux de change manque |  | /dashboard
+  household, bare, figures | Un taux de change manque |  | /dashboard
+holding_entitlement — Des parts de SCPI entrent en jouissance
+  item, due, month key | Des parts de SCPI entrent en jouissance | Maison — le 15 mars 2027 | /investments/11111111-1111-1111-1111-111111111111?tab=holdings
+  item, due, month key, figures | Des parts de SCPI entrent en jouissance | Maison — le 15 mars 2027 — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /investments/11111111-1111-1111-1111-111111111111?tab=holdings
+  item, day key | Des parts de SCPI entrent en jouissance | Maison | /investments/11111111-1111-1111-1111-111111111111?tab=holdings
+  item, day key, figures | Des parts de SCPI entrent en jouissance | Maison — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /investments/11111111-1111-1111-1111-111111111111?tab=holdings
+  item, bare | Des parts de SCPI entrent en jouissance | Maison | /investments/11111111-1111-1111-1111-111111111111?tab=holdings
+  item, bare, figures | Des parts de SCPI entrent en jouissance | Maison | /investments/11111111-1111-1111-1111-111111111111?tab=holdings
+  household, due | Des parts de SCPI entrent en jouissance |  | /
+  household, due, figures | Des parts de SCPI entrent en jouissance | Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /
+  household, alt | Des parts de SCPI entrent en jouissance |  | /
+  household, alt, figures | Des parts de SCPI entrent en jouissance | Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /
+  household, bare | Des parts de SCPI entrent en jouissance |  | /
+  household, bare, figures | Des parts de SCPI entrent en jouissance |  | /
+holding_maturity — Un support arrive à échéance
+  item, due, month key | Un support arrive à échéance | Maison — le 15 mars 2027 | /investments/11111111-1111-1111-1111-111111111111?tab=holdings
+  item, due, month key, figures | Un support arrive à échéance | Maison — le 15 mars 2027 — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /investments/11111111-1111-1111-1111-111111111111?tab=holdings
+  item, day key | Un support arrive à échéance | Maison | /investments/11111111-1111-1111-1111-111111111111?tab=holdings
+  item, day key, figures | Un support arrive à échéance | Maison — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /investments/11111111-1111-1111-1111-111111111111?tab=holdings
+  item, bare | Un support arrive à échéance | Maison | /investments/11111111-1111-1111-1111-111111111111?tab=holdings
+  item, bare, figures | Un support arrive à échéance | Maison | /investments/11111111-1111-1111-1111-111111111111?tab=holdings
+  household, due | Un support arrive à échéance |  | /
+  household, due, figures | Un support arrive à échéance | Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /
+  household, alt | Un support arrive à échéance |  | /
+  household, alt, figures | Un support arrive à échéance | Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /
+  household, bare | Un support arrive à échéance |  | /
+  household, bare, figures | Un support arrive à échéance |  | /
+idle_cash — Vos comptes courants dépassent l'épargne de précaution
+  item, due, month key | Vos comptes courants dépassent l'épargne de précaution | Maison — le 15 mars 2027 | /childcare/11111111-1111-1111-1111-111111111111/statements/2027-02
+  item, due, month key, figures | Vos comptes courants dépassent l'épargne de précaution | Maison — le 15 mars 2027 — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /childcare/11111111-1111-1111-1111-111111111111/statements/2027-02
+  item, day key | Vos comptes courants dépassent l'épargne de précaution | Maison | /properties/11111111-1111-1111-1111-111111111111
+  item, day key, figures | Vos comptes courants dépassent l'épargne de précaution | Maison — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /properties/11111111-1111-1111-1111-111111111111
+  item, bare | Vos comptes courants dépassent l'épargne de précaution | Maison | /
+  item, bare, figures | Vos comptes courants dépassent l'épargne de précaution | Maison | /
+  household, due | Vos comptes courants dépassent l'épargne de précaution | Au-dessus de l'épargne de précaution depuis 4 semaines, un livret a de la place | /investments
+  household, due, figures | Vos comptes courants dépassent l'épargne de précaution | Au-dessus de l'épargne de précaution depuis 4 semaines, un livret a de la place — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /investments
+  household, alt | Vos comptes courants dépassent l'épargne de précaution | Au-dessus de l'épargne de précaution depuis 4 semaines | /investments
+  household, alt, figures | Vos comptes courants dépassent l'épargne de précaution | Au-dessus de l'épargne de précaution depuis 4 semaines — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /investments
+  household, bare | Vos comptes courants dépassent l'épargne de précaution | Au-dessus de l'épargne de précaution depuis 4 semaines | /investments
+  household, bare, figures | Vos comptes courants dépassent l'épargne de précaution | Au-dessus de l'épargne de précaution depuis 4 semaines | /investments
+income_gap_soon — Un trou de revenus approche
+  item, due, month key | Un trou de revenus approche | Maison — le 15 mars 2027 | /income/11111111-1111-1111-1111-111111111111
+  item, due, month key, figures | Un trou de revenus approche | Maison — le 15 mars 2027 — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /income/11111111-1111-1111-1111-111111111111
+  item, day key | Un trou de revenus approche | Maison | /income/11111111-1111-1111-1111-111111111111
+  item, day key, figures | Un trou de revenus approche | Maison — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /income/11111111-1111-1111-1111-111111111111
+  item, bare | Un trou de revenus approche | Maison | /income/11111111-1111-1111-1111-111111111111
+  item, bare, figures | Un trou de revenus approche | Maison | /income/11111111-1111-1111-1111-111111111111
+  household, due | Un trou de revenus approche |  | /
+  household, due, figures | Un trou de revenus approche | Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /
+  household, alt | Un trou de revenus approche |  | /
+  household, alt, figures | Un trou de revenus approche | Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /
+  household, bare | Un trou de revenus approche |  | /
+  household, bare, figures | Un trou de revenus approche |  | /
+income_phase_end — Une phase de revenu se termine
+  item, due, month key | Une phase de revenu se termine | Maison — le 15 mars 2027 | /income/11111111-1111-1111-1111-111111111111
+  item, due, month key, figures | Une phase de revenu se termine | Maison — le 15 mars 2027 — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /income/11111111-1111-1111-1111-111111111111
+  item, day key | Une phase de revenu se termine | Maison | /income/11111111-1111-1111-1111-111111111111
+  item, day key, figures | Une phase de revenu se termine | Maison — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /income/11111111-1111-1111-1111-111111111111
+  item, bare | Une phase de revenu se termine | Maison | /income/11111111-1111-1111-1111-111111111111
+  item, bare, figures | Une phase de revenu se termine | Maison | /income/11111111-1111-1111-1111-111111111111
+  household, due | Une phase de revenu se termine |  | /
+  household, due, figures | Une phase de revenu se termine | Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /
+  household, alt | Une phase de revenu se termine |  | /
+  household, alt, figures | Une phase de revenu se termine | Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /
+  household, bare | Une phase de revenu se termine |  | /
+  household, bare, figures | Une phase de revenu se termine |  | /
+irl_missing — L'IRL d'une révision manque
+  item, due, month key | L'IRL d'une révision manque | Maison — le 15 mars 2027 | /properties/11111111-1111-1111-1111-111111111111?tab=rental
+  item, due, month key, figures | L'IRL d'une révision manque | Maison — le 15 mars 2027 — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /properties/11111111-1111-1111-1111-111111111111?tab=rental
+  item, day key | L'IRL d'une révision manque | Maison — le 1er juin 2025 | /properties/11111111-1111-1111-1111-111111111111?tab=rental
+  item, day key, figures | L'IRL d'une révision manque | Maison — le 1er juin 2025 — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /properties/11111111-1111-1111-1111-111111111111?tab=rental
+  item, bare | L'IRL d'une révision manque | Maison | /properties/11111111-1111-1111-1111-111111111111?tab=rental
+  item, bare, figures | L'IRL d'une révision manque | Maison | /properties/11111111-1111-1111-1111-111111111111?tab=rental
+  household, due | L'IRL d'une révision manque |  | /
+  household, due, figures | L'IRL d'une révision manque | Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /
+  household, alt | L'IRL d'une révision manque |  | /
+  household, alt, figures | L'IRL d'une révision manque | Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /
+  household, bare | L'IRL d'une révision manque |  | /
+  household, bare, figures | L'IRL d'une révision manque |  | /
+job_failed — Une tâche planifiée a échoué
+  item, due, month key | Une tâche planifiée a échoué | Tâche : fx-daily | /admin/jobs/fx-daily
+  item, due, month key, figures | Une tâche planifiée a échoué | Tâche : fx-daily — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /admin/jobs/fx-daily
+  item, day key | Une tâche planifiée a échoué | Tâche : ai.extract | /settings/ai/jobs?status=dead
+  item, day key, figures | Une tâche planifiée a échoué | Tâche : ai.extract — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /settings/ai/jobs?status=dead
+  item, bare | Une tâche planifiée a échoué |  | /admin/jobs
+  item, bare, figures | Une tâche planifiée a échoué |  | /admin/jobs
+  household, due | Une tâche planifiée a échoué | Tâche : fx-daily | /admin/jobs/fx-daily
+  household, due, figures | Une tâche planifiée a échoué | Tâche : fx-daily — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /admin/jobs/fx-daily
+  household, alt | Une tâche planifiée a échoué | Tâche : ai.extract | /settings/ai/jobs?status=dead
+  household, alt, figures | Une tâche planifiée a échoué | Tâche : ai.extract — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /settings/ai/jobs?status=dead
+  household, bare | Une tâche planifiée a échoué |  | /admin/jobs
+  household, bare, figures | Une tâche planifiée a échoué |  | /admin/jobs
+loan_end — Un crédit se termine
+  item, due, month key | Un crédit se termine | Maison — le 15 mars 2027 | /loans/11111111-1111-1111-1111-111111111111
+  item, due, month key, figures | Un crédit se termine | Maison — le 15 mars 2027 — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /loans/11111111-1111-1111-1111-111111111111
+  item, day key | Un crédit se termine | Maison | /loans/11111111-1111-1111-1111-111111111111
+  item, day key, figures | Un crédit se termine | Maison — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /loans/11111111-1111-1111-1111-111111111111
+  item, bare | Un crédit se termine | Maison | /loans/11111111-1111-1111-1111-111111111111
+  item, bare, figures | Un crédit se termine | Maison | /loans/11111111-1111-1111-1111-111111111111
+  household, due | Un crédit se termine |  | /
+  household, due, figures | Un crédit se termine | Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /
+  household, alt | Un crédit se termine |  | /
+  household, alt, figures | Un crédit se termine | Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /
+  household, bare | Un crédit se termine |  | /
+  household, bare, figures | Un crédit se termine |  | /
+loan_phase_end — Une phase de crédit se termine
+  item, due, month key | Une phase de crédit se termine | Maison — le 15 mars 2027 | /loans/11111111-1111-1111-1111-111111111111
+  item, due, month key, figures | Une phase de crédit se termine | Maison — le 15 mars 2027 — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /loans/11111111-1111-1111-1111-111111111111
+  item, day key | Une phase de crédit se termine | Maison | /loans/11111111-1111-1111-1111-111111111111
+  item, day key, figures | Une phase de crédit se termine | Maison — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /loans/11111111-1111-1111-1111-111111111111
+  item, bare | Une phase de crédit se termine | Maison | /loans/11111111-1111-1111-1111-111111111111
+  item, bare, figures | Une phase de crédit se termine | Maison | /loans/11111111-1111-1111-1111-111111111111
+  household, due | Une phase de crédit se termine |  | /
+  household, due, figures | Une phase de crédit se termine | Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /
+  household, alt | Une phase de crédit se termine |  | /
+  household, alt, figures | Une phase de crédit se termine | Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /
+  household, bare | Une phase de crédit se termine |  | /
+  household, bare, figures | Une phase de crédit se termine |  | /
+login_locked — Votre compte a été verrouillé
+  item, due, month key | Votre compte a été verrouillé | Après plusieurs essais de mot de passe incorrects. Si ce n'était pas vous, prévenez un administrateur. | /security
+  item, due, month key, figures | Votre compte a été verrouillé | Après plusieurs essais de mot de passe incorrects. Si ce n'était pas vous, prévenez un administrateur. — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /security
+  item, day key | Votre compte a été verrouillé | Après plusieurs essais de mot de passe incorrects. Si ce n'était pas vous, prévenez un administrateur. | /security
+  item, day key, figures | Votre compte a été verrouillé | Après plusieurs essais de mot de passe incorrects. Si ce n'était pas vous, prévenez un administrateur. — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /security
+  item, bare | Votre compte a été verrouillé | Après plusieurs essais de mot de passe incorrects. Si ce n'était pas vous, prévenez un administrateur. | /security
+  item, bare, figures | Votre compte a été verrouillé | Après plusieurs essais de mot de passe incorrects. Si ce n'était pas vous, prévenez un administrateur. | /security
+  household, due | Votre compte a été verrouillé | Après plusieurs essais de mot de passe incorrects. Si ce n'était pas vous, prévenez un administrateur. | /security
+  household, due, figures | Votre compte a été verrouillé | Après plusieurs essais de mot de passe incorrects. Si ce n'était pas vous, prévenez un administrateur. — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /security
+  household, alt | Votre compte a été verrouillé | Après plusieurs essais de mot de passe incorrects. Si ce n'était pas vous, prévenez un administrateur. | /security
+  household, alt, figures | Votre compte a été verrouillé | Après plusieurs essais de mot de passe incorrects. Si ce n'était pas vous, prévenez un administrateur. — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /security
+  household, bare | Votre compte a été verrouillé | Après plusieurs essais de mot de passe incorrects. Si ce n'était pas vous, prévenez un administrateur. | /security
+  household, bare, figures | Votre compte a été verrouillé | Après plusieurs essais de mot de passe incorrects. Si ce n'était pas vous, prévenez un administrateur. | /security
+month_changes — Ce qui a changé depuis le mois dernier
+  item, due, month key | Ce qui a changé depuis le mois dernier | Maison — le 15 mars 2027 | /
+  item, due, month key, figures | Ce qui a changé depuis le mois dernier | Maison — le 15 mars 2027 — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /
+  item, day key | Ce qui a changé depuis le mois dernier | Maison | /
+  item, day key, figures | Ce qui a changé depuis le mois dernier | Maison — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /
+  item, bare | Ce qui a changé depuis le mois dernier | Maison | /
+  item, bare, figures | Ce qui a changé depuis le mois dernier | Maison | /
+  household, due | Ce qui a changé depuis le mois dernier | Patrimoine en hausse — valeur des placements ↑, crédits ↓ · Engagements en baisse — abonnements ↓ · Revenus en hausse | /dashboard
+  household, due, figures | Ce qui a changé depuis le mois dernier | Patrimoine en hausse — valeur des placements ↑, crédits ↓ · Engagements en baisse — abonnements ↓ · Revenus en hausse — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /dashboard
+  household, alt | Ce qui a changé depuis le mois dernier |  | /dashboard
+  household, alt, figures | Ce qui a changé depuis le mois dernier | Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /dashboard
+  household, bare | Ce qui a changé depuis le mois dernier |  | /dashboard
+  household, bare, figures | Ce qui a changé depuis le mois dernier |  | /dashboard
+net_worth_milestone — Votre patrimoine a franchi un palier
+  item, due, month key | Votre patrimoine a franchi un palier | Maison — le 15 mars 2027 | /
+  item, due, month key, figures | Votre patrimoine a franchi un palier | Maison — le 15 mars 2027 — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /
+  item, day key | Votre patrimoine a franchi un palier | Maison | /
+  item, day key, figures | Votre patrimoine a franchi un palier | Maison — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /
+  item, bare | Votre patrimoine a franchi un palier | Maison | /
+  item, bare, figures | Votre patrimoine a franchi un palier | Maison | /
+  household, due | Votre patrimoine a franchi un palier |  | /dashboard
+  household, due, figures | Votre patrimoine a franchi un palier | Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /dashboard
+  household, alt | Votre patrimoine a franchi un palier |  | /dashboard
+  household, alt, figures | Votre patrimoine a franchi un palier | Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /dashboard
+  household, bare | Votre patrimoine a franchi un palier |  | /dashboard
+  household, bare, figures | Votre patrimoine a franchi un palier |  | /dashboard
+password_changed — Votre mot de passe a changé
+  item, due, month key | Votre mot de passe a changé | Vos autres sessions sont fermées. Si ce n'était pas vous, prévenez un administrateur. | /security
+  item, due, month key, figures | Votre mot de passe a changé | Vos autres sessions sont fermées. Si ce n'était pas vous, prévenez un administrateur. — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /security
+  item, day key | Votre mot de passe a changé | Vos autres sessions sont fermées. Si ce n'était pas vous, prévenez un administrateur. | /security
+  item, day key, figures | Votre mot de passe a changé | Vos autres sessions sont fermées. Si ce n'était pas vous, prévenez un administrateur. — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /security
+  item, bare | Votre mot de passe a changé | Vos autres sessions sont fermées. Si ce n'était pas vous, prévenez un administrateur. | /security
+  item, bare, figures | Votre mot de passe a changé | Vos autres sessions sont fermées. Si ce n'était pas vous, prévenez un administrateur. | /security
+  household, due | Votre mot de passe a changé | Vos autres sessions sont fermées. Si ce n'était pas vous, prévenez un administrateur. | /security
+  household, due, figures | Votre mot de passe a changé | Vos autres sessions sont fermées. Si ce n'était pas vous, prévenez un administrateur. — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /security
+  household, alt | Votre mot de passe a changé | Vos autres sessions sont fermées. Si ce n'était pas vous, prévenez un administrateur. | /security
+  household, alt, figures | Votre mot de passe a changé | Vos autres sessions sont fermées. Si ce n'était pas vous, prévenez un administrateur. — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /security
+  household, bare | Votre mot de passe a changé | Vos autres sessions sont fermées. Si ce n'était pas vous, prévenez un administrateur. | /security
+  household, bare, figures | Votre mot de passe a changé | Vos autres sessions sont fermées. Si ce n'était pas vous, prévenez un administrateur. | /security
+password_link_issued — Un lien de réinitialisation a été créé pour vous
+  item, due, month key | Un lien de réinitialisation a été créé pour vous | Un administrateur peut ainsi choisir un nouveau mot de passe pour votre compte. Si vous ne l'avez pas demandé, parlez-en avec lui. | /security
+  item, due, month key, figures | Un lien de réinitialisation a été créé pour vous | Un administrateur peut ainsi choisir un nouveau mot de passe pour votre compte. Si vous ne l'avez pas demandé, parlez-en avec lui. — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /security
+  item, day key | Un lien de réinitialisation a été créé pour vous | Un administrateur peut ainsi choisir un nouveau mot de passe pour votre compte. Si vous ne l'avez pas demandé, parlez-en avec lui. | /security
+  item, day key, figures | Un lien de réinitialisation a été créé pour vous | Un administrateur peut ainsi choisir un nouveau mot de passe pour votre compte. Si vous ne l'avez pas demandé, parlez-en avec lui. — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /security
+  item, bare | Un lien de réinitialisation a été créé pour vous | Un administrateur peut ainsi choisir un nouveau mot de passe pour votre compte. Si vous ne l'avez pas demandé, parlez-en avec lui. | /security
+  item, bare, figures | Un lien de réinitialisation a été créé pour vous | Un administrateur peut ainsi choisir un nouveau mot de passe pour votre compte. Si vous ne l'avez pas demandé, parlez-en avec lui. | /security
+  household, due | Un lien de réinitialisation a été créé pour vous | Un administrateur peut ainsi choisir un nouveau mot de passe pour votre compte. Si vous ne l'avez pas demandé, parlez-en avec lui. | /security
+  household, due, figures | Un lien de réinitialisation a été créé pour vous | Un administrateur peut ainsi choisir un nouveau mot de passe pour votre compte. Si vous ne l'avez pas demandé, parlez-en avec lui. — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /security
+  household, alt | Un lien de réinitialisation a été créé pour vous | Un administrateur peut ainsi choisir un nouveau mot de passe pour votre compte. Si vous ne l'avez pas demandé, parlez-en avec lui. | /security
+  household, alt, figures | Un lien de réinitialisation a été créé pour vous | Un administrateur peut ainsi choisir un nouveau mot de passe pour votre compte. Si vous ne l'avez pas demandé, parlez-en avec lui. — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /security
+  household, bare | Un lien de réinitialisation a été créé pour vous | Un administrateur peut ainsi choisir un nouveau mot de passe pour votre compte. Si vous ne l'avez pas demandé, parlez-en avec lui. | /security
+  household, bare, figures | Un lien de réinitialisation a été créé pour vous | Un administrateur peut ainsi choisir un nouveau mot de passe pour votre compte. Si vous ne l'avez pas demandé, parlez-en avec lui. | /security
+password_reset — Votre mot de passe a été réinitialisé
+  item, due, month key | Votre mot de passe a été réinitialisé | Vos autres sessions sont fermées. Si ce n'était pas vous, prévenez un administrateur. | /security
+  item, due, month key, figures | Votre mot de passe a été réinitialisé | Vos autres sessions sont fermées. Si ce n'était pas vous, prévenez un administrateur. — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /security
+  item, day key | Votre mot de passe a été réinitialisé | Vos autres sessions sont fermées. Si ce n'était pas vous, prévenez un administrateur. | /security
+  item, day key, figures | Votre mot de passe a été réinitialisé | Vos autres sessions sont fermées. Si ce n'était pas vous, prévenez un administrateur. — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /security
+  item, bare | Votre mot de passe a été réinitialisé | Vos autres sessions sont fermées. Si ce n'était pas vous, prévenez un administrateur. | /security
+  item, bare, figures | Votre mot de passe a été réinitialisé | Vos autres sessions sont fermées. Si ce n'était pas vous, prévenez un administrateur. | /security
+  household, due | Votre mot de passe a été réinitialisé | Vos autres sessions sont fermées. Si ce n'était pas vous, prévenez un administrateur. | /security
+  household, due, figures | Votre mot de passe a été réinitialisé | Vos autres sessions sont fermées. Si ce n'était pas vous, prévenez un administrateur. — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /security
+  household, alt | Votre mot de passe a été réinitialisé | Vos autres sessions sont fermées. Si ce n'était pas vous, prévenez un administrateur. | /security
+  household, alt, figures | Votre mot de passe a été réinitialisé | Vos autres sessions sont fermées. Si ce n'était pas vous, prévenez un administrateur. — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /security
+  household, bare | Votre mot de passe a été réinitialisé | Vos autres sessions sont fermées. Si ce n'était pas vous, prévenez un administrateur. | /security
+  household, bare, figures | Votre mot de passe a été réinitialisé | Vos autres sessions sont fermées. Si ce n'était pas vous, prévenez un administrateur. | /security
+private_request_refused — Votre demande de passage en privé a été refusée
+  item, due, month key | Votre demande de passage en privé a été refusée | L'autre adulte n'a pas accepté : l'élément reste partagé. | /proposals/2027-02
+  item, due, month key, figures | Votre demande de passage en privé a été refusée | L'autre adulte n'a pas accepté : l'élément reste partagé. — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /proposals/2027-02
+  item, day key | Votre demande de passage en privé a été refusée | L'autre adulte n'a pas accepté : l'élément reste partagé. | /proposals/2025-06-01
+  item, day key, figures | Votre demande de passage en privé a été refusée | L'autre adulte n'a pas accepté : l'élément reste partagé. — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /proposals/2025-06-01
+  item, bare | Votre demande de passage en privé a été refusée | L'autre adulte n'a pas accepté : l'élément reste partagé. | /proposals/k
+  item, bare, figures | Votre demande de passage en privé a été refusée | L'autre adulte n'a pas accepté : l'élément reste partagé. | /proposals/k
+  household, due | Votre demande de passage en privé a été refusée | L'autre adulte n'a pas accepté : l'élément reste partagé. | /proposals/2026-11-30
+  household, due, figures | Votre demande de passage en privé a été refusée | L'autre adulte n'a pas accepté : l'élément reste partagé. — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /proposals/2026-11-30
+  household, alt | Votre demande de passage en privé a été refusée | L'autre adulte n'a pas accepté : l'élément reste partagé. | /proposals/33333333-3333-3333-3333-333333333333
+  household, alt, figures | Votre demande de passage en privé a été refusée | L'autre adulte n'a pas accepté : l'élément reste partagé. — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /proposals/33333333-3333-3333-3333-333333333333
+  household, bare | Votre demande de passage en privé a été refusée | L'autre adulte n'a pas accepté : l'élément reste partagé. | /proposals/k
+  household, bare, figures | Votre demande de passage en privé a été refusée | L'autre adulte n'a pas accepté : l'élément reste partagé. | /proposals/k
+property_cost_due — Une charge prévue arrive
+  item, due, month key | Une charge prévue arrive | Maison — le 15 mars 2027 | /properties/11111111-1111-1111-1111-111111111111?tab=expenses
+  item, due, month key, figures | Une charge prévue arrive | Maison — le 15 mars 2027 — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /properties/11111111-1111-1111-1111-111111111111?tab=expenses
+  item, day key | Une charge prévue arrive | Maison | /properties/11111111-1111-1111-1111-111111111111?tab=expenses
+  item, day key, figures | Une charge prévue arrive | Maison — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /properties/11111111-1111-1111-1111-111111111111?tab=expenses
+  item, bare | Une charge prévue arrive | Maison | /properties/11111111-1111-1111-1111-111111111111?tab=expenses
+  item, bare, figures | Une charge prévue arrive | Maison | /properties/11111111-1111-1111-1111-111111111111?tab=expenses
+  household, due | Une charge prévue arrive |  | /
+  household, due, figures | Une charge prévue arrive | Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /
+  household, alt | Une charge prévue arrive |  | /
+  household, alt, figures | Une charge prévue arrive | Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /
+  household, bare | Une charge prévue arrive |  | /
+  household, bare, figures | Une charge prévue arrive |  | /
+property_tax_due — La taxe foncière est à payer
+  item, due, month key | La taxe foncière est à payer | Maison — le 15 mars 2027 | /properties/11111111-1111-1111-1111-111111111111?tab=expenses
+  item, due, month key, figures | La taxe foncière est à payer | Maison — le 15 mars 2027 — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /properties/11111111-1111-1111-1111-111111111111?tab=expenses
+  item, day key | La taxe foncière est à payer | Maison | /properties/11111111-1111-1111-1111-111111111111?tab=expenses
+  item, day key, figures | La taxe foncière est à payer | Maison — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /properties/11111111-1111-1111-1111-111111111111?tab=expenses
+  item, bare | La taxe foncière est à payer | Maison | /properties/11111111-1111-1111-1111-111111111111?tab=expenses
+  item, bare, figures | La taxe foncière est à payer | Maison | /properties/11111111-1111-1111-1111-111111111111?tab=expenses
+  household, due | La taxe foncière est à payer |  | /
+  household, due, figures | La taxe foncière est à payer | Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /
+  household, alt | La taxe foncière est à payer |  | /
+  household, alt, figures | La taxe foncière est à payer | Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /
+  household, bare | La taxe foncière est à payer |  | /
+  household, bare, figures | La taxe foncière est à payer |  | /
+proposal_pending — Une proposition attend votre décision
+  item, due, month key | Une proposition attend votre décision | Une décision est attendue | /proposals/2027-02
+  item, due, month key, figures | Une proposition attend votre décision | Une décision est attendue — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /proposals/2027-02
+  item, day key | Une proposition attend votre décision | Une décision est attendue | /proposals/2025-06-01
+  item, day key, figures | Une proposition attend votre décision | Une décision est attendue — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /proposals/2025-06-01
+  item, bare | Une proposition attend votre décision | Une décision est attendue | /proposals/k
+  item, bare, figures | Une proposition attend votre décision | Une décision est attendue | /proposals/k
+  household, due | Une proposition attend votre décision | Une décision est attendue | /proposals/2026-11-30
+  household, due, figures | Une proposition attend votre décision | Une décision est attendue — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /proposals/2026-11-30
+  household, alt | Une proposition attend votre décision | Une décision est attendue | /proposals/33333333-3333-3333-3333-333333333333
+  household, alt, figures | Une proposition attend votre décision | Une décision est attendue — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /proposals/33333333-3333-3333-3333-333333333333
+  household, bare | Une proposition attend votre décision | Une décision est attendue | /proposals/k
+  household, bare, figures | Une proposition attend votre décision | Une décision est attendue | /proposals/k
+recovery_codes_low — Il vous reste 2 codes de secours
+  item, due, month key | Il vous reste 2 codes de secours | Créez-en de nouveaux depuis la page Sécurité avant d'en manquer. | /security
+  item, due, month key, figures | Il vous reste 2 codes de secours | Créez-en de nouveaux depuis la page Sécurité avant d'en manquer. — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /security
+  item, day key | Il vous reste 2 codes de secours | Créez-en de nouveaux depuis la page Sécurité avant d'en manquer. | /security
+  item, day key, figures | Il vous reste 2 codes de secours | Créez-en de nouveaux depuis la page Sécurité avant d'en manquer. — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /security
+  item, bare | Il vous reste 2 codes de secours | Créez-en de nouveaux depuis la page Sécurité avant d'en manquer. | /security
+  item, bare, figures | Il vous reste 2 codes de secours | Créez-en de nouveaux depuis la page Sécurité avant d'en manquer. | /security
+  household, due | Il vous reste 2 codes de secours | Créez-en de nouveaux depuis la page Sécurité avant d'en manquer. | /security
+  household, due, figures | Il vous reste 2 codes de secours | Créez-en de nouveaux depuis la page Sécurité avant d'en manquer. — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /security
+  household, alt | Il vous reste 2 codes de secours | Créez-en de nouveaux depuis la page Sécurité avant d'en manquer. | /security
+  household, alt, figures | Il vous reste 2 codes de secours | Créez-en de nouveaux depuis la page Sécurité avant d'en manquer. — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /security
+  household, bare | Il vous reste 2 codes de secours | Créez-en de nouveaux depuis la page Sécurité avant d'en manquer. | /security
+  household, bare, figures | Il vous reste 2 codes de secours | Créez-en de nouveaux depuis la page Sécurité avant d'en manquer. | /security
+rent_arrears — Des loyers sont impayés
+  item, due, month key | Des loyers sont impayés | Maison — depuis février 2027 | /properties/11111111-1111-1111-1111-111111111111?tab=rental
+  item, due, month key, figures | Des loyers sont impayés | Maison — depuis février 2027 — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /properties/11111111-1111-1111-1111-111111111111?tab=rental
+  item, day key | Des loyers sont impayés | Maison | /properties/11111111-1111-1111-1111-111111111111?tab=rental
+  item, day key, figures | Des loyers sont impayés | Maison — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /properties/11111111-1111-1111-1111-111111111111?tab=rental
+  item, bare | Des loyers sont impayés | Maison | /properties/11111111-1111-1111-1111-111111111111?tab=rental
+  item, bare, figures | Des loyers sont impayés | Maison | /properties/11111111-1111-1111-1111-111111111111?tab=rental
+  household, due | Des loyers sont impayés |  | /
+  household, due, figures | Des loyers sont impayés | Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /
+  household, alt | Des loyers sont impayés |  | /
+  household, alt, figures | Des loyers sont impayés | Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /
+  household, bare | Des loyers sont impayés |  | /
+  household, bare, figures | Des loyers sont impayés |  | /
+revision_due — Un loyer peut être révisé
+  item, due, month key | Un loyer peut être révisé | Maison — le 15 mars 2027 | /properties/11111111-1111-1111-1111-111111111111?tab=rental
+  item, due, month key, figures | Un loyer peut être révisé | Maison — le 15 mars 2027 — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /properties/11111111-1111-1111-1111-111111111111?tab=rental
+  item, day key | Un loyer peut être révisé | Maison — le 1er juin 2025 | /properties/11111111-1111-1111-1111-111111111111?tab=rental
+  item, day key, figures | Un loyer peut être révisé | Maison — le 1er juin 2025 — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /properties/11111111-1111-1111-1111-111111111111?tab=rental
+  item, bare | Un loyer peut être révisé | Maison | /properties/11111111-1111-1111-1111-111111111111?tab=rental
+  item, bare, figures | Un loyer peut être révisé | Maison | /properties/11111111-1111-1111-1111-111111111111?tab=rental
+  household, due | Un loyer peut être révisé |  | /
+  household, due, figures | Un loyer peut être révisé | Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /
+  household, alt | Un loyer peut être révisé |  | /
+  household, alt, figures | Un loyer peut être révisé | Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /
+  household, bare | Un loyer peut être révisé |  | /
+  household, bare, figures | Un loyer peut être révisé |  | /
+revision_lost — Une révision de loyer a été perdue
+  item, due, month key | Une révision de loyer a été perdue | Maison — le 15 mars 2027 | /properties/11111111-1111-1111-1111-111111111111?tab=rental
+  item, due, month key, figures | Une révision de loyer a été perdue | Maison — le 15 mars 2027 — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /properties/11111111-1111-1111-1111-111111111111?tab=rental
+  item, day key | Une révision de loyer a été perdue | Maison — le 1er juin 2025 | /properties/11111111-1111-1111-1111-111111111111?tab=rental
+  item, day key, figures | Une révision de loyer a été perdue | Maison — le 1er juin 2025 — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /properties/11111111-1111-1111-1111-111111111111?tab=rental
+  item, bare | Une révision de loyer a été perdue | Maison | /properties/11111111-1111-1111-1111-111111111111?tab=rental
+  item, bare, figures | Une révision de loyer a été perdue | Maison | /properties/11111111-1111-1111-1111-111111111111?tab=rental
+  household, due | Une révision de loyer a été perdue |  | /
+  household, due, figures | Une révision de loyer a été perdue | Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /
+  household, alt | Une révision de loyer a été perdue |  | /
+  household, alt, figures | Une révision de loyer a été perdue | Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /
+  household, bare | Une révision de loyer a été perdue |  | /
+  household, bare, figures | Une révision de loyer a été perdue |  | /
+routine_due — La routine du mois est à faire
+  item, due, month key | La routine du mois est à faire | Maison — le 15 mars 2027 | /
+  item, due, month key, figures | La routine du mois est à faire | Maison — le 15 mars 2027 — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /
+  item, day key | La routine du mois est à faire | Maison | /
+  item, day key, figures | La routine du mois est à faire | Maison — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /
+  item, bare | La routine du mois est à faire | Maison | /
+  item, bare, figures | La routine du mois est à faire | Maison | /
+  household, due | La routine du mois est à faire | Des valeurs sont à mettre à jour | /routine
+  household, due, figures | La routine du mois est à faire | Des valeurs sont à mettre à jour — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /routine
+  household, alt | La routine du mois est à faire | Des valeurs sont à mettre à jour | /routine
+  household, alt, figures | La routine du mois est à faire | Des valeurs sont à mettre à jour — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /routine
+  household, bare | La routine du mois est à faire | Des valeurs sont à mettre à jour | /routine
+  household, bare, figures | La routine du mois est à faire | Des valeurs sont à mettre à jour | /routine
+savings_pace — Votre rythme d'épargne a ralenti
+  item, due, month key | Votre rythme d'épargne a ralenti | Maison — le 15 mars 2027 | /
+  item, due, month key, figures | Votre rythme d'épargne a ralenti | Maison — le 15 mars 2027 — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /
+  item, day key | Votre rythme d'épargne a ralenti | Maison | /
+  item, day key, figures | Votre rythme d'épargne a ralenti | Maison — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /
+  item, bare | Votre rythme d'épargne a ralenti | Maison | /
+  item, bare, figures | Votre rythme d'épargne a ralenti | Maison | /
+  household, due | Votre rythme d'épargne a ralenti |  | /dashboard
+  household, due, figures | Votre rythme d'épargne a ralenti | Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /dashboard
+  household, alt | Votre rythme d'épargne a ralenti |  | /dashboard
+  household, alt, figures | Votre rythme d'épargne a ralenti | Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /dashboard
+  household, bare | Votre rythme d'épargne a ralenti |  | /dashboard
+  household, bare, figures | Votre rythme d'épargne a ralenti |  | /dashboard
+shortfall_ahead — Un compte courant risque de manquer d'argent
+  item, due, month key | Un compte courant risque de manquer d'argent | Maison — le 15 mars 2027 | /childcare/11111111-1111-1111-1111-111111111111/statements/2027-02
+  item, due, month key, figures | Un compte courant risque de manquer d'argent | Maison — le 15 mars 2027 — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /childcare/11111111-1111-1111-1111-111111111111/statements/2027-02
+  item, day key | Un compte courant risque de manquer d'argent | Maison | /properties/11111111-1111-1111-1111-111111111111
+  item, day key, figures | Un compte courant risque de manquer d'argent | Maison — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /properties/11111111-1111-1111-1111-111111111111
+  item, bare | Un compte courant risque de manquer d'argent | Maison | /
+  item, bare, figures | Un compte courant risque de manquer d'argent | Maison | /
+  household, due | Un compte courant risque de manquer d'argent | Le 1er mai 2027 — Compte courant | /settings/banks
+  household, due, figures | Un compte courant risque de manquer d'argent | Le 1er mai 2027 — Compte courant — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /settings/banks
+  household, alt | Un compte courant risque de manquer d'argent | Le 1er janvier 2027 | /settings/banks
+  household, alt, figures | Un compte courant risque de manquer d'argent | Le 1er janvier 2027 — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /settings/banks
+  household, bare | Un compte courant risque de manquer d'argent |  | /settings/banks
+  household, bare, figures | Un compte courant risque de manquer d'argent |  | /settings/banks
+stale_value — Une valeur est à mettre à jour
+  item, due, month key | Une valeur est à mettre à jour | Maison — valeur du 15 mars 2027 | /investments/11111111-1111-1111-1111-111111111111
+  item, due, month key, figures | Une valeur est à mettre à jour | Maison — valeur du 15 mars 2027 — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /investments/11111111-1111-1111-1111-111111111111
+  item, day key | Une valeur est à mettre à jour | Maison — valeur du 1er juin 2025 | /investments/11111111-1111-1111-1111-111111111111
+  item, day key, figures | Une valeur est à mettre à jour | Maison — valeur du 1er juin 2025 — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /investments/11111111-1111-1111-1111-111111111111
+  item, bare | Une valeur est à mettre à jour | Maison | /investments/11111111-1111-1111-1111-111111111111
+  item, bare, figures | Une valeur est à mettre à jour | Maison | /investments/11111111-1111-1111-1111-111111111111
+  household, due | Une valeur est à mettre à jour |  | /
+  household, due, figures | Une valeur est à mettre à jour | Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /
+  household, alt | Une valeur est à mettre à jour |  | /
+  household, alt, figures | Une valeur est à mettre à jour | Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /
+  household, bare | Une valeur est à mettre à jour |  | /
+  household, bare, figures | Une valeur est à mettre à jour |  | /
+subscription_cancel_deadline — Dernier jour pour résilier un contrat
+  item, due, month key | Dernier jour pour résilier un contrat | Maison — le 15 mars 2027 | /subscriptions/11111111-1111-1111-1111-111111111111
+  item, due, month key, figures | Dernier jour pour résilier un contrat | Maison — le 15 mars 2027 — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /subscriptions/11111111-1111-1111-1111-111111111111
+  item, day key | Dernier jour pour résilier un contrat | Maison | /subscriptions/11111111-1111-1111-1111-111111111111
+  item, day key, figures | Dernier jour pour résilier un contrat | Maison — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /subscriptions/11111111-1111-1111-1111-111111111111
+  item, bare | Dernier jour pour résilier un contrat | Maison | /subscriptions/11111111-1111-1111-1111-111111111111
+  item, bare, figures | Dernier jour pour résilier un contrat | Maison | /subscriptions/11111111-1111-1111-1111-111111111111
+  household, due | Dernier jour pour résilier un contrat |  | /
+  household, due, figures | Dernier jour pour résilier un contrat | Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /
+  household, alt | Dernier jour pour résilier un contrat |  | /
+  household, alt, figures | Dernier jour pour résilier un contrat | Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /
+  household, bare | Dernier jour pour résilier un contrat |  | /
+  household, bare, figures | Dernier jour pour résilier un contrat |  | /
+subscription_expiry — Un abonnement prend fin
+  item, due, month key | Un abonnement prend fin | Maison — le 15 mars 2027 | /subscriptions/11111111-1111-1111-1111-111111111111
+  item, due, month key, figures | Un abonnement prend fin | Maison — le 15 mars 2027 — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /subscriptions/11111111-1111-1111-1111-111111111111
+  item, day key | Un abonnement prend fin | Maison | /subscriptions/11111111-1111-1111-1111-111111111111
+  item, day key, figures | Un abonnement prend fin | Maison — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /subscriptions/11111111-1111-1111-1111-111111111111
+  item, bare | Un abonnement prend fin | Maison | /subscriptions/11111111-1111-1111-1111-111111111111
+  item, bare, figures | Un abonnement prend fin | Maison | /subscriptions/11111111-1111-1111-1111-111111111111
+  household, due | Un abonnement prend fin |  | /
+  household, due, figures | Un abonnement prend fin | Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /
+  household, alt | Un abonnement prend fin |  | /
+  household, alt, figures | Un abonnement prend fin | Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /
+  household, bare | Un abonnement prend fin |  | /
+  household, bare, figures | Un abonnement prend fin |  | /
+subscription_price_increase — Le prix d'un abonnement augmente
+  item, due, month key | Le prix d'un abonnement augmente | Maison — le 15 mars 2027 | /subscriptions/11111111-1111-1111-1111-111111111111
+  item, due, month key, figures | Le prix d'un abonnement augmente | Maison — le 15 mars 2027 — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /subscriptions/11111111-1111-1111-1111-111111111111
+  item, day key | Le prix d'un abonnement augmente | Maison | /subscriptions/11111111-1111-1111-1111-111111111111
+  item, day key, figures | Le prix d'un abonnement augmente | Maison — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /subscriptions/11111111-1111-1111-1111-111111111111
+  item, bare | Le prix d'un abonnement augmente | Maison | /subscriptions/11111111-1111-1111-1111-111111111111
+  item, bare, figures | Le prix d'un abonnement augmente | Maison | /subscriptions/11111111-1111-1111-1111-111111111111
+  household, due | Le prix d'un abonnement augmente |  | /
+  household, due, figures | Le prix d'un abonnement augmente | Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /
+  household, alt | Le prix d'un abonnement augmente |  | /
+  household, alt, figures | Le prix d'un abonnement augmente | Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /
+  household, bare | Le prix d'un abonnement augmente |  | /
+  household, bare, figures | Le prix d'un abonnement augmente |  | /
+subscription_renewal — Un abonnement se renouvelle
+  item, due, month key | Un abonnement se renouvelle | Maison — le 15 mars 2027 | /subscriptions/11111111-1111-1111-1111-111111111111
+  item, due, month key, figures | Un abonnement se renouvelle | Maison — le 15 mars 2027 — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /subscriptions/11111111-1111-1111-1111-111111111111
+  item, day key | Un abonnement se renouvelle | Maison | /subscriptions/11111111-1111-1111-1111-111111111111
+  item, day key, figures | Un abonnement se renouvelle | Maison — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /subscriptions/11111111-1111-1111-1111-111111111111
+  item, bare | Un abonnement se renouvelle | Maison | /subscriptions/11111111-1111-1111-1111-111111111111
+  item, bare, figures | Un abonnement se renouvelle | Maison | /subscriptions/11111111-1111-1111-1111-111111111111
+  household, due | Un abonnement se renouvelle |  | /
+  household, due, figures | Un abonnement se renouvelle | Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /
+  household, alt | Un abonnement se renouvelle |  | /
+  household, alt, figures | Un abonnement se renouvelle | Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /
+  household, bare | Un abonnement se renouvelle |  | /
+  household, bare, figures | Un abonnement se renouvelle |  | /
+subscription_trial_end — Une période gratuite se termine
+  item, due, month key | Une période gratuite se termine | Maison — le 15 mars 2027 | /subscriptions/11111111-1111-1111-1111-111111111111
+  item, due, month key, figures | Une période gratuite se termine | Maison — le 15 mars 2027 — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /subscriptions/11111111-1111-1111-1111-111111111111
+  item, day key | Une période gratuite se termine | Maison | /subscriptions/11111111-1111-1111-1111-111111111111
+  item, day key, figures | Une période gratuite se termine | Maison — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /subscriptions/11111111-1111-1111-1111-111111111111
+  item, bare | Une période gratuite se termine | Maison | /subscriptions/11111111-1111-1111-1111-111111111111
+  item, bare, figures | Une période gratuite se termine | Maison | /subscriptions/11111111-1111-1111-1111-111111111111
+  household, due | Une période gratuite se termine |  | /
+  household, due, figures | Une période gratuite se termine | Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /
+  household, alt | Une période gratuite se termine |  | /
+  household, alt, figures | Une période gratuite se termine | Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /
+  household, bare | Une période gratuite se termine |  | /
+  household, bare, figures | Une période gratuite se termine |  | /
+subscriptions.ends_without_renewal — Un abonnement s'arrête sans renouvellement
+  item, due, month key | Un abonnement s'arrête sans renouvellement | Maison — le 15 mars 2027 | /subscriptions/11111111-1111-1111-1111-111111111111
+  item, due, month key, figures | Un abonnement s'arrête sans renouvellement | Maison — le 15 mars 2027 — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /subscriptions/11111111-1111-1111-1111-111111111111
+  item, day key | Un abonnement s'arrête sans renouvellement | Maison — le 1er juin 2025 | /subscriptions/11111111-1111-1111-1111-111111111111
+  item, day key, figures | Un abonnement s'arrête sans renouvellement | Maison — le 1er juin 2025 — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /subscriptions/11111111-1111-1111-1111-111111111111
+  item, bare | Un abonnement s'arrête sans renouvellement | Maison | /subscriptions/11111111-1111-1111-1111-111111111111
+  item, bare, figures | Un abonnement s'arrête sans renouvellement | Maison | /subscriptions/11111111-1111-1111-1111-111111111111
+  household, due | Un abonnement s'arrête sans renouvellement |  | /
+  household, due, figures | Un abonnement s'arrête sans renouvellement | Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /
+  household, alt | Un abonnement s'arrête sans renouvellement |  | /
+  household, alt, figures | Un abonnement s'arrête sans renouvellement | Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /
+  household, bare | Un abonnement s'arrête sans renouvellement |  | /
+  household, bare, figures | Un abonnement s'arrête sans renouvellement |  | /
+sync_failed — Une synchronisation a échoué
+  item, due, month key | Une synchronisation a échoué | Source : fx | /admin/fx
+  item, due, month key, figures | Une synchronisation a échoué | Source : fx — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /admin/fx
+  item, day key | Une synchronisation a échoué | Source : bank | /admin/system
+  item, day key, figures | Une synchronisation a échoué | Source : bank — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /admin/system
+  item, bare | Une synchronisation a échoué |  | /admin/system
+  item, bare, figures | Une synchronisation a échoué |  | /admin/system
+  household, due | Une synchronisation a échoué | Source : fx | /admin/fx
+  household, due, figures | Une synchronisation a échoué | Source : fx — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /admin/fx
+  household, alt | Une synchronisation a échoué | Source : bank | /admin/system
+  household, alt, figures | Une synchronisation a échoué | Source : bank — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /admin/system
+  household, bare | Une synchronisation a échoué |  | /admin/system
+  household, bare, figures | Une synchronisation a échoué |  | /admin/system
+tax_balance_due — Le solde de l'impôt est prélevé
+  item, due, month key | Le solde de l'impôt est prélevé | Maison — le 15 mars 2027 | /
+  item, due, month key, figures | Le solde de l'impôt est prélevé | Maison — le 15 mars 2027 — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /
+  item, day key | Le solde de l'impôt est prélevé | Maison | /
+  item, day key, figures | Le solde de l'impôt est prélevé | Maison — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /
+  item, bare | Le solde de l'impôt est prélevé | Maison | /
+  item, bare, figures | Le solde de l'impôt est prélevé | Maison | /
+  household, due | Le solde de l'impôt est prélevé | À partir du 1er mai 2027 | /tax?tab=withholding
+  household, due, figures | Le solde de l'impôt est prélevé | À partir du 1er mai 2027 — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /tax?tab=withholding
+  household, alt | Le solde de l'impôt est prélevé | À partir du 1er janvier 2027 | /tax?tab=withholding
+  household, alt, figures | Le solde de l'impôt est prélevé | À partir du 1er janvier 2027 — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /tax?tab=withholding
+  household, bare | Le solde de l'impôt est prélevé |  | /tax?tab=withholding
+  household, bare, figures | Le solde de l'impôt est prélevé |  | /tax?tab=withholding
+tax_filing_deadline — La déclaration de revenus est à faire
+  item, due, month key | La déclaration de revenus est à faire | Maison — le 15 mars 2027 | /
+  item, due, month key, figures | La déclaration de revenus est à faire | Maison — le 15 mars 2027 — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /
+  item, day key | La déclaration de revenus est à faire | Maison | /
+  item, day key, figures | La déclaration de revenus est à faire | Maison — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /
+  item, bare | La déclaration de revenus est à faire | Maison | /
+  item, bare, figures | La déclaration de revenus est à faire | Maison | /
+  household, due | La déclaration de revenus est à faire | En ligne avant le 1er mai 2027, la date la plus tôt : département non renseigné | /tax
+  household, due, figures | La déclaration de revenus est à faire | En ligne avant le 1er mai 2027, la date la plus tôt : département non renseigné — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /tax
+  household, alt | La déclaration de revenus est à faire | En ligne avant le 1er janvier 2027 | /tax
+  household, alt, figures | La déclaration de revenus est à faire | En ligne avant le 1er janvier 2027 — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /tax
+  household, bare | La déclaration de revenus est à faire |  | /tax
+  household, bare, figures | La déclaration de revenus est à faire |  | /tax
+tax_new_rate — Le nouveau taux de prélèvement s'applique
+  item, due, month key | Le nouveau taux de prélèvement s'applique | Maison — le 15 mars 2027 | /
+  item, due, month key, figures | Le nouveau taux de prélèvement s'applique | Maison — le 15 mars 2027 — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /
+  item, day key | Le nouveau taux de prélèvement s'applique | Maison | /
+  item, day key, figures | Le nouveau taux de prélèvement s'applique | Maison — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /
+  item, bare | Le nouveau taux de prélèvement s'applique | Maison | /
+  item, bare, figures | Le nouveau taux de prélèvement s'applique | Maison | /
+  household, due | Le nouveau taux de prélèvement s'applique | À partir du 1er mai 2027 | /tax
+  household, due, figures | Le nouveau taux de prélèvement s'applique | À partir du 1er mai 2027 — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /tax
+  household, alt | Le nouveau taux de prélèvement s'applique | À partir du 1er janvier 2027 | /tax
+  household, alt, figures | Le nouveau taux de prélèvement s'applique | À partir du 1er janvier 2027 — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /tax
+  household, bare | Le nouveau taux de prélèvement s'applique |  | /tax
+  household, bare, figures | Le nouveau taux de prélèvement s'applique |  | /tax
+tenancy_end — Un bail arrive à échéance
+  item, due, month key | Un bail arrive à échéance | Maison — le 15 mars 2027 | /properties/11111111-1111-1111-1111-111111111111?tab=rental
+  item, due, month key, figures | Un bail arrive à échéance | Maison — le 15 mars 2027 — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /properties/11111111-1111-1111-1111-111111111111?tab=rental
+  item, day key | Un bail arrive à échéance | Maison | /properties/11111111-1111-1111-1111-111111111111?tab=rental
+  item, day key, figures | Un bail arrive à échéance | Maison — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /properties/11111111-1111-1111-1111-111111111111?tab=rental
+  item, bare | Un bail arrive à échéance | Maison | /properties/11111111-1111-1111-1111-111111111111?tab=rental
+  item, bare, figures | Un bail arrive à échéance | Maison | /properties/11111111-1111-1111-1111-111111111111?tab=rental
+  household, due | Un bail arrive à échéance |  | /
+  household, due, figures | Un bail arrive à échéance | Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /
+  household, alt | Un bail arrive à échéance |  | /
+  household, alt, figures | Un bail arrive à échéance | Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /
+  household, bare | Un bail arrive à échéance |  | /
+  household, bare, figures | Un bail arrive à échéance |  | /
+token_expiring — Un jeton d'accès expire bientôt
+  item, due, month key | Un jeton d'accès expire bientôt |  | /security
+  item, due, month key, figures | Un jeton d'accès expire bientôt | Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /security
+  item, day key | Un jeton d'accès expire bientôt | Expire le 1er juin 2025 | /security
+  item, day key, figures | Un jeton d'accès expire bientôt | Expire le 1er juin 2025 — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /security
+  item, bare | Un jeton d'accès expire bientôt |  | /security
+  item, bare, figures | Un jeton d'accès expire bientôt |  | /security
+  household, due | Un jeton d'accès expire bientôt | Expire le 30 novembre 2026 | /security
+  household, due, figures | Un jeton d'accès expire bientôt | Expire le 30 novembre 2026 — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /security
+  household, alt | Un jeton d'accès expire bientôt |  | /security
+  household, alt, figures | Un jeton d'accès expire bientôt | Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /security
+  household, bare | Un jeton d'accès expire bientôt |  | /security
+  household, bare, figures | Un jeton d'accès expire bientôt |  | /security
+totp_reset — Votre validation en deux étapes a été désactivée
+  item, due, month key | Votre validation en deux étapes a été désactivée | Un administrateur l'a désactivée depuis le serveur. Réactivez-la depuis la page Sécurité. | /security
+  item, due, month key, figures | Votre validation en deux étapes a été désactivée | Un administrateur l'a désactivée depuis le serveur. Réactivez-la depuis la page Sécurité. — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /security
+  item, day key | Votre validation en deux étapes a été désactivée | Un administrateur l'a désactivée depuis le serveur. Réactivez-la depuis la page Sécurité. | /security
+  item, day key, figures | Votre validation en deux étapes a été désactivée | Un administrateur l'a désactivée depuis le serveur. Réactivez-la depuis la page Sécurité. — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /security
+  item, bare | Votre validation en deux étapes a été désactivée | Un administrateur l'a désactivée depuis le serveur. Réactivez-la depuis la page Sécurité. | /security
+  item, bare, figures | Votre validation en deux étapes a été désactivée | Un administrateur l'a désactivée depuis le serveur. Réactivez-la depuis la page Sécurité. | /security
+  household, due | Votre validation en deux étapes a été désactivée | Un administrateur l'a désactivée depuis le serveur. Réactivez-la depuis la page Sécurité. | /security
+  household, due, figures | Votre validation en deux étapes a été désactivée | Un administrateur l'a désactivée depuis le serveur. Réactivez-la depuis la page Sécurité. — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /security
+  household, alt | Votre validation en deux étapes a été désactivée | Un administrateur l'a désactivée depuis le serveur. Réactivez-la depuis la page Sécurité. | /security
+  household, alt, figures | Votre validation en deux étapes a été désactivée | Un administrateur l'a désactivée depuis le serveur. Réactivez-la depuis la page Sécurité. — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /security
+  household, bare | Votre validation en deux étapes a été désactivée | Un administrateur l'a désactivée depuis le serveur. Réactivez-la depuis la page Sécurité. | /security
+  household, bare, figures | Votre validation en deux étapes a été désactivée | Un administrateur l'a désactivée depuis le serveur. Réactivez-la depuis la page Sécurité. | /security
+uc_share_below_floor — La part en unités de compte est sous le plancher
+  item, due, month key | La part en unités de compte est sous le plancher | Maison — relevé du 15 mars 2027 | /investments/11111111-1111-1111-1111-111111111111?tab=holdings
+  item, due, month key, figures | La part en unités de compte est sous le plancher | Maison — relevé du 15 mars 2027 — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /investments/11111111-1111-1111-1111-111111111111?tab=holdings
+  item, day key | La part en unités de compte est sous le plancher | Maison — relevé du 1er juin 2025 | /investments/11111111-1111-1111-1111-111111111111?tab=holdings
+  item, day key, figures | La part en unités de compte est sous le plancher | Maison — relevé du 1er juin 2025 — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /investments/11111111-1111-1111-1111-111111111111?tab=holdings
+  item, bare | La part en unités de compte est sous le plancher | Maison | /investments/11111111-1111-1111-1111-111111111111?tab=holdings
+  item, bare, figures | La part en unités de compte est sous le plancher | Maison | /investments/11111111-1111-1111-1111-111111111111?tab=holdings
+  household, due | La part en unités de compte est sous le plancher |  | /
+  household, due, figures | La part en unités de compte est sous le plancher | Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /
+  household, alt | La part en unités de compte est sous le plancher |  | /
+  household, alt, figures | La part en unités de compte est sous le plancher | Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /
+  household, bare | La part en unités de compte est sous le plancher |  | /
+  household, bare, figures | La part en unités de compte est sous le plancher |  | /
+unusual_spending — Des dépenses sortent de l'ordinaire
+  item, due, month key | Des dépenses sortent de l'ordinaire | Maison — le 15 mars 2027 | /childcare/11111111-1111-1111-1111-111111111111/statements/2027-02
+  item, due, month key, figures | Des dépenses sortent de l'ordinaire | Maison — le 15 mars 2027 — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /childcare/11111111-1111-1111-1111-111111111111/statements/2027-02
+  item, day key | Des dépenses sortent de l'ordinaire | Maison | /properties/11111111-1111-1111-1111-111111111111
+  item, day key, figures | Des dépenses sortent de l'ordinaire | Maison — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /properties/11111111-1111-1111-1111-111111111111
+  item, bare | Des dépenses sortent de l'ordinaire | Maison | /
+  item, bare, figures | Des dépenses sortent de l'ordinaire | Maison | /
+  household, due | Des dépenses sortent de l'ordinaire | Courses : bien au-dessus du mois habituel | /spending?tab=operations&category=22222222-2222-2222-2222-222222222222&from=2027-02-01&to=2027-02-28&state=counted
+  household, due, figures | Des dépenses sortent de l'ordinaire | Courses : bien au-dessus du mois habituel — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /spending?tab=operations&category=22222222-2222-2222-2222-222222222222&from=2027-02-01&to=2027-02-28&state=counted
+  household, alt | Des dépenses sortent de l'ordinaire | Une catégorie : bien au-dessus du mois habituel | /spending
+  household, alt, figures | Des dépenses sortent de l'ordinaire | Une catégorie : bien au-dessus du mois habituel — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /spending
+  household, bare | Des dépenses sortent de l'ordinaire | Une catégorie : bien au-dessus du mois habituel | /spending
+  household, bare, figures | Des dépenses sortent de l'ordinaire | Une catégorie : bien au-dessus du mois habituel | /spending
+valuation_stale — Une estimation est à refaire
+  item, due, month key | Une estimation est à refaire | Maison — estimée le 15 mars 2027 | /properties/11111111-1111-1111-1111-111111111111?tab=valuations
+  item, due, month key, figures | Une estimation est à refaire | Maison — estimée le 15 mars 2027 — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /properties/11111111-1111-1111-1111-111111111111?tab=valuations
+  item, day key | Une estimation est à refaire | Maison — estimée le 1er juin 2025 | /properties/11111111-1111-1111-1111-111111111111?tab=valuations
+  item, day key, figures | Une estimation est à refaire | Maison — estimée le 1er juin 2025 — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /properties/11111111-1111-1111-1111-111111111111?tab=valuations
+  item, bare | Une estimation est à refaire | Maison | /properties/11111111-1111-1111-1111-111111111111?tab=valuations
+  item, bare, figures | Une estimation est à refaire | Maison | /properties/11111111-1111-1111-1111-111111111111?tab=valuations
+  household, due | Une estimation est à refaire |  | /
+  household, due, figures | Une estimation est à refaire | Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /
+  household, alt | Une estimation est à refaire |  | /
+  household, alt, figures | Une estimation est à refaire | Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /
+  household, bare | Une estimation est à refaire |  | /
+  household, bare, figures | Une estimation est à refaire |  | /

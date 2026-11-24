@@ -18,11 +18,29 @@ public sealed class InvestmentsNotificationSource(InvestmentsUpcoming upcoming, 
 
     public IReadOnlyList<NotificationKind> Kinds { get; } =
     [
-        new(UpcomingKinds.HoldingMaturity, "due_date", NotificationLevel.Action, "investments", 30),
-        new(UpcomingKinds.HoldingEntitlement, "due_date", NotificationLevel.Info, "investments", 30),
-        new(OverviewCodes.StaleValue, "finding", NotificationLevel.Info, "investments", null),
-        new(HoldingWarnings.UcShareBelowFloor, "finding", NotificationLevel.Info, "investments", null),
+        new(UpcomingKinds.HoldingMaturity, "due_date", NotificationLevel.Action, "investments", 30)
+        {
+            Template = new("Un support arrive à échéance") { Link = Holdings },
+        },
+        new(UpcomingKinds.HoldingEntitlement, "due_date", NotificationLevel.Info, "investments", 30)
+        {
+            Template = new("Des parts de SCPI entrent en jouissance") { Link = Holdings },
+        },
+        new(OverviewCodes.StaleValue, "finding", NotificationLevel.Info, "investments", null)
+        {
+            Template = new("Une valeur est à mettre à jour") { Suffix = f => Dated(f, "valeur du"), Link = f => f.ItemPage("investments") },
+        },
+        new(HoldingWarnings.UcShareBelowFloor, "finding", NotificationLevel.Info, "investments", null)
+        {
+            Template = new("La part en unités de compte est sous le plancher") { Suffix = f => Dated(f, "relevé du"), Link = Holdings },
+        },
     ];
+
+    private static string Holdings(NotificationFacts f) => f.ItemPage("investments", "holdings");
+
+    /// <summary>« — valeur du 15 juin 2025 »: the watch's date is in its key.</summary>
+    private static string Dated(NotificationFacts f, string words)
+        => (f.DueOn ?? f.KeyDate("yyyy-MM-dd")) is { } on ? $" — {words} {NotificationFacts.Day(on)}" : "";
 
     public async Task<Result<IReadOnlyList<Signal>>> SignalsAsync(PersonId reader, LocalDate today, LocalDate horizon, CancellationToken ct)
     {

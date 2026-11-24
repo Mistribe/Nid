@@ -166,6 +166,8 @@ Deux tables du schéma `core`, détaillées dans `identity-and-access/tokens-and
 
 ### 4.6 Avis d'imposition (`tax_assessment`)
 
+Ces tables, avec `tax_profile`, appartiennent au module Tax depuis la #512 (`TaxDbContext`, `architecture.md` §5.2) ; elles sont dans le schéma `tax` depuis la #568, qui laisse dans `core` des vues sous les anciens noms pour l'image précédente, retirées par la #581.
+
 Un avis d'imposition sur les revenus d'une année passée, saisi à la main ou proposé par un assistant (`superpowers/specs/2026-10-27-tax-assessments-design.md`). Les montants vivent dans un document JSON ; une table de jointure porte ce qu'il faut pour les droits et l'unicité.
 
 **`tax_assessment`**
@@ -182,12 +184,12 @@ Un avis d'imposition sur les revenus d'une année passée, saisi à la main ou p
 | Champ | Type | Remarques |
 |---|---|---|
 | `assessment_id` | uuid | Clé étrangère vers `tax_assessment`, `ON DELETE CASCADE` ; clé primaire composite avec `person_id` |
-| `person_id` | uuid | Clé étrangère vers `person`, `ON DELETE RESTRICT` (`fk_tax_assessment_declarant_person_person_id`) ; indexé |
+| `person_id` | uuid | Personne de `core.person`, sans clé étrangère entre schémas (retirée par #568) : un adulte en attente qui déclare un avis ne peut être supprimé (`IHouseholdTax.DeclaresAsync`) ; indexé |
 | `year` | int | Recopie de l'année de l'avis |
 | `rank` | int | 1 ou 2 (`ck_tax_assessment_declarant_rank`) |
 
 - Index unique `(year, person_id)` : une personne a au plus un avis par année, seule ou à deux ; un doublon répond 422 `tax.declarant_taken` à `declarants[i].personId`.
-- Les avis appartiennent à leurs déclarants, sans élément ni propriété : seuls les déclarants les lisent (« Foyer » = les avis à deux déclarants, « Moi » = les siens). Une personne qui figure sur un avis ne peut plus être supprimée.
+- Les avis appartiennent à leurs déclarants, sans élément ni propriété : seuls les déclarants les lisent (« Foyer » = les avis à deux déclarants, « Moi » = les siens). Une personne qui figure sur un avis ne peut plus être supprimée : le module Tax le dit à Core (`IHouseholdTax.DeclaresAsync` pour un adulte en attente, `IPersonUsePart` pour un enfant).
 - Les deux tables sont auditées sans élément (`AuditRule.NoItem`) ; le PDF source est relié à chaque déclarant (`core.person`, rôle `tax_notice`, `documents-data-model.md` §5).
 
 ### 4.7 Scénarios (`scenario`)

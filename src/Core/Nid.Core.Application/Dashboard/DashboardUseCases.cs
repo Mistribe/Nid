@@ -1,5 +1,5 @@
-using Nid.Core.Application.Tax;
 using Nid.Core.Contracts;
+using Nid.Core.Domain.Dashboard;
 using Nid.Platform.Contracts;
 using NodaTime;
 using UnambitiousFx.Functional;
@@ -26,8 +26,8 @@ public sealed class GetDashboardHandler(DashboardReader dashboard, IActorAccesso
 /// <summary>The dashboard's composition for a reader on a day: the handler serves it, the notification source reads the same figures.</summary>
 public sealed class DashboardReader(
     IEnumerable<INetWorthContribution> netWorth, IEnumerable<ICommitmentsContribution> commitments,
-    IEnumerable<IIncomeContribution> income, IEnumerable<ISpendingContribution> spending, IEnumerable<IUpcomingEvents> upcoming, PerDeadline perDeadline,
-    IHouseholdSettings household, IFxRates fx, IPersonRegistry persons, TaxCalendarEvents taxCalendar) : IMonthBudget
+    IEnumerable<IIncomeContribution> income, IEnumerable<ISpendingContribution> spending, IEnumerable<IUpcomingEvents> upcoming, IHouseholdTax tax,
+    IHouseholdSettings household, IFxRates fx, IPersonRegistry persons, UpcomingCatalog kinds) : IMonthBudget
 {
     /// <summary><paramref name="withSpending"/> false leaves the everyday spending out (null), as the notifications never use it.</summary>
     public async Task<Result<DashboardView>> ReadAsync(PersonId reader, VisibilityScope scope, LocalDate today, CancellationToken ct, bool withSpending = true)
@@ -43,7 +43,7 @@ public sealed class DashboardReader(
         var until = today.PlusDays(DashboardMath.UpcomingDays);
         var dated = await Contributions.CollectAsync(upcoming, u => u.UpcomingAsync(reader, scope, today, until, ct));
         if (dated.TryGetFailure(out failure)) return Result.Failure<DashboardView>(failure!);
-        var per = await perDeadline.EventsAsync(reader, scope, today, until, ct);
+        var per = await tax.PerDeadlineAsync(reader, scope, today, until, ct);
         if (per.TryGetFailure(out failure)) return Result.Failure<DashboardView>(failure!);
         worth.TryGetValue(out var w);
         committed.TryGetValue(out var c);
@@ -51,7 +51,7 @@ public sealed class DashboardReader(
         spent.TryGetValue(out var s);
         dated.TryGetValue(out var d);
         per.TryGetValue(out var p);
-        var taxDates = await taxCalendar.EventsAsync(reader, scope, today, until, ct);
+        var taxDates = await tax.CalendarAsync(reader, scope, today, until, ct);
 
         var reference = await household.ReferenceCurrencyAsync(ct);
         var foreign = DashboardMath.Currencies(w!, c!, e!, s!).Where(x => x != reference).ToList();
@@ -61,7 +61,7 @@ public sealed class DashboardReader(
             : await fx.LoadAsync(foreign.Append(reference).ToList(), today, today, ct);
         var people = await persons.ListAsync(ct);
         var target = await household.AllocationTargetAsync(ct);
-        return Result.Success(DashboardMath.Compose(w!, c!, e!, s!, d!.SelectMany(x => x).ToList(), people, reference, rates, today, target, [.. p!, .. taxDates]));
+        return Result.Success(DashboardComposition.Compose(w!, c!, e!, s!, d!.SelectMany(x => x).ToList(), people, reference, rates, today, target, [.. p!, .. taxDates]));
     }
 
     /// <summary>Issue #425: the parts <see cref="ReadAsync"/> reads, through the same <see cref="DashboardMath.Budget"/>.</summary>
@@ -88,7 +88,7 @@ public sealed class DashboardReader(
     /// Issue #80: « À venir » alone over [<paramref name="today"/>, <paramref name="until"/>], for the calendar feed: the modules' events
     /// (not the income gap, which is « À faire »), the PER deadline and the tax calendar, by date then name, each amount in its own currency.
     /// Issue #243: only the events of <paramref name="modules"/> (<see cref="CalendarModules"/>), every module when null.
-    /// Issue #240: <paramref name="milestonesOnly"/> keeps the kinds that happen once (<see cref="UpcomingKinds.IsMilestone"/>).
+    /// Issue #240: <paramref name="milestonesOnly"/> keeps the kinds that happen once (<see cref="UpcomingCatalog.IsMilestone"/>).
     /// </summary>
     public async Task<Result<IReadOnlyList<DashboardEventView>>> UpcomingAsync(PersonId reader, VisibilityScope scope, LocalDate today, LocalDate until,
         IReadOnlyCollection<string>? modules, CancellationToken ct, bool milestonesOnly = false)
@@ -102,14 +102,14 @@ public sealed class DashboardReader(
         // milestones, since both only date recurring kinds.
         if (Lists(CalendarModules.Tax) && !milestonesOnly)
         {
-            var per = await perDeadline.EventsAsync(reader, scope, today, until, ct);
+            var per = await tax.PerDeadlineAsync(reader, scope, today, until, ct);
             if (per.TryGetFailure(out failure)) return Result.Failure<IReadOnlyList<DashboardEventView>>(failure!);
             per.TryGetValue(out var perEvents);
             p = perEvents!;
-            taxDates = await taxCalendar.EventsAsync(reader, scope, today, until, ct);
+            taxDates = await tax.CalendarAsync(reader, scope, today, until, ct);
         }
         return Result.Success<IReadOnlyList<DashboardEventView>>(d!.SelectMany(x => x)
-            .Where(e => e.Kind != UpcomingKinds.IncomeGapSoon && Lists(e.Module) && (!milestonesOnly || UpcomingKinds.IsMilestone(e.Kind)))
+            .Where(e => e.Kind != UpcomingKinds.IncomeGapSoon && Lists(e.Module) && (!milestonesOnly || kinds.IsMilestone(e.Kind)))
             .Select(e => new DashboardEventView(e.On, e.Kind, e.Item, e.Module, e.Name, e.Label,
                 e.Amount is { } a ? DashboardMath.Money(a.Amount, a.Currency) : null))
             .Concat(p).Concat(taxDates)

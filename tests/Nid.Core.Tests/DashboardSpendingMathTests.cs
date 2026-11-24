@@ -1,5 +1,6 @@
 using Nid.Core.Application.Dashboard;
 using Nid.Core.Contracts;
+using Nid.Core.Domain.Dashboard;
 using NodaTime;
 
 namespace Nid.Core.Tests;
@@ -15,7 +16,7 @@ public class DashboardSpendingMathTests
 
     /// <summary>Income 2 000, commitments 1 000: a margin of 1 000.</summary>
     private static DashboardView Compose(IReadOnlyList<SpendingPart> spending, RateTable? rates = null, bool income = true)
-        => DashboardMath.Compose([], [new CommitmentsPart(CommitmentSources.Subscriptions, 1, Eur(1000m), Eur(1000m))],
+        => DashboardComposition.Compose([], [new CommitmentsPart(CommitmentSources.Subscriptions, 1, Eur(1000m), Eur(1000m))],
             [new IncomePart(income ? 1 : 0, income ? Eur(2000m) : [])], spending, [], [], Currency.Eur, rates ?? RateTable.Empty(Today, 7), Today);
 
     /// <summary>One category per slice; « Non classées » is the slice without one.</summary>
@@ -47,7 +48,7 @@ public class DashboardSpendingMathTests
         foreach (var income in new[] { 1, 0 })
         {
             IReadOnlyList<IncomePart> earned = [new IncomePart(income, income > 0 ? Eur(2000m) : [])];
-            var view = DashboardMath.Compose([], commitments, earned, spending, [], [], Currency.Eur, RateTable.Empty(Today, 7), Today);
+            var view = DashboardComposition.Compose([], commitments, earned, spending, [], [], Currency.Eur, RateTable.Empty(Today, 7), Today);
             var month = DashboardMath.Budget(commitments, earned, spending, Currency.Eur, RateTable.Empty(Today, 7), Today);
             Assert.Equal((view.Income.Total?.Amount, view.Commitments.Total?.Amount, view.Margin?.Amount, view.EverydaySpending?.Amount, view.Left?.Amount),
                 (M(month.Income), M(month.Committed), M(month.Margin), M(month.Everyday), M(month.Left)));

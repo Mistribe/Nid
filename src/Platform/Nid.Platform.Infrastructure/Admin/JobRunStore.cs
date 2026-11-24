@@ -8,18 +8,18 @@ namespace Nid.Platform.Infrastructure.Admin;
 /// <summary><see cref="IJobRunStore"/> on <see cref="PlatformDbContext"/>; every write saves at once (a run is not part of a unit of work).</summary>
 public sealed class JobRunStore(PlatformDbContext db) : IJobRunStore
 {
-    public async Task StartAsync(Guid id, string jobKey, string trigger, DateTimeOffset startedAt, CancellationToken ct)
+    public async Task StartAsync(Guid id, string jobKey, string trigger, Instant startedAt, CancellationToken ct)
     {
-        db.JobRuns.Add(new JobRunRow { Id = id, JobKey = jobKey, Trigger = trigger, StartedAt = Instant.FromDateTimeOffset(startedAt), Outcome = JobOutcomes.Running });
+        db.JobRuns.Add(new JobRunRow { Id = id, JobKey = jobKey, Trigger = trigger, StartedAt = startedAt, Outcome = JobOutcomes.Running });
         await db.SaveChangesAsync(ct);
     }
 
-    public async Task FinishAsync(Guid id, string outcome, string? summary, bool hasLogs, DateTimeOffset finishedAt, CancellationToken ct)
+    public async Task FinishAsync(Guid id, string outcome, string? summary, bool hasLogs, Instant finishedAt, CancellationToken ct)
         => await db.JobRuns.Where(r => r.Id == id).ExecuteUpdateAsync(u => u
             .SetProperty(r => r.Outcome, outcome)
             .SetProperty(r => r.Summary, summary)
             .SetProperty(r => r.HasLogs, hasLogs)
-            .SetProperty(r => r.FinishedAt, Instant.FromDateTimeOffset(finishedAt)), ct);
+            .SetProperty(r => r.FinishedAt, finishedAt), ct);
 
     public async Task<IReadOnlyDictionary<string, JobRunView>> LastRunsAsync(CancellationToken ct)
     {
@@ -62,6 +62,6 @@ public sealed class JobRunStore(PlatformDbContext db) : IJobRunStore
         => db.JobRuns.AsNoTracking().Where(r => r.JobKey == jobKey).OrderByDescending(r => r.StartedAt).ThenByDescending(r => r.Id);
 
     private static JobRunView View(JobRunRow r) => new(
-        r.Id, r.Trigger, r.StartedAt.ToDateTimeOffset(), r.FinishedAt?.ToDateTimeOffset(),
+        r.Id, r.Trigger, r.StartedAt, r.FinishedAt,
         r.FinishedAt is { } end ? (long)(end - r.StartedAt).TotalMilliseconds : null, r.Outcome, r.Summary);
 }

@@ -40,7 +40,7 @@ public static class OverviewMath
             b.Input, b.Timeline, b.DisplayName, b.Provider, window,
             Conversion.Of(b.Timeline.CashCostPieces(window), b.Timeline.AmortizedCostPieces(window), reference, rates), b.Owners,
             FxConversion.Convert(b.Timeline.AmortizedCostPieces(year), rates, reference),
-            SpendingHistory.Spent(b.Timeline, reference, rates, today))).ToList();
+            SpendingViews.Spent(b.Timeline, reference, rates, today))).ToList();
         estimate |= summaries.Any(s => s.ConvertedIsEstimate);
 
         var monthlyAmortized = View(HouseholdCost.AmortizedPieces(timelines, window));
@@ -48,13 +48,13 @@ public static class OverviewMath
         var monthCash = View(HouseholdCost.CashPieces(timelines, window));
         var monthCashRemaining = View(HouseholdCost.CashPieces(timelines, CostWindow.Resolve(today, today, nextMonth)));
 
-        var ahead = ChargeCycles.HouseholdCharges(active).ToList();
+        var ahead = ChargeRules.HouseholdCharges(active).ToList();
         var months = Enumerable.Range(0, 12).Select(i =>
         {
             var start = nextMonth.PlusMonths(i);
             var inMonth = ahead.Where(x => x.Charge.Date >= start && x.Charge.Date < start.PlusMonths(1)).ToList();
             bool Recurring((BuiltSubscription Sub, Charge Charge) x)
-                => ChargeCycles.PhaseOf(x.Sub.Input, x.Charge) is { } phase && !ChargeCycles.LongerThanAMonth(phase.Every);
+                => ChargeRules.PhaseOf(x.Sub.Input, x.Charge) is { } phase && !ChargeRules.LongerThanAMonth(phase.Every);
             return new MonthView(
                 start.ToString("yyyy-MM", CultureInfo.InvariantCulture),
                 View(inMonth.Where(Recurring).Select(x => SpendingHistory.Piece(x.Charge))),
@@ -86,7 +86,7 @@ public static class OverviewMath
             .ThenBy(w => w.Code, StringComparer.Ordinal).ToList();
 
         // #395: the providers by what their subscriptions, ended ones included, have cost: the list's provider groups, each charge once.
-        var spentOf = SpendingHistory.SpentOf(set, reference, rates);
+        var spentOf = SpendingViews.SpentOf(set, reference, rates);
         var providers = summaries.Where(s => s.Provider is not null).GroupBy(s => s.Provider!.Key)
             .Select(g => (Provider: g.First().Provider!, Group: ListGrouping.Group(ListGroup.Provider, g.ToList(), spentOf).Single()))
             .Where(p => p.Group.SpentTotal is not null)
@@ -95,7 +95,7 @@ public static class OverviewMath
             .Take(TopProviders)
             .Select(p => new TopProviderView(p.Provider, p.Group.SpentTotal, p.Group.SpentPartial)).ToList();
 
-        var years = SpendingHistory.Years(set, today, View);
+        var years = SpendingViews.Years(set, today, View);
         var savings = Savings(set, today, reference, rates);
         var rises = Rises(set, today, reference, rates, inflation);
 

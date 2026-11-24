@@ -17,9 +17,12 @@ namespace Nid.Banking.Application.Sync;
 /// in a scope of its own as its creator (<see cref="Actor.BankSync"/>); an account is read once, by the first live connection of the run
 /// that sees it (D21). The journal holds counts and codes only.
 /// </summary>
-public sealed class BankSyncCollector(
+public sealed partial class BankSyncCollector(
     IServiceScopeFactory scopes, IBankSyncRunLog runs, BalanceValuation valuation, IClock clock, ILogger<BankSyncCollector> log)
 {
+    [LoggerMessage(Level = LogLevel.Error, Message = "A bank connection's sync threw {Exception}")]
+    private partial void LogSyncThrew(string exception);
+
     public const int RetentionDays = 400;
 
     /// <summary>Late-booked lines: a read starts this many days before the latest stored booking (the store drops the ones it knows).</summary>
@@ -62,7 +65,7 @@ public sealed class BankSyncCollector(
         var failure = stopped ?? progress.FailureCode;
         var finished = run with
         {
-            FinishedAt = clock.GetCurrentInstant().ToDateTimeOffset(), Outcome = failure is null ? "succeeded" : "failed",
+            FinishedAt = clock.GetCurrentInstant(), Outcome = failure is null ? "succeeded" : "failed",
             Connections = progress.Connections, Accounts = progress.Accounts, Balances = progress.Balances, Proposals = progress.Proposals,
             Written = progress.Written, Skipped = progress.Skipped, FailureCode = failure, Transactions = progress.Transactions,
             RateLimited = progress.RateLimited,
@@ -90,7 +93,7 @@ public sealed class BankSyncCollector(
         catch (Exception e) when (!ct.IsCancellationRequested)
         {
             // The type only: a message may carry a bank's answer.
-            log.LogError("A bank connection's sync threw {Exception}", e.GetType().Name);
+            LogSyncThrew(e.GetType().Name);
             progress.FailureCode ??= BankingCodes.RunCrashed;
         }
     }

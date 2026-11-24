@@ -1,0 +1,114 @@
+using Nid.Core.Contracts;
+using Nid.Investments.Contracts;
+using NodaTime;
+
+namespace Nid.Investments.Domain;
+
+/// <summary>
+/// Issue #104: an envelope's value by asset class and liquidity. Pro rata of its latest snapshot's lines when it has one, each
+/// line classed by its holding's asset class, else by its kind; without a snapshot, by the envelope's kind. Guessed classes are approximate.
+/// Holding prices spec §5.4: an estimated value is split by the estimate's lines (their estimated values) instead of the snapshot's.
+/// </summary>
+public static class EnvelopeAllocation
+{
+    public static IReadOnlyList<AllocationSlice> Of(
+        EnvelopeKind kind, decimal value, HoldingSnapshot? snapshot, IReadOnlyDictionary<Guid, EnvelopeHolding> holdings,
+        IReadOnlyList<EstimatedLine>? lines = null)
+    {
+        var liquidity = Liquidity(kind);
+        var weights = (lines?.Select(l => (l.HoldingId, l.Value)) ?? snapshot?.Lines.Select(l => (l.HoldingId, l.Value)) ?? [])
+            .Where(l => l.Value != 0m).ToList();
+        var total = weights.Sum(l => l.Value);
+        if (total <= 0m)
+        {
+            var (cls, approximate) = ClassOf(kind);
+            return [new AllocationSlice(cls, liquidity, value, approximate)];
+        }
+
+        var parts = weights
+            .Select(l => (Class: ClassOf(holdings.GetValueOrDefault(l.HoldingId)), l.Value))
+            .GroupBy(p => p.Class)
+            .Select(g => (Key: g.Key, Weight: g.Sum(p => p.Value)))
+            .OrderBy(p => AllocationOrder(p.Key.Class)).ThenBy(p => p.Key.Approximate)
+            .ToList();
+        var slices = new List<AllocationSlice>();
+        var given = 0m;
+        for (var i = 0; i < parts.Count; i++)
+        {
+            // The last part takes the remainder, so the slices always sum to the value exactly.
+            var amount = i == parts.Count - 1 ? value - given : value * parts[i].Weight / total;
+            given += amount;
+            slices.Add(new AllocationSlice(parts[i].Key.Class, liquidity, amount, parts[i].Key.Approximate));
+        }
+        return slices;
+    }
+
+    /// <summary>
+    /// #184: an employee savings plan's locked slices split by its tranches: what is released is a withdrawal away (days), the rest locked
+    /// until its date. Without tranches, unchanged. #466: an early release's amount is shared among the slices pro rata of their amounts.
+    /// </summary>
+    public static IReadOnlyList<AllocationSlice> Release(
+        IReadOnlyList<AllocationSlice> slices, IReadOnlyList<AvailabilityTranche>? tranches, LocalDate today, EarlyRelease? early = null)
+    {
+        if (tranches is not { Count: > 0 } && early is null) return slices;
+        var total = slices.Sum(s => s.Amount);
+        return slices.SelectMany(s =>
+            s.Liquidity != AllocationLiquidity.Locked
+            || EnvelopeAvailability.At(tranches, s.Amount, today,
+                early is { Amount: { } a } && total != 0m ? early with { Amount = a * s.Amount / total } : early) is not { } availability
+                ? [s]
+                : availability.Releases.Select(r => s with { Amount = r.Amount, AvailableOn = r.On })
+                    .Prepend(s with { Liquidity = AllocationLiquidity.Days, Amount = availability.AvailableToday })
+                    .Append(s with { Amount = availability.Locked })
+                    .Where(x => x.Amount != 0m)).ToList();
+    }
+
+    /// <summary>
+    /// Current and savings accounts can be spent now; a PER (individual or collective) waits for retirement, a tontine for its term, a PEE
+    /// five years (#184: until the dates of its tranches, <see cref="Release"/>), SCPI shares for a buyer; the rest takes a sale or a withdrawal.
+    /// </summary>
+    public static string Liquidity(EnvelopeKind kind) => kind switch
+    {
+        EnvelopeKind.Checking or EnvelopeKind.Savings => AllocationLiquidity.Available,
+        EnvelopeKind.Per or EnvelopeKind.CollectivePer or EnvelopeKind.Tontine or EnvelopeKind.EmployeeSavings or EnvelopeKind.Scpi => AllocationLiquidity.Locked,
+        _ => AllocationLiquidity.Days,
+    };
+
+    /// <summary>
+    /// Issue #356: a checking account or a livret is money available today, not an investment: « Comptes et placements » shows it under
+    /// « Disponible », and the investment figures (paid in, gain, returns, performance, exposure, fees) leave it out.
+    /// </summary>
+    public static bool IsAvailable(EnvelopeKind kind) => Liquidity(kind) == AllocationLiquidity.Available;
+
+    private static (string Class, bool Approximate) ClassOf(EnvelopeKind kind) => kind switch
+    {
+        EnvelopeKind.Checking or EnvelopeKind.Savings => (AllocationClasses.Cash, false),
+        EnvelopeKind.Pea or EnvelopeKind.Brokerage => (AllocationClasses.Equity, true),
+        EnvelopeKind.LifeInsurance or EnvelopeKind.Per or EnvelopeKind.CollectivePer or EnvelopeKind.Tontine or EnvelopeKind.EmployeeSavings => (AllocationClasses.Mixed, true),
+        EnvelopeKind.Scpi => (AllocationClasses.RealEstate, false),
+        _ => (AllocationClasses.Other, true),
+    };
+
+    private static (string Class, bool Approximate) ClassOf(EnvelopeHolding? holding)
+    {
+        if (holding?.AssetClass is { } declared && AllocationClasses.All.Contains(declared))
+            return (declared, false);
+        return holding?.Kind switch
+        {
+            "euro_fund" => (AllocationClasses.CapitalGuaranteed, false),
+            "scpi" => (AllocationClasses.RealEstate, false),
+            "cash" => (AllocationClasses.Cash, false),
+            "equity" => (AllocationClasses.Equity, false),
+            "bond" => (AllocationClasses.Bond, false),
+            "etf" => (AllocationClasses.Equity, true),
+            "fund" => (AllocationClasses.Mixed, true),
+            _ => (AllocationClasses.Other, true),
+        };
+    }
+
+    private static int AllocationOrder(string cls) => AllocationClasses.All.ToList().IndexOf(cls);
+
+    /// <summary>The snapshot the overview reads: the latest on or before <paramref name="today"/>.</summary>
+    public static HoldingSnapshot? Latest(IEnumerable<HoldingSnapshot> snapshots, ItemId envelope, LocalDate today)
+        => snapshots.Where(s => s.Envelope == envelope && s.AsOf <= today).MaxBy(s => s.AsOf);
+}

@@ -5,6 +5,7 @@
     <ProjectReference Include="..\Nid.Investments.Domain\Nid.Investments.Domain.csproj" />
     <ProjectReference Include="..\..\Platform\Nid.Platform.Contracts\Nid.Platform.Contracts.csproj" />
     <ProjectReference Include="..\..\Core\Nid.Core.Contracts\Nid.Core.Contracts.csproj" />
+    <ProjectReference Include="..\..\Tax\Nid.Tax.Contracts\Nid.Tax.Contracts.csproj" />
     <ProjectReference Include="..\..\RealEstate\Nid.RealEstate.Contracts\Nid.RealEstate.Contracts.csproj" />
     <PackageReference Include="UnambitiousFx.Synapse.Generator">
       <PrivateAssets>all</PrivateAssets>

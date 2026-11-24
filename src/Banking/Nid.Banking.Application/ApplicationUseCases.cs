@@ -37,7 +37,7 @@ internal static class MyApplication
     public const int MaxKeyLength = 16 * 1024;
 
     public static async Task<MyApplicationView> ViewAsync(StoredApplication stored, IConnectionStore connections, CancellationToken ct)
-        => new(stored.ApplicationId, stored.KeyReadable ? "loaded" : "unreadable", stored.KeyLoadedAt.ToDateTimeOffset(),
+        => new(stored.ApplicationId, stored.KeyReadable ? "loaded" : "unreadable", stored.KeyLoadedAt,
             await connections.InUseAsync(stored.ApplicationId, stored.Person, ct));
 
     public static Result<T> Changed<T>() where T : notnull

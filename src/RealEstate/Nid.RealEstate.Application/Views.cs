@@ -2,7 +2,7 @@ using Nid.Core.Contracts;
 using Nid.RealEstate.Contracts;
 using Nid.RealEstate.Domain;
 using NodaTime;
-using static Nid.RealEstate.Application.LoanReading;
+using static Nid.RealEstate.Domain.LoanReading;
 
 namespace Nid.RealEstate.Application;
 
@@ -178,12 +178,6 @@ internal static class LoanViews
 
     public static ScheduleComparisonView ComparisonOf(ScheduleDiffSummary s)
         => new(Amount(s.MaxGap), s.MaxGapOn, s.DivergesOn, Amount(s.InterestGap), s.RowsBeyondRounding);
-
-    /// <summary>A loan's item always has a currency (it is created with one); its absence is a broken invariant.</summary>
-    public static Currency CurrencyOf(ItemAccess item)
-        => Currency.TryCreate(item.Currency ?? "", out var currency)
-            ? currency
-            : throw new InvalidOperationException($"Loan {item.Id} has no currency.");
 
     public static string Wire(Visibility visibility) => visibility == Visibility.Private ? "private" : "shared";
 

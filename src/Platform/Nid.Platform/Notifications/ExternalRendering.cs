@@ -46,7 +46,7 @@ public sealed partial class ExternalNotificationRenderer(NotificationLinkBase li
     {
         var rendered = NotificationTemplates.Render(n, kind, new Dictionary<ItemId, string>());
         var url = origin + (rendered.Link ?? "/");
-        var due = n.DueOn is { } on ? "Échéance : le " + NotificationTemplates.Day(on) : null;
+        var due = n.DueOn is { } on ? "Échéance : le " + NotificationFacts.Day(on) : null;
         var text = rendered.Title + (due is null ? "" : "\n" + due) + "\n" + OpenLabel + " : " + url;
         var html = "<p><strong>" + Escape(rendered.Title) + "</strong></p>" + (due is null ? "" : "<p>" + Escape(due) + "</p>")
             + "<p><a href=\"" + Escape(url) + "\">" + OpenLabel + "</a></p>";

@@ -1,0 +1,71 @@
+---
+title: "Connect the proxy"
+description: "Connect your reverse proxy to Nid and Pocket ID."
+sidebar:
+  order: 3
+---
+
+## Where to find Nid
+
+- **Standalone**: Nid is published on the host, at `127.0.0.1:8080` (`NID_WEB_BIND` and `NID_WEB_PORT` in `.env`). Your proxy, on the host, targets that address: the nginx example below applies as is, and Caddy or Traefik target `127.0.0.1:8080` instead of `nid:8080`.
+- **Reference**: the compose file publishes no port. Your proxy reaches its targets on the Docker network `nid_edge`:
+
+| Public name | Target |
+|---|---|
+| `nid.<domain>` | `nid:8080` (HTTP) |
+| `auth.<domain>` | `pocket-id:1411` (HTTP) |
+
+The proxy must **set** `X-Forwarded-Proto`, `X-Forwarded-Host` and `X-Forwarded-For` itself, overwriting what the client sends. Caddy and Traefik do by default; nginx does not. Nid serves the interface and the API on the same origin: nothing to route by prefix.
+
+## Caddy, reference setup
+
+```
+nid.example.org {
+	reverse_proxy nid:8080
+}
+auth.example.org {
+	reverse_proxy pocket-id:1411
+}
+```
+
+## Traefik, reference setup
+
+```yaml
+http:
+  routers:
+    nid: { rule: "Host(`nid.example.org`)", service: nid, tls: {} }
+    auth: { rule: "Host(`auth.example.org`)", service: auth, tls: {} }
+  services:
+    nid: { loadBalancer: { servers: [{ url: "http://nid:8080" }] } }
+    auth: { loadBalancer: { servers: [{ url: "http://pocket-id:1411" }] } }
+```
+
+## A proxy in another compose project, reference setup
+
+Declare the network as external in that project:
+
+```yaml
+services:
+  proxy:
+    networks: [default, nid_edge]
+networks:
+  nid_edge: { external: true }
+```
+
+## nginx on the host
+
+With the standalone, Nid is already on `127.0.0.1:8080`. With the reference setup, first publish the targets on the local address (see the detail). Then:
+
+```nginx
+location / {
+    proxy_pass http://127.0.0.1:8080;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Host $host;
+    proxy_set_header X-Forwarded-For $remote_addr;
+}
+```
+
+Nid already compresses its responses: your proxy has nothing to add.
+
+The detail, including a proxy outside Docker and trusted networks (in French): [`deploy/README.md` §3](https://github.com/Mistribe/Nid/blob/main/deploy/README.md#3-brancher-le-proxy).

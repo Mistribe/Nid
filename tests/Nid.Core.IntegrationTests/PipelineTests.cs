@@ -28,7 +28,11 @@ public class PipelineTests(PostgresFixture postgres)
     [
         typeof(TraceBehavior<,>), typeof(ActorAuthorizationBehavior<,>), typeof(AuditBehavior<,>), typeof(RoleAuthorizationBehavior<,>),
         typeof(BrowserOnlyBehavior<,>), typeof(ScopeAuthorizationBehavior<,>), typeof(RequestPolicyAuthorizationBehavior<,>),
-        typeof(ResourceAuthorizationBehavior<,>), typeof(ItemCreationBehavior<,>), typeof(DocumentMaskBehavior<,>), typeof(OutputGuardBehavior<,>),
+        typeof(ResourceAuthorizationBehavior<,>), typeof(ItemCreationBehavior<,>),
+        // #516: the modules' resources that are no registry items.
+        typeof(Nid.Banking.Application.BankingAccessBehavior<,>), typeof(Nid.Documents.Application.DocumentAccessBehavior<,>),
+        typeof(ProposalAccessBehavior<,>), typeof(ScenarioAccessBehavior<,>), typeof(Nid.Tax.Application.TaxAssessmentAccessBehavior<,>),
+        typeof(DocumentMaskBehavior<,>), typeof(OutputGuardBehavior<,>),
     ];
 
     /// <summary>A command marked <c>ITransactional</c> also runs in Synapse's transaction, innermost: the handler alone.</summary>

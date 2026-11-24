@@ -10,12 +10,12 @@ namespace Nid.Core.Application;
 
 /// <summary>A token as « Mes jetons » shows it (spec 4A §6): never its hash, never its secret.</summary>
 public sealed record TokenView(
-    Guid Id, string Name, string Preset, string Prefix, DateTimeOffset CreatedAt, DateTimeOffset ExpiresAt,
-    DateTimeOffset? LastUsedAt, DateTimeOffset? RevokedAt, string Status)
+    Guid Id, string Name, string Preset, string Prefix, Instant CreatedAt, Instant ExpiresAt,
+    Instant? LastUsedAt, Instant? RevokedAt, string Status)
 {
     public static TokenView From(PersonalAccessToken t, Instant now) => new(
-        t.Id, t.Name, TokenPresets.Of(t.Scopes), t.Prefix, t.CreatedAt.ToDateTimeOffset(), t.ExpiresAt.ToDateTimeOffset(),
-        t.LastUsedAt?.ToDateTimeOffset(), t.RevokedAt?.ToDateTimeOffset(),
+        t.Id, t.Name, TokenPresets.Of(t.Scopes), t.Prefix, t.CreatedAt, t.ExpiresAt,
+        t.LastUsedAt, t.RevokedAt,
         t.RevokedAt is not null ? "revoked" : t.ExpiresAt <= now ? "expired" : "active");
 }
 

@@ -35,14 +35,14 @@ type MyApplication = components['schemas']['MyApplicationView'];
 const MAX_KEY_BYTES = 16 * 1024;
 
 /** The wizard's steps (#414), in order; the address keeps the one reached (`?step=`, from 1). */
-const STEPS = ['need', 'account', 'application', 'urls', 'key', 'portal', 'declare', 'test', 'bank'] as const;
+const STEPS = ['need', 'account', 'application', 'details', 'portal', 'declare', 'test', 'bank'] as const;
 type StepId = (typeof STEPS)[number];
 
 /** The step that fixes what a test found, if one does: a refused key, an application not active yet, a redirect URL missing. */
 export function fixStep(test: Test): StepId | null {
   if (test.outcome === 'rejected') return 'declare';
   if (test.outcome !== 'accepted') return null;
-  if (test.redirectUrlAllowed === false) return 'urls';
+  if (test.redirectUrlAllowed === false) return 'details';
   return test.active === false ? 'portal' : null;
 }
 
@@ -158,25 +158,31 @@ function Wizard({ current, step, onFinish }: { current: MyApplication | null; st
     ),
     application: (
       <>
-        <p>{t('banks.wizard.application.environment')} <InfoTip label={t('banks.wizard.production')}>{t('banks.wizard.production_tip')}</InfoTip></p>
-        <p>{t('banks.wizard.application.restricted')} {restricted}</p>
-        <p>{t('banks.wizard.application.name')}</p>
+        <p>{t('banks.wizard.application.body')}</p>
+        <ol className="list-decimal space-y-2 pl-5">
+          <li>{t('banks.wizard.application.environment')} <InfoTip label={t('banks.wizard.production')}>{t('banks.wizard.production_tip')}</InfoTip></li>
+          <li>{t('banks.wizard.application.key')} <InfoTip label={t('banks.application.private_key')}>{t('banks.wizard.key_tip')}</InfoTip></li>
+        </ol>
       </>
     ),
-    urls: (
+    details: (
       <>
-        <p>{t('banks.wizard.urls.body')}</p>
-        <CopyField label={t('banks.wizard.urls.redirect')} value={redirectUrl}
-          tip={<InfoTip label={t('banks.wizard.urls.redirect')}>{t('banks.wizard.urls.redirect_tip')}</InfoTip>} />
-        <CopyField label={t('banks.wizard.urls.privacy')} value={PRIVACY_URL} />
-        <CopyField label={t('banks.wizard.urls.terms')} value={TERMS_URL} />
-        <p className="text-muted-foreground">{t('banks.wizard.urls.why')}</p>
-      </>
-    ),
-    key: (
-      <>
-        <p>{t('banks.wizard.key.body')} <InfoTip label={t('banks.application.private_key')}>{t('banks.wizard.key.tip')}</InfoTip></p>
-        <p>{t('banks.wizard.key.keep')}</p>
+        <p>{t('banks.wizard.details.body')}</p>
+        <div className="space-y-4 rounded-md border p-4">
+          <CopyField label={t('banks.wizard.details.name')} value={t('banks.wizard.details.name_value')}
+            hint={t('banks.wizard.details.name_hint')} mono={false} />
+          <CopyField label={t('banks.wizard.details.redirect')} value={redirectUrl}
+            tip={<InfoTip label={t('banks.wizard.details.redirect')}>{t('banks.wizard.details.redirect_tip')}</InfoTip>} />
+          <CopyField label={t('banks.wizard.details.description')} value={t('banks.wizard.details.description_value')}
+            hint={t('banks.wizard.details.description_hint')} mono={false} />
+          <div className="space-y-1">
+            <p className="font-medium">{t('banks.wizard.details.email')}</p>
+            <p className="text-muted-foreground">{t('banks.wizard.details.email_hint')}</p>
+          </div>
+          <CopyField label={t('banks.wizard.details.privacy')} value={PRIVACY_URL} />
+          <CopyField label={t('banks.wizard.details.terms')} value={TERMS_URL} hint={t('banks.wizard.details.urls_hint')} />
+        </div>
+        <p>{t('banks.wizard.details.register')}</p>
       </>
     ),
     portal: (
@@ -237,13 +243,13 @@ function Wizard({ current, step, onFinish }: { current: MyApplication | null; st
 }
 
 /** A value the adult pastes into the portal, exactly: read-only, selected on focus, with a copy button. */
-function CopyField({ label, value, tip }: { label: string; value: string; tip?: ReactNode }) {
+function CopyField({ label, value, tip, hint, mono = true }: { label: string; value: string; tip?: ReactNode; hint?: string; mono?: boolean }) {
   const { t } = useTranslation();
   return (
     <div className="flex flex-wrap items-end gap-2">
       <div className="min-w-0 flex-1 basis-64">
-        <Field label={label} tip={tip}>
-          {(c) => <Input {...c} readOnly value={value} className="font-mono text-sm" onFocus={(e) => e.currentTarget.select()} />}
+        <Field label={label} tip={tip} hint={hint}>
+          {(c) => <Input {...c} readOnly value={value} className={mono ? 'font-mono text-sm' : undefined} onFocus={(e) => e.currentTarget.select()} />}
         </Field>
       </div>
       <Button type="button" variant="outline" aria-label={t('banks.wizard.copy_label', { label })} onClick={() => {

@@ -8,8 +8,11 @@ using Nid.Platform.Contracts;
 
 namespace Nid.Host.Auth;
 
-public static class AuthEndpoints
+public static partial class AuthEndpoints
 {
+    [LoggerMessage(Level = LogLevel.Error, Message = "The identity provider could not be reached to sign in.")]
+    private static partial void LogProviderUnreachable(ILogger logger, Exception exception);
+
     /// <summary>Where <c>/auth/login</c> sends the browser when the identity provider does not answer.</summary>
     public const string LoginUnavailablePath = "/login-unavailable";
 
@@ -29,7 +32,7 @@ public static class AuthEndpoints
         {
             // The identity provider's discovery document could not be read (it or its proxy is down): an empty 500
             // left a blank page, the web page says what is wrong and offers to try again (issue 363).
-            loggers.CreateLogger(typeof(AuthEndpoints)).LogError(e, "The identity provider could not be reached to sign in.");
+            LogProviderUnreachable(loggers.CreateLogger(typeof(AuthEndpoints)), e);
             return Results.Redirect(LoginUnavailablePath + "?returnUrl=" + Uri.EscapeDataString(target));
         }
     }

@@ -1,4 +1,4 @@
-import { SlidersHorizontalIcon, SearchIcon, XIcon } from 'lucide-react';
+import { ChevronDownIcon, SlidersHorizontalIcon, SearchIcon, XIcon } from 'lucide-react';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { OperationsSearch } from '@/app/router';
@@ -10,6 +10,7 @@ import { formatLocalDate } from '@/components/LocalDate';
 import { FilterField } from '@/components/page/FilterRow';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import type { OperationPage } from '@/api/banking';
 import '@/locales/banks';
@@ -78,11 +79,30 @@ export function OperationFilters({ facets, search, onChange }: {
   const category = search.uncategorised ? NONE : search.category?.[0] ?? '';
   const states: Option[] = [{ value: '', label: t('banks.operations.filter.state_all') }, ...STATES.map((s) => ({ value: s, label: t(`banks.operations.${s}`) }))];
   const name = (list: { id: string; name: string }[] | undefined, id: string | undefined) => list?.find((o) => o.id === id)?.name;
+  // Several accounts ticked in a menu, as on the overview; one ticked reads its name.
+  const picked = search.account ?? [];
+  const pickedText = picked.length === 1 ? name(facets?.accounts, picked[0]) ?? '…' : t('banks.operations.filter.account_picked', { count: picked.length });
+  const toggle = (id: string) => { const next = picked.includes(id) ? picked.filter((p) => p !== id) : [...picked, id]; onChange({ account: next.length > 0 ? next : undefined }); };
+  const accounts = (facets?.accounts.length ?? 0) > 1 || picked.length > 0 ? field(t('banks.operations.filter.account'), (labelId, controlId) => (
+    <DropdownMenu modal={false}>
+      <DropdownMenuTrigger asChild>
+        <Button id={controlId} type="button" variant="outline" aria-labelledby={`${labelId} ${controlId}`} className="justify-between font-normal">
+          {picked.length > 0 ? pickedText : t('banks.operations.filter.account_all')}
+          <ChevronDownIcon aria-hidden="true" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start">
+        {(facets?.accounts ?? []).map((a) => (
+          <DropdownMenuCheckboxItem key={a.id} checked={picked.includes(a.id)} onCheckedChange={() => toggle(a.id)} onSelect={(e) => e.preventDefault()}>{a.name}</DropdownMenuCheckboxItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )) : null;
 
   // The filters set, as chips: what each says, and what clears it.
   const chip = (on: unknown, label: string | undefined, clear: Partial<OperationsSearch>) => (on ? [{ label: label ?? '', clear }] : []);
   const chips = [
-    ...chip(search.account?.length, `${t('banks.operations.filter.account')} : ${name(facets?.accounts, search.account?.[0]) ?? '…'}`, { account: undefined }),
+    ...chip(picked.length, `${t('banks.operations.filter.account')} : ${pickedText}`, { account: undefined }),
     ...chip(search.owner?.length, `${t('banks.operations.filter.owner')} : ${name(facets?.owners, search.owner?.[0]) ?? '…'}`, { owner: undefined }),
     ...chip(search.uncategorised, t('banks.operations.filter.category_none'), { uncategorised: undefined }),
     ...chip(search.category?.length, `${t('banks.operations.filter.category')} : ${name(facets?.categories, search.category?.[0]) ?? '…'}`, { category: undefined }),
@@ -112,7 +132,7 @@ export function OperationFilters({ facets, search, onChange }: {
       </div>
       {open ? (
         <div id={panel} className="grid gap-4 rounded-xl border bg-fill/40 p-4 sm:grid-cols-2 lg:grid-cols-3">
-          {select(t('banks.operations.filter.account'), search.account?.[0] ?? '', options(t('banks.operations.filter.account_all'), facets?.accounts), (v) => onChange({ account: v ? [v] : undefined }))}
+          {accounts}
           {select(t('banks.operations.filter.owner'), search.owner?.[0] ?? '', options(t('banks.operations.filter.owner_all'), facets?.owners), (v) => onChange({ owner: v ? [v] : undefined }))}
           {field(t('banks.operations.filter.category'), (labelId, controlId) => (
             <ComboboxField id={controlId} aria-labelledby={labelId} value={category} searchPlaceholder={t('banks.operations.filter.category_search')} empty={t('form.no_result')}

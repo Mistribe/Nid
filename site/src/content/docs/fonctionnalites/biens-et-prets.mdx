@@ -1,0 +1,36 @@
+---
+title: "Biens et prêts"
+description: "Les biens du foyer, leurs crédits, et les locations."
+sidebar:
+  order: 4
+---
+
+import Screen from '../../../components/Screen.astro';
+
+Nid suit les biens du foyer et les crédits qui les financent. L'échéancier de chaque prêt est calculé par le serveur et vérifié sur 3 000 prêts de référence ; vous pouvez le comparer au tableau de votre banque.
+
+## Les questions auxquelles il répond
+
+- Combien reste-t-il à rembourser, et jusqu'à quand ?
+- Que changerait un remboursement anticipé : une mensualité plus basse ou une durée plus courte ?
+- Que vaut notre bien, une fois le crédit déduit ?
+- Combien rapporte la location, charges et vacance comprises ?
+
+<Screen name="biens-et-prets" alt="La vue d'ensemble des crédits du foyer de démo : capital restant dû, mensualités, taux d'endettement et courbe du capital restant." />
+
+## Ce que fait Nid
+
+- **La fiche du bien** : valeur nette, plus-value latente, coût réel détaillé, rendement locatif.
+- **L'échéancier du crédit** : intérêts et capital de chaque échéance, capital restant dû, phases (différé, prêt à taux zéro), coût total.
+- **Le tableau de la banque** côte à côte avec le calcul de Nid.
+- **Le remboursement anticipé et la renégociation**, simulés avant de se décider.
+- **Le taux d'endettement** du foyer, et la date de fin de chaque prêt.
+- **Les locations** : baux, révision du loyer selon l'IRL, quittances et lettre de relance en cas d'impayé.
+
+## Les termes
+
+- **Capital restant dû** : la part du prêt qu'il reste à rembourser, sans les intérêts à venir.
+- **Échéancier** : le tableau de chaque mensualité, découpée en intérêts, capital et assurance ; on l'appelle aussi tableau d'amortissement.
+- **Taux d'endettement** : la part des revenus consacrée aux crédits ; les banques regardent souvent la limite de 35 %.
+- **PTZ** : prêt à taux zéro, aidé par l'État pour l'achat d'une résidence principale.
+- **IRL** : indice de référence des loyers, publié par l'Insee chaque trimestre, qui plafonne la révision annuelle d'un loyer.

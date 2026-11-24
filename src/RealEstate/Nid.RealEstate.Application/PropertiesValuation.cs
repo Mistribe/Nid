@@ -7,7 +7,7 @@ using NodaTime;
 using NodaTime.Text;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Synapse.Abstractions;
-using static Nid.RealEstate.Application.LoanReading;
+using static Nid.RealEstate.Domain.LoanReading;
 using static Nid.RealEstate.Application.Sums;
 
 namespace Nid.RealEstate.Application;
@@ -53,7 +53,7 @@ public sealed class GetPropertiesValuationHandler(
         var set = found!;
 
         var reference = await household.ReferenceCurrencyAsync(ct);
-        var currencies = set.Select(p => LoanViews.CurrencyOf(p.Item)).Concat(set.SelectMany(p => p.Loans).Select(l => LoanViews.CurrencyOf(l.Item))).ToHashSet();
+        var currencies = set.Select(p => LoanReading.CurrencyOf(p.Item)).Concat(set.SelectMany(p => p.Loans).Select(l => LoanReading.CurrencyOf(l.Item))).ToHashSet();
         // The reference's own quote is needed too: rates are per USD. D4: today's figures at today's rate.
         var rates = currencies.All(c => c == reference) ? RateTable.Empty(today, 0) : await fx.LoadAsync([.. currencies, reference], today, today, ct);
         return Result.Success(PropertiesValuationMath.Build(set, reference, rates, today));
@@ -80,7 +80,7 @@ internal static class PropertiesValuationMath
         }
         LoanMoneyView? View(decimal? amount) => amount is { } a ? new LoanMoneyView(Amount(a), reference.Code) : null;
 
-        var read = set.Select(p => (Source: p, Currency: LoanViews.CurrencyOf(p.Item), Figures: PropertiesOverviewMath.FiguresOf(p, rates, today)))
+        var read = set.Select(p => (Source: p, Currency: LoanReading.CurrencyOf(p.Item), Figures: PropertiesOverviewMath.FiguresOf(p, rates, today)))
             .Select(r => (r.Source, r.Currency, r.Figures, Value: r.Figures.Value is { } v ? Convert(v, r.Currency) : null))
             .ToList();
         // As the overview: the properties with an estimate.

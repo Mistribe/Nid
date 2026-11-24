@@ -1,4 +1,5 @@
 using Nid.Subscriptions.Contracts;
+using NodaTime;
 
 namespace Nid.Subscriptions.Application.Catalog;
 
@@ -7,11 +8,11 @@ namespace Nid.Subscriptions.Application.Catalog;
 /// <see cref="CatalogSyncRun.UsedBy"/>, the host's record of which subscriptions used a key.
 /// </summary>
 public sealed record CatalogSyncRunView(
-    Guid Id, DateTimeOffset StartedAt, DateTimeOffset? FinishedAt, string Status, string Commit,
+    Guid Id, Instant StartedAt, Instant? FinishedAt, string Status, string Commit,
     string? FailureCode, string? FailureMessage, CatalogReport? Report)
 {
     public static CatalogSyncRunView From(CatalogSyncRun run, CatalogReportFilter filter)
-        => new(run.Id, run.StartedAt.ToDateTimeOffset(), run.FinishedAt?.ToDateTimeOffset(),
+        => new(run.Id, run.StartedAt, run.FinishedAt,
             run.Status.ToString().ToLowerInvariant(), run.Commit, run.FailureCode, run.FailureMessage,
             filter.Apply(run));
 }

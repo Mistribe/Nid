@@ -8,7 +8,7 @@ using NodaTime.Text;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Functional.Failures;
 using UnambitiousFx.Synapse.Abstractions;
-using static Nid.RealEstate.Application.LoanReading;
+using static Nid.RealEstate.Domain.LoanReading;
 using static Nid.RealEstate.Application.Sums;
 
 namespace Nid.RealEstate.Application;
@@ -60,7 +60,7 @@ public sealed class GetPropertiesRentalHandler(
         var set = found!;
 
         var reference = await household.ReferenceCurrencyAsync(ct);
-        var currencies = set.Select(p => LoanViews.CurrencyOf(p.Item)).Concat(set.SelectMany(p => p.Loans).Select(l => LoanViews.CurrencyOf(l.Item))).ToHashSet();
+        var currencies = set.Select(p => LoanReading.CurrencyOf(p.Item)).Concat(set.SelectMany(p => p.Loans).Select(l => LoanReading.CurrencyOf(l.Item))).ToHashSet();
         // The reference's own quote is needed too: rates are per USD. D4: a sum over the period at its last day's rate.
         var rates = currencies.All(c => c == reference) ? RateTable.Empty(today, 0) : await fx.LoadAsync([.. currencies, reference], today, today, ct);
         var rental = PropertiesRentalMath.Build(set, reference, rates, today, query.Property);
@@ -106,7 +106,7 @@ internal static class PropertiesRentalMath
 
         // D10: the properties whose rental start is known and past.
         var let = set
-            .Select(p => (Source: p, Currency: LoanViews.CurrencyOf(p.Item), Figures: PropertiesOverviewMath.FiguresOf(p, rates, today)))
+            .Select(p => (Source: p, Currency: LoanReading.CurrencyOf(p.Item), Figures: PropertiesOverviewMath.FiguresOf(p, rates, today)))
             .Where(x => x.Figures.Rental.RentedSince is { } since && since <= today)
             .Where(x => only is not { } id || x.Source.Item.Id == id)
             .Select(x => new Let(x.Source, x.Currency, x.Figures, x.Figures.Rental.RentedSince!.Value > first ? x.Figures.Rental.RentedSince.Value : first,
@@ -180,7 +180,7 @@ internal static class PropertiesRentalMath
         decimal? loans = 0m;
         foreach (var (loan, item) in p.Loans)
         {
-            var loanCurrency = LoanViews.CurrencyOf(item);
+            var loanCurrency = LoanReading.CurrencyOf(item);
             var terms = Terms(loanCurrency, loan.Contract, loan.Fees, loan.Repayments);
             var due = Schedule(terms, loan).Rows.Where(r => r.DueDate >= start && r.DueDate <= end).Sum(r => r.Payment + r.Insurance);
             if (due == 0m) continue;

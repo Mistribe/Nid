@@ -136,6 +136,8 @@ public partial class LocalAccountsTests(PostgresFixture postgres) : IClassFixtur
         Assert.Equal("auth.invalid_credentials", (await refused.Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("code").GetString());
         var locked = Assert.Single(await host.EventsAsync(SecurityEventNames.LoginLocked));
         Assert.Equal("1", JsonSerializer.Deserialize<Dictionary<string, string>>(locked.Data)!["level"]);
+        // Issue 517: the lock is the pipeline's, as the system: no session exists yet.
+        Assert.Equal(("system", nameof(Nid.Core.Application.RecordLoginFailureCommand)), (locked.ActorKind, locked.Request));
 
         var users = await (await alice.GetAsync("/api/v1/admin/users")).Content.ReadFromJsonAsync<JsonElement>(Ct);
         Assert.NotEqual(JsonValueKind.Null, users.EnumerateArray().Single(u => u.GetProperty("displayName").GetString() == "Bob").GetProperty("lockedUntil").ValueKind);

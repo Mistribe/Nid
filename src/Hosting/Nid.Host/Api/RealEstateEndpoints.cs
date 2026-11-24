@@ -2,6 +2,7 @@ using Nid.Core.Contracts;
 using Nid.RealEstate.Application;
 using Nid.RealEstate.Application.Irl;
 using Nid.RealEstate.Contracts;
+using Nid.RealEstate.Domain;
 using NodaTime;
 using NodaTime.Text;
 using UnambitiousFx.Synapse.Abstractions;
