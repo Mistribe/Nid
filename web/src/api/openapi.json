@@ -57537,8 +57537,7 @@
       },
       "ModelJobFile": {
         "required": [
-          "module",
-          "reference"
+          "module"
         ],
         "type": "object",
         "properties": {
@@ -57546,9 +57545,6 @@
             "type": "string"
           },
           "reference": {
-            "type": "string"
-          },
-          "label": {
             "type": [
               "null",
               "string"

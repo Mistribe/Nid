@@ -509,7 +509,7 @@ public sealed class DispatcherTests(PostgresFixture fixture) : IClassFixture<Pos
         public Task<byte[]?> ReadAsync(string reference, CancellationToken ct)
             => Task.FromResult(reference == "large" ? new byte[JobSubmission.MaxFileBytes + 1] : null);
 
-        public Task<IReadOnlyDictionary<string, string>> LabelsAsync(IReadOnlyCollection<string> references, CancellationToken ct)
-            => Task.FromResult<IReadOnlyDictionary<string, string>>(new Dictionary<string, string>());
+        public Task<IReadOnlySet<string>> ReadableAsync(IReadOnlyCollection<string> references, CancellationToken ct)
+            => Task.FromResult<IReadOnlySet<string>>(new HashSet<string>());
     }
 }

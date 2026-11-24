@@ -44,8 +44,9 @@ public interface IJobFileSource
 
     Task<byte[]?> ReadAsync(string reference, CancellationToken ct);
 
-    /// <summary>#602: the jobs page's name for each of these references the current actor may read; the others are left out.</summary>
-    Task<IReadOnlyDictionary<string, string>> LabelsAsync(IReadOnlyCollection<string> references, CancellationToken ct);
+    /// <summary>#602: those of these references the current actor reads, for the jobs page to point at; it names none (an
+    /// admin-only answer carries no item's label, <c>docs/identity-and-access/access-tests.md</c> §3.5).</summary>
+    Task<IReadOnlySet<string>> ReadableAsync(IReadOnlyCollection<string> references, CancellationToken ct);
 }
 
 /// <summary>A worker a request may go to: where it runs, whether it is safe and, for the model asked, how much it reads (null

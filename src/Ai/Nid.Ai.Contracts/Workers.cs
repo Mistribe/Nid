@@ -109,8 +109,9 @@ public sealed record ModelJobListItem(
     Guid Id, string Type, string Status, int Attempts, string? WaitingReason, string? Error, string? WorkerName, Instant CreatedAt,
     Instant? FinishedAt, ModelJobFile? File, IReadOnlyList<ModelJobDispatch> Dispatches);
 
-/// <summary>#602: a job's file (<c>module:reference</c>) and its name, null when the admin may not read it.</summary>
-public sealed record ModelJobFile(string Module, string Reference, string? Label);
+/// <summary>#602: a job's file (<c>module:reference</c>); the reference only when the admin reads it, never its name: the page
+/// asks the module for it, under the module's own rights.</summary>
+public sealed record ModelJobFile(string Module, string? Reference);
 
 /// <summary>#602: one send of a job to a worker; <see cref="Outcome"/> is <c>succeeded</c> or why the attempt ended, null while it
 /// runs.</summary>

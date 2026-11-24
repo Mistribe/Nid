@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { aiProblem, aiReason, JOB_STATUSES, JOBS, jobType, type ModelJob } from '@/api/ai';
+import { DOCUMENT } from '@/api/documents';
 import { EmptyState } from '@/components/EmptyState';
 import { ModalDialog } from '@/components/ModalDialog';
 import { Button } from '@/components/ui/button';
@@ -42,9 +43,8 @@ export function AiJobsPage() {
   const types = jobs.data?.types ?? (type ? [type] : []);
   const filtered = status !== '' || type !== '';
   const [shown, setShown] = useState<ModelJob | null>(null);
-  const file = (job: ModelJob) => !job.file ? '—' : job.file.label && job.file.module === 'documents'
-    ? <Link to="/documents/$id" params={{ id: job.file.reference }} className="underline-offset-4 hover:underline">{job.file.label}</Link>
-    : t('ai.jobs.document');
+  const file = (job: ModelJob) => !job.file ? '—' : job.file.reference && job.file.module === 'documents'
+    ? <JobDocument id={job.file.reference} /> : t('ai.jobs.document');
   const dispatches = (job: ModelJob) => job.dispatches.length === 0 ? '—' : (
     <Button type="button" variant="link" size="sm" className="h-auto p-0" onClick={() => setShown(job)}>
       {t('ai.jobs.dispatches_count', { count: job.dispatches.length })}
@@ -129,5 +129,20 @@ export function AiJobsPage() {
         </>
       )}
     </AdminFrame>
+  );
+}
+
+/**
+ * #602: a job's document, which the jobs page names only through Documents, under the admin's own rights (an admin-only
+ * answer carries no item's name); « Document » until its title comes, or when it cannot be read.
+ */
+function JobDocument({ id }: { id: string }) {
+  const { t } = useTranslation();
+  const { $api } = useApi();
+  const document = $api.useQuery('get', DOCUMENT, { params: { path: { id } } }, { retry: false });
+  return (
+    <Link to="/documents/$id" params={{ id }} className="underline-offset-4 hover:underline">
+      {document.data?.document.title ?? t('ai.jobs.document')}
+    </Link>
   );
 }

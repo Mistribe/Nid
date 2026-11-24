@@ -145,17 +145,17 @@ public sealed class DocumentFileSource(IDocumentStore store, IDocumentStorage st
         return bytes.ToArray();
     }
 
-    /// <summary>#602: a document's title, for the documents the actor reads (as <c>FilterReadableDocumentsHandler</c>).</summary>
-    public async Task<IReadOnlyDictionary<string, string>> LabelsAsync(IReadOnlyCollection<string> references, CancellationToken ct)
+    /// <summary>#602: the documents the actor reads (as <c>FilterReadableDocumentsHandler</c>).</summary>
+    public async Task<IReadOnlySet<string>> ReadableAsync(IReadOnlyCollection<string> references, CancellationToken ct)
     {
         var ids = references.Select(IdOf).OfType<Guid>().Distinct().ToList();
         if (ids.Count == 0 || actor.Current?.PersonId is not { } person)
-            return new Dictionary<string, string>();
+            return new HashSet<string>();
         var documents = await store.FindManyAsync(ids, ct);
         var links = (await store.LinksOfAsync(documents.Select(d => d.Id).ToList(), ct)).ToLookup(l => l.DocumentId);
         var facts = await access.FactsAsync(person, links.SelectMany(l => l).Select(l => l.AnchorItemId).OfType<Guid>().ToList(), ct);
         return documents.Where(d => DocumentRules.CanRead(d.UploadedBy, links[d.Id].Select(DocumentAccess.Facts), facts))
-            .ToDictionary(d => d.Id.ToString(), d => d.Title);
+            .Select(d => d.Id.ToString()).ToHashSet();
     }
 
     internal static Guid? IdOf(string? reference) => Guid.TryParse(reference, out var id) ? id : null;

@@ -19,18 +19,17 @@ public sealed class ListModelJobsHandler(IJobStore jobs, IWorkerStore workers, I
         var names = (await workers.ListAsync(ct)).ToDictionary(w => w.Id, w => w.Name);
         var dispatches = (await jobs.DispatchesOfAsync(items.Select(j => j.Id).ToList(), ct)).ToLookup(d => d.JobId);
         var fileOf = items.Where(j => j.FileRef is not null).ToDictionary(j => j.Id, j => JobDispatcher.FileOf(j.FileRef!));
-        // #602: each module names its own files, and only those the admin reads.
-        var labels = new Dictionary<(string, string), string>();
+        // #602: a file's reference only for the admin who reads it, as its module says.
+        var readable = new HashSet<(string, string)>();
         foreach (var module in fileOf.Values.GroupBy(f => f.Module))
             if (files.FirstOrDefault(f => f.Module == module.Key) is { } source)
-                foreach (var (reference, label) in await source.LabelsAsync(module.Select(f => f.Reference).Distinct().ToList(), ct))
-                    labels[(module.Key, reference)] = label;
+                readable.UnionWith((await source.ReadableAsync(module.Select(f => f.Reference).Distinct().ToList(), ct)).Select(r => (module.Key, r)));
 
         string? Name(Guid? worker) => worker is { } id ? names.GetValueOrDefault(id) : null;
         return Result.Success(new ModelJobPage(
             items.Select(j => new ModelJobListItem(j.Id, j.Type, j.Status.ToString().ToLowerInvariant(), j.Attempts, j.WaitingReason, j.Error,
                 Name(j.WorkerId), j.CreatedAt, j.FinishedAt,
-                fileOf.TryGetValue(j.Id, out var f) ? new ModelJobFile(f.Module, f.Reference, labels.GetValueOrDefault((f.Module, f.Reference))) : null,
+                fileOf.TryGetValue(j.Id, out var f) ? new ModelJobFile(f.Module, readable.Contains(f) ? f.Reference : null) : null,
                 dispatches[j.Id].Select(d => new ModelJobDispatch(Name(d.WorkerId), d.SentAt, d.FinishedAt, d.Outcome)).ToList())).ToList(),
             total, page, types));
     }

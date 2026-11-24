@@ -41819,8 +41819,7 @@ export interface components {
         };
         ModelJobFile: {
             module: string;
-            reference: string;
-            label?: null | string;
+            reference?: null | string;
         };
         ModelJobListItem: {
             /** Format: uuid */

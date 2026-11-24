@@ -40,23 +40,23 @@ describe('Réglages › IA › Tâches', () => {
       items: [
         job({
           status: 'succeeded', attempts: 1, waitingReason: null, workerName: 'Box', finishedAt: '2026-11-22T08:05:00+00:00',
-          file: { module: 'documents', reference: 'd1', label: 'Quittance de loyer' },
+          file: { module: 'documents', reference: 'd1' },
           dispatches: [
             { workerName: 'Atelier', sentAt: '2026-11-22T08:00:00+00:00', finishedAt: '2026-11-22T08:01:00+00:00', outcome: 'ai.worker_failed' },
             { workerName: 'Box', sentAt: '2026-11-22T08:02:00+00:00', finishedAt: '2026-11-22T08:05:00+00:00', outcome: 'succeeded' },
           ],
         }),
-        // A document the admin does not read: named, never titled nor linked.
-        job({ id: 'j2', file: { module: 'documents', reference: 'd2', label: null } }),
+        // A document the admin does not read: the server gives no reference.
+        job({ id: 'j2', file: { module: 'documents', reference: null } }),
       ],
       total: 2, page: 1, types: ['document-text'],
-    })));
+    })), http.get('*/api/v1/documents/d1', () => HttpResponse.json({ document: { id: 'd1', title: 'Quittance de loyer' } })));
     const { user } = await renderApp('/admin/ai/jobs', { capabilities: adminCapabilities });
 
     // The table (the mobile list repeats it).
     const table = await screen.findByRole('table');
     expect(await within(table).findByRole('link', { name: 'Quittance de loyer' })).toHaveAttribute('href', '/documents/d1');
-    expect(screen.getAllByRole('link').filter((l) => l.getAttribute('href') === '/documents/d2')).toHaveLength(0);
+    expect(within(table).getAllByRole('link')).toHaveLength(1);
     expect(within(table).getByRole('row', { name: /Aucun worker ne sait faire ce travail/ })).toHaveTextContent('Document');
 
     await user.click(within(table).getByRole('button', { name: '2 envois' }));
