@@ -169,6 +169,9 @@ public sealed class SubscriptionStore(SubscriptionsDbContext db) : ISubscription
         return Result.Success(phase.Id);
     }
 
+    public Task LockAsync(ItemId id, CancellationToken ct)
+        => db.Database.ExecuteSqlAsync($"select pg_advisory_xact_lock(hashtextextended({"subscription:" + id.Value}, 0))", ct);
+
     public async Task<Result> ClosePhaseAsync(ItemId id, BillingPhaseId phase, LocalDate endsOn, int? maxCycles, CancellationToken ct)
     {
         var row = await db.Phases.FirstOrDefaultAsync(p => p.Id == phase.Value && p.ItemId == id.Value, ct);
@@ -180,7 +183,7 @@ public sealed class SubscriptionStore(SubscriptionsDbContext db) : ISubscription
 
         row.EndsOn = endsOn;
         if (maxCycles is { } cycles)
-            row.MaxCycles = cycles;
+            row.MaxCycles = cycles == 0 ? null : cycles;
         await db.SaveChangesAsync(ct);
         return Result.Success();
     }

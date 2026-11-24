@@ -94,22 +94,64 @@ public class WriteEndpointTests(PostgresFixture fixture) : IClassFixture<Postgre
         await using var app = await NidApp.StartAsync(fixture);
         var id = await app.NewSubscriptionAsync("Spotify", app.AdultA, Visibility.Shared);
 
+        var responses = new List<HttpResponseMessage>();
         foreach (var starts in new[] { "2025-01-01", "2025-03-01" })
-            (await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/subscriptions/{id.Value}/phases", new
-            {
-                startsOn = starts,
-                price = new { amount = "10", currency = "EUR" },
-                every = new { count = 1, unit = "month" },
-                payer = new { type = "household" },
-            })).EnsureSuccessStatusCode();
+            responses.Add(await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/subscriptions/{id.Value}/phases", OpenPhase(starts)));
 
-        // The engine refuses the input when it is read, and the failure carries its stable code.
-        var response = await app.RawAsync(app.AdultA, HttpMethod.Get, $"/api/v1/subscriptions/{id.Value}");
-        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        // #628: the second phase is refused when written, with the engine's stable code, and the subscription still reads.
+        var body = await responses[1].Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        Assert.Equal([HttpStatusCode.Created, HttpStatusCode.UnprocessableContent], responses.Select(r => r.StatusCode));
+        Assert.Contains("subscriptions.phase_overlap", body);
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Get, $"/api/v1/subscriptions/{id.Value}")).StatusCode);
+    }
+
+    /// <summary>#628: a later end that runs into the next phase is refused; the subscription still reads.</summary>
+    [Fact]
+    public async Task Closing_a_phase_over_the_next_one_is_refused()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await app.NewSubscriptionAsync("Spotify", app.AdultA, Visibility.Shared);
+        var first = await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/subscriptions/{id.Value}/phases", OpenPhase("2025-01-01", "2025-03-01"));
+        var phaseId = (await first.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>(cancellationToken: TestContext.Current.CancellationToken)).GetProperty("id").GetGuid();
+        (await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/subscriptions/{id.Value}/phases", OpenPhase("2025-03-01"))).EnsureSuccessStatusCode();
+
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Patch, $"/api/v1/subscriptions/{id.Value}/phases/{phaseId}", new { endsOn = "2025-06-01" });
 
         Assert.Equal(HttpStatusCode.UnprocessableContent, response.StatusCode);
-        Assert.Contains("subscriptions.phase_overlap", body);
+        var error = Assert.Single((await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>(cancellationToken: TestContext.Current.CancellationToken)).GetProperty("errors").EnumerateArray());
+        Assert.Equal(("endsOn", "subscriptions.phase_overlap"), (error.FieldPath(), error.GetProperty("code").GetString()));
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Get, $"/api/v1/subscriptions/{id.Value}")).StatusCode);
     }
+
+    /// <summary>#628: a purchase is read and deleted through its grant to the subscription it is recorded on.</summary>
+    [Fact]
+    public async Task A_purchase_that_grants_nothing_to_its_subscription_is_refused_at_its_grants()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await app.NewSubscriptionAsync("Spotify", app.AdultA, Visibility.Shared);
+
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/subscriptions/{id.Value}/purchases", new
+        {
+            date = "2025-01-01", label = "refund", kind = "refund",
+            price = new { amount = "-5", currency = "EUR" },
+            payer = new { type = "household" },
+            grants = Array.Empty<object>(),
+        });
+
+        Assert.Equal(HttpStatusCode.UnprocessableContent, response.StatusCode);
+        var error = Assert.Single((await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>(cancellationToken: TestContext.Current.CancellationToken)).GetProperty("errors").EnumerateArray());
+        Assert.Equal(("grants", "subscriptions.grant_missing"), (error.FieldPath(), error.GetProperty("code").GetString()));
+        await using var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
+        Assert.Empty(subs.Purchases);
+    }
+
+    private static object OpenPhase(string startsOn, string? endsOn = null) => new
+    {
+        startsOn, endsOn,
+        price = new { amount = "10", currency = "EUR" },
+        every = new { count = 1, unit = "month" },
+        payer = new { type = "household" },
+    };
 
     [Fact]
     public async Task The_other_adult_cannot_write_a_private_subscription_and_is_told_it_does_not_exist()
