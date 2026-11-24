@@ -1,0 +1,100 @@
+using Nid.Core.Contracts;
+using Nid.Income.Contracts;
+using NodaTime;
+
+namespace Nid.Income.Application;
+
+/// <summary>The module's attributes of a source (spec §2); name, owners, visibility, currency and archive are the item's.</summary>
+public sealed record IncomeSource(ItemId ItemId, IncomeKind Kind, string? PayerLabel, string? Note, LocalDate? EndedOn = null);
+
+/// <summary>A change: a null field is left as it is; <c>Clear*</c> empties an optional one.</summary>
+public sealed record IncomeSourceChange(
+    IncomeKind? Kind = null, string? PayerLabel = null, bool ClearPayerLabel = false, string? Note = null, bool ClearNote = false);
+
+/// <summary>A source imported under a file id: its item, the entity's hash, and who imported it.</summary>
+public sealed record ImportedIncomeSource(ItemId Item, string Hash, PersonId ImportedBy);
+
+/// <summary>A phase imported under a file id: its id, its source, the entity's hash, and who imported it.</summary>
+public sealed record ImportedIncomePhase(Guid Id, ItemId Source, string Hash, PersonId ImportedBy);
+
+public sealed record StoredIncomeSource(IncomeSource Source, ImportMark? Import);
+public sealed record StoredIncomePhase(IncomePhase Phase, ImportMark? Import);
+
+public interface ISourceStore
+{
+    Task CreateAsync(IncomeSource source, ImportMark? import, CancellationToken ct);
+
+    /// <summary>Null when the item is not a source (or does not exist).</summary>
+    Task<IncomeSource?> FindAsync(ItemId item, CancellationToken ct);
+
+    Task<IReadOnlyList<IncomeSource>> FindManyAsync(IReadOnlyCollection<ItemId> items, CancellationToken ct);
+
+    Task UpdateAsync(ItemId item, IncomeSourceChange change, CancellationToken ct);
+
+    Task SetEndedOnAsync(ItemId item, LocalDate? endedOn, CancellationToken ct);
+
+    /// <summary>Every importer's sources under these file ids: the import section decides which one the importer may see.</summary>
+    Task<IReadOnlyDictionary<string, IReadOnlyList<ImportedIncomeSource>>> FindImportedAsync(IReadOnlyCollection<string> refs, CancellationToken ct);
+
+    /// <summary>Every attribute and the import mark, in place (1F3b replace).</summary>
+    Task ReplaceAsync(IncomeSource source, ImportMark import, CancellationToken ct);
+
+    /// <summary>The items of <paramref name="items"/> that are sources, with their import marks (the export).</summary>
+    Task<IReadOnlyList<StoredIncomeSource>> ReadAllAsync(IReadOnlyCollection<ItemId> items, CancellationToken ct);
+}
+
+public interface IPhaseStore
+{
+    /// <summary>By <c>StartsOn</c>, then <c>Label</c>, then <c>Id</c>.</summary>
+    Task<IReadOnlyList<IncomePhase>> ForSourceAsync(ItemId source, CancellationToken ct);
+
+    Task<IReadOnlyList<IncomePhase>> ForSourcesAsync(IReadOnlyCollection<ItemId> sources, CancellationToken ct);
+
+    /// <summary>The phases of these ids, on any source; an unknown id is absent.</summary>
+    Task<IReadOnlyList<IncomePhase>> FindManyAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct);
+
+    /// <summary>Null when no phase of that id is on that source.</summary>
+    Task<IncomePhase?> FindAsync(ItemId source, Guid id, CancellationToken ct);
+
+    Task<IncomePhase> AddAsync(IncomePhase phase, ImportMark? import, CancellationToken ct);
+
+    /// <summary>Throws <see cref="PhaseConflictException"/> when <paramref name="phase"/>.Version is not the stored one.</summary>
+    Task<IncomePhase> UpdateAsync(IncomePhase phase, CancellationToken ct);
+
+    /// <summary>Throws <see cref="PhaseConflictException"/> when <paramref name="version"/> is not the stored one.</summary>
+    Task DeleteAsync(ItemId source, Guid id, uint version, CancellationToken ct);
+
+    /// <summary>Every importer's phases under these file ids, on any source.</summary>
+    Task<IReadOnlyDictionary<string, IReadOnlyList<ImportedIncomePhase>>> FindImportedAsync(IReadOnlyCollection<string> refs, CancellationToken ct);
+
+    /// <summary>
+    /// Every value and the import mark, in place by id on its source (1F3b replace). Throws
+    /// <see cref="PhaseConflictException"/> when the phase changed since it was read on this transaction, or is gone.
+    /// </summary>
+    Task ReplaceAsync(IncomePhase phase, ImportMark import, CancellationToken ct);
+
+    /// <summary>The phases of <paramref name="sources"/>, with their import marks (the export).</summary>
+    Task<IReadOnlyList<StoredIncomePhase>> ReadAllAsync(IReadOnlyCollection<ItemId> sources, CancellationToken ct);
+}
+
+/// <summary>
+/// The net taxable income of one-offs (tax-per spec §3.2). A one-off is a Core flow, which has no such column: it is kept
+/// here by the flow's id. Writes join the caller's transaction, like the other stores'.
+/// </summary>
+public interface IOneOffTaxableStore
+{
+    /// <summary>The taxable amount of each of these flows that has one; the others are absent.</summary>
+    Task<IReadOnlyDictionary<Guid, decimal>> ForFlowsAsync(IReadOnlyCollection<Guid> flowIds, CancellationToken ct);
+
+    /// <summary>Keeps <paramref name="taxable"/> for the flow of <paramref name="source"/>; null removes it.</summary>
+    Task SetAsync(Guid flowId, ItemId source, decimal? taxable, CancellationToken ct);
+
+    /// <summary>Removes the rows of these sources whose flow is not among <paramref name="currentFlows"/>: the flows a correction retired.</summary>
+    Task RemoveStaleAsync(IReadOnlyCollection<ItemId> sources, IReadOnlyCollection<Guid> currentFlows, CancellationToken ct);
+}
+
+/// <summary>
+/// A phase changed or removed since the caller read it (its <c>xmin</c> moved): the store's own concurrency failure,
+/// in terms the Application can catch without the persistence library. The handlers answer <c>income.phase_conflict</c>.
+/// </summary>
+public sealed class PhaseConflictException(string message, Exception? inner = null) : Exception(message, inner);

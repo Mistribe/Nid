@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 using System.Security.Cryptography;
 using System.Text;
+using Nid.Subscriptions.Application;
 using Nid.Subscriptions.Contracts;
 using Nid.Subscriptions.Infrastructure.Catalog;
 using Nid.TestSupport;

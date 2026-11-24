@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
 using Nid.Platform.Infrastructure.Audit;
+using Nid.Subscriptions.Application;
 using Nid.Subscriptions.Contracts;
 using Nid.TestSupport;
 using NodaTime;

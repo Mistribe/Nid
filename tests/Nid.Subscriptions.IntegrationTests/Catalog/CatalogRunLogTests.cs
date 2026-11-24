@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Nid.Subscriptions.Application;
 using Nid.Subscriptions.Contracts;
 using Nid.Subscriptions.Infrastructure.Persistence;
 using Nid.TestSupport;
