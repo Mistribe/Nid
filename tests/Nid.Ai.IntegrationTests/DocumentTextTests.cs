@@ -87,6 +87,27 @@ public sealed class DocumentTextTests(PostgresFixture fixture) : IClassFixture<P
     }
 
     [Fact]
+    public async Task A_payslips_text_waits_for_a_safe_worker()
+    {
+        // #598: a payslip stays on the premises (llm-providers.md §2.7), its text extraction as much as its embeddings.
+        await using var world = await StartAsync(new Reader(_ => new DocumentTextOutput([new DocumentTextPage(1, "Salaire net", TextSource.Ocr)])));
+        var worker = await world.PairAsync();
+
+        var id = await UploadedAsync(world.Nid, world.Nid.AdultA, Pdf, "fileName=bulletin.pdf&targetKind=core.household&role=payslip");
+        await PassAsync(world);
+
+        var job = await JobOfAsync(world, id);
+        Assert.Equal(DataClasses.LocalOnly, job.DataClass);
+        Assert.Equal(JobCodes.NoSafeWorker, job.WaitingReason);
+        Assert.Empty(await PagesAsync(world, id));
+
+        Assert.Equal(HttpStatusCode.OK, (await world.Nid.RawAsync(world.Nid.AdultA, HttpMethod.Put, $"/api/v1/ai/workers/{worker.Id}/safe", new { safe = true })).StatusCode);
+        world.Clock.Now += Duration.FromSeconds(31);
+        await RunAsync(world);
+        Assert.Equal("Salaire net", Assert.Single(await PagesAsync(world, id)).Text);
+    }
+
+    [Fact]
     public async Task The_backfill_asks_once_for_the_documents_stored_before_it()
     {
         await using var world = await StartAsync(new Reader(_ => new DocumentTextOutput([new DocumentTextPage(1, "x", TextSource.Ocr)])));
