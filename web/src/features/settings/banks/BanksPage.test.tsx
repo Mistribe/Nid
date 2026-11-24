@@ -185,6 +185,8 @@ describe('Réglages › Banques', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Relier une banque' }));
     const dialog = await screen.findByRole('dialog', { name: 'Relier une banque' });
+    expect(dialog).toHaveTextContent("reliez-y d'abord un nouveau compte, puis revenez ici");
+    expect(within(dialog).getByRole('link', { name: 'Ouvrir le portail Enable Banking' })).toHaveAttribute('href', 'https://enablebanking.com/cp/applications');
     await pick(user, 'Banque', 'BNP Paribas');
 
     expect(within(dialog).getByRole('status')).toHaveTextContent('Vous avez déjà relié BNP Paribas.');
@@ -218,6 +220,15 @@ describe('Réglages › Banques', () => {
     expect(await screen.findByRole('dialog', { name: 'Régler Compte courant' })).toBeInTheDocument();
     expect(screen.getByText('Banque reliée.')).toBeInTheDocument();
     await waitFor(() => expect(router.state.location.search).toEqual({}));
+  });
+
+  it('back from a bank that gave no account, says to link them in the portal rather than hailing it', async () => {
+    serveBanks([connection({ accounts: [] })]);
+    await renderApp(`/settings/banks?connected=${CONNECTION}`);
+
+    const told = 'Nid ne lit aucun compte de cette banque. En mode restreint, Enable Banking ne donne que les comptes reliés dans votre portail : reliez-les-y, puis renouvelez la connexion.';
+    await waitFor(() => expect(screen.getAllByText(told)).toHaveLength(2)); // the toast, and under the connection
+    expect(screen.queryByText('Banque reliée.')).not.toBeInTheDocument();
   });
 
   it('opens the account an envelope page asks for (#373)', async () => {

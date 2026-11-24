@@ -8,7 +8,7 @@ import { ComboboxField } from '@/components/form/ComboboxField';
 import { Field } from '@/components/form/Field';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
-import { ASPSPS, CONNECTIONS, RENEW } from '@/api/banking';
+import { ASPSPS, CONNECTIONS, PORTAL_URL, RENEW } from '@/api/banking';
 import '@/locales/banks';
 
 /**
@@ -45,6 +45,10 @@ export function ConnectBankDialog({ onClose }: { onClose: () => void }) {
                 searchPlaceholder={t('banks.connect_dialog.search')} empty={t('banks.connect_dialog.no_bank')} />
             )}
           </Field>
+          <p className="text-sm text-muted-foreground">
+            {t('banks.connect_dialog.portal')}{' '}
+            <a href={PORTAL_URL} target="_blank" rel="noreferrer" className="underline underline-offset-4">{t('banks.wizard.open_portal')}</a>
+          </p>
           {existing ? <p role="status" className="text-sm">{t('banks.connect_dialog.existing', { bank })}</p> : null}
           <div className="flex flex-wrap justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => done()}>{t('common.cancel')}</Button>
