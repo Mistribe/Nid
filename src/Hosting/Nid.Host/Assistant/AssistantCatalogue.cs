@@ -34,7 +34,7 @@ public static class AssistantCatalogue
         // Always: files in or out, and a decision the person takes in the browser.
         "upload_document", "request_document_upload", "read_document", "delete_proposal",
         // Documents wait for the household's allowed_kinds (§6.1); the proposals copied from one need it read.
-        "list_documents", "propose_statement", "propose_holdings_snapshot", "propose_breakdown", "propose_payslip", "propose_invoice",
+        "list_documents", "search_documents", "propose_statement", "propose_holdings_snapshot", "propose_breakdown", "propose_payslip", "propose_invoice",
         "propose_amortization",
         // What-ifs and estimates, not the household's figures.
         "simulate_early_repayment", "simulate_household_early_repayment", "simulate_loan_renegotiation", "simulate_projection",

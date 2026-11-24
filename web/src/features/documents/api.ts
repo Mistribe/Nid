@@ -22,6 +22,16 @@ export function useDocuments(scope: Scope, archived: boolean, inbox: boolean, na
   return $api.useQuery('get', DOCUMENTS, { params: { query: { scope, archived, inbox, ...narrow } } }, { placeholderData: keepPreviousData });
 }
 
+/** #170: the shortest search the palette sends: one letter would match every document. */
+export const SEARCH_MIN_LENGTH = 2;
+
+/** #170: the Documents page's search (#169) over every document the person reads, for the palette's « Documents » group. */
+export function useDocumentSearch(q: string) {
+  const { $api } = useApi();
+  return $api.useQuery('get', DOCUMENTS, { params: { query: { scope: 'me', archived: false, inbox: false, q, page: 1 } } },
+    { enabled: q.length >= SEARCH_MIN_LENGTH });
+}
+
 /** The documents linked to the item or to anything anchored on it (a phase, a one-off). */
 export function useAnchoredDocuments(itemId: string) {
   const { $api } = useApi();

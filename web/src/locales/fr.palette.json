@@ -13,6 +13,9 @@
     "new_income": "Ajouter un revenu",
     "new_goal": "Nouvel objectif",
     "new_childcare": "Nouvelle garde",
-    "year_review": "Bilan annuel"
+    "year_review": "Bilan annuel",
+    "documents": "Documents",
+    "documents_all_one": "Voir le document trouvé dans Documents",
+    "documents_all_other": "Voir les {{count}} documents trouvés dans Documents"
   }
 }
