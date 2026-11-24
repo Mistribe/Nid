@@ -256,6 +256,17 @@ public class RentLedgerTests
     }
 
     [Fact]
+    public void A_lease_ending_later_this_month_without_any_rent_recorded_has_an_unpaid_receipt()
+    {
+        // Still running today, ended by the month's last day: the ledger read at month end has no tenancy left (#627).
+        var ending = Lease(new LocalDate(2020, 1, 1), new LocalDate(2026, 10, 28));
+        Assert.True(RentReceipt.InRange([ending], [], new LocalDate(2026, 10, 1), October23));
+        var r = RentReceipt.For([ending], [], new LocalDate(2026, 10, 1), October23)!;
+        Assert.Equal("unpaid", r.Kind);
+        Assert.Equal(0m, r.Paid);
+    }
+
+    [Fact]
     public void The_watch_leaves_a_payer_of_the_5th_alone()
     {
         var flows = Monthly(new LocalDate(2025, 3, 5), 20); // March 2025 to October 2026
