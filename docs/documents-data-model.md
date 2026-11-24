@@ -116,6 +116,7 @@ Corps et réponses en camelCase. Toutes sous `/api/v1/documents`, authentifiées
 | `GET /?scope=household\|me&archived=false\|true&inbox=false\|true` | Liste des documents lisibles : `{ items: [{ id, title, mediaType, sizeBytes, documentDate, uploadedAt, archived, canEdit, links }] }` |
 | `GET /?targetKind=&targetId=` | Les documents lisibles qui ont un lien **visible** vers cette cible, quelle que soit la portée Foyer / Moi (comme « À classer »). Une cible que l'acteur ne voit pas répond une liste vide, sans révéler qu'elle existe |
 | `GET /?anchor=` | Les documents lisibles non archivés (archivés avec `archived=true`) qui ont un lien **visible** dont l'ancre est cet élément : l'élément, ses phases, ses revenus exceptionnels. Portée ignorée ; `links` garde tous les liens visibles du document, chacun avec son `anchorItemId` : l'onglet d'une fiche ne garde que ceux de l'élément (§10). Seul : 400 avec `inbox`, `targetKind` ou `targetId` |
+| `GET /?q=` (#169) | Recherche : le titre, les mots du texte (configuration `documents.nid_french`, `websearch_to_tsquery`, classés par `ts_rank_cd`) et son sens (les 50 morceaux les plus proches du vecteur de la recherche, ceux à une distance cosinus d'au plus 0,2 du plus proche et 0,6 au plus), fusionnés par rang réciproque (k = 60), le plus pertinent d'abord, parmi les seuls documents que les filtres gardent, donc lisibles. Chaque document trouvé dans son texte porte `match` : `snippet` (texte, les mots trouvés entre U+E000 et U+E001 ; le début du morceau s'il n'est trouvé que par le sens), `page`, `ocr` (la page a été lue par OCR), `byMeaning`. La liste porte `meaningSearch` : `used`, `unavailable` (pas de réponse en 2 s, ou un refus : les mots seuls), `off` (pas de modèle `embed`). Le vecteur de la recherche passe par `IEmbeddings`, le lecteur seul concerné, et compte dans son utilisation |
 | `GET /{id}` | Fiche : le résumé, `originalFilename`, `note`, `uploadedBy` |
 | `GET /{id}/content` | Téléchargement (§4) |
 | `PUT /{id}` | Remplacement du titre, de `documentDate` et de la note |
@@ -170,4 +171,4 @@ Un document illisible ou inexistant, ou un acteur sans droit : `404` et `403` g�
 
 ## 12. Hors des tranches 2a, 2b et 3
 
-Reportés jusqu'à leur consommateur : les achats d'abonnements et les événements de crédit comme cibles (`IDocumentTargets` des modules concernés) ; Income est livré (§5). Hors champ : extraction automatique, OCR, recherche plein texte, versions d'un document, documents dans l'export `nid.data`.
+Reportés jusqu'à leur consommateur : les achats d'abonnements et les événements de crédit comme cibles (`IDocumentTargets` des modules concernés) ; Income est livré (§5). Hors champ : extraction automatique, versions d'un document, documents dans l'export `nid.data`.

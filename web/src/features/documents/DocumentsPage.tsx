@@ -129,6 +129,8 @@ function List({ scope, inbox, archived, onArchivedChange }: { scope: Scope; inbo
         : (
           <>
             <p className="text-sm text-muted-foreground">{t('documents_page.count', { count: total })}</p>
+            {answer.data.meaningSearch === 'unavailable'
+              ? <p role="status" className="text-sm text-muted-foreground">{t('documents_page.match.meaning_unavailable')}</p> : null}
             <Table rows={shown} selection={inbox ? { selected, onChange: setSelected, allLabel: t('documents_page.file.select_all'),
               label: (d) => t('documents_page.file.select', { title: d.title }), disabled: (d) => !d.canEdit } : undefined} />
             <Pager page={page} total={total} label={t('documents_page.pages')} onPage={toPage} />
@@ -151,7 +153,7 @@ function Table({ rows, selection }: { rows: DocumentSummary[]; selection?: Selec
     <TooltipProvider>
     <SortableTable<DocumentSummary> caption={t('documents_page.list')} rows={rows} rowKey={(d) => d.id} selection={selection}
       columns={[
-        { id: 'title', header: t('documents_page.col_title'), sort: (d) => d.title, cell: (d) => <Title doc={d} /> },
+        { id: 'title', header: t('documents_page.col_title'), sort: (d) => d.title, wrap: true, cell: (d) => <Title doc={d} /> },
         { id: 'owner', header: t('documents_page.col_owner'), cell: owner },
         { id: 'types', header: t('documents_page.col_types'), sort: types, cell: types },
         { id: 'links', header: t('documents_page.col_links'), sort: linked, cell: (d) => <Linked labels={labels(d)} /> },
@@ -186,9 +188,41 @@ function Linked({ labels }: { labels: string[] }) {
 function Title({ doc }: { doc: DocumentSummary }) {
   const { t } = useTranslation();
   return (
-    <span className="inline-flex items-center gap-2">
-      <Link to="/documents/$id" params={{ id: doc.id }} className="font-medium underline-offset-4 hover:underline">{doc.title}</Link>
-      {doc.archived ? <Badge variant="secondary">{t('documents_page.archived')}</Badge> : null}
+    <span className="inline-flex flex-col gap-1">
+      <span className="inline-flex items-center gap-2">
+        <Link to="/documents/$id" params={{ id: doc.id }} className="font-medium underline-offset-4 hover:underline">{doc.title}</Link>
+        {doc.archived ? <Badge variant="secondary">{t('documents_page.archived')}</Badge> : null}
+      </span>
+      {doc.match ? <Match match={doc.match} /> : null}
+    </span>
+  );
+}
+
+// #169: the server marks the words found with these two characters (DocumentMatch.StartMark, EndMark); the snippet stays text.
+const START_MARK = '\uE000';
+const END_MARK = '\uE001';
+
+/** #169: where the search found the document in its text: the snippet, the words found highlighted, its page, how it was read. */
+function Match({ match }: { match: NonNullable<DocumentSummary['match']> }) {
+  const { t } = useTranslation();
+  const parts = match.snippet.split(START_MARK).flatMap((piece, i) => {
+    if (i === 0) return [{ text: piece, found: false }];
+    const [found = '', rest = ''] = piece.split(END_MARK);
+    return [{ text: found, found: true }, { text: rest, found: false }];
+  });
+  const about = [
+    match.byMeaning ? t('documents_page.match.by_meaning') : null,
+    t('documents_page.match.page', { page: match.page }),
+    match.ocr ? t('documents_page.match.ocr') : null,
+  ].filter(Boolean).join(' · ');
+  return (
+    <span className="block max-w-prose text-sm font-normal text-muted-foreground">
+      <span className="block">
+        {match.byMeaning ? '' : '…'}
+        {parts.map((p, i) => (p.found ? <mark key={i} className="rounded-sm bg-primary/15 px-0.5 text-foreground">{p.text}</mark> : <span key={i}>{p.text}</span>))}
+        …
+      </span>
+      <span className="block text-xs">{about}</span>
     </span>
   );
 }

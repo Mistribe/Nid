@@ -136,6 +136,46 @@ describe('DocumentsPage', () => {
     expect(screen.getByText('1 document')).toBeInTheDocument();
   });
 
+  it('searches after a pause in the typing, not on every key (#169)', async () => {
+    const seen: string[] = [];
+    serve(three(), seen);
+    const { user } = await renderApp('/documents');
+    await rows();
+
+    await user.type(screen.getByRole('searchbox', { name: 'Rechercher' }), 'facture');
+    await waitFor(async () => expect(await titles()).toEqual(['Facture box']));
+
+    expect(seen.filter((s) => s.includes('q='))).toEqual([expect.stringContaining('q=facture')]);
+  });
+
+  it('shows where the text matched: the words found, the page, OCR, or a meaning only (#169)', async () => {
+    // As the server: content matches, whatever the titles say.
+    const found: DocumentList = {
+      ...list([
+        summary({ id: 'a', title: 'Scan 0042', match: { snippet: 'Intervention sur la chaudière du sous-sol', page: 2, ocr: true, byMeaning: false } }),
+        summary({ id: 'b', title: 'Facture 2025-118', match: { snippet: "Remplacement du ballon d'eau chaude", page: 1, ocr: false, byMeaning: true } }),
+      ]),
+      meaningSearch: 'used',
+    };
+    server.use(http.get('*/api/v1/documents', () => HttpResponse.json(found)));
+    const { container } = await renderApp('/documents?q=chaudi%C3%A8re');
+
+    const [scan, invoice] = await rows();
+    expect(within(scan!).getByText('chaudière').tagName).toBe('MARK');
+    expect(scan).toHaveTextContent('page 2 · lu par OCR');
+    expect(invoice).toHaveTextContent("Remplacement du ballon d'eau chaude");
+    expect(invoice).toHaveTextContent('proche par le sens · page 1');
+    expect(within(invoice!).queryByRole('mark')).not.toBeInTheDocument();
+    await expectNoAxeViolations(container);
+  });
+
+  it('says when the search by meaning did not answer in time (#169)', async () => {
+    serve({ ...three(), meaningSearch: 'unavailable' });
+    await renderApp('/documents?q=box');
+
+    expect(await screen.findByText(/La recherche par le sens n'a pas répondu à temps/)).toHaveAttribute('role', 'status');
+  });
+
   it('reads the filters and the page from the URL', async () => {
     const seen: string[] = [];
     serve(three(), seen);

@@ -156,7 +156,7 @@ public static class DocumentEndpoints
 
         // inbox=true keeps the documents with no link the actor sees, whatever the scope; targetKind/targetId keep those linked to it.
         // anchor=<item> keeps those linked to the item or anything anchored on it, alone. Both or neither: only targetKind=core.household may come without a targetId (a targetId alone is a 400).
-        // Issue #420: role, year, linked (a visible link's target id) and q (part of the title) narrow the list; page (from 1) answers 50 of them, none all.
+        // Issue #420: role, year, linked (a visible link's target id) and q (the title, or #169 the words and meaning of the text, the most relevant first) narrow the list; page (from 1) answers 50 of them, none all.
         api.MapGet("", async (string? scope, bool? archived, bool? inbox, string? targetKind, Guid? targetId, Guid? anchor,
                     string? role, int? year, Guid? linked, string? q, int? page, IInvoker invoker, CancellationToken ct)
                 => anchor is not null && (inbox == true || targetKind is not null || targetId is not null)

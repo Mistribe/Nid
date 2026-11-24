@@ -33,6 +33,12 @@
     "filter_link_all": "Tous les éléments",
     "show_archived": "Afficher les archivés",
     "search": "Rechercher",
+    "match": {
+      "page": "page {{page}}",
+      "ocr": "lu par OCR",
+      "by_meaning": "proche par le sens",
+      "meaning_unavailable": "La recherche par le sens n'a pas répondu à temps : ces résultats viennent des mots seuls."
+    },
     "count_one": "{{count}} document",
     "count_other": "{{count}} documents",
     "pages": "Pages des documents",

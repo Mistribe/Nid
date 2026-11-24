@@ -47017,6 +47017,36 @@
           },
           "facets": {
             "$ref": "#/components/schemas/DocumentFacets"
+          },
+          "meaningSearch": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "DocumentMatch": {
+        "required": [
+          "snippet",
+          "page",
+          "ocr",
+          "byMeaning"
+        ],
+        "type": "object",
+        "properties": {
+          "snippet": {
+            "type": "string"
+          },
+          "page": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "ocr": {
+            "type": "boolean"
+          },
+          "byMeaning": {
+            "type": "boolean"
           }
         }
       },
@@ -47116,6 +47146,16 @@
           "version": {
             "type": "integer",
             "format": "uint32"
+          },
+          "match": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DocumentMatch"
+              }
+            ]
           }
         }
       },

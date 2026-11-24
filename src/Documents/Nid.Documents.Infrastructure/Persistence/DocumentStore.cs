@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Nid.Documents.Application;
 using Nid.Documents.Contracts;
@@ -86,20 +87,120 @@ public sealed class DocumentStore(DocumentsDbContext db) : IDocumentStore
             docs = docs.Where(d => (d.DocumentDate != null && d.DocumentDate >= from && d.DocumentDate < to)
                 || (d.DocumentDate == null && d.UploadedAt >= start && d.UploadedAt < end));
         }
+        var facets = links.Select(l => new LinkTargetRecord(l.TargetKind, l.TargetId, l.AnchorItemId)).ToList();
         if (q.Search is { } search)
-        {
-            // Typed text, not a pattern: % and _ match themselves.
-            var pattern = $"%{search.Replace(@"\", @"\\").Replace("%", @"\%").Replace("_", @"\_")}%";
-            docs = docs.Where(d => EF.Functions.ILike(d.Title, pattern, @"\"));
-        }
+            return await SearchAsync(docs, search, q, roles, years, facets, ct);
 
         var total = await docs.CountAsync(ct);
-        // A null date sorts last, as it always did.
-        var ordered = docs.OrderBy(d => d.DocumentDate == null).ThenByDescending(d => d.DocumentDate).ThenByDescending(d => d.UploadedAt).ThenBy(d => d.Id);
-        var rows = await (q.Take is { } take ? ordered.Skip(q.Skip).Take(take) : ordered).ToListAsync(ct);
-        return new DocumentPageRecord(rows.Select(ToRecord).ToList(), total, roles, years,
-            links.Select(l => new LinkTargetRecord(l.TargetKind, l.TargetId, l.AnchorItemId)).ToList());
+        var rows = await (q.Take is { } take ? ByDate(docs).Skip(q.Skip).Take(take) : ByDate(docs)).ToListAsync(ct);
+        return new DocumentPageRecord(rows.Select(ToRecord).ToList(), total, roles, years, facets);
     }
+
+    // A null date sorts last, as it always did.
+    private static IOrderedQueryable<DocumentRow> ByDate(IQueryable<DocumentRow> docs)
+        => docs.OrderBy(d => d.DocumentDate == null).ThenByDescending(d => d.DocumentDate).ThenByDescending(d => d.UploadedAt).ThenBy(d => d.Id);
+
+    /// <summary>The nearest chunks a search by meaning compares.</summary>
+    private const int NearestChunks = 50;
+
+    /// <summary>Reciprocal rank fusion's constant: a document's score is the sum, over the lists that found it, of 1 / (60 + rank).</summary>
+    private const int FusionK = 60;
+
+    /// <summary>How much farther (cosine distance, 0 to 2) than the nearest chunk a chunk may be and still count as found by meaning.</summary>
+    private const double MeaningMargin = 0.2;
+
+    /// <summary>Farther than this, a chunk is not about the search at all, nearest or not (a reference number has no meaning to share).</summary>
+    private const double MeaningMaxDistance = 0.6;
+
+    /// <summary>The start of a chunk found by meaning only: its first characters.</summary>
+    private const int MeaningSnippet = 240;
+
+    /// <summary>
+    /// #169: among the documents the filters left (so only those the reader reads), three ranked lists: the titles that hold the text,
+    /// the chunks whose words match it (French, without accents, #582), and the chunks nearest its meaning (#559). They are fused by
+    /// reciprocal rank, each document by its best chunk; equal scores keep the date order. The page's documents found in their text
+    /// get their snippet.
+    /// </summary>
+    private async Task<DocumentPageRecord> SearchAsync(IQueryable<DocumentRow> docs, string search, DocumentPageQuery q,
+        IReadOnlyList<string> roles, IReadOnlyList<int> years, IReadOnlyList<LinkTargetRecord> facets, CancellationToken ct)
+    {
+        // Typed text, not a pattern: % and _ match themselves.
+        var pattern = $"%{search.Replace(@"\", @"\\").Replace("%", @"\%").Replace("_", @"\_")}%";
+        var titled = await ByDate(docs.Where(d => EF.Functions.ILike(d.Title, pattern, @"\"))).Select(d => d.Id).ToListAsync(ct);
+        var ids = await docs.Select(d => d.Id).ToListAsync(ct);
+        var words = await db.Database.SqlQuery<ChunkHit>($"""
+            select distinct on (c.document_id) c.document_id as "DocumentId", c.id as "ChunkId", ts_rank_cd(c.search, w)::float8 as "Score"
+            from documents.document_chunk c, websearch_to_tsquery('documents.nid_french', {search}) w
+            where c.document_id = any({ids}) and c.search @@ w
+            order by c.document_id, ts_rank_cd(c.search, w) desc, c.ordinal
+            """).ToListAsync(ct);
+        List<ChunkHit> near = [];
+        if (q.Meaning is { } meaning)
+        {
+            var vector = "[" + string.Join(',', meaning.Vector.Select(f => f.ToString("R", CultureInfo.InvariantCulture))) + "]";
+            // ponytail: an exact scan of the model's vectors, without the HNSW index (#559), which needs the length as a literal;
+            // fine for a household's thousands of chunks, the index's turn when that grows.
+            near = await db.Database.SqlQuery<ChunkHit>($"""
+                select c.document_id as "DocumentId", c.id as "ChunkId", (e.embedding <=> {vector}::vector)::float8 as "Score"
+                from documents.chunk_embedding e join documents.document_chunk c on c.id = e.chunk_id
+                where e.model = {meaning.Model} and e.dimension = {meaning.Dimension} and c.document_id = any({ids})
+                order by e.embedding <=> {vector}::vector, c.id
+                limit {NearestChunks}
+                """).ToListAsync(ct);
+        }
+
+        var byWords = words.OrderByDescending(h => h.Score).ThenBy(h => h.DocumentId).ToList();
+        // A document's best chunk by meaning: the nearest of its chunks among the nearest overall. The nearest are always some, related
+        // or not: only those about as near as the best one count, or every document would come back for any search.
+        // ponytail: one margin for every model; a per-model calibration if a model's distances spread differently.
+        var byMeaning = near.GroupBy(h => h.DocumentId).Select(g => g.MinBy(h => h.Score)!).OrderBy(h => h.Score).ToList();
+        if (byMeaning is [var nearest, ..])
+            byMeaning = byMeaning.Where(h => h.Score <= Math.Min(nearest.Score + MeaningMargin, MeaningMaxDistance)).ToList();
+        var scores = new Dictionary<Guid, double>();
+        foreach (var ranked in new[] { titled, byWords.Select(h => h.DocumentId).ToList(), byMeaning.Select(h => h.DocumentId).ToList() })
+            for (var rank = 0; rank < ranked.Count; rank++)
+                scores[ranked[rank]] = scores.GetValueOrDefault(ranked[rank]) + 1.0 / (FusionK + rank + 1);
+
+        var found = scores.Keys.ToList();
+        var dated = await ByDate(docs.Where(d => found.Contains(d.Id))).Select(d => d.Id).ToListAsync(ct);
+        var fused = dated.OrderByDescending(id => scores[id]).ToList(); // a stable sort: equal scores keep the date order
+        var pageIds = (q.Take is { } take ? fused.Skip(q.Skip).Take(take) : fused).ToList();
+        var rows = (await docs.Where(d => pageIds.Contains(d.Id)).ToListAsync(ct)).ToDictionary(d => d.Id);
+
+        var wordChunk = byWords.Where(h => pageIds.Contains(h.DocumentId)).ToDictionary(h => h.DocumentId, h => h.ChunkId);
+        var meaningChunk = byMeaning.Where(h => pageIds.Contains(h.DocumentId) && !wordChunk.ContainsKey(h.DocumentId))
+            .ToDictionary(h => h.DocumentId, h => h.ChunkId);
+        return new DocumentPageRecord(pageIds.Select(id => ToRecord(rows[id])).ToList(), fused.Count, roles, years, facets,
+            await MatchesAsync(search, [.. wordChunk.Values], [.. meaningChunk.Values], ct));
+    }
+
+    /// <summary>
+    /// #169: each chunk's snippet: the words found, marked (<c>ts_headline</c>, as plain text), else the start of the chunk found by
+    /// meaning; its page, and whether that page was read by OCR.
+    /// </summary>
+    private async Task<IReadOnlyDictionary<Guid, DocumentMatch>> MatchesAsync(string search, List<Guid> wordChunks, List<Guid> meaningChunks,
+        CancellationToken ct)
+    {
+        if (wordChunks.Count + meaningChunks.Count == 0)
+            return new Dictionary<Guid, DocumentMatch>();
+        List<Guid> all = [.. wordChunks, .. meaningChunks];
+        var options = $"StartSel={DocumentMatch.StartMark}, StopSel={DocumentMatch.EndMark}, MaxWords=30, MinWords=12, MaxFragments=2, FragmentDelimiter=\" … \"";
+        var snippets = await db.Database.SqlQuery<ChunkSnippet>($"""
+            select c.document_id as "DocumentId", c.page as "Page",
+                case when c.id = any({wordChunks})
+                    then ts_headline('documents.nid_french', c.text, websearch_to_tsquery('documents.nid_french', {search}), {options})
+                    else left(c.text, {MeaningSnippet}) end as "Snippet",
+                exists (select 1 from documents.document_text t where t.document_id = c.document_id and t.page = c.page and t.source = 'ocr') as "Ocr",
+                not (c.id = any({wordChunks})) as "ByMeaning"
+            from documents.document_chunk c
+            where c.id = any({all})
+            """).ToListAsync(ct);
+        return snippets.ToDictionary(s => s.DocumentId, s => new DocumentMatch(s.Snippet.Trim(), s.Page, s.Ocr, s.ByMeaning));
+    }
+
+    private sealed record ChunkHit(Guid DocumentId, Guid ChunkId, double Score);
+
+    private sealed record ChunkSnippet(Guid DocumentId, int Page, string Snippet, bool Ocr, bool ByMeaning);
 
     public async Task<IReadOnlyList<Guid>> AnchorItemsAsync(CancellationToken ct)
         => await db.Links.Where(l => l.AnchorItemId != null).Select(l => l.AnchorItemId!.Value).Distinct().ToListAsync(ct);

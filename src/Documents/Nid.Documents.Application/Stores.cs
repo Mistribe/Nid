@@ -34,11 +34,17 @@ public sealed record LinkRecord(
 public sealed record DocumentPageQuery(
     Guid Actor, IReadOnlyCollection<Guid> ReadableItems, IReadOnlyCollection<Guid> Persons, IReadOnlyCollection<Guid> Dependents,
     bool Archived, string? SourceRefPrefix, bool Inbox, DocumentTarget? Target, Guid? Anchor, IReadOnlyCollection<Guid>? SharedItems,
-    string? Role, int? Year, Guid? Linked, string? Search, DateTimeZone Zone, int Skip, int? Take, IReadOnlyCollection<DocumentTarget>? OwnUnanchored = null);
+    string? Role, int? Year, Guid? Linked, string? Search, DateTimeZone Zone, int Skip, int? Take, IReadOnlyCollection<DocumentTarget>? OwnUnanchored = null,
+    SearchMeaning? Meaning = null);
 
-/// <summary>One page, newest document date first (undated last), the number that matched, and the readable links' roles and targets and the years over the list before the filters.</summary>
+/// <summary>#169: the search text's vector, of the household's <c>embed</c> model; the chunks of that model are compared with it.</summary>
+public sealed record SearchMeaning(string Model, int Dimension, IReadOnlyList<float> Vector);
+
+/// <summary>One page, newest document date first (undated last), the number that matched, and the readable links' roles and targets and the years over the list before the filters.
+/// #169: with a search, the most relevant first, and <c>Matches</c> the best place in the text of each document found there.</summary>
 public sealed record DocumentPageRecord(
-    IReadOnlyList<DocumentRecord> Items, int Total, IReadOnlyList<string> Roles, IReadOnlyList<int> Years, IReadOnlyList<LinkTargetRecord> Links);
+    IReadOnlyList<DocumentRecord> Items, int Total, IReadOnlyList<string> Roles, IReadOnlyList<int> Years, IReadOnlyList<LinkTargetRecord> Links,
+    IReadOnlyDictionary<Guid, DocumentMatch>? Matches = null);
 
 public sealed record LinkTargetRecord(string TargetKind, Guid TargetId, Guid? AnchorItemId);
 
