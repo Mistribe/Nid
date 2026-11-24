@@ -70371,6 +70371,13 @@
             "items": {
               "$ref": "#/components/schemas/TaxYearView"
             }
+          },
+          "profileVersion": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "uint32"
           }
         }
       },
@@ -70926,6 +70933,13 @@
             "type": "integer",
             "format": "int32",
             "default": 0
+          },
+          "version": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "uint32"
           }
         }
       },

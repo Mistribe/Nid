@@ -271,6 +271,28 @@ public class TaxEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresF
     }
 
     [Fact]
+    public async Task A_profile_saved_from_a_stale_read_conflicts()
+    {
+        // #630: Bob saves the year's profile; Alice then saves the form she had opened before.
+        await using var app = await NidApp.StartAsync(fixture);
+        Assert.Equal(JsonValueKind.Null, (await EstimateAsync(app, app.AdultA, 2025)).GetProperty("profileVersion").ValueKind);
+
+        var first = await app.RawAsync(app.AdultB, HttpMethod.Put, "/api/v1/tax/profile/2025?scope=me", new { childrenUnder6 = 1, version = (uint?)null });
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+        var read = JsonDocument.Parse(await first.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.GetProperty("profileVersion").GetUInt32();
+        var again = await app.RawAsync(app.AdultB, HttpMethod.Put, "/api/v1/tax/profile/2025?scope=me", new { childrenUnder6 = 2, version = read });
+        Assert.Equal(HttpStatusCode.OK, again.StatusCode);
+
+        foreach (var stale in new object[] { new { childrenUnder6 = 0, version = (uint?)null }, new { childrenUnder6 = 0, version = (uint?)read } })
+        {
+            var response = await app.RawAsync(app.AdultA, HttpMethod.Put, "/api/v1/tax/profile/2025?scope=me", stale);
+            Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+            Assert.Equal(TaxCodes.ProfileConflict, JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.GetProperty("code").GetString());
+        }
+        Assert.Equal(2, (await EstimateAsync(app, app.AdultA, 2025)).GetProperty("profile").GetProperty("childrenUnder6").GetInt32());
+    }
+
+    [Fact]
     public async Task A_profile_out_of_bounds_is_refused()
     {
         await using var app = await NidApp.StartAsync(fixture);
@@ -692,9 +714,9 @@ public class TaxEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresF
         await using var app = await NidApp.StartAsync(fixture);
         var per = await PerAsync(app, app.AdultA, "PER A", "2020-03-01", "2024-01-10");
         await ContributeAsync(app, app.AdultA, per, "2025-03-01", "7000.00");
-        object Body(bool pooling) => new
+        object Body(bool pooling, uint? version = null) => new
         {
-            pinel = Array.Empty<object>(), perPooling = pooling,
+            pinel = Array.Empty<object>(), perPooling = pooling, version,
             perCeilings = new Dictionary<string, string> { [app.AdultA.Value.ToString()] = "5000", [app.AdultB.Value.ToString()] = "8000" },
         };
 
@@ -703,7 +725,7 @@ public class TaxEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresF
         Assert.False(alone.GetProperty("result").GetProperty("per").GetProperty("pooled").GetBoolean());
         Assert.Contains(alone.GetProperty("result").GetProperty("warnings").EnumerateArray(), w => w.GetString() == "per_over_ceiling");
 
-        var pooled = await PutProfileAsync(app, app.AdultA, 2025, Body(true));
+        var pooled = await PutProfileAsync(app, app.AdultA, 2025, Body(true, alone.GetProperty("profileVersion").GetUInt32()));
         Assert.True(pooled.GetProperty("profile").GetProperty("perPooling").GetBoolean());
         Assert.True(pooled.GetProperty("inputs").GetProperty("perPooling").GetBoolean());
         var household = pooled.GetProperty("result").GetProperty("per");
