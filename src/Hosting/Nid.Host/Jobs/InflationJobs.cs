@@ -1,3 +1,4 @@
+using Nid.Core.Application;
 using Nid.Platform.Contracts;
 using Nid.Core.Application.Inflation;
 using Nid.Core.Contracts;

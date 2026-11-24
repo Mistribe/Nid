@@ -4,6 +4,7 @@ using System.Text.Encodings.Web;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Options;
+using Nid.Core.Application;
 using Nid.Core.Contracts;
 using Nid.Core.Domain;
 using Nid.Platform.Contracts;

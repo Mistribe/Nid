@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Nid.Core.Application;
 using Nid.Core.Domain.Inflation;
 using NodaTime.Text;
 

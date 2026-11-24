@@ -133,24 +133,6 @@ public interface IRealEstateProjection
 }
 
 /// <summary>
-/// Spec §5: a scenario's document, stored as a JSON row keyed by its registry item. <c>Scope</c> is what it is computed on.
-/// <c>Document</c> is set for a purchase, <c>Projection</c> for a projection scenario (projection spec §6), <c>Sale</c> for a sale
-/// (issue #416), by <c>Kind</c>.
-/// </summary>
-public sealed record StoredScenario(
-    ItemId Item, string Kind, VisibilityScope Scope, PropertyPurchase? Document, ProjectionScenario? Projection = null, SaleScenario? Sale = null);
-
-public interface IScenarioStore
-{
-    Task<StoredScenario?> FindAsync(ItemId id, CancellationToken ct);
-
-    /// <summary>The scenarios that exist among <paramref name="ids"/>.</summary>
-    Task<IReadOnlyList<StoredScenario>> FindManyAsync(IReadOnlyCollection<ItemId> ids, CancellationToken ct);
-
-    Task SaveAsync(StoredScenario scenario, CancellationToken ct);
-}
-
-/// <summary>
 /// #516, #294: a scenario replaced whole, its visibility included. An adult who may edit the scenario does not own it: the scenario
 /// behavior refuses a change of visibility to anyone but its owners, after loading the scenario of <see cref="ScenarioKind"/> it hands
 /// to the handler.

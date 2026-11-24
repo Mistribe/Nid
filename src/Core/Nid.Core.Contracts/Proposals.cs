@@ -1,5 +1,4 @@
 using System.Text.Json;
-using NodaTime;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Functional.Failures;
 
@@ -19,22 +18,6 @@ public sealed record ProposalWarning(string Code, string Severity, string Messag
 /// </summary>
 public sealed record ProposalCheck(
     string? SubjectKey, IReadOnlyList<ProposalWarning> Warnings, JsonElement Payload, JsonElement? Conforme = null, JsonElement? Summary = null);
-
-/// <summary>
-/// <paramref name="Target"/> is null for a proposal that creates its item: only its submitter reads and decides it.
-/// <paramref name="DocumentId"/> is its source document, checked readable by the host before it is submitted (Core never reads Documents).
-/// </summary>
-public sealed record NewProposal(
-    string Module, string Kind, ItemId? Target, PersonId Person, string? SubjectKey, JsonElement Payload, int PayloadVersion,
-    IReadOnlyList<ProposalWarning> Warnings, string CreatedVia, Guid? TokenId, string? SourceLabel, Guid? DocumentId = null);
-
-public sealed record StoredProposal(
-    Guid Id, string Module, string Kind, ItemId? Target, PersonId ForPerson, string? SubjectKey, JsonElement Payload,
-    int PayloadVersion, JsonElement? EditedPayload, IReadOnlyList<ProposalWarning> Warnings, ProposalStatus Status,
-    Guid? SupersededById, string CreatedVia, Guid? TokenId, PersonId CreatedBy, string? SourceLabel, Instant CreatedAt,
-    PersonId? DecidedBy, Instant? DecidedAt, string? DecisionNote, IReadOnlyList<Guid> AppliedRefs, uint Version, Guid? DocumentId = null);
-
-public sealed record SubmitOutcome(StoredProposal Proposal, bool Created, IReadOnlyList<Guid>? Superseded = null);
 
 /// <summary>The key of a pending proposal's notice: what publishes it and every place that resolves it.</summary>
 public static class ProposalNotices
@@ -66,39 +49,6 @@ public static class ProposalCodes
 public interface IProposalSubmitter
 {
     Task<Result<bool>> SubmitAsync(string kind, ItemId? item, JsonElement payload, string? sourceLabel, CancellationToken ct);
-}
-
-public interface IProposalStore
-{
-    /// <summary>Deduplicates (same fingerprint pending: returned, not written) and supersedes (same kind, target and subject key pending).</summary>
-    Task<SubmitOutcome> SubmitAsync(NewProposal proposal, CancellationToken ct);
-
-    Task<StoredProposal?> FindAsync(Guid id, CancellationToken ct);
-
-    /// <summary>
-    /// The proposals on <paramref name="targets"/>, and those without a target <paramref name="person"/> submitted (none when null), in
-    /// <paramref name="status"/>, newest first.
-    /// </summary>
-    /// <summary>The proposals on <paramref name="targets"/> (and <paramref name="person"/>'s untargeted ones). With a
-    /// <paramref name="viewer"/>, another adult's pending assistant proposals are left out (#498, decision N).</summary>
-    Task<IReadOnlyList<StoredProposal>> ListAsync(
-        IReadOnlySet<ItemId> targets, PersonId? person, ProposalStatus status, CancellationToken ct, PersonId? viewer = null);
-
-    /// <summary>`pending` → approved or rejected; <see cref="ProposalCodes.Conflict"/> on a stale version, <see cref="ProposalCodes.Decided"/> when not pending.</summary>
-    Task<Result<StoredProposal>> DecideAsync(Guid id, uint version, ProposalStatus to, PersonId by, JsonElement? editedPayload,
-        string? note, IReadOnlyList<Guid> appliedRefs, CancellationToken ct);
-
-    /// <summary>A `pending` row removed; <see cref="ProposalCodes.Conflict"/> on a stale version, <see cref="ProposalCodes.Decided"/> when not pending.</summary>
-    Task<Result<Guid>> DeleteAsync(Guid id, uint version, CancellationToken ct);
-
-    /// <summary>Appends one warning in its own write (after a rolled-back approval), to a row still pending only.</summary>
-    Task AddWarningAsync(Guid id, ProposalWarning warning, CancellationToken ct);
-
-    /// <summary>
-    /// Core's own, inside the application's transaction: sets <paramref name="documentId"/> on the <c>core.valuation</c> and
-    /// <c>core.flow</c> rows among <paramref name="appliedRefs"/>; the other ids (phases, loan rows…) are not Core's facts and are left alone.
-    /// </summary>
-    Task StampAsync(Guid documentId, IReadOnlyList<Guid> appliedRefs, CancellationToken ct);
 }
 
 /// <summary>Breakdowns spec C10: a module stamps the source document on its own rows that an approval wrote.</summary>
@@ -135,19 +85,6 @@ public interface IProposalHandler
 
     /// <summary>Sends the module's command as the current actor; the ids of what it created.</summary>
     Task<Result<IReadOnlyList<Guid>>> ApplyAsync(ItemId target, JsonElement payload, CancellationToken ct);
-}
-
-/// <summary>
-/// Decision N (<c>docs/ai/README.md</c> §8.2, #498): a proposal the assistant made for a person stays that person's until it
-/// is decided, even on a shared item; it merges with and replaces only that person's own pending assistant proposals.
-/// </summary>
-public static class AssistantProposals
-{
-    public const string Via = "assistant";
-
-    /// <summary>Hidden from <paramref name="viewer"/>: pending, made by the assistant, for someone else.</summary>
-    public static bool HiddenFrom(StoredProposal proposal, PersonId viewer)
-        => proposal.Status == ProposalStatus.Pending && proposal.CreatedVia == Via && proposal.CreatedBy != viewer;
 }
 
 /// <summary>
