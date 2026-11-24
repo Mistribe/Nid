@@ -57,19 +57,3 @@ public static class IrlPlausibility
     public static bool Plausible(decimal value, decimal? sameQuarterLastYear)
         => sameQuarterLastYear is not { } last || (value >= last * 0.95m && value <= last * 1.10m);
 }
-
-/// <summary>Rental spec §3: the stored IRL series, <c>realestate.irl</c>, one value per quarter.</summary>
-public interface IIrlStore
-{
-    /// <summary>Every stored value, by quarter.</summary>
-    Task<IReadOnlyList<IrlValue>> ListAsync(CancellationToken ct);
-
-    /// <summary>One page of values, newest quarter first, and the total number of values.</summary>
-    Task<(IReadOnlyList<IrlValue> Items, int Total)> PageAsync(int skip, int take, CancellationToken ct);
-
-    /// <summary>Stores the quarter's value, replacing the one stored (the collector decides what may replace what).</summary>
-    Task UpsertAsync(IrlValue value, CancellationToken ct);
-
-    /// <summary>Stores a manual value in one statement unless the quarter holds an <c>insee</c> one; false when it did not write.</summary>
-    Task<bool> UpsertManualAsync(IrlValue value, CancellationToken ct);
-}

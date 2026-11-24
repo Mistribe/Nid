@@ -1,6 +1,6 @@
+using Nid.RealEstate.Application;
 using NodaTime;
 using Nid.Platform.Contracts;
-using Nid.RealEstate.Contracts;
 
 namespace Nid.RealEstate.Infrastructure.Persistence;
 

@@ -1,7 +1,7 @@
+using Nid.RealEstate.Application;
 using System.Net;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
-using Nid.RealEstate.Contracts;
 using Nid.RealEstate.Infrastructure.Persistence;
 using Nid.TestSupport;
 using NodaTime;
@@ -81,7 +81,7 @@ public class IrlEndpointTests(PostgresFixture fixture) : IClassFixture<PostgresF
     {
         await using var app = await NidApp.StartAsync(fixture);
         await using (var scope = app.Services.CreateAsyncScope())
-            await scope.ServiceProvider.GetRequiredService<Nid.RealEstate.Domain.IIrlStore>().UpsertAsync(
+            await scope.ServiceProvider.GetRequiredService<IIrlStore>().UpsertAsync(
                 new Nid.RealEstate.Domain.IrlValue(new Nid.RealEstate.Domain.IrlQuarter(2025, 2), 146.68m, new NodaTime.LocalDate(2025, 7, 13), new NodaTime.LocalDate(2025, 7, 14), "insee"),
                 CancellationToken.None);
 

@@ -1,3 +1,4 @@
+using Nid.RealEstate.Application;
 using System.Globalization;
 using System.Net.Http.Json;
 using System.Reflection;
@@ -13,7 +14,6 @@ using Nid.Core.Infrastructure.Persistence;
 using Nid.Host.Auth;
 using Nid.Investments.Contracts;
 using Nid.Platform.Contracts;
-using Nid.RealEstate.Contracts;
 using Nid.Subscriptions.Contracts;
 using Nid.Subscriptions.Infrastructure.Persistence;
 using Nid.TestSupport;

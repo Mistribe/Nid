@@ -1,3 +1,4 @@
+using Nid.RealEstate.Application;
 using Nid.RealEstate.Contracts;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Functional.Failures;
