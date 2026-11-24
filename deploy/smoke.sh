@@ -18,6 +18,13 @@ api_ready() {
   echo "FAIL: nid not ready after 120 s" >&2
   exit 1
 }
+# reaches SERVICE PORT ADDRESS...: whether one of the addresses answers from the service's network (a busybox in its network
+# namespace: the service's own image may have no shell, no wget, no nc).
+reaches() {
+  local service=$1 port=$2; shift 2
+  docker run --rm --network "container:$("${COMPOSE[@]}" --profile worker ps -q "$service")" busybox:1.37 \
+    sh -c "for a in $*; do nc -z -w 3 \$a $port && exit 0; done; exit 1"
+}
 
 ./setup.sh --nid-host nid.localtest.me --auth-host auth.localtest.me
 # Pocket ID first, so its groups, users and Nid's client exist (and Nid's client secret is known) before nid starts.
@@ -38,10 +45,14 @@ echo "ok: the Data Protection key folder is 0700"
 # grep reads to the end (no -q): with pipefail, -q closes the pipe at the first match and the writer dies of SIGPIPE.
 docker run --rm -v "${P}_logs:/l:ro" busybox:1.37 sh -c 'test "$(stat -c %a /l)" = 700 && cat /l/nid-*.log' | grep "Now listening on" >/dev/null
 echo "ok: nid writes its log file to the logs volume"
-if "${COMPOSE[@]}" exec -T pocket-id wget -q -T 5 -O /dev/null https://raw.githubusercontent.com 2>/dev/null; then
-  echo "FAIL: pocket-id reaches the Internet" >&2; exit 1
+# A public address (by IP: the route, not only the name) answers from nid's network, which has a way out, and not from Pocket
+# ID's. Without the first, this machine has no outbound access and the second proves nothing.
+if reaches nid 443 1.1.1.1; then
+  if reaches pocket-id 443 1.1.1.1; then echo "FAIL: pocket-id reaches the Internet" >&2; exit 1; fi
+  echo "ok: pocket-id has no way out"
+else
+  echo "skipped: pocket-id's way out (no outbound access)"
 fi
-echo "ok: pocket-id has no way out"
 # The image runs hardened: read-only root file system, every capability dropped, a non-root user.
 nid_container=$("${COMPOSE[@]}" ps -q nid)
 [ "$(docker inspect --format '{{.HostConfig.ReadonlyRootfs}} {{.HostConfig.CapDrop}} {{.Config.User}}' "$nid_container")" = "true [ALL] 1654" ]
@@ -67,13 +78,9 @@ echo "ok: journeys (${NID_JOURNEYS:-all})"
 
 # #603: the worker ran the journey's job (its « Tester ») with no route to nid. From the worker's network, none of nid's
 # addresses answers; from the gate's, the same probe reaches nid, so a refusal is the network's, not the probe's.
-nid_ips=$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}} {{end}}' "$nid_container")
-reaches_nid() {
-  docker run --rm --network "container:$("${COMPOSE[@]}" --profile worker ps -q "$1")" busybox:1.37 \
-    sh -c "for ip in $nid_ips; do nc -z -w 3 \$ip 8080 && exit 0; done; exit 1"
-}
-reaches_nid worker-gate || { echo "FAIL: the probe does not reach nid from the gate ($nid_ips)" >&2; exit 1; }
-if reaches_nid worker; then echo "FAIL: the worker has a route to nid" >&2; exit 1; fi
+read -r -a nid_ips <<<"$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}} {{end}}' "$nid_container")"
+reaches worker-gate 8080 "${nid_ips[@]}" || { echo "FAIL: the probe does not reach nid from the gate (${nid_ips[*]})" >&2; exit 1; }
+if reaches worker 8080 "${nid_ips[@]}"; then echo "FAIL: the worker has a route to nid" >&2; exit 1; fi
 echo "ok: the worker runs jobs with no route to nid"
 
 # 1F4: the recovery CLI runs inside the chiseled image through its `nid` link. The journeys signed alice and bob in, which
