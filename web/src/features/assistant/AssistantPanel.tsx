@@ -31,6 +31,8 @@ type Turn = {
   code?: string;
   availableOn?: string | null;
   problem?: unknown;
+  /** #617: the answer was taken out with a document it had read. */
+  removed?: boolean;
 };
 
 type Totals = { tokensIn: number; tokensOut: number; costEur?: string | null };
@@ -159,6 +161,7 @@ function TurnView({ turn }: { turn: Turn }) {
       <p className="font-medium whitespace-pre-wrap">{turn.question}</p>
       {turn.tools.length > 0 ? <p className="text-sm text-muted-foreground">{t('ai.assistant.tools', { tools: turn.tools.join(', ') })}</p> : null}
       {turn.answer ? <p className="whitespace-pre-wrap">{turn.answer}</p> : null}
+      {turn.removed ? <p className="text-sm text-muted-foreground italic">{t('ai.panel.removed')}</p> : null}
       {turn.done && turn.done.links.length > 0 ? (
         <ul className="flex flex-wrap gap-x-4 gap-y-1 text-sm" aria-label={t('ai.assistant.links')}>
           {turn.done.links.map((link) => <li key={link.id}><Link {...linkTo(link)} className="underline underline-offset-4">{link.name}</Link></li>)}
@@ -205,7 +208,7 @@ function ConversationList({ current, onOpen }: { current: string | null; onOpen:
     const kept: Turn[] = [];
     for (const message of data.messages) {
       if (message.role === 'user') kept.push({ question: message.content, answer: '', tools: [] });
-      else if (kept.length > 0) kept[kept.length - 1] = { ...kept[kept.length - 1]!, answer: message.content, tools: [...message.tools] };
+      else if (kept.length > 0) kept[kept.length - 1] = { ...kept[kept.length - 1]!, answer: message.content, tools: [...message.tools], removed: message.removed };
     }
     onOpen(id, kept);
   };

@@ -38952,6 +38952,8 @@ export interface components {
             items: string[];
             /** Format: date-time */
             createdAt: string;
+            /** @default false */
+            removed: boolean;
         };
         ConversationPage: {
             items: components["schemas"]["ConversationSummary"][];

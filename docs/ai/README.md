@@ -638,7 +638,11 @@ cet adulte (§6.3). Chaque décision est enregistrée (`consent_id`) et liée au
   Quand ses liens changent, l'extraction de son texte, si aucun worker ne l'a encore prise, prend la classe et les adultes
   concernés de ses nouveaux liens ; ses plongements suivent les liens à chaque passage de l'index.
 - Supprimer un document purge ses copies : texte extrait, morceaux, vecteurs, et les tours de conversation qui l'ont lu
-  (repérés par les identifiants dans les appels d'outils, §9).
+  (repérés par les identifiants dans les appels d'outils, §9). Livré par #600 et #617, dans la transaction de la
+  suppression : chaque réponse de l'assistant dont les outils ont rendu l'identifiant du document, dans la conversation de
+  n'importe qui, perd son texte, ses outils et ses éléments ; la question qui la précède reste, et la conversation affiche
+  « Réponse retirée : un document qu'elle avait lu a été supprimé. ». Une réponse qui cite le document sans qu'un outil
+  ait rendu son identifiant n'est pas repérée ; les sauvegardes gardent tout jusqu'à leur expiration.
 
 ## 7. La tâche `decide` (question 4, décision B)
 
@@ -780,6 +784,8 @@ voudrait rien dire, l'audit étant gardé sans limite.
   rendus). L'identifiant est connu avant le tour, donc chaque `llm_call` le porte. Liste, lecture et suppression : l'auteur
   seul, « introuvable » pour tout autre, admin compris. Conservation : `ai_settings.conversation_retention_days`, 1 à
   365 jours, posée par un admin dans Administration › IA (#585) ; la purge passe toutes les heures avec celle des jobs.
+  Une réponse retirée avec un document supprimé (#617, §6.6) garde sa place, vide et marquée `removed` ; le contexte
+  des tours suivants la saute.
 
 ## 10. Jetons, coût et budget (question 8, décision F)
 

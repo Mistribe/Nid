@@ -44347,7 +44347,8 @@
           "content",
           "tools",
           "items",
-          "createdAt"
+          "createdAt",
+          "removed"
         ],
         "type": "object",
         "properties": {
@@ -44373,6 +44374,10 @@
           "createdAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "removed": {
+            "type": "boolean",
+            "default": false
           }
         }
       },

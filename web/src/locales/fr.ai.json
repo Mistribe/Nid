@@ -312,6 +312,7 @@
       "delete": "Supprimer",
       "delete_title": "Supprimer « {{title}} »",
       "delete_confirm": "La conversation est supprimée tout de suite, pour de bon.",
+      "removed": "Réponse retirée : un document qu'elle avait lu a été supprimé.",
       "off": "L'assistant n'est pas activé pour vous.",
       "no_model_admin": "Aucun modèle n'est choisi pour l'assistant.",
       "no_model": "Aucun modèle n'est choisi pour l'assistant : demandez à un administrateur de Nid.",
