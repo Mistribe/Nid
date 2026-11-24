@@ -1,0 +1,60 @@
+name: backup-smoke
+
+# #601: the backup smoke test (deploy/backup-smoke.sh) on the stack deploy/smoke.sh leaves up: back up, verify, simulate a disaster
+# and restore, with a document's chunks, embeddings, HNSW index and French search. Long and only about the backup, so it is not
+# called by ci.yml and `ci-ok` does not wait for it: it runs on the pull requests that touch what a restore depends on (`paths:`
+# is safe here, the check is not required), every Monday, and by hand (`gh workflow run backup-smoke.yml`).
+on:
+  pull_request:
+    paths:
+      - 'deploy/**'
+      - 'src/Documents/Nid.Documents.Infrastructure/Persistence/**'
+      - '.github/workflows/backup-smoke.yml'
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backup-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: web/package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - run: pnpm --dir web install --frozen-lockfile
+      - run: pnpm --dir web exec playwright install --with-deps chromium
+      # Compose builds Nid's images on the way, nid-postgres from deploy/postgres among them (its French dictionary).
+      - name: The reference compose, signed in (a sample of the journeys)
+        run: deploy/smoke.sh
+        env:
+          NID_JOURNEYS: sample
+      - name: Backup, verify, disaster and restore
+        run: deploy/backup-smoke.sh
+      - name: Compose logs
+        if: failure()
+        run: |
+          docker compose -f deploy/compose.yaml -f deploy/compose.local.yaml -f deploy/local/compose.backup-test.yaml --profile worker logs --no-color --timestamps | tail -300
+      - name: Playwright results
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: playwright-results-backup
+          path: web/test-results/
+          retention-days: 7
+          if-no-files-found: ignore

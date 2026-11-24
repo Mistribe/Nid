@@ -64,7 +64,9 @@ tool() { c run --rm --no-deps -T backup-restore "$@"; }
 
 HAS_DATA=0
 if [ "$VERIFY" = 0 ]; then
-  if docker volume inspect nid_pgdata18 >/dev/null 2>&1 || docker volume inspect nid_pgdata >/dev/null 2>&1 \
+  # The project's volumes: compose prefixes them with COMPOSE_PROJECT_NAME when it is set (deploy/smoke.sh beside a real stack).
+  P=${COMPOSE_PROJECT_NAME:-nid}
+  if docker volume inspect "${P}_pgdata18" >/dev/null 2>&1 || docker volume inspect "${P}_pgdata" >/dev/null 2>&1 \
     || [ -n "$(ls -A secrets 2>/dev/null)" ]; then HAS_DATA=1; fi
   [ "$HAS_DATA" = 0 ] || [ "$FORCE" = 1 ] || die "Cette installation contient déjà des données (volume nid_pgdata18 ou nid_pgdata, ou deploy/secrets/).
 Pour tout remplacer par la sauvegarde : deploy/restore.sh --force. Pour l'essayer sans risque : deploy/restore.sh --verify."

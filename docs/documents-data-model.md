@@ -143,6 +143,7 @@ Un document illisible ou inexistant, ou un acteur sans droit : `404` et `403` g�
 ## 9. Sauvegarde
 
 - **Fichiers** : le volume `documents` est une source du service `backup` (`/source/volumes/documents:ro`) et de `backup-restore`, comme `assets`. `deploy/backup-smoke.sh` y dépose un fichier, vérifie qu'il est dans l'instantané, le restaure dans un volume jetable et compare son sha256. Restaurer un instantané antérieur au module vide le dossier : le restaurateur le recrée.
+- **Index** (#601) : `deploy/backup-smoke.sh` indexe un document comme Nid (texte, morceau, vecteur, index HNSW du modèle par `documents.ensure_embedding_index`), sauvegarde, restaure, puis vérifie l'index HNSW, la configuration `documents.nid_french` et une recherche par les mots et par le sens qui retrouve le document. Le workflow `backup-smoke.yml` le lance sur les pull requests qui touchent `deploy/` ou la persistance de Documents, et chaque lundi.
 - **S3** : restic **ne sauvegarde pas** le bucket. Le versionnement ou la réplication du fournisseur est la protection (`deploy/README.md`, « Les documents »). Au démarrage, l'API écrit une ligne `Information` quand `Kind = s3` (documents hors instantané). Pas d'état en échec (il alerterait chaque jour) ni d'écran : Administration › Système n'a pas de section sauvegarde.
 - Une base restaurée sans ses fichiers n'est pas réparée : un document dont le fichier manque répond `404` `documents.content_missing`.
 

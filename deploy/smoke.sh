@@ -4,6 +4,8 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 COMPOSE=(docker compose -f compose.yaml -f compose.local.yaml)
+# The volumes' prefix: COMPOSE_PROJECT_NAME runs the test next to another installation, whose nid_* volumes it leaves alone.
+P=${COMPOSE_PROJECT_NAME:-nid}
 URL=https://nid.localtest.me
 # NID_SMOKE set in front of a call reaches the function, not its children: pass it on explicitly.
 playwright() { NID_URL=$URL NID_SMOKE=${NID_SMOKE:-} pnpm --dir ../web exec playwright test "$@"; }
@@ -31,10 +33,10 @@ echo "ok: the session route answers"
 
 # Hardening (1F1 final review): the key folder is private, only nid reaches the Internet, the SPA fallback never
 # answers for an asset or an API path.
-[ "$(docker run --rm -v nid_dataprotection-keys:/k busybox:1.37 stat -c %a /k)" = "700" ]
+[ "$(docker run --rm -v "${P}_dataprotection-keys:/k" busybox:1.37 stat -c %a /k)" = "700" ]
 echo "ok: the Data Protection key folder is 0700"
 # grep reads to the end (no -q): with pipefail, -q closes the pipe at the first match and the writer dies of SIGPIPE.
-docker run --rm -v nid_logs:/l:ro busybox:1.37 sh -c 'test "$(stat -c %a /l)" = 700 && cat /l/nid-*.log' | grep "Now listening on" >/dev/null
+docker run --rm -v "${P}_logs:/l:ro" busybox:1.37 sh -c 'test "$(stat -c %a /l)" = 700 && cat /l/nid-*.log' | grep "Now listening on" >/dev/null
 echo "ok: nid writes its log file to the logs volume"
 if "${COMPOSE[@]}" exec -T pocket-id wget -q -T 5 -O /dev/null https://raw.githubusercontent.com 2>/dev/null; then
   echo "FAIL: pocket-id reaches the Internet" >&2; exit 1
