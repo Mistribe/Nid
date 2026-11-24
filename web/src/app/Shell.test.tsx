@@ -383,12 +383,17 @@ describe('the shell', () => {
       return new HttpResponse(null, { status: 204 });
     }));
     const { location, user } = await renderApp('/subscriptions');
+    // #640: a routine draft is Alice's; the next person in this tab starts from the server's values.
+    sessionStorage.setItem('routine:2026-11', '{}');
+    sessionStorage.setItem('routine-estate:2026-11', '{}');
 
     await user.click(await openerReady());
     await user.click(await screen.findByRole('menuitem', { name: 'Se déconnecter' }));
 
     expect(csrf).toBe('csrf-alice');
     expect(location.assign).toHaveBeenCalledWith('/signed-out');
+    expect(sessionStorage.getItem('routine:2026-11')).toBeNull();
+    expect(sessionStorage.getItem('routine-estate:2026-11')).toBeNull();
   });
 
   it('stays when the sign-out is refused', async () => {

@@ -21,4 +21,3 @@ export const flowSchema = (t: TFunction) => z.object({
 });
 
 export type ValueFormValues = z.infer<ReturnType<typeof valueSchema>>;
-export type FlowFormValues = z.infer<ReturnType<typeof flowSchema>>;

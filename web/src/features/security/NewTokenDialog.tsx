@@ -19,6 +19,7 @@ import { McpHelp } from './McpHelp';
 import { EXPIRIES, PRESETS, TOKENS, type Preset } from './tokens';
 import '@/locales/forms';
 import '@/locales/security';
+import { useCopy } from '@/lib/clipboard';
 
 /**
  * Spec 4A §8: name, rights (« Lecture + propositions » by default) and validity, then the secret shown once. The secret
@@ -26,6 +27,7 @@ import '@/locales/security';
  */
 export function NewTokenDialog({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
+  const copy = useCopy();
   const { $api } = useApi();
   const queryClient = useQueryClient();
   const [secret, setSecret] = useState<string | null>(null);
@@ -60,7 +62,7 @@ export function NewTokenDialog({ onClose }: { onClose: () => void }) {
             <code className="block break-all rounded-md border bg-muted p-2 font-mono text-sm">{secret}</code>
             <p role="status">{copied ? t('security.tokens.copied') : ''}</p>
             <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => { void navigator.clipboard.writeText(secret).then(() => setCopied(true)); }}>
+              <Button type="button" variant="outline" onClick={() => copy(secret, () => setCopied(true))}>
                 {t('security.tokens.copy')}
               </Button>
               <Button type="button" onClick={onClose}>{t('security.tokens.done')}</Button>

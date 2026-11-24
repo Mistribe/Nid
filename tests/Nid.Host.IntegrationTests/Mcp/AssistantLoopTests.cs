@@ -160,6 +160,30 @@ public sealed class AssistantLoopTests(PostgresFixture fixture) : IClassFixture<
         Assert.Equal(new AssistantDone("anthropic", "llama3.2", "end"), events[^1]);
     }
 
+    [Fact]
+    public async Task Proposals_copied_from_documents_and_bank_lines_never_reach_the_cloud_and_stay_on_the_premises()
+    {
+        // #624: their payloads and source labels hold a document's text, a payslip's included.
+        var cloud = new ScriptedGateway(Cloud, _ => Calls(("list_proposals", "{}")), _ => Says("Voilà."));
+        await using (var app = await StartAsync(cloud))
+        {
+            var events = await TurnAsync(app, "Mes propositions ?");
+
+            Assert.Equal(AssistantLoop.KeptOut(1, "anthropic"), cloud.Requests[1].Messages.Single(m => m.Role == ChatRole.Tool).Content);
+            Assert.Empty(await AuditedToolsAsync(app));
+            Assert.Equal(new AssistantHeldBack(1, "anthropic"), events[^2]);
+        }
+
+        var salon = new ScriptedGateway(Salon, _ => Calls(("list_proposals", "{}")), _ => Says("Voilà."));
+        await using (var app = await StartAsync(salon))
+        {
+            await TurnAsync(app, "Mes propositions ?");
+
+            Assert.Equal(DataClasses.Figures, salon.Requests[0].DataClass);
+            Assert.Equal(DataClasses.LocalOnly, salon.Requests[1].DataClass); // only a safe worker reads what follows
+        }
+    }
+
     private Task<NidApp> StartAsync(ScriptedGateway model, IReadOnlyDictionary<string, string>? settings = null)
         => NidApp.StartAsync(fixture, s => s.Replace(ServiceDescriptor.Scoped<ILlmGateway>(_ => model)), settings);
 

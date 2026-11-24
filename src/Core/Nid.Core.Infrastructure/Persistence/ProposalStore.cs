@@ -23,20 +23,24 @@ public sealed partial class ProposalStore(CoreDbContext db, IClock clock, IEnume
 
     /// <summary>The document enters only when set: a proposal without one keeps the fingerprint it had before documents.</summary>
     /// <summary>#498: an assistant proposal's carries its author, so it merges only with that author's own (decision N).</summary>
-    public static string Fingerprint(string kind, ItemId? target, JsonElement payload, Guid? document, Guid? assistantFor = null)
+    /// <summary>#629: an untargeted one carries its submitter, so two adults never merge into a proposal only one of them sees.</summary>
+    public static string Fingerprint(string kind, ItemId? target, JsonElement payload, Guid? document, Guid? assistantFor = null, Guid? submitter = null)
     {
         var fields = new JsonObject { ["kind"] = kind, ["target"] = target?.Value.ToString(), ["payload"] = JsonNode.Parse(payload.GetRawText()) };
         if (document is { } id)
             fields["document"] = id.ToString();
         if (assistantFor is { } author)
             fields["assistant_for"] = author.ToString();
+        if (submitter is { } person)
+            fields["submitter"] = person.ToString();
         return JsonCanonicalizer.Hash(JsonSerializer.SerializeToElement(fields, ProposalJson.Default.JsonObject));
     }
 
     public async Task<SubmitOutcome> SubmitAsync(NewProposal p, CancellationToken ct)
     {
         var assistant = p.CreatedVia == AssistantProposals.Via;
-        var fingerprint = Fingerprint(p.Kind, p.Target, p.Payload, p.DocumentId, assistant ? p.Person.Value : null);
+        var fingerprint = Fingerprint(p.Kind, p.Target, p.Payload, p.DocumentId, assistant ? p.Person.Value : null,
+            p.Target is null ? p.Person.Value : null);
         await using var transaction = db.Database.CurrentTransaction is null ? await db.Database.BeginTransactionAsync(ct) : null;
         // One submission at a time per target (per submitter without one): deduplication and supersession read then write.
         if (p.Target is { } target)
@@ -61,6 +65,7 @@ public sealed partial class ProposalStore(CoreDbContext db, IClock clock, IEnume
             // Decision N: an assistant proposal replaces only its author's pending assistant ones, and nothing else replaces those.
             foreach (var older in await db.Proposals.Where(r => r.Kind == p.Kind && r.TargetItemId == row.TargetItemId
                          && r.SubjectKey == p.SubjectKey && r.Status == "pending"
+                         && (row.TargetItemId != null || r.ForPersonId == p.Person.Value)
                          && (assistant
                              ? r.CreatedVia == AssistantProposals.Via && r.CreatedByPersonId == p.Person.Value
                              : r.CreatedVia != AssistantProposals.Via)).ToListAsync(ct))

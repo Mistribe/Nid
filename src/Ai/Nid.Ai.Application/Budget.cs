@@ -47,7 +47,8 @@ public sealed class BudgetPrices(IFxRates fx, IClock clock)
         if (currency == Currency.Eur)
             return Math.Round(amount, 6);
         var today = clock.GetCurrentInstant().InUtc().Date;
-        var rates = await fx.LoadAsync([currency], today, today, ct);
+        // USD is the pivot and is never loaded: EUR's own series is what converts a USD price (#621).
+        var rates = await fx.LoadAsync([currency, Currency.Eur], today, today, ct);
         return rates.TryConvert(amount, currency, Currency.Eur, today, projected: false, out var eur, out _) ? Math.Round(eur, 6) : null;
     }
 
