@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Nid.Banking.Application;
 using Nid.Banking.Contracts;
+using Nid.Core.Application;
 using Nid.Core.Contracts;
 using Nid.Documents.Application;
 using Nid.Documents.Contracts;
@@ -394,7 +395,7 @@ public sealed class MixedDataset
             var property = properties[row.Name switch { "P-A" => "S-A", "P-B" => "S-B", var same => same }];
             var writer = row.Owners.Select(o => PersonOf(app, o)).FirstOrDefault(p => p == app.AdultA || p == app.AdultB, app.AdultA);
             var (_, refused) = await app.InvokeAsync(writer, new Nid.RealEstate.Application.EditLoanCommand(
-                loans[row.Name], null, new Nid.RealEstate.Contracts.LoanDetailsChange(PropertyId: property)));
+                loans[row.Name], null, new Nid.RealEstate.Application.LoanDetailsChange(PropertyId: property)));
             if (refused is not null)
                 throw new InvalidOperationException($"Linking {row.Name}'s loan failed: {refused.Code}");
         }

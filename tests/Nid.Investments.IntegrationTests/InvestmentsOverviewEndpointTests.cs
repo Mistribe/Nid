@@ -2,6 +2,7 @@ using System.Net;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Contracts;
+using Nid.Investments.Application;
 using Nid.Investments.Contracts;
 using NodaTime;
 using Nid.TestSupport;

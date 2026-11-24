@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Net;
 using System.Text.Json;
+using Nid.Core.Application;
 using Nid.Core.Contracts;
 using Microsoft.Extensions.DependencyInjection;
 using Nid.Platform.Contracts;

@@ -1,3 +1,4 @@
+using Nid.RealEstate.Application;
 using System.Text;
 using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Application.Admin;

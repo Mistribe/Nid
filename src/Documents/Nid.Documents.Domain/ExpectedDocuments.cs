@@ -33,10 +33,10 @@ public static class ExpectedDocumentRules
 {
     public const int Once = 0;
 
-    public const string LifeInsurance = "life_insurance";
+    public const string LifeInsurance = ExpectedSubjects.LifeInsurance;
     public const string TaxYear = "tax_year";
-    public const string Loan = "loan";
-    public const string Property = "property";
+    public const string Loan = ExpectedSubjects.Loan;
+    public const string Property = ExpectedSubjects.Property;
 
     public static readonly IReadOnlyDictionary<string, ExpectedRule> BySubject = new Dictionary<string, ExpectedRule>
     {

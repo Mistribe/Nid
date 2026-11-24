@@ -1,3 +1,4 @@
+using Nid.Subscriptions.Application;
 using Nid.Subscriptions.Contracts;
 using Nid.Subscriptions.Infrastructure.Catalog;
 using UnambitiousFx.Functional;

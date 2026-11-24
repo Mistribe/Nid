@@ -1,3 +1,4 @@
+using Nid.Investments.Application;
 using Nid.Investments.Contracts;
 using Nid.Platform.Contracts;
 

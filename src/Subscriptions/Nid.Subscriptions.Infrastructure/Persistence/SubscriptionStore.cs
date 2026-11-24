@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
+using Nid.Subscriptions.Application;
 using Nid.Subscriptions.Contracts;
 using NodaTime;
 using UnambitiousFx.Functional;

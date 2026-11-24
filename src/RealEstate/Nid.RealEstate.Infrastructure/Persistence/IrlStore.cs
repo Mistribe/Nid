@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Nid.RealEstate.Application;
 using Nid.RealEstate.Domain;
 
 namespace Nid.RealEstate.Infrastructure.Persistence;

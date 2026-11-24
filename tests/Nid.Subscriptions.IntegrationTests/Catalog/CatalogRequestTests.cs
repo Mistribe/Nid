@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
 using Nid.Subscriptions.Application.Catalog;
+using Nid.Subscriptions.Application;
 using Nid.Subscriptions.Contracts;
 using Nid.Subscriptions.Infrastructure.Persistence;
 using Nid.TestSupport;

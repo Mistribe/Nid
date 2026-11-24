@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Options;
+using Nid.Core.Application;
 using Nid.Core.Application.Calendar;
 using Nid.Core.Application.Dashboard;
 using Nid.Core.Contracts;

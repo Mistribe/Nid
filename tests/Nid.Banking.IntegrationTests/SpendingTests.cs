@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Nid.Banking.Application;
 using Nid.Banking.Contracts;
 using Nid.Banking.Domain;
+using Nid.Core.Application;
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
 using Nid.TestSupport;

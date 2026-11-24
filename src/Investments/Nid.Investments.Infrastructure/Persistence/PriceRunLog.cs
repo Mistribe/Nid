@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Nid.Investments.Application;
 using Nid.Investments.Contracts;
 using NodaTime;
 using Npgsql;

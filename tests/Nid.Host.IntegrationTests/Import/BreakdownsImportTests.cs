@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Nid.Host.IntegrationTests.Export;
+using Nid.Investments.Application;
 using Nid.Investments.Contracts;
 using NodaTime;
 using Nid.TestSupport;

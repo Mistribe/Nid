@@ -1,5 +1,6 @@
 using System.Text;
 using Microsoft.Extensions.DependencyInjection;
+using Nid.Core.Application;
 using Nid.Core.Application.Admin;
 using Nid.Core.Application.Inflation;
 using Nid.Core.Contracts;
