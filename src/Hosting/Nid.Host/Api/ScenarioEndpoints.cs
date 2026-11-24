@@ -1,6 +1,7 @@
 using Nid.Core.Application.Projection;
 using Nid.Core.Application.Scenarios;
 using Nid.Core.Contracts;
+using Nid.Platform.Contracts;
 using UnambitiousFx.Synapse.Abstractions;
 using static Nid.Host.Api.SubscriptionEndpoints;
 
@@ -43,9 +44,15 @@ public static class ScenarioEndpoints
             .Returns<ScenarioDefaultsView>();
 
         // Net worth projection spec §14: the base and 1 to 3 scenarios, projections or purchases, on the request's grid.
-        api.MapGet("/compare", async (string? scope, string? horizon, string? ids, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new CompareScenariosQuery(ParseScope(scope), ProjectionEndpoints.ParseHorizon(horizon), ParseIds(ids)), ct))
-                .ToHttp(view => view))
+        api.MapGet("/compare", async (string? scope, string? horizon, string? ids, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var list = ParseIds(ids, reader);
+                return !reader.Ok
+                    ? ResultHttp.Problem(FieldErrors.Many(MalformedInputFilter.Code, reader.Errors[0].Message, reader.Errors))
+                    : (await invoker.InvokeAsync(new CompareScenariosQuery(ParseScope(scope), ProjectionEndpoints.ParseHorizon(horizon), list), ct))
+                        .ToHttp(view => view);
+            })
             .Returns<ProjectionCompareView>();
 
         api.MapGet("/{id:guid}", async (Guid id, IInvoker invoker, CancellationToken ct)
@@ -143,11 +150,15 @@ public static class ScenarioEndpoints
         return reader.Ok ? document : null;
     }
 
-    /// <summary>Spec §14.1: comma-separated ids, in order; a part that is no id is a bad request (the count is the handler's rule).</summary>
-    private static List<ItemId> ParseIds(string? ids)
-        => (ids ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(part => Guid.TryParse(part, out var id) ? new ItemId(id) : throw new BadHttpRequestException($"'{part}' is not a scenario id."))
-            .ToList();
+    /// <summary>Spec §14.1: comma-separated ids, in order; a part that is no id is a bad request at <c>ids</c> (the count is the handler's rule).</summary>
+    private static List<ItemId> ParseIds(string? ids, FieldReader reader)
+    {
+        var list = new List<ItemId>();
+        foreach (var part in (ids ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            if (Guid.TryParse(part, out var id)) list.Add(new ItemId(id));
+            else reader.Add("ids", MalformedInputFilter.Code, $"'{part}' is not a scenario id.");
+        return list;
+    }
 
     /// <summary>The document is the same shape as the one the reads answer with; a missing member is read as such, never passed on as null.</summary>
     public sealed record ScenarioBody(string? Name, string? Visibility, IReadOnlyList<OwnerBody>? Owners, string? Scope, PropertyPurchaseView? Document)
@@ -198,12 +209,12 @@ public static class ScenarioEndpoints
             ScenarioInsurance insurance = new(default, 0m);
             if (l.Insurance is null) reader.Add($"{at}.insurance", "request.required", "An insurance is required.");
             else if (l.Insurance.Kind == "rate_on_initial")
-                insurance = new(ScenarioInsuranceKind.RateOnInitial, Rate(reader, l.Insurance.Value, $"{at}.insurance.value", 0m));
+                insurance = new(ScenarioInsuranceKind.RateOnInitial, Rate(reader, l.Insurance.Value, $"{at}.insurance.value"));
             else if (l.Insurance.Kind == "fixed_monthly")
                 insurance = new(ScenarioInsuranceKind.FixedMonthly, Amount(reader, l.Insurance.Value, $"{at}.insurance.value"));
             else reader.Add($"{at}.insurance.kind", "request.kind", "An insurance is rate_on_initial or fixed_monthly.");
             loans.Add(new ScenarioLoan(
-                l.Name ?? "", Amount(reader, l.Amount, $"{at}.amount"), Rate(reader, l.Rate, $"{at}.rate", 0m), l.Months, deferral, insurance,
+                l.Name ?? "", Amount(reader, l.Amount, $"{at}.amount"), Rate(reader, l.Rate, $"{at}.rate"), l.Months, deferral, insurance,
                 Amount(reader, l.FileFees, $"{at}.fileFees"), Amount(reader, l.GuaranteeFees, $"{at}.guaranteeFees")));
         }
 
@@ -212,8 +223,8 @@ public static class ScenarioEndpoints
         else if (a.ClassRates is null) reader.Add("assumptions.classRates", "request.required", "Class rates are required.");
         else
             assumptions = new ScenarioAssumptions(
-                a.HorizonYears, a.ClassRates.ToDictionary(r => r.Key, r => Rate(reader, r.Value, $"assumptions.classRates.{r.Key}", -0.20m)),
-                a.PropertyGrowth is null ? null : Rate(reader, a.PropertyGrowth, "assumptions.propertyGrowth", -0.20m),
+                a.HorizonYears, a.ClassRates.ToDictionary(r => r.Key, r => Rate(reader, r.Value, $"assumptions.classRates.{r.Key}")),
+                a.PropertyGrowth is null ? null : Rate(reader, a.PropertyGrowth, "assumptions.propertyGrowth"),
                 Amount(reader, a.MonthlySavings, "assumptions.monthlySavings"), a.SavingsClass ?? "");
 
         var document = new PropertyPurchase(
@@ -224,21 +235,9 @@ public static class ScenarioEndpoints
         return reader.Ok ? document : null;
     }
 
-    /// <summary>A percent string as a fraction, from <paramref name="min"/> to 20 %; absent is 0.</summary>
-    private static decimal Rate(FieldReader reader, string? value, string path, decimal min)
-    {
-        var percent = reader.Decimal(value, path);
-        if (percent is { } p && p / 100 >= min && p / 100 <= 0.20m) return p / 100;
-        if (percent is not null) reader.Add(path, "request.rate", $"A rate is a percent from {min * 100:0} to 20.");
-        return 0m;
-    }
+    /// <summary>A percent string as a fraction; absent is 0. Its bounds are the scenario validators' (#515).</summary>
+    private static decimal Rate(FieldReader reader, string? value, string path) => reader.Decimal(value, path) / 100 ?? 0m;
 
-    /// <summary>Absent is 0; an amount is a non-negative decimal string below 10¹².</summary>
-    private static decimal Amount(FieldReader reader, string? value, string path)
-    {
-        var amount = reader.Decimal(value, path);
-        if (amount is >= 0 and < 1_000_000_000_000m) return amount.Value;
-        if (amount is not null) reader.Add(path, "request.amount", "An amount is not negative and below 10^12.");
-        return 0m;
-    }
+    /// <summary>A decimal string; absent is 0. Its bounds are the scenario validators' (#515).</summary>
+    private static decimal Amount(FieldReader reader, string? value, string path) => reader.Decimal(value, path) ?? 0m;
 }

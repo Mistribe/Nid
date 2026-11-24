@@ -127,6 +127,25 @@ public class SaleScenarioTests(PostgresFixture fixture) : IClassFixture<Postgres
         Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Url}/{id}")).StatusCode);
     }
 
+    /// <summary>#515: an amount's bounds are the sale validator's: same path and code on a write and a simulation, nothing stored.</summary>
+    [Theory]
+    [InlineData("", "agencyFees")]
+    [InlineData("/simulate", "price")]
+    public async Task An_amount_out_of_bounds_is_refused_at_its_field(string route, string field)
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var (home, _) = await RentalWithLoanAsync(app);
+        var document = field == "price"
+            ? new { version = 1, property = home, saleOn = "2026-10-01", price = "1000000000000", agencyFees = "10000", penalties = "0", horizonYears = 10 }
+            : new { version = 1, property = home, saleOn = "2026-10-01", price = "320000", agencyFees = "-1", penalties = "0", horizonYears = 10 };
+
+        var refused = await app.RawAsync(app.AdultA, HttpMethod.Post, Url + route,
+            route == "" ? Body(app, document) : new { scope = "household", document });
+
+        Assert.Equal((HttpStatusCode.UnprocessableEntity, "request.amount", field), await RefusalAsync(refused));
+        Assert.Empty((await JsonOf(await app.RawAsync(app.AdultA, HttpMethod.Get, "/api/v1/scenarios"))).GetProperty("items").EnumerateArray());
+    }
+
     [Fact]
     public async Task A_loan_in_place_of_the_property_is_refused() // #513: RealEstate says which items are its properties
     {
