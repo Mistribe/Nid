@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Net;
+using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Contracts;
 using Nid.TestSupport;
 
@@ -37,6 +38,24 @@ public class ChargesEndpointTests(PostgresFixture fixture) : IClassFixture<Postg
         Assert.Equal("2025-10", result.Month);
         Assert.Equal("2025-10-01", Assert.Single(result.Charges).Date);
         Assert.Equal(10m, decimal.Parse(result.Total!.Amount, CultureInfo.InvariantCulture));
+    }
+
+    /// <summary>#631: at 00:30 in Paris on 1 November (23:30 UTC on 31 October), the current month is November, as on the dashboard.</summary>
+    [Fact]
+    public async Task The_current_month_is_the_households()
+    {
+        await using var app = await NidApp.StartAsync(fixture, services => services.AddSingleton<NodaTime.IClock>(
+            new At(NodaTime.Instant.FromUtc(2025, 10, 31, 23, 30))));
+        await MonthlyAsync(app, app.AdultA, "Netflix", "10.00", Visibility.Shared);
+
+        var result = await app.GetAsync<MonthResult>(app.AdultA, "/api/v1/subscriptions/charges");
+
+        Assert.Equal("2025-11", result.Month);
+    }
+
+    private sealed class At(NodaTime.Instant now) : NodaTime.IClock
+    {
+        public NodaTime.Instant GetCurrentInstant() => now;
     }
 
     [Fact]

@@ -166,13 +166,12 @@ public sealed partial class NotificationStore(PlatformDbContext db, IClock clock
 
     private sealed record PublishedRow(Guid Id, int Round);
 
-    public async Task<OpenedNotification?> PublishAsync(PersonId person, NotificationKind kind, Notice notice, Instant now, CancellationToken ct)
+    public async Task<OpenedNotification?> PublishAsync(PersonId person, NotificationKind kind, Notice notice, Instant now, LocalDate today, CancellationToken ct)
     {
         var id = Guid.CreateVersion7();
         var level = LevelText(kind.Level);
         var items = notice.ItemIds.Select(i => i.Value).ToArray();
         var json = JsonSerializer.Serialize(notice.Params, StoreJson.Default.IReadOnlyDictionaryStringString);
-        var today = now.InUtc().Date;
         // One statement: a new key inserts, a resolved one reopens in its next round, any other state is left as it is (no row returned).
         var rows = await db.Database.SqlQuery<PublishedRow>($"""
             INSERT INTO platform.notification

@@ -7,14 +7,14 @@ using UnambitiousFx.Functional;
 namespace Nid.Subscriptions.Application;
 
 /// <summary>5C spec §6.1: the phase charges of the subscriptions the reader sees in the scope; a purchase is a one-off, not a debit to expect.</summary>
-public sealed class SubscriptionExpectedCharges(SubscriptionSet set, IClock clock) : IExpectedCharges
+public sealed class SubscriptionExpectedCharges(SubscriptionSet set, IHouseholdCalendar calendar) : IExpectedCharges
 {
     /// <summary>Issue #514: a subscription's charge, on the subscriptions' page.</summary>
     public static readonly ChargeKind Subscription = new(ChargeKinds.Subscription, CalendarModules.Subscriptions);
 
     public async Task<Result<IReadOnlyList<ExpectedCharge>>> ChargesAsync(PersonId reader, VisibilityScope scope, LocalDate from, LocalDate to, CancellationToken ct)
     {
-        var today = clock.GetCurrentInstant().InUtc().Date;
+        var today = await calendar.TodayAsync(ct);
         var charges = new List<ExpectedCharge>();
         foreach (var (input, timeline, name, _, provider) in await set.LoadAsync(reader, scope, today, to > today ? to : today, ct))
         foreach (var charge in timeline.Charges)

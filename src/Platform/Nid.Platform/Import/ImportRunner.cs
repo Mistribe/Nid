@@ -1,5 +1,6 @@
 using System.Text.Json;
 using UnambitiousFx.Engram;
+using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
 using NodaTime;
 using UnambitiousFx.Functional;
@@ -13,7 +14,7 @@ namespace Nid.Platform.Import;
 /// </summary>
 public sealed class ImportRunner(
     IEnumerable<IImportSection> sections, IImportStaging staging, IUnitOfWork unitOfWork, IClock clock, ImportOptions options,
-    IImportAudit audit)
+    IImportAudit audit, IHouseholdCalendar calendar)
 {
     public const string Validated = "validated";
     public const string Invalid = "invalid";
@@ -104,7 +105,7 @@ public sealed class ImportRunner(
         ImportSession session, bool replace, CancellationToken ct)
     {
         var batches = await staging.BatchesAsync(session.Id, ct);
-        var context = new ImportContext(session.Person, session.Adults, clock.GetCurrentInstant().InUtc().Date, replace);
+        var context = new ImportContext(session.Person, session.Adults, await calendar.TodayAsync(ct), replace);
         var staged = Staged.From(batches, options.MaxEntitiesPerBatch);
 
         var issues = CheckLayout(batches).ToList();

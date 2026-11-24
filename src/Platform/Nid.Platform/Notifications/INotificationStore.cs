@@ -33,9 +33,10 @@ public interface INotificationStore
     /// <summary>
     /// Publishes <paramref name="notice"/> for one person in one statement: a new key opens a row, a resolved one reopens (unread, next round),
     /// any other state is left as it is. <paramref name="now"/> is the publication instant, shared by every recipient of the notice.
+    /// <paramref name="today"/> is its household day (#631), the row's <c>notify_on</c>.
     /// Returns the row that opened, null when none did.
     /// </summary>
-    Task<OpenedNotification?> PublishAsync(PersonId person, NotificationKind kind, Notice notice, Instant now, CancellationToken ct);
+    Task<OpenedNotification?> PublishAsync(PersonId person, NotificationKind kind, Notice notice, Instant now, LocalDate today, CancellationToken ct);
 
     /// <summary>Resolves every person's row of this key, in any state but resolved (a dismissed one too).</summary>
     Task ResolveKeyAsync(string key, CancellationToken ct);

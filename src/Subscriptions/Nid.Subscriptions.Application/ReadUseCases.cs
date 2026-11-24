@@ -35,13 +35,13 @@ public sealed record GetSubscriptionQuery(
 
 [RequestHandler<ListSubscriptionsQuery, SubscriptionList>]
 public sealed class ListSubscriptionsHandler(
-    SubscriptionSet set, IActorAccessor actor, IClock clock, IFxRates fx, IHouseholdSettings household)
+    SubscriptionSet set, IActorAccessor actor, IHouseholdCalendar calendar, IFxRates fx, IHouseholdSettings household)
     : IRequestHandler<ListSubscriptionsQuery, SubscriptionList>
 {
     public async ValueTask<Result<SubscriptionList>> HandleAsync(ListSubscriptionsQuery query, CancellationToken ct = default)
     {
         var person = actor.Current!.PersonId!.Value;
-        var today = clock.GetCurrentInstant().InUtc().Date;
+        var today = await calendar.TodayAsync(ct);
         var horizon = Horizons.Resolve(today, query.Horizon);
         var window = CostWindow.Resolve(today, query.From, query.To);
 
@@ -98,25 +98,25 @@ public sealed class SubscriptionsOverviewReader(SubscriptionSet set, IFxRates fx
 }
 
 [RequestHandler<GetSubscriptionsOverviewQuery, SubscriptionsOverview>]
-public sealed class GetSubscriptionsOverviewHandler(SubscriptionsOverviewReader reader, IActorAccessor actor, IClock clock)
+public sealed class GetSubscriptionsOverviewHandler(SubscriptionsOverviewReader reader, IActorAccessor actor, IHouseholdCalendar calendar)
     : IRequestHandler<GetSubscriptionsOverviewQuery, SubscriptionsOverview>
 {
     public async ValueTask<Result<SubscriptionsOverview>> HandleAsync(GetSubscriptionsOverviewQuery query, CancellationToken ct = default)
         => Result.Success(await reader.ReadAsync(
-            actor.Current!.PersonId!.Value, query.Scope, clock.GetCurrentInstant().InUtc().Date, ct));
+            actor.Current!.PersonId!.Value, query.Scope, await calendar.TodayAsync(ct), ct));
 }
 
 public sealed record GetSubscriptionChargesQuery(VisibilityScope Scope, YearMonth? Month) : IQuery<SubscriptionCharges>;
 
 [RequestHandler<GetSubscriptionChargesQuery, SubscriptionCharges>]
 public sealed class GetSubscriptionChargesHandler(
-    SubscriptionSet set, IActorAccessor actor, IClock clock, IFxRates fx, IHouseholdSettings household)
+    SubscriptionSet set, IActorAccessor actor, IHouseholdCalendar calendar, IFxRates fx, IHouseholdSettings household)
     : IRequestHandler<GetSubscriptionChargesQuery, SubscriptionCharges>
 {
     public async ValueTask<Result<SubscriptionCharges>> HandleAsync(GetSubscriptionChargesQuery query, CancellationToken ct = default)
     {
         var person = actor.Current!.PersonId!.Value;
-        var today = clock.GetCurrentInstant().InUtc().Date;
+        var today = await calendar.TodayAsync(ct);
         var month = query.Month ?? new YearMonth(today.Year, today.Month);
         var first = month.OnDayOfMonth(1);
         var ceiling = today.PlusYears(Horizons.MaxYearsAhead);
