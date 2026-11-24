@@ -57,5 +57,6 @@ export const oidcLoginUrl = (returnUrl: string | null): string =>
   `/auth/login/oidc?returnUrl=${encodeURIComponent(returnUrl ?? '/')}`;
 
 /** A return path the server would accept (ReturnUrl.IsSafe): relative, not protocol-relative. */
+// Browsers drop tabs and newlines and read a backslash as a slash: `/\t/host` would leave the site.
 export const safeReturnUrl = (value: string | null): string =>
-  value && value.startsWith('/') && !value.startsWith('//') && !value.startsWith('/\\') ? value : '/';
+  value?.startsWith('/') && !value.startsWith('//') && ![...value].some((c) => c < ' ' || c === '\\') ? value : '/';

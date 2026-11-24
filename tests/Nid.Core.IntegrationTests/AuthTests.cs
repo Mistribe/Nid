@@ -25,6 +25,9 @@ public class ReturnUrlTests
     [InlineData("")]
     [InlineData(null)]
     [InlineData("/ok\r\nSet-Cookie: x=1")]
+    [InlineData("/\t/evil.example")]
+    [InlineData("/\n/evil.example")]
+    [InlineData("/x/\\evil.example")]
     public void Anything_else_is_refused(string? url) => Assert.False(ReturnUrl.IsSafe(url));
 }
 
