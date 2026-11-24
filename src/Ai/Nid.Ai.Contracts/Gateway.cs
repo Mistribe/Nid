@@ -36,6 +36,18 @@ public static class UseModes
     public static string DefaultFor(string use) => use == ModelUses.Decide ? Off : SelfHosted;
 }
 
+/// <summary>#556: the document types an admin may let a cloud provider read (<c>allowed_kinds</c>, <c>docs/ai/README.md</c>
+/// §6.1), named as Documents names their roles. A payslip is never among them: it is <c>local_only</c>.</summary>
+public static class CloudDocumentKinds
+{
+    public const string Statement = "statement";
+    public const string AmortizationTable = "amortization_table";
+    public const string Invoice = "invoice";
+    public const string Contract = "contract";
+
+    public static readonly IReadOnlyList<string> All = [Statement, AmortizationTable, Invoice, Contract];
+}
+
 /// <summary>One use: how far it may go (any adult) and the model it runs on (an admin, among the declared models).</summary>
 public sealed record UseSettingView(string Use, string Mode, string? Model);
 

@@ -1,0 +1,29 @@
+{
+  "id": "openai-embed",
+  "provider": "openai",
+  "tier": "paid",
+  "host": "api.openai.com",
+  "model": "text-embedding-3-small",
+  "contextTokens": 8192,
+  "capabilities": [
+    "embed"
+  ],
+  "dataTerms": {
+    "trainsOnData": {
+      "eea_ch_uk": false,
+      "other": false
+    },
+    "humanReview": true,
+    "retentionDays": 30,
+    "retentionSwitches": [
+      "store=false"
+    ],
+    "termsUrl": "https://developers.openai.com/api/docs/guides/your-data",
+    "reviewedOn": "2026-11-22"
+  },
+  "pricing": {
+    "inputPerMillion": 0.02,
+    "outputPerMillion": 0,
+    "currency": "USD"
+  }
+}

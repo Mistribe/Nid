@@ -1,0 +1,4 @@
+{
+  "en": "The search by meaning can run on a cloud provider (OpenAI, Gemini or Mistral) in Administration › IA. Only the document types an admin ticks under « Documents envoyés au cloud » go there, and only if each adult concerned allows it; payslips and unfiled documents never do.",
+  "fr": "La recherche par le sens peut passer par un fournisseur cloud (OpenAI, Gemini ou Mistral) dans Administration › IA. Seuls les types de documents cochés par un administrateur sous « Documents envoyés au cloud » y partent, et seulement si chaque adulte concerné l'autorise ; les bulletins de paie et les documents sans classement n'y partent jamais."
+}

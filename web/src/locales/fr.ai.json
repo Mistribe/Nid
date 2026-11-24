@@ -189,7 +189,7 @@
       "unknown_use": "Cet usage n'existe pas.",
       "unknown_mode": "Ce réglage n'existe pas.",
       "cloud_not_allowed": "Ces données ne peuvent pas partir vers un fournisseur cloud.",
-      "cloud_not_available": "Aucun fournisseur cloud ne fait encore ce travail : il reste sur les workers du foyer.",
+      "unknown_kind": "Ce type de document ne peut pas partir vers un fournisseur cloud.",
       "no_cloud_profile": "Aucun fournisseur cloud activé ne peut prendre la demande.",
       "cloud_failed": "Le fournisseur cloud n'a pas répondu ; réessayez plus tard.",
       "cloud_refused": "Le fournisseur cloud a refusé la demande.",
@@ -219,6 +219,8 @@
       "served_by_one": "{{name}} (1 worker)",
       "served_by_other": "{{name}} ({{count}} workers)",
       "gone": "{{name}} (plus proposé par aucun worker)",
+      "cloud_model": "{{name}} ({{provider}}, cloud)",
+      "cloud_model_hint": "Tout l'index passe par ce fournisseur : avec le réglage « puis le cloud », seuls les documents des types choisis plus bas y partent, si chaque adulte concerné l'autorise. Changer de modèle refait tout l'index.",
       "saved": "Réglage enregistré.",
       "use": {
         "chat": "Assistant",
@@ -284,7 +286,8 @@
       "disable": "Désactiver",
       "disable_confirm": "Nid n'enverra plus rien à {{name}}. Chaque adulte en sera prévenu.",
       "disabled": "Fournisseur désactivé.",
-      "gemini_paid": "Utilisez une clé d'un projet Google avec la facturation activée : l'offre gratuite de Gemini laisse Google s'entraîner sur vos données."
+      "gemini_paid": "Utilisez une clé d'un projet Google avec la facturation activée : l'offre gratuite de Gemini laisse Google s'entraîner sur vos données.",
+      "embed": "Recherche par le sens"
     },
     "budget": {
       "title": "Budget du cloud",
@@ -373,6 +376,19 @@
       "status_error": "Échec",
       "status_no_destination": "Aucun modèle disponible",
       "status_blocked_budget": "Bloqué par le budget"
+    },
+    "kinds": {
+      "title": "Documents envoyés au cloud",
+      "tip": "Pour la recherche par le sens, un fournisseur cloud ne lit que les documents des types cochés ici, et seulement si chaque adulte concerné a choisi « Autoriser » pour ses données. Un bulletin de paie et un document sans classement n'y partent jamais.",
+      "body": "Aucun type n'est coché par défaut : rien ne part.",
+      "legend": "Types de documents que le cloud peut lire",
+      "saved": "Types de documents enregistrés.",
+      "kind": {
+        "statement": "Relevés",
+        "amortization_table": "Tableaux d'amortissement",
+        "invoice": "Factures",
+        "contract": "Contrats"
+      }
     }
   }
 }

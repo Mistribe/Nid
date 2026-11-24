@@ -376,8 +376,14 @@ du moteur.
   - Côté Nid, `IEmbeddings` (`Ai.Contracts`, `LlmEmbedder`) prend le modèle et le mode de l'usage `embed`. Il applique
     la classe de données et, pour une tâche de fond, le `allow` de chaque adulte concerné. Sans ce `allow`, seuls les
     workers locaux servent : `ai.offsite_not_allowed` si seul un worker distant l'aurait pu.
-  - Chaque appel est noté dans `llm_call` (tâche `embed`). Le mode `self_hosted_then_cloud` est refusé pour `embed`
-    (`ai.cloud_not_available`) jusqu'aux fournisseurs cloud (#556).
+  - Chaque appel est noté dans `llm_call` (tâche `embed`).
+  - **Cloud (#556)** : avec `self_hosted_then_cloud`, l'admin peut prendre pour `embed` le modèle d'un profil cloud activé
+    qui plonge (`openai-embed`, `gemini-embed`, `mistral-embed`). Tout l'index et chaque recherche passent alors par ce
+    seul modèle, sans repli vers un worker ; en changer refait l'index (#559). Le texte d'un document n'y part que si
+    chacun de ses types (les rôles de ses liens) est dans `allowed_kinds`, que chaque adulte concerné a choisi `allow`, et
+    jamais pour un document `local_only` ni sans lien (`ai.cloud_not_allowed`, l'indexeur passe au suivant). Le texte d'une
+    recherche n'y part qu'avec le `allow` de la personne qui cherche ; sinon la recherche répond par les mots et le dit.
+    Éligibilité, clé, disjoncteur et budget comme pour le chat ; l'appel note le profil et son coût dans `llm_call`.
 
 ### 3.8 Le texte des documents (#167)
 
@@ -557,7 +563,7 @@ déclarés. Sortie structurée validée par schéma côté serveur pour `extract
 
 | Classe | Worker local | Worker distant | Worker `safe` | Cloud (`self_hosted_then_cloud`) |
 |---|---|---|---|---|
-| Contenu des documents `statement`, `amortization`, `invoice`, `contract` | Oui | Opt-in du foyer et §6.3 | Selon §6.3 | Si le type est dans `allowed_kinds` et selon §6.3 ; extraction : consentement par dépôt |
+| Contenu des documents `statement`, `amortization_table`, `invoice`, `contract` | Oui | Opt-in du foyer et §6.3 | Selon §6.3 | Si **chacun** de ses types est dans `allowed_kinds` et selon §6.3 (plongements, #556) ; extraction : consentement par dépôt |
 | Contenu d'un document « local seulement » (bulletins de paie par défaut, §6.6) | Seulement s'il est `safe` | Non | **Oui**, selon §6.3 | **Jamais** |
 | Chiffres structurés (montants, revenus, lignes, impôts) dans le chat | Oui | Selon §6.3 | Selon §6.3 | Consentement de l'adulte et §6.3 |
 | `bank_labels` | Oui | Selon §6.3 | Selon §6.3 | Si `bank_labels` est dans `allowed_kinds` (non par défaut, #450) et §6.3 |
@@ -574,7 +580,7 @@ déclarés. Sortie structurée validée par schéma côté serveur pour `extract
 |---|---|---|
 | Par document | Extraction vers le cloud | Dialogue de dépôt (`../ingestion/llm-providers.md` §6, niveau 2) |
 | Par adulte | Chat : chaque adulte active l'assistant pour lui ; s'il peut partir hors des lieux, l'activation montre ce qui part, et les deux adultes reçoivent un email quand l'un active un chat vers le cloud. Préférence `ai_offsite_default` pour ses données privées (§6.3) | Réglages › IA, pour soi |
-| Par foyer | Opt-in des workers distants (#166), réglage de chaque usage, `allowed_kinds` (à venir) | Administration › IA, par un admin (§12, #585) |
+| Par foyer | Opt-in des workers distants (#166), réglage de chaque usage, `allowed_kinds` (#556) | Administration › IA, par un admin (§12, #585) |
 
 Le consentement du foyer est nécessaire, jamais suffisant pour les données privées d'un adulte : il faut aussi celui de
 cet adulte (§6.3). Chaque décision est enregistrée (`consent_id`) et liée aux appels.
@@ -726,7 +732,7 @@ livrée par défaut.
   passerelle et fige le tour : les étapes suivantes y sont épinglées (`LlmChatRequest.Pin`), jamais ailleurs. Hors des
   lieux, et tant que le consentement de chaque adulte n'existe pas (#167), l'acteur assistant lit **les éléments partagés
   seulement** (`Actor.SharedOnly`, respecté par `VisibleItems` et `AccessPolicy`) : ses propres éléments privés n'existent
-  pas pour lui, totaux compris. Le cloud ne reçoit jamais de `bank_labels` (`allowed_kinds` n'existe pas encore) : l'outil
+  pas pour lui, totaux compris. Le cloud ne reçoit jamais de `bank_labels` (`allowed_kinds` ne les couvre pas encore) : l'outil
   n'est pas appelé. Ce qui est retenu est compté dans une ligne générique, sans dire quoi ni à qui. Limites, section
   `Assistant` de la configuration : 8 étapes, 2 048 jetons de sortie par étape, 90 s par tour, 30 tours par personne et par
   heure (en mémoire : un redémarrage les oublie), réponse d'outil de 24 000 caractères au plus.
@@ -846,7 +852,7 @@ pour `read_document`.
 
 | Qui | Quoi |
 |---|---|
-| **Admin** (Administration › IA, #585) | Enregistrer et apparier, renommer, désactiver, faire tourner les clés et révoquer un worker ; déclarer un proxy devant un worker ; étiquette `safe` ; opt-in des workers distants pour le foyer ; activer ou retirer un profil cloud, accepter ses conditions, confirmer la région, saisir ou révoquer la clé ; réglage et modèle de chaque usage ; budget ; conservation des conversations ; liste des tâches ; faire tourner la clé de Nid |
+| **Admin** (Administration › IA, #585) | Enregistrer et apparier, renommer, désactiver, faire tourner les clés et révoquer un worker ; déclarer un proxy devant un worker ; étiquette `safe` ; opt-in des workers distants pour le foyer ; activer ou retirer un profil cloud, accepter ses conditions, confirmer la région, saisir ou révoquer la clé ; réglage et modèle de chaque usage ; types de documents autorisés au cloud (`allowed_kinds`, #556) ; budget ; conservation des conversations ; liste des tâches ; faire tourner la clé de Nid |
 | **Tout adulte** (Réglages › IA) | Activer l'assistant pour soi ; sa préférence `ai_offsite_default` ; ses propres appels (Utilisation) ; lire les réglages du foyer |
 
 Chaque changement est audité ; un changement de la politique de données, l'activation d'un profil cloud et
@@ -857,7 +863,7 @@ admin (`../identity-and-access/authorization.md`).
 
 | Table | Contenu |
 |---|---|
-| `ai_settings` (une ligne) | `uses` (réglage par usage, §5.3), `models` (modèle par usage, choisi par l'admin), `region`, `monthly_budget_eur`, `budget_month` (`spent`, `reserved`), `remote_workers_allowed` (avec son `consent_id`), `conversation_retention_days`. `allowed_kinds` (types de documents et `bank_labels`) n'existe pas encore |
+| `ai_settings` (une ligne) | `uses` (réglage par usage, §5.3), `models` (modèle par usage, choisi par l'admin), `region`, `monthly_budget_eur`, `budget_month` (`spent`, `reserved`), `remote_workers_allowed` (avec son `consent_id`), `conversation_retention_days`. `allowed_kinds` (#556 : les types de documents qu'un fournisseur cloud peut lire, aucun par défaut ; `bank_labels` à venir) |
 | `model_worker` | Nom, point d'accès (hôte et port), proxy déclaré, empreintes de ses clés (avec la précédente pendant une rotation), placement, `safe`, état (en ligne, vu pour la dernière fois, version, charge), dernière déclaration, `revoked_at`. Remplace `worker_credential` |
 | `ai_key` | Clé privée de Nid face aux workers, chiffrée par Data Protection comme les clés d'API |
 | `job` | Les tâches de modèle (§4.1) : type, entrée, classe de données, état, essais, raison d'attente, résultat. Une tâche finie est supprimée avec son entrée et son résultat, 7 jours après sa réussite, 30 jours après son échec ou son abandon (#483) ; une tâche en attente ou en cours n'est jamais supprimée |

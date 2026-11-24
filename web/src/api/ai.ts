@@ -32,6 +32,10 @@ export const CAPABILITIES = '/api/v1/ai/capabilities' as const;
 export const USE_MODE = '/api/v1/ai/settings/uses/{use}' as const;
 export const USE_MODEL = '/api/v1/ai/settings/uses/{use}/model' as const;
 export const DECLARED_MODELS = '/api/v1/ai/models' as const;
+/** #556: the document types a cloud provider may read (an admin). */
+export const ALLOWED_KINDS = '/api/v1/ai/settings/allowed-kinds' as const;
+/** As the server names them (`CloudDocumentKinds`); a payslip is never one. */
+export const CLOUD_DOCUMENT_KINDS = ['statement', 'amortization_table', 'invoice', 'contract'] as const;
 export type UseSetting = components['schemas']['UseSettingView'];
 /** #487: the cloud profiles, the region, the providers' keys (the key is sent once, never read back). */
 export const CLOUD = '/api/v1/ai/cloud' as const;

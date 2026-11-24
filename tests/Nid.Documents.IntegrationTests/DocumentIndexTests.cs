@@ -38,6 +38,7 @@ public sealed class DocumentIndexTests(PostgresFixture fixture) : IClassFixture<
         var asked = Assert.Single(model.Requests);
         Assert.Equal(DataClasses.Documents, asked.DataClass);
         Assert.Equal([app.AdultA.Value], asked.Concerned!);
+        Assert.Empty(asked.Kinds!); // #556: unfiled, no type a cloud provider may read
     }
 
     [Fact]

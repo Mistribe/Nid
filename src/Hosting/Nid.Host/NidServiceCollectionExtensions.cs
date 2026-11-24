@@ -355,7 +355,9 @@ public static class NidServiceCollectionExtensions
         services.AddSingleton<Nid.Ai.Application.ICloudAdapter, Nid.Ai.Infrastructure.Cloud.OpenAiAdapter>();
         services.AddSingleton<Nid.Ai.Application.ICloudAdapter, Nid.Ai.Infrastructure.Cloud.MistralAdapter>();
         services.AddSingleton<Nid.Ai.Application.ICloudAdapter, Nid.Ai.Infrastructure.Cloud.GeminiAdapter>();
-        services.AddScoped<Nid.Ai.Application.ILlmProvider, Nid.Ai.Application.CloudProvider>();
+        // #556: the embedder calls the cloud link directly; the chain gets the same one.
+        services.AddScoped<Nid.Ai.Application.CloudProvider>();
+        services.AddScoped<Nid.Ai.Application.ILlmProvider>(sp => sp.GetRequiredService<Nid.Ai.Application.CloudProvider>());
         services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<Nid.Ai.Infrastructure.Workers.WorkerDirectory>();
         services.AddSingleton<UnambitiousFx.Myelin.IRegisteredEndpoints>(sp => sp.GetRequiredService<Nid.Ai.Infrastructure.Workers.WorkerDirectory>());

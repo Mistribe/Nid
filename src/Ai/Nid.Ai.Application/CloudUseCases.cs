@@ -78,7 +78,8 @@ internal static class CloudViews
             Eligible: region is not null && p.EligibleIn(region),
             Enabled: enabled.TryGetValue(p.Id, out var accepted) && accepted.AcceptedReviewedOn == p.DataTerms.ReviewedOn,
             KeyHint: hints.GetValueOrDefault(p.Provider),
-            Suspended: breaker.IsSuspended(p.Id)))]);
+            Suspended: breaker.IsSuspended(p.Id),
+            Capabilities: p.Capabilities))]);
     }
 }
 

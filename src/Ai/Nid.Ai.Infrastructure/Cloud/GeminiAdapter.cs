@@ -13,7 +13,8 @@ namespace Nid.Ai.Infrastructure.Cloud;
 /// The Gemini API (<c>POST /v1beta/models/{model}:streamGenerateContent?alt=sse</c>, <c>x-goog-api-key</c>), hand-written
 /// (#489). System messages go to <c>systemInstruction</c>; the assistant is <c>model</c>; a tool's answer is a
 /// <c>functionResponse</c> part named after its call. Gemini 3 wants each call's <c>thoughtSignature</c> back on the next
-/// turn: it travels in <see cref="ChatToolCall.Signature"/>. Temperature is ignored by these models: not sent.
+/// turn: it travels in <see cref="ChatToolCall.Signature"/>. Temperature is ignored by these models: not sent. #556: embeddings
+/// through <c>POST /v1beta/models/{model}:batchEmbedContents</c>, one request per text, the vectors in their order.
 /// </summary>
 public sealed class GeminiAdapter(CloudHttp cloud) : ICloudAdapter
 {
@@ -101,6 +102,24 @@ public sealed class GeminiAdapter(CloudHttp cloud) : ICloudAdapter
             if (finished)
                 yield return new ChatRequestOutput(Usage: new ChatUsage(tokensIn, tokensOut, calls > 0 && stop == ChatStop.End ? ChatStop.ToolCalls : stop, model));
         }
+    }
+
+    public async Task<CloudEmbeddings> EmbedAsync(LlmProfile profile, string key, IReadOnlyList<string> texts, CancellationToken ct)
+    {
+        var model = $"models/{profile.Model}";
+        using var request = new HttpRequestMessage(HttpMethod.Post,
+            new Uri($"https://{profile.Host}/v1beta/models/{Uri.EscapeDataString(profile.Model)}:batchEmbedContents"))
+        {
+            Content = JsonContent.Create(
+                new GeminiEmbedBatch([.. texts.Select(t => new GeminiEmbedRequest(model, new GeminiContent(null, [new GeminiPart(Text: t)])))]),
+                GeminiJson.Default.GeminiEmbedBatch),
+        };
+        request.Headers.Add("x-goog-api-key", key);
+        var answer = await CloudJson.SendAsync(cloud, request, GeminiJson.Default.GeminiEmbedResponse, ct);
+        var vectors = (answer.Embeddings ?? []).Select(e => e.Values).ToList();
+        return vectors.Count != texts.Count || vectors.Any(v => v is not { Count: > 0 })
+            ? throw new CloudCallException(CloudFailure.Refused, JobCodes.CloudFailed)
+            : new CloudEmbeddings([.. vectors.Select(v => v!)], answer.UsageMetadata?.PromptTokenCount);
     }
 }
 
@@ -203,9 +222,21 @@ internal sealed record GeminiUsage(int PromptTokenCount, int CandidatesTokenCoun
 
 internal sealed record GeminiFeedback(string? BlockReason);
 
+internal sealed record GeminiEmbedBatch(IReadOnlyList<GeminiEmbedRequest> Requests);
+
+internal sealed record GeminiEmbedRequest(string Model, GeminiContent Content);
+
+internal sealed record GeminiEmbedResponse(IReadOnlyList<GeminiEmbedding>? Embeddings, GeminiEmbedUsage? UsageMetadata);
+
+internal sealed record GeminiEmbedding(IReadOnlyList<float>? Values);
+
+internal sealed record GeminiEmbedUsage(int? PromptTokenCount);
+
 /// <summary>The Gemini API's wire format: camelCase, nulls left out, unknown fields ignored.</summary>
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
 [JsonSerializable(typeof(GeminiRequest))]
 [JsonSerializable(typeof(GeminiResponse))]
 [JsonSerializable(typeof(GeminiResult))]
+[JsonSerializable(typeof(GeminiEmbedBatch))]
+[JsonSerializable(typeof(GeminiEmbedResponse))]
 internal sealed partial class GeminiJson : JsonSerializerContext;

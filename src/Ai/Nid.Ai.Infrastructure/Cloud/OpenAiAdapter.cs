@@ -14,7 +14,7 @@ namespace Nid.Ai.Infrastructure.Cloud;
 /// <summary>
 /// The OpenAI Chat Completions format (<c>POST /v1/chat/completions</c>, streamed), hand-written (#489). OpenAI and Mistral
 /// share it: OpenAI forces <c>store: false</c> (decision U) and asks for the usage chunk; Mistral sends the usage with its
-/// last chunk and takes <c>max_tokens</c>.
+/// last chunk and takes <c>max_tokens</c>. #556: both embed through <c>POST /v1/embeddings</c>, the texts as one batch.
 /// </summary>
 public abstract class ChatCompletionsAdapter(CloudHttp cloud) : ICloudAdapter
 {
@@ -112,6 +112,56 @@ public abstract class ChatCompletionsAdapter(CloudHttp cloud) : ICloudAdapter
                 yield return new ChatRequestOutput(Usage: new ChatUsage(tokensIn, tokensOut, calls.Count > 0 && stop == ChatStop.End ? ChatStop.ToolCalls : stop, model));
         }
     }
+
+    /// <summary>#556: <c>{"model", "input": [...]}</c> in, <c>data[].embedding</c> (floats) by <c>index</c> and
+    /// <c>usage.prompt_tokens</c> out.</summary>
+    public async Task<CloudEmbeddings> EmbedAsync(LlmProfile profile, string key, IReadOnlyList<string> texts, CancellationToken ct)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri($"https://{profile.Host}/v1/embeddings"))
+        {
+            Content = JsonContent.Create(new EmbeddingsRequest(profile.Model, texts), CompletionsJson.Default.EmbeddingsRequest),
+        };
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", key);
+        var answer = await CloudJson.SendAsync(cloud, request, CompletionsJson.Default.EmbeddingsResponse, ct);
+        var vectors = new IReadOnlyList<float>[texts.Count];
+        foreach (var item in answer.Data ?? [])
+            if (item.Index >= 0 && item.Index < vectors.Length && item.Embedding is { Count: > 0 } vector)
+                vectors[item.Index] = vector;
+        return vectors.Any(v => v is null)
+            ? throw new CloudCallException(CloudFailure.Refused, JobCodes.CloudFailed)
+            : new CloudEmbeddings(vectors, answer.Usage?.PromptTokens);
+    }
+}
+
+/// <summary>#556: a provider's whole JSON answer, read through its wire format; its failures as every adapter words them.</summary>
+internal static class CloudJson
+{
+    public static async Task<T> SendAsync<T>(CloudHttp cloud, HttpRequestMessage request, System.Text.Json.Serialization.Metadata.JsonTypeInfo<T> type, CancellationToken ct)
+    {
+        HttpResponseMessage response;
+        try
+        {
+            response = await cloud.Http.SendAsync(request, ct);
+        }
+        catch (HttpRequestException)
+        {
+            throw new CloudCallException(CloudFailure.Transient, JobCodes.CloudFailed);
+        }
+
+        using (response)
+        {
+            if (!response.IsSuccessStatusCode)
+                throw CloudFailures.Of(response.StatusCode);
+            try
+            {
+                return await response.Content.ReadFromJsonAsync(type, ct) ?? throw new CloudCallException(CloudFailure.Refused, JobCodes.CloudFailed);
+            }
+            catch (JsonException)
+            {
+                throw new CloudCallException(CloudFailure.Refused, JobCodes.CloudFailed);
+            }
+        }
+    }
 }
 
 public sealed class OpenAiAdapter(CloudHttp cloud) : ChatCompletionsAdapter(cloud)
@@ -175,7 +225,17 @@ internal sealed record CompletionsDelta(string? Content, IReadOnlyList<Completio
 
 internal sealed record CompletionsUsage(int PromptTokens, int CompletionTokens);
 
+internal sealed record EmbeddingsRequest(string Model, IReadOnlyList<string> Input);
+
+internal sealed record EmbeddingsResponse(IReadOnlyList<EmbeddingsItem>? Data, EmbeddingsUsage? Usage);
+
+internal sealed record EmbeddingsItem(int Index, IReadOnlyList<float>? Embedding);
+
+internal sealed record EmbeddingsUsage(int PromptTokens);
+
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
 [JsonSerializable(typeof(CompletionsRequest))]
 [JsonSerializable(typeof(CompletionsChunk))]
+[JsonSerializable(typeof(EmbeddingsRequest))]
+[JsonSerializable(typeof(EmbeddingsResponse))]
 internal sealed partial class CompletionsJson : JsonSerializerContext;

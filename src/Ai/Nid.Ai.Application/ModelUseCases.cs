@@ -12,7 +12,8 @@ namespace Nid.Ai.Application;
 /// it, tells every adult.</summary>
 public sealed record SetUseModeCommand(string Use, string Mode) : ICommand<PolicyChange<AiSettingsView>>, IAdminOnly, IBrowserOnly;
 
-/// <summary>The model one use runs on (§12): an admin, among the models the workers declare; null clears it.</summary>
+/// <summary>The model one use runs on (§12): an admin, among the models the workers declare or, for <c>embed</c> (#556), the
+/// model of an enabled cloud profile that embeds; null clears it.</summary>
 public sealed record SetUseModelCommand(string Use, string? Model) : ICommand<AiSettingsView>, IAdminOnly, IBrowserOnly;
 
 /// <summary>The models the active workers declare, for the model of each use (any adult reads them).</summary>
@@ -24,7 +25,8 @@ internal static class AiSettingsViews
     {
         var uses = await settings.UsesAsync(ct);
         return new AiSettingsView(await settings.RemoteWorkersAllowedAsync(ct),
-            [.. ModelUses.All.Select(u => new UseSettingView(u, uses[u].Mode, uses[u].Model))], await settings.ConversationRetentionDaysAsync(ct));
+            [.. ModelUses.All.Select(u => new UseSettingView(u, uses[u].Mode, uses[u].Model))], await settings.AllowedKindsAsync(ct),
+            await settings.ConversationRetentionDaysAsync(ct));
     }
 }
 
@@ -38,8 +40,6 @@ public sealed class SetUseModeHandler(IAiSettings settings, INotifier notifier, 
             return Result.Failure<PolicyChange<AiSettingsView>>(new Failure(JobCodes.UnknownUse, "No such use.", null));
         if (!UseModes.All.Contains(command.Mode))
             return Result.Failure<PolicyChange<AiSettingsView>>(new Failure(JobCodes.UnknownMode, "No such mode.", null));
-        if (command.Use == ModelUses.Embed && command.Mode == UseModes.SelfHostedThenCloud)
-            return Result.Failure<PolicyChange<AiSettingsView>>(new Failure(JobCodes.CloudNotAvailable, "No cloud provider embeds yet (#556).", null));
 
         var before = (await settings.UseAsync(command.Use, ct)).Mode;
         if (before == command.Mode)
@@ -58,7 +58,8 @@ public sealed class SetUseModeHandler(IAiSettings settings, INotifier notifier, 
 }
 
 [RequestHandler<SetUseModelCommand, AiSettingsView>]
-public sealed class SetUseModelHandler(IAiSettings settings, IWorkerStore workers) : IRequestHandler<SetUseModelCommand, AiSettingsView>
+public sealed class SetUseModelHandler(IAiSettings settings, IWorkerStore workers, ILlmProfiles profiles, ICloudSettings cloud)
+    : IRequestHandler<SetUseModelCommand, AiSettingsView>
 {
     public async ValueTask<Result<AiSettingsView>> HandleAsync(SetUseModelCommand command, CancellationToken ct = default)
     {
@@ -67,7 +68,8 @@ public sealed class SetUseModelHandler(IAiSettings settings, IWorkerStore worker
         if (command.Model is { } model)
         {
             var declared = await DeclaredModelsHandler.ListAsync(workers, ct);
-            if (!declared.Any(m => m.Name == model && m.Capability == ModelUses.Capability(command.Use)))
+            if (!declared.Any(m => m.Name == model && m.Capability == ModelUses.Capability(command.Use))
+                && !(command.Use == ModelUses.Embed && (await CloudEmbedModels.EnabledAsync(profiles, cloud, ct)).Contains(model)))
                 return Result.Failure<AiSettingsView>(new Failure(JobCodes.ModelUnavailable, "No active worker declares this model for this use.", null));
         }
 

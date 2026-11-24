@@ -173,6 +173,9 @@ public sealed class AiSettingsRow
     /// <summary>#531: how long the assistant's conversations are kept; null: 30 days.</summary>
     public int? ConversationRetentionDays { get; set; }
 
+    /// <summary>#556: the document types a cloud provider may read; none by default.</summary>
+    public string[] AllowedKinds { get; set; } = [];
+
     public uint Version { get; set; }
 }
 

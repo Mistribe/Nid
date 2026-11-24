@@ -199,6 +199,7 @@ public static class RequestCatalogue
         new(typeof(Nid.Ai.Application.ListModelJobsQuery), false, (_, _) => new Nid.Ai.Application.ListModelJobsQuery(null, null, null)),
         new(typeof(Nid.Ai.Application.SetUseModeCommand), false, (_, _) => new Nid.Ai.Application.SetUseModeCommand("chat", "self_hosted")),
         new(typeof(Nid.Ai.Application.SetUseModelCommand), false, (_, _) => new Nid.Ai.Application.SetUseModelCommand("chat", null)),
+        new(typeof(Nid.Ai.Application.SetAllowedKindsCommand), false, (_, _) => new Nid.Ai.Application.SetAllowedKindsCommand([])),
         new(typeof(Nid.Ai.Application.ListDeclaredModelsQuery), false, (_, _) => new Nid.Ai.Application.ListDeclaredModelsQuery()),
         new(typeof(Nid.Ai.Application.GetCloudSettingsQuery), false, (_, _) => new Nid.Ai.Application.GetCloudSettingsQuery()),
         new(typeof(Nid.Ai.Application.GetBudgetQuery), false, (_, _) => new Nid.Ai.Application.GetBudgetQuery()),

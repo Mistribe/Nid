@@ -9,17 +9,20 @@ namespace Nid.Ai.Application;
 /// <summary>The gateway's <c>embed</c> task (#558, <c>docs/ingestion/llm-providers.md</c> §9): the use's model and mode, the
 /// data policy and the consent of the adults concerned, every call recorded in <c>llm_call</c> without its content.</summary>
 public sealed class LlmEmbedder(
-    IAiSettings settings, IModelRequests requests, IAssistantPeople people, ILlmCalls calls, IActorAccessor actors, IClock clock) : IEmbeddings
+    IAiSettings settings, IModelRequests requests, IAssistantPeople people, ILlmCalls calls, IActorAccessor actors, IClock clock,
+    ILlmProfiles profiles, CloudProvider cloud) : IEmbeddings
 {
     public async Task<string?> ModelAsync(CancellationToken ct)
         => await settings.UseAsync(ModelUses.Embed, ct) is { Mode: not UseModes.Off, Model: { } model } ? model : null;
 
     /// <summary>#558: the <c>embed</c> use's model on the household's workers, local ones only without <c>allow</c> from each
-    /// adult concerned. A mode that would open the cloud stays on the workers until #556.</summary>
+    /// adult concerned. #556: a cloud profile's model, with the mode <c>self_hosted_then_cloud</c>, is that provider's alone (the
+    /// index has one model, nothing falls back to a worker), within <c>allowed_kinds</c> and everyone's <c>allow</c>.</summary>
     public async Task<Result<LlmEmbeddings>> EmbedAsync(LlmEmbedRequest request, CancellationToken ct)
     {
         var started = clock.GetCurrentInstant();
         Guid? workerId = null;
+        var trace = new LlmCallTrace();
         var outcome = new LlmGateway.Outcome();
         try
         {
@@ -32,6 +35,9 @@ public sealed class LlmEmbedder(
                 return Refuse(JobCodes.InvalidInput);
 
             var offsite = await OffsiteConsent.AllowedAsync(people, request.Concerned ?? [], ct);
+            if (use.Mode == UseModes.SelfHostedThenCloud && CloudEmbedModels.IsCloud(profiles, use.Model))
+                return await CloudAsync(use.Model, offsite);
+
             // Without everyone's allow, a remote worker is skipped; noted, so the refusal says why rather than « no model ».
             var heldBack = false;
             Func<ServingWorker, bool>? onsite = offsite ? null : worker =>
@@ -53,15 +59,36 @@ public sealed class LlmEmbedder(
                 vectors[output.Index] = output.Vector;
             }
 
-            if (vectors.Any(v => v is null) || vectors.Select(v => v.Count).Distinct().Count() != 1)
-                return Refuse(JobCodes.ResultInvalid);
-            outcome.End(new ChatUsage(0, 0, ChatStop.End, use.Model));
-            return Result.Success(new LlmEmbeddings(use.Model, vectors[0].Count, vectors));
+            return Embedded(use.Model, vectors, 0);
         }
         finally
         {
             await calls.RecordAsync(new LlmCallRecord(Guid.CreateVersion7(), started, actors.Current?.PersonId?.Value, "embed", ModelUses.Embed,
-                workerId, null, request.JobId, outcome.Model, 0, 0, outcome.Status, outcome.Code), CancellationToken.None);
+                workerId, null, request.JobId, outcome.Model, outcome.TokensIn, 0, outcome.Status, outcome.Code, trace.ProfileId, trace.Provider,
+                trace.Tier, trace.ReservedEur, trace.CostEur), CancellationToken.None);
+        }
+
+        // #556 (docs/ai/README.md §6.1): local-only data never; a document only when each of its types is allowed (an unfiled one
+        // has none); background work only with allow from each adult concerned, a search only with its reader's.
+        async Task<Result<LlmEmbeddings>> CloudAsync(string model, bool offsite)
+        {
+            if (request.DataClass == DataClasses.LocalOnly)
+                return Refuse(JobCodes.CloudNotAllowed);
+            if (request.Kinds is { } kinds && (kinds.Count == 0 || kinds.Except(await settings.AllowedKindsAsync(ct)).Any()))
+                return Refuse(JobCodes.CloudNotAllowed);
+            if (!offsite)
+                return Refuse(JobCodes.OffsiteNotAllowed);
+            var embedded = await cloud.EmbedAsync(model, request.Texts, request.DataClass, trace, ct);
+            return embedded.TryGetValue(out var result) ? Embedded(model, result.Vectors, result.TokensIn ?? 0) : Refuse(Code(embedded));
+        }
+
+        Result<LlmEmbeddings> Embedded(string model, IReadOnlyList<IReadOnlyList<float>?> vectors, int tokensIn)
+        {
+            if (vectors.Count != request.Texts.Count || vectors.Any(v => v is null) || vectors.Select(v => v!.Count).Distinct().Count() != 1
+                || vectors[0]!.Count == 0)
+                return Refuse(JobCodes.ResultInvalid);
+            outcome.End(new ChatUsage(tokensIn, 0, ChatStop.End, model));
+            return Result.Success(new LlmEmbeddings(model, vectors[0]!.Count, [.. vectors.Select(v => v!)]));
         }
 
         Result<LlmEmbeddings> Refuse(string code)
@@ -70,4 +97,7 @@ public sealed class LlmEmbedder(
             return ModelFailures.Of(code);
         }
     }
+
+    private static string Code<T>(Result<T> failed) where T : notnull
+        => failed.TryGetFailure(out var failure) ? failure!.Code : JobCodes.CloudFailed;
 }
