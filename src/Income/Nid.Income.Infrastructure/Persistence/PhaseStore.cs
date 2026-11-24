@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Nid.Core.Contracts;
+using Nid.Income.Application;
 using Nid.Income.Contracts;
 using Duration = Nid.Core.Contracts.Duration;
 
