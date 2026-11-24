@@ -38,9 +38,6 @@ public sealed record FxRate(LocalDate OnDate, Currency Quote, decimal Rate, FxRa
 /// <summary>A rate read from a source and not written, with why (design §4.4). <paramref name="Quote"/> is raw text: it may not be a valid code.</summary>
 public sealed record FxRejection(LocalDate OnDate, string Quote, decimal Rate, decimal? Previous, string Reason);
 
-/// <summary>A stored quote with the dates of its first and last rate.</summary>
-public sealed record FxQuoteSpan(Currency Quote, LocalDate First, LocalDate Last);
-
 public static class FxCodes
 {
     public const string RateMissing = "core.fx_rate_missing";
@@ -59,89 +56,6 @@ public static class FxCodes
     public const string OutOfRange = "out_of_range";
     public const string InvalidCode = "invalid_code";
     public const string InvalidValue = "invalid_value";
-}
-
-public interface IFxRateStore
-{
-    /// <summary>Writes by priority (<see cref="FxRateSource"/>); returns the rows inserted or replaced.</summary>
-    Task<int> WriteAsync(IReadOnlyList<FxRate> rates, CancellationToken ct);
-
-    /// <summary>Every stored rate of <paramref name="quotes"/> with <c>from ≤ on_date ≤ to</c>.</summary>
-    Task<IReadOnlyList<FxRate>> ReadAsync(IReadOnlyCollection<Currency> quotes, LocalDate from, LocalDate to, CancellationToken ct);
-
-    /// <summary>For each quote, the latest stored rate strictly before <paramref name="date"/> (plausibility, design §4.4).</summary>
-    Task<IReadOnlyDictionary<Currency, decimal>> PreviousAsync(IReadOnlyCollection<Currency> quotes, LocalDate date, CancellationToken ct);
-
-    /// <summary>Every stored quote with its first and last rate date, by quote code.</summary>
-    Task<IReadOnlyList<FxQuoteSpan>> QuotesAsync(CancellationToken ct);
-
-    /// <summary>The dates on or after <paramref name="from"/> holding at least one rate of <paramref name="source"/>.</summary>
-    Task<IReadOnlySet<LocalDate>> DatesFromAsync(FxRateSource source, LocalDate from, CancellationToken ct);
-}
-
-public enum FxRunKind
-{
-    Daily,
-    Backfill,
-}
-
-public enum FxRunStatus
-{
-    Running,
-    Succeeded,
-    Failed,
-}
-
-public sealed record FxSyncRun(
-    Guid Id,
-    FxRunKind Kind,
-    Instant StartedAt,
-    Instant? FinishedAt,
-    FxRunStatus Status,
-    int FilesRead,
-    int RowsWritten,
-    string? FailureCode,
-    string? FailureMessage,
-    IReadOnlyList<FxRejection> Rejected)
-{
-    // The compiler-generated equality would compare Rejected by reference (IReadOnlyList<T> has none of its own):
-    // two runs read back from storage would never equal one another. Compare it by content instead.
-    public bool Equals(FxSyncRun? other)
-        => other is not null
-           && Id == other.Id && Kind == other.Kind && StartedAt == other.StartedAt && FinishedAt == other.FinishedAt
-           && Status == other.Status && FilesRead == other.FilesRead && RowsWritten == other.RowsWritten
-           && FailureCode == other.FailureCode && FailureMessage == other.FailureMessage
-           && Rejected.SequenceEqual(other.Rejected);
-
-    public override int GetHashCode()
-        => HashCode.Combine(Id, Kind, StartedAt, FinishedAt, Status, FilesRead, HashCode.Combine(RowsWritten, FailureCode, FailureMessage));
-}
-
-/// <summary>The collection journal, <c>core.fx_sync_run</c> (design §4.2).</summary>
-public interface IFxRunLog
-{
-    /// <summary>
-    /// Starts a run, or returns <c>null</c> when one is already running: the database holds at most one running row.
-    /// A run still marked running an hour after it started is closed as <see cref="FxCodes.RunAbandoned"/> first,
-    /// so a crash never blocks collection for ever.
-    /// </summary>
-    Task<FxSyncRun?> TryStartAsync(FxRunKind kind, CancellationToken ct);
-
-    Task FinishAsync(FxSyncRun run, CancellationToken ct);
-
-    Task<bool> IsRunningAsync(CancellationToken ct);
-
-    /// <summary>Whether a run of <paramref name="kind"/> has ever succeeded (the purge keeps the latest succeeded backfill).</summary>
-    Task<bool> HasSucceededAsync(FxRunKind kind, CancellationToken ct);
-
-    /// <summary>The most recent runs first.</summary>
-    Task<IReadOnlyList<FxSyncRun>> RecentAsync(int count, CancellationToken ct);
-
-    /// <summary>One page of runs, newest first, and the total number of runs.</summary>
-    Task<(IReadOnlyList<FxSyncRun> Items, int Total)> PageAsync(int skip, int take, CancellationToken ct);
-
-    /// <summary>Deletes finished runs started before <paramref name="before"/>, except the latest succeeded backfill (<see cref="HasSucceededAsync"/>).</summary>
-    Task<int> PurgeBeforeAsync(Instant before, CancellationToken ct);
 }
 
 /// <summary>Bound from the <c>Fx</c> configuration section by the host; the defaults are the design's.</summary>
@@ -172,21 +86,4 @@ public interface IFxRates
     /// later of <paramref name="to"/> and today, so every date in the range and every projection can be looked up.
     /// </summary>
     Task<RateTable> LoadAsync(IReadOnlyCollection<Currency> quotes, LocalDate from, LocalDate to, CancellationToken ct);
-}
-
-/// <summary>A source file's bytes, or <c>null</c> when SubTracker has no file that day (an HTTP 404; the ECB history never is).</summary>
-public sealed record FxFetch(byte[]? Bytes);
-
-/// <summary>The two rate sources (design §4.3). Failures carry <see cref="FxCodes"/> source codes; nothing throws.</summary>
-public interface IFxSourceClient
-{
-    Task<UnambitiousFx.Functional.Result<FxFetch>> SubTrackerDayAsync(LocalDate date, CancellationToken ct);
-
-    Task<UnambitiousFx.Functional.Result<FxFetch>> EcbHistoryAsync(CancellationToken ct);
-}
-
-/// <summary>Starts the backfill job now (Quartz in the host); fails with <see cref="FxCodes.JobsDisabled"/> when jobs are off.</summary>
-public interface IFxJobTrigger
-{
-    Task<UnambitiousFx.Functional.Result> TriggerBackfillAsync(CancellationToken ct);
 }

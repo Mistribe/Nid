@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.IO.Compression;
 using System.Text;
+using Nid.Core.Application;
 using Nid.Core.Contracts;
 using NodaTime;
 using NodaTime.Text;

@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Nid.Core.Application;
 using Nid.Core.Application.Fx;
 using Nid.Core.Contracts;
 using Nid.TestSupport;

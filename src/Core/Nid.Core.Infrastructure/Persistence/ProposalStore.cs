@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Nodes;
 using Microsoft.EntityFrameworkCore;
+using Nid.Core.Application;
 using Nid.Core.Contracts;
 using UnambitiousFx.Engram;
 using Npgsql;

@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Nid.Banking.Application;
 using Nid.Banking.Infrastructure.Persistence;
+using Nid.Core.Application;
 using Nid.Core.Application.Fx;
 using Nid.Core.Application.Import;
 using Nid.Core.Contracts;
@@ -471,8 +472,8 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ISeriesContribution, Nid.RealEstate.Application.TenancySeries>();
         services.AddScoped<IIrlRunLog, IrlRunLog>();
         services.AddScoped<Nid.Platform.Contracts.ISyncHealth, Nid.RealEstate.Infrastructure.Persistence.IrlSyncHealth>();
-        services.AddScoped<Nid.Core.Domain.Inflation.ICpiStore, Nid.Core.Infrastructure.Persistence.CpiStore>();
-        services.AddScoped<Nid.Core.Contracts.ICpiRunLog, Nid.Core.Infrastructure.Persistence.CpiRunLog>();
+        services.AddScoped<Nid.Core.Application.ICpiStore, Nid.Core.Infrastructure.Persistence.CpiStore>();
+        services.AddScoped<Nid.Core.Application.ICpiRunLog, Nid.Core.Infrastructure.Persistence.CpiRunLog>();
         services.AddScoped<IInflation, ObservedInflation>();
         services.AddScoped<ISeriesContribution, Nid.Core.Application.Series.CpiSeries>();
         services.AddScoped<ISeriesContribution, Nid.Core.Application.Series.ProjectionRateSeries>();
