@@ -49,11 +49,13 @@ public sealed class DocumentIndexTests(PostgresFixture fixture) : IClassFixture<
         await TextAsync(app, id, "Avis d'échéance");
         await IndexAsync(app);
 
-        model.Model = "other-embed";
+        // Any model name, quote included: Postgres quotes it in the index's predicate (documents.ensure_embedding_index).
+        model.Model = "o'other embed";
         await IndexAsync(app);
 
-        Assert.Equal(["other-embed"], await ScalarsAsync<string>(app, $"select distinct e.model as \"Value\" from documents.chunk_embedding e join documents.document_chunk c on c.id = e.chunk_id where c.document_id = '{id}'"));
+        Assert.Equal(["o'other embed"], await ScalarsAsync<string>(app, $"select distinct e.model as \"Value\" from documents.chunk_embedding e join documents.document_chunk c on c.id = e.chunk_id where c.document_id = '{id}'"));
         Assert.Equal(2, model.Requests.Count);
+        Assert.Equal(1, await CountAsync(app, "select count(*) as \"Value\" from pg_indexes where schemaname = 'documents' and tablename = 'chunk_embedding' and indexdef like '%hnsw%' and indexdef like '%o''''other embed%'"));
     }
 
     [Fact]
