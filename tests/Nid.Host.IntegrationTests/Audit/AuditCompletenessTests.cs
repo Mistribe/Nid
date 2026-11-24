@@ -56,7 +56,7 @@ public partial class AuditCompletenessTests(PostgresFixture fixture) : IClassFix
     private static readonly Dictionary<string, int> AllowedBulkStatements = new()
     {
         ["src/Ai/Nid.Ai.Infrastructure/Persistence/BudgetStore.cs"] = 3, // budget_month: excluded (counters), the month row, the atomic hold and the settlement
-        ["src/Ai/Nid.Ai.Infrastructure/Persistence/ConversationStore.cs"] = 3, // #531: conversation, excluded (the person's words): a deletion, the purge, the answers that read a deleted document (#617)
+        ["src/Ai/Nid.Ai.Infrastructure/Persistence/ConversationStore.cs"] = 4, // #531: conversation, excluded (the person's words): a deletion, the purge of conversations and of old messages (#626), the answers that read a deleted document (#617)
         ["src/Ai/Nid.Ai.Infrastructure/Persistence/CloudSettingsStore.cs"] = 1, // llm_provider_credential.last_used_at: when a key served, not a decision (as last_used_at)
         ["src/Ai/Nid.Ai.Infrastructure/Persistence/JobStore.cs"] = 3, // job: excluded (operational state, AiAuditMap), the purge of finished jobs (#483), a queued job re-classed (#599), a deleted file's jobs (#600)
         ["src/Banking/Nid.Banking.Infrastructure/Persistence/AccountReadLog.cs"] = 1, // account_read: excluded (fetched data), the week's purge

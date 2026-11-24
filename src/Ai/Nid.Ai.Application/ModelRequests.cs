@@ -96,7 +96,7 @@ public sealed class ModelRequests(IWorkerRouter router, IWorkerClient client, IN
                     case FrameType.End:
                         yield break;
                     default:
-                        failure = $"{JobCodes.WorkerFailed}:{System.Text.Encoding.UTF8.GetString(frame.Content.Span)}";
+                        failure = Domain.JobRetries.WorkerFailed(System.Text.Encoding.UTF8.GetString(frame.Content.Span));
                         if (started)
                         {
                             yield return ModelFailures.Of(failure);
