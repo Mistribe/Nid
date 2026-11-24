@@ -9,6 +9,8 @@ public sealed class InvestmentsDbContext(DbContextOptions<InvestmentsDbContext> 
 {
     public const string Schema = "investments";
 
+    public DbSet<SettingsRow> Settings => Set<SettingsRow>();
+
     public DbSet<EnvelopeRow> Envelopes => Set<EnvelopeRow>();
 
     public DbSet<HoldingRow> Holdings => Set<HoldingRow>();
@@ -174,6 +176,14 @@ public sealed class InvestmentsDbContext(DbContextOptions<InvestmentsDbContext> 
             e.Property(x => x.Regions).HasColumnType("jsonb");
             e.Property(x => x.Sectors).HasColumnType("jsonb");
             e.HasIndex(x => new { x.Isin, x.AsOf }).IsUnique();
+        });
+
+        modelBuilder.Entity<SettingsRow>(e =>
+        {
+            e.ToTable("settings", t => t.HasCheckConstraint("ck_settings_single_row", "id = 1"));
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.FeeReferences).HasColumnType("jsonb");
         });
 
         modelBuilder.Entity<PriceRunRow>(e =>

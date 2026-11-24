@@ -12,12 +12,6 @@ public sealed record HouseholdSettingsChange(
     int? MaxAdults, string? ReferenceCurrency, bool? PricesEnabled = null, bool? IrlEnabled = null, bool? BankingEnabled = null,
     bool? InflationEnabled = null);
 
-/// <summary>
-/// Issue #209: the household's fee references, in %: contract fees by envelope kind, support fees by holding kind (wire values), and
-/// the assumed gross return their cost is projected at.
-/// </summary>
-public sealed record FeeReferences(decimal AssumedReturnPct, IReadOnlyDictionary<string, decimal> Envelopes, IReadOnlyDictionary<string, decimal> Holdings);
-
 public interface IHouseholdSettings
 {
     /// <summary>The currency of household totals; EUR while the settings row does not exist yet (it is created at the first login).</summary>
@@ -48,10 +42,4 @@ public interface IHouseholdSettings
     /// so two partial updates at once never lose one another; a failure stores nothing.
     /// </summary>
     Task<Result<ProjectionAssumptions>> UpdateProjectionAssumptionsAsync(Func<ProjectionAssumptions, Result<ProjectionAssumptions>> change, CancellationToken ct);
-
-    /// <summary>Issue #209: the fee references the household saved; null until it saved some (Investments holds the defaults).</summary>
-    Task<FeeReferences?> FeeReferencesAsync(CancellationToken ct);
-
-    /// <summary>Replaces the fee references; checked by the caller.</summary>
-    Task SaveFeeReferencesAsync(FeeReferences references, CancellationToken ct);
 }

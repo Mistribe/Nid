@@ -236,6 +236,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IHoldingStore, HoldingStore>();
         services.AddScoped<ISecurityPriceStore, SecurityPriceStore>();
         services.AddScoped<ISecurityBreakdownStore, SecurityBreakdownStore>();
+        services.AddScoped<IInvestmentsSettings, Nid.Investments.Infrastructure.Persistence.SettingsStore>();
         services.AddScoped<IAppliedDocumentStamp, Nid.Investments.Application.BreakdownDocumentStamp>();
         services.AddScoped<IPriceRunLog, PriceRunLog>();
         services.AddScoped<Nid.Platform.Contracts.ISyncHealth, Nid.Investments.Infrastructure.Persistence.PriceSyncHealth>();

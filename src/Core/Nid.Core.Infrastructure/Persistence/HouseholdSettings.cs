@@ -12,7 +12,6 @@ public sealed partial class HouseholdSettings(CoreDbContext db) : IHouseholdSett
     [JsonSerializable(typeof(Dictionary<string, decimal>))]
     [JsonSerializable(typeof(IReadOnlyDictionary<string, decimal>))]
     [JsonSerializable(typeof(ProjectionAssumptions))]
-    [JsonSerializable(typeof(FeeReferences))]
     private sealed partial class HouseholdJson : JsonSerializerContext;
 
     public async Task<Currency> ReferenceCurrencyAsync(CancellationToken ct)
@@ -133,21 +132,6 @@ public sealed partial class HouseholdSettings(CoreDbContext db) : IHouseholdSett
     // Under the same lock: a whole replace never lands between a partial update's read and its write.
     public Task SaveProjectionAssumptionsAsync(ProjectionAssumptions assumptions, CancellationToken ct)
         => UpdateProjectionAssumptionsAsync(_ => Result.Success(assumptions), ct);
-
-    public async Task<FeeReferences?> FeeReferencesAsync(CancellationToken ct)
-    {
-        var json = await db.HouseholdSettings.AsNoTracking().Select(s => s.FeeReferences).FirstOrDefaultAsync(ct);
-        return json is null ? null : JsonSerializer.Deserialize(json, HouseholdJson.Default.FeeReferences);
-    }
-
-    public async Task SaveFeeReferencesAsync(FeeReferences references, CancellationToken ct)
-    {
-        var row = await db.HouseholdSettings.FirstOrDefaultAsync(ct);
-        if (row is null)
-            db.HouseholdSettings.Add(row = new HouseholdSettingsRow());
-        row.FeeReferences = JsonSerializer.Serialize(references, HouseholdJson.Default.FeeReferences);
-        await db.SaveChangesAsync(ct);
-    }
 
     private static Result<HouseholdSettingsInfo> Fail(string code, string message)
         => Result.Failure<HouseholdSettingsInfo>(new Failure(code, message, null));

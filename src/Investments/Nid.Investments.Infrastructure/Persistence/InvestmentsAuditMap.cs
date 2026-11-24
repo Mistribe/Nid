@@ -13,6 +13,8 @@ public sealed class InvestmentsAuditMap : IAuditMap
         [typeof(HoldingSnapshotLineRow)] = new(e => AuditItems.Of(e, nameof(HoldingSnapshotLineRow.EnvelopeItemId))),
         [typeof(HoldingMovementRow)] = new(e => AuditItems.Of(e, nameof(HoldingMovementRow.EnvelopeItemId))),
         [typeof(HoldingCostReportRow)] = new(e => AuditItems.Of(e, nameof(HoldingCostReportRow.EnvelopeItemId))),
+        // #513: audited as household_settings was, where the fee references lived.
+        [typeof(SettingsRow)] = AuditRule.NoItem,
     };
 
     public IReadOnlySet<Type> Excluded { get; } = new HashSet<Type> { typeof(AuditEntryRow), typeof(SecurityListingRow), typeof(SecurityPriceRow), typeof(SecurityBreakdownRow), typeof(PriceRunRow) };

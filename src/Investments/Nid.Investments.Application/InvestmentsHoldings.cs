@@ -84,7 +84,8 @@ public sealed record InvestmentsHoldings(
 [RequestHandler<GetInvestmentsHoldingsQuery, InvestmentsHoldings>]
 public sealed class GetInvestmentsHoldingsHandler(
     IVisibleItems visible, IEnvelopeStore envelopes, EnvelopePerformance performance, IItemRegistry items, IHoldingStore holdings,
-    IHouseholdCalendar calendar, IActorAccessor actor, IHouseholdSettings household, IFxRates fx, EnvelopeEstimator estimator, ISecurityBreakdownStore breakdowns)
+    IHouseholdCalendar calendar, IActorAccessor actor, IHouseholdSettings household, IInvestmentsSettings settings, IFxRates fx, EnvelopeEstimator estimator,
+    ISecurityBreakdownStore breakdowns)
     : IRequestHandler<GetInvestmentsHoldingsQuery, InvestmentsHoldings>
 {
     public async ValueTask<Result<InvestmentsHoldings>> HandleAsync(GetInvestmentsHoldingsQuery query, CancellationToken ct = default)
@@ -118,7 +119,7 @@ public sealed class GetInvestmentsHoldingsHandler(
         var reference = await household.ReferenceCurrencyAsync(ct);
         var foreign = facts.Select(f => f.Currency).Where(c => c != reference).Distinct().ToList();
         var rates = foreign.Count == 0 ? RateTable.Empty(today, 0) : await fx.LoadAsync([.. foreign, reference], today, today, ct);
-        var references = FeesProjection.Effective(await household.FeeReferencesAsync(ct));
+        var references = FeesProjection.Effective(await settings.FeeReferencesAsync(ct));
         var overview = InvestmentsHoldingsMath.Build(facts, export, reports, reference, rates, today, references, estimates);
         var isins = overview.Holdings.Select(h => h.Isin).OfType<string>().Distinct().ToList();
         var latest = await breakdowns.LatestAsync(isins, ct);
@@ -130,14 +131,14 @@ public sealed class GetInvestmentsHoldingsHandler(
 public sealed record SaveFeeReferencesCommand(FeeReferences References) : ICommand<FeeReferences>;
 
 [RequestHandler<SaveFeeReferencesCommand, FeeReferences>]
-public sealed class SaveFeeReferencesHandler(IHouseholdSettings household) : IRequestHandler<SaveFeeReferencesCommand, FeeReferences>
+public sealed class SaveFeeReferencesHandler(IInvestmentsSettings settings) : IRequestHandler<SaveFeeReferencesCommand, FeeReferences>
 {
     public async ValueTask<Result<FeeReferences>> HandleAsync(SaveFeeReferencesCommand command, CancellationToken ct = default)
     {
         if (FeesProjection.Check(command.References) is { } failure)
             return Result.Failure<FeeReferences>(failure);
         var references = FeesProjection.Effective(command.References);
-        await household.SaveFeeReferencesAsync(references, ct);
+        await settings.SaveFeeReferencesAsync(references, ct);
         return Result.Success(references);
     }
 }
