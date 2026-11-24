@@ -1,6 +1,5 @@
 using NodaTime;
 using NodaTime.Text;
-using UnambitiousFx.Functional;
 
 namespace Nid.Core.Contracts;
 
@@ -128,18 +127,6 @@ public interface IInflation
     Task<InflationSeries> ReadAsync(CancellationToken ct);
 }
 
-/// <summary>Fetches the raw SDMX document of the INSEE series through the outbound client; never throws, a failure is an <see cref="InflationCodes"/> code.</summary>
-public interface ICpiSourceClient
-{
-    Task<Result<byte[]>> FetchAsync(CancellationToken ct);
-}
-
-/// <summary>Starts the <c>cpi-weekly</c> job now (Quartz in the host); <see cref="InflationCodes.JobsDisabled"/> when jobs are off.</summary>
-public interface ICpiJobTrigger
-{
-    Task<Result> TriggerAsync(CancellationToken ct);
-}
-
 /// <summary>CPI collection settings: bound from the <c>Inflation</c> section by the host, defaults otherwise.</summary>
 public sealed class InflationOptions
 {
@@ -166,22 +153,3 @@ public sealed record CpiSyncRequested(bool Requested);
 
 /// <summary>One collection of the CPI series, <c>core.cpi_run</c>; <c>Status</c> is <c>running</c>, <c>succeeded</c> or <c>failed</c>.</summary>
 public sealed record CpiRunView(Guid Id, Instant StartedAt, Instant? FinishedAt, string Status, int Added, int Replaced, int Rejected, string? Message);
-
-public interface ICpiRunLog
-{
-    /// <summary>Starts a run, or returns <c>null</c> when one is already running: the database holds at most one running row. A run still running an hour on is closed as failed first.</summary>
-    Task<CpiRunView?> TryStartAsync(CancellationToken ct);
-
-    Task FinishAsync(CpiRunView run, CancellationToken ct);
-
-    Task<bool> IsRunningAsync(CancellationToken ct);
-
-    /// <summary>The most recent runs first.</summary>
-    Task<IReadOnlyList<CpiRunView>> RecentAsync(int count, CancellationToken ct);
-
-    /// <summary>One page of runs, newest first, and the total number of runs.</summary>
-    Task<(IReadOnlyList<CpiRunView> Items, int Total)> PageAsync(int skip, int take, CancellationToken ct);
-
-    /// <summary>Deletes finished runs started before <paramref name="before"/>.</summary>
-    Task<int> PurgeBeforeAsync(Instant before, CancellationToken ct);
-}

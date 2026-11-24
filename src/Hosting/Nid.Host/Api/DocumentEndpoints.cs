@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Net.Http.Headers;
+using Nid.Core.Application;
 using Nid.Core.Contracts;
 using Nid.Documents.Application;
 using Nid.Documents.Contracts;

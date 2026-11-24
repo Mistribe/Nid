@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Nid.Core.Application;
 using Nid.Core.Application.Fx;
 using Nid.Core.Contracts;
 using Nid.Investments.Contracts;

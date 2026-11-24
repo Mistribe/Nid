@@ -1,6 +1,3 @@
-using NodaTime;
-using UnambitiousFx.Functional;
-
 namespace Nid.Core.Contracts;
 
 /// <summary>tokens-and-credentials.md §1.3: the only scope sets a token may hold.</summary>
@@ -74,49 +71,4 @@ public static class CalendarFeedLimits
 
     /// <summary>The feed's row in « Mes jetons ».</summary>
     public const string Name = "Calendrier";
-}
-
-/// <summary>What the feed route needs of a calendar row: never sent anywhere.</summary>
-public sealed record CalendarCredential(Guid Id, PersonId Person, string Hash, CalendarFeedOptions Options, Instant ExpiresAt, Instant? RevokedAt);
-
-public sealed record PersonalAccessToken(
-    Guid Id, PersonId Person, string Name, string Prefix, IReadOnlySet<string> Scopes,
-    Instant CreatedAt, Instant ExpiresAt, Instant? LastUsedAt, Instant? RevokedAt, CalendarFeedOptions? Calendar = null);
-
-/// <summary>What authentication needs of a row: never the name, never sent anywhere.</summary>
-public sealed record TokenCredential(Guid Id, PersonId Person, string Hash, IReadOnlySet<string> Scopes, Instant ExpiresAt, Instant? RevokedAt);
-
-/// <summary>A token just created: <see cref="Secret"/> exists here and nowhere else.</summary>
-public sealed record NewToken(PersonalAccessToken Token, string Secret);
-
-public interface IPersonalAccessTokens
-{
-    /// <summary>Validates name, preset and expiry (field failures), then creates under a lock on the person (10 active at most).</summary>
-    Task<Result<NewToken>> CreateAsync(PersonId person, string name, string preset, int? expiresInDays, CancellationToken ct);
-
-    /// <summary>Every token of the person, newest first, revoked and expired ones included.</summary>
-    Task<IReadOnlyList<PersonalAccessToken>> ListAsync(PersonId person, CancellationToken ct);
-
-    /// <summary><c>true</c> when an active token was revoked, <c>false</c> when it already was not active; not found for another's.</summary>
-    Task<Result<bool>> RevokeAsync(PersonId person, Guid token, CancellationToken ct);
-
-    /// <summary>Revokes every active token of the person; the count revoked.</summary>
-    Task<int> RevokeAllAsync(PersonId person, CancellationToken ct);
-
-    /// <summary>A bearer token's row; never a calendar feed's.</summary>
-    Task<TokenCredential?> FindByPrefixAsync(string prefix, CancellationToken ct);
-
-    /// <summary>
-    /// Issue #80: creates the person's calendar feed under the same lock and limit, revoking the active one first (a regeneration).
-    /// Its secret is a <c>nid_cal_…</c>, which bearer authentication never reads.
-    /// </summary>
-    Task<Result<NewToken>> CreateCalendarAsync(PersonId person, CalendarFeedOptions options, CancellationToken ct);
-
-    /// <summary>Changes the active feed's options, its URL unchanged; not found when the person has none.</summary>
-    Task<Result<PersonalAccessToken>> SetCalendarOptionsAsync(PersonId person, CalendarFeedOptions options, CancellationToken ct);
-
-    Task<CalendarCredential?> FindCalendarByPrefixAsync(string prefix, CancellationToken ct);
-
-    /// <summary>Sets <c>last_used_at</c> to now when it is unset or older than a minute (spec D3).</summary>
-    Task TouchAsync(Guid token, CancellationToken ct);
 }
