@@ -7,6 +7,10 @@ using Nid.Ai.Contracts;
 using Nid.Ai.Infrastructure.Cloud;
 using Nid.Ai.Infrastructure.Persistence;
 using Nid.Ai.Protocol.Contracts;
+using Nid.Core.Application;
+using Currency = Nid.Core.Contracts.Currency;
+using FxRate = Nid.Core.Contracts.FxRate;
+using FxRateSource = Nid.Core.Contracts.FxRateSource;
 using Nid.Platform.Contracts;
 using Nid.TestSupport;
 using NodaTime;
@@ -136,6 +140,25 @@ public sealed class BudgetTests(PostgresFixture fixture) : IClassFixture<Postgre
 
         Assert.Equal(JobCodes.BudgetBlocked, failed.Code);
         Assert.Empty(anthropic.Requests);
+    }
+
+    [Fact]
+    public async Task A_price_in_dollars_is_converted_with_todays_euro_rate()
+    {
+        var anthropic = new FakeAnthropic();
+        anthropic.Turn(["Bonjour Alice."], tokensIn: 100, tokensOut: 200);
+        await using var app = await StartAsync(anthropic, currency: "USD");
+        await using (var scope = Scope(app))
+            await scope.ServiceProvider.GetRequiredService<IFxRateStore>().WriteAsync(
+                [new FxRate(Now(app).InUtc().Date, Currency.Eur, 0.5m, FxRateSource.Ecb)], TestContext.Current.CancellationToken);
+        await EnableAsync(app);
+        await SetBudgetAsync(app, 10m);
+
+        await ChatAsync(app);
+
+        // 100 tokens in at 4 $/M and 200 out at 20 $/M: 0.0044 $, at 0.5 € per dollar 0.0022 €.
+        Assert.Single(anthropic.Requests);
+        Assert.Equal(0.0022m, (await SingleCallAsync(app)).CostEstimateEur);
     }
 
     private static LlmProfile Profile(string currency)

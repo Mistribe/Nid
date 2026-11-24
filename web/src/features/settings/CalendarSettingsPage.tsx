@@ -18,6 +18,7 @@ import { CALENDAR_MODULES, moduleLabelKey, type CalendarModule } from '../calend
 import { TOKEN, TOKENS } from '../security/tokens';
 import { SettingsFrame } from './SettingsFrame';
 import '@/locales/calendar';
+import { useCopy } from '@/lib/clipboard';
 
 export const CALENDAR = '/api/v1/core/me/calendar';
 
@@ -133,6 +134,7 @@ function FeedForm({ feed, onCreated }: { feed: Feed | null; onCreated: (url: str
 function CreatedUrl({ url, onDone }: { url: string; onDone: () => void }) {
   const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
+  const copy = useCopy();
   const titleId = useId();
   const webcal = url.replace(/^https?:\/\//, 'webcal://');
   return (
@@ -143,7 +145,7 @@ function CreatedUrl({ url, onDone }: { url: string; onDone: () => void }) {
       <p className="text-sm text-muted-foreground">{t('calendar_settings.url_secret')}</p>
       <p role="status">{copied ? t('calendar_settings.copied') : ''}</p>
       <div className="flex flex-wrap justify-end gap-2">
-        <Button type="button" variant="outline" onClick={() => { void navigator.clipboard.writeText(url).then(() => setCopied(true)); }}>
+        <Button type="button" variant="outline" onClick={() => copy(url, () => setCopied(true))}>
           {t('calendar_settings.copy')}
         </Button>
         <Button asChild variant="outline"><a href={webcal}>{t('calendar_settings.open')}</a></Button>

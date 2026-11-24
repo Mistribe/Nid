@@ -3,6 +3,7 @@ import { createContext, useContext, useMemo, useState, type ReactNode } from 're
 import { ApiContext } from '@/api/ApiProvider';
 import type { Api } from '@/api/client';
 import type { components } from '@/api/schema';
+import { clearDrafts } from '@/features/routine/draft';
 import { SIGNED_OUT_PATH, type Preferences, type Session } from './session';
 
 export type Capabilities = components['schemas']['CapabilitiesView'];
@@ -44,11 +45,13 @@ export function Providers(props: {
       const { response } = await api.fetchClient.POST('/auth/logout');
       if (!response.ok) return; // still signed in: leaving would pretend otherwise
       queryClient.clear();
+      clearDrafts();
       location.assign(SIGNED_OUT_PATH);
     },
     reload: () => location.reload(),
     leave: () => {
       queryClient.clear();
+      clearDrafts();
       location.assign(SIGNED_OUT_PATH);
     },
     goTo: (url) => location.assign(url),

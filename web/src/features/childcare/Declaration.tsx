@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import type { Declaration as DeclarationView } from './api';
 import { frenchNumber, monthTitle } from './statementText';
 import '@/locales/childcare';
+import { useCopy } from '@/lib/clipboard';
 
 type Key = keyof DeclarationView;
 /** The last declaration's end-of-contract fields: shown only on that month, never typed by hand. */
@@ -31,6 +32,7 @@ export function Declaration({ declaration, computed, mealCharges, missing, entry
   declaration: DeclarationView | null; computed?: DeclarationView | null; mealCharges?: { lunch: string; snack: string } | null; missing: string[]; entry?: DeclarationEntry | null;
 }) {
   const { t } = useTranslation();
+  const copy = useCopy();
   const nid = computed ?? declaration;
   // Each row is its own grid: only fixed tracks line the rows up.
   const columns = entry ? 'sm:grid-cols-[minmax(0,1fr)_7rem_13rem_7rem]' : 'sm:grid-cols-[minmax(0,1fr)_7rem_13rem]';
@@ -74,7 +76,7 @@ export function Declaration({ declaration, computed, mealCharges, missing, entry
                     {differs ? <span className="sr-only">{t('childcare_statement.differs')}</span> : null}
                     {isQuestion(key) && none(declaration[key]) ? null : (
                       <Button type="button" variant="outline" size="sm" className="sm:col-start-2" aria-label={t('childcare_statement.copy_of', { field: label })}
-                        onClick={() => { void navigator.clipboard.writeText(value).then(() => toast.success(t('childcare_statement.copied', { field: label }))); }}>
+                        onClick={() => copy(value, () => toast.success(t('childcare_statement.copied', { field: label })))}>
                         {t('childcare_statement.copy')}
                       </Button>
                     )}

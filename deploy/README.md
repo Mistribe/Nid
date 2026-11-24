@@ -691,7 +691,8 @@ de passe.
   dernier. Une base qui contient déjà ce foyer est laissée telle quelle ; une base qui contient **un autre adulte**
   empêche Nid de démarrer.
 - Tout ce qui sortirait de la démo est coupé : synchronisation bancaire (les réglages `EnableBanking__…` sont ignorés),
-  emails (`Nid__Smtp__…` ignorés), jetons d'accès pour un assistant, webhooks Discord et messages de test.
+  emails (`Nid__Smtp__…` ignorés), jetons d'accès pour un assistant, webhooks Discord et messages de test, ajout ou
+  appairage d'un moteur IA (et son marquage « sûr »), clés des fournisseurs cloud.
 - Chaque écran affiche un bandeau « Démo : les données sont inventées et réinitialisées chaque nuit ».
 - Les fichiers d'import ne contiennent pas tout : `NID_URL=https://<domaine de la démo> node local/demo/finish.mjs`
   valide les mois de garde, ajoute les documents, les avis d'impôt, les scénarios et l'indice des prix, connecté en

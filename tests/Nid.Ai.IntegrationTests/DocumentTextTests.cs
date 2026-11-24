@@ -178,6 +178,25 @@ public sealed class DocumentTextTests(PostgresFixture fixture) : IClassFixture<P
     }
 
     [Fact]
+    public async Task A_running_job_filed_as_a_payslip_is_taken_back_from_a_worker_that_is_not_safe()
+    {
+        await using var world = await StartAsync(new Reader(_ => new DocumentTextOutput([new DocumentTextPage(1, "Salaire net", TextSource.Ocr)])));
+        await world.PairAsync();
+        var id = await UploadedAsync(world.Nid, world.Nid.AdultA, Pdf, Filed);
+        await PassAsync(world);
+        Assert.Equal(JobState.Running, (await JobOfAsync(world, id)).Status);
+
+        Assert.Equal(HttpStatusCode.OK, (await world.Nid.RawAsync(world.Nid.AdultA, HttpMethod.Put, $"{DocumentApi.Documents}/{id}/links/core.household/{Guid.Empty}",
+            new { role = "payslip" })).StatusCode);
+        Assert.Equal(DataClasses.LocalOnly, (await JobOfAsync(world, id)).DataClass);
+
+        await RunAsync(world);
+        Assert.Empty(await PagesAsync(world, id));
+        var job = await JobOfAsync(world, id);
+        Assert.Equal((JobState.Queued, JobCodes.NoSafeWorker), (job.Status, job.WaitingReason));
+    }
+
+    [Fact]
     public async Task A_finished_job_keeps_its_class()
     {
         await using var world = await StartAsync(new Reader(_ => new DocumentTextOutput([new DocumentTextPage(1, "Quittance", TextSource.Ocr)])));

@@ -24,6 +24,7 @@ import { ConfirmFromMenu } from '@/components/ConfirmAction';
 import { InfoTip } from '@/components/InfoTip';
 import { SwitchField } from '@/components/page/SwitchField';
 import '@/locales/admin';
+import { useCopy } from '@/lib/clipboard';
 
 type Adult = components['schemas']['AdultView'];
 
@@ -229,6 +230,7 @@ function AddAdultDialog({ emailOptional, onClose, onDone }: { emailOptional: boo
 /** Issue 215 (local-accounts.md §7): the link, once; the admin passes it on by the means of their choice. */
 function PasswordLinkDialog({ adult, url, purpose, expiresAt, onClose }: { adult: Adult; url: string; purpose: string; expiresAt: string; onClose: () => void }) {
   const { t } = useTranslation();
+  const copy = useCopy();
   return (
     <ModalDialog title={t('admin.users.link_title')} onClose={onClose}>
       {() => (
@@ -237,9 +239,7 @@ function PasswordLinkDialog({ adult, url, purpose, expiresAt, onClose }: { adult
           <Input readOnly value={url} aria-label={t('admin.users.link_title')} onFocus={(event) => event.currentTarget.select()} className="font-mono text-xs" />
           <p className="text-sm text-muted-foreground">{t('admin.users.link_expires', { at: formatInstant(expiresAt) })}</p>
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => {
-              void navigator.clipboard?.writeText(url).then(() => toast.success(t('admin.users.copied')), () => {});
-            }}>{t('admin.users.copy')}</Button>
+            <Button type="button" variant="outline" onClick={() => copy(url, () => toast.success(t('admin.users.copied')))}>{t('admin.users.copy')}</Button>
             <Button type="button" onClick={onClose}>{t('admin.users.close')}</Button>
           </div>
         </div>

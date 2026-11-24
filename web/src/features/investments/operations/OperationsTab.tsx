@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { useNavigate, useSearch } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { present, toProblem } from '@/api/errors';
@@ -14,6 +15,7 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import type { EnvelopeDetail } from '@/api/investments';
+import type { EnvelopeSearch } from '@/app/router';
 import { type BankTransaction } from '@/api/banking';
 import { useTransactions } from './api';
 import ImportStatementDialog from './ImportStatementDialog';
@@ -28,8 +30,15 @@ const NONE: ReadonlySet<string> = new Set();
 /** Bank sync spec §6: the booked lines of the envelope's bank account and its cards, newest first, page by page, and « Importer un relevé ». */
 export default function OperationsTab({ envelope, writable }: { envelope: EnvelopeDetail; writable: boolean }) {
   const { t } = useTranslation();
-  const [from, setFrom] = useState('');
-  const [to, setTo] = useState('');
+  // #642: the period lives in the URL (reload, shared link); the field keeps what is half typed.
+  const search: EnvelopeSearch = useSearch({ strict: false });
+  const navigate = useNavigate();
+  const [from, setFrom] = useState(search.from ?? '');
+  const [to, setTo] = useState(search.to ?? '');
+  const bound = (key: 'from' | 'to', set: (text: string) => void) => (text: string) => {
+    set(text);
+    void navigate({ to: '.', replace: true, resetScroll: false, search: ((prev: EnvelopeSearch) => ({ ...prev, [key]: ISO.test(text) ? text : undefined })) as never });
+  };
   const [importing, setImporting] = useState(false);
   const [landOn, setLandOn] = useState(false);
   const importRef = useRef<HTMLButtonElement>(null);
@@ -82,10 +91,10 @@ export default function OperationsTab({ envelope, writable }: { envelope: Envelo
       <div className="flex flex-wrap items-center gap-3">
         <FilterRow label={t('common.filters')}>
           <FilterField label={t('banks.operations.from')} labelFor>
-            {(labelId, controlId) => <div className="w-44"><DateField id={controlId} aria-labelledby={labelId} value={from} onChange={setFrom} /></div>}
+            {(labelId, controlId) => <div className="w-44"><DateField id={controlId} aria-labelledby={labelId} value={from} onChange={bound('from', setFrom)} /></div>}
           </FilterField>
           <FilterField label={t('banks.operations.to')} labelFor>
-            {(labelId, controlId) => <div className="w-44"><DateField id={controlId} aria-labelledby={labelId} value={to} onChange={setTo} /></div>}
+            {(labelId, controlId) => <div className="w-44"><DateField id={controlId} aria-labelledby={labelId} value={to} onChange={bound('to', setTo)} /></div>}
           </FilterField>
         </FilterRow>
         {writable ? (

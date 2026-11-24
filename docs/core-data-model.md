@@ -333,7 +333,7 @@ Les documents ne sont plus dans Core : le module `Nid.Documents` possède le fic
 | `edited_payload?` | jsonb | Version modifiée par l'utilisateur avant validation |
 | `warnings` | jsonb | Liste `{code, severity, message, field?}` : confiance, écart de contrôle, erreur d'application |
 | `status` | text | `pending`, `approved`, `rejected`, `superseded` |
-| `fingerprint` | char(64) | Hash de `(kind, target_item_id, payload canonique)` |
+| `fingerprint` | char(64) | Hash de `(kind, target_item_id, payload canonique)`, plus la personne qui la soumet quand `target_item_id` est vide (#629) |
 | `superseded_by_id?` | uuid | |
 | provenance | | `source`, `document_id?`, `job_id?`, `created_via`, `created_by_person_id?` (au nom de qui, pour le MCP), `created_at` |
 | décision | | `decided_by_person_id?`, `decided_at?`, `decision_note?`, `applied_refs?` (identifiants des lignes créées : valorisations, flux…) |
@@ -356,7 +356,7 @@ Le payload d'origine est **toujours conservé** ; le payload appliqué est `edit
 ### 7.4 Dédoublonnage
 
 - Même `fingerprint` **en attente** : pas de nouvelle ligne, on renvoie l'existante (index unique partiel sur `fingerprint` pour `status = 'pending'`).
-- Même `(kind, target_item_id, subject_key)` mais payload différent : la nouvelle **remplace** l'ancienne, qui passe à `superseded`.
+- Même `(kind, target_item_id, subject_key)` mais payload différent : la nouvelle **remplace** l'ancienne, qui passe à `superseded`. Sans `target_item_id`, seulement celle de la même personne (#629) : deux adultes qui proposent la même chose sans cible ont chacun la leur.
 
 ### 7.5 Versions de payload et rétention
 

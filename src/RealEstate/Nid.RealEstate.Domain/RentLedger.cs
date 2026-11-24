@@ -226,8 +226,9 @@ public static class RentReceipt
             return null;
         var rent = covering.Sum(t => PropertyMath.RentIn(t, month, false)!.Value.Amount);
         var total = covering.Sum(t => PropertyMath.RentIn(t, month, true)!.Value.Amount);
-        var ledger = RentLedger.Months(tenancies, flows, Evaluated(month, today)).First(m => m.Month == month);
-        var kind = ledger.Remaining == 0 && ledger.Due > 0 ? "quittance" : ledger.Imputed > 0 ? "receipt" : "unpaid";
-        return new ReceiptFigures(month, kind, rent, total - rent, total, ledger.Imputed, ledger.LastPaidOn);
+        // None when every lease ends by the month's last day with no cash at all: Months re-reads Started there (#627), nothing was paid.
+        var ledger = RentLedger.Months(tenancies, flows, Evaluated(month, today)).FirstOrDefault(m => m.Month == month);
+        var kind = ledger is { Remaining: 0, Due: > 0 } ? "quittance" : ledger?.Imputed > 0 ? "receipt" : "unpaid";
+        return new ReceiptFigures(month, kind, rent, total - rent, total, ledger?.Imputed ?? 0m, ledger?.LastPaidOn);
     }
 }
