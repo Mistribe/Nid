@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Contracts;
 using Nid.Core.Infrastructure.Persistence;
+using Nid.Subscriptions.Application;
 using Nid.Subscriptions.Contracts;
 using Nid.TestSupport;
 using Npgsql;

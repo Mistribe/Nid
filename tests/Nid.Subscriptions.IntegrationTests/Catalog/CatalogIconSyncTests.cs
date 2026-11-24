@@ -6,6 +6,7 @@ using Nid.Platform.Contracts;
 using Nid.Platform.Infrastructure.Assets;
 using UnambitiousFx.Myelin;
 using Nid.Subscriptions.Application.Catalog;
+using Nid.Subscriptions.Application;
 using Nid.Subscriptions.Contracts;
 using Nid.Subscriptions.Infrastructure.Catalog;
 using Nid.Subscriptions.Infrastructure.Persistence;

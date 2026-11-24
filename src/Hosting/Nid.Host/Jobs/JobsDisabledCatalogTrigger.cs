@@ -1,3 +1,4 @@
+using Nid.Subscriptions.Application;
 using Nid.Subscriptions.Contracts;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Functional.Failures;
