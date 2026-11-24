@@ -188,7 +188,7 @@ Un avis d'imposition sur les revenus d'une année passée, saisi à la main ou p
 | `year` | int | Recopie de l'année de l'avis |
 | `rank` | int | 1 ou 2 (`ck_tax_assessment_declarant_rank`) |
 
-- Index unique `(year, person_id)` : une personne a au plus un avis par année, seule ou à deux ; un doublon répond 422 `tax.declarant_taken` à `declarants[i].personId`.
+- Index unique `(year, person_id)` : une personne a au plus un avis par année, seule ou à deux ; un doublon répond 422 `tax.declarant_taken` à `declarants[i].personId` quand c'est l'auteur ; pour l'autre déclarant, `tax.declarants_taken` à `declarants` sans dire lequel, son avis pouvant lui être privé (#636).
 - Les avis appartiennent à leurs déclarants, sans élément ni propriété : seuls les déclarants les lisent (« Foyer » = les avis à deux déclarants, « Moi » = les siens). Une personne qui figure sur un avis ne peut plus être supprimée : le module Tax le dit à Core (`IHouseholdTax.DeclaresAsync` pour un adulte en attente, `IPersonUsePart` pour un enfant).
 - Les deux tables sont auditées sans élément (`AuditRule.NoItem`) ; le PDF source est relié à chaque déclarant (`core.person`, rôle `tax_notice`, `documents-data-model.md` §5).
 

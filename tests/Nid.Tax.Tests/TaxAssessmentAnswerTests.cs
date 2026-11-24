@@ -35,20 +35,32 @@ public class TaxAssessmentAnswerTests
         public Task DeleteAsync(Guid id, CancellationToken ct) => throw new NotSupportedException();
     }
 
-    private static Task<Failure> AnswerAsync(string code)
-        => TaxAssessmentAccess.AnswerAsync(new SecondTaken(), new Failure(code, "refused", null), Joint, null, CancellationToken.None);
+    private static IActorAccessor As(PersonId person) => new ActorAccessor { Current = Actor.Browser(person) };
+
+    private static Task<Failure> AnswerAsync(string code, PersonId? actor = null)
+        => TaxAssessmentAccess.AnswerAsync(new SecondTaken(), As(actor ?? Second), new Failure(code, "refused", null), Joint, null, CancellationToken.None);
 
     [Fact]
     public async Task A_stale_version_is_the_conflict_the_web_reads()
         => Assert.Equal(TaxAssessmentCodes.Conflict, (await AnswerAsync(TaxAssessmentCodes.Changed)).Code);
 
     [Fact]
-    public async Task A_declarant_the_unique_index_refused_is_located()
+    public async Task The_actor_the_unique_index_refused_is_located()
     {
-        var answer = await AnswerAsync(TaxAssessmentCodes.Taken);
+        var answer = await AnswerAsync(TaxAssessmentCodes.Taken, Second);
 
         Assert.Equal(TaxAssessmentCodes.DeclarantTaken, answer.Code);
         Assert.Equal("declarants[1].personId", Assert.Single(FieldErrors.Of(answer)!).Path);
+    }
+
+    /// <summary>#636: the other declarant's notice may be private to them, so the refusal does not say which declarant it is.</summary>
+    [Fact]
+    public async Task Another_declarant_the_unique_index_refused_is_not_located()
+    {
+        var answer = await AnswerAsync(TaxAssessmentCodes.Taken, First);
+
+        Assert.Equal(TaxAssessmentCodes.DeclarantsTaken, answer.Code);
+        Assert.Equal("declarants", Assert.Single(FieldErrors.Of(answer)!).Path);
     }
 
     [Fact]
@@ -56,6 +68,6 @@ public class TaxAssessmentAnswerTests
     {
         var refused = new Failure("tax.other", "refused", null);
 
-        Assert.Same(refused, await TaxAssessmentAccess.AnswerAsync(new SecondTaken(), refused, Joint, null, CancellationToken.None));
+        Assert.Same(refused, await TaxAssessmentAccess.AnswerAsync(new SecondTaken(), As(First), refused, Joint, null, CancellationToken.None));
     }
 }
