@@ -166,7 +166,7 @@ Deux tables du schéma `core`, détaillées dans `identity-and-access/tokens-and
 
 ### 4.6 Avis d'imposition (`tax_assessment`)
 
-Ces tables, avec `tax_profile`, appartiennent au module Tax depuis la #512 (`TaxDbContext`, `architecture.md` §5.2) ; elles restent dans le schéma `core` jusqu'à leur passage dans `tax` (#568).
+Ces tables, avec `tax_profile`, appartiennent au module Tax depuis la #512 (`TaxDbContext`, `architecture.md` §5.2) ; elles sont dans le schéma `tax` depuis la #568, qui laisse dans `core` des vues sous les anciens noms pour l'image précédente, retirées par la #581.
 
 Un avis d'imposition sur les revenus d'une année passée, saisi à la main ou proposé par un assistant (`superpowers/specs/2026-10-27-tax-assessments-design.md`). Les montants vivent dans un document JSON ; une table de jointure porte ce qu'il faut pour les droits et l'unicité.
 
@@ -184,7 +184,7 @@ Un avis d'imposition sur les revenus d'une année passée, saisi à la main ou p
 | Champ | Type | Remarques |
 |---|---|---|
 | `assessment_id` | uuid | Clé étrangère vers `tax_assessment`, `ON DELETE CASCADE` ; clé primaire composite avec `person_id` |
-| `person_id` | uuid | Clé étrangère vers `person`, `ON DELETE RESTRICT` (`fk_tax_assessment_declarant_person_person_id`, retirée par #568) ; indexé |
+| `person_id` | uuid | Personne de `core.person`, sans clé étrangère entre schémas (retirée par #568) : un adulte en attente qui déclare un avis ne peut être supprimé (`IHouseholdTax.DeclaresAsync`) ; indexé |
 | `year` | int | Recopie de l'année de l'avis |
 | `rank` | int | 1 ou 2 (`ck_tax_assessment_declarant_rank`) |
 

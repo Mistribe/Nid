@@ -17,7 +17,7 @@ partial class TaxDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261123183705_InitialTax";
+    public override string LastMigrationId => "20261124073413_TaxSchema568";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -162,7 +162,7 @@ partial class TaxDbContextModelSnapshot : ModelSnapshot
                     .IsUnique()
                     .HasDatabaseName("ix_tax_assessment_declarant_year_person_id");
 
-                b.ToTable("tax_assessment_declarant", "core", t =>
+                b.ToTable("tax_assessment_declarant", "tax", t =>
                     {
                         t.HasCheckConstraint("ck_tax_assessment_declarant_rank", "rank in (1,2)");
                     });
@@ -192,7 +192,7 @@ partial class TaxDbContextModelSnapshot : ModelSnapshot
                 b.HasKey("Id")
                     .HasName("pk_tax_assessment");
 
-                b.ToTable("tax_assessment", "core", t =>
+                b.ToTable("tax_assessment", "tax", t =>
                     {
                         t.HasCheckConstraint("ck_tax_assessment_year", "year between 2000 and 2100");
                     });
@@ -212,7 +212,7 @@ partial class TaxDbContextModelSnapshot : ModelSnapshot
                 b.HasKey("Year")
                     .HasName("pk_tax_profile");
 
-                b.ToTable("tax_profile", "core", t =>
+                b.ToTable("tax_profile", "tax", t =>
                     {
                         t.HasCheckConstraint("ck_tax_profile_year", "year between 2025 and 2100");
                     });

@@ -6,14 +6,8 @@ namespace Nid.Tax.Infrastructure.Persistence;
 
 public sealed class TaxDbContext(DbContextOptions<TaxDbContext> options) : DbContext(options)
 {
-    /// <summary>The module's schema: its migrations history for now.</summary>
+    /// <summary>The module's schema: its tables (moved from <c>core</c> by #568) and its migrations history.</summary>
     public const string Schema = "tax";
-
-    /// <summary>
-    /// #512, step 1 of 2: the tables Core created stay in <c>core</c> for one release, so the previous image still runs on a migrated
-    /// database (architecture.md §10.1); the next one moves them to <see cref="Schema"/>.
-    /// </summary>
-    public const string TablesSchema = "core";
 
     public DbSet<TaxProfileRow> TaxProfiles => Set<TaxProfileRow>();
     public DbSet<TaxAssessmentRow> TaxAssessments => Set<TaxAssessmentRow>();
@@ -26,7 +20,7 @@ public sealed class TaxDbContext(DbContextOptions<TaxDbContext> options) : DbCon
         // Tax estimate spec §7: one household document per revenue year.
         modelBuilder.Entity<TaxProfileRow>(e =>
         {
-            e.ToTable("tax_profile", TablesSchema, t => t.HasCheckConstraint("ck_tax_profile_year", "year between 2025 and 2100"));
+            e.ToTable("tax_profile", t => t.HasCheckConstraint("ck_tax_profile_year", "year between 2025 and 2100"));
             e.HasKey(x => x.Year);
             e.Property(x => x.Year).ValueGeneratedNever();
             e.Property(x => x.Data).HasColumnType("jsonb");
@@ -35,7 +29,7 @@ public sealed class TaxDbContext(DbContextOptions<TaxDbContext> options) : DbCon
         // Tax assessments spec §3: a notice and its declarants; a person is in one notice per year.
         modelBuilder.Entity<TaxAssessmentRow>(e =>
         {
-            e.ToTable("tax_assessment", TablesSchema, t => t.HasCheckConstraint("ck_tax_assessment_year", "year between 2000 and 2100"));
+            e.ToTable("tax_assessment", t => t.HasCheckConstraint("ck_tax_assessment_year", "year between 2000 and 2100"));
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.Data).HasColumnType("jsonb");
@@ -44,11 +38,11 @@ public sealed class TaxDbContext(DbContextOptions<TaxDbContext> options) : DbCon
 
         modelBuilder.Entity<TaxAssessmentDeclarantRow>(e =>
         {
-            e.ToTable("tax_assessment_declarant", TablesSchema, t => t.HasCheckConstraint("ck_tax_assessment_declarant_rank", "rank in (1,2)"));
+            e.ToTable("tax_assessment_declarant", t => t.HasCheckConstraint("ck_tax_assessment_declarant_rank", "rank in (1,2)"));
             e.HasKey(x => new { x.AssessmentId, x.PersonId });
             e.HasIndex(x => new { x.Year, x.PersonId }).IsUnique();
-            // The person is Core's: its foreign key (fk_tax_assessment_declarant_person_person_id, created by Core's TaxAssessments
-            // migration) stays in the database until the tables move, outside this model as across contexts. The reverse lookup is by person.
+            // The person is Core's: no foreign key across schemas (§5.3.1, dropped by #568); a declarant is refused removal through
+            // IHouseholdTax. The reverse lookup is by person.
             e.HasIndex(x => x.PersonId);
             e.HasOne<TaxAssessmentRow>().WithMany().HasForeignKey(x => x.AssessmentId).OnDelete(DeleteBehavior.Cascade);
         });
