@@ -14,13 +14,13 @@ namespace Nid.Tax.Infrastructure.Persistence.Migrations;
 public partial class TaxSchema568 : Migration
 {
     // Simple views on one table: Postgres writes through them, and the system column xmin, exposed as a column, still guards an update.
-    private const string CreateViews = """
+    internal const string CreateViews = """
         create view core.tax_profile as select year, data from tax.tax_profile;
         create view core.tax_assessment as select id, year, data, xmin from tax.tax_assessment;
         create view core.tax_assessment_declarant as select assessment_id, person_id, year, rank from tax.tax_assessment_declarant;
         """;
 
-    private const string DropViews = """
+    internal const string DropViews = """
         drop view core.tax_profile;
         drop view core.tax_assessment;
         drop view core.tax_assessment_declarant;
