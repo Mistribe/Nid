@@ -74,14 +74,6 @@ public static class ProjectionEndpoints
         return ProjectionHorizon.Default;
     }
 
-    /// <summary>The scenario routes and their MCP tool still read a horizon this way, until their own #515 step returns the refusal.</summary>
-    public static ProjectionHorizon ParseHorizon(string? horizon)
-    {
-        var reader = new FieldReader();
-        var parsed = ParseHorizon(horizon, reader);
-        return reader.Ok ? parsed : throw new BadHttpRequestException(reader.Errors[0].Message);
-    }
-
     /// <summary>The same shape as the view: rates in percent, the savings in the reference currency; a missing member is read as such.</summary>
     public sealed record AssumptionsBody(
         IReadOnlyDictionary<string, string>? ClassRates, string? Inflation, string? MonthlySavings, string? SavingsClass, bool? FreedPaymentsToSavings,

@@ -16,7 +16,7 @@ public static class ScenarioEndpoints
             .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>();
 
         api.MapGet("", async (string? scope, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new ListScenariosQuery(ParseScope(scope)), ct)).ToHttp(list => list))
+            => await FieldReader.Run(invoker, r => new ListScenariosQuery(r.Scope(scope)), list => list, ct))
             .Returns<ScenarioList>();
 
         api.MapPost("", async (ScenarioBody body, IInvoker invoker, CancellationToken ct) =>
@@ -33,14 +33,15 @@ public static class ScenarioEndpoints
             {
                 var reader = new FieldReader();
                 var document = ReadDocument(body.Document, reader);
-                return document is null
+                var scope = reader.Scope(body.Scope);
+                return document is null || !reader.Ok
                     ? reader.Problem()
-                    : (await invoker.InvokeAsync(new SimulateScenarioQuery(ParseScope(body.Scope), document), ct)).ToHttp(view => view);
+                    : (await invoker.InvokeAsync(new SimulateScenarioQuery(scope, document), ct)).ToHttp(view => view);
             })
             .Returns<ScenarioResultView>();
 
         api.MapGet("/defaults", async (string? scope, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new GetScenarioDefaultsQuery(ParseScope(scope)), ct)).ToHttp(view => view))
+            => await FieldReader.Run(invoker, r => new GetScenarioDefaultsQuery(r.Scope(scope)), view => view, ct))
             .Returns<ScenarioDefaultsView>();
 
         // Net worth projection spec §14: the base and 1 to 3 scenarios, projections or purchases, on the request's grid.
@@ -48,9 +49,11 @@ public static class ScenarioEndpoints
             {
                 var reader = new FieldReader();
                 var list = ParseIds(ids, reader);
+                var visibility = reader.Scope(scope);
+                var span = ProjectionEndpoints.ParseHorizon(horizon, reader);
                 return !reader.Ok
-                    ? ResultHttp.Problem(FieldErrors.Many(MalformedInputFilter.Code, reader.Errors[0].Message, reader.Errors))
-                    : (await invoker.InvokeAsync(new CompareScenariosQuery(ParseScope(scope), ProjectionEndpoints.ParseHorizon(horizon), list), ct))
+                    ? reader.Malformed()
+                    : (await invoker.InvokeAsync(new CompareScenariosQuery(visibility, span, list), ct))
                         .ToHttp(view => view);
             })
             .Returns<ProjectionCompareView>();
@@ -90,9 +93,10 @@ public static class ScenarioEndpoints
             {
                 var reader = new FieldReader();
                 var document = ReadSale(body.Document, reader);
-                return document is null
+                var scope = reader.Scope(body.Scope);
+                return document is null || !reader.Ok
                     ? reader.Problem()
-                    : (await invoker.InvokeAsync(new SimulateSaleScenarioQuery(ParseScope(body.Scope), document), ct)).ToHttp(view => view);
+                    : (await invoker.InvokeAsync(new SimulateSaleScenarioQuery(scope, document), ct)).ToHttp(view => view);
             })
             .Returns<SaleResultView>();
 
@@ -100,10 +104,11 @@ public static class ScenarioEndpoints
             {
                 var reader = new FieldReader();
                 var (name, visibility, document) = body.Fields(reader);
+                var scope = reader.Scope(body.Scope);
                 return !reader.Ok
                     ? reader.Problem()
                     : (await invoker.InvokeAsync(new CreateSaleScenarioCommand(name!, visibility, (body.Owners ?? [])
-                        .Select(o => new OwnerShare(new PersonId(o.PersonId), o.ShareBp)).ToList(), ParseScope(body.Scope), document!), ct))
+                        .Select(o => new OwnerShare(new PersonId(o.PersonId), o.ShareBp)).ToList(), scope, document!), ct))
                         .ToHttp(id => new IdResponse(id.Value), StatusCodes.Status201Created);
             })
             .Returns<IdResponse>(StatusCodes.Status201Created);
@@ -116,9 +121,10 @@ public static class ScenarioEndpoints
             {
                 var reader = new FieldReader();
                 var (name, visibility, document) = body.Fields(reader);
+                var scope = reader.Scope(body.Scope);
                 return !reader.Ok
                     ? reader.Problem()
-                    : (await invoker.InvokeAsync(new ReplaceSaleScenarioCommand(new ItemId(id), name!, visibility, ParseScope(body.Scope), document!), ct))
+                    : (await invoker.InvokeAsync(new ReplaceSaleScenarioCommand(new ItemId(id), name!, visibility, scope, document!), ct))
                         .ToHttp(view => view);
             })
             .Returns<SaleScenarioView>();
@@ -164,20 +170,21 @@ public static class ScenarioEndpoints
     public sealed record ScenarioBody(string? Name, string? Visibility, IReadOnlyList<OwnerBody>? Owners, string? Scope, PropertyPurchaseView? Document)
     {
         internal CreateScenarioCommand? ToCreate(FieldReader reader)
-            => Fields(reader) is var (name, visibility, document)
+            => Fields(reader) is var (name, visibility, scope, document)
                 ? new CreateScenarioCommand(name, visibility, (Owners ?? []).Select(o => new OwnerShare(new PersonId(o.PersonId), o.ShareBp)).ToList(),
-                    ParseScope(Scope), document)
+                    scope, document)
                 : null;
 
         internal ReplaceScenarioCommand? ToReplace(FieldReader reader, ItemId id)
-            => Fields(reader) is var (name, visibility, document) ? new ReplaceScenarioCommand(id, name, visibility, ParseScope(Scope), document) : null;
+            => Fields(reader) is var (name, visibility, scope, document) ? new ReplaceScenarioCommand(id, name, visibility, scope, document) : null;
 
-        private (string, Visibility, PropertyPurchase)? Fields(FieldReader reader)
+        private (string, Visibility, VisibilityScope, PropertyPurchase)? Fields(FieldReader reader)
         {
             var name = reader.Text(Name, "name");
             var visibility = reader.Visibility(Visibility ?? "shared", "visibility");
+            var scope = reader.Scope(Scope);
             var document = ReadDocument(Document, reader);
-            return reader.Ok ? (name!, visibility!.Value, document!) : null;
+            return reader.Ok ? (name!, visibility!.Value, scope, document!) : null;
         }
     }
 

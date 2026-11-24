@@ -25,7 +25,7 @@ public sealed class ProjectionTools
         CancellationToken ct = default)
         => scenarioId is { } id
             ? McpCalls.RunAsync(services, () => new GetProjectionScenarioQuery(new ItemId(id), ranges), view => Trim(view.Result), ct)
-            : McpCalls.RunAsync(services, () => new GetProjectionQuery(SubscriptionEndpoints.ParseScope(scope), ProjectionEndpoints.ParseHorizon(horizon), ranges),
+            : McpCalls.RunAsync(services, r => new GetProjectionQuery(r.Scope(scope), ProjectionEndpoints.ParseHorizon(horizon, r), ranges),
                 YearEnds, ct);
 
     [McpServerTool(Name = "simulate_projection", ReadOnly = true)]
@@ -38,15 +38,10 @@ public sealed class ProjectionTools
         [Description("The departures, each { person, years? (50 to 75), months? (0 to 11, with years), monthlyPension? }: an adult's age at departure in this scenario, replacing the household's, and optionally their monthly pension in today's money (a decimal string, not negative). Years and months are optional (null keeps the household's departure), but an entry sets an age or a pension. One per adult; the person must be an adult of the household.")] IReadOnlyList<ScenarioRetirementView>? retirements = null,
         CancellationToken ct = default)
     {
-        VisibilityScope visibility;
-        try
-        {
-            visibility = SubscriptionEndpoints.ParseScope(scope);
-        }
-        catch (BadHttpRequestException unreadable)
-        {
-            return McpCalls.Refuse(services, new Failure(FieldErrors.ShapeCode, unreadable.Message, null));
-        }
+        var reader = new FieldReader();
+        var visibility = reader.Scope(scope);
+        if (!reader.Ok)
+            return McpCalls.Refuse(services, FieldErrors.Shape(reader.Errors));
 
         var read = ProjectionDocumentView.Read(new ProjectionDocumentView(1, horizon ?? ProjectionHorizon.Default.ToWire(), assumptions, events ?? [], retirements ?? []));
         if (read.TryGetFailure(out var invalid))
@@ -92,7 +87,7 @@ public sealed class ProjectionTools
             1, new ItemId(property ?? default), on, Amount(price, "price"), Amount(agencyFees, "agencyFees"), Amount(penalties, "penalties"), horizonYears ?? 10);
         if (errors.Count > 0)
             return Task.FromResult(McpCalls.Refuse(services, FieldErrors.Shape(errors)));
-        return McpCalls.RunAsync(services, () => new SimulateSaleScenarioQuery(SubscriptionEndpoints.ParseScope(scope), document), ct);
+        return McpCalls.RunAsync(services, r => new SimulateSaleScenarioQuery(r.Scope(scope), document), ct);
     }
 
     /// <summary>The refused fields, each named (<c>events[0].amount: …</c>); a refusal without fields, its code and message.</summary>

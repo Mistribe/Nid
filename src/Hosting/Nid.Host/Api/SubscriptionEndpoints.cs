@@ -140,17 +140,6 @@ public static class SubscriptionEndpoints
         return routes;
     }
 
-    /// <summary>
-    /// The scenario routes and their MCP tools still read a scope this way, until their own #515 step returns the refusal
-    /// (<see cref="FieldReader.Scope"/>).
-    /// </summary>
-    internal static VisibilityScope ParseScope(string? scope)
-    {
-        var reader = new FieldReader();
-        var parsed = reader.Scope(scope);
-        return reader.Ok ? parsed : throw new BadHttpRequestException(reader.Errors[0].Message);
-    }
-
     /// <summary>An absent or unknown status is "all", like the web's missing <c>status</c>.</summary>
     internal static ListStatus ParseStatus(string? status) => status?.ToLowerInvariant() switch
     {

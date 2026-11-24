@@ -18,9 +18,12 @@ public static class ProjectionScenarioEndpoints
         // Spec §7: the base and the document's scenario; nothing is written.
         api.MapPost("/simulate", async (SimulateProjectionBody body, IInvoker invoker, CancellationToken ct) =>
             {
+                var reader = new FieldReader();
+                var scope = reader.Scope(body.Scope);
+                if (!reader.Ok) return reader.Problem();
                 var document = ProjectionDocumentView.Read(body.Document);
                 return document.TryGetValue(out var read)
-                    ? (await invoker.InvokeAsync(new SimulateProjectionScenarioQuery(ParseScope(body.Scope), read), ct)).ToHttp(view => view)
+                    ? (await invoker.InvokeAsync(new SimulateProjectionScenarioQuery(scope, read), ct)).ToHttp(view => view)
                     : document.ToHttp(_ => new { });
             })
             .Returns<ProjectionComparisonView>();
@@ -29,10 +32,10 @@ public static class ProjectionScenarioEndpoints
         // purchase routes. The list and the deletion are the purchases' routes.
         api.MapPost("", async (ProjectionScenarioBody body, IInvoker invoker, CancellationToken ct) =>
             {
-                var (name, visibility, document, problem) = body.Read();
+                var (name, visibility, scope, document, problem) = body.Read();
                 if (problem is not null) return problem;
                 var owners = (body.Owners ?? []).Select(o => new OwnerShare(new PersonId(o.PersonId), o.ShareBp)).ToList();
-                return (await invoker.InvokeAsync(new CreateProjectionScenarioCommand(name!, visibility, owners, ParseScope(body.Scope), document!), ct))
+                return (await invoker.InvokeAsync(new CreateProjectionScenarioCommand(name!, visibility, owners, scope, document!), ct))
                     .ToHttp(id => new IdResponse(id.Value), StatusCodes.Status201Created);
             })
             .Returns<IdResponse>(StatusCodes.Status201Created);
@@ -44,9 +47,9 @@ public static class ProjectionScenarioEndpoints
 
         api.MapPut("/{id:guid}", async (Guid id, ProjectionScenarioBody body, IInvoker invoker, CancellationToken ct) =>
             {
-                var (name, visibility, document, problem) = body.Read();
+                var (name, visibility, scope, document, problem) = body.Read();
                 if (problem is not null) return problem;
-                return (await invoker.InvokeAsync(new ReplaceProjectionScenarioCommand(new ItemId(id), name!, visibility, ParseScope(body.Scope), document!), ct))
+                return (await invoker.InvokeAsync(new ReplaceProjectionScenarioCommand(new ItemId(id), name!, visibility, scope, document!), ct))
                     .ToHttp(view => view);
             })
             .Returns<ProjectionScenarioView>();
@@ -61,24 +64,25 @@ public static class ProjectionScenarioEndpoints
         string? Name, string? Visibility, IReadOnlyList<OwnerBody>? Owners, string? Scope, ProjectionDocumentView? Document)
     {
         /// <summary>
-        /// The name, the visibility and the document, or the problem: a name or visibility refused lists every field (the document's
+        /// The name, the visibility, the scope and the document, or the problem: a name, visibility or scope refused lists every field (the document's
         /// too) as the request's shape; a document alone refused answers as the simulation does (<c>projection.invalid_field</c>).
         /// </summary>
-        internal (string? Name, Visibility Visibility, ProjectionScenario? Document, Microsoft.AspNetCore.Http.IResult? Problem) Read()
+        internal (string? Name, Visibility Visibility, VisibilityScope Scope, ProjectionScenario? Document, Microsoft.AspNetCore.Http.IResult? Problem) Read()
         {
             var reader = new FieldReader();
             var name = reader.Text(Name, "name");
             var visibility = reader.Visibility(Visibility ?? "shared", "visibility");
+            var scope = reader.Scope(Scope);
             var document = ProjectionDocumentView.Read(Document);
             if (!reader.Ok)
             {
                 if (document.TryGetFailure(out var failure) && FieldErrors.Of(failure!) is { } errors)
                     foreach (var error in errors) reader.Add(error.Path, error.Code, error.Message);
-                return (null, default, null, reader.Problem());
+                return (null, default, default, null, reader.Problem());
             }
             return document.TryGetValue(out var read)
-                ? (name, visibility!.Value, read, null)
-                : (null, default, null, document.ToHttp(_ => new { }));
+                ? (name, visibility!.Value, scope, read, null)
+                : (null, default, default, null, document.ToHttp(_ => new { }));
         }
     }
 }
