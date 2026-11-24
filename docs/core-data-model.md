@@ -530,7 +530,7 @@ Les deux lignes restent en base ; seule la seconde est courante.
 - Une seule devise par élément pour valorisations et flux (§5.5) : un compte en deux devises se modélise en deux éléments.
 - Les gains ne sont pas convertis : seuls les totaux le sont.
 - Pas de valorisation future ni de prévision dans Core.
-- « Aujourd'hui » : seules les règles de 2A (`IHouseholdCalendar`) prennent le jour du foyer ; les calculs de l'étape 1 prennent encore la date UTC, si bien qu'un import fait tard le soir peut voir la veille.
+- « Aujourd'hui » est le jour du foyer (`IHouseholdCalendar`) partout, imports, abonnements, notifications et documents attendus compris (#631). Seuls les cours de change, les cotations et le budget IA restent datés en UTC, par règle ; `ClockAndIdConventionTests` refuse tout autre `InUtc().Date`.
 
 ## 13. Questions ouvertes
 

@@ -76,6 +76,7 @@ public sealed class ExpectedDocuments(
         // A saved notice with its PDF covers the year it was issued, whatever the PDF's date.
         var notices = await assessments.IssuedYearsWithDocumentAsync(person, ct);
         var today = await calendar.TodayAsync(ct);
+        var zone = await calendar.ZoneAsync(ct); // #631: an upload counts on the household's day, not the UTC one
 
         var expected = new List<ExpectedDocumentView>();
         foreach (var s in subjects)
@@ -87,7 +88,7 @@ public sealed class ExpectedDocuments(
                 .Select(l => documents[l.DocumentId]);
             var covered = rule.Due is not { } due
                 ? held.Select(_ => ExpectedDocumentRules.Once).ToHashSet()
-                : held.Select(d => due.PeriodOf(d.DocumentDate, d.UploadedAt.InUtc().Date)).ToHashSet();
+                : held.Select(d => due.PeriodOf(d.DocumentDate, d.UploadedAt.InZone(zone).Date)).ToHashSet();
             if (s.Kind == ExpectedDocumentRules.TaxYear)
                 covered.UnionWith(notices);
             expected.AddRange(ExpectedDocumentRules.Missing(rule, s.Since, today, covered, dismissed[(s.Target.Kind, s.Target.Id, rule.Role)].ToHashSet())

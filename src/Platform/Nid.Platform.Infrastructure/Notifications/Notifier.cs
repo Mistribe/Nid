@@ -40,11 +40,12 @@ public sealed partial class Notifier(IServiceScopeFactory scopes, IClock clock, 
 
             await using var transaction = await sp.GetRequiredService<IUnitOfWork>().BeginAsync(own);
             var now = clock.GetCurrentInstant(); // one publication instant for every recipient
+            var today = now.InZone(await sp.GetRequiredService<IHouseholdCalendar>().ZoneAsync(own)).Date; // #631: the household's day
             foreach (var person in recipients)
             {
                 // The link of a notice may depend on the reader (the security journal is for admins).
                 var forPerson = person.IsAdmin ? notice with { Params = new Dictionary<string, string>(notice.Params) { ["admin"] = "1" } } : notice;
-                if (await store.PublishAsync(person.Id, kind, forPerson, now, own) is { } opened)
+                if (await store.PublishAsync(person.Id, kind, forPerson, now, today, own) is { } opened)
                     await outbox.EnqueueAsync(person.Id, [opened], await store.PreferencesAsync(person.Id, own), own);
             }
 
