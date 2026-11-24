@@ -123,6 +123,8 @@ public class LoansSimulationEndpointTests(PostgresFixture fixture) : IClassFixtu
             (new { on = "2025-11-15", amount = "3000", split = "chosen", loanId = works, effect = "reduce_term" }, "realestate.event_above_balance", "amount"),
             (new { on = "2025-11-15", amount = "1000", split = "chosen", loanId = home, effect = "reduce_term", penalties = new[] { new { loanId = works, amount = "10" } } },
                 "realestate.penalty_without_repayment", "penalties[0].loanId"),
+            (new { on = "2025-11-15", amount = "1000", split = "chosen", loanId = home, effect = "reduce_term", penalties = new[] { new { loanId = home, amount = "-10" } } },
+                "realestate.invalid_loan", "penalties[0].amount"),
         };
 
         foreach (var (body, code, path) in cases)

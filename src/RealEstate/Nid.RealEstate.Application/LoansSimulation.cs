@@ -23,6 +23,29 @@ public sealed record SimulateLoansQuery(
     VisibilityScope Scope, LocalDate On, decimal Amount, SplitRule Split, ItemId? LoanId, RepaymentEffect Effect, IReadOnlyList<LoanPenalty> Penalties)
     : IQuery<LoansSimulation>;
 
+/// <summary>
+/// #515: spec §5.2's own rules, checked in the pipeline whoever asks (REST, MCP). The handler reads <c>LoanId</c> with the
+/// « chosen » split, so this guarantees it is there.
+/// </summary>
+[Validator]
+internal sealed class SimulateLoansValidator : IRequestValidator<SimulateLoansQuery>
+{
+    public ValueTask<Result> ValidateAsync(SimulateLoansQuery request, CancellationToken cancellationToken = default)
+    {
+        var errors = new List<FieldError>();
+        if (request.Amount <= 0m)
+            errors.Add(new FieldError("amount", LoanCodes.InvalidLoan, "An early repayment is positive."));
+        if (request.Split == SplitRule.Chosen && request.LoanId is null)
+            errors.Add(new FieldError("loanId", "request.required", "The loan is required to put everything on it."));
+        if (request.Split != SplitRule.Chosen && request.LoanId is not null)
+            errors.Add(new FieldError("loanId", LoanCodes.InvalidLoan, "A loan is chosen only with the « chosen » split."));
+        for (var i = 0; i < request.Penalties.Count; i++)
+            if (request.Penalties[i].Amount < 0m)
+                errors.Add(new FieldError($"penalties[{i}].amount", LoanCodes.InvalidLoan, "A penalty is not negative."));
+        return ValueTask.FromResult(errors.Count == 0 ? Result.Success() : Result.Failure(FieldErrors.Shape(errors)));
+    }
+}
+
 public sealed record LoansSimulationAsked(LocalDate On, string Amount, string Split, ItemId? LoanId, string Effect);
 
 /// <summary>
