@@ -153,6 +153,13 @@ public class AccountTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
         // Attached to the account on A's private envelope, it is A's alone again.
         Assert.Equal(HttpStatusCode.OK, (await PatchAsync(app, app.AdultA, Id("Carte"), new { cardOfAccountId = Id("Perso") })).StatusCode);
         Assert.Equal(["Commun", "Joint"], (await ByNameAsync(app, app.AdultB)).Keys.Order());
+        // #638: on a checking account of an envelope B writes, B writes the card but does not detach it.
+        var bothChecking = await app.NewEnvelopeAsync("Courant commun", Visibility.Shared, (app.AdultA, 5_000), (app.AdultB, 5_000));
+        Assert.Equal(HttpStatusCode.OK, (await PatchAsync(app, app.AdultA, Id("Libre"), new { envelopeId = bothChecking.Value })).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await PatchAsync(app, app.AdultA, Id("Carte"), new { cardOfAccountId = Id("Libre") })).StatusCode);
+        Assert.True((await ByNameAsync(app, app.AdultB))["Carte"].GetProperty("canWrite").GetBoolean());
+        Assert.Equal(HttpStatusCode.Forbidden, (await PatchAsync(app, app.AdultB, Id("Carte"), new { clearCard = true })).StatusCode);
+        Assert.Equal(Id("Libre"), (await ByNameAsync(app, app.AdultA))["Carte"].GetProperty("cardOfAccountId").GetGuid());
         // A card is attached to an account its author may write.
         await BankingApi.AssertRefusedAsync(await PatchAsync(app, app.AdultA, Id("Carte"), new { cardOfAccountId = Guid.NewGuid() }),
             HttpStatusCode.NotFound, BankingCodes.AccountNotFound);
@@ -178,8 +185,11 @@ public class AccountTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
         // B's own bank reads the joint account too: B may move it.
         await BankingApi.ConnectAsync(app, app.AdultB, "code-b", BankingApi.Account("uid-3", "hash-3", "FR7630006000011234567890189", "Joint"));
         Assert.Equal(HttpStatusCode.OK, (await PatchAsync(app, app.AdultB, Id("Joint"), new { envelopeId = ofB.Value })).StatusCode);
-        // Taking it off the envelope gives it back to whose bank reads it.
-        Assert.Equal(HttpStatusCode.OK, (await PatchAsync(app, app.AdultB, Id("Commun"), new { clearEnvelope = true })).StatusCode);
+        // #638: taking A's account off the envelope moves it too, which is A's alone.
+        Assert.Equal(HttpStatusCode.Forbidden, (await PatchAsync(app, app.AdultB, Id("Commun"), new { clearEnvelope = true })).StatusCode);
+        Assert.Equal(both.Value, (await ByNameAsync(app, app.AdultA))["Commun"].GetProperty("envelopeId").GetGuid());
+        // Taken off by A, it is back to whose bank reads it.
+        Assert.Equal(HttpStatusCode.OK, (await PatchAsync(app, app.AdultA, Id("Commun"), new { clearEnvelope = true })).StatusCode);
         Assert.True((await ByNameAsync(app, app.AdultA))["Commun"].GetProperty("canWrite").GetBoolean());
     }
 
