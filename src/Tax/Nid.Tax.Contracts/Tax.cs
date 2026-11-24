@@ -201,17 +201,6 @@ public interface IRentalTaxOutlook
     decimal CapitalGainsTax(PropertyForSale property, decimal netSalePrice, LocalDate on);
 }
 
-/// <summary>A stored profile and the revenue year it was saved for (an earlier one when the year has none yet).</summary>
-public sealed record StoredTaxProfile(int Year, TaxProfile Profile);
-
-public interface ITaxProfileStore
-{
-    /// <summary>The profile of <paramref name="year"/>, or of the latest year before it; null when none is stored.</summary>
-    Task<StoredTaxProfile?> FindAsync(int year, CancellationToken ct);
-
-    Task SaveAsync(int year, TaxProfile profile, CancellationToken ct);
-}
-
 /// <summary>
 /// Income #408: a declarant's withholding against the year's household estimate, rates in percent. <c>Rate</c> is the household's
 /// (individualised rates are not computed), <c>RealRate</c> the income tax over the same income, <c>MonthlyGap</c> what the rate
