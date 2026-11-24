@@ -204,6 +204,18 @@ public static class DocumentEndpoints
             })
             .Returns<IdResponse>();
 
+        // #600: the version read with the document, as a query parameter: a DELETE has no body.
+        api.MapDelete("/{id:guid}", async (Guid id, uint? version, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var read = RequiredVersion(reader, version, "version");
+                if (!reader.Ok)
+                    return reader.Problem();
+                var result = await invoker.InvokeAsync(new DeleteDocumentCommand(id, read), ct);
+                return result.TryGetValue(out _) ? Results.NoContent() : result.ToHttp(v => v);
+            })
+            .ReturnsNoContent();
+
         // #305: a filing round, every line or none; dates are read here, so a refused one names its line.
         api.MapPost("/filing", async (FileDocumentsBody body, IInvoker invoker, CancellationToken ct) =>
             {

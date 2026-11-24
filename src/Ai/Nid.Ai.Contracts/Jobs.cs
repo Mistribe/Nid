@@ -25,6 +25,15 @@ public interface IModelJobs
     /// <see cref="JobCodes"/> code: <c>ai.unknown_type</c>, <c>ai.unknown_data_class</c>, <c>ai.invalid_input</c>.</summary>
     Task<Result<Guid>> SubmitAsync(JobRequest request, CancellationToken ct);
 
+    /// <summary>#599: the jobs of <paramref name="fileRef"/> no worker has now (queued) take this data class and these adults, as
+    /// the file's owner sees it now; a job running or finished is left as it is. True when one was. The class is checked as
+    /// <see cref="SubmitAsync"/> does (<c>ai.unknown_data_class</c>), <c>none</c> refused: a job never loosens to no data.</summary>
+    Task<Result<bool>> ReclassAsync(string fileRef, string dataClass, IReadOnlyList<Guid> concerned, CancellationToken ct);
+
+    /// <summary>#600: the file is gone: its jobs go too, whatever their state, with their input and result (a document's text),
+    /// at once rather than at the purge. In the caller's transaction.</summary>
+    Task ForgetAsync(string fileRef, CancellationToken ct);
+
     Task<ModelJobView?> GetAsync(Guid id, CancellationToken ct);
 }
 
@@ -43,6 +52,10 @@ public interface IJobFileSource
     string Module { get; }
 
     Task<byte[]?> ReadAsync(string reference, CancellationToken ct);
+
+    /// <summary>#602: those of these references the current actor reads, for the jobs page to point at; it names none (an
+    /// admin-only answer carries no item's label, <c>docs/identity-and-access/access-tests.md</c> §3.5).</summary>
+    Task<IReadOnlySet<string>> ReadableAsync(IReadOnlyCollection<string> references, CancellationToken ct);
 }
 
 /// <summary>A worker a request may go to: where it runs, whether it is safe and, for the model asked, how much it reads (null
@@ -83,8 +96,8 @@ public static class JobCodes
     /// chosen <c>allow</c>.</summary>
     public const string OffsiteNotAllowed = "ai.offsite_not_allowed";
 
-    /// <summary>#558: no cloud provider serves this use yet (<c>embed</c>, until #556).</summary>
-    public const string CloudNotAvailable = "ai.cloud_not_available";
+    /// <summary>#556: a document type that is not one the household may send to a cloud provider.</summary>
+    public const string UnknownKind = "ai.unknown_kind";
 
     /// <summary>#486: a use turned off, a use with no model set, a task a use may not run, no worker serving the use's model,
     /// a turn that ended without its usage, a use or mode that does not exist.</summary>
@@ -116,13 +129,18 @@ public static class JobCodes
 }
 
 /// <summary>A batch of texts to embed (#558): the class of their data and, for background work, the adults whose <c>allow</c>
-/// they need to leave the premises (decision M, <c>docs/ai/README.md</c> §6.3). The model is the <c>embed</c> use's.</summary>
-public sealed record LlmEmbedRequest(IReadOnlyList<string> Texts, string DataClass, IReadOnlyList<Guid>? Concerned = null, Guid? JobId = null);
+/// they need to leave the premises (decision M, <c>docs/ai/README.md</c> §6.3). The model is the <c>embed</c> use's.
+/// <see cref="Kinds"/> (#556): a document's types (its links' roles); its text reaches a cloud provider only when each is in
+/// <c>allowed_kinds</c>, so none (an unfiled document) never does. Null for a search query's text, which only its reader's
+/// <c>allow</c> lets out.</summary>
+public sealed record LlmEmbedRequest(
+    IReadOnlyList<string> Texts, string DataClass, IReadOnlyList<Guid>? Concerned = null, Guid? JobId = null, IReadOnlyList<string>? Kinds = null);
 
 /// <summary>One vector per text, in the texts' order, with the model that made them and their length.</summary>
 public sealed record LlmEmbeddings(string Model, int Dimension, IReadOnlyList<IReadOnlyList<float>> Vectors);
 
-/// <summary>How a module embeds text (#558): through the gateway, on the household's workers (cloud providers: #556).</summary>
+/// <summary>How a module embeds text (#558): through the gateway, on the household's workers or, its model being a cloud
+/// profile's, on that provider (#556).</summary>
 public interface IEmbeddings
 {
     /// <summary>The model the <c>embed</c> use runs on now; null while the use is off or has none (#559: what to embed for).</summary>

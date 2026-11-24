@@ -6,7 +6,7 @@ import { detail, targets as allTargets } from './testData';
 export type Sent = { method: string; path: string; search: string; body: unknown };
 
 /**
- * One document behind the detail routes, kept as the writes leave it (archive, role, unlink, link), with every write and
+ * One document behind the detail routes, kept as the writes leave it (archive, role, unlink, link; a delete is only recorded), with every write and
  * preview recorded. `preview` answers the readers a new link would add; `put` may refuse the edit.
  */
 export function serveDocument(over: {
@@ -33,6 +33,7 @@ export function serveDocument(over: {
     }),
     http.post('*/api/v1/documents/:id/archive', async ({ request }) => { await record(request); set({ archived: true }); return new HttpResponse(null, { status: 204 }); }),
     http.post('*/api/v1/documents/:id/unarchive', async ({ request }) => { await record(request); set({ archived: false }); return new HttpResponse(null, { status: 204 }); }),
+    http.delete('*/api/v1/documents/:id', async ({ request }) => { await record(request); return new HttpResponse(null, { status: 204 }); }),
     http.post('*/api/v1/documents/:id/links', async ({ request }) => {
       await record(request);
       const body = sent.at(-1)!.body as { targetKind: string; targetId: string; role: string };

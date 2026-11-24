@@ -71,6 +71,33 @@ public sealed class DispatcherTests(PostgresFixture fixture) : IClassFixture<Pos
         Assert.Equal("succeeded", done.Status);
         Assert.NotEqual(sentTo, done.WorkerId);
         Assert.Equal(1, done.Attempts);
+        // #602: the retry cleared the job's worker; its dispatches keep both, each with its times and how it ended.
+        await using var scope = Scope(world);
+        var dispatches = await scope.ServiceProvider.GetRequiredService<IJobStore>().DispatchesOfAsync([id], TestContext.Current.CancellationToken);
+        Assert.Equal([sentTo, done.WorkerId], dispatches.Select(d => d.WorkerId));
+        Assert.Equal([JobCodes.WorkerFailed, "succeeded"], dispatches.Select(d => d.Outcome));
+        Assert.All(dispatches, d => Assert.True(d.FinishedAt >= d.SentAt));
+        Assert.True(dispatches[1].SentAt >= dispatches[0].FinishedAt);
+    }
+
+    [Fact]
+    public async Task Two_workers_share_a_batch_of_jobs()
+    {
+        // #603: a pass sends a worker no more jobs than it declares it runs at once (4), so a batch of 8 fills both.
+        await using var world = await PairedWorld.StartAsync(fixture, workers: 2);
+        var first = await world.PairAsync(0);
+        var second = await world.PairAsync(1);
+        var ids = new List<Guid>();
+        for (var i = 0; i < 8; i++)
+            ids.Add(await SubmitAsync(world, Echo($"job {i}")));
+
+        var done = new List<ModelJobView>();
+        foreach (var id in ids)
+            done.Add(await RunUntilAsync(world, id, j => j.Status is "succeeded" or "dead"));
+
+        Assert.All(done, j => Assert.Equal("succeeded", j.Status));
+        Assert.Equal(4, done.Count(j => j.WorkerId == first.Id));
+        Assert.Equal(4, done.Count(j => j.WorkerId == second.Id));
     }
 
     [Fact]
@@ -501,5 +528,8 @@ public sealed class DispatcherTests(PostgresFixture fixture) : IClassFixture<Pos
 
         public Task<byte[]?> ReadAsync(string reference, CancellationToken ct)
             => Task.FromResult(reference == "large" ? new byte[JobSubmission.MaxFileBytes + 1] : null);
+
+        public Task<IReadOnlySet<string>> ReadableAsync(IReadOnlyCollection<string> references, CancellationToken ct)
+            => Task.FromResult<IReadOnlySet<string>>(new HashSet<string>());
     }
 }

@@ -79,17 +79,6 @@ public sealed class EmbedTests(PostgresFixture fixture) : IClassFixture<Postgres
         Assert.Empty(engine.EmbedRequests);
     }
 
-    [Fact]
-    public async Task The_cloud_mode_is_refused_for_embed_until_its_providers_exist()
-    {
-        await using var world = await StartAsync(Engine());
-
-        var response = await world.Nid.RawAsync(world.Nid.AdultA, HttpMethod.Put, "/api/v1/ai/settings/uses/embed", new { mode = "self_hosted_then_cloud" });
-
-        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
-        Assert.Contains(JobCodes.CloudNotAvailable, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken), StringComparison.Ordinal);
-    }
-
     private static FakeEngine Engine()
     {
         var engine = new FakeEngine();

@@ -19,6 +19,7 @@ namespace Nid.Host.Api.Json;
 [JsonSerializable(typeof(AiEndpoints.SafeBody))]
 [JsonSerializable(typeof(AiEndpoints.RemoteWorkersBody))]
 [JsonSerializable(typeof(AiEndpoints.UseModeBody))]
+[JsonSerializable(typeof(AiEndpoints.AllowedKindsBody))]
 [JsonSerializable(typeof(AiEndpoints.UseModelBody))]
 [JsonSerializable(typeof(AiEndpoints.CloudRegionBody))]
 [JsonSerializable(typeof(AiEndpoints.EnableProfileBody))]

@@ -18,7 +18,7 @@ L'ingestion (étape 4 de la feuille de route) transforme un document déposé pa
 4. **L'IA propose, les humains valident** : rien ne change dans les propositions ni dans la file de validation.
 5. **Les workers n'ont ni clé d'API ni rien qui ouvre `nid`** ; toute sortie vers un fournisseur cloud passe par la **passerelle LLM** de `nid`. Un modèle auto-hébergé est servi par un **worker apparié** que `nid` appelle, seule route vers lui (`../ai/README.md` §3).
 6. **Les conditions des fournisseurs sont revues par un humain**, datées, et jamais présumées par le code.
-7. **Les bulletins de paie ne vont jamais au cloud** ; seulement à un worker étiqueté `safe`, comme les documents « local seulement » (voir §5.2, `../ai/README.md` §6.1).
+7. **Les bulletins de paie ne vont jamais au cloud** ; seulement à un worker étiqueté `safe`, comme les documents « local seulement » (voir §5.2, `../ai/README.md` §6.1). Un document « À classer » (sans lien) est traité comme tel jusqu'à son classement : il peut être un bulletin (#599).
 
 ## 3. Conditions des fournisseurs (vérifiées le 19/09/2026)
 
@@ -46,7 +46,7 @@ Un **profil** décrit un fournisseur pour une offre donnée. Les profils sont **
 | `provider`, `tier` | Fournisseur ; offre : `free` ou `paid`. Les modèles des workers appariés ne sont pas des profils : ils viennent de la déclaration du worker (`../ai/README.md` §3.4) |
 | `host` | Le seul hôte que l'adaptateur du profil peut joindre (§9) |
 | `model` | Modèle utilisé ; configurable, non figé dans le code |
-| `capabilities` | `vision`, `pdf_input`, `structured_output`, `max_pages`, `max_input_mb` |
+| `capabilities` | Ce que le profil sert : `chat` ou `embed` (#556) ; à venir : `vision`, `pdf_input`, `structured_output`, `max_pages`, `max_input_mb` |
 | `data_terms` | `trains_on_data` (par région), `human_review`, `retention_days?`, `retention_switches` (interrupteurs de rétention du fournisseur et valeur imposée par l'adaptateur, par exemple `store: false` pour les Responses d'OpenAI, `../ai/README.md` §5.4), `terms_url`, `reviewed_on` |
 | `quotas?` | `rpm`, `rpd`, `tokens_per_day`, tels que publiés par le fournisseur |
 | `pricing?` | Prix par million de jetons en entrée et en sortie, devise (offres payantes) |
@@ -72,6 +72,9 @@ Exemple (valeurs illustratives) :
 
 - **Région** : l'admin qui active un fournisseur **confirme la région du compte** (`eea_ch_uk` ou `other`). C'est cette valeur, pas une supposition, qui sélectionne les conditions applicables.
 - **Péremption** : au-delà de 90 jours après `reviewed_on`, l'interface affiche un avertissement sur le profil.
+- **Plongements (#556)** : `openai-embed` (`text-embedding-3-small`), `gemini-embed` (`gemini-embedding-001`) et
+  `mistral-embed` (`mistral-embed`), capacité `embed`, avec les conditions du profil de chat du même fournisseur. Anthropic
+  n'en propose pas.
 
 ## 5. Politique de sélection
 
@@ -83,7 +86,7 @@ Remplacés par un réglage par usage (#171, `../ai/README.md` §5.3) :
 |---|---|
 | `off` | Aucun appel |
 | `self_hosted` (« auto-hébergé », défaut sauf `decide`) | Workers appariés : locaux, puis distants si leurs règles le permettent |
-| `self_hosted_then_cloud` | Workers, puis profils cloud activés et éligibles, gratuits ou payants **si le budget le permet** ; une conversation garde sa destination, sans repli |
+| `self_hosted_then_cloud` | Workers, puis profils cloud activés et éligibles, gratuits ou payants **si le budget le permet** ; une conversation garde sa destination, sans repli. Pour `embed` (#556), le modèle de l'usage est celui d'un worker **ou** celui d'un profil cloud : tout l'index a un seul modèle, sans repli de l'un vers l'autre |
 
 Les anciens modes `local_only`, `free_then_local` et `free_then_local_then_paid` (offres gratuites avant le local) sont abandonnés.
 
@@ -93,8 +96,11 @@ Un profil est éligible seulement si **tout** est vrai :
 
 1. il est activé et une clé valide est enregistrée (profils cloud) ;
 2. `trains_on_data` est faux pour la région confirmée ;
-3. le type de document (`statement`, `amortization`, `invoice`, `contract`) est autorisé au cloud (§6). Le type **`payslip`** (bulletin de paie) **n'est jamais éligible au cloud en v1**, ni à un worker qui n'est pas `safe` : un document lié comme bulletin de paie est « local seulement » par défaut (`../ai/README.md` §6.6), même avec le consentement par dépôt : il contient nom, employeur et numéro de sécurité sociale, et le masquage n'est pas une garantie suffisante ;
-4. le déposant a consenti pour ce document (§6) ;
+3. le type de document (`statement`, `amortization_table`, `invoice`, `contract`) est dans `allowed_kinds` (§12 ; livré
+   par #556 pour les plongements : **chaque** rôle des liens du document doit y être, un document sans lien n'y part jamais).
+   Le type **`payslip`** (bulletin de paie) **n'est jamais éligible au cloud en v1**, ni à un worker qui n'est pas `safe` : un document lié comme bulletin de paie, ou pas encore classé, est « local seulement » par défaut (`../ai/README.md` §6.6), même avec le consentement par dépôt : il contient nom, employeur et numéro de sécurité sociale, et le masquage n'est pas une garantie suffisante ;
+4. le déposant a consenti pour ce document (§6) ; pour une tâche de fond, chaque adulte concerné a choisi `allow`
+   (`../ai/README.md` §6.3) ;
 5. les capacités couvrent le document (pages, taille, vision) ;
 6. le quota du fournisseur n'est pas épuisé ;
 7. pour une offre payante : le budget mensuel n'est pas atteint (§7).
@@ -166,6 +172,11 @@ passerelle LLM (nid)
   entières ; un tour de chat arrive en flux. Les adaptateurs passent donc par un `HttpClient` qui n'accepte que HTTPS vers
   l'hôte d'un profil chargé, posé sur les contrôles d'adresse de Myelin (`MyelinHandler`, ni adresse privée ni rebinding
   DNS), comme les workers (`../ai/README.md` §3.5). #487.
+- **Plongements (#556)** : `ICloudAdapter.EmbedAsync`, un lot par appel. OpenAI et Mistral : `POST /v1/embeddings`
+  (`input` en tableau, `data[].embedding` remis dans l'ordre par `index`, `usage.prompt_tokens`). Gemini :
+  `POST /v1beta/models/{model}:batchEmbedContents` (une requête par texte, `embeddings[].values` dans l'ordre,
+  `usageMetadata.promptTokenCount`). Un profil payant réserve sur le budget chaque octet d'entrée compté comme un jeton,
+  réglé ensuite au nombre de jetons facturés. Seule la classe `documents` (ou `none`) part, jamais `local_only`.
 - **Modèles auto-hébergés** : servis par un worker apparié, jamais joints directement (Ollama, vLLM et llama.cpp tournent derrière le worker, `../ai/README.md` §3) ; « Ollama joint par la passerelle sur le réseau `workers` » est abandonné (#171).
 - **OCR** : local par défaut (Tesseract dans le worker). La vision d'un fournisseur suit exactement les mêmes règles.
 
@@ -205,7 +216,7 @@ Une page « Utilisation IA » présente les appels récents, le coût du mois et
 
 | Table | Contenu |
 |---|---|
-| `ai_settings` (une ligne) | `uses` (réglage par usage, remplace `mode` et `chain`), `models`, `allowed_kinds` (types de documents et `bank_labels` autorisés au cloud), `region`, `monthly_budget_eur`, `remote_workers_allowed`, `conversation_retention_days`, `redaction_enabled` (défaut oui) ; détail dans `../ai/README.md` §13 |
+| `ai_settings` (une ligne) | `uses` (réglage par usage, remplace `mode` et `chain`), `models`, `allowed_kinds` (types de documents autorisés au cloud, livré par #556 : `statement`, `amortization_table`, `invoice`, `contract`, aucun par défaut ; `bank_labels` à venir), `region`, `monthly_budget_eur`, `remote_workers_allowed`, `conversation_retention_days`, `redaction_enabled` (défaut oui) ; détail dans `../ai/README.md` §13 |
 | `llm_provider_credential` | Voir §10 |
 | `llm_call` | Voir §11 |
 | `ai_consent_rules` | Règles mémorisées par adulte |

@@ -42,7 +42,8 @@ public sealed class DocumentIndexer(
     private const int DocumentsPerPass = 20;
 
     /// <summary>A refusal about this document alone: the others go on. Any other (no model, no worker) ends the pass.</summary>
-    private static readonly HashSet<string> OnItsOwn = [JobCodes.OffsiteNotAllowed, JobCodes.NoSafeWorker, JobCodes.InvalidInput, JobCodes.ResultInvalid];
+    private static readonly HashSet<string> OnItsOwn =
+        [JobCodes.OffsiteNotAllowed, JobCodes.NoSafeWorker, JobCodes.CloudNotAllowed, JobCodes.InvalidInput, JobCodes.ResultInvalid];
 
     public async Task RunOnceAsync(CancellationToken ct)
     {
@@ -75,9 +76,11 @@ public sealed class DocumentIndexer(
         var links = await documents.LinksOfAsync([id], ct);
         var dataClass = DocumentTexts.DataClassOf(links);
         var concerned = await adults.ConcernedAsync(document.UploadedBy, links, ct);
+        // #556: its types, for a cloud provider's embeddings (allowed_kinds).
+        var kinds = links.Select(l => l.Role).Distinct().ToList();
         while (await index.UnembeddedChunksAsync(id, model, ChunkBatch, ct) is { Count: > 0 } chunks)
         {
-            var embedded = await embeddings.EmbedAsync(new LlmEmbedRequest([.. chunks.Select(c => c.Text)], dataClass, concerned), ct);
+            var embedded = await embeddings.EmbedAsync(new LlmEmbedRequest([.. chunks.Select(c => c.Text)], dataClass, concerned, Kinds: kinds), ct);
             if (!embedded.TryGetValue(out var result))
                 return embedded.TryGetFailure(out var failure) && OnItsOwn.Contains(failure!.Code) ? Step.Skip : Step.Stop;
             if (result.Model != model)

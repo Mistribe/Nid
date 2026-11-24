@@ -89,6 +89,15 @@ public sealed class ModelJobs(IJobStore store, ModelContracts contracts, IClock 
         return job.Id;
     }
 
+    public async Task<Result<bool>> ReclassAsync(string fileRef, string dataClass, IReadOnlyList<Guid> concerned, CancellationToken ct)
+    {
+        if (!DataClasses.IsKnown(dataClass) || dataClass == DataClasses.None)
+            return ModelFailures.Of(JobCodes.UnknownDataClass);
+        return await store.ReclassQueuedAsync(fileRef, dataClass, concerned, ct);
+    }
+
+    public Task ForgetAsync(string fileRef, CancellationToken ct) => store.DeleteOfFileAsync(fileRef, ct);
+
     public async Task<ModelJobView?> GetAsync(Guid id, CancellationToken ct)
         => await store.FindAsync(id, ct) is { } job ? View(job) : null;
 

@@ -15,7 +15,8 @@ const CAPABILITY: Record<string, string> = { chat: 'chat', extract: 'chat', embe
 
 /**
  * « Modèles » (#486, decision H, #585): for each use, how far it may go and the model it runs on, among the models the
- * paired workers declare. Self-hosted is the default; going on to a cloud provider is offered once one is enabled.
+ * paired workers declare. Self-hosted is the default; going on to a cloud provider is offered once one serving the use is
+ * enabled. #556: `embed` may also run on an enabled cloud profile's model, the one model of the whole index.
  */
 export function ModelsSection() {
   const { t } = useTranslation();
@@ -24,7 +25,7 @@ export function ModelsSection() {
   const settings = $api.useQuery('get', AI_SETTINGS);
   const models = $api.useQuery('get', DECLARED_MODELS);
   const cloud = $api.useQuery('get', CLOUD);
-  const cloudOn = cloud.data?.profiles.some((p) => p.enabled) === true;
+  const enabledFor = (use: string) => (cloud.data?.profiles ?? []).filter((p) => p.enabled && p.capabilities.includes(CAPABILITY[use] ?? use));
   const refresh = () => Promise.all([AI_SETTINGS, CAPABILITIES].map((path) => queryClient.invalidateQueries({ queryKey: ['get', path] })));
   const saved = { onSuccess: () => { toast.success(t('ai.models.saved')); void refresh(); } };
   const mode = $api.useMutation('put', USE_MODE, saved);
@@ -35,6 +36,9 @@ export function ModelsSection() {
     const label = t(`ai.models.use.${use.use}` as 'ai.models.use.chat', { defaultValue: use.use });
     const path = { params: { path: { use: use.use } } };
     const offered = (models.data?.models ?? []).filter((m) => m.capability === CAPABILITY[use.use]);
+    // #556: a cloud profile's model is the use's only for embed; a chat turn on the cloud runs on its profile's own model.
+    const cloudModels = use.use === 'embed' ? enabledFor('embed').filter((p) => !offered.some((m) => m.name === p.model)) : [];
+    const provider = (name: string) => t(`ai.cloud.provider.${name}` as 'ai.cloud.provider.anthropic', { defaultValue: name });
     return (
       <div key={use.use} className="space-y-2 border-b pb-4 last:border-b-0">
         <h3 className="flex items-center gap-1.5 text-sm font-medium">
@@ -47,20 +51,24 @@ export function ModelsSection() {
               <SelectField {...c} value={use.mode} onValueChange={(value) => mode.mutate({ ...path, body: { mode: value } })} options={[
                 { value: 'self_hosted', label: t('ai.models.mode_self_hosted') },
                 { value: 'off', label: t('ai.models.mode_off') },
-                // Offered once a cloud profile is enabled (#487), or while set; never for embed, which no provider serves yet (#556).
-                ...((cloudOn && use.use !== 'embed') || use.mode === 'self_hosted_then_cloud'
+                // Offered once a cloud profile serving the use is enabled (#487, #556), or while set.
+                ...(enabledFor(use.use).length > 0 || use.mode === 'self_hosted_then_cloud'
                   ? [{ value: 'self_hosted_then_cloud', label: t('ai.models.mode_cloud') }] : []),
               ]} />
             )}
           </Field>
-          <Field label={t('ai.models.model')} hint={offered.length === 0 ? t('ai.models.none_declared') : undefined}>
+          <Field label={t('ai.models.model')}
+            hint={cloudModels.some((p) => p.model === use.model) ? t('ai.models.cloud_model_hint')
+              : offered.length === 0 && cloudModels.length === 0 ? t('ai.models.none_declared') : undefined}>
               {(c) => (
                 <SelectField {...c} value={use.model ?? ''} onValueChange={(value) => model.mutate({ ...path, body: { model: value || null } })}
                   options={[
                     { value: '', label: t('ai.models.no_model') },
                     ...offered.map((m) => ({ value: m.name, label: t('ai.models.served_by', { name: m.name, count: m.workers }) })),
+                    ...cloudModels.map((p) => ({ value: p.model, label: t('ai.models.cloud_model', { name: p.model, provider: provider(p.provider) }) })),
                     // A model no worker declares any more stays visible until the admin picks another.
-                    ...(use.model && !offered.some((m) => m.name === use.model) ? [{ value: use.model, label: t('ai.models.gone', { name: use.model }) }] : []),
+                    ...(use.model && !offered.some((m) => m.name === use.model) && !cloudModels.some((p) => p.model === use.model)
+                      ? [{ value: use.model, label: t('ai.models.gone', { name: use.model }) }] : []),
                   ]} />
               )}
             </Field>

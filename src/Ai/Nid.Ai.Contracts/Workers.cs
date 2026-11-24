@@ -62,7 +62,9 @@ public sealed record RegisteredWorker(Guid Id, string Fingerprint);
 /// <summary>The household's AI settings as any adult reads them.</summary>
 /// <summary>The household's AI settings: the remote opt-in and each use (#486).</summary>
 /// <remarks><see cref="ConversationRetentionDays"/> (#531): how long the assistant's conversations are kept.</remarks>
-public sealed record AiSettingsView(bool RemoteWorkersAllowed, IReadOnlyList<UseSettingView> Uses, int ConversationRetentionDays = 30);
+/// <remarks><see cref="AllowedKinds"/> (#556): the document types a cloud provider may read, none by default.</remarks>
+public sealed record AiSettingsView(
+    bool RemoteWorkersAllowed, IReadOnlyList<UseSettingView> Uses, IReadOnlyList<string> AllowedKinds, int ConversationRetentionDays = 30);
 
 /// <summary>« Tester »: how many frames the streamed echo answered, and the echo job queued for the worker.</summary>
 public sealed record WorkerTestResult(int Frames, Guid JobId);
@@ -103,10 +105,19 @@ public sealed record ModelCapabilities(bool RemoteWorkersAllowed, IReadOnlyList<
 /// <c>ai.remote_not_allowed</c>, <c>ai.all_offline</c>.</summary>
 public sealed record CapabilityView(string Capability, int Local, int Remote, int Safe, string? Reason);
 
-/// <summary>A job as the jobs page lists it: what it is, where it stands and why it waits; never its input or its result.</summary>
+/// <summary>A job as the jobs page lists it: what it is, where it stands and why it waits; never its input or its result.
+/// <see cref="File"/>: what it is about (#602); <see cref="Dispatches"/>: each time it was sent to a worker, oldest first.</summary>
 public sealed record ModelJobListItem(
     Guid Id, string Type, string Status, int Attempts, string? WaitingReason, string? Error, string? WorkerName, Instant CreatedAt,
-    Instant? FinishedAt);
+    Instant? FinishedAt, ModelJobFile? File, IReadOnlyList<ModelJobDispatch> Dispatches);
+
+/// <summary>#602: a job's file (<c>module:reference</c>); the reference only when the admin reads it, never its name: the page
+/// asks the module for it, under the module's own rights.</summary>
+public sealed record ModelJobFile(string Module, string? Reference);
+
+/// <summary>#602: one send of a job to a worker; <see cref="Outcome"/> is <c>succeeded</c> or why the attempt ended, null while it
+/// runs.</summary>
+public sealed record ModelJobDispatch(string? WorkerName, Instant SentAt, Instant? FinishedAt, string? Outcome);
 
 /// <summary>One page of jobs, newest first, with the types the table can filter on.</summary>
 public sealed record ModelJobPage(IReadOnlyList<ModelJobListItem> Items, int Total, int Page, IReadOnlyList<string> Types)

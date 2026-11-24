@@ -147,5 +147,9 @@ public sealed class LlmGatewayTests
         public Task<int> ConversationRetentionDaysAsync(CancellationToken ct) => Task.FromResult(30);
 
         public Task SetConversationRetentionDaysAsync(int days, CancellationToken ct) => throw new NotSupportedException();
+
+        public Task<IReadOnlyList<string>> AllowedKindsAsync(CancellationToken ct) => Task.FromResult<IReadOnlyList<string>>([]);
+
+        public Task<bool> SetAllowedKindsAsync(IReadOnlyList<string> kinds, CancellationToken ct) => throw new NotSupportedException();
     }
 }

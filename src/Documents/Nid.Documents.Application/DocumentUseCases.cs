@@ -1,4 +1,7 @@
 using System.Security.Cryptography;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Nid.Ai.Contracts;
 using Nid.Core.Contracts;
 using Nid.Documents.Contracts;
 using Nid.Documents.Domain;
@@ -49,6 +52,12 @@ public sealed record EditDocumentCommand(Guid Id, string Title, LocalDate? Docum
 
 /// <summary><paramref name="Version"/>: the one read with the document (#506).</summary>
 public sealed record SetDocumentArchivedCommand(Guid Id, bool Archived, uint Version) : ICommand<Guid>, IEditsDocument
+{
+    Guid IReadsDocument.DocumentId => Id;
+}
+
+/// <summary>#600: <paramref name="Version"/>: the one read with the document (#506).</summary>
+public sealed record DeleteDocumentCommand(Guid Id, uint Version) : ICommand<Guid>, IEditsDocument
 {
     Guid IReadsDocument.DocumentId => Id;
 }
@@ -137,13 +146,17 @@ public sealed class UploadDocumentHandler(
         if (command.WarnDuplicate && await DuplicateAsync(command.Content, person, ct) is { } duplicate)
             return Result.Success(new UploadedDocument(duplicate.Id, true, duplicate));
 
-        // Stored before the row: a row never points at missing bytes; bytes left by a failed insert are only unreferenced.
-        var sha256 = await storage.PutAsync(command.Content, ct);
+        var sha256 = Convert.ToHexStringLower(SHA256.HashData(command.Content.Span));
         var document = new DocumentRecord(id, sha256, command.Content.Length, mediaType, fileName, title.Trim(), command.DocumentDate,
             DocumentFields.Note(command.Note), person.Value, clock.GetCurrentInstant(), null, sourceRef);
         try
         {
             await using var transaction = await unitOfWork.BeginAsync(ct);
+            // #600: held until the row is committed, so a delete of the last document with these bytes either removed them
+            // before (they are stored again here) or sees this row and keeps them.
+            await store.LockFileAsync(sha256, ct);
+            // Stored before the row: a row never points at missing bytes; bytes left by a failed insert are only unreferenced.
+            await storage.PutAsync(command.Content, ct);
             await store.CreateAsync(document, ct);
             if (link is not null)
                 await store.AddLinkAsync(link, ct);
@@ -249,6 +262,57 @@ public sealed class SetDocumentArchivedHandler(IDocumentStore store, IContextAcc
 }
 
 /// <summary>
+/// #600: whoever edits the document deletes it: the row, its links, text, chunks and embeddings (<see cref="IDocumentStore.DeleteAsync"/>),
+/// its text job with its result, then, once committed, its file if no other document has the same bytes. Backups keep it until they expire.
+/// </summary>
+[RequestHandler<DeleteDocumentCommand, Guid>]
+public sealed partial class DeleteDocumentHandler(
+    IDocumentStore store, IDocumentStorage storage, IModelJobs jobs, IUnitOfWork unitOfWork, IContextAccessor context, IServiceScopeFactory scopes,
+    ILogger<DeleteDocumentHandler> logger)
+    : IRequestHandler<DeleteDocumentCommand, Guid>
+{
+    public async ValueTask<Result<Guid>> HandleAsync(DeleteDocumentCommand command, CancellationToken ct = default)
+    {
+        var sha256 = CheckedResources.Of<ReadableDocument>(context, command).Document.Sha256;
+        await using var transaction = await unitOfWork.BeginAsync(ct);
+        if ((await store.DeleteAsync(command.Id, command.Version, ct)).TryGetFailure(out var conflict))
+            return Result.Failure<Guid>(conflict!);
+        await jobs.ForgetAsync(DocumentTexts.FileRef(command.Id), ct);
+        // The bytes go only after the commit, so a rollback never leaves a row without them.
+        unitOfWork.AfterCommit(() => DeleteFileIfUnusedAsync(sha256));
+        await transaction.CommitAsync(ct);
+        return Result.Success(command.Id);
+    }
+
+    /// <summary>
+    /// In a transaction of its own (the request's has just committed), under the file's lock that an upload holds from storing the bytes
+    /// to committing its row: no document left with these bytes means none can appear before they are gone. A failure leaves an
+    /// unreferenced file, never a row without its bytes.
+    /// </summary>
+    private async Task DeleteFileIfUnusedAsync(string sha256)
+    {
+        try
+        {
+            await using var scope = scopes.CreateAsyncScope();
+            var work = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var files = scope.ServiceProvider.GetRequiredService<IDocumentStore>();
+            await using var transaction = await work.BeginAsync(CancellationToken.None);
+            await files.LockFileAsync(sha256, CancellationToken.None);
+            if ((await files.FindBySha256Async(sha256, CancellationToken.None)).Count == 0)
+                await storage.DeleteAsync(sha256, CancellationToken.None);
+            await transaction.CommitAsync(CancellationToken.None);
+        }
+        catch (Exception e)
+        {
+            FileLeft(logger, e, sha256);
+        }
+    }
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The file {Sha256} of a deleted document was not removed; it is no longer referenced")]
+    private static partial void FileLeft(ILogger logger, Exception error, string sha256);
+}
+
+/// <summary>
 /// Design §7: needs the right to edit the document and to write the target; answers the adults the link opens it to.
 /// <paramref name="ProposalSource"/>: the link a proposal's source makes (tranche 3 design §4.1), set by the MCP host only; it asks the
 /// proposal's own `write` scope instead of `write:direct`, with the same rights.
@@ -285,7 +349,7 @@ public sealed record UnlinkDocumentCommand(Guid Id, DocumentTarget Target) : ICo
 }
 
 [RequestHandler<LinkDocumentCommand, LinkAdded>]
-public sealed class LinkDocumentHandler(DocumentAccess access, IActorAccessor actor, IContextAccessor context) : IRequestHandler<LinkDocumentCommand, LinkAdded>
+public sealed class LinkDocumentHandler(DocumentAccess access, IActorAccessor actor, IContextAccessor context, DocumentTexts texts) : IRequestHandler<LinkDocumentCommand, LinkAdded>
 {
     public async ValueTask<Result<LinkAdded>> HandleAsync(LinkDocumentCommand command, CancellationToken ct = default)
     {
@@ -296,6 +360,7 @@ public sealed class LinkDocumentHandler(DocumentAccess access, IActorAccessor ac
         var linked = await access.LinkAsync(d.Id, d.UploadedBy, found.Links, command.Target, command.Role, person, ct);
         if (!linked.TryGetValue(out var link))
             return Result.Failure<LinkAdded>(linked.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
+        await texts.ReclassAsync(d.Id, ct);
 
         var before = await access.ReadersAsync(d.UploadedBy, found.Links.Select(DocumentAccess.Facts).ToList(), ct);
         var after = await access.ReadersAsync(d.UploadedBy, found.Links.Append(link!).Select(DocumentAccess.Facts).ToList(), ct);
@@ -304,7 +369,7 @@ public sealed class LinkDocumentHandler(DocumentAccess access, IActorAccessor ac
 }
 
 [RequestHandler<SetLinkRoleCommand, Guid>]
-public sealed class SetLinkRoleHandler(IDocumentStore store, DocumentAccess access, IActorAccessor actor) : IRequestHandler<SetLinkRoleCommand, Guid>
+public sealed class SetLinkRoleHandler(IDocumentStore store, DocumentAccess access, IActorAccessor actor, DocumentTexts texts) : IRequestHandler<SetLinkRoleCommand, Guid>
 {
     public async ValueTask<Result<Guid>> HandleAsync(SetLinkRoleCommand command, CancellationToken ct = default)
     {
@@ -317,12 +382,13 @@ public sealed class SetLinkRoleHandler(IDocumentStore store, DocumentAccess acce
             return Result.Failure<Guid>(link.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
 
         await store.SetRoleAsync(command.Id, command.Target, command.Role, ct);
+        await texts.ReclassAsync(command.Id, ct);
         return Result.Success(command.Id);
     }
 }
 
 [RequestHandler<UnlinkDocumentCommand, Guid>]
-public sealed class UnlinkDocumentHandler(IDocumentStore store, DocumentAccess access, IActorAccessor actor) : IRequestHandler<UnlinkDocumentCommand, Guid>
+public sealed class UnlinkDocumentHandler(IDocumentStore store, DocumentAccess access, IActorAccessor actor, DocumentTexts texts) : IRequestHandler<UnlinkDocumentCommand, Guid>
 {
     public async ValueTask<Result<Guid>> HandleAsync(UnlinkDocumentCommand command, CancellationToken ct = default)
     {
@@ -331,6 +397,7 @@ public sealed class UnlinkDocumentHandler(IDocumentStore store, DocumentAccess a
             return Result.Failure<Guid>(link.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
 
         await store.RemoveLinkAsync(command.Id, command.Target, ct);
+        await texts.ReclassAsync(command.Id, ct);
         return Result.Success(command.Id);
     }
 }

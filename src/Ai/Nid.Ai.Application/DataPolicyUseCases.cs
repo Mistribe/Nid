@@ -95,3 +95,29 @@ public sealed class GetAiSettingsHandler(IAiSettings settings) : IRequestHandler
     public async ValueTask<Result<AiSettingsView>> HandleAsync(GetAiSettingsQuery query, CancellationToken ct = default)
         => Result.Success(await AiSettingsViews.ReadAsync(settings, ct));
 }
+
+/// <summary>#556: the document types a cloud provider may read (<c>allowed_kinds</c>, <c>docs/ai/README.md</c> §6.1): an admin,
+/// in the browser. None by default; a payslip is never offered. Every adult is told of a change.</summary>
+public sealed record SetAllowedKindsCommand(IReadOnlyList<string> Kinds) : ICommand<PolicyChange<AiSettingsView>>, IAdminOnly, IBrowserOnly;
+
+[RequestHandler<SetAllowedKindsCommand, PolicyChange<AiSettingsView>>]
+public sealed class SetAllowedKindsHandler(IAiSettings settings, INotifier notifier, IClock clock)
+    : IRequestHandler<SetAllowedKindsCommand, PolicyChange<AiSettingsView>>
+{
+    public async ValueTask<Result<PolicyChange<AiSettingsView>>> HandleAsync(SetAllowedKindsCommand command, CancellationToken ct = default)
+    {
+        if (command.Kinds.FirstOrDefault(k => !CloudDocumentKinds.All.Contains(k)) is { } unknown)
+            return Result.Failure<PolicyChange<AiSettingsView>>(new Failure(JobCodes.UnknownKind, $"'{unknown}' may not go to a cloud provider.", null));
+
+        // Kept in the list's order, once each.
+        var kinds = CloudDocumentKinds.All.Where(command.Kinds.Contains).ToList();
+        if ((await settings.AllowedKindsAsync(ct)).SequenceEqual(kinds))
+            return Result.Success(new PolicyChange<AiSettingsView>(await AiSettingsViews.ReadAsync(settings, ct), Changed: false));
+        if (!await settings.SetAllowedKindsAsync(kinds, ct))
+            return Result.Failure<PolicyChange<AiSettingsView>>(
+                new ConflictFailure("Another adult changed it at the same moment: read it again.") { Code = JobCodes.SettingsChanged });
+        await DataPolicyNotices.TellAsync(notifier, "allowed_kinds", null, clock.GetCurrentInstant(), ct,
+            new Dictionary<string, string> { ["kinds"] = string.Join(',', kinds) });
+        return Result.Success(new PolicyChange<AiSettingsView>(await AiSettingsViews.ReadAsync(settings, ct), Changed: true));
+    }
+}

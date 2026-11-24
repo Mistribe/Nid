@@ -60,5 +60,12 @@ public static class DocumentApi
     public static async Task<HttpResponseMessage> ArchiveAsync(NidApp app, PersonId actor, Guid id, bool archived = true)
         => await app.RawAsync(actor, HttpMethod.Post, $"{Documents}/{id}/{(archived ? "archive" : "unarchive")}", new { version = await VersionAsync(app, actor, id) });
 
+    /// <summary>#600: deletes the document at the version <paramref name="actor"/> reads now; 204 expected.</summary>
+    public static async Task DeletedAsync(NidApp app, PersonId actor, Guid id)
+        => Assert.Equal(HttpStatusCode.NoContent, (await DeleteAsync(app, actor, id, await VersionAsync(app, actor, id))).StatusCode);
+
+    public static Task<HttpResponseMessage> DeleteAsync(NidApp app, PersonId actor, Guid id, uint version)
+        => app.RawAsync(actor, HttpMethod.Delete, $"{Documents}/{id}?version={version}");
+
     public const string UploadInstant = "2025-10-15T00:00:00Z";
 }

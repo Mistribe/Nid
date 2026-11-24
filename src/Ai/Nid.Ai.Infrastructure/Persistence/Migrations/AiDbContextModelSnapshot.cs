@@ -17,7 +17,7 @@ partial class AiDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261123143033_JobConcerned";
+    public override string LastMigrationId => "20261124155802_CloudAllowedKinds";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -78,6 +78,11 @@ partial class AiDbContextModelSnapshot : ModelSnapshot
                 b.Property<int>("Id")
                     .HasColumnType("integer")
                     .HasColumnName("id");
+
+                b.PrimitiveCollection<string[]>("AllowedKinds")
+                    .IsRequired()
+                    .HasColumnType("text[]")
+                    .HasColumnName("allowed_kinds");
 
                 b.Property<int?>("ConversationRetentionDays")
                     .HasColumnType("integer")
@@ -371,6 +376,45 @@ partial class AiDbContextModelSnapshot : ModelSnapshot
                     .HasDatabaseName("ix_conversation_person_id_updated_at");
 
                 b.ToTable("conversation", "ai");
+            });
+
+        modelBuilder.Entity("Nid.Ai.Infrastructure.Persistence.JobDispatchRow", b =>
+            {
+                b.Property<Guid>("Id")
+                    .HasColumnType("uuid")
+                    .HasColumnName("id");
+
+                b.Property<Instant?>("FinishedAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("finished_at");
+
+                b.Property<Guid>("JobId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("job_id");
+
+                b.Property<string>("Outcome")
+                    .HasMaxLength(128)
+                    .HasColumnType("character varying(128)")
+                    .HasColumnName("outcome");
+
+                b.Property<Instant>("SentAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("sent_at");
+
+                b.Property<Guid?>("WorkerId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("worker_id");
+
+                b.HasKey("Id")
+                    .HasName("pk_job_dispatch");
+
+                b.HasIndex("WorkerId")
+                    .HasDatabaseName("ix_job_dispatch_worker_id");
+
+                b.HasIndex("JobId", "SentAt")
+                    .HasDatabaseName("ix_job_dispatch_job_id_sent_at");
+
+                b.ToTable("job_dispatch", "ai");
             });
 
         modelBuilder.Entity("Nid.Ai.Infrastructure.Persistence.JobRow", b =>
@@ -898,6 +942,22 @@ partial class AiDbContextModelSnapshot : ModelSnapshot
                     .OnDelete(DeleteBehavior.Cascade)
                     .IsRequired()
                     .HasConstraintName("fk_conversation_message_conversation_conversation_id");
+            });
+
+        modelBuilder.Entity("Nid.Ai.Infrastructure.Persistence.JobDispatchRow", b =>
+            {
+                b.HasOne("Nid.Ai.Infrastructure.Persistence.JobRow", null)
+                    .WithMany()
+                    .HasForeignKey("JobId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired()
+                    .HasConstraintName("fk_job_dispatch_job_job_id");
+
+                b.HasOne("Nid.Ai.Infrastructure.Persistence.ModelWorkerRow", null)
+                    .WithMany()
+                    .HasForeignKey("WorkerId")
+                    .OnDelete(DeleteBehavior.SetNull)
+                    .HasConstraintName("fk_job_dispatch_model_worker_worker_id");
             });
 
         modelBuilder.Entity("Nid.Ai.Infrastructure.Persistence.JobRow", b =>

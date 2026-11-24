@@ -90,6 +90,16 @@ public static class PlatformNotificationKinds
         var other => other ?? "",
     };
 
+    /// <summary>#556: the document types of <c>allowed_kinds</c>, in words.</summary>
+    private static string CloudKinds(string kinds) => string.Join(", ", kinds.Split(',').Select(k => k switch
+    {
+        "statement" => "relevés",
+        "amortization_table" => "tableaux d'amortissement",
+        "invoice" => "factures",
+        "contract" => "contrats",
+        _ => k,
+    }));
+
     private static string DataPolicyChange(IReadOnlyDictionary<string, string> p)
     {
         var worker = p.GetValueOrDefault("worker") is { Length: > 0 } name ? $"« {name} »" : "Un worker";
@@ -103,6 +113,9 @@ public static class PlatformNotificationKinds
             "cloud_off" => $"L'usage « {Use(p)} » ne passe plus que par les workers du foyer.",
             "cloud_profile_on" => $"Le fournisseur cloud « {p.GetValueOrDefault("profile")} » est activé : il peut recevoir les demandes des usages ouverts au cloud.",
             "cloud_profile_off" => $"Le fournisseur cloud « {p.GetValueOrDefault("profile")} » est désactivé.",
+            "allowed_kinds" => p.GetValueOrDefault("kinds") is { Length: > 0 } kinds
+                ? $"Ces types de documents peuvent désormais partir vers un fournisseur cloud activé, si chaque adulte concerné l'autorise : {CloudKinds(kinds)}."
+                : "Plus aucun document ne part vers un fournisseur cloud.",
             "assistant_cloud_on" => "Un adulte a activé l'assistant pour lui alors qu'il peut passer par un fournisseur cloud : ses propres chiffres peuvent y partir, jamais les éléments privés de l'autre adulte.",
             _ => "",
         };

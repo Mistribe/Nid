@@ -28,7 +28,8 @@ public sealed record CloudProfileView(
     bool Eligible,
     bool Enabled,
     string? KeyHint,
-    bool Suspended);
+    bool Suspended,
+    IReadOnlyList<string> Capabilities);
 
 /// <summary>The household's cloud settings: its region (none until an admin confirms it) and every profile Nid ships.</summary>
 public sealed record CloudSettingsView(string? Region, IReadOnlyList<CloudProfileView> Profiles);

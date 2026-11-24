@@ -37,6 +37,15 @@ public sealed class JobStore(AiDbContext db, IDataProtectionProvider protection)
     public async Task<JobRecord?> FindAsync(Guid id, CancellationToken ct)
         => await db.Jobs.AsNoTracking().SingleOrDefaultAsync(j => j.Id == id, ct) is { } row ? ToRecord(row) : null;
 
+    public async Task<bool> ReclassQueuedAsync(string fileRef, string dataClass, IReadOnlyList<Guid> concerned, CancellationToken ct)
+    {
+        var adults = concerned.ToArray();
+        return await db.Jobs.Where(j => j.FileRef == fileRef && j.Status == "queued")
+            .ExecuteUpdateAsync(s => s.SetProperty(j => j.DataClass, dataClass).SetProperty(j => j.Concerned, adults), ct) > 0;
+    }
+
+    public Task DeleteOfFileAsync(string fileRef, CancellationToken ct) => db.Jobs.Where(j => j.FileRef == fileRef).ExecuteDeleteAsync(ct);
+
     public async Task<IReadOnlyList<JobRecord>> DueAsync(Instant now, int limit, CancellationToken ct)
         => (await db.Jobs.AsNoTracking().Where(j => j.Status == "queued" && j.RunAfter <= now)
             .OrderBy(j => j.RunAfter).ThenBy(j => j.CreatedAt).Take(limit).ToListAsync(ct)).Select(ToRecord).ToList();
@@ -61,7 +70,7 @@ public sealed class JobStore(AiDbContext db, IDataProtectionProvider protection)
             {
                 Id = j.Id, Type = j.Type, Version = j.Version, Input = "", InputHash = "", DataClass = j.DataClass, Status = j.Status,
                 Attempts = j.Attempts, WorkerId = j.WorkerId, Error = j.Error, WaitingReason = j.WaitingReason, CreatedAt = j.CreatedAt,
-                FinishedAt = j.FinishedAt,
+                FinishedAt = j.FinishedAt, FileRef = j.FileRef,
             })
             .ToListAsync(ct);
         var types = await db.Jobs.AsNoTracking().Select(j => j.Type).Distinct().OrderBy(t => t).ToListAsync(ct);
@@ -72,6 +81,27 @@ public sealed class JobStore(AiDbContext db, IDataProtectionProvider protection)
         => db.Jobs.Where(j => (j.Status == "succeeded" && j.FinishedAt < succeededBefore)
                               || ((j.Status == "failed" || j.Status == "dead") && j.FinishedAt < failedBefore))
             .ExecuteDeleteAsync(ct);
+
+    public async Task AddDispatchAsync(Guid job, Guid worker, Instant sentAt, CancellationToken ct)
+    {
+        db.JobDispatches.Add(new JobDispatchRow { Id = Guid.CreateVersion7(), JobId = job, WorkerId = worker, SentAt = sentAt });
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task EndDispatchAsync(Guid job, string outcome, Instant at, CancellationToken ct)
+    {
+        foreach (var row in await db.JobDispatches.Where(d => d.JobId == job && d.FinishedAt == null).ToListAsync(ct))
+        {
+            row.FinishedAt = at;
+            row.Outcome = outcome;
+        }
+
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<JobDispatch>> DispatchesOfAsync(IReadOnlyCollection<Guid> jobs, CancellationToken ct)
+        => await db.JobDispatches.AsNoTracking().Where(d => jobs.Contains(d.JobId)).OrderBy(d => d.SentAt).ThenBy(d => d.Id)
+            .Select(d => new JobDispatch(d.JobId, d.WorkerId, d.SentAt, d.FinishedAt, d.Outcome)).ToListAsync(ct);
 
     public async Task<bool> TryUpdateAsync(JobRecord job, CancellationToken ct)
     {

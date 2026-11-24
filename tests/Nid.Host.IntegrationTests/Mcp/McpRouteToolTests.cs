@@ -23,6 +23,8 @@ public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
         "/api/v1/tax/", "PUT /api/v1/dashboard/allocation-target", "PUT /api/v1/investments/fee-references", "/api/v1/scenarios/", "/api/v1/platform/notifications/",
         // Documents: the assistant links, edits and files them through proposals (#305), never archives or unlinks them.
         "/archive", "/unarchive", "DELETE /api/v1/documents/{id:guid}/links/{targetKind}/{targetId:guid}",
+        // #600: deleting a document cannot be undone: the person does it in the app, after its confirmation.
+        "DELETE /api/v1/documents/{id:guid}",
         // Its uploads change no figure: upload_document and request_document_upload write directly, this URL carrying the file.
         "POST /api/v1/documents/uploads/{token}",
         // The household's projection assumptions (spec §7): read in the web app, which is where they are set.

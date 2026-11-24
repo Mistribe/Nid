@@ -85,6 +85,14 @@ public interface IDocumentStore
     /// <summary>Writes <c>archived_at</c>, if the row is still at <paramref name="version"/> (#506); else <c>documents.conflict</c>.</summary>
     Task<Result> SetArchivedAsync(Guid id, Instant? archivedAt, uint version, CancellationToken ct);
 
+    /// <summary>#600: deletes the row, if it is still at <paramref name="version"/>, else <c>documents.conflict</c>. Its links go one by
+    /// one, so the audit sees each; its text, its job's row, its chunks and their embeddings by cascade.</summary>
+    Task<Result> DeleteAsync(Guid id, uint version, CancellationToken ct);
+
+    /// <summary>#600: the lock on a file's bytes, held until the open transaction ends: taken by an upload around storing them and
+    /// committing its row, and by a delete around checking no row uses them and removing them.</summary>
+    Task LockFileAsync(string sha256, CancellationToken ct);
+
     /// <summary>False when the document is already linked to the target.</summary>
     Task<bool> AddLinkAsync(LinkRecord link, CancellationToken ct);
 
