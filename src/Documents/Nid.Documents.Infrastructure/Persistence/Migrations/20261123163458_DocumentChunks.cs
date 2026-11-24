@@ -66,12 +66,26 @@ public partial class _20261123163458_DocumentChunks : Migration
                 constraint ck_chunk_embedding_dimension check (vector_dims(embedding) = dimension)
             );
             """);
+
+        // A (model, dimension)'s partial HNSW index, cosine distance, over the vectors cast to their length. An index's
+        // predicate and type take no bind parameter: format() quotes the model (%L) and the name (%I) here, and Nid passes them
+        // as parameters. The name hashes both, so any model name fits Postgres's 63 bytes.
+        migrationBuilder.Sql("""
+            create function documents.ensure_embedding_index(model text, dimension integer) returns void
+            language plpgsql as $$
+            begin
+                execute format(
+                    'create index if not exists %I on documents.chunk_embedding using hnsw ((embedding::vector(%s)) vector_cosine_ops) where model = %L',
+                    'ix_chunk_embedding_' || left(encode(sha256(convert_to(model || E'\n' || dimension, 'UTF8')), 'hex'), 16),
+                    dimension, model);
+            end $$;
+            """);
     }
 
     /// <inheritdoc />
     protected override void Down(MigrationBuilder migrationBuilder)
     {
-        migrationBuilder.Sql("drop table documents.chunk_embedding;");
+        migrationBuilder.Sql("drop function documents.ensure_embedding_index(text, integer); drop table documents.chunk_embedding;");
 
         migrationBuilder.DropTable(
             name: "document_chunk",

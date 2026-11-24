@@ -1,7 +1,4 @@
 using System.Globalization;
-using System.Security.Cryptography;
-using System.Text;
-using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Nid.Documents.Application;
 using Nid.Documents.Domain;
@@ -12,7 +9,7 @@ namespace Nid.Documents.Infrastructure.Persistence;
 /// <summary>#559: the chunks (EF) and their embeddings (<c>documents.chunk_embedding</c>, in SQL: pgvector's <c>vector</c> has no
 /// mapping here). An embedding keeps its model and dimension; each (model, dimension) gets its own partial HNSW index, made
 /// each time some are written (<c>if not exists</c>: a lookup in the catalog once it is there).</summary>
-public sealed partial class DocumentIndexStore(DocumentsDbContext db) : IDocumentIndexStore
+public sealed class DocumentIndexStore(DocumentsDbContext db) : IDocumentIndexStore
 {
     /// <summary>pgvector's HNSW indexes vectors of up to 2 000 dimensions.</summary>
     public const int MaxIndexedDimension = 2000;
@@ -75,20 +72,13 @@ public sealed partial class DocumentIndexStore(DocumentsDbContext db) : IDocumen
                 and not exists (select 1 from documents.chunk_embedding e2 where e2.chunk_id = c2.id and e2.model = {model}))
             """, ct);
 
-    /// <summary>The (model, dimension)'s HNSW index, cosine distance, over the vectors cast to their length. A model name the
-    /// index's predicate cannot hold as a plain literal, or a length HNSW does not take, gets none (search then scans).</summary>
+    /// <summary>The (model, dimension)'s HNSW index, cosine distance, over the vectors cast to their length
+    /// (<c>documents.ensure_embedding_index</c>, which quotes the model inside Postgres). A length HNSW does not take gets none
+    /// (search then scans).</summary>
     private async Task IndexAsync(string model, int dimension, CancellationToken ct)
     {
-        if (!ModelName().IsMatch(model) || dimension is < 1 or > MaxIndexedDimension)
+        if (dimension is < 1 or > MaxIndexedDimension)
             return;
-        var name = "ix_chunk_embedding_" + Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes($"{model}\n{dimension}")))[..16];
-#pragma warning disable EF1002 // the name is a hash, the model matches ModelName(), the dimension is a checked number
-        await db.Database.ExecuteSqlRawAsync(
-            $"create index if not exists {name} on documents.chunk_embedding using hnsw ((embedding::vector({dimension})) vector_cosine_ops) where model = '{model}'",
-            ct);
-#pragma warning restore EF1002
+        await db.Database.ExecuteSqlAsync($"select documents.ensure_embedding_index({model}, {dimension})", ct);
     }
-
-    [GeneratedRegex(@"^[A-Za-z0-9._:/@+-]{1,200}$")]
-    private static partial Regex ModelName();
 }
