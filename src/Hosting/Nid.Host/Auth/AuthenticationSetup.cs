@@ -1,7 +1,10 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using System.Globalization;
+using System.Security.Claims;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.Extensions.Options;
 using Nid.Core.Contracts;
 
 namespace Nid.Host.Auth;
@@ -56,6 +59,8 @@ public static class AuthenticationSetup
                 cookie.ExpireTimeSpan = TimeSpan.FromDays(options.SessionSlidingDays);
                 cookie.Events.OnRedirectToLogin = c => { c.Response.StatusCode = StatusCodes.Status401Unauthorized; return Task.CompletedTask; };
                 cookie.Events.OnRedirectToAccessDenied = c => { c.Response.StatusCode = StatusCodes.Status403Forbidden; return Task.CompletedTask; };
+                // #635: no sign-in sets its own expiry, so the sliding window applies; the absolute one counts from the sign-in.
+                cookie.Events.OnSigningIn = StampSignIn;
                 cookie.Events.OnValidatePrincipal = RejectRevokedSessions;
             });
         // Neither demo mode nor local accounts alone have an identity provider, whose options would refuse an empty authority.
@@ -89,11 +94,25 @@ public static class AuthenticationSetup
     /// <summary>The session cookie's name: <c>__Host-nid</c>, or <c>nid</c> when plain HTTP is allowed.</summary>
     public static string CookieName(AuthSettings settings) => settings.AllowInsecureHttp ? "nid" : "__Host-nid";
 
+    /// <summary>Every cookie sign-in (identity provider, password, demo) records when it happened; sliding renewals keep it.</summary>
+    private static Task StampSignIn(CookieSigningInContext context)
+    {
+        var identity = (ClaimsIdentity)context.Principal!.Identity!;
+        if (identity.FindFirst(SessionClaims.SignedInAt) is null)
+            identity.AddClaim(new Claim(SessionClaims.SignedInAt,
+                (context.Options.TimeProvider ?? TimeProvider.System).GetUtcNow().ToUnixTimeSeconds().ToString(CultureInfo.InvariantCulture)));
+        return Task.CompletedTask;
+    }
+
     private static async Task RejectRevokedSessions(CookieValidatePrincipalContext context)
     {
         var person = SessionClaims.ReadPersonId(context.Principal!);
         var epoch = SessionClaims.ReadEpoch(context.Principal!);
-        if (person is null || epoch is null)
+        // A session past the absolute limit, or opened before sign-ins were stamped, signs in again.
+        var signedInAt = SessionClaims.ReadSignedInAt(context.Principal!);
+        var absolute = TimeSpan.FromDays(context.HttpContext.RequestServices.GetRequiredService<IOptions<NidAuthOptions>>().Value.SessionAbsoluteDays);
+        if (person is null || epoch is null || signedInAt is null
+            || (context.Options.TimeProvider ?? TimeProvider.System).GetUtcNow() - signedInAt.Value >= absolute)
         {
             context.RejectPrincipal();
             return;
@@ -142,7 +161,6 @@ public static class AuthenticationSetup
         }
 
         context.Principal = SessionClaims.Create(person, subject, CookieAuthenticationDefaults.AuthenticationScheme);
-        context.Properties!.ExpiresUtc = DateTimeOffset.UtcNow.AddDays(services.GetRequiredService<Microsoft.Extensions.Options.IOptions<NidAuthOptions>>().Value.SessionAbsoluteDays);
-        context.Properties.IsPersistent = true;
+        context.Properties!.IsPersistent = true;
     }
 }

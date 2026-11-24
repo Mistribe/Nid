@@ -41,9 +41,9 @@ Créé par l'hébergeur dans Pocket ID (`deploy/README.md` §2) ; son secret vie
 | Sujet | Décision |
 |---|---|
 | Mécanisme | Cookie d'authentification ASP.NET, **sans session stockée en base** |
-| Contenu | `person_id`, `sub`, `session_epoch`. Chiffré avec les clés Data Protection (volume sauvegardé) |
+| Contenu | `person_id`, `sub`, `session_epoch`, `auth_time` (heure de la connexion). Chiffré avec les clés Data Protection (volume sauvegardé) |
 | Attributs | Nom préfixé `__Host-`, `Secure`, `HttpOnly`, `SameSite=Lax`, `Path=/`, sans `Domain` |
-| Durée | Glissante 7 jours, **absolue 30 jours** (configurables) |
+| Durée | Glissante 7 jours, **absolue 30 jours** (configurables) : aucune connexion ne fixe sa propre expiration, le cookie expire après 7 jours sans usage ; le validateur refuse un cookie dont `auth_time` a 30 jours, quelle que soit la fréquence d'usage (#635) |
 | Révocation | `person.session_epoch` : « déconnecter partout » (page Sécurité, ou un admin pour un autre adulte) l'incrémente ; tout cookie portant un ancien epoch est refusé. C'est `ActorFilter`, pas ce validateur, qui relit la `person` au point d'entrée HTTP et fournit `is_admin` à l'acteur (`authorization.md` §1) : un rôle admin retiré prend effet à la requête suivante, dès que la base le sait (§5) |
 | CSRF | En-tête personnalisé obligatoire sur les méthodes non sûres, plus contrôle de `Origin` et de `Sec-Fetch-Site`. Le jeton est fourni par `GET /auth/session`. Aucune configuration CORS (même origine) |
 
