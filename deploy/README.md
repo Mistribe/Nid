@@ -19,7 +19,8 @@ docker compose logs nid | grep setup    # l'adresse à usage unique qui crée le
 Pour essayer sur votre propre ordinateur, `NID_URL=http://localhost:8080` suffit, sans proxy. Pas de sauvegarde ni de
 `restore.sh` dans le standalone : le reste de ce document décrit la forme de référence.
 
-Les images sont publiques sur `ghcr.io/mistribe/nid` et `ghcr.io/mistribe/nid-backup`, pour amd64 et arm64, sans compte :
+Les images sont publiques sur `ghcr.io/mistribe/nid`, `ghcr.io/mistribe/nid-backup`, `ghcr.io/mistribe/nid-worker` et
+`ghcr.io/mistribe/nid-postgres` (le Postgres de Nid), pour amd64 et arm64, sans compte :
 `latest`, `X.Y.Z` ou `X.Y` (le dernier correctif). Chacune porte une attestation de provenance signée :
 `gh attestation verify oci://ghcr.io/mistribe/nid:latest --repo Mistribe/Nid` vérifie qu'elle sort de ce dépôt.
 
@@ -240,9 +241,9 @@ mise à jour de Nid les fait évoluer.
 
 ### Vers Postgres 18 avec pgvector
 
-La recherche dans les documents a besoin de vecteurs. La base passe donc de `postgres:16-alpine` à `pgvector/pgvector` en
-Postgres 18, dans un nouveau volume, `pgdata18`. Une base 16 ne s'ouvre pas en 18 : elle passe par la sauvegarde, une
-fois.
+La recherche dans les documents a besoin de vecteurs et d'un dictionnaire français. La base passe donc de
+`postgres:16-alpine` à `nid-postgres`, l'image de Nid : Postgres 18 avec pgvector, plus ce dictionnaire. Elle vit dans
+un nouveau volume, `pgdata18`. Une base 16 ne s'ouvre pas en 18 : elle passe par la sauvegarde, une fois.
 
 1. **Sauvegardez** (étape 1 ci-dessus), avec l'ancien `compose.yaml`, et attendez la fin.
 2. `git pull`.
@@ -520,7 +521,19 @@ passe est celui de `deploy/secrets/postgres_password`, puis faites pointer `depl
 
 Le serveur doit aussi avoir **pgvector** (0.8 ou plus). Comme le rôle `nid` n'est pas superuser, un administrateur
 crée l'extension dans la base avant le premier démarrage de Nid : `CREATE EXTENSION IF NOT EXISTS vector;`. Sans elle, les
-migrations s'arrêtent sur `permission denied to create extension "vector"`.
+migrations s'arrêtent sur `permission denied to create extension "vector"`. Nid crée lui-même `unaccent`, une extension
+que le propriétaire de la base peut créer.
+
+La recherche dans les documents se sert aussi d'un **dictionnaire français**, celui de l'image `nid-postgres`. Sans lui,
+elle marche quand même, avec un français plus approximatif (« loyers » ne trouve pas « loyer »). Pour l'avoir, copiez ses
+deux fichiers dans le dossier `tsearch_data` du serveur (`pg_config --sharedir` le donne) **avant le premier démarrage
+de Nid** : Nid choisit le dictionnaire une seule fois, à sa première migration.
+
+```bash
+for f in nid_fr.dict nid_fr.affix; do
+  docker run --rm --entrypoint cat ghcr.io/mistribe/nid-postgres:latest /usr/share/postgresql/18/tsearch_data/$f > $f
+done
+```
 
 ```yaml
 services:

@@ -1,4 +1,4 @@
 {
-  "en": "The database moves to Postgres 18 with pgvector, which the search inside documents will need. An existing installation moves once: back up, update, then restore the backup (deploy/README.md, « Mettre à jour »); until then, Postgres does not start beside the old data.",
-  "fr": "La base passe à Postgres 18 avec pgvector, dont la recherche dans les documents aura besoin. Une installation existante passe une fois par la sauvegarde : sauvegarder, mettre à jour, puis restaurer (deploy/README.md, « Mettre à jour ») ; d’ici là, Postgres ne démarre pas à côté des anciennes données."
+  "en": "The database moves to Nid's own Postgres image, nid-postgres: Postgres 18 with pgvector and a French dictionary, which the search inside documents will need. An existing installation moves once: back up, update, then restore the backup (deploy/README.md, « Mettre à jour »); until then, Postgres does not start beside the old data.",
+  "fr": "La base passe à l’image Postgres de Nid, nid-postgres : Postgres 18 avec pgvector et un dictionnaire français, dont la recherche dans les documents aura besoin. Une installation existante passe une fois par la sauvegarde : sauvegarder, mettre à jour, puis restaurer (deploy/README.md, « Mettre à jour ») ; d’ici là, Postgres ne démarre pas à côté des anciennes données."
 }

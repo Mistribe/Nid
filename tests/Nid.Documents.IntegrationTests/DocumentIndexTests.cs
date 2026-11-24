@@ -30,8 +30,9 @@ public sealed class DocumentIndexTests(PostgresFixture fixture) : IClassFixture<
         await IndexAsync(app);
 
         Assert.Equal([1, 2], await ScalarsAsync<int>(app, $"select page as \"Value\" from documents.document_chunk where document_id = '{id}' order by ordinal"));
-        // French stemming: « quittances » finds « Quittance ».
-        Assert.Equal(1, await CountAsync(app, $"select count(*) as \"Value\" from documents.document_chunk where document_id = '{id}' and search @@ plainto_tsquery('french', 'quittances')"));
+        // #582, French without accents: « quittances loyers » finds « Quittance de loyer », « regle » « réglé ».
+        Assert.Equal(1, await CountAsync(app, $"select count(*) as \"Value\" from documents.document_chunk where document_id = '{id}' and search @@ plainto_tsquery('{DocumentsDbContext.FrenchSearch}', 'quittances loyers')"));
+        Assert.Equal(1, await CountAsync(app, $"select count(*) as \"Value\" from documents.document_chunk where document_id = '{id}' and search @@ plainto_tsquery('{DocumentsDbContext.FrenchSearch}', 'regle')"));
         Assert.Equal(2, await CountAsync(app, $"select count(*) as \"Value\" from documents.chunk_embedding e join documents.document_chunk c on c.id = e.chunk_id where c.document_id = '{id}' and e.model = 'fake-embed' and e.dimension = 3"));
         Assert.Equal(1, await CountAsync(app, "select count(*) as \"Value\" from pg_indexes where schemaname = 'documents' and tablename = 'chunk_embedding' and indexdef like '%hnsw%'"));
         var asked = Assert.Single(model.Requests);

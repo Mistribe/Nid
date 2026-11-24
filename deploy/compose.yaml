@@ -26,10 +26,12 @@ services:
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
 
-  # Postgres 18 with pgvector (#557): the vectors of the documents' chunks.
+  # Postgres 18 with pgvector (#557): the vectors of the documents' chunks. Nid's own image (#582): pgvector's, plus the
+  # French dictionary of the documents' full-text search.
   postgres:
     <<: *hardened
-    image: pgvector/pgvector:0.8.7-pg18-trixie@sha256:ab49524d18df7200b74ac9a475e1db6297fc1eb57da4c214c63d10ecc4b754fa
+    build: { context: ./postgres }
+    image: ${NID_POSTGRES_IMAGE:-nid-postgres:local}
     # The image's own postgres user: its data folder is already owned by it, so a fresh volume is too, and the entrypoint
     # needs no capability to change owners.
     user: "999:999"

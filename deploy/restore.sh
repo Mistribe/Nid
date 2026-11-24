@@ -35,7 +35,7 @@ NID_HOST_UID=$(id -u); NID_HOST_GID=$(id -g)
 
 PROJECT=(); WORK=""
 if [ "$VERIFY" = 1 ]; then
-  for image in "${NID_IMAGE:-nid:local}" "${NID_BACKUP_IMAGE:-nid-backup:local}"; do
+  for image in "${NID_IMAGE:-nid:local}" "${NID_BACKUP_IMAGE:-nid-backup:local}" "${NID_POSTGRES_IMAGE:-nid-postgres:local}"; do
     docker image inspect "$image" >/dev/null 2>&1 ||
       die "image $image absente : construisez d'abord la pile (docker compose -f deploy/compose.yaml build)."
   done

@@ -68,6 +68,7 @@ jobs:
       - run: pnpm --dir web install --frozen-lockfile
       - run: pnpm --dir web exec playwright install --with-deps chromium
       - run: docker build -f src/Hosting/Nid.Host/Dockerfile -t nid:local .
+      - run: docker build -t nid-postgres:local deploy/postgres
       - name: Fresh standalone install with local accounts, every journey
         run: deploy/standalone/smoke-local.sh
         env:
@@ -84,7 +85,7 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-  # The three images as ci.yml's `build` builds them, scanned by Trivy: a CRITICAL vulnerability with a fix fails.
+  # The four images as ci.yml's `build` builds them, scanned by Trivy: a CRITICAL vulnerability with a fix fails.
   image:
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -98,6 +99,8 @@ jobs:
             build: docker build -t nid-backup:local deploy/backup
           - name: nid-worker
             build: docker build -f src/Ai/Nid.Ai.Worker/Dockerfile -t nid-worker:local .
+          - name: nid-postgres
+            build: docker build -t nid-postgres:local deploy/postgres
     name: image (${{ matrix.name }})
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
