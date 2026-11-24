@@ -59,8 +59,8 @@ public sealed record GetConversationQuery(Guid Id) : IQuery<ConversationView>;
 
 public sealed record DeleteConversationCommand(Guid Id) : ICommand<Guid>, IBrowserOnly;
 
-/// <summary>Any adult sets how long conversations are kept (§12).</summary>
-public sealed record SetConversationRetentionCommand(int Days) : ICommand<AiSettingsView>, IBrowserOnly;
+/// <summary>An admin sets how long conversations are kept (§12, #585).</summary>
+public sealed record SetConversationRetentionCommand(int Days) : ICommand<AiSettingsView>, IAdminOnly, IBrowserOnly;
 
 [RequestHandler<ListConversationsQuery, ConversationPage>]
 public sealed class ListConversationsHandler(IConversations conversations, IActorAccessor actors) : IRequestHandler<ListConversationsQuery, ConversationPage>

@@ -32,23 +32,27 @@ public sealed record ProjectionScenarioReading(
 /// </summary>
 public sealed class ProjectionScenarioReader(
     ProjectionFactsReader facts, ScenarioFactsReader purchases, IVisibleItems visible, IItemRegistry items, IScenarioStore store,
-    IPersonRegistry persons, IActorAccessor actor, IHouseholdSettings household, IRealEstateProjection realEstate, IHouseholdCalendar calendar)
+    IPersonRegistry persons, IActorAccessor actor, IHouseholdSettings household, IRealEstateProjection realEstate, IRealEstateItems realEstateItems,
+    IHouseholdCalendar calendar)
 {
     public const string EventMilestone = "event";
     public const string ScenarioSavings = "scenario";
 
     private PersonId Reader => actor.Current!.PersonId!.Value;
 
+    private static bool IsScenario(ItemAccess item) => item is { Module: "core", Kind: "scenario" };
+
     /// <summary>
     /// Spec §6: what the reader sees of a document's targets in the scope — items active and of the kind the event names, purchase
     /// scenarios stored as such, persons of the household.
     /// </summary>
     private sealed record Targets(
-        Func<ItemId?, string, string, bool> Sees, IReadOnlyDictionary<ItemId, StoredScenario> Purchases, IReadOnlyDictionary<PersonId, PersonInfo> People)
+        Func<ItemId?, Func<ItemAccess, bool>, bool> Sees, IRealEstateItems RealEstate, IReadOnlyDictionary<ItemId, StoredScenario> Purchases,
+        IReadOnlyDictionary<PersonId, PersonInfo> People)
     {
-        public bool Loan(ItemId? id) => Sees(id, "realestate", "loan");
+        public bool Loan(ItemId? id) => Sees(id, RealEstate.IsLoan);
 
-        public bool Property(ItemId? id) => Sees(id, "realestate", "property");
+        public bool Property(ItemId? id) => Sees(id, RealEstate.IsProperty);
 
         public bool Purchase(ItemId? id) => id is { } s && Purchases.ContainsKey(s);
 
@@ -71,14 +75,13 @@ public sealed class ProjectionScenarioReader(
         var seen = await visible.ForAsync(Reader, scope, ct);
         var named = doc.Events.SelectMany(e => new[] { e.Loan, e.Property, e.Scenario }).OfType<ItemId>().Where(seen.Contains).Distinct().ToList();
         var accesses = await items.FindManyAsync(named, ct);
-        bool Sees(ItemId? id, string module, string kind)
-            => id is { } item && seen.Contains(item) && accesses.TryGetValue(item, out var access)
-               && access is { ArchivedAt: null } && access.Module == module && access.Kind == kind;
-        var stored = (await store.FindManyAsync(named.Where(id => Sees(id, "core", "scenario")).ToList(), ct))
+        bool Sees(ItemId? id, Func<ItemAccess, bool> of)
+            => id is { } item && seen.Contains(item) && accesses.TryGetValue(item, out var access) && access is { ArchivedAt: null } && of(access);
+        var stored = (await store.FindManyAsync(named.Where(id => Sees(id, IsScenario)).ToList(), ct))
             .Where(s => s is { Kind: ScenarioKinds.PropertyPurchase, Document: not null })
             .ToDictionary(s => s.Item);
         var people = (await persons.ListAsync(ct)).ToDictionary(p => p.Id);
-        return new Targets(Sees, stored, people);
+        return new Targets(Sees, realEstateItems, stored, people);
     }
 
     /// <summary>
@@ -95,11 +98,11 @@ public sealed class ProjectionScenarioReader(
         // A registry read, whoever may see the items: does each target still exist, active and of its kind?
         var ids = hidden.SelectMany(x => new[] { x.Event.Loan, x.Event.Property, x.Event.Scenario }).OfType<ItemId>().Distinct().ToList();
         var accesses = await items.FindManyAsync(ids, ct);
-        bool Active(ItemId? id, string module, string kind)
-            => id is { } item && accesses.TryGetValue(item, out var access) && access is { ArchivedAt: null } && access.Module == module && access.Kind == kind;
-        var purchases = (await store.FindManyAsync(ids.Where(id => Active(id, "core", "scenario")).ToList(), ct))
+        bool Active(ItemId? id, Func<ItemAccess, bool> of)
+            => id is { } item && accesses.TryGetValue(item, out var access) && access is { ArchivedAt: null } && of(access);
+        var purchases = (await store.FindManyAsync(ids.Where(id => Active(id, IsScenario)).ToList(), ct))
             .Where(s => s is { Kind: ScenarioKinds.PropertyPurchase, Document: not null }).ToDictionary(s => s.Item);
-        var alive = new Targets(Active, purchases, targets.People);
+        var alive = new Targets(Active, realEstateItems, purchases, targets.People);
         return hidden.Where(x => alive.Visible(x.Event)).ToList();
     }
 

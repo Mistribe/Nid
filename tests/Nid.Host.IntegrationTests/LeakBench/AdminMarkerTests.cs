@@ -70,16 +70,14 @@ public class AdminMarkerTests
         Assert.DoesNotContain(irl, t => !typeof(IAdminOnly).IsAssignableFrom(t));
     }
 
-    /// <summary>docs/ai/README.md §12: only an admin registers and manages a model worker; any adult decides the data policy
-    /// (the opt-in for remote workers, a worker's <c>safe</c> tag) and reads the list. Every one of these commands is the
-    /// browser's: a token never changes them.</summary>
+    /// <summary>docs/ai/README.md §12 (#585): only an admin configures the AI (workers, data policy, uses, budget, retention, jobs);
+    /// any adult reads the workers. Every one of these commands is the browser's: a token never changes them.</summary>
     [Fact]
-    public void Managing_model_workers_is_admin_only_and_the_data_policy_any_adults_in_the_browser()
+    public void Configuring_ai_is_admin_only_and_each_adult_only_decides_for_themselves_in_the_browser()
     {
-        Type[] adults = [typeof(Nid.Ai.Application.SetRemoteWorkersAllowedCommand), typeof(Nid.Ai.Application.SetWorkerSafeCommand), typeof(Nid.Ai.Application.SetUseModeCommand), typeof(Nid.Ai.Application.SetMonthlyBudgetCommand),
-            // #531: any adult deletes their own conversation and sets how long conversations are kept.
-            typeof(Nid.Ai.Application.DeleteConversationCommand), typeof(Nid.Ai.Application.SetConversationRetentionCommand),
-            // #533: each adult turns the assistant on and sets their preference, for themselves.
+        // #585: the workers, the data policy, the uses, the budget and the retention are the administration's. Each adult
+        // only deletes their own conversations (#531), turns the assistant on and sets their preference (#533).
+        Type[] adults = [typeof(Nid.Ai.Application.DeleteConversationCommand),
             typeof(Nid.Ai.Application.SetAssistantEnabledCommand), typeof(Nid.Ai.Application.SetAssistantOffsiteCommand)];
         var commands = typeof(Nid.Ai.Application.RegisterWorkerCommand).Assembly.GetTypes()
             .Where(t => t.Name.EndsWith("Command", StringComparison.Ordinal) && !t.IsAbstract).ToList();
@@ -88,6 +86,7 @@ public class AdminMarkerTests
         Assert.All(commands.Except(adults), t => Assert.True(typeof(IAdminOnly).IsAssignableFrom(t), t.Name));
         Assert.All(adults, t => Assert.False(typeof(IAdminOnly).IsAssignableFrom(t), t.Name));
         Assert.False(typeof(IAdminOnly).IsAssignableFrom(typeof(Nid.Ai.Application.ListWorkersQuery)));
+        Assert.True(typeof(IAdminOnly).IsAssignableFrom(typeof(Nid.Ai.Application.ListModelJobsQuery)));
     }
 
     /// <summary>The CPI collection, its trigger, its journal and the manual entry are the admin's; the read of the inflation is not.</summary>

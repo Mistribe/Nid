@@ -128,6 +128,17 @@ public class SaleScenarioTests(PostgresFixture fixture) : IClassFixture<Postgres
     }
 
     [Fact]
+    public async Task A_loan_in_place_of_the_property_is_refused() // #513: RealEstate says which items are its properties
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var (_, loan) = await RentalWithLoanAsync(app);
+
+        var refused = await app.RawAsync(app.AdultA, HttpMethod.Post, Url, Body(app, Document(loan)));
+
+        Assert.Equal((HttpStatusCode.UnprocessableEntity, SaleScenarioReader.PropertyNotFound, "property"), await RefusalAsync(refused));
+    }
+
+    [Fact]
     public async Task A_property_out_of_sight_is_refused_on_write_and_hidden_on_read()
     {
         await using var app = await NidApp.StartAsync(fixture);

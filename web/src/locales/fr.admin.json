@@ -21,7 +21,8 @@
       "household_hint": "Plafond d'adultes et devise de référence",
       "security_hint": "Connexions, sessions et accès retenus",
       "system_hint": "Version, santé et taille de la base",
-      "notifications_hint": "Envoi des emails et Discord du foyer"
+      "notifications_hint": "Envoi des emails et Discord du foyer",
+      "ai_hint": "Workers, modèles, fournisseurs cloud et budget de l'IA"
     },
     "users": {
       "title": "Utilisateurs",

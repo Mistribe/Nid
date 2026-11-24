@@ -117,6 +117,17 @@ public sealed record RealEstateProjection(IReadOnlyList<RealEstateMonth> Months,
     public IReadOnlyList<RepaymentOutcome> Repayments { get; init; } = [];
 }
 
+/// <summary>
+/// #513: which registry items are RealEstate's loans and properties, so the scenarios Core composes name them without matching
+/// RealEstate's registry kinds by string. Implemented by RealEstate.
+/// </summary>
+public interface IRealEstateItems
+{
+    bool IsLoan(ItemAccess item);
+
+    bool IsProperty(ItemAccess item);
+}
+
 public interface IRealEstateProjection
 {
     /// <summary>The purchase scenario's call: no event.</summary>

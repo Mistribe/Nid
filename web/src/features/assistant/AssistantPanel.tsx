@@ -70,15 +70,15 @@ export function AssistantPanel({ open, onOpenChange }: { open: boolean; onOpenCh
 }
 
 /** Why the assistant cannot answer now, and who can fix it (§11); null when it can try. */
-function useBlocked(): { text: string; link: boolean } | null {
+function useBlocked(): { text: string; to?: '/settings/ai' | '/admin/ai' } | null {
   const { t } = useTranslation();
   const { $api } = useApi();
   const { capabilities } = useSession();
   const me = $api.useQuery('get', ASSISTANT_ME);
   const settings = $api.useQuery('get', AI_SETTINGS);
-  if (me.data && !me.data.enabled) return { text: t('ai.panel.off'), link: true };
+  if (me.data && !me.data.enabled) return { text: t('ai.panel.off'), to: '/settings/ai' };
   if (settings.data && !settings.data.uses.find((u) => u.use === 'chat')?.model)
-    return capabilities.admin ? { text: t('ai.panel.no_model_admin'), link: true } : { text: t('ai.panel.no_model'), link: false };
+    return capabilities.admin ? { text: t('ai.panel.no_model_admin'), to: '/admin/ai' } : { text: t('ai.panel.no_model') };
   return null;
 }
 
@@ -132,7 +132,7 @@ function Conversation({ id, turns, setTurns, onKept }: {
       {blocked ? (
         <p role="status" className="text-sm">
           {blocked.text}{' '}
-          {blocked.link ? <Link to="/settings/ai" className="underline underline-offset-4">{t('ai.panel.settings')}</Link> : null}
+          {blocked.to ? <Link to={blocked.to} className="underline underline-offset-4">{t('ai.panel.settings')}</Link> : null}
         </p>
       ) : null}
       {totals.data ? <p className="text-xs text-muted-foreground">{usageOf(t, totals.data)}</p> : null}

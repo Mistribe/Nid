@@ -111,17 +111,27 @@ Chaque décision a sa sous-section : décision, raison, options écartées, et l
   étapes de la boucle.
 - **Écarté** : contrôle « dépensé < budget » ; plafonds chez le fournisseur seulement.
 
-### 1.G Décision G : l'admin gère l'infrastructure, chaque adulte ses données
+### 1.G Décision G : l'admin règle l'IA du système, chaque adulte son assistant et ses données
 
-- **Décision** : un admin gère les workers, les clés, les profils cloud, leurs conditions et le modèle de chaque usage ;
-  tout adulte règle la politique de données du foyer. **Les données privées d'un adulte ne quittent les lieux qu'avec
-  le consentement de cet adulte** : l'opt-in de l'un pour les workers distants, `safe` ou `bank_labels` vers le cloud
-  n'envoie jamais les données privées de l'autre. Pour une tâche de fond, `ask` vaut « non ». Les deux adultes reçoivent
-  un email quand un profil cloud est activé. Détail : §12.
-- **Raison** : concilie #88 et #172 (« administrateur ») avec #166, #22 et `../ingestion/llm-providers.md` §6 et §7
-  (« adulte »), et reprend la règle « jamais le consentement de l'autre » de §6.
-- **Écarté** : tout réservé aux admins ; tout ouvert à tout adulte ; un consentement du foyer qui couvre les données
-  privées des deux adultes.
+- **Décision** (révisée par #585) : un admin règle toute la configuration de l'IA, dans **Administration › IA** :
+  - les workers et leur marque `safe` ;
+  - l'opt-in pour les workers distants ;
+  - les clés et les profils cloud, avec leurs conditions ;
+  - le mode et le modèle de chaque usage ;
+  - le budget et la durée de conservation des conversations.
+
+  Chaque adulte, dans **Réglages › IA**, active l'assistant pour lui et choisit sa préférence pour ses données hors des
+  lieux (`ask`, `allow`, `never`). **Les données privées d'un adulte ne quittent les lieux qu'avec le consentement de cet
+  adulte** : l'opt-in pour les workers distants, `safe` ou un usage ouvert au cloud n'envoie jamais les données privées
+  d'un adulte qui n'a pas dit `allow`. Pour une tâche de fond, `ask` vaut « non ». Chaque adulte est prévenu quand la
+  politique de données change, et les deux adultes reçoivent un email quand un profil cloud est activé. Détail : §12.
+- **Raison** : le retour des premiers usages. La configuration est l'affaire du système, et chaque utilisateur choisit
+  seulement s'il se sert de l'IA. La règle « jamais le consentement de l'autre » de §6 reste celle de chaque adulte.
+- **Écarté** :
+  - la politique de données réglable par tout adulte (la première version de cette décision) ;
+  - tout ouvert à tout adulte ;
+  - un consentement du foyer qui couvre les données privées des deux adultes ;
+  - une activation par personne des traitements de fond.
 
 ### 1.H Décision H : un réglage par usage, auto-hébergé d'abord
 
@@ -564,7 +574,7 @@ déclarés. Sortie structurée validée par schéma côté serveur pour `extract
 |---|---|---|
 | Par document | Extraction vers le cloud | Dialogue de dépôt (`../ingestion/llm-providers.md` §6, niveau 2) |
 | Par adulte | Chat : chaque adulte active l'assistant pour lui ; s'il peut partir hors des lieux, l'activation montre ce qui part, et les deux adultes reçoivent un email quand l'un active un chat vers le cloud. Préférence `ai_offsite_default` pour ses données privées (§6.3) | Réglages › IA, pour soi |
-| Par foyer | Opt-in des workers distants (#166), réglage de chaque usage, `allowed_kinds` | Réglages › IA, par un adulte (§12) |
+| Par foyer | Opt-in des workers distants (#166), réglage de chaque usage, `allowed_kinds` (à venir) | Administration › IA, par un admin (§12, #585) |
 
 Le consentement du foyer est nécessaire, jamais suffisant pour les données privées d'un adulte : il faut aussi celui de
 cet adulte (§6.3). Chaque décision est enregistrée (`consent_id`) et liée aux appels.
@@ -730,7 +740,7 @@ livrée par défaut.
   la barre du haut, sur toutes les pages. Il montre la conversation en cours, les outils consultés, les liens de Nid, la
   ligne des résultats gardés, le fournisseur et le modèle ; il liste les conversations de la personne (page par page,
   côté serveur), les rouvre et les supprime. Quand il ne peut pas répondre, il dit pourquoi : assistant non activé pour
-  soi, ou aucun modèle choisi (lien vers Réglages › IA pour un admin, « demandez à un administrateur » sinon). La page
+  soi, ou aucun modèle choisi (lien vers Administration › IA pour un admin, « demandez à un administrateur » sinon). La page
   d'essai de Réglages › IA (#501) est retirée. Une conversation rouverte montre ses outils, pas ses liens : ils sont
   construits au moment du tour.
 
@@ -752,7 +762,7 @@ voudrait rien dire, l'audit étant gardé sans limite.
 - **Conservation** : `ai_settings.conversation_retention_days`, posé par un adulte, **30 jours** par défaut ; purge
   chaque nuit ; suppression immédiate par l'auteur ; supprimer un document retire les tours qui l'ont lu (§6.6).
 - **Export et sauvegarde** : hors de `nid.data`. Les sauvegardes restic gardent les conversations au-delà de la
-  conservation, selon leur propre rétention ; Réglages › IA le dit.
+  conservation, selon leur propre rétention ; Administration › IA le dit.
 - `llm_call` ne stocke toujours aucun contenu : les conversations sont un magasin séparé.
 - **Livré (#531)** : tables `conversation` et `conversation_message` du module `Ai`, hors de l'audit (le texte de la
   personne, purgé avec sa conservation) et de l'export. Un tour (`POST /api/v1/ai/assistant/turn`) prend
@@ -760,7 +770,7 @@ voudrait rien dire, l'audit étant gardé sans limite.
   l'échange une fois la réponse écrite (la question, puis la réponse avec les outils appelés et les éléments qu'ils ont
   rendus). L'identifiant est connu avant le tour, donc chaque `llm_call` le porte. Liste, lecture et suppression : l'auteur
   seul, « introuvable » pour tout autre, admin compris. Conservation : `ai_settings.conversation_retention_days`, 1 à
-  365 jours, posée par tout adulte dans Réglages › IA ; la purge passe toutes les heures avec celle des jobs.
+  365 jours, posée par un admin dans Administration › IA (#585) ; la purge passe toutes les heures avec celle des jobs.
 
 ## 10. Jetons, coût et budget (question 8, décision F)
 
@@ -802,7 +812,7 @@ coupé au montant réservé, et un balayage chaque minute règle les réservatio
 | Usage | Effet du blocage |
 |---|---|
 | Chat | Le tour s'arrête entre deux étapes ; la conversation dit pourquoi et à partir de quand (le 1er du mois suivant). Une conversation auto-hébergée n'est pas touchée |
-| Suggestions de catégories | Le job s'arrête ; les motifs restants n'ont pas de devinette ; Réglages › IA montre le blocage |
+| Suggestions de catégories | Le job s'arrête ; les motifs restants n'ont pas de devinette ; Administration › IA montre le blocage |
 | Index des documents | Les plongements en attente restent en file avec la raison (page des jobs) ; la recherche plein texte continue |
 | Extraction | Le dialogue de dépôt ne propose que les workers ; il garde l'estimation du coût avant envoi (`../ingestion/llm-providers.md` §7) |
 
@@ -820,7 +830,7 @@ tous les états « il faut un modèle ».
 
 | Fonctionnalité | Sans worker ni profil cloud |
 |---|---|
-| Chat | Le panneau reste visible et dit qu'il faut un modèle : lien vers Réglages › IA pour un admin ; « demandez à un administrateur » sinon ; « demandez à qui héberge Nid » quand aucun adulte n'est admin (avec OIDC, personne ne l'est par défaut) |
+| Chat | Le panneau reste visible et dit qu'il faut un modèle : lien vers Administration › IA pour un admin ; « demandez à un administrateur » sinon ; « demandez à qui héberge Nid » quand aucun adulte n'est admin (avec OIDC, personne ne l'est par défaut) |
 | Texte des documents (#167) | Les jobs `document-text` restent en file, la raison sur la page des jobs ; ils partent dès qu'un worker est apparié |
 | Recherche dans les documents | Métadonnées seulement, comme aujourd'hui |
 | Suggestions de catégories | L'étape A (#449, historique du foyer) fonctionne ; le réglage IA est désactivé avec la raison |
@@ -836,8 +846,8 @@ pour `read_document`.
 
 | Qui | Quoi |
 |---|---|
-| **Admin** | Enregistrer et apparier, renommer, désactiver, faire tourner les clés et révoquer un worker ; déclarer un proxy devant un worker ; activer ou retirer un profil cloud, accepter ses conditions, confirmer la région, saisir ou révoquer la clé ; choisir le modèle de chaque usage ; faire tourner la clé de Nid |
-| **Tout adulte** | Opt-in des workers distants pour le foyer ; étiquette `safe` ; budget ; réglage de chaque usage ; types autorisés au cloud (`allowed_kinds`) ; conservation des conversations ; activer l'assistant pour soi ; sa préférence `ai_offsite_default` |
+| **Admin** (Administration › IA, #585) | Enregistrer et apparier, renommer, désactiver, faire tourner les clés et révoquer un worker ; déclarer un proxy devant un worker ; étiquette `safe` ; opt-in des workers distants pour le foyer ; activer ou retirer un profil cloud, accepter ses conditions, confirmer la région, saisir ou révoquer la clé ; réglage et modèle de chaque usage ; budget ; conservation des conversations ; liste des tâches ; faire tourner la clé de Nid |
+| **Tout adulte** (Réglages › IA) | Activer l'assistant pour soi ; sa préférence `ai_offsite_default` ; ses propres appels (Utilisation) ; lire les réglages du foyer |
 
 Chaque changement est audité ; un changement de la politique de données, l'activation d'un profil cloud et
 l'activation d'un chat vers le cloud par un adulte envoient un email aux deux adultes. Un jeton d'accès n'est jamais
@@ -847,7 +857,7 @@ admin (`../identity-and-access/authorization.md`).
 
 | Table | Contenu |
 |---|---|
-| `ai_settings` (une ligne) | `uses` (réglage par usage, §5.3), `models` (modèle par usage, choisi par l'admin), `allowed_kinds` (types de documents et `bank_labels`), `region`, `monthly_budget_eur`, `budget_month` (`spent`, `reserved`), `remote_workers_allowed` (avec son `consent_id`), `conversation_retention_days`, `redaction_enabled` |
+| `ai_settings` (une ligne) | `uses` (réglage par usage, §5.3), `models` (modèle par usage, choisi par l'admin), `region`, `monthly_budget_eur`, `budget_month` (`spent`, `reserved`), `remote_workers_allowed` (avec son `consent_id`), `conversation_retention_days`. `allowed_kinds` (types de documents et `bank_labels`) n'existe pas encore |
 | `model_worker` | Nom, point d'accès (hôte et port), proxy déclaré, empreintes de ses clés (avec la précédente pendant une rotation), placement, `safe`, état (en ligne, vu pour la dernière fois, version, charge), dernière déclaration, `revoked_at`. Remplace `worker_credential` |
 | `ai_key` | Clé privée de Nid face aux workers, chiffrée par Data Protection comme les clés d'API |
 | `job` | Les tâches de modèle (§4.1) : type, entrée, classe de données, état, essais, raison d'attente, résultat. Une tâche finie est supprimée avec son entrée et son résultat, 7 jours après sa réussite, 30 jours après son échec ou son abandon (#483) ; une tâche en attente ou en cours n'est jamais supprimée |

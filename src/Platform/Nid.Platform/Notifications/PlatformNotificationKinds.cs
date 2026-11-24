@@ -43,7 +43,7 @@ public static class PlatformNotificationKinds
                 Notice = true,
                 Body = f => f.Params.TryGetValue("job", out var job) && job.Length > 0 ? $"Tâche : {job}" : "",
                 Link = f => f.Params.GetValueOrDefault("job") is { Length: > 0 } job
-                    ? job.StartsWith("ai.", StringComparison.Ordinal) ? "/settings/ai/jobs?status=dead" : $"/admin/jobs/{job}"
+                    ? job.StartsWith("ai.", StringComparison.Ordinal) ? "/admin/ai/jobs?status=dead" : $"/admin/jobs/{job}"
                     : "/admin/jobs",
             },
         },
@@ -57,7 +57,7 @@ public static class PlatformNotificationKinds
         {
             Template = new("Le budget des fournisseurs d'IA payants a changé")
             {
-                Notice = true, Body = _ => "Un adulte a changé le plafond mensuel des fournisseurs d'IA payants.", Link = _ => AiSettings,
+                Notice = true, Body = _ => "Un administrateur a changé le plafond mensuel des fournisseurs d'IA payants.", Link = _ => AiSettings,
             },
         },
         new("ai.budget_alert", NotificationFamilies.Action, NotificationLevel.Action, "ai", null)

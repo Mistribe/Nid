@@ -19,7 +19,16 @@ public sealed class JobListTests(PostgresFixture fixture) : IClassFixture<Postgr
     private static readonly Instant Now = NidApp.GoldenCaseToday.AtMidnight().InUtc().ToInstant();
 
     [Fact]
-    public async Task An_adult_sees_the_jobs_newest_first_without_their_content()
+    public async Task Another_adult_may_not_list_the_jobs()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+
+        // #585: the jobs are the administration's.
+        Assert.Equal(HttpStatusCode.Forbidden, (await app.RawAsync(app.AdultB, HttpMethod.Get, "/api/v1/ai/jobs")).StatusCode);
+    }
+
+    [Fact]
+    public async Task An_admin_sees_the_jobs_newest_first_without_their_content()
     {
         await using var app = await NidApp.StartAsync(fixture);
         await SubmitAsync(app, "first");
@@ -32,7 +41,7 @@ public sealed class JobListTests(PostgresFixture fixture) : IClassFixture<Postgr
         Assert.Equal(["echo"], page.Types);
         Assert.All(page.Items, j => Assert.Equal("queued", j.Status));
         Assert.True(page.Items[0].CreatedAt >= page.Items[1].CreatedAt);
-        var raw = await (await app.RawAsync(app.AdultB, HttpMethod.Get, "/api/v1/ai/jobs")).Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        var raw = await (await app.RawAsync(app.AdultA, HttpMethod.Get, "/api/v1/ai/jobs")).Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.DoesNotContain("first", raw);
         Assert.DoesNotContain("input", raw);
     }
@@ -59,7 +68,7 @@ public sealed class JobListTests(PostgresFixture fixture) : IClassFixture<Postgr
     {
         await using var app = await NidApp.StartAsync(fixture);
 
-        var response = await app.RawAsync(app.AdultB, HttpMethod.Get, "/api/v1/ai/jobs?status=done");
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Get, "/api/v1/ai/jobs?status=done");
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
     }
@@ -103,7 +112,7 @@ public sealed class JobListTests(PostgresFixture fixture) : IClassFixture<Postgr
 
     private static async Task<ModelJobPage> ListAsync(NidApp app, string query)
     {
-        var response = await app.RawAsync(app.AdultB, HttpMethod.Get, $"/api/v1/ai/jobs{query}");
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Get, $"/api/v1/ai/jobs{query}");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         return (await response.Content.ReadFromJsonAsync<ModelJobPage>(PairedWorld.NidJson, TestContext.Current.CancellationToken))!;
     }

@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using System.Xml.Linq;
 
 namespace Nid.Platform.Tests;
@@ -96,6 +97,42 @@ public class ModuleBoundaryTests
             let module = ModuleOf(r)
             where module is not null && module != ModuleOf(p.Name) && !ReadsContracts(p.Name, r)
             select $"{p.Name} -> {r}");
+    }
+
+    /// <summary>
+    /// #511: a module keeps its persistence ports (stores, run logs, job triggers, source clients) in its Application, so no other
+    /// module writes its data without its use cases; another module reads through a narrow contract. Read from the sources, as a
+    /// Contracts or Domain project is not loaded here.
+    /// </summary>
+    [Fact]
+    public void No_persistence_port_is_declared_in_a_contracts_or_domain_project()
+    {
+        // Platform's content-addressed file store owns no table: a shared service the modules call (provider icons), not a port.
+        string[] allowed = ["IAssetStore"];
+        var port = new Regex(@"\binterface\s+(I\w*(?:Store|RunLog|JobTrigger|SourceClient|Client))\b");
+        NoViolation(
+            "A persistence port is declared in the module's Application, not in its Contracts or Domain",
+            from directory in Directory.EnumerateDirectories(Path.Combine(Vectors.RepositoryRoot(), "src")).SelectMany(Directory.EnumerateDirectories)
+            let name = Path.GetFileName(directory)
+            where name.EndsWith(".Contracts", StringComparison.Ordinal) || name.EndsWith(".Domain", StringComparison.Ordinal)
+            from file in Directory.EnumerateFiles(directory, "*.cs", SearchOption.AllDirectories)
+            where !file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
+            from Match m in port.Matches(File.ReadAllText(file))
+            where !allowed.Contains(m.Groups[1].Value)
+            select $"{name}: {m.Groups[1].Value}");
+    }
+
+    [Fact]
+    public void An_infrastructure_references_its_own_application()
+    {
+        var names = All.Select(p => p.Name).ToHashSet();
+        NoViolation(
+            "A module's Infrastructure implements the ports of its own Application, so it references it",
+            from p in All
+            where p.Name.EndsWith(".Infrastructure", StringComparison.Ordinal)
+            let application = p.Name[..^".Infrastructure".Length] + ".Application"
+            where names.Contains(application) && !p.Projects.Contains(application)
+            select $"{p.Name} -/-> {application}");
     }
 
     /// <summary>§5.1: a contract one module reads from another lives in the providing module's Contracts.</summary>

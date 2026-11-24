@@ -10,7 +10,7 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { SelectField } from '@/components/form/SelectField';
 import { Loading, TableSkeleton } from '@/components/page/skeletons';
 import { formatInstant } from '@/lib/format';
-import { SettingsFrame } from '../SettingsFrame';
+import { AdminFrame } from '../AdminFrame';
 import '@/locales/ai';
 
 /**
@@ -39,7 +39,7 @@ export function AiJobsPage() {
   const filtered = status !== '' || type !== '';
 
   return (
-    <SettingsFrame title={title}>
+    <AdminFrame title={title}>
       <p className="max-w-prose text-sm text-muted-foreground">{t('ai.jobs.tip')}</p>
       <FilterRow label={t('common.filters')}>
         <FilterField label={t('ai.jobs.type')} className="w-full sm:w-auto">
@@ -90,6 +90,6 @@ export function AiJobsPage() {
           <Pager page={page} total={jobs.data.total} onPage={toPage} />
         </>
       )}
-    </SettingsFrame>
+    </AdminFrame>
   );
 }

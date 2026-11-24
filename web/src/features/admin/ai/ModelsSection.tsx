@@ -14,10 +14,10 @@ import '@/locales/ai';
 const CAPABILITY: Record<string, string> = { chat: 'chat', extract: 'chat', embed: 'embed', decide: 'decide' };
 
 /**
- * « Modèles » (#486, decision H): for each use, how far it may go (any adult) and the model it runs on (an admin, among the
- * models the paired workers declare). Self-hosted is the default; going on to a cloud provider is offered once one is enabled.
+ * « Modèles » (#486, decision H, #585): for each use, how far it may go and the model it runs on, among the models the
+ * paired workers declare. Self-hosted is the default; going on to a cloud provider is offered once one is enabled.
  */
-export function ModelsSection({ admin }: { admin: boolean }) {
+export function ModelsSection() {
   const { t } = useTranslation();
   const { $api } = useApi();
   const queryClient = useQueryClient();
@@ -53,8 +53,7 @@ export function ModelsSection({ admin }: { admin: boolean }) {
               ]} />
             )}
           </Field>
-          {admin ? (
-            <Field label={t('ai.models.model')} hint={offered.length === 0 ? t('ai.models.none_declared') : undefined}>
+          <Field label={t('ai.models.model')} hint={offered.length === 0 ? t('ai.models.none_declared') : undefined}>
               {(c) => (
                 <SelectField {...c} value={use.model ?? ''} onValueChange={(value) => model.mutate({ ...path, body: { model: value || null } })}
                   options={[
@@ -65,12 +64,6 @@ export function ModelsSection({ admin }: { admin: boolean }) {
                   ]} />
               )}
             </Field>
-          ) : (
-            <div className="space-y-1">
-              <p className="text-sm">{t('ai.models.model')}</p>
-              <p className="text-sm text-muted-foreground">{use.model ?? t('ai.models.no_model')}</p>
-            </div>
-          )}
         </div>
       </div>
     );

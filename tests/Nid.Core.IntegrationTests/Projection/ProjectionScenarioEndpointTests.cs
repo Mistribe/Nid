@@ -240,6 +240,21 @@ public class ProjectionScenarioEndpointTests(PostgresFixture fixture) : IClassFi
     }
 
     [Fact]
+    public async Task An_item_of_the_other_kind_is_refused() // #513: RealEstate says which items are its loans and properties
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var home = await NewPropertyAsync(app, Home(app));
+        var loan = await NewAsync(app, Golden(app));
+        var sale = new { id = Guid.NewGuid(), kind = "property_sale", start = new { on = "2026-03-01" }, property = loan, price = "320000", costs = "0" };
+
+        var repaid = await CreateAsync(app, Body(app, Document("10y", Repayment(home, "2026-01-20", "1000"))));
+        var sold = await CreateAsync(app, Body(app, Document("10y", sale)));
+
+        Assert.Equal((HttpStatusCode.UnprocessableEntity, "projection.target_not_found", "events[0].loan"), await RefusalAsync(repaid));
+        Assert.Equal((HttpStatusCode.UnprocessableEntity, "projection.target_not_found", "events[0].property"), await RefusalAsync(sold));
+    }
+
+    [Fact]
     public async Task Scenario_withdrawal_rate_of_zero_is_refused_at_write() // retirement spec §3
     {
         await using var app = await NidApp.StartAsync(fixture);

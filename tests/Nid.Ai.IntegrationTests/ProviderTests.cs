@@ -128,12 +128,12 @@ public sealed class ProviderTests(PostgresFixture fixture) : IClassFixture<Postg
 
     private static async Task EnableAsync(NidApp app, LlmProfile profile)
     {
-        await app.RawAsync(app.AdultB, HttpMethod.Put, "/api/v1/ai/budget", new { monthlyBudgetEur = "10" });
+        await app.RawAsync(app.AdultA, HttpMethod.Put, "/api/v1/ai/budget", new { monthlyBudgetEur = "10" });
         await app.RawAsync(app.AdultA, HttpMethod.Put, "/api/v1/ai/cloud/region", new { region = "eea_ch_uk" });
         await app.RawAsync(app.AdultA, HttpMethod.Put, $"/api/v1/ai/cloud/keys/{profile.Provider}", new { key = Key });
         Assert.Equal(HttpStatusCode.OK,
             (await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/ai/cloud/profiles/{profile.Id}/enable", new { termsReviewedOn = "2026-11-22" })).StatusCode);
-        await app.RawAsync(app.AdultB, HttpMethod.Put, "/api/v1/ai/settings/uses/chat", new { mode = "self_hosted_then_cloud" });
+        await app.RawAsync(app.AdultA, HttpMethod.Put, "/api/v1/ai/settings/uses/chat", new { mode = "self_hosted_then_cloud" });
         await using var scope = app.Services.CreateAsyncScope();
         scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
         await scope.ServiceProvider.GetRequiredService<IAiSettings>().SetUseModelAsync(ModelUses.Chat, "llama3.2", TestContext.Current.CancellationToken);
