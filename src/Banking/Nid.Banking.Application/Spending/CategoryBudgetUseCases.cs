@@ -86,10 +86,12 @@ public sealed class SetBudgetHandler(ICategoryStore categories, ICategoryBudgetS
         decimal? amount = null;
         if (amountText is { } text)
         {
-            // numeric(19,4) holds under 10^15; no sign is read, so a negative amount is refused with the unreadable ones.
-            if (!decimal.TryParse(text, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var parsed) || parsed >= 1_000_000_000_000_000m)
+            // numeric(19,4) holds under 10^15 with 4 decimals, refused past them rather than rounded (#634); no sign is read, so a negative
+            // amount is refused with the unreadable ones.
+            if (!decimal.TryParse(text, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var parsed) || parsed >= 1_000_000_000_000_000m
+                || decimal.Round(parsed, 4) != parsed)
                 return Result.Failure<CategoryBudget>(FieldErrors.At(
-                    new Failure(BankingCodes.BudgetAmount, "A budget is an amount of zero or more.", null), $"{at}amount"));
+                    new Failure(BankingCodes.BudgetAmount, "A budget is an amount of zero or more, with at most 4 decimals.", null), $"{at}amount"));
             amount = parsed;
         }
 

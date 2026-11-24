@@ -53,7 +53,7 @@ public class CategoryBudgetTests(PostgresFixture fixture) : IClassFixture<Postgr
     {
         await using var app = await BankingApi.StartAsync(fixture);
 
-        foreach (var amount in new[] { "-5", "abc", "1e3", "1000000000000000" })
+        foreach (var amount in new[] { "-5", "abc", "1e3", "1000000000000000", "10.00005" })
         {
             var response = await SetAsync(app, "food.groceries", amount);
             var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
