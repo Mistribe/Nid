@@ -10,21 +10,25 @@ namespace Nid.Tax.IntegrationTests;
 
 /// <summary>
 /// #512 in steps: the tax module took over the tables Core created, where they were (<c>core</c>, <c>InitialTax</c>); #568 moves them to
-/// <c>tax</c> and leaves views under the old names, so the previous image still runs on a migrated database (architecture.md §10.1).
+/// <c>tax</c> and leaves views under the old names, so the previous image still runs on a migrated database (architecture.md §10.1);
+/// #581 drops those views a release later.
 /// </summary>
 public class TaxSchemaMigrationTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     /// <summary>The tax module's migration before the move: the previous image's layout.</summary>
     private const string BeforeMove = "20261123183705_InitialTax";
 
+    /// <summary>The move, with its views still in <c>core</c>.</summary>
+    private const string WithViews = "20261124073413_TaxSchema568";
+
     private static readonly Guid Adult = Guid.Parse("01920000-0000-7000-8000-000000000001");
     private static readonly Guid Notice = Guid.Parse("01920000-0000-7000-8000-0000000000a1");
 
+    private static readonly string[] InTax =
+        ["tax.tax_assessment BASE TABLE", "tax.tax_assessment_declarant BASE TABLE", "tax.tax_profile BASE TABLE"];
+
     private static readonly string[] Moved =
-    [
-        "core.tax_assessment VIEW", "core.tax_assessment_declarant VIEW", "core.tax_profile VIEW",
-        "tax.tax_assessment BASE TABLE", "tax.tax_assessment_declarant BASE TABLE", "tax.tax_profile BASE TABLE",
-    ];
+        ["core.tax_assessment VIEW", "core.tax_assessment_declarant VIEW", "core.tax_profile VIEW", .. InTax];
 
     private static readonly string[] InCore =
         ["core.tax_assessment BASE TABLE", "core.tax_assessment_declarant BASE TABLE", "core.tax_profile BASE TABLE"];
@@ -44,31 +48,42 @@ public class TaxSchemaMigrationTests(PostgresFixture fixture) : IClassFixture<Po
         Assert.Equal((Notice, 2024), (notice.Id, notice.Year));
         var declarant = await tax.TaxAssessmentDeclarants.SingleAsync(ct);
         Assert.Equal((Notice, Adult, 2024, 1), (declarant.AssessmentId, declarant.PersonId, declarant.Year, declarant.Rank));
-        Assert.Equal(Moved, await RelationsAsync(connectionString, ct));
+        Assert.Equal(InTax, await RelationsAsync(connectionString, ct));
         Assert.Empty(await PersonKeysAsync(connectionString, ct));
         Assert.False(tax.Database.HasPendingModelChanges());
     }
 
     [Fact]
-    public async Task A_fresh_database_ends_with_the_tables_in_tax_and_views_in_core()
+    public async Task A_fresh_database_ends_with_the_tables_in_tax_and_nothing_tax_in_core()
     {
         var ct = TestContext.Current.CancellationToken;
         var connectionString = await fixture.NewConnectionStringAsync();
 
-        Assert.Equal(Moved, await RelationsAsync(connectionString, ct));
+        Assert.Equal(InTax, await RelationsAsync(connectionString, ct));
         Assert.Empty(await PersonKeysAsync(connectionString, ct));
+    }
+
+    [Fact]
+    public async Task The_move_left_views_in_core_until_581_drops_them()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var connectionString = await MigratedToAsync(WithViews, ct);
+
+        Assert.Equal(Moved, await RelationsAsync(connectionString, ct));
     }
 
     /// <summary>
     /// The previous image maps the tables in <c>core</c>: its model's columns are the views' columns, and it reads, writes and deletes
-    /// through them as it did on the tables, the row version (xmin) guarding the update.
+    /// through them as it did on the tables, the row version (xmin) guarding the update. #581's <c>Down</c> puts them back as they were.
     /// </summary>
     [Fact]
-    public async Task The_previous_image_still_reads_and_writes_through_the_core_views()
+    public async Task Down_from_581_puts_the_views_back_and_the_previous_image_reads_and_writes_through_them()
     {
         var ct = TestContext.Current.CancellationToken;
         var connectionString = await fixture.NewConnectionStringAsync();
         await using var tax = PostgresFixture.NewTaxContext(connectionString);
+        await tax.GetService<IMigrator>().MigrateAsync(WithViews, ct);
+        Assert.Equal(Moved, await RelationsAsync(connectionString, ct));
         var migrations = tax.GetService<IMigrationsAssembly>();
         var previous = migrations.CreateMigration(migrations.Migrations[BeforeMove], tax.Database.ProviderName!).TargetModel!;
 
@@ -100,7 +115,7 @@ public class TaxSchemaMigrationTests(PostgresFixture fixture) : IClassFixture<Po
     public async Task Down_puts_the_tables_and_the_person_key_back_in_core_with_their_rows()
     {
         var ct = TestContext.Current.CancellationToken;
-        var connectionString = await fixture.NewConnectionStringAsync();
+        var connectionString = await MigratedToAsync(WithViews, ct);
         await SeedAsync(connectionString, ct);
         await using var tax = PostgresFixture.NewTaxContext(connectionString);
 
@@ -133,7 +148,7 @@ public class TaxSchemaMigrationTests(PostgresFixture fixture) : IClassFixture<Po
         return connectionString;
     }
 
-    /// <summary>A profile, a notice and its declarant, written under the old names (tables before the move, views after).</summary>
+    /// <summary>A profile, a notice and its declarant, written under the old names (tables before the move, the #568 views after it).</summary>
     private static Task SeedAsync(string connectionString, CancellationToken ct) => ExecuteAsync(connectionString, $$"""
         insert into core.person (id, kind, display_name, session_epoch, preferences, created_at) values
           ('{{Adult}}', 'adult', 'Alice', 0, '{}', now());

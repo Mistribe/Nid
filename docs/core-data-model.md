@@ -166,7 +166,7 @@ Deux tables du schéma `core`, détaillées dans `identity-and-access/tokens-and
 
 ### 4.6 Avis d'imposition (`tax_assessment`)
 
-Ces tables, avec `tax_profile`, appartiennent au module Tax depuis la #512 (`TaxDbContext`, `architecture.md` §5.2) ; elles sont dans le schéma `tax` depuis la #568, qui laisse dans `core` des vues sous les anciens noms pour l'image précédente, retirées par la #581.
+Ces tables, avec `tax_profile`, appartiennent au module Tax depuis la #512 (`TaxDbContext`, `architecture.md` §5.2) ; elles sont dans le schéma `tax` depuis la #568 ; les vues que celle-ci laissait dans `core` sous les anciens noms, pour l'image précédente, sont retirées par la #581.
 
 Un avis d'imposition sur les revenus d'une année passée, saisi à la main ou proposé par un assistant (`superpowers/specs/2026-10-27-tax-assessments-design.md`). Les montants vivent dans un document JSON ; une table de jointure porte ce qu'il faut pour les droits et l'unicité.
 
