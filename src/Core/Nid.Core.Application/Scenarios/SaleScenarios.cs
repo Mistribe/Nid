@@ -73,8 +73,8 @@ public sealed record ReplaceSaleScenarioCommand(ItemId ItemId, string Name, Visi
 /// fees, tax and penalties; its loans settled at their balance), which is also how « Comparer » reads it.
 /// </summary>
 public sealed class SaleScenarioReader(
-    ProjectionScenarioReader projections, IHouseholdTax tax, IVisibleItems visible, IItemRegistry items, IActorAccessor actor,
-    IHouseholdCalendar calendar)
+    ProjectionScenarioReader projections, IHouseholdTax tax, IVisibleItems visible, IItemRegistry items, IRealEstateItems realEstate,
+    IActorAccessor actor, IHouseholdCalendar calendar)
 {
     public const string PropertyNotFound = "scenario.property_not_found";
 
@@ -103,7 +103,7 @@ public sealed class SaleScenarioReader(
     {
         if (!(await visible.ForAsync(Reader, scope, ct)).Contains(property)) return false;
         var found = await items.FindManyAsync([property], ct);
-        return found.TryGetValue(property, out var access) && access is { ArchivedAt: null, Module: "realestate", Kind: "property" };
+        return found.TryGetValue(property, out var access) && access is { ArchivedAt: null } && realEstate.IsProperty(access);
     }
 
     private async Task<Taxed> TaxAsync(SaleScenario doc, VisibilityScope scope, LocalDate today, CancellationToken ct)
