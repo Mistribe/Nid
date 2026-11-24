@@ -5,8 +5,8 @@ using UnambitiousFx.Synapse.Abstractions;
 
 namespace Nid.Ai.Application;
 
-/// <summary>The jobs page (any adult): what each job is, where it stands, why it waits. Filters and pages are the server's.</summary>
-public sealed record ListModelJobsQuery(string? Status, string? Type, int? Page) : IQuery<ModelJobPage>;
+/// <summary>The jobs page (an admin, #585): what each job is, where it stands, why it waits. Filters and pages are the server's.</summary>
+public sealed record ListModelJobsQuery(string? Status, string? Type, int? Page) : IQuery<ModelJobPage>, IAdminOnly;
 
 [RequestHandler<ListModelJobsQuery, ModelJobPage>]
 public sealed class ListModelJobsHandler(IJobStore jobs, IWorkerStore workers) : IRequestHandler<ListModelJobsQuery, ModelJobPage>

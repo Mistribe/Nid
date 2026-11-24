@@ -60,7 +60,7 @@ public sealed class GatewayTests(PostgresFixture fixture) : IClassFixture<Postgr
         await using var world = await StartAsync(engine);
         await world.PairAsync();
         await SetModelAsync(world, "llama3.2");
-        Assert.Equal(HttpStatusCode.OK, (await world.Nid.RawAsync(world.Nid.AdultB, HttpMethod.Put, "/api/v1/ai/settings/uses/chat", new { mode = "off" })).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await world.Nid.RawAsync(world.Nid.AdultA, HttpMethod.Put, "/api/v1/ai/settings/uses/chat", new { mode = "off" })).StatusCode);
 
         var failed = await Assert.ThrowsAsync<ModelRefused>(() => ChatAsync(world, new LlmChatRequest(ModelUses.Chat, Hello, [], 128, "documents")));
 
@@ -173,7 +173,7 @@ public sealed class GatewayTests(PostgresFixture fixture) : IClassFixture<Postgr
     }
 
     [Fact]
-    public async Task An_admin_picks_a_declared_model_and_any_adult_sets_a_use()
+    public async Task An_admin_picks_a_declared_model_and_sets_a_use()
     {
         await using var world = await StartAsync(Engine());
         await world.PairAsync();
@@ -186,8 +186,11 @@ public sealed class GatewayTests(PostgresFixture fixture) : IClassFixture<Postgr
             (await world.Nid.RawAsync(world.Nid.AdultB, HttpMethod.Put, "/api/v1/ai/settings/uses/chat/model", new { model = "llama3.2" })).StatusCode);
         Assert.Equal(HttpStatusCode.UnprocessableEntity,
             (await world.Nid.RawAsync(world.Nid.AdultA, HttpMethod.Put, "/api/v1/ai/settings/uses/chat/model", new { model = "gpt-oss" })).StatusCode);
+        // #585: a use's mode is the administration's too.
+        Assert.Equal(HttpStatusCode.Forbidden,
+            (await world.Nid.RawAsync(world.Nid.AdultB, HttpMethod.Put, "/api/v1/ai/settings/uses/chat", new { mode = "off" })).StatusCode);
         Assert.Equal(HttpStatusCode.UnprocessableEntity,
-            (await world.Nid.RawAsync(world.Nid.AdultB, HttpMethod.Put, "/api/v1/ai/settings/uses/chat", new { mode = "anywhere" })).StatusCode);
+            (await world.Nid.RawAsync(world.Nid.AdultA, HttpMethod.Put, "/api/v1/ai/settings/uses/chat", new { mode = "anywhere" })).StatusCode);
 
         Assert.Equal(JobCodes.NoModel, await ChatReasonAsync(world));
         await SetModelAsync(world, "llama3.2");
@@ -203,7 +206,7 @@ public sealed class GatewayTests(PostgresFixture fixture) : IClassFixture<Postgr
     {
         await using var world = await StartAsync(Engine());
 
-        var response = await world.Nid.RawAsync(world.Nid.AdultB, HttpMethod.Put, "/api/v1/ai/settings/uses/chat", new { mode = "self_hosted_then_cloud" });
+        var response = await world.Nid.RawAsync(world.Nid.AdultA, HttpMethod.Put, "/api/v1/ai/settings/uses/chat", new { mode = "self_hosted_then_cloud" });
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         await using var scope = Scope(world);

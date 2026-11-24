@@ -300,7 +300,7 @@ public sealed class CloudTests(PostgresFixture fixture) : IClassFixture<Postgres
     private static async Task EnableAsync(NidApp app, string profile = "anthropic-claude")
     {
         // A paid profile needs a ceiling (#488).
-        await app.RawAsync(app.AdultB, HttpMethod.Put, "/api/v1/ai/budget", new { monthlyBudgetEur = "10" });
+        await app.RawAsync(app.AdultA, HttpMethod.Put, "/api/v1/ai/budget", new { monthlyBudgetEur = "10" });
         await app.RawAsync(app.AdultA, HttpMethod.Put, "/api/v1/ai/cloud/region", new { region = "eea_ch_uk" });
         await app.RawAsync(app.AdultA, HttpMethod.Put, "/api/v1/ai/cloud/keys/anthropic", new { key = Key });
         Assert.Equal(HttpStatusCode.OK,
@@ -310,7 +310,7 @@ public sealed class CloudTests(PostgresFixture fixture) : IClassFixture<Postgres
     private static async Task SetCloudModeAsync(NidApp app)
     {
         Assert.Equal(HttpStatusCode.OK,
-            (await app.RawAsync(app.AdultB, HttpMethod.Put, "/api/v1/ai/settings/uses/chat", new { mode = "self_hosted_then_cloud" })).StatusCode);
+            (await app.RawAsync(app.AdultA, HttpMethod.Put, "/api/v1/ai/settings/uses/chat", new { mode = "self_hosted_then_cloud" })).StatusCode);
         await using var scope = Scope(app);
         // No worker in these tests: the chat's model is set directly (the cloud uses its profile's own).
         await scope.ServiceProvider.GetRequiredService<IAiSettings>().SetUseModelAsync(ModelUses.Chat, "llama3.2", TestContext.Current.CancellationToken);

@@ -8,9 +8,9 @@ using UnambitiousFx.Synapse.Abstractions;
 
 namespace Nid.Ai.Application;
 
-/// <summary>How far one use may go (decision H, §12): any adult, in the browser. Opening a use to the cloud, or closing it,
-/// tells every adult.</summary>
-public sealed record SetUseModeCommand(string Use, string Mode) : ICommand<PolicyChange<AiSettingsView>>, IBrowserOnly;
+/// <summary>How far one use may go (decision H, §12): an admin, in the browser (#585). Opening a use to the cloud, or closing
+/// it, tells every adult.</summary>
+public sealed record SetUseModeCommand(string Use, string Mode) : ICommand<PolicyChange<AiSettingsView>>, IAdminOnly, IBrowserOnly;
 
 /// <summary>The model one use runs on (§12): an admin, among the models the workers declare; null clears it.</summary>
 public sealed record SetUseModelCommand(string Use, string? Model) : ICommand<AiSettingsView>, IAdminOnly, IBrowserOnly;

@@ -760,7 +760,7 @@ const banksSettingsRoute = createRoute({
   component: lazyRouteComponent(() => import('@/features/settings/banks/BanksPage'), 'BanksPage'),
 });
 const notificationSettingsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/settings/notifications', component: lazyRouteComponent(() => import('@/features/settings/NotificationSettingsPage'), 'NotificationSettingsPage') });
-/** Réglages › IA (#476): the workers and what they may see; the jobs page keeps its filters and page in the URL. */
+/** Réglages › IA (#585): each adult's assistant and own usage; the workers, models and jobs are under Administration › IA. */
 const aiSettingsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/settings/ai', component: lazyRouteComponent(() => import('@/features/settings/ai/AiSettingsPage'), 'AiSettingsPage') });
 // The statuses the server filters on (api/ai.ts JOB_STATUSES); not imported, so the AI strings stay out of the initial bundle.
 const AI_JOB_STATUSES = new Set(['queued', 'running', 'succeeded', 'failed', 'dead']);
@@ -770,7 +770,11 @@ const aiJobsSearch = (search: Record<string, unknown>): { status?: string; type?
   ...pageSearch(search),
 });
 const aiUsageRoute = createRoute({ getParentRoute: () => rootRoute, path: '/settings/ai/usage', validateSearch: pageSearch, component: lazyRouteComponent(() => import('@/features/settings/ai/AiUsagePage'), 'AiUsagePage') });
-const aiJobsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/settings/ai/jobs', validateSearch: aiJobsSearch, component: lazyRouteComponent(() => import('@/features/settings/ai/AiJobsPage'), 'AiJobsPage') });
+/** The jobs moved to Administration › IA (#585): an old link keeps its filters. */
+const aiJobsRedirectRoute = createRoute({
+  getParentRoute: () => rootRoute, path: '/settings/ai/jobs', validateSearch: aiJobsSearch,
+  beforeLoad: ({ search }) => { redirect({ to: '/admin/ai/jobs', search, throw: true }); },
+});
 const calendarSettingsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/settings/calendar', component: lazyRouteComponent(() => import('@/features/settings/CalendarSettingsPage'), 'CalendarSettingsPage') });
 
 const securityRoute = createRoute({ getParentRoute: () => rootRoute, path: '/security', validateSearch: securityPageSearch, component: lazyRouteComponent(() => import('@/features/security/SecurityPage'), 'SecurityPage') });
@@ -818,6 +822,8 @@ const adminCatalogRoute = createRoute({ getParentRoute: () => rootRoute, validat
 const adminJobsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/jobs', beforeLoad: requireAdmin, component: lazyRouteComponent(() => import('@/features/admin/JobsPage'), 'JobsPage') });
 const adminJobRoute = createRoute({ getParentRoute: () => rootRoute, validateSearch: pageSearch, path: '/admin/jobs/$key', beforeLoad: requireAdmin, component: lazyRouteComponent(() => import('@/features/admin/JobDetailPage'), 'JobDetailPage') });
 const adminJobRunRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/jobs/$key/runs/$runId', beforeLoad: requireAdmin, component: lazyRouteComponent(() => import('@/features/admin/JobRunPage'), 'JobRunPage') });
+const adminAiRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/ai', beforeLoad: requireAdmin, component: lazyRouteComponent(() => import('@/features/admin/ai/AiAdminPage'), 'AiAdminPage') });
+const adminAiJobsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/ai/jobs', validateSearch: aiJobsSearch, beforeLoad: requireAdmin, component: lazyRouteComponent(() => import('@/features/admin/ai/AiJobsPage'), 'AiJobsPage') });
 const adminSystemRoute = createRoute({ getParentRoute: () => rootRoute, path: '/admin/system', beforeLoad: requireAdmin, component: lazyRouteComponent(() => import('@/features/admin/SystemPage'), 'SystemPage') });
 const adminNotificationsRoute = createRoute({ getParentRoute: () => rootRoute, validateSearch: pageSearch, path: '/admin/notifications', beforeLoad: requireAdmin, component: lazyRouteComponent(() => import('@/features/admin/NotificationsAdminPage'), 'NotificationsAdminPage') });
 const adminSecurityRoute = createRoute({ getParentRoute: () => rootRoute, validateSearch: securitySearch, path: '/admin/security', beforeLoad: requireAdmin, component: lazyRouteComponent(() => import('@/features/admin/SecurityJournalPage'), 'SecurityJournalPage') });
@@ -825,9 +831,9 @@ const adminSecurityRoute = createRoute({ getParentRoute: () => rootRoute, valida
 export const routeTree = rootRoute.addChildren([
   indexRoute, dashboardRoute, calendarRoute, yearReviewRoute, subscriptionsRoute, subscriptionNewRoute, subscriptionDetailRoute, investmentsRoute, investmentNewRoute, investmentDetailRoute, holdingDetailRoute,
   goalsRoute, goalNewRoute, goalDetailRoute, childcareRoute, childcareNewRoute, childcareDetailRoute, childcareEndRoute, childcareSettlementRoute, childcareStatementRoute, nannyNewRoute, nannyDetailRoute, documentsRoute, documentDetailRoute, seriesRoute, incomeRoute, incomeNewRoute, incomeDetailRoute, spendingRoute, taxRoute, taxAssessmentNewRoute, taxAssessmentEditRoute, retirementRoute, scenariosRoute, scenarioNewRoute, projectionScenarioRoute, saleScenarioRoute, scenarioCompareRoute, scenarioDetailRoute, propertiesRoute, propertyNewRoute, propertyDetailRoute, loansRoute, loanNewRoute, loanDetailRoute, loanContractRoute, propertyReceiptRoute, propertyArrearsLetterRoute, notificationsRoute, routineRoute, proposalsRoute, proposalDetailRoute,
-  importRoute.addChildren([importHomeRoute, importSessionRoute]), exportRoute, settingsRoute, appearanceRoute, notificationSettingsRoute, projectionSettingsRoute, personsSettingsRoute, calendarSettingsRoute, banksSettingsRoute, aiSettingsRoute, aiJobsRoute, aiUsageRoute,
+  importRoute.addChildren([importHomeRoute, importSessionRoute]), exportRoute, settingsRoute, appearanceRoute, notificationSettingsRoute, projectionSettingsRoute, personsSettingsRoute, calendarSettingsRoute, banksSettingsRoute, aiSettingsRoute, aiJobsRedirectRoute, aiUsageRoute,
   securityRoute, operationsRoute, moreRoute, changelogRoute, forbiddenRoute, adminRoute, adminUsersRoute, adminHouseholdRoute, adminFxRoute, adminPricesRoute, adminIrlRoute, adminInflationRoute, adminBankingRoute, adminCatalogRoute, adminJobsRoute, adminJobRoute, adminJobRunRoute,
-  adminSystemRoute, adminNotificationsRoute, adminSecurityRoute,
+  adminSystemRoute, adminNotificationsRoute, adminSecurityRoute, adminAiRoute, adminAiJobsRoute,
 ]);
 
 export function createAppRouter(context: RouterContext, history?: RouterHistory) {

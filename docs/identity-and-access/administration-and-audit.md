@@ -43,7 +43,7 @@ API `/api/v1/admin`, écrans `/admin/*` (`../frontend/screens.md` §12).
 | **Système** | Version, démarrage, santé (base, fournisseur d'identité, « non utilisé » en `local`), taille de la base ; mode de connexion et source du rôle admin ; avertissement quand `Auth:AllowInsecureHttp` est actif, repris en bandeau sur toute la zone admin (`local-accounts.md` §12) | `GET /admin/system` |
 | **Catalogue** (1C2b) | Dernière synchronisation (état, heure, version synchronisée, comptes et rapport par catégorie), version épinglée, historique des synchronisations des 400 derniers jours, sauf la dernière réussie qui reste toujours (paginé), synchronisation à la demande confirmée ; le rapport est filtré pour son lecteur (`../superpowers/specs/2026-09-24-provider-catalog-design.md` §3.6) | `GET /api/v1/subscriptions/catalog/runs`, `POST /api/v1/subscriptions/catalog/sync` |
 | **Journal de sécurité** (livré en 1F3a) | Événements techniques globaux (`login_refused`, `access_violation`, les événements de la zone admin, §4.1 ; `admin_command` et `subject_rebound` depuis 1F4), identifiants seulement | `GET /api/v1/admin/security-journal` |
-| **Plus tard** | IA, dans Réglages › IA (`../ai/README.md` §12) : un admin apparie, fait tourner les clés et révoque les workers, active les profils cloud et leurs clés, choisit le modèle de chaque usage ; tout adulte règle la politique de données (workers distants, `safe`, budget, usages, conservation) | |
+| **Plus tard** | IA, dans Administration › IA (`../ai/README.md` §12, #585) : un admin apparie, fait tourner les clés et révoque les workers, active les profils cloud et leurs clés, choisit le réglage et le modèle de chaque usage, règle la politique de données (workers distants, `safe`, budget, conservation) ; chaque adulte active l'assistant pour lui dans Réglages › IA | |
 
 - **Aucun libellé, aucun montant, aucun compteur d'éléments** : un total d'éléments révélerait que l'autre adulte en a de privés.
 - Supprimer un adulte **actif** est hors périmètre : il possède des éléments, cela demanderait un transfert de propriété. Un adulte **en attente** qui possède déjà des éléments (atteint par un import, qui résout les adultes par email y compris en attente) ne peut pas non plus être supprimé, pour la même raison (`core.person_active`).
@@ -51,7 +51,7 @@ API `/api/v1/admin`, écrans `/admin/*` (`../frontend/screens.md` §12).
 
 ## 3. Commandes d'administration (CLI)
 
-La zone admin couvre l'administration courante. La CLI reste le **recours de secours**, pour ce que l'interface ne peut pas faire (plus aucun admin joignable, `sub` changé). Elle s'exécute dans le conteneur `nid` par l'hébergeur : `nid admin <commande>`. **Livrée en 1F4** (`../superpowers/specs/2026-09-26-admin-cli-design.md`) pour `rebind-subject`, `list-persons` et `revoke-sessions` : les cas d'usage de l'API, joués par l'acteur système avec `via: admin-cli`, confirmation pour `rebind-subject`. `revoke-tokens` est livrée en 4A. Les commandes de workers sont abandonnées (#171) : les workers se gèrent dans Réglages › IA (tableau ci-dessous).
+La zone admin couvre l'administration courante. La CLI reste le **recours de secours**, pour ce que l'interface ne peut pas faire (plus aucun admin joignable, `sub` changé). Elle s'exécute dans le conteneur `nid` par l'hébergeur : `nid admin <commande>`. **Livrée en 1F4** (`../superpowers/specs/2026-09-26-admin-cli-design.md`) pour `rebind-subject`, `list-persons` et `revoke-sessions` : les cas d'usage de l'API, joués par l'acteur système avec `via: admin-cli`, confirmation pour `rebind-subject`. `revoke-tokens` est livrée en 4A. Les commandes de workers sont abandonnées (#171) : les workers se gèrent dans Administration › IA (tableau ci-dessous).
 
 | Commande | Usage |
 |---|---|
@@ -59,7 +59,7 @@ La zone admin couvre l'administration courante. La CLI reste le **recours de sec
 | `list-persons` | Lister les personnes (identifiant, type, état, admin, `sub` rattaché, connexion, verrouillage) |
 | `revoke-sessions --person` | Incrémenter `session_epoch` |
 | `revoke-tokens --person` | Révoquer tous les jetons d'accès personnels (livré en 4A) |
-| `create-worker`, `rotate-worker`, `revoke-worker` | Abandonnées (#171) : les workers sont appariés, leurs clés tournées et révoquées depuis Réglages › IA (`../ai/README.md` §12) ; `revoke-worker` reste à envisager comme recours si plus aucun admin n'est joignable |
+| `create-worker`, `rotate-worker`, `revoke-worker` | Abandonnées (#171) : les workers sont appariés, leurs clés tournées et révoquées depuis Administration › IA (`../ai/README.md` §12) ; `revoke-worker` reste à envisager comme recours si plus aucun admin n'est joignable |
 | `create-admin --name [--email] [--login]` | Comptes locaux : créer un adulte admin et afficher son lien de mot de passe (`local-accounts.md` §5 et §15) |
 | `reset-password --person [--revoke-tokens]` | Comptes locaux : afficher un lien de réinitialisation, lever le verrouillage |
 | `grant-admin --person`, `revoke-admin --person` | Rôle admin avec la source `nid` ; le dernier admin ne peut pas être retiré |

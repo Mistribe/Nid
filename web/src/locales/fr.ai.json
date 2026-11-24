@@ -2,6 +2,11 @@
   "ai": {
     "title": "IA",
     "loading": "Chargement…",
+    "system": {
+      "title": "Workers et modèles",
+      "body": "Les workers, les modèles, les fournisseurs cloud, le budget et ce que les workers distants peuvent voir sont réglés par un administrateur, pour tout le foyer. Vous êtes prévenu quand ce que l'IA peut voir change.",
+      "admin_link": "Régler l'IA du foyer"
+    },
     "worker_tip": "Un worker est un petit programme qui fait tourner, sur une machine à vous, ce qui demande un modèle d'IA : lire le texte des documents, chercher par le sens. Nid l'appelle ; lui n'ouvre jamais Nid.",
     "data": {
       "title": "Données",
@@ -169,7 +174,7 @@
       "worker_revoked": "Ce worker est révoqué.",
       "worker_unreachable": "Nid n'arrive pas à joindre le worker à cette adresse.",
       "use_off": "Cet usage est désactivé dans les réglages.",
-      "no_model": "Aucun modèle n'est choisi pour cet usage : un administrateur le choisit dans Réglages › IA.",
+      "no_model": "Aucun modèle n'est choisi pour cet usage : un administrateur le choisit dans Administration › IA.",
       "model_unavailable": "Aucun worker actif ne propose le modèle choisi.",
       "task_not_allowed": "Cet usage ne permet pas cette demande.",
       "cut": "La réponse a été coupée avant la fin.",
@@ -299,7 +304,7 @@
       "off": "L'assistant n'est pas activé pour vous.",
       "no_model_admin": "Aucun modèle n'est choisi pour l'assistant.",
       "no_model": "Aucun modèle n'est choisi pour l'assistant : demandez à un administrateur de Nid.",
-      "settings": "Ouvrir Réglages › IA",
+      "settings": "Ouvrir les réglages de l'IA",
       "usage": "{{tokens}} jetons, sans coût",
       "usage_cost": "{{tokens}} jetons · environ {{cost}}",
       "budget_back": "Les appels payants reprennent le {{date}}."
@@ -322,7 +327,7 @@
     "assistant": {
       "title": "Assistant",
       "link": "Essayer l'assistant",
-      "intro": "Posez une question sur les finances du foyer : l'assistant lit ce que vous pouvez lire et répond avec les chiffres de Nid. Il ne change rien : ce que vous lui demandez de modifier devient une proposition à valider. Vos échanges sont gardés pour vous seul, le temps réglé dans Réglages › IA.",
+      "intro": "Posez une question sur les finances du foyer : l'assistant lit ce que vous pouvez lire et répond avec les chiffres de Nid. Il ne change rien : ce que vous lui demandez de modifier devient une proposition à valider. Vos échanges sont gardés pour vous seul, le temps réglé par un administrateur.",
       "question": "Votre question",
       "question_hint": "Par exemple : combien me reste-t-il ce mois-ci ?",
       "ask": "Demander",

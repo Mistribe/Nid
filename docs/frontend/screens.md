@@ -190,7 +190,7 @@ Livré en 1E4 (`../superpowers/specs/2026-09-26-export-screen-design.md`), route
 | **Notifications** (`/settings/notifications`) | Voir ci-dessous ; toutes les pages de réglages s’intitulent « Réglages », une barre d’onglets « Apparence » / « Notifications » / « Projection » / « Personnes » les relie |
 | **Projection** (`/settings/projection`) | Voir ci-dessous |
 | **Banques** (`/settings/banks`) | Voir ci-dessous ; une seule page de sections, sans onglets sous la barre des réglages (#413) ; l’onglet « Banques » de la barre des réglages n’apparaît que si la synchronisation bancaire est activée pour le foyer |
-| **IA** (`/settings/ai`, `/settings/ai/jobs`) | Voir ci-dessous ; pour tout adulte, les actions d’administration réservées à un admin (`../ai/README.md` §12) |
+| **IA** (`/settings/ai`, `/settings/ai/usage`) | Ce que chaque adulte décide pour lui (#585) : « L’assistant, pour vous » (l’activer, sa préférence pour ses données hors de chez lui), « Workers et modèles » (une phrase : un administrateur les règle pour le foyer ; « Voir l’utilisation », et « Régler l’IA du foyer » pour un admin). La configuration est dans Administration › IA (`../ai/README.md` §12) |
 
 **Page « Notifications »** (livrée en PR 2 de `../superpowers/specs/2026-10-24-notifications-design.md`, §6.3) : un seul « Enregistrer » pour l’ensemble, « Réglages enregistrés. » en confirmation.
 
@@ -208,19 +208,20 @@ Livré en 1E4 (`../superpowers/specs/2026-09-26-export-screen-design.md`), route
 
 **Page « Projection »** (livrée le 2026-10-27, tranche 1 de la #102) : ouverte à tout adulte (la page du foyer est réservée à l’administrateur). « Hypothèses de projection » : rendement annuel par classe d’actifs, inflation, épargne mensuelle (« Automatique » = moyenne des 12 derniers mois, ou un montant fixe dans la devise du foyer), classe d’actifs de l’épargne, mensualités terminées versées à l’épargne ; lecture en ligne, modification dans un dialogue. « Personnes » : pour chaque adulte, la date de naissance (jj/mm/aaaa, passée) et l’âge de retraite (50 à 75, 64 par défaut) ; sans date de naissance, pas d’horizon « Retraite de … » sur le tableau de bord. Inflation et taux des liquidités / du monétaire année par année (année en cours à +4, puis taux long terme), inflation de l'année en cours avec l'observée INSEE en indice sous le champ (un indice, non préremplie), « Évolution des revenus » (#419, PR 3) ; le formulaire de scénario « Projection » surcharge les mêmes champs. « Inflation observée » (#419, PR 1) : l'inflation annuelle moyenne de la France année par année et sur les 12 derniers mois, tirée de la série de l'INSEE (`/admin/inflation`).
 
-**Page « IA »** (#476, `../ai/README.md` §3, §11 et §12) : trois sections. « Données » : l’interrupteur « Autoriser les workers
-distants » (tout adulte, confirmé dans les deux sens ; chaque adulte est prévenu d’un changement). « Workers » : un tableau (nom, où il tourne et s’il est
+**Page Administration › IA** (`/admin/ai`, #476, #585, `../ai/README.md` §3, §11 et §12), réservée aux admins : « Données » : l’interrupteur « Autoriser les workers
+distants » (confirmé dans les deux sens ; chaque adulte est prévenu d’un changement) et la conservation des conversations. « Workers » : un tableau (nom, où il tourne et s’il est
 derrière un proxy, « Sûr », état et dernière réponse, version, tâches en cours), un état vide qui dit comment démarrer le worker
-du profil Compose, « Voir les tâches », et un menu `⋯` par ligne : « Marquer sûr » / « Retirer « sûr » » pour tout adulte, confirmés ;
+du profil Compose, « Voir les tâches », et un menu `⋯` par ligne : « Marquer sûr » / « Retirer « sûr » », confirmés ;
 « Appairer », « Tester » (un toast avec le nombre de morceaux reçus et « Voir les tâches »), « Rafraîchir », « Renommer »,
-« Désactiver » / « Réactiver », « Faire tourner sa clé » et « Révoquer » pour un admin, les trois derniers confirmés. « Ajouter
-un worker » (admin, en action de la page) : l’adresse (`https://worker:8443` par défaut) et un nom, l’emplacement et le proxy
+« Désactiver » / « Réactiver », « Faire tourner sa clé » et « Révoquer », les trois derniers confirmés. « Modèles » (réglage
+et modèle de chaque usage), « Fournisseurs cloud », « Budget du cloud ». « Ajouter
+un worker » (en action de la page) : l’adresse (`https://worker:8443` par défaut) et un nom, l’emplacement et le proxy
 sous « Personnaliser » ; puis l’empreinte de la clé du worker, en groupes de quatre, à comparer à sa console, et le code
-d’appairage. Un worker resté à cette étape la reprend par « Appairer ». « Clé de Nid » (admin) : « Faire tourner la clé de Nid »,
+d’appairage. Un worker resté à cette étape la reprend par « Appairer ». « Clé de Nid » : « Faire tourner la clé de Nid »,
 confirmé, puis la nouvelle empreinte, la commande `confirm-rotation` à lancer sur chaque worker et ceux que Nid n’a pas pu
 prévenir. Les codes `ai.*` du serveur s’affichent en mots.
 
-**Page « Tâches »** (`/settings/ai/jobs`) : les tâches de modèle, les plus récentes d’abord, filtrées par type et par état
+**Page « Tâches »** (`/admin/ai/jobs`, admin ; `/settings/ai/jobs` y mène avec ses filtres) : les tâches de modèle, les plus récentes d’abord, filtrées par type et par état
 (`?type=`, `?status=`, `?page=`, appliqués par le serveur) : type, état, raison en mots (ce qu’elle attend ou pourquoi elle a
 échoué), essais, worker, créée, finie. Ni l’entrée ni le résultat d’une tâche n’y apparaissent. Une tâche abandonnée notifie
 avec un lien vers `?status=dead`.
@@ -258,7 +259,7 @@ Réservée aux admins (`../identity-and-access/administration-and-audit.md` §2)
 | **Journal de sécurité** (1F3a, `/admin/security`) | date, événement, personne visée, auteur, identifiants (une réponse retenue dit sa cause et les éléments en jeu, détails bruts repliés) ; filtre par événement ; journal paginé |
 | **Notifications** (`/admin/notifications`) | État de l’envoi d’emails (« Configuré : <serveur> » ou « Non configuré », avec les variables `Nid__Smtp__*` à définir), « M’envoyer un email de test », et « Envois en échec » des 30 derniers jours, paginés (canal, type, mise en file, erreur ; jamais le contenu) ; « Discord du foyer » (PR 3) : mêmes contrôles que dans les réglages (coller, remplacer, retirer, « Envoyer un test », état `broken`), pour le canal commun du foyer |
 | **Banque** (`/admin/banking`, synchronisation bancaire 5A et 5B) | « Synchronisation bancaire » (interrupteur, désactivée par défaut ; lecture seule, aucun paiement), le prestataire (Enable Banking), les adultes qui ont leur propre application ; sans application d’installation, la mise en route renvoie à « Mon application » (#414). **Application d’installation (dépréciée, #414)**, tant qu’elle est configurée : un bandeau l’annonce et propose « Transférer à un adulte » (choix parmi les adultes inscrits, ceux qui ont des banques reliées avec elle d’abord, avec leur nombre ; confirmation qui nomme les adultes dont les banques s’arrêtent), plus l’adresse de retour, « Identifiant de l’application Enable Banking », la mise en route et « Tester la connexion » d’avant ; après le transfert, une phrase dit que le secret de la clé peut être retiré ; « Conserver les opérations » : « Sans limite » (le défaut), 12, 24, 36, 60 ou 120 mois (une autre durée posée par l’API est montrée telle quelle), enregistré au choix, les opérations plus anciennes non reliées effacées chaque nuit. « Journal des synchronisations », paginé : début, déclenchement (« Nuit » ou « Manuelle »), état, connexions, comptes, soldes, propositions, écrits, écartés, code d’échec — des compteurs, jamais un nom ni un montant (le nombre d’opérations du journal n’est pas encore affiché) |
-| **IA** (étape 4) | Fournisseurs et clés, mode (local, gratuit puis local, avec payant), types de documents autorisés au cloud, budget mensuel, masquage, conditions avec date de revue, page « Utilisation IA » (`../ingestion/llm-providers.md` §13) |
+| **IA** (`/admin/ai`, `/admin/ai/jobs`, #585) | Toute la configuration de l'IA du foyer : workers, données (workers distants, conservation), modèles, fournisseurs cloud, budget, clé de Nid, tâches ; voir « Page Administration › IA » plus haut (`../ai/README.md` §12). Chaque adulte garde l'assistant pour lui dans Réglages › IA |
 
 - Aucun libellé, montant ni compteur d'éléments : l'Administration ne dit rien des données du foyer.
 - Chaque action d'écriture est confirmée ; une confirmation dit l'effet (« Cette personne pourra se connecter avec l'email … », « Toutes ses sessions seront fermées »).

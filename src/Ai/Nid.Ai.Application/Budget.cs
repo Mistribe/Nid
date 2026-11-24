@@ -91,8 +91,8 @@ public sealed class BudgetNotices(INotifier notifier)
 /// <summary>The month's budget for paid providers, for any adult (§7, decision F).</summary>
 public sealed record GetBudgetQuery : IQuery<AiBudgetView>;
 
-/// <summary>The household's monthly ceiling for paid providers, 0 € by default: any adult sets it; both are told.</summary>
-public sealed record SetMonthlyBudgetCommand(decimal AmountEur) : ICommand<AiBudgetView>, IBrowserOnly;
+/// <summary>The household's monthly ceiling for paid providers, 0 € by default: an admin sets it (#585); every adult is told.</summary>
+public sealed record SetMonthlyBudgetCommand(decimal AmountEur) : ICommand<AiBudgetView>, IAdminOnly, IBrowserOnly;
 
 internal static class BudgetViews
 {

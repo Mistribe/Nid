@@ -25,18 +25,18 @@ ai.budget_alert — 80 % du budget d'IA du mois est dépensé
   household, bare | 80 % du budget d'IA du mois est dépensé | Au-delà du plafond, les appels payants s'arrêtent jusqu'au 1er du mois prochain. | /settings/ai
   household, bare, figures | 80 % du budget d'IA du mois est dépensé | Au-delà du plafond, les appels payants s'arrêtent jusqu'au 1er du mois prochain. | /settings/ai
 ai.budget_changed — Le budget des fournisseurs d'IA payants a changé
-  item, due, month key | Le budget des fournisseurs d'IA payants a changé | Un adulte a changé le plafond mensuel des fournisseurs d'IA payants. | /settings/ai
-  item, due, month key, figures | Le budget des fournisseurs d'IA payants a changé | Un adulte a changé le plafond mensuel des fournisseurs d'IA payants. — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /settings/ai
-  item, day key | Le budget des fournisseurs d'IA payants a changé | Un adulte a changé le plafond mensuel des fournisseurs d'IA payants. | /settings/ai
-  item, day key, figures | Le budget des fournisseurs d'IA payants a changé | Un adulte a changé le plafond mensuel des fournisseurs d'IA payants. — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /settings/ai
-  item, bare | Le budget des fournisseurs d'IA payants a changé | Un adulte a changé le plafond mensuel des fournisseurs d'IA payants. | /settings/ai
-  item, bare, figures | Le budget des fournisseurs d'IA payants a changé | Un adulte a changé le plafond mensuel des fournisseurs d'IA payants. | /settings/ai
-  household, due | Le budget des fournisseurs d'IA payants a changé | Un adulte a changé le plafond mensuel des fournisseurs d'IA payants. | /settings/ai
-  household, due, figures | Le budget des fournisseurs d'IA payants a changé | Un adulte a changé le plafond mensuel des fournisseurs d'IA payants. — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /settings/ai
-  household, alt | Le budget des fournisseurs d'IA payants a changé | Un adulte a changé le plafond mensuel des fournisseurs d'IA payants. | /settings/ai
-  household, alt, figures | Le budget des fournisseurs d'IA payants a changé | Un adulte a changé le plafond mensuel des fournisseurs d'IA payants. — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /settings/ai
-  household, bare | Le budget des fournisseurs d'IA payants a changé | Un adulte a changé le plafond mensuel des fournisseurs d'IA payants. | /settings/ai
-  household, bare, figures | Le budget des fournisseurs d'IA payants a changé | Un adulte a changé le plafond mensuel des fournisseurs d'IA payants. | /settings/ai
+  item, due, month key | Le budget des fournisseurs d'IA payants a changé | Un administrateur a changé le plafond mensuel des fournisseurs d'IA payants. | /settings/ai
+  item, due, month key, figures | Le budget des fournisseurs d'IA payants a changé | Un administrateur a changé le plafond mensuel des fournisseurs d'IA payants. — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /settings/ai
+  item, day key | Le budget des fournisseurs d'IA payants a changé | Un administrateur a changé le plafond mensuel des fournisseurs d'IA payants. | /settings/ai
+  item, day key, figures | Le budget des fournisseurs d'IA payants a changé | Un administrateur a changé le plafond mensuel des fournisseurs d'IA payants. — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /settings/ai
+  item, bare | Le budget des fournisseurs d'IA payants a changé | Un administrateur a changé le plafond mensuel des fournisseurs d'IA payants. | /settings/ai
+  item, bare, figures | Le budget des fournisseurs d'IA payants a changé | Un administrateur a changé le plafond mensuel des fournisseurs d'IA payants. | /settings/ai
+  household, due | Le budget des fournisseurs d'IA payants a changé | Un administrateur a changé le plafond mensuel des fournisseurs d'IA payants. | /settings/ai
+  household, due, figures | Le budget des fournisseurs d'IA payants a changé | Un administrateur a changé le plafond mensuel des fournisseurs d'IA payants. — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /settings/ai
+  household, alt | Le budget des fournisseurs d'IA payants a changé | Un administrateur a changé le plafond mensuel des fournisseurs d'IA payants. | /settings/ai
+  household, alt, figures | Le budget des fournisseurs d'IA payants a changé | Un administrateur a changé le plafond mensuel des fournisseurs d'IA payants. — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /settings/ai
+  household, bare | Le budget des fournisseurs d'IA payants a changé | Un administrateur a changé le plafond mensuel des fournisseurs d'IA payants. | /settings/ai
+  household, bare, figures | Le budget des fournisseurs d'IA payants a changé | Un administrateur a changé le plafond mensuel des fournisseurs d'IA payants. | /settings/ai
 ai.budget_reached — Le budget d'IA du mois est atteint
   item, due, month key | Le budget d'IA du mois est atteint | Les appels payants sont arrêtés jusqu'au 1er du mois prochain ; les workers du foyer continuent. | /settings/ai
   item, due, month key, figures | Le budget d'IA du mois est atteint | Les appels payants sont arrêtés jusqu'au 1er du mois prochain ; les workers du foyer continuent. — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /settings/ai
@@ -287,14 +287,14 @@ irl_missing — L'IRL d'une révision manque
 job_failed — Une tâche planifiée a échoué
   item, due, month key | Une tâche planifiée a échoué | Tâche : fx-daily | /admin/jobs/fx-daily
   item, due, month key, figures | Une tâche planifiée a échoué | Tâche : fx-daily — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /admin/jobs/fx-daily
-  item, day key | Une tâche planifiée a échoué | Tâche : ai.extract | /settings/ai/jobs?status=dead
-  item, day key, figures | Une tâche planifiée a échoué | Tâche : ai.extract — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /settings/ai/jobs?status=dead
+  item, day key | Une tâche planifiée a échoué | Tâche : ai.extract | /admin/ai/jobs?status=dead
+  item, day key, figures | Une tâche planifiée a échoué | Tâche : ai.extract — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /admin/ai/jobs?status=dead
   item, bare | Une tâche planifiée a échoué |  | /admin/jobs
   item, bare, figures | Une tâche planifiée a échoué |  | /admin/jobs
   household, due | Une tâche planifiée a échoué | Tâche : fx-daily | /admin/jobs/fx-daily
   household, due, figures | Une tâche planifiée a échoué | Tâche : fx-daily — Patrimoine : 302 141 USD · Palier : 300 000 USD · Solde : -120 USD · Ce jour-là : Loyer · Plus grosses dépenses : Supermarché | /admin/jobs/fx-daily
-  household, alt | Une tâche planifiée a échoué | Tâche : ai.extract | /settings/ai/jobs?status=dead
-  household, alt, figures | Une tâche planifiée a échoué | Tâche : ai.extract — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /settings/ai/jobs?status=dead
+  household, alt | Une tâche planifiée a échoué | Tâche : ai.extract | /admin/ai/jobs?status=dead
+  household, alt, figures | Une tâche planifiée a échoué | Tâche : ai.extract — Épargne par mois sur 3 mois : 100 € · sur 12 mois : 251 € · Dépensé ce mois : 900 € · Mois habituel : 400 € | /admin/ai/jobs?status=dead
   household, bare | Une tâche planifiée a échoué |  | /admin/jobs
   household, bare, figures | Une tâche planifiée a échoué |  | /admin/jobs
 loan_end — Un crédit se termine
