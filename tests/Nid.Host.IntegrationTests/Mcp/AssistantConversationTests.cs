@@ -96,6 +96,27 @@ public sealed class AssistantConversationTests(PostgresFixture fixture) : IClass
     }
 
     [Fact]
+    public async Task A_conversation_still_in_use_loses_its_messages_past_the_retention()
+    {
+        // #626: used once a month, a conversation is never purged whole; its old messages are.
+        await using var app = await StartAsync(Model());
+        var id = await AskAsync(app, app.AdultA, "Mes enveloppes ?");
+        await using var scope = app.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<AiDbContext>();
+        var lastYear = scope.ServiceProvider.GetRequiredService<IClock>().GetCurrentInstant() - Duration.FromDays(365);
+        await db.ConversationMessages.Where(m => m.ConversationId == id).ExecuteUpdateAsync(s => s.SetProperty(m => m.CreatedAt, lastYear),
+            TestContext.Current.CancellationToken);
+        await AskAsync(app, app.AdultA, "Et aujourd'hui ?", id);
+
+        Assert.Equal(0, await scope.ServiceProvider.GetRequiredService<IConversationPurge>().RunOnceAsync(TestContext.Current.CancellationToken));
+
+        var kept = await db.ConversationMessages.AsNoTracking().Where(m => m.ConversationId == id).Select(m => m.Content)
+            .ToListAsync(TestContext.Current.CancellationToken);
+        Assert.Contains("Et aujourd'hui ?", kept);
+        Assert.DoesNotContain("Mes enveloppes ?", kept);
+    }
+
+    [Fact]
     public async Task Deleting_a_document_removes_the_answers_that_read_it_in_everyones_conversations()
     {
         // #617, decision R (§6.6): an answer whose tools returned the document goes with it; the question and other answers stay.

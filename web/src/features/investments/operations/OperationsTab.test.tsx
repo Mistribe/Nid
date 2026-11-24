@@ -100,6 +100,18 @@ describe('« Opérations »', () => {
     expect(asked.at(-1)?.get('from')).toBe('2026-10-01');
   });
 
+  it('keeps its period in the URL, and reads it back on a reload (#642)', async () => {
+    const asked = serve([[line()]]);
+    const { user, router } = await renderApp(`/investments/${PEA}?tab=operations&from=2026-09-01`);
+
+    await screen.findByRole('table', { name: 'Opérations' });
+    expect(asked[0]?.get('from')).toBe('2026-09-01');
+    expect(screen.getByLabelText('Du')).toHaveValue('01/09/2026');
+    await user.type(screen.getByLabelText('Au'), '15/10/2026');
+
+    await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'operations', from: '2026-09-01', to: '2026-10-15' }));
+  });
+
   it('says when there is no line', async () => {
     serve([]);
     await renderApp(`/investments/${PEA}?tab=operations`);

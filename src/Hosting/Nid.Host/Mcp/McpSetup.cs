@@ -2,6 +2,7 @@ using ModelContextProtocol;
 using ModelContextProtocol.AspNetCore;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
+using Nid.Host.Api;
 using Nid.Host.Auth;
 using Microsoft.Extensions.Options;
 using Nid.Platform.Contracts;
@@ -77,7 +78,14 @@ public static class McpSetup
                 var tool = context.MatchedPrimitive is McpServerTool matched ? matched.ProtocolTool.Name : "unknown";
                 await services.GetRequiredService<ISecurityEvents>().RecordAsync(
                     new SecurityEvent(SecurityEventNames.McpToolCalled, token.Person, [], new Dictionary<string, string> { ["tool"] = tool }), ct);
-                return await next(context, ct);
+                try
+                {
+                    return await next(context, ct);
+                }
+                catch (Exception e) when (WriteConflicts.Is(e))
+                {
+                    return McpCalls.Refuse(services, WriteConflicts.Failure()); // #630: as the API's 409
+                }
             }))
             .WithTools<PersonTools>(json)
             .WithTools<DashboardTools>(json)

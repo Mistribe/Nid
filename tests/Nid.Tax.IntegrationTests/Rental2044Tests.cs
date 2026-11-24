@@ -192,6 +192,25 @@ public class Rental2044Tests(PostgresFixture fixture) : IClassFixture<PostgresFi
     }
 
     [Fact]
+    public async Task The_projected_rent_of_a_lease_starting_or_ending_mid_month_is_prorated()
+    {
+        // #632: today is 2025-10-15, October's rent is not recorded yet; the months from October on are projected.
+        await using var app = await NidApp.StartAsync(fixture);
+        await RegimeAsync(app, "real");
+        var arriving = await RentalAsync(app, "Arrivée");
+        await PostAsync(app, arriving, "tenancies", new { label = "Nouveau", startsOn = "2025-11-15", rentMonthly = "3000" });
+        await FlowAsync(app, arriving, "2025-03-01", "expense", "insurance", "100");
+        var leaving = await RentalAsync(app, "Départ");
+        await PostAsync(app, leaving, "tenancies", new { label = "Ancien", startsOn = "2021-01-01", endsOn = "2025-12-10", rentMonthly = "3100" });
+        await FlowAsync(app, leaving, "2025-03-01", "expense", "insurance", "100");
+
+        var form = await FormAsync(app, app.AdultA, 2025);
+
+        Assert.Equal("4600.00", Line(PropertyOf(form, "Arrivée"), "211")); // 16 days of November (1 600) and December
+        Assert.Equal("7200.00", Line(PropertyOf(form, "Départ"), "211")); // October, November and 10 days of December (1 000)
+    }
+
+    [Fact]
     public async Task Rents_recorded_per_tenancy_with_their_charges_count_bare_in_a_changeover_month() // Review Focus 1
     {
         await using var app = await NidApp.StartAsync(fixture);

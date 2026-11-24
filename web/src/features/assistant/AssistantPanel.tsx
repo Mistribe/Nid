@@ -5,6 +5,7 @@ import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { AI_SETTINGS, aiProblem, aiReason, ASSISTANT_ME } from '@/api/ai';
+import type { components } from '@/api/schema';
 import { useSession } from '@/app/Providers';
 import { ConfirmAction } from '@/components/ConfirmAction';
 import { Field } from '@/components/form/Field';
@@ -36,6 +37,7 @@ type Turn = {
 };
 
 type Totals = { tokensIn: number; tokensOut: number; costEur?: string | null };
+type ConversationPage = components['schemas']['ConversationPage'];
 
 /**
  * The assistant, from every page (#534, docs/ai/README.md §8.3, §11): the current conversation streamed as plain text, with
@@ -205,8 +207,13 @@ function ConversationList({ current, onOpen }: { current: string | null; onOpen:
   const { t } = useTranslation();
   const { $api } = useApi();
   const queryClient = useQueryClient();
-  const [page, setPage] = useState(1);
-  const list = $api.useQuery('get', CONVERSATIONS, { params: { query: { page } } });
+  // #642: « Plus anciennes » adds the next page below the ones shown.
+  const list = $api.useInfiniteQuery('get', CONVERSATIONS, { params: { query: {} } }, {
+    pageParamName: 'page',
+    initialPageParam: 1,
+    getNextPageParam: (last: ConversationPage, pages: ConversationPage[]) =>
+      (pages.reduce((n, p) => n + p.items.length, 0) < last.total && last.items.length > 0 ? pages.length + 1 : undefined),
+  });
   const remove = $api.useMutation('delete', CONVERSATION, {
     onSuccess: (_, { params }) => {
       void queryClient.invalidateQueries({ queryKey: ['get', CONVERSATIONS] });
@@ -225,11 +232,12 @@ function ConversationList({ current, onOpen }: { current: string | null; onOpen:
 
   if (list.error) return <ProblemMessage problem={aiProblem(t, list.error)} />;
   if (!list.data) return <p className="text-sm text-muted-foreground">{t('ai.loading')}</p>;
-  if (list.data.total === 0) return <p className="text-sm text-muted-foreground">{t('ai.panel.empty')}</p>;
+  const items = list.data.pages.flatMap((p) => p.items);
+  if (items.length === 0) return <p className="text-sm text-muted-foreground">{t('ai.panel.empty')}</p>;
   return (
     <div className="space-y-4">
       <ul className="divide-y" aria-label={t('ai.panel.history')}>
-        {list.data.items.map((item) => (
+        {items.map((item) => (
           <li key={item.id} className="flex items-center gap-2 py-2">
             <button type="button" className="min-w-0 flex-1 text-left hover:underline" onClick={() => void read(item.id)}>
               <span className="block truncate">{item.title}</span>
@@ -240,7 +248,9 @@ function ConversationList({ current, onOpen }: { current: string | null; onOpen:
           </li>
         ))}
       </ul>
-      {list.data.total > page * 30 ? <Button type="button" variant="outline" size="sm" onClick={() => setPage(page + 1)}>{t('ai.panel.older')}</Button> : null}
+      {list.hasNextPage ? (
+        <Button type="button" variant="outline" size="sm" disabled={list.isFetchingNextPage} onClick={() => void list.fetchNextPage()}>{t('ai.panel.older')}</Button>
+      ) : null}
     </div>
   );
 }

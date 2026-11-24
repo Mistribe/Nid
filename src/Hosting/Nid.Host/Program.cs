@@ -229,6 +229,7 @@ app.UseAuthentication();
 app.UseMiddleware<TokenRateLimitMiddleware>();
 app.UseMiddleware<CsrfMiddleware>();
 app.UseAuthorization();
+app.UseWriteConflicts();
 app.MapAuth(demo.Enabled);
 if (demo.Enabled) app.MapDemo();
 // Issue 215: the password sign-in, the setup and the password links, with local accounts only.

@@ -93,6 +93,8 @@ export type PropertiesSearch = { tab?: string; history?: '12m' | 'all'; property
 
 /** The detail screens' tab (`useDetailTab` validates it against its own ids); the first tab stays out of the URL. */
 export type DetailSearch = { tab?: string };
+/** An envelope's tab, and its « Opérations » period. */
+export type EnvelopeSearch = DetailSearch & { from?: string; to?: string };
 const isIsoDate = (value: unknown): value is string => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
 
 // The router parses a numeric value (`tab=2044`) to a number: both spellings are read.
@@ -255,7 +257,12 @@ const investmentNewRoute = createRoute({
 const investmentDetailRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/investments/$id',
-  validateSearch: detailSearch,
+  // #642: the « Opérations » tab's period, either bound alone.
+  validateSearch: (search: Record<string, unknown>): EnvelopeSearch => ({
+    ...detailSearch(search),
+    ...(isIsoDate(search.from) ? { from: search.from } : {}),
+    ...(isIsoDate(search.to) ? { to: search.to } : {}),
+  }),
   beforeLoad: requireModule('investments'),
   component: lazyRouteComponent(() => import('@/features/investments/EnvelopeDetailPage'), 'EnvelopeDetailPage'),
 });
