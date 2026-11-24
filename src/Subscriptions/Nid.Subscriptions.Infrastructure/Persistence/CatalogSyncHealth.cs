@@ -1,4 +1,5 @@
 using Nid.Platform.Contracts;
+using Nid.Subscriptions.Application;
 using Nid.Subscriptions.Contracts;
 
 namespace Nid.Subscriptions.Infrastructure.Persistence;

@@ -1,3 +1,4 @@
+using Nid.RealEstate.Application;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;

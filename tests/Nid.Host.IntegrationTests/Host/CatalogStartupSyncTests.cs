@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Nid.Host.Jobs;
+using Nid.Subscriptions.Application;
 using Nid.Subscriptions.Contracts;
 using Nid.Subscriptions.Infrastructure.Persistence;
 using Nid.TestSupport;

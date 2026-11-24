@@ -1,5 +1,6 @@
 using Nid.Platform.Contracts;
 using Nid.RealEstate.Application.Irl;
+using Nid.RealEstate.Application;
 using Nid.RealEstate.Contracts;
 using Quartz;
 using UnambitiousFx.Functional;

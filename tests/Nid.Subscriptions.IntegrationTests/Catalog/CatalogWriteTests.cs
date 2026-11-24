@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Nid.Core.Contracts;
+using Nid.Subscriptions.Application;
 using Nid.Subscriptions.Contracts;
 using Nid.Subscriptions.Domain.Catalog;
 using Nid.Subscriptions.Infrastructure.Persistence;

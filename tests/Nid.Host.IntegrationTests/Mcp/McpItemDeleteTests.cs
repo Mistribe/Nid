@@ -3,6 +3,7 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol.Client;
+using Nid.Core.Application;
 using Nid.Core.Contracts;
 using Nid.Host.IntegrationTests.Admin;
 using Nid.Platform.Contracts;

@@ -1,5 +1,6 @@
 using Nid.Platform.Contracts;
 using Nid.Subscriptions.Application.Catalog;
+using Nid.Subscriptions.Application;
 using Nid.Subscriptions.Contracts;
 using Quartz;
 using UnambitiousFx.Functional;

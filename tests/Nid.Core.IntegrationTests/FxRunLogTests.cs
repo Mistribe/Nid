@@ -1,3 +1,4 @@
+using Nid.Core.Application;
 using Nid.Core.Contracts;
 using Nid.Core.Infrastructure.Persistence;
 using Nid.TestSupport;

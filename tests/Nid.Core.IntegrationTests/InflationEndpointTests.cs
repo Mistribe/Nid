@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
+using Nid.Core.Application;
 using Nid.Core.Contracts;
 using Nid.Core.Infrastructure.Persistence;
 using Nid.TestSupport;
@@ -91,7 +92,7 @@ public class InflationEndpointTests(PostgresFixture fixture) : IClassFixture<Pos
     {
         await using var app = await NidApp.StartAsync(fixture);
         await using (var scope = app.Services.CreateAsyncScope())
-            await scope.ServiceProvider.GetRequiredService<Nid.Core.Domain.Inflation.ICpiStore>().UpsertAsync(
+            await scope.ServiceProvider.GetRequiredService<Nid.Core.Application.ICpiStore>().UpsertAsync(
                 new Nid.Core.Domain.Inflation.CpiValue(new NodaTime.YearMonth(2025, 9), 103.1m, new NodaTime.LocalDate(2025, 10, 10), new NodaTime.LocalDate(2025, 10, 11), "insee"),
                 CancellationToken.None);
 

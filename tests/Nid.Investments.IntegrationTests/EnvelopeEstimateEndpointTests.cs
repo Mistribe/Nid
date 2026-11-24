@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Net;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
+using Nid.Core.Application;
 using Nid.Core.Contracts;
 using Nid.Investments.Application.Prices;
 using Nid.Investments.Application;
