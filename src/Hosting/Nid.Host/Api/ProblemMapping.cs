@@ -48,6 +48,7 @@ public static class ProblemMapping
             InvestmentsCodes.InvalidIncomeCategory, InvestmentsCodes.InvalidContributionCategory, InvestmentsCodes.TransferLeg, BreakdownCodes.Not100, BreakdownCodes.NotMarket,
             DocumentsCodes.InvalidField, DocumentsCodes.InvalidRole, DocumentsCodes.UnknownTargetKind);
         Map(options, StatusCodes.Status400BadRequest, [.. ImportCodes.BadRequests]);
+        Map(options, StatusCodes.Status400BadRequest, MalformedInputFilter.Code); // a query parameter nobody can read, named (#515)
 
         Map(options, StatusCodes.Status403Forbidden, AdminCodes.Required, BrowserOnlyCodes.Required);
 

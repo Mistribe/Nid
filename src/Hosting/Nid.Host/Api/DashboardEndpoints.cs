@@ -13,16 +13,16 @@ public static class DashboardEndpoints
             .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>();
 
         api.MapGet("/dashboard", async (string? scope, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new GetDashboardQuery(ParseScope(scope)), ct)).ToHttp(view => view))
+            => await FieldReader.Run(invoker, r => new GetDashboardQuery(r.Scope(scope)), view => view, ct))
             .Returns<DashboardView>();
 
         api.MapGet("/dashboard/net-worth", async (string? scope, string? period, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new GetNetWorthHistoryQuery(ParseScope(scope), ParsePeriod(period)), ct)).ToHttp(view => view))
+            => await FieldReader.Run(invoker, r => new GetNetWorthHistoryQuery(r.Scope(scope), ParsePeriod(period, r)), view => view, ct))
             .Returns<NetWorthHistoryView>();
 
         // Issue #415: « Depuis le mois dernier ».
         api.MapGet("/dashboard/changes", async (string? scope, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new GetMonthChangesQuery(ParseScope(scope)), ct)).ToHttp(view => view))
+            => await FieldReader.Run(invoker, r => new GetMonthChangesQuery(r.Scope(scope)), view => view, ct))
             .Returns<MonthChangesView>();
 
         // Issue #104: any adult sets the household's target allocation, as the tax profile.
@@ -35,12 +35,17 @@ public static class DashboardEndpoints
 
     public sealed record AllocationTargetBody(IReadOnlyDictionary<string, decimal>? Target);
 
-    /// <summary>2D2b spec §4: absent is the default, an unknown period a bad request (never a silent default).</summary>
-    internal static NetWorthPeriod ParsePeriod(string? period) => period switch
+    /// <summary>2D2b spec §4: absent is the default, an unknown period refused at <c>period</c> (never a silent default).</summary>
+    internal static NetWorthPeriod ParsePeriod(string? period, FieldReader reader)
     {
-        null or "12m" => NetWorthPeriod.TwelveMonths,
-        "3y" => NetWorthPeriod.ThreeYears,
-        "all" => NetWorthPeriod.All,
-        _ => throw new BadHttpRequestException($"'{period}' is not a period: send '12m', '3y' or 'all'."),
-    };
+        switch (period)
+        {
+            case null or "12m": return NetWorthPeriod.TwelveMonths;
+            case "3y": return NetWorthPeriod.ThreeYears;
+            case "all": return NetWorthPeriod.All;
+            default:
+                reader.Add("period", "request.period", $"'{period}' is not a period: send '12m', '3y' or 'all'.");
+                return NetWorthPeriod.TwelveMonths;
+        }
+    }
 }

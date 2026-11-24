@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Contracts;
@@ -254,12 +255,17 @@ public class NetWorthHistoryTests(PostgresFixture fixture, SharedNidApp shared) 
     }
 
     [Theory]
-    [InlineData("?period=5y")]
-    [InlineData("?scope=everyone")]
-    public async Task An_unknown_period_or_scope_is_a_bad_request(string query)
+    [InlineData("?period=5y", "period", "request.period")]
+    [InlineData("?scope=everyone", "scope", "request.scope")]
+    public async Task An_unknown_period_or_scope_is_a_bad_request_at_its_parameter(string query, string path, string code)
     {
         var app = shared.App;
-        Assert.Equal(HttpStatusCode.BadRequest, (await app.RawAsync(app.AdultA, HttpMethod.Get, "/api/v1/dashboard/net-worth" + query)).StatusCode);
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Get, "/api/v1/dashboard/net-worth" + query);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>(TestContext.Current.CancellationToken);
+        Assert.Equal("request.malformed", problem.GetProperty("code").GetString());
+        var error = Assert.Single(problem.GetProperty("errors").EnumerateArray());
+        Assert.Equal((path, code), (error.FieldPath(), error.GetProperty("code").GetString()));
     }
 
     [Theory]

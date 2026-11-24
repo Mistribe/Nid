@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Nid.Platform.Contracts;
@@ -145,6 +146,28 @@ public class BatchTests(PostgresFixture fixture) : IClassFixture<PostgresFixture
         var response = await app.RawTextAsync(app.AdultA, HttpMethod.Put, $"{ImportClient.Root}/{session.Id}/batches/{StubSection.Name}/0", body);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(("request.malformed", "body", "request.too_large"), await RefusalOf(response));
+    }
+
+    [Fact]
+    public async Task A_batch_without_its_hash_is_refused_at_hash()
+    {
+        await using var app = await StartAsync();
+        var session = await new ImportClient(app).StartAsync(app.AdultA);
+
+        var response = await app.RawTextAsync(app.AdultA, HttpMethod.Put, $"{ImportClient.Root}/{session.Id}/batches/{StubSection.Name}/0",
+            """{"entities":[]}""");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(("request.malformed", "hash", "request.required"), await RefusalOf(response));
+    }
+
+    /// <summary>#515: the top-level code, then the one refused field's path and code.</summary>
+    private static async Task<(string?, string, string?)> RefusalOf(HttpResponseMessage response)
+    {
+        var problem = await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>(TestContext.Current.CancellationToken);
+        var error = Assert.Single(problem.GetProperty("errors").EnumerateArray());
+        return (problem.GetProperty("code").GetString(), error.FieldPath(), error.GetProperty("code").GetString());
     }
 
     [Theory]
@@ -160,6 +183,8 @@ public class BatchTests(PostgresFixture fixture) : IClassFixture<PostgresFixture
         var response = await client.PutRawAsync(app.AdultA, session.Id, StubSection.Name, 0, entities);
 
         Assert.Equal(accepted ? HttpStatusCode.OK : HttpStatusCode.BadRequest, response.StatusCode);
+        if (!accepted)
+            Assert.Equal(("request.malformed", "body", "request.json"), await RefusalOf(response));
     }
 
     [Fact]

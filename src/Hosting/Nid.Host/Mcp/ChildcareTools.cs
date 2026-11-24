@@ -18,7 +18,7 @@ public sealed class ChildcareTools
     public static Task<CallToolResult> ListChildcare(IServiceProvider services,
         [Description("'household' (default) or 'me'.")] string? scope = null, [Description("Include ended arrangements.")] bool closed = false,
         CancellationToken ct = default)
-        => McpCalls.RunAsync(services, () => new ListChildcareQuery(SubscriptionEndpoints.ParseScope(scope), closed), ct);
+        => McpCalls.RunAsync(services, r => new ListChildcareQuery(r.Scope(scope), closed), ct);
 
     [McpServerTool(Name = "get_childcare", ReadOnly = true)]
     [Description("One arrangement: its revisions with their week types (named weekly schedules and the weeks each covers) and whether each is a full year (fullYear: care over 52 weeks, the carer's leave included, else an incomplete year), the weeks of the contract year (the week type each follows), its weeks without care, the paid-leave days accrued, a full year's leave counter (accrued, taken, left), the estimated CMG, the legal minimums its terms fall below (belowMinimums: hourly rate or upkeep, the minimum and the day it took effect) and its version. " + McpSetup.Untrusted)]
@@ -51,7 +51,7 @@ public sealed class ChildcareTools
     public static Task<CallToolResult> ListNannies(IServiceProvider services,
         [Description("'household' (default) or 'me'.")] string? scope = null, [Description("Include closed ones.")] bool closed = false,
         CancellationToken ct = default)
-        => McpCalls.RunAsync(services, () => new ListNanniesQuery(SubscriptionEndpoints.ParseScope(scope), closed), ct);
+        => McpCalls.RunAsync(services, r => new ListNanniesQuery(r.Scope(scope), closed), ct);
 
     [McpServerTool(Name = "get_nanny", ReadOnly = true)]
     [Description("A nanny at home's months of a year, newest first (paid, CMG, net cost, hours), the year's totals, and for the current year how the rest "

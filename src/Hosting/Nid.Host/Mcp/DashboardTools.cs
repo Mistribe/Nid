@@ -17,18 +17,18 @@ public sealed class DashboardTools
     [McpServerTool(Name = "get_dashboard", ReadOnly = true)]
     [Description("The household dashboard: net worth and its split, monthly commitments, income and margin, the month's everyday spending from the bank lines and what is left after it, upcoming events. " + McpSetup.Untrusted)]
     public static Task<CallToolResult> GetDashboard(IServiceProvider services, [Description(Scope)] string? scope = null, CancellationToken ct = default)
-        => McpCalls.RunAsync(services, () => new GetDashboardQuery(SubscriptionEndpoints.ParseScope(scope)), ct);
+        => McpCalls.RunAsync(services, r => new GetDashboardQuery(r.Scope(scope)), ct);
 
     [McpServerTool(Name = "get_net_worth_history", ReadOnly = true)]
     [Description("Monthly points of the net worth and contributions over a period. " + McpSetup.Untrusted)]
     public static Task<CallToolResult> GetNetWorthHistory(IServiceProvider services,
         [Description(Scope)] string? scope = null, [Description("'12m' (default), '3y' or 'all'.")] string? period = null, CancellationToken ct = default)
-        => McpCalls.RunAsync(services, () => new GetNetWorthHistoryQuery(SubscriptionEndpoints.ParseScope(scope), DashboardEndpoints.ParsePeriod(period)), ct);
+        => McpCalls.RunAsync(services, r => new GetNetWorthHistoryQuery(r.Scope(scope), DashboardEndpoints.ParsePeriod(period, r)), ct);
 
     [McpServerTool(Name = "get_month_changes", ReadOnly = true)]
     [Description("What changed since a month ago: net worth, commitments and income, each with its change and its three largest causes. " + McpSetup.Untrusted)]
     public static Task<CallToolResult> GetMonthChanges(IServiceProvider services, [Description(Scope)] string? scope = null, CancellationToken ct = default)
-        => McpCalls.RunAsync(services, () => new GetMonthChangesQuery(SubscriptionEndpoints.ParseScope(scope)), ct);
+        => McpCalls.RunAsync(services, r => new GetMonthChangesQuery(r.Scope(scope)), ct);
 
     /// <summary>Issue #12: the same view as <c>GET /api/v1/reports/year</c>.</summary>
     [McpServerTool(Name = "get_year_review", ReadOnly = true)]
@@ -38,17 +38,17 @@ public sealed class DashboardTools
     public static Task<CallToolResult> GetYearReview(IServiceProvider services,
         [Description("The year to review (default: this year).")] int? year = null,
         [Description(Scope)] string? scope = null, CancellationToken ct = default)
-        => McpCalls.RunAsync(services, () => new GetYearReviewQuery(year, SubscriptionEndpoints.ParseScope(scope)), ct);
+        => McpCalls.RunAsync(services, r => new GetYearReviewQuery(year, r.Scope(scope)), ct);
 
     [McpServerTool(Name = "get_routine", ReadOnly = true)]
     [Description("The monthly routine for investments and income: what is left to record this month (envelope values, income to confirm). " + McpSetup.Untrusted)]
     public static Task<CallToolResult> GetRoutine(IServiceProvider services,
         [Description("ISO date of the month to read (default: today).")] string? on = null, CancellationToken ct = default)
-        => McpCalls.RunAsync(services, () => new GetRoutineQuery(SubscriptionEndpoints.OptionalDate(on)), ct);
+        => McpCalls.RunAsync(services, r => new GetRoutineQuery(r.OptionalDate(on, "on")), ct);
 
     [McpServerTool(Name = "get_property_routine", ReadOnly = true)]
     [Description("The monthly routine for real estate: estimates due, planned costs and rents to confirm. " + McpSetup.Untrusted)]
     public static Task<CallToolResult> GetPropertyRoutine(IServiceProvider services,
         [Description("ISO date of the month to read (default: today).")] string? on = null, CancellationToken ct = default)
-        => McpCalls.RunAsync(services, () => new GetPropertyRoutineQuery(SubscriptionEndpoints.OptionalDate(on)), ct);
+        => McpCalls.RunAsync(services, r => new GetPropertyRoutineQuery(r.OptionalDate(on, "on")), ct);
 }

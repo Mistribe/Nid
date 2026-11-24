@@ -15,7 +15,7 @@ public sealed class InvestmentTools
     public static Task<CallToolResult> ListEnvelopes(IServiceProvider services,
         [Description("'household' (default) or 'me'.")] string? scope = null, [Description("Include closed envelopes.")] bool archived = false,
         CancellationToken ct = default)
-        => McpCalls.RunAsync(services, () => new ListEnvelopesQuery(SubscriptionEndpoints.ParseScope(scope), archived), ct);
+        => McpCalls.RunAsync(services, r => new ListEnvelopesQuery(r.Scope(scope), archived), ct);
 
     [McpServerTool(Name = "get_envelope", ReadOnly = true)]
     [Description("One envelope: its values, contributions and gain. A regulated livret also has its ceiling and the room left (from dated "
@@ -28,8 +28,8 @@ public sealed class InvestmentTools
     [Description("An envelope's performance between two dates: start and end values, net contributions, gain. " + McpSetup.Untrusted)]
     public static Task<CallToolResult> GetEnvelopePerformance(IServiceProvider services, [Description("The envelope's id.")] Guid id,
         [Description("ISO start date.")] string from, [Description("ISO end date.")] string to, CancellationToken ct = default)
-        => McpCalls.RunAsync(services, () => new GetPeriodPerformanceQuery(new ItemId(id),
-            SubscriptionEndpoints.RequireDate(from), SubscriptionEndpoints.RequireDate(to)), ct);
+        => McpCalls.RunAsync(services, r => new GetPeriodPerformanceQuery(new ItemId(id),
+            r.RequiredDate(from, "from"), r.RequiredDate(to, "to")), ct);
 
     [McpServerTool(Name = "get_passive_income", ReadOnly = true)]
     [Description("What the household's capital earned over the last 12 months (dividends, interest, distributions, net rents): totals by "
@@ -38,14 +38,14 @@ public sealed class InvestmentTools
         + "recorded deposits are listed as not counted. " + McpSetup.Untrusted)]
     public static Task<CallToolResult> GetPassiveIncome(IServiceProvider services,
         [Description("'household' (default) or 'me'.")] string? scope = null, CancellationToken ct = default)
-        => McpCalls.RunAsync(services, () => new GetPassiveIncomeQuery(SubscriptionEndpoints.ParseScope(scope)), ct);
+        => McpCalls.RunAsync(services, r => new GetPassiveIncomeQuery(r.Scope(scope)), ct);
 
     [McpServerTool(Name = "get_envelope_holdings", ReadOnly = true)]
     [Description("An envelope's holdings (funds, euro fund…) at its latest holdings snapshot on or before a date: each line, weight, gain "
         + "and annual return, the unallocated remainder and the warnings. " + McpSetup.Untrusted)]
     public static Task<CallToolResult> GetEnvelopeHoldings(IServiceProvider services, [Description("The envelope's id.")] Guid id,
         [Description("ISO date, default today.")] string? on = null, CancellationToken ct = default)
-        => McpCalls.RunAsync(services, () => new GetHoldingsQuery(new ItemId(id), SubscriptionEndpoints.OptionalDate(on)), ct);
+        => McpCalls.RunAsync(services, r => new GetHoldingsQuery(new ItemId(id), r.OptionalDate(on, "on")), ct);
 
     [McpServerTool(Name = "list_holding_snapshots", ReadOnly = true)]
     [Description("An envelope's recorded compositions (snapshots), with their ids and lines. " + McpSetup.Untrusted)]
@@ -64,6 +64,6 @@ public sealed class InvestmentTools
     public static Task<CallToolResult> GetHoldingPerformance(IServiceProvider services, [Description("The envelope's id.")] Guid id,
         [Description("The holding's id (get_envelope_holdings).")] Guid holdingId,
         [Description("ISO start date.")] string from, [Description("ISO end date.")] string to, CancellationToken ct = default)
-        => McpCalls.RunAsync(services, () => new GetHoldingPerformanceQuery(new ItemId(id), holdingId,
-            SubscriptionEndpoints.RequireDate(from), SubscriptionEndpoints.RequireDate(to)), ct);
+        => McpCalls.RunAsync(services, r => new GetHoldingPerformanceQuery(new ItemId(id), holdingId,
+            r.RequiredDate(from, "from"), r.RequiredDate(to, "to")), ct);
 }
