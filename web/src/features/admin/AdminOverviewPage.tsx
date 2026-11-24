@@ -15,7 +15,7 @@ const GROUPS: readonly (readonly ['reference' | 'operations' | 'access' | 'syste
   ['reference', ['fx', 'prices', 'irl', 'inflation']],
   ['operations', ['jobs', 'banking', 'catalog']],
   ['access', ['users', 'household', 'security']],
-  ['system', ['system', 'notifications']],
+  ['system', ['system', 'ai', 'notifications']],
 ];
 
 /** The job whose last run a section shows. */

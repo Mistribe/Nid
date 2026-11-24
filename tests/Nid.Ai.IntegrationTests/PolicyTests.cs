@@ -33,8 +33,10 @@ public sealed class PolicyTests(PostgresFixture fixture) : IClassFixture<Postgre
         Assert.Equal("queued", waiting.Status);
         Assert.Equal(DataPolicy.RemoteNotAllowed, waiting.WaitingReason);
 
-        // An adult who is not an admin decides it for the household (docs/ai/README.md §12).
-        var opened = await world.Nid.RawAsync(world.Nid.AdultB, HttpMethod.Put, "/api/v1/ai/settings/remote-workers", new { allowed = true });
+        // An admin decides it for the household (docs/ai/README.md §12, #585); another adult may not.
+        Assert.Equal(HttpStatusCode.Forbidden,
+            (await world.Nid.RawAsync(world.Nid.AdultB, HttpMethod.Put, "/api/v1/ai/settings/remote-workers", new { allowed = true })).StatusCode);
+        var opened = await world.Nid.RawAsync(world.Nid.AdultA, HttpMethod.Put, "/api/v1/ai/settings/remote-workers", new { allowed = true });
         Assert.Equal(HttpStatusCode.OK, opened.StatusCode);
         Assert.True((await opened.Content.ReadFromJsonAsync<AiSettingsView>(PairedWorld.NidJson, TestContext.Current.CancellationToken))!.RemoteWorkersAllowed);
 
@@ -44,7 +46,7 @@ public sealed class PolicyTests(PostgresFixture fixture) : IClassFixture<Postgre
 
         await using var scope = Scope(world);
         var consent = await scope.ServiceProvider.GetRequiredService<AiDbContext>().Consents.SingleAsync(TestContext.Current.CancellationToken);
-        Assert.Equal(world.Nid.AdultB.Value, consent.PersonId);
+        Assert.Equal(world.Nid.AdultA.Value, consent.PersonId);
         Assert.True(consent.Value);
         var notice = Assert.Single(notices.Published);
         Assert.Equal("ai.data_policy_changed", notice.Kind);
@@ -53,7 +55,7 @@ public sealed class PolicyTests(PostgresFixture fixture) : IClassFixture<Postgre
     }
 
     [Fact]
-    public async Task Local_only_data_waits_for_a_worker_an_adult_marked_safe()
+    public async Task Local_only_data_waits_for_a_worker_an_admin_marked_safe()
     {
         var notices = new Notices();
         await using var world = await PairedWorld.StartAsync(fixture, nidServices: s => s.Replace(ServiceDescriptor.Scoped<INotifier>(_ => notices)));
@@ -63,7 +65,9 @@ public sealed class PolicyTests(PostgresFixture fixture) : IClassFixture<Postgre
         await PassAsync(world);
         Assert.Equal(DataPolicy.NoSafeWorker, (await ViewAsync(world, id)).WaitingReason);
 
-        var marked = await world.Nid.RawAsync(world.Nid.AdultB, HttpMethod.Put, $"/api/v1/ai/workers/{worker.Id}/safe", new { safe = true });
+        Assert.Equal(HttpStatusCode.Forbidden,
+            (await world.Nid.RawAsync(world.Nid.AdultB, HttpMethod.Put, $"/api/v1/ai/workers/{worker.Id}/safe", new { safe = true })).StatusCode);
+        var marked = await world.Nid.RawAsync(world.Nid.AdultA, HttpMethod.Put, $"/api/v1/ai/workers/{worker.Id}/safe", new { safe = true });
         Assert.Equal(HttpStatusCode.OK, marked.StatusCode);
         Assert.True((await marked.Content.ReadFromJsonAsync<WorkerView>(PairedWorld.NidJson, TestContext.Current.CancellationToken))!.Safe);
 
@@ -96,12 +100,12 @@ public sealed class PolicyTests(PostgresFixture fixture) : IClassFixture<Postgre
     }
 
     [Fact]
-    public async Task Adults_toggling_at_once_never_get_an_error()
+    public async Task Toggling_at_once_never_gets_an_error()
     {
         await using var world = await PairedWorld.StartAsync(fixture);
 
         var answers = await Task.WhenAll(Enumerable.Range(0, 8).Select(i => world.Nid.RawAsync(
-            i % 2 == 0 ? world.Nid.AdultA : world.Nid.AdultB, HttpMethod.Put, "/api/v1/ai/settings/remote-workers", new { allowed = i % 4 < 2 })));
+            world.Nid.AdultA, HttpMethod.Put, "/api/v1/ai/settings/remote-workers", new { allowed = i % 4 < 2 })));
 
         Assert.All(answers, a => Assert.Contains(a.StatusCode, new[] { HttpStatusCode.OK, HttpStatusCode.Conflict }));
     }

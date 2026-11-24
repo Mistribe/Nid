@@ -20,9 +20,9 @@ import '@/locales/ai';
 /**
  * « Fournisseurs cloud » (#487, docs/ingestion/llm-providers.md §4, §10, §13): the profiles Nid ships, with what their terms
  * say; an admin confirms the region, enters a provider's key (never shown again) and enables a profile after reading its
- * terms. Every adult sees them: what may leave, to whom, under which terms.
+ * terms.
  */
-export function CloudSection({ admin }: { admin: boolean }) {
+export function CloudSection() {
   const { t } = useTranslation();
   const { $api } = useApi();
   const queryClient = useQueryClient();
@@ -64,8 +64,7 @@ export function CloudSection({ admin }: { admin: boolean }) {
         </ul>
         {p.provider === 'gemini' ? <p className="text-sm text-muted-foreground">{t('ai.cloud.gemini_paid')}</p> : null}
         <p className="text-sm">{p.keyHint ? t('ai.cloud.key_hint', { hint: p.keyHint }) : t('ai.cloud.no_key')}</p>
-        {admin ? (
-          <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2">
             <Button type="button" variant="outline" size="sm" onClick={() => setKeying(p)}>{t(p.keyHint ? 'ai.cloud.replace_key' : 'ai.cloud.add_key')}</Button>
             {p.keyHint ? (
               <ConfirmAction label={t('ai.cloud.revoke_key')} confirmation={t('ai.cloud.revoke_key_confirm', { name })} pending={revoke.isPending}
@@ -79,8 +78,7 @@ export function CloudSection({ admin }: { admin: boolean }) {
                 confirmation={t('ai.cloud.enable_confirm', { name, date: formatLocalDate(p.reviewedOn) })}
                 onConfirm={() => enable.mutate({ ...path, body: { termsReviewedOn: p.reviewedOn } })} />
             )}
-          </div>
-        ) : null}
+        </div>
       </li>
     );
   };
@@ -90,8 +88,7 @@ export function CloudSection({ admin }: { admin: boolean }) {
       {error ? <ProblemMessage problem={aiProblem(t, error)} /> : null}
       {cloud.data ? (
         <>
-          {admin ? (
-            <div className="max-w-sm">
+          <div className="max-w-sm">
               <Field label={t('ai.cloud.region')} hint={t('ai.cloud.region_hint')}>
                 {(c) => (
                   <SelectField {...c} value={cloud.data.region ?? ''} onValueChange={(value) => value && region.mutate({ body: { region: value } })}
@@ -100,9 +97,6 @@ export function CloudSection({ admin }: { admin: boolean }) {
                 )}
               </Field>
             </div>
-          ) : (
-            <p className="text-sm">{cloud.data.region ? t('ai.cloud.region_is', { region: regionLabel(cloud.data.region) }) : t('ai.cloud.region_unset')}</p>
-          )}
           <ul className="space-y-4">{cloud.data.profiles.map(profile)}</ul>
         </>
       ) : null}

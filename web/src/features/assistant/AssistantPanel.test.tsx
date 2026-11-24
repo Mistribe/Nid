@@ -93,7 +93,7 @@ describe('The assistant panel', () => {
     const off = await renderApp('/dashboard');
     const panel = await openPanel(off.user);
     expect(await within(panel).findByRole('status')).toHaveTextContent("L'assistant n'est pas activé pour vous.");
-    expect(within(panel).getByRole('link', { name: 'Ouvrir Réglages › IA' })).toHaveAttribute('href', '/settings/ai');
+    expect(within(panel).getByRole('link', { name: "Ouvrir les réglages de l'IA" })).toHaveAttribute('href', '/settings/ai');
     expect(within(panel).getByRole('button', { name: 'Demander' })).toBeDisabled();
     off.unmount();
 
@@ -106,7 +106,7 @@ describe('The assistant panel', () => {
     const admin = await renderApp('/dashboard', { capabilities: adminCapabilities });
     const adminPanel = await openPanel(admin.user);
     expect(await within(adminPanel).findByRole('status')).toHaveTextContent("Aucun modèle n'est choisi pour l'assistant.");
-    expect(within(adminPanel).getByRole('link', { name: 'Ouvrir Réglages › IA' })).toBeInTheDocument();
+    expect(within(adminPanel).getByRole('link', { name: "Ouvrir les réglages de l'IA" })).toHaveAttribute('href', '/admin/ai');
   });
 
   it('lists the earlier conversations, reopens one and deletes another', async () => {

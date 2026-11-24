@@ -498,6 +498,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IRealEstateImports, RealEstateImports>();
         services.AddScoped<ILoanSimulator, Nid.RealEstate.Application.ScenarioLoans>();
         services.AddScoped<IRealEstateProjection, Nid.RealEstate.Application.RealEstateScenarioProjection>();
+        services.AddSingleton<IRealEstateItems, Nid.RealEstate.Application.RealEstateItems>();
         services.AddScoped<Nid.RealEstate.Application.PropertyReading>();
         services.AddScoped<INetWorthContribution, Nid.RealEstate.Application.RealEstateNetWorth>();
         services.AddScoped<ILoansReview, Nid.RealEstate.Application.LoansReview>();

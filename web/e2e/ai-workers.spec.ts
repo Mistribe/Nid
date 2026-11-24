@@ -8,12 +8,12 @@ const [code, ...groups] = (process.env.NID_WORKER_PAIRING ?? '').split(' ').filt
 const fingerprint = groups.join(' ');
 
 /**
- * Réglages › IA (#476): alice pairs the Compose worker by its address, checks its fingerprint against the console, tests it and
+ * Administration › IA (#476, #585): alice, an admin, pairs the Compose worker by its address, checks its fingerprint against the console, tests it and
  * finds the test's job on the jobs page, asks the assistant a question through it (#528); then revokes it, so a later run pairs it again.
  */
 test('alice pairs the worker, tests it, finds its job and asks the assistant', async ({ page }) => {
   test.skip(!code || !fingerprint, 'needs NID_WORKER_PAIRING (deploy/smoke.sh)');
-  await signIn(page, 'alice', '/settings/ai');
+  await signIn(page, 'alice', '/admin/ai');
   // A run that stopped before its revoke left the worker registered here; smoke.sh's `unpair` already reset the worker's side.
   const { csrf } = (await (await page.request.get('/auth/session')).json()) as { csrf: string };
   const { workers } = (await (await page.request.get('/api/v1/ai/workers')).json()) as { workers: { id: string; url: string; status: string }[] };
@@ -38,7 +38,7 @@ test('alice pairs the worker, tests it, finds its job and asks the assistant', a
   await page.getByRole('menuitem', { name: 'Tester' }).click();
   await expect(toasts(page)).toContainText('Test réussi');
 
-  await page.goto('/settings/ai/jobs?type=echo');
+  await page.goto('/admin/ai/jobs?type=echo');
   await expect(page.getByRole('row', { name: /Test d'un worker/ }).first()).toBeVisible();
 
   // #528: the assistant, end to end, on the scripted engine of compose.local.yaml: the worker declares its model, alice sets it
@@ -72,7 +72,7 @@ test('alice pairs the worker, tests it, finds its job and asks the assistant', a
   await expect(panel.getByRole('link', { name: /example\.test/ })).toHaveCount(0); // the model's URL stays text
   expect((await page.request.put('/api/v1/ai/settings/uses/chat/model', { headers, data: { model: null } })).ok()).toBe(true);
 
-  await page.goto('/settings/ai');
+  await page.goto('/admin/ai');
   await page.getByRole('row', { name: /Worker e2e/ }).getByRole('button', { name: 'Actions pour Worker e2e' }).click();
   await page.getByRole('menuitem', { name: 'Révoquer' }).click();
   await page.getByRole('alertdialog').getByRole('button', { name: 'Confirmer' }).click();

@@ -8,9 +8,9 @@ using UnambitiousFx.Synapse.Abstractions;
 
 namespace Nid.Ai.Application;
 
-/// <summary>The household's opt-in for remote workers (<c>docs/ai/README.md</c> §6.2, §12): any adult decides it, in the
-/// browser; it is kept as a consent and every adult is told.</summary>
-public sealed record SetRemoteWorkersAllowedCommand(bool Allowed) : ICommand<PolicyChange<AiSettingsView>>, IBrowserOnly, IRecordsSecurityEvent
+/// <summary>The household's opt-in for remote workers (<c>docs/ai/README.md</c> §6.2, §12): an admin decides it, in the
+/// browser (#585); it is kept as a consent and every adult is told.</summary>
+public sealed record SetRemoteWorkersAllowedCommand(bool Allowed) : ICommand<PolicyChange<AiSettingsView>>, IAdminOnly, IBrowserOnly, IRecordsSecurityEvent
 {
     public SecurityEvent? EventFor(object response)
         => response is PolicyChange<AiSettingsView> { Changed: true }
@@ -22,8 +22,9 @@ public sealed record SetRemoteWorkersAllowedCommand(bool Allowed) : ICommand<Pol
 /// audits and tells nothing.</summary>
 public sealed record PolicyChange<T>(T View, bool Changed) where T : notnull;
 
-/// <summary>Marks a worker as trusted with local-only data (<c>safe</c>), whatever its placement: any adult, in the browser.</summary>
-public sealed record SetWorkerSafeCommand(Guid Id, bool Safe) : ICommand<PolicyChange<WorkerView>>, IBrowserOnly, IRecordsSecurityEvent
+/// <summary>Marks a worker as trusted with local-only data (<c>safe</c>), whatever its placement: an admin, in the browser
+/// (#585); every adult is told.</summary>
+public sealed record SetWorkerSafeCommand(Guid Id, bool Safe) : ICommand<PolicyChange<WorkerView>>, IAdminOnly, IBrowserOnly, IRecordsSecurityEvent
 {
     public SecurityEvent? EventFor(object response)
         => response is PolicyChange<WorkerView> { Changed: true, View: var view }

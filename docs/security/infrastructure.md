@@ -38,7 +38,7 @@
 | Secret client OIDC, clé d'appairage de Nid (chiffrée en base), mot de passe restic, clés d'API de fournisseurs LLM | Séparés ; jamais partagés entre composants |
 | Clés d'API des fournisseurs | Chiffrées en base (Data Protection), jamais renvoyées (`../ingestion/llm-providers.md` §10) |
 | Banque (étape 5) | Clé privée d'Enable Banking : secret Docker `enable_banking_private_key` de `nid`, absent du compose de référence et déclaré par l'hébergeur dans `deploy/compose.override.yaml` quand il active la banque (`../../deploy/README.md` §12) ; le fichier vit dans `deploy/secrets/`, donc dans la sauvegarde ; sessions bancaires chiffrées en base (Data Protection, but `Nid.Banking.Session`) |
-| Rotation | Procédure documentée ; clés des workers depuis Réglages › IA, commandes d'administration pour les jetons |
+| Rotation | Procédure documentée ; clés des workers depuis Administration › IA, commandes d'administration pour les jetons |
 | Journaux | Aucun secret, jeton masqué |
 
 ## 4. Sauvegardes
@@ -81,7 +81,7 @@ Voir aussi `../architecture.md` §11.
 
 Runbook minimal, exécutable par l'hébergeur :
 
-1. **Contenir** : `revoke-sessions` et `revoke-tokens` pour la personne concernée ; révoquer le worker depuis Réglages › IA ; révoquer les clés d'API des fournisseurs LLM (depuis l'interface et chez le fournisseur).
+1. **Contenir** : `revoke-sessions` et `revoke-tokens` pour la personne concernée ; révoquer le worker depuis Administration › IA ; révoquer les clés d'API des fournisseurs LLM (depuis l'interface et chez le fournisseur).
 2. **Éradiquer** : renouveler les secrets (client OIDC, clés d'appairage des workers, restic, clés Data Protection si compromises : elles invalident les cookies et déchiffrent les secrets en base, à traiter avec précaution), mettre à jour l'image fautive.
 3. **Restaurer** depuis une sauvegarde saine si l'intégrité est en doute.
 4. **Comprendre** : audit et journaux (`request_id`), événements de sécurité.

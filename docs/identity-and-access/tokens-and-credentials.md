@@ -156,7 +156,7 @@ clés épinglées des deux côtés, requêtes signées, requêtes et réponses s
 aucun identifiant qui ouvre `nid`, et `nid` n'expose aucune route aux workers.
 
 - **Appairage** : au premier démarrage, le worker génère sa paire de clés et affiche un code à usage unique et
-  l'empreinte de sa clé ; un admin saisit l'URL et le code dans Réglages › IA, confirme l'empreinte, puis les deux
+  l'empreinte de sa clé ; un admin saisit l'URL et le code dans Administration › IA, confirme l'empreinte, puis les deux
   côtés épinglent la clé de l'autre.
 - **Clé de Nid** : chiffrée par Data Protection, comme les clés d'API des fournisseurs (`ai.ai_key`).
 - **Rotation et révocation** : depuis les réglages, par un admin ; la rotation d'une clé de worker garde l'ancienne
