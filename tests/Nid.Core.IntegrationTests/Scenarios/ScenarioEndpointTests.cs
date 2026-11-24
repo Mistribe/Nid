@@ -88,6 +88,52 @@ public class ScenarioEndpointTests(PostgresFixture fixture, SharedNidApp shared)
         Assert.Contains(field, paths);
     }
 
+    /// <summary>#515: the amounts' and rates' bounds, now the scenario validators', keep their paths and codes; nothing is stored.</summary>
+    [Theory]
+    [InlineData("price", "1000000000000", "request.amount")]
+    [InlineData("loans[0].rate", "20.5", "request.rate")]
+    [InlineData("loans[0].insurance.value", "-0.1", "request.rate")]
+    [InlineData("assumptions.classRates.cash", "-21", "request.rate")]
+    [InlineData("assumptions.propertyGrowth", "21", "request.rate")]
+    [InlineData("assumptions.monthlySavings", "-1", "request.amount")]
+    public async Task A_bound_is_refused_at_its_field_and_nothing_is_stored(string field, string value, string code)
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var json = JsonSerializer.Serialize(Document(), new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        var doc = System.Text.Json.Nodes.JsonNode.Parse(json)!;
+        switch (field)
+        {
+            case "price": doc["price"] = value; break;
+            case "loans[0].rate": doc["loans"]![0]!["rate"] = value; break;
+            case "loans[0].insurance.value": doc["loans"]![0]!["insurance"]!["value"] = value; break;
+            case "assumptions.classRates.cash": doc["assumptions"]!["classRates"]!["cash"] = value; break;
+            case "assumptions.propertyGrowth": doc["assumptions"]!["propertyGrowth"] = value; break;
+            default: doc["assumptions"]!["monthlySavings"] = value; break;
+        }
+
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Post, Url, Body(app, doc));
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+        var error = Assert.Single((await JsonOf(response)).GetProperty("errors").EnumerateArray());
+        Assert.Equal((field, code), (error.FieldPath(), error.GetProperty("code").GetString()));
+        Assert.Empty((await JsonOf(await app.RawAsync(app.AdultA, HttpMethod.Get, Url))).GetProperty("items").EnumerateArray());
+    }
+
+    /// <summary>#515: a part of <c>ids</c> that is no id is still a bad request, now named at its parameter.</summary>
+    [Fact]
+    public async Task Compare_names_an_unreadable_id()
+    {
+        var app = shared.App;
+
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Url}/compare?scope=household&ids=nope");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var problem = await JsonOf(response);
+        var error = Assert.Single(problem.GetProperty("errors").EnumerateArray());
+        Assert.Equal(("request.malformed", "ids", "request.malformed"),
+            (problem.GetProperty("code").GetString(), error.FieldPath(), error.GetProperty("code").GetString()));
+    }
+
     [Fact]
     public async Task Simulate_answers_without_storing()
     {

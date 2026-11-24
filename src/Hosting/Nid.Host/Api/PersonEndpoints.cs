@@ -215,6 +215,9 @@ public sealed class ActorFilter(IActorAccessor accessor, IPersonRegistry persons
 /// </summary>
 public sealed class MalformedInputFilter : IEndpointFilter
 {
+    /// <summary>A value nobody can read: the filter's answer, or a parameter's refusal that names it (400 either way).</summary>
+    public const string Code = "request.malformed";
+
     public async ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
     {
         try
@@ -226,7 +229,7 @@ public sealed class MalformedInputFilter : IEndpointFilter
             return Results.Problem(
                 statusCode: StatusCodes.Status400BadRequest,
                 detail: malformed.Message,
-                extensions: new Dictionary<string, object?> { ["code"] = "request.malformed" });
+                extensions: new Dictionary<string, object?> { ["code"] = Code });
         }
     }
 }

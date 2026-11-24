@@ -75,15 +75,24 @@ public sealed class ProjectionTools
     {
         if (scenarioId is { } id)
             return McpCalls.RunAsync(services, () => new GetSaleScenarioQuery(new ItemId(id)), view => view.Result, ct);
-        static decimal Amount(string? value, string name)
-            => value is null ? 0m
-                : decimal.TryParse(value, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out var d) && d >= 0m ? d
-                : throw new BadHttpRequestException($"{name} is not a decimal string.");
-        return McpCalls.RunAsync(services, () => new SimulateSaleScenarioQuery(SubscriptionEndpoints.ParseScope(scope), new SaleScenario(
-            1, new ItemId(property ?? throw new BadHttpRequestException("property is required.")),
-            NodaTime.Text.LocalDatePattern.Iso.Parse(saleOn ?? "").TryGetValue(default, out var on) ? on : throw new BadHttpRequestException("saleOn is not a yyyy-mm-dd date."),
-            Amount(price ?? throw new BadHttpRequestException("price is required."), "price"), Amount(agencyFees, "agencyFees"), Amount(penalties, "penalties"),
-            horizonYears ?? 10)), ct);
+        // Wire reading only: each unreadable argument named; the amounts' bounds are the sale validator's (#515).
+        var errors = new List<FieldError>();
+        decimal Amount(string? value, string name)
+        {
+            if (value is null) return 0m;
+            if (decimal.TryParse(value, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out var d)) return d;
+            errors.Add(new FieldError(name, FieldErrors.ShapeCode, $"{name} is not a decimal string."));
+            return 0m;
+        }
+        if (property is null) errors.Add(new FieldError("property", FieldErrors.ShapeCode, "property is required."));
+        if (!NodaTime.Text.LocalDatePattern.Iso.Parse(saleOn ?? "").TryGetValue(default, out var on))
+            errors.Add(new FieldError("saleOn", FieldErrors.ShapeCode, "saleOn is not a yyyy-mm-dd date."));
+        if (price is null) errors.Add(new FieldError("price", FieldErrors.ShapeCode, "price is required."));
+        var document = new SaleScenario(
+            1, new ItemId(property ?? default), on, Amount(price, "price"), Amount(agencyFees, "agencyFees"), Amount(penalties, "penalties"), horizonYears ?? 10);
+        if (errors.Count > 0)
+            return Task.FromResult(McpCalls.Refuse(services, FieldErrors.Shape(errors)));
+        return McpCalls.RunAsync(services, () => new SimulateSaleScenarioQuery(SubscriptionEndpoints.ParseScope(scope), document), ct);
     }
 
     /// <summary>The refused fields, each named (<c>events[0].amount: …</c>); a refusal without fields, its code and message.</summary>
