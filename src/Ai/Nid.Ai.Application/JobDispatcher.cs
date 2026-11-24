@@ -183,14 +183,15 @@ public sealed class JobDispatcher(
             {
                 var sent = await client.SubmitJobAsync(worker, key, submission, ct);
                 _sent[worker.Id] = _sent.GetValueOrDefault(worker.Id) + 1;
-                await jobs.TryUpdateAsync(claimed with
-                {
-                    WorkerId = worker.Id,
-                    WorkerJobId = sent.WorkerJobId,
-                    ResponseSecret = sent.ResponseSecret,
-                    SentAt = now,
-                    NextPollAt = now + Duration.FromSeconds(5),
-                }, ct);
+                if (await jobs.TryUpdateAsync(claimed with
+                    {
+                        WorkerId = worker.Id,
+                        WorkerJobId = sent.WorkerJobId,
+                        ResponseSecret = sent.ResponseSecret,
+                        SentAt = now,
+                        NextPollAt = now + Duration.FromSeconds(5),
+                    }, ct))
+                    await jobs.AddDispatchAsync(claimed.Id, worker.Id, now, ct);
                 return;
             }
             catch (WorkerCallException e) when (e.Code.EndsWith(":input_invalid", StringComparison.Ordinal))
@@ -234,11 +235,12 @@ public sealed class JobDispatcher(
         {
             // Nid can no longer read the secret its result is bound to (lost key ring): sent again, no attempt counted.
             await CancelAsync(job, ct);
-            await jobs.TryUpdateAsync(job with
-            {
-                Status = JobState.Queued, LeaseUntil = null, NextPollAt = null, WorkerId = null, WorkerJobId = null, SentAt = null,
-                RunAfter = now, WaitingReason = "ai.secret_lost",
-            }, ct);
+            if (await jobs.TryUpdateAsync(job with
+                {
+                    Status = JobState.Queued, LeaseUntil = null, NextPollAt = null, WorkerId = null, WorkerJobId = null, SentAt = null,
+                    RunAfter = now, WaitingReason = "ai.secret_lost",
+                }, ct))
+                await EndedAsync(job, "ai.secret_lost", now, ct);
             return;
         }
 
@@ -255,11 +257,12 @@ public sealed class JobDispatcher(
                 await settings.RemoteWorkersAllowedAsync(ct) && await OffsiteAsync(job, ct)) is { } refusal)
         {
             await CancelAsync(job, ct);
-            await jobs.TryUpdateAsync(job with
-            {
-                Status = JobState.Queued, LeaseUntil = null, NextPollAt = null, WorkerId = null, WorkerJobId = null, SentAt = null,
-                ResponseSecret = null, RunAfter = now, WaitingReason = refusal,
-            }, ct);
+            if (await jobs.TryUpdateAsync(job with
+                {
+                    Status = JobState.Queued, LeaseUntil = null, NextPollAt = null, WorkerId = null, WorkerJobId = null, SentAt = null,
+                    ResponseSecret = null, RunAfter = now, WaitingReason = refusal,
+                }, ct))
+                await EndedAsync(job, refusal, now, ct);
             return;
         }
 
@@ -340,11 +343,12 @@ public sealed class JobDispatcher(
             return;
         }
 
-        await jobs.TryUpdateAsync(job with
-        {
-            Status = JobState.Queued, Attempts = attempts, Error = code, RunAfter = now + Backoff[attempts - 1], LeaseUntil = null,
-            NextPollAt = null, WorkerId = null, WorkerJobId = null, ResponseSecret = null, SentAt = null,
-        }, ct);
+        if (await jobs.TryUpdateAsync(job with
+            {
+                Status = JobState.Queued, Attempts = attempts, Error = code, RunAfter = now + Backoff[attempts - 1], LeaseUntil = null,
+                NextPollAt = null, WorkerId = null, WorkerJobId = null, ResponseSecret = null, SentAt = null,
+            }, ct))
+            await EndedAsync(job, code, now, ct);
     }
 
     /// <summary>Best effort: a copy Nid gives up on should not keep one of the worker's slots.</summary>
@@ -363,11 +367,23 @@ public sealed class JobDispatcher(
         }
     }
 
-    private Task<bool> FinishAsync(JobRecord job, JobState state, string? error, Instant now, CancellationToken ct)
-        => jobs.TryUpdateAsync(job with
-        {
-            Status = state, Error = error, FinishedAt = now, ResponseSecret = null, LeaseUntil = null, NextPollAt = null, WaitingReason = null,
-        }, ct);
+    private async Task<bool> FinishAsync(JobRecord job, JobState state, string? error, Instant now, CancellationToken ct)
+    {
+        if (!await jobs.TryUpdateAsync(job with
+            {
+                Status = state, Error = error, FinishedAt = now, ResponseSecret = null, LeaseUntil = null, NextPollAt = null, WaitingReason = null,
+            }, ct))
+            return false;
+        await EndedAsync(job, state == JobState.Succeeded ? "succeeded" : error ?? state.ToString().ToLowerInvariant(), now, ct);
+        return true;
+    }
+
+    /// <summary>#602: the end of the job's dispatch, when it had been sent (a job refused before it reached a worker has none).</summary>
+    private async Task EndedAsync(JobRecord job, string outcome, Instant now, CancellationToken ct)
+    {
+        if (job.SentAt is not null)
+            await jobs.EndDispatchAsync(job.Id, outcome, now, ct);
+    }
 
     /// <summary>Decision M (§6.3): a job that concerns adults leaves the premises only with <c>allow</c> from each, read at each
     /// send and poll, so a change of mind takes it back.</summary>
@@ -379,13 +395,17 @@ public sealed class JobDispatcher(
     private static string Code(string error)
         => new string(error.Where(c => char.IsAsciiLetterOrDigit(c) || c is '_' or '.' or '-').Take(64).ToArray()) is { Length: > 0 } code ? code : "unknown";
 
+    /// <summary>A job's file reference, <c>module:reference</c>, in its two parts.</summary>
+    internal static (string Module, string Reference) FileOf(string fileRef)
+        => fileRef.Split(':', 2) is [var module, var reference] ? (module, reference) : (fileRef, "");
+
     /// <summary>What the worker receives: the job's input and, read from the module that owns it, its file.</summary>
     private async Task<Result<JobSubmission>> SubmissionAsync(JobRecord job, CancellationToken ct)
     {
         var input = JsonDocument.Parse(job.Input).RootElement.Clone();
         if (job.FileRef is null)
             return new JobSubmission(job.Type, job.Version, input, null);
-        var (module, reference) = job.FileRef.Split(':', 2) is [var m, var r] ? (m, r) : (job.FileRef, "");
+        var (module, reference) = FileOf(job.FileRef);
         var file = files.FirstOrDefault(f => f.Module == module) is { } source ? await source.ReadAsync(reference, ct) : null;
         return file switch
         {

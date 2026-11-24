@@ -9,7 +9,7 @@ import { server } from '@/test/server';
 
 const job = (over: Record<string, unknown> = {}) => ({
   id: 'j1', type: 'document-text', status: 'queued', attempts: 0, waitingReason: 'ai.no_worker', error: null, workerName: null,
-  createdAt: '2026-11-22T08:00:00+00:00', finishedAt: null, ...over,
+  createdAt: '2026-11-22T08:00:00+00:00', finishedAt: null, file: null, dispatches: [], ...over,
 });
 
 describe('Réglages › IA › Tâches', () => {
@@ -33,6 +33,39 @@ describe('Réglages › IA › Tâches', () => {
     expect(screen.getByRole('row', { name: /réessaiera/ })).toHaveTextContent('Le worker a échoué ; Nid réessaiera.');
     expect(screen.queryByText(/ai\./)).not.toBeInTheDocument();
     await expectNoAxeViolations(container);
+  });
+
+  it('names the document a job is about and lists each time it was sent (#602)', async () => {
+    server.use(http.get('*/api/v1/ai/jobs', () => HttpResponse.json({
+      items: [
+        job({
+          status: 'succeeded', attempts: 1, waitingReason: null, workerName: 'Box', finishedAt: '2026-11-22T08:05:00+00:00',
+          file: { module: 'documents', reference: 'd1', label: 'Quittance de loyer' },
+          dispatches: [
+            { workerName: 'Atelier', sentAt: '2026-11-22T08:00:00+00:00', finishedAt: '2026-11-22T08:01:00+00:00', outcome: 'ai.worker_failed' },
+            { workerName: 'Box', sentAt: '2026-11-22T08:02:00+00:00', finishedAt: '2026-11-22T08:05:00+00:00', outcome: 'succeeded' },
+          ],
+        }),
+        // A document the admin does not read: named, never titled nor linked.
+        job({ id: 'j2', file: { module: 'documents', reference: 'd2', label: null } }),
+      ],
+      total: 2, page: 1, types: ['document-text'],
+    })));
+    const { user } = await renderApp('/admin/ai/jobs', { capabilities: adminCapabilities });
+
+    // The table (the mobile list repeats it).
+    const table = await screen.findByRole('table');
+    expect(await within(table).findByRole('link', { name: 'Quittance de loyer' })).toHaveAttribute('href', '/documents/d1');
+    expect(screen.getAllByRole('link').filter((l) => l.getAttribute('href') === '/documents/d2')).toHaveLength(0);
+    expect(within(table).getByRole('row', { name: /Aucun worker ne sait faire ce travail/ })).toHaveTextContent('Document');
+
+    await user.click(within(table).getByRole('button', { name: '2 envois' }));
+    const dialog = await screen.findByRole('dialog', { name: /Envois de la tâche/ });
+    const items = within(dialog).getAllByRole('listitem');
+    expect(items[0]).toHaveTextContent('Atelier');
+    expect(items[0]).toHaveTextContent('Le worker a échoué ; Nid réessaiera.');
+    expect(items[1]).toHaveTextContent('Box');
+    expect(items[1]).toHaveTextContent('Réussi');
   });
 
   it('sends the filters and the page to the server, and a new filter starts at the first page', async () => {

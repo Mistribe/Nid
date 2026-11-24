@@ -44,6 +44,10 @@ public sealed record JobRecord(
     public IReadOnlyList<Guid> Concerned { get; init; } = [];
 }
 
+/// <summary>#602: one send of a job to a worker (<c>ai.job_dispatch</c>), kept when a retry clears the job's worker; deleted
+/// with the job.</summary>
+public sealed record JobDispatch(Guid JobId, Guid? WorkerId, Instant SentAt, Instant? FinishedAt, string? Outcome);
+
 public interface IJobStore
 {
     /// <summary>Adds the job, or returns the one not finished with the same type and input (idempotence).</summary>
@@ -64,6 +68,15 @@ public interface IJobStore
     /// <summary>One page of jobs, newest first, with the total and every type in the table.</summary>
     Task<(IReadOnlyList<JobRecord> Items, int Total, IReadOnlyList<string> Types)> PageAsync(
         string? status, string? type, int skip, int take, CancellationToken ct);
+
+    /// <summary>#602: records that the job was sent to <paramref name="worker"/>.</summary>
+    Task AddDispatchAsync(Guid job, Guid worker, Instant sentAt, CancellationToken ct);
+
+    /// <summary>#602: ends the job's dispatch still open with <c>succeeded</c> or the code it ended on.</summary>
+    Task EndDispatchAsync(Guid job, string outcome, Instant at, CancellationToken ct);
+
+    /// <summary>#602: the dispatches of these jobs, oldest first.</summary>
+    Task<IReadOnlyList<JobDispatch>> DispatchesOfAsync(IReadOnlyCollection<Guid> jobs, CancellationToken ct);
 
     /// <summary>Saves a change; false when another pass changed the job since it was read.</summary>
     Task<bool> TryUpdateAsync(JobRecord job, CancellationToken ct);

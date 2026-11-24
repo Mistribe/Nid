@@ -24,7 +24,7 @@ public sealed class AiAuditMap : IAuditMap
     /// <summary>The budget's counters move with every paid call, as the jobs do; its ceiling (ai_settings) is audited.</summary>
     public IReadOnlySet<Type> Excluded { get; } = new HashSet<Type>
     {
-        typeof(AuditEntryRow), typeof(JobRow), typeof(LlmCallRow), typeof(BudgetMonthRow), typeof(BudgetReservationRow),
+        typeof(AuditEntryRow), typeof(JobRow), typeof(JobDispatchRow), typeof(LlmCallRow), typeof(BudgetMonthRow), typeof(BudgetReservationRow),
         // #531: a conversation is the person's words, purged with its retention; the audit is kept forever and never holds the
         // question nor the answer (§8.4).
         typeof(ConversationRow), typeof(ConversationMessageRow),

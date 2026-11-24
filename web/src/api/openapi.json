@@ -57504,13 +57504,66 @@
           }
         }
       },
+      "ModelJobDispatch": {
+        "required": [
+          "sentAt"
+        ],
+        "type": "object",
+        "properties": {
+          "workerName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sentAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "finishedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "outcome": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "ModelJobFile": {
+        "required": [
+          "module",
+          "reference"
+        ],
+        "type": "object",
+        "properties": {
+          "module": {
+            "type": "string"
+          },
+          "reference": {
+            "type": "string"
+          },
+          "label": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "ModelJobListItem": {
         "required": [
           "id",
           "type",
           "status",
           "attempts",
-          "createdAt"
+          "createdAt",
+          "dispatches"
         ],
         "type": "object",
         "properties": {
@@ -57556,6 +57609,22 @@
               "string"
             ],
             "format": "date-time"
+          },
+          "file": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ModelJobFile"
+              }
+            ]
+          },
+          "dispatches": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ModelJobDispatch"
+            }
           }
         }
       },

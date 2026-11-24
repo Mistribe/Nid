@@ -130,6 +130,24 @@ public sealed class JobRow
     public uint RowVersion { get; set; }
 }
 
+/// <summary>#602: one send of a job to a worker (<c>ai.job_dispatch</c>): operational state like the job, deleted with it.</summary>
+public sealed class JobDispatchRow
+{
+    public Guid Id { get; set; }
+
+    public Guid JobId { get; set; }
+
+    /// <summary>Null once the worker is deleted.</summary>
+    public Guid? WorkerId { get; set; }
+
+    public Instant SentAt { get; set; }
+
+    public Instant? FinishedAt { get; set; }
+
+    /// <summary><c>succeeded</c> or the code the attempt ended on; null while it runs.</summary>
+    public string? Outcome { get; set; }
+}
+
 /// <summary>The household's AI settings: one row (<c>id</c> = 1).</summary>
 public sealed class AiSettingsRow
 {

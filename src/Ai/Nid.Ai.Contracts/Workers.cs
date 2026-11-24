@@ -103,10 +103,18 @@ public sealed record ModelCapabilities(bool RemoteWorkersAllowed, IReadOnlyList<
 /// <c>ai.remote_not_allowed</c>, <c>ai.all_offline</c>.</summary>
 public sealed record CapabilityView(string Capability, int Local, int Remote, int Safe, string? Reason);
 
-/// <summary>A job as the jobs page lists it: what it is, where it stands and why it waits; never its input or its result.</summary>
+/// <summary>A job as the jobs page lists it: what it is, where it stands and why it waits; never its input or its result.
+/// <see cref="File"/>: what it is about (#602); <see cref="Dispatches"/>: each time it was sent to a worker, oldest first.</summary>
 public sealed record ModelJobListItem(
     Guid Id, string Type, string Status, int Attempts, string? WaitingReason, string? Error, string? WorkerName, Instant CreatedAt,
-    Instant? FinishedAt);
+    Instant? FinishedAt, ModelJobFile? File, IReadOnlyList<ModelJobDispatch> Dispatches);
+
+/// <summary>#602: a job's file (<c>module:reference</c>) and its name, null when the admin may not read it.</summary>
+public sealed record ModelJobFile(string Module, string Reference, string? Label);
+
+/// <summary>#602: one send of a job to a worker; <see cref="Outcome"/> is <c>succeeded</c> or why the attempt ended, null while it
+/// runs.</summary>
+public sealed record ModelJobDispatch(string? WorkerName, Instant SentAt, Instant? FinishedAt, string? Outcome);
 
 /// <summary>One page of jobs, newest first, with the types the table can filter on.</summary>
 public sealed record ModelJobPage(IReadOnlyList<ModelJobListItem> Items, int Total, int Page, IReadOnlyList<string> Types)

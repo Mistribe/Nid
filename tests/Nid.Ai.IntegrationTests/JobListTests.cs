@@ -9,6 +9,7 @@ using Nid.Ai.Protocol.Contracts;
 using Nid.Platform.Contracts;
 using Nid.TestSupport;
 using NodaTime;
+using static Nid.TestSupport.DocumentApi;
 
 namespace Nid.Ai.IntegrationTests;
 
@@ -61,6 +62,20 @@ public sealed class JobListTests(PostgresFixture fixture) : IClassFixture<Postgr
         Assert.Equal(5, second.Items.Count);
         Assert.Equal(0, running.Total);
         Assert.Equal(0, other.Total);
+    }
+
+    [Fact]
+    public async Task A_job_names_its_document_only_for_an_admin_who_reads_it()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var shared = await UploadedAsync(app, app.AdultA, Pdf, "fileName=a.pdf&title=Quittance&targetKind=core.household&role=other");
+        // Unfiled: its uploader's alone.
+        var theirs = await UploadedAsync(app, app.AdultB, [.. Pdf, (byte)' '], "fileName=b.pdf&title=Secret");
+
+        var files = (await ListAsync(app, "?type=document-text")).Items.Select(j => j.File!).ToDictionary(f => f.Reference);
+
+        Assert.Equal(new ModelJobFile("documents", shared.ToString(), "Quittance"), files[shared.ToString()]);
+        Assert.Equal(new ModelJobFile("documents", theirs.ToString(), null), files[theirs.ToString()]);
     }
 
     [Fact]

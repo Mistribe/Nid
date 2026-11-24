@@ -71,6 +71,13 @@ public sealed class DispatcherTests(PostgresFixture fixture) : IClassFixture<Pos
         Assert.Equal("succeeded", done.Status);
         Assert.NotEqual(sentTo, done.WorkerId);
         Assert.Equal(1, done.Attempts);
+        // #602: the retry cleared the job's worker; its dispatches keep both, each with its times and how it ended.
+        await using var scope = Scope(world);
+        var dispatches = await scope.ServiceProvider.GetRequiredService<IJobStore>().DispatchesOfAsync([id], TestContext.Current.CancellationToken);
+        Assert.Equal([sentTo, done.WorkerId], dispatches.Select(d => d.WorkerId));
+        Assert.Equal([JobCodes.WorkerFailed, "succeeded"], dispatches.Select(d => d.Outcome));
+        Assert.All(dispatches, d => Assert.True(d.FinishedAt >= d.SentAt));
+        Assert.True(dispatches[1].SentAt >= dispatches[0].FinishedAt);
     }
 
     [Fact]
@@ -501,5 +508,8 @@ public sealed class DispatcherTests(PostgresFixture fixture) : IClassFixture<Pos
 
         public Task<byte[]?> ReadAsync(string reference, CancellationToken ct)
             => Task.FromResult(reference == "large" ? new byte[JobSubmission.MaxFileBytes + 1] : null);
+
+        public Task<IReadOnlyDictionary<string, string>> LabelsAsync(IReadOnlyCollection<string> references, CancellationToken ct)
+            => Task.FromResult<IReadOnlyDictionary<string, string>>(new Dictionary<string, string>());
     }
 }

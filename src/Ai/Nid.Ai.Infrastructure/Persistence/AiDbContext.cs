@@ -16,6 +16,8 @@ public sealed class AiDbContext(DbContextOptions<AiDbContext> options) : DbConte
 
     public DbSet<JobRow> Jobs => Set<JobRow>();
 
+    public DbSet<JobDispatchRow> JobDispatches => Set<JobDispatchRow>();
+
     public DbSet<AiSettingsRow> Settings => Set<AiSettingsRow>();
 
     public DbSet<ConsentRow> Consents => Set<ConsentRow>();
@@ -89,6 +91,17 @@ public sealed class AiDbContext(DbContextOptions<AiDbContext> options) : DbConte
             e.HasIndex(x => new { x.CreatedAt, x.Id });
             e.HasOne<ModelWorkerRow>().WithMany().HasForeignKey(x => x.WorkerId).OnDelete(DeleteBehavior.SetNull);
             e.Property(x => x.RowVersion).HasColumnName("xmin").HasColumnType("xid").ValueGeneratedOnAddOrUpdate().IsConcurrencyToken();
+        });
+
+        modelBuilder.Entity<JobDispatchRow>(e =>
+        {
+            e.ToTable("job_dispatch");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Outcome).HasMaxLength(128);
+            e.HasIndex(x => new { x.JobId, x.SentAt });
+            e.HasOne<JobRow>().WithMany().HasForeignKey(x => x.JobId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<ModelWorkerRow>().WithMany().HasForeignKey(x => x.WorkerId).OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<LlmCallRow>(e =>

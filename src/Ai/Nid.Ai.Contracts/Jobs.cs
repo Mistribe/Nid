@@ -43,6 +43,9 @@ public interface IJobFileSource
     string Module { get; }
 
     Task<byte[]?> ReadAsync(string reference, CancellationToken ct);
+
+    /// <summary>#602: the jobs page's name for each of these references the current actor may read; the others are left out.</summary>
+    Task<IReadOnlyDictionary<string, string>> LabelsAsync(IReadOnlyCollection<string> references, CancellationToken ct);
 }
 
 /// <summary>A worker a request may go to: where it runs, whether it is safe and, for the model asked, how much it reads (null

@@ -41809,6 +41809,19 @@ export interface components {
             remoteWorkersAllowed: boolean;
             capabilities: components["schemas"]["CapabilityView"][];
         };
+        ModelJobDispatch: {
+            workerName?: null | string;
+            /** Format: date-time */
+            sentAt: string;
+            /** Format: date-time */
+            finishedAt?: null | string;
+            outcome?: null | string;
+        };
+        ModelJobFile: {
+            module: string;
+            reference: string;
+            label?: null | string;
+        };
         ModelJobListItem: {
             /** Format: uuid */
             id: string;
@@ -41823,6 +41836,8 @@ export interface components {
             createdAt: string;
             /** Format: date-time */
             finishedAt?: null | string;
+            file?: null | components["schemas"]["ModelJobFile"];
+            dispatches: components["schemas"]["ModelJobDispatch"][];
         };
         ModelJobPage: {
             items: components["schemas"]["ModelJobListItem"][];
