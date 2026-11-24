@@ -1,4 +1,4 @@
-using System.Net.Http.Json;
+using System.Text.Json;
 using Nid.Ai.Application;
 using Nid.Ai.Contracts;
 using Nid.Ai.Domain;
@@ -24,14 +24,30 @@ public sealed class WorkerClient(HttpClient http) : IWorkerClient, IDisposable
 
     private static readonly FrameLimits Limits = new(MaxFramePlaintext: 64 * 1024, MaxFrames: 4, MaxTotalPlaintext: 256 * 1024);
 
-    public async Task<WorkerKey> GetKeyAsync(Uri url, CancellationToken ct)
+    /// <summary>The most a worker's key answer may weigh: a P-256 public key in JSON is well under it.</summary>
+    internal const int MaxKeyBody = 4 * 1024;
+
+    public async Task<WorkerKey> GetKeyAsync(Uri url, CancellationToken outer)
     {
+        // An address an admin typed, not yet pinned: bounded in time and size like a call (ExchangeAsync).
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(outer);
+        deadline.CancelAfter(CallTimeout);
+        var ct = deadline.Token;
         KeyView? view;
         try
         {
-            view = await http.GetFromJsonAsync<KeyView>(new Uri(url, "/v1/key"), ct);
+            using var response = await http.GetAsync(new Uri(url, "/v1/key"), HttpCompletionOption.ResponseHeadersRead, ct);
+            response.EnsureSuccessStatusCode();
+            await using var body = await response.Content.ReadAsStreamAsync(ct);
+            var buffer = new byte[MaxKeyBody + 1];
+            var read = await body.ReadAtLeastAsync(buffer, buffer.Length, throwOnEndOfStream: false, ct);
+            if (read > MaxKeyBody)
+                throw new WorkerCallException(AiCodes.WorkerRefused);
+            view = JsonSerializer.Deserialize<KeyView>(buffer.AsSpan(0, read), JsonSerializerOptions.Web);
         }
-        catch (Exception e) when (e is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException or UnambitiousFx.Myelin.OutboundRefusedException)
+        catch (Exception e) when (e is HttpRequestException or IOException or OperationCanceledException or JsonException
+                                      or UnambitiousFx.Myelin.OutboundRefusedException
+                                  && !outer.IsCancellationRequested)
         {
             throw new WorkerCallException(AiCodes.WorkerUnreachable);
         }

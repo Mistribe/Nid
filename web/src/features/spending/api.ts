@@ -4,7 +4,6 @@ import type { components } from '@/api/schema';
 export const SPENDING = '/api/v1/banking/spending' as const;
 export const SPENDING_LINES = '/api/v1/banking/spending/lines' as const;
 export type Spending = components['schemas']['SpendingView'];
-export type SpendingCategory = components['schemas']['SpendingCategoryView'];
 export type SpendingLines = components['schemas']['SpendingLines'];
 
 /** What both endpoints read: the scope, the ticked accounts (none: all), and one month or a period of months (`yyyy-mm`). */

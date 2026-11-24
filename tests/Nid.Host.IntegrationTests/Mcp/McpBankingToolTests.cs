@@ -205,6 +205,11 @@ public class McpBankingToolTests(PostgresFixture fixture) : IClassFixture<Postgr
         Assert.False(figures.GetProperty("incomplete").GetBoolean());
         Assert.False(figures.GetProperty("budgetIncomplete").GetBoolean());
         SameJson(await s.App.GetRawAsync(s.App.AdultA, $"{BankingApi.Root}/spending?scope=me"), await ReadAsync(client, "get_spending", new { scope = "me" }));
+        // Ticked accounts, as the route's repeated `account`.
+        SameJson(await s.App.GetRawAsync(s.App.AdultA, $"{BankingApi.Root}/spending?month=2026-10&account={s.Account}"),
+            await ReadAsync(client, "get_spending", new { month = "2026-10", accounts = new[] { s.Account } }));
+        Assert.Equal("0.00", JsonDocument.Parse(await ReadAsync(client, "get_spending", new { month = "2026-10", accounts = new[] { Guid.NewGuid() } }))
+            .RootElement.GetProperty("total").GetString());
 
         // Bob reads no account of a household whose only account is Alice's own.
         await using var alone = await BankingApi.StartAsync(fixture, overrides: o => o.AddSingleton<IClock>(new FixedClock()));

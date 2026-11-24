@@ -98,6 +98,7 @@ public sealed partial class WriteTools
     [JsonSerializable(typeof(BankLinkArguments))]
     [JsonSerializable(typeof(BankCategoriesArguments))]
     [JsonSerializable(typeof(BankCategoryLine[]))]
+    [JsonSerializable(typeof(Guid[]))] // get_spending's accounts
     // The tools' parameters: under NativeAOT the SDK finds no metadata for them by reflection.
     [JsonSerializable(typeof(string))]
     [JsonSerializable(typeof(bool))]

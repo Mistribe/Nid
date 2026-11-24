@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 
 /**
  * A modal dialog (shadcn `Dialog`) open while mounted, never taller than the screen: it scrolls, unless its content (a form
- * with `min-h-0`) keeps its own parts in view. Escape and the close button call `onClose`. The page owns the open
+ * with `min-h-0`) keeps its own parts in view. Escape and the close button call `onClose`; a click outside does nothing. The page owns the open
  * state, the focus and the announcement of a success, so a dialog closed by Escape announces nothing. `dialogRef` lets a
  * dialog close itself before handing back (« Nouveau fournisseur »): the page then owns the focus (the close is
  * committed at once, so the focus the page moves is no longer trapped, and Radix does not return it).
@@ -27,7 +27,9 @@ export function ModalDialog({ title, onClose, dialogRef, className, children }: 
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
       <DialogContent showCloseButton={false} aria-labelledby={titleId} aria-describedby={undefined} className={cn('flex max-h-[calc(100dvh-2rem)] flex-col overflow-y-auto', className)}
-        onCloseAutoFocus={(event) => { if (handedBack.current) event.preventDefault(); }}>
+        onCloseAutoFocus={(event) => { if (handedBack.current) event.preventDefault(); }}
+        // #640: a tap beside the dialog (a phone's overlay) would drop what was typed; Escape and « Annuler » still close it.
+        onInteractOutside={(event) => event.preventDefault()}>
         <DialogTitle id={titleId}>{title}</DialogTitle>
         {children(titleId)}
       </DialogContent>

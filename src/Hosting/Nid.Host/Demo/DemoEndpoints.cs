@@ -39,7 +39,8 @@ public static class DemoEndpoints
 
 /// <summary>
 /// Demo mode only: what would reach outside the demo is refused, whoever asks. Access tokens (an assistant could keep
-/// reading the instance), webhooks and channel tests (the server would post to an address a visitor typed).
+/// reading the instance), webhooks and channel tests (the server would post to an address a visitor typed), model workers
+/// and cloud provider keys (the server would call an address or spend a key a visitor gave).
 /// </summary>
 public sealed class DemoGuardMiddleware(RequestDelegate next)
 {
@@ -50,18 +51,28 @@ public sealed class DemoGuardMiddleware(RequestDelegate next)
         ("POST", "/api/v1/platform/notifications/test"),
         ("PUT", "/api/v1/admin/notifications/discord"),
         ("POST", "/api/v1/admin/notifications/test"),
+        ("POST", "/api/v1/ai/workers"),
+        ("POST", "/api/v1/ai/workers/*/pair"),
+        ("PUT", "/api/v1/ai/workers/*/safe"),
+        ("PUT", "/api/v1/ai/cloud/keys/*"),
+        ("DELETE", "/api/v1/ai/cloud/keys/*"),
     ];
 
+    /// <summary>A <c>*</c> segment of a refused path stands for any one segment (a worker's id, a provider).</summary>
     public static bool IsRefused(string method, string path)
-        => Refused.Any(r => string.Equals(r.Method, method, StringComparison.OrdinalIgnoreCase)
-                            && string.Equals(r.Path, path.TrimEnd('/'), StringComparison.OrdinalIgnoreCase));
+    {
+        var segments = path.TrimEnd('/').Split('/');
+        return Refused.Any(r => string.Equals(r.Method, method, StringComparison.OrdinalIgnoreCase)
+                                && r.Path.Split('/') is var pattern && pattern.Length == segments.Length
+                                && pattern.Zip(segments).All(p => p.First == "*" || string.Equals(p.First, p.Second, StringComparison.OrdinalIgnoreCase)));
+    }
 
     public async Task InvokeAsync(HttpContext context)
     {
         if (IsRefused(context.Request.Method, context.Request.Path.Value ?? ""))
         {
             await Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Not available in the demo.",
-                detail: "The demo does not create access tokens, webhooks or test messages.").ExecuteAsync(context);
+                detail: "The demo does not create access tokens, webhooks, test messages, model workers or cloud keys.").ExecuteAsync(context);
             return;
         }
         await next(context);

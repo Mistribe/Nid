@@ -231,6 +231,9 @@ describe('helpers', () => {
     expect(safeReturnUrl('//evil.example')).toBe('/');
     expect(safeReturnUrl('https://evil.example')).toBe('/');
     expect(safeReturnUrl('/\\evil.example')).toBe('/');
+    expect(safeReturnUrl('/\t/evil.example')).toBe('/');
+    expect(safeReturnUrl('/\n/evil.example')).toBe('/');
+    expect(safeReturnUrl('/x/\\evil.example')).toBe('/');
     expect(safeReturnUrl(null)).toBe('/');
   });
 });

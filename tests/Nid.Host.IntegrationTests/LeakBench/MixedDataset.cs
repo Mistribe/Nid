@@ -178,6 +178,23 @@ public sealed class MixedDataset
         return (id, await DocumentVersionAsync(id));
     }
 
+    /// <summary>#622: the text job of B's private document, finished with a text that carries B's private label, so the scans
+    /// catch it if the job's detail ever shows it to A, an admin who does not read that document.</summary>
+    public Guid PrivateJobB() => PrivateJobBAsync().GetAwaiter().GetResult();
+
+    private async Task<Guid> PrivateJobBAsync()
+    {
+        await using var scope = App.Services.CreateAsyncScope();
+        scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
+        var db = scope.ServiceProvider.GetRequiredService<Nid.Ai.Infrastructure.Persistence.AiDbContext>();
+        var fileRef = $"{DocumentTexts.FileModule}:{Documents[Items["P-B"]]}";
+        var job = await db.Jobs.SingleAsync(j => j.FileRef == fileRef);
+        job.Status = "succeeded";
+        job.Result = $$"""{"pages":[{"number":1,"text":"{{PrivateLabelB}}","source":"ocr"}]}""";
+        await db.SaveChangesAsync();
+        return job.Id;
+    }
+
     /// <summary>
     /// The phase of P-A's and P-B's income twins, keyed by row. Each owner's document is linked (<c>income.phase</c>, <c>payslip</c>)
     /// to that phase alone, and its title carries the private label, so the scans catch it if it is ever shown to the other adult.

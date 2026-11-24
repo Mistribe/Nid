@@ -9,7 +9,6 @@ export type ChildcareDetail = components['schemas']['ChildcareDetail'];
 export type ChildcareTerms = components['schemas']['ChildcareTermsView'];
 export type LegalMinimum = components['schemas']['LegalMinimumView'];
 export type WeekdaySlot = components['schemas']['WeekdaySlotView'];
-export type CareGap = components['schemas']['CareGapView'];
 export type CreateChildcareBody = components['schemas']['CreateChildcareBody'];
 export type EditChildcareBody = components['schemas']['EditChildcareBody'];
 export type TermsBody = components['schemas']['TermsBody'];

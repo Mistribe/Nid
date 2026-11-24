@@ -74,14 +74,19 @@ public sealed class BankingTools
         + "are the sums of its months (each null when one month's is) and there is no 'leftEstimate'. 'savingsRate' is left divided by income, "
         + "in percent, for the month or the whole period (null without an income above 0). 'months' lists every month from 'from' to 'to', "
         + "oldest first (a single entry for one month), each with what it spent ('total') and its own 'income', 'committed', 'everyday' and 'left'. "
+        + "'accounts' lists the scope's bank accounts (id and name). With 'accounts' sent, the figures count only those of the scope's accounts "
+        + "(an id outside the scope counts nothing), and the household's own figures are left out: no budgets, and 'income', 'committed', "
+        + "'everyday', 'left', 'leftEstimate' and 'savingsRate' are null. "
         + McpSetup.Untrusted)]
     public static Task<CallToolResult> GetSpending(IServiceProvider services,
         [Description("ISO month (yyyy-mm); default the current month.")] string? month = null,
         [Description("'household' (default) or 'me'.")] string? scope = null,
         [Description("ISO first month of a period (yyyy-mm), with 'to'.")] string? from = null,
-        [Description("ISO last month of a period (yyyy-mm), with 'from'.")] string? to = null, CancellationToken ct = default)
+        [Description("ISO last month of a period (yyyy-mm), with 'from'.")] string? to = null,
+        [Description("Ids of bank accounts (from 'accounts' in a previous answer) to count only; default every account of the scope.")] Guid[]? accounts = null,
+        CancellationToken ct = default)
         => McpCalls.RunAsync(services, r => new GetSpendingQuery(r.Scope(scope), r.Month(month, "month"),
-            r.Month(from, "from"), r.Month(to, "to")), ct);
+            r.Month(from, "from"), r.Month(to, "to"), accounts), ct);
 
     [McpServerTool(Name = "list_expected_charges", ReadOnly = true)]
     [Description("The charges expected between two dates (subscriptions, loan instalments, rents…) that the person may link a bank line to, "

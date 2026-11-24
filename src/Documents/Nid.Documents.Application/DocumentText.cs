@@ -66,8 +66,8 @@ public sealed partial class DocumentTexts(
         return true;
     }
 
-    /// <summary>#599: once the document's links changed, its text job, while no worker has it yet, takes the class and the adults
-    /// they give now; one already sent or finished is left as it is.</summary>
+    /// <summary>#599, #623: once the document's links changed, its text job, until it finished, takes the class and the adults
+    /// they give now; one finished is left as it is.</summary>
     public async Task ReclassAsync(Guid document, CancellationToken ct)
     {
         if (await documents.FindAsync(document, ct) is not { } found)

@@ -55,11 +55,12 @@ public interface IJobStore
 
     Task<JobRecord?> FindAsync(Guid id, CancellationToken ct);
 
-    /// <summary>#599: sets the class and the adults of the queued jobs of <paramref name="fileRef"/>, in one statement, so a
-    /// dispatcher pass that read one before loses its claim on the row's version. True when one was queued.</summary>
+    /// <summary>#599, #623: sets the class and the adults of the queued and running jobs of <paramref name="fileRef"/>, in one
+    /// statement, so a dispatcher pass that read one before loses its claim on the row's version. A running job's next poll then
+    /// takes it back from a worker its new class forbids, and a retry carries the new class. True when one was changed.</summary>
     /// <remarks>ponytail: the input hash keeps the class it was submitted with; only a new submission of the same file under
     /// the new class (none today: the backfill skips a queued document) would not find it.</remarks>
-    Task<bool> ReclassQueuedAsync(string fileRef, string dataClass, IReadOnlyList<Guid> concerned, CancellationToken ct);
+    Task<bool> ReclassUnfinishedAsync(string fileRef, string dataClass, IReadOnlyList<Guid> concerned, CancellationToken ct);
 
     /// <summary>#600: deletes every job of <paramref name="fileRef"/>; a pass running one finds it gone and leaves it.</summary>
     Task DeleteOfFileAsync(string fileRef, CancellationToken ct);
