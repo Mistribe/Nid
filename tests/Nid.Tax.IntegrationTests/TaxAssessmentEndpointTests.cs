@@ -362,11 +362,11 @@ public class TaxAssessmentEndpointTests(PostgresFixture fixture) : IClassFixture
         Assert.Equal(id, (await JsonOf(deleted)).GetProperty("id").GetGuid());
         Assert.Equal(HttpStatusCode.NotFound, (await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Route}/{id}")).StatusCode);
         await using var platform = PostgresFixture.NewPlatformContext(app.ConnectionString);
-        var rows = await platform.AuditLog.Where(r => r.Category == "write" && r.Entity == "core.tax_assessment").ToListAsync(cancellationToken: TestContext.Current.CancellationToken);
+        var rows = await platform.AuditLog.Where(r => r.Category == "write" && r.Entity == "tax.tax_assessment").ToListAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Contains(rows, r => r.Action == "insert");
         Assert.Contains(rows, r => r.Action == "delete");
         Assert.All(rows, r => Assert.Empty(r.ItemIds));
-        Assert.Contains(await platform.AuditLog.Where(r => r.Entity == "core.tax_assessment_declarant").ToListAsync(cancellationToken: TestContext.Current.CancellationToken), r => r.Action == "delete");
+        Assert.Contains(await platform.AuditLog.Where(r => r.Entity == "tax.tax_assessment_declarant").ToListAsync(cancellationToken: TestContext.Current.CancellationToken), r => r.Action == "delete");
     }
 
     [Fact]
