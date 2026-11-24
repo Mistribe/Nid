@@ -38,9 +38,9 @@ public sealed partial class Notifier(IServiceScopeFactory scopes, IClock clock, 
             var outbox = sp.GetRequiredService<IDeliveryOutbox>();
             var recipients = (await persons.ListAsync(own)).Where(p => p is { Kind: PersonKind.Adult, IsPending: false } && Reaches(notice.Recipients, p)).ToList();
 
-            await using var transaction = await sp.GetRequiredService<IUnitOfWork>().BeginAsync(own);
             var now = clock.GetCurrentInstant(); // one publication instant for every recipient
-            var today = now.InZone(await sp.GetRequiredService<IHouseholdCalendar>().ZoneAsync(own)).Date; // #631: the household's day
+            var today = await DayAsync(sp, now, own); // before the transaction: a failed read must not abort it
+            await using var transaction = await sp.GetRequiredService<IUnitOfWork>().BeginAsync(own);
             foreach (var person in recipients)
             {
                 // The link of a notice may depend on the reader (the security journal is for admins).
@@ -79,6 +79,20 @@ public sealed partial class Notifier(IServiceScopeFactory scopes, IClock clock, 
         }
     }
 
+    /// <summary>#631: the household's day of <paramref name="now"/>; the UTC day when the calendar cannot be read, so the notice still lands.</summary>
+    private async Task<LocalDate> DayAsync(IServiceProvider sp, Instant now, CancellationToken ct)
+    {
+        try
+        {
+            return now.InZone(await sp.GetRequiredService<IHouseholdCalendar>().ZoneAsync(ct)).Date;
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            LogNoCalendar(e);
+            return now.InUtc().Date;
+        }
+    }
+
     private static bool Reaches(Recipients to, PersonInfo person) => to switch
     {
         Recipients.People people => people.Ids.Contains(person.Id),
@@ -92,6 +106,9 @@ public sealed partial class Notifier(IServiceScopeFactory scopes, IClock clock, 
 
     [LoggerMessage(Level = LogLevel.Error, Message = "The {Kind} notice could not be published")]
     private partial void LogFailed(Exception exception, string kind);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The household's calendar could not be read; the notice is dated on the UTC day")]
+    private partial void LogNoCalendar(Exception exception);
 
     [LoggerMessage(Level = LogLevel.Error, Message = "A notice could not be resolved")]
     private partial void LogResolveFailed(Exception exception);
