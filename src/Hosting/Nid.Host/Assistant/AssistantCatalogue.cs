@@ -13,6 +13,10 @@ public static class AssistantCatalogue
     private static readonly IReadOnlySet<string> Figures = new HashSet<string> { DataClasses.Figures };
     private static readonly IReadOnlySet<string> BankLines = new HashSet<string> { DataClasses.Figures, DataClasses.BankLabels };
 
+    /// <summary>#624: a proposal's payload and source label copy a bank line's label or a document's text, a payslip's included.</summary>
+    private static readonly IReadOnlySet<string> Proposals = new HashSet<string>
+        { DataClasses.Figures, DataClasses.BankLabels, DataClasses.Documents, DataClasses.LocalOnly };
+
     public static readonly IReadOnlyDictionary<string, IReadOnlySet<string>> Allowed = new Dictionary<string, IReadOnlySet<string>>
     {
         ["get_dashboard"] = Figures, ["get_net_worth_history"] = Figures, ["get_month_changes"] = Figures, ["get_spending"] = Figures,
@@ -23,11 +27,22 @@ public static class AssistantCatalogue
         ["list_tax_years"] = Figures, ["get_tax"] = Figures,
         ["get_goals"] = Figures, ["get_goal"] = Figures,
         ["list_subscriptions"] = Figures, ["get_subscription"] = Figures,
-        ["list_persons"] = Figures, ["list_proposals"] = Figures, ["list_expected_charges"] = Figures,
+        ["list_persons"] = Figures, ["list_expected_charges"] = Figures,
         // The bank lines and the two proposals made from them: their previews show the lines' labels.
         ["list_bank_transactions"] = BankLines, ["list_uncategorised_bank_transactions"] = BankLines,
         ["propose_bank_link"] = BankLines, ["propose_bank_categories"] = BankLines,
+        ["list_proposals"] = Proposals,
     };
+
+    /// <summary>What a tool's answer makes of the turn's class (§6.1): <c>local_only</c> over <c>bank_labels</c> over the rest. A tool
+    /// answering more than figures is never called for the cloud (#624): <c>allowed_kinds</c> does not cover these classes yet.</summary>
+    public static string ClassAfter(string current, IReadOnlySet<string> tool)
+        => current == DataClasses.LocalOnly || tool.Contains(DataClasses.LocalOnly) ? DataClasses.LocalOnly
+            : current == DataClasses.BankLabels || tool.Contains(DataClasses.BankLabels) ? DataClasses.BankLabels
+            : current;
+
+    /// <summary>True when the tool answers more than figures: kept from a cloud provider.</summary>
+    public static bool KeptFromCloud(IReadOnlySet<string> tool) => tool.Any(c => c != DataClasses.Figures);
 
     public static readonly IReadOnlySet<string> Excluded = new HashSet<string>(
     [
