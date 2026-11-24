@@ -666,7 +666,7 @@ public static class RealEstateEndpoints
     }
 
     /// <summary>
-    /// Loans dashboard spec §5.2: <c>loanId</c> required with <c>chosen</c> and refused otherwise; <c>penalties</c> optional.
+    /// Loans dashboard spec §5.2: <c>penalties</c> optional; the amount, <c>loanId</c> and penalty rules are the query's validator's (#515).
     /// </summary>
     public sealed record LoansSimulationBody(
         string? Scope, string? On, string? Amount, string? Split, Guid? LoanId, string? Effect, IReadOnlyList<LoanPenaltyBody>? Penalties)
@@ -675,13 +675,7 @@ public static class RealEstateEndpoints
         {
             var on = reader.Date(On, "on");
             var amount = LoanBodies.Number(reader, Amount, "amount");
-            if (amount is <= 0m)
-                reader.Add("amount", LoanCodes.InvalidLoan, "An early repayment is positive.");
             var split = LoanBodies.Wire<SplitRule>(reader, Split, "split");
-            if (split == SplitRule.Chosen && LoanId is null)
-                reader.Add("loanId", "request.required", "The loan is required to put everything on it.");
-            if (split is { } rule && rule != SplitRule.Chosen && LoanId is not null)
-                reader.Add("loanId", LoanCodes.InvalidLoan, "A loan is chosen only with the « chosen » split.");
             var effect = LoanBodies.Wire<RepaymentEffect>(reader, Effect, "effect");
             var penalties = new List<LoanPenalty>();
             for (var i = 0; i < (Penalties?.Count ?? 0); i++)
@@ -690,8 +684,6 @@ public static class RealEstateEndpoints
                 if (p?.LoanId is not { } loan)
                     reader.Add($"penalties[{i}].loanId", "request.required", "A penalty names its loan.");
                 var value = LoanBodies.Number(reader, p?.Amount, $"penalties[{i}].amount");
-                if (value is < 0m)
-                    reader.Add($"penalties[{i}].amount", LoanCodes.InvalidLoan, "A penalty is not negative.");
                 if (p?.LoanId is { } id && value is { } v)
                     penalties.Add(new LoanPenalty(new ItemId(id), v));
             }
