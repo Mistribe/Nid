@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
@@ -96,18 +96,28 @@ function Conversation({ id, turns, setTurns, onKept }: {
   const field = useRef<HTMLTextAreaElement>(null);
   const kept = useRef(id);
   const totals = api.$api.useQuery('get', CONVERSATION, { params: { path: { id: id ?? '' } } }, { enabled: id !== null });
-
-  const update = (change: (turn: Turn) => Turn) => setTurns((all) => [...all.slice(0, -1), change(all[all.length - 1]!)]);
+  // #639: an answer still streaming stops when its conversation is left (a new one, another one, the history, the panel closed).
+  const stream = useRef<AbortController>(null);
+  useEffect(() => {
+    const controller = new AbortController();
+    stream.current = controller;
+    return () => controller.abort();
+  }, []);
 
   const ask = async (event: FormEvent) => {
     event.preventDefault();
     const asked = question.trim();
-    if (!asked || running) return;
+    if (!asked || running || !stream.current) return;
+    const { signal } = stream.current;
+    const update = (change: (turn: Turn) => Turn) => {
+      if (!signal.aborted) setTurns((all) => (all.length === 0 ? all : [...all.slice(0, -1), change(all[all.length - 1]!)]));
+    };
     setTurns((all) => [...all, { question: asked, answer: '', tools: [] }]);
     setQuestion('');
     setRunning(true);
     try {
-      for await (const e of assistantTurn(api, asked, kept.current)) {
+      for await (const e of assistantTurn(api, asked, kept.current, signal)) {
+        if (signal.aborted) break;
         if (e.type === 'text') update((turn) => ({ ...turn, answer: turn.answer + e.text }));
         else if (e.type === 'tool') update((turn) => ({ ...turn, tools: [...turn.tools, e.tool] }));
         else if (e.type === 'held_back') update((turn) => ({ ...turn, heldBack: e }));
