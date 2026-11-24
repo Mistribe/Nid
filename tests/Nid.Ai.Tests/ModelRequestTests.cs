@@ -147,7 +147,7 @@ public sealed class ModelRequestTests
         public Task<SubmittedJob> SubmitJobAsync(WorkerRecord worker, NidKey key, JobSubmission submission, CancellationToken ct)
             => throw new NotSupportedException();
 
-        public Task<PolledJob> PollJobAsync(WorkerRecord worker, NidKey key, string workerJobId, CancellationToken ct) => throw new NotSupportedException();
+        public Task<PolledJob> PollJobAsync(WorkerRecord worker, NidKey key, string workerJobId, byte[] responseSecret, CancellationToken ct) => throw new NotSupportedException();
 
         public Task CancelJobAsync(WorkerRecord worker, NidKey key, string workerJobId, CancellationToken ct) => throw new NotSupportedException();
     }
