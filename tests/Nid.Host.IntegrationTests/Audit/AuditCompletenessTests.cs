@@ -77,6 +77,7 @@ public partial class AuditCompletenessTests(PostgresFixture fixture) : IClassFix
         ["src/Core/Nid.Core.Infrastructure/Persistence/PersonRegistry.cs"] = 3,    // advisory lock; the person's row lock for preferences (writes nothing); session_epoch (session_revoked)
         ["src/Subscriptions/Nid.Subscriptions.Infrastructure/Persistence/CatalogRunLog.cs"] = 3, // catalog_sync_run: excluded
         ["src/Subscriptions/Nid.Subscriptions.Infrastructure/Persistence/ProviderStore.cs"] = 3, // lock; archived_at and icons (catalog run)
+        ["src/Subscriptions/Nid.Subscriptions.Infrastructure/Persistence/SubscriptionStore.cs"] = 1, // a subscription's advisory lock for its phase writes (#628): no row written
         ["src/Investments/Nid.Investments.Infrastructure/Persistence/PriceRunLog.cs"] = 3, // price_run: excluded
         ["src/Documents/Nid.Documents.Infrastructure/Persistence/DocumentIndexStore.cs"] = 3, // #559: chunk_embedding, derived from the text (pgvector's type, in SQL): the insert, the old model's vectors, the HNSW index
         ["src/Documents/Nid.Documents.Infrastructure/Persistence/DocumentStore.cs"] = 3, // upload_ticket: excluded (a one-use right, gone once used; the upload is audited); a file's advisory lock (#600)
