@@ -49,13 +49,13 @@ public sealed class DocumentTools
     {
         if (limit < 1)
             return McpCalls.Invalid(services, "limit", "At least 1.");
+        if ((targetKind is null) != (targetId is null) && !(targetKind == TargetKinds.CoreHousehold && targetId is null))
+            return McpCalls.Invalid(services, targetKind is null ? "targetKind" : "targetId", "Give targetKind and targetId together.");
         var http = services.GetRequiredService<IOptions<Microsoft.AspNetCore.Http.Json.JsonOptions>>().Value.SerializerOptions;
-        return await McpCalls.RunAsync(services, () =>
-            (targetKind is null) != (targetId is null) && !(targetKind == TargetKinds.CoreHousehold && targetId is null)
-                ? throw new BadHttpRequestException("Give targetKind and targetId together.")
-                : new ListDocumentsQuery(SubscriptionEndpoints.ParseScope(scope), false, inbox,
-                    targetKind is null ? null : new DocumentTarget(targetKind, targetId ?? TargetKinds.Household), SourceRefPrefix: sourceRefPrefix,
-                    Year: year, Page: 1, PageSize: limit),
+        return await McpCalls.RunAsync(services, r =>
+            new ListDocumentsQuery(r.Scope(scope), false, inbox,
+                targetKind is null ? null : new DocumentTarget(targetKind, targetId ?? TargetKinds.Household), SourceRefPrefix: sourceRefPrefix,
+                Year: year, Page: 1, PageSize: limit),
             list =>
             {
                 var answer = JsonSerializer.SerializeToNode(list, http.GetTypeInfo(typeof(DocumentList)))!.AsObject();
@@ -90,7 +90,7 @@ public sealed class DocumentTools
         var http = services.GetRequiredService<IOptions<Microsoft.AspNetCore.Http.Json.JsonOptions>>().Value.SerializerOptions;
         return await McpCalls.RunAsync(services,
             // The Documents page's query (#169), so the same results and the same rights.
-            () => new ListDocumentsQuery(SubscriptionEndpoints.ParseScope(scope ?? "me"), false, false, Search: query, Page: 1, PageSize: limit),
+            r => new ListDocumentsQuery(r.Scope(scope ?? "me"), false, false, Search: query, Page: 1, PageSize: limit),
             list =>
             {
                 var shown = list with

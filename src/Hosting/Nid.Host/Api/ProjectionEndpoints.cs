@@ -45,24 +45,24 @@ public static class ProjectionEndpoints
         routes.MapGroup("/api/v1/projection").RequireAuthorization()
             .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>()
             .MapGet("", async (string? scope, string? horizon, bool? ranges, IInvoker invoker, CancellationToken ct)
-                => (await invoker.InvokeAsync(new GetProjectionQuery(ParseScope(scope), ParseHorizon(horizon), ranges == true), ct)).ToHttp(view => view))
+                => await FieldReader.Run(invoker, r => new GetProjectionQuery(r.Scope(scope), ParseHorizon(horizon, r), ranges == true), view => view, ct))
             .Returns<ProjectionView>();
 
         // Retirement spec §4: the retirement page's single read, at 40 years.
         routes.MapGroup("/api/v1/retirement").RequireAuthorization()
             .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>()
             .MapGet("", async (string? scope, IInvoker invoker, CancellationToken ct)
-                => (await invoker.InvokeAsync(new GetRetirementQuery(ParseScope(scope)), ct)).ToHttp(view => view))
+                => await FieldReader.Run(invoker, r => new GetRetirementQuery(r.Scope(scope)), view => view, ct))
             .Returns<RetirementView>();
 
         return routes;
     }
 
     /// <summary>
-    /// Spec §2.3: absent is ten years; <c>{n}y</c> from 1 to 40, or <c>retire:{personId}</c>. Anything else is a bad request, never a
-    /// silent default (as <see cref="DashboardEndpoints.ParsePeriod"/>).
+    /// Spec §2.3: absent is ten years; <c>{n}y</c> from 1 to 40, or <c>retire:{personId}</c>. Anything else is refused at
+    /// <c>horizon</c>, never a silent default (as <see cref="DashboardEndpoints.ParsePeriod"/>).
     /// </summary>
-    public static ProjectionHorizon ParseHorizon(string? horizon)
+    internal static ProjectionHorizon ParseHorizon(string? horizon, FieldReader reader)
     {
         if (horizon is null) return ProjectionHorizon.Default;
         if (horizon.EndsWith('y') && int.TryParse(horizon.AsSpan(0, horizon.Length - 1), NumberStyles.None, CultureInfo.InvariantCulture, out var years)
@@ -70,7 +70,16 @@ public static class ProjectionEndpoints
             return new ProjectionHorizon(years, null);
         if (horizon.StartsWith("retire:", StringComparison.Ordinal) && Guid.TryParse(horizon.AsSpan("retire:".Length), out var person))
             return new ProjectionHorizon(null, new PersonId(person));
-        throw new BadHttpRequestException($"'{horizon}' is not a horizon: send '{{n}}y' (1 to {ProjectionHorizon.MaxYears}) or 'retire:{{personId}}'.");
+        reader.Add("horizon", "request.horizon", $"'{horizon}' is not a horizon: send '{{n}}y' (1 to {ProjectionHorizon.MaxYears}) or 'retire:{{personId}}'.");
+        return ProjectionHorizon.Default;
+    }
+
+    /// <summary>The scenario routes and their MCP tool still read a horizon this way, until their own #515 step returns the refusal.</summary>
+    public static ProjectionHorizon ParseHorizon(string? horizon)
+    {
+        var reader = new FieldReader();
+        var parsed = ParseHorizon(horizon, reader);
+        return reader.Ok ? parsed : throw new BadHttpRequestException(reader.Errors[0].Message);
     }
 
     /// <summary>The same shape as the view: rates in percent, the savings in the reference currency; a missing member is read as such.</summary>

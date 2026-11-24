@@ -163,9 +163,9 @@ public static class DocumentEndpoints
                     ? Results.Problem(statusCode: StatusCodes.Status400BadRequest, detail: "Give anchor alone.")
                     : (targetKind is null) != (targetId is null) && !(targetKind == TargetKinds.CoreHousehold && targetId is null)
                     ? Results.Problem(statusCode: StatusCodes.Status400BadRequest, detail: "Give targetKind and targetId together.")
-                    : (await invoker.InvokeAsync(new ListDocumentsQuery(ParseScope(scope), archived ?? false, inbox ?? false,
+                    : await FieldReader.Run(invoker, r => new ListDocumentsQuery(r.Scope(scope), archived ?? false, inbox ?? false,
                         targetKind is null ? null : new DocumentTarget(targetKind, targetId ?? TargetKinds.Household), anchor,
-                        Role: string.IsNullOrEmpty(role) ? null : role, Year: year, Linked: linked, Search: q, Page: page), ct)).ToHttp(list => list))
+                        Role: string.IsNullOrEmpty(role) ? null : role, Year: year, Linked: linked, Search: q, Page: page), list => list, ct))
             .Returns<DocumentList>();
 
         api.MapGet("/{id:guid}", async (Guid id, IInvoker invoker, CancellationToken ct)

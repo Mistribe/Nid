@@ -15,16 +15,16 @@ public static class GoalEndpoints
             .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>();
 
         api.MapGet("", async (string? scope, bool? closed, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new ListGoalsQuery(ParseScope(scope), closed ?? false), ct)).ToHttp(list => list))
+            => await FieldReader.Run(invoker, r => new ListGoalsQuery(r.Scope(scope), closed ?? false), list => list, ct))
             .Returns<GoalList>();
 
         // Issue #412: the creation form shows an emergency fund's target before it is saved.
         api.MapGet("/emergency-target", async (int? months, string? scope, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new EmergencyTargetQuery(months ?? 6, ParseScope(scope)), ct)).ToHttp(view => view))
+            => await FieldReader.Run(invoker, r => new EmergencyTargetQuery(months ?? 6, r.Scope(scope)), view => view, ct))
             .Returns<EmergencyTargetView>();
 
         api.MapGet("/{id:guid}", async (Guid id, string? scope, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new GetGoalQuery(new ItemId(id), ParseScope(scope)), ct)).ToHttp(detail => detail))
+            => await FieldReader.Run(invoker, r => new GetGoalQuery(new ItemId(id), r.Scope(scope)), detail => detail, ct))
             .Returns<GoalDetail>();
 
         api.MapPost("", async (CreateGoalBody body, IInvoker invoker, CancellationToken ct) =>

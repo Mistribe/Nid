@@ -17,15 +17,13 @@ public static class FxEndpoints
         // a custom JsonConverter for the body), so dates come in as strings and are parsed the way
         // SubscriptionEndpoints reads its own from/to/horizon query parameters.
         api.MapGet("", async (string quote, string from, string to, IInvoker invoker, CancellationToken ct)
-                => (await invoker.InvokeAsync(
-                        new GetFxRatesQuery(quote, SubscriptionEndpoints.RequireDate(from), SubscriptionEndpoints.RequireDate(to)), ct))
-                    .ToHttp(r => r))
+                => await FieldReader.Run(invoker, r =>
+                        new GetFxRatesQuery(quote, r.RequiredDate(from, "from"), r.RequiredDate(to, "to")), view => view, ct))
             .Returns<IReadOnlyList<FxRateView>>();
 
         api.MapPut("/{date}/{quote}", async (string date, string quote, ManualRateBody body, IInvoker invoker, CancellationToken ct)
-                => (await invoker.InvokeAsync(
-                        new SetManualFxRateCommand(SubscriptionEndpoints.RequireDate(date), quote, body.Rate), ct))
-                    .ToHttp(r => r))
+                => await FieldReader.Run(invoker, r =>
+                        new SetManualFxRateCommand(r.RequiredDate(date, "date"), quote, body.Rate), view => view, ct))
             .Returns<FxRateView>();
 
         api.MapPost("/sync", async (IInvoker invoker, CancellationToken ct)

@@ -242,5 +242,11 @@ public class McpBankingToolTests(PostgresFixture fixture) : IClassFixture<Postgr
             Assert.True(error, text);
             Assert.Contains(code, text);
         }
+
+        // #515: an unreadable argument is refused at its name, not thrown.
+        var (refused, refusal) = await CallAsync(client, "get_spending", new { from = "2026-01-01", to = "2026-10" });
+        Assert.True(refused, refusal);
+        Assert.Contains("request.invalid", refusal);
+        Assert.Contains("from", refusal);
     }
 }

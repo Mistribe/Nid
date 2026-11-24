@@ -201,6 +201,16 @@ public class HoldingMovementEndpointTests(PostgresFixture fixture) : IClassFixtu
             new { occurredOn = "2025-01-10", from = Array.Empty<object>(), to = new[] { new { holdingId = euro, amount = Eur("5.00") } } });
         Assert.Equal(HttpStatusCode.UnprocessableEntity, empty.StatusCode);
         Assert.Equal("from", (await JsonAsync(empty)).GetProperty("errors")[0].FieldPath());
+
+        // #515: the RecordSwitchCommand validator names both sides, before anything is written.
+        var none = await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Url(id)}/switches",
+            new { occurredOn = "2025-01-10", from = Array.Empty<object>(), to = Array.Empty<object>() });
+        var problem = await JsonAsync(none);
+        Assert.Equal((HttpStatusCode.UnprocessableEntity, "request.invalid"), (none.StatusCode, problem.GetProperty("code").GetString()));
+        Assert.Equal([("from", "request.required"), ("to", "request.required")],
+            problem.GetProperty("errors").EnumerateArray().Select(e => (e.FieldPath(), e.GetProperty("code").GetString())));
+        Assert.Equal(0, (await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Url(id)}/holdings/{euro}/movements")))
+            .GetProperty("items").GetArrayLength());
     }
 
     [Fact]

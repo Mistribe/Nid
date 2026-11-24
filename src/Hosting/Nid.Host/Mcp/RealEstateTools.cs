@@ -17,13 +17,13 @@ public sealed class RealEstateTools
     public static Task<CallToolResult> ListLoans(IServiceProvider services,
         [Description("'household' (default) or 'me'.")] string? scope = null, [Description("Include ended loans.")] bool ended = false,
         CancellationToken ct = default)
-        => McpCalls.RunAsync(services, () => new ListLoansQuery(SubscriptionEndpoints.ParseScope(scope), ended), ct);
+        => McpCalls.RunAsync(services, r => new ListLoansQuery(r.Scope(scope), ended), ct);
 
     [McpServerTool(Name = "get_loans_overview", ReadOnly = true)]
     [Description("The household's loans together: remaining balance, monthly payments, interest still due and when each loan ends. " + McpSetup.Untrusted)]
     public static Task<CallToolResult> GetLoansOverview(IServiceProvider services,
         [Description("'household' (default) or 'me'.")] string? scope = null, CancellationToken ct = default)
-        => McpCalls.RunAsync(services, () => new GetLoansOverviewQuery(SubscriptionEndpoints.ParseScope(scope)), ct);
+        => McpCalls.RunAsync(services, r => new GetLoansOverviewQuery(r.Scope(scope)), ct);
 
     [McpServerTool(Name = "get_loan", ReadOnly = true)]
     [Description("One loan: its contract, phases, insurances, fees, early repayments and figures today. " + McpSetup.Untrusted)]
@@ -39,7 +39,7 @@ public sealed class RealEstateTools
     [Description("The properties with their latest value and loans. " + McpSetup.Untrusted)]
     public static Task<CallToolResult> ListProperties(IServiceProvider services,
         [Description("'household' (default) or 'me'.")] string? scope = null, CancellationToken ct = default)
-        => McpCalls.RunAsync(services, () => new ListPropertiesQuery(SubscriptionEndpoints.ParseScope(scope)), ct);
+        => McpCalls.RunAsync(services, r => new ListPropertiesQuery(r.Scope(scope)), ct);
 
     [McpServerTool(Name = "get_property", ReadOnly = true)]
     [Description("One property: its details, valuations, flows, recurring costs and tenancies. " + McpSetup.Untrusted)]
@@ -57,13 +57,13 @@ public sealed class RealEstateTools
     [Description("The yearly rent revisions due (IRL): each tenancy's anniversary, the two IRL values, the current and the new rent. " + McpSetup.Untrusted)]
     public static Task<CallToolResult> GetRentRevisions(IServiceProvider services,
         [Description("'household' (default) or 'me'.")] string? scope = null, CancellationToken ct = default)
-        => McpCalls.RunAsync(services, () => new GetRentRevisionsQuery(SubscriptionEndpoints.ParseScope(scope)), ct);
+        => McpCalls.RunAsync(services, r => new GetRentRevisionsQuery(r.Scope(scope)), ct);
 
     [McpServerTool(Name = "get_rent_arrears", ReadOnly = true)]
     [Description("The rents still due per property, one account per tenant: each month's due, imputed and remaining amounts and whether it is overdue (ended more than 10 days ago); a month two tenants share appears once per tenant. Properties with nothing due are omitted. No names or addresses. " + McpSetup.Untrusted)]
     public static Task<CallToolResult> GetRentArrears(IServiceProvider services,
         [Description("'household' (default) or 'me'.")] string? scope = null, CancellationToken ct = default)
-        => McpCalls.RunAsync(services, () => new GetRentArrearsQuery(SubscriptionEndpoints.ParseScope(scope)), ct);
+        => McpCalls.RunAsync(services, r => new GetRentArrearsQuery(r.Scope(scope)), ct);
 
     [McpServerTool(Name = "simulate_early_repayment", ReadOnly = true)]
     [Description("Simulates an early repayment of a loan without recording it: the new term or payment and the interest saved. " + McpSetup.Untrusted)]

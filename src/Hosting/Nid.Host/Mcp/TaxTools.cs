@@ -19,7 +19,7 @@ public sealed class TaxTools
     public static Task<CallToolResult> GetTax(IServiceProvider services,
         [Description("The revenue year (default: this year).")] int? year = null,
         [Description("'household' (default) or 'me'.")] string? scope = null, CancellationToken ct = default)
-        => McpCalls.RunAsync(services, () => new GetTaxEstimateQuery(year, SubscriptionEndpoints.ParseScope(scope)), ct);
+        => McpCalls.RunAsync(services, r => new GetTaxEstimateQuery(year, r.Scope(scope)), ct);
 
     /// <summary>Issue #410: the same view as <c>GET /api/v1/tax/changes</c>.</summary>
     [McpServerTool(Name = "get_tax_changes", ReadOnly = true)]
@@ -29,7 +29,7 @@ public sealed class TaxTools
     public static Task<CallToolResult> GetTaxChanges(IServiceProvider services,
         [Description("The revenue year compared with the year before (default: this year).")] int? year = null,
         [Description("'household' (default) or 'me'.")] string? scope = null, CancellationToken ct = default)
-        => McpCalls.RunAsync(services, () => new GetTaxChangesQuery(year, SubscriptionEndpoints.ParseScope(scope)), ct);
+        => McpCalls.RunAsync(services, r => new GetTaxChangesQuery(year, r.Scope(scope)), ct);
 
     /// <summary>Rental 2044 spec §7: the same view as <c>GET /api/v1/tax/2044</c>.</summary>
     [McpServerTool(Name = "get_rental_2044", ReadOnly = true)]
@@ -38,7 +38,7 @@ public sealed class TaxTools
     public static Task<CallToolResult> GetRental2044(IServiceProvider services,
         [Description("The revenue year (default: last year).")] int? year = null,
         [Description("'household' (default) or 'me'.")] string? scope = null, CancellationToken ct = default)
-        => McpCalls.RunAsync(services, () => new GetRental2044Query(year, SubscriptionEndpoints.ParseScope(scope)), ct);
+        => McpCalls.RunAsync(services, r => new GetRental2044Query(year, r.Scope(scope)), ct);
     /// <summary>Sale tax spec §6: the same view as <c>GET /api/v1/tax/sale</c>.</summary>
     [McpServerTool(Name = "get_sale_tax_estimate", ReadOnly = true)]
     [Description("The tax a sale of everything held today would cost: each property's and each open PEA, life insurance or brokerage " +
@@ -47,7 +47,7 @@ public sealed class TaxTools
     public static Task<CallToolResult> GetSaleTaxEstimate(IServiceProvider services,
         [Description("'household' (default) or 'me'.")] string? scope = null,
         [Description("One property or envelope's id, for its page instead of the total.")] Guid? item = null, CancellationToken ct = default)
-        => McpCalls.RunAsync(services, () => new GetSaleTaxQuery(SubscriptionEndpoints.ParseScope(scope), item is { } g ? new ItemId(g) : null), ct);
+        => McpCalls.RunAsync(services, r => new GetSaleTaxQuery(r.Scope(scope), item is { } g ? new ItemId(g) : null), ct);
 
     /// <summary>Tax assessments spec §6: the same view as <c>GET /api/v1/tax/assessments</c>.</summary>
     [McpServerTool(Name = "list_tax_years", ReadOnly = true)]
@@ -55,5 +55,5 @@ public sealed class TaxTools
     public static Task<CallToolResult> ListTaxYears(IServiceProvider services,
         [Description("'household' (default): joint notices only; 'me': every notice you declare, solo ones included.")] string? scope = null,
         [Description("One revenue year only.")] int? year = null, CancellationToken ct = default)
-        => McpCalls.RunAsync(services, () => new ListTaxAssessmentsQuery(SubscriptionEndpoints.ParseScope(scope), year), ct);
+        => McpCalls.RunAsync(services, r => new ListTaxAssessmentsQuery(r.Scope(scope), year), ct);
 }

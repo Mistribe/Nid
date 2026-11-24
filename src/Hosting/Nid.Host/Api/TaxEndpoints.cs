@@ -22,27 +22,27 @@ public static partial class TaxEndpoints
             .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>();
 
         api.MapGet("", async (int? year, string? scope, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new GetTaxEstimateQuery(year, ParseScope(scope)), ct)).ToHttp(view => view))
+            => await FieldReader.Run(invoker, r => new GetTaxEstimateQuery(year, r.Scope(scope)), view => view, ct))
             .Returns<TaxEstimateView>();
 
         // Issue #410.
         api.MapGet("/changes", async (int? year, string? scope, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new GetTaxChangesQuery(year, ParseScope(scope)), ct)).ToHttp(view => view))
+            => await FieldReader.Run(invoker, r => new GetTaxChangesQuery(year, r.Scope(scope)), view => view, ct))
             .Returns<TaxChangesView>();
 
         // Issue #307.
         api.MapGet("/history", async (string? scope, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new GetTaxHistoryQuery(ParseScope(scope)), ct)).ToHttp(view => view))
+            => await FieldReader.Run(invoker, r => new GetTaxHistoryQuery(r.Scope(scope)), view => view, ct))
             .Returns<TaxHistoryView>();
 
         // Rental 2044 spec §5.
         api.MapGet("/2044", async (int? year, string? scope, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new GetRental2044Query(year, ParseScope(scope)), ct)).ToHttp(view => view))
+            => await FieldReader.Run(invoker, r => new GetRental2044Query(year, r.Scope(scope)), view => view, ct))
             .Returns<Rental2044View>();
 
         // Sale tax spec §6.
         api.MapGet("/sale", async (string? scope, Guid? item, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new GetSaleTaxQuery(ParseScope(scope), item is { } g ? new ItemId(g) : null), ct)).ToHttp(view => view))
+            => await FieldReader.Run(invoker, r => new GetSaleTaxQuery(r.Scope(scope), item is { } g ? new ItemId(g) : null), view => view, ct))
             .Returns<SaleTaxView>();
 
         api.MapPut("/profile/{year:int}", async (int year, string? scope, TaxProfileBody body, IInvoker invoker, CancellationToken ct) =>
@@ -51,7 +51,7 @@ public static partial class TaxEndpoints
                 var profile = body.Read(reader);
                 return profile is null
                     ? reader.Problem()
-                    : (await invoker.InvokeAsync(new SaveTaxProfileCommand(year, profile, ParseScope(scope)), ct)).ToHttp(view => view);
+                    : await FieldReader.Run(invoker, r => new SaveTaxProfileCommand(year, profile, r.Scope(scope)), view => view, ct);
             })
             .Returns<TaxEstimateView>();
 
@@ -61,13 +61,13 @@ public static partial class TaxEndpoints
                 var inputs = Read(body, reader);
                 return inputs is null
                     ? reader.Problem()
-                    : (await invoker.InvokeAsync(new SimulateTaxQuery(inputs, scope is null ? null : ParseScope(scope)), ct)).ToHttp(view => view);
+                    : await FieldReader.Run(invoker, r => new SimulateTaxQuery(inputs, scope is null ? null : r.Scope(scope)), view => view, ct);
             })
             .Returns<TaxResultView>();
 
         // Tax assessments spec §6.
         api.MapGet("/assessments", async (string? scope, int? year, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new ListTaxAssessmentsQuery(ParseScope(scope), year), ct)).ToHttp(list => list))
+            => await FieldReader.Run(invoker, r => new ListTaxAssessmentsQuery(r.Scope(scope), year), list => list, ct))
             .Returns<TaxAssessmentList>();
 
         // The « 10 % » deduction of a notice's declared salaries, for the form to prefill: no figure is computed in the browser.

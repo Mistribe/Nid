@@ -13,12 +13,12 @@ public static class SeriesEndpoints
             .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>();
 
         api.MapGet("", async (string? q, string? kinds, int? page, string? scope, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new ListSeriesQuery(SubscriptionEndpoints.ParseScope(scope), q, page ?? 1, SeriesKeys.ParseKinds(kinds)), ct)).ToHttp(r => r))
+            => await FieldReader.Run(invoker, r => new ListSeriesQuery(r.Scope(scope), q, page ?? 1, SeriesKeys.ParseKinds(kinds)), view => view, ct))
             .Returns<SeriesCatalogView>();
 
         api.MapGet("/points", async (string? s, string? from, string? to, string? scope, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new GetSeriesPointsQuery(SubscriptionEndpoints.ParseScope(scope), s,
-                SubscriptionEndpoints.OptionalDate(from), SubscriptionEndpoints.OptionalDate(to)), ct)).ToHttp(r => r))
+            => await FieldReader.Run(invoker, r => new GetSeriesPointsQuery(r.Scope(scope), s,
+                r.OptionalDate(from, "from"), r.OptionalDate(to, "to")), view => view, ct))
             .Returns<SeriesPointsView>();
 
         return routes;

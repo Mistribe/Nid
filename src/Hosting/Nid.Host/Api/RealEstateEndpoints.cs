@@ -46,11 +46,11 @@ public static class RealEstateEndpoints
             .Returns<IrlValueView>();
 
         api.MapGet("/loans", async (string? scope, bool? ended, Guid? envelope, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new ListLoansQuery(ParseScope(scope), ended ?? false, envelope is { } e ? new ItemId(e) : null), ct)).ToHttp(list => list))
+            => await FieldReader.Run(invoker, r => new ListLoansQuery(r.Scope(scope), ended ?? false, envelope is { } e ? new ItemId(e) : null), list => list, ct))
             .Returns<LoanList>();
 
         api.MapGet("/loans/overview", async (string? scope, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new GetLoansOverviewQuery(ParseScope(scope)), ct)).ToHttp(overview => overview))
+            => await FieldReader.Run(invoker, r => new GetLoansOverviewQuery(r.Scope(scope)), overview => overview, ct))
             .Returns<LoansOverview>();
 
         api.MapPost("/loans/overview/simulations", async (LoansSimulationBody body, IInvoker invoker, CancellationToken ct) =>
@@ -233,24 +233,23 @@ public static class RealEstateEndpoints
             .ReturnsNoContent();
 
         api.MapGet("/properties", async (string? scope, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new ListPropertiesQuery(ParseScope(scope)), ct)).ToHttp(list => list))
+            => await FieldReader.Run(invoker, r => new ListPropertiesQuery(r.Scope(scope)), list => list, ct))
             .Returns<PropertyList>();
 
         api.MapGet("/properties/overview", async (string? scope, string? span, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new GetPropertiesOverviewQuery(ParseScope(scope), ParseSpan(span)), ct)).ToHttp(overview => overview))
+            => await FieldReader.Run(invoker, r => new GetPropertiesOverviewQuery(r.Scope(scope), ParseSpan(span, r)), overview => overview, ct))
             .Returns<PropertiesOverview>();
 
         api.MapGet("/properties/overview/rental", async (string? scope, Guid? property, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new GetPropertiesRentalQuery(ParseScope(scope), property is { } id ? new ItemId(id) : null), ct))
-                .ToHttp(rental => rental))
+            => await FieldReader.Run(invoker, r => new GetPropertiesRentalQuery(r.Scope(scope), property is { } id ? new ItemId(id) : null), rental => rental, ct))
             .Returns<PropertiesRental>();
 
         api.MapGet("/properties/overview/costs", async (string? scope, Guid? property, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new GetPropertiesCostsQuery(ParseScope(scope), property is { } id ? new ItemId(id) : null), ct)).ToHttp(costs => costs))
+            => await FieldReader.Run(invoker, r => new GetPropertiesCostsQuery(r.Scope(scope), property is { } id ? new ItemId(id) : null), costs => costs, ct))
             .Returns<PropertiesCosts>();
 
         api.MapGet("/properties/overview/valuation", async (string? scope, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new GetPropertiesValuationQuery(ParseScope(scope)), ct)).ToHttp(valuation => valuation))
+            => await FieldReader.Run(invoker, r => new GetPropertiesValuationQuery(r.Scope(scope)), valuation => valuation, ct))
             .Returns<PropertiesValuation>();
 
         api.MapGet("/properties/{id:guid}", async (Guid id, IInvoker invoker, CancellationToken ct)
@@ -471,7 +470,7 @@ public static class RealEstateEndpoints
 
         // Spec 3E2 §2: the month's estimates, planned costs and rents of the properties the reader writes.
         api.MapGet("/routine", async (string? on, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new GetPropertyRoutineQuery(OptionalDate(on)), ct)).ToHttp(view => view))
+            => await FieldReader.Run(invoker, r => new GetPropertyRoutineQuery(r.OptionalDate(on, "on")), view => view, ct))
             .Returns<PropertyRoutineView>();
 
         // Spec 3E2 §3: all or nothing; the recap names each fact recorded, which the undo voids.
@@ -495,14 +494,19 @@ public static class RealEstateEndpoints
     }
 
     /// <summary>A missing version answers 422 at <c>version</c>: it would otherwise bind to 0 and pass for a conflict.</summary>
-    /// <summary>Properties dashboard spec §3.2, as the net worth curve: absent is three years, an unknown span a bad request.</summary>
-    private static PropertiesSpan ParseSpan(string? span) => span switch
+    /// <summary>Properties dashboard spec §3.2, as the net worth curve: absent is three years, an unknown span refused at <c>span</c>.</summary>
+    private static PropertiesSpan ParseSpan(string? span, FieldReader reader)
     {
-        "12m" => PropertiesSpan.TwelveMonths,
-        null or "3y" => PropertiesSpan.ThreeYears,
-        "all" => PropertiesSpan.All,
-        _ => throw new BadHttpRequestException($"'{span}' is not a span: send '12m', '3y' or 'all'."),
-    };
+        switch (span)
+        {
+            case "12m": return PropertiesSpan.TwelveMonths;
+            case null or "3y": return PropertiesSpan.ThreeYears;
+            case "all": return PropertiesSpan.All;
+            default:
+                reader.Add("span", "request.span", $"'{span}' is not a span: send '12m', '3y' or 'all'.");
+                return PropertiesSpan.ThreeYears;
+        }
+    }
 
     private static uint? RequireVersion(FieldReader reader, uint? version)
     {
@@ -673,6 +677,7 @@ public static class RealEstateEndpoints
     {
         internal SimulateLoansQuery? ToQuery(FieldReader reader)
         {
+            var scope = reader.Scope(Scope);
             var on = reader.Date(On, "on");
             var amount = LoanBodies.Number(reader, Amount, "amount");
             var split = LoanBodies.Wire<SplitRule>(reader, Split, "split");
@@ -688,7 +693,7 @@ public static class RealEstateEndpoints
                     penalties.Add(new LoanPenalty(new ItemId(id), v));
             }
             return reader.Ok
-                ? new SimulateLoansQuery(ParseScope(Scope), on!.Value, amount!.Value, split!.Value, LoanId is { } chosen ? new ItemId(chosen) : null,
+                ? new SimulateLoansQuery(scope, on!.Value, amount!.Value, split!.Value, LoanId is { } chosen ? new ItemId(chosen) : null,
                     effect!.Value, penalties)
                 : null;
         }

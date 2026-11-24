@@ -15,11 +15,11 @@ public sealed class GoalTools
     public static Task<CallToolResult> GetGoals(IServiceProvider services,
         [Description("'household' (default) or 'me'.")] string? scope = null, [Description("Include closed goals.")] bool closed = false,
         CancellationToken ct = default)
-        => McpCalls.RunAsync(services, () => new ListGoalsQuery(SubscriptionEndpoints.ParseScope(scope), closed), ct);
+        => McpCalls.RunAsync(services, r => new ListGoalsQuery(r.Scope(scope), closed), ct);
 
     [McpServerTool(Name = "get_goal", ReadOnly = true)]
     [Description("One goal: its progress, the envelopes funding it or its progress entries, and for an emergency fund the commitments behind its target. " + McpSetup.Untrusted)]
     public static Task<CallToolResult> GetGoal(IServiceProvider services, [Description("The goal's id.")] Guid id,
         [Description("'household' (default) or 'me': the envelopes counted.")] string? scope = null, CancellationToken ct = default)
-        => McpCalls.RunAsync(services, () => new GetGoalQuery(new ItemId(id), SubscriptionEndpoints.ParseScope(scope)), ct);
+        => McpCalls.RunAsync(services, r => new GetGoalQuery(new ItemId(id), r.Scope(scope)), ct);
 }

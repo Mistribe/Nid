@@ -23,8 +23,8 @@ public sealed class BankingTools
         [Description("'unlinked' (default), 'linked', 'ignored', 'internal' or 'all'.")] string state = "unlinked",
         [Description("Page, from 1.")] int page = 1, CancellationToken ct = default)
         => envelopeId is { } envelope
-            ? McpCalls.RunAsync(services, () => new ListBankTransactionsQuery(new ItemId(envelope), SubscriptionEndpoints.OptionalDate(from), SubscriptionEndpoints.OptionalDate(to), page, state), ct)
-            : McpCalls.RunAsync(services, () => new ListBankLinesQuery(state, SubscriptionEndpoints.OptionalDate(from), SubscriptionEndpoints.OptionalDate(to), page), ct);
+            ? McpCalls.RunAsync(services, r => new ListBankTransactionsQuery(new ItemId(envelope), r.OptionalDate(from, "from"), r.OptionalDate(to, "to"), page, state), ct)
+            : McpCalls.RunAsync(services, r => new ListBankLinesQuery(state, r.OptionalDate(from, "from"), r.OptionalDate(to, "to"), page), ct);
 
     /// <summary>One line to categorise: what the person sees on the statement, and the id to propose a category for.</summary>
     public sealed record UncategorisedLine(Guid Id, LocalDate BookedOn, string Label, string? Counterparty, string Amount, string Currency, string AccountName);
@@ -80,13 +80,13 @@ public sealed class BankingTools
         [Description("'household' (default) or 'me'.")] string? scope = null,
         [Description("ISO first month of a period (yyyy-mm), with 'to'.")] string? from = null,
         [Description("ISO last month of a period (yyyy-mm), with 'from'.")] string? to = null, CancellationToken ct = default)
-        => McpCalls.RunAsync(services, () => new GetSpendingQuery(SubscriptionEndpoints.ParseScope(scope), SubscriptionEndpoints.OptionalMonth(month),
-            SubscriptionEndpoints.OptionalMonth(from), SubscriptionEndpoints.OptionalMonth(to)), ct);
+        => McpCalls.RunAsync(services, r => new GetSpendingQuery(r.Scope(scope), r.Month(month, "month"),
+            r.Month(from, "from"), r.Month(to, "to")), ct);
 
     [McpServerTool(Name = "list_expected_charges", ReadOnly = true)]
     [Description("The charges expected between two dates (subscriptions, loan instalments, rents…) that the person may link a bank line to, "
         + "at most 92 days. " + McpSetup.Untrusted)]
     public static Task<CallToolResult> ListExpectedCharges(IServiceProvider services,
         [Description("ISO first date (yyyy-mm-dd).")] string from, [Description("ISO last date (yyyy-mm-dd).")] string to, CancellationToken ct = default)
-        => McpCalls.RunAsync(services, () => new ListExpectedChargesQuery(SubscriptionEndpoints.RequireDate(from), SubscriptionEndpoints.RequireDate(to)), ct);
+        => McpCalls.RunAsync(services, r => new ListExpectedChargesQuery(r.RequiredDate(from, "from"), r.RequiredDate(to, "to")), ct);
 }

@@ -156,15 +156,13 @@ public static class BankingEndpoints
 
         api.MapGet("/envelopes/{envelopeId:guid}/transactions",
                 async (Guid envelopeId, string? from, string? to, int? page, string? state, IInvoker invoker, CancellationToken ct)
-                    => (await invoker.InvokeAsync(new ListBankTransactionsQuery(
-                            new ItemId(envelopeId), OptionalDate(from), OptionalDate(to), page ?? 1, state), ct))
-                        .ToHttp(transactions => transactions))
+                    => await FieldReader.Run(invoker, r => new ListBankTransactionsQuery(
+                            new ItemId(envelopeId), r.OptionalDate(from, "from"), r.OptionalDate(to, "to"), page ?? 1, state), transactions => transactions, ct))
             .Returns<BankTransactionPage>();
 
         // 5C spec §8: the lines of every account the person reads, their links, the charges they may pay, and the person's rules.
         api.MapGet("/transactions", async (string? state, string? from, string? to, int? page, bool? uncategorised, IInvoker invoker, CancellationToken ct)
-                => (await invoker.InvokeAsync(new ListBankLinesQuery(state, OptionalDate(from), OptionalDate(to), page ?? 1, uncategorised ?? false), ct))
-                    .ToHttp(transactions => transactions))
+                => await FieldReader.Run(invoker, r => new ListBankLinesQuery(state, r.OptionalDate(from, "from"), r.OptionalDate(to, "to"), page ?? 1, uncategorised ?? false), transactions => transactions, ct))
             .Returns<BankTransactionPage>();
 
         // #84: « Opérations »: every line the person reads, filtered, searched and paged by the server, with its total, converted totals and facets.
@@ -194,26 +192,23 @@ public static class BankingEndpoints
                 var (accounts, owners, categories, lowest, highest) = (Ids(account, "account"), Ids(owner, "owner"), Ids(category, "category"), Amount(min, "min"), Amount(max, "max"));
                 return !reader.Ok
                     ? reader.Problem()
-                    : (await invoker.InvokeAsync(new ListOperationsQuery(new OperationFilter(
+                    : await FieldReader.Run(invoker, r => new ListOperationsQuery(new OperationFilter(
                             accounts, owners, first, last, categories, uncategorised ?? false, state, direction, lowest, highest,
-                            string.IsNullOrWhiteSpace(q) ? null : q.Trim(), scope is null ? null : ParseScope(scope)), Math.Max(page ?? 1, 1)), ct))
-                        .ToHttp(operations => operations);
+                            string.IsNullOrWhiteSpace(q) ? null : q.Trim(), scope is null ? null : r.Scope(scope)), Math.Max(page ?? 1, 1)), operations => operations, ct);
             })
             .Returns<OperationPage>();
 
         // #85: what the scope's accounts spent by category over a month (default: the current one) or a period of whole months.
         // `account` (repeated) keeps only those of the scope's accounts.
         api.MapGet("/spending", async (string? scope, string? month, string? from, string? to, IInvoker invoker, CancellationToken ct, [FromQuery] Guid[]? account = null)
-                => (await invoker.InvokeAsync(new GetSpendingQuery(ParseScope(scope), OptionalMonth(month), OptionalMonth(from), OptionalMonth(to), account), ct))
-                    .ToHttp(spending => spending))
+                => await FieldReader.Run(invoker, r => new GetSpendingQuery(r.Scope(scope), r.Month(month, "month"), r.Month(from, "from"), r.Month(to, "to"), account), spending => spending, ct))
             .Returns<SpendingView>();
 
         // #85: the lines behind one figure of /spending: a category's (children included) or « Non classées », 50 a page.
         api.MapGet("/spending/lines", async (string? scope, Guid? categoryId, bool? uncategorised, string? month, string? from, string? to, int? page,
                     IInvoker invoker, CancellationToken ct, [FromQuery] Guid[]? account = null)
-                => (await invoker.InvokeAsync(new ListSpendingLinesQuery(
-                        ParseScope(scope), categoryId, uncategorised ?? false, OptionalMonth(month), OptionalMonth(from), OptionalMonth(to), page ?? 1, account), ct))
-                    .ToHttp(spending => spending))
+                => await FieldReader.Run(invoker, r => new ListSpendingLinesQuery(
+                        r.Scope(scope), categoryId, uncategorised ?? false, r.Month(month, "month"), r.Month(from, "from"), r.Month(to, "to"), page ?? 1, account), spending => spending, ct))
             .Returns<SpendingLines>();
 
         // #85: the household's budgets, one per expense category (or branch), compared with the « Foyer » figures.
@@ -247,7 +242,7 @@ public static class BankingEndpoints
             .Returns<IReadOnlyList<ExpectedChargeView>>();
 
         api.MapGet("/expected-charges", async (string from, string to, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new ListExpectedChargesQuery(RequireDate(from), RequireDate(to)), ct)).ToHttp(charges => charges))
+            => await FieldReader.Run(invoker, r => new ListExpectedChargesQuery(r.RequiredDate(from, "from"), r.RequiredDate(to, "to")), charges => charges, ct))
             .Returns<IReadOnlyList<ExpectedChargeView>>();
 
         api.MapPost("/transactions/{id:guid}/link", async (Guid id, LinkBody body, IInvoker invoker, CancellationToken ct)

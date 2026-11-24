@@ -36,24 +36,24 @@ public static class InvestmentEndpoints
                     }
                     parsed = k;
                 }
-                return (await invoker.InvokeAsync(new ListEnvelopesQuery(ParseScope(scope), archived ?? false, parsed), ct)).ToHttp(list => list);
+                return await FieldReader.Run(invoker, r => new ListEnvelopesQuery(r.Scope(scope), archived ?? false, parsed), list => list, ct);
             })
             .Returns<EnvelopeList>();
 
         api.MapGet("/overview", async (string? scope, string? span, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new GetInvestmentsOverviewQuery(ParseScope(scope), ParseSpan(span)), ct)).ToHttp(overview => overview))
+            => await FieldReader.Run(invoker, r => new GetInvestmentsOverviewQuery(r.Scope(scope), ParseSpan(span, r)), overview => overview, ct))
             .Returns<InvestmentsOverview>();
 
         api.MapGet("/overview/performance", async (string? scope, string from, string to, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new GetInvestmentsPerformanceQuery(ParseScope(scope), RequireDate(from), RequireDate(to)), ct)).ToHttp(p => p))
+            => await FieldReader.Run(invoker, r => new GetInvestmentsPerformanceQuery(r.Scope(scope), r.RequiredDate(from, "from"), r.RequiredDate(to, "to")), p => p, ct))
             .Returns<InvestmentsPerformance>();
 
         api.MapGet("/overview/holdings", async (string? scope, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new GetInvestmentsHoldingsQuery(ParseScope(scope)), ct)).ToHttp(h => h))
+            => await FieldReader.Run(invoker, r => new GetInvestmentsHoldingsQuery(r.Scope(scope)), h => h, ct))
             .Returns<InvestmentsHoldings>();
 
         api.MapGet("/overview/income", async (string? scope, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new GetPassiveIncomeQuery(ParseScope(scope)), ct)).ToHttp(i => i))
+            => await FieldReader.Run(invoker, r => new GetPassiveIncomeQuery(r.Scope(scope)), i => i, ct))
             .Returns<PassiveIncome>();
 
         // Issue #209: the household's fee references; a kind left out keeps its default.
@@ -63,7 +63,7 @@ public static class InvestmentEndpoints
             .Returns<FeeReferences>();
 
         api.MapGet("/routine", async (string? on, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new GetRoutineQuery(OptionalDate(on)), ct)).ToHttp(view => view))
+            => await FieldReader.Run(invoker, r => new GetRoutineQuery(r.OptionalDate(on, "on")), view => view, ct))
             .Returns<RoutineView>();
 
         api.MapGet("/envelopes/{id:guid}", async (Guid id, IInvoker invoker, CancellationToken ct)
@@ -89,8 +89,8 @@ public static class InvestmentEndpoints
             .Returns<IdResponse>();
 
         api.MapPost("/envelopes/{id:guid}/valuations", async (Guid id, ValuationBody body, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new RecordValuationCommand(new ItemId(id), RequireDate(body.AsOf), RequireMoney(body.Amount), body.Note), ct))
-                .ToHttp(v => new IdResponse(v), StatusCodes.Status201Created))
+            => await FieldReader.Run(invoker, r => new RecordValuationCommand(new ItemId(id), r.RequiredDate(body.AsOf, "asOf"), r.RequiredMoney(body.Amount, "amount"), body.Note),
+                v => new IdResponse(v), ct, StatusCodes.Status201Created))
             .Returns<IdResponse>(StatusCodes.Status201Created);
 
         api.MapDelete("/envelopes/{id:guid}/valuations/{valuationId:guid}", async (Guid id, Guid valuationId, IInvoker invoker, CancellationToken ct)
@@ -98,12 +98,11 @@ public static class InvestmentEndpoints
             .Returns<IdResponse>();
 
         api.MapPost("/envelopes/{id:guid}/flows", async (Guid id, FlowBody body, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new RecordFlowCommand(new ItemId(id), body.ToDraft()), ct))
-                .ToHttp(f => new IdResponse(f), StatusCodes.Status201Created))
+            => await FieldReader.Run(invoker, r => new RecordFlowCommand(new ItemId(id), body.ToDraft(r)), f => new IdResponse(f), ct, StatusCodes.Status201Created))
             .Returns<IdResponse>(StatusCodes.Status201Created);
 
         api.MapPut("/envelopes/{id:guid}/flows/{flowId:guid}", async (Guid id, Guid flowId, FlowBody body, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new CorrectFlowCommand(new ItemId(id), flowId, body.ToDraft()), ct)).ToHttp(f => new IdResponse(f)))
+            => await FieldReader.Run(invoker, r => new CorrectFlowCommand(new ItemId(id), flowId, body.ToDraft(r)), f => new IdResponse(f), ct))
             .Returns<IdResponse>();
 
         api.MapDelete("/envelopes/{id:guid}/flows/{flowId:guid}", async (Guid id, Guid flowId, IInvoker invoker, CancellationToken ct)
@@ -111,12 +110,13 @@ public static class InvestmentEndpoints
             .Returns<IdResponse>();
 
         api.MapPost("/transfers", async (TransferBody body, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new TransferCommand(new ItemId(body.From), new ItemId(body.To), RequireDate(body.OccurredOn), RequireMoney(body.Amount), body.Note), ct))
-                .ToHttp(t => new IdResponse(t), StatusCodes.Status201Created))
+            => await FieldReader.Run(invoker, r => new TransferCommand(new ItemId(body.From), new ItemId(body.To),
+                    r.RequiredDate(body.OccurredOn, "occurredOn"), r.RequiredMoney(body.Amount, "amount"), body.Note),
+                t => new IdResponse(t), ct, StatusCodes.Status201Created))
             .Returns<IdResponse>(StatusCodes.Status201Created);
 
         api.MapPost("/routine", async (RoutineBody body, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(body.ToCommand(), ct)).ToHttp(recap => recap))
+            => await FieldReader.Run(invoker, r => body.ToCommand(r), recap => recap, ct))
             .Returns<RoutineRecap>();
 
         api.MapPost("/routine/undo", async (RoutineUndoBody body, IInvoker invoker, CancellationToken ct)
@@ -126,8 +126,7 @@ public static class InvestmentEndpoints
             .Returns<RoutineUndone>();
 
         api.MapPost("/envelopes/{id:guid}/close", async (Guid id, CloseBody body, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new CloseEnvelopeCommand(new ItemId(id), RequireDate(body.ClosedOn), body.FinalWithdrawal?.ToMoney()), ct))
-                .ToHttp(x => new IdResponse(x.Value)))
+            => await FieldReader.Run(invoker, r => new CloseEnvelopeCommand(new ItemId(id), r.RequiredDate(body.ClosedOn, "closedOn"), r.OptionalMoney(body.FinalWithdrawal, "finalWithdrawal")), x => new IdResponse(x.Value), ct))
             .Returns<IdResponse>();
 
         api.MapPost("/envelopes/{id:guid}/reopen", async (Guid id, IInvoker invoker, CancellationToken ct)
@@ -153,7 +152,7 @@ public static class InvestmentEndpoints
             .ReturnsNoContent();
 
         api.MapGet("/envelopes/{id:guid}/performance", async (Guid id, string from, string to, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new GetPeriodPerformanceQuery(new ItemId(id), RequireDate(from), RequireDate(to)), ct)).ToHttp(p => p))
+            => await FieldReader.Run(invoker, r => new GetPeriodPerformanceQuery(new ItemId(id), r.RequiredDate(from, "from"), r.RequiredDate(to, "to")), p => p, ct))
             .Returns<PeriodView>();
 
         api.MapGet("/envelopes/{id:guid}/series", async (Guid id, IInvoker invoker, CancellationToken ct)
@@ -161,7 +160,7 @@ public static class InvestmentEndpoints
             .Returns<EnvelopeSeries>();
 
         api.MapGet("/envelopes/{id:guid}/holdings", async (Guid id, string? on, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new GetHoldingsQuery(new ItemId(id), OptionalDate(on)), ct)).ToHttp(v => v))
+            => await FieldReader.Run(invoker, r => new GetHoldingsQuery(new ItemId(id), r.OptionalDate(on, "on")), v => v, ct))
             .Returns<HoldingsView>();
 
         api.MapPost("/envelopes/{id:guid}/holdings", async (Guid id, HoldingBody body, IInvoker invoker, CancellationToken ct) =>
@@ -261,7 +260,7 @@ public static class InvestmentEndpoints
             .Returns<HoldingSeries>();
 
         api.MapGet("/envelopes/{id:guid}/holdings/{holdingId:guid}/performance", async (Guid id, Guid holdingId, string from, string to, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new GetHoldingPerformanceQuery(new ItemId(id), holdingId, RequireDate(from), RequireDate(to)), ct)).ToHttp(p => p))
+            => await FieldReader.Run(invoker, r => new GetHoldingPerformanceQuery(new ItemId(id), holdingId, r.RequiredDate(from, "from"), r.RequiredDate(to, "to")), p => p, ct))
             .Returns<PeriodView>();
 
         api.MapGet("/envelopes/{id:guid}/holdings/{holdingId:guid}/cost-reports", async (Guid id, Guid holdingId, IInvoker invoker, CancellationToken ct)
@@ -310,14 +309,19 @@ public static class InvestmentEndpoints
         return routes;
     }
 
-    /// <summary>Investments dashboard spec §3.2, as the net worth curve: absent is the default, an unknown span a bad request.</summary>
-    private static OverviewSpan ParseSpan(string? span) => span switch
+    /// <summary>Investments dashboard spec §3.2, as the net worth curve: absent is the default, an unknown span refused at <c>span</c>.</summary>
+    private static OverviewSpan ParseSpan(string? span, FieldReader reader)
     {
-        null or "12m" => OverviewSpan.TwelveMonths,
-        "3y" => OverviewSpan.ThreeYears,
-        "all" => OverviewSpan.All,
-        _ => throw new BadHttpRequestException($"'{span}' is not a span: send '12m', '3y' or 'all'."),
-    };
+        switch (span)
+        {
+            case null or "12m": return OverviewSpan.TwelveMonths;
+            case "3y": return OverviewSpan.ThreeYears;
+            case "all": return OverviewSpan.All;
+            default:
+                reader.Add("span", "request.span", $"'{span}' is not a span: send '12m', '3y' or 'all'.");
+                return OverviewSpan.TwelveMonths;
+        }
+    }
 
     private static uint? RequireVersion(FieldReader reader, uint? version)
     {
@@ -325,16 +329,6 @@ public static class InvestmentEndpoints
             reader.Add("version", "request.required", "The version read with it is required.");
         return version;
     }
-
-    /// <summary>
-    /// Controller ruling (Task 4, carried): System.Text.Json binds a missing or null body member to a real
-    /// null even for a non-nullable type, so a body's <see cref="MoneyBody"/> field must be read through this
-    /// rather than <c>.ToMoney()</c> directly — a null instance answers 400, never a <see cref="NullReferenceException"/>.
-    /// </summary>
-    private static Money RequireMoney(MoneyBody? body)
-        => body is null
-            ? throw new BadHttpRequestException("An amount is required.")
-            : body.ToMoney();
 
     public sealed record OpeningBody(string OccurredOn, MoneyBody Amount);
 
@@ -394,6 +388,7 @@ public static class InvestmentEndpoints
             var tranches = Availability?.Select((t, i) => (
                 On: reader.Date(t.AvailableOn, $"availability[{i}].availableOn"),
                 Amount: t.Amount is null ? null : reader.Decimal(t.Amount, $"availability[{i}].amount"))).ToList();
+            var openedOn = reader.OptionalDate(OpenedOn, "openedOn");
             if (tranches is not null)
                 for (var i = 0; i < tranches.Count; i++)
                     if (Availability![i].Amount is null) reader.Add($"availability[{i}].amount", "request.required", "This field is required.");
@@ -406,7 +401,7 @@ public static class InvestmentEndpoints
             var visibility = Visibility is null ? null : reader.Visibility(Visibility, "visibility");
             var level = ShareLevel is null ? null : reader.ShareLevel(ShareLevel, "shareLevel");
             return reader.Ok
-                ? ToCommand(id, premiums, tranches?.Select(t => new AvailabilityTranche(t.On!.Value, t.Amount!.Value)).ToList(),
+                ? ToCommand(id, openedOn, premiums, tranches?.Select(t => new AvailabilityTranche(t.On!.Value, t.Amount!.Value)).ToList(),
                     early is { } x ? new EarlyRelease(x.Case!, x.On!.Value, x.Amount) : null) with
                 {
                     Visibility = visibility, ShareLevel = level,
@@ -415,9 +410,9 @@ public static class InvestmentEndpoints
                 : null;
         }
 
-        private EditEnvelopeCommand ToCommand(ItemId id, decimal? premiums, IReadOnlyList<AvailabilityTranche>? tranches, EarlyRelease? early) => new(id, DisplayName, Kind, new EnvelopeChange(
+        private EditEnvelopeCommand ToCommand(ItemId id, NodaTime.LocalDate? openedOn, decimal? premiums, IReadOnlyList<AvailabilityTranche>? tranches, EarlyRelease? early) => new(id, DisplayName, Kind, new EnvelopeChange(
             Institution: Institution, ClearInstitution: ClearInstitution, AccountHint: AccountHint, ClearAccountHint: ClearAccountHint,
-            OpenedOn: OptionalDate(OpenedOn), ClearOpenedOn: ClearOpenedOn, StaleAfterDays: StaleAfterDays,
+            OpenedOn: openedOn, ClearOpenedOn: ClearOpenedOn, StaleAfterDays: StaleAfterDays,
             ClearStaleAfterDays: ClearStaleAfterDays, Note: Note, ClearNote: ClearNote, UcShareFloorPct: UcShareFloorPct,
             ClearUcShareFloorPct: ClearUcShareFloorPct ?? false, PremiumsBefore2017: premiums,
             ClearPremiumsBefore2017: ClearPremiumsBefore2017 ?? false, ClearRegulated: ClearRegulated ?? false,
@@ -426,7 +421,7 @@ public static class InvestmentEndpoints
     }
 
     // MoneyBody? (not the non-nullable MoneyBody the wire shape implies) because a missing "amount" member
-    // binds to null regardless of the declared type (Task 4 controller ruling) — RequireMoney is what turns
+    // binds to null regardless of the declared type (Task 4 controller ruling) — reader.RequiredMoney is what turns
     // that null into a located 400 instead of a NullReferenceException.
     public sealed record AcceptPriceBody(string? OnDate);
 
@@ -454,11 +449,12 @@ public static class InvestmentEndpoints
 
     public sealed record FlowBody(string OccurredOn, string Kind, MoneyBody? Amount, string? Category, string? ExternalRef, string? Note)
     {
-        public FlowDraft ToDraft() => new(RequireDate(OccurredOn), Kind, RequireMoney(Amount), Category, ExternalRef, Note);
+        internal FlowDraft ToDraft(FieldReader reader)
+            => new(reader.RequiredDate(OccurredOn, "occurredOn"), Kind, reader.RequiredMoney(Amount, "amount"), Category, ExternalRef, Note);
     }
 
     // MoneyBody? (not the non-nullable MoneyBody the wire shape implies) because a missing "amount" member
-    // binds to null regardless of the declared type (Task 4 controller ruling) — RequireMoney turns that null
+    // binds to null regardless of the declared type (Task 4 controller ruling) — reader.RequiredMoney turns that null
     // into a located 400 instead of a NullReferenceException.
     public sealed record TransferBody(Guid From, Guid To, string OccurredOn, MoneyBody? Amount, string? Note);
 
@@ -466,8 +462,9 @@ public static class InvestmentEndpoints
 
     public sealed record RoutineBody(string On, IReadOnlyList<RoutineLineBody>? Lines)
     {
-        public RecordRoutineCommand ToCommand() => new(RequireDate(On), (Lines ?? [])
-            .Select(l => new RoutineEntry(new ItemId(l.EnvelopeId), l.Value?.ToMoney(), l.Contribution?.ToMoney())).ToList());
+        internal RecordRoutineCommand ToCommand(FieldReader reader) => new(reader.RequiredDate(On, "on"), (Lines ?? [])
+            .Select((l, i) => new RoutineEntry(new ItemId(l.EnvelopeId),
+                reader.OptionalMoney(l.Value, $"lines[{i}].value"), reader.OptionalMoney(l.Contribution, $"lines[{i}].contribution"))).ToList());
     }
 
     public sealed record RoutineFactBody(Guid EnvelopeId, Guid? ValuationId, Guid? FlowId);
@@ -553,7 +550,7 @@ public static class InvestmentEndpoints
     }
 
     /// <summary>
-    /// A switch between holdings, every leg at once (issue #34 §2.3, #45): one or more <c>from</c> legs, one or more <c>to</c> legs, each as
+    /// A switch between holdings, every leg at once (issue #34 §2.3, #45): one or more <c>from</c> legs, one or more <c>to</c> legs (RecordSwitchValidator), each as
     /// printed on the notice. A lone object still reads as one leg. <c>maturity</c> makes the <c>from</c> legs maturities (a structured
     /// product reaching its term or called) rather than <c>switch_out</c>. A switch fee is a separate <c>fee</c> movement.
     /// </summary>
@@ -562,10 +559,6 @@ public static class InvestmentEndpoints
         internal SwitchDraft? Read(FieldReader reader)
         {
             var on = reader.Date(OccurredOn, "occurredOn");
-            if (From is not { Count: > 0 })
-                reader.Add("from", "request.required", "At least one holding the money leaves is required.");
-            if (To is not { Count: > 0 })
-                reader.Add("to", "request.required", "At least one holding the money goes to is required.");
             var from = (From ?? []).Select((l, i) => l.Read(reader, $"from[{i}]")).ToList();
             var to = (To ?? []).Select((l, i) => l.Read(reader, $"to[{i}]")).ToList();
             return reader.Ok ? new SwitchDraft(on!.Value, Maturity, from!, to!, Label) : null;
