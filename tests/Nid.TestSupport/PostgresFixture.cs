@@ -11,6 +11,8 @@ using Nid.Platform.Infrastructure.Persistence;
 using Nid.RealEstate.Infrastructure.Persistence;
 using Nid.Subscriptions.Infrastructure.Persistence;
 using Nid.Tax.Infrastructure.Persistence;
+using DotNet.Testcontainers.Builders;
+using DotNet.Testcontainers.Images;
 using NodaTime;
 using Testcontainers.PostgreSql;
 
@@ -25,10 +27,29 @@ public sealed class PostgresFixture : IAsyncLifetime
     // One database per test and a connection pool per database: the default limit of 100 clients is reached
     // well before the suite is, and the tests that happen to run last fail with "sorry, too many clients
     // already" rather than on their own merits.
-    private static readonly PostgreSqlContainer Container = new PostgreSqlBuilder("postgres:17")
+    // #582: the image deploy/ runs, built from deploy/postgres: Postgres 18 with pgvector (#557) and the French dictionary.
+    // Kept once built: the next test process finds it in Docker's cache.
+    private static readonly IFutureDockerImage Image = new ImageFromDockerfileBuilder()
+        .WithDockerfileDirectory(new CommonDirectoryPath(RepositoryRoot()), "deploy/postgres")
+        .WithName("nid-postgres:test")
+        .WithCleanUp(false)
+        .Build();
+    private static readonly PostgreSqlContainer Container = new PostgreSqlBuilder(Image)
         .WithCommand("-c", "max_connections=500")
         .Build();
-    private static readonly Lazy<Task> Started = new(() => Container.StartAsync());
+    private static readonly Lazy<Task> Started = new(async () =>
+    {
+        await Image.CreateAsync();
+        await Container.StartAsync();
+    });
+
+    private static string RepositoryRoot()
+    {
+        for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir is not null; dir = dir.Parent)
+            if (File.Exists(Path.Combine(dir.FullName, "deploy", "postgres", "Dockerfile")))
+                return dir.FullName;
+        throw new InvalidOperationException("deploy/postgres/Dockerfile not found above " + AppContext.BaseDirectory);
+    }
     private static int databaseCounter;
 
     public ValueTask InitializeAsync() => new(Started.Value);

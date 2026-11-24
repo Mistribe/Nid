@@ -28,6 +28,17 @@ public sealed class EngineOptions
     public int MaxOutputTokens { get; set; } = 4096;
 
     public bool Tools { get; set; } = true;
+
+    /// <summary>#558: the engine's models that serve <c>embed</c>, with the length of their vectors, which the engine does not
+    /// report: <c>nomic-embed-text=768,bge-m3=1024</c>. Declared for <c>embed</c> only, never for <c>chat</c>.</summary>
+    public string? EmbedModels { get; set; }
+
+    /// <summary><see cref="EmbedModels"/> read: name to dimension; an entry that does not parse is left out.</summary>
+    public IReadOnlyDictionary<string, int> EmbedDimensions()
+        => (EmbedModels ?? "").Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+            .Select(e => e.Split('=', 2, StringSplitOptions.TrimEntries))
+            .Where(e => e is [{ Length: > 0 }, var d] && int.TryParse(d, out var n) && n is > 0 and <= EmbedRequestOutput.MaxDimension)
+            .ToDictionary(e => e[0], e => int.Parse(e[1], System.Globalization.CultureInfo.InvariantCulture), StringComparer.Ordinal);
 }
 
 /// <summary>How the worker reaches its engine; a test replaces it with a fake engine.</summary>
@@ -90,13 +101,16 @@ public sealed partial class EngineClient : IDisposable
             response.EnsureSuccessStatusCode();
             var list = await response.Content.ReadFromJsonAsync(EngineJson.Default.ModelList, ct);
             var allowed = _options.Models?.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).ToHashSet(StringComparer.Ordinal);
+            var embed = _options.EmbedDimensions();
             return [.. (list?.Data ?? [])
                 .Where(e => e.TryGetProperty("id", out var id) && id.ValueKind == JsonValueKind.String && id.GetString() is { Length: > 0 and <= 200 })
                 .Select(e => (Id: e.GetProperty("id").GetString()!, Entry: e))
-                .Where(m => allowed is null || allowed.Count == 0 || allowed.Contains(m.Id))
+                .Where(m => embed.ContainsKey(m.Id) || allowed is null || allowed.Count == 0 || allowed.Contains(m.Id))
                 .Take(100)
-                .Select(m => new DeclaredModel(DeclaredCapability.Chat, m.Id, Digest(m.Entry), _options.ContextTokens, _options.MaxOutputTokens,
-                    Tools: _options.Tools, StructuredOutput: false))];
+                .Select(m => embed.TryGetValue(m.Id, out var dimension)
+                    ? new DeclaredModel(DeclaredCapability.Embed, m.Id, Digest(m.Entry), _options.ContextTokens, 1, Dimension: dimension)
+                    : new DeclaredModel(DeclaredCapability.Chat, m.Id, Digest(m.Entry), _options.ContextTokens, _options.MaxOutputTokens,
+                        Tools: _options.Tools, StructuredOutput: false))];
         }
         catch (Exception e) when (e is HttpRequestException or JsonException or TaskCanceledException && !ct.IsCancellationRequested)
         {
@@ -198,6 +212,47 @@ public sealed partial class EngineClient : IDisposable
         }
     }
 
+    /// <summary>#558: one vector per text, through <c>/v1/embeddings</c>; vectors of another length than the model's declared
+    /// one are refused (<c>engine_invalid</c>).</summary>
+    public async Task<IReadOnlyList<EmbedRequestOutput>> EmbedAsync(EmbedRequestInput input, CancellationToken ct)
+    {
+        if (_http is null)
+            throw new EngineException("engine_unconfigured");
+        if (!_options.EmbedDimensions().TryGetValue(input.Model, out var dimension))
+            throw new EngineException("engine_refused");
+
+        HttpResponseMessage response;
+        try
+        {
+            response = await _http.PostAsJsonAsync("v1/embeddings", new EmbedEngineRequest(input.Model, input.Texts), EngineJson.Default.EmbedEngineRequest, ct);
+        }
+        catch (HttpRequestException)
+        {
+            throw new EngineException("engine_unreachable");
+        }
+
+        using (response)
+        {
+            if (!response.IsSuccessStatusCode)
+                throw new EngineException((int)response.StatusCode >= 500 ? "engine_failed" : "engine_refused");
+            EmbedEngineResponse? body;
+            try
+            {
+                body = await response.Content.ReadFromJsonAsync(EngineJson.Default.EmbedEngineResponse, ct);
+            }
+            catch (JsonException)
+            {
+                throw new EngineException("engine_invalid");
+            }
+
+            var vectors = (body?.Data ?? []).Select(d => new EmbedRequestOutput(d.Index, d.Embedding ?? [])).ToList();
+            if (vectors.Count != input.Texts.Count || vectors.Select(v => v.Index).Order().SequenceEqual(Enumerable.Range(0, input.Texts.Count)) is false
+                || vectors.Any(v => v.Vector.Count != dimension))
+                throw new EngineException("engine_invalid");
+            return vectors;
+        }
+    }
+
     public void Dispose()
     {
         _http?.Dispose();
@@ -225,7 +280,29 @@ public sealed class ChatRequest(EngineClient engine) : IRequestHandler
     }
 }
 
+/// <summary>#558: a batch of texts through the engine (<c>contracts/requests/embed/v1</c>), one data frame per vector.</summary>
+public sealed class EmbedRequest(EngineClient engine, IOptions<EngineOptions> options) : IRequestHandler
+{
+    public string Type => "embed";
+
+    public int Version => 1;
+
+    public bool Available => engine.Configured && options.Value.EmbedDimensions().Count > 0;
+
+    public async IAsyncEnumerable<byte[]> RunAsync(byte[] input, [EnumeratorCancellation] CancellationToken ct)
+    {
+        foreach (var output in await engine.EmbedAsync(EchoJob.Read<EmbedRequestInput>(input), ct))
+            yield return ContractJson.Write(output);
+    }
+}
+
 internal sealed record ModelList(IReadOnlyList<JsonElement>? Data);
+
+internal sealed record EmbedEngineRequest(string Model, IReadOnlyList<string> Input);
+
+internal sealed record EmbedEngineResponse(IReadOnlyList<EmbedEngineData>? Data);
+
+internal sealed record EmbedEngineData(int Index, IReadOnlyList<float>? Embedding);
 
 internal sealed record EngineRequest(
     string Model,
@@ -275,4 +352,6 @@ internal sealed record EngineUsage(int PromptTokens, int CompletionTokens);
 [JsonSerializable(typeof(ModelList))]
 [JsonSerializable(typeof(EngineRequest))]
 [JsonSerializable(typeof(EngineChunk))]
+[JsonSerializable(typeof(EmbedEngineRequest))]
+[JsonSerializable(typeof(EmbedEngineResponse))]
 internal sealed partial class EngineJson : JsonSerializerContext;

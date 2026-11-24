@@ -63,7 +63,8 @@ public sealed partial class DocumentTexts(
         return true;
     }
 
-    private async Task<IReadOnlyList<Guid>> ConcernedAsync(Guid uploadedBy, IReadOnlyList<LinkRecord> links, CancellationToken ct)
+    /// <summary>The adults a document concerns (decision M): its uploader, whoever owns what it is linked to, a linked person, both adults for the household.</summary>
+    public async Task<IReadOnlyList<Guid>> ConcernedAsync(Guid uploadedBy, IReadOnlyList<LinkRecord> links, CancellationToken ct)
     {
         var adults = (await persons.AdultIdsAsync(ct)).Select(p => p.Value).ToHashSet();
         var concerned = new HashSet<Guid> { uploadedBy };

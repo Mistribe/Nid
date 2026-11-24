@@ -24,9 +24,19 @@ public sealed class DocumentsDbContext(DbContextOptions<DocumentsDbContext> opti
 
     public DbSet<DocumentTextJobRow> TextJobs => Set<DocumentTextJobRow>();
 
+    public DbSet<DocumentChunkRow> Chunks => Set<DocumentChunkRow>();
+
+    /// <summary>#582: the text search configuration of the chunks, for their column and for the queries over it.</summary>
+    public const string FrenchSearch = "documents.nid_french";
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schema);
+        // #557: the vectors of the documents' chunks (#559). Not a trusted extension: the bundled database's owner creates it;
+        // on a shared server, an admin does first (deploy/README.md §11).
+        modelBuilder.HasPostgresExtension("vector");
+        // #582: the chunks' full-text search ignores accents. A trusted extension: the database's owner creates it.
+        modelBuilder.HasPostgresExtension("unaccent");
 
         modelBuilder.Entity<DocumentRow>(e =>
         {
@@ -81,6 +91,17 @@ public sealed class DocumentsDbContext(DbContextOptions<DocumentsDbContext> opti
             e.ToTable("document_text_job");
             e.HasKey(x => x.DocumentId);
             e.HasOne<DocumentRow>().WithMany().HasForeignKey(x => x.DocumentId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<DocumentChunkRow>(e =>
+        {
+            e.ToTable("document_chunk", t => t.HasCheckConstraint("ck_document_chunk_page", "page >= 1"));
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.HasIndex(x => new { x.DocumentId, x.Ordinal }).IsUnique();
+            e.HasOne<DocumentRow>().WithMany().HasForeignKey(x => x.DocumentId).OnDelete(DeleteBehavior.Cascade);
+            // #582: Nid's French configuration (the migration FrenchSearch): no accents, Hunspell's lemmas where the server has them.
+            e.HasGeneratedTsVectorColumn(x => x.Search, FrenchSearch, x => new { x.Text }).HasIndex(x => x.Search).HasMethod("GIN");
         });
 
         modelBuilder.MapAuditLog(ownedHere: false);

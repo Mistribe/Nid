@@ -207,10 +207,11 @@ jobs:
           echo "Results: $RESULTS"
           case " $RESULTS " in *" failure "*|*" cancelled "*) exit 1 ;; esac
 
-  # Release, on a push to main: the three images (nid, nid-backup, nid-worker) for amd64 and arm64, published on ghcr.io with their provenance,
+  # Release, on a push to main: the four images (nid, nid-backup, nid-worker, nid-postgres) for amd64 and arm64, published on ghcr.io with their provenance,
   # then the vX.Y.Z tag. No test: the pull request already ran them on the tree being merged. Each architecture builds on a
   # runner of its own (ubuntu-24.04-arm is a standard runner, free for a public repository): no QEMU, so the ReadyToRun publish
-  # of the .NET host runs natively. The public pulls them anonymously: ghcr.io/mistribe/nid, ghcr.io/mistribe/nid-backup, ghcr.io/mistribe/nid-worker.
+  # of the .NET host runs natively. The public pulls them anonymously: ghcr.io/mistribe/nid, ghcr.io/mistribe/nid-backup, ghcr.io/mistribe/nid-worker,
+  # ghcr.io/mistribe/nid-postgres.
   version:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
@@ -245,7 +246,7 @@ jobs:
     strategy:
       fail-fast: true # one architecture missing is no release
       matrix:
-        image: [nid, nid-backup, nid-worker]
+        image: [nid, nid-backup, nid-worker, nid-postgres]
         arch: [amd64, arm64]
         include:
           - arch: amd64
@@ -261,6 +262,9 @@ jobs:
           - image: nid-worker
             context: .
             file: src/Ai/Nid.Ai.Worker/Dockerfile
+          - image: nid-postgres
+            context: deploy/postgres
+            file: deploy/postgres/Dockerfile
     name: build (${{ matrix.image }}, ${{ matrix.arch }})
     env:
       IMAGE: ghcr.io/mistribe/${{ matrix.image }}
@@ -328,7 +332,7 @@ jobs:
       attestations: write # the attestation, stored by GitHub
     strategy:
       matrix:
-        image: [nid, nid-backup, nid-worker]
+        image: [nid, nid-backup, nid-worker, nid-postgres]
     name: publish (${{ matrix.image }})
     env:
       IMAGE: ghcr.io/mistribe/${{ matrix.image }}
@@ -374,7 +378,7 @@ jobs:
           subject-digest: ${{ steps.index.outputs.digest }}
           push-to-registry: true
 
-  # The vX.Y.Z tag and its GitHub release, once both images are published. Here and not in a workflow on tag push: a tag
+  # The vX.Y.Z tag and its GitHub release, once the images are published. Here and not in a workflow on tag push: a tag
   # pushed with the workflow's token triggers no workflow. The notes: this version's lines of web/changelog/ (in English),
   # the images, then the merged pull requests GitHub lists.
   release:
@@ -396,7 +400,7 @@ jobs:
           {
             node web/scripts/changelog.mjs "$VERSION" \
               | jq -r --arg v "$VERSION" '.[] | select(.version == $v) | .changes[] | "- " + .en'
-            printf '\n## Images\n\n```sh\ndocker pull ghcr.io/mistribe/nid:%s\ndocker pull ghcr.io/mistribe/nid-backup:%s\ndocker pull ghcr.io/mistribe/nid-worker:%s\n```\n' "$VERSION" "$VERSION" "$VERSION"
+            printf '\n## Images\n\n```sh\ndocker pull ghcr.io/mistribe/nid:%s\ndocker pull ghcr.io/mistribe/nid-backup:%s\ndocker pull ghcr.io/mistribe/nid-worker:%s\ndocker pull ghcr.io/mistribe/nid-postgres:%s\n```\n' "$VERSION" "$VERSION" "$VERSION" "$VERSION"
           } > "$notes"
           gh release create "v$VERSION" --target "$GITHUB_SHA" --title "v$VERSION" --notes-file "$notes" --generate-notes
 

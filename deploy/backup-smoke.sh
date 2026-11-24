@@ -30,9 +30,14 @@ echo "ok: the backup service is up and healthy before its first run"
 
 server=$("${COMPOSE[@]}" exec -T postgres postgres --version | sed -E 's/.* ([0-9]+)\..*/\1/')
 client=$(in_backup 'pg_dump --version' | sed -E 's/.* ([0-9]+)\..*/\1/')
-# pg_dump reads older servers but refuses a newer one: the 18 client serves the bundled 16 and a shared server up to 18.
+# pg_dump reads older servers but refuses a newer one: the 18 client serves the bundled 18 and a shared server from 16 to 18.
 [ "$client" -ge "$server" ] || fail "pg_dump $client is older than the server $server"
 echo "ok: pg_dump $client is not older than the server $server"
+
+# #557: a vector index (pgvector's HNSW) goes through the backup and the restore.
+psql_nid() { "${COMPOSE[@]}" exec -T postgres psql -U nid -d nid -Atc "$1"; }
+psql_nid "create table public.smoke_vector (id int primary key, v vector(3)); insert into public.smoke_vector values (1, '[1,2,3]');
+  create index smoke_vector_hnsw on public.smoke_vector using hnsw (v vector_l2_ops);" >/dev/null
 
 # A document the way Nid.Documents stores it (ab/<sha>), written by a throwaway container into the live volume.
 doc_sha=$(head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')
@@ -167,6 +172,9 @@ rm -rf secrets .env
 api_ready
 playwright e2e/backup.smoke.ts --grep "after"
 echo "ok: after a disaster, a backup restores into a new stack with its sessions and data"
+[ "$(psql_nid "select count(*) from pg_indexes where indexname = 'smoke_vector_hnsw'")" = 1 ] || fail "the vector index did not come back"
+[ "$(psql_nid "select id from public.smoke_vector order by v <-> '[1,2,3]' limit 1")" = 1 ] || fail "the restored vectors do not answer"
+echo "ok: a vector index and its rows come back with the restore"
 
 # Review Focus 3: owners and modes, and deploy/ still the host user's.
 [ "$(docker run --rm -v nid_dataprotection-keys:/k busybox:1.37 stat -c '%u %a' /k)" = "1654 700" ] || fail "keys folder"
@@ -188,6 +196,6 @@ if printf 'RESTAURER\n' | ./restore.sh --force 2>/tmp/nid-force.log; then
   mv backup-secrets/restic_password.keep backup-secrets/restic_password; fail "--force restored with a wrong password"
 fi
 mv backup-secrets/restic_password.keep backup-secrets/restic_password
-docker volume inspect nid_pgdata >/dev/null 2>&1 || fail "--force deleted the data before checking the backup"
+docker volume inspect nid_pgdata18 >/dev/null 2>&1 || fail "--force deleted the data before checking the backup"
 [ -n "$("${COMPOSE[@]}" ps -q postgres)" ] || fail "--force stopped the stack before checking the backup"
 echo "ok: --force checks the backup before it deletes anything"

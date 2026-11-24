@@ -18,6 +18,6 @@ public sealed class DocumentsAuditMap : IAuditMap
     /// <summary>#167: a document's text and its job are derived from the file, the upload being audited.</summary>
     public IReadOnlySet<Type> Excluded { get; } = new HashSet<Type>
     {
-        typeof(AuditEntryRow), typeof(UploadTicketRow), typeof(DocumentTextRow), typeof(DocumentTextJobRow),
+        typeof(AuditEntryRow), typeof(UploadTicketRow), typeof(DocumentTextRow), typeof(DocumentTextJobRow), typeof(DocumentChunkRow),
     };
 }
