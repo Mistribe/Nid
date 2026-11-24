@@ -31,6 +31,15 @@ describe('ModalDialog', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  it('stays open on a click outside, which would drop what was typed (#640)', async () => {
+    const onClose = vi.fn();
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    render(<ModalDialog title="Titre" onClose={onClose}>{() => <input aria-label="Montant" />}</ModalDialog>);
+    await user.click(document.querySelector('[data-slot="dialog-overlay"]')!);
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
   it('goes away when it unmounts', () => {
     const { unmount } = render(<ModalDialog title="Titre" onClose={() => {}}>{() => null}</ModalDialog>);
     expect(screen.getByRole('dialog')).toBeInTheDocument();

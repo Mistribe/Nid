@@ -44,3 +44,10 @@ export const clearDraft = envelopes.clear;
 
 /** Spec 3E2 §4: the properties' draft, beside the envelopes'. */
 export const estateDraft = draftStore('routine-estate', validEstate);
+
+/** #640: the drafts leave with the person who typed them (sign-out), never restored to the next one in the tab. */
+export function clearDrafts(): void {
+  try {
+    for (const key of Object.keys(sessionStorage)) if (/^routine(-estate)?:/.test(key)) sessionStorage.removeItem(key);
+  } catch { /* nothing to clear */ }
+}
