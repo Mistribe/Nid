@@ -58,7 +58,7 @@ public partial class AuditCompletenessTests(PostgresFixture fixture) : IClassFix
         ["src/Ai/Nid.Ai.Infrastructure/Persistence/BudgetStore.cs"] = 3, // budget_month: excluded (counters), the month row, the atomic hold and the settlement
         ["src/Ai/Nid.Ai.Infrastructure/Persistence/ConversationStore.cs"] = 2, // #531: conversation, excluded (the person's words): a deletion, the purge
         ["src/Ai/Nid.Ai.Infrastructure/Persistence/CloudSettingsStore.cs"] = 1, // llm_provider_credential.last_used_at: when a key served, not a decision (as last_used_at)
-        ["src/Ai/Nid.Ai.Infrastructure/Persistence/JobStore.cs"] = 1, // job: excluded (operational state, AiAuditMap), the purge of finished jobs (#483)
+        ["src/Ai/Nid.Ai.Infrastructure/Persistence/JobStore.cs"] = 3, // job: excluded (operational state, AiAuditMap), the purge of finished jobs (#483), a queued job re-classed (#599), a deleted file's jobs (#600)
         ["src/Banking/Nid.Banking.Infrastructure/Persistence/AccountReadLog.cs"] = 1, // account_read: excluded (fetched data), the week's purge
         ["src/Banking/Nid.Banking.Infrastructure/Persistence/AccountStore.cs"] = 1,  // last_valued_on, balance_conflict_on: the sync's bookkeeping, not a decision (as last_used_at)
         ["src/Banking/Nid.Banking.Infrastructure/Persistence/ConnectionStore.cs"] = 1, // a person's file-import advisory lock: no row written
@@ -79,7 +79,7 @@ public partial class AuditCompletenessTests(PostgresFixture fixture) : IClassFix
         ["src/Subscriptions/Nid.Subscriptions.Infrastructure/Persistence/ProviderStore.cs"] = 3, // lock; archived_at and icons (catalog run)
         ["src/Investments/Nid.Investments.Infrastructure/Persistence/PriceRunLog.cs"] = 3, // price_run: excluded
         ["src/Documents/Nid.Documents.Infrastructure/Persistence/DocumentIndexStore.cs"] = 3, // #559: chunk_embedding, derived from the text (pgvector's type, in SQL): the insert, the old model's vectors, the HNSW index
-        ["src/Documents/Nid.Documents.Infrastructure/Persistence/DocumentStore.cs"] = 2, // upload_ticket: excluded (a one-use right, gone once used; the upload is audited)
+        ["src/Documents/Nid.Documents.Infrastructure/Persistence/DocumentStore.cs"] = 3, // upload_ticket: excluded (a one-use right, gone once used; the upload is audited); a file's advisory lock (#600)
         ["src/Investments/Nid.Investments.Infrastructure/Persistence/SecurityBreakdownStore.cs"] = 1, // security_breakdown: excluded from the item audit
         ["src/Investments/Nid.Investments.Infrastructure/Persistence/SecurityPriceStore.cs"] = 3, // security_price: excluded
         ["src/Platform/Nid.Platform.Infrastructure/Notifications/NotificationStore.cs"] = 8, // notification, notification_run: excluded (+1: the ExecuteUpdateAsync of ResolveKeyAsync)

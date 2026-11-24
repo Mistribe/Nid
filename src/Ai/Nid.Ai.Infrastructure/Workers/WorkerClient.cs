@@ -76,7 +76,7 @@ public sealed class WorkerClient(HttpClient http) : IWorkerClient, IDisposable
         return new SubmittedJob(Read<JobAccepted>(frames[^1], AiCodes.WorkerRefused).Id, secret.ToBytes());
     }
 
-    public async Task<PolledJob> PollJobAsync(WorkerRecord worker, NidKey key, string workerJobId, CancellationToken ct)
+    public async Task<PolledJob> PollJobAsync(WorkerRecord worker, NidKey key, string workerJobId, byte[] responseSecret, CancellationToken ct)
     {
         Active(worker);
         var limits = new FrameLimits(64 * 1024, JobStatus.MaxResultBytes / JobStatus.ResultChunk + 2, JobStatus.MaxResultBytes + 64 * 1024);
@@ -86,7 +86,32 @@ public sealed class WorkerClient(HttpClient http) : IWorkerClient, IDisposable
         var result = frames.Take(frames.Count - 1).SelectMany(f => f.Content.ToArray()).ToArray();
         if (result.Length != (status.ResultLength ?? 0))
             throw new WorkerCallException(AiCodes.WorkerRefused);
-        return new PolledJob(status, status.ResultLength is null ? null : result);
+        return new PolledJob(status, status.ResultLength is null ? null : Open(responseSecret, result));
+    }
+
+    /// <summary>A job's result, sealed by the worker under the secret of its submission (<c>docs/ai/README.md</c> §4.3): its data
+    /// frames joined, or null when the frames do not read or end before their <c>End</c> frame.</summary>
+    internal static byte[]? Open(byte[] responseSecret, byte[] sealedResult)
+    {
+        try
+        {
+            var output = new MemoryStream();
+            var frames = ResponseReader.ReadAsync(ResponseSecret.FromBytes(responseSecret), new MemoryStream(sealedResult),
+                new FrameLimits(64 * 1024, JobStatus.MaxResultBytes / JobStatus.ResultChunk + 2, JobStatus.MaxResultBytes), CancellationToken.None);
+            var ended = false;
+            foreach (var frame in frames.ToBlockingEnumerable())
+            {
+                if (frame.Type == FrameType.Data)
+                    output.Write(frame.Content.Span);
+                ended = frame.Type == FrameType.End;
+            }
+
+            return ended ? output.ToArray() : null;
+        }
+        catch (ProtocolException)
+        {
+            return null;
+        }
     }
 
     public async IAsyncEnumerable<Frame> StreamAsync(

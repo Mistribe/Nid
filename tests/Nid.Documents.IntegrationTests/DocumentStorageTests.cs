@@ -123,6 +123,21 @@ public sealed class DocumentStorageTests(MinioFixture minio) : IDisposable
     }
 
     [Theory, MemberData(nameof(Kinds))]
+    public async Task Delete_removes_the_bytes_and_ignores_a_missing_or_malformed_hash(string kind)
+    {
+        var (storage, count) = await NewAsync(kind);
+        var hash = await storage.PutAsync(RandomNumberGenerator.GetBytes(256), CancellationToken.None);
+
+        await storage.DeleteAsync(hash, CancellationToken.None);
+        await storage.DeleteAsync(hash, CancellationToken.None);
+        await storage.DeleteAsync(new string('b', 64), CancellationToken.None);
+        await storage.DeleteAsync("../x", CancellationToken.None);
+
+        Assert.Null(await storage.OpenAsync(hash, CancellationToken.None));
+        Assert.Equal(0, count());
+    }
+
+    [Theory, MemberData(nameof(Kinds))]
     public async Task Two_concurrent_puts_of_the_same_bytes_both_succeed(string kind)
     {
         var (storage, count) = await NewAsync(kind);

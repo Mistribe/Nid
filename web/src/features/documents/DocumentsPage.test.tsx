@@ -7,6 +7,7 @@ import { pick } from '@/test/controls';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { stubLocalDay } from '@/test/timeZone';
+import { toasts } from '@/test/toasts';
 import type { DocumentList } from '@/api/documents';
 import { ALICE, DOC, ITEM, link, list, summary } from './testData';
 
@@ -254,6 +255,23 @@ describe('DocumentsPage', () => {
     await user.click(screen.getByRole('menuitem', { name: 'Archiver' }));
     await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
     await waitFor(() => expect(posts).toEqual([DOC]));
+  });
+
+  it('the row menu deletes after a confirmation', async () => {
+    serve(list([summary()]));
+    const deletes: string[] = [];
+    server.use(http.delete('*/api/v1/documents/:id', ({ request }) => { deletes.push(new URL(request.url).pathname + new URL(request.url).search); return new HttpResponse(null, { status: 204 }); }));
+    const { user } = await renderApp('/documents');
+    await rows();
+    await user.click(screen.getAllByRole('button', { name: 'Actions pour Bail 2024' })[0]!);
+    await user.click(await screen.findByRole('menuitem', { name: 'Supprimer' }));
+
+    const dialog = await screen.findByRole('alertdialog', { name: 'Supprimer' });
+    expect(dialog).toHaveTextContent('« Bail 2024 » sera supprimé pour tout le foyer');
+    expect(deletes).toEqual([]);
+    await user.click(within(dialog).getByRole('button', { name: 'Confirmer' }));
+    await waitFor(() => expect(deletes).toEqual([`/api/v1/documents/${DOC}?version=${summary().version}`]));
+    await waitFor(() => expect(toasts()).toHaveTextContent('Document supprimé.'));
   });
 
   it('sends the focus to the tab list when the archived row disappears', async () => {

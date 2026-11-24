@@ -12364,6 +12364,99 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/ai/settings/allowed-kinds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AllowedKindsBody"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AiSettingsView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/ai/settings/uses/{use}": {
         parameters: {
             query?: never;
@@ -22810,7 +22903,82 @@ export interface paths {
             };
         };
         post?: never;
-        delete?: never;
+        delete: {
+            parameters: {
+                query?: {
+                    version?: number;
+                };
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
         options?: never;
         head?: never;
         patch?: never;
@@ -37772,6 +37940,7 @@ export interface components {
         AiSettingsView: {
             remoteWorkersAllowed: boolean;
             uses: components["schemas"]["UseSettingView"][];
+            allowedKinds: string[];
             /**
              * Format: int32
              * @default 30
@@ -37803,6 +37972,9 @@ export interface components {
             target: {
                 [key: string]: number;
             };
+        };
+        AllowedKindsBody: {
+            kinds?: null | string[];
         };
         AmountView: {
             amount: string;
@@ -38693,6 +38865,7 @@ export interface components {
             enabled: boolean;
             keyHint?: null | string;
             suspended: boolean;
+            capabilities: string[];
         };
         CloudRegionBody: {
             region?: null | string;
@@ -41809,6 +41982,18 @@ export interface components {
             remoteWorkersAllowed: boolean;
             capabilities: components["schemas"]["CapabilityView"][];
         };
+        ModelJobDispatch: {
+            workerName?: null | string;
+            /** Format: date-time */
+            sentAt: string;
+            /** Format: date-time */
+            finishedAt?: null | string;
+            outcome?: null | string;
+        };
+        ModelJobFile: {
+            module: string;
+            reference?: null | string;
+        };
         ModelJobListItem: {
             /** Format: uuid */
             id: string;
@@ -41823,6 +42008,8 @@ export interface components {
             createdAt: string;
             /** Format: date-time */
             finishedAt?: null | string;
+            file?: null | components["schemas"]["ModelJobFile"];
+            dispatches: components["schemas"]["ModelJobDispatch"][];
         };
         ModelJobPage: {
             items: components["schemas"]["ModelJobListItem"][];

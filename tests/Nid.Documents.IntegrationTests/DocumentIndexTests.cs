@@ -24,7 +24,7 @@ public sealed class DocumentIndexTests(PostgresFixture fixture) : IClassFixture<
     {
         var model = new FakeEmbeddings();
         await using var app = await StartAsync(model);
-        var id = await UploadedAsync(app, app.AdultA, Pdf);
+        var id = await UploadedAsync(app, app.AdultA, Pdf, $"fileName=bail.pdf&targetKind=core.person&targetId={app.AdultA.Value}&role=other");
         await TextAsync(app, id, "Quittance de loyer de janvier", "Montant réglé : 900 euros");
 
         await IndexAsync(app);
@@ -38,6 +38,7 @@ public sealed class DocumentIndexTests(PostgresFixture fixture) : IClassFixture<
         var asked = Assert.Single(model.Requests);
         Assert.Equal(DataClasses.Documents, asked.DataClass);
         Assert.Equal([app.AdultA.Value], asked.Concerned!);
+        Assert.Equal(["other"], asked.Kinds!); // #556: the roles of its links, which allowed_kinds is read against
     }
 
     [Fact]
@@ -117,8 +118,7 @@ public sealed class DocumentIndexTests(PostgresFixture fixture) : IClassFixture<
         Assert.Equal(["Seconde lecture"], await ScalarsAsync<string>(app, $"select text as \"Value\" from documents.document_chunk where document_id = '{id}'"));
         Assert.Equal(1, await EmbeddedAsync(app, id));
 
-        await using (var scope = Scope(app))
-            await scope.ServiceProvider.GetRequiredService<DocumentsDbContext>().Documents.Where(d => d.Id == id).ExecuteDeleteAsync(TestContext.Current.CancellationToken);
+        await DeletedAsync(app, app.AdultA, id);
         Assert.Equal(0, await CountAsync(app, $"select count(*) as \"Value\" from documents.document_chunk where document_id = '{id}'"));
         Assert.Equal(0, await CountAsync(app, "select count(*) as \"Value\" from documents.chunk_embedding"));
     }

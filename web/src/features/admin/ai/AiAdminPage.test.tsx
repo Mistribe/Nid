@@ -22,17 +22,17 @@ const USES = ['chat', 'extract', 'embed', 'decide'].map((use) => ({ use, mode: '
 const PROFILE = {
   id: 'anthropic-claude', provider: 'anthropic', tier: 'paid', host: 'api.anthropic.com', model: 'claude-opus-5-5', trainsOnData: false,
   humanReview: true, retentionDays: 30, termsUrl: 'https://www.anthropic.com/legal/commercial-terms', reviewedOn: '2026-11-22', reviewDue: false,
-  eligible: true, enabled: false, keyHint: null as string | null, suspended: false,
+  eligible: true, enabled: false, keyHint: null as string | null, suspended: false, capabilities: ['chat'],
 };
 
 const BUDGET = { monthlyBudgetEur: '20.00', month: '2026-11-01', spentEur: '16.50', reservedEur: '0.40', remainingEur: '3.10', status: 'alert' };
 
-function serve(workers: unknown[], allowed = false, uses = USES, profile = PROFILE) {
+function serve(workers: unknown[], allowed = false, uses = USES, profile: typeof PROFILE | (typeof PROFILE)[] = PROFILE, allowedKinds: string[] = []) {
   server.use(
     http.get('*/api/v1/ai/budget', () => HttpResponse.json(BUDGET)),
-    http.get('*/api/v1/ai/cloud', () => HttpResponse.json({ region: 'eea_ch_uk', profiles: [profile] })),
+    http.get('*/api/v1/ai/cloud', () => HttpResponse.json({ region: 'eea_ch_uk', profiles: [profile].flat() })),
     http.get('*/api/v1/ai/workers', () => HttpResponse.json({ workers })),
-    http.get('*/api/v1/ai/settings', () => HttpResponse.json({ remoteWorkersAllowed: allowed, uses, conversationRetentionDays: 30 })),
+    http.get('*/api/v1/ai/settings', () => HttpResponse.json({ remoteWorkersAllowed: allowed, uses, allowedKinds, conversationRetentionDays: 30 })),
     http.get('*/api/v1/ai/models', () => HttpResponse.json({ models: [{ name: 'llama3.2', capability: 'chat', workers: 1 }] })),
     http.get('*/api/v1/ai/assistant/me', () => HttpResponse.json({ enabled: false, offsiteDefault: 'ask', cloudPossible: false })),
   );
@@ -303,11 +303,54 @@ describe('Administration › IA', () => {
     expect(await screen.findByRole('option', { name: 'Workers du foyer, puis le cloud' })).toBeInTheDocument();
     await user.keyboard('{Escape}');
 
-    // #558: no cloud provider embeds yet (#556).
+    // A chat profile does not embed (#556): no cloud for the search.
     const search = screen.getByRole('heading', { name: 'Recherche par le sens' }).parentElement!;
     await user.click(within(search).getByRole('combobox', { name: 'Réglage' }));
     expect(await screen.findByRole('option', { name: 'Workers du foyer' })).toBeInTheDocument();
     expect(screen.queryByRole('option', { name: 'Workers du foyer, puis le cloud' })).not.toBeInTheDocument();
+  });
+
+  it('offers an enabled embed profile as the model of the search, the only one of its index (#556)', async () => {
+    const embed = { ...PROFILE, id: 'openai-embed', provider: 'openai', model: 'text-embedding-3-small', enabled: true, keyHint: 'WXYZ', capabilities: ['embed'] };
+    serve([worker()], false, USES, [PROFILE, embed]);
+    const sent: unknown[] = [];
+    server.use(http.put('*/api/v1/ai/settings/uses/embed/model', async ({ request }) => {
+      sent.push(await request.json());
+      return HttpResponse.json({ remoteWorkersAllowed: false, uses: USES, allowedKinds: [] });
+    }));
+    const { user } = await renderApp('/admin/ai', { capabilities: adminCapabilities });
+
+    const search = (await screen.findByRole('heading', { name: 'Recherche par le sens' })).parentElement!;
+    await user.click(within(search).getByRole('combobox', { name: 'Réglage' }));
+    expect(await screen.findByRole('option', { name: 'Workers du foyer, puis le cloud' })).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    await user.click(within(search).getByRole('combobox', { name: 'Modèle' }));
+    await user.click(await screen.findByRole('option', { name: 'text-embedding-3-small (OpenAI, cloud)' }));
+
+    await waitFor(() => expect(sent).toEqual([{ model: 'text-embedding-3-small' }]));
+    // The chat's cloud runs on its own profile's model: no embed model offered there.
+    const assistant = screen.getByRole('heading', { name: 'Assistant' }).parentElement!;
+    await user.click(within(assistant).getByRole('combobox', { name: 'Modèle' }));
+    expect(screen.queryByRole('option', { name: /text-embedding-3-small/ })).not.toBeInTheDocument();
+  });
+
+  it('lets an admin pick the document types a cloud provider may read, none by default and never payslips (#556)', async () => {
+    serve([worker()], false, USES, PROFILE, ['invoice']);
+    const sent: unknown[] = [];
+    server.use(http.put('*/api/v1/ai/settings/allowed-kinds', async ({ request }) => {
+      sent.push(await request.json());
+      return HttpResponse.json({ remoteWorkersAllowed: false, uses: USES, allowedKinds: ['invoice', 'contract'] });
+    }));
+    const { user } = await renderApp('/admin/ai', { capabilities: adminCapabilities });
+
+    const section = (await screen.findByRole('heading', { name: 'Documents envoyés au cloud' })).closest('section')!;
+    expect(await within(section).findByRole('checkbox', { name: 'Factures' })).toBeChecked();
+    expect(within(section).getAllByRole('checkbox').map((c) => c.getAttribute('aria-checked'))).toEqual(['false', 'false', 'true', 'false']);
+    expect(within(section).queryByRole('checkbox', { name: /paie/i })).not.toBeInTheDocument();
+
+    await user.click(within(section).getByRole('checkbox', { name: 'Contrats' }));
+
+    await waitFor(() => expect(sent).toEqual([{ kinds: ['invoice', 'contract'] }]));
   });
 
   it('shows what a provider may do with the data', async () => {

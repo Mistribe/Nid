@@ -93,6 +93,31 @@ public interface ICloudAdapter
     string Provider { get; }
 
     IAsyncEnumerable<ChatRequestOutput> ChatAsync(LlmProfile profile, string key, ChatRequestInput input, CancellationToken ct);
+
+    /// <summary>#556: one vector per text, in the texts' order, and the input tokens billed. A provider with no embeddings
+    /// (Anthropic) refuses; no profile of it declares <c>embed</c>.</summary>
+    Task<CloudEmbeddings> EmbedAsync(LlmProfile profile, string key, IReadOnlyList<string> texts, CancellationToken ct)
+        => throw new CloudCallException(CloudFailure.Refused, JobCodes.CloudRefused);
+}
+
+/// <summary>#556: what a provider's embeddings call answers.</summary>
+/// <remarks><see cref="TokensIn"/>: null when the provider did not say; the call is then settled at what it held back.</remarks>
+public sealed record CloudEmbeddings(IReadOnlyList<IReadOnlyList<float>> Vectors, int? TokensIn);
+
+/// <summary>#556: the models of the enabled cloud profiles that embed, which the <c>embed</c> use may run on.</summary>
+public static class CloudEmbedModels
+{
+    public static async Task<IReadOnlySet<string>> EnabledAsync(ILlmProfiles profiles, ICloudSettings settings, CancellationToken ct)
+    {
+        var enabled = (await settings.EnabledAsync(ct)).ToDictionary(e => e.ProfileId, e => e.AcceptedReviewedOn, StringComparer.Ordinal);
+        return profiles.All.Where(p => p.Capabilities.Contains(ModelUses.Embed)
+                                       && enabled.TryGetValue(p.Id, out var accepted) && accepted == p.DataTerms.ReviewedOn)
+            .Select(p => p.Model).ToHashSet(StringComparer.Ordinal);
+    }
+
+    /// <summary>Whether <paramref name="model"/> is a cloud profile's embeddings model, enabled or not.</summary>
+    public static bool IsCloud(ILlmProfiles profiles, string model)
+        => profiles.All.Any(p => p.Model == model && p.Capabilities.Contains(ModelUses.Embed));
 }
 
 /// <summary>§5.3: three failures in a row suspend a profile for 15 minutes; a success clears its count.</summary>
@@ -119,7 +144,8 @@ public sealed class CloudBreaker(IClock clock)
 /// <summary>
 /// The enabled cloud profiles, after the workers (§5.3), for a use set to <c>self_hosted_then_cloud</c>: eligible in the
 /// household's region, with a key, not suspended. A transient failure before any output moves to the next profile; a
-/// refusal does not. Local-only data never goes there; documents and bank labels wait for <c>allowed_kinds</c> (§6.1).
+/// refusal does not. Local-only data never goes there; documents only to embed them (#556: <see cref="LlmEmbedder"/> checks
+/// <c>allowed_kinds</c>); bank labels wait for <c>allowed_kinds</c> (§6.1).
 /// A paid profile first reserves the turn's upper bound on the month's budget (#488): over the ceiling, or without an
 /// exchange rate, it is skipped, and with nothing else left the call is blocked.
 /// </summary>
@@ -147,14 +173,7 @@ public sealed class CloudProvider(
             yield return ModelFailures.Of(JobCodes.NoCloudProfile); // pinned to a worker class: no provider may see this turn
             yield break;
         }
-        var region = await settings.RegionAsync(ct);
-        // A profile is used under the terms it was enabled on: terms reviewed since must be accepted again.
-        var enabled = (await settings.EnabledAsync(ct)).ToDictionary(e => e.ProfileId, e => e.AcceptedReviewedOn, StringComparer.Ordinal);
-        var candidates = profiles.All
-            .Where(p => enabled.TryGetValue(p.Id, out var accepted) && accepted == p.DataTerms.ReviewedOn && region is not null && p.EligibleIn(region)
-                        && p.Capabilities.Contains(ModelUses.Chat) && !breaker.IsSuspended(p.Id)
-                        && (trace.Pin is null || LlmClasses.Cloud + p.Id == trace.Pin))
-            .ToList();
+        var candidates = (await EligibleAsync(ModelUses.Chat, ct)).Where(p => trace.Pin is null || LlmClasses.Cloud + p.Id == trace.Pin).ToList();
 
         var blocked = false;
         foreach (var profile in candidates)
@@ -231,12 +250,83 @@ public sealed class CloudProvider(
         yield return ModelFailures.Of(blocked ? JobCodes.BudgetBlocked : JobCodes.NoCloudProfile);
     }
 
+    /// <summary>
+    /// #556: the texts' vectors from an eligible profile whose model is <paramref name="model"/> (the <c>embed</c> use's), as a
+    /// chat turn goes: the next profile on a transient failure, none after a refusal. A paid profile holds every input byte as a
+    /// token on the budget, settled at the tokens billed. Only <c>documents</c> (or no data) go: <see cref="LlmEmbedder"/>
+    /// checked its types and the consent of the adults concerned.
+    /// </summary>
+    public async Task<Result<CloudEmbeddings>> EmbedAsync(string model, IReadOnlyList<string> texts, string dataClass, LlmCallTrace trace, CancellationToken ct)
+    {
+        if (dataClass is not (DataClasses.None or DataClasses.Documents))
+            return ModelFailures.Of(JobCodes.CloudNotAllowed);
+
+        var blocked = false;
+        foreach (var profile in (await EligibleAsync(ModelUses.Embed, ct)).Where(p => p.Model == model))
+        {
+            if (adapters.FirstOrDefault(a => a.Provider == profile.Provider) is not { } adapter
+                || await settings.KeyAsync(profile.Provider, clock.GetCurrentInstant(), ct) is not { } key)
+                continue;
+
+            var hold = await ReserveAsync(profile, new ChatRequestInputSize(texts.Sum(t => (long)System.Text.Encoding.UTF8.GetByteCount(t)), 0), ct);
+            if (hold is { Blocked: true })
+            {
+                blocked = true;
+                continue;
+            }
+
+            var spent = (decimal?)null;
+            try
+            {
+                var embedded = await adapter.EmbedAsync(profile, key, texts, ct);
+                breaker.Succeeded(profile.Id);
+                (trace.ProfileId, trace.Provider, trace.Tier, trace.ReservedEur) = (profile.Id, profile.Provider, profile.Tier, hold?.Amount);
+                if (profile.Pricing is { } pricing && embedded.TokensIn is { } tokens)
+                    spent = await prices.EurAsync(pricing, tokens, 0, ct);
+                trace.CostEur = spent ?? hold?.Amount;
+                return embedded;
+            }
+            catch (CloudCallException e) when (e.Kind == CloudFailure.Transient)
+            {
+                spent = 0;
+                breaker.Failed(profile.Id);
+            }
+            catch (CloudCallException e)
+            {
+                spent = 0;
+                return ModelFailures.Of(e.Code);
+            }
+            finally
+            {
+                if (hold is { Reservation: { } reservation, Amount: var amount }
+                    && await budget.SettleAsync(reservation, spent ?? amount, CancellationToken.None) is { } settled)
+                    await notices.AfterAsync(settled, CancellationToken.None);
+            }
+        }
+
+        return ModelFailures.Of(blocked ? JobCodes.BudgetBlocked : JobCodes.NoCloudProfile);
+    }
+
+    /// <summary>The enabled profiles serving <paramref name="capability"/>, under the terms they were enabled on (terms reviewed
+    /// since must be accepted again), eligible in the household's region, not suspended.</summary>
+    private async Task<IReadOnlyList<LlmProfile>> EligibleAsync(string capability, CancellationToken ct)
+    {
+        var region = await settings.RegionAsync(ct);
+        var enabled = (await settings.EnabledAsync(ct)).ToDictionary(e => e.ProfileId, e => e.AcceptedReviewedOn, StringComparer.Ordinal);
+        return [.. profiles.All.Where(p => enabled.TryGetValue(p.Id, out var accepted) && accepted == p.DataTerms.ReviewedOn
+                                            && region is not null && p.EligibleIn(region) && p.Capabilities.Contains(capability)
+                                            && !breaker.IsSuspended(p.Id))];
+    }
+
     /// <summary>A paid profile's hold on the month's budget; null for a free one.</summary>
-    private async Task<Hold?> ReserveAsync(LlmProfile profile, ChatRequestInput turn, CancellationToken ct)
+    private Task<Hold?> ReserveAsync(LlmProfile profile, ChatRequestInput turn, CancellationToken ct)
+        => ReserveAsync(profile, new ChatRequestInputSize(ContractJson.Write(turn).Length, turn.MaxTokens), ct);
+
+    private async Task<Hold?> ReserveAsync(LlmProfile profile, ChatRequestInputSize size, CancellationToken ct)
     {
         if (profile.Tier != "paid" || profile.Pricing is not { } pricing)
             return null;
-        var bound = await prices.UpperBoundAsync(pricing, new ChatRequestInputSize(ContractJson.Write(turn).Length, turn.MaxTokens), ct);
+        var bound = await prices.UpperBoundAsync(pricing, size, ct);
         if (bound is not { } amount)
             return new Hold(null, 0, Blocked: true); // with no rate, a paid call is blocked (§7)
         var now = clock.GetCurrentInstant();

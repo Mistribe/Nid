@@ -46,6 +46,7 @@ export function CloudSection() {
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="text-sm font-medium">{name}</h3>
           <Badge variant="outline">{t(p.tier === 'free' ? 'ai.cloud.tier_free' : 'ai.cloud.tier_paid')}</Badge>
+          {p.capabilities.includes('embed') ? <Badge variant="outline">{t('ai.cloud.embed')}</Badge> : null}
           {p.enabled ? <Badge variant="secondary">{t('ai.cloud.on')}</Badge> : null}
           {p.suspended ? <Badge variant="outline">{t('ai.cloud.suspended')}</Badge> : null}
         </div>

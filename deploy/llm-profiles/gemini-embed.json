@@ -1,0 +1,26 @@
+{
+  "id": "gemini-embed",
+  "provider": "gemini",
+  "tier": "paid",
+  "host": "generativelanguage.googleapis.com",
+  "model": "gemini-embedding-001",
+  "contextTokens": 2048,
+  "capabilities": [
+    "embed"
+  ],
+  "dataTerms": {
+    "trainsOnData": {
+      "eea_ch_uk": false,
+      "other": false
+    },
+    "humanReview": true,
+    "retentionSwitches": [],
+    "termsUrl": "https://aistudio.google.com/docs/terms",
+    "reviewedOn": "2026-11-22"
+  },
+  "pricing": {
+    "inputPerMillion": 0.15,
+    "outputPerMillion": 0,
+    "currency": "USD"
+  }
+}

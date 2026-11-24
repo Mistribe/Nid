@@ -44,12 +44,25 @@ public sealed record JobRecord(
     public IReadOnlyList<Guid> Concerned { get; init; } = [];
 }
 
+/// <summary>#602: one send of a job to a worker (<c>ai.job_dispatch</c>), kept when a retry clears the job's worker; deleted
+/// with the job.</summary>
+public sealed record JobDispatch(Guid JobId, Guid? WorkerId, Instant SentAt, Instant? FinishedAt, string? Outcome);
+
 public interface IJobStore
 {
     /// <summary>Adds the job, or returns the one not finished with the same type and input (idempotence).</summary>
     Task<JobRecord> AddOrFindAsync(JobRecord job, CancellationToken ct);
 
     Task<JobRecord?> FindAsync(Guid id, CancellationToken ct);
+
+    /// <summary>#599: sets the class and the adults of the queued jobs of <paramref name="fileRef"/>, in one statement, so a
+    /// dispatcher pass that read one before loses its claim on the row's version. True when one was queued.</summary>
+    /// <remarks>ponytail: the input hash keeps the class it was submitted with; only a new submission of the same file under
+    /// the new class (none today: the backfill skips a queued document) would not find it.</remarks>
+    Task<bool> ReclassQueuedAsync(string fileRef, string dataClass, IReadOnlyList<Guid> concerned, CancellationToken ct);
+
+    /// <summary>#600: deletes every job of <paramref name="fileRef"/>; a pass running one finds it gone and leaves it.</summary>
+    Task DeleteOfFileAsync(string fileRef, CancellationToken ct);
 
     /// <summary>Queued jobs whose time has come, oldest first.</summary>
     Task<IReadOnlyList<JobRecord>> DueAsync(Instant now, int limit, CancellationToken ct);
@@ -64,6 +77,15 @@ public interface IJobStore
     /// <summary>One page of jobs, newest first, with the total and every type in the table.</summary>
     Task<(IReadOnlyList<JobRecord> Items, int Total, IReadOnlyList<string> Types)> PageAsync(
         string? status, string? type, int skip, int take, CancellationToken ct);
+
+    /// <summary>#602: records that the job was sent to <paramref name="worker"/>.</summary>
+    Task AddDispatchAsync(Guid job, Guid worker, Instant sentAt, CancellationToken ct);
+
+    /// <summary>#602: ends the job's dispatch still open with <c>succeeded</c> or the code it ended on.</summary>
+    Task EndDispatchAsync(Guid job, string outcome, Instant at, CancellationToken ct);
+
+    /// <summary>#602: the dispatches of these jobs, oldest first.</summary>
+    Task<IReadOnlyList<JobDispatch>> DispatchesOfAsync(IReadOnlyCollection<Guid> jobs, CancellationToken ct);
 
     /// <summary>Saves a change; false when another pass changed the job since it was read.</summary>
     Task<bool> TryUpdateAsync(JobRecord job, CancellationToken ct);
@@ -139,6 +161,13 @@ public interface IAiSettings
     /// <summary>Records the adult's decision and applies it.</summary>
     /// <summary>False when another adult changed it at the same moment: nothing was written.</summary>
     Task<bool> SetRemoteWorkersAllowedAsync(bool allowed, Guid person, NodaTime.Instant at, CancellationToken ct);
+
+    /// <summary>#556: the document types a cloud provider may read (<see cref="CloudDocumentKinds"/>), none until an admin
+    /// picks some.</summary>
+    Task<IReadOnlyList<string>> AllowedKindsAsync(CancellationToken ct);
+
+    /// <summary>False when another adult changed the settings at the same moment: nothing was written.</summary>
+    Task<bool> SetAllowedKindsAsync(IReadOnlyList<string> kinds, CancellationToken ct);
 
     /// <summary>#531: how long the assistant's conversations are kept, 30 days until set.</summary>
     Task<int> ConversationRetentionDaysAsync(CancellationToken ct);

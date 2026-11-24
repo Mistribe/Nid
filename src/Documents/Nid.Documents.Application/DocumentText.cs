@@ -3,6 +3,8 @@ using Microsoft.Extensions.Logging;
 using Nid.Ai.Contracts;
 using Nid.Core.Contracts;
 using Nid.Documents.Contracts;
+using Nid.Documents.Domain;
+using Nid.Platform.Contracts;
 using NodaTime;
 
 namespace Nid.Documents.Application;
@@ -26,11 +28,12 @@ public interface IDocumentTextStore
     Task<IReadOnlyList<DocumentTextPage>> PagesAsync(Guid document, CancellationToken ct);
 }
 
-/// <summary>Asks a worker for a document's text (<c>document-text</c>, data class <c>documents</c>). It leaves the premises
+/// <summary>Asks a worker for a document's text (<c>document-text</c>, data class <see cref="DataClassOf"/>). It leaves the premises
 /// only with <c>allow</c> from each adult concerned (decision M, <c>docs/ai/README.md</c> §6.3): its uploader and whoever owns
 /// what it is linked to, read when it is queued.</summary>
 public sealed partial class DocumentTexts(
-    IModelJobs jobs, IDocumentTextStore texts, IItemRegistry items, IPersonRegistry persons, IClock clock, ILogger<DocumentTexts> logger)
+    IModelJobs jobs, IDocumentTextStore texts, IDocumentStore documents, IItemRegistry items, IPersonRegistry persons, IClock clock,
+    ILogger<DocumentTexts> logger)
 {
     public const string JobType = "document-text";
     public const string FileModule = "documents";
@@ -56,19 +59,32 @@ public sealed partial class DocumentTexts(
     {
         var submitted = await jobs.SubmitAsync(new JobRequest(
             JobType, 1, JsonSerializer.SerializeToElement(new { mediaType = document.MediaType }), DataClassOf(links),
-            $"{FileModule}:{document.Id}", Concerned: await ConcernedAsync(document.UploadedBy, links, ct)), ct);
+            FileRef(document.Id), Concerned: await ConcernedAsync(document.UploadedBy, links, ct)), ct);
         if (!submitted.TryGetValue(out var job))
             return false;
         await texts.QueuedAsync(document.Id, job, clock.GetCurrentInstant(), ct);
         return true;
     }
 
+    /// <summary>#599: once the document's links changed, its text job, while no worker has it yet, takes the class and the adults
+    /// they give now; one already sent or finished is left as it is.</summary>
+    public async Task ReclassAsync(Guid document, CancellationToken ct)
+    {
+        if (await documents.FindAsync(document, ct) is not { } found)
+            return;
+        var links = await documents.LinksOfAsync([document], ct);
+        await jobs.ReclassAsync(FileRef(document), DataClassOf(links), await ConcernedAsync(found.UploadedBy, links, ct), ct);
+    }
+
     /// <summary>
     /// What a model may see of a document (#598, <c>llm-providers.md</c> §2.7): a payslip stays on the premises, so only a <c>safe</c>
-    /// worker reads its file or embeds its text; any other document is the household's.
+    /// worker reads its file or embeds its text; so does a document « À classer » (no link, #599), which may be one until it is filed.
+    /// Any other document is the household's.
     /// </summary>
     public static string DataClassOf(IReadOnlyList<LinkRecord> links)
-        => links.Any(l => l.Role == DocumentRoles.Payslip) ? DataClasses.LocalOnly : DataClasses.Documents;
+        => links.Count == 0 || links.Any(l => l.Role == DocumentRoles.Payslip) ? DataClasses.LocalOnly : DataClasses.Documents;
+
+    internal static string FileRef(Guid document) => $"{FileModule}:{document}";
 
     /// <summary>The adults a document concerns (decision M): its uploader, whoever owns what it is linked to, a linked person, both adults for the household.</summary>
     public async Task<IReadOnlyList<Guid>> ConcernedAsync(Guid uploadedBy, IReadOnlyList<LinkRecord> links, CancellationToken ct)
@@ -127,7 +143,7 @@ public sealed class DocumentTextSink(IDocumentTextStore texts, IClock clock) : I
 }
 
 /// <summary>A document's bytes for its job: the reference is the document's id.</summary>
-public sealed class DocumentFileSource(IDocumentStore store, IDocumentStorage storage) : IJobFileSource
+public sealed class DocumentFileSource(IDocumentStore store, IDocumentStorage storage, DocumentAccess access, IActorAccessor actor) : IJobFileSource
 {
     public string Module => DocumentTexts.FileModule;
 
@@ -141,6 +157,19 @@ public sealed class DocumentFileSource(IDocumentStore store, IDocumentStorage st
         using var bytes = new MemoryStream();
         await stream.CopyToAsync(bytes, ct);
         return bytes.ToArray();
+    }
+
+    /// <summary>#602: the documents the actor reads (as <c>FilterReadableDocumentsHandler</c>).</summary>
+    public async Task<IReadOnlySet<string>> ReadableAsync(IReadOnlyCollection<string> references, CancellationToken ct)
+    {
+        var ids = references.Select(IdOf).OfType<Guid>().Distinct().ToList();
+        if (ids.Count == 0 || actor.Current?.PersonId is not { } person)
+            return new HashSet<string>();
+        var documents = await store.FindManyAsync(ids, ct);
+        var links = (await store.LinksOfAsync(documents.Select(d => d.Id).ToList(), ct)).ToLookup(l => l.DocumentId);
+        var facts = await access.FactsAsync(person, links.SelectMany(l => l).Select(l => l.AnchorItemId).OfType<Guid>().ToList(), ct);
+        return documents.Where(d => DocumentRules.CanRead(d.UploadedBy, links[d.Id].Select(DocumentAccess.Facts), facts))
+            .Select(d => d.Id.ToString()).ToHashSet();
     }
 
     internal static Guid? IdOf(string? reference) => Guid.TryParse(reference, out var id) ? id : null;

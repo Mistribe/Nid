@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Nid.Ai.Contracts;
+using Nid.Ai.Domain;
 using Nid.Ai.Protocol;
 using Nid.Ai.Protocol.Contracts;
 using NodaTime;
@@ -88,6 +89,15 @@ public sealed class ModelJobs(IJobStore store, ModelContracts contracts, IClock 
         return job.Id;
     }
 
+    public async Task<Result<bool>> ReclassAsync(string fileRef, string dataClass, IReadOnlyList<Guid> concerned, CancellationToken ct)
+    {
+        if (!DataClasses.IsKnown(dataClass) || dataClass == DataClasses.None)
+            return ModelFailures.Of(JobCodes.UnknownDataClass);
+        return await store.ReclassQueuedAsync(fileRef, dataClass, concerned, ct);
+    }
+
+    public Task ForgetAsync(string fileRef, CancellationToken ct) => store.DeleteOfFileAsync(fileRef, ct);
+
     public async Task<ModelJobView?> GetAsync(Guid id, CancellationToken ct)
         => await store.FindAsync(id, ct) is { } job ? View(job) : null;
 
@@ -101,46 +111,23 @@ public sealed class ModelJobs(IJobStore store, ModelContracts contracts, IClock 
             $"{request.Type}\n{request.Version}\n{request.FileRef}\n{request.DataClass}\n{request.TargetWorkerId}\n{Encoding.UTF8.GetString(input)}")));
 }
 
-/// <summary>Eligible workers (<c>docs/ai/README.md</c> §4.1): active, seen in the last 3 minutes, declaring the type and
-/// version; local first, then the least loaded, then the most recently seen. A target worker is the only route.</summary>
+/// <summary>Reads the workers and their declarations for <see cref="WorkerRouting"/>, which decides (<c>docs/ai/README.md</c> §4.1).</summary>
 public sealed class WorkerRouter(IWorkerStore workers, IAiSettings settings, IClock clock) : IWorkerRouter
 {
-    public static readonly Duration OnlineFor = Duration.FromMinutes(3);
-
     public async Task<Route> RouteAsync(string type, int version, ModelCallKind kind, string dataClass, Guid? target, CancellationToken ct, bool offsite = true)
     {
-        var now = clock.GetCurrentInstant();
-        var householdAllows = await settings.RemoteWorkersAllowedAsync(ct);
-        var remoteAllowed = householdAllows && offsite;
-        var refusals = new List<string>();
-        var eligible = new List<(WorkerRecord Worker, WorkerDeclaration Declaration)>();
-        foreach (var worker in await workers.ListAsync(ct))
+        var all = await workers.ListAsync(ct);
+        var candidates = all.Select(worker =>
         {
-            if (worker.Status != WorkerStatus.Active || worker.LastSeenAt is not { } seen || now - seen > OnlineFor)
-                continue;
-            if (target is { } only && worker.Id != only)
-                continue;
-            if (Declaration(worker) is not { } declaration)
-                continue;
-            var served = kind == ModelCallKind.Job ? declaration.Jobs : declaration.Requests;
-            if (!served.Any(c => c.Type == type && c.Version == version))
-                continue;
-            if (Domain.DataPolicy.Refusal(worker.Placement, worker.Safe, dataClass, remoteAllowed) is { } refusal)
-                refusals.Add(refusal);
-            else
-                eligible.Add((worker, declaration));
-        }
-
-        var ordered = eligible
-            .OrderBy(e => e.Worker.Placement == WorkerPlacement.Local ? 0 : 1)
-            .ThenBy(e => (double)e.Declaration.Load / Math.Max(1, e.Declaration.MaxConcurrentRequests))
-            .ThenByDescending(e => e.Worker.LastSeenAt)
-            .Select(e => e.Worker)
-            .ToList();
-        var reason = Domain.DataPolicy.Reason(refusals);
-        if (reason == Domain.DataPolicy.RemoteNotAllowed && householdAllows)
-            reason = JobCodes.OffsiteNotAllowed;
-        return new Route(ordered, ordered.Count == 0 ? reason ?? JobCodes.NoWorker : null);
+            var declaration = Declaration(worker);
+            var served = declaration is null ? [] : kind == ModelCallKind.Job ? declaration.Jobs : declaration.Requests;
+            return new RouteCandidate(worker.Id, worker.Status, worker.Placement, worker.Safe, worker.LastSeenAt,
+                served.Any(c => c.Type == type && c.Version == version), declaration?.Load ?? 0, declaration?.MaxConcurrentRequests ?? 1);
+        });
+        var (ids, reason) = WorkerRouting.Route(
+            candidates, clock.GetCurrentInstant(), dataClass, target, await settings.RemoteWorkersAllowedAsync(ct), offsite);
+        var byId = all.ToDictionary(w => w.Id);
+        return new Route([.. ids.Select(id => byId[id])], reason);
     }
 
     public static WorkerDeclaration? DeclarationOf(WorkerRecord worker) => Declaration(worker);

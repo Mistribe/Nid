@@ -99,6 +99,13 @@ public static class AiEndpoints
                     : Missing("allowed"))
             .Returns<AiSettingsView>();
 
+        // #556: the document types a cloud provider may read.
+        settings.MapPut("/allowed-kinds", async (AllowedKindsBody body, IInvoker invoker, CancellationToken ct) =>
+                body.Kinds is { } kinds
+                    ? (await invoker.InvokeAsync(new SetAllowedKindsCommand(kinds), ct)).ToHttp(change => change.View)
+                    : Missing("kinds"))
+            .Returns<AiSettingsView>();
+
         settings.MapPut("/uses/{use}", async (string use, UseModeBody body, IInvoker invoker, CancellationToken ct) =>
                 body.Mode is { } mode
                     ? (await invoker.InvokeAsync(new SetUseModeCommand(use, mode), ct)).ToHttp(change => change.View)
@@ -185,6 +192,8 @@ public static class AiEndpoints
     public sealed record RemoteWorkersBody(bool? Allowed);
 
     public sealed record UseModeBody(string? Mode);
+
+    public sealed record AllowedKindsBody(IReadOnlyList<string>? Kinds);
 
     public sealed record UseModelBody(string? Model);
 

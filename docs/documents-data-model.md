@@ -16,7 +16,7 @@ document ───────────────────────�
 
 Un document est un fichier (contenu adressé par son sha256), ses métadonnées et ses liens vers des cibles. Documents possède tout cela ; Core ne connaît pas les documents (il n'y a plus de `Document` ni de `document_item` dans Core). Documents dépend de `Core.Contracts` (`IAccessPolicy`, `IItemRegistry`, `IPersonRegistry`, `IVisibleItems`).
 
-Un document n'est lu que par son déposant ou par qui peut lire un élément lié ; un élément privé ne fuit jamais. **Pas de suppression** en tranche 1 : on archive.
+Un document n'est lu que par son déposant ou par qui peut lire un élément lié ; un élément privé ne fuit jamais. On archive un document ; depuis #600, qui peut le modifier peut aussi le supprimer.
 
 ## 2. Tables (schéma `documents`)
 
@@ -46,7 +46,7 @@ Port `IDocumentStorage` : écrire un contenu sous son sha256 s'il n'existe pas, 
 | `s3` | `ServiceUrl`, `Bucket`, `AccessKey`, `SecretKey` (tous requis), `Region` (`us-east-1`), `ForcePathStyle` (`true`) | Même clé d'objet ; `AWSSDK.S3`, testé contre MinIO (Testcontainers) |
 
 - **Pas de chiffrement applicatif** : le chiffrement au repos est celui du disque de l'hôte, ou le chiffrement côté serveur du bucket.
-- **Dédoublonnage** : deux dépôts du même contenu donnent deux lignes `document` et un seul fichier. Pas de compteur de références. Aucune ligne n'étant supprimée en tranche 1, la purge des fichiers orphelins est laissée à plus tard.
+- **Dédoublonnage** : deux dépôts du même contenu donnent deux lignes `document` et un seul fichier. Pas de compteur de références : supprimer un document (#600) retire son fichier après la validation de la transaction, seulement si aucun autre document n'a le même sha256, vérifié sous un verrou consultatif propre au fichier (`pg_advisory_xact_lock`) que le dépôt tient aussi de l'écriture des octets à la validation de sa ligne : un dépôt des mêmes octets au même instant attend la suppression puis réécrit le fichier, ou la suppression voit sa ligne et garde le fichier.
 - **Image** : l'image `nid` crée `/var/lib/nid/documents` (propriétaire 1654, `0750`), pour qu'un volume neuf soit inscriptible.
 
 ## 4. Dépôt et lecture
@@ -97,7 +97,7 @@ Un document est lisible par son déposant **et** par quiconque peut lire au moin
 | `core.household` | tous les adultes | tout adulte |
 
 - Un document sans lien : déposant seul. Le déposant garde l'accès même après avoir perdu celui des éléments liés. Un document archivé reste lisible par les mêmes personnes mais sort des listes par défaut.
-- **Droit d'édition** : le déposant, ou quiconque a l'écriture sur un élément lié. Il permet de modifier titre, date, note et d'archiver. Un document illisible répond comme un document inexistant (404) ; lisible sans droit d'édition, 403.
+- **Droit d'édition** : le déposant, ou quiconque a l'écriture sur un élément lié. Il permet de modifier titre, date, note, d'archiver et de supprimer. Un document illisible répond comme un document inexistant (404) ; lisible sans droit d'édition, 403.
 - **Ajouter un lien** demande le droit d'édition du document **et** l'écriture sur la cible : un lecteur qui ne lit le document que par l'élément de l'autre ne peut pas le relier aux siens. **Retirer un lien** demande l'écriture sur la cible seulement. Une cible lisible mais pas inscriptible répond 403.
 - **Liens illisibles invisibles** : une réponse ne contient que les liens dont l'acteur lit la cible ; les autres sont absents, sans id, libellé ni compte. Les réponses déclarent leurs éléments (`IExposesItems`) pour `OutputGuardBehavior`.
 - **« À classer »** (`inbox=true`) : les documents dont l'acteur ne voit **aucun lien**. Un document que son déposant ne voit plus relié à rien y revient, même s'il reste lié à l'élément privé de l'autre. `inbox=true` **ignore** la portée Foyer / Moi.
@@ -121,6 +121,7 @@ Corps et réponses en camelCase. Toutes sous `/api/v1/documents`, authentifiées
 | `GET /{id}/content` | Téléchargement (§4) |
 | `PUT /{id}` | Remplacement du titre, de `documentDate` et de la note |
 | `POST /{id}/archive`, `/unarchive` | Archivage, désarchivage |
+| `DELETE /{id}?version=` | Suppression (#600) : la ligne, ses liens (journalisés un par un), son texte, ses morceaux et leurs vecteurs (cascade), les jobs `document-text` de son fichier avec leur résultat, puis le fichier s'il n'est plus utilisé ; 204. Les sauvegardes le gardent jusqu'à leur expiration. Pas d'outil MCP : un geste dans l'app, confirmé |
 | `GET /{id}/links/preview?targetKind=&targetId=` | `{ gainedReaders: [{ id, name }] }` : les adultes qui gagneraient la lecture, sans rien écrire ; mêmes refus que l'ajout (404 cible ou document illisible, 403 lisible mais non modifiable) |
 | `POST /{id}/links` | Ajout d'un lien (`targetKind`, `targetId`, `role`) ; réponse `{ gainedReaders }` |
 | `PUT /{id}/links/{targetKind}/{targetId}` | Changement de rôle d'un lien |

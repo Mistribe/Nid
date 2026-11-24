@@ -9,6 +9,7 @@ using Nid.Ai.Protocol.Contracts;
 using Nid.Platform.Contracts;
 using Nid.TestSupport;
 using NodaTime;
+using static Nid.TestSupport.DocumentApi;
 
 namespace Nid.Ai.IntegrationTests;
 
@@ -61,6 +62,23 @@ public sealed class JobListTests(PostgresFixture fixture) : IClassFixture<Postgr
         Assert.Equal(5, second.Items.Count);
         Assert.Equal(0, running.Total);
         Assert.Equal(0, other.Total);
+    }
+
+    [Fact]
+    public async Task A_job_points_at_its_document_only_for_an_admin_who_reads_it_and_never_names_it()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var shared = await UploadedAsync(app, app.AdultA, Pdf, "fileName=a.pdf&title=Quittance&targetKind=core.household&role=other");
+        // Unfiled: its uploader's alone.
+        var theirs = await UploadedAsync(app, app.AdultB, [.. Pdf, (byte)' '], "fileName=b.pdf&title=Secret");
+
+        var page = await ListAsync(app, "?type=document-text");
+
+        Assert.Equal([new ModelJobFile("documents", null), new ModelJobFile("documents", shared.ToString())],
+            page.Items.Select(j => j.File!).OrderBy(f => f.Reference));
+        var raw = await (await app.RawAsync(app.AdultA, HttpMethod.Get, "/api/v1/ai/jobs")).Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        Assert.DoesNotContain("Quittance", raw);
+        Assert.DoesNotContain(theirs.ToString(), raw);
     }
 
     [Fact]

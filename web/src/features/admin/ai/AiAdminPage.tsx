@@ -28,6 +28,7 @@ import { formatInstant } from '@/lib/format';
 import { AdminFrame } from '../AdminFrame';
 import '@/locales/ai';
 import { BudgetSection } from './BudgetSection';
+import { AllowedKindsSection } from './AllowedKindsSection';
 import { CloudSection } from './CloudSection';
 import { ModelsSection } from './ModelsSection';
 import { RegisterWorkerDialog } from './RegisterWorkerDialog';
@@ -59,6 +60,7 @@ export function AiAdminPage() {
       <WorkersSection headingRef={workersHeading} onPair={(worker) => setAdding({ pending: worker })} onAdd={() => setAdding({})} />
       <ModelsSection />
       <CloudSection />
+      <AllowedKindsSection />
       <BudgetSection />
       <NidKeySection />
       {adding ? <RegisterWorkerDialog pending={adding.pending} onClose={() => setAdding(null)} onDone={announce} /> : null}

@@ -104,7 +104,7 @@ describe('DocumentDetailPage', () => {
     expectHeaderActionRule(container);
     expect(screen.queryByRole('button', { name: 'Archiver' })).not.toBeInTheDocument();
     await openMore(user);
-    expect((await screen.findAllByRole('menuitem')).map((i) => i.textContent)).toEqual(['Modifier', 'Archiver']);
+    expect((await screen.findAllByRole('menuitem')).map((i) => i.textContent)).toEqual(['Modifier', 'Archiver', 'Supprimer']);
     await user.click(screen.getByRole('menuitem', { name: 'Archiver' }));
     expect(writes()).toEqual([]);
     await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
@@ -113,6 +113,23 @@ describe('DocumentDetailPage', () => {
     await openMore(user);
     await user.click(await screen.findByRole('menuitem', { name: 'Désarchiver' }));
     await waitFor(() => expect(writes().map((w) => w.path).at(-1)).toBe(`/api/v1/documents/${DOC}/unarchive`));
+  });
+
+  it('deletes after a confirmation that says what goes, then goes back to the list', async () => {
+    const { writes } = serveDocument();
+    const { user, router } = await renderApp(PATH);
+    await screen.findByRole('link', { name: 'Télécharger' });
+    await openMore(user);
+    await user.click(await screen.findByRole('menuitem', { name: 'Supprimer' }));
+
+    const dialog = await screen.findByRole('alertdialog', { name: 'Supprimer' });
+    expect(dialog).toHaveTextContent('son fichier, ses liens, son texte et sa place dans la recherche');
+    expect(dialog).toHaveTextContent('Les sauvegardes le gardent jusqu’à leur expiration');
+    expect(writes()).toEqual([]);
+    await user.click(within(dialog).getByRole('button', { name: 'Confirmer' }));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/documents'));
+    expect(writes()).toEqual([{ method: 'DELETE', path: `/api/v1/documents/${DOC}`, search: `?version=${detail().document.version}`, body: undefined }]);
   });
 
   it('keeps the focus on « Modifier » after archiving and after unarchiving', async () => {

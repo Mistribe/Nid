@@ -1,4 +1,4 @@
-import { Navigate, useParams } from '@tanstack/react-router';
+import { Navigate, useNavigate, useParams } from '@tanstack/react-router';
 import { Download, Plus } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -17,7 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { AddLinkDialog } from './AddLinkDialog';
 import { contentUrl } from '@/api/documents';
-import { useArchiveDocument, useDocument, useDocumentTargets, useUnarchiveDocument } from './api';
+import { useArchiveDocument, useDeleteDocument, useDocument, useDocumentTargets, useUnarchiveDocument } from './api';
 import { DocumentLinks } from './DocumentLinks';
 import { EditDocumentDialog } from './EditDocumentDialog';
 import { fileSize, localDay } from './format';
@@ -27,7 +27,7 @@ import '@/locales/documents';
 import { PageSkeleton } from '@/components/page/skeletons';
 
 /**
- * Design §2.2: the title with « Télécharger » and « Modifier », « Archiver » in its `⋯` menu, the file's figures inline, then
+ * Design §2.2: the title with « Télécharger » and « Modifier », « Archiver » and « Supprimer » (#600) in its `⋯` menu, the file's figures inline, then
  * the elements it is linked to. The uploader's name comes from the persons the actor may link to; one they cannot see stays unnamed.
  */
 export function DocumentDetailPage() {
@@ -37,7 +37,9 @@ export function DocumentDetailPage() {
   const targets = useDocumentTargets();
   const archive = useArchiveDocument();
   const unarchive = useUnarchiveDocument();
-  const [archiving, setArchiving] = useState(false);
+  const remove = useDeleteDocument();
+  const navigate = useNavigate();
+  const [asking, setAsking] = useState<'archive' | 'delete' | null>(null);
   const [dialog, setDialog] = useState<'editing' | 'linking' | null>(null);
   const editRef = useRef<HTMLButtonElement>(null);
   const addRef = useRef<HTMLButtonElement>(null);
@@ -57,7 +59,7 @@ export function DocumentDetailPage() {
   const uploader = targets.data?.items.find((x) => x.kind === 'core.person' && x.id === detail.uploadedBy)?.label;
   // The dialog handed itself back: the page says what happened and puts the focus back on the button that opened it.
   const done = (ref: typeof editRef) => (message: string) => { setDialog(null); toast.success(message); shownOr(ref.current, moreRef.current)?.focus(); };
-  const error = archive.error ?? unarchive.error ?? answer.error;
+  const error = archive.error ?? unarchive.error ?? remove.error ?? answer.error;
 
   const actions = (
     <>
@@ -67,7 +69,8 @@ export function DocumentDetailPage() {
           <Button ref={editRef} type="button" variant="outline" className="max-sm:hidden" onClick={() => setDialog('editing')}>{t('documents_page.edit')}</Button>
           <RowMenu label={t('page.more_actions')} triggerRef={moreRef} items={[{ label: t('documents_page.edit'), phone: true, onSelect: () => setDialog('editing') }, doc.archived
             ? { label: t('documents_page.unarchive'), onSelect: () => { if (!unarchive.isPending) unarchive.mutate(path, { onSuccess: () => { toast.success(t('documents_page.detail.status_unarchived')); shownOr(editRef.current, moreRef.current)?.focus(); } }); } }
-            : { label: t('documents_page.archive'), disabled: archive.isPending, onSelect: () => setArchiving(true) }]} />
+            : { label: t('documents_page.archive'), disabled: archive.isPending, onSelect: () => setAsking('archive') },
+            { label: t('documents_page.delete'), destructive: true, disabled: remove.isPending, onSelect: () => setAsking('delete') }]} />
         </>
       ) : null}
     </>
@@ -100,10 +103,17 @@ export function DocumentDetailPage() {
       </Section>
       {/* Issue #413: a PDF or an image is shown in the page, under its links, after the header's « Télécharger » in the tab order. */}
       {previewable(doc.mediaType) ? <Section title={t('documents_page.detail.preview')}><DocumentViewer doc={doc} /></Section> : null}
-      {archiving ? (
+      {asking === 'archive' ? (
         <ConfirmFromMenu label={t('documents_page.archive')} confirmation={t('documents_page.archive_confirmation', { title: doc.title })} pending={archive.isPending}
-          returnFocus={moreRef} onClose={() => setArchiving(false)}
+          returnFocus={moreRef} onClose={() => setAsking(null)}
           onConfirm={() => archive.mutate(path, { onSuccess: () => { toast.success(t('documents_page.detail.status_archived')); shownOr(editRef.current, moreRef.current)?.focus(); } })} />
+      ) : null}
+      {asking === 'delete' ? (
+        // Gone once deleted: the list it came from is where the person goes on.
+        <ConfirmFromMenu label={t('documents_page.delete')} confirmation={t('documents_page.delete_confirmation', { title: doc.title })} pending={remove.isPending}
+          returnFocus={moreRef} onClose={() => setAsking(null)}
+          onConfirm={() => remove.mutate({ params: { path: { id: doc.id }, query: { version: doc.version } } },
+            { onSuccess: () => { toast.success(t('documents_page.deleted')); void navigate({ to: '/documents' }); } })} />
       ) : null}
       {dialog === 'editing' ? <EditDocumentDialog detail={detail} onClose={() => setDialog(null)} onDone={done(editRef)} /> : null}
       {dialog === 'linking' ? <AddLinkDialog doc={doc} onClose={() => setDialog(null)} onDone={done(addRef)} /> : null}

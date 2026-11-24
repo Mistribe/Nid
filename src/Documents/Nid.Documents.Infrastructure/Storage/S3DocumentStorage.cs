@@ -60,6 +60,13 @@ public sealed class S3DocumentStorage : IDocumentStorage, IDisposable
         }
     }
 
+    /// <summary>S3 answers a missing key as deleted.</summary>
+    public async Task DeleteAsync(string sha256, CancellationToken ct)
+    {
+        if (AssetHash.IsValid(sha256))
+            await client.DeleteObjectAsync(bucket, KeyOf(sha256), ct);
+    }
+
     private async Task<bool> ExistsAsync(string key, CancellationToken ct)
     {
         try
