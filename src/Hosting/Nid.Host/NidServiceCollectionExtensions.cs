@@ -521,6 +521,7 @@ public static class NidServiceCollectionExtensions
         services.AddSingleton<IRealEstateItems, Nid.RealEstate.Application.RealEstateItems>();
         services.AddScoped<Nid.RealEstate.Application.PropertyReading>();
         services.AddScoped<INetWorthContribution, Nid.RealEstate.Application.RealEstateNetWorth>();
+        services.AddScoped<INetWorthContribution, Nid.Assets.Application.AssetsNetWorth>();
         services.AddScoped<ILoansReview, Nid.RealEstate.Application.LoansReview>();
         services.AddScoped<IPropertiesReview, Nid.RealEstate.Application.PropertiesReview>();
         services.AddScoped<ICommitmentsContribution, Nid.RealEstate.Application.LoanCommitments>();

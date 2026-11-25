@@ -391,6 +391,7 @@
       "cause": {
         "investments": { "paid_in": "de versements sur les placements", "value": "sur la valeur des placements" },
         "real_estate": { "paid_in": "de capital remboursé", "moved": "d’achats et ventes immobiliers", "value": "sur l’immobilier" },
+        "assets": { "moved": "d’achats et ventes de biens", "value": "sur la valeur des autres biens" },
         "subscriptions": "d’abonnements",
         "loans": "de crédits",
         "property_costs": "de charges des biens",
