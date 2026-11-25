@@ -47,7 +47,7 @@ public sealed class AssistantSharedReadingTests(PostgresFixture fixture) : IClas
 
     /// <summary>The ids of the named rows in every module the dataset fills.</summary>
     private static List<string> IdsOf(MixedDataset data, params string[] names)
-        => [.. new[] { data.Items, data.Envelopes, data.IncomeSources, data.Loans, data.Properties, data.Goals }
+        => [.. new[] { data.Items, data.Envelopes, data.IncomeSources, data.Loans, data.Properties, data.Goals, data.Assets }
             .SelectMany(module => names.Where(module.ContainsKey).Select(name => module[name].Value.ToString()))];
 
     /// <summary>Each allowed read, aimed at A's private item of its module or in A's widest scope.</summary>
@@ -65,6 +65,8 @@ public sealed class AssistantSharedReadingTests(PostgresFixture fixture) : IClas
         ["get_loans_overview"] = new { scope = "me" },
         ["list_properties"] = new { scope = "me" },
         ["get_property"] = new { id = data.Properties["P-A"].Value },
+        ["list_assets"] = new { scope = "me" },
+        ["get_asset"] = new { id = data.Assets["P-A"].Value },
         ["list_income_sources"] = new { scope = "me" },
         ["get_income_source"] = new { id = data.IncomeSources["P-A"].Value },
         ["list_tax_years"] = new { scope = "me" },

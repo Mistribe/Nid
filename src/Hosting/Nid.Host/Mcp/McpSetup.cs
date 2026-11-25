@@ -97,6 +97,7 @@ public static class McpSetup
             .WithTools<ChildcareTools>(json)
             .WithTools<BankingTools>(json)
             .WithTools<RealEstateTools>(json)
+            .WithTools<AssetTools>(json)
             .WithTools<TaxTools>(json)
             .WithTools<ProposalTools>(json)
             .WithTools<DocumentTools>(json)

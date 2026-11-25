@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Nid.Assets.Application;
+using Nid.Assets.Infrastructure.Persistence;
 using Nid.Banking.Application;
 using Nid.Banking.Infrastructure.Persistence;
 using Nid.Core.Application;
@@ -85,6 +87,7 @@ public static class NidServiceCollectionExtensions
         services.AddSingleton<IAuditMap, InvestmentsAuditMap>();
         services.AddSingleton<IAuditMap, IncomeAuditMap>();
         services.AddSingleton<IAuditMap, GoalsAuditMap>();
+        services.AddSingleton<IAuditMap, AssetsAuditMap>();
         services.AddSingleton<IAuditMap, TaxAuditMap>();
         services.AddSingleton<IAuditMap, Nid.Ai.Infrastructure.Persistence.AiAuditMap>();
         services.AddSingleton<IAuditMap, Nid.Childcare.Infrastructure.Persistence.ChildcareAuditMap>();
@@ -140,7 +143,7 @@ public static class NidServiceCollectionExtensions
         services.AddSingleton<Nid.Platform.Notifications.TestSendThrottle>();
         services.AddScoped<IAccessDenials, AccessDenials>();
         services.AddSingleton<Nid.Host.Auth.TokenFailureGate>();
-        services.AddSingleton(new EnabledModules(["core", "subscriptions", "import", "investments", "income", "realestate", "goals", "documents", "banking", "childcare"]));
+        services.AddSingleton(new EnabledModules(["core", "subscriptions", "import", "investments", "income", "realestate", "goals", "documents", "banking", "childcare", "assets"]));
 
         // Exchange rates (1C2a). The options are bound by Program from configuration before AddNid; the defaults
         // below only apply when nothing was bound (tests, tools).
@@ -300,6 +303,15 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<Nid.Goals.Contracts.IEmergencyBuffer, GoalsEmergencyBuffer>();
         services.AddScoped<IGoalsReview, GoalsReview>();
         services.AddScoped<ISeriesContribution, GoalSeries>();
+
+        services.AddDbContext<AssetsDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
+        {
+            npgsql.UseNodaTime();
+            npgsql.MigrationsHistoryTable("__ef_migrations_history", AssetsDbContext.Schema);
+        }).AddInterceptors(sp.GetRequiredService<AuditInterceptor>()));
+        services.AddScoped<ITransactionParticipant, DbContextParticipant<AssetsDbContext>>();
+        services.AddScoped<IAssetRecordStore, AssetRecordStore>();
+        services.AddScoped<IItemDeletionPart, AssetsDeletionPart>();
 
         services.AddDbContext<Nid.Ai.Infrastructure.Persistence.AiDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
         {
@@ -509,6 +521,7 @@ public static class NidServiceCollectionExtensions
         services.AddSingleton<IRealEstateItems, Nid.RealEstate.Application.RealEstateItems>();
         services.AddScoped<Nid.RealEstate.Application.PropertyReading>();
         services.AddScoped<INetWorthContribution, Nid.RealEstate.Application.RealEstateNetWorth>();
+        services.AddScoped<INetWorthContribution, Nid.Assets.Application.AssetsNetWorth>();
         services.AddScoped<ILoansReview, Nid.RealEstate.Application.LoansReview>();
         services.AddScoped<IPropertiesReview, Nid.RealEstate.Application.PropertiesReview>();
         services.AddScoped<ICommitmentsContribution, Nid.RealEstate.Application.LoanCommitments>();
@@ -529,6 +542,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IProposalHandler, Nid.RealEstate.Application.AmortizationProposal>();
         services.AddSingleton<IFactConventions, Nid.RealEstate.Application.RealEstateFactConventions>();
         services.AddSingleton<IFactConventions, Nid.Investments.Application.InvestmentsFactConventions>();
+        services.AddSingleton<IFactConventions, Nid.Assets.Application.AssetsFactConventions>();
 
         // Assets (1C2c): files named by their hash, on a volume. Program binds the options; the default is the
         // production volume. Nothing touches the disk before the first write, so building the host never does.
@@ -587,6 +601,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IImportSection, IncomeImportSection>();
         services.AddScoped<IImportSection, IncomeOneOffTaxableImportSection>();
         services.AddScoped<IImportSection, Nid.Goals.Application.Import.GoalsImportSection>();
+        services.AddScoped<IImportSection, Nid.Assets.Application.Import.AssetsImportSection>();
         services.AddScoped<IImportSection, Nid.RealEstate.Application.Import.RealEstateImportSection>();
         services.AddScoped<IImportSection, FactsImportSection>();
         services.AddScoped<IImportSection, Nid.Banking.Application.Import.BankImportSection>();
@@ -603,6 +618,7 @@ public static class NidServiceCollectionExtensions
             cfg.AddRegisterGroup(new Nid.Investments.Application.RegisterGroup());
             cfg.AddRegisterGroup(new Nid.Income.Application.RegisterGroup());
             cfg.AddRegisterGroup(new Nid.Goals.Application.RegisterGroup());
+            cfg.AddRegisterGroup(new Nid.Assets.Application.RegisterGroup());
             cfg.AddRegisterGroup(new Nid.Ai.Application.RegisterGroup());
             cfg.AddRegisterGroup(new Nid.Childcare.Application.RegisterGroup());
             cfg.AddRegisterGroup(new Nid.Documents.Application.RegisterGroup());

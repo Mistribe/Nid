@@ -227,6 +227,7 @@ public static class AssistantEndpoints
     {
         ("realestate", "loan") => "loans",
         ("realestate", "property") => "properties",
+        ("assets", "asset") => "assets",
         ("childcare", "nanny") => "nannies",
         ("investments" or "income" or "subscriptions" or "goals" or "childcare", _) => item.Module,
         _ => null,

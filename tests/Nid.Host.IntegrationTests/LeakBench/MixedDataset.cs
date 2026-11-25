@@ -58,11 +58,11 @@ public sealed class MixedDataset
         IReadOnlyDictionary<string, ItemId> incomeSources, IReadOnlyDictionary<string, ItemId> loans,
         IReadOnlyDictionary<string, ItemId> properties, IReadOnlyDictionary<string, ItemId> scenarios,
         IReadOnlyDictionary<string, ItemId> projectionScenarios, IReadOnlyDictionary<string, ItemId> saleScenarios,
-        IReadOnlyDictionary<string, ItemId> goals, IReadOnlyDictionary<string, ItemId> childcare, IReadOnlyDictionary<string, ItemId> nannies,
+        IReadOnlyDictionary<string, ItemId> goals, IReadOnlyDictionary<string, ItemId> assets, IReadOnlyDictionary<string, ItemId> childcare, IReadOnlyDictionary<string, ItemId> nannies,
         IReadOnlyDictionary<string, IReadOnlyList<Guid>> proposals, IReadOnlyDictionary<ItemId, Guid> documents, IReadOnlyDictionary<ItemId, Guid> unlinkDocuments)
     {
-        (App, Items, Envelopes, IncomeSources, Loans, Properties, Scenarios, ProjectionScenarios, SaleScenarios, Goals, Childcare, Nannies, Proposals, Documents, UnlinkDocuments) =
-            (app, items, envelopes, incomeSources, loans, properties, scenarios, projectionScenarios, saleScenarios, goals, childcare, nannies, proposals, documents, unlinkDocuments);
+        (App, Items, Envelopes, IncomeSources, Loans, Properties, Scenarios, ProjectionScenarios, SaleScenarios, Goals, Assets, Childcare, Nannies, Proposals, Documents, UnlinkDocuments) =
+            (app, items, envelopes, incomeSources, loans, properties, scenarios, projectionScenarios, saleScenarios, goals, assets, childcare, nannies, proposals, documents, unlinkDocuments);
         names = items.ToDictionary(kv => kv.Value, kv => kv.Key);
         foreach (var (name, envelope) in envelopes)
             names[envelope] = name + " (envelope)";
@@ -80,6 +80,8 @@ public sealed class MixedDataset
             names[sale] = name + " (sale)";
         foreach (var (name, goal) in goals)
             names[goal] = name + " (goal)";
+        foreach (var (name, asset) in assets)
+            names[asset] = name + " (asset)";
         foreach (var (name, arrangement) in childcare)
             names[arrangement] = name + " (childcare)";
         foreach (var (name, nanny) in nannies)
@@ -126,6 +128,9 @@ public sealed class MixedDataset
     /// draw on their owner's private envelope twin. The goal requests run against these.
     /// </summary>
     public IReadOnlyDictionary<string, ItemId> Goals { get; }
+
+    /// <summary>The other-asset twin of each row: same §2 name, label, owners and visibility. The asset requests run against these.</summary>
+    public IReadOnlyDictionary<string, ItemId> Assets { get; }
 
     /// <summary>The childminder twin of each row: same §2 name, label, owners and visibility, for the dependent D. The childcare requests run against these.</summary>
     public IReadOnlyDictionary<string, ItemId> Childcare { get; }
@@ -243,6 +248,7 @@ public sealed class MixedDataset
             : requestType.Assembly == typeof(Nid.Investments.Application.ListEnvelopesQuery).Assembly ? Envelopes
             : requestType.Assembly == typeof(Nid.Income.Application.ListIncomeSourcesQuery).Assembly ? IncomeSources
             : requestType.Assembly == typeof(Nid.Goals.Application.CreateGoalCommand).Assembly ? Goals
+            : requestType.Assembly == typeof(Nid.Assets.Application.CreateAssetCommand).Assembly ? Assets
             // Every nanny request carries « Nann » in its name (GetNannyQuery, PutNannyMonthCommand…).
             : requestType.Assembly == typeof(Nid.Childcare.Application.CreateChildcareCommand).Assembly
                 ? (requestType.Name.Contains("Nann", StringComparison.Ordinal) ? Nannies : Childcare)
@@ -268,6 +274,7 @@ public sealed class MixedDataset
         var projectionScenarios = new Dictionary<string, ItemId>();
         var saleScenarios = new Dictionary<string, ItemId>();
         var goals = new Dictionary<string, ItemId>();
+        var assets = new Dictionary<string, ItemId>();
         var childcare = new Dictionary<string, ItemId>();
         var nannies = new Dictionary<string, ItemId>();
         var documents = new Dictionary<ItemId, Guid>();
@@ -287,6 +294,17 @@ public sealed class MixedDataset
             properties[row.Name] = await app.NewPropertyAsync(row.Label, row.Visibility, owners);
             goals[row.Name] = await app.NewGoalAsync(row.Label, owners.Select(o => o.Person).FirstOrDefault(p => p == app.AdultA || p == app.AdultB, app.AdultA),
                 row.Visibility, [(envelopes[row.Name], 5000)], owners);
+            // Named after the label, so the textual scan catches an asset read by the wrong adult.
+            var assetOwner = owners.Select(o => o.Person).FirstOrDefault(p => p == app.AdultA || p == app.AdultB, app.AdultA);
+            var assetMade = await app.RawAsync(assetOwner, HttpMethod.Post, "/api/v1/assets", new
+            {
+                name = row.Label, kind = "art", purchasePrice = "1000", purchasedOn = "2025-01-10",
+                visibility = row.Visibility == Visibility.Private ? "private" : "shared",
+                owners = owners.Select(o => new { personId = o.Person.Value, shareBp = o.ShareBp }).ToArray(),
+            });
+            if (assetMade.StatusCode != System.Net.HttpStatusCode.Created)
+                throw new InvalidOperationException($"Seeding {row.Name}'s asset failed: {assetMade.StatusCode}");
+            assets[row.Name] = new ItemId(JsonDocument.Parse(await assetMade.Content.ReadAsStringAsync()).RootElement.GetProperty("id").GetGuid());
 
             var creator = owners.Select(o => o.Person).FirstOrDefault(p => p == app.AdultA || p == app.AdultB, app.AdultA);
             // Named and its carer named after the label, so the textual scan catches an arrangement read by the wrong adult.
@@ -316,7 +334,7 @@ public sealed class MixedDataset
                 await using (var core = PostgresFixture.NewCoreContext(app.ConnectionString))
                 {
                     Guid[] twins = [items[row.Name].Value, envelopes[row.Name].Value, incomeSources[row.Name].Value, loans[row.Name].Value,
-                        properties[row.Name].Value, goals[row.Name].Value, scenarios[row.Name].Value, projectionScenarios[row.Name].Value, saleScenarios[row.Name].Value,
+                        properties[row.Name].Value, goals[row.Name].Value, assets[row.Name].Value, scenarios[row.Name].Value, projectionScenarios[row.Name].Value, saleScenarios[row.Name].Value,
                         childcare[row.Name].Value, nannies[row.Name].Value];
                     await core.Items.Where(i => twins.Contains(i.Id)).ExecuteUpdateAsync(s => s.SetProperty(i => i.ShareLevel, "edit"));
                 }
@@ -545,7 +563,7 @@ public sealed class MixedDataset
             throw new InvalidOperationException($"Seeding A's category rule failed: {made.StatusCode}");
         var privateRule = (await BankingApi.JsonAsync(made)).GetProperty("id").GetGuid();
 
-        return new MixedDataset(app, items, envelopes, incomeSources, loans, properties, scenarios, projectionScenarios, saleScenarios, goals, childcare, nannies, proposals, documents, unlinkDocuments)
+        return new MixedDataset(app, items, envelopes, incomeSources, loans, properties, scenarios, projectionScenarios, saleScenarios, goals, assets, childcare, nannies, proposals, documents, unlinkDocuments)
         {
             NoticeB = (notice, noticeDocument),
             JointLine = jointLine,
@@ -626,7 +644,7 @@ public sealed class MixedDataset
             .SelectMany(r => new[]
             {
                 Items[r.Name], Envelopes[r.Name], IncomeSources[r.Name], Loans[r.Name], Properties[r.Name], Scenarios[r.Name], ProjectionScenarios[r.Name],
-                SaleScenarios[r.Name], Goals[r.Name], Childcare[r.Name], Nannies[r.Name],
+                SaleScenarios[r.Name], Goals[r.Name], Assets[r.Name], Childcare[r.Name], Nannies[r.Name],
             })
             .ToHashSet();
 

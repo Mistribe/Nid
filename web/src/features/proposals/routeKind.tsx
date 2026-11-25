@@ -73,6 +73,7 @@ export function routeLink(p: ProposalView): LinkTarget | undefined {
   if (module === 'investments') return { to: '/investments/$id', params: { id } };
   if (module === 'income') return { to: '/income/$id', params: { id } };
   if (module === 'subscriptions') return { to: '/subscriptions/$id', params: { id } };
+  if (module === 'assets') return { to: '/other-assets/$id', params: { id } };
   if (module === 'realestate') return { to: /loan|bank_schedule/.test(action) ? '/loans/$id' : '/properties/$id', params: { id } };
   return undefined;
 }

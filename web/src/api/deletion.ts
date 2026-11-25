@@ -10,6 +10,7 @@ export const DELETABLE = {
   'investments.delete_envelope': { preview: '/api/v1/investments/envelopes/{id}/deletion', remove: '/api/v1/investments/envelopes/{id}', list: '/investments', closable: true },
   'income.delete_income_source': { preview: '/api/v1/income/sources/{id}/deletion', remove: '/api/v1/income/sources/{id}', list: '/income', closable: true },
   'realestate.delete_property': { preview: '/api/v1/realestate/properties/{id}/deletion', remove: '/api/v1/realestate/properties/{id}', list: '/properties' },
+  'assets.delete_asset': { preview: '/api/v1/assets/{id}/deletion', remove: '/api/v1/assets/{id}', list: '/other-assets' },
   'realestate.delete_loan': { preview: '/api/v1/realestate/loans/{id}/deletion', remove: '/api/v1/realestate/loans/{id}', list: '/loans' },
   'subscriptions.delete_subscription': { preview: '/api/v1/subscriptions/{id}/deletion', remove: '/api/v1/subscriptions/{id}', list: '/subscriptions', closable: true },
   'childcare.delete_childcare': { preview: '/api/v1/childcare/{id}/deletion', remove: '/api/v1/childcare/{id}', list: '/childcare', closable: true },

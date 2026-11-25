@@ -189,6 +189,7 @@ if (!generatingOpenApi && !builder.Configuration.GetValue<bool>("Health:SkipMigr
     await scope.ServiceProvider.GetRequiredService<InvestmentsDbContext>().Database.MigrateAsync();
     await scope.ServiceProvider.GetRequiredService<IncomeDbContext>().Database.MigrateAsync();
     await scope.ServiceProvider.GetRequiredService<GoalsDbContext>().Database.MigrateAsync();
+    await scope.ServiceProvider.GetRequiredService<Nid.Assets.Infrastructure.Persistence.AssetsDbContext>().Database.MigrateAsync();
     await scope.ServiceProvider.GetRequiredService<Nid.Ai.Infrastructure.Persistence.AiDbContext>().Database.MigrateAsync();
     await scope.ServiceProvider.GetRequiredService<ChildcareDbContext>().Database.MigrateAsync();
     await scope.ServiceProvider.GetRequiredService<DocumentsDbContext>().Database.MigrateAsync();
@@ -240,6 +241,7 @@ app.MapSubscriptionEndpoints();
 app.MapInvestmentEndpoints();
 app.MapIncomeEndpoints();
 app.MapGoalEndpoints();
+app.MapAssetEndpoints();
 app.MapAiEndpoints();
 app.MapAssistantEndpoints();
 app.MapBankingEndpoints();

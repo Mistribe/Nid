@@ -20,6 +20,7 @@
     <ProjectReference Include="..\..\src\Documents\Nid.Documents.Application\Nid.Documents.Application.csproj" />
     <ProjectReference Include="..\..\src\Documents\Nid.Documents.Infrastructure\Nid.Documents.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Tax\Nid.Tax.Infrastructure\Nid.Tax.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Assets\Nid.Assets.Infrastructure\Nid.Assets.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Hosting\Nid.Host\Nid.Host.csproj" />
   </ItemGroup>
   <ItemGroup>

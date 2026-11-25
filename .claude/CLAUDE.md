@@ -48,7 +48,7 @@ Every PR is created with its labels (`gh pr create --label … --label …`), ne
 On top of the type label:
 
 - One area label per area the PR changes: `web` (`web/`), `backend` (`src/`), `mcp` (the assistant's MCP tools), `infra` (`deploy/`, `.github/`).
-- One module label per backend module the issue or PR touches: `module:banking`, `module:childcare`, `module:core`,
+- One module label per backend module the issue or PR touches: `module:assets`, `module:banking`, `module:childcare`, `module:core`,
   `module:documents`, `module:goals`, `module:income`, `module:investments`, `module:platform`, `module:real-estate`,
   `module:subscriptions`, `module:tax`, `module:ai` (`src/<Module>`). `module:new` when it creates a module that does not exist yet in `src/`; once
   that module lands, create its own `module:<name>` label and list it here.

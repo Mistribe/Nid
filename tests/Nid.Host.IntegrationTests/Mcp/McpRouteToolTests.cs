@@ -21,6 +21,13 @@ public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
         "/api/v1/subscriptions/catalog/sync", "/api/v1/investments/prices/sync", "/price/accept", "/api/v1/realestate/irl/sync", "PUT /api/v1/realestate/irl/{year:int}/{quarter:int}", "/api/v1/core/inflation/sync", "PUT /api/v1/core/inflation/{year:int}/{month:int}", "/api/v1/realestate/loans/{id:guid}/simulations", "/api/v1/realestate/loans/overview/simulations",
         "/api/v1/realestate/loans/{id:guid}/bank-schedule/preview", "PUT /api/v1/realestate/loans/{id:guid}/bank-schedule",
         "/api/v1/tax/", "PUT /api/v1/dashboard/allocation-target", "PUT /api/v1/investments/fee-references", "/api/v1/scenarios/", "/api/v1/platform/notifications/",
+        // Other assets (#186): create_asset, update_asset and add_asset_valuation are tools; the other writes stay a click.
+        // Deleting an asset cannot be undone: the person does it in the app, after its preview.
+        "DELETE /api/v1/assets/{id:guid}",
+        // Archiving hides an asset from the lists and the figures: the person's own gesture, with its undo.
+        "POST /api/v1/assets/{id:guid}/archive", "POST /api/v1/assets/{id:guid}/unarchive",
+        // Voiding a valuation changes the asset's latest value: done in the app, where the history is visible.
+        "DELETE /api/v1/assets/{id:guid}/valuations/{valuationId:guid}",
         // Documents: the assistant links, edits and files them through proposals (#305), never archives or unlinks them.
         "/archive", "/unarchive", "DELETE /api/v1/documents/{id:guid}/links/{targetKind}/{targetId:guid}",
         // #600: deleting a document cannot be undone: the person does it in the app, after its confirmation.

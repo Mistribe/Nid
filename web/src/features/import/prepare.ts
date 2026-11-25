@@ -19,7 +19,7 @@ export const VERSIONS: readonly number[] = [1];
 /** The sections of import-format.md §3, in the commit order of §11.4: batches go out in this order. */
 export const SECTIONS = [
   'persons', 'providers',
-  'subscriptions', 'envelopes', 'properties', 'loans', 'income_sources',
+  'subscriptions', 'envelopes', 'properties', 'loans', 'assets', 'income_sources',
   'billing_phases', 'purchases', 'valuations', 'flows', 'property_recurring_costs', 'tenancies', 'loan_phases',
   'loan_insurances', 'loan_fees', 'loan_events', 'loan_bank_schedule', 'subscription_insurances', 'income_phases', 'income_one_off_taxable',
   'holdings', 'holding_snapshots', 'holding_movements', 'security_breakdowns',

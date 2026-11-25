@@ -23,6 +23,7 @@ const NetWorthCharts = lazy(() => import('./NetWorthCharts').then((m) => ({ defa
 const GROUPS = [
   { module: 'investments', label: 'nav.investments' },
   { module: 'properties', label: 'nav.properties' },
+  { module: 'assets', label: 'nav.assets' },
   { module: 'loans', label: 'nav.loans' },
 ] as const;
 

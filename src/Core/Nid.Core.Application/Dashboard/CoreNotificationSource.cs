@@ -113,6 +113,8 @@ public sealed partial class CoreNotificationSource(
         ["real_estate.paid_in"] = "capital remboursé",
         ["real_estate.value"] = "valeur de l'immobilier",
         ["real_estate.moved"] = "achats et ventes immobiliers",
+        ["assets.moved"] = "achats et ventes de biens",
+        ["assets.value"] = "valeur des autres biens",
         ["subscriptions"] = "abonnements",
         ["loans"] = "crédits",
         ["property_costs"] = "charges des biens",

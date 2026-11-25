@@ -393,11 +393,16 @@ function alice() {
     notary_fees: eur(2100), location_label: 'Nantes', rental_starts_on: '2020-04-01', ownership: mine(A),
   });
   valuations.push({ id: 'val-parking-2025', item: 'prop-parking', as_of: '2025-12-31', amount: eur(21000) });
+  const assets = [{
+    id: 'asset-car', name: 'Voiture familiale', kind: 'vehicle', currency: 'EUR', purchase_price: '18000.00', purchased_on: '2022-05-10',
+    ownership: [{ person: A, share_bp: 5000 }, { person: B, share_bp: 5000 }], visibility: 'shared',
+  }];
+  valuations.push({ id: 'val-car-2025', item: 'asset-car', as_of: '2025-12-31', amount: eur(12000) });
   tenancies.push({ id: 'ten-parking-1', property: 'prop-parking', label: 'Place n° 12', starts_on: '2020-04-01', ends_on: '2026-06-30', rent_monthly: eur(85), deposit: eur(85) });
 
   return {
     persons, providers, subscriptions, billing_phases, purchases, envelopes, valuations, flows, holdings, holding_snapshots, holding_movements,
-    properties, property_recurring_costs, tenancies, loans, loan_phases, loan_insurances, loan_fees, loan_events,
+    properties, property_recurring_costs, tenancies, assets, loans, loan_phases, loan_insurances, loan_fees, loan_events,
     subscription_insurances, income_sources, income_phases, income_one_off_taxable, security_breakdowns, goals,
     childcare_arrangements, bank_accounts, bank_transactions, bank_links, bank_rules,
   };
@@ -426,6 +431,11 @@ function bob() {
     ...series('bob-env-ldds', [2024, 11], 7800, { monthly: 80, rate: 0.0019 }),
     ...series('bob-env-per', [2024, 11], 9600, { monthly: 200, rate: 0.005, jitter: 0.03 }),
   ];
+  const assets = [{
+    id: 'bob-asset-coins', name: 'Pièces d’or', kind: 'precious_metal', currency: 'EUR', weight_grams: '29.28', fineness: '916.7',
+    ownership: [{ person: B, share_bp: 10000 }], visibility: 'private',
+  }];
+  valuations.push({ id: 'val-bob-coins-2026', item: 'bob-asset-coins', as_of: '2026-09-30', amount: eur(2400) });
   const flows = [
     { id: 'bob-fl-ldds-open', item: 'bob-env-ldds', occurred_on: '2018-09-01', kind: 'opening', amount: eur(2000) },
     { id: 'bob-fl-per-open', item: 'bob-env-per', occurred_on: '2023-01-10', kind: 'opening', amount: eur(3000) },
@@ -443,7 +453,7 @@ function bob() {
     { id: 'bob-ip-salary-2', source: 'bob-inc-salary', label: 'Traitement', starts_on: '2026-01-01', net_amount: eur(2560), every: every(1, 'month'), gross_amount: eur(3290), taxable_amount: eur(2695) },
     { id: 'bob-ip-freelance', source: 'bob-inc-freelance', label: 'Missions', starts_on: '2025-01-01', ends_on: '2026-12-31', net_amount: eur(900), every: every(3, 'month') },
   ];
-  return { persons, providers, subscriptions, billing_phases, envelopes, valuations, flows, income_sources, income_phases };
+  return { persons, providers, subscriptions, billing_phases, envelopes, assets, valuations, flows, income_sources, income_phases };
 }
 
 /**

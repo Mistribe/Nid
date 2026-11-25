@@ -7,6 +7,12 @@
     <Project Path="src/Ai/Nid.Ai.Protocol/Nid.Ai.Protocol.csproj" />
     <Project Path="src/Ai/Nid.Ai.Worker/Nid.Ai.Worker.csproj" />
   </Folder>
+  <Folder Name="/src/Assets/">
+    <Project Path="src/Assets/Nid.Assets.Application/Nid.Assets.Application.csproj" />
+    <Project Path="src/Assets/Nid.Assets.Contracts/Nid.Assets.Contracts.csproj" />
+    <Project Path="src/Assets/Nid.Assets.Domain/Nid.Assets.Domain.csproj" />
+    <Project Path="src/Assets/Nid.Assets.Infrastructure/Nid.Assets.Infrastructure.csproj" />
+  </Folder>
   <Folder Name="/src/Banking/">
     <Project Path="src/Banking/Nid.Banking.Application/Nid.Banking.Application.csproj" />
     <Project Path="src/Banking/Nid.Banking.Contracts/Nid.Banking.Contracts.csproj" />
@@ -81,6 +87,8 @@
     <Project Path="tests/Nid.Ai.IntegrationTests/Nid.Ai.IntegrationTests.csproj" />
     <Project Path="tests/Nid.Ai.Tests/Nid.Ai.Tests.csproj" />
     <Project Path="tests/Nid.Ai.Worker.Tests/Nid.Ai.Worker.Tests.csproj" />
+    <Project Path="tests/Nid.Assets.IntegrationTests/Nid.Assets.IntegrationTests.csproj" />
+    <Project Path="tests/Nid.Assets.Tests/Nid.Assets.Tests.csproj" />
     <Project Path="tests/Nid.Banking.IntegrationTests/Nid.Banking.IntegrationTests.csproj" />
     <Project Path="tests/Nid.Banking.Tests/Nid.Banking.Tests.csproj" />
     <Project Path="tests/Nid.Childcare.IntegrationTests/Nid.Childcare.IntegrationTests.csproj" />

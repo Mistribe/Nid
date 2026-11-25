@@ -50,6 +50,8 @@
     <ProjectReference Include="..\..\Ai\Nid.Ai.Infrastructure\Nid.Ai.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Goals\Nid.Goals.Application\Nid.Goals.Application.csproj" />
     <ProjectReference Include="..\..\Goals\Nid.Goals.Infrastructure\Nid.Goals.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Assets\Nid.Assets.Application\Nid.Assets.Application.csproj" />
+    <ProjectReference Include="..\..\Assets\Nid.Assets.Infrastructure\Nid.Assets.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Tax\Nid.Tax.Application\Nid.Tax.Application.csproj" />
     <ProjectReference Include="..\..\Tax\Nid.Tax.Infrastructure\Nid.Tax.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Income\Nid.Income.Application\Nid.Income.Application.csproj" />

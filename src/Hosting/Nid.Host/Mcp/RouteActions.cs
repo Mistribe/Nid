@@ -117,6 +117,15 @@ public static class RouteActions
             + "linked to it refuses it. version is the one the deletion preview returned. " + Ids, Destructive: true, Query: ["version"],
             Current: "/api/v1/realestate/properties/{id:guid}/deletion"),
 
+        // Other assets: a vehicle, a precious metal, a work of art, a collectible.
+        new("create_asset", "POST", "/api/v1/assets/", typeof(Nid.Host.Api.AssetEndpoints.CreateAssetBody),
+            "Create an asset (vehicle, precious_metal, art, collectible, other). A value is required: purchasePrice with purchasedOn, "
+            + "or currentValue; invent nothing, leave out what the household did not state. " + Owners + Amounts),
+        new("update_asset", "PUT", "/api/v1/assets/{id:guid}", typeof(Nid.Host.Api.AssetEndpoints.EditAssetBody),
+            "Edit an asset: every field is replaced, so send them all. " + Ids + Versioned + Amounts, Destructive: true),
+        new("add_asset_valuation", "POST", "/api/v1/assets/{id:guid}/valuations", typeof(Nid.Host.Api.AssetEndpoints.AssetValuationBody),
+            "Record an asset's estimated value on a date. " + Ids + Amounts),
+
         // Real estate: loans.
         new("create_loan", "POST", "/api/v1/realestate/loans", typeof(CreateLoanBody),
             "Create a loan with its contract, linked to an existing property when propertyId is given (propose the property first, "

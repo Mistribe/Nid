@@ -28,6 +28,10 @@
         "paid_in": "Capital remboursé",
         "value": "Réévaluation des biens",
         "moved": "Achats et ventes"
+      },
+      "assets": {
+        "value": "Réévaluation des autres biens",
+        "moved": "Achats et ventes de biens"
       }
     },
     "investments": {
