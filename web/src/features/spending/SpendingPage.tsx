@@ -12,6 +12,7 @@ import type { RootSearch } from '@/lib/search';
 import { todayIso } from '@/lib/today';
 import { ImportStatement } from '../investments/operations/ImportStatement';
 import { SPENDING } from './api';
+import { MonthStepper } from './MonthStepper';
 import '@/locales/spending';
 
 // Each tab loads when opened: the overview's figures, the bank lines, the categories and their rules.
@@ -27,15 +28,16 @@ export function SpendingPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [tab] = useDetailTab(TABS);
-  // A tab's filters stay on it (an `?category=` would silently filter another); only Foyer / Moi carries over.
+  const search: SpendingSearch = useSearch({ strict: false });
+  // A tab's filters stay on it (an `?category=` would silently filter another); only Foyer / Moi and the month carry over.
   const change = (next: (typeof TABS)[number]) => void navigate({
     from: '/spending', to: '/spending', replace: true, resetScroll: false,
-    search: (prev: RootSearch & SpendingSearch) => ({ scope: prev.scope, tab: next === 'overview' ? undefined : next }),
+    search: (prev: RootSearch & SpendingSearch) => ({ scope: prev.scope, month: prev.month, tab: next === 'overview' ? undefined : next }),
   });
   const lazyTab = (content: ReactNode) => (
     <Suspense fallback={<Loading label={t('spending.loading')}><TableSkeleton columns={4} /></Loading>}>{content}</Suspense>
   );
-  const actions = tab === 'overview' ? <Suspense fallback={null}><SpendingControls /></Suspense> : tab === 'operations' ? <ImportStatement /> : null;
+  const actions = tab === 'overview' ? <Suspense fallback={null}><SpendingControls /></Suspense> : tab === 'operations' ? <>{search.from || search.to ? null : <MonthStepper />}<ImportStatement /></> : null;
   const toClassify = useToClassify();
   return (
     <div className="space-y-4">

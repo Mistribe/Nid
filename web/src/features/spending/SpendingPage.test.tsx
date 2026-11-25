@@ -158,7 +158,7 @@ describe('« Dépenses »', () => {
     expect(asked).toEqual(['?scope=household&month=2026-11']);
   });
 
-  it('keeps each tab’s filters to itself, Foyer / Moi carried over', async () => {
+  it('keeps each tab’s filters to itself, Foyer / Moi and the month carried over', async () => {
     server.use(
       http.get('*/api/v1/banking/operations', () => HttpResponse.json({ items: [], total: 0, totals: { out: '0.00', in: '0.00', net: '0.00', currency: 'EUR', incomplete: false },
         facets: { accounts: [], owners: [], categories: [] }, accountOwners: [] })),
@@ -169,12 +169,12 @@ describe('« Dépenses »', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Dépenses' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Opérations', selected: true })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Importer un relevé' })).toBeInTheDocument();
-    expect(screen.queryByRole('group', { name: 'Mois' })).toBeNull();
+    expect(screen.getByRole('group', { name: 'Mois' })).toHaveTextContent(/octobre 2026/i);
 
     await user.click(screen.getByRole('tab', { name: 'Catégories' }));
-    await waitFor(() => expect(router.state.location.search).toEqual({ scope: 'me', tab: 'categories' }));
+    await waitFor(() => expect(router.state.location.search).toEqual({ scope: 'me', month: '2026-10', tab: 'categories' }));
     await user.click(screen.getByRole('tab', { name: 'Vue d’ensemble' }));
-    await waitFor(() => expect(router.state.location.search).toEqual({ scope: 'me' }));
+    await waitFor(() => expect(router.state.location.search).toEqual({ scope: 'me', month: '2026-10' }));
     expect(await screen.findByRole('group', { name: 'Mois' })).toBeInTheDocument();
   });
 

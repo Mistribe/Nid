@@ -21,6 +21,7 @@ import { cn } from '@/lib/utils';
 import { OPERATIONS, type BankTransaction, type OperationPage } from '@/api/banking';
 import { LineActions, lineState, SplitParts } from '../investments/operations/LineActions';
 import { Receipts } from '../investments/operations/Receipts';
+import { monthDays, useMonth } from '../spending/MonthStepper';
 import { CategorySuggestions } from './CategorySuggestions';
 import { OperationFilters } from './OperationFilters';
 import '@/locales/banks';
@@ -38,10 +39,13 @@ export function OperationsPage() {
   const navigate = useNavigate();
   const search: OperationsSearch & RootSearch = useSearch({ strict: false });
   const page = search.page ?? 1;
+  // Dépenses' month (#85), unless the filters name their own dates (a figure's lines, a range typed in).
+  const { month } = useMonth();
+  const days = search.from || search.to ? { from: search.from, to: search.to } : monthDays(month);
   const go = (change: Partial<OperationsSearch>) =>
     void navigate({ to: '.', replace: true, resetScroll: false, search: ((prev: OperationsSearch) => ({ ...prev, ...change })) as never });
   const query = {
-    account: search.account, owner: search.owner, category: search.category, from: search.from, to: search.to, uncategorised: search.uncategorised,
+    account: search.account, owner: search.owner, category: search.category, from: days.from, to: days.to, uncategorised: search.uncategorised,
     state: search.state, direction: search.direction, min: search.min === undefined ? undefined : String(search.min),
     max: search.max === undefined ? undefined : String(search.max), q: search.q && search.q.trim().length >= MIN_SEARCH ? search.q.trim() : undefined, page: search.page,
     // #437: the lines a figure of Dépenses counts are those of its Foyer / Moi accounts; any other state lists every account read.
@@ -60,7 +64,7 @@ export function OperationsPage() {
   const rows = answer.data?.items ?? [];
   const chosen = rows.filter((l) => selected.has(l.id));
   // The page's tab and Foyer / Moi filter no line.
-  const onlyUnlinked = search.state === 'unlinked' && Object.entries(search).every(([k, v]) => v === undefined || ['state', 'page', 'tab', 'scope'].includes(k));
+  const onlyUnlinked = search.state === 'unlinked' && Object.entries(search).every(([k, v]) => v === undefined || ['state', 'page', 'tab', 'scope', 'month'].includes(k));
   const totals = answer.data?.totals;
   const money = (v: string) => formatCurrency(v, totals?.currency ?? 'EUR');
   return (

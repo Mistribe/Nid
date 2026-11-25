@@ -1,6 +1,6 @@
 import { keepPreviousData } from '@tanstack/react-query';
-import { Link, useNavigate, useSearch } from '@tanstack/react-router';
-import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
+import { Link } from '@tanstack/react-router';
+import { ChevronDownIcon } from 'lucide-react';
 import { Fragment, lazy, Suspense, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -28,10 +28,10 @@ import { mergeTargets } from './categoryTargets';
 import { percent } from '@/lib/format';
 import { toPlot } from '@/lib/plot';
 import type { RootSearch } from '@/lib/search';
-import { todayIso } from '@/lib/today';
 import { cn } from '@/lib/utils';
 import { BUDGETS, SPENDING, type Spending, type SpendingBudget, type SpendingQuery } from './api';
 import { BudgetDialog, type BudgetTarget } from './BudgetDialog';
+import { MonthStepper, useMonth } from './MonthStepper';
 import { CategoryLinesDialog, Incomplete, operationsSearch } from './CategoryLinesDialog';
 import '@/locales/spending';
 
@@ -62,37 +62,13 @@ const menuId = (id: string, mobile = false) => `budget-${id}${mobile ? '-mobile'
 const ADD = 'add';
 const SUGGEST = 'suggest';
 
-/** An arrow at the end stays focusable (`aria-disabled`), as the year stepper's. */
-const END = 'aria-disabled:cursor-default aria-disabled:opacity-50 aria-disabled:hover:bg-transparent';
-
-/** The month shown (`?month=`, the current one when absent or not yet past) and the period (`?period=12m`), and how to change them. */
-function useMonth() {
-  const navigate = useNavigate();
-  const search: RootSearch & SpendingSearch = useSearch({ strict: false });
-  const current = todayIso().slice(0, 7);
-  const month = search.month && search.month < current ? search.month : current;
-  const set = (patch: SpendingSearch) =>
-    void navigate({ from: '/spending', to: '/spending', replace: true, resetScroll: false, search: (prev: RootSearch & SpendingSearch) => ({ ...prev, ...patch }) });
-  const go = (by: number) => { const next = shiftMonth(month, by); set({ month: next >= current ? undefined : next }); };
-  return { search, current, month, year: search.period === '12m', set, go };
-}
-
 /** The overview's month stepper and period, in the page's header. */
 export function SpendingControls() {
   const { t } = useTranslation();
-  const { current, month, year, set, go } = useMonth();
+  const { year, set } = useMonth();
   return (
     <>
-      <div role="group" aria-label={t('spending.month')} data-header-control className="inline-flex items-center rounded-full border border-input">
-        <Button type="button" variant="ghost" size="icon" aria-label={t('spending.previous')} onClick={() => go(-1)}>
-          <ChevronLeftIcon aria-hidden="true" />
-        </Button>
-        <span aria-live="polite" className="min-w-32 px-1 text-center tabular-nums first-letter:uppercase">{monthText(month)}</span>
-        <Button type="button" variant="ghost" size="icon" aria-label={t('spending.next')} aria-disabled={month === current || undefined} className={END}
-          onClick={() => { if (month !== current) go(1); }}>
-          <ChevronRightIcon aria-hidden="true" />
-        </Button>
-      </div>
+      <MonthStepper />
       <div data-header-control>
         <Segmented aria-label={t('spending.period')} value={year ? '12m' : 'month'} onValueChange={(v) => set({ period: v === '12m' ? '12m' : undefined })}
           options={[{ value: 'month', label: t('spending.period_month') }, { value: '12m', label: t('spending.period_12m') }]} />
