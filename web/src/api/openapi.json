@@ -42332,6 +42332,7 @@
           "name",
           "kind",
           "valueFromPurchase",
+          "fxMissing",
           "valueEstimated",
           "hasCosts",
           "valuations",
@@ -42527,6 +42528,10 @@
                 "$ref": "#/components/schemas/MoneyView"
               }
             ]
+          },
+          "fxMissing": {
+            "type": "boolean",
+            "default": false
           }
         }
       },
@@ -57593,8 +57598,7 @@
       "LinkedLoanView": {
         "required": [
           "id",
-          "name",
-          "balance"
+          "name"
         ],
         "type": "object",
         "properties": {
@@ -57606,7 +57610,14 @@
             "type": "string"
           },
           "balance": {
-            "$ref": "#/components/schemas/MoneyView"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MoneyView"
+              }
+            ]
           }
         }
       },

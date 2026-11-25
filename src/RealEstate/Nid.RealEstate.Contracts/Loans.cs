@@ -139,13 +139,13 @@ public static class LoanCodes
     public const string InvalidAsset = "realestate.invalid_asset";
 }
 
-/// <summary>#188: a readable loan financing an item, with the capital still owed on it, converted to that item's currency.</summary>
-public sealed record ItemLoanBalance(ItemId Loan, string Name, Money Balance);
+/// <summary>#188: a readable loan financing an item, with the capital still owed on it, converted to that item's currency, null when no rate converts it.</summary>
+public sealed record ItemLoanBalance(ItemId Loan, string Name, Money? Balance);
 
 /// <summary>
 /// #188: the loans financing items of another module (an asset), read by Assets for its net value. Only the loans
 /// <paramref name="reader"/> sees in <paramref name="scope"/>; a loan they cannot see is not named nor counted. One call whatever the
-/// number of items. A loan whose currency has no rate to the item's is left out.
+/// number of items. A loan whose currency has no rate to the item's stays listed with a null <c>Balance</c> (the caller leaves it out of its deduction and says so, as a property's <c>fx_missing</c>).
 /// </summary>
 public interface IItemLoans
 {

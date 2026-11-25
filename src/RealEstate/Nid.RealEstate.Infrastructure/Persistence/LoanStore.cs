@@ -67,6 +67,10 @@ public sealed class LoanStore(RealEstateDbContext db) : ILoanStore
         return await FindManyAsync(linked.Select(i => new ItemId(i)).ToList(), ct);
     }
 
+    public async Task<IReadOnlyList<ItemId>> UnfinancedAsync(CancellationToken ct)
+        => (await db.Loans.AsNoTracking().Where(l => l.PropertyItemId == null && l.EnvelopeItemId == null && l.AssetItemId == null).Select(l => l.ItemId).ToListAsync(ct))
+            .Select(i => new ItemId(i)).ToList();
+
     public async Task<IReadOnlyList<ItemId>> FinancingAsync(ItemId envelope, CancellationToken ct)
         => (await db.Loans.AsNoTracking().Where(l => l.EnvelopeItemId == envelope.Value).Select(l => l.ItemId).ToListAsync(ct))
             .Select(i => new ItemId(i)).ToList();

@@ -42,11 +42,12 @@ public sealed class ListLoansHandler(
         IEnumerable<ItemId> ids = await visible.ForAsync(person, query.Scope, ct);
         if (query.Envelope is { } envelope)
             ids = ids.Intersect(await loans.FinancingAsync(envelope, ct));
+        if (query.Unfinanced)
+            ids = ids.Intersect(await loans.UnfinancedAsync(ct));
         var today = await calendar.TodayAsync(ct);
 
         // Batched reads spec §3: the items, the write checks and the linked properties' names, each read once for the list.
-        var found = (await loans.FindManyAsync(ids.ToList(), ct))
-            .Where(l => !query.Unfinanced || (l.PropertyId is null && l.EnvelopeId is null && l.AssetId is null)).ToList();
+        var found = await loans.FindManyAsync(ids.ToList(), ct);
         var loanIds = found.Select(l => l.ItemId).ToList();
         var accesses = await items.FindManyAsync(loanIds, ct);
         var writable = await policy.CheckManyAsync(person, loanIds, AccessKind.Write, ct);

@@ -30,9 +30,9 @@ public sealed class ItemLoans(ILoanStore loans, IItemRegistry items, IVisibleIte
             var currency = LoanReading.CurrencyOf(item);
             var terms = LoanReading.Terms(currency, loan.Contract, loan.Fees, loan.Repayments);
             var balance = LoanMath.At(terms, LoanReading.Schedule(terms, loan), on).Balance;
-            if (!rates.TryConvert(balance, currency, LoanReading.CurrencyOf(target), on, projected: false, out var converted, out _)
-                || !Money.Create(decimal.Round(converted, Money.MaxDecimals), LoanReading.CurrencyOf(target)).TryGetValue(out var money))
-                continue;
+            Money? money = rates.TryConvert(balance, currency, LoanReading.CurrencyOf(target), on, projected: false, out var converted, out _)
+                && Money.Create(decimal.Round(converted, Money.MaxDecimals), LoanReading.CurrencyOf(target)).TryGetValue(out var m)
+                ? m : null;
             if (!result.TryGetValue(loan.AssetId.Value, out var list))
                 result[loan.AssetId.Value] = list = [];
             list.Add(new ItemLoanBalance(loan.ItemId, item.DisplayName, money));

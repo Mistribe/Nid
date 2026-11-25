@@ -16,6 +16,7 @@
       "transfers": "Annulez d’abord les virements avec ces enveloppes.",
       "loan": "Rattachez ces crédits à un autre bien, ou supprimez-les s’ils ont eux aussi été créés par erreur.",
       "scpi_loan": "Retirez la SCPI de ces crédits (« Bien financé » sur la fiche du crédit), ou supprimez-les s’ils ont eux aussi été créés par erreur.",
+      "asset_loan": "Retirez le bien de ces crédits : onglet « Crédit » de la fiche, ou « Bien financé » sur la fiche du crédit.",
       "insurance": "Détachez d’abord le bien de ces assurances.",
       "validated_statements": "Rouvrez d’abord les mois validés, du plus récent au plus ancien."
     },
@@ -71,6 +72,8 @@
       "loan_other": "{{count}} crédits le financent",
       "scpi_loan_one": "{{count}} crédit finance cette SCPI",
       "scpi_loan_other": "{{count}} crédits financent cette SCPI",
+      "asset_loan_one": "{{count}} crédit finance ce bien",
+      "asset_loan_other": "{{count}} crédits financent ce bien",
       "insurance_one": "{{count}} assurance le couvre",
       "insurance_other": "{{count}} assurances le couvrent",
       "billing_phases_one": "{{count}} phase de facturation",

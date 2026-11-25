@@ -207,7 +207,7 @@ describe('AssetDetailPage', () => {
     const patched: unknown[] = [];
     serve(assetView({ loans: [{ id: 'loan-1', name: 'Crédit auto', balance: { amount: '4000.00', currency: 'EUR' } }], netValue: { amount: '6000.00', currency: 'EUR' } }));
     server.use(
-      http.get('*/api/v1/realestate/loans', () => HttpResponse.json({ items: [{ id: 'loan-2', name: 'Prêt travaux' }] })),
+      http.get('*/api/v1/realestate/loans', () => HttpResponse.json({ items: [{ id: 'loan-2', name: 'Prêt travaux', canWrite: true }, { id: 'loan-3', name: 'Prêt de B', canWrite: false }] })),
       http.patch('*/api/v1/realestate/loans/:id', async ({ request }) => { patched.push(await request.json()); return HttpResponse.json({ id: 'loan-2' }); }),
     );
     const { user } = await renderApp(`/other-assets/${ASSET}?tab=loans`);
@@ -223,5 +223,20 @@ describe('AssetDetailPage', () => {
     await user.click(dialog.getByRole('button', { name: 'Lier' }));
 
     await waitFor(() => expect(patched).toEqual([expect.objectContaining({ assetId: ASSET, clearAsset: false })]));
+  });
+
+  it('unlinks a loan with clearAsset, and flags a loan with no exchange rate (#188)', async () => {
+    const patched: unknown[] = [];
+    serve(assetView({
+      loans: [{ id: 'loan-1', name: 'Crédit en francs', balance: null }], netValue: { amount: '8000.00', currency: 'EUR' }, fxMissing: true,
+    }));
+    server.use(http.patch('*/api/v1/realestate/loans/:id', async ({ request }) => { patched.push(await request.json()); return HttpResponse.json({ id: 'loan-1' }); }));
+    const { user } = await renderApp(`/other-assets/${ASSET}?tab=loans`);
+
+    expect(await screen.findByText('Un crédit lié n’a pas de taux de change : il n’est pas déduit')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Actions du crédit' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Délier' }));
+
+    await waitFor(() => expect(patched).toEqual([expect.objectContaining({ clearAsset: true })]));
   });
 });

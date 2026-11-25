@@ -39441,6 +39441,8 @@ export interface components {
             valueBase?: null | components["schemas"]["MoneyView"];
             loans?: null | components["schemas"]["LinkedLoanView"][];
             netValue?: null | components["schemas"]["MoneyView"];
+            /** @default false */
+            fxMissing: boolean;
         };
         AssistantEnabledBody: {
             enabled?: null | boolean;
@@ -42949,7 +42951,7 @@ export interface components {
             /** Format: uuid */
             id: string;
             name: string;
-            balance: components["schemas"]["MoneyView"];
+            balance?: null | components["schemas"]["MoneyView"];
         };
         LinkedSubscriptionView: {
             /** Format: uuid */

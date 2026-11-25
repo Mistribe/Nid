@@ -141,10 +141,10 @@ public static class RouteActions
         // Real estate: loans.
         new("create_loan", "POST", "/api/v1/realestate/loans", typeof(CreateLoanBody),
             "Create a loan with its contract, linked to an existing property when propertyId is given (propose the property first, "
-            + "then the loan once it is approved), or to an SCPI envelope (kind 'scpi') when envelopeId is given, never both. Once approved, propose_amortization can attach the bank's table. " + Owners + Amounts),
+            + "then the loan once it is approved), or to an SCPI envelope (kind 'scpi') when envelopeId is given, or to an asset (« Autres biens », an id from list_assets) when assetId is given: a loan finances one item, never two. Once approved, propose_amortization can attach the bank's table. " + Owners + Amounts),
         new("edit_loan", "PATCH", "/api/v1/realestate/loans/{id:guid}", typeof(EditLoanBody),
             "Edit a loan's details; only the fields given change. envelopeId links an SCPI envelope instead of a property: send "
-            + "clearProperty with it when the loan finances a property. " + Ids),
+            + "clearProperty with it when the loan finances a property. assetId links an asset (an id from list_assets) the same way; a loan finances one item (property, SCPI or asset), so moving between kinds sends the new id with the clear* flag of the old one (clearProperty, clearEnvelope, clearAsset). " + Ids),
         new("replace_loan_contract", "PUT", "/api/v1/realestate/loans/{id:guid}/contract", typeof(LoanContractBody),
             "Replace a loan's contract (amount, rate, phases, insurance). " + Ids + Versioned + Amounts, Destructive: true),
         new("add_loan_fee", "POST", "/api/v1/realestate/loans/{id:guid}/fees", typeof(LoanFeeBody),

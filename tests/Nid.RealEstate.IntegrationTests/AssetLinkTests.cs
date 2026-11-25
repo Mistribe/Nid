@@ -125,4 +125,22 @@ public class AssetLinkTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         preview = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"/api/v1/assets/{asset}/deletion"));
         Assert.Empty(preview.GetProperty("blockers").EnumerateArray());
     }
+
+    [Fact]
+    public async Task Editing_another_field_keeps_a_link_to_an_asset_the_writer_cannot_read()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var hidden = await AssetAsync(app, "Voiture de B", "private", app.AdultB);
+        var body = Golden(app, "Prêt partagé", "shared", app.AdultB);
+        body["shareLevel"] = "edit";
+        body["assetId"] = hidden;
+        var loan = await NewAsync(app, body, app.AdultB);
+
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{Loans}/{loan}", new { lender = "Autre banque" })).StatusCode);
+
+        var seenByA = await DetailAsync(app, loan, app.AdultA);
+        Assert.Equal(hidden, seenByA.GetProperty("assetId").GetGuid());
+        Assert.Equal(JsonValueKind.Null, seenByA.GetProperty("assetName").ValueKind);
+        Assert.Equal("Autre banque", S(seenByA, "lender"));
+    }
 }

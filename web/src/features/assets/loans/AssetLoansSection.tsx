@@ -43,6 +43,7 @@ export function AssetLoansSection({ asset }: { asset: AssetView }) {
       {unlink.error ? <ProblemMessage problem={present(toProblem(unlink.error))} /> : null}
       {loans.length === 0 ? <p className="text-muted-foreground">{t('assets_loans.empty')}</p> : (
         <>
+          {asset.fxMissing ? <p role="status" className="text-status-warning-text">{t('assets_loans.fx_missing')}</p> : null}
           <StatLine items={[
             { label: t('assets_loans.value'), value: asset.value ? <Money value={asset.value} /> : '—' },
             { label: t('assets_loans.net'), hint: t('assets_loans.net_hint'), value: asset.netValue ? <Money value={asset.netValue} /> : '—' },
@@ -59,7 +60,7 @@ export function AssetLoansSection({ asset }: { asset: AssetView }) {
               {loans.map((l) => (
                 <TableRow key={l.id}>
                   <TableCell className="whitespace-normal font-medium"><Link to="/loans/$id" params={{ id: l.id }} className="underline">{l.name}</Link></TableCell>
-                  <TableCell className="text-right"><Money value={l.balance} tabular /></TableCell>
+                  <TableCell className="text-right">{l.balance ? <Money value={l.balance} tabular /> : <span className="text-muted-foreground">{t('assets_loans.no_rate')}</span>}</TableCell>
                   {asset.canWrite ? (
                     <TableCell>
                       <RowMenu label={t('assets_loans.menu')} items={[
@@ -84,14 +85,14 @@ export function AssetLoansSection({ asset }: { asset: AssetView }) {
   );
 }
 
-/** The unpaid loans the reader sees that finance nothing (the server's `unfinanced` filter): a loan is never moved from another item. */
+/** The unpaid loans the reader can edit that finance nothing (the server's `unfinanced` filter): a loan is never moved from another item. */
 function LinkForm({ asset, titleId, onDone }: { asset: AssetView; titleId: string; onDone: (message?: string) => void }) {
   const { t } = useTranslation();
   const { $api } = useApi();
   const queryClient = useQueryClient();
   const form = useForm<{ loanId: string }>({ defaultValues: { loanId: '' } });
   const list = $api.useQuery('get', LOANS, { params: { query: { scope: 'me', unfinanced: true } } });
-  const options = (list.data?.items ?? []).map((l) => ({ value: l.id, label: l.name }));
+  const options = (list.data?.items ?? []).filter((l) => l.canWrite).map((l) => ({ value: l.id, label: l.name }));
   const link = $api.useMutation('patch', LOAN);
   return (
     <form aria-labelledby={titleId} noValidate className="space-y-3" onSubmit={(ev) => {

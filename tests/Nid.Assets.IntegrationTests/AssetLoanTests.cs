@@ -96,4 +96,22 @@ public class AssetLoanTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         preview = await AssetApi.JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Route}/{asset.Value}/deletion"));
         Assert.Empty(preview.GetProperty("blockers").EnumerateArray());
     }
+
+    [Fact]
+    public async Task A_loan_without_an_exchange_rate_stays_listed_unbalanced_flagged_and_not_deducted()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var asset = await CreateAsync(app, Body(app, "Voiture", "vehicle", purchasePrice: "250000"));
+        var body = Golden(app, "Crédit en francs");
+        body["currency"] = "CHF";
+        var loan = await NewAsync(app, body);
+        (await LinkAsync(app, loan, asset)).EnsureSuccessStatusCode();
+
+        var view = await GetAsync(app, asset);
+
+        var linked = Assert.Single(view.GetProperty("loans").EnumerateArray());
+        Assert.Equal(("Crédit en francs", JsonValueKind.Null), (linked.GetProperty("name").GetString(), linked.GetProperty("balance").ValueKind));
+        Assert.True(view.GetProperty("fxMissing").GetBoolean());
+        Assert.Equal("250000.00", view.GetProperty("netValue").GetProperty("amount").GetString());
+    }
 }

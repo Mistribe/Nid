@@ -79,6 +79,9 @@ public interface ILoanStore
     /// <summary>#188: the loans that finance these assets, whoever may read them: the caller filters.</summary>
     Task<IReadOnlyList<StoredLoan>> FindLinkedToAssetsAsync(IReadOnlyCollection<ItemId> assets, CancellationToken ct);
 
+    /// <summary>#188: the ids of the loans that finance no property, SCPI or asset, whoever may read them: the caller filters.</summary>
+    Task<IReadOnlyList<ItemId>> UnfinancedAsync(CancellationToken ct);
+
     /// <summary>#180: the ids of the loans that finance this envelope, whoever may read them: the caller filters.</summary>
     Task<IReadOnlyList<ItemId>> FinancingAsync(ItemId envelope, CancellationToken ct);
 
