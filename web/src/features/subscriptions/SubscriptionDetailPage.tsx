@@ -25,6 +25,7 @@ import { Section } from '@/components/page/Section';
 import { DETAIL } from '@/api/subscriptions';
 import { PERSONS } from '@/api/persons';
 import { ContractSection } from './contract/ContractSection';
+import { AssetLinkForm, AssetLinkSection } from './contract/AssetLink';
 import { ContractTermsForm } from './contract/ContractTermsForm';
 import { InsuranceForm } from './contract/InsuranceForm';
 import { InsuranceSection } from './contract/InsuranceSection';
@@ -78,7 +79,7 @@ export function SubscriptionDetailPage() {
   const answer = $api.useQuery('get', DETAIL, { params: { path: { id } } });
   const people = $api.useQuery('get', PERSONS);
   const [tab, setTab] = useDetailTab(TABS);
-  const [dialog, setDialog] = useState<'price' | 'purchase' | 'terms' | 'insurance' | null>(null);
+  const [dialog, setDialog] = useState<'price' | 'purchase' | 'terms' | 'insurance' | 'asset' | null>(null);
   const [deleting, setDeleting] = useState(false);
   // Which subscription shows all its payments: another one opened on the same page starts folded.
   const [expandedFor, setExpandedFor] = useState<string | null>(null);
@@ -118,6 +119,7 @@ export function SubscriptionDetailPage() {
         { label: t('edit.purchase_title'), phone: true, onSelect: () => setDialog('purchase') },
         { label: t('contract_terms.edit'), onSelect: () => setDialog('terms') },
         { label: detail.insurance ? t('insurance.change') : t('insurance.add'), onSelect: () => setDialog('insurance') },
+        { label: detail.asset ? t('asset_link.change') : t('asset_link.add'), onSelect: () => setDialog('asset') },
       ]} trailing={[{ label: t('deletion.menu'), destructive: true, onSelect: () => setDeleting(true) }]} />
     </>
   ) : null;
@@ -192,6 +194,11 @@ export function SubscriptionDetailPage() {
           {({ titleId, done }) => <InsuranceForm detail={detail} titleId={titleId} onDone={done} />}
         </FormDialog>
       ) : null}
+      {dialog === 'asset' ? (
+        <FormDialog title={t('asset_link.edit')} onClose={() => close()} onDone={close}>
+          {({ titleId, done }) => <AssetLinkForm detail={detail} titleId={titleId} onDone={done} />}
+        </FormDialog>
+      ) : null}
       {dialog === 'purchase' ? (
         <FormDialog title={t('edit.purchase_title')} onClose={() => close()} onDone={close}>
           {({ titleId, done }) => <PurchaseForm detail={detail} titleId={titleId} onDone={done} />}
@@ -205,6 +212,7 @@ export function SubscriptionDetailPage() {
             <>
               {detail.provider && detail.provider.included.length > 0 ? <IncludedProviders included={detail.provider.included} /> : null}
               <Section title={t('subscription.coverage')}><CoverageBand coverage={detail.coverage} /></Section>
+              <AssetLinkSection detail={detail} />
               <ContractSection detail={detail} />
               <InsuranceSection detail={detail} onRemoved={(message) => { toast.success(message); menuRef.current?.focus(); }} />
             </>

@@ -26,6 +26,7 @@ import { ItemDocuments } from '@/features/documents/ItemDocuments';
 import { EditAssetDialog } from './EditAssetDialog';
 import { energyText, kindText } from './format';
 import { MileageDialog } from './MileageDialog';
+import { AssetSubscriptionsSection } from './subscriptions/AssetSubscriptionsSection';
 import { AssetValuationDialog } from './valuations/AssetValuationForm';
 import { AssetValuationsSection } from './valuations/AssetValuationsSection';
 import '@/locales/assets';
@@ -33,7 +34,7 @@ import '@/locales/deletion';
 import '@/locales/documents';
 
 const DeleteItemFlow = lazy(() => import('@/components/DeleteItemFlow'));
-const TABS = ['valuations', 'documents'] as const;
+const TABS = ['valuations', 'subscriptions', 'documents'] as const;
 
 /**
  * An asset: its value inline under the title (with « prix d’achat » while the purchase price stands in for a valuation), its
@@ -54,7 +55,7 @@ export function AssetDetailPage() {
   const crumbs = [{ label: t('nav.assets'), to: '/other-assets' as const }];
 
   if (answer.error) return <ErrorPage problem={present(toProblem(answer.error))} crumbs={crumbs} onRetry={() => void answer.refetch()} />;
-  if (!asset) return <article className="space-y-6"><PageTrail crumbs={crumbs} /><PageSkeleton label={t('assets_detail.loading')} actions={2} stats={4} tabs={2} /></article>;
+  if (!asset) return <article className="space-y-6"><PageTrail crumbs={crumbs} /><PageSkeleton label={t('assets_detail.loading')} actions={2} stats={4} tabs={3} /></article>;
 
   const toggle = asset.archived ? unarchive : archive;
   const actions = (
@@ -108,6 +109,7 @@ export function AssetDetailPage() {
       {asset.canWrite && dialog === 'value' ? <AssetValuationDialog asset={asset} onClose={() => setDialog(null)} onDone={(m) => { setDialog(null); toast.success(m); }} /> : null}
       <DetailTabs value={tab} onChange={setTab} tabs={[
         { id: 'valuations', label: t('assets_detail.tab_valuations'), content: <AssetValuationsSection asset={asset} /> },
+        { id: 'subscriptions', label: t('assets_subscriptions.tab'), content: <AssetSubscriptionsSection asset={asset} /> },
         { id: 'documents', label: t('documents_item.title'), content: <ItemDocuments itemId={asset.id} canWrite={asset.canWrite} defaultRole="invoice" /> },
       ]} />
     </article>

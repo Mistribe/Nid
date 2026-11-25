@@ -199,8 +199,16 @@ public sealed class GetSubscriptionHandler(
             : null;
         return Result.Success(SubscriptionViews.Detail(
             input, timeline, item.DisplayName, provider, window, Conversion.Of(cashPieces, amortizedPieces, reference, rates), editing, today,
-            insurance, SpendingViews.Spent(timeline, reference, rates, today), SpendingViews.Saved(self, others, reference, rates, today)));
+            insurance, SpendingViews.Spent(timeline, reference, rates, today), SpendingViews.Saved(self, others, reference, rates, today),
+            await LinkedAssetAsync(query.ItemId, visibleItems, ct)));
     }
+
+    /// <summary>#648: named only when the reader sees it, as the insured property is (spec §8).</summary>
+    private async Task<LinkedAssetView?> LinkedAssetAsync(ItemId subscription, IReadOnlySet<ItemId> visibleItems, CancellationToken ct)
+        => (await store.AssetsOfAsync([subscription], ct)).TryGetValue(subscription, out var asset) && visibleItems.Contains(asset)
+           && await items.FindAsync(asset, ct) is { } found
+            ? new LinkedAssetView(asset.Value, found.DisplayName)
+            : null;
 
     private async Task<InsuredPropertyView?> InsuredPropertyAsync(ItemId? property, IReadOnlySet<ItemId> visibleItems, CancellationToken ct)
         => property is { } id && visibleItems.Contains(id) && await items.FindAsync(id, ct) is { } found

@@ -1,6 +1,7 @@
 using System.Globalization;
 using Nid.Assets.Domain;
 using Nid.Core.Contracts;
+using Nid.Subscriptions.Contracts;
 using NodaTime;
 
 namespace Nid.Assets.Application;
@@ -9,14 +10,18 @@ public sealed record MoneyView(string Amount, string Currency);
 
 public sealed record ValuationView(Guid Id, LocalDate AsOf, string Amount, string? Note);
 
+/// <summary>#648: a subscription linked to the asset, as its page lists it; <paramref name="Period"/> is day, week, month or year.</summary>
+public sealed record LinkedSubscriptionView(ItemId Id, string Name, MoneyView? Price, string? Period, LocalDate? NextDeadline);
+
 /// <param name="ValueFromPurchase">The value is the purchase price: no valuation is dated yet.</param>
 public sealed record AssetView(
     ItemId Id, string Name, string Kind, MoneyView? Value, LocalDate? ValueOn, bool ValueFromPurchase, MoneyView? PurchasePrice,
     LocalDate? PurchasedOn, string? Note, decimal? WeightGrams, decimal? Fineness,
     LocalDate? RegisteredOn, int? MileageKm, LocalDate? MileageOn, int? FiscalHp, string? Energy, IReadOnlyList<ValuationView> Valuations, string Currency,
-    string Visibility, IReadOnlyList<ItemOwnerView> Owners, bool Archived, uint Version, bool CanWrite, string ShareLevel) : IExposesItems
+    string Visibility, IReadOnlyList<ItemOwnerView> Owners, bool Archived, uint Version, bool CanWrite, string ShareLevel,
+    IReadOnlyList<LinkedSubscriptionView> Subscriptions) : IExposesItems
 {
-    public IEnumerable<ItemId> ExposedItems() => [Id];
+    public IEnumerable<ItemId> ExposedItems() => [Id, ..Subscriptions.Select(s => s.Id)];
 }
 
 public sealed record AssetRow(
@@ -46,7 +51,7 @@ internal static class AssetViews
             value?.On, value?.FromPurchase ?? false, currency, Wire(item.Visibility), item.OwnerViews(), item.ArchivedAt is not null);
     }
 
-    public static AssetView Detail(ItemAccess item, AssetRecord record, IReadOnlyList<Valuation> valuations, LocalDate today, bool canWrite)
+    public static AssetView Detail(ItemAccess item, AssetRecord record, IReadOnlyList<Valuation> valuations, LocalDate today, bool canWrite, IReadOnlyList<LinkedSubscription> subscriptions)
     {
         var row = Row(item, record, valuations, today);
         var d = record.Details;
@@ -55,6 +60,8 @@ internal static class AssetViews
             d.RegisteredOn, d.MileageKm, d.MileageOn, d.FiscalHp, d.Energy,
             valuations.OrderBy(v => v.AsOf).Select(v => new ValuationView(v.Id, v.AsOf, Amount(v.Value.Amount), v.Note)).ToList(),
             row.Currency, row.Visibility, row.Owners, row.Archived, record.Version, canWrite,
-            item.Visibility == Visibility.Shared && item.ShareLevel == ShareLevel.Edit ? "edit" : "view");
+            item.Visibility == Visibility.Shared && item.ShareLevel == ShareLevel.Edit ? "edit" : "view",
+            subscriptions.Select(s => new LinkedSubscriptionView(
+                s.Id, s.Name, s.Price is { } p ? new MoneyView(p.AmountText, p.Currency.Code) : null, s.Period, s.NextDeadline)).ToList());
     }
 }

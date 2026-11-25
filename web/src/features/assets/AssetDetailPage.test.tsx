@@ -108,4 +108,38 @@ describe('AssetDetailPage', () => {
     await screen.findByRole('menuitem', { name: 'Archiver' });
     expect(screen.queryByRole('menuitem', { name: 'Mettre à jour le kilométrage' })).not.toBeInTheDocument();
   });
+  const LINKED = { id: '0192f0bb-0000-7000-8000-0000000000a1', name: 'Assurance auto', price: { amount: '40.00', currency: 'EUR' }, period: 'month', nextDeadline: '2026-12-01' };
+
+  it('lists the linked subscriptions and unlinks one with a PUT', async () => {
+    const unlinked: unknown[] = [];
+    serve(assetView({ subscriptions: [LINKED] }));
+    server.use(http.put('*/api/v1/subscriptions/:id/asset', async ({ request }) => { unlinked.push(await request.json()); return HttpResponse.json({ id: LINKED.id }); }));
+    const { user } = await renderApp(`/other-assets/${ASSET}?tab=subscriptions`);
+
+    const table = within(await screen.findByRole('table', { name: 'Abonnements liés à ce bien' }));
+    expect(table.getByRole('link', { name: 'Assurance auto' })).toHaveAttribute('href', `/subscriptions/${LINKED.id}`);
+    expect(table.getByText(/40,00 €/)).toBeInTheDocument();
+    await user.click(table.getByRole('button', { name: 'Actions de l’abonnement' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Délier' }));
+
+    await waitFor(() => expect(unlinked).toEqual([{ assetId: null }]));
+  });
+
+  it('links a subscription picked in the list with a PUT', async () => {
+    const linked: unknown[] = [];
+    serve(assetView());
+    server.use(
+      http.get('*/api/v1/subscriptions', () => HttpResponse.json({ items: [{ id: LINKED.id, displayName: 'Assurance auto' }], groups: [], findings: [] })),
+      http.put('*/api/v1/subscriptions/:id/asset', async ({ request }) => { linked.push(await request.json()); return HttpResponse.json({ id: LINKED.id }); }),
+    );
+    const { user } = await renderApp(`/other-assets/${ASSET}?tab=subscriptions`);
+
+    await user.click(await screen.findByRole('button', { name: 'Lier un abonnement' }));
+    const dialog = within(await screen.findByRole('dialog', { name: 'Lier un abonnement' }));
+    await user.click(await dialog.findByRole('combobox'));
+    await user.click(await screen.findByRole('option', { name: 'Assurance auto' }));
+    await user.click(dialog.getByRole('button', { name: 'Lier' }));
+
+    await waitFor(() => expect(linked).toEqual([{ assetId: ASSET }]));
+  });
 });

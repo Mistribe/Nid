@@ -5,6 +5,7 @@ import { DASHBOARD } from './dashboard';
 export type AssetRow = components['schemas']['AssetRow'];
 export type AssetList = components['schemas']['AssetListView'];
 export type AssetView = components['schemas']['AssetView'];
+export type LinkedSubscription = components['schemas']['LinkedSubscriptionView'];
 export type AssetValuation = components['schemas']['ValuationView'];
 export type CreateAssetBody = components['schemas']['CreateAssetBody'];
 export type EditAssetBody = components['schemas']['EditAssetBody'];

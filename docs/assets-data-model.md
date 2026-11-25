@@ -22,6 +22,7 @@ Genres : `vehicle`, `precious_metal`, `art`, `collectible`, `other`. Seul `preci
 - **Métal** : poids et titre seulement pour `precious_metal` (`assets.metal_only`) ; poids > 0 ; titre en ‰, de 0 (exclu) à 1 000, une décimale (`999.9` est conservé tel quel).
 - **Véhicule** : les champs du véhicule seulement pour `vehicle` (`assets.vehicle_only`) ; mise en circulation et date du relevé non futures (`assets.invalid_date`) ; kilométrage de 0 à moins de 10 000 000 (`assets.invalid_mileage`), avec sa date ou sans aucun des deux (`assets.mileage_incomplete`) ; puissance fiscale de 1 à 99 (`assets.invalid_fiscal_hp`) ; énergie parmi `petrol`, `diesel`, `hybrid`, `plug_in_hybrid`, `electric`, `lpg`, `other` (`assets.invalid_energy`). Mettre à jour le kilométrage est une modification qui remplace le relevé et sa date (pas d'historique).
 - **Location (LOA, LLD)** : pas un bien. L'écran de création propose de la suivre comme un abonnement (`/subscriptions/new?name=…&note=…`) et ne crée rien.
+- **Abonnements liés** (#648) : un abonnement (assurance, entretien…) se lie à un bien par `subscriptions.subscription.asset_item_id` (un bien par abonnement, plusieurs abonnements par bien ; pas de clé étrangère entre modules). Le lien s'écrit depuis l'abonnement (`assetId` à la création, `PUT /api/v1/subscriptions/{id}/asset` `{ assetId | null }`, `subscriptions.invalid_asset` si le bien n'est pas lisible ou n'est pas un bien) ; la fiche du bien (`subscriptions`) liste ceux que le lecteur voit, avec prix, période et prochaine échéance, par le port `ISubscriptionsOfItems` des contrats Abonnements. Supprimer le bien ne bloque pas : le lien tombe, l'abonnement reste.
 - **Modification** : remplace tous les champs. Passer d'un métal ou d'un véhicule à un autre genre efface les champs qui ne le concernent plus.
 - **Clôture** : archiver un bien le tient pour vendu (voir §5) ; supprimer (après aperçu) efface un bien créé par erreur, avec ses valeurs.
 - Les valorisations se posent par date : une valeur à une date déjà valorisée la remplace.
@@ -40,4 +41,4 @@ Genres : `vehicle`, `precious_metal`, `art`, `collectible`, `other`. Seul `preci
 
 ## 6. Import, export, assistant
 
-Section d'import `assets` (`import-format.md` §5.10), ses valorisations dans `valuations`. L'export la reprend. Les outils MCP lisent, créent et valorisent les biens.
+Section d'import `assets` (`import-format.md` §5.10), ses valorisations dans `valuations` et le champ `asset` des abonnements (§5.3). L'export la reprend. Les outils MCP lisent, créent et valorisent les biens.

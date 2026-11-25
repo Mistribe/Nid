@@ -48,7 +48,7 @@ public sealed partial class AssetsImportSection(
 
     public string Module => "assets";
     public IReadOnlyList<string> Sections => [Section];
-    public int Order => 45; // after real estate, before the Core's facts (90)
+    public int Order => 5; // after the persons, before the subscriptions that link to an asset (#648) and the Core's facts (90)
 
     public IReadOnlyList<ImportIssue> ValidateBatch(string section, JsonElement entities, int firstIndex)
     {

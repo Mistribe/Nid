@@ -335,6 +335,17 @@ public static class RequestCatalogue
             },
             SecondItemAccess = AccessKind.Read,
         },
+        new(typeof(SetSubscriptionAssetCommand), true, (_, item) => new SetSubscriptionAssetCommand(item, null))
+        {
+            // #648: a subscription links to an asset its actor reads; the bench names the asset twin of the other row. A link kept
+            // from the request before is no new link, so each request starts without one.
+            BuildNamingAnother = async (d, target, other) =>
+            {
+                await d.App.ClearAssetLinkAsync(target);
+                return new SetSubscriptionAssetCommand(target, d.AssetTwinOfSubscription(other));
+            },
+            SecondItemAccess = AccessKind.Read,
+        },
         new(typeof(SubscriptionDeletionQuery), true, (_, item) => new SubscriptionDeletionQuery(item)),
         new(typeof(DeleteSubscriptionCommand), true, (_, item) => new DeleteSubscriptionCommand(item, 1)),
         new(typeof(DeleteInsuranceCommand), true,

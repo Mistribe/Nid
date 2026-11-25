@@ -63,7 +63,7 @@ describe('Abonnements › détail', () => {
 
     await openMore(user);
     await screen.findByRole('menuitem', { name: 'Conditions du contrat' });
-    await waitFor(() => expect(screen.getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['Ajouter un achat', 'Conditions du contrat', 'Ajouter l’assurance', 'Partage…', 'Supprimer…']));
+    await waitFor(() => expect(screen.getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['Ajouter un achat', 'Conditions du contrat', 'Ajouter l’assurance', 'Lier à un bien', 'Partage…', 'Supprimer…']));
     await user.click(screen.getByRole('menuitem', { name: 'Conditions du contrat' }));
     const terms = await screen.findByRole('dialog', { name: 'Conditions du contrat' });
     await user.click(within(terms).getByRole('button', { name: 'Annuler' }));
@@ -454,5 +454,24 @@ describe('Abonnements › détail', () => {
       await user.click(within(dialog).getByRole('button', { name: 'Supprimer définitivement' }));
       await waitFor(() => expect(router.state.location.pathname).toBe('/subscriptions'));
     });
+  });
+  it('names the linked asset, links to its page and changes it with a PUT', async () => {
+    const puts: unknown[] = [];
+    serveDetail(detail({ asset: { id: 'a1', name: 'Citadine' } }));
+    server.use(
+      http.get('*/api/v1/assets', () => HttpResponse.json({ rows: [{ id: 'a2', name: 'Moto' }], total: 1, kinds: [] })),
+      http.put('*/api/v1/subscriptions/:id/asset', async ({ request }) => { puts.push(await request.json()); return HttpResponse.json({ id: SUB }); }),
+    );
+    const { user } = await renderApp(`/subscriptions/${SUB}`);
+
+    expect(await screen.findByRole('link', { name: 'Citadine' })).toHaveAttribute('href', '/other-assets/a1');
+    await openMore(user);
+    await user.click(await screen.findByRole('menuitem', { name: 'Changer le bien lié' }));
+    const dialog = within(await screen.findByRole('dialog', { name: 'Bien concerné' }));
+    await user.click(await dialog.findByRole('combobox'));
+    await user.click(await screen.findByRole('option', { name: 'Moto' }));
+    await user.click(dialog.getByRole('button', { name: 'Enregistrer' }));
+
+    await waitFor(() => expect(puts).toEqual([{ assetId: 'a2' }]));
   });
 });

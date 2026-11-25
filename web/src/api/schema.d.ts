@@ -3794,6 +3794,101 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/subscriptions/{id}/asset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AssetLinkBody"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IdResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/subscriptions/{id}/phases": {
         parameters: {
             query?: never;
@@ -38894,6 +38989,10 @@ export interface components {
             name: string;
             logo?: null | string;
         };
+        AssetLinkBody: {
+            /** Format: uuid */
+            assetId?: null | string;
+        };
         AssetListView: {
             rows: components["schemas"]["AssetRow"][];
             /** Format: int32 */
@@ -38954,6 +39053,7 @@ export interface components {
             version: number;
             canWrite: boolean;
             shareLevel: string;
+            subscriptions: components["schemas"]["LinkedSubscriptionView"][];
         };
         AssistantEnabledBody: {
             enabled?: null | boolean;
@@ -40304,6 +40404,8 @@ export interface components {
             phases?: null | components["schemas"]["PhaseInput"][];
             purchases?: null | components["schemas"]["PurchaseInput"][];
             shareLevel?: null | string;
+            /** Format: uuid */
+            assetId?: null | string;
         };
         CurrentTenancyView: {
             label: string;
@@ -42430,10 +42532,24 @@ export interface components {
             targetId?: null | string;
             role?: null | string;
         };
+        LinkedAssetView: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+        };
         LinkedDocumentView: {
             /** Format: uuid */
             id: string;
             title: string;
+        };
+        LinkedSubscriptionView: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            price?: null | components["schemas"]["MoneyView"];
+            period?: null | string;
+            /** Format: date */
+            nextDeadline?: null | string;
         };
         LinkPreview: {
             gainedReaders: components["schemas"]["ReaderView"][];
@@ -45465,6 +45581,7 @@ export interface components {
             insurance?: null | components["schemas"]["InsuranceView"];
             spent?: null | components["schemas"]["SpentView"];
             saved?: null | components["schemas"]["SavedView"];
+            asset?: null | components["schemas"]["LinkedAssetView"];
         };
         SubscriptionList: {
             items: components["schemas"]["SubscriptionSummary"][];

@@ -17,6 +17,7 @@ namespace Nid.Host.Api.Json;
 [JsonSerializable(typeof(SubscriptionEndpoints.EditSubscriptionBody))]
 [JsonSerializable(typeof(SubscriptionEndpoints.IdResponse))]
 [JsonSerializable(typeof(SubscriptionEndpoints.InsuranceBody))]
+[JsonSerializable(typeof(SubscriptionEndpoints.AssetLinkBody))]
 [JsonSerializable(typeof(SubscriptionEndpoints.PhaseBody))]
 [JsonSerializable(typeof(SubscriptionEndpoints.PriceChangeBody))]
 [JsonSerializable(typeof(SubscriptionEndpoints.PurchaseInput))]

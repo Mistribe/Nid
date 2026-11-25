@@ -133,5 +133,27 @@
     "electric": "Électrique",
     "lpg": "GPL",
     "other": "Autre"
+  },
+  "assets_subscriptions": {
+    "tab": "Abonnements liés",
+    "title": "Abonnements liés",
+    "list": "Abonnements liés à ce bien",
+    "empty": "Aucun abonnement n’est lié à ce bien : assurance, contrat d’entretien…",
+    "link": "Lier un abonnement",
+    "unlink": "Délier",
+    "unlinked": "Abonnement délié.",
+    "linked": "Abonnement lié.",
+    "menu": "Actions de l’abonnement",
+    "col_name": "Abonnement",
+    "col_price": "Prix",
+    "col_deadline": "Prochaine échéance",
+    "per": "par {{period}}",
+    "period": { "day": "jour", "week": "semaine", "month": "mois", "year": "an" },
+    "pick": "Abonnement",
+    "pick_placeholder": "Choisir un abonnement",
+    "pick_search": "Rechercher un abonnement",
+    "pick_empty": "Aucun abonnement à lier.",
+    "pick_hint": "Un abonnement déjà lié à un autre bien passe sur celui-ci.",
+    "submit": "Lier"
   }
 }

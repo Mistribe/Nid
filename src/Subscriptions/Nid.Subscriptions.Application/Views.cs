@@ -107,11 +107,13 @@ public sealed record SubscriptionDetail(
     CancellationView Cancellation,
     InsuranceView? Insurance = null,
     SpentView? Spent = null,
-    SavedView? Saved = null) : IExposesItems
+    SavedView? Saved = null,
+    LinkedAssetView? Asset = null) : IExposesItems
 {
     // Every item the detail names: the output guard then proves each grant target and the insured property are the reader's to see.
     public IEnumerable<ItemId> ExposedItems() => [Id, ..Purchases.SelectMany(p => p.Grants).Select(g => new ItemId(g.SubscriptionId)),
-        ..Insurance?.Property is { } property ? [new ItemId(property.Id)] : Array.Empty<ItemId>()];
+        ..Insurance?.Property is { } property ? [new ItemId(property.Id)] : Array.Empty<ItemId>(),
+        ..Asset is { } asset ? [new ItemId(asset.Id)] : Array.Empty<ItemId>()];
 }
 
 public sealed record OwnerView(Guid PersonId, int ShareBp);
@@ -145,6 +147,9 @@ public sealed record ContractTermsView(LocalDate? AnniversaryOn, DurationView? N
 
 /// <summary>The property an insurance covers, only when its reader sees it: otherwise the view has none (spec §8).</summary>
 public sealed record InsuredPropertyView(Guid Id, string Name);
+
+/// <summary>#648: the asset a subscription is linked to, only when its reader sees it: otherwise the view has none.</summary>
+public sealed record LinkedAssetView(Guid Id, string Name);
 
 public sealed record GuaranteeView(string Label, string? Ceiling, string? Deductible);
 

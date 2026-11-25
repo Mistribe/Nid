@@ -11,6 +11,8 @@ public sealed class SubscriptionsDeletionPart(SubscriptionsDbContext db, IItemRe
 {
     private static bool IsProperty(ItemAccess item) => item is { Module: "realestate", Kind: "property" };
 
+    private static bool IsAsset(ItemAccess item) => item is { Module: "assets", Kind: "asset" };
+
     private static bool IsSubscription(ItemAccess item) => item is { Module: "subscriptions", Kind: "subscription" };
 
     /// <summary>The purchases whose grants all target the subscription.</summary>
@@ -49,6 +51,15 @@ public sealed class SubscriptionsDeletionPart(SubscriptionsDbContext db, IItemRe
 
     public async Task RemoveAsync(ItemAccess item, CancellationToken ct)
     {
+        if (IsAsset(item))
+        {
+            // #648: deleting an asset is no blocker; the subscriptions linked to it stay, without the link.
+            foreach (var row in await db.Subscriptions.Where(s => s.AssetItemId == item.Id.Value).ToListAsync(ct))
+                row.AssetItemId = null;
+            await db.SaveChangesAsync(ct);
+            return;
+        }
+
         if (!IsSubscription(item))
             return;
         var id = item.Id.Value;

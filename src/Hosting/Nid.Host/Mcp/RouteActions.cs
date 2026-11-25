@@ -351,6 +351,9 @@ public static class RouteActions
             + "keepProperty=true (without propertyId, else refused) leaves the stored property link as it is, for a writer who cannot read it; "
             + "unless you are setting the link or deliberately removing it, always send keepProperty: true, because omitting it removes any "
             + "link, seen or not. " + Ids),
+        new("set_subscription_asset", "PUT", "/api/v1/subscriptions/{id:guid}/asset", typeof(AssetLinkBody),
+            "Link a subscription (an insurance, a service contract) to an asset of « Autres biens », or unlink it with assetId null. "
+            + "A subscription has at most one asset; an asset any number of subscriptions. " + Ids),
         new("add_subscription_phase", "POST", "/api/v1/subscriptions/{id:guid}/phases", typeof(PhaseBody),
             "Add a billing period to a subscription. " + Ids + Amounts),
         new("end_subscription_phase", "PATCH", "/api/v1/subscriptions/{id:guid}/phases/{phaseId:guid}", typeof(ClosePhaseBody),

@@ -36,6 +36,7 @@ public sealed class SubscriptionsDbContext(DbContextOptions<SubscriptionsDbConte
             });
             e.HasKey(x => x.ItemId);
             e.Property(x => x.ItemId).ValueGeneratedNever();
+            e.HasIndex(x => x.AssetItemId);
             e.HasMany(x => x.Users).WithOne().HasForeignKey(x => x.ItemId).OnDelete(DeleteBehavior.Cascade);
             e.HasMany(x => x.Phases).WithOne().HasForeignKey(x => x.ItemId).OnDelete(DeleteBehavior.Cascade);
             MapXmin(e.Property(x => x.Version));

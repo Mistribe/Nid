@@ -29,7 +29,7 @@ public sealed record ImportedRow(Guid Id, string Hash, PersonId? ImportedBy, IRe
 /// <summary>A subscription as stored, for the export (1D2): what the file needs beyond the engine's input.</summary>
 public sealed record StoredSubscription(
     ItemId Id, string? ProviderKey, bool AutoRenew, LocalDate? CancelledAt, string? Note, IReadOnlyList<PersonId> Users, ImportRef? Import,
-    ContractTerms? Terms = null);
+    ContractTerms? Terms = null, ItemId? AssetId = null);
 
 public sealed record StoredPhase(ItemId SubscriptionId, BillingPhase Phase, string? Note, ImportRef? Import);
 
@@ -43,7 +43,7 @@ public sealed record StoredRows(IReadOnlyList<StoredSubscription> Subscriptions,
 /// <summary>What a subscription needs beyond its Core item, for creation.</summary>
 public sealed record NewSubscription(
     string? ProviderKey, bool AutoRenew, IReadOnlyList<PersonId> Users, string? Note,
-    LocalDate? CancelledAt = null, ImportRef? Import = null, ContractTerms? Terms = null);
+    LocalDate? CancelledAt = null, ImportRef? Import = null, ContractTerms? Terms = null, ItemId? AssetId = null);
 
 /// <summary>Fields of a subscription that can change without touching the Core item.</summary>
 public sealed record SubscriptionEdit(
@@ -53,7 +53,7 @@ public sealed record SubscriptionEdit(
 /// <summary>1F3b: what an import's replacement sets on a subscription it created before; the rest of the row stays.</summary>
 public sealed record SubscriptionReplacement(
     string? ProviderKey, bool AutoRenew, IReadOnlyList<PersonId> Users, string? Note, LocalDate? CancelledAt, ImportRef Import,
-    ContractTerms? Terms = null);
+    ContractTerms? Terms = null, ItemId? AssetId = null);
 
 /// <summary>
 /// Rows in, engine input out. The store never computes: coverage and charges are the engine's job, and
@@ -72,6 +72,15 @@ public interface ISubscriptionStore
     Task<Result> ReplaceAsync(ItemId id, SubscriptionReplacement replacement, CancellationToken ct);
 
     Task<Result> EditAsync(ItemId id, SubscriptionEdit edit, CancellationToken ct);
+
+    /// <summary>#648: the asset a subscription is linked to; null clears the link.</summary>
+    Task<Result> SetAssetAsync(ItemId id, ItemId? asset, CancellationToken ct);
+
+    /// <summary>#648: the linked asset of each of <paramref name="ids"/> that has one.</summary>
+    Task<IReadOnlyDictionary<ItemId, ItemId>> AssetsOfAsync(IReadOnlyCollection<ItemId> ids, CancellationToken ct);
+
+    /// <summary>#648: the subscriptions linked to each of <paramref name="assets"/>, whoever may read them (the caller filters).</summary>
+    Task<IReadOnlyDictionary<ItemId, IReadOnlyList<ItemId>>> SubscriptionsOfAssetsAsync(IReadOnlyCollection<ItemId> assets, CancellationToken ct);
 
     /// <summary>The provider key of each of <paramref name="ids"/> that has one (1C1 wrote it and could not read it back).</summary>
     Task<IReadOnlyDictionary<ItemId, string>> ProviderKeysAsync(IReadOnlyCollection<ItemId> ids, CancellationToken ct);

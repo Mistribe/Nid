@@ -55,6 +55,7 @@ internal sealed class SubscriptionsExport(IVisibleItems visible, ISubscriptionSt
                 Notice = s.Terms?.Notice is { } notice ? DurationOf(notice) : null,
                 CommitmentEndsOn = s.Terms?.CommitmentEndsOn is { } commitment ? Date(commitment) : null,
                 CancellableFrom = s.Terms?.CancellableFrom is { } cancellable ? Date(cancellable) : null,
+                Asset = s.AssetId is { } asset && context.ItemFileIds.TryGetValue(asset, out var assetFileId) ? assetFileId : null,
                 Note = s.Note,
             }).ToList();
         var order = subscriptionRecords.Select((r, i) => (r.Id, i)).ToDictionary(x => x.Id, x => x.i, StringComparer.Ordinal);

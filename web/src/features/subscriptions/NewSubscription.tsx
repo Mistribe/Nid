@@ -51,7 +51,7 @@ function offerFields(v: WizardValues): Fields {
 const stepFields = (name: StepName, v: WizardValues): Fields => {
   switch (name) {
     case 'type': return ['offer'];
-    case 'common': return ['provider', 'displayName', 'visibility', 'owners', 'users', 'note'];
+    case 'common': return ['provider', 'displayName', 'visibility', 'owners', 'users', 'note', 'asset'];
     case 'offer': return offerFields(v);
     case 'then': {
       const mode = thenMode(v);
@@ -80,7 +80,7 @@ export function NewSubscription() {
     resolver: zodResolver(schema),
     mode: 'onTouched',
     defaultValues: {
-      provider: null, displayName: search.name ?? '', visibility: 'shared', owners: [{ personId: session.person.id, share: '100' }], users: [], note: search.note ?? '',
+      provider: null, displayName: search.name ?? '', visibility: 'shared', owners: [{ personId: session.person.id, share: '100' }], users: [], note: search.note ?? '', asset: '',
       startsOn: '', amount: '', currency: 'EUR', everyCount: '1', everyUnit: 'month', sameCovers: true, coversCount: '1', coversUnit: 'month',
       maxCycles: '', payerType: 'household', payerPerson: '',
       offer: 'recurring', trialVariant: 'free', offerDate: '', offerLabel: '', offerAmount: '', offerPayerType: 'household', offerPayerPerson: '',

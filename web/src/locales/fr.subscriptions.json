@@ -116,5 +116,21 @@
     "household": "Le foyer",
     "external": "Quelqu'un d'extérieur",
     "person": "{{name}}"
+  },
+  "asset_link": {
+    "title": "Bien concerné",
+    "edit": "Bien concerné",
+    "add": "Lier à un bien",
+    "change": "Changer le bien lié",
+    "field": "Bien concerné",
+    "none": "Aucun bien",
+    "placeholder": "Choisir un bien",
+    "search": "Rechercher un bien",
+    "empty": "Aucun bien trouvé.",
+    "hint_empty": "Aucun bien enregistré pour l’instant : ajoutez-en un dans « Autres biens ».",
+    "hint": "Une assurance auto, un contrat d’entretien… : le bien auquel cet abonnement se rapporte.",
+    "saved": "Bien enregistré.",
+    "invalid_asset": "Ce bien n’existe pas ou vous ne pouvez pas le lire.",
+    "submit": "Enregistrer"
   }
 }

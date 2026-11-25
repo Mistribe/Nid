@@ -1,3 +1,4 @@
+using Nid.Subscriptions.Contracts;
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
 using UnambitiousFx.Functional;
@@ -55,7 +56,8 @@ public sealed class ListAssetsHandler(
 
 [RequestHandler<GetAssetQuery, AssetView>]
 public sealed class GetAssetHandler(
-    IAssetRecordStore assets, IItemRegistry items, IValuations valuations, IHouseholdCalendar calendar, IAccessPolicy policy, IActorAccessor actor)
+    IAssetRecordStore assets, IItemRegistry items, IValuations valuations, IHouseholdCalendar calendar, IAccessPolicy policy, IActorAccessor actor,
+    ISubscriptionsOfItems subscriptions)
     : IRequestHandler<GetAssetQuery, AssetView>
 {
     public async ValueTask<Result<AssetView>> HandleAsync(GetAssetQuery query, CancellationToken ct = default)
@@ -67,7 +69,9 @@ public sealed class GetAssetHandler(
         if (!series.TryGetValue(out var list))
             return Result.Failure<AssetView>(series.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
         var canWrite = (await policy.CheckAsync(actor.Current!.PersonId!.Value, query.ItemId, AccessKind.Write, ct)).IsSuccess;
-        return Result.Success(AssetViews.Detail(found.Item, found.Asset, list!, await calendar.TodayAsync(ct), canWrite));
+        // #648: the subscriptions linked to it that the reader sees, named by the Subscriptions module.
+        var linked = await subscriptions.ForAsync(actor.Current!.PersonId!.Value, VisibilityScope.Me, [query.ItemId], ct);
+        return Result.Success(AssetViews.Detail(found.Item, found.Asset, list!, await calendar.TodayAsync(ct), canWrite, linked.GetValueOrDefault(query.ItemId) ?? []));
     }
 }
 
