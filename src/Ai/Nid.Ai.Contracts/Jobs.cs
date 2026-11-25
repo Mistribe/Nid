@@ -90,6 +90,9 @@ public static class JobCodes
     public const string InvalidInput = "ai.invalid_input";
     public const string NoWorker = "ai.no_worker";
     public const string WorkerFailed = "ai.worker_failed";
+
+    /// <summary>Every worker that could take the job is running all it can: it waits for a slot, no attempt counted.</summary>
+    public const string WorkerBusy = "ai.worker_busy";
     public const string ResultInvalid = "ai.result_invalid";
     public const string LeaseExpired = "ai.lease_expired";
     public const string TooLarge = "ai.too_large";

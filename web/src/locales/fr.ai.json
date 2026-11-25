@@ -173,6 +173,7 @@
       "unknown_type": "Aucun worker ne connaît ce type de tâche.",
       "worker_changed": "Le worker a changé entre-temps ; rechargez la page.",
       "worker_exists": "Un worker a déjà cette adresse.",
+      "worker_busy": "Le worker est occupé ; la tâche attend son tour.",
       "worker_failed": "Le worker a échoué ; Nid réessaiera.",
       "worker_not_active": "Ce worker n'est pas actif.",
       "worker_not_disabled": "Ce worker n'est pas désactivé.",
