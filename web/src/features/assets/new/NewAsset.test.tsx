@@ -86,4 +86,67 @@ describe('NewAsset', () => {
     expect(screen.getByLabelText('Date')).toHaveAttribute('aria-invalid', 'true');
     expect(bodies).toEqual([]);
   });
+
+  it('asks the owner of a vehicle whether it is owned or leased, and sends a lease to the subscription page without creating an asset', async () => {
+    const bodies: unknown[] = [];
+    serve(bodies);
+    const { user } = await renderApp('/other-assets/new');
+    await user.type(await screen.findByLabelText('Nom'), 'Citadine');
+
+    await user.click(screen.getByRole('radio', { name: 'Location' }));
+
+    expect(screen.getByText(/ne compte pas dans votre patrimoine/)).toBeInTheDocument();
+    const link = screen.getByRole('link', { name: 'Créer l’abonnement de location' });
+    const href = new URL(link.getAttribute('href')!, 'http://nid.test');
+    expect(href.pathname).toBe('/subscriptions/new');
+    expect(href.searchParams.get('name')).toBe('Citadine');
+    expect(href.searchParams.get('note')).toContain('Option d’achat (LOA) :');
+    expect(screen.queryByRole('button', { name: 'Ajouter le bien' })).not.toBeInTheDocument();
+    expect(bodies).toEqual([]);
+
+    await user.click(screen.getByRole('radio', { name: 'Propriétaire' }));
+    expect(screen.getByRole('button', { name: 'Ajouter le bien' })).toBeInTheDocument();
+  });
+
+  it('asks the vehicle details only for a vehicle, and sends them', async () => {
+    const bodies: unknown[] = [];
+    serve(bodies);
+    const { user, router } = await renderApp('/other-assets/new');
+    await user.type(await screen.findByLabelText('Nom'), 'Citadine');
+    await user.type(screen.getByLabelText('Mise en circulation'), '01/03/2022');
+    await user.type(screen.getByLabelText('Kilométrage (km)'), '45000');
+    await user.type(screen.getByLabelText('Date du relevé'), '01/06/2025');
+    await user.type(screen.getByLabelText('Puissance fiscale (CV)'), '5');
+    await pick(user, 'Énergie', 'Hybride rechargeable');
+    await user.click(screen.getByRole('radio', { name: 'Oui, partagé' }));
+    await user.type(screen.getByLabelText('Montant'), '8000');
+    await user.type(screen.getByLabelText('Date'), '01/03/2024');
+    await user.click(screen.getByRole('button', { name: 'Ajouter le bien' }));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/other-assets/${ASSET}`));
+    expect(bodies).toEqual([expect.objectContaining({
+      kind: 'vehicle', registeredOn: '2022-03-01', mileageKm: 45000, mileageOn: '2025-06-01', fiscalHp: 5, energy: 'plug_in_hybrid',
+    })]);
+  });
+
+  it('asks for the date of a mileage, and drops the vehicle fields for another kind', async () => {
+    const bodies: unknown[] = [];
+    serve(bodies);
+    const { user, router } = await renderApp('/other-assets/new');
+    await user.type(await screen.findByLabelText('Nom'), 'Tableau');
+    await user.type(screen.getByLabelText('Kilométrage (km)'), '100');
+    await user.click(screen.getByRole('radio', { name: 'Oui, partagé' }));
+    await user.type(screen.getByLabelText('Montant'), '800');
+    await user.type(screen.getByLabelText('Date'), '01/03/2024');
+    await user.click(screen.getByRole('button', { name: 'Ajouter le bien' }));
+    expect(await screen.findByText('Indiquez la date du relevé du kilométrage.')).toBeInTheDocument();
+    expect(bodies).toEqual([]);
+
+    await pick(user, 'Type', 'Œuvre d’art');
+    expect(screen.queryByLabelText('Kilométrage (km)')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Ajouter le bien' }));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/other-assets/${ASSET}`));
+    expect(bodies[0]).not.toHaveProperty('mileageKm');
+  });
 });

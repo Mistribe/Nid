@@ -132,6 +132,10 @@ export type LoansSearch = { ended?: 1; tab?: string; span?: '5y' | '10y' };
 /** Issue #412: a new goal opened as an emergency fund of `months` (1 to 24, anything else dropped). */
 export type NewGoalSearch = { kind?: 'emergency_fund'; months?: number };
 
+/** Issue #647: a new subscription opened from a leased vehicle, its name and note already written (trimmed, capped). */
+export type NewSubscriptionSearch = { name?: string; note?: string };
+const searchText = (value: unknown, max: number) => (typeof value === 'string' ? value.trim().slice(0, max) : '');
+
 /** Issue #17: a new loan opened from a new property, already linked to it. */
 export type NewLoanSearch = { property?: string };
 export type ReceiptSearch = { month?: string };
@@ -733,6 +737,10 @@ const subscriptionNewRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/subscriptions/new',
   beforeLoad: requireModule('subscriptions'),
+  validateSearch: (search: Record<string, unknown>): NewSubscriptionSearch => ({
+    ...(searchText(search.name, 100) ? { name: searchText(search.name, 100) } : {}),
+    ...(searchText(search.note, 2000) ? { note: searchText(search.note, 2000) } : {}),
+  }),
   component: lazyRouteComponent(() => import('@/features/subscriptions/NewSubscription'), 'NewSubscription'),
 });
 

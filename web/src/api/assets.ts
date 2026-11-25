@@ -17,6 +17,7 @@ export const ASSET_VALUATIONS = '/api/v1/assets/{id}/valuations' as const;
 export const ASSET_VALUATION = '/api/v1/assets/{id}/valuations/{valuationId}' as const;
 
 /** The kinds of an asset, in the order the form offers them. */
+export const ASSET_ENERGIES = ['petrol', 'diesel', 'hybrid', 'plug_in_hybrid', 'electric', 'lpg', 'other'] as const;
 export const ASSET_KINDS = ['vehicle', 'precious_metal', 'art', 'collectible', 'other'] as const;
 
 /** Every write on an asset invalidates the list, every detail and the home's net worth. */

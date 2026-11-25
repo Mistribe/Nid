@@ -6,9 +6,10 @@ import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { ASSET, assetView } from './testData';
 
-function serve(initial: AssetView, posted: unknown[] = []) {
+function serve(initial: AssetView, posted: unknown[] = [], puts: unknown[] = []) {
   let current = initial;
   server.use(
+    http.put('*/api/v1/assets/:id', async ({ request }) => { puts.push(await request.json()); return HttpResponse.json({ id: ASSET }); }),
     http.get('*/api/v1/assets/:id', () => HttpResponse.json(current)),
     http.post('*/api/v1/assets/:id/valuations', async ({ request }) => {
       const body = (await request.json()) as { asOf: string; amount: string };
@@ -67,5 +68,44 @@ describe('AssetDetailPage', () => {
 
     expect(await screen.findByText('Indiquez ce que vaut ce bien : son prix d’achat ou sa valeur actuelle.')).toBeInTheDocument();
     expect(screen.queryByText(/An asset has/)).not.toBeInTheDocument();
+  });
+
+  it('shows the latest mileage reading of a vehicle with its date', async () => {
+    serve(assetView({ registeredOn: '2022-03-01', mileageKm: 45000, mileageOn: '2025-06-01', fiscalHp: 5, energy: 'diesel' }));
+    await renderApp(`/other-assets/${ASSET}`);
+
+    const figures = within(await screen.findByRole('region', { name: 'Valeur du bien' }));
+    expect(figures.getByText(/45\s000 km/)).toBeInTheDocument();
+    expect(figures.getByText('Diesel')).toBeInTheDocument();
+    expect(figures.getByText(/5 CV/)).toBeInTheDocument();
+  });
+
+  it('updates the mileage with a PUT of the whole asset', async () => {
+    const puts: unknown[] = [];
+    serve(assetView({ registeredOn: '2022-03-01', mileageKm: 45000, mileageOn: '2025-06-01', fiscalHp: 5, energy: 'diesel', note: null }), [], puts);
+    const { user } = await renderApp(`/other-assets/${ASSET}`);
+
+    await user.click(await screen.findByRole('button', { name: 'Autres actions' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Mettre à jour le kilométrage' }));
+    const dialog = within(await screen.findByRole('dialog', { name: 'Mettre à jour le kilométrage' }));
+    await user.clear(dialog.getByLabelText('Kilométrage (km)'));
+    await user.type(dialog.getByLabelText('Kilométrage (km)'), '51000');
+    await user.clear(dialog.getByLabelText('Date du relevé'));
+    await user.type(dialog.getByLabelText('Date du relevé'), '01/06/2026');
+    await user.click(dialog.getByRole('button', { name: 'Enregistrer' }));
+
+    await waitFor(() => expect(puts).toEqual([expect.objectContaining({
+      name: 'Citadine', kind: 'vehicle', version: 1, purchasePrice: '12000', purchasedOn: '2022-03-01',
+      registeredOn: '2022-03-01', mileageKm: 51000, mileageOn: '2026-06-01', fiscalHp: 5, energy: 'diesel',
+    })]));
+  });
+
+  it('offers no mileage update for another kind', async () => {
+    serve(assetView({ kind: 'art' }));
+    const { user } = await renderApp(`/other-assets/${ASSET}`);
+
+    await user.click(await screen.findByRole('button', { name: 'Autres actions' }));
+    await screen.findByRole('menuitem', { name: 'Archiver' });
+    expect(screen.queryByRole('menuitem', { name: 'Mettre à jour le kilométrage' })).not.toBeInTheDocument();
   });
 });

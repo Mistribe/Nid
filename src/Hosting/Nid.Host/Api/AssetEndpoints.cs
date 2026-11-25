@@ -95,6 +95,7 @@ public static class AssetEndpoints
     /// </summary>
     public sealed record CreateAssetBody(
         string? Name, string? Kind, string? PurchasePrice, string? PurchasedOn, string? Note, decimal? WeightGrams, decimal? Fineness,
+        string? RegisteredOn, int? MileageKm, string? MileageOn, int? FiscalHp, string? Energy,
         string? CurrentValue, string? CurrentValueOn, string? Currency, string? Visibility, IReadOnlyList<OwnerBody>? Owners, string? ShareLevel = null)
     {
         internal CreateAssetCommand? ToCommand(FieldReader reader)
@@ -110,7 +111,8 @@ public static class AssetEndpoints
                     reader.Add("currency", PersonCodes.UnknownCurrency, "A currency is a three-letter ISO 4217 code, in capitals.");
             }
             var owners = LoanBodies.Borrowers(reader, Owners, "owners");
-            var details = AssetBodies.Details(reader, Kind, PurchasePrice, PurchasedOn, Note, WeightGrams, Fineness);
+            var details = AssetBodies.Details(reader, Kind, PurchasePrice, PurchasedOn, Note, WeightGrams, Fineness,
+                RegisteredOn, MileageKm, MileageOn, FiscalHp, Energy);
             var current = LoanBodies.Number(reader, CurrentValue, "currentValue", required: false);
             var currentOn = reader.Date(CurrentValueOn, "currentValueOn", required: false);
             return reader.Ok ? new CreateAssetCommand(Name ?? "", details, current, currentOn, currency, visibility!.Value, owners!, level!.Value) : null;
@@ -119,11 +121,13 @@ public static class AssetEndpoints
 
     /// <summary>Replaces every field, kind included, with the <c>version</c> read with the asset.</summary>
     public sealed record EditAssetBody(
-        string? Name, string? Kind, string? PurchasePrice, string? PurchasedOn, string? Note, decimal? WeightGrams, decimal? Fineness, uint? Version)
+        string? Name, string? Kind, string? PurchasePrice, string? PurchasedOn, string? Note, decimal? WeightGrams, decimal? Fineness,
+        string? RegisteredOn, int? MileageKm, string? MileageOn, int? FiscalHp, string? Energy, uint? Version)
     {
         internal EditAssetCommand? ToCommand(ItemId id, FieldReader reader)
         {
-            var details = AssetBodies.Details(reader, Kind, PurchasePrice, PurchasedOn, Note, WeightGrams, Fineness);
+            var details = AssetBodies.Details(reader, Kind, PurchasePrice, PurchasedOn, Note, WeightGrams, Fineness,
+                RegisteredOn, MileageKm, MileageOn, FiscalHp, Energy);
             if (Version is null)
                 reader.Add("version", "request.required", "The version read with the asset is required.");
             return reader.Ok ? new EditAssetCommand(id, Name ?? "", details, Version!.Value) : null;
@@ -135,8 +139,10 @@ public static class AssetEndpoints
     private static class AssetBodies
     {
         public static AssetDetails Details(
-            FieldReader reader, string? kind, string? price, string? purchasedOn, string? note, decimal? weight, decimal? fineness)
+            FieldReader reader, string? kind, string? price, string? purchasedOn, string? note, decimal? weight, decimal? fineness,
+            string? registeredOn, int? mileageKm, string? mileageOn, int? fiscalHp, string? energy)
             => new(kind ?? "", LoanBodies.Number(reader, price, "purchasePrice", required: false), reader.Date(purchasedOn, "purchasedOn", required: false),
-                note, weight, fineness);
+                note, weight, fineness, reader.Date(registeredOn, "registeredOn", required: false), mileageKm,
+                reader.Date(mileageOn, "mileageOn", required: false), fiscalHp, energy);
     }
 }

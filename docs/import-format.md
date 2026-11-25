@@ -313,6 +313,11 @@ du fichier (`target_ref`).
 | `terms[].week_types[].schedule` | tableau | `{ day, arrival, departure, lunch, snack }` (un fichier plus ancien porte `meal`, lu comme `lunch`) : `day` de 1 (lundi) à 7, heures `HH:mm`, un jour au plus une fois |
 | `week_overrides` | tableau | Les exceptions `{ monday, week_type }` : la semaine de ce lundi suit la semaine type de ce rang (à partir de 0) dans la révision en vigueur cette semaine-là (`childcare.override_invalid_monday`, `childcare.override_unknown_week_type`). Absent, il vaut `[]` ; un import qui remplace remplace aussi les exceptions |
 | `gaps` | tableau | Semaines sans accueil `{ monday, weeks }`, contrôlées par année de contrat comme dans l'interface |
+| `registered_on` | date? | `vehicle` seulement (`assets.vehicle_only`), non future (`assets.invalid_date`) |
+| `mileage_km` | entier? | `vehicle` seulement, de 0 à moins de 10 000 000 (`assets.invalid_mileage`) ; avec `mileage_on`, ou ni l'un ni l'autre (`assets.mileage_incomplete`) |
+| `mileage_on` | date? | `vehicle` seulement, non future |
+| `fiscal_hp` | entier? | `vehicle` seulement, de 1 à 99 (`assets.invalid_fiscal_hp`) |
+| `energy` | string? | `vehicle` seulement : `petrol`, `diesel`, `hybrid`, `plug_in_hybrid`, `electric`, `lpg`, `other` (`assets.invalid_energy`) |
 | `visibility`, `share_level`, `ownership`, `closed` | | Comme `goals` |
 
 **`childcare_statements`**

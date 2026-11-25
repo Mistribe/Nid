@@ -185,4 +185,15 @@ describe('Abonnements › ajout', () => {
     const amount = await screen.findByLabelText('Montant');
     await waitFor(() => expect(amount).toHaveAttribute('aria-invalid', 'true'));
   });
+
+  it('takes the name and the note from the page address (a leased vehicle)', async () => {
+    serve(() => HttpResponse.json({ id: NEW_ID }, { status: 201 }));
+    const { user } = await renderApp('/subscriptions/new?name=Citadine&note=Location%20LOA');
+    await screen.findByRole('heading', { level: 1, name: 'Ajouter un abonnement' });
+    await user.click(await screen.findByRole('button', { name: 'Continuer' }));
+    await screen.findByRole('group', { name: 'Propriétaires' });
+
+    expect(screen.getByLabelText('Nom')).toHaveValue('Citadine');
+    expect(screen.getByLabelText('Note')).toHaveValue('Location LOA');
+  });
 });

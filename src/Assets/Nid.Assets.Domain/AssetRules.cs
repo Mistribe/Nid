@@ -6,7 +6,8 @@ namespace Nid.Assets.Domain;
 
 /// <summary>The editable fields of an asset, as a request sends them: an edit replaces every one.</summary>
 public sealed record AssetDetails(
-    string Kind, decimal? PurchasePrice, LocalDate? PurchasedOn, string? Note, decimal? WeightGrams, decimal? Fineness);
+    string Kind, decimal? PurchasePrice, LocalDate? PurchasedOn, string? Note, decimal? WeightGrams, decimal? Fineness,
+    LocalDate? RegisteredOn = null, int? MileageKm = null, LocalDate? MileageOn = null, int? FiscalHp = null, string? Energy = null);
 
 /// <summary>The bounds of an asset's fields. The first refusal wins; null when there is none.</summary>
 public static class AssetRules
@@ -28,6 +29,8 @@ public static class AssetRules
             if (d.PurchasedOn > today)
                 return Refuse(AssetsCodes.InvalidPurchase, "purchasedOn", "A purchase is not dated after today.");
         }
+        if (VehicleCheck(d, today) is { } vehicle)
+            return vehicle;
         if (d.Kind != AssetKinds.PreciousMetal)
             return d.WeightGrams is not null ? Refuse(AssetsCodes.MetalOnly, "weightGrams", "A weight is for a precious metal only.")
                 : d.Fineness is not null ? Refuse(AssetsCodes.MetalOnly, "fineness", "A fineness is for a precious metal only.")
@@ -36,6 +39,32 @@ public static class AssetRules
             return Refuse(AssetsCodes.InvalidWeight, "weightGrams", "A weight is above zero, with at most three decimals.");
         if (d.Fineness is { } f && (f <= 0m || f > FinenessMax || decimal.Round(f, 1) != f))
             return Refuse(AssetsCodes.InvalidFineness, "fineness", "A fineness is above 0 and at most 1000, with at most one decimal.");
+        return null;
+    }
+
+    private const int MileageBound = 10_000_000;
+
+    private static Failure? VehicleCheck(AssetDetails d, LocalDate today)
+    {
+        if (d.Kind != AssetKinds.Vehicle)
+            return d.RegisteredOn is not null ? Refuse(AssetsCodes.VehicleOnly, "registeredOn", "A registration date is for a vehicle only.")
+                : d.MileageKm is not null ? Refuse(AssetsCodes.VehicleOnly, "mileageKm", "A mileage is for a vehicle only.")
+                : d.MileageOn is not null ? Refuse(AssetsCodes.VehicleOnly, "mileageOn", "A mileage date is for a vehicle only.")
+                : d.FiscalHp is not null ? Refuse(AssetsCodes.VehicleOnly, "fiscalHp", "A fiscal horsepower is for a vehicle only.")
+                : d.Energy is not null ? Refuse(AssetsCodes.VehicleOnly, "energy", "An energy is for a vehicle only.")
+                : null;
+        if (d.RegisteredOn > today)
+            return Refuse(AssetsCodes.InvalidDate, "registeredOn", "A registration is not dated after today.");
+        if ((d.MileageKm is null) != (d.MileageOn is null))
+            return Refuse(AssetsCodes.MileageIncomplete, d.MileageKm is null ? "mileageKm" : "mileageOn", "A mileage has a reading and a date, or neither.");
+        if (d.MileageKm is < 0 or >= MileageBound)
+            return Refuse(AssetsCodes.InvalidMileage, "mileageKm", "A mileage is at least 0 and below 10 000 000 km.");
+        if (d.MileageOn > today)
+            return Refuse(AssetsCodes.InvalidDate, "mileageOn", "A mileage is not dated after today.");
+        if (d.FiscalHp is < 1 or > 99)
+            return Refuse(AssetsCodes.InvalidFiscalHp, "fiscalHp", "Fiscal horsepower is between 1 and 99.");
+        if (d.Energy is not null && !AssetEnergies.All.Contains(d.Energy))
+            return Refuse(AssetsCodes.InvalidEnergy, "energy", $"'{d.Energy}' is not an energy.");
         return null;
     }
 

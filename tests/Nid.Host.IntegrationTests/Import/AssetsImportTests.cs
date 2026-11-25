@@ -16,7 +16,7 @@ public class AssetsImportTests(PostgresFixture fixture) : IClassFixture<Postgres
 
     private const string Car = $$"""
         {"id":"asset-car","name":"Voiture","kind":"vehicle","currency":"EUR","purchase_price":"15000.00","purchased_on":"2023-05-01",
-         "note":"Citadine","ownership":{{OwnerA}}}
+         "note":"Citadine","registered_on":"2022-03-01","mileage_km":45000,"mileage_on":"2025-06-01","fiscal_hp":5,"energy":"diesel","ownership":{{OwnerA}}}
         """;
 
     private const string Gold = $$"""
@@ -62,6 +62,8 @@ public class AssetsImportTests(PostgresFixture fixture) : IClassFixture<Postgres
         Assert.Equal(("Voiture", "vehicle", "EUR", "15000.00", "2023-05-01", "Citadine"),
             (car.GetProperty("name").GetString(), car.GetProperty("kind").GetString(), car.GetProperty("currency").GetString(),
              car.GetProperty("purchasePrice").GetProperty("amount").GetString(), car.GetProperty("purchasedOn").GetString(), car.GetProperty("note").GetString()));
+        Assert.Equal(("2022-03-01", 45_000, "2025-06-01", 5, "diesel"), (car.GetProperty("registeredOn").GetString(), car.GetProperty("mileageKm").GetInt32(),
+            car.GetProperty("mileageOn").GetString(), car.GetProperty("fiscalHp").GetInt32(), car.GetProperty("energy").GetString()));
         var gold = await ReadAsync(app, await IdOfAsync(app, "asset-gold"));
         Assert.Equal((100m, 999.9m, "6000.00"),
             (gold.GetProperty("weightGrams").GetDecimal(), gold.GetProperty("fineness").GetDecimal(), gold.GetProperty("value").GetProperty("amount").GetString()));
@@ -119,6 +121,19 @@ public class AssetsImportTests(PostgresFixture fixture) : IClassFixture<Postgres
 
         Assert.False(batch.Accepted);
         Assert.Equal([(AssetsCodes.MetalOnly, "assets[0].weight_grams")], batch.Issues.Select(i => (i.Code, i.Path)));
+    }
+
+    [Fact]
+    public async Task Vehicle_fields_on_a_work_of_art_are_refused_on_their_row()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var client = new ImportClient(app);
+        var session = await client.StartAsync(app.AdultA, Adults(app));
+
+        var batch = await client.PutAsync(app.AdultA, session.Id, "assets", 0, "[" + Car.Replace("\"vehicle\"", "\"art\"") + "]");
+
+        Assert.False(batch.Accepted);
+        Assert.Equal([(AssetsCodes.VehicleOnly, "assets[0].registered_on")], batch.Issues.Select(i => (i.Code, i.Path)));
     }
 
     [Fact]

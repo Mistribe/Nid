@@ -24,7 +24,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ItemDocuments } from '@/features/documents/ItemDocuments';
 import { EditAssetDialog } from './EditAssetDialog';
-import { kindText } from './format';
+import { energyText, kindText } from './format';
+import { MileageDialog } from './MileageDialog';
 import { AssetValuationDialog } from './valuations/AssetValuationForm';
 import { AssetValuationsSection } from './valuations/AssetValuationsSection';
 import '@/locales/assets';
@@ -36,7 +37,7 @@ const TABS = ['valuations', 'documents'] as const;
 
 /**
  * An asset: its value inline under the title (with « prix d’achat » while the purchase price stands in for a valuation), its
- * purchase and, for a metal, its weight and fineness; then the values and the documents. Editing, archiving and deleting are the header's.
+ * purchase and, for a metal, its weight and fineness, for a vehicle its registration, mileage, horsepower and energy; then the values and the documents. Editing, archiving and deleting are the header's.
  */
 export function AssetDetailPage() {
   const { t } = useTranslation();
@@ -45,7 +46,7 @@ export function AssetDetailPage() {
   const { id } = useParams({ from: '/other-assets/$id' });
   const answer = $api.useQuery('get', ASSET, { params: { path: { id } } });
   const [tab, setTab] = useDetailTab(TABS);
-  const [dialog, setDialog] = useState<'edit' | 'value' | 'delete' | null>(null);
+  const [dialog, setDialog] = useState<'edit' | 'value' | 'mileage' | 'delete' | null>(null);
   const done = () => { void invalidateAssets(queryClient); };
   const archive = $api.useMutation('post', ASSET_ARCHIVE, { onSuccess: () => { done(); toast.success(t('assets_detail.archived_done')); } });
   const unarchive = $api.useMutation('post', ASSET_UNARCHIVE, { onSuccess: () => { done(); toast.success(t('assets_detail.unarchived_done')); } });
@@ -66,6 +67,7 @@ export function AssetDetailPage() {
       ) : null}
       <SharingMenu item={id} onAnnounce={toast.success} shared={asset.canWrite && asset.visibility === 'shared'} label={t('page.more_actions')}
         trailing={asset.canWrite ? [
+          ...(asset.kind === 'vehicle' ? [{ label: t('assets_form.update_mileage'), onSelect: () => setDialog('mileage') }] : []),
           { label: t(asset.archived ? 'assets_detail.unarchive' : 'assets_detail.archive'), onSelect: () => { if (!toggle.isPending) toggle.mutate({ params: { path: { id } } }); } },
           { label: t('deletion.menu'), destructive: true, onSelect: () => setDialog('delete') },
         ] : []} />
@@ -78,6 +80,10 @@ export function AssetDetailPage() {
     ...(asset.purchasePrice ? [{ label: t('assets_detail.purchased_for'), value: <Money value={asset.purchasePrice} /> }] : []),
     ...(asset.weightGrams != null ? [{ label: t('assets_detail.weight'), value: t('assets_detail.grams', { value: asset.weightGrams.toLocaleString('fr-FR') }) }] : []),
     ...(asset.fineness != null ? [{ label: t('assets_detail.fineness'), value: t('assets_detail.per_mille', { value: asset.fineness.toLocaleString('fr-FR') }) }] : []),
+    ...(asset.registeredOn ? [{ label: t('assets_detail.registered_on'), value: <LocalDate value={asset.registeredOn} /> }] : []),
+    ...(asset.mileageKm != null ? [{ label: t('assets_detail.mileage'), hint: asset.mileageOn ? <LocalDate value={asset.mileageOn} /> : undefined, value: t('assets_detail.km', { value: asset.mileageKm.toLocaleString('fr-FR') }) }] : []),
+    ...(asset.fiscalHp != null ? [{ label: t('assets_detail.fiscal_hp'), value: t('assets_detail.cv', { value: asset.fiscalHp }) }] : []),
+    ...(asset.energy ? [{ label: t('assets_detail.energy'), value: energyText(t, asset.energy) }] : []),
   ];
 
   return (
@@ -98,6 +104,7 @@ export function AssetDetailPage() {
       {asset.note ? <p>{asset.note}</p> : null}
       {asset.canWrite && dialog === 'delete' ? <Suspense fallback={null}><DeleteItemFlow kind="assets.delete_asset" id={id} onClose={() => setDialog(null)} /></Suspense> : null}
       {asset.canWrite && dialog === 'edit' ? <EditAssetDialog asset={asset} onClose={() => setDialog(null)} onDone={(m) => { setDialog(null); toast.success(m); }} /> : null}
+      {asset.canWrite && dialog === 'mileage' ? <MileageDialog asset={asset} onClose={() => setDialog(null)} onDone={(m) => { setDialog(null); toast.success(m); }} /> : null}
       {asset.canWrite && dialog === 'value' ? <AssetValuationDialog asset={asset} onClose={() => setDialog(null)} onDone={(m) => { setDialog(null); toast.success(m); }} /> : null}
       <DetailTabs value={tab} onChange={setTab} tabs={[
         { id: 'valuations', label: t('assets_detail.tab_valuations'), content: <AssetValuationsSection asset={asset} /> },

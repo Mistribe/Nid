@@ -20,6 +20,9 @@ public sealed class AssetsDbContext(DbContextOptions<AssetsDbContext> options) :
             {
                 t.HasCheckConstraint("ck_asset_purchase", "(purchase_price is null) = (purchased_on is null)");
                 t.HasCheckConstraint("ck_asset_metal", "kind = 'precious_metal' or (weight_grams is null and fineness is null)");
+                t.HasCheckConstraint("ck_asset_vehicle",
+                    "kind = 'vehicle' or (registered_on is null and mileage_km is null and mileage_on is null and fiscal_hp is null and energy is null)");
+                t.HasCheckConstraint("ck_asset_mileage", "(mileage_km is null) = (mileage_on is null)");
                 t.HasCheckConstraint("ck_asset_import",
                     "(import_ref is null) = (import_hash is null) and (import_ref is null) = (imported_by is null)");
             });

@@ -1,12 +1,13 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from '@tanstack/react-router';
+import { useNavigate, useSearch } from '@tanstack/react-router';
 import { useMemo, useState, type ReactNode } from 'react';
 import { useForm, type Path } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import { useSession } from '@/app/Providers';
+import type { NewSubscriptionSearch } from '@/app/router';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { FormPage } from '@/components/page/FormPage';
 import { StepForm } from '@/components/page/StepForm';
@@ -72,12 +73,14 @@ export function NewSubscription() {
   const [reveal, setReveal] = useState<{ step: string } | null>(null);
   const people = $api.useQuery('get', PERSONS);
   const persons = people.data ?? [];
+  // Issue #647: opened from a leased vehicle, its name and note already written.
+  const search: NewSubscriptionSearch = useSearch({ strict: false });
   const schema = useMemo(() => wizardSchema(t), [t]);
   const form = useForm<WizardValues>({
     resolver: zodResolver(schema),
     mode: 'onTouched',
     defaultValues: {
-      provider: null, displayName: '', visibility: 'shared', owners: [{ personId: session.person.id, share: '100' }], users: [], note: '',
+      provider: null, displayName: search.name ?? '', visibility: 'shared', owners: [{ personId: session.person.id, share: '100' }], users: [], note: search.note ?? '',
       startsOn: '', amount: '', currency: 'EUR', everyCount: '1', everyUnit: 'month', sameCovers: true, coversCount: '1', coversUnit: 'month',
       maxCycles: '', payerType: 'household', payerPerson: '',
       offer: 'recurring', trialVariant: 'free', offerDate: '', offerLabel: '', offerAmount: '', offerPayerType: 'household', offerPayerPerson: '',

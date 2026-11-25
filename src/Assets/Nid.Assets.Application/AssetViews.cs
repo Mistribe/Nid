@@ -12,7 +12,8 @@ public sealed record ValuationView(Guid Id, LocalDate AsOf, string Amount, strin
 /// <param name="ValueFromPurchase">The value is the purchase price: no valuation is dated yet.</param>
 public sealed record AssetView(
     ItemId Id, string Name, string Kind, MoneyView? Value, LocalDate? ValueOn, bool ValueFromPurchase, MoneyView? PurchasePrice,
-    LocalDate? PurchasedOn, string? Note, decimal? WeightGrams, decimal? Fineness, IReadOnlyList<ValuationView> Valuations, string Currency,
+    LocalDate? PurchasedOn, string? Note, decimal? WeightGrams, decimal? Fineness,
+    LocalDate? RegisteredOn, int? MileageKm, LocalDate? MileageOn, int? FiscalHp, string? Energy, IReadOnlyList<ValuationView> Valuations, string Currency,
     string Visibility, IReadOnlyList<ItemOwnerView> Owners, bool Archived, uint Version, bool CanWrite, string ShareLevel) : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems() => [Id];
@@ -51,6 +52,7 @@ internal static class AssetViews
         var d = record.Details;
         return new AssetView(row.Id, row.Name, row.Kind, row.Value, row.ValueOn, row.ValueFromPurchase,
             d.PurchasePrice is { } price ? new MoneyView(Amount(price), row.Currency) : null, d.PurchasedOn, d.Note, d.WeightGrams, d.Fineness,
+            d.RegisteredOn, d.MileageKm, d.MileageOn, d.FiscalHp, d.Energy,
             valuations.OrderBy(v => v.AsOf).Select(v => new ValuationView(v.Id, v.AsOf, Amount(v.Value.Amount), v.Note)).ToList(),
             row.Currency, row.Visibility, row.Owners, row.Archived, record.Version, canWrite,
             item.Visibility == Visibility.Shared && item.ShareLevel == ShareLevel.Edit ? "edit" : "view");

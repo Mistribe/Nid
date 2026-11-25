@@ -17,7 +17,7 @@ partial class AssetsDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261125101202_InitialAssets";
+    public override string LastMigrationId => "20261125121330_VehicleDetails";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -35,9 +35,17 @@ partial class AssetsDbContextModelSnapshot : ModelSnapshot
                     .HasColumnType("uuid")
                     .HasColumnName("item_id");
 
+                b.Property<string>("Energy")
+                    .HasColumnType("text")
+                    .HasColumnName("energy");
+
                 b.Property<decimal?>("Fineness")
                     .HasColumnType("numeric(5,1)")
                     .HasColumnName("fineness");
+
+                b.Property<short?>("FiscalHp")
+                    .HasColumnType("smallint")
+                    .HasColumnName("fiscal_hp");
 
                 b.Property<string>("ImportHash")
                     .HasColumnType("char(64)")
@@ -56,6 +64,14 @@ partial class AssetsDbContextModelSnapshot : ModelSnapshot
                     .HasColumnType("text")
                     .HasColumnName("kind");
 
+                b.Property<int?>("MileageKm")
+                    .HasColumnType("integer")
+                    .HasColumnName("mileage_km");
+
+                b.Property<LocalDate?>("MileageOn")
+                    .HasColumnType("date")
+                    .HasColumnName("mileage_on");
+
                 b.Property<string>("Note")
                     .HasColumnType("text")
                     .HasColumnName("note");
@@ -67,6 +83,10 @@ partial class AssetsDbContextModelSnapshot : ModelSnapshot
                 b.Property<LocalDate?>("PurchasedOn")
                     .HasColumnType("date")
                     .HasColumnName("purchased_on");
+
+                b.Property<LocalDate?>("RegisteredOn")
+                    .HasColumnType("date")
+                    .HasColumnName("registered_on");
 
                 b.Property<uint>("Version")
                     .IsConcurrencyToken()
@@ -95,7 +115,11 @@ partial class AssetsDbContextModelSnapshot : ModelSnapshot
 
                         t.HasCheckConstraint("ck_asset_metal", "kind = 'precious_metal' or (weight_grams is null and fineness is null)");
 
+                        t.HasCheckConstraint("ck_asset_mileage", "(mileage_km is null) = (mileage_on is null)");
+
                         t.HasCheckConstraint("ck_asset_purchase", "(purchase_price is null) = (purchased_on is null)");
+
+                        t.HasCheckConstraint("ck_asset_vehicle", "kind = 'vehicle' or (registered_on is null and mileage_km is null and mileage_on is null and fiscal_hp is null and energy is null)");
                     });
             });
 

@@ -14,7 +14,7 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { todayIso } from '@/lib/today';
-import { AssetFields, NoteField } from './AssetFields';
+import { AssetFields, NoteField, VehicleFields } from './AssetFields';
 import { editAssetPath, editAssetSchema, editDefaults, refusalText, toEditBody, type EditAssetValues } from './assetForm';
 import '@/locales/assets';
 import '@/locales/loans';
@@ -60,6 +60,7 @@ function EditForm({ asset, titleId, done }: { asset: AssetView; titleId: string;
       {errors.problem ? <ProblemMessage problem={errors.problem} /> : null}
       <FormProvider {...form}>
         <AssetFields />
+        <VehicleFields />
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label={t('assets_form.purchase_price')} error={e.purchasePrice?.message}>
             {(c) => <Input inputMode="decimal" {...c} {...form.register('purchasePrice')} />}

@@ -7,20 +7,22 @@
 
 Un bien est un `item` du Core (module `assets`, genre `asset`) : nom, détenteurs, visibilité, devise et archivage viennent du registre. Ses valeurs datées sont des valorisations du Core (`IValuations`). Le module ne garde que ce que le registre ne dit pas.
 
-Genres : `vehicle`, `precious_metal`, `art`, `collectible`, `other`. Seul `precious_metal` porte un poids et un titre.
+Genres : `vehicle`, `precious_metal`, `art`, `collectible`, `other`. Seul `precious_metal` porte un poids et un titre ; seul `vehicle` porte une mise en circulation, un kilométrage (avec la date du relevé), une puissance fiscale et une énergie.
 
 ## 2. Table (schéma `assets`)
 
 | Table | Champs | Contraintes |
 |---|---|---|
-| `asset` | `item_id` (PK), `kind`, `purchase_price` numeric?, `purchased_on` date?, `note` text?, `weight_grams` numeric?, `fineness` numeric(5,1)?, colonnes d'import (`import_ref`, `import_hash`, `imported_by`), `xmin` (version) | `ck_asset_purchase` : prix et date ensemble ou ni l'un ni l'autre ; `ck_asset_metal` : poids et titre seulement pour `precious_metal` ; `ck_asset_import` : marques d'import cohérentes |
+| `asset` | `item_id` (PK), `kind`, `purchase_price` numeric?, `purchased_on` date?, `note` text?, `weight_grams` numeric?, `fineness` numeric(5,1)?, `registered_on` date?, `mileage_km` int?, `mileage_on` date?, `fiscal_hp` smallint?, `energy` text?, colonnes d'import (`import_ref`, `import_hash`, `imported_by`), `xmin` (version) | `ck_asset_purchase` : prix et date ensemble ou ni l'un ni l'autre ; `ck_asset_metal` : poids et titre seulement pour `precious_metal` ; `ck_asset_vehicle` : champs du véhicule seulement pour `vehicle` ; `ck_asset_mileage` : kilométrage et date ensemble ou ni l'un ni l'autre ; `ck_asset_import` : marques d'import cohérentes |
 
 ## 3. Règles
 
 - **Une valeur est toujours présente** : un prix d'achat (avec sa date) ou au moins une valorisation, sinon `assets.value_required`. À l'import, la règle ne regarde que le fichier : les valorisations déjà enregistrées ne la satisfont pas (`import-format.md` §5.10).
 - **Achat** : prix et date ensemble ou ni l'un ni l'autre (`assets.purchase_incomplete`) ; la date n'est pas future.
 - **Métal** : poids et titre seulement pour `precious_metal` (`assets.metal_only`) ; poids > 0 ; titre en ‰, de 0 (exclu) à 1 000, une décimale (`999.9` est conservé tel quel).
-- **Modification** : remplace tous les champs. Passer d'un métal à un autre genre efface poids et titre.
+- **Véhicule** : les champs du véhicule seulement pour `vehicle` (`assets.vehicle_only`) ; mise en circulation et date du relevé non futures (`assets.invalid_date`) ; kilométrage de 0 à moins de 10 000 000 (`assets.invalid_mileage`), avec sa date ou sans aucun des deux (`assets.mileage_incomplete`) ; puissance fiscale de 1 à 99 (`assets.invalid_fiscal_hp`) ; énergie parmi `petrol`, `diesel`, `hybrid`, `plug_in_hybrid`, `electric`, `lpg`, `other` (`assets.invalid_energy`). Mettre à jour le kilométrage est une modification qui remplace le relevé et sa date (pas d'historique).
+- **Location (LOA, LLD)** : pas un bien. L'écran de création propose de la suivre comme un abonnement (`/subscriptions/new?name=…&note=…`) et ne crée rien.
+- **Modification** : remplace tous les champs. Passer d'un métal ou d'un véhicule à un autre genre efface les champs qui ne le concernent plus.
 - **Clôture** : archiver un bien le tient pour vendu (voir §5) ; supprimer (après aperçu) efface un bien créé par erreur, avec ses valeurs.
 - Les valorisations se posent par date : une valeur à une date déjà valorisée la remplace.
 

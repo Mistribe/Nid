@@ -38936,6 +38936,15 @@ export interface components {
             weightGrams?: null | number;
             /** Format: double */
             fineness?: null | number;
+            /** Format: date */
+            registeredOn?: null | string;
+            /** Format: int32 */
+            mileageKm?: null | number;
+            /** Format: date */
+            mileageOn?: null | string;
+            /** Format: int32 */
+            fiscalHp?: null | number;
+            energy?: null | string;
             valuations: components["schemas"]["ValuationView"][];
             currency: string;
             visibility: string;
@@ -40148,6 +40157,13 @@ export interface components {
             weightGrams?: null | number;
             /** Format: double */
             fineness?: null | number;
+            registeredOn?: null | string;
+            /** Format: int32 */
+            mileageKm?: null | number;
+            mileageOn?: null | string;
+            /** Format: int32 */
+            fiscalHp?: null | number;
+            energy?: null | string;
             currentValue?: null | string;
             currentValueOn?: null | string;
             currency?: null | string;
@@ -40638,6 +40654,13 @@ export interface components {
             weightGrams?: null | number;
             /** Format: double */
             fineness?: null | number;
+            registeredOn?: null | string;
+            /** Format: int32 */
+            mileageKm?: null | number;
+            mileageOn?: null | string;
+            /** Format: int32 */
+            fiscalHp?: null | number;
+            energy?: null | string;
             /** Format: uint32 */
             version?: null | number;
         };

@@ -56,7 +56,26 @@
     "edit": "Modifier",
     "edit_title": "Modifier le bien",
     "save": "Enregistrer",
-    "saved": "Bien enregistré."
+    "saved": "Bien enregistré.",
+    "owned_or_leased": "Vous en êtes propriétaire, ou c’est une location (LOA, LLD) ?",
+    "owned": "Propriétaire",
+    "leased": "Location",
+    "leased_explain": "Une location est un contrat, pas un bien : elle ne compte pas dans votre patrimoine tant que vous n’avez pas racheté le véhicule. Suivez-la comme un abonnement.",
+    "leased_link": "Créer l’abonnement de location",
+    "leased_note": "Location (LOA ou LLD). Option d’achat (LOA) : à compléter.",
+    "registered_on": "Mise en circulation",
+    "mileage": "Kilométrage (km)",
+    "mileage_on": "Date du relevé",
+    "fiscal_hp": "Puissance fiscale (CV)",
+    "fiscal_hp_tip": "Puissance fiscale : le nombre de CV écrit sur la carte grise (case P.6).",
+    "energy": "Énergie",
+    "date_past": "Indiquez une date qui n’est pas dans le futur.",
+    "mileage_format": "Indiquez un kilométrage entier, par exemple 45000.",
+    "mileage_incomplete": "Indiquez la date du relevé du kilométrage.",
+    "fiscal_hp_format": "Indiquez une puissance fiscale entre 1 et 99.",
+    "vehicle_only": "Ces informations ne concernent que les véhicules.",
+    "update_mileage": "Mettre à jour le kilométrage",
+    "mileage_intro": "Le dernier relevé remplace le précédent."
   },
   "assets_detail": {
     "loading": "Chargement du bien",
@@ -75,7 +94,13 @@
     "unarchive": "Désarchiver",
     "archived": "Archivé",
     "archived_done": "Bien archivé.",
-    "unarchived_done": "Bien désarchivé."
+    "unarchived_done": "Bien désarchivé.",
+    "registered_on": "Mise en circulation",
+    "mileage": "Kilométrage",
+    "km": "{{value}} km",
+    "fiscal_hp": "Puissance fiscale",
+    "cv": "{{value}} CV",
+    "energy": "Énergie"
   },
   "assets_valuations": {
     "title": "Valeurs",
@@ -97,5 +122,14 @@
     "deleted": "Valeur supprimée.",
     "delete_confirm": "Supprimer cette valeur ?",
     "row_menu": "Actions pour la valeur du {{date}}"
+  },
+  "assets_energy": {
+    "petrol": "Essence",
+    "diesel": "Diesel",
+    "hybrid": "Hybride",
+    "plug_in_hybrid": "Hybride rechargeable",
+    "electric": "Électrique",
+    "lpg": "GPL",
+    "other": "Autre"
   }
 }

@@ -108,6 +108,70 @@ public class AssetWriteTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         Assert.Equal(JsonValueKind.Null, view.GetProperty("fineness").ValueKind);
     }
 
+    private static void Vehicle(Dictionary<string, object?> body, int km = 45_000, string kmOn = "2025-10-01")
+    {
+        body["registeredOn"] = "2020-05-01";
+        body["mileageKm"] = km;
+        body["mileageOn"] = kmOn;
+        body["fiscalHp"] = 5;
+        body["energy"] = "hybrid";
+    }
+
+    [Fact]
+    public async Task Vehicle_fields_round_trip_and_a_mileage_update_keeps_the_latest_reading()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var body = Body(app, "Citadine", "vehicle");
+        Vehicle(body);
+        var id = await CreateAsync(app, body);
+        var view = await GetAsync(app, id);
+        Assert.Equal(("2020-05-01", 45_000, "2025-10-01", 5, "hybrid"), (view.GetProperty("registeredOn").GetString(), view.GetProperty("mileageKm").GetInt32(),
+            view.GetProperty("mileageOn").GetString(), view.GetProperty("fiscalHp").GetInt32(), view.GetProperty("energy").GetString()));
+
+        var edit = Edit(await VersionAsync(app, id), "Citadine", "vehicle");
+        Vehicle(edit, 51_000, "2025-10-14");
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Put, $"{Route}/{id.Value}", edit)).StatusCode);
+
+        view = await GetAsync(app, id);
+        Assert.Equal((51_000, "2025-10-14"), (view.GetProperty("mileageKm").GetInt32(), view.GetProperty("mileageOn").GetString()));
+    }
+
+    [Fact]
+    public async Task Vehicle_fields_on_art_are_refused()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var body = Body(app, "Tableau", "art");
+        body["energy"] = "diesel";
+
+        await AssertRefusedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, Route, body), HttpStatusCode.UnprocessableEntity, AssetsCodes.VehicleOnly, "energy");
+    }
+
+    [Fact]
+    public async Task Mileage_without_its_date_is_refused()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var body = Body(app, "Citadine", "vehicle");
+        body["mileageKm"] = 100;
+
+        await AssertRefusedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, Route, body), HttpStatusCode.UnprocessableEntity, AssetsCodes.MileageIncomplete, "mileageOn");
+    }
+
+    [Fact]
+    public async Task Edit_from_vehicle_to_art_clears_the_vehicle_fields()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var body = Body(app, "Citadine", "vehicle");
+        Vehicle(body);
+        var id = await CreateAsync(app, body);
+
+        var edited = await app.RawAsync(app.AdultA, HttpMethod.Put, $"{Route}/{id.Value}", Edit(await VersionAsync(app, id), "Citadine", "art"));
+
+        Assert.Equal(HttpStatusCode.OK, edited.StatusCode);
+        var view = await GetAsync(app, id);
+        foreach (var f in new[] { "registeredOn", "mileageKm", "mileageOn", "fiscalHp", "energy" })
+            Assert.Equal(JsonValueKind.Null, view.GetProperty(f).ValueKind);
+    }
+
     [Fact]
     public async Task Edit_removing_price_without_valuation_is_422()
     {

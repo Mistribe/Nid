@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from '@tanstack/react-router';
-import { useId } from 'react';
+import { Link, useNavigate } from '@tanstack/react-router';
+import { useId, useState } from 'react';
 import { Controller, FormProvider, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
@@ -20,7 +20,7 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { todayIso } from '@/lib/today';
-import { AssetFields, NoteField } from '../AssetFields';
+import { AssetFields, NoteField, VehicleFields } from '../AssetFields';
 import { newAssetPath, newAssetSchema, refusalText, toCreateBody, type NewAssetValues } from '../assetForm';
 import '@/locales/assets';
 import '@/locales/loans';
@@ -40,7 +40,7 @@ export function NewAsset() {
     resolver: zodResolver(newAssetSchema(t)),
     // `visibility` is left out on purpose: neither answer is checked until the person picks one.
     defaultValues: {
-      name: '', kind: 'vehicle', currency: 'EUR', note: '', weightGrams: '', fineness: '', mode: 'purchase', amount: '', valueOn: '',
+      name: '', kind: 'vehicle', currency: 'EUR', note: '', weightGrams: '', fineness: '', registeredOn: '', mileageKm: '', mileageOn: '', fiscalHp: '', energy: '', mode: 'purchase', amount: '', valueOn: '',
       owners: [{ personId: session.person.id, share: '100' }],
     },
   });
@@ -54,6 +54,10 @@ export function NewAsset() {
   });
   const e = form.formState.errors;
   const mode = form.watch('mode');
+  // A lease is a contract, not an asset: it goes to the subscriptions, and nothing is created here.
+  const [leased, setLeased] = useState(false);
+  const isLeased = leased && form.watch('kind') === 'vehicle';
+  const ownershipId = useId();
 
   return (
     <FormPage crumbs={[{ label: t('nav.assets'), to: '/other-assets' }]} title={t('assets_form.title')}>
@@ -64,6 +68,25 @@ export function NewAsset() {
           void form.handleSubmit((values) => { errors.clear(); create.mutate({ body: toCreateBody(values) }); })(event);
         }}>
           <AssetFields />
+          {form.watch('kind') === 'vehicle' ? (
+            <div className="space-y-2">
+              <span id={ownershipId} className="block text-sm font-medium">{t('assets_form.owned_or_leased')}</span>
+              <Segmented aria-labelledby={ownershipId} value={leased ? 'leased' : 'owned'} onValueChange={(v) => setLeased(v === 'leased')}
+                options={[{ value: 'owned', label: t('assets_form.owned') }, { value: 'leased', label: t('assets_form.leased') }]} />
+            </div>
+          ) : null}
+          {isLeased ? (
+            <div className="space-y-3">
+              <p>{t('assets_form.leased_explain')}</p>
+              <Button asChild>
+                <Link to="/subscriptions/new" search={{ ...(form.watch('name').trim() ? { name: form.watch('name').trim() } : {}), note: t('assets_form.leased_note') }}>
+                  {t('assets_form.leased_link')}
+                </Link>
+              </Button>
+            </div>
+          ) : (
+          <>
+          <VehicleFields />
           <div className="space-y-2">
             <span id={valueId} className="block text-sm font-medium">{t('assets_form.value_title')}</span>
             <Controller control={form.control} name="mode" render={({ field }) => (
@@ -100,6 +123,8 @@ export function NewAsset() {
             <NoteField />
           </Folded>
           <FormActions><Button type="submit" disabled={create.isPending}>{t('assets_form.submit')}</Button></FormActions>
+          </>
+          )}
         </form>
       </FormProvider>
     </FormPage>

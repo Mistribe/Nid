@@ -42,6 +42,21 @@ public class AssetRecordStoreTests(PostgresFixture fixture) : IClassFixture<Post
     }
 
     [Fact]
+    public async Task Add_then_find_round_trips_the_vehicle_fields()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await using var scope = app.Services.CreateAsyncScope();
+        var store = scope.ServiceProvider.GetRequiredService<IAssetRecordStore>();
+        var id = await NewItemAsync(scope.ServiceProvider, app);
+        var details = new AssetDetails(AssetKinds.Vehicle, 9000m, new LocalDate(2022, 3, 9), null, null, null,
+            new LocalDate(2022, 3, 1), 12_345, new LocalDate(2025, 1, 2), 6, AssetEnergies.PlugInHybrid);
+
+        await store.AddAsync(id, details, Ct);
+
+        Assert.Equal(details, (await store.FindAsync(id, Ct))!.Details);
+    }
+
+    [Fact]
     public async Task Lock_takes_the_row_without_failing()
     {
         await using var app = await NidApp.StartAsync(fixture);

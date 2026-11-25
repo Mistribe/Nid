@@ -41746,6 +41746,40 @@
             ],
             "format": "double"
           },
+          "registeredOn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "mileageKm": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "mileageOn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "fiscalHp": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "energy": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "valuations": {
             "type": "array",
             "items": {
@@ -46671,6 +46705,38 @@
             ],
             "format": "double"
           },
+          "registeredOn": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "mileageKm": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "mileageOn": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "fiscalHp": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "energy": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "currentValue": {
             "type": [
               "null",
@@ -48841,6 +48907,38 @@
               "number"
             ],
             "format": "double"
+          },
+          "registeredOn": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "mileageKm": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "mileageOn": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "fiscalHp": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "energy": {
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "version": {
             "type": [
