@@ -302,6 +302,39 @@ public class CategorySuggestionTests(PostgresFixture fixture) : IClassFixture<Po
         Assert.Equal(0, (await PageAsync(app, app.AdultB)).GetProperty("total").GetInt32());
     }
 
+    [Fact]
+    public async Task Lines_to_classify_list_the_writable_uncategorised_lines_each_with_its_suggestion()
+    {
+        var labels = new Labels();
+        await using var s = await StartAsync(fixture, labels);
+        var app = s.App;
+        foreach (var label in new[] { "CB SHOP ONE 1", "CB SHOP ONE 2", "CB SUPER MARKET 1", "CB SUPER MARKET 2" })
+            await HandAsync(app, app.AdultA, await AddAsync(app, s.Shared, label), Groceries);
+        var byHistory = await AddAsync(app, s.Shared, "CB SHOP ONE 3");
+        var byMeaning = await AddAsync(app, s.OwnA, "CB CITY MARKET 3");
+        var none = await AddAsync(app, s.OwnA, "CB GARAGE AUTO 4");
+        await AddAsync(app, s.OwnB, "CB SHOP ONE 5");
+        await IndexAsync(app);
+
+        var page = JsonDocument.Parse(await app.GetRawAsync(app.AdultA, $"{BankingApi.Root}/lines-to-classify")).RootElement;
+        Assert.Equal(3, page.GetProperty("total").GetInt32());
+        var items = page.GetProperty("items").EnumerateArray().ToDictionary(i => i.GetProperty("line").GetProperty("id").GetGuid(), i => i.GetProperty("suggestion"));
+        Assert.Equal([byHistory, byMeaning, none], items.Keys.Order());
+        Assert.Equal((Groceries, false, "SHOP ONE"), (items[byHistory].GetProperty("categoryId").GetGuid(), items[byHistory].GetProperty("byMeaning").GetBoolean(),
+            items[byHistory].GetProperty("pattern").GetString()));
+        Assert.True(items[byMeaning].GetProperty("byMeaning").GetBoolean());
+        Assert.Equal(JsonValueKind.Null, items[none].ValueKind);
+        // A's own accounts are the filter's options, not B's.
+        Assert.Equal(["Courant A", "Perso A"], page.GetProperty("accounts").EnumerateArray().Select(a => a.GetProperty("name").GetString()).Order());
+
+        var own = JsonDocument.Parse(await app.GetRawAsync(app.AdultA, $"{BankingApi.Root}/lines-to-classify?account={s.OwnA}")).RootElement;
+        Assert.Equal(2, own.GetProperty("total").GetInt32());
+        // An account A does not write lists nothing; B's lines are B's to classify.
+        Assert.Equal(0, JsonDocument.Parse(await app.GetRawAsync(app.AdultA, $"{BankingApi.Root}/lines-to-classify?account={s.OwnB}")).RootElement.GetProperty("total").GetInt32());
+        var b = JsonDocument.Parse(await app.GetRawAsync(app.AdultB, $"{BankingApi.Root}/lines-to-classify")).RootElement;
+        Assert.Equal(1, b.GetProperty("total").GetInt32());
+    }
+
     private static async Task IndexAsync(NidApp app)
     {
         await using var scope = app.Services.CreateAsyncScope();
@@ -317,7 +350,7 @@ public class CategorySuggestionTests(PostgresFixture fixture) : IClassFixture<Po
         return info.DisplayName.Split(' ')[0];
     }
 
-    /// <summary>The <c>embed</c> use with one topic, shops of food (« MARKET »), and everything else; <see cref="On"/> is the <c>decide</c> use.</summary>
+    /// <summary>The <c>embed</c> use with two topics, markets (« MARKET ») and shops (« SHOP »), and everything else; <see cref="On"/> is the <c>decide</c> use.</summary>
     private sealed class Labels : IEmbeddings
     {
         public bool On { get; set; } = true;
@@ -333,7 +366,14 @@ public class CategorySuggestionTests(PostgresFixture fixture) : IClassFixture<Po
             lock (Requests)
                 Requests.Add(request);
             return Task.FromResult(Result.Success(new LlmEmbeddings("fake-embed", 3,
-                [.. request.Texts.Select(t => (IReadOnlyList<float>)(t.Contains("MARKET", StringComparison.Ordinal) ? [1f, 0f, 0.1f] : [0f, 1f, 0.1f]))])));
+                [.. request.Texts.Select(Vector)])));
+        }
+
+        private static IReadOnlyList<float> Vector(string text)
+        {
+            if (text.Contains("MARKET", StringComparison.Ordinal))
+                return [1f, 0f, 0.1f];
+            return text.Contains("SHOP", StringComparison.Ordinal) ? [0f, 0f, 1f] : [0f, 1f, 0.1f];
         }
     }
 }

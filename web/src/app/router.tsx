@@ -77,7 +77,7 @@ export type IncomeSearch = { ended?: 1; period?: '12m' | '3y'; person?: string; 
  * #85 « Dépenses »: the month (`yyyy-mm`, absent for the current one) and the 12 months up to it (`12m`, absent for the month alone);
  * #423: its tab (the overview, none, first), the Opérations tab's filters and the Catégories tab's kind (Dépenses, none, first).
  */
-export type SpendingSearch = OperationsSearch & { month?: string; period?: '12m'; tab?: 'operations' | 'categories'; kind?: 'income' | 'transfer' };
+export type SpendingSearch = OperationsSearch & { month?: string; period?: '12m'; tab?: 'operations' | 'to-classify' | 'categories'; kind?: 'income' | 'transfer' };
 
 /**
  * The income detail's own choices: the history period (2C2b design §5, `last12` by default), the one-offs listed (issue
@@ -469,7 +469,7 @@ const spendingRoute = createRoute({
     ...operationsSearch(search),
     ...(typeof search.month === 'string' && /^\d{4}-(0[1-9]|1[0-2])$/.test(search.month) ? { month: search.month } : {}),
     ...(search.period === '12m' ? { period: '12m' as const } : {}),
-    tab: search.tab === 'operations' || search.tab === 'categories' ? search.tab : undefined,
+    tab: search.tab === 'operations' || search.tab === 'to-classify' || search.tab === 'categories' ? search.tab : undefined,
     kind: search.kind === 'income' || search.kind === 'transfer' ? search.kind : undefined,
   }),
   component: lazyRouteComponent(() => import('@/features/spending/SpendingPage'), 'SpendingPage'),

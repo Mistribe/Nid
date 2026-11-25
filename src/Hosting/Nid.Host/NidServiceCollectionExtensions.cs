@@ -420,6 +420,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ICategorySuggestionStore, CategorySuggestionStore>();
         services.AddScoped<IPatternIndexStore, PatternIndexStore>();
         services.AddScoped<PatternIndexer>();
+        services.AddScoped<CategoryPicks>();
         services.AddScoped<IBankSyncRunLog, SyncRunLog>();
         services.AddScoped<IAccountReadLog, AccountReadLog>();
         services.AddScoped<BankingAccess>();

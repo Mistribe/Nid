@@ -129,5 +129,8 @@ export type CategoryRuleDraftPreview = components['schemas']['CategoryRuleDraftP
 export type CategorySuggestion = components['schemas']['CategorySuggestionView'];
 export type SuggestionDismissal = components['schemas']['SuggestionDismissalView'];
 export const CATEGORY_SUGGESTIONS = '/api/v1/banking/category-suggestions' as const;
+/** « À classer »: the lines to classify on the accounts the person writes, each with the category Nid suggests. */
+export const LINES_TO_CLASSIFY = '/api/v1/banking/lines-to-classify' as const;
+export type LineToClassify = components['schemas']['LineToClassifyView'];
 export const SUGGESTION_DISMISSALS = '/api/v1/banking/category-suggestions/dismissals' as const;
 export const SUGGESTION_DISMISSAL = '/api/v1/banking/category-suggestions/dismissals/{id}' as const;
