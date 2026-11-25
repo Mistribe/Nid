@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Nid.Assets.Application;
+using Nid.Assets.Infrastructure.Persistence;
 using Nid.Banking.Application;
 using Nid.Banking.Infrastructure.Persistence;
 using Nid.Core.Application;
@@ -15,7 +17,6 @@ using Nid.Host.Jobs;
 using Nid.Documents.Application;
 using Nid.Documents.Infrastructure.Persistence;
 using Nid.Goals.Application;
-using Nid.Assets.Infrastructure.Persistence;
 using Nid.Childcare.Infrastructure.Persistence;
 using Nid.Goals.Infrastructure.Persistence;
 using Nid.Income.Application.Import;
@@ -309,7 +310,7 @@ public static class NidServiceCollectionExtensions
             npgsql.MigrationsHistoryTable("__ef_migrations_history", AssetsDbContext.Schema);
         }).AddInterceptors(sp.GetRequiredService<AuditInterceptor>()));
         services.AddScoped<ITransactionParticipant, DbContextParticipant<AssetsDbContext>>();
-        services.AddScoped<Nid.Assets.Application.IAssetStore, AssetStore>();
+        services.AddScoped<IAssetRecordStore, AssetRecordStore>();
         services.AddScoped<IItemDeletionPart, AssetsDeletionPart>();
 
         services.AddDbContext<Nid.Ai.Infrastructure.Persistence.AiDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>

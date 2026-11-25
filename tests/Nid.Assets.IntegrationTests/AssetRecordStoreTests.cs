@@ -1,6 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
 using Nid.Assets.Application;
-using IAssetStore = Nid.Assets.Application.IAssetStore;
 using Nid.Assets.Contracts;
 using Nid.Assets.Domain;
 using Nid.Assets.Infrastructure.Persistence;
@@ -11,7 +10,7 @@ using NodaTime;
 
 namespace Nid.Assets.IntegrationTests;
 
-public class AssetStoreTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
+public class AssetRecordStoreTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -30,7 +29,7 @@ public class AssetStoreTests(PostgresFixture fixture) : IClassFixture<PostgresFi
     {
         await using var app = await NidApp.StartAsync(fixture);
         await using var scope = app.Services.CreateAsyncScope();
-        var store = scope.ServiceProvider.GetRequiredService<IAssetStore>();
+        var store = scope.ServiceProvider.GetRequiredService<IAssetRecordStore>();
         var id = await NewItemAsync(scope.ServiceProvider, app);
         var details = new AssetDetails(AssetKinds.PreciousMetal, 2500.5m, new LocalDate(2024, 3, 9), "a bar", 31.103m, 999.9m);
 
@@ -47,7 +46,7 @@ public class AssetStoreTests(PostgresFixture fixture) : IClassFixture<PostgresFi
     {
         await using var app = await NidApp.StartAsync(fixture);
         await using var scope = app.Services.CreateAsyncScope();
-        var store = scope.ServiceProvider.GetRequiredService<IAssetStore>();
+        var store = scope.ServiceProvider.GetRequiredService<IAssetRecordStore>();
         var id = await NewItemAsync(scope.ServiceProvider, app);
         await store.AddAsync(id, Art(), Ct);
         var read = (await store.FindAsync(id, Ct))!;
@@ -62,22 +61,25 @@ public class AssetStoreTests(PostgresFixture fixture) : IClassFixture<PostgresFi
     {
         await using var app = await NidApp.StartAsync(fixture);
         await using var scope = app.Services.CreateAsyncScope();
-        var store = scope.ServiceProvider.GetRequiredService<IAssetStore>();
+        var store = scope.ServiceProvider.GetRequiredService<IAssetRecordStore>();
         var ids = new List<ItemId>();
         for (var i = 0; i < 25; i++)
         {
             var id = await NewItemAsync(scope.ServiceProvider, app);
             ids.Add(id);
-            await store.AddAsync(id, i < 5 ? new AssetDetails(AssetKinds.Vehicle, 900m, new LocalDate(2025, 1, 1 + i), null, null, null) : Art(100m, 1 + i % 25), Ct);
+            await store.AddAsync(id, i < 5 ? new AssetDetails(AssetKinds.Vehicle, 900m, new LocalDate(2025, 1, 1 + i), null, null, null) : i >= 23 ? new AssetDetails(AssetKinds.Art, null, null, "valued", null, null) : Art(100m, 1 + i), Ct);
         }
         var outsider = await NewItemAsync(scope.ServiceProvider, app);
-        await store.AddAsync(outsider, new AssetDetails(AssetKinds.Other, null, null, "x", null, null) with { PurchasePrice = 1m, PurchasedOn = new LocalDate(2025, 1, 1) }, Ct);
+        await store.AddAsync(outsider, new AssetDetails(AssetKinds.Other, 1m, new LocalDate(2025, 1, 1), "x", null, null), Ct);
 
         var first = await store.ListAsync(ids, null, 0, 20, Ct);
         var second = await store.ListAsync(ids, null, 20, 20, Ct);
         var vehicles = await store.ListAsync(ids, AssetKinds.Vehicle, 0, 20, Ct);
 
         Assert.Equal(20, first.Rows.Count);
+        var dates = first.Rows.Select(r => r.Details.PurchasedOn!.Value).ToList();
+        Assert.Equal(dates.OrderByDescending(d => d).ToList(), dates);
+        Assert.Equal([false, false, false, true, true], second.Rows.Select(r => r.Details.PurchasedOn is null).ToList());
         Assert.Equal(5, second.Rows.Count);
         Assert.Equal(25, first.Total);
         Assert.Equal(["art", "vehicle"], first.Kinds);
@@ -92,7 +94,7 @@ public class AssetStoreTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         await using var app = await NidApp.StartAsync(fixture);
         await using var scope = app.Services.CreateAsyncScope();
         var sp = scope.ServiceProvider;
-        var store = sp.GetRequiredService<IAssetStore>();
+        var store = sp.GetRequiredService<IAssetRecordStore>();
         var id = await NewItemAsync(sp, app);
         await store.AddAsync(id, Art(), Ct);
         var access = (await sp.GetRequiredService<IItemRegistry>().FindManyAsync([id], Ct)).Values.Single();

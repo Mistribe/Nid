@@ -7,7 +7,7 @@ using NodaTime;
 namespace Nid.Assets.Infrastructure.Persistence.Migrations;
 
 /// <inheritdoc />
-public partial class _20261125085822_InitialAssets : Migration
+public partial class InitialAssets : Migration
 {
     /// <inheritdoc />
     protected override void Up(MigrationBuilder migrationBuilder)

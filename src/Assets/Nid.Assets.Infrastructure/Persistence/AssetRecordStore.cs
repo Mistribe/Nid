@@ -5,7 +5,7 @@ using Nid.Core.Contracts;
 
 namespace Nid.Assets.Infrastructure.Persistence;
 
-public sealed class AssetStore(AssetsDbContext db) : IAssetStore
+public sealed class AssetRecordStore(AssetsDbContext db) : IAssetRecordStore
 {
     public async Task AddAsync(ItemId id, AssetDetails details, CancellationToken ct)
     {

@@ -8,7 +8,7 @@ public sealed record AssetRecord(ItemId ItemId, AssetDetails Details, uint Versi
 /// <summary>One page of the candidates' assets; <paramref name="Kinds"/> are the kinds present among all candidates, before the kind filter.</summary>
 public sealed record AssetPage(IReadOnlyList<AssetRecord> Rows, int Total, IReadOnlyList<string> Kinds);
 
-public interface IAssetStore
+public interface IAssetRecordStore
 {
     Task AddAsync(ItemId id, AssetDetails details, CancellationToken ct);
 

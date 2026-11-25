@@ -14,7 +14,7 @@ namespace Nid.Assets.Infrastructure.Persistence.Migrations;
 
 [DbContext(typeof(AssetsDbContext))]
 [Migration("20261125085822_InitialAssets")]
-partial class _20261125085822_InitialAssets
+partial class InitialAssets
 {
     /// <inheritdoc />
     protected override void BuildTargetModel(ModelBuilder modelBuilder)
