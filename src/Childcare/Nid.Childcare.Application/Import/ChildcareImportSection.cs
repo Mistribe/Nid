@@ -380,6 +380,7 @@ public sealed class ChildcareImportSection(
         var terms = (await store.TermsOfAsync(exported.Select(a => a.ItemId).ToList(), ct)).ToLookup(t => t.ItemId);
         var gaps = (await store.GapsOfAsync(exported.Select(a => a.ItemId).ToList(), ct)).ToLookup(g => g.Item, g => g.Gap);
         var overrides = (await store.OverridesOfAsync(exported.Select(a => a.ItemId).ToList(), ct)).ToLookup(o => o.Item, o => o.Override);
+        var validated = (await store.StatementsOfAsync(exported.Select(a => a.ItemId).ToList(), ct)).Where(s => s.Validated).ToLookup(s => s.ItemId);
 
         var arrangements = new List<ArrangementRecord>();
         var statements = new List<StatementRecord>();
@@ -416,7 +417,7 @@ public sealed class ChildcareImportSection(
                 Closed = head.ArchivedAt is not null,
                 End = a.End is { } end ? new EndRecord { Reason = EndReasonCodes.Of(end.Reason), Notified = LocalDatePattern.Iso.Format(end.Notified) } : null,
             });
-            foreach (var month in (await store.StatementsOfAsync(a.ItemId, ct)).Where(s => s.Validated).OrderBy(s => s.Month))
+            foreach (var month in validated[a.ItemId].OrderBy(s => s.Month))
             {
                 var s = (await store.FindStatementAsync(a.ItemId, month.Month, ct))!;
                 statements.Add(RecordOf(fileId, s));

@@ -19,18 +19,18 @@ public sealed class ChildcareTax(IVisibleItems visible, IItemRegistry items, ICh
         var found = await store.FindManyAsync(ids, ct);
         var registered = await items.FindManyAsync(found.Select(a => a.ItemId).ToList(), ct);
         var terms = (await store.TermsOfAsync(found.Select(a => a.ItemId).ToList(), ct)).ToLookup(t => t.ItemId);
+        var statements = (await store.StatementsOfAsync(found.Select(a => a.ItemId).ToList(), ct)).ToLookup(s => s.ItemId); // #644: batched reads
+        var kept = found.Where(a => registered.ContainsKey(a.ItemId))
+            .Select(a => (Arrangement: a, Revisions: terms[a.ItemId].OrderBy(t => t.From).ToList(), Statements: statements[a.ItemId].ToList())).ToList();
+        var estimates = await EstimatesAsync(kept, year, today, ct);
         var lines = new List<(PersonId Child, TaxLine Line)>();
-        foreach (var arrangement in found)
+        foreach (var (arrangement, revisions, stored) in kept)
         {
-            if (!registered.TryGetValue(arrangement.ItemId, out var item))
-                continue;
-            var statements = await store.StatementsOfAsync(arrangement.ItemId, ct);
+            var item = registered[arrangement.ItemId];
             // #411: the year summary sums the same statements (ChildcareYear.Counted).
-            lines.AddRange(ChildcareYear.Counted(statements, year)
+            lines.AddRange(ChildcareYear.Counted(stored, year)
                 .Select(s => (arrangement.Child, new TaxLine(TaxLineCodes.ChildcareOutsideHome, arrangement.ItemId, item.DisplayName, null, s.Figures!.TaxBase))));
-            var revisions = terms[arrangement.ItemId].OrderBy(t => t.From).ToList();
-            var estimate = await EstimateAsync(arrangement.ItemId, revisions, statements, year, today, ct);
-            lines.AddRange(ChildcareYear.Projected(revisions[0].From, revisions[^1].To, today, statements, year, estimate)
+            lines.AddRange(ChildcareYear.Projected(revisions[0].From, revisions[^1].To, today, stored, year, estimates.GetValueOrDefault(arrangement.ItemId))
                 .Select(m => (arrangement.Child, new TaxLine(TaxLineCodes.ChildcareProjected, arrangement.ItemId, item.DisplayName, null, m.Amount))));
         }
         // #233: the box ranks the child among the children with costs that year, as the year summary does.
@@ -54,14 +54,27 @@ public sealed class ChildcareTax(IVisibleItems visible, IItemRegistry items, ICh
                 .Select(m => new TaxLine(TaxLineCodes.HomeEmploymentProjected, item.Id, item.DisplayName, null, m.Amount))));
     }
 
-    /// <summary>No validated month in the current year: the latest month begun so far computed from the contract, as the dashboard does.</summary>
-    private async Task<decimal?> EstimateAsync(ItemId id, IReadOnlyList<Terms> revisions, IReadOnlyList<Statement> statements, int year, LocalDate today, CancellationToken ct)
+    /// <summary>
+    /// No validated month in the current year: the latest month begun so far computed from the contract, as the dashboard does. The contexts
+    /// are read at once (#644); each estimate still reads the stored months it needs.
+    /// </summary>
+    private async Task<Dictionary<ItemId, decimal?>> EstimatesAsync(
+        IReadOnlyList<(Arrangement Arrangement, List<Terms> Revisions, List<Statement> Statements)> kept, int year, LocalDate today, CancellationToken ct)
     {
-        if (year != today.Year || ChildcareYear.Counted(statements, year).Count > 0)
-            return null;
-        var months = ChildcareYear.NotValidated(revisions[0].From, revisions[^1].To, today, statements, year);
-        if (months.Count == 0 || !(await assembly.ContextAsync(id, months[^1], ct)).TryGetValue(out var context))
-            return null;
-        return (await assembly.EstimateAsync(context, ct)).Figures?.TaxBase;
+        var estimates = new Dictionary<ItemId, decimal?>();
+        if (year != today.Year)
+            return estimates;
+        var wanted = new List<(Arrangement, YearMonth)>();
+        foreach (var (arrangement, revisions, statements) in kept)
+        {
+            if (ChildcareYear.Counted(statements, year).Count > 0)
+                continue;
+            var months = ChildcareYear.NotValidated(revisions[0].From, revisions[^1].To, today, statements, year);
+            if (months.Count > 0)
+                wanted.Add((arrangement, months[^1]));
+        }
+        foreach (var (id, context) in await assembly.ContextsAsync(wanted, ct))
+            estimates[id] = (await assembly.EstimateAsync(context, ct)).Figures?.TaxBase;
+        return estimates;
     }
 }

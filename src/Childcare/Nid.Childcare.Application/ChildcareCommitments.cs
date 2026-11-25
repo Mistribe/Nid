@@ -21,11 +21,10 @@ public sealed class ChildcareCommitments(IVisibleItems visible, IChildcareStore 
         var count = 0;
         var estimated = false;
         // Closed ones too: closing archives at once, while the month it ends in still runs and is paid.
-        foreach (var arrangement in await store.FindManyAsync((await visible.ForAsync(reader, scope, includeArchived: true, ct)).ToList(), ct))
+        var arrangements = await store.FindManyAsync((await visible.ForAsync(reader, scope, includeArchived: true, ct)).ToList(), ct);
+        // A month outside the arrangement's (ended before it, or before the rules) counts nothing: it has no context.
+        foreach (var context in (await assembly.ContextsAsync([.. arrangements.Select(a => (a, month))], ct)).Values)
         {
-            // A month outside the arrangement's (ended before it, or before the rules) counts nothing.
-            if (!(await assembly.ContextAsync(arrangement.ItemId, month, ct)).TryGetValue(out var context))
-                continue;
             // Only the months known by then: a past month read for the review takes no later month's figures.
             var validated = context.Stored.Where(s => s is { Validated: true, Figures: not null } && s.Month <= month).OrderBy(s => s.Month).ToList();
             decimal? cost;
