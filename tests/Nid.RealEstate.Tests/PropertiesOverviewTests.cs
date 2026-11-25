@@ -203,11 +203,11 @@ public class PropertiesOverviewTests
         Assert.Equal(new LocalDate(2024, 10, 1), overview.Watch.Single(w => w.Code == PropertyWarnings.ValuationStale).On);
         // The studio is let since 2021 without a tenancy: nothing expected, so no arrears.
         Assert.DoesNotContain(overview.Watch, w => w.Code == PropertyOverviewCodes.RentArrears);
-        var due = overview.Watch.Single(w => w.Code == UpcomingKinds.PropertyCostDue);
+        var due = overview.Watch.Single(w => w.Code == PropertyOverviewCodes.PropertyCostDue);
         Assert.Equal((new LocalDate(2026, 11, 15), "1120.00"), (due.On, due.Amount!.Amount));
-        Assert.Equal(new LocalDate(2026, 12, 1), overview.Watch.Single(w => w.Code == UpcomingKinds.TenancyEnd).On);
+        Assert.Equal(new LocalDate(2026, 12, 1), overview.Watch.Single(w => w.Code == PropertyOverviewCodes.TenancyEnd).On);
         Assert.True(overview.Watch.ToList().FindLastIndex(w => w.On is null || w.Code == PropertyWarnings.ValuationStale)
-            < overview.Watch.ToList().FindIndex(w => w.Code == UpcomingKinds.PropertyCostDue));
+            < overview.Watch.ToList().FindIndex(w => w.Code == PropertyOverviewCodes.PropertyCostDue));
         Assert.Contains(hidden, overview.ExposedItems());
     }
 
