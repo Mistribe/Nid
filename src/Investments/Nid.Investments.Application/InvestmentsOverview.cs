@@ -70,6 +70,9 @@ public static class OverviewCodes
 {
     public const string StaleValue = "stale_value";
     public const string NoValue = "no_value";
+
+    /// <summary>A holding that matures soon (issue #34 §2.7), as the overview and the holdings tab name it.</summary>
+    public const string HoldingMaturity = "holding_maturity";
     public const string MissingOpening = "missing_opening";
 
     /// <summary>Issue #399: a livret at its ceiling; then the room left on the others.</summary>
@@ -115,7 +118,7 @@ public sealed class InvestmentsOverviewReader(
         var estimates = await estimator.EstimateAsync(open.Select(f => f.Item.Id).ToList(), ct);
         var watch = new List<EnvelopeWatchView>();
         foreach (var m in await holdings.MaturingAsync(open.Select(f => f.Item.Id).ToList(), today, today.PlusDays(InvestmentsOverviewMath.MaturityDays), ct))
-            watch.Add(new EnvelopeWatchView(UpcomingKinds.HoldingMaturity, m.Envelope, m.HoldingId, m.MaturesOn));
+            watch.Add(new EnvelopeWatchView(OverviewCodes.HoldingMaturity, m.Envelope, m.HoldingId, m.MaturesOn));
         // As the routine: the latest snapshot's share of units of account under the envelope's floor.
         foreach (var f in open.Where(f => f.Envelope.UcShareFloorPct is not null))
             if ((await holdings.SnapshotsAsync(f.Item.Id, ct)).FirstOrDefault(s => s.AsOf <= today) is { } snapshot

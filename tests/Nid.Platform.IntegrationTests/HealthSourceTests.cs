@@ -82,14 +82,14 @@ public class HealthSourceTests(PostgresFixture fixture) : IClassFixture<Postgres
 
         await EvaluateAsync(h.App);
 
-        var row = Assert.Single(await RowsAsync(h.App, "backup_failed"));
-        Assert.Equal((h.App.AdultA.Value, "critical", "backup_failed:2025-10-14T05:00", NotificationStates.Open), (row.PersonId, row.Level, row.Key, row.State));
+        var row = Assert.Single(await RowsAsync(h.App, "platform.backup_failed"));
+        Assert.Equal((h.App.AdultA.Value, "critical", "platform.backup_failed:2025-10-14T05:00", NotificationStates.Open), (row.PersonId, row.Level, row.Key, row.State));
         Assert.Empty(row.ItemIds);
 
         await h.WriteAsync($$"""{"last_result":"ok","remote_result":"none","last_snapshot":"x","last_success_at":{{Now.ToUnixTimeSeconds()}}}""");
         await EvaluateAsync(h.App);
 
-        Assert.Equal(NotificationStates.Resolved, Assert.Single(await RowsAsync(h.App, "backup_failed")).State);
+        Assert.Equal(NotificationStates.Resolved, Assert.Single(await RowsAsync(h.App, "platform.backup_failed")).State);
     }
 
     [Fact]
@@ -101,9 +101,9 @@ public class HealthSourceTests(PostgresFixture fixture) : IClassFixture<Postgres
 
         await EvaluateAsync(h.App);
 
-        var row = Assert.Single(await RowsAsync(h.App, "sync_failed"));
+        var row = Assert.Single(await RowsAsync(h.App, "platform.sync_failed"));
         Assert.Equal((h.App.AdultA.Value, "info"), (row.PersonId, row.Level));
-        Assert.Equal("sync_failed:fx:2025-10-11", row.Key);
+        Assert.Equal("platform.sync_failed:fx:2025-10-11", row.Key);
     }
 
     [Fact]
@@ -115,8 +115,8 @@ public class HealthSourceTests(PostgresFixture fixture) : IClassFixture<Postgres
         await EvaluateAsync(h.App);
         await EvaluateAsync(h.App);
 
-        var row = Assert.Single(await RowsAsync(h.App, "backup_failed"));
-        Assert.Equal("backup_failed:never", row.Key);
+        var row = Assert.Single(await RowsAsync(h.App, "platform.backup_failed"));
+        Assert.Equal("platform.backup_failed:never", row.Key);
     }
 
     [Fact]
@@ -124,7 +124,7 @@ public class HealthSourceTests(PostgresFixture fixture) : IClassFixture<Postgres
     {
         await using var h = await StartAsync(configured: false);
         await EvaluateAsync(h.App);
-        Assert.Empty(await RowsAsync(h.App, "backup_failed"));
+        Assert.Empty(await RowsAsync(h.App, "platform.backup_failed"));
     }
 
     [Fact]
@@ -135,7 +135,7 @@ public class HealthSourceTests(PostgresFixture fixture) : IClassFixture<Postgres
 
         await EvaluateAsync(h.App);
 
-        Assert.Single(await RowsAsync(h.App, "backup_failed"));
+        Assert.Single(await RowsAsync(h.App, "platform.backup_failed"));
     }
 
     [Fact]
@@ -154,9 +154,9 @@ public class HealthSourceTests(PostgresFixture fixture) : IClassFixture<Postgres
 
         await using var db = PostgresFixture.NewPlatformContext(h.App.ConnectionString);
         var household = await db.Deliveries.AsNoTracking().Where(d => d.Channel == "discord_household").ToListAsync(cancellationToken: TestContext.Current.CancellationToken);
-        Assert.Single(await RowsAsync(h.App, "sync_failed"));
+        Assert.Single(await RowsAsync(h.App, "platform.sync_failed"));
         Assert.Single(household);
         var kind = await db.Notifications.AsNoTracking().Where(n => n.Id == household[0].NotificationId).Select(n => n.Kind).SingleAsync(cancellationToken: TestContext.Current.CancellationToken);
-        Assert.Equal("backup_failed", kind);
+        Assert.Equal("platform.backup_failed", kind);
     }
 }

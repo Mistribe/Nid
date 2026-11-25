@@ -14,8 +14,8 @@ public sealed partial class SystemHealthNotificationSource(
     IPersonRegistry persons, IEnumerable<ISyncHealth> syncs, BackupOptions backup, IHouseholdCalendar calendar, IClock clock,
     ILogger<SystemHealthNotificationSource> logger) : INotificationSource
 {
-    public const string BackupFailed = "backup_failed";
-    public const string SyncFailed = "sync_failed";
+    public const string BackupFailed = "platform.backup_failed";
+    public const string SyncFailed = "platform.sync_failed";
 
     public string Name => "health";
 

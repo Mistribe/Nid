@@ -19,14 +19,14 @@ public class NotificationEndpointTests(PostgresFixture fixture) : IClassFixture<
     private static readonly LocalDate Today = NidApp.GoldenCaseToday;
 
     private static NotificationKind Kind(NotificationLevel level = NotificationLevel.Action)
-        => new("subscription_renewal", "due_date", level, "subscriptions", 7);
+        => new("subscriptions.renewal", "due_date", level, "subscriptions", 7);
 
     private static async Task<Guid> SeedAsync(NidApp app, PersonId person, ItemId item, string key, NotificationLevel level = NotificationLevel.Action,
         LocalDate? dueOn = null)
     {
         await using var scope = app.Services.CreateAsyncScope();
         var store = scope.ServiceProvider.GetRequiredService<INotificationStore>();
-        var signal = new Signal(key, "subscription_renewal", [item], dueOn ?? Today.PlusDays(3), new Dictionary<string, string>());
+        var signal = new Signal(key, "subscriptions.renewal", [item], dueOn ?? Today.PlusDays(3), new Dictionary<string, string>());
         await store.ApplyAsync(person, [new LifecycleChange.Insert(signal, Kind(level), Today, true)], default);
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
         return await db.Notifications.AsNoTracking().Where(n => n.PersonId == person.Value && n.Key == key).Select(n => n.Id).SingleAsync();

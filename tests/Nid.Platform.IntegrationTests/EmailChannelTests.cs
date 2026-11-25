@@ -304,7 +304,7 @@ public class EmailChannelTests(PostgresFixture fixture) : IClassFixture<Postgres
                 };
             var notification = new NotificationRow
             {
-                Id = Guid.NewGuid(), PersonId = app.AdultB.Value, Kind = "tenancy_end", Key = "tenancy_end:x", Level = "action",
+                Id = Guid.NewGuid(), PersonId = app.AdultB.Value, Kind = "realestate.tenancy_end", Key = "realestate.tenancy_end:x", Level = "action",
                 NotifyOn = new LocalDate(2025, 10, 1), State = "open", CreatedAt = now - NodaTime.Duration.FromDays(10),
             };
             db.Notifications.Add(notification);
@@ -330,7 +330,7 @@ public class EmailChannelTests(PostgresFixture fixture) : IClassFixture<Postgres
         Assert.Equal(
             ["at", "channel", "error", "id", "kind"],
             failure.EnumerateObject().Select(p => p.Name).Order(StringComparer.Ordinal).ToArray());
-        Assert.Equal(("email", "tenancy_end", "notifications.channel_unreachable 421"),
+        Assert.Equal(("email", "realestate.tenancy_end", "notifications.channel_unreachable 421"),
             (failure.GetProperty("channel").GetString(), failure.GetProperty("kind").GetString(), failure.GetProperty("error").GetString()));
         Assert.Equal(new DateTimeOffset(2025, 10, 10, 0, 0, 0, TimeSpan.Zero), failure.GetProperty("at").GetDateTimeOffset());
 

@@ -62,7 +62,7 @@ public class ProducerTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
 
         Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
         Assert.Equal("core.access_violation", JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.GetProperty("code").GetString());
-        var rows = await RowsAsync(app, "access_violation");
+        var rows = await RowsAsync(app, "platform.access_violation");
         Assert.Equal(new[] { app.AdultA.Value, app.AdultB.Value }.Order(), rows.Select(r => r.PersonId).Order());
         Assert.All(rows, r =>
         {
@@ -73,7 +73,7 @@ public class ProducerTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
         await using var platform = PostgresFixture.NewPlatformContext(app.ConnectionString);
         Assert.Single(await platform.AuditLog.Where(a => a.Category == "security" && a.Action == "access_violation").ToListAsync(cancellationToken: TestContext.Current.CancellationToken));
         // One notice per request and household day (the audit keeps each occurrence).
-        Assert.All(rows, r => Assert.Matches(@"^access_violation:ListSubscriptionsQuery:\d{4}-\d{2}-\d{2}$", r.Key));
+        Assert.All(rows, r => Assert.Matches(@"^platform.access_violation:ListSubscriptionsQuery:\d{4}-\d{2}-\d{2}$", r.Key));
     }
 
     private sealed class FixedClock(Instant now) : IClock
@@ -94,7 +94,7 @@ public class ProducerTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
 
         await app.RawAsync(app.AdultA, HttpMethod.Get, "/api/v1/subscriptions?scope=household");
 
-        Assert.All(await RowsAsync(app, "access_violation"), r => Assert.Equal("access_violation:ListSubscriptionsQuery:2025-10-15", r.Key));
+        Assert.All(await RowsAsync(app, "platform.access_violation"), r => Assert.Equal("platform.access_violation:ListSubscriptionsQuery:2025-10-15", r.Key));
     }
 
     private sealed class BrokenCalendar : IHouseholdCalendar
@@ -116,8 +116,8 @@ public class ProducerTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
         await using (var scope = app.Services.CreateAsyncScope())
             await scope.ServiceProvider.GetRequiredService<Nid.Platform.IAccessViolations>().RecordAsync("GetX", app.AdultA, [], new Nid.Platform.AccessViolationCause(Nid.Platform.AccessViolationReasons.OutsideVisibleSet), cancelled.Token);
 
-        Assert.All(await RowsAsync(app, "access_violation"), r => Assert.Equal("access_violation:GetX:2025-10-15", r.Key));
-        Assert.Equal(2, (await RowsAsync(app, "access_violation")).Count);
+        Assert.All(await RowsAsync(app, "platform.access_violation"), r => Assert.Equal("platform.access_violation:GetX:2025-10-15", r.Key));
+        Assert.Equal(2, (await RowsAsync(app, "platform.access_violation")).Count);
     }
 
     [Fact]
@@ -132,9 +132,9 @@ public class ProducerTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
         await using (var scope = app.Services.CreateAsyncScope())
             await scope.ServiceProvider.GetRequiredService<Nid.Platform.IAccessViolations>().RecordAsync("GetX", app.AdultA, [], new Nid.Platform.AccessViolationCause(Nid.Platform.AccessViolationReasons.OutsideVisibleSet), TestContext.Current.CancellationToken);
 
-        var rows = await RowsAsync(app, "access_violation");
+        var rows = await RowsAsync(app, "platform.access_violation");
         Assert.Equal(2, rows.Count);
-        Assert.All(rows, r => Assert.Equal("access_violation:GetX:2025-10-14", r.Key)); // the UTC day
+        Assert.All(rows, r => Assert.Equal("platform.access_violation:GetX:2025-10-14", r.Key)); // the UTC day
     }
 
     private static async Task<Guid> SubmitAsync(NidApp app, PersonId who, Guid? target, string subject)
@@ -180,7 +180,7 @@ public class ProducerTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
             new { kind = EchoProposalHandler.KindName, targetItemId = joint.Value, payload = new { subject = "s1" } }));
         await using (var core = PostgresFixture.NewCoreContext(app.ConnectionString))
             Assert.Empty(await core.Proposals.AsNoTracking().ToListAsync(cancellationToken: TestContext.Current.CancellationToken));
-        Assert.Empty(await RowsAsync(app, "proposal_pending"));
+        Assert.Empty(await RowsAsync(app, "core.proposal_pending"));
 
         failing.Person = null;
         var id = await SubmitAsync(app, app.AdultA, joint.Value, "s1");
@@ -192,7 +192,7 @@ public class ProducerTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
             .RootElement.GetProperty("proposal").GetProperty("version").GetUInt32();
 
     private static async Task<List<NotificationRow>> ForProposalAsync(NidApp app, Guid id)
-        => (await RowsAsync(app, "proposal_pending")).Where(r => r.Key == $"proposal_pending:{id}").ToList();
+        => (await RowsAsync(app, "core.proposal_pending")).Where(r => r.Key == $"core.proposal_pending:{id}").ToList();
 
     [Fact]
     public async Task Proposal_pending_reaches_the_deciders_and_resolves_on_decision()
@@ -316,15 +316,15 @@ public class ProducerTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
         await RunIrlAsync(app, scheduler, gate, crash: true);
         await RunIrlAsync(app, scheduler, gate, crash: true);
 
-        var open = Assert.Single(await RowsAsync(app, "job_failed"));
-        Assert.Equal((app.AdultA.Value, "job_failed:irl-weekly", NotificationStates.Open, 1), (open.PersonId, open.Key, open.State, open.Round));
+        var open = Assert.Single(await RowsAsync(app, "platform.job_failed"));
+        Assert.Equal((app.AdultA.Value, "platform.job_failed:irl-weekly", NotificationStates.Open, 1), (open.PersonId, open.Key, open.State, open.Round));
         Assert.Equal(1, Assert.Single(await EmailsAsync(app, open.Id)).Round); // the second crash of the same incident sends nothing
 
         await RunIrlAsync(app, scheduler, gate, crash: false);
-        Assert.Equal(NotificationStates.Resolved, Assert.Single(await RowsAsync(app, "job_failed")).State);
+        Assert.Equal(NotificationStates.Resolved, Assert.Single(await RowsAsync(app, "platform.job_failed")).State);
 
         await RunIrlAsync(app, scheduler, gate, crash: true);
-        var again = Assert.Single(await RowsAsync(app, "job_failed"));
+        var again = Assert.Single(await RowsAsync(app, "platform.job_failed"));
         Assert.Equal((NotificationStates.Open, 2), (again.State, again.Round));
         Assert.Equal([1, 2], (await EmailsAsync(app, again.Id)).Select(d => d.Round).Order());
     }
@@ -346,8 +346,8 @@ public class ProducerTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
 
         await RunIrlAsync(app, scheduler, gate, crash: false); // the job's own token is not cancelled
 
-        var row = Assert.Single(await RowsAsync(app, "job_failed"));
-        Assert.Equal((app.AdultA.Value, "job_failed:irl-weekly", NotificationStates.Open), (row.PersonId, row.Key, row.State));
+        var row = Assert.Single(await RowsAsync(app, "platform.job_failed"));
+        Assert.Equal((app.AdultA.Value, "platform.job_failed:irl-weekly", NotificationStates.Open), (row.PersonId, row.Key, row.State));
     }
 
     private static async Task<List<NotificationDeliveryRow>> EmailsAsync(NidApp app, Guid notification)

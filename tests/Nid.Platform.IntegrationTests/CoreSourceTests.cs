@@ -40,8 +40,8 @@ public class CoreSourceTests(PostgresFixture fixture) : IClassFixture<PostgresFi
 
         var signal = Assert.Single(await SignalsAsync(app, app.AdultA));
 
-        Assert.Equal("routine_due", signal.Kind);
-        Assert.Equal("routine_due:2025-10", signal.Key);
+        Assert.Equal("core.routine_due", signal.Kind);
+        Assert.Equal("core.routine_due:2025-10", signal.Key);
         Assert.Empty(signal.ItemIds);
         Assert.Null(signal.DueOn);
         Assert.Empty(signal.Params);
@@ -53,7 +53,7 @@ public class CoreSourceTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         await using var app = await NidApp.StartAsync(fixture);
         await app.NewEnvelopeAsync("Livret vide", app.AdultA, Visibility.Shared);
 
-        Assert.Equal("routine_due:2025-10", Assert.Single(await SignalsAsync(app, app.AdultA)).Key);
+        Assert.Equal("core.routine_due:2025-10", Assert.Single(await SignalsAsync(app, app.AdultA)).Key);
     }
 
     [Fact]
@@ -76,7 +76,7 @@ public class CoreSourceTests(PostgresFixture fixture) : IClassFixture<PostgresFi
 
         var signal = Assert.Single(await SignalsAsync(app, app.AdultA));
 
-        Assert.Equal(("month_changes", "month_changes:2025-10"), (signal.Kind, signal.Key));
+        Assert.Equal(("core.month_changes", "core.month_changes:2025-10"), (signal.Kind, signal.Key));
         Assert.Empty(signal.ItemIds);
         Assert.Equal(new KeyValuePair<string, string>("net_worth", "down|investments.value-"), Assert.Single(signal.Params));
     }
@@ -90,8 +90,8 @@ public class CoreSourceTests(PostgresFixture fixture) : IClassFixture<PostgresFi
 
         var signal = Assert.Single(await SignalsAsync(app, app.AdultA));
 
-        Assert.Equal("fx_rate_missing", signal.Kind);
-        Assert.Equal("fx_rate_missing:USD", signal.Key);
+        Assert.Equal("core.fx_rate_missing", signal.Kind);
+        Assert.Equal("core.fx_rate_missing:USD", signal.Key);
         Assert.Empty(signal.ItemIds);
         Assert.Equal(new KeyValuePair<string, string>("currency", "USD"), Assert.Single(signal.Params));
     }
@@ -104,7 +104,7 @@ public class CoreSourceTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         await ValueAsync(app, app.AdultB, secret, "2025-07-01", "10.00");
 
         Assert.Empty(await SignalsAsync(app, app.AdultA));
-        Assert.Equal("routine_due:2025-10", Assert.Single(await SignalsAsync(app, app.AdultB)).Key);
+        Assert.Equal("core.routine_due:2025-10", Assert.Single(await SignalsAsync(app, app.AdultB)).Key);
     }
 
     /// <summary>
@@ -135,7 +135,7 @@ public class CoreSourceTests(PostgresFixture fixture) : IClassFixture<PostgresFi
             _ => Result.Failure<IReadOnlyList<NetWorthPoint>>(new Failure("test.broken", "History unreadable.", null)), () => { })));
         await app.NewEnvelopeAsync("Livret vide", app.AdultA, Visibility.Shared);
 
-        Assert.Equal("routine_due:2025-10", Assert.Single(await SignalsAsync(app, app.AdultA)).Key);
+        Assert.Equal("core.routine_due:2025-10", Assert.Single(await SignalsAsync(app, app.AdultA)).Key);
     }
 
     [Fact]
@@ -150,7 +150,7 @@ public class CoreSourceTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         var first = Assert.Single(await SignalsAsync(app, app.AdultA));
         var second = Assert.Single(await SignalsAsync(app, app.AdultA));
 
-        Assert.Equal(("month_changes:2025-10", "month_changes:2025-10"), (first.Key, second.Key));
+        Assert.Equal(("core.month_changes:2025-10", "core.month_changes:2025-10"), (first.Key, second.Key));
         Assert.Equal(first.Params, second.Params);
         Assert.Equal(1, reads);
     }
@@ -171,8 +171,8 @@ public class CoreSourceTests(PostgresFixture fixture) : IClassFixture<PostgresFi
 
         var signal = Assert.Single(await SignalsAsync(app, app.AdultB, days: 7)); // the lead the evaluation applies
 
-        Assert.Equal("token_expiring", signal.Kind);
-        Assert.Equal($"token_expiring:{soon}:2025-10-20", signal.Key);
+        Assert.Equal("core.token_expiring", signal.Kind);
+        Assert.Equal($"core.token_expiring:{soon}:2025-10-20", signal.Key);
         Assert.Equal(new LocalDate(2025, 10, 20), signal.DueOn);
         Assert.Empty(signal.ItemIds);
         Assert.Empty(await SignalsAsync(app, app.AdultA)); // Alice sees nothing of Bob's tokens
@@ -192,7 +192,7 @@ public class CoreSourceTests(PostgresFixture fixture) : IClassFixture<PostgresFi
 
         var signal = Assert.Single(await SignalsAsync(app, app.AdultB, days: 7));
 
-        Assert.Equal($"token_expiring:{token}:2025-10-20", signal.Key);
+        Assert.Equal($"core.token_expiring:{token}:2025-10-20", signal.Key);
         Assert.Equal(new LocalDate(2025, 10, 20), signal.DueOn);
     }
 
@@ -215,15 +215,15 @@ public class CoreSourceTests(PostgresFixture fixture) : IClassFixture<PostgresFi
 
         Assert.Equal(
         [
-            new NotificationKind("fx_rate_missing", "finding", NotificationLevel.Info, "core", null),
-            new NotificationKind("routine_due", "finding", NotificationLevel.Action, "core", null),
-            new NotificationKind("token_expiring", "security", NotificationLevel.Action, "core", 7),
-            new NotificationKind("month_changes", "finding", NotificationLevel.Info, "core", null),
-            new NotificationKind("tax_filing_deadline", "due_date", NotificationLevel.Action, "core", 14),
-            new NotificationKind("tax_new_rate", "due_date", NotificationLevel.Info, "core", 7),
-            new NotificationKind("tax_balance_due", "due_date", NotificationLevel.Info, "core", 7),
-            new NotificationKind("net_worth_milestone", "finding", NotificationLevel.Info, "core", null, new SignalThreshold(50_000m, 1_000m, 10_000_000m, "eur")),
-            new NotificationKind("savings_pace", "finding", NotificationLevel.Info, "core", null, new SignalThreshold(30m, 5m, 95m, "pct")),
+            new NotificationKind("core.fx_rate_missing", "finding", NotificationLevel.Info, "core", null),
+            new NotificationKind("core.routine_due", "finding", NotificationLevel.Action, "core", null),
+            new NotificationKind("core.token_expiring", "security", NotificationLevel.Action, "core", 7),
+            new NotificationKind("core.month_changes", "finding", NotificationLevel.Info, "core", null),
+            new NotificationKind("tax.filing_deadline", "due_date", NotificationLevel.Action, "tax", 14),
+            new NotificationKind("tax.new_rate", "due_date", NotificationLevel.Info, "tax", 7),
+            new NotificationKind("tax.balance_due", "due_date", NotificationLevel.Info, "tax", 7),
+            new NotificationKind("core.net_worth_milestone", "finding", NotificationLevel.Info, "core", null, new SignalThreshold(50_000m, 1_000m, 10_000_000m, "eur")),
+            new NotificationKind("core.savings_pace", "finding", NotificationLevel.Info, "core", null, new SignalThreshold(30m, 5m, 95m, "pct")),
         ], source.Kinds.Select(k => k with { Template = null, Personal = false })); // the copy: NotificationCopyTests
     }
 
@@ -234,15 +234,15 @@ public class CoreSourceTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         var livret = await app.NewEnvelopeAsync("Livret", app.AdultA, Visibility.Shared);
         await ValueAsync(app, app.AdultA, livret, "2025-09-01", "40000.00");
         await ValueAsync(app, app.AdultA, livret, "2025-10-01", "62000.00");
-        Assert.DoesNotContain(await SignalsAsync(app, app.AdultA), s => s.Kind == "net_worth_milestone"); // off by default
+        Assert.DoesNotContain(await SignalsAsync(app, app.AdultA), s => s.Kind == "core.net_worth_milestone"); // off by default
 
         var (_, failure) = await app.InvokeAsync(app.AdultA, new Nid.Platform.Notifications.SaveNotificationPreferencesCommand(
             false, Nid.Platform.Notifications.ActionMode.Immediate, Nid.Platform.Notifications.InfoMode.Digest, Nid.Platform.Notifications.DigestFrequency.Weekly, 1,
-            new Dictionary<string, int>(), new Dictionary<string, decimal> { ["net_worth_milestone"] = 50_000m }, 0), TestContext.Current.CancellationToken);
+            new Dictionary<string, int>(), new Dictionary<string, decimal> { ["core.net_worth_milestone"] = 50_000m }, 0), TestContext.Current.CancellationToken);
         Assert.Null(failure);
 
-        var signal = Assert.Single(await SignalsAsync(app, app.AdultA), s => s.Kind == "net_worth_milestone");
-        Assert.Equal("net_worth_milestone:50000", signal.Key);
+        var signal = Assert.Single(await SignalsAsync(app, app.AdultA), s => s.Kind == "core.net_worth_milestone");
+        Assert.Equal("core.net_worth_milestone:50000", signal.Key);
         Assert.Empty(signal.ItemIds);
         Assert.Equal(("62000.00", "50000"), (signal.Params["net_worth_amount"], signal.Params["step_amount"]));
     }
@@ -254,15 +254,15 @@ public class CoreSourceTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         await using var app = await NidApp.StartAsync(fixture, s => s.AddScoped<INetWorthContribution>(_ => new FakeHistory(
             dates => Result.Success<IReadOnlyList<NetWorthPoint>>(dates.Select(d => new NetWorthPoint(
                 d, new Dictionary<Currency, decimal>(), new Dictionary<Currency, decimal>(), 0)).ToList()), () => { }, from => from < new LocalDate(2025, 6, 1) ? 12_000m : 1_500m)));
-        Assert.DoesNotContain(await SignalsAsync(app, app.AdultA), s => s.Kind == "savings_pace"); // off by default
+        Assert.DoesNotContain(await SignalsAsync(app, app.AdultA), s => s.Kind == "core.savings_pace"); // off by default
 
         var (_, failure) = await app.InvokeAsync(app.AdultA, new Nid.Platform.Notifications.SaveNotificationPreferencesCommand(
             false, Nid.Platform.Notifications.ActionMode.Immediate, Nid.Platform.Notifications.InfoMode.Digest, Nid.Platform.Notifications.DigestFrequency.Weekly, 1,
-            new Dictionary<string, int>(), new Dictionary<string, decimal> { ["savings_pace"] = 30m }, 0), TestContext.Current.CancellationToken);
+            new Dictionary<string, int>(), new Dictionary<string, decimal> { ["core.savings_pace"] = 30m }, 0), TestContext.Current.CancellationToken);
         Assert.Null(failure);
 
-        var signal = Assert.Single(await SignalsAsync(app, app.AdultA), s => s.Kind == "savings_pace");
-        Assert.Equal("savings_pace:2025-10", signal.Key);
+        var signal = Assert.Single(await SignalsAsync(app, app.AdultA), s => s.Kind == "core.savings_pace");
+        Assert.Equal("core.savings_pace:2025-10", signal.Key);
         Assert.Equal(("500", "1000", "EUR"), (signal.Params["recent_amount"], signal.Params["average_amount"], signal.Params["currency"]));
     }
 }

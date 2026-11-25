@@ -22,7 +22,9 @@ public sealed record ProposalCheck(
 /// <summary>The key of a pending proposal's notice: what publishes it and every place that resolves it.</summary>
 public static class ProposalNotices
 {
-    public static string Key(Guid proposal) => $"proposal_pending:{proposal}";
+    public const string Pending = "core.proposal_pending";
+
+    public static string Key(Guid proposal) => $"{Pending}:{proposal}";
 }
 
 public static class ProposalCodes

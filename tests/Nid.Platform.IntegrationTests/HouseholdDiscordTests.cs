@@ -26,7 +26,7 @@ public class HouseholdDiscordTests(PostgresFixture fixture) : IClassFixture<Post
     private static readonly NotificationKind Action = new("fake_action", "finding", NotificationLevel.Action, "fake", null);
     private static readonly NotificationKind Critical = new("fake_critical", "finding", NotificationLevel.Critical, "fake", null);
     private static readonly NotificationKind Info = new("fake_info", "finding", NotificationLevel.Info, "fake", null);
-    private static readonly NotificationKind Routine = new("routine_due", "finding", NotificationLevel.Action, "fake", null);
+    private static readonly NotificationKind Routine = new("core.routine_due", "finding", NotificationLevel.Action, "fake", null);
 
     private sealed class Recorder : HttpMessageHandler
     {
@@ -208,7 +208,7 @@ public class HouseholdDiscordTests(PostgresFixture fixture) : IClassFixture<Post
     {
         await using var h = await StartAsync();
         h.Source.Signals.Add(SignalOf(Info, "i:1", await SharedAsync(h)));
-        h.Source.Signals.Add(SignalOf(Routine, "routine_due:1"));
+        h.Source.Signals.Add(SignalOf(Routine, "core.routine_due:1"));
 
         await EvaluateAllAsync(h);
 
@@ -221,8 +221,8 @@ public class HouseholdDiscordTests(PostgresFixture fixture) : IClassFixture<Post
     {
         await using var h = await StartAsync();
 
-        await h.App.Services.GetRequiredService<INotifier>().PublishAsync(new Notice("login_locked", new Recipients.People([h.App.AdultA]),
-            "login_locked:a:1", [], new Dictionary<string, string>()), TestContext.Current.CancellationToken);
+        await h.App.Services.GetRequiredService<INotifier>().PublishAsync(new Notice("platform.login_locked", new Recipients.People([h.App.AdultA]),
+            "platform.login_locked:a:1", [], new Dictionary<string, string>()), TestContext.Current.CancellationToken);
 
         Assert.Empty(await HouseholdAsync(h));
     }

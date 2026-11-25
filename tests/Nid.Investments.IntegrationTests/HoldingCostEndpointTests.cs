@@ -147,7 +147,7 @@ public class HoldingCostEndpointTests(PostgresFixture fixture) : IClassFixture<P
             .GetProperty("upcoming").EnumerateArray().Where(e => e.GetProperty("module").GetString() == "investments")
             .Select(e => $"{e.GetProperty("on").GetString()} {e.GetProperty("kind").GetString()} {e.GetProperty("name").GetString()} {e.GetProperty("label").GetString()}");
 
-        Assert.Equal(["2025-12-14 holding_maturity Assurance-vie Autocall Europe"], events);
+        Assert.Equal(["2025-12-14 investments.holding_maturity Assurance-vie Autocall Europe"], events);
     }
 
     [Fact]
@@ -170,6 +170,6 @@ public class HoldingCostEndpointTests(PostgresFixture fixture) : IClassFixture<P
             .GetProperty("upcoming").EnumerateArray().Where(e => e.GetProperty("module").GetString() == "investments")
             .Select(e => $"{e.GetProperty("on").GetString()} {e.GetProperty("kind").GetString()} {e.GetProperty("name").GetString()} {e.GetProperty("label").GetString()}");
 
-        Assert.Equal(["2025-12-01 holding_entitlement SCPI SCPI A"], events);
+        Assert.Equal(["2025-12-01 investments.holding_entitlement SCPI SCPI A"], events);
     }
 }

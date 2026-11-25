@@ -306,8 +306,8 @@ public sealed class DispatcherTests(PostgresFixture fixture) : IClassFixture<Pos
         Assert.Equal("dead", done.Status);
         Assert.Equal(5, done.Attempts);
         var notice = Assert.Single(notices.Published);
-        Assert.Equal("job_failed", notice.Kind);
-        Assert.Equal("job_failed:ai.test-fail", notice.Key);
+        Assert.Equal("platform.job_failed", notice.Kind);
+        Assert.Equal("platform.job_failed:ai.test-fail", notice.Key);
     }
 
     [Fact]

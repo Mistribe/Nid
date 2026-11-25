@@ -159,7 +159,7 @@ public class TaxCarryOverEndpointTests(PostgresFixture fixture) : IClassFixture<
 
         var home = JsonDocument.Parse(await app.GetRawAsync(app.AdultA, "/api/v1/dashboard?scope=me")).RootElement;
 
-        var event_ = Assert.Single(home.GetProperty("upcoming").EnumerateArray(), e => e.GetProperty("kind").GetString() == "per_deadline");
+        var event_ = Assert.Single(home.GetProperty("upcoming").EnumerateArray(), e => e.GetProperty("kind").GetString() == "tax.per_deadline");
         Assert.Equal("12000.00", event_.GetProperty("amount").GetProperty("amount").GetString());
     }
 

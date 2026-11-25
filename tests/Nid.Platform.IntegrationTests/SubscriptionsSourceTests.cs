@@ -47,7 +47,7 @@ public class SubscriptionsSourceTests(PostgresFixture fixture) : IClassFixture<P
         var dashboard = JsonDocument.Parse(await app.GetRawAsync(app.AdultA, "/api/v1/dashboard?scope=me")).RootElement;
         var overview = JsonDocument.Parse(await app.GetRawAsync(app.AdultA, "/api/v1/subscriptions/overview?scope=me")).RootElement;
         var expected = dashboard.GetProperty("upcoming").EnumerateArray()
-            .Where(e => e.GetProperty("kind").GetString() is "subscription_renewal" or "subscription_expiry")
+            .Where(e => e.GetProperty("kind").GetString() is "subscriptions.renewal" or "subscriptions.expiry")
             .Select(e => (e.GetProperty("kind").GetString()!, e.GetProperty("id").GetGuid(), e.GetProperty("on").GetString()!))
             .Concat(overview.GetProperty("watch").EnumerateArray()
                 .Where(w => w.GetProperty("code").GetString() == "subscriptions.ends_without_renewal")
@@ -56,7 +56,7 @@ public class SubscriptionsSourceTests(PostgresFixture fixture) : IClassFixture<P
 
         var signals = await SignalsAsync(app, app.AdultA, 60);
 
-        Assert.Contains(expected, x => x.Item1 == "subscription_renewal" && x.Item2 == renewing.Value);
+        Assert.Contains(expected, x => x.Item1 == "subscriptions.renewal" && x.Item2 == renewing.Value);
         Assert.Contains(expected, x => x.Item1 == "subscriptions.ends_without_renewal" && x.Item2 == ending.Value);
         var actual = signals
             .Select(s => (s.Kind, s.ItemIds.Single().Value, s.DueOn?.ToString("yyyy-MM-dd", null) ?? s.Key[^10..])) // a finding has no DueOn: its key carries the watch date
@@ -98,9 +98,9 @@ public class SubscriptionsSourceTests(PostgresFixture fixture) : IClassFixture<P
 
         var signal = Assert.Single(await SignalsAsync(app, app.AdultA, 60));
 
-        Assert.Equal("subscription_trial_end", signal.Kind);
+        Assert.Equal("subscriptions.trial_end", signal.Kind);
         Assert.Equal(new LocalDate(2025, 11, 20), signal.DueOn);
-        Assert.Equal($"subscription_trial_end:{id.Value:D}:2025-11-20", signal.Key);
+        Assert.Equal($"subscriptions.trial_end:{id.Value:D}:2025-11-20", signal.Key);
         Assert.Empty(signal.Params);
     }
 
@@ -135,11 +135,11 @@ public class SubscriptionsSourceTests(PostgresFixture fixture) : IClassFixture<P
 
         Assert.Equal(
         [
-            new NotificationKind("subscription_renewal", "due_date", NotificationLevel.Action, "subscriptions", 7),
-            new NotificationKind("subscription_expiry", "due_date", NotificationLevel.Action, "subscriptions", 14),
-            new NotificationKind("subscription_cancel_deadline", "due_date", NotificationLevel.Action, "subscriptions", 30),
-            new NotificationKind("subscription_trial_end", "due_date", NotificationLevel.Action, "subscriptions", 7),
-            new NotificationKind("subscription_price_increase", "due_date", NotificationLevel.Action, "subscriptions", 7),
+            new NotificationKind("subscriptions.renewal", "due_date", NotificationLevel.Action, "subscriptions", 7),
+            new NotificationKind("subscriptions.expiry", "due_date", NotificationLevel.Action, "subscriptions", 14),
+            new NotificationKind("subscriptions.cancel_deadline", "due_date", NotificationLevel.Action, "subscriptions", 30),
+            new NotificationKind("subscriptions.trial_end", "due_date", NotificationLevel.Action, "subscriptions", 7),
+            new NotificationKind("subscriptions.price_increase", "due_date", NotificationLevel.Action, "subscriptions", 7),
             new NotificationKind("subscriptions.ends_without_renewal", "finding", NotificationLevel.Info, "subscriptions", null),
         ], source.Kinds.Select(k => k with { Template = null, Personal = false })); // the copy: NotificationCopyTests
     }
@@ -152,9 +152,9 @@ public class SubscriptionsSourceTests(PostgresFixture fixture) : IClassFixture<P
         (await app.RawAsync(app.AdultA, HttpMethod.Patch, $"/api/v1/subscriptions/{id.Value}",
             new { anniversaryOn = "2025-12-01", notice = new { count = 1, unit = "month" } })).EnsureSuccessStatusCode();
 
-        var first = Assert.Single(await SignalsAsync(app, app.AdultA, 60), s => s.Kind == "subscription_cancel_deadline");
+        var first = Assert.Single(await SignalsAsync(app, app.AdultA, 60), s => s.Kind == "subscriptions.cancel_deadline");
         Assert.Equal(new LocalDate(2025, 11, 1), first.DueOn);
-        Assert.Equal($"subscription_cancel_deadline:{id.Value:D}:2025-11-01", first.Key);
+        Assert.Equal($"subscriptions.cancel_deadline:{id.Value:D}:2025-11-01", first.Key);
         Assert.Empty(first.Params);
 
         // Once the deadline is past, the next year's one is the signal, under another key.
@@ -162,7 +162,7 @@ public class SubscriptionsSourceTests(PostgresFixture fixture) : IClassFixture<P
         var source = scope.ServiceProvider.GetServices<INotificationSource>().Single(s => s.Name == "subscriptions");
         var later = await source.SignalsAsync(app.AdultA, new LocalDate(2025, 11, 2), new LocalDate(2026, 12, 31), CancellationToken.None);
         Assert.True(later.TryGetValue(out var signals));
-        var next = Assert.Single(signals!, s => s.Kind == "subscription_cancel_deadline");
+        var next = Assert.Single(signals!, s => s.Kind == "subscriptions.cancel_deadline");
         Assert.Equal(new LocalDate(2026, 11, 1), next.DueOn);
         Assert.NotEqual(first.Key, next.Key);
     }
@@ -174,10 +174,10 @@ public class SubscriptionsSourceTests(PostgresFixture fixture) : IClassFixture<P
         var id = await AddAsync(app, "Box", "2024-10-20", "month");
         (await app.RawAsync(app.AdultA, HttpMethod.Patch, $"/api/v1/subscriptions/{id.Value}",
             new { anniversaryOn = "2025-12-01", notice = new { count = 1, unit = "month" } })).EnsureSuccessStatusCode();
-        Assert.Contains(await SignalsAsync(app, app.AdultA, 60), s => s.Kind == "subscription_cancel_deadline");
+        Assert.Contains(await SignalsAsync(app, app.AdultA, 60), s => s.Kind == "subscriptions.cancel_deadline");
 
         (await app.RawAsync(app.AdultA, HttpMethod.Patch, $"/api/v1/subscriptions/{id.Value}", new { cancelledAt = "2025-10-01" })).EnsureSuccessStatusCode();
 
-        Assert.DoesNotContain(await SignalsAsync(app, app.AdultA, 60), s => s.Kind == "subscription_cancel_deadline");
+        Assert.DoesNotContain(await SignalsAsync(app, app.AdultA, 60), s => s.Kind == "subscriptions.cancel_deadline");
     }
 }

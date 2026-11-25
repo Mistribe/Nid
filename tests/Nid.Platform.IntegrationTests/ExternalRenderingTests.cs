@@ -16,11 +16,11 @@ public class ExternalRenderingTests(SharedNidApp shared) : IClassFixture<SharedN
 
     private static readonly (string Kind, string Module)[] Kinds =
     [
-        ("subscription_renewal", "subscriptions"), ("subscription_expiry", "subscriptions"),
-        ("subscription_cancel_deadline", "subscriptions"), ("subscription_trial_end", "subscriptions"), ("subscription_price_increase", "subscriptions"),
-        ("subscriptions.ends_without_renewal", "subscriptions"), ("tenancy_end", "properties"), ("property_cost_due", "properties"),
-        ("rent_arrears", "properties"), ("revision_due", "properties"), ("revision_lost", "properties"), ("irl_missing", "properties"),
-        ("valuation_stale", "properties"), ("loan_phase_end", "loans"), ("loan_end", "loans"),
+        ("subscriptions.renewal", "subscriptions"), ("subscriptions.expiry", "subscriptions"),
+        ("subscriptions.cancel_deadline", "subscriptions"), ("subscriptions.trial_end", "subscriptions"), ("subscriptions.price_increase", "subscriptions"),
+        ("subscriptions.ends_without_renewal", "subscriptions"), ("realestate.tenancy_end", "realestate"), ("realestate.property_cost_due", "realestate"),
+        ("realestate.rent_arrears", "realestate"), ("realestate.revision_due", "realestate"), ("realestate.revision_lost", "realestate"), ("realestate.irl_missing", "realestate"),
+        ("realestate.valuation_stale", "realestate"), ("realestate.loan_phase_end", "realestate"), ("realestate.loan_end", "realestate"),
     ];
 
     private readonly ExternalNotificationRenderer renderer = new(new NotificationLinkBase(Base));
@@ -53,7 +53,7 @@ public class ExternalRenderingTests(SharedNidApp shared) : IClassFixture<SharedN
     public void Subject_never_carries_the_name()
     {
         var message = renderer.One(
-            Record("tenancy_end", dueOn: new LocalDate(2027, 3, 31)), KindOf("tenancy_end", "properties"), Names("Maison"));
+            Record("realestate.tenancy_end", dueOn: new LocalDate(2027, 3, 31)), KindOf("realestate.tenancy_end", "realestate"), Names("Maison"));
 
         Assert.Equal("Nid : Un bail arrive à échéance", message.Subject);
         Assert.Contains("Maison", message.Text);
@@ -67,7 +67,7 @@ public class ExternalRenderingTests(SharedNidApp shared) : IClassFixture<SharedN
     [Fact]
     public void Household_has_no_name()
     {
-        var message = renderer.Household(Record("tenancy_end", dueOn: new LocalDate(2027, 3, 31)), KindOf("tenancy_end", "properties"));
+        var message = renderer.Household(Record("realestate.tenancy_end", dueOn: new LocalDate(2027, 3, 31)), KindOf("realestate.tenancy_end", "realestate"));
 
         Assert.Equal("Nid : Un bail arrive à échéance", message.Subject);
         Assert.Contains("Un bail arrive à échéance", message.Text);
@@ -80,7 +80,7 @@ public class ExternalRenderingTests(SharedNidApp shared) : IClassFixture<SharedN
     [Fact]
     public void The_html_encodes_the_name()
     {
-        var message = renderer.One(Record("loan_end", dueOn: new LocalDate(2027, 3, 31)), KindOf("loan_end", "loans"), Names("<b>Prêt & co</b>"));
+        var message = renderer.One(Record("realestate.loan_end", dueOn: new LocalDate(2027, 3, 31)), KindOf("realestate.loan_end", "realestate"), Names("<b>Prêt & co</b>"));
 
         Assert.DoesNotContain("<b>", message.Html);
         Assert.Contains("&lt;b&gt;Prêt &amp; co&lt;/b&gt;", message.Html);
@@ -89,7 +89,7 @@ public class ExternalRenderingTests(SharedNidApp shared) : IClassFixture<SharedN
     [Fact]
     public void An_item_less_row_has_no_name_line_and_links_to_its_screen()
     {
-        var message = renderer.One(Record("routine_due", items: []), KindOf("routine_due", "core"), Names("Maison"));
+        var message = renderer.One(Record("core.routine_due", items: []), KindOf("core.routine_due", "core"), Names("Maison"));
 
         Assert.DoesNotContain("Élément", message.Text);
         Assert.DoesNotContain("Maison", message.Text);
@@ -100,9 +100,9 @@ public class ExternalRenderingTests(SharedNidApp shared) : IClassFixture<SharedN
     [Fact]
     public void An_item_less_row_says_its_body_and_a_currency_code_survives_the_amount_scrub()
     {
-        var rate = renderer.One(Record("fx_rate_missing", items: [], parameters: new Dictionary<string, string> { ["currency"] = "USD" }),
-            KindOf("fx_rate_missing", "core"), Names("Maison"));
-        var routine = renderer.One(Record("routine_due", items: []), KindOf("routine_due", "core"), Names("Maison"));
+        var rate = renderer.One(Record("core.fx_rate_missing", items: [], parameters: new Dictionary<string, string> { ["currency"] = "USD" }),
+            KindOf("core.fx_rate_missing", "core"), Names("Maison"));
+        var routine = renderer.One(Record("core.routine_due", items: []), KindOf("core.routine_due", "core"), Names("Maison"));
 
         Assert.Equal("Nid : Un taux de change manque", rate.Subject);
         Assert.Contains("Devise USD", rate.Text);
@@ -139,7 +139,7 @@ public class ExternalRenderingTests(SharedNidApp shared) : IClassFixture<SharedN
     [Fact]
     public void The_scrub_trims_a_year_before_a_currency_and_keeps_plain_names()
     {
-        string TextFor(string name) => renderer.One(Record("loan_end"), KindOf("loan_end", "loans"), Names(name)).Text;
+        string TextFor(string name) => renderer.One(Record("realestate.loan_end"), KindOf("realestate.loan_end", "realestate"), Names(name)).Text;
 
         // Known and accepted: a year followed by a currency code reads as an amount, so the name is cut there.
         var trimmed = TextFor("Fonds 2024 EUR");
@@ -154,7 +154,7 @@ public class ExternalRenderingTests(SharedNidApp shared) : IClassFixture<SharedN
     [Fact]
     public void A_name_without_amount_is_kept_as_it_is()
     {
-        var message = renderer.One(Record("loan_end"), KindOf("loan_end", "loans"), Names("Crédit 2024 — Société Générale"));
+        var message = renderer.One(Record("realestate.loan_end"), KindOf("realestate.loan_end", "realestate"), Names("Crédit 2024 — Société Générale"));
 
         Assert.Contains("Crédit 2024 — Société Générale", message.Text);
     }
@@ -165,9 +165,9 @@ public class ExternalRenderingTests(SharedNidApp shared) : IClassFixture<SharedN
         var other = new ItemId(Guid.Parse("33333333-3333-3333-3333-333333333333"));
         var rows = new List<(NotificationRecord, NotificationKind)>
         {
-            (Record("valuation_stale", NotificationLevel.Info, items: [other]), KindOf("valuation_stale", "properties", NotificationLevel.Info)),
-            (Record("rent_arrears", NotificationLevel.Critical), KindOf("rent_arrears", "properties", NotificationLevel.Critical)),
-            (Record("tenancy_end", NotificationLevel.Info, new LocalDate(2027, 3, 31)), KindOf("tenancy_end", "properties", NotificationLevel.Info)),
+            (Record("realestate.valuation_stale", NotificationLevel.Info, items: [other]), KindOf("realestate.valuation_stale", "realestate", NotificationLevel.Info)),
+            (Record("realestate.rent_arrears", NotificationLevel.Critical), KindOf("realestate.rent_arrears", "realestate", NotificationLevel.Critical)),
+            (Record("realestate.tenancy_end", NotificationLevel.Info, new LocalDate(2027, 3, 31)), KindOf("realestate.tenancy_end", "realestate", NotificationLevel.Info)),
         };
         var names = new Dictionary<ItemId, string> { [Item] = "Maison", [other] = "Studio" };
 
@@ -189,8 +189,8 @@ public class ExternalRenderingTests(SharedNidApp shared) : IClassFixture<SharedN
     {
         var rows = new List<(NotificationRecord, NotificationKind)>
         {
-            (Record("loan_end", NotificationLevel.Info), KindOf("loan_end", "loans", NotificationLevel.Info)),
-            (Record("loan_phase_end", NotificationLevel.Action), KindOf("loan_phase_end", "loans")),
+            (Record("realestate.loan_end", NotificationLevel.Info), KindOf("realestate.loan_end", "realestate", NotificationLevel.Info)),
+            (Record("realestate.loan_phase_end", NotificationLevel.Action), KindOf("realestate.loan_phase_end", "realestate")),
         };
 
         var text = renderer.Digest(rows, Names("Prêt")).Text;
@@ -201,7 +201,7 @@ public class ExternalRenderingTests(SharedNidApp shared) : IClassFixture<SharedN
     [Fact]
     public void One_row_makes_a_singular_subject()
     {
-        var digest = renderer.Digest([(Record("loan_end"), KindOf("loan_end", "loans"))], Names("Prêt"));
+        var digest = renderer.Digest([(Record("realestate.loan_end"), KindOf("realestate.loan_end", "realestate"))], Names("Prêt"));
 
         Assert.Equal("Nid : 1 notification", digest.Subject);
     }
@@ -209,9 +209,9 @@ public class ExternalRenderingTests(SharedNidApp shared) : IClassFixture<SharedN
     [Fact]
     public void A_signals_figures_never_leave_the_application()
     {
-        var row = Record("net_worth_milestone", NotificationLevel.Info, items: [],
+        var row = Record("core.net_worth_milestone", NotificationLevel.Info, items: [],
             parameters: new Dictionary<string, string> { ["net_worth_amount"] = "302140", ["step_amount"] = "300000" });
-        var kind = KindOf("net_worth_milestone", "core", NotificationLevel.Info);
+        var kind = KindOf("core.net_worth_milestone", "core", NotificationLevel.Info);
 
         var one = renderer.One(row, kind, Names("Maison"));
         var digest = renderer.Digest([(row, kind)], Names("Maison"));

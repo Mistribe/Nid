@@ -14,6 +14,10 @@ public sealed class InvestmentsNotificationSource(InvestmentsUpcoming upcoming, 
 {
     private static readonly IReadOnlyDictionary<string, string> NoParams = new Dictionary<string, string>();
 
+    /// <summary>#645: the overview's watch codes, as notification kinds.</summary>
+    public const string StaleValue = "investments.stale_value";
+    public const string UcShareBelowFloor = "investments.uc_share_below_floor";
+
     public string Name => "investments";
 
     public IReadOnlyList<NotificationKind> Kinds { get; } =
@@ -26,11 +30,11 @@ public sealed class InvestmentsNotificationSource(InvestmentsUpcoming upcoming, 
         {
             Template = new("Des parts de SCPI entrent en jouissance") { Link = Holdings },
         },
-        new(OverviewCodes.StaleValue, "finding", NotificationLevel.Info, "investments", null)
+        new(StaleValue, "finding", NotificationLevel.Info, "investments", null)
         {
             Template = new("Une valeur est à mettre à jour") { Suffix = f => Dated(f, "valeur du"), Link = f => f.ItemPage("investments") },
         },
-        new(HoldingWarnings.UcShareBelowFloor, "finding", NotificationLevel.Info, "investments", null)
+        new(UcShareBelowFloor, "finding", NotificationLevel.Info, "investments", null)
         {
             Template = new("La part en unités de compte est sous le plancher") { Suffix = f => Dated(f, "relevé du"), Link = Holdings },
         },
@@ -53,9 +57,12 @@ public sealed class InvestmentsNotificationSource(InvestmentsUpcoming upcoming, 
         // The span only sizes the curve, which the watch does not read.
         var view = await overview.ReadAsync(reader, VisibilityScope.Me, OverviewSpan.TwelveMonths, today, ct);
         foreach (var watch in view.Watch.Where(w => w.Code is OverviewCodes.StaleValue or HoldingWarnings.UcShareBelowFloor))
+        {
+            var kind = watch.Code == OverviewCodes.StaleValue ? StaleValue : UcShareBelowFloor;
             signals.Add(new Signal(
-                watch.On is { } on ? SignalKeys.Dated(watch.Code, watch.EnvelopeId, on) : SignalKeys.Undated(watch.Code, watch.EnvelopeId),
-                watch.Code, [watch.EnvelopeId], null, NoParams));
+                watch.On is { } on ? SignalKeys.Dated(kind, watch.EnvelopeId, on) : SignalKeys.Undated(kind, watch.EnvelopeId),
+                kind, [watch.EnvelopeId], null, NoParams));
+        }
 
         return Result.Success<IReadOnlyList<Signal>>(signals);
     }

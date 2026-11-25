@@ -308,7 +308,7 @@ internal static class InvestmentsHoldingsMath
                 .Select(w => new EnvelopeWatchView(HoldingWarnings.ValueMismatch, f.Item.Id, w.HoldingId, snapshot.AsOf)));
             watch.AddRange(export.Holdings.Where(h => h.Envelope == f.Item.Id && h.ClosedOn is null
                     && h.MaturesOn is { } on && on >= today && on <= today.PlusDays(MaturityDays))
-                .Select(h => new EnvelopeWatchView(UpcomingKinds.HoldingMaturity, f.Item.Id, h.Id, h.MaturesOn)));
+                .Select(h => new EnvelopeWatchView(OverviewCodes.HoldingMaturity, f.Item.Id, h.Id, h.MaturesOn)));
         }
 
         var total = SumOrNull(values);

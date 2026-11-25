@@ -56,7 +56,7 @@ public class UpcomingTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
         var events = Upcoming(await DashboardAsync(app, app.AdultA));
 
         var only = Assert.Single(events);
-        Assert.Equal("subscription_renewal", only.GetProperty("kind").GetString());
+        Assert.Equal("subscriptions.renewal", only.GetProperty("kind").GetString());
         Assert.Equal("2025-11-10", only.GetProperty("on").GetString());
         Assert.Equal(prime.Value, only.GetProperty("id").GetGuid());
         Assert.Equal("subscriptions", only.GetProperty("module").GetString());
@@ -96,7 +96,7 @@ public class UpcomingTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
 
         var expiry = Upcoming(await DashboardAsync(app, app.AdultA)).Single();
 
-        Assert.Equal("subscription_expiry", expiry.GetProperty("kind").GetString());
+        Assert.Equal("subscriptions.expiry", expiry.GetProperty("kind").GetString());
         Assert.Equal("2025-11-01", expiry.GetProperty("on").GetString());
         Assert.Equal(JsonValueKind.Null, expiry.GetProperty("amount").ValueKind);
     }
@@ -110,7 +110,7 @@ public class UpcomingTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
 
         var expiry = Upcoming(await DashboardAsync(app, app.AdultA)).Single();
 
-        Assert.Equal("subscription_expiry", expiry.GetProperty("kind").GetString());
+        Assert.Equal("subscriptions.expiry", expiry.GetProperty("kind").GetString());
         Assert.Equal("2025-12-01", expiry.GetProperty("on").GetString());
     }
 
@@ -124,12 +124,12 @@ public class UpcomingTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
         var view = await DashboardAsync(app, app.AdultA);
 
         var end = Upcoming(view).Single();
-        Assert.Equal("income_phase_end", end.GetProperty("kind").GetString());
+        Assert.Equal("income.phase_end", end.GetProperty("kind").GetString());
         Assert.Equal("2025-11-30", end.GetProperty("on").GetString());
         Assert.Equal("CDD", end.GetProperty("label").GetString());
         Assert.Equal("income", end.GetProperty("module").GetString());
         var todo = view.GetProperty("todo").EnumerateArray().Single();
-        Assert.Equal("income_gap_soon", todo.GetProperty("kind").GetString());
+        Assert.Equal("income.gap_soon", todo.GetProperty("kind").GetString());
         Assert.Equal(source.Value, todo.GetProperty("id").GetGuid());
         Assert.Equal("CDD", todo.GetProperty("label").GetString());
         Assert.Equal("2025-11-30", todo.GetProperty("on").GetString());
@@ -164,7 +164,7 @@ public class UpcomingTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
 
         var only = Assert.Single(Upcoming(await DashboardAsync(app, app.AdultA)));
 
-        Assert.Equal("subscription_renewal", only.GetProperty("kind").GetString());
+        Assert.Equal("subscriptions.renewal", only.GetProperty("kind").GetString());
         Assert.Equal("2025-11-20", only.GetProperty("on").GetString()); // the yearly phase charges once the 2025-10-20 monthly charge stops covering
         Assert.Equal("99.00", only.GetProperty("amount").GetProperty("amount").GetString());
     }
@@ -187,7 +187,7 @@ public class UpcomingTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
 
         var only = Assert.Single(Upcoming(await DashboardAsync(app, app.AdultA)));
 
-        Assert.Equal("subscription_trial_end", only.GetProperty("kind").GetString());
+        Assert.Equal("subscriptions.trial_end", only.GetProperty("kind").GetString());
         Assert.Equal("2025-11-20", only.GetProperty("on").GetString());
         Assert.Equal("10.00", only.GetProperty("amount").GetProperty("amount").GetString());
     }
@@ -201,7 +201,7 @@ public class UpcomingTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
 
         var only = Assert.Single(Upcoming(await DashboardAsync(app, app.AdultA)));
 
-        Assert.Equal("subscription_trial_end", only.GetProperty("kind").GetString());
+        Assert.Equal("subscriptions.trial_end", only.GetProperty("kind").GetString());
         Assert.Equal("2025-11-20", only.GetProperty("on").GetString());
     }
 
@@ -214,7 +214,7 @@ public class UpcomingTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
 
         var only = Assert.Single(Upcoming(await DashboardAsync(app, app.AdultA)));
 
-        Assert.Equal("subscription_price_increase", only.GetProperty("kind").GetString());
+        Assert.Equal("subscriptions.price_increase", only.GetProperty("kind").GetString());
         Assert.Equal("2025-11-20", only.GetProperty("on").GetString());
         Assert.Equal("12.00", only.GetProperty("amount").GetProperty("amount").GetString());
     }
@@ -243,7 +243,7 @@ public class UpcomingTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
 
         var only = Assert.Single(Upcoming(await DashboardAsync(app, app.AdultA)));
 
-        Assert.Equal("subscription_renewal", only.GetProperty("kind").GetString());
+        Assert.Equal("subscriptions.renewal", only.GetProperty("kind").GetString());
         Assert.Equal("2025-10-15", only.GetProperty("on").GetString());
     }
 
@@ -255,7 +255,7 @@ public class UpcomingTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
     }
 
     private static List<JsonElement> Deadlines(JsonElement view)
-        => Upcoming(view).Where(e => e.GetProperty("kind").GetString() == "subscription_cancel_deadline").ToList();
+        => Upcoming(view).Where(e => e.GetProperty("kind").GetString() == "subscriptions.cancel_deadline").ToList();
 
     [Fact]
     public async Task Cancel_deadline_is_upcoming_in_the_window()

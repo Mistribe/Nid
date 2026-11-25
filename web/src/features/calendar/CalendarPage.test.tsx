@@ -62,7 +62,7 @@ describe('Calendrier', () => {
   it('shows the current month from its first day, each event with its words and a link to its item', async () => {
     const seen = serve([
       event({ on: '2026-11-03', name: 'Amazon Prime' }), // before today: the month is read from its 1st
-      event({ on: '2026-11-20', kind: 'tax_balance_due', module: 'tax', id: null, name: 'Foyer', label: null, amount: null }),
+      event({ on: '2026-11-20', kind: 'tax.balance_due', module: 'tax', id: null, name: 'Foyer', label: null, amount: null }),
     ]);
     const { container } = await renderApp('/calendar');
 
@@ -109,9 +109,9 @@ describe('Calendrier', () => {
   it('switches to the timeline: the milestones over the horizon, one row per module, each mark linked to its item', async () => {
     serve();
     const seen = serveTimeline([
-      event({ on: '2028-03-01', kind: 'tax_milestone', module: 'investments', id: '00000000-0000-7000-8000-0000000000d1', name: 'PEA Alice', label: 'pea_5y', amount: null }),
-      event({ on: '2031-04-15', kind: 'loan_end', module: 'loans', id: '00000000-0000-7000-8000-0000000000d2', name: 'Prêt maison', label: null, amount: null }),
-      event({ on: '2031-05-01', kind: 'tenancy_end', module: 'loans', id: '00000000-0000-7000-8000-0000000000d2', name: 'Prêt maison', label: 'T2', amount: null }),
+      event({ on: '2028-03-01', kind: 'investments.tax_milestone', module: 'investments', id: '00000000-0000-7000-8000-0000000000d1', name: 'PEA Alice', label: 'pea_5y', amount: null }),
+      event({ on: '2031-04-15', kind: 'realestate.loan_end', module: 'loans', id: '00000000-0000-7000-8000-0000000000d2', name: 'Prêt maison', label: null, amount: null }),
+      event({ on: '2031-05-01', kind: 'realestate.tenancy_end', module: 'loans', id: '00000000-0000-7000-8000-0000000000d2', name: 'Prêt maison', label: 'T2', amount: null }),
     ]);
     const { user, router, container } = await renderApp('/calendar?modules=loans,investments');
 

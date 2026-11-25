@@ -25,7 +25,7 @@ public class AdminNotificationsTests(PostgresFixture fixture) : IClassFixture<Po
             var id = Guid.CreateVersion7();
             var notification = new NotificationRow
             {
-                Id = Guid.NewGuid(), PersonId = app.AdultB.Value, Kind = "tenancy_end", Key = $"tenancy_end:{i}", Level = "action",
+                Id = Guid.NewGuid(), PersonId = app.AdultB.Value, Kind = "realestate.tenancy_end", Key = $"realestate.tenancy_end:{i}", Level = "action",
                 NotifyOn = new LocalDate(2025, 10, 1), State = "open", CreatedAt = now - NodaTime.Duration.FromDays(10),
             };
             db.Notifications.Add(notification);

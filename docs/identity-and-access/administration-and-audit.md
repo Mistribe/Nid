@@ -133,6 +133,6 @@ Dans l'interface, pour chaque adulte, en trois onglets (Connexion, Jetons, Activ
 |---|---|
 | `access_violation` | Notification « critique » à tous les adultes actifs, sans élément, qui part même si la requête échoue ; Discord du foyer si configuré — livré (notifications, PR 4, lève U14) |
 | Jeton proche de l'expiration | Affiché dans « Mes jetons » et dans un bandeau, 7 jours avant (4A) ; notifié à son titulaire seul, 7 jours avant, sur ses canaux (notifications, PR 4) |
-| Sauvegarde, tâche planifiée ou synchronisation en échec | Notification aux admins (`backup_failed` critique, `job_failed` d'action, `sync_failed` d'info), sur leurs canaux ; Discord du foyer pour les deux premières — livré (notifications, PR 4) |
+| Sauvegarde, tâche planifiée ou synchronisation en échec | Notification aux admins (`platform.backup_failed` critique, `platform.job_failed` d'action, `platform.sync_failed` d'info), sur leurs canaux ; Discord du foyer pour les deux premières — livré (notifications, PR 4) |
 | Échecs d'authentification répétés | Métrique et journal ; pas d'email en v1. Comptes locaux : `login_locked` notifié au titulaire, verrouillage visible dans la zone admin |
 | Mot de passe réinitialisé ou changé, lien de réinitialisation créé, second facteur réinitialisé, 2 codes de secours restants | Notification au titulaire seul, sur ses canaux (`local-accounts.md` §16) |

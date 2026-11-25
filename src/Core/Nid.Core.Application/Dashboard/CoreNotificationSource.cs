@@ -29,12 +29,12 @@ public sealed partial class CoreNotificationSource(
     [LoggerMessage(Level = LogLevel.Warning, Message = "The month's changes of {Person} could not be read: {Code}")]
     private partial void LogChangesUnread(Guid person, string code);
 
-    public const string FxRateMissing = "fx_rate_missing";
-    public const string RoutineDue = "routine_due";
-    public const string TokenExpiring = "token_expiring";
-    public const string MonthChanges = "month_changes";
-    public const string NetWorthMilestone = "net_worth_milestone";
-    public const string SavingsPace = "savings_pace";
+    public const string FxRateMissing = "core.fx_rate_missing";
+    public const string RoutineDue = "core.routine_due";
+    public const string TokenExpiring = "core.token_expiring";
+    public const string MonthChanges = "core.month_changes";
+    public const string NetWorthMilestone = "core.net_worth_milestone";
+    public const string SavingsPace = "core.savings_pace";
 
     private static readonly IReadOnlyDictionary<string, string> NoParams = new Dictionary<string, string>();
     private static readonly HashSet<string> TaxKinds = [UpcomingKinds.TaxFilingDeadline, UpcomingKinds.TaxNewRate, UpcomingKinds.TaxBalanceDue];
@@ -70,7 +70,7 @@ public sealed partial class CoreNotificationSource(
             Template = new("Ce qui a changé depuis le mois dernier") { Body = f => MonthChangesText(f.Params), Link = f => f.HouseholdPage("/dashboard") },
         },
         // Issue #409: the household's tax dates, the reader's own (Moi) notice giving the balance.
-        new(UpcomingKinds.TaxFilingDeadline, "due_date", NotificationLevel.Action, "core", 14)
+        new(UpcomingKinds.TaxFilingDeadline, "due_date", NotificationLevel.Action, "tax", 14)
         {
             Template = new("La déclaration de revenus est à faire")
             {
@@ -81,11 +81,11 @@ public sealed partial class CoreNotificationSource(
                 Link = f => f.HouseholdPage("/tax"),
             },
         },
-        new(UpcomingKinds.TaxNewRate, "due_date", NotificationLevel.Info, "core", 7)
+        new(UpcomingKinds.TaxNewRate, "due_date", NotificationLevel.Info, "tax", 7)
         {
             Template = new("Le nouveau taux de prélèvement s'applique") { Body = FromDueDate, Link = f => f.HouseholdPage("/tax") },
         },
-        new(UpcomingKinds.TaxBalanceDue, "due_date", NotificationLevel.Info, "core", 7)
+        new(UpcomingKinds.TaxBalanceDue, "due_date", NotificationLevel.Info, "tax", 7)
         {
             Template = new("Le solde de l'impôt est prélevé") { Body = FromDueDate, Link = f => f.HouseholdPage("/tax?tab=withholding") },
         },

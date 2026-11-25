@@ -19,7 +19,7 @@ public sealed class PrivateRequestProposal(
     public const string KindName = "core.make_private";
 
     /// <summary>The notice that tells the owner the other adult refused (<c>private_request_refused:{proposal}</c>).</summary>
-    public const string RefusedNotice = "private_request_refused";
+    public const string RefusedNotice = "core.private_request_refused";
 
     public string Module => "core";
     public string Kind => KindName;

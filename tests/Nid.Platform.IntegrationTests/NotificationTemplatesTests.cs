@@ -14,16 +14,16 @@ public class NotificationTemplatesTests(SharedNidApp shared) : IClassFixture<Sha
 
     private static readonly (string Kind, string Module)[] Kinds =
     [
-        ("subscription_renewal", "subscriptions"), ("subscription_expiry", "subscriptions"),
-        ("subscription_cancel_deadline", "subscriptions"), ("subscription_trial_end", "subscriptions"), ("subscription_price_increase", "subscriptions"),
+        ("subscriptions.renewal", "subscriptions"), ("subscriptions.expiry", "subscriptions"),
+        ("subscriptions.cancel_deadline", "subscriptions"), ("subscriptions.trial_end", "subscriptions"), ("subscriptions.price_increase", "subscriptions"),
         ("subscriptions.ends_without_renewal", "subscriptions"),
-        ("tenancy_end", "properties"), ("property_cost_due", "properties"), ("rent_arrears", "properties"),
-        ("revision_due", "properties"), ("revision_lost", "properties"), ("irl_missing", "properties"),
-        ("valuation_stale", "properties"), ("property_tax_due", "properties"),
-        ("loan_phase_end", "loans"), ("loan_end", "loans"),
-        ("holding_maturity", "investments"), ("stale_value", "investments"), ("uc_share_below_floor", "investments"),
-        ("income_phase_end", "income"), ("income_gap_soon", "income"),
-        ("childcare_statement_due", "childcare"), ("childcare_below_minimum", "childcare"),
+        ("realestate.tenancy_end", "realestate"), ("realestate.property_cost_due", "realestate"), ("realestate.rent_arrears", "realestate"),
+        ("realestate.revision_due", "realestate"), ("realestate.revision_lost", "realestate"), ("realestate.irl_missing", "realestate"),
+        ("realestate.valuation_stale", "realestate"), ("realestate.property_tax_due", "realestate"),
+        ("realestate.loan_phase_end", "realestate"), ("realestate.loan_end", "realestate"),
+        ("investments.holding_maturity", "investments"), ("investments.stale_value", "investments"), ("investments.uc_share_below_floor", "investments"),
+        ("income.phase_end", "income"), ("income.gap_soon", "income"),
+        ("childcare.statement_due", "childcare"), ("childcare.below_minimum", "childcare"),
     ];
 
     private static NotificationRecord Record(string kind, LocalDate? dueOn = null, string key = "k")
@@ -70,9 +70,9 @@ public class NotificationTemplatesTests(SharedNidApp shared) : IClassFixture<Sha
     [InlineData("fx-daily", "/admin/jobs/fx-daily")]
     public void A_failed_job_links_to_its_own_page(string job, string link)
     {
-        var record = Record("job_failed") with { ItemIds = [], Params = new Dictionary<string, string> { ["job"] = job } };
+        var record = Record("platform.job_failed") with { ItemIds = [], Params = new Dictionary<string, string> { ["job"] = job } };
 
-        var rendered = NotificationTemplates.Render(record, KindOf("job_failed"),
+        var rendered = NotificationTemplates.Render(record, KindOf("platform.job_failed"),
             new Dictionary<ItemId, string>());
 
         Assert.Equal(link, rendered.Link);
@@ -94,7 +94,7 @@ public class NotificationTemplatesTests(SharedNidApp shared) : IClassFixture<Sha
     [Fact]
     public void Body_has_the_name_and_the_date_never_an_amount()
     {
-        var rendered = NotificationTemplates.Render(Record("tenancy_end", new LocalDate(2027, 3, 31)), KindOf("tenancy_end"),
+        var rendered = NotificationTemplates.Render(Record("realestate.tenancy_end", new LocalDate(2027, 3, 31)), KindOf("realestate.tenancy_end"),
             new Dictionary<ItemId, string> { [Item] = "Maison" });
 
         Assert.Equal("Maison — le 31 mars 2027", rendered.Body);
@@ -106,14 +106,14 @@ public class NotificationTemplatesTests(SharedNidApp shared) : IClassFixture<Sha
     public void Findings_name_their_month_or_date_and_a_missing_name_is_an_element()
     {
         var none = new Dictionary<ItemId, string>();
-        var arrears = NotificationTemplates.Render(Record("rent_arrears", key: $"rent_arrears:{Item.Value:D}:2027-02"), KindOf("rent_arrears"),
+        var arrears = NotificationTemplates.Render(Record("realestate.rent_arrears", key: $"realestate.rent_arrears:{Item.Value:D}:2027-02"), KindOf("realestate.rent_arrears"),
             new Dictionary<ItemId, string> { [Item] = "Studio" });
-        var stale = NotificationTemplates.Render(Record("valuation_stale", key: $"valuation_stale:{Item.Value:D}:2025-06-15"), KindOf("valuation_stale"), none);
-        var loan = NotificationTemplates.Render(Record("loan_end", new LocalDate(2027, 12, 1)), KindOf("loan_end"), none);
+        var stale = NotificationTemplates.Render(Record("realestate.valuation_stale", key: $"realestate.valuation_stale:{Item.Value:D}:2025-06-15"), KindOf("realestate.valuation_stale"), none);
+        var loan = NotificationTemplates.Render(Record("realestate.loan_end", new LocalDate(2027, 12, 1)), KindOf("realestate.loan_end"), none);
 
         Assert.Equal("Studio — depuis février 2027", arrears.Body);
-        var statement = NotificationTemplates.Render(Record("childcare_statement_due", new LocalDate(2025, 9, 30), $"childcare_statement_due:{Item.Value:D}:2025-09"),
-            KindOf("childcare_statement_due"), new Dictionary<ItemId, string> { [Item] = "Garde de Léa" });
+        var statement = NotificationTemplates.Render(Record("childcare.statement_due", new LocalDate(2025, 9, 30), $"childcare.statement_due:{Item.Value:D}:2025-09"),
+            KindOf("childcare.statement_due"), new Dictionary<ItemId, string> { [Item] = "Garde de Léa" });
         Assert.Equal("Garde de Léa — relevé de septembre 2025", statement.Body);
         Assert.Equal("Élément — estimée le 15 juin 2025", stale.Body);
         Assert.Equal($"/properties/{Item.Value:D}?tab=valuations", stale.Link);
@@ -126,9 +126,9 @@ public class NotificationTemplatesTests(SharedNidApp shared) : IClassFixture<Sha
     {
         NotificationRecord Household(string kind, string key, Dictionary<string, string> parameters)
             => Record(kind, key: key) with { ItemIds = [], Params = parameters };
-        var rate = NotificationTemplates.Render(Household("fx_rate_missing", "fx_rate_missing:USD", new() { ["currency"] = "USD" }), KindOf("fx_rate_missing"),
+        var rate = NotificationTemplates.Render(Household("core.fx_rate_missing", "core.fx_rate_missing:USD", new() { ["currency"] = "USD" }), KindOf("core.fx_rate_missing"),
             new Dictionary<ItemId, string> { [Item] = "Maison" });
-        var routine = NotificationTemplates.Render(Household("routine_due", "routine_due:2027-03", []), KindOf("routine_due"), new Dictionary<ItemId, string>());
+        var routine = NotificationTemplates.Render(Household("core.routine_due", "core.routine_due:2027-03", []), KindOf("core.routine_due"), new Dictionary<ItemId, string>());
 
         Assert.Equal(("Un taux de change manque", "Devise USD", "/dashboard"), (rate.Title, rate.Body, rate.Link));
         Assert.Equal(("La routine du mois est à faire", "Des valeurs sont à mettre à jour", "/routine"), (routine.Title, routine.Body, routine.Link));
@@ -137,13 +137,13 @@ public class NotificationTemplatesTests(SharedNidApp shared) : IClassFixture<Sha
     [Fact]
     public void The_month_changes_name_directions_and_causes_never_an_amount()
     {
-        var record = Record("month_changes", key: "month_changes:2027-03") with
+        var record = Record("core.month_changes", key: "core.month_changes:2027-03") with
         {
             ItemIds = [],
             Params = new Dictionary<string, string> { ["income"] = "down", ["net_worth"] = "up|investments.value+|real_estate.paid_in+", ["commitments"] = "up|subscriptions+|unknown-" },
         };
 
-        var rendered = NotificationTemplates.Render(record, KindOf("month_changes"), new Dictionary<ItemId, string>());
+        var rendered = NotificationTemplates.Render(record, KindOf("core.month_changes"), new Dictionary<ItemId, string>());
 
         Assert.Equal(("Ce qui a changé depuis le mois dernier",
             "Patrimoine en hausse — valeur des placements ↑, capital remboursé ↑ · Engagements en hausse — abonnements ↑, autres ↓ · Revenus en baisse",
@@ -157,31 +157,31 @@ public class NotificationTemplatesTests(SharedNidApp shared) : IClassFixture<Sha
             Record(kind, new LocalDate(2026, 5, 21), $"{kind}:2026-05-21") with { ItemIds = [], Params = parameters }, KindOf(kind), new Dictionary<ItemId, string>());
 
         Assert.Equal(("La déclaration de revenus est à faire", "En ligne avant le 21 mai 2026", "/tax"),
-            (Tax("tax_filing_deadline", []).Title, Tax("tax_filing_deadline", []).Body, Tax("tax_filing_deadline", []).Link));
+            (Tax("tax.filing_deadline", []).Title, Tax("tax.filing_deadline", []).Body, Tax("tax.filing_deadline", []).Link));
         Assert.Equal("En ligne avant le 21 mai 2026, la date la plus tôt : département non renseigné",
-            Tax("tax_filing_deadline", new() { ["note"] = "department_unknown" }).Body);
-        Assert.Equal(("À partir du 21 mai 2026", "/tax"), (Tax("tax_balance_due", []).Body, Tax("tax_new_rate", []).Link));
-        Assert.Equal("/tax?tab=withholding", Tax("tax_balance_due", []).Link);
+            Tax("tax.filing_deadline", new() { ["note"] = "department_unknown" }).Body);
+        Assert.Equal(("À partir du 21 mai 2026", "/tax"), (Tax("tax.balance_due", []).Body, Tax("tax.new_rate", []).Link));
+        Assert.Equal("/tax?tab=withholding", Tax("tax.balance_due", []).Link);
     }
 
     [Fact]
     public void A_failed_job_opens_its_own_page()
     {
-        NotificationRecord Job(Dictionary<string, string> parameters) => Record("job_failed", key: "job_failed:fx-daily") with { ItemIds = [], Params = parameters };
+        NotificationRecord Job(Dictionary<string, string> parameters) => Record("platform.job_failed", key: "platform.job_failed:fx-daily") with { ItemIds = [], Params = parameters };
 
-        Assert.Equal("/admin/jobs/fx-daily", NotificationTemplates.Render(Job(new() { ["job"] = "fx-daily" }), KindOf("job_failed"), new Dictionary<ItemId, string>()).Link);
-        Assert.Equal("/admin/jobs", NotificationTemplates.Render(Job([]), KindOf("job_failed"), new Dictionary<ItemId, string>()).Link);
+        Assert.Equal("/admin/jobs/fx-daily", NotificationTemplates.Render(Job(new() { ["job"] = "fx-daily" }), KindOf("platform.job_failed"), new Dictionary<ItemId, string>()).Link);
+        Assert.Equal("/admin/jobs", NotificationTemplates.Render(Job([]), KindOf("platform.job_failed"), new Dictionary<ItemId, string>()).Link);
     }
 
     [Fact]
     public void Investments_and_income_open_their_screens_and_name_the_date()
     {
         var names = new Dictionary<ItemId, string> { [Item] = "Assurance-vie" };
-        var maturity = NotificationTemplates.Render(Record("holding_maturity", new LocalDate(2027, 12, 1)), KindOf("holding_maturity"), names);
-        var stale = NotificationTemplates.Render(Record("stale_value", key: $"stale_value:{Item.Value:D}:2025-06-15"), KindOf("stale_value"), names);
-        var floor = NotificationTemplates.Render(Record("uc_share_below_floor", key: $"uc_share_below_floor:{Item.Value:D}:2024-12-31"), KindOf("uc_share_below_floor"), names);
-        var phase = NotificationTemplates.Render(Record("income_phase_end", new LocalDate(2027, 3, 31)), KindOf("income_phase_end"), names);
-        var gap = NotificationTemplates.Render(Record("income_gap_soon", new LocalDate(2027, 3, 31)), KindOf("income_gap_soon"), names);
+        var maturity = NotificationTemplates.Render(Record("investments.holding_maturity", new LocalDate(2027, 12, 1)), KindOf("investments.holding_maturity"), names);
+        var stale = NotificationTemplates.Render(Record("investments.stale_value", key: $"investments.stale_value:{Item.Value:D}:2025-06-15"), KindOf("investments.stale_value"), names);
+        var floor = NotificationTemplates.Render(Record("investments.uc_share_below_floor", key: $"investments.uc_share_below_floor:{Item.Value:D}:2024-12-31"), KindOf("investments.uc_share_below_floor"), names);
+        var phase = NotificationTemplates.Render(Record("income.phase_end", new LocalDate(2027, 3, 31)), KindOf("income.phase_end"), names);
+        var gap = NotificationTemplates.Render(Record("income.gap_soon", new LocalDate(2027, 3, 31)), KindOf("income.gap_soon"), names);
 
         Assert.Equal(("Un support arrive à échéance", "Assurance-vie — le 1er décembre 2027", $"/investments/{Item.Value:D}?tab=holdings"),
             (maturity.Title, maturity.Body, maturity.Link));
@@ -221,36 +221,36 @@ public class NotificationTemplatesTests(SharedNidApp shared) : IClassFixture<Sha
 
         var cases = new[]
         {
-            (Published("access_violation", "access_violation:1", new() { ["request"] = "GetEnvelope", ["admin"] = "1" }), "Une réponse a été bloquée par la garde d'accès", "/admin/security"),
-            (Published("access_violation", "access_violation:1", new() { ["request"] = "GetEnvelope" }), "Une réponse a été bloquée par la garde d'accès", "/"),
-            (Published("token_expiring", "token_expiring:abc:2027-03-31"), "Un jeton d'accès expire bientôt", "/security"),
+            (Published("platform.access_violation", "platform.access_violation:1", new() { ["request"] = "GetEnvelope", ["admin"] = "1" }), "Une réponse a été bloquée par la garde d'accès", "/admin/security"),
+            (Published("platform.access_violation", "platform.access_violation:1", new() { ["request"] = "GetEnvelope" }), "Une réponse a été bloquée par la garde d'accès", "/"),
+            (Published("core.token_expiring", "core.token_expiring:abc:2027-03-31"), "Un jeton d'accès expire bientôt", "/security"),
             (Published("banking.consent_expiring", "banking.consent_expiring:abc:2027-03-31:14", new() { ["bank"] = "Banque Alpha" }), "Le consentement d'une banque expire bientôt", "/settings/banks"),
             (Published("banking.consent_expired", "banking.consent_expired:abc:2027-03-31"), "Le consentement d'une banque a expiré", "/settings/banks"),
             (Published("banking.sync_failing", "banking.sync_failing:abc:2027-03-01"), "La synchronisation d'une banque échoue", "/settings/banks"),
             (Published("banking.application_needed", "banking.application_needed:abc"), "Reliez à nouveau votre banque", "/settings/banks?tab=application"),
-            (Published("proposal_pending", $"proposal_pending:{proposal}", withItem: true), "Une proposition attend votre décision", $"/proposals/{proposal}"),
-            (Published("private_request_refused", $"private_request_refused:{proposal}", withItem: true), "Votre demande de passage en privé a été refusée", $"/proposals/{proposal}"),
-            (Published("backup_failed", "backup_failed:never"), "La sauvegarde a échoué", "/admin/system"),
-            (Published("job_failed", "job_failed:fx-sync", new() { ["job"] = "fx-sync" }), "Une tâche planifiée a échoué", "/admin/jobs/fx-sync"),
-            (Published("sync_failed", "sync_failed:prices:never", new() { ["source"] = "prices" }), "Une synchronisation a échoué", "/admin/prices"),
+            (Published("core.proposal_pending", $"core.proposal_pending:{proposal}", withItem: true), "Une proposition attend votre décision", $"/proposals/{proposal}"),
+            (Published("core.private_request_refused", $"core.private_request_refused:{proposal}", withItem: true), "Votre demande de passage en privé a été refusée", $"/proposals/{proposal}"),
+            (Published("platform.backup_failed", "platform.backup_failed:never"), "La sauvegarde a échoué", "/admin/system"),
+            (Published("platform.job_failed", "platform.job_failed:fx-sync", new() { ["job"] = "fx-sync" }), "Une tâche planifiée a échoué", "/admin/jobs/fx-sync"),
+            (Published("platform.sync_failed", "platform.sync_failed:prices:never", new() { ["source"] = "prices" }), "Une synchronisation a échoué", "/admin/prices"),
             // #291: the holder of a local account, sent to their Security page.
-            (Published("login_locked", "login_locked:abc:1"), "Votre compte a été verrouillé", "/security"),
-            (Published("password_link_issued", "password_link_issued:abc:1"), "Un lien de réinitialisation a été créé pour vous", "/security"),
-            (Published("password_reset", "password_reset:abc:1"), "Votre mot de passe a été réinitialisé", "/security"),
-            (Published("password_changed", "password_changed:abc:1", new() { ["field"] = "password" }), "Votre mot de passe a changé", "/security"),
-            (Published("totp_reset", "totp_reset:abc:1"), "Votre validation en deux étapes a été désactivée", "/security"),
-            (Published("recovery_codes_low", "recovery_codes_low:abc"), "Il vous reste 2 codes de secours", "/security"),
+            (Published("platform.login_locked", "platform.login_locked:abc:1"), "Votre compte a été verrouillé", "/security"),
+            (Published("platform.password_link_issued", "platform.password_link_issued:abc:1"), "Un lien de réinitialisation a été créé pour vous", "/security"),
+            (Published("platform.password_reset", "platform.password_reset:abc:1"), "Votre mot de passe a été réinitialisé", "/security"),
+            (Published("platform.password_changed", "platform.password_changed:abc:1", new() { ["field"] = "password" }), "Votre mot de passe a changé", "/security"),
+            (Published("platform.totp_reset", "platform.totp_reset:abc:1"), "Votre validation en deux étapes a été désactivée", "/security"),
+            (Published("platform.recovery_codes_low", "platform.recovery_codes_low:abc"), "Il vous reste 2 codes de secours", "/security"),
         };
         foreach (var (record, title, link) in cases)
         {
             var rendered = NotificationTemplates.Render(record, KindOf(record.Kind), names);
             Assert.Equal((title, link), (rendered.Title, rendered.Link));
-            if (link == "/security" && record.Kind != "token_expiring") Assert.NotEmpty(rendered.Body);
+            if (link == "/security" && record.Kind != "core.token_expiring") Assert.NotEmpty(rendered.Body);
             Assert.DoesNotContain("Maison", rendered.Body);
             Assert.DoesNotMatch(@"\d+\s?(€|EUR)", rendered.Body);
         }
 
-        Assert.Equal("Requête : GetEnvelope", NotificationTemplates.Render(cases[0].Item1, KindOf("access_violation"), names).Body);
+        Assert.Equal("Requête : GetEnvelope", NotificationTemplates.Render(cases[0].Item1, KindOf("platform.access_violation"), names).Body);
     }
 
     [Theory]
@@ -265,20 +265,20 @@ public class NotificationTemplatesTests(SharedNidApp shared) : IClassFixture<Sha
         var parameters = new Dictionary<string, string> { ["reason"] = reason };
         if (hours is not null)
             parameters["hours"] = hours;
-        var record = Record("backup_failed", key: "backup_failed:never") with { ItemIds = [], Params = parameters };
+        var record = Record("platform.backup_failed", key: "platform.backup_failed:never") with { ItemIds = [], Params = parameters };
 
-        Assert.Equal(body, NotificationTemplates.Render(record, KindOf("backup_failed"), new Dictionary<ItemId, string>()).Body);
+        Assert.Equal(body, NotificationTemplates.Render(record, KindOf("platform.backup_failed"), new Dictionary<ItemId, string>()).Body);
     }
 
     [Fact]
     public void The_centre_shows_a_signals_figures_the_french_way()
     {
-        var record = Record("net_worth_milestone", key: "net_worth_milestone:300000") with
+        var record = Record("core.net_worth_milestone", key: "core.net_worth_milestone:300000") with
         {
             ItemIds = [],
             Params = new Dictionary<string, string> { ["net_worth_amount"] = "302140.40", ["step_amount"] = "300000" },
         };
-        var kind = KindOf("net_worth_milestone");
+        var kind = KindOf("core.net_worth_milestone");
 
         var centre = NotificationTemplates.Render(record, kind, new Dictionary<ItemId, string>(), withFigures: true);
         var plain = NotificationTemplates.Render(record, kind, new Dictionary<ItemId, string>());
@@ -300,8 +300,8 @@ public class NotificationTemplatesTests(SharedNidApp shared) : IClassFixture<Sha
             ["balance_amount"] = "800.00", ["charges_amount"] = "1150.50", ["currency"] = "EUR", ["short_on"] = "2027-03-05",
             ["charges"] = "Loyer, Netflix", ["module"] = "investments",
         };
-        var record = Record("shortfall_ahead", new LocalDate(2027, 3, 5)) with { Params = figures };
-        var kind = KindOf("shortfall_ahead");
+        var record = Record("banking.shortfall_ahead", new LocalDate(2027, 3, 5)) with { Params = figures };
+        var kind = KindOf("banking.shortfall_ahead");
         var names = new Dictionary<ItemId, string> { [Item] = "Compte joint" };
 
         var centre = NotificationTemplates.Render(record, kind, names, withFigures: true);
@@ -320,12 +320,12 @@ public class NotificationTemplatesTests(SharedNidApp shared) : IClassFixture<Sha
     [Fact]
     public void An_unused_card_is_named_by_its_name_and_masked_number_and_opens_the_banks()
     {
-        var record = Record("card_unused", key: "card_unused:x:2027-03") with
+        var record = Record("banking.card_unused", key: "banking.card_unused:x:2027-03") with
         {
             ItemIds = [], DueOn = new LocalDate(2027, 3, 31),
             Params = new Dictionary<string, string> { ["card"] = "Carte Visa", ["number"] = "4321", ["count"] = "0", ["min"] = "1" },
         };
-        var kind = KindOf("card_unused");
+        var kind = KindOf("banking.card_unused");
 
         var rendered = NotificationTemplates.Render(record, kind, new Dictionary<ItemId, string>());
 
@@ -339,7 +339,7 @@ public class NotificationTemplatesTests(SharedNidApp shared) : IClassFixture<Sha
     [Fact]
     public void Idle_cash_says_what_held_and_opens_the_investments()
     {
-        var record = Record("idle_cash", key: "idle_cash:2027-03") with
+        var record = Record("banking.idle_cash", key: "banking.idle_cash:2027-03") with
         {
             ItemIds = [],
             Params = new Dictionary<string, string>
@@ -347,7 +347,7 @@ public class NotificationTemplatesTests(SharedNidApp shared) : IClassFixture<Sha
                 ["above_amount"] = "4200.40", ["buffer_amount"] = "6000.00", ["room_amount"] = "2000", ["currency"] = "EUR", ["reason"] = "room_goal_behind",
             },
         };
-        var kind = KindOf("idle_cash");
+        var kind = KindOf("banking.idle_cash");
 
         var centre = NotificationTemplates.Render(record, kind, new Dictionary<ItemId, string>(), withFigures: true);
         var plain = NotificationTemplates.Render(record, kind, new Dictionary<ItemId, string>());
@@ -364,7 +364,7 @@ public class NotificationTemplatesTests(SharedNidApp shared) : IClassFixture<Sha
     [Fact]
     public void Unusual_spending_names_the_category_keeps_figures_and_lines_in_the_centre_and_opens_its_operations()
     {
-        var record = Record("unusual_spending", key: "unusual_spending:x:2027-02") with
+        var record = Record("banking.unusual_spending", key: "banking.unusual_spending:x:2027-02") with
         {
             ItemIds = [],
             Params = new Dictionary<string, string>
@@ -373,7 +373,7 @@ public class NotificationTemplatesTests(SharedNidApp shared) : IClassFixture<Sha
                 ["spent_amount"] = "420.00", ["usual_amount"] = "250.00", ["currency"] = "EUR", ["lines"] = "CB MARCHE 120,00, CB EPICERIE",
             },
         };
-        var kind = KindOf("unusual_spending");
+        var kind = KindOf("banking.unusual_spending");
 
         var centre = NotificationTemplates.Render(record, kind, new Dictionary<ItemId, string>(), withFigures: true);
         var plain = NotificationTemplates.Render(record, kind, new Dictionary<ItemId, string>());

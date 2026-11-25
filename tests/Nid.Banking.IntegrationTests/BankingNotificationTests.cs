@@ -339,7 +339,7 @@ public class BankingNotificationTests(PostgresFixture fixture) : IClassFixture<P
         await BankingApi.ConnectAsync(app, app.AdultA, "code-a", BankingApi.Account("uid-1", "hash-1", null, "Carte Visa", "CARD", numberLast4: "4321"));
         var card = Assert.Single((await BankingApi.AccountsAsync(app, app.AdultA)).EnumerateArray()).GetProperty("id").GetGuid();
         var lateOctober = new LocalDate(2025, 10, 28);
-        async Task<IEnumerable<Signal>> UnusedAsync(PersonId reader, LocalDate today) => Findings(await SignalsAsync(app, reader, today), "card_unused");
+        async Task<IEnumerable<Signal>> UnusedAsync(PersonId reader, LocalDate today) => Findings(await SignalsAsync(app, reader, today), "banking.card_unused");
         async Task AddAsync(params NewBankTransaction[] lines)
         {
             await using var scope = app.Services.CreateAsyncScope();
@@ -352,7 +352,7 @@ public class BankingNotificationTests(PostgresFixture fixture) : IClassFixture<P
         Assert.Equal(System.Net.HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{BankingApi.Root}/accounts/{card}", new { minPayments = 1 })).StatusCode);
         var (_, failure) = await app.InvokeAsync(app.AdultA, new Nid.Platform.Notifications.SaveNotificationPreferencesCommand(
             false, Nid.Platform.Notifications.ActionMode.Immediate, Nid.Platform.Notifications.InfoMode.Digest, Nid.Platform.Notifications.DigestFrequency.Weekly, 1,
-            new Dictionary<string, int>(), new Dictionary<string, decimal> { ["card_unused"] = 5m }, 0), TestContext.Current.CancellationToken);
+            new Dictionary<string, int>(), new Dictionary<string, decimal> { ["banking.card_unused"] = 5m }, 0), TestContext.Current.CancellationToken);
         Assert.Null(failure);
         await AddAsync(Line("s1", new LocalDate(2025, 9, 12), -30m, "CB BOULANGERIE"));
 
@@ -369,7 +369,7 @@ public class BankingNotificationTests(PostgresFixture fixture) : IClassFixture<P
         await AddAsync(Line("r1", new LocalDate(2025, 10, 3), 5m, "AVOIR CB"), Line("w1", new LocalDate(2025, 10, 4), -20m, "RETRAIT DAB 03/10"));
         Assert.Empty(await UnusedAsync(app.AdultA, new LocalDate(2025, 10, 20)));
         var signal = Assert.Single(await UnusedAsync(app.AdultA, lateOctober));
-        Assert.Equal(($"card_unused:{card:D}:2025-10", new LocalDate(2025, 10, 31)), (signal.Key, signal.DueOn));
+        Assert.Equal(($"banking.card_unused:{card:D}:2025-10", new LocalDate(2025, 10, 31)), (signal.Key, signal.DueOn));
         Assert.Equal(("Carte Visa", "4321", "0", "1"), (signal.Params["card"], signal.Params["number"], signal.Params["count"], signal.Params["min"]));
         Assert.Empty(signal.ItemIds);
         // B does not set A's card.
@@ -405,13 +405,13 @@ public class BankingNotificationTests(PostgresFixture fixture) : IClassFixture<P
             every = new { count = 1, unit = "month" },
             payer = new { type = "household" },
         })).EnsureSuccessStatusCode();
-        Assert.Empty(Findings(await SignalsAsync(app, app.AdultA), "shortfall_ahead")); // off by default
+        Assert.Empty(Findings(await SignalsAsync(app, app.AdultA), "banking.shortfall_ahead")); // off by default
 
         var (_, failure) = await app.InvokeAsync(app.AdultA, new Nid.Platform.Notifications.SaveNotificationPreferencesCommand(
             false, Nid.Platform.Notifications.ActionMode.Immediate, Nid.Platform.Notifications.InfoMode.Digest, Nid.Platform.Notifications.DigestFrequency.Weekly, 1,
-            new Dictionary<string, int>(), new Dictionary<string, decimal> { ["shortfall_ahead"] = 0m }, 0), TestContext.Current.CancellationToken);
+            new Dictionary<string, int>(), new Dictionary<string, decimal> { ["banking.shortfall_ahead"] = 0m }, 0), TestContext.Current.CancellationToken);
         Assert.Null(failure);
-        Assert.Empty(Findings(await SignalsAsync(app, app.AdultA), "shortfall_ahead")); // no balance yet
+        Assert.Empty(Findings(await SignalsAsync(app, app.AdultA), "banking.shortfall_ahead")); // no balance yet
 
         await using (var scope = app.Services.CreateAsyncScope())
         {
@@ -421,13 +421,13 @@ public class BankingNotificationTests(PostgresFixture fixture) : IClassFixture<P
         }
 
         // No income: the 31 days from today hold the 5 November charge, the only checking account's though never matched.
-        var signal = Assert.Single(Findings(await SignalsAsync(app, app.AdultA), "shortfall_ahead"));
-        Assert.Equal($"shortfall_ahead:{account:D}:2025-11-05", signal.Key);
+        var signal = Assert.Single(Findings(await SignalsAsync(app, app.AdultA), "banking.shortfall_ahead"));
+        Assert.Equal($"banking.shortfall_ahead:{account:D}:2025-11-05", signal.Key);
         Assert.Empty(signal.ItemIds);
         Assert.Equal(new LocalDate(2025, 11, 5), signal.DueOn);
         Assert.Equal((10m, 12.99m, "EUR", "2025-11-05", "Netflix"), (decimal.Parse(signal.Params["balance_amount"], CultureInfo.InvariantCulture),
             decimal.Parse(signal.Params["charges_amount"], CultureInfo.InvariantCulture), signal.Params["currency"], signal.Params["short_on"], signal.Params["charges"]));
-        Assert.Empty(Findings(await SignalsAsync(app, app.AdultB), "shortfall_ahead")); // A's own account
+        Assert.Empty(Findings(await SignalsAsync(app, app.AdultB), "banking.shortfall_ahead")); // A's own account
     }
 
     [Fact]
@@ -450,13 +450,13 @@ public class BankingNotificationTests(PostgresFixture fixture) : IClassFixture<P
             await scope.ServiceProvider.GetRequiredService<IBalanceStore>().UpsertAsync(
                 new BankBalance(account, NidApp.GoldenCaseToday.PlusDays(-40), 1_000m, "CLBD", Now), TestContext.Current.CancellationToken);
         }
-        Assert.Empty(Findings(await SignalsAsync(app, app.AdultA), "idle_cash")); // off by default
+        Assert.Empty(Findings(await SignalsAsync(app, app.AdultA), "banking.idle_cash")); // off by default
 
         var (_, failure) = await app.InvokeAsync(app.AdultA, new Nid.Platform.Notifications.SaveNotificationPreferencesCommand(
             false, Nid.Platform.Notifications.ActionMode.Immediate, Nid.Platform.Notifications.InfoMode.Digest, Nid.Platform.Notifications.DigestFrequency.Weekly, 1,
-            new Dictionary<string, int>(), new Dictionary<string, decimal> { ["idle_cash"] = 3m }, 0), TestContext.Current.CancellationToken);
+            new Dictionary<string, int>(), new Dictionary<string, decimal> { ["banking.idle_cash"] = 3m }, 0), TestContext.Current.CancellationToken);
         Assert.Null(failure);
-        Assert.Empty(Findings(await SignalsAsync(app, app.AdultA), "idle_cash")); // above the buffer, but no livret with room and no goal behind
+        Assert.Empty(Findings(await SignalsAsync(app, app.AdultA), "banking.idle_cash")); // above the buffer, but no livret with room and no goal behind
 
         // No progress towards a dated target: behind.
         (await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/goals", new
@@ -465,15 +465,15 @@ public class BankingNotificationTests(PostgresFixture fixture) : IClassFixture<P
             owners = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } }, funding = Array.Empty<object>(),
         })).EnsureSuccessStatusCode();
 
-        var signal = Assert.Single(Findings(await SignalsAsync(app, app.AdultA), "idle_cash"));
-        Assert.Equal("idle_cash:2025-10", signal.Key);
+        var signal = Assert.Single(Findings(await SignalsAsync(app, app.AdultA), "banking.idle_cash"));
+        Assert.Equal("banking.idle_cash:2025-10", signal.Key);
         Assert.Empty(signal.ItemIds);
         Assert.Null(signal.DueOn);
         // The buffer is 3 months of the 12,99 subscription, amortized as the emergency fund's target (39,14).
         Assert.Equal((960.86m, 39.14m, "EUR", "goal_behind"), (decimal.Parse(signal.Params["above_amount"], CultureInfo.InvariantCulture),
             decimal.Parse(signal.Params["buffer_amount"], CultureInfo.InvariantCulture), signal.Params["currency"], signal.Params["reason"]));
         Assert.False(signal.Params.ContainsKey("room_amount"));
-        Assert.Empty(Findings(await SignalsAsync(app, app.AdultB), "idle_cash")); // A's own account
+        Assert.Empty(Findings(await SignalsAsync(app, app.AdultB), "banking.idle_cash")); // A's own account
     }
 
     [Fact]
@@ -498,17 +498,17 @@ public class BankingNotificationTests(PostgresFixture fixture) : IClassFixture<P
         Assert.Equal(System.Net.HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Put,
             $"{BankingApi.Root}/budgets/{Nid.Banking.Domain.CategorySeed.Find("transport.fuel")!.Id}", new { amount = "50", period = "month" })).StatusCode);
 
-        Assert.Empty(Findings(await SignalsAsync(app, app.AdultA), "unusual_spending")); // off by default
+        Assert.Empty(Findings(await SignalsAsync(app, app.AdultA), "banking.unusual_spending")); // off by default
         var (_, failure) = await app.InvokeAsync(app.AdultA, new Nid.Platform.Notifications.SaveNotificationPreferencesCommand(
             false, Nid.Platform.Notifications.ActionMode.Immediate, Nid.Platform.Notifications.InfoMode.Digest, Nid.Platform.Notifications.DigestFrequency.Weekly, 1,
-            new Dictionary<string, int>(), new Dictionary<string, decimal> { ["unusual_spending"] = 50m }, 0), TestContext.Current.CancellationToken);
+            new Dictionary<string, int>(), new Dictionary<string, decimal> { ["banking.unusual_spending"] = 50m }, 0), TestContext.Current.CancellationToken);
         Assert.Null(failure);
 
-        var signals = Findings(await SignalsAsync(app, app.AdultA), "unusual_spending").ToDictionary(s => s.Params["name"]);
+        var signals = Findings(await SignalsAsync(app, app.AdultA), "banking.unusual_spending").ToDictionary(s => s.Params["name"]);
         // « Alimentation » runs away with « Courses »: the child says it.
         Assert.Equal(["Carburant", "Courses"], signals.Keys.Order());
         var groceries = signals["Courses"];
-        Assert.Equal($"unusual_spending:{Nid.Banking.Domain.CategorySeed.Find("food.groceries")!.Id:D}:2025-10", groceries.Key);
+        Assert.Equal($"banking.unusual_spending:{Nid.Banking.Domain.CategorySeed.Find("food.groceries")!.Id:D}:2025-10", groceries.Key);
         Assert.Empty(groceries.ItemIds);
         Assert.Equal(("usual", "200.00", "100.00", "2025-10"),
             (groceries.Params["reason"], groceries.Params["spent_amount"], groceries.Params["usual_amount"], groceries.Params["month"]));
@@ -516,6 +516,6 @@ public class BankingNotificationTests(PostgresFixture fixture) : IClassFixture<P
         var fuel = signals["Carburant"];
         Assert.Equal(("budget_over", "60.00", "50.00"), (fuel.Params["reason"], fuel.Params["spent_amount"], fuel.Params["budget_amount"]));
 
-        Assert.Empty(Findings(await SignalsAsync(app, app.AdultB), "unusual_spending")); // B did not turn it on
+        Assert.Empty(Findings(await SignalsAsync(app, app.AdultB), "banking.unusual_spending")); // B did not turn it on
     }
 }

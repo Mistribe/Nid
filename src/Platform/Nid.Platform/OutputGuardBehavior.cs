@@ -71,7 +71,7 @@ public sealed partial class AuditedAccessViolations(
             data["error"] = error.GetType().Name;
         await events.RecordAsync(new SecurityEvent(SecurityEventNames.AccessViolation, actor == default ? null : actor, leaked.ToList(), data, Guid.CreateVersion7()), ct);
         var day = (await HouseholdDayAsync()).ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
-        await notifier.PublishAsync(new Notice("access_violation", new Recipients.AllAdults(), $"access_violation:{request}:{day}", [], new Dictionary<string, string> { ["request"] = request }), ct);
+        await notifier.PublishAsync(new Notice(PlatformKinds.AccessViolation, new Recipients.AllAdults(), $"{PlatformKinds.AccessViolation}:{request}:{day}", [], new Dictionary<string, string> { ["request"] = request }), ct);
     }
 
     /// <summary>

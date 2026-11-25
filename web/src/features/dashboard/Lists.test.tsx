@@ -33,9 +33,9 @@ describe('dashboard lists', () => {
     serve(dashboard({
       upcoming: [
         event(),
-        event({ on: '2025-11-30', kind: 'subscription_expiry', name: 'NordVPN', amount: null }),
-        event({ on: '2025-11-30', kind: 'subscription_cancel_deadline', name: 'Assurance habitation', amount: null }),
-        event({ on: '2025-12-01', kind: 'income_phase_end', module: 'income', id: '00000000-0000-7000-8000-0000000000b1', name: 'Employeur', label: 'CDD', amount: null }),
+        event({ on: '2025-11-30', kind: 'subscriptions.expiry', name: 'NordVPN', amount: null }),
+        event({ on: '2025-11-30', kind: 'subscriptions.cancel_deadline', name: 'Assurance habitation', amount: null }),
+        event({ on: '2025-12-01', kind: 'income.phase_end', module: 'income', id: '00000000-0000-7000-8000-0000000000b1', name: 'Employeur', label: 'CDD', amount: null }),
       ],
     }));
     const { container } = await renderApp('/dashboard');
@@ -65,11 +65,11 @@ describe('dashboard lists', () => {
     const loan = { module: 'loans', id: '00000000-0000-7000-8000-0000000000f2', name: 'Prêt travaux', amount: null };
     serve(dashboard({
       upcoming: [
-        event({ ...property, on: '2025-10-20', kind: 'property_cost_due', label: 'property_tax', amount: { amount: '1200.00', currency: 'EUR' } }),
-        event({ ...property, on: '2025-10-26', kind: 'valuation_due', amount: null }),
-        event({ ...loan, on: '2025-11-15', kind: 'loan_end' }),
-        event({ ...loan, on: '2025-11-15', kind: 'loan_phase_end', label: '1' }),
-        event({ ...property, on: '2025-12-01', kind: 'tenancy_end', label: 'T2 meublé', amount: null }),
+        event({ ...property, on: '2025-10-20', kind: 'realestate.property_cost_due', label: 'property_tax', amount: { amount: '1200.00', currency: 'EUR' } }),
+        event({ ...property, on: '2025-10-26', kind: 'realestate.valuation_due', amount: null }),
+        event({ ...loan, on: '2025-11-15', kind: 'realestate.loan_end' }),
+        event({ ...loan, on: '2025-11-15', kind: 'realestate.loan_phase_end', label: '1' }),
+        event({ ...property, on: '2025-12-01', kind: 'realestate.tenancy_end', label: 'T2 meublé', amount: null }),
       ],
     }));
     const { container } = await renderApp('/dashboard');
@@ -98,8 +98,8 @@ describe('dashboard lists', () => {
     const per = { on: '2025-12-31', module: 'tax', id: null, amount: { amount: '2920.00', currency: 'EUR' } };
     serve(dashboard({
       upcoming: [
-        event({ ...per, kind: 'per_deadline', name: '', label: 'household' }),
-        event({ ...per, kind: 'per_ceiling_expiring', name: 'Alice', amount: { amount: '1000.00', currency: 'EUR' } }),
+        event({ ...per, kind: 'tax.per_deadline', name: '', label: 'household' }),
+        event({ ...per, kind: 'tax.per_ceiling_expiring', name: 'Alice', amount: { amount: '1000.00', currency: 'EUR' } }),
       ],
     }));
     const { container } = await renderApp('/dashboard');
@@ -114,7 +114,7 @@ describe('dashboard lists', () => {
   });
 
   it('announces an envelope\'s tax date, linked to the envelope (issue 400)', async () => {
-    serve(dashboard({ upcoming: [event({ on: '2025-12-01', kind: 'tax_milestone', module: 'investments', id: 'e1', name: 'Vita', label: 'life_insurance_8y', amount: null })] }));
+    serve(dashboard({ upcoming: [event({ on: '2025-12-01', kind: 'investments.tax_milestone', module: 'investments', id: 'e1', name: 'Vita', label: 'life_insurance_8y', amount: null })] }));
     await renderApp('/dashboard');
     const item = within(await section('À venir')).getAllByRole('listitem')[0] as HTMLElement;
     expect(item).toHaveTextContent('8 ans du contrat : la fiscalité des retraits change');
@@ -125,9 +125,9 @@ describe('dashboard lists', () => {
     const tax = { module: 'tax', id: null, name: '', label: null, amount: null };
     serve(dashboard({
       upcoming: [
-        event({ ...tax, on: '2026-05-21', kind: 'tax_filing_deadline', label: 'department_unknown' }),
-        event({ ...tax, on: '2026-09-25', kind: 'tax_balance_due', amount: { amount: '512.00', currency: 'EUR' } }),
-        event({ on: '2026-10-15', kind: 'property_tax_due', module: 'properties', id: 'p1', name: 'Maison', label: null, amount: null }),
+        event({ ...tax, on: '2026-05-21', kind: 'tax.filing_deadline', label: 'department_unknown' }),
+        event({ ...tax, on: '2026-09-25', kind: 'tax.balance_due', amount: { amount: '512.00', currency: 'EUR' } }),
+        event({ on: '2026-10-15', kind: 'realestate.property_tax_due', module: 'properties', id: 'p1', name: 'Maison', label: null, amount: null }),
       ],
     }));
     const { container } = await renderApp('/dashboard');
@@ -145,7 +145,7 @@ describe('dashboard lists', () => {
     const today = todayIso();
     const [y, m, d] = today.split('-').map(Number) as [number, number, number];
     const tomorrow = new Date(Date.UTC(y, m - 1, d + 1)).toISOString().slice(0, 10);
-    serve(dashboard({ upcoming: [event({ on: today }), event({ on: tomorrow, kind: 'subscription_expiry', name: 'NordVPN', amount: null })] }));
+    serve(dashboard({ upcoming: [event({ on: today }), event({ on: tomorrow, kind: 'subscriptions.expiry', name: 'NordVPN', amount: null })] }));
     await renderApp('/dashboard');
 
     const upcoming = await section('À venir');

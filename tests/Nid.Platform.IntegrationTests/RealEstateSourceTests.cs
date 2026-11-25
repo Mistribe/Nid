@@ -48,7 +48,7 @@ public class RealEstateSourceTests(PostgresFixture fixture) : IClassFixture<Post
         return signals!;
     }
 
-    private static readonly string[] DatedKinds = ["tenancy_end", "property_cost_due", "loan_phase_end", "loan_end"];
+    private static readonly string[] DatedKinds = ["realestate.tenancy_end", "realestate.property_cost_due", "realestate.loan_phase_end", "realestate.loan_end"];
 
     [Fact]
     public async Task Dated_signals_match_the_dashboard_within_the_horizon()
@@ -78,9 +78,9 @@ public class RealEstateSourceTests(PostgresFixture fixture) : IClassFixture<Post
 
         var signals = await SignalsAsync(app, app.AdultA, today, 90);
 
-        Assert.Contains(expected, x => x.Item1 == "loan_end");
-        Assert.Contains(expected, x => x.Item1 == "tenancy_end");
-        Assert.Equal(2, expected.Count(x => x.Item1 == "property_cost_due"));
+        Assert.Contains(expected, x => x.Item1 == "realestate.loan_end");
+        Assert.Contains(expected, x => x.Item1 == "realestate.tenancy_end");
+        Assert.Equal(2, expected.Count(x => x.Item1 == "realestate.property_cost_due"));
         Assert.All(dashboard.Where(d => DatedKinds.Contains(d.Item1)), d => Assert.Contains(expected, x => x.Item1 == d.Item1 && x.Item2 == d.Item2));
         var actual = signals.Where(s => DatedKinds.Contains(s.Kind)).Select(s => (s.Kind, s.ItemIds.Single().Value, s.DueOn!.Value)).OrderBy(x => x.Kind, StringComparer.Ordinal).ThenBy(x => x.Item2).ToList();
         Assert.Equal(expected, actual);
@@ -107,18 +107,19 @@ public class RealEstateSourceTests(PostgresFixture fixture) : IClassFixture<Post
         string[] codes = ["rent_arrears", "revision_due", "revision_lost", "irl_missing", "valuation_stale"];
         var expected = overview.GetProperty("watch").EnumerateArray()
             .Where(w => codes.Contains(w.GetProperty("code").GetString()))
-            .Select(w => (w.GetProperty("code").GetString()!, w.GetProperty("propertyId").GetGuid()))
+            .Select(w => ($"realestate.{w.GetProperty("code").GetString()}", w.GetProperty("propertyId").GetGuid())) // #645: the kind is the code, prefixed
             .OrderBy(x => x.Item1, StringComparer.Ordinal).ThenBy(x => x.Item2).ToList();
+        string[] kinds = [.. codes.Select(c => $"realestate.{c}")];
 
         var signals = await SignalsAsync(app, app.AdultA, WatchToday, 90);
 
-        Assert.Contains(expected, x => x.Item1 == "rent_arrears" && x.Item2 == arrears);
-        Assert.Contains(expected, x => x.Item1 == "valuation_stale" && x.Item2 == arrears);
-        Assert.Contains(expected, x => x.Item1 == "revision_due" && x.Item2 == revised);
-        var actual = signals.Where(s => codes.Contains(s.Kind)).Select(s => (s.Kind, s.ItemIds.Single().Value))
+        Assert.Contains(expected, x => x.Item1 == "realestate.rent_arrears" && x.Item2 == arrears);
+        Assert.Contains(expected, x => x.Item1 == "realestate.valuation_stale" && x.Item2 == arrears);
+        Assert.Contains(expected, x => x.Item1 == "realestate.revision_due" && x.Item2 == revised);
+        var actual = signals.Where(s => kinds.Contains(s.Kind)).Select(s => (s.Kind, s.ItemIds.Single().Value))
             .OrderBy(x => x.Kind, StringComparer.Ordinal).ThenBy(x => x.Value).ToList();
         Assert.Equal(expected, actual);
-        Assert.All(signals.Where(s => codes.Contains(s.Kind)), s => Assert.Null(s.DueOn));
+        Assert.All(signals.Where(s => kinds.Contains(s.Kind)), s => Assert.Null(s.DueOn));
     }
 
     [Fact]
@@ -130,8 +131,8 @@ public class RealEstateSourceTests(PostgresFixture fixture) : IClassFixture<Post
 
         var signals = await SignalsAsync(app, app.AdultA, NidApp.GoldenCaseToday, 90);
 
-        var arrears = Assert.Single(signals, s => s.Kind == "rent_arrears");
-        Assert.Equal($"rent_arrears:{property:D}:2025-10", arrears.Key);
+        var arrears = Assert.Single(signals, s => s.Kind == "realestate.rent_arrears");
+        Assert.Equal($"realestate.rent_arrears:{property:D}:2025-10", arrears.Key);
     }
 
     [Fact]
@@ -161,13 +162,13 @@ public class RealEstateSourceTests(PostgresFixture fixture) : IClassFixture<Post
 
         var signals = await SignalsAsync(app, app.AdultA, NidApp.GoldenCaseToday, 90);
 
-        var cost = Assert.Single(signals, s => s.Kind == "property_cost_due");
+        var cost = Assert.Single(signals, s => s.Kind == "realestate.property_cost_due");
         Assert.Equal(new KeyValuePair<string, string>("category", "property_tax"), Assert.Single(cost.Params));
-        var end = Assert.Single(signals, s => s.Kind == "tenancy_end");
+        var end = Assert.Single(signals, s => s.Kind == "realestate.tenancy_end");
         Assert.Equal(new KeyValuePair<string, string>("label", "T2 meublé"), Assert.Single(end.Params));
         foreach (var value in signals.SelectMany(s => s.Params.Values))
             Assert.False(decimal.TryParse(value, NumberStyles.Any, CultureInfo.InvariantCulture, out var n) && n is 900m or 1200m, value);
-        Assert.All(signals.Where(s => s.Kind == "rent_arrears"), s => Assert.Empty(s.Params));
+        Assert.All(signals.Where(s => s.Kind == "realestate.rent_arrears"), s => Assert.Empty(s.Params));
     }
 
     [Fact]
@@ -179,16 +180,16 @@ public class RealEstateSourceTests(PostgresFixture fixture) : IClassFixture<Post
 
         Assert.Equal(
         [
-            new NotificationKind("tenancy_end", "due_date", NotificationLevel.Action, "properties", 90),
-            new NotificationKind("property_cost_due", "due_date", NotificationLevel.Info, "properties", 7),
-            new NotificationKind("property_tax_due", "due_date", NotificationLevel.Action, "properties", 14),
-            new NotificationKind("loan_phase_end", "due_date", NotificationLevel.Info, "loans", 30),
-            new NotificationKind("loan_end", "due_date", NotificationLevel.Info, "loans", 30),
-            new NotificationKind("rent_arrears", "finding", NotificationLevel.Action, "properties", null),
-            new NotificationKind("revision_due", "finding", NotificationLevel.Action, "properties", null),
-            new NotificationKind("revision_lost", "finding", NotificationLevel.Action, "properties", null),
-            new NotificationKind("irl_missing", "finding", NotificationLevel.Info, "properties", null),
-            new NotificationKind("valuation_stale", "finding", NotificationLevel.Info, "properties", null),
+            new NotificationKind("realestate.tenancy_end", "due_date", NotificationLevel.Action, "realestate", 90),
+            new NotificationKind("realestate.property_cost_due", "due_date", NotificationLevel.Info, "realestate", 7),
+            new NotificationKind("realestate.property_tax_due", "due_date", NotificationLevel.Action, "realestate", 14),
+            new NotificationKind("realestate.loan_phase_end", "due_date", NotificationLevel.Info, "realestate", 30),
+            new NotificationKind("realestate.loan_end", "due_date", NotificationLevel.Info, "realestate", 30),
+            new NotificationKind("realestate.rent_arrears", "finding", NotificationLevel.Action, "realestate", null),
+            new NotificationKind("realestate.revision_due", "finding", NotificationLevel.Action, "realestate", null),
+            new NotificationKind("realestate.revision_lost", "finding", NotificationLevel.Action, "realestate", null),
+            new NotificationKind("realestate.irl_missing", "finding", NotificationLevel.Info, "realestate", null),
+            new NotificationKind("realestate.valuation_stale", "finding", NotificationLevel.Info, "realestate", null),
         ], source.Kinds.Select(k => k with { Template = null, Personal = false })); // the copy: NotificationCopyTests
     }
 }

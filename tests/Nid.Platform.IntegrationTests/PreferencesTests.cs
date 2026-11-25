@@ -59,10 +59,10 @@ public class PreferencesTests(PostgresFixture fixture) : IClassFixture<PostgresF
         Assert.Equal(1, prefs.GetProperty("weekday").GetInt32());
         Assert.Equal(0, prefs.GetProperty("version").GetInt32());
         var leads = prefs.GetProperty("leadDays").EnumerateArray().ToList();
-        var lead = leads.Single(l => l.GetProperty("kind").GetString() == "tenancy_end");
+        var lead = leads.Single(l => l.GetProperty("kind").GetString() == "realestate.tenancy_end");
         Assert.Equal((90, 90), (lead.GetProperty("days").GetInt32(), lead.GetProperty("defaultDays").GetInt32()));
         Assert.Equal("Un bail arrive à échéance", lead.GetProperty("title").GetString());
-        Assert.DoesNotContain(leads, l => l.GetProperty("kind").GetString() == "rent_arrears");
+        Assert.DoesNotContain(leads, l => l.GetProperty("kind").GetString() == "realestate.rent_arrears");
     }
 
     [Fact]
@@ -71,25 +71,25 @@ public class PreferencesTests(PostgresFixture fixture) : IClassFixture<PostgresF
         await using var app = await NidApp.StartAsync(fixture);
 
         var before = await app.GetAsync<JsonElement>(app.AdultA, Route);
-        var off = before.GetProperty("signals").EnumerateArray().Single(s => s.GetProperty("kind").GetString() == "net_worth_milestone");
+        var off = before.GetProperty("signals").EnumerateArray().Single(s => s.GetProperty("kind").GetString() == "core.net_worth_milestone");
         Assert.False(off.GetProperty("enabled").GetBoolean());
         Assert.Equal((50_000m, 50_000m, 1_000m, 10_000_000m, "eur"), (off.GetProperty("threshold").GetDecimal(), off.GetProperty("defaultThreshold").GetDecimal(),
             off.GetProperty("min").GetDecimal(), off.GetProperty("max").GetDecimal(), off.GetProperty("unit").GetString()));
 
-        var response = await app.RawAsync(app.AdultA, HttpMethod.Put, Route, Body(signals: new() { ["net_worth_milestone"] = 100_000m }));
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Put, Route, Body(signals: new() { ["core.net_worth_milestone"] = 100_000m }));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var on = (await app.GetAsync<JsonElement>(app.AdultA, Route)).GetProperty("signals").EnumerateArray()
-            .Single(s => s.GetProperty("kind").GetString() == "net_worth_milestone");
+            .Single(s => s.GetProperty("kind").GetString() == "core.net_worth_milestone");
         Assert.Equal((true, 100_000m), (on.GetProperty("enabled").GetBoolean(), on.GetProperty("threshold").GetDecimal()));
         Assert.Contains((await app.GetAsync<JsonElement>(app.AdultB, Route)).GetProperty("signals").EnumerateArray(),
-            s => s.GetProperty("kind").GetString() == "net_worth_milestone" && !s.GetProperty("enabled").GetBoolean()); // per person
+            s => s.GetProperty("kind").GetString() == "core.net_worth_milestone" && !s.GetProperty("enabled").GetBoolean()); // per person
     }
 
     [Theory]
-    [InlineData("net_worth_milestone", 999, "notifications.invalid_threshold")]
-    [InlineData("net_worth_milestone", 10_000_001, "notifications.invalid_threshold")]
-    [InlineData("tenancy_end", 10, "notifications.unknown_kind")] // not an opt-in kind
+    [InlineData("core.net_worth_milestone", 999, "notifications.invalid_threshold")]
+    [InlineData("core.net_worth_milestone", 10_000_001, "notifications.invalid_threshold")]
+    [InlineData("realestate.tenancy_end", 10, "notifications.unknown_kind")] // not an opt-in kind
     public async Task A_signal_outside_its_kind_or_bounds_is_refused(string kind, int threshold, string code)
     {
         await using var app = await NidApp.StartAsync(fixture);
@@ -103,7 +103,7 @@ public class PreferencesTests(PostgresFixture fixture) : IClassFixture<PostgresF
         await using var app = await NidApp.StartAsync(fixture);
 
         var response = await app.RawAsync(app.AdultA, HttpMethod.Put, Route,
-            Body(action: "digest", info: "centre", frequency: "daily", weekday: 3, leadDays: new() { ["tenancy_end"] = 30, ["loan_end"] = 30 }));
+            Body(action: "digest", info: "centre", frequency: "daily", weekday: 3, leadDays: new() { ["realestate.tenancy_end"] = 30, ["realestate.loan_end"] = 30 }));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(1, (await JsonOf(response)).GetProperty("version").GetInt32());
@@ -111,13 +111,13 @@ public class PreferencesTests(PostgresFixture fixture) : IClassFixture<PostgresF
         Assert.Equal(("digest", "centre", "daily", 3, 1), (prefs.GetProperty("action").GetString(), prefs.GetProperty("info").GetString(),
             prefs.GetProperty("frequency").GetString(), prefs.GetProperty("weekday").GetInt32(), prefs.GetProperty("version").GetInt32()));
         var leads = prefs.GetProperty("leadDays").EnumerateArray().ToDictionary(l => l.GetProperty("kind").GetString()!, l => l.GetProperty("days").GetInt32());
-        Assert.Equal(30, leads["tenancy_end"]);
-        Assert.Equal(30, leads["loan_end"]); // the default
+        Assert.Equal(30, leads["realestate.tenancy_end"]);
+        Assert.Equal(30, leads["realestate.loan_end"]); // the default
 
         // Only what differs from the default is stored; another person is unaffected.
         await using var scope = app.Services.CreateAsyncScope();
         var stored = await scope.ServiceProvider.GetRequiredService<INotificationStore>().PreferencesAsync(app.AdultA, TestContext.Current.CancellationToken);
-        Assert.Equal(new Dictionary<string, int> { ["tenancy_end"] = 30 }, stored.LeadDays);
+        Assert.Equal(new Dictionary<string, int> { ["realestate.tenancy_end"] = 30 }, stored.LeadDays);
         Assert.Equal(0, (await app.GetAsync<JsonElement>(app.AdultB, Route)).GetProperty("version").GetInt32());
     }
 
@@ -142,9 +142,9 @@ public class PreferencesTests(PostgresFixture fixture) : IClassFixture<PostgresF
         await using var app = await NidApp.StartAsync(fixture);
 
         await AssertFieldAsync(app, Body(leadDays: new() { ["nope"] = 5 }), "leadDays.nope", "notifications.unknown_kind");
-        await AssertFieldAsync(app, Body(leadDays: new() { ["rent_arrears"] = 5 }), "leadDays.rent_arrears", "notifications.unknown_kind");
-        await AssertFieldAsync(app, Body(leadDays: new() { ["tenancy_end"] = 366 }), "leadDays.tenancy_end", "notifications.invalid_lead_days");
-        await AssertFieldAsync(app, Body(leadDays: new() { ["tenancy_end"] = -1 }), "leadDays.tenancy_end", "notifications.invalid_lead_days");
+        await AssertFieldAsync(app, Body(leadDays: new() { ["realestate.rent_arrears"] = 5 }), "leadDays.realestate.rent_arrears", "notifications.unknown_kind");
+        await AssertFieldAsync(app, Body(leadDays: new() { ["realestate.tenancy_end"] = 366 }), "leadDays.realestate.tenancy_end", "notifications.invalid_lead_days");
+        await AssertFieldAsync(app, Body(leadDays: new() { ["realestate.tenancy_end"] = -1 }), "leadDays.realestate.tenancy_end", "notifications.invalid_lead_days");
         await AssertFieldAsync(app, Body(weekday: 0), "weekday", "notifications.invalid_weekday");
         await AssertFieldAsync(app, Body(weekday: 8), "weekday", "notifications.invalid_weekday");
         await AssertFieldAsync(app, Body(emailEnabled: true), "emailEnabled", "notifications.email_unavailable");

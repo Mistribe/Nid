@@ -36,7 +36,7 @@ export const person = (over: Partial<DashboardPerson> = {}): DashboardPerson => 
 export const commitment = (source: string, amortized: string) => ({ source, amortized: eur(amortized), estimated: false });
 
 export const event = (over: Partial<DashboardEvent> = {}): DashboardEvent => ({
-  on: '2025-11-10', kind: 'subscription_renewal', id: '00000000-0000-7000-8000-0000000000c1', module: 'subscriptions',
+  on: '2025-11-10', kind: 'subscriptions.renewal', id: '00000000-0000-7000-8000-0000000000c1', module: 'subscriptions',
   name: 'Amazon Prime', label: null, amount: eur('69.90'), ...over,
 });
 

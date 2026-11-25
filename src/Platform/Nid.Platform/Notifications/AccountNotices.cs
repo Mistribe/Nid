@@ -9,12 +9,12 @@ namespace Nid.Platform.Notifications;
 /// </summary>
 public static class AccountNotices
 {
-    public const string LoginLocked = "login_locked";
-    public const string PasswordLinkIssued = "password_link_issued";
-    public const string PasswordReset = "password_reset";
-    public const string PasswordChanged = "password_changed";
-    public const string TotpReset = "totp_reset";
-    public const string RecoveryCodesLow = "recovery_codes_low";
+    public const string LoginLocked = "platform.login_locked";
+    public const string PasswordLinkIssued = "platform.password_link_issued";
+    public const string PasswordReset = "platform.password_reset";
+    public const string PasswordChanged = "platform.password_changed";
+    public const string TotpReset = "platform.totp_reset";
+    public const string RecoveryCodesLow = "platform.recovery_codes_low";
 
     /// <summary>The recovery codes left at which the holder is told to make new ones; the Security page warns at the same count.</summary>
     public const string CodesLeftWarning = "2";

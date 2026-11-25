@@ -326,7 +326,7 @@ describe('DashboardPage', () => {
     expect(await screen.findByRole('link', { name: '2 choses à faire' })).toHaveAttribute('href', '/routine');
   });
 
-  const gap = (id: string, name: string) => todoItem({ kind: 'income_gap_soon', module: 'income', id, name, on: '2025-12-31' });
+  const gap = (id: string, name: string) => todoItem({ kind: 'income.gap_soon', module: 'income', id, name, on: '2025-12-31' });
 
   it('counts only the stale and missing values in the routine link', async () => {
     serve(dashboard({ todo: [todoItem(), gap('00000000-0000-7000-8000-0000000000f1', 'Salaire')] }));

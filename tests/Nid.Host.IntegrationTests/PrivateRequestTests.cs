@@ -91,7 +91,7 @@ public class PrivateRequestTests(PostgresFixture fixture) : IClassFixture<Postgr
         var sharing = await GetAsync(app, app.AdultB, Sharing(envelope));
         Assert.Equal(("shared", false), (sharing.GetProperty("visibility").GetString(), sharing.GetProperty("privateAsked").GetBoolean()));
         await using var platform = PostgresFixture.NewPlatformContext(app.ConnectionString);
-        var notice = await platform.Notifications.AsNoTracking().SingleAsync(n => n.Key == $"private_request_refused:{asked.GetProperty("id").GetGuid()}",
+        var notice = await platform.Notifications.AsNoTracking().SingleAsync(n => n.Key == $"core.private_request_refused:{asked.GetProperty("id").GetGuid()}",
             TestContext.Current.CancellationToken);
         Assert.Equal(app.AdultA.Value, notice.PersonId);
     }

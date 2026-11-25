@@ -269,7 +269,7 @@ public sealed class SubmitProposalHandler(
         {
             foreach (var older in outcome.Superseded ?? [])
                 await notifier.ResolveAsync(ProposalAccess.NoticeKey(older), ct);
-            await notifier.PublishAsync(new Notice("proposal_pending", new Recipients.People(deciders),
+            await notifier.PublishAsync(new Notice(ProposalNotices.Pending, new Recipients.People(deciders),
                 ProposalAccess.NoticeKey(outcome.Proposal.Id), outcome.Proposal.Target is { } t ? [t] : [], new Dictionary<string, string>()), ct);
         }
         var names = await ProposalAccess.NamesAsync(items, [outcome.Proposal.Target], ct);

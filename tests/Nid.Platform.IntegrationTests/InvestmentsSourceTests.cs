@@ -85,24 +85,24 @@ public class InvestmentsSourceTests(PostgresFixture fixture) : IClassFixture<Pos
         }
         var watch = (await SendAsync(app, app.AdultA, HttpMethod.Get, "/api/v1/investments/overview?scope=me", null)).GetProperty("watch").EnumerateArray()
             .Where(w => w.GetProperty("code").GetString() is "stale_value" or "uc_share_below_floor")
-            .Select(w => (w.GetProperty("code").GetString()!, w.GetProperty("envelopeId").GetGuid(), Iso(w.GetProperty("on").GetString()!)))
+            .Select(w => ($"investments.{w.GetProperty("code").GetString()}", w.GetProperty("envelopeId").GetGuid(), Iso(w.GetProperty("on").GetString()!))) // #645: the kind is the code, prefixed
             .ToList();
         var expected = maturities.Concat(watch).OrderBy(x => x.Item1, StringComparer.Ordinal).ThenBy(x => x.Item2).ToList();
 
         var signals = await SignalsAsync(app, app.AdultA, 90);
 
-        Assert.Contains(expected, x => x.Item1 == "holding_maturity" && x.Item2 == below.Value && x.Item3 == new LocalDate(2025, 11, 20));
-        Assert.Single(expected, x => x.Item1 == "holding_maturity");
-        Assert.Contains(expected, x => x.Item1 == "uc_share_below_floor" && x.Item2 == below.Value);
-        Assert.Contains(expected, x => x.Item1 == "stale_value" && x.Item2 == stale.Value);
+        Assert.Contains(expected, x => x.Item1 == "investments.holding_maturity" && x.Item2 == below.Value && x.Item3 == new LocalDate(2025, 11, 20));
+        Assert.Single(expected, x => x.Item1 == "investments.holding_maturity");
+        Assert.Contains(expected, x => x.Item1 == "investments.uc_share_below_floor" && x.Item2 == below.Value);
+        Assert.Contains(expected, x => x.Item1 == "investments.stale_value" && x.Item2 == stale.Value);
         // A finding has no DueOn: its key carries the watch date.
         var actual = signals.Select(s => (s.Kind, s.ItemIds.Single().Value, s.DueOn ?? Iso(s.Key[^10..])))
             .OrderBy(x => x.Kind, StringComparer.Ordinal).ThenBy(x => x.Item2).ToList();
         Assert.Equal(expected, actual);
         foreach (var s in signals)
             Assert.StartsWith($"{s.Kind}:{s.ItemIds[0].Value:D}:", s.Key, StringComparison.Ordinal);
-        Assert.All(signals.Where(s => s.Kind != "holding_maturity"), s => Assert.Null(s.DueOn));
-        Assert.All(signals.Where(s => s.Kind == "holding_maturity"), s => Assert.NotNull(s.DueOn));
+        Assert.All(signals.Where(s => s.Kind != "investments.holding_maturity"), s => Assert.Null(s.DueOn));
+        Assert.All(signals.Where(s => s.Kind == "investments.holding_maturity"), s => Assert.NotNull(s.DueOn));
     }
 
     private static LocalDate Iso(string text) => NodaTime.Text.LocalDatePattern.Iso.Parse(text).Value;
@@ -127,9 +127,9 @@ public class InvestmentsSourceTests(PostgresFixture fixture) : IClassFixture<Pos
 
         var signals = await SignalsAsync(app, app.AdultA, 90);
 
-        var maturity = Assert.Single(signals, s => s.Kind == "holding_maturity");
+        var maturity = Assert.Single(signals, s => s.Kind == "investments.holding_maturity");
         Assert.Equal(new KeyValuePair<string, string>("label", "Autocall Europe"), Assert.Single(maturity.Params));
-        Assert.All(signals.Where(s => s.Kind != "holding_maturity"), s => Assert.Empty(s.Params));
+        Assert.All(signals.Where(s => s.Kind != "investments.holding_maturity"), s => Assert.Empty(s.Params));
         foreach (var value in signals.SelectMany(s => s.Params.Values))
             Assert.False(decimal.TryParse(value, NumberStyles.Any, CultureInfo.InvariantCulture, out _), value);
     }
@@ -143,10 +143,10 @@ public class InvestmentsSourceTests(PostgresFixture fixture) : IClassFixture<Pos
 
         Assert.Equal(
         [
-            new NotificationKind("holding_maturity", "due_date", NotificationLevel.Action, "investments", 30),
-            new NotificationKind("holding_entitlement", "due_date", NotificationLevel.Info, "investments", 30),
-            new NotificationKind("stale_value", "finding", NotificationLevel.Info, "investments", null),
-            new NotificationKind("uc_share_below_floor", "finding", NotificationLevel.Info, "investments", null),
+            new NotificationKind("investments.holding_maturity", "due_date", NotificationLevel.Action, "investments", 30),
+            new NotificationKind("investments.holding_entitlement", "due_date", NotificationLevel.Info, "investments", 30),
+            new NotificationKind("investments.stale_value", "finding", NotificationLevel.Info, "investments", null),
+            new NotificationKind("investments.uc_share_below_floor", "finding", NotificationLevel.Info, "investments", null),
         ], source.Kinds.Select(k => k with { Template = null, Personal = false })); // the copy: NotificationCopyTests
     }
 }
