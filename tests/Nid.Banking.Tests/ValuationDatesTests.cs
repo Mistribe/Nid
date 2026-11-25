@@ -19,8 +19,19 @@ public class ValuationDatesTests
 
     [Fact]
     public void A_manual_sync_adds_today_with_the_latest_balance()
-        => Assert.Equal([(D(8, 31), D(8, 31)), (D(9, 30), D(9, 15)), (D(10, 2), D(9, 15))],
-            ValuationDates.Due(D(8, 12), null, Balances, D(10, 2), manual: true));
+        => Assert.Equal([(D(8, 31), D(8, 31)), (D(9, 30), D(9, 15)), (D(10, 2), D(10, 1))],
+            ValuationDates.Due(D(8, 12), null, [.. Balances, D(10, 1)], D(10, 2), manual: true));
+
+    [Fact]
+    public void A_manual_sync_without_a_newer_balance_values_nothing_more()
+        => Assert.Equal([(D(8, 31), D(8, 31)), (D(9, 30), D(9, 15))], ValuationDates.Due(D(8, 12), null, Balances, D(10, 2), manual: true));
+
+    [Fact]
+    public void A_month_end_after_a_click_waits_for_a_newer_balance()
+    {
+        Assert.Empty(ValuationDates.Due(D(8, 12), D(10, 2), [D(10, 2)], D(11, 3), manual: false));
+        Assert.Equal([(D(10, 31), D(10, 20))], ValuationDates.Due(D(8, 12), D(10, 2), [D(10, 2), D(10, 20)], D(11, 3), manual: false));
+    }
 
     [Fact]
     public void A_second_click_the_same_day_leaves_today_as_the_first_left_it()
