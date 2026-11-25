@@ -142,5 +142,19 @@
       "line": "Your AI assistant reads your figures and proposes; a person approves every change."
     },
     "preview": true
+  },
+  {
+    "slug": "autres-biens",
+    "icon": "car",
+    "route": "/other-assets",
+    "fr": {
+      "title": "Autres biens",
+      "line": "Un véhicule, de l’or, une œuvre d’art : leur valeur dans le temps, comptée dans le patrimoine."
+    },
+    "en": {
+      "title": "Other assets",
+      "line": "A vehicle, gold, a work of art: their value over time, counted in your net worth."
+    },
+    "preview": true
   }
 ]

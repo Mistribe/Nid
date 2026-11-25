@@ -1,7 +1,7 @@
 ---
 // The feature areas as a grid of cards, each linking to its page (src/data/areas.ts).
 import { Badge } from '@astrojs/starlight/components';
-import { Baby, FileText, House, Landmark, LayoutDashboard, Receipt, Repeat, Sparkles, Target, TrendingUp, Wallet } from '@lucide/astro';
+import { Baby, Car, FileText, House, Landmark, LayoutDashboard, Receipt, Repeat, Sparkles, Target, TrendingUp, Wallet } from '@lucide/astro';
 import Section from './Section.astro';
 // The feature areas, in the order of this grid and the sidebar; `route` is the app screen scripts/capture.mjs photographs.
 import areas from '../../data/areas.json';
@@ -11,7 +11,7 @@ interface Props { lang: Lang; heading?: boolean }
 const { lang, heading = true } = Astro.props;
 const icons = {
   'layout-dashboard': LayoutDashboard, repeat: Repeat, 'trending-up': TrendingUp, house: House, wallet: Wallet, receipt: Receipt,
-  baby: Baby, target: Target, 'file-text': FileText, landmark: Landmark, sparkles: Sparkles,
+  baby: Baby, target: Target, 'file-text': FileText, landmark: Landmark, sparkles: Sparkles, car: Car,
 };
 const copy = {
   fr: { title: 'Tout le foyer, module par module', lead: 'Pensé pour les ménages français : impôt sur le revenu, PEA, PER, Livret A, assurance vie et Pajemploi fonctionnent d’emblée.' },

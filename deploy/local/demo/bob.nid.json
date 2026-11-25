@@ -128,6 +128,23 @@
       "visibility": "private"
     }
   ],
+  "assets": [
+    {
+      "id": "bob-asset-coins",
+      "name": "Pièces d’or",
+      "kind": "precious_metal",
+      "currency": "EUR",
+      "weight_grams": "29.28",
+      "fineness": "916.7",
+      "ownership": [
+        {
+          "person": "adult-1",
+          "share_bp": 10000
+        }
+      ],
+      "visibility": "private"
+    }
+  ],
   "valuations": [
     {
       "id": "val-bob-env-ldds-2024-11",
@@ -558,6 +575,15 @@
       "as_of": "2026-10-28",
       "amount": {
         "amount": "15404.31",
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "val-bob-coins-2026",
+      "item": "bob-asset-coins",
+      "as_of": "2026-09-30",
+      "amount": {
+        "amount": "2400.00",
         "currency": "EUR"
       }
     }

@@ -1930,6 +1930,15 @@
         "amount": "21000.00",
         "currency": "EUR"
       }
+    },
+    {
+      "id": "val-car-2025",
+      "item": "asset-car",
+      "as_of": "2025-12-31",
+      "amount": {
+        "amount": "12000.00",
+        "currency": "EUR"
+      }
     }
   ],
   "flows": [
@@ -4464,6 +4473,27 @@
         "amount": "85.00",
         "currency": "EUR"
       }
+    }
+  ],
+  "assets": [
+    {
+      "id": "asset-car",
+      "name": "Voiture familiale",
+      "kind": "vehicle",
+      "currency": "EUR",
+      "purchase_price": "18000.00",
+      "purchased_on": "2022-05-10",
+      "ownership": [
+        {
+          "person": "adult-1",
+          "share_bp": 5000
+        },
+        {
+          "person": "adult-2",
+          "share_bp": 5000
+        }
+      ],
+      "visibility": "shared"
     }
   ],
   "loans": [
