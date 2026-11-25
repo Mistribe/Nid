@@ -25295,6 +25295,7 @@ export interface paths {
                     ended?: boolean;
                     envelope?: string;
                     unfinanced?: boolean;
+                    writable?: boolean;
                 };
                 header?: never;
                 path?: never;

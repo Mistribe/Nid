@@ -26770,6 +26770,13 @@
             "schema": {
               "type": "boolean"
             }
+          },
+          {
+            "name": "writable",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
           }
         ],
         "responses": {
