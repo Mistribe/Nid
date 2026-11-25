@@ -556,6 +556,28 @@
       "delete_confirm": "La règle « {{stem}} » sera supprimée : une prochaine opération à ce libellé n'est plus reliée d'elle-même. Les opérations déjà reliées le restent.",
       "deleted": "Règle supprimée."
     },
+    "to_classify": {
+      "tip": "Les opérations sans catégorie des comptes que vous gérez, avec la catégorie que Nid propose quand il en a une. Accepter compte comme un classement à la main : Nid s'en sert ensuite pour ses prochaines suggestions.",
+      "account": "Compte",
+      "all_accounts": "Tous les comptes",
+      "date": "Date",
+      "label": "Libellé",
+      "amount": "Montant",
+      "suggestion": "Suggestion de Nid",
+      "actions": "Actions",
+      "why": "Pourquoi {{category}} ?",
+      "accept": "Accepter",
+      "accept_one": "Accepter {{category}} pour « {{label}} »",
+      "other": "Autre…",
+      "choose": "Choisir…",
+      "other_for": "Choisir une autre catégorie pour « {{label}} »",
+      "accept_page_one": "Accepter la suggestion de la page",
+      "accept_page_other": "Accepter les {{count}} suggestions de la page",
+      "accepted_one": "{{count}} opération classée.",
+      "accepted_other": "{{count}} opérations classées.",
+      "empty": "Tout est classé",
+      "empty_body": "Aucune opération sans catégorie sur les comptes que vous gérez."
+    },
     "suggestions": {
       "title_one": "{{count}} suggestion de catégorie",
       "title_other": "{{count}} suggestions de catégorie",

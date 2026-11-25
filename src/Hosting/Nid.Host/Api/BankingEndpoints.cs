@@ -360,6 +360,11 @@ public static class BankingEndpoints
                 => (await invoker.InvokeAsync(new ListCategorySuggestionsQuery(page ?? 1), ct)).ToHttp(suggestions => suggestions))
             .Returns<CategorySuggestionPage>();
 
+        // « À classer »: the lines to classify on the accounts the person writes, each with the category Nid suggests, paged by the server.
+        api.MapGet("/lines-to-classify", async (Guid? account, int? page, IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new ListLinesToClassifyQuery(account, page ?? 1), ct)).ToHttp(lines => lines))
+            .Returns<LinesToClassifyPage>();
+
         api.MapGet("/category-suggestions/dismissals", async (IInvoker invoker, CancellationToken ct)
                 => (await invoker.InvokeAsync(new ListSuggestionDismissalsQuery(), ct)).ToHttp(dismissals => dismissals))
             .Returns<IReadOnlyList<SuggestionDismissalView>>();

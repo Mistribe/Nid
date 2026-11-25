@@ -46,6 +46,7 @@ namespace Nid.Host.Api.Json;
 [JsonSerializable(typeof(BankingEndpoints.CategoryRuleBody))]
 [JsonSerializable(typeof(BankingEndpoints.CategoryRuleApplied))]
 [JsonSerializable(typeof(CategorySuggestionPage))]
+[JsonSerializable(typeof(LinesToClassifyPage))]
 [JsonSerializable(typeof(SuggestionDismissalView))]
 [JsonSerializable(typeof(IReadOnlyList<SuggestionDismissalView>))]
 [JsonSerializable(typeof(BankingEndpoints.SuggestionDismissalBody))]

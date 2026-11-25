@@ -20399,6 +20399,103 @@
         }
       }
     },
+    "/api/v1/banking/lines-to-classify": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "account",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LinesToClassifyPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/banking/category-suggestions/dismissals": {
       "get": {
         "tags": [
@@ -56584,6 +56681,87 @@
           }
         },
         "additionalProperties": false
+      },
+      "LinesToClassifyPage": {
+        "required": [
+          "items",
+          "total",
+          "accounts"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LineToClassifyView"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "accounts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OptionView"
+            }
+          }
+        }
+      },
+      "LineSuggestionView": {
+        "required": [
+          "categoryId",
+          "categoryName",
+          "evidenceCount",
+          "agreement",
+          "byMeaning",
+          "pattern"
+        ],
+        "type": "object",
+        "properties": {
+          "categoryId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "categoryName": {
+            "type": "string"
+          },
+          "evidenceCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "agreement": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "byMeaning": {
+            "type": "boolean"
+          },
+          "pattern": {
+            "type": "string"
+          }
+        }
+      },
+      "LineToClassifyView": {
+        "required": [
+          "line"
+        ],
+        "type": "object",
+        "properties": {
+          "line": {
+            "$ref": "#/components/schemas/BankTransactionView"
+          },
+          "suggestion": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LineSuggestionView"
+              }
+            ]
+          }
+        }
       },
       "LineView": {
         "required": [

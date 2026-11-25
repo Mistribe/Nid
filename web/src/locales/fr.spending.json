@@ -1,7 +1,7 @@
 {
   "spending": {
     "title": "Dépenses",
-    "tabs": { "overview": "Vue d’ensemble", "operations": "Opérations", "categories": "Catégories" },
+    "tabs": { "overview": "Vue d’ensemble", "operations": "Opérations", "to_classify": "À classer", "categories": "Catégories" },
     "see_operations": "Voir dans Opérations",
     "to_classify_one": "{{count}} opération à classer",
     "to_classify_other": "{{count}} opérations à classer",

@@ -770,6 +770,8 @@ public static class RequestCatalogue
         new(typeof(Nid.Banking.Application.Spending.SuggestBudgetsQuery), false, (_, _) => new Nid.Banking.Application.Spending.SuggestBudgetsQuery()),
         // #449: suggestions count only accounts the actor reads; a dismissal names a pattern, listed only to who reads a line of it.
         new(typeof(ListCategorySuggestionsQuery), false, (_, _) => new ListCategorySuggestionsQuery(1)),
+        // « À classer »: lines of the accounts the actor writes only, suggestions from those they read.
+        new(typeof(ListLinesToClassifyQuery), false, (_, _) => new ListLinesToClassifyQuery(null, 1)),
         new(typeof(ListSuggestionDismissalsQuery), false, (_, _) => new ListSuggestionDismissalsQuery()),
         new(typeof(DismissCategorySuggestionCommand), false, (_, _) => new DismissCategorySuggestionCommand("BENCH", "debit", Nid.Banking.Domain.CategorySeed.Find("food.groceries")!.Id)),
         new(typeof(WithdrawSuggestionDismissalCommand), false, (_, _) => new WithdrawSuggestionDismissalCommand(Guid.NewGuid())),

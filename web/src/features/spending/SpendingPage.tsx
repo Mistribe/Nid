@@ -19,10 +19,12 @@ const SpendingOverview = lazy(() => import('./SpendingOverview').then((m) => ({ 
 const SpendingControls = lazy(() => import('./SpendingOverview').then((m) => ({ default: m.SpendingControls })));
 const OperationsPage = lazy(() => import('@/features/operations/OperationsPage').then((m) => ({ default: m.OperationsPage })));
 const CategoriesTab = lazy(() => import('./CategoriesTab'));
+const ToClassifyTab = lazy(() => import('./ToClassifyTab'));
 
-const TABS = ['overview', 'operations', 'categories'] as const;
+const TABS = ['overview', 'operations', 'to-classify', 'categories'] as const;
 
-/** Dépenses (#423): the overview by category (`/spending`), the bank lines (`?tab=operations`), the categories and their rules (`?tab=categories`). */
+/** Dépenses (#423): the overview by category (`/spending`), the bank lines (`?tab=operations`), the lines to classify with Nid's suggestion
+ * (`?tab=to-classify`), the categories and their rules (`?tab=categories`). */
 export function SpendingPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -45,6 +47,7 @@ export function SpendingPage() {
         { id: 'operations', label: t('spending.tabs.operations'), content: lazyTab(<OperationsPage />), badge: toClassify ? (
           <Badge variant="outline" className="border-transparent bg-status-warning/15 text-status-warning-text"><span aria-hidden="true">{t('spending.to_classify_short', { count: toClassify })}</span><span className="sr-only">{t('spending.to_classify', { count: toClassify })}</span></Badge>
         ) : null },
+        { id: 'to-classify', label: t('spending.tabs.to_classify'), content: lazyTab(<ToClassifyTab />) },
         { id: 'categories', label: t('spending.tabs.categories'), content: lazyTab(<CategoriesTab />) },
       ]} />
     </div>

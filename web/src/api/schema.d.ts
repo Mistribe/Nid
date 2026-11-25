@@ -19405,6 +19405,98 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/banking/lines-to-classify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    account?: string;
+                    page?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LinesToClassifyPage"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/banking/category-suggestions/dismissals": {
         parameters: {
             query?: never;
@@ -42384,6 +42476,27 @@ export interface components {
         };
         LineSplitBody: {
             parts?: null | components["schemas"]["LinePartBody"][];
+        };
+        LinesToClassifyPage: {
+            items: components["schemas"]["LineToClassifyView"][];
+            /** Format: int32 */
+            total: number;
+            accounts: components["schemas"]["OptionView"][];
+        };
+        LineSuggestionView: {
+            /** Format: uuid */
+            categoryId: string;
+            categoryName: string;
+            /** Format: int32 */
+            evidenceCount: number;
+            /** Format: int32 */
+            agreement: number;
+            byMeaning: boolean;
+            pattern: string;
+        };
+        LineToClassifyView: {
+            line: components["schemas"]["BankTransactionView"];
+            suggestion?: null | components["schemas"]["LineSuggestionView"];
         };
         LineView: {
             units?: null | string;
