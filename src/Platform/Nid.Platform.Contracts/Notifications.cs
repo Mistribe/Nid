@@ -104,6 +104,15 @@ public interface INotificationSource
     Task<Result<IReadOnlyList<Signal>>> SignalsAsync(PersonId reader, LocalDate today, LocalDate horizon, CancellationToken ct);
 }
 
+/// <summary>
+/// #644: the kinds a module publishes through <see cref="INotifier"/>, which no source evaluates, declared with their copy next to their owner.
+/// The catalogue reads every one the host registers, next to the sources' kinds.
+/// </summary>
+public interface IPublishedNotificationKinds
+{
+    IReadOnlyList<NotificationKind> Kinds { get; }
+}
+
 /// <summary>The states of a stored notification (notifications design §3.3).</summary>
 public static class NotificationStates
 {

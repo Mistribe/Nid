@@ -51,7 +51,7 @@ public sealed class AssistantToolInvoker : IAssistantTools, IAsyncDisposable
             new SecurityEvent(SecurityEventNames.McpToolCalled, person, Ids(args), new Dictionary<string, string> { ["tool"] = tool }), ct);
 
         var request = new RequestContext<CallToolRequestParams>(server.Value,
-            new JsonRpcRequest { Id = new RequestId(Guid.NewGuid().ToString()), Method = RequestMethods.ToolsCall },
+            new JsonRpcRequest { Id = new RequestId(Guid.CreateVersion7().ToString()), Method = RequestMethods.ToolsCall },
             new CallToolRequestParams { Name = tool, Arguments = args }) { Services = services, MatchedPrimitive = mcp };
         CallToolResult result;
         try

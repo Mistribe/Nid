@@ -20,34 +20,30 @@ public sealed partial class ModelWorkLoop(IServiceScopeFactory scopes, ILogger<M
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         using var timer = new PeriodicTimer(JobsEvery);
-        var nextWorkers = DateTimeOffset.MinValue;
-        var nextPurge = DateTimeOffset.MinValue;
-        var nextIndex = DateTimeOffset.MinValue;
-        while (await timer.WaitForNextTickAsync(stoppingToken))
+        // Counted in ticks, not read off a clock: a test's frozen IClock would stop the slower passes after their first run.
+        for (var tick = 0L; await timer.WaitForNextTickAsync(stoppingToken); tick++)
         {
-            if (DateTimeOffset.UtcNow >= nextWorkers)
+            if (Due(tick, WorkersEvery))
             {
-                nextWorkers = DateTimeOffset.UtcNow + WorkersEvery;
                 await PassAsync<IWorkerMonitor>((m, ct) => m.RunOnceAsync(ct), stoppingToken);
                 await PassAsync<IBudgetSweep>((s, ct) => s.RunOnceAsync(ct), stoppingToken); // #488: holds no answer settled
             }
 
             await PassAsync<IJobDispatcher>((d, ct) => d.RunOnceAsync(ct), stoppingToken);
 
-            if (DateTimeOffset.UtcNow >= nextIndex)
-            {
-                nextIndex = DateTimeOffset.UtcNow + IndexEvery;
+            if (Due(tick, IndexEvery))
                 await PassAsync<Nid.Documents.Application.DocumentIndexer>((i, ct) => i.RunOnceAsync(ct), stoppingToken);
-            }
 
-            if (DateTimeOffset.UtcNow >= nextPurge)
+            if (Due(tick, PurgeEvery))
             {
-                nextPurge = DateTimeOffset.UtcNow + PurgeEvery;
                 await PassAsync<IJobPurge>((p, ct) => p.RunOnceAsync(ct), stoppingToken);
                 await PassAsync<IConversationPurge>((p, ct) => p.RunOnceAsync(ct), stoppingToken); // #531: past their retention
             }
         }
     }
+
+    /// <summary>The first tick runs every pass, then each pass every <paramref name="every"/>, in ticks of <see cref="JobsEvery"/>.</summary>
+    public static bool Due(long tick, TimeSpan every) => tick % (every.Ticks / JobsEvery.Ticks) == 0;
 
     private async Task PassAsync<T>(Func<T, CancellationToken, Task> pass, CancellationToken ct) where T : notnull
     {

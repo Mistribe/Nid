@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Application.Dashboard;
+using Nid.Platform.Contracts;
 using Nid.Platform.Notifications;
 using Nid.TestSupport;
 
@@ -42,4 +43,17 @@ public partial class KindNamingTests(PostgresFixture fixture) : IClassFixture<Po
         // A legacy name gone (renamed with its rows) leaves the list.
         Assert.Empty(Legacy.Except(notifications.Select(k => k.Kind)).Except(events));
     }
+
+    /// <summary>#644: a kind published through <c>INotifier</c> is declared by the module it belongs to, as a source's kinds are.</summary>
+    [Fact]
+    public async Task Every_published_kind_is_declared_by_its_module()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var published = app.Services.GetServices<IPublishedNotificationKinds>().ToList();
+
+        Assert.Equal(["ai", "core", "platform"], published.Select(Owner).Order());
+        Assert.All(published, p => Assert.All(p.Kinds, k => Assert.Equal(Owner(p), k.Module)));
+    }
+
+    private static string Owner(IPublishedNotificationKinds kinds) => kinds.GetType().Namespace!.Split('.')[1].ToLowerInvariant();
 }
