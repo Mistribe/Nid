@@ -1,0 +1,4 @@
+{
+  "en": "On the AI jobs page, a job waiting for a free slot on a busy worker now says so, instead of reading as a worker failure.",
+  "fr": "Sur la page des tâches IA, une tâche qui attend qu’un worker occupé se libère le dit, au lieu d’afficher un échec du worker."
+}

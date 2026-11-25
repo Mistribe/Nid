@@ -2,7 +2,7 @@
   "name": "nid-site",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@12.21.0",
+  "packageManager": "pnpm@12.22.0",
   "engines": {
     "node": ">=24"
   },

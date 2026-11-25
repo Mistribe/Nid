@@ -108,7 +108,7 @@ public class SyncTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
         await using var _app = app;
 
         var proposals = await BankProposalsAsync(app, app.AdultA);
-        Assert.Equal(["2026-08-31", "2026-09-30"], proposals.Select(p => p.GetProperty("subjectKey").GetString()));
+        Assert.Equal(["2026-08-31", "2026-09-15"], proposals.Select(p => p.GetProperty("subjectKey").GetString()));
         var august = proposals[0];
         Assert.Equal(("investments.record_valuation", envelope.Value, app.AdultA.Value, "job"),
             (august.GetProperty("kind").GetString(), august.GetProperty("targetItemId").GetGuid(), august.GetProperty("createdByPersonId").GetGuid(),
@@ -116,7 +116,7 @@ public class SyncTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
         Assert.Equal(("2026-08-31", 1000m, "Solde bancaire du 31/08/2026"),
             (august.GetProperty("payload").GetProperty("asOf").GetString(), decimal.Parse(august.GetProperty("payload").GetProperty("amount").GetProperty("amount").GetString()!,
                 System.Globalization.CultureInfo.InvariantCulture), august.GetProperty("payload").GetProperty("note").GetString()));
-        // September's end takes the month's last balance.
+        // September's end takes the month's last balance, dated as it (#429: the flows after it are the next value's).
         Assert.Equal("Solde bancaire du 15/09/2026", proposals[1].GetProperty("payload").GetProperty("note").GetString());
         // The envelope is shared: B reads its proposals.
         Assert.Equal(2, (await BankProposalsAsync(app, app.AdultB)).Count);
@@ -169,7 +169,7 @@ public class SyncTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
         Assert.Empty(await BankProposalsAsync(app, app.AdultA));
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
         var values = await core.Valuations.Where(v => v.ItemId == envelope.Value).OrderBy(v => v.AsOf).ToListAsync(cancellationToken: TestContext.Current.CancellationToken);
-        Assert.Equal([(D(8, 31), 1000m, "Solde bancaire du 31/08/2026"), (D(9, 30), 1100m, "Solde bancaire du 15/09/2026")],
+        Assert.Equal([(D(8, 31), 1000m, "Solde bancaire du 31/08/2026"), (D(9, 15), 1100m, "Solde bancaire du 15/09/2026")],
             values.Select(v => (v.AsOf, v.Amount, v.Note)));
         Assert.All(values, v => Assert.Equal(("bank_api", "job", app.AdultA.Value), (v.Source, v.CreatedVia, v.CreatedByPersonId)));
         await using var db = Db(app);
