@@ -17,7 +17,7 @@ Genres : `vehicle`, `precious_metal`, `art`, `collectible`, `other`. Seul `preci
 
 ## 3. Règles
 
-- **Une valeur est toujours présente** : un prix d'achat (avec sa date) ou au moins une valorisation, sinon `assets.value_required`.
+- **Une valeur est toujours présente** : un prix d'achat (avec sa date) ou au moins une valorisation, sinon `assets.value_required`. À l'import, la règle ne regarde que le fichier : les valorisations déjà enregistrées ne la satisfont pas (`import-format.md` §5.10).
 - **Achat** : prix et date ensemble ou ni l'un ni l'autre (`assets.purchase_incomplete`) ; la date n'est pas future.
 - **Métal** : poids et titre seulement pour `precious_metal` (`assets.metal_only`) ; poids > 0 ; titre en ‰, de 0 (exclu) à 1 000, une décimale (`999.9` est conservé tel quel).
 - **Modification** : remplace tous les champs. Passer d'un métal à un autre genre efface poids et titre.
@@ -32,7 +32,7 @@ Genres : `vehicle`, `precious_metal`, `art`, `collectible`, `other`. Seul `preci
 
 `AssetsNetWorth` contribue au tableau de bord : une ligne par bien visible, à sa dernière valeur. Chaque part de répartition est `Other` et `Locked`, jamais devinée (`estimated = false`).
 
-- **Depuis le 1er janvier**, le gain est le changement de valeur ; un bien compté pour la première fois cette année entre comme un achat (`Moved`), jamais comme un gain.
+- **Depuis le 1er janvier**, le gain est le changement de valeur. Un bien compté pour la première fois cette année entre dans les valeurs de départ de l'année à son premier montant compté : son achat n'est jamais un gain (il passe par `Moved`), et il n'est jamais listé « sans valeur au 1er janvier », contrairement à un bien immobilier.
 - **Historique** : à chaque date, la dernière valeur connue ; `Moved` porte les achats (le prix, dès le premier jour compté) et les ventes (moins la dernière valeur comptée, à partir du jour d'archivage). Un bien archivé compte strictement avant son jour d'archivage.
 - Aucun versement : un bien s'achète, il ne se verse pas (`NetContributions` vide).
 
