@@ -39566,6 +39566,7 @@ export interface components {
             /** Format: int32 */
             agreement: number;
             lines: components["schemas"]["BankTransactionView"][];
+            byMeaning: boolean;
         };
         CategoryView: {
             /** Format: uuid */
