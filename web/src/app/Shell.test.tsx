@@ -242,14 +242,14 @@ describe('the shell', () => {
   });
 
   it('counts only stale and missing values in the routine badge, not income gaps', async () => {
-    const gap = todoItem({ kind: 'income_gap_soon', module: 'income', name: 'Salaire' });
+    const gap = todoItem({ kind: 'income.gap_soon', module: 'income', name: 'Salaire' });
     server.use(http.get('*/api/v1/dashboard', () => HttpResponse.json(dashboard({ todo: [todoItem(), gap] }))));
     await renderApp('/subscriptions');
     await waitFor(() => expect(within(sidebar()).getByRole('link', { name: /Routine/ })).toHaveTextContent('1'));
   });
 
   it('shows no routine badge for a household with only an income gap', async () => {
-    const gap = todoItem({ kind: 'income_gap_soon', module: 'income', name: 'Salaire' });
+    const gap = todoItem({ kind: 'income.gap_soon', module: 'income', name: 'Salaire' });
     server.use(http.get('*/api/v1/dashboard', () => HttpResponse.json(dashboard({ todo: [gap] }))));
     const { queryClient } = await renderApp('/subscriptions');
     await waitFor(() => expect(queryClient.getQueryCache().findAll().some((q) => q.state.status === 'success' && String(q.queryKey[1]).includes('dashboard'))).toBe(true));

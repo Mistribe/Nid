@@ -911,7 +911,7 @@ public class LeakBenchTests(PostgresFixture fixture) : IClassFixture<PostgresFix
                     Assert.Contains(new ItemId(entry.GetProperty("id").GetGuid()), data.ExpectedReadable(actor));
 
                 // 3E1: each visible property twin's tax and tenancy end are in « À venir », and no other property's.
-                foreach (var kind in new[] { "property_cost_due", "tenancy_end" })
+                foreach (var kind in new[] { "realestate.property_cost_due", "realestate.tenancy_end" })
                     Assert.Equal(
                         expectedProperties.Select(i => data.NameOf(i)).OrderBy(n => n, StringComparer.Ordinal),
                         dashboard.GetProperty("upcoming").EnumerateArray().Where(e => e.GetProperty("kind").GetString() == kind)

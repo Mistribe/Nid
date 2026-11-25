@@ -347,7 +347,7 @@ public class RentRevisionTests(PostgresFixture fixture) : IClassFixture<Postgres
         var upcoming = JsonDocument.Parse(await app.GetRawAsync(app.AdultA, "/api/v1/dashboard?scope=household")).RootElement.GetProperty("upcoming");
 
         Assert.DoesNotContain(watch.EnumerateArray(), w => S(w, "code") == "tenancy_end");
-        Assert.DoesNotContain(upcoming.EnumerateArray(), e => S(e, "kind") == "tenancy_end");
+        Assert.DoesNotContain(upcoming.EnumerateArray(), e => S(e, "kind") == "realestate.tenancy_end");
     }
 
     [Fact]

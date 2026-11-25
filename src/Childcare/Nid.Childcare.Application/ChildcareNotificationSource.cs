@@ -13,8 +13,8 @@ namespace Nid.Childcare.Application;
 /// </summary>
 public sealed class ChildcareNotificationSource(IVisibleItems visible, IChildcareStore store) : INotificationSource
 {
-    public const string StatementDue = "childcare_statement_due";
-    public const string BelowMinimum = "childcare_below_minimum";
+    public const string StatementDue = "childcare.statement_due";
+    public const string BelowMinimum = "childcare.below_minimum";
 
     public string Name => "childcare";
 

@@ -43,10 +43,10 @@ public sealed partial class BankingNotificationSource(
     public const string AmountDiffers = "banking.amount_differs";
     public const string ChargeMissing = "banking.charge_missing";
     /// <summary>Not prefixed: the settings screen keys its copy by kind (<c>notification_settings.signal.&lt;kind&gt;</c>).</summary>
-    public const string ShortfallAhead = "shortfall_ahead";
-    public const string IdleCash = "idle_cash";
-    public const string CardUnused = "card_unused";
-    public const string UnusualSpending = "unusual_spending";
+    public const string ShortfallAhead = "banking.shortfall_ahead";
+    public const string IdleCash = "banking.idle_cash";
+    public const string CardUnused = "banking.card_unused";
+    public const string UnusualSpending = "banking.unusual_spending";
 
     /// <summary>How far back a charge still counts as not taken.</summary>
     private const int MissingDays = 62;

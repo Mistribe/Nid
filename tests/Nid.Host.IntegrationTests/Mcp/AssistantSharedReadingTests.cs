@@ -42,7 +42,7 @@ public sealed class AssistantSharedReadingTests(PostgresFixture fixture) : IClas
         // The control: on the premises, the same calls show Bob's items, so the check above can fail.
         Assert.All(bobs, id => Assert.Contains(onPremises, text => text.Contains(id, StringComparison.Ordinal)));
         await using var platform = PostgresFixture.NewPlatformContext(app.ConnectionString);
-        Assert.Equal(0, await platform.Notifications.CountAsync(n => n.Kind == "access_violation", TestContext.Current.CancellationToken));
+        Assert.Equal(0, await platform.Notifications.CountAsync(n => n.Kind == "platform.access_violation", TestContext.Current.CancellationToken));
     }
 
     /// <summary>The ids of the named rows in every module the dataset fills.</summary>

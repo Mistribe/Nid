@@ -26,7 +26,7 @@ public partial class LocalAccountsTests
 
         var notices = await NoticesAsync(host);
         Assert.All(notices, n => Assert.Equal(bob, n.PersonId));
-        Assert.Equal(["login_locked", "password_link_issued", "password_reset"], notices.Select(n => n.Kind).Order().ToArray());
+        Assert.Equal(["platform.login_locked", "platform.password_link_issued", "platform.password_reset"], notices.Select(n => n.Kind).Order().ToArray());
         Assert.All(notices, n => Assert.Equal("critical", n.Level));
         // Never the link, its id or the identifier.
         Assert.All(notices, n => Assert.Equal("{}", n.Params.Replace(" ", "")));
@@ -45,7 +45,7 @@ public partial class LocalAccountsTests
         Assert.Equal(HttpStatusCode.NoContent, (await bob.PutAsync("/api/v1/core/me/password", new { current = BobPassword, @new = "a fresh sentence for bob" })).StatusCode);
 
         var notice = Assert.Single(await NoticesAsync(host));
-        Assert.Equal(("password_changed", bobId), (notice.Kind, notice.PersonId));
+        Assert.Equal(("platform.password_changed", bobId), (notice.Kind, notice.PersonId));
         Assert.Equal("password", JsonSerializer.Deserialize<Dictionary<string, string>>(notice.Params)!["field"]);
     }
 
@@ -65,7 +65,7 @@ public partial class LocalAccountsTests
             Assert.Equal(HttpStatusCode.OK, (await phone.PostAsync("/auth/login/totp", new { recoveryCode = code })).StatusCode);
         }
         var low = Assert.Single(await NoticesAsync(host));
-        Assert.Equal(("recovery_codes_low", bobId, "action"), (low.Kind, low.PersonId, low.Level));
+        Assert.Equal(("platform.recovery_codes_low", bobId, "action"), (low.Kind, low.PersonId, low.Level));
         Assert.NotEqual("resolved", low.State);
 
         await bob.SessionAsync();
@@ -75,7 +75,7 @@ public partial class LocalAccountsTests
         var exit = await AdminCli.RunAsync(host.Factory.Services, ["reset-totp", "--person", bobId.ToString()],
             new CliConsole(new StringReader(""), new StringWriter(), new StringWriter(), true), Ct);
         Assert.Equal(0, exit);
-        var reset = Assert.Single(await NoticesAsync(host), n => n.Kind == "totp_reset");
+        var reset = Assert.Single(await NoticesAsync(host), n => n.Kind == "platform.totp_reset");
         Assert.Equal(bobId, reset.PersonId);
     }
 

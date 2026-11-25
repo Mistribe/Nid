@@ -7,7 +7,7 @@ public sealed class PlatformNotificationKinds : IPublishedNotificationKinds
 {
     public IReadOnlyList<NotificationKind> Kinds { get; } =
     [
-        new("access_violation", NotificationFamilies.Security, NotificationLevel.Critical, "platform", null)
+        new(PlatformKinds.AccessViolation, NotificationFamilies.Security, NotificationLevel.Critical, "platform", null)
         {
             // Only admins may see the security journal: the notifier tells them in Params["admin"]; anyone else lands on the home page.
             Template = new("Une réponse a été bloquée par la garde d'accès")
@@ -17,7 +17,7 @@ public sealed class PlatformNotificationKinds : IPublishedNotificationKinds
                 Link = f => f.Params.GetValueOrDefault("admin") == "1" ? "/admin/security" : "/",
             },
         },
-        new("job_failed", NotificationFamilies.Health, NotificationLevel.Action, "platform", null)
+        new(PlatformKinds.JobFailed, NotificationFamilies.Health, NotificationLevel.Action, "platform", null)
         {
             Template = new("Une tâche planifiée a échoué")
             {

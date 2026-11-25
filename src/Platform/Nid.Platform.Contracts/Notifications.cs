@@ -163,6 +163,13 @@ public static class SignalKeys
         => $"{kind}:{item.Value:D}";
 }
 
+/// <summary>Platform's kinds that other modules publish too: the access guard's and a failed job's.</summary>
+public static class PlatformKinds
+{
+    public const string AccessViolation = "platform.access_violation";
+    public const string JobFailed = "platform.job_failed";
+}
+
 /// <summary>The families of the notices published through <see cref="INotifier"/> (notifications design §2.1).</summary>
 public static class NotificationFamilies
 {

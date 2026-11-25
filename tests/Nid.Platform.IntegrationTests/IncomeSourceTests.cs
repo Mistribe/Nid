@@ -57,12 +57,12 @@ public class IncomeSourceTests(PostgresFixture fixture) : IClassFixture<Postgres
         }
         var dashboard = JsonDocument.Parse(await app.GetRawAsync(app.AdultA, "/api/v1/dashboard?scope=me")).RootElement;
         var onDashboard = dashboard.GetProperty("upcoming").EnumerateArray().Concat(dashboard.GetProperty("todo").EnumerateArray())
-            .Where(e => e.GetProperty("kind").GetString() is "income_phase_end" or "income_gap_soon")
+            .Where(e => e.GetProperty("kind").GetString() is "income.phase_end" or "income.gap_soon")
             .Select(e => (e.GetProperty("kind").GetString()!, e.GetProperty("id").GetGuid())).ToList();
 
         var signals = await SignalsAsync(app, app.AdultA, 90);
 
-        Assert.Equal(["income_gap_soon", "income_phase_end"], expected.Select(x => x.Item1));
+        Assert.Equal(["income.gap_soon", "income.phase_end"], expected.Select(x => x.Item1));
         Assert.NotEmpty(onDashboard);
         Assert.All(onDashboard, d => Assert.Contains(expected, x => x.Item1 == d.Item1 && x.Item2 == d.Item2));
         Assert.All(expected, x => Assert.Equal(cdd.Value, x.Item2));
@@ -105,8 +105,8 @@ public class IncomeSourceTests(PostgresFixture fixture) : IClassFixture<Postgres
 
         Assert.Equal(
         [
-            new NotificationKind("income_phase_end", "due_date", NotificationLevel.Action, "income", 30),
-            new NotificationKind("income_gap_soon", "due_date", NotificationLevel.Action, "income", 30),
+            new NotificationKind("income.phase_end", "due_date", NotificationLevel.Action, "income", 30),
+            new NotificationKind("income.gap_soon", "due_date", NotificationLevel.Action, "income", 30),
         ], source.Kinds.Select(k => k with { Template = null, Personal = false })); // the copy: NotificationCopyTests
     }
 }

@@ -160,7 +160,7 @@ public class RegulatedLivretTests(PostgresFixture fixture) : IClassFixture<Postg
         Assert.Equal("2026-03-01", (await DetailAsync(app, later)).GetProperty("milestone").GetProperty("on").GetString());
 
         var events = JsonDocument.Parse(await app.GetRawAsync(app.AdultA, "/api/v1/dashboard?scope=household")).RootElement
-            .GetProperty("upcoming").EnumerateArray().Where(e => e.GetProperty("kind").GetString() == "tax_milestone")
+            .GetProperty("upcoming").EnumerateArray().Where(e => e.GetProperty("kind").GetString() == "investments.tax_milestone")
             .Select(e => $"{e.GetProperty("on").GetString()} {e.GetProperty("name").GetString()} {e.GetProperty("label").GetString()}");
         Assert.Equal(["2025-12-01 Vita life_insurance_8y"], events);
 

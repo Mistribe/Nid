@@ -317,7 +317,7 @@ public sealed class JobDispatcher(
         if (JobRetries.Backoff(attempts) is not { } backoff)
         {
             if (await FinishAsync(job with { Attempts = attempts }, JobState.Dead, code, now, ct))
-                await notifier.PublishAsync(new Notice("job_failed", new Recipients.Admins(), $"job_failed:ai.{job.Type}", [],
+                await notifier.PublishAsync(new Notice(PlatformKinds.JobFailed, new Recipients.Admins(), $"{PlatformKinds.JobFailed}:ai.{job.Type}", [],
                     new Dictionary<string, string> { ["job"] = $"ai.{job.Type}" }), ct);
             return;
         }

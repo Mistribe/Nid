@@ -15,31 +15,38 @@ public sealed class RealEstateNotificationSource(RealEstateUpcoming upcoming, Pr
 {
     private static readonly IReadOnlyDictionary<string, string> NoParams = new Dictionary<string, string>();
 
+    /// <summary>#645: the overview's findings, as notification kinds: <c>realestate.</c> and the watch's code.</summary>
+    public const string RentArrears = "realestate.rent_arrears";
+    public const string RevisionDue = "realestate.revision_due";
+    public const string RevisionLost = "realestate.revision_lost";
+    public const string IrlMissing = "realestate.irl_missing";
+    public const string ValuationStale = "realestate.valuation_stale";
+
     public string Name => "realestate";
 
     public IReadOnlyList<NotificationKind> Kinds { get; } =
     [
-        new(UpcomingKinds.TenancyEnd, "due_date", NotificationLevel.Action, "properties", 90)
+        new(UpcomingKinds.TenancyEnd, "due_date", NotificationLevel.Action, "realestate", 90)
         {
             Template = new("Un bail arrive à échéance") { Link = f => f.ItemPage("properties", "rental") },
         },
-        new(UpcomingKinds.PropertyCostDue, "due_date", NotificationLevel.Info, "properties", 7)
+        new(UpcomingKinds.PropertyCostDue, "due_date", NotificationLevel.Info, "realestate", 7)
         {
             Template = new("Une charge prévue arrive") { Link = f => f.ItemPage("properties", "expenses") },
         },
-        new(UpcomingKinds.PropertyTaxDue, "due_date", NotificationLevel.Action, "properties", 14)
+        new(UpcomingKinds.PropertyTaxDue, "due_date", NotificationLevel.Action, "realestate", 14)
         {
             Template = new("La taxe foncière est à payer") { Link = f => f.ItemPage("properties", "expenses") },
         },
-        new(UpcomingKinds.LoanPhaseEnd, "due_date", NotificationLevel.Info, "loans", 30)
+        new(UpcomingKinds.LoanPhaseEnd, "due_date", NotificationLevel.Info, "realestate", 30)
         {
             Template = new("Une phase de crédit se termine") { Link = f => f.ItemPage("loans") },
         },
-        new(UpcomingKinds.LoanEnd, "due_date", NotificationLevel.Info, "loans", 30)
+        new(UpcomingKinds.LoanEnd, "due_date", NotificationLevel.Info, "realestate", 30)
         {
             Template = new("Un crédit se termine") { Link = f => f.ItemPage("loans") },
         },
-        new(PropertyOverviewCodes.RentArrears, "finding", NotificationLevel.Action, "properties", null)
+        new(RentArrears, "finding", NotificationLevel.Action, "realestate", null)
         {
             Template = new("Des loyers sont impayés")
             {
@@ -47,10 +54,10 @@ public sealed class RealEstateNotificationSource(RealEstateUpcoming upcoming, Pr
                 Link = f => f.ItemPage("properties", "rental"),
             },
         },
-        Revision(PropertyOverviewCodes.RevisionDue, NotificationLevel.Action, "Un loyer peut être révisé"),
-        Revision(PropertyOverviewCodes.RevisionLost, NotificationLevel.Action, "Une révision de loyer a été perdue"),
-        Revision(PropertyOverviewCodes.IrlMissing, NotificationLevel.Info, "L'IRL d'une révision manque"),
-        new(PropertyWarnings.ValuationStale, "finding", NotificationLevel.Info, "properties", null)
+        Revision(RevisionDue, NotificationLevel.Action, "Un loyer peut être révisé"),
+        Revision(RevisionLost, NotificationLevel.Action, "Une révision de loyer a été perdue"),
+        Revision(IrlMissing, NotificationLevel.Info, "L'IRL d'une révision manque"),
+        new(ValuationStale, "finding", NotificationLevel.Info, "realestate", null)
         {
             Template = new("Une estimation est à refaire")
             {
@@ -62,7 +69,7 @@ public sealed class RealEstateNotificationSource(RealEstateUpcoming upcoming, Pr
 
     /// <summary>A finding of the rental tab dated by its key: « — le 1er mars 2027 ».</summary>
     private static NotificationKind Revision(string kind, NotificationLevel level, string title)
-        => new(kind, "finding", level, "properties", null)
+        => new(kind, "finding", level, "realestate", null)
         {
             Template = new(title)
             {
@@ -87,12 +94,13 @@ public sealed class RealEstateNotificationSource(RealEstateUpcoming upcoming, Pr
             return Result.Failure<IReadOnlyList<Signal>>(read.TryGetFailure(out var failure) ? failure! : new Failure("realestate.unknown", "The overview could not be read.", null));
         foreach (var watch in view!.Watch)
         {
-            if (Kinds.All(k => k.Kind != watch.Code || k.Family != "finding"))
+            var kind = $"realestate.{watch.Code}";
+            if (Kinds.All(k => k.Kind != kind || k.Family != "finding"))
                 continue;
-            var key = watch.Code == PropertyOverviewCodes.RentArrears ? SignalKeys.Monthly(watch.Code, watch.PropertyId, today)
-                : watch.On is { } on ? SignalKeys.Dated(watch.Code, watch.PropertyId, on)
-                : SignalKeys.Undated(watch.Code, watch.PropertyId);
-            signals.Add(new Signal(key, watch.Code, [watch.PropertyId], null, NoParams));
+            var key = kind == RentArrears ? SignalKeys.Monthly(kind, watch.PropertyId, today)
+                : watch.On is { } on ? SignalKeys.Dated(kind, watch.PropertyId, on)
+                : SignalKeys.Undated(kind, watch.PropertyId);
+            signals.Add(new Signal(key, kind, [watch.PropertyId], null, NoParams));
         }
 
         return Result.Success<IReadOnlyList<Signal>>(signals);

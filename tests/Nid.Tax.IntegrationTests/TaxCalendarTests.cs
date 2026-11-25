@@ -22,7 +22,7 @@ public class TaxCalendarTests(PostgresFixture fixture) : IClassFixture<PostgresF
 
     private static async Task<List<string>> TaxEventsAsync(NidApp app, PersonId reader, string scope = "household")
         => JsonDocument.Parse(await app.GetRawAsync(reader, $"/api/v1/dashboard?scope={scope}")).RootElement.GetProperty("upcoming").EnumerateArray()
-            .Where(e => e.GetProperty("kind").GetString()!.Contains("tax_", StringComparison.Ordinal))
+            .Where(e => e.GetProperty("kind").GetString() is "tax.filing_deadline" or "tax.new_rate" or "tax.balance_due" or "realestate.property_tax_due")
             .Select(e => $"{e.GetProperty("on").GetString()} {e.GetProperty("kind").GetString()} {e.GetProperty("label").GetString() ?? "-"} "
                          + (e.GetProperty("amount").ValueKind == JsonValueKind.Null ? "-" : e.GetProperty("amount").GetProperty("amount").GetString()))
             .ToList();
@@ -47,7 +47,7 @@ public class TaxCalendarTests(PostgresFixture fixture) : IClassFixture<PostgresF
         await using var app = await StartAsync(fixture, today);
         await SaveDepartmentAsync(app, "33");
 
-        Assert.Equal(["2026-05-28 tax_filing_deadline"], await EventsAsync(app, today, new LocalDate(2026, 5, 30)));
+        Assert.Equal(["2026-05-28 tax.filing_deadline"], await EventsAsync(app, today, new LocalDate(2026, 5, 30)));
     }
 
     [Fact]
@@ -58,7 +58,7 @@ public class TaxCalendarTests(PostgresFixture fixture) : IClassFixture<PostgresF
         await SaveDepartmentAsync(app, "33", 2025); // the revenues filed in May 2026
         await SaveDepartmentAsync(app, "75"); // a move this year
 
-        Assert.Equal(["2026-05-28 tax_filing_deadline"], await EventsAsync(app, today, new LocalDate(2026, 6, 30)));
+        Assert.Equal(["2026-05-28 tax.filing_deadline"], await EventsAsync(app, today, new LocalDate(2026, 6, 30)));
     }
 
     [Fact]
@@ -66,7 +66,7 @@ public class TaxCalendarTests(PostgresFixture fixture) : IClassFixture<PostgresF
     {
         await using var app = await StartAsync(fixture, new LocalDate(2026, 4, 20));
 
-        Assert.Equal(["2026-05-21 tax_filing_deadline department_unknown -"], await TaxEventsAsync(app, app.AdultA));
+        Assert.Equal(["2026-05-21 tax.filing_deadline department_unknown -"], await TaxEventsAsync(app, app.AdultA));
     }
 
     [Theory]
@@ -80,7 +80,7 @@ public class TaxCalendarTests(PostgresFixture fixture) : IClassFixture<PostgresF
         await using var app = await StartAsync(fixture, new LocalDate(2026, 4, 20));
         await SaveDepartmentAsync(app, department);
 
-        Assert.Equal([$"{on} tax_filing_deadline - -"], await TaxEventsAsync(app, app.AdultA, "me"));
+        Assert.Equal([$"{on} tax.filing_deadline - -"], await TaxEventsAsync(app, app.AdultA, "me"));
     }
 
     [Fact]
@@ -108,7 +108,7 @@ public class TaxCalendarTests(PostgresFixture fixture) : IClassFixture<PostgresF
             new { category = "property_tax", amount = "900", every = new { count = 1, unit = "year" }, startsOn = "2020-11-01" }));
 
         Assert.Equal(
-            ["2026-09-01 tax_new_rate - -", "2026-09-25 tax_balance_due - 512.00", "2026-10-15 property_tax_due - -"],
+            ["2026-09-01 tax.new_rate - -", "2026-09-25 tax.balance_due - 512.00", "2026-10-15 realestate.property_tax_due - -"],
             await TaxEventsAsync(app, app.AdultA));
 
         await using var scope = app.Services.CreateAsyncScope();
@@ -117,8 +117,8 @@ public class TaxCalendarTests(PostgresFixture fixture) : IClassFixture<PostgresF
         var core = await scope.ServiceProvider.GetServices<INotificationSource>().Single(s => s.Name == "core")
             .SignalsAsync(app.AdultA, today, today.PlusDays(60), CancellationToken.None);
         Assert.True(core.TryGetValue(out var signals));
-        var tax = signals!.Where(s => s.Kind.StartsWith("tax_", StringComparison.Ordinal)).ToList();
-        Assert.Equal(["tax_new_rate:2026-09-01", "tax_balance_due:2026-09-25"], tax.Select(s => s.Key));
+        var tax = signals!.Where(s => s.Kind.StartsWith("tax.", StringComparison.Ordinal)).ToList();
+        Assert.Equal(["tax.new_rate:2026-09-01", "tax.balance_due:2026-09-25"], tax.Select(s => s.Key));
         Assert.All(tax, s => Assert.Empty(s.ItemIds));
     }
 
@@ -127,7 +127,7 @@ public class TaxCalendarTests(PostgresFixture fixture) : IClassFixture<PostgresF
     {
         await using var app = await StartAsync(fixture, new LocalDate(2026, 9, 10));
 
-        Assert.Equal(["2026-09-25 tax_balance_due - -"], await TaxEventsAsync(app, app.AdultA));
+        Assert.Equal(["2026-09-25 tax.balance_due - -"], await TaxEventsAsync(app, app.AdultA));
 
         Assert.Equal(HttpStatusCode.Created, (await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/tax/assessments", new
         {
@@ -150,6 +150,6 @@ public class TaxCalendarTests(PostgresFixture fixture) : IClassFixture<PostgresF
             .SignalsAsync(app.AdultA, today, today.PlusDays(90), CancellationToken.None);
 
         Assert.True(core.TryGetValue(out var signals));
-        Assert.Equal(["tax_filing_deadline:2026-05-21"], signals!.Where(s => s.Kind.StartsWith("tax_", StringComparison.Ordinal)).Select(s => s.Key));
+        Assert.Equal(["tax.filing_deadline:2026-05-21"], signals!.Where(s => s.Kind.StartsWith("tax.", StringComparison.Ordinal)).Select(s => s.Key));
     }
 }

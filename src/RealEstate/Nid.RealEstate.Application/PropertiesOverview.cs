@@ -50,6 +50,10 @@ public static class PropertyOverviewCodes
 {
     public const string RentArrears = "rent_arrears";
 
+    /// <summary>The next planned cost and a lease's end, as the watch names them (the « À venir » events are <see cref="UpcomingKinds"/>).</summary>
+    public const string PropertyCostDue = "property_cost_due";
+    public const string TenancyEnd = "tenancy_end";
+
     /// <summary>Rental spec §3.3: on the anniversary (<c>revision_lost</c>: the previous one), <c>revision_due</c> with the new rent.</summary>
     public const string RevisionDue = "revision_due";
     public const string RevisionLost = "revision_lost";
@@ -302,10 +306,10 @@ internal static class PropertiesOverviewMath
             }
             foreach (var cost in r.Source.Property.Costs.Select(c => c.Cost))
                 if (PropertyMath.NextDueOn(cost, today) is { } next && next <= until)
-                    dated.Add(new PropertyWatchView(UpcomingKinds.PropertyCostDue, id, null, next, Money(cost.Amount, r.Currency)));
+                    dated.Add(new PropertyWatchView(PropertyOverviewCodes.PropertyCostDue, id, null, next, Money(cost.Amount, r.Currency)));
             foreach (var tenancy in RentRevisions.LastLinks(r.Source.Property).Select(t => t.Tenancy))
                 if (tenancy.EndsOn is { } ends && ends >= today && ends <= until)
-                    dated.Add(new PropertyWatchView(UpcomingKinds.TenancyEnd, id, null, ends, null));
+                    dated.Add(new PropertyWatchView(PropertyOverviewCodes.TenancyEnd, id, null, ends, null));
         }
         return [.. warnings, .. dated.OrderBy(w => w.On).ThenBy(w => w.Code, StringComparer.Ordinal).ThenBy(w => w.PropertyId.Value)];
     }

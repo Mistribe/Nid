@@ -15,7 +15,7 @@ const view = (over: Partial<Body> = {}) => ({
     { kind: 'loan.end', title: 'Fin de prêt', days: 45, defaultDays: 60 },
   ],
   signals: [
-    { kind: 'net_worth_milestone', title: 'Votre patrimoine a franchi un palier', enabled: false, threshold: 50000, defaultThreshold: 50000, min: 1000, max: 10000000, unit: 'eur' },
+    { kind: 'core.net_worth_milestone', title: 'Votre patrimoine a franchi un palier', enabled: false, threshold: 50000, defaultThreshold: 50000, min: 1000, max: 10000000, unit: 'eur' },
   ],
   ...over,
 });
@@ -143,7 +143,7 @@ describe('the notification settings page', () => {
     await user.type(step, '100 000');
     await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
 
-    await waitFor(() => expect(sent[0]!.signals).toEqual({ net_worth_milestone: 100000 }));
+    await waitFor(() => expect(sent[0]!.signals).toEqual({ 'core.net_worth_milestone': 100000 }));
   });
 
   it('turns a signal off by leaving it out, and restores its default threshold', async () => {
@@ -163,7 +163,7 @@ describe('the notification settings page', () => {
   it('shows the server refusal of a threshold under its field', async () => {
     serve(view({ signals: [{ ...view().signals[0]!, enabled: true }] }));
     server.use(http.put('*/api/v1/platform/notifications/preferences', () => HttpResponse.json(
-      { status: 422, code: 'validation', errors: [{ detail: 'invalid', pointer: '#/signals/net_worth_milestone', code: 'notifications.invalid_threshold' }] }, { status: 422 })));
+      { status: 422, code: 'validation', errors: [{ detail: 'invalid', pointer: '#/signals/core.net_worth_milestone', code: 'notifications.invalid_threshold' }] }, { status: 422 })));
     const { user } = await renderApp('/settings/notifications');
 
     const step = await screen.findByRole('textbox', { name: 'Palier (€)' });

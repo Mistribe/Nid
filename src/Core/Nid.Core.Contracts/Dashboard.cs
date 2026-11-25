@@ -224,41 +224,41 @@ public sealed record DashboardEventView(LocalDate On, string Kind, ItemId? Id, s
 
 public static class UpcomingKinds
 {
-    public const string SubscriptionRenewal = "subscription_renewal";
-    public const string SubscriptionExpiry = "subscription_expiry";
-    public const string SubscriptionCancelDeadline = "subscription_cancel_deadline";
+    public const string SubscriptionRenewal = "subscriptions.renewal";
+    public const string SubscriptionExpiry = "subscriptions.expiry";
+    public const string SubscriptionCancelDeadline = "subscriptions.cancel_deadline";
 
     // Issue #244: the first paid charge after a free period, and the first charge of a dearer phase.
-    public const string SubscriptionTrialEnd = "subscription_trial_end";
-    public const string SubscriptionPriceIncrease = "subscription_price_increase";
-    public const string IncomePhaseEnd = "income_phase_end";
-    public const string IncomeGapSoon = "income_gap_soon";
+    public const string SubscriptionTrialEnd = "subscriptions.trial_end";
+    public const string SubscriptionPriceIncrease = "subscriptions.price_increase";
+    public const string IncomePhaseEnd = "income.phase_end";
+    public const string IncomeGapSoon = "income.gap_soon";
 
     // 3E1 spec §4.
-    public const string LoanPhaseEnd = "loan_phase_end";
-    public const string LoanEnd = "loan_end";
-    public const string ValuationDue = "valuation_due";
-    public const string PropertyCostDue = "property_cost_due";
-    public const string TenancyEnd = "tenancy_end";
+    public const string LoanPhaseEnd = "realestate.loan_phase_end";
+    public const string LoanEnd = "realestate.loan_end";
+    public const string ValuationDue = "realestate.valuation_due";
+    public const string PropertyCostDue = "realestate.property_cost_due";
+    public const string TenancyEnd = "realestate.tenancy_end";
 
     // Issue #34 §2.7.
-    public const string HoldingMaturity = "holding_maturity";
+    public const string HoldingMaturity = "investments.holding_maturity";
 
     // Issue #180: SCPI shares start earning after their entitlement delay.
-    public const string HoldingEntitlement = "holding_entitlement";
+    public const string HoldingEntitlement = "investments.holding_entitlement";
 
     // Issue #400: an envelope's next tax date (8 years of a life insurance, 5 of a PEA, a PER's retirement); the label is its code.
-    public const string TaxMilestone = "tax_milestone";
+    public const string TaxMilestone = "investments.tax_milestone";
 
     // Tax-per spec §4.6: on 31 December, the PER ceiling left to pay in (a person's, or the household's under pooling) and the part lost.
-    public const string PerDeadline = "per_deadline";
-    public const string PerCeilingExpiring = "per_ceiling_expiring";
+    public const string PerDeadline = "tax.per_deadline";
+    public const string PerCeilingExpiring = "tax.per_ceiling_expiring";
 
     // Issue #409, the yearly tax calendar (TaxCalendar): the household's events, then a property's with a « taxe foncière » charge.
-    public const string TaxFilingDeadline = "tax_filing_deadline";
-    public const string TaxNewRate = "tax_new_rate";
-    public const string TaxBalanceDue = "tax_balance_due";
-    public const string PropertyTaxDue = "property_tax_due";
+    public const string TaxFilingDeadline = "tax.filing_deadline";
+    public const string TaxNewRate = "tax.new_rate";
+    public const string TaxBalanceDue = "tax.balance_due";
+    public const string PropertyTaxDue = "realestate.property_tax_due";
 }
 
 /// <summary>

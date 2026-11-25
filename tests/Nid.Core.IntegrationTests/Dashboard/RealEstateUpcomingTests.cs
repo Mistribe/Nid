@@ -46,13 +46,13 @@ public class RealEstateUpcomingTests(PostgresFixture fixture) : IClassFixture<Po
         Assert.Equal(
             new[]
             {
-                "2025-10-15 property_tax_due properties Maison - -", // #409: the calendar's deadline, today
-                "2025-10-20 property_cost_due properties Maison property_tax 1200.00",
-                "2025-10-26 valuation_due properties Maison - -",
-                "2025-11-15 loan_end loans Prêt travaux - -",
-                "2025-11-15 loan_phase_end loans Prêt travaux 1 -",
-                "2025-12-01 tenancy_end properties Maison T2 meublé -",
-                "2025-12-14 property_cost_due properties Maison energy 100.00",
+                "2025-10-15 realestate.property_tax_due properties Maison - -", // #409: the calendar's deadline, today
+                "2025-10-20 realestate.property_cost_due properties Maison property_tax 1200.00",
+                "2025-10-26 realestate.valuation_due properties Maison - -",
+                "2025-11-15 realestate.loan_end loans Prêt travaux - -",
+                "2025-11-15 realestate.loan_phase_end loans Prêt travaux 1 -",
+                "2025-12-01 realestate.tenancy_end properties Maison T2 meublé -",
+                "2025-12-14 realestate.property_cost_due properties Maison energy 100.00",
             },
             events.Select(Line));
     }

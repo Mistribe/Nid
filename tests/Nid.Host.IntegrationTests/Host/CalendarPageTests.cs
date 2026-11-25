@@ -24,7 +24,7 @@ public class CalendarPageTests(PostgresFixture fixture) : IClassFixture<Postgres
         Assert.Equal(("2025-10-01", "2025-10-31"), (household.From, household.To));
         // Renewed on 5 October, before today: the month is read from its first day.
         var renewal = Assert.Single(household.Events, e => e.Name == "Shared streaming");
-        Assert.Equal(("2025-10-05", "subscription_renewal", CalendarModules.Subscriptions), (renewal.On, renewal.Kind, renewal.Module));
+        Assert.Equal(("2025-10-05", "subscriptions.renewal", CalendarModules.Subscriptions), (renewal.On, renewal.Kind, renewal.Module));
         Assert.DoesNotContain(household.Events, e => e.Name is "Alice private gym" or "Bob private club");
 
         // Moi: one's own private items too, never the other adult's.

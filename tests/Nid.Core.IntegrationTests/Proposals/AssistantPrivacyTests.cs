@@ -88,6 +88,6 @@ public sealed class AssistantPrivacyTests(PostgresFixture fixture) : IClassFixtu
     private static async Task<int> NoticesAsync(NidApp app, PersonId person)
     {
         await using var db = PostgresFixture.NewPlatformContext(app.ConnectionString);
-        return await db.Notifications.AsNoTracking().CountAsync(n => n.Kind == "proposal_pending" && n.PersonId == person.Value, TestContext.Current.CancellationToken);
+        return await db.Notifications.AsNoTracking().CountAsync(n => n.Kind == "core.proposal_pending" && n.PersonId == person.Value, TestContext.Current.CancellationToken);
     }
 }

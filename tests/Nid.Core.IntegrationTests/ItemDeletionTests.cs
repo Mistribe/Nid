@@ -264,7 +264,7 @@ public class ItemDeletionTests(PostgresFixture postgres)
             proposal = (await scope.ServiceProvider.GetRequiredService<IProposalStore>().SubmitAsync(new NewProposal("investments",
                 "investments.record_valuation", item, app.AdultA, "2026-01-10", JsonDocument.Parse("""{"asOf":"2026-01-10"}""").RootElement.Clone(),
                 1, [], "api", null, "Relevé"), Ct)).Proposal.Id;
-            await scope.ServiceProvider.GetRequiredService<INotifier>().PublishAsync(new Notice("proposal_pending", new Recipients.People([app.AdultA]),
+            await scope.ServiceProvider.GetRequiredService<INotifier>().PublishAsync(new Notice("core.proposal_pending", new Recipients.People([app.AdultA]),
                 ProposalNotices.Key(proposal), [item], new Dictionary<string, string>()), Ct);
         }
         Assert.Equal(NotificationStates.Open, await NoticeStateAsync(app, proposal));
