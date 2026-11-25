@@ -13,6 +13,7 @@ public static class AssetRules
 {
     public const decimal FinenessMax = 1000m;
     private const decimal AmountBound = 1_000_000_000_000m;
+    private const decimal WeightBound = 1_000_000_000m; // numeric(12,3)
 
     public static Failure? Check(AssetDetails d, LocalDate today)
     {
@@ -31,7 +32,7 @@ public static class AssetRules
             return d.WeightGrams is not null ? Refuse(AssetsCodes.MetalOnly, "weightGrams", "A weight is for a precious metal only.")
                 : d.Fineness is not null ? Refuse(AssetsCodes.MetalOnly, "fineness", "A fineness is for a precious metal only.")
                 : null;
-        if (d.WeightGrams is { } w && (w <= 0m || w >= AmountBound || decimal.Round(w, 3) != w))
+        if (d.WeightGrams is { } w && (w <= 0m || w >= WeightBound || decimal.Round(w, 3) != w))
             return Refuse(AssetsCodes.InvalidWeight, "weightGrams", "A weight is above zero, with at most three decimals.");
         if (d.Fineness is { } f && (f <= 0m || f > FinenessMax || decimal.Round(f, 1) != f))
             return Refuse(AssetsCodes.InvalidFineness, "fineness", "A fineness is above 0 and at most 1000, with at most one decimal.");

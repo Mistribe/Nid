@@ -10,8 +10,8 @@ public static class AssetMath
     /// <summary>The latest valuation on or before <paramref name="date"/>; else the purchase price from its date; else null.</summary>
     public static AssetValue? At(AssetDetails d, IReadOnlyList<(LocalDate On, decimal Amount)> valuations, LocalDate date)
     {
-        var latest = valuations.Where(v => v.On <= date).OrderByDescending(v => v.On).Select(v => ((LocalDate On, decimal Amount)?)v).FirstOrDefault();
-        if (latest is { } v)
+        var past = valuations.Where(v => v.On <= date).ToList();
+        if (past.Count > 0 && past.MaxBy(v => v.On) is var v)
             return new AssetValue(v.Amount, v.On, false);
         return d is { PurchasePrice: { } price, PurchasedOn: { } on } && on <= date ? new AssetValue(price, on, true) : null;
     }
@@ -19,10 +19,11 @@ public static class AssetMath
     /// <summary>The earliest of the purchase price on its date and the first valuation on its date: what goes in <c>Moved</c>.</summary>
     public static AssetValue? FirstCounted(AssetDetails d, IReadOnlyList<(LocalDate On, decimal Amount)> valuations)
     {
-        var first = valuations.OrderBy(v => v.On).Select(v => ((LocalDate On, decimal Amount)?)v).FirstOrDefault();
+        
         var purchase = d is { PurchasePrice: { } price, PurchasedOn: { } on } ? new AssetValue(price, on, true) : null;
-        if (first is not { } f)
+        if (valuations.Count == 0)
             return purchase;
+        var f = valuations.MinBy(v => v.On);
         return purchase is not null && purchase.On <= f.On ? purchase : new AssetValue(f.Amount, f.On, false);
     }
 }
