@@ -351,14 +351,14 @@ Une garde à domicile et ses mois, saisis tels que payés (aucun calcul de paie)
 
 ### 5.10 `assets` (Autres biens)
 
-Les biens que la personne lit, archivés compris (#186). La valeur d'un bien vient de son prix d'achat, puis des valorisations du fichier qui le nomment (`valuations`, §5.6, `item` = `id` de le bien) ; les flux ne s'appliquent pas à un bien (`assets.no_flows`).
+Les biens que la personne lit, archivés compris (#186). La valeur d'un bien vient de son prix d'achat, puis des valorisations du fichier qui le nomment (`valuations`, §5.6, `item` = `id` du bien) ; les flux ne s'appliquent pas à un bien (`assets.no_flows`).
 
 | Champ | Type | Remarques |
 |---|---|---|
 | `id` | string | |
 | `name` | string | 1 à 100 caractères |
 | `kind` | string | `vehicle`, `precious_metal`, `art`, `collectible`, `other` (`assets.unknown_kind`) |
-| `currency` | string | Devise de le bien ; un remplacement la conserve |
+| `currency` | string | Devise du bien ; un remplacement la conserve |
 | `purchase_price` | décimal? | Chaîne décimale (un nombre JSON est accepté), > 0, deux décimales au plus (`assets.invalid_purchase`) |
 | `purchased_on` | date? | Non future ; avec `purchase_price`, ou ni l'un ni l'autre (`assets.purchase_incomplete`) |
 | `note` | string? | 2 000 caractères au plus |
