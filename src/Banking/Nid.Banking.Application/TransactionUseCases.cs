@@ -37,7 +37,7 @@ public sealed record LinkCandidatesQuery(Guid TransactionId) : IQuery<IReadOnlyL
 public sealed record ListExpectedChargesQuery(LocalDate From, LocalDate To) : IQuery<IReadOnlyList<ExpectedChargeView>>, IRequiresBanking;
 
 /// <summary>A line of an account the actor writes linked by hand to a charge of an item they write, with its rule (<see cref="TransactionLinker.LinkAsync"/>).</summary>
-public sealed record LinkTransactionCommand(Guid TransactionId, string Module, Guid ItemId, string? Key, string? Category = null) : ICommand<BankTransactionView>, IBankLineScoped
+public sealed record LinkTransactionCommand(Guid TransactionId, string Module, Guid ItemId, string? Key, string? Category = null) : ICommand<BankTransactionView>, ITransactional, IBankLineScoped
 {
     public AccessKind Access => AccessKind.Write;
 }

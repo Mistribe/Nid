@@ -3,11 +3,12 @@ using Nid.Core.Contracts;
 
 namespace Nid.Assets.Application;
 
-/// <summary>The vehicles a person reads (archived ones left out) and writes, by name, for the bank reconciliation (#649).</summary>
+/// <summary>The vehicles a person reads (archived ones left out, here and in the single check) and writes, by name, for the bank reconciliation (#649).</summary>
 public sealed class WritableVehicles(IVisibleItems visible, IItemRegistry items, IAssetRecordStore assets, IAccessPolicy policy) : IWritableVehicles
 {
     public async Task<bool> IsWritableVehicleAsync(PersonId person, ItemId item, CancellationToken ct)
-        => (await assets.FindAsync(item, ct))?.Details.Kind == AssetKinds.Vehicle && (await policy.CheckAsync(person, item, AccessKind.Write, ct)).IsSuccess;
+        => (await assets.FindAsync(item, ct))?.Details.Kind == AssetKinds.Vehicle && (await items.FindAsync(item, ct))?.ArchivedAt is null
+            && (await policy.CheckAsync(person, item, AccessKind.Write, ct)).IsSuccess;
 
     public async Task<IReadOnlyList<VehicleChoice>> ForAsync(PersonId person, CancellationToken ct)
     {

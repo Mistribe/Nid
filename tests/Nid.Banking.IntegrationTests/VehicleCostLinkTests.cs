@@ -149,6 +149,21 @@ public class VehicleCostLinkTests(PostgresFixture fixture) : IClassFixture<Postg
     }
 
     [Fact]
+    public async Task An_archived_vehicle_is_neither_offered_nor_linkable()
+    {
+        var (app, account) = await StartAsync(fixture);
+        await using var _ = app;
+        var car = await VehicleAsync(app);
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/assets/{car}/archive")).StatusCode);
+        var line = await AddAsync(app, account, "a", D(10, 20), -85.40m);
+
+        var candidates = await BankingApi.JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{BankingApi.Root}/transactions/{line}/candidates"));
+        Assert.Empty(candidates.EnumerateArray());
+        await BankingApi.AssertRefusedAsync(await LinkAsync(app, line, car), HttpStatusCode.UnprocessableEntity, BankingCodes.LinkTarget);
+        Assert.Null(await LinkOfAsync(app, line));
+    }
+
+    [Fact]
     public async Task A_wrong_category_is_refused_before_anything_is_written()
     {
         var (app, account) = await StartAsync(fixture);
