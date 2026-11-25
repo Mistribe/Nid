@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Assets\Nid.Assets.Contracts\Nid.Assets.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Assets\Nid.Assets.Domain\Nid.Assets.Domain.csproj" />
+  </ItemGroup>
+</Project>
