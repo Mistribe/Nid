@@ -119,8 +119,11 @@ public sealed record ModelJobFile(string Module, string? Reference);
 /// runs.</summary>
 public sealed record ModelJobDispatch(string? WorkerName, Instant SentAt, Instant? FinishedAt, string? Outcome);
 
-/// <summary>One page of jobs, newest first, with the types the table can filter on.</summary>
-public sealed record ModelJobPage(IReadOnlyList<ModelJobListItem> Items, int Total, int Page, IReadOnlyList<string> Types)
+/// <summary>How many jobs stand in each state, for the type filtered on, whatever the status filter.</summary>
+public sealed record ModelJobCounts(int Queued, int Running, int Succeeded, int Failed, int Dead);
+
+/// <summary>One page of jobs, newest first, with the types the table can filter on and the count in each state.</summary>
+public sealed record ModelJobPage(IReadOnlyList<ModelJobListItem> Items, int Total, int Page, IReadOnlyList<string> Types, ModelJobCounts Counts)
 {
     public const int PageSize = 50;
 

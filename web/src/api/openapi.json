@@ -57715,6 +57715,38 @@
           }
         }
       },
+      "ModelJobCounts": {
+        "required": [
+          "queued",
+          "running",
+          "succeeded",
+          "failed",
+          "dead"
+        ],
+        "type": "object",
+        "properties": {
+          "queued": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "running": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "succeeded": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "failed": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "dead": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
       "ModelJobDispatch": {
         "required": [
           "sentAt"
@@ -57840,7 +57872,8 @@
           "items",
           "total",
           "page",
-          "types"
+          "types",
+          "counts"
         ],
         "type": "object",
         "properties": {
@@ -57863,6 +57896,9 @@
             "items": {
               "type": "string"
             }
+          },
+          "counts": {
+            "$ref": "#/components/schemas/ModelJobCounts"
           }
         }
       },

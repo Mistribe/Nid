@@ -78,8 +78,9 @@ public interface IJobStore
     /// <paramref name="failedBefore"/>, input and result with them; queued and running jobs are never touched. The count deleted.</summary>
     Task<int> PurgeFinishedAsync(Instant succeededBefore, Instant failedBefore, CancellationToken ct);
 
-    /// <summary>One page of jobs, newest first, with the total and every type in the table.</summary>
-    Task<(IReadOnlyList<JobRecord> Items, int Total, IReadOnlyList<string> Types)> PageAsync(
+    /// <summary>One page of jobs, newest first, with the total, every type in the table and the count in each state for
+    /// <paramref name="type"/>.</summary>
+    Task<(IReadOnlyList<JobRecord> Items, int Total, IReadOnlyList<string> Types, ModelJobCounts Counts)> PageAsync(
         string? status, string? type, int skip, int take, CancellationToken ct);
 
     /// <summary>#602: records that the job was sent to <paramref name="worker"/>.</summary>

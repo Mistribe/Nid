@@ -62,6 +62,9 @@ public sealed class JobListTests(PostgresFixture fixture) : IClassFixture<Postgr
         Assert.Equal(5, second.Items.Count);
         Assert.Equal(0, running.Total);
         Assert.Equal(0, other.Total);
+        // The counts follow the type filtered on, not the status: the header keeps every state in view.
+        Assert.Equal(new ModelJobCounts(55, 0, 0, 0, 0), running.Counts);
+        Assert.Equal(new ModelJobCounts(0, 0, 0, 0, 0), other.Counts);
     }
 
     [Fact]

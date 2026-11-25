@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { FilterField, FilterRow } from '@/components/page/FilterRow';
 import { Pager, useListPage, useStepBack } from '@/components/page/Pager';
 import { SortableTable } from '@/components/page/SortableTable';
+import { StatLine } from '@/components/page/StatLine';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { SelectField } from '@/components/form/SelectField';
 import { Loading, TableSkeleton } from '@/components/page/skeletons';
@@ -34,7 +35,9 @@ export function AiJobsPage() {
   // A new filter starts again at the first page.
   const filter = (key: 'status' | 'type', value: string) =>
     void navigate({ to: '.', replace: true, search: (prev) => ({ ...prev, [key]: value || undefined, page: undefined }) });
-  const jobs = $api.useQuery('get', JOBS, { params: { query: { ...(status ? { status } : {}), ...(type ? { type } : {}), page } } });
+  // Refreshed every 10 s while the page is in view: a batch of OCR moves on its own.
+  const jobs = $api.useQuery('get', JOBS, { params: { query: { ...(status ? { status } : {}), ...(type ? { type } : {}), page } } },
+    { refetchInterval: 10_000 });
   useStepBack(page, jobs.data, toPage);
 
   const title = t('ai.jobs.title');
@@ -54,6 +57,11 @@ export function AiJobsPage() {
   return (
     <AdminFrame title={title}>
       <p className="max-w-prose text-sm text-muted-foreground">{t('ai.jobs.tip')}</p>
+      {jobs.data ? (
+        <StatLine items={(['queued', 'running', 'succeeded', 'failed', 'dead'] as const).map((s) => ({
+          label: t(`ai.jobs.count_${s}`), value: jobs.data.counts[s],
+        }))} />
+      ) : null}
       <FilterRow label={t('common.filters')}>
         <FilterField label={t('ai.jobs.type')} className="w-full sm:w-auto">
           {(labelId, controlId) => (

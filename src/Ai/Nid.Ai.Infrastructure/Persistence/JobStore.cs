@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Nid.Ai.Application;
+using Nid.Ai.Contracts;
 using Npgsql;
 using NodaTime;
 
@@ -58,14 +59,16 @@ public sealed class JobStore(AiDbContext db, IDataProtectionProvider protection)
         => (await db.Jobs.AsNoTracking().Where(j => j.Status == "running" && (j.NextPollAt <= now || j.LeaseUntil <= now))
             .OrderBy(j => j.NextPollAt).Take(limit).ToListAsync(ct)).Select(ToRecord).ToList();
 
-    public async Task<(IReadOnlyList<JobRecord> Items, int Total, IReadOnlyList<string> Types)> PageAsync(
+    public async Task<(IReadOnlyList<JobRecord> Items, int Total, IReadOnlyList<string> Types, ModelJobCounts Counts)> PageAsync(
         string? status, string? type, int skip, int take, CancellationToken ct)
     {
-        var query = db.Jobs.AsNoTracking();
-        if (status is not null)
-            query = query.Where(j => j.Status == status);
+        var ofType = db.Jobs.AsNoTracking();
         if (type is not null)
-            query = query.Where(j => j.Type == type);
+            ofType = ofType.Where(j => j.Type == type);
+        var byStatus = await ofType.GroupBy(j => j.Status).Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(g => g.Key, g => g.Count, ct);
+        var counts = new ModelJobCounts(byStatus.GetValueOrDefault("queued"), byStatus.GetValueOrDefault("running"),
+            byStatus.GetValueOrDefault("succeeded"), byStatus.GetValueOrDefault("failed"), byStatus.GetValueOrDefault("dead"));
+        var query = status is null ? ofType : ofType.Where(j => j.Status == status);
 
         var total = await query.CountAsync(ct);
         // Only the listed columns: a job's input and result (a whole document's text) are never read for a page, nor its secret.
@@ -78,7 +81,7 @@ public sealed class JobStore(AiDbContext db, IDataProtectionProvider protection)
             })
             .ToListAsync(ct);
         var types = await db.Jobs.AsNoTracking().Select(j => j.Type).Distinct().OrderBy(t => t).ToListAsync(ct);
-        return (rows.Select(r => ToRecord(r, withSecret: false)).ToList(), total, types);
+        return (rows.Select(r => ToRecord(r, withSecret: false)).ToList(), total, types, counts);
     }
 
     public Task<int> PurgeFinishedAsync(Instant succeededBefore, Instant failedBefore, CancellationToken ct)

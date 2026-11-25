@@ -15,7 +15,7 @@ public sealed class ListModelJobsHandler(IJobStore jobs, IWorkerStore workers, I
     public async ValueTask<Result<ModelJobPage>> HandleAsync(ListModelJobsQuery query, CancellationToken ct = default)
     {
         var (page, skip) = ListPage.Of(query.Page, ModelJobPage.PageSize);
-        var (items, total, types) = await jobs.PageAsync(query.Status, query.Type, skip, ModelJobPage.PageSize, ct);
+        var (items, total, types, counts) = await jobs.PageAsync(query.Status, query.Type, skip, ModelJobPage.PageSize, ct);
         var names = (await workers.ListAsync(ct)).ToDictionary(w => w.Id, w => w.Name);
         var dispatches = (await jobs.DispatchesOfAsync(items.Select(j => j.Id).ToList(), ct)).ToLookup(d => d.JobId);
         var fileOf = items.Where(j => j.FileRef is not null).ToDictionary(j => j.Id, j => JobDispatcher.FileOf(j.FileRef!));
@@ -31,6 +31,6 @@ public sealed class ListModelJobsHandler(IJobStore jobs, IWorkerStore workers, I
                 Name(j.WorkerId), j.CreatedAt, j.FinishedAt,
                 fileOf.TryGetValue(j.Id, out var f) ? new ModelJobFile(f.Module, readable.Contains(f) ? f.Reference : null) : null,
                 dispatches[j.Id].Select(d => new ModelJobDispatch(Name(d.WorkerId), d.SentAt, d.FinishedAt, d.Outcome)).ToList())).ToList(),
-            total, page, types));
+            total, page, types, counts));
     }
 }
