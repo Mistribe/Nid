@@ -25,33 +25,35 @@ public sealed class AssetsNetWorth(IVisibleItems visible, IItemRegistry items, I
         var gains = new Dictionary<Currency, decimal>();
         var holdings = new List<Holding>();
         var count = 0;
+        var withoutValue = 0;
         LocalDate? oldest = null;
 
         foreach (var (record, item, currency, series) in read)
         {
             count++;
             var owners = Owners(item);
-            if (AssetMath.At(record.Details, series, today) is not { } now)
+            if (currency is not { } cur || series is null || AssetMath.At(record.Details, series, today) is not { } now)
             {
+                withoutValue++; // an unreadable currency or valuations count as no value, never skipped: no total is silently partial
                 holdings.Add(new Holding(record.ItemId, "assets", item.DisplayName, null, null, false, owners));
-                continue; // unreachable while an asset always has a value; never skipped, so no total is silently partial
+                continue;
             }
-            Add(values, currency, now.Amount);
-            if (oldest is null || now.On < oldest)
-                oldest = now.On;
+            Add(values, cur, now.Amount);
+            if (!now.FromPurchase && (oldest is null || now.On < oldest))
+                oldest = now.On; // « values as of » follows valuations, not purchase dates
             holdings.Add(new Holding(
-                record.ItemId, "assets", item.DisplayName, MoneyOf(now.Amount, currency), now.On, false, owners,
+                record.ItemId, "assets", item.DisplayName, MoneyOf(now.Amount, cur), now.On, false, owners,
                 [new AllocationSlice(AllocationClasses.Other, AllocationLiquidity.Locked, now.Amount, false)],
-                Estimated: now.FromPurchase, ValuedOn: now.FromPurchase ? null : now.On));
+                ValuedOn: now.FromPurchase ? null : now.On));
 
             // Worth on 1 January, else (counted since) what it entered at: a purchase is no gain.
             var start = AssetMath.At(record.Details, series, january1)?.Amount ?? AssetMath.FirstCounted(record.Details, series)?.Amount ?? now.Amount;
-            Add(starts, currency, start);
-            Add(nets, currency, 0m);
-            Add(gains, currency, now.Amount - start);
+            Add(starts, cur, start);
+            Add(nets, cur, 0m);
+            Add(gains, cur, now.Amount - start);
         }
 
-        return Result.Success(new NetWorthPart(count, 0, 0, oldest, values, starts, nets, gains, holdings, 0));
+        return Result.Success(new NetWorthPart(count, withoutValue, 0, oldest, values, starts, nets, gains, holdings, 0));
     }
 
     /// <summary>Nothing to save into: an asset is bought, not paid into.</summary>
@@ -73,8 +75,10 @@ public sealed class AssetsNetWorth(IVisibleItems visible, IItemRegistry items, I
             var values = new Dictionary<Currency, decimal>();
             var moved = new Dictionary<Currency, decimal>();
             var count = 0;
-            foreach (var (record, item, currency, series) in read)
+            foreach (var (record, item, cur, series) in read)
             {
+                if (cur is not { } currency || series is null)
+                    continue; // no value to count
                 var archived = item.ArchivedAt?.InZone(zone).Date;
                 if (AssetMath.FirstCounted(record.Details, series) is { } first && first.On <= date && (archived is not { } a || first.On < a))
                     Add(moved, currency, first.Amount);
@@ -94,18 +98,20 @@ public sealed class AssetsNetWorth(IVisibleItems visible, IItemRegistry items, I
         return Result.Success<IReadOnlyList<NetWorthPoint>>(points);
     }
 
-    private async Task<List<(AssetRecord Record, ItemAccess Item, Currency Currency, IReadOnlyList<(LocalDate On, decimal Amount)> Series)>> ReadAsync(
+    /// <summary>Currency or series is null when it could not be read: the asset then has no value.</summary>
+    private async Task<List<(AssetRecord Record, ItemAccess Item, Currency? Currency, IReadOnlyList<(LocalDate On, decimal Amount)>? Series)>> ReadAsync(
         IReadOnlyCollection<ItemId> ids, CancellationToken ct)
     {
         var found = await assets.FindManyAsync(ids, ct);
         var accesses = await items.FindManyAsync(found.Select(a => a.ItemId).ToList(), ct);
-        // Valuations that cannot be read are no value, as a property's: never skipped, so no total is silently partial.
+        // Valuations that cannot be read leave the assets without value, as a property's estimates: never the purchase price.
         var series = (await valuations.SeriesManyAsync(found.Select(a => a.ItemId).Where(accesses.ContainsKey).ToList(), AssetCheck.Everything, ct))
             .TryGetValue(out var map) ? map : null;
-        var read = new List<(AssetRecord, ItemAccess, Currency, IReadOnlyList<(LocalDate, decimal)>)>();
+        var read = new List<(AssetRecord, ItemAccess, Currency?, IReadOnlyList<(LocalDate, decimal)>?)>();
         foreach (var record in found)
-            if (accesses.TryGetValue(record.ItemId, out var item) && Currency.TryCreate(item.Currency ?? "", out var currency))
-                read.Add((record, item, currency, (series?.GetValueOrDefault(record.ItemId) ?? []).Select(v => (v.AsOf, v.Value.Amount)).ToList()));
+            if (accesses.TryGetValue(record.ItemId, out var item))
+                read.Add((record, item, Currency.TryCreate(item.Currency ?? "", out var currency) ? currency : null,
+                    series is null ? null : (series.GetValueOrDefault(record.ItemId) ?? []).Select(v => (v.AsOf, v.Value.Amount)).ToList()));
         return read;
     }
 

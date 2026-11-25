@@ -149,4 +149,60 @@ public class AssetsNetWorthTests(PostgresFixture fixture) : IClassFixture<Postgr
         Assert.DoesNotContain(view.GetProperty("warnings").EnumerateArray(), w => w.GetProperty("code").GetString() == "savings_exhausted");
         Assert.Equal("5000.00", points[^1].GetProperty("nominal").GetString());
     }
+
+    [Fact]
+    public async Task A_price_alone_is_no_estimate_and_no_date_of_values()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await NewAssetAsync(app, "Voiture", "8000", "2020-03-01");
+
+        var view = await DashboardAsync(app, app.AdultA);
+
+        Assert.Equal("8000.00", Total(view.GetProperty("netWorth")));
+        Assert.Equal(JsonValueKind.Null, view.GetProperty("valuesAsOf").ValueKind);
+        Assert.Equal(0, view.GetProperty("estimatedEnvelopes").GetInt32());
+        Assert.Equal(0, view.GetProperty("envelopesWithoutValue").GetInt32());
+        var row = Assert.Single(view.GetProperty("envelopeSplit").EnumerateArray());
+        Assert.Equal("2020-03-01", row.GetProperty("asOf").GetString());
+        Assert.False(row.GetProperty("estimated").GetBoolean());
+    }
+
+    [Fact]
+    public async Task Bought_this_year_then_revalued_the_gain_is_the_revaluation_over_the_price()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await NewAssetAsync(app, "Montre", "2000", "2025-04-01");
+        await ValueAsync(app, id, "2025-09-01", "2600");
+
+        var view = await DashboardAsync(app, app.AdultA);
+        var points = await HistoryAsync(app, "2025-03-31", "2025-10-15");
+
+        Assert.Equal("600.00", Total(view.GetProperty("change")));
+        Assert.Equal(new Dictionary<string, decimal> { ["assets.paid_in"] = 0m, ["assets.moved"] = 2_000m, ["assets.value"] = 600m }, Parts(points[0], points[1]));
+    }
+
+    [Fact]
+    public async Task Counted_exactly_on_1_January_starts_at_its_price()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await NewAssetAsync(app, "Montre", "2000", "2025-01-01");
+        await ValueAsync(app, id, "2025-06-01", "2300");
+
+        Assert.Equal("300.00", Total((await DashboardAsync(app, app.AdultA)).GetProperty("change")));
+    }
+
+    [Fact]
+    public async Task A_valuation_before_the_purchase_moves_that_valuation_on_its_date_and_the_value_never_jumps()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await NewAssetAsync(app, "Montre", "2000", "2025-04-01");
+        await ValueAsync(app, id, "2025-02-01", "1800");
+
+        var points = await HistoryAsync(app, "2025-01-31", "2025-02-01", "2025-04-01", "2025-10-15");
+
+        Assert.Equal((0m, 0m), (Eur(points[0].Values), Eur(points[0].Moved)));
+        Assert.Equal((1_800m, 1_800m), (Eur(points[1].Values), Eur(points[1].Moved)));
+        Assert.Equal((1_800m, 1_800m), (Eur(points[2].Values), Eur(points[2].Moved))); // the purchase day changes nothing
+        Assert.Equal((1_800m, 1_800m), (Eur(points[3].Values), Eur(points[3].Moved)));
+    }
 }
