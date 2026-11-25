@@ -5,7 +5,7 @@
 > Références : `../superpowers/specs/2026-10-29-bank-sync-design.md` (§0, §1, §10, §11), plan
 > `../superpowers/plans/2026-10-29-stage-5a-bank-connection-and-balances.md`, `../superpowers/plans/2026-10-29-stage-5b-bank-transactions-and-files.md`,
 > `../superpowers/plans/2026-10-30-stage-5c-charge-reconciliation.md`, `application.md` §3, `infrastructure.md`. Les revenus et
-> le CSV (5D, 5E) feront l'objet de leur propre revue.
+> versements (5D) feront l'objet de leur propre revue ; l'import CSV (5E) est abandonné (#668).
 
 ---
 
