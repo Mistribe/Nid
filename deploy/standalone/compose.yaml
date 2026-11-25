@@ -84,7 +84,7 @@ services:
   postgres:
     profiles: [postgres]
     <<: *hardened
-    image: ${NID_POSTGRES_IMAGE:-ghcr.io/mistribe/nid-postgres:latest}
+    image: ${NID_POSTGRES_IMAGE:-ghcr.io/mistribe/nid-postgres:latest@sha256:ead6e5353bad5f9763b190f0f8aa2100954f4c313ff1df3b2a0583c163444343}
     # The image's own postgres user: a fresh volume is already its own, so no capability is needed to change owners.
     user: "999:999"
     environment:
