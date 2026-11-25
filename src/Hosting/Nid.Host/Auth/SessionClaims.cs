@@ -14,6 +14,9 @@ public static class SessionClaims
     /// <summary>Issue 215: how the session was opened (<c>pwd</c> for a local password); absent for OIDC and demo sessions.</summary>
     public const string Amr = "nid:amr";
 
+    /// <summary>#635: when the session was signed in (Unix seconds), for the absolute limit that sliding renewals do not move.</summary>
+    public const string SignedInAt = "nid:auth_time";
+
     /// <summary>The <c>nid:sub</c> of a session opened with a local account, which has no OIDC subject.</summary>
     public const string LocalSubject = "local";
 
@@ -35,6 +38,10 @@ public static class SessionClaims
     public static int? ReadEpoch(ClaimsPrincipal user)
         => int.TryParse(user.FindFirstValue(Epoch), System.Globalization.NumberStyles.None,
             System.Globalization.CultureInfo.InvariantCulture, out var epoch) ? epoch : null;
+
+    public static DateTimeOffset? ReadSignedInAt(ClaimsPrincipal user)
+        => long.TryParse(user.FindFirstValue(SignedInAt), System.Globalization.NumberStyles.None,
+            System.Globalization.CultureInfo.InvariantCulture, out var seconds) ? DateTimeOffset.FromUnixTimeSeconds(seconds) : null;
 
     /// <summary>CSRF token bound to the person and the session epoch: "sign out everywhere" invalidates it too.</summary>
     public static string CsrfToken(string key, PersonId person, int epoch)
