@@ -18,6 +18,8 @@ public static class AssetsCodes
     public const string InvalidPurchase = "assets.invalid_purchase";
     public const string InvalidValue = "assets.invalid_value";
     public const string Conflict = "assets.conflict";
-    /// <summary>A flow of an asset: its only facts are valuations.</summary>
-    public const string NoFlows = "assets.no_flows";
+    /// <summary>A running cost's kind or category outside the convention (an expense of service, repair, tyres, other).</summary>
+    public const string InvalidCategory = "assets.invalid_category";
+    /// <summary>A running cost on an asset that is not a vehicle: only a vehicle takes costs.</summary>
+    public const string CostsVehicleOnly = "assets.costs_vehicle_only";
 }

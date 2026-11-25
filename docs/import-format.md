@@ -254,7 +254,7 @@ Règles :
 |---|---|---|
 | `account_ref`, `provider_ref` | string | L'opération, par le `ref` de son compte (`bank_accounts` du même fichier) et sa `provider_ref` |
 | `outcome` | string | `as_expected`, `price_differs`, `income`, `contribution`, `internal_transfer`, `card_settlement` |
-| `target_ref` | string? | `id` d'un abonnement, d'un bien ou d'un prêt du même fichier ; obligatoire sauf pour `internal_transfer` et `card_settlement`, où il est absent |
+| `target_ref` | string? | `id` d'un abonnement, d'un bien (immobilier ou autre bien, #649) ou d'un prêt du même fichier ; obligatoire sauf pour `internal_transfer` et `card_settlement`, où il est absent |
 | `target_key` | string? | La clé de l'échéance payée (1 à 200 caractères) |
 | `counterpart_ref` | string? | `ref` du compte en face, pour `internal_transfer` et `card_settlement` seulement |
 | `expected_amount`, `expected_currency` | montant décimal?, string? | Le montant attendu au moment du lien, avec sa devise |
@@ -352,7 +352,7 @@ Une garde à domicile et ses mois, saisis tels que payés (aucun calcul de paie)
 
 ### 5.10 `assets` (Autres biens)
 
-Les biens que la personne lit, archivés compris (#186). La valeur d'un bien vient de son prix d'achat, puis des valorisations du fichier qui le nomment (`valuations`, §5.6, `item` = `id` du bien) ; les flux ne s'appliquent pas à un bien (`assets.no_flows`).
+Les biens que la personne lit, archivés compris (#186). La valeur d'un bien vient de son prix d'achat, puis des valorisations du fichier qui le nomment (`valuations`, §5.6, `item` = `id` du bien) ; ses seuls flux sont les frais d'un véhicule (#649) : `flows` avec `kind` = `expense` et `category` parmi `service`, `repair`, `tyres`, `other` (`assets.invalid_category` au chemin `kind` ou `category` sinon).
 
 | Champ | Type | Remarques |
 |---|---|---|

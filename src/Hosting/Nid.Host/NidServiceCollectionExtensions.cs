@@ -313,6 +313,7 @@ public static class NidServiceCollectionExtensions
         }).AddInterceptors(sp.GetRequiredService<AuditInterceptor>()));
         services.AddScoped<ITransactionParticipant, DbContextParticipant<AssetsDbContext>>();
         services.AddScoped<IAssetRecordStore, AssetRecordStore>();
+        services.AddScoped<Nid.Assets.Contracts.IWritableVehicles, Nid.Assets.Application.WritableVehicles>();
         services.AddScoped<IItemDeletionPart, AssetsDeletionPart>();
 
         services.AddDbContext<Nid.Ai.Infrastructure.Persistence.AiDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>

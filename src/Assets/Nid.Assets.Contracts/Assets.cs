@@ -1,3 +1,5 @@
+using Nid.Core.Contracts;
+
 namespace Nid.Assets.Contracts;
 
 public static class AssetKinds
@@ -21,4 +23,23 @@ public static class AssetEnergies
     public const string Lpg = "lpg";
     public const string Other = "other";
     public static readonly IReadOnlyList<string> All = [Petrol, Diesel, Hybrid, PlugInHybrid, Electric, Lpg, Other];
+}
+
+/// <summary>#649: the categories of a vehicle's running cost (wire values); a cost is an expense.</summary>
+public static class AssetCostCategories
+{
+    public const string Service = "service";
+    public const string Repair = "repair";
+    public const string Tyres = "tyres";
+    public const string Other = "other";
+    public static readonly IReadOnlyList<string> All = [Service, Repair, Tyres, Other];
+}
+
+/// <summary>A vehicle a person may record a cost on.</summary>
+public sealed record VehicleChoice(ItemId Id, string Name, string Currency);
+
+/// <summary>#649: the vehicles a person writes, for the bank reconciliation to offer when a line pays a running cost.</summary>
+public interface IWritableVehicles
+{
+    Task<IReadOnlyList<VehicleChoice>> ForAsync(PersonId person, CancellationToken ct);
 }

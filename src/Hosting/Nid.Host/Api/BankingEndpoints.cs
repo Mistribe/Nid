@@ -246,7 +246,7 @@ public static class BankingEndpoints
             .Returns<IReadOnlyList<ExpectedChargeView>>();
 
         api.MapPost("/transactions/{id:guid}/link", async (Guid id, LinkBody body, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new LinkTransactionCommand(id, body.Module ?? "", body.ItemId ?? Guid.Empty, body.Key), ct)).ToHttp(line => line))
+            => (await invoker.InvokeAsync(new LinkTransactionCommand(id, body.Module ?? "", body.ItemId ?? Guid.Empty, body.Key, body.Category), ct)).ToHttp(line => line))
             .Returns<BankTransactionView>();
 
         api.MapPost("/transactions/{id:guid}/unlink", async (Guid id, IInvoker invoker, CancellationToken ct)
@@ -505,7 +505,8 @@ public static class BankingEndpoints
 
     /// <summary>A charge of <c>itemId</c> (a subscription, a loan, a property); <c>key</c> names one, else the nearest is taken.</summary>
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
-    public sealed record LinkBody(string? Module, Guid? ItemId, string? Key);
+    /// <summary><c>category</c>: for a vehicle (<c>assets</c>), the running cost's category the line records (default <c>other</c>).</summary>
+    public sealed record LinkBody(string? Module, Guid? ItemId, string? Key, string? Category = null);
 
     /// <summary>A line's category chosen by hand; an absent or null <c>categoryId</c> is « Sans catégorie », chosen by hand all the same.</summary>
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]

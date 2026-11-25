@@ -37,7 +37,8 @@ public sealed record LatestValuation(Valuation? Value);
 
 public sealed record NewFlow(
     ItemId Item, LocalDate OccurredOn, FlowKind Kind, Money Amount,
-    string? Category, string? ExternalRef, string? Note, FactSource Source = FactSource.Manual, ImportMark? Import = null);
+    string? Category, string? ExternalRef, string? Note, FactSource Source = FactSource.Manual, ImportMark? Import = null,
+    Guid? DocumentId = null);
 
 public sealed record Flow(
     Guid Id, ItemId Item, LocalDate OccurredOn, FlowKind Kind, Money Amount,

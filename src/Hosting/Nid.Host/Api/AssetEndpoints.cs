@@ -1,7 +1,10 @@
 using Nid.Assets.Application;
 using Nid.Assets.Domain;
 using Nid.Core.Contracts;
+using Nid.Documents.Application;
 using Nid.Platform.Contracts;
+using UnambitiousFx.Functional;
+using UnambitiousFx.Functional.Failures;
 using UnambitiousFx.Synapse.Abstractions;
 using static Nid.Host.Api.RealEstateEndpoints;
 using static Nid.Host.Api.SubscriptionEndpoints;
@@ -86,8 +89,45 @@ public static class AssetEndpoints
             => (await invoker.InvokeAsync(new VoidAssetValuationCommand(new ItemId(id), valuationId), ct)).ToHttp(x => new IdResponse(x)))
             .Returns<IdResponse>();
 
+        // #649: a vehicle's running costs, Core flows of the asset; the year's total is the server's.
+        api.MapGet("/{id:guid}/costs", async (Guid id, int? year, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new ListAssetCostsQuery(new ItemId(id), year), ct)).ToHttp(view => view))
+            .Returns<AssetCostsView>();
+
+        api.MapPost("/{id:guid}/costs", async (Guid id, AssetCostBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var cost = body.Read(reader);
+                if (cost is null)
+                    return reader.Problem();
+                return await UnreadableInvoiceAsync(invoker, cost.DocumentId, ct)
+                    ?? (await invoker.InvokeAsync(new RecordAssetCostCommand(new ItemId(id), cost), ct)).ToHttp(x => new IdResponse(x), StatusCodes.Status201Created);
+            })
+            .Returns<IdResponse>(StatusCodes.Status201Created);
+
+        api.MapPut("/{id:guid}/costs/{flowId:guid}", async (Guid id, Guid flowId, AssetCostBody body, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var cost = body.Read(reader);
+                if (cost is null)
+                    return reader.Problem();
+                return await UnreadableInvoiceAsync(invoker, cost.DocumentId, ct)
+                    ?? (await invoker.InvokeAsync(new CorrectAssetCostCommand(new ItemId(id), flowId, cost), ct)).ToHttp(x => new IdResponse(x));
+            })
+            .Returns<IdResponse>();
+
+        api.MapDelete("/{id:guid}/costs/{flowId:guid}", async (Guid id, Guid flowId, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new VoidAssetCostCommand(new ItemId(id), flowId), ct)).ToHttp(x => new IdResponse(x)))
+            .Returns<IdResponse>();
+
         return routes;
     }
+
+    /// <summary>An invoice the actor cannot read is a missing document (404), before anything is written.</summary>
+    private static async Task<Microsoft.AspNetCore.Http.IResult?> UnreadableInvoiceAsync(IInvoker invoker, Guid? documentId, CancellationToken ct)
+        => documentId is { } d && !(await invoker.InvokeAsync(new GetDocumentQuery(d), ct)).TryGetValue(out _)
+            ? Result.Failure<IdResponse>(new NotFoundFailure("document", d.ToString())).ToHttp(v => v)
+            : null;
 
     /// <summary>
     /// The visibility is required, with no default on the wire. <c>purchasePrice</c> and <c>purchasedOn</c> go together; without a
@@ -135,6 +175,20 @@ public static class AssetEndpoints
     }
 
     public sealed record AssetValuationBody(string? AsOf, string? Amount, string? Note);
+
+    /// <summary>
+    /// #649: <c>{ occurredOn, amount, category, note?, externalRef?, documentId? }</c>: an expense of a vehicle, <c>category</c> one of
+    /// service, repair, tyres, other; <c>externalRef</c> (<c>bank:{lineId}</c>) is unique among the asset's costs; <c>documentId</c> is its invoice.
+    /// </summary>
+    public sealed record AssetCostBody(string? OccurredOn, string? Amount, string? Category, string? Note, string? ExternalRef = null, Guid? DocumentId = null)
+    {
+        internal AssetCostDraft? Read(FieldReader reader)
+        {
+            var occurredOn = reader.Date(OccurredOn, "occurredOn");
+            var amount = LoanBodies.Number(reader, Amount, "amount");
+            return occurredOn is null || amount is null ? null : new AssetCostDraft(occurredOn.Value, amount.Value, Category, Note, ExternalRef, DocumentId);
+        }
+    }
 
     private static class AssetBodies
     {

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Nid.Assets.Contracts;
 using Nid.Banking.Application.Operations;
 using Nid.Banking.Application.Reconciliation;
 using Nid.Banking.Contracts;
@@ -36,7 +37,7 @@ public sealed record LinkCandidatesQuery(Guid TransactionId) : IQuery<IReadOnlyL
 public sealed record ListExpectedChargesQuery(LocalDate From, LocalDate To) : IQuery<IReadOnlyList<ExpectedChargeView>>, IRequiresBanking;
 
 /// <summary>A line of an account the actor writes linked by hand to a charge of an item they write, with its rule (<see cref="TransactionLinker.LinkAsync"/>).</summary>
-public sealed record LinkTransactionCommand(Guid TransactionId, string Module, Guid ItemId, string? Key) : ICommand<BankTransactionView>, IBankLineScoped
+public sealed record LinkTransactionCommand(Guid TransactionId, string Module, Guid ItemId, string? Key, string? Category = null) : ICommand<BankTransactionView>, IBankLineScoped
 {
     public AccessKind Access => AccessKind.Write;
 }
@@ -276,7 +277,7 @@ public sealed class ListBankLinesHandler(BankLines lines)
 }
 
 [RequestHandler<LinkCandidatesQuery, IReadOnlyList<ExpectedChargeView>>]
-public sealed class LinkCandidatesHandler(IContextAccessor context, BankingAccess access, ExpectedChargeReader charges)
+public sealed class LinkCandidatesHandler(IContextAccessor context, BankingAccess access, ExpectedChargeReader charges, IWritableVehicles vehicles)
     : IRequestHandler<LinkCandidatesQuery, IReadOnlyList<ExpectedChargeView>>
 {
     public const int Days = 30;
@@ -291,6 +292,8 @@ public sealed class LinkCandidatesHandler(IContextAccessor context, BankingAcces
         var convert = await charges.ConverterAsync(own, from, to, ct);
         var stem = TransactionLabel.Stem(line.NormalizedLabel);
         var paid = Math.Abs(line.Amount);
+        // #649: an expense may pay a running cost of a vehicle the actor writes: no due date or amount of its own, the line's stand in.
+        IReadOnlyList<VehicleChoice> costs = line.Amount < 0 ? await vehicles.ForAsync(access.Person, ct) : [];
         return Result.Success<IReadOnlyList<ExpectedChargeView>>([.. own
             .Select(c => (Charge: c, Gap: paid - convert(c, line.BookedOn, line.Currency.Code)))
             // Unknown gaps (no rate) last, then a hint found in the label, then the nearest date.
@@ -298,7 +301,9 @@ public sealed class LinkCandidatesHandler(IContextAccessor context, BankingAcces
             .ThenBy(x => !x.Charge.LabelHints.Any(h => TransactionLabel.Normalize(h) is { Length: > 0 } hint && stem.Contains(hint, StringComparison.Ordinal)))
             .ThenBy(x => Math.Abs(Period.DaysBetween(line.BookedOn, x.Charge.DueOn)))
             .Take(Most)
-            .Select(x => ExpectedChargeViews.Of(x.Charge, x.Charge.Amount.Currency == line.Currency ? x.Gap : null))]);
+            .Select(x => ExpectedChargeViews.Of(x.Charge, x.Charge.Amount.Currency == line.Currency ? x.Gap : null))
+            .Concat(costs.Select(v => new ExpectedChargeView(TransactionLinker.Assets, v.Id.Value, v.Name, "vehicle_cost", "cost", line.BookedOn,
+                TransactionLinker.Amount(paid), line.Currency.Code, false, null)))]);
     }
 }
 
@@ -336,8 +341,11 @@ public sealed class LinkTransactionHandler(BankingAccess access, BankLines lines
         var checkedLine = await linker.CheckAsync(command.TransactionId, command.Module, item, ct);
         if (!checkedLine.TryGetValue(out var line))
             return BankingAccess.Failed<BankTransactionView, BankTransaction>(checkedLine);
+        if (command.Category is not null && !AssetCostCategories.All.Contains(command.Category))
+            return Result.Failure<BankTransactionView>(FieldErrors.Shape(
+                [new FieldError("category", FieldErrors.ShapeCode, $"A cost category is one of {string.Join(", ", AssetCostCategories.All)}.")]));
 
-        var linked = await linker.LinkAsync(line!, command.Module, item, command.Key, access.Person, await calendar.TodayAsync(ct), ct);
+        var linked = await linker.LinkAsync(line!, command.Module, item, command.Key, access.Person, await calendar.TodayAsync(ct), ct, command.Category);
         return linked.IsSuccess
             ? Result.Success(await lines.ViewAsync(line!.Id, ct))
             : BankingAccess.Failed<BankTransactionView, BankLink>(linked);

@@ -344,6 +344,8 @@
       "none": "Aucune charge",
       "empty": "Aucune charge attendue proche",
       "gap": "écart {{gap}}",
+      "cost_category": "Type de frais",
+      "cost_hint": "Le frais est proposé pour le véhicule, avec la facture à joindre ensuite depuis sa fiche.",
       "submit": "Relier"
     },
     "application": {

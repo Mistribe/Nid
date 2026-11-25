@@ -663,6 +663,11 @@ public static class RequestCatalogue
         new(typeof(RecordAssetValuationCommand), true, (_, item) => new RecordAssetValuationCommand(item, new LocalDate(2025, 1, 1), 1m, null)),
         // A valuation id is looked up on the route's asset only, so an id alone can never reach another item.
         new(typeof(VoidAssetValuationCommand), true, (_, item) => new VoidAssetValuationCommand(item, Guid.NewGuid())),
+        new(typeof(ListAssetCostsQuery), true, (_, item) => new ListAssetCostsQuery(item, null)),
+        new(typeof(RecordAssetCostCommand), true, (_, item) => new RecordAssetCostCommand(item, new AssetCostDraft(new LocalDate(2025, 1, 1), 1m, "service", null))),
+        new(typeof(CorrectAssetCostCommand), true, (_, item) => new CorrectAssetCostCommand(item, Guid.NewGuid(), new AssetCostDraft(new LocalDate(2025, 1, 1), 1m, "service", null))),
+        // As a valuation id: a flow id is looked up on the route's asset only, so an id alone can never reach another item.
+        new(typeof(VoidAssetCostCommand), true, (_, item) => new VoidAssetCostCommand(item, Guid.NewGuid())),
 
         new(typeof(ListChildcareQuery), false, (_, _) => new ListChildcareQuery(VisibilityScope.Me, true)),
         new(typeof(GetChildcareQuery), true, (_, item) => new GetChildcareQuery(item)),

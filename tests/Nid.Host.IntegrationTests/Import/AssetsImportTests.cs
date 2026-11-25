@@ -97,17 +97,46 @@ public class AssetsImportTests(PostgresFixture fixture) : IClassFixture<Postgres
     }
 
     [Fact]
-    public async Task Flow_on_an_asset_is_refused()
+    public async Task An_income_flow_on_an_asset_is_refused()
     {
         await using var app = await NidApp.StartAsync(fixture);
         var file = File([Car]);
-        file["flows"] = """[{"id":"f-car","item":"asset-car","occurred_on":"2024-01-01","kind":"expense","amount":{"amount":"100","currency":"EUR"}}]""";
+        file["flows"] = """[{"id":"f-car","item":"asset-car","occurred_on":"2024-01-01","kind":"income","amount":{"amount":"100","currency":"EUR"},"category":"service"}]""";
 
         var session = await ValidateAsync(new ImportClient(app), app, app.AdultA, file);
 
-        Assert.Equal([(AssetsCodes.NoFlows, "flows[0].kind")], ErrorsOf(session));
-        Assert.Equal("An asset takes valuations only, no flows.",
-            session.Report!.Issues.Single(i => i.Severity == "error").Message);
+        Assert.Equal([(AssetsCodes.InvalidCategory, "flows[0].kind")], ErrorsOf(session));
+    }
+
+    [Fact]
+    public async Task A_cost_without_a_known_category_is_refused()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var file = File([Car]);
+        file["flows"] = """[{"id":"f-car","item":"asset-car","occurred_on":"2024-01-01","kind":"expense","amount":{"amount":"100","currency":"EUR"},"category":"fuel"}]""";
+
+        var session = await ValidateAsync(new ImportClient(app), app, app.AdultA, file);
+
+        Assert.Equal([(AssetsCodes.InvalidCategory, "flows[0].category")], ErrorsOf(session));
+    }
+
+    [Fact]
+    public async Task A_vehicle_cost_travels_in_the_flows_section_and_back()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var file = File([Car]);
+        file["flows"] = """[{"id":"f-service","item":"asset-car","occurred_on":"2024-02-01","kind":"expense","amount":{"amount":"120.50","currency":"EUR"},"category":"service","note":"Révision"}]""";
+
+        var committed = await CommitAsync(new ImportClient(app), app, app.AdultA, file);
+
+        Assert.Equal(new CountsResponse(1, 0, 0), committed.Report!.Sections["flows"]);
+        var costs = await JsonAsync(app, app.AdultA, $"/api/v1/assets/{(await IdOfAsync(app, "asset-car")).Value}/costs?year=2024");
+        Assert.Equal(("service", "120.50", "120.50"), (costs.GetProperty("rows")[0].GetProperty("category").GetString(),
+            costs.GetProperty("rows")[0].GetProperty("amount").GetProperty("amount").GetString(), costs.GetProperty("total").GetProperty("amount").GetString()));
+        var export = await new Export.ExportClient(app).ExportAllAsync(app.AdultA);
+        var flow = Assert.Single(export["flows"]);
+        Assert.Equal(("expense", "service", export["assets"][0].GetProperty("id").GetString()),
+            (flow.GetProperty("kind").GetString(), flow.GetProperty("category").GetString(), flow.GetProperty("item").GetString()));
     }
 
     [Fact]
