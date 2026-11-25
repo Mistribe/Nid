@@ -354,7 +354,7 @@ public sealed class LinkTransactionHandler(BankingAccess access, BankLines lines
 
 [RequestHandler<UnlinkTransactionCommand, BankTransactionView>]
 public sealed class UnlinkTransactionHandler(
-    IContextAccessor context, BankingAccess access, BankLines lines, ILinkStore links, IAccessPolicy policy, IItemRegistry items, CategoryRuleApplier categoryRules)
+    IContextAccessor context, BankingAccess access, BankLines lines, ILinkStore links, IAccessPolicy policy, IItemRegistry items, CategoryRuleApplier categoryRules, IFlows flows)
     : IRequestHandler<UnlinkTransactionCommand, BankTransactionView>
 {
     public async ValueTask<Result<BankTransactionView>> HandleAsync(UnlinkTransactionCommand command, CancellationToken ct = default)
@@ -362,7 +362,8 @@ public sealed class UnlinkTransactionHandler(
         var line = CheckedResources.Of<BankTransaction>(context, command);
 
         // D19: a link the actor cannot see is not found, never named.
-        switch ((await links.ForTransactionsAsync([line!.Id], ct)).GetValueOrDefault(line.Id))
+        var link = (await links.ForTransactionsAsync([line!.Id], ct)).GetValueOrDefault(line.Id);
+        switch (link)
         {
             case { CounterpartAccount: { } counterpart } when !(await access.AccountAsync(counterpart, AccessKind.Read, ct)).IsSuccess:
                 return BankLines.NotFound<BankTransactionView>(line.Id);
@@ -372,6 +373,17 @@ public sealed class UnlinkTransactionHandler(
                 if (write.TryGetFailure(out var failure))
                     return failure is UnauthorizedFailure ? Result.Failure<BankTransactionView>(failure) : BankLines.NotFound<BankTransactionView>(line.Id);
                 break;
+        }
+
+        // #649: the cost a vehicle link created (its flow carries this line's `bank:` reference) goes with the link; a hand-typed cost the link
+        // reused stays. Same transaction: a refusal undoes the unlink.
+        if (link is { TargetModule: "assets", TargetItem: { } vehicle, TargetKey: { } key } && key.StartsWith("flow:", StringComparison.Ordinal)
+            && Guid.TryParseExact(key["flow:".Length..], "N", out var flowId)
+            && (await flows.FindManyAsync([flowId], ct)).FirstOrDefault() is { } cost && cost.Item == vehicle && cost.ExternalRef == $"bank:{line.Id:D}")
+        {
+            var voided = await flows.VoidAsync(vehicle, flowId, ct);
+            if (voided.TryGetFailure(out var voidFailure))
+                return Result.Failure<BankTransactionView>(voidFailure!);
         }
 
         await links.ClearAsync(line.Id, TransactionLinkState.Unlinked, ct);

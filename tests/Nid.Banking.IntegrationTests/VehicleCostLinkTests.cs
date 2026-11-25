@@ -230,4 +230,58 @@ public class VehicleCostLinkTests(PostgresFixture fixture) : IClassFixture<Postg
         var view = await JsonOf(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{BankingApi.Root}/transactions?state=linked"));
         Assert.Contains("Entretien véhicule", view.ToString());
     }
+
+    private static Task<HttpResponseMessage> UnlinkAsync(NidApp app, Guid line)
+        => app.RawAsync(app.AdultA, HttpMethod.Post, $"{BankingApi.Root}/transactions/{line}/unlink", new { });
+
+    [Fact]
+    public async Task Unlinking_a_line_voids_the_cost_its_link_created()
+    {
+        var (app, account) = await StartAsync(fixture);
+        await using var _ = app;
+        var car = await VehicleAsync(app);
+        var line = await AddAsync(app, account, "a", D(10, 20), -85.40m);
+        Assert.Equal(HttpStatusCode.OK, (await LinkAsync(app, line, car)).StatusCode);
+        Assert.Single((await CostsAsync(app, car)).GetProperty("rows").EnumerateArray());
+
+        Assert.Equal(HttpStatusCode.OK, (await UnlinkAsync(app, line)).StatusCode);
+
+        Assert.Null(await LinkOfAsync(app, line));
+        Assert.Empty((await CostsAsync(app, car)).GetProperty("rows").EnumerateArray());
+        Assert.Equal(HttpStatusCode.OK, (await LinkAsync(app, line, car)).StatusCode); // free again: one cost, not two
+        Assert.Single((await CostsAsync(app, car)).GetProperty("rows").EnumerateArray());
+    }
+
+    [Fact]
+    public async Task Unlinking_a_line_keeps_a_hand_typed_cost_the_link_reused()
+    {
+        var (app, account) = await StartAsync(fixture);
+        await using var _ = app;
+        var car = await VehicleAsync(app);
+        await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/assets/{car}/costs", new { occurredOn = "2026-10-18", amount = "85.40", category = "service" });
+        var line = await AddAsync(app, account, "a", D(10, 20), -85.40m);
+        Assert.Equal(HttpStatusCode.OK, (await LinkAsync(app, line, car)).StatusCode);
+
+        Assert.Equal(HttpStatusCode.OK, (await UnlinkAsync(app, line)).StatusCode);
+
+        Assert.Null(await LinkOfAsync(app, line));
+        Assert.Single((await CostsAsync(app, car)).GetProperty("rows").EnumerateArray());
+    }
+
+    [Fact]
+    public async Task Relinking_a_line_to_another_vehicle_leaves_one_cost_in_all()
+    {
+        var (app, account) = await StartAsync(fixture);
+        await using var _ = app;
+        var car = await VehicleAsync(app);
+        var moto = await VehicleAsync(app, "Moto");
+        var line = await AddAsync(app, account, "a", D(10, 20), -85.40m);
+        Assert.Equal(HttpStatusCode.OK, (await LinkAsync(app, line, car)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await UnlinkAsync(app, line)).StatusCode);
+
+        Assert.Equal(HttpStatusCode.OK, (await LinkAsync(app, line, moto)).StatusCode);
+
+        Assert.Empty((await CostsAsync(app, car)).GetProperty("rows").EnumerateArray());
+        Assert.Single((await CostsAsync(app, moto)).GetProperty("rows").EnumerateArray());
+    }
 }
