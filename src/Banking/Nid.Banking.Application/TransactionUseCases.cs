@@ -377,11 +377,13 @@ public sealed class UnlinkTransactionHandler(
 
         // #649: the cost a vehicle link created (its flow carries this line's `bank:` reference) goes with the link; a hand-typed cost the link
         // reused stays. Same transaction: a refusal undoes the unlink.
-        if (link is { TargetModule: "assets", TargetItem: { } vehicle, TargetKey: { } key } && key.StartsWith("flow:", StringComparison.Ordinal)
-            && Guid.TryParseExact(key["flow:".Length..], "N", out var flowId)
-            && (await flows.FindManyAsync([flowId], ct)).FirstOrDefault() is { } cost && cost.Item == vehicle && cost.ExternalRef == $"bank:{line.Id:D}")
+        // A correction supersedes the flow (new id, same `bank:` reference) while the link keeps the old id: find the current one by reference.
+        if (link is { TargetModule: "assets", TargetItem: { } vehicle }
+            && DateRange.Create(new LocalDate(1900, 1, 1), new LocalDate(2200, 1, 1)).TryGetValue(out var all)
+            && (await flows.ListAsync(vehicle, all, new HashSet<FlowKind> { FlowKind.Expense }, ct)).TryGetValue(out var costs)
+            && costs!.FirstOrDefault(f => f.ExternalRef == $"bank:{line.Id:D}") is { } cost)
         {
-            var voided = await flows.VoidAsync(vehicle, flowId, ct);
+            var voided = await flows.VoidAsync(vehicle, cost.Id, ct);
             if (voided.TryGetFailure(out var voidFailure))
                 return Result.Failure<BankTransactionView>(voidFailure!);
         }

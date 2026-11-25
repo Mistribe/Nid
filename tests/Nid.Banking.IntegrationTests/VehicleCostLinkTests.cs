@@ -284,4 +284,23 @@ public class VehicleCostLinkTests(PostgresFixture fixture) : IClassFixture<Postg
         Assert.Empty((await CostsAsync(app, car)).GetProperty("rows").EnumerateArray());
         Assert.Single((await CostsAsync(app, moto)).GetProperty("rows").EnumerateArray());
     }
+
+    [Fact]
+    public async Task Unlinking_after_the_cost_was_corrected_voids_the_corrected_cost()
+    {
+        var (app, account) = await StartAsync(fixture);
+        await using var _ = app;
+        var car = await VehicleAsync(app);
+        var line = await AddAsync(app, account, "a", D(10, 20), -85.40m);
+        Assert.Equal(HttpStatusCode.OK, (await LinkAsync(app, line, car)).StatusCode);
+        var flow = Assert.Single((await CostsAsync(app, car)).GetProperty("rows").EnumerateArray()).GetProperty("id").GetGuid();
+        var put = await app.RawAsync(app.AdultA, HttpMethod.Put, $"/api/v1/assets/{car}/costs/{flow}", new { occurredOn = "2026-10-20", amount = "90.00", category = "repair" });
+        Assert.Equal(HttpStatusCode.OK, put.StatusCode);
+
+        Assert.Equal(HttpStatusCode.OK, (await UnlinkAsync(app, line)).StatusCode);
+
+        Assert.Empty((await CostsAsync(app, car)).GetProperty("rows").EnumerateArray());
+        Assert.Equal(HttpStatusCode.OK, (await LinkAsync(app, line, car)).StatusCode);
+        Assert.Single((await CostsAsync(app, car)).GetProperty("rows").EnumerateArray());
+    }
 }
