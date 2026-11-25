@@ -542,6 +542,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IProposalHandler, Nid.RealEstate.Application.AmortizationProposal>();
         services.AddSingleton<IFactConventions, Nid.RealEstate.Application.RealEstateFactConventions>();
         services.AddSingleton<IFactConventions, Nid.Investments.Application.InvestmentsFactConventions>();
+        services.AddSingleton<IFactConventions, Nid.Assets.Application.AssetsFactConventions>();
 
         // Assets (1C2c): files named by their hash, on a volume. Program binds the options; the default is the
         // production volume. Nothing touches the disk before the first write, so building the host never does.
@@ -600,6 +601,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IImportSection, IncomeImportSection>();
         services.AddScoped<IImportSection, IncomeOneOffTaxableImportSection>();
         services.AddScoped<IImportSection, Nid.Goals.Application.Import.GoalsImportSection>();
+        services.AddScoped<IImportSection, Nid.Assets.Application.Import.AssetsImportSection>();
         services.AddScoped<IImportSection, Nid.RealEstate.Application.Import.RealEstateImportSection>();
         services.AddScoped<IImportSection, FactsImportSection>();
         services.AddScoped<IImportSection, Nid.Banking.Application.Import.BankImportSection>();

@@ -54,6 +54,7 @@ Un **seul format** sert à trois usages :
 | `properties`, `property_recurring_costs`, `tenancies` | tableaux | Module RealEstate, le bien (`realestate/README.md` §10) |
 | `loans`, `loan_phases`, `loan_insurances`, `loan_fees`, `loan_events`, `loan_bank_schedule` | tableaux | Module RealEstate, les crédits (`realestate/loans.md` §10) ; `loan_bank_schedule` livrée en 3F2 (§12bis) |
 | `subscription_insurances` | tableau | Module Abonnements : l'assurance d'un abonnement (§5.3bis), appliquée après `properties`, que l'assurance peut nommer |
+| `assets` | tableau | Module Autres actifs (#186) : un véhicule, un métal précieux, une œuvre d'art, un objet de collection ou un autre bien, avec ses valorisations dans `valuations` (§5.10) |
 | `income_sources`, `income_phases` | tableaux | Module Revenus (`income-data-model.md` §9) |
 | `income_one_off_taxable` | tableau | Module Revenus : le net imposable d'un revenu ponctuel, `{ flow_id, taxable_amount }`, où `flow_id` est l'`id` d'une entité de `flows` (catégorie `one_off`) ; appliqué après `flows` |
 | `valuations`, `flows` | tableaux | Core (§5.6) |
@@ -176,7 +177,7 @@ Le sens de chaque entité, l'algorithme de couverture et le calcul des coûts so
 
 ### 5.6 `valuations` et `flows` (Core)
 
-Sections communes à tous les modules qui suivent une valeur (`envelopes`, `properties`). Le champ `item` nomme exactement une entité d'une section qui crée des éléments (`envelopes`, `income_sources`, `properties`, `loans`) ; une référence vers une autre section, ou vers rien, est une erreur.
+Sections communes à tous les modules qui suivent une valeur (`envelopes`, `properties`). Le champ `item` nomme exactement une entité d'une section qui crée des éléments (`envelopes`, `income_sources`, `properties`, `loans`, `assets`) ; une référence vers une autre section, ou vers rien, est une erreur.
 
 **`valuations`**
 
@@ -348,6 +349,25 @@ Une garde à domicile et ses mois, saisis tels que payés (aucun calcul de paie)
 
 **Règles** : comme `goals` (§8) — inchangée, en conflit, ou remplacée avec tous ses mois quand l'import remplace.
 
+### 5.10 `assets` (Autres actifs)
+
+Les actifs que la personne lit, archivés compris (#186). La valeur d'un actif vient de son prix d'achat, puis des valorisations du fichier qui le nomment (`valuations`, §5.6, `item` = `id` de l'actif) ; les flux ne s'appliquent pas à un actif (`assets.no_flows`).
+
+| Champ | Type | Remarques |
+|---|---|---|
+| `id` | string | |
+| `name` | string | 1 à 100 caractères |
+| `kind` | string | `vehicle`, `precious_metal`, `art`, `collectible`, `other` (`assets.unknown_kind`) |
+| `currency` | string | Devise de l'actif ; un remplacement la conserve |
+| `purchase_price` | décimal? | Chaîne décimale (un nombre JSON est accepté), > 0, deux décimales au plus (`assets.invalid_purchase`) |
+| `purchased_on` | date? | Non future ; avec `purchase_price`, ou ni l'un ni l'autre (`assets.purchase_incomplete`) |
+| `note` | string? | 2 000 caractères au plus |
+| `weight_grams` | décimal? | `precious_metal` seulement (`assets.metal_only`), > 0, trois décimales au plus (`assets.invalid_weight`) |
+| `fineness` | décimal? | `precious_metal` seulement, de 0 (exclu) à 1000, une décimale au plus (`assets.invalid_fineness`) ; `999.9` est conservé tel quel |
+| `visibility`, `share_level`, `ownership`, `closed` | | Comme `goals` |
+
+**Règles** : comme `goals` (§8) — inchangée, en conflit, ou remplacée quand l'import remplace. **Une valeur est toujours présente** : un actif sans `purchase_price` doit être nommé par au moins une valorisation du même fichier, sinon `assets.value_required` sur sa ligne. La règle ne regarde que le fichier : les valorisations déjà enregistrées ne la satisfont pas, même au remplacement. L'actif passe après l'immobilier (ordre 45) et avant `valuations`.
+
 ## 6. Résolution des personnes
 
 - Chaque `adult` du fichier doit être **associé à un compte existant** lors de l'import (par `email`, ou par une correspondance fournie à l'import). Un import ne crée jamais d'adulte : un adulte naît à sa première connexion (`core-data-model.md` §4.4). Un `adult` non résolu est une erreur.
@@ -459,7 +479,7 @@ Le staging est vidé à `commit`, à l'annulation et à l'expiration.
 ### 11.4 Validation et écriture
 
 - **`validate`** : chaque module valide l'ensemble de sa section sur le staging (références entre lots, chevauchements, invariants du Core, droits de la personne, idempotence par `import_ref`, taux de change), et Platform assemble un rapport unique. Rien n'est écrit dans les données du foyer.
-- **`commit`** : le serveur **rejoue la validation complète** (l'état a pu changer depuis `validate`), puis appelle les modules dans l'ordre `persons` → `providers` → les sections qui créent des éléments (`subscriptions`, `envelopes`, `properties`, `loans`, `income_sources`) → les sections qui en dépendent (`billing_phases`, `purchases`, `valuations`, `flows`, `property_recurring_costs`, `tenancies`, `loan_phases`, `loan_insurances`, `loan_fees`, `loan_events`, `loan_bank_schedule`, `subscription_insurances`, `income_phases`, `income_one_off_taxable`) → les supports d'enveloppe (`holdings`, `holding_snapshots`, `holding_movements`, après `flows` qu'un mouvement peut nommer) → leurs répartitions (`security_breakdowns`, après `holdings` dont elles nomment les ISIN) → les objectifs (`goals`, après les enveloppes qu'ils lient) → les gardes et leurs relevés validés (`childcare_arrangements`, `childcare_statements`), les gardes à domicile (`childcare_nannies`) → les comptes bancaires, leurs opérations, leurs liens et leurs règles (`bank_accounts`, `bank_transactions`, `bank_links`, `bank_rules`), dans **une transaction unique**. Le staging de la session est vidé dans la même transaction. Une erreur annule tout.
+- **`commit`** : le serveur **rejoue la validation complète** (l'état a pu changer depuis `validate`), puis appelle les modules dans l'ordre `persons` → `providers` → les sections qui créent des éléments (`subscriptions`, `envelopes`, `properties`, `loans`, `assets`, `income_sources`) → les sections qui en dépendent (`billing_phases`, `purchases`, `valuations`, `flows`, `property_recurring_costs`, `tenancies`, `loan_phases`, `loan_insurances`, `loan_fees`, `loan_events`, `loan_bank_schedule`, `subscription_insurances`, `income_phases`, `income_one_off_taxable`) → les supports d'enveloppe (`holdings`, `holding_snapshots`, `holding_movements`, après `flows` qu'un mouvement peut nommer) → leurs répartitions (`security_breakdowns`, après `holdings` dont elles nomment les ISIN) → les objectifs (`goals`, après les enveloppes qu'ils lient) → les gardes et leurs relevés validés (`childcare_arrangements`, `childcare_statements`), les gardes à domicile (`childcare_nannies`) → les comptes bancaires, leurs opérations, leurs liens et leurs règles (`bank_accounts`, `bank_transactions`, `bank_links`, `bank_rules`), dans **une transaction unique**. Le staging de la session est vidé dans la même transaction. Une erreur annule tout.
 - Les `DbContext` des modules partagent la connexion et la transaction de l'import (`Database.UseTransactionAsync`). **Vérifié** (`spikes.md` §6) : le retour arrière efface l'écriture de tous les modules, et l'outbox reste invisible aux autres sessions jusqu'au commit.
 
 ### 11.5 Bornes

@@ -429,6 +429,7 @@ public static class RequestCatalogue
         new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("holding_snapshots", null, null)),
         new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("holding_movements", null, null)),
         new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("goals", null, null)),
+        new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("assets", null, null)),
         // Bank sync D24: A's account on her private envelope and its two lines, named after her private label, never reach B's export.
         new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("bank_accounts", null, null)),
         new(typeof(ExportPageQuery), false, (_, _) => new ExportPageQuery("bank_transactions", null, null)),

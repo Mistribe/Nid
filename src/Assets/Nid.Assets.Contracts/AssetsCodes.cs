@@ -12,4 +12,6 @@ public static class AssetsCodes
     public const string InvalidPurchase = "assets.invalid_purchase";
     public const string InvalidValue = "assets.invalid_value";
     public const string Conflict = "assets.conflict";
+    /// <summary>A flow of an asset: its only facts are valuations.</summary>
+    public const string NoFlows = "assets.no_flows";
 }

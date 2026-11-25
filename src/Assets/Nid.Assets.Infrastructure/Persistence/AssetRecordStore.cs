@@ -7,11 +7,39 @@ namespace Nid.Assets.Infrastructure.Persistence;
 
 public sealed class AssetRecordStore(AssetsDbContext db) : IAssetRecordStore
 {
-    public async Task AddAsync(ItemId id, AssetDetails details, CancellationToken ct)
+    public async Task AddAsync(ItemId id, AssetDetails details, CancellationToken ct, ImportMark? import = null)
     {
         var row = new AssetRow { ItemId = id.Value };
         Apply(row, details);
+        Mark(row, import);
         db.Assets.Add(row);
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task<IReadOnlyDictionary<string, IReadOnlyList<ImportedAsset>>> FindImportedAsync(IReadOnlyCollection<string> refs, CancellationToken ct)
+    {
+        var wanted = refs.Distinct(StringComparer.Ordinal).ToList();
+        var rows = await db.Assets.AsNoTracking().Where(r => r.ImportRef != null && wanted.Contains(r.ImportRef))
+            .Select(r => new { r.ItemId, r.ImportRef, r.ImportHash, r.ImportedBy }).ToListAsync(ct);
+        return rows.GroupBy(r => r.ImportRef!, StringComparer.Ordinal).ToDictionary(
+            g => g.Key,
+            g => (IReadOnlyList<ImportedAsset>)g.Select(r => new ImportedAsset(new ItemId(r.ItemId), r.ImportHash!.Trim(), new PersonId(r.ImportedBy!.Value))).ToList(),
+            StringComparer.Ordinal);
+    }
+
+    public async Task<IReadOnlyDictionary<Guid, ImportMark>> MarksAsync(IReadOnlyCollection<ItemId> ids, CancellationToken ct)
+    {
+        var wanted = ids.Select(i => i.Value).ToList();
+        var rows = await db.Assets.AsNoTracking().Where(r => r.ImportRef != null && wanted.Contains(r.ItemId))
+            .Select(r => new { r.ItemId, r.ImportRef, r.ImportHash, r.ImportedBy }).ToListAsync(ct);
+        return rows.ToDictionary(r => r.ItemId, r => new ImportMark(r.ImportRef!, r.ImportHash!.Trim(), new PersonId(r.ImportedBy!.Value)));
+    }
+
+    public async Task ReplaceAsync(ItemId id, AssetDetails details, ImportMark import, CancellationToken ct)
+    {
+        var row = await db.Assets.SingleAsync(a => a.ItemId == id.Value, ct);
+        Apply(row, details);
+        Mark(row, import);
         await db.SaveChangesAsync(ct);
     }
 
@@ -57,6 +85,13 @@ public sealed class AssetRecordStore(AssetsDbContext db) : IAssetRecordStore
         var rows = await filtered.OrderByDescending(a => a.PurchasedOn != null).ThenByDescending(a => a.PurchasedOn).ThenBy(a => a.ItemId)
             .Skip(skip).Take(take).ToListAsync(ct);
         return new AssetPage(rows.Select(ToRecord).ToList(), total, kinds);
+    }
+
+    private static void Mark(AssetRow row, ImportMark? import)
+    {
+        row.ImportRef = import?.Ref;
+        row.ImportHash = import?.Hash;
+        row.ImportedBy = import?.ImportedBy.Value;
     }
 
     private static void Apply(AssetRow row, AssetDetails d)
