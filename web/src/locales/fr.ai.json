@@ -130,6 +130,7 @@
       "count_succeeded": "Terminées",
       "count_failed": "Échouées",
       "count_dead": "Abandonnées",
+      "count_filter": "{{label}} : {{count}}, n'afficher que celles-ci",
       "status_queued": "En attente",
       "status_running": "En cours",
       "status_succeeded": "Terminée",

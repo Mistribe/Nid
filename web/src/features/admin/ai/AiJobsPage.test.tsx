@@ -47,6 +47,23 @@ describe('Réglages › IA › Tâches', () => {
     expect(within(line).getByText('Abandonnées').nextSibling).toHaveTextContent('1');
   });
 
+  it('filters on a state when its count is clicked, and clears it on a second click', async () => {
+    const statuses: (string | null)[] = [];
+    server.use(http.get('*/api/v1/ai/jobs', ({ request }) => {
+      statuses.push(new URL(request.url).searchParams.get('status'));
+      return HttpResponse.json({ items: [job()], total: 1, page: 1, types: ['document-text'], counts });
+    }));
+    const { user } = await renderApp('/admin/ai/jobs', { capabilities: adminCapabilities });
+
+    await user.click(await screen.findByRole('button', { name: /^En attente : 2/ }));
+    await waitFor(() => expect(statuses.at(-1)).toBe('queued'));
+    expect(screen.getByRole('button', { name: /^En attente : 2/ })).toHaveAttribute('aria-pressed', 'true');
+
+    // Back to every state (the first, unfiltered answer may come from the cache).
+    await user.click(screen.getByRole('button', { name: /^En attente : 2/ }));
+    await waitFor(() => expect(screen.getByRole('button', { name: /^En attente : 2/ })).toHaveAttribute('aria-pressed', 'false'));
+  });
+
   it('names the document a job is about and lists each time it was sent (#602)', async () => {
     server.use(http.get('*/api/v1/ai/jobs', () => HttpResponse.json({
       items: [

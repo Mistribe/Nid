@@ -59,7 +59,15 @@ export function AiJobsPage() {
       <p className="max-w-prose text-sm text-muted-foreground">{t('ai.jobs.tip')}</p>
       {jobs.data ? (
         <StatLine items={(['queued', 'running', 'succeeded', 'failed', 'dead'] as const).map((s) => ({
-          label: t(`ai.jobs.count_${s}`), value: jobs.data.counts[s],
+          label: t(`ai.jobs.count_${s}`),
+          // A click shows that state only, a second click all of them again.
+          value: (
+            <Button type="button" variant="link" className="h-auto p-0 text-figure" aria-pressed={status === s}
+              aria-label={t('ai.jobs.count_filter', { label: t(`ai.jobs.count_${s}`), count: jobs.data.counts[s] })}
+              onClick={() => filter('status', status === s ? '' : s)}>
+              {jobs.data.counts[s]}
+            </Button>
+          ),
         }))} />
       ) : null}
       <FilterRow label={t('common.filters')}>
