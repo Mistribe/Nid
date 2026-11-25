@@ -9,8 +9,8 @@ using UnambitiousFx.Synapse.Abstractions;
 
 namespace Nid.RealEstate.Application;
 
-/// <summary>Spec 3A2 §4: <c>scope</c> is the Foyer / Moi selector; ended loans only when asked for; #180: <c>Envelope</c>, the loans financing it; #188: <c>Unfinanced</c>, only the loans financing no item.</summary>
-public sealed record ListLoansQuery(VisibilityScope Scope, bool IncludeEnded, ItemId? Envelope = null, bool Unfinanced = false) : IQuery<LoanList>;
+/// <summary>Spec 3A2 §4: <c>scope</c> is the Foyer / Moi selector; ended loans only when asked for; #180: <c>Envelope</c>, the loans financing it; #188: <c>Unfinanced</c>, only the loans financing no item; <c>Writable</c>, only those the reader may edit.</summary>
+public sealed record ListLoansQuery(VisibilityScope Scope, bool IncludeEnded, ItemId? Envelope = null, bool Unfinanced = false, bool Writable = false) : IQuery<LoanList>;
 
 public sealed record GetLoanQuery(ItemId ItemId) : IQuery<LoanDetail>, IItemScoped
 {
@@ -44,6 +44,8 @@ public sealed class ListLoansHandler(
             ids = ids.Intersect(await loans.FinancingAsync(envelope, ct));
         if (query.Unfinanced)
             ids = ids.Intersect(await loans.UnfinancedAsync(ct));
+        if (query.Writable)
+            ids = await policy.CheckManyAsync(person, ids.ToList(), AccessKind.Write, ct);
         var today = await calendar.TodayAsync(ct);
 
         // Batched reads spec §3: the items, the write checks and the linked properties' names, each read once for the list.

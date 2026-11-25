@@ -111,6 +111,18 @@ public class AssetLinkTests(PostgresFixture fixture) : IClassFixture<PostgresFix
     }
 
     [Fact]
+    public async Task The_writable_filter_keeps_only_the_loans_the_reader_may_edit()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var free = await NewAsync(app, Golden(app, name: "Prêt sans lien"));
+
+        var seenByB = Assert.Single(await ListAsync(app, "?unfinanced=true", app.AdultB));
+        Assert.False(seenByB.GetProperty("canWrite").GetBoolean());
+        Assert.Empty(await ListAsync(app, "?unfinanced=true&writable=true", app.AdultB));
+        Assert.Equal(free, Assert.Single(await ListAsync(app, "?unfinanced=true&writable=true")).GetProperty("id").GetGuid());
+    }
+
+    [Fact]
     public async Task A_financed_asset_refuses_its_delete_until_the_loan_lets_go()
     {
         await using var app = await NidApp.StartAsync(fixture);

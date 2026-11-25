@@ -85,14 +85,14 @@ export function AssetLoansSection({ asset }: { asset: AssetView }) {
   );
 }
 
-/** The unpaid loans the reader can edit that finance nothing (the server's `unfinanced` filter): a loan is never moved from another item. */
+/** The unpaid loans the reader can edit that finance nothing (the server's `unfinanced` and `writable` filters): a loan is never moved from another item. */
 function LinkForm({ asset, titleId, onDone }: { asset: AssetView; titleId: string; onDone: (message?: string) => void }) {
   const { t } = useTranslation();
   const { $api } = useApi();
   const queryClient = useQueryClient();
   const form = useForm<{ loanId: string }>({ defaultValues: { loanId: '' } });
-  const list = $api.useQuery('get', LOANS, { params: { query: { scope: 'me', unfinanced: true } } });
-  const options = (list.data?.items ?? []).filter((l) => l.canWrite).map((l) => ({ value: l.id, label: l.name }));
+  const list = $api.useQuery('get', LOANS, { params: { query: { scope: 'me', unfinanced: true, writable: true } } });
+  const options = (list.data?.items ?? []).map((l) => ({ value: l.id, label: l.name }));
   const link = $api.useMutation('patch', LOAN);
   return (
     <form aria-labelledby={titleId} noValidate className="space-y-3" onSubmit={(ev) => {

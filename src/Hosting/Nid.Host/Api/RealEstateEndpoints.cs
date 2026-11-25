@@ -45,8 +45,8 @@ public static class RealEstateEndpoints
             })
             .Returns<IrlValueView>();
 
-        api.MapGet("/loans", async (string? scope, bool? ended, Guid? envelope, bool? unfinanced, IInvoker invoker, CancellationToken ct)
-            => await FieldReader.Run(invoker, r => new ListLoansQuery(r.Scope(scope), ended ?? false, envelope is { } e ? new ItemId(e) : null, unfinanced ?? false), list => list, ct))
+        api.MapGet("/loans", async (string? scope, bool? ended, Guid? envelope, bool? unfinanced, bool? writable, IInvoker invoker, CancellationToken ct)
+            => await FieldReader.Run(invoker, r => new ListLoansQuery(r.Scope(scope), ended ?? false, envelope is { } e ? new ItemId(e) : null, unfinanced ?? false, writable ?? false), list => list, ct))
             .Returns<LoanList>();
 
         api.MapGet("/loans/overview", async (string? scope, IInvoker invoker, CancellationToken ct)
