@@ -6,6 +6,7 @@ import { AI_SETTINGS, aiProblem, CAPABILITIES, CLOUD, DECLARED_MODELS, USE_MODE,
 import { Field } from '@/components/form/Field';
 import { SelectField } from '@/components/form/SelectField';
 import { InfoTip } from '@/components/InfoTip';
+import { Input } from '@/components/ui/input';
 import { Section } from '@/components/page/Section';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import '@/locales/ai';
@@ -31,6 +32,7 @@ export function ModelsSection() {
   const mode = $api.useMutation('put', USE_MODE, saved);
   const model = $api.useMutation('put', USE_MODEL, saved);
   const error = settings.error ?? models.error ?? mode.error ?? model.error;
+  const embedModel = settings.data?.uses.find((u) => u.use === 'embed' && u.mode !== 'off')?.model ?? null;
 
   const row = (use: UseSetting) => {
     const label = t(`ai.models.use.${use.use}` as 'ai.models.use.chat', { defaultValue: use.use });
@@ -57,10 +59,14 @@ export function ModelsSection() {
               ]} />
             )}
           </Field>
+          {/* #450: without a model of its own, decide compares labels by meaning with the embed use's model: shown, not chosen. */}
+          {use.use === 'decide' && offered.length === 0 ? (
+            <Field label={t('ai.models.model')} hint={embedModel ? t('ai.models.decide_by_meaning') : t('ai.models.decide_needs_embed')}>
+              {(c) => <Input {...c} readOnly value={embedModel ? t('ai.models.decide_embed_model', { name: embedModel }) : t('ai.models.no_model')} />}
+            </Field>
+          ) : (
           <Field label={t('ai.models.model')}
             hint={cloudModels.some((p) => p.model === use.model) ? t('ai.models.cloud_model_hint')
-              // #450: without a model of its own, decide compares labels by meaning with the embed use's model.
-              : offered.length === 0 && use.use === 'decide' ? t('ai.models.decide_by_meaning')
               : offered.length === 0 && cloudModels.length === 0 ? t('ai.models.none_declared') : undefined}>
               {(c) => (
                 <SelectField {...c} value={use.model ?? ''} onValueChange={(value) => model.mutate({ ...path, body: { model: value || null } })}
@@ -74,6 +80,7 @@ export function ModelsSection() {
                   ]} />
               )}
             </Field>
+          )}
         </div>
       </div>
     );
