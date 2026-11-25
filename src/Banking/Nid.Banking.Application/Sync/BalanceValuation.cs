@@ -95,15 +95,16 @@ public sealed class BalanceValuation
         foreach (var (on, balanceOn) in ValuationDates.Due(associatedOn, account.LastValuedOn, stored.Select(b => b.AsOf).ToList(), today, manual))
         {
             var balance = stored.Single(b => b.AsOf == balanceOn);
-            if (!(await valuations.LatestAsync(envelope, on, ct)).TryGetValue(out var latest) || !Money.Create(balance.Amount, account.Currency).TryGetValue(out var amount))
+            if (!(await valuations.LatestAsync(envelope, balanceOn, ct)).TryGetValue(out var latest) || !Money.Create(balance.Amount, account.Currency).TryGetValue(out var amount))
             {
                 progress.Skipped++;
                 break;
             }
-            if (latest!.Value is { } current && current.AsOf == on && current.Source != FactSource.BankApi)
+            if (latest!.Value is { } current && current.AsOf == balanceOn && current.Source != FactSource.BankApi)
             {
                 progress.Skipped++;
-                valuedOn = conflictOn = on;
+                valuedOn = on;
+                conflictOn = balanceOn;
                 continue;
             }
 
@@ -111,7 +112,7 @@ public sealed class BalanceValuation
                 + (BalancePick.IsFallback(balance.BalanceType) ? " (solde disponible)" : "");
             if (account.AutoApplyBalance)
             {
-                if (!(await valuations.RecordAsync(new NewValuation(envelope, on, amount, note, FactSource.BankApi), ct)).IsSuccess)
+                if (!(await valuations.RecordAsync(new NewValuation(envelope, balanceOn, amount, note, FactSource.BankApi), ct)).IsSuccess)
                 {
                     progress.Skipped++;
                     break;
@@ -120,7 +121,7 @@ public sealed class BalanceValuation
             }
             else
             {
-                var submitted = await proposals.SubmitAsync(BankSyncCollector.ProposalKind, envelope, Payload(on, amount, note), BankSyncCollector.SourceLabel, ct);
+                var submitted = await proposals.SubmitAsync(BankSyncCollector.ProposalKind, envelope, Payload(balanceOn, amount, note), BankSyncCollector.SourceLabel, ct);
                 if (!submitted.TryGetValue(out var created))
                 {
                     progress.Skipped++;
