@@ -184,7 +184,7 @@
     "col_balance": "Capital restant dû",
     "value": "Valeur du bien",
     "net": "Valeur nette",
-    "fx_missing": "Un crédit lié n’a pas de taux de change : il n’est pas déduit",
+    "fx_missing": "Un crédit lié n’a pas de taux de change : il n’est pas déduit.",
     "no_rate": "taux de change manquant",
     "net_hint": "Valeur du bien moins le capital restant dû",
     "forbidden": "Vous ne pouvez pas modifier ce crédit : il appartient à un autre membre du foyer.",

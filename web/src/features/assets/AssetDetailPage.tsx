@@ -83,7 +83,7 @@ export function AssetDetailPage() {
         : asset.valueOn ? <LocalDate value={asset.valueOn} /> : undefined,
       value: asset.value ? <span className="inline-flex flex-wrap items-center gap-2"><Money value={asset.value} />{asset.valueEstimated ? <Badge variant="secondary">{t('assets_detail.estimated')}</Badge> : asset.valueFromPurchase ? <Badge variant="secondary">{t('assets_detail.from_purchase')}</Badge> : null}</span> : '—' },
     // #188: the server's figure, only while a readable loan finances the asset.
-    ...(asset.netValue ? [{ label: t('assets_detail.net_value'), hint: t('assets_detail.net_value_hint'), value: <Money value={asset.netValue} /> }] : []),
+    ...(asset.netValue ? [{ label: t('assets_detail.net_value'), hint: asset.fxMissing ? <span className="text-status-warning-text">{t('assets_loans.fx_missing')}</span> : t('assets_detail.net_value_hint'), value: <Money value={asset.netValue} /> }] : []),
     ...(asset.depreciationRate != null ? [{ label: t('assets_detail.depreciation'), value: t('assets_detail.per_year', { value: asset.depreciationRate.toLocaleString('fr-FR') }) }] : []),
     ...(asset.purchasedOn ? [{ label: t('assets_detail.purchased_on'), value: <LocalDate value={asset.purchasedOn} /> }] : []),
     ...(asset.purchasePrice ? [{ label: t('assets_detail.purchased_for'), value: <Money value={asset.purchasePrice} /> }] : []),

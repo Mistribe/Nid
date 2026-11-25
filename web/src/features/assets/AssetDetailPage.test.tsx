@@ -233,10 +233,17 @@ describe('AssetDetailPage', () => {
     server.use(http.patch('*/api/v1/realestate/loans/:id', async ({ request }) => { patched.push(await request.json()); return HttpResponse.json({ id: 'loan-1' }); }));
     const { user } = await renderApp(`/other-assets/${ASSET}?tab=loans`);
 
-    expect(await screen.findByText('Un crédit lié n’a pas de taux de change : il n’est pas déduit')).toBeInTheDocument();
+    expect((await screen.findAllByText('Un crédit lié n’a pas de taux de change : il n’est pas déduit.')).length).toBe(2); // the header's net value and the loans tab
     await user.click(screen.getByRole('button', { name: 'Actions du crédit' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Délier' }));
 
     await waitFor(() => expect(patched).toEqual([expect.objectContaining({ clearAsset: true })]));
+  });
+
+  it('warns under the net value when a linked loan has no exchange rate', async () => {
+    serve(assetView({ loans: [{ id: 'loan-1', name: 'Crédit en francs', balance: null }], netValue: { amount: '8000.00', currency: 'EUR' }, fxMissing: true }));
+    await renderApp(`/other-assets/${ASSET}`);
+
+    expect(await screen.findByText('Un crédit lié n’a pas de taux de change : il n’est pas déduit.')).toBeInTheDocument();
   });
 });
