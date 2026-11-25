@@ -11,7 +11,7 @@ sidebar:
 import { Aside } from '@astrojs/starlight/components';
 
 <Aside type="caution" title="Preview">
-This page is still being built. Further vehicle features (depreciation, loan, calendar) come next.
+This page is still being built. Further vehicle features (calendar) come next.
 </Aside>
 
 Everything the household owns that is neither an investment nor a property: a car, gold coins, a painting, a collection. Nid keeps their value over time and counts it in net worth.
@@ -30,6 +30,7 @@ Everything the household owns that is neither an investment nor a property: a ca
 - **For a vehicle**, the registration date, the mileage with the date of its reading (updated in a click), the fiscal horsepower, the energy and, if you wish, the yearly loss of value: the displayed value is then an estimate, worked out from the latest known value.
 - **Owned or leased**: a lease (LOA, LLD) is a contract, not an asset. Nid does not count it in net worth and offers to track it as a subscription.
 - **Linked subscriptions**: a car insurance, a maintenance contract… is linked to the asset from the subscription or from the asset's page, which lists its subscriptions with their price and next due date. Deleting the asset keeps the subscription.
+- **A linked loan**: a loan is linked to an asset from the loan's page (« Financed item ») or from the « Loan » tab of the asset's page, which shows the capital still owed and the net value: the asset's value less that capital. Net worth already counts the loan once: the net value is only a display. A financed asset cannot be deleted while the loan is linked.
 - **A vehicle's running costs**: servicing, repairs, tyres… go in the « Costs » tab of its page, with the year's total worked out by Nid and the invoice attached. A payment from your bank is linked to the vehicle from « Transactions »: the cost is recorded for you, with the category you chose: it is never typed twice.
 - **Shared or private**, with a share per owner, like the rest of the household.
 - **In net worth**: each asset counts at its latest value, under « Other assets » on the dashboard.

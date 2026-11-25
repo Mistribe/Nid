@@ -21,6 +21,9 @@ public sealed class LoanRow : IImportMarked
     /// <summary>#180: the SCPI envelope financed instead of a property; no foreign key across modules (it refuses the envelope's delete).</summary>
     public Guid? EnvelopeItemId { get; set; }
 
+    /// <summary>#188: the asset financed instead; no foreign key across modules (it refuses the asset's delete).</summary>
+    public Guid? AssetItemId { get; set; }
+
     /// <summary>Spec 3F2 §2: <c>computed</c> or <c>bank</c>, the schedule the loan's readers read.</summary>
     public string ScheduleSource { get; set; } = "computed";
 

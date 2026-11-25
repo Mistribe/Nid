@@ -498,6 +498,7 @@ public static class NidServiceCollectionExtensions
         }).AddInterceptors(sp.GetRequiredService<AuditInterceptor>()));
         services.AddScoped<ITransactionParticipant, DbContextParticipant<RealEstateDbContext>>();
         services.AddScoped<ILoanStore, LoanStore>();
+        services.AddScoped<IItemLoans, Nid.RealEstate.Application.ItemLoans>();
         services.AddScoped<IPropertyStore, PropertyStore>();
         services.AddScoped<IItemDeletionPart, RealEstateDeletionPart>();
         services.AddScoped<IIrlStore, IrlStore>();

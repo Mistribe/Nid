@@ -40,7 +40,7 @@ describe('loan settings', () => {
     await user.click(save());
 
     await waitFor(() => expect(toasts()).toHaveTextContent('Réglages enregistrés.'));
-    expect(bodies).toEqual([{ note: 'taux renégocié', clearLender: true, clearNote: false, clearProperty: false, clearEnvelope: false }]);
+    expect(bodies).toEqual([{ note: 'taux renégocié', clearLender: true, clearNote: false, clearProperty: false, clearEnvelope: false, clearAsset: false }]);
     await waitFor(() => expect(reads.detail).toBeGreaterThan(1));
   });
 
@@ -109,7 +109,7 @@ describe('loan settings', () => {
     await user.click(save());
 
     await saved();
-    expect(bodies).toEqual([{ propertyId: STUDIO, clearLender: false, clearNote: false, clearProperty: false, clearEnvelope: false }]);
+    expect(bodies).toEqual([{ propertyId: STUDIO, clearLender: false, clearNote: false, clearProperty: false, clearEnvelope: false, clearAsset: false }]);
     await waitFor(() => expect(propertyReads()).toBeGreaterThan(1));
   });
 
@@ -131,7 +131,23 @@ describe('loan settings', () => {
 
     await saved();
     expect(kinds).toContain('scpi');
-    expect(bodies).toEqual([{ envelopeId: SCPI, clearLender: false, clearNote: false, clearProperty: true, clearEnvelope: false }]);
+    expect(bodies).toEqual([{ envelopeId: SCPI, clearLender: false, clearNote: false, clearProperty: true, clearEnvelope: false, clearAsset: false }]);
+  });
+
+  it('moves the loan from a property to an asset listed by the server (#188)', async () => {
+    const CAR = '0192f0bb-0000-7000-8000-00000000a551';
+    const bodies: unknown[] = [];
+    serve(bodies, undefined, linked());
+    twoProperties();
+    server.use(http.get('*/api/v1/assets', () => HttpResponse.json({ rows: [{ id: CAR, name: 'Voiture' }], total: 1, kinds: ['vehicle'] })));
+    const { user } = await renderApp(PAGE);
+
+    await screen.findByRole('heading', { name: 'Prêt maison', level: 1 });
+    await pick(user, 'Bien financé', 'Voiture');
+    await user.click(save());
+
+    await saved();
+    expect(bodies).toEqual([{ assetId: CAR, clearLender: false, clearNote: false, clearProperty: true, clearEnvelope: false, clearAsset: false }]);
   });
 
   it('removes the link with « Aucun », which sends clearProperty', async () => {
@@ -145,7 +161,7 @@ describe('loan settings', () => {
     await user.click(save());
 
     await saved();
-    expect(bodies).toEqual([{ clearLender: false, clearNote: false, clearProperty: true, clearEnvelope: false }]);
+    expect(bodies).toEqual([{ clearLender: false, clearNote: false, clearProperty: true, clearEnvelope: false, clearAsset: false }]);
   });
 
   it('keeps a linked property the reader cannot read when saving something else', async () => {
@@ -159,7 +175,7 @@ describe('loan settings', () => {
     await user.click(save());
 
     await saved();
-    expect(bodies).toEqual([{ note: 'taux renégocié', clearLender: false, clearNote: false, clearProperty: false, clearEnvelope: false }]);
+    expect(bodies).toEqual([{ note: 'taux renégocié', clearLender: false, clearNote: false, clearProperty: false, clearEnvelope: false, clearAsset: false }]);
   });
 
   it('shows the linked property while the list still loads, and a save then sends no clearProperty', async () => {
@@ -174,7 +190,7 @@ describe('loan settings', () => {
     await user.click(save());
 
     await saved();
-    expect(bodies).toEqual([{ note: 'x', clearLender: false, clearNote: false, clearProperty: false, clearEnvelope: false }]);
+    expect(bodies).toEqual([{ note: 'x', clearLender: false, clearNote: false, clearProperty: false, clearEnvelope: false, clearAsset: false }]);
   });
 
   it('shows realestate.invalid_property under « Bien financé »', async () => {

@@ -202,4 +202,26 @@ describe('AssetDetailPage', () => {
     await waitFor(() => expect(linked).toEqual([{ assetId: ASSET }]));
     expect(asked[0]).toContain('asset=none'); // only the subscriptions without an asset, filtered by the server
   });
+
+  it('shows the readable loans, the server\'s net value, and links a free loan with a PATCH (#188)', async () => {
+    const patched: unknown[] = [];
+    serve(assetView({ loans: [{ id: 'loan-1', name: 'Crédit auto', balance: { amount: '4000.00', currency: 'EUR' } }], netValue: { amount: '6000.00', currency: 'EUR' } }));
+    server.use(
+      http.get('*/api/v1/realestate/loans', () => HttpResponse.json({ items: [{ id: 'loan-2', name: 'Prêt travaux' }] })),
+      http.patch('*/api/v1/realestate/loans/:id', async ({ request }) => { patched.push(await request.json()); return HttpResponse.json({ id: 'loan-2' }); }),
+    );
+    const { user } = await renderApp(`/other-assets/${ASSET}?tab=loans`);
+
+    const table = await screen.findByRole('table', { name: 'Crédits qui financent ce bien' });
+    expect(within(table).getByRole('link', { name: 'Crédit auto' })).toBeInTheDocument();
+    expect(within(table).getByText('4 000,00 €')).toBeInTheDocument();
+    expect(screen.getAllByText('6 000,00 €').length).toBeGreaterThan(0);
+
+    await user.click(screen.getByRole('button', { name: 'Lier un crédit' }));
+    const dialog = within(await screen.findByRole('dialog', { name: 'Lier un crédit' }));
+    await pick(user, 'Crédit', 'Prêt travaux');
+    await user.click(dialog.getByRole('button', { name: 'Lier' }));
+
+    await waitFor(() => expect(patched).toEqual([expect.objectContaining({ assetId: ASSET, clearAsset: false })]));
+  });
 });

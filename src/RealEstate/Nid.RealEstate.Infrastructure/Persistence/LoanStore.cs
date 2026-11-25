@@ -7,9 +7,9 @@ namespace Nid.RealEstate.Infrastructure.Persistence;
 
 public sealed class LoanStore(RealEstateDbContext db) : ILoanStore
 {
-    public async Task CreateAsync(ItemId item, string? lender, string? note, ItemId? property, LoanContract contract, CancellationToken ct, ItemId? envelope = null)
+    public async Task CreateAsync(ItemId item, string? lender, string? note, ItemId? property, LoanContract contract, CancellationToken ct, ItemId? envelope = null, ItemId? asset = null)
     {
-        var row = new LoanRow { ItemId = item.Value, Lender = lender, Note = note, PropertyItemId = property?.Value, EnvelopeItemId = envelope?.Value };
+        var row = new LoanRow { ItemId = item.Value, Lender = lender, Note = note, PropertyItemId = property?.Value, EnvelopeItemId = envelope?.Value, AssetItemId = asset?.Value };
         Fill(row, contract);
         db.Loans.Add(row);
         AddParts(item, contract);
@@ -46,6 +46,7 @@ public sealed class LoanStore(RealEstateDbContext db) : ILoanStore
                 l.PropertyItemId is { } property ? new ItemId(property) : null)
             {
                 EnvelopeId = l.EnvelopeItemId is { } envelope ? new ItemId(envelope) : null,
+                AssetId = l.AssetItemId is { } asset ? new ItemId(asset) : null,
                 Source = Parse<ScheduleSource>(l.ScheduleSource),
                 Bank = bank[l.ItemId].OrderBy(b => b.DueDate).Select(ToBankRow).ToList(),
             })
@@ -56,6 +57,13 @@ public sealed class LoanStore(RealEstateDbContext db) : ILoanStore
     {
         var ids = properties.Select(p => (Guid?)p.Value).ToList();
         var linked = await db.Loans.AsNoTracking().Where(l => ids.Contains(l.PropertyItemId)).Select(l => l.ItemId).ToListAsync(ct);
+        return await FindManyAsync(linked.Select(i => new ItemId(i)).ToList(), ct);
+    }
+
+    public async Task<IReadOnlyList<StoredLoan>> FindLinkedToAssetsAsync(IReadOnlyCollection<ItemId> assets, CancellationToken ct)
+    {
+        var ids = assets.Select(a => (Guid?)a.Value).ToList();
+        var linked = await db.Loans.AsNoTracking().Where(l => ids.Contains(l.AssetItemId)).Select(l => l.ItemId).ToListAsync(ct);
         return await FindManyAsync(linked.Select(i => new ItemId(i)).ToList(), ct);
     }
 
@@ -73,6 +81,7 @@ public sealed class LoanStore(RealEstateDbContext db) : ILoanStore
         if (change.ClearNote) row.Note = null; else if (change.Note is { } note) row.Note = note;
         if (change.ClearProperty) row.PropertyItemId = null; else if (change.PropertyId is { } property) row.PropertyItemId = property.Value;
         if (change.ClearEnvelope) row.EnvelopeItemId = null; else if (change.EnvelopeId is { } envelope) row.EnvelopeItemId = envelope.Value;
+        if (change.ClearAsset) row.AssetItemId = null; else if (change.AssetId is { } asset) row.AssetItemId = asset.Value;
         if (change.Source is { } source) row.ScheduleSource = LoanWire.Of(source);
         await db.SaveChangesAsync(ct);
     }

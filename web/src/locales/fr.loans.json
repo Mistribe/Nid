@@ -61,6 +61,8 @@
     "property_unreadable": "Un bien que vous ne pouvez pas consulter",
     "financed_properties": "Biens",
     "financed_scpis": "SCPI",
+    "financed_assets": "Autres biens",
+    "asset_unreadable": "Un bien que vous ne pouvez pas consulter",
     "scpi_unreadable": "Une SCPI que vous ne pouvez pas consulter",
     "amount_format": "Un montant positif, avec deux décimales au plus, comme 1500,50.",
     "rate_format": "Un taux de 0 à moins de 100 %, avec quatre décimales au plus, comme 3,5.",
@@ -78,6 +80,8 @@
     "property_unreadable": "un bien que vous ne pouvez pas consulter",
     "envelope": "SCPI financée :",
     "envelope_unreadable": "une SCPI que vous ne pouvez pas consulter",
+    "asset": "Bien financé :",
+    "asset_unreadable": "un bien que vous ne pouvez pas consulter",
     "ended": "Terminé",
     "warnings": "Avertissements",
     "warning": {

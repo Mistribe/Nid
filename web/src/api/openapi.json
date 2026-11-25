@@ -26763,6 +26763,13 @@
               "type": "string",
               "format": "uuid"
             }
+          },
+          {
+            "name": "unfinanced",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
           }
         ],
         "responses": {
@@ -42501,6 +42508,25 @@
                 "$ref": "#/components/schemas/MoneyView"
               }
             ]
+          },
+          "loans": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/LinkedLoanView"
+            }
+          },
+          "netValue": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MoneyView"
+              }
+            ]
           }
         }
       },
@@ -47945,6 +47971,13 @@
               "string"
             ],
             "format": "uuid"
+          },
+          "assetId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
           }
         }
       },
@@ -50017,6 +50050,7 @@
         "required": [
           "clearLender",
           "clearNote",
+          "clearAsset",
           "clearProperty",
           "clearEnvelope"
         ],
@@ -50070,6 +50104,17 @@
             "format": "uuid"
           },
           "clearEnvelope": {
+            "type": "boolean",
+            "default": false
+          },
+          "assetId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "clearAsset": {
             "type": "boolean",
             "default": false
           }
@@ -57545,6 +57590,26 @@
           }
         }
       },
+      "LinkedLoanView": {
+        "required": [
+          "id",
+          "name",
+          "balance"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "balance": {
+            "$ref": "#/components/schemas/MoneyView"
+          }
+        }
+      },
       "LinkedSubscriptionView": {
         "required": [
           "id",
@@ -58121,6 +58186,19 @@
             "format": "uuid"
           },
           "envelopeName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "assetId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "assetName": {
             "type": [
               "null",
               "string"
@@ -59827,6 +59905,19 @@
             "format": "uuid"
           },
           "envelopeName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "assetId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "assetName": {
             "type": [
               "null",
               "string"

@@ -21,6 +21,9 @@ public sealed partial class RealEstateImportSection
     /// <summary>#180: Investments' section, imported before this one (order 20): its envelopes have their ids in the context.</summary>
     private const string EnvelopesSection = "envelopes";
 
+    /// <summary>#188: Assets' section, imported first (order 5): its assets have their ids in the context.</summary>
+    private const string AssetsSection = "assets";
+
     /// <summary>A loan of the file; <see cref="Contract"/> is what validation built and the engine accepted, written at apply.</summary>
     private sealed class LoanPlan(StagedEntity entity, LoanRecord record, ParsedLoan parsed, string path, PropertyPlan? property)
         : ItemPlan(entity, record.Id, path)
@@ -64,6 +67,7 @@ public sealed partial class RealEstateImportSection
             var path = NidDataJson.Path(LoansSection, entity.Index);
             PropertyPlan? property = null;
             if ((record.Property is { } propertyId && (property = Parent(propertyByFileId, PropertiesSection, propertyId, path + ".property", issues)) is null)
+                || !await FinancedAssetAsync(record, path, issues, ct)
                 || !await FinancedEnvelopeAsync(record, path, issues, ct)
                 || !EstateParsing.TryLoan(record, path, Person, issues, out var parsed) || !Owners(parsed.Visibility, parsed.Owners, path, issues))
             {
@@ -280,6 +284,36 @@ public sealed partial class RealEstateImportSection
         return false;
     }
 
+    /// <summary>
+    /// #188: a loan's asset is an entity of this file, or one the importer reads, never with a property or an SCPI. A refused asset
+    /// is reported in its own section, once.
+    /// </summary>
+    private async Task<bool> FinancedAssetAsync(LoanRecord record, string path, List<ImportIssue> issues, CancellationToken ct)
+    {
+        if (record.Asset is not { } asset)
+            return true;
+        if (record.Property is not null || record.Envelope is not null)
+        {
+            issues.Add(ImportIssue.Error(LoanCodes.InvalidAsset, "A loan finances one item, not several.", path + ".asset"));
+            return false;
+        }
+        if (context.FailedItems.Contains((AssetsSection, asset)))
+            return false;
+        if (!context.Items.TryGetValue((AssetsSection, asset), out var id))
+        {
+            issues.Add(ImportIssue.Error(ImportCodes.UnresolvedReference, $"'{asset}' names no entity of {AssetsSection}.", path + ".asset"));
+            return false;
+        }
+        // An asset created by this file is writable by construction; one imported before must still be readable by the importer.
+        if (context.NewItems.Contains(id) || (await policy.CheckAsync(context.Actor, id, AccessKind.Read, ct)).IsSuccess)
+            return true;
+        issues.Add(ImportIssue.Error(ImportCodes.UnresolvedReference, $"'{asset}' names no entity of {AssetsSection}.", path + ".asset"));
+        return false;
+    }
+
+    private ItemId? AssetOf(LoanPlan plan)
+        => plan.Record.Asset is { } named && context.Items.TryGetValue((AssetsSection, named), out var id) ? id : null;
+
     /// <summary>The real id of a loan's envelope, refused when it is not an SCPI (the file changed its kind, or named another envelope).</summary>
     private async Task<(Failure? Refused, ItemId? Id)> EnvelopeOfAsync(LoanPlan plan, CancellationToken ct)
     {
@@ -305,7 +339,7 @@ public sealed partial class RealEstateImportSection
             var (refused, envelopeId) = await EnvelopeOfAsync(plan, ct);
             if (refused is not null)
                 return Result.Failure(refused);
-            await loans.CreateAsync(id, plan.Record.Lender, plan.Record.Note, plan.Property?.Id, plan.Contract!, ct, envelopeId);
+            await loans.CreateAsync(id, plan.Record.Lender, plan.Record.Note, plan.Property?.Id, plan.Contract!, ct, envelopeId, AssetOf(plan));
             if (p.Source == ScheduleSource.Bank) // its table is written below, in the same transaction
                 await loans.UpdateDetailsAsync(id, new LoanDetailsChange(Source: p.Source), ct);
             await imports.MarkAsync(EstateTable.Loan, id.Value, plan.Mark, ct);
@@ -321,7 +355,7 @@ public sealed partial class RealEstateImportSection
             if (refused is not null)
                 return Result.Failure(refused);
             await loans.UpdateDetailsAsync(plan.Id, new LoanDetailsChange(r.Lender, r.Lender is null, r.Note, r.Note is null,
-                plan.Property?.Id, plan.Property is null, p.Source, envelopeId, envelopeId is null), ct);
+                plan.Property?.Id, plan.Property is null, p.Source, envelopeId, envelopeId is null, AssetOf(plan), AssetOf(plan) is null), ct);
             await imports.MarkAsync(EstateTable.Loan, plan.Id.Value, plan.Mark, ct);
         }
 
@@ -377,6 +411,7 @@ public sealed partial class RealEstateImportSection
                 DisbursedOn = Iso(c.DisbursedOn), FirstPaymentDate = Iso(c.FirstPaymentDate), TotalPayments = c.TotalPayments,
                 Property = l.PropertyId is { } linked && propertyFileIds.TryGetValue(linked.Value, out var propertyId) ? propertyId : null,
                 Envelope = l.EnvelopeId is { } scpi && export.ItemFileIds.TryGetValue(scpi, out var envelopeId) ? envelopeId : null,
+                Asset = l.AssetId is { } financed && export.ItemFileIds.TryGetValue(financed, out var assetId) ? assetId : null,
                 ScheduleSource = LoanWire.Of(l.Source), RoundingMode = LoanWire.Of(c.Rounding), FirstPeriodMode = LoanWire.Of(c.FirstPeriod),
                 Ownership = Shares(export, head), Visibility = LoanViews.Wire(head.Visibility), ShareLevel = ImportSectionKit.ShareLevelText(head), Note = l.Note,
             });

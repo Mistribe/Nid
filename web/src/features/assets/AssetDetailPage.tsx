@@ -27,6 +27,7 @@ import { EditAssetDialog } from './EditAssetDialog';
 import { energyText, kindText } from './format';
 import { MileageDialog } from './MileageDialog';
 import { AssetCostsSection } from './costs/AssetCostsSection';
+import { AssetLoansSection } from './loans/AssetLoansSection';
 import { AssetSubscriptionsSection } from './subscriptions/AssetSubscriptionsSection';
 import { AssetValuationDialog } from './valuations/AssetValuationForm';
 import { AssetValuationsSection } from './valuations/AssetValuationsSection';
@@ -35,7 +36,7 @@ import '@/locales/deletion';
 import '@/locales/documents';
 
 const DeleteItemFlow = lazy(() => import('@/components/DeleteItemFlow'));
-const TABS = ['valuations', 'costs', 'subscriptions', 'documents'] as const;
+const TABS = ['valuations', 'costs', 'loans', 'subscriptions', 'documents'] as const;
 
 /**
  * An asset: its value inline under the title (with « prix d’achat » while the purchase price stands in for a valuation), its
@@ -81,6 +82,8 @@ export function AssetDetailPage() {
         ? <>{t(asset.valueFromPurchase ? 'assets_detail.estimated_from_purchase' : 'assets_detail.estimated_from_value')} <LocalDate value={asset.valueOn} />{asset.valueBase ? <> (<Money value={asset.valueBase} />)</> : null}</>
         : asset.valueOn ? <LocalDate value={asset.valueOn} /> : undefined,
       value: asset.value ? <span className="inline-flex flex-wrap items-center gap-2"><Money value={asset.value} />{asset.valueEstimated ? <Badge variant="secondary">{t('assets_detail.estimated')}</Badge> : asset.valueFromPurchase ? <Badge variant="secondary">{t('assets_detail.from_purchase')}</Badge> : null}</span> : '—' },
+    // #188: the server's figure, only while a readable loan finances the asset.
+    ...(asset.netValue ? [{ label: t('assets_detail.net_value'), hint: t('assets_detail.net_value_hint'), value: <Money value={asset.netValue} /> }] : []),
     ...(asset.depreciationRate != null ? [{ label: t('assets_detail.depreciation'), value: t('assets_detail.per_year', { value: asset.depreciationRate.toLocaleString('fr-FR') }) }] : []),
     ...(asset.purchasedOn ? [{ label: t('assets_detail.purchased_on'), value: <LocalDate value={asset.purchasedOn} /> }] : []),
     ...(asset.purchasePrice ? [{ label: t('assets_detail.purchased_for'), value: <Money value={asset.purchasePrice} /> }] : []),
@@ -116,6 +119,7 @@ export function AssetDetailPage() {
         { id: 'valuations', label: t('assets_detail.tab_valuations'), content: <AssetValuationsSection asset={asset} /> },
         // #649: the running costs are a vehicle's; another asset shows them only while it still holds some (history).
         ...(asset.kind === 'vehicle' || asset.hasCosts ? [{ id: 'costs' as const, label: t('assets_costs.tab'), content: <AssetCostsSection asset={asset} /> }] : []),
+        { id: 'loans', label: t('assets_loans.tab'), content: <AssetLoansSection asset={asset} /> },
         { id: 'subscriptions', label: t('assets_subscriptions.tab'), content: <AssetSubscriptionsSection asset={asset} /> },
         { id: 'documents', label: t('documents_item.title'), content: <ItemDocuments itemId={asset.id} canWrite={asset.canWrite} defaultRole="invoice" /> },
       ]} />

@@ -23,7 +23,7 @@ import '@/locales/investments';
 import '@/locales/loans';
 import '@/locales/forms';
 
-const PATHS = { name: 'name', lender: 'lender', note: 'note', propertyId: 'propertyId', envelopeId: 'propertyId' } as const;
+const PATHS = { name: 'name', lender: 'lender', note: 'note', propertyId: 'propertyId', envelopeId: 'propertyId', assetId: 'propertyId' } as const;
 
 const schema = (t: TFunction) => z.object({
   name: z.string().trim().min(1, t('edit.required')).max(100, t('investments_form.name_too_long')),
@@ -31,13 +31,14 @@ const schema = (t: TFunction) => z.object({
   note: z.string().max(2000, t('investments_form.note_too_long')),
   propertyId: z.string(),
   envelopeId: z.string(),
+  assetId: z.string(),
 });
 
 /** The loan as the form left it after a save: trimmed, an emptied optional field back to none. */
 function applied(before: LoanDetail, values: SettingsValues): LoanDetail {
   const text = (v: string) => (v.trim() === '' ? null : v.trim());
   return { ...before, name: values.name.trim(), lender: text(values.lender), note: text(values.note), propertyId: values.propertyId === '' ? null : values.propertyId,
-    envelopeId: values.envelopeId === '' ? null : values.envelopeId };
+    envelopeId: values.envelopeId === '' ? null : values.envelopeId, assetId: values.assetId === '' ? null : values.assetId };
 }
 
 /**
@@ -50,7 +51,7 @@ export function SettingsForm({ loan, onDone }: { loan: LoanDetail; onDone: (mess
   const queryClient = useQueryClient();
   const form = useForm<SettingsValues>({
     resolver: zodResolver(schema(t)),
-    defaultValues: { name: loan.name, lender: loan.lender ?? '', note: loan.note ?? '', propertyId: loan.propertyId ?? '', envelopeId: loan.envelopeId ?? '' },
+    defaultValues: { name: loan.name, lender: loan.lender ?? '', note: loan.note ?? '', propertyId: loan.propertyId ?? '', envelopeId: loan.envelopeId ?? '', assetId: loan.assetId ?? '' },
   });
   // Diffed against what the form started from (or last saved), never the live loan a refetch may have changed.
   const baseline = useRef(loan);
@@ -99,12 +100,18 @@ export function SettingsForm({ loan, onDone }: { loan: LoanDetail; onDone: (mess
         {(c) => <Input {...c} {...form.register('lender')} />}
       </Field>
       {/* What the form opened on (or last saved) is linked: its option stays whatever the list says (precision 10). */}
-      <FinancedSelect value={{ propertyId: form.watch('propertyId'), envelopeId: form.watch('envelopeId') }}
-        onValueChange={(v) => { form.clearErrors('propertyId'); form.setValue('propertyId', v.propertyId, { shouldDirty: true }); form.setValue('envelopeId', v.envelopeId, { shouldDirty: true }); }}
+      <FinancedSelect value={{ propertyId: form.watch('propertyId'), envelopeId: form.watch('envelopeId'), assetId: form.watch('assetId') }}
+        onValueChange={(v) => {
+          form.clearErrors('propertyId');
+          form.setValue('propertyId', v.propertyId, { shouldDirty: true });
+          form.setValue('envelopeId', v.envelopeId, { shouldDirty: true });
+          form.setValue('assetId', v.assetId, { shouldDirty: true });
+        }}
         error={e.propertyId?.message}
         linked={{
           property: baseline.current.propertyId ? { id: baseline.current.propertyId, name: baseline.current.propertyName ?? null } : undefined,
           envelope: baseline.current.envelopeId ? { id: baseline.current.envelopeId, name: baseline.current.envelopeName ?? null } : undefined,
+          asset: baseline.current.assetId ? { id: baseline.current.assetId, name: baseline.current.assetName ?? null } : undefined,
         }} />
       <Field label={t('loan_form.note')} error={e.note?.message}>
         {(c) => <Textarea {...c} {...form.register('note')} />}

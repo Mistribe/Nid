@@ -3,6 +3,7 @@
     <PackageReference Include="UnambitiousFx.Synapse" />
     <ProjectReference Include="..\Nid.Assets.Contracts\Nid.Assets.Contracts.csproj" />
     <ProjectReference Include="..\Nid.Assets.Domain\Nid.Assets.Domain.csproj" />
+    <ProjectReference Include="..\..\RealEstate\Nid.RealEstate.Contracts\Nid.RealEstate.Contracts.csproj" />
     <ProjectReference Include="..\..\Subscriptions\Nid.Subscriptions.Contracts\Nid.Subscriptions.Contracts.csproj" />
     <ProjectReference Include="..\..\Platform\Nid.Platform.Contracts\Nid.Platform.Contracts.csproj" />
     <ProjectReference Include="..\..\Core\Nid.Core.Contracts\Nid.Core.Contracts.csproj" />

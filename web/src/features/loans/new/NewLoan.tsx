@@ -31,7 +31,7 @@ import '@/locales/loans';
 /** The form's field paths by step: what « Continuer » validates, and where a server refusal sends the person back to. */
 const FIELDS = {
   essentials: ['name', 'lender', 'currency', 'note', 'visibility', 'owners'],
-  loan: ['principal', 'totalPayments', 'disbursedOn', 'firstPaymentDate', 'phases', 'rounding', 'firstPeriod', 'propertyId', 'envelopeId'],
+  loan: ['principal', 'totalPayments', 'disbursedOn', 'firstPaymentDate', 'phases', 'rounding', 'firstPeriod', 'propertyId', 'envelopeId', 'assetId'],
   insurance: ['insurances'],
 } as const;
 
@@ -53,7 +53,7 @@ export function NewLoan() {
     defaultValues: {
       name: '', lender: '', currency: 'EUR', note: '', owners: [{ personId: session.person.id, share: '100' }],
       principal: '', totalPayments: '', disbursedOn: today, firstPaymentDate: plusOneMonth(today),
-      rounding: 'half_up', firstPeriod: 'full', phases: [newPhase()], insurances: [], propertyId: search.property ?? '', envelopeId: '',
+      rounding: 'half_up', firstPeriod: 'full', phases: [newPhase()], insurances: [], propertyId: search.property ?? '', envelopeId: '', assetId: '',
     },
   });
   // The contract's state lives here, not in its fields: a step unmounts them. Its fields are a subset of this form's.
@@ -124,8 +124,8 @@ export function NewLoan() {
             id: 'loan', title: t('loan_form.step_loan'), fields: [...FIELDS.loan],
             content: (
               <LoanFields contract={contract}>
-                <FinancedSelect value={{ propertyId: form.watch('propertyId'), envelopeId: form.watch('envelopeId') }}
-                  onValueChange={(v) => { form.clearErrors('propertyId'); form.setValue('propertyId', v.propertyId); form.setValue('envelopeId', v.envelopeId); }}
+                <FinancedSelect value={{ propertyId: form.watch('propertyId'), envelopeId: form.watch('envelopeId'), assetId: form.watch('assetId') }}
+                  onValueChange={(v) => { form.clearErrors('propertyId'); form.setValue('propertyId', v.propertyId); form.setValue('envelopeId', v.envelopeId); form.setValue('assetId', v.assetId); }}
                   error={e.propertyId?.message} />
               </LoanFields>
             ),

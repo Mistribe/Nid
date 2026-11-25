@@ -19,6 +19,11 @@ public sealed record LoanSummary(
     public ItemId? EnvelopeId { get; init; }
 
     public string? EnvelopeName { get; init; }
+
+    /// <summary>#188: the asset it finances; its name is null when the reader cannot read it.</summary>
+    public ItemId? AssetId { get; init; }
+
+    public string? AssetName { get; init; }
 }
 
 public sealed record LoanList(IReadOnlyList<LoanSummary> Items) : IExposesItems
@@ -64,6 +69,11 @@ public sealed record LoanDetail(
     public ItemId? EnvelopeId { get; init; }
 
     public string? EnvelopeName { get; init; }
+
+    /// <summary>#188: as <see cref="LoanSummary.AssetId"/>.</summary>
+    public ItemId? AssetId { get; init; }
+
+    public string? AssetName { get; init; }
 }
 
 /// <summary>A row of the schedule; <c>FromBank</c>: its figures are the bank's table's (spec 3F2 §3), only with the bank as the reference.</summary>
@@ -101,7 +111,7 @@ public sealed record LoanSimulationView(LocalDate On, string Amount, string Pena
 /// <summary>Pure builders of the views, with the real engine (spec §5 tests them in Nid.RealEstate.Tests).</summary>
 internal static class LoanViews
 {
-    public static LoanSummary Summary(ItemAccess item, StoredLoan loan, LocalDate today, bool canWrite, string? propertyName = null, string? envelopeName = null)
+    public static LoanSummary Summary(ItemAccess item, StoredLoan loan, LocalDate today, bool canWrite, string? propertyName = null, string? envelopeName = null, string? assetName = null)
     {
         var terms = Terms(CurrencyOf(item), loan.Contract, loan.Fees, loan.Repayments);
         var schedule = LoanReading.Schedule(terms, loan);
@@ -109,10 +119,10 @@ internal static class LoanViews
         return new LoanSummary(loan.ItemId, item.DisplayName, loan.Lender, terms.Currency.Code, Wire(item.Visibility), Amount(loan.Contract.Principal),
             Amount(figures.Balance), figures.NextPaymentOn, Amount(figures.NextPaymentTotal), Rate(figures.CurrentRate), figures.EndDate,
             canWrite, Ended(terms, schedule, today), loan.PropertyId, propertyName, item.OwnerViews())
-        { EnvelopeId = loan.EnvelopeId, EnvelopeName = envelopeName };
+        { EnvelopeId = loan.EnvelopeId, EnvelopeName = envelopeName, AssetId = loan.AssetId, AssetName = assetName };
     }
 
-    public static LoanDetail Detail(ItemAccess item, StoredLoan loan, LocalDate today, bool canWrite, string? propertyName = null, string? envelopeName = null)
+    public static LoanDetail Detail(ItemAccess item, StoredLoan loan, LocalDate today, bool canWrite, string? propertyName = null, string? envelopeName = null, string? assetName = null)
     {
         var terms = Terms(CurrencyOf(item), loan.Contract, loan.Fees, loan.Repayments);
         var schedule = LoanReading.Schedule(terms, loan);
@@ -140,7 +150,7 @@ internal static class LoanViews
             loan.PropertyId, propertyName, LoanWire.Of(loan.Source),
             bank.Count == 0 ? null : new BankScheduleView(bank.Select(BankRowOf).ToList(), bank[0].DueDate, bank[^1].DueDate),
             diff is null ? null : ComparisonOf(diff.Summary))
-        { EnvelopeId = loan.EnvelopeId, EnvelopeName = envelopeName };
+        { EnvelopeId = loan.EnvelopeId, EnvelopeName = envelopeName, AssetId = loan.AssetId, AssetName = assetName };
     }
 
     /// <summary>

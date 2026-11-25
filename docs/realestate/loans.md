@@ -27,7 +27,8 @@ Un prêt est un `item` du Core (`module = realestate`, `kind = loan`). Ses **emp
 | `first_payment_date` | date | Les échéances suivantes : + k mois, jour d'ancrage écrasé en fin de mois (`Duration` du Core) |
 | `total_payments` | int | Durée contractuelle en échéances, de 1 à 600 |
 | `property_item_id` | uuid? | Bien financé. Un bien peut avoir plusieurs prêts |
-| `envelope_item_id` | uuid? | SCPI financée (#180) : une enveloppe `scpi`, à la place d'un bien (`ck_loan_financed` : jamais les deux) |
+| `envelope_item_id` | uuid? | SCPI financée (#180) : une enveloppe `scpi`, à la place d'un bien |
+| `asset_item_id` | uuid? | Bien d'« Autres biens » financé (#188), à la place d'un bien ou d'une SCPI (`ck_loan_financed` : un seul des trois, `num_nonnulls(…) <= 1`) |
 | `schedule_source` | text | `computed` (défaut) ou `bank` |
 | `rounding_mode` | text | `half_up` (défaut) ou `truncate` : arrondi des intérêts à chaque échéance |
 | `first_period_mode` | text | `full` (défaut) ou `prorata_actual_365` |
@@ -240,6 +241,7 @@ La mensualité totale est la prochaine échéance assurance comprise ; le capita
 | **Engagements** | Mensualité et assurance de l'échéance courante : intérêts seuls en différé partiel, **0** en différé total |
 | **À venir** | Fin d'une phase (**changement de taux, fin de différé**), fin du crédit dans les 12 mois |
 | Lien avec un bien | Voir `README.md` §7 et §8 : valeur nette, coût réel |
+| Lien avec un bien d'« Autres biens » | #188 : `assetId` à la création ou par `PATCH` (`clearAsset` le retire), refusé `422 realestate.invalid_asset` sur `assetId` pour un identifiant illisible, inconnu, qui n'est pas un élément `(assets, asset)`, ou avec un bien ou une SCPI. `assetName` comme `propertyName` (null quand le bien est illisible). `GET /loans?unfinanced=true` ne garde que les prêts qui ne financent rien (filtre du serveur, ce que propose « Lier un crédit »). Le bien financé refuse sa suppression (bloqueur `asset_loan`). Le port `IItemLoans` des contrats Immobilier donne à Autres biens les prêts lisibles liés à chaque bien avec leur capital restant dû à la date, converti dans la devise du bien (un prêt sans taux est omis) ; la valeur nette de la fiche du bien (valeur, estimation comprise, moins ces capitaux) n'est qu'un affichage : le patrimoine compte déjà chaque prêt une fois comme avoir `loans`. Le fichier porte `loans.asset` (id d'une entité `assets`, résolue avant les prêts), écrit seulement s'il est posé |
 | Lien avec une SCPI | #180 : `envelopeId` à la création ou par `PATCH` (`clearEnvelope` le retire), refusé `422 realestate.invalid_envelope` sur `envelopeId` pour un identifiant illisible, inconnu, qui n'est pas une enveloppe `scpi`, ou avec un bien. `envelopeName` comme `propertyName`. `GET /loans?envelope=` liste les prêts d'une SCPI (filtre du serveur) ; la SCPI financée refuse sa suppression (bloqueur `loan`) et garde son type (`422 investments.envelope_financed`). Le fichier porte `loans.envelope`, écrit seulement s'il est posé. Les intérêts ne sont pas repris dans la fiscalité |
 
 ## 10. Propositions et sections d'import

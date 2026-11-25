@@ -62,11 +62,11 @@ public interface IPropertyStore
 public sealed record LoanDetailsChange(
     string? Lender = null, bool ClearLender = false, string? Note = null, bool ClearNote = false,
     ItemId? PropertyId = null, bool ClearProperty = false, ScheduleSource? Source = null,
-    ItemId? EnvelopeId = null, bool ClearEnvelope = false);
+    ItemId? EnvelopeId = null, bool ClearEnvelope = false, ItemId? AssetId = null, bool ClearAsset = false);
 
 public interface ILoanStore
 {
-    Task CreateAsync(ItemId item, string? lender, string? note, ItemId? property, LoanContract contract, CancellationToken ct, ItemId? envelope = null);
+    Task CreateAsync(ItemId item, string? lender, string? note, ItemId? property, LoanContract contract, CancellationToken ct, ItemId? envelope = null, ItemId? asset = null);
 
     /// <summary>Null when the item is not a loan (or does not exist).</summary>
     Task<StoredLoan?> FindAsync(ItemId item, CancellationToken ct);
@@ -75,6 +75,9 @@ public interface ILoanStore
 
     /// <summary>The loans linked to these properties, whoever may read them: the caller filters (spec 3C1 §1.7).</summary>
     Task<IReadOnlyList<StoredLoan>> FindLinkedAsync(IReadOnlyCollection<ItemId> properties, CancellationToken ct);
+
+    /// <summary>#188: the loans that finance these assets, whoever may read them: the caller filters.</summary>
+    Task<IReadOnlyList<StoredLoan>> FindLinkedToAssetsAsync(IReadOnlyCollection<ItemId> assets, CancellationToken ct);
 
     /// <summary>#180: the ids of the loans that finance this envelope, whoever may read them: the caller filters.</summary>
     Task<IReadOnlyList<ItemId>> FinancingAsync(ItemId envelope, CancellationToken ct);

@@ -25,6 +25,10 @@ public sealed record LoanRecord
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Envelope { get; init; }
 
+    /// <summary>#188: the asset it finances (an <c>assets</c> id of the file), written only when set.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Asset { get; init; }
+
     public string? ScheduleSource { get; init; }
     public string RoundingMode { get; set; } = "half_up";
     public string FirstPeriodMode { get; set; } = "full";

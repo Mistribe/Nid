@@ -25294,6 +25294,7 @@ export interface paths {
                     scope?: string;
                     ended?: boolean;
                     envelope?: string;
+                    unfinanced?: boolean;
                 };
                 header?: never;
                 path?: never;
@@ -39438,6 +39439,8 @@ export interface components {
             /** @default false */
             valueEstimated: boolean;
             valueBase?: null | components["schemas"]["MoneyView"];
+            loans?: null | components["schemas"]["LinkedLoanView"][];
+            netValue?: null | components["schemas"]["MoneyView"];
         };
         AssistantEnabledBody: {
             enabled?: null | boolean;
@@ -40744,6 +40747,8 @@ export interface components {
             shareLevel?: null | string;
             /** Format: uuid */
             envelopeId?: null | string;
+            /** Format: uuid */
+            assetId?: null | string;
         };
         CreateNannyBody: {
             name?: null | string;
@@ -41236,6 +41241,10 @@ export interface components {
             envelopeId?: null | string;
             /** @default false */
             clearEnvelope: boolean;
+            /** Format: uuid */
+            assetId?: null | string;
+            /** @default false */
+            clearAsset: boolean;
         };
         EditPropertyBody: {
             /** Format: uint32 */
@@ -42936,6 +42945,12 @@ export interface components {
             id: string;
             title: string;
         };
+        LinkedLoanView: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            balance: components["schemas"]["MoneyView"];
+        };
         LinkedSubscriptionView: {
             /** Format: uuid */
             id: string;
@@ -43068,6 +43083,9 @@ export interface components {
             /** Format: uuid */
             envelopeId?: null | string;
             envelopeName?: null | string;
+            /** Format: uuid */
+            assetId?: null | string;
+            assetName?: null | string;
         };
         LoanEventView: {
             /** Format: date */
@@ -43451,6 +43469,9 @@ export interface components {
             /** Format: uuid */
             envelopeId?: null | string;
             envelopeName?: null | string;
+            /** Format: uuid */
+            assetId?: null | string;
+            assetName?: null | string;
         };
         LoanWarningView: {
             code: string;

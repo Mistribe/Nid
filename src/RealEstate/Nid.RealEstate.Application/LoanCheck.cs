@@ -43,9 +43,22 @@ internal static class LoanCheck
             ? null
             : InvalidEnvelope("This is not an SCPI envelope you can read.");
 
-    /// <summary>#180: a loan finances a property or an SCPI, never both.</summary>
-    public static Failure? OneFinanced(ItemId? property, ItemId? envelope)
-        => property is not null && envelope is not null ? InvalidEnvelope("A loan finances a property or an SCPI, not both.") : null;
+    /// <summary>
+    /// #188: a loan finances an asset its actor reads. An unreadable id, an unknown id and any other item get this one refusal.
+    /// </summary>
+    public static async Task<Failure?> AssetLinkableAsync(IAccessPolicy policy, IItemRegistry items, PersonId actor, ItemId? asset, CancellationToken ct)
+        => asset is not { } id
+           || ((await policy.CheckAsync(actor, id, AccessKind.Read, ct)).IsSuccess && await items.FindAsync(id, ct) is { Module: "assets", Kind: "asset" })
+            ? null
+            : InvalidAsset("This is not an asset you can read.");
+
+    /// <summary>#180, #188: a loan finances a property, an SCPI or an asset, never two of them.</summary>
+    public static Failure? OneFinanced(ItemId? property, ItemId? envelope, ItemId? asset = null)
+        => asset is not null && (property is not null || envelope is not null) ? InvalidAsset("A loan finances one item, not several.")
+            : property is not null && envelope is not null ? InvalidEnvelope("A loan finances a property or an SCPI, not both.") : null;
+
+    private static Failure InvalidAsset(string message)
+        => new(LoanCodes.InvalidAsset, message, new Dictionary<string, object?> { ["field"] = "assetId" });
 
     private static Failure InvalidEnvelope(string message)
         => new(LoanCodes.InvalidEnvelope, message, new Dictionary<string, object?> { ["field"] = "envelopeId" });
