@@ -280,6 +280,7 @@ public class UnitOfWorkTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         public Task<Result> ReplaceAsync(ItemId id, SubscriptionReplacement replacement, CancellationToken ct) => inner.ReplaceAsync(id, replacement, ct);
         public Task<Result> EditAsync(ItemId id, SubscriptionEdit edit, CancellationToken ct) => inner.EditAsync(id, edit, ct);
         public Task<Result<BillingPhaseId>> AddPhaseAsync(ItemId id, BillingPhase phase, RowOrigin origin, CancellationToken ct) => inner.AddPhaseAsync(id, phase, origin, ct);
+        public Task LockAsync(ItemId id, CancellationToken ct) => inner.LockAsync(id, ct);
         public Task<Result> ClosePhaseAsync(ItemId id, BillingPhaseId phase, NodaTime.LocalDate endsOn, int? maxCycles, CancellationToken ct) => inner.ClosePhaseAsync(id, phase, endsOn, maxCycles, ct);
         public Task<Result<PurchaseId>> AddPurchaseAsync(Purchase purchase, RowOrigin origin, CancellationToken ct) => inner.AddPurchaseAsync(purchase, origin, ct);
         public Task<Result> ReplacePhaseAsync(ItemId id, BillingPhase phase, RowOrigin origin, CancellationToken ct) => inner.ReplacePhaseAsync(id, phase, origin, ct);

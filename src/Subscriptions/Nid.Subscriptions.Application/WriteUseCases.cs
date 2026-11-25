@@ -36,13 +36,13 @@ public sealed record EditSubscriptionCommand(
     public AccessKind Access => AccessKind.Write;
 }
 
-public sealed record OpenPhaseCommand(ItemId ItemId, BillingPhase Phase) : ICommand<BillingPhaseId>, IItemScoped
+public sealed record OpenPhaseCommand(ItemId ItemId, BillingPhase Phase) : ICommand<BillingPhaseId>, IItemScoped, ITransactional
 {
     public AccessKind Access => AccessKind.Write;
 }
 
 public sealed record ClosePhaseCommand(ItemId ItemId, BillingPhaseId PhaseId, LocalDate EndsOn)
-    : ICommand<BillingPhaseId>, IItemScoped
+    : ICommand<BillingPhaseId>, IItemScoped, ITransactional
 {
     public AccessKind Access => AccessKind.Write;
 }
@@ -107,6 +107,9 @@ public sealed class CreateSubscriptionHandler(
             return Result.Failure<ItemId>(failure!);
 
         var purchases = drafts.Select(d => d.ToPurchase(id)).ToList();
+        for (var i = 0; i < purchases.Count; i++)
+            if (PurchaseRules.Unanchored(id, purchases[i], $"purchases[{i}]") is { } unanchored)
+                return Result.Failure<ItemId>(unanchored);
         if (phases.Count > 0 || purchases.Count > 0)
         {
             // The engine's rules on the whole new subscription, before any of it is written; each refusal located.
@@ -176,7 +179,26 @@ public sealed class EditSubscriptionHandler(
 public sealed class OpenPhaseHandler(ISubscriptionStore store) : IRequestHandler<OpenPhaseCommand, BillingPhaseId>
 {
     public async ValueTask<Result<BillingPhaseId>> HandleAsync(OpenPhaseCommand command, CancellationToken ct = default)
-        => await store.AddPhaseAsync(command.ItemId, command.Phase, RowOrigin.None, ct);
+    {
+        // #628: a phase the timeline cannot hold would hide the whole subscription once written, so the engine checks it first.
+        await store.LockAsync(command.ItemId, ct);
+        var input = await store.LoadAsync(command.ItemId, ct);
+        if (input is null)
+            return Result.Failure<BillingPhaseId>(new NotFoundFailure("subscription", command.ItemId.ToString()));
+        var after = input with { Phases = [.. input.Phases, command.Phase] };
+        if (PhaseTimeline.Refusal(after, command.Phase.StartsOn) is { } refused)
+            return Result.Failure<BillingPhaseId>(refused);
+        return await store.AddPhaseAsync(command.ItemId, command.Phase, RowOrigin.None, ct);
+    }
+}
+
+/// <summary>#628: the engine's refusal of a subscription's phases after a write, at the phase field it names.</summary>
+internal static class PhaseTimeline
+{
+    public static Failure? Refusal(SubscriptionInput after, LocalDate on, string? field = null)
+        => SubscriptionTimeline.Build(after, on, on).TryGetFailure(out var refused)
+            ? FieldErrors.At(refused!, field ?? PhasePaths.Field(refused!.Code) ?? "startsOn")
+            : null;
 }
 
 [RequestHandler<ClosePhaseCommand, BillingPhaseId>]
@@ -184,6 +206,15 @@ public sealed class ClosePhaseHandler(ISubscriptionStore store) : IRequestHandle
 {
     public async ValueTask<Result<BillingPhaseId>> HandleAsync(ClosePhaseCommand command, CancellationToken ct = default)
     {
+        // #628: a later end can overlap the next phase. Refused only when the end breaks a timeline that held, so a repair still goes through.
+        await store.LockAsync(command.ItemId, ct);
+        if (await store.LoadAsync(command.ItemId, ct) is { } input && input.Phases.Any(p => p.Id == command.PhaseId)
+            && SubscriptionTimeline.Build(input, command.EndsOn, command.EndsOn).IsSuccess
+            && PhaseTimeline.Refusal(
+                input with { Phases = input.Phases.Select(p => p.Id == command.PhaseId ? p with { EndsOn = command.EndsOn } : p).ToList() },
+                command.EndsOn, "endsOn") is { } refused)
+            return Result.Failure<BillingPhaseId>(refused);
+
         var result = await store.ClosePhaseAsync(command.ItemId, command.PhaseId, command.EndsOn, null, ct);
         return result.TryGetFailure(out var failure) ? Result.Failure<BillingPhaseId>(failure!) : Result.Success(command.PhaseId);
     }
@@ -299,6 +330,8 @@ public sealed class ChangePriceHandler(ISubscriptionStore store) : IRequestHandl
 
     public async ValueTask<Result<BillingPhaseId>> HandleAsync(ChangePriceCommand command, CancellationToken ct = default)
     {
+        // #628: two changes at once would both close the same phase and leave two open ones.
+        await store.LockAsync(command.ItemId, ct);
         var input = await store.LoadAsync(command.ItemId, ct);
         if (input is null)
             return Result.Failure<BillingPhaseId>(new NotFoundFailure("subscription", command.ItemId.ToString()));
@@ -315,10 +348,10 @@ public sealed class ChangePriceHandler(ISubscriptionStore store) : IRequestHandl
             command.Covers ?? (command.Every is null ? open.Covers : null),
             command.MaxCycles ?? (open.MaxCycles - spent), command.Payer ?? open.Payer);
 
-        var after = input with { Phases = input.Phases.Select(p => p.Id == open.Id ? p with { EndsOn = command.StartsOn, MaxCycles = spent ?? p.MaxCycles } : p).Append(next).ToList() };
-        if (SubscriptionTimeline.Build(after, command.StartsOn, command.StartsOn).TryGetFailure(out var refused))
-            // The change's own fields: an overlap or anything about the phase as a whole is its start date.
-            return Result.Failure<BillingPhaseId>(FieldErrors.At(refused!, PhasePaths.Field(refused!.Code) ?? "startsOn"));
+        var after = input with { Phases = input.Phases.Select(p => p.Id == open.Id ? p with { EndsOn = command.StartsOn, MaxCycles = spent is 0 ? null : spent ?? p.MaxCycles } : p).Append(next).ToList() };
+        // The change's own fields: an overlap or anything about the phase as a whole is its start date.
+        if (PhaseTimeline.Refusal(after, command.StartsOn) is { } refused)
+            return Result.Failure<BillingPhaseId>(refused);
 
         var closed = await store.ClosePhaseAsync(command.ItemId, open.Id, command.StartsOn, spent, ct);
         if (closed.TryGetFailure(out var notClosed))
