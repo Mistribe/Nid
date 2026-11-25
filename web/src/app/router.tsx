@@ -301,6 +301,39 @@ const goalDetailRoute = createRoute({
   component: lazyRouteComponent(() => import('@/features/goals/GoalDetailPage'), 'GoalDetailPage'),
 });
 
+/** The other assets list's filters (a kind, an owner, part of the name, archived ones too) and its page (from 2), all applied by the server. */
+export type AssetsSearch = DetailSearch & { kind?: string; owner?: string; archived?: 1; q?: string; page?: number };
+
+// `/other-assets`, not `/assets`: the server keeps `/assets` for the built files (ServerSegments), so a reload there would 404.
+const assetsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/other-assets',
+  beforeLoad: requireModule('assets'),
+  validateSearch: (search: Record<string, unknown>): AssetsSearch => ({
+    ...listSearch(search),
+    ...(typeof search.kind === 'string' && search.kind !== '' ? { kind: search.kind } : {}),
+    ...(typeof search.owner === 'string' && /^[0-9a-f-]{36}$/i.test(search.owner) ? { owner: search.owner } : {}),
+    ...(search.archived === 1 || search.archived === '1' ? { archived: 1 as const } : {}),
+    ...(typeof search.q === 'string' && search.q !== '' ? { q: search.q } : {}),
+  }),
+  component: lazyRouteComponent(() => import('@/features/assets/AssetsPage'), 'AssetsPage'),
+});
+
+const assetNewRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/other-assets/new',
+  beforeLoad: requireModule('assets'),
+  component: lazyRouteComponent(() => import('@/features/assets/new/NewAsset'), 'NewAsset'),
+});
+
+const assetDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/other-assets/$id',
+  validateSearch: detailSearch,
+  beforeLoad: requireModule('assets'),
+  component: lazyRouteComponent(() => import('@/features/assets/AssetDetailPage'), 'AssetDetailPage'),
+});
+
 const childcareRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/childcare',
@@ -837,7 +870,7 @@ const adminSecurityRoute = createRoute({ getParentRoute: () => rootRoute, valida
 
 export const routeTree = rootRoute.addChildren([
   indexRoute, dashboardRoute, calendarRoute, yearReviewRoute, subscriptionsRoute, subscriptionNewRoute, subscriptionDetailRoute, investmentsRoute, investmentNewRoute, investmentDetailRoute, holdingDetailRoute,
-  goalsRoute, goalNewRoute, goalDetailRoute, childcareRoute, childcareNewRoute, childcareDetailRoute, childcareEndRoute, childcareSettlementRoute, childcareStatementRoute, nannyNewRoute, nannyDetailRoute, documentsRoute, documentDetailRoute, seriesRoute, incomeRoute, incomeNewRoute, incomeDetailRoute, spendingRoute, taxRoute, taxAssessmentNewRoute, taxAssessmentEditRoute, retirementRoute, scenariosRoute, scenarioNewRoute, projectionScenarioRoute, saleScenarioRoute, scenarioCompareRoute, scenarioDetailRoute, propertiesRoute, propertyNewRoute, propertyDetailRoute, loansRoute, loanNewRoute, loanDetailRoute, loanContractRoute, propertyReceiptRoute, propertyArrearsLetterRoute, notificationsRoute, routineRoute, proposalsRoute, proposalDetailRoute,
+  goalsRoute, goalNewRoute, goalDetailRoute, assetsRoute, assetNewRoute, assetDetailRoute, childcareRoute, childcareNewRoute, childcareDetailRoute, childcareEndRoute, childcareSettlementRoute, childcareStatementRoute, nannyNewRoute, nannyDetailRoute, documentsRoute, documentDetailRoute, seriesRoute, incomeRoute, incomeNewRoute, incomeDetailRoute, spendingRoute, taxRoute, taxAssessmentNewRoute, taxAssessmentEditRoute, retirementRoute, scenariosRoute, scenarioNewRoute, projectionScenarioRoute, saleScenarioRoute, scenarioCompareRoute, scenarioDetailRoute, propertiesRoute, propertyNewRoute, propertyDetailRoute, loansRoute, loanNewRoute, loanDetailRoute, loanContractRoute, propertyReceiptRoute, propertyArrearsLetterRoute, notificationsRoute, routineRoute, proposalsRoute, proposalDetailRoute,
   importRoute.addChildren([importHomeRoute, importSessionRoute]), exportRoute, settingsRoute, appearanceRoute, notificationSettingsRoute, projectionSettingsRoute, personsSettingsRoute, calendarSettingsRoute, banksSettingsRoute, aiSettingsRoute, aiJobsRedirectRoute, aiUsageRoute,
   securityRoute, operationsRoute, moreRoute, changelogRoute, forbiddenRoute, adminRoute, adminUsersRoute, adminHouseholdRoute, adminFxRoute, adminPricesRoute, adminIrlRoute, adminInflationRoute, adminBankingRoute, adminCatalogRoute, adminJobsRoute, adminJobRoute, adminJobRunRoute,
   adminSystemRoute, adminNotificationsRoute, adminSecurityRoute, adminAiRoute, adminAiJobsRoute,

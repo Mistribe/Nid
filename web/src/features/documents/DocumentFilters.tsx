@@ -59,7 +59,7 @@ export function DocumentFilters({ facets, filters, onChange, archived, onArchive
 const SEARCH_PAUSE_MS = 300;
 
 /** The search field: what is typed shows at once, and goes to the URL (so to the server) after a pause in the typing. */
-function SearchInput({ id, labelledBy, value, onSearch }: { id: string; labelledBy: string; value: string; onSearch: (q: string) => void }) {
+export function SearchInput({ id, labelledBy, value, onSearch }: { id: string; labelledBy: string; value: string; onSearch: (q: string) => void }) {
   const [text, setText] = useState(value);
   // The URL changed from elsewhere (a link, a filter dropped): the field follows it.
   const [sent, setSent] = useState(value);

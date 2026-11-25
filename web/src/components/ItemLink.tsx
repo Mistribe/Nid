@@ -6,7 +6,7 @@ import type { ReactNode } from 'react';
 export function itemRoute(module: string, id: string): LinkProps {
   const to = module === 'subscriptions' ? '/subscriptions/$id' : module === 'income' ? '/income/$id'
     : module === 'properties' ? '/properties/$id' : module === 'loans' ? '/loans/$id' : module === 'childcare' ? '/childcare/$id'
-    : module === 'goals' ? '/goals/$id' : '/investments/$id';
+    : module === 'goals' ? '/goals/$id' : module === 'assets' ? '/other-assets/$id' : '/investments/$id';
   return { to, params: { id } };
 }
 

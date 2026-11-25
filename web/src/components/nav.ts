@@ -1,4 +1,4 @@
-import { ArrowLeftRight, Baby, Bell, Bot, Building, Building2, Calculator, CalendarCheck, CalendarDays, ChartCandlestick, FileText, FlaskConical, Download, House, HousePlus, Inbox, KeyRound, Landmark, LayoutGrid, Library, Mail, PiggyBank, Repeat, Server, ShieldCheck, Settings, ShoppingBasket, Sunset, Target, Timer, TrendingUp, Upload, Users, Wallet } from 'lucide-react';
+import { ArrowLeftRight, Baby, Bell, Bot, Building, Building2, Calculator, CalendarCheck, CalendarDays, ChartCandlestick, FileText, FlaskConical, Download, Gem, House, HousePlus, Inbox, KeyRound, Landmark, LayoutGrid, Library, Mail, PiggyBank, Repeat, Server, ShieldCheck, Settings, ShoppingBasket, Sunset, Target, Timer, TrendingUp, Upload, Users, Wallet } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { components } from '@/api/schema';
 import type { Tile } from '@/components/ModuleTile';
@@ -18,6 +18,7 @@ export const NAV = [
   { group: 'estate', module: 'investments', admin: false, mobile: 'tab', to: '/investments', icon: PiggyBank, tile: 1, label: 'nav.investments', tabLabel: 'nav.investments_tab', sideLabel: 'nav.investments_tab' },
   { group: 'estate', module: 'goals', admin: false, mobile: 'more', to: '/goals', icon: Target, tile: 4, label: 'nav.goals' },
   { group: 'estate', module: 'realestate', admin: false, mobile: 'more', to: '/properties', icon: Building2, tile: 3, label: 'nav.properties' },
+  { group: 'estate', module: 'assets', admin: false, mobile: 'more', to: '/other-assets', icon: Gem, tile: 'neutral', label: 'nav.assets' },
   { group: 'estate', module: 'realestate', admin: false, mobile: 'more', to: '/loans', icon: Landmark, tile: 2, label: 'nav.loans' },
   { group: 'budget', module: 'income', admin: false, mobile: 'more', to: '/income', icon: Wallet, tile: 6, label: 'nav.income' },
   { group: 'budget', module: 'banking', admin: false, mobile: 'more', to: '/spending', icon: ShoppingBasket, tile: 'neutral', label: 'nav.spending' },
