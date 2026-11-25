@@ -64,7 +64,7 @@ public static class AssetRules
         if (d.FiscalHp is < 1 or > 99)
             return Refuse(AssetsCodes.InvalidFiscalHp, "fiscalHp", "Fiscal horsepower is between 1 and 99.");
         if (d.Energy is not null && !AssetEnergies.All.Contains(d.Energy))
-            return Refuse(AssetsCodes.InvalidEnergy, "energy", $"'{d.Energy}' is not an energy.");
+            return Refuse(AssetsCodes.InvalidEnergy, "energy", $"'{d.Energy}' is not an energy; one of {string.Join(", ", AssetEnergies.All)}.");
         return null;
     }
 

@@ -85,6 +85,7 @@ public class AssetRulesTests
     [Theory]
     [InlineData("registeredOn")]
     [InlineData("mileageKm")]
+    [InlineData("mileageOn")]
     [InlineData("fiscalHp")]
     [InlineData("energy")]
     public void Check_refuses_a_vehicle_field_on_art(string field)
@@ -93,6 +94,7 @@ public class AssetRulesTests
         {
             "registeredOn" => new AssetDetails("art", null, null, null, null, null, new LocalDate(2020, 1, 1)),
             "mileageKm" => new AssetDetails("art", null, null, null, null, null, MileageKm: 10),
+            "mileageOn" => new AssetDetails("art", null, null, null, null, null, MileageOn: new LocalDate(2020, 1, 1)),
             "fiscalHp" => new AssetDetails("art", null, null, null, null, null, FiscalHp: 5),
             _ => new AssetDetails("art", null, null, null, null, null, Energy: "diesel"),
         };
@@ -111,7 +113,11 @@ public class AssetRulesTests
     public void Check_refuses_mileage_out_of_range(int km) => Refused(Car(km: km, kmOn: new(2026, 1, 1)), AssetsCodes.InvalidMileage, "mileageKm");
 
     [Fact]
-    public void Check_accepts_mileage_zero_and_the_bound() => Assert.Null(AssetRules.Check(Car(km: 9_999_999, kmOn: new(2026, 1, 1)), Today));
+    public void Check_accepts_mileage_zero_and_the_bound()
+    {
+        Assert.Null(AssetRules.Check(Car(km: 0, kmOn: new(2026, 1, 1)), Today));
+        Assert.Null(AssetRules.Check(Car(km: 9_999_999, kmOn: new(2026, 1, 1)), Today));
+    }
 
     [Theory]
     [InlineData(0)]

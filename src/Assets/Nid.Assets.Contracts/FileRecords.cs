@@ -29,11 +29,11 @@ public sealed record AssetImportRecord
     [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.WriteAsString)]
     public decimal? Fineness { get; init; }
 
-    public string? RegisteredOn { get; set; }
-    public int? MileageKm { get; set; }
-    public string? MileageOn { get; set; }
-    public int? FiscalHp { get; set; }
-    public string? Energy { get; set; }
+    public string? RegisteredOn { get; init; }
+    public int? MileageKm { get; init; }
+    public string? MileageOn { get; init; }
+    public int? FiscalHp { get; init; }
+    public string? Energy { get; init; }
 
     public string Visibility { get; set; } = "shared";
 

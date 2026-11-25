@@ -4,6 +4,7 @@ import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { useApi } from '@/api/ApiProvider';
+import { toProblem } from '@/api/errors';
 import { ASSET, invalidateAssets, type AssetView } from '@/api/assets';
 import { DateField } from '@/components/form/DateField';
 import { Field } from '@/components/form/Field';
@@ -50,7 +51,8 @@ function MileageForm({ asset, titleId, done }: { asset: AssetView; titleId: stri
         const all: EditAssetValues = { ...editDefaults(asset), ...values };
         edit.mutate({ params: { path: { id: asset.id } }, body: toEditBody(all, asset.version) }, {
           onSuccess: () => { void invalidateAssets(queryClient); done(t('assets_form.saved')); },
-          onError: errors.onError,
+          // A conflict refetches the asset: the parent hands the fresh version (and fields), so a retry never overwrites blindly.
+          onError: (error) => { if (toProblem(error).status === 409) void invalidateAssets(queryClient); errors.onError(error); },
         });
       })(event);
     }}>

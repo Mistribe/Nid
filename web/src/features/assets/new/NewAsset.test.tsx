@@ -26,6 +26,7 @@ describe('NewAsset', () => {
     const { user } = await renderApp('/other-assets/new');
 
     await user.type(await screen.findByLabelText('Nom'), 'Citadine');
+    await user.click(screen.getByRole('radio', { name: 'Propriétaire' }));
     await user.click(screen.getByRole('radio', { name: 'Oui, partagé' }));
     await user.click(screen.getByRole('button', { name: 'Ajouter le bien' }));
 
@@ -43,6 +44,7 @@ describe('NewAsset', () => {
     await pick(user, 'Type', 'Métal précieux');
     await user.type(screen.getByLabelText('Poids (grammes)'), 'abc');
     await pick(user, 'Type', 'Véhicule');
+    await user.click(screen.getByRole('radio', { name: 'Propriétaire' }));
     await user.click(screen.getByRole('radio', { name: 'Oui, partagé' }));
     await user.type(screen.getByLabelText('Montant'), '8000');
     await user.type(screen.getByLabelText('Date'), '01/03/2024');
@@ -78,6 +80,7 @@ describe('NewAsset', () => {
     serve(bodies);
     const { user } = await renderApp('/other-assets/new');
     await user.type(await screen.findByLabelText('Nom'), 'Citadine');
+    await user.click(screen.getByRole('radio', { name: 'Propriétaire' }));
     await user.click(screen.getByRole('radio', { name: 'Oui, partagé' }));
     await user.type(screen.getByLabelText('Montant'), '8000');
     await user.click(screen.getByRole('button', { name: 'Ajouter le bien' }));
@@ -113,6 +116,8 @@ describe('NewAsset', () => {
     serve(bodies);
     const { user, router } = await renderApp('/other-assets/new');
     await user.type(await screen.findByLabelText('Nom'), 'Citadine');
+    await user.click(screen.getByRole('radio', { name: 'Propriétaire' }));
+    await user.click(screen.getByRole('button', { name: 'Détails du véhicule' }));
     await user.type(screen.getByLabelText('Mise en circulation'), '01/03/2022');
     await user.type(screen.getByLabelText('Kilométrage (km)'), '45000');
     await user.type(screen.getByLabelText('Date du relevé'), '01/06/2025');
@@ -134,6 +139,8 @@ describe('NewAsset', () => {
     serve(bodies);
     const { user, router } = await renderApp('/other-assets/new');
     await user.type(await screen.findByLabelText('Nom'), 'Tableau');
+    await user.click(screen.getByRole('radio', { name: 'Propriétaire' }));
+    await user.click(screen.getByRole('button', { name: 'Détails du véhicule' }));
     await user.type(screen.getByLabelText('Kilométrage (km)'), '100');
     await user.click(screen.getByRole('radio', { name: 'Oui, partagé' }));
     await user.type(screen.getByLabelText('Montant'), '800');
@@ -148,5 +155,20 @@ describe('NewAsset', () => {
 
     await waitFor(() => expect(router.state.location.pathname).toBe(`/other-assets/${ASSET}`));
     expect(bodies[0]).not.toHaveProperty('mileageKm');
+  });
+
+  it('waits for the owned-or-leased answer, and never creates an asset for a lease, even on Enter', async () => {
+    const bodies: unknown[] = [];
+    serve(bodies);
+    const { user } = await renderApp('/other-assets/new');
+    const name = await screen.findByLabelText('Nom');
+    expect(screen.queryByRole('button', { name: 'Ajouter le bien' })).not.toBeInTheDocument();
+
+    await user.type(name, 'Citadine{Enter}');
+    expect(await screen.findByText('Dites si vous êtes propriétaire de ce véhicule ou s’il est en location.')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('radio', { name: 'Location' }));
+    await user.type(name, '{Enter}');
+    expect(bodies).toEqual([]);
   });
 });

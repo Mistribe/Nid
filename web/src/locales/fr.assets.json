@@ -75,7 +75,9 @@
     "fiscal_hp_format": "Indiquez une puissance fiscale entre 1 et 99.",
     "vehicle_only": "Ces informations ne concernent que les véhicules.",
     "update_mileage": "Mettre à jour le kilométrage",
-    "mileage_intro": "Le dernier relevé remplace le précédent."
+    "mileage_intro": "Le dernier relevé remplace le précédent.",
+    "owned_or_leased_required": "Dites si vous êtes propriétaire de ce véhicule ou s’il est en location.",
+    "vehicle_details": "Détails du véhicule"
   },
   "assets_detail": {
     "loading": "Chargement du bien",

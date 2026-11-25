@@ -55,9 +55,14 @@ export function NewAsset() {
   const e = form.formState.errors;
   const mode = form.watch('mode');
   // A lease is a contract, not an asset: it goes to the subscriptions, and nothing is created here.
-  const [leased, setLeased] = useState(false);
-  const isLeased = leased && form.watch('kind') === 'vehicle';
+  // No answer is preselected (like the visibility): a vehicle's form continues once the household has picked one.
+  const [ownership, setOwnership] = useState<'owned' | 'leased' | null>(null);
+  const [unanswered, setUnanswered] = useState(false);
+  const isVehicle = form.watch('kind') === 'vehicle';
+  const isLeased = isVehicle && ownership === 'leased';
   const ownershipId = useId();
+  const ownershipErrorId = useId();
+  const vehicleError = Boolean(e.registeredOn || e.mileageKm || e.mileageOn || e.fiscalHp || e.energy);
 
   return (
     <FormPage crumbs={[{ label: t('nav.assets'), to: '/other-assets' }]} title={t('assets_form.title')}>
@@ -65,14 +70,20 @@ export function NewAsset() {
       {errors.problem ? <ProblemMessage problem={errors.problem} /> : null}
       <FormProvider {...form}>
         <form noValidate className="space-y-4" onSubmit={(event) => {
+          event.preventDefault();
+          if (isLeased) return; // a lease creates nothing here, whatever key sent the form
+          if (isVehicle && ownership === null) { setUnanswered(true); return; }
           void form.handleSubmit((values) => { errors.clear(); create.mutate({ body: toCreateBody(values) }); })(event);
         }}>
           <AssetFields />
-          {form.watch('kind') === 'vehicle' ? (
-            <div className="space-y-2">
+          {isVehicle ? (
+            <div className="space-y-1">
               <span id={ownershipId} className="block text-sm font-medium">{t('assets_form.owned_or_leased')}</span>
-              <Segmented aria-labelledby={ownershipId} value={leased ? 'leased' : 'owned'} onValueChange={(v) => setLeased(v === 'leased')}
+              <Segmented aria-labelledby={ownershipId} aria-describedby={unanswered && ownership === null ? ownershipErrorId : undefined}
+                aria-invalid={unanswered && ownership === null ? true : undefined} value={ownership ?? ''}
+                onValueChange={(v) => { setOwnership(v === 'leased' ? 'leased' : 'owned'); setUnanswered(false); }}
                 options={[{ value: 'owned', label: t('assets_form.owned') }, { value: 'leased', label: t('assets_form.leased') }]} />
+              {unanswered && ownership === null ? <p id={ownershipErrorId} className="text-sm text-destructive">{t('assets_form.owned_or_leased_required')}</p> : null}
             </div>
           ) : null}
           {isLeased ? (
@@ -84,9 +95,9 @@ export function NewAsset() {
                 </Link>
               </Button>
             </div>
-          ) : (
+          ) : isVehicle && ownership === null ? null : (
           <>
-          <VehicleFields />
+          {isVehicle ? <Folded label={t('assets_form.vehicle_details')} hasError={vehicleError}><VehicleFields /></Folded> : null}
           <div className="space-y-2">
             <span id={valueId} className="block text-sm font-medium">{t('assets_form.value_title')}</span>
             <Controller control={form.control} name="mode" render={({ field }) => (
