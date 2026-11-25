@@ -2,12 +2,13 @@ import { Controller, type UseFormReturn } from 'react-hook-form';
 import { useApi } from '@/api/ApiProvider';
 import { ASSETS } from '@/api/assets';
 import { ComboboxField } from '@/components/form/ComboboxField';
-import { Fragment, useId, useState } from 'react';
+import { Fragment, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { components } from '@/api/schema';
 import { formatLocalDate } from '@/components/LocalDate';
 import { OwnershipFields } from '@/components/ownership/OwnershipFields';
 import { Field } from '@/components/form/Field';
+import { Folded } from '@/components/form/Folded';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -28,6 +29,7 @@ export function CommonStep({ form, persons }: { form: Form; persons: Person[] })
   const { $api } = useApi();
   const [assetQ, setAssetQ] = useState('');
   const assets = $api.useQuery('get', ASSETS, { params: { query: { scope: 'me', q: assetQ === '' ? undefined : assetQ } } });
+  const known = useRef<Record<string, string>>({}).current; // the picked asset's label outlives a search that no longer lists it
   const e = form.formState.errors;
   return (
     <div className="space-y-4">
@@ -55,13 +57,20 @@ export function CommonStep({ form, persons }: { form: Form; persons: Person[] })
           </div>
         )} />
       </fieldset>
-      <Controller control={form.control} name="asset" render={({ field }) => (
-        <Field label={t('asset_link.field')} hint={t('asset_link.hint')} error={e.asset?.message}>
-          {(c) => <ComboboxField {...c} value={field.value} onValueChange={field.onChange}
-            options={[{ value: '', label: t('asset_link.none') }, ...(assets.data?.rows ?? []).map((a) => ({ value: a.id, label: a.name }))]}
-            onSearch={setAssetQ} placeholder={t('asset_link.placeholder')} searchPlaceholder={t('asset_link.search')} empty={t('asset_link.empty')} />}
-        </Field>
-      )} />
+      <Folded label={t('asset_link.more')} hasError={Boolean(e.asset)}>
+        <Controller control={form.control} name="asset" render={({ field }) => {
+          const rows = assets.data?.rows ?? [];
+          const kept = field.value !== '' && !rows.some((a) => a.id === field.value) ? known[field.value] : undefined;
+          return (
+            <Field label={t('asset_link.field')} hint={t('asset_link.hint')} error={e.asset?.message}>
+              {(c) => <ComboboxField {...c} value={field.value}
+                onValueChange={(v) => { known[v] = rows.find((a) => a.id === v)?.name ?? ''; field.onChange(v); }}
+                options={[{ value: '', label: t('asset_link.none') }, ...(kept ? [{ value: field.value, label: kept }] : []), ...rows.map((a) => ({ value: a.id, label: a.name }))]}
+                onSearch={setAssetQ} placeholder={t('asset_link.placeholder')} searchPlaceholder={t('asset_link.search')} empty={t('asset_link.empty')} />}
+            </Field>
+          );
+        }} />
+      </Folded>
       <Field label={t('wizard.note')}>{(c) => <Textarea {...c} {...form.register('note')} />}</Field>
     </div>
   );

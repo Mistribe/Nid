@@ -119,6 +119,7 @@
   },
   "asset_link": {
     "title": "Bien concerné",
+    "more": "Lier à un bien (voiture, logement…)",
     "edit": "Bien concerné",
     "add": "Lier à un bien",
     "change": "Changer le bien lié",
