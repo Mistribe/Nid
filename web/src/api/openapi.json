@@ -2883,6 +2883,13 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "asset",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -50540,6 +50547,22 @@
           }
         }
       },
+      "EveryView": {
+        "required": [
+          "count",
+          "unit"
+        ],
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "unit": {
+            "type": "string"
+          }
+        }
+      },
       "ExcludedEnvelopeView": {
         "required": [
           "envelopeId",
@@ -56961,10 +56984,14 @@
               }
             ]
           },
-          "period": {
-            "type": [
-              "null",
-              "string"
+          "every": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/EveryView"
+              }
             ]
           },
           "nextDeadline": {
@@ -69858,6 +69885,7 @@
           "phases",
           "purchases",
           "canWrite",
+          "assetHidden",
           "cancellation"
         ],
         "type": "object",
@@ -70062,6 +70090,10 @@
                 "$ref": "#/components/schemas/LinkedAssetView"
               }
             ]
+          },
+          "assetHidden": {
+            "type": "boolean",
+            "default": false
           }
         }
       },

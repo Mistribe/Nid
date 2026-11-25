@@ -51,7 +51,7 @@ public static class SubscriptionViews
     public static SubscriptionDetail Detail(
         SubscriptionInput input, Timeline timeline, string displayName, ProviderSummaryView? provider, DateRange window, Converted converted,
         SubscriptionEditing editing, LocalDate today, InsuranceView? insurance = null,
-        (SpentView? View, IReadOnlyList<Finding> Missing) spent = default, SavedView? saved = null, LinkedAssetView? asset = null)
+        (SpentView? View, IReadOnlyList<Finding> Missing) spent = default, SavedView? saved = null, LinkedAssetView? asset = null, bool assetHidden = false)
         => new(
             input.Subscription.Id,
             displayName,
@@ -81,7 +81,8 @@ public static class SubscriptionViews
             insurance,
             spent.View,
             saved,
-            asset);
+            asset,
+            assetHidden);
 }
 
 /// <summary>

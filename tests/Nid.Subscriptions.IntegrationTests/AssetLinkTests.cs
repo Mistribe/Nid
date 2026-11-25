@@ -49,7 +49,7 @@ public class AssetLinkTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         var listed = Assert.Single(await SubscriptionsOfAsync(app, app.AdultA, asset));
         Assert.Equal(subscription.Value, listed.GetProperty("id").GetGuid());
         Assert.Equal("10", listed.GetProperty("price").GetProperty("amount").GetString());
-        Assert.Equal("month", listed.GetProperty("period").GetString());
+        Assert.Equal(("month", 1), (listed.GetProperty("every").GetProperty("unit").GetString(), listed.GetProperty("every").GetProperty("count").GetInt32()));
         Assert.NotEqual(JsonValueKind.Null, listed.GetProperty("nextDeadline").ValueKind);
 
         Assert.Equal(HttpStatusCode.OK, (await LinkAsync(app, app.AdultA, subscription, null)).StatusCode);
@@ -141,5 +141,79 @@ public class AssetLinkTests(PostgresFixture fixture) : IClassFixture<PostgresFix
 
         Assert.Equal(HttpStatusCode.NoContent, deleted.StatusCode);
         Assert.Empty(await SubscriptionsOfAsync(app, app.AdultA, asset));
+    }
+
+    [Fact]
+    public async Task A_member_who_cannot_see_the_linked_asset_can_neither_replace_nor_remove_the_link()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var shared = await app.NewOwnedSubscriptionAsync("Assurance", Visibility.Shared, (app.AdultA, 5_000), (app.AdultB, 5_000));
+        var privateAsset = await NewAssetAsync(app, app.AdultA, "private");
+        var other = await NewAssetAsync(app, app.AdultB, "shared", "Moto");
+        await LinkAsync(app, app.AdultA, shared, privateAsset);
+
+        var detail = await app.GetAsync<JsonElement>(app.AdultB, SubscriptionUrl(shared));
+        Assert.Equal(JsonValueKind.Null, detail.GetProperty("asset").ValueKind);
+        Assert.True(detail.GetProperty("assetHidden").GetBoolean());
+        foreach (var target in new ItemId?[] { null, other })
+        {
+            var response = await LinkAsync(app, app.AdultB, shared, target);
+            Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+            var error = Assert.Single((await Body(response)).GetProperty("errors").EnumerateArray());
+            Assert.Equal(("assetId", "subscriptions.asset_hidden"), (error.FieldPath(), error.GetProperty("code").GetString()));
+        }
+
+        Assert.Equal(privateAsset.Value, (await AssetOfAsync(app, app.AdultA, shared)).GetProperty("id").GetGuid());
+        Assert.False((await app.GetAsync<JsonElement>(app.AdultA, SubscriptionUrl(shared))).GetProperty("assetHidden").GetBoolean());
+    }
+
+    [Fact]
+    public async Task Create_with_a_hidden_asset_or_a_non_asset_is_refused()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var hidden = await NewAssetAsync(app, app.AdultB, "private");
+        var property = await app.NewPropertyAsync("Maison", Visibility.Shared, (app.AdultA, 10_000));
+
+        foreach (var target in new[] { hidden, property })
+        {
+            var response = await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/subscriptions", new
+            {
+                displayName = "Assurance", visibility = "shared", autoRenew = true, assetId = target.Value,
+                owners = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } },
+            });
+            Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+            var error = Assert.Single((await Body(response)).GetProperty("errors").EnumerateArray());
+            Assert.Equal(("assetId", "subscriptions.invalid_asset"), (error.FieldPath(), error.GetProperty("code").GetString()));
+        }
+    }
+
+    [Fact]
+    public async Task The_list_filter_asset_none_keeps_the_subscriptions_without_an_asset()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var linked = await app.NewMonthlyAsync(app.AdultA, 10m);
+        var free = await app.NewMonthlyAsync(app.AdultA, 12m);
+        await LinkAsync(app, app.AdultA, linked, await NewAssetAsync(app, app.AdultA));
+
+        var list = await app.GetAsync<JsonElement>(app.AdultA, "/api/v1/subscriptions?asset=none");
+
+        Assert.Equal([free.Value], list.GetProperty("items").EnumerateArray().Select(i => i.GetProperty("id").GetGuid()));
+    }
+
+    [Fact]
+    public async Task A_phase_billing_every_three_months_is_sent_with_its_count_and_unit()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var subscription = await app.NewOwnedSubscriptionAsync("Assurance", Visibility.Shared, (app.AdultA, 10_000));
+        (await app.RawAsync(app.AdultA, HttpMethod.Post, $"{SubscriptionUrl(subscription)}/phases", new
+        {
+            startsOn = "2025-01-01", price = new { amount = "90", currency = "EUR" }, every = new { count = 3, unit = "month" }, payer = new { type = "household" },
+        })).EnsureSuccessStatusCode();
+        var asset = await NewAssetAsync(app, app.AdultA);
+        await LinkAsync(app, app.AdultA, subscription, asset);
+
+        var every = Assert.Single(await SubscriptionsOfAsync(app, app.AdultA, asset)).GetProperty("every");
+
+        Assert.Equal((3, "month"), (every.GetProperty("count").GetInt32(), every.GetProperty("unit").GetString()));
     }
 }

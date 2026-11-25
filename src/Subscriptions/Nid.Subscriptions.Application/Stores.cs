@@ -79,6 +79,9 @@ public interface ISubscriptionStore
     /// <summary>#648: the linked asset of each of <paramref name="ids"/> that has one.</summary>
     Task<IReadOnlyDictionary<ItemId, ItemId>> AssetsOfAsync(IReadOnlyCollection<ItemId> ids, CancellationToken ct);
 
+    /// <summary>#648: the ones among <paramref name="ids"/> linked to no asset, filtered in SQL.</summary>
+    Task<IReadOnlySet<ItemId>> WithoutAssetAsync(IReadOnlyCollection<ItemId> ids, CancellationToken ct);
+
     /// <summary>#648: the subscriptions linked to each of <paramref name="assets"/>, whoever may read them (the caller filters).</summary>
     Task<IReadOnlyDictionary<ItemId, IReadOnlyList<ItemId>>> SubscriptionsOfAssetsAsync(IReadOnlyCollection<ItemId> assets, CancellationToken ct);
 

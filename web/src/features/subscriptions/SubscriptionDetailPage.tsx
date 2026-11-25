@@ -119,7 +119,7 @@ export function SubscriptionDetailPage() {
         { label: t('edit.purchase_title'), phone: true, onSelect: () => setDialog('purchase') },
         { label: t('contract_terms.edit'), onSelect: () => setDialog('terms') },
         { label: detail.insurance ? t('insurance.change') : t('insurance.add'), onSelect: () => setDialog('insurance') },
-        { label: detail.asset ? t('asset_link.change') : t('asset_link.add'), onSelect: () => setDialog('asset') },
+        ...(detail.assetHidden ? [] : [{ label: detail.asset ? t('asset_link.change') : t('asset_link.add'), onSelect: () => setDialog('asset') }]),
       ]} trailing={[{ label: t('deletion.menu'), destructive: true, onSelect: () => setDeleting(true) }]} />
     </>
   ) : null;

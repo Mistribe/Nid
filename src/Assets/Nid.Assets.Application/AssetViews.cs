@@ -10,8 +10,10 @@ public sealed record MoneyView(string Amount, string Currency);
 
 public sealed record ValuationView(Guid Id, LocalDate AsOf, string Amount, string? Note);
 
-/// <summary>#648: a subscription linked to the asset, as its page lists it; <paramref name="Period"/> is day, week, month or year.</summary>
-public sealed record LinkedSubscriptionView(ItemId Id, string Name, MoneyView? Price, string? Period, LocalDate? NextDeadline);
+/// <summary>#648: a subscription linked to the asset, as its page lists it; <paramref name="Every"/> is its billing period.</summary>
+public sealed record EveryView(int Count, string Unit);
+
+public sealed record LinkedSubscriptionView(ItemId Id, string Name, MoneyView? Price, EveryView? Every, LocalDate? NextDeadline);
 
 /// <param name="ValueFromPurchase">The value is the purchase price: no valuation is dated yet.</param>
 public sealed record AssetView(
@@ -62,6 +64,6 @@ internal static class AssetViews
             row.Currency, row.Visibility, row.Owners, row.Archived, record.Version, canWrite,
             item.Visibility == Visibility.Shared && item.ShareLevel == ShareLevel.Edit ? "edit" : "view",
             subscriptions.Select(s => new LinkedSubscriptionView(
-                s.Id, s.Name, s.Price is { } p ? new MoneyView(p.AmountText, p.Currency.Code) : null, s.Period, s.NextDeadline)).ToList());
+                s.Id, s.Name, s.Price is { } p ? new MoneyView(p.AmountText, p.Currency.Code) : null, s.Every is { } e ? new EveryView(e.Count, e.Unit.ToString().ToLowerInvariant()) : null, s.NextDeadline)).ToList());
     }
 }

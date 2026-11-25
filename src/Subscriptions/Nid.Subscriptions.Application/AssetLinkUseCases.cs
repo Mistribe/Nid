@@ -19,6 +19,11 @@ public sealed record SetSubscriptionAssetCommand(ItemId ItemId, ItemId? AssetId)
 public sealed class AssetLinks(IItemRegistry items, IAccessPolicy policy, IActorAccessor actor)
 {
     public const string InvalidAssetCode = "subscriptions.invalid_asset";
+    public const string AssetHiddenCode = "subscriptions.asset_hidden";
+
+    /// <summary>The reader can read <paramref name="asset"/> (no further check on its kind: it is a stored link).</summary>
+    public async Task<bool> CanReadAsync(ItemId asset, CancellationToken ct)
+        => actor.Current?.PersonId is { } person && (await policy.CheckAsync(person, asset, AccessKind.Read, ct)).IsSuccess;
 
     /// <summary>A refusal never tells an unreadable asset from an unknown id or an item that is no asset.</summary>
     public async Task<Failure?> RefusalAsync(ItemId asset, CancellationToken ct)
@@ -35,10 +40,13 @@ public sealed class SetSubscriptionAssetHandler(ISubscriptionStore store, AssetL
 {
     public async ValueTask<Result<ItemId>> HandleAsync(SetSubscriptionAssetCommand command, CancellationToken ct = default)
     {
-        // Keeping the link it already has is not a new link, even one its author can no longer read.
-        if (command.AssetId is { } asset
-            && (await store.AssetsOfAsync([command.ItemId], ct)).GetValueOrDefault(command.ItemId) != asset
-            && await links.RefusalAsync(asset, ct) is { } refused)
+        var stored = (await store.AssetsOfAsync([command.ItemId], ct)).TryGetValue(command.ItemId, out var current) ? current : (ItemId?)null;
+        // A link to an asset the writer cannot see is neither replaced nor removed: it would be dropped without them knowing it exists.
+        if (stored is { } hidden && hidden != command.AssetId && !await links.CanReadAsync(hidden, ct))
+            return Result.Failure<ItemId>(FieldErrors.At(
+                new Failure(AssetLinks.AssetHiddenCode, "This subscription is linked to an asset you cannot see.", null), "assetId"));
+        // Keeping the link it already has is not a new link.
+        if (command.AssetId is { } asset && stored != asset && await links.RefusalAsync(asset, ct) is { } refused)
             return Result.Failure<ItemId>(refused);
 
         var result = await store.SetAssetAsync(command.ItemId, command.AssetId, ct);
@@ -59,7 +67,7 @@ public sealed class SubscriptionsOfItems(SubscriptionSet set, ISubscriptionStore
         var today = await calendar.TodayAsync(ct);
         var wanted = linked.Values.SelectMany(s => s).ToHashSet();
         // Visible ones only, with their timeline: one load whatever the number of items.
-        var built = (await set.LoadAsync(reader, scope, today, Horizons.Resolve(today, null), ct)).Where(b => wanted.Contains(b.Input.Subscription.Id))
+        var built = (await set.LoadAsync(reader, scope, today, Horizons.Resolve(today, null), ct, wanted: wanted))
             .ToDictionary(b => b.Input.Subscription.Id);
         return linked.ToDictionary(
             l => l.Key,
@@ -70,7 +78,6 @@ public sealed class SubscriptionsOfItems(SubscriptionSet set, ISubscriptionStore
     {
         var next = b.Timeline.NextCharge();
         var phase = next is null ? null : ChargeRules.PhaseOf(b.Input, next);
-        var period = phase is { Every.Count: 1 } ? phase.Every.Unit.ToString().ToLowerInvariant() : null;
-        return new LinkedSubscription(b.Input.Subscription.Id, b.DisplayName, next?.Price, period, next?.Date);
+        return new LinkedSubscription(b.Input.Subscription.Id, b.DisplayName, next?.Price, phase?.Every, next?.Date);
     }
 }

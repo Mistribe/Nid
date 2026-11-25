@@ -147,13 +147,13 @@
     "col_name": "Abonnement",
     "col_price": "Prix",
     "col_deadline": "Prochaine échéance",
-    "per": "par {{period}}",
-    "period": { "day": "jour", "week": "semaine", "month": "mois", "year": "an" },
+    "every": "tous les {{every}}",
+    "per": { "day": "par jour", "week": "par semaine", "month": "par mois", "year": "par an" },
+    "forbidden": "Vous ne pouvez pas modifier cet abonnement : il appartient à un autre membre du foyer.",
     "pick": "Abonnement",
     "pick_placeholder": "Choisir un abonnement",
     "pick_search": "Rechercher un abonnement",
     "pick_empty": "Aucun abonnement à lier.",
-    "pick_hint": "Un abonnement déjà lié à un autre bien passe sur celui-ci.",
     "submit": "Lier"
   }
 }

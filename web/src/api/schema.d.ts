@@ -2944,6 +2944,7 @@ export interface paths {
                     label?: string;
                     group?: string;
                     provider?: string;
+                    asset?: string;
                 };
                 header?: never;
                 path?: never;
@@ -41081,6 +41082,11 @@ export interface components {
             /** Format: int32 */
             age?: null | number;
         };
+        EveryView: {
+            /** Format: int32 */
+            count: number;
+            unit: string;
+        };
         ExcludedEnvelopeView: {
             /** Format: uuid */
             envelopeId: string;
@@ -42547,7 +42553,7 @@ export interface components {
             id: string;
             name: string;
             price?: null | components["schemas"]["MoneyView"];
-            period?: null | string;
+            every?: null | components["schemas"]["EveryView"];
             /** Format: date */
             nextDeadline?: null | string;
         };
@@ -45582,6 +45588,8 @@ export interface components {
             spent?: null | components["schemas"]["SpentView"];
             saved?: null | components["schemas"]["SavedView"];
             asset?: null | components["schemas"]["LinkedAssetView"];
+            /** @default false */
+            assetHidden: boolean;
         };
         SubscriptionList: {
             items: components["schemas"]["SubscriptionSummary"][];

@@ -474,4 +474,31 @@ describe('Abonnements › détail', () => {
 
     await waitFor(() => expect(puts).toEqual([{ assetId: 'a2' }]));
   });
+  it('says a link to an asset the reader cannot see exists, without a way to change it', async () => {
+    serveDetail(detail({ asset: null, assetHidden: true }));
+    const { user } = await renderApp(`/subscriptions/${SUB}`);
+
+    expect(await screen.findByText('Lié à un bien que vous ne voyez pas.')).toBeInTheDocument();
+    await openMore(user);
+    expect(screen.queryByRole('menuitem', { name: /bien/i })).not.toBeInTheDocument();
+  });
+
+  it('writes nothing when the asset picked is the one already linked', async () => {
+    const puts: unknown[] = [];
+    serveDetail(detail({ asset: { id: 'a1', name: 'Citadine' } }));
+    server.use(
+      http.get('*/api/v1/assets', () => HttpResponse.json({ rows: [], total: 0, kinds: [] })),
+      http.put('*/api/v1/subscriptions/:id/asset', async ({ request }) => { puts.push(await request.json()); return HttpResponse.json({ id: SUB }); }),
+    );
+    const { user } = await renderApp(`/subscriptions/${SUB}`);
+
+    await screen.findByRole('link', { name: 'Citadine' });
+    await openMore(user);
+    await user.click(await screen.findByRole('menuitem', { name: 'Changer le bien lié' }));
+    const dialog = within(await screen.findByRole('dialog', { name: 'Bien concerné' }));
+    await user.click(dialog.getByRole('button', { name: 'Enregistrer' }));
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(puts).toEqual([]);
+  });
 });

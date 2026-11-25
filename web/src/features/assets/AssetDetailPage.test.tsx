@@ -108,7 +108,7 @@ describe('AssetDetailPage', () => {
     await screen.findByRole('menuitem', { name: 'Archiver' });
     expect(screen.queryByRole('menuitem', { name: 'Mettre à jour le kilométrage' })).not.toBeInTheDocument();
   });
-  const LINKED = { id: '0192f0bb-0000-7000-8000-0000000000a1', name: 'Assurance auto', price: { amount: '40.00', currency: 'EUR' }, period: 'month', nextDeadline: '2026-12-01' };
+  const LINKED = { id: '0192f0bb-0000-7000-8000-0000000000a1', name: 'Assurance auto', price: { amount: '40.00', currency: 'EUR' }, every: { count: 3, unit: 'month' }, nextDeadline: '2026-12-01' };
 
   it('lists the linked subscriptions and unlinks one with a PUT', async () => {
     const unlinked: unknown[] = [];
@@ -118,7 +118,7 @@ describe('AssetDetailPage', () => {
 
     const table = within(await screen.findByRole('table', { name: 'Abonnements liés à ce bien' }));
     expect(table.getByRole('link', { name: 'Assurance auto' })).toHaveAttribute('href', `/subscriptions/${LINKED.id}`);
-    expect(table.getByText(/40,00 €/)).toBeInTheDocument();
+    expect(table.getByRole('row', { name: /Assurance auto/ })).toHaveTextContent('tous les 3 mois');
     await user.click(table.getByRole('button', { name: 'Actions de l’abonnement' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Délier' }));
 
@@ -127,9 +127,13 @@ describe('AssetDetailPage', () => {
 
   it('links a subscription picked in the list with a PUT', async () => {
     const linked: unknown[] = [];
+    const asked: string[] = [];
     serve(assetView());
     server.use(
-      http.get('*/api/v1/subscriptions', () => HttpResponse.json({ items: [{ id: LINKED.id, displayName: 'Assurance auto' }], groups: [], findings: [] })),
+      http.get('*/api/v1/subscriptions', ({ request }) => {
+        asked.push(new URL(request.url).search);
+        return HttpResponse.json({ items: [{ id: LINKED.id, displayName: 'Assurance auto' }], groups: [], findings: [] });
+      }),
       http.put('*/api/v1/subscriptions/:id/asset', async ({ request }) => { linked.push(await request.json()); return HttpResponse.json({ id: LINKED.id }); }),
     );
     const { user } = await renderApp(`/other-assets/${ASSET}?tab=subscriptions`);
@@ -141,5 +145,6 @@ describe('AssetDetailPage', () => {
     await user.click(dialog.getByRole('button', { name: 'Lier' }));
 
     await waitFor(() => expect(linked).toEqual([{ assetId: ASSET }]));
+    expect(asked[0]).toContain('asset=none'); // only the subscriptions without an asset, filtered by the server
   });
 });

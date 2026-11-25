@@ -108,7 +108,8 @@ public sealed record SubscriptionDetail(
     InsuranceView? Insurance = null,
     SpentView? Spent = null,
     SavedView? Saved = null,
-    LinkedAssetView? Asset = null) : IExposesItems
+    LinkedAssetView? Asset = null,
+    bool AssetHidden = false) : IExposesItems
 {
     // Every item the detail names: the output guard then proves each grant target and the insured property are the reader's to see.
     public IEnumerable<ItemId> ExposedItems() => [Id, ..Purchases.SelectMany(p => p.Grants).Select(g => new ItemId(g.SubscriptionId)),

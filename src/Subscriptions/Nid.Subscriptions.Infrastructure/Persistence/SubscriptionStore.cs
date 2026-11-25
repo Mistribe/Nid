@@ -147,6 +147,13 @@ public sealed class SubscriptionStore(SubscriptionsDbContext db) : ISubscription
         return rows.ToDictionary(r => new ItemId(r.ItemId), r => new ItemId(r.AssetItemId!.Value));
     }
 
+    public async Task<IReadOnlySet<ItemId>> WithoutAssetAsync(IReadOnlyCollection<ItemId> ids, CancellationToken ct)
+    {
+        var keys = ids.Select(i => i.Value).ToList();
+        var free = await db.Subscriptions.AsNoTracking().Where(s => keys.Contains(s.ItemId) && s.AssetItemId == null).Select(s => s.ItemId).ToListAsync(ct);
+        return free.Select(i => new ItemId(i)).ToHashSet();
+    }
+
     public async Task<IReadOnlyDictionary<ItemId, IReadOnlyList<ItemId>>> SubscriptionsOfAssetsAsync(IReadOnlyCollection<ItemId> assets, CancellationToken ct)
     {
         var keys = assets.Select(i => i.Value).ToList();
