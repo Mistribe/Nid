@@ -376,6 +376,7 @@
       "fineness": "Titre (‰)",
       "energy": "Énergie",
       "fiscalHp": "Puissance fiscale (CV)",
+      "depreciationRate": "Perte de valeur par an (%)",
       "finalWithdrawal": "Retrait final",
       "firstPaymentDate": "Première échéance",
       "firstPeriod": "Première période",

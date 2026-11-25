@@ -39386,6 +39386,9 @@ export interface components {
             visibility: string;
             owners: components["schemas"]["ItemOwnerView"][];
             archived: boolean;
+            /** @default false */
+            valueEstimated: boolean;
+            valueBase?: null | components["schemas"]["MoneyView"];
         };
         AssetValuationBody: {
             asOf?: null | string;
@@ -39430,6 +39433,11 @@ export interface components {
             subscriptions: components["schemas"]["LinkedSubscriptionView"][];
             /** @default false */
             hasCosts: boolean;
+            /** Format: double */
+            depreciationRate?: null | number;
+            /** @default false */
+            valueEstimated: boolean;
+            valueBase?: null | components["schemas"]["MoneyView"];
         };
         AssistantEnabledBody: {
             enabled?: null | boolean;
@@ -40640,6 +40648,8 @@ export interface components {
             /** Format: int32 */
             fiscalHp?: null | number;
             energy?: null | string;
+            /** Format: double */
+            depreciationRate?: null | number;
             currentValue?: null | string;
             currentValueOn?: null | string;
             currency?: null | string;
@@ -41139,6 +41149,8 @@ export interface components {
             /** Format: int32 */
             fiscalHp?: null | number;
             energy?: null | string;
+            /** Format: double */
+            depreciationRate?: null | number;
             /** Format: uint32 */
             version?: null | number;
         };

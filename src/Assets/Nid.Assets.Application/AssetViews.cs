@@ -17,19 +17,21 @@ public sealed record LinkedSubscriptionView(ItemId Id, string Name, MoneyView? P
 
 /// <param name="HasCosts">An asset that is not a vehicle still holds running costs (it was one, or a file named them): its costs stay readable and removable. Always false for a vehicle, whose tab is there anyway.</param>
 /// <param name="ValueFromPurchase">The value is the purchase price: no valuation is dated yet.</param>
+/// <param name="ValueEstimated">The value is worn down by the depreciation rule from <paramref name="ValueBase"/>, dated <paramref name="ValueOn"/> (a valuation, or the purchase when <paramref name="ValueFromPurchase"/>).</param>
 public sealed record AssetView(
     ItemId Id, string Name, string Kind, MoneyView? Value, LocalDate? ValueOn, bool ValueFromPurchase, MoneyView? PurchasePrice,
     LocalDate? PurchasedOn, string? Note, decimal? WeightGrams, decimal? Fineness,
     LocalDate? RegisteredOn, int? MileageKm, LocalDate? MileageOn, int? FiscalHp, string? Energy, IReadOnlyList<ValuationView> Valuations, string Currency,
     string Visibility, IReadOnlyList<ItemOwnerView> Owners, bool Archived, uint Version, bool CanWrite, string ShareLevel,
-    IReadOnlyList<LinkedSubscriptionView> Subscriptions, bool HasCosts = false) : IExposesItems
+    IReadOnlyList<LinkedSubscriptionView> Subscriptions, bool HasCosts = false, decimal? DepreciationRate = null,
+    bool ValueEstimated = false, MoneyView? ValueBase = null) : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems() => [Id, ..Subscriptions.Select(s => s.Id)];
 }
 
 public sealed record AssetRow(
     ItemId Id, string Name, string Kind, MoneyView? Value, LocalDate? ValueOn, bool ValueFromPurchase, string Currency, string Visibility,
-    IReadOnlyList<ItemOwnerView> Owners, bool Archived);
+    IReadOnlyList<ItemOwnerView> Owners, bool Archived, bool ValueEstimated = false, MoneyView? ValueBase = null);
 
 /// <param name="Kinds">The kinds among the assets the actor reads, before the kind filter: what the filter offers.</param>
 public sealed record AssetListView(IReadOnlyList<AssetRow> Rows, int Total, IReadOnlyList<string> Kinds) : IExposesItems
@@ -51,7 +53,8 @@ internal static class AssetViews
         var value = AssetMath.At(record.Details, Points(valuations), today);
         var currency = item.Currency ?? "";
         return new AssetRow(record.ItemId, item.DisplayName, record.Details.Kind, value is null ? null : new MoneyView(Amount(value.Amount), currency),
-            value?.On, value?.FromPurchase ?? false, currency, Wire(item.Visibility), item.OwnerViews(), item.ArchivedAt is not null);
+            value?.On, value?.FromPurchase ?? false, currency, Wire(item.Visibility), item.OwnerViews(), item.ArchivedAt is not null,
+            value?.Estimated ?? false, value?.BaseAmount is { } b ? new MoneyView(Amount(b), currency) : null);
     }
 
     public static AssetView Detail(ItemAccess item, AssetRecord record, IReadOnlyList<Valuation> valuations, LocalDate today, bool canWrite, IReadOnlyList<LinkedSubscription> subscriptions, bool hasCosts)
@@ -65,6 +68,6 @@ internal static class AssetViews
             row.Currency, row.Visibility, row.Owners, row.Archived, record.Version, canWrite,
             item.Visibility == Visibility.Shared && item.ShareLevel == ShareLevel.Edit ? "edit" : "view",
             subscriptions.Select(s => new LinkedSubscriptionView(
-                s.Id, s.Name, s.Price is { } p ? new MoneyView(p.AmountText, p.Currency.Code) : null, s.Every is { } e ? new EveryView(e.Count, e.Unit.ToString().ToLowerInvariant()) : null, s.NextDeadline)).ToList(), hasCosts);
+                s.Id, s.Name, s.Price is { } p ? new MoneyView(p.AmountText, p.Currency.Code) : null, s.Every is { } e ? new EveryView(e.Count, e.Unit.ToString().ToLowerInvariant()) : null, s.NextDeadline)).ToList(), hasCosts, d.DepreciationRate, row.ValueEstimated, row.ValueBase);
     }
 }

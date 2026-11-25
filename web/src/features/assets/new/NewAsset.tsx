@@ -20,7 +20,7 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { todayIso } from '@/lib/today';
-import { AssetFields, NoteField, VehicleFields } from '../AssetFields';
+import { AssetFields, NoteField, VehicleFields, DepreciationField } from '../AssetFields';
 import { newAssetPath, newAssetSchema, refusalText, toCreateBody, type NewAssetValues } from '../assetForm';
 import '@/locales/assets';
 import '@/locales/loans';
@@ -40,7 +40,7 @@ export function NewAsset() {
     resolver: zodResolver(newAssetSchema(t)),
     // `visibility` is left out on purpose: neither answer is checked until the person picks one.
     defaultValues: {
-      name: '', kind: 'vehicle', currency: 'EUR', note: '', weightGrams: '', fineness: '', registeredOn: '', mileageKm: '', mileageOn: '', fiscalHp: '', energy: '', mode: 'purchase', amount: '', valueOn: '',
+      name: '', kind: 'vehicle', currency: 'EUR', note: '', weightGrams: '', fineness: '', registeredOn: '', mileageKm: '', mileageOn: '', fiscalHp: '', energy: '', depreciationRate: '', mode: 'purchase', amount: '', valueOn: '',
       owners: [{ personId: session.person.id, share: '100' }],
     },
   });
@@ -62,7 +62,7 @@ export function NewAsset() {
   const isLeased = isVehicle && ownership === 'leased';
   const ownershipId = useId();
   const ownershipErrorId = useId();
-  const vehicleError = Boolean(e.registeredOn || e.mileageKm || e.mileageOn || e.fiscalHp || e.energy);
+  const vehicleError = Boolean(e.registeredOn || e.mileageKm || e.mileageOn || e.fiscalHp || e.energy || e.depreciationRate);
 
   return (
     <FormPage crumbs={[{ label: t('nav.assets'), to: '/other-assets' }]} title={t('assets_form.title')}>
@@ -97,7 +97,7 @@ export function NewAsset() {
             </div>
           ) : isVehicle && ownership === null ? null : (
           <>
-          {isVehicle ? <Folded label={t('assets_form.vehicle_details')} hasError={vehicleError}><VehicleFields /></Folded> : null}
+          {isVehicle ? <Folded label={t('assets_form.vehicle_details')} hasError={vehicleError}><VehicleFields /><DepreciationField /></Folded> : null}
           <div className="space-y-2">
             <span id={valueId} className="block text-sm font-medium">{t('assets_form.value_title')}</span>
             <Controller control={form.control} name="mode" render={({ field }) => (

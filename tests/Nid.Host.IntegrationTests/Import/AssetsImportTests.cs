@@ -16,7 +16,7 @@ public class AssetsImportTests(PostgresFixture fixture) : IClassFixture<Postgres
 
     private const string Car = $$"""
         {"id":"asset-car","name":"Voiture","kind":"vehicle","currency":"EUR","purchase_price":"15000.00","purchased_on":"2023-05-01",
-         "note":"Citadine","registered_on":"2022-03-01","mileage_km":45000,"mileage_on":"2025-06-01","fiscal_hp":5,"energy":"diesel","ownership":{{OwnerA}}}
+         "note":"Citadine","registered_on":"2022-03-01","mileage_km":45000,"mileage_on":"2025-06-01","fiscal_hp":5,"energy":"diesel","depreciation_rate":"12.50","ownership":{{OwnerA}}}
         """;
 
     private const string Gold = $$"""
@@ -64,6 +64,7 @@ public class AssetsImportTests(PostgresFixture fixture) : IClassFixture<Postgres
              car.GetProperty("purchasePrice").GetProperty("amount").GetString(), car.GetProperty("purchasedOn").GetString(), car.GetProperty("note").GetString()));
         Assert.Equal(("2022-03-01", 45_000, "2025-06-01", 5, "diesel"), (car.GetProperty("registeredOn").GetString(), car.GetProperty("mileageKm").GetInt32(),
             car.GetProperty("mileageOn").GetString(), car.GetProperty("fiscalHp").GetInt32(), car.GetProperty("energy").GetString()));
+        Assert.Equal(12.5m, car.GetProperty("depreciationRate").GetDecimal());
         var gold = await ReadAsync(app, await IdOfAsync(app, "asset-gold"));
         Assert.Equal((100m, 999.9m, "6000.00"),
             (gold.GetProperty("weightGrams").GetDecimal(), gold.GetProperty("fineness").GetDecimal(), gold.GetProperty("value").GetProperty("amount").GetString()));

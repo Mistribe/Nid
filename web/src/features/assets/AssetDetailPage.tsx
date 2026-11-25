@@ -76,8 +76,12 @@ export function AssetDetailPage() {
     </>
   );
   const figures = [
-    { label: t('assets_detail.value'), hint: asset.valueOn ? <LocalDate value={asset.valueOn} /> : undefined,
-      value: asset.value ? <span className="inline-flex flex-wrap items-center gap-2"><Money value={asset.value} />{asset.valueFromPurchase ? <Badge variant="secondary">{t('assets_detail.from_purchase')}</Badge> : null}</span> : '—' },
+    { label: t('assets_detail.value'),
+      hint: asset.valueEstimated && asset.valueOn
+        ? <>{t(asset.valueFromPurchase ? 'assets_detail.estimated_from_purchase' : 'assets_detail.estimated_from_value')} <LocalDate value={asset.valueOn} />{asset.valueBase ? <> (<Money value={asset.valueBase} />)</> : null}</>
+        : asset.valueOn ? <LocalDate value={asset.valueOn} /> : undefined,
+      value: asset.value ? <span className="inline-flex flex-wrap items-center gap-2"><Money value={asset.value} />{asset.valueEstimated ? <Badge variant="secondary">{t('assets_detail.estimated')}</Badge> : asset.valueFromPurchase ? <Badge variant="secondary">{t('assets_detail.from_purchase')}</Badge> : null}</span> : '—' },
+    ...(asset.depreciationRate != null ? [{ label: t('assets_detail.depreciation'), value: t('assets_detail.per_year', { value: asset.depreciationRate.toLocaleString('fr-FR') }) }] : []),
     ...(asset.purchasedOn ? [{ label: t('assets_detail.purchased_on'), value: <LocalDate value={asset.purchasedOn} /> }] : []),
     ...(asset.purchasePrice ? [{ label: t('assets_detail.purchased_for'), value: <Money value={asset.purchasePrice} /> }] : []),
     ...(asset.weightGrams != null ? [{ label: t('assets_detail.weight'), value: t('assets_detail.grams', { value: asset.weightGrams.toLocaleString('fr-FR') }) }] : []),

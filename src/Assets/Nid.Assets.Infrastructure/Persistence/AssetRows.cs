@@ -16,6 +16,7 @@ public sealed class AssetRow
     public LocalDate? MileageOn { get; set; }
     public short? FiscalHp { get; set; }
     public string? Energy { get; set; }
+    public decimal? DepreciationRate { get; set; }
     public string? ImportRef { get; set; }
     public string? ImportHash { get; set; }
     public Guid? ImportedBy { get; set; }

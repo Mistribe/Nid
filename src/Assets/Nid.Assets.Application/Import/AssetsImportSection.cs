@@ -252,6 +252,7 @@ public sealed partial class AssetsImportSection(
                 MileageOn = d.MileageOn is { } kmOn ? LocalDatePattern.Iso.Format(kmOn) : null,
                 FiscalHp = d.FiscalHp,
                 Energy = d.Energy,
+                DepreciationRate = d.DepreciationRate,
                 Visibility = head.Visibility == Visibility.Private ? "private" : "shared",
                 ShareLevel = ImportSectionKit.ShareLevelText(head),
                 Ownership = head.Owners
@@ -324,7 +325,7 @@ public sealed partial class AssetsImportSection(
         var registeredOn = OptionalDate(r.RegisteredOn, path + ".registered_on", issues, ref ok);
         var mileageOn = OptionalDate(r.MileageOn, path + ".mileage_on", issues, ref ok);
         var details = new AssetDetails(r.Kind, r.PurchasePrice, purchasedOn, r.Note, r.WeightGrams, r.Fineness,
-            registeredOn, r.MileageKm, mileageOn, r.FiscalHp, r.Energy);
+            registeredOn, r.MileageKm, mileageOn, r.FiscalHp, r.Energy, r.DepreciationRate);
         var failure = AssetCheck.Name(r.Name, r.Note) ?? AssetRules.Check(details, today);
         if (failure is not null)
         {

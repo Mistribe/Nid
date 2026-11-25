@@ -49,7 +49,7 @@ public class AssetRecordStoreTests(PostgresFixture fixture) : IClassFixture<Post
         var store = scope.ServiceProvider.GetRequiredService<IAssetRecordStore>();
         var id = await NewItemAsync(scope.ServiceProvider, app);
         var details = new AssetDetails(AssetKinds.Vehicle, 9000m, new LocalDate(2022, 3, 9), null, null, null,
-            new LocalDate(2022, 3, 1), 12_345, new LocalDate(2025, 1, 2), 6, AssetEnergies.PlugInHybrid);
+            new LocalDate(2022, 3, 1), 12_345, new LocalDate(2025, 1, 2), 6, AssetEnergies.PlugInHybrid, 12.5m);
 
         await store.AddAsync(id, details, Ct);
 

@@ -135,4 +135,24 @@ public class AssetRulesTests
 
     [Fact]
     public void Check_accepts_today_for_both_dates() => Assert.Null(AssetRules.Check(Car(Today, 1, Today), Today));
+
+    [Theory]
+    [InlineData("0")]
+    [InlineData("100")]
+    [InlineData("-5")]
+    [InlineData("150")]
+    [InlineData("12.345")]
+    public void Check_refuses_a_depreciation_rate_outside_zero_to_one_hundred(string rate)
+        => Refused(new AssetDetails("vehicle", null, null, null, null, null, DepreciationRate: decimal.Parse(rate, System.Globalization.CultureInfo.InvariantCulture)), AssetsCodes.InvalidDepreciationRate, "depreciationRate");
+
+    [Theory]
+    [InlineData("0.01")]
+    [InlineData("15")]
+    [InlineData("99.99")]
+    public void Check_accepts_a_depreciation_rate_on_a_vehicle(string rate)
+        => Assert.Null(AssetRules.Check(new AssetDetails("vehicle", null, null, null, null, null, DepreciationRate: decimal.Parse(rate, System.Globalization.CultureInfo.InvariantCulture)), new(2026, 6, 1)));
+
+    [Fact]
+    public void Check_refuses_a_depreciation_rate_on_art()
+        => Refused(new AssetDetails("art", null, null, null, null, null, DepreciationRate: 10m), AssetsCodes.VehicleOnly, "depreciationRate");
 }

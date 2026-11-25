@@ -122,6 +122,7 @@ describe('NewAsset', () => {
     await user.type(screen.getByLabelText('Kilométrage (km)'), '45000');
     await user.type(screen.getByLabelText('Date du relevé'), '01/06/2025');
     await user.type(screen.getByLabelText('Puissance fiscale (CV)'), '5');
+    await user.type(screen.getByLabelText('Perte de valeur par an (%)'), '12,5');
     await pick(user, 'Énergie', 'Hybride rechargeable');
     await user.click(screen.getByRole('radio', { name: 'Oui, partagé' }));
     await user.type(screen.getByLabelText('Montant'), '8000');
@@ -130,7 +131,7 @@ describe('NewAsset', () => {
 
     await waitFor(() => expect(router.state.location.pathname).toBe(`/other-assets/${ASSET}`));
     expect(bodies).toEqual([expect.objectContaining({
-      kind: 'vehicle', registeredOn: '2022-03-01', mileageKm: 45000, mileageOn: '2025-06-01', fiscalHp: 5, energy: 'plug_in_hybrid',
+      kind: 'vehicle', registeredOn: '2022-03-01', mileageKm: 45000, mileageOn: '2025-06-01', fiscalHp: 5, energy: 'plug_in_hybrid', depreciationRate: 12.5,
     })]);
   });
 

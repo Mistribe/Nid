@@ -77,6 +77,19 @@ export function VehicleFields() {
   );
 }
 
+/** The yearly loss of value of a vehicle, which turns its value into an estimate: nothing for another kind. */
+export function DepreciationField() {
+  const { t } = useTranslation();
+  const form = useFormContext<AssetFieldsValues>();
+  if (form.watch('kind') !== 'vehicle') return null;
+  return (
+    <Field label={t('assets_form.depreciation')} tip={<InfoTip label={t('assets_form.depreciation')}>{t('assets_form.depreciation_tip')}</InfoTip>}
+      hint={t('assets_form.depreciation_hint')} error={form.formState.errors.depreciationRate?.message}>
+      {(c) => <Input inputMode="decimal" {...c} {...form.register('depreciationRate')} />}
+    </Field>
+  );
+}
+
 /** The free note, in « Plus d’options » on the creation and at the foot of the edit. */
 export function NoteField() {
   const { t } = useTranslation();

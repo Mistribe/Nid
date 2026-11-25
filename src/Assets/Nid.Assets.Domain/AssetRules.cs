@@ -7,7 +7,8 @@ namespace Nid.Assets.Domain;
 /// <summary>The editable fields of an asset, as a request sends them: an edit replaces every one.</summary>
 public sealed record AssetDetails(
     string Kind, decimal? PurchasePrice, LocalDate? PurchasedOn, string? Note, decimal? WeightGrams, decimal? Fineness,
-    LocalDate? RegisteredOn = null, int? MileageKm = null, LocalDate? MileageOn = null, int? FiscalHp = null, string? Energy = null);
+    LocalDate? RegisteredOn = null, int? MileageKm = null, LocalDate? MileageOn = null, int? FiscalHp = null, string? Energy = null,
+    decimal? DepreciationRate = null);
 
 /// <summary>The bounds of an asset's fields. The first refusal wins; null when there is none.</summary>
 public static class AssetRules
@@ -52,6 +53,7 @@ public static class AssetRules
                 : d.MileageOn is not null ? Refuse(AssetsCodes.VehicleOnly, "mileageOn", "A mileage date is for a vehicle only.")
                 : d.FiscalHp is not null ? Refuse(AssetsCodes.VehicleOnly, "fiscalHp", "A fiscal horsepower is for a vehicle only.")
                 : d.Energy is not null ? Refuse(AssetsCodes.VehicleOnly, "energy", "An energy is for a vehicle only.")
+                : d.DepreciationRate is not null ? Refuse(AssetsCodes.VehicleOnly, "depreciationRate", "A depreciation rate is for a vehicle only.")
                 : null;
         if (d.RegisteredOn > today)
             return Refuse(AssetsCodes.InvalidDate, "registeredOn", "A registration is not dated after today.");
@@ -65,6 +67,8 @@ public static class AssetRules
             return Refuse(AssetsCodes.InvalidFiscalHp, "fiscalHp", "Fiscal horsepower is between 1 and 99.");
         if (d.Energy is not null && !AssetEnergies.All.Contains(d.Energy))
             return Refuse(AssetsCodes.InvalidEnergy, "energy", $"'{d.Energy}' is not an energy; one of {string.Join(", ", AssetEnergies.All)}.");
+        if (d.DepreciationRate is { } rate && (rate <= 0m || rate >= 100m || decimal.Round(rate, 2) != rate))
+            return Refuse(AssetsCodes.InvalidDepreciationRate, "depreciationRate", "A depreciation rate is above 0 and below 100 (% a year), with at most two decimals.");
         return null;
     }
 

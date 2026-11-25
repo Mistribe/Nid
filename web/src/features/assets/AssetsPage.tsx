@@ -103,7 +103,7 @@ function Table({ rows }: { rows: AssetRow[] }) {
   const value = (r: AssetRow) => r.value ? (
     <span className="inline-flex flex-col items-end">
       <span className="inline-flex items-center gap-2">
-        {r.valueFromPurchase ? <Badge variant="secondary">{t('assets_list.purchase_price')}</Badge> : null}
+        {r.valueEstimated ? <Badge variant="secondary">{t('assets_list.estimated')}</Badge> : r.valueFromPurchase ? <Badge variant="secondary">{t('assets_list.purchase_price')}</Badge> : null}
         <Money value={r.value} tabular />
       </span>
       {r.valueOn ? <span className="text-xs text-muted-foreground"><LocalDate value={r.valueOn} /></span> : null}

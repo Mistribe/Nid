@@ -16,6 +16,8 @@ const WEIGHT = /^\d{1,9}(?:[.,]\d{1,3})?$/;
 const FINENESS = /^\d{1,4}(?:[.,]\d)?$/;
 const MILEAGE = /^\d{1,7}$/;
 const FISCAL_HP = /^\d{1,2}$/;
+// A yearly loss of value in %, above 0 and below 100, two decimals at most (the server's rule).
+const DEPRECIATION = /^\d{1,2}(?:[.,]\d{1,2})?$/;
 const asNumber = (text: string) => Number(text.trim().replace(',', '.'));
 
 /** The asset's own fields, as typed, the creation's and the edit's alike. */
@@ -30,6 +32,7 @@ function fieldsShape(t: TFunction) {
     mileageOn: z.string(),
     fiscalHp: z.string(),
     energy: z.string(),
+    depreciationRate: z.string(),
     note: z.string().max(2000, t('investments_form.note_too_long')),
   };
 }
@@ -53,8 +56,9 @@ export function checkVehicle(v: VehicleValues, ctx: z.RefinementCtx, t: TFunctio
   else if (v.mileageKm.trim() === '' && v.mileageOn !== '') issue('mileageKm', t('assets_form.mileage_incomplete'));
   if (!optional(pastDate)(v.mileageOn)) issue('mileageOn', t('assets_form.date_past'));
   if (!optional((x) => FISCAL_HP.test(x) && asNumber(x) >= 1)(v.fiscalHp)) issue('fiscalHp', t('assets_form.fiscal_hp_format'));
+  if (!optional((x) => DEPRECIATION.test(x) && asNumber(x) > 0)(v.depreciationRate ?? '')) issue('depreciationRate', t('assets_form.depreciation_format'));
 }
-type VehicleValues = { kind: string; registeredOn: string; mileageKm: string; mileageOn: string; fiscalHp: string; energy: string };
+type VehicleValues = { kind: string; registeredOn: string; mileageKm: string; mileageOn: string; fiscalHp: string; energy: string; depreciationRate?: string };
 
 const dated = (t: TFunction) => z.string().refine(optional((v) => ISO_DATE.test(v) && v >= '1900-01-01'), t('edit.required'))
   .refine((v) => v <= todayIso(), t('field_error.core_date_in_future'));
@@ -96,6 +100,7 @@ const vehicle = (v: VehicleValues) => v.kind === 'vehicle' ? {
   ...(v.mileageKm.trim() ? { mileageKm: asNumber(v.mileageKm), mileageOn: v.mileageOn } : {}),
   ...(v.fiscalHp.trim() ? { fiscalHp: asNumber(v.fiscalHp) } : {}),
   ...(v.energy ? { energy: v.energy } : {}),
+  ...(v.depreciationRate?.trim() ? { depreciationRate: asNumber(v.depreciationRate) } : {}),
 } : {};
 
 /** The creation request: empty optional fields are left out, so the server answers what is missing. */
@@ -123,11 +128,12 @@ export function editDefaults(a: AssetView): EditAssetValues {
     weightGrams: a.weightGrams == null ? '' : toFieldAmount(String(a.weightGrams)), fineness: a.fineness == null ? '' : toFieldAmount(String(a.fineness)),
     registeredOn: a.registeredOn ?? '', mileageKm: a.mileageKm == null ? '' : String(a.mileageKm), mileageOn: a.mileageOn ?? '',
     fiscalHp: a.fiscalHp == null ? '' : String(a.fiscalHp), energy: a.energy ?? '',
+    depreciationRate: a.depreciationRate == null ? '' : toFieldAmount(String(a.depreciationRate)),
     purchasePrice: a.purchasePrice ? toFieldAmount(a.purchasePrice.amount.replace(/\.00$/, '')) : '', purchasedOn: a.purchasedOn ?? '',
   };
 }
 
-const OWN = ['name', 'kind', 'weightGrams', 'fineness', 'registeredOn', 'mileageKm', 'mileageOn', 'fiscalHp', 'energy', 'note'] as const;
+const OWN = ['name', 'kind', 'weightGrams', 'fineness', 'registeredOn', 'mileageKm', 'mileageOn', 'fiscalHp', 'energy', 'depreciationRate', 'note'] as const;
 
 /** A server path to the field that owns it: the one value is the form's amount and its date. */
 export function assetFieldPath(path: string): (typeof OWN)[number] | 'amount' | 'valueOn' | 'purchasePrice' | 'purchasedOn' | undefined {
@@ -156,7 +162,7 @@ const REFUSALS: Record<string, string> = {
   'assets.value_required': 'assets_form.value_required', 'assets.purchase_incomplete': 'assets_form.purchase_incomplete',
   'assets.metal_only': 'assets_form.metal_only', 'assets.invalid_fineness': 'assets_form.invalid_fineness', 'assets.invalid_weight': 'assets_form.invalid_weight',
   'assets.vehicle_only': 'assets_form.vehicle_only', 'assets.mileage_incomplete': 'assets_form.mileage_incomplete',
-  'assets.invalid_mileage': 'assets_form.mileage_format', 'assets.invalid_fiscal_hp': 'assets_form.fiscal_hp_format', 'assets.invalid_date': 'assets_form.date_past',
+  'assets.invalid_mileage': 'assets_form.mileage_format', 'assets.invalid_fiscal_hp': 'assets_form.fiscal_hp_format', 'assets.invalid_depreciation_rate': 'assets_form.depreciation_format', 'assets.invalid_date': 'assets_form.date_past',
 };
 /** The server's refusal of a field in the screen's own words (its code), else the generic wording. */
 export const refusalText = (t: TFunction, code: string): string | undefined => (REFUSALS[code] ? t(REFUSALS[code] as 'assets_form.value_required') : undefined);

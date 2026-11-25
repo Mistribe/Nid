@@ -21,7 +21,8 @@ public sealed class AssetsDbContext(DbContextOptions<AssetsDbContext> options) :
                 t.HasCheckConstraint("ck_asset_purchase", "(purchase_price is null) = (purchased_on is null)");
                 t.HasCheckConstraint("ck_asset_metal", "kind = 'precious_metal' or (weight_grams is null and fineness is null)");
                 t.HasCheckConstraint("ck_asset_vehicle",
-                    "kind = 'vehicle' or (registered_on is null and mileage_km is null and mileage_on is null and fiscal_hp is null and energy is null)");
+                    "kind = 'vehicle' or (registered_on is null and mileage_km is null and mileage_on is null and fiscal_hp is null and energy is null and depreciation_rate is null)");
+                t.HasCheckConstraint("ck_asset_depreciation", "depreciation_rate is null or (depreciation_rate > 0 and depreciation_rate < 100)");
                 t.HasCheckConstraint("ck_asset_mileage", "(mileage_km is null) = (mileage_on is null)");
                 t.HasCheckConstraint("ck_asset_import",
                     "(import_ref is null) = (import_hash is null) and (import_ref is null) = (imported_by is null)");
@@ -31,6 +32,7 @@ public sealed class AssetsDbContext(DbContextOptions<AssetsDbContext> options) :
             e.Property(x => x.PurchasePrice).HasColumnType("numeric(18,2)");
             e.Property(x => x.WeightGrams).HasColumnType("numeric(12,3)");
             e.Property(x => x.Fineness).HasColumnType("numeric(5,1)");
+            e.Property(x => x.DepreciationRate).HasColumnType("numeric(5,2)");
             e.HasIndex(x => x.Kind);
             e.Property(x => x.ImportHash).HasColumnType("char(64)");
             // Per importer, never instance-wide (import-format.md section 8).

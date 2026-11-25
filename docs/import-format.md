@@ -370,6 +370,7 @@ Les biens que la personne lit, archivés compris (#186). La valeur d'un bien vie
 | `mileage_on` | date? | `vehicle` seulement, non future |
 | `fiscal_hp` | entier? | `vehicle` seulement, de 1 à 99 (`assets.invalid_fiscal_hp`) |
 | `energy` | string? | `vehicle` seulement : `petrol`, `diesel`, `hybrid`, `plug_in_hybrid`, `electric`, `lpg`, `other` (`assets.invalid_energy`) |
+| `depreciation_rate` | décimal? | `vehicle` seulement, perte de valeur par an en %, de 0 à 100 exclus, deux décimales au plus (`assets.invalid_depreciation_rate`) ; écrit comme chaîne (`"12.50"`) |
 | `visibility`, `share_level`, `ownership`, `closed` | | Comme `goals` |
 
 **Règles** : comme `goals` (§8) — inchangée, en conflit, ou remplacée quand l'import remplace. **Une valeur est toujours présente** : un bien sans `purchase_price` doit être nommé par au moins une valorisation du même fichier, sinon `assets.value_required` sur sa ligne. La règle ne regarde que le fichier : les valorisations déjà enregistrées ne la satisfont pas, même au remplacement. Le bien passe juste après `persons` (ordre 5) : un abonnement du fichier peut le nommer (`subscriptions[i].asset`, §5.3), et `valuations` le nomme ensuite.

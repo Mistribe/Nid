@@ -100,6 +100,47 @@ describe('AssetDetailPage', () => {
     })]));
   });
 
+  it('shows an estimate with its base and the rate', async () => {
+    serve(assetView({ valueEstimated: true, valueBase: { amount: '8000.00', currency: 'EUR' }, valueOn: '2026-06-01', depreciationRate: 12.5 }));
+    await renderApp(`/other-assets/${ASSET}`);
+
+    expect(await screen.findByText('estimée', { selector: '[data-slot="badge"]' })).toBeInTheDocument();
+    expect(screen.getByText(/estimée à partir de la valeur du/)).toBeInTheDocument();
+    expect(screen.getByText('12,5 % par an')).toBeInTheDocument();
+  });
+
+  it('sends the rate with the edit, folded under Personnaliser', async () => {
+    const puts: unknown[] = [];
+    serve(assetView({ note: null, depreciationRate: 12.5 }), [], puts);
+    const { user } = await renderApp(`/other-assets/${ASSET}`);
+
+    await user.click(await screen.findByRole('button', { name: 'Modifier' }));
+    const dialog = within(await screen.findByRole('dialog', { name: 'Modifier le bien' }));
+    expect(dialog.queryByLabelText('Perte de valeur par an (%)')).not.toBeInTheDocument();
+    await user.click(dialog.getByRole('button', { name: 'Personnaliser' }));
+    expect(dialog.getByLabelText('Perte de valeur par an (%)')).toHaveValue('12,5');
+    await user.clear(dialog.getByLabelText('Perte de valeur par an (%)'));
+    await user.type(dialog.getByLabelText('Perte de valeur par an (%)'), '15');
+    await user.click(dialog.getByRole('button', { name: 'Enregistrer' }));
+
+    await waitFor(() => expect(puts).toEqual([expect.objectContaining({ kind: 'vehicle', depreciationRate: 15 })]));
+  });
+
+  it('refuses a rate of 100 % before sending', async () => {
+    const puts: unknown[] = [];
+    serve(assetView({ note: null }), [], puts);
+    const { user } = await renderApp(`/other-assets/${ASSET}`);
+
+    await user.click(await screen.findByRole('button', { name: 'Modifier' }));
+    const dialog = within(await screen.findByRole('dialog', { name: 'Modifier le bien' }));
+    await user.click(dialog.getByRole('button', { name: 'Personnaliser' }));
+    await user.type(dialog.getByLabelText('Perte de valeur par an (%)'), '100');
+    await user.click(dialog.getByRole('button', { name: 'Enregistrer' }));
+
+    expect(await dialog.findByText(/pourcentage entre 0 et 100 exclus/)).toBeInTheDocument();
+    expect(puts).toEqual([]);
+  });
+
   it('offers no mileage update for another kind', async () => {
     serve(assetView({ kind: 'art' }));
     const { user } = await renderApp(`/other-assets/${ASSET}`);

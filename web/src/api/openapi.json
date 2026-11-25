@@ -42226,6 +42226,7 @@
           "id",
           "name",
           "kind",
+          "valueEstimated",
           "valueFromPurchase",
           "currency",
           "visibility",
@@ -42278,6 +42279,20 @@
           },
           "archived": {
             "type": "boolean"
+          },
+          "valueEstimated": {
+            "type": "boolean",
+            "default": false
+          },
+          "valueBase": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MoneyView"
+              }
+            ]
           }
         }
       },
@@ -42310,6 +42325,7 @@
           "name",
           "kind",
           "valueFromPurchase",
+          "valueEstimated",
           "hasCosts",
           "valuations",
           "currency",
@@ -42464,6 +42480,27 @@
           "hasCosts": {
             "type": "boolean",
             "default": false
+          },
+          "depreciationRate": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "valueEstimated": {
+            "type": "boolean",
+            "default": false
+          },
+          "valueBase": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MoneyView"
+              }
+            ]
           }
         }
       },
@@ -47391,6 +47428,13 @@
               "string"
             ]
           },
+          "depreciationRate": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
           "currentValue": {
             "type": [
               "null",
@@ -49600,6 +49644,13 @@
               "null",
               "string"
             ]
+          },
+          "depreciationRate": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
           },
           "version": {
             "type": [

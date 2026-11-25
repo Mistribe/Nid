@@ -12,6 +12,7 @@ public static class AssetsCodes
     public const string MileageIncomplete = "assets.mileage_incomplete";
     public const string InvalidMileage = "assets.invalid_mileage";
     public const string InvalidFiscalHp = "assets.invalid_fiscal_hp";
+    public const string InvalidDepreciationRate = "assets.invalid_depreciation_rate";
     public const string InvalidEnergy = "assets.invalid_energy";
     public const string InvalidDate = "assets.invalid_date";
     public const string NotFound = "assets.not_found";

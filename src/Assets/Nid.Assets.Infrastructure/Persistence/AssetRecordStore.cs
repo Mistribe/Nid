@@ -107,9 +107,10 @@ public sealed class AssetRecordStore(AssetsDbContext db) : IAssetRecordStore
         row.MileageOn = d.MileageOn;
         row.FiscalHp = (short?)d.FiscalHp;
         row.Energy = d.Energy;
+        row.DepreciationRate = d.DepreciationRate;
     }
 
     private static AssetRecord ToRecord(AssetRow r)
         => new(new ItemId(r.ItemId), new AssetDetails(r.Kind, r.PurchasePrice, r.PurchasedOn, r.Note, r.WeightGrams, r.Fineness,
-            r.RegisteredOn, r.MileageKm, r.MileageOn, r.FiscalHp, r.Energy), r.Version);
+            r.RegisteredOn, r.MileageKm, r.MileageOn, r.FiscalHp, r.Energy, r.DepreciationRate), r.Version);
 }

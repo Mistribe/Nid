@@ -115,6 +115,7 @@ public class AssetWriteTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         body["mileageOn"] = kmOn;
         body["fiscalHp"] = 5;
         body["energy"] = "hybrid";
+        body["depreciationRate"] = 12.5m;
     }
 
     [Fact]
@@ -134,6 +135,43 @@ public class AssetWriteTests(PostgresFixture fixture) : IClassFixture<PostgresFi
 
         view = await GetAsync(app, id);
         Assert.Equal((51_000, "2025-10-14"), (view.GetProperty("mileageKm").GetInt32(), view.GetProperty("mileageOn").GetString()));
+    }
+
+    [Fact]
+    public async Task A_depreciation_rule_makes_the_value_an_estimate_from_its_base()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var body = Body(app, "Citadine", "vehicle");
+        body["depreciationRate"] = 20m;
+        var view = await GetAsync(app, await CreateAsync(app, body));
+
+        Assert.Equal(20m, view.GetProperty("depreciationRate").GetDecimal());
+        Assert.True(view.GetProperty("valueEstimated").GetBoolean());
+        Assert.Equal("1000.00", view.GetProperty("valueBase").GetProperty("amount").GetString());
+        Assert.Equal("2025-01-10", view.GetProperty("valueOn").GetString());
+        Assert.True(decimal.Parse(view.GetProperty("value").GetProperty("amount").GetString()!, System.Globalization.CultureInfo.InvariantCulture) < 1000m);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(100)]
+    public async Task A_depreciation_rate_outside_the_range_is_refused(int rate)
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var body = Body(app, "Citadine", "vehicle");
+        body["depreciationRate"] = rate;
+
+        await AssertRefusedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, Route, body), HttpStatusCode.UnprocessableEntity, AssetsCodes.InvalidDepreciationRate, "depreciationRate");
+    }
+
+    [Fact]
+    public async Task A_depreciation_rate_on_art_is_refused()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var body = Body(app, "Tableau", "art");
+        body["depreciationRate"] = 10m;
+
+        await AssertRefusedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, Route, body), HttpStatusCode.UnprocessableEntity, AssetsCodes.VehicleOnly, "depreciationRate");
     }
 
     [Fact]
@@ -168,7 +206,7 @@ public class AssetWriteTests(PostgresFixture fixture) : IClassFixture<PostgresFi
 
         Assert.Equal(HttpStatusCode.OK, edited.StatusCode);
         var view = await GetAsync(app, id);
-        foreach (var f in new[] { "registeredOn", "mileageKm", "mileageOn", "fiscalHp", "energy" })
+        foreach (var f in new[] { "registeredOn", "mileageKm", "mileageOn", "fiscalHp", "energy", "depreciationRate" })
             Assert.Equal(JsonValueKind.Null, view.GetProperty(f).ValueKind);
     }
 

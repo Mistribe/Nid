@@ -35,6 +35,9 @@ public sealed record AssetImportRecord
     public int? FiscalHp { get; init; }
     public string? Energy { get; init; }
 
+    [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.WriteAsString)]
+    public decimal? DepreciationRate { get; init; }
+
     public string Visibility { get; set; } = "shared";
 
     /// <summary><c>view</c> when omitted, <c>edit</c> lets every adult write the shared item.</summary>

@@ -205,4 +205,56 @@ public class AssetsNetWorthTests(PostgresFixture fixture) : IClassFixture<Postgr
         Assert.Equal((1_800m, 1_800m), (Eur(points[2].Values), Eur(points[2].Moved))); // the purchase day changes nothing
         Assert.Equal((1_800m, 1_800m), (Eur(points[3].Values), Eur(points[3].Moved)));
     }
+
+    private static async Task<Guid> NewVehicleAsync(NidApp app, string price, string on, decimal? rate)
+    {
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Post, Route, new Dictionary<string, object?>
+        {
+            ["name"] = "Citadine", ["kind"] = "vehicle", ["purchasePrice"] = price, ["purchasedOn"] = on, ["depreciationRate"] = rate,
+            ["visibility"] = "shared", ["owners"] = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } },
+        });
+        Assert.Equal(System.Net.HttpStatusCode.Created, response.StatusCode);
+        return JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.GetProperty("id").GetGuid();
+    }
+
+    [Fact]
+    public async Task A_depreciated_vehicle_is_an_estimate_dated_by_its_base()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await NewVehicleAsync(app, "10000", "2024-10-15", 20m);
+
+        var view = await DashboardAsync(app, app.AdultA);
+
+        Assert.Equal("8000.00", Total(view.GetProperty("netWorth")));
+        Assert.Equal(1, view.GetProperty("estimatedEnvelopes").GetInt32());
+        var row = Assert.Single(view.GetProperty("envelopeSplit").EnumerateArray());
+        Assert.Equal("2024-10-15", row.GetProperty("asOf").GetString());
+        Assert.True(row.GetProperty("estimated").GetBoolean());
+    }
+
+    [Fact]
+    public async Task A_vehicle_without_a_rule_stays_a_bare_price()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await NewVehicleAsync(app, "10000", "2024-10-15", null);
+
+        var view = await DashboardAsync(app, app.AdultA);
+
+        Assert.Equal("10000.00", Total(view.GetProperty("netWorth")));
+        Assert.Equal(0, view.GetProperty("estimatedEnvelopes").GetInt32());
+    }
+
+    [Fact]
+    public async Task Depreciation_history_declines_and_moved_stays_the_first_counted_value()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await NewVehicleAsync(app, "10000", "2024-10-15", 20m);
+
+        var points = await HistoryAsync(app, "2024-10-14", "2024-10-15", "2025-10-15");
+
+        Assert.Equal((0m, 0m), (Eur(points[0].Values), Eur(points[0].Moved)));
+        Assert.Equal((10_000m, 10_000m), (Eur(points[1].Values), Eur(points[1].Moved)));
+        Assert.Equal((8_000m, 10_000m), (Eur(points[2].Values), Eur(points[2].Moved)));
+        Assert.Equal(new Dictionary<string, decimal> { ["assets.paid_in"] = 0m, ["assets.moved"] = 0m, ["assets.value"] = -2_000m }, Parts(points[1], points[2]));
+    }
 }
