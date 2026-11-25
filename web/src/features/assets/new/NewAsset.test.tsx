@@ -29,7 +29,26 @@ describe('NewAsset', () => {
     await user.click(screen.getByRole('radio', { name: 'Oui, partagé' }));
     await user.click(screen.getByRole('button', { name: 'Ajouter le bien' }));
 
-    expect(await screen.findByText('Indiquez ce que vaut ce bien : son prix d’achat ou sa valeur actuelle.')).toBeInTheDocument();
+    const message = await screen.findByText('Indiquez ce que vaut ce bien : son prix d’achat ou sa valeur actuelle.');
+    const amount = screen.getByLabelText('Montant');
+    expect(amount).toHaveAttribute('aria-invalid', 'true');
+    expect(amount.getAttribute('aria-describedby')).toContain(message.id);
+  });
+
+  it('ignores the metal fields once the kind is no longer a precious metal', async () => {
+    const bodies: unknown[] = [];
+    serve(bodies);
+    const { user, router } = await renderApp('/other-assets/new');
+    await user.type(await screen.findByLabelText('Nom'), 'Citadine');
+    await pick(user, 'Type', 'Métal précieux');
+    await user.type(screen.getByLabelText('Poids (grammes)'), 'abc');
+    await pick(user, 'Type', 'Véhicule');
+    await user.click(screen.getByRole('radio', { name: 'Oui, partagé' }));
+    await user.type(screen.getByLabelText('Montant'), '8000');
+    await user.click(screen.getByRole('button', { name: 'Ajouter le bien' }));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/other-assets/${ASSET}`));
+    expect(bodies[0]).not.toHaveProperty('weightGrams');
   });
 
   it('asks for the weight and the fineness only for a precious metal, and sends them', async () => {

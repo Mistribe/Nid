@@ -15,6 +15,7 @@ import { OwnerChips } from '@/components/OwnerChips';
 import { AccessBadge } from '@/components/AccessBadge';
 import { FilterField, FilterRow } from '@/components/page/FilterRow';
 import { PageHeader } from '@/components/page/PageHeader';
+import { SearchInput } from '@/components/page/SearchInput';
 import { PAGE_SIZE, Pager } from '@/components/page/Pager';
 import { Loading, TableSkeleton } from '@/components/page/skeletons';
 import { SortableTable } from '@/components/page/SortableTable';
@@ -23,10 +24,8 @@ import { SwitchField } from '@/components/page/SwitchField';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Badge } from '@/components/ui/badge';
 import { buttonVariants } from '@/components/ui/button';
-import { SearchInput } from '../documents/DocumentFilters';
 import { kindText } from './format';
 import '@/locales/assets';
-import '@/locales/documents';
 import '@/locales/forms';
 
 /** The other assets: a dense table, its filters, search and page in the URL and answered by the server (issue #420's grammar). */

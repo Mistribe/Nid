@@ -9,6 +9,8 @@ import { Money } from '@/components/Money';
 import { RowActions } from '@/components/page/RowActions';
 import { Section } from '@/components/page/Section';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import type { TFunction } from 'i18next';
+import { toProblem } from '@/api/errors';
 import { presentConflict } from '@/components/form/fieldErrors';
 import '@/locales/assets';
 
@@ -50,6 +52,12 @@ export function AssetValuationsSection({ asset }: { asset: AssetView }) {
   );
 }
 
+/** A refusal in French: the last value of an asset without a purchase price says why in the form's own words. */
+export function presentValuationRefusal(t: TFunction, error: unknown) {
+  const base = presentConflict(t, error);
+  return toProblem(error).code === 'assets.value_required' ? { ...base, detail: t('assets_form.value_required') } : base;
+}
+
 /** « Supprimer » asks first; the last value of an asset without a purchase price is refused by the server, which says why. */
 function DeleteValuation({ asset, valuation, onDeleted, onReloaded }: {
   asset: AssetView; valuation: AssetValuation; onDeleted: (message: string) => void; onReloaded: () => void;
@@ -63,7 +71,7 @@ function DeleteValuation({ asset, valuation, onDeleted, onReloaded }: {
   return (
     <RowActions menuId={`delete-asset-valuation-${valuation.id}`} menuLabel={t('assets_valuations.row_menu', { date: formatLocalDate(valuation.asOf) })}
       items={[]} confirmation={t('assets_valuations.delete_confirm')} remove={remove} onReloaded={onReloaded}
-      present={presentConflict} invalidate={invalidateAssets}
+      present={presentValuationRefusal} invalidate={invalidateAssets}
       onConfirm={() => remove.mutate({ params: { path: { id: asset.id, valuationId: valuation.id } } })} />
   );
 }

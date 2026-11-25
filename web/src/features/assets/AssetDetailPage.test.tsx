@@ -54,4 +54,18 @@ describe('AssetDetailPage', () => {
     const table = await screen.findByRole('table', { name: 'Valeurs du bien' });
     expect(await within(table).findByText('9 000,00 €')).toBeInTheDocument();
   });
+
+  it('says in French why the last value of an asset without a purchase price cannot be deleted', async () => {
+    serve(assetView());
+    server.use(http.delete('*/api/v1/assets/:id/valuations/:valuationId', () => HttpResponse.json(
+      { status: 422, code: 'assets.value_required', detail: 'An asset has a purchase price or at least one valuation.' }, { status: 422 })));
+    const { user } = await renderApp(`/other-assets/${ASSET}?tab=valuations`);
+
+    await user.click(await screen.findByRole('button', { name: /^Actions pour la valeur du/ }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Supprimer' }));
+    await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
+
+    expect(await screen.findByText('Indiquez ce que vaut ce bien : son prix d’achat ou sa valeur actuelle.')).toBeInTheDocument();
+    expect(screen.queryByText(/An asset has/)).not.toBeInTheDocument();
+  });
 });

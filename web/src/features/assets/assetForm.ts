@@ -21,10 +21,17 @@ function fieldsShape(t: TFunction) {
   return {
     name: z.string().trim().min(1, t('edit.required')).max(100, t('investments_form.name_too_long')),
     kind: z.enum(ASSET_KINDS),
-    weightGrams: z.string().refine(optional((v) => WEIGHT.test(v) && asNumber(v) > 0), t('assets_form.weight_format')),
-    fineness: z.string().refine(optional((v) => FINENESS.test(v) && asNumber(v) > 0 && asNumber(v) <= 1000), t('assets_form.fineness_format')),
+    weightGrams: z.string(),
+    fineness: z.string(),
     note: z.string().max(2000, t('investments_form.note_too_long')),
   };
+}
+
+/** Weight and fineness only count for a precious metal: the fields are hidden (and unchecked) for any other kind. */
+function checkMetal(v: { kind: string; weightGrams: string; fineness: string }, ctx: z.RefinementCtx, t: TFunction) {
+  if (v.kind !== 'precious_metal') return;
+  if (!optional((x) => WEIGHT.test(x) && asNumber(x) > 0)(v.weightGrams)) ctx.addIssue({ code: 'custom', path: ['weightGrams'], message: t('assets_form.weight_format') });
+  if (!optional((x) => FINENESS.test(x) && asNumber(x) > 0 && asNumber(x) <= 1000)(v.fineness)) ctx.addIssue({ code: 'custom', path: ['fineness'], message: t('assets_form.fineness_format') });
 }
 
 const dated = (t: TFunction) => z.string().refine(optional((v) => ISO_DATE.test(v) && v >= '1900-01-01'), t('edit.required'))
@@ -42,13 +49,13 @@ export function newAssetSchema(t: TFunction) {
     visibility: z.custom<'shared' | 'private'>((x) => x === 'shared' || x === 'private', { error: t('loan_form.visibility_required'), abort: false }),
     owners: ownershipShape(t).owners,
     shareLevel: ownershipShape(t).shareLevel,
-  }).superRefine((v, ctx) => checkOwnership(v, ctx, t));
+  }).superRefine((v, ctx) => { checkMetal(v, ctx, t); checkOwnership(v, ctx, t); });
 }
 export type NewAssetValues = z.infer<ReturnType<typeof newAssetSchema>>;
 
 /** Edit: the purchase stays editable, the value choice is not asked (the valuations tab holds the values). */
 export function editAssetSchema(t: TFunction) {
-  return z.object({ ...fieldsShape(t), purchasePrice: amount(t), purchasedOn: dated(t) });
+  return z.object({ ...fieldsShape(t), purchasePrice: amount(t), purchasedOn: dated(t) }).superRefine((v, ctx) => checkMetal(v, ctx, t));
 }
 export type EditAssetValues = z.infer<ReturnType<typeof editAssetSchema>>;
 /** What the shared fields read from the context: both forms have them. */

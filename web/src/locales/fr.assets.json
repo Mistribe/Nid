@@ -23,8 +23,7 @@
     "pages": "Pages des biens",
     "archived": "Archivé",
     "purchase_price": "prix d’achat",
-    "no_value": "Sans valeur",
-    "col_actions": "Actions"
+    "no_value": "Sans valeur"
   },
   "assets_form": {
     "title": "Nouveau bien",
