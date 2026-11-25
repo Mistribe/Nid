@@ -12,5 +12,5 @@ export const assetView = (over: Partial<AssetView> = {}): AssetView => ({
   ...row(), purchasePrice: { amount: '12000.00', currency: 'EUR' }, purchasedOn: '2022-03-01', note: null, weightGrams: null, fineness: null,
   registeredOn: null, mileageKm: null, mileageOn: null, fiscalHp: null, energy: null,
   valuations: [{ id: 'v1', asOf: '2026-06-01', amount: { amount: '8000.00', currency: 'EUR' }, note: 'cote', fromBank: false }],
-  subscriptions: [], version: 1, canWrite: true, shareLevel: 'edit', ...over,
+  subscriptions: [], hasCosts: false, version: 1, canWrite: true, shareLevel: 'edit', ...over,
 });

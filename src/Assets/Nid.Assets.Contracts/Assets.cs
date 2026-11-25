@@ -42,4 +42,7 @@ public sealed record VehicleChoice(ItemId Id, string Name, string Currency);
 public interface IWritableVehicles
 {
     Task<IReadOnlyList<VehicleChoice>> ForAsync(PersonId person, CancellationToken ct);
+
+    /// <summary>Whether <paramref name="item"/> is a vehicle the person writes (one asset looked up, not the list).</summary>
+    Task<bool> IsWritableVehicleAsync(PersonId person, ItemId item, CancellationToken ct);
 }

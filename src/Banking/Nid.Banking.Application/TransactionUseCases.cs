@@ -341,11 +341,11 @@ public sealed class LinkTransactionHandler(BankingAccess access, BankLines lines
         var checkedLine = await linker.CheckAsync(command.TransactionId, command.Module, item, ct);
         if (!checkedLine.TryGetValue(out var line))
             return BankingAccess.Failed<BankTransactionView, BankTransaction>(checkedLine);
-        if (command.Category is not null && !AssetCostCategories.All.Contains(command.Category))
+        if (command.Module == TransactionLinker.Assets && command.Category is not null && !AssetCostCategories.All.Contains(command.Category))
             return Result.Failure<BankTransactionView>(FieldErrors.Shape(
                 [new FieldError("category", FieldErrors.ShapeCode, $"A cost category is one of {string.Join(", ", AssetCostCategories.All)}.")]));
 
-        var linked = await linker.LinkAsync(line!, command.Module, item, command.Key, access.Person, await calendar.TodayAsync(ct), ct, command.Category);
+        var linked = await linker.LinkAsync(line!, command.Module, item, command.Key, access.Person, await calendar.TodayAsync(ct), ct, command.Module == TransactionLinker.Assets ? command.Category : null);
         return linked.IsSuccess
             ? Result.Success(await lines.ViewAsync(line!.Id, ct))
             : BankingAccess.Failed<BankTransactionView, BankLink>(linked);

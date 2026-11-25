@@ -62,12 +62,12 @@ export function AssetCostsSection({ asset }: { asset: AssetView }) {
             <TableHead>{t('assets_costs.category')}</TableHead>
             <TableHead className="text-right">{t('assets_costs.amount')}</TableHead>
             <TableHead>{t('assets_costs.col_note')}</TableHead>
-            {writable ? <TableHead className="w-0"><span className="sr-only">{t('assets_costs.col_actions')}</span></TableHead> : null}
+            {asset.canWrite ? <TableHead className="w-0"><span className="sr-only">{t('assets_costs.col_actions')}</span></TableHead> : null}
           </TableRow>
         </TableHeader>
         <TableBody>
           {rows.length === 0 ? (
-            <TableRow><TableCell colSpan={writable ? 5 : 4} className="text-muted-foreground">{t('assets_costs.empty')}</TableCell></TableRow>
+            <TableRow><TableCell colSpan={asset.canWrite ? 5 : 4} className="text-muted-foreground">{t('assets_costs.empty')}</TableCell></TableRow>
           ) : rows.map((c) => (
             <TableRow key={c.id}>
               <TableCell><LocalDate value={c.occurredOn} /></TableCell>
@@ -78,7 +78,7 @@ export function AssetCostsSection({ asset }: { asset: AssetView }) {
                 <SourceLink documentId={c.documentId} />
                 {c.fromBank ? <Badge variant="secondary" className="ml-2">{t('assets_costs.from_bank')}</Badge> : null}
               </TableCell>
-              {writable || asset.canWrite ? (
+              {asset.canWrite ? (
                 <TableCell>
                   <CostRowActions asset={asset} cost={c} onEdit={() => s.open(c)} onDeleted={s.announce} onReloaded={() => s.headingRef.current?.focus()} />
                 </TableCell>

@@ -11,9 +11,10 @@ namespace Nid.Assets.Application;
 
 /// <summary>
 /// #649: a running cost as sent. It is an expense; <paramref name="ExternalRef"/> (<c>bank:{lineId}</c>) is unique among the asset's flows,
-/// <paramref name="DocumentId"/> its invoice (the host checked the actor reads it).
+/// <paramref name="DocumentId"/> its invoice (the host checked the actor reads it);
+/// <paramref name="ClearDocument"/> removes the stored invoice of a correction that gives none.
 /// </summary>
-public sealed record AssetCostDraft(LocalDate OccurredOn, decimal Amount, string? Category, string? Note, string? ExternalRef = null, Guid? DocumentId = null);
+public sealed record AssetCostDraft(LocalDate OccurredOn, decimal Amount, string? Category, string? Note, string? ExternalRef = null, Guid? DocumentId = null, bool ClearDocument = false);
 
 public sealed record RecordAssetCostCommand(ItemId ItemId, AssetCostDraft Cost) : ICommand<Guid>, IItemScoped
 {
@@ -68,7 +69,7 @@ internal static class AssetCosts
         if (convention.Refusal(FlowKind.Expense, draft.Category) is { } breaks)
             return Result.Failure<NewFlow>(FieldErrors.At(new Failure(convention.Code, breaks.Message, null), breaks.Member));
         return Result.Success(new NewFlow(item, draft.OccurredOn, FlowKind.Expense, AssetCheck.MoneyOf(draft.Amount, currency),
-            draft.Category, draft.ExternalRef, draft.Note, DocumentId: draft.DocumentId));
+            draft.Category, draft.ExternalRef, draft.Note, DocumentId: draft.DocumentId, ClearDocument: draft.ClearDocument));
     }
 
     /// <summary>The Core's date refusal names no field: the route's date field is given.</summary>

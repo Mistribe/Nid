@@ -32,11 +32,11 @@ export function costValuesOf(c?: AssetCost): CostValues {
     : { category: 'service', occurredOn: todayIso(), amount: '', note: '', documentId: '' };
 }
 
-/** The body, the same for an addition and a correction: an invoice left empty is not sent (the server keeps the stored one). */
-export function toCostBody(v: CostValues): components['schemas']['AssetCostBody'] {
+/** The body, the same for an addition and a correction: « Aucune facture » on a cost that had one clears it, on a new cost it sends nothing. */
+export function toCostBody(v: CostValues, editing?: AssetCost): components['schemas']['AssetCostBody'] {
   return {
     occurredOn: v.occurredOn, category: v.category, amount: toWireAmount(v.amount),
-    ...(v.note.trim() ? { note: v.note } : {}), ...(v.documentId ? { documentId: v.documentId } : {}),
+    ...(v.note.trim() ? { note: v.note } : {}), ...(v.documentId ? { documentId: v.documentId } : editing?.documentId ? { clearDocument: true } : {}),
   };
 }
 

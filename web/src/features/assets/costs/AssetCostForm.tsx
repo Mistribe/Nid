@@ -59,7 +59,7 @@ function CostForm({ asset, editing, titleId, onDone }: { asset: AssetView; editi
   const [uploadProblem, setUploadProblem] = useState<string | null>(null);
 
   const known = [...(documents.data?.items ?? []).map((d) => ({ id: d.id, title: d.title })), ...uploaded.filter((u) => !documents.data?.items.some((d) => d.id === u.id))];
-  // A stored invoice the reader no longer sees is not offered; the server keeps it when none is sent.
+  // « Aucune facture » on a stored invoice clears it; an invoice the reader cannot see is not shown, so it is neither offered nor cleared.
   const options = [{ value: '', label: t('assets_costs.no_invoice') }, ...known.map((d) => ({ value: d.id, label: d.title }))];
 
   const upload = async (file: File) => {
@@ -83,7 +83,7 @@ function CostForm({ asset, editing, titleId, onDone }: { asset: AssetView; editi
       onSuccess: () => { void invalidateAssets(queryClient); onDone(t(editing ? 'assets_costs.corrected' : 'assets_costs.added')); },
       onError: (error: unknown) => errors.onError(error),
     };
-    if (editing) correct.mutate({ params: { path: { id: asset.id, flowId: editing.id } }, body: toCostBody(values) }, callbacks);
+    if (editing) correct.mutate({ params: { path: { id: asset.id, flowId: editing.id } }, body: toCostBody(values, editing) }, callbacks);
     else add.mutate({ params: { path: { id: asset.id } }, body: toCostBody(values) }, callbacks);
   });
 

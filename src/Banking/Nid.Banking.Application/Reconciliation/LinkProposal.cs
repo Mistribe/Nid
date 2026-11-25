@@ -18,7 +18,7 @@ public sealed class LinkProposal(TransactionLinker linker, IActorAccessor actor,
     public string Kind => "banking.link_transaction";
     public int PayloadVersion => 1;
 
-    private sealed record Parsed(Guid Transaction, string Module, ItemId Item, string? Key);
+    private sealed record Parsed(Guid Transaction, string Module, ItemId Item, string? Key, string? Category);
 
     public async Task<Result<ProposalCheck>> ValidateAsync(ItemId target, JsonElement payload, bool edited, CancellationToken ct)
     {
@@ -66,7 +66,7 @@ public sealed class LinkProposal(TransactionLinker linker, IActorAccessor actor,
         var checkedLine = await linker.CheckAsync(p!.Transaction, p.Module, p.Item, ct);
         if (!checkedLine.TryGetValue(out var line))
             return Result.Failure<IReadOnlyList<Guid>>(FailureOf(checkedLine));
-        var linked = await linker.LinkAsync(line!, p.Module, p.Item, p.Key, Person, await calendar.TodayAsync(ct), ct);
+        var linked = await linker.LinkAsync(line!, p.Module, p.Item, p.Key, Person, await calendar.TodayAsync(ct), ct, p.Category);
         return linked.IsSuccess ? Result.Success<IReadOnlyList<Guid>>([line!.Id]) : Result.Failure<IReadOnlyList<Guid>>(FailureOf(linked));
     }
 
@@ -90,9 +90,18 @@ public sealed class LinkProposal(TransactionLinker linker, IActorAccessor actor,
             else
                 errors.Add(new FieldError("payload.key", FieldErrors.ShapeCode, "A charge's key, 1 to 200 characters."));
         }
+        // #649: a vehicle's cost category; meaningless for any other module, which ignores it.
+        string? category = null;
+        if (payload.TryGetProperty("category", out var c) && c.ValueKind != JsonValueKind.Null && m.ValueKind == JsonValueKind.String && m.GetString() == TransactionLinker.Assets)
+        {
+            if (c.ValueKind == JsonValueKind.String && c.GetString() is { } named && Nid.Assets.Contracts.AssetCostCategories.All.Contains(named))
+                category = named;
+            else
+                errors.Add(new FieldError("payload.category", FieldErrors.ShapeCode, $"A cost category is one of {string.Join(", ", Nid.Assets.Contracts.AssetCostCategories.All)}."));
+        }
         return errors.Count > 0
             ? Result.Failure<Parsed>(FieldErrors.Shape(errors))
-            : Result.Success(new Parsed(transaction, m.GetString()!, new ItemId(item), key));
+            : Result.Success(new Parsed(transaction, m.GetString()!, new ItemId(item), key, category));
     }
 
     private static JsonElement Normalized(Parsed p)
@@ -100,6 +109,8 @@ public sealed class LinkProposal(TransactionLinker linker, IActorAccessor actor,
         var json = new JsonObject { ["transactionId"] = p.Transaction.ToString("D"), ["module"] = p.Module, ["itemId"] = p.Item.Value.ToString("D") };
         if (p.Key is not null)
             json["key"] = p.Key;
+        if (p.Category is not null)
+            json["category"] = p.Category;
         return TransactionLinker.Element(json);
     }
 

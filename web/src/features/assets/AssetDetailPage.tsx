@@ -110,8 +110,8 @@ export function AssetDetailPage() {
       {asset.canWrite && dialog === 'value' ? <AssetValuationDialog asset={asset} onClose={() => setDialog(null)} onDone={(m) => { setDialog(null); toast.success(m); }} /> : null}
       <DetailTabs value={tab} onChange={setTab} tabs={[
         { id: 'valuations', label: t('assets_detail.tab_valuations'), content: <AssetValuationsSection asset={asset} /> },
-        // #649: the running costs are a vehicle's.
-        ...(asset.kind === 'vehicle' ? [{ id: 'costs' as const, label: t('assets_costs.tab'), content: <AssetCostsSection asset={asset} /> }] : []),
+        // #649: the running costs are a vehicle's; another asset shows them only while it still holds some (history).
+        ...(asset.kind === 'vehicle' || asset.hasCosts ? [{ id: 'costs' as const, label: t('assets_costs.tab'), content: <AssetCostsSection asset={asset} /> }] : []),
         { id: 'subscriptions', label: t('assets_subscriptions.tab'), content: <AssetSubscriptionsSection asset={asset} /> },
         { id: 'documents', label: t('documents_item.title'), content: <ItemDocuments itemId={asset.id} canWrite={asset.canWrite} defaultRole="invoice" /> },
       ]} />

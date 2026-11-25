@@ -39342,6 +39342,7 @@ export interface components {
             externalRef?: null | string;
             /** Format: uuid */
             documentId?: null | string;
+            clearDocument?: null | boolean;
         };
         AssetCostsView: {
             /** Format: int32 */
@@ -39427,6 +39428,8 @@ export interface components {
             canWrite: boolean;
             shareLevel: string;
             subscriptions: components["schemas"]["LinkedSubscriptionView"][];
+            /** @default false */
+            hasCosts: boolean;
         };
         AssistantEnabledBody: {
             enabled?: null | boolean;

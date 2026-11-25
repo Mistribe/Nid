@@ -42101,6 +42101,12 @@
               "string"
             ],
             "format": "uuid"
+          },
+          "clearDocument": {
+            "type": [
+              "null",
+              "boolean"
+            ]
           }
         }
       },
@@ -42304,6 +42310,7 @@
           "name",
           "kind",
           "valueFromPurchase",
+          "hasCosts",
           "valuations",
           "currency",
           "visibility",
@@ -42453,6 +42460,10 @@
             "items": {
               "$ref": "#/components/schemas/LinkedSubscriptionView"
             }
+          },
+          "hasCosts": {
+            "type": "boolean",
+            "default": false
           }
         }
       },

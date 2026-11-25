@@ -178,15 +178,15 @@ public static class AssetEndpoints
 
     /// <summary>
     /// #649: <c>{ occurredOn, amount, category, note?, externalRef?, documentId? }</c>: an expense of a vehicle, <c>category</c> one of
-    /// service, repair, tyres, other; <c>externalRef</c> (<c>bank:{lineId}</c>) is unique among the asset's costs; <c>documentId</c> is its invoice.
+    /// service, repair, tyres, other; <c>externalRef</c> (<c>bank:{lineId}</c>) is unique among the asset's costs; <c>documentId</c> is its invoice (a correction keeps the stored one unless it gives another, or <c>clearDocument</c> is true).
     /// </summary>
-    public sealed record AssetCostBody(string? OccurredOn, string? Amount, string? Category, string? Note, string? ExternalRef = null, Guid? DocumentId = null)
+    public sealed record AssetCostBody(string? OccurredOn, string? Amount, string? Category, string? Note, string? ExternalRef = null, Guid? DocumentId = null, bool? ClearDocument = null)
     {
         internal AssetCostDraft? Read(FieldReader reader)
         {
             var occurredOn = reader.Date(OccurredOn, "occurredOn");
             var amount = LoanBodies.Number(reader, Amount, "amount");
-            return occurredOn is null || amount is null ? null : new AssetCostDraft(occurredOn.Value, amount.Value, Category, Note, ExternalRef, DocumentId);
+            return occurredOn is null || amount is null ? null : new AssetCostDraft(occurredOn.Value, amount.Value, Category, Note, ExternalRef, DocumentId, ClearDocument ?? false);
         }
     }
 

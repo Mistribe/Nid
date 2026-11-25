@@ -73,6 +73,37 @@ describe('A vehicle’s costs', () => {
     await waitFor(() => expect(posted).toEqual([{ occurredOn: '2026-06-01', category: 'repair', amount: '85.40', documentId: DOC }]));
   });
 
+  it('clears the invoice of a corrected cost with « Aucune facture »', async () => {
+    const puts: unknown[] = [];
+    serve();
+    server.use(http.put('*/api/v1/assets/:id/costs/:flowId', async ({ request }) => { puts.push(await request.json()); return HttpResponse.json({ id: 'c9' }); }));
+    const { user } = await renderApp(`/other-assets/${ASSET}?tab=costs`);
+
+    await user.click(await screen.findByRole('button', { name: /^Actions pour le frais Pneus/ }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Corriger' }));
+    await screen.findByRole('dialog', { name: 'Corriger un frais' });
+    await pick(user, 'Facture', 'Aucune facture');
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Enregistrer' }));
+
+    await waitFor(() => expect(puts).toEqual([expect.objectContaining({ category: 'tyres', clearDocument: true })]));
+    expect(puts[0]).not.toHaveProperty('documentId');
+  });
+
+  it('shows the costs of an asset that is no longer a vehicle, to read and delete only', async () => {
+    server.use(
+      http.get('*/api/v1/assets/:id', () => HttpResponse.json(assetView({ kind: 'art', hasCosts: true }))),
+      http.get('*/api/v1/assets/:id/costs', () => HttpResponse.json(costs())),
+      http.get('*/api/v1/documents', () => HttpResponse.json({ items: [], total: 0 })),
+    );
+    const { user } = await renderApp(`/other-assets/${ASSET}?tab=costs`);
+
+    await screen.findByRole('table', { name: 'Frais du véhicule' });
+    expect(screen.queryByRole('button', { name: 'Ajouter un frais' })).not.toBeInTheDocument();
+    await user.click(await screen.findByRole('button', { name: /^Actions pour le frais Pneus/ }));
+    expect(await screen.findByRole('menuitem', { name: 'Supprimer' })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Corriger' })).not.toBeInTheDocument();
+  });
+
   it('has no costs tab on another kind', async () => {
     server.use(http.get('*/api/v1/assets/:id', () => HttpResponse.json(assetView({ kind: 'art' }))));
     await renderApp(`/other-assets/${ASSET}`);

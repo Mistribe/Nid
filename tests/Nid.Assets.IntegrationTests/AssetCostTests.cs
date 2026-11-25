@@ -116,6 +116,37 @@ public class AssetCostTests(PostgresFixture fixture) : IClassFixture<PostgresFix
     }
 
     [Fact]
+    public async Task A_correction_can_clear_the_invoice_or_replace_it()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await CreateAsync(app, Car(app));
+        var first = await DocumentApi.UploadedAsync(app, app.AdultA, DocumentApi.Pdf, "fileName=facture.pdf");
+        var flow = (await JsonAsync(await AddAsync(app, id, extra: first))).GetProperty("id").GetGuid();
+
+        var cleared = await app.RawAsync(app.AdultA, HttpMethod.Put, $"{Route}/{id.Value}/costs/{flow}",
+            new { occurredOn = "2025-06-01", amount = "130", category = "service", clearDocument = true });
+        Assert.Equal(HttpStatusCode.OK, cleared.StatusCode);
+        Assert.Equal(JsonValueKind.Null, (await CostsAsync(app, id)).GetProperty("rows")[0].GetProperty("documentId").ValueKind);
+    }
+
+    [Fact]
+    public async Task The_view_says_whether_a_non_vehicle_still_holds_costs()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await CreateAsync(app, Car(app));
+        Assert.False((await GetAsync(app, id)).GetProperty("hasCosts").GetBoolean());
+        Assert.Equal(HttpStatusCode.Created, (await AddAsync(app, id)).StatusCode);
+        var asset = await GetAsync(app, id);
+        var edit = Body(app, "Citadine", "art");
+        edit.Remove("currentValue"); edit.Remove("currentValueOn"); edit.Remove("visibility"); edit.Remove("owners");
+        edit["version"] = asset.GetProperty("version").GetUInt32();
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Put, $"{Route}/{id.Value}", edit)).StatusCode);
+
+        Assert.True((await GetAsync(app, id)).GetProperty("hasCosts").GetBoolean());
+        Assert.False((await GetAsync(app, await CreateAsync(app, Body(app)))).GetProperty("hasCosts").GetBoolean());
+    }
+
+    [Fact]
     public async Task An_unreadable_invoice_is_refused()
     {
         await using var app = await NidApp.StartAsync(fixture);

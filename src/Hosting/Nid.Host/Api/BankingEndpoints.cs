@@ -503,9 +503,11 @@ public static class BankingEndpoints
         Guid? EnvelopeId, bool? ClearEnvelope, Guid? CardOfAccountId, bool? ClearCard, bool? AutoApplyBalance, bool? Ignored, string? Name = null,
         bool? ClearName = null, int? MinPayments = null, bool? ClearMinPayments = null, bool? CountWithdrawals = null);
 
-    /// <summary>A charge of <c>itemId</c> (a subscription, a loan, a property); <c>key</c> names one, else the nearest is taken.</summary>
+    /// <summary>
+    /// A charge of <c>itemId</c> (a subscription, a loan, a property); <c>key</c> names one, else the nearest is taken. For a vehicle (<c>assets</c>),
+    /// <c>category</c> is the running cost's the line records (<c>other</c> when left out); any other module ignores it.
+    /// </summary>
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
-    /// <summary><c>category</c>: for a vehicle (<c>assets</c>), the running cost's category the line records (default <c>other</c>).</summary>
     public sealed record LinkBody(string? Module, Guid? ItemId, string? Key, string? Category = null);
 
     /// <summary>A line's category chosen by hand; an absent or null <c>categoryId</c> is « Sans catégorie », chosen by hand all the same.</summary>

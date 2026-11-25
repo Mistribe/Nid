@@ -35,10 +35,11 @@ public sealed record Valuation(Guid Id, ItemId Item, LocalDate AsOf, Money Value
 /// <summary><see cref="Value"/> is null when the item has no value at that date: "unknown", never zero.</summary>
 public sealed record LatestValuation(Valuation? Value);
 
+/// <summary><see cref="DocumentId"/> sets the flow's source document; a correction keeps the stored one unless it gives another or <see cref="ClearDocument"/>.</summary>
 public sealed record NewFlow(
     ItemId Item, LocalDate OccurredOn, FlowKind Kind, Money Amount,
     string? Category, string? ExternalRef, string? Note, FactSource Source = FactSource.Manual, ImportMark? Import = null,
-    Guid? DocumentId = null);
+    Guid? DocumentId = null, bool ClearDocument = false);
 
 public sealed record Flow(
     Guid Id, ItemId Item, LocalDate OccurredOn, FlowKind Kind, Money Amount,

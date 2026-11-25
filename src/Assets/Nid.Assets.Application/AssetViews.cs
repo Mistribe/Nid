@@ -15,13 +15,14 @@ public sealed record EveryView(int Count, string Unit);
 
 public sealed record LinkedSubscriptionView(ItemId Id, string Name, MoneyView? Price, EveryView? Every, LocalDate? NextDeadline);
 
+/// <param name="HasCosts">An asset that is not a vehicle still holds running costs (it was one, or a file named them): its costs stay readable and removable. Always false for a vehicle, whose tab is there anyway.</param>
 /// <param name="ValueFromPurchase">The value is the purchase price: no valuation is dated yet.</param>
 public sealed record AssetView(
     ItemId Id, string Name, string Kind, MoneyView? Value, LocalDate? ValueOn, bool ValueFromPurchase, MoneyView? PurchasePrice,
     LocalDate? PurchasedOn, string? Note, decimal? WeightGrams, decimal? Fineness,
     LocalDate? RegisteredOn, int? MileageKm, LocalDate? MileageOn, int? FiscalHp, string? Energy, IReadOnlyList<ValuationView> Valuations, string Currency,
     string Visibility, IReadOnlyList<ItemOwnerView> Owners, bool Archived, uint Version, bool CanWrite, string ShareLevel,
-    IReadOnlyList<LinkedSubscriptionView> Subscriptions) : IExposesItems
+    IReadOnlyList<LinkedSubscriptionView> Subscriptions, bool HasCosts = false) : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems() => [Id, ..Subscriptions.Select(s => s.Id)];
 }
@@ -53,7 +54,7 @@ internal static class AssetViews
             value?.On, value?.FromPurchase ?? false, currency, Wire(item.Visibility), item.OwnerViews(), item.ArchivedAt is not null);
     }
 
-    public static AssetView Detail(ItemAccess item, AssetRecord record, IReadOnlyList<Valuation> valuations, LocalDate today, bool canWrite, IReadOnlyList<LinkedSubscription> subscriptions)
+    public static AssetView Detail(ItemAccess item, AssetRecord record, IReadOnlyList<Valuation> valuations, LocalDate today, bool canWrite, IReadOnlyList<LinkedSubscription> subscriptions, bool hasCosts)
     {
         var row = Row(item, record, valuations, today);
         var d = record.Details;
@@ -64,6 +65,6 @@ internal static class AssetViews
             row.Currency, row.Visibility, row.Owners, row.Archived, record.Version, canWrite,
             item.Visibility == Visibility.Shared && item.ShareLevel == ShareLevel.Edit ? "edit" : "view",
             subscriptions.Select(s => new LinkedSubscriptionView(
-                s.Id, s.Name, s.Price is { } p ? new MoneyView(p.AmountText, p.Currency.Code) : null, s.Every is { } e ? new EveryView(e.Count, e.Unit.ToString().ToLowerInvariant()) : null, s.NextDeadline)).ToList());
+                s.Id, s.Name, s.Price is { } p ? new MoneyView(p.AmountText, p.Currency.Code) : null, s.Every is { } e ? new EveryView(e.Count, e.Unit.ToString().ToLowerInvariant()) : null, s.NextDeadline)).ToList(), hasCosts);
     }
 }

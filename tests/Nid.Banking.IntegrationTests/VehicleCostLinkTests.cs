@@ -11,7 +11,7 @@ using static Nid.TestSupport.ProposalKindHelpers;
 
 namespace Nid.Banking.IntegrationTests;
 
-/// <summary>#649: an expense line pays a running cost of a vehicle: offered as a candidate, linked, and recorded once as a Core flow.</summary>
+/// <summary>#649: an expense line pays a running cost of a vehicle: offered as a candidate, then linked with its cost recorded at once as a Core flow.</summary>
 public class VehicleCostLinkTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     private static readonly LocalDate Today = new(2026, 10, 29);
@@ -86,7 +86,7 @@ public class VehicleCostLinkTests(PostgresFixture fixture) : IClassFixture<Postg
     }
 
     [Fact]
-    public async Task Linking_proposes_the_cost_with_its_bank_reference_and_the_approval_records_it_once()
+    public async Task Linking_records_the_cost_at_once_with_its_bank_reference_and_protects_it()
     {
         var (app, account) = await StartAsync(fixture);
         await using var _ = app;
@@ -95,25 +95,61 @@ public class VehicleCostLinkTests(PostgresFixture fixture) : IClassFixture<Postg
 
         Assert.Equal(HttpStatusCode.OK, (await LinkAsync(app, line, car, "tyres")).StatusCode);
 
-        Assert.Equal(("assets", car), ((await LinkOfAsync(app, line))!.TargetModule, (await LinkOfAsync(app, line))!.TargetItem!.Value.Value));
-        var cost = Assert.Single(await PendingAsync(app));
-        Assert.Equal(("assets.add_asset_cost", car), (cost.GetProperty("kind").GetString(), cost.GetProperty("targetItemId").GetGuid()));
-        var body = cost.GetProperty("payload").GetProperty("body");
-        Assert.Equal(($"bank:{line:D}", "2026-10-20", "85.40", "tyres"), (body.GetProperty("externalRef").GetString(),
-            body.GetProperty("occurredOn").GetString(), body.GetProperty("amount").GetString(), body.GetProperty("category").GetString()));
+        var row = Assert.Single((await CostsAsync(app, car)).GetProperty("rows").EnumerateArray());
+        Assert.Equal(("tyres", "85.40", true, "2026-10-20"), (row.GetProperty("category").GetString(), row.GetProperty("amount").GetProperty("amount").GetString(),
+            row.GetProperty("fromBank").GetBoolean(), row.GetProperty("occurredOn").GetString()));
+        var link = (await LinkOfAsync(app, line))!;
+        Assert.Equal(("assets", $"flow:{row.GetProperty("id").GetGuid():N}"), (link.TargetModule, link.TargetKey));
+        Assert.Empty(await PendingAsync(app));
 
-        Assert.Equal(HttpStatusCode.OK, (await ApproveAsync(app, cost)).StatusCode);
-        var costs = await CostsAsync(app, car);
-        var row = Assert.Single(costs.GetProperty("rows").EnumerateArray());
-        Assert.Equal(("tyres", "85.40", true), (row.GetProperty("category").GetString(), row.GetProperty("amount").GetProperty("amount").GetString(), row.GetProperty("fromBank").GetBoolean()));
-
-        // The same reference refuses a second cost.
-        var again = await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/assets/{car}/costs", System.Text.Json.Nodes.JsonNode.Parse(body.GetRawText()));
+        // The line is linked: a second link is refused, and so is a second cost with the same reference.
+        await BankingApi.AssertRefusedAsync(await LinkAsync(app, line, car), HttpStatusCode.Conflict, BankingCodes.TransactionLinked);
+        var again = await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/assets/{car}/costs",
+            new { occurredOn = "2026-10-20", amount = "85.40", category = "tyres", externalRef = $"bank:{line:D}" });
         await BankingApi.AssertRefusedAsync(again, HttpStatusCode.Conflict, CoreFactCodes.ExternalRefTaken);
+        Assert.Single((await CostsAsync(app, car)).GetProperty("rows").EnumerateArray());
     }
 
     [Fact]
-    public async Task The_category_defaults_to_other_and_a_wrong_one_is_refused()
+    public async Task An_old_line_and_a_shared_vehicle_on_a_private_account_still_record_the_cost()
+    {
+        var (app, account) = await StartAsync(fixture);
+        await using var _ = app;
+        var shared = await VehicleAsync(app, visibility: "shared");
+        var old = await AddAsync(app, account, "a", D(7, 1), -60m);
+
+        Assert.Equal(HttpStatusCode.OK, (await LinkAsync(app, old, shared)).StatusCode);
+
+        var row = Assert.Single((await CostsAsync(app, shared)).GetProperty("rows").EnumerateArray());
+        Assert.Equal(("other", "60.00"), (row.GetProperty("category").GetString(), row.GetProperty("amount").GetProperty("amount").GetString()));
+        Assert.StartsWith("flow:", (await LinkOfAsync(app, old))!.TargetKey);
+    }
+
+    [Fact]
+    public async Task The_link_proposal_carries_the_category_and_records_the_cost_when_approved()
+    {
+        var (app, account) = await StartAsync(fixture);
+        await using var _ = app;
+        var car = await VehicleAsync(app);
+        var line = await AddAsync(app, account, "a", D(10, 20), -85.40m);
+
+        var proposed = await app.RawAsync(app.AdultA, HttpMethod.Post, Proposals, new
+        {
+            kind = "banking.link_transaction", targetItemId = car, payload = new { transactionId = line, module = "assets", itemId = car, category = "repair" },
+        });
+        Assert.Equal(HttpStatusCode.Created, proposed.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await ApproveAsync(app, await JsonOf(proposed))).StatusCode);
+
+        Assert.Equal("repair", Assert.Single((await CostsAsync(app, car)).GetProperty("rows").EnumerateArray()).GetProperty("category").GetString());
+        var bad = await app.RawAsync(app.AdultA, HttpMethod.Post, Proposals, new
+        {
+            kind = "banking.link_transaction", targetItemId = car, payload = new { transactionId = line, module = "assets", itemId = car, category = "fuel" },
+        });
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, bad.StatusCode);
+    }
+
+    [Fact]
+    public async Task A_wrong_category_is_refused_before_anything_is_written()
     {
         var (app, account) = await StartAsync(fixture);
         await using var _ = app;
@@ -121,14 +157,13 @@ public class VehicleCostLinkTests(PostgresFixture fixture) : IClassFixture<Postg
         var line = await AddAsync(app, account, "a", D(10, 20), -85.40m);
 
         await BankingApi.AssertRefusedAsync(await LinkAsync(app, line, car, "fuel"), HttpStatusCode.UnprocessableEntity, FieldErrors.ShapeCode);
-        Assert.Null(await LinkOfAsync(app, line));
-        Assert.Equal(HttpStatusCode.OK, (await LinkAsync(app, line, car)).StatusCode);
 
-        Assert.Equal("other", Assert.Single(await PendingAsync(app)).GetProperty("payload").GetProperty("body").GetProperty("category").GetString());
+        Assert.Null(await LinkOfAsync(app, line));
+        Assert.Empty((await CostsAsync(app, car)).GetProperty("rows").EnumerateArray());
     }
 
     [Fact]
-    public async Task A_cost_already_recorded_is_only_linked()
+    public async Task A_cost_already_recorded_is_only_linked_and_a_taken_one_is_not_reused()
     {
         var (app, account) = await StartAsync(fixture);
         await using var _ = app;
@@ -140,11 +175,10 @@ public class VehicleCostLinkTests(PostgresFixture fixture) : IClassFixture<Postg
         Assert.Equal(HttpStatusCode.OK, (await LinkAsync(app, line, car)).StatusCode);
 
         Assert.Equal($"flow:{flow:N}", (await LinkOfAsync(app, line))!.TargetKey);
-        Assert.Empty(await PendingAsync(app));
-        // The recorded cost is taken: a second line of the same amount proposes its own.
+        Assert.Single((await CostsAsync(app, car)).GetProperty("rows").EnumerateArray());
         var second = await AddAsync(app, account, "b", D(10, 21), -85.40m);
         Assert.Equal(HttpStatusCode.OK, (await LinkAsync(app, second, car)).StatusCode);
-        Assert.Single(await PendingAsync(app));
+        Assert.Equal(2, (await CostsAsync(app, car)).GetProperty("rows").GetArrayLength());
     }
 
     [Fact]
@@ -162,7 +196,6 @@ public class VehicleCostLinkTests(PostgresFixture fixture) : IClassFixture<Postg
         Assert.Contains((await LinkAsync(app, expense, theirs)).StatusCode, new[] { HttpStatusCode.Forbidden, HttpStatusCode.NotFound });
         await BankingApi.AssertRefusedAsync(await LinkAsync(app, income, car), HttpStatusCode.UnprocessableEntity, BankingCodes.LinkTarget);
         Assert.Null(await LinkOfAsync(app, expense));
-        Assert.Empty(await PendingAsync(app));
     }
 
     [Fact]

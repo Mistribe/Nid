@@ -50,7 +50,7 @@ public sealed class TransactionLinker(
             return BankingAccess.Failed<BankTransaction>(write);
         if ((await items.FindAsync(item, ct))?.Module != module)
             return BankingAccess.Fail<BankTransaction>(BankingCodes.LinkTarget, "This item is not of that module.");
-        if (module == Assets && (line.Amount >= 0 || !(await vehicles.ForAsync(access.Person, ct)).Any(v => v.Id == item)))
+        if (module == Assets && (line.Amount >= 0 || !await vehicles.IsWritableVehicleAsync(access.Person, item, ct)))
             return BankingAccess.Fail<BankTransaction>(BankingCodes.LinkTarget, "An expense line pays a running cost of a vehicle.");
         return line.LinkState == TransactionLinkState.Unlinked
             ? Result.Success(line)
@@ -78,7 +78,16 @@ public sealed class TransactionLinker(
         BankTransaction line, string module, ItemId item, string? key, PersonId by, LocalDate today, CancellationToken ct, string? category = null)
     {
         var charge = await ChargeAsync(line, item, key, by, ct);
-        var link = await LinkToAsync(line, module, item, charge, $"person:{by.Value:D}", today, ct, category);
+        // #649: the person picked the vehicle and the category: the cost is recorded now, so a line is never linked without its cost.
+        string? recorded = null;
+        if (module == Assets)
+        {
+            var cost = await RecordCostAsync(line, item, category ?? AssetCostCategories.Other, ct);
+            if (!cost.TryGetValue(out var flow))
+                return Result.Failure<BankLink>(cost.TryGetFailure(out var refused) ? refused! : throw new InvalidOperationException());
+            recorded = $"flow:{flow:N}";
+        }
+        var link = await LinkToAsync(line, module, item, charge, $"person:{by.Value:D}", today, ct, recorded);
         var stem = TransactionLabel.Stem(line.NormalizedLabel);
         // A vehicle has no expected charge for a rule to match: its next line is linked by hand again.
         if (stem.Length == 0 || module == Assets)
@@ -112,10 +121,10 @@ public sealed class TransactionLinker(
 
     /// <summary>Global Constraints « Link outcomes and their follow-ups », as the current actor.</summary>
     private async Task<BankLink> LinkToAsync(
-        BankTransaction line, string module, ItemId item, ExpectedCharge? charge, string decidedBy, LocalDate today, CancellationToken ct, string? category = null)
+        BankTransaction line, string module, ItemId item, ExpectedCharge? charge, string decidedBy, LocalDate today, CancellationToken ct, string? recordedKey = null)
     {
         var ask = line.BookedOn >= today.PlusDays(-AskDays);
-        var key = charge?.Key;
+        var key = charge?.Key ?? recordedKey;
         var paid = Math.Abs(line.Amount);
         JsonElement? followUp = null;
         string? followUpKind = null;
@@ -123,22 +132,6 @@ public sealed class TransactionLinker(
         if (charge is null)
         {
             outcome = line.Amount > 0 && (await items.FindAsync(item, ct))?.Kind == "property" ? LinkOutcome.Income : LinkOutcome.AsExpected;
-            if (module == Assets)
-            {
-                // #649: a cost already recorded (by hand, or from this line) is only linked; else it is proposed, with the category picked.
-                if (await RecordedCostAsync(line, item, ct) is { } cost)
-                    key = $"flow:{cost:N}";
-                else if (ask)
-                    (followUpKind, followUp) = ("assets.add_asset_cost", Element(new JsonObject
-                    {
-                        ["id"] = item.Value.ToString(),
-                        ["body"] = new JsonObject
-                        {
-                            ["occurredOn"] = Day(line.BookedOn), ["amount"] = Amount(paid), ["category"] = category ?? AssetCostCategories.Other,
-                            ["note"] = BankSyncCollector.SourceLabel, ["externalRef"] = $"bank:{line.Id:D}",
-                        },
-                    }));
-            }
         }
         else if (charge.Kind.Name == ChargeKinds.Rent)
         {
@@ -193,6 +186,20 @@ public sealed class TransactionLinker(
                 && Math.Round(flow.Amount.Amount, 2) == Math.Round(line.Amount, 2) && !await links.FlowTakenAsync(flow.Id, ct))
                 return flow.Id;
         return null;
+    }
+
+    /// <summary>
+    /// #649: the cost the line pays on the vehicle, as the current actor: one already recorded (typed by hand, or from this line before) is reused,
+    /// else it is recorded with <c>bank:{lineId}</c>, which the Core keeps unique per item. A refusal (a currency the vehicle does not hold) stops the link.
+    /// </summary>
+    private async Task<Result<Guid>> RecordCostAsync(BankTransaction line, ItemId vehicle, string category, CancellationToken ct)
+    {
+        if (await RecordedCostAsync(line, vehicle, ct) is { } known)
+            return Result.Success(known);
+        if (!Money.Create(Math.Abs(line.Amount), line.Currency).TryGetValue(out var amount))
+            return BankingAccess.Fail<Guid>(BankingCodes.LinkTarget, "A line's amount has two decimals.");
+        var recorded = await flows.RecordAsync(new NewFlow(vehicle, line.BookedOn, FlowKind.Expense, amount, category, $"bank:{line.Id:D}", BankSyncCollector.SourceLabel), ct);
+        return recorded.TryGetValue(out var flow) ? Result.Success(flow!.Id) : Result.Failure<Guid>(recorded.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
     }
 
     /// <summary>#649, as <see cref="RecordedRentAsync"/>: the vehicle's expense of the line's amount within 10 days that no other line is linked to.</summary>
