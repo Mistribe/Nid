@@ -51,7 +51,7 @@ public static partial class TaxEndpoints
                 var profile = body.Read(reader);
                 return profile is null
                     ? reader.Problem()
-                    : await FieldReader.Run(invoker, r => new SaveTaxProfileCommand(year, profile, r.Scope(scope)), view => view, ct);
+                    : await FieldReader.Run(invoker, r => new SaveTaxProfileCommand(year, profile, r.Scope(scope), body.Version), view => view, ct);
             })
             .Returns<TaxEstimateView>();
 
@@ -147,7 +147,7 @@ public static partial class TaxEndpoints
         }
     }
 
-    /// <summary>The year's whole profile: a field left out is emptied, not kept.</summary>
+    /// <summary>The year's whole profile: a field left out is emptied, not kept. <c>Version</c>: the estimate's <c>profileVersion</c>, null when it had none.</summary>
     public sealed record TaxProfileBody(
         IReadOnlyDictionary<Guid, string>? Statuses, int? Dependents, int ChildrenUnder6, string? RentalRegime, IReadOnlyList<PinelCommitment>? Pinel,
         string? ChildcareOutsideHome, string? HomeEmployment, string? Donations, string? DonationsAid,
@@ -157,7 +157,8 @@ public static partial class TaxEndpoints
         IReadOnlyDictionary<Guid, string>? ExemptIncomes = null, string? DonationsAidLate = null, string? RentalEnergyWorks = null,
         string? Department = null, bool CapitalScale = false, string? DeductibleCsg = null,
         string? AlimonyPaid = null, string? AlimonyAdultChildren = null, int AlimonyAdultChildrenCount = 0, string? CapitalLossesCarried = null,
-        int AlternateCustody = 0, bool Cohabiting = false, IReadOnlyList<Guid>? DisabledAdults = null, int DisabledDependents = 0, int AlternateUnder6 = 0)
+        int AlternateCustody = 0, bool Cohabiting = false, IReadOnlyList<Guid>? DisabledAdults = null, int DisabledDependents = 0, int AlternateUnder6 = 0,
+        uint? Version = null)
     {
         internal TaxProfile? Read(FieldReader reader)
         {

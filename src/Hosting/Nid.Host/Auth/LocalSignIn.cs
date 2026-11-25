@@ -161,7 +161,7 @@ public sealed partial class LocalSignIn(
     {
         await http.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
             SessionClaims.Create(person, SessionClaims.LocalSubject, CookieAuthenticationDefaults.AuthenticationScheme, amr),
-            new AuthenticationProperties { IsPersistent = true, ExpiresUtc = DateTimeOffset.UtcNow.AddDays(options.Value.SessionAbsoluteDays) });
+            new AuthenticationProperties { IsPersistent = true });
         LoginCsrf.Clear(http, settings);
         await events.RecordAsync(new SecurityEvent(SecurityEventNames.Login, person.Id, [],
             new Dictionary<string, string> { ["method"] = method }), Actor.Browser(person.Id, person.IsAdmin), ct);
@@ -292,7 +292,7 @@ public sealed partial class LocalSignIn(
         => http.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
             SessionClaims.Create(person, SessionClaims.LocalSubject, CookieAuthenticationDefaults.AuthenticationScheme,
                 http.User.FindFirst(SessionClaims.Amr)?.Value ?? "pwd"),
-            new AuthenticationProperties { IsPersistent = true, ExpiresUtc = DateTimeOffset.UtcNow.AddDays(options.Value.SessionAbsoluteDays) });
+            new AuthenticationProperties { IsPersistent = true });
 
     /// <summary>
     /// The adult's own password, asked again before a change to their account. A wrong one counts towards the lock like a

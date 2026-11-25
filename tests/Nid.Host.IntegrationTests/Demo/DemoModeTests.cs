@@ -196,6 +196,50 @@ public class DemoModeTests(PostgresFixture postgres) : IClassFixture<PostgresFix
     }
 
     /// <summary>The persons by name, and how many envelopes the household holds: twice Bob's file would show in the count.</summary>
+    /// <summary>#635: a session ends after 7 days unused, and 30 days after its sign-in however often it is used.</summary>
+    [Fact]
+    public async Task A_session_ends_after_a_week_unused_and_a_month_after_its_sign_in()
+    {
+        var connectionString = await postgres.NewConnectionStringAsync();
+        var clock = new MovableClock(DateTimeOffset.UtcNow);
+        await using var factory = DemoFactory(connectionString, services => services.AddSingleton<TimeProvider>(clock));
+        using var client = Client(factory);
+
+        var idle = await SignInAsync(client, "alice", "/");
+        clock.Now += TimeSpan.FromDays(8);
+        Assert.False((await SessionAsync(client, idle)).GetProperty("authenticated").GetBoolean());
+
+        var active = await SignInAsync(client, "bob", "/");
+        for (var day = 4; day <= 28; day += 4)
+        {
+            clock.Now += TimeSpan.FromDays(4);
+            (var authenticated, active) = await RenewedSessionAsync(client, active);
+            Assert.True(authenticated, $"Used every 4 days, the session is still open on day {day}.");
+        }
+        clock.Now += TimeSpan.FromDays(3);
+        Assert.False((await RenewedSessionAsync(client, active)).Authenticated);
+    }
+
+    /// <summary>The session as <c>/auth/session</c> reads it, and the cookie the browser keeps after it (renewed or not).</summary>
+    private static async Task<(bool Authenticated, string Cookie)> RenewedSessionAsync(HttpClient client, string cookie)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/auth/session");
+        request.Headers.Add("Cookie", cookie);
+        using var response = await client.SendAsync(request, Ct);
+        var renewed = response.Headers.TryGetValues("Set-Cookie", out var values)
+            ? values.FirstOrDefault(c => c.StartsWith("__Host-nid=", StringComparison.Ordinal))?.Split(';')[0]
+            : null;
+        var session = await response.Content.ReadFromJsonAsync<JsonElement>(Ct);
+        return (session.GetProperty("authenticated").GetBoolean(), renewed ?? cookie);
+    }
+
+    private sealed class MovableClock(DateTimeOffset start) : TimeProvider
+    {
+        public DateTimeOffset Now { get; set; } = start;
+
+        public override DateTimeOffset GetUtcNow() => Now;
+    }
+
     private static async Task<string> HouseholdAsync(HttpClient client, string cookie)
     {
         var persons = await GetJsonAsync(client, cookie, "/api/v1/core/persons");

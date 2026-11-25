@@ -431,7 +431,9 @@ du moteur.
 - **Chaque requête porte une encapsulation**, interrogations d'état comprises : chaque réponse, même « job en échec »,
   est donc scellée.
 - **TLS** : épinglé quand Nid joint le worker directement ; certificat d'autorité publique accepté derrière un proxy
-  déclaré par l'admin. Dans les deux cas, le proxy ne voit ni requête, ni fichier, ni réponse.
+  déclaré par l'admin. Dans les deux cas, le proxy ne voit ni requête, ni fichier, ni réponse. Avant l'appairage, tout
+  certificat est accepté, sur l'hôte et le port de l'inscription en attente seulement (#626) : un autre worker du même hôte
+  reste épinglé.
 - **Suite HPKE** : DHKEM(P-256, HKDF-SHA256), HKDF-SHA256, AES-GCM, mode de base.
 - **Implémentation** : celle de .NET 11 (`Hpke`, `HpkeSender`, `HpkeRecipient` : contexte à plusieurs messages et
   `Export()`), jamais un code maison. Elle passe les vecteurs du mode de base de l'annexe A de la RFC 9180 sur macOS et
@@ -776,7 +778,8 @@ voudrait rien dire, l'audit étant gardé sans limite.
 - **Classe de politique fixée** par conversation : celle de la destination de son premier tour (§5.3).
 - **Visibilité** : l'auteur seul, admin compris. Aucun compteur hors de ses écrans.
 - **Conservation** : `ai_settings.conversation_retention_days`, posé par un adulte, **30 jours** par défaut ; purge
-  chaque nuit ; suppression immédiate par l'auteur ; supprimer un document retire les tours qui l'ont lu (§6.6).
+  chaque nuit, message par message : une conversation reprise chaque mois perd ses messages plus anciens (#626) ;
+  suppression immédiate par l'auteur ; supprimer un document retire les tours qui l'ont lu (§6.6).
 - **Export et sauvegarde** : hors de `nid.data`. Les sauvegardes restic gardent les conversations au-delà de la
   conservation, selon leur propre rétention ; Administration › IA le dit.
 - `llm_call` ne stocke toujours aucun contenu : les conversations sont un magasin séparé.

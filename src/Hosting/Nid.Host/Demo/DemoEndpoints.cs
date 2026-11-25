@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.Extensions.Options;
 using Nid.Core.Contracts;
 using Nid.Host.Auth;
 using Nid.Platform.Contracts;
@@ -19,7 +18,7 @@ public static class DemoEndpoints
     public static IEndpointRouteBuilder MapDemo(this IEndpointRouteBuilder routes)
     {
         routes.MapGet("/auth/demo/{key}", async (string key, string? returnUrl, HttpContext http, IPersonRegistry persons,
-                ISecurityEvents events, IOptions<NidAuthOptions> options) =>
+                ISecurityEvents events) =>
             {
                 var target = returnUrl ?? "/";
                 if (!ReturnUrl.IsSafe(target))
@@ -29,7 +28,7 @@ public static class DemoEndpoints
 
                 await http.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
                     SessionClaims.Create(person, adult.Subject, CookieAuthenticationDefaults.AuthenticationScheme),
-                    new AuthenticationProperties { IsPersistent = true, ExpiresUtc = DateTimeOffset.UtcNow.AddDays(options.Value.SessionAbsoluteDays) });
+                    new AuthenticationProperties { IsPersistent = true });
                 await events.RecordAsync(SecurityEvent.Of(SecurityEventNames.Login, person.Id), Actor.Browser(person.Id, person.IsAdmin), http.RequestAborted);
                 return Results.Redirect(target);
             })

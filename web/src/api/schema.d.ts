@@ -44853,6 +44853,8 @@ export interface components {
             declaration?: null | components["schemas"]["TaxDeclarationView"];
             previous?: null | components["schemas"]["TaxPreviousView"];
             history?: null | components["schemas"]["TaxYearView"][];
+            /** Format: uint32 */
+            profileVersion?: null | number;
         };
         TaxGapLineView: {
             code: string;
@@ -45031,6 +45033,8 @@ export interface components {
              * @default 0
              */
             alternateUnder6: number;
+            /** Format: uint32 */
+            version?: null | number;
         };
         TaxProfileView: {
             statuses: {

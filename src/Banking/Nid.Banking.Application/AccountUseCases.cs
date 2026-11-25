@@ -17,7 +17,7 @@ public sealed record ListBankAccountsQuery(ItemId? Envelope) : IQuery<IReadOnlyL
 /// An account's settings; a null field is left as it is. <paramref name="EnvelopeId"/> associates the account (write on a checking,
 /// savings or other envelope in its currency, one account per envelope); <paramref name="ClearEnvelope"/> dissociates it;
 /// <paramref name="CardOfAccountId"/> attaches a card to a checking account its author may write; <paramref name="ClearCard"/> detaches it.
-/// Moving it (to an envelope or an account) is its owner's alone (<see cref="BankingAccess.OwnsAsync(BankAccount, CancellationToken)"/>);
+/// Moving it (to an envelope or an account, or off one) is its owner's alone (<see cref="BankingAccess.OwnsAsync(BankAccount, CancellationToken)"/>);
 /// a card takes no envelope. <paramref name="Name"/> is the household's own name for it, which whoever writes it sets;
 /// <paramref name="ClearName"/> goes back to the bank's. #362: a card's <paramref name="MinPayments"/> a month (1 to 31) and whether
 /// <paramref name="CountWithdrawals"/>; <paramref name="ClearMinPayments"/> turns the rule off; whoever writes the card sets them.
@@ -126,7 +126,12 @@ public sealed class UpdateBankAccountHandler(
             CountWithdrawals = command.CountWithdrawals ?? account.CountWithdrawals,
         };
         if (command.ClearEnvelope)
+        {
+            // #638: detaching moves it too, out of the envelope its writers see.
+            if (account.Envelope is not null && !await access.OwnsAsync(account, ct))
+                return NotOwner();
             changed = changed with { Envelope = null, AssociatedOn = null, AssociatedBy = null };
+        }
         else if (command.EnvelopeId is { } id && new ItemId(id) is var envelope && envelope != account.Envelope)
         {
             // A card is refused before anything is asked of the envelope.
@@ -142,7 +147,11 @@ public sealed class UpdateBankAccountHandler(
             changed = changed with { Envelope = envelope, AssociatedOn = await calendar.TodayAsync(ct), AssociatedBy = access.Person };
         }
         if (command.ClearCard)
+        {
+            if (account.CardOf is not null && !await access.OwnsAsync(account, ct))
+                return NotOwner();
             changed = changed with { CardOf = null };
+        }
         else if (command.CardOfAccountId is { } parent && parent != account.CardOf)
         {
             // The card takes that account's readers: its author must own the card and write that account.

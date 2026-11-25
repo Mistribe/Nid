@@ -233,8 +233,9 @@ public sealed class EditHoldingHandler(IEnvelopeStore envelopes, IItemRegistry i
         if (!checkedHolding.TryGetValue(out var holding))
             return Result.Failure<Guid>(checkedHolding.TryGetFailure(out failure) ? failure! : throw new InvalidOperationException());
 
-        await holdings.ReplaceAsync(holding, ct);
-        return Result.Success(command.Holding);
+        return await holdings.ReplaceAsync(holding, command.Version, ct)
+            ? Result.Success(command.Holding)
+            : Result.Failure<Guid>(HoldingRules.Conflict());
     }
 }
 
@@ -254,8 +255,9 @@ public sealed class DeleteHoldingHandler(IEnvelopeStore envelopes, IItemRegistry
         if (await holdings.InUseAsync(command.Holding, ct))
             return Result.Failure<bool>(new ConflictFailure("This holding is in a snapshot or has movements or cost reports: close it instead.") { Code = InvestmentsCodes.HoldingInUse });
 
-        await holdings.DeleteAsync(command.Holding, ct);
-        return Result.Success(true);
+        return await holdings.DeleteAsync(command.Holding, command.Version, ct)
+            ? Result.Success(true)
+            : Result.Failure<bool>(HoldingRules.Conflict());
     }
 }
 
