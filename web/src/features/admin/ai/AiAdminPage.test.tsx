@@ -248,6 +248,16 @@ describe('Administration › IA', () => {
     await waitFor(() => expect(toasts()).toHaveTextContent('Réglage enregistré.'));
   });
 
+  it('shows category suggestions on the search model, not a model to pick (#450)', async () => {
+    serve([worker()], false, USES.map((u) => (u.use === 'embed' ? { ...u, model: 'bge-m3:latest' } : u)));
+    await renderApp('/admin/ai', { capabilities: adminCapabilities });
+
+    const decide = (await screen.findByRole('heading', { name: 'Suggestions de catégories' })).parentElement!;
+    expect(within(decide).queryByRole('combobox', { name: 'Modèle' })).not.toBeInTheDocument();
+    expect(within(decide).getByRole('textbox', { name: 'Modèle' })).toHaveValue('bge-m3:latest (celui de la recherche par le sens)');
+    expect(within(decide).getByRole('textbox', { name: 'Modèle' })).toHaveAttribute('readonly');
+  });
+
   it('turns a use off', async () => {
     serve([worker()], false, USES.map((u) => (u.use === 'chat' ? { ...u, model: 'llama3.2' } : u)));
     const sent: unknown[] = [];
