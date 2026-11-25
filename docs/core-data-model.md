@@ -333,7 +333,7 @@ Les documents ne sont plus dans Core : le module `Nid.Documents` possède le fic
 | `edited_payload?` | jsonb | Version modifiée par l'utilisateur avant validation |
 | `warnings` | jsonb | Liste `{code, severity, message, field?}` : confiance, écart de contrôle, erreur d'application |
 | `status` | text | `pending`, `approved`, `rejected`, `superseded` |
-| `fingerprint` | char(64) | Hash de `(kind, target_item_id, payload canonique)` |
+| `fingerprint` | char(64) | Hash de `(kind, target_item_id, payload canonique)`, plus la personne qui la soumet quand `target_item_id` est vide (#629) |
 | `superseded_by_id?` | uuid | |
 | provenance | | `source`, `document_id?`, `job_id?`, `created_via`, `created_by_person_id?` (au nom de qui, pour le MCP), `created_at` |
 | décision | | `decided_by_person_id?`, `decided_at?`, `decision_note?`, `applied_refs?` (identifiants des lignes créées : valorisations, flux…) |
@@ -356,7 +356,7 @@ Le payload d'origine est **toujours conservé** ; le payload appliqué est `edit
 ### 7.4 Dédoublonnage
 
 - Même `fingerprint` **en attente** : pas de nouvelle ligne, on renvoie l'existante (index unique partiel sur `fingerprint` pour `status = 'pending'`).
-- Même `(kind, target_item_id, subject_key)` mais payload différent : la nouvelle **remplace** l'ancienne, qui passe à `superseded`.
+- Même `(kind, target_item_id, subject_key)` mais payload différent : la nouvelle **remplace** l'ancienne, qui passe à `superseded`. Sans `target_item_id`, seulement celle de la même personne (#629) : deux adultes qui proposent la même chose sans cible ont chacun la leur.
 
 ### 7.5 Versions de payload et rétention
 
@@ -391,7 +391,7 @@ Clé primaire `(on_date, quote)`, contrainte `rate > 0`, contrainte `quote <> 'U
 - **Devise pivot USD.** Un cours A → B se calcule par `rate_B / rate_A` ; `USD` vaut 1. Fonctionne quelle que soit la devise de référence du foyer.
 - **Normalisation à l'écriture** : toute source dont la base n'est pas l'USD est **rebasée** avant stockage (`rate_q / rate_USD`, `rate_USD = 1 / rate_pivot_USD` pour la devise pivot de la source). La lecture reste identique quelle que soit la source.
 - **Conversion à la date d** : dernier cours avec `on_date ≤ d` (week-ends, jours fériés), avec un **écart maximal de 7 jours par défaut** (configurable) : la BCE a au plus quatre jours ouvrés entre deux cours, jours fériés compris. Au-delà de l'écart : erreur `fx_rate_missing`, jamais de valeur inventée.
-- **Plausibilité** : un cours collecté dont la variation relative par rapport au dernier cours stocké de la même devise dépasse un seuil (**25 % par jour par défaut**, configurable) est refusé et consigné dans `fx_sync_run.rejected` (§8.5) ; le refus ne porte que sur cette devise, le reste du fichier est écrit. La comparaison se fait avec le cours stocké le plus proche antérieur, y compris à travers un écart de plusieurs jours. Les saisies manuelles ne sont pas vérifiées (l'auteur en est l'autorité) ; l'historique BCE est écrit sans vérification (c'est la référence, et ses premiers cours n'ont rien à comparer), mais un cours SubTracker est vérifié contre un cours BCE.
+- **Plausibilité** : un cours collecté dont la variation relative par rapport au dernier cours stocké de la même devise dépasse un seuil (**25 % par jour par défaut**, configurable) est refusé et consigné dans `fx_sync_run.rejected` (§8.5) ; le refus ne porte que sur cette devise, le reste du fichier est écrit. La comparaison se fait avec le cours stocké le plus proche antérieur, y compris à travers un écart de plusieurs jours. Un mouvement durable n'est pas refusé pour toujours : un cours qui reste dans le seuil du cours refusé la veille (lu dans `fx_sync_run.rejected` des dernières exécutions) confirme le nouveau niveau et est écrit (#633). Les saisies manuelles ne sont pas vérifiées (l'auteur en est l'autorité) ; l'historique BCE est écrit sans vérification (c'est la référence, et ses premiers cours n'ont rien à comparer), mais un cours SubTracker est vérifié contre un cours BCE.
 - **Toutes les devises fournies sont stockées** (environ 170 lignes par jour pour SubTracker-Data, soit quelque 60 000 par an) : utiliser une nouvelle devise ne demande aucun rattrapage.
 - **Arrondi** : pleine précision en interne, arrondi à l'affichage uniquement.
 - Les taux sont **indicatifs** (affichage et agrégation du foyer), pas des taux comptables ou bancaires.
@@ -530,7 +530,7 @@ Les deux lignes restent en base ; seule la seconde est courante.
 - Une seule devise par élément pour valorisations et flux (§5.5) : un compte en deux devises se modélise en deux éléments.
 - Les gains ne sont pas convertis : seuls les totaux le sont.
 - Pas de valorisation future ni de prévision dans Core.
-- « Aujourd'hui » : seules les règles de 2A (`IHouseholdCalendar`) prennent le jour du foyer ; les calculs de l'étape 1 prennent encore la date UTC, si bien qu'un import fait tard le soir peut voir la veille.
+- « Aujourd'hui » est le jour du foyer (`IHouseholdCalendar`) partout, imports, abonnements, notifications et documents attendus compris (#631). Seuls les cours de change, les cotations et le budget IA restent datés en UTC, par règle ; `ClockAndIdConventionTests` refuse tout autre `InUtc().Date`.
 
 ## 13. Questions ouvertes
 

@@ -182,7 +182,7 @@ public sealed partial class AssistantLoop(
                 yield return new AssistantToolCalled(call.Name);
                 string content;
                 if (destination is { Placement: LlmPlacement.Cloud } && offered.TryGetValue(call.Name, out var tool)
-                    && tool.DataClasses.Contains(DataClasses.BankLabels))
+                    && AssistantCatalogue.KeptFromCloud(tool.DataClasses))
                 {
                     heldBack++;
                     content = KeptOut(1, provider);
@@ -210,8 +210,8 @@ public sealed partial class AssistantLoop(
                     foreach (System.Text.RegularExpressions.Match id in Uuid().Matches(answered))
                         if (seen.Count < MaxSeen && Guid.TryParse(id.Value, out var found) && !seen.Contains(found))
                             seen.Add(found);
-                    if (offered.TryGetValue(call.Name, out var called) && called.DataClasses.Contains(DataClasses.BankLabels))
-                        dataClass = DataClasses.BankLabels;
+                    if (offered.TryGetValue(call.Name, out var called))
+                        dataClass = AssistantCatalogue.ClassAfter(dataClass, called.DataClasses);
                 }
                 messages.Add(new ChatMessage(ChatRole.Tool, content, ToolCallId: call.Id));
             }

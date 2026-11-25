@@ -48,6 +48,8 @@ describe('a phase alone', () => {
     expect(issues(line({ grossAmount: '5000', taxableAmount: '5000' }))).toEqual([]);
     expect(issues(line({ grossAmount: '', taxableAmount: '4400,00' }))).toEqual([]);
     expect(issues(line({ taxableAmount: '0' }))).toEqual(['taxableAmount: investments_form.positive_amount_format']);
+    // #642: amounts typed with a thousands space are compared too.
+    expect(issues(line({ grossAmount: '2 500', taxableAmount: '3 000' }))).toContain('taxableAmount: income_form.taxable_above_gross');
   });
 
   it('sends the taxable amount when given, and keeps it through the form', () => {

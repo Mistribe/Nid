@@ -32,7 +32,8 @@ public interface IConversations
 
     Task<bool> DeleteAsync(Guid id, PersonId author, CancellationToken ct);
 
-    /// <summary>Conversations last updated before <paramref name="before"/>, with their messages; the number deleted.</summary>
+    /// <summary>Messages written before <paramref name="before"/>, and conversations last updated before it with theirs; the number of
+    /// conversations deleted.</summary>
     Task<int> PurgeAsync(Instant before, CancellationToken ct);
 }
 

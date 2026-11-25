@@ -5,6 +5,7 @@ public sealed class TaxProfileRow
 {
     public int Year { get; set; }
     public string Data { get; set; } = "{}";
+    public uint Version { get; set; }
 }
 
 /// <summary>Tax assessments spec §3: a notice as a camelCase JSON document; <c>Year</c> repeats the document's for the declarants' unique index.</summary>

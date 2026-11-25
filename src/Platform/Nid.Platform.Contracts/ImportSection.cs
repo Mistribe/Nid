@@ -33,6 +33,7 @@ public sealed class ImportContext(PersonId actor, IReadOnlyDictionary<string, Pe
     /// <summary>File ref of an adult → the account it is, as given when the session was created.</summary>
     public IReadOnlyDictionary<string, PersonId> AdultMap { get; } = adultMap;
 
+    /// <summary>#631: the household's day, as the app's own entry forms see it.</summary>
     public LocalDate Today { get; } = today;
 
     public Dictionary<string, ResolvedPerson> Persons { get; } = new(StringComparer.Ordinal);

@@ -14,8 +14,8 @@ public sealed class ThrowingNotificationStore(INotificationStore inner, PersonId
     public Task<IReadOnlyList<OpenedNotification>> ApplyAsync(PersonId person, IReadOnlyList<LifecycleChange> changes, CancellationToken ct)
         => person == failFor ? throw new InvalidOperationException("The store is down for this person.") : inner.ApplyAsync(person, changes, ct);
 
-    public Task<OpenedNotification?> PublishAsync(PersonId person, NotificationKind kind, Notice notice, Instant now, CancellationToken ct)
-        => inner.PublishAsync(person, kind, notice, now, ct);
+    public Task<OpenedNotification?> PublishAsync(PersonId person, NotificationKind kind, Notice notice, Instant now, NodaTime.LocalDate today, CancellationToken ct)
+        => inner.PublishAsync(person, kind, notice, now, today, ct);
 
     public Task ResolveKeyAsync(string key, CancellationToken ct) => inner.ResolveKeyAsync(key, ct);
 

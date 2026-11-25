@@ -62,8 +62,12 @@ public sealed class ConversationStore(AiDbContext db) : IConversations, IConvers
     public async Task<bool> DeleteAsync(Guid id, PersonId author, CancellationToken ct)
         => await db.Conversations.Where(c => c.Id == id && c.PersonId == author.Value).ExecuteDeleteAsync(ct) > 0;
 
-    public Task<int> PurgeAsync(Instant before, CancellationToken ct)
-        => db.Conversations.Where(c => c.UpdatedAt < before).ExecuteDeleteAsync(ct);
+    public async Task<int> PurgeAsync(Instant before, CancellationToken ct)
+    {
+        // #626: a conversation used each month keeps no message past the retention either.
+        await db.ConversationMessages.Where(m => m.CreatedAt < before).ExecuteDeleteAsync(ct);
+        return await db.Conversations.Where(c => c.UpdatedAt < before).ExecuteDeleteAsync(ct);
+    }
 
     /// <summary>#617: an empty answer marks one taken out (a turn that wrote nothing is never kept), and the context skips it.</summary>
     public Task<int> ForgetAsync(Guid id, CancellationToken ct)

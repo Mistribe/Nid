@@ -1,0 +1,4 @@
+{
+  "en": "The assistant no longer sends pending proposals, which copy bank line labels and document text, to a cloud model.",
+  "fr": "L'assistant n'envoie plus les propositions en attente, qui recopient des libellés bancaires et le texte de documents, à un modèle cloud."
+}

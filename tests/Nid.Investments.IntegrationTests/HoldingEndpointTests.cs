@@ -1,6 +1,8 @@
 using System.Net;
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Contracts;
+using Nid.Platform.Contracts;
 using Nid.TestSupport;
 
 namespace Nid.Investments.IntegrationTests;
@@ -183,6 +185,22 @@ public class HoldingEndpointTests(PostgresFixture fixture, SharedNidApp shared) 
         await Refused(new { asOf = "2025-06-30", lines = Array.Empty<object>() }, "investments.invalid_snapshot", "lines");
         await Refused(new { asOf = "2025-06-30", lines = new[] { new { holdingId = euro, value = Eur("1") }, new { holdingId = euro, value = Eur("2") } } },
             "investments.invalid_snapshot", "lines[1].holdingId");
+    }
+
+    [Fact]
+    public async Task The_store_checks_the_clients_version_not_the_row_it_reloads()
+    {
+        // #630: a write landing between the handler's version check and the store's save is a conflict, not lost.
+        await using var app = await NidApp.StartAsync(fixture);
+        var (id, _, fund) = await GoldenAsync(app);
+        await using var scope = app.Services.CreateAsyncScope();
+        scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.Browser(app.AdultA);
+        var store = scope.ServiceProvider.GetRequiredService<Nid.Investments.Application.IHoldingStore>();
+        var read = (await store.HoldingsAsync(id, TestContext.Current.CancellationToken)).Single(h => h.Holding.Id == fund);
+
+        Assert.True(await store.ReplaceAsync(read.Holding with { Name = "Fonds A (Alice)" }, read.Version, TestContext.Current.CancellationToken));
+        Assert.False(await store.ReplaceAsync(read.Holding with { Name = "Fonds A (Bob)" }, read.Version, TestContext.Current.CancellationToken));
+        Assert.False(await store.DeleteAsync(fund, read.Version, TestContext.Current.CancellationToken));
     }
 
     [Fact]

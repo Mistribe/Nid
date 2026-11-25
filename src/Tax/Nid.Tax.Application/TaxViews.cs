@@ -12,14 +12,15 @@ namespace Nid.Tax.Application;
 /// Tax assessments spec §5-§6: <c>CarriedFrom</c> what the previous year's notices lay over the profile (null: nothing), <c>Gaps</c> the
 /// year's own notice against the estimate (null: no notice for these adults). <c>RentalDeficitEstimated</c>: the rental deficit last
 /// year's estimate leaves for this one, a suggestion for the profile's field when no notice of last year prints one (null: none).
-/// Issue #233: <c>Declaration</c> the 2042 boxes the estimate fills.
+/// Issue #233: <c>Declaration</c> the 2042 boxes the estimate fills. #630: <c>ProfileVersion</c> the version of the year's own profile, to send
+/// back with <c>PUT /tax/profile/{year}</c>; null when the year has none.
 /// </summary>
 public sealed record TaxEstimateView(
     int Year, TaxProfileView Profile, int? ProfileFrom, TaxInputsView Inputs, TaxResultView Result, IReadOnlyList<TaxNoticeView> Notices,
     IReadOnlyList<TaxAdultView> Adults, int Dependents, IReadOnlyList<TaxPropertyView> RentalProperties,
     IReadOnlyList<TaxSalaryDetailView> SalaryDetail, IReadOnlyDictionary<Guid, string> ObservedRates,
     TaxCarryView? CarriedFrom = null, TaxGapsView? Gaps = null, string? RentalDeficitEstimated = null, TaxDeclarationView? Declaration = null,
-    TaxPreviousView? Previous = null, IReadOnlyList<TaxYearView>? History = null) : IExposesItems
+    TaxPreviousView? Previous = null, IReadOnlyList<TaxYearView>? History = null, uint? ProfileVersion = null) : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems() => Notices.Select(n => n.Item).Concat(RentalProperties.Select(p => p.Id)).Concat(SalaryDetail.Select(d => d.Item));
 }

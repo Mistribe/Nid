@@ -96,7 +96,7 @@ public sealed class ModelRequests(IWorkerRouter router, IWorkerClient client, IN
                     case FrameType.End:
                         yield break;
                     default:
-                        failure = $"{JobCodes.WorkerFailed}:{System.Text.Encoding.UTF8.GetString(frame.Content.Span)}";
+                        failure = Domain.JobRetries.WorkerFailed(System.Text.Encoding.UTF8.GetString(frame.Content.Span));
                         if (started)
                         {
                             yield return ModelFailures.Of(failure);
@@ -157,10 +157,18 @@ public sealed class TestWorkerHandler(IWorkerStore workers, IModelRequests reque
 }
 
 [RequestHandler<GetModelJobQuery, ModelJobView>]
-public sealed class GetModelJobHandler(IModelJobs jobs) : IRequestHandler<GetModelJobQuery, ModelJobView>
+public sealed class GetModelJobHandler(IJobStore jobs, IEnumerable<IJobFileSource> files) : IRequestHandler<GetModelJobQuery, ModelJobView>
 {
     public async ValueTask<Result<ModelJobView>> HandleAsync(GetModelJobQuery query, CancellationToken ct = default)
-        => await jobs.GetAsync(query.Id, ct) is { } view
-            ? Result.Success(view)
-            : Result.Failure<ModelJobView>(new UnambitiousFx.Functional.Failures.NotFoundFailure("job", query.Id.ToString()));
+    {
+        if (await jobs.FindAsync(query.Id, ct) is not { } job)
+            return Result.Failure<ModelJobView>(new UnambitiousFx.Functional.Failures.NotFoundFailure("job", query.Id.ToString()));
+        var view = ModelJobs.View(job);
+        // #622: a file's result (a document's text) only for the admin who reads the file, as its module says (the list's rule, #602).
+        return job.FileRef is null || await ReadableAsync(JobDispatcher.FileOf(job.FileRef), ct) ? view : view with { Result = null };
+    }
+
+    private async Task<bool> ReadableAsync((string Module, string Reference) file, CancellationToken ct)
+        => files.FirstOrDefault(f => f.Module == file.Module) is { } source
+            && (await source.ReadableAsync([file.Reference], ct)).Contains(file.Reference);
 }

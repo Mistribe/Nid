@@ -44,7 +44,8 @@ export function checkPhase(v: PhaseValues, ctx: z.RefinementCtx, t: TFunction, a
 
 /** The net taxable income cannot exceed the gross, when both are given (the server's rule). */
 export function checkTaxable(v: Pick<PhaseValues, 'grossAmount' | 'taxableAmount'>, ctx: z.RefinementCtx, t: TFunction, at: (string | number)[] = []): void {
-  const number = (text: string) => Number(text.trim().replace(',', '.'));
+  // #642: `2 500` reads as `2500`, as the API reads it.
+  const number = (text: string) => Number(toWireAmount(text));
   if (v.grossAmount.trim() !== '' && v.taxableAmount.trim() !== '' && number(v.taxableAmount) > number(v.grossAmount))
     ctx.addIssue({ code: 'custom', path: [...at, 'taxableAmount'], message: t('income_form.taxable_above_gross') });
 }
