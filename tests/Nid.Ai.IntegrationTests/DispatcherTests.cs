@@ -347,6 +347,23 @@ public sealed class DispatcherTests(PostgresFixture fixture) : IClassFixture<Pos
     }
 
     [Fact]
+    public async Task A_job_past_the_worker_slots_waits_as_busy_without_an_attempt()
+    {
+        // A worker runs 4 jobs at once: the fifth of a pass waits its turn, which is not a failure.
+        await using var world = await PairedWorld.StartAsync(fixture);
+        await world.PairAsync(0);
+        var ids = new List<Guid>();
+        for (var i = 0; i < 5; i++)
+            ids.Add(await SubmitAsync(world, Echo($"job {i}")));
+
+        await PassAsync(world);
+
+        var waiting = Assert.Single(await Task.WhenAll(ids.Select(id => ViewAsync(world, id))), j => j.Status == "queued");
+        Assert.Equal(JobCodes.WorkerBusy, waiting.WaitingReason);
+        Assert.Equal(0, waiting.Attempts);
+    }
+
+    [Fact]
     public async Task Nothing_eligible_leaves_the_job_waiting_with_the_reason()
     {
         await using var world = await PairedWorld.StartAsync(fixture);

@@ -136,7 +136,8 @@ public sealed class JobDispatcher(
         var candidates = route.Workers.Where(w => !_unreachable.Contains(w.Id) && _sent.GetValueOrDefault(w.Id) < Slots(w)).ToList();
         if (candidates.Count == 0)
         {
-            await jobs.TryUpdateAsync(job with { WaitingReason = route.Reason ?? JobCodes.WorkerFailed, RunAfter = now + JobRetries.WaitWhenNowhere }, ct);
+            var reason = route.Reason ?? (route.Workers.Any(w => !_unreachable.Contains(w.Id)) ? JobCodes.WorkerBusy : AiCodes.WorkerUnreachable);
+            await jobs.TryUpdateAsync(job with { WaitingReason = reason, RunAfter = now + JobRetries.WaitWhenNowhere }, ct);
             return;
         }
 
@@ -206,7 +207,7 @@ public sealed class JobDispatcher(
             // A worker that answered but could not take it now: not the job's fault, no attempt counted.
             await jobs.TryUpdateAsync(claimed with
             {
-                Status = JobState.Queued, LeaseUntil = null, NextPollAt = null, RunAfter = now + JobRetries.WaitWhenNowhere, WaitingReason = JobCodes.WorkerFailed,
+                Status = JobState.Queued, LeaseUntil = null, NextPollAt = null, RunAfter = now + JobRetries.WaitWhenNowhere, WaitingReason = JobCodes.WorkerBusy,
             }, ct);
             return;
         }
