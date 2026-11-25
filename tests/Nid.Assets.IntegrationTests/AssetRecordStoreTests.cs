@@ -115,4 +115,20 @@ public class AssetRecordStoreTests(PostgresFixture fixture) : IClassFixture<Post
 
         Assert.Null(await store.FindAsync(id, Ct));
     }
+
+    [Fact]
+    public async Task Deletion_part_reports_an_imported_asset_only()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await using var scope = app.Services.CreateAsyncScope();
+        var sp = scope.ServiceProvider;
+        var store = sp.GetRequiredService<IAssetRecordStore>();
+        var (plain, imported) = (await NewItemAsync(sp, app), await NewItemAsync(sp, app));
+        await store.AddAsync(plain, Art(), Ct);
+        await store.AddAsync(imported, Art(), Ct, new ImportMark("car-1", "hash", app.AdultA));
+        var part = new AssetsDeletionPart(sp.GetRequiredService<AssetsDbContext>());
+
+        Assert.False(await part.ImportedAsync(new ItemAccess(plain, "A", Visibility.Shared, []) with { Module = "assets", Kind = "asset" }, Ct));
+        Assert.True(await part.ImportedAsync(new ItemAccess(imported, "B", Visibility.Shared, []) with { Module = "assets", Kind = "asset" }, Ct));
+    }
 }

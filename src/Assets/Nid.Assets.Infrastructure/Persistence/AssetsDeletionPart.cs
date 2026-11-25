@@ -12,7 +12,8 @@ public sealed class AssetsDeletionPart(AssetsDbContext db) : IItemDeletionPart
 
     public Task<IReadOnlyList<DeletionBlocker>> BlockersAsync(ItemAccess item, CancellationToken ct) => Task.FromResult<IReadOnlyList<DeletionBlocker>>([]);
 
-    public Task<bool> ImportedAsync(ItemAccess item, CancellationToken ct) => Task.FromResult(false);
+    public async Task<bool> ImportedAsync(ItemAccess item, CancellationToken ct)
+        => IsAsset(item) && await db.Assets.AnyAsync(a => a.ItemId == item.Id.Value && a.ImportRef != null, ct);
 
     public async Task RemoveAsync(ItemAccess item, CancellationToken ct)
     {

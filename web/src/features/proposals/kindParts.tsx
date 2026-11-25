@@ -16,7 +16,7 @@ import '@/locales/forms';
 
 export type Money = { amount: string; currency: string };
 
-export type LinkTarget = { to: '/investments/$id' | '/income/$id' | '/subscriptions/$id' | '/loans/$id' | '/properties/$id'; params: { id: string } };
+export type LinkTarget = { to: '/investments/$id' | '/income/$id' | '/subscriptions/$id' | '/loans/$id' | '/properties/$id' | '/other-assets/$id'; params: { id: string } };
 
 /** Spec 4D1 §5: what a kind brings to « À valider ». Each kind reads its own payload and preview. */
 export type KindUi = {

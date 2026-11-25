@@ -5,6 +5,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { resetFocus } from './focus';
+import { routeLink } from './routeKind';
 import { proposal } from './testData';
 import { serve } from './testServe';
 
@@ -213,5 +214,10 @@ describe('Une proposition d’action du web', () => {
 
     await waitFor(() => expect(screen.queryByText('Cette proposition a changé.')).not.toBeInTheDocument());
     expect(screen.queryByRole('button', { name: 'Recharger' })).not.toBeInTheDocument();
+  });
+
+  it('links an asset proposal to the asset’s page', () => {
+    const p = proposal({ kind: 'assets.update_asset', targetItemId: 'abc' });
+    expect(routeLink(p)).toEqual({ to: '/other-assets/$id', params: { id: 'abc' } });
   });
 });

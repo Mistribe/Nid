@@ -25,7 +25,8 @@ test('alice records a car bought for 18 000 €, values it, and finds it under �
   await alice.goto('/dashboard');
   const worth = alice.getByRole('button', { name: /Patrimoine net/ });
   await expect(worth).toContainText('€');
-  const split = alice.getByRole('table', { name: 'Valeur de chaque élément' });
+  await worth.click();
+  const split = alice.getByRole('dialog', { name: 'Patrimoine net' }).getByRole('table', { name: 'Valeur de chaque élément' });
   await expect(split.getByRole('columnheader', { name: 'Autres biens' })).toBeVisible();
   await expect(split.getByRole('row', { name: new RegExp(name) })).toContainText('12');
 });

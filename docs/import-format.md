@@ -54,7 +54,7 @@ Un **seul format** sert à trois usages :
 | `properties`, `property_recurring_costs`, `tenancies` | tableaux | Module RealEstate, le bien (`realestate/README.md` §10) |
 | `loans`, `loan_phases`, `loan_insurances`, `loan_fees`, `loan_events`, `loan_bank_schedule` | tableaux | Module RealEstate, les crédits (`realestate/loans.md` §10) ; `loan_bank_schedule` livrée en 3F2 (§12bis) |
 | `subscription_insurances` | tableau | Module Abonnements : l'assurance d'un abonnement (§5.3bis), appliquée après `properties`, que l'assurance peut nommer |
-| `assets` | tableau | Module Autres actifs (#186) : un véhicule, un métal précieux, une œuvre d'art, un objet de collection ou un autre bien, avec ses valorisations dans `valuations` (§5.10) |
+| `assets` | tableau | Module Autres biens (#186) : un véhicule, un métal précieux, une œuvre d'art, un objet de collection ou un autre bien, avec ses valorisations dans `valuations` (§5.10) |
 | `income_sources`, `income_phases` | tableaux | Module Revenus (`income-data-model.md` §9) |
 | `income_one_off_taxable` | tableau | Module Revenus : le net imposable d'un revenu ponctuel, `{ flow_id, taxable_amount }`, où `flow_id` est l'`id` d'une entité de `flows` (catégorie `one_off`) ; appliqué après `flows` |
 | `valuations`, `flows` | tableaux | Core (§5.6) |
@@ -349,16 +349,16 @@ Une garde à domicile et ses mois, saisis tels que payés (aucun calcul de paie)
 
 **Règles** : comme `goals` (§8) — inchangée, en conflit, ou remplacée avec tous ses mois quand l'import remplace.
 
-### 5.10 `assets` (Autres actifs)
+### 5.10 `assets` (Autres biens)
 
-Les actifs que la personne lit, archivés compris (#186). La valeur d'un actif vient de son prix d'achat, puis des valorisations du fichier qui le nomment (`valuations`, §5.6, `item` = `id` de l'actif) ; les flux ne s'appliquent pas à un actif (`assets.no_flows`).
+Les biens que la personne lit, archivés compris (#186). La valeur d'un bien vient de son prix d'achat, puis des valorisations du fichier qui le nomment (`valuations`, §5.6, `item` = `id` de le bien) ; les flux ne s'appliquent pas à un bien (`assets.no_flows`).
 
 | Champ | Type | Remarques |
 |---|---|---|
 | `id` | string | |
 | `name` | string | 1 à 100 caractères |
 | `kind` | string | `vehicle`, `precious_metal`, `art`, `collectible`, `other` (`assets.unknown_kind`) |
-| `currency` | string | Devise de l'actif ; un remplacement la conserve |
+| `currency` | string | Devise de le bien ; un remplacement la conserve |
 | `purchase_price` | décimal? | Chaîne décimale (un nombre JSON est accepté), > 0, deux décimales au plus (`assets.invalid_purchase`) |
 | `purchased_on` | date? | Non future ; avec `purchase_price`, ou ni l'un ni l'autre (`assets.purchase_incomplete`) |
 | `note` | string? | 2 000 caractères au plus |
@@ -366,7 +366,7 @@ Les actifs que la personne lit, archivés compris (#186). La valeur d'un actif v
 | `fineness` | décimal? | `precious_metal` seulement, de 0 (exclu) à 1000, une décimale au plus (`assets.invalid_fineness`) ; `999.9` est conservé tel quel |
 | `visibility`, `share_level`, `ownership`, `closed` | | Comme `goals` |
 
-**Règles** : comme `goals` (§8) — inchangée, en conflit, ou remplacée quand l'import remplace. **Une valeur est toujours présente** : un actif sans `purchase_price` doit être nommé par au moins une valorisation du même fichier, sinon `assets.value_required` sur sa ligne. La règle ne regarde que le fichier : les valorisations déjà enregistrées ne la satisfont pas, même au remplacement. L'actif passe après l'immobilier (ordre 45) et avant `valuations`.
+**Règles** : comme `goals` (§8) — inchangée, en conflit, ou remplacée quand l'import remplace. **Une valeur est toujours présente** : un bien sans `purchase_price` doit être nommé par au moins une valorisation du même fichier, sinon `assets.value_required` sur sa ligne. La règle ne regarde que le fichier : les valorisations déjà enregistrées ne la satisfont pas, même au remplacement. Le bien passe après l'immobilier (ordre 45) et avant `valuations`.
 
 ## 6. Résolution des personnes
 

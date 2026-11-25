@@ -21,7 +21,7 @@ Genres : `vehicle`, `precious_metal`, `art`, `collectible`, `other`. Seul `preci
 - **Achat** : prix et date ensemble ou ni l'un ni l'autre (`assets.purchase_incomplete`) ; la date n'est pas future.
 - **Métal** : poids et titre seulement pour `precious_metal` (`assets.metal_only`) ; poids > 0 ; titre en ‰, de 0 (exclu) à 1 000, une décimale (`999.9` est conservé tel quel).
 - **Modification** : remplace tous les champs. Passer d'un métal à un autre genre efface poids et titre.
-- **Clôture** : archiver un bien le tient pour vendu (voir §5) ; pas de suppression.
+- **Clôture** : archiver un bien le tient pour vendu (voir §5) ; supprimer (après aperçu) efface un bien créé par erreur, avec ses valeurs.
 - Les valorisations se posent par date : une valeur à une date déjà valorisée la remplace.
 
 ## 4. Valeur à une date

@@ -11,15 +11,17 @@ public static class AssetMath
     public static AssetValue? At(AssetDetails d, IReadOnlyList<(LocalDate On, decimal Amount)> valuations, LocalDate date)
     {
         var past = valuations.Where(v => v.On <= date).ToList();
-        if (past.Count > 0 && past.MaxBy(v => v.On) is var v)
+        if (past.Count > 0)
+        {
+            var v = past.MaxBy(x => x.On);
             return new AssetValue(v.Amount, v.On, false);
+        }
         return d is { PurchasePrice: { } price, PurchasedOn: { } on } && on <= date ? new AssetValue(price, on, true) : null;
     }
 
     /// <summary>The earliest of the purchase price on its date and the first valuation on its date: what goes in <c>Moved</c>.</summary>
     public static AssetValue? FirstCounted(AssetDetails d, IReadOnlyList<(LocalDate On, decimal Amount)> valuations)
     {
-        
         var purchase = d is { PurchasePrice: { } price, PurchasedOn: { } on } ? new AssetValue(price, on, true) : null;
         if (valuations.Count == 0)
             return purchase;

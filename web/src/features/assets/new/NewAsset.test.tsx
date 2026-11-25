@@ -45,6 +45,7 @@ describe('NewAsset', () => {
     await pick(user, 'Type', 'Véhicule');
     await user.click(screen.getByRole('radio', { name: 'Oui, partagé' }));
     await user.type(screen.getByLabelText('Montant'), '8000');
+    await user.type(screen.getByLabelText('Date'), '01/03/2024');
     await user.click(screen.getByRole('button', { name: 'Ajouter le bien' }));
 
     await waitFor(() => expect(router.state.location.pathname).toBe(`/other-assets/${ASSET}`));
@@ -70,5 +71,19 @@ describe('NewAsset', () => {
     expect(bodies).toEqual([expect.objectContaining({
       name: 'Lingot', kind: 'precious_metal', weightGrams: 31.1, fineness: 999.9, purchasePrice: '2000', purchasedOn: '2024-03-01', visibility: 'shared',
     })]);
+  });
+
+  it('asks for the date when a purchase price has none', async () => {
+    const bodies: unknown[] = [];
+    serve(bodies);
+    const { user } = await renderApp('/other-assets/new');
+    await user.type(await screen.findByLabelText('Nom'), 'Citadine');
+    await user.click(screen.getByRole('radio', { name: 'Oui, partagé' }));
+    await user.type(screen.getByLabelText('Montant'), '8000');
+    await user.click(screen.getByRole('button', { name: 'Ajouter le bien' }));
+
+    expect(await screen.findByText('Un achat a un prix et une date, ou ni l’un ni l’autre.')).toBeInTheDocument();
+    expect(screen.getByLabelText('Date')).toHaveAttribute('aria-invalid', 'true');
+    expect(bodies).toEqual([]);
   });
 });

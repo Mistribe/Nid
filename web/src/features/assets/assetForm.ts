@@ -49,7 +49,10 @@ export function newAssetSchema(t: TFunction) {
     visibility: z.custom<'shared' | 'private'>((x) => x === 'shared' || x === 'private', { error: t('loan_form.visibility_required'), abort: false }),
     owners: ownershipShape(t).owners,
     shareLevel: ownershipShape(t).shareLevel,
-  }).superRefine((v, ctx) => { checkMetal(v, ctx, t); checkOwnership(v, ctx, t); });
+  }).superRefine((v, ctx) => {
+    checkMetal(v, ctx, t); checkOwnership(v, ctx, t);
+    if (v.mode === 'purchase' && v.amount.trim() !== '' && v.valueOn === '') ctx.addIssue({ code: 'custom', path: ['valueOn'], message: t('assets_form.purchase_incomplete') });
+  });
 }
 export type NewAssetValues = z.infer<ReturnType<typeof newAssetSchema>>;
 
