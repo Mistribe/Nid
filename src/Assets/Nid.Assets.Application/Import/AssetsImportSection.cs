@@ -306,8 +306,7 @@ public sealed partial class AssetsImportSection(
         }
 
         var details = new AssetDetails(r.Kind, r.PurchasePrice, purchasedOn, r.Note, r.WeightGrams, r.Fineness);
-        // A purchased_on that did not parse is reported already: the rules would call the purchase incomplete.
-        var failure = AssetCheck.Name(r.Name, r.Note) ?? (ok || r.PurchasedOn is null ? AssetRules.Check(details, today) : null);
+        var failure = AssetCheck.Name(r.Name, r.Note) ?? AssetRules.Check(details, today);
         if (failure is not null)
         {
             var field = failure.Metadata is { } m && m.TryGetValue("field", out var f) && f is string name ? name : FieldErrors.Of(failure)?.FirstOrDefault()?.Path;

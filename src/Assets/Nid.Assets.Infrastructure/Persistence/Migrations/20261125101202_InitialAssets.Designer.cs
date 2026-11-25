@@ -13,7 +13,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Nid.Assets.Infrastructure.Persistence.Migrations;
 
 [DbContext(typeof(AssetsDbContext))]
-[Migration("20261125085822_InitialAssets")]
+[Migration("20261125101202_InitialAssets")]
 partial class InitialAssets
 {
     /// <inheritdoc />
@@ -36,6 +36,18 @@ partial class InitialAssets
                 b.Property<decimal?>("Fineness")
                     .HasColumnType("numeric(5,1)")
                     .HasColumnName("fineness");
+
+                b.Property<string>("ImportHash")
+                    .HasColumnType("char(64)")
+                    .HasColumnName("import_hash");
+
+                b.Property<string>("ImportRef")
+                    .HasColumnType("text")
+                    .HasColumnName("import_ref");
+
+                b.Property<Guid?>("ImportedBy")
+                    .HasColumnType("uuid")
+                    .HasColumnName("imported_by");
 
                 b.Property<string>("Kind")
                     .IsRequired()
@@ -70,8 +82,15 @@ partial class InitialAssets
                 b.HasIndex("Kind")
                     .HasDatabaseName("ix_asset_kind");
 
+                b.HasIndex("ImportedBy", "ImportRef")
+                    .IsUnique()
+                    .HasDatabaseName("ix_asset_imported_by_import_ref")
+                    .HasFilter("import_ref is not null");
+
                 b.ToTable("asset", "assets", t =>
                     {
+                        t.HasCheckConstraint("ck_asset_import", "(import_ref is null) = (import_hash is null) and (import_ref is null) = (imported_by is null)");
+
                         t.HasCheckConstraint("ck_asset_metal", "kind = 'precious_metal' or (weight_grams is null and fineness is null)");
 
                         t.HasCheckConstraint("ck_asset_purchase", "(purchase_price is null) = (purchased_on is null)");

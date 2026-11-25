@@ -95,6 +95,20 @@ public class AssetsImportTests(PostgresFixture fixture) : IClassFixture<Postgres
     }
 
     [Fact]
+    public async Task Flow_on_an_asset_is_refused()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var file = File([Car]);
+        file["flows"] = """[{"id":"f-car","item":"asset-car","occurred_on":"2024-01-01","kind":"expense","amount":{"amount":"100","currency":"EUR"}}]""";
+
+        var session = await ValidateAsync(new ImportClient(app), app, app.AdultA, file);
+
+        Assert.Equal([(AssetsCodes.NoFlows, "flows[0].kind")], ErrorsOf(session));
+        Assert.Equal("An asset takes valuations only, no flows.",
+            session.Report!.Issues.Single(i => i.Severity == "error").Message);
+    }
+
+    [Fact]
     public async Task Weight_on_vehicle_is_refused_on_its_row()
     {
         await using var app = await NidApp.StartAsync(fixture);

@@ -21,7 +21,8 @@ public sealed record FactConvention(
                 ? ("category", $"'{category}' only classifies a {string.Join(" or ", Categories.Where(c => c.Value.Contains(category)).Select(c => Wire(c.Key)))} of {("aeiou".Contains(char.ToLowerInvariant(Kind[0])) ? "an" : "a")} {Kind}.")
                 : null;
         if (!Categories.TryGetValue(kind, out var allowed))
-            return ("kind", $"A {Kind}'s flow is {string.Join(" or ", Categories.Keys.Select(Wire))}.");
+            return ("kind", Categories.Count == 0 ? $"{("aeiou".Contains(char.ToLowerInvariant(Kind[0])) ? "An" : "A")} {Kind} takes valuations only, no flows."
+                : $"A {Kind}'s flow is {string.Join(" or ", Categories.Keys.Select(Wire))}.");
         if (category is null)
             return CategoryRequired ? ("category", $"A {Kind}'s {Wire(kind)} has a category: one of {string.Join(", ", allowed)}.") : null;
         return allowed.Contains(category) ? null : ("category", $"A {Kind}'s {Wire(kind)} category is one of {string.Join(", ", allowed)}.");
