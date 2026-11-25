@@ -223,6 +223,7 @@
       "model": "Modèle",
       "no_model": "Aucun modèle choisi",
       "none_declared": "Aucun worker ne propose de modèle pour cet usage.",
+      "decide_by_meaning": "Pas besoin de modèle ici : avec un réglage autre que « Désactivé », Nid rapproche les libellés par le sens avec le modèle de la recherche par le sens.",
       "served_by_one": "{{name}} (1 worker)",
       "served_by_other": "{{name}} ({{count}} workers)",
       "gone": "{{name}} (plus proposé par aucun worker)",

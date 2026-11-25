@@ -15,6 +15,8 @@ public sealed class LlmEmbedder(
     public async Task<string?> ModelAsync(CancellationToken ct)
         => await settings.UseAsync(ModelUses.Embed, ct) is { Mode: not UseModes.Off, Model: { } model } ? model : null;
 
+    public async Task<bool> UseOnAsync(string use, CancellationToken ct) => (await settings.UseAsync(use, ct)).Mode != UseModes.Off;
+
     /// <summary>#558: the <c>embed</c> use's model on the household's workers, local ones only without <c>allow</c> from each
     /// adult concerned. #556: a cloud profile's model, with the mode <c>self_hosted_then_cloud</c>, is that provider's alone (the
     /// index has one model, nothing falls back to a worker), within <c>allowed_kinds</c> and everyone's <c>allow</c>.</summary>

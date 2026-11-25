@@ -59,6 +59,8 @@ export function ModelsSection() {
           </Field>
           <Field label={t('ai.models.model')}
             hint={cloudModels.some((p) => p.model === use.model) ? t('ai.models.cloud_model_hint')
+              // #450: without a model of its own, decide compares labels by meaning with the embed use's model.
+              : offered.length === 0 && use.use === 'decide' ? t('ai.models.decide_by_meaning')
               : offered.length === 0 && cloudModels.length === 0 ? t('ai.models.none_declared') : undefined}>
               {(c) => (
                 <SelectField {...c} value={use.model ?? ''} onValueChange={(value) => model.mutate({ ...path, body: { model: value || null } })}
