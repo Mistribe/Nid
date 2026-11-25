@@ -15,6 +15,7 @@ using Nid.Host.Jobs;
 using Nid.Documents.Application;
 using Nid.Documents.Infrastructure.Persistence;
 using Nid.Goals.Application;
+using Nid.Assets.Infrastructure.Persistence;
 using Nid.Childcare.Infrastructure.Persistence;
 using Nid.Goals.Infrastructure.Persistence;
 using Nid.Income.Application.Import;
@@ -85,6 +86,7 @@ public static class NidServiceCollectionExtensions
         services.AddSingleton<IAuditMap, InvestmentsAuditMap>();
         services.AddSingleton<IAuditMap, IncomeAuditMap>();
         services.AddSingleton<IAuditMap, GoalsAuditMap>();
+        services.AddSingleton<IAuditMap, AssetsAuditMap>();
         services.AddSingleton<IAuditMap, TaxAuditMap>();
         services.AddSingleton<IAuditMap, Nid.Ai.Infrastructure.Persistence.AiAuditMap>();
         services.AddSingleton<IAuditMap, Nid.Childcare.Infrastructure.Persistence.ChildcareAuditMap>();
@@ -140,7 +142,7 @@ public static class NidServiceCollectionExtensions
         services.AddSingleton<Nid.Platform.Notifications.TestSendThrottle>();
         services.AddScoped<IAccessDenials, AccessDenials>();
         services.AddSingleton<Nid.Host.Auth.TokenFailureGate>();
-        services.AddSingleton(new EnabledModules(["core", "subscriptions", "import", "investments", "income", "realestate", "goals", "documents", "banking", "childcare"]));
+        services.AddSingleton(new EnabledModules(["core", "subscriptions", "import", "investments", "income", "realestate", "goals", "documents", "banking", "childcare", "assets"]));
 
         // Exchange rates (1C2a). The options are bound by Program from configuration before AddNid; the defaults
         // below only apply when nothing was bound (tests, tools).
@@ -300,6 +302,15 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<Nid.Goals.Contracts.IEmergencyBuffer, GoalsEmergencyBuffer>();
         services.AddScoped<IGoalsReview, GoalsReview>();
         services.AddScoped<ISeriesContribution, GoalSeries>();
+
+        services.AddDbContext<AssetsDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
+        {
+            npgsql.UseNodaTime();
+            npgsql.MigrationsHistoryTable("__ef_migrations_history", AssetsDbContext.Schema);
+        }).AddInterceptors(sp.GetRequiredService<AuditInterceptor>()));
+        services.AddScoped<ITransactionParticipant, DbContextParticipant<AssetsDbContext>>();
+        services.AddScoped<Nid.Assets.Application.IAssetStore, AssetStore>();
+        services.AddScoped<IItemDeletionPart, AssetsDeletionPart>();
 
         services.AddDbContext<Nid.Ai.Infrastructure.Persistence.AiDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
         {
@@ -603,6 +614,7 @@ public static class NidServiceCollectionExtensions
             cfg.AddRegisterGroup(new Nid.Investments.Application.RegisterGroup());
             cfg.AddRegisterGroup(new Nid.Income.Application.RegisterGroup());
             cfg.AddRegisterGroup(new Nid.Goals.Application.RegisterGroup());
+            cfg.AddRegisterGroup(new Nid.Assets.Application.RegisterGroup());
             cfg.AddRegisterGroup(new Nid.Ai.Application.RegisterGroup());
             cfg.AddRegisterGroup(new Nid.Childcare.Application.RegisterGroup());
             cfg.AddRegisterGroup(new Nid.Documents.Application.RegisterGroup());

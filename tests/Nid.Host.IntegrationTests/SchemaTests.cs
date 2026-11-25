@@ -124,9 +124,10 @@ public class SchemaTests(PostgresFixture fixture) : IClassFixture<PostgresFixtur
         Assert.Contains("documents", schemas);
         Assert.Contains("banking", schemas);
         Assert.Contains("childcare", schemas);
+        Assert.Contains("assets", schemas);
         Assert.Contains("ai", schemas);
         Assert.Contains("tax", schemas);
-        Assert.Equal(12, schemas.Count);
+        Assert.Equal(13, schemas.Count);
     }
 
     [Fact]

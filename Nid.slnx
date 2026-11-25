@@ -87,6 +87,7 @@
     <Project Path="tests/Nid.Ai.IntegrationTests/Nid.Ai.IntegrationTests.csproj" />
     <Project Path="tests/Nid.Ai.Tests/Nid.Ai.Tests.csproj" />
     <Project Path="tests/Nid.Ai.Worker.Tests/Nid.Ai.Worker.Tests.csproj" />
+    <Project Path="tests/Nid.Assets.IntegrationTests/Nid.Assets.IntegrationTests.csproj" />
     <Project Path="tests/Nid.Assets.Tests/Nid.Assets.Tests.csproj" />
     <Project Path="tests/Nid.Banking.IntegrationTests/Nid.Banking.IntegrationTests.csproj" />
     <Project Path="tests/Nid.Banking.Tests/Nid.Banking.Tests.csproj" />
