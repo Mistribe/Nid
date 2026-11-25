@@ -21,6 +21,8 @@ public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
         "/api/v1/subscriptions/catalog/sync", "/api/v1/investments/prices/sync", "/price/accept", "/api/v1/realestate/irl/sync", "PUT /api/v1/realestate/irl/{year:int}/{quarter:int}", "/api/v1/core/inflation/sync", "PUT /api/v1/core/inflation/{year:int}/{month:int}", "/api/v1/realestate/loans/{id:guid}/simulations", "/api/v1/realestate/loans/overview/simulations",
         "/api/v1/realestate/loans/{id:guid}/bank-schedule/preview", "PUT /api/v1/realestate/loans/{id:guid}/bank-schedule",
         "/api/v1/tax/", "PUT /api/v1/dashboard/allocation-target", "PUT /api/v1/investments/fee-references", "/api/v1/scenarios/", "/api/v1/platform/notifications/",
+        // Other assets: their tools come with the MCP step of issue #186; until then no tool proposes an asset write.
+        "/api/v1/assets",
         // Documents: the assistant links, edits and files them through proposals (#305), never archives or unlinks them.
         "/archive", "/unarchive", "DELETE /api/v1/documents/{id:guid}/links/{targetKind}/{targetId:guid}",
         // #600: deleting a document cannot be undone: the person does it in the app, after its confirmation.

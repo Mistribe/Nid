@@ -41,6 +41,7 @@ public class CommandCountTests(PostgresFixture fixture) : IClassFixture<Postgres
     [InlineData("/api/v1/investments/envelopes?scope=me")]
     [InlineData("/api/v1/investments/envelopes?scope=me&archived=true")]
     [InlineData("/api/v1/goals?scope=me&closed=true")]
+    [InlineData("/api/v1/assets?scope=me")]
     [InlineData("/api/v1/calendar?scope=me&from=2025-10-01&to=2025-11-30")] // #239: the round's tax (20 October) and every module
     [InlineData("/api/v1/calendar?scope=me&from=2025-10-01&to=2025-11-30&amounts=true")] // #241: the instalments, costs, rents and subscriptions
     [InlineData("/api/v1/calendar/timeline?scope=me&horizon=10")] // #240: the loans' ends, the tenancies' and the envelopes' tax dates
@@ -123,6 +124,7 @@ public class CommandCountTests(PostgresFixture fixture) : IClassFixture<Postgres
         services.ConfigureDbContext<InvestmentsDbContext>(o => o.AddInterceptors(counter));
         services.ConfigureDbContext<IncomeDbContext>(o => o.AddInterceptors(counter));
         services.ConfigureDbContext<GoalsDbContext>(o => o.AddInterceptors(counter));
+        services.ConfigureDbContext<Nid.Assets.Infrastructure.Persistence.AssetsDbContext>(o => o.AddInterceptors(counter));
         services.ConfigureDbContext<Nid.Tax.Infrastructure.Persistence.TaxDbContext>(o => o.AddInterceptors(counter));
         services.ConfigureDbContext<RealEstateDbContext>(o => o.AddInterceptors(counter));
         services.ConfigureDbContext<PlatformDbContext>(o => o.AddInterceptors(counter));
@@ -178,6 +180,11 @@ public class CommandCountTests(PostgresFixture fixture) : IClassFixture<Postgres
         foreach (var on in new[] { "2025-01-15", "2025-09-15" })
             Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Put, $"/api/v1/goals/{free.Value}/progress/{on}", new { amount = "100" })).StatusCode);
         await PostAsync(app, $"/api/v1/investments/envelopes/{closed.Value}/close", new { closedOn = "2025-06-01" }, HttpStatusCode.OK);
+
+        // Assets: one valued at its purchase, one with a valuation of its own, both listed together.
+        var owners = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } };
+        await PostAsync(app, "/api/v1/assets", new { name = $"Tableau {i}", kind = "art", purchasePrice = "1000", purchasedOn = "2025-01-10", visibility = "shared", owners });
+        await PostAsync(app, "/api/v1/assets", new { name = $"Voiture {i}", kind = "vehicle", currentValue = "8000", visibility = "shared", owners });
 
         await app.NewMonthlyAsync(app.AdultA, 10m + i);
         await app.NewIncomeSourceAsync($"Salaire {i}", Visibility.Shared, (app.AdultA, 10_000));

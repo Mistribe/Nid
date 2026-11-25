@@ -10,4 +10,6 @@ public static class AssetsCodes
     public const string InvalidWeight = "assets.invalid_weight";
     public const string NotFound = "assets.not_found";
     public const string InvalidPurchase = "assets.invalid_purchase";
+    public const string InvalidValue = "assets.invalid_value";
+    public const string Conflict = "assets.conflict";
 }
