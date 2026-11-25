@@ -41984,6 +41984,18 @@ export interface components {
             remoteWorkersAllowed: boolean;
             capabilities: components["schemas"]["CapabilityView"][];
         };
+        ModelJobCounts: {
+            /** Format: int32 */
+            queued: number;
+            /** Format: int32 */
+            running: number;
+            /** Format: int32 */
+            succeeded: number;
+            /** Format: int32 */
+            failed: number;
+            /** Format: int32 */
+            dead: number;
+        };
         ModelJobDispatch: {
             workerName?: null | string;
             /** Format: date-time */
@@ -42020,6 +42032,7 @@ export interface components {
             /** Format: int32 */
             page: number;
             types: string[];
+            counts: components["schemas"]["ModelJobCounts"];
         };
         ModelJobView: {
             /** Format: uuid */

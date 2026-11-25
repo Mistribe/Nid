@@ -7,6 +7,8 @@ import { adminCapabilities } from '@/test/fixtures';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 
+const counts = { queued: 2, running: 1, succeeded: 40, failed: 0, dead: 1 };
+
 const job = (over: Record<string, unknown> = {}) => ({
   id: 'j1', type: 'document-text', status: 'queued', attempts: 0, waitingReason: 'ai.no_worker', error: null, workerName: null,
   createdAt: '2026-11-22T08:00:00+00:00', finishedAt: null, file: null, dispatches: [], ...over,
@@ -21,7 +23,7 @@ describe('Réglages › IA › Tâches', () => {
         // A worker's own failure comes after the code (JobDispatcher): the words are those of the code.
         job({ id: 'j3', type: 'document-text', status: 'queued', attempts: 1, waitingReason: 'ai.worker_failed:oom' }),
       ],
-      total: 3, page: 1, types: ['document-text', 'echo'],
+      total: 3, page: 1, types: ['document-text', 'echo'], counts,
     })));
     const { container } = await renderApp('/admin/ai/jobs', { capabilities: adminCapabilities });
 
@@ -33,6 +35,33 @@ describe('Réglages › IA › Tâches', () => {
     expect(screen.getByRole('row', { name: /réessaiera/ })).toHaveTextContent('Le worker a échoué ; Nid réessaiera.');
     expect(screen.queryByText(/ai\./)).not.toBeInTheDocument();
     await expectNoAxeViolations(container);
+  });
+
+  it('shows how many jobs stand in each state, as the server counts them', async () => {
+    server.use(http.get('*/api/v1/ai/jobs', () => HttpResponse.json({ items: [job()], total: 1, page: 1, types: ['document-text'], counts })));
+    await renderApp('/admin/ai/jobs', { capabilities: adminCapabilities });
+
+    const line = (await screen.findByText('Terminées')).closest('dl')!;
+    expect(within(line).getByText('Terminées').nextSibling).toHaveTextContent('40');
+    expect(within(line).getByText('En cours').nextSibling).toHaveTextContent('1');
+    expect(within(line).getByText('Abandonnées').nextSibling).toHaveTextContent('1');
+  });
+
+  it('filters on a state when its count is clicked, and clears it on a second click', async () => {
+    const statuses: (string | null)[] = [];
+    server.use(http.get('*/api/v1/ai/jobs', ({ request }) => {
+      statuses.push(new URL(request.url).searchParams.get('status'));
+      return HttpResponse.json({ items: [job()], total: 1, page: 1, types: ['document-text'], counts });
+    }));
+    const { user } = await renderApp('/admin/ai/jobs', { capabilities: adminCapabilities });
+
+    await user.click(await screen.findByRole('button', { name: /^En attente : 2/ }));
+    await waitFor(() => expect(statuses.at(-1)).toBe('queued'));
+    expect(screen.getByRole('button', { name: /^En attente : 2/ })).toHaveAttribute('aria-pressed', 'true');
+
+    // Back to every state (the first, unfiltered answer may come from the cache).
+    await user.click(screen.getByRole('button', { name: /^En attente : 2/ }));
+    await waitFor(() => expect(screen.getByRole('button', { name: /^En attente : 2/ })).toHaveAttribute('aria-pressed', 'false'));
   });
 
   it('names the document a job is about and lists each time it was sent (#602)', async () => {
@@ -49,7 +78,7 @@ describe('Réglages › IA › Tâches', () => {
         // A document the admin does not read: the server gives no reference.
         job({ id: 'j2', file: { module: 'documents', reference: null } }),
       ],
-      total: 2, page: 1, types: ['document-text'],
+      total: 2, page: 1, types: ['document-text'], counts,
     })), http.get('*/api/v1/documents/d1', () => HttpResponse.json({ document: { id: 'd1', title: 'Quittance de loyer' } })));
     const { user } = await renderApp('/admin/ai/jobs', { capabilities: adminCapabilities });
 
@@ -72,7 +101,7 @@ describe('Réglages › IA › Tâches', () => {
     const seen: string[] = [];
     server.use(http.get('*/api/v1/ai/jobs', ({ request }) => {
       seen.push(new URL(request.url).search);
-      return HttpResponse.json({ items: [job()], total: 51, page: 1, types: ['document-text', 'echo'] });
+      return HttpResponse.json({ items: [job()], total: 51, page: 1, types: ['document-text', 'echo'], counts });
     }));
     const { user, router } = await renderApp('/admin/ai/jobs?status=queued', { capabilities: adminCapabilities });
 
@@ -86,7 +115,7 @@ describe('Réglages › IA › Tâches', () => {
   });
 
   it('tells an empty list from one its filters empty', async () => {
-    server.use(http.get('*/api/v1/ai/jobs', () => HttpResponse.json({ items: [], total: 0, page: 1, types: [] })));
+    server.use(http.get('*/api/v1/ai/jobs', () => HttpResponse.json({ items: [], total: 0, page: 1, types: [], counts })));
     const { unmount } = await renderApp('/admin/ai/jobs', { capabilities: adminCapabilities });
     expect(await screen.findByRole('heading', { name: 'Aucune tâche' })).toBeInTheDocument();
     unmount();
@@ -99,7 +128,7 @@ describe('Réglages › IA › Tâches', () => {
     const seen: string[] = [];
     server.use(http.get('*/api/v1/ai/jobs', ({ request }) => {
       seen.push(new URL(request.url).search);
-      return HttpResponse.json({ items: [], total: 0, page: 1, types: [] });
+      return HttpResponse.json({ items: [], total: 0, page: 1, types: [], counts });
     }));
     await renderApp('/admin/ai/jobs?status=done', { capabilities: adminCapabilities });
 
@@ -107,7 +136,7 @@ describe('Réglages › IA › Tâches', () => {
   });
 
   it('takes an old link under Réglages › IA to Administration › IA with its filters (#585)', async () => {
-    server.use(http.get('*/api/v1/ai/jobs', () => HttpResponse.json({ items: [], total: 0, page: 1, types: ['echo'] })));
+    server.use(http.get('*/api/v1/ai/jobs', () => HttpResponse.json({ items: [], total: 0, page: 1, types: ['echo'], counts })));
     const { router } = await renderApp('/settings/ai/jobs?type=echo', { capabilities: adminCapabilities });
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/admin/ai/jobs'));
