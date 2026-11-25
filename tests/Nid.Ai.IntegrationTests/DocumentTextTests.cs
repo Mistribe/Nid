@@ -238,6 +238,24 @@ public sealed class DocumentTextTests(PostgresFixture fixture) : IClassFixture<P
     }
 
     [Fact]
+    public async Task The_backfill_asks_again_for_a_document_whose_job_died()
+    {
+        // #625: a worker down or full for five attempts is not the end of a document's text.
+        await using var world = await StartAsync(new Reader(_ => new DocumentTextOutput([new DocumentTextPage(1, "Quittance", TextSource.Ocr)])));
+        var id = await UploadedAsync(world.Nid, world.Nid.AdultA, Pdf, Filed);
+        var dead = await JobOfAsync(world, id);
+        await using (var scope = Scope(world))
+            await scope.ServiceProvider.GetRequiredService<AiDbContext>().Jobs.Where(j => j.Id == dead.Id)
+                .ExecuteUpdateAsync(s => s.SetProperty(j => j.Status, "dead"), TestContext.Current.CancellationToken);
+
+        await BackfillAsync(world);
+        await world.PairAsync();
+        await RunAsync(world);
+
+        Assert.Equal("Quittance", Assert.Single(await PagesAsync(world, id)).Text);
+    }
+
+    [Fact]
     public async Task Deleting_a_document_deletes_its_text_and_its_jobs_result()
     {
         await using var world = await StartAsync(new Reader(_ => new DocumentTextOutput([new DocumentTextPage(1, "Bail", TextSource.TextLayer)])));

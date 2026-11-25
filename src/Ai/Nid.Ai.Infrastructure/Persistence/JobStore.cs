@@ -34,6 +34,10 @@ public sealed class JobStore(AiDbContext db, IDataProtectionProvider protection)
         }
     }
 
+    public async Task<IReadOnlySet<Guid>> LiveAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct)
+        => (await db.Jobs.AsNoTracking().Where(j => ids.Contains(j.Id) && (j.Status == "queued" || j.Status == "running" || j.Status == "succeeded"))
+            .Select(j => j.Id).ToListAsync(ct)).ToHashSet();
+
     public async Task<JobRecord?> FindAsync(Guid id, CancellationToken ct)
         => await db.Jobs.AsNoTracking().SingleOrDefaultAsync(j => j.Id == id, ct) is { } row ? ToRecord(row) : null;
 

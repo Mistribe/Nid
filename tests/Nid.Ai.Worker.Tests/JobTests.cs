@@ -86,6 +86,24 @@ public sealed class JobTests
     }
 
     [Fact]
+    public void Files_held_past_their_cap_make_the_worker_busy()
+    {
+        // #625: each waiting job keeps its file in memory; 25 MiB is the largest upload.
+        var gate = new BlockingJob();
+        using var table = new JobTable([gate], [], TimeProvider.System);
+        using var key = WorkerKeyPair.Generate();
+        var secret = SealedRequest.Seal(key.PublicKey, "x"u8).Secret;
+        var file = new byte[25 * 1024 * 1024];
+        var input = JsonDocument.Parse("{}").RootElement;
+
+        for (var i = 0; i < 5; i++)
+            Assert.Null(table.Submit(BlockingJob.Name, 1, input, file, secret).Refusal);
+        Assert.Equal("busy", table.Submit(BlockingJob.Name, 1, input, file, secret).Refusal);
+        Assert.Null(table.Submit(BlockingJob.Name, 1, input, null, secret).Refusal); // a job without a file still fits
+        gate.Release();
+    }
+
+    [Fact]
     public async Task Concurrent_submissions_never_queue_more_than_the_limit()
     {
         var gate = new BlockingJob();

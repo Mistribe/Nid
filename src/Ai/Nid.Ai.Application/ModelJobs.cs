@@ -98,6 +98,8 @@ public sealed class ModelJobs(IJobStore store, ModelContracts contracts, IClock 
 
     public Task ForgetAsync(string fileRef, CancellationToken ct) => store.DeleteOfFileAsync(fileRef, ct);
 
+    public Task<IReadOnlySet<Guid>> LiveAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct) => store.LiveAsync(ids, ct);
+
     public async Task<ModelJobView?> GetAsync(Guid id, CancellationToken ct)
         => await store.FindAsync(id, ct) is { } job ? View(job) : null;
 

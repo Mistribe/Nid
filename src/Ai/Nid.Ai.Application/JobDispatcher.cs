@@ -275,7 +275,7 @@ public sealed class JobDispatcher(
                 await jobs.TryUpdateAsync(job with
                 {
                     NextPollAt = now + JobRetries.PollEvery(now - (job.SentAt ?? now)),
-                    LeaseUntil = JobRetries.LeaseAfterPoll(polled.Status.Status == "queued", now, job.LeaseUntil),
+                    LeaseUntil = JobRetries.LeaseAfterPoll(polled.Status.Status == "queued", now, job.SentAt, job.LeaseUntil),
                 }, ct);
                 break;
             case "succeeded" when Read(job, polled.Result) is { } result:

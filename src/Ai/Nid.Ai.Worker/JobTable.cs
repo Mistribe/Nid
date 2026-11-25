@@ -15,6 +15,10 @@ public sealed class JobTable(IEnumerable<IJobHandler> handlers, IEnumerable<IReq
     public const int MaxJobs = 32;
     public const int MaxConcurrent = 4;
 
+    /// <summary>#625: the files of the jobs waiting or running, all together (each held in memory until its job ends): past it, the
+    /// worker answers <c>busy</c>, which Nid takes as « later », not as a failed attempt.</summary>
+    public const long MaxFileBytes = 128L * 1024 * 1024;
+
     /// <summary>Results kept, all together: past it, the worker takes no new job until some are fetched or expire.</summary>
     public const long MaxResultBytes = 256L * 1024 * 1024;
     public static readonly TimeSpan ResultLifetime = TimeSpan.FromMinutes(15);
@@ -44,11 +48,16 @@ public sealed class JobTable(IEnumerable<IJobHandler> handlers, IEnumerable<IReq
         Job job;
         lock (_admission)
         {
+            var held = _jobs.Values.Where(j => j.Status is "queued" or "running").Sum(j => j.FileBytes);
             if (_jobs.Values.Count(j => j.Status is "queued" or "running") >= MaxJobs
-                || _jobs.Values.Sum(j => (long)(j.Result?.Length ?? 0)) >= MaxResultBytes)
+                || _jobs.Values.Sum(j => (long)(j.Result?.Length ?? 0)) >= MaxResultBytes
+                || (held > 0 && held + (file?.Length ?? 0) > MaxFileBytes)) // a file alone over the cap still runs, alone
                 return (null, "busy");
 
-            job = new Job(Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(16)), submission, CancellationTokenSource.CreateLinkedTokenSource(_stopping.Token));
+            job = new Job(Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(16)), submission, CancellationTokenSource.CreateLinkedTokenSource(_stopping.Token))
+            {
+                FileBytes = file?.Length ?? 0,
+            };
             _jobs[job.Id] = job;
         }
 
@@ -161,6 +170,9 @@ public sealed class JobTable(IEnumerable<IJobHandler> handlers, IEnumerable<IReq
         public string? Error { get; set; }
 
         public byte[]? Result { get; set; }
+
+        /// <summary>The size of the file it holds until it ends.</summary>
+        public long FileBytes { get; init; }
 
         public DateTimeOffset? FinishedAt { get; set; }
     }
