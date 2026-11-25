@@ -31,13 +31,13 @@ Genres : `vehicle`, `precious_metal`, `art`, `collectible`, `other`. Seul `preci
 
 ## 4. Valeur à une date
 
-`AssetMath.At(date)` : la dernière valorisation au plus tard à `date` ; sinon le prix d'achat à partir de sa date ; sinon aucune valeur.
+`AssetMath.At(date)` : la dernière valorisation au plus tard à `date` ; sinon le prix d'achat à partir de sa date ; sinon aucune valeur. Un bien sans valeur lisible compte comme « sans valeur » dans le tableau de bord, jamais comme zéro silencieux.
 
-**Estimation (#187)** : avec un taux r (% par an, véhicule seulement), la valeur à la date d est `base × (1 − r/100)^(jours / 365)`, où la base est la dernière valorisation au plus tard à d (sinon le prix d'achat) et `jours` l'écart entre la date de la base et d. Arrondi au centime, moitié loin de zéro, jamais au-dessus de la base ; une valorisation plus récente redémarre le calcul. `AssetValue` porte alors `Estimated` et `BaseAmount`, et sa date reste celle de la base. Un bien sans taux garde la règle ci-dessus. Un bien sans valeur lisible sans valeur lisible compte comme « sans valeur » dans le tableau de bord, jamais comme zéro silencieux.
+**Estimation (#187)** : avec un taux r (% par an, véhicule seulement), la valeur à la date d est `base × (1 − r/100)^(jours / 365)`, où la base est la dernière valorisation au plus tard à d (sinon le prix d'achat) et `jours` l'écart entre la date de la base et d. Arrondi au centime, moitié loin de zéro, jamais au-dessus de la base ; une valorisation plus récente redémarre le calcul. `AssetValue` porte alors `Estimated` et `BaseAmount`, et sa date reste celle de la base. Un bien sans taux garde la règle ci-dessus.
 
 ## 5. Patrimoine
 
-`AssetsNetWorth` contribue au tableau de bord : une ligne par bien visible, à sa dernière valeur. Chaque part de répartition est `Other` et `Locked`, jamais devinée (`estimated = false`), sauf un véhicule avec un taux de perte de valeur : sa ligne est alors une estimation (`estimated = true`, `valuedOn` = date de la base), et l'historique suit l'estimation à chaque date (la baisse est un changement de valeur ; `Moved` reste la première valeur comptée).
+`AssetsNetWorth` contribue au tableau de bord : une ligne par bien visible, à sa dernière valeur. Chaque part de répartition est `Other` et `Locked`, jamais devinée (`estimated = false`), sauf un véhicule avec un taux de perte de valeur : sa ligne est alors une estimation (`estimated = true`, `asOf` = aujourd'hui, `valuedOn` = date de la base), et l'historique suit l'estimation à chaque date (la baisse est un changement de valeur ; `Moved` reste la première valeur comptée).
 
 - **Depuis le 1er janvier**, le gain est le changement de valeur. Un bien compté pour la première fois cette année entre dans les valeurs de départ de l'année à son premier montant compté : son achat n'est jamais un gain (il passe par `Moved`), et il n'est jamais listé « sans valeur au 1er janvier », contrairement à un bien immobilier.
 - **Historique** : à chaque date, la dernière valeur connue ; `Moved` porte les achats (le prix, dès le premier jour compté) et les ventes (moins la dernière valeur comptée, à partir du jour d'archivage). Un bien archivé compte strictement avant son jour d'archivage.

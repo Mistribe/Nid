@@ -24,6 +24,7 @@
     "archived": "Archivé",
     "purchase_price": "prix d’achat",
     "estimated": "estimée",
+    "estimated_base": "base du",
     "no_value": "Sans valeur"
   },
   "assets_form": {

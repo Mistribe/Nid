@@ -228,8 +228,9 @@ public class AssetsNetWorthTests(PostgresFixture fixture) : IClassFixture<Postgr
         Assert.Equal("8000.00", Total(view.GetProperty("netWorth")));
         Assert.Equal(1, view.GetProperty("estimatedEnvelopes").GetInt32());
         var row = Assert.Single(view.GetProperty("envelopeSplit").EnumerateArray());
-        Assert.Equal("2024-10-15", row.GetProperty("asOf").GetString());
+        Assert.Equal("2025-10-15", row.GetProperty("asOf").GetString()); // the estimate is today's; its base is the valued-on date
         Assert.True(row.GetProperty("estimated").GetBoolean());
+        Assert.Equal("2025-10-15", view.GetProperty("valuesAsOf").GetString());
     }
 
     [Fact]
@@ -256,5 +257,20 @@ public class AssetsNetWorthTests(PostgresFixture fixture) : IClassFixture<Postgr
         Assert.Equal((10_000m, 10_000m), (Eur(points[1].Values), Eur(points[1].Moved)));
         Assert.Equal((8_000m, 10_000m), (Eur(points[2].Values), Eur(points[2].Moved)));
         Assert.Equal(new Dictionary<string, decimal> { ["assets.paid_in"] = 0m, ["assets.moved"] = 0m, ["assets.value"] = -2_000m }, Parts(points[1], points[2]));
+    }
+
+    [Fact]
+    public async Task A_depreciated_vehicle_gains_the_estimates_decline_since_1_January()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await NewVehicleAsync(app, "10000", "2024-01-01", 20m);
+
+        var change = Total((await DashboardAsync(app, app.AdultA)).GetProperty("change"));
+        var points = await HistoryAsync(app, "2025-01-01", "2025-10-15");
+
+        // Both ends are estimates: 1 January and today, never the purchase price.
+        var expected = Eur(points[1].Values) - Eur(points[0].Values);
+        Assert.True(expected < 0m);
+        Assert.Equal(expected.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture), change);
     }
 }

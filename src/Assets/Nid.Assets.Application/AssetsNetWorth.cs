@@ -39,10 +39,12 @@ public sealed class AssetsNetWorth(IVisibleItems visible, IItemRegistry items, I
                 continue;
             }
             Add(values, cur, now.Amount);
-            if (!now.FromPurchase && (oldest is null || now.On < oldest))
-                oldest = now.On; // « values as of » follows valuations, not purchase dates
+            // An estimate is worth today's date (its base is ValuedOn); « values as of » otherwise follows valuations, not purchase dates.
+            var asOf = now.Estimated ? today : now.On;
+            if ((now.Estimated || !now.FromPurchase) && (oldest is null || asOf < oldest))
+                oldest = asOf;
             holdings.Add(new Holding(
-                record.ItemId, "assets", item.DisplayName, MoneyOf(now.Amount, cur), now.On, false, owners,
+                record.ItemId, "assets", item.DisplayName, MoneyOf(now.Amount, cur), asOf, false, owners,
                 [new AllocationSlice(AllocationClasses.Other, AllocationLiquidity.Locked, now.Amount, false)],
                 Estimated: now.Estimated,
                 ValuedOn: now.FromPurchase && !now.Estimated ? null : now.On)); // a bare purchase price is no estimate; a depreciated one is, dated by its base

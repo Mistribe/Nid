@@ -2,6 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw/http';
 import { beforeAll, describe, expect, it } from 'vitest';
 import type { AssetView } from '@/api/assets';
+import { pick } from '@/test/controls';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { ASSET, assetView } from './testData';
@@ -124,6 +125,19 @@ describe('AssetDetailPage', () => {
     await user.click(dialog.getByRole('button', { name: 'Enregistrer' }));
 
     await waitFor(() => expect(puts).toEqual([expect.objectContaining({ kind: 'vehicle', depreciationRate: 15 })]));
+  });
+
+  it('follows the kind picked in the form for the rate fold', async () => {
+    serve(assetView({ kind: 'art', note: null }));
+    const { user } = await renderApp(`/other-assets/${ASSET}`);
+
+    await user.click(await screen.findByRole('button', { name: 'Modifier' }));
+    const dialog = within(await screen.findByRole('dialog', { name: 'Modifier le bien' }));
+    expect(dialog.queryByRole('button', { name: 'Personnaliser' })).not.toBeInTheDocument();
+    await pick(user, 'Type', 'Véhicule');
+    expect(dialog.getByRole('button', { name: 'Personnaliser' })).toBeInTheDocument();
+    await pick(user, 'Type', 'Œuvre d’art');
+    expect(dialog.queryByRole('button', { name: 'Personnaliser' })).not.toBeInTheDocument();
   });
 
   it('refuses a rate of 100 % before sending', async () => {

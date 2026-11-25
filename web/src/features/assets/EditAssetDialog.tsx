@@ -62,7 +62,7 @@ function EditForm({ asset, titleId, done }: { asset: AssetView; titleId: string;
       <FormProvider {...form}>
         <AssetFields />
         <VehicleFields />
-        {asset.kind === 'vehicle' ? <Folded label={t('assets_form.customize')} hasError={Boolean(e.depreciationRate)}><DepreciationField /></Folded> : null}
+        {form.watch('kind') === 'vehicle' ? <Folded label={t('assets_form.customize')} hasError={Boolean(e.depreciationRate)}><DepreciationField /></Folded> : null}
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label={t('assets_form.purchase_price')} error={e.purchasePrice?.message}>
             {(c) => <Input inputMode="decimal" {...c} {...form.register('purchasePrice')} />}

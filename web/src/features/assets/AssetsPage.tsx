@@ -106,7 +106,7 @@ function Table({ rows }: { rows: AssetRow[] }) {
         {r.valueEstimated ? <Badge variant="secondary">{t('assets_list.estimated')}</Badge> : r.valueFromPurchase ? <Badge variant="secondary">{t('assets_list.purchase_price')}</Badge> : null}
         <Money value={r.value} tabular />
       </span>
-      {r.valueOn ? <span className="text-xs text-muted-foreground"><LocalDate value={r.valueOn} /></span> : null}
+      {r.valueOn ? <span className="text-xs text-muted-foreground">{r.valueEstimated ? <>{t('assets_list.estimated_base')} </> : null}<LocalDate value={r.valueOn} /></span> : null}
     </span>
   ) : <span className="text-muted-foreground">{t('assets_list.no_value')}</span>;
   return (
