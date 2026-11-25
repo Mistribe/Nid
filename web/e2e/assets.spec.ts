@@ -10,6 +10,7 @@ test('alice records a car bought for 18 000 €, values it, and finds it under �
   await alice.goto('/other-assets/new');
   await alice.getByLabel('Nom', { exact: true }).fill(name);
   await pick(alice, 'Type', 'Véhicule');
+  await alice.getByRole('radio', { name: 'Propriétaire' }).click();
   await alice.getByLabel('Montant').fill('18000');
   await fillDate(alice, 'Date', '2022-03-15');
   await alice.getByRole('radio', { name: 'Oui, partagé' }).click();
