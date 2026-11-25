@@ -246,7 +246,7 @@ public static class BankingEndpoints
             .Returns<IReadOnlyList<ExpectedChargeView>>();
 
         api.MapPost("/transactions/{id:guid}/link", async (Guid id, LinkBody body, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new LinkTransactionCommand(id, body.Module ?? "", body.ItemId ?? Guid.Empty, body.Key), ct)).ToHttp(line => line))
+            => (await invoker.InvokeAsync(new LinkTransactionCommand(id, body.Module ?? "", body.ItemId ?? Guid.Empty, body.Key, body.Category), ct)).ToHttp(line => line))
             .Returns<BankTransactionView>();
 
         api.MapPost("/transactions/{id:guid}/unlink", async (Guid id, IInvoker invoker, CancellationToken ct)
@@ -503,9 +503,12 @@ public static class BankingEndpoints
         Guid? EnvelopeId, bool? ClearEnvelope, Guid? CardOfAccountId, bool? ClearCard, bool? AutoApplyBalance, bool? Ignored, string? Name = null,
         bool? ClearName = null, int? MinPayments = null, bool? ClearMinPayments = null, bool? CountWithdrawals = null);
 
-    /// <summary>A charge of <c>itemId</c> (a subscription, a loan, a property); <c>key</c> names one, else the nearest is taken.</summary>
+    /// <summary>
+    /// A charge of <c>itemId</c> (a subscription, a loan, a property); <c>key</c> names one, else the nearest is taken. For a vehicle (<c>assets</c>),
+    /// <c>category</c> is the running cost's the line records (<c>other</c> when left out); any other module ignores it.
+    /// </summary>
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
-    public sealed record LinkBody(string? Module, Guid? ItemId, string? Key);
+    public sealed record LinkBody(string? Module, Guid? ItemId, string? Key, string? Category = null);
 
     /// <summary>A line's category chosen by hand; an absent or null <c>categoryId</c> is « Sans catégorie », chosen by hand all the same.</summary>
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]

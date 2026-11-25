@@ -335,6 +335,17 @@ public static class RequestCatalogue
             },
             SecondItemAccess = AccessKind.Read,
         },
+        new(typeof(SetSubscriptionAssetCommand), true, (_, item) => new SetSubscriptionAssetCommand(item, null))
+        {
+            // #648: a subscription links to an asset its actor reads; the bench names the asset twin of the other row. A link kept
+            // from the request before is no new link, so each request starts without one.
+            BuildNamingAnother = async (d, target, other) =>
+            {
+                await d.App.ClearAssetLinkAsync(target);
+                return new SetSubscriptionAssetCommand(target, d.AssetTwinOfSubscription(other));
+            },
+            SecondItemAccess = AccessKind.Read,
+        },
         new(typeof(SubscriptionDeletionQuery), true, (_, item) => new SubscriptionDeletionQuery(item)),
         new(typeof(DeleteSubscriptionCommand), true, (_, item) => new DeleteSubscriptionCommand(item, 1)),
         new(typeof(DeleteInsuranceCommand), true,
@@ -652,6 +663,11 @@ public static class RequestCatalogue
         new(typeof(RecordAssetValuationCommand), true, (_, item) => new RecordAssetValuationCommand(item, new LocalDate(2025, 1, 1), 1m, null)),
         // A valuation id is looked up on the route's asset only, so an id alone can never reach another item.
         new(typeof(VoidAssetValuationCommand), true, (_, item) => new VoidAssetValuationCommand(item, Guid.NewGuid())),
+        new(typeof(ListAssetCostsQuery), true, (_, item) => new ListAssetCostsQuery(item, null)),
+        new(typeof(RecordAssetCostCommand), true, (_, item) => new RecordAssetCostCommand(item, new AssetCostDraft(new LocalDate(2025, 1, 1), 1m, "service", null))),
+        new(typeof(CorrectAssetCostCommand), true, (_, item) => new CorrectAssetCostCommand(item, Guid.NewGuid(), new AssetCostDraft(new LocalDate(2025, 1, 1), 1m, "service", null))),
+        // As a valuation id: a flow id is looked up on the route's asset only, so an id alone can never reach another item.
+        new(typeof(VoidAssetCostCommand), true, (_, item) => new VoidAssetCostCommand(item, Guid.NewGuid())),
 
         new(typeof(ListChildcareQuery), false, (_, _) => new ListChildcareQuery(VisibilityScope.Me, true)),
         new(typeof(GetChildcareQuery), true, (_, item) => new GetChildcareQuery(item)),

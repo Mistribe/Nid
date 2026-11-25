@@ -73,6 +73,27 @@ public class McpAssetToolTests(PostgresFixture fixture) : IClassFixture<Postgres
     }
 
     [Fact]
+    public async Task A_vehicle_cost_is_proposed_by_a_tool_and_read_back_and_a_non_vehicle_refuses_it()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var art = await CreateAsync(app, Body(app, "Tableau"), app.AdultA);
+        var carBody = Body(app, "Citadine");
+        carBody["kind"] = "vehicle";
+        var car = await CreateAsync(app, carBody, app.AdultA);
+        await using var direct = await ClientAsync(app, TokenPresets.Direct);
+        var cost = new { occurredOn = "2025-06-01", amount = "90.50", category = "service", note = "Révision" };
+
+        var (refused, text) = await CallAsync(direct, "propose_add_asset_cost", new { id = art, body = cost, apply = true });
+        Assert.True(refused);
+        Assert.Contains("assets.costs_vehicle_only", text);
+        await AnswerAsync(direct, "propose_add_asset_cost", new { id = car, body = cost, apply = true });
+
+        var read = await AnswerAsync(direct, "list_asset_costs", new { id = car, year = 2025 });
+        Assert.Equal("90.50", read.GetProperty("total").GetProperty("amount").GetString());
+        Assert.Equal("service", read.GetProperty("rows")[0].GetProperty("category").GetString());
+    }
+
+    [Fact]
     public async Task Create_asset_without_value_returns_value_required()
     {
         await using var app = await NidApp.StartAsync(fixture);

@@ -1,0 +1,119 @@
+import { useQueryClient } from '@tanstack/react-query';
+import { Link } from '@tanstack/react-router';
+import { Plus } from 'lucide-react';
+import { useState } from 'react';
+import { Controller, useForm } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
+import { useApi } from '@/api/ApiProvider';
+import { invalidateAssets, type AssetView, type LinkedSubscription } from '@/api/assets';
+import { present, toProblem } from '@/api/errors';
+import { ASSET_LINK, invalidateSubscriptions, LIST } from '@/api/subscriptions';
+import { ComboboxField } from '@/components/form/ComboboxField';
+import { Field } from '@/components/form/Field';
+import { FormDialog } from '@/components/FormDialog';
+import { LocalDate } from '@/components/LocalDate';
+import { Money } from '@/components/Money';
+import { RowMenu } from '@/components/page/RowMenu';
+import { Section } from '@/components/page/Section';
+import { ProblemMessage } from '@/components/ProblemMessage';
+import { durationText } from '@/features/subscriptions/format';
+import { Button } from '@/components/ui/button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import '@/locales/assets';
+
+/** #648: the subscriptions linked to the asset that the reader sees (an insurance, a service contract), with « Lier » and « Délier » for a writer. */
+export function AssetSubscriptionsSection({ asset }: { asset: AssetView }) {
+  const { t } = useTranslation();
+  const { $api } = useApi();
+  const queryClient = useQueryClient();
+  const [linking, setLinking] = useState(false);
+  const unlink = $api.useMutation('put', ASSET_LINK, {
+    onSuccess: () => { void invalidateAll(queryClient); toast.success(t('assets_subscriptions.unlinked')); },
+  });
+  const UNITS = ['day', 'week', 'month', 'year'] as const;
+  const period = (s: LinkedSubscription) => {
+    const unit = UNITS.find((u) => u === s.every?.unit);
+    if (!s.every || !unit) return '';
+    return s.every.count === 1 ? t(`assets_subscriptions.per.${unit}`) : t('assets_subscriptions.every', { every: durationText(t, s.every) });
+  };
+  return (
+    <Section title={t('assets_subscriptions.title')} actions={asset.canWrite ? (
+      <Button type="button" variant="outline" size="sm" onClick={() => setLinking(true)}><Plus aria-hidden="true" />{t('assets_subscriptions.link')}</Button>
+    ) : undefined}>
+      {unlink.error ? <ProblemMessage problem={present(toProblem(unlink.error))} /> : null}
+      {asset.subscriptions.length === 0 ? <p className="text-muted-foreground">{t('assets_subscriptions.empty')}</p> : (
+        <Table aria-label={t('assets_subscriptions.list')}>
+          <TableHeader>
+            <TableRow>
+              <TableHead>{t('assets_subscriptions.col_name')}</TableHead>
+              <TableHead className="text-right">{t('assets_subscriptions.col_price')}</TableHead>
+              <TableHead>{t('assets_subscriptions.col_deadline')}</TableHead>
+              {asset.canWrite ? <TableHead className="w-0"><span className="sr-only">{t('assets_subscriptions.menu')}</span></TableHead> : null}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {asset.subscriptions.map((s) => (
+              <TableRow key={s.id}>
+                <TableCell className="whitespace-normal font-medium"><Link to="/subscriptions/$id" params={{ id: s.id }} className="underline">{s.name}</Link></TableCell>
+                <TableCell className="text-right">{s.price ? <><Money value={s.price} tabular /> {period(s)}</> : '—'}</TableCell>
+                <TableCell>{s.nextDeadline ? <LocalDate value={s.nextDeadline} /> : '—'}</TableCell>
+                {asset.canWrite ? (
+                  <TableCell>
+                    <RowMenu label={t('assets_subscriptions.menu')} items={[
+                      { label: t('assets_subscriptions.unlink'), onSelect: () => { if (!unlink.isPending) unlink.mutate({ params: { path: { id: s.id } }, body: { assetId: null } }); } },
+                    ]} />
+                  </TableCell>
+                ) : null}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+      {linking ? (
+        <FormDialog title={t('assets_subscriptions.link')} onClose={() => setLinking(false)} onDone={(m) => { setLinking(false); if (m) toast.success(m); }}>
+          {({ titleId, done }) => <LinkForm asset={asset} titleId={titleId} onDone={done} />}
+        </FormDialog>
+      ) : null}
+    </Section>
+  );
+}
+
+const invalidateAll = (queryClient: ReturnType<typeof useQueryClient>) => Promise.all([invalidateAssets(queryClient), invalidateSubscriptions(queryClient)]);
+
+/** The active subscriptions the reader sees, that are linked to no asset (the server's `asset=none` filter, whatever the search): a link is never moved from another asset. */
+function LinkForm({ asset, titleId, onDone }: { asset: AssetView; titleId: string; onDone: (message?: string) => void }) {
+  const { t } = useTranslation();
+  const { $api } = useApi();
+  const queryClient = useQueryClient();
+  const form = useForm<{ subscriptionId: string }>({ defaultValues: { subscriptionId: '' } });
+  const [q, setQ] = useState('');
+  // The server keeps the active subscriptions without an asset, whatever the search: a link is never moved from another asset.
+  const list = $api.useQuery('get', LIST, { params: { query: { scope: 'me', status: 'active', asset: 'none', q: q === '' ? undefined : q } } });
+  const options = (list.data?.items ?? []).map((s) => ({ value: s.id, label: s.displayName }));
+  const link = $api.useMutation('put', ASSET_LINK);
+  return (
+    <form aria-labelledby={titleId} noValidate className="space-y-3" onSubmit={(ev) => {
+      ev.stopPropagation();
+      void form.handleSubmit((values) => {
+        if (values.subscriptionId === '') return;
+        link.mutate({ params: { path: { id: values.subscriptionId } }, body: { assetId: asset.id } },
+          { onSuccess: () => { void invalidateAll(queryClient); onDone(t('assets_subscriptions.linked')); } });
+      })(ev);
+    }}>
+      {link.error ? (toProblem(link.error).status === 403
+        ? <p role="alert" className="text-destructive">{t('assets_subscriptions.forbidden')}</p>
+        : <ProblemMessage problem={present(toProblem(link.error))} />) : null}
+      <Controller control={form.control} name="subscriptionId" render={({ field }) => (
+        <Field label={t('assets_subscriptions.pick')}>
+          {(c) => <ComboboxField {...c} value={field.value} onValueChange={field.onChange} options={options} onSearch={setQ}
+            placeholder={t('assets_subscriptions.pick_placeholder')} searchPlaceholder={t('assets_subscriptions.pick_search')} empty={t('assets_subscriptions.pick_empty')} />}
+        </Field>
+      )} />
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="outline" onClick={() => onDone()}>{t('common.cancel')}</Button>
+        <Button type="submit" disabled={link.isPending}>{t('assets_subscriptions.submit')}</Button>
+      </div>
+    </form>
+  );
+}

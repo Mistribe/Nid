@@ -218,6 +218,8 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ICommitmentsContribution, Nid.Subscriptions.Application.SubscriptionsCommitments>();
         services.AddScoped<IExpectedCharges, Nid.Subscriptions.Application.SubscriptionExpectedCharges>();
         services.AddScoped<Nid.Subscriptions.Application.SubscriptionSet>();
+        services.AddScoped<Nid.Subscriptions.Application.AssetLinks>();
+        services.AddScoped<Nid.Subscriptions.Contracts.ISubscriptionsOfItems, Nid.Subscriptions.Application.SubscriptionsOfItems>();
         services.AddScoped<ISubscriptionsReview, Nid.Subscriptions.Application.SubscriptionsReview>();
         services.AddScoped<Nid.Subscriptions.Application.SubscriptionsUpcoming>();
         services.AddScoped<IUpcomingEvents>(sp => sp.GetRequiredService<Nid.Subscriptions.Application.SubscriptionsUpcoming>());
@@ -311,6 +313,7 @@ public static class NidServiceCollectionExtensions
         }).AddInterceptors(sp.GetRequiredService<AuditInterceptor>()));
         services.AddScoped<ITransactionParticipant, DbContextParticipant<AssetsDbContext>>();
         services.AddScoped<IAssetRecordStore, AssetRecordStore>();
+        services.AddScoped<Nid.Assets.Contracts.IWritableVehicles, Nid.Assets.Application.WritableVehicles>();
         services.AddScoped<IItemDeletionPart, AssetsDeletionPart>();
 
         services.AddDbContext<Nid.Ai.Infrastructure.Persistence.AiDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
@@ -497,6 +500,7 @@ public static class NidServiceCollectionExtensions
         }).AddInterceptors(sp.GetRequiredService<AuditInterceptor>()));
         services.AddScoped<ITransactionParticipant, DbContextParticipant<RealEstateDbContext>>();
         services.AddScoped<ILoanStore, LoanStore>();
+        services.AddScoped<IItemLoans, Nid.RealEstate.Application.ItemLoans>();
         services.AddScoped<IPropertyStore, PropertyStore>();
         services.AddScoped<IItemDeletionPart, RealEstateDeletionPart>();
         services.AddScoped<IIrlStore, IrlStore>();

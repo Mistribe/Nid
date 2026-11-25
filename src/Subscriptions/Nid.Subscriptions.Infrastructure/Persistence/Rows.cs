@@ -15,6 +15,8 @@ public sealed class SubscriptionRow
     public LocalDate? CommitmentEndsOn { get; set; }
     public LocalDate? CancellableFrom { get; set; }
     public string? Note { get; set; }
+    /// <summary>#648: the asset it relates to; another module's item, so no foreign key (deleting the asset drops the link).</summary>
+    public Guid? AssetItemId { get; set; }
     public string? ImportRef { get; set; }
     public string? ImportHash { get; set; }
     public Guid? ImportedBy { get; set; }

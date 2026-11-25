@@ -16,11 +16,11 @@ public static class SubscriptionEndpoints
             .AddEndpointFilter<MalformedInputFilter>().AddEndpointFilter<ActorFilter>();
 
         api.MapGet("", async (string? scope, string? from, string? to, string? horizon, string? q, string? status, string? label, string? group,
-                string? provider, IInvoker invoker, CancellationToken ct)
+                string? provider, string? asset, IInvoker invoker, CancellationToken ct)
             => await FieldReader.Run(invoker, r =>
                     new ListSubscriptionsQuery(
                         r.Scope(scope), r.OptionalDate(from, "from"), r.OptionalDate(to, "to"), r.OptionalDate(horizon, "horizon"),
-                        new ListFilter(q, ParseStatus(status), ParseLabels(label), provider), ParseGroup(group)), list => list, ct))
+                        new ListFilter(q, ParseStatus(status), ParseLabels(label), provider, asset == "none"), ParseGroup(group)), list => list, ct))
             .Returns<SubscriptionList>();
 
         api.MapGet("/overview", async (string? scope, IInvoker invoker, CancellationToken ct)
@@ -89,6 +89,11 @@ public static class SubscriptionEndpoints
                     ? reader.Problem()
                     : (await invoker.InvokeAsync(new SetInsuranceCommand(new ItemId(id), details, body.KeepProperty), ct)).ToHttp(x => new IdResponse(x.Value));
             })
+            .Returns<IdResponse>();
+
+        api.MapPut("/{id:guid}/asset", async (Guid id, AssetLinkBody body, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new SetSubscriptionAssetCommand(new ItemId(id), body.AssetId is { } a ? new ItemId(a) : null), ct))
+                .ToHttp(x => new IdResponse(x.Value)))
             .Returns<IdResponse>();
 
         api.MapDelete("/{id:guid}/insurance", async (Guid id, IInvoker invoker, CancellationToken ct)
@@ -174,7 +179,8 @@ public static class SubscriptionEndpoints
     public sealed record CreateSubscriptionBody(
         string DisplayName, string? Visibility, IReadOnlyList<OwnerBody> Owners,
         string? ProviderKey, bool AutoRenew, IReadOnlyList<Guid>? Users, string? Note,
-        IReadOnlyList<PhaseInput>? Phases = null, IReadOnlyList<PurchaseInput>? Purchases = null, string? ShareLevel = null)
+        IReadOnlyList<PhaseInput>? Phases = null, IReadOnlyList<PurchaseInput>? Purchases = null, string? ShareLevel = null,
+        Guid? AssetId = null)
     {
         internal CreateSubscriptionCommand? ToCommand(FieldReader reader)
         {
@@ -188,7 +194,8 @@ public static class SubscriptionEndpoints
                     (Owners ?? []).Select(o => new OwnerShare(new Core.Contracts.PersonId(o.PersonId), o.ShareBp)).ToList(),
                     ProviderKey, AutoRenew,
                     (Users ?? []).Select(u => new Core.Contracts.PersonId(u)).ToList(),
-                    Note, phases.Select(p => p!).ToList(), purchases.Select(p => p!).ToList(), level!.Value)
+                    Note, phases.Select(p => p!).ToList(), purchases.Select(p => p!).ToList(), level!.Value,
+                    AssetId is { } asset ? new ItemId(asset) : null)
                 : null;
         }
     }
@@ -227,6 +234,9 @@ public static class SubscriptionEndpoints
             return new(id, AutoRenew, cancelledAt, ClearCancelledAt, Note, ProviderKey, ClearProviderKey, terms, DisplayName);
         }
     }
+
+    /// <summary>The link as the PUT reads it: the asset, or null to unlink.</summary>
+    public sealed record AssetLinkBody(Guid? AssetId);
 
     public sealed record GuaranteeBody(string? Label, string? Ceiling, string? Deductible);
 

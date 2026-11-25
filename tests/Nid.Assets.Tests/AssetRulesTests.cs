@@ -75,4 +75,84 @@ public class AssetRulesTests
         Assert.False(AssetRules.HasValue(d, 0));
         Assert.True(AssetRules.HasValue(d, 1));
     }
+
+    private static AssetDetails Car(LocalDate? registeredOn = null, int? km = null, LocalDate? kmOn = null, int? hp = null, string? energy = null)
+        => new("vehicle", null, null, null, null, null, registeredOn, km, kmOn, hp, energy);
+
+    [Fact]
+    public void Check_accepts_a_full_vehicle() => Assert.Null(AssetRules.Check(Car(new(2020, 5, 1), 45_000, new(2026, 11, 1), 5, "hybrid"), Today));
+
+    [Theory]
+    [InlineData("registeredOn")]
+    [InlineData("mileageKm")]
+    [InlineData("mileageOn")]
+    [InlineData("fiscalHp")]
+    [InlineData("energy")]
+    public void Check_refuses_a_vehicle_field_on_art(string field)
+    {
+        var d = field switch
+        {
+            "registeredOn" => new AssetDetails("art", null, null, null, null, null, new LocalDate(2020, 1, 1)),
+            "mileageKm" => new AssetDetails("art", null, null, null, null, null, MileageKm: 10),
+            "mileageOn" => new AssetDetails("art", null, null, null, null, null, MileageOn: new LocalDate(2020, 1, 1)),
+            "fiscalHp" => new AssetDetails("art", null, null, null, null, null, FiscalHp: 5),
+            _ => new AssetDetails("art", null, null, null, null, null, Energy: "diesel"),
+        };
+        Refused(d, AssetsCodes.VehicleOnly, field);
+    }
+
+    [Fact]
+    public void Check_refuses_mileage_without_its_date() => Refused(Car(km: 100), AssetsCodes.MileageIncomplete, "mileageOn");
+
+    [Fact]
+    public void Check_refuses_mileage_date_without_mileage() => Refused(Car(kmOn: new(2026, 1, 1)), AssetsCodes.MileageIncomplete, "mileageKm");
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(10_000_000)]
+    public void Check_refuses_mileage_out_of_range(int km) => Refused(Car(km: km, kmOn: new(2026, 1, 1)), AssetsCodes.InvalidMileage, "mileageKm");
+
+    [Fact]
+    public void Check_accepts_mileage_zero_and_the_bound()
+    {
+        Assert.Null(AssetRules.Check(Car(km: 0, kmOn: new(2026, 1, 1)), Today));
+        Assert.Null(AssetRules.Check(Car(km: 9_999_999, kmOn: new(2026, 1, 1)), Today));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(100)]
+    public void Check_refuses_fiscal_hp_out_of_range(int hp) => Refused(Car(hp: hp), AssetsCodes.InvalidFiscalHp, "fiscalHp");
+
+    [Fact]
+    public void Check_refuses_unknown_energy() => Refused(Car(energy: "steam"), AssetsCodes.InvalidEnergy, "energy");
+
+    [Fact]
+    public void Check_refuses_a_future_registration() => Refused(Car(new(2026, 11, 26)), AssetsCodes.InvalidDate, "registeredOn");
+
+    [Fact]
+    public void Check_refuses_a_future_mileage_date() => Refused(Car(km: 1, kmOn: new(2026, 11, 26)), AssetsCodes.InvalidDate, "mileageOn");
+
+    [Fact]
+    public void Check_accepts_today_for_both_dates() => Assert.Null(AssetRules.Check(Car(Today, 1, Today), Today));
+
+    [Theory]
+    [InlineData("0")]
+    [InlineData("100")]
+    [InlineData("-5")]
+    [InlineData("150")]
+    [InlineData("12.345")]
+    public void Check_refuses_a_depreciation_rate_outside_zero_to_one_hundred(string rate)
+        => Refused(new AssetDetails("vehicle", null, null, null, null, null, DepreciationRate: decimal.Parse(rate, System.Globalization.CultureInfo.InvariantCulture)), AssetsCodes.InvalidDepreciationRate, "depreciationRate");
+
+    [Theory]
+    [InlineData("0.01")]
+    [InlineData("15")]
+    [InlineData("99.99")]
+    public void Check_accepts_a_depreciation_rate_on_a_vehicle(string rate)
+        => Assert.Null(AssetRules.Check(new AssetDetails("vehicle", null, null, null, null, null, DepreciationRate: decimal.Parse(rate, System.Globalization.CultureInfo.InvariantCulture)), new(2026, 6, 1)));
+
+    [Fact]
+    public void Check_refuses_a_depreciation_rate_on_art()
+        => Refused(new AssetDetails("art", null, null, null, null, null, DepreciationRate: 10m), AssetsCodes.VehicleOnly, "depreciationRate");
 }

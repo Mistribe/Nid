@@ -35,18 +35,21 @@ public sealed class RealEstateDeletionPart(RealEstateDbContext db, IItemRegistry
 
     private static bool IsEnvelope(ItemAccess item) => item is { Module: "investments", Kind: "envelope" };
 
-    /// <summary>The loans that finance the property, or (#180) the SCPI envelope: deleting them (or editing their link) frees it.</summary>
+    private static bool IsAsset(ItemAccess item) => item is { Module: "assets", Kind: "asset" };
+
+    /// <summary>The loans that finance the property, (#180) the SCPI envelope or (#188) the asset: deleting them (or editing their link) frees it.</summary>
     public async Task<IReadOnlyList<DeletionBlocker>> BlockersAsync(ItemAccess item, CancellationToken ct)
     {
         var id = item.Id.Value;
-        if (!IsProperty(item) && !IsEnvelope(item))
+        if (!IsProperty(item) && !IsEnvelope(item) && !IsAsset(item))
             return [];
         var byProperty = IsProperty(item);
-        var loans = await db.Loans.Where(l => byProperty ? l.PropertyItemId == id : l.EnvelopeItemId == id).Select(l => l.ItemId).ToListAsync(ct);
+        var byAsset = IsAsset(item);
+        var loans = await db.Loans.Where(l => byProperty ? l.PropertyItemId == id : byAsset ? l.AssetItemId == id : l.EnvelopeItemId == id).Select(l => l.ItemId).ToListAsync(ct);
         if (loans.Count == 0)
             return [];
         var found = await items.FindManyAsync(loans.Select(l => new ItemId(l)).ToList(), ct);
-        return [new(byProperty ? "loan" : "scpi_loan", loans.Count, found.Values.Select(l => new DeletionBlockerItem(l.Id.Value, l.DisplayName)).ToList())];
+        return [new(byProperty ? "loan" : byAsset ? "asset_loan" : "scpi_loan", loans.Count, found.Values.Select(l => new DeletionBlockerItem(l.Id.Value, l.DisplayName)).ToList())];
     }
 
     public async Task<bool> ImportedAsync(ItemAccess item, CancellationToken ct)

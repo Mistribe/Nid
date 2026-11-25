@@ -81,7 +81,7 @@ public sealed partial class WriteTools
 
     private sealed record AmortizationArguments(AmortizationRow[] Rows);
 
-    private sealed record BankLinkArguments(Guid TransactionId, string Module, Guid ItemId, string? Key);
+    private sealed record BankLinkArguments(Guid TransactionId, string Module, Guid ItemId, string? Key, string? Category);
 
     public sealed record BankCategoryLine(Guid TransactionId, Guid CategoryId);
 
@@ -208,18 +208,19 @@ public sealed partial class WriteTools
         => McpCalls.ProposeAsync(services, "income.change_pay", incomeSourceId, JsonSerializer.SerializeToElement(new PayslipArguments(paidOn, net, gross, taxable, phaseLabel), ArgumentsJson.Default.PayslipArguments), sourceLabel, apply, documentId, ct);
 
     [McpServerTool(Name = "propose_bank_link", ReadOnly = false, Destructive = false, Idempotent = true)]
-    [Description("Link one bank line (list_bank_transactions) to the charge it pays: a subscription, a loan or a property (list_expected_charges). "
+    [Description("Link one bank line (list_bank_transactions) to the charge it pays: a subscription, a loan or a property (list_expected_charges), or an expense line to the vehicle whose running cost it is (module 'assets'; the cost is then recorded with the line, never typed twice). "
         + "The proposal shows the line and the charge, and the gap between their amounts. " + Rules)]
     public static Task<CallToolResult> ProposeBankLink(IServiceProvider services,
         [Description("The bank line's id (list_bank_transactions).")] Guid transactionId,
-        [Description("'subscriptions' (a subscription) or 'realestate' (a loan or a property).")] string module,
+        [Description("'subscriptions' (a subscription), 'realestate' (a loan or a property) or 'assets' (a vehicle, for an expense line).")] string module,
         [Description("The item's id: the subscription, loan or property the line pays.")] Guid itemId,
         [Description("The charge's key (list_expected_charges), when the item has several; else the nearest charge is taken.")] string? key = null,
+        [Description("For a vehicle ('assets') only: the cost's category, one of service, repair, tyres, other (other when left out).")] string? category = null,
         [Description("The document's name, e.g. 'Relevé octobre 2026', 200 characters at most.")] string? sourceLabel = null,
         [Description("true: write directly instead of proposing.")] bool apply = false,
         CancellationToken ct = default)
         => McpCalls.ProposeAsync(services, "banking.link_transaction", itemId,
-            JsonSerializer.SerializeToElement(new BankLinkArguments(transactionId, module, itemId, key), ArgumentsJson.Default.BankLinkArguments), sourceLabel, apply, null, ct);
+            JsonSerializer.SerializeToElement(new BankLinkArguments(transactionId, module, itemId, key, category), ArgumentsJson.Default.BankLinkArguments), sourceLabel, apply, null, ct);
 
     [McpServerTool(Name = "propose_bank_categories", ReadOnly = false, Destructive = false, Idempotent = true)]
     [Description("Give a category to bank lines (list_uncategorised_bank_transactions): 1 to 100 lines, each with the id of a category in use. "

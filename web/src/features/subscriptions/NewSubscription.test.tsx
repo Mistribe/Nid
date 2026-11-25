@@ -155,6 +155,37 @@ describe('Abonnements › ajout', () => {
     }]);
   });
 
+  it('keeps the linked asset named when a search no longer lists it, and sends it', async () => {
+    const sent: { assetId?: string }[] = [];
+    serve(async ({ request }) => {
+      sent.push((await request.json()) as { assetId?: string });
+      return HttpResponse.json({ id: NEW_ID }, { status: 201 });
+    });
+    server.use(
+      http.get('*/api/v1/subscriptions/:id', () => HttpResponse.json({ status: 404 }, { status: 404 })),
+      http.get('*/api/v1/assets', ({ request }) => {
+        const q = new URL(request.url).searchParams.get('q');
+        const rows = [{ id: 'a1', name: 'Citadine' }, { id: 'a2', name: 'Moto' }].filter((a) => q === null || a.name.startsWith(q));
+        return HttpResponse.json({ rows, total: rows.length, kinds: [] });
+      }),
+    );
+    const { user } = await start();
+
+    expect(screen.queryByRole('combobox', { name: 'Bien concerné' })).not.toBeInTheDocument(); // folded: a rare field
+    await user.click(screen.getByRole('button', { name: /Lier à un bien/ }));
+    await pick(user, 'Bien concerné', 'Citadine');
+    await user.click(screen.getByRole('combobox', { name: 'Bien concerné' }));
+    await user.type(await screen.findByPlaceholderText('Rechercher un bien'), 'Mo');
+    await screen.findByRole('option', { name: 'Moto' });
+
+    expect(screen.getByRole('option', { name: 'Citadine' })).toBeInTheDocument();
+    await user.click(screen.getByRole('option', { name: 'Citadine' }));
+    await fillCommon(user);
+    await fillOffer(user);
+    await user.click(screen.getByRole('button', { name: "Ajouter l'abonnement" }));
+    await waitFor(() => expect(sent.map((b) => b.assetId)).toEqual(['a1']));
+  });
+
   it('brings the user back to the step where the server found an error', async () => {
     serve(() => HttpResponse.json({
       status: 422, code: 'subscriptions.unknown_provider', detail: 'This provider does not exist or cannot be linked.',
@@ -184,5 +215,16 @@ describe('Abonnements › ajout', () => {
 
     const amount = await screen.findByLabelText('Montant');
     await waitFor(() => expect(amount).toHaveAttribute('aria-invalid', 'true'));
+  });
+
+  it('takes the name and the note from the page address (a leased vehicle)', async () => {
+    serve(() => HttpResponse.json({ id: NEW_ID }, { status: 201 }));
+    const { user } = await renderApp('/subscriptions/new?name=Citadine&note=Location%20LOA');
+    await screen.findByRole('heading', { level: 1, name: 'Ajouter un abonnement' });
+    await user.click(await screen.findByRole('button', { name: 'Continuer' }));
+    await screen.findByRole('group', { name: 'Propriétaires' });
+
+    expect(screen.getByLabelText('Nom')).toHaveValue('Citadine');
+    expect(screen.getByLabelText('Note')).toHaveValue('Location LOA');
   });
 });

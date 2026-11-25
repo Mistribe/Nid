@@ -12,7 +12,7 @@ public enum ListStatus { All, Active, Ended }
 /// subscription's labels are its provider's: one without a provider passes no label. <paramref name="Provider"/> (#395) keeps one
 /// provider's subscriptions, by key.
 /// </summary>
-public sealed record ListFilter(string? Q, ListStatus Status, IReadOnlyList<string> Labels, string? Provider = null)
+public sealed record ListFilter(string? Q, ListStatus Status, IReadOnlyList<string> Labels, string? Provider = null, bool NoAsset = false)
 {
     public static ListFilter None { get; } = new(null, ListStatus.All, []);
 

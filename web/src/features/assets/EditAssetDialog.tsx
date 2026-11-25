@@ -8,13 +8,14 @@ import { ASSET, invalidateAssets, type AssetView } from '@/api/assets';
 import { toProblem } from '@/api/errors';
 import { DateField } from '@/components/form/DateField';
 import { Field } from '@/components/form/Field';
+import { Folded } from '@/components/form/Folded';
 import { useSubmitErrors } from '@/components/form/useSubmitErrors';
 import { FormDialog } from '@/components/FormDialog';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { todayIso } from '@/lib/today';
-import { AssetFields, NoteField } from './AssetFields';
+import { AssetFields, DepreciationField, NoteField, VehicleFields } from './AssetFields';
 import { editAssetPath, editAssetSchema, editDefaults, refusalText, toEditBody, type EditAssetValues } from './assetForm';
 import '@/locales/assets';
 import '@/locales/loans';
@@ -60,6 +61,8 @@ function EditForm({ asset, titleId, done }: { asset: AssetView; titleId: string;
       {errors.problem ? <ProblemMessage problem={errors.problem} /> : null}
       <FormProvider {...form}>
         <AssetFields />
+        <VehicleFields />
+        {form.watch('kind') === 'vehicle' ? <Folded label={t('assets_form.customize')} hasError={Boolean(e.depreciationRate)}><DepreciationField /></Folded> : null}
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label={t('assets_form.purchase_price')} error={e.purchasePrice?.message}>
             {(c) => <Input inputMode="decimal" {...c} {...form.register('purchasePrice')} />}

@@ -86,6 +86,7 @@
     "realestate_invalid_category": "Cette catégorie ne correspond pas à ce type de ligne.",
     "realestate_invalid_property": "Ce bien n’existe pas ou n’est pas accessible.",
     "realestate_invalid_envelope": "Choisissez une SCPI accessible, ou un bien : pas les deux.",
+    "realestate_invalid_asset": "Ce bien n’existe pas ou vous ne pouvez pas le lire.",
     "realestate_property_conflict": "Ce bien a changé entre-temps : rechargez la page.",
     "realestate_irl_from_insee": "Ce trimestre vient de l’INSEE : il ne se saisit pas à la main.",
     "realestate_invalid_irl_value": "Cette valeur d’IRL n’est pas acceptée.",

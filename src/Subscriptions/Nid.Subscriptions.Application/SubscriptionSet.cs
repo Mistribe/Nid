@@ -38,9 +38,16 @@ public sealed class SubscriptionSet(IVisibleItems visible, ISubscriptionStore st
 {
     /// <param name="includeArchived">Issue #12: archived ones too, each ended at its archive day (<see cref="BuiltSubscription.ArchivedAt"/>).</param>
     public async Task<IReadOnlyList<BuiltSubscription>> LoadAsync(
-        PersonId reader, VisibilityScope scope, LocalDate today, LocalDate horizon, CancellationToken ct, bool includeArchived = false)
+        PersonId reader, VisibilityScope scope, LocalDate today, LocalDate horizon, CancellationToken ct, bool includeArchived = false,
+        IReadOnlySet<ItemId>? wanted = null, bool withoutAsset = false)
     {
-        var inputs = await store.LoadManyAsync((await visible.ForAsync(reader, scope, includeArchived, ct)).ToList(), ct);
+        var ids = (await visible.ForAsync(reader, scope, includeArchived, ct)).Where(i => wanted is null || wanted.Contains(i)).ToList();
+        if (withoutAsset)
+        {
+            var free = await store.WithoutAssetAsync(ids, ct); // #648: in SQL
+            ids = ids.Where(free.Contains).ToList();
+        }
+        var inputs = await store.LoadManyAsync(ids, ct);
         var names = await items.FindManyAsync(inputs.Select(i => i.Subscription.Id).ToList(), ct); // batched reads spec §3
         var zone = includeArchived ? await calendar.ZoneAsync(ct) : null;
 

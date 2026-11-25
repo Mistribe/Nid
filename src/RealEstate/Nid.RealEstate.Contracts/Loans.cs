@@ -134,6 +134,23 @@ public static class LoanCodes
 
     /// <summary>#180: not an SCPI envelope the actor reads, or a loan that would finance a property and an SCPI at once.</summary>
     public const string InvalidEnvelope = "realestate.invalid_envelope";
+
+    /// <summary>#188: not an asset the actor reads, or a loan that would finance two items at once.</summary>
+    public const string InvalidAsset = "realestate.invalid_asset";
+}
+
+/// <summary>#188: a readable loan financing an item, with the capital still owed on it, converted to that item's currency, null when no rate converts it.</summary>
+public sealed record ItemLoanBalance(ItemId Loan, string Name, Money? Balance);
+
+/// <summary>
+/// #188: the loans financing items of another module (an asset), read by Assets for its net value. Only the loans
+/// <paramref name="reader"/> sees in <paramref name="scope"/>; a loan they cannot see is not named nor counted. One call whatever the
+/// number of items. A loan whose currency has no rate to the item's stays listed with a null <c>Balance</c> (the caller leaves it out of its deduction and says so, as a property's <c>fx_missing</c>).
+/// </summary>
+public interface IItemLoans
+{
+    Task<IReadOnlyDictionary<ItemId, IReadOnlyList<ItemLoanBalance>>> BalancesAsync(
+        PersonId reader, VisibilityScope scope, IReadOnlyCollection<ItemId> items, LocalDate on, CancellationToken ct);
 }
 
 /// <summary>

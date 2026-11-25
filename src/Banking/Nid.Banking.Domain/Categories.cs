@@ -129,6 +129,7 @@ public static class LinkCategory
                 "realestate" when itemKind == "property" => credit ? "income.rent" : "home.utilities",
                 "childcare" => "children.childcare",
                 "subscriptions" => ForSubscription(subscriptionLabels),
+                "assets" => "transport.vehicle",
                 _ => null,
             },
         };

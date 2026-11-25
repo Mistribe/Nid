@@ -45,10 +45,9 @@ public sealed class ListSubscriptionsHandler(
         var horizon = Horizons.Resolve(today, query.Horizon);
         var window = CostWindow.Resolve(today, query.From, query.To);
 
-        var all = await set.LoadAsync(person, query.Scope, today, horizon, ct);
-
         // The filter narrows the rows and, with them, the household totals below.
         var filter = query.Filter ?? ListFilter.None;
+        var all = await set.LoadAsync(person, query.Scope, today, horizon, ct, withoutAsset: filter.NoAsset);
         var built = all.Where(b => filter.Matches(b.DisplayName, b.Provider, b.Timeline.ExpiresOn(), today)).ToList();
 
         var timelines = built.Select(b => b.Timeline).ToList();
@@ -197,10 +196,18 @@ public sealed class GetSubscriptionHandler(
         var insurance = await store.FindInsuranceAsync(query.ItemId, ct) is { } details
             ? InsuranceView.From(details, await InsuredPropertyAsync(details.PropertyId, visibleItems, ct))
             : null;
+        var linkedAsset = await LinkedAssetAsync(stored.AssetId, visibleItems, ct);
         return Result.Success(SubscriptionViews.Detail(
             input, timeline, item.DisplayName, provider, window, Conversion.Of(cashPieces, amortizedPieces, reference, rates), editing, today,
-            insurance, SpendingViews.Spent(timeline, reference, rates, today), SpendingViews.Saved(self, others, reference, rates, today)));
+            insurance, SpendingViews.Spent(timeline, reference, rates, today), SpendingViews.Saved(self, others, reference, rates, today),
+            linkedAsset, linkedAsset is null && stored.AssetId is not null));
     }
+
+    /// <summary>#648: named only when the reader sees it, as the insured property is (spec §8).</summary>
+    private async Task<LinkedAssetView?> LinkedAssetAsync(ItemId? asset, IReadOnlySet<ItemId> visibleItems, CancellationToken ct)
+        => asset is { } id && visibleItems.Contains(id) && await items.FindAsync(id, ct) is { } found
+            ? new LinkedAssetView(id.Value, found.DisplayName)
+            : null;
 
     private async Task<InsuredPropertyView?> InsuredPropertyAsync(ItemId? property, IReadOnlySet<ItemId> visibleItems, CancellationToken ct)
         => property is { } id && visibleItems.Contains(id) && await items.FindAsync(id, ct) is { } found

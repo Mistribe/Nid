@@ -51,6 +51,10 @@ public sealed record SubscriptionRecord
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? CancellableFrom { get; init; }
 
+    /// <summary>#648: the file id of the asset it relates to (section <c>assets</c>, which runs first).</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Asset { get; init; }
+
     public string? Note { get; init; }
 }
 

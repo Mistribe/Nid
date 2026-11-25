@@ -27,6 +27,8 @@ public sealed class SubscriptionsImportSection(
     public const string Purchases = "purchases";
 
     /// <summary>Stands for every person and every subscription while a batch is checked alone.</summary>
+    private const string AssetsSection = "assets";
+
     private static readonly ItemId Placeholder = new(Guid.Empty);
 
     private readonly ProvidersImport providerImport = new(providers, providerAccess, providerKeys);
@@ -139,6 +141,13 @@ public sealed class SubscriptionsImportSection(
             if (rules.ValidateOwners(parsed.Visibility, parsed.Owners).TryGetFailure(out var ownership))
             {
                 issues.Add(ImportIssue.Error(ownership!.Code, ownership.Message, path + ".ownership"));
+                Fail(record.Id);
+                continue;
+            }
+
+            if (await AssetRefusalAsync(record, context, path, ct) is { } badAsset)
+            {
+                issues.Add(badAsset);
                 Fail(record.Id);
                 continue;
             }
@@ -480,7 +489,7 @@ public sealed class SubscriptionsImportSection(
             context.NewItems.Add(id);
             context.Items[(Subscriptions, record.Id)] = id;
             var stored = await store.CreateAsync(id, new NewSubscription(
-                providerImport.StoredKey(record.ProviderKey), record.AutoRenew, parsed.Users, record.Note, parsed.CancelledAt, new ImportRef(record.Id, entity.Hash, context.Actor), parsed.Terms), ct);
+                providerImport.StoredKey(record.ProviderKey), record.AutoRenew, parsed.Users, record.Note, parsed.CancelledAt, new ImportRef(record.Id, entity.Hash, context.Actor), parsed.Terms, AssetOf(record, context)), ct);
             if (stored.TryGetFailure(out var failure))
                 return Result.Failure<IReadOnlyDictionary<string, SectionCounts>>(failure!);
         }
@@ -498,7 +507,7 @@ public sealed class SubscriptionsImportSection(
 
             var stored = await store.ReplaceAsync(id, new SubscriptionReplacement(
                 providerImport.StoredKey(record.ProviderKey), record.AutoRenew, parsed.Users, record.Note, parsed.CancelledAt,
-                new ImportRef(record.Id, entity.Hash, context.Actor), parsed.Terms), ct);
+                new ImportRef(record.Id, entity.Hash, context.Actor), parsed.Terms, AssetOf(record, context)), ct);
             if (stored.TryGetFailure(out var failure))
                 return Result.Failure<IReadOnlyDictionary<string, SectionCounts>>(failure!);
         }
@@ -585,6 +594,28 @@ public sealed class SubscriptionsImportSection(
     }
 
     private static SubscriptionHeader Header(ItemId id) => new(id, true, null);
+
+    /// <summary>#648: the real id of the asset a record names; the assets section ran first, so it is in the context.</summary>
+    private static ItemId? AssetOf(SubscriptionRecord record, ImportContext context)
+        => record.Asset is { } fileId && context.Items.TryGetValue((AssetsSection, fileId), out var asset) ? asset : null;
+
+    /// <summary>
+    /// #648: the asset a record names is an entity of this file, or one the importer reads (as the API checks); an asset the file
+    /// refused is reported there, once. Null when the record names none, or an asset that is fine.
+    /// </summary>
+    private async Task<ImportIssue?> AssetRefusalAsync(SubscriptionRecord record, ImportContext context, string path, CancellationToken ct)
+    {
+        if (record.Asset is not { } fileId || context.FailedItems.Contains((AssetsSection, fileId)))
+            return null;
+        if (!NidDataJson.IsFileId(fileId))
+            return ImportIssue.Error(ImportCodes.InvalidId, "An id is lowercase letters, digits and dashes.", path + ".asset");
+        if (!context.Items.TryGetValue((AssetsSection, fileId), out var asset))
+            return ImportIssue.Error(ImportCodes.UnresolvedReference, $"'{fileId}' names no entity of {AssetsSection}.", path + ".asset");
+        // An asset created by this file is writable by construction; one imported before must still be readable by the importer.
+        return context.NewItems.Contains(asset) || (await policy.CheckAsync(context.Actor, asset, AccessKind.Read, ct)).IsSuccess
+            ? null
+            : ImportIssue.Error(ImportCodes.UnresolvedReference, $"'{fileId}' names no entity of {AssetsSection}.", path + ".asset");
+    }
 
     private static Func<string, PersonId?> Persons(ImportContext context)
         => reference => context.Persons.TryGetValue(reference, out var resolved) ? resolved.Id : null;

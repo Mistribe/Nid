@@ -59,6 +59,7 @@ public sealed class SubscriptionStore(SubscriptionsDbContext db) : ISubscription
             ProviderKey = subscription.ProviderKey,
             AutoRenew = subscription.AutoRenew,
             Note = subscription.Note,
+            AssetItemId = subscription.AssetId?.Value,
             CancelledAt = subscription.CancelledAt,
             AnniversaryOn = subscription.Terms?.AnniversaryOn,
             NoticeCount = subscription.Terms?.Notice?.Count,
@@ -83,6 +84,7 @@ public sealed class SubscriptionStore(SubscriptionsDbContext db) : ISubscription
         row.ProviderKey = replacement.ProviderKey;
         row.AutoRenew = replacement.AutoRenew;
         row.Note = replacement.Note;
+        row.AssetItemId = replacement.AssetId?.Value;
         row.CancelledAt = replacement.CancelledAt;
         Write(row, replacement.Terms ?? new ContractTerms(null, null, null, null));
         row.ImportHash = replacement.Import.Hash;
@@ -125,6 +127,40 @@ public sealed class SubscriptionStore(SubscriptionsDbContext db) : ISubscription
 
         await db.SaveChangesAsync(ct);
         return Result.Success();
+    }
+
+    public async Task<Result> SetAssetAsync(ItemId id, ItemId? asset, CancellationToken ct)
+    {
+        var row = await db.Subscriptions.FirstOrDefaultAsync(s => s.ItemId == id.Value, ct);
+        if (row is null)
+            return NotFound(id);
+        row.AssetItemId = asset?.Value;
+        await db.SaveChangesAsync(ct);
+        return Result.Success();
+    }
+
+    public async Task<IReadOnlyDictionary<ItemId, ItemId>> AssetsOfAsync(IReadOnlyCollection<ItemId> ids, CancellationToken ct)
+    {
+        var keys = ids.Select(i => i.Value).ToList();
+        var rows = await db.Subscriptions.AsNoTracking().Where(s => keys.Contains(s.ItemId) && s.AssetItemId != null)
+            .Select(s => new { s.ItemId, s.AssetItemId }).ToListAsync(ct);
+        return rows.ToDictionary(r => new ItemId(r.ItemId), r => new ItemId(r.AssetItemId!.Value));
+    }
+
+    public async Task<IReadOnlySet<ItemId>> WithoutAssetAsync(IReadOnlyCollection<ItemId> ids, CancellationToken ct)
+    {
+        var keys = ids.Select(i => i.Value).ToList();
+        var free = await db.Subscriptions.AsNoTracking().Where(s => keys.Contains(s.ItemId) && s.AssetItemId == null).Select(s => s.ItemId).ToListAsync(ct);
+        return free.Select(i => new ItemId(i)).ToHashSet();
+    }
+
+    public async Task<IReadOnlyDictionary<ItemId, IReadOnlyList<ItemId>>> SubscriptionsOfAssetsAsync(IReadOnlyCollection<ItemId> assets, CancellationToken ct)
+    {
+        var keys = assets.Select(i => i.Value).ToList();
+        var rows = await db.Subscriptions.AsNoTracking().Where(s => s.AssetItemId != null && keys.Contains(s.AssetItemId.Value))
+            .Select(s => new { s.ItemId, s.AssetItemId }).ToListAsync(ct);
+        return rows.GroupBy(r => new ItemId(r.AssetItemId!.Value))
+            .ToDictionary(g => g.Key, g => (IReadOnlyList<ItemId>)g.Select(r => new ItemId(r.ItemId)).ToList());
     }
 
     public async Task<IReadOnlyDictionary<ItemId, string>> ProviderKeysAsync(IReadOnlyCollection<ItemId> ids, CancellationToken ct)
@@ -304,7 +340,8 @@ public sealed class SubscriptionStore(SubscriptionsDbContext db) : ISubscription
         return new StoredRows(
             subscriptions.Select(s => new StoredSubscription(
                 new ItemId(s.ItemId), s.ProviderKey, s.AutoRenew, s.CancelledAt, s.Note,
-                s.Users.Select(u => new PersonId(u.PersonId)).ToList(), Origin(s.ImportRef, s.ImportHash, s.ImportedBy), ToTerms(s))).ToList(),
+                s.Users.Select(u => new PersonId(u.PersonId)).ToList(), Origin(s.ImportRef, s.ImportHash, s.ImportedBy), ToTerms(s),
+                s.AssetItemId is { } asset ? new ItemId(asset) : null)).ToList(),
             subscriptions.SelectMany(s => s.Phases.Select(p => new StoredPhase(
                 new ItemId(s.ItemId), ToPhase(p), p.Note, Origin(p.ImportRef, p.ImportHash, p.ImportedBy)))).ToList(),
             purchases.Select(p => new StoredPurchase(ToPurchase(p), p.Note, Origin(p.ImportRef, p.ImportHash, p.ImportedBy))).ToList());
