@@ -6,20 +6,20 @@ namespace Nid.Platform.Notifications;
 /// Every kind the modules declare (notifications design §2.2), by name. Scoped, not a singleton: the sources depend on scoped
 /// stores, so a singleton would capture scoped instances. A kind declared twice is a wiring bug and throws.
 /// </summary>
-public sealed class NotificationCatalog(IEnumerable<INotificationSource> sources)
+public sealed class NotificationCatalog(IEnumerable<INotificationSource> sources, IEnumerable<IPublishedNotificationKinds> published)
 {
-    public IReadOnlyDictionary<string, NotificationKind> Kinds { get; } = Index(sources);
+    public IReadOnlyDictionary<string, NotificationKind> Kinds { get; } = Index(sources, published);
 
     public NotificationKind? Find(string kind) => Kinds.GetValueOrDefault(kind);
 
-    private static Dictionary<string, NotificationKind> Index(IEnumerable<INotificationSource> sources)
+    private static Dictionary<string, NotificationKind> Index(IEnumerable<INotificationSource> sources, IEnumerable<IPublishedNotificationKinds> published)
     {
         var kinds = new Dictionary<string, NotificationKind>();
         foreach (var source in sources)
         foreach (var kind in source.Kinds)
             if (!kinds.TryAdd(kind.Kind, kind))
                 throw new InvalidOperationException($"The notification kind '{kind.Kind}' is declared twice (source '{source.Name}').");
-        foreach (var kind in PlatformNotificationKinds.All)
+        foreach (var kind in published.SelectMany(p => p.Kinds))
             if (!kinds.TryAdd(kind.Kind, kind))
                 throw new InvalidOperationException($"The notification kind '{kind.Kind}' is declared twice (published).");
         return kinds;

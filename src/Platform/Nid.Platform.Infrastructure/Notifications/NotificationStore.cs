@@ -10,13 +10,13 @@ using NodaTime;
 namespace Nid.Platform.Infrastructure.Notifications;
 
 /// <summary>Notifications design §2.3 and §4 on <see cref="PlatformDbContext"/>.</summary>
-public sealed partial class NotificationStore(PlatformDbContext db, IClock clock) : INotificationStore
+public sealed partial class NotificationStore(PlatformDbContext db, IClock clock, IEnumerable<IPublishedNotificationKinds> published) : INotificationStore
 {
     private const int HistoryDays = 90;
 
     /// <summary>The published critical kinds: no source signals them again, so reading one is what ends it (and starts its 90 days).</summary>
-    private static readonly string[] EndsWhenRead =
-        PlatformNotificationKinds.All.Where(k => k.Level == NotificationLevel.Critical).Select(k => k.Kind).ToArray();
+    private string[] EndsWhenRead { get; } =
+        published.SelectMany(p => p.Kinds).Where(k => k.Level == NotificationLevel.Critical).Select(k => k.Kind).ToArray();
 
     [JsonSerializable(typeof(IReadOnlyDictionary<string, string>))]
     [JsonSerializable(typeof(Dictionary<string, string>))]

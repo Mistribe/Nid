@@ -18,7 +18,7 @@ public sealed record EvaluationSummary(int Evaluated);
 
 [RequestHandler<EvaluateNotificationsCommand, EvaluationSummary>]
 public sealed partial class EvaluateNotificationsHandler(
-    IPersonRegistry persons, IEnumerable<INotificationSource> sources, NotificationCatalog catalog, INotificationStore store,
+    IPersonRegistry persons, IEnumerable<INotificationSource> sources, IEnumerable<IPublishedNotificationKinds> published, NotificationCatalog catalog, INotificationStore store,
     IHouseholdCalendar calendar, IClock clock, IActorAccessor accessor, IDeliveryOutbox outbox, IUnitOfWork unitOfWork, ILogger<EvaluateNotificationsHandler> logger) : IRequestHandler<EvaluateNotificationsCommand, EvaluationSummary>
 {
     private const int FirstHour = 6;
@@ -115,7 +115,7 @@ public sealed partial class EvaluateNotificationsHandler(
     {
         try
         {
-            var due = (await store.ForSourceAsync(person, PlatformNotificationKinds.All.Select(k => k.Kind).ToList(), ct))
+            var due = (await store.ForSourceAsync(person, published.SelectMany(p => p.Kinds).Select(k => k.Kind).ToList(), ct))
                 .Where(r => r.State == NotificationStates.Snoozed && r.SnoozedUntil <= today)
                 .Select(r => (LifecycleChange)new LifecycleChange.Wake(r.Id, today)).ToList();
             if (due.Count == 0)

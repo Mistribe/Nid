@@ -122,6 +122,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<Nid.Core.Application.Dashboard.MonthChangesReader>();
         services.AddSingleton<Nid.Core.Application.Dashboard.MonthChangeWords>();
         services.AddScoped<Nid.Platform.Contracts.INotificationSource, Nid.Core.Application.Dashboard.CoreNotificationSource>();
+        services.AddSingleton<Nid.Platform.Contracts.IPublishedNotificationKinds, Nid.Core.Application.CoreNotificationKinds>();
         services.AddScoped<FactGate>();
         services.AddScoped<IValuations, Valuations>();
         services.AddScoped<IFlows, Flows>();
@@ -344,6 +345,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<Nid.Ai.Application.BudgetPrices>();
         services.AddScoped<Nid.Ai.Application.BudgetNotices>();
         services.AddScoped<Nid.Ai.Application.IBudgetSweep, Nid.Ai.Application.BudgetSweep>();
+        services.AddSingleton<Nid.Platform.Contracts.IPublishedNotificationKinds, Nid.Ai.Application.AiNotificationKinds>();
         services.TryAddSingleton(sp =>
         {
             var hosts = sp.GetRequiredService<Nid.Ai.Application.ILlmProfiles>().All.Select(p => p.Host);
@@ -562,6 +564,8 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<Nid.Platform.Notifications.NotificationCatalog>();
         services.AddScoped<ISignalSettings, Nid.Platform.Notifications.SignalSettings>();
         services.AddScoped<Nid.Platform.Contracts.INotificationSource, Nid.Platform.Notifications.SystemHealthNotificationSource>();
+        // #644: the kinds published through INotifier, each declared by its owner (Core and Ai register theirs above).
+        services.AddSingleton<Nid.Platform.Contracts.IPublishedNotificationKinds, Nid.Platform.Notifications.PlatformNotificationKinds>();
         services.TryAddSingleton<INotificationRefresh, NoNotificationRefresh>();
         services.TryAddSingleton<IEmailAvailability, NoEmailAvailability>();
         services.AddScoped<IDeliveryStore, Nid.Platform.Infrastructure.Notifications.DeliveryStore>();

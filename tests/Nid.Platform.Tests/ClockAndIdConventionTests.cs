@@ -20,10 +20,10 @@ public partial class ClockAndIdConventionTests
         ["Hosting/Nid.Host/Auth/AuthenticationSetup.cs"] = "cookie expiry",
         ["Hosting/Nid.Host/Auth/LocalSignIn.cs"] = "cookie expiry",
         ["Hosting/Nid.Host/Demo/DemoEndpoints.cs"] = "cookie expiry",
-        // Left to the sessions working on the assistant and the model workers (#520's notes).
-        ["Ai/"] = "the AI module",
-        ["Hosting/Nid.Host/Assistant/"] = "the assistant",
-        ["Hosting/Nid.Host/Jobs/ModelWorkLoop.cs"] = "the model workers' loop",
+        ["Ai/Nid.Ai.Worker/StateStore.cs"] = "temporary file name",
+        ["Ai/Nid.Ai.Infrastructure/Cloud/GeminiAdapter.cs"] = "a tool call id the provider left out",
+        ["Ai/Nid.Ai.Infrastructure/Cloud/OpenAiAdapter.cs"] = "a tool call id the provider left out",
+        ["Ai/Nid.Ai.Worker/Engine.cs"] = "a tool call id the model server left out",
     };
 
     [GeneratedRegex(@"\bGuid\.NewGuid\(|\bDateTime(Offset)?\.(Now|UtcNow|Today)\b")]
@@ -56,7 +56,8 @@ public partial class ClockAndIdConventionTests
         ["Platform/Nid.Platform.Infrastructure/Notifications/Notifier.cs"] = "the fallback when the calendar cannot be read",
         ["Hosting/Nid.Host/Demo/DemoHousehold.cs"] = "the demo's seed dates",
         ["Hosting/Nid.Host/Api/AssistantEndpoints.cs"] = "the AI budget's month is a UTC month",
-        ["Ai/"] = "the AI budget's month is a UTC month",
+        ["Ai/Nid.Ai.Application/Budget.cs"] = "the AI budget's month is a UTC month",
+        ["Ai/Nid.Ai.Application/CloudUseCases.cs"] = "a cloud provider's terms review, dated like its terms",
     };
 
     [GeneratedRegex(@"\.InUtc\(\)\.Date\b")]

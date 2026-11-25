@@ -37,7 +37,7 @@ public static class AccountNotices
     ];
 
     private static NotificationKind Declared(string kind, NotificationLevel level, string title, string body)
-        => new(kind, NotificationFamilies.Security, level, "core", null)
+        => new(kind, NotificationFamilies.Security, level, "platform", null)
         {
             Personal = true,
             Template = new(title) { Notice = true, Body = _ => body, Link = _ => "/security" },
