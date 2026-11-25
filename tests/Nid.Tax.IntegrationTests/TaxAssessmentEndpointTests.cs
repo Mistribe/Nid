@@ -225,6 +225,18 @@ public class TaxAssessmentEndpointTests(PostgresFixture fixture) : IClassFixture
         Assert.Equal((HttpStatusCode.UnprocessableEntity, TaxAssessmentCodes.DeclarantTaken, "declarants[0].personId"), await ProblemOf(again));
     }
 
+    /// <summary>#636: the refusal does not say which other declarant has a notice that year, which may be private to them.</summary>
+    [Fact]
+    public async Task A_joint_notice_does_not_locate_the_other_declarant_already_declaring()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await AddAsync(app, app.AdultA, 2018, Declarant(app.AdultA, 1));
+
+        var joint = await app.RawAsync(app.AdultB, HttpMethod.Post, Route, Body(2018, [Declarant(app.AdultB, 1), Declarant(app.AdultA, 2)]));
+
+        Assert.Equal((HttpStatusCode.UnprocessableEntity, TaxAssessmentCodes.DeclarantsTaken, "declarants"), await ProblemOf(joint));
+    }
+
     [Fact]
     public async Task A_correction_cannot_put_a_person_in_two_notices_of_a_year()
     {

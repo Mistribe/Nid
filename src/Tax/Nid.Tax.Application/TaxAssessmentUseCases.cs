@@ -70,7 +70,7 @@ public sealed class AddTaxAssessmentHandler(ITaxAssessmentStore store, IPersonRe
         a = await TaxAssessmentAccess.CompleteAsync(store, actor, a, ct);
         var added = await store.AddAsync(a, ct);
         if (added.TryGetFailure(out var refused))
-            return Result.Failure<TaxAssessmentView>(await TaxAssessmentAccess.AnswerAsync(store, refused!, a, null, ct));
+            return Result.Failure<TaxAssessmentView>(await TaxAssessmentAccess.AnswerAsync(store, actor, refused!, a, null, ct));
         added.TryGetValue(out var id);
         return Result.Success(TaxAssessmentView.Of((await store.FindAsync(id, ct))!));
     }
@@ -93,7 +93,7 @@ public sealed class CorrectTaxAssessmentHandler(
             return Result.Failure<TaxAssessmentView>(failure);
         a = await TaxAssessmentAccess.CompleteAsync(store, actor, a, ct);
         if ((await store.UpdateAsync(command.Id, a, command.Version, ct)).TryGetFailure(out var refused))
-            return Result.Failure<TaxAssessmentView>(await TaxAssessmentAccess.AnswerAsync(store, refused!, a, command.Id, ct));
+            return Result.Failure<TaxAssessmentView>(await TaxAssessmentAccess.AnswerAsync(store, actor, refused!, a, command.Id, ct));
         return Result.Success(TaxAssessmentView.Of((await store.FindAsync(command.Id, ct))!));
     }
 }
@@ -147,7 +147,7 @@ internal static class TaxAssessmentAccess
         if (a.Declarants.All(d => d.Person != actor.Current!.PersonId!.Value))
             return FieldErrors.At(new Failure(TaxAssessmentCodes.DeclarantRequired, "You must be one of the declarants.", null), "declarants");
         return await store.PersonTakenAsync(a.Year, a.Declarants.Select(d => d.Person).ToList(), except, ct)
-            ? await TakenAsync(store, a, except, ct)
+            ? await TakenAsync(store, actor, a, except, ct)
             : null;
     }
 
@@ -159,25 +159,27 @@ internal static class TaxAssessmentAccess
     /// The answer to the store's refusal of a write, as the checks give it: a stale version is <see cref="Changed"/>, a declarant the
     /// unique (year, person) index refused is located by <see cref="TakenAsync"/>; any other failure passes as it is.
     /// </summary>
-    public static async Task<Failure> AnswerAsync(ITaxAssessmentStore store, Failure refused, TaxAssessment a, Guid? except, CancellationToken ct)
+    public static async Task<Failure> AnswerAsync(
+        ITaxAssessmentStore store, IActorAccessor actor, Failure refused, TaxAssessment a, Guid? except, CancellationToken ct)
         => refused.Code switch
         {
             TaxAssessmentCodes.Changed => Changed,
-            TaxAssessmentCodes.Taken => await TakenAsync(store, a, except, ct),
+            TaxAssessmentCodes.Taken => await TakenAsync(store, actor, a, except, ct),
             _ => refused,
         };
 
-    /// <summary>The declarant already in another notice of the year, located; the first one when a concurrent write took them meanwhile.</summary>
-    public static async Task<Failure> TakenAsync(ITaxAssessmentStore store, TaxAssessment a, Guid? except, CancellationToken ct)
+    /// <summary>
+    /// A declarant already in another notice of the year: located when it is the actor; otherwise (#636) one refusal on the
+    /// declarants, never saying which, as the other adult's notice may be private to them.
+    /// </summary>
+    public static async Task<Failure> TakenAsync(ITaxAssessmentStore store, IActorAccessor actor, TaxAssessment a, Guid? except, CancellationToken ct)
     {
-        var index = 0;
-        for (var i = 0; i < a.Declarants.Count; i++)
-            if (await store.PersonTakenAsync(a.Year, [a.Declarants[i].Person], except, ct))
-            {
-                index = i;
-                break;
-            }
-        return FieldErrors.At(new Failure(TaxAssessmentCodes.DeclarantTaken, "This person already declares a notice for that year.", null),
-            $"declarants[{index}].personId");
+        var me = actor.Current!.PersonId!.Value;
+        var mine = a.Declarants.ToList().FindIndex(d => d.Person == me);
+        return mine >= 0 && await store.PersonTakenAsync(a.Year, [me], except, ct)
+            ? FieldErrors.At(new Failure(TaxAssessmentCodes.DeclarantTaken, "You already declare a notice for that year.", null),
+                $"declarants[{mine}].personId")
+            : FieldErrors.At(new Failure(TaxAssessmentCodes.DeclarantsTaken, "A declarant already declares a notice for that year.", null),
+                "declarants");
     }
 }

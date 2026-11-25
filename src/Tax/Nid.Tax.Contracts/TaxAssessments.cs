@@ -46,6 +46,9 @@ public static class TaxAssessmentCodes
 {
     public const string InvalidAssessment = "tax.invalid_assessment";
     public const string DeclarantTaken = "tax.declarant_taken";
+
+    /// <summary>#636: another declarant than the actor already declares a notice of that year; which one is not said.</summary>
+    public const string DeclarantsTaken = "tax.declarants_taken";
     public const string DeclarantRequired = "tax.declarant_required";
     public const string Conflict = "tax.assessment_conflict";
 

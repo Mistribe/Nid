@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using UnambitiousFx.Engram;
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
@@ -12,9 +13,9 @@ namespace Nid.Platform.Import;
 /// Orders the sections, assembles one report, and owns the one transaction of a commit
 /// (<c>import-format.md</c> §11.4). It knows sections by name only.
 /// </summary>
-public sealed class ImportRunner(
+public sealed partial class ImportRunner(
     IEnumerable<IImportSection> sections, IImportStaging staging, IUnitOfWork unitOfWork, IClock clock, ImportOptions options,
-    IImportAudit audit, IHouseholdCalendar calendar)
+    IImportAudit audit, IHouseholdCalendar calendar, ILogger<ImportRunner> logger)
 {
     public const string Validated = "validated";
     public const string Invalid = "invalid";
@@ -84,7 +85,9 @@ public sealed class ImportRunner(
             var basis = computed ?? new ImportReport(Validated, new SortedDictionary<string, SectionCounts>(StringComparer.Ordinal), []);
             var issue = e is OperationCanceledException
                 ? ImportIssue.Error(ImportCodes.TooLarge, "The import did not finish in time and was abandoned: split it into smaller imports.", "")
-                : ImportIssue.Error(ImportCodes.ApplyFailed, $"{e.GetType().Name}: {e.Message}", "");
+                : ImportIssue.Error(ImportCodes.ApplyFailed, $"The import could not be written ({e.GetType().Name}): nothing was saved, the server log has the details.", "");
+            if (e is not OperationCanceledException)
+                LogApplyFailed(e, session.Id); // #637: the message may name tables, constraints and key values, so it stays in the log
             refused = basis with { Issues = [.. basis.Issues, issue] };
 
             await staging.TransitionAsync(session.Id, [ImportState.Validated], ImportState.Validated,
@@ -195,4 +198,7 @@ public sealed class ImportRunner(
             return new Staged(bySection);
         }
     }
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "The commit of import session {Session} threw; nothing was written")]
+    private partial void LogApplyFailed(Exception exception, Guid session);
 }
