@@ -14,7 +14,7 @@ public sealed record RecordAssetValuationCommand(ItemId ItemId, LocalDate AsOf, 
     public AccessKind Access => AccessKind.Write;
 }
 
-public sealed record VoidAssetValuationCommand(ItemId ItemId, Guid ValuationId) : ICommand<Guid>, IItemScoped
+public sealed record VoidAssetValuationCommand(ItemId ItemId, Guid ValuationId) : ICommand<Guid>, IItemScoped, ITransactional
 {
     public AccessKind Access => AccessKind.Write;
 }
@@ -35,7 +35,7 @@ public sealed class RecordAssetValuationHandler(IAssetRecordStore assets, IItemR
         var loaded = await AssetCheck.LoadAsync(assets, items, command.ItemId, ct);
         if (!loaded.TryGetValue(out var found))
             return Result.Failure<Guid>(loaded.TryGetFailure(out var missing) ? missing! : throw new InvalidOperationException());
-        if (AssetCheck.Positive(command.Amount, "amount") is { } refused)
+        if ((AssetCheck.Note(command.Note) ?? AssetCheck.Positive(command.Amount, "amount")) is { } refused)
             return Result.Failure<Guid>(refused);
         var recorded = await valuations.RecordAsync(
             new NewValuation(command.ItemId, command.AsOf, AssetCheck.MoneyOf(command.Amount, found.Item.Currency), command.Note), ct);
@@ -51,7 +51,9 @@ public sealed class VoidAssetValuationHandler(IAssetRecordStore assets, IItemReg
 {
     public async ValueTask<Result<Guid>> HandleAsync(VoidAssetValuationCommand command, CancellationToken ct = default)
     {
-        var loaded = await AssetCheck.LoadAsync(assets, items, command.ItemId, ct);
+        // Locked with the edit's lock: two voids, or a void and an edit, cannot together leave the asset without a value.
+        // The series holds current valuations only (a corrected one is retired), so its count is the one that matters.
+        var loaded = await AssetCheck.LockAsync(assets, items, command.ItemId, ct);
         if (!loaded.TryGetValue(out var found))
             return Result.Failure<Guid>(loaded.TryGetFailure(out var missing) ? missing! : throw new InvalidOperationException());
         var series = await valuations.SeriesAsync(command.ItemId, AssetCheck.Everything, ct);

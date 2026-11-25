@@ -19,11 +19,7 @@ public class AssetWriteTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         ["fineness"] = fineness, ["version"] = version,
     };
 
-    private static async Task<uint> VersionAsync(NidApp app, ItemId id)
-    {
-        await using var scope = app.Services.CreateAsyncScope();
-        return (await scope.ServiceProvider.GetRequiredService<IAssetRecordStore>().FindAsync(id, TestContext.Current.CancellationToken))!.Version;
-    }
+    private static async Task<uint> VersionAsync(NidApp app, ItemId id) => (await GetAsync(app, id)).GetProperty("version").GetUInt32();
 
     [Fact]
     public async Task Create_with_purchase_only_values_it_at_purchase()
@@ -49,6 +45,29 @@ public class AssetWriteTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         Assert.Equal("800.00", view.GetProperty("value").GetProperty("amount").GetString());
         Assert.Equal("2025-10-15", view.GetProperty("valueOn").GetString());
         Assert.Equal("800.00", Assert.Single(view.GetProperty("valuations").EnumerateArray()).GetProperty("amount").GetString());
+    }
+
+    [Fact]
+    public async Task Create_with_a_future_value_date_is_422_and_leaves_nothing()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+
+        await AssertRefusedAsync(
+            await app.RawAsync(app.AdultA, HttpMethod.Post, Route, Body(app, purchasePrice: null, purchasedOn: null, currentValue: "800", currentValueOn: "2030-01-01")),
+            HttpStatusCode.UnprocessableEntity, "core.date_in_future", "currentValueOn");
+
+        var list = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, Route));
+        Assert.Equal(0, list.GetProperty("total").GetInt32());
+    }
+
+    [Fact]
+    public async Task Create_with_a_value_date_but_no_value_is_422_on_currentValueOn()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+
+        await AssertRefusedAsync(
+            await app.RawAsync(app.AdultA, HttpMethod.Post, Route, Body(app, currentValueOn: "2025-02-01")),
+            HttpStatusCode.UnprocessableEntity, AssetsCodes.InvalidValue, "currentValueOn");
     }
 
     [Fact]
@@ -98,6 +117,9 @@ public class AssetWriteTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         await AssertRefusedAsync(
             await app.RawAsync(app.AdultA, HttpMethod.Put, $"{Route}/{id.Value}", Edit(await VersionAsync(app, id), price: null, on: null)),
             HttpStatusCode.UnprocessableEntity, AssetsCodes.ValueRequired);
+        var view = await GetAsync(app, id);
+        Assert.Equal("1000.00", view.GetProperty("purchasePrice").GetProperty("amount").GetString());
+        Assert.Equal("2025-01-10", view.GetProperty("purchasedOn").GetString());
     }
 
     [Fact]

@@ -948,9 +948,9 @@ public static class RequestCatalogue
     /// <summary>A bank row on 2025-02-16: the bench loans fall due on the 15th, so it never fits one.</summary>
     private static BankRow BenchRow => new(new LocalDate(2025, 2, 16), 84.25m, 0.83m, 83.42m, null, 916.58m);
 
-    /// <summary>A rental bought 100 000 on 2020-01-15, nothing else.</summary>
     private static Nid.Assets.Domain.AssetDetails BenchAsset => new("art", 100m, new LocalDate(2025, 1, 1), null, null, null);
 
+    /// <summary>A rental bought 100 000 on 2020-01-15, nothing else.</summary>
     private static PropertyDetails BenchProperty => new(PropertyType.Rental, new LocalDate(2020, 1, 15), 100_000m, 0m, 0m, 0m,
         null, null, PropertyCadence.Yearly, null, null, null);
 

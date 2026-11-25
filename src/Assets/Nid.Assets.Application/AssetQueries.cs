@@ -27,17 +27,20 @@ public sealed class ListAssetsHandler(
     : IRequestHandler<ListAssetsQuery, AssetListView>
 {
     public const int PageSize = 50;
+    public const int MaxPage = 100_000;
 
     public async ValueTask<Result<AssetListView>> HandleAsync(ListAssetsQuery query, CancellationToken ct = default)
     {
         var filter = query.Filter;
+        if (filter.Page is < 1 or > MaxPage)
+            return Result.Failure<AssetListView>(AssetCheck.Shape("page", $"A page is 1 to {MaxPage}."));
         var ids = await visible.ForAsync(actor.Current!.PersonId!.Value, query.Scope, includeArchived: filter.Archived, ct);
         var search = string.IsNullOrWhiteSpace(filter.Search) ? null : filter.Search.Trim();
         var candidates = (await items.SearchAsync(ids.ToList(), "assets", "asset", search, ct))
             .Where(i => (i.ArchivedAt is not null) == filter.Archived && (filter.Owner is not { } owner || i.Owners.Any(o => o.PersonId == owner)))
             .ToDictionary(i => i.Id);
 
-        var page = await assets.ListAsync(candidates.Keys.ToList(), filter.Kind, (Math.Max(filter.Page, 1) - 1) * PageSize, PageSize, ct);
+        var page = await assets.ListAsync(candidates.Keys.ToList(), filter.Kind, (filter.Page - 1) * PageSize, PageSize, ct);
         var series = page.Rows.Count == 0
             ? new Dictionary<ItemId, IReadOnlyList<Valuation>>()
             : await valuations.SeriesManyAsync(page.Rows.Select(r => r.ItemId).ToList(), AssetCheck.Everything, ct) is { } read && read.TryGetValue(out var map)

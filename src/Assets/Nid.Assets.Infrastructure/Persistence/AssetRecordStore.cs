@@ -15,6 +15,9 @@ public sealed class AssetRecordStore(AssetsDbContext db) : IAssetRecordStore
         await db.SaveChangesAsync(ct);
     }
 
+    public Task LockAsync(ItemId id, CancellationToken ct)
+        => db.Database.ExecuteSqlAsync($"select 1 from assets.asset where item_id = {id.Value} for update", ct);
+
     public async Task<AssetRecord?> FindAsync(ItemId id, CancellationToken ct)
         => await db.Assets.AsNoTracking().SingleOrDefaultAsync(a => a.ItemId == id.Value, ct) is { } row ? ToRecord(row) : null;
 

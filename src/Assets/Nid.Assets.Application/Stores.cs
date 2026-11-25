@@ -12,6 +12,9 @@ public interface IAssetRecordStore
 {
     Task AddAsync(ItemId id, AssetDetails details, CancellationToken ct);
 
+    /// <summary>Locks the asset row for the caller's transaction: writes that count an asset's valuations take it first, so none slips in between.</summary>
+    Task LockAsync(ItemId id, CancellationToken ct);
+
     Task<AssetRecord?> FindAsync(ItemId id, CancellationToken ct);
 
     Task<IReadOnlyList<AssetRecord>> FindManyAsync(IReadOnlyCollection<ItemId> ids, CancellationToken ct);

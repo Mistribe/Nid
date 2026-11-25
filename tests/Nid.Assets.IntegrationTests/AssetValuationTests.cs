@@ -56,6 +56,17 @@ public class AssetValuationTests(PostgresFixture fixture) : IClassFixture<Postgr
     }
 
     [Fact]
+    public async Task A_valuation_note_over_2000_characters_is_422_on_note()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await CreateAsync(app, Body(app));
+
+        await AssertRefusedAsync(
+            await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Route}/{id.Value}/valuations", new { asOf = "2025-06-01", amount = "1500", note = new string('x', 2001) }),
+            HttpStatusCode.UnprocessableEntity, "request.invalid", "note");
+    }
+
+    [Fact]
     public async Task Valuation_on_a_property_id_is_404()
     {
         await using var app = await NidApp.StartAsync(fixture);

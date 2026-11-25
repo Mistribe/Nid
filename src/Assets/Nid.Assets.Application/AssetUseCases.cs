@@ -49,6 +49,9 @@ public sealed class CreateAssetHandler(
     {
         var today = await calendar.TodayAsync(ct);
         var failure = AssetCheck.Name(command.Name, command.Details.Note) ?? AssetRules.Check(command.Details, today)
+            ?? (command.CurrentValue is null && command.CurrentValueOn is not null
+                ? new Failure(AssetsCodes.InvalidValue, "A date of value goes with a current value.", new Dictionary<string, object?> { ["field"] = "currentValueOn" })
+                : null)
             ?? (command.CurrentValue is { } value ? AssetCheck.Positive(value, "currentValue") : null)
             ?? (AssetRules.HasValue(command.Details, command.CurrentValue is null ? 0 : 1) ? null : AssetCheck.ValueRequired("currentValue"));
         if (failure is not null)
@@ -78,7 +81,8 @@ public sealed class EditAssetHandler(
 {
     public async ValueTask<Result<ItemId>> HandleAsync(EditAssetCommand command, CancellationToken ct = default)
     {
-        var loaded = await AssetCheck.LoadAsync(assets, items, command.ItemId, ct);
+        // Locked: a valuation void takes the same lock, so neither can leave the asset without a value.
+        var loaded = await AssetCheck.LockAsync(assets, items, command.ItemId, ct);
         if (!loaded.TryGetValue(out var found))
             return Result.Failure<ItemId>(loaded.TryGetFailure(out var missing) ? missing! : throw new InvalidOperationException());
         if (found.Asset.Version != command.Version)

@@ -51,5 +51,22 @@ public class AssetReadTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         Assert.Equal(["art", "vehicle"], art.Kinds);
         Assert.Equal(["Voiture 07"], (await ListAsync(app, app.AdultA, "?q=ture 07")).Names);
         Assert.Equal(0, (await ListAsync(app, app.AdultB, "?owner=" + app.AdultB.Value)).Total);
+        Assert.Equal(53, (await ListAsync(app, app.AdultB, "?owner=" + app.AdultA.Value)).Total);
+
+        var lingot = (await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, Route + "?kind=art"))).GetProperty("rows")[0].GetProperty("id").GetGuid();
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Route}/{lingot}/archive")).StatusCode);
+        Assert.Equal(["Lingot"], (await ListAsync(app, app.AdultA, "?archived=true")).Names);
+        Assert.Equal(52, (await ListAsync(app, app.AdultA)).Total);
+    }
+
+    [Theory]
+    [InlineData("0")]
+    [InlineData("-3")]
+    [InlineData("2147483647")]
+    public async Task A_page_out_of_range_is_422_on_page(string page)
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+
+        await AssertRefusedAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Route}?page={page}"), HttpStatusCode.UnprocessableEntity, "request.invalid", "page");
     }
 }

@@ -42,6 +42,18 @@ public class AssetRecordStoreTests(PostgresFixture fixture) : IClassFixture<Post
     }
 
     [Fact]
+    public async Task Lock_takes_the_row_without_failing()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await using var scope = app.Services.CreateAsyncScope();
+        var store = scope.ServiceProvider.GetRequiredService<IAssetRecordStore>();
+        var id = await NewItemAsync(scope.ServiceProvider, app);
+        await store.AddAsync(id, Art(), Ct);
+
+        await store.LockAsync(id, Ct); // outside a transaction the lock is released at once: it must simply not fail
+    }
+
+    [Fact]
     public async Task Update_with_stale_version_returns_false()
     {
         await using var app = await NidApp.StartAsync(fixture);

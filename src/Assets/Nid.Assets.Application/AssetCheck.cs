@@ -26,10 +26,20 @@ internal static class AssetCheck
             : Result.Success((asset, item));
     }
 
+    /// <summary>A write that counts the valuations locks the asset's row first, then reads it as it now is.</summary>
+    public static async Task<Result<(AssetRecord Asset, ItemAccess Item)>> LockAsync(IAssetRecordStore assets, IItemRegistry items, ItemId id, CancellationToken ct)
+    {
+        await assets.LockAsync(id, ct);
+        return await LoadAsync(assets, items, id, ct);
+    }
+
+    public static Failure? Note(string? note)
+        => note is { Length: > NoteMax } ? Shape("note", $"A note has at most {NoteMax} characters.") : null;
+
     public static Failure? Name(string? name, string? note)
         => name is null || name.Trim().Length is < 1 or > NameMax
             ? Shape("name", $"A name is 1 to {NameMax} characters, and not only whitespace.")
-            : note is { Length: > NoteMax } ? Shape("note", $"A note has at most {NoteMax} characters.") : null;
+            : Note(note);
 
     /// <summary>A value is above zero, with at most two decimals, below 10^12.</summary>
     public static Failure? Positive(decimal amount, string field)
@@ -45,5 +55,5 @@ internal static class AssetCheck
             ? money
             : throw new InvalidOperationException("A checked amount has two decimals and an asset has a currency.");
 
-    private static Failure Shape(string path, string message) => FieldErrors.Shape([new FieldError(path, FieldErrors.ShapeCode, message)]);
+    public static Failure Shape(string path, string message) => FieldErrors.Shape([new FieldError(path, FieldErrors.ShapeCode, message)]);
 }
