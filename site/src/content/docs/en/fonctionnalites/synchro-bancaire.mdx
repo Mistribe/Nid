@@ -5,6 +5,7 @@ sidebar:
   order: 10
 ---
 
+import { Badge } from '@astrojs/starlight/components';
 import Screen from '../../../../components/Screen.astro';
 
 Nid reads your accounts' balances and transactions, read-only. It matches them to what it expects (subscriptions, loan payments, rents, transfers) and proposes the links: a few minutes a month keep it current.
@@ -24,6 +25,8 @@ Nid reads your accounts' balances and transactions, read-only. It matches them t
 - **Matching**: each transaction is linked to the charge it pays, as a proposal to approve.
 - **Recurring debits** that are spotted become a subscription proposal.
 - **Spending by category**, with budgets and what is left this month.
+- **Category suggestions** drawn from what the household has already categorised itself.
+- <Badge text="Preview" variant="caution" /> **Labels never seen before**, matched by meaning to those already categorised, with the household's AI model (an option to turn on).
 - **Each adult** links their own accounts; a joint account is seen by both.
 
 ## The terms

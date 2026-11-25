@@ -673,6 +673,19 @@ cet adulte (§6.3). Chaque décision est enregistrée (`consent_id`) et liée au
 La seconde dépend de pgvector : #450 est bloquée par #168. Le candidat retenu par l'évaluation choisit l'implémentation
 livrée par défaut.
 
+**Livré en partie (#450, voisins proches)** :
+- `PatternIndexer` (Banking, dans la boucle de `ModelWorkLoop`, toutes les 30 s) plonge les motifs suggérés (`CategoryRules.Suggest` :
+  deux mots au plus, sans chiffre) par `IEmbeddings`, avec le modèle de l'usage `embed`, tant que l'usage `decide` n'est pas `off`.
+  Classe `bank_labels`, `Concerned` = chaque adulte (un worker distant demande l'`allow` de tous), `Kinds` = `bank_labels` (un
+  fournisseur cloud seulement si ce type est dans `allowed_kinds`). Un motif qui contient un mot d'un nom du foyer n'est jamais
+  envoyé ; ni les lignes ignorées ni les virements internes. Les vecteurs vont dans `banking.pattern_embedding`.
+- À la lecture du bloc « Suggestions », un motif ouvert sans suggestion de l'étape A prend la catégorie des lignes classées à la main
+  de ses 5 plus proches voisins à au moins 0,8 de similarité cosinus, sur les seuls comptes que le lecteur lit, aux seuils de l'étape A
+  (2 lignes, 80 % d'accord). La suggestion porte `byMeaning`.
+- **Écart à §7.3, à régler** : ces seuils sont posés à la main, sans profil d'évaluation ; l'usage `decide` reste `off` par défaut.
+  Le jeu d'évaluation, la capacité `decide` d'un worker (candidats 2 et 3) et le repli sur les seuls noms de catégories (démarrage
+  à froid) restent à faire.
+
 ### 7.3 Calibrage et seuils
 
 - Calibrage (température) et seuil sont **appliqués par Nid**, depuis un **profil d'évaluation** versionné

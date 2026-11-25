@@ -7,6 +7,7 @@
     <ProjectReference Include="..\..\Core\Nid.Core.Contracts\Nid.Core.Contracts.csproj" />
     <ProjectReference Include="..\..\Assets\Nid.Assets.Contracts\Nid.Assets.Contracts.csproj" />
     <ProjectReference Include="..\..\Documents\Nid.Documents.Contracts\Nid.Documents.Contracts.csproj" />
+    <ProjectReference Include="..\..\Ai\Nid.Ai.Contracts\Nid.Ai.Contracts.csproj" />
     <ProjectReference Include="..\..\Goals\Nid.Goals.Contracts\Nid.Goals.Contracts.csproj" />
     <ProjectReference Include="..\..\Income\Nid.Income.Contracts\Nid.Income.Contracts.csproj" />
     <ProjectReference Include="..\..\Investments\Nid.Investments.Contracts\Nid.Investments.Contracts.csproj" />

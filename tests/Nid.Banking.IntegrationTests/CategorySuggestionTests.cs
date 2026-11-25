@@ -2,6 +2,7 @@ using System.Net;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Nid.Ai.Contracts;
 using Nid.Banking.Application;
 using Nid.Banking.Contracts;
 using Nid.Banking.Domain;
@@ -10,7 +11,9 @@ using Nid.Banking.Infrastructure.Persistence.Migrations;
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
 using Nid.TestSupport;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using NodaTime;
+using UnambitiousFx.Functional;
 
 namespace Nid.Banking.IntegrationTests;
 
@@ -33,9 +36,10 @@ public class CategorySuggestionTests(PostgresFixture fixture) : IClassFixture<Po
     /// A's « Courant A », on an envelope of A's that B reads but does not write; A's « Perso A », which B cannot read; B's « Courant B »,
     /// which A cannot read.
     /// </summary>
-    private static async Task<Setup> StartAsync(PostgresFixture fixture)
+    private static async Task<Setup> StartAsync(PostgresFixture fixture, Labels? labels = null)
     {
-        var app = await BankingApi.StartAsync(fixture);
+        var app = await BankingApi.StartAsync(fixture,
+            overrides: labels is null ? null : services => services.Replace(ServiceDescriptor.Scoped<IEmbeddings>(_ => labels)));
         await BankingApi.ConnectAsync(app, app.AdultA, "code-a",
             BankingApi.Account("uid-1", "hash-1", null, "Courant A"), BankingApi.Account("uid-2", "hash-2", null, "Perso A"));
         await BankingApi.ConnectAsync(app, app.AdultB, "code-b", BankingApi.Account("uid-3", "hash-3", null, "Courant B"));
@@ -238,5 +242,98 @@ public class CategorySuggestionTests(PostgresFixture fixture) : IClassFixture<Po
         // As the migration runs it: braces are no format placeholders there.
         await db.Database.ExecuteSqlRawAsync(GenericBankPrefixes457.Backfill.Replace("{", "{{").Replace("}", "}}"), TestContext.Current.CancellationToken);
         Assert.Equal(imported, await db.Transactions.AsNoTracking().ToDictionaryAsync(t => t.Id, t => (t.NormalizedLabel, t.SuggestedPattern), TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task A_pattern_with_no_history_takes_the_category_of_patterns_near_it_by_meaning()
+    {
+        var labels = new Labels();
+        await using var s = await StartAsync(fixture, labels);
+        var app = s.App;
+        foreach (var label in new[] { "CB SUPER MARKET 1", "CB SUPER MARKET 2" })
+            await HandAsync(app, app.AdultA, await AddAsync(app, s.Shared, label), Groceries);
+        var open = await AddAsync(app, s.Shared, "CB CITY MARKET 3");
+        await AddAsync(app, s.Shared, "CB GARAGE AUTO 4");
+        var name = await NameAsync(app, app.AdultA);
+        await AddAsync(app, s.Shared, $"VIR {name}");
+
+        await IndexAsync(app);
+
+        // A household member's name never leaves; the patterns go as data of the class bank_labels, which a cloud provider takes only when allowed.
+        var sent = labels.Requests.SelectMany(r => r.Texts).ToList();
+        Assert.Equal(["CITY MARKET", "GARAGE AUTO", "SUPER MARKET"], sent.Order());
+        Assert.All(labels.Requests, r =>
+        {
+            Assert.Equal(DataClasses.BankLabels, r.DataClass);
+            Assert.Equal([DataClasses.BankLabels], r.Kinds!);
+        });
+        var page = await PageAsync(app, app.AdultA);
+        var city = Group(page, "CITY MARKET")!.Value;
+        Assert.Equal((Groceries, 2, true), (city.GetProperty("categoryId").GetGuid(), city.GetProperty("evidenceCount").GetInt32(), city.GetProperty("byMeaning").GetBoolean()));
+        Assert.Equal(open, Assert.Single(city.GetProperty("lines").EnumerateArray()).GetProperty("id").GetGuid());
+        Assert.Null(Group(page, "GARAGE AUTO"));
+        // A pass with nothing new sends nothing.
+        labels.Requests.Clear();
+        await IndexAsync(app);
+        Assert.Empty(labels.Requests);
+
+        // Ignored, it does not come back.
+        await DismissAsync(app, app.AdultA, "CITY MARKET", Groceries);
+        Assert.Null(Group(await PageAsync(app, app.AdultA), "CITY MARKET"));
+    }
+
+    [Fact]
+    public async Task Meaning_counts_only_the_reader_lines_and_nothing_runs_while_the_use_is_off()
+    {
+        var labels = new Labels { On = false };
+        await using var s = await StartAsync(fixture, labels);
+        var app = s.App;
+        // Evidence on A's own account, which B cannot read.
+        foreach (var label in new[] { "CB SUPER MARKET 1", "CB SUPER MARKET 2" })
+            await HandAsync(app, app.AdultA, await AddAsync(app, s.OwnA, label), Groceries);
+        await AddAsync(app, s.OwnB, "CB CITY MARKET 3");
+
+        await IndexAsync(app);
+        Assert.Empty(labels.Requests);
+
+        labels.On = true;
+        await IndexAsync(app);
+        Assert.NotEmpty(labels.Requests);
+        Assert.Equal(0, (await PageAsync(app, app.AdultB)).GetProperty("total").GetInt32());
+    }
+
+    private static async Task IndexAsync(NidApp app)
+    {
+        await using var scope = app.Services.CreateAsyncScope();
+        scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
+        await scope.ServiceProvider.GetRequiredService<PatternIndexer>().RunOnceAsync(TestContext.Current.CancellationToken);
+    }
+
+    private static async Task<string> NameAsync(NidApp app, PersonId person)
+    {
+        await using var scope = app.Services.CreateAsyncScope();
+        scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
+        var info = (await scope.ServiceProvider.GetRequiredService<IPersonRegistry>().ListAsync(TestContext.Current.CancellationToken)).Single(p => p.Id == person);
+        return info.DisplayName.Split(' ')[0];
+    }
+
+    /// <summary>The <c>embed</c> use with one topic, shops of food (« MARKET »), and everything else; <see cref="On"/> is the <c>decide</c> use.</summary>
+    private sealed class Labels : IEmbeddings
+    {
+        public bool On { get; set; } = true;
+
+        public List<LlmEmbedRequest> Requests { get; } = [];
+
+        public Task<string?> ModelAsync(CancellationToken ct) => Task.FromResult<string?>("fake-embed");
+
+        public Task<bool> UseOnAsync(string use, CancellationToken ct) => Task.FromResult(use == ModelUses.Decide && On);
+
+        public Task<Result<LlmEmbeddings>> EmbedAsync(LlmEmbedRequest request, CancellationToken ct)
+        {
+            lock (Requests)
+                Requests.Add(request);
+            return Task.FromResult(Result.Success(new LlmEmbeddings("fake-embed", 3,
+                [.. request.Texts.Select(t => (IReadOnlyList<float>)(t.Contains("MARKET", StringComparison.Ordinal) ? [1f, 0f, 0.1f] : [0f, 1f, 0.1f]))])));
+        }
     }
 }

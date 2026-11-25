@@ -44970,7 +44970,8 @@
           "lineCount",
           "evidenceCount",
           "agreement",
-          "lines"
+          "lines",
+          "byMeaning"
         ],
         "type": "object",
         "properties": {
@@ -45004,6 +45005,9 @@
             "items": {
               "$ref": "#/components/schemas/BankTransactionView"
             }
+          },
+          "byMeaning": {
+            "type": "boolean"
           }
         }
       },
