@@ -21,7 +21,6 @@ import { cn } from '@/lib/utils';
 import { OPERATIONS, type BankTransaction, type OperationPage } from '@/api/banking';
 import { LineActions, lineState, SplitParts } from '../investments/operations/LineActions';
 import { Receipts } from '../investments/operations/Receipts';
-import { monthDays, useMonth } from '../spending/MonthStepper';
 import { CategorySuggestions } from './CategorySuggestions';
 import { OperationFilters } from './OperationFilters';
 import '@/locales/banks';
@@ -32,16 +31,15 @@ const NONE: ReadonlySet<string> = new Set();
 /** The server answers a search of two characters or more; one typed character asks nothing yet. */
 const MIN_SEARCH = 2;
 
-/** « Opérations » (#84), a tab of Dépenses (#423): every bank line the reader may read, filtered and paged by the server; « À relier » is `?state=unlinked`. */
-export function OperationsPage() {
+/** « Opérations » (#84), a tab of Dépenses (#423): every bank line the reader may read, filtered and paged by the server; « À relier » is `?state=unlinked`.
+ * `month`: Dépenses' month (#85), the dates asked when the filters name none. */
+export function OperationsPage({ month }: { month?: { from: string; to: string } }) {
   const { t } = useTranslation();
   const { $api } = useApi();
   const navigate = useNavigate();
   const search: OperationsSearch & RootSearch = useSearch({ strict: false });
   const page = search.page ?? 1;
-  // Dépenses' month (#85), unless the filters name their own dates (a figure's lines, a range typed in).
-  const { month } = useMonth();
-  const days = search.from || search.to ? { from: search.from, to: search.to } : monthDays(month);
+  const days = month ?? { from: search.from, to: search.to };
   const go = (change: Partial<OperationsSearch>) =>
     void navigate({ to: '.', replace: true, resetScroll: false, search: ((prev: OperationsSearch) => ({ ...prev, ...change })) as never });
   const query = {

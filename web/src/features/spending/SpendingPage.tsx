@@ -12,7 +12,7 @@ import type { RootSearch } from '@/lib/search';
 import { todayIso } from '@/lib/today';
 import { ImportStatement } from '../investments/operations/ImportStatement';
 import { SPENDING } from './api';
-import { MonthStepper } from './MonthStepper';
+import { monthDays, MonthStepper, useMonth } from './MonthStepper';
 import '@/locales/spending';
 
 // Each tab loads when opened: the overview's figures, the bank lines, the categories and their rules.
@@ -28,7 +28,9 @@ export function SpendingPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [tab] = useDetailTab(TABS);
-  const search: SpendingSearch = useSearch({ strict: false });
+  const { search, month } = useMonth();
+  // The filters' own dates (a figure's lines, a range typed in) win over the month.
+  const dated = !!(search.from || search.to);
   // A tab's filters stay on it (an `?category=` would silently filter another); only Foyer / Moi and the month carry over.
   const change = (next: (typeof TABS)[number]) => void navigate({
     from: '/spending', to: '/spending', replace: true, resetScroll: false,
@@ -37,14 +39,14 @@ export function SpendingPage() {
   const lazyTab = (content: ReactNode) => (
     <Suspense fallback={<Loading label={t('spending.loading')}><TableSkeleton columns={4} /></Loading>}>{content}</Suspense>
   );
-  const actions = tab === 'overview' ? <Suspense fallback={null}><SpendingControls /></Suspense> : tab === 'operations' ? <>{search.from || search.to ? null : <MonthStepper />}<ImportStatement /></> : null;
+  const actions = tab === 'overview' ? <Suspense fallback={null}><SpendingControls /></Suspense> : tab === 'operations' ? <>{dated ? null : <MonthStepper />}<ImportStatement /></> : null;
   const toClassify = useToClassify();
   return (
     <div className="space-y-4">
       <PageHeader title={t('spending.title')} actions={actions} />
       <DetailTabs value={tab} onChange={change} tabs={[
         { id: 'overview', label: t('spending.tabs.overview'), content: lazyTab(<SpendingOverview />) },
-        { id: 'operations', label: t('spending.tabs.operations'), content: lazyTab(<OperationsPage />), badge: toClassify ? (
+        { id: 'operations', label: t('spending.tabs.operations'), content: lazyTab(<OperationsPage month={dated ? undefined : monthDays(month)} />), badge: toClassify ? (
           <Badge variant="outline" className="border-transparent bg-status-warning/15 text-status-warning-text"><span aria-hidden="true">{t('spending.to_classify_short', { count: toClassify })}</span><span className="sr-only">{t('spending.to_classify', { count: toClassify })}</span></Badge>
         ) : null },
         { id: 'categories', label: t('spending.tabs.categories'), content: lazyTab(<CategoriesTab />) },
