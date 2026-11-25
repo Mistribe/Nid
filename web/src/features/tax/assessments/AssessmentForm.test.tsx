@@ -274,6 +274,7 @@ describe('AssessmentForm', () => {
 
   it.each([
     ['tax.declarant_taken', 'declarants[0].personId', 'Cette personne a déjà un avis pour cette année.'],
+    ['tax.declarants_taken', 'declarants', 'L’un des déclarants a déjà un avis pour cette année.'],
     ['tax.declarant_required', 'declarants', 'Vous devez être l’un des déclarants.'],
     ['tax.invalid_assessment', 'netTax', 'Valeur refusée par le contrôle de l’avis.'],
   ])('Tells_the_refusal_%s_in_French', async (code, path, french) => {
