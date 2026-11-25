@@ -81,7 +81,7 @@ export function AssetSubscriptionsSection({ asset }: { asset: AssetView }) {
 
 const invalidateAll = (queryClient: ReturnType<typeof useQueryClient>) => Promise.all([invalidateAssets(queryClient), invalidateSubscriptions(queryClient)]);
 
-/** The active subscriptions the reader sees, but those already linked here; one linked elsewhere moves to this asset (the PUT replaces). */
+/** The active subscriptions the reader sees, that are linked to no asset (the server's `asset=none` filter, whatever the search): a link is never moved from another asset. */
 function LinkForm({ asset, titleId, onDone }: { asset: AssetView; titleId: string; onDone: (message?: string) => void }) {
   const { t } = useTranslation();
   const { $api } = useApi();

@@ -121,6 +121,8 @@ public class AssetLinkTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         var asset = await NewAssetAsync(app, app.AdultA);
         await LinkAsync(app, app.AdultA, subscription, asset);
         var preview = await Body(await app.RawAsync(app.AdultA, HttpMethod.Get, $"/api/v1/assets/{asset.Value}/deletion"));
+        var unlinked = Assert.Single(preview.GetProperty("removes").EnumerateArray(), r => r.GetProperty("key").GetString() == "linked_subscriptions");
+        Assert.Equal(1, unlinked.GetProperty("count").GetInt32());
 
         var deleted = await app.RawAsync(app.AdultA, HttpMethod.Delete, $"/api/v1/assets/{asset.Value}?version={preview.GetProperty("version").GetUInt32()}");
 

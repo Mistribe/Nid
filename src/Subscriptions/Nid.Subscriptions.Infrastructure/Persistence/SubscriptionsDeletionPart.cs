@@ -21,6 +21,9 @@ public sealed class SubscriptionsDeletionPart(SubscriptionsDbContext db, IItemRe
 
     public async Task<IReadOnlyList<DeletionCount>> CountAsync(ItemAccess item, CancellationToken ct)
     {
+        // #648: the subscriptions of a deleted asset stay, unlinked: the delete preview says how many.
+        if (IsAsset(item))
+            return [new("linked_subscriptions", await db.Subscriptions.CountAsync(s => s.AssetItemId == item.Id.Value, ct))];
         if (!IsSubscription(item))
             return [];
         var id = item.Id.Value;

@@ -29,7 +29,7 @@ public sealed class AssetTools
         => McpCalls.RunAsync(services, () => new ListAssetCostsQuery(new ItemId(id), year), ct);
 
     [McpServerTool(Name = "get_asset", ReadOnly = true)]
-    [Description("One asset: its details, purchase and valuations. " + McpSetup.Untrusted)]
+    [Description("One asset: its details, purchase and valuations; for a vehicle its energy, mileage and the value estimated from a yearly depreciation rate (valueEstimated, valueBase), whether it has costs (hasCosts), the subscriptions linked to it and the loans financing it, with the net value after their balances (netValue; fxMissing when a loan has no exchange rate and is not deducted). " + McpSetup.Untrusted)]
     public static Task<CallToolResult> GetAsset(IServiceProvider services, [Description("The asset's id.")] Guid id, CancellationToken ct = default)
         => McpCalls.RunAsync(services, () => new GetAssetQuery(new ItemId(id)), ct);
 }

@@ -74,6 +74,8 @@
       "scpi_loan_other": "{{count}} crédits financent cette SCPI",
       "asset_loan_one": "{{count}} crédit finance ce bien",
       "asset_loan_other": "{{count}} crédits financent ce bien",
+      "linked_subscriptions_one": "{{count}} abonnement sera délié",
+      "linked_subscriptions_other": "{{count}} abonnements seront déliés",
       "insurance_one": "{{count}} assurance le couvre",
       "insurance_other": "{{count}} assurances le couvrent",
       "billing_phases_one": "{{count}} phase de facturation",
