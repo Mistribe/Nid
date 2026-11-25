@@ -2,9 +2,11 @@ using System.Net;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Nid.Banking.Infrastructure.Persistence;
+using Nid.Childcare.Infrastructure.Persistence;
 using Nid.Core.Application;
 using Nid.Core.Contracts;
 using Nid.Core.Infrastructure.Persistence;
+using Nid.Documents.Infrastructure.Persistence;
 using Nid.Goals.Infrastructure.Persistence;
 using Nid.Income.Infrastructure.Persistence;
 using Nid.Investments.Infrastructure.Persistence;
@@ -22,8 +24,8 @@ namespace Nid.Host.IntegrationTests.BatchedReads;
 /// <summary>
 /// Batched reads spec §4, the permanent guard: each route issues as many SQL commands for 2N items as for N — no read per item.
 /// Every round adds, for A, a shared envelope with a value and a contribution, a shared property with an estimate, a planned
-/// cost and a tenancy, a loan linked to it reading its bank's table (3F2) and one in USD converted at a stored rate, a closed envelope with a value, a monthly subscription, an income source with a phase, and three goals (on the envelopes, an emergency
-/// fund, a free one with entries): the same shapes each
+/// cost and a tenancy, a loan linked to it reading its bank's table (3F2) and one in USD converted at a stored rate, a closed envelope with a value, a monthly subscription, an income source with a phase, three goals (on the envelopes, an emergency
+/// fund, a free one with entries) and a childcare arrangement running this month (#644): the same shapes each
 /// round, so every branch a route takes is taken alike for N and 2N.
 /// </summary>
 public class CommandCountTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
@@ -125,6 +127,8 @@ public class CommandCountTests(PostgresFixture fixture) : IClassFixture<Postgres
         services.ConfigureDbContext<RealEstateDbContext>(o => o.AddInterceptors(counter));
         services.ConfigureDbContext<PlatformDbContext>(o => o.AddInterceptors(counter));
         services.ConfigureDbContext<BankingDbContext>(o => o.AddInterceptors(counter));
+        services.ConfigureDbContext<ChildcareDbContext>(o => o.AddInterceptors(counter));
+        services.ConfigureDbContext<DocumentsDbContext>(o => o.AddInterceptors(counter));
     }
 
     /// <summary>The read made once to warm it (query compilation, first-request work), then counted on a second read.</summary>
@@ -177,6 +181,20 @@ public class CommandCountTests(PostgresFixture fixture) : IClassFixture<Postgres
 
         await app.NewMonthlyAsync(app.AdultA, 10m + i);
         await app.NewIncomeSourceAsync($"Salaire {i}", Visibility.Shared, (app.AdultA, 10_000));
+
+        // #644: the dashboard's commitments and the tax lines estimate its month, October, from the contract.
+        await PostAsync(app, "/api/v1/childcare", new
+        {
+            name = $"Garde {i}", childId = app.Dependent.Value,
+            carer = new { name = $"Assistante {i}", pajemploi = (string?)null, approval = (string?)null },
+            terms = new
+            {
+                from = "2025-09-01", netHourlyRate = "4.30", grossHourlyRate = (string?)null, overtimePct = "10", upkeepPer9h = "3.80", lunchPrice = (string?)null,
+                weekTypes = new[] { new { name = "Semaine type", weeks = 46, schedule = new[] { new { day = 1, arrival = "08:00", departure = "17:30", lunch = false } } } },
+            },
+            gaps = Array.Empty<object>(), visibility = "shared",
+            owners = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } },
+        });
     }
 
     private static async Task PatchAccountAsync(NidApp app, Guid account, object body)

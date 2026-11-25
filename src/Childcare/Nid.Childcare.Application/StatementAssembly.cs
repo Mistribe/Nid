@@ -51,8 +51,42 @@ public sealed class StatementAssembly(IChildcareStore store, IItemRegistry items
         if (!StatementContext.Months(revisions[0].From, revisions[^1].To, today).Contains(month))
             return Result.Failure<MonthContext>(new NotFoundFailure("childcare.statement", Format(month)));
         var overrides = (await store.OverridesOfAsync([id], ct)).Select(o => o.Override).ToList();
-        var terms = MonthTerms.For(revisions, (await store.GapsOfAsync([id], ct)).Select(g => g.Gap).ToList(), overrides, month);
-        return Result.Success(new MonthContext(arrangement, item, revisions, terms.Gaps, terms.Overrides, stored, today, month, terms.Chosen, terms.Contract));
+        return Result.Success(Context(arrangement, item, revisions, (await store.GapsOfAsync([id], ct)).Select(g => g.Gap).ToList(), overrides, stored, today, month));
+    }
+
+    /// <summary>
+    /// #644, batched reads: <see cref="ContextAsync"/> for several arrangements, each at its month, in a fixed number of reads. An arrangement
+    /// not in the registry, or whose months do not include its month, is left out.
+    /// </summary>
+    public async Task<IReadOnlyDictionary<ItemId, MonthContext>> ContextsAsync(IReadOnlyList<(Arrangement Arrangement, YearMonth Month)> wanted, CancellationToken ct)
+    {
+        var contexts = new Dictionary<ItemId, MonthContext>();
+        if (wanted.Count == 0)
+            return contexts;
+        var ids = wanted.Select(w => w.Arrangement.ItemId).ToList();
+        var registered = await items.FindManyAsync(ids, ct);
+        var terms = (await store.TermsOfAsync(ids, ct)).ToLookup(t => t.ItemId);
+        var stored = (await store.StatementsOfAsync(ids, ct)).ToLookup(s => s.ItemId);
+        var gaps = (await store.GapsOfAsync(ids, ct)).ToLookup(g => g.Item, g => g.Gap);
+        var overrides = (await store.OverridesOfAsync(ids, ct)).ToLookup(o => o.Item, o => o.Override);
+        var today = await calendar.TodayAsync(ct);
+        foreach (var (arrangement, month) in wanted)
+        {
+            var revisions = terms[arrangement.ItemId].ToList();
+            if (registered.TryGetValue(arrangement.ItemId, out var item) && revisions.Count > 0
+                && StatementContext.Months(revisions[0].From, revisions[^1].To, today).Contains(month))
+                contexts[arrangement.ItemId] = Context(arrangement, item, revisions, gaps[arrangement.ItemId].ToList(), overrides[arrangement.ItemId].ToList(),
+                    stored[arrangement.ItemId].ToList(), today, month);
+        }
+        return contexts;
+    }
+
+    private static MonthContext Context(
+        Arrangement arrangement, ItemAccess item, IReadOnlyList<Terms> revisions, IReadOnlyList<CareGap> gaps, IReadOnlyList<WeekOverride> overrides,
+        IReadOnlyList<Statement> stored, LocalDate today, YearMonth month)
+    {
+        var terms = MonthTerms.For(revisions, gaps, overrides, month);
+        return new MonthContext(arrangement, item, revisions, terms.Gaps, terms.Overrides, stored, today, month, terms.Chosen, terms.Contract);
     }
 
     /// <summary>
