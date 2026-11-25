@@ -83,9 +83,22 @@ public static class PurchaseRules
 {
     public static Failure? Check(ItemId self, Purchase purchase, string prefix)
     {
+        if (Unanchored(self, purchase, prefix) is { } unanchored)
+            return unanchored;
         var input = new SubscriptionInput(new SubscriptionHeader(self, true, null), [], [purchase]);
         return SubscriptionTimeline.Build(input, purchase.Date, purchase.Date).TryGetFailure(out var refused)
             ? PurchasePaths.Locate(refused!, prefix)
             : null;
     }
+
+    /// <summary>
+    /// #628: a purchase is read and deleted through its grants to the subscription it is recorded on; one without such a
+    /// grant would be stored where nothing can see or delete it.
+    /// </summary>
+    public static Failure? Unanchored(ItemId self, Purchase purchase, string prefix)
+        => purchase.Grants.Any(g => g.SubscriptionId == self)
+            ? null
+            : FieldErrors.At(
+                new Failure("subscriptions.grant_missing", "A purchase grants coverage to the subscription it is recorded on.", null),
+                prefix == "" ? "grants" : $"{prefix}.grants");
 }

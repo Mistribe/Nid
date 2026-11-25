@@ -127,6 +127,60 @@ public class PriceChangeTests(PostgresFixture fixture) : IClassFixture<PostgresF
         Assert.DoesNotContain(detail.GetProperty("findings").EnumerateArray(), f => f.GetProperty("code").GetString() == "subscriptions.phase_cycles_unspent");
     }
 
+    /// <summary>#628: the same change sent twice at once is applied once; the other is refused, and the subscription still reads.</summary>
+    [Fact]
+    public async Task Two_price_changes_at_once_apply_one()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await app.NewMonthlyAsync(app.AdultA, 10m);
+
+        var responses = await Task.WhenAll(Enumerable.Range(0, 4).Select(_ =>
+            app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/subscriptions/{id.Value}/price-changes", Change("2025-06-01"))));
+
+        Assert.Single(responses, r => r.StatusCode == HttpStatusCode.Created);
+        await using var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
+        Assert.Equal(2, await subs.Phases.CountAsync(p => p.ItemId == id.Value, TestContext.Current.CancellationToken));
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Get, $"/api/v1/subscriptions/{id.Value}")).StatusCode);
+    }
+
+    /// <summary>#628: a capped phase that has not charged yet closes with no cap, and the new one keeps all its cycles.</summary>
+    [Fact]
+    public async Task A_capped_phase_that_never_charged_closes_without_a_cap()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var created = await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/subscriptions", new
+        {
+            displayName = "Engagement", visibility = "shared", autoRenew = true,
+            owners = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } },
+            phases = new[]
+            {
+                new
+                {
+                    startsOn = "2025-01-01", price = new { amount = "10", currency = "EUR" }, every = new { count = 1, unit = "month" },
+                    maxCycles = 12, payer = new { type = "household" },
+                },
+            },
+            // Six months offered first: the phase's first charge falls on 2025-07-01, after the change.
+            purchases = new[]
+            {
+                new
+                {
+                    date = "2025-01-01", label = "gift", kind = "gift", price = new { amount = "0", currency = "EUR" }, payer = new { type = "external" },
+                    grants = new[] { new { duration = new { count = 6, unit = "month" }, source = "gift" } },
+                },
+            },
+        });
+        created.EnsureSuccessStatusCode();
+        var id = (await created.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: TestContext.Current.CancellationToken)).GetProperty("id").GetGuid();
+
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/subscriptions/{id}/price-changes", Change("2025-03-01"));
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        await using var subs = PostgresFixture.NewSubscriptionsContext(app.ConnectionString);
+        var phases = await subs.Phases.Where(p => p.ItemId == id).OrderBy(p => p.StartsOn).ToListAsync(TestContext.Current.CancellationToken);
+        Assert.Equal([null, 12], phases.Select(p => p.MaxCycles));
+    }
+
     [Fact]
     public async Task A_phase_whose_cycles_are_all_spent_is_not_open()
     {

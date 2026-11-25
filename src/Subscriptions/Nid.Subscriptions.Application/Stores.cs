@@ -78,9 +78,12 @@ public interface ISubscriptionStore
 
     Task<Result<BillingPhaseId>> AddPhaseAsync(ItemId id, BillingPhase phase, RowOrigin origin, CancellationToken ct);
 
+    /// <summary>#628: serialises the phase writes of one subscription until the transaction ends.</summary>
+    Task LockAsync(ItemId id, CancellationToken ct);
+
     /// <summary>
     /// Ends a phase on <paramref name="endsOn"/>. <paramref name="maxCycles"/>, when given, becomes its cycle limit: a price
-    /// change leaves the closed phase the cycles it spent (1E2a final review).
+    /// change leaves the closed phase the cycles it spent (1E2a final review), and no limit when it spent none (#628).
     /// </summary>
     Task<Result> ClosePhaseAsync(ItemId id, BillingPhaseId phase, LocalDate endsOn, int? maxCycles, CancellationToken ct);
 
