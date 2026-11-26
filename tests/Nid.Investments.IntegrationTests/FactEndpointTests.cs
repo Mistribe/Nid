@@ -39,6 +39,20 @@ public class FactEndpointTests(PostgresFixture fixture, SharedNidApp shared) : I
     }
 
     [Fact]
+    public async Task A_checking_account_has_no_performance_over_a_period()
+    {
+        // #776: its first balance is no performance since January.
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await app.NewEnvelopeAsync("Compte courant", app.AdultA, Visibility.Shared, kind: "checking");
+        var url = $"/api/v1/investments/envelopes/{id.Value}";
+        await app.RawAsync(app.AdultA, HttpMethod.Post, $"{url}/valuations", new { asOf = "2025-05-10", amount = Eur("1500.00") });
+
+        var period = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{url}/performance?from=2025-01-01&to=2025-06-30"));
+        Assert.Equal("1500.0000", period.GetProperty("endValue").GetProperty("amount").GetString());
+        Assert.Equal(JsonValueKind.Null, period.GetProperty("performance").ValueKind);
+    }
+
+    [Fact]
     public async Task Correcting_and_voiding_a_flow_changes_the_figures()
     {
         await using var app = await NidApp.StartAsync(fixture);
