@@ -28,7 +28,7 @@ describe('Biens › vue d’ensemble', () => {
     expect(figures).toHaveTextContent('488 000,00 €1 estimation à mettre à jour');
     expect(figures).toHaveTextContent('Crédits restants193 564,23 €1 crédit lié');
     expect(await region('Valeur nette')).toHaveTextContent(
-      'Valeur nette294 435,77 €+20 700,00 €4,4 %en hausseplus-value latente sur le prix de revient · avant impôt60,3 % de la valeur');
+      'Valeur nette294 435,77 €Plus-value latente+20 700,00 €4,4 %en haussesur le prix de revient · avant impôt60,3 % de la valeur');
     expect(figures).toHaveTextContent('Loyers reçus, 12 mois9 360,00 €rendement brut 5,02 %');
     // Three years by default, out of the URL.
     expect(seen).toEqual(['?scope=household&span=3y']);

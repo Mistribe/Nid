@@ -86,7 +86,7 @@ describe('Administration › IA', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Continuer' }));
 
     expect(await within(dialog).findByText(FINGERPRINT)).toBeInTheDocument();
-    await user.type(within(dialog).getByLabelText("Code d'appairage"), 'abcd-efgh');
+    await user.type(within(dialog).getByLabelText("Code d’appairage"), 'abcd-efgh');
     await user.click(within(dialog).getByRole('button', { name: 'Appairer' }));
 
     await waitFor(() => expect(toasts()).toHaveTextContent('worker est appairé.'));
@@ -104,7 +104,7 @@ describe('Administration › IA', () => {
     const dialog = await screen.findByRole('dialog');
     await user.click(within(dialog).getByRole('button', { name: 'Continuer' }));
 
-    expect(await within(dialog).findByRole('alert')).toHaveTextContent("Nid n'arrive pas à joindre le worker à cette adresse.");
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent("Nid n’arrive pas à joindre le worker à cette adresse.");
   });
 
   it('says which field is missing', async () => {
@@ -118,7 +118,7 @@ describe('Administration › IA', () => {
     await user.clear(within(dialog).getByLabelText('Adresse du worker'));
     await user.click(within(dialog).getByRole('button', { name: 'Continuer' }));
 
-    await waitFor(() => expect(within(dialog).getByLabelText('Adresse du worker')).toHaveAccessibleDescription(/Indiquez l'adresse du worker/));
+    await waitFor(() => expect(within(dialog).getByLabelText('Adresse du worker')).toHaveAccessibleDescription(/Indiquez l’adresse du worker/));
   });
 
   it('asks the address again for a worker whose key Nid never read', async () => {
@@ -142,7 +142,7 @@ describe('Administration › IA', () => {
 
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByText(FINGERPRINT)).toBeInTheDocument();
-    expect(within(dialog).getByLabelText("Code d'appairage")).toBeInTheDocument();
+    expect(within(dialog).getByLabelText("Code d’appairage")).toBeInTheDocument();
   });
 
   it("sets how long the assistant's conversations are kept, 1 to 365 days", async () => {
@@ -154,7 +154,7 @@ describe('Administration › IA', () => {
     }));
     const { user } = await renderApp('/admin/ai', { capabilities: adminCapabilities });
 
-    const field = await screen.findByRole('textbox', { name: "Conserver les conversations de l'assistant (jours)" });
+    const field = await screen.findByRole('textbox', { name: "Conserver les conversations de l’assistant (jours)" });
     const save = screen.getByRole('button', { name: 'Enregistrer la durée' });
     expect(field).toHaveValue('30');
     expect(save).toBeDisabled();
@@ -215,7 +215,7 @@ describe('Administration › IA', () => {
     await user.click(within(await screen.findByRole('row', { name: /Serveur du salon/ })).getByRole('button', { name: 'Actions pour Serveur du salon' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Révoquer' }));
     const confirm = await screen.findByRole('alertdialog');
-    expect(confirm).toHaveTextContent('Nid n\'enverra plus rien à Serveur du salon.');
+    expect(confirm).toHaveTextContent('Nid n’enverra plus rien à Serveur du salon.');
     await user.click(within(confirm).getByRole('button', { name: 'Confirmer' }));
 
     await waitFor(() => expect(revoked).toBe(1));
@@ -285,7 +285,7 @@ describe('Administration › IA', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Ajouter la clé' }));
     const dialog = await screen.findByRole('dialog', { name: 'Clé Anthropic' });
-    await user.type(within(dialog).getByLabelText("Clé d'API"), 'sk-ant-0123456789abcdef-WXYZ');
+    await user.type(within(dialog).getByLabelText("Clé d’API"), 'sk-ant-0123456789abcdef-WXYZ');
     await user.click(within(dialog).getByRole('button', { name: 'Enregistrer la clé' }));
 
     await waitFor(() => expect(sent).toEqual([{ key: 'sk-ant-0123456789abcdef-WXYZ' }]));
@@ -368,7 +368,7 @@ describe('Administration › IA', () => {
     await renderApp('/admin/ai', { capabilities: adminCapabilities });
 
     const section = (await screen.findByRole('heading', { name: 'Fournisseurs cloud' })).closest('section')!;
-    expect(await within(section).findByText("N'entraîne pas ses modèles sur vos données")).toBeInTheDocument();
+    expect(await within(section).findByText("N’entraîne pas ses modèles sur vos données")).toBeInTheDocument();
     expect(section).toHaveTextContent('Demandes conservées 30 jours chez le fournisseur');
   });
 
@@ -409,6 +409,6 @@ describe('Administration › IA', () => {
 
     const done = await screen.findByRole('dialog', { name: 'Nouvelle clé de Nid' });
     expect(done).toHaveTextContent(`confirm-rotation ${'ef56'.repeat(16)}`);
-    expect(done).toHaveTextContent(/n'a pas pu prévenir.*Box/);
+    expect(done).toHaveTextContent(/n’a pas pu prévenir.*Box/);
   });
 });

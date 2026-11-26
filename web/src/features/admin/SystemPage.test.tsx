@@ -21,8 +21,8 @@ describe('Administration › Système', () => {
 
     expect(await screen.findByText('1.0.0+abc123')).toBeInTheDocument();
     expect(screen.getByText('Base de données').nextElementSibling).toHaveTextContent('disponible');
-    expect(screen.getByText("Fournisseur d'identité").nextElementSibling).toHaveTextContent('injoignable');
-    expect(screen.getByText('Connexion').nextElementSibling).toHaveTextContent("fournisseur d'identité");
+    expect(screen.getByText("Fournisseur d’identité").nextElementSibling).toHaveTextContent('injoignable');
+    expect(screen.getByText('Connexion').nextElementSibling).toHaveTextContent("fournisseur d’identité");
     expect(screen.getByText(`${formatMegabytes(12_345_678)} Mo`)).toBeInTheDocument();
     expect(screen.queryByText(/HTTP sans chiffrement/)).not.toBeInTheDocument();
     await expectNoAxeViolations(container);
@@ -37,7 +37,7 @@ describe('Administration › Système', () => {
 
     expect(await screen.findByText('1.0.0+abc123')).toBeInTheDocument();
     expect(screen.getByText('Connexion').nextElementSibling).toHaveTextContent('comptes locaux');
-    expect(screen.getByText("Fournisseur d'identité").nextElementSibling).toHaveTextContent('non utilisé');
+    expect(screen.getByText("Fournisseur d’identité").nextElementSibling).toHaveTextContent('non utilisé');
     expect(screen.getByRole('status')).toHaveTextContent(/HTTP sans chiffrement est autorisé/);
     await expectNoAxeViolations(container);
   });

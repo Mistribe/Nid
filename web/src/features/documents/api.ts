@@ -54,7 +54,7 @@ export function useExpectedDocuments(itemId?: string, enabled = true) {
   return $api.useQuery('get', EXPECTED, { params: { query: { itemId } } }, { enabled });
 }
 
-/** « Pas disponible »: that document is no longer asked for. */
+/** « Ne plus demander »: that document is no longer asked for. */
 export function useDismissExpected() {
   const { $api } = useApi();
   return $api.useMutation('post', EXPECTED_DISMISSALS, useWrite());

@@ -23,11 +23,11 @@
     "kind": { "property_purchase": "Achat", "projection": "Projection", "property_sale": "Vente" },
     "list": "Liste des scénarios",
     "loading": "Chargement des scénarios",
-    "empty_title": "Aucun scénario pour l'instant",
+    "empty_title": "Aucun scénario pour l’instant",
     "empty_body": "Simulez un achat immobilier, ou ce que des changements de revenu, d’épargne ou de prêts feraient à votre patrimoine.",
     "dash": "—",
     "use": { "primary": "Résidence principale", "rental": "Locatif" },
-    "col": { "kind": "Type", "use": "Usage", "price": "Prix", "payment": "Mensualité", "ratio": "Endettement", "gap": "Écart à l'horizon", "actions": "Actions" },
+    "col": { "kind": "Type", "use": "Usage", "price": "Prix", "payment": "Mensualité", "ratio": "Endettement", "gap": "Écart à l’horizon", "actions": "Actions" },
     "row_menu": "Actions pour {{name}}",
     "duplicate": "Dupliquer",
     "copy_suffix": "{{name}} (copie)",
@@ -202,7 +202,7 @@
         "scope": "Portée du scénario",
         "horizon": "Horizon",
         "horizon_years": "{{count}} ans",
-        "retire": "Retraite de {{name}}",
+        "retire": "Retraite {{name, de}}",
         "assumptions_intro": "Le scénario reprend les hypothèses du foyer ; un champ vide garde celle du foyer.",
         "assumptions_more": "Changer les hypothèses du foyer",
         "class_rate": "{{name}} (%)",
@@ -276,7 +276,7 @@
         "save": "Enregistrer",
         "as_household": "{{value}} (foyer)",
         "horizon": "Horizon",
-        "horizon_retire": "Retraite de {{name}}"
+        "horizon_retire": "Retraite {{name, de}}"
       },
       "kind": {
         "income_change": "Changement de revenu",
@@ -328,16 +328,16 @@
       },
       "independence": {
         "label": "Indépendance financière",
-        "unreached": "Non atteinte avant l'horizon",
+        "unreached": "Non atteinte avant l’horizon",
         "living_cost_missing": "Renseignez le coût de la vie mensuel dans Réglages › Projection."
       },
       "departures": {
         "title": "Départs",
         "intro": "L’âge de départ et la pension d’un adulte dans ce scénario ; un champ vide garde ceux du foyer.",
-        "years": "Âge de départ de {{name}} (années)",
-        "months": "Âge de départ de {{name}} (mois)",
+        "years": "Âge de départ {{name, de}} (années)",
+        "months": "Âge de départ {{name, de}} (mois)",
         "months_need_age": "Les mois demandent un âge.",
-        "pension": "Pension mensuelle de {{name}}",
+        "pension": "Pension mensuelle {{name, de}}",
         "pension_hint": "Vide : les pensions du foyer.",
         "household_age": "âge du foyer",
         "none": "Aucun départ déplacé : ceux du foyer s’appliquent.",

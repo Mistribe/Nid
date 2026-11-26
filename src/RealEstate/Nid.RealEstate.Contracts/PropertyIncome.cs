@@ -12,7 +12,8 @@ public sealed record PropertyIncomeSource(
     ItemId Item, string Name, Currency Currency, bool Archived,
     IReadOnlyList<PropertyIncomeMonth> Months,          // one per month of the range, first day of the month, oldest first
     IReadOnlyDictionary<LocalDate, decimal?> ValueAt,   // latest valuation on or before each requested date, null if none
-    bool LetToday);                                     // a tenancy covers today
+    bool LetToday,                                      // a tenancy covers today
+    IReadOnlyList<ItemOwnerView>? Owners = null);       // #729: the income list's owner column
 
 /// <summary>RealEstate's net rent by month, read by Investments for its passive income (passive income spec C7, §3.3).</summary>
 public interface IPropertyIncome

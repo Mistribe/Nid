@@ -43,7 +43,7 @@ describe('TaxHero', () => {
   it('six figures in three columns, each with its tip', () => {
     const region = show();
     expect(within(region).getAllByRole('term').map((d) => d.textContent)).toEqual(
-      ['Reste par mois', 'Remboursé en été 2027', 'Revenu imposable', 'Votre tranche d’imposition', 'Taux de prélèvement', 'Parts du foyer']);
+      ['Revenu après impôt / mois', 'Remboursé en été 2027', 'Revenu imposable', 'Votre tranche d’imposition', 'Taux de prélèvement', 'Parts du foyer']);
     const defs = within(region).getAllByRole('definition').map((d) => d.textContent?.replace(/\s/g, ' '));
     for (const v of ['5 729,42 €', '2 973,39 €', '64 407,00 €', '11 %', '4,5 %', '3']) expect(defs).toContain(v);
     expect(region.querySelector('[data-stat-line]')).toHaveClass('md:grid-cols-3');

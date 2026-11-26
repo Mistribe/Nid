@@ -76,8 +76,8 @@
     "summary_other": "{{total}} · {{count}} prélèvements",
     "start": "Début de l’historique",
     "end": "Fin de la prévision affichée",
-    "several_one": "{{count}} prélèvement de {{name}}, {{date}}",
-    "several_other": "{{count}} prélèvements de {{name}}, {{date}}"
+    "several_one": "{{count}} prélèvement {{name, de}}, {{date}}",
+    "several_other": "{{count}} prélèvements {{name, de}}, {{date}}"
   },
   "partial": "partiel",
   "years": {

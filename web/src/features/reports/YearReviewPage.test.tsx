@@ -343,7 +343,7 @@ describe('YearReviewPage', () => {
     serve(() => review({ netWorth: null, findings: ['core.fx_rate_missing'] }));
     await renderApp('/reports/year?year=2025');
 
-    expect(await screen.findByText('Un taux de change manque : le patrimoine de l\'année ne peut pas être calculé.')).toBeInTheDocument();
+    expect(await screen.findByText('Un taux de change manque : le patrimoine de l’année ne peut pas être calculé.')).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Patrimoine net' })).not.toBeInTheDocument();
     expect(screen.queryByText('Rien à montrer pour cette année dans ce périmètre.')).not.toBeInTheDocument();
   });

@@ -362,7 +362,7 @@ describe('Abonnements › liste groupée', () => {
     await renderApp('/subscriptions?tab=list');
 
     expect(await screen.findByText('Aucun abonnement ne correspond à ces filtres.')).toBeInTheDocument();
-    expect(screen.queryByText('Aucun abonnement pour l\'instant')).not.toBeInTheDocument();
+    expect(screen.queryByText('Aucun abonnement pour l’instant')).not.toBeInTheDocument();
   });
 
   it('No_match_is_not_the_first_subscription_invite', async () => {
@@ -370,7 +370,7 @@ describe('Abonnements › liste groupée', () => {
     await renderApp('/subscriptions?tab=list&q=zzz');
 
     expect(await screen.findByText('Aucun abonnement ne correspond à ces filtres.')).toBeInTheDocument();
-    expect(screen.queryByText('Aucun abonnement pour l\'instant')).not.toBeInTheDocument();
+    expect(screen.queryByText('Aucun abonnement pour l’instant')).not.toBeInTheDocument();
   });
 
   it('Typing_keeps_the_previous_rows_while_loading', async () => {

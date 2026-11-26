@@ -67,7 +67,7 @@ describe('net worth projection card', () => {
 
     const region = await card();
     expect(await within(region).findByRole('radio', { name: 'Retraite de Bob' })).toBeInTheDocument();
-    expect(within(region).queryByRole('radio', { name: 'Retraite de Alice' })).not.toBeInTheDocument();
+    expect(within(region).queryByRole('radio', { name: 'Retraite d’Alice' })).not.toBeInTheDocument();
     expect(within(region).queryByRole('radio', { name: 'Retraite de Léa' })).not.toBeInTheDocument();
     await user.click(within(region).getByRole('radio', { name: 'Retraite de Bob' }));
     expect(router.state.location.search).toEqual({ projection: `retire:${BOB}` });

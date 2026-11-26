@@ -44,7 +44,7 @@ test('alice sets her departure and a living cost, then enters her pension on the
   await alice.getByRole('menuitem', { name: 'Saisir la pension' }).click();
   const pension = alice.getByRole('dialog');
   await pension.getByLabel('Pension mensuelle nette').fill('1500');
-  await expect(pension.getByLabel("Visible de l'autre adulte")).toBeChecked();
+  await expect(pension.getByLabel("Visible de l’autre adulte")).toBeChecked();
   await pension.getByRole('button', { name: 'Enregistrer' }).click();
   await expect(pension).toBeHidden();
   await expect(alice.getByRole('row', { name: /Alice/ })).toContainText(/1\s500,00\s€/);
@@ -55,6 +55,6 @@ test('alice sets her departure and a living cost, then enters her pension on the
   await expect(alice.getByRole('region', { name: 'Écart mensuel' })).toBeVisible();
   // With a living cost set, independence is either a month or "not reached": never the missing-cost warning.
   const independence = alice.locator('dt', { hasText: /^Indépendance financière$/ }).locator('xpath=following-sibling::dd[1]');
-  await expect(independence).toHaveText(/^(\p{L}+\.? \d{4}|Non atteinte avant l'horizon)$/u);
+  await expect(independence).toHaveText(/^(\p{L}+\.? \d{4}|Non atteinte avant l’horizon)$/u);
   await expect(alice.getByText(/Renseignez le coût de la vie mensuel/)).toHaveCount(0);
 });

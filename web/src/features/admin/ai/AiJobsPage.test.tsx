@@ -28,7 +28,7 @@ describe('Réglages › IA › Tâches', () => {
     const { container } = await renderApp('/admin/ai/jobs', { capabilities: adminCapabilities });
 
     expect(await screen.findByRole('row', { name: /Aucun worker ne sait faire ce travail/ })).toHaveTextContent('document-text');
-    const dead = screen.getByRole('row', { name: /Test d'un worker/ });
+    const dead = screen.getByRole('row', { name: /Test d’un worker/ });
     expect(dead).toHaveTextContent('Abandonnée');
     expect(dead).toHaveTextContent('Le worker a mis trop de temps.');
     expect(dead).toHaveTextContent('Box');
@@ -109,7 +109,7 @@ describe('Réglages › IA › Tâches', () => {
     await user.click(within(pages).getByRole('button', { name: 'Suivant' }));
     await waitFor(() => expect(seen.at(-1)).toBe('?status=queued&page=2'));
 
-    await pick(user, 'Type', "Test d'un worker");
+    await pick(user, 'Type', "Test d’un worker");
     await waitFor(() => expect(router.state.location.search).toEqual({ status: 'queued', type: 'echo' }));
     await waitFor(() => expect(seen.at(-1)).toBe('?status=queued&type=echo&page=1'));
   });

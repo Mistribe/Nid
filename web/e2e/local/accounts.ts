@@ -43,7 +43,7 @@ export async function newPage(browser: Browser): Promise<Page> {
 }
 
 /** Creates a person's one-time link from their row's menu on Administration › Utilisateurs and reads it from the dialog. */
-export async function createLink(admin: Page, name: string, item: 'Créer son lien d\'accès' | 'Créer un lien de mot de passe'): Promise<string> {
+export async function createLink(admin: Page, name: string, item: 'Créer son lien d’accès' | 'Créer un lien de mot de passe'): Promise<string> {
   await admin.goto('/admin/users');
   await admin.getByRole('button', { name: `Actions de ${name}` }).click();
   await admin.getByRole('menuitem', { name: item }).click();

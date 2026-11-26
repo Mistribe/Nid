@@ -50,7 +50,7 @@ public sealed class RealEstatePropertyIncome(IVisibleItems visible, IItemRegistr
             // SeriesManyAsync keeps as_of order.
             var valueAt = valueDates.Distinct().ToDictionary(d => d, d => (decimal?)values![property.ItemId].LastOrDefault(v => v.AsOf <= d)?.Value.Amount);
             sources.Add(new PropertyIncomeSource(property.ItemId, item.DisplayName, LoanReading.CurrencyOf(item), item.ArchivedAt is not null,
-                months, valueAt, tenancies.Any(t => PropertyMath.Covers(t, today))));
+                months, valueAt, tenancies.Any(t => PropertyMath.Covers(t, today)), item.OwnerViews()));
         }
         return Result.Success<IReadOnlyList<PropertyIncomeSource>>(sources);
     }

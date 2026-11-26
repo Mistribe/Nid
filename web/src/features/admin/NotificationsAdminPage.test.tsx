@@ -23,7 +23,7 @@ describe('Administration › Notifications', () => {
   it('has the Administration breadcrumb', async () => {
     serve(configured);
     await renderApp('/admin/notifications', { capabilities: adminCapabilities });
-    expect(screen.queryByRole('navigation', { name: "Sections de l'administration" })).toBeNull();
+    expect(screen.queryByRole('navigation', { name: "Sections de l’administration" })).toBeNull();
     expect(within(screen.getByRole('navigation', { name: 'Fil d’Ariane' })).getByRole('link', { name: 'Administration' })).toHaveAttribute('href', '/admin');
     expect(screen.getByRole('heading', { level: 1, name: 'Notifications' })).toBeInTheDocument();
   });
@@ -33,7 +33,7 @@ describe('Administration › Notifications', () => {
     const { container } = await renderApp('/admin/notifications', { capabilities: adminCapabilities });
 
     expect(await screen.findByText('Configuré : smtp.example.org')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: "M'envoyer un email de test" })).toBeEnabled();
+    expect(screen.getByRole('button', { name: "M’envoyer un email de test" })).toBeEnabled();
     expect(screen.getByText('Aucun envoi en échec ces 30 derniers jours.')).toBeInTheDocument();
     await expectNoAxeViolations(container);
   });
@@ -45,7 +45,7 @@ describe('Administration › Notifications', () => {
     expect(await screen.findByText('Non configuré')).toBeInTheDocument();
     for (const name of ['Host', 'Port', 'From', 'User', 'Password', 'Security'])
       expect(screen.getByText(`Nid__Smtp__${name}`).tagName).toBe('CODE');
-    expect(screen.getByRole('button', { name: "M'envoyer un email de test" })).toBeDisabled();
+    expect(screen.getByRole('button', { name: "M’envoyer un email de test" })).toBeDisabled();
     await expectNoAxeViolations(container);
   });
 
@@ -58,7 +58,7 @@ describe('Administration › Notifications', () => {
     }));
     await renderApp('/admin/notifications', { capabilities: adminCapabilities });
 
-    await userEvent.click(await screen.findByRole('button', { name: "M'envoyer un email de test" }));
+    await userEvent.click(await screen.findByRole('button', { name: "M’envoyer un email de test" }));
 
     expect(await screen.findByRole('status')).toHaveTextContent('Email de test envoyé.');
     expect(body).toEqual({ channel: 'email' });
@@ -69,7 +69,7 @@ describe('Administration › Notifications', () => {
     server.use(http.post('*/api/v1/admin/notifications/test', () => HttpResponse.json({ sent: false, error: 'notifications.channel_unreachable 421' })));
     await renderApp('/admin/notifications', { capabilities: adminCapabilities });
 
-    await userEvent.click(await screen.findByRole('button', { name: "M'envoyer un email de test" }));
+    await userEvent.click(await screen.findByRole('button', { name: "M’envoyer un email de test" }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Email de test non envoyé');
     expect(screen.getByRole('alert')).toHaveTextContent('Le serveur d’envoi ne répond pas.');
@@ -81,7 +81,7 @@ describe('Administration › Notifications', () => {
     server.use(http.post('*/api/v1/admin/notifications/test', () => HttpResponse.json({ status: 429, code: 'notifications.test_throttled', detail: 'Wait a few seconds before another test.' }, { status: 429 })));
     await renderApp('/admin/notifications', { capabilities: adminCapabilities });
 
-    await userEvent.click(await screen.findByRole('button', { name: "M'envoyer un email de test" }));
+    await userEvent.click(await screen.findByRole('button', { name: "M’envoyer un email de test" }));
 
     expect(await screen.findByRole('status')).toHaveTextContent('Patientez quelques secondes avant un nouveau test.');
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();

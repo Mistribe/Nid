@@ -111,7 +111,7 @@ describe('StatementPage', () => {
     await user.click(await screen.findByRole('button', { name: 'Modifier le lundi 8 septembre' }));
     const dialog = await screen.findByRole('dialog');
     await user.click(within(dialog).getByRole('radio', { name: 'Absent' }));
-    await pick(user, "Motif de l'absence", 'Enfant malade');
+    await pick(user, "Motif de l’absence", 'Enfant malade');
     await user.click(within(dialog).getByRole('button', { name: 'Enregistrer le jour' }));
     await waitFor(() => expect(writes).toHaveLength(1));
     const body = writes[0]!.body as { days: { date: string }[]; version: number; cmg: string | null };
@@ -208,7 +208,7 @@ describe('StatementPage', () => {
     await renderApp(url);
     const declaration = await screen.findByRole('region', { name: 'Déclaration Pajemploi' });
     expect(declaration).toHaveTextContent('La déclaration apparaît quand chaque jour est cohérent');
-    expect(screen.getByText(/ont changé ce jour depuis l'enregistrement/)).toBeInTheDocument();
+    expect(screen.getByText(/ont changé ce jour depuis l’enregistrement/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Valider le relevé' })).toBeDisabled();
   });
 

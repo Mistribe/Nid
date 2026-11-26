@@ -174,7 +174,7 @@ describe('DocumentsPage', () => {
     serve({ ...three(), meaningSearch: 'unavailable' });
     await renderApp('/documents?q=box');
 
-    expect(await screen.findByText(/La recherche par le sens n'a pas répondu à temps/)).toHaveAttribute('role', 'status');
+    expect(await screen.findByText(/La recherche par le sens n’a pas répondu à temps/)).toHaveAttribute('role', 'status');
   });
 
   it('reads the filters and the page from the URL', async () => {

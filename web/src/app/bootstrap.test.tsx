@@ -169,7 +169,7 @@ describe('bootstrap', () => {
 
     expect(await screen.findByRole('heading', { name: 'Vous êtes déconnecté de Nid' })).toBeInTheDocument();
     expect(screen.getByText(/reste ouverte sur cet appareil/)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: "Ouvrir le portail d'identité" })).toHaveAttribute('href', 'https://auth.example.test');
+    expect(screen.getByRole('link', { name: "Ouvrir le portail d’identité" })).toHaveAttribute('href', 'https://auth.example.test');
     expect(screen.getByRole('link', { name: 'Se reconnecter' })).toHaveAttribute('href', '/auth/login?returnUrl=%2F');
     expect(location.assign).not.toHaveBeenCalled();
     await expectNoAxeViolations(root);
@@ -234,7 +234,7 @@ describe('bootstrap', () => {
 
     expect(location.assign).not.toHaveBeenCalled();
     expect(await screen.findByRole('heading', { name: 'Découvrir Nid' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: "Entrer en tant qu'Alice" })).toHaveAttribute('href', '/auth/demo/alice?returnUrl=%2Floans%3Ftab%3Dall');
+    expect(screen.getByRole('link', { name: "Entrer en tant qu’Alice" })).toHaveAttribute('href', '/auth/demo/alice?returnUrl=%2Floans%3Ftab%3Dall');
     expect(screen.getByRole('link', { name: 'Entrer en tant que Bob' })).toHaveAttribute('href', '/auth/demo/bob?returnUrl=%2Floans%3Ftab%3Dall');
     await expectNoAxeViolations(root);
 

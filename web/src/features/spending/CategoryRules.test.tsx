@@ -87,7 +87,7 @@ describe('Dépenses › Catégories › Règles de catégorie', () => {
     expect(rows[0]).toHaveTextContent('Tous les comptes');
     expect(rows[0]).toHaveTextContent('Courses');
     expect(rows[0]).toHaveTextContent('12');
-    expect(rows[1]).toHaveTextContent('Débits · dès 10,00 · jusqu\'à 50,00');
+    expect(rows[1]).toHaveTextContent('Débits · dès 10,00 · jusqu’à 50,00');
     expect(rows[1]).toHaveTextContent('Compte joint');
     expect(rows[1]).toHaveTextContent('Jamais');
     await expectNoAxeViolations(container);
@@ -193,7 +193,7 @@ describe('Dépenses › Catégories › Règles de catégorie', () => {
     const row = within(screen.getByRole('table', { name: 'Règles de catégorie' })).getAllByRole('row')[1]!;
     expect(row).toHaveTextContent('Courses (archivée)');
     await user.hover(within(row).getByRole('button', { name: 'À propos : Courses' }));
-    expect((await screen.findAllByText('Cette règle ne s\'applique plus : sa catégorie est archivée.')).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText('Cette règle ne s’applique plus : sa catégorie est archivée.')).length).toBeGreaterThan(0);
   });
 
   it('previews the past lines, then applies the rule to them', async () => {

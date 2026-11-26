@@ -47,7 +47,7 @@ describe('the retirement page', () => {
     const figures = within(hero).getByText('Revenu à la retraite').closest('dl')!;
     expect(within(figures).getByText(/300\s000,00\s€/)).toBeInTheDocument();
     expect(within(figures).getByText('juin 2040')).toBeInTheDocument();
-    expect(within(figures).getByText('Revenu aujourd\'hui')).toBeInTheDocument();
+    expect(within(figures).getByText('Revenu aujourd’hui')).toBeInTheDocument();
     expect(screen.getByText(/Chiffres indicatifs/)).toBeInTheDocument();
     expect(screen.queryByRole('table', { name: 'Départs à la retraite' })).not.toBeInTheDocument();
 
@@ -75,7 +75,7 @@ describe('the retirement page', () => {
     const figures = within(hero).getByText('Revenu à la retraite').closest('dl')!;
     expect(within(figures).getByText('Besoin à la retraite')).toBeInTheDocument();
     expect(within(figures).getByText(/3\s200,00\s€/)).toBeInTheDocument();
-    expect(within(figures).queryByText('Revenu aujourd\'hui')).not.toBeInTheDocument();
+    expect(within(figures).queryByText('Revenu aujourd’hui')).not.toBeInTheDocument();
   });
 
   it('lists the adults without a figure when nobody has a birth date', async () => {
@@ -107,14 +107,14 @@ describe('the retirement page', () => {
     // The link reads under the hero, not squeezed into a figure.
     expect(link.closest('dl')).toBeNull();
     expect(within(screen.getByRole('region', { name: 'Écart mensuel' })).getByText('Non calculée')).toBeInTheDocument();
-    expect(screen.queryByText("Non atteinte avant l'horizon")).not.toBeInTheDocument();
+    expect(screen.queryByText("Non atteinte avant l’horizon")).not.toBeInTheDocument();
   });
 
   it('says the independence is out of reach when a living cost is set', async () => {
     serve(view({ financialIndependence: null }));
     await renderApp('/retirement');
 
-    expect(await screen.findByText("Non atteinte avant l'horizon")).toBeInTheDocument();
+    expect(await screen.findByText("Non atteinte avant l’horizon")).toBeInTheDocument();
   });
 
   it('asks for the scope and shows the projection warnings', async () => {
@@ -201,7 +201,7 @@ describe('the retirement page', () => {
       const user = await menuOf('Alice');
       await user.click(await screen.findByRole('menuitem', { name: 'Saisir la pension' }));
       await user.type(await screen.findByLabelText('Pension mensuelle nette'), '1000');
-      await user.click(screen.getByRole('checkbox', { name: "Visible de l'autre adulte" }));
+      await user.click(screen.getByRole('checkbox', { name: "Visible de l’autre adulte" }));
       await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
 
       await waitFor(() => expect(posted).toHaveLength(1));
@@ -271,6 +271,6 @@ describe('the independence curve', () => {
   it('says when it is not reached', async () => {
     serve(view({ independence: points, financialIndependence: null }));
     await renderApp('/retirement');
-    expect(await screen.findByRole('img', { name: /Non atteinte avant l'horizon/ })).toBeInTheDocument();
+    expect(await screen.findByRole('img', { name: /Non atteinte avant l’horizon/ })).toBeInTheDocument();
   });
 });

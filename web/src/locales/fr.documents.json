@@ -40,7 +40,7 @@
       "page": "page {{page}}",
       "ocr": "lu par OCR",
       "by_meaning": "proche par le sens",
-      "meaning_unavailable": "La recherche par le sens n'a pas répondu à temps : ces résultats viennent des mots seuls."
+      "meaning_unavailable": "La recherche par le sens n’a pas répondu à temps : ces résultats viennent des mots seuls."
     },
     "count_one": "{{count}} document",
     "count_other": "{{count}} documents",
@@ -204,8 +204,8 @@
       "property": "Acte d’achat"
     },
     "upload": "Déposer : {{what}}",
-    "dismiss": "Pas disponible",
-    "dismiss_label": "Pas disponible : {{what}}",
+    "dismiss": "Ne plus demander",
+    "dismiss_label": "Ne plus demander : {{what}}",
     "dismissed": "Ce document ne sera plus demandé."
   }
 }

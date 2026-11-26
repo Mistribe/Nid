@@ -6,6 +6,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { pick } from '@/test/controls';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
+import { elision } from '@/lib/elision';
 import type { DocumentSummary } from '@/api/documents';
 import { link, summary } from '../../documents/testData';
 import type { IncomeExpected } from '@/api/income';
@@ -62,7 +63,8 @@ function serve({ docs = [] as DocumentSummary[], refuse = 0, failExpected = fals
 }
 
 const pdf = (name: string) => new File(['%PDF-1.7'], name, { type: 'application/pdf' });
-const row = (name: string) => screen.getByText(`Mois de ${name}`).closest('li')!;
+// #729: « de » elides before a vowel (« Mois d’aout 2026.pdf »).
+const row = (name: string) => screen.getByText(`Mois ${elision(name) ? 'd’' : 'de '}${name}`).closest('li')!;
 const SEND = { name: 'Envoyer' };
 
 async function openWith(names: string[]) {

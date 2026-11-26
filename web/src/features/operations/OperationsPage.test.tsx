@@ -278,7 +278,7 @@ describe('« Opérations » receipts', () => {
     const { user } = await renderApp('/spending?tab=operations');
     await user.click(within(await rowOf()).getByRole('button', { name: '2 justificatifs' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Reçu' }));
-    expect(await screen.findByText("Ce justificatif n'est plus disponible.")).toBeInTheDocument();
+    expect(await screen.findByText("Ce justificatif n’est plus disponible.")).toBeInTheDocument();
     // Another failure says so as any other does, and closes too.
     await user.click(within(await rowOf()).getByRole('button', { name: '2 justificatifs' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Facture octobre' }));

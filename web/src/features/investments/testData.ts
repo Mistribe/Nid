@@ -165,8 +165,8 @@ export const passiveIncome = (over: Partial<PassiveIncome> = {}): PassiveIncome 
   months: ['2024-11', '2024-12', '2025-01', '2025-02', '2025-03', '2025-04', '2025-05', '2025-06', '2025-07', '2025-08', '2025-09', '2025-10']
     .map((month, i) => ({ month, partial: i === 11, total: eur('200.00'), byKind: incomeKinds({ dividend: '75.00', rent: '125.00' }) })),
   rows: [
-    { source: 'envelope', id: PEA, name: 'PEA', kind: 'pea', total: eur('900.00'), byKind: incomeKinds({ dividend: '900.00' }), yieldPct: 3.6 },
-    { source: 'property', id: RENTAL, name: 'Studio Lyon', kind: 'rental', total: eur('1500.00'), byKind: incomeKinds({ rent: '1500.00' }), yieldPct: null },
+    { source: 'envelope', id: PEA, name: 'PEA', kind: 'pea', total: eur('900.00'), byKind: incomeKinds({ dividend: '900.00' }), yieldPct: 3.6, owners: [{ personId: ALICE, shareBp: 10000 }] },
+    { source: 'property', id: RENTAL, name: 'Studio Lyon', kind: 'rental', total: eur('1500.00'), byKind: incomeKinds({ rent: '1500.00' }), yieldPct: null, owners: [] },
   ],
   estimate: { total: eur('2520.00'), byKind: incomeKinds({ dividend: '960.00', rent: '1560.00' }) },
   excluded: [{ envelopeId: LIVRET, name: 'Livret A', code: 'bank_linked_savings' }],

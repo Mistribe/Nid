@@ -10,7 +10,7 @@ test('an adult added without an email chooses an identifier and a password throu
   await add.getByRole('button', { name: 'Ajouter' }).click();
   await expect(page.getByRole('row', { name: /Bob/ })).toContainText('En attente');
 
-  const link = await createLink(page, 'Bob', 'Créer son lien d\'accès');
+  const link = await createLink(page, 'Bob', 'Créer son lien d’accès');
   await expect(page.getByRole('row', { name: /Bob/ })).toContainText('Lien en attente');
 
   const bob = await newPage(browser);

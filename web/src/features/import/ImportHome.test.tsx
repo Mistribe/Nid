@@ -36,10 +36,10 @@ describe('Import › home', () => {
     const { user } = await renderApp('/import');
 
     await upload(user, nidFile('{"format":"nid.data","version":1,"documents":[],\n"persons":[}'));
-    expect(await screen.findByRole('alert')).toHaveTextContent("Le fichier n'est pas du JSON valide (ligne 2, colonne 12).");
+    expect(await screen.findByRole('alert')).toHaveTextContent("Le fichier n’est pas du JSON valide (ligne 2, colonne 12).");
 
     await upload(user, nidFile({ format: 'nid.data', version: 1, documents: [], persons: [] }));
-    expect(await screen.findByRole('alert')).toHaveTextContent("La section documents n'est pas encore importable.");
+    expect(await screen.findByRole('alert')).toHaveTextContent("La section documents n’est pas encore importable.");
     expect(fake.calls).toEqual([]);
   });
 
@@ -74,7 +74,7 @@ describe('Import › adults and start', () => {
   const [alice, bob] = householdPersons;
   /** The field exists before the household persons arrive; its proposal only once they have. */
   const proposed = (label: string, shown: string) => waitFor(() => expect(screen.getByLabelText(label)).toHaveTextContent(shown));
-  const startEnabled = () => waitFor(() => expect(screen.getByRole('button', { name: "Commencer l'import" })).toBeEnabled());
+  const startEnabled = () => waitFor(() => expect(screen.getByRole('button', { name: "Commencer l’import" })).toBeEnabled());
 
   it('proposes the household adult with the same email, and no one otherwise', async () => {
     server.use(...fakeImportServer().handlers);
@@ -108,7 +108,7 @@ describe('Import › adults and start', () => {
     await upload(user, nidFile());
     await proposed('Adulte 1 (adult-1)', 'Alice Dev — alice@example.test');
     await pick(user, 'Adulte 2 (adult-2)', /Bob Dev/);
-    await user.click(screen.getByRole('button', { name: "Commencer l'import" }));
+    await user.click(screen.getByRole('button', { name: "Commencer l’import" }));
 
     await waitFor(() => expect(router.state.location.pathname).toBe(`/import/${SESSION_ID}`));
     expect(fake.started).toEqual([{ format: 'nid.data', version: 1, adults: { 'adult-1': alice!.id, 'adult-2': bob!.id } }]);
@@ -122,7 +122,7 @@ describe('Import › adults and start', () => {
 
     await upload(user, nidFile());
     await startEnabled();
-    await user.click(screen.getByRole('button', { name: "Commencer l'import" }));
+    await user.click(screen.getByRole('button', { name: "Commencer l’import" }));
 
     await waitFor(() => expect(router.state.location.pathname).toBe(`/import/${SESSION_ID}`));
     expect(fake.started).toEqual([{ format: 'nid.data', version: 1, adults: { 'adult-1': alice!.id } }]);
@@ -147,15 +147,15 @@ describe('Import › adults and start', () => {
     await waitFor(() => expect(screen.queryByText('Chargement')).not.toBeInTheDocument());
     await upload(user, nidFile());
     await startEnabled();
-    await user.click(screen.getByRole('button', { name: "Commencer l'import" }));
+    await user.click(screen.getByRole('button', { name: "Commencer l’import" }));
     expect(await screen.findByRole('heading', { name: 'Rapport de validation' })).toBeInTheDocument();
 
     await act(async () => {
       await router.navigate({ to: '/import' });
     });
-    await user.click(await screen.findByRole('button', { name: "Commencer l'import" }));
-    expect(await screen.findByText("Un import est déjà en cours. Reprenez-le ou annulez-le avant d'en commencer un autre.")).toBeInTheDocument();
-    expect(await screen.findByRole('link', { name: "Reprendre l'import en cours" })).toHaveAttribute('href', `/import/${SESSION_ID}`);
+    await user.click(await screen.findByRole('button', { name: "Commencer l’import" }));
+    expect(await screen.findByText("Un import est déjà en cours. Reprenez-le ou annulez-le avant d’en commencer un autre.")).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: "Reprendre l’import en cours" })).toHaveAttribute('href', `/import/${SESSION_ID}`);
     expect(fake.calls.filter((c) => c === 'start')).toHaveLength(2);
   });
 
@@ -166,10 +166,10 @@ describe('Import › adults and start', () => {
 
     await upload(user, nidFile());
     await startEnabled();
-    await user.click(screen.getByRole('button', { name: "Commencer l'import" }));
+    await user.click(screen.getByRole('button', { name: "Commencer l’import" }));
 
-    expect(await screen.findByText("Un import est déjà en cours. Reprenez-le ou annulez-le avant d'en commencer un autre.")).toBeInTheDocument();
-    await user.click(await screen.findByRole('link', { name: "Reprendre l'import en cours" }));
+    expect(await screen.findByText("Un import est déjà en cours. Reprenez-le ou annulez-le avant d’en commencer un autre.")).toBeInTheDocument();
+    await user.click(await screen.findByRole('link', { name: "Reprendre l’import en cours" }));
     expect(router.state.location.pathname).toBe(`/import/${SESSION_ID}`);
   });
 });

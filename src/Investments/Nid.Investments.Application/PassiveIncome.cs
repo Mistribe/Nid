@@ -34,9 +34,12 @@ public sealed record IncomeKindView(string Kind, AmountView? Amount);
 /// <summary>A month of the window (<c>yyyy-MM</c>); the current one is <c>Partial</c>.</summary>
 public sealed record IncomeMonthView(string Month, bool Partial, AmountView? Total, IReadOnlyList<IncomeKindView> ByKind);
 
-/// <summary>An envelope or a property with income: <c>Source</c> is <c>envelope</c> or <c>property</c>, <c>Kind</c> the envelope's kind or <c>property</c>.</summary>
+/// <summary>
+/// An envelope or a property with income: <c>Source</c> is <c>envelope</c> or <c>property</c>, <c>Kind</c> the envelope's kind or
+/// <c>property</c>; <c>Owners</c> tells two of the same name apart (#729).
+/// </summary>
 public sealed record IncomeRowView(string Source, ItemId Id, string Name, string Kind,
-    AmountView? Total, IReadOnlyList<IncomeKindView> ByKind, decimal? YieldPct);
+    AmountView? Total, IReadOnlyList<IncomeKindView> ByKind, decimal? YieldPct, IReadOnlyList<ItemOwnerView> Owners);
 
 /// <summary>Spec C5: the next 12 months, the window's income of the sources still open today.</summary>
 public sealed record IncomeEstimateView(AmountView? Total, IReadOnlyList<IncomeKindView> ByKind);
@@ -60,7 +63,8 @@ public sealed record PassiveIncome(string Currency, LocalDate From, LocalDate To
 internal static class PassiveIncomeMath
 {
     /// <summary>An envelope or a property: its values (in its currency) at the window's month ends, null where unknown.</summary>
-    private sealed record Source(string Origin, ItemId Id, string Name, string Kind, Currency Currency, bool OpenToday, IReadOnlyList<decimal?> Values);
+    private sealed record Source(string Origin, ItemId Id, string Name, string Kind, Currency Currency, bool OpenToday, IReadOnlyList<decimal?> Values,
+        IReadOnlyList<ItemOwnerView> Owners);
 
     private sealed record Cell(Source Source, YearMonth Month, string Kind, decimal? Amount);
 
@@ -99,7 +103,7 @@ internal static class PassiveIncomeMath
 
             var source = new Source("envelope", f.Item.Id, f.Item.DisplayName, EnvelopeWire.Of(f.Envelope.Kind), f.Currency,
                 f.Envelope.ClosedOn is null && f.Item.ArchivedAt is null,
-                ends.Select(d => f.Values.Where(v => v.AsOf <= d).MaxBy(v => v.AsOf)?.Value.Amount).ToList());
+                ends.Select(d => f.Values.Where(v => v.AsOf <= d).MaxBy(v => v.AsOf)?.Value.Amount).ToList(), f.Item.OwnerViews());
             envelopes[f.Item.Id] = source;
             // D3: a savings account's withdrawals and income flows are in its performance already.
             foreach (var x in f.Flows.Where(x => !savings && InWindow(x.OccurredOn)))
@@ -128,7 +132,7 @@ internal static class PassiveIncomeMath
         foreach (var p in properties)
         {
             var source = new Source("property", p.Item, p.Name, "property", p.Currency, !p.Archived && p.LetToday,
-                ends.Select(d => p.ValueAt.GetValueOrDefault(d)).ToList());
+                ends.Select(d => p.ValueAt.GetValueOrDefault(d)).ToList(), p.Owners ?? []);
             foreach (var month in p.Months.Where(x => InWindow(x.Month)))
                 entries.Add((source, month.Month, PassiveIncomeKinds.Rent, month.Rent - month.Costs));
         }
@@ -157,7 +161,7 @@ internal static class PassiveIncomeMath
         return new PassiveIncome(reference.Code, from, today,
             convert.View(total), Yield(SumOrNull(valued.Select(r => r.Total)), SumOrNull(valued.Select(r => r.Average))), ByKind(cells, convert), months,
             rows.Select(r => new IncomeRowView(r.Source.Origin, r.Source.Id, r.Source.Name, r.Source.Kind,
-                convert.View(r.Total), ByKind(r.Cells, convert), Yield(r.Total, r.Average))).ToList(),
+                convert.View(r.Total), ByKind(r.Cells, convert), Yield(r.Total, r.Average), r.Source.Owners)).ToList(),
             new IncomeEstimateView(convert.View(Sum(open)), ByKind(open, convert)),
             excluded.OrderBy(x => x.Name, InvestmentsPerformanceMath.French).ThenBy(x => x.EnvelopeId.Value).ToList(),
             convert.Missing);

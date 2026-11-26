@@ -50,7 +50,7 @@ describe('Administration › Taux de change', () => {
     const { router } = await renderApp('/admin/fx?tab=journal&page=3', { capabilities: adminCapabilities });
 
     await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'journal', page: 2 }));
-    expect(screen.queryByText("Aucune collecte pour l'instant.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Aucune collecte pour l’instant.")).not.toBeInTheDocument();
     expect(await screen.findByRole('row', { name: /rattrapage/ })).toBeInTheDocument();
   });
 

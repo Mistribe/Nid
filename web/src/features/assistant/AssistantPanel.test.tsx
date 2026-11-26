@@ -124,8 +124,8 @@ describe('The assistant panel', () => {
     serve({ enabled: false });
     const off = await renderApp('/dashboard');
     const panel = await openPanel(off.user);
-    expect(await within(panel).findByRole('status')).toHaveTextContent("L'assistant n'est pas activé pour vous.");
-    expect(within(panel).getByRole('link', { name: "Ouvrir les réglages de l'IA" })).toHaveAttribute('href', '/settings/ai');
+    expect(await within(panel).findByRole('status')).toHaveTextContent("L’assistant n’est pas activé pour vous.");
+    expect(within(panel).getByRole('link', { name: "Ouvrir les réglages de l’IA" })).toHaveAttribute('href', '/settings/ai');
     expect(within(panel).getByRole('button', { name: 'Demander' })).toBeDisabled();
     off.unmount();
 
@@ -137,8 +137,8 @@ describe('The assistant panel', () => {
     serve({ model: null });
     const admin = await renderApp('/dashboard', { capabilities: adminCapabilities });
     const adminPanel = await openPanel(admin.user);
-    expect(await within(adminPanel).findByRole('status')).toHaveTextContent("Aucun modèle n'est choisi pour l'assistant.");
-    expect(within(adminPanel).getByRole('link', { name: "Ouvrir les réglages de l'IA" })).toHaveAttribute('href', '/admin/ai');
+    expect(await within(adminPanel).findByRole('status')).toHaveTextContent("Aucun modèle n’est choisi pour l’assistant.");
+    expect(within(adminPanel).getByRole('link', { name: "Ouvrir les réglages de l’IA" })).toHaveAttribute('href', '/admin/ai');
   });
 
   it('« Plus anciennes » adds the older conversations below the newer ones (#642)', async () => {
@@ -200,6 +200,6 @@ describe('The assistant panel', () => {
     expect(within(panel).getByText('Consulté : list_envelopes')).toBeInTheDocument();
     // #617: an answer taken out with the document it had read.
     expect(within(panel).getByText('Et mon bail ?')).toBeInTheDocument();
-    expect(within(panel).getByText("Réponse retirée : un document qu'elle avait lu a été supprimé.")).toBeInTheDocument();
+    expect(within(panel).getByText("Réponse retirée : un document qu’elle avait lu a été supprimé.")).toBeInTheDocument();
   });
 });

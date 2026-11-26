@@ -47,7 +47,7 @@
       "movement_kind": { "allocation_in": "Versement", "allocation_out": "Rachat", "maturity": "Échéance", "fee": "Frais", "interest": "Intérêts", "income": "Revenu" }
     },
     "breakdown": {
-      "title": "Répartition proposée de {{name}}",
+      "title": "Répartition proposée {{name, de}}",
       "dates": "Fiche du {{proposed}} ; répartition actuelle du {{current}}.",
       "part": "Part",
       "proposed": "Proposée",
@@ -128,7 +128,7 @@
     "read_only": "Seul un adulte qui peut modifier cet élément peut décider.",
     "unsupported": "Cette proposition ne peut plus être appliquée : rejetez-la.",
     "unknown_kind": "Type de proposition inconnu : {{kind}}",
-    "decided_by": "Décision de {{name}}",
+    "decided_by": "Décision {{name, de}}",
     "decision_note": "Note : {{note}}",
     "open_target": "Voir l’élément",
     "action": {

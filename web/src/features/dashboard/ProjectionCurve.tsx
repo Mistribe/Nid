@@ -1,5 +1,6 @@
 import { keepPreviousData } from '@tanstack/react-query';
 import { Link, useNavigate, useSearch } from '@tanstack/react-router';
+import { ArrowRight } from 'lucide-react';
 import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Area, CartesianGrid, ComposedChart, Line, ReferenceDot, XAxis, YAxis } from 'recharts';
@@ -84,7 +85,8 @@ export function ProjectionCurve() {
         <Segmented value={real ? 'real' : 'nominal'} onValueChange={chooseReading} aria-labelledby={readingId}
           options={[{ value: 'real', label: t('dashboard.projection.real') }, { value: 'nominal', label: t('dashboard.projection.nominal') }]} />
         <RangesToggle pressed={ranged} onPressedChange={chooseRanges} />
-        <Button asChild variant="outline" size="sm"><Link to="/retirement">{t('nav.retirement')}</Link></Button>
+        {/* #729: a link to the page, not a toggle: no outline that reads as « on ». */}
+        <Button asChild variant="ghost" size="sm"><Link to="/retirement">{t('nav.retirement')}<ArrowRight aria-hidden="true" /></Link></Button>
         {data ? <TableToggle asTable={asTable} onToggle={() => setAsTable((v) => !v)} /> : null}
       </>
     }>

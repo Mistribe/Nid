@@ -57,7 +57,7 @@ describe('« Suggestions » in Opérations (#449)', () => {
     const writes = serve();
     const { user, block } = await open();
     expect(within(block).getByText('SHOP ONE')).toBeInTheDocument();
-    expect(within(block).getByText(/2 opérations à classer · d'après 5 opérations classées à la main/)).toBeInTheDocument();
+    expect(within(block).getByText(/2 opérations à classer · d’après 5 opérations classées à la main/)).toBeInTheDocument();
     await user.click(within(block).getByRole('button', { name: 'Voir les opérations' }));
     const lines = within(block).getByRole('list', { name: 'Opérations « SHOP ONE »' });
     expect(within(lines).getAllByRole('listitem')[0]).toHaveTextContent('CB SHOP ONE 12/10 · Compte courant');

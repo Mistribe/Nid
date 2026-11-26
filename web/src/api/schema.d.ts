@@ -42496,6 +42496,7 @@ export interface components {
             byKind: components["schemas"]["IncomeKindView"][];
             /** Format: double */
             yieldPct?: null | number;
+            owners: components["schemas"]["ItemOwnerView"][];
         };
         IncomeSourceDetail: {
             /** Format: uuid */

@@ -37,7 +37,7 @@ const panel = () => screen.getByRole('complementary', { name: 'Résultat' });
 
 async function general(user: User) {
   await user.type(await screen.findByLabelText('Nom du scénario'), 'Retraite anticipée');
-  await user.click(await screen.findByRole('radio', { name: 'Retraite de Alice' }));
+  await user.click(await screen.findByRole('radio', { name: 'Retraite d’Alice' }));
   await next(user);
 }
 
@@ -98,12 +98,12 @@ describe('NewProjectionScenarioPage', () => {
 
     await general(user);
     await next(user);
-    expect(screen.getByLabelText('Âge de départ de Alice (années)')).toHaveAccessibleDescription('Foyer : 64 ans');
+    expect(screen.getByLabelText('Âge de départ d’Alice (années)')).toHaveAccessibleDescription('Foyer : 64 ans');
     expect(simulated.at(-1)?.document).not.toHaveProperty('retirements');
-    await user.type(screen.getByLabelText('Pension mensuelle de Alice'), '1 800,5');
+    await user.type(screen.getByLabelText('Pension mensuelle d’Alice'), '1 800,5');
     await waitFor(() => expect(simulated.at(-1)?.document.retirements).toEqual([{ person: ALICE, monthlyPension: '1800.5' }]));
-    await user.type(screen.getByLabelText('Âge de départ de Alice (années)'), '60');
-    await user.type(screen.getByLabelText('Âge de départ de Alice (mois)'), '6');
+    await user.type(screen.getByLabelText('Âge de départ d’Alice (années)'), '60');
+    await user.type(screen.getByLabelText('Âge de départ d’Alice (mois)'), '6');
     await waitFor(() => expect(simulated.at(-1)?.document.retirements).toEqual([{ person: ALICE, years: 60, months: 6, monthlyPension: '1800.5' }]));
   });
 
@@ -112,7 +112,7 @@ describe('NewProjectionScenarioPage', () => {
     const { user } = await renderApp('/scenarios/new?kind=projection');
     await general(user);
     await next(user);
-    await user.type(screen.getByLabelText('Âge de départ de Alice (années)'), '60,5');
+    await user.type(screen.getByLabelText('Âge de départ d’Alice (années)'), '60,5');
     await user.click(screen.getByRole('button', { name: 'Créer le scénario' }));
     expect(await screen.findByText('Saisissez un nombre entier.')).toBeInTheDocument();
   });

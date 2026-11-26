@@ -162,7 +162,7 @@ describe('SimulationTab', () => {
       expect(tax).toHaveTextContent('avant 247,00 €');
       const rise = within(tax).getByText('+1 253,00 €');
       expect(rise.previousElementSibling).toHaveClass('text-status-critical');
-      const left = item(region, 'Reste par mois');
+      const left = item(region, 'Revenu après impôt / mois');
       expect(left).toHaveTextContent('-129,42 €');
       expect(within(left).getByText('-129,42 €').previousElementSibling).toHaveClass('text-status-critical');
       expect(region).toHaveTextContent('avant 2 973,39 € remboursés');
@@ -194,7 +194,7 @@ describe('SimulationTab', () => {
       await user.click(screen.getByRole('button', { name: 'Calculer' }));
       await screen.findByRole('region', { name: 'Avant / après' });
       expect(screen.getByRole('status')).toBe(status);
-      expect(status).toHaveTextContent('Simulation : impôt total 1 500,00 €, 5 600,00 € de reste par mois.');
+      expect(status).toHaveTextContent('Simulation : impôt total 1 500,00 €, 5 600,00 € de revenu après impôt par mois.');
     });
 
     it('takes the result away when the year changes', async () => {

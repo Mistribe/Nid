@@ -101,7 +101,7 @@ describe('Sécurité', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Déconnecter partout' }));
     const confirm = await screen.findByRole('alertdialog');
-    expect(confirm).toHaveTextContent(/ne ferme pas votre session auprès du fournisseur d'identité/);
+    expect(confirm).toHaveTextContent(/ne ferme pas votre session auprès du fournisseur d’identité/);
     expect(confirm).not.toHaveTextContent('jetons d’accès cesseront');
     await user.click(within(confirm).getByRole('button', { name: 'Confirmer' }));
 
@@ -192,14 +192,14 @@ describe('Sécurité, compte local (issue 215)', () => {
     expect(within(setup).getByTestId('totp-secret')).toHaveTextContent('JBSW Y3DP EHPK 3PXP');
     // Drawn in the browser from the otpauth address: the secret never goes to a third party.
     expect(await within(setup).findByRole('img', { name: /QR code à scanner/ })).toBeInTheDocument();
-    expect(within(setup).getByRole('link', { name: "Ouvrir dans l'application" })).toHaveAttribute('href', expect.stringMatching(/^otpauth:\/\/totp\//));
+    expect(within(setup).getByRole('link', { name: "Ouvrir dans l’application" })).toHaveAttribute('href', expect.stringMatching(/^otpauth:\/\/totp\//));
     await user.type(within(setup).getByLabelText('Code'), '123456');
     await user.click(within(setup).getByRole('button', { name: 'Activer' }));
 
     const shown = await screen.findByRole('dialog', { name: 'Vos codes de secours' });
     expect(within(within(shown).getByRole('list')).getAllByRole('listitem')).toHaveLength(10);
     expect(confirmed).toEqual({ code: '123456' });
-    await user.click(within(shown).getByRole('button', { name: "J'ai noté mes codes" }));
+    await user.click(within(shown).getByRole('button', { name: "J’ai noté mes codes" }));
 
     expect(await screen.findByText('Validation en deux étapes activée.')).toBeInTheDocument();
     expect(await screen.findByText('Codes de secours restants : 10.')).toBeInTheDocument();
@@ -221,7 +221,7 @@ describe('Sécurité, compte local (issue 215)', () => {
     await user.click(await screen.findByRole('menuitem', { name: 'Désactiver' }));
     const dialog = await screen.findByRole('dialog', { name: 'Désactiver la validation en deux étapes' });
     await user.type(within(dialog).getByLabelText('Mot de passe'), 'a long walk to the lighthouse');
-    await user.type(within(dialog).getByLabelText("Code de l'application ou de secours"), '654321');
+    await user.type(within(dialog).getByLabelText("Code de l’application ou de secours"), '654321');
     await user.click(within(dialog).getByRole('button', { name: 'Désactiver' }));
 
     expect(await screen.findByText('Validation en deux étapes désactivée.')).toBeInTheDocument();

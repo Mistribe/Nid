@@ -18,7 +18,7 @@ test('two-step verification asks for the app code, or a recovery code once', asy
   const shown = page.getByRole('dialog', { name: 'Vos codes de secours' });
   await expect(shown.getByRole('listitem')).toHaveCount(10);
   const codes = await shown.getByRole('listitem').allTextContents();
-  await shown.getByRole('button', { name: 'J\'ai noté mes codes' }).click();
+  await shown.getByRole('button', { name: 'J’ai noté mes codes' }).click();
   await expect(section).toContainText('Codes de secours restants : 10.');
 
   // The code the activation used is spent: the next step's, within the drift allowed.
