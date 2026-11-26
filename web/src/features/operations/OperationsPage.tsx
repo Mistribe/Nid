@@ -54,7 +54,8 @@ export function OperationsPage({ month }: { month?: { from: string; to: string }
   const shown = JSON.stringify(query);
   const [picked, setPicked] = useState<{ of: string; ids: ReadonlySet<string> }>({ of: shown, ids: NONE });
   const selected = picked.of === shown ? picked.ids : NONE;
-  const [categorising, setCategorising] = useState(false);
+  // A copy of the lines, not the rows: once classified, a line may leave the list while its dialog still offers the rule.
+  const [categorising, setCategorising] = useState<BankTransaction[] | null>(null);
   // Where the focus goes once a suggestion's write leaves none: the list's count, just above it.
   const count = useRef<HTMLParagraphElement>(null);
   const toPage = (n: number) => go({ page: n > 1 ? n : undefined });
@@ -80,26 +81,27 @@ export function OperationsPage({ month }: { month?: { from: string; to: string }
             ]} />
             <div className="flex min-h-9 flex-wrap items-center justify-between gap-2">
               <p ref={count} tabIndex={-1} className="text-sm text-muted-foreground outline-none">{t('banks.operations.count', { count: answer.data.total })}</p>
-              {chosen.length > 0 ? <Button type="button" size="sm" onClick={() => setCategorising(true)}>{t('banks.operations.categorise_many', { count: chosen.length })}</Button> : null}
+              {chosen.length > 0 ? <Button type="button" size="sm" onClick={() => setCategorising(chosen)}>{t('banks.operations.categorise_many', { count: chosen.length })}</Button> : null}
             </div>
             {rows.length === 0 ? <p className="text-muted-foreground">{t(onlyUnlinked ? 'banks.operations.to_link_empty' : 'banks.operations.no_match')}</p>
               : <div aria-busy={answer.isPlaceholderData} className={answer.isPlaceholderData ? 'opacity-60 transition-opacity' : undefined}>
-                <Table rows={rows} owners={answer.data.accountOwners} selected={selected} onSelect={(ids) => setPicked({ of: shown, ids })} />
+                <Table rows={rows} owners={answer.data.accountOwners} selected={selected} onSelect={(ids) => setPicked({ of: shown, ids })} onCategorise={(l) => setCategorising([l])} />
               </div>}
             <Pager page={page} total={answer.data.total} label={t('banks.operations.pages')} onPage={toPage} />
           </>
         )}
-      {categorising && chosen.length > 0 ? (
+      {categorising ? (
         <Suspense fallback={null}>
-          <CategoryDialog lines={chosen} onClose={() => setCategorising(false)} onDone={(message) => { setCategorising(false); setPicked({ of: shown, ids: NONE }); toast.success(message); }} />
+          <CategoryDialog lines={categorising} onClose={() => setCategorising(null)} onDone={(message) => { setCategorising(null); setPicked({ of: shown, ids: NONE }); toast.success(message); }} />
         </Suspense>
       ) : null}
     </div>
   );
 }
 
-function Table({ rows, owners, selected, onSelect }: {
+function Table({ rows, owners, selected, onSelect, onCategorise }: {
   rows: BankTransaction[]; owners: OperationPage['accountOwners']; selected: ReadonlySet<string>; onSelect: (ids: ReadonlySet<string>) => void;
+  onCategorise: (line: BankTransaction) => void;
 }) {
   const { t } = useTranslation();
   // As « Catégoriser… » in a row's menu: a line of an account the reader writes, neither split nor ignored.
@@ -110,7 +112,7 @@ function Table({ rows, owners, selected, onSelect }: {
     <span className={cn('font-medium whitespace-nowrap tabular-nums', !l.amount.startsWith('-') && 'text-status-good-text')}>{formatCurrency(l.amount, l.currency)}</span>
   );
   // A reader of an account they cannot write sees its lines, not the menu that edits them.
-  const actions = (l: BankTransaction) => owners.find((a) => a.accountId === l.accountId)?.writable ? <LineActions line={l} onDone={toast.success} /> : null;
+  const actions = (l: BankTransaction) => owners.find((a) => a.accountId === l.accountId)?.writable ? <LineActions line={l} onDone={toast.success} onCategorise={onCategorise} /> : null;
   // A line still to classify says so, as the tab's count does.
   const toClassify = (l: BankTransaction) => !l.category && !l.parts?.length && l.linkState !== 'ignored' && l.linkState !== 'internal';
   const category = (l: BankTransaction) => l.parts?.length ? <SplitParts line={l} />

@@ -75,6 +75,28 @@ public class EnvelopeEndpointTests(PostgresFixture fixture, SharedNidApp shared)
     }
 
     [Fact]
+    public async Task The_list_gathers_the_envelopes_of_the_same_owners_with_their_total()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var valued = (string name, string amount) => Create(app, name,
+            firstValuation: new { asOf = "2025-01-31", amount = new { amount, currency = "EUR" } });
+        var pea = (await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/investments/envelopes", valued("PEA", "1000.00")))).GetProperty("id").GetGuid();
+        var livret = (await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/investments/envelopes", valued("Livret A", "500.50")))).GetProperty("id").GetGuid();
+        var ofB = await app.NewEnvelopeAsync("Livret A", app.AdultB, Visibility.Shared);
+
+        var list = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, "/api/v1/investments/envelopes?scope=household"));
+
+        var groups = list.GetProperty("groups").EnumerateArray().ToDictionary(
+            g => g.GetProperty("owners")[0].GetProperty("personId").GetGuid());
+        Assert.Equal(2, groups.Count);
+        var ofA = groups[app.AdultA.Value];
+        Assert.Equal(new[] { pea, livret }.Order(), ofA.GetProperty("items").EnumerateArray().Select(i => i.GetGuid()).Order());
+        Assert.Equal("1500.50", ofA.GetProperty("value").GetProperty("amount").GetString());
+        Assert.Equal([ofB.Value], groups[app.AdultB.Value].GetProperty("items").EnumerateArray().Select(i => i.GetGuid()));
+        Assert.Equal(JsonValueKind.Null, groups[app.AdultB.Value].GetProperty("value").ValueKind);
+    }
+
+    [Fact]
     public async Task A_refused_first_value_leaves_no_envelope_behind()
     {
         await using var app = await NidApp.StartAsync(fixture);

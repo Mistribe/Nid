@@ -435,6 +435,41 @@ describe('« Opérations », several lines at once (#426)', () => {
     expect(await screen.findByText('Catégorie enregistrée.')).toBeInTheDocument();
   });
 
+  // The line leaves a « Sans catégorie » list once classified: the rule offer must outlive its row.
+  it('keeps the rule offer open when the categorised lines leave the list', async () => {
+    let left = false;
+    serve([], (ids) => { left = true; return { changed: ids, refused: [] }; });
+    server.use(http.get('*/api/v1/banking/operations', () => HttpResponse.json(answer(left ? [] : [shop('t3'), shop('t4', 'CB CARREFOUR CITY 34')]))));
+    const { user } = await categoriseAll(2);
+    await pick(user, 'Catégorie', 'Alimentation');
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+    // The list read again has no line left; the dialog still asks for the rule.
+    expect(await screen.findByText('Aucune opération ne correspond.')).toBeInTheDocument();
+    expect(screen.getByText('Toujours classer « CARREFOUR CITY » en Alimentation ?')).toBeInTheDocument();
+  });
+
+  it('keeps a row menu’s rule offer open when its line leaves the list', async () => {
+    let left = false;
+    serve([], () => ({ changed: [], refused: [] }));
+    server.use(
+      http.get('*/api/v1/banking/operations', () => HttpResponse.json(answer(left ? [] : [shop('t3')]))),
+      http.get('*/api/v1/banking/transactions/:id/same-label', () => HttpResponse.json([])),
+      http.put('*/api/v1/banking/transactions/:id/category', () => { left = true; return new HttpResponse(null, { status: 204 }); }),
+    );
+    const { user } = await renderApp('/spending?tab=operations&uncategorised=true');
+    const row = within(await screen.findByRole('table', { name: 'Opérations' })).getByRole('row', { name: /CB CARREFOUR CITY 12/ });
+    await user.click(within(row).getByRole('button', { name: 'Actions sur l’opération' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Catégoriser…' }));
+    await screen.findByRole('dialog', { name: 'Catégoriser l’opération' });
+    await pick(user, 'Catégorie', 'Alimentation');
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+    // The list read again has no line left; the dialog still asks for the rule.
+    expect(await screen.findByText('Aucune opération ne correspond.')).toBeInTheDocument();
+    expect(screen.getByText('Toujours classer « CARREFOUR CITY » en Alimentation ?')).toBeInTheDocument();
+  });
+
   it('closes without a rule when the lines suggest different patterns', async () => {
     serve([shop('t3'), { ...shop('t4', 'CB MONOPRIX'), suggestedPattern: 'MONOPRIX' }], (ids) => ({ changed: ids, refused: [] }));
     const { user } = await categoriseAll(2);

@@ -1,0 +1,4 @@
+{
+  "en": "Operations: categorising a line no longer closes the dialog before it offers to remember the rule, even when the line leaves the filtered list.",
+  "fr": "Opérations : catégoriser une opération ne ferme plus la fenêtre avant qu’elle propose de retenir la règle, même quand l’opération quitte la liste filtrée."
+}

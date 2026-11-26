@@ -1,8 +1,10 @@
+using System.Globalization;
 using Nid.Assets.Contracts;
 using Nid.RealEstate.Contracts;
 using Nid.Subscriptions.Contracts;
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
+using NodaTime;
 using UnambitiousFx.Functional;
 using UnambitiousFx.Synapse.Abstractions;
 
@@ -26,7 +28,8 @@ public sealed record AssetDeletionQuery(ItemId ItemId) : IQuery<ItemDeletionPrev
 
 [RequestHandler<ListAssetsQuery, AssetListView>]
 public sealed class ListAssetsHandler(
-    IVisibleItems visible, IItemRegistry items, IAssetRecordStore assets, IValuations valuations, IHouseholdCalendar calendar, IActorAccessor actor)
+    IVisibleItems visible, IItemRegistry items, IAssetRecordStore assets, IValuations valuations, IHouseholdCalendar calendar, IActorAccessor actor,
+    IHouseholdSettings household, IFxRates fx)
     : IRequestHandler<ListAssetsQuery, AssetListView>
 {
     public const int PageSize = 50;
@@ -50,9 +53,37 @@ public sealed class ListAssetsHandler(
                 ? map!.ToDictionary(e => e.Key, e => e.Value)
                 : throw new InvalidOperationException("The assets' valuations could not be read.");
         var today = await calendar.TodayAsync(ct);
-        return Result.Success(new AssetListView(
-            page.Rows.Select(r => AssetViews.Row(candidates[r.ItemId], r, series.GetValueOrDefault(r.ItemId) ?? [], today)).ToList(),
-            page.Total, page.Kinds));
+        var rows = page.Rows.Select(r => AssetViews.Row(candidates[r.ItemId], r, series.GetValueOrDefault(r.ItemId) ?? [], today)).ToList();
+        return Result.Success(new AssetListView(rows, page.Total, page.Kinds, await GroupsAsync(rows, today, ct)));
+    }
+
+    // shortcut: groups gather the rows of the page answered, so a person's assets past the 50th split across pages; group in SQL if a household ever holds that many.
+    private async Task<IReadOnlyList<AssetGroupView>> GroupsAsync(IReadOnlyList<AssetRow> rows, LocalDate today, CancellationToken ct)
+    {
+        var reference = await household.ReferenceCurrencyAsync(ct);
+        var values = new Dictionary<ItemId, (decimal Amount, Currency Currency)>();
+        foreach (var r in rows)
+            if (r.Value is { } v && Currency.TryCreate(v.Currency, out var c))
+                values[r.Id] = (decimal.Parse(v.Amount, CultureInfo.InvariantCulture), c);
+        var foreign = values.Values.Select(v => v.Currency).Where(c => c != reference).Distinct().ToList();
+        // Rates are per USD: the reference's own quote is needed too.
+        var rates = foreign.Count == 0 ? RateTable.Empty(today, 0) : await fx.LoadAsync([.. foreign, reference], today, today, ct);
+        return rows
+            .GroupBy(r => string.Join(',', r.Owners.OrderBy(o => o.PersonId).Select(o => $"{o.PersonId}:{o.ShareBp}")))
+            .Select(g =>
+            {
+                // An asset without a value adds nothing; one whose rate is missing, or none valued, leaves the total unknown.
+                var amounts = g.Where(r => values.ContainsKey(r.Id)).Select(r => Convert(values[r.Id])).ToList();
+                var total = amounts.Count == 0 || amounts.Any(a => a is null) ? null : (decimal?)amounts.Sum(a => a!.Value);
+                return new AssetGroupView(g.First().Owners, g.Select(r => r.Id.Value).ToList(),
+                    total is { } t ? new MoneyView(t.ToString("0.00", CultureInfo.InvariantCulture), reference.Code) : null);
+            })
+            .ToList();
+
+        decimal? Convert((decimal Amount, Currency Currency) v)
+            => v.Currency == reference ? v.Amount
+            : rates.TryConvert(v.Amount, v.Currency, reference, today, projected: false, out var converted, out _) ? Math.Round(converted, 2, MidpointRounding.AwayFromZero)
+            : null;
     }
 }
 

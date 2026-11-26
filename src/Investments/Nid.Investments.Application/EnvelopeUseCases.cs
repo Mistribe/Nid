@@ -225,7 +225,7 @@ public sealed class GetEnvelopeHandler(
 [RequestHandler<ListEnvelopesQuery, EnvelopeList>]
 public sealed class ListEnvelopesHandler(
     IVisibleItems visible, IEnvelopeStore envelopes, EnvelopePerformance performance, IHouseholdCalendar calendar, IAccessPolicy policy, IActorAccessor actor,
-    IItemRegistry items)
+    IItemRegistry items, IHouseholdSettings household, IFxRates fx)
     : IRequestHandler<ListEnvelopesQuery, EnvelopeList>
 {
     public async ValueTask<Result<EnvelopeList>> HandleAsync(ListEnvelopesQuery query, CancellationToken ct = default)
@@ -243,6 +243,7 @@ public sealed class ListEnvelopesHandler(
         var writable = await policy.CheckManyAsync(reader, accesses.Keys.ToList(), AccessKind.Write, ct);
         var today = await calendar.TodayAsync(ct);
         var summaries = new List<EnvelopeSummary>();
+        var values = new Dictionary<ItemId, Money>();
         foreach (var envelope in found)
         {
             EnvelopePerformance.Facts? f;
@@ -259,13 +260,35 @@ public sealed class ListEnvelopesHandler(
             var canWrite = writable.Contains(envelope.ItemId);
             summaries.Add(new EnvelopeSummary(envelope.ItemId, f.Item.DisplayName, EnvelopeWire.Of(envelope.Kind), f.Currency.Code,
                 f.Item.Visibility == Visibility.Private ? "private" : "shared", f.Item.ArchivedAt is not null, canWrite, FiguresView.From(figures), f.Item.OwnerViews()));
+            if (figures.Value is { } value) values[envelope.ItemId] = value;
         }
 
         // Minor 3: a stable order — the name alone ties on a duplicate, or across cultures/collations.
-        return Result.Success(new EnvelopeList(summaries
+        var ordered = summaries
             .OrderBy(s => s.DisplayName, StringComparer.Create(new System.Globalization.CultureInfo("fr-FR"), true))
             .ThenBy(s => s.Id.Value)
-            .ToList()));
+            .ToList();
+        return Result.Success(new EnvelopeList(ordered, await GroupsAsync(ordered, values, today, ct)));
+    }
+
+    private async Task<IReadOnlyList<EnvelopeGroupView>> GroupsAsync(
+        IReadOnlyList<EnvelopeSummary> summaries, IReadOnlyDictionary<ItemId, Money> values, LocalDate today, CancellationToken ct)
+    {
+        var reference = await household.ReferenceCurrencyAsync(ct);
+        var foreign = values.Values.Select(v => v.Currency).Where(c => c != reference).Distinct().ToList();
+        // As the overview: the reference's own quote is needed too, rates are per USD.
+        var rates = foreign.Count == 0 ? RateTable.Empty(today, 0) : await fx.LoadAsync([.. foreign, reference], today, today, ct);
+        var convert = new InvestmentsOverviewMath.Converter(reference, rates);
+        return summaries
+            .GroupBy(s => string.Join(',', s.Owners.OrderBy(o => o.PersonId).Select(o => $"{o.PersonId}:{o.ShareBp}")))
+            .Select(g =>
+            {
+                // An envelope without a value adds nothing; one whose rate is missing, or none valued, leaves the total unknown.
+                var amounts = g.Where(s => values.ContainsKey(s.Id)).Select(s => convert.Of(values[s.Id].Amount, values[s.Id].Currency, today)).ToList();
+                var total = amounts.Count == 0 || amounts.Any(a => a is null) ? null : (decimal?)amounts.Sum(a => a!.Value);
+                return new EnvelopeGroupView(g.First().Owners, g.Select(s => s.Id.Value).ToList(), convert.View(total));
+            })
+            .ToList();
     }
 }
 

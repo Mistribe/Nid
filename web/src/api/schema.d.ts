@@ -39550,6 +39550,11 @@ export interface components {
             documentId?: null | string;
             fromBank: boolean;
         };
+        AssetGroupView: {
+            owners: components["schemas"]["ItemOwnerView"][];
+            items: string[];
+            value?: null | components["schemas"]["MoneyView"];
+        };
         AssetLinkBody: {
             /** Format: uuid */
             assetId?: null | string;
@@ -39559,6 +39564,7 @@ export interface components {
             /** Format: int32 */
             total: number;
             kinds: string[];
+            groups: components["schemas"]["AssetGroupView"][];
         };
         AssetRow: {
             /** Format: uuid */
@@ -41576,8 +41582,14 @@ export interface components {
             /** Format: double */
             coveredPct?: null | number;
         };
+        EnvelopeGroupView: {
+            owners: components["schemas"]["ItemOwnerView"][];
+            items: string[];
+            value?: null | components["schemas"]["AmountView"];
+        };
         EnvelopeList: {
             items: components["schemas"]["EnvelopeSummary"][];
+            groups: components["schemas"]["EnvelopeGroupView"][];
         };
         EnvelopeOverviewRow: {
             /** Format: uuid */

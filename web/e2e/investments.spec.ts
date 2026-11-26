@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { fillDate, pick, toasts } from './controls';
+import { fillDate, pick, toasts, unfoldAll } from './controls';
 import { signIn } from './session';
 
 test('alice follows a private PEA and bob never sees it', async ({ browser }) => {
@@ -89,7 +89,11 @@ test('alice follows a private PEA and bob never sees it', async ({ browser }) =>
   await expect(alice.getByText(livret)).toHaveCount(0);
   await alice.getByRole('switch', { name: 'Afficher les clôturées' }).click();
   const closedRow = list.getByRole('row').filter({ hasText: livret });
-  await expect(closedRow).toContainText('Clôturée');
+  // The Livret may be folded with alice's other envelopes: unfold until it shows.
+  await expect(async () => {
+    await unfoldAll(list);
+    await expect(closedRow).toContainText('Clôturée', { timeout: 1000 });
+  }).toPass();
   await closedRow.getByRole('link', { name: livret }).click();
   await alice.getByRole('button', { name: 'Rouvrir' }).click();
   await expect(toasts(alice)).toContainText('Enveloppe rouverte.');

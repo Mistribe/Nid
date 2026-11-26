@@ -30,7 +30,13 @@ public sealed record EnvelopeSummary(
     ItemId Id, string DisplayName, string Kind, string Currency, string Visibility, bool Closed, bool CanWrite, FiguresView Figures,
     IReadOnlyList<ItemOwnerView> Owners);
 
-public sealed record EnvelopeList(IReadOnlyList<EnvelopeSummary> Items) : IExposesItems
+/// <summary>
+/// The listed envelopes of the same owners and shares, as the income list gathers a person's salaries. <paramref name="Value"/> adds
+/// up their values in the household's currency, converted today; null when a rate is missing.
+/// </summary>
+public sealed record EnvelopeGroupView(IReadOnlyList<ItemOwnerView> Owners, IReadOnlyList<Guid> Items, AmountView? Value);
+
+public sealed record EnvelopeList(IReadOnlyList<EnvelopeSummary> Items, IReadOnlyList<EnvelopeGroupView> Groups) : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems() => Items.Select(i => i.Id);
 }
