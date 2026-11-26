@@ -20,7 +20,7 @@ import { todayIso } from '@/lib/today';
 import type { DashboardEvent } from '@/api/dashboard';
 import { ChargeLink, DayTotals, FigureText, type CalendarCharge } from './amounts';
 import { EventLink } from './EventLink';
-import { AMOUNT_MODULES, CALENDAR_MODULES, moduleLabelKey, type AmountModule, type CalendarModule } from './modules';
+import { AMOUNT_MODULES, CALENDAR_MODULES, moduleLabelKey, storeAmounts, type AmountModule, type CalendarModule } from './modules';
 import { MonthGrid } from './MonthGrid';
 import { daysIn, formatDate, shiftMonth } from './calendarDates';
 import '@/locales/calendar';
@@ -130,8 +130,10 @@ function MonthView({ scope, chosen, month: asked, amounts }: {
           <ChevronRightIcon aria-hidden="true" />
         </Button>
         <div className="ml-auto">
-          <SwitchField label={t('calendar_page.amounts')} checked={amounts} onCheckedChange={(on) => void navigate({ to: '.', replace: true,
-            resetScroll: false, search: (prev) => ({ ...prev, amounts: on ? 1 : undefined }) })} />
+          <SwitchField label={t('calendar_page.amounts')} checked={amounts} onCheckedChange={(on) => {
+            storeAmounts(on);
+            void navigate({ to: '.', replace: true, resetScroll: false, search: (prev) => ({ ...prev, amounts: on ? 1 : undefined }) });
+          }} />
         </div>
       </div>
       {answer.error ? <ProblemMessage problem={present(toProblem(answer.error))} />

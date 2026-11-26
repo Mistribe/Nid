@@ -149,6 +149,48 @@ describe('Calendrier', () => {
     expect(await screen.findByText('Aucune échéance ponctuelle sur cet horizon pour ces modules.')).toBeInTheDocument();
   });
 
+  it('remembers the amounts choice on this device, an explicit address winning (#766)', async () => {
+    const seen = serve([], NOVEMBER);
+    const { user, router } = await renderApp('/calendar');
+
+    await user.click(await screen.findByRole('switch', { name: 'Montants' }));
+    expect(localStorage.getItem('nid.calendar.amounts')).toBe('1');
+    await user.click(screen.getByRole('switch', { name: 'Montants' }));
+    expect(localStorage.getItem('nid.calendar.amounts')).toBe('0');
+    await waitFor(() => expect(router.state.location.search).toEqual({}));
+    expect(screen.getByRole('switch', { name: 'Montants' })).not.toBeChecked();
+    expect(seen.some((q) => q.get('amounts') === 'true')).toBe(true);
+  });
+
+  it('opens with the amounts on when they were last on', async () => {
+    localStorage.setItem('nid.calendar.amounts', '1');
+    const seen = serve([], NOVEMBER);
+    await renderApp('/calendar');
+
+    expect(await screen.findByRole('switch', { name: 'Montants' })).toBeChecked();
+    await waitFor(() => expect(seen.at(-1)?.get('amounts')).toBe('true'));
+  });
+
+  it('opens with the amounts off when the address says so, whatever was last chosen', async () => {
+    localStorage.setItem('nid.calendar.amounts', '1');
+    const seen = serve([], NOVEMBER);
+    await renderApp('/calendar?amounts=0');
+
+    expect(await screen.findByRole('switch', { name: 'Montants' })).not.toBeChecked();
+    await waitFor(() => expect(seen.at(-1)?.toString()).toBe('scope=household&from=2026-11-01&to=2026-11-30'));
+  });
+
+  it('opens with the amounts off when storage is refused', async () => {
+    const refused = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new DOMException('refused', 'SecurityError'); });
+    try {
+      serve([], NOVEMBER);
+      await renderApp('/calendar');
+      expect(await screen.findByRole('switch', { name: 'Montants' })).not.toBeChecked();
+    } finally {
+      refused.mockRestore();
+    }
+  });
+
   it('shows the money of the month with its amounts on: the totals, each day out and in, the heavy days and every charge', async () => {
     const seen = serve([event({ on: '2026-11-03', name: 'Amazon Prime' })], NOVEMBER);
     const { user, router, container } = await renderApp('/calendar');
