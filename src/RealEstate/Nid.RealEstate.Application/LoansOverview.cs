@@ -51,7 +51,7 @@ public sealed record PersonLoanShareView(Guid PersonId, LoanMoneyView? Balance, 
 
 /// <summary>
 /// Issue #402: the debt ratio (<see cref="DebtRatio"/>, the scenarios' rule) of this month's loan payments, insurance included,
-/// over the net monthly income, and the room left under the ceiling; in « Moi », the reader's shares of both. <c>Unknown</c> says
+/// over the net monthly income, rents at 70 % (#725), and the room left under the ceiling; in « Moi », the reader's shares of both. <c>Unknown</c> says
 /// why the ratio is null: <c>no_income</c> (none declared, or none running) or <c>fx_rate_missing</c> (a finding names the rate).
 /// Issue #161: <c>Reading</c> places a known ratio against the ceiling, for a plain sentence beside the figure.
 /// </summary>
@@ -122,31 +122,47 @@ public sealed class GetLoansOverviewHandler(
             .ToList();
 
         // Issue #402: the income the scenarios read (every contribution, as the dashboard), merged.
-        var sources = 0;
-        var monthly = new Dictionary<Currency, decimal>();
-        var mine = new Dictionary<Currency, decimal>();
+        var parts = new List<(string Module, IncomePart Part)>();
         foreach (var contribution in income)
         {
             var read = await contribution.IncomeAsync(person, query.Scope, today, ct);
             if (read.TryGetFailure(out var failure)) return Result.Failure<LoansOverview>(failure!);
             read.TryGetValue(out var part);
-            sources += part!.Sources;
-            foreach (var (currency, amount) in part.MonthlyEquivalent) monthly[currency] = monthly.GetValueOrDefault(currency) + amount;
-            foreach (var (currency, amount) in part.ReaderShare ?? new Dictionary<Currency, decimal>()) mine[currency] = mine.GetValueOrDefault(currency) + amount;
+            parts.Add((contribution.Module, part!));
         }
+        var merged = LoansOverviewMath.RatioIncome(parts);
 
         var reference = await household.ReferenceCurrencyAsync(ct);
-        var foreign = set.Select(l => LoanReading.CurrencyOf(l.Item)).Concat(monthly.Keys).Where(c => c != reference).Distinct().ToList();
+        var foreign = set.Select(l => LoanReading.CurrencyOf(l.Item)).Concat(merged.MonthlyEquivalent.Keys).Where(c => c != reference).Distinct().ToList();
         // The reference's own quote is needed too: rates are per USD. D4: every figure at today's rate.
         var rates = foreign.Count == 0 ? RateTable.Empty(today, 0) : await fx.LoadAsync([.. foreign, reference], today, today, ct);
         return Result.Success(LoansOverviewMath.Build(set, reference, rates, today, await persons.ListAsync(ct),
-            new OverviewIncome(new IncomePart(sources, monthly, mine), query.Scope, person)));
+            new OverviewIncome(merged, query.Scope, person)));
     }
 }
 
 /// <summary>Spec §3.2's figures, pure: tested with the real engine in Nid.RealEstate.Tests.</summary>
 internal static partial class LoansOverviewMath
 {
+    /// <summary>
+    /// The income the debt ratio is measured against: every contribution merged, rents at <see cref="DebtRatio.RentShare"/> as
+    /// banks count them (HCSF, #725).
+    /// </summary>
+    public static IncomePart RatioIncome(IEnumerable<(string Module, IncomePart Part)> parts)
+    {
+        var sources = 0;
+        var monthly = new Dictionary<Currency, decimal>();
+        var mine = new Dictionary<Currency, decimal>();
+        foreach (var (module, part) in parts)
+        {
+            var weight = module == IncomeModules.Rents ? DebtRatio.RentShare : 1m;
+            sources += part.Sources;
+            foreach (var (currency, amount) in part.MonthlyEquivalent) monthly[currency] = monthly.GetValueOrDefault(currency) + weight * amount;
+            foreach (var (currency, amount) in part.ReaderShare ?? new Dictionary<Currency, decimal>()) mine[currency] = mine.GetValueOrDefault(currency) + weight * amount;
+        }
+        return new IncomePart(sources, monthly, mine);
+    }
+
     private static readonly StringComparer French = StringComparer.Create(new CultureInfo("fr-FR"), true);
 
     /// <param name="persons">The household in creation order (the registry's), for the order of <c>ByPerson</c>.</param>

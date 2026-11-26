@@ -287,6 +287,19 @@ public class LoansOverviewTests
     }
 
     [Fact]
+    public void The_debt_ratio_counts_rents_at_70_percent_as_banks_do()
+    {
+        var income = LoansOverviewMath.RatioIncome([
+            ("income", new IncomePart(1, Eur(3_000m), Eur(2_000m))),
+            (IncomeModules.Rents, new IncomePart(1, Eur(1_000m), Eur(500m))),
+        ]);
+
+        Assert.Equal((2, 3_700m, 2_350m), (income.Sources, income.MonthlyEquivalent[Currency.Eur], income.ReaderShare![Currency.Eur]));
+        var ratio = WithIncome(VisibilityScope.Household, income, Home()).DebtRatio!;
+        Assert.Equal((3_700m, 0.35m * 3_700m - 1_159.92m), (D(ratio.Income), D(ratio.Room)));
+    }
+
+    [Fact]
     public void Payments_above_35_percent_of_the_income_read_over_the_ceiling_with_a_negative_room()
     {
         // The golden case's 1 159,92 a month over 3 000 is about 39 %.

@@ -137,6 +137,7 @@ describe('Crédits › vue d’ensemble', () => {
     expect(figures).toHaveTextContent('Taux d’endettement27,83 %raisonnable : sous les 35 % des banquesencore 556,43 € / mois de mensualités possibles');
     await user.hover(within(figures).getByRole('button', { name: /Taux d’endettement/ }));
     expect((await screen.findAllByText(/au-delà de 35 % \(règle du HCSF\)/))[0]).toBeInTheDocument();
+    expect(screen.getAllByText(/compte les loyers perçus à 70 %/)[0]).toBeInTheDocument();
   });
 
   it('says a debt ratio over the ceiling is high, without a negative room', async () => {
