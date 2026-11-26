@@ -247,6 +247,7 @@
       "auto": "Appliquer les soldes automatiquement"
     },
     "routine_balance": "Solde bancaire du {{date}}",
+    "routine_balance_amount": "Solde bancaire du {{date}} : {{amount}}",
     "operations": {
       "title": "Opérations",
       "loading": "Chargement des opérations",

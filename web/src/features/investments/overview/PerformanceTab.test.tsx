@@ -5,7 +5,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import type { HouseholdPerformance } from '@/api/investments';
-import { householdPerformance, overview, PEA, performance } from '../testData';
+import { eur, householdPerformance, overview, PEA, performance } from '../testData';
 
 const serve = (body: HouseholdPerformance, seen: string[] = []) =>
   server.use(http.get('*/api/v1/investments/overview/performance', ({ request }) => {
@@ -59,6 +59,14 @@ describe('Placements › performance', () => {
     expect(within(earned).getByRole('link', { name: /CTO/ })).toHaveTextContent('CTOvaleur de départ ancienne');
     expect(within(earned).getByRole('link', { name: 'Livret A' })).not.toHaveTextContent('valeur de départ ancienne');
     expect(await region('Rendement annuel depuis l’ouverture')).toHaveTextContent('Vos livrets +2,6 %');
+  });
+
+  it('writes a withdrawal of nothing without a sign (#718)', async () => {
+    serve({ ...householdPerformance(), withdrawals: eur('0.00') });
+    await renderApp('/investments?tab=performance');
+
+    const bridge = await screen.findByRole('table', { name: 'Variation de valeur de la période' });
+    expect(within(bridge).getByRole('row', { name: /Retraits/ })).toHaveTextContent(/^Retraits0,00 €$/);
   });
 
   it('marks an envelope without a value at the start, counted at its amount paid in', async () => {
