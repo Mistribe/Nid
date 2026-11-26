@@ -218,17 +218,23 @@ internal static partial class LoansOverviewMath
                 x.Loan, x.Change.EndingPhase, convert.View(PaymentOf(x.Change.On.ToYearMonth().PlusMonths(1)))))
             .ToList();
 
-        // Spec §4.1: the months to the last payment, grouped while the household's payment stays the same (an unknown one too).
+        // Spec §4.1: the months to the last payment, grouped while the household's payment stays the same (an unknown one too);
+        // #757: like the events, a move of less than a euro from the step's first month starts no step.
         var steps = new List<PaymentStepView>();
+        decimal? stepStart = null;
         if (freeOn is { } free)
             for (var month = thisMonth; month <= free.ToYearMonth(); month = month.PlusMonths(1))
             {
-                var amount = convert.View(PaymentOf(month));
+                var payment = PaymentOf(month);
+                var amount = convert.View(payment);
                 var text = month.ToString("yyyy-MM", CultureInfo.InvariantCulture);
-                if (steps.Count > 0 && steps[^1].Amount == amount)
+                if (steps.Count > 0 && (steps[^1].Amount == amount || payment is { } now && stepStart is { } start && Math.Abs(now - start) < 1m))
                     steps[^1] = steps[^1] with { To = text };
                 else
+                {
                     steps.Add(new PaymentStepView(text, text, amount));
+                    stepStart = payment;
+                }
             }
 
         var ratio = income is null ? null : Ratio(running, income, thisMonth, convert);
