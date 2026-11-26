@@ -100,6 +100,36 @@ describe('Calendrier', () => {
     expect(screen.getByRole('button', { name: 'Mois précédent' })).toBeEnabled();
   });
 
+  it('shows the module checkboxes at once and the month only once its answer is in, never a list read again (#756)', async () => {
+    let release = () => {};
+    let asked = 0;
+    let events = [event({ on: '2026-11-03', name: 'Amazon Prime' })];
+    server.use(http.get('*/api/v1/calendar', async () => {
+      asked += 1;
+      await new Promise<void>((resolve) => { release = resolve; });
+      return HttpResponse.json({ from: '2026-11-01', to: '2026-11-30', events, amounts: null });
+    }));
+    const { queryClient } = await renderApp('/calendar?amounts=1');
+
+    // Every checkbox from the first render, childcare's too, while the month is still being read.
+    expect(await screen.findByRole('checkbox', { name: 'Abonnements' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Garde' })).toBeChecked();
+    expect(screen.getByRole('status', { name: 'Chargement du calendrier' })).toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Calendrier du mois' })).not.toBeInTheDocument();
+    await waitFor(() => expect(asked).toBe(1));
+    release();
+    expect(within(await grid()).getAllByRole('link')).toHaveLength(1);
+
+    // Read again (another tab's change, a write elsewhere): the month it had is not shown meanwhile.
+    events = [...events, event({ on: '2026-11-20', name: 'Musique' })];
+    void queryClient.invalidateQueries();
+    await waitFor(() => expect(asked).toBe(2));
+    expect(screen.queryByRole('group', { name: 'Calendrier du mois' })).not.toBeInTheDocument();
+    expect(screen.getByRole('status', { name: 'Chargement du calendrier' })).toBeInTheDocument();
+    release();
+    await waitFor(async () => expect(within(await grid()).getAllByRole('link')).toHaveLength(2));
+  });
+
   it('keeps the last module checked', async () => {
     serve();
     await renderApp('/calendar?modules=tax,unknown');
