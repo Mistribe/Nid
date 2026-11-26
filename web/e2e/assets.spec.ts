@@ -17,7 +17,8 @@ test('alice records a car bought for 18 000 €, values it, and finds it under �
   await alice.getByRole('button', { name: 'Ajouter le bien' }).click();
   await expect(alice.getByRole('heading', { name, level: 1 })).toBeVisible();
 
-  await alice.getByRole('button', { name: 'Ajouter une valeur' }).click();
+  // #778: the car's purchase price is old, so its notice offers « Ajouter une valeur » too; both open the same dialog.
+  await alice.getByRole('button', { name: 'Ajouter une valeur' }).first().click();
   const dialog = alice.getByRole('dialog', { name: 'Nouvelle valeur' });
   await dialog.getByLabel('Montant').fill('12000');
   await dialog.getByRole('button', { name: 'Enregistrer' }).click();
