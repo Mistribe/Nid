@@ -538,6 +538,7 @@
     "watch": {
       "holding_maturity": "{{holding}} arrive à échéance le {{date}}",
       "unexplained_units": "Parts inexpliquées sur {{holding}} au relevé du {{date}}",
+      "unexplained_units_many": "Parts inexpliquées sur plusieurs supports au relevé du {{date}}",
       "uc_share_below_floor": "Part en unités de compte sous le plancher (relevé du {{date}})",
       "holding_value_mismatch": "Parts × prix ne donnent pas la valeur de {{holding}} (relevé du {{date}})",
       "other": "À vérifier"
@@ -552,6 +553,7 @@
     "none": "Exposition non calculée.",
     "stale": "dont {{amount}} sur des fiches de plus d’un an",
     "all_unknown": "Aucune répartition n’est renseignée : ouvrez la fiche d’un support et choisissez « Renseigner » dans « Répartition ».",
+    "mostly_unknown": "La répartition de {{pct}} de la valeur n’est pas renseignée : ouvrez la fiche d’un support et choisissez « Renseigner » dans « Répartition ».",
     "outside": "Hors marchés",
     "unknown": "Inconnu",
     "unclassified": "Non classé",

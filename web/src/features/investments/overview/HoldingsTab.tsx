@@ -428,7 +428,9 @@ function WatchCard({ d }: { d: HouseholdHoldings }) {
     <SectionCard title={t('investments_holdings.watch_title')}>
       <GroupedList>
         {d.watch.map((w) => {
-          const code = WATCH.find((c) => c === w.code);
+          const found = WATCH.find((c) => c === w.code);
+          // #728: the server names no holding when several of one statement have unexplained units.
+          const code = found === 'unexplained_units' && !w.holdingId ? 'unexplained_units_many' : found;
           const text = code ? t(`investments_holdings.watch.${code}`, { holding: holding(w.holdingId), date: w.on ? formatLocalDate(w.on, 'short') : '' })
             : t('investments_holdings.watch.other');
           return (

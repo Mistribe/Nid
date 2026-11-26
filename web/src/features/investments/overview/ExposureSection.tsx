@@ -41,9 +41,18 @@ export function ExposureSection({ d }: { d: HouseholdHoldings }) {
   ].filter((p) => !isZero(p.value));
   // Every holding is unknown: no region, sector or market-less share carries anything.
   const allUnknown = !isZero(e.unknown.value) && e.regions.every((r) => isZero(r.value)) && isZero(e.outsideMarkets.value);
+  // #728: more than half unknown says what to fill rather than a breakdown that is mostly « Inconnu ».
+  if (allUnknown || (e.unknown.sharePct ?? 0) > 50) {
+    return (
+      <SectionCard title={title}>
+        <p className="text-sm text-muted-foreground">
+          {allUnknown ? t('exposure.all_unknown') : t('exposure.mostly_unknown', { pct: t('investments.pct', { value: sharePct(e.unknown.sharePct!) }) })}
+        </p>
+      </SectionCard>
+    );
+  }
   return (
     <SectionCard title={title}>
-      {allUnknown ? <p className="text-sm text-muted-foreground">{t('exposure.all_unknown')}</p> : null}
       <Bars label={t('exposure.regions')} caption={t('exposure.regions_table')} parts={regions} />
       <Bars label={t('exposure.sectors')} caption={t('exposure.sectors_table')} parts={sectors} />
       {e.staleValue && !isZero(e.staleValue) ? <p className="text-sm text-muted-foreground">{t('exposure.stale', { amount: formatMoney(e.staleValue) })}</p> : null}
