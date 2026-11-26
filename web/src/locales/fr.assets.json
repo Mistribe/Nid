@@ -25,7 +25,11 @@
     "purchase_price": "prix d’achat",
     "estimated": "estimée",
     "estimated_base": "base du",
-    "no_value": "Sans valeur"
+    "no_value": "Sans valeur",
+    "group_one": "{{count}} bien",
+    "group_other": "{{count}} biens",
+    "expand_group": "Déplier les biens",
+    "dash": "—"
   },
   "assets_form": {
     "title": "Nouveau bien",

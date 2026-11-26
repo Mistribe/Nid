@@ -59,6 +59,29 @@ public class AssetReadTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         Assert.Equal(52, (await ListAsync(app, app.AdultA)).Total);
     }
 
+    [Fact]
+    public async Task The_list_gathers_the_assets_of_the_same_owners_with_their_total()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var painting = await CreateAsync(app, Body(app, "Tableau", purchasePrice: "1000"));
+        var watch = await CreateAsync(app, Body(app, "Montre", "collectible", purchasePrice: "500.50"));
+        // No rate is stored: a dollar value leaves its group's total unknown.
+        var bike = Body(app, "Vélo", "other", purchasePrice: "300", owner: app.AdultB);
+        bike["currency"] = "USD";
+        var ofB = await CreateAsync(app, bike, app.AdultB);
+
+        var list = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, Route));
+
+        var groups = list.GetProperty("groups").EnumerateArray().ToDictionary(
+            g => g.GetProperty("owners")[0].GetProperty("personId").GetGuid());
+        Assert.Equal(2, groups.Count);
+        var ofA = groups[app.AdultA.Value];
+        Assert.Equal(new[] { painting.Value, watch.Value }.Order(), ofA.GetProperty("items").EnumerateArray().Select(i => i.GetGuid()).Order());
+        Assert.Equal("1500.50", ofA.GetProperty("value").GetProperty("amount").GetString());
+        Assert.Equal([ofB.Value], groups[app.AdultB.Value].GetProperty("items").EnumerateArray().Select(i => i.GetGuid()));
+        Assert.Equal(System.Text.Json.JsonValueKind.Null, groups[app.AdultB.Value].GetProperty("value").ValueKind);
+    }
+
     [Theory]
     [InlineData("0")]
     [InlineData("-3")]

@@ -38,8 +38,15 @@ public sealed record AssetRow(
     ItemId Id, string Name, string Kind, MoneyView? Value, LocalDate? ValueOn, bool ValueFromPurchase, string Currency, string Visibility,
     IReadOnlyList<ItemOwnerView> Owners, bool Archived, bool ValueEstimated = false, MoneyView? ValueBase = null);
 
+/// <summary>
+/// The listed assets of the same owners and shares, as the income list gathers a person's salaries. <paramref name="Value"/> adds
+/// up their values in the household's currency, converted today; null when a rate is missing or none has a value.
+/// </summary>
+public sealed record AssetGroupView(IReadOnlyList<ItemOwnerView> Owners, IReadOnlyList<Guid> Items, MoneyView? Value);
+
 /// <param name="Kinds">The kinds among the assets the actor reads, before the kind filter: what the filter offers.</param>
-public sealed record AssetListView(IReadOnlyList<AssetRow> Rows, int Total, IReadOnlyList<string> Kinds) : IExposesItems
+/// <param name="Groups">The page's rows by owners and shares, in the rows' order.</param>
+public sealed record AssetListView(IReadOnlyList<AssetRow> Rows, int Total, IReadOnlyList<string> Kinds, IReadOnlyList<AssetGroupView> Groups) : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems() => Rows.Select(r => r.Id);
 }
