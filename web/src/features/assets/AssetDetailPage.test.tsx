@@ -32,6 +32,25 @@ describe('AssetDetailPage', () => {
     expect(await screen.findByText('prix d’achat', { selector: '[data-slot="badge"]' })).toBeInTheDocument();
   });
 
+  // #778: an old purchase price alone asks for a newer value; a vehicle is offered its depreciation rule, unfolded.
+  it('asks for a newer value when an old purchase price is all it has', async () => {
+    serve(assetView({ kind: 'vehicle', valueFromPurchase: true, valueStale: true, valuations: [] }));
+    const { user } = await renderApp(`/other-assets/${ASSET}`);
+
+    expect(await screen.findByText(/Seul un ancien prix d’achat donne la valeur de ce véhicule/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Appliquer une dépréciation' }));
+    const dialog = within(await screen.findByRole('dialog', { name: 'Modifier le bien' }));
+    expect(dialog.getByLabelText('Perte de valeur par an (%)')).toBeInTheDocument();
+  });
+
+  it('asks nothing of a value that is not stale', async () => {
+    serve(assetView({ valueFromPurchase: true, valuations: [] }));
+    await renderApp(`/other-assets/${ASSET}`);
+
+    await screen.findByRole('heading', { name: 'Citadine', level: 1 });
+    expect(screen.queryByText(/Seul un ancien prix d’achat/)).not.toBeInTheDocument();
+  });
+
   it('shows no badge once a valuation gives the value', async () => {
     serve(assetView());
     await renderApp(`/other-assets/${ASSET}`);

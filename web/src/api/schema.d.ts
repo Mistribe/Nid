@@ -39627,6 +39627,8 @@ export interface components {
             netValue?: null | components["schemas"]["MoneyView"];
             /** @default false */
             fxMissing: boolean;
+            /** @default false */
+            valueStale: boolean;
         };
         AssistantEnabledBody: {
             enabled?: null | boolean;

@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Controller, FormProvider, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
@@ -21,16 +21,17 @@ import '@/locales/assets';
 import '@/locales/loans';
 
 /** The asset's fields, the purchase included; its values are the valuations tab's, its owners the sharing menu's. */
-export function EditAssetDialog({ asset, onClose, onDone }: { asset: AssetView; onClose: () => void; onDone: (message: string) => void }) {
+/** `depreciation`: opens with the depreciation rule unfolded (#778, the page's « Appliquer une dépréciation »). */
+export function EditAssetDialog({ asset, depreciation = false, onClose, onDone }: { asset: AssetView; depreciation?: boolean; onClose: () => void; onDone: (message: string) => void }) {
   const { t } = useTranslation();
   return (
     <FormDialog title={t('assets_form.edit_title')} onClose={onClose} onDone={onDone}>
-      {({ titleId, done }) => <EditForm asset={asset} titleId={titleId} done={done} />}
+      {({ titleId, done }) => <EditForm asset={asset} depreciation={depreciation} titleId={titleId} done={done} />}
     </FormDialog>
   );
 }
 
-function EditForm({ asset, titleId, done }: { asset: AssetView; titleId: string; done: (message?: string) => void }) {
+function EditForm({ asset, depreciation, titleId, done }: { asset: AssetView; depreciation: boolean; titleId: string; done: (message?: string) => void }) {
   const { t } = useTranslation();
   const { $api } = useApi();
   const queryClient = useQueryClient();
@@ -46,6 +47,7 @@ function EditForm({ asset, titleId, done }: { asset: AssetView; titleId: string;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the version is the event.
   }, [asset.version]);
   const e = form.formState.errors;
+  const [unfolded, setUnfolded] = useState(depreciation);
 
   return (
     <form aria-labelledby={titleId} noValidate className="space-y-3" onSubmit={(event) => {
@@ -62,7 +64,7 @@ function EditForm({ asset, titleId, done }: { asset: AssetView; titleId: string;
       <FormProvider {...form}>
         <AssetFields />
         <VehicleFields />
-        {form.watch('kind') === 'vehicle' ? <Folded label={t('assets_form.customize')} hasError={Boolean(e.depreciationRate)}><DepreciationField /></Folded> : null}
+        {form.watch('kind') === 'vehicle' ? <Folded label={t('assets_form.customize')} hasError={Boolean(e.depreciationRate)} open={unfolded} onOpenChange={setUnfolded}><DepreciationField /></Folded> : null}
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label={t('assets_form.purchase_price')} error={e.purchasePrice?.message}>
             {(c) => <Input inputMode="decimal" {...c} {...form.register('purchasePrice')} />}

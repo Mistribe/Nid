@@ -42530,6 +42530,7 @@
           "name",
           "kind",
           "valueFromPurchase",
+          "valueStale",
           "fxMissing",
           "valueEstimated",
           "hasCosts",
@@ -42728,6 +42729,10 @@
             ]
           },
           "fxMissing": {
+            "type": "boolean",
+            "default": false
+          },
+          "valueStale": {
             "type": "boolean",
             "default": false
           }

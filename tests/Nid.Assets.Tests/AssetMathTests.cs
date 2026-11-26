@@ -100,4 +100,18 @@ public class AssetMathTests
         Assert.False(AssetMath.At(Car(null), [], new(2030, 1, 1))!.Estimated);
         Assert.True(AssetMath.At(Car(0.01m), [], new(2023, 1, 2))!.Amount <= 10_000m);
     }
+
+    // #778: a bare purchase price older than its kind's threshold asks for a newer value; a valuation or a depreciation rule does not.
+    [Fact]
+    public void IsStale_flags_an_old_purchase_price_alone()
+    {
+        var art = Bought with { Kind = "art" };
+        Assert.False(AssetMath.IsStale("vehicle", AssetMath.At(Bought, [], new(2024, 3, 1)), new(2024, 3, 1)));
+        Assert.True(AssetMath.IsStale("vehicle", AssetMath.At(Bought, [], new(2024, 3, 2)), new(2024, 3, 2)));
+        Assert.False(AssetMath.IsStale("art", AssetMath.At(art, [], new(2026, 3, 1)), new(2026, 3, 1)));
+        Assert.True(AssetMath.IsStale("art", AssetMath.At(art, [], new(2026, 3, 2)), new(2026, 3, 2)));
+        Assert.False(AssetMath.IsStale("vehicle", AssetMath.At(Bought, [(new(2023, 6, 1), 12_000m)], new(2026, 1, 1)), new(2026, 1, 1)));
+        Assert.False(AssetMath.IsStale("vehicle", AssetMath.At(Bought with { DepreciationRate = 15m }, [], new(2026, 1, 1)), new(2026, 1, 1)));
+        Assert.False(AssetMath.IsStale("vehicle", null, new(2026, 1, 1)));
+    }
 }

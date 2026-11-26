@@ -49,7 +49,7 @@ export function AssetDetailPage() {
   const { id } = useParams({ from: '/other-assets/$id' });
   const answer = $api.useQuery('get', ASSET, { params: { path: { id } } });
   const [tab, setTab] = useDetailTab(TABS);
-  const [dialog, setDialog] = useState<'edit' | 'value' | 'mileage' | 'delete' | null>(null);
+  const [dialog, setDialog] = useState<'edit' | 'depreciation' | 'value' | 'mileage' | 'delete' | null>(null);
   const done = () => { void invalidateAssets(queryClient); };
   const archive = $api.useMutation('post', ASSET_ARCHIVE, { onSuccess: () => { done(); toast.success(t('assets_detail.archived_done')); } });
   const unarchive = $api.useMutation('post', ASSET_UNARCHIVE, { onSuccess: () => { done(); toast.success(t('assets_detail.unarchived_done')); } });
@@ -109,10 +109,22 @@ export function AssetDetailPage() {
         <section aria-label={t('assets_detail.figures')}><StatLine items={figures} /></section>
       </PageHeader>
       {asset.canWrite ? null : <p>{t('assets_detail.read_only')}</p>}
+      {/* #778: an old purchase price is all Nid knows of the value: ask for a newer one (or, for a vehicle, the depreciation rule). */}
+      {asset.valueStale ? (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
+          <p>{t(asset.kind === 'vehicle' ? 'assets_detail.stale_vehicle' : 'assets_detail.stale')}</p>
+          {asset.canWrite ? (
+            <span className="flex flex-wrap gap-2">
+              <Button type="button" size="sm" variant="outline" onClick={() => setDialog('value')}>{t('assets_valuations.add')}</Button>
+              {asset.kind === 'vehicle' ? <Button type="button" size="sm" variant="outline" onClick={() => setDialog('depreciation')}>{t('assets_detail.stale_depreciation')}</Button> : null}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
       {archive.error || unarchive.error ? <ProblemMessage problem={present(toProblem(archive.error ?? unarchive.error))} /> : null}
       {asset.note ? <p>{asset.note}</p> : null}
       {asset.canWrite && dialog === 'delete' ? <Suspense fallback={null}><DeleteItemFlow kind="assets.delete_asset" id={id} onClose={() => setDialog(null)} /></Suspense> : null}
-      {asset.canWrite && dialog === 'edit' ? <EditAssetDialog asset={asset} onClose={() => setDialog(null)} onDone={(m) => { setDialog(null); toast.success(m); }} /> : null}
+      {asset.canWrite && (dialog === 'edit' || dialog === 'depreciation') ? <EditAssetDialog asset={asset} depreciation={dialog === 'depreciation'} onClose={() => setDialog(null)} onDone={(m) => { setDialog(null); toast.success(m); }} /> : null}
       {asset.canWrite && dialog === 'mileage' ? <MileageDialog asset={asset} onClose={() => setDialog(null)} onDone={(m) => { setDialog(null); toast.success(m); }} /> : null}
       {asset.canWrite && dialog === 'value' ? <AssetValuationDialog asset={asset} onClose={() => setDialog(null)} onDone={(m) => { setDialog(null); toast.success(m); }} /> : null}
       <DetailTabs value={tab} onChange={setTab} tabs={[

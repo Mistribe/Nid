@@ -1,3 +1,4 @@
+using Nid.Assets.Contracts;
 using NodaTime;
 
 namespace Nid.Assets.Domain;
@@ -36,6 +37,13 @@ public static class AssetMath
         }
         return d is { PurchasePrice: { } price, PurchasedOn: { } on } && on <= date ? new AssetValue(price, on, true) : null;
     }
+
+    /// <summary>#778: how long a bare purchase price stands for the value: a vehicle wears and metal follows its price, the rest moves slowly.</summary>
+    public static Period StaleAfter(string kind) => kind is AssetKinds.Vehicle or AssetKinds.PreciousMetal ? Period.FromYears(1) : Period.FromYears(3);
+
+    /// <summary>#778: the value is only a purchase price (no valuation, no depreciation rule) older than its kind's <see cref="StaleAfter"/>.</summary>
+    public static bool IsStale(string kind, AssetValue? value, LocalDate today)
+        => value is { FromPurchase: true, Estimated: false } && value.On.Plus(StaleAfter(kind)) < today;
 
     /// <summary>The earliest of the purchase price on its date and the first valuation on its date: what goes in <c>Moved</c>.</summary>
     public static AssetValue? FirstCounted(AssetDetails d, IReadOnlyList<(LocalDate On, decimal Amount)> valuations)
