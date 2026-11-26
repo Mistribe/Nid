@@ -300,9 +300,11 @@ public sealed class PropertyCostCommitments(IVisibleItems visible, IItemRegistry
 /// <summary>
 /// 3E1 spec §4, over the visible loans and properties: a phase's end on the next phase's first payment (its rate or its deferral
 /// changes), the last payment, the day the latest estimate turns stale, each planned cost's next due date with its amount, and a
-/// tenancy's end. Batched reads spec §3: the items and the estimates are read once for all.
+/// tenancy's end; and, for « À faire » (#716), a rent unpaid past the watch's grace, dated today. Batched reads spec §3: the items,
+/// the estimates and the rented properties' flows are read once for all.
 /// </summary>
-public sealed class RealEstateUpcoming(IVisibleItems visible, IItemRegistry items, IPropertyStore properties, ILoanStore loans, IValuations valuations)
+public sealed class RealEstateUpcoming(
+    IVisibleItems visible, IItemRegistry items, IPropertyStore properties, ILoanStore loans, IValuations valuations, IFlows flows)
     : IUpcomingEvents
 {
     public async Task<Result<IReadOnlyList<UpcomingEvent>>> UpcomingAsync(PersonId reader, VisibilityScope scope, LocalDate today, LocalDate until, CancellationToken ct)
@@ -354,6 +356,19 @@ public sealed class RealEstateUpcoming(IVisibleItems visible, IItemRegistry item
                 if (TaxCalendar.For(year).PropertyTax is var due && Within(due)
                     && property.Costs.Any(c => c.Cost.Category == "property_tax" && c.Cost.StartsOn <= due && (c.Cost.EndsOn is not { } end || end > due)))
                     events.Add(new UpcomingEvent(due, UpcomingKinds.PropertyTaxDue, property.ItemId, "properties", item.DisplayName, null, null));
+        }
+
+        // #716: the properties overview's rent_arrears watch, the same rule (months over by more than the grace, tenant by tenant). A
+        // refused read of the flows (no reader, as for the estimates) dates nothing.
+        var rented = found.Where(p => p.Tenancies.Count > 0 && accesses.ContainsKey(p.ItemId)).ToList();
+        if (rented.Count > 0 && Within(today)
+            && (await flows.ListManyAsync([.. rented.Select(p => p.ItemId)], PropertyReading.Everything, null, ct)).TryGetValue(out var all))
+        {
+            foreach (var property in rented)
+                if (RentLedger.PropertyArrearsDueBy(property.Tenancies.Select(t => (t.Id, t.RevisedFrom, t.Tenancy)).ToList(), all![property.ItemId], today,
+                        RentArrears.GraceDays) is > 0m and var owed)
+                    events.Add(new UpcomingEvent(today, UpcomingKinds.RentArrears, property.ItemId, "properties", accesses[property.ItemId].DisplayName,
+                        null, PropertyFacts.MoneyOf(owed, LoanReading.CurrencyOf(accesses[property.ItemId]))));
         }
         return Result.Success<IReadOnlyList<UpcomingEvent>>(events);
     }

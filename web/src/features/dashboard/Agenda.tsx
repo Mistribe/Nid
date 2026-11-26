@@ -14,7 +14,7 @@ import { placeOf, tileOf } from '@/components/nav';
 import { todayIso } from '@/lib/today';
 import type { DashboardEvent, DashboardView } from '@/api/dashboard';
 import { EventText, eventDetail, eventIcon, eventLink } from '../calendar/events';
-import { incomeGaps, isRoutineTodo } from './todo';
+import { incomeGaps, isRoutineTodo, rentArrears } from './todo';
 
 /** « Aujourd’hui », « Demain », else the weekday and date, the year only when it is not this one. */
 function dayLabel(t: TFunction, on: string, today: string): string {
@@ -85,13 +85,22 @@ export function Notice({ d }: { d: DashboardView }) {
   const pending = usePendingCount() ?? 0;
   const routine = d.todo.filter(isRoutineTodo).length;
   const gaps = incomeGaps(d.todo);
+  const unpaid = rentArrears(d.todo);
   const expected = useExpectedDocuments().data?.items?.length ?? 0;
-  if (routine === 0 && gaps.length === 0 && pending === 0 && expected === 0) return null;
+  if (routine === 0 && gaps.length === 0 && unpaid.length === 0 && pending === 0 && expected === 0) return null;
   return (
     <p className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
       {routine > 0 ? <Link to="/routine" className="underline">{t('dashboard.notice', { count: routine })}</Link> : null}
       {gaps.length === 1 ? <Link to="/income/$id" params={{ id: gaps[0]!.id }} className="underline">{t('dashboard.notice_income_gap', { count: 1 })}</Link> : null}
       {gaps.length > 1 ? <Link to="/income" className="underline">{t('dashboard.notice_income_gap', { count: gaps.length })}</Link> : null}
+      {unpaid.length === 1 ? (
+        <Link to="/properties/$id" params={{ id: unpaid[0]!.id }} search={{ tab: 'rental' }} className="underline">
+          {t('dashboard.notice_rent_arrears', { count: 1, name: unpaid[0]!.name })}
+        </Link>
+      ) : null}
+      {unpaid.length > 1 ? (
+        <Link to="/properties" search={{ tab: 'rental' }} className="underline">{t('dashboard.notice_rent_arrears', { count: unpaid.length })}</Link>
+      ) : null}
       {pending > 0 ? <PendingLine /> : null}
       {expected > 0 ? <Link to="/documents" className="underline">{t('dashboard.notice_expected_documents', { count: expected })}</Link> : null}
     </p>

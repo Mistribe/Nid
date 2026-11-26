@@ -148,7 +148,7 @@ public static class DashboardComposition
         var peopleMissing = holdings.Select(h => h.Converted.Missing).OfType<string>().Order(StringComparer.Ordinal).FirstOrDefault();
         var people = peopleMissing is null ? People(holdings.Select(h => (h.Holding.Owners, h.Converted.Amount)), persons, reference) : null;
 
-        var upcoming = events.Where(e => e.Kind != UpcomingKinds.IncomeGapSoon)
+        var upcoming = events.Where(e => !UpcomingKinds.IsTodo(e.Kind))
             .Select(e => new DashboardEventView(e.On, e.Kind, e.Item, e.Module, e.Name, e.Label,
                 e.Amount is { } a ? Money(a.Amount, a.Currency) : null))
             .Concat(itemless ?? [])
@@ -159,8 +159,8 @@ public static class DashboardComposition
             .Select(h => new DashboardTodoView("stale_value", h.Holding.Item, h.Holding.Module, h.Holding.Name, h.Holding.ValuedOn ?? h.Holding.AsOf, null))
             .Concat(holdings.Where(h => h.Holding.Value is null).OrderBy(h => h.Holding.Name, French)
                 .Select(h => new DashboardTodoView("no_value", h.Holding.Item, h.Holding.Module, h.Holding.Name, null, null)))
-            .Concat(events.Where(e => e.Kind == UpcomingKinds.IncomeGapSoon).OrderBy(e => e.On).ThenBy(e => e.Name, French)
-                .Select(e => new DashboardTodoView(UpcomingKinds.IncomeGapSoon, e.Item, e.Module, e.Name, e.On, e.Label)))
+            .Concat(events.Where(e => UpcomingKinds.IsTodo(e.Kind)).OrderBy(e => e.On).ThenBy(e => e.Name, French)
+                .Select(e => new DashboardTodoView(e.Kind, e.Item, e.Module, e.Name, e.On, e.Label)))
             .ToList();
 
         return new DashboardView(

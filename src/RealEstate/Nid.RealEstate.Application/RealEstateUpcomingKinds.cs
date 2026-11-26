@@ -13,6 +13,8 @@ public sealed class RealEstateUpcomingKinds : IUpcomingKinds
         new(UpcomingKinds.PropertyCostDue, UpcomingCadence.Recurring, Category),
         new(UpcomingKinds.TenancyEnd, UpcomingCadence.Milestone, label => $"Fin du bail « {label} »"),
         new(UpcomingKinds.PropertyTaxDue, UpcomingCadence.Recurring, _ => "Taxe foncière à payer"),
+        // « À faire », not « À venir »: never in the calendar feed (#716).
+        new(UpcomingKinds.RentArrears, UpcomingCadence.Milestone, _ => null),
     ];
 
     // web/src/locales/fr.json, property_flows.category_option.

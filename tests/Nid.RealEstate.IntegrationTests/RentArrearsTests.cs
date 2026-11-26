@@ -58,18 +58,18 @@ public class RentArrearsTests(PostgresFixture fixture) : IClassFixture<PostgresF
     {
         await using var app = await StartAsync(fixture);
         var property = await LetAsync(app);
-        await PaidThroughAsync(app, property, 7); // August and September are overdue, October is « en cours ».
+        await PaidThroughAsync(app, property, 7); // August and September are overdue; October, not over, is not listed (#716).
 
         var view = await ArrearsAsync(app, property);
 
-        Assert.Equal(("Locatif", "EUR", "2550.00", "1700.00"), (S(view, "propertyName"), S(view, "currency"), S(view, "total"), S(view, "overdueTotal")));
+        Assert.Equal(("Locatif", "EUR", "1700.00", "1700.00"), (S(view, "propertyName"), S(view, "currency"), S(view, "total"), S(view, "overdueTotal")));
         var months = view.GetProperty("months").EnumerateArray().ToList();
-        Assert.Equal(["2026-08", "2026-09", "2026-10"], months.Select(m => S(m, "month")));
-        Assert.Equal([true, true, false], months.Select(m => m.GetProperty("overdue").GetBoolean()));
-        Assert.Equal([true, true, false], months.Select(m => m.GetProperty("inLetter").GetBoolean()));
+        Assert.Equal(["2026-08", "2026-09"], months.Select(m => S(m, "month")));
+        Assert.Equal([true, true], months.Select(m => m.GetProperty("overdue").GetBoolean()));
+        Assert.Equal([true, true], months.Select(m => m.GetProperty("inLetter").GetBoolean()));
         Assert.Equal(("850.00", "0.00", "850.00"), (S(months[0], "due"), S(months[0], "imputed"), S(months[0], "remaining")));
         // The invariant: the months' remainders are the detail's arrears.
-        Assert.Equal("2550.00", S((await PropertyAsync(app, property)).GetProperty("figures"), "arrears"));
+        Assert.Equal("1700.00", S((await PropertyAsync(app, property)).GetProperty("figures"), "arrears"));
 
         var letter = view.GetProperty("letter");
         Assert.Equal("1700.00", S(letter, "total"));
@@ -81,7 +81,7 @@ public class RentArrearsTests(PostgresFixture fixture) : IClassFixture<PostgresF
     }
 
     [Fact]
-    public async Task Nothing_overdue_gives_no_letter_and_a_month_just_ended_is_not_overdue() // Review Focus #3
+    public async Task Nothing_overdue_gives_no_letter_and_the_current_month_is_not_unpaid() // Review Focus #3
     {
         await using var app = await StartAsync(fixture);
         var property = await LetAsync(app);
@@ -89,9 +89,9 @@ public class RentArrearsTests(PostgresFixture fixture) : IClassFixture<PostgresF
 
         var view = await ArrearsAsync(app, property);
 
-        Assert.Equal(("850.00", "0.00"), (S(view, "total"), S(view, "overdueTotal")));
-        var month = Assert.Single(view.GetProperty("months").EnumerateArray());
-        Assert.Equal(("2026-10", false, false), (S(month, "month"), month.GetProperty("overdue").GetBoolean(), month.GetProperty("inLetter").GetBoolean()));
+        // October, not over, is not unpaid yet (#716).
+        Assert.Equal(("0.00", "0.00"), (S(view, "total"), S(view, "overdueTotal")));
+        Assert.Empty(view.GetProperty("months").EnumerateArray());
         Assert.Equal(JsonValueKind.Null, view.GetProperty("letter").ValueKind);
 
         await PaidThroughAsync(app, property, 10, first: 10); // October paid: nothing left
@@ -121,9 +121,9 @@ public class RentArrearsTests(PostgresFixture fixture) : IClassFixture<PostgresF
 
         // August is two rows, one per tenant, each of its own days: 850 × 15 ÷ 31 and 950 × 16 ÷ 31.
         var months = view.GetProperty("months").EnumerateArray().ToList();
-        Assert.Equal([("2026-07", "850.00", false), ("2026-08", "411.29", false), ("2026-08", "490.32", true), ("2026-09", "950.00", true), ("2026-10", "950.00", false)],
+        Assert.Equal([("2026-07", "850.00", false), ("2026-08", "411.29", false), ("2026-08", "490.32", true), ("2026-09", "950.00", true)],
             months.Select(m => (S(m, "month"), S(m, "remaining"), m.GetProperty("inLetter").GetBoolean())));
-        Assert.Equal([true, true, true, true, false], months.Select(m => m.GetProperty("overdue").GetBoolean()));
+        Assert.Equal([true, true, true, true], months.Select(m => m.GetProperty("overdue").GetBoolean()));
         var letter = view.GetProperty("letter");
         Assert.Equal(["2026-08", "2026-09"], Strings(letter, "months"));
         Assert.Equal("1440.32", S(letter, "total"));
@@ -211,8 +211,8 @@ public class RentArrearsTests(PostgresFixture fixture) : IClassFixture<PostgresF
         var (owner, ownerText) = await ListAsync(app.AdultA, "me");
         Assert.Equal(new[] { hidden, shared }.Order(),owner.GetProperty("items").EnumerateArray().Select(i => i.GetProperty("property").GetGuid()).Order());
         var item = owner.GetProperty("items").EnumerateArray().First(i => i.GetProperty("property").GetGuid() == shared);
-        Assert.Equal(("Locatif", "EUR", "2550.00", "1700.00"), (S(item, "name"), S(item, "currency"), S(item, "total"), S(item, "overdueTotal")));
-        Assert.Equal(3, item.GetProperty("months").GetArrayLength());
+        Assert.Equal(("Locatif", "EUR", "1700.00", "1700.00"), (S(item, "name"), S(item, "currency"), S(item, "total"), S(item, "overdueTotal")));
+        Assert.Equal(2, item.GetProperty("months").GetArrayLength());
         foreach (var identity in new[] { "Martin", "Lilas", "Alice", "rue A" })
             Assert.DoesNotContain(identity, ownerText);
 
