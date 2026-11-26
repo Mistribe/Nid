@@ -3,8 +3,10 @@ export function toWireAmount(text: string): string {
   return text.replace(/\s/g, '').replace(',', '.');
 }
 
-/** `toWireAmount`'s counterpart: the server's amount (`32.05`) as a field shows it to a French reader (`32,05`). Text only. */
-export const toFieldAmount = (amount: string) => amount.replace('.', ',');
+/** `toWireAmount`'s counterpart: the server's amount (`32.05`) as a field shows it to a French reader (`32,05`). Text only.
+ * The wire's zeros past the cents are dropped (#769: `4500.0000` → `4500,00`, `21912.4200` → `21912,42`); a rate keeps its
+ * significant digits (`0.0350` → `0,035`). */
+export const toFieldAmount = (amount: string) => amount.replace(/(\.\d{2}\d*?)0+$/, '$1').replace('.', ',');
 
 /** An amount as typed: digits, then a comma or a dot and at most four decimals. */
 export const AMOUNT = /^\d+([.,]\d{1,4})?$/;
