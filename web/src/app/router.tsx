@@ -12,7 +12,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { pageOf, type RootSearch } from '@/lib/search';
 import { DashboardPage } from '@/features/dashboard/DashboardPage';
-import { AMOUNT_MODULES } from '@/features/calendar/modules';
+import { AMOUNT_MODULES, storedAmounts } from '@/features/calendar/modules';
 import type { Panel } from '@/features/dashboard/KeyFigures';
 import type { LoanContractView } from '@/api/loans';
 import { compareSearch } from '@/features/scenarios/compare/compareSearch';
@@ -42,7 +42,7 @@ export type DashboardSearch = { curve?: '3y' | 'all'; curveReal?: 1; panel?: Pan
  * The calendar page (#239): its month (`yyyy-mm`, absent for the current one) and its modules (comma-joined, absent for every one);
  * its view (#240, absent for the month) and the timeline's horizon in years (absent for 5); the month's amounts (#241, absent: off).
  */
-export type CalendarSearch = { month?: string; modules?: string; view?: 'timeline'; horizon?: 1 | 3 | 10; amounts?: 1 };
+export type CalendarSearch = { month?: string; modules?: string; view?: 'timeline'; horizon?: 1 | 3 | 10; amounts?: 0 | 1 };
 /** The annual review (#12): the year, absent for the current one (so it stays out of the URL). */
 export type YearReviewSearch = { year?: number };
 export type ProjectionHorizon = '5y' | '20y' | '30y' | `retire:${string}`;
@@ -204,7 +204,8 @@ const calendarRoute = createRoute({
       modules: modules.length > 0 && modules.length < AMOUNT_MODULES.length ? modules.join(',') : undefined,
       view: search.view === 'timeline' ? 'timeline' : undefined,
       horizon: ([1, 3, 10] as const).find((h) => h === Number(search.horizon)),
-      amounts: search.amounts === 1 || search.amounts === '1' ? 1 : undefined,
+      // #766: an explicit choice in the address wins; without one, the last choice on this device.
+      amounts: search.amounts === 1 || search.amounts === '1' ? 1 : search.amounts === 0 || search.amounts === '0' ? 0 : storedAmounts() ? 1 : undefined,
     };
   },
   component: lazyRouteComponent(() => import('@/features/calendar/CalendarPage'), 'CalendarPage'),
