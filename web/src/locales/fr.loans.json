@@ -411,6 +411,8 @@
     "col_phases": "Phases",
     "current_phase": "Phase en cours : {{phase}}",
     "phase_line": "{{mode}} à {{rate}}",
+    "phase_payment": "{{payment}}/mois à {{rate}}",
+    "phase_deferred_payment": "{{mode}} : {{payment}}/mois",
     "phase_dates": "{{phase}}, du {{from}} au {{to}}",
     "row_label": "{{name}}, du {{start}} au {{end}}",
     "steps_title": "Mensualité du foyer",

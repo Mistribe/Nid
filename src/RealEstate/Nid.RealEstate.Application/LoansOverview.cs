@@ -184,9 +184,13 @@ internal static partial class LoansOverviewMath
             : null;
 
         var months = Months(running, reference, today, freeOn, convert, out var estimate);
+        // #724: a change that moves the household's payment by less than a euro (a smoothed loan's phases, rounding) is no event.
+        bool Moves(LocalDate on)
+            => PaymentOf(on.ToYearMonth().PlusMonths(-1)) is not { } before || PaymentOf(on.ToYearMonth().PlusMonths(1)) is not { } after
+               || Math.Abs(after - before) >= 1m;
         var events = running
             .SelectMany((r, rank) => LoanReading.Changes(r.Schedule.Rows)
-                .Where(c => c.On >= today && c.On <= freeOn)
+                .Where(c => c.On >= today && c.On <= freeOn && Moves(c.On))
                 .Select(c => (Change: c, Loan: r.Source.Item.Id, Rank: rank)))
             .OrderBy(x => x.Change.On).ThenBy(x => x.Rank).ThenBy(x => x.Change.EndingPhase is null)
             .Select(x => new LoanEventView(x.Change.On, x.Change.EndingPhase is null ? LoanOverviewCodes.LoanEnds : LoanOverviewCodes.PhaseEnds,
