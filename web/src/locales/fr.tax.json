@@ -194,7 +194,7 @@
       "allowance": "Abattement de 10 %",
       "pensions": "Pensions et pensions alimentaires reçues",
       "pension_allowance": "Abattement de 10 % sur les pensions",
-      "per": "Versements PER déduits",
+      "per": "Versements PER déduits du revenu global",
       "taxable": "Imposable",
       "method": { "entered": "saisi", "estimated": "estimé", "mixed": "mixte" },
       "show_payments": "Voir les versements ({{count}})",
