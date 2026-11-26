@@ -55,13 +55,14 @@
     "several_one": "{{count}} échéance, du {{from}} au {{to}}",
     "several_other": "{{count}} échéances, du {{from}} au {{to}}",
     "amounts": "Montants",
-    "amounts_hint": "Ce qui doit sortir du compte et y entrer chaque jour : prélèvements, échéances de prêt, charges, loyers.",
+    "amounts_hint": "Ce qui doit sortir du compte et y entrer chaque jour : prélèvements, échéances de prêt, charges, garde, loyers et revenus.",
     "out": "Sorties prévues",
     "in": "Entrées prévues",
     "balance": "Solde du mois",
-    "balance_tip": "Les entrées prévues moins les sorties prévues de ce mois-ci, converties dans la devise du foyer. Les dépenses courantes et les salaires n’y sont pas.",
+    "balance_tip": "Les entrées prévues moins les sorties prévues de ce mois-ci, converties dans la devise du foyer. Les dépenses courantes n’y sont pas.",
     "day_out": "Sorties",
     "day_in": "Entrées",
+    "refreshing": "Mise à jour du mois…",
     "heavy": "Jour chargé",
     "unknown": "Inconnu",
     "charge": {
@@ -69,7 +70,8 @@
       "loan_instalment": "Échéance de prêt",
       "property_cost": "Charge du bien",
       "rent": "Loyer",
-      "childcare": "Pajemploi du mois précédent"
+      "childcare": "Pajemploi du mois précédent",
+      "income": "Versement"
     }
   }
 }

@@ -119,6 +119,28 @@ public class SpendingBudgetTests(PostgresFixture fixture) : IClassFixture<Postgr
     }
 
     [Fact]
+    public async Task A_budget_from_commitments_adds_the_usual_month_of_the_spending_none_covers()
+    {
+        var (app, joint) = await StartAsync(fixture);
+        await using var _ = app;
+        // 9.99 due on the 1st: « Loisirs › Abonnements »; outings every month from July, none linked to an item: a usual 30 in Loisirs.
+        await app.NewMonthlyAsync(app.AdultA, 9.99m);
+        foreach (var month in new[] { 7, 8, 9 })
+            await LineAsync(app, joint, new(2025, month, 1), -30m, "leisure.culture");
+        await LineAsync(app, joint, new(2025, 10, 3), -20m, "leisure.culture");
+
+        var view = await SpendingAsync(app, app.AdultA);
+        // 9.99 + 30 = 39.99, so the 20 of outings stays under it; 9.99 + 30 × 15 ÷ 31 = 24.51 expected so far.
+        Assert.Equal(("39.99", "9.99", "committed", "month", "19.99", "24.51", "on_track"), Of(Budget(view, "leisure")));
+        // The child spends nothing outside its commitment.
+        Assert.Equal(("9.99", "9.99", "committed", "month", "9.99", "9.99", "on_track"), Of(Budget(view, "leisure.subscriptions")));
+
+        // A typed budget keeps its amount.
+        await BudgetAsync(app, "leisure", "15");
+        Assert.Equal("over", Of(Budget(await SpendingAsync(app, app.AdultA), "leisure")).Item7);
+    }
+
+    [Fact]
     public async Task A_typed_budget_with_no_commitment_spreads_over_the_days()
     {
         var (app, joint) = await StartAsync(fixture);

@@ -309,6 +309,15 @@ describe('DashboardPage', () => {
     expect(text(month)).not.toContain('-200');
   });
 
+  it('says which cards no spending counts, each linking to its « Régler » (#720)', async () => {
+    serve({ ...spending('200.00'), unattachedCards: [{ id: 'card-1', name: 'Carte Bob' }] });
+    await renderApp('/dashboard');
+
+    const month = await screen.findByRole('region', { name: 'Où part le revenu du mois' });
+    expect(within(month).getByRole('note')).toHaveTextContent('1 carte non rattachée à son compte : ses opérations ne comptent pas.');
+    expect(within(month).getByRole('link', { name: 'Rattacher Carte Bob' })).toHaveAttribute('href', '/settings/banks?account=card-1');
+  });
+
   it('keeps the month as it was without everyday spending', async () => {
     serve(dashboard());
     await renderApp('/dashboard');

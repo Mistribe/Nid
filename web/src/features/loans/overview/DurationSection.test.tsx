@@ -31,8 +31,9 @@ describe('Crédits › durée et mensualité du foyer', () => {
     expect(drawn.map((p) => p.dataset.phase)).toEqual(['annuity', 'deferred_partial', 'annuity']);
     expect(drawn[1]!.style.background).toContain('repeating-linear-gradient');
     const labels = [...container.querySelectorAll<HTMLElement>('[data-phase-label]')];
-    expect(labels[1]).toHaveTextContent('Différé partiel (intérêts seuls)');
-    expect(labels[0]).toHaveTextContent('Échéances constantes à 3,5 %');
+    expect(labels[1]).toHaveTextContent('Différé partiel (intérêts seuls) : 0,00 €/mois');
+    // #724: a phase is named by its payment.
+    expect(labels[0]).toHaveTextContent(/^1\s159,92\s€\/mois à 3,5\s%$/);
     // « Tout »: the axis starts at the car's disbursement (1 January 2024), just before its first payment.
     expect(parseFloat(drawn[1]!.style.left)).toBeLessThan(1);
     expect(parseFloat(drawn[1]!.style.left)).toBeLessThan(parseFloat(drawn[0]!.style.left));
@@ -67,7 +68,7 @@ describe('Crédits › durée et mensualité du foyer', () => {
     const car = within(section).getByRole('link', { name: /Prêt auto/ });
     expect(car).toHaveAttribute('href', `/loans/${CAR}`);
     expect(car).toHaveTextContent('1 janvier 2024 – 15 janvier 2027');
-    expect(car).toHaveTextContent('Phase en cours : Échéances constantes à 0 %');
+    expect(car).toHaveTextContent(/Phase en cours : 1\s000,00\s€\/mois à 0\s%/);
     const steps = within(section).getByText('octobre 2026 – janvier 2027').closest('li')!;
     expect(steps).toHaveTextContent('2 159,92 €');
   });
@@ -78,7 +79,7 @@ describe('Crédits › durée et mensualité du foyer', () => {
 
     const spans = await screen.findByRole('table', { name: 'Durée de chaque crédit et ses phases' });
     expect(within(spans).getAllByRole('row')[2]).toHaveTextContent(
-      'Prêt auto1 janvier 202415 janvier 2027Différé partiel (intérêts seuls), du 15 janvier 2024 au 15 mars 2024 ; Échéances constantes à 0 %, du 15 avril 2024 au 15 janvier 2027');
+      'Prêt auto1 janvier 202415 janvier 2027Différé partiel (intérêts seuls) : 0,00 €/mois, du 15 janvier 2024 au 15 mars 2024 ; 1 000,00 €/mois à 0 %, du 15 avril 2024 au 15 janvier 2027');
     const steps = screen.getByRole('table', { name: 'Mensualité du foyer par palier' });
     expect(within(steps).getAllByRole('row').slice(1).map((r) => r.textContent?.replace(/\s/g, ' '))).toEqual([
       'octobre 2026janvier 20272 159,92 €', 'février 2027octobre 20451 159,92 €',

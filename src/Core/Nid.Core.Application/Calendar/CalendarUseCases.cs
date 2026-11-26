@@ -220,7 +220,7 @@ public static class CalendarAmounts
 [RequestHandler<GetCalendarQuery, CalendarView>]
 public sealed class GetCalendarHandler(
     DashboardReader dashboard, IActorAccessor accessor, IHouseholdCalendar calendar, IEnumerable<IExpectedCharges> expected,
-    IHouseholdSettings household, IFxRates fx)
+    IEnumerable<IProjectedCharges> projected, IHouseholdSettings household, IFxRates fx)
     : IRequestHandler<GetCalendarQuery, CalendarView>
 {
     /// <summary>Two months at most: a month shown, and its neighbour's days on the grid, stay cheap to compute.</summary>
@@ -243,9 +243,9 @@ public sealed class GetCalendarHandler(
         if (!events.TryGetValue(out var listed) || !query.Amounts)
             return events.Map(e => new CalendarView(query.From, query.To, e));
 
-        // Issue #241: the month's plan, its days already past included.
+        // Issue #241: the month's plan, its days already past included; #714: the incomes and the childcare months still to declare too.
         var charges = new List<ExpectedCharge>();
-        foreach (var source in expected)
+        foreach (var source in expected.Concat(projected))
         {
             var found = await source.ChargesAsync(reader, query.Scope, query.From, query.To, ct);
             if (found.TryGetFailure(out var failure))

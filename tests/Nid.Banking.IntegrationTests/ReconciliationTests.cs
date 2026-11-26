@@ -659,6 +659,9 @@ public class ReconciliationTests(PostgresFixture fixture) : IClassFixture<Postgr
         public Task<IReadOnlyList<(BankLink Link, BankTransaction Line)>> ForItemsAsync(IReadOnlyCollection<ItemId> items, CancellationToken ct)
             => inner.ForItemsAsync(items, ct);
 
+        public Task<IReadOnlyDictionary<Guid, Guid>> EchoAccountsAsync(IReadOnlyCollection<Guid> cardLines, CancellationToken ct)
+            => inner.EchoAccountsAsync(cardLines, ct);
+
         public Task SetAsync(BankLink link, TransactionLinkState state, CancellationToken ct, string? categoryKey = null)
             => inner.SetAsync(link, state, ct, categoryKey);
 
@@ -678,10 +681,10 @@ public class ReconciliationTests(PostgresFixture fixture) : IClassFixture<Postgr
     {
         public Task<IReadOnlyList<BankTransaction>> ListAsync(
             IReadOnlyList<Guid> accounts, LocalDate? from, LocalDate? to, int skip, int take, CancellationToken ct, string? state = null,
-            IReadOnlyList<Guid>? readable = null, bool uncategorised = false)
+            IReadOnlyList<Guid>? readable = null, bool uncategorised = false, string? normalizedLabel = null)
             => accounts.Any(failing.Accounts.Contains)
                 ? throw new InvalidOperationException("The card's lines cannot be read.")
-                : inner.ListAsync(accounts, from, to, skip, take, ct, state, readable, uncategorised);
+                : inner.ListAsync(accounts, from, to, skip, take, ct, state, readable, uncategorised, normalizedLabel);
 
         public Task<TransactionWrite> AddAsync(Guid account, IReadOnlyList<NewBankTransaction> lines, CancellationToken ct, bool reconciled = false)
             => inner.AddAsync(account, lines, ct, reconciled);

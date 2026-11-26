@@ -29,7 +29,8 @@ public sealed record CostCategoryView(string Category, LoanMoneyView? Paid, Loan
 public sealed record CostYear(int Year, bool Complete);
 
 /// <summary>A category's paid expenses in a year (null with none, or when a rate is missing), and the change from the year before,
-/// a fraction with four decimals, only when both years are complete and both paid something.</summary>
+/// a fraction with four decimals, only when both years are complete and both paid something, and at most +500 % (#718: beyond, the
+/// year before is too small to compare).</summary>
 public sealed record CostYearCell(LoanMoneyView? Paid, string? Change);
 
 /// <summary>A category over <see cref="CostYears.Years"/>, one cell per year, in their order.</summary>
@@ -110,6 +111,9 @@ internal static class PropertiesCostsMath
     private static readonly string[] LoanLines = ["loan_interest", "loan_insurance", "loan_fees"];
 
     private static readonly StringComparer French = StringComparer.Create(new CultureInfo("fr-FR"), true);
+
+    /// <summary>#718: the largest rise a year's change says, +500 %.</summary>
+    private const decimal MaxChange = 5m;
 
     public static PropertiesCosts Build(
         IReadOnlyList<OverviewProperty> set, Currency reference, RateTable rates, LocalDate today, IReadOnlyList<(LocalDate Bought, LocalDate Archived)> archived)
@@ -204,6 +208,7 @@ internal static class PropertiesCostsMath
             .OrderByDescending(c => c.Total).ThenBy(c => c.Category, StringComparer.Ordinal)
             .Select(c => new CostCategoryYears(c.Category, years.Select((y, i) => new CostYearCell(view(c.Sums[i]),
                 i > 0 && y.Complete && years[i - 1].Complete && c.Sums[i - 1] is { } before and not 0m && c.Sums[i] is { } now
+                    && now - before <= MaxChange * Math.Abs(before)
                     ? Math.Round((now - before) / before, 4, MidpointRounding.AwayFromZero).ToString("0.0000", CultureInfo.InvariantCulture)
                     : null)).ToList()))
             .ToList();

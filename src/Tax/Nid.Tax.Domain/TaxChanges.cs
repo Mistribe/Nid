@@ -54,8 +54,11 @@ public static class TaxChanges
             var printed = notice?.Declarants.First(d => d.Person.Value == adults[i]).NetSalaries;
             Add("salaries", adults[i], printed, before?.Declarants.ElementAtOrDefault(i)?.Taxable, now.Declarants[i].Taxable, p => Income(now.Declarants[i].Taxable - p));
         }
-        Add("rental_income", null, notice?.RentalIncomeNet, before?.RentalTaxable, now.RentalTaxable, p => Income(now.RentalTaxable - p));
-        Add("rental_deficit", null, notice?.RentalDeficitOnGlobalIncome, before?.RentalDeficit, now.RentalDeficit, p => Income(p - now.RentalDeficit));
+        // #710: a notice prints a deficit as a negative net rental income too: it counts once, as the deficit set against income.
+        var rentalNet = notice?.RentalIncomeNet;
+        Add("rental_income", null, rentalNet is { } net ? Math.Max(0m, net) : null, before?.RentalTaxable, now.RentalTaxable, p => Income(now.RentalTaxable - p));
+        Add("rental_deficit", null, notice?.RentalDeficitOnGlobalIncome ?? (rentalNet < 0m ? -rentalNet : null), before?.RentalDeficit, now.RentalDeficit,
+            p => Income(p - now.RentalDeficit));
         var per = now.Declarants.Sum(d => d.PerDeducted);
         Add("per_deduction", null, null, before?.Declarants.Sum(d => d.PerDeducted), per, p => Income(p - per));
         var baseBefore = notice?.Declarants.Count ?? before!.Declarants.Count;

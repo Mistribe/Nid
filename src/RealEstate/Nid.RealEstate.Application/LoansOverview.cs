@@ -51,7 +51,7 @@ public sealed record PersonLoanShareView(Guid PersonId, LoanMoneyView? Balance, 
 
 /// <summary>
 /// Issue #402: the debt ratio (<see cref="DebtRatio"/>, the scenarios' rule) of this month's loan payments, insurance included,
-/// over the net monthly income, and the room left under the ceiling; in « Moi », the reader's shares of both. <c>Unknown</c> says
+/// over the net monthly income, rents at 70 % (#725), and the room left under the ceiling; in « Moi », the reader's shares of both. <c>Unknown</c> says
 /// why the ratio is null: <c>no_income</c> (none declared, or none running) or <c>fx_rate_missing</c> (a finding names the rate).
 /// Issue #161: <c>Reading</c> places a known ratio against the ceiling, for a plain sentence beside the figure.
 /// </summary>
@@ -76,6 +76,8 @@ internal sealed record OverviewIncome(IncomePart Part, VisibilityScope Scope, Pe
 /// <summary>
 /// Spec §3.2 and §4.1. Every household figure is in <c>Currency</c>, null when a rate is missing (then a finding names it); a
 /// future point of a loan in another currency is converted at today's rate and flags <c>ConvertedIsEstimate</c> (D4).
+/// <c>PrincipalRepaid</c> and <c>RepaidShare</c> are measured against <c>CapitalToRepay</c>: the principal plus
+/// <c>CapitalisedInterest</c>, the interest total deferrals added to it (null without any, #709).
 /// </summary>
 public sealed record LoansOverview(
     string Currency, bool ConvertedIsEstimate, int RunningCount, int EndedCount, LoanMoneyView? Balance, LoanMoneyView? Principal,
@@ -83,7 +85,8 @@ public sealed record LoansOverview(
     LoanMoneyView? CostRemaining, LocalDate? FreeOn, LocalDate? NextPaymentOn, LoanMoneyView? NextPaymentTotal,
     IReadOnlyList<LoanOverviewRow> Loans, IReadOnlyList<BalanceMonthView> Months, IReadOnlyList<LoanEventView> Events,
     IReadOnlyList<LoanSpanView> Spans, IReadOnlyList<PaymentStepView> Steps, IReadOnlyList<PersonLoanShareView> ByPerson,
-    IReadOnlyList<LoanFindingView> Findings, LoanDebtRatioView? DebtRatio = null) : IExposesItems
+    IReadOnlyList<LoanFindingView> Findings, LoanDebtRatioView? DebtRatio = null, LoanMoneyView? CapitalToRepay = null,
+    LoanMoneyView? CapitalisedInterest = null) : IExposesItems
 {
     // The months and events name the same loans as the rows.
     public IEnumerable<ItemId> ExposedItems() => Loans.Select(l => l.Id);
@@ -119,31 +122,47 @@ public sealed class GetLoansOverviewHandler(
             .ToList();
 
         // Issue #402: the income the scenarios read (every contribution, as the dashboard), merged.
-        var sources = 0;
-        var monthly = new Dictionary<Currency, decimal>();
-        var mine = new Dictionary<Currency, decimal>();
+        var parts = new List<(string Module, IncomePart Part)>();
         foreach (var contribution in income)
         {
             var read = await contribution.IncomeAsync(person, query.Scope, today, ct);
             if (read.TryGetFailure(out var failure)) return Result.Failure<LoansOverview>(failure!);
             read.TryGetValue(out var part);
-            sources += part!.Sources;
-            foreach (var (currency, amount) in part.MonthlyEquivalent) monthly[currency] = monthly.GetValueOrDefault(currency) + amount;
-            foreach (var (currency, amount) in part.ReaderShare ?? new Dictionary<Currency, decimal>()) mine[currency] = mine.GetValueOrDefault(currency) + amount;
+            parts.Add((contribution.Module, part!));
         }
+        var merged = LoansOverviewMath.RatioIncome(parts);
 
         var reference = await household.ReferenceCurrencyAsync(ct);
-        var foreign = set.Select(l => LoanReading.CurrencyOf(l.Item)).Concat(monthly.Keys).Where(c => c != reference).Distinct().ToList();
+        var foreign = set.Select(l => LoanReading.CurrencyOf(l.Item)).Concat(merged.MonthlyEquivalent.Keys).Where(c => c != reference).Distinct().ToList();
         // The reference's own quote is needed too: rates are per USD. D4: every figure at today's rate.
         var rates = foreign.Count == 0 ? RateTable.Empty(today, 0) : await fx.LoadAsync([.. foreign, reference], today, today, ct);
         return Result.Success(LoansOverviewMath.Build(set, reference, rates, today, await persons.ListAsync(ct),
-            new OverviewIncome(new IncomePart(sources, monthly, mine), query.Scope, person)));
+            new OverviewIncome(merged, query.Scope, person)));
     }
 }
 
 /// <summary>Spec §3.2's figures, pure: tested with the real engine in Nid.RealEstate.Tests.</summary>
 internal static partial class LoansOverviewMath
 {
+    /// <summary>
+    /// The income the debt ratio is measured against: every contribution merged, rents at <see cref="DebtRatio.RentShare"/> as
+    /// banks count them (HCSF, #725).
+    /// </summary>
+    public static IncomePart RatioIncome(IEnumerable<(string Module, IncomePart Part)> parts)
+    {
+        var sources = 0;
+        var monthly = new Dictionary<Currency, decimal>();
+        var mine = new Dictionary<Currency, decimal>();
+        foreach (var (module, part) in parts)
+        {
+            var weight = module == IncomeModules.Rents ? DebtRatio.RentShare : 1m;
+            sources += part.Sources;
+            foreach (var (currency, amount) in part.MonthlyEquivalent) monthly[currency] = monthly.GetValueOrDefault(currency) + weight * amount;
+            foreach (var (currency, amount) in part.ReaderShare ?? new Dictionary<Currency, decimal>()) mine[currency] = mine.GetValueOrDefault(currency) + weight * amount;
+        }
+        return new IncomePart(sources, monthly, mine);
+    }
+
     private static readonly StringComparer French = StringComparer.Create(new CultureInfo("fr-FR"), true);
 
     /// <param name="persons">The household in creation order (the registry's), for the order of <c>ByPerson</c>.</param>
@@ -171,11 +190,13 @@ internal static partial class LoansOverviewMath
             var payment = r.Payments.TryGetValue(thisMonth, out var due) ? due : (decimal?)null;
             return new LoanOverviewRow(r.Source.Item.Id, r.Source.Item.DisplayName, r.Source.Loan.Lender, r.Source.Loan.PropertyId,
                 r.Source.PropertyName, r.Source.Item.OwnerViews(), r.Currency.Code, Amount(r.Terms.Principal), Amount(f.Balance),
-                Fraction(f.PrincipalRepaid / r.Terms.Principal), Amount(payment), Rate(f.CurrentRate), f.EndDate,
+                Fraction(f.PrincipalRepaid / (r.Terms.Principal + f.CapitalisedInterest)), Amount(payment), Rate(f.CurrentRate), f.EndDate,
                 convert.View(convert.Of(f.Balance, r.Currency)), payment is { } p ? convert.View(convert.Of(p, r.Currency)) : null);
         }).ToList();
 
         var principal = Household(r => r.Terms.Principal);
+        var toRepay = Household(r => r.Terms.Principal + r.Figures.CapitalisedInterest);
+        var capitalised = Household(r => r.Figures.CapitalisedInterest);
         var repaid = Household(r => r.Figures.PrincipalRepaid);
         var freeOn = running.Select(r => r.Figures.EndDate).Max();
         var nextOn = running.Select(r => r.Figures.NextPaymentOn).Min();
@@ -184,9 +205,13 @@ internal static partial class LoansOverviewMath
             : null;
 
         var months = Months(running, reference, today, freeOn, convert, out var estimate);
+        // #724: a change that moves the household's payment by less than a euro (a smoothed loan's phases, rounding) is no event.
+        bool Moves(LocalDate on)
+            => PaymentOf(on.ToYearMonth().PlusMonths(-1)) is not { } before || PaymentOf(on.ToYearMonth().PlusMonths(1)) is not { } after
+               || Math.Abs(after - before) >= 1m;
         var events = running
             .SelectMany((r, rank) => LoanReading.Changes(r.Schedule.Rows)
-                .Where(c => c.On >= today && c.On <= freeOn)
+                .Where(c => c.On >= today && c.On <= freeOn && Moves(c.On))
                 .Select(c => (Change: c, Loan: r.Source.Item.Id, Rank: rank)))
             .OrderBy(x => x.Change.On).ThenBy(x => x.Rank).ThenBy(x => x.Change.EndingPhase is null)
             .Select(x => new LoanEventView(x.Change.On, x.Change.EndingPhase is null ? LoanOverviewCodes.LoanEnds : LoanOverviewCodes.PhaseEnds,
@@ -209,13 +234,13 @@ internal static partial class LoansOverviewMath
         var ratio = income is null ? null : Ratio(running, income, thisMonth, convert);
         return new LoansOverview(reference.Code, estimate, running.Count, read.Count - running.Count,
             convert.View(Household(r => r.Figures.Balance)), convert.View(principal), convert.View(repaid),
-            principal is { } of && of != 0m && repaid is { } done ? Fraction(done / of) : null,
+            toRepay is { } of && of != 0m && repaid is { } done ? Fraction(done / of) : null,
             convert.View(PaymentOf(thisMonth)), convert.View(Household(r => r.Figures.CostPaid)),
             convert.View(Household(r => r.Figures.CostRemaining)), freeOn, nextOn, convert.View(nextTotal),
             rows, months, events, running.Select(Span).ToList(), steps,
             People(running, persons, r => convert.Of(r.Figures.Balance, r.Currency),
                 r => convert.Of(r.Payments.GetValueOrDefault(thisMonth), r.Currency), convert),
-            convert.Missing, ratio);
+            convert.Missing, ratio, convert.View(toRepay), capitalised == 0m ? null : convert.View(capitalised));
     }
 
     /// <summary>

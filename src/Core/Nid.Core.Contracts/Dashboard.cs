@@ -78,11 +78,15 @@ public interface ISpendingContribution
 /// <summary>
 /// #85 decision 10: positive for money spent, per currency; <c>ByCategory</c> one slice per top-level category, the lines with none as
 /// « Non classées » (no <c>Category</c>). An empty <c>Total</c> means nothing to read (no account), a zero one an account that spent nothing.
+/// #720: <c>UnattachedCards</c>, the cards attached to no account that the reader may attach, with a line this month, which the figure leaves out.
 /// </summary>
-public sealed record SpendingPart(IReadOnlyDictionary<Currency, decimal> Total, IReadOnlyList<SpendingSlice> ByCategory)
+public sealed record SpendingPart(IReadOnlyDictionary<Currency, decimal> Total, IReadOnlyList<SpendingSlice> ByCategory, IReadOnlyList<SpendingCard>? UnattachedCards = null)
 {
     public static readonly SpendingPart None = new(new Dictionary<Currency, decimal>(), []);
 }
+
+/// <summary>#720: a bank card, by its id and name.</summary>
+public sealed record SpendingCard(Guid Id, string Name);
 
 /// <summary>
 /// Issue #425: Accueil's « Reste réel » and its parts for one month, in the household's reference currency, so the spending page shows

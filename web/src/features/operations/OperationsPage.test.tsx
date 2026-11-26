@@ -85,6 +85,16 @@ describe('« Opérations »', () => {
     expect(screen.getByRole('combobox', { name: 'État' })).toHaveTextContent('Comptée dans les dépenses');
   });
 
+  it('a card purchase says which account it was debited from', async () => {
+    const purchase = { ...netflix, id: 't3', label: 'CARTE SHOP', fromCard: true, cardName: 'Carte', accountName: 'Carte', debitedFrom: 'Compte joint' };
+    server.use(http.get('*/api/v1/banking/operations', () => HttpResponse.json(answer([purchase, netflix]))));
+    await renderApp('/spending?tab=operations');
+
+    const rows = within(await screen.findByRole('table', { name: 'Opérations' })).getAllByRole('row');
+    expect(rows[1]).toHaveTextContent('Débitée sur Compte joint');
+    expect(rows[2]).not.toHaveTextContent('Débitée sur');
+  });
+
   it('announces an ignored line', async () => {
     server.use(
       http.get('*/api/v1/banking/operations', () => HttpResponse.json(answer([netflix]))),

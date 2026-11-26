@@ -16,6 +16,7 @@ namespace Nid.Host.Api.Json;
 [JsonSerializable(typeof(BankAccountOverview))]
 [JsonSerializable(typeof(Mcp.BankingTools.UncategorisedLines))]
 [JsonSerializable(typeof(BankTransactionView))]
+[JsonSerializable(typeof(IReadOnlyList<Guid>))] // #721: a line's same-label lines
 [JsonSerializable(typeof(Nid.Banking.Application.Spending.SpendingView))]
 [JsonSerializable(typeof(Nid.Banking.Application.Spending.SpendingLines))]
 [JsonSerializable(typeof(Nid.Banking.Application.Operations.OperationPage))]

@@ -7,7 +7,7 @@ import { present, toProblem } from '@/api/errors';
 import { messageFor } from '@/components/form/fieldErrors';
 import { directionOf, AMOUNT, toFieldAmount, toWireAmount } from '@/lib/amount';
 import { formatLocalDate } from '@/components/LocalDate';
-import { formatMoney } from '@/components/Money';
+import { formatCurrency, formatMoney } from '@/components/Money';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { ChevronDown } from 'lucide-react';
 import { Field } from '@/components/form/Field';
@@ -24,7 +24,8 @@ import '@/locales/banks';
 
 export type RoutineValues = { lines: { id: string; value: string; contribution: string; skip: boolean }[] };
 /** The envelopes whose bank account writes their values, each with the day of its last balance. */
-export type Banked = Record<string, string>;
+/** The envelopes whose bank writes the value: its last balance (#718: shown, with its date) by envelope. */
+export type Banked = Record<string, { on: string; balance?: string | null; currency: string }>;
 
 const POSITIVE = /^(?!0+(?:[.,]0+)?$)\d+([.,]\d{1,4})?$/;
 const input = 'text-right tabular-nums';
@@ -144,7 +145,9 @@ export function RoutineForm({ view, month, initial, banked, onSaved }: {
             ) : null}
           </div>
           {banked[line.id] ? (
-            <p className="text-sm text-muted-foreground md:pb-2">{t('banks.routine_balance', { date: dayMonth(banked[line.id]!) })}</p>
+            <p className="text-sm text-muted-foreground md:pb-2">{banked[line.id]!.balance
+              ? t('banks.routine_balance_amount', { date: dayMonth(banked[line.id]!.on), amount: formatCurrency(banked[line.id]!.balance!, banked[line.id]!.currency) })
+              : t('banks.routine_balance', { date: dayMonth(banked[line.id]!.on) })}</p>
           ) : (
             <Field label={t('routine.value_short')} error={e?.value?.message}>
               {(c) => <Input inputMode="decimal" {...c} aria-label={t('routine.value', { name: line.name })} {...form.register(`lines.${index}.value`)} className={input} />}

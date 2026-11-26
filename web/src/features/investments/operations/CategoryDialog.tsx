@@ -14,7 +14,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useApi } from '@/api/ApiProvider';
 import {
-  activeCategoryOptions, bankErrorText, CATEGORY_RULE_DRAFT_PREVIEW, presentBankError, useCategories, type BankTransaction, type CategoryRuleDraftPreview,
+  activeCategoryOptions, bankErrorText, CATEGORY_RULE_DRAFT_PREVIEW, presentBankError, SAME_LABEL_LINES, useCategories, type BankTransaction,
+  type CategoryRuleDraftPreview,
 } from '@/api/banking';
 import { useLineActions } from './api';
 import '@/locales/banks';
@@ -28,13 +29,18 @@ const AUTO = 'auto';
  * A category chosen for a line with a suggested pattern then offers a rule for the next ones.
  * #426: several lines take one category at once (no « Laisser Nid décider »); the lines the server refused are named in the message, and the
  * rule is offered when every line it changed suggests the same pattern.
+ * #721: one line chosen a category can take with it the other lines of its label nothing classified yet (never one classified by hand).
  */
 export default function CategoryDialog({ lines, onClose, onDone }: { lines: BankTransaction[]; onClose: () => void; onDone: (message: string) => void }) {
   const { t } = useTranslation();
+  const { $api } = useApi();
   const { categorise, categoriseMany, resetCategory } = useLineActions();
   const categories = useCategories();
   const many = lines.length > 1;
   const first = lines[0]!;
+  const others = $api.useQuery('get', SAME_LABEL_LINES, { params: { path: { id: first.id } } }, { enabled: !many }).data ?? [];
+  const [withOthers, setWithOthers] = useState(false);
+  const withId = useId();
   const [picked, setPicked] = useState(many ? '' : first.category?.id ?? (first.categorySource === 'hand' ? NONE : ''));
   // Once saved, the dialog offers a rule instead of closing: the chosen category's name, the line it is built from, what was refused.
   const [offer, setOffer] = useState<{ category: string; line: BankTransaction; skipped?: string } | null>(null);
@@ -50,6 +56,21 @@ export default function CategoryDialog({ lines, onClose, onDone }: { lines: Bank
   const unchanged = !many && (first.categorySource === 'hand' ? !first.category && picked === NONE : picked === first.category?.id);
   const problem = categories.error ?? categorise.error ?? categoriseMany.error ?? resetCategory.error;
   const name = picked !== NONE ? options.find((o) => o.value === picked)?.label : undefined;
+  // Only a category goes to the other lines: not « Sans catégorie », nor Nid's own choice.
+  const sameLabel = !many && others.length > 0 && picked !== NONE && picked !== AUTO;
+
+  // Several lines at once; the rule is offered from `offerFrom` once it took the category.
+  const bulk = (ids: string[], categoryId: string | null, offerFrom: (changed: string[]) => BankTransaction | undefined, done: (message?: string) => void) =>
+    categoriseMany.mutate({ body: { transactionIds: ids, categoryId } }, { onSuccess: (result) => {
+      const refused = result.refused.length > 0 ? t('banks.operations.bulk_refused', {
+        count: result.refused.length,
+        // A line of the same label is not in `lines`: it bears the first one's label.
+        lines: result.refused.map((r) => `« ${lines.find((l) => l.id === r.id)?.label ?? first.label} » : ${bankErrorText(t, r.code, t('banks.operations.bulk_refused_reason'))}`).join(' '),
+      }) : undefined;
+      const from = name ? offerFrom(result.changed) : undefined;
+      if (name && from) setOffer({ category: name, line: from, skipped: refused });
+      else done([result.changed.length > 0 ? t('banks.operations.done_category_many', { count: result.changed.length }) : null, refused].filter(Boolean).join(' '));
+    } });
 
   return (
     <FormDialog title={many ? t('banks.categories.title_many', { count: lines.length }) : t('banks.categories.title')} onClose={onClose} onDone={onDone}>
@@ -60,16 +81,16 @@ export default function CategoryDialog({ lines, onClose, onDone }: { lines: Bank
           if (!chosen) return;
           const categoryId = picked === NONE ? null : picked;
           if (many) {
-            categoriseMany.mutate({ body: { transactionIds: lines.map((l) => l.id), categoryId } }, { onSuccess: (result) => {
-              const changed = lines.filter((l) => result.changed.includes(l.id));
-              const refused = result.refused.length > 0 ? t('banks.operations.bulk_refused', {
-                count: result.refused.length,
-                lines: result.refused.map((r) => `« ${lines.find((l) => l.id === r.id)?.label ?? r.id} » : ${bankErrorText(t, r.code, t('banks.operations.bulk_refused_reason'))}`).join(' '),
-              }) : undefined;
+            bulk(lines.map((l) => l.id), categoryId, (ids) => {
+              const changed = lines.filter((l) => ids.includes(l.id));
               const pattern = changed[0]?.suggestedPattern;
-              if (name && pattern && changed.every((l) => l.suggestedPattern === pattern)) setOffer({ category: name, line: changed[0]!, skipped: refused });
-              else done([changed.length > 0 ? t('banks.operations.done_category_many', { count: changed.length }) : null, refused].filter(Boolean).join(' '));
-            } });
+              return pattern && changed.every((l) => l.suggestedPattern === pattern) ? changed[0] : undefined;
+            }, done);
+            return;
+          }
+          // One label, one pattern: the rule is offered from the line itself.
+          if (sameLabel && withOthers) {
+            bulk([first.id, ...others], categoryId, (ids) => (first.suggestedPattern && ids.includes(first.id) ? first : undefined), done);
             return;
           }
           const path = { params: { path: { id: first.id } } };
@@ -82,6 +103,12 @@ export default function CategoryDialog({ lines, onClose, onDone }: { lines: Bank
           <Field label={t('banks.categories.field')} hint={gone ? t('banks.categories.current_gone', { name: gone }) : undefined}>
             {(c) => <ComboboxField {...c} value={picked} onValueChange={setPicked} options={options} placeholder={t('banks.categories.pick')} searchPlaceholder={t('banks.categories.search')} empty={t('banks.categories.none_found')} />}
           </Field>
+          {sameLabel ? (
+            <div className="flex items-center gap-2">
+              <Checkbox id={withId} checked={withOthers} onCheckedChange={(checked) => setWithOthers(checked === true)} />
+              <Label htmlFor={withId}>{t('banks.categories.same_label', { count: others.length })}</Label>
+            </div>
+          ) : null}
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => done()}>{t('common.cancel')}</Button>
             <Button type="submit" disabled={!chosen || unchanged || categorise.isPending || categoriseMany.isPending || resetCategory.isPending}>{t('banks.categories.submit')}</Button>
@@ -183,7 +210,7 @@ export function RuleOfferDialog({ line, category, categoryId, onClose, onDone }:
 }
 
 /** What the server says the draft would do: how many past lines it changes, the most recent, the matched lines it leaves by reason. */
-function DraftPreview({ preview, category }: { preview: CategoryRuleDraftPreview; category: string }) {
+export function DraftPreview({ preview, category }: { preview: CategoryRuleDraftPreview; category: string }) {
   const { t } = useTranslation();
   const name = (value: string | null | undefined) => value ?? t('banks.categories.uncategorised');
   return (

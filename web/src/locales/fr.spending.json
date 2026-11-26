@@ -5,7 +5,6 @@
     "see_operations": "Voir dans Opérations",
     "to_classify_one": "{{count}} opération à classer",
     "to_classify_other": "{{count}} opérations à classer",
-    "to_classify_short": "{{count}} à classer",
     "left": {
       "title": "Reste ce mois-ci",
       "tip": "Vos revenus du mois, moins vos engagements et vos dépenses courantes : le « Reste réel » de l’Accueil.",
@@ -98,6 +97,8 @@
       "of": "Budget de {{name}}",
       "committed": "d’après vos engagements",
       "committed_tip": "Aucun montant fixé : le budget reprend les engagements partagés du foyer (abonnements, crédits, garde : le prélèvement Pajemploi du relevé du mois précédent) prévus ce mois-ci dans cette catégorie.",
+      "committed_usual": "engagements + mois habituel",
+      "committed_usual_tip": "Aucun montant fixé : le budget reprend les engagements partagés du foyer (abonnements, crédits, garde : le prélèvement Pajemploi du relevé du mois précédent) prévus ce mois-ci dans cette catégorie, plus le mois habituel de ses autres dépenses (la moyenne des mois précédents). Une dépense variable ne le fait donc pas dépasser.",
       "committed_part": "dont {{amount}} engagés",
       "committed_part_tip": "Abonnements, crédits et garde (le prélèvement Pajemploi du relevé du mois précédent) déjà prévus ce mois-ci dans cette catégorie.",
       "yearly": "annuel",

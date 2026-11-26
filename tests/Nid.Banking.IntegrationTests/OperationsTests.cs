@@ -22,11 +22,12 @@ public class OperationsTests(PostgresFixture fixture) : IClassFixture<PostgresFi
 
     private static Guid Seed(string key) => CategorySeed.Find(key)!.Id;
 
-    /// <summary>A joint account and Alice's own (Alice), Bob's private one (Bob): the lines are invented.</summary>
-    private async Task<World> StartAsync()
+    /// <summary>A joint account and Alice's own (Alice), Bob's private one (Bob), and <paramref name="more"/> of Alice's: the lines are invented.</summary>
+    private async Task<World> StartAsync(params SessionAccount[] more)
     {
         var app = await BankingApi.StartAsync(fixture);
-        await BankingApi.ConnectAsync(app, app.AdultA, "code-a", BankingApi.Account("uid-1", "hash-1", null, "Commun"), BankingApi.Account("uid-3", "hash-3", null, "Perso A"));
+        await BankingApi.ConnectAsync(app, app.AdultA, "code-a",
+            [BankingApi.Account("uid-1", "hash-1", null, "Commun"), BankingApi.Account("uid-3", "hash-3", null, "Perso A"), .. more]);
         await BankingApi.ConnectAsync(app, app.AdultB, "code-b", BankingApi.Account("uid-b", "hash-b", null, "Perso B"));
         var a = await SpendingTests.AccountsAsync(app, app.AdultA);
         var b = await SpendingTests.AccountsAsync(app, app.AdultB);
@@ -327,6 +328,38 @@ public class OperationsTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         Assert.Equal("0.00", page.GetProperty("totals").GetProperty("out").GetString());
         Assert.Equal("0.00", page.GetProperty("totals").GetProperty("in").GetString());
         Assert.Equal("0.00", page.GetProperty("totals").GetProperty("net").GetString());
+    }
+
+    /// <summary>
+    /// #416: an immediate card's purchase and its echo on the joint account are one row, the purchase's, which says where it was debited;
+    /// « Interne », or the joint account alone, still lists the echo.
+    /// </summary>
+    [Fact]
+    public async Task A_card_purchase_and_its_echo_are_one_row()
+    {
+        var w = await StartAsync(BankingApi.Account("uid-4", "hash-4", null, "Carte", "CARD", debit: CardDebit.Immediate));
+        await using var _ = w.App;
+        var card = (await SpendingTests.AccountsAsync(w.App, w.App.AdultA))["Carte"];
+        await SpendingTests.PatchAsync(w.App, w.App.AdultA, card, new { cardOfAccountId = w.Joint });
+        var purchase = await LineAsync(w.App, card, new(2025, 10, 12), -42m, "CARTE 12/10 SHOP", category: "food.groceries");
+        var echo = await LineAsync(w.App, w.Joint, new(2025, 10, 13), -42m, "CARTE 12/10 SHOP CB*0000");
+        await using (var scope = w.App.Services.CreateAsyncScope())
+        {
+            scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
+            await scope.ServiceProvider.GetRequiredService<ILinkStore>().SetAsync(
+                new BankLink(echo, null, null, CardEchoes.Key(purchase), card, LinkOutcome.CardSettlement, null, "job", Instant.FromUtc(2025, 10, 15, 12, 0)),
+                TransactionLinkState.Internal, Ct);
+        }
+        static string? DebitedFrom(JsonElement row) => row.TryGetProperty("debitedFrom", out var from) && from.ValueKind == JsonValueKind.String ? from.GetString() : null;
+
+        var all = await GetAsync(w.App, w.App.AdultA);
+        var row = Assert.Single(all.GetProperty("items").EnumerateArray());
+        Assert.Equal((purchase, "Commun", 1, "42.00"),
+            (row.GetProperty("id").GetGuid(), DebitedFrom(row), all.GetProperty("total").GetInt32(), all.GetProperty("totals").GetProperty("out").GetString()));
+
+        Assert.Equal(["CARTE 12/10 SHOP CB*0000"], Labels(await GetAsync(w.App, w.App.AdultA, "?state=internal")));
+        var joint = await GetAsync(w.App, w.App.AdultA, $"?account={w.Joint}");
+        Assert.Equal(echo, Assert.Single(joint.GetProperty("items").EnumerateArray()).GetProperty("id").GetGuid());
     }
 
     [Fact]
