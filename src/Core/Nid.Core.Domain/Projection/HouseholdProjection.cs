@@ -28,7 +28,7 @@ public sealed record ScheduledChange(int From, int To, decimal Amount, bool Inco
 /// savings being added at today's point. <c>Income</c> is already indexed (inflation spec C17). <c>Rates</c> are the resolved monthly
 /// rates; null resolves them from <c>Assumptions</c> with no observed inflation. <c>Changes</c> are added to S(k), indexed.
 /// Retirement spec §3: <c>Pensions</c> and <c>PassiveIncome</c> (<c>Months + 1</c> entries, nominal, indexed; null reads zeros) and
-/// <c>Expenses0</c> (this month's commitments but the loans, today's money) give the financial independence series; null
+/// <c>Expenses0</c> (this month's commitments but the loans, the childcare and the income tax, today's money) give the financial independence series; null
 /// <c>Expenses0</c> computes none. <c>ExpenseAdjustments</c> (<c>Months + 1</c> entries, nominal; null reads zeros) is added to the
 /// month's expenses (a sold property's costs, removed).
 /// </summary>
