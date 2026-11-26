@@ -24,12 +24,12 @@ describe('Placements › vue d’ensemble', () => {
     const { container } = await renderApp('/investments');
 
     expect(screen.getByRole('tab', { name: 'Vue d’ensemble' })).toHaveAttribute('aria-selected', 'true');
-    expect(await region('Valeur des comptes et placements')).toHaveTextContent('35 000,00 €+1 840,00 €+5,6 %en hausseplacements, depuis le 1er janvier · hors versementsau 31 août 20251 valeur à mettre à jour');
+    expect(await region('Valeur des comptes et placements')).toHaveTextContent('35 000,00 €+1 840,00 €+5,6 %en hausseplacements seuls, depuis le 1er janvier · hors versementsau 31 août 20251 valeur à mettre à jour');
     const figures = (await screen.findByText('Versé net', { selector: 'dt' })).closest('dl')!;
     // #356: what is available and what is invested lead; the investment figures follow.
     expect(figures).toHaveTextContent('Disponible10 000,00 €comptes courants et livretsInvesti25 000,00 €versé net, gain et rendement portent sur lui');
     expect(figures).toHaveTextContent('Versé net31 800,00 €versements − retraits');
-    expect(figures).toHaveTextContent('Gain+3 200,00 €en hausse+10,0 % · avant fiscalité');
+    expect(figures).toHaveTextContent('Gain+3 200,00 €en hausse+10,0 % du total versé · avant fiscalité');
     expect(figures).toHaveTextContent('Rendement annuel+6,2 % par an');
     expect(seen).toEqual(['?scope=household&span=12m']);
     await expectNoAxeViolations(container);
@@ -48,6 +48,13 @@ describe('Placements › vue d’ensemble', () => {
     expect(figures).not.toHaveTextContent('Valeur des comptes et placements');
     expect(figures).not.toHaveTextContent('35 000,00 €');
     expect(figures).not.toHaveTextContent('Depuis le 1er janvier');
+  });
+
+  it('says which placements the change since 1 January leaves out (#712)', async () => {
+    serve({ ...household(), withoutStartCount: 2 });
+    await renderApp('/investments');
+
+    expect(await region('Valeur des comptes et placements')).toHaveTextContent('2 placements sans valeur au 1er janvier n’y sont pas comptés');
   });
 
   it('shows the gain with its arrow, the figure uncoloured', async () => {

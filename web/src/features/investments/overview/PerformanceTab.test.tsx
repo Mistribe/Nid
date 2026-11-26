@@ -26,7 +26,7 @@ describe('Placements › performance', () => {
     const { container } = await renderApp('/investments?tab=performance');
 
     const figures = (await screen.findByText('Performance de la période')).closest('dl')!;
-    expect(figures).toHaveTextContent('+1 840,00 €en haussehors versements · avant fiscalité');
+    expect(figures).toHaveTextContent('+1 840,00 €en hausseplacements seuls · hors versements · avant fiscalité');
     expect(figures).toHaveTextContent('Rapporté aux sommes engagées+5,5 %');
     expect(figures).toHaveTextContent('Meilleur mois+1 510,00 €mars 2025');
     expect(figures).toHaveTextContent('Pire mois-310,00 €février 2025');
