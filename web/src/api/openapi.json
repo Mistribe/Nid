@@ -2449,6 +2449,21 @@
               "type": "string",
               "format": "uuid"
             }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
           }
         ],
         "responses": {
@@ -66420,7 +66435,8 @@
       },
       "ProposalList": {
         "required": [
-          "items"
+          "items",
+          "total"
         ],
         "type": "object",
         "properties": {
@@ -66429,6 +66445,10 @@
             "items": {
               "$ref": "#/components/schemas/ProposalView"
             }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },

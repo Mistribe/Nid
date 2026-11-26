@@ -359,6 +359,8 @@ public sealed record StoredProposal(
     Guid? SupersededById, string CreatedVia, Guid? TokenId, PersonId CreatedBy, string? SourceLabel, Instant CreatedAt,
     PersonId? DecidedBy, Instant? DecidedAt, string? DecisionNote, IReadOnlyList<Guid> AppliedRefs, uint Version, Guid? DocumentId = null);
 
+public sealed record ProposalPage(IReadOnlyList<StoredProposal> Items, int Total);
+
 public sealed record SubmitOutcome(StoredProposal Proposal, bool Created, IReadOnlyList<Guid>? Superseded = null);
 
 public interface IProposalStore
@@ -376,6 +378,13 @@ public interface IProposalStore
     /// <paramref name="viewer"/>, another adult's pending assistant proposals are left out (#498, decision N).</summary>
     Task<IReadOnlyList<StoredProposal>> ListAsync(
         IReadOnlySet<ItemId> targets, PersonId? person, ProposalStatus status, CancellationToken ct, PersonId? viewer = null);
+
+    /// <summary>
+    /// #774: <see cref="ListAsync"/> in SQL, narrowed to <paramref name="search"/> (part of the source label or of the target's name,
+    /// whatever the case), <paramref name="take"/> rows from <paramref name="skip"/> (all when null), with the total before the page.
+    /// </summary>
+    Task<ProposalPage> PageAsync(IReadOnlySet<ItemId> targets, PersonId? person, ProposalStatus status, PersonId viewer,
+        string? search, int skip, int? take, CancellationToken ct);
 
     /// <summary>`pending` → approved or rejected; <see cref="ProposalCodes.Conflict"/> on a stale version, <see cref="ProposalCodes.Decided"/> when not pending.</summary>
     Task<Result<StoredProposal>> DecideAsync(Guid id, uint version, ProposalStatus to, PersonId by, JsonElement? editedPayload,

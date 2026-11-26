@@ -145,7 +145,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** 4C2: the proposals' tab; pending is the default and is dropped from the URL. */
 /** #373: `target` narrows the list to one item's proposals (an envelope's notice links here). */
-export type ProposalsSearch = { status?: 'approved' | 'rejected'; target?: string };
+export type ProposalsSearch = { status?: 'approved' | 'rejected'; target?: string; q?: string; page?: number };
 
 export function homePath(capabilities: Capabilities): '/dashboard' | '/subscriptions' | '/import' | '/settings/appearance' {
   if (capabilities.modules.includes('core')) return '/dashboard';
@@ -836,6 +836,8 @@ const proposalsRoute = createRoute({
   validateSearch: (search: Record<string, unknown>): ProposalsSearch => ({
     ...(search.status === 'approved' || search.status === 'rejected' ? { status: search.status } : {}),
     ...(typeof search.target === 'string' ? { target: search.target } : {}),
+    ...(typeof search.q === 'string' && search.q !== '' ? { q: search.q } : {}),
+    ...pageSearch(search),
   }),
   component: lazyRouteComponent(() => import('@/features/proposals/ProposalsPage'), 'ProposalsPage'),
 });

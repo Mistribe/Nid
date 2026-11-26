@@ -13,7 +13,7 @@ export function serve(items: ProposalView[], over: { canDecide?: boolean; previe
   const sent: { approve?: unknown; reject?: unknown } = {};
   server.use(
     http.get('*/api/v1/core/persons', () => HttpResponse.json([{ id: 'a', kind: 'adult', displayName: 'Camille', email: null }])),
-    http.get('*/api/v1/core/proposals', () => HttpResponse.json({ items: pending })),
+    http.get('*/api/v1/core/proposals', () => HttpResponse.json({ items: pending, total: pending.length })),
     http.get('*/api/v1/core/proposals/:id', ({ params }) => {
       const p = items.find((i) => i.id === params.id)!;
       return HttpResponse.json({ proposal: p, preview: p.status === 'pending' ? over.preview ?? preview : null, canDecide: over.canDecide ?? true });

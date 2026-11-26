@@ -33,7 +33,7 @@ export const handlers = [
   // The shell's Foyer / Moi selector shows only to an owner of a private item (issue 85).
   http.get('*/api/v1/core/me/private-items', () => HttpResponse.json({ owns: true })),
   // The shell's badge reads the pending proposals (4C2).
-  http.get('*/api/v1/core/proposals', () => HttpResponse.json({ items: [] })),
+  http.get('*/api/v1/core/proposals', () => HttpResponse.json({ items: [], total: 0 })),
   // The shell's bell and banner read the notification counts.
   http.get('*/api/v1/platform/notifications/count', () => HttpResponse.json({ unread: 0, criticalUnread: 0 })),
   http.get('*/api/v1/platform/imports', () => HttpResponse.json([])),
