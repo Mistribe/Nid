@@ -1,3 +1,4 @@
+import { Check } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { InfoTip } from '@/components/InfoTip';
 import { formatCurrency } from '@/components/Money';
@@ -9,8 +10,10 @@ import { CLASSES, useClassName } from './panels/allocationNames';
 export function RangesToggle({ pressed, onPressedChange }: { pressed: boolean; onPressedChange: (pressed: boolean) => void }) {
   const { t } = useTranslation();
   return (
-    <Toggle variant="outline" size="sm" pressed={pressed} onPressedChange={onPressedChange}>
-      {t('dashboard.projection.ranges')}
+    // #729: off reads as the segments' empty track, on as filled with a check: an outline would pass for a chosen segment.
+    <Toggle size="sm" pressed={pressed} onPressedChange={onPressedChange}
+      className="rounded-full bg-fill px-3 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
+      {pressed ? <Check aria-hidden="true" /> : null}{t('dashboard.projection.ranges')}
     </Toggle>
   );
 }

@@ -6,7 +6,7 @@
     "year": "Année du bilan",
     "print": "Imprimer",
     "previous": "{{year}} : {{amount}}",
-    "fx_missing": "Un taux de change manque : le patrimoine de l'année ne peut pas être calculé.",
+    "fx_missing": "Un taux de change manque : le patrimoine de l’année ne peut pas être calculé.",
     "net_worth": {
       "title": "Patrimoine net",
       "at": "Au {{date}}",

@@ -253,7 +253,7 @@ describe('ChildcareDetailPage', () => {
     const { user } = await renderApp(url);
     await user.click(await screen.findByRole('tab', { name: 'Révisions' }));
     const table = screen.getByRole('table', { name: 'Révisions' });
-    expect(within(table).getAllByRole('row')[2]).toHaveTextContent("Enfant malade, Absence de l'assistante");
+    expect(within(table).getAllByRole('row')[2]).toHaveTextContent("Enfant malade, Absence de l’assistante");
     await user.click(within(table).getByRole('button', { name: 'Actions sur la période du 1 sept. 2025' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Modifier' }));
     const dialog = await screen.findByRole('dialog', { name: 'Modifier la garde' });
@@ -366,7 +366,7 @@ describe('ChildcareDetailPage', () => {
     serve(detail({ belowMinimums: [{ code: 'childcare.below_minimum_upkeep', since: '2026-06-01', minimum: '3.92', value: '3.80' }] }));
     const { user } = await renderApp(url);
     const warning = await screen.findByRole('status', { name: 'Le contrat est sous un minimum légal' });
-    expect(warning).toHaveTextContent("L'indemnité d'entretien (3,80 € pour 9 h) est sous le minimum légal de 3,92 €, à compter du 1 juin 2026.");
+    expect(warning).toHaveTextContent("L’indemnité d’entretien (3,80 € pour 9 h) est sous le minimum légal de 3,92 €, à compter du 1 juin 2026.");
     await user.click(within(warning).getByRole('button', { name: 'Réviser' }));
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
   });

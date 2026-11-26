@@ -9,7 +9,7 @@ describe('IncomeSplit', () => {
     render(<IncomeSplit result={result()} />);
     const region = screen.getByRole('region', { name: 'Où vont vos revenus' });
     expect(region).toHaveTextContent('sur 69 000,00 € de revenus nets avant impôt');
-    expect(screen.getByRole('img', { name: /^Reste .+, Impôt sur le revenu 247,00/ })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: /^Après impôt .+, Impôt sur le revenu 247,00/ })).toBeInTheDocument();
   });
 
   it('draws nothing with a single part', () => {

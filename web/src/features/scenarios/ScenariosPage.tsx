@@ -37,9 +37,12 @@ export function ScenariosPage() {
     <div className="space-y-4">
       <PageHeader title={t('scenarios.title')} actions={(
         <>
-          <Button asChild variant="outline">
-            <Link to="/scenarios/compare" search={search.scope === 'me' ? { scope: 'me' } : {}}>{t('scenarios.compare.open')}</Link>
-          </Button>
+          {/* #729: nothing to compare before a first scenario. */}
+          {answer.data?.items.length ? (
+            <Button asChild variant="outline">
+              <Link to="/scenarios/compare" search={search.scope === 'me' ? { scope: 'me' } : {}}>{t('scenarios.compare.open')}</Link>
+            </Button>
+          ) : null}
           <AddMenu />
         </>
       )} />

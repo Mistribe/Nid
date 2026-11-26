@@ -58,7 +58,7 @@ async function open() {
   const { user } = await renderApp(`/investments/${PEA}?tab=operations`);
   await user.click((await screen.findAllByRole('button', { name: /Actions/ }))[0]!);
   await user.click(await screen.findByRole('menuitem', { name: 'Catégoriser…' }));
-  await screen.findByRole('dialog', { name: "Catégoriser l'opération" });
+  await screen.findByRole('dialog', { name: "Catégoriser l’opération" });
   return user;
 }
 

@@ -61,7 +61,7 @@ async function open(path = '/spending?tab=categories', region = 'Dépenses') {
 }
 
 const unfold = async (user: Awaited<ReturnType<typeof renderApp>>['user']) =>
-  user.click(screen.getAllByRole('button', { name: 'Afficher les sous-catégories de Alimentation' })[0]!);
+  user.click(screen.getAllByRole('button', { name: 'Afficher les sous-catégories d’Alimentation' })[0]!);
 
 const menu = async (user: Awaited<ReturnType<typeof renderApp>>['user'], name: string, item: string) => {
   await user.click(screen.getAllByRole('button', { name: `Actions sur la catégorie ${name}` })[0]!);

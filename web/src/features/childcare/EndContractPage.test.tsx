@@ -72,9 +72,9 @@ describe('EndContractPage', () => {
     const writes: { path: string; body: unknown }[] = [];
     serve(writes, preview({ indemnityDue: false }));
     const { user } = await renderApp(url);
-    await user.click(await screen.findByRole('radio', { name: 'L\'assistante maternelle' }));
+    await user.click(await screen.findByRole('radio', { name: 'L’assistante maternelle' }));
     expect(screen.getByRole('combobox', { name: 'Pour quelle raison ?' })).toHaveTextContent('Démission');
-    await pick(user, 'Pour quelle raison ?', 'Pendant la période d\'essai');
+    await pick(user, 'Pour quelle raison ?', 'Pendant la période d’essai');
     await pick(user, 'Pour quelle raison ?', 'Démission');
     await user.click(screen.getByRole('button', { name: 'Continuer' }));
     await user.type(screen.getByLabelText('Lettre remise ou présentée le'), '31/10/2026');

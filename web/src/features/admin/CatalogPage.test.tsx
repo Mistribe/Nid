@@ -65,7 +65,7 @@ describe('Administration › Catalogue', () => {
   it('has the Administration breadcrumb', async () => {
     serveRuns([]);
     await render();
-    expect(screen.queryByRole('navigation', { name: "Sections de l'administration" })).toBeNull();
+    expect(screen.queryByRole('navigation', { name: "Sections de l’administration" })).toBeNull();
     expect(within(screen.getByRole('navigation', { name: 'Fil d’Ariane' })).getByRole('link', { name: 'Administration' })).toHaveAttribute('href', '/admin');
     expect(screen.getByRole('heading', { level: 1, name: 'Catalogue' })).toBeInTheDocument();
   });
@@ -128,7 +128,7 @@ describe('Administration › Catalogue', () => {
     await user.click(within(last).getByRole('button', { name: 'Icônes (récupérées : 1, inchangées : 14, refusées : 2)' }));
     expect(within(last).getByText('netflix')).toBeInTheDocument();
     expect(within(last).getByText('nounou-top : format non pris en charge (SVG compris)')).toBeInTheDocument();
-    expect(within(last).getByText("ovh-cloud : réponse en erreur de l'hôte")).toBeInTheDocument();
+    expect(within(last).getByText("ovh-cloud : réponse en erreur de l’hôte")).toBeInTheDocument();
   });
 
   it('shows no icon category when every icon was already there', async () => {
@@ -152,7 +152,7 @@ describe('Administration › Catalogue', () => {
   it('says there is no sync yet', async () => {
     serveRuns([]);
     await render();
-    expect(await screen.findByRole('heading', { name: "Aucune synchronisation pour l'instant" })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: "Aucune synchronisation pour l’instant" })).toBeInTheDocument();
   });
 
   it('pages the history and keeps the newest run in the card and the busy state on page 2', async () => {

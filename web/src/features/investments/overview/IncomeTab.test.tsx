@@ -5,7 +5,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import type { PassiveIncome } from '@/api/investments';
-import { passiveIncome, PEA, RENTAL } from '../testData';
+import { ALICE, passiveIncome, PEA, RENTAL } from '../testData';
 
 const serve = (body: PassiveIncome, seen: string[] = []) =>
   server.use(http.get('*/api/v1/investments/overview/income', ({ request }) => {
@@ -35,6 +35,7 @@ describe('Placements › revenus', () => {
 
   it('lists the rows and links each to its envelope or property', async () => {
     serve(passiveIncome());
+    server.use(http.get('*/api/v1/core/persons', () => HttpResponse.json([{ id: ALICE, kind: 'adult', displayName: 'Alice', email: null }])));
     await renderApp('/investments?tab=income');
 
     const table = await screen.findByRole('table', { name: 'Ce qui a rapporté' });
@@ -49,6 +50,8 @@ describe('Placements › revenus', () => {
     expect(cell('Studio Lyon', 'Loyers nets')).toHaveTextContent('1 500,00 €');
     expect(cell('PEA', 'Loyers nets')).toHaveTextContent('—');
     expect(within(table).getByRole('columnheader', { name: 'Rendement' })).toBeInTheDocument();
+    // #729: the owners tell two envelopes of the same name apart.
+    expect(await within(table).findByText('Alice')).toBeInTheDocument();
   });
 
   it('marks the current month as partial', async () => {

@@ -4,7 +4,7 @@
     "logout": "Déconnexion",
     "login_refused": "Connexion refusée",
     "access_denied": "Accès refusé",
-    "access_violation": "Réponse retenue (violation d'accès)",
+    "access_violation": "Réponse retenue (violation d’accès)",
     "person_preregistered": "Adulte ajouté",
     "person_preregistration_cancelled": "Invitation annulée",
     "admin_granted": "Rôle admin accordé",

@@ -82,6 +82,8 @@ public class PassiveIncomeTests
         Assert.Equal(120m, N(p.Total));
         var row = Assert.Single(p.Rows);
         Assert.Equal(("envelope", classified.Item.Id, "CTO", "brokerage"), (row.Source, row.Id, row.Name, row.Kind));
+        // #729: its owners, so two envelopes of the same name are told apart.
+        Assert.Equal([new ItemOwnerView(EnvelopeFacts.DefaultOwner.Value, 10_000)], row.Owners);
         Assert.Equal([120m, 0m, 0m, 0m, 0m], Kinds(row.ByKind));
         Assert.Equal(
             EnvelopeMath.At(plain.Envelope.Kind, plain.Values, plain.Flows, plain.Currency, ValuationCadence.Monthly, null, Today),

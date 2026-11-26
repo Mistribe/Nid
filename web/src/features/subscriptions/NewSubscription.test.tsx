@@ -72,7 +72,7 @@ describe('Abonnements › ajout', () => {
     expect(await within(owners).findByDisplayValue('Bob Dev')).toBeInTheDocument();
     await fillCommon(user);
     await fillOffer(user);
-    await user.click(screen.getByRole('button', { name: "Ajouter l'abonnement" }));
+    await user.click(screen.getByRole('button', { name: "Ajouter l’abonnement" }));
 
     await waitFor(() => expect(sent.map((b) => b.owners)).toEqual([[{ personId: BOB, shareBp: 10000 }]]));
   });
@@ -141,7 +141,7 @@ describe('Abonnements › ajout', () => {
     expect(summary).toHaveTextContent('Netflix');
     expect(summary).toHaveTextContent('13,49');
     await expectNoAxeViolations(container);
-    await user.click(screen.getByRole('button', { name: "Ajouter l'abonnement" }));
+    await user.click(screen.getByRole('button', { name: "Ajouter l’abonnement" }));
 
     await waitFor(() => expect(router.state.location.pathname).toBe(`/subscriptions/${NEW_ID}`));
     expect(sent).toEqual([{
@@ -182,7 +182,7 @@ describe('Abonnements › ajout', () => {
     await user.click(screen.getByRole('option', { name: 'Citadine' }));
     await fillCommon(user);
     await fillOffer(user);
-    await user.click(screen.getByRole('button', { name: "Ajouter l'abonnement" }));
+    await user.click(screen.getByRole('button', { name: "Ajouter l’abonnement" }));
     await waitFor(() => expect(sent.map((b) => b.assetId)).toEqual(['a1']));
   });
 
@@ -196,10 +196,10 @@ describe('Abonnements › ajout', () => {
     await pick(user, 'Fournisseur', 'Netflix');
     await user.click(screen.getByRole('button', { name: 'Continuer' }));
     await fillOffer(user);
-    await user.click(await screen.findByRole('button', { name: "Ajouter l'abonnement" }));
+    await user.click(await screen.findByRole('button', { name: "Ajouter l’abonnement" }));
 
     const provider = await screen.findByLabelText('Fournisseur');
-    await waitFor(() => expect(provider).toHaveAccessibleDescription(/n'existe pas ou ne peut pas être choisi/));
+    await waitFor(() => expect(provider).toHaveAccessibleDescription(/n’existe pas ou ne peut pas être choisi/));
   });
 
   it('brings the user back to the offer step for an amount refused by the server', async () => {
@@ -211,7 +211,7 @@ describe('Abonnements › ajout', () => {
 
     await fillCommon(user);
     await fillOffer(user);
-    await user.click(await screen.findByRole('button', { name: "Ajouter l'abonnement" }));
+    await user.click(await screen.findByRole('button', { name: "Ajouter l’abonnement" }));
 
     const amount = await screen.findByLabelText('Montant');
     await waitFor(() => expect(amount).toHaveAttribute('aria-invalid', 'true'));

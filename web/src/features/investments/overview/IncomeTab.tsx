@@ -4,6 +4,7 @@ import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { useApi } from '@/api/ApiProvider';
 import { present, toProblem } from '@/api/errors';
 import { formatMoney, Money } from '@/components/Money';
+import { OwnerChips } from '@/components/OwnerChips';
 import { SectionCard } from '@/components/page/SectionCard';
 import { SortableTable } from '@/components/page/SortableTable';
 import { amountKey } from '@/components/page/sortKey';
@@ -143,6 +144,7 @@ function Rows({ d, kindLabel }: { d: PassiveIncome; kindLabel: (k: string) => st
       rowLink={(r) => (r.source === 'property' ? { to: '/properties/$id', params: { id: r.id } } : { to: '/investments/$id', params: { id: r.id } })}
       columns={[
         { id: 'name', header: t('lists.col.name'), sort: (r) => r.name, cell: (r) => r.name },
+        { id: 'owner', header: t('investments_overview.col_owners'), cell: (r) => <OwnerChips owners={r.owners} /> },
         { id: 'kind', header: t('lists.col.kind'), sort: kind, cell: kind },
         ...shown.map((k) => ({ id: k, header: kindLabel(k), align: 'end' as const, sort: (r: Row) => amountKey(amountOf(r, k)?.amount),
           cell: (r: Row) => (isZero(amountOf(r, k)?.amount) ? <span aria-hidden="true">—</span> : formatMoney(amountOf(r, k)!)) })),
@@ -152,7 +154,7 @@ function Rows({ d, kindLabel }: { d: PassiveIncome; kindLabel: (k: string) => st
       ]}
       mobile={(r) => (
         <div className="flex items-center justify-between gap-2">
-          <span>{r.name}<span className="block text-sm text-muted-foreground">{kind(r)}</span></span>
+          <span>{r.name}<span className="block text-sm text-muted-foreground">{kind(r)}</span><OwnerChips owners={r.owners} /></span>
           <span className="text-right tabular-nums">
             {r.total ? formatMoney(r.total) : t('investments_income.unknown')}
             {shown.filter((k) => !isZero(amountOf(r, k)?.amount)).map((k) => <span key={k} className="block text-sm text-muted-foreground">{kindLabel(k)} {formatMoney(amountOf(r, k)!)}</span>)}

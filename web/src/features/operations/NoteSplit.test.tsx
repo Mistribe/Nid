@@ -53,7 +53,7 @@ describe('« Opérations »: note and split', () => {
     serve(shop);
     server.use(http.put('*/api/v1/banking/transactions/:id/split', async ({ request }) => { writes.push(await request.json()); return HttpResponse.json(splitShop); }));
     const user = await openMenu('Découper…');
-    const dialog = await screen.findByRole('dialog', { name: "Découper l'opération" });
+    const dialog = await screen.findByRole('dialog', { name: "Découper l’opération" });
     expect(within(dialog).getByText(/60,00/)).toBeInTheDocument();
     expect(within(dialog).getAllByRole('textbox', { name: /Montant/ })).toHaveLength(2);
     await user.click(within(dialog).getByRole('button', { name: 'Ajouter une partie' }));
@@ -78,12 +78,12 @@ describe('« Opérations »: note and split', () => {
       { status: 422, code: 'banking.split_sum', detail: "The parts add up to the line's amount.", partsSum: '-50.00', lineAmount: '-60.00' },
       { status: 422, headers: { 'content-type': 'application/problem+json' } })));
     const user = await openMenu('Découper…');
-    const dialog = await screen.findByRole('dialog', { name: "Découper l'opération" });
+    const dialog = await screen.findByRole('dialog', { name: "Découper l’opération" });
     const amounts = within(dialog).getAllByRole('textbox', { name: /Montant/ });
     await user.type(amounts[0]!, '30');
     await user.type(amounts[1]!, '20');
     await user.click(within(dialog).getByRole('button', { name: 'Découper' }));
-    expect(await within(dialog).findByText(/Les parties font 50,00.€, l'opération fait 60,00.€\./)).toBeInTheDocument();
+    expect(await within(dialog).findByText(/Les parties font 50,00.€, l’opération fait 60,00.€\./)).toBeInTheDocument();
   });
 
   it('sends a credit line unsigned, a comma as a point, and refuses junk typed amounts', async () => {
@@ -91,7 +91,7 @@ describe('« Opérations »: note and split', () => {
     serve({ ...shop, amount: '60.00' });
     server.use(http.put('*/api/v1/banking/transactions/:id/split', async ({ request }) => { writes.push(await request.json()); return HttpResponse.json(splitShop); }));
     const user = await openMenu('Découper…');
-    const dialog = await screen.findByRole('dialog', { name: "Découper l'opération" });
+    const dialog = await screen.findByRole('dialog', { name: "Découper l’opération" });
     const amounts = within(dialog).getAllByRole('textbox', { name: /Montant/ });
     await user.type(amounts[0]!, '5,5,0');
     await user.type(amounts[1]!, 'abc');
@@ -133,7 +133,7 @@ describe('« Opérations »: note and split', () => {
     serve(splitShop);
     server.use(http.put('*/api/v1/banking/transactions/:id/split', async ({ request }) => { writes.push(await request.json()); return HttpResponse.json(splitShop); }));
     const user = await openMenu('Modifier le découpage');
-    const dialog = await screen.findByRole('dialog', { name: "Découper l'opération" });
+    const dialog = await screen.findByRole('dialog', { name: "Découper l’opération" });
     const amounts = within(dialog).getAllByRole('textbox', { name: /Montant/ });
     expect(amounts.map((a) => (a as HTMLInputElement).value)).toEqual(['40.00', '20.00']);
     expect(within(dialog).getByRole('textbox', { name: 'Note de la partie 1' })).toHaveValue('fruits');
@@ -151,7 +151,7 @@ describe('« Opérations »: note and split', () => {
     serve({ ...shop, amount: '-12.3450' });
     server.use(http.put('*/api/v1/banking/transactions/:id/split', async ({ request }) => { writes.push(await request.json()); return HttpResponse.json(splitShop); }));
     const user = await openMenu('Découper…');
-    const dialog = await screen.findByRole('dialog', { name: "Découper l'opération" });
+    const dialog = await screen.findByRole('dialog', { name: "Découper l’opération" });
     const amounts = within(dialog).getAllByRole('textbox', { name: /Montant/ });
     await user.type(amounts[0]!, '10');
     await user.type(amounts[1]!, '2,345');
@@ -166,7 +166,7 @@ describe('« Opérations »: note and split', () => {
       { status: 422, code: 'banking.category_archived', detail: 'A part takes only a category in use.', errors: [{ path: 'parts', code: 'banking.category_archived', message: 'A part takes only a category in use.' }] },
       { status: 422, headers: { 'content-type': 'application/problem+json' } })));
     const user = await openMenu('Modifier le découpage');
-    const dialog = await screen.findByRole('dialog', { name: "Découper l'opération" });
+    const dialog = await screen.findByRole('dialog', { name: "Découper l’opération" });
     expect(within(dialog).getByRole('combobox', { name: 'Catégorie de la partie 1' })).toHaveTextContent('Ancienne catégorie');
     await user.click(within(dialog).getByRole('button', { name: 'Découper' }));
     expect(await within(dialog).findByText('Une des catégories est archivée : choisissez-en une autre.')).toBeInTheDocument();

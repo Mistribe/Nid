@@ -55421,7 +55421,8 @@
           "id",
           "name",
           "kind",
-          "byKind"
+          "byKind",
+          "owners"
         ],
         "type": "object",
         "properties": {
@@ -55460,6 +55461,12 @@
               "number"
             ],
             "format": "double"
+          },
+          "owners": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ItemOwnerView"
+            }
           }
         }
       },

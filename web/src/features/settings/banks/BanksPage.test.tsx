@@ -115,7 +115,7 @@ describe('Réglages › Banques', () => {
   it('says banking is off, and hides the « Banques » entry, when the household has it off', async () => {
     await renderApp('/settings/banks');
 
-    expect(await screen.findByText(/La synchronisation bancaire n'est pas activée/)).toBeInTheDocument();
+    expect(await screen.findByText(/La synchronisation bancaire n’est pas activée/)).toBeInTheDocument();
     expect(within(screen.getByRole('navigation', { name: 'Réglages' })).queryByRole('link', { name: 'Banques' })).toBeNull();
     expect(within(screen.getByRole('navigation', { name: 'Réglages' })).getByRole('link', { name: 'Apparence' })).toBeInTheDocument();
   });
@@ -133,7 +133,7 @@ describe('Réglages › Banques', () => {
     server.use(http.get('*/api/v1/banking/status', () => HttpResponse.json({ enabled: true, configured: false, appIdSaved: true, keyStatus: 'directory' })));
     await renderApp('/settings/banks');
 
-    expect(await screen.findByText(/Nid n'a pas chargé la clé privée/)).toBeInTheDocument();
+    expect(await screen.findByText(/Nid n’a pas chargé la clé privée/)).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Créer mon application' })).toBeNull();
     expect(screen.getByRole('link', { name: 'Voir Administration › Banque' })).toHaveAttribute('href', '/admin/banking');
   });
@@ -185,7 +185,7 @@ describe('Réglages › Banques', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Relier une banque' }));
     const dialog = await screen.findByRole('dialog', { name: 'Relier une banque' });
-    expect(dialog).toHaveTextContent("reliez-y d'abord un nouveau compte, puis revenez ici");
+    expect(dialog).toHaveTextContent("reliez-y d’abord un nouveau compte, puis revenez ici");
     expect(within(dialog).getByRole('link', { name: 'Ouvrir le portail Enable Banking' })).toHaveAttribute('href', 'https://enablebanking.com/cp/applications');
     await pick(user, 'Banque', 'BNP Paribas');
 
@@ -243,7 +243,7 @@ describe('Réglages › Banques', () => {
     serveBanks([]);
     await renderApp('/settings/banks?error=banking.auth_refused');
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('La banque a refusé ou annulé l\'autorisation.');
+    expect(await screen.findByRole('alert')).toHaveTextContent('La banque a refusé ou annulé l’autorisation.');
   });
 
   it('synchronises a connection, and says when one is already running', async () => {
@@ -420,7 +420,7 @@ describe('Réglages › Banques', () => {
 
     await user.click(within(row('PRLV SEPA NETFLIX')).getByRole('button', { name: 'Actions sur la règle PRLV SEPA NETFLIX' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Supprimer' }));
-    expect(await screen.findByText(/n'est plus reliée d'elle-même/)).toBeInTheDocument();
+    expect(await screen.findByText(/n’est plus reliée d’elle-même/)).toBeInTheDocument();
     expect(deleted).toBe('');
     await user.click(screen.getByRole('button', { name: 'Confirmer' }));
 

@@ -169,7 +169,7 @@ describe('the shell', () => {
   it('shows the Administration group in the sidebar for an admin', async () => {
     await renderApp('/admin', { capabilities: adminCapabilities });
     const links = within(within(sidebar()).getByRole('list', { name: 'Administration' })).getAllByRole('link').map((l) => l.textContent);
-    expect(links).toEqual(['Vue d\'ensemble', 'Taux de change', 'Cours', 'IRL', 'Inflation', 'Tâches', 'Banque', 'Catalogue', 'Utilisateurs', 'Foyer', 'Sécurité', 'Système', 'IA', 'Notifications']);
+    expect(links).toEqual(['Vue d’ensemble', 'Taux de change', 'Cours', 'IRL', 'Inflation', 'Tâches', 'Banque', 'Catalogue', 'Utilisateurs', 'Foyer', 'Sécurité', 'Système', 'IA', 'Notifications']);
   });
 
   describe('the Administration group', () => {
@@ -222,17 +222,17 @@ describe('the shell', () => {
   it('marks the admin section current in the sidebar', async () => {
     await renderApp('/admin/fx', { capabilities: adminCapabilities });
     expect(within(sidebar()).getByRole('link', { name: 'Taux de change' })).toHaveAttribute('aria-current', 'page');
-    expect(within(sidebar()).getByRole('link', { name: 'Vue d\'ensemble' })).not.toHaveAttribute('aria-current');
+    expect(within(sidebar()).getByRole('link', { name: 'Vue d’ensemble' })).not.toHaveAttribute('aria-current');
   });
 
-  it('keeps Tâches current on a job page and marks Vue d\'ensemble on /admin', async () => {
+  it('keeps Tâches current on a job page and marks Vue d’ensemble on /admin', async () => {
     await renderApp('/admin/jobs/fx-daily', { capabilities: adminCapabilities });
     expect(await within(sidebar()).findByRole('link', { name: 'Tâches' })).toHaveAttribute('aria-current', 'page');
   });
 
-  it('marks Vue d\'ensemble current on /admin', async () => {
+  it('marks Vue d’ensemble current on /admin', async () => {
     await renderApp('/admin', { capabilities: adminCapabilities });
-    expect(await within(sidebar()).findByRole('link', { name: 'Vue d\'ensemble' })).toHaveAttribute('aria-current', 'page');
+    expect(await within(sidebar()).findByRole('link', { name: 'Vue d’ensemble' })).toHaveAttribute('aria-current', 'page');
   });
 
   it('shows the routine badge with the dashboard’s todo count', async () => {

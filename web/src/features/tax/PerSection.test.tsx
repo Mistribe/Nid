@@ -35,19 +35,19 @@ describe('PerRows and PerProgress', () => {
 
   it('shows the deduction against the ceiling', () => {
     show(withPer());
-    expect(screen.getByRole('progressbar', { name: 'PER de Alice' }).getAttribute('aria-valuetext')?.replace(/\s/g, ' ')).toBe('3 000,00 € déduits sur un plafond de 5 843,13 €');
+    expect(screen.getByRole('progressbar', { name: 'PER d’Alice' }).getAttribute('aria-valuetext')?.replace(/\s/g, ' ')).toBe('3 000,00 € déduits sur un plafond de 5 843,13 €');
     expect(screen.getByText('2 843,13 € à verser avant le 31 décembre')).toBeInTheDocument();
     expect(screen.queryByRole('row', { name: /Reste à verser/ })).not.toBeInTheDocument();
   });
 
   it('a ceiling of zero draws an empty progress', () => {
     show(withPer({}, declarantPer({ ceiling: '0.00', deducted: '0.00', contributions: '0.00', remaining: '0.00' })));
-    expect(screen.getByRole('progressbar', { name: 'PER de Alice' })).toHaveAttribute('aria-valuenow', '0');
+    expect(screen.getByRole('progressbar', { name: 'PER d’Alice' })).toHaveAttribute('aria-valuenow', '0');
   });
 
   it('a deduction above the ceiling fills the progress at 100', () => {
     show(withPer({}, declarantPer({ ceiling: '1000.00', deducted: '3000.00' })));
-    expect(screen.getByRole('progressbar', { name: 'PER de Alice' })).toHaveAttribute('aria-valuenow', '100');
+    expect(screen.getByRole('progressbar', { name: 'PER d’Alice' })).toHaveAttribute('aria-valuenow', '100');
   });
 
   it('no declarant with PER draws no progress at all', () => {

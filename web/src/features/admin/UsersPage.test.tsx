@@ -28,7 +28,7 @@ describe('Administration › Utilisateurs', () => {
   it('has the Administration breadcrumb', async () => {
     serve([alice]);
     await renderApp('/admin/users', { capabilities: adminCapabilities });
-    expect(screen.queryByRole('navigation', { name: "Sections de l'administration" })).toBeNull();
+    expect(screen.queryByRole('navigation', { name: "Sections de l’administration" })).toBeNull();
     expect(within(screen.getByRole('navigation', { name: 'Fil d’Ariane' })).getByRole('link', { name: 'Administration' })).toHaveAttribute('href', '/admin');
     expect(await screen.findByRole('heading', { level: 1, name: 'Utilisateurs' })).toBeInTheDocument();
   });
@@ -85,7 +85,7 @@ describe('Administration › Utilisateurs', () => {
     const aliceRow = await screen.findByRole('row', { name: /Alice Dev/ });
     expect(within(aliceRow).getByText('Admin')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /rôle admin|Rendre admin/ })).not.toBeInTheDocument();
-    expect(screen.getByText(/groupes du fournisseur d'identité/)).toBeInTheDocument();
+    expect(screen.getByText(/groupes du fournisseur d’identité/)).toBeInTheDocument();
   });
 
   it('cancels an invitation only once confirmed', async () => {
@@ -99,7 +99,7 @@ describe('Administration › Utilisateurs', () => {
 
     const carolRow = await screen.findByRole('row', { name: /Carol/ });
     await user.click(within(carolRow).getByRole('button', { name: 'Actions de Carol' }));
-    await user.click(await screen.findByRole('menuitem', { name: "Annuler l'invitation" }));
+    await user.click(await screen.findByRole('menuitem', { name: "Annuler l’invitation" }));
     expect(deleted).toEqual([]);
     await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
 
@@ -165,7 +165,7 @@ describe('Administration › Utilisateurs, comptes locaux (issue 215)', () => {
     const { user } = await renderApp('/admin/users', { capabilities: adminCapabilities, session: local });
 
     await user.click(await screen.findByRole('button', { name: 'Actions de Carol' }));
-    await user.click(await screen.findByRole('menuitem', { name: "Créer son lien d'accès" }));
+    await user.click(await screen.findByRole('menuitem', { name: "Créer son lien d’accès" }));
 
     const dialog = await screen.findByRole('dialog', { name: 'Lien à usage unique' });
     expect(within(dialog).getByRole('textbox')).toHaveValue('https://nid.example.test/password#nid_link_abc');
@@ -190,7 +190,7 @@ describe('Administration › Utilisateurs, comptes locaux (issue 215)', () => {
     await user.click(await screen.findByRole('button', { name: 'Actions de Dave' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Créer un lien de mot de passe' }));
     const confirm = await screen.findByRole('alertdialog', { name: 'Créer un lien de mot de passe' });
-    const toggle = within(confirm).getByRole('switch', { name: "Révoquer aussi ses jetons d'accès" });
+    const toggle = within(confirm).getByRole('switch', { name: "Révoquer aussi ses jetons d’accès" });
     expect(toggle).not.toBeChecked();
     expect(sent).toEqual([]);
     if (revoke) await user.click(toggle);
@@ -198,7 +198,7 @@ describe('Administration › Utilisateurs, comptes locaux (issue 215)', () => {
 
     await screen.findByRole('dialog', { name: 'Lien à usage unique' });
     expect(sent).toEqual([expected]);
-    if (revoke) await waitFor(() => expect(toasts()).toHaveTextContent("Ses jetons d'accès sont révoqués."));
+    if (revoke) await waitFor(() => expect(toasts()).toHaveTextContent("Ses jetons d’accès sont révoqués."));
   });
 
   it('shows a locked account and unlocks it', async () => {

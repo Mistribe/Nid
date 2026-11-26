@@ -28,7 +28,7 @@ test('alice pairs the worker, tests it, finds its job and asks the assistant', a
   await dialog.getByRole('button', { name: 'Continuer' }).click();
 
   await expect(dialog.getByTestId('worker-fingerprint')).toHaveText(fingerprint);
-  await dialog.getByLabel("Code d'appairage").fill(code);
+  await dialog.getByLabel("Code d’appairage").fill(code);
   await dialog.getByRole('button', { name: 'Appairer' }).click();
   await expect(toasts(page)).toContainText('Worker e2e est appairé.');
 
@@ -39,7 +39,7 @@ test('alice pairs the worker, tests it, finds its job and asks the assistant', a
   await expect(toasts(page)).toContainText('Test réussi');
 
   await page.goto('/admin/ai/jobs?type=echo');
-  await expect(page.getByRole('row', { name: /Test d'un worker/ }).first()).toBeVisible();
+  await expect(page.getByRole('row', { name: /Test d’un worker/ }).first()).toBeVisible();
 
   // #528: the assistant, end to end, on the scripted engine of compose.local.yaml: the worker declares its model, alice sets it
   // for the chat, and a question goes through the gateway, the tools, the stream and the page.

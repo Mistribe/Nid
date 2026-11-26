@@ -66,7 +66,7 @@ describe('ProjectionScenarioPage', () => {
     await waitFor(() => expectTrailBack('Simulations', '/scenarios'));
   });
 
-  it('shows the independence month, « Non atteinte avant l\'horizon », or a dash when no living cost is set', async () => {
+  it('shows the independence month, « Non atteinte avant l’horizon », or a dash when no living cost is set', async () => {
     const withCost = (financialIndependence: string | null, cost: string) => {
       const v = view();
       v.result.scenario = { ...v.result.scenario, financialIndependence, assumptions: { ...v.result.scenario.assumptions, monthlyLivingCost: cost } };
@@ -81,7 +81,7 @@ describe('ProjectionScenarioPage', () => {
     serve(withCost(null, '2500.00'));
     await renderApp(`/scenarios/projection/${ID}`);
     await screen.findByRole('region', { name: 'Chiffres clés' });
-    expect(await figures().findByText('Non atteinte avant l\'horizon')).toBeInTheDocument();
+    expect(await figures().findByText('Non atteinte avant l’horizon')).toBeInTheDocument();
     cleanup();
 
     serve(withCost(null, '0.00'));
@@ -96,7 +96,7 @@ describe('ProjectionScenarioPage', () => {
     expect(await screen.findByText('Alice : départ à 60 ans et 6 mois · pension 1 500,00 € par mois')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Modifier les hypothèses' }));
     const dialog = await screen.findByRole('dialog');
-    await user.clear(within(dialog).getByLabelText('Pension mensuelle de Alice'));
+    await user.clear(within(dialog).getByLabelText('Pension mensuelle d’Alice'));
     await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
 
     await waitFor(() => expect(puts.at(-1)?.document.retirements).toEqual([{ person: ALICE, years: 60, months: 6 }]));
@@ -122,7 +122,7 @@ describe('ProjectionScenarioPage', () => {
     const { user } = await renderApp(`/scenarios/projection/${ID}?tab=assumptions`);
     await user.click(await screen.findByRole('button', { name: 'Modifier les hypothèses' }));
     const dialog = await screen.findByRole('dialog');
-    await user.type(await within(dialog).findByLabelText('Âge de départ de Alice (mois)'), '4');
+    await user.type(await within(dialog).findByLabelText('Âge de départ d’Alice (mois)'), '4');
     await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
 
     expect(await within(dialog).findByText('Les mois demandent un âge.')).toBeInTheDocument();

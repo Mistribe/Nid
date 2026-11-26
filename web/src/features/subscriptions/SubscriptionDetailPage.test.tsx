@@ -209,7 +209,7 @@ describe('Abonnements › détail', () => {
       http.get('*/api/v1/core/persons', () => HttpResponse.json(persons)),
     );
     await renderApp(`/subscriptions/${SUB}`);
-    expect(await screen.findByLabelText('Chargement de l\'abonnement')).toBeInTheDocument();
+    expect(await screen.findByLabelText('Chargement de l’abonnement')).toBeInTheDocument();
     await waitFor(leadsBack);
     cleanup();
 

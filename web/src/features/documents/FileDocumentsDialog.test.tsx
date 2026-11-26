@@ -156,7 +156,7 @@ describe('FileDocumentsDialog', () => {
     expect(within(await table()).getByRole('checkbox', { name: 'Sélectionner Bulletin février' })).toHaveAttribute('aria-checked', 'true');
     const refused = screen.getByRole('list', { name: 'Documents non classés' });
     expect(refused).toHaveTextContent('Bulletin février');
-    expect(within(refused).getByRole('alert')).toHaveTextContent("Vous n'avez pas le droit de faire cette action.");
+    expect(within(refused).getByRole('alert')).toHaveTextContent("Vous n’avez pas le droit de faire cette action.");
     await waitFor(() => expect(screen.getByRole('button', { name: 'Classer' })).toHaveFocus());
   });
 

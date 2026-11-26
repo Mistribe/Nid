@@ -43,7 +43,7 @@ test('alice turns bank sync on, is sent to her own application, finds Réglages 
   await page.getByRole('switch', { name: 'Synchronisation bancaire' }).click();
   await expect(page.getByRole('switch', { name: 'Synchronisation bancaire' })).not.toBeChecked();
   await page.goto('/settings/banks');
-  await expect(page.getByText(/La synchronisation bancaire n'est pas activée/)).toBeVisible();
+  await expect(page.getByText(/La synchronisation bancaire n’est pas activée/)).toBeVisible();
   await expect(page.getByRole('link', { name: 'Banques', exact: true })).toHaveCount(0);
 
   await bankSync(page, { bankingEnabled: false, enableBankingAppId: '' });
@@ -168,7 +168,7 @@ test('alice categorises two lines by hand, sees the suggestion for the third and
   const block = page.getByRole('region', { name: /suggestions? de catégorie/ });
   await block.getByRole('button', { name: /^Voir (la|les \d+) suggestions?$/ }).click();
   const suggestion = block.getByRole('listitem').filter({ hasText: `${shop} → Courses` });
-  await expect(suggestion).toContainText("1 opération à classer · d'après 2 opérations classées à la main");
+  await expect(suggestion).toContainText("1 opération à classer · d’après 2 opérations classées à la main");
   await suggestion.getByRole('button', { name: 'Créer la règle' }).click();
   const offer = page.getByRole('form', { name: `Toujours classer « ${shop} » en Courses\u00a0?` });
   await expect(offer.getByRole('textbox', { name: 'Motif' })).toHaveValue(shop);

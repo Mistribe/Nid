@@ -84,7 +84,7 @@
     "col_state": "État",
     "grant": "Couvre {{duration}}",
     "grant_elsewhere": "Couvre {{duration}} sur un autre abonnement",
-    "loading": "Chargement de l'abonnement",
+    "loading": "Chargement de l’abonnement",
     "spent_since": "Dépensé depuis le {{date}}",
     "spent_last12": "dont 12 derniers mois",
     "saved_since": "Économisé depuis le {{date}}",
@@ -114,7 +114,7 @@
   },
   "payer": {
     "household": "Le foyer",
-    "external": "Quelqu'un d'extérieur",
+    "external": "Quelqu’un d’extérieur",
     "person": "{{name}}"
   },
   "asset_link": {

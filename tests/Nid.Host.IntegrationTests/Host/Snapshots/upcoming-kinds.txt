@@ -287,23 +287,23 @@ subscriptions.renewal — recurring, milestone: False
   other | Renouvellement · Maison | Renouvellement · Alice
   unknown | Renouvellement · Maison | Renouvellement · Alice
 subscriptions.trial_end — milestone, milestone: True
-  (none) | Fin de l'essai gratuit · Maison | Fin de l'essai gratuit · Alice
-  Phase 2 | Fin de l'essai gratuit · Maison | Fin de l'essai gratuit · Alice
-  household | Fin de l'essai gratuit · Maison | Fin de l'essai gratuit · Foyer (plafonds mutualisés)
-  department_unknown | Fin de l'essai gratuit · Maison | Fin de l'essai gratuit · Date la plus tôt : renseignez le département dans le profil fiscal
-  life_insurance_8y | Fin de l'essai gratuit · Maison | Fin de l'essai gratuit · Alice
-  pea_5y | Fin de l'essai gratuit · Maison | Fin de l'essai gratuit · Alice
-  per_retirement | Fin de l'essai gratuit · Maison | Fin de l'essai gratuit · Alice
-  works | Fin de l'essai gratuit · Maison | Fin de l'essai gratuit · Alice
-  construction_works | Fin de l'essai gratuit · Maison | Fin de l'essai gratuit · Alice
-  property_tax | Fin de l'essai gratuit · Maison | Fin de l'essai gratuit · Alice
-  condo_fees | Fin de l'essai gratuit · Maison | Fin de l'essai gratuit · Alice
-  insurance | Fin de l'essai gratuit · Maison | Fin de l'essai gratuit · Alice
-  energy | Fin de l'essai gratuit · Maison | Fin de l'essai gratuit · Alice
-  maintenance | Fin de l'essai gratuit · Maison | Fin de l'essai gratuit · Alice
-  management_fees | Fin de l'essai gratuit · Maison | Fin de l'essai gratuit · Alice
-  other | Fin de l'essai gratuit · Maison | Fin de l'essai gratuit · Alice
-  unknown | Fin de l'essai gratuit · Maison | Fin de l'essai gratuit · Alice
+  (none) | Fin de l’essai gratuit · Maison | Fin de l’essai gratuit · Alice
+  Phase 2 | Fin de l’essai gratuit · Maison | Fin de l’essai gratuit · Alice
+  household | Fin de l’essai gratuit · Maison | Fin de l’essai gratuit · Foyer (plafonds mutualisés)
+  department_unknown | Fin de l’essai gratuit · Maison | Fin de l’essai gratuit · Date la plus tôt : renseignez le département dans le profil fiscal
+  life_insurance_8y | Fin de l’essai gratuit · Maison | Fin de l’essai gratuit · Alice
+  pea_5y | Fin de l’essai gratuit · Maison | Fin de l’essai gratuit · Alice
+  per_retirement | Fin de l’essai gratuit · Maison | Fin de l’essai gratuit · Alice
+  works | Fin de l’essai gratuit · Maison | Fin de l’essai gratuit · Alice
+  construction_works | Fin de l’essai gratuit · Maison | Fin de l’essai gratuit · Alice
+  property_tax | Fin de l’essai gratuit · Maison | Fin de l’essai gratuit · Alice
+  condo_fees | Fin de l’essai gratuit · Maison | Fin de l’essai gratuit · Alice
+  insurance | Fin de l’essai gratuit · Maison | Fin de l’essai gratuit · Alice
+  energy | Fin de l’essai gratuit · Maison | Fin de l’essai gratuit · Alice
+  maintenance | Fin de l’essai gratuit · Maison | Fin de l’essai gratuit · Alice
+  management_fees | Fin de l’essai gratuit · Maison | Fin de l’essai gratuit · Alice
+  other | Fin de l’essai gratuit · Maison | Fin de l’essai gratuit · Alice
+  unknown | Fin de l’essai gratuit · Maison | Fin de l’essai gratuit · Alice
 tax.balance_due — recurring, milestone: False
   (none) | Impôt : prélèvement du solde · Maison | Impôt : prélèvement du solde · Alice
   Phase 2 | Impôt : prélèvement du solde · Maison | Impôt : prélèvement du solde · Alice

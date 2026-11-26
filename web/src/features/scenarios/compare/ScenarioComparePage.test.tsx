@@ -65,7 +65,7 @@ describe('ScenarioComparePage', () => {
     await renderApp(`/scenarios/compare?ids=${HALF},${PURCHASE}`);
 
     const rows = within(await horizonTable()).getAllByRole('row').slice(1).map((r) => within(r).getAllByRole('cell').at(-1)?.textContent);
-    expect(rows).toEqual(['septembre 2043', 'janvier 2039', 'Non atteinte avant l\'horizon']);
+    expect(rows).toEqual(['septembre 2043', 'janvier 2039', 'Non atteinte avant l’horizon']);
     expect(within(await horizonTable()).getByRole('columnheader', { name: 'Indépendance financière' })).toBeInTheDocument();
   });
 
@@ -127,7 +127,7 @@ describe('ScenarioComparePage', () => {
     const seen = serve();
     const { user, router } = await renderApp(`/scenarios/compare?ids=${HALF}`);
 
-    await user.click(await screen.findByRole('radio', { name: 'Retraite de Alice' }));
+    await user.click(await screen.findByRole('radio', { name: 'Retraite d’Alice' }));
 
     await waitFor(() => expect(router.state.location.search).toEqual({ ids: HALF, horizon: `retire:${ALICE}` }));
     await waitFor(() => expect(seen.at(-1)).toContain(`horizon=retire%3A${ALICE}`));

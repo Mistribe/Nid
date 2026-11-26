@@ -62,12 +62,12 @@ describe('« Proposer des budgets »', () => {
     expect(within(dialog).getByRole('checkbox', { name: 'Transport' })).not.toBeChecked();
     expect(within(items[1]!).getByText('Suivre mes engagements')).toBeInTheDocument();
     expect(within(items[1]!).queryByRole('textbox')).toBeNull();
-    expect(within(dialog).getByRole('textbox', { name: 'Budget mensuel de Alimentation' })).toHaveValue('130,00');
+    expect(within(dialog).getByRole('textbox', { name: 'Budget mensuel d’Alimentation' })).toHaveValue('130,00');
     expect(within(dialog).getByRole('button', { name: 'Créer 2 budgets' })).toBeEnabled();
     await expectNoAxeViolations(dialog);
 
     // Edit an amount, tick Transport, untick Loisirs.
-    const food = within(dialog).getByRole('textbox', { name: 'Budget mensuel de Alimentation' });
+    const food = within(dialog).getByRole('textbox', { name: 'Budget mensuel d’Alimentation' });
     await user.clear(food);
     await user.type(food, '150');
     await user.click(within(dialog).getByRole('checkbox', { name: 'Transport' }));
@@ -99,7 +99,7 @@ describe('« Proposer des budgets »', () => {
       { categoryId: 'c1', amount: '130.00', source: 'typed', period: 'month' },
       { categoryId: 'c2', source: 'committed', period: 'month' },
     ] }]));
-    expect(await within(dialog).findByRole('textbox', { name: 'Budget mensuel de Alimentation' }))
+    expect(await within(dialog).findByRole('textbox', { name: 'Budget mensuel d’Alimentation' }))
       .toHaveAccessibleDescription('Un budget est un montant de zéro ou plus.');
   });
 
