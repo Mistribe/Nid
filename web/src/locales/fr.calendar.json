@@ -65,6 +65,8 @@
     "refreshing": "Mise à jour du mois…",
     "heavy": "Jour chargé",
     "unknown": "Inconnu",
+    "estimated": "estimé",
+    "estimated_tip": "Ce mois de garde n’est pas encore validé : son montant est le coût net estimé de la garde, et sa date celle où le dernier mois validé a été prélevé (le 5 du mois sans mois validé).",
     "charge": {
       "subscription": "Prélèvement",
       "loan_instalment": "Échéance de prêt",

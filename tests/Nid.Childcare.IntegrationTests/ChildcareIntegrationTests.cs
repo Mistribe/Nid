@@ -246,6 +246,7 @@ public class ChildcareIntegrationTests(PostgresFixture fixture) : IClassFixture<
         Assert.Equal(new LocalDate(2025, 10, 17), charge.DueOn); // validated on 2025-10-15, the test clock
         Assert.Equal(september.GetProperty("figures").GetProperty("cost").GetProperty("amount").GetString(), charge.Amount.AmountText);
         Assert.False(charge.Credit);
+        Assert.False(charge.Estimated); // #755
         Assert.Contains("PAJEMPLOI", charge.LabelHints);
     }
 
@@ -259,7 +260,8 @@ public class ChildcareIntegrationTests(PostgresFixture fixture) : IClassFixture<
 
         var november = await ProjectedAsync(app, app.AdultA, new LocalDate(2025, 11, 1), new LocalDate(2025, 11, 30));
         var charge = Assert.Single(november);
-        Assert.Equal(("estimate:2025-10", new LocalDate(2025, 11, 17), ChargeKinds.Childcare, false), (charge.Key, charge.DueOn, charge.Kind.Name, charge.Credit));
+        Assert.Equal(("estimate:2025-10", new LocalDate(2025, 11, 17), ChargeKinds.Childcare, false, true),
+            (charge.Key, charge.DueOn, charge.Kind.Name, charge.Credit, charge.Estimated));
         Assert.True(charge.Amount.Amount > 0m);
         // September is validated: its debit is ChildcareCharges' alone.
         Assert.Empty(await ProjectedAsync(app, app.AdultA, new LocalDate(2025, 10, 1), new LocalDate(2025, 10, 31)));

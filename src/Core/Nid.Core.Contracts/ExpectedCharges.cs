@@ -25,11 +25,12 @@ public static class ChargeKinds
 
 /// <summary>
 /// 5C spec §6.1: a debit (a credit for a rent) a module expects on an item. <c>Key</c> is stable and unique per item and kind;
-/// <c>LabelHints</c> are the words a bank line of it may carry.
+/// <c>LabelHints</c> are the words a bank line of it may carry. #755: <c>Estimated</c>, its amount and day a projection (a childcare month
+/// not validated yet), not a known figure.
 /// </summary>
 public sealed record ExpectedCharge(
     string Module, ItemId Item, string ItemName, ChargeKind Kind, string Key, LocalDate DueOn,
-    Money Amount, bool Credit, int ToleranceDays, IReadOnlyList<string> LabelHints);
+    Money Amount, bool Credit, int ToleranceDays, IReadOnlyList<string> LabelHints, bool Estimated = false);
 
 public interface IExpectedCharges
 {

@@ -40011,6 +40011,7 @@ export interface components {
             converted?: null | components["schemas"]["DashboardMoneyView"];
             missingCurrency?: null | string;
             credit: boolean;
+            estimated: boolean;
         };
         CalendarDayView: {
             /** Format: date */

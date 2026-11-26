@@ -22,10 +22,13 @@ const eur = (amount: string) => ({ amount, currency: 'EUR' });
 const total = (amount: string | null, missingCurrency: string | null = null) => ({ perCurrency: [], total: amount ? eur(amount) : null, missingCurrency });
 function charge(over: Partial<CalendarCharge>): CalendarCharge {
   return { on: '2026-11-15', module: 'loans', id: '00000000-0000-7000-8000-0000000000e1', name: 'Prêt maison', kind: 'loan_instalment',
-    amount: eur('1200.00'), converted: eur('1200.00'), missingCurrency: null, credit: false, ...over };
+    amount: eur('1200.00'), converted: eur('1200.00'), missingCurrency: null, credit: false, estimated: false, ...over };
 }
 
-/** Invented figures: a loan's instalment on the 15th, two subscriptions and a rent on the 1st, a property's tax on the 20th, a salary on the 28th. */
+/**
+ * Invented figures: a loan's instalment on the 15th, two subscriptions and a rent on the 1st, a property's tax on the 20th, a salary on the 28th,
+ * a validated childcare month on the 5th and an estimated one on the 25th.
+ */
 const NOVEMBER: CalendarAmounts = {
   currency: 'EUR', out: total('2450.00'), in: total('3300.00'), balance: total('850.00'),
   days: [
@@ -42,6 +45,8 @@ const NOVEMBER: CalendarAmounts = {
     charge({ on: '2026-11-20', module: 'properties', id: '00000000-0000-7000-8000-0000000000e4', name: 'Studio', kind: 'property_cost',
       amount: { amount: '1200.00', currency: 'USD' }, converted: null, missingCurrency: 'USD' }),
     charge({ on: '2026-11-28', module: 'income', id: '00000000-0000-7000-8000-0000000000e5', name: 'Salaire Alice', kind: 'income', amount: eur('2500.00'), credit: true }),
+    charge({ on: '2026-11-05', module: 'childcare', id: '00000000-0000-7000-8000-0000000000e6', name: 'Nounou Léa', kind: 'childcare', amount: eur('600.00') }),
+    charge({ on: '2026-11-25', module: 'childcare', id: '00000000-0000-7000-8000-0000000000e7', name: 'Crèche Léa', kind: 'childcare', amount: eur('400.00'), estimated: true }),
   ],
 };
 const grid = () => screen.findByRole('group', { name: 'Calendrier du mois' });
@@ -185,7 +190,12 @@ describe('Calendrier', () => {
     // #714: a salary is money in on its payment day, linked to its source.
     expect(within(list).getByRole('link', { name: /^Versement.*Salaire Alice/ })).toHaveTextContent(/\+2\s500,00\s€/);
     expect(within(list).getByRole('link', { name: /^Versement.*Salaire Alice/ })).toHaveAttribute('href', '/income/00000000-0000-7000-8000-0000000000e5');
-    expect(within(list).getAllByRole('link')).toHaveLength(7);
+    // #755: a childcare month not validated yet reads as an estimate, how it is dated and priced in an InfoTip; a validated one does not.
+    expect(within(list).getByRole('link', { name: /^Pajemploi du mois précédent.*\(estimé\).*Crèche Léa/ })).toHaveTextContent(/−400,00\s€/);
+    expect(within(list).getByRole('link', { name: /Nounou Léa/ })).not.toHaveTextContent('estimé');
+    expect(within(list).getAllByRole('button', { name: /estimé/ })).toHaveLength(1);
+    expect(within(await grid()).getByRole('link', { name: /^Crèche Léa.*\(estimé\)$/ })).toBeInTheDocument();
+    expect(within(list).getAllByRole('link')).toHaveLength(9);
     await expectNoAxeViolations(container);
 
     // Childcare is a module like the others then.
