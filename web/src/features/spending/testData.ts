@@ -66,6 +66,8 @@ export function spendingServer(view: Spending = month) {
     http.get('*/api/v1/banking/status', () => HttpResponse.json({ enabled: true, configured: true })),
     http.get('*/api/v1/banking/accounts', () => HttpResponse.json([{ id: 'a1', name: 'Compte joint' }])),
     http.get('*/api/v1/banking/spending', ({ request }) => { asked.push(new URL(request.url).search); return HttpResponse.json(view); }),
+    // The À classer tab's count, every month and account (#719): more than the month's own.
+    http.get('*/api/v1/banking/lines-to-classify', () => HttpResponse.json({ items: [], total: 40, accounts: [] })),
   );
   return asked;
 }

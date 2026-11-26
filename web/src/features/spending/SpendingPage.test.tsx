@@ -148,13 +148,13 @@ describe('« Dépenses »', () => {
     await renderApp('/spending');
     await screen.findByRole('table', { name: 'Par catégorie' });
     expect(screen.queryByRole('link', { name: /à classer/ })).toBeNull();
-    expect(screen.getByRole('tab', { name: 'Opérations' })).toBeInTheDocument();
   });
 
-  it('counts the current month’s lines to classify on the « Opérations » tab, asking the overview’s question once (#426)', async () => {
+  it('counts the À classer tab’s own lines on its tab, every month and account (#719)', async () => {
     const asked = spendingServer();
     await renderApp('/spending');
-    expect(await screen.findByRole('tab', { name: 'Opérations12 opérations à classer' })).toBeInTheDocument();
+    expect(await screen.findByRole('tab', { name: 'À classer40 opérations à classer' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Opérations' })).toBeInTheDocument();
     expect(asked).toEqual(['?scope=household&month=2026-11']);
   });
 
