@@ -31,14 +31,14 @@ describe('EditGoalDialog', () => {
 
     const name = screen.getByLabelText('Nom');
     expect(name).toHaveValue('Voyage');
-    expect(screen.getByLabelText('Montant cible')).toHaveValue('5000,0000');
+    expect(screen.getByLabelText('Montant cible')).toHaveValue('5000,00');
     await user.clear(name);
     await user.type(name, 'Grand voyage');
     await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
 
     await waitFor(() => expect(puts).toHaveLength(1));
     expect(puts[0]).toEqual({
-      name: 'Grand voyage', targetAmount: '5000.0000', targetDate: '2027-06-01', funding: [{ envelopeId: ENVELOPE, shareBp: 5000 }], version: 7,
+      name: 'Grand voyage', targetAmount: '5000.00', targetDate: '2027-06-01', funding: [{ envelopeId: ENVELOPE, shareBp: 5000 }], version: 7,
     });
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });

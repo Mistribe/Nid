@@ -102,7 +102,7 @@ public sealed class TransactionStore(BankingDbContext db, IClock clock) : ITrans
             query = query.Where(t => t.CategoryId == null && t.CategorySource == null && t.LinkState != "ignored");
         if (normalizedLabel is not null)
             query = query.Where(t => t.NormalizedLabel == normalizedLabel);
-        query = ByState(query, state, readable);
+        query = WithoutEchoes(ByState(query, state, readable), accounts, state);
         if (from is { } f)
             query = query.Where(t => t.BookedOn >= f);
         if (to is { } u)
@@ -117,6 +117,15 @@ public sealed class TransactionStore(BankingDbContext db, IClock clock) : ITrans
     /// </summary>
     private IQueryable<Guid> LeftOut => db.Accounts.Where(a => a.CardOfAccountId == null ? a.Ignored : db.Accounts.Any(p => p.Id == a.CardOfAccountId && p.Ignored))
         .Select(a => a.Id);
+
+    /// <summary>
+    /// One purchase, one row: an immediate card's echo (#416) goes when its card is listed too, the card line saying where it was debited.
+    /// « Interne » still lists it.
+    /// </summary>
+    private IQueryable<TransactionRow> WithoutEchoes(IQueryable<TransactionRow> query, IReadOnlyList<Guid> accounts, string? state)
+        => state is "internal" ? query : query.Where(t => !db.Links.Any(l => l.TransactionId == t.Id && l.Outcome == "card_settlement"
+            && l.TargetKey != null && l.TargetKey.StartsWith(CardEchoes.KeyPrefix) && l.CounterpartAccountId != null
+            && accounts.Contains(l.CounterpartAccountId.Value)));
 
     /// <summary>D19: with <paramref name="readable"/>, an internal line whose counterpart account is not in it counts as <c>linked</c>.</summary>
     private IQueryable<TransactionRow> ByState(IQueryable<TransactionRow> query, string? state, IReadOnlyList<Guid>? readable)
@@ -140,12 +149,8 @@ public sealed class TransactionStore(BankingDbContext db, IClock clock) : ITrans
         IReadOnlyList<Guid> readable, OperationFilter filter, IReadOnlyList<Guid> categories, int skip, int take, CancellationToken ct)
     {
         var accounts = filter.Accounts;
-        var query = ByState(db.Transactions.AsNoTracking().Where(t => accounts.Contains(t.AccountId)), filter.State, readable);
-        // One purchase, one row: an immediate card's echo (#416) goes when its card is listed too, the card line saying where it was debited.
-        // « Interne » still lists it.
-        if (filter.State is not "internal")
-            query = query.Where(t => !db.Links.Any(l => l.TransactionId == t.Id && l.Outcome == "card_settlement" && l.TargetKey != null
-                && l.TargetKey.StartsWith(CardEchoes.KeyPrefix) && l.CounterpartAccountId != null && accounts.Contains(l.CounterpartAccountId.Value)));
+        var query = WithoutEchoes(ByState(db.Transactions.AsNoTracking().Where(t => accounts.Contains(t.AccountId)), filter.State, readable),
+            accounts, filter.State);
         if (filter.From is { } from)
             query = query.Where(t => t.BookedOn >= from);
         if (filter.To is { } to)
