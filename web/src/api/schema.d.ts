@@ -2471,6 +2471,8 @@ export interface paths {
                 query?: {
                     status?: string;
                     targetItemId?: string;
+                    q?: string;
+                    page?: number;
                 };
                 header?: never;
                 path?: never;
@@ -45115,6 +45117,8 @@ export interface components {
         };
         ProposalList: {
             items: components["schemas"]["ProposalView"][];
+            /** Format: int32 */
+            total: number;
         };
         ProposalView: {
             /** Format: uuid */

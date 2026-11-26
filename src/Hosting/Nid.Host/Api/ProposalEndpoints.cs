@@ -32,8 +32,9 @@ public static class ProposalEndpoints
             .Produces<ProposalView>(StatusCodes.Status200OK) // a deduplicated submission
             .Produces(StatusCodes.Status204NoContent); // a conforme document
 
-        api.MapGet("", async (string? status, Guid? targetItemId, IInvoker invoker, CancellationToken ct)
-                => (await invoker.InvokeAsync(new ListProposalsQuery(status, targetItemId is { } t ? new ItemId(t) : null), ct)).ToHttp(list => list))
+        // #774: `q` and `page` narrow the list on the server; without `page`, every proposal in the status (the pending ones are few).
+        api.MapGet("", async (string? status, Guid? targetItemId, string? q, int? page, IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new ListProposalsQuery(status, targetItemId is { } t ? new ItemId(t) : null, q, page), ct)).ToHttp(list => list))
             .Returns<ProposalList>();
 
         api.MapGet("/{id:guid}", async (Guid id, IInvoker invoker, CancellationToken ct)
