@@ -48,6 +48,7 @@ describe('the retirement page', () => {
     expect(within(figures).getByText(/300\s000,00\s€/)).toBeInTheDocument();
     expect(within(figures).getByText('juin 2040')).toBeInTheDocument();
     expect(within(figures).getByText('Revenu aujourd\'hui')).toBeInTheDocument();
+    expect(within(hero).queryByText(/couvre l’écart/)).not.toBeInTheDocument();
     expect(screen.getByText(/Chiffres indicatifs/)).toBeInTheDocument();
     expect(screen.queryByRole('table', { name: 'Départs à la retraite' })).not.toBeInTheDocument();
 
@@ -93,6 +94,7 @@ describe('the retirement page', () => {
     expect(within(figures).getByText('Besoin à la retraite')).toBeInTheDocument();
     expect(within(figures).getByText(/3\s200,00\s€/)).toBeInTheDocument();
     expect(within(figures).queryByText('Revenu aujourd\'hui')).not.toBeInTheDocument();
+    expect(within(hero).getByText('Le capital projeté couvre l’écart dès juin 2040')).toBeInTheDocument();
   });
 
   it('lists the adults without a figure when nobody has a birth date', async () => {

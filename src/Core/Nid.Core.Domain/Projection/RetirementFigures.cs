@@ -3,7 +3,7 @@ namespace Nid.Core.Domain.Projection;
 /// <summary>
 /// Retirement spec §3: at the retirement month <c>Month</c> (grid month kR), the monthly gap, the capital that would cover it at the
 /// withdrawal rate, and the capital held then; all in today's money, unrounded. With a living cost the gap is what the expenses
-/// (<c>Need</c>: the living cost, the commitments and the loan payments, as on the independence curve) ask beyond the income; without
+/// (<c>Need</c>: the living cost, the commitments still running then and the loan payments, as on the independence curve) ask beyond the income; without
 /// one, <c>Need</c> is null and the gap is what the income loses.
 /// </summary>
 public sealed record RetirementFigures(

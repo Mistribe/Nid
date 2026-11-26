@@ -35,7 +35,10 @@ export function OverviewTab({ scope }: { scope: Scope }) {
           <>
             {f ? (
               <>
-                <Hero label={t('retirement.gap')} figure={money(f.gap)} note={t('retirement.gap_note', { month: month(f.month) })} aside={(
+                <Hero label={t('retirement.gap')} figure={money(f.gap)} note={t('retirement.gap_note', { month: month(f.month) })}
+                  // #708: the gap alone reads as a shortfall; the independence month is when the projected capital covers it.
+                  change={f.need && data.financialIndependence ? t('retirement.gap_covered', { month: month(data.financialIndependence) }) : undefined}
+                  aside={(
                   <StatLine className="xl:grid-cols-4" items={[
                     // With a living cost the gap is the need beyond the income at retirement; without one, the income it loses.
                     f.need ? { label: t('retirement.need'), tip: t('retirement.need_tip'), value: money(f.need) } : { label: t('retirement.income_now'), value: money(f.incomeNow) },
