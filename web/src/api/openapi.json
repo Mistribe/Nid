@@ -43896,6 +43896,12 @@
             "items": {
               "$ref": "#/components/schemas/LinkedDocumentView"
             }
+          },
+          "debitedFrom": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },

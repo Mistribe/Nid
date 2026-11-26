@@ -265,6 +265,7 @@
       "linked_to": "Reliée · {{name}}",
       "internal": "Interne",
       "internal_to": "Interne · {{name}}",
+      "debited_from": "Débitée sur {{name}}",
       "ignored": "Ignorée",
       "counted": "Comptée dans les dépenses",
       "link": "Relier…",

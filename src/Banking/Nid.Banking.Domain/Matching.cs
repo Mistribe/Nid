@@ -99,6 +99,12 @@ public static class CardSettlement
 /// </summary>
 public static class CardEchoes
 {
+    /// <summary>The start of an echo link's target key, which names the card line it echoes.</summary>
+    public const string KeyPrefix = "line:";
+
+    /// <summary>The target key of the link from an echo to <paramref name="cardLine"/>.</summary>
+    public static string Key(Guid cardLine) => $"{KeyPrefix}{cardLine:N}";
+
     public static IReadOnlyList<(Guid Echo, Guid CardLine)> Pair(IReadOnlyList<Line> checking, IReadOnlyList<Line> card)
     {
         var candidates = (

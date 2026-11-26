@@ -333,6 +333,9 @@ public interface ILinkStore
 
     Task<IReadOnlyList<(BankLink Link, BankTransaction Line)>> OutcomeSinceAsync(LinkOutcome outcome, LocalDate since, CancellationToken ct);
 
+    /// <summary>The account each of these card lines' echo is on (#416), for the card lines an echo was linked to.</summary>
+    Task<IReadOnlyDictionary<Guid, Guid>> EchoAccountsAsync(IReadOnlyCollection<Guid> cardLines, CancellationToken ct);
+
     /// <summary>
     /// Upserts the link and sets the line's <c>link_state</c> (linked or internal) in one transaction; with a <paramref name="categoryKey"/>,
     /// the line takes that category as a <c>link</c> one, unless a person's choice holds it (<c>CategoryPrecedence</c>).

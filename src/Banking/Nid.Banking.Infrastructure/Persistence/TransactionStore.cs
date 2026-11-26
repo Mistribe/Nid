@@ -129,6 +129,11 @@ public sealed class TransactionStore(BankingDbContext db, IClock clock) : ITrans
     {
         var accounts = filter.Accounts;
         var query = ByState(db.Transactions.AsNoTracking().Where(t => accounts.Contains(t.AccountId)), filter.State, readable);
+        // One purchase, one row: an immediate card's echo (#416) goes when its card is listed too, the card line saying where it was debited.
+        // « Interne » still lists it.
+        if (filter.State is not "internal")
+            query = query.Where(t => !db.Links.Any(l => l.TransactionId == t.Id && l.Outcome == "card_settlement" && l.TargetKey != null
+                && l.TargetKey.StartsWith(CardEchoes.KeyPrefix) && l.CounterpartAccountId != null && accounts.Contains(l.CounterpartAccountId.Value)));
         if (filter.From is { } from)
             query = query.Where(t => t.BookedOn >= from);
         if (filter.To is { } to)

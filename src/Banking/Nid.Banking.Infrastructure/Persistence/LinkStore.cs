@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Nid.Banking.Application;
 using Nid.Banking.Contracts;
+using Nid.Banking.Domain;
 using Nid.Core.Contracts;
 using NodaTime;
 
@@ -26,6 +27,18 @@ public sealed class LinkStore(BankingDbContext db, ICategoryStore categories) : 
         var wire = Wire(outcome);
         return WithLinesAsync(
             db.Links.Where(l => l.Outcome == wire && db.Transactions.Any(t => t.Id == l.TransactionId && t.BookedOn >= since)), ct);
+    }
+
+    public async Task<IReadOnlyDictionary<Guid, Guid>> EchoAccountsAsync(IReadOnlyCollection<Guid> cardLines, CancellationToken ct)
+    {
+        var keys = cardLines.Select(CardEchoes.Key).ToList();
+        var wire = Wire(LinkOutcome.CardSettlement);
+        var echoes = await db.Links.Where(l => l.Outcome == wire && l.TargetKey != null && keys.Contains(l.TargetKey))
+            .Join(db.Transactions, l => l.TransactionId, t => t.Id, (l, t) => new { Key = l.TargetKey!, t.AccountId }).ToListAsync(ct);
+        var found = new Dictionary<Guid, Guid>();
+        foreach (var echo in echoes)
+            found.TryAdd(Guid.ParseExact(echo.Key[CardEchoes.KeyPrefix.Length..], "N"), echo.AccountId);
+        return found;
     }
 
     public async Task SetAsync(BankLink link, TransactionLinkState state, CancellationToken ct, string? categoryKey = null)

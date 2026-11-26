@@ -39858,6 +39858,7 @@ export interface components {
             /** Format: uuid */
             partId?: null | string;
             documents?: null | components["schemas"]["LinkedDocumentView"][];
+            debitedFrom?: null | string;
         };
         BatchView: {
             section: string;
