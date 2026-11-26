@@ -370,6 +370,23 @@ public class PassiveIncomeTests
     }
 
     [Fact]
+    public void The_estimate_takes_a_livret_s_rate_and_a_lease_s_rent_of_today_and_the_window_for_the_rest()
+    {
+        // #777: the Livret A earned 300 in the window, at a higher rate than today's; the flat's rent was revised to 950 this year.
+        var livret = new EnvelopeFacts("Livret A", EnvelopeKind.Savings) { Regulated = RegulatedKind.LivretA }
+            .Flow(D(2025, 1, 1), FlowKind.Opening, 10_000m).Value(D(2025, 11, 30), 10_000m).Value(D(2026, 10, 31), 10_300m).Build();
+        var cto = new EnvelopeFacts("CTO", EnvelopeKind.Brokerage).Flow(D(2026, 3, 1), FlowKind.Income, 100m, FlowCategories.Dividend).Build();
+        var flat = Property("Studio", m => m.Month == 1 ? (900m, 0m) : (0m, 0m)) with { MonthlyNetToday = 950m - 50m };
+
+        var p = Build([livret, cto], properties: [flat]);
+
+        Assert.Equal([100m, 300m, 0m, 900m, 0m], Kinds(p.ByKind));
+        var interest = Math.Round(10_300m * RegulatedSavings.Rate(RegulatedKind.LivretA, Today)!.Value / 100m, 2, MidpointRounding.AwayFromZero);
+        Assert.Equal([100m, interest, 0m, 12m * 900m, 0m], Kinds(p.Estimate.ByKind));
+        Assert.Equal(100m + interest + 10_800m, N(p.Estimate.Total));
+    }
+
+    [Fact]
     public void The_estimate_leaves_out_a_closed_envelope_and_an_archived_property()
     {
         var open = new EnvelopeFacts("CTO", EnvelopeKind.Brokerage).Flow(D(2026, 3, 1), FlowKind.Income, 100m, FlowCategories.Dividend).Build();
