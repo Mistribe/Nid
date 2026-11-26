@@ -228,20 +228,21 @@ public class RentReceiptTests(PostgresFixture fixture) : IClassFixture<PostgresF
                 rentsTrackedFrom = month, version = last.GetProperty("version").GetUInt32(),
             })).StatusCode;
         }
-        // Automatic: from March 2025; 18 months at 850, September's two halves (854.61) and October revised (859.22), less 20 × 850.
-        Assert.Equal(("2025-03", "13.83"), (Strings(await PropertyAsync(app, property), "receiptMonths")[^1], S((await PropertyAsync(app, property)).GetProperty("figures"), "arrears")));
+        // Automatic: from March 2025; 18 months at 850 and September's two halves (854.61), less 20 × 850: nothing owed, October
+        // not being over (#716).
+        Assert.Equal(("2025-03", "0.00"), (Strings(await PropertyAsync(app, property), "receiptMonths")[^1], S((await PropertyAsync(app, property)).GetProperty("figures"), "arrears")));
 
         // Set on the last link, before its own start: every link of the chain takes it, and February 2025 is due.
         Assert.Equal(HttpStatusCode.OK, await TrackAsync("2025-02"));
         var detail = await PropertyAsync(app, property);
         Assert.All(detail.GetProperty("tenancies").EnumerateArray(), t => Assert.Equal("2025-02", S(t, "rentsTrackedFrom")));
-        Assert.Equal(("2025-02", "863.83"), (Strings(detail, "receiptMonths")[^1], S(detail.GetProperty("figures"), "arrears")));
+        Assert.Equal(("2025-02", "4.61"), (Strings(detail, "receiptMonths")[^1], S(detail.GetProperty("figures"), "arrears")));
 
         // Cleared on the last link: cleared on the whole chain, the automatic start back.
         Assert.Equal(HttpStatusCode.OK, await TrackAsync(""));
         detail = await PropertyAsync(app, property);
         Assert.All(detail.GetProperty("tenancies").EnumerateArray(), t => Assert.Equal(JsonValueKind.Null, t.GetProperty("rentsTrackedFrom").ValueKind));
-        Assert.Equal(("2025-03", "13.83"), (Strings(detail, "receiptMonths")[^1], S(detail.GetProperty("figures"), "arrears")));
+        Assert.Equal(("2025-03", "0.00"), (Strings(detail, "receiptMonths")[^1], S(detail.GetProperty("figures"), "arrears")));
     }
 
     [Fact]

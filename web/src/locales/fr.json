@@ -234,6 +234,8 @@
     "notice_other": "{{count}} choses à faire",
     "notice_income_gap_one": "Renseigner la suite de {{count}} revenu",
     "notice_income_gap_other": "Renseigner la suite de {{count}} revenus",
+    "notice_rent_arrears_one": "Loyer impayé : {{name}}",
+    "notice_rent_arrears_other": "Loyers impayés sur {{count}} biens",
     "notice_expected_documents_one": "{{count}} document attendu",
     "notice_expected_documents_other": "{{count}} documents attendus",
     "empty_title": "Bienvenue dans Nid",

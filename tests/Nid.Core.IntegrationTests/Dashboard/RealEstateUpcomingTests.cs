@@ -57,6 +57,26 @@ public class RealEstateUpcomingTests(PostgresFixture fixture) : IClassFixture<Po
             events.Select(Line));
     }
 
+    [Fact]
+    public async Task A_rent_unpaid_past_the_grace_is_to_do_and_the_current_month_is_not()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var flat = await NewPropertyAsync(app, Home(app, "Studio"));
+        await PostAsync(app, app.AdultA, flat, "tenancies", new { label = "T1", startsOn = "2025-06-01", rentMonthly = "900" });
+        foreach (var on in new[] { "2025-06-05", "2025-07-05", "2025-08-05" })
+            await PostAsync(app, app.AdultA, flat, "flows", new { occurredOn = on, kind = "income", amount = "900", category = "rent" });
+
+        // September is over by more than the grace on 15 October: to do, never in « À venir »; October is not over (#716).
+        var view = JsonDocument.Parse(await app.GetRawAsync(app.AdultA, "/api/v1/dashboard?scope=household")).RootElement;
+        var todo = view.GetProperty("todo").EnumerateArray().Single(t => S(t, "kind") == UpcomingKinds.RentArrears);
+        Assert.Equal((flat, "properties", "Studio", "2025-10-15"), (todo.GetProperty("id").GetGuid(), S(todo, "module"), S(todo, "name"), S(todo, "on")));
+        Assert.DoesNotContain(view.GetProperty("upcoming").EnumerateArray(), e => S(e, "kind") == UpcomingKinds.RentArrears);
+
+        await PostAsync(app, app.AdultA, flat, "flows", new { occurredOn = "2025-09-05", kind = "income", amount = "900", category = "rent" });
+        view = JsonDocument.Parse(await app.GetRawAsync(app.AdultA, "/api/v1/dashboard?scope=household")).RootElement;
+        Assert.DoesNotContain(view.GetProperty("todo").EnumerateArray(), t => S(t, "kind") == UpcomingKinds.RentArrears);
+    }
+
     [Theory]
     [InlineData("household")]
     [InlineData("me")]

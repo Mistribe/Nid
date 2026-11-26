@@ -353,6 +353,21 @@ describe('DashboardPage', () => {
     expect(screen.queryByRole('link', { name: /à faire/ })).not.toBeInTheDocument();
   });
 
+  const unpaid = (id: string, name: string) => todoItem({ kind: 'realestate.rent_arrears', module: 'properties', id, name, on: '2025-11-15' });
+
+  it('links an unpaid rent to its property’s rental tab (#716)', async () => {
+    serve(dashboard({ todo: [unpaid('00000000-0000-7000-8000-0000000000f1', 'Studio')] }));
+    await renderApp('/dashboard');
+    expect(await screen.findByRole('link', { name: 'Loyer impayé : Studio' })).toHaveAttribute('href', '/properties/00000000-0000-7000-8000-0000000000f1?tab=rental');
+    expect(screen.queryByRole('link', { name: /à faire/ })).not.toBeInTheDocument();
+  });
+
+  it('links several unpaid rents to the rental list (#716)', async () => {
+    serve(dashboard({ todo: [unpaid('00000000-0000-7000-8000-0000000000f1', 'Studio'), unpaid('00000000-0000-7000-8000-0000000000f2', 'T2')] }));
+    await renderApp('/dashboard');
+    expect(await screen.findByRole('link', { name: 'Loyers impayés sur 2 biens' })).toHaveAttribute('href', '/properties?tab=rental');
+  });
+
   it('counts the expected documents in one line to the documents page (#414)', async () => {
     serve(dashboard());
     const one = { subject: 'property', targetKind: 'core.item', targetId: '00000000-0000-7000-8000-0000000000f1', label: 'Maison', module: 'realestate', role: 'deed', period: 0 };
