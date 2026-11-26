@@ -531,6 +531,9 @@
         "monthly": "{{name}} : prélevé chaque mois",
         "rental_monthly": "Acompte foncier, par mois",
         "less": "Prélevé en moins sur l’année",
+        "less_months_one": "sur le dernier mois de l’année, le nouveau taux s’appliquant deux mois après la demande ; la baisse se poursuit en {{next}}",
+        "less_months_other": "sur les {{count}} derniers mois de l’année, le nouveau taux s’appliquant deux mois après la demande ; la baisse se poursuit en {{next}}",
+        "less_next_year": "rien cette année : le nouveau taux s’appliquerait deux mois après la demande, la baisse porte sur {{next}}",
         "balance": "Solde restant à la déclaration",
         "help": "La baisse reste sous la tolérance de 10 % (art. 1729 G du CGI) : au-delà, l’écart est majoré. Le reste des réductions et crédits revient par l’avance de janvier (60 % de ceux de l’an dernier) et le solde de l’été."
       }

@@ -19,7 +19,7 @@ const cutOf = () => {
   const loaded = estimate();
   loaded.result.withholding.cut = {
     rate: '4.2', declarants: [{ name: 'Alice', salaries: '37518.00', monthly: '141.49', pensions: '0.00' }],
-    rentalMonthly: '0.00', annual: '3005.70', less: '214.69', balance: '-2758.70',
+    rentalMonthly: '0.00', annual: '3005.70', less: '214.69', balance: '-2758.70', months: 12,
   };
   return loaded;
 };
@@ -120,6 +120,21 @@ describe('WithholdingTab', () => {
     expect(screen.queryByText(/tolérance de 10 %/)).toBeNull();
     await user.click(within(card).getByRole('button', { name: 'En savoir plus' }));
     expect(screen.getByText(/tolérance de 10 %/)).toBeInTheDocument();
+  });
+
+  it('says the months of the year a new rate still reaches, and that the rest is next year’s (#717)', async () => {
+    const late = cutOf();
+    late.result.withholding.cut = { ...late.result.withholding.cut!, less: '17.89', months: 1 };
+    await open(late);
+    const card = screen.getByRole('region', { name: 'Baisse sans risque' });
+    expect(card).toHaveTextContent('sur le dernier mois de l’année, le nouveau taux s’appliquant deux mois après la demande ; la baisse se poursuit en 2027');
+  });
+
+  it('says a new rate asked too late reaches only next year (#717)', async () => {
+    const late = cutOf();
+    late.result.withholding.cut = { ...late.result.withholding.cut!, less: '0.00', months: 0 };
+    await open(late);
+    expect(screen.getByRole('region', { name: 'Baisse sans risque' })).toHaveTextContent('rien cette année : le nouveau taux s’appliquerait deux mois après la demande, la baisse porte sur 2027');
   });
 
   it('no safe cut card without a cut', async () => {

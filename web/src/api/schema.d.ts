@@ -47213,6 +47213,11 @@ export interface components {
             annual: string;
             less: string;
             balance: string;
+            /**
+             * Format: int32
+             * @default 12
+             */
+            months: number;
         };
         WithholdingView: {
             rate: string;

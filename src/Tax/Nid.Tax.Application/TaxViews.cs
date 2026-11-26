@@ -272,7 +272,7 @@ public sealed record WithholdingView(
     public static WithholdingView Of(Withholding w) => new(
         TenthRate(w.Rate), Amount(w.TaxBase), Amount(w.Income), DeclarantViews(w.Declarants),
         Amount(w.RentalDeclared), Amount(w.RentalMonthly), Amount(w.Annual), Amount(w.LeftOut), Amount(w.Balance),
-        w.Cut is { } c ? new WithholdingCutView(TenthRate(c.Rate), DeclarantViews(c.Declarants), Amount(c.RentalMonthly), Amount(c.Annual), Amount(c.Less), Amount(c.Balance)) : null);
+        w.Cut is { } c ? new WithholdingCutView(TenthRate(c.Rate), DeclarantViews(c.Declarants), Amount(c.RentalMonthly), Amount(c.Annual), Amount(c.Less), Amount(c.Balance), c.Months) : null);
 
     private static string TenthRate(decimal rate) => rate.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture);
 
@@ -280,9 +280,12 @@ public sealed record WithholdingView(
         => declarants.Select(d => new DeclarantWithholdingView(d.Name, Amount(d.Salaries), Amount(d.Monthly), Amount(d.Pensions))).ToList();
 }
 
-/// <summary>Spec §4bis, the « baisse sans risque ». <c>Declarants[i].Salaries</c>: the salaries to enter.</summary>
+/// <summary>
+/// Spec §4bis, the « baisse sans risque ». <c>Declarants[i].Salaries</c>: the salaries to enter; <c>Less</c> and <c>Balance</c> over the
+/// <c>Months</c> of the year the new rate still applies to (#717).
+/// </summary>
 public sealed record WithholdingCutView(
-    string Rate, IReadOnlyList<DeclarantWithholdingView> Declarants, string RentalMonthly, string Annual, string Less, string Balance);
+    string Rate, IReadOnlyList<DeclarantWithholdingView> Declarants, string RentalMonthly, string Annual, string Less, string Balance, int Months = 12);
 
 /// <summary>Tax assessments spec §5: what the notices of <c>Year</c> handed to the estimate, in euros; only the figures they print. <c>RentalDeficitCarried</c> is a suggestion for the profile's field, not laid over the estimate.</summary>
 public sealed record TaxCarryView(

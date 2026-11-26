@@ -75286,7 +75286,8 @@
           "rentalMonthly",
           "annual",
           "less",
-          "balance"
+          "balance",
+          "months"
         ],
         "type": "object",
         "properties": {
@@ -75310,6 +75311,11 @@
           },
           "balance": {
             "type": "string"
+          },
+          "months": {
+            "type": "integer",
+            "format": "int32",
+            "default": 12
           }
         }
       },
