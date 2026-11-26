@@ -38,7 +38,7 @@ public sealed record UndetailedEnvelopeView(ItemId EnvelopeId, string Name, Amou
 
 /// <summary>
 /// Issue #103: a detailed envelope's fees in % of <c>CostYear</c>'s reports, weighted by its latest snapshot's lines (cash aside);
-/// <c>YearlyCost</c> is those rates on the reported lines' values, converted; <c>CoveredPct</c> the share of its lines with a report.
+/// <c>YearlyCost</c> is those rates on the reported lines' converted values, as the projection's; <c>CoveredPct</c> the share of its lines with a report.
 /// </summary>
 public sealed record EnvelopeFeesView(
     ItemId EnvelopeId, string Name, decimal? ContractFeesPct, decimal? SupportFeesPct, decimal? TotalFeesPct, AmountView? YearlyCost, decimal? CoveredPct);
@@ -64,8 +64,8 @@ public sealed record FeesProjectionView(
     AmountView? AboveReference20);
 
 /// <summary>
-/// Spec §5.2. D16: <c>Detailed + Unallocated + Undetailed = Value</c>, the overview's. D18: <c>Cost</c> is an estimate of
-/// <c>CostYear</c>. Every amount in <c>Currency</c> at today's rate; null when a rate is missing. Holding prices spec §5.4: an envelope
+/// Spec §5.2. D16: <c>Detailed + Unallocated + Undetailed = Value</c>, the overview's. #713: <c>Cost</c> is a year of fees, fund and
+/// contract, at <c>CostYear</c>'s rates on today's lines (the projection's <c>Yearly</c>), <c>CostPct</c> its rate on those lines. Every amount in <c>Currency</c> at today's rate; null when a rate is missing. Holding prices spec §5.4: an envelope
 /// counted at its estimate (<c>Estimated</c>, any of them) is detailed by its estimated lines; its fees and the share of units of
 /// account (D19, against the floor) stay on its snapshot.
 /// </summary>
@@ -284,7 +284,7 @@ internal static class InvestmentsHoldingsMath
                 var feeableValue = feeable.Sum(l => l.Value);
                 envelopeFees.Add(new EnvelopeFeesView(f.Item.Id, f.Item.DisplayName, Weighted(r => r.ContractFeesPct), Weighted(r => r.SupportFeesPct),
                     Weighted(r => r.TotalFeesPct),
-                    weight > 0m ? convert.View(At(reported.Sum(l => l.Value * l.Report!.TotalFeesPct / 100m), f.Currency)) : null,
+                    weight > 0m ? convert.View(SumOrNull(feeLines.Where(l => l.EnvelopeId == f.Item.Id).Select(Yearly))) : null,
                     feeableValue > 0m ? EnvelopeMath.RoundPercent(weight / feeableValue * 100m) : null));
             }
 
@@ -315,7 +315,9 @@ internal static class InvestmentsHoldingsMath
         var detailed = SumOrNull(detailedParts);
         var costed = rows.Where(r => r.Base is not null).ToList();
         var cost = SumOrNull(costed.Select(r => r.Cost));
-        var costBase = SumOrNull(costed.Select(r => r.Base));
+        // #713: the header is « Frais par an » (fund and contract fees on today's lines), the projection's, to the cent.
+        var yearly = SumOrNull(feeLines.Select(Yearly));
+        var yearlyBase = SumOrNull(feeLines.Select(l => l.Converted));
         var holdingsRows = rows
             .OrderBy(r => r.Converted is null).ThenByDescending(r => r.Converted).ThenBy(r => r.Row.Name, French).ThenBy(r => r.Row.HoldingId)
             .Select(r => r.Row with { SharePct = Share(r.Converted, total), CostSharePct = r.Base is null ? null : Share(r.Cost, cost) })
@@ -336,7 +338,8 @@ internal static class InvestmentsHoldingsMath
         return new InvestmentsHoldings(reference.Code, convert.View(total), convert.View(detailed), convert.View(SumOrNull(unallocatedParts)),
             convert.View(SumOrNull(undetailedParts)), Share(detailed, total), detailedCount, values.Count, byKind,
             Share(ucLines.Count == 0 ? 0m : SumOrNull(ucLines), SumOrNull(unitLinkedLines)), envelopesUc,
-            holdingsRows, concentrations, costYear, convert.View(cost), Share(cost, costBase),
+            holdingsRows, concentrations, costYear, convert.View(yearly),
+            yearly is { } y && yearlyBase is { } b && b > 0m ? Math.Round(y / b * 100m, 2, MidpointRounding.AwayFromZero) : null,
             // D18: a holding of cash has no fees to report.
             rows.Count(r => r.Row.TotalFeesPct is null && r.Row.Kind != "cash"),
             undetailed,
@@ -349,6 +352,9 @@ internal static class InvestmentsHoldingsMath
     /// <summary>Issue #209: a holding with a report of the cost year, its value in its envelope's currency and converted.</summary>
     internal sealed record FeeLine(
         ItemId EnvelopeId, string EnvelopeName, Guid HoldingId, string Name, decimal Value, decimal? Converted, decimal FeesPct, decimal ReferencePct);
+
+    /// <summary>A year of fees on the line's converted value, to the cent: every table adds these up, so they agree (#713).</summary>
+    private static decimal? Yearly(FeeLine l) => l.Converted is { } v ? Math.Round(v * l.FeesPct / 100m, 2, MidpointRounding.AwayFromZero) : null;
 
     /// <summary>
     /// Issue #209: v × (1 + return)^n − v × (1 + return − fees)^n is what the fees take in n years; the same at the reference's fees,
@@ -368,7 +374,7 @@ internal static class InvestmentsHoldingsMath
         }
 
         var costs = lines.Select(l => (Line: l, Amounts: l.Converted is { } v
-            ? new decimal?[] { Cent(v * l.FeesPct / 100m), Cent(Grown(v, 0m, 10) - Grown(v, l.FeesPct, 10)),
+            ? new decimal?[] { Yearly(l), Cent(Grown(v, 0m, 10) - Grown(v, l.FeesPct, 10)),
                 Cent(Grown(v, 0m, 20) - Grown(v, l.FeesPct, 20)), Cent(Grown(v, l.ReferencePct, 20) - Grown(v, l.FeesPct, 20)) }
             : [null, null, null, null])).ToList();
         FeesCostView View(Guid? id, string name, decimal? value, decimal fees, decimal reference, IReadOnlyList<decimal?[]> amounts)
