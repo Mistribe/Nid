@@ -92,6 +92,26 @@ public class InvestmentsOverviewTests
     }
 
     [Fact]
+    public void Since_january_ends_on_the_estimate_as_the_performance_page()
+    {
+        // #754: valued 27 000 on 30 September, estimated 27 500 today: both screens count +2 500 since 1 January.
+        var life = Life();
+        var estimates = new Dictionary<ItemId, Application.Prices.EnvelopeEstimate>
+        {
+            [life.Item.Id] = new(life.Item.Id, Money.Create(27_500m, Currency.Eur).TryGetValue(out var m) ? m : throw new InvalidOperationException(),
+                Today, D(2026, 9, 30), false, [], null, []),
+        };
+
+        var o = InvestmentsOverviewMath.Build([life], Currency.Eur, Rates, Today, InvestmentsOverviewMath.Grid(OverviewSpan.TwelveMonths, Today),
+            OverviewSpan.TwelveMonths, [], Persons, estimates);
+        var p = InvestmentsPerformanceMath.Build([life], Currency.Eur, Rates, Today, D(2026, 1, 1), Today, estimates).ToView();
+
+        Assert.Equal(2_500m, N(o.SinceJanuary));
+        Assert.Equal(N(p.Performance), N(o.SinceJanuary));
+        Assert.Equal(2_500m, EnvelopesNetWorth.SinceJanuary(life, Today, m)!.Performance!.Value.Amount);
+    }
+
+    [Fact]
     public void One_envelopes_annual_return_is_the_households()
     {
         var life = Life();
