@@ -49,11 +49,14 @@ public sealed record LoanFeeView(Guid Id, string Kind, string Amount, LocalDate 
 /// <summary>An early repayment; <c>Penalty</c> is its penalty's amount.</summary>
 public sealed record LoanRepaymentView(Guid Id, LocalDate OnDate, string Amount, string Effect, string? Penalty, string? Note, uint Version);
 
-/// <summary>Every field of <see cref="LoanFigures"/> (loans.md §8), today.</summary>
+/// <summary>
+/// Every field of <see cref="LoanFigures"/> (loans.md §8), today. <c>CapitalToRepay</c> is what <c>PrincipalRepaid</c> is measured
+/// against: the principal plus <c>CapitalisedInterest</c>, null without any (#709).
+/// </summary>
 public sealed record LoanFiguresView(
     string Balance, string PrincipalRepaid, string InterestPaid, string InsurancePaid, string FeesPaid, int? CurrentPhaseSeq,
     string? CurrentRate, int PaymentsLeft, LocalDate? NextPaymentOn, string? NextPaymentTotal, LocalDate? EndDate,
-    string TotalCost, string CostPaid, string CostRemaining);
+    string TotalCost, string CostPaid, string CostRemaining, string CapitalToRepay, string? CapitalisedInterest);
 
 public sealed record LoanWarningView(string Code, int Row);
 
@@ -97,10 +100,13 @@ public sealed record BankSchedulePreview(IReadOnlyList<BankRowView> Rows, Schedu
 public sealed record LoanScheduleYearView(
     int Year, string Payment, string Interest, string Principal, string Insurance, string EarlyRepayment, string Balance);
 
-/// <summary>The rows, their years, and the totals of interest and principal the chart's summary reads (3B1 precision 2).</summary>
+/// <summary>
+/// The rows, their years, and the totals of interest and principal the chart's summary reads (3B1 precision 2). The total
+/// principal includes <c>CapitalisedInterest</c>, the interest a total deferral added to the capital (null without any, #709).
+/// </summary>
 public sealed record LoanScheduleView(
     IReadOnlyList<LoanScheduleRowView> Rows, IReadOnlyList<LoanScheduleYearView> Years, string TotalInterest,
-    string TotalPrincipal, IReadOnlyList<LoanWarningView> Warnings);
+    string TotalPrincipal, IReadOnlyList<LoanWarningView> Warnings, string? CapitalisedInterest = null);
 
 public sealed record LoanOutcomeView(
     string Effect, string PaymentBefore, string PaymentAfter, LocalDate? EndBefore, LocalDate? EndAfter, int PaymentsBefore,
@@ -146,7 +152,7 @@ internal static class LoanViews
             .ToList();
         return new LoanDetail(loan.ItemId, item.DisplayName, loan.Lender, loan.Note, terms.Currency.Code, Wire(item.Visibility),
             item.Owners.Select(o => new LoanBorrowerView(o.PersonId.Value, o.ShareBp)).ToList(), ContractOf(loan), fees, repayments,
-            FiguresOf(LoanMath.At(terms, schedule, today)), warnings, canWrite, Ended(terms, schedule, today),
+            FiguresOf(LoanMath.At(terms, schedule, today), terms.Principal), warnings, canWrite, Ended(terms, schedule, today),
             loan.PropertyId, propertyName, LoanWire.Of(loan.Source),
             bank.Count == 0 ? null : new BankScheduleView(bank.Select(BankRowOf).ToList(), bank[0].DueDate, bank[^1].DueDate),
             diff is null ? null : ComparisonOf(diff.Summary))
@@ -173,7 +179,7 @@ internal static class LoanViews
                     Amount(LoanMath.At(terms, schedule, new LocalDate(y, 12, 31)).Balance));
             }).ToList(),
             Amount(rows.Sum(r => r.Interest)), Amount(rows.Sum(r => r.Principal)),
-            WarningsOf(schedule));
+            WarningsOf(schedule), Capitalised(LoanMath.Capitalised(rows)));
     }
 
     public static LoanSimulationView SimulationOf(EarlyRepaymentSimulation simulation)
@@ -205,10 +211,13 @@ internal static class LoanViews
             loan.Version);
     }
 
-    private static LoanFiguresView FiguresOf(LoanFigures f)
+    private static LoanFiguresView FiguresOf(LoanFigures f, decimal principal)
         => new(Amount(f.Balance), Amount(f.PrincipalRepaid), Amount(f.InterestPaid), Amount(f.InsurancePaid), Amount(f.FeesPaid),
             f.CurrentPhaseSeq, Rate(f.CurrentRate), f.PaymentsLeft, f.NextPaymentOn, Amount(f.NextPaymentTotal), f.EndDate,
-            Amount(f.TotalCost), Amount(f.CostPaid), Amount(f.CostRemaining));
+            Amount(f.TotalCost), Amount(f.CostPaid), Amount(f.CostRemaining), Amount(principal + f.CapitalisedInterest),
+            Capitalised(f.CapitalisedInterest));
+
+    private static string? Capitalised(decimal interest) => interest == 0m ? null : Amount(interest);
 
     private static List<LoanWarningView> WarningsOf(LoanSchedule schedule)
         => schedule.Warnings.Select(w => new LoanWarningView(w.Code, w.Row)).ToList();

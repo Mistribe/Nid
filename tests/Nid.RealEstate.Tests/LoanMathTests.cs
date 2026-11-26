@@ -41,6 +41,21 @@ public class LoanMathTests
     }
 
     [Fact]
+    public void Interest_capitalised_by_a_total_deferral_is_in_the_capital_the_payments_repay()
+    {
+        var t = Loans.Annuity(12_000m, 0.06m, 24) with { Phases = [new LoanPhase(1, PhaseMode.DeferredTotal, 0.06m, RateType.Fixed, 2), new LoanPhase(2, PhaseMode.Annuity, 0.06m, RateType.Fixed)] };
+        var s = Loans.Ok(LoanScheduleBuilder.Build(t));
+
+        var deferring = LoanMath.At(t, s, Loans.First);
+        Assert.Equal((0m, 60.00m), (deferring.PrincipalRepaid, deferring.CapitalisedInterest));
+
+        var f = LoanMath.At(t, s, Loans.First.PlusMonths(4));
+        Assert.Equal(120.30m, f.CapitalisedInterest);
+        Assert.Equal(12_000m + 120.30m - f.Balance, f.PrincipalRepaid);
+        Assert.Equal(0m, LoanMath.At(Loans.Golden(), Loans.Ok(LoanScheduleBuilder.Build(Loans.Golden())), Loans.First.PlusMonths(59)).CapitalisedInterest);
+    }
+
+    [Fact]
     public void After_the_end_nothing_is_left()
     {
         var (t, s) = Golden();

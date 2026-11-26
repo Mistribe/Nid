@@ -11,7 +11,8 @@ public static class LoanMath
     /// Balance after the last payment due on or before <paramref name="d"/> (an early repayment applied after it counts only
     /// from its own date); the principal between disbursement and the first payment; 0 before disbursement.
     /// <c>InterestPaid</c> is the interest accrued to <paramref name="d"/>, capitalised interest included; likewise
-    /// <c>PrincipalRepaid</c> includes interest capitalised by a total deferral (it is repaid with the later payments).
+    /// <c>PrincipalRepaid</c> includes interest capitalised by a total deferral (it is repaid with the later payments), so it is
+    /// measured against the principal plus <c>CapitalisedInterest</c>.
     /// </summary>
     public static LoanFigures At(LoanTerms t, LoanSchedule s, LocalDate d)
     {
@@ -48,8 +49,12 @@ public static class LoanMath
             balance, paid.Sum(r => r.Principal) + repaid, interest, insurance, fees,
             reference?.PhaseSeq, reference?.AnnualRate, left.Count,
             next?.DueDate, next is null ? null : next.Payment + next.Insurance,
-            rows.LastOrDefault()?.DueDate, totalCost, interest + insurance + fees, totalCost - (interest + insurance + fees));
+            rows.LastOrDefault()?.DueDate, totalCost, interest + insurance + fees, totalCost - (interest + insurance + fees),
+            Capitalised(paid));
     }
+
+    /// <summary>The interest the payments did not pay: a total deferral's, added to the capital (0 on every other row).</summary>
+    public static decimal Capitalised(IEnumerable<ScheduleRow> rows) => rows.Sum(r => r.Interest - (r.Payment - r.Principal));
 
     // The appended event's own fields are answered under the simulation's parameter names.
     private static string? Remap(string field, int index)

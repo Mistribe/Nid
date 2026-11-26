@@ -76,6 +76,8 @@ internal sealed record OverviewIncome(IncomePart Part, VisibilityScope Scope, Pe
 /// <summary>
 /// Spec §3.2 and §4.1. Every household figure is in <c>Currency</c>, null when a rate is missing (then a finding names it); a
 /// future point of a loan in another currency is converted at today's rate and flags <c>ConvertedIsEstimate</c> (D4).
+/// <c>PrincipalRepaid</c> and <c>RepaidShare</c> are measured against <c>CapitalToRepay</c>: the principal plus
+/// <c>CapitalisedInterest</c>, the interest total deferrals added to it (null without any, #709).
 /// </summary>
 public sealed record LoansOverview(
     string Currency, bool ConvertedIsEstimate, int RunningCount, int EndedCount, LoanMoneyView? Balance, LoanMoneyView? Principal,
@@ -83,7 +85,8 @@ public sealed record LoansOverview(
     LoanMoneyView? CostRemaining, LocalDate? FreeOn, LocalDate? NextPaymentOn, LoanMoneyView? NextPaymentTotal,
     IReadOnlyList<LoanOverviewRow> Loans, IReadOnlyList<BalanceMonthView> Months, IReadOnlyList<LoanEventView> Events,
     IReadOnlyList<LoanSpanView> Spans, IReadOnlyList<PaymentStepView> Steps, IReadOnlyList<PersonLoanShareView> ByPerson,
-    IReadOnlyList<LoanFindingView> Findings, LoanDebtRatioView? DebtRatio = null) : IExposesItems
+    IReadOnlyList<LoanFindingView> Findings, LoanDebtRatioView? DebtRatio = null, LoanMoneyView? CapitalToRepay = null,
+    LoanMoneyView? CapitalisedInterest = null) : IExposesItems
 {
     // The months and events name the same loans as the rows.
     public IEnumerable<ItemId> ExposedItems() => Loans.Select(l => l.Id);
@@ -171,11 +174,13 @@ internal static partial class LoansOverviewMath
             var payment = r.Payments.TryGetValue(thisMonth, out var due) ? due : (decimal?)null;
             return new LoanOverviewRow(r.Source.Item.Id, r.Source.Item.DisplayName, r.Source.Loan.Lender, r.Source.Loan.PropertyId,
                 r.Source.PropertyName, r.Source.Item.OwnerViews(), r.Currency.Code, Amount(r.Terms.Principal), Amount(f.Balance),
-                Fraction(f.PrincipalRepaid / r.Terms.Principal), Amount(payment), Rate(f.CurrentRate), f.EndDate,
+                Fraction(f.PrincipalRepaid / (r.Terms.Principal + f.CapitalisedInterest)), Amount(payment), Rate(f.CurrentRate), f.EndDate,
                 convert.View(convert.Of(f.Balance, r.Currency)), payment is { } p ? convert.View(convert.Of(p, r.Currency)) : null);
         }).ToList();
 
         var principal = Household(r => r.Terms.Principal);
+        var toRepay = Household(r => r.Terms.Principal + r.Figures.CapitalisedInterest);
+        var capitalised = Household(r => r.Figures.CapitalisedInterest);
         var repaid = Household(r => r.Figures.PrincipalRepaid);
         var freeOn = running.Select(r => r.Figures.EndDate).Max();
         var nextOn = running.Select(r => r.Figures.NextPaymentOn).Min();
@@ -209,13 +214,13 @@ internal static partial class LoansOverviewMath
         var ratio = income is null ? null : Ratio(running, income, thisMonth, convert);
         return new LoansOverview(reference.Code, estimate, running.Count, read.Count - running.Count,
             convert.View(Household(r => r.Figures.Balance)), convert.View(principal), convert.View(repaid),
-            principal is { } of && of != 0m && repaid is { } done ? Fraction(done / of) : null,
+            toRepay is { } of && of != 0m && repaid is { } done ? Fraction(done / of) : null,
             convert.View(PaymentOf(thisMonth)), convert.View(Household(r => r.Figures.CostPaid)),
             convert.View(Household(r => r.Figures.CostRemaining)), freeOn, nextOn, convert.View(nextTotal),
             rows, months, events, running.Select(Span).ToList(), steps,
             People(running, persons, r => convert.Of(r.Figures.Balance, r.Currency),
                 r => convert.Of(r.Payments.GetValueOrDefault(thisMonth), r.Currency), convert),
-            convert.Missing, ratio);
+            convert.Missing, ratio, convert.View(toRepay), capitalised == 0m ? null : convert.View(capitalised));
     }
 
     /// <summary>

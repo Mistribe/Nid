@@ -26,7 +26,8 @@ export const loanDetail = (over: Partial<LoanDetail> = {}): LoanDetail => ({
   figures: {
     balance: '193564.23', principalRepaid: '6435.77', interestPaid: '6323.35', insurancePaid: '0.00', feesPaid: '0.00',
     currentPhaseSeq: 1, currentRate: '0.035', paymentsLeft: 229, nextPaymentOn: '2026-10-15', nextPaymentTotal: '1159.92',
-    endDate: '2045-10-15', totalCost: '78380.66', costPaid: '6323.35', costRemaining: '72057.31',
+    endDate: '2045-10-15', totalCost: '78380.66', costPaid: '6323.35', costRemaining: '72057.31', capitalToRepay: '200000.00',
+    capitalisedInterest: null,
   },
   warnings: [], canWrite: true, ended: false, scheduleSource: 'computed', bankSchedule: null, comparison: null, ...over,
 });
@@ -92,7 +93,7 @@ export const agreeing = (over: Partial<LoanComparison> = {}): LoanComparison => 
 /** The loan with its bank's table stored, agreeing with the calculation. */
 export const withTable = (over: Partial<LoanDetail> = {}): LoanDetail => loanDetail({ bankSchedule: bankTable(), comparison: agreeing(), ...over });
 
-const eur = (amount: string) => ({ amount, currency: 'EUR' });
+export const eur = (amount: string) => ({ amount, currency: 'EUR' });
 
 /** A running loan of the overview: the golden case read on 2026-10-12, as `summary`. */
 export const overviewRow = (over: Partial<LoanOverviewRow> = {}): LoanOverviewRow => ({

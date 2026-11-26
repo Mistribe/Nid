@@ -110,6 +110,7 @@
     "payments_left_one": "{{count}} échéance restante",
     "payments_left_other": "{{count}} échéances restantes",
     "progress": "{{repaid}} remboursés sur {{principal}}",
+    "progress_capitalised": "{{repaid}} remboursés sur {{principal}}, dont {{interest}} d’intérêts capitalisés pendant le différé",
     "principal_repaid": "Capital remboursé",
     "upcoming": "Prochaines échéances",
     "cost": "Coût du crédit",
@@ -185,7 +186,8 @@
       "balance_title": "Capital restant dû par année",
       "year": "Année",
       "table": "Intérêts et capital par année",
-      "summary": "Échéancier de {{first}} à {{last}} : {{interest}} d’intérêts et {{principal}} de capital au total."
+      "summary": "Échéancier de {{first}} à {{last}} : {{interest}} d’intérêts et {{principal}} de capital au total.",
+      "summary_capitalised": "Échéancier de {{first}} à {{last}} : {{interest}} d’intérêts et {{principal}} de capital au total, dont {{capitalised}} d’intérêts capitalisés pendant le différé."
     },
     "settings": {
       "title": "Réglages",
@@ -372,6 +374,7 @@
     "debt_ratio_no_income": "aucun revenu déclaré",
     "progress_title": "Avancement",
     "progress": "{{repaid}} remboursés sur {{principal}} · {{share}}",
+    "progress_capitalised": "{{repaid}} remboursés sur {{principal}}, dont {{interest}} d’intérêts capitalisés pendant un différé · {{share}}",
     "chart_title": "Capital restant dû jusqu’à la fin",
     "chart_table": "Capital restant dû, mois par mois",
     "month": "Mois",
