@@ -1,6 +1,6 @@
 // Fills a local stack with the demo household in one go: signs Bob and Alice in, switches the bank on, imports both files with
 // their dates ending last month, validates Léa's childcare months, then seeds what the files cannot hold (seed.mjs): tax
-// notices, scenarios, documents, the CPI. Running it again changes nothing.
+// notices, birth dates, the living cost and a pension, scenarios, documents, the CPI. Running it again changes nothing.
 // Throwaway: it uses the static API key of the local Pocket ID, and refuses any other host. Never on a real deployment.
 //   node deploy/local/demo/load.mjs        (the stack running: `aspire run`; Playwright installed: `pnpm --dir web install`)
 //   NID_URL (default https://nid.localtest.me), NID_IDP_URL (default https://auth.localtest.me), NID_IDP_API_KEY

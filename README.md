@@ -128,7 +128,7 @@ and Nid's OIDC client. To start again from an empty database: `docker volume rm 
 
 **Demo data.** [`deploy/local/demo/`](deploy/local/demo) fills every screen with an invented household (Alice, Bob and
 Léa): subscriptions, bank accounts, investments, three properties and three loans, income, childcare, goals, tax
-notices, scenarios and documents, dated up to last month. With the stack running and Playwright installed:
+notices, retirement (birth dates, a living cost, one pension), scenarios and documents, dated up to last month. With the stack running and Playwright installed:
 
 ```bash
 node deploy/local/demo/load.mjs                 # signs in as Bob, then Alice, and loads everything through the API

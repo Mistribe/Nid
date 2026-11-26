@@ -1,6 +1,6 @@
 // Finishes a demo-mode instance (Nid__Demo__Enabled, deploy/README.md §14): Nid loads the two nid.data files itself on start,
 // this adds what the files cannot hold, as load.mjs does on a local stack: Léa's childcare months validated, then seed.mjs
-// (documents, tax notices, scenarios, the CPI). Signed in as Alice through /auth/demo/alice: no identity provider, no
+// (documents, tax notices, retirement, scenarios, the CPI). Signed in as Alice through /auth/demo/alice: no identity provider, no
 // browser. Running it again changes nothing. The nightly reset of the public demo runs it (.github/workflows/demo-reset.yml).
 // The demo refuses document uploads and household settings to visitors: NID_DEMO_SEED_KEY, the instance's
 // Nid__Demo__SeedKey, lets this script through.
