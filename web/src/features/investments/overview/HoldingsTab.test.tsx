@@ -33,7 +33,7 @@ describe('Placements › supports et frais', () => {
     const figures = (await screen.findByText('Détaillé par support')).closest('dl')!;
     expect(figures).toHaveTextContent('139 700,00 €2 enveloppes sur 3 · 85,8 % de la valeur');
     expect(figures).toHaveTextContent('Part en unités de compte64,0 %assurance-vie et PER · plancher 60,0 %');
-    expect(figures).toHaveTextContent('Frais estimés en 2024≈ 233,75 €≈ 0,9 % des encours · estimation');
+    expect(figures).toHaveTextContent('Frais estimés par an≈ 266,90 €≈ 0,85 % des supports avec un rapport de frais · estimation');
     expect(figures).toHaveTextContent('Prochaine échéance5 déc. 2025Athena 2023');
     expect(screen.getByRole('note')).toHaveTextContent('Amundi MSCI World pèse 43,2 % du foyer, détenu dans 2 enveloppes.');
     expect(seen[0]).toBe('?scope=household');

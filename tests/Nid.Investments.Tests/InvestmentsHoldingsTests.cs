@@ -112,7 +112,9 @@ public class InvestmentsHoldingsTests
 
         var o = h.Build();
 
-        Assert.Equal((2025, 233.75m, 0.9m), (o.CostYear, N(o.Cost), o.CostPct));
+        // #713: the header is a year of fund and contract fees on today's lines, « Frais par an »; the holding's own line, its 2025 cost.
+        Assert.Equal((2025, 266.90m, 0.85m), (o.CostYear, N(o.Cost), o.CostPct));
+        Assert.Equal(N(o.Projection!.Yearly), N(o.Cost));
         Assert.Equal(233.75m, N(o.Holdings.Single(r => r.HoldingId == lifeWorld).ImplicitCost));
         // Eight holdings, one with a report, the cash without fees to report.
         Assert.Equal(6, o.WithoutReportCount);
@@ -213,6 +215,25 @@ public class InvestmentsHoldingsTests
     }
 
     [Fact]
+    public void Every_table_adds_up_the_same_cents_of_yearly_fees()
+    {
+        var h = new Household();
+        var pea = new EnvelopeFacts("PEA", EnvelopeKind.Pea).Flow(D(2025, 1, 1), FlowKind.Opening, 2_000m).Value(D(2026, 9, 30), 2_000m);
+        h.Facts.Add(pea.Build());
+        var a = h.Holding(pea.Id, "Fonds A", "etf");
+        var b = h.Holding(pea.Id, "Fonds B", "etf");
+        h.Snapshot(pea.Id, D(2026, 9, 30), Line(a, 1_001m), Line(b, 1_001m));
+        h.Reports[pea.Id] = [new CostReport(a, 2025, 5m, 0.25m, 4.75m, null, null, null, null, null),
+            new CostReport(b, 2025, 5m, 0.25m, 4.75m, null, null, null, null, null)];
+
+        var o = h.Build();
+
+        // #713: 2.5025 is 2.50 each, 5.00 together, never 5.01 for the envelope alone.
+        Assert.Equal((5.00m, 5.00m, 5.00m, 0.25m),
+            (N(o.Cost), N(o.EnvelopeFees.Single().YearlyCost), N(o.Projection!.Envelopes.Single().Total.Yearly), o.CostPct));
+    }
+
+    [Fact]
     public void Without_a_report_there_is_no_projection_and_a_foreign_envelopes_cost_is_converted()
     {
         var (none, _, _) = Fixture();
@@ -271,7 +292,7 @@ public class InvestmentsHoldingsTests
         // As without the estimate: 64 %, under the floor of 70 %.
         Assert.Equal((64.0m, 64.0m), (o.UcSharePct, Assert.Single(o.EnvelopesUc).UcSharePct));
         Assert.Contains(o.Watch, w => w.Code == "uc_share_below_floor");
-        Assert.Equal((233.75m, 0.9m), (N(o.Cost), o.CostPct));
+        Assert.Equal((266.90m, 0.85m), (N(o.Cost), o.CostPct));
     }
 
     [Fact]
