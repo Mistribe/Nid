@@ -168,11 +168,12 @@ public sealed record CalendarView(LocalDate From, LocalDate To, IReadOnlyList<Da
 
 /// <summary>
 /// Issue #241: a debit (a credit: <c>Credit</c>, a rent) expected on an item, in its own currency and in the household's (<c>Converted</c>,
-/// null with <c>MissingCurrency</c> when a rate is missing). <c>Kind</c> is its <see cref="ChargeKind.Name"/>.
+/// null with <c>MissingCurrency</c> when a rate is missing). <c>Kind</c> is its <see cref="ChargeKind.Name"/>. #755: <c>Estimated</c>, a
+/// projected amount and day (<see cref="ExpectedCharge.Estimated"/>).
 /// </summary>
 public sealed record CalendarChargeView(
     LocalDate On, string Module, ItemId Id, string Name, string Kind, DashboardMoneyView Amount, DashboardMoneyView? Converted,
-    string? MissingCurrency, bool Credit);
+    string? MissingCurrency, bool Credit, bool Estimated);
 
 /// <summary>Issue #241: a day with a charge; <c>Out</c> or <c>In</c> null when nothing goes that way. <c>Heavy</c>: one of the window's three largest days out.</summary>
 public sealed record CalendarDayView(LocalDate On, DashboardFigure? Out, DashboardFigure? In, bool Heavy);
@@ -211,7 +212,7 @@ public static class CalendarAmounts
                 {
                     var (converted, missing) = DashboardMath.Convert(c.Amount, reference, rates, today);
                     return new CalendarChargeView(c.DueOn, c.Kind.Page, c.Item, c.ItemName, c.Kind.Name,
-                        DashboardMath.Money(c.Amount.Amount, c.Amount.Currency), converted is { } v ? DashboardMath.Money(v, reference) : null, missing, c.Credit);
+                        DashboardMath.Money(c.Amount.Amount, c.Amount.Currency), converted is { } v ? DashboardMath.Money(v, reference) : null, missing, c.Credit, c.Estimated);
                 })
                 .ToList());
     }

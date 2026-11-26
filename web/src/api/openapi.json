@@ -44203,7 +44203,8 @@
           "name",
           "kind",
           "amount",
-          "credit"
+          "credit",
+          "estimated"
         ],
         "type": "object",
         "properties": {
@@ -44244,6 +44245,9 @@
             ]
           },
           "credit": {
+            "type": "boolean"
+          },
+          "estimated": {
             "type": "boolean"
           }
         }

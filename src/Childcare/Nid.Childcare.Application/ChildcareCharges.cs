@@ -82,7 +82,7 @@ public sealed class ChildcareProjectedCharges(
                 var due = LocalDate.Max(paidIn.OnDayOfMonth(Math.Min(day, paidIn.ToDateInterval().End.Day)), today);
                 if (due >= from && due <= to && Money.Create(Math.Round(cost, 2, MidpointRounding.AwayFromZero), currency).TryGetValue(out var amount))
                     charges.Add(new ExpectedCharge("childcare", context.Arrangement.ItemId, context.Item.DisplayName, ChildcareCharges.Childcare,
-                        $"estimate:{StatementAssembly.Format(month)}", due, amount, false, 5, []));
+                        $"estimate:{StatementAssembly.Format(month)}", due, amount, false, 5, [], Estimated: true));
             }
         }
         return Result.Success<IReadOnlyList<ExpectedCharge>>(charges);
