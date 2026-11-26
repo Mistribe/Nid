@@ -8,9 +8,10 @@ using UnambitiousFx.Functional;
 namespace Nid.Subscriptions.Application;
 
 /// <summary>
-/// 2D1 spec §4: this calendar month's amortized and cash cost of the reader's visible active subscriptions, by the
-/// household totals' rules (a purchase granting to several subscriptions is counted once in cash). Issue #12: with
-/// <c>includeArchived</c>, archived ones too, each for its charges strictly before its archive day.
+/// 2D1 spec §4: the monthly and cash cost of the reader's visible active subscriptions, by the household totals' rules (a purchase
+/// granting to several subscriptions is counted once in cash). #782: the monthly cost is Abonnements' « Par mois » (#711), a twelfth of
+/// what this month and the 11 after charge; the cash this month's charges. Issue #12: with <c>includeArchived</c>, archived ones too,
+/// each for its charges strictly before its archive day.
 /// </summary>
 public sealed class SubscriptionsCommitments(IVisibleItems visible, ISubscriptionStore store, IItemRegistry items, IHouseholdCalendar calendar)
     : ICommitmentsContribution
@@ -18,7 +19,9 @@ public sealed class SubscriptionsCommitments(IVisibleItems visible, ISubscriptio
     public async Task<Result<CommitmentsPart>> CommitmentsAsync(PersonId reader, VisibilityScope scope, LocalDate today, CancellationToken ct, bool includeArchived = false)
     {
         var window = CostWindow.Resolve(today, null, null);
-        var horizon = Horizons.Resolve(today, null);
+        var year = CostWindow.Year(today);
+        // As the overview's: the walk reaches the end of the year's last month.
+        var horizon = window.Start.PlusMonths(13);
         var ids = (await visible.ForAsync(reader, scope, includeArchived, ct)).ToList();
         var inputs = await store.LoadManyAsync(ids, ct);
         var archivedOn = new Dictionary<ItemId, LocalDate>();
@@ -46,7 +49,7 @@ public sealed class SubscriptionsCommitments(IVisibleItems visible, ISubscriptio
 
         return Result.Success(new CommitmentsPart(
             CommitmentSources.Subscriptions, timelines.Count,
-            Sum(HouseholdCost.AmortizedPieces(timelines, window)),
+            Sum(HouseholdCost.CashPieces(timelines, year)).ToDictionary(p => p.Key, p => Math.Round(p.Value / 12m, 2, MidpointRounding.AwayFromZero)),
             Sum(HouseholdCost.CashPieces(timelines, window))));
     }
 

@@ -8,6 +8,8 @@ import { percent } from '@/lib/format';
 import { Value } from '../KeyFigures';
 
 const SOURCE_KEYS = ['subscriptions', 'loans', 'property_costs', 'tax', 'childcare'] as const;
+/** #723, #782: a figure that has a twin elsewhere names its basis and where the same figure is. */
+const TIPS = { subscriptions: 'dashboard.subscriptions_tip', childcare: 'dashboard.childcare_tip' } as const;
 
 /** Spec §4.2: what the month's commitments are made of, as the server split them. */
 export function CommitmentsPanel({ d }: { d: DashboardView }) {
@@ -28,8 +30,7 @@ export function CommitmentsPanel({ d }: { d: DashboardView }) {
           return key && s.amortized ? [
             <li key={key} className="tabular-nums">
               {t(`dashboard.commitment_source.${key}`, { amount: formatMoney(s.amortized) })}{s.estimated ? ` ${t('dashboard.estimated')}` : ''}
-              {/* #723: four childcare figures exist; this one names itself and says where the same figure is. */}
-              {key === 'childcare' ? <InfoTip label={t('dashboard.commitment_name.childcare')}>{t('dashboard.childcare_tip')}</InfoTip> : null}
+              {key === 'subscriptions' || key === 'childcare' ? <InfoTip label={t(`dashboard.commitment_name.${key}`)}>{t(TIPS[key])}</InfoTip> : null}
             </li>,
           ] : [];
         })}

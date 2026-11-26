@@ -285,6 +285,8 @@ describe('key figure panels', () => {
 
     const panel = await dialog('Engagements / mois');
     expect(panel).toHaveTextContent('Abonnements 250,56 €');
+    // #782: the figure is Abonnements' « Par mois », and says so.
+    expect(within(panel).getByRole('button', { name: 'À propos : Abonnements' })).toBeInTheDocument();
     expect(panel).toHaveTextContent('Crédits 800,00 €');
     expect(panel).toHaveTextContent('Charges des biens 90,00 €');
     expect(panel).toHaveTextContent('10 % des revenus');

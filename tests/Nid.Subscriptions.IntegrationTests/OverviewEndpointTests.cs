@@ -12,6 +12,8 @@ public class OverviewEndpointTests(PostgresFixture fixture) : IClassFixture<Post
     public sealed record Overview(
         string Currency, Money? MonthlyAmortized, Money? AnnualAmortized, int ActiveCount, List<MonthRow> Months, List<PersonShare> ByPerson);
     public sealed record MonthRow(string Month, Money? Recurring, Money? LongCycle);
+    public sealed record CommitmentSource(string Source, Money? Amortized);
+    public sealed record Dashboard(List<CommitmentSource> CommitmentSources);
 
     private static decimal Value(Money? m) => decimal.Parse(Assert.IsType<Money>(m).Amount, CultureInfo.InvariantCulture);
 
@@ -82,6 +84,10 @@ public class OverviewEndpointTests(PostgresFixture fixture) : IClassFixture<Post
         static decimal Of(AnnualCostTests.Money? m) => decimal.Parse(Assert.IsType<AnnualCostTests.Money>(m).Amount, CultureInfo.InvariantCulture);
         Assert.Equal((132.00m, 11.00m), (Of(row.AnnualCostConverted), Of(row.MonthlyCostConverted)));
         Assert.Equal((252.00m, 21.00m), (Of(list.HouseholdAnnualCostConverted), Of(list.HouseholdMonthlyCostConverted)));
+
+        // #782: Accueil's « Abonnements » is the same « Par mois ».
+        var dashboard = await app.GetAsync<Dashboard>(app.AdultA, "/api/v1/dashboard?scope=me");
+        Assert.Equal(21.00m, Value(dashboard.CommitmentSources.Single(c => c.Source == CommitmentSources.Subscriptions).Amortized));
     }
 
     [Fact]

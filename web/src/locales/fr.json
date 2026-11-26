@@ -279,6 +279,7 @@
     },
     "estimated": "(estimation)",
     "childcare_tip": "Ce que la garde vous coûte ce mois-ci, après la CMG : le salaire, les cotisations et les frais laissés au foyer, moins l’aide. Estimé d’après les jours prévus tant que le mois n’est pas validé, puis celui du relevé validé. C’est le « Coût net du mois » de la page Garde ; le prélèvement Pajemploi, lui, tombe le mois suivant.",
+    "subscriptions_tip": "Le « Par mois » de la page Abonnements : un douzième de ce que vos abonnements prélèveront ce mois-ci et les 11 suivants. Un abonnement annuel compte pour un douzième chaque mois, un essai gratuit une fois terminé.",
     "see_childcare": "Voir la garde",
     "income_unknown": "Inconnu : aucun revenu déclaré",
     "smoothed_per_month": "par mois, lissé sur l’année",
