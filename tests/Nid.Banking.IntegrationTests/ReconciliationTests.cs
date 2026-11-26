@@ -236,6 +236,25 @@ public class ReconciliationTests(PostgresFixture fixture) : IClassFixture<Postgr
         Assert.Equal((TransactionLinkState.Unlinked, groceries, CategorySource.Hand), (bought.LinkState, bought.Category, bought.CategorySource));
     }
 
+    /// <summary>A card attached once its lines are stored: the next pass pairs them with their echoes, one row per purchase.</summary>
+    [Fact]
+    public async Task A_card_attached_later_takes_the_echoes_of_its_stored_lines()
+    {
+        await using var app = await StartAsync(fixture);
+        var courant = await CourantAsync(app, BankingApi.Account("uid-2", "hash-2", null, "Carte A", "CARD", debit: CardDebit.Immediate));
+        var card = await AccountAsync(app, app.AdultA, "Carte A");
+        var purchase = await AddAsync(app, card, "c1", D(10, 12), -42m, "CARTE 12/10/26 SHOP");
+        var echo = await AddAsync(app, courant, "e1", D(10, 13), -42m, "CARTE 12/10/26 SHOP CB*0000");
+        Assert.Equal(0, (await PassAsync(app)).Internal);
+
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Patch, $"{BankingApi.Root}/accounts/{card}", new { cardOfAccountId = courant })).StatusCode);
+
+        Assert.Equal(1, (await PassAsync(app)).Internal);
+        var link = (await LinkOfAsync(app, echo))!;
+        Assert.Equal((LinkOutcome.CardSettlement, card, $"line:{purchase:N}"), (link.Outcome, link.CounterpartAccount, link.TargetKey));
+        Assert.Equal(TransactionLinkState.Unlinked, (await LineAsync(app, purchase)).LinkState);
+    }
+
     [Fact]
     public async Task A_deferred_card_settles_and_never_echoes()
     {
@@ -703,6 +722,8 @@ public class ReconciliationTests(PostgresFixture fixture) : IClassFixture<Postgr
         public Task<BankTransaction?> FindAsync(Guid id, CancellationToken ct) => inner.FindAsync(id, ct);
 
         public Task MarkReconciledAsync(IReadOnlyCollection<Guid> ids, Instant at, CancellationToken ct) => inner.MarkReconciledAsync(ids, at, ct);
+
+        public Task RequeueAsync(Guid account, CancellationToken ct) => inner.RequeueAsync(account, ct);
 
         public Task<IReadOnlyList<BankTransaction>> UncategorisedLinkedAsync(Guid? after, int take, CancellationToken ct) => inner.UncategorisedLinkedAsync(after, take, ct);
         public Task<int> PurgeBookedBeforeAsync(LocalDate before, IReadOnlyCollection<Guid> keep, CancellationToken ct) => inner.PurgeBookedBeforeAsync(before, keep, ct);
