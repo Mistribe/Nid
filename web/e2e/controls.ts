@@ -20,3 +20,8 @@ export async function fillDate(page: Page | Locator, label: string | RegExp, iso
 export function toasts(page: Page): Locator {
   return page.getByRole('region', { name: /^Messages/ });
 }
+
+/** Unfolds every folded group row of a list table: the account list folds the envelopes of the same owners into one row. */
+export async function unfoldAll(table: Locator): Promise<void> {
+  for (const row of await table.getByRole('button', { name: 'Déplier les comptes', expanded: false }).all()) await row.click();
+}

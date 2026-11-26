@@ -50985,9 +50985,42 @@
           }
         }
       },
+      "EnvelopeGroupView": {
+        "required": [
+          "owners",
+          "items"
+        ],
+        "type": "object",
+        "properties": {
+          "owners": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ItemOwnerView"
+            }
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "value": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AmountView"
+              }
+            ]
+          }
+        }
+      },
       "EnvelopeList": {
         "required": [
-          "items"
+          "items",
+          "groups"
         ],
         "type": "object",
         "properties": {
@@ -50995,6 +51028,12 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/EnvelopeSummary"
+            }
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EnvelopeGroupView"
             }
           }
         }

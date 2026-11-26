@@ -17,7 +17,7 @@ import { amountKey } from '@/components/page/sortKey';
 import { SwitchField } from '@/components/page/SwitchField';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { buttonVariants } from '@/components/ui/button';
-import { ENVELOPES, HOUSEHOLD_HOLDINGS, type EnvelopeSummary } from '@/api/investments';
+import { ENVELOPES, HOUSEHOLD_HOLDINGS, type EnvelopeList, type EnvelopeSummary } from '@/api/investments';
 import { kindText } from './format';
 import { Gain } from './Figures';
 import '@/locales/investments';
@@ -109,26 +109,30 @@ function Body({ answer, add }: { answer: ReturnType<typeof useEnvelopes>; add: R
   if (data.items.length === 0)
     return <EmptyState module="/investments" title={t('investments.empty_title')} body={t('investments.empty_body')} action={add} />;
 
+  // As the income list: the envelopes of the same owners fold into one row, its total the server's.
+  const value = (r: Row) => (r.parts ? r.total : r.figures.value);
+  const valueCell = (r: Row) => value(r) ? <Money value={value(r)!} tabular /> : <span className="text-muted-foreground">{r.parts ? t('investments.dash') : t('investments.no_value')}</span>;
   return (
     <>
       <p className="text-sm text-muted-foreground">{t('investments.before_tax')}</p>
-      <SortableTable<EnvelopeSummary> caption={t('investments.list')} rows={data.items} rowKey={(r) => r.id}
+      <SortableTable<Row> caption={t('investments.list')} rows={rows(data)} rowKey={(r) => (r.parts ? `group:${r.id}` : r.id)}
         rowLink={(r) => ({ to: '/investments/$id', params: { id: r.id } })}
+        subRows={(r) => r.parts} expandLabel={() => t('investments.expand_group')}
+        rowClassName={(r) => (r.parts ? 'bg-muted/50' : undefined)}
         columns={[
           { id: 'name', header: t('lists.col.name'), sort: (r) => r.displayName, cell: (r) => <Name item={r} /> },
-          { id: 'kind', header: t('lists.col.kind'), sort: (r) => kindText(t, r.kind), cell: (r) => kindText(t, r.kind) },
+          { id: 'kind', header: t('lists.col.kind'), sort: (r) => kindText(t, r.kind), cell: (r) => (r.parts ? null : kindText(t, r.kind)) },
           { id: 'owner', header: t('lists.col.owner'), cell: (r) => <OwnerChips owners={r.owners} /> },
-          { id: 'value', header: t('lists.col.value'), align: 'end', sort: (r) => amountKey(r.figures.value?.amount),
-            cell: (r) => r.figures.value ? <Money value={r.figures.value} tabular /> : <span className="text-muted-foreground">{t('investments.no_value')}</span> },
-          { id: 'gain', header: t('lists.col.gain'), align: 'end', cell: (r) => r.figures.value ? <Gain figures={r.figures} /> : <span aria-hidden="true">{t('investments.dash')}</span> },
-          { id: 'updated', header: t('lists.col.updated'), sort: (r) => r.figures.asOf ?? '', cell: (r) => <Updated item={r} /> },
+          { id: 'value', header: t('lists.col.value'), align: 'end', sort: (r) => amountKey(value(r)?.amount), cell: valueCell },
+          { id: 'gain', header: t('lists.col.gain'), align: 'end', cell: (r) => r.parts ? null : r.figures.value ? <Gain figures={r.figures} /> : <span aria-hidden="true">{t('investments.dash')}</span> },
+          { id: 'updated', header: t('lists.col.updated'), sort: (r) => r.figures.asOf ?? '', cell: (r) => (r.parts ? null : <Updated item={r} />) },
         ]}
         mobile={(r) => (
           <div className="space-y-1">
             <div className="flex items-center justify-between gap-2"><Name item={r} /><OwnerChips owners={r.owners} /></div>
             <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-              {r.figures.value ? <Money value={r.figures.value} tabular /> : <span className="text-muted-foreground">{t('investments.no_value')}</span>}
-              {r.figures.value ? <Gain figures={r.figures} /> : null}
+              {valueCell(r)}
+              {!r.parts && r.figures.value ? <Gain figures={r.figures} /> : null}
             </div>
           </div>
         )} />
@@ -136,8 +140,20 @@ function Body({ answer, add }: { answer: ReturnType<typeof useEnvelopes>; add: R
   );
 }
 
-function Name({ item }: { item: EnvelopeSummary }) {
+type Row = EnvelopeSummary & { parts?: EnvelopeSummary[]; total?: EnvelopeList['groups'][number]['value'] };
+
+/** A group of one stays a plain row; a gathered row takes its leading envelope's id, for its key. */
+function rows(data: EnvelopeList): Row[] {
+  const byId = new Map(data.items.map((i) => [i.id, i]));
+  return data.groups.flatMap((g) => {
+    const parts = g.items.flatMap((id) => byId.get(id) ?? []);
+    return parts.length > 1 ? [{ ...parts[0]!, parts, total: g.value }] : parts;
+  });
+}
+
+function Name({ item }: { item: Row }) {
   const { t } = useTranslation();
+  if (item.parts) return <span className="font-medium">{t('investments.group', { count: item.parts.length })}</span>;
   return (
     <span className="inline-flex flex-wrap items-center gap-2">
       <span className="font-medium">{item.displayName}</span>

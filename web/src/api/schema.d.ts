@@ -41572,8 +41572,14 @@ export interface components {
             /** Format: double */
             coveredPct?: null | number;
         };
+        EnvelopeGroupView: {
+            owners: components["schemas"]["ItemOwnerView"][];
+            items: string[];
+            value?: null | components["schemas"]["AmountView"];
+        };
         EnvelopeList: {
             items: components["schemas"]["EnvelopeSummary"][];
+            groups: components["schemas"]["EnvelopeGroupView"][];
         };
         EnvelopeOverviewRow: {
             /** Format: uuid */

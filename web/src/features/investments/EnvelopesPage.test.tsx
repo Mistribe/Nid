@@ -41,6 +41,27 @@ describe('EnvelopesPage', () => {
     await expectNoAxeViolations(container);
   });
 
+  it('folds the envelopes of the same owners into one row with the server total, unfolded on demand', async () => {
+    const alice = [{ personId: '0192f0aa-0000-7000-8000-0000000000a1', shareBp: 10000 }];
+    const pea = summary({ id: 'a', displayName: 'PEA', owners: alice });
+    const livret = summary({ id: 'b', displayName: 'Livret A', kind: 'savings', owners: alice });
+    const bob = summary({ id: 'c', displayName: 'Assurance-vie', kind: 'life_insurance' });
+    serve(list([pea, livret, bob], [
+      { owners: alice, items: ['a', 'b'], value: eur('30000.0000') },
+      { owners: [], items: ['c'], value: eur('25000.0000') },
+    ]));
+    const { user, container } = await renderApp('/investments?tab=list');
+
+    const folded = await rows();
+    expect(folded).toHaveLength(2);
+    expect(folded[0]).toHaveTextContent('2 comptes');
+    expect(folded[0]).toHaveTextContent(/30\s000,00\s€/);
+    expect(folded[1]).toHaveTextContent('Assurance-vie');
+    await user.click(within(folded[0]!).getByRole('button', { name: 'Déplier les comptes' }));
+    expect((await rows()).map((r) => within(r).getAllByRole('cell')[0]!.textContent)).toEqual(['2 comptes', 'PEA', 'Livret A', 'Assurance-vie']);
+    await expectNoAxeViolations(container);
+  });
+
   it('sorts by value', async () => {
     serve(list([
       summary({ id: 'a', displayName: 'Gros', figures: figures({ value: eur('25000.0000') }) }),
