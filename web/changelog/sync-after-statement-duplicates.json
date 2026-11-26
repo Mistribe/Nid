@@ -1,0 +1,4 @@
+{
+  "en": "The bank sync no longer adds a second copy of a transaction already imported from a statement file under another label.",
+  "fr": "La synchronisation bancaire n’ajoute plus une seconde fois une opération déjà importée d’un relevé sous un autre libellé."
+}

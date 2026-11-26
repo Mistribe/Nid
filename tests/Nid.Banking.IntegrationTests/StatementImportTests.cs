@@ -446,6 +446,34 @@ public class StatementImportTests(PostgresFixture fixture) : IClassFixture<Postg
         Assert.Equal(["F2"], await db.Transactions.Where(t => t.FetchedVia == "file").Select(t => t.ProviderRef).ToListAsync(cancellationToken: TestContext.Current.CancellationToken));
     }
 
+    /// <summary>#779: the sync after a file leaves out the lines the file brought under its own label, one for one, as D23 does the other way.</summary>
+    [Fact]
+    public async Task A_sync_after_an_ofx_leaves_the_file_s_lines_out()
+    {
+        var (app, _) = await StartAsync(fixture, D(10, 29));
+        await using var _app = app;
+        Assert.Equal((3, 0, 0, true), Counts(await ImportedAsync(app, app.AdultA, October_(), confirm: true)));
+        await BankingApi.ConnectAsync(app, app.AdultA, "code-a", BankingApi.Account("uid-1", "hash-1", Iban, "Courant A"));
+        app.Banks.Balances[("session-code-a", "uid-1")] = [new ProviderBalance("CLBD", 1234.56m, "EUR", D(10, 28))];
+        // F1's label cut, F2's a day apart, a second debit of F2's amount the file has not, and a new line.
+        app.Banks.Transactions[("session-code-a", "uid-1")] =
+        [
+            new("api-1", D(10, 12), null, -13.49m, "EUR", "CARTE X1234 11/10 AMAZON", null, null),
+            new("api-2", D(10, 16), null, -84.20m, "EUR", "PRLV SEPA EDF CLIENTS PARTICULIERS ECHEANCE OCTOBRE", null, null),
+            new("api-3", D(10, 16), null, -84.20m, "EUR", "PRLV SEPA EDF CLIENTS PARTICULIERS REGULARISATION", null, null),
+            new("api-4", D(10, 28), null, -20m, "EUR", "CB BOULANGERIE", null, null),
+        ];
+        await using (var scope = app.Services.CreateAsyncScope())
+        {
+            scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
+            await scope.ServiceProvider.GetRequiredService<IInvoker>().InvokeAsync(new SyncAllCommand(), TestContext.Current.CancellationToken);
+        }
+
+        await using var db = Db(app);
+        Assert.Equal(["F1", "F2", "F3", "api-3", "api-4"], (await db.Transactions.Select(t => t.ProviderRef!).ToListAsync(TestContext.Current.CancellationToken))
+            .Order(StringComparer.Ordinal));
+    }
+
     [Fact]
     public async Task A_credit_card_statement_makes_a_card_account_that_takes_no_envelope()
     {
