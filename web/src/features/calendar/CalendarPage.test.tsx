@@ -25,13 +25,14 @@ function charge(over: Partial<CalendarCharge>): CalendarCharge {
     amount: eur('1200.00'), converted: eur('1200.00'), missingCurrency: null, credit: false, ...over };
 }
 
-/** Invented figures: a loan's instalment on the 15th, two subscriptions and a rent on the 1st, a property's tax on the 20th. */
+/** Invented figures: a loan's instalment on the 15th, two subscriptions and a rent on the 1st, a property's tax on the 20th, a salary on the 28th. */
 const NOVEMBER: CalendarAmounts = {
-  currency: 'EUR', out: total('2450.00'), in: total('800.00'), balance: total('-1650.00'),
+  currency: 'EUR', out: total('2450.00'), in: total('3300.00'), balance: total('850.00'),
   days: [
     { on: '2026-11-01', out: total('50.00'), in: total('800.00'), heavy: true },
     { on: '2026-11-15', out: total('1200.00'), in: null, heavy: true },
     { on: '2026-11-20', out: total(null, 'USD'), in: null, heavy: false },
+    { on: '2026-11-28', out: null, in: total('2500.00'), heavy: false },
   ],
   charges: [
     charge({ on: '2026-11-01', module: 'subscriptions', id: '00000000-0000-7000-8000-0000000000e2', name: 'Box internet', kind: 'subscription', amount: eur('30.00') }),
@@ -40,6 +41,7 @@ const NOVEMBER: CalendarAmounts = {
     charge({}),
     charge({ on: '2026-11-20', module: 'properties', id: '00000000-0000-7000-8000-0000000000e4', name: 'Studio', kind: 'property_cost',
       amount: { amount: '1200.00', currency: 'USD' }, converted: null, missingCurrency: 'USD' }),
+    charge({ on: '2026-11-28', module: 'income', id: '00000000-0000-7000-8000-0000000000e5', name: 'Salaire Alice', kind: 'income', amount: eur('2500.00'), credit: true }),
   ],
 };
 const grid = () => screen.findByRole('group', { name: 'Calendrier du mois' });
@@ -164,8 +166,8 @@ describe('Calendrier', () => {
 
     const header = (await screen.findByText('Sorties prévues')).closest('dl')!;
     expect(header).toHaveTextContent(/Sorties prévues2\s450,00\s€/);
-    expect(header).toHaveTextContent(/Entrées prévues800,00\s€/);
-    expect(header).toHaveTextContent(/Solde du mois.*-1\s650,00\s€/);
+    expect(header).toHaveTextContent(/Entrées prévues3\s300,00\s€/);
+    expect(header).toHaveTextContent(/Solde du mois.*850,00\s€/);
 
     // The cells: the day's totals, the heavy days marked; a missing rate reads « Inconnu ».
     const first = within(await grid()).getByRole('group', { name: 'dimanche 1 novembre' });
@@ -180,7 +182,10 @@ describe('Calendrier', () => {
     const list = screen.getByRole('list', { name: 'Échéances jour par jour' });
     expect(within(list).getByRole('link', { name: /^Loyer.*Studio/ })).toHaveTextContent(/\+800,00\s€/);
     expect(within(list).getByRole('link', { name: /^Charge du bien.*Studio/ })).toHaveTextContent(/−1\s200,00\s\$US/);
-    expect(within(list).getAllByRole('link')).toHaveLength(6);
+    // #714: a salary is money in on its payment day, linked to its source.
+    expect(within(list).getByRole('link', { name: /^Versement.*Salaire Alice/ })).toHaveTextContent(/\+2\s500,00\s€/);
+    expect(within(list).getByRole('link', { name: /^Versement.*Salaire Alice/ })).toHaveAttribute('href', '/income/00000000-0000-7000-8000-0000000000e5');
+    expect(within(list).getAllByRole('link')).toHaveLength(7);
     await expectNoAxeViolations(container);
 
     // Childcare is a module like the others then.

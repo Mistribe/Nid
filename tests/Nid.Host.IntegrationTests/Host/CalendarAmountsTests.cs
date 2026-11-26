@@ -77,6 +77,19 @@ public class CalendarAmountsTests(PostgresFixture fixture) : IClassFixture<Postg
         Assert.Equal(Total(dashboard.GetProperty("cashThisMonth")), Total(amounts.GetProperty("out")));
     }
 
+    /// <summary>#714: each income source's payment is money in on its day, under the income module.</summary>
+    [Fact]
+    public async Task An_income_sources_payments_are_money_in()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await ProjectionApi.IncomeSourceAsync(app, "Salaire Alice", "salary", "2025-01-28", "2500");
+
+        var view = await GetAsync(app, app.AdultA, October + "&amounts=true");
+        Assert.Equal(["2025-10-28 income income Salaire Alice 2500.00 in"], Charges(view));
+        Assert.Equal(("0.00", "2500.00"), (Total(view.GetProperty("amounts").GetProperty("out")), Total(view.GetProperty("amounts").GetProperty("in"))));
+        Assert.Empty(Charges(await GetAsync(app, app.AdultA, October + "&amounts=true&modules=loans")));
+    }
+
     [Fact]
     public async Task Without_amounts_the_view_has_none_and_a_month_with_no_charge_totals_zero()
     {

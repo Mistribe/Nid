@@ -125,6 +125,31 @@ public sealed class IncomeSourcesUpcoming(IVisibleItems visible, IItemRegistry i
     }
 }
 
+/// <summary>
+/// #714: each payment of the reader's open income sources in the window, on the day Revenus gives as « Prochain versement », as the
+/// calendar's money in (the rents are RealEstate's). Never linked by the bank reconciliation (<see cref="IProjectedCharges"/>).
+/// </summary>
+public sealed class IncomeSourcesPayments(IVisibleItems visible, IItemRegistry items, ISourceStore sources, IPhaseStore phases) : IProjectedCharges
+{
+    public static readonly ChargeKind Income = new(ChargeKinds.Income, CalendarModules.Income);
+
+    public async Task<Result<IReadOnlyList<ExpectedCharge>>> ChargesAsync(PersonId reader, VisibilityScope scope, LocalDate from, LocalDate to, CancellationToken ct)
+    {
+        var found = await sources.FindManyAsync((await visible.ForAsync(reader, scope, ct)).ToList(), ct);
+        var bySource = (await phases.ForSourcesAsync(found.Select(s => s.ItemId).ToList(), ct)).ToLookup(p => p.Source);
+        var accesses = await items.FindManyAsync(found.Select(s => s.ItemId).ToList(), ct); // batched reads spec §3
+        var charges = new List<ExpectedCharge>();
+        foreach (var source in found)
+        {
+            if (!accesses.TryGetValue(source.ItemId, out var item) || item.ArchivedAt is not null)
+                continue;
+            charges.AddRange(bySource[source.ItemId].SelectMany(p => IncomeMath.Occurrences(p, from, to.PlusDays(1))).Select(o => new ExpectedCharge(
+                "income", source.ItemId, item.DisplayName, Income, $"payment:{o.PhaseId}:{o.On:yyyy-MM-dd}", o.On, o.Amount, true, 0, [])));
+        }
+        return Result.Success<IReadOnlyList<ExpectedCharge>>(charges);
+    }
+}
+
 /// <summary>Issue #81: the next payment of the reader's active income sources, rents aside (the shortfall ahead's window).</summary>
 public sealed class IncomeSourcesNext(IVisibleItems visible, ISourceStore sources, IPhaseStore phases) : IExpectedIncome
 {
