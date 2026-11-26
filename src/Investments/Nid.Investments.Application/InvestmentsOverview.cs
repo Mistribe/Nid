@@ -216,7 +216,7 @@ internal static class InvestmentsOverviewMath
         var gain = SumOrNull(invested.Select(v => v.Gain));
 
         // D3: the dashboard's « since 1 January ».
-        var since = invested.Select(v => (v.Facts, Period: EnvelopesNetWorth.SinceJanuary(v.Facts, today))).Where(x => x.Period is not null).ToList();
+        var since = invested.Select(v => (v.Facts, Period: EnvelopesNetWorth.SinceJanuary(v.Facts, today, v.Estimate))).Where(x => x.Period is not null).ToList();
         var sinceGain = SumOrNull(since.Select(x => convert.Of(x.Period!.Performance!.Value.Amount, x.Facts.Currency, today)));
         var sinceBase = SumOrNull(since.Select(x => convert.Of(x.Period!.StartValue!.Value.Amount + x.Period.NetContributions!.Value.Amount, x.Facts.Currency, today)));
 
