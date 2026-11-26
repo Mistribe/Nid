@@ -409,8 +409,8 @@
     "returns_reference": "Vos livrets {{pct}}",
     "returns_none": "Aucune enveloppe n’a encore un an de valeurs.",
     "returns_not_meaningful": "Non significatif (moins de 12 mois) : {{names}}",
-    "stale_start": "valeur de départ ancienne",
-    "no_start_value": "sans valeur au début : compté au montant versé",
+    "stale_start": "valeur de départ ancienne : hors total",
+    "no_start_value": "sans valeur au début : hors total",
     "empty": "Aucune enveloppe n’a de valeur sur cette période."
   },
   "investments_income": {

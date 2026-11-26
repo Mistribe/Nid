@@ -56,7 +56,8 @@ public class YearReviewEndpointTests(PostgresFixture fixture) : IClassFixture<Po
         var review = (await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Review}?year=2024&scope=household"))).GetProperty("investments");
         var page = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Performance}?scope=household&from=2023-12-31&to=2024-12-31"));
 
-        Assert.Equal(("21000.00", "25100.00", "2100.00"), (A(review, "startValue"), A(review, "endValue"), A(review, "gain")));
+        // #768: « Récent », valued without a start nor money paid in, is out of the totals on both.
+        Assert.Equal(("21000.00", "25000.00", "2000.00"), (A(review, "startValue"), A(review, "endValue"), A(review, "gain")));
         Assert.Equal((A(page, "startValue"), A(page, "endValue"), A(page, "contributions"), A(page, "withdrawals"), A(page, "performance")),
             (A(review, "startValue"), A(review, "endValue"), A(review, "contributions"), A(review, "withdrawals"), A(review, "gain")));
         Assert.Equal(page.GetProperty("periodReturnPct").GetDecimal(), review.GetProperty("periodReturnPct").GetDecimal());

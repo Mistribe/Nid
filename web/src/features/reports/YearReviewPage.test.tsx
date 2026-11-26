@@ -179,7 +179,7 @@ describe('YearReviewPage', () => {
     const rows = within(table).getAllByRole('row').slice(1);
     expect(rows).toHaveLength(2);
     expect(rows[0]).toHaveTextContent(/^PEA Alice.*\+11,5 %$/);
-    expect(rows[1]).toHaveTextContent(/^Assurance-vie Bob valeur de départ ancienne.*\+9,8 %$/);
+    expect(rows[1]).toHaveTextContent(/^Assurance-vie Bob valeur de départ ancienne : hors total.*\+9,8 %$/);
     expect(within(rows[0]!).getByRole('link', { name: 'PEA Alice' })).toHaveAttribute('href', '/investments/00000000-0000-0000-0000-000000000001');
   });
 
@@ -189,7 +189,7 @@ describe('YearReviewPage', () => {
     await renderApp('/reports/year?year=2025');
 
     const rows = within(within(await screen.findByRole('region', { name: 'Placements' })).getByRole('table')).getAllByRole('row').slice(1);
-    expect(rows[0]).toHaveTextContent(/^PEA Alice sans valeur au début : compté au montant versé.*\+11,5 %$/);
+    expect(rows[0]).toHaveTextContent(/^PEA Alice sans valeur au début : hors total.*\+11,5 %$/);
     expect(rows[1]).not.toHaveTextContent('sans valeur au début');
   });
 
