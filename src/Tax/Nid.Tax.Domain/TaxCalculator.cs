@@ -1,3 +1,5 @@
+using NodaTime;
+
 namespace Nid.Tax.Domain;
 
 public enum EmploymentStatus { NonExecutive, Executive, Public }
@@ -137,11 +139,25 @@ public sealed record DeclarantWithholding(string Name, decimal Salaries, decimal
 
 /// <summary>
 /// Spec §4bis, the « baisse sans risque »: the salaries to enter (<c>Declarants[i].Salaries</c>) for the rate <c>Rate</c>, and the
-/// monthly amounts that rate withholds on the real salaries. <c>Less</c>: withheld less over the year; <c>Balance</c>: what is left
-/// at the declaration (negative: paid back).
+/// monthly amounts that rate withholds on the real salaries. <c>Less</c>: withheld less over the <c>Months</c> of the year the rate
+/// still applies to; <c>Balance</c>: what is left at the declaration (negative: paid back).
 /// </summary>
 public sealed record WithholdingCut(
-    decimal Rate, IReadOnlyList<DeclarantWithholding> Declarants, decimal RentalMonthly, decimal Annual, decimal Less, decimal Balance);
+    decimal Rate, IReadOnlyList<DeclarantWithholding> Declarants, decimal RentalMonthly, decimal Annual, decimal Less, decimal Balance,
+    int Months = 12)
+{
+    /// <summary>
+    /// #717: a rate asked for on <paramref name="today"/> applies from the month after next (the administration takes one to three
+    /// months): <c>Less</c> and <c>Balance</c> keep only the months of <paramref name="year"/> left by then; the rest is next year's.
+    /// </summary>
+    public WithholdingCut AppliedFrom(LocalDate today, int year)
+    {
+        var first = new LocalDate(today.Year, today.Month, 1).PlusMonths(2);
+        var months = first.Year < year ? 12 : first.Year > year ? 0 : 13 - first.Month;
+        var less = Math.Round(Less * months / 12, 2, MidpointRounding.AwayFromZero);
+        return this with { Less = less, Balance = Balance - Less + less, Months = months };
+    }
+}
 
 public static class TaxWarnings
 {

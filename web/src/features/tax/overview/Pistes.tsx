@@ -49,7 +49,8 @@ export function pistesOf(t: TFunction, { year, result: r }: TaxEstimate, thisYea
       ...(less ? { saving: unsigned(option) } : { same: stay }) });
   }
   const cut = r.withholding.cut;
-  if (current && cut) {
+  // #717: a cut asked too late to reach this year is no saving this year.
+  if (current && cut && cut.months > 0) {
     out.push({ key: 'cut', tile: '/income', link: tab('withholding'), title: t('tax.pistes.cut.title', { amount: wholeEur(cut.less) }),
       detail: t('tax.pistes.cut.detail', { rate: percentText(t, cut.rate) }) });
   }

@@ -42,7 +42,7 @@ describe('pistesOf', () => {
   });
 
   it('offers neither the PER nor the cut for a past year', () => {
-    const keys = of({ per: bank, withholding: { ...result().withholding, cut: { rate: '3.2', less: '600.00', declarants: [], rentalMonthly: '0.00', annual: '0.00', balance: '0.00' } } }, 2025).map((p) => p.key);
+    const keys = of({ per: bank, withholding: { ...result().withholding, cut: { rate: '3.2', less: '600.00', declarants: [], rentalMonthly: '0.00', annual: '0.00', balance: '0.00', months: 12 } } }, 2025).map((p) => p.key);
     expect(keys).not.toContain('per');
     expect(keys).not.toContain('cut');
   });
@@ -65,9 +65,12 @@ describe('pistesOf', () => {
   });
 
   it('the safe cut this year opens Prélèvement', () => {
-    const p = of({ withholding: { ...result().withholding, cut: { rate: '3.2', less: '600.00', declarants: [], rentalMonthly: '0.00', annual: '0.00', balance: '0.00' } } })[0]!;
+    const p = of({ withholding: { ...result().withholding, cut: { rate: '3.2', less: '600.00', declarants: [], rentalMonthly: '0.00', annual: '0.00', balance: '0.00', months: 12 } } })[0]!;
     expect(p.key).toBe('cut');
     expect(p.title).toContain('600 €');
+    // #717: asked too late for this year, no saving this year.
+    const late = of({ withholding: { ...result().withholding, cut: { rate: '3.2', less: '0.00', declarants: [], rentalMonthly: '0.00', annual: '0.00', balance: '0.00', months: 0 } } });
+    expect(late.map((x) => x.key)).not.toContain('cut');
   });
 
   it("an estimated ceiling asks for the notice's", () => {

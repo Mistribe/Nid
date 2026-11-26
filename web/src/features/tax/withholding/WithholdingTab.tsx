@@ -20,6 +20,11 @@ import '@/locales/tax';
 const gapText = (t: TFunction, balance: string, year: number) => (ZERO.test(balance)
   ? balanceWords(t, balance, year) : t('tax.withholding.gap', { words: balanceWords(t, balance, year), amount: eurUnsigned(balance) }));
 
+/** #717: the months of the year a rate asked today still reaches, the rest of the cut being next year's; nothing for a whole year. */
+const lessHint = (t: TFunction, months: number, year: number) => (months >= 12 ? undefined
+  : months === 0 ? t('tax.withholding.cut.less_next_year', { next: year + 1 })
+    : t('tax.withholding.cut.less_months', { count: months, next: year + 1 }));
+
 /** What the card's dl rows read: a muted label and its amount. */
 function Rows({ rows, label }: { rows: [ReactNode, string][]; label?: string }) {
   return (
@@ -131,7 +136,7 @@ export function WithholdingTab({ estimate }: { estimate: TaxEstimate }) {
             { label: t('tax.withholding.cut.rate'), value: percentText(t, cut.rate), tip: tipText(t, 'expected_rate') },
             ...cut.declarants.map((d) => ({ label: t('tax.withholding.cut.monthly', { name: d.name }), value: eur(d.monthly) })),
             ...(ZERO.test(w.rentalDeclared) ? [] : [{ label: t('tax.withholding.cut.rental_monthly'), value: eur(cut.rentalMonthly), tip: tipText(t, 'rental_instalment') }]),
-            { label: t('tax.withholding.cut.less'), value: eur(cut.less) },
+            { label: t('tax.withholding.cut.less'), value: eur(cut.less), hint: lessHint(t, cut.months, estimate.year) },
             { label: t('tax.withholding.cut.balance'), value: gapText(t, cut.balance, estimate.year) },
           ]} />
           <Rows rows={cut.declarants.flatMap((d): [string, string][] => [
