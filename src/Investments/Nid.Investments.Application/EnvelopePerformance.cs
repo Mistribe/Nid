@@ -33,7 +33,9 @@ public sealed class EnvelopePerformance(
         if (facts.TryGetFailure(out var failure))
             return Result.Failure<PeriodPerformance>(failure!);
         facts.TryGetValue(out var f);
-        return Result.Success(EnvelopeMath.Period(f!.Values, f.Flows, f.Currency, from, to));
+        var period = EnvelopeMath.Period(f!.Values, f.Flows, f.Currency, from, to);
+        // #776: an account that is no investment (#374) has no performance over a period either, only its values.
+        return Result.Success(EnvelopeMath.HasPerformance(f.Envelope.Kind, f.Values, f.Flows) ? period : period with { Performance = null });
     }
 
     internal async Task<Result<Facts>> FactsAsync(ItemId id, CancellationToken ct)
