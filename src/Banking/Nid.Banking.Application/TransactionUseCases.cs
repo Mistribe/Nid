@@ -66,6 +66,16 @@ public sealed record SetTransactionCategoryCommand(Guid TransactionId, Guid? Cat
 /// </summary>
 public sealed record SetTransactionsCategoryCommand(IReadOnlyList<Guid> TransactionIds, Guid? CategoryId) : ICommand<LinesCategorised>, ITransactional, IRequiresBanking;
 
+/// <summary>
+/// #721: the other lines of <paramref name="TransactionId"/>'s normalised label that nothing classified yet (no category, no category source,
+/// not ignored), on the accounts the actor writes, newest first; at most <see cref="SameLabelLinesHandler.Most"/>, so they take a category
+/// with it in one <see cref="SetTransactionsCategoryCommand"/>.
+/// </summary>
+public sealed record SameLabelLinesQuery(Guid TransactionId) : IQuery<IReadOnlyList<Guid>>, IBankLineScoped
+{
+    public AccessKind Access => AccessKind.Read;
+}
+
 /// <summary>The lines that took the category, and the others with the code one line alone would have been refused with.</summary>
 public sealed record LinesCategorised(IReadOnlyList<Guid> Changed, IReadOnlyList<LineRefusal> Refused);
 
@@ -407,6 +417,22 @@ public sealed class IgnoreTransactionHandler(IContextAccessor context, BankLines
 
         await links.ClearAsync(line.Id, TransactionLinkState.Ignored, ct);
         return Result.Success(await lines.ViewAsync(line.Id, ct));
+    }
+}
+
+[RequestHandler<SameLabelLinesQuery, IReadOnlyList<Guid>>]
+public sealed class SameLabelLinesHandler(IContextAccessor context, BankingAccess access, IAccountStore accounts, ITransactionStore transactions)
+    : IRequestHandler<SameLabelLinesQuery, IReadOnlyList<Guid>>
+{
+    /// <summary>The bulk categorisation's own limit, the line itself aside.</summary>
+    public const int Most = SetTransactionsCategoryHandler.Most - 1;
+
+    public async ValueTask<Result<IReadOnlyList<Guid>>> HandleAsync(SameLabelLinesQuery query, CancellationToken ct = default)
+    {
+        var line = CheckedResources.Of<BankTransaction>(context, query);
+        var writable = (await access.ReadableAsync(await accounts.AllAsync(ct), ct)).Where(r => r.CanWrite).Select(r => r.Account.Id).ToList();
+        var same = await transactions.ListAsync(writable, null, null, 0, Most + 1, ct, uncategorised: true, normalizedLabel: line!.NormalizedLabel);
+        return Result.Success<IReadOnlyList<Guid>>([.. same.Where(l => l.Id != line.Id).Take(Most).Select(l => l.Id)]);
     }
 }
 

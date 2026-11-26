@@ -22,13 +22,16 @@ import { Section } from '@/components/page/Section';
 import { SortableTable } from '@/components/page/SortableTable';
 import { amountKey } from '@/components/page/sortKey';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { formatInstantDay } from '@/lib/format';
 import { toFieldAmount, toWireAmount } from '@/lib/amount';
 import {
-  accountLabel, activeCategoryOptions, bankErrorText, CATEGORY_RULE, CATEGORY_RULE_APPLY, CATEGORY_RULE_PREVIEW, CATEGORY_RULES, presentBankError,
-  useBankAccounts, useCategories, type BankTransaction, type CategoryRule,
+  accountLabel, activeCategoryOptions, bankErrorText, CATEGORY_RULE, CATEGORY_RULE_APPLY, CATEGORY_RULE_DRAFT_PREVIEW, CATEGORY_RULE_PREVIEW, CATEGORY_RULES,
+  presentBankError, useBankAccounts, useCategories, type BankTransaction, type CategoryRule,
 } from '@/api/banking';
+import { DraftPreview } from '../investments/operations/CategoryDialog';
 import '@/locales/banks';
 
 const ALL = 'all';
@@ -130,10 +133,14 @@ export function CategoryRules() {
   );
 }
 
-/** A new rule, or one changed as a whole (the server replaces every field): pattern and category first, the rest under « Personnaliser ». */
+/**
+ * A new rule, or one changed as a whole (the server replaces every field): pattern and category first, the rest under « Personnaliser ».
+ * #721: a new one says how many past lines it would classify (never one classified by hand) and classifies them as it is created.
+ */
 function RuleDialog({ rule, onClose, onDone }: { rule?: CategoryRule; onClose: () => void; onDone: (message: string) => void }) {
   const { t } = useTranslation();
-  const { create, update } = useRuleWrites();
+  const { $api } = useApi();
+  const { create, update, apply } = useRuleWrites();
   const categories = useCategories();
   const accounts = useBankAccounts();
   const [pattern, setPattern] = useState(rule?.pattern ?? '');
@@ -145,6 +152,18 @@ function RuleDialog({ rule, onClose, onDone }: { rule?: CategoryRule; onClose: (
   const custom = account !== '' || direction !== ALL || min !== '' || max !== '';
   const [more, setMore] = useState(custom);
   const directionId = useId();
+  const applyId = useId();
+  const body = () => ({
+    pattern: pattern.trim(), categoryId: category, accountId: account || null, direction: direction === ALL ? null : direction,
+    minAmount: min.trim() ? toWireAmount(min) : null, maxAmount: max.trim() ? toWireAmount(max) : null,
+  });
+  // The draft the preview was asked for, a moment after the last change.
+  const [asked, setAsked] = useState(body());
+  const key = JSON.stringify(body());
+  useEffect(() => { const timer = setTimeout(() => setAsked(JSON.parse(key) as typeof asked), 300); return () => clearTimeout(timer); }, [key]);
+  const preview = $api.useQuery('post', CATEGORY_RULE_DRAFT_PREVIEW, { body: asked }, { enabled: !rule && !!asked.pattern && !!asked.categoryId, retry: false });
+  const past = preview.data && asked.pattern ? preview.data.total : 0;
+  const [applyPast, setApplyPast] = useState(true);
 
   const write = rule ? update : create;
   const fields = fieldErrorsOf(write.error);
@@ -164,6 +183,7 @@ function RuleDialog({ rule, onClose, onDone }: { rule?: CategoryRule; onClose: (
   const options = activeCategoryOptions(categories.data);
   // The rule's own category may be archived by now: still shown, so a save says why it is refused.
   if (rule && category === rule.categoryId && !options.some((o) => o.value === category)) options.unshift({ value: rule.categoryId, label: rule.categoryName });
+  const categoryName = options.find((o) => o.value === category)?.label ?? '';
   const accountOptions = [
     { value: '', label: t('banks.category_rules.all_accounts') },
     ...(accounts ?? []).filter((a) => a.canWrite || a.id === rule?.accountId).map((a) => ({ value: a.id, label: accountLabel(t, a) })),
@@ -176,12 +196,14 @@ function RuleDialog({ rule, onClose, onDone }: { rule?: CategoryRule; onClose: (
         <form aria-labelledby={titleId} noValidate className="space-y-4" onSubmit={(event) => {
           event.preventDefault();
           event.stopPropagation();
-          const body = {
-            pattern: pattern.trim(), categoryId: category, accountId: account || null, direction: direction === ALL ? null : direction,
-            minAmount: min.trim() ? toWireAmount(min) : null, maxAmount: max.trim() ? toWireAmount(max) : null,
-          };
-          if (rule) update.mutate({ params: { path: { id: rule.id } }, body }, { onSuccess: () => done(t('banks.category_rules.done_edit')) });
-          else create.mutate({ body }, { onSuccess: () => done(t('banks.category_rules.done_create')) });
+          if (rule) update.mutate({ params: { path: { id: rule.id } }, body: body() }, { onSuccess: () => done(t('banks.category_rules.done_edit')) });
+          else create.mutate({ body: body() }, { onSuccess: (created) => applyPast && past > 0
+            // The rule exists either way: a failed apply closes too, so it is not created twice.
+            ? apply.mutate({ params: { path: { id: created.id } } }, {
+              onSuccess: (r) => done(t('banks.categories.offer_done_apply', { count: r.changed })),
+              onError: () => done(t('banks.category_rules.done_create_not_applied')),
+            })
+            : done(t('banks.category_rules.done_create')) });
         }}>
           {shown ? <ProblemMessage problem={shown} /> : null}
           <Field label={t('banks.category_rules.pattern')} hint={t('banks.category_rules.pattern_hint')} error={errors.pattern}
@@ -219,9 +241,16 @@ function RuleDialog({ rule, onClose, onDone }: { rule?: CategoryRule; onClose: (
               </Button>
             ) : null}
           </Folded>
+          {!rule && preview.data && asked.pattern ? <DraftPreview preview={preview.data} category={categoryName} /> : null}
+          {past > 0 ? (
+            <div className="flex items-center gap-2">
+              <Checkbox id={applyId} checked={applyPast} onCheckedChange={(checked) => setApplyPast(checked === true)} />
+              <Label htmlFor={applyId}>{t('banks.categories.offer_apply', { count: past })}</Label>
+            </div>
+          ) : null}
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => done()}>{t('common.cancel')}</Button>
-            <Button type="submit" disabled={!pattern.trim() || !category || write.isPending}>
+            <Button type="submit" disabled={!pattern.trim() || !category || write.isPending || apply.isPending}>
               {rule ? t('banks.category_rules.save') : t('banks.category_rules.create_submit')}
             </Button>
           </div>
